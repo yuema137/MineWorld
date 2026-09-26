@@ -159,6 +159,31 @@ impl World {
         &self.systems
     }
 
+    /// Puts an installed system back in the pipeline: its actions are routed again and it reduces
+    /// the facts it subscribes to again.
+    ///
+    /// Refused if the system is not installed, or if a dependency it declared is absent or
+    /// disabled — the same check installation applies, because enabling is when a system starts
+    /// acting and that is when its dependencies have to be there.
+    pub fn enable(&mut self, system: &SystemId) -> Result<(), KernelError> {
+        self.systems.enable(system)
+    }
+
+    /// Takes an installed system out of the pipeline: nothing routes to it and nothing reduces
+    /// through it.
+    ///
+    /// This is the observable half of `AC-2`. An action the disabled system provided is answered
+    /// [`ActionResult::Unavailable`](mineworld_contracts::ActionResult::Unavailable) — exactly as in
+    /// a world where that system had never been installed — and no other module changes, which is
+    /// what "materially different games from the same core" has to mean at this layer.
+    ///
+    /// The system stays installed and the state it owns stays in the world, because that state is
+    /// still its state and no other system may write it. Refused while an enabled system depends on
+    /// it, naming the dependent.
+    pub fn disable(&mut self, system: &SystemId) -> Result<(), KernelError> {
+        self.systems.disable(system)
+    }
+
     /// Every system holding a write token in this world, in name order.
     ///
     /// The observable half of `BD-1`: a system appears here because this world granted it a token

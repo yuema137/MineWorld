@@ -188,11 +188,6 @@ impl WriteAccess {
         Ok(WriteToken::new())
     }
 
-    /// Whether a system already holds its write token.
-    pub(crate) fn is_granted(&self, system: &SystemId) -> bool {
-        self.granted.contains(system)
-    }
-
     /// Every system that holds a write token, in name order. Reported by
     /// [`World::writers`](crate::World::writers).
     pub(crate) fn granted(&self) -> impl Iterator<Item = &SystemId> {

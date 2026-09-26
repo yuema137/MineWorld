@@ -624,14 +624,16 @@ any domain system (S6).
 - [x] Review: no domain concept — the vocabulary is `System`, `SystemDeclaration`, `Emission`, `Deferral`, and the test stubs are named `Alpha`, `Beta`, `Counted`, `Tick`, `Ticked` because there is no domain to name them after. The trait cannot be implemented without naming its owner: `System: SystemIdentity`, so `ID` exists before anything else does, and `SystemDeclaration::of::<S>()` is the only constructor, so a declaration's name is read off the type rather than restated.
 
 ### C2 — World and sealed capability
-- [ ] Implementation: `World` owning registry, `ComponentStore`, `RelationStore`, `EntityRegistry` and the sole `WriteAccess`; `WriteAccess::new()` → `pub(crate)`; installation grants and stores the token.
-- [ ] Validation: **compile-fail — an external crate cannot construct `WriteAccess`**; installing twice is refused; a system's token is the one the world granted.
-- [ ] Review: re-run the A8 probe against the sealed API and record that it no longer compiles.
+- [x] Implementation: `kernel/src/world.rs` — `World` owning `SystemRegistry`, `ComponentStore`, `RelationStore`, `EntityRegistry` and the sole `WriteAccess`, with reads and assembly exposed and no `&mut` accessor to any store. `kernel/src/access.rs` — `WriteAccess::new()` and `grant()` are `pub(crate)` and no `Default` is derived, because a derived `Default` is a public second constructor. `World::install` performs the five steps in order (declaration name compared with `T::ID`, `check_installable`, grant, the system's own `install` hook through a `Declarations`, then every claimed component type confirmed to have a table) and stores the token in `InstalledSystem`. `kernel/src/registry.rs` — the registry skeleton: registration order as an explicit `Vec`, entries by name, `check_installable` refusing a repeated name.
+- [x] Validation: **compile-fail — `tests/compile_fail/an_external_crate_cannot_construct_write_access.rs`**, all three steps of the A8 attack written out, `.stderr` pinning `E0624` on `new`, `E0599` on `default` and `E0624` on `grant`. `kernel/tests/world.rs` — 5 external tests: a world is what its systems declare it to be (tables, registration order, exactly the installed systems holding tokens); a system is installed once; a borrowed declaration is refused; a claimed component type with no table is refused; identity is allocated and never reused. Component and relation tests moved into `kernel/src/components/tests.rs` and `kernel/src/relations/tests.rs`, which is what lets them keep exercising a constructor the crate no longer exports.
+- [x] Review: the A8 probe was re-run against the sealed API by the C3–C5 session, independently of the one that sealed it: `cargo test --test compile_fail -p mineworld-kernel` — 7 cases, all refused, and the sealed-capability case's recorded reason is `error[E0624]: associated function 'new' is private` / `error[E0599]: no associated function or constant named 'default'` / `error[E0624]: method 'grant' is private`. The three steps of the attack that succeeded in 03a now fail at the first one, and the second error is what keeps it from being reopened by a derive. Inherited requirement 1 of §3 is discharged.
+
+**Why these boxes were ticked after the commit.** C2's code was committed at `92aa972` without its ledger boxes, and the session stalled there. They are ticked here from the tree, the commit and a re-run of the probe rather than from the previous session's report, per the PR context authority order (repository truth first). One regression the commit introduced is recorded in §4.8.4 and repaired in C5.
 
 ### C3 — Registry: dependencies, conflicts, enable/disable
-- [ ] Implementation: install with dependency resolution; refuse a missing dependency naming it; refuse two systems claiming one component type via `ComponentDeclaration::conflicts_with`; enable/disable maintaining the action route map.
-- [ ] Validation: missing dependency named; conflicting ownership refused; disabling removes routes; registration order preserved and observable.
-- [ ] Review: order is explicit, never map iteration.
+- [x] Implementation: `kernel/src/registry.rs` — `SystemRegistry` gains the route map (`BTreeMap<ActionTypeId, SystemId>`, enabled systems only) and an `enabled` flag per entry. `check_installable` now refuses, in the order a reader of the failure wants them: a repeated name, a dependency that is absent (`SystemDependencyMissing`) or disabled (`SystemDependencyDisabled`), a component type claimed by another system (`ComponentDeclaration::conflicts_with` → `ComponentTypeClaimedByAnotherSystem`, preceded by the check that the declaration only lists component types it actually owns), and an action type another installed system provides (`ActionTypeProvidedByAnotherSystem`). `enable`/`disable` maintain the route map and are reached through `World::enable`/`World::disable`; `disable` refuses while an enabled system depends on the system (`SystemRequiredByAnotherSystem`). Six new `KernelError` variants; `provider`, `routes`, `subscribers`, `enabled` and `is_enabled` are the new public queries.
+- [x] Validation: `kernel/tests/composition.rs` — 10 external tests, all passing (120 workspace tests, up from 111): a missing dependency refused by name with nothing granted; a disabled dependency refused *as disabled*; two systems claiming `"occupancy"` refused with the first system's table untouched; a declaration listing another system's component type refused; two systems providing `"enter"` refused; registration order reported by `order()`, `enabled()` and `declarations()` with `almanac` installed last and sorting first; disabling removing the route and enabling restoring it while the table and the token stay; a depended-on system not disablable, and the dependent not re-enablable while its dependency is off; an unknown name refused by `enable` and `disable` alike.
+- [x] Review: order is explicit and never map iteration — `declarations`, `enabled` and `subscribers` all walk the `order` `Vec` and look each entry up, so the crate states order once. Pinned by mutation rather than by assertion: see §4.8.5, M-1 and M-2.
 
 ### C4 — Dispatch pipeline
 - [ ] Implementation: route → validate → resolve → events → reduce, with the cascade limit.
@@ -747,6 +749,36 @@ which looks exactly like a world that worked. The default returns `ActionNotReso
 naming the system and the action. `validate`, `react` and `install` keep permissive defaults, because
 a system that declares no action, subscribes to nothing or owns nothing is legal and common.
 
+**BI-7 — the registry refuses a second *provider of one action type*, which §4.4's C3 list does not
+name.** C3 names the component-type conflict. The action-type conflict is the same defect one line
+down: `BD-5` routes an action through a map from `ActionTypeId` to one system, so two providers would
+make the map's content depend on installation order, and `INV-10`'s answer — *no enabled system
+provides this* — would stop being decidable without asking which of the two was meant. The check is
+against *declarations*, not against the route map, because a disabled system still provides its
+actions: admitting a second provider while the first is disabled would build a world that cannot be
+enabled. Not a scope addition — §2's registry documentation already stated "one system per component
+type, one system per action type, and every declared dependency present" as what this module refuses.
+
+**BI-8 — a declared dependency must be installed *and enabled*, and disabling is refused while a
+dependent is enabled.** §3 says the registry "refuses to enable a system whose declared dependency
+is absent or disabled". Read only forwards, that leaves the hole open backwards: install A, install B
+depending on A, disable A, and B is now running against state nobody maintains — the state the
+forward check exists to prevent, reached from the other side. `disable` therefore refuses while an
+enabled system depends on the system, naming the dependent (`SystemRequiredByAnotherSystem`), and the
+world-pack author disables the dependent first. Chosen over cascading the disable, which would make
+one configuration change silently switch off systems the author did not name.
+
+**BI-9 — a declaration may only list component types it owns.** `SystemDeclaration::of::<Weather>()
+.owning::<Occupancy>()` is an ordinary expression even when `Occupancy` belongs to `Places`, and
+`conflicts_with` cannot see it: both declarations then carry `owner = places`, so they do not
+conflict. Before this check, such a system installed successfully whenever `Places` had already
+declared the table — `World::install`'s final loop only asks whether the table *exists* — and the
+registry then reported two systems owning one component type while only one could write it. The
+guard is one comparison in `check_owned_components`, and it reuses the existing
+`ComponentOwnerDisagreesWithDeclaration` variant, whose fields and message already say exactly this
+("declared as owned by X, registered by Y"). Found by writing C3's conflict test, not predicted by
+the design.
+
 ### 4.8.2 Bounded deviations
 
 ```text
@@ -769,6 +801,18 @@ Source:         the same constraint that makes the A8 compile-fail case possible
 Impact:         the pack-facing behaviour — routing, Unavailable, reduction order, enable and
                 disable — is still tested from outside the crate, in C3 to C5, where a pack lives
 Validation:     8 tests, all passing; the external suites are unchanged at C1
+
+Deviation:      WriteAccess::is_granted was deleted rather than kept
+Reason:         it had no caller in non-test code and, after C2 sealed the issuer, no possible
+                one: World::writers() is the observable half of BD-1, and grant() already refuses
+                a second token, so nothing in the crate needs to ask. Its one caller was a single
+                assertion in kernel/src/components/tests.rs that restated the line above it — the
+                granted() collection already proves "first-stub" holds a token
+Source:         cargo clippy -D warnings at C2's head reported it as never used; the terminal
+                condition requires a clean clippy, and an #[allow] on a method with no consumer
+                would be silencing the accurate report
+Impact:         none on the public surface; pub(crate), never exported
+Validation:     kernel/src/components/tests.rs still asserts the same fact through granted()
 ```
 
 ### 4.8.3 Validation record
@@ -793,4 +837,92 @@ command:  cargo test --workspace
 result:   C1 — 108 tests, 0 failures (58 contract + 3 contract doc-tests, unchanged;
           44 kernel + 3 kernel doc-tests). The 9 new tests are the 8 in kernel/src/system/tests.rs
           and the System trait's doc example.
+```
+
+```text
+command:  cargo fmt --all --check
+result:   clean at C3
+
+command:  cargo test --workspace
+result:   C3 — 120 tests, 0 failures. The 10 new tests are kernel/tests/composition.rs; one
+          redundant assertion was removed from kernel/src/components/tests.rs with is_granted
+          (§4.8.2), which changes no test count because it was an assertion, not a test.
+
+command:  cargo test --test compile_fail -p mineworld-kernel
+result:   7 compile-fail cases, all refused — the independent re-run of the A8 probe recorded
+          against C2's review box above.
+
+command:  cargo clippy --workspace --all-targets --all-features -- -D warnings
+result:   FAILS at C3, with 5 dead-code errors, and for the same reason it failed at C1: the
+          object-safe half of the trait has no caller until dispatch exists. What remains is
+          exactly DynSystem::{validate, resolve, react}, WorldParts::new, WorldView::new and
+          registry Entry.system / SystemRegistry::system — the five things C4 consumes, and one
+          fewer family than at C2 because is_granted was deleted rather than silenced. No
+          #[allow] was added: clippy is verified clean at C4 and at the final head.
+```
+
+### 4.8.4 A coverage regression C2 introduced, repaired in C5
+
+```text
+FINDING
+  C2 deleted kernel/tests/two_systems.rs (316 lines), PR 03a's integration checkpoint, and
+  replaced it with kernel/tests/world.rs.
+
+SOURCE AUDIT
+  git show 4c35a57:kernel/tests/two_systems.rs against the committed tree at 92aa972.
+  Three of its four claims survived the move: each system writing its own state and reading the
+  other's is covered by kernel/src/components/tests.rs; the cross-write compile error is
+  tests/compile_fail/a_system_cannot_write_another_systems_component.rs; installation is
+  kernel/tests/world.rs. Two did not survive anywhere:
+
+    a whole world round-trips through serde unchanged
+    replaying the same operations on a fresh world yields a byte-identical snapshot
+
+WHY IT MATTERS
+  The replay property is this layer's AC-12 evidence, and AC-6's. Losing it silently is worse
+  than never having had it: the branch would read as though determinism were still pinned.
+
+DECISION
+  Deleting the hand-rolled stand-in was right — it built a fake `World` struct out of the three
+  stores because no real World existed, and keeping a fake world beside the real one would be two
+  definitions of the same thing. What was wrong was deleting the two claims with it. They are
+  reinstated in C5 against the real World, where they are stronger: the snapshot now includes the
+  dispatched event envelopes, so replay equality covers event identity, causation and reduction
+  order as well as state.
+
+IMPLEMENTATION
+  kernel/tests/two_systems.rs, restored as PR 03b's integration checkpoint (C5).
+
+DEVIATION
+  Not a deviation from the frozen design: §4.4's C5 asked for the AC-2 evidence and did not
+  mention round-trip or replay, because the design did not notice the deletion either.
+```
+
+### 4.8.5 Mutation evidence
+
+Each mutation was applied to the committed implementation, the suite was re-run, and the
+implementation was restored from a byte-identical backup afterwards (verified with `git diff`).
+A test that stays green when the thing it guards is broken is decoration.
+
+```text
+M-1  break registration ordering
+     mutation:    SystemRegistry::declarations() and enabled() iterate self.entries (the
+                  name-keyed BTreeMap) instead of walking self.order
+     expected:    registration_order_is_the_order_systems_were_installed goes red, because
+                  `almanac` is installed last and sorts first
+     observed:    FAILED at kernel/tests/composition.rs:332 — 8 passed, 1 failed
+     verdict:     behaviour-changing, killed. This is the mutation BD-4 exists to forbid, and it
+                  is why the test installs a third system whose name sorts before the others:
+                  with only `places` and `weather`, installed in that order, map iteration and
+                  registration order agree and the mutation would have survived.
+
+M-2  break the route map so a disabled system's action still dispatches
+     mutation:    delete `self.routes.retain(|_, provider| provider != system)` from
+                  SystemRegistry::disable — the entry is still marked disabled, only the routes
+                  survive
+     expected:    disabling_a_system_removes_its_actions_from_the_route_map goes red
+     observed:    FAILED at kernel/tests/composition.rs:358 — 8 passed, 1 failed
+     verdict:     behaviour-changing, killed. The INV-10 / AC-2 guard is load-bearing at the
+                  registry layer; C4 re-runs the same mutation against dispatch, where the
+                  observable consequence is an action answering Accepted instead of Unavailable.
 ```

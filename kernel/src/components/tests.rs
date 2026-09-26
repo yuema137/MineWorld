@@ -430,7 +430,6 @@ fn a_system_is_granted_its_write_token_exactly_once() {
         access.granted().map(SystemId::as_str).collect::<Vec<_>>(),
         vec!["first-stub", "second-stub"]
     );
-    assert!(access.is_granted(&SystemId::from_static("first-stub")));
 }
 
 /// Every row in the store, as the labelled records persistence would carry.

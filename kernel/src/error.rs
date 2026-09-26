@@ -192,6 +192,65 @@ pub enum KernelError {
         system: SystemId,
     },
 
+    /// An operation named a system this world has never installed. Enabling or disabling one is a
+    /// statement about a world's composition, and a name that is not part of that composition is a
+    /// mistake in the configuration rather than a system that happens to be off.
+    #[error("system '{system}' is not installed in this world")]
+    SystemNotInstalled {
+        /// The name that is not part of this world.
+        system: SystemId,
+    },
+
+    /// A system declared a dependency on a system this world does not have. Refused by name,
+    /// because the name is the whole of the diagnosis: a world pack listed one system and not the
+    /// one it needs.
+    #[error("system '{system}' depends on '{dependency}', which is not installed in this world")]
+    SystemDependencyMissing {
+        /// The system whose dependency is absent.
+        system: SystemId,
+        /// The dependency it declared.
+        dependency: SystemId,
+    },
+
+    /// A system's declared dependency is installed and disabled. A dependency that does not act is
+    /// not a dependency that is present: the dependent would run against state nobody is
+    /// maintaining.
+    #[error("system '{system}' depends on '{dependency}', which is installed but disabled")]
+    SystemDependencyDisabled {
+        /// The system whose dependency is off.
+        system: SystemId,
+        /// The dependency that is off.
+        dependency: SystemId,
+    },
+
+    /// A system was to be disabled while an enabled system depends on it. Refused naming the
+    /// dependent: a world in which an enabled system's declared dependency is disabled is one the
+    /// registry would have refused to assemble, and reaching it by disabling is the same mistake
+    /// arrived at backwards.
+    #[error("system '{system}' cannot be disabled while '{required_by}' depends on it")]
+    SystemRequiredByAnotherSystem {
+        /// The system that was to be disabled.
+        system: SystemId,
+        /// The enabled system that depends on it.
+        required_by: SystemId,
+    },
+
+    /// Two systems provide the same action type. One request must have one answer: dispatch routes
+    /// an action to exactly one system, and `INV-10`'s answer — *no enabled system provides this* —
+    /// has to be decidable without asking which of two systems meant it.
+    #[error(
+        "action type '{action_type}' is already provided by '{provided_by}', \
+         so '{claimed_by}' cannot provide it"
+    )]
+    ActionTypeProvidedByAnotherSystem {
+        /// The contested action type.
+        action_type: ActionTypeId,
+        /// The system that provides it.
+        provided_by: SystemId,
+        /// The system that tried to provide it as well.
+        claimed_by: SystemId,
+    },
+
     /// A system's `declaration()` handed back a declaration belonging to another system. Nothing in
     /// the type system stops that — `SystemDeclaration::of::<Another>()` is an ordinary expression —
     /// so installation compares the two, because a declaration is what ownership conflicts are
