@@ -485,6 +485,49 @@ error; undirected edges are canonical in both construction orders; §6 clean.
 
 ---
 
+## C4b — World time value types
+
+> **Added during execution.** This block was not part of the frozen §7 sequence. It exists
+> because §1.1's approved scope lists `WorldTime` and `SimDuration` and none of the five frozen
+> commits implements them; the audit, the alternatives and the decision are recorded in §8.3
+> under "the approved scope contains a line the frozen commit plan never implements". C1–C5 keep
+> exactly the content §7 froze.
+
+### Goal
+Deliver the two time value types §1.1 approves, with nothing that belongs to the scheduler.
+
+### Scope
+```text
+new  contracts/src/time.rs   WorldTime, SimDuration
+edit contracts/src/lib.rs    module wiring
+new  contracts/tests/time.rs ordering, signed difference, stored shape
+```
+Non-goals: no clock, no tick, no advancement, no calendar, no process scheduling — S4 owns all
+of it (§1.2, D-6). Depends on: nothing; the types stand alone.
+
+### Implementation
+- [x] `WorldTime`: signed simulated seconds from a world epoch (DD-9), ordered, serde-transparent, with `EPOCH`.
+- [x] `SimDuration`: a signed length of simulated seconds, ordered, serde-transparent, with `ZERO`.
+- [x] `WorldTime::duration_since`, the one relation DD-9 names ("`SimDuration` for differences"), returning `None` rather than wrapping when the difference is inexpressible.
+- [x] Documented on the module: no calendar (`INV-12` — a `chrono::DateTime` here would import the calendar the kernel must not know) and no scheduling.
+
+### Validation
+- [x] Unit: moments order chronologically, including before the epoch — the assertion an unsigned clock would fail. `contracts/tests/time.rs::moments_order_chronologically_including_before_the_epoch`.
+- [x] Unit: the difference between two moments is signed in both directions and refuses an inexpressible one. `::the_difference_between_two_moments_is_signed`.
+- [x] Unit: both types are stored as bare seconds. `::simulated_time_is_stored_as_bare_seconds`.
+- [x] Static: §6 commands. All four clean — evidence in §8.2.
+
+### Review
+- [x] Confirm no calendar or clock concept entered the crate: `time.rs` has no notion of a day, a date, a weekday or a season, no dependency beyond `serde`, and nothing that advances a value.
+- [x] Confirm the scheduler's decisions are still open: the module states that tick selection, process waking and simultaneity are the scheduler's contracts, so A-3 remains an S4 question rather than something this PR settled by accident.
+- [x] Confirm no trivial test: each of the three pins a property that a plausible wrong implementation would break (unsigned clock, unsigned or wrapping difference, wrapped wire shape).
+
+### Acceptance criteria
+Both types exist, order correctly across the epoch, difference correctly in both directions, and
+carry no calendar or scheduling semantics; §6 clean.
+
+---
+
 ## C5 — Specification synchronization
 
 ### Goal
@@ -535,6 +578,7 @@ C1  DONE     workspace, pinned toolchain, identity module, errors, compile-fail 
 C2  DONE     entity record: Tag/Tags, LifecycleState, Metadata, Entity
 C3  DONE     component model: Component trait, declaration, record, const-checked ids
 C4  DONE     relation model: declaration, typed edge, canonical undirected ordering
+C4b DONE     world time value types (added commit — see §8.3)
 C5  not started
 ```
 
@@ -612,6 +656,23 @@ C4 — relation model                       (evidence for commit "feat(contracts
       tests/relation.rs              6 passed
       doc-tests                      1 passed
       total                         29 passed, 0 failed, 0 ignored
+```
+
+```text
+C4b — world time value types               (evidence for commit "feat(contracts): … time …")
+  cargo fmt --all --check                       PASS   <1s
+  cargo check --workspace --all-targets         PASS   <1s
+  cargo clippy --workspace --all-targets
+      --all-features -- -D warnings             PASS    1s   0 warnings
+  cargo test -p mineworld-contracts             PASS    3s
+      tests/compile_fail.rs          1 passed   — harness covering 6 compile-fail cases
+      tests/component.rs             6 passed
+      tests/entity.rs                6 passed
+      tests/identity.rs              9 passed
+      tests/relation.rs              6 passed
+      tests/time.rs                  3 passed
+      doc-tests                      1 passed
+      total                         32 passed, 0 failed, 0 ignored
 ```
 
 ```text

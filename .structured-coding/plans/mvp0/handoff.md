@@ -15,8 +15,8 @@ repository       /Users/yuema137/MineWorld
 branch           mvp0/pr-01-entity-component-contracts
 implementation   created from main @ 39abfb3
 base
-current HEAD     the C4 commit — the one that carries this handoff refresh
-                 (C1 = e040818, C2 = 80fdf2c, C3 = 40e448e)
+current HEAD     the C4b commit — the one that carries this handoff refresh
+                 (C1 = e040818, C2 = 80fdf2c, C3 = 40e448e, C4 = 868cdc3)
                  (session start was f44b7d1; `git log --oneline` is authoritative)
 working tree     clean at each commit; the only untracked path is target/ (gitignored)
 remote           none (decision D-9: local-only until S13)
@@ -90,16 +90,16 @@ C3  DONE  40e448e  src/component.rs (Component, ComponentDeclaration, ComponentR
                    ComponentSchemaVersion), const-checked SystemId/ComponentTypeId
                    literals via from_static, three component errors, tests/component.rs,
                    two more compile-fail cases
-C4  DONE           src/relation.rs (EntityTypeSet, RelationDirection, SelfEdges,
+C4  DONE  868cdc3  src/relation.rs (EntityTypeSet, RelationDirection, SelfEdges,
                    RelationTypeDeclaration, RelationEnd, Relation), three relation errors,
                    tests/relation.rs, sixth compile-fail case
-C4b next
+C4b DONE           src/time.rs (WorldTime, SimDuration), tests/time.rs
 C4  not started
-C5  not started
+C5  next
 
-validation evidence: §8.2 of the design — all four §6 commands clean at C1…C4;
-                     29 tests pass (9 identity + 6 entity + 6 component + 6 relation
-                     + 1 trybuild harness over 6 cases + 1 doc-test);
+validation evidence: §8.2 of the design — all four §6 commands clean at C1…C4b;
+                     32 tests pass (9 identity + 6 entity + 6 component + 6 relation
+                     + 3 time + 1 trybuild harness over 6 cases + 1 doc-test);
                      five mutations confirmed the HashMap ban, the unchecked-construction
                      compile-fail case, the terminal Destroyed state, the ownership conflict
                      check and the canonical ordering of undirected edges
@@ -109,12 +109,9 @@ background jobs:     none
 
 ## Exact next actions
 
-1. C4b — `contracts/src/time.rs`: `WorldTime` and `SimDuration` as ordered value types with
-   serde and no scheduling policy, which is all §1.1 approves (A-3 stays open for S4). See the
-   scope-reconciliation finding in §8.3 for why this commit exists.
-2. C5 — documentation: `docs/ARCHITECTURE.md` §13 amended for decision D-4,
+1. C5 — documentation: `docs/ARCHITECTURE.md` §13 amended for decision D-4,
    `contracts/README.md` rewritten for what now exists, final ledger entries.
-3. Run §6's four commands at the final head, record evidence in §8.2, refresh this file, set the
+2. Run §6's four commands at the final head, record evidence in §8.2, refresh this file, set the
    lifecycle to READY FOR OPERATOR REVIEW and mark the implementation context CLOSED.
 
 ## Stop conditions

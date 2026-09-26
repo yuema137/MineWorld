@@ -42,6 +42,7 @@ pub mod entity;
 pub mod error;
 pub mod ids;
 pub mod relation;
+pub mod time;
 
 pub use component::{Component, ComponentDeclaration, ComponentRecord, ComponentSchemaVersion};
 pub use entity::{Entity, LifecycleState, Metadata, Tag, Tags};
@@ -53,3 +54,4 @@ pub use ids::{
 pub use relation::{
     EntityTypeSet, Relation, RelationDirection, RelationEnd, RelationTypeDeclaration, SelfEdges,
 };
+pub use time::{SimDuration, WorldTime};
