@@ -93,6 +93,7 @@ This PR defines shapes and their invariants. Nothing here decides an outcome.
 | **DD-11** | `Affordance` — `action_type`, optional `target`, `available: bool`, `unavailable_reason: Option<Rejection>`, `requirement: SpatialRequirement` — is part of the contract. The server computes it; a client renders it. | This is what lets a 3D client show "press E to talk" and a 2D client grey out a menu entry **without either implementing a rule** (§§4, 8). Without it, clients would inevitably guess, which is the exact failure the rules forbid. |
 | **DD-13** | `Affordance` carries `action_type` and `target`, not display text. The client maps an action type to a label ("talk" → "Talk") and reads the target's name from a component in the same `Observation`. | Label text and localization are presentation concerns, so putting them in the contract would pull presentation into the kernel. But the *name* of a target is world data and must come from a component, or the client would invent it. Established by the 3D spike below, which needed exactly `entity_id → name → action label` to render `[E] Talk to Alice`. |
 | **DD-14** | `PerceivedEntity` must carry enough for a client to bind a rendered body to a world entity and back: the `EntityId` is the join key, and the client attaches it to its own node. The contract says nothing about how. | The spike attached `entity_id` as node metadata and recovered it from a raycast collider. That pattern works for any engine and needs no contract support beyond the id already being in the observation — confirming no engine concept has to enter the contract (`ENGINEERING_RULES.md` §12). |
+| **DD-15** | Contract types keep integer ids. The **JSON wire encoding is S11's responsibility** and must render 64-bit ids as decimal strings. Recorded here so S11 inherits it as a requirement rather than rediscovering it. | A networking spike found that Godot's `JSON.parse_string` returns every number as a double: the server sent `"events":[9001]` and the client read `9001.0`. Ids above 2^53 would corrupt silently. The wrong fix is to make the contract serialize ids as strings — that would distort persistence and any binary encoding to suit one client's parser. The right fix is a wire-level representation at the protocol boundary, which is exactly what a presentation-independent architecture is for. |
 | **DD-12** | Demos are validated by running Godot with a script that drives input and writes PNG frames, which are then inspected; Godot 4.7.2 is installed and confirmed to run headless with script output. | `ENGINEERING_RULES.md` §19 requires actually running the renderer. Recorded here because it is the reason no engine-visual concept needs to enter these contracts to make verification possible. |
 
 ---
@@ -258,6 +259,22 @@ EVIDENCE  scripted walk from z=+4.0 to z=-2.0 with gravity and collision; at
         rather than in client code.
 IMPLICATION  S14 is wiring, not research. Two contract refinements follow,
         recorded as DD-13 and DD-14.
+
+FINDING (spike, 2026-09-25) — Godot/Rust transport works; JSON numbers do not
+SOURCE  scratchpad/spikenet: axum 0.8 WebSocket server on 127.0.0.1:7878 and a
+        Godot WebSocketPeer client exchanging an ActionIntent and an
+        ActionResult as JSON.
+EVIDENCE  server logged recv {"action_type":"talk","target":4201} and sent
+        {"result":"accepted","events":[9001]}; the client logged recv of the
+        same text but parsed events=[9001.0].
+WHY IT MATTERS  Godot parses every JSON number as a double. EntityId and
+        EventId above 2^53 would round silently — a corruption that unit tests
+        on the Rust side would never catch, because the Rust side is correct.
+DECISION  DD-15: contracts keep integer ids; S11 owns a wire encoding that
+        renders 64-bit ids as decimal strings, with a round-trip test through
+        an actual Godot client rather than through a Rust-only test.
+NOT A CHANGE TO S1  PR 01 is unaffected and was not interrupted: the defect is
+        at the protocol boundary, not in the contract representation.
 ```
 
 ---
