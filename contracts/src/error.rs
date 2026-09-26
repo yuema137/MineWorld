@@ -12,6 +12,7 @@ use thiserror::Error;
 use crate::action::ActionTypeId;
 use crate::component::ComponentSchemaVersion;
 use crate::entity::LifecycleState;
+use crate::event::EventTypeId;
 use crate::ids::{ComponentTypeId, EntityId, EntityType, RelationTypeId};
 use crate::relation::{EntityTypeSet, RelationEnd};
 
@@ -33,6 +34,8 @@ pub enum IdentifierKind {
     ActionTypeId,
     /// A [`crate::action::RejectionCode`]: a rejecting system's own reason code.
     RejectionCode,
+    /// An [`crate::event::EventTypeId`]: the name of a kind of event a system emits.
+    EventTypeId,
     /// A [`crate::entity::Tag`]: one semantic label on an entity.
     Tag,
 }
@@ -46,6 +49,7 @@ impl fmt::Display for IdentifierKind {
             Self::RelationTypeId => "relation type id",
             Self::ActionTypeId => "action type id",
             Self::RejectionCode => "rejection code",
+            Self::EventTypeId => "event type id",
             Self::Tag => "tag",
         };
         f.write_str(name)
@@ -201,5 +205,25 @@ pub enum ContractError {
         action_type: ActionTypeId,
         /// The action type its payload record was written from.
         payload_action_type: ActionTypeId,
+    },
+
+    /// An event record was read as an event type it was not written for.
+    #[error("a {actual} event payload cannot be read as {expected}")]
+    EventTypeMismatch {
+        /// The event type the caller asked for.
+        expected: EventTypeId,
+        /// The event type the record was written from.
+        actual: EventTypeId,
+    },
+
+    /// A serialized event envelope named one event type and carried a payload written from
+    /// another. Refused rather than decoded: replaying a log whose labels disagree with its
+    /// contents would rebuild a state that never existed.
+    #[error("an event envelope of {event_type} cannot carry a {payload_event_type} payload")]
+    EventEnvelopePayloadMismatch {
+        /// The event type the envelope named.
+        event_type: EventTypeId,
+        /// The event type its payload record was written from.
+        payload_event_type: EventTypeId,
     },
 }

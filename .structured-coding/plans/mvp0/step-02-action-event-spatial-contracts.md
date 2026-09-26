@@ -203,11 +203,31 @@ render and no rule logic anywhere.
 **Goal** the fact half: immutable, always caused, always with a declared audience.
 **Scope** `contracts/src/event.rs`, wiring, tests. Depends on C1.
 
-- [ ] Implementation: `EventTypeId`; `Event` trait (`EVENT_TYPE`, `OWNER`); `EventRecord` erasure.
-- [ ] Implementation: `EventEnvelope` with the ten fields; `Causation` (DD-8); `Visibility` (DD-9); `Provenance { emitted_by: SystemId, controller_decision: Option<ActionId> }`.
-- [ ] Implementation: constructors that make a causeless or audience-less event unrepresentable.
-- [ ] Validation: `Causation` covers action, process, event, tick, genesis and round-trips; `Visibility::Entities` iterates deterministically; an envelope cannot be built without cause or visibility.
-- [ ] Review: no event names a domain fact; no mutation helper exists; nothing lets an event be edited after construction.
+- [x] Implementation: `EventTypeId`; `Event` trait (`EVENT_TYPE`, `OWNER`); `EventRecord` erasure.
+      → `contracts/src/event.rs`, following the `Action` and `Component` pattern exactly. No schema
+      version, as frozen; the consequence is open item O-1 in §7.3.
+- [x] Implementation: `EventEnvelope` with the ten fields; `Causation` (DD-8); `Visibility` (DD-9); `Provenance { emitted_by: SystemId, controller_decision: Option<ActionId> }`.
+      → all ten fields of `CORE_CONCEPTS.md` §11 are present. §11's `Location` is `place:
+      Option<PlaceId>`, not a `Location`; decision K-3 in §7.3 argues why. `Subjects` and
+      `Participants` are `Vec<EntityId>`, not sets, because for a two-ended fact the order is part
+      of the fact; `Visibility::Entities` is the `BTreeSet` DD-9 specifies.
+- [x] Implementation: constructors that make a causeless or audience-less event unrepresentable.
+      → `EventEnvelope::new` takes identity, time, payload, `Causation`, `Visibility` and
+      `Provenance` positionally; the four optional facts are consuming `about` / `with_participants`
+      / `at_place` builders. Neither field is an `Option`, so a record missing either fails to
+      deserialize as well — the guarantee holds for a log read from disk, not only one built in
+      memory.
+- [x] Validation: `Causation` covers action, process, event, tick, genesis and round-trips; `Visibility::Entities` iterates deterministically; an envelope cannot be built without cause or visibility.
+      → `contracts/tests/event.rs`, 6 tests, including the same `BTreeSet` filled in ascending and
+      descending order serializing byte-identically. Two mutations in §7.2.
+- [x] Review: no event names a domain fact; no mutation helper exists; nothing lets an event be edited after construction.
+      → `grep -n '&mut self\|pub [a-z_]*:' contracts/src/event.rs`: no hits, so no accessor hands
+      out a mutable reference and no field is public. `ItemTransferred` and `ConversationStarted`
+      appear in `event.rs` only in the sentence that names them as System Pack vocabulary the kernel
+      must not know. The assignment path is pinned shut by a new compile-fail case,
+      `tests/compile_fail/event_cannot_be_edited_after_construction.rs`, whose `.stderr` records
+      that both `caused_by` and `visibility` are refused as private fields — the same mechanism S1
+      used for an entity's lifecycle.
 
 **Acceptance** every event carries a cause and an audience by construction; §6 clean.
 
@@ -269,7 +289,7 @@ cargo test -p mineworld-contracts
 
 ## 7.1 Progress
 ```text
-C1 DONE   C2 not started   C3 not started   C4 not started   C5 not started
+C1 DONE   C2 DONE   C3 not started   C4 not started   C5 not started
 ```
 
 ## 7.2 Evidence
@@ -289,7 +309,18 @@ cargo test -p mineworld-contracts                              PASS
   compile_fail harness 1 (6 cases) · doc-tests 2
   baseline before C1 was 32 integration tests + 1 doc-test
 
-MUTATIONS  (purpose: prove the two new guards are load-bearing, not decorative)
+--- C2 (working tree at the C2 commit) -------------------------------------------
+cargo fmt --all --check                                        PASS  (clean)
+cargo check --workspace --all-targets                          PASS  (0 warnings)
+cargo clippy --workspace --all-targets --all-features
+                                    -- -D warnings             PASS  (0 warnings)
+cargo test -p mineworld-contracts                              PASS
+  42 integration tests + 3 doc-tests, 0 failed, 0.59s dominated by the trybuild
+  harness; every other test binary reports 0.00s
+  action 5 · component 6 · entity 6 · event 6 · identity 9 · relation 6 · time 3 ·
+  compile_fail harness 1 (now 7 cases) · doc-tests 3
+
+MUTATIONS  (purpose: prove the new guards are load-bearing, not decorative)
   M1  ActionRecord::payload_for stops comparing the action type
       expected: a_request_survives_erasure_and_is_readable_only_as_its_own_action_type RED
       observed: that test FAILED, the other four passed            → behaviour-changing
@@ -299,6 +330,18 @@ MUTATIONS  (purpose: prove the two new guards are load-bearing, not decorative)
   M3  ActionIntent::new writes a stale default action type instead of reading the record
       expected: the shape, INV-10 and agreement tests RED
       observed: 3 of 5 FAILED                                      → behaviour-changing
+  M4  EventEnvelope's deserialization stops comparing envelope to payload
+      expected: an_envelope_cannot_disagree_with_its_payload RED
+      observed: that test FAILED, the other five passed            → behaviour-changing
+  M5  a missing caused_by quietly defaults to WorldGenesis instead of failing
+      (the realistic defect: someone makes the field lenient)
+      expected: a_fact_with_no_cause_or_no_audience_cannot_be_read_back RED
+      observed: that test FAILED, the other five passed            → behaviour-changing
+  NOT MUTATED  the order-stability of Visibility::Entities. The guarantee is the
+      BTreeSet in the type, and replacing it with a Vec makes the test file stop
+      compiling rather than fail, which would be an inconclusive mutation, not a
+      counterfactual. The test instead pins the serialized order and pins that two
+      opposite insertion orders produce identical bytes.
   no surviving mutation; source restored and re-verified green after each
 ```
 
@@ -378,6 +421,24 @@ DECISION implement C2 as frozen and record the gap here rather than adding a con
 IMPACT   none inside this PR. S5 must decide payload versioning for events before any
          event is persisted, or the first schema change to a system's event payload
          will be undetectable on replay.
+
+DECISION K-3 — an event's location is a PlaceId, not a Location
+QUESTION CORE_CONCEPTS §11 lists `Location` among an event's ten fields, and this PR
+         introduces a `Location` type. Should the envelope hold that type?
+EVIDENCE ENGINEERING_RULES §5 and INV-5: the authoritative record is semantic. A
+         `Location` is a place plus an optional millimetre position plus an optional
+         orientation — and an orientation is a property an entity has, not a property a
+         fact has. Every event in every world would carry a `facing` field that can
+         never mean anything.
+DECISION `place: Option<PlaceId>`, named `place` rather than `location` so that a
+         reader is not invited to expect the `Location` type. A system whose events
+         genuinely carry continuous geometry — a movement system recording a new
+         position — puts it in its own typed payload, where it is that system's
+         contract rather than the kernel's. This also removes C2's dependency on C3.
+GATE     re-checked against §3.1 question 1: an embodied 3D client still gets
+         continuous position where position lives, on the entity, through
+         `PerceivedEntity.location` and `ActionIntent.actor_location`. Nothing about
+         this choice makes a 3D client harder.
 
 OPEN O-2 — nothing here maps an action type to its owning system as data
 SOURCE   DD-2's rationale is that ownership at the type level is what lets S3 route an

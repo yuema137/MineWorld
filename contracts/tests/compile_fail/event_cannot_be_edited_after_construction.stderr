@@ -1,0 +1,11 @@
+error[E0616]: field `caused_by` of struct `EventEnvelope` is private
+  --> tests/compile_fail/event_cannot_be_edited_after_construction.rs:30:14
+   |
+30 |     recorded.caused_by = Causation::Event(EventId::from_raw(2));
+   |              ^^^^^^^^^ private field
+
+error[E0616]: field `visibility` of struct `EventEnvelope` is private
+  --> tests/compile_fail/event_cannot_be_edited_after_construction.rs:31:14
+   |
+31 |     recorded.visibility = Visibility::Public;
+   |              ^^^^^^^^^^ private field

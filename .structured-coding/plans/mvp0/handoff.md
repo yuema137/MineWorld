@@ -91,8 +91,12 @@ C1  DONE   contracts/src/action.rs, two IdentifierKind variants and two Contract
            identity.rs extended for the two new declaration names.
            All four §6 commands clean; 36 integration tests + 2 doc-tests; three
            mutations confirmed the new guards are load-bearing (§7.2).
-C2  next
-C3  not started
+C2  DONE   contracts/src/event.rs, IdentifierKind::EventTypeId and two ContractError
+           variants, module wiring, contracts/tests/event.rs (6 tests) and a new
+           compile-fail case pinning that a recorded event cannot be reassigned.
+           All four §6 commands clean; 42 integration tests + 3 doc-tests; two
+           mutations confirmed the guards are load-bearing (§7.2).
+C3  next
 C4  not started
 C5  not started
 
@@ -103,12 +107,13 @@ open items: O-1 (event payloads have no schema version — S5 owns it),
 
 ## Exact next actions
 
-1. `contracts/src/event.rs` per §5 C2: `EventTypeId`, the `Event` trait, `EventRecord`,
-   `Causation`, `Visibility`, `Provenance`, `EventEnvelope` with the ten fields of
-   `CORE_CONCEPTS.md` §11, constructors that make a causeless or audience-less event
-   unrepresentable.
-2. `contracts/tests/event.rs` and one new `tests/compile_fail/` case for the causeless event.
-3. Record C2 in §7, then commit.
+1. `contracts/src/spatial.rs` per §5 C3: `Millimetres`, `Millidegrees`, `LocalPosition`,
+   `Orientation` normalized on construction, `Location`, `SpatialRequirement` with `NONE` and
+   `same_place()`, and `evaluate` returning `Result<(), Rejection>` with integer-only distance.
+2. Add `ActionIntent.actor_location` (deviation D-1) with its accessor, builder and test.
+3. `contracts/tests/spatial.rs`, including the structural assertion that the crate's `src/`
+   contains no `f32`/`f64`.
+4. Record C3 in §7, then commit.
 
 ## Stop conditions
 
