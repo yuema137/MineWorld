@@ -256,6 +256,49 @@ Hard constraint: swapping a Presentation Pack changes nothing about the simulati
 animation with a coffee-machine interaction, or the line `08:32 Alice starts making coffee.`
 in a text client.
 
+A Presentation Pack may describe how an interaction *looks*. It may never define whether the
+interaction is *valid*: `Sit(actor, bench)` belongs to a System, and the pack only decides
+whether that is a seat anchor with a sit animation or a sprite swapping to a seated frame
+([`ART_DIRECTION.md`](ART_DIRECTION.md) §19).
+
+## 6.1 Structure: the Presentation Style Pack
+
+A Presentation Pack's internal structure is specified by
+[`ART_DIRECTION.md`](ART_DIRECTION.md) §12, where it is called a **Presentation Style Pack**.
+That is the same pack type given a concrete layout, not a sixth kind of module
+([`DECISIONS.md`](DECISIONS.md) `ARC-1`):
+
+```text
+presentation/<style-id>/
+  manifest.yaml            compact machine-readable summary
+  references/              the images that actually define the style
+  ART_DIRECTION.md         human-readable direction
+  assets/asset_bindings.yaml
+  materials/material_rules.yaml
+  characters/character_style.yaml
+  lighting/lighting_profile.yaml
+  renderer/godot.yaml, renderer/unreal.yaml
+  generation/optional_prompt_guidelines.md
+```
+
+Not every pack needs every directory. The reference images are the source of truth; the manifest
+summarises them, and a generation prompt is an implementation aid rather than the contract
+(§16).
+
+## 6.2 Authoring a style
+
+Creating a style does not mean writing that manifest by hand
+([`ART_DIRECTION.md`](ART_DIRECTION.md) §23):
+
+```text
+New Presentation Style → upload 4–10 references → write two or three sentences
+→ choose 2D / 3D → the system generates an initial manifest → the creator corrects it
+```
+
+This is why the manifest schema must stay small: every field has to be inferable from images,
+chosen by the creator, or fixed by project policy. A field that is none of those does not belong
+in it.
+
 ---
 
 # 7. Composition

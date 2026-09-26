@@ -340,7 +340,10 @@ The MVP validates the architecture and nothing else; see [`MVP.md`](MVP.md).
 ## Phase 2 — World Creator
 
 A visual creator experience replaces hand-editing YAML: world editor, character editor,
-system selector, interaction configuration, asset binding, packaging.
+system selector, interaction configuration, asset binding, packaging — and style authoring, where
+a creator uploads four to ten reference images, writes two or three sentences, picks 2D or 3D, and
+the system generates an initial style manifest for them to correct
+([`ART_DIRECTION.md`](ART_DIRECTION.md) §23).
 
 ```text
 Create World

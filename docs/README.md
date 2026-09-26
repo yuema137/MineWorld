@@ -12,6 +12,7 @@ Start with [`VISION.md`](VISION.md) — what MineWorld is and is not.
 | [`MVP.md`](MVP.md) | what the first milestone must prove |
 | [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) | the rules to read before touching production code, and the playable-world requirements |
 | [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) | the complete engineering policy all code follows |
+| [`ART_DIRECTION.md`](ART_DIRECTION.md) | the default 3D look, and how any Presentation Style Pack is defined |
 | [`REUSE_POLICY.md`](REUSE_POLICY.md) | when to adopt a dependency and when to build our own |
 | [`DECISIONS.md`](DECISIONS.md) | why the dependencies and architectural routes are what they are |
 

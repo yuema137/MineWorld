@@ -230,6 +230,13 @@ basic group activity, persistence, human and agent controllers, multiplayer conn
 An embodied first-person client. Visual fidelity is explicitly not the goal; interaction
 correctness and embodiment are ([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §10).
 
+This does not conflict with [`ART_DIRECTION.md`](ART_DIRECTION.md), which defines the default
+*Presentation Style Pack* and its own acceptance criteria (§21). Those criteria judge the default
+style pack once it is populated with assets; they are not gates on `AC-14`. MVP-0 ships the pack's
+skeleton — manifest, art direction, references — and a Demo B built from simple geometry. Making
+Demo B actually look like the references is MVP-1 work, and the reason the direction is fixed now
+is so asset selection never has to be redone.
+
 Must demonstrate:
 
 ```text

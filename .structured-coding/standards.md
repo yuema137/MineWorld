@@ -80,7 +80,10 @@ actually block are CI's job.
       "A substantial dependency, and equally a decision to build our own instead of adopting one, carries a short record in docs/DECISIONS.md",
       "An external dependency sits behind a thin MineWorld-owned interface rather than leaking its types across the codebase",
       "No substantial code is copied from another project into MineWorld without its license, attribution and recorded origin",
-      "World state, system ownership, network authority, plugin contracts and persistence semantics stay under MineWorld's control rather than a framework's"
+      "World state, system ownership, network authority, plugin contracts and persistence semantics stay under MineWorld's control rather than a framework's",
+      "A presentation pack decides how an interaction looks, never whether it is valid",
+      "Visual changes to the default style are judged against the reference images in presentation/mineworld-default-realistic/references, not against prose alone",
+      "A style manifest field must be inferable from reference images, chosen by the creator, or fixed by project policy; anything else does not belong in the schema"
     ]
   },
   "checks": {
