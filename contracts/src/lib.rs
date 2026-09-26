@@ -43,6 +43,7 @@ pub mod entity;
 pub mod error;
 pub mod event;
 pub mod ids;
+pub mod observation;
 pub mod relation;
 pub mod spatial;
 pub mod time;
@@ -65,6 +66,7 @@ pub use spatial::{
     SpatialRequirement,
 };
 
+pub use observation::{Affordance, Observation, PerceivedEntity, PerceivedEvent};
 pub use relation::{
     EntityTypeSet, Relation, RelationDirection, RelationEnd, RelationTypeDeclaration, SelfEdges,
 };

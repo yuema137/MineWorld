@@ -104,8 +104,12 @@ C3  DONE   contracts/src/spatial.rs (Millimetres, Millidegrees, LocalPosition,
            location. All four §6 commands clean; 50 integration tests + 3 doc-tests;
            five mutations, one of which survived and led to a stronger degeneracy
            test (§7.2 M9).
-C4  next
-C5  not started
+C4  DONE   contracts/src/observation.rs (PerceivedEntity, PerceivedEvent, Affordance,
+           Observation), one ContractError variant, contracts/tests/observation.rs
+           (4 tests) and a compile-fail case pinning that an affordance cannot claim
+           availability and a reason at once. All four §6 commands clean; 54
+           integration tests + 3 doc-tests; two mutations, both caught.
+C5  next
 
 background jobs: none
 open items: O-1 (event payloads have no schema version — S5 owns it),
@@ -114,12 +118,12 @@ open items: O-1 (event payloads have no schema version — S5 owns it),
 
 ## Exact next actions
 
-1. `contracts/src/observation.rs` per §5 C4: `PerceivedEntity`, `PerceivedEvent`, `Affordance`,
-   `Observation` — no store handle, no global accessor, and no way to reach an entity the
-   observation does not list.
-2. `contracts/tests/observation.rs`, and a compile-fail case if one carries information.
-3. Record C4 in §7, then commit.
-4. C5: `docs/CORE_CONCEPTS.md` §§6, 12 and 15, `contracts/README.md`, §7.4 gate re-check.
+1. C5: `docs/CORE_CONCEPTS.md` — the spatial vocabulary in §6, the rejection and spatial-
+   requirement vocabulary in §12, the observation contents and the affordance concept in §15,
+   cross-referencing `ENGINEERING_RULES.md` §§5-9.
+2. `contracts/README.md`: the updated inventory, still short and human-facing.
+3. §7.4 of the design: re-check both §3.1 gate questions against the written code.
+4. Final §6 run at the final HEAD, set the lifecycle to READY FOR OPERATOR REVIEW, commit.
 
 ## Stop conditions
 

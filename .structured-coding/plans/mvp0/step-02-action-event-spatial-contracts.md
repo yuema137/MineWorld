@@ -280,12 +280,38 @@ irrelevant" are one type; the evaluator is pure, integer-only and total; §6 cle
 from the server.
 **Scope** `contracts/src/observation.rs`, wiring, tests. Depends on C1–C3.
 
-- [ ] Implementation: `PerceivedEntity { id, entity_type, location: Option<Location>, tags, components: Vec<ComponentRecord> }` — only what a perception system chose to include.
-- [ ] Implementation: `PerceivedEvent` wrapping an `EventEnvelope` the observer is entitled to.
-- [ ] Implementation: `Affordance` per DD-11.
-- [ ] Implementation: `Observation { observer, at, self_location, entities, events, affordances }` with no store handle and no global accessor.
-- [ ] Validation: an observation exposes exactly the entities it lists; affordances carry a server-computed reason; round-trip and ordering stability.
-- [ ] Review: no field or method could return an entity not perceived; nothing here lets a client recompute availability.
+- [x] Implementation: `PerceivedEntity { id, entity_type, location: Option<Location>, tags, components: Vec<ComponentRecord> }` — only what a perception system chose to include.
+      → `contracts/src/observation.rs`, generic over the payload encoding like every other record
+      holder in the crate. Documented as *not* a copy of the entity: two observers of one entity can
+      be shown different component lists, and a controller cannot tell a withheld component from an
+      absent one.
+- [x] Implementation: `PerceivedEvent` wrapping an `EventEnvelope` the observer is entitled to.
+      → a transparent newtype. The wrapper is not ceremony: handing raw log entries to a controller
+      is the omniscience `INV-13` forbids, and the distinct type means code that holds one knows the
+      perception decision already happened.
+- [x] Implementation: `Affordance` per DD-11.
+      → built by `available` or `unavailable`, never field by field, so "available, because too far
+      away" is unrepresentable in code and refused on deserialization. Carries the action type, the
+      target, the reason and the unevaluated `SpatialRequirement` — and no display text (`DD-13`).
+- [x] Implementation: `Observation { observer, at, self_location, entities, events, affordances }` with no store handle and no global accessor.
+      → plus `entity(id)`, which searches the list it was given and nothing else, because a client
+      must be able to resolve an affordance's target to something it can name (`DD-13`).
+- [x] Validation: an observation exposes exactly the entities it lists; affordances carry a server-computed reason; round-trip and ordering stability.
+      → `contracts/tests/observation.rs`, 4 tests. The scene is the 3D spike's: an observer, a person
+      within a three-metre reach, a person outside it, and a third person the world contains and this
+      observer was not shown. One test reconstructs `[E] Talk to Alice` from the observation alone
+      and then shows the server's own evaluator reaching the same two answers from the same
+      locations — the evidence that there is one implementation of the rule rather than one per
+      client. Two mutations in §7.2.
+- [x] Review: no field or method could return an entity not perceived; nothing here lets a client recompute availability.
+      → every public method of `Observation` was listed and inspected: six return an own field, three
+      return a slice of an own field, and `entity` searches that slice. There is no handle, no
+      registry, no query and no method taking a store. A client *can* call
+      `SpatialRequirement::evaluate` — it is public because the server and the systems need it — but
+      it has nothing authoritative to call it on: an observation gives it only the positions the
+      world chose to expose, and the answer it would compute has no standing. The authoritative
+      answer is the one the server put in the `Affordance`, which is `ENGINEERING_RULES.md` §8's
+      division exactly. Recorded as observation OBS-2 in §7.3.
 
 **Acceptance** `INV-13` holds structurally; a client can render "press E to talk" purely from
 `Affordance`; §6 clean.
@@ -315,7 +341,7 @@ cargo test -p mineworld-contracts
 
 ## 7.1 Progress
 ```text
-C1 DONE   C2 DONE   C3 DONE   C4 not started   C5 not started
+C1 DONE   C2 DONE   C3 DONE   C4 DONE   C5 not started
 ```
 
 ## 7.2 Evidence
@@ -356,6 +382,17 @@ cargo test -p mineworld-contracts                              PASS
   harness; every other test binary reports 0.00s
   action 5 · component 6 · entity 6 · event 6 · identity 9 · relation 6 ·
   spatial 8 · time 3 · compile_fail harness 1 (7 cases) · doc-tests 3
+
+--- C4 (working tree at the C4 commit) -------------------------------------------
+cargo fmt --all --check                                        PASS  (clean)
+cargo check --workspace --all-targets                          PASS  (0 warnings)
+cargo clippy --workspace --all-targets --all-features
+                                    -- -D warnings             PASS  (0 warnings)
+cargo test -p mineworld-contracts                              PASS
+  54 integration tests + 3 doc-tests, 0 failed, 0.72s dominated by the trybuild
+  harness; every other test binary reports 0.00s
+  action 5 · component 6 · entity 6 · event 6 · identity 9 · observation 4 ·
+  relation 6 · spatial 8 · time 3 · compile_fail harness 1 (8 cases) · doc-tests 3
 
 MUTATIONS  (purpose: prove the new guards are load-bearing, not decorative)
   M1  ActionRecord::payload_for stops comparing the action type
@@ -407,8 +444,15 @@ MUTATIONS  (purpose: prove the new guards are load-bearing, not decorative)
   M10 squared distances are computed in i64 instead of i128
       expected: distance_arithmetic_survives_the_extremes_of_the_representable_range RED
       observed: that test FAILED                                   → behaviour-changing
-  one mutation survived and was resolved by strengthening the test, as recorded above;
-  no mutation survives now. Source restored and re-verified green after each.
+  M11 the affordance availability/reason agreement check is dropped
+      expected: an_affordance_cannot_disagree_with_itself_about_availability RED
+      observed: that test FAILED, the other three passed           → behaviour-changing
+  M12 Observation::entity ignores the identity it was asked about and returns the first
+      entity in the list — the shape a "helpful" lookup defect would actually take
+      expected: the INV-13 test and the prompt-rendering test RED
+      observed: both FAILED                                        → behaviour-changing
+  one mutation (M9) survived and was resolved by strengthening the test, as recorded
+  above; no mutation survives now. Source restored and re-verified green after each.
 ```
 
 ## 7.3 Findings, decisions, deviations
@@ -568,7 +612,17 @@ DECISION do not add one. A::OWNER is readable wherever the type is known, and in
          abstraction ENGINEERING_STANDARDS §11 forbids. Recorded so S3 adds it
          deliberately rather than rediscovering the need.
 
-OBSERVATION — ActionResult carries no ActionId
+OBSERVATION OBS-2 — a client can call the evaluator, and that is not a hole
+`SpatialRequirement::evaluate` is public, because the server and the systems that declare
+requirements both need it, and a client linked against this crate could call it too. That
+does not let a client evaluate a world rule in the sense ENGINEERING_RULES §8 forbids: an
+observation gives a client only the positions the world chose to expose, and an answer a
+client computes has no standing anywhere — the authoritative answer is the one the server
+put in the Affordance, and the only thing a client can do with a computed one is mislead
+its own player. Making the evaluator private would not change that and would break its
+actual purpose, which is that there is exactly one implementation of the check.
+
+OBSERVATION OBS-1 — ActionResult carries no ActionId
 DD-1's rationale says a result must be attributable to the exact request, and §5's
 ActionResult has no field for it. Implemented as frozen, with the reasoning documented
 on the type: correlation belongs to whatever paired the request with its answer — the

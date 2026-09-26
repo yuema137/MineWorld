@@ -238,6 +238,20 @@ pub enum ContractError {
         limit: i32,
     },
 
+    /// An affordance claimed to be available and also carried a reason it was not, or claimed to
+    /// be unavailable and gave no reason. A client shown both would have to decide which half to
+    /// believe, and one shown neither has nothing to tell the player.
+    #[error(
+        "an affordance that is available must carry no reason and one that is not must carry one, \
+         but this one says available={available} with has_reason={has_reason}"
+    )]
+    AffordanceAvailabilityDisagreement {
+        /// What the affordance claimed about its availability.
+        available: bool,
+        /// Whether it carried a reason.
+        has_reason: bool,
+    },
+
     /// A spatial requirement declared a negative interaction range. Rejected where the
     /// declaration is written, because an evaluator comparing squared distances would treat it as
     /// its own absolute value and silently accept interactions at that distance.

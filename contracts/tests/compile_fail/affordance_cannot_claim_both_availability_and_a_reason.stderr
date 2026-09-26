@@ -1,0 +1,15 @@
+error[E0451]: fields `action_type`, `target`, `available`, `unavailable_reason` and `requirement` of struct `Affordance` are private
+  --> tests/compile_fail/affordance_cannot_claim_both_availability_and_a_reason.rs:9:9
+   |
+ 8 |     let _offered = Affordance {
+   |                    ---------- in this type
+ 9 |         action_type: ActionTypeId::from_static("talk"),
+   |         ^^^^^^^^^^^ private field
+10 |         target: Some(EntityId::from_raw(42)),
+   |         ^^^^^^ private field
+11 |         available: true,
+   |         ^^^^^^^^^ private field
+12 |         unavailable_reason: Some(Rejection::TooFarAway),
+   |         ^^^^^^^^^^^^^^^^^^ private field
+13 |         requirement: SpatialRequirement::NONE,
+   |         ^^^^^^^^^^^ private field
