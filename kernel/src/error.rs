@@ -11,7 +11,8 @@
 //! the state it had before the call.
 
 use mineworld_contracts::{
-    ComponentTypeId, ContractError, EntityId, EntityKey, LifecycleState, RelationTypeId, SystemId,
+    ActionTypeId, ComponentTypeId, ContractError, EntityId, EntityKey, LifecycleState,
+    RelationTypeId, SystemId, WorldTime,
 };
 
 use thiserror::Error;
@@ -164,6 +165,45 @@ pub enum KernelError {
         entity: EntityId,
         /// The lifecycle state it is actually in.
         lifecycle: LifecycleState,
+    },
+
+    /// A system declared a table for a component type its own [`SystemDeclaration`] does not
+    /// list. The declaration is what a world's composition is checked against — one system per
+    /// component type — so a table outside it would be state no conflict check ever saw.
+    ///
+    /// [`SystemDeclaration`]: crate::system::SystemDeclaration
+    #[error(
+        "system '{system}' declared a table for component type '{component_type}', \
+         which its own declaration does not list"
+    )]
+    ComponentTypeNotInSystemDeclaration {
+        /// The system that declared the table.
+        system: SystemId,
+        /// The component type it declared.
+        component_type: ComponentTypeId,
+    },
+
+    /// An action was routed to the system that provides it, and that system has no resolution for
+    /// it. Refused rather than accepted with no events: a system that provides an action and does
+    /// not resolve it is a bug in that system, and a silent acceptance would hide it behind a
+    /// world that looks like it worked.
+    #[error("system '{system}' provides action '{action_type}' but does not resolve it")]
+    ActionNotResolvedBySystem {
+        /// The system the action was routed to.
+        system: SystemId,
+        /// The action it did not resolve.
+        action_type: ActionTypeId,
+    },
+
+    /// A system asked for a fact to happen at an instant that is not later than the one it is
+    /// running in. Deferral means *later*: a fact for the current instant is emitted, not
+    /// deferred, and blurring the two would lose the ordering replay depends on (`D-6`).
+    #[error("a deferral to {at} is not later than the current instant {now}")]
+    DeferralNotInTheFuture {
+        /// The instant the system asked for.
+        at: WorldTime,
+        /// The instant it is running in.
+        now: WorldTime,
     },
 
     /// A persisted graph filed an edge type's declaration under a different name.

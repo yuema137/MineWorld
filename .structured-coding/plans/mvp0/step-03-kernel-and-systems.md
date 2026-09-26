@@ -619,9 +619,9 @@ any domain system (S6).
 ## 4.4 Commit plan
 
 ### C1 — System trait and declaration
-- [ ] Implementation: `System` (`ID`, `VERSION`, `declaration()`, `validate`, `resolve`, `react`), `SystemDeclaration` (dependencies, owned components, provided actions, emitted and subscribed events), `DynSystem` + blanket impl.
-- [ ] Validation: a declaration reports what its type declares; a system with no provided actions is legal; two stub systems differ in declaration.
-- [ ] Review: no domain concept; the trait cannot be implemented without naming its owner.
+- [x] Implementation: `kernel/src/system.rs` — `SystemVersion`, `SystemDeclaration` (name and version read off the type by `of::<S>()`; typed builders `depending_on` / `owning::<C>` / `providing::<A>` / `emitting::<E>` / `subscribing_to::<E>`), `Emission` and `Deferral` (what a system decides, before the kernel places a fact in history), the `System` trait (`VERSION`, `declaration`, `install`, `validate`, `resolve`, `react`), the object-safe `DynSystem` and its implementation for `InstalledSystem<T>`. `kernel/src/view.rs` — `WorldRead`, `WorldView<S>`, `Declarations<S>` and the crate-private `WorldParts`. Three `KernelError` variants (`ComponentTypeNotInSystemDeclaration`, `ActionNotResolvedBySystem`, `DeferralNotInTheFuture`).
+- [x] Validation: 8 in-crate tests in `kernel/src/system/tests.rs` plus one new doc-test, all pass (108 workspace tests, up from 99). A declaration reports exactly what its type declares, including the version and the owned component's schema version; a system that provides, owns and emits nothing is legal and differs from another system in every claim; `declaration()` *can* hand back another system's declaration, which is why installation compares the two (C2); the default `resolve` refuses by name rather than accepting with no events; the erased half calls through to the typed system for all four methods, with the write landing through the token the wrapper holds; relating refuses an endpoint this world never allocated, storing nothing; a deferral to the current or an earlier instant is refused and a later one is queued; a system cannot declare a table its own declaration does not list.
+- [x] Review: no domain concept — the vocabulary is `System`, `SystemDeclaration`, `Emission`, `Deferral`, and the test stubs are named `Alpha`, `Beta`, `Counted`, `Tick`, `Ticked` because there is no domain to name them after. The trait cannot be implemented without naming its owner: `System: SystemIdentity`, so `ID` exists before anything else does, and `SystemDeclaration::of::<S>()` is the only constructor, so a declaration's name is read off the type rather than restated.
 
 ### C2 — World and sealed capability
 - [ ] Implementation: `World` owning registry, `ComponentStore`, `RelationStore`, `EntityRegistry` and the sole `WriteAccess`; `WriteAccess::new()` → `pub(crate)`; installation grants and stores the token.
@@ -679,3 +679,118 @@ CHECKED  scope excludes clock, persistence and domain systems
 ```
 
 APPROVED for implementation.
+
+---
+
+## 4.8 Implementation ledger
+
+Execution context: branch `mvp0/pr-03b-systems-dispatch`, created from `main` @ `a079fff` — S1, S2 and
+S3a merged, 99 workspace tests green at the base. Toolchain `rustc`/`cargo` 1.97.1, `rustfmt` 1.9.0,
+`clippy` 0.1.97, pinned by `rust-toolchain.toml` (`DD-11`). No remote exists (`D-9`), so there is no
+push and no PR; the branch is the deliverable.
+
+`handoff.md` still carries PR 02's closed context. It is deliberately **not** rewritten from this
+branch: this document is the semantic authority for 03b, the session did not compact, and 03a made
+the same call for the same reason. Recorded so the omission is a decision rather than an oversight.
+
+### 4.8.1 Decisions taken during implementation
+
+Each of these was forced by something the frozen design left to implementation. None changes a
+frozen invariant; the two that touch a frozen *decision's wording* say so explicitly.
+
+**BI-1 — the payload type is `Vec<u8>`, and the kernel never interprets it.** `ActionIntent<P>` and
+`EventEnvelope<P>` are generic over an encoded payload. Threading `P` through the kernel would mean
+`World<P>`, `dyn DynSystem<P>` and a type parameter on every signature, for a value the kernel never
+looks at; a generic method cannot be object safe, so a per-call `P` is not available either. The
+kernel therefore uses the contract layer's own default, `Vec<u8>`, and documents the consequence:
+the *encoding* of an action or event payload is a contract between the system that declares the type
+and whoever reads it back, exactly as `ComponentRecord`'s is. No kernel code encodes or decodes a
+payload, which is what keeps `DD-13`'s "the format is the persistence layer's choice" true here.
+
+**BI-2 — `System` gained an `install` hook, which §4.4's C1 list does not name.** A
+`SystemDeclaration` lists owned components as `ComponentDeclaration` *values*, and a value cannot
+create a table: `ComponentStore::declare` needs the component's Rust **type**, which only the owning
+system's crate can name. Without a hook there is no path from a declaration to a table, and a world
+could hold no state at all. The hook is deliberately the narrowest thing that closes that gap — it
+is handed a `Declarations<'_, S>`, which declares component and relation types and exposes no rows,
+no reads and no edges, so a system cannot write state while being installed (state no event
+explains, `INV-15`). Both directions are checked: a table outside the system's declaration is
+refused (`ComponentTypeNotInSystemDeclaration`), and a declared component type with no table is
+refused at the end of installation (C2).
+
+**BI-3 — `DynSystem` is implemented for a wrapper, not blanketly for `T`.** `BD-3` says "a blanket
+`impl<T: System> DynSystem for T`". What is implemented is `impl<T: System> DynSystem for
+InstalledSystem<T>`, where `InstalledSystem { system, token }` holds the write token this world
+granted. The substance of `BD-3` is unchanged — `System` keeps `const ID`, is therefore not object
+safe, and the registry holds the object-safe half — but the token has to live *somewhere*, and the
+only alternative is minting a fresh `WriteToken<T>` inside the erased call. Minting on use would
+make `BD-1`'s "installation grants a system its token and stores it in the registry entry" a
+statement about documentation rather than about code: the grant would have no consumer, and the
+one-token-per-system bookkeeping would guard nothing. So the token travels from the grant into the
+wrapper and from the wrapper into the view, and nothing else ever holds it.
+
+**BI-4 — `DynSystem` and `WorldParts` are crate-private.** §3 describes "an object-safe wrapper so
+the registry can hold heterogeneous systems" without saying it is public. Nothing outside the kernel
+has a reason to name either: a pack implements `System`, and the world holds the erased form. Keeping
+them private means `WorldParts` — which holds `&mut ComponentStore` internally — is not part of the
+public surface at all, which is one fewer place for `BD-2` to leak from.
+
+**BI-5 — `System`'s methods take `&self`.** A system's mutable state is the components it owns, held
+in the world and written through a gated view. `&mut self` would invite a system to keep simulation
+state in its own fields, which is state no event log can reconstruct and no snapshot carries — the
+`AC-6` failure mode S5's adversarial criterion names. Recorded because it is load-bearing for later
+steps rather than an ergonomic preference.
+
+**BI-6 — the default `resolve` refuses.** A default returning `Ok(Vec::new())` would answer
+`Accepted` with an empty event list for a system that provides an action and forgot to resolve it,
+which looks exactly like a world that worked. The default returns `ActionNotResolvedBySystem`,
+naming the system and the action. `validate`, `react` and `install` keep permissive defaults, because
+a system that declares no action, subscribes to nothing or owns nothing is legal and common.
+
+### 4.8.2 Bounded deviations
+
+```text
+Deviation:      kernel/src/view.rs is a fifth module; §4.2 lists four
+Reason:         WorldRead, WorldView and the crate-private WorldParts are one conceptual unit —
+                what a running system is handed — and folding them into world.rs would put two
+                responsibilities in one file, past the size at which ENGINEERING_STANDARDS asks
+                for a review
+Source:         §4.2 lists the modules the PR delivers, not a prohibition on a fifth; 03a made
+                the same call for error.rs and macro_support.rs (§2.10.5)
+Impact:         none on scope — inside the kernel crate, no new public concept beyond the
+                WorldView BD-2 already requires
+Validation:     covered by kernel/src/system/tests.rs, which exercises both views
+
+Deviation:      C1's tests are in-crate (kernel/src/system/tests.rs), not in kernel/tests/
+Reason:         DynSystem and WorldParts are crate-private (BI-4) and a WriteToken exists only
+                inside a world, so an external test crate can construct none of them. That is the
+                guarantee C2 seals, not an inconvenience to work around
+Source:         the same constraint that makes the A8 compile-fail case possible at all
+Impact:         the pack-facing behaviour — routing, Unavailable, reduction order, enable and
+                disable — is still tested from outside the crate, in C3 to C5, where a pack lives
+Validation:     8 tests, all passing; the external suites are unchanged at C1
+```
+
+### 4.8.3 Validation record
+
+```text
+command:  cargo fmt --all --check
+result:   clean at C1
+
+command:  cargo check --workspace --all-targets
+result:   compiles at C1, with 6 dead-code warnings
+
+command:  cargo clippy --workspace --all-targets --all-features -- -D warnings
+result:   FAILS at C1, and expectedly: the 6 dead-code warnings above become errors. Every one
+          of them has the same root — InstalledSystem::new has no caller in non-test code until
+          C2's World::install, and rustc's dead-code pass then reports the constructors it
+          reaches only through that. C1 is an inert seam (working rules §14), and an inert seam
+          in Rust cannot satisfy the dead-code lint before its consumer exists. Recorded rather
+          than silenced with an allow attribute: clippy is verified clean from C2 onward and at
+          the final head, which is where the terminal evidence belongs.
+
+command:  cargo test --workspace
+result:   C1 — 108 tests, 0 failures (58 contract + 3 contract doc-tests, unchanged;
+          44 kernel + 3 kernel doc-tests). The 9 new tests are the 8 in kernel/src/system/tests.rs
+          and the System trait's doc example.
+```
