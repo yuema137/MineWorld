@@ -1,0 +1,43 @@
+# Default 2D presentation style.
+# The images in references/ are the source of truth; this file summarises them
+# (docs/ART_DIRECTION.md §§15-16, §23). Field kinds per ARC-2: derived from the
+# references, chosen by the creator, or fixed by project policy.
+id: mineworld-default-2d
+name: MineWorld Default 2D
+
+dimension:
+  - 2d
+
+direction:
+  realism: illustrated
+  stylization: moderate
+  detail_level: medium
+  atmosphere: warm_calm
+  environment_density: medium
+  projection: isometric
+
+characters:
+  proportions: stylized
+  facial_detail: low
+  stylization: moderate
+
+materials:
+  physically_based: false
+  texture_detail: low
+
+lighting:
+  default: natural
+  contrast: low
+  preferred_conditions:
+    - daylight
+    - warm_lamplight
+
+environment:
+  human_scale: true
+  readability_priority: high
+
+reference_images:
+  - references/01_town_square.png
+  - references/02_cafe_street.png
+  - references/03_harbour_cafe.png
+  - references/04_lakeside_park.png

@@ -281,7 +281,16 @@ presentation/<style-id>/
   generation/optional_prompt_guidelines.md
 ```
 
-Not every pack needs every directory. The reference images are the source of truth; the manifest
+Not every pack needs every directory. A style that covers more than one dimension is more than
+one pack, grouped in a family directory, because one manifest cannot describe two dimensions
+whose character proportions differ (`DECISIONS.md` `ARC-3`). The shipped default:
+
+```text
+presentation/mineworld-default/
+├── README.md     what the family is, and what the packs must share
+├── 2D/           manifest.yaml · ART_DIRECTION.md · references/
+└── 3D/           manifest.yaml · ART_DIRECTION.md · references/
+``` The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract
 (§16).
 

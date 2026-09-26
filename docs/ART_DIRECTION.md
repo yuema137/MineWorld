@@ -12,11 +12,19 @@ It is not a sixth pack type. A Presentation Style Pack is the specified internal
 Presentation Pack already defined in [`MODULE_SPEC.md`](MODULE_SPEC.md) §6 — see
 [`DECISIONS.md`](DECISIONS.md) `ARC-1`.
 
-**The four canonical reference images are not yet in the repository.** `§13` makes them the
-primary art-direction source, so until they are committed to
-`presentation/mineworld-default-realistic/references/`, the prose below is the only available
-statement of the style and is weaker than intended. This gap is recorded in that directory's
-`README.md`.
+**Where the references live.** §13 makes reference images the primary art-direction source. They
+are committed, split by dimension because the default style is two packs rather than one
+([`DECISIONS.md`](DECISIONS.md) `ARC-3`):
+
+```text
+presentation/mineworld-default/
+├── 2D/references/   four illustrated isometric references
+└── 3D/references/   six semi-realistic references
+```
+
+Each `references/README.md` indexes what its images cover and what they do not. One known
+tension is recorded there rather than resolved silently: `3D/references/04_character_closeup.png`
+is more photorealistic in the face than §§3 and 7 prescribe.
 
 ---
 

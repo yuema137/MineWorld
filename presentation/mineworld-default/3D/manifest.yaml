@@ -1,7 +1,7 @@
 # MineWorld default presentation style.
 # The reference images in references/ are the source of truth; this file is their compact
 # machine-readable summary (see docs/ART_DIRECTION.md §§15-16, §23).
-id: mineworld-default-realistic
+id: mineworld-default-3d-realistic
 name: MineWorld Default Realistic
 
 dimension:
@@ -36,4 +36,9 @@ environment:
   readability_priority: high
 
 reference_images:
-  - references/lakeside_01_style_c.png
+  - references/01_lakeside_promenade.png
+  - references/02_town_square.png
+  - references/03_cafe_frontage.png
+  - references/04_character_closeup.png
+  - references/05_main_street_golden_hour.png
+  - references/06_lake_trail.png
