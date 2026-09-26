@@ -2,9 +2,22 @@
 
 **Role:** combined step and PR document. S2 needs one PR.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md)
-**Lifecycle:** `DRAFT`
-**Implementation base:** `main` after PR 01 merges (S1 must be merged first; this PR extends the
-same crate)
+**Lifecycle:** `FROZEN — IN IMPLEMENTATION`
+**Implementation base:** `main` @ `c8f2934` (PR 01 merged at `e85c889`; this PR extends the same
+crate)
+**Implementation branch:** `mvp0/pr-02-action-event-spatial`
+
+## DESIGN FROZEN
+
+```text
+Design revision:      §§1-5 of this document as approved in §8 (2026-09-25)
+Approved by:          operator, 2026-09-25 — autonomous-execution authorization for PR 02
+Implementation base:  main @ c8f2934
+Execution contract:   the operator's PR 02 execution kickoff, recorded in §9
+Lifecycle:            FROZEN — scope (§1.1), non-goals (§1.2), invariants (§1.3), design
+                      decisions (§2), acceptance (§3) and test ownership (§4) are frozen;
+                      §7's ledger stays live
+```
 
 Binding parents: [`overall.md`](overall.md) ·
 [`docs/CORE_CONCEPTS.md`](../../../docs/CORE_CONCEPTS.md) ·
@@ -156,11 +169,31 @@ Each commit: implement → validate → review → record → commit. `[ ]` unti
 render and no rule logic anywhere.
 **Scope** `contracts/src/action.rs`, module wiring, tests. Depends on S1 merged.
 
-- [ ] Implementation: `ActionTypeId` slug newtype; `Action` trait with `ACTION_TYPE`, `OWNER`, serde bounds; `ActionRecord` erasure boundary with typed conversion both ways.
-- [ ] Implementation: `ActionIntent { action_id, actor, action_type, target: Option<EntityId>, payload: ActionRecord, issued_at: WorldTime, actor_location: Option<Location> }`.
-- [ ] Implementation: `Rejection` per DD-3 with `RejectionCode` slug; `ActionResult { Accepted { events: Vec<EventId> }, Rejected(Rejection), Unavailable }`.
-- [ ] Validation: wrong-type payload decode fails with a named error; every `Rejection` variant round-trips; an `Unavailable` result is constructible without any system present.
-- [ ] Review: no validation logic in this module; no domain action named outside tests; `ActionRecord` is the only untyped surface.
+- [x] Implementation: `ActionTypeId` slug newtype; `Action` trait with `ACTION_TYPE`, `OWNER`, serde bounds; `ActionRecord` erasure boundary with typed conversion both ways.
+      → `contracts/src/action.rs`. `ActionTypeId` mirrors `SystemId`: `Cow<'static, str>`, `new`
+      validating, `const from_static` checked while the declaring crate compiles. `Action` declares
+      `ACTION_TYPE` and `OWNER` and nothing else — see the schema-version finding in §7.3.
+      `ActionRecord<P = Vec<u8>>` follows `ComponentRecord<P = Vec<u8>>` exactly, minus the entity
+      (a request is not state attached to one) and minus the schema version.
+- [x] Implementation: `ActionIntent { action_id, actor, action_type, target: Option<EntityId>, payload: ActionRecord, issued_at: WorldTime, actor_location: Option<Location> }`.
+      → `actor_location` lands in C3 with the `Location` type it needs; deviation D-1 in §7.3. Every
+      other field is in C1. The envelope's `action_type` is derived from the payload record in `new`
+      and re-checked on deserialization, so the two can never disagree (§7.3, decision K-1).
+- [x] Implementation: `Rejection` per DD-3 with `RejectionCode` slug; `ActionResult { Accepted { events: Vec<EventId> }, Rejected(Rejection), Unavailable }`.
+      → both as designed. `Rejection::Unavailable` and `ActionResult::Unavailable` are documented as
+      two different statements and pinned as distinguishable on the wire (§7.3, decision K-2).
+- [x] Validation: wrong-type payload decode fails with a named error; every `Rejection` variant round-trips; an `Unavailable` result is constructible without any system present.
+      → `contracts/tests/action.rs`, 5 tests; three mutations confirmed the guards are load-bearing.
+      Evidence in §7.2.
+- [x] Review: no validation logic in this module; no domain action named outside tests; `ActionRecord` is the only untyped surface.
+      → `grep -niE 'mesh|navmesh|camera|scene|animation|skeleton|physics|collider|viewport'` and
+      `grep -n 'f32|f64'` over `contracts/src/*.rs`: no hits. `talk`, `give_item` and `shoot` occur
+      in `action.rs` only inside prose that names them as *System Pack* vocabulary the kernel must
+      not know — the same way `entity.rs` already names `cafe` as an example tag. No type, field,
+      constant or identifier in `src/` is named after a domain concept. The only rule-like code in
+      the module is identifier well-formedness and the envelope/payload agreement check; there is no
+      permission, distance, availability or system-presence logic. `ActionRecord` is the module's
+      only generic payload.
 
 **Acceptance** an `ActionIntent` for an undeclared action type is representable and answerable as
 `Unavailable`; a system-specific rejection code survives round-trip; §6 commands clean.
@@ -236,16 +269,135 @@ cargo test -p mineworld-contracts
 
 ## 7.1 Progress
 ```text
-C1 not started   C2 not started   C3 not started   C4 not started   C5 not started
+C1 DONE   C2 not started   C3 not started   C4 not started   C5 not started
 ```
 
 ## 7.2 Evidence
 ```text
-(none yet)
+ENVIRONMENT  rustc/cargo 1.97.1 (pinned by rust-toolchain.toml), rustfmt 1.9.0,
+             clippy 0.1.97, macOS aarch64. PATH must carry ~/.cargo/bin.
+
+--- C1 (working tree at the C1 commit) -------------------------------------------
+cargo fmt --all --check                                        PASS  (clean)
+cargo check --workspace --all-targets                          PASS  (0 warnings)
+cargo clippy --workspace --all-targets --all-features
+                                    -- -D warnings             PASS  (0 warnings)
+cargo test -p mineworld-contracts                              PASS
+  36 integration tests + 2 doc-tests, 0 failed, wall time 0.51s for the whole
+  binary set (the trybuild harness dominates it; every other file reports 0.00s)
+  action 5 · component 6 · entity 6 · identity 9 · relation 6 · time 3 ·
+  compile_fail harness 1 (6 cases) · doc-tests 2
+  baseline before C1 was 32 integration tests + 1 doc-test
+
+MUTATIONS  (purpose: prove the two new guards are load-bearing, not decorative)
+  M1  ActionRecord::payload_for stops comparing the action type
+      expected: a_request_survives_erasure_and_is_readable_only_as_its_own_action_type RED
+      observed: that test FAILED, the other four passed            → behaviour-changing
+  M2  ActionIntent's deserialization stops comparing envelope to payload
+      expected: an_intents_envelope_cannot_disagree_with_its_payload RED
+      observed: that test FAILED, the other four passed            → behaviour-changing
+  M3  ActionIntent::new writes a stale default action type instead of reading the record
+      expected: the shape, INV-10 and agreement tests RED
+      observed: 3 of 5 FAILED                                      → behaviour-changing
+  no surviving mutation; source restored and re-verified green after each
 ```
 
 ## 7.3 Findings, decisions, deviations
 ```text
+DEVIATION D-1 (bounded) — ActionIntent.actor_location arrives in C3, not C1
+REASON   the frozen commit order puts action.rs (C1) before spatial.rs (C3), but the
+         field's type is Location, which C3 defines. C3 in turn needs Rejection from
+         C1 for SpatialRequirement::evaluate, so the two modules depend on each other
+         and no commit order gives both commits a compiling tree with the field in C1.
+EVIDENCE §5 C1 lists actor_location; §5 C3 lists Location and declares "Depends on
+         C1"; a Rust module cycle inside one crate is legal, a commit cycle is not.
+DECISION keep the frozen commit order and let the one field that cannot exist yet
+         arrive with its type in C3, together with its accessor, its builder method
+         and its test. Rejected alternative: reorder C3 before C1, which would have
+         moved Rejection out of action.rs or evaluate out of C3 — a larger change to
+         the frozen design for no gain.
+IMPACT   the contract at the final HEAD is exactly the one §5 specifies; only the
+         commit that introduces one field differs. C3's diff touches action.rs.
+VALIDATION  C1's and C3's §6 runs are both clean; the field is tested in C3.
+
+DECISION K-1 — an intent's envelope and its payload cannot name different action types
+QUESTION §5's ActionIntent carries action_type *and* payload: ActionRecord, and the
+         record carries the action type too. Two places to say one thing.
+EVIDENCE dispatch (S3) routes by the envelope while the owning system decodes the
+         payload, so a disagreement would make one of them act on a request nobody
+         made. ENGINEERING_STANDARDS §7 requires models in which invalid states are
+         hard to represent; crate rule 5 in lib.rs requires deserialization to run the
+         same check as construction.
+DECISION keep both fields as the design specifies, and remove the disagreement
+         instead: `new` derives the envelope's type from the record, and
+         deserialization goes through a private fields struct that refuses a
+         mismatched pair with ContractError::ActionIntentPayloadMismatch. The field
+         list and the stored shape are unchanged; only the ability to lie is gone.
+VALIDATION  an_intents_envelope_cannot_disagree_with_its_payload; mutations M2 and M3.
+
+DECISION K-2 — Rejection::Unavailable and ActionResult::Unavailable are different facts
+QUESTION DD-3 lists Unavailable among Rejection's variants and §5's ActionResult has
+         an Unavailable variant of its own. As written, one world fact would have two
+         representations.
+EVIDENCE ENGINEERING_RULES §8 lists Unavailable among the answers a client renders, so
+         it is kernel rejection vocabulary; INV-10 is a separate and stronger statement
+         — "there is no shoot() in this universe" — and CORE_CONCEPTS §12 gives it its
+         own name, ActionUnavailable.
+DECISION implement both, as frozen, with documented and non-overlapping meanings:
+         ActionResult::Unavailable = no enabled system provides this action type, so
+         the answer is the same for every actor at every moment; Rejection::Unavailable
+         = the action exists, the owning system considered this attempt and refused it
+         without classifying the reason further. Pinned as distinguishable on the wire
+         ("unavailable" vs {"rejected":"unavailable"}), because a client that showed
+         the first as the second would tell a player to try again in a world where the
+         capability is simply absent.
+VALIDATION  an_intent_for_an_action_no_system_provides_is_representable_and_answered_unavailable
+
+FINDING F-1 — the identifier rule had to become crate-visible
+SOURCE   §1.1 places ActionTypeId in action.rs and EventTypeId in event.rs, while S1
+         put every other declaration name in ids.rs, where `check_identifier` is a
+         private const fn.
+DECISION follow §1.1 for placement and widen `check_identifier` to `pub(crate)` rather
+         than write a second const checker. ids.rs's own documentation says the rule is
+         checked in one place so that a literal in code and a name in an authored file
+         cannot be judged by two drifting implementations; a copy would have broken
+         exactly that. ids.rs now records where the two new declaration names live.
+IMPACT   no public API change in S1's surface; one visibility change.
+
+OPEN O-1 — an event payload has no schema version, and the event log is permanent
+SOURCE   §5 C2 specifies the Event trait as (EVENT_TYPE, OWNER). ComponentRecord
+         carries a ComponentSchemaVersion precisely because stored state outlives the
+         code that wrote it, and payload_for refuses a record from a newer schema
+         instead of guessing. The event log is the single source of truth for history
+         (INV-11) and is replayed, so an event payload written years earlier is exactly
+         the same problem.
+DECISION implement C2 as frozen and record the gap here rather than adding a constant
+         to a frozen public trait on this session's own authority. S5 (persistence) is
+         where the migration question becomes concrete, and ENGINEERING_STANDARDS §12
+         ("no early compatibility debt") permits changing the interface cleanly then.
+IMPACT   none inside this PR. S5 must decide payload versioning for events before any
+         event is persisted, or the first schema change to a system's event payload
+         will be undetectable on replay.
+
+OPEN O-2 — nothing here maps an action type to its owning system as data
+SOURCE   DD-2's rationale is that ownership at the type level is what lets S3 route an
+         intent to one system. A registry cannot store types, which is why S1 has
+         ComponentDeclaration beside Component. §1.1 does not list an ActionDeclaration
+         and §1.2 assigns dispatch to S3.
+DECISION do not add one. A::OWNER is readable wherever the type is known, and inventing
+         the registry's value type before the registry exists would be the premature
+         abstraction ENGINEERING_STANDARDS §11 forbids. Recorded so S3 adds it
+         deliberately rather than rediscovering the need.
+
+OBSERVATION — ActionResult carries no ActionId
+DD-1's rationale says a result must be attributable to the exact request, and §5's
+ActionResult has no field for it. Implemented as frozen, with the reasoning documented
+on the type: correlation belongs to whatever paired the request with its answer — the
+dispatcher in process, the protocol on a wire (S11) — and a field here would make every
+in-process answer restate what its caller already holds while still not preventing a
+mismatched pair. S3 and S11 own the pairing.
+
+
 FINDING (spike, 2026-09-25) — embodied 3D is mechanically feasible on this host
 SOURCE  scratchpad/spike3d: Godot 4.7.2, CharacterBody3D + CollisionShape3D,
         Camera3D child, RayCast3D with a 3.0 m reach, StaticBody3D NPC carrying
@@ -300,3 +452,55 @@ OPEN     line of access is declared but not evaluated until geometry exists (DD-
 ```
 
 APPROVED for implementation. Base: `main` once PR 01 is merged.
+
+---
+
+# 9. Execution contract
+
+Filled from `.claude/skills/structured-coding/prompts/implementation-working-rules.md`. The
+operator's PR 02 execution kickoff of 2026-09-25 is the source for every endpoint below.
+
+```text
+PROJECT / PR        Step 02 / PR 02 — Action, Event, Observation and Spatial contracts
+PRIMARY DESIGN DOC  this document
+RELATED / BINDING   overall.md · docs/CORE_CONCEPTS.md · docs/ENGINEERING_RULES.md §§4-12, §15 ·
+                    docs/ENGINEERING_STANDARDS.md · CLAUDE.md ·
+                    step-01-entity-component-contracts.md (merged precedent)
+IMPLEMENTATION BASE main @ c8f2934, branch mvp0/pr-02-action-event-spatial
+APPROVED SCOPE      §1.1 only. Everything in §1.2 belongs to a later step.
+FROZEN INVARIANTS   §1.3, restated by the operator: no floating point anywhere; no domain
+                    concept; no engine concept; BTreeMap/BTreeSet/Vec only; an Event cannot be
+                    constructed without a Causation and a Visibility; an Observation exposes only
+                    the entities it lists; ActionRecord and EventRecord are the only erasure
+                    boundaries, mirroring ComponentRecord<P = Vec<u8>>
+SEQUENCE            §5: C1 action · C2 event · C3 spatial · C4 observation · C5 specifications
+VALIDATION BUDGET   ordinary static/unit/contract runs unrestricted. No real-LLM and no
+                    real-lifecycle layer exists at S2 (§4), so no Gate applies and none was run.
+REQUIRED LIVE DOC   this document, §7
+HANDOFF FILE        .structured-coding/plans/mvp0/handoff.md
+TEST OWNERSHIP      §4
+
+ENDPOINT AUTHORITY
+  implementation + local validation   authorized      source: operator kickoff, 2026-09-25
+  semantic commits                    authorized      source: operator kickoff — "Semantic
+                                                      commits on your branch: AUTHORIZED"
+  branch push                         NOT authorized  source: operator kickoff — "git push: NOT
+                                                      AUTHORIZED, there is no remote and none
+                                                      may be added"; decision D-9 in overall.md
+  PR creation / remote CI             N/A             source: no remote exists (D-9)
+  merge into main                     explicit operator authorization only — "Merging to main:
+                                                      NOT yours. Stop at ready-for-review."
+
+POST-MERGE SYNCHRONIZATION OWNER
+  this implementation session owns this PR document, its evidence and its deviations;
+  the planning session owns the step-level and overall.md updates after merge
+  (overall.md §7 convention, unchanged from PR 01)
+
+NORMAL STOP CONDITION
+  PR 02 READY FOR OPERATOR REVIEW on mvp0/pr-02-action-event-spatial — DO NOT MERGE
+
+STOP AND REPORT INSTEAD OF IMPROVISING WHEN
+  a frozen invariant in §1.3 would have to change
+  a gate question in §3.1 cannot be answered yes against the written code
+  a public specification statement is falsified
+```

@@ -9,6 +9,7 @@ use core::fmt;
 
 use thiserror::Error;
 
+use crate::action::ActionTypeId;
 use crate::component::ComponentSchemaVersion;
 use crate::entity::LifecycleState;
 use crate::ids::{ComponentTypeId, EntityId, EntityType, RelationTypeId};
@@ -28,6 +29,10 @@ pub enum IdentifierKind {
     ComponentTypeId,
     /// A [`crate::ids::RelationTypeId`].
     RelationTypeId,
+    /// An [`crate::action::ActionTypeId`]: the name of a kind of action a system provides.
+    ActionTypeId,
+    /// A [`crate::action::RejectionCode`]: a rejecting system's own reason code.
+    RejectionCode,
     /// A [`crate::entity::Tag`]: one semantic label on an entity.
     Tag,
 }
@@ -39,6 +44,8 @@ impl fmt::Display for IdentifierKind {
             Self::SystemId => "system id",
             Self::ComponentTypeId => "component type id",
             Self::RelationTypeId => "relation type id",
+            Self::ActionTypeId => "action type id",
+            Self::RejectionCode => "rejection code",
             Self::Tag => "tag",
         };
         f.write_str(name)
@@ -173,5 +180,26 @@ pub enum ContractError {
         relation_type: RelationTypeId,
         /// The entity offered at both ends.
         entity: EntityId,
+    },
+
+    /// An action record was read as an action type it was not written for.
+    #[error("a {actual} action payload cannot be read as {expected}")]
+    ActionTypeMismatch {
+        /// The action type the caller asked for.
+        expected: ActionTypeId,
+        /// The action type the record was written from.
+        actual: ActionTypeId,
+    },
+
+    /// A serialized action intent named one action type in its envelope and carried another in
+    /// its payload. Refused rather than resolved either way: dispatch routes by the envelope and
+    /// the owning system decodes the payload, so the two disagreeing means one of them would act
+    /// on a request nobody made.
+    #[error("an action intent for {action_type} cannot carry a {payload_action_type} payload")]
+    ActionIntentPayloadMismatch {
+        /// The action type the intent's envelope named.
+        action_type: ActionTypeId,
+        /// The action type its payload record was written from.
+        payload_action_type: ActionTypeId,
     },
 }
