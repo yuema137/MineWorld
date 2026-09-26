@@ -1,0 +1,30 @@
+error[E0624]: associated function `new` is private
+  --> tests/compile_fail/an_external_crate_cannot_construct_write_access.rs:41:35
+   |
+41 |     let mut access = WriteAccess::new();
+   |                                   ^^^ private associated function
+   |
+  ::: src/access.rs
+   |
+   |     pub(crate) fn new() -> Self {
+   |     --------------------------- private associated function defined here
+
+error[E0599]: no associated function or constant named `default` found for struct `WriteAccess` in the current scope
+  --> tests/compile_fail/an_external_crate_cannot_construct_write_access.rs:42:40
+   |
+42 |     let _also_an_issuer = WriteAccess::default();
+   |                                        ^^^^^^^ associated function or constant not found in `WriteAccess`
+
+error[E0624]: method `grant` is private
+  --> tests/compile_fail/an_external_crate_cannot_construct_write_access.rs:45:25
+   |
+45 |       let stolen = access.grant(&Victim).expect("this line does not compile");
+   |                           ^^^^^ private method
+   |
+  ::: src/access.rs
+   |
+   | /     pub(crate) fn grant<S: SystemIdentity>(
+   | |         &mut self,
+   | |         _system: &S,
+   | |     ) -> Result<WriteToken<S>, KernelError> {
+   | |___________________________________________- private method defined here

@@ -31,6 +31,9 @@
 //! required, so the writer still has to *be* a system; what the compiler cannot do here is say
 //! *which* system, and pretending otherwise would be worse than saying so.
 
+#[cfg(test)]
+mod tests;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use mineworld_contracts::{

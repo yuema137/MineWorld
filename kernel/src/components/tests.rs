@@ -7,12 +7,15 @@
 //!
 //! The cross-system write is absent from this file on purpose. It cannot be written down in a
 //! program that compiles, so it lives in `tests/compile_fail/` instead.
+//!
+//! These tests moved inside the crate when PR 03b sealed `WriteAccess::new()` (`BD-1`). A write
+//! token now exists only inside a world, so no external test crate can obtain one — which is the
+//! guarantee, not an obstacle. What a pack author sees from outside is tested from outside, in
+//! `kernel/tests/`; what only the kernel can reach is tested here.
 
+use crate::{ComponentStore, KernelError, OwnedBy, SystemIdentity, WriteAccess, WriteToken};
 use mineworld_contracts::{
     Component, ComponentRecord, ComponentSchemaVersion, ComponentTypeId, EntityId, SystemId,
-};
-use mineworld_kernel::{
-    ComponentStore, KernelError, OwnedBy, SystemIdentity, WriteAccess, WriteToken, owned_component,
 };
 use serde::{Deserialize, Serialize};
 
@@ -34,7 +37,7 @@ struct Measured {
     amount: u32,
 }
 
-owned_component! {
+crate::owned_component! {
     component = Measured,
     owner = FirstStub,
     component_type = "measured",
@@ -47,7 +50,7 @@ struct Flagged {
     raised: bool,
 }
 
-owned_component! {
+crate::owned_component! {
     component = Flagged,
     owner = SecondStub,
     component_type = "flagged",
@@ -61,7 +64,7 @@ struct Unused {
     note: u8,
 }
 
-owned_component! {
+crate::owned_component! {
     component = Unused,
     owner = FirstStub,
     component_type = "unused",

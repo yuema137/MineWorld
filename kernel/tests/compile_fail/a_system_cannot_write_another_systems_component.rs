@@ -1,11 +1,17 @@
-//! The attempt `INV-7` exists to stop: a system holding its own write token uses it on a
-//! component type another system owns.
+//! The attempt `INV-7` exists to stop: a running system writes a component type another system
+//! owns.
 //!
-//! This is the heart of the guarantee. The write is not refused at run time; it cannot be
-//! written down.
+//! This is the heart of the guarantee, and it is written here the way it would actually happen — in
+//! a system's own `resolve`, through the [`WorldView`] dispatch hands it. That view is now the only
+//! writable thing a system ever holds, so this is the whole surface the attempt can use.
+//!
+//! The write is not refused at run time; it cannot be written down.
 
-use mineworld_contracts::{EntityId, SystemId};
-use mineworld_kernel::{ComponentStore, SystemIdentity, WriteAccess, owned_component};
+use mineworld_contracts::{ActionIntent, EntityId, SystemId};
+use mineworld_kernel::{
+    Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, WorldView,
+    owned_component,
+};
 use serde::{Deserialize, Serialize};
 
 struct FirstStub;
@@ -18,6 +24,7 @@ impl SystemIdentity for SecondStub {
     const ID: SystemId = SystemId::from_static("second-stub");
 }
 
+/// State the first system owns.
 #[derive(Serialize, Deserialize)]
 struct Measured {
     amount: u32,
@@ -30,12 +37,21 @@ owned_component! {
     schema_version = 1,
 }
 
-fn main() {
-    let mut access = WriteAccess::new();
-    let second = access.grant(&SecondStub).expect("a first grant succeeds");
-    let mut store = ComponentStore::new();
+impl System for SecondStub {
+    const VERSION: SystemVersion = SystemVersion::new(1);
 
-    store
-        .insert(&second, EntityId::from_raw(1), Measured { amount: 1 })
-        .expect("this line does not compile");
+    fn declaration(&self) -> SystemDeclaration {
+        SystemDeclaration::of::<Self>()
+    }
+
+    fn resolve(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        _intent: &ActionIntent,
+    ) -> Result<Vec<Emission>, KernelError> {
+        world.insert(EntityId::from_raw(1), Measured { amount: 1 })?;
+        Ok(Vec::new())
+    }
 }
+
+fn main() {}

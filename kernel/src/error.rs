@@ -183,6 +183,42 @@ pub enum KernelError {
         component_type: ComponentTypeId,
     },
 
+    /// A system was installed into a world that already has one by that name. Refused rather than
+    /// replacing it: the installed system owns state, and a second system under one name would
+    /// either inherit state it never wrote or silently orphan it.
+    #[error("system '{system}' is already installed in this world")]
+    SystemAlreadyInstalled {
+        /// The system name claimed a second time.
+        system: SystemId,
+    },
+
+    /// A system's `declaration()` handed back a declaration belonging to another system. Nothing in
+    /// the type system stops that — `SystemDeclaration::of::<Another>()` is an ordinary expression —
+    /// so installation compares the two, because a declaration is what ownership conflicts are
+    /// decided from and a system must not be able to claim another's.
+    #[error("system '{system}' returned a declaration belonging to '{declared}'")]
+    SystemDeclarationNamesAnotherSystem {
+        /// The system being installed.
+        system: SystemId,
+        /// The system its declaration named.
+        declared: SystemId,
+    },
+
+    /// A system's declaration claims a component type, and the system did not declare a table for
+    /// it while being installed. The two halves of ownership would then disagree: the registry
+    /// would refuse another system's claim on state that does not exist, and a write to it would be
+    /// refused as undeclared.
+    #[error(
+        "system '{system}' declares that it owns component type '{component_type}' \
+         but did not declare its table"
+    )]
+    SystemDidNotDeclareOwnedComponent {
+        /// The system being installed.
+        system: SystemId,
+        /// The component type it claimed and did not declare.
+        component_type: ComponentTypeId,
+    },
+
     /// An action was routed to the system that provides it, and that system has no resolution for
     /// it. Refused rather than accepted with no events: a system that provides an action and does
     /// not resolve it is a bug in that system, and a silent acceptance would hide it behind a

@@ -17,35 +17,55 @@
 //! *name* a write to a component it does not own. There is no runtime ownership check on the
 //! write path to forget, get wrong, or have to test.
 //!
-//! # What this does not, and cannot, prevent
+//! # Where tokens come from, and why that is the other half of the guarantee
 //!
-//! Rust has no notion of which crate is calling, so possession of a token is the only available
-//! proof that the caller is a given system. Three consequences, stated here because a guarantee
-//! whose edges are undocumented is a guarantee nobody can rely on:
+//! A token names a system; it cannot prove that its holder *is* that system, because Rust has no
+//! notion of which crate is calling. So the question "who may obtain which token" is not answered
+//! by the type system at all — it is answered by how a world is assembled, and the answer is
+//! [`World`](crate::World):
 //!
-//! 1. A token is minted by [`WriteAccess::grant`], which requires a **value** of the system
-//!    type. A crate that can name another system's type but not construct one cannot take its
-//!    token; a system type anyone can construct, such as a unit struct, gives away that
-//!    protection, and a pack that wants it declares its system type with a private field.
-//! 2. `grant` refuses a second token for the same [`SystemId`], so within one world a system's
-//!    token exists once. A crate that grabbed it first would be detected: the real system's
-//!    installation is the thing that then fails.
-//! 3. [`OwnedBy`] is a public trait, so a pack can implement it for a component type **it
-//!    defines**, including dishonestly. Coherence stops it from implementing the trait for
-//!    another pack's component type, so this can only ever widen who may write the liar's own
-//!    state, never narrow anyone else's. [`ComponentStore::declare`](crate::ComponentStore::declare)
-//!    refuses the lie anyway, once, when the component type is declared.
+//! ```text
+//! WriteAccess       a world's only issuer of write capability, and pub(crate) — BD-1
+//! World::install    the one act that grants a token, once per system, at assembly
+//! WorldView<S>      what a running system is handed: gated writes, never the issuer
+//! ```
+//!
+//! PR 03a left [`WriteAccess::new`] public, and its review reproduced the consequence from an
+//! external crate (attempt `A8`): construct your own issuer, grant yourself another system's token,
+//! write its component. It succeeded. The constructor is therefore crate-private as of PR 03b, and
+//! `WriteAccess` derives no `Default` either — a derived `Default` would be a public second
+//! constructor and would reopen the hole exactly. The refusal is pinned by
+//! `tests/compile_fail/an_external_crate_cannot_construct_write_access.rs`, so it cannot silently
+//! close again.
+//!
+//! Two smaller mitigations remain, and they are worth stating because they are weaker than they
+//! look:
+//!
+//! 1. [`WriteAccess::grant`] requires a **value** of the system type, and
+//!    [`World::install`](crate::World::install) takes one for the same reason. A pack whose system
+//!    type keeps its constructor cannot be installed by anybody else — but most packs export
+//!    `pub struct InventorySystem;`, so this protects only the packs that ask for it.
+//! 2. `grant` refuses a second token for one [`SystemId`], and the registry refuses a second
+//!    installation under one name. An impersonator that got in first is therefore *detected*: the
+//!    real system's installation is what fails.
+//!
+//! # What this still does not, and cannot, prevent
+//!
+//! [`OwnedBy`] is a public trait, so a pack can implement it for a component type **it defines**,
+//! including dishonestly. Coherence stops it from implementing the trait for another pack's
+//! component type, so a lie can only ever widen who may write the liar's own state, never narrow
+//! anyone else's. [`ComponentStore::declare`](crate::ComponentStore::declare) refuses the lie
+//! anyway, once, when the component type is declared.
+//!
+//! A component type that carries interior mutability — a `Cell`, a `RefCell`, a `Mutex` — can be
+//! changed by anyone who can read it, and no bound on stable Rust expresses "no interior
+//! mutability". **A component type must not carry interior mutability.** That is a review
+//! convention rather than a mechanism, it is the one rule here a compiler does not enforce, and it
+//! is also self-limiting: only the owner of the state can open that hole, by declaring it that way.
 //!
 //! What a token proves is therefore precise, and worth stating exactly: **given a token, the
 //! component types writable through it are exactly the ones its system owns.** That part is the
-//! type system's and has no runtime check to get wrong. A token names a system, not a store, and
-//! it does not prove that the holder is that system — nothing in Rust can, because the language
-//! has no concept of which crate is calling. Who may obtain which token is a question about how a
-//! world is assembled, and it is answered where systems are installed and dispatched: the world's
-//! [`WriteAccess`] belongs to the kernel, each system is granted its token once at installation,
-//! and what a running system is handed must be a view of the store rather than a `&mut` to it —
-//! a `&mut ComponentStore` allows the whole store to be replaced, which no ownership check can
-//! prevent.
+//! type system's and has no runtime check to get wrong.
 
 use std::collections::BTreeSet;
 use std::marker::PhantomData;
@@ -127,20 +147,30 @@ impl<S: SystemIdentity> core::fmt::Debug for WriteToken<S> {
     }
 }
 
-/// The world's issuer of write capabilities.
+/// One world's issuer of write capabilities.
 ///
 /// Exactly one token exists per system, and this is where it comes from. A second request for a
 /// system that already holds one is refused rather than served, so two pieces of code cannot
 /// both believe they are the writer of a system's state.
-#[derive(Debug, Default)]
+///
+/// **There is one of these per world and it cannot be constructed outside this crate** (`BD-1`). A
+/// [`World`](crate::World) holds it in a private field, never lends it out, and grants from it only
+/// while installing a system. No `Default` is derived, because a derived `Default` is a public
+/// second constructor: it would let an external crate build a second issuer and grant itself any
+/// system's token, which is precisely the bypass this seal closes.
+#[derive(Debug)]
 pub struct WriteAccess {
     granted: BTreeSet<SystemId>,
 }
 
 impl WriteAccess {
     /// A world in which nothing has write access yet.
-    pub fn new() -> Self {
-        Self::default()
+    ///
+    /// Crate-private: one issuer per world, created by [`World::new`](crate::World::new).
+    pub(crate) fn new() -> Self {
+        Self {
+            granted: BTreeSet::new(),
+        }
     }
 
     /// Issues `S`'s write token, once.
@@ -148,7 +178,10 @@ impl WriteAccess {
     /// The `_system` parameter is a possession check rather than data: the caller has to hold a
     /// value of the system type, which is the only thing in Rust that a system's own crate can
     /// keep to itself. Nothing is read from it.
-    pub fn grant<S: SystemIdentity>(&mut self, _system: &S) -> Result<WriteToken<S>, KernelError> {
+    pub(crate) fn grant<S: SystemIdentity>(
+        &mut self,
+        _system: &S,
+    ) -> Result<WriteToken<S>, KernelError> {
         if !self.granted.insert(S::ID) {
             return Err(KernelError::WriteAccessAlreadyGranted { system: S::ID });
         }
@@ -156,12 +189,13 @@ impl WriteAccess {
     }
 
     /// Whether a system already holds its write token.
-    pub fn is_granted(&self, system: &SystemId) -> bool {
+    pub(crate) fn is_granted(&self, system: &SystemId) -> bool {
         self.granted.contains(system)
     }
 
-    /// Every system that holds a write token, in name order.
-    pub fn granted(&self) -> impl Iterator<Item = &SystemId> {
+    /// Every system that holds a write token, in name order. Reported by
+    /// [`World::writers`](crate::World::writers).
+    pub(crate) fn granted(&self) -> impl Iterator<Item = &SystemId> {
         self.granted.iter()
     }
 }
@@ -175,7 +209,10 @@ impl WriteAccess {
 ///
 /// ```
 /// use mineworld_contracts::SystemId;
-/// use mineworld_kernel::{ComponentStore, SystemIdentity, WriteAccess, owned_component};
+/// use mineworld_kernel::{
+///     Declarations, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
+///     owned_component,
+/// };
 /// use serde::{Deserialize, Serialize};
 ///
 /// struct Places;
@@ -195,15 +232,32 @@ impl WriteAccess {
 ///     schema_version = 1,
 /// }
 ///
-/// # fn main() -> Result<(), mineworld_kernel::KernelError> {
-/// let mut access = WriteAccess::new();
-/// let places = access.grant(&Places)?;
+/// impl System for Places {
+///     const VERSION: SystemVersion = SystemVersion::new(1);
 ///
-/// let mut store = ComponentStore::new();
-/// store.declare::<Occupancy, _>(&places)?;
+///     fn declaration(&self) -> SystemDeclaration {
+///         SystemDeclaration::of::<Self>().owning::<Occupancy>()
+///     }
+///
+///     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
+///         tables.component::<Occupancy>()
+///     }
+/// }
+///
+/// # fn main() -> Result<(), KernelError> {
+/// let mut world = World::new();
+/// world.install(Places)?;
+///
+/// assert!(world.components().is_declared(&Occupancy::COMPONENT_TYPE));
 /// # Ok(())
 /// # }
+/// # use mineworld_contracts::Component;
 /// ```
+///
+/// The table is declared by the system that owns the type, as it is installed, and the write token
+/// that authorizes it never leaves the world (`BD-1`). There is no other way in: outside this crate
+/// a `WriteAccess` cannot be constructed, so a component type is only ever declared by its owner
+/// joining a world.
 ///
 /// A component declared by hand is still a component, and the store still works with it; what a
 /// hand-written declaration can do, and this cannot, is state an owner that disagrees with the
