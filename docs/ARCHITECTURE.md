@@ -462,8 +462,8 @@ The reasons, so that a later session does not reverse it by accident:
    from the first commit, while the first non-Rust consumer arrives much later.
 2. The guarantees the kernel relies on are expressible in Rust's type system and not in
    Protobuf: distinct identifier types that cannot be substituted for one another, component
-   ownership carried as part of a component's type, a payload-erasure boundary that exists in
-   exactly one place. Generating the contracts from a `.proto` would flatten all three into
+   ownership carried as part of a component's type, one payload-erasure boundary per contract
+   family and nowhere else. Generating the contracts from a `.proto` would flatten all three into
    integers and byte strings and move every check to runtime.
 3. Choosing a wire encoding early would also choose it for component payloads, which the
    contract layer deliberately leaves to the persistence layer.

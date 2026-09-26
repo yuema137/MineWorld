@@ -9,7 +9,10 @@
 //! **Authoring identity**, written by a human and stable across runs: [`EntityKey`] for an
 //! entity in a World Pack, and the declaration names [`SystemId`], [`ComponentTypeId`] and
 //! [`RelationTypeId`]. A World Pack refers to `alice`; the runtime resolves that to an
-//! [`EntityId`] when it loads the pack.
+//! [`EntityId`] when it loads the pack. [`ActionTypeId`](crate::action::ActionTypeId) is a
+//! declaration name too, and obeys the same rule, but lives beside the contract that gives it
+//! meaning: an action type says nothing except next to the [`Action`](crate::action::Action)
+//! trait that declares it.
 //!
 //! **Typed entity references**: [`PersonId`], [`PlaceId`], [`ItemId`], [`OrganizationId`].
 //! These carry, in the type system, the [`EntityType`] they were checked against, so that a
@@ -42,7 +45,7 @@ pub const MAX_IDENTIFIER_LENGTH: usize = 64;
 /// implementations. This enum is the const-compatible half of the answer: byte positions and
 /// lengths, no `char` decoding and no [`ContractError`], which needs both.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum IdentifierFault {
+pub(crate) enum IdentifierFault {
     Empty,
     TooLong { length: usize },
     IllegalByte { position: usize },
@@ -62,7 +65,11 @@ enum IdentifierFault {
 /// This is a `const fn` so that an identifier declared as a literal in code — a system's name,
 /// a component type's name — is checked while the crate that declares it compiles, rather than
 /// when it is first loaded.
-const fn check_identifier(value: &str) -> Result<(), IdentifierFault> {
+///
+/// Visible to the whole crate rather than to this module, because the declaration names that
+/// live beside their own contracts — an action type, an event type — must be judged by this
+/// implementation and not by a second one that could drift from it.
+pub(crate) const fn check_identifier(value: &str) -> Result<(), IdentifierFault> {
     let bytes = value.as_bytes();
     if bytes.is_empty() {
         return Err(IdentifierFault::Empty);

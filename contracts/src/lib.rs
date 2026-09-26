@@ -22,12 +22,12 @@
 //! it, so a contract type that cannot round-trip through `serde` cannot be persisted or
 //! replayed.
 //!
-//! **4. Exactly one type erases a payload.** [`ComponentRecord`] holds a component's contents
-//! in a form this crate cannot interpret, because a database row and a network frame carry
-//! bytes rather than Rust types. It is the only such type, it is documented as that boundary,
-//! and it cannot be mislabelled: a record is built from a component type and is handed back
-//! only to code that names the same type and schema version. Anywhere else, an untyped payload
-//! is a defect.
+//! **4. Exactly one type erases a payload per contract family.** [`ComponentRecord`],
+//! [`ActionRecord`] and [`EventRecord`] hold their contents in a form this crate cannot
+//! interpret, because a database row and a network frame carry bytes rather than Rust types. Each
+//! is documented as that boundary, and none can be mislabelled: a record is built from a
+//! component, action or event type and is handed back only to code that names the same type —
+//! and, for a component, the same schema version. Anywhere else, an untyped payload is a defect.
 //!
 //! **5. Validation happens in constructors, and rejects rather than repairs.** A constructor
 //! that can fail returns [`Result<_, ContractError>`](ContractError) and is named `new`.
@@ -37,20 +37,37 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod action;
 pub mod component;
 pub mod entity;
 pub mod error;
+pub mod event;
 pub mod ids;
+pub mod observation;
 pub mod relation;
+pub mod spatial;
 pub mod time;
 
+pub use action::{
+    Action, ActionIntent, ActionRecord, ActionResult, ActionTypeId, Rejection, RejectionCode,
+};
 pub use component::{Component, ComponentDeclaration, ComponentRecord, ComponentSchemaVersion};
 pub use entity::{Entity, LifecycleState, Metadata, Tag, Tags};
 pub use error::{ContractError, IdentifierKind};
+pub use event::{
+    Causation, Event, EventEnvelope, EventRecord, EventSchemaVersion, EventTypeId, Provenance,
+    Visibility,
+};
 pub use ids::{
     ActionId, ComponentTypeId, EntityId, EntityKey, EntityType, EventId, ItemId,
     MAX_IDENTIFIER_LENGTH, OrganizationId, PersonId, PlaceId, ProcessId, RelationTypeId, SystemId,
 };
+pub use spatial::{
+    LocalPosition, Location, Millidegrees, Millimetres, Orientation, PlaceRequirement,
+    SpatialRequirement,
+};
+
+pub use observation::{Affordance, Observation, PerceivedEntity, PerceivedEvent};
 pub use relation::{
     EntityTypeSet, Relation, RelationDirection, RelationEnd, RelationTypeDeclaration, SelfEdges,
 };

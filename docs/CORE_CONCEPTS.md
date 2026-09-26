@@ -295,6 +295,77 @@ temporary events
 
 Geometry belongs to the renderer. Semantic location belongs to the simulation (INV-5, INV-14).
 
+## 6.1 Location: semantic place, optionally refined
+
+Where something is, is one type with an optional refinement:
+
+```text
+Location
+    place     PlaceId              always present, authoritative
+    local     LocalPosition?       optional: where inside the place
+    facing    Orientation?         optional: which way it is turned
+```
+
+```text
+LocalPosition       x, y, z          millimetres from the place's own origin
+Orientation         yaw              millidegrees, canonicalized into [0, 360000)
+                    pitch?           millidegrees, optional, within ±90000
+```
+
+Both refinements are optional because a world may not model them, and a world that does not
+loses nothing: a headless world and a 2D client work with the place alone, an embodied 3D
+client fills both in, and every System is written against the same type either way. One
+`Location` therefore describes both *"standing 1.2 m from Alice, facing her, inside the café"*
+and *"in the café, position irrelevant"*
+([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§5–6, §§11–12).
+
+Three properties are not negotiable:
+
+1. **Fixed-point, never floating-point.** Positions are `i32` millimetres and angles are `i32`
+   millidegrees. Positions reach the Event Log, the log is replayed, and floating-point
+   arithmetic is not reproducible across platforms — so a float here would break the
+   determinism the framework requires of a seeded run.
+2. **No engine concept.** No mesh, navmesh, collider, camera, scene node, animation, skeleton
+   or physics ([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §12). A client maps a `Location`
+   onto whatever its engine uses; the simulation never learns what that was.
+3. **Hierarchy is a Relation, not a field.** That a kitchen is inside a café is a fact about two
+   Places and lives as a Relation (§9), not as a parent field on this type.
+
+## 6.2 SpatialRequirement: what an action needs of space
+
+Whether an action needs proximity belongs to the contract of the System that provides it, and no
+renderer decides it ([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §7). The requirement is
+therefore **data** a System declares, not code it hides:
+
+```text
+SpatialRequirement
+    place                       Any | SamePlaceAsActor | Specific(PlaceId)
+    within_range                Millimetres?     interaction radius
+    requires_line_of_access     bool
+    requires_target_available   bool
+```
+
+`talk`, `give item`, `open door`, `sit` and `use machine` declare what they need. `send message`,
+`make phone call` and `apply for remote job` declare that they need nothing, which is as much a
+declaration as the others.
+
+Because it is data, it has two consumers rather than one: the authoritative server evaluates it,
+and a client can be *told* it — inside an Affordance (§15) — without implementing the check.
+The kernel supplies one evaluation of it, which answers `TooFarAway`, `TargetUnavailable` or
+`PreconditionFailed`, and which a renderer never performs itself
+([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §8).
+
+Two boundaries of that evaluation are stated rather than hidden:
+
+- **Line of access is declared and not yet evaluated.** Deciding whether a wall stands between
+  two positions needs world geometry that no layer owns yet. The declaration is carried so that
+  a geometry provider can answer it later; until then the kernel does not pretend to have
+  checked it.
+- **A range requirement in a world with no continuous position means *same place*.** That is the
+  finest proximity such a world can express. Passing everything would let a three-metre range
+  reach another town; failing everything would make an action declared by a 3D-capable System
+  unusable in a 2D world, which §§6.1 and 9 of this document forbid.
+
 ---
 
 # 7. Item
@@ -434,9 +505,25 @@ Visibility
 Provenance
 ```
 
-`CausedBy` is what makes causality traceable (INV-15). `Visibility` is what lets perception
-systems decide who could have learned of the event. `Provenance` records which system emitted
-it and, where relevant, which controller decision led to it.
+`CausedBy` is what makes causality traceable (INV-15), and it is never absent: an Event is
+caused by an `ActionIntent`, by a `Process`, by another Event, by a System's own tick, or by the
+world coming into existence. The last exists so that a world's initial facts are *explained*
+rather than uncaused.
+
+`Visibility` is what lets perception systems decide who could have learned of the event, and it
+is never absent either: an Event that did not state its audience would leave a perception system
+to choose a default, and the only available defaults are omniscience and silence (INV-13).
+Declaring it is the emitting System's job, because only that System knows whether the fact was
+shouted across a room or noticed by nobody.
+
+`Provenance` records which system emitted it and, where relevant, which controller decision led
+to it.
+
+`Location` here is the **semantic** location: the Place the fact happened in (§6). It is not a
+`Location` with a continuous refinement, because a millimetre position and an orientation are
+properties an *entity* has rather than properties a *fact* has. A System whose events genuinely
+carry continuous geometry — a movement system recording a new position — puts it in that
+System's own typed Payload, where it is that System's contract rather than the kernel's.
 
 ---
 
@@ -478,6 +565,39 @@ New World State
 
 Rejection is a normal, first-class outcome, and `ActionUnavailable` is the answer whenever no
 enabled system provides the action (INV-10).
+
+## 12.1 What the world answers
+
+An `ActionIntent` is answered with exactly one of three things:
+
+```text
+Accepted        with the Events the request caused
+Rejected        with a reason
+Unavailable     no enabled system provides this action at all (INV-10)
+```
+
+The reasons are kernel vocabulary, because every client must be able to show them
+([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §8):
+
+```text
+Busy                    TooFarAway              PermissionDenied
+NoSupportedInteraction  TargetUnavailable       PreconditionFailed
+Unavailable             the action exists and this attempt was refused without
+                        further classification — distinct from the answer above,
+                        which says the action does not exist in this world
+```
+
+A System may add a reason of its own, as a code it owns together with an optional note, so that
+installing a System Pack never requires editing the kernel's list. A client that does not
+recognize a System's code falls back to showing the request as refused.
+
+None of these carries display text. What a player reads is presentation, and which language they
+read it in is a Presentation Pack's decision, so a client maps a reason to its own wording
+([`ART_DIRECTION.md`](ART_DIRECTION.md), [`MODULE_SPEC.md`](MODULE_SPEC.md)).
+
+An intent may also report where the actor was when it was made. That is a *report* from a
+client, not authoritative state: the server holds the authority and is free to evaluate against
+its own ([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §8, INV-9).
 
 ---
 
@@ -584,6 +704,56 @@ Which channels exist depends on which perception systems a world enables. Future
 include `VisionSystem`, `HearingSystem`, `RumorSystem`, `PhoneSystem`, `InternetSystem`,
 `NewsSystem`. The purpose is structural: an omniscient controller must be impossible, not
 merely discouraged.
+
+## 15.1 What an Observation contains
+
+```text
+Observation
+    observer          which Person's view this is
+    at                the world time it was taken
+    self_location     where the observer itself is
+    entities          the entities exposed to it, each with only the
+                      components this observer is entitled to
+    events            the Events this observer is entitled to have learned of
+    affordances       what this observer may attempt, and the world's answer
+```
+
+"Structural" means specifically this: an Observation is a **value listing what was exposed**. It
+holds no component store, no entity registry, no world handle and no query, so there is nothing
+in it to widen. Asking it about an entity it does not list answers *nothing*, and there is no
+second call that would answer more. A Controller that was not shown something cannot distinguish
+that from the thing not existing, and that asymmetry is the feature (INV-13).
+
+## 15.2 Affordance: the world's answer about what can be attempted
+
+A Controller or a client still has to know what it may try. A 3D client shows a prompt over the
+person the camera is pointing at; a 2D client greys out a menu entry; a language-model controller
+is told what is possible instead of guessing. If the Observation did not carry that answer, each
+of them would compute it from whatever it could see — which is the duplicated rule logic
+[`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§8–9 identifies as an architectural failure.
+
+```text
+Affordance
+    action_type           which action
+    target                what it would be directed at, if anything
+    available             whether it can be attempted right now
+    unavailable_reason    why not, when it cannot
+    requirement           the action's SpatialRequirement (§6.2), unevaluated
+```
+
+The server computes it; a client renders it. Three consequences follow, and all three are
+contracts rather than conventions:
+
+1. **The reason is carried, not just the refusal.** A client told only *that* something is
+   unavailable can grey it out; one told `TooFarAway` can say so, and a player who is told
+   nothing learns nothing.
+2. **No display text.** The Affordance names the action type and the target; the client maps the
+   type to its own wording and reads the target's *name* from a component of that target in the
+   same Observation. A name is world data and must not be invented by a client, while wording and
+   language are presentation and must not be invented by the kernel.
+3. **The requirement travels unevaluated.** A client can show what an action needs — a reach, a
+   place — without checking it. Checking remains the server's, in one implementation shared by
+   every client (§6.2).
 
 ---
 

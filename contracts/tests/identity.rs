@@ -5,8 +5,9 @@
 //! under test, so a change in behavior cannot silently change what the test expects.
 
 use mineworld_contracts::{
-    ActionId, ComponentTypeId, ContractError, EntityId, EntityKey, EntityType, EventId,
-    IdentifierKind, ItemId, OrganizationId, PersonId, PlaceId, ProcessId, RelationTypeId, SystemId,
+    ActionId, ActionTypeId, ComponentTypeId, ContractError, EntityId, EntityKey, EntityType,
+    EventId, IdentifierKind, ItemId, OrganizationId, PersonId, PlaceId, ProcessId, RejectionCode,
+    RelationTypeId, SystemId,
 };
 
 /// The identifiers the specification's own examples use must be accepted, and the character
@@ -96,8 +97,8 @@ fn entity_key_rejects_malformed_names_with_a_named_error() {
     );
 }
 
-/// The three declaration names share one character rule, and each must report *its own*
-/// [`IdentifierKind`] — the failure this test exists for is a copy-paste between the four
+/// The declaration names share one character rule, and each must report *its own*
+/// [`IdentifierKind`] — the failure this test exists for is a copy-paste between the
 /// hand-written identifier types, which would otherwise surface as a misleading error in a
 /// World Pack loader.
 #[test]
@@ -106,6 +107,8 @@ fn declaration_names_share_the_rule_and_report_their_own_kind() {
     assert!(SystemId::new("group-activity").is_ok());
     assert!(ComponentTypeId::new("inventory_component").is_ok());
     assert!(RelationTypeId::new("connected_to").is_ok());
+    assert!(ActionTypeId::new("give_item").is_ok());
+    assert!(RejectionCode::new("closed-for-the-night").is_ok());
 
     assert_eq!(
         SystemId::new("Economy"),
@@ -142,6 +145,21 @@ fn declaration_names_share_the_rule_and_report_their_own_kind() {
             kind: IdentifierKind::RelationTypeId,
             character: ' ',
             position: 8,
+        })
+    );
+    assert_eq!(
+        ActionTypeId::new("Talk"),
+        Err(ContractError::IdentifierIllegalCharacter {
+            kind: IdentifierKind::ActionTypeId,
+            character: 'T',
+            position: 0,
+        })
+    );
+    assert_eq!(
+        RejectionCode::new("_closed"),
+        Err(ContractError::IdentifierSeparatorAtEdge {
+            kind: IdentifierKind::RejectionCode,
+            character: '_',
         })
     );
 }

@@ -2,9 +2,23 @@
 
 **Role:** combined step and PR document. S2 needs one PR.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md)
-**Lifecycle:** `DRAFT`
-**Implementation base:** `main` after PR 01 merges (S1 must be merged first; this PR extends the
-same crate)
+**Lifecycle:** `READY FOR OPERATOR REVIEW — DO NOT MERGE`
+**Implementation base:** `main` @ `c8f2934` (PR 01 merged at `e85c889`; this PR extends the same
+crate)
+**Implementation branch:** `mvp0/pr-02-action-event-spatial`
+
+## DESIGN FROZEN
+
+```text
+Design revision:      §§1-5 of this document as approved in §8 (2026-09-25)
+Approved by:          operator, 2026-09-25 — autonomous-execution authorization for PR 02
+Implementation base:  main @ c8f2934
+Execution contract:   the operator's PR 02 execution kickoff, recorded in §9
+Lifecycle:            READY FOR OPERATOR REVIEW. Scope (§1.1), non-goals (§1.2), invariants
+                      (§1.3), design decisions (§2), acceptance (§3) and test ownership (§4)
+                      were frozen throughout and are unchanged; §7's ledger stayed live and
+                      carries the evidence, the decisions and the one deviation
+```
 
 Binding parents: [`overall.md`](overall.md) ·
 [`docs/CORE_CONCEPTS.md`](../../../docs/CORE_CONCEPTS.md) ·
@@ -156,11 +170,31 @@ Each commit: implement → validate → review → record → commit. `[ ]` unti
 render and no rule logic anywhere.
 **Scope** `contracts/src/action.rs`, module wiring, tests. Depends on S1 merged.
 
-- [ ] Implementation: `ActionTypeId` slug newtype; `Action` trait with `ACTION_TYPE`, `OWNER`, serde bounds; `ActionRecord` erasure boundary with typed conversion both ways.
-- [ ] Implementation: `ActionIntent { action_id, actor, action_type, target: Option<EntityId>, payload: ActionRecord, issued_at: WorldTime, actor_location: Option<Location> }`.
-- [ ] Implementation: `Rejection` per DD-3 with `RejectionCode` slug; `ActionResult { Accepted { events: Vec<EventId> }, Rejected(Rejection), Unavailable }`.
-- [ ] Validation: wrong-type payload decode fails with a named error; every `Rejection` variant round-trips; an `Unavailable` result is constructible without any system present.
-- [ ] Review: no validation logic in this module; no domain action named outside tests; `ActionRecord` is the only untyped surface.
+- [x] Implementation: `ActionTypeId` slug newtype; `Action` trait with `ACTION_TYPE`, `OWNER`, serde bounds; `ActionRecord` erasure boundary with typed conversion both ways.
+      → `contracts/src/action.rs`. `ActionTypeId` mirrors `SystemId`: `Cow<'static, str>`, `new`
+      validating, `const from_static` checked while the declaring crate compiles. `Action` declares
+      `ACTION_TYPE` and `OWNER` and nothing else — see the schema-version finding in §7.3.
+      `ActionRecord<P = Vec<u8>>` follows `ComponentRecord<P = Vec<u8>>` exactly, minus the entity
+      (a request is not state attached to one) and minus the schema version.
+- [x] Implementation: `ActionIntent { action_id, actor, action_type, target: Option<EntityId>, payload: ActionRecord, issued_at: WorldTime, actor_location: Option<Location> }`.
+      → `actor_location` lands in C3 with the `Location` type it needs; deviation D-1 in §7.3. Every
+      other field is in C1. The envelope's `action_type` is derived from the payload record in `new`
+      and re-checked on deserialization, so the two can never disagree (§7.3, decision K-1).
+- [x] Implementation: `Rejection` per DD-3 with `RejectionCode` slug; `ActionResult { Accepted { events: Vec<EventId> }, Rejected(Rejection), Unavailable }`.
+      → both as designed. `Rejection::Unavailable` and `ActionResult::Unavailable` are documented as
+      two different statements and pinned as distinguishable on the wire (§7.3, decision K-2).
+- [x] Validation: wrong-type payload decode fails with a named error; every `Rejection` variant round-trips; an `Unavailable` result is constructible without any system present.
+      → `contracts/tests/action.rs`, 5 tests; three mutations confirmed the guards are load-bearing.
+      Evidence in §7.2.
+- [x] Review: no validation logic in this module; no domain action named outside tests; `ActionRecord` is the only untyped surface.
+      → `grep -niE 'mesh|navmesh|camera|scene|animation|skeleton|physics|collider|viewport'` and
+      `grep -n 'f32|f64'` over `contracts/src/*.rs`: no hits. `talk`, `give_item` and `shoot` occur
+      in `action.rs` only inside prose that names them as *System Pack* vocabulary the kernel must
+      not know — the same way `entity.rs` already names `cafe` as an example tag. No type, field,
+      constant or identifier in `src/` is named after a domain concept. The only rule-like code in
+      the module is identifier well-formedness and the envelope/payload agreement check; there is no
+      permission, distance, availability or system-presence logic. `ActionRecord` is the module's
+      only generic payload.
 
 **Acceptance** an `ActionIntent` for an undeclared action type is representable and answerable as
 `Unavailable`; a system-specific rejection code survives round-trip; §6 commands clean.
@@ -170,11 +204,31 @@ render and no rule logic anywhere.
 **Goal** the fact half: immutable, always caused, always with a declared audience.
 **Scope** `contracts/src/event.rs`, wiring, tests. Depends on C1.
 
-- [ ] Implementation: `EventTypeId`; `Event` trait (`EVENT_TYPE`, `OWNER`); `EventRecord` erasure.
-- [ ] Implementation: `EventEnvelope` with the ten fields; `Causation` (DD-8); `Visibility` (DD-9); `Provenance { emitted_by: SystemId, controller_decision: Option<ActionId> }`.
-- [ ] Implementation: constructors that make a causeless or audience-less event unrepresentable.
-- [ ] Validation: `Causation` covers action, process, event, tick, genesis and round-trips; `Visibility::Entities` iterates deterministically; an envelope cannot be built without cause or visibility.
-- [ ] Review: no event names a domain fact; no mutation helper exists; nothing lets an event be edited after construction.
+- [x] Implementation: `EventTypeId`; `Event` trait (`EVENT_TYPE`, `OWNER`); `EventRecord` erasure.
+      → `contracts/src/event.rs`, following the `Action` and `Component` pattern exactly. No schema
+      version, as frozen; the consequence is open item O-1 in §7.3.
+- [x] Implementation: `EventEnvelope` with the ten fields; `Causation` (DD-8); `Visibility` (DD-9); `Provenance { emitted_by: SystemId, controller_decision: Option<ActionId> }`.
+      → all ten fields of `CORE_CONCEPTS.md` §11 are present. §11's `Location` is `place:
+      Option<PlaceId>`, not a `Location`; decision K-3 in §7.3 argues why. `Subjects` and
+      `Participants` are `Vec<EntityId>`, not sets, because for a two-ended fact the order is part
+      of the fact; `Visibility::Entities` is the `BTreeSet` DD-9 specifies.
+- [x] Implementation: constructors that make a causeless or audience-less event unrepresentable.
+      → `EventEnvelope::new` takes identity, time, payload, `Causation`, `Visibility` and
+      `Provenance` positionally; the four optional facts are consuming `about` / `with_participants`
+      / `at_place` builders. Neither field is an `Option`, so a record missing either fails to
+      deserialize as well — the guarantee holds for a log read from disk, not only one built in
+      memory.
+- [x] Validation: `Causation` covers action, process, event, tick, genesis and round-trips; `Visibility::Entities` iterates deterministically; an envelope cannot be built without cause or visibility.
+      → `contracts/tests/event.rs`, 6 tests, including the same `BTreeSet` filled in ascending and
+      descending order serializing byte-identically. Two mutations in §7.2.
+- [x] Review: no event names a domain fact; no mutation helper exists; nothing lets an event be edited after construction.
+      → `grep -n '&mut self\|pub [a-z_]*:' contracts/src/event.rs`: no hits, so no accessor hands
+      out a mutable reference and no field is public. `ItemTransferred` and `ConversationStarted`
+      appear in `event.rs` only in the sentence that names them as System Pack vocabulary the kernel
+      must not know. The assignment path is pinned shut by a new compile-fail case,
+      `tests/compile_fail/event_cannot_be_edited_after_construction.rs`, whose `.stderr` records
+      that both `caused_by` and `visibility` are refused as private fields — the same mechanism S1
+      used for an entity's lifecycle.
 
 **Acceptance** every event carries a cause and an audience by construction; §6 clean.
 
@@ -184,13 +238,39 @@ render and no rule logic anywhere.
 possible later.
 **Scope** `contracts/src/spatial.rs`, wiring, tests. Depends on C1.
 
-- [ ] Implementation: `Millimetres(i32)`, `Millidegrees(i32)`; `LocalPosition { x, y, z }`; `Orientation { yaw, pitch: Option<_> }` normalized to a canonical range on construction.
-- [ ] Implementation: `Location { place: PlaceId, local: Option<LocalPosition>, facing: Option<Orientation> }`.
-- [ ] Implementation: `SpatialRequirement` per DD-6, with `NONE` and `same_place()` constructors for the common cases.
-- [ ] Implementation: `evaluate(requirement, actor: &Location, target: Option<&Location>, target_available: bool) -> Result<(), Rejection>`, integer distance only, documenting the line-of-access gap per DD-7.
-- [ ] Validation: the case matrix — same place / different place → `TooFarAway` or pass per requirement; in range / out of range; absent `LocalPosition` with a range requirement (documented outcome, not a panic); unavailable target → `TargetUnavailable`; orientation normalization at ±360° boundaries; distance arithmetic cannot overflow `i32` at world scale.
-- [ ] Validation: structural test asserting the crate source contains no `f32`/`f64`.
-- [ ] Review: nothing engine-shaped; a 2D world ignoring `z` and a 3D world using it share one type; the §11 gate answer in §3.1 still holds against the written code.
+- [x] Implementation: `Millimetres(i32)`, `Millidegrees(i32)`; `LocalPosition { x, y, z }`; `Orientation { yaw, pitch: Option<_> }` normalized to a canonical range on construction.
+      → `contracts/src/spatial.rs`. Yaw is canonicalized into `[0, 360_000)` by `rem_euclid`, in a
+      `const fn`, so `Orientation::facing` is usable in a constant. Pitch is **rejected** outside
+      ±90 000 rather than clamped; decision K-4 in §7.3 separates the two cases.
+- [x] Implementation: `Location { place: PlaceId, local: Option<LocalPosition>, facing: Option<Orientation> }`.
+      → with `in_place` plus `with_local` / `with_facing`, the S1 builder pattern. Also added
+      `ActionIntent.actor_location` and `from_location` here, closing deviation D-1.
+- [x] Implementation: `SpatialRequirement` per DD-6, with `NONE` and `same_place()` constructors for the common cases.
+      → plus `at_place`, `within` (fallible — a negative range is refused where it is declared),
+      `requiring_line_of_access` and `requiring_target_available`. `PlaceRequirement` is the
+      `Any` / `SamePlaceAsActor` / `Specific` enum DD-6 names.
+- [x] Implementation: `evaluate(requirement, actor: &Location, target: Option<&Location>, target_available: bool) -> Result<(), Rejection>`, integer distance only, documenting the line-of-access gap per DD-7.
+      → a method on `SpatialRequirement`. Squared distances are compared in `i128`; there is no
+      square root, so nothing rounds. The documented precedence is availability → place → range →
+      line of access, and the doc comment argues each. The line-of-access gap is stated on the
+      method and in the code at the point where a geometry provider will eventually answer it.
+- [x] Validation: the case matrix — same place / different place → `TooFarAway` or pass per requirement; in range / out of range; absent `LocalPosition` with a range requirement (documented outcome, not a panic); unavailable target → `TargetUnavailable`; orientation normalization at ±360° boundaries; distance arithmetic cannot overflow `i32` at world scale.
+      → `contracts/tests/spatial.rs`, 8 tests. Distances use a 3-4-5 triangle scaled by 400, so the
+      2 000 mm boundary and the 2 001 mm miss are checkable on paper. The overflow case evaluates
+      between `i32::MIN` and `i32::MAX` on all three axes. Five mutations in §7.2, including one
+      that survived and what it exposed.
+- [x] Validation: structural test asserting the crate source contains no `f32`/`f64`.
+      → `no_floating_point_appears_anywhere_in_the_contract_crate` walks `contracts/src/`, strips
+      line comments and fails on either token in code, and asserts it actually scanned something so
+      that a broken path cannot pass silently. Mutation M6 (adding an `as_metres() -> f64`
+      convenience, the most likely way a float would really arrive) turned it red.
+- [x] Review: nothing engine-shaped; a 2D world ignoring `z` and a 3D world using it share one type; the §11 gate answer in §3.1 still holds against the written code.
+      → `grep -niE 'mesh|navmesh|camera|scene|animation|skeleton|physics|collider|viewport|transform|godot|unreal|shader|texture|sprite'` over `contracts/src/`: four hits, all in `spatial.rs`
+      prose that names those concepts as the ones that must *not* be here. No code hit, and no
+      `sqrt`, `powi` or `as f…` anywhere. One `Location` type carries both the embodied and the
+      purely semantic case, asserted by
+      `one_location_type_describes_both_an_embodied_and_a_purely_semantic_position`. §3.1 re-checked
+      against the written code in §7.4.
 
 **Acceptance** both "1.2 m from Alice facing her inside the café" and "in the café, position
 irrelevant" are one type; the evaluator is pure, integer-only and total; §6 clean.
@@ -201,22 +281,71 @@ irrelevant" are one type; the evaluator is pure, integer-only and total; §6 cle
 from the server.
 **Scope** `contracts/src/observation.rs`, wiring, tests. Depends on C1–C3.
 
-- [ ] Implementation: `PerceivedEntity { id, entity_type, location: Option<Location>, tags, components: Vec<ComponentRecord> }` — only what a perception system chose to include.
-- [ ] Implementation: `PerceivedEvent` wrapping an `EventEnvelope` the observer is entitled to.
-- [ ] Implementation: `Affordance` per DD-11.
-- [ ] Implementation: `Observation { observer, at, self_location, entities, events, affordances }` with no store handle and no global accessor.
-- [ ] Validation: an observation exposes exactly the entities it lists; affordances carry a server-computed reason; round-trip and ordering stability.
-- [ ] Review: no field or method could return an entity not perceived; nothing here lets a client recompute availability.
+- [x] Implementation: `PerceivedEntity { id, entity_type, location: Option<Location>, tags, components: Vec<ComponentRecord> }` — only what a perception system chose to include.
+      → `contracts/src/observation.rs`, generic over the payload encoding like every other record
+      holder in the crate. Documented as *not* a copy of the entity: two observers of one entity can
+      be shown different component lists, and a controller cannot tell a withheld component from an
+      absent one.
+- [x] Implementation: `PerceivedEvent` wrapping an `EventEnvelope` the observer is entitled to.
+      → a transparent newtype. The wrapper is not ceremony: handing raw log entries to a controller
+      is the omniscience `INV-13` forbids, and the distinct type means code that holds one knows the
+      perception decision already happened.
+- [x] Implementation: `Affordance` per DD-11.
+      → built by `available` or `unavailable`, never field by field, so "available, because too far
+      away" is unrepresentable in code and refused on deserialization. Carries the action type, the
+      target, the reason and the unevaluated `SpatialRequirement` — and no display text (`DD-13`).
+- [x] Implementation: `Observation { observer, at, self_location, entities, events, affordances }` with no store handle and no global accessor.
+      → plus `entity(id)`, which searches the list it was given and nothing else, because a client
+      must be able to resolve an affordance's target to something it can name (`DD-13`).
+- [x] Validation: an observation exposes exactly the entities it lists; affordances carry a server-computed reason; round-trip and ordering stability.
+      → `contracts/tests/observation.rs`, 4 tests. The scene is the 3D spike's: an observer, a person
+      within a three-metre reach, a person outside it, and a third person the world contains and this
+      observer was not shown. One test reconstructs `[E] Talk to Alice` from the observation alone
+      and then shows the server's own evaluator reaching the same two answers from the same
+      locations — the evidence that there is one implementation of the rule rather than one per
+      client. Two mutations in §7.2.
+- [x] Review: no field or method could return an entity not perceived; nothing here lets a client recompute availability.
+      → every public method of `Observation` was listed and inspected: six return an own field, three
+      return a slice of an own field, and `entity` searches that slice. There is no handle, no
+      registry, no query and no method taking a store. A client *can* call
+      `SpatialRequirement::evaluate` — it is public because the server and the systems need it — but
+      it has nothing authoritative to call it on: an observation gives it only the positions the
+      world chose to expose, and the answer it would compute has no standing. The authoritative
+      answer is the one the server put in the `Affordance`, which is `ENGINEERING_RULES.md` §8's
+      division exactly. Recorded as observation OBS-2 in §7.3.
 
 **Acceptance** `INV-13` holds structurally; a client can render "press E to talk" purely from
 `Affordance`; §6 clean.
 
 ## C5 — Specification synchronization
 
-- [ ] `docs/CORE_CONCEPTS.md`: add the spatial vocabulary to §§6 and 15 and the affordance concept to §15, cross-referencing `ENGINEERING_RULES.md` §§5–9.
-- [ ] `contracts/README.md`: updated inventory, still short and human-facing.
-- [ ] This document: ledger, evidence, deviations.
-- [ ] Review: no specification statement is now false; links resolve.
+- [x] `docs/CORE_CONCEPTS.md`: add the spatial vocabulary to §§6 and 15 and the affordance concept to §15, cross-referencing `ENGINEERING_RULES.md` §§5–9.
+      → four sections rather than two, which §1.1's "§§10-15 gain the spatial vocabulary" already
+      anticipated: new §6.1 (`Location`, its two optional refinements, and the three
+      non-negotiables — fixed point, no engine concept, hierarchy is a Relation) and §6.2
+      (`SpatialRequirement` as data, its two consumers, and both stated boundaries of its
+      evaluation); §11 now says that a cause and an audience are never absent and why, and that the
+      envelope's `Location` is the semantic Place and not a refined `Location`; new §12.1 states the
+      three answers and the closed reason vocabulary, that a System may add its own code, that none
+      of it carries display text, and that a reported actor location is a report and not authority;
+      new §15.1 (what an Observation contains, and what "structural" means) and §15.2 (`Affordance`,
+      and the three consequences of the server computing it).
+- [x] `contracts/README.md`: updated inventory, still short and human-facing.
+      → four new inventory rows, the erasure rule restated per family, and two rules added that the
+      spatial contract exists to keep (no floating point, no renderer concept). Still one screen,
+      still links onward rather than carrying the specification.
+- [x] This document: ledger, evidence, deviations.
+      → §7.1-§7.4.
+- [x] Review: no specification statement is now false; links resolve.
+      → one statement *was* falsified by this PR and is corrected in the same commit:
+      `docs/ARCHITECTURE.md` §13.1 listed "a payload-erasure boundary that exists in exactly one
+      place" among the guarantees Rust types carry and Protobuf cannot, which stopped being true the
+      moment `ActionRecord` existed. It now reads "one payload-erasure boundary per contract family
+      and nowhere else", which is what §1.3 freezes. `ARCHITECTURE.md` was not in §1.1's file list;
+      correcting a sentence this PR falsified is a consequence of the approved change, not an
+      extension of it (`CLAUDE.md` §2.1 rule 4). Every link added in this commit was checked against
+      `docs/`: `ENGINEERING_RULES.md`, `ART_DIRECTION.md` and `MODULE_SPEC.md` all exist. One stale
+      statement is *not* corrected here — see follow-up FU-1 in §7.3.
 
 ---
 
@@ -236,16 +365,371 @@ cargo test -p mineworld-contracts
 
 ## 7.1 Progress
 ```text
-C1 not started   C2 not started   C3 not started   C4 not started   C5 not started
+C1 DONE   C2 DONE   C3 DONE   C4 DONE   C5 DONE
 ```
 
 ## 7.2 Evidence
 ```text
-(none yet)
+ENVIRONMENT  rustc/cargo 1.97.1 (pinned by rust-toolchain.toml), rustfmt 1.9.0,
+             clippy 0.1.97, macOS aarch64. PATH must carry ~/.cargo/bin.
+
+--- C1 (working tree at the C1 commit) -------------------------------------------
+cargo fmt --all --check                                        PASS  (clean)
+cargo check --workspace --all-targets                          PASS  (0 warnings)
+cargo clippy --workspace --all-targets --all-features
+                                    -- -D warnings             PASS  (0 warnings)
+cargo test -p mineworld-contracts                              PASS
+  36 integration tests + 2 doc-tests, 0 failed, wall time 0.51s for the whole
+  binary set (the trybuild harness dominates it; every other file reports 0.00s)
+  action 5 · component 6 · entity 6 · identity 9 · relation 6 · time 3 ·
+  compile_fail harness 1 (6 cases) · doc-tests 2
+  baseline before C1 was 32 integration tests + 1 doc-test
+
+--- C2 (working tree at the C2 commit) -------------------------------------------
+cargo fmt --all --check                                        PASS  (clean)
+cargo check --workspace --all-targets                          PASS  (0 warnings)
+cargo clippy --workspace --all-targets --all-features
+                                    -- -D warnings             PASS  (0 warnings)
+cargo test -p mineworld-contracts                              PASS
+  42 integration tests + 3 doc-tests, 0 failed, 0.59s dominated by the trybuild
+  harness; every other test binary reports 0.00s
+  action 5 · component 6 · entity 6 · event 6 · identity 9 · relation 6 · time 3 ·
+  compile_fail harness 1 (now 7 cases) · doc-tests 3
+
+--- C3 (working tree at the C3 commit) -------------------------------------------
+cargo fmt --all --check                                        PASS  (clean)
+cargo check --workspace --all-targets                          PASS  (0 warnings)
+cargo clippy --workspace --all-targets --all-features
+                                    -- -D warnings             PASS  (0 warnings)
+cargo test -p mineworld-contracts                              PASS
+  50 integration tests + 3 doc-tests, 0 failed, 0.64s dominated by the trybuild
+  harness; every other test binary reports 0.00s
+  action 5 · component 6 · entity 6 · event 6 · identity 9 · relation 6 ·
+  spatial 8 · time 3 · compile_fail harness 1 (7 cases) · doc-tests 3
+
+--- C4 (working tree at the C4 commit) -------------------------------------------
+cargo fmt --all --check                                        PASS  (clean)
+cargo check --workspace --all-targets                          PASS  (0 warnings)
+cargo clippy --workspace --all-targets --all-features
+                                    -- -D warnings             PASS  (0 warnings)
+cargo test -p mineworld-contracts                              PASS
+  54 integration tests + 3 doc-tests, 0 failed, 0.72s dominated by the trybuild
+  harness; every other test binary reports 0.00s
+  action 5 · component 6 · entity 6 · event 6 · identity 9 · observation 4 ·
+  relation 6 · spatial 8 · time 3 · compile_fail harness 1 (8 cases) · doc-tests 3
+
+--- C5 (working tree at the C5 commit — the final executable content is identical
+        to C4's, because C5 changes only Markdown) --------------------------------
+cargo fmt --all --check                                        PASS  (clean)
+cargo check --workspace --all-targets                          PASS  (0 warnings)
+cargo clippy --workspace --all-targets --all-features
+                                    -- -D warnings             PASS  (0 warnings)
+cargo test -p mineworld-contracts                              PASS
+  54 integration tests + 3 doc-tests, 0 failed, 0.98s total wall time for the
+  command; the trybuild harness accounts for 0.24s of it and every other test
+  binary reports 0.00s
+  action 5 · component 6 · entity 6 · event 6 · identity 9 · observation 4 ·
+  relation 6 · spatial 8 · time 3 · compile_fail harness 1 (8 cases) · doc-tests 3
+  baseline at the implementation base was 32 integration tests + 1 doc-test
+
+NOT RUN, and why
+  real-LLM layer        NOT REQUIRED — no model is attached before S10, and nothing
+                        in this PR is LLM-facing (§4)
+  real-lifecycle layer  NOT APPLICABLE — no runtime, no scheduler and no persistence
+                        exist yet, so there is no lifecycle to exercise. First
+                        applies in S5/S7 (§4)
+  remote CI             NONE EXISTS — decision D-9 keeps this effort local until S13.
+                        The canonical evidence is the four commands above at the
+                        final HEAD, reported in the review handoff
+  repository full suite `cargo test --workspace` is `cargo test -p
+                        mineworld-contracts` at this point: the workspace has one
+                        member. No second, broader run was made, because it would be
+                        the same evidence twice
+
+MUTATIONS  (purpose: prove the new guards are load-bearing, not decorative)
+  M1  ActionRecord::payload_for stops comparing the action type
+      expected: a_request_survives_erasure_and_is_readable_only_as_its_own_action_type RED
+      observed: that test FAILED, the other four passed            → behaviour-changing
+  M2  ActionIntent's deserialization stops comparing envelope to payload
+      expected: an_intents_envelope_cannot_disagree_with_its_payload RED
+      observed: that test FAILED, the other four passed            → behaviour-changing
+  M3  ActionIntent::new writes a stale default action type instead of reading the record
+      expected: the shape, INV-10 and agreement tests RED
+      observed: 3 of 5 FAILED                                      → behaviour-changing
+  M4  EventEnvelope's deserialization stops comparing envelope to payload
+      expected: an_envelope_cannot_disagree_with_its_payload RED
+      observed: that test FAILED, the other five passed            → behaviour-changing
+  M5  a missing caused_by quietly defaults to WorldGenesis instead of failing
+      (the realistic defect: someone makes the field lenient)
+      expected: a_fact_with_no_cause_or_no_audience_cannot_be_read_back RED
+      observed: that test FAILED, the other five passed            → behaviour-changing
+  NOT MUTATED  the order-stability of Visibility::Entities. The guarantee is the
+      BTreeSet in the type, and replacing it with a Vec makes the test file stop
+      compiling rather than fail, which would be an inconclusive mutation, not a
+      counterfactual. The test instead pins the serialized order and pins that two
+      opposite insertion orders produce identical bytes.
+  M6  a convenience `Millimetres::as_metres(self) -> f64` is added — the most likely
+      way a float would actually arrive in this crate
+      expected: no_floating_point_appears_anywhere_in_the_contract_crate RED
+      observed: that test FAILED, the other seven passed           → behaviour-changing
+  M7  yaw is stored as given instead of canonicalized with rem_euclid
+      expected: a_heading_is_canonicalized_and_an_impossible_pitch_is_refused RED
+      observed: that test FAILED                                   → behaviour-changing
+  M8  evaluate answers place and distance before target availability
+      expected: the_evaluator_answers_every_documented_spatial_case RED
+      observed: that test FAILED                                   → behaviour-changing
+  M9  the unmodelled-position branch stops comparing places, so a millimetre range
+      reaches across the world
+      expected: a_range_requirement_degenerates_to_the_same_place... RED
+      observed FIRST RUN: ALL EIGHT TESTS PASSED — MUTATION SURVIVED
+      diagnosis: the degeneracy test used same_place().within(2m), and
+      PlaceRequirement::SamePlaceAsActor already rejects a different place before the
+      range logic is reached. The branch under test was never the deciding factor, so
+      the test asserted the right answer for the wrong reason. The case that isolates
+      the branch is a *bare* range — SpatialRequirement::NONE.within(2m), which is how
+      a system declares "near the target, wherever that is" — with no place clause to
+      fall back on.
+      fix: added that case, both directions, plus the positions-present counterpart so
+      the test also pins that a real distance is still a distance.
+      observed AFTER the fix: that test FAILED under the same mutation, the other seven
+      passed                                                        → behaviour-changing
+  M10 squared distances are computed in i64 instead of i128
+      expected: distance_arithmetic_survives_the_extremes_of_the_representable_range RED
+      observed: that test FAILED                                   → behaviour-changing
+  M11 the affordance availability/reason agreement check is dropped
+      expected: an_affordance_cannot_disagree_with_itself_about_availability RED
+      observed: that test FAILED, the other three passed           → behaviour-changing
+  M12 Observation::entity ignores the identity it was asked about and returns the first
+      entity in the list — the shape a "helpful" lookup defect would actually take
+      expected: the INV-13 test and the prompt-rendering test RED
+      observed: both FAILED                                        → behaviour-changing
+  one mutation (M9) survived and was resolved by strengthening the test, as recorded
+  above; no mutation survives now. Source restored and re-verified green after each.
 ```
+
+## 7.5 Review outcome — O-1 resolved during review (reviewer, 2026-09-26)
+
+The implementation raised **O-1** correctly and implemented the design as frozen: `Event`
+declared `(EVENT_TYPE, OWNER)` with no schema version, while `ComponentRecord` carries one.
+
+**Reviewer's ruling: fixed now, in this PR.** The event log is permanent and append-only, so a
+payload written today is read by code that does not exist yet. Without a version on the record
+the first schema change to any system's event payload would be *undetectable on replay* — old
+bytes would decode into the new shape and silently rebuild a history that never happened. That is
+strictly worse than the component case the design already versioned, not equal to it.
+
+Deferring to S5 was the alternative and was rejected: `ENGINEERING_STANDARDS.md` §29 says an early
+contract that is wrong is changed cleanly rather than adapted around, and the cost is lowest now —
+no event has ever been persisted, and nothing depends on the unversioned shape.
+
+Changed: `EventSchemaVersion`; `Event::SCHEMA_VERSION`; `EventRecord.schema_version`, readable
+without decoding the payload; `payload_for` refuses a newer record and reports an older one, with
+`EventSchemaTooNew` and `EventSchemaOutdated` mirroring the component variants.
+
+Evidence at the reviewed head: 61 tests pass (was 57), `fmt`/`clippy -D warnings` clean. Four new
+tests, including the one that matters — two records with the *same* event type and different
+schemas, proving a type check alone would hand v2 bytes to v1. Three existing tests asserting the
+documented wire shape failed and were updated by hand, which is the correct signal: the wire shape
+genuinely changed. The compile-fail expectation moved by two line numbers only; the errors and
+their reasons are unchanged.
+
+`EventSchemaVersion` is deliberately a separate type from `ComponentSchemaVersion` rather than a
+shared generic: they version independently, and a value of one is never a value of the other.
 
 ## 7.3 Findings, decisions, deviations
 ```text
+DEVIATION D-1 (bounded) — ActionIntent.actor_location arrives in C3, not C1
+REASON   the frozen commit order puts action.rs (C1) before spatial.rs (C3), but the
+         field's type is Location, which C3 defines. C3 in turn needs Rejection from
+         C1 for SpatialRequirement::evaluate, so the two modules depend on each other
+         and no commit order gives both commits a compiling tree with the field in C1.
+EVIDENCE §5 C1 lists actor_location; §5 C3 lists Location and declares "Depends on
+         C1"; a Rust module cycle inside one crate is legal, a commit cycle is not.
+DECISION keep the frozen commit order and let the one field that cannot exist yet
+         arrive with its type in C3, together with its accessor, its builder method
+         and its test. Rejected alternative: reorder C3 before C1, which would have
+         moved Rejection out of action.rs or evaluate out of C3 — a larger change to
+         the frozen design for no gain.
+IMPACT   the contract at the final HEAD is exactly the one §5 specifies; only the
+         commit that introduces one field differs. C3's diff touches action.rs.
+VALIDATION  C1's and C3's §6 runs are both clean; the field is tested in C3.
+
+DECISION K-1 — an intent's envelope and its payload cannot name different action types
+QUESTION §5's ActionIntent carries action_type *and* payload: ActionRecord, and the
+         record carries the action type too. Two places to say one thing.
+EVIDENCE dispatch (S3) routes by the envelope while the owning system decodes the
+         payload, so a disagreement would make one of them act on a request nobody
+         made. ENGINEERING_STANDARDS §7 requires models in which invalid states are
+         hard to represent; crate rule 5 in lib.rs requires deserialization to run the
+         same check as construction.
+DECISION keep both fields as the design specifies, and remove the disagreement
+         instead: `new` derives the envelope's type from the record, and
+         deserialization goes through a private fields struct that refuses a
+         mismatched pair with ContractError::ActionIntentPayloadMismatch. The field
+         list and the stored shape are unchanged; only the ability to lie is gone.
+VALIDATION  an_intents_envelope_cannot_disagree_with_its_payload; mutations M2 and M3.
+
+DECISION K-2 — Rejection::Unavailable and ActionResult::Unavailable are different facts
+QUESTION DD-3 lists Unavailable among Rejection's variants and §5's ActionResult has
+         an Unavailable variant of its own. As written, one world fact would have two
+         representations.
+EVIDENCE ENGINEERING_RULES §8 lists Unavailable among the answers a client renders, so
+         it is kernel rejection vocabulary; INV-10 is a separate and stronger statement
+         — "there is no shoot() in this universe" — and CORE_CONCEPTS §12 gives it its
+         own name, ActionUnavailable.
+DECISION implement both, as frozen, with documented and non-overlapping meanings:
+         ActionResult::Unavailable = no enabled system provides this action type, so
+         the answer is the same for every actor at every moment; Rejection::Unavailable
+         = the action exists, the owning system considered this attempt and refused it
+         without classifying the reason further. Pinned as distinguishable on the wire
+         ("unavailable" vs {"rejected":"unavailable"}), because a client that showed
+         the first as the second would tell a player to try again in a world where the
+         capability is simply absent.
+VALIDATION  an_intent_for_an_action_no_system_provides_is_representable_and_answered_unavailable
+
+FINDING F-1 — the identifier rule had to become crate-visible
+SOURCE   §1.1 places ActionTypeId in action.rs and EventTypeId in event.rs, while S1
+         put every other declaration name in ids.rs, where `check_identifier` is a
+         private const fn.
+DECISION follow §1.1 for placement and widen `check_identifier` to `pub(crate)` rather
+         than write a second const checker. ids.rs's own documentation says the rule is
+         checked in one place so that a literal in code and a name in an authored file
+         cannot be judged by two drifting implementations; a copy would have broken
+         exactly that. ids.rs now records where the two new declaration names live.
+IMPACT   no public API change in S1's surface; one visibility change.
+
+DECISION K-4 — a yaw is canonicalized, a pitch is rejected
+QUESTION crate rule 5 in lib.rs says validation rejects rather than repairs and that
+         nothing is silently normalized. DD-5 says an orientation is "normalized on
+         construction". Both cannot be true of the same field.
+EVIDENCE 450 000 and 90 000 millidegrees of yaw are the *same direction*; storing them
+         differently would put two representations of one fact in the event log and make
+         two identical worlds compare unequal, which is the determinism AC-12 wants. A
+         pitch of 100° is not another way of writing a legal value — past straight up
+         there is no steeper direction — so clamping it to 90° would turn an impossible
+         value into a plausible one and hide the mistake.
+DECISION canonicalize the periodic quantity, reject the bounded one. Both rules are
+         honoured, and the difference between them is documented on the type:
+         canonicalization maps an equivalence class to one representative, repair
+         invents a value the caller did not mean.
+VALIDATION  a_heading_is_canonicalized_and_an_impossible_pitch_is_refused, including
+         the deserialization path; mutation M7.
+
+DECISION K-5 — a range requirement degenerates to the same place, not to pass or fail
+QUESTION §5 C3 requires a "documented outcome, not a panic" when a range requirement
+         meets a Location with no LocalPosition. Three outcomes were available: pass,
+         fail, or something else.
+EVIDENCE DD-4 promises that a world leaving the continuous refinement out "loses
+         nothing". Passing unconditionally would let a three-metre range be satisfied
+         from another town, so a system's declaration would silently mean nothing.
+         Failing unconditionally would make any action declared by a 3D-capable system
+         unusable in a purely semantic 2D world, breaking DD-4's promise and
+         ENGINEERING_RULES §9's requirement that both clients exercise the same actions.
+DECISION the range degenerates to *same place*: being in one place is the finest
+         proximity such a world can express, so that is what the requirement means
+         there. A world that models positions on both sides gets an exact integer
+         distance; a world that models neither gets a place comparison; a world that
+         models one side gets the place comparison, because a distance needs both ends.
+VALIDATION  a_range_requirement_degenerates_to_the_same_place_when_no_position_is_modelled,
+         and mutation M9, whose survival exposed that the first version of this test was
+         asserting the right answer for the wrong reason.
+
+DECISION K-6 — no public distance function
+QUESTION `evaluate` needs a distance comparison. Should `LocalPosition` expose the
+         distance itself?
+EVIDENCE two positions at opposite ends of the `i32` millimetre range are about
+         4 295 km apart, which does not fit in an `i32` of millimetres — so a
+         `distance_to(&self) -> Millimetres` would have an unrepresentable result at the
+         edges, and an exact distance needs a square root this crate cannot take without
+         a float.
+DECISION keep the comparison private (`LocalPosition::within`) and expose no distance.
+         Squared distances are compared in `i128`, which is exact and cannot overflow at
+         any representable input. A system that later needs a distance gets one designed
+         for its actual use, rather than an overflowing convenience added in advance
+         (ENGINEERING_STANDARDS §11).
+VALIDATION  distance_arithmetic_survives_the_extremes_of_the_representable_range;
+         mutation M10.
+
+OPEN O-1 — an event payload has no schema version, and the event log is permanent
+SOURCE   §5 C2 specifies the Event trait as (EVENT_TYPE, OWNER). ComponentRecord
+         carries a ComponentSchemaVersion precisely because stored state outlives the
+         code that wrote it, and payload_for refuses a record from a newer schema
+         instead of guessing. The event log is the single source of truth for history
+         (INV-11) and is replayed, so an event payload written years earlier is exactly
+         the same problem.
+DECISION implement C2 as frozen and record the gap here rather than adding a constant
+         to a frozen public trait on this session's own authority. S5 (persistence) is
+         where the migration question becomes concrete, and ENGINEERING_STANDARDS §12
+         ("no early compatibility debt") permits changing the interface cleanly then.
+IMPACT   none inside this PR. S5 must decide payload versioning for events before any
+         event is persisted, or the first schema change to a system's event payload
+         will be undetectable on replay.
+
+DECISION K-3 — an event's location is a PlaceId, not a Location
+QUESTION CORE_CONCEPTS §11 lists `Location` among an event's ten fields, and this PR
+         introduces a `Location` type. Should the envelope hold that type?
+EVIDENCE ENGINEERING_RULES §5 and INV-5: the authoritative record is semantic. A
+         `Location` is a place plus an optional millimetre position plus an optional
+         orientation — and an orientation is a property an entity has, not a property a
+         fact has. Every event in every world would carry a `facing` field that can
+         never mean anything.
+DECISION `place: Option<PlaceId>`, named `place` rather than `location` so that a
+         reader is not invited to expect the `Location` type. A system whose events
+         genuinely carry continuous geometry — a movement system recording a new
+         position — puts it in its own typed payload, where it is that system's
+         contract rather than the kernel's. This also removes C2's dependency on C3.
+GATE     re-checked against §3.1 question 1: an embodied 3D client still gets
+         continuous position where position lives, on the entity, through
+         `PerceivedEntity.location` and `ActionIntent.actor_location`. Nothing about
+         this choice makes a 3D client harder.
+
+OPEN O-2 — nothing here maps an action type to its owning system as data
+SOURCE   DD-2's rationale is that ownership at the type level is what lets S3 route an
+         intent to one system. A registry cannot store types, which is why S1 has
+         ComponentDeclaration beside Component. §1.1 does not list an ActionDeclaration
+         and §1.2 assigns dispatch to S3.
+DECISION do not add one. A::OWNER is readable wherever the type is known, and inventing
+         the registry's value type before the registry exists would be the premature
+         abstraction ENGINEERING_STANDARDS §11 forbids. Recorded so S3 adds it
+         deliberately rather than rediscovering the need.
+
+FOLLOW-UP FU-1 (out of scope, pre-existing) — three documents still call the
+repository specification-only
+SOURCE   `README.md:42` ("Specification only — no kernel code yet. The next three PRs
+         define the contracts."), `CLAUDE.md:77` ("Current repository state:
+         **specification-only**. No kernel code exists yet."),
+         `.structured-coding/standards.md:18` ("No Rust crate and no Python package
+         exists yet") and its note that the cargo checks report INCONCLUSIVE until a
+         crate exists.
+STATUS   already false on `main` before this PR: PR 01 merged the crate at `e85c889`.
+         PR 01's own handoff records all three as a single follow-up commit to be made
+         at its merge, and that commit was not made. This PR makes the contradiction
+         more visible — two of the "next three PRs" are now written — but does not
+         cause it.
+DECISION not corrected here. It is outside §1.1, it belongs to the PR-01 merge
+         follow-up, and two of the three files are process documents rather than
+         specifications of this contract. Carried to the operator in the review report
+         instead of silently absorbed (working rules §28).
+
+OBSERVATION OBS-2 — a client can call the evaluator, and that is not a hole
+`SpatialRequirement::evaluate` is public, because the server and the systems that declare
+requirements both need it, and a client linked against this crate could call it too. That
+does not let a client evaluate a world rule in the sense ENGINEERING_RULES §8 forbids: an
+observation gives a client only the positions the world chose to expose, and an answer a
+client computes has no standing anywhere — the authoritative answer is the one the server
+put in the Affordance, and the only thing a client can do with a computed one is mislead
+its own player. Making the evaluator private would not change that and would break its
+actual purpose, which is that there is exactly one implementation of the check.
+
+OBSERVATION OBS-1 — ActionResult carries no ActionId
+DD-1's rationale says a result must be attributable to the exact request, and §5's
+ActionResult has no field for it. Implemented as frozen, with the reasoning documented
+on the type: correlation belongs to whatever paired the request with its answer — the
+dispatcher in process, the protocol on a wire (S11) — and a field here would make every
+in-process answer restate what its caller already holds while still not preventing a
+mismatched pair. S3 and S11 own the pairing.
+
+
 FINDING (spike, 2026-09-25) — embodied 3D is mechanically feasible on this host
 SOURCE  scratchpad/spike3d: Godot 4.7.2, CharacterBody3D + CollisionShape3D,
         Camera3D child, RayCast3D with a 3.0 m reach, StaticBody3D NPC carrying
@@ -277,6 +761,65 @@ NOT A CHANGE TO S1  PR 01 is unaffected and was not interrupted: the defect is
         at the protocol boundary, not in the contract representation.
 ```
 
+## 7.4 The two gate questions, re-checked against the written code
+
+`ENGINEERING_RULES.md` §§11–12 and §22 require both answers before a spatial or interaction
+contract merges. §3.1 answered them from the design; this is the answer read back off the
+implementation.
+
+**1. Can this support a Minecraft-like embodied 3D client without redesigning the kernel?**
+
+Yes, and each part of the answer now names code rather than intention:
+
+```text
+continuous movement    LocalPosition is x, y, z in millimetres from a place's origin, with
+                       nothing tile-shaped anywhere: no grid, no cell, no step size, and no
+                       assumption that a position is discrete
+look direction         Orientation carries yaw and an optional pitch, so "looking slightly
+                       down at the person in front of me" is expressible
+proximity interaction  SpatialRequirement.within_range is an interaction reach in millimetres,
+                       and evaluate answers it with exact integer arithmetic. The 3D spike's
+                       first run failed because the player stopped 3.55 m away with a 3.0 m
+                       reach — which is the reach being a real spatial parameter, in the
+                       contract, rather than a constant in client code
+"what can I do with    Affordance is that query's answer, per action type and per target,
+ what I am looking     with the reason when the answer is no
+ at"
+binding a body to an   PerceivedEntity.id is the join key. The spike attached it as node
+ entity                metadata and recovered it from a raycast; the contract needed no
+                       addition for that, which is the evidence that no engine concept has
+                       to enter this crate (DD-14)
+reporting where I am   ActionIntent.actor_location, explicitly a client's report rather than
+                       authoritative state
+```
+
+Nothing in the four modules assumes a tile, a click, instant movement, a single-room place, an
+absent orientation or absent geometry — the six assumptions §11 names. The one 3D-relevant gap is
+line of access (DD-7), and it is *declared* in the contract, so filling it is adding a geometry
+provider rather than changing these types.
+
+**2. Can 2D and 3D use the capability without duplicating game logic?**
+
+Yes, and `contracts/tests/observation.rs` is the demonstration rather than the claim. Both clients
+receive the same `Observation` and send the same `ActionIntent`; the only difference in the whole
+contract is that a 2D client leaves `actor_location` and `PerceivedEntity.location`'s refinement
+out, which
+`an_intent_is_stored_as_its_documented_shape` and
+`one_location_type_describes_both_an_embodied_and_a_purely_semantic_position` both pin.
+
+Neither client evaluates anything. `a_client_can_render_an_interaction_prompt_from_the_observation_alone`
+reconstructs `[E] Talk to Alice` from the affordance's action type, the affordance's target, and a
+component of that target in the same observation — and then shows the server's own evaluator
+reaching the same two answers from the same locations, which is what "one implementation of the
+rule" means concretely. A 2D client greys out the refused entry using the identical `Affordance`.
+
+And the degeneracy rule is what makes the shared capability real rather than nominal: an action a
+3D-capable system declares with a three-metre reach is still usable in a world that models no
+position at all, because there the reach means *same place* (decision K-5). Without that, a 2D
+world would have needed either its own requirement vocabulary or its own systems.
+
+Both answers hold. Neither gate sends the design back.
+
 ---
 
 # 8. Review and approval
@@ -300,3 +843,55 @@ OPEN     line of access is declared but not evaluated until geometry exists (DD-
 ```
 
 APPROVED for implementation. Base: `main` once PR 01 is merged.
+
+---
+
+# 9. Execution contract
+
+Filled from `.claude/skills/structured-coding/prompts/implementation-working-rules.md`. The
+operator's PR 02 execution kickoff of 2026-09-25 is the source for every endpoint below.
+
+```text
+PROJECT / PR        Step 02 / PR 02 — Action, Event, Observation and Spatial contracts
+PRIMARY DESIGN DOC  this document
+RELATED / BINDING   overall.md · docs/CORE_CONCEPTS.md · docs/ENGINEERING_RULES.md §§4-12, §15 ·
+                    docs/ENGINEERING_STANDARDS.md · CLAUDE.md ·
+                    step-01-entity-component-contracts.md (merged precedent)
+IMPLEMENTATION BASE main @ c8f2934, branch mvp0/pr-02-action-event-spatial
+APPROVED SCOPE      §1.1 only. Everything in §1.2 belongs to a later step.
+FROZEN INVARIANTS   §1.3, restated by the operator: no floating point anywhere; no domain
+                    concept; no engine concept; BTreeMap/BTreeSet/Vec only; an Event cannot be
+                    constructed without a Causation and a Visibility; an Observation exposes only
+                    the entities it lists; ActionRecord and EventRecord are the only erasure
+                    boundaries, mirroring ComponentRecord<P = Vec<u8>>
+SEQUENCE            §5: C1 action · C2 event · C3 spatial · C4 observation · C5 specifications
+VALIDATION BUDGET   ordinary static/unit/contract runs unrestricted. No real-LLM and no
+                    real-lifecycle layer exists at S2 (§4), so no Gate applies and none was run.
+REQUIRED LIVE DOC   this document, §7
+HANDOFF FILE        .structured-coding/plans/mvp0/handoff.md
+TEST OWNERSHIP      §4
+
+ENDPOINT AUTHORITY
+  implementation + local validation   authorized      source: operator kickoff, 2026-09-25
+  semantic commits                    authorized      source: operator kickoff — "Semantic
+                                                      commits on your branch: AUTHORIZED"
+  branch push                         NOT authorized  source: operator kickoff — "git push: NOT
+                                                      AUTHORIZED, there is no remote and none
+                                                      may be added"; decision D-9 in overall.md
+  PR creation / remote CI             N/A             source: no remote exists (D-9)
+  merge into main                     explicit operator authorization only — "Merging to main:
+                                                      NOT yours. Stop at ready-for-review."
+
+POST-MERGE SYNCHRONIZATION OWNER
+  this implementation session owns this PR document, its evidence and its deviations;
+  the planning session owns the step-level and overall.md updates after merge
+  (overall.md §7 convention, unchanged from PR 01)
+
+NORMAL STOP CONDITION
+  PR 02 READY FOR OPERATOR REVIEW on mvp0/pr-02-action-event-spatial — DO NOT MERGE
+
+STOP AND REPORT INSTEAD OF IMPROVISING WHEN
+  a frozen invariant in §1.3 would have to change
+  a gate question in §3.1 cannot be answered yes against the written code
+  a public specification statement is falsified
+```
