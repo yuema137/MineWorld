@@ -10,8 +10,9 @@
 //!
 //! `PLACE`, `ALICE` and `MUG` are above 2^53, which is where an IEEE-754 double stops being able
 //! to count. As doubles, `9007199254740995` (Alice) and `9007199254740997` (the mug) are both
-//! `9007199254740996`: two distinct entities collapse into one. That is the `DD-15` trap, made
-//! unmissable rather than theoretical.
+//! `9007199254740996`: two distinct entities collapse into one. That is the trap `DD-15` was
+//! written for, made unmissable rather than theoretical — and it is now the contract that defuses
+//! it, at the type rather than at the frame, so this server holds no encoder.
 
 use mineworld_contracts::{
     ActionId, ActionIntent, ActionResult, ActionTypeId, Affordance, Causation, ComponentRecord,
@@ -22,7 +23,8 @@ use mineworld_contracts::{
 use serde_json::Value;
 
 use crate::vocabulary::{
-    Body, ConversationStarted, DisplayName, MoveTo, Moved, PickUp, PlaceExtent, Signage, Talk,
+    Body, ConversationStarted, DisplayName, MoveTo, Moved, Ownership, PickUp, PlaceExtent, Signage,
+    Talk,
 };
 
 /// `2^53 + 1`. A double rounds it to `9007199254740992`.
@@ -291,6 +293,17 @@ impl SpikeWorld {
         )];
         if let Some(body) = &thing.body {
             components.push(component::<Body>(thing.id, body.clone()));
+        }
+        // The mug belongs to Alice, whose id is above 2^53. An `EntityId` inside a component
+        // payload is the position `FINDINGS.md` F2 showed a protocol-level encoder cannot reach,
+        // and it now reaches a client as a decimal string with this server doing nothing.
+        if thing.id.raw() == MUG {
+            components.push(component::<Ownership>(
+                thing.id,
+                Ownership {
+                    owner: EntityId::from_raw(ALICE),
+                },
+            ));
         }
         PerceivedEntity::new(thing.id, thing.entity_type)
             .at(self.location_of(thing.id))

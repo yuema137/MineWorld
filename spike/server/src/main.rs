@@ -1,21 +1,31 @@
 //! The renderer-integration spike's demo server.
 //!
-//! One authoritative world (`world.rs`), one WebSocket endpoint, and the `DD-15` wire encoding
-//! (`wire.rs`). It does not use `mineworld-kernel`: the kernel is being written elsewhere and
-//! this spike exists to test the *contracts*, which are merged and stable.
+//! One authoritative world (`world.rs`) and one WebSocket endpoint. It does not use
+//! `mineworld-kernel`: the kernel is being written elsewhere and this spike exists to test the
+//! *contracts*, which are merged and stable.
 //!
 //! ```text
-//! server  ── Observation ──►  client        every 100 ms, in two encodings
+//! server  ── Observation ──►  client        every 100 ms
 //! server  ◄── ActionIntent ──  client        whatever the player did
 //! server  ── ActionResult ──►  client        the server's answer, and only the server's
 //! ```
+//!
+//! # There is no wire encoder here any more
+//!
+//! This server used to carry `wire.rs`: a hand-written structural mirror of every contract shape
+//! that rendered 64-bit ids as decimal strings at the protocol boundary, because `DD-15` assigned
+//! the problem there. `FINDINGS.md` F2 measured what that encoder could not reach — a
+//! `ComponentRecord` or `EventRecord` payload, which is where a real System Pack puts its ids —
+//! and `mineworld-contracts` now encodes the four opaque identities itself, keyed on
+//! `Serializer::is_human_readable()`. So the frames below are the contract's own `serde_json`
+//! output, unmodified, and the ids in them are already decimal strings wherever they appear,
+//! payloads included. The deletion of `wire.rs` is the observable result of that fix.
 //!
 //! Every intent the server accepts is written to `spike/evidence/intents.jsonl` in the
 //! contract's own canonical JSON, tagged by which client sent it. That file is the `AC-13`
 //! parity evidence: the two `talk` intents are compared field by field in `parity.json`.
 
 mod vocabulary;
-mod wire;
 mod world;
 
 use std::net::SocketAddr;
@@ -33,7 +43,6 @@ use mineworld_contracts::ActionIntent;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use wire::Direction;
 use world::SpikeWorld;
 
 /// Shared state: the world, and the intents each client has submitted.
@@ -54,13 +63,9 @@ async fn main() {
     if std::env::args().any(|argument| argument == "--dump") {
         let world = SpikeWorld::new();
         let observation = world.observation();
-        let naive = serde_json::to_value(&observation).expect("an observation serializes");
-        let mut encoded = naive.clone();
-        wire::observation(Direction::Encode, &mut encoded);
         println!(
             "{}",
-            serde_json::to_string_pretty(&json!({"naive": naive, "wire": encoded}))
-                .expect("pretty")
+            serde_json::to_string_pretty(&observation).expect("an observation serializes")
         );
         return;
     }
@@ -127,17 +132,15 @@ async fn session(socket: WebSocket, state: App) {
     println!("[server] client disconnected");
 }
 
-/// Serializes the current observation in both encodings.
+/// Serializes the current observation — once, because there is only one encoding now.
 ///
-/// `naive` is what `serde_json` produces from the contract type directly: 64-bit ids as JSON
-/// numbers. `wire` is the same value after `DD-15`'s encoding. Sending both in one frame is what
-/// lets a client compare them and report, from inside Godot, whether the decision was needed.
+/// What goes on the wire is exactly what the contract's own `serde` produces. Every `EntityId`,
+/// `EventId`, `ActionId` and `ProcessId` in it is a decimal string, including the ones inside a
+/// component or event payload, which is the half a protocol-level encoder could not reach.
 fn observation_frame(world: &SpikeWorld) -> String {
     let observation = world.observation();
-    let naive = serde_json::to_value(&observation).expect("an observation serializes");
-    let mut encoded = naive.clone();
-    wire::observation(Direction::Encode, &mut encoded);
-    json!({ "t": "observation", "naive": naive, "wire": encoded }).to_string()
+    let value = serde_json::to_value(&observation).expect("an observation serializes");
+    json!({ "t": "observation", "observation": value }).to_string()
 }
 
 /// Handles one client frame, returning the reply to send if there is one.
@@ -168,10 +171,9 @@ async fn handle_intent(state: &App, frame: &Value) -> String {
         return json!({"t": "error", "detail": "intent frame carries no intent"}).to_string();
     };
 
-    // Undo the wire encoding, then let the *contract* decide whether the frame is well formed.
-    let mut decoded = sent.clone();
-    wire::action_intent(Direction::Decode, &mut decoded);
-    let intent = match serde_json::from_value::<ActionIntent<Value>>(decoded.clone()) {
+    // No decoding step: the contract reads its own encoding, and is the only thing that decides
+    // whether the frame is well formed.
+    let intent = match serde_json::from_value::<ActionIntent<Value>>(sent.clone()) {
         Ok(intent) => intent,
         Err(error) => {
             println!("[server] rejected a malformed intent from {tag}: {error}");
@@ -197,8 +199,7 @@ async fn handle_intent(state: &App, frame: &Value) -> String {
     };
     println!("[server] {tag} -> {action_type}: {result:?}");
 
-    let mut encoded = serde_json::to_value(&result).expect("a result serializes");
-    wire::action_result(Direction::Encode, &mut encoded);
+    let encoded = serde_json::to_value(&result).expect("a result serializes");
     json!({"t": "result", "result": encoded, "canonical_intent": canonical}).to_string()
 }
 

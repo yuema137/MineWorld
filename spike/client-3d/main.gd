@@ -259,10 +259,10 @@ func _receive(text: String) -> void:
 		return
 	match frame.get("t", ""):
 		"observation":
-			observation = frame["wire"]
+			observation = frame["observation"]
 			if not reported:
 				reported = true
-				_report_dd15(frame["naive"])
+				_report_id_encoding()
 		"result":
 			last_result = _describe_result(frame["result"])
 			note("server answered: %s" % last_result)
@@ -271,23 +271,23 @@ func _receive(text: String) -> void:
 			note(last_result)
 
 
-func _report_dd15(naive: Dictionary) -> void:
+# One encoding now: the contract's own. The corruption is produced here, from the string, rather
+# than by asking the server for a second copy of the frame.
+func _report_id_encoding() -> void:
 	var alice := _entity_named("Alice")
 	var mug := _entity_named("Chipped mug")
-	var alice_naive = null
-	var mug_naive = null
-	for entity in naive["entities"]:
-		var found := ""
-		for component in entity.get("components", []):
-			if component["component_type"] == "display-name":
-				found = component["payload"]["name"]
-		if found == "Alice":
-			alice_naive = entity["id"]
-		elif found == "Chipped mug":
-			mug_naive = entity["id"]
-	note("DD-15 wire  alice=%s mug=%s (exact, typeof=%d)" % [alice["id"], mug["id"], typeof(alice["id"])])
-	note("DD-15 naive alice=%.0f mug=%.0f (typeof=%d) collide=%s"
-		% [float(alice_naive), float(mug_naive), typeof(alice_naive), str(float(alice_naive) == float(mug_naive))])
+	if alice.is_empty() or mug.is_empty():
+		return
+	var alice_id: String = alice["id"]
+	var mug_id: String = mug["id"]
+	note("contract alice=%s mug=%s (exact, typeof=%d)" % [alice_id, mug_id, typeof(alice["id"])])
+	note("as JSON numbers alice=%.0f mug=%.0f collide=%s"
+		% [float(alice_id), float(mug_id), str(float(alice_id) == float(mug_id))])
+	# F2: an EntityId inside a component payload, which no protocol-level encoder could reach.
+	for component in mug.get("components", []):
+		if component["component_type"] == "ownership":
+			var owner = component["payload"]["owner"]
+			note("F2 payload id: owner=%s protected=%s" % [str(owner), str(typeof(owner) == TYPE_STRING)])
 
 
 func send(frame: Dictionary) -> void:

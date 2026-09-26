@@ -117,7 +117,7 @@ that can disagree with itself (F8.1).
 | # | Commit | Implementation | Validation | LLM logic review |
 | --- | --- | --- | --- | --- |
 | 1 | Fix 1: id encoding keyed on `is_human_readable`, and the DD-15 record | `[x]` | `[x]` | `[x]` |
-| 2 | Fix 1: delete the spike's `wire.rs` | `[ ]` | `[ ]` | `[ ]` |
+| 2 | Fix 1: delete the spike's `wire.rs` | `[x]` | `[x]` | `[x]` |
 | 3 | Fix 2: relations on `Observation` | `[ ]` | `[ ]` | `[ ]` |
 | 4 | Fix 3: `ActionRequest` and `ActionIntent::allocate` | `[ ]` | `[ ]` | `[ ]` |
 
@@ -189,7 +189,10 @@ a_float_is_refused_rather_than_truncated
 ### Fix 1 — mutation evidence
 
 All three mutations were applied to `contracts/src/ids.rs`, measured, and reverted; the suite was
-confirmed back at 139 passing afterwards.
+confirmed back at 139 passing afterwards. Mutation 1 was then **re-run against the committed
+code at `363f0a0`** and reproduced identically — 17 red, verbatim `left: "9007199254740993"` /
+`right: "\"9007199254740993\""` from `the_2_53_boundary_survives_json_for_every_opaque_identity`
+— so the counterfactual belongs to the commit and not only to the working tree.
 
 ```text
 mutation 1:  undo the fix — serialize_u64 unconditionally, dropping the
@@ -230,6 +233,49 @@ observed:    6 tests failed: a_binary_format_encodes_an_opaque_identity_as_a_num
              which is the failure a real binary codec would produce.
 verdict:     behaviour-changing, caught. REVERTED.
 ```
+
+### Fix 1 — the spike, with `wire.rs` deleted
+
+The consumer-side evidence, and the only part of this PR that runs outside the test suite.
+`spike/server/src/wire.rs` is gone, `mod wire` is gone, and the observation frame carries one
+encoding: whatever the contract's own `serde_json` produced.
+
+```text
+command:  cargo check   (spike/server, its own workspace)      clean
+command:  cargo run -- --dump   (the real server, real contract types)
+```
+
+From that dump, verbatim:
+
+```text
+observer                         "101"
+place entity id                  "9007199254740993"
+mug entity id                    "9007199254740997"
+affordance targets               [null, "9007199254740995", "103", "9007199254740997"]
+
+ownership component on the mug
+  entity                         "9007199254740997"
+  payload                        {"owner": "9007199254740995"}      <- F2, protected
+
+signage component on the place
+  payload                        {"catalogue_id": 9007199254740999,
+                                  "id": 9007199254741001, ...}      <- still numbers
+```
+
+The `ownership` line is the measurement this PR exists for. `spike/FINDINGS.md` F2 recorded
+`sent 9007199254740999, parsed 9007199254741000, protected=false` for a payload field; an
+`EntityId` in that same position is now a decimal string, and the server did nothing to make it
+one. The `signage` line is the other half of the same rule and is *correct*: `catalogue_id` is a
+large integer that is **not** an identity, so nothing may guess at it — which is precisely why a
+field-name-guessing encoder was never an option and why the rule had to go on the type.
+
+A new `Ownership { owner: EntityId }` component was added to the spike's invented vocabulary to
+make that comparison available in one frame; it is F2's own third example, and it sits one
+component away from the trap that must stay unprotected.
+
+Both Godot clients were updated to the single-encoding frame and their id-encoding report now
+derives the corruption from the string itself rather than from a second copy of the frame. They
+were **not re-run** — see §6.
 
 ### Fix 2 — relations on `Observation`
 

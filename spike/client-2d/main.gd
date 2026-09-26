@@ -39,7 +39,6 @@ const TAG_COLOUR := {
 
 var socket := WebSocketPeer.new()
 var observation: Dictionary = {}
-var naive_observation: Dictionary = {}
 var font: Font = ThemeDB.fallback_font
 
 var next_action_id := 7000
@@ -76,11 +75,10 @@ func _receive(text: String) -> void:
 		return
 	match frame.get("t", ""):
 		"observation":
-			observation = frame["wire"]
-			naive_observation = frame["naive"]
+			observation = frame["observation"]
 			if not reported:
 				reported = true
-				_report_dd15()
+				_report_id_encoding()
 		"result":
 			var result = frame["result"]
 			last_result = _describe_result(result)
@@ -90,38 +88,41 @@ func _receive(text: String) -> void:
 			note(last_result)
 
 
-# DD-15, checked from inside Godot rather than argued about on paper.
-func _report_dd15() -> void:
+# The 64-bit id problem, checked from inside Godot rather than argued about on paper.
+#
+# There is one encoding now: the contract's own. Every id arrives as a decimal string, so the
+# demonstration no longer needs a second copy of the frame — this client produces the corruption
+# itself, by doing to the string what a JSON number would have forced it to do.
+func _report_id_encoding() -> void:
 	var alice := _entity_named("Alice")
 	if alice.is_empty():
 		return
-	var wire_id: String = alice["id"]
-	# The same entity as the server sent it without the DD-15 encoding.
-	var naive_id = null
-	for entity in naive_observation["entities"]:
-		if str(entity["id"]).begins_with("900719925474099"):
-			if _name_of(entity) == "Alice":
-				naive_id = entity["id"]
-	note("DD-15 wire id (string)   : %s" % wire_id)
-	note("DD-15 wire id -> int()   : %d" % int(wire_id))
-	note("DD-15 naive id (JSON num): %s  typeof=%d (2=int 3=float)" % [str(naive_id), typeof(naive_id)])
-	note("DD-15 naive id as text   : %s" % ("%.0f" % float(naive_id)))
-	# The mug is a different entity whose id is two away from Alice's.
+	var alice_id: String = alice["id"]
+	note("id from the contract  : %s  typeof=%d (2=int 4=string)" % [alice_id, typeof(alice["id"])])
+	note("id -> int()           : %d" % int(alice_id))
+	note("id if it had been a JSON number: %.0f" % float(alice_id))
+	# The mug is a different entity whose id is two away from Alice's. Exact as strings; the same
+	# value as doubles.
 	var mug := _entity_named("Chipped mug")
 	if not mug.is_empty():
-		var mug_naive = null
-		for entity in naive_observation["entities"]:
-			if _name_of(entity) == "Chipped mug":
-				mug_naive = entity["id"]
-		note("DD-15 collision check: alice_wire=%s mug_wire=%s  alice_naive=%.0f mug_naive=%.0f  collide=%s"
-			% [wire_id, mug["id"], float(naive_id), float(mug_naive),
-			   str(float(naive_id) == float(mug_naive))])
-	# The payload trap: a component payload is opaque to the wire encoder (FINDINGS.md F2).
+		var mug_id: String = mug["id"]
+		note("collision check: alice=%s mug=%s exact_collide=%s as_double_collide=%s"
+			% [alice_id, mug_id, str(alice_id == mug_id),
+			   str(float(alice_id) == float(mug_id))])
+		# F2, the half a protocol-level encoder could not reach: an EntityId inside a component
+		# payload. The contract protects it because the rule is on the type.
+		for component in mug.get("components", []):
+			if component["component_type"] == "ownership":
+				var owner = component["payload"]["owner"]
+				note("F2 payload id: owner=%s protected=%s (a component payload is opaque to any encoder)"
+					% [str(owner), str(typeof(owner) == TYPE_STRING)])
+	# And the other side of the same rule: a large integer that is *not* an id is still a number,
+	# because nothing may guess. A client that needs it exactly must not read it as a number.
 	var place := _entity_named("Lakeside Cafe")
 	for component in place.get("components", []):
 		if component["component_type"] == "signage":
 			var catalogue = component["payload"]["catalogue_id"]
-			note("F2 payload id: sent 9007199254740999, parsed %.0f, protected=%s"
+			note("not an id: sent 9007199254740999, parsed %.0f, protected=%s"
 				% [float(catalogue), str(typeof(catalogue) == TYPE_STRING)])
 
 

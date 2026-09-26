@@ -6,7 +6,7 @@
 //! here to prove the contract layer can carry them without knowing them.
 
 use mineworld_contracts::{
-    Action, ActionTypeId, Component, ComponentSchemaVersion, ComponentTypeId, Event,
+    Action, ActionTypeId, Component, ComponentSchemaVersion, ComponentTypeId, EntityId, Event,
     EventSchemaVersion, EventTypeId, LocalPosition, Orientation, SystemId,
 };
 use serde::{Deserialize, Serialize};
@@ -68,12 +68,17 @@ impl Component for PlaceExtent {
     const SCHEMA_VERSION: ComponentSchemaVersion = ComponentSchemaVersion::new(1);
 }
 
-/// A sign hanging in a place — and the spike's deliberate trap for the `DD-15` wire encoding.
+/// A sign hanging in a place — and the spike's deliberate trap, kept because it still says
+/// something true.
 ///
-/// `catalogue_id` is above 2^53 and is **not** an entity id. A wire encoder that stringifies
-/// every field called `id`, or every large integer, corrupts it. The encoder in `wire.rs`
-/// therefore refuses to descend into any component payload, and `FINDINGS.md` F2 records why
-/// that constraint is forced rather than chosen.
+/// `catalogue_id` and `id` are above 2^53 and **neither is an entity id**. That is why a wire
+/// encoder could not fix the payload problem by guessing: one that stringified every field called
+/// `id`, or every large integer, would corrupt these two. It also shows what the contract's fix
+/// does *not* claim. `mineworld-contracts` now protects ids because the rule is on the
+/// [`EntityId`](mineworld_contracts::EntityId) type, so these plain `u64`s are still plain JSON
+/// numbers and a Godot client still reads them imprecisely — correctly, because they are not
+/// identities. Compare [`Ownership`], one field away, whose `owner` *is* an `EntityId` and is
+/// protected. `FINDINGS.md` F2 records why keying on the type was the only available rule.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Signage {
     pub text: String,
@@ -83,6 +88,25 @@ pub struct Signage {
 
 impl Component for Signage {
     const COMPONENT_TYPE: ComponentTypeId = ComponentTypeId::from_static("signage");
+    const OWNER: SystemId = GEOGRAPHY;
+    const SCHEMA_VERSION: ComponentSchemaVersion = ComponentSchemaVersion::new(1);
+}
+
+/// Who owns a thing — the third payload shape `FINDINGS.md` F2 names, and the one that makes the
+/// fix observable from inside a client.
+///
+/// `owner` is an `EntityId` above 2^53 sitting inside a component payload: exactly the position a
+/// protocol-level encoder is forbidden to look into. It reaches a client as `"9007199254740995"`
+/// rather than as a number, without this server doing anything, because the rule travels with the
+/// type. Next to [`Signage`]'s plain `u64`s in the same kind of payload, it is the whole argument
+/// in two components.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Ownership {
+    pub owner: EntityId,
+}
+
+impl Component for Ownership {
+    const COMPONENT_TYPE: ComponentTypeId = ComponentTypeId::from_static("ownership");
     const OWNER: SystemId = GEOGRAPHY;
     const SCHEMA_VERSION: ComponentSchemaVersion = ComponentSchemaVersion::new(1);
 }
