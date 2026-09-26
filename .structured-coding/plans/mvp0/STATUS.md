@@ -4,16 +4,16 @@ Updated as stages land. Exists to stop MVP-0 being declared complete while a rea
 untested. `demonstrated` means it was actually run and inspected, never inferred from a test
 suite or a successful compile.
 
-**Last updated:** 2026-09-25, during S2 implementation
+**Last updated:** 2026-09-26, after S2 merged (`5df2c84`)
 
 ## Capability matrix
 
 | Capability | Headless | 2D | 3D |
 | --- | --- | --- | --- |
 | World load | not started | not started | not started |
-| Person | contracts only (S1) | not started | not started |
+| Person | contracts only (S1, S2) | not started | not started |
 | Movement | not started | not started | not started |
-| Place | contracts only (S1) | not started | not started |
+| Place | contracts only (S1, S2 spatial) | not started | not started |
 | Talk | not started | not started | not started |
 | Object interaction | not started | not started | not started |
 | Persistence | not started | n/a | n/a |
@@ -34,8 +34,8 @@ suite or a successful compile.
 | Stage | State |
 | --- | --- |
 | S1 entity/component contracts | **merged** `e85c889`, 32 tests, single-writer proven at compile time |
-| S2 action/event/observation/spatial | **implementing** |
-| S3 system interface and registry | 03a **implementing**, 03b medium scope |
+| S2 action/event/observation/spatial | **merged** `5df2c84`, 61 tests; review fixed event payload versioning before any event could be persisted |
+| S3 system interface and registry | 03a **implementing** (resumed after a usage-limit interruption mid-C3), 03b medium scope |
 | S4 clock, scheduler, process | **design frozen**, D-6 resolved |
 | S5 persistence and event log | medium scope |
 | S6 first systems: time, places, movement | medium scope |
