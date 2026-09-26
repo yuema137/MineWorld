@@ -18,6 +18,7 @@ Two things they already show that matter beyond art: **seated characters**, whic
 affordance in 2D form, and **legible signage**, which is how a 2D client conveys place identity
 without a label system.
 
-Still uncovered: an interior at room scale, and a night or overcast condition.
+Still uncovered: an interior at room scale, and a night or overcast condition. Follow-up work,
+**not an MVP-0 blocker**.
 
 These are style references, not game content (§14).

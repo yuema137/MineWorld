@@ -16,6 +16,8 @@ direction:
 
 characters:
   proportions: realistic
+  # Deliberate and ruled on, not inferred: MineWorld Default 3D does not target
+  # photorealistic human rendering. See docs/DECISIONS.md ARC-4.
   facial_detail: medium
   stylization: subtle
 
@@ -35,10 +37,20 @@ environment:
   human_scale: true
   readability_priority: high
 
+# Each reference states what it is authoritative FOR. A reference is the strongest
+# source of truth within its designated dimensions and carries no authority outside
+# them (docs/DECISIONS.md ARC-4).
 reference_images:
-  - references/01_lakeside_promenade.png
-  - references/02_town_square.png
-  - references/03_cafe_frontage.png
-  - references/04_character_closeup.png
-  - references/05_main_street_golden_hour.png
-  - references/06_lake_trail.png
+  - path: references/01_lakeside_promenade.png
+    authoritative_for: [environment, architecture, materials, lighting, colour, density, human_scale]
+  - path: references/02_town_square.png
+    authoritative_for: [environment, architecture, wayfinding, density, human_scale]
+  - path: references/03_cafe_frontage.png
+    authoritative_for: [environment, architecture, interaction_scale, outdoor_seating, signage]
+  - path: references/04_character_closeup.png
+    authoritative_for: [character_proportions, clothing, character_environment_integration, camera_distance, ordinary_person_identity, atmosphere]
+    not_authoritative_for: [facial_fidelity, skin_rendering, hair_simulation, character_asset_budget]
+  - path: references/05_main_street_golden_hour.png
+    authoritative_for: [architecture, materials, lighting, colour]
+  - path: references/06_lake_trail.png
+    authoritative_for: [natural_environment, vegetation, lighting, colour]

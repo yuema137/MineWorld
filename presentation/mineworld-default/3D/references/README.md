@@ -17,22 +17,40 @@ painted metal; human-scale streets; moderate environmental detail that stays rea
 warm light, mostly late afternoon; muted natural colour with saturated accents only in flowers
 and signage.
 
-## An unresolved tension, not a decision
+## Scope of authority — ruled 2026-09-25
 
-`04_character_closeup.png` renders its face noticeably more photorealistically than
-`ART_DIRECTION.md` §3 and §7 prescribe — those sections rule out cinematic facial rendering and
-call slight simplification *desirable*, to reduce uncanny-valley risk and keep community
-character production practical.
+A reference is the strongest source of truth **within the dimensions it is designated to
+represent**, and carries no authority outside them
+([`../../../../docs/DECISIONS.md`](../../../../docs/DECISIONS.md) `ARC-4`). Each entry in
+`manifest.yaml` states its `authoritative_for` list.
 
-References are the stronger definition (§16), but here a reference and the written direction
-disagree, so the manifest cannot be derived cleanly from both. `characters.facial_detail` is set
-to `medium` following the prose, and this note records that one reference sits above it. Worth
-settling deliberately, because it decides how expensive community-authored characters are.
+This matters most for `04_character_closeup.png`. It is a valuable reference for **body
+proportions, casual modern clothing, how a character sits in its environment, the camera distance
+of a close encounter, and ordinary-person visual identity**. Its **facial photorealism is
+explicitly not the fidelity target**.
 
-## Still uncovered
+The default 3D character is:
+
+```text
+realistic anatomy and proportions
++ believable ordinary clothing
++ natural animation
++ recognizable facial expression
++ moderate facial geometry and material detail
++ subtle simplification
+```
+
+and it explicitly does not depend on photoreal skin, MetaHuman-level facial assets, facial
+scanning, cinematic hair simulation, or a custom character pipeline. The reason is architectural
+rather than aesthetic: the default presentation has to stay practical for open-source and
+community-created worlds, and a photoreal face standard would make community character production
+prohibitively expensive.
+
+## Still uncovered — follow-up, not a blocker
 
 A true interior at room scale (the café interior appears only through a window), and a night or
-overcast condition.
+overcast condition. These are presentation-pack follow-up work and **do not block MVP-0**.
+Renderer work stops for them only if it becomes genuinely ambiguous without them.
 
 These are style references, not game content (§14): they fix realism, lighting, material
 complexity, density, architectural credibility, character realism, colour and human scale — not

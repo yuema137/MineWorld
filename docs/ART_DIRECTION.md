@@ -22,9 +22,15 @@ presentation/mineworld-default/
 └── 3D/references/   six semi-realistic references
 ```
 
-Each `references/README.md` indexes what its images cover and what they do not. One known
-tension is recorded there rather than resolved silently: `3D/references/04_character_closeup.png`
-is more photorealistic in the face than §§3 and 7 prescribe.
+Each `references/README.md` indexes what its images cover and what they do not.
+
+**A reference is authoritative only within its designated dimensions** ([`DECISIONS.md`](DECISIONS.md)
+`ARC-4`), declared per image as `authoritative_for` in the manifest. This refines §16: reference
+images remain the strongest source of truth, but for the aspects they are references *for*, not
+for every pixel equally. Concretely, `3D/references/04_character_closeup.png` is authoritative for
+body proportions, clothing, character-environment integration and camera distance, and is **not**
+the facial-fidelity target — §§3 and 7 govern that, and MineWorld Default 3D does not target
+photorealistic human rendering.
 
 ---
 
