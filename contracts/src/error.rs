@@ -226,4 +226,24 @@ pub enum ContractError {
         /// The event type its payload record was written from.
         payload_event_type: EventTypeId,
     },
+
+    /// An orientation was given a pitch steeper than straight up or straight down. Refused rather
+    /// than clamped: unlike a yaw past a full turn, such a value is not another way of writing a
+    /// legal one.
+    #[error("a pitch of {millidegrees}mdeg is steeper than the {limit}mdeg limit")]
+    PitchOutOfRange {
+        /// The rejected pitch, in millidegrees.
+        millidegrees: i32,
+        /// The steepest legal pitch, in millidegrees.
+        limit: i32,
+    },
+
+    /// A spatial requirement declared a negative interaction range. Rejected where the
+    /// declaration is written, because an evaluator comparing squared distances would treat it as
+    /// its own absolute value and silently accept interactions at that distance.
+    #[error("an interaction range must not be negative, but this one is {millimetres}mm")]
+    NegativeInteractionRange {
+        /// The rejected range, in millimetres.
+        millimetres: i32,
+    },
 }

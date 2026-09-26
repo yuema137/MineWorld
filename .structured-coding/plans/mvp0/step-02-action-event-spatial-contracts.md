@@ -237,13 +237,39 @@ render and no rule logic anywhere.
 possible later.
 **Scope** `contracts/src/spatial.rs`, wiring, tests. Depends on C1.
 
-- [ ] Implementation: `Millimetres(i32)`, `Millidegrees(i32)`; `LocalPosition { x, y, z }`; `Orientation { yaw, pitch: Option<_> }` normalized to a canonical range on construction.
-- [ ] Implementation: `Location { place: PlaceId, local: Option<LocalPosition>, facing: Option<Orientation> }`.
-- [ ] Implementation: `SpatialRequirement` per DD-6, with `NONE` and `same_place()` constructors for the common cases.
-- [ ] Implementation: `evaluate(requirement, actor: &Location, target: Option<&Location>, target_available: bool) -> Result<(), Rejection>`, integer distance only, documenting the line-of-access gap per DD-7.
-- [ ] Validation: the case matrix — same place / different place → `TooFarAway` or pass per requirement; in range / out of range; absent `LocalPosition` with a range requirement (documented outcome, not a panic); unavailable target → `TargetUnavailable`; orientation normalization at ±360° boundaries; distance arithmetic cannot overflow `i32` at world scale.
-- [ ] Validation: structural test asserting the crate source contains no `f32`/`f64`.
-- [ ] Review: nothing engine-shaped; a 2D world ignoring `z` and a 3D world using it share one type; the §11 gate answer in §3.1 still holds against the written code.
+- [x] Implementation: `Millimetres(i32)`, `Millidegrees(i32)`; `LocalPosition { x, y, z }`; `Orientation { yaw, pitch: Option<_> }` normalized to a canonical range on construction.
+      → `contracts/src/spatial.rs`. Yaw is canonicalized into `[0, 360_000)` by `rem_euclid`, in a
+      `const fn`, so `Orientation::facing` is usable in a constant. Pitch is **rejected** outside
+      ±90 000 rather than clamped; decision K-4 in §7.3 separates the two cases.
+- [x] Implementation: `Location { place: PlaceId, local: Option<LocalPosition>, facing: Option<Orientation> }`.
+      → with `in_place` plus `with_local` / `with_facing`, the S1 builder pattern. Also added
+      `ActionIntent.actor_location` and `from_location` here, closing deviation D-1.
+- [x] Implementation: `SpatialRequirement` per DD-6, with `NONE` and `same_place()` constructors for the common cases.
+      → plus `at_place`, `within` (fallible — a negative range is refused where it is declared),
+      `requiring_line_of_access` and `requiring_target_available`. `PlaceRequirement` is the
+      `Any` / `SamePlaceAsActor` / `Specific` enum DD-6 names.
+- [x] Implementation: `evaluate(requirement, actor: &Location, target: Option<&Location>, target_available: bool) -> Result<(), Rejection>`, integer distance only, documenting the line-of-access gap per DD-7.
+      → a method on `SpatialRequirement`. Squared distances are compared in `i128`; there is no
+      square root, so nothing rounds. The documented precedence is availability → place → range →
+      line of access, and the doc comment argues each. The line-of-access gap is stated on the
+      method and in the code at the point where a geometry provider will eventually answer it.
+- [x] Validation: the case matrix — same place / different place → `TooFarAway` or pass per requirement; in range / out of range; absent `LocalPosition` with a range requirement (documented outcome, not a panic); unavailable target → `TargetUnavailable`; orientation normalization at ±360° boundaries; distance arithmetic cannot overflow `i32` at world scale.
+      → `contracts/tests/spatial.rs`, 8 tests. Distances use a 3-4-5 triangle scaled by 400, so the
+      2 000 mm boundary and the 2 001 mm miss are checkable on paper. The overflow case evaluates
+      between `i32::MIN` and `i32::MAX` on all three axes. Five mutations in §7.2, including one
+      that survived and what it exposed.
+- [x] Validation: structural test asserting the crate source contains no `f32`/`f64`.
+      → `no_floating_point_appears_anywhere_in_the_contract_crate` walks `contracts/src/`, strips
+      line comments and fails on either token in code, and asserts it actually scanned something so
+      that a broken path cannot pass silently. Mutation M6 (adding an `as_metres() -> f64`
+      convenience, the most likely way a float would really arrive) turned it red.
+- [x] Review: nothing engine-shaped; a 2D world ignoring `z` and a 3D world using it share one type; the §11 gate answer in §3.1 still holds against the written code.
+      → `grep -niE 'mesh|navmesh|camera|scene|animation|skeleton|physics|collider|viewport|transform|godot|unreal|shader|texture|sprite'` over `contracts/src/`: four hits, all in `spatial.rs`
+      prose that names those concepts as the ones that must *not* be here. No code hit, and no
+      `sqrt`, `powi` or `as f…` anywhere. One `Location` type carries both the embodied and the
+      purely semantic case, asserted by
+      `one_location_type_describes_both_an_embodied_and_a_purely_semantic_position`. §3.1 re-checked
+      against the written code in §7.4.
 
 **Acceptance** both "1.2 m from Alice facing her inside the café" and "in the café, position
 irrelevant" are one type; the evaluator is pure, integer-only and total; §6 clean.
@@ -289,7 +315,7 @@ cargo test -p mineworld-contracts
 
 ## 7.1 Progress
 ```text
-C1 DONE   C2 DONE   C3 not started   C4 not started   C5 not started
+C1 DONE   C2 DONE   C3 DONE   C4 not started   C5 not started
 ```
 
 ## 7.2 Evidence
@@ -320,6 +346,17 @@ cargo test -p mineworld-contracts                              PASS
   action 5 · component 6 · entity 6 · event 6 · identity 9 · relation 6 · time 3 ·
   compile_fail harness 1 (now 7 cases) · doc-tests 3
 
+--- C3 (working tree at the C3 commit) -------------------------------------------
+cargo fmt --all --check                                        PASS  (clean)
+cargo check --workspace --all-targets                          PASS  (0 warnings)
+cargo clippy --workspace --all-targets --all-features
+                                    -- -D warnings             PASS  (0 warnings)
+cargo test -p mineworld-contracts                              PASS
+  50 integration tests + 3 doc-tests, 0 failed, 0.64s dominated by the trybuild
+  harness; every other test binary reports 0.00s
+  action 5 · component 6 · entity 6 · event 6 · identity 9 · relation 6 ·
+  spatial 8 · time 3 · compile_fail harness 1 (7 cases) · doc-tests 3
+
 MUTATIONS  (purpose: prove the new guards are load-bearing, not decorative)
   M1  ActionRecord::payload_for stops comparing the action type
       expected: a_request_survives_erasure_and_is_readable_only_as_its_own_action_type RED
@@ -342,7 +379,36 @@ MUTATIONS  (purpose: prove the new guards are load-bearing, not decorative)
       compiling rather than fail, which would be an inconclusive mutation, not a
       counterfactual. The test instead pins the serialized order and pins that two
       opposite insertion orders produce identical bytes.
-  no surviving mutation; source restored and re-verified green after each
+  M6  a convenience `Millimetres::as_metres(self) -> f64` is added — the most likely
+      way a float would actually arrive in this crate
+      expected: no_floating_point_appears_anywhere_in_the_contract_crate RED
+      observed: that test FAILED, the other seven passed           → behaviour-changing
+  M7  yaw is stored as given instead of canonicalized with rem_euclid
+      expected: a_heading_is_canonicalized_and_an_impossible_pitch_is_refused RED
+      observed: that test FAILED                                   → behaviour-changing
+  M8  evaluate answers place and distance before target availability
+      expected: the_evaluator_answers_every_documented_spatial_case RED
+      observed: that test FAILED                                   → behaviour-changing
+  M9  the unmodelled-position branch stops comparing places, so a millimetre range
+      reaches across the world
+      expected: a_range_requirement_degenerates_to_the_same_place... RED
+      observed FIRST RUN: ALL EIGHT TESTS PASSED — MUTATION SURVIVED
+      diagnosis: the degeneracy test used same_place().within(2m), and
+      PlaceRequirement::SamePlaceAsActor already rejects a different place before the
+      range logic is reached. The branch under test was never the deciding factor, so
+      the test asserted the right answer for the wrong reason. The case that isolates
+      the branch is a *bare* range — SpatialRequirement::NONE.within(2m), which is how
+      a system declares "near the target, wherever that is" — with no place clause to
+      fall back on.
+      fix: added that case, both directions, plus the positions-present counterpart so
+      the test also pins that a real distance is still a distance.
+      observed AFTER the fix: that test FAILED under the same mutation, the other seven
+      passed                                                        → behaviour-changing
+  M10 squared distances are computed in i64 instead of i128
+      expected: distance_arithmetic_survives_the_extremes_of_the_representable_range RED
+      observed: that test FAILED                                   → behaviour-changing
+  one mutation survived and was resolved by strengthening the test, as recorded above;
+  no mutation survives now. Source restored and re-verified green after each.
 ```
 
 ## 7.3 Findings, decisions, deviations
@@ -406,6 +472,58 @@ DECISION follow §1.1 for placement and widen `check_identifier` to `pub(crate)`
          cannot be judged by two drifting implementations; a copy would have broken
          exactly that. ids.rs now records where the two new declaration names live.
 IMPACT   no public API change in S1's surface; one visibility change.
+
+DECISION K-4 — a yaw is canonicalized, a pitch is rejected
+QUESTION crate rule 5 in lib.rs says validation rejects rather than repairs and that
+         nothing is silently normalized. DD-5 says an orientation is "normalized on
+         construction". Both cannot be true of the same field.
+EVIDENCE 450 000 and 90 000 millidegrees of yaw are the *same direction*; storing them
+         differently would put two representations of one fact in the event log and make
+         two identical worlds compare unequal, which is the determinism AC-12 wants. A
+         pitch of 100° is not another way of writing a legal value — past straight up
+         there is no steeper direction — so clamping it to 90° would turn an impossible
+         value into a plausible one and hide the mistake.
+DECISION canonicalize the periodic quantity, reject the bounded one. Both rules are
+         honoured, and the difference between them is documented on the type:
+         canonicalization maps an equivalence class to one representative, repair
+         invents a value the caller did not mean.
+VALIDATION  a_heading_is_canonicalized_and_an_impossible_pitch_is_refused, including
+         the deserialization path; mutation M7.
+
+DECISION K-5 — a range requirement degenerates to the same place, not to pass or fail
+QUESTION §5 C3 requires a "documented outcome, not a panic" when a range requirement
+         meets a Location with no LocalPosition. Three outcomes were available: pass,
+         fail, or something else.
+EVIDENCE DD-4 promises that a world leaving the continuous refinement out "loses
+         nothing". Passing unconditionally would let a three-metre range be satisfied
+         from another town, so a system's declaration would silently mean nothing.
+         Failing unconditionally would make any action declared by a 3D-capable system
+         unusable in a purely semantic 2D world, breaking DD-4's promise and
+         ENGINEERING_RULES §9's requirement that both clients exercise the same actions.
+DECISION the range degenerates to *same place*: being in one place is the finest
+         proximity such a world can express, so that is what the requirement means
+         there. A world that models positions on both sides gets an exact integer
+         distance; a world that models neither gets a place comparison; a world that
+         models one side gets the place comparison, because a distance needs both ends.
+VALIDATION  a_range_requirement_degenerates_to_the_same_place_when_no_position_is_modelled,
+         and mutation M9, whose survival exposed that the first version of this test was
+         asserting the right answer for the wrong reason.
+
+DECISION K-6 — no public distance function
+QUESTION `evaluate` needs a distance comparison. Should `LocalPosition` expose the
+         distance itself?
+EVIDENCE two positions at opposite ends of the `i32` millimetre range are about
+         4 295 km apart, which does not fit in an `i32` of millimetres — so a
+         `distance_to(&self) -> Millimetres` would have an unrepresentable result at the
+         edges, and an exact distance needs a square root this crate cannot take without
+         a float.
+DECISION keep the comparison private (`LocalPosition::within`) and expose no distance.
+         Squared distances are compared in `i128`, which is exact and cannot overflow at
+         any representable input. A system that later needs a distance gets one designed
+         for its actual use, rather than an overflowing convenience added in advance
+         (ENGINEERING_STANDARDS §11).
+VALIDATION  distance_arithmetic_survives_the_extremes_of_the_representable_range;
+         mutation M10.
 
 OPEN O-1 — an event payload has no schema version, and the event log is permanent
 SOURCE   §5 C2 specifies the Event trait as (EVENT_TYPE, OWNER). ComponentRecord

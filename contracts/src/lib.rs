@@ -44,6 +44,7 @@ pub mod error;
 pub mod event;
 pub mod ids;
 pub mod relation;
+pub mod spatial;
 pub mod time;
 
 pub use action::{
@@ -59,6 +60,11 @@ pub use ids::{
     ActionId, ComponentTypeId, EntityId, EntityKey, EntityType, EventId, ItemId,
     MAX_IDENTIFIER_LENGTH, OrganizationId, PersonId, PlaceId, ProcessId, RelationTypeId, SystemId,
 };
+pub use spatial::{
+    LocalPosition, Location, Millidegrees, Millimetres, Orientation, PlaceRequirement,
+    SpatialRequirement,
+};
+
 pub use relation::{
     EntityTypeSet, Relation, RelationDirection, RelationEnd, RelationTypeDeclaration, SelfEdges,
 };

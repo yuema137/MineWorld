@@ -96,8 +96,15 @@ C2  DONE   contracts/src/event.rs, IdentifierKind::EventTypeId and two ContractE
            compile-fail case pinning that a recorded event cannot be reassigned.
            All four §6 commands clean; 42 integration tests + 3 doc-tests; two
            mutations confirmed the guards are load-bearing (§7.2).
-C3  next
-C4  not started
+C3  DONE   contracts/src/spatial.rs (Millimetres, Millidegrees, LocalPosition,
+           Orientation, Location, PlaceRequirement, SpatialRequirement + evaluate),
+           two ContractError variants, ActionIntent.actor_location and from_location
+           (deviation D-1 closed), contracts/tests/spatial.rs (8 tests including the
+           no-float structural guard), action.rs tests extended to pin the reported
+           location. All four §6 commands clean; 50 integration tests + 3 doc-tests;
+           five mutations, one of which survived and led to a stronger degeneracy
+           test (§7.2 M9).
+C4  next
 C5  not started
 
 background jobs: none
@@ -107,13 +114,12 @@ open items: O-1 (event payloads have no schema version — S5 owns it),
 
 ## Exact next actions
 
-1. `contracts/src/spatial.rs` per §5 C3: `Millimetres`, `Millidegrees`, `LocalPosition`,
-   `Orientation` normalized on construction, `Location`, `SpatialRequirement` with `NONE` and
-   `same_place()`, and `evaluate` returning `Result<(), Rejection>` with integer-only distance.
-2. Add `ActionIntent.actor_location` (deviation D-1) with its accessor, builder and test.
-3. `contracts/tests/spatial.rs`, including the structural assertion that the crate's `src/`
-   contains no `f32`/`f64`.
-4. Record C3 in §7, then commit.
+1. `contracts/src/observation.rs` per §5 C4: `PerceivedEntity`, `PerceivedEvent`, `Affordance`,
+   `Observation` — no store handle, no global accessor, and no way to reach an entity the
+   observation does not list.
+2. `contracts/tests/observation.rs`, and a compile-fail case if one carries information.
+3. Record C4 in §7, then commit.
+4. C5: `docs/CORE_CONCEPTS.md` §§6, 12 and 15, `contracts/README.md`, §7.4 gate re-check.
 
 ## Stop conditions
 

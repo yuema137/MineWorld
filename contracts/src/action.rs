@@ -45,6 +45,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{ContractError, IdentifierKind};
 use crate::ids::{ActionId, EntityId, EventId, SystemId, check_identifier, validate_identifier};
+use crate::spatial::Location;
 use crate::time::WorldTime;
 
 /// The declared name of a kind of action: the slug a system provides and a client asks for.
@@ -357,6 +358,16 @@ impl<P> ActionRecord<P> {
 /// intent that is never dispatched has no effect on any world, and an intent that is dispatched
 /// may be answered with any [`ActionResult`].
 ///
+/// `actor_location` is what the *client* reports about where the actor was when the request was
+/// made — not the authoritative position, which the server holds. It exists because a spatial
+/// requirement is evaluated against locations (see
+/// [`SpatialRequirement::evaluate`](crate::spatial::SpatialRequirement::evaluate)), and because a
+/// client may legitimately know a position the server has not applied yet: a 3D client sends the
+/// position it walked to, a 2D client that models no position sends none. A server that distrusts
+/// the report is free to ignore it and evaluate against its own state — that choice belongs to
+/// dispatch, not to this type, and `ENGINEERING_RULES.md` §8 is why the client may only *report*
+/// it.
+///
 /// The fields are private because two of them must agree: `action_type` is the type the payload
 /// record was written from, and there is no construction path — including deserialization — that
 /// lets an intent claim one type while carrying another.
@@ -372,6 +383,7 @@ pub struct ActionIntent<P = Vec<u8>> {
     target: Option<EntityId>,
     payload: ActionRecord<P>,
     issued_at: WorldTime,
+    actor_location: Option<Location>,
 }
 
 impl<P> ActionIntent<P> {
@@ -379,10 +391,10 @@ impl<P> ActionIntent<P> {
     /// asked with what payload, and when it was issued.
     ///
     /// The action type is read off the payload record rather than taken as an argument, so the two
-    /// cannot be given inconsistently. A target is added with [`ActionIntent::with_target`],
-    /// because an action may genuinely have none: `docs/ENGINEERING_RULES.md` §7 names sending a
-    /// message and applying for a remote job as actions with no target and no spatial grounding at
-    /// all.
+    /// cannot be given inconsistently. A target and a reported location are added with
+    /// [`ActionIntent::with_target`] and [`ActionIntent::from_location`], because an action may
+    /// genuinely have neither: `docs/ENGINEERING_RULES.md` §7 names sending a message and applying
+    /// for a remote job as actions with no target and no spatial grounding at all.
     pub fn new(
         action_id: ActionId,
         actor: EntityId,
@@ -396,6 +408,7 @@ impl<P> ActionIntent<P> {
             target: None,
             payload,
             issued_at,
+            actor_location: None,
         }
     }
 
@@ -403,6 +416,13 @@ impl<P> ActionIntent<P> {
     #[must_use]
     pub fn with_target(mut self, target: EntityId) -> Self {
         self.target = Some(target);
+        self
+    }
+
+    /// Reports where the client believes the actor was when the request was made.
+    #[must_use]
+    pub fn from_location(mut self, location: Location) -> Self {
+        self.actor_location = Some(location);
         self
     }
 
@@ -435,6 +455,11 @@ impl<P> ActionIntent<P> {
     pub const fn issued_at(&self) -> WorldTime {
         self.issued_at
     }
+
+    /// Where the client reports the actor was, if it reported anything.
+    pub const fn actor_location(&self) -> Option<&Location> {
+        self.actor_location.as_ref()
+    }
 }
 
 /// The serialized shape of an [`ActionIntent`], read back through the same agreement check that
@@ -451,6 +476,7 @@ struct ActionIntentFields<P> {
     target: Option<EntityId>,
     payload: ActionRecord<P>,
     issued_at: WorldTime,
+    actor_location: Option<Location>,
 }
 
 impl<P> TryFrom<ActionIntentFields<P>> for ActionIntent<P> {
@@ -470,6 +496,7 @@ impl<P> TryFrom<ActionIntentFields<P>> for ActionIntent<P> {
             target: value.target,
             payload: value.payload,
             issued_at: value.issued_at,
+            actor_location: value.actor_location,
         })
     }
 }

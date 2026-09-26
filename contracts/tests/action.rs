@@ -11,7 +11,8 @@
 
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId, ContractError,
-    EntityId, EventId, Rejection, RejectionCode, SystemId, WorldTime,
+    EntityId, EntityType, EventId, LocalPosition, Location, Millidegrees, Millimetres, Orientation,
+    PlaceId, Rejection, RejectionCode, SystemId, WorldTime,
 };
 use serde::{Deserialize, Serialize};
 
@@ -196,10 +197,10 @@ fn an_intents_envelope_cannot_disagree_with_its_payload() {
     // wrong.
     assert_eq!(intent.action_type(), intent.payload().action_type());
 
-    let agreeing = r#"{"action_id":3,"actor":1,"action_type":"talk","target":null,"payload":{"action_type":"talk","payload":[]},"issued_at":0}"#;
+    let agreeing = r#"{"action_id":3,"actor":1,"action_type":"talk","target":null,"payload":{"action_type":"talk","payload":[]},"issued_at":0,"actor_location":null}"#;
     assert!(serde_json::from_str::<ActionIntent>(agreeing).is_ok());
 
-    let disagreeing = r#"{"action_id":3,"actor":1,"action_type":"give_item","target":null,"payload":{"action_type":"talk","payload":[]},"issued_at":0}"#;
+    let disagreeing = r#"{"action_id":3,"actor":1,"action_type":"give_item","target":null,"payload":{"action_type":"talk","payload":[]},"issued_at":0,"actor_location":null}"#;
     let error = serde_json::from_str::<ActionIntent>(disagreeing)
         .expect_err("an intent whose envelope and payload name different action types is refused");
     assert_eq!(
@@ -214,20 +215,48 @@ fn an_intents_envelope_cannot_disagree_with_its_payload() {
 
 /// The stored shape of an intent, asserted exactly: this is what a client sends and what a
 /// persistence layer or a protocol reads, so changing it is a protocol change.
+///
+/// The intent carried here is the one an embodied 3D client produces — a target obtained from a
+/// camera ray, and the position and heading the player actually walked to — and a 2D client's
+/// differs from it only by leaving `actor_location` out. Neither client evaluates anything: both
+/// report, and the server answers.
 #[test]
 fn an_intent_is_stored_as_its_documented_shape() {
+    let counter = PlaceId::new(EntityId::from_raw(7), EntityType::Place).unwrap();
     let intent = ActionIntent::new(
         ActionId::from_raw(3),
         EntityId::from_raw(41),
         ActionRecord::new::<GiveItem>(r#"{"item":18517}"#.to_owned()),
         WorldTime::from_seconds(64_800),
     )
-    .with_target(EntityId::from_raw(42));
+    .with_target(EntityId::from_raw(42))
+    .from_location(
+        Location::in_place(counter)
+            .with_local(LocalPosition::new(
+                Millimetres::new(1_200),
+                Millimetres::new(-350),
+                Millimetres::ZERO,
+            ))
+            .with_facing(Orientation::facing(Millidegrees::new(90_000))),
+    );
 
-    let text = r#"{"action_id":3,"actor":41,"action_type":"give_item","target":42,"payload":{"action_type":"give_item","payload":"{\"item\":18517}"},"issued_at":64800}"#;
+    let text = r#"{"action_id":3,"actor":41,"action_type":"give_item","target":42,"payload":{"action_type":"give_item","payload":"{\"item\":18517}"},"issued_at":64800,"actor_location":{"place":{"entity":7,"entity_type":"place"},"local":{"x":1200,"y":-350,"z":0},"facing":{"yaw":90000,"pitch":null}}}"#;
     assert_eq!(serde_json::to_string(&intent).unwrap(), text);
     assert_eq!(
         serde_json::from_str::<ActionIntent<String>>(text).unwrap(),
         intent
     );
+
+    // The same request from a client that models no position at all: one field fewer, and no other
+    // difference anywhere in the contract.
+    let flat = ActionIntent::new(
+        ActionId::from_raw(3),
+        EntityId::from_raw(41),
+        ActionRecord::new::<GiveItem>(r#"{"item":18517}"#.to_owned()),
+        WorldTime::from_seconds(64_800),
+    )
+    .with_target(EntityId::from_raw(42));
+    assert_eq!(flat.actor_location(), None);
+    assert_eq!(flat.action_type(), intent.action_type());
+    assert_eq!(flat.target(), intent.target());
 }
