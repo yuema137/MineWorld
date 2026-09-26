@@ -1,0 +1,384 @@
+# MineWorld — Vision
+
+**Status:** frozen positioning for v0.1 planning
+**Audience:** coding agents and contributors. This is a specification of intent; every other
+document must remain consistent with it.
+
+This document answers exactly three questions: what MineWorld is, what MineWorld is not, and
+what a creator can do with it.
+
+---
+
+# 1. One-sentence definition
+
+> **MineWorld is an open-source framework for building persistent, modular living game worlds.**
+
+Second sentence, equally binding:
+
+> **Worlds are composed from independent entities, simulation systems, controllers, and
+> presentation layers rather than implemented as monolithic games.**
+
+Three-line architectural slogan, used throughout the repository:
+
+```text
+Simulation creates reality.
+Controllers propose actions.
+Presentation observes reality.
+```
+
+MineWorld deliberately positions one abstraction level above "AI NPC framework". An LM-driven
+character is one kind of `Controller`, not the point of the project.
+
+---
+
+# 2. What MineWorld is
+
+## 2.1 Infrastructure, not a game
+
+MineWorld owns the **world**: identity, state, time, causality, interaction rules,
+persistence, and authority. It does not own the renderer and it does not own the language
+model.
+
+Think of it as an operating system for game worlds:
+
+```text
+                    ┌──────────────────┐
+                    │    MineWorld     │
+                    │      Kernel      │
+                    └────────┬─────────┘
+                             │
+       ┌──────────────┬──────┼──────┬──────────────┐
+       ▼              ▼      ▼      ▼              ▼
+    Entities       Systems  Time   Events      Persistence
+       │              │
+       ▼              ▼
+ Person/Place       Social
+ Item/Org           Economy
+                    Employment
+                    Combat
+                    ...
+
+             nothing above requires an LM
+```
+
+and then, attached from outside:
+
+```text
+Controllers                    Presentation
+
+Human                          2D pixel
+Rule policy                    stylized 3D
+Behavior tree                  photorealistic 3D
+RL agent                       text
+Local LM                       custom engine
+Cloud LM
+```
+
+## 2.2 Composition, not modification
+
+A creator builds a world by installing and configuring independent modules. There are exactly
+five publishable module kinds, specified in [`MODULE_SPEC.md`](MODULE_SPEC.md):
+
+```text
+Entity Pack        what exists in the world
+System Pack        what is allowed to happen between the things that exist
+World Pack         a specific world: people, places, organizations, initial state, config
+Controller Pack    who decides what a character does
+Presentation Pack  how the world is rendered
+```
+
+Composition example:
+
+```text
+Modern Life Entity Pack
++ Conversation System
++ Relationship System
++ Employment System
++ Local LM Controller
++ Pixel Presentation Pack
+= a game
+```
+
+Replace only the last line with `Realistic 3D Presentation Pack` and the simulation is
+bit-for-bit the same world.
+
+## 2.3 The particle-physics principle
+
+Entities exist independently. Interactions exist only when the corresponding system is
+enabled.
+
+```text
+Person + Person
+
+without a social system
+→ no social interaction exists
+
+with ConversationSystem
+→ talking becomes possible
+
+with InventorySystem + ItemTransferSystem
+→ giving becomes possible
+
+with GroupActivitySystem
+→ invite / join / leave becomes possible
+
+with EmploymentSystem
+→ hire / work / fire becomes possible
+
+with RomanceSystem
+→ romantic relationships become possible
+```
+
+Therefore:
+
+> Entities define what exists.
+> Systems define how things can interact.
+> Events record what happened.
+
+`Person` is identical in all of those worlds. What changes is the set of permitted
+interactions. That is what composability means in MineWorld.
+
+## 2.4 A world with no language model is still a world
+
+This is a hard design constraint, not a preference:
+
+> **If unplugging every language model makes the framework pointless, then it is not
+> infrastructure — it is an AI-NPC demo.**
+
+Rule-driven, scripted, RL-driven, and human-driven worlds must all be first-class. LM
+cognition is an optional, replaceable controller implementation.
+
+## 2.5 The kernel stays small
+
+The kernel is responsible for identity, component storage, the world clock, spatial
+semantics, action dispatch, the system registry, process scheduling, event sourcing, the
+relationship graph, persistence, networking, permissions, and plugin lifecycle.
+
+The kernel does not know how romance works, what employment is, how eating works, what coffee
+costs, or even that people need to sleep. All of that lives in System Packs. Core primitives
+stay at roughly ten concepts ([`CORE_CONCEPTS.md`](CORE_CONCEPTS.md)); `Vehicle`, `Building`,
+`Job`, `Money`, and `Food` are explicitly **not** core:
+
+```text
+Building = Place  + StructureComponent
+Vehicle  = Entity + TransportComponent + InventoryComponent
+Job      = Relation(Person, Organization) + EmploymentComponent
+```
+
+If the core ontology starts listing `Dog`, `Car`, `House`, `Restaurant`, `School`,
+`Hospital`, MineWorld has become a monolithic life simulator.
+
+---
+
+# 3. What MineWorld is not
+
+```text
+not The Sims, not inZOI
+not GTA, not a Minecraft replacement
+not a photorealistic game
+not an "AI NPC framework"
+not a starter kit you fork and edit in place
+not a single monolithic life simulator
+```
+
+## 3.1 The boundary against demo / starter-kit projects
+
+The difference is the abstraction boundary, not the scale. A demo separates its code into
+folders yet still expects extension by editing source: adding one gameplay element means
+touching game logic, agent code, and frontend at once; character definitions mix personality,
+plans, and sprite references in one file; changing that data requires wiping the database.
+Demo engines also carry demo assumptions — a world that must fit in memory each step, an
+active-state budget measured in tens of kilobytes, conversations fixed at two participants.
+
+Those are reasonable choices for a demo. They are disqualifying for infrastructure.
+
+```text
+demo / starter kit          MineWorld
+fork source            →    install modules
+modify game code       →    compose world
+modify agent code      →    configure
+modify frontend        →    run
+```
+
+## 3.2 What Minecraft is a reference for
+
+Not the gameplay. The lesson is a minimal core ontology plus explicit interaction rules plus
+enormous extension space: `Block`, `Entity`, `Item`, `World`, `Recipe`, `Event` compose into
+far more than they enumerate. MineWorld's domain is more complex, which is exactly why its
+core must stay small and its complexity must live in optional systems.
+
+---
+
+# 4. What a creator can do with it
+
+## 4.1 Independent choices
+
+A creator chooses each of these independently, without forking the framework:
+
+- what exists in the world;
+- which interactions and simulation rules exist;
+- how characters make decisions;
+- how the world is rendered;
+- whether the world is 2D or 3D;
+- whether buildings have interiors, and at what granularity;
+- which LM backend is used, if any;
+- whether the world runs locally or on a cloud server;
+- whether the world is single-player, private multiplayer, or public multiplayer.
+
+The same semantic world runs as:
+
+```text
+headless simulation
+        │
+        ├── 2D Godot client
+        ├── 3D Godot client
+        ├── Unreal client
+        └── custom client
+```
+
+The same character is controllable by:
+
+```text
+Rule-based policy
+Local LM
+Cloud LM
+Human player
+Scripted scenario controller
+RL policy
+Custom community controller
+```
+
+## 4.2 Same entities, different games
+
+```yaml
+# World A
+systems: [time, movement, conversation, relationships]
+```
+
+Walking and talking. Nothing can be owned, bought, or exchanged.
+
+```yaml
+# World B
+systems: [time, movement, conversation, relationships,
+          inventory, item_transfer, economy, employment, property]
+```
+
+A life simulation.
+
+```yaml
+# World C
+systems: [time, movement, inventory, crafting, survival, combat]
+```
+
+A survival game.
+
+`Person` never changed.
+
+## 4.3 Installing capability instead of building it
+
+```bash
+mineworld install modern-life
+mineworld install employment
+mineworld install restaurant
+mineworld install relationships
+mineworld install godot-realistic
+mineworld create my-town
+mineworld add-system university
+```
+
+After the last command the world gains `University`, `Student`, `Professor`, `Course`,
+`Enroll`, `AttendClass`, `TakeExam`, `Graduate` — without the world author implementing a
+university simulation. That leverage is the point of the module system.
+
+---
+
+# 5. Roadmap beyond the MVP
+
+The MVP validates the architecture and nothing else; see [`MVP.md`](MVP.md).
+
+## Phase 2 — World Creator
+
+A visual creator experience replaces hand-editing YAML: world editor, character editor,
+system selector, interaction configuration, asset binding, packaging.
+
+```text
+Create World
+
+Name:            Lakewood
+Style:           realistic / stylized / pixel
+Dimension:       2D / 3D
+Spatial detail:  exterior only / semantic interiors / room-level interiors
+
+Simulation systems:
+  ☑ conversation     ☑ relationships     ☑ inventory
+  ☑ economy          ☑ employment        ☑ group activities
+  ☐ romance          ☐ education         ☐ vehicles
+  ☐ crime            ☐ combat            ☐ health
+
+Agents:
+  background NPC: local 8B
+  major NPC:      local 32B
+  human players:  enabled
+
+Rendering:       Lakewood Realistic 3D
+
+            [ Create World ]
+```
+
+## Phase 3 — Ecosystem
+
+The community publishes Entity Packs, System Packs, World Packs, Controller Packs, and
+Presentation Packs: 1990s American small town, modern Tokyo, university campus, space colony,
+medieval village, research station, cruise ship. One framework runs them all.
+
+## Phase 4 — Public living worlds
+
+Cloud-hosted persistent servers that advertise what they are:
+
+```text
+World:        Lakewood
+Players:      37 / 100
+NPCs:         142
+Systems:      social, economy, employment, property, vehicles
+Presentation: realistic-3D
+Cognition:    local-hosted-model
+```
+
+Players join an already-running society instead of starting a save. NPCs may have existed for
+months before a player arrives.
+
+---
+
+# 6. Final vision
+
+```text
+Server starts.
+
+Nobody logs in.
+
+The world continues living.
+
+People wake up.
+People go to work.
+Businesses open.
+People meet.
+Relationships change.
+People move.
+Organizations evolve.
+
+A player connects.
+
+They enter this existing world.
+
+They do not become the center of the universe.
+
+They simply become another participant in it.
+
+They log out.
+
+The world continues.
+```
+
+The long-term product is therefore not an AI NPC framework. It is:
+
+> **an open runtime for persistent, composable, multiplayer living worlds.**
