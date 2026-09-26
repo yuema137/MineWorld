@@ -536,7 +536,7 @@ replay event log
 
 The exact CI schedule may evolve.
 
-The principle does not:
+The principle does not change:
 
 > At least some tests must exercise MineWorld as an actual running system.
 

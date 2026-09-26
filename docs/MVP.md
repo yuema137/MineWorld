@@ -6,7 +6,14 @@
 
 **Status:** frozen MVP definition for v0.1 planning
 **Audience:** coding agents. Vocabulary: [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md). Layering:
-[`ARCHITECTURE.md`](ARCHITECTURE.md). Packaging: [`MODULE_SPEC.md`](MODULE_SPEC.md).
+[`ARCHITECTURE.md`](ARCHITECTURE.md). Packaging: [`MODULE_SPEC.md`](MODULE_SPEC.md). Mandatory
+pre-implementation rules: [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md).
+
+**Revision 2026-09-25.** [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§2–3 and §10 promote an
+embodied 3D client from "after the kernel stabilizes" to a required architecture target with its
+own reference demo. This document is revised accordingly: §7 now defines three presentation
+modes and two reference demos, and §9 gains `AC-13` and `AC-14`. The primary criterion `AC-1` is
+unchanged.
 
 ---
 
@@ -196,24 +203,63 @@ run the whole world with no model present.
 
 # 7. MVP presentation
 
-Official MVP client: a **simple Godot 2D top-down renderer**. It is deliberately not the final
-visual target. Its only job is to prove:
+Three presentation modes, all first-class, all shipping within this effort
+([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §2):
 
 ```text
-renderer ≠ world
+headless        no renderer at all; the simulation's own truth
+2D              Demo A — fast architectural validation
+3D              Demo B — the experience the project actually exists to enable
 ```
 
-The world must also run completely headless, so the MVP already ships two valid presentation
-modes:
+Headless is the baseline: the world runs, persists, and replays with no client attached. The two
+clients then prove the same semantic world can be inhabited two different ways.
+
+## 7.1 Demo A — 2D living world
+
+A simple Godot top-down client. Its purpose is speed: it is the cheapest place to validate world
+state, movement, interaction, multiplayer, persistence, agent behavior, and system composition.
+It is a permanent integration testbed, **not** a temporary mock UI to be discarded once 3D
+exists.
+
+Must demonstrate: multiple Persons, Places, movement, conversation, relationships, basic items,
+basic group activity, persistence, human and agent controllers, multiplayer connectivity.
+
+## 7.2 Demo B — 3D walking world
+
+An embodied first-person client. Visual fidelity is explicitly not the goal; interaction
+correctness and embodiment are ([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §10).
+
+Must demonstrate:
 
 ```text
-headless
-Godot 2D
+first-person or embodied player movement
+camera / look controls
+collision / basic navigation
+walkable environment
+enterable Place
+NPC represented physically
+approach NPC
+spatially initiate conversation
+interact with at least one Item / Object
+human and AI-controlled Persons sharing the same world
+server-authoritative state
 ```
 
-A 3D renderer comes only after kernel contracts stabilize.
+## 7.3 Why both, from the start
 
----
+The 2D client is easier, and that is the danger. Left alone it invites contracts that assume
+tile-only movement, click-only interaction, instant movement, single-room places, no orientation,
+and no local geometry — each of which quietly forecloses the 3D experience
+([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §11). Every spatial or interaction contract in
+this effort is therefore reviewed against one question before it merges:
+
+> Can this reasonably support a Minecraft-like embodied 3D client later without redesigning the
+> kernel?
+
+The converse rule is equally binding: no mesh, animation, physics, skeleton, camera, scene tree,
+or navmesh concept enters a generic MineWorld contract
+([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §12).
 
 # 8. MVP networking
 
@@ -249,6 +295,8 @@ test, because an unobservable criterion is not a criterion.
 | **AC-10** | Bounded cognition context | After 100 simulated days, character history does not require feeding all historical events to a model; biography compression stays bounded while original event provenance is retained. |
 | **AC-11** | Headless stability | A seeded rule-based configuration runs at least hundreds of simulated days with no renderer and no model. |
 | **AC-12** | Determinism | The same initial state, inputs, system versions, and seed reproduce the same run, excluding explicitly non-deterministic external controller calls. |
+| **AC-13** | 2D / 3D semantic parity | `Talk` initiated by clicking an NPC in Demo A and by approaching, looking at, and pressing interact in Demo B produce the same `ActionIntent`, resolved by the same system. Neither client implements any validity rule — distance, availability, permission, and willingness are all decided server-side. |
+| **AC-14** | Embodiment | In Demo B a player moves in first person through a walkable environment, enters a Place, approaches an NPC, spatially initiates a conversation, and interacts with one object, with all state authoritative on the server. |
 
 AC-11 and AC-12 are what make the rest of the criteria testable in CI
 ([`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §§16, 22–24).
@@ -301,6 +349,10 @@ Each entry is at least one PR under the Structured Coding workflow
 8  Headless demo
 ```
 
-Everything after step 8 — the Godot 2D client, the LM controller, Social Café, Market Town,
-and the AC-1 transformation test — builds on a kernel that already runs, persists, and replays
-without a renderer or a model.
+Everything after step 8 — the 2D client, the LM controller, Social Café, Market Town, the 3D
+walking world, and the `AC-1` transformation test — builds on a kernel that already runs,
+persists, and replays without a renderer or a model.
+
+The 3D demo comes after the kernel, but the **contracts it needs do not**: spatial position,
+orientation, interaction range, and the distinction between a move intent and rendered movement
+are designed while the contracts are being written, not retrofitted once a 3D client exists.

@@ -29,6 +29,18 @@ Presentation observes reality.
 MineWorld deliberately positions one abstraction level above "AI NPC framework". An LM-driven
 character is one kind of `Controller`, not the point of the project.
 
+And the worlds it builds are meant to be **played**, from inside:
+
+```text
+enter world → move through space → explore → enter places → encounter people
+→ interact → participate in activities → travel elsewhere
+→ continue living in the same persistent world
+```
+
+The player is a participant standing in the world, not an observer watching a simulation from
+outside. Agent simulation exists to make that world alive; it is not the product by itself. The
+binding form of this requirement is [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§1–12.
+
 ---
 
 # 2. What MineWorld is
@@ -179,7 +191,17 @@ not a photorealistic game
 not an "AI NPC framework"
 not a starter kit you fork and edit in place
 not a single monolithic life simulator
+
+not a social-science simulator
+not an agent benchmark
+not an NPC chatbot framework
+not a backend world-state database
+not a dashboard for watching agents move
 ```
+
+The last five matter because they are what MineWorld decays into if the playable-world
+requirement is ever treated as optional. A world you can only watch has failed even if every
+simulation test passes.
 
 ## 3.1 The boundary against demo / starter-kit projects
 
@@ -202,10 +224,24 @@ modify frontend        →    run
 
 ## 3.2 What Minecraft is a reference for
 
-Not the gameplay. The lesson is a minimal core ontology plus explicit interaction rules plus
-enormous extension space: `Block`, `Entity`, `Item`, `World`, `Recipe`, `Event` compose into
-far more than they enumerate. MineWorld's domain is more complex, which is exactly why its
-core must stay small and its complexity must live in optional systems.
+Two separate things, neither of them visual style or gameplay.
+
+**Ontology.** A minimal core plus explicit interaction rules plus enormous extension space:
+`Block`, `Entity`, `Item`, `World`, `Recipe`, `Event` compose into far more than they enumerate.
+MineWorld's domain is more complex, which is exactly why its core must stay small and its
+complexity must live in optional systems.
+
+**Embodiment.** The player has a physical position, controls movement directly, looks around with
+a camera, approaches things spatially, targets nearby entities, and initiates interaction from the
+world view. Distance and spatial accessibility matter. Interaction happens in the world, not
+primarily through abstract menus — menus may supplement spatial interaction but never replace it
+([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §3).
+
+What MineWorld adds on top is semantic depth: whether `Talk` succeeds can depend on identity,
+distance, orientation, permissions, relationships, ownership, organization membership, the current
+`Process`, a schedule, world time, object state, social context, and which systems are enabled.
+The renderer evaluates none of that. It reports that the player pressed interact while targeting
+Alice; the server decides what, if anything, that means.
 
 ---
 
@@ -230,11 +266,16 @@ The same semantic world runs as:
 ```text
 headless simulation
         │
-        ├── 2D Godot client
-        ├── 3D Godot client
+        ├── 2D Godot client        Demo A — architectural testbed, permanent
+        ├── 3D Godot client        Demo B — embodied walking world, required
         ├── Unreal client
         └── custom client
 ```
+
+Both reference clients are first-class and both are maintained. 2D is not a placeholder for 3D,
+and 3D is not a cosmetic layer added late: a `Talk` initiated by a click and a `Talk` initiated by
+walking up to someone and pressing a key must produce the same `ActionIntent`, or the architecture
+is wrong ([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §9).
 
 The same character is controllable by:
 

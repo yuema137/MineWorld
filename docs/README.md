@@ -10,7 +10,8 @@ Start with [`VISION.md`](VISION.md) — what MineWorld is and is not.
 | [`MODULE_SPEC.md`](MODULE_SPEC.md) | the five kinds of installable pack |
 | [`NETWORKING.md`](NETWORKING.md) | server authority, hosting, transport |
 | [`MVP.md`](MVP.md) | what the first milestone must prove |
-| [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) | the engineering policy all code follows |
+| [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) | the rules to read before touching production code, and the playable-world requirements |
+| [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) | the complete engineering policy all code follows |
 
 Every file here except this one is a specification written for coding agents: complete and
 precise rather than short. [`../CLAUDE.md`](../CLAUDE.md) states that rule and the development

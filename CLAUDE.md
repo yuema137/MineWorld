@@ -38,7 +38,38 @@ Authoritative specifications, in reading order:
 [`docs/MODULE_SPEC.md`](docs/MODULE_SPEC.md) ·
 [`docs/NETWORKING.md`](docs/NETWORKING.md) ·
 [`docs/MVP.md`](docs/MVP.md) ·
+[`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) ·
 [`docs/ENGINEERING_STANDARDS.md`](docs/ENGINEERING_STANDARDS.md).
+
+**Before modifying production code**, read [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)
+along with `VISION`, `ARCHITECTURE`, `ENGINEERING_STANDARDS`, and the contracts of the module you
+are touching. Those rules are mandatory unless an approved design document explicitly overrides
+them.
+
+## 1.1 The worlds are meant to be played
+
+MineWorld builds **playable walking / exploration / travel-oriented worlds**. The player stands
+inside the world:
+
+```text
+enter world → move through space → explore → enter places → encounter people
+→ interact → participate in activities → travel elsewhere → keep living there
+```
+
+It is therefore none of these, and a design that drifts toward one has failed:
+
+```text
+a social-science simulator      an agent benchmark
+an NPC chatbot framework        a backend world-state database
+a dashboard for watching agents move
+```
+
+Agent simulation exists to make the world alive. It is not the product by itself.
+
+Two reference clients are first-class and permanent — 2D for fast architectural validation, 3D
+for the embodied experience the project exists to enable. Neither is a placeholder for the other
+([`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) §§2–3, §10;
+[`docs/MVP.md`](docs/MVP.md) §7).
 
 Current repository state: **specification-only**. No kernel code exists yet. Do not invent
 repository structure that is not there; audit before describing it.
@@ -260,6 +291,24 @@ document itself governs in every case:
     identify the owning module, the affected contracts, the integration points, whether an
     existing abstraction already covers this, and surface architectural holes instead of
     patching around them.
+14. **Semantic space is not render geometry.** The simulation knows `Cafe.Counter`; a client
+    knows `(x, y, z)`, a navmesh point, or an animation anchor. Continuous local movement and
+    higher-level travel are two scales of one spatial model — never collapse movement into
+    renderer-local physics alone, nor into teleportation between place names. `MoveIntent`,
+    the travel `Process`, authoritative spatial state, and rendered movement stay four distinct
+    things ([`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) §§5–6).
+15. **Spatial requirements belong to System contracts, and clients only report intent.** An
+    action declares whether it needs the same `Place`, an interaction radius, line of access, or
+    an available target; `send message` and `apply for remote job` declare that they do not. A
+    client detects "player pressed interact while targeting Alice" and sends an intent; the
+    server answers with the resolved action or with `Unavailable`, `Busy`, `TooFarAway`,
+    `PermissionDenied`, `NoSupportedInteraction`. A rule evaluated in a renderer is a defect
+    ([`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) §§4, 7–9).
+
+Two questions gate every spatial or interaction contract before it merges: can it support a
+Minecraft-like embodied 3D client without redesigning the kernel, and can both the 2D and 3D
+clients use the capability without duplicating game logic? A "no" to either sends the design
+back ([`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) §§11–12, §22).
 
 Size thresholds are review triggers, not mechanical rules: a function past ~50 lines is
 questioned and past ~100 is a strong warning; a file past ~500 lines is reviewed and past
@@ -305,7 +354,8 @@ admin tooling.
 3. Inspect branch, HEAD, status, and recent history before concluding anything about
    progress.
 4. Read the specifications that bind the work at hand — at minimum
-   [`docs/CORE_CONCEPTS.md`](docs/CORE_CONCEPTS.md) and
+   [`docs/CORE_CONCEPTS.md`](docs/CORE_CONCEPTS.md),
+   [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) and
    [`docs/ENGINEERING_STANDARDS.md`](docs/ENGINEERING_STANDARDS.md) before touching kernel or
    system code.
 5. Audit real source before specifying file-level or function-level work. Never invent

@@ -7,8 +7,17 @@ PR documents refine those. A lower document never silently overrides this one.
 **Repository:** `/Users/yuema137/MineWorld`, branch `main`, base commit `75e1d2b`
 **Remote:** none configured (see D-9)
 
+**Revision 2026-09-25 (material scope change, operator-instructed).**
+`docs/ENGINEERING_RULES.md` was added, promoting an embodied 3D client to a required architecture
+target with its own reference demo. Consequences recorded in this document: the 3D reference client
+leaves the non-goal list, S2 and S6 gain the spatial contract and the two-scale movement model,
+S12 becomes Demo A, a new step S14 delivers Demo B, `AC-13` and `AC-14` join the coverage map, and
+risks R-7 and R-8 are added. `AC-1` remains the effort's primary criterion. PR 01, currently
+frozen and in execution, is unaffected — see §7.
+
 Binding specifications, which this plan implements and may not contradict:
 [`docs/MVP.md`](../../../docs/MVP.md) ·
+[`docs/ENGINEERING_RULES.md`](../../../docs/ENGINEERING_RULES.md) ·
 [`docs/CORE_CONCEPTS.md`](../../../docs/CORE_CONCEPTS.md) ·
 [`docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) ·
 [`docs/MODULE_SPEC.md`](../../../docs/MODULE_SPEC.md) ·
@@ -27,8 +36,14 @@ criterion.
 > **Materially different games can be constructed by composing the same core entities with
 > different independently installable interaction systems, without modifying the kernel.**
 
-The effort is complete when all twelve acceptance criteria `AC-1 … AC-12` in `docs/MVP.md` §9
-hold, each demonstrated by an automated, repeatable test rather than by inspection.
+The effort is complete when all fourteen acceptance criteria `AC-1 … AC-14` in `docs/MVP.md` §9
+hold, each demonstrated by an automated, repeatable test rather than by inspection — except
+`AC-14`, whose embodiment claim is demonstrated by actually running the 3D client
+(`ENGINEERING_RULES.md` §19: rendering work is not validated by inferring it from server tests).
+
+The worlds are meant to be played from inside, not watched. A world that satisfies every
+simulation criterion and cannot be walked through has failed the product north star
+(`ENGINEERING_RULES.md` §1).
 
 The single decisive outcome, restated as an executable claim:
 
@@ -50,7 +65,7 @@ Out of scope, and not to be smuggled in:
 romance, children, health, crime, combat, vehicles
 property market, education, construction, business ownership
 complex interiors, travel between cities
-3D renderer, Unreal adapter
+Unreal adapter, photorealistic fidelity, art production
 Postgres backend, gateway / multi-worker deployment, Kubernetes
 matchmaking, global accounts, server browser
 relay / NAT-traversal service
@@ -60,6 +75,12 @@ Phase 2 world creator GUI, Phase 3 registry, Phase 4 public worlds
 
 Each is a later System Pack, client, or phase. None of them may require a kernel change to
 become possible later — that is precisely what this effort tests.
+
+Two of those exclusions are now conditional rather than absolute. `travel between cities` stays
+out of the MVP as a *system*, but the spatial model designed in S2 and S6 must not preclude it:
+walking across a room and travelling between towns are two scales of one model
+(`ENGINEERING_RULES.md` §6). Visual fidelity stays out, but the 3D *client* is in — Demo B is
+judged on embodiment and interaction correctness, explicitly not on graphics.
 
 ---
 
@@ -81,6 +102,15 @@ Restated here because every step is judged against them:
 6. Rust by default for kernel, systems, persistence, networking, server (§3).
 7. Change-amplification test (§8): if a step forces edits across unrelated modules, stop and
    raise an architecture question instead of pushing through.
+8. `ENGINEERING_RULES.md` §§1–12 are binding. Two questions gate every spatial or interaction
+   contract in this effort **before it merges**: can it support a Minecraft-like embodied 3D
+   client without redesigning the kernel (§11), and can 2D and 3D use the capability without
+   duplicating game logic (§9, §22)? A "no" returns the contract to design.
+9. No mesh, animation, physics, skeleton, camera, scene tree, or navmesh concept enters a generic
+   contract (§12). The headless server and the 2D client remain fully valid implementations.
+10. Clients report intent; systems decide. Rejections are semantic —  `Unavailable`, `Busy`,
+   `TooFarAway`, `PermissionDenied`, `NoSupportedInteraction` — and are produced by the owning
+   system, never by a renderer (§§4, 7–8).
 
 ---
 
@@ -112,14 +142,24 @@ merged code that precedes them exists (`CLAUDE.md` §3, "detail one step ahead")
 *Corresponds to the operator's commit 3, plus `Observation` (D-3).*
 
 - **Output:** `ActionIntent`; `ActionResult` with `Accepted` / `Rejected(reason)` /
-  `ActionUnavailable`; the `Event` schema with all ten fields of `CORE_CONCEPTS.md` §11,
-  including `CausedBy`, `Visibility`, `Provenance`; the `Observation` envelope.
+  `ActionUnavailable`, the reason set covering `Busy`, `TooFarAway`, `PermissionDenied`,
+  `NoSupportedInteraction`; the `Event` schema with all ten fields of `CORE_CONCEPTS.md` §11,
+  including `CausedBy`, `Visibility`, `Provenance`; the `Observation` envelope; **and the generic
+  spatial contract** — a semantic position reference (`Cafe.Counter`), an optional continuous
+  local position and orientation that a client may supply and the server treats as authoritative
+  state rather than geometry, and the per-action declaration of spatial requirements (same
+  `Place`, interaction radius, line of access, target available) that a System states and no
+  renderer evaluates.
 - **Depends on:** S1.
 - **Acceptance checkpoint:** serialization round-trips for every contract type; a table-driven
   test shows an intent naming an unprovided action resolving to `ActionUnavailable` (`INV-10`);
-  an event cannot be constructed without `CausedBy` provenance (`INV-15`).
+  an event cannot be constructed without `CausedBy` provenance (`INV-15`); an action can declare
+  "requires proximity" and "requires no proximity" and both round-trip; a continuous position is
+  representable without importing any engine concept.
 - **Adversarial criterion:** no code path can turn an `ActionIntent` into state without passing
-  through an `Event` (`INV-2`).
+  through an `Event` (`INV-2`); the spatial types contain nothing a 2D-only client would need and
+  a 3D client could not use, and nothing a 3D engine would recognize as its own
+  (`ENGINEERING_RULES.md` §§11–12).
 
 ### S3 — System interface and registry
 
@@ -169,11 +209,14 @@ merged code that precedes them exists (`CLAUDE.md` §3, "detail one step ahead")
 *Corresponds to the operator's commit 7.*
 
 - **Output:** the smallest system set that makes a world do something observable: place
-  occupancy and the `move` action with its `PersonEnteredPlace` event.
+  occupancy and the `move` action with its `PersonEnteredPlace` event. `MovementSystem` keeps
+  `MoveIntent`, authoritative spatial state, and rendered movement distinct, and leaves room for
+  a travel `Process` at the larger scale without implementing one (`ENGINEERING_RULES.md` §6).
 - **Depends on:** S5.
 - **Acceptance checkpoint:** `move` intent → validate → resolve → event → occupancy change,
   persisted and reloaded; disabling `MovementSystem` makes `move` return `ActionUnavailable`
-  with no change to any other module (first real evidence for `AC-2`).
+  with no change to any other module (first real evidence for `AC-2`); a movement rejected for
+  distance returns `TooFarAway` from the system, decided server-side.
 
 ### S7 — Headless demo: World Pack loading and rule controller
 
@@ -228,13 +271,17 @@ merged code that precedes them exists (`CLAUDE.md` §3, "detail one step ahead")
   employment intact (`AC-5`); several clients inhabit one world and interact with the same NPCs
   (`AC-7`); a message asserting state rather than requesting an action is rejected (`INV-9`).
 
-### S12 — Godot 2D client
+### S12 — Demo A: 2D reference client
 
-- **Output:** the reference top-down 2D client, reading observations and submitting intents.
+- **Output:** the reference top-down 2D client, reading observations and submitting intents. It
+  is a permanent integration testbed, not a mock UI to be discarded once 3D exists
+  (`ENGINEERING_RULES.md` §2).
 - **Depends on:** S11.
 - **Acceptance checkpoint:** the client renders the world and drives a human-controlled Person;
   killing the client leaves the simulation running (`AC-3` end to end); no simulation contract
-  changed to accommodate the renderer (`INV-5`, `INV-14`).
+  changed to accommodate the renderer (`INV-5`, `INV-14`); it demonstrates the Demo A list in
+  `docs/MVP.md` §7.1 — multiple Persons, places, movement, conversation, relationships, basic
+  items, basic group activity, persistence, human and agent controllers, multiplayer.
 
 ### S13 — Deployment parity and layered CI
 
@@ -245,6 +292,22 @@ merged code that precedes them exists (`CLAUDE.md` §3, "detail one step ahead")
 - **Acceptance checkpoint:** the same World Pack runs on the laptop and in the container with no
   semantic difference, demonstrated by identical seeded event sequences (`AC-8`); CI runs the
   layers on the right triggers.
+
+### S14 — Demo B: 3D walking world
+
+- **Output:** the embodied first-person reference client: movement, camera and look controls,
+  collision and basic navigation, a walkable environment, an enterable `Place`, physically
+  represented NPCs, spatial targeting, and interaction with at least one object. Low fidelity is
+  expected and acceptable.
+- **Depends on:** S11, and on the spatial contract from S2 having survived the §11 gate.
+- **Acceptance checkpoint:** `AC-14` — a player walks through the environment, enters a `Place`,
+  approaches an NPC, spatially initiates a conversation, and interacts with an object, with all
+  state server-authoritative; and `AC-13` — the `Talk` this produces is the *same*
+  `ActionIntent`, resolved by the same system, as the one Demo A produces by clicking. Validated
+  by actually running the client (`ENGINEERING_RULES.md` §19).
+- **Adversarial criterion:** no business rule exists in either client. Removing the 3D client
+  changes no system, and the diff that added it touches no kernel contract. If the two clients
+  needed separate rule implementations, the architecture is wrong (§9).
 
 ### Cross-cutting, delivered with the step that first needs them
 
@@ -277,9 +340,12 @@ scope decision.
 | `AC-10` bounded cognition context | S10 |
 | `AC-11` headless stability | S7 |
 | `AC-12` determinism | S4, verified in S7 |
+| `AC-13` 2D / 3D semantic parity | S14, against the client delivered in S12 |
+| `AC-14` embodiment | S14 |
 | Commit sequence 2–8 (`docs/MVP.md` §12) | S1 → S7, in order |
 | Sample worlds as integration fixtures (§21) | S8, S9, maintained thereafter |
 | Layered CI (§16) | S13, with fast checks introduced in S1 |
+| Playable-world north star (`ENGINEERING_RULES.md` §1) | S12 and S14; gated continuously from S2 onward by the §11 review question |
 
 ---
 
@@ -294,14 +360,15 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 | **D-7** | Rust layout. | **One Cargo workspace at the repository root**, crates `mineworld-contracts` (`contracts/`), `mineworld-kernel` (`kernel/`), `mineworld-system-*` (`systems/<name>/`), `mineworld-server` (`server/`), `mineworld-cli` (`tools/cli/`). Crate boundaries make the one-way dependency rule compiler-checked rather than review-checked. |
 | **D-9** | Publication endpoint. | **Local-only until S13.** Each step commits on a local branch; no push, no remote, no PR, no remote CI. Every execution contract in this effort records a local-only endpoint. The GitHub repository and CI workflows are created in S13. |
 | **D-3** | Whether S2 includes the `Observation` contract. | **Included in S2.** `RuleController` in S7 needs observations, and defining the controller-facing triple (`ActionIntent`, `Event`, `Observation`) together prevents `INV-13` from being retrofitted. Recorded as a planning decision; raise it when agreeing to this document if you disagree. |
+| **D-1** | License. | **MIT stays.** Operator decision 2026-09-25. Revisit only before publication in S13 if the patent-grant argument becomes material. |
+| **D-2** | `ENGINEERING_STANDARDS.md` §16 wording. | **Fixed** to "The principle does not change:" — operator approved 2026-09-25. |
+| **D-10** | Whether an embodied 3D client belongs in this effort or a later phase. | **In this effort, as S14.** Operator instruction 2026-09-25 adding `docs/ENGINEERING_RULES.md` §§2–3, §10: 3D is a required architecture target, not a cosmetic renderer added later. This materially expands the effort; `AC-1` is unaffected. |
 
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
 | --- | --- | --- | --- |
 | **D-6** | Time model: fixed semantic tick versus a discrete-event queue. | S4 | Discrete-event queue at a declared semantic granularity (e.g. one simulated minute), with a documented deterministic tie-break. Decide when S4 is designed. |
-| **D-1** | License: MIT (currently in `LICENSE`) versus Apache-2.0 for its patent grant. | nothing | Operator decision; zero cost to change now, higher after publication in S13. |
-| **D-2** | `ENGINEERING_STANDARDS.md` §16 ends "The principle does not:", preserved verbatim from the source. As an agent-facing specification it should read "The principle does not change:". | nothing | Fix in the next docs-touching PR if the operator agrees. |
 
 # 6. Risks
 
@@ -313,6 +380,8 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 | **R-4** | Kernel absorbs domain semantics under time pressure — the failure mode that ends the project's premise. | `INV-12` is an acceptance criterion of every kernel step; S6 and S8 exist partly to keep domain logic outside the kernel from the first real system onward. |
 | **R-5** | Effort drifts toward making an appealing demo rather than proving composability. | `AC-1` is mechanically tested in S9, and no model is attached before S7 closes. |
 | **R-6** | Determinism erodes as systems are added (iteration order, hash maps, floating point). | S4 fixes ordering rules; every subsequent step's checkpoint includes a seeded-repeat assertion. |
+| **R-7** | Spatial and interaction contracts get designed against the easy 2D client, accumulating tile-only movement, click-only interaction, instant movement, single-room places, no orientation and no local geometry — each quietly foreclosing Demo B. | The §11 gate question is part of the acceptance checkpoint of S2 and S6, not a late review. S14 is planned inside this effort precisely so the assumption is tested while changing the contract is still cheap. |
+| **R-8** | The opposite failure: building Demo B pulls engine concepts (mesh, navmesh, camera, scene tree) into generic contracts, so the headless server and 2D client stop being first-class. | S14's adversarial criterion is that removing the 3D client changes no system and its diff touches no kernel contract; `ENGINEERING_RULES.md` §12 is a frozen invariant of that step. |
 
 ---
 
@@ -320,9 +389,15 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 
 ```text
 Completed:  commit 1 — specifications and process (75e1d2b)
-Next PR:    PR 01 — S1, Entity and Component contracts
-Remaining:  S2 … S13
+            commit 2 — planning documents (39abfb3)
+In flight:  PR 01 — S1, Entity and Component contracts (frozen, executing)
+Remaining:  S2 … S14
 ```
+
+**Effect of the 2026-09-25 scope change on PR 01: none.** S1 delivers identity, the entity
+record, the component model and the relation model. It defines no spatial type, no movement, and
+no action, so it cannot encode a 2D-only assumption; the §11 gate first applies to S2, which owns
+the spatial contract. PR 01 therefore stays frozen as approved rather than being reopened.
 
 PR 01 covers S1 only: the contract layer for identity, components, and relations, plus the
 Cargo workspace it lives in and the fast structural checks that run on it. It does not

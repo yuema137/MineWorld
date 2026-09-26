@@ -332,6 +332,16 @@ requires:
 
 Rendering choices never leak into simulation contracts (INV-5, INV-14).
 
+Two consequences are stated in full in [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§4–9 and are
+binding here. First, **semantic space is not render geometry**: the simulation knows
+`Cafe.Counter`, while `(x, y)`, `(x, y, z)`, a navmesh point and an animation anchor belong to a
+client; the kernel touches engine geometry only through the generic spatial contract. Second,
+**a renderer reports intent and never evaluates a rule**: a client detects that the player pressed
+interact while targeting Alice and sends an intent; the owning system answers with the resolved
+action or with `Unavailable`, `Busy`, `TooFarAway`, `PermissionDenied`, `NoSupportedInteraction`.
+Both the 2D and the 3D reference client are first-class, and the same semantic `ActionIntent` must
+result whichever one initiated it.
+
 World state:
 
 ```text
