@@ -2,7 +2,7 @@
 
 **Role:** combined step and PR document. S2 needs one PR.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md)
-**Lifecycle:** `FROZEN — IN IMPLEMENTATION`
+**Lifecycle:** `READY FOR OPERATOR REVIEW — DO NOT MERGE`
 **Implementation base:** `main` @ `c8f2934` (PR 01 merged at `e85c889`; this PR extends the same
 crate)
 **Implementation branch:** `mvp0/pr-02-action-event-spatial`
@@ -14,9 +14,10 @@ Design revision:      §§1-5 of this document as approved in §8 (2026-09-25)
 Approved by:          operator, 2026-09-25 — autonomous-execution authorization for PR 02
 Implementation base:  main @ c8f2934
 Execution contract:   the operator's PR 02 execution kickoff, recorded in §9
-Lifecycle:            FROZEN — scope (§1.1), non-goals (§1.2), invariants (§1.3), design
-                      decisions (§2), acceptance (§3) and test ownership (§4) are frozen;
-                      §7's ledger stays live
+Lifecycle:            READY FOR OPERATOR REVIEW. Scope (§1.1), non-goals (§1.2), invariants
+                      (§1.3), design decisions (§2), acceptance (§3) and test ownership (§4)
+                      were frozen throughout and are unchanged; §7's ledger stayed live and
+                      carries the evidence, the decisions and the one deviation
 ```
 
 Binding parents: [`overall.md`](overall.md) ·
@@ -318,10 +319,33 @@ from the server.
 
 ## C5 — Specification synchronization
 
-- [ ] `docs/CORE_CONCEPTS.md`: add the spatial vocabulary to §§6 and 15 and the affordance concept to §15, cross-referencing `ENGINEERING_RULES.md` §§5–9.
-- [ ] `contracts/README.md`: updated inventory, still short and human-facing.
-- [ ] This document: ledger, evidence, deviations.
-- [ ] Review: no specification statement is now false; links resolve.
+- [x] `docs/CORE_CONCEPTS.md`: add the spatial vocabulary to §§6 and 15 and the affordance concept to §15, cross-referencing `ENGINEERING_RULES.md` §§5–9.
+      → four sections rather than two, which §1.1's "§§10-15 gain the spatial vocabulary" already
+      anticipated: new §6.1 (`Location`, its two optional refinements, and the three
+      non-negotiables — fixed point, no engine concept, hierarchy is a Relation) and §6.2
+      (`SpatialRequirement` as data, its two consumers, and both stated boundaries of its
+      evaluation); §11 now says that a cause and an audience are never absent and why, and that the
+      envelope's `Location` is the semantic Place and not a refined `Location`; new §12.1 states the
+      three answers and the closed reason vocabulary, that a System may add its own code, that none
+      of it carries display text, and that a reported actor location is a report and not authority;
+      new §15.1 (what an Observation contains, and what "structural" means) and §15.2 (`Affordance`,
+      and the three consequences of the server computing it).
+- [x] `contracts/README.md`: updated inventory, still short and human-facing.
+      → four new inventory rows, the erasure rule restated per family, and two rules added that the
+      spatial contract exists to keep (no floating point, no renderer concept). Still one screen,
+      still links onward rather than carrying the specification.
+- [x] This document: ledger, evidence, deviations.
+      → §7.1-§7.4.
+- [x] Review: no specification statement is now false; links resolve.
+      → one statement *was* falsified by this PR and is corrected in the same commit:
+      `docs/ARCHITECTURE.md` §13.1 listed "a payload-erasure boundary that exists in exactly one
+      place" among the guarantees Rust types carry and Protobuf cannot, which stopped being true the
+      moment `ActionRecord` existed. It now reads "one payload-erasure boundary per contract family
+      and nowhere else", which is what §1.3 freezes. `ARCHITECTURE.md` was not in §1.1's file list;
+      correcting a sentence this PR falsified is a consequence of the approved change, not an
+      extension of it (`CLAUDE.md` §2.1 rule 4). Every link added in this commit was checked against
+      `docs/`: `ENGINEERING_RULES.md`, `ART_DIRECTION.md` and `MODULE_SPEC.md` all exist. One stale
+      statement is *not* corrected here — see follow-up FU-1 in §7.3.
 
 ---
 
@@ -341,7 +365,7 @@ cargo test -p mineworld-contracts
 
 ## 7.1 Progress
 ```text
-C1 DONE   C2 DONE   C3 DONE   C4 DONE   C5 not started
+C1 DONE   C2 DONE   C3 DONE   C4 DONE   C5 DONE
 ```
 
 ## 7.2 Evidence
@@ -393,6 +417,34 @@ cargo test -p mineworld-contracts                              PASS
   harness; every other test binary reports 0.00s
   action 5 · component 6 · entity 6 · event 6 · identity 9 · observation 4 ·
   relation 6 · spatial 8 · time 3 · compile_fail harness 1 (8 cases) · doc-tests 3
+
+--- C5 (working tree at the C5 commit — the final executable content is identical
+        to C4's, because C5 changes only Markdown) --------------------------------
+cargo fmt --all --check                                        PASS  (clean)
+cargo check --workspace --all-targets                          PASS  (0 warnings)
+cargo clippy --workspace --all-targets --all-features
+                                    -- -D warnings             PASS  (0 warnings)
+cargo test -p mineworld-contracts                              PASS
+  54 integration tests + 3 doc-tests, 0 failed, 0.98s total wall time for the
+  command; the trybuild harness accounts for 0.24s of it and every other test
+  binary reports 0.00s
+  action 5 · component 6 · entity 6 · event 6 · identity 9 · observation 4 ·
+  relation 6 · spatial 8 · time 3 · compile_fail harness 1 (8 cases) · doc-tests 3
+  baseline at the implementation base was 32 integration tests + 1 doc-test
+
+NOT RUN, and why
+  real-LLM layer        NOT REQUIRED — no model is attached before S10, and nothing
+                        in this PR is LLM-facing (§4)
+  real-lifecycle layer  NOT APPLICABLE — no runtime, no scheduler and no persistence
+                        exist yet, so there is no lifecycle to exercise. First
+                        applies in S5/S7 (§4)
+  remote CI             NONE EXISTS — decision D-9 keeps this effort local until S13.
+                        The canonical evidence is the four commands above at the
+                        final HEAD, reported in the review handoff
+  repository full suite `cargo test --workspace` is `cargo test -p
+                        mineworld-contracts` at this point: the workspace has one
+                        member. No second, broader run was made, because it would be
+                        the same evidence twice
 
 MUTATIONS  (purpose: prove the new guards are load-bearing, not decorative)
   M1  ActionRecord::payload_for stops comparing the action type
@@ -612,6 +664,24 @@ DECISION do not add one. A::OWNER is readable wherever the type is known, and in
          abstraction ENGINEERING_STANDARDS §11 forbids. Recorded so S3 adds it
          deliberately rather than rediscovering the need.
 
+FOLLOW-UP FU-1 (out of scope, pre-existing) — three documents still call the
+repository specification-only
+SOURCE   `README.md:42` ("Specification only — no kernel code yet. The next three PRs
+         define the contracts."), `CLAUDE.md:77` ("Current repository state:
+         **specification-only**. No kernel code exists yet."),
+         `.structured-coding/standards.md:18` ("No Rust crate and no Python package
+         exists yet") and its note that the cargo checks report INCONCLUSIVE until a
+         crate exists.
+STATUS   already false on `main` before this PR: PR 01 merged the crate at `e85c889`.
+         PR 01's own handoff records all three as a single follow-up commit to be made
+         at its merge, and that commit was not made. This PR makes the contradiction
+         more visible — two of the "next three PRs" are now written — but does not
+         cause it.
+DECISION not corrected here. It is outside §1.1, it belongs to the PR-01 merge
+         follow-up, and two of the three files are process documents rather than
+         specifications of this contract. Carried to the operator in the review report
+         instead of silently absorbed (working rules §28).
+
 OBSERVATION OBS-2 — a client can call the evaluator, and that is not a hole
 `SpatialRequirement::evaluate` is public, because the server and the systems that declare
 requirements both need it, and a client linked against this crate could call it too. That
@@ -661,6 +731,65 @@ DECISION  DD-15: contracts keep integer ids; S11 owns a wire encoding that
 NOT A CHANGE TO S1  PR 01 is unaffected and was not interrupted: the defect is
         at the protocol boundary, not in the contract representation.
 ```
+
+## 7.4 The two gate questions, re-checked against the written code
+
+`ENGINEERING_RULES.md` §§11–12 and §22 require both answers before a spatial or interaction
+contract merges. §3.1 answered them from the design; this is the answer read back off the
+implementation.
+
+**1. Can this support a Minecraft-like embodied 3D client without redesigning the kernel?**
+
+Yes, and each part of the answer now names code rather than intention:
+
+```text
+continuous movement    LocalPosition is x, y, z in millimetres from a place's origin, with
+                       nothing tile-shaped anywhere: no grid, no cell, no step size, and no
+                       assumption that a position is discrete
+look direction         Orientation carries yaw and an optional pitch, so "looking slightly
+                       down at the person in front of me" is expressible
+proximity interaction  SpatialRequirement.within_range is an interaction reach in millimetres,
+                       and evaluate answers it with exact integer arithmetic. The 3D spike's
+                       first run failed because the player stopped 3.55 m away with a 3.0 m
+                       reach — which is the reach being a real spatial parameter, in the
+                       contract, rather than a constant in client code
+"what can I do with    Affordance is that query's answer, per action type and per target,
+ what I am looking     with the reason when the answer is no
+ at"
+binding a body to an   PerceivedEntity.id is the join key. The spike attached it as node
+ entity                metadata and recovered it from a raycast; the contract needed no
+                       addition for that, which is the evidence that no engine concept has
+                       to enter this crate (DD-14)
+reporting where I am   ActionIntent.actor_location, explicitly a client's report rather than
+                       authoritative state
+```
+
+Nothing in the four modules assumes a tile, a click, instant movement, a single-room place, an
+absent orientation or absent geometry — the six assumptions §11 names. The one 3D-relevant gap is
+line of access (DD-7), and it is *declared* in the contract, so filling it is adding a geometry
+provider rather than changing these types.
+
+**2. Can 2D and 3D use the capability without duplicating game logic?**
+
+Yes, and `contracts/tests/observation.rs` is the demonstration rather than the claim. Both clients
+receive the same `Observation` and send the same `ActionIntent`; the only difference in the whole
+contract is that a 2D client leaves `actor_location` and `PerceivedEntity.location`'s refinement
+out, which
+`an_intent_is_stored_as_its_documented_shape` and
+`one_location_type_describes_both_an_embodied_and_a_purely_semantic_position` both pin.
+
+Neither client evaluates anything. `a_client_can_render_an_interaction_prompt_from_the_observation_alone`
+reconstructs `[E] Talk to Alice` from the affordance's action type, the affordance's target, and a
+component of that target in the same observation — and then shows the server's own evaluator
+reaching the same two answers from the same locations, which is what "one implementation of the
+rule" means concretely. A 2D client greys out the refused entry using the identical `Affordance`.
+
+And the degeneracy rule is what makes the shared capability real rather than nominal: an action a
+3D-capable system declares with a three-metre reach is still usable in a world that models no
+position at all, because there the reach means *same place* (decision K-5). Without that, a 2D
+world would have needed either its own requirement vocabulary or its own systems.
+
+Both answers hold. Neither gate sends the design back.
 
 ---
 

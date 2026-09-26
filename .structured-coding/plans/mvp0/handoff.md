@@ -1,4 +1,4 @@
-# Handoff — PR 02 implementation context
+# Handoff — PR 02 implementation context: CLOSED / AWAITING OPERATOR ACTION
 
 **Active PR:** Step 02 / PR 02 — Action, Event, Observation and Spatial contracts
 **Effort:** `mvp0`
@@ -109,21 +109,47 @@ C4  DONE   contracts/src/observation.rs (PerceivedEntity, PerceivedEvent, Afford
            (4 tests) and a compile-fail case pinning that an affordance cannot claim
            availability and a reason at once. All four §6 commands clean; 54
            integration tests + 3 doc-tests; two mutations, both caught.
-C5  next
+C5  DONE   docs/CORE_CONCEPTS.md §§6.1, 6.2, 11, 12.1, 15.1, 15.2; docs/ARCHITECTURE.md
+           §13.1 (one sentence this PR falsified); contracts/README.md inventory;
+           §7.4 of the design re-checks both gate questions against the written code.
 
 background jobs: none
 open items: O-1 (event payloads have no schema version — S5 owns it),
             O-2 (no ActionDeclaration value — S3 owns it), both in §7.3
 ```
 
-## Exact next actions
+## State
 
-1. C5: `docs/CORE_CONCEPTS.md` — the spatial vocabulary in §6, the rejection and spatial-
-   requirement vocabulary in §12, the observation contents and the affordance concept in §15,
-   cross-referencing `ENGINEERING_RULES.md` §§5-9.
-2. `contracts/README.md`: the updated inventory, still short and human-facing.
-3. §7.4 of the design: re-check both §3.1 gate questions against the written code.
-4. Final §6 run at the final HEAD, set the lifecycle to READY FOR OPERATOR REVIEW, commit.
+```text
+PR 02 is READY FOR OPERATOR REVIEW on mvp0/pr-02-action-event-spatial. DO NOT MERGE.
+
+implementation   complete — five commits, §5 fully checked off
+validation       §6's four commands clean at the final head; 54 integration tests +
+                 3 doc-tests; 12 mutations, one of which survived and led to a
+                 stronger test (§7.2 M9)
+documentation    design ledger §§7.1-7.4 synchronized; CORE_CONCEPTS.md gained the
+                 spatial, answer, observation and affordance vocabulary;
+                 ARCHITECTURE.md §13.1 corrected; contracts/README.md re-inventoried
+not done         no push (no remote exists — decision D-9), no PR, no remote CI,
+                 no merge
+```
+
+## What the operator decides next
+
+1. Review the branch. One execution-time deviation (D-1: `ActionIntent.actor_location` arrives
+   with the spatial commit, because the frozen commit order puts `action.rs` before the type that
+   field holds) and six bounded decisions the design left open (K-1 … K-6) are argued in §7.3.
+2. Three open items are recorded rather than resolved: O-1 (an event payload has no schema
+   version, and the event log is permanent — S5 owns it), O-2 (no `ActionDeclaration` value for a
+   registry — S3 owns it), FU-1 (`README.md`, `CLAUDE.md` and `.structured-coding/standards.md`
+   still call the repository specification-only; already false on `main` before this PR, and
+   PR 01's own follow-up).
+3. Authorize or refuse the merge. Nothing in this branch has been merged.
+
+## If this context is resumed instead
+
+The next PR (S3 — the System interface) starts a fresh implementation context with its own filled
+contract. Do not continue that work here.
 
 ## Stop conditions
 
