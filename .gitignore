@@ -26,3 +26,7 @@ node_modules/
 
 # OS
 .DS_Store
+
+# Renderer-integration spike: engine caches and build output
+spike/**/.godot/
+spike/server/target/

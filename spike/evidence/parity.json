@@ -1,0 +1,73 @@
+{
+  "fields_that_differ": [
+    "action_id",
+    "issued_at",
+    "actor_location"
+  ],
+  "identical_semantic_core": true,
+  "identical_whole_intent": false,
+  "semantic_core_2d": {
+    "action_type": "talk",
+    "actor": 101,
+    "payload": {
+      "action_type": "talk",
+      "payload": {
+        "topic": "greeting"
+      }
+    },
+    "target": 9007199254740995
+  },
+  "semantic_core_3d": {
+    "action_type": "talk",
+    "actor": 101,
+    "payload": {
+      "action_type": "talk",
+      "payload": {
+        "topic": "greeting"
+      }
+    },
+    "target": 9007199254740995
+  },
+  "whole_intent_2d": {
+    "action_id": 7003,
+    "action_type": "talk",
+    "actor": 101,
+    "actor_location": null,
+    "issued_at": 32418,
+    "payload": {
+      "action_type": "talk",
+      "payload": {
+        "topic": "greeting"
+      }
+    },
+    "target": 9007199254740995
+  },
+  "whole_intent_3d": {
+    "action_id": 8014,
+    "action_type": "talk",
+    "actor": 101,
+    "actor_location": {
+      "facing": {
+        "pitch": null,
+        "yaw": 165043
+      },
+      "local": {
+        "x": 867,
+        "y": -46,
+        "z": 0
+      },
+      "place": {
+        "entity": 9007199254740993,
+        "entity_type": "place"
+      }
+    },
+    "issued_at": 32454,
+    "payload": {
+      "action_type": "talk",
+      "payload": {
+        "topic": "greeting"
+      }
+    },
+    "target": 9007199254740995
+  }
+}
