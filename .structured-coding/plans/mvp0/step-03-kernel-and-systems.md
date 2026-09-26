@@ -569,3 +569,113 @@ It introduces one failure mode that must fail loudly rather than hang: a cascade
 keep emitting events within the same instant. The dispatcher enforces a cascade depth limit per
 instant and returns a named error when it is exceeded. An infinite cascade is a system bug, and a
 world that freezes silently is worse than one that says which systems were cycling.
+
+---
+
+# 4. PR 03b — detailed design (frozen 2026-09-26)
+
+Audited against the merged kernel at `4c35a57`, not against the plan's description of it.
+
+## 4.1 What exists to build on
+
+```text
+SystemIdentity        a system type carrying const ID: SystemId
+OwnedBy<S>            component ↔ system ownership, derived by owned_component!
+WriteToken<S>         the capability; WriteAccess::grant(&S) issues it once
+WriteAccess::new()    PUBLIC — this PR seals it (requirement 1)
+ComponentStore        declare/insert/get_mut/remove gated on OwnedBy<S>; reads open
+EntityRegistry        deterministic monotonic ids, key resolution, snapshots
+RelationStore         triple-keyed edges, runtime owner check
+```
+
+Nothing in the kernel yet depends on an S2 contract. This PR is where `ActionIntent`,
+`ActionResult`, `EventEnvelope` and `Observation` enter the kernel.
+
+## 4.2 Scope
+
+```text
+kernel/src/system.rs     System trait, SystemDeclaration, object-safe DynSystem
+kernel/src/registry.rs   installation, dependency resolution, conflict detection, enable/disable
+kernel/src/dispatch.rs   ActionIntent → route → validate → resolve → Event(s) → reduce
+kernel/src/world.rs      World: owns registry, stores, and the sole WriteAccess
+kernel/src/access.rs     seal WriteAccess::new()
+```
+
+Non-goals: the clock and queue (S4 — dispatch exposes the seam, S4 drives it); persistence (S5);
+any domain system (S6).
+
+## 4.3 Design decisions
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **BD-1** | `World` owns `WriteAccess`; `WriteAccess::new()` becomes `pub(crate)`. Installation grants a system its token and stores it in the registry entry. A system never holds the issuer. | Closes A8. A compile-fail case pins that an external crate cannot construct a `WriteAccess`, so the hole cannot silently reopen. |
+| **BD-2** | Dispatch passes `WorldView<'_, S>` — a borrow exposing open reads plus writes gated on `OwnedBy<S>` — never `&mut ComponentStore`. | 03a's sharpest finding: a `&mut` permits `*store = ComponentStore::new()`, which no ownership check can prevent. |
+| **BD-3** | `System` keeps `const ID` and is therefore not object safe; a blanket `impl<T: System> DynSystem for T` gives the registry something to hold. Declarations are values, produced once at installation. | The registry cannot hold types. This is the standard split and keeps the authoring surface a plain trait. |
+| **BD-4** | System order is registration order, recorded as an explicit `Vec<SystemId>`, never a map iteration. | `AC-12`. Reduction order is observable in the event log, so it must be stated rather than inherited from a container. |
+| **BD-5** | An action is routed by `ActionTypeId` through a map built at installation. An unrouted action returns `ActionResult::Unavailable` without consulting any system. | `INV-10`. The answer must not depend on which systems happen to be installed beyond whether one provides the action. |
+| **BD-6** | `validate` takes an immutable view and returns `Result<(), Rejection>`; `resolve` takes the writable view and returns events. A system that mutates during validation is prevented by the type, not by instruction. | Validation must be free of side effects, or a rejected action leaves debris. |
+| **BD-7** | Reduction is synchronous within the logical instant, in registration order, with a cascade depth limit that errors naming the cycling systems. Deferral is out of scope here — dispatch returns work to be scheduled, and S4 owns the queue. | `D-6`. The seam keeps S4 from re-plumbing dispatch. |
+
+## 4.4 Commit plan
+
+### C1 — System trait and declaration
+- [ ] Implementation: `System` (`ID`, `VERSION`, `declaration()`, `validate`, `resolve`, `react`), `SystemDeclaration` (dependencies, owned components, provided actions, emitted and subscribed events), `DynSystem` + blanket impl.
+- [ ] Validation: a declaration reports what its type declares; a system with no provided actions is legal; two stub systems differ in declaration.
+- [ ] Review: no domain concept; the trait cannot be implemented without naming its owner.
+
+### C2 — World and sealed capability
+- [ ] Implementation: `World` owning registry, `ComponentStore`, `RelationStore`, `EntityRegistry` and the sole `WriteAccess`; `WriteAccess::new()` → `pub(crate)`; installation grants and stores the token.
+- [ ] Validation: **compile-fail — an external crate cannot construct `WriteAccess`**; installing twice is refused; a system's token is the one the world granted.
+- [ ] Review: re-run the A8 probe against the sealed API and record that it no longer compiles.
+
+### C3 — Registry: dependencies, conflicts, enable/disable
+- [ ] Implementation: install with dependency resolution; refuse a missing dependency naming it; refuse two systems claiming one component type via `ComponentDeclaration::conflicts_with`; enable/disable maintaining the action route map.
+- [ ] Validation: missing dependency named; conflicting ownership refused; disabling removes routes; registration order preserved and observable.
+- [ ] Review: order is explicit, never map iteration.
+
+### C4 — Dispatch pipeline
+- [ ] Implementation: route → validate → resolve → events → reduce, with the cascade limit.
+- [ ] Validation: an unprovided action returns `Unavailable` (`INV-10`); a rejection carries its `Rejection` unchanged; resolution emits events whose `CausedBy` names the intent (`AC-9`); reduction reaches subscribers in registration order; a deliberate two-system cycle errors naming both; the same intents replayed twice produce identical event sequences.
+- [ ] Review: no system observes another's validation; nothing mutates during validate.
+
+### C5 — Integration checkpoint and docs
+- [ ] Validation: **the `AC-2` evidence** — two systems installed, an action provided by the second; disabling it makes that action `Unavailable` with **no edit to any other module**, proven by the test changing only a configuration value.
+- [ ] `kernel/README.md`, ledger closed.
+
+## 4.5 Integration checkpoint
+
+```text
+cargo test --workspace
+    ├── an action no enabled system provides → Unavailable
+    ├── disabling a system removes its actions, nothing else changes   ← AC-2
+    ├── a missing dependency is refused by name
+    ├── two systems claiming one component type are refused
+    ├── events carry CausedBy naming the intent                        ← AC-9
+    ├── reduction order is registration order, twice identically       ← AC-12
+    ├── a reduction cycle errors naming the systems
+    └── an external crate cannot construct WriteAccess                 ← closes A8
+```
+
+**Adversarial criteria:** re-run 03a's A1–A9 probes against the sealed API; a system must not be
+able to reach another system's token, the issuer, or `&mut ComponentStore`.
+
+## 4.6 Verification
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+cargo fmt --all --check && cargo check --workspace --all-targets
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace
+```
+
+## 4.7 Review and approval
+
+```text
+CHECKED  the three inherited requirements from 03a's review are all in the commit plan
+CHECKED  INV-10 and AC-2 have tests that would fail if either broke
+CHECKED  AC-12 is enforced by explicit ordering rather than container behaviour
+CHECKED  the S4 seam exists, so the scheduler does not re-plumb dispatch
+CHECKED  scope excludes clock, persistence and domain systems
+```
+
+APPROVED for implementation.
