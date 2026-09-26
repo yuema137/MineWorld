@@ -451,23 +451,25 @@ Non-goals: no relationship *values* (friendship, trust) — those are components
 relationships system in S8. Depends on: C1, C2, C3.
 
 ### Implementation
-- [ ] `RelationTypeDeclaration`: id, owning `SystemId`, directedness, and the permitted endpoint `EntityType` sets.
-- [ ] `Relation`: the `(RelationTypeId, from, to)` triple per DD-6, with a validating constructor that checks endpoint types against the declaration.
-- [ ] Symmetric handling for an undirected relation type: a canonical ordering so that `(a, b)` and `(b, a)` are the same edge and serialize identically.
-- [ ] Document that per-relation state is a component keyed by the triple and owned by the declaring system.
+- [x] `RelationTypeDeclaration`: id, owning `SystemId`, directedness, and the permitted endpoint `EntityType` sets. Built through `directed(..)` or `undirected(..)`, so directedness and the endpoint sets cannot disagree; the permitted sets are `EntityTypeSet`, which cannot be empty. Self-edges are part of the declaration (`SelfEdges`, `Forbidden` unless `permitting_self_edges()` says otherwise), which is how the failure table's "never left implicit" is satisfied.
+- [x] `Relation`: the `(RelationTypeId, from, to)` triple per DD-6, with a validating constructor that checks endpoint types against the declaration. `Relation::between(&declaration, &from_entity, &to_entity)` takes whole entities, because reading the endpoint's type off the entity record is the only way the caller cannot misstate it.
+- [x] Symmetric handling for an undirected relation type: a canonical ordering so that `(a, b)` and `(b, a)` are the same edge and serialize identically. Ordered by `EntityId`; an undirected declaration therefore carries one endpoint set, so canonicalization can never turn a permitted edge into a refused one.
+- [x] Document that per-relation state is a component keyed by the triple and owned by the declaring system. Module documentation, first section, together with the consequence that there are no parallel edges of one type and what to do instead (model the connections as entities).
 
 ### Validation
-- [ ] Unit: a relation whose endpoints violate the declared types is rejected, naming the offending endpoint.
-- [ ] Unit: an undirected relation constructed in both argument orders produces one identical canonical value.
-- [ ] Unit: a directed relation distinguishes `(a, b)` from `(b, a)`.
-- [ ] Unit: every entity-type pair the specification lists (Person↔Person, Person↔Organization, Organization↔Place, Person↔Item, Place↔Place) is representable.
-- [ ] Unit: serde round-trip and byte-stability.
-- [ ] Static: §6 commands.
+- [x] Unit: a relation whose endpoints violate the declared types is rejected, naming the offending endpoint. `contracts/tests/relation.rs::an_endpoint_of_the_wrong_type_is_refused_by_the_end_that_refused_it` — both ends, each naming the end, the entity, its type and the permitted set.
+- [x] Unit: an undirected relation constructed in both argument orders produces one identical canonical value. `::an_undirected_edge_is_canonical_in_both_construction_orders`, asserting equal values *and* equal bytes.
+- [x] Unit: a directed relation distinguishes `(a, b)` from `(b, a)`. `::a_directed_edge_distinguishes_its_two_orders`, plus the reversed-pair rejection in the endpoint test.
+- [x] Unit: every entity-type pair the specification lists (Person↔Person, Person↔Organization, Organization↔Place, Person↔Item, Place↔Place) is representable. `::every_entity_type_pair_the_specification_lists_is_representable`, one table over all five.
+- [x] Unit: serde round-trip and byte-stability. The stored shapes of both `Relation` and `RelationTypeDeclaration` are asserted as literals (`::an_undirected_edge_is_canonical_in_both_construction_orders`, `::a_declaration_is_stored_as_its_documented_shape_and_cannot_permit_nothing`), the declaration round-trips, and an empty endpoint set is refused on the way in from storage too.
+- [x] Static: §6 commands. All four clean — evidence in §8.2.
+- [x] *Added:* `::a_self_edge_follows_the_declaration_and_nothing_else` — the failure table's self-edge case, in both declared directions.
+- [x] *Added:* Compile-fail: a `Relation` cannot be built as a struct literal (`E0451`, private fields), which is what makes the canonical ordering unbypassable.
 
 ### Review
-- [ ] Confirm no relationship semantics (friend, employee, owns) are defined in this crate — only the machinery.
-- [ ] Confirm canonical ordering cannot be bypassed by direct field construction.
-- [ ] Confirm the triple-identity consequence (no parallel edges of one type) is documented where a reader will find it.
+- [x] Confirm no relationship semantics (friend, employee, owns) are defined in this crate — only the machinery. `grep -rniE '(struct|enum|const|fn) +[a-z_]*(friend|employee|owns|trust|romance|parent)' contracts/src/` is empty. The words appear only in prose: the module documentation saying that friendship strength, trust and employment are *not* here, and two doc lines using `employee_of` to explain what "directed" means. The relation names in the tests are identifier strings, not types.
+- [x] Confirm canonical ordering cannot be bypassed by direct field construction. All three fields of `Relation` are private and `between` is the only constructor; pinned by the added compile-fail case. One honest gap: `Deserialize` restores a stored triple without a declaration to canonicalize against, because the value does not know its own directedness. A relation was canonical when it was written, and re-validating stored relations against the registry's declarations is S3's job at load — recorded in §8.3 rather than papered over.
+- [x] Confirm the triple-identity consequence (no parallel edges of one type) is documented where a reader will find it. The module documentation's second section is titled "One edge per type per ordered pair", states that the triple *is* the identity, and says what to do instead when two connections between the same entities must be distinguished.
 
 ### Acceptance criteria
 All five specification pairs are representable; endpoint violations are rejected with a named
@@ -532,7 +534,7 @@ Filled during execution. Nothing here is pre-written.
 C1  DONE     workspace, pinned toolchain, identity module, errors, compile-fail harness
 C2  DONE     entity record: Tag/Tags, LifecycleState, Metadata, Entity
 C3  DONE     component model: Component trait, declaration, record, const-checked ids
-C4  not started
+C4  DONE     relation model: declaration, typed edge, canonical undirected ordering
 C5  not started
 ```
 
@@ -594,6 +596,34 @@ C3 — component model                      (evidence for commit "feat(contracts
       the identifier-rule refactor (one `const fn` feeding both the const and the runtime path)
       left all 9 identity tests green without an edit, which is the evidence that the two paths
       judge the same rule.
+```
+
+```text
+C4 — relation model                       (evidence for commit "feat(contracts): … relation …")
+  cargo fmt --all --check                       PASS   <1s
+  cargo check --workspace --all-targets         PASS   <1s
+  cargo clippy --workspace --all-targets
+      --all-features -- -D warnings             PASS   <1s   0 warnings
+  cargo test -p mineworld-contracts             PASS    3s
+      tests/compile_fail.rs          1 passed   — harness covering 6 compile-fail cases
+      tests/component.rs             6 passed
+      tests/entity.rs                6 passed
+      tests/identity.rs              9 passed
+      tests/relation.rs              6 passed
+      doc-tests                      1 passed
+      total                         29 passed, 0 failed, 0 ignored
+```
+
+```text
+MUTATION 5 — is the canonical ordering of an undirected edge actually applied?
+  mutation     replaced the direction-dependent ordering in `Relation::between` with
+               `(from.id(), to.id())`
+  expected     the undirected test fails; the directed test does not
+  observed     `an_undirected_edge_is_canonical_in_both_construction_orders` FAILED at the
+               equality of the two construction orders; the other 5 relation tests stayed green
+  verdict      behavior-changing, and correctly localized — the directed behavior is unaffected
+               by the mutation and its test says so
+  cleanup      reverted; `cargo test` green again before the commit
 ```
 
 ```text
@@ -763,6 +793,25 @@ FINDING (C1) — the approved scope contains a line the frozen commit plan never
         the operator can reverse it in review.
     VALIDATION
         C4b's own checklist and evidence, recorded in §7 and §8.2 like every other commit.
+
+DEVIATION (C4) — `RelationKey` was not created; `Relation` is the key
+    C4's scope line names three types: `RelationTypeDeclaration`, `Relation`, `RelationKey`.
+    The implementation checklist names only the first two and the canonical ordering. DD-6 says
+    the triple *is* the identity and there is no relation id, so a separate key type would be
+    either a duplicate of `Relation` or a second identity for one edge — the thing DD-6 rules
+    out. `Relation` is therefore documented as being what per-relation component state is keyed
+    by, and no `RelationKey` exists. If the intent was a two-field `(from, to)` pair, that is
+    not a relation's identity either, because the relation type is part of it.
+
+FINDING (C4) — a stored relation cannot re-canonicalize itself on load
+    A `Relation` carries no directedness: that lives in the declaration, which the value has no
+    reference to. `Deserialize` therefore restores the triple as written. Every relation written
+    by `Relation::between` is already canonical, so this matters only for data that was edited
+    by hand or produced by a different version. The honest boundary is that validating stored
+    relations against the registry's declarations belongs to the load path in S3, alongside the
+    same check for component declarations; the alternative — making `Relation` deserialization
+    require a declaration — would mean no plain `Deserialize`, and the persistence layer could
+    not read a relation without first resolving its type.
 
 DEVIATION (C3) — the component payload is a type parameter, and the codec is not in this crate
     Previous assumption:

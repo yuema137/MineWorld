@@ -11,7 +11,8 @@ use thiserror::Error;
 
 use crate::component::ComponentSchemaVersion;
 use crate::entity::LifecycleState;
-use crate::ids::{ComponentTypeId, EntityId, EntityType};
+use crate::ids::{ComponentTypeId, EntityId, EntityType, RelationTypeId};
+use crate::relation::{EntityTypeSet, RelationEnd};
 
 /// Which validated textual identifier a [`ContractError`] is describing.
 ///
@@ -142,5 +143,35 @@ pub enum ContractError {
         record: ComponentSchemaVersion,
         /// The version the reading code supports.
         supported: ComponentSchemaVersion,
+    },
+
+    /// A relation type declared an endpoint that permits no entity type at all.
+    #[error("a relation type must permit at least one entity type at each end")]
+    EmptyEntityTypeSet,
+
+    /// An entity of the wrong type was offered as one end of a relation.
+    #[error(
+        "entity {entity} is of type {actual}, which {relation_type} does not permit          as its {end} end (permitted: {permitted})"
+    )]
+    RelationEndpointNotPermitted {
+        /// The relation type that refused the endpoint.
+        relation_type: RelationTypeId,
+        /// Which end was refused.
+        end: RelationEnd,
+        /// The entity offered there.
+        entity: EntityId,
+        /// The type it has.
+        actual: EntityType,
+        /// The types the declaration permits at that end.
+        permitted: EntityTypeSet,
+    },
+
+    /// An entity was offered as both ends of a relation type that forbids it.
+    #[error("{relation_type} does not permit entity {entity} to relate to itself")]
+    SelfEdgeNotPermitted {
+        /// The relation type that refused the edge.
+        relation_type: RelationTypeId,
+        /// The entity offered at both ends.
+        entity: EntityId,
     },
 }

@@ -15,8 +15,8 @@ repository       /Users/yuema137/MineWorld
 branch           mvp0/pr-01-entity-component-contracts
 implementation   created from main @ 39abfb3
 base
-current HEAD     the C3 commit — the one that carries this handoff refresh
-                 (C1 = e040818, C2 = 80fdf2c)
+current HEAD     the C4 commit — the one that carries this handoff refresh
+                 (C1 = e040818, C2 = 80fdf2c, C3 = 40e448e)
                  (session start was f44b7d1; `git log --oneline` is authoritative)
 working tree     clean at each commit; the only untracked path is target/ (gitignored)
 remote           none (decision D-9: local-only until S13)
@@ -86,35 +86,36 @@ C1  DONE  e040818  workspace, rust-toolchain.toml pinned to 1.97.1, clippy.toml 
 C2  DONE  80fdf2c  src/entity.rs (Tag, Tags, LifecycleState, Metadata, Entity),
                    IdentifierKind::Tag, ContractError::IllegalLifecycleTransition,
                    tests/entity.rs, third compile-fail case
-C3  DONE           src/component.rs (Component, ComponentDeclaration, ComponentRecord,
+C3  DONE  40e448e  src/component.rs (Component, ComponentDeclaration, ComponentRecord,
                    ComponentSchemaVersion), const-checked SystemId/ComponentTypeId
                    literals via from_static, three component errors, tests/component.rs,
                    two more compile-fail cases
-C4  next
+C4  DONE           src/relation.rs (EntityTypeSet, RelationDirection, SelfEdges,
+                   RelationTypeDeclaration, RelationEnd, Relation), three relation errors,
+                   tests/relation.rs, sixth compile-fail case
+C4b next
 C4  not started
-C4b not started
 C5  not started
 
-validation evidence: §8.2 of the design — all four §6 commands clean at C1, C2 and C3;
-                     23 tests pass (9 identity + 6 entity + 6 component + 1 trybuild harness
-                     over 5 cases + 1 doc-test);
-                     four mutations confirmed the HashMap ban, the unchecked-construction
-                     compile-fail case, the terminal Destroyed state and the ownership
-                     conflict check
+validation evidence: §8.2 of the design — all four §6 commands clean at C1…C4;
+                     29 tests pass (9 identity + 6 entity + 6 component + 6 relation
+                     + 1 trybuild harness over 6 cases + 1 doc-test);
+                     five mutations confirmed the HashMap ban, the unchecked-construction
+                     compile-fail case, the terminal Destroyed state, the ownership conflict
+                     check and the canonical ordering of undirected edges
 assumptions:         A-1 and A-2 resolved in C1 (§8.4); A-3 still carried to S4
 background jobs:     none
 ```
 
 ## Exact next actions
 
-1. Re-read §7's C4 block (relation model) and `docs/CORE_CONCEPTS.md` §9 before writing
-   `contracts/src/relation.rs`.
-2. Implement C4's checklist: `RelationTypeDeclaration` (id, owner, directedness, permitted
-   endpoint types), `Relation` as the `(RelationTypeId, from, to)` triple with a validating
-   constructor, canonical ordering for undirected types, and the documented consequence that
-   there are no parallel edges of one type.
-3. Then C4b (two time value types, see §8.3) and C5 (documentation).
-4. Run §6's four commands, record evidence in §8.2, refresh this file, commit each.
+1. C4b — `contracts/src/time.rs`: `WorldTime` and `SimDuration` as ordered value types with
+   serde and no scheduling policy, which is all §1.1 approves (A-3 stays open for S4). See the
+   scope-reconciliation finding in §8.3 for why this commit exists.
+2. C5 — documentation: `docs/ARCHITECTURE.md` §13 amended for decision D-4,
+   `contracts/README.md` rewritten for what now exists, final ledger entries.
+3. Run §6's four commands at the final head, record evidence in §8.2, refresh this file, set the
+   lifecycle to READY FOR OPERATOR REVIEW and mark the implementation context CLOSED.
 
 ## Stop conditions
 

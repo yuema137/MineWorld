@@ -41,6 +41,7 @@ pub mod component;
 pub mod entity;
 pub mod error;
 pub mod ids;
+pub mod relation;
 
 pub use component::{Component, ComponentDeclaration, ComponentRecord, ComponentSchemaVersion};
 pub use entity::{Entity, LifecycleState, Metadata, Tag, Tags};
@@ -48,4 +49,7 @@ pub use error::{ContractError, IdentifierKind};
 pub use ids::{
     ActionId, ComponentTypeId, EntityId, EntityKey, EntityType, EventId, ItemId,
     MAX_IDENTIFIER_LENGTH, OrganizationId, PersonId, PlaceId, ProcessId, RelationTypeId, SystemId,
+};
+pub use relation::{
+    EntityTypeSet, Relation, RelationDirection, RelationEnd, RelationTypeDeclaration, SelfEdges,
 };
