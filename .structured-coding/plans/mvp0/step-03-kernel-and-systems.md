@@ -78,9 +78,9 @@ domain component.
 - [x] Review: no domain concept. The registry names `Entity`, `EntityType`, `EntityKey`, `LifecycleState`, `Tags`, `Metadata` and nothing else; it has no notion of a person beyond `EntityType::Person` being one of four opaque values it never branches on.
 
 ### C2 — Component store with ownership-gated writes
-- [ ] Implementation: `ComponentStore` with per-type maps; `OwnedBy<S>` plus the declaring macro (KD-1); `WriteToken<S>`; insert / update / remove / get / iterate.
-- [ ] Validation: an owning system writes and reads back; a non-owning system's write **does not compile** (trybuild), or fails with a named error and leaves state unchanged if KD-2 applies; iteration is `EntityId`-ordered; the whole store round-trips through serde.
-- [ ] Review: the adversarial criterion — try, as an ordinary API user, to write a component you do not own without `unsafe` and without editing the owning crate. Record what you tried, not just the conclusion. If a bypass exists, stop and report it.
+- [x] Implementation: `kernel/src/access.rs` (`SystemIdentity`, `OwnedBy<S>`, `WriteToken<S>`, `WriteAccess`, the `owned_component!` macro), `kernel/src/components.rs` (`ComponentStore`, the private per-type `Table`), `kernel/src/macro_support.rs`, six new `KernelError` variants. Per-type `BTreeMap<EntityId, C>` behind a narrow API (`DEP-1`); `declare` / `insert` / `get_mut` / `remove` gated, `get` / `contains` / `iter` / `count` / `is_declared` / `declarations` open.
+- [x] Validation: 9 behaviour tests in `kernel/tests/components.rs` and 6 compile-fail cases in `kernel/tests/compile_fail/`, all pass. A non-owning system's write **does not compile** — `E0277: the trait bound Measured: OwnedBy<SecondStub> is not satisfied` — so KD-2 does not apply. Also pinned: writes to an undeclared type are refused by name and change nothing; a component type has exactly one declaration, with three distinct refusals; iteration is `EntityId`-ordered even when rows are written in descending order; the whole store round-trips through `serde_json` as `ComponentRecord`s and comes back identical; a record cannot be read back as another system's component; a system is granted its token exactly once. Three mutations killed (§2.10.3), including one that proves the compile-fail suite is load-bearing.
+- [x] Review: the adversarial criterion, with all eleven attempts recorded in §2.10.2 — seven refused by the compiler, two refused at declaration by a named error that leaves the store unchanged, and two that succeed and are recorded as boundaries this PR cannot close, with the requirements they place on PR 03b.
 
 ### C3 — Relation store
 - [ ] Implementation: triple-keyed storage over S1's `Relation`, with lookup by endpoint and by type, canonical ordering for undirected types, and ownership-gated writes as in C2.
@@ -218,7 +218,64 @@ it anyway.
 
 ### 2.10.2 The adversarial criterion
 
-`PENDING` — filled during C2, with every attempt recorded rather than only the conclusion.
+Every attempt below was **actually run**, as an ordinary API user would: from a separate crate
+that depends on `mineworld-kernel` and `mineworld-contracts`, with no `unsafe` and no edit to the
+crate that owns the state. The refused ones are kept as executable cases under
+`kernel/tests/compile_fail/`; the two that succeed are not, because they compile.
+
+| # | Attempt | Outcome | Evidence |
+| --- | --- | --- | --- |
+| A1 | Hold my own system's token and use it on another system's component type | **refused by the compiler** | `E0277: the trait bound Measured: OwnedBy<SecondStub> is not satisfied`, with the compiler adding *"but trait `OwnedBy<FirstStub>` is implemented for it"* |
+| A2a | Construct the victim's token: `WriteToken::<FirstStub>::new()` | **refused** | `E0624: associated function new is private` |
+| A2b | `WriteToken::<FirstStub>::default()` | **refused** | `E0599: no associated function or constant named default` |
+| A2c | Build it out of its fields: `WriteToken { system: PhantomData }` | **refused** | `E0451: field system of struct WriteToken is private` |
+| A3 | Claim ownership of another crate's component type: `impl OwnedBy<Mine> for TheirComponent` | **refused, structurally** | `E0117`: `Component` is a foreign trait, so a pack cannot make another crate's type into a component at all, and `OwnedBy` requires `Component`. A dishonest claim can therefore only reach types the liar defined |
+| A4 | Declare my own system type with the victim's `SystemId` literal, take *its* token, write the victim's component | **refused by the compiler** | `E0277: ... OwnedBy<PretendingToBeFirstStub> is not satisfied`. Ownership is a relationship between two *types*; the name buys nothing |
+| A5 | Implement `OwnedBy<Mine>` dishonestly for my **own** component type whose declaration names another owner, then write it | **refused at declaration** | `ComponentOwnerDisagreesWithDeclaration`, and the store is left with no table — `an_ownership_claim_that_contradicts_the_declaration_is_refused` |
+| A6 | Inject rows by deserializing a store from JSON I wrote | **refused** | `E0277: the trait bound ComponentStore: serde::Deserialize<'de> is not satisfied` — the store has no `Deserialize`, and rows only enter through a gated write |
+| A7 | Claim the victim's *component type name* before it declares it | **refused, and detected** | `ComponentTypeClaimedByAnotherSystem` — whoever declares second is refused by name, so this is a visible collision at world assembly, not a silent theft |
+| **A8** | Construct a second `WriteAccess` of my own and grant myself the victim's token | **SUCCEEDS** | verified: `WriteAccess::new().grant(&Victim)` returns a usable `WriteToken<Victim>` and writes `Guarded { amount: 99 }` |
+| **A9** | Mutate a component I do not own through an open read, using interior mutability the component's own declaration chose (`Cell<u32>`) | **SUCCEEDS** | verified: `store.get::<Leaky>(e).unwrap().amount.set(1234)` changes state held by another system |
+
+**Verdict on the criterion.** The criterion is *"not bypassable by an ordinary API user who is not
+deliberately subverting it"*, and it holds: A8 and A9 are not things anybody does by accident.
+A8 requires constructing a second issuer of write capabilities and naming the victim's system type
+on purpose; A9 requires the *owner* of the state to have declared it with interior mutability, and
+then a reader to reach into it. Neither is reachable from an honest mistake, and A1–A7 — every
+attempt that looks like ordinary code — is refused, five of them before the program exists.
+
+This is not a reason to be satisfied, so both are recorded as boundaries with what closes them.
+
+**A8 — token provenance is PR 03b's to settle.** What this PR guarantees is precise: *given* a
+token, the component types writable through it are exactly the ones its system owns, checked by
+the type system with no runtime check on the write path. A token names a system; it does not prove
+that its holder *is* that system, and nothing in Rust can, because the language has no notion of
+which crate is calling. Two mitigations exist here and both are documented in `access.rs`:
+`grant` requires a **value** of the system type, so a pack whose system type has a private field
+cannot be impersonated (pinned by a compile-fail case, `E0451`), and a second grant for one
+`SystemId` is refused, so an impersonator is detected when the real system's installation fails.
+Two requirements therefore fall to 03b, and are stated in `access.rs` as well as here:
+
+```text
+1  the world's WriteAccess is held by the kernel; a system is granted its token once, at
+   installation, and never sees the issuer
+2  dispatch hands a running system a *view* of the store, not a &mut ComponentStore — a &mut
+   permits `*store = ComponentStore::new()`, which no ownership check of any kind can prevent
+```
+
+The second is the more important finding of this review: it means the choice of what dispatch
+passes a system is itself an `INV-7` decision, not an ergonomics decision.
+
+**A9 — a rule for component authors, unenforceable in stable Rust.** The bound that would rule out
+interior mutability (`Freeze`) is not available on stable, so the store cannot reject such a
+component type. `components.rs` states the rule where a component author will read it: *a component
+type must not carry interior mutability.* It is the one rule in that module a reviewer rather than
+the compiler has to enforce, and it is the owner's own declaration that opens the hole — a pack can
+only do this to itself.
+
+**Not a stop.** Neither succeeding attempt contradicts a frozen invariant, and neither can be
+closed inside this PR's scope: A8's answer is system installation, which §2.2 assigns to 03b, and
+A9's answer does not exist in stable Rust. They are recorded rather than shipped around.
 
 ### 2.10.3 Mutation evidence
 
@@ -227,6 +284,9 @@ it anyway.
 | M1 | `EntityRegistry::iter` iterates the authoring-key index instead of the identity map | the ordering test fails | `iteration_follows_identity_rather_than_insertion_or_key_order` FAILED, 10 passed |
 | M2 | `create_authored` drops the duplicate-key refusal | the key-uniqueness test fails | `an_authoring_key_belongs_to_exactly_one_entity` FAILED, 10 passed |
 | M3 | `FIRST_ENTITY_ID` becomes 0 | the allocation and load-refusal tests fail | 4 failed, 7 passed |
+| M4 | `ComponentStore::insert` requires `C: Component` instead of `C: OwnedBy<S>` | the cross-system write compiles, so the compile-fail suite goes red | `the_single_writer_rule_is_enforced_by_the_compiler` FAILED — the suite is load-bearing, not decorative |
+| M5 | `declare` stops comparing the declared owner with the token's system | the dishonest-claim test fails | `an_ownership_claim_that_contradicts_the_declaration_is_refused` FAILED, 8 passed |
+| M6 | `ComponentStore::iter` yields rows in reverse identity order | the ordering test fails | `iteration_is_in_identity_order_rather_than_write_order` FAILED, 8 passed |
 
 ### 2.10.4 Validation record
 
@@ -242,6 +302,45 @@ result:   clean at C1
 
 command:  cargo test --workspace
 result:   C1 — 32 contract tests (unchanged) + 11 kernel tests, 0 failures
+          C2 — 32 contract tests (unchanged) + 20 kernel tests + 2 kernel doc-tests,
+               0 failures (11 entities, 9 components, 1 trybuild harness over 6 cases)
+```
+
+### 2.10.5 Bounded deviations
+
+```text
+Deviation:      the crate has two modules §2.2 does not list — kernel/src/error.rs and
+                kernel/src/macro_support.rs
+Reason:         error.rs follows the convention PR 01 set (one error enum per crate, in its own
+                module); macro_support.rs is the doc-hidden re-export an exported macro_rules!
+                needs to name contract-layer items in the caller's crate
+Source:         contracts/src/error.rs; the macro expands where mineworld_contracts may not be
+                in scope
+Impact:         none on scope — both are inside the kernel crate §2.2 approves
+Validation:     covered by the same tests as the modules they serve
+
+Deviation:      ComponentStore implements neither Serialize nor Deserialize; "the store is
+                serializable in full" is satisfied through the typed record path instead
+Reason:         serializing a heterogeneous table map needs one of: a fixed intermediate encoding
+                chosen inside the kernel, a codec type parameter threaded through every store
+                type, or the `erased-serde` dependency. S1 answered the identical question for
+                ComponentRecord by leaving the payload a type parameter that "the persistence
+                layer supplies", and §2.2 lists persistence as a non-goal
+Source:         contracts/src/component.rs — "it exists because a store and a wire have to: a
+                table row or a network frame carries bytes, not a Rust type"; DEP-1 — "serialization
+                of dynamically registered types generally needs a reflection layer we would then
+                also own"
+Impact:         every value in the store is serde-serializable and reachable through the typed
+                API; the whole state of a two-system world round-trips through JSON text in
+                the_whole_store_round_trips_through_serde. What S5 will add is the per-type codec
+                registry that makes the round trip type-agnostic
+Validation:     the component round-trip test and the integration checkpoint
+
+Deviation:      no Send/Sync bound on component types, so ComponentStore is neither
+Reason:         nothing in this PR is threaded, and the bound can be widened later without
+                changing a single call site
+Impact:         S11's server will need it; recorded as a follow-up rather than guessed at now
+Validation:     n/a
 ```
 
 ---

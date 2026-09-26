@@ -1,0 +1,16 @@
+error[E0624]: associated function `new` is private
+  --> tests/compile_fail/a_write_token_cannot_be_constructed.rs:18:54
+   |
+18 |     let _from_constructor = WriteToken::<FirstStub>::new();
+   |                                                      ^^^ private associated function
+   |
+  ::: src/access.rs
+   |
+   |     pub(crate) const fn new() -> Self {
+   |     --------------------------------- private associated function defined here
+
+error[E0599]: no associated function or constant named `default` found for struct `WriteToken<S>` in the current scope
+  --> tests/compile_fail/a_write_token_cannot_be_constructed.rs:19:50
+   |
+19 |     let _from_default = WriteToken::<FirstStub>::default();
+   |                                                  ^^^^^^^ associated function or constant not found in `WriteToken<FirstStub>`

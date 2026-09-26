@@ -1,0 +1,5 @@
+error[E0451]: field `_private` of struct `Guarded` is private
+  --> tests/compile_fail/a_system_type_that_keeps_its_constructor_cannot_be_impersonated.rs:27:48
+   |
+27 |     let _token = access.grant(&pack::Guarded { _private: () });
+   |                                                ^^^^^^^^ private field

@@ -1,0 +1,29 @@
+error[E0277]: the trait bound `Measured: OwnedBy<PretendingToBeFirstStub>` is not satisfied
+  --> tests/compile_fail/impersonating_a_system_id_does_not_grant_ownership.rs:45:52
+   |
+45 |         .insert(&pretender, EntityId::from_raw(1), Measured { amount: 1 })
+   |          ------                                    ^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |          |
+   |          required by a bound introduced by this call
+   |
+help: the trait `OwnedBy<PretendingToBeFirstStub>` is not implemented for `Measured`
+      but trait `OwnedBy<FirstStub>` is implemented for it
+  --> tests/compile_fail/impersonating_a_system_id_does_not_grant_ownership.rs:30:1
+   |
+30 | / owned_component! {
+31 | |     component = Measured,
+32 | |     owner = FirstStub,
+33 | |     component_type = "measured",
+34 | |     schema_version = 1,
+35 | | }
+   | |_^
+   = help: for that trait implementation, expected `FirstStub`, found `PretendingToBeFirstStub`
+note: required by a bound in `ComponentStore::insert`
+  --> src/components.rs
+   |
+   |     pub fn insert<C, S>(
+   |            ------ required by a bound in this associated function
+...
+   |         C: OwnedBy<S> + 'static,
+   |            ^^^^^^^^^^ required by this bound in `ComponentStore::insert`
+   = note: this error originates in the macro `owned_component` (in Nightly builds, run with -Z macro-backtrace for more info)

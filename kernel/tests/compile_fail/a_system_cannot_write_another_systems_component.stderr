@@ -1,0 +1,29 @@
+error[E0277]: the trait bound `Measured: OwnedBy<SecondStub>` is not satisfied
+  --> tests/compile_fail/a_system_cannot_write_another_systems_component.rs:39:49
+   |
+39 |         .insert(&second, EntityId::from_raw(1), Measured { amount: 1 })
+   |          ------                                 ^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+   |          |
+   |          required by a bound introduced by this call
+   |
+help: the trait `OwnedBy<SecondStub>` is not implemented for `Measured`
+      but trait `OwnedBy<FirstStub>` is implemented for it
+  --> tests/compile_fail/a_system_cannot_write_another_systems_component.rs:26:1
+   |
+26 | / owned_component! {
+27 | |     component = Measured,
+28 | |     owner = FirstStub,
+29 | |     component_type = "measured",
+30 | |     schema_version = 1,
+31 | | }
+   | |_^
+   = help: for that trait implementation, expected `FirstStub`, found `SecondStub`
+note: required by a bound in `ComponentStore::insert`
+  --> src/components.rs
+   |
+   |     pub fn insert<C, S>(
+   |            ------ required by a bound in this associated function
+...
+   |         C: OwnedBy<S> + 'static,
+   |            ^^^^^^^^^^ required by this bound in `ComponentStore::insert`
+   = note: this error originates in the macro `owned_component` (in Nightly builds, run with -Z macro-backtrace for more info)
