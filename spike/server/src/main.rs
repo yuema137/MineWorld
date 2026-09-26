@@ -57,7 +57,11 @@ async fn main() {
         let naive = serde_json::to_value(&observation).expect("an observation serializes");
         let mut encoded = naive.clone();
         wire::observation(Direction::Encode, &mut encoded);
-        println!("{}", serde_json::to_string_pretty(&json!({"naive": naive, "wire": encoded})).expect("pretty"));
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({"naive": naive, "wire": encoded}))
+                .expect("pretty")
+        );
         return;
     }
     let state: App = Arc::new(Mutex::new(Shared {
@@ -234,10 +238,18 @@ fn compare(talks: &std::collections::BTreeMap<String, Value>) {
     };
     let whole = two == three;
     let semantic = core(two) == core(three);
-    let differing: Vec<&str> = ["action_id", "actor", "action_type", "target", "payload", "issued_at", "actor_location"]
-        .into_iter()
-        .filter(|key| two.get(*key) != three.get(*key))
-        .collect();
+    let differing: Vec<&str> = [
+        "action_id",
+        "actor",
+        "action_type",
+        "target",
+        "payload",
+        "issued_at",
+        "actor_location",
+    ]
+    .into_iter()
+    .filter(|key| two.get(*key) != three.get(*key))
+    .collect();
 
     let verdict = json!({
         "identical_whole_intent": whole,
@@ -254,5 +266,7 @@ fn compare(talks: &std::collections::BTreeMap<String, Value>) {
         directory.join("parity.json"),
         serde_json::to_string_pretty(&verdict).expect("the verdict serializes"),
     );
-    println!("[server] AC-13 parity: whole={whole} semantic_core={semantic} differing={differing:?}");
+    println!(
+        "[server] AC-13 parity: whole={whole} semantic_core={semantic} differing={differing:?}"
+    );
 }

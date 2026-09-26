@@ -33,7 +33,7 @@
     "action_type": "talk",
     "actor": 101,
     "actor_location": null,
-    "issued_at": 32419,
+    "issued_at": 32418,
     "payload": {
       "action_type": "talk",
       "payload": {
@@ -49,7 +49,7 @@
     "actor_location": {
       "facing": {
         "pitch": null,
-        "yaw": 165040
+        "yaw": 165043
       },
       "local": {
         "x": 867,
@@ -61,7 +61,7 @@
         "entity_type": "place"
       }
     },
-    "issued_at": 32445,
+    "issued_at": 32454,
     "payload": {
       "action_type": "talk",
       "payload": {

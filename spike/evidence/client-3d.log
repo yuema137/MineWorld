@@ -1,0 +1,25 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+Metal 4.0 - Forward+ - Using Device #0: Apple - Apple M5 (Apple9)
+
+[3d] 3D client connecting to ws://127.0.0.1:7878/ws
+[3d] DD-15 wire  alice=9007199254740995 mug=9007199254740997 (exact, typeof=4)
+[3d] DD-15 naive alice=9007199254740996 mug=9007199254740996 (typeof=3) collide=true
+[3d] captured 3d-01-entered.png (error=0)
+[3d] captured 3d-02-looking-at-alice.png (error=0)
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] server answered: accepted (0 event(s))
+[3d] captured 3d-03-prompt-available.png (error=0)
+[3d] interact pressed while targeting 9007199254740995
+[3d] server answered: accepted (1 event(s))
+[3d] captured 3d-04-talk-accepted.png (error=0)

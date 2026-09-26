@@ -85,7 +85,11 @@ fn bearing(millidegrees: i32) -> Orientation {
 }
 
 fn tags(labels: &[&str]) -> Tags {
-    Tags::new(labels.iter().map(|label| Tag::new(*label).expect("legal tag")))
+    Tags::new(
+        labels
+            .iter()
+            .map(|label| Tag::new(*label).expect("legal tag")),
+    )
 }
 
 impl SpikeWorld {

@@ -202,8 +202,8 @@ Integer millimetres and millidegrees were the two choices expected to chafe. Mos
   at the boundary (`mm / 1000.0`), done when a body is built and when a position is reported. i32
   millimetres spans ±2 147 km, and a 1 mm quantum is far below what a 2.4 m/s walk resolves at
   60 Hz (about 40 mm per frame). Positions round-tripped exactly: the 3D readout in
-  `3d-03-prompt-available.png` shows the client body at `x=899 y=-162 mm` and the server's at
-  `x=850 y=17 mm`, and the difference is prediction lag (F7), not quantization. No precision
+  `3d-03-prompt-available.png` shows the client body at `x=867 y=-46 mm` and the server's at
+  `x=802 y=197 mm`, and the difference is prediction lag (F7), not quantization. No precision
   problem appeared in either client.
 - **Integer distance comparison is an asset.** `SpatialRequirement::evaluate` compares squared
   distances in `i128` with no square root, so the server's answer and a client's guess cannot
@@ -276,7 +276,7 @@ rather than structural. The server evaluates the requirement against *its own* a
 client's body is a local prediction that leads the server's by up to one round trip, so near the
 2.5 m boundary the client renders an affordance computed for a position it has already left. The
 spike measured the gap: at the moment the prompt turned green the client body was at
-`(899, -162)` mm and the server's at `(850, 17)` mm — about 180 mm apart, or 0.07 s of walking at
+`(867, -46)` mm and the server's at `(802, 197)` mm — about 250 mm apart, or 0.1 s of walking at
 2.4 m/s. That is small here only because the transport is localhost.
 
 The contract gives a client no way to notice. `Observation.at` is the world clock in *seconds*
@@ -417,14 +417,18 @@ Alice's collider and recovered her exact 64-bit id from node metadata, which is 
 `DD-15` working together. The HUD reads **"[E] Talk to Alice"** in green, and the affordance list
 below shows, in the same frame, `talk Alice available`, `talk Bob not available`, `pick-up
 Chipped mug too far away` — three different server verdicts, rendered three different ways, none
-of them computed by the client. `client body x=899 y=-162 mm yaw=165029 mdeg` against
-`server body x=850 y=17 mm yaw=165029 mdeg`: the yaw round-tripped exactly through millidegrees.
+of them computed by the client. `client body x=867 y=-46 mm yaw=165043 mdeg` against
+`server body x=802 y=197 mm yaw=165043 mdeg`: the yaw round-tripped exactly through millidegrees.
 
 `3d-04-talk-accepted.png` — "accepted (1 event(s))".
 
 ### R4 — AC-13 parity, both clients against one server
 
-`spike/run.sh both`. Server log:
+`spike/run.sh both`. The numbers below are from the run whose artifacts are committed; re-running
+shifts `issued_at` and the last few millidegrees of yaw, because the walk is physics-timed rather
+than frame-locked. The verdict itself reproduced on every run.
+
+Server log:
 
 ```text
 [server] 2d -> talk: Rejected(TargetUnavailable)
@@ -447,10 +451,10 @@ and the whole intents are not:
 ```text
                  2D                              3D
 action_id        7003                            8014            invented by each client (F4)
-issued_at        32419                           32445           read off different observations
+issued_at        32418                           32454           read off different observations
 actor_location   null                            {place 9007199254740993,
                                                   local (867, -46, 0),
-                                                  facing yaw 165040}
+                                                  facing yaw 165043}
 ```
 
 Both were resolved by the same code path, against the same declared `SpatialRequirement`, to the

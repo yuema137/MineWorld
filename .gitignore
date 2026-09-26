@@ -30,4 +30,3 @@ node_modules/
 # Renderer-integration spike: engine caches and build output
 spike/**/.godot/
 spike/server/target/
-spike/evidence/*.log
