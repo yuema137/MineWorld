@@ -2,7 +2,7 @@
 
 **Role:** step document. S3 needs **two** PRs, detailed below at different depths.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md)
-**Lifecycle:** `PR 03a IMPLEMENTING` · `PR 03b medium scope`
+**Lifecycle:** `PR 03a READY FOR OPERATOR REVIEW — DO NOT MERGE` · `PR 03b medium scope`
 **Base:** `main` after PR 02 merges
 
 Binding parents: [`overall.md`](overall.md) ·
@@ -88,7 +88,9 @@ domain component.
 - [x] Review: no assumption that endpoints share a spatial frame. The store reads exactly one fact about an endpoint — its `EntityType`, and only through the declaration — and nothing anywhere in `relations.rs` names a position, a distance, a container or a place. A person may be attached to an organization that has no location, and two places may be linked without sharing any frame; both are in the tests. The module documentation states it, because it is the kind of assumption that gets added later by accident.
 
 ### C4 — Documentation
-- [ ] `kernel/README.md` (short, human-facing); ledger closed; `ARCHITECTURE.md` §2 updated only if the built shape differs from what it already claims.
+- [x] `kernel/README.md` written: short, human-facing, one obvious main line — the single-writer rule, with the compiling and non-compiling call side by side — and links onward rather than carrying the specification (documentation law §2.1).
+- [x] Ledger closed: §2.10 carries the KD-1 decision, the adversarial review, nine mutations, the validation record, the bounded deviations and the relation-ownership finding; §2.11 is the closeout.
+- [x] `ARCHITECTURE.md` **not** amended, which is the audited answer rather than an omission. §2 lists `Identity`, `Component storage` and `Relationship graph` among the kernel's responsibilities; §4 states the single-writer rule in the terms C2 implemented; §14 describes `kernel/` as `entity, components, scheduler, event_log, process, actions, persistence, networking`. What was built is a strict subset of all three and contradicts none of them, so there is nothing to correct. `docs/DECISIONS.md` `DEP-1` likewise describes the store that was built — one `BTreeMap` per component type behind a narrow API — and needed no revision.
 
 ## 2.6 Integration checkpoint
 
@@ -310,6 +312,45 @@ result:   C1 — 32 contract tests (unchanged) + 11 kernel tests, 0 failures
           C3 — 32 contract tests (unchanged) + 36 kernel tests + 2 kernel doc-tests,
                0 failures (11 entities, 9 components, 12 relations, 3 two_systems,
                1 trybuild harness over 6 cases)
+          C4 — all four commands clean at the final head; counts unchanged from C3,
+               because C4 is documentation only
+```
+
+### 2.10.5 Bounded deviations
+
+```text
+Deviation:      the crate has two modules §2.2 does not list — kernel/src/error.rs and
+                kernel/src/macro_support.rs
+Reason:         error.rs follows the convention PR 01 set (one error enum per crate, in its own
+                module); macro_support.rs is the doc-hidden re-export an exported macro_rules!
+                needs to name contract-layer items in the caller's crate
+Source:         contracts/src/error.rs; the macro expands where mineworld_contracts may not be
+                in scope
+Impact:         none on scope — both are inside the kernel crate §2.2 approves
+Validation:     covered by the same tests as the modules they serve
+
+Deviation:      ComponentStore implements neither Serialize nor Deserialize; "the store is
+                serializable in full" is satisfied through the typed record path instead
+Reason:         serializing a heterogeneous table map needs one of: a fixed intermediate encoding
+                chosen inside the kernel, a codec type parameter threaded through every store
+                type, or the `erased-serde` dependency. S1 answered the identical question for
+                ComponentRecord by leaving the payload a type parameter that "the persistence
+                layer supplies", and §2.2 lists persistence as a non-goal
+Source:         contracts/src/component.rs — "it exists because a store and a wire have to: a
+                table row or a network frame carries bytes, not a Rust type"; DEP-1 — "serialization
+                of dynamically registered types generally needs a reflection layer we would then
+                also own"
+Impact:         every value in the store is serde-serializable and reachable through the typed
+                API; the whole state of a two-system world round-trips through JSON text in
+                the_whole_store_round_trips_through_serde. What S5 will add is the per-type codec
+                registry that makes the round trip type-agnostic
+Validation:     the component round-trip test and the integration checkpoint
+
+Deviation:      no Send/Sync bound on component types, so ComponentStore is neither
+Reason:         nothing in this PR is threaded, and the bound can be widened later without
+                changing a single call site
+Impact:         S11's server will need it; recorded as a follow-up rather than guessed at now
+Validation:     n/a
 ```
 
 ### 2.10.6 Relation ownership is checked at run time, and why it has to be
@@ -350,41 +391,73 @@ dangling reference no declaring system could want kept, and the removed edges ar
 than dropped so that their owners can be told. Destroying a live entity's edges is refused with
 `EntityNotDestroyed`.
 
-### 2.10.5 Bounded deviations
+---
+
+## 2.11 Closeout
 
 ```text
-Deviation:      the crate has two modules §2.2 does not list — kernel/src/error.rs and
-                kernel/src/macro_support.rs
-Reason:         error.rs follows the convention PR 01 set (one error enum per crate, in its own
-                module); macro_support.rs is the doc-hidden re-export an exported macro_rules!
-                needs to name contract-layer items in the caller's crate
-Source:         contracts/src/error.rs; the macro expands where mineworld_contracts may not be
-                in scope
-Impact:         none on scope — both are inside the kernel crate §2.2 approves
-Validation:     covered by the same tests as the modules they serve
+branch          mvp0/pr-03a-kernel-state
+base            main @ a406040 (operator-authorized; see §2.10)
+final HEAD      the C4 commit — the one that carries this closeout
+                (C1 = 67bcbe9, C2 = 2eb5d3e, C3 = 9cb7cdf); git log is authoritative
+working tree    clean at each commit; the only untracked path is target/ (gitignored)
+push / PR       none — no remote exists (decision D-9)
+merge           not done, not authorized
+state           PR CONTEXT CLOSED / AWAITING OPERATOR ACTION
+```
 
-Deviation:      ComponentStore implements neither Serialize nor Deserialize; "the store is
-                serializable in full" is satisfied through the typed record path instead
-Reason:         serializing a heterogeneous table map needs one of: a fixed intermediate encoding
-                chosen inside the kernel, a codec type parameter threaded through every store
-                type, or the `erased-serde` dependency. S1 answered the identical question for
-                ComponentRecord by leaving the payload a type parameter that "the persistence
-                layer supplies", and §2.2 lists persistence as a non-goal
-Source:         contracts/src/component.rs — "it exists because a store and a wire have to: a
-                table row or a network frame carries bytes, not a Rust type"; DEP-1 — "serialization
-                of dynamically registered types generally needs a reflection layer we would then
-                also own"
-Impact:         every value in the store is serde-serializable and reachable through the typed
-                API; the whole state of a two-system world round-trips through JSON text in
-                the_whole_store_round_trips_through_serde. What S5 will add is the per-type codec
-                registry that makes the round trip type-agnostic
-Validation:     the component round-trip test and the integration checkpoint
+### 2.9's checklist, resolved
 
-Deviation:      no Send/Sync bound on component types, so ComponentStore is neither
-Reason:         nothing in this PR is threaded, and the bound can be widened later without
-                changing a single call site
-Impact:         S11's server will need it; recorded as a follow-up rather than guessed at now
-Validation:     n/a
+```text
+CHECKED   INV-7 has a mechanism, and an evidence-based fallback rather than an assumed one.
+          Components: compile-time, OwnedBy<S> + WriteToken<S>, six compile-fail cases.
+          Edges: a runtime check with a named error and no partial mutation, because
+          RelationTypeId is not const-declarable — §2.10.6 carries the evidence.
+CHECKED   INV-12: no domain concept anywhere in kernel/. The vocabulary is Entity, EntityType,
+          Component, Relation, SystemId. The tests are named for their role — Measured, Flagged,
+          FirstStub, SecondStub — precisely because there is no domain to name them after.
+CHECKED   DEP-1: one BTreeMap per component type behind a narrow API, no ECS, no archetypes, no
+          dependency beyond serde, thiserror and mineworld-contracts.
+CHECKED   AC-12: identities are a monotonic counter from 1, never reused; every iteration order is
+          a key order (EntityId within a component type, component type name across them, the
+          (type, from, to) triple for edges); replaying the same operations on a fresh world
+          produces a byte-identical snapshot.
+CHECKED   AC-6 is prepared, with one qualification recorded as a bounded deviation in §2.10.5:
+          every value the kernel stores is serde-serializable, the registry and the graph carry
+          their own validated snapshot types, and a whole two-system world round-trips through
+          JSON text and rebuilds. ComponentStore itself implements neither Serialize nor
+          Deserialize; the per-type codec registry that would make a heterogeneous snapshot
+          type-agnostic belongs to S5, which §2.2 lists as a non-goal.
+CHECKED   scope: no System trait, no dispatch, no scheduler, no time, no persistence, no domain
+          component. The kernel crate plus the workspace member and its dependency line.
+RESOLVED  KD-1 versus KD-2: KD-1, for components, with the const assertion replaced by const
+          derivation because the assertion cannot compile. KD-2 is not triggered. §2.10.1.
+```
+
+### Limitations and follow-ups
+
+```text
+for PR 03b   the world's WriteAccess is held by the kernel and each system is granted its token
+             once, at installation, so a system never sees the issuer (closes attempt A8)
+for PR 03b   dispatch hands a running system a *view* of the store, not &mut ComponentStore: a
+             &mut permits `*store = ComponentStore::new()`, which no ownership check can prevent.
+             The choice of what dispatch passes is an INV-7 decision, not an ergonomics one
+for S5       the per-type codec registry that makes a whole-store snapshot type-agnostic, and with
+             it Serialize/Deserialize for ComponentStore
+for S11      Send + Sync bounds on component types, so a world can cross a thread boundary; a
+             widening of bounds that changes no call site
+for S1's     RelationTypeId has no from_static, which is the only reason edge ownership is not
+crate        compile-time. Giving it one would let a relation type be declared as a Rust type and
+             make INV-7 uniform across components and edges. A change to a frozen public contract,
+             so it is recorded here rather than made here
+review rule  a component type must not carry interior mutability (attempt A9). Stable Rust has no
+             bound that expresses it, so components.rs states it where a component author reads it,
+             and it is a review item rather than a compiler one
+carried      three statements that describe main as containing no Rust code are stale and become
+             more visibly so with this branch: README.md:35, CLAUDE.md:43 and
+             .structured-coding/standards.md:15. PR 01's handoff already lists them as an
+             operator follow-up at merge; they are outside this PR's scope and are deliberately
+             left to whoever owns that commit, not least because another PR is in flight
 ```
 
 ---

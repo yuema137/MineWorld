@@ -6,6 +6,21 @@
 //! and a world with every system removed is still a valid world made of these types
 //! (`INV-12`).
 //!
+//! # Three stores, and one rule about writing to them
+//!
+//! ```text
+//! entities     EntityRegistry   identity: allocated, monotonic, never reused
+//! components   ComponentStore   one table per component type
+//! relations    RelationStore    typed edges between any two entities
+//! access       who may write what — the part to read first
+//! ```
+//!
+//! Reads are open and writes are owned. Any system may read any component; a component is
+//! written only by the system that owns it, and [`access`] is where that is made the compiler's
+//! rule rather than a review convention (`INV-7`). It is also where the edges of the guarantee
+//! are documented, which matters more than the guarantee's headline: a reader who knows only
+//! that "ownership is enforced" will eventually rely on something that is not true.
+//!
 //! # Four rules for anything added to this crate
 //!
 //! **1. No domain concept appears here.** The rule the contract layer states applies with more
