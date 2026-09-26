@@ -507,6 +507,35 @@ MUTATIONS  (purpose: prove the new guards are load-bearing, not decorative)
   above; no mutation survives now. Source restored and re-verified green after each.
 ```
 
+## 7.5 Review outcome — O-1 resolved during review (reviewer, 2026-09-26)
+
+The implementation raised **O-1** correctly and implemented the design as frozen: `Event`
+declared `(EVENT_TYPE, OWNER)` with no schema version, while `ComponentRecord` carries one.
+
+**Reviewer's ruling: fixed now, in this PR.** The event log is permanent and append-only, so a
+payload written today is read by code that does not exist yet. Without a version on the record
+the first schema change to any system's event payload would be *undetectable on replay* — old
+bytes would decode into the new shape and silently rebuild a history that never happened. That is
+strictly worse than the component case the design already versioned, not equal to it.
+
+Deferring to S5 was the alternative and was rejected: `ENGINEERING_STANDARDS.md` §29 says an early
+contract that is wrong is changed cleanly rather than adapted around, and the cost is lowest now —
+no event has ever been persisted, and nothing depends on the unversioned shape.
+
+Changed: `EventSchemaVersion`; `Event::SCHEMA_VERSION`; `EventRecord.schema_version`, readable
+without decoding the payload; `payload_for` refuses a newer record and reports an older one, with
+`EventSchemaTooNew` and `EventSchemaOutdated` mirroring the component variants.
+
+Evidence at the reviewed head: 61 tests pass (was 57), `fmt`/`clippy -D warnings` clean. Four new
+tests, including the one that matters — two records with the *same* event type and different
+schemas, proving a type check alone would hand v2 bytes to v1. Three existing tests asserting the
+documented wire shape failed and were updated by hand, which is the correct signal: the wire shape
+genuinely changed. The compile-fail expectation moved by two line numbers only; the errors and
+their reasons are unchanged.
+
+`EventSchemaVersion` is deliberately a separate type from `ComponentSchemaVersion` rather than a
+shared generic: they version independently, and a value of one is never a value of the other.
+
 ## 7.3 Findings, decisions, deviations
 ```text
 DEVIATION D-1 (bounded) — ActionIntent.actor_location arrives in C3, not C1

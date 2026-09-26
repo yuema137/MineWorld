@@ -2,7 +2,7 @@
 //! assignment: `INV-15` and the declared-audience rule are only guarantees if the value that
 //! reached the log cannot be altered afterwards.
 
-use mineworld_contracts::{
+use mineworld_contracts::{EventSchemaVersion, 
     Causation, Event, EventEnvelope, EventId, EventRecord, EventTypeId, Provenance, SystemId,
     Visibility, WorldTime,
 };
@@ -16,6 +16,7 @@ struct ExampleHappened {
 impl Event for ExampleHappened {
     const EVENT_TYPE: EventTypeId = EventTypeId::from_static("example-happened");
     const OWNER: SystemId = SystemId::from_static("example-system");
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
 }
 
 fn main() {

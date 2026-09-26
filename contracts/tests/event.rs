@@ -10,7 +10,8 @@ use std::collections::BTreeSet;
 
 use mineworld_contracts::{
     ActionId, Causation, ContractError, EntityId, EntityType, Event, EventEnvelope, EventId,
-    EventRecord, EventTypeId, PlaceId, ProcessId, Provenance, SystemId, Visibility, WorldTime,
+    EventRecord, EventSchemaVersion, EventTypeId, PlaceId, ProcessId, Provenance, SystemId,
+    Visibility, WorldTime,
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +24,7 @@ struct ItemTransferred {
 impl Event for ItemTransferred {
     const EVENT_TYPE: EventTypeId = EventTypeId::from_static("item-transferred");
     const OWNER: SystemId = SystemId::from_static("inventory-stub");
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
 }
 
 /// A fact a *different* stub system emits.
@@ -34,6 +36,7 @@ struct ConversationStarted {
 impl Event for ConversationStarted {
     const EVENT_TYPE: EventTypeId = EventTypeId::from_static("conversation-started");
     const OWNER: SystemId = SystemId::from_static("conversation-stub");
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
 }
 
 fn place() -> PlaceId {
@@ -181,7 +184,7 @@ fn a_declared_audience_survives_the_log_and_does_not_depend_on_insertion_order()
 /// have to choose a default, and the only defaults available are omniscience and silence.
 #[test]
 fn a_fact_with_no_cause_or_no_audience_cannot_be_read_back() {
-    let complete = r#"{"id":9001,"at":64800,"event_type":"item-transferred","subjects":[],"participants":[],"place":null,"caused_by":"world_genesis","payload":{"event_type":"item-transferred","payload":"{}"},"visibility":"public","provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
+    let complete = r#"{"id":9001,"at":64800,"event_type":"item-transferred","subjects":[],"participants":[],"place":null,"caused_by":"world_genesis","payload":{"event_type":"item-transferred","schema_version":1,"payload":"{}"},"visibility":"public","provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
     assert!(serde_json::from_str::<EventEnvelope<String>>(complete).is_ok());
 
     let causeless = complete.replace(r#""caused_by":"world_genesis","#, "");
@@ -207,7 +210,7 @@ fn a_fact_with_no_cause_or_no_audience_cannot_be_read_back() {
 fn an_envelope_cannot_disagree_with_its_payload() {
     assert_eq!(envelope().event_type(), envelope().payload().event_type());
 
-    let disagreeing = r#"{"id":9001,"at":0,"event_type":"conversation-started","subjects":[],"participants":[],"place":null,"caused_by":"world_genesis","payload":{"event_type":"item-transferred","payload":"{}"},"visibility":"public","provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
+    let disagreeing = r#"{"id":9001,"at":0,"event_type":"conversation-started","subjects":[],"participants":[],"place":null,"caused_by":"world_genesis","payload":{"event_type":"item-transferred","schema_version":1,"payload":"{}"},"visibility":"public","provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
     let error = serde_json::from_str::<EventEnvelope<String>>(disagreeing)
         .expect_err("an envelope whose label and payload disagree is refused");
     assert_eq!(
@@ -239,7 +242,7 @@ fn an_event_is_stored_as_its_documented_shape() {
             .from_controller_decision(ActionId::from_raw(3)),
     );
 
-    let text = r#"{"id":9001,"at":64800,"event_type":"item-transferred","subjects":[41,42],"participants":[43],"place":{"entity":7,"entity_type":"place"},"caused_by":{"action":3},"payload":{"event_type":"item-transferred","payload":"{\"item\":18517}"},"visibility":{"place":{"entity":7,"entity_type":"place"}},"provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
+    let text = r#"{"id":9001,"at":64800,"event_type":"item-transferred","subjects":[41,42],"participants":[43],"place":{"entity":7,"entity_type":"place"},"caused_by":{"action":3},"payload":{"event_type":"item-transferred","schema_version":1,"payload":"{\"item\":18517}"},"visibility":{"place":{"entity":7,"entity_type":"place"}},"provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
     assert_eq!(serde_json::to_string(&recorded).unwrap(), text);
     assert_eq!(
         serde_json::from_str::<EventEnvelope<String>>(text).unwrap(),
@@ -260,4 +263,80 @@ fn an_event_is_stored_as_its_documented_shape() {
         audited.provenance().controller_decision(),
         Some(ActionId::from_raw(3))
     );
+}
+
+/// The same fact, as a later version of the emitting system writes it.
+///
+/// Same event type, different schema — which is exactly the situation a permanent log meets
+/// when a System Pack is upgraded and an old world is replayed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct ItemTransferredV2 {
+    item: EntityId,
+    quantity: u32,
+}
+
+impl Event for ItemTransferredV2 {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("item-transferred");
+    const OWNER: SystemId = SystemId::from_static("inventory-stub");
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(2);
+}
+
+#[test]
+fn a_record_carries_the_schema_its_payload_was_written_against() {
+    let record = EventRecord::<String>::new::<ItemTransferred>("{}".to_owned());
+    // Readable without decoding the payload: an old record has to be recognizable as old
+    // before anything tries to interpret it.
+    assert_eq!(record.schema_version(), EventSchemaVersion::new(1));
+}
+
+#[test]
+fn an_event_payload_from_a_newer_schema_is_refused_rather_than_decoded() {
+    let newer = EventRecord::<String>::new::<ItemTransferredV2>("{}".to_owned());
+
+    let refused = newer.payload_for::<ItemTransferred>();
+
+    match refused {
+        Err(ContractError::EventSchemaTooNew {
+            event_type,
+            record,
+            supported,
+        }) => {
+            assert_eq!(event_type, ItemTransferred::EVENT_TYPE);
+            assert_eq!(record, EventSchemaVersion::new(2));
+            assert_eq!(supported, EventSchemaVersion::new(1));
+        }
+        other => panic!("a newer payload must be refused by version, got {other:?}"),
+    }
+}
+
+#[test]
+fn an_event_payload_from_an_older_schema_is_reported_as_history_to_migrate() {
+    let older = EventRecord::<String>::new::<ItemTransferred>("{}".to_owned());
+
+    let refused = older.payload_for::<ItemTransferredV2>();
+
+    match refused {
+        Err(ContractError::EventSchemaOutdated {
+            event_type,
+            record,
+            supported,
+        }) => {
+            assert_eq!(event_type, ItemTransferredV2::EVENT_TYPE);
+            assert_eq!(record, EventSchemaVersion::new(1));
+            assert_eq!(supported, EventSchemaVersion::new(2));
+        }
+        other => panic!("an older payload must be reported as outdated, got {other:?}"),
+    }
+}
+
+#[test]
+fn the_version_check_is_not_satisfied_by_a_matching_event_type_alone() {
+    // The failure this guards: both records claim event type "item-transferred", so a check on
+    // the type alone would hand v2 bytes to v1 and rebuild a history that never happened.
+    let v1 = EventRecord::<String>::new::<ItemTransferred>("{}".to_owned());
+    let v2 = EventRecord::<String>::new::<ItemTransferredV2>("{}".to_owned());
+
+    assert_eq!(v1.event_type(), v2.event_type());
+    assert!(v1.payload_for::<ItemTransferred>().is_ok());
+    assert!(v2.payload_for::<ItemTransferred>().is_err());
 }

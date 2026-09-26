@@ -55,7 +55,8 @@ pub use component::{Component, ComponentDeclaration, ComponentRecord, ComponentS
 pub use entity::{Entity, LifecycleState, Metadata, Tag, Tags};
 pub use error::{ContractError, IdentifierKind};
 pub use event::{
-    Causation, Event, EventEnvelope, EventRecord, EventTypeId, Provenance, Visibility,
+    Causation, Event, EventEnvelope, EventRecord, EventSchemaVersion, EventTypeId, Provenance,
+    Visibility,
 };
 pub use ids::{
     ActionId, ComponentTypeId, EntityId, EntityKey, EntityType, EventId, ItemId,

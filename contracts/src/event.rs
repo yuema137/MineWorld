@@ -109,6 +109,34 @@ impl fmt::Display for EventTypeId {
     }
 }
 
+/// The version of an event payload's schema.
+///
+/// Deliberately a separate type from
+/// [`ComponentSchemaVersion`](crate::component::ComponentSchemaVersion) rather than a shared
+/// generic: component state and recorded facts version independently, and a value of one is
+/// never a value of the other.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct EventSchemaVersion(u32);
+
+impl EventSchemaVersion {
+    /// Declares a version.
+    pub const fn new(version: u32) -> Self {
+        Self(version)
+    }
+
+    /// The version as a number, for a migration that has to compare or step through them.
+    pub const fn get(self) -> u32 {
+        self.0
+    }
+}
+
+impl core::fmt::Display for EventSchemaVersion {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
+
 /// A kind of fact one system emits.
 ///
 /// Implementing this trait *is* the declaration, exactly as for
@@ -117,7 +145,7 @@ impl fmt::Display for EventTypeId {
 /// and a system cannot emit another system's events by accident.
 ///
 /// ```
-/// use mineworld_contracts::{Event, EventTypeId, SystemId};
+/// use mineworld_contracts::{Event, EventSchemaVersion, EventTypeId, SystemId};
 /// use serde::{Deserialize, Serialize};
 ///
 /// #[derive(Serialize, Deserialize)]
@@ -128,6 +156,7 @@ impl fmt::Display for EventTypeId {
 /// impl Event for ExampleHappened {
 ///     const EVENT_TYPE: EventTypeId = EventTypeId::from_static("example-happened");
 ///     const OWNER: SystemId = SystemId::from_static("example-system");
+///     const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
 /// }
 /// ```
 pub trait Event: Serialize + DeserializeOwned + Sized {
@@ -135,6 +164,14 @@ pub trait Event: Serialize + DeserializeOwned + Sized {
     const EVENT_TYPE: EventTypeId;
     /// The system that emits it.
     const OWNER: SystemId;
+    /// The version of this payload's schema.
+    ///
+    /// Required for the same reason a component declares one, and for a stronger one: an event
+    /// log is append-only and permanent, so a payload written today is read by code that does
+    /// not exist yet. Without a version on the record, the first schema change to an event
+    /// payload would be undetectable on replay — the old bytes would decode into the new shape
+    /// and silently rebuild a history that never happened.
+    const SCHEMA_VERSION: EventSchemaVersion;
 }
 
 /// An event's payload as a log or a wire carries it: labelled and opaque.
@@ -149,6 +186,7 @@ pub trait Event: Serialize + DeserializeOwned + Sized {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct EventRecord<P = Vec<u8>> {
     event_type: EventTypeId,
+    schema_version: EventSchemaVersion,
     payload: P,
 }
 
@@ -159,6 +197,7 @@ impl<P> EventRecord<P> {
     pub fn new<E: Event>(payload: P) -> Self {
         Self {
             event_type: E::EVENT_TYPE,
+            schema_version: E::SCHEMA_VERSION,
             payload,
         }
     }
@@ -166,6 +205,14 @@ impl<P> EventRecord<P> {
     /// The event type the payload was written from.
     pub const fn event_type(&self) -> &EventTypeId {
         &self.event_type
+    }
+
+    /// The schema version the payload was written against.
+    ///
+    /// A store or a migration reads this without decoding the payload, which is the point: an
+    /// old record has to be recognizable as old before anything tries to interpret it.
+    pub const fn schema_version(&self) -> EventSchemaVersion {
+        self.schema_version
     }
 
     /// The encoded payload, unchecked — for a store or a transport moving a record it does not
@@ -183,6 +230,20 @@ impl<P> EventRecord<P> {
             return Err(ContractError::EventTypeMismatch {
                 expected: E::EVENT_TYPE,
                 actual: self.event_type.clone(),
+            });
+        }
+        if self.schema_version > E::SCHEMA_VERSION {
+            return Err(ContractError::EventSchemaTooNew {
+                event_type: E::EVENT_TYPE,
+                record: self.schema_version,
+                supported: E::SCHEMA_VERSION,
+            });
+        }
+        if self.schema_version < E::SCHEMA_VERSION {
+            return Err(ContractError::EventSchemaOutdated {
+                event_type: E::EVENT_TYPE,
+                record: self.schema_version,
+                supported: E::SCHEMA_VERSION,
             });
         }
         Ok(&self.payload)

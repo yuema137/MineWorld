@@ -12,6 +12,7 @@ use thiserror::Error;
 use crate::action::ActionTypeId;
 use crate::component::ComponentSchemaVersion;
 use crate::entity::LifecycleState;
+use crate::event::EventSchemaVersion;
 use crate::event::EventTypeId;
 use crate::ids::{ComponentTypeId, EntityId, EntityType, RelationTypeId};
 use crate::relation::{EntityTypeSet, RelationEnd};
@@ -154,6 +155,32 @@ pub enum ContractError {
         record: ComponentSchemaVersion,
         /// The version the reading code supports.
         supported: ComponentSchemaVersion,
+    },
+
+    /// An event record was written by a newer schema than the reading code knows. Refused
+    /// rather than guessed at, and more consequentially than for a component: the event log is
+    /// permanent, so a misread payload rebuilds a history that never happened.
+    #[error("{event_type} record is {record}, newer than the {supported} this code reads")]
+    EventSchemaTooNew {
+        /// The event type being read.
+        event_type: EventTypeId,
+        /// The version the record was written against.
+        record: EventSchemaVersion,
+        /// The version the reading code supports.
+        supported: EventSchemaVersion,
+    },
+
+    /// An event record predates the reading code's schema. Ordinary history in an append-only
+    /// log, and precisely what a replay of an old world will meet: a migration brings it
+    /// forward, the reader does not assume.
+    #[error("{event_type} record is {record}, older than the {supported} this code reads")]
+    EventSchemaOutdated {
+        /// The event type being read.
+        event_type: EventTypeId,
+        /// The version the record was written against.
+        record: EventSchemaVersion,
+        /// The version the reading code supports.
+        supported: EventSchemaVersion,
     },
 
     /// A relation type declared an endpoint that permits no entity type at all.
