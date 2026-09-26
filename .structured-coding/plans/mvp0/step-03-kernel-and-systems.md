@@ -1118,13 +1118,37 @@ commits              0fadb29  C1  System trait, declaration, views
                      92aa972  C2  World and sealed write capability
                      46cc6dd  C3  registry: dependencies, conflicts, enable/disable
                      0a71211  C4  dispatch pipeline
-                     (C5)     C5  integration checkpoint, README, ledger
+                     4168bc9  C5  integration checkpoint, README, ledger
+                     (this)   --  closeout: the exact-head verification below
 remote               origin exists as of this session and the branch is pushed; there is no pull
                      request, and merging is the operator's (D-9 superseded for push only)
 scope                §4.2 only. No clock, no queue, no persistence, no domain system. The S4 seam is
                      Dispatched::deferred and the instant parameter; the S5 seam is
                      Dispatched::events and the erased-thunk requirement 03a's review recorded.
 ```
+
+### Terminal verification
+
+`§4.6`'s four commands, run at the final executable head and again at the final PR head. The second
+run is against a documentation-only commit, so it is a confirmation rather than new evidence — but it
+was run, because the rule is that evidence belongs to an exact SHA.
+
+```text
+final executable HEAD   4168bc9e5a676992371976fe8771c20005e37d2b   (C5)
+final PR HEAD           the commit that adds this section           (docs only)
+
+cargo fmt --all --check                                             CLEAN
+cargo check --workspace --all-targets                               CLEAN, no warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings CLEAN, no warnings
+cargo test --workspace                                              133 passed, 0 failed
+git status                                                          clean working tree
+```
+
+Clippy is worth one sentence of its own, because it failed at C1, C2 and C3 and the ledger recorded
+each failure rather than silencing it. Every symbol the dead-code lint named was a piece of the
+object-safe seam waiting for its consumer, and dispatch is the consumer. Nothing in this PR carries an
+`#[allow]` or an `#[expect]`; the one symbol that turned out to have no possible consumer —
+`WriteAccess::is_granted` — was deleted (§4.8.2).
 
 ### What a reviewer should look at first
 
