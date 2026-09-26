@@ -406,6 +406,59 @@ implement dispatch, scheduling, persistence, or any system.
 D-4, D-5, D-7 and D-9 are resolved (§5), so PR 01 can be designed in detail. Its execution
 contract records a local-only endpoint.
 
+## Governance and merge order (operator, 2026-09-25)
+
+Project-level rules and revisions to frozen specifications merge into `main` **independently of
+implementation work**, and as soon as they are agreed:
+
+```text
+docs/engineering-rules ──ff──► main          (10dc9ef, merged 2026-09-25)
+                                  │
+                                  │  authoritative specs
+                                  │
+PR 01 branch ─────────────────────┤  frozen scope, untouched mid-flight
+  implementation                  │
+                                  ▼
+                            review PR 01 against the latest main
+                                  │
+                            approve implementation
+                                  │
+                            sync with main
+                                  │
+                            final checks → merge PR 01
+```
+
+Two reasons this is not deferred until PR 01 merges. A governance decision must own its own
+commit, so that "why did 3D move from non-goal to required architecture target?" is answerable
+from history without reading an implementation diff. And any session that starts other work
+before PR 01 is reviewed must read the *current* rules from `main` — leaving them on an
+unmerged branch reproduces exactly the risk D-10 was recorded to remove.
+
+**PR 01 does not synchronize with `main` mid-flight.** Its scope is frozen and unaffected by
+D-10 (§7), so pulling the docs commit into its worktree would add interference for no change in
+what it must build. It synchronizes after implementation is approved.
+
+## Review criteria carried into PR 01's review (operator, 2026-09-25)
+
+D-10 does not invalidate PR 01, but the review must confirm that rather than assume it. The
+governing question:
+
+> **Does anything in PR 01 accidentally introduce assumptions that constrain the S2 spatial
+> contracts?**
+
+Specifically:
+
+```text
+1  Entity carries no x/y, tile coordinate, or any other positional field
+2  Person inherits no movement or render concept
+3  Relation assumes nothing about endpoints sharing a 2D map or any spatial frame
+4  the component abstraction is bound to no renderer
+5  the id and component model leave normal room for a future spatial component
+```
+
+If all five hold, PR 01 needs no rework for D-10. A violation of any of them is a material
+finding against the S2 gate in §2, not a style note.
+
 ## Process facts for this effort
 
 - Planning documents live in `.structured-coding/plans/mvp0/` and **are tracked in Git**, a
