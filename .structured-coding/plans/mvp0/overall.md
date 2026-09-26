@@ -170,7 +170,9 @@ merged code that precedes them exists (`CLAUDE.md` §3, "detail one step ahead")
 
 ### S3 — System interface and registry
 
-*Corresponds to the operator's commit 4.*
+*Corresponds to the operator's commit 4.* Split into two PRs — kernel world state with
+ownership-gated writes, then the System interface and dispatch over it. **Design:**
+[`step-03-kernel-and-systems.md`](step-03-kernel-and-systems.md), PR 03a frozen.
 
 - **Output:** the `System` declaration of `CORE_CONCEPTS.md` §13 (id, version, dependencies,
   owned components, provided actions, emitted and subscribed events, configuration schema,
