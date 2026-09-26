@@ -21,6 +21,19 @@ successful compile. `🚧` means in progress. `❌` means not started.
 | Persistence | ❌ | — | — |
 | Networking | ❌ | ❌ | ❌ |
 
+## Shippable artefacts
+
+What a person can actually run. None of these exists yet.
+
+| Artefact | Command | State |
+| --- | --- | --- |
+| World server | `mineworld server worlds/social-cafe` | ❌ |
+| 2D client | `mineworld-2d` | ❌ |
+| 3D client | `mineworld-3d` | ❌ |
+| Developer CLI | `mineworld create / validate / run / inspect` | ❌ |
+| `worlds/social-cafe` | — | ❌ |
+| `worlds/market-town` | — | ❌ |
+
 ## Independent axes
 
 ```text
@@ -28,6 +41,7 @@ Social Café composition:                 ❌
 Market Town composition:                 ❌
 Cross-renderer semantic equivalence:     🚧 harness proven on throwaway clients;
                                             real version in the renderer spike
+One world, many windows (AC-15):         ❌ 2D + 3D + agent on one live server
 ```
 
 ## Current critical-path blocker

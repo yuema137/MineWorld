@@ -36,7 +36,7 @@ criterion.
 > **Materially different games can be constructed by composing the same core entities with
 > different independently installable interaction systems, without modifying the kernel.**
 
-The effort is complete when all fourteen acceptance criteria `AC-1 … AC-14` in `docs/MVP.md` §9
+The effort is complete when all fifteen acceptance criteria `AC-1 … AC-15` in `docs/MVP.md` §9
 hold, each demonstrated by an automated, repeatable test rather than by inspection — except
 `AC-14`, whose embodiment claim is demonstrated by actually running the 3D client
 (`ENGINEERING_RULES.md` §19: rendering work is not validated by inferring it from server tests).
@@ -228,6 +228,13 @@ ownership-gated writes, then the System interface and dispatch over it. **Design
   with no change to any other module (first real evidence for `AC-2`); a movement rejected for
   distance returns `TooFarAway` from the system, decided server-side.
 
+### S7 — Headless demo: World Pack loading, rule controller, and the CLI
+
+**Artefact note (`ARC-6`).** From S7 onward every step produces something a person can *run*, not
+a library another step will use. S7 is where `mineworld` becomes a real command:
+`create`, `validate`, `run`, `inspect`. S11 makes `mineworld server <world>` the hosted runtime;
+S12 and S14 produce `mineworld-2d` and `mineworld-3d` as programs, however they end up packaged.
+
 ### S7 — Headless demo: World Pack loading and rule controller
 
 *Corresponds to the operator's commit 8. This step closes the pre-model foundation.*
@@ -390,6 +397,7 @@ scope decision.
 | `AC-12` determinism | S4, verified in S7 |
 | `AC-13` 2D / 3D semantic parity | S14, against the client delivered in S12 |
 | `AC-14` embodiment | S14 |
+| `AC-15` one world, many windows | S14, against S11's server with S12's client also connected |
 | Commit sequence 2–8 (`docs/MVP.md` §12) | S1 → S7, in order |
 | Sample worlds as integration fixtures (§21) | S8, S9, maintained thereafter |
 | Layered CI (§16) | S13, with fast checks introduced in S1 |

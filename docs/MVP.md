@@ -268,6 +268,42 @@ The converse rule is equally binding: no mesh, animation, physics, skeleton, cam
 or navmesh concept enters a generic MineWorld contract
 ([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §12).
 
+# 7.4 What MVP-0 actually ships
+
+MineWorld is not an application. It is **an installable world runtime, a set of developer tools,
+and some reference clients** — closer in shape to Godot, a Minecraft server, or ROS than to a
+game executable. The split that matters:
+
+```text
+             MineWorld
+                 │
+        ┌────────┴────────┐
+        │                 │
+   Infrastructure     Applications
+        │                 │
+   World Server       2D Client
+   Kernel             3D Client
+   Systems            Launcher, editor, studio — all later
+   SDK
+```
+
+The left column is the project. The right column is what the project ships to show the left
+column works, and a community creator may replace all of it.
+
+MVP-0's deliverable is therefore a set of artefacts, not a demo video:
+
+| Artefact | Invocation | What it is |
+| --- | --- | --- |
+| World server | `mineworld server worlds/social-cafe` | the authoritative runtime: state, systems, events, processes, persistence, networking, controllers. Runs with nothing attached. |
+| 2D client | `mineworld-2d` | a real program you open and play: walk, see NPCs, click a person, talk |
+| 3D client | `mineworld-3d` | a real program you open and play: WASD, mouse look, walk up to an NPC, aim, press E |
+| Developer CLI | `mineworld create \| validate \| run \| inspect` | how a world author first touches MineWorld |
+| Sample World Packs | `worlds/social-cafe`, `worlds/market-town` | copy one, change people, places and enabled systems, get your own world |
+
+Explicitly **not** MVP-0: a launcher, a world editor GUI, a MineWorld Studio shell. Those are the
+product surface over this runtime and are Phase 2 work; building a GUI before the runtime is
+proven would be building the shell of a thing that does not exist yet.
+
 # 8. MVP networking
 
 One binary, three deployments:
@@ -304,6 +340,20 @@ test, because an unobservable criterion is not a criterion.
 | **AC-12** | Determinism | The same initial state, inputs, system versions, and seed reproduce the same run, excluding explicitly non-deterministic external controller calls. |
 | **AC-13** | 2D / 3D semantic parity | `Talk` initiated by clicking an NPC in Demo A and by approaching, looking at, and pressing interact in Demo B produce the same `ActionIntent`, resolved by the same system. Neither client implements any validity rule — distance, availability, permission, and willingness are all decided server-side. |
 | **AC-14** | Embodiment | In Demo B a player moves in first person through a walkable environment, enters a Place, approaches an NPC, spatially initiates a conversation, and interacts with one object, with all state authoritative on the server. |
+| **AC-15** | **One world, many windows** | A 2D client, a 3D client and an agent-driven Person are connected to **one running server** at the same time. Something a player does in the 2D client is visible in the 3D client, and an NPC carries the consequence forward: speak to Alice in 2D, then walk up to her in 3D, and Alice knows it happened. |
+
+`AC-15` is the criterion that distinguishes this project from a game. `AC-13` proves the two
+clients *ask* the same question; `AC-15` proves they are looking at **the same world** rather than
+at two consistent copies of one. It is also the most convincing thing the MVP can show a person in
+thirty seconds:
+
+```text
+2D client ───────┐
+                 │
+3D client ───────┼──►  one MineWorld Server
+                 │
+agent  ──────────┘
+```
 
 AC-11 and AC-12 are what make the rest of the criteria testable in CI
 ([`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §§16, 22–24).
@@ -356,8 +406,8 @@ Each entry is at least one PR under the Structured Coding workflow
 8  Headless demo
 ```
 
-Everything after step 8 — the 2D client, the LM controller, Social Café, Market Town, the 3D
-walking world, and the `AC-1` transformation test — builds on a kernel that already runs,
+Everything after step 8 — the CLI and the server binary, the 2D client, Social Café, Market Town,
+the 3D walking world, and the `AC-1` transformation test — builds on a kernel that already runs,
 persists, and replays without a renderer or a model.
 
 The 3D demo comes after the kernel, but the **contracts it needs do not**: spatial position,
