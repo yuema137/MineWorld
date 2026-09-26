@@ -433,7 +433,7 @@ Network and filesystem access are never implicit.
 | Cognition runtime | Python |
 | LM interfaces | provider-neutral |
 | World authoring | YAML + schema validation |
-| Reference client | Godot |
+| Reference client | Godot (MIT); 3D default renderer **Forward+** — `DEP-9` |
 | High-end client | Unreal adapter, later |
 | Local deployment | native binary / Docker |
 | Cloud deployment | Docker first |

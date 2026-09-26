@@ -1,6 +1,6 @@
 # MineWorld
 
-> **An open-source framework for building persistent, modular living game worlds.**
+> **An open-source, LM-native framework for building persistent, modular, playable game worlds.**
 
 Worlds are composed from independent entities, simulation systems, controllers, and
 presentation layers — not implemented as monolithic games.
@@ -27,8 +27,13 @@ Presentation Pack  how it is rendered — pixel 2D, 3D, photorealistic, text
 `Economy` turns the same town into a market; adding `Crafting` and `Survival` turns it into a
 survival game. The kernel never learns what a job or a coffee is.
 
-A world with every language model unplugged is still a MineWorld world. LM cognition is one
-kind of controller, not the point.
+LM-native means **authored, not dependent**. Generated content is a first-class input — worlds,
+characters, assets, styles, even systems — and the goal is that anyone can build a game with LMs
+without a studio pipeline. But a *running* world never requires a model: unplug every one and it
+still runs on rules and human players. Creation and execution are different questions.
+
+MineWorld does not build a rendering engine either. Godot supplies the pixels, physics, camera
+and input; MineWorld supplies the world above them.
 
 ## Worlds you walk around in
 

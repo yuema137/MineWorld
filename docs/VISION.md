@@ -11,12 +11,35 @@ what a creator can do with it.
 
 # 1. One-sentence definition
 
-> **MineWorld is an open-source framework for building persistent, modular living game worlds.**
+> **MineWorld is an open-source, LM-native framework for building persistent, modular, playable
+> game worlds.**
 
 Second sentence, equally binding:
 
 > **Worlds are composed from independent entities, simulation systems, controllers, and
 > presentation layers rather than implemented as monolithic games.**
+
+MineWorld is not intended to be one fixed game. It is infrastructure that lets people — assisted
+heavily by language and generative models — create their own worlds by composing reusable
+modules. The long-term goal:
+
+> **Anyone should be able to build a game with LMs, without a traditional studio pipeline.**
+
+## 1.1 LM-native means authored, not dependent
+
+These two statements are both binding, and reading either without the other produces a different
+project:
+
+| | |
+| --- | --- |
+| **Authoring is LM-native** | Generated content is a first-class input. Worlds, characters, assets, styles and even systems may be produced by models, and the framework is shaped to receive that. |
+| **Runtime is LM-independent** | A running world must not require a model. Rule controllers, human players and deterministic systems stand alone, and a world with every model unplugged is still a valid MineWorld world. |
+
+The distinction is *creation versus execution*. "LM-native" describes how a world comes to
+exist; it is never licence for the runtime to depend on a model. If unplugging the models makes
+a **running** world meaningless, MineWorld has degenerated into an AI-NPC demo — the failure
+this project was defined against. If unplugging them makes a world impossible to **build without
+a studio**, MineWorld has failed at its purpose.
 
 Three-line architectural slogan, used throughout the repository:
 
@@ -150,15 +173,73 @@ Therefore:
 `Person` is identical in all of those worlds. What changes is the set of permitted
 interactions. That is what composability means in MineWorld.
 
-## 2.4 A world with no language model is still a world
+## 2.4 A world with no language model still runs
 
-This is a hard design constraint, not a preference:
+The runtime half of §1.1, stated as the hard constraint it is:
 
-> **If unplugging every language model makes the framework pointless, then it is not
+> **If unplugging every language model makes a running world pointless, then it is not
 > infrastructure — it is an AI-NPC demo.**
 
-Rule-driven, scripted, RL-driven, and human-driven worlds must all be first-class. LM
-cognition is an optional, replaceable controller implementation.
+Rule-driven, scripted, RL-driven, and human-driven worlds must all be first-class. LM cognition
+is an optional, replaceable controller implementation.
+
+## 2.5 What LMs are expected to author
+
+The creation half. Users should be able to generate and iterate on, with human judgement in the
+loop at every step:
+
+```text
+world concepts          characters and biographies      places and buildings
+visual assets           3D models, textures, materials   lighting configurations
+animations              dialogue, quests, events         gameplay rules
+interaction systems     economies, jobs, organizations   UI and presentation styles
+world / asset / presentation / system / controller packs
+```
+
+Generation output is a **candidate**, never automatically content
+([`DECISIONS.md`](DECISIONS.md) `ARC-9`). The workflow that makes it safe:
+
+```text
+LM generation → human curation → modular packaging → runtime validation → iterative refinement
+```
+
+This applies to code, art, world definitions, mechanics, characters, systems and presentation
+alike. The more powerful a generated module, the stronger its validation: schema and type
+checks, dependency and licence validation, integration tests, sandboxing, smoke runs, human
+inspection. A module is not trusted because it compiles.
+
+## 2.6 MineWorld is not a game engine
+
+MineWorld must not reimplement mature engine technology. It does **not** build a GPU renderer,
+graphics API, physics engine, animation system, audio engine, input framework, camera system,
+shader compiler, scene editor, navmesh generator or asset importer.
+
+```text
+                     MineWorld
+        ┌────────────────┴────────────────┐
+   WE BUILD                          WE REUSE
+        │                                 │
+ Entity · Component                 GPU rendering
+ Systems · Actions · Events         2D and 3D renderers
+ Process · Person · Controller      physics · collision
+ Persistence · networking semantics animation · audio · input
+ World / Asset / Style contracts    camera · navmesh · shaders
+ LM generation pipeline             particles · platform export
+ Validation · package system
+```
+
+> **MineWorld does not build a rendering engine. It builds the semantic world layer above
+> existing ones.**
+
+The official reference client is **Godot** — MIT, cross-platform, 2D and 3D in one engine, and
+extensible without vendor permission, which matches what this project is
+([`DECISIONS.md`](DECISIONS.md) `DEP-9`). But Godot is not MineWorld: no generic contract may
+expose a `Node`, `SceneTree`, `MeshInstance`, `Camera3D` or `NavigationMesh`. Those live in
+renderer adapters, and the semantic world runs headless without any of them.
+
+Performance follows the same discipline. A rendering problem is answered by profiling, engine
+configuration, LOD, culling, asset optimization, then existing extensions — custom GPU code
+last, if ever.
 
 ## 2.5 The kernel stays small
 
@@ -368,6 +449,22 @@ Rendering:       Lakewood Realistic 3D
 
             [ Create World ]
 ```
+
+### The creator experience this is all for
+
+A creator should be able to say:
+
+> *"A realistic small Japanese coastal town where I run a café and meet persistent characters."*
+
+and have MineWorld tooling turn it into a World Pack, Asset Packs, a Presentation Pack, System
+Packs and controller configuration — runnable without implementing every subsystem by hand. When
+they ask for a university, an LM generates `Course`, `Enrollment`, `Professor`, `Student`,
+`AttendClass`, `TakeExam`, `Graduate` **against explicit MineWorld contracts**, and MineWorld
+validates the module before it runs.
+
+Humans keep what matters: intent, taste, selection, evaluation, direction. LMs expand what one
+person can build. The loop MineWorld optimizes is the one between human intent and generated
+implementation — not the removal of the human from it.
 
 ## Phase 3 — Ecosystem
 
