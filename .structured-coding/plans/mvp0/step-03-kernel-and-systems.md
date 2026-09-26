@@ -636,9 +636,9 @@ any domain system (S6).
 - [x] Review: order is explicit and never map iteration — `declarations`, `enabled` and `subscribers` all walk the `order` `Vec` and look each entry up, so the crate states order once. Pinned by mutation rather than by assertion: see §4.8.5, M-1 and M-2.
 
 ### C4 — Dispatch pipeline
-- [ ] Implementation: route → validate → resolve → events → reduce, with the cascade limit.
-- [ ] Validation: an unprovided action returns `Unavailable` (`INV-10`); a rejection carries its `Rejection` unchanged; resolution emits events whose `CausedBy` names the intent (`AC-9`); reduction reaches subscribers in registration order; a deliberate two-system cycle errors naming both; the same intents replayed twice produce identical event sequences.
-- [ ] Review: no system observes another's validation; nothing mutates during validate.
+- [x] Implementation: `kernel/src/dispatch.rs` — `World::dispatch(&intent, at)` running route → validate → resolve → record → reduce, with `CASCADE_DEPTH_LIMIT = 16`. `Dispatched` carries the three things three different layers consume: the `ActionResult`, the recorded `EventEnvelope`s (S5 appends them; dispatch holds no log) and the `Deferral`s (S4 queues them; dispatch owns no queue). `EventIds` is the world's monotonic event-identity counter, and `Emission::into_envelope` is the only way an emission becomes a fact — the kernel supplies identity, instant, causation and provenance, so a system cannot misstate why a fact happened. `SystemRegistry::routed` returns the provider and its erased handle in one lookup, so the pipeline has no unreachable branch. `World::dispatch_parts` is the one place a world is split, which keeps `&mut ComponentStore` out of every public shape (`BD-2`). Three new `KernelError` variants (`EventIdSpaceExhausted`, `EventTypeNotInSystemDeclaration`, `ReductionCascadeTooDeep`).
+- [x] Validation: `kernel/tests/dispatch.rs` — 8 external tests plus one doc-test on `World::dispatch` (129 workspace tests, up from 120). An unprovided action is `Unavailable` and no system is consulted — pinned by `Bellringer::validate` asserting it is only ever asked about the action it provides, so a dispatcher that searched systems for a provider would trip it. A `Rejection::System` with a code the kernel does not understand comes back byte-for-byte. A recorded fact names `Causation::Action(7)`, its emitter, the controller decision, the instant dispatch was told, its declared audience and its subjects; identity is 1 in a fresh world. Reduction reaches `watch` then `almanac` — registration order, with `almanac` installed last and sorting first — twice identically, with each consequence naming `Causation::Event(parent)` and the answer listing every fact including the reducers'. A `ping`/`pong` cycle errors with `limit: 16` and `systems: [ping, pong]`, and the enabled `bystander` installed between them is *not* named. A deferral comes back at `t160` with nothing recorded and its own subscriber never run. An emission outside the emitting system's declaration is refused, and so is an action a provider leaves at the default `resolve`.
+- [x] Review: no system observes another's validation — `validate` is reached only through the route map's single provider, and the pipeline holds the read-only view for the duration of that one call. Nothing mutates during validation, and that is the type's statement rather than a rule: `WorldRead` exposes no write and no way to reach a store (`BD-6`). Four mutations confirm the guards are load-bearing; see §4.8.5, M-3 to M-6. One honesty item recorded in the module documentation rather than glossed: an `Err` out of `resolve` or `react` is reported *after* that system's writes have landed, because reduction is not transactional — so the crate's "a refusal changes nothing" promise covers `Rejected` (which cannot write, by type) and not `Err` (which means a system broke its own contract and the world should be discarded).
 
 ### C5 — Integration checkpoint and docs
 - [ ] Validation: **the `AC-2` evidence** — two systems installed, an action provided by the second; disabling it makes that action `Unavailable` with **no edit to any other module**, proven by the test changing only a configuration value.
@@ -778,6 +778,37 @@ guard is one comparison in `check_owned_components`, and it reuses the existing
 `ComponentOwnerDisagreesWithDeclaration` variant, whose fields and message already say exactly this
 ("declared as owned by X, registered by Y"). Found by writing C3's conflict test, not predicted by
 the design.
+
+**BI-10 — the world allocates event identity, and dispatch returns the facts rather than storing
+them.** Nothing in §4.2 gives the kernel an event log, and nothing should: `INV-11`'s log is S5's. But
+an `ActionResult::Accepted` carries `Vec<EventId>` and an `EventEnvelope` cannot exist without an
+identity, so *something* has to allocate one. It is a monotonic counter on `World` (`EventIds`),
+consulted by nothing else, for the same reason entity identity is a counter: a replayed world must
+produce the same identities in the same order (`AC-12`). The facts themselves are returned in
+`Dispatched::events`, unstored. That is the S5 seam, and it is the same shape as the S4 seam beside
+it: dispatch produces history and deferrals, and the layers that own the log and the queue take them.
+
+**BI-11 — an emission outside the emitting system's declaration is refused.** `SystemDeclaration`
+carries `emits`, and `Emission`'s documentation already said the event type is "what the kernel checks
+against the emitting system's declaration" — C1 wrote the accessor for a check no code performed yet.
+Dispatch performs it. Without it, `declarations()` would be an unreliable description of what facts a
+world can produce and from whom, which is the reading a world pack author and a persistence migration
+both depend on.
+
+**BI-12 — the cascade error names the systems that emitted *while reducing*, not the last
+generation's.** A two-system cycle alternates emitters, so naming the last generation's emitter names
+one of the two and reads like an accusation of the wrong system. Naming every installed system would
+be worse — it names the innocent. What the error carries is the set of systems that emitted a fact
+during reduction, in registration order, which for a cycle is exactly the participants and for a long
+finite chain is exactly the chain. `kernel/tests/dispatch.rs` installs an enabled bystander between
+the two cycling systems for no purpose other than to fail if that distinction is lost, and mutation
+M-3 confirms it does.
+
+**BI-13 — `CASCADE_DEPTH_LIMIT` is 16, and it is public.** `BD-7` requires a limit and does not choose
+one. Sixteen is far above any honest cross-domain chain (a wage falling due, a balance moving, a
+ledger noting it — three) and far below anything a person would experience as a hang. It is `pub`
+because a system author debugging a cascade needs to know the bound they exceeded, and because the
+test that pins the behaviour must not restate the number.
 
 ### 4.8.2 Bounded deviations
 
@@ -925,4 +956,70 @@ M-2  break the route map so a disabled system's action still dispatches
      verdict:     behaviour-changing, killed. The INV-10 / AC-2 guard is load-bearing at the
                   registry layer; C4 re-runs the same mutation against dispatch, where the
                   observable consequence is an action answering Accepted instead of Unavailable.
+```
+
+```text
+command:  cargo fmt --all --check
+result:   clean at C4
+
+command:  cargo clippy --workspace --all-targets --all-features -- -D warnings
+result:   CLEAN at C4, for the first time on this branch. Every symbol the dead-code lint reported
+          at C1, C2 and C3 now has its consumer: DynSystem::{validate, resolve, react} are called
+          by the pipeline, WorldParts::new by Dispatcher::parts, WorldView::new by InstalledSystem
+          on the path the pipeline takes, and registry Entry.system through routed() and system().
+          No #[allow] was added anywhere; the lint was accurate every time, and dispatch is what it
+          was waiting for.
+
+command:  cargo test --workspace
+result:   C4 — 129 tests, 0 failures. The 9 new tests are the 8 in kernel/tests/dispatch.rs and the
+          doc example on World::dispatch, which is the INV-10 answer written as the smallest
+          runnable program: a world with no combat system answers Unavailable to a request to shoot.
+```
+
+### 4.8.5 Mutation evidence (continued — C4)
+
+```text
+M-3  make the cascade error name everything instead of what is cycling
+     mutation:    Dispatcher::cycling_systems() drops its filter, so it reports every installed
+                  system in registration order
+     expected:    a_reduction_cycle_errors_naming_the_cycling_systems goes red, because the
+                  enabled bystander installed between ping and pong would be named
+     observed:    FAILED — left [ping, bystander, pong], right [ping, pong] — 7 passed, 1 failed
+     verdict:     behaviour-changing, killed. This is the mutation the bystander system exists to
+                  catch: without it the test would accept an error that accuses every system in
+                  the world of cycling.
+
+M-4  remove the cascade limit
+     mutation:    `if depth > CASCADE_DEPTH_LIMIT` becomes `if depth > usize::MAX`, so reduction
+                  never stops
+     expected:    the cycle test cannot pass
+     observed:    DID NOT TERMINATE. Killed after 30.0s of wall time by an external bound; with
+                  the limit in place the same test finishes in under 0.01s.
+     verdict:     behaviour-changing, killed — and the shape of the failure is the point. Without
+                  the limit the suite does not go red, it hangs, which is exactly the failure mode
+                  BD-7 exists to convert into a named error. Recorded as a non-terminating run
+                  rather than as a test failure, because that is what was observed.
+     note:        `timeout` does not exist on this host (macOS); the first attempt at this mutation
+                  exited 127 with no test run at all, which would have been misread as a pass. The
+                  bound was re-imposed with python subprocess.run(timeout=30). Recorded because a
+                  mutation that silently never ran is worse than no mutation.
+
+M-5  drop the controller decision from provenance
+     mutation:    Provenance::new(emitter) without .from_controller_decision(decision)
+     expected:    recorded_facts_name_the_intent_that_caused_them goes red
+     observed:    FAILED — left None, right Some(ActionId(7)) — 7 passed, 1 failed
+     verdict:     behaviour-changing, killed. This is the half of AC-9 that makes an LM
+                  controller's effect on a world reviewable after the fact: without it a fact still
+                  knows it was caused by an action, but nothing connects the chain of consequences
+                  back to the decision that started it.
+
+M-6  reverse reduction order
+     mutation:    the collected subscriber list is reversed before reacting
+     expected:    reduction_reaches_subscribers_in_registration_order_twice_identically goes red
+     observed:    FAILED — left [bellringer, almanac, watch], right [bellringer, watch, almanac] —
+                  7 passed, 1 failed
+     verdict:     behaviour-changing, killed. Note that the mutation is *deterministic*: it would
+                  pass a test that only checked "the same order twice". The test discriminates
+                  because it also states which order, which is what AC-12 needs — a reproducible
+                  wrong order is still a wrong order.
 ```

@@ -11,7 +11,7 @@
 //! the state it had before the call.
 
 use mineworld_contracts::{
-    ActionTypeId, ComponentTypeId, ContractError, EntityId, EntityKey, LifecycleState,
+    ActionTypeId, ComponentTypeId, ContractError, EntityId, EntityKey, EventTypeId, LifecycleState,
     RelationTypeId, SystemId, WorldTime,
 };
 
@@ -288,6 +288,46 @@ pub enum KernelError {
         system: SystemId,
         /// The action it did not resolve.
         action_type: ActionTypeId,
+    },
+
+    /// Identity allocation for recorded facts reached the top of the identifier space. Reported
+    /// rather than wrapped, for the reason entity identity is: reusing an identity would make two
+    /// different facts the same fact in every log that refers to them.
+    #[error("this world has recorded every available event identity")]
+    EventIdSpaceExhausted,
+
+    /// A system emitted a fact of a kind its own declaration does not list. The declaration is what
+    /// a reader of a world's composition goes by — which facts this world can produce, and from
+    /// whom — so a fact outside it would make that reading wrong.
+    #[error(
+        "system '{system}' emitted event type '{event_type}', \
+         which its own declaration does not list"
+    )]
+    EventTypeNotInSystemDeclaration {
+        /// The emitting system.
+        system: SystemId,
+        /// The kind of fact it emitted.
+        event_type: EventTypeId,
+    },
+
+    /// Reaction within one logical instant went deeper than the cascade limit: systems kept
+    /// reacting to each other's facts without the clock ever moving.
+    ///
+    /// Named rather than silent, because an infinite cascade is a system bug and a world that
+    /// freezes gives its author nothing to go on. The systems listed are those that emitted a fact
+    /// *while reducing*, in registration order — the ones that will not stop.
+    ///
+    /// Unlike every other refusal in this crate, this one is reported after state has changed:
+    /// reduction is not transactional. See [`crate::dispatch`].
+    #[error(
+        "reduction within one instant exceeded {limit} generations; \
+         these systems kept emitting while reducing: {systems:?}"
+    )]
+    ReductionCascadeTooDeep {
+        /// The limit that was exceeded.
+        limit: usize,
+        /// The systems that emitted a fact while reducing, in registration order.
+        systems: Vec<SystemId>,
     },
 
     /// A system asked for a fact to happen at an instant that is not later than the one it is

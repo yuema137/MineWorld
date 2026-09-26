@@ -277,6 +277,19 @@ impl SystemRegistry {
         );
     }
 
+    /// The system an action is routed to, together with the handle to call it through.
+    ///
+    /// One lookup rather than two, so that the pipeline has no unreachable branch to write: an
+    /// action type is either routed to an installed system or it is not provided here at all
+    /// (`INV-10`).
+    pub(crate) fn routed(&self, action_type: &ActionTypeId) -> Option<(&SystemId, &dyn DynSystem)> {
+        let (system, entry) = self
+            .routes
+            .get(action_type)
+            .and_then(|system| self.entries.get_key_value(system))?;
+        Some((system, entry.system.as_ref()))
+    }
+
     /// The erased handle for one installed system, enabled or not.
     ///
     /// Whether a system is reached at all is decided before this is called — by the route map for

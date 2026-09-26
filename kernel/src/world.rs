@@ -35,6 +35,7 @@ use mineworld_contracts::{
 
 use crate::access::WriteAccess;
 use crate::components::ComponentStore;
+use crate::dispatch::EventIds;
 use crate::entities::EntityRegistry;
 use crate::error::KernelError;
 use crate::registry::SystemRegistry;
@@ -80,6 +81,9 @@ pub struct World {
     components: ComponentStore,
     relations: RelationStore,
     systems: SystemRegistry,
+    /// The counter every recorded fact's identity comes from. Held by the world because identity is
+    /// the world's to allocate, and monotonic because a replay has to reproduce it (`AC-12`).
+    events: EventIds,
     /// This world's only issuer of write capability. Never lent out, never returned, and not
     /// constructible outside this crate (`BD-1`).
     access: WriteAccess,
@@ -99,6 +103,7 @@ impl World {
             components: ComponentStore::new(),
             relations: RelationStore::new(),
             systems: SystemRegistry::new(),
+            events: EventIds::new(),
             access: WriteAccess::new(),
         }
     }
@@ -205,6 +210,31 @@ impl World {
     /// This world's relation graph.
     pub const fn relations(&self) -> &RelationStore {
         &self.relations
+    }
+
+    /// Splits the world into the parts one dispatch works on.
+    ///
+    /// The only place a [`World`] is taken apart, and it is crate-private. Dispatch needs the
+    /// registry, the three stores and the event counter at once, with two of them mutably; a method
+    /// per field would hand out a `&mut ComponentStore` as a public shape, which is exactly what
+    /// `BD-2` forbids, and borrowing the whole world would make the pipeline impossible to write.
+    /// Splitting once, here, keeps both true.
+    pub(crate) fn dispatch_parts(
+        &mut self,
+    ) -> (
+        &SystemRegistry,
+        &EntityRegistry,
+        &mut ComponentStore,
+        &mut RelationStore,
+        &mut EventIds,
+    ) {
+        (
+            &self.systems,
+            &self.entities,
+            &mut self.components,
+            &mut self.relations,
+            &mut self.events,
+        )
     }
 
     /// The whole world as a system reads it: the same view `validate` is handed.

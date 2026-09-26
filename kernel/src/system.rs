@@ -42,9 +42,9 @@
 mod tests;
 
 use mineworld_contracts::{
-    Action, ActionIntent, ActionTypeId, Component, ComponentDeclaration, ComponentTypeId, EntityId,
-    Event, EventEnvelope, EventRecord, EventTypeId, PlaceId, Rejection, SystemId, Visibility,
-    WorldTime,
+    Action, ActionIntent, ActionTypeId, Causation, Component, ComponentDeclaration,
+    ComponentTypeId, EntityId, Event, EventEnvelope, EventId, EventRecord, EventTypeId, PlaceId,
+    Provenance, Rejection, SystemId, Visibility, WorldTime,
 };
 use serde::{Deserialize, Serialize};
 
@@ -297,6 +297,30 @@ impl Emission {
     /// declaration.
     pub const fn event_type(&self) -> &EventTypeId {
         self.payload.event_type()
+    }
+
+    /// Becomes a fact the world has recorded, once the kernel has supplied the four fields a
+    /// system may not choose.
+    ///
+    /// Crate-private, and the only way an [`Emission`] turns into an [`EventEnvelope`]: a system
+    /// hands back what it decided, and identity, instant, causation and provenance are added by
+    /// [`dispatch`](crate::dispatch) — which is what makes `INV-15` and `AC-9` mechanical rather
+    /// than remembered.
+    pub(crate) fn into_envelope(
+        self,
+        id: EventId,
+        at: WorldTime,
+        caused_by: Causation,
+        provenance: Provenance,
+    ) -> EventEnvelope {
+        let envelope =
+            EventEnvelope::new(id, at, self.payload, caused_by, self.visibility, provenance)
+                .about(self.subjects)
+                .with_participants(self.participants);
+        match self.place {
+            Some(place) => envelope.at_place(place),
+            None => envelope,
+        }
     }
 
     /// Who could have learned of it.

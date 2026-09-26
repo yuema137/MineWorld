@@ -21,6 +21,7 @@
 //! system       System: what a system declares, and the four things it is asked to do
 //! view         what a running system is handed — reads open, writes gated on ownership
 //! registry     which systems a world is composed of, in registration order
+//! dispatch     ActionIntent → route → validate → resolve → Event(s) → reduce
 //! world        World: the composed whole, and the only issuer of write capability in it
 //! ```
 //!
@@ -56,6 +57,7 @@
 
 pub mod access;
 pub mod components;
+pub mod dispatch;
 pub mod entities;
 pub mod error;
 pub mod registry;
@@ -69,6 +71,7 @@ pub mod macro_support;
 
 pub use access::{OwnedBy, SystemIdentity, WriteAccess, WriteToken};
 pub use components::ComponentStore;
+pub use dispatch::{CASCADE_DEPTH_LIMIT, Dispatched};
 pub use entities::{EntityRegistry, EntityRegistrySnapshot};
 pub use error::KernelError;
 pub use registry::SystemRegistry;
