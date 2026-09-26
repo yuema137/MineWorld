@@ -364,6 +364,30 @@ tag, and the acceptance test asserts equality of the two recordings. What must d
 renderers is only acquisition — a click versus a camera ray. What must not differ is everything
 after it.
 
+### Critical-path reorder, 2026-09-26 — a vertical slice before more layers
+
+The steps as numbered build the runtime bottom-up and reach three live windows only at S14. That
+ordering delays the project's most informative moment for no dependency reason. `AC-15`'s minimal
+form does not need the scheduler, durable persistence, the economy or any LM: it needs dispatch
+(done), a thin conversation system, enough perception to see who is present, a server, and two
+clients.
+
+So after PR 03b merges, the next effort is a **vertical slice** — the thinnest possible everything
+— aimed squarely at:
+
+```text
+Terminal 1:  mineworld server worlds/social-cafe
+Terminal 2:  mineworld-2d
+Terminal 3:  mineworld-3d
+```
+
+alive at once, with one Alice between them. S4 (scheduler), S5 (durable persistence), S9 (Market
+Town) and the rest then thicken a system that already runs end to end, rather than being
+prerequisites to seeing it run at all. The composition axis (`AC-1`) is unaffected and follows the
+slice.
+
+This is a sequencing change, not a scope change: every acceptance criterion stands.
+
 ### Cross-cutting, delivered with the step that first needs them
 
 ```text

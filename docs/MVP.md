@@ -340,7 +340,7 @@ test, because an unobservable criterion is not a criterion.
 | **AC-12** | Determinism | The same initial state, inputs, system versions, and seed reproduce the same run, excluding explicitly non-deterministic external controller calls. |
 | **AC-13** | 2D / 3D semantic parity | `Talk` initiated by clicking an NPC in Demo A and by approaching, looking at, and pressing interact in Demo B produce the same `ActionIntent`, resolved by the same system. Neither client implements any validity rule — distance, availability, permission, and willingness are all decided server-side. |
 | **AC-14** | Embodiment | In Demo B a player moves in first person through a walkable environment, enters a Place, approaches an NPC, spatially initiates a conversation, and interacts with one object, with all state authoritative on the server. |
-| **AC-15** | **One world, many windows** | A 2D client, a 3D client and an agent-driven Person are connected to **one running server** at the same time. Something a player does in the 2D client is visible in the 3D client, and an NPC carries the consequence forward: speak to Alice in 2D, then walk up to her in 3D, and Alice knows it happened. |
+| **AC-15** | **There is only one Alice** | A 2D client, a 3D client and an agent-driven Person are connected to **one running server** at the same time. Something a player does in the 2D client is visible in the 3D client, and an NPC carries the consequence forward: speak to Alice in 2D, then walk up to her in 3D, and Alice knows it happened. |
 
 `AC-15` is the criterion that distinguishes this project from a game. `AC-13` proves the two
 clients *ask* the same question; `AC-15` proves they are looking at **the same world** rather than
@@ -354,6 +354,40 @@ thirty seconds:
                  │
 agent  ──────────┘
 ```
+
+## 9.1 What `AC-15` must record, and the false success it exists to exclude
+
+"Both clients showed the same thing" is **not** evidence. Two clients each holding their own
+Alice, kept in step well enough to look identical, would pass that reading and would mean the
+opposite of what this project claims. The evidence must therefore name identity, not appearance:
+
+```text
+same world instance id
+same Alice EntityId
+same authoritative event sequence
+same persisted state revision
+```
+
+The claim being tested is that **there is only one Alice**.
+
+## 9.2 How Alice remembers, in MVP-0
+
+`AC-15` must not become a reason to build a cognition architecture first. The minimum that
+satisfies it is a projection, not a memory system:
+
+```text
+objective event log
+      ↓
+a conversation-history projection for Alice
+      ↓
+her controller's context
+```
+
+Alice knowing *"Player A spoke to me three minutes ago about X"* is enough. Episodic memory,
+summarized biography, retrieval and forgetting are the MVP-1 evolution of this path, and
+`CORE_CONCEPTS.md` §5's distinction between world truth, biography and subjective memory is
+already the design they grow into. Nothing here contradicts it; the projection is simply the
+first and thinnest member of that family.
 
 AC-11 and AC-12 are what make the rest of the criteria testable in CI
 ([`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §§16, 22–24).
