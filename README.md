@@ -40,7 +40,8 @@ action; neither client decides whether it is allowed.
 
 ## Status
 
-Specification only — no kernel code yet. The next three PRs define the contracts.
+Early implementation. The typed contracts and the kernel's world state exist and are tested;
+systems, scheduling, persistence and the clients do not yet.
 
 The one criterion the first milestone must meet:
 

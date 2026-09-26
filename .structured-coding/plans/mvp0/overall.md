@@ -315,7 +315,7 @@ Original scope, retained for MVP-1:
 - **Output:** Dockerfile and container run; the four CI layers of
   `ENGINEERING_STANDARDS.md` §16 — fast structural checks, core integration tests, scenario
   tests, long-running stability.
-- **Depends on:** S11. Creates the GitHub repository and CI workflows per D-9.
+- **Depends on:** S11. The repository now exists (`D-12`), so this step keeps the CI workflow files and the container work only.
 - **Acceptance checkpoint:** the same World Pack runs on the laptop and in the container with no
   semantic difference, demonstrated by identical seeded event sequences (`AC-8`); CI runs the
   layers on the right triggers.
@@ -406,7 +406,8 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 | **D-4** | Contract representation. | **Rust types first.** `mineworld-contracts` holds the single source of truth as Rust types. Protobuf is introduced at the first real cross-language boundary (S10 Python cognition, S11/S12 Godot) and is mirrored from those types. `ARCHITECTURE.md` §13 is amended to record this route in the PR that first writes contracts. |
 | **D-5** | Component storage. | **Purpose-built typed store**, now recorded at project level as [`DEP-1`](../../../docs/DECISIONS.md) with the full comparison the reuse policy requires: ECS handles are mostly unstable across save/load, archetype storage optimizes an iteration profile MineWorld does not have, and `&mut World` access would reduce `INV-7` to a convention. |
 | **D-7** | Rust layout. | **One Cargo workspace at the repository root**, crates `mineworld-contracts` (`contracts/`), `mineworld-kernel` (`kernel/`), `mineworld-system-*` (`systems/<name>/`), `mineworld-server` (`server/`), `mineworld-cli` (`tools/cli/`). Crate boundaries make the one-way dependency rule compiler-checked rather than review-checked. |
-| **D-9** | Publication endpoint. | **Local-only until S13.** Each step commits on a local branch; no push, no remote, no PR, no remote CI. Every execution contract in this effort records a local-only endpoint. The GitHub repository and CI workflows are created in S13. |
+| **D-9** | Publication endpoint. | ~~Local-only until S13.~~ **Superseded 2026-09-26 by `D-12`.** |
+| **D-12** | Publication endpoint, revised. | **Remote from now on.** `git@github.com:yuema137/MineWorld.git` exists; `main` and the in-flight branch are pushed. The operator is enabling branch protection on `main`, so from here every change reaches `main` through a pull request. Execution contracts change accordingly: **branch push is authorized**, **PR creation is authorized**, and **merge still requires explicit operator authorization** — protection makes that a mechanism rather than a promise. Remote CI becomes possible earlier than S13 planned, so S13 keeps only the workflow files and container work. |
 | **D-3** | Whether S2 includes the `Observation` contract. | **Included in S2.** `RuleController` in S7 needs observations, and defining the controller-facing triple (`ActionIntent`, `Event`, `Observation`) together prevents `INV-13` from being retrofitted. Recorded as a planning decision; raise it when agreeing to this document if you disagree. |
 | **D-1** | License. | **MIT stays.** Operator decision 2026-09-25. Revisit only before publication in S13 if the patent-grant argument becomes material. |
 | **D-2** | `ENGINEERING_STANDARDS.md` §16 wording. | **Fixed** to "The principle does not change:" — operator approved 2026-09-25. |
@@ -465,6 +466,9 @@ contract records a local-only endpoint.
 Project-level rules and revisions to frozen specifications merge into `main` **independently of
 implementation work**, and as soon as they are agreed:
 
+Since 2026-09-26 this happens through pull requests against a protected `main` (`D-12`); the
+shape below is unchanged, only the mechanism that enforces it.
+
 ```text
 docs/engineering-rules ──ff──► main          (10dc9ef, merged 2026-09-25)
                                   │
@@ -508,8 +512,10 @@ design → self-review against the frozen specs → record the review → approv
 
 - The `DESIGN FROZEN` gate stays, but the approval recorded in it may be this session's, and each
   design document carries the review that justified it (see step-02 §8 for the shape).
-- Remote PR creation, remote review and remote merge are skipped: no remote exists (D-9).
-- Local integration into `main` is authorized for this effort. Every other authority boundary
+- Remote PR creation is now part of the flow (`D-12`), and `main` is protected, so integration
+  happens by opening a PR rather than by a local merge.
+- Reviewing and approving a design remains this session's authority; **merging a PR into a
+  protected `main` remains the operator's**. Every other authority boundary
   stands: frozen invariants still require an explicit revision with evidence, and an architecture
   review trigger still stops feature work.
 

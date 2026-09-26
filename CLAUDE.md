@@ -74,8 +74,9 @@ for the embodied experience the project exists to enable. Neither is a placehold
 ([`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) §§2–3, §10;
 [`docs/MVP.md`](docs/MVP.md) §7).
 
-Current repository state: **specification-only**. No kernel code exists yet. Do not invent
-repository structure that is not there; audit before describing it.
+Current repository state: the contracts and kernel crates exist and are green
+(`mineworld-contracts`, `mineworld-kernel`). Audit the tree before describing it; do not invent
+structure, and do not assume this sentence is current either.
 
 ---
 

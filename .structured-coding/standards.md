@@ -15,10 +15,8 @@ Only the single fenced `json` block is read. Everything outside it is prose for 
 
 ## Current state of the checks
 
-No Rust crate and no Python package exists yet (the repository is specification-only at the
-time of writing). The `cargo` checks below are declared now because
-`docs/ENGINEERING_STANDARDS.md` §15 mandates them, and they become meaningful the moment
-`kernel/` gains a `Cargo.toml`. Until then they report `INCONCLUSIVE`, never `PASS`.
+The Cargo workspace exists (`contracts/`, `kernel/`), so the `cargo` checks below are live and
+are run on every change. No Python package exists yet.
 
 `ruff` and `pyright` are declared but disabled. Enable them in the same change that
 introduces the first Python module under `cognition/`.
