@@ -295,6 +295,24 @@ temporary events
 
 Geometry belongs to the renderer. Semantic location belongs to the simulation (INV-5, INV-14).
 
+## 6.1 The spatial frame, stated because two clients cannot guess it alike
+
+`LocalPosition` and `Orientation` fix units and ranges but said nothing about the frame, and the
+renderer spike showed what that costs: Godot 3D is −Z forward and Godot 2D is +Y down, so each
+client invented a convention and wrote its own sign flips. Two independently written clients
+would disagree, and the symptom is NPCs facing backwards.
+
+```text
++x  east        +y  north        +z  up        right-handed
+yaw  measured from +y toward +x, so 0 mdeg faces north and 90 000 mdeg faces east
+pitch  positive looks up
+```
+
+Worked example: a person at `LocalPosition { x: 2000, y: 0, z: 0 }` with
+`Orientation { yaw: 180_000 }` stands two metres east of the place origin, facing south. A 2D
+top-down client maps `+y` to screen-up and flips its own axis; a 3D client maps `+y` to −Z. Both
+conversions live in the adapter, and neither is the contract's business — but the frame is.
+
 ## 6.1 Location: semantic place, optionally refined
 
 Where something is, is one type with an optional refinement:

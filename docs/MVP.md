@@ -338,7 +338,15 @@ test, because an unobservable criterion is not a criterion.
 | **AC-10** | Bounded cognition context | After 100 simulated days, character history does not require feeding all historical events to a model; biography compression stays bounded while original event provenance is retained. |
 | **AC-11** | Headless stability | A seeded rule-based configuration runs at least hundreds of simulated days with no renderer and no model. |
 | **AC-12** | Determinism | The same initial state, inputs, system versions, and seed reproduce the same run, excluding explicitly non-deterministic external controller calls. |
-| **AC-13** | 2D / 3D semantic parity | `Talk` initiated by clicking an NPC in Demo A and by approaching, looking at, and pressing interact in Demo B produce the same `ActionIntent`, resolved by the same system. Neither client implements any validity rule — distance, availability, permission, and willingness are all decided server-side. |
+| **AC-13** | 2D / 3D semantic parity | `Talk` initiated by clicking an NPC in Demo A and by approaching, looking at, and pressing interact in Demo B produce an **identical semantic core** — `actor`, `action_type`, `target`, payload — resolved by the same system to the same result. Neither client implements any validity rule: distance, availability, permission and willingness are all decided server-side. |
+
+**Corrected 2026-09-26.** This criterion previously demanded a *byte-identical* `ActionIntent`,
+which the renderer spike proved unachievable — and wrong to want. Three fields legitimately
+differ: `action_id` and `issued_at` are per-request, and `actor_location` is *designed* to differ,
+since a 2D client that models no position sends none. Demanding byte equality would have forced
+the two clients to converge on things the contract deliberately lets them disagree about. The
+comparison is defined once, in the server, so the S12/S14 test cannot quietly compare a different
+set of fields.
 | **AC-14** | Embodiment | In Demo B a player moves in first person through a walkable environment, enters a Place, approaches an NPC, spatially initiates a conversation, and interacts with one object, with all state authoritative on the server. |
 | **AC-15** | **There is only one Alice** | A 2D client, a 3D client and an agent-driven Person are connected to **one running server** at the same time. Something a player does in the 2D client is visible in the 3D client, and an NPC carries the consequence forward: speak to Alice in 2D, then walk up to her in 3D, and Alice knows it happened. |
 
