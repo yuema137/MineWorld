@@ -84,7 +84,9 @@ actually block are CI's job.
       "A style manifest field must be inferable from reference images, chosen by the creator, or fixed by project policy; anything else does not belong in the schema",
       "A published asset is glTF 2.0 or another canonical format, never an engine-native scene",
       "Simulation extensions are engine-neutral and sandboxed; only renderer extensions may use engine-specific code",
-      "An asset's semantic bindings say where an interaction is rendered, never whether it is permitted"
+      "An asset's semantic bindings say where an interaction is rendered, never whether it is permitted",
+      "A bundled asset is free to redistribute, not merely free to use, and its exact licence is recorded in the pack's LICENSES directory",
+      "No Mixamo character or animation file is ever committed"
     ]
   },
   "checks": {

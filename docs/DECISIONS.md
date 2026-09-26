@@ -264,6 +264,70 @@ a Godot `.pck`, say — is a build output and never something an author publishe
 
 ---
 
+## DEP-8 — Asset sourcing and licence rules
+
+**Date** 2026-09-26 · **Applies to** every pack MineWorld publishes or bundles
+
+MineWorld is MIT and redistributes what it ships, so "free to use" is not the test —
+**"free to redistribute"** is. Several well-known sources fail that test while looking fine.
+
+### Approved, licences confirmed from primary sources
+
+| Source | Licence | For |
+| --- | --- | --- |
+| [Poly Haven](https://polyhaven.com) | CC0 1.0, redistribution explicit | models, textures, HDRIs; ships glTF at real metric scale, so Godot needs no conversion |
+| [ambientCG](https://ambientcg.com) | CC0 1.0, raw files may ship in a game | the PBR material library, and the main lever for visual coherence |
+| [MakeHuman / MPFB2](https://static.makehumancommunity.org) | core assets CC0 | character meshes. **The code is AGPL/GPL and the meshes are CC0** — we ship meshes only. Community-repository clothes and hair carry per-asset licences and need individual checking |
+| Blender Studio Human Base Meshes | CC0 | retarget skeleton and scale yardstick |
+| [CMU Motion Capture](http://mocap.cs.cmu.edu) | free for any use including commercial | animation. One restriction: the data may not be *resold* as data; embedding it is use, not resale |
+| [Quality Godot First Person Controller v2](https://github.com/ColormaticStudios/quality-godot-first-person-2) | MIT | the controller. v1 is archived — take v2 |
+| [Sky3D](https://github.com/TokisanGames/Sky3D) | MIT | sky and daylight. Credit is required only if the bundled star map ships |
+| [Kenney](https://kenney.nl) | CC0 | blockout and placeholder only; the style is deliberately not ours |
+
+### Excluded, with the reason
+
+- **Mixamo** — terms permit royalty-free use *inside a project* but prohibit redistributing the character and animation files as content. Committing an FBX to a public MIT repository is exactly that. Usable as scaffolding; **no Mixamo file reaches a commit.**
+- **SMPL, SMPL-X, AMASS, 100STYLE** — non-commercial academic. This is the trap sitting directly beside CMU, which is fine: CMU itself is free, its research reprocessings are not.
+- **Synty, Unity and Unreal marketplace packs, CGTrader and TurboSquid "free", Renderpeople and AXYZ samples** — per-seat or explicitly no-redistribution.
+- **Vecteezy, Freepik** — require attribution *and* forbid redistributing the file. Not open.
+- **MB-Lab** — licence of generated characters unconfirmed from a primary source. Marked unconfirmed rather than assumed; prefer MPFB2.
+- **CC-BY-SA and GPL assets** — copyleft incompatible with MIT redistribution, whatever their quality.
+
+Per-asset sources — Sketchfab's CC0 filter, OpenGameArt, BlenderKit's free tier — mix licences
+within one site, so they are usable only with a per-asset check recorded in that pack's
+`LICENSES/`.
+
+### Two gaps that are not a shopping problem
+
+**No semi-realistic modular building kit exists under an open licence** — every CC0 kit is
+low-poly or PSX. The matching route is box geometry at correct proportions dressed with CC0 brick,
+plaster, painted wood and roofing. **No CC0 library ships clothed, rigged, realistically
+proportioned modern people** either; that is a pipeline to build (MPFB2 meshes, CMU motion,
+retargeted through Blender), not a product to find. Recorded so no future contributor repeats the
+search and concludes they searched badly.
+
+### The coherence procedure, in order
+
+The failure mode is not bad assets. It is good assets that disagree, along four axes, and the
+order matters:
+
+1. **Scale, mechanically.** One unit = one metre, a permanent 1.7 m reference in the scene,
+   re-export anything that disagrees rather than scaling it in the node tree — a non-uniform
+   import scale quietly breaks physics, shadow bias and LOD distances.
+2. **Take material authority away from the asset authors.** Re-point every albedo at the
+   project's own material set; roughness ~0.3–0.8 for painted wood, brick and stucco; albedo
+   luminance ~0.2–0.7 sRGB. This is what removes the "this came from somewhere else" feeling.
+3. **Build the lighting rig before importing anything and never judge an asset outside it** — one
+   HDRI or one sky config, one sun, one tonemap, one exposure. Then a wrong asset is rejected on
+   sight instead of patched later.
+4. **Texel density target** (~512 px/m for a walkable street); downsample higher tiers to it.
+
+And keep sourcing narrow on purpose: two libraries used consistently read as one town, while
+eight individually more beautiful ones do not. That restates
+[`ART_DIRECTION.md`](ART_DIRECTION.md) §18 as a procedure.
+
+---
+
 ## DEP-1 — Component storage: purpose-built, not an ECS
 
 **Date** 2026-09-25 · **Supersedes** effort decision `D-5`, which is now this record
