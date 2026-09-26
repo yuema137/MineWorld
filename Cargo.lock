@@ -53,6 +53,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-kernel"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "trybuild",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -2,7 +2,7 @@
 
 **Role:** step document. S3 needs **two** PRs, detailed below at different depths.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md)
-**Lifecycle:** `PR 03a DESIGN FROZEN` · `PR 03b medium scope`
+**Lifecycle:** `PR 03a IMPLEMENTING` · `PR 03b medium scope`
 **Base:** `main` after PR 02 merges
 
 Binding parents: [`overall.md`](overall.md) ·
@@ -73,9 +73,9 @@ domain component.
 ## 2.5 Commit plan
 
 ### C1 — Crate and entity registry
-- [ ] Implementation: `mineworld-kernel` crate wired into the workspace; `EntityRegistry` with monotonic allocation, key resolution, lifecycle lookup, and `BTreeMap` storage.
-- [ ] Validation: ids are allocated in order and never reused after a destroy; the same sequence of creates on two fresh registries yields identical ids; an unknown `EntityKey` resolves to a named error; a duplicate key is rejected.
-- [ ] Review: no domain concept; nothing here knows what a Person is beyond `EntityType`.
+- [x] Implementation: `mineworld-kernel` crate wired into the workspace; `EntityRegistry` with monotonic allocation, key resolution, lifecycle lookup, and `BTreeMap` storage. Files: `kernel/Cargo.toml`, `kernel/src/lib.rs`, `kernel/src/error.rs` (`KernelError`), `kernel/src/entities.rs` (`EntityRegistry`, `EntityRegistrySnapshot`); `Cargo.toml` gained the `kernel` member and a `mineworld-contracts` workspace dependency.
+- [x] Validation: `cargo test -p mineworld-kernel` — 11 tests in `kernel/tests/entities.rs`, all pass. Allocation is `1, 2, 3` from a counter; two independent registries given the same creations allocate the same identities; a destroyed entity keeps its identity and the next entity gets `id + 1`; resurrection is refused through the contract layer's state machine; a duplicate `EntityKey` is refused, names the holder, and consumes no identity; an unknown key resolves to `UnknownEntityKey`; iteration follows identity even when the keys sort the other way; a persisted registry round-trips and continues the sequence; four load-time refusals are checked as named variants. Three mutations killed (§2.10.3).
+- [x] Review: no domain concept. The registry names `Entity`, `EntityType`, `EntityKey`, `LifecycleState`, `Tags`, `Metadata` and nothing else; it has no notion of a person beyond `EntityType::Person` being one of four opaque values it never branches on.
 
 ### C2 — Component store with ownership-gated writes
 - [ ] Implementation: `ComponentStore` with per-type maps; `OwnedBy<S>` plus the declaring macro (KD-1); `WriteToken<S>`; insert / update / remove / get / iterate.
@@ -133,6 +133,116 @@ OPEN     KD-1 versus KD-2 is decided during C2 by what actually compiles
 ```
 
 APPROVED for implementation once PR 02 merges.
+
+---
+
+## 2.10 Implementation ledger
+
+Execution context: branch `mvp0/pr-03a-kernel-state`, created from `main` @ `a406040`. The frozen
+base line in the header says *after PR 02 merges*; PR 02 was still unmerged when this PR was
+authorized, and the operator authorized this base explicitly. Nothing in this PR reads an S2
+contract, so the difference is immaterial — the kernel crate depends on `mineworld-contracts`
+alone, and PR 02 adds to that crate without changing what this PR uses.
+
+Toolchain: `rustc`/`cargo` 1.97.1, `rustfmt` 1.9.0, `clippy` 0.1.97, as pinned by
+`rust-toolchain.toml` (`DD-11`).
+
+`handoff.md` is deliberately **not** rewritten for this PR. It currently carries PR 01's closed
+context and the concurrent PR 02 session owns that file; replacing it from this branch would
+clobber another PR's live continuation aid for no benefit, because this document is the semantic
+authority and this session never compacted. Recorded so the omission is visible as a decision.
+
+### 2.10.1 KD-1 versus KD-2 — decided by what compiles
+
+**Question.** KD-1 specifies ownership as a trait relationship `OwnedBy<S>` plus *"a `const`
+assertion comparing `C::OWNER` with `S::ID`"*. Does that const comparison compile?
+
+**Probe.** Written literally in the kernel crate, at `kernel/src/lib.rs`, against a stub system
+and a stub component:
+
+```rust
+const _: () = assert!(<Occupancy as Component>::OWNER == <Places as SystemIdentity>::ID);
+
+const fn probe_b() -> &'static str {
+    <Occupancy as Component>::OWNER.as_str()
+}
+```
+
+**Result: it cannot compile, for two independent reasons.**
+
+```text
+error[E0015]: cannot call non-const operator in constants
+   --> kernel/src/lib.rs:26:23
+note: impl defined here, but it is not `const`
+   --> contracts/src/ids.rs:304:24
+    | #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+
+error[E0493]: destructor of `mineworld_contracts::SystemId` cannot be evaluated at compile-time
+   --> kernel/src/lib.rs:26:58
+
+error[E0015]: cannot call non-const method `mineworld_contracts::SystemId::as_str` in constant
+             functions
+  --> kernel/src/lib.rs:30:37
+```
+
+The first error is the ordinary one and would be fixable in principle: `PartialEq` is not a
+`const` trait. The second is the decisive one. `SystemId` holds a `Cow<'static, str>`, so the
+type has a destructor, and a value with a destructor cannot be materialized and dropped inside a
+`const` item. No accessor added to `mineworld-contracts` would change that: *any* const
+expression that names `C::OWNER` as a value hits `E0493`. Making the comparison possible would
+mean changing `SystemId`'s representation — a frozen public contract in PR 01's crate, and
+outside this PR's scope.
+
+**Decision: KD-1 is implemented; KD-2 is not triggered.** The const *assertion* is replaced by
+const *derivation*, which is strictly stronger:
+
+```rust
+// what the macro generates
+impl Component for $component {
+    const OWNER: SystemId = <$system as SystemIdentity>::ID;
+    ...
+}
+impl OwnedBy<$system> for $component {}
+```
+
+`C::OWNER` is not compared with `S::ID`; it *is* `S::ID`, the same const expression. An
+assertion can only detect a disagreement that this shape cannot express. Probe C confirmed the
+derivation compiles.
+
+This is not KD-2. KD-2's fallback is a runtime check on every **write**, and writes here remain
+gated entirely at compile time: a write needs `&WriteToken<S>` and `C: OwnedBy<S>`, so a system
+cannot name a write to a component it does not own. What the derivation cannot reach is a
+hand-written `impl OwnedBy<S> for C` that contradicts `C::OWNER` — see §2.10.2 for why that
+cannot be used to write another system's state, and for the declaration-time check that refuses
+it anyway.
+
+### 2.10.2 The adversarial criterion
+
+`PENDING` — filled during C2, with every attempt recorded rather than only the conclusion.
+
+### 2.10.3 Mutation evidence
+
+| # | Mutation | Expected | Observed |
+| --- | --- | --- | --- |
+| M1 | `EntityRegistry::iter` iterates the authoring-key index instead of the identity map | the ordering test fails | `iteration_follows_identity_rather_than_insertion_or_key_order` FAILED, 10 passed |
+| M2 | `create_authored` drops the duplicate-key refusal | the key-uniqueness test fails | `an_authoring_key_belongs_to_exactly_one_entity` FAILED, 10 passed |
+| M3 | `FIRST_ENTITY_ID` becomes 0 | the allocation and load-refusal tests fail | 4 failed, 7 passed |
+
+### 2.10.4 Validation record
+
+```text
+command:  cargo fmt --all --check
+result:   clean at C1
+
+command:  cargo check --workspace --all-targets
+result:   clean at C1
+
+command:  cargo clippy --workspace --all-targets --all-features -- -D warnings
+result:   clean at C1
+
+command:  cargo test --workspace
+result:   C1 — 32 contract tests (unchanged) + 11 kernel tests, 0 failures
+```
 
 ---
 
