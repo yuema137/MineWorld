@@ -15,8 +15,9 @@ repository       /Users/yuema137/MineWorld
 branch           mvp0/pr-01-entity-component-contracts
 implementation   created from main @ 39abfb3
 base
-current HEAD     39abfb3
-working tree     clean except this handoff (untracked at initialization)
+current HEAD     the C1 commit — the one that carries this handoff refresh
+                 (session start was f44b7d1; `git log --oneline` is authoritative)
+working tree     clean at each commit; the only untracked path is target/ (gitignored)
 remote           none (decision D-9: local-only until S13)
 ```
 
@@ -69,28 +70,41 @@ C1  Cargo workspace + identity module
 C2  Entity record and lifecycle
 C3  Component model
 C4  Relation model
+C4b World time value types  — added during C1, see the scope-reconciliation finding in
+                              §8.3 of the design: §1.1 approves WorldTime/SimDuration but
+                              §7's five commits never implement them
 C5  Specification synchronization
 ```
 
 ## Current checkpoint
 
 ```text
-C1  not started
-C2  not started
+C1  DONE     Cargo workspace, rust-toolchain.toml pinned to 1.97.1, clippy.toml denying
+             HashMap/HashSet, crate mineworld-contracts with src/lib.rs, src/error.rs,
+             src/ids.rs, and tests/identity.rs + tests/compile_fail{.rs,/}
+C2  next
 C3  not started
 C4  not started
+C4b not started
 C5  not started
 
-validation evidence recorded so far: none
-background jobs: none
+validation evidence: §8.2 of the design — all four §6 commands clean at C1;
+                     10 tests pass (9 identity + 1 trybuild harness over 2 cases);
+                     two mutations confirmed the HashMap ban and the compile-fail case
+assumptions:         A-1 and A-2 resolved in C1 (§8.4); A-3 still carried to S4
+background jobs:     none
 ```
 
 ## Exact next actions
 
-1. Read the primary design doc in full, then `prompts/implementation-working-rules.md` and
-   `prompts/test-ci-gate-rules.md` in the installed skill.
-2. Inspect `docs/CORE_CONCEPTS.md` §§3–4, 9, 13 against the C1 plan before writing types.
-3. Implement C1's checklist, run §6's commands, record evidence in §8.2, then commit.
+1. Re-read §7's C2 block (entity record and lifecycle) and `docs/CORE_CONCEPTS.md` §3 before
+   writing `contracts/src/entity.rs`.
+2. Implement C2's checklist: `Tag`/`Tags`, `LifecycleState` with `can_transition_to`,
+   `Metadata` (authoring provenance only), `Entity` with no half-initialized state.
+   `validate_identifier` in `src/ids.rs` is private and must become `pub(crate)` for `Tag`;
+   add the `IdentifierKind::Tag` variant in the same change.
+3. Run §6's four commands, record evidence and any deviation in §8.2/§8.3, refresh this file,
+   then commit C2.
 
 ## Stop conditions
 

@@ -1,0 +1,16 @@
+[package]
+name = "mineworld-contracts"
+description = "Typed contracts for MineWorld: identity and state vocabulary shared by the kernel, systems, controllers and clients."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+trybuild = { workspace = true }

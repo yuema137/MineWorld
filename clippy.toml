@@ -1,0 +1,8 @@
+# Mechanical enforcement of a frozen contract-layer invariant: hash-ordered collections are
+# forbidden in this workspace, because their iteration order would reach serialized state and
+# the event log, and MineWorld requires a fixed seed to reproduce a run exactly
+# (docs/MVP.md AC-12). Order-deterministic collections are BTreeMap, BTreeSet and Vec.
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "use BTreeMap: iteration order reaches serialized state and must be deterministic" },
+    { path = "std::collections::HashSet", reason = "use BTreeSet: iteration order reaches serialized state and must be deterministic" },
+]

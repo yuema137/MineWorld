@@ -274,32 +274,32 @@ new  contracts/tests/compile_fail/*.rs  the failing cases
 Non-goals: no `Entity`, no components, no relations, no time. Depends on: nothing (P-1 only).
 
 ### Implementation
-- [ ] Workspace `Cargo.toml` with `resolver = "2"`, shared `[workspace.package]` metadata and `[workspace.dependencies]` for `serde` and `thiserror`.
-- [ ] `rust-toolchain.toml` pinning the observed stable channel with `rustfmt` and `clippy`.
-- [ ] `mineworld-contracts` crate with `#![forbid(unsafe_code)]` and a crate-level doc comment stating: no domain concepts, no hash-ordered collections, one erasure boundary.
-- [ ] `EntityId` newtype: opaque integer, `Copy`, ordered, serde-transparent, no public arithmetic, no `Default`.
-- [ ] `EntityKey`: validated constructor (restricted charset, bounded length, no leading or trailing separator), `TryFrom<&str>`, `Display`.
-- [ ] `EntityType` enum: `Person`, `Place`, `Item`, `Organization`, exhaustive and serde-stable.
-- [ ] Typed references per DD-3, with free conversion to `EntityId`, a checked constructor taking `(EntityId, EntityType)`, and **no** public unchecked constructor.
-- [ ] `SystemId`, `ComponentTypeId`, `RelationTypeId`: validated slug newtypes.
-- [ ] `EventId`, `ActionId`, `ProcessId`: opaque integer newtypes (DD-10).
-- [ ] `ContractError` enum with one variant per validation failure class, each carrying the offending value's description but not a formatted blob.
-- [ ] Resolve A-1: write the macro and the hand-written form for one type, keep the clearer one, record the comparison in §8.
+- [x] Workspace `Cargo.toml` with `resolver = "2"`, shared `[workspace.package]` metadata and `[workspace.dependencies]` for `serde` and `thiserror`. Edition 2024, `rust-version = "1.97.1"`; `serde_json` and `trybuild` are declared in the same table so the crate's dev-dependencies also resolve through it.
+- [x] `rust-toolchain.toml` pinning the observed stable channel with `rustfmt` and `clippy`. Pinned to exact `1.97.1` with `profile = "minimal"` (DD-11); rustup installed that named toolchain on the first `cargo` invocation in the repository.
+- [x] `mineworld-contracts` crate with `#![forbid(unsafe_code)]` and a crate-level doc comment stating: no domain concepts, no hash-ordered collections, one erasure boundary. `contracts/src/lib.rs` states four rules (the third — one erasure boundary — is worded for the type that arrives in C3); `#![warn(missing_docs)]` was added so `-D warnings` makes an undocumented public contract item a hard error.
+- [x] `EntityId` newtype: opaque integer, `Copy`, ordered, serde-transparent, no public arithmetic, no `Default`. `EntityId::from_raw` / `raw` only, documented as the kernel-allocation and persistence boundary.
+- [x] `EntityKey`: validated constructor (restricted charset, bounded length, no leading or trailing separator), `TryFrom<&str>`, `Display`. Also `TryFrom<String>`, and `#[serde(try_from = "String")]` so deserialization runs the same validation.
+- [x] `EntityType` enum: `Person`, `Place`, `Item`, `Organization`, exhaustive and serde-stable (`snake_case`, no `#[serde(other)]`, no `Default`).
+- [x] Typed references per DD-3, with free conversion to `EntityId`, a checked constructor taking `(EntityId, EntityType)`, and **no** public unchecked constructor. `PersonId` / `PlaceId` / `ItemId` / `OrganizationId`, each with `ENTITY_TYPE`, `new`, `entity_id`, `From<_> for EntityId`; the wrapped field is private, which the compile-fail case pins.
+- [x] `SystemId`, `ComponentTypeId`, `RelationTypeId`: validated slug newtypes sharing one documented character rule with `EntityKey`.
+- [x] `EventId`, `ActionId`, `ProcessId`: opaque integer newtypes (DD-10).
+- [x] `ContractError` enum with one variant per validation failure class, each carrying the offending value's description but not a formatted blob. Five variants; the identifier variants carry an `IdentifierKind` so one rule serves four identifier types without losing which one was rejected.
+- [x] Resolve A-1: write the macro and the hand-written form for one type, keep the clearer one, record the comparison in §8. Resolved in favour of the hand-written form — see §8.4.
 
 ### Validation
-- [ ] Unit: `EntityKey` accepts the documented legal forms and rejects empty, over-long, illegal-character and separator-edge cases, each with the expected `ContractError` variant.
-- [ ] Unit: slug validation for `SystemId`, `ComponentTypeId`, `RelationTypeId` over the same boundary classes.
-- [ ] Unit: checked typed-reference construction succeeds for the matching `EntityType` and fails with the expected error for every non-matching one.
-- [ ] Unit: serde round-trip for every type introduced, plus byte-stability on repeated serialization.
-- [ ] Compile-fail: `PlaceId` where `PersonId` is required (A-2).
-- [ ] Compile-fail: constructing a typed reference from a raw `EntityId` without the checked constructor.
-- [ ] Static: the four commands of §6.
+- [x] Unit: `EntityKey` accepts the documented legal forms and rejects empty, over-long, illegal-character and separator-edge cases, each with the expected `ContractError` variant. `contracts/tests/identity.rs::entity_key_accepts_authored_names_and_the_length_boundary` (7 legal forms incl. the 64-byte boundary) and `::entity_key_rejects_malformed_names_with_a_named_error` (8 rejected forms incl. uppercase, space, `/`, non-ASCII, both separator edges, 65 bytes).
+- [x] Unit: slug validation for `SystemId`, `ComponentTypeId`, `RelationTypeId` over the same boundary classes. `::declaration_names_share_the_rule_and_report_their_own_kind`, which also pins that each type reports *its own* `IdentifierKind` — the copy-paste failure class the hand-written form introduces.
+- [x] Unit: checked typed-reference construction succeeds for the matching `EntityType` and fails with the expected error for every non-matching one. `::a_typed_reference_is_built_only_for_its_own_entity_type` — the full 4 × 4 table (4 accepted, 12 rejected).
+- [x] Unit: serde round-trip for every type introduced, plus byte-stability on repeated serialization. `::opaque_identities_are_written_as_bare_integers`, `::authored_names_round_trip_as_validated_strings`, `::entity_type_has_stable_names_and_no_silent_fallback`, `::a_typed_reference_is_still_checked_when_it_is_read_back`, `::repeated_serialization_is_byte_identical`. Every expected value is a hand-written literal, including the wire shapes `7`, `"alice"`, `"person"` and `{"entity":3,"entity_type":"person"}`.
+- [x] Compile-fail: `PlaceId` where `PersonId` is required (A-2). `contracts/tests/compile_fail/place_id_where_person_id_is_required.rs`; the `.stderr` pins `error[E0308] … expected 'PersonId', found 'PlaceId'`.
+- [x] Compile-fail: constructing a typed reference from a raw `EntityId` without the checked constructor. `contracts/tests/compile_fail/typed_reference_without_the_check.rs`; the `.stderr` pins `error[E0423]: cannot initialize a tuple struct which contains private fields`.
+- [x] Static: the four commands of §6. All four clean — evidence in §8.2.
 
 ### Review
-- [ ] Inspect every public item for a domain concept that should not be in this crate (`INV-12`).
-- [ ] Confirm no `HashMap`/`HashSet` and no `Default` on an id type that would fabricate identity.
-- [ ] Confirm no test asserts a value produced by the code under test (test rules §25).
-- [ ] Confirm the crate has no dependency pointing at `kernel/`, `systems/`, or anything outside `[workspace.dependencies]`.
+- [x] Inspect every public item for a domain concept that should not be in this crate (`INV-12`). Enumerated the 20 public items (`grep -n '^pub ' contracts/src/*.rs`): four opaque id newtypes, four validated name newtypes, `EntityType` and its four variants, four typed references, `MAX_IDENTIFIER_LENGTH`, `ContractError`, `IdentifierKind`. `Person`/`Place`/`Item`/`Organization` are the kernel taxonomy of `CORE_CONCEPTS.md` §3, not domain semantics. A case-insensitive grep for `job|employ|money|wage|hunger|sleep|romance|conversation|health|mood|combat|skill` over `contracts/src/` hits exactly one line: the word `conversation` inside the prose listing the specification's own example identifier strings. No type, field or variant names a domain concept.
+- [x] Confirm no `HashMap`/`HashSet` and no `Default` on an id type that would fabricate identity. `grep -rn 'HashMap\|HashSet' contracts/` matches only the crate-doc sentence that forbids them; `grep -rn 'Default' contracts/src/` matches only the doc sentence explaining why `EntityId` has none. No `#[derive(Default)]` anywhere. The prohibition is additionally mechanical — see MUTATION 1 in §8.2.
+- [x] Confirm no test asserts a value produced by the code under test (test rules §25). Read `contracts/tests/identity.rs` line by line: every expectation is a literal (`ContractError` variants constructed in the test, JSON strings, integers, the input string itself). The only comparisons against constructor output are of the form "the value the constructor accepted equals the literal it was given", which is the no-silent-normalization contract, not a self-derived expectation.
+- [x] Confirm the crate has no dependency pointing at `kernel/`, `systems/`, or anything outside `[workspace.dependencies]`. `contracts/Cargo.toml` declares exactly four dependencies, all `{ workspace = true }`: `serde`, `thiserror` and dev-only `serde_json`, `trybuild`. No `path` dependency exists anywhere in the workspace.
 
 ### Acceptance criteria
 `cargo fmt --all --check`, `cargo check`, `cargo clippy -D warnings` all clean; `cargo test -p
@@ -527,7 +527,7 @@ Filled during execution. Nothing here is pre-written.
 
 ## 8.1 Progress
 ```text
-C1  not started
+C1  DONE     workspace, pinned toolchain, identity module, errors, compile-fail harness
 C2  not started
 C3  not started
 C4  not started
@@ -535,8 +535,48 @@ C5  not started
 ```
 
 ## 8.2 Evidence
+
+Environment for every run below: macOS aarch64, `rustc`/`cargo` 1.97.1 from the toolchain
+pinned in `rust-toolchain.toml`, `PATH` exported per P-1. No network dependency after the
+initial dependency fetch. No background jobs.
+
 ```text
-(no validation has been run yet; the toolchain is available — see P-1)
+C1 — workspace and identity module           (evidence for commit "feat(contracts): …")
+  cargo fmt --all --check                       PASS   <1s
+      first run reported a diff in contracts/tests/identity.rs; `cargo fmt --all` applied it
+      and the check is clean. Recorded because the check did fail once.
+  cargo check --workspace --all-targets         PASS   <1s   (cold build of the workspace
+      including dependencies: 4.8s)
+  cargo clippy --workspace --all-targets
+      --all-features -- -D warnings             PASS   <1s   0 warnings
+  cargo test -p mineworld-contracts             PASS    2s
+      lib unit tests                 0 (no in-crate tests; the contract tests are integration
+                                        tests against the public API)
+      tests/compile_fail.rs          1 passed   — harness covering 2 compile-fail cases
+      tests/identity.rs              9 passed
+      doc-tests                      0
+      total                         10 passed, 0 failed, 0 ignored
+```
+
+```text
+MUTATION 1 — is the HashMap prohibition real, or only prose?
+  mutation     added `pub fn mutation_probe() -> std::collections::HashMap<String, u8>` to
+               contracts/src/lib.rs
+  expected     clippy rejects it
+  observed     2 × `error: use of a disallowed type 'std::collections::HashMap'`, each
+               carrying the configured reason, and "build failed"; exit non-zero
+  verdict      behavior-changing — DD-7 is enforced by clippy.toml, not by convention
+  cleanup      reverted; `cargo clippy` clean again before the commit
+
+MUTATION 2 — is the compile-fail claim load-bearing, or does it pass for an unrelated reason?
+  mutation     `pub struct PersonId(EntityId)` → `pub struct PersonId(pub EntityId)`
+  expected     the unchecked-construction case now compiles, so trybuild fails
+  observed     `tests/compile_fail/typed_reference_without_the_check.rs ... error`,
+               "Expected test case to fail to compile, but it succeeded.", test FAILED
+  verdict      behavior-changing — the case pins the private field, which is the actual
+               guarantee, and the sibling id-confusion case stayed green (so the two cases
+               are independent)
+  cleanup      reverted; `cargo test` green again before the commit
 ```
 
 ## 8.3 Findings, decisions, deviations
@@ -568,11 +608,150 @@ DECISION
     exact version 1.97.1 in rust-toolchain.toml rather than floating stable.
 ```
 
+```text
+FINDING (C1) — the pinned toolchain was not the installed toolchain
+    DD-11 pins the exact version 1.97.1, but only the `stable` alias was installed
+    (`rustup toolchain list` → `stable-aarch64-apple-darwin` alone), so the first cargo
+    invocation in the repository made rustup install the named toolchain
+    `1.97.1-aarch64-apple-darwin`.
+SOURCE AUDIT
+    rustup toolchain list; rustup show; the first `cargo check` printed
+    "syncing channel updates for 1.97.1-aarch64-apple-darwin … downloading 5 components".
+WHY IT MATTERS
+    A frozen decision caused an unplanned environment change on the operator's machine.
+DECISION
+    Kept DD-11: `profile = "minimal"` limits the download to the components the checks need,
+    the install completed within the first check (total 11s including the cold build), and the
+    reproducibility DD-11 buys is the reason it exists. Recorded so the cost is visible.
+
+DEVIATION (C1) — `clippy.toml` added at the workspace root, which C1's file list did not name
+    Reason: the frozen invariant "no HashMap/HashSet in this crate" was otherwise only prose,
+    and §1.3 is a review-enforced rule that a lint can enforce mechanically.
+    Source evidence: `clippy::disallowed_types` is configuration-driven and is a warn-level
+    lint, so with `-D warnings` (already in §6) a violation fails the build.
+    Impact: one new 8-line file; no change to any contract type or public API.
+    Validation: MUTATION 1 in §8.2 — the guard actually fires, with the configured reason.
+
+DEVIATION (C1) — typed entity references serialize as a tagged object, not as a bare integer
+    Previous assumption:
+        DD-3 describes the checked constructor as the only way to build a typed reference, and
+        says nothing about the serialized shape.
+    Audit evidence:
+        A typed reference whose serialized form is a bare integer can be deserialized from any
+        integer, because `Deserialize` has no type information to check. Adversarial criterion
+        2 in §2 ("a typed entity reference can be produced from an arbitrary EntityId with no
+        type check") would then hold in code but fail at the first round trip through the
+        event log, which is exactly the boundary S5 reconstructs state from.
+    Corrected understanding:
+        The reference must carry the `EntityType` it was checked against into its serialized
+        form, so that deserializing is the same checked construction as building one.
+    Implementation consequence:
+        A private `TypedEntityRef { entity, entity_type }` is the serde representation of all
+        four references (`#[serde(into = …, try_from = …)]`); the wire shape is
+        `{"entity":3,"entity_type":"person"}`. Cost: one redundant tag per reference.
+    Validation consequence:
+        `::a_typed_reference_is_still_checked_when_it_is_read_back` asserts the exact wire
+        shape and that a `place`-tagged value is rejected as an entity-type mismatch.
+
+FINDING (C1) — `contracts/src/ids.rs` is 688 lines, past the §10 review threshold
+    SOURCE AUDIT
+        wc -l contracts/src/ids.rs → 688; the three sections are opaque identity (≈100),
+        authoring identity (≈200), entity type and typed references (≈290). Roughly 330 of
+        those lines are eight near-identical newtype blocks.
+    WHY IT MATTERS
+        ENGINEERING_STANDARDS.md §10 makes ~500 lines a review trigger (~800 a strong
+        warning), and CLAUDE.md §4 forbids shattering code to satisfy a number.
+    DECISION
+        Reviewed and kept as one file. It has one responsibility — the identity vocabulary —
+        and the frozen C1 scope names `contracts/src/ids.rs` as its home; length comes from
+        mandated per-item documentation and from A-1's hand-written form, not from mixed
+        responsibilities. Revisit if a later step pushes it toward 800 lines.
+
+DECISION (C1) — `ContractError` is deliberately not `serde`-serializable
+    The §1.3 invariant "every contract type is serde-serializable" exists so that S5 can
+    reconstruct state from the event log. A validation error is not state: it is never stored,
+    never replayed and never crosses the persistence boundary. Adding serde to it would invite
+    exactly that. Recorded so the omission reads as a decision rather than an oversight.
+
+FINDING (C1) — the approved scope contains a line the frozen commit plan never implements
+    SOURCE AUDIT
+        §1.1 "Approved scope" lists, between the id family and the entity record:
+            time            WorldTime, SimDuration                (types only, no scheduling)
+        §7's five commits are workspace+identity (C1, whose non-goals say "no time"), entity
+        record (C2), component model (C3), relation model (C4) and documentation (C5). None of
+        them mentions `WorldTime` or `SimDuration`. §9's APPROVED SCOPE paraphrases the crate
+        as "(identity, entity record, component model, relation model)", also without time.
+        §1.2's non-goal for time is narrower than the scope line: it excludes "scheduler,
+        processes, WorldTime arithmetic policy → S4", which presupposes that the type exists.
+    WHY IT MATTERS
+        Shipping the PR without the two types leaves the PR short of its own approved scope,
+        and S2 (events, which are timestamped) would have to invent them. Adding them to an
+        existing commit would contradict that commit's stated non-goals (C1) or mix two
+        concepts (C2–C4). Leaving them out silently would make §1.1 stale on the day the PR
+        merges, which `CLAUDE.md` §2.1 rule 4 calls a defect.
+    DECISION
+        Deliver them in one additional, independently reviewable commit — **C4b — world time
+        value types** — placed after C4 and before the documentation commit, so that C1…C4 and
+        C5 keep exactly the content §7 froze. Nothing in §1.3's invariants, in any public type
+        already committed, or in the ownership boundaries changes; C4b adds two value types
+        with ordering, serde and no policy, as §1.1 words it. The alternative — stopping the
+        PR for an operator ruling on a two-type gap that §1.1 already approves — was rejected
+        as disproportionate, but the deviation is recorded here and in the review handoff so
+        the operator can reverse it in review.
+    VALIDATION
+        C4b's own checklist and evidence, recorded in §7 and §8.2 like every other commit.
+
+DECISION (C1) — `Cargo.lock` is committed
+    MineWorld's deliverable is a server and a set of binaries, not a published library, and
+    DD-11 pins the toolchain for exactly the reproducibility reason that argues for pinning
+    the dependency graph too. `.gitignore` does not exclude it.
+
+DECISION (C1) — `#![warn(missing_docs)]` on the crate
+    With §6's `-D warnings`, an undocumented public item in the contract layer now fails the
+    build. A contract crate whose audience is other coding agents cannot afford an
+    undocumented public type.
+```
+
 ## 8.4 Resolution of unresolved assumptions
 ```text
-A-1  open — resolved during C1
-A-2  open — resolved during C1
-A-3  open — carried to S4 (D-6)
+A-1  RESOLVED in C1 — hand-written newtypes; the macro was written, compiled and abandoned.
+
+     Evidence. Both forms exist and both compile. The hand-written form is what is
+     committed (contracts/src/ids.rs, 244 lines for the four references). The macro form was
+     built as a standalone copy of the crate in the session scratchpad
+     (a1-experiment, `cargo check` clean): a `typed_entity_reference!($name => $variant)`
+     rule plus four one-line invocations, 73 lines in total, of which the macro arm — the
+     code expanded per type — is 60 lines.
+
+     Decision. A-1's own guard is "the macro stays under ten lines of expansion per type or
+     it is abandoned". Measured expansion is ~55 code lines per type, five times the
+     threshold, so the guard decides it: abandoned. The secondary criterion agrees for a
+     weaker reason — the macro can only give the four references one templated doc comment
+     built with `concat!`, whereas the hand-written form documents each reference and its
+     constructor in place, which is what a reader of a contract crate is looking for.
+
+     Cost accepted. ~170 more lines and eight near-identical blocks in one module. The
+     failure class this introduces — a copy-pasted constant or `IdentifierKind` in one of the
+     eight — is owned by two tests that check all four of each exhaustively
+     (`::a_typed_reference_is_built_only_for_its_own_entity_type`,
+     `::declaration_names_share_the_rule_and_report_their_own_kind`).
+
+A-2  RESOLVED in C1 — trybuild is viable, and no downgrade was needed.
+
+     Both compile-fail cases fail for the intended reason, and the generated `.stderr` files
+     pin that reason rather than "some error":
+         place_id_where_person_id_is_required.stderr
+             error[E0308]: mismatched types … expected `PersonId`, found `PlaceId`
+         typed_reference_without_the_check.stderr
+             error[E0423]: cannot initialize a tuple struct which contains private fields
+             note: constructor is not visible here due to private fields
+     Load-bearing: MUTATION 2 in §8.2 makes the second case compile by publishing the field,
+     and trybuild then fails. Brittleness across toolchains is bounded by DD-11's exact pin;
+     the fallback described in A-2 was not needed and is not in effect.
+
+A-3  open — carried to S4 (D-6). Untouched by C1, whose non-goals exclude time. The types
+     themselves are delivered by C4b (see the scope-reconciliation finding in §8.3) as values
+     with an ordering and no scheduling policy, which is all §1.1 asks for.
 ```
 
 ---
