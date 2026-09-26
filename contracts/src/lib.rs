@@ -30,9 +30,11 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod entity;
 pub mod error;
 pub mod ids;
 
+pub use entity::{Entity, LifecycleState, Metadata, Tag, Tags};
 pub use error::{ContractError, IdentifierKind};
 pub use ids::{
     ActionId, ComponentTypeId, EntityId, EntityKey, EntityType, EventId, ItemId,

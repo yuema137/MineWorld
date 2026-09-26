@@ -339,24 +339,24 @@ new  tests in-crate            lifecycle and round-trip
 Non-goals: no component attachment, no relations. Depends on: C1.
 
 ### Implementation
-- [ ] `Tag` validated newtype; `Tags` as a `BTreeSet<Tag>` wrapper with set semantics and deterministic iteration.
-- [ ] `LifecycleState` enum (`Active`, `Dormant`, `Destroyed`) with an explicit `can_transition_to` relation and no transition out of `Destroyed`.
-- [ ] `Metadata`: authoring provenance only — source pack, source path, optional authoring note — documented as never gameplay-relevant.
-- [ ] `Entity` record: `id`, `key`, `entity_type`, `tags`, `lifecycle`, `metadata`; constructed through a builder or explicit constructor that cannot produce a half-initialized value.
-- [ ] Document on the type that all semantics live in components (`INV-12`, `CORE_CONCEPTS.md` §4).
+- [x] `Tag` validated newtype; `Tags` as a `BTreeSet<Tag>` wrapper with set semantics and deterministic iteration. `Tag` reuses the C1 identifier rule through the new `IdentifierKind::Tag`; `Tags` is `#[serde(transparent)]` over the set, so it is stored as a sorted array.
+- [x] `LifecycleState` enum (`Active`, `Dormant`, `Destroyed`) with an explicit `can_transition_to` relation and no transition out of `Destroyed`. Self-transitions are refused too — a no-op reported as success would let a caller believe it moved an entity that never moved.
+- [x] `Metadata`: authoring provenance only — source pack, source path, optional authoring note — documented as never gameplay-relevant. A plain record with public fields: it has no invariant to protect, and a struct literal already makes a missing field a compile error.
+- [x] `Entity` record: `id`, `key`, `entity_type`, `tags`, `lifecycle`, `metadata`; constructed through a builder or explicit constructor that cannot produce a half-initialized value. `Entity::new(id, key, entity_type)` takes the three facts an entity cannot exist without and starts `Active`, untagged, unauthored; `with_tags` / `with_metadata` add the optional parts. Fields are private, with accessors and `transition_to` as the only mutation.
+- [x] Document on the type that all semantics live in components (`INV-12`, `CORE_CONCEPTS.md` §4). Module documentation and the `Entity` doc comment both state it, and name what is deliberately absent: name, position, owner, inventory, health.
 
 ### Validation
-- [ ] Unit: legal transitions permitted, illegal ones rejected, `Destroyed` terminal.
-- [ ] Unit: `Tags` deduplicates, orders deterministically, and round-trips byte-identically.
-- [ ] Unit: `Entity` serde round-trip preserving every field.
-- [ ] Unit: `Metadata` is optional in the sense the specification requires — an entity authored without provenance is representable.
-- [ ] Static: §6 commands.
+- [x] Unit: legal transitions permitted, illegal ones rejected, `Destroyed` terminal. `contracts/tests/entity.rs::the_lifecycle_permits_exactly_the_documented_transitions` asserts the full 4-legal / 5-illegal table, and `::an_entity_moves_through_its_lifecycle_only_when_the_move_is_legal` adds that a refused transition leaves the entity unchanged.
+- [x] Unit: `Tags` deduplicates, orders deterministically, and round-trips byte-identically. `::tags_are_a_set_with_one_fixed_order` builds the same set in two authoring orders, with a duplicate, and asserts equal values, the literal order `["cafe","furniture"]`, identical bytes, and that a duplicate in stored data is absorbed rather than rejected.
+- [x] Unit: `Entity` serde round-trip preserving every field. `::an_entity_is_stored_as_its_documented_shape` pins the exact stored JSON of a plain and an authored entity; `::a_restored_entity_keeps_every_field_and_rejects_an_unknown_lifecycle` reads every field back and checks that `"archived"` and an invalid authored key are both hard errors.
+- [x] Unit: `Metadata` is optional in the sense the specification requires — an entity authored without provenance is representable. Same two tests: the plain entity's stored form has no `metadata` key at all (`skip_serializing_if`), and it deserializes from a record that omits it.
+- [x] Static: §6 commands. All four clean — evidence in §8.2.
+- [x] *Added:* Compile-fail: `entity.lifecycle = LifecycleState::Destroyed` does not compile (`E0616`, private field), which makes the review item below executable instead of a reading.
 
 ### Review
-- [ ] Confirm `Entity` gained no gameplay field, and that adding one would be visibly wrong.
-- [ ] Confirm no lifecycle transition is reachable by mutating a public field directly.
-- [ ] Confirm no test merely asserts that a constructor assigned its arguments
-      (`ENGINEERING_STANDARDS.md` §18).
+- [x] Confirm `Entity` gained no gameplay field, and that adding one would be visibly wrong. The record has exactly the six fields `CORE_CONCEPTS.md` §3 lists — `id`, `key`, `entity_type`, `tags`, `lifecycle`, `metadata` — and the module documentation names the fields a reviewer should expect to be refused (name, position, owner, inventory, health), so a future diff adding one reads as a contradiction of the file it is in.
+- [x] Confirm no lifecycle transition is reachable by mutating a public field directly. All six fields are private; the only mutating method on `Entity` is `transition_to`, which consults `can_transition_to` first. Pinned by the added compile-fail case. One path does bypass the check by design: `Deserialize` restores a stored record, including a `destroyed` one. That is restoration of a fact, not a transition, and it is the mechanism S5 needs; it cannot invent an illegal *state*, only re-read a state that was reached legally.
+- [x] Confirm no test merely asserts that a constructor assigned its arguments (`ENGINEERING_STANDARDS.md` §18). The per-field assertions in `::a_restored_entity_keeps_every_field_and_rejects_an_unknown_lifecycle` read the fields *after a serialization round trip*, so what they pin is storage fidelity — a renamed or dropped field in the stored shape — not `new()` assigning its parameters. No test constructs a value and immediately reads the same value back out.
 
 ### Acceptance criteria
 An `Entity` cannot be constructed in an inconsistent state through the public API; `Destroyed`
@@ -528,7 +528,7 @@ Filled during execution. Nothing here is pre-written.
 ## 8.1 Progress
 ```text
 C1  DONE     workspace, pinned toolchain, identity module, errors, compile-fail harness
-C2  not started
+C2  DONE     entity record: Tag/Tags, LifecycleState, Metadata, Entity
 C3  not started
 C4  not started
 C5  not started
@@ -556,6 +556,35 @@ C1 — workspace and identity module           (evidence for commit "feat(contra
       tests/identity.rs              9 passed
       doc-tests                      0
       total                         10 passed, 0 failed, 0 ignored
+```
+
+```text
+C2 — entity record and lifecycle          (evidence for commit "feat(contracts): … entity …")
+  cargo fmt --all --check                       PASS   <1s
+      first run reported a diff in contracts/src/ids.rs (the signature of
+      `validate_identifier` after it became `pub(crate)`); `cargo fmt --all` applied it.
+  cargo check --workspace --all-targets         PASS   <1s
+  cargo clippy --workspace --all-targets
+      --all-features -- -D warnings             PASS   <1s   0 warnings
+  cargo test -p mineworld-contracts             PASS    2s
+      tests/compile_fail.rs          1 passed   — harness now covering 3 compile-fail cases
+      tests/entity.rs                6 passed
+      tests/identity.rs              9 passed
+      lib unit tests / doc-tests     0 / 0
+      total                         16 passed, 0 failed, 0 ignored
+```
+
+```text
+MUTATION 3 — is `Destroyed` terminal because of a check, or because no test looks?
+  mutation     added `(Self::Destroyed, Self::Active)` to `LifecycleState::can_transition_to`
+  expected     the transition table test and the entity lifecycle test both fail
+  observed     `the_lifecycle_permits_exactly_the_documented_transitions` FAILED at the
+               assertion for `destroyed -> active`, and
+               `an_entity_moves_through_its_lifecycle_only_when_the_move_is_legal` FAILED at
+               the expected `IllegalLifecycleTransition`; 4 passed, 2 failed
+  verdict      behavior-changing — the terminal state is pinned at both the state-machine and
+               the entity level, and the other four tests correctly stayed green
+  cleanup      reverted; `cargo test` green again before the commit
 ```
 
 ```text
@@ -700,6 +729,35 @@ FINDING (C1) — the approved scope contains a line the frozen commit plan never
         the operator can reverse it in review.
     VALIDATION
         C4b's own checklist and evidence, recorded in §7 and §8.2 like every other commit.
+
+DECISION (C2) — `Metadata`'s provenance fields are `String`, not a new identity type
+    QUESTION
+        `source_pack` names a pack, and packs have declared ids (`docs/MODULE_SPEC.md` §9), so
+        ENGINEERING_STANDARDS.md §12 argues for a `PackId` newtype.
+    AUDIT
+        §1.1's id family is closed: EntityId, EntityKey, EntityType, typed references,
+        SystemId, ComponentTypeId, RelationTypeId, EventId, ActionId, ProcessId. `PackId`
+        appears nowhere in this PR's scope, and nothing else in the crate would use it.
+    DECISION
+        Keep `String` for this PR. Introducing a public identity type outside the approved
+        scope is the kind of change §7 of the working rules says to stop for, and inventing it
+        before pack loading is a contract would be premature abstraction
+        (ENGINEERING_STANDARDS.md §28). The type documents that these are never interpreted:
+        nothing in the simulation may branch on them, and a system that needs to know something
+        about an entity reads a component or a tag. When pack loading becomes a contract,
+        `source_pack` becomes that type — a clean change while nothing is persisted
+        (§29 of the standards).
+    NOT A BLOB
+        This is a named record with three named text fields, not `map<string, any>`: the thing
+        §12 forbids is an untyped bag, and `Metadata` cannot grow one.
+
+DECISION (C2) — self-transitions in the lifecycle are refused
+    `CORE_CONCEPTS.md` §3 lists the states but not the transition table, so the table is this
+    PR's to define. `Active -> Active` is refused along with everything out of `Destroyed`: a
+    lifecycle change that changes nothing is a caller's mistake, and returning `Ok` for it
+    would hide the mistake at exactly the place S3 will decide whether to stop simulating an
+    entity. Recorded because it is a contract a later step will rely on, not an implementation
+    detail.
 
 DECISION (C1) — `Cargo.lock` is committed
     MineWorld's deliverable is a server and a set of binaries, not a published library, and

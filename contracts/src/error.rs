@@ -9,6 +9,7 @@ use core::fmt;
 
 use thiserror::Error;
 
+use crate::entity::LifecycleState;
 use crate::ids::{EntityId, EntityType};
 
 /// Which validated textual identifier a [`ContractError`] is describing.
@@ -25,6 +26,8 @@ pub enum IdentifierKind {
     ComponentTypeId,
     /// A [`crate::ids::RelationTypeId`].
     RelationTypeId,
+    /// A [`crate::entity::Tag`]: one semantic label on an entity.
+    Tag,
 }
 
 impl fmt::Display for IdentifierKind {
@@ -34,6 +37,7 @@ impl fmt::Display for IdentifierKind {
             Self::SystemId => "system id",
             Self::ComponentTypeId => "component type id",
             Self::RelationTypeId => "relation type id",
+            Self::Tag => "tag",
         };
         f.write_str(name)
     }
@@ -92,5 +96,17 @@ pub enum ContractError {
         expected: EntityType,
         /// The type the entity actually has.
         actual: EntityType,
+    },
+
+    /// A lifecycle change the state machine does not permit, such as anything at all out of
+    /// `Destroyed`.
+    #[error("entity {entity} cannot move from {from} to {to}")]
+    IllegalLifecycleTransition {
+        /// The entity whose lifecycle was to change.
+        entity: EntityId,
+        /// The state it is in.
+        from: LifecycleState,
+        /// The state it was asked to move to.
+        to: LifecycleState,
     },
 }

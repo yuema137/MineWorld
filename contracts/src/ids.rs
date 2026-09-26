@@ -43,7 +43,7 @@ pub const MAX_IDENTIFIER_LENGTH: usize = 64;
 /// restricted enough that an identifier can appear in a file name, a URL and a database key
 /// without escaping. A rejected value is never normalized: silently lower-casing or trimming
 /// an authored name would make two World Packs that read differently resolve to one entity.
-fn validate_identifier(kind: IdentifierKind, value: &str) -> Result<(), ContractError> {
+pub(crate) fn validate_identifier(kind: IdentifierKind, value: &str) -> Result<(), ContractError> {
     if value.is_empty() {
         return Err(ContractError::IdentifierEmpty { kind });
     }

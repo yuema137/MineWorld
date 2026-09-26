@@ -15,7 +15,7 @@ repository       /Users/yuema137/MineWorld
 branch           mvp0/pr-01-entity-component-contracts
 implementation   created from main @ 39abfb3
 base
-current HEAD     the C1 commit — the one that carries this handoff refresh
+current HEAD     the C2 commit — the one that carries this handoff refresh (C1 = e040818)
                  (session start was f44b7d1; `git log --oneline` is authoritative)
 working tree     clean at each commit; the only untracked path is target/ (gitignored)
 remote           none (decision D-9: local-only until S13)
@@ -79,32 +79,34 @@ C5  Specification synchronization
 ## Current checkpoint
 
 ```text
-C1  DONE     Cargo workspace, rust-toolchain.toml pinned to 1.97.1, clippy.toml denying
-             HashMap/HashSet, crate mineworld-contracts with src/lib.rs, src/error.rs,
-             src/ids.rs, and tests/identity.rs + tests/compile_fail{.rs,/}
-C2  next
-C3  not started
+C1  DONE  e040818  workspace, rust-toolchain.toml pinned to 1.97.1, clippy.toml denying
+                     HashMap/HashSet, crate mineworld-contracts with src/lib.rs,
+                     src/error.rs, src/ids.rs, tests/identity.rs, tests/compile_fail{.rs,/}
+C2  DONE           src/entity.rs (Tag, Tags, LifecycleState, Metadata, Entity),
+                   IdentifierKind::Tag, ContractError::IllegalLifecycleTransition,
+                   tests/entity.rs, third compile-fail case
+C3  next
 C4  not started
 C4b not started
 C5  not started
 
-validation evidence: §8.2 of the design — all four §6 commands clean at C1;
-                     10 tests pass (9 identity + 1 trybuild harness over 2 cases);
-                     two mutations confirmed the HashMap ban and the compile-fail case
+validation evidence: §8.2 of the design — all four §6 commands clean at C1 and at C2;
+                     16 tests pass (9 identity + 6 entity + 1 trybuild harness over 3 cases);
+                     three mutations confirmed the HashMap ban, the compile-fail case and the
+                     terminal Destroyed state
 assumptions:         A-1 and A-2 resolved in C1 (§8.4); A-3 still carried to S4
 background jobs:     none
 ```
 
 ## Exact next actions
 
-1. Re-read §7's C2 block (entity record and lifecycle) and `docs/CORE_CONCEPTS.md` §3 before
-   writing `contracts/src/entity.rs`.
-2. Implement C2's checklist: `Tag`/`Tags`, `LifecycleState` with `can_transition_to`,
-   `Metadata` (authoring provenance only), `Entity` with no half-initialized state.
-   `validate_identifier` in `src/ids.rs` is private and must become `pub(crate)` for `Tag`;
-   add the `IdentifierKind::Tag` variant in the same change.
+1. Re-read §7's C3 block (component model) and `docs/CORE_CONCEPTS.md` §3.1 and §13.1 before
+   writing `contracts/src/component.rs`.
+2. Implement C3's checklist: `ComponentSchemaVersion`, the `Component` trait carrying
+   `COMPONENT_TYPE` / `OWNER` / `SCHEMA_VERSION`, `ComponentDeclaration`, `ComponentRecord` as
+   the one erasure boundary, and two test-only components owned by two different stub systems.
 3. Run §6's four commands, record evidence and any deviation in §8.2/§8.3, refresh this file,
-   then commit C2.
+   then commit C3.
 
 ## Stop conditions
 
