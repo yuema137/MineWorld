@@ -1,0 +1,5 @@
+error[E0616]: field `lifecycle` of struct `Entity` is private
+  --> tests/compile_fail/entity_lifecycle_cannot_be_assigned.rs:12:12
+   |
+12 |     entity.lifecycle = LifecycleState::Destroyed;
+   |            ^^^^^^^^^ private field

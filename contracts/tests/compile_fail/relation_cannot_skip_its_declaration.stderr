@@ -1,0 +1,11 @@
+error[E0451]: fields `relation_type`, `from` and `to` of struct `Relation` are private
+  --> tests/compile_fail/relation_cannot_skip_its_declaration.rs:8:9
+   |
+ 7 |     let _edge = Relation {
+   |                 -------- in this type
+ 8 |         relation_type: RelationTypeId::new("connected_to").unwrap(),
+   |         ^^^^^^^^^^^^^ private field
+ 9 |         from: EntityId::from_raw(4),
+   |         ^^^^ private field
+10 |         to: EntityId::from_raw(3),
+   |         ^^ private field

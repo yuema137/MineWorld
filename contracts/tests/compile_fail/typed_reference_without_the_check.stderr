@@ -1,0 +1,11 @@
+error[E0423]: cannot initialize a tuple struct which contains private fields
+ --> tests/compile_fail/typed_reference_without_the_check.rs:7:19
+  |
+7 |     let _person = PersonId(EntityId::from_raw(1));
+  |                   ^^^^^^^^
+  |
+note: constructor is not visible here due to private fields
+ --> src/ids.rs
+  |
+  | pub struct PersonId(EntityId);
+  |                     ^^^^^^^^ private field

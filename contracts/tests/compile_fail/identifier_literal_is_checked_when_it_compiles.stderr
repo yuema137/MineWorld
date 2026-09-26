@@ -1,0 +1,19 @@
+error[E0080]: evaluation panicked: a system id literal must be 1 to 64 bytes of lowercase ASCII letters, digits, '-' and '_', and must not begin or end with a separator
+ --> tests/compile_fail/identifier_literal_is_checked_when_it_compiles.rs:7:27
+  |
+7 | const ILLEGAL: SystemId = SystemId::from_static("First Stub");
+  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `ILLEGAL` failed inside this call
+  |
+note: inside `mineworld_contracts::SystemId::from_static`
+ --> $RUST/core/src/panic.rs
+  |
+  = note: the failure occurred here
+  |
+ ::: src/ids.rs
+  |
+  |               Err(_) => panic!(
+  |  _______________________-
+  | |                 "a system id literal must be 1 to 64 bytes of lowercase ASCII letters, digits, \
+  | |                  '-' and '_', and must not begin or end with a separator"
+  | |             ),
+  | |_____________- in this macro invocation

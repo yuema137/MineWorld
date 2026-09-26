@@ -1,0 +1,8 @@
+# Pinned to an exact version rather than the floating `stable` channel: `clippy -D warnings`
+# and the `trybuild` expected-output files are compiler-diagnostic-sensitive, so a floating
+# channel would change this project's verification results without a commit. Bumping the
+# toolchain is therefore a deliberate, reviewable change.
+[toolchain]
+channel = "1.97.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
