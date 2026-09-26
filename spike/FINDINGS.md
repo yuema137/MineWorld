@@ -198,10 +198,13 @@ time of a past frame, not of the request. Harmless here, wrong in principle, fre
 
 Integer millimetres and millidegrees were the two choices expected to chafe. Mostly they do not:
 
-- **Millimetres are fine.** Godot works in float metres; the conversion is one multiply per axis at
-  the boundary (`mm / 1000.0`), done when a body is built and when a position is reported. i32
-  millimetres spans ±2 147 km, and a 1 mm quantum is far below what a 2.5 m/s walk resolves at
-  60 Hz (about 42 mm per frame).
+- **Millimetres are fine.** Godot works in float metres; the conversion is one multiply per axis
+  at the boundary (`mm / 1000.0`), done when a body is built and when a position is reported. i32
+  millimetres spans ±2 147 km, and a 1 mm quantum is far below what a 2.4 m/s walk resolves at
+  60 Hz (about 40 mm per frame). Positions round-tripped exactly: the 3D readout in
+  `3d-03-prompt-available.png` shows the client body at `x=899 y=-162 mm` and the server's at
+  `x=850 y=17 mm`, and the difference is prediction lag (F7), not quantization. No precision
+  problem appeared in either client.
 - **Integer distance comparison is an asset.** `SpatialRequirement::evaluate` compares squared
   distances in `i128` with no square root, so the server's answer and a client's guess cannot
   disagree by a rounding epsilon — precisely the class of bug that makes "the prompt said I could
@@ -267,10 +270,14 @@ than the one agreed.
 
 ## F7 — an `Affordance` is computed against server position and carries no marker of when
 
-`Affordance` does what `DD-11` promises (evidence under `§ Runs`). The gap is temporal rather than
-structural. The server evaluates the requirement against *its own* authoritative position. A 3D
+`Affordance` does what `DD-11` promises — see R3 and R4 under `§ Runs`, where three different
+server verdicts are rendered in one frame and no client computed any of them. The gap is temporal
+rather than structural. The server evaluates the requirement against *its own* authoritative position. A 3D
 client's body is a local prediction that leads the server's by up to one round trip, so near the
-2.5 m boundary the client renders an affordance computed for a position it has already left.
+2.5 m boundary the client renders an affordance computed for a position it has already left. The
+spike measured the gap: at the moment the prompt turned green the client body was at
+`(899, -162)` mm and the server's at `(850, 17)` mm — about 180 mm apart, or 0.07 s of walking at
+2.4 m/s. That is small here only because the transport is localhost.
 
 The contract gives a client no way to notice. `Observation.at` is the world clock in *seconds*
 (`WorldTime` is `i64` seconds), so every observation inside one simulated second is stamped
@@ -282,6 +289,41 @@ monotonic sequence number (S11's business, no contract change), or — if sub-se
 resolution is wanted for other reasons — reconsider `WorldTime`'s second granularity before the
 S4 scheduler fixes it. A 10 Hz observation stream against a 1 Hz clock is a mismatch worth noticing
 now rather than after the scheduler is written.
+
+---
+
+## F9 — Godot has one number type, so *every* integer field is at risk on the way back — but this one fails loudly
+
+Found by running it, not by reading it. The 2D client's first `move-to` was refused, and the
+server printed the reason:
+
+```text
+[server] move-to payload refused by the contract: invalid type: floating point `1500.0`, expected i32
+```
+
+The client had computed a click position, which in GDScript is a `float`, and `JSON.stringify`
+wrote `1500.0`. `Millimetres` is a transparent `i32`, and `serde_json` correctly refuses a float
+for an `i32`. So DD-15 is only the *outbound* half of the number problem: on the inbound half,
+every `Millimetres`, every `Millidegrees`, `ComponentSchemaVersion`, `EventSchemaVersion` and
+`WorldTime` in a client-built frame must be explicitly integer-ified before `JSON.stringify`. Both
+spike clients now call `int(round(...))` at every such field.
+
+This is worth recording as a **positive**, and as an argument for the contract's integer
+discipline rather than against it:
+
+```text
+a float where an integer is declared     ->  serde refuses, loudly, at the boundary  (this)
+a 64-bit id parsed as a double           ->  nobody notices, and two entities merge   (F1/F2)
+```
+
+The integer-only contract turns a class of silent client bug into a hard rejection with a precise
+message. The remaining silent case is exactly the one F2 identifies, which is a further argument
+for fixing ids at the type rather than at the frame.
+
+**Smallest change that would fix it:** nothing in the contract. One line in S11's client-protocol
+documentation — "every numeric field except an id is an integer; a client with a single number
+type must round and cast before encoding" — and, if a client SDK is ever written, one helper that
+does it.
 
 ---
 
@@ -310,8 +352,146 @@ now rather than after the scheduler is written.
 
 ## Runs
 
-To be filled in as each run completes.
+All four runs below were actually performed on this host: Godot 4.7.2.stable, Metal 4.0
+Forward+, Apple M5, windowed (not headless — a headless run renders nothing to capture), against
+the spike server on `127.0.0.1:7878`. Reproduce with `spike/run.sh 2d`, `spike/run.sh 3d` or
+`spike/run.sh both`. The PNGs named here are in `spike/evidence/` and each one was read back and
+inspected, not merely written.
+
+### R1 — DD-15, measured from inside Godot
+
+Both clients print the comparison on their first observation. Verbatim from
+`spike/evidence/client-2d.log`:
+
+```text
+[2d] DD-15 wire id (string)   : 9007199254740995
+[2d] DD-15 wire id -> int()   : 9007199254740995
+[2d] DD-15 naive id (JSON num): 9007199254740996.0  typeof=3 (2=int 3=float)
+[2d] DD-15 naive id as text   : 9007199254740996
+[2d] DD-15 collision check: alice_wire=9007199254740995 mug_wire=9007199254740997
+                            alice_naive=9007199254740996 mug_naive=9007199254740996 collide=true
+[2d] F2 payload id: sent 9007199254740999, parsed 9007199254741000, protected=false
+```
+
+and from `spike/evidence/client-3d.log`:
+
+```text
+[3d] DD-15 wire  alice=9007199254740995 mug=9007199254740997 (exact, typeof=4)
+[3d] DD-15 naive alice=9007199254740996 mug=9007199254740996 (typeof=3) collide=true
+```
+
+`typeof=3` is `TYPE_FLOAT`, `typeof=4` is `TYPE_STRING`. So: DD-15's trap is real, its fix works,
+`collide=true` shows two entities becoming one without it — and `protected=false` on the payload
+line is F2.
+
+### R2 — the 2D client, four frames
+
+`2d-01-arrived.png` — the room drawn from the `place-extent` component, four bodies placed from
+`LocalPosition`, names from `display-name`, facing lines from `Orientation`, and the affordance
+panel listing the server's four answers: `move-to` available, `talk Alice` too far away,
+`talk Bob` not available, `pick-up Chipped mug` too far away. Under Bob: "Talk to Bob — not
+available / needs 2.5 m", where the reach is read out of `SpatialRequirement.within_range`
+without being evaluated.
+
+`2d-02-bob-refused.png` — after clicking Bob. The client submitted the intent without checking
+anything; the server answered `Rejected(TargetUnavailable)` and the panel reads "refused — not
+available".
+
+`2d-03-prompt-available.png` — after clicking the floor at `(1500, 0)` mm and the server walking
+its authoritative body there. `talk Alice` has flipped to available and the label under Alice is
+green: "[click] Talk to Alice". The client did not decide that; it watched the affordance change.
+
+`2d-04-talk-accepted.png` — "accepted (1 event(s))".
+
+### R3 — the 3D client, four frames
+
+`3d-01-entered.png` — first person inside the café. Floor and walls built from `place-extent`,
+Alice as an orange capsule with a billboarded name label, the mug beside her, and the readout
+showing `server body x=0 y=3200 mm yaw=180000 mdeg` with the same four affordances the 2D client
+received.
+
+`3d-02-looking-at-alice.png` — the camera turned to face her.
+
+`3d-03-prompt-available.png` — the key frame. `targeting 9007199254740995`: the `RayCast3D` hit
+Alice's collider and recovered her exact 64-bit id from node metadata, which is `DD-14` and
+`DD-15` working together. The HUD reads **"[E] Talk to Alice"** in green, and the affordance list
+below shows, in the same frame, `talk Alice available`, `talk Bob not available`, `pick-up
+Chipped mug too far away` — three different server verdicts, rendered three different ways, none
+of them computed by the client. `client body x=899 y=-162 mm yaw=165029 mdeg` against
+`server body x=850 y=17 mm yaw=165029 mdeg`: the yaw round-tripped exactly through millidegrees.
+
+`3d-04-talk-accepted.png` — "accepted (1 event(s))".
+
+### R4 — AC-13 parity, both clients against one server
+
+`spike/run.sh both`. Server log:
+
+```text
+[server] 2d -> talk: Rejected(TargetUnavailable)
+[server] 2d -> talk: Accepted { events: [EventId(9007199254741101)] }
+[server] AC-13 parity: whole=false semantic_core=true
+                       differing=["action_id", "issued_at", "actor_location"]
+[server] 3d -> talk: Accepted { events: [EventId(9007199254741106)] }
+```
+
+**Were the two intents identical? No — and yes, in exactly the way F6 predicts.** From
+`spike/evidence/parity.json`, the semantic cores are byte-identical:
+
+```json
+{ "action_type": "talk", "actor": 101, "target": 9007199254740995,
+  "payload": { "action_type": "talk", "payload": { "topic": "greeting" } } }
+```
+
+and the whole intents are not:
+
+```text
+                 2D                              3D
+action_id        7003                            8014            invented by each client (F4)
+issued_at        32419                           32445           read off different observations
+actor_location   null                            {place 9007199254740993,
+                                                  local (867, -46, 0),
+                                                  facing yaw 165040}
+```
+
+Both were resolved by the same code path, against the same declared `SpatialRequirement`, to the
+same `ActionResult::Accepted`. A click and a walk-up-look-at-press-E produced the same request of
+the world. The three differing fields are the ones no client can make agree, and two of them are
+differences the contract explicitly intends.
+
+---
 
 ## Ranking
 
-To be filled in at the end.
+Ordered by what I would act on first, with the cost of acting late.
+
+| # | Finding | What broke or chafed | Smallest fix | Act by |
+| --- | --- | --- | --- | --- |
+| 1 | **F2** | DD-15's protocol-level fix cannot reach inside `ComponentRecord`/`EventRecord` payloads, and real payloads carry `EntityId`s. Silent corruption; `protected=false` measured. | Hand-written `Serialize`/`Deserialize` on the four id newtypes keyed on `Serializer::is_human_readable()`: decimal string for JSON, `u64` for binary. Deletes `wire.rs`. | Before S11 freezes the wire format. Later means auditing every System Pack's payloads. |
+| 2 | **F4** | A client must invent an `ActionId`, which `ids.rs` says nothing outside the kernel may do. Two clients collide; the event log's causal chain is anchored on client-chosen identity. | Protocol carries a request plus a correlation token, server allocates the `ActionId` (no contract change); or add `ActionRequest` to the contract and make `ActionIntent::allocate` the only path. | Before a second client exists — i.e. before S12 and S14 both ship. |
+| 3 | **F3** | `Observation` carries no relations, and place hierarchy is *defined* as a relation. A client can render one room and no world. | `relations: Vec<Relation>` on `Observation`, filtered by the perception system. One field. | Before S11 freezes the observation frame; adding it later changes every client. |
+| 4 | **F6** | `AC-13` as written ("byte identical") is unachievable against the contract designed to satisfy it; three fields must differ. | Reword `AC-13` to "identical semantic core — `actor`, `action_type`, `target`, payload" and name the fields permitted to differ. Have S11 define the comparison once. | Before the S14 acceptance test is written against the wrong criterion. |
+| 5 | **F5** | `Orientation` fixes yaw's range but not its zero or its handedness, and `LocalPosition` does not state the frame. Two clients wrote two different, both plausible, conversions. | Three sentences of documentation plus one worked example on `Orientation`/`LocalPosition`. No type change. | Cheap now, cheap later — but every client written before it is a client with a guess in it. |
+| 6 | **F7** | An affordance is computed against the server's position with no staleness marker, and `WorldTime`'s one-second granularity cannot order two frames of a 10 Hz stream. | A monotonic sequence number on the protocol frame (S11, no contract change). Separately, reconsider `WorldTime`'s granularity before S4 fixes it. | The sequence number any time; the clock granularity before the scheduler. |
+| 7 | **F9** | A client with one number type sends `1500.0` where an `i32` is declared. | One line in S11's client-protocol documentation. | Any time — it fails loudly. |
+| 8 | **F8** | Five small chafes: duplicated `action_type` on the wire, the `P = Vec<u8>` default, no `Display` on `Rejection`, tags as appearance keys, `i64` times. | Documentation in S11; no contract change. | Any time. |
+
+### The two gate questions, answered from a renderer that ran
+
+**Can this support a Minecraft-like embodied 3D client without redesigning the kernel?**
+Yes. Continuous position, look direction, proximity interaction, the "what can I do with what I
+am looking at" query and the body-to-entity binding all worked against the merged contract with
+no addition to it. The one structural gap a walking world will hit is F3 — a client cannot learn
+that one place adjoins another — and it is one field, not a redesign.
+
+**Can 2D and 3D use the capability without duplicating game logic?**
+Yes, and the diff is the evidence: the two clients share no rule. Neither measures a distance,
+neither decides availability, neither knows that `talk` exists until an affordance names it.
+Everything they do differently is acquisition — a click versus a camera ray — and everything after
+acquisition is identical, which is what R4 measured.
+
+### A note on what was *not* pushed on
+
+Persistence, replay, multiple places, travel between places, multiple simultaneous clients,
+relations, permissions and organizations were not exercised: the spike has one place, one
+observer and no kernel. F3 is the strongest signal that the second place is where the next
+surprise lives, and it would be worth a follow-up spike once S11 exists.
