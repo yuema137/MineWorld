@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Launch the MineWorld 2D presentation spike.
+#
+#   ./mineworld-2d            walk around (WASD or arrow keys, Esc to quit)
+#   ./mineworld-2d --shots    capture reference stills into clients/2d-spike/shots/
+#   ./mineworld-2d --drive    scripted movement check, prints distances travelled
+#
+# Requires Godot 4.4+ on PATH (tested with 4.7.2).  brew install godot
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+godot="${GODOT:-godot}"
+if ! command -v "$godot" >/dev/null 2>&1; then
+  echo "mineworld-2d: '$godot' not found on PATH. Install Godot 4 (brew install godot)," >&2
+  echo "              or point GODOT= at the binary." >&2
+  exit 127
+fi
+exec "$godot" --path "$here/clients/2d-spike" -- "$@"
