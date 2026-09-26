@@ -151,7 +151,7 @@ fn an_entity_is_stored_as_its_documented_shape() {
     let plain = alice();
     assert_eq!(
         serde_json::to_string(&plain).unwrap(),
-        r#"{"id":1,"key":"alice","entity_type":"person","tags":[],"lifecycle":"active"}"#
+        r#"{"id":"1","key":"alice","entity_type":"person","tags":[],"lifecycle":"active"}"#
     );
 
     let authored = alice()
@@ -164,7 +164,7 @@ fn an_entity_is_stored_as_its_documented_shape() {
     assert_eq!(
         serde_json::to_string(&authored).unwrap(),
         concat!(
-            r#"{"id":1,"key":"alice","entity_type":"person","tags":["barista","resident"],"#,
+            r#"{"id":"1","key":"alice","entity_type":"person","tags":["barista","resident"],"#,
             r#""lifecycle":"active","#,
             r#""metadata":{"source_pack":"lakewood","source_path":"people/alice.yaml","#,
             r#""authoring_note":null}}"#
@@ -173,7 +173,7 @@ fn an_entity_is_stored_as_its_documented_shape() {
 
     assert_eq!(
         serde_json::from_str::<Entity>(
-            r#"{"id":1,"key":"alice","entity_type":"person","tags":[],"lifecycle":"active"}"#
+            r#"{"id":"1","key":"alice","entity_type":"person","tags":[],"lifecycle":"active"}"#
         )
         .unwrap(),
         plain
@@ -202,13 +202,13 @@ fn a_restored_entity_keeps_every_field_and_rejects_an_unknown_lifecycle() {
 
     assert!(
         serde_json::from_str::<Entity>(
-            r#"{"id":1,"key":"alice","entity_type":"person","tags":[],"lifecycle":"archived"}"#
+            r#"{"id":"1","key":"alice","entity_type":"person","tags":[],"lifecycle":"archived"}"#
         )
         .is_err()
     );
     assert!(
         serde_json::from_str::<Entity>(
-            r#"{"id":1,"key":"Alice","entity_type":"person","tags":[],"lifecycle":"active"}"#
+            r#"{"id":"1","key":"Alice","entity_type":"person","tags":[],"lifecycle":"active"}"#
         )
         .is_err(),
         "an invalid authored key must not survive a round trip through storage"

@@ -162,7 +162,7 @@ fn an_undirected_edge_is_canonical_in_both_construction_orders() {
     );
     assert_eq!(
         serde_json::to_string(&one_way).unwrap(),
-        r#"{"relation_type":"connected_to","from":3,"to":4}"#
+        r#"{"relation_type":"connected_to","from":"3","to":"4"}"#
     );
 }
 

@@ -27,11 +27,49 @@
 //! the kernel's responsibility and arrives with the kernel, so this crate cannot silently wrap
 //! at the top of the identifier space, and two runs of the same seeded world cannot differ
 //! because of identity.
+//!
+//! # How an opaque identity is encoded, and why the rule lives on the type
+//!
+//! The four opaque runtime identities are 64-bit, and a great many consumers of this contract
+//! read JSON with a parser that has one number type: a double. Above 2^53 a double cannot hold
+//! an integer exactly, so an id serialized as a JSON *number* is corrupted on the way in — and
+//! silently, because the Rust side is correct and the JSON text is correct. A renderer
+//! integration spike measured it from inside a Godot client: `9007199254740995` and
+//! `9007199254740997` both arrived as `9007199254740996`, so two distinct entities became one
+//! (`spike/FINDINGS.md` F1).
+//!
+//! So [`EntityId`], [`EventId`], [`ActionId`] and [`ProcessId`] hand-write their `serde`
+//! implementations and key them on [`Serializer::is_human_readable`]:
+//!
+//! ```text
+//! human-readable     (serde_json, YAML, TOML)   a decimal string, "9007199254740995"
+//! not human-readable (bincode, postcard, …)     the u64 it has always been
+//! ```
+//!
+//! Reading back in the human-readable case accepts **both** forms, so an existing JSON fixture
+//! or a hand-written test datum that holds a number still loads. A float is refused outright
+//! rather than truncated: an id that has already lost precision must fail where it is read, not
+//! resolve to whichever entity it rounded onto.
+//!
+//! **Why the rule is on the type rather than at the protocol boundary.** `DD-15` originally
+//! assigned this to the wire encoding, and rejected encoding ids as strings in the contract on
+//! the grounds that it "would distort persistence and any binary encoding to suit one client's
+//! parser". `is_human_readable()` is precisely the distinction that prevents that: a binary
+//! encoding still receives a `u64` and is untouched, so persistence and replay determinism are
+//! unaffected. What the protocol boundary could not do is reach inside a payload.
+//! [`ComponentRecord`](crate::component::ComponentRecord) and
+//! [`EventRecord`](crate::event::EventRecord) erase their contents by design, so a protocol
+//! layer cannot find the ids in them — and real payloads carry ids: an employment component
+//! naming an employer, a conversation component naming who is being talked to. An encoder that
+//! guessed from field names would also corrupt the integers that are *not* ids. Keying on the
+//! type is the only rule that travels with the value into a payload this crate cannot read
+//! (`spike/FINDINGS.md` F2, which supersedes `DD-15`'s assignment of the problem).
 
 use core::fmt;
 use std::borrow::Cow;
 
-use serde::{Deserialize, Serialize};
+use serde::de::{self, Unexpected, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::error::{ContractError, IdentifierKind};
 
@@ -146,6 +184,95 @@ const fn is_separator(byte: u8) -> bool {
 // Opaque runtime identity
 // ---------------------------------------------------------------------------------------------
 
+/// Writes one opaque identity, as a decimal string for a human-readable format and as the `u64`
+/// it is for every other. See this module's documentation for why the rule lives here.
+///
+/// `collect_str` rather than a `String`: `serde_json` writes the digits straight into its output,
+/// so the human-readable path allocates nothing.
+fn serialize_opaque_id<S: Serializer>(raw: u64, serializer: S) -> Result<S::Ok, S::Error> {
+    if serializer.is_human_readable() {
+        serializer.collect_str(&raw)
+    } else {
+        serializer.serialize_u64(raw)
+    }
+}
+
+/// Reads one opaque identity back.
+///
+/// Deliberately implements no floating-point method. Serde's default refuses a float with
+/// `invalid type: floating point ...`, which is the required behaviour — an id that arrived as a
+/// double has already lost precision, and truncating it would resolve it to whichever identity it
+/// rounded onto. Writing the rejection out by hand would also mean naming a float type in this
+/// crate's source, which the contract layer forbids (`tests/spatial.rs`).
+struct OpaqueIdVisitor {
+    /// The type being read, for the message a failure produces.
+    type_name: &'static str,
+}
+
+impl<'de> Visitor<'de> for OpaqueIdVisitor {
+    type Value = u64;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{} as a decimal string or an unsigned 64-bit integer",
+            self.type_name
+        )
+    }
+
+    fn visit_u64<E: de::Error>(self, value: u64) -> Result<Self::Value, E> {
+        Ok(value)
+    }
+
+    fn visit_i64<E: de::Error>(self, value: i64) -> Result<Self::Value, E> {
+        u64::try_from(value).map_err(|_| E::invalid_value(Unexpected::Signed(value), &self))
+    }
+
+    fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
+        value
+            .parse::<u64>()
+            .map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
+    }
+}
+
+/// Reads one opaque identity, accepting both encoded forms where the format is self-describing.
+///
+/// The branch is not an optimization: a binary format is typically not self-describing, so
+/// `deserialize_any` is not answerable there and the concrete `deserialize_u64` is what it
+/// requires.
+fn deserialize_opaque_id<'de, D: Deserializer<'de>>(
+    type_name: &'static str,
+    deserializer: D,
+) -> Result<u64, D::Error> {
+    let visitor = OpaqueIdVisitor { type_name };
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_any(visitor)
+    } else {
+        deserializer.deserialize_u64(visitor)
+    }
+}
+
+/// Gives one opaque identity newtype the encoding this module documents.
+///
+/// A macro because the four identities must agree exactly: four hand-written copies of the same
+/// twenty lines is four chances for one of them to drift, and a drifting id encoding is the class
+/// of defect this whole rule exists to remove.
+macro_rules! opaque_id_serde {
+    ($name:ident) => {
+        impl Serialize for $name {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                serialize_opaque_id(self.0, serializer)
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                deserialize_opaque_id(stringify!($name), deserializer).map(Self)
+            }
+        }
+    };
+}
+
 /// Opaque runtime identity of an entity: stable, unique, and never reused.
 ///
 /// Allocation belongs to the kernel, not to this crate. [`EntityId::from_raw`] exists so that
@@ -153,9 +280,10 @@ const fn is_separator(byte: u8) -> bool {
 /// a way to invent one. There is deliberately no `Default`, no arithmetic and no increment
 /// here: an allocator that could reuse or overflow an identity is a kernel concern that must
 /// stay visible there rather than hide behind a convenience in a contract type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EntityId(u64);
+
+opaque_id_serde!(EntityId);
 
 impl EntityId {
     /// Rebuilds the identity the kernel allocated or persistence recorded.
@@ -179,9 +307,10 @@ impl fmt::Display for EntityId {
 ///
 /// The event payload contracts arrive with the action and event layer; the identity type lives
 /// here so that every layer wraps the same one.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EventId(u64);
+
+opaque_id_serde!(EventId);
 
 impl EventId {
     /// Rebuilds the identity the kernel allocated or persistence recorded.
@@ -202,9 +331,10 @@ impl fmt::Display for EventId {
 }
 
 /// Identity of a submitted action, used to correlate an intent with its outcome.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ActionId(u64);
+
+opaque_id_serde!(ActionId);
 
 impl ActionId {
     /// Rebuilds the identity the kernel allocated or persistence recorded.
@@ -225,9 +355,10 @@ impl fmt::Display for ActionId {
 }
 
 /// Identity of a running process — something that takes simulated time.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ProcessId(u64);
+
+opaque_id_serde!(ProcessId);
 
 impl ProcessId {
     /// Rebuilds the identity the kernel allocated or persistence recorded.

@@ -63,13 +63,13 @@ fn one_location_type_describes_both_an_embodied_and_a_purely_semantic_position()
     let text = serde_json::to_string(&semantic).unwrap();
     assert_eq!(
         text,
-        r#"{"place":{"entity":7,"entity_type":"place"},"local":null,"facing":null}"#
+        r#"{"place":{"entity":"7","entity_type":"place"},"local":null,"facing":null}"#
     );
     assert_eq!(serde_json::from_str::<Location>(&text).unwrap(), semantic);
     let text = serde_json::to_string(&embodied).unwrap();
     assert_eq!(
         text,
-        r#"{"place":{"entity":7,"entity_type":"place"},"local":{"x":1200,"y":0,"z":1650},"facing":{"yaw":90000,"pitch":-5000}}"#
+        r#"{"place":{"entity":"7","entity_type":"place"},"local":{"x":1200,"y":0,"z":1650},"facing":{"yaw":90000,"pitch":-5000}}"#
     );
     assert_eq!(serde_json::from_str::<Location>(&text).unwrap(), embodied);
 }
@@ -363,7 +363,7 @@ fn a_requirement_is_stored_as_its_documented_shape() {
         .requiring_line_of_access()
         .requiring_target_available();
 
-    let text = r#"{"place":{"specific":{"entity":7,"entity_type":"place"}},"within_range":3000,"requires_line_of_access":true,"requires_target_available":true}"#;
+    let text = r#"{"place":{"specific":{"entity":"7","entity_type":"place"}},"within_range":3000,"requires_line_of_access":true,"requires_target_available":true}"#;
     assert_eq!(serde_json::to_string(&requirement).unwrap(), text);
     assert_eq!(
         serde_json::from_str::<SpatialRequirement>(text).unwrap(),

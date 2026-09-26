@@ -173,7 +173,7 @@ fn an_intent_for_an_action_no_system_provides_is_representable_and_answered_unav
     };
     assert_eq!(
         serde_json::to_string(&accepted).unwrap(),
-        r#"{"accepted":{"events":[9001,9002]}}"#
+        r#"{"accepted":{"events":["9001","9002"]}}"#
     );
     assert_eq!(
         serde_json::from_str::<ActionResult>(r#"{"accepted":{"events":[9001,9002]}}"#).unwrap(),
@@ -240,7 +240,7 @@ fn an_intent_is_stored_as_its_documented_shape() {
             .with_facing(Orientation::facing(Millidegrees::new(90_000))),
     );
 
-    let text = r#"{"action_id":3,"actor":41,"action_type":"give_item","target":42,"payload":{"action_type":"give_item","payload":"{\"item\":18517}"},"issued_at":64800,"actor_location":{"place":{"entity":7,"entity_type":"place"},"local":{"x":1200,"y":-350,"z":0},"facing":{"yaw":90000,"pitch":null}}}"#;
+    let text = r#"{"action_id":"3","actor":"41","action_type":"give_item","target":"42","payload":{"action_type":"give_item","payload":"{\"item\":18517}"},"issued_at":64800,"actor_location":{"place":{"entity":"7","entity_type":"place"},"local":{"x":1200,"y":-350,"z":0},"facing":{"yaw":90000,"pitch":null}}}"#;
     assert_eq!(serde_json::to_string(&intent).unwrap(), text);
     assert_eq!(
         serde_json::from_str::<ActionIntent<String>>(text).unwrap(),

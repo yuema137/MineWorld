@@ -5,10 +5,16 @@
 //! under test, so a change in behavior cannot silently change what the test expects.
 
 use mineworld_contracts::{
-    ActionId, ActionTypeId, ComponentTypeId, ContractError, EntityId, EntityKey, EntityType,
-    EventId, IdentifierKind, ItemId, OrganizationId, PersonId, PlaceId, ProcessId, RejectionCode,
-    RelationTypeId, SystemId,
+    ActionId, ActionTypeId, Component, ComponentRecord, ComponentSchemaVersion, ComponentTypeId,
+    ContractError, EntityId, EntityKey, EntityType, Event, EventId, EventRecord,
+    EventSchemaVersion, EventTypeId, IdentifierKind, ItemId, OrganizationId, PersonId, PlaceId,
+    ProcessId, RejectionCode, RelationTypeId, SystemId,
 };
+use serde::{Deserialize, Serialize};
+
+mod support;
+
+use support::{Written, read_binary, write_binary};
 
 /// The identifiers the specification's own examples use must be accepted, and the character
 /// rule's boundaries must be where the documentation says they are.
@@ -216,35 +222,342 @@ fn a_typed_reference_is_built_only_for_its_own_entity_type() {
     }
 }
 
-/// The opaque identities are written as bare integers. The wire shape is a contract: the event
-/// log and the persistence layer read it back, so wrapping them in an object later would be a
-/// migration, not a refactor.
+/// The opaque identities are written as decimal strings in a human-readable format. The wire shape
+/// is a contract: the event log, the persistence layer and every client read it back, so changing
+/// it later would be a migration rather than a refactor.
 #[test]
-fn opaque_identities_are_written_as_bare_integers() {
-    assert_eq!(serde_json::to_string(&EntityId::from_raw(7)).unwrap(), "7");
-    assert_eq!(serde_json::to_string(&EventId::from_raw(8)).unwrap(), "8");
-    assert_eq!(serde_json::to_string(&ActionId::from_raw(9)).unwrap(), "9");
+fn opaque_identities_are_written_as_decimal_strings_in_json() {
+    assert_eq!(
+        serde_json::to_string(&EntityId::from_raw(7)).unwrap(),
+        "\"7\""
+    );
+    assert_eq!(
+        serde_json::to_string(&EventId::from_raw(8)).unwrap(),
+        "\"8\""
+    );
+    assert_eq!(
+        serde_json::to_string(&ActionId::from_raw(9)).unwrap(),
+        "\"9\""
+    );
     assert_eq!(
         serde_json::to_string(&ProcessId::from_raw(10)).unwrap(),
-        "10"
+        "\"10\""
     );
 
     assert_eq!(
-        serde_json::from_str::<EntityId>("7").unwrap(),
+        serde_json::from_str::<EntityId>("\"7\"").unwrap(),
         EntityId::from_raw(7)
+    );
+    assert_eq!(
+        serde_json::from_str::<EventId>("\"8\"").unwrap(),
+        EventId::from_raw(8)
+    );
+    assert_eq!(
+        serde_json::from_str::<ActionId>("\"9\"").unwrap(),
+        ActionId::from_raw(9)
+    );
+    assert_eq!(
+        serde_json::from_str::<ProcessId>("\"10\"").unwrap(),
+        ProcessId::from_raw(10)
+    );
+}
+
+/// The five identities the renderer spike chose to make the damage unmissable, round-tripped
+/// through JSON exactly.
+///
+/// Every expected string below is the decimal expansion written by hand. The second half of the
+/// test is the reason the first half matters: as IEEE-754 doubles these five *distinct* values
+/// collapse onto three, which is what `spike/FINDINGS.md` F1 measured from inside Godot —
+/// `9007199254740995` (Alice) and `9007199254740997` (a mug) both arriving as `9007199254740996`,
+/// so a client that bound a body to a parsed number would raycast the mug and talk to Alice.
+///
+/// Above 2^53 = `9007199254740992` the representable doubles are two apart, so an odd integer is
+/// exactly halfway between two of them and ties to the even mantissa. That is arithmetic, not a
+/// measurement, which is why the expected values here are derived rather than observed.
+#[test]
+fn the_2_53_boundary_survives_json_for_every_opaque_identity() {
+    let raws: [u64; 5] = [
+        9_007_199_254_740_993,
+        9_007_199_254_740_995,
+        9_007_199_254_740_997,
+        9_007_199_254_740_999,
+        9_007_199_254_741_001,
+    ];
+    let expected = [
+        "\"9007199254740993\"",
+        "\"9007199254740995\"",
+        "\"9007199254740997\"",
+        "\"9007199254740999\"",
+        "\"9007199254741001\"",
+    ];
+
+    for (raw, text) in raws.into_iter().zip(expected) {
+        assert_eq!(
+            serde_json::to_string(&EntityId::from_raw(raw)).unwrap(),
+            text
+        );
+        assert_eq!(
+            serde_json::to_string(&EventId::from_raw(raw)).unwrap(),
+            text
+        );
+        assert_eq!(
+            serde_json::to_string(&ActionId::from_raw(raw)).unwrap(),
+            text
+        );
+        assert_eq!(
+            serde_json::to_string(&ProcessId::from_raw(raw)).unwrap(),
+            text
+        );
+
+        assert_eq!(
+            serde_json::from_str::<EntityId>(text).unwrap(),
+            EntityId::from_raw(raw),
+            "the exact value must come back, not the nearest double"
+        );
+        assert_eq!(
+            serde_json::from_str::<EventId>(text).unwrap(),
+            EventId::from_raw(raw)
+        );
+        assert_eq!(
+            serde_json::from_str::<ActionId>(text).unwrap(),
+            ActionId::from_raw(raw)
+        );
+        assert_eq!(
+            serde_json::from_str::<ProcessId>(text).unwrap(),
+            ProcessId::from_raw(raw)
+        );
+    }
+
+    // What a parser with one number type would have done to those same five values, so the
+    // corruption this encoding prevents is stated rather than assumed. Five distinct ids, three
+    // distinct doubles, and two collisions.
+    let as_doubles: Vec<u64> = raws.iter().map(|raw| *raw as f64 as u64).collect();
+    assert_eq!(
+        as_doubles,
+        vec![
+            9_007_199_254_740_992,
+            9_007_199_254_740_996,
+            9_007_199_254_740_996,
+            9_007_199_254_741_000,
+            9_007_199_254_741_000,
+        ]
+    );
+}
+
+/// An `EntityId` inside a **component payload** survives JSON — the failure class
+/// `spike/FINDINGS.md` F2 identified, and the reason this rule lives on the type rather than at a
+/// protocol boundary.
+///
+/// `ComponentRecord` is a documented payload-erasure boundary: the contract layer never interprets
+/// `P`, so neither can a protocol layer, so a wire encoder cannot find the ids in here. Both
+/// payload shapes below are the ones F2 names as the normal case for a System Pack — a component
+/// that refers to another entity.
+#[test]
+fn an_id_inside_a_component_payload_survives_json() {
+    let alice = EntityId::from_raw(9_007_199_254_740_995);
+    let employer = EntityId::from_raw(9_007_199_254_740_993);
+
+    let employment = Employment { employer };
+    let record: ComponentRecord<String> = ComponentRecord::new::<Employment>(
+        alice,
+        serde_json::to_string(&employment).expect("a payload serializes"),
+    );
+
+    let text = serde_json::to_string(&record).expect("a record serializes");
+    assert_eq!(
+        text,
+        r#"{"entity":"9007199254740995","component_type":"employment","schema_version":1,"payload":"{\"employer\":\"9007199254740993\"}"}"#,
+        "the id in the payload must be a string, exactly as the id in the envelope is"
+    );
+
+    let read: ComponentRecord<String> = serde_json::from_str(&text).expect("the record reads back");
+    let payload: Employment = serde_json::from_str(
+        read.payload_for::<Employment>()
+            .expect("the record is labelled for this component"),
+    )
+    .expect("the payload reads back");
+    assert_eq!(payload.employer, employer);
+    assert_eq!(read.entity(), alice);
+
+    // The other shape F2 names, to show the rule is about the type and not about one field name.
+    let conversation = Conversation { talking_to: alice };
+    let encoded = serde_json::to_string(&conversation).expect("a payload serializes");
+    assert_eq!(encoded, r#"{"talking_to":"9007199254740995"}"#);
+    assert_eq!(
+        serde_json::from_str::<Conversation>(&encoded)
+            .expect("the payload reads back")
+            .talking_to,
+        alice
+    );
+}
+
+/// The same for an **event payload**, which is the other erasure boundary and the permanent one:
+/// an event log is append-only, so an id corrupted on the way in is corrupted for the life of the
+/// world.
+#[test]
+fn an_id_inside_an_event_payload_survives_json() {
+    let mug = EntityId::from_raw(9_007_199_254_740_997);
+    let record: EventRecord<String> = EventRecord::new::<ItemPickedUp>(
+        serde_json::to_string(&ItemPickedUp { item: mug }).expect("a payload serializes"),
+    );
+
+    let text = serde_json::to_string(&record).expect("a record serializes");
+    assert_eq!(
+        text,
+        r#"{"event_type":"item-picked-up","schema_version":1,"payload":"{\"item\":\"9007199254740997\"}"}"#
+    );
+
+    let read: EventRecord<String> = serde_json::from_str(&text).expect("the record reads back");
+    let payload: ItemPickedUp = serde_json::from_str(
+        read.payload_for::<ItemPickedUp>()
+            .expect("the record is labelled for this event"),
+    )
+    .expect("the payload reads back");
+    assert_eq!(payload.item, mug);
+}
+
+/// A format that is **not** human-readable still receives the `u64`, which is the half of the rule
+/// that keeps `DD-15`'s original objection answered: persistence and replay determinism are
+/// untouched, because a binary encoding sees exactly what it saw before.
+///
+/// The instrument is `tests/support`: a serializer and a deserializer that report
+/// `is_human_readable() == false`. The deserializer also refuses `deserialize_any`, because a real
+/// binary format is not self-describing — so an implementation that forgot to branch and reached
+/// for `deserialize_any` fails here exactly as it would against `bincode` or `postcard`.
+#[test]
+fn a_binary_format_encodes_an_opaque_identity_as_a_number() {
+    let raw = 9_007_199_254_740_993;
+
+    assert_eq!(
+        write_binary(&EntityId::from_raw(raw)).expect("an entity id writes"),
+        Written::Unsigned(raw)
+    );
+    assert_eq!(
+        write_binary(&EventId::from_raw(raw)).expect("an event id writes"),
+        Written::Unsigned(raw)
+    );
+    assert_eq!(
+        write_binary(&ActionId::from_raw(raw)).expect("an action id writes"),
+        Written::Unsigned(raw)
+    );
+    assert_eq!(
+        write_binary(&ProcessId::from_raw(raw)).expect("a process id writes"),
+        Written::Unsigned(raw)
+    );
+
+    assert_eq!(
+        read_binary::<EntityId>(raw).expect("an entity id reads back"),
+        EntityId::from_raw(raw)
+    );
+    assert_eq!(
+        read_binary::<EventId>(raw).expect("an event id reads back"),
+        EventId::from_raw(raw)
+    );
+    assert_eq!(
+        read_binary::<ActionId>(raw).expect("an action id reads back"),
+        ActionId::from_raw(raw)
+    );
+    assert_eq!(
+        read_binary::<ProcessId>(raw).expect("a process id reads back"),
+        ProcessId::from_raw(raw)
+    );
+}
+
+/// JSON accepts both forms on the way in, so an authored file, a saved world or a hand-written
+/// test datum that holds a number still loads. Only one form is ever *written*.
+#[test]
+fn json_accepts_both_the_string_and_the_number_form() {
+    let raw = 9_007_199_254_740_993;
+    let expected = EntityId::from_raw(raw);
+
+    assert_eq!(
+        serde_json::from_str::<EntityId>("\"9007199254740993\"").unwrap(),
+        expected
+    );
+    assert_eq!(
+        serde_json::from_str::<EntityId>("9007199254740993").unwrap(),
+        expected,
+        "the number form must still load: existing fixtures hold numbers"
     );
     assert_eq!(
         serde_json::from_str::<EventId>("8").unwrap(),
         EventId::from_raw(8)
     );
     assert_eq!(
-        serde_json::from_str::<ActionId>("9").unwrap(),
-        ActionId::from_raw(9)
+        serde_json::from_str::<ActionId>("\"8\"").unwrap(),
+        ActionId::from_raw(8)
     );
-    assert_eq!(
-        serde_json::from_str::<ProcessId>("10").unwrap(),
-        ProcessId::from_raw(10)
+
+    // A negative number is not an identity, whichever way it is written.
+    assert!(serde_json::from_str::<EntityId>("-1").is_err());
+    assert!(serde_json::from_str::<EntityId>("\"-1\"").is_err());
+    assert!(serde_json::from_str::<EntityId>("\"\"").is_err());
+    assert!(serde_json::from_str::<EntityId>("\"seven\"").is_err());
+}
+
+/// A float is refused rather than truncated.
+///
+/// This is the whole point restated from the other side: `9007199254740993.0` is what a client with
+/// one number type produces, and it has *already* lost the value. Accepting it would resolve the id
+/// to `9007199254740992` — a different entity, silently. `spike/FINDINGS.md` F9 records the same
+/// discipline working for `Millimetres`, where the contract's integer types refuse a float loudly.
+#[test]
+fn a_float_is_refused_rather_than_truncated() {
+    let refused = serde_json::from_str::<EntityId>("9007199254740993.0")
+        .expect_err("a float must not deserialize into an identity");
+    assert!(
+        refused.to_string().contains("floating point"),
+        "the refusal should name the float, but was: {refused}"
     );
+
+    for text in ["1.5", "-1.0", "1e3", "\"1.5\"", "\"1e3\""] {
+        assert!(
+            serde_json::from_str::<EntityId>(text).is_err(),
+            "{text} must not deserialize into an identity"
+        );
+        assert!(serde_json::from_str::<EventId>(text).is_err());
+        assert!(serde_json::from_str::<ActionId>(text).is_err());
+        assert!(serde_json::from_str::<ProcessId>(text).is_err());
+    }
+}
+
+/// An employment component: `spike/FINDINGS.md` F2's first example of a payload that carries an
+/// `EntityId`, and a stand-in for one only — the contract layer knows nothing about employment,
+/// and this declaration lives in a test because that is the only place in this crate an action,
+/// component or event name may appear.
+#[derive(Debug, Serialize, Deserialize)]
+struct Employment {
+    employer: EntityId,
+}
+
+impl Component for Employment {
+    const COMPONENT_TYPE: ComponentTypeId = ComponentTypeId::from_static("employment");
+    const OWNER: SystemId = SystemId::from_static("employment-stub");
+    const SCHEMA_VERSION: ComponentSchemaVersion = ComponentSchemaVersion::new(1);
+}
+
+/// F2's second example, to show the rule is not keyed on a field name.
+#[derive(Debug, Serialize, Deserialize)]
+struct Conversation {
+    talking_to: EntityId,
+}
+
+impl Component for Conversation {
+    const COMPONENT_TYPE: ComponentTypeId = ComponentTypeId::from_static("conversation");
+    const OWNER: SystemId = SystemId::from_static("conversation-stub");
+    const SCHEMA_VERSION: ComponentSchemaVersion = ComponentSchemaVersion::new(1);
+}
+
+/// The event-payload half of the same failure class.
+#[derive(Debug, Serialize, Deserialize)]
+struct ItemPickedUp {
+    item: EntityId,
+}
+
+impl Event for ItemPickedUp {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("item-picked-up");
+    const OWNER: SystemId = SystemId::from_static("inventory-stub");
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
 }
 
 /// Authored names are written as plain strings, and reading one back runs the same validation
@@ -314,12 +627,12 @@ fn entity_type_has_stable_names_and_no_silent_fallback() {
 #[test]
 fn a_typed_reference_is_still_checked_when_it_is_read_back() {
     let person = PersonId::new(EntityId::from_raw(3), EntityType::Person).unwrap();
-    let encoded = r#"{"entity":3,"entity_type":"person"}"#;
+    let encoded = r#"{"entity":"3","entity_type":"person"}"#;
 
     assert_eq!(serde_json::to_string(&person).unwrap(), encoded);
     assert_eq!(serde_json::from_str::<PersonId>(encoded).unwrap(), person);
 
-    let relabelled = serde_json::from_str::<PersonId>(r#"{"entity":3,"entity_type":"place"}"#)
+    let relabelled = serde_json::from_str::<PersonId>(r#"{"entity":"3","entity_type":"place"}"#)
         .expect_err("a place must not deserialize into a person reference");
     assert!(
         relabelled

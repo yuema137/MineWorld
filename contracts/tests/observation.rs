@@ -207,7 +207,7 @@ fn an_affordance_cannot_disagree_with_itself_about_availability() {
     .unwrap();
     assert_eq!(
         available,
-        r#"{"action_type":"talk","target":42,"available":true,"unavailable_reason":null,"requirement":{"place":"any","within_range":null,"requires_line_of_access":false,"requires_target_available":false}}"#
+        r#"{"action_type":"talk","target":"42","available":true,"unavailable_reason":null,"requirement":{"place":"any","within_range":null,"requires_line_of_access":false,"requires_target_available":false}}"#
     );
     assert!(serde_json::from_str::<Affordance>(&available).is_ok());
 
@@ -244,8 +244,7 @@ fn an_affordance_cannot_disagree_with_itself_about_availability() {
 #[test]
 fn an_observation_is_stored_as_its_documented_shape() {
     let minimal = Observation::<String>::new(EntityId::from_raw(41), WorldTime::EPOCH);
-    let text =
-        r#"{"observer":41,"at":0,"self_location":null,"entities":[],"events":[],"affordances":[]}"#;
+    let text = r#"{"observer":"41","at":0,"self_location":null,"entities":[],"events":[],"affordances":[]}"#;
     assert_eq!(serde_json::to_string(&minimal).unwrap(), text);
     assert_eq!(
         serde_json::from_str::<Observation<String>>(text).unwrap(),
