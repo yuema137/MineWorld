@@ -4,7 +4,7 @@ Updated as stages land. Exists to stop MVP-0 being declared complete while a rea
 untested. `demonstrated` means it was actually run and inspected, never inferred from a test
 suite or a successful compile.
 
-**Last updated:** 2026-09-25, after S1 merged (`e85c889`)
+**Last updated:** 2026-09-25, during S2 implementation
 
 ## Capability matrix
 
@@ -27,7 +27,7 @@ suite or a successful compile.
 | --- | --- |
 | Social Café composition | not started |
 | Market Town composition | not started |
-| Cross-renderer `ActionIntent` equivalence | not started |
+| Cross-renderer `ActionIntent` equivalence | harness proven on probe clients; awaits the real ones |
 
 ## Stage progress
 
@@ -56,6 +56,8 @@ suite or a successful compile.
 | Embodied 3D interaction is feasible | spike walked a collidable room, raycast-targeted an NPC by entity id, rendered a server-supplied affordance |
 | Godot ↔ Rust transport works | `ActionIntent` → axum WebSocket → `ActionResult` round trip |
 | Single-writer is structural | falsification probe: a component cannot compile without naming its owner (E0046) |
+| A 2D client can render a world and submit an intent from a click | probe client drew the café Place, Alice inside it, Bob outside; click → `talk` intent → server accepted; screenshot inspected |
+| **`AC-13` is mechanically testable** | the same `talk` intent arrived from a 2D click and from a 3D walk-up-look-press, byte identical, with the server deciding the outcome alone |
 
 ## Non-blocking follow-ups
 

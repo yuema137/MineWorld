@@ -318,6 +318,27 @@ ownership-gated writes, then the System interface and dispatch over it. **Design
   changes no system, and the diff that added it touches no kernel contract. If the two clients
   needed separate rule implementations, the architecture is wrong (§9).
 
+### The `AC-13` harness — proven, 2026-09-25
+
+The mandatory cross-renderer test now has a mechanism rather than an intention, demonstrated on
+throwaway clients before any real one exists:
+
+```text
+2D client:  click Alice                              ─┐
+                                                      ├─► identical ActionIntent ─► one system
+3D client:  walk near Alice → look at her → press E  ─┘
+```
+
+Both clients submitted `{action_type: "talk", actor: "person:player", target: "person:alice"}`.
+The server recorded each verbatim, tagged only by which client sent it, and compared them: byte
+identical. The outcome — accept, or `TooFarAway`, or `Unavailable` — was decided by the server
+alone; neither client evaluated distance, availability or permission.
+
+The harness for S12/S14 follows from that: the server records submitted intents with a client
+tag, and the acceptance test asserts equality of the two recordings. What must differ between
+renderers is only acquisition — a click versus a camera ray. What must not differ is everything
+after it.
+
 ### Cross-cutting, delivered with the step that first needs them
 
 ```text
