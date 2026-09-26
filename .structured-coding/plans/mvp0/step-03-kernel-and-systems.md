@@ -641,8 +641,9 @@ any domain system (S6).
 - [x] Review: no system observes another's validation — `validate` is reached only through the route map's single provider, and the pipeline holds the read-only view for the duration of that one call. Nothing mutates during validation, and that is the type's statement rather than a rule: `WorldRead` exposes no write and no way to reach a store (`BD-6`). Four mutations confirm the guards are load-bearing; see §4.8.5, M-3 to M-6. One honesty item recorded in the module documentation rather than glossed: an `Err` out of `resolve` or `react` is reported *after* that system's writes have landed, because reduction is not transactional — so the crate's "a refusal changes nothing" promise covers `Rejected` (which cannot write, by type) and not `Err` (which means a system broke its own contract and the world should be discarded).
 
 ### C5 — Integration checkpoint and docs
-- [ ] Validation: **the `AC-2` evidence** — two systems installed, an action provided by the second; disabling it makes that action `Unavailable` with **no edit to any other module**, proven by the test changing only a configuration value.
-- [ ] `kernel/README.md`, ledger closed.
+- [x] Validation: **the `AC-2` evidence** — `kernel/tests/two_systems.rs`, `disabling_a_system_removes_its_action_and_nothing_else_changes`. Two systems, `Places` and `Weather`, installed in the same order by one `compose(Composition)` function; the scripted `run` submits the same four requests at the same instant to both worlds. The only difference between them is `Composition { weather: true }` versus `{ weather: false }` — one boolean, one field, read by one `if`. What changes: `forecast` is provided by `weather` in one world and by nobody in the other, where dispatch answers `Unavailable`; and `Weather`'s reaction to `Places`' facts does not happen, so its state is never written and its fact is never recorded (4 events versus 3). What does not change: `Places`' own action still resolves, its `Occupancy` is `present: 3` in both, its `Entered` payloads are equal, both worlds hold 2 edges — and the disabled system is still installed, still owns its declared table and still holds the write token this world granted it. Pinned by mutations M-7 and M-8, which break each half separately.
+- [x] Validation: **the coverage regression of §4.8.4 repaired** — `a_whole_world_round_trips_through_serde_unchanged` and `replaying_the_same_operations_reproduces_an_identical_world`, both against the real `World` rather than 03a's stand-in, and both carrying the recorded event envelopes as well as the three stores. Replay compares two independently composed worlds as serialized strings and then checks the parts a determinism claim is really about: `next_id` is 5, entity 4 is `leaving`, the first fact's identity is 1 and its cause is `{"action": 1}`, the fourth fact is `forecasted`, and the first edge starts at entity 1. `two_systems_write_their_own_state_and_read_each_others` restores the checkpoint's first claim through the pipeline instead of through the stores.
+- [x] `kernel/README.md` rewritten for what the crate now is — the module map, and the two ideas a reader needs first: a component is written only by its owner, and a world is its systems with configuration deciding which of them act. Ledger closed in §4.9.
 
 ## 4.5 Integration checkpoint
 
@@ -1022,4 +1023,156 @@ M-6  reverse reduction order
                   pass a test that only checked "the same order twice". The test discriminates
                   because it also states which order, which is what AC-12 needs — a reproducible
                   wrong order is still a wrong order.
+```
+
+### 4.8.5 Mutation evidence (continued — C5, the AC-2 guards)
+
+`AC-2` has two halves in the code, and each was broken separately. Both were applied to the committed
+registry, verified red, and the file was restored and confirmed byte-identical with `cmp`.
+
+```text
+M-7  make a disabled system's action dispatch anyway (the routing half)
+     mutation:    SystemRegistry::routed() finds the provider by searching installed declarations
+                  for one that provides the action type, instead of consulting the route map — so
+                  `enabled` stops mattering to routing
+     expected:    disabling_a_system_removes_its_action_and_nothing_else_changes goes red
+     observed:    FAILED at kernel/tests/two_systems.rs:396 — the world composed *without* weather
+                  answered something other than Unavailable. 3 passed, 1 failed; every other suite
+                  in the crate stayed green, including composition.rs, which is worth noting: the
+                  registry-level route assertions do not catch this, because the route map is still
+                  maintained correctly — it is simply no longer what decides. Only the dispatch-level
+                  test catches it.
+     verdict:     behaviour-changing, killed. This is precisely the mutation BD-5 exists to forbid.
+
+M-8  make a disabled system react anyway (the reduction half)
+     mutation:    SystemRegistry::subscribers() drops `entry.enabled &&`, so a disabled system still
+                  reduces the facts it subscribes to
+     expected:    the same test goes red on the state half rather than the routing half
+     observed:    FAILED at kernel/tests/two_systems.rs:417 — left Some(Overcast { reports: 3 }),
+                  right None. The disabled system had written its own state three times in a world
+                  that is supposed not to have weather in it.
+     verdict:     behaviour-changing, killed. Recorded separately from M-7 because "the action is
+                  gone" and "the consequences are gone" are two claims, and a test that only checked
+                  the first would let a disabled system keep changing the world.
+```
+
+```text
+command:  cargo test --workspace
+result:   C5 — 133 tests, 0 failures, from 111 at the start of this session's work. By target:
+
+            contracts   58 integration + 3 doc-tests            unchanged all PR
+            kernel      29 in-crate (system, components, relations)
+                         1 compile_fail harness (7 cases inside it)
+                         9 composition.rs        C3
+                         8 dispatch.rs           C4
+                        11 entities.rs           03a, unchanged
+                         4 two_systems.rs        C5
+                         5 world.rs              C2
+                         5 doc-tests             System, World, owned_component!, WorldTime, dispatch
+
+          §4.5's checkpoint list, each item to the test that owns it:
+
+            an action no enabled system provides → Unavailable
+                dispatch.rs::an_action_no_enabled_system_provides_is_unavailable, and the
+                World::dispatch doc-test
+            disabling a system removes its actions, nothing else changes          ← AC-2
+                two_systems.rs::disabling_a_system_removes_its_action_and_nothing_else_changes
+            a missing dependency is refused by name
+                composition.rs::a_missing_dependency_is_refused_by_name, and
+                a_disabled_dependency_is_refused_as_disabled for the other half
+            two systems claiming one component type are refused
+                composition.rs::two_systems_cannot_claim_one_component_type, and
+                a_declaration_cannot_list_another_systems_component_type
+            events carry CausedBy naming the intent                               ← AC-9
+                dispatch.rs::recorded_facts_name_the_intent_that_caused_them
+            reduction order is registration order, twice identically              ← AC-12
+                dispatch.rs::reduction_reaches_subscribers_in_registration_order_twice_identically,
+                and two_systems.rs::replaying_the_same_operations_reproduces_an_identical_world for
+                the whole-world form
+            a reduction cycle errors naming the systems
+                dispatch.rs::a_reduction_cycle_errors_naming_the_cycling_systems
+            an external crate cannot construct WriteAccess                        ← closes A8
+                tests/compile_fail/an_external_crate_cannot_construct_write_access.rs
+```
+
+**Adversarial criteria (§4.5).** 03a's A1–A9 probes re-run against the sealed API as the
+compile-fail suite, which is where six of them live: a cross-system write, a forged token, a token
+built from its fields, another crate's type made into a component, an impersonated `SystemId`, and a
+system type whose constructor is its own. `A8` — the one that succeeded in 03a — is now the seventh
+case and fails at its first line. On the three specific questions §4.5 asks: a running system cannot
+reach another system's token (the token lives in that system's registry entry, which is private to
+the registry and never lent), cannot reach the issuer (`WriteAccess` is a private field of `World`
+and its constructor is `pub(crate)`), and cannot reach a `&mut ComponentStore` (the only public
+shapes are `WorldRead` and `WorldView<S>`; `WorldParts` is crate-private and `World::dispatch_parts`
+is the single place a world is split). `A9` — interior mutability behind an open read — remains
+unfixable on stable Rust and remains a declared review convention.
+
+## 4.9 Closeout
+
+```text
+LIFECYCLE            READY FOR OPERATOR REVIEW — DO NOT MERGE
+branch               mvp0/pr-03b-systems-dispatch
+base                 a079fff (main at the time the branch was cut; main has since moved to a2b10d9
+                     with a documentation-only commit, deliberately not merged in mid-PR)
+commits              0fadb29  C1  System trait, declaration, views
+                     92aa972  C2  World and sealed write capability
+                     46cc6dd  C3  registry: dependencies, conflicts, enable/disable
+                     0a71211  C4  dispatch pipeline
+                     (C5)     C5  integration checkpoint, README, ledger
+remote               origin exists as of this session and the branch is pushed; there is no pull
+                     request, and merging is the operator's (D-9 superseded for push only)
+scope                §4.2 only. No clock, no queue, no persistence, no domain system. The S4 seam is
+                     Dispatched::deferred and the instant parameter; the S5 seam is
+                     Dispatched::events and the erased-thunk requirement 03a's review recorded.
+```
+
+### What a reviewer should look at first
+
+```text
+1  kernel/tests/two_systems.rs        the AC-2 claim, and the two properties C2 had dropped
+2  kernel/src/dispatch.rs             the pipeline, and the one place this crate's "a refusal
+                                      changes nothing" promise is narrower than it sounds
+3  kernel/src/registry.rs             what composition refuses, and why order is a Vec
+4  §4.8.1 BI-7 … BI-13                the seven decisions the frozen design left to implementation
+5  §4.8.5 M-1 … M-8                   eight mutations, all killed, one of which hangs rather than
+                                      failing — which is the failure mode the cascade limit exists
+                                      to convert into a named error
+```
+
+### Limitations and follow-ups
+
+```text
+open       An `Err` out of `resolve` or `react` is reported after that system's writes have landed.
+           Reduction is not transactional and the kernel holds no undo log. Documented in
+           kernel/src/dispatch.rs as a narrowing of the crate's refusal promise, with the rule that
+           follows from it: an `Err` means a system broke its own contract, so the caller discards
+           the world rather than retrying. A transactional reduction would mean the kernel holding a
+           shadow copy of every system's state, which is a design question for S5, not a defect to
+           patch here.
+
+open       Dispatch does not evaluate spatial requirements. `SpatialRequirement::evaluate` exists in
+           the contract layer and `ActionIntent::actor_location` carries the client's report, but
+           deciding whether an action's spatial requirement is met needs authoritative position,
+           which no system owns yet. Today a system evaluates it inside its own `validate`, which is
+           where ENGINEERING_RULES §8 puts the decision anyway. Revisit when the first system that
+           owns position exists (S6).
+
+open       There is no `react` for an event a world has *loaded* rather than dispatched. Replay is
+           S5's, and it will need to drive reduction without an originating intent — which is why
+           `Causation` is a value on the envelope rather than a parameter of the pipeline. No change
+           to dispatch is anticipated; recorded so S5's design checks rather than assumes it.
+
+open       A system's `install` hook cannot be rolled back, inherited from C2 and unchanged:
+           a failure part way through declaring tables leaves the earlier ones declared and the
+           token granted. Documented in kernel/src/world.rs with the rule that a failed installation
+           is a failed world assembly rather than a recoverable operation.
+
+carried    Relation ownership is checked at run time, not at the type level, because
+           `RelationTypeId` has no `from_static`. 03a's review recorded it as a follow-up for a
+           later contracts change; nothing in this PR moves it.
+
+carried    `ComponentStore` still cannot be serialized as a whole, and S5 must add the erased
+           encode/decode thunks at `ComponentStore::declare`. This PR's round-trip test works the
+           way a persistence layer cannot — by naming each component type statically — which is
+           exactly the limitation 03a's review recorded as binding on S5.
 ```
