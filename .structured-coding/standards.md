@@ -81,7 +81,10 @@ actually block are CI's job.
       "World state, system ownership, network authority, plugin contracts and persistence semantics stay under MineWorld's control rather than a framework's",
       "A presentation pack decides how an interaction looks, never whether it is valid",
       "Visual changes to the default style are judged against the reference images in the reference images of the relevant presentation pack, not against prose alone",
-      "A style manifest field must be inferable from reference images, chosen by the creator, or fixed by project policy; anything else does not belong in the schema"
+      "A style manifest field must be inferable from reference images, chosen by the creator, or fixed by project policy; anything else does not belong in the schema",
+      "A published asset is glTF 2.0 or another canonical format, never an engine-native scene",
+      "Simulation extensions are engine-neutral and sandboxed; only renderer extensions may use engine-specific code",
+      "An asset's semantic bindings say where an interaction is rendered, never whether it is permitted"
     ]
   },
   "checks": {

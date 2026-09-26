@@ -185,6 +185,85 @@ which packaging achieves it.
 
 ---
 
+## ARC-7 — Asset Pack is a sixth pack type
+
+**Date** 2026-09-26 · **Extends** `MODULE_SPEC.md` §1 · **Relates to** `ARC-1`
+
+`ARC-1` refused to make a Presentation Style Pack a sixth type. This one is accepted, and the
+difference is worth stating because it is the test any future seventh must pass.
+
+A Presentation Style Pack described the **internal layout of an existing type**: it added no new
+kind of thing, installed identically, and named a directory structure. An Asset Pack is a
+different kind of thing: separately authored, separately licensed, separately versioned, and
+**reused by packs that share no style**. The same bench, tree and café model serve a
+semi-realistic world and an illustrated one. Folding them into Presentation Pack would force one
+copy of every model per style, which is the concrete cost that justifies the concept.
+
+**Rule extracted for next time:** a new pack type is justified by a distinct *lifecycle* —
+authored, licensed, versioned and reused independently — not by a distinct folder.
+
+---
+
+## ARC-8 — Extension tiers, and why simulation code is WASM
+
+**Date** 2026-09-26 · **Specified in** [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §6
+
+```text
+Tier 0  declarative content            YAML, JSON, media        nothing to sandbox
+Tier 1  simulation extension           WASM Component + WIT     capability-based sandbox
+Tier 2  renderer extension             Godot addon / GDScript   engine-level, renderer-scoped
+```
+
+**Most packs are Tier 0 and must stay that way.** A hot-spring town is a World Pack plus Asset
+Packs plus configuration; wanting a new place, people and look must never require a compiler.
+Code is for adding a law of the world — farming, with `Plant`, `Crop`, `Soil`, `Grow`, `Water`,
+`Harvest` — and that is a System Pack.
+
+**Why Tier 1 is not the engine's scripting language.** Engine neutrality is the stated reason and
+the weaker one. The serious reason is safety: a public server downloads packs from strangers, and
+arbitrary native, Python or GDScript code in that position can read the filesystem, open sockets
+and exfiltrate credentials. Review policy does not fix that; a capability sandbox does. A system
+gets `world.read.entities`, `world.emit.events`, `world.query.time` and no filesystem, network or
+environment.
+
+**Why the bet is safe now.** Verified rather than assumed: the Component Model ships in real
+tooling, WASI 0.2 is stable with 0.3 adding native async, WIT generates typed bindings across
+languages, and plugin systems are precisely the workload class for which server-side WASM is
+considered production-ready in 2026. This also matches what `ARCHITECTURE.md` §12 already
+planned, so it is a commitment to an existing direction rather than a new one.
+
+**Tier 2 may decide how water looks. It may not decide whether Alice can afford a boat.**
+
+---
+
+## DEP-7 — glTF 2.0 as the canonical 3D interchange format
+
+**Date** 2026-09-26
+
+**Problem.** One published 3D format that carries mesh, materials, textures, skinning and
+animation, that Godot imports natively, and that does not bind MineWorld to an engine.
+
+**Options.** glTF 2.0 / `.glb`; engine-native scenes (`.tscn`, `.uasset`); `.fbx`; `.blend`;
+USD.
+
+**Choice: glTF 2.0, `.glb` preferred.** Khronos designed it precisely as an API-neutral runtime
+delivery format, Godot recommends it as its import path, and Blender, Unreal and web renderers
+read it. `.glb` keeps a pack to one binary per model.
+
+**Why not the others.** An engine-native scene makes the published ecosystem a Godot ecosystem,
+which contradicts the project's central claim. `.fbx` is proprietary and historically
+inconsistent across exporters. `.blend` is an authoring format, not a delivery one. USD is
+powerful and the right answer for a large studio pipeline; it is disproportionate here and far
+less well supported on the runtime side we need.
+
+**Isolation.** Renderer adapters import the canonical form. Whatever a runtime compiles it into —
+a Godot `.pck`, say — is a build output and never something an author publishes.
+
+**Limitation.** glTF has no concept of an interaction anchor or a semantic space, which is why
+`asset.yaml` sits beside the model rather than inside it.
+
+---
+
 ## DEP-1 — Component storage: purpose-built, not an ECS
 
 **Date** 2026-09-25 · **Supersedes** effort decision `D-5`, which is now this record

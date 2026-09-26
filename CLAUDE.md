@@ -36,6 +36,7 @@ Authoritative specifications, in reading order:
 [`docs/CORE_CONCEPTS.md`](docs/CORE_CONCEPTS.md) ·
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ·
 [`docs/MODULE_SPEC.md`](docs/MODULE_SPEC.md) ·
+[`docs/PACKAGE_FORMAT.md`](docs/PACKAGE_FORMAT.md) ·
 [`docs/NETWORKING.md`](docs/NETWORKING.md) ·
 [`docs/MVP.md`](docs/MVP.md) ·
 [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) ·

@@ -8,7 +8,7 @@ Vocabulary: [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md). Layering: [`ARCHITECTURE.md`
 
 ---
 
-# 1. Five pack types, and only five
+# 1. Six pack types
 
 ```text
 Entity Pack        what exists in the world
@@ -16,10 +16,12 @@ System Pack        what is allowed to happen between the things that exist
 World Pack         a specific world: population, places, organizations, initial state, config
 Controller Pack    who decides what a character does      (also: Cognition Pack)
 Presentation Pack  how the world is rendered
+Asset Pack         the models, images, textures, animation and audio it is rendered from
 ```
 
-A sixth kind of pack is a design change, not a convenience. Adding one requires changing this
-document.
+A seventh kind of pack is a design change, not a convenience. Adding one requires changing this
+document — which is exactly how `Asset Pack` arrived, as `ARC-7` records. Packaging, formats and
+extension tiers for all six are specified in [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md).
 
 Extension model:
 
@@ -309,6 +311,36 @@ chosen by the creator, or fixed by project policy. A field that is none of those
 in it.
 
 ---
+
+# 6.3 Asset Pack
+
+Declares the material a presentation is made of: models, images, textures, animation, audio.
+
+```text
+mineworld-assets-modern-town/
+  manifest.yaml
+  previews/
+  models/      cafe.glb · house_01.glb · grocery.glb
+  materials/
+  textures/
+  LICENSES/
+```
+
+Separate from Presentation Pack because the same bench, tree and café model are reused across
+styles and across worlds; binding them to one style would force a copy per style. A Presentation
+Pack declares which asset families it is compatible with:
+
+```yaml
+compatible_asset_tags: [semi-realistic-modern, realistic-scale, medium-detail]
+```
+
+Canonical model format is glTF 2.0, `.glb` preferred; no engine-native scene format is ever a
+published asset. Each asset carries an `asset.yaml` whose `semantic_bindings` attach it to world
+meaning — entrances, interaction anchors, spaces — without the world knowing what a mesh is. Full
+contract in [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §3.
+
+Hard constraint, the same one every presentation-side pack carries: an interaction anchor says
+where a `Sit` is *rendered*, never whether sitting is *allowed*.
 
 # 7. Composition
 
