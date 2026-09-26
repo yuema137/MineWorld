@@ -150,7 +150,7 @@ impl SpikeWorld {
                         height_mm: 110,
                         radius_mm: 45,
                     }),
-                    position: millimetres(1_600, -2_600, 950),
+                    position: millimetres(3_200, -2_200, 950),
                     facing: bearing(0),
                     available: true,
                 },
@@ -396,8 +396,14 @@ impl SpikeWorld {
                 let Ok(payload) = intent.payload().payload_for::<MoveTo>() else {
                     return ActionResult::Rejected(Rejection::PreconditionFailed);
                 };
-                let Ok(request) = serde_json::from_value::<MoveTo>(payload.clone()) else {
-                    return ActionResult::Rejected(Rejection::PreconditionFailed);
+                let request = match serde_json::from_value::<MoveTo>(payload.clone()) {
+                    Ok(request) => request,
+                    Err(error) => {
+                        // Worth printing rather than swallowing: this is where a client's
+                        // number model meets the contract's integer-only discipline.
+                        println!("[server] move-to payload refused by the contract: {error}");
+                        return ActionResult::Rejected(Rejection::PreconditionFailed);
+                    }
                 };
                 if !self.inside(request.to) {
                     return ActionResult::Rejected(Rejection::PreconditionFailed);

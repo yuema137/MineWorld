@@ -1,0 +1,4 @@
+{"canonical_intent":{"action_id":7001,"action_type":"talk","actor":101,"actor_location":null,"issued_at":32470,"payload":{"action_type":"talk","payload":{"topic":"greeting"}},"target":103},"client":"2d"}
+{"canonical_intent":{"action_id":7001,"action_type":"talk","actor":101,"actor_location":null,"issued_at":32404,"payload":{"action_type":"talk","payload":{"topic":"greeting"}},"target":103},"client":"2d"}
+{"canonical_intent":{"action_id":7001,"action_type":"talk","actor":101,"actor_location":null,"issued_at":32404,"payload":{"action_type":"talk","payload":{"topic":"greeting"}},"target":103},"client":"2d"}
+{"canonical_intent":{"action_id":7003,"action_type":"talk","actor":101,"actor_location":null,"issued_at":32419,"payload":{"action_type":"talk","payload":{"topic":"greeting"}},"target":9007199254740995},"client":"2d"}

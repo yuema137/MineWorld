@@ -1,0 +1,18 @@
+[server] listening on ws://127.0.0.1:7878/ws
+[server] client connected; player reset to the door
+[client] [2d] DD-15 wire id (string)   : 9007199254740995
+[client] [2d] DD-15 wire id -> int()   : 9007199254740995
+[client] [2d] DD-15 naive id (JSON num): 9007199254740996.0  typeof=3 (2=int 3=float)
+[client] [2d] DD-15 naive id as text   : 9007199254740996
+[client] [2d] DD-15 collision check: alice_wire=9007199254740995 mug_wire=9007199254740997  alice_naive=9007199254740996 mug_naive=9007199254740996  collide=true
+[client] [2d] F2 payload id: sent 9007199254740999, parsed 9007199254741000, protected=false
+[server] 2d -> talk: Rejected(TargetUnavailable)
+[client] [2d] submitted talk -> 103
+[client] [2d] server answered: refused — not available
+[server] 2d -> move-to: Accepted { events: [] }
+[client] [2d] submitted move-to -> <null>
+[client] [2d] server answered: accepted (0 event(s))
+[server] 2d -> talk: Accepted { events: [EventId(9007199254741101)] }
+[client] [2d] submitted talk -> 9007199254740995
+[client] [2d] server answered: accepted (1 event(s))
+[server] client disconnected
