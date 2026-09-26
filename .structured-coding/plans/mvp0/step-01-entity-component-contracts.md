@@ -3,9 +3,21 @@
 **Role:** combined **step and PR** document. Step S1 needs exactly one PR, so this single
 document is the authority for both levels; there is no separate step file.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md)
-**Lifecycle:** `DRAFT — AWAITING OPERATOR APPROVAL TO FREEZE`
-**Implementation base:** branch `main`, commit `75e1d2b` (no prerequisites to merge)
-**Blocked by:** prerequisite **P-1** (no Rust toolchain installed — §4.2)
+## DESIGN FROZEN
+
+```text
+Design revision:         §§1–7 and §9 as committed in 39abfb3
+Approved by / evidence:  operator approval 2026-09-25 — "Freeze，开始实现",
+                         with prerequisite P-1 authorized in the same exchange
+Implementation base:     branch mvp0/pr-01-entity-component-contracts,
+                         created from main @ 39abfb3
+Execution contract:      §9
+Lifecycle:               FROZEN
+```
+
+Frozen: scope (§1.1), non-goals (§1.2), invariants (§1.3), the integration checkpoint (§2),
+test ownership (§3), the commit sequence (§7) and the execution contract (§9). Live and
+writable: the §7 checkboxes, the §8 ledger, and bounded design corrections recorded there.
 
 Binding parents: [`overall.md`](overall.md) ·
 [`docs/CORE_CONCEPTS.md`](../../../docs/CORE_CONCEPTS.md) ·
@@ -158,19 +170,26 @@ directories     kernel/ systems/ cognition/ server/ clients/ sdk/ worlds/ tools/
 .gitignore      already excludes /target/ and **/*.rs.bk
 ```
 
-**P-1 — blocking prerequisite: no Rust toolchain is installed.**
+**P-1 — RESOLVED, and the original finding was wrong.**
+
+The first audit concluded no toolchain existed, because `cargo` and `rustc` are not on the
+`PATH` of a non-interactive shell. A direct inspection of `~/.cargo/bin` corrected it: a full
+`rustup` installation is present and nothing needed to be installed.
 
 ```text
-cargo   → command not found
-rustc   → command not found
+~/.cargo/bin/cargo   cargo 1.97.1 (c980f4866 2026-06-30)
+~/.cargo/bin/rustc   rustc 1.97.1 (8bab26f4f 2026-07-14)
+rustup show          stable-aarch64-apple-darwin (default)
+components           rustc, cargo, rust-std, rustfmt, clippy, rust-docs
+cargo fmt --version  rustfmt 1.9.0-stable (8bab26f4f6 2026-07-14)
+cargo clippy         clippy 0.1.97 (8bab26f4f6 2026-07-14)
 ```
 
-Nothing in this PR can be validated until a toolchain exists, which means the PR can be
-designed and frozen but not executed. Installing it changes the operator's machine, so it
-needs explicit authorization. Recommended: `rustup` with the current stable toolchain, pinned
-in `rust-toolchain.toml` (channel, plus the `rustfmt` and `clippy` components) so that every
-later session and eventually CI use the same compiler. The pinned channel is recorded in the
-ledger when P-1 is satisfied, since the design cannot name a version it has not observed.
+**Consequence for every implementation session:** `~/.cargo/bin` is not on the default
+non-interactive `PATH` in this environment. Prefix each verification command with
+`export PATH="$HOME/.cargo/bin:$PATH"`, or invoke the absolute path. A "command not found"
+here means the `PATH` was not exported — it does not mean the toolchain is missing, and it is
+never recorded as a failed check.
 
 **P-2 — non-blocking:** the `cargo` checks declared in `.structured-coding/standards.md`
 require one `standards.py approve --project .` before the standards helper will run them. The
@@ -204,12 +223,14 @@ code.
 | **DD-8** | Dependencies are `serde` (derive) and `thiserror`; dev-dependencies are `serde_json` and `trybuild`. Nothing else. | Each earns its place: serialization is a frozen invariant, typed errors are required by §12, JSON is the round-trip vehicle in tests, `trybuild` is the only way to test a compile-time guarantee. Explicitly rejected: `uuid` (DD-1), `chrono` (calendar semantics are a system concern, `INV-12`), any ECS crate (decision D-5 in the parent). |
 | **DD-9** | `WorldTime` is a signed integer count of simulated seconds from a world epoch, with `SimDuration` for differences; calendar interpretation (dates, weekdays, "modern" vs other calendars) is a system concern and absent here. | `INV-12`. A `chrono::DateTime` in the kernel contracts would import a calendar the kernel must not know about. |
 | **DD-10** | `EventId`, `ActionId`, `ProcessId` newtypes are defined here even though their payload contracts arrive in S2 and S4. | One authoritative id module beats three crates each inventing its own integer wrapper; the cost is a few unused types for one PR. |
+| **DD-11** | `rust-toolchain.toml` pins the exact observed version `1.97.1` with components `rustfmt` and `clippy`, not the floating `stable` channel. | A floating channel makes `clippy -D warnings` and the `trybuild` expected-output files (A-2) change under the project without a commit. An exact pin is what lets S13's CI reproduce a local result. Bumping it is then a visible, deliberate commit. |
 
 ---
 
 # 6. Verification commands
 
 ```sh
+export PATH="$HOME/.cargo/bin:$PATH"     # required: see P-1 in §4.2
 cargo fmt --all --check
 cargo check --workspace --all-targets
 cargo clippy --workspace --all-targets --all-features -- -D warnings
@@ -515,22 +536,36 @@ C5  not started
 
 ## 8.2 Evidence
 ```text
-(no validation has been run; P-1 blocks all of it)
+(no validation has been run yet; the toolchain is available — see P-1)
 ```
 
 ## 8.3 Findings, decisions, deviations
 ```text
-FINDING (planning, 2026-09-25)
-    No Rust toolchain on the machine: cargo and rustc are absent.
+FINDING (planning, 2026-09-25) — later corrected, kept as evidence
+    First audit concluded no Rust toolchain existed.
 SOURCE AUDIT
-    cargo --version, rustc --version, rustup show — all "command not found";
+    cargo --version, rustc --version, rustup show → "command not found";
     find . -name Cargo.toml → no results.
 WHY IT MATTERS
     Every acceptance criterion in this PR is a compiler or test observation.
-    The PR can be frozen but not executed.
+DECISION AT THE TIME
+    Raised as blocking prerequisite P-1 requiring operator authorization to
+    install rustup.
+
+CORRECTION (planning, 2026-09-25)
+    The finding was wrong. `ls ~/.cargo/bin` shows a complete rustup
+    installation: cargo/rustc 1.97.1, rustfmt 1.9.0, clippy 0.1.97, toolchain
+    stable-aarch64-apple-darwin. Nothing was installed.
+ROOT CAUSE
+    ~/.cargo/bin is absent from the PATH of a non-interactive shell, and the
+    audit inferred absence from an unresolved command name.
+IMPLICATION
+    Verification commands must export PATH="$HOME/.cargo/bin:$PATH" first.
+    A bare "command not found" is a PATH defect in the session, never a
+    failed check and never INCONCLUSIVE evidence about the code.
 DECISION
-    Raised as prerequisite P-1 for operator authorization; rust-toolchain.toml
-    pins the observed channel once it exists.
+    P-1 closed as satisfied without installation. DD-11 pins the observed
+    exact version 1.97.1 in rust-toolchain.toml rather than floating stable.
 ```
 
 ## 8.4 Resolution of unresolved assumptions
@@ -561,7 +596,7 @@ RELATED / BINDING DOCS:
   CLAUDE.md
 
 IMPLEMENTATION BASE:
-  branch: mvp0/pr-01-entity-component-contracts, created from main @ 75e1d2b
+  branch: mvp0/pr-01-entity-component-contracts, created from main @ 39abfb3
   merged prerequisites: none
 
 APPROVED SCOPE:
@@ -589,7 +624,7 @@ AUTONOMOUS VALIDATION BUDGET:
   - real LLM calls: none in this PR (Gate 1 NOT REQUIRED)
   - real lifecycle / Gate 2: NOT APPLICABLE in this PR
   - GPU / API / monetary: none
-  - toolchain installation: NOT AUTHORIZED until P-1 is granted
+  - toolchain installation: not needed — P-1 satisfied, rustup 1.97.1 present
 
 REQUIRED LIVE DOCUMENTATION:
   this document, §7 checkboxes and §8 ledger
@@ -602,9 +637,8 @@ PR CONTEXT SCOPE:
   implementation and ends at READY FOR OPERATOR REVIEW.
 
 ENDPOINT AUTHORITY:
-  - implementation + local validation:  authorized once P-1 is granted
-      source: operator instruction "我们继续" authorizing the mvp0 effort;
-              execution still requires the freeze approval in §10
+  - implementation + local validation:  authorized
+      source: operator approval 2026-09-25 — "Freeze，开始实现"
   - semantic commits:                   authorized
       source: operator's stated commit sequence for this repository
               (commit 2 = Entity/Component contracts)
@@ -636,26 +670,14 @@ MERGE AUTHORITY:
 
 ---
 
-# 10. Approval
+# 10. Approval history
 
-This document is **not frozen**. Freezing requires the operator to:
-
-1. approve the scope, the commit plan and the frozen invariants above;
-2. grant prerequisite **P-1** (install the Rust toolchain), without which the PR cannot be
-   executed;
-3. confirm the endpoint authority block, in particular that pushing is not authorized.
-
-On approval, replace this section with:
-
-```markdown
-## DESIGN FROZEN
-
-Design revision: <revision or fingerprint of §§1–7 and §9 as approved>
-Approved by / evidence: <operator approval reference>
-Implementation base: mvp0/pr-01-entity-component-contracts @ <commit>
-Execution contract: §9
-Lifecycle: FROZEN
+```text
+2026-09-25  design presented for freeze, with P-1 raised as a blocking prerequisite
+2026-09-25  operator approved the freeze and authorized P-1
+2026-09-25  P-1 closed as already satisfied (see §8.3); design frozen at 39abfb3
 ```
 
-and start implementation in a **fresh session**, which re-reads this document in full before
-its first edit.
+Implementation runs in a session separate from the planning session that wrote this document,
+and that session re-reads this document in full, plus the working rules and test rules, before
+its first edit. Merge into `main` remains gated on explicit operator authorization.
