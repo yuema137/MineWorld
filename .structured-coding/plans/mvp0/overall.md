@@ -137,9 +137,11 @@ merged code that precedes them exists (`CLAUDE.md` §3, "detail one step ahead")
 - **Adversarial criterion:** an attempt to represent a component with an untyped map, or an
   entity whose semantics live outside a component, must be visibly impossible in the API.
 
-### S2 — ActionIntent, Event, and Observation contracts
+### S2 — ActionIntent, Event, Observation and Spatial contracts
 
-*Corresponds to the operator's commit 3, plus `Observation` (D-3).*
+*Corresponds to the operator's commit 3, plus `Observation` (D-3) and the spatial contract (D-10).*
+**Design:** [`step-02-action-event-spatial-contracts.md`](step-02-action-event-spatial-contracts.md)
+— approved 2026-09-25 under the autonomous authorization above.
 
 - **Output:** `ActionIntent`; `ActionResult` with `Accepted` / `Rejected(reason)` /
   `ActionUnavailable`, the reason set covering `Busy`, `TooFarAway`, `PermissionDenied`,
@@ -362,6 +364,7 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 | **D-3** | Whether S2 includes the `Observation` contract. | **Included in S2.** `RuleController` in S7 needs observations, and defining the controller-facing triple (`ActionIntent`, `Event`, `Observation`) together prevents `INV-13` from being retrofitted. Recorded as a planning decision; raise it when agreeing to this document if you disagree. |
 | **D-1** | License. | **MIT stays.** Operator decision 2026-09-25. Revisit only before publication in S13 if the patent-grant argument becomes material. |
 | **D-2** | `ENGINEERING_STANDARDS.md` §16 wording. | **Fixed** to "The principle does not change:" — operator approved 2026-09-25. |
+| **D-11** | How the reference clients are built and how their demos are verified, given that "actually run the renderer" must be mechanically possible. | **Godot 4.7.2 for both clients, as the frozen spec already names.** Installed and verified on 2026-09-25 to run headless and execute GDScript with stdout. Demo evidence comes from a scripted run that drives input and writes PNG frames, which are then inspected — not from compilation or from server tests. No deviation from `ARCHITECTURE.md` §13 is needed, and therefore no engine concept needs to enter a contract to make verification possible. |
 | **D-10** | Whether an embodied 3D client belongs in this effort or a later phase. | **In this effort, as S14.** Operator instruction 2026-09-25 adding `docs/ENGINEERING_RULES.md` §§2–3, §10: 3D is a required architecture target, not a cosmetic renderer added later. This materially expands the effort; `AC-1` is unaffected. |
 
 ## Still open
@@ -390,8 +393,11 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 ```text
 Completed:  commit 1 — specifications and process (75e1d2b)
             commit 2 — planning documents (39abfb3)
+            commit 3 — playable 2D/3D requirements + governance (10dc9ef, 30630b8)
 In flight:  PR 01 — S1, Entity and Component contracts (frozen, executing)
-Remaining:  S2 … S14
+Designed:   PR 02 — S2, action/event/observation/spatial contracts (approved, blocked on S1)
+Remaining:  S3 … S14
+Toolchain:  rust 1.97.1, Godot 4.7.2, Docker 29.7.2, Python 3.14.7, Node 26.4.0
 ```
 
 **Effect of the 2026-09-25 scope change on PR 01: none.** S1 delivers identity, the entity
@@ -437,6 +443,30 @@ unmerged branch reproduces exactly the risk D-10 was recorded to remove.
 **PR 01 does not synchronize with `main` mid-flight.** Its scope is frozen and unaffected by
 D-10 (§7), so pulling the docs commit into its worktree would add interference for no change in
 what it must build. It synchronizes after implementation is approved.
+
+## Autonomous execution authorization (operator, 2026-09-25)
+
+The operator authorized the primary session to act as reviewer and approver for the design
+documents, PR plans, architecture reviews, implementation reviews and local integration decisions
+required to complete MVP-0, and to continue through step boundaries without pausing for routine
+approval.
+
+What this changes:
+
+```text
+design → self-review against the frozen specs → record the review → approve
+       → implement → validate → review → semantic commit → local integration → next step
+```
+
+- The `DESIGN FROZEN` gate stays, but the approval recorded in it may be this session's, and each
+  design document carries the review that justified it (see step-02 §8 for the shape).
+- Remote PR creation, remote review and remote merge are skipped: no remote exists (D-9).
+- Local integration into `main` is authorized for this effort. Every other authority boundary
+  stands: frozen invariants still require an explicit revision with evidence, and an architecture
+  review trigger still stops feature work.
+
+What this does not change: the obligation to record decisions, evidence, deviations and known
+limitations. Self-approval without a recorded review is not approval.
 
 ## Review criteria carried into PR 01's review (operator, 2026-09-25)
 
