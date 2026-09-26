@@ -11,7 +11,8 @@
 //! the state it had before the call.
 
 use mineworld_contracts::{
-    ComponentTypeId, ContractError, EntityId, EntityKey, LifecycleState, RelationTypeId, SystemId,
+    ActionTypeId, ComponentTypeId, ContractError, EntityId, EntityKey, EventTypeId, LifecycleState,
+    RelationTypeId, SystemId, WorldTime,
 };
 
 use thiserror::Error;
@@ -164,6 +165,180 @@ pub enum KernelError {
         entity: EntityId,
         /// The lifecycle state it is actually in.
         lifecycle: LifecycleState,
+    },
+
+    /// A system declared a table for a component type its own [`SystemDeclaration`] does not
+    /// list. The declaration is what a world's composition is checked against — one system per
+    /// component type — so a table outside it would be state no conflict check ever saw.
+    ///
+    /// [`SystemDeclaration`]: crate::system::SystemDeclaration
+    #[error(
+        "system '{system}' declared a table for component type '{component_type}', \
+         which its own declaration does not list"
+    )]
+    ComponentTypeNotInSystemDeclaration {
+        /// The system that declared the table.
+        system: SystemId,
+        /// The component type it declared.
+        component_type: ComponentTypeId,
+    },
+
+    /// A system was installed into a world that already has one by that name. Refused rather than
+    /// replacing it: the installed system owns state, and a second system under one name would
+    /// either inherit state it never wrote or silently orphan it.
+    #[error("system '{system}' is already installed in this world")]
+    SystemAlreadyInstalled {
+        /// The system name claimed a second time.
+        system: SystemId,
+    },
+
+    /// An operation named a system this world has never installed. Enabling or disabling one is a
+    /// statement about a world's composition, and a name that is not part of that composition is a
+    /// mistake in the configuration rather than a system that happens to be off.
+    #[error("system '{system}' is not installed in this world")]
+    SystemNotInstalled {
+        /// The name that is not part of this world.
+        system: SystemId,
+    },
+
+    /// A system declared a dependency on a system this world does not have. Refused by name,
+    /// because the name is the whole of the diagnosis: a world pack listed one system and not the
+    /// one it needs.
+    #[error("system '{system}' depends on '{dependency}', which is not installed in this world")]
+    SystemDependencyMissing {
+        /// The system whose dependency is absent.
+        system: SystemId,
+        /// The dependency it declared.
+        dependency: SystemId,
+    },
+
+    /// A system's declared dependency is installed and disabled. A dependency that does not act is
+    /// not a dependency that is present: the dependent would run against state nobody is
+    /// maintaining.
+    #[error("system '{system}' depends on '{dependency}', which is installed but disabled")]
+    SystemDependencyDisabled {
+        /// The system whose dependency is off.
+        system: SystemId,
+        /// The dependency that is off.
+        dependency: SystemId,
+    },
+
+    /// A system was to be disabled while an enabled system depends on it. Refused naming the
+    /// dependent: a world in which an enabled system's declared dependency is disabled is one the
+    /// registry would have refused to assemble, and reaching it by disabling is the same mistake
+    /// arrived at backwards.
+    #[error("system '{system}' cannot be disabled while '{required_by}' depends on it")]
+    SystemRequiredByAnotherSystem {
+        /// The system that was to be disabled.
+        system: SystemId,
+        /// The enabled system that depends on it.
+        required_by: SystemId,
+    },
+
+    /// Two systems provide the same action type. One request must have one answer: dispatch routes
+    /// an action to exactly one system, and `INV-10`'s answer — *no enabled system provides this* —
+    /// has to be decidable without asking which of two systems meant it.
+    #[error(
+        "action type '{action_type}' is already provided by '{provided_by}', \
+         so '{claimed_by}' cannot provide it"
+    )]
+    ActionTypeProvidedByAnotherSystem {
+        /// The contested action type.
+        action_type: ActionTypeId,
+        /// The system that provides it.
+        provided_by: SystemId,
+        /// The system that tried to provide it as well.
+        claimed_by: SystemId,
+    },
+
+    /// A system's `declaration()` handed back a declaration belonging to another system. Nothing in
+    /// the type system stops that — `SystemDeclaration::of::<Another>()` is an ordinary expression —
+    /// so installation compares the two, because a declaration is what ownership conflicts are
+    /// decided from and a system must not be able to claim another's.
+    #[error("system '{system}' returned a declaration belonging to '{declared}'")]
+    SystemDeclarationNamesAnotherSystem {
+        /// The system being installed.
+        system: SystemId,
+        /// The system its declaration named.
+        declared: SystemId,
+    },
+
+    /// A system's declaration claims a component type, and the system did not declare a table for
+    /// it while being installed. The two halves of ownership would then disagree: the registry
+    /// would refuse another system's claim on state that does not exist, and a write to it would be
+    /// refused as undeclared.
+    #[error(
+        "system '{system}' declares that it owns component type '{component_type}' \
+         but did not declare its table"
+    )]
+    SystemDidNotDeclareOwnedComponent {
+        /// The system being installed.
+        system: SystemId,
+        /// The component type it claimed and did not declare.
+        component_type: ComponentTypeId,
+    },
+
+    /// An action was routed to the system that provides it, and that system has no resolution for
+    /// it. Refused rather than accepted with no events: a system that provides an action and does
+    /// not resolve it is a bug in that system, and a silent acceptance would hide it behind a
+    /// world that looks like it worked.
+    #[error("system '{system}' provides action '{action_type}' but does not resolve it")]
+    ActionNotResolvedBySystem {
+        /// The system the action was routed to.
+        system: SystemId,
+        /// The action it did not resolve.
+        action_type: ActionTypeId,
+    },
+
+    /// Identity allocation for recorded facts reached the top of the identifier space. Reported
+    /// rather than wrapped, for the reason entity identity is: reusing an identity would make two
+    /// different facts the same fact in every log that refers to them.
+    #[error("this world has recorded every available event identity")]
+    EventIdSpaceExhausted,
+
+    /// A system emitted a fact of a kind its own declaration does not list. The declaration is what
+    /// a reader of a world's composition goes by — which facts this world can produce, and from
+    /// whom — so a fact outside it would make that reading wrong.
+    #[error(
+        "system '{system}' emitted event type '{event_type}', \
+         which its own declaration does not list"
+    )]
+    EventTypeNotInSystemDeclaration {
+        /// The emitting system.
+        system: SystemId,
+        /// The kind of fact it emitted.
+        event_type: EventTypeId,
+    },
+
+    /// Reaction within one logical instant went deeper than the cascade limit: systems kept
+    /// reacting to each other's facts without the clock ever moving.
+    ///
+    /// Named rather than silent, because an infinite cascade is a system bug and a world that
+    /// freezes gives its author nothing to go on. The systems listed are those that emitted a fact
+    /// *while reducing*, in registration order — the ones that will not stop.
+    ///
+    /// Unlike every other refusal in this crate, this one is reported after state has changed:
+    /// reduction is not transactional. See [`crate::dispatch`].
+    #[error(
+        "reduction within one instant exceeded {limit} generations; \
+         these systems kept emitting while reducing: {systems:?}"
+    )]
+    ReductionCascadeTooDeep {
+        /// The limit that was exceeded.
+        limit: usize,
+        /// The systems that emitted a fact while reducing, in registration order.
+        systems: Vec<SystemId>,
+    },
+
+    /// A system asked for a fact to happen at an instant that is not later than the one it is
+    /// running in. Deferral means *later*: a fact for the current instant is emitted, not
+    /// deferred, and blurring the two would lose the ordering replay depends on (`D-6`).
+    #[error("a deferral to {at} is not later than the current instant {now}")]
+    DeferralNotInTheFuture {
+        /// The instant the system asked for.
+        at: WorldTime,
+        /// The instant it is running in.
+        now: WorldTime,
     },
 
     /// A persisted graph filed an edge type's declaration under a different name.

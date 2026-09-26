@@ -619,28 +619,31 @@ any domain system (S6).
 ## 4.4 Commit plan
 
 ### C1 — System trait and declaration
-- [ ] Implementation: `System` (`ID`, `VERSION`, `declaration()`, `validate`, `resolve`, `react`), `SystemDeclaration` (dependencies, owned components, provided actions, emitted and subscribed events), `DynSystem` + blanket impl.
-- [ ] Validation: a declaration reports what its type declares; a system with no provided actions is legal; two stub systems differ in declaration.
-- [ ] Review: no domain concept; the trait cannot be implemented without naming its owner.
+- [x] Implementation: `kernel/src/system.rs` — `SystemVersion`, `SystemDeclaration` (name and version read off the type by `of::<S>()`; typed builders `depending_on` / `owning::<C>` / `providing::<A>` / `emitting::<E>` / `subscribing_to::<E>`), `Emission` and `Deferral` (what a system decides, before the kernel places a fact in history), the `System` trait (`VERSION`, `declaration`, `install`, `validate`, `resolve`, `react`), the object-safe `DynSystem` and its implementation for `InstalledSystem<T>`. `kernel/src/view.rs` — `WorldRead`, `WorldView<S>`, `Declarations<S>` and the crate-private `WorldParts`. Three `KernelError` variants (`ComponentTypeNotInSystemDeclaration`, `ActionNotResolvedBySystem`, `DeferralNotInTheFuture`).
+- [x] Validation: 8 in-crate tests in `kernel/src/system/tests.rs` plus one new doc-test, all pass (108 workspace tests, up from 99). A declaration reports exactly what its type declares, including the version and the owned component's schema version; a system that provides, owns and emits nothing is legal and differs from another system in every claim; `declaration()` *can* hand back another system's declaration, which is why installation compares the two (C2); the default `resolve` refuses by name rather than accepting with no events; the erased half calls through to the typed system for all four methods, with the write landing through the token the wrapper holds; relating refuses an endpoint this world never allocated, storing nothing; a deferral to the current or an earlier instant is refused and a later one is queued; a system cannot declare a table its own declaration does not list.
+- [x] Review: no domain concept — the vocabulary is `System`, `SystemDeclaration`, `Emission`, `Deferral`, and the test stubs are named `Alpha`, `Beta`, `Counted`, `Tick`, `Ticked` because there is no domain to name them after. The trait cannot be implemented without naming its owner: `System: SystemIdentity`, so `ID` exists before anything else does, and `SystemDeclaration::of::<S>()` is the only constructor, so a declaration's name is read off the type rather than restated.
 
 ### C2 — World and sealed capability
-- [ ] Implementation: `World` owning registry, `ComponentStore`, `RelationStore`, `EntityRegistry` and the sole `WriteAccess`; `WriteAccess::new()` → `pub(crate)`; installation grants and stores the token.
-- [ ] Validation: **compile-fail — an external crate cannot construct `WriteAccess`**; installing twice is refused; a system's token is the one the world granted.
-- [ ] Review: re-run the A8 probe against the sealed API and record that it no longer compiles.
+- [x] Implementation: `kernel/src/world.rs` — `World` owning `SystemRegistry`, `ComponentStore`, `RelationStore`, `EntityRegistry` and the sole `WriteAccess`, with reads and assembly exposed and no `&mut` accessor to any store. `kernel/src/access.rs` — `WriteAccess::new()` and `grant()` are `pub(crate)` and no `Default` is derived, because a derived `Default` is a public second constructor. `World::install` performs the five steps in order (declaration name compared with `T::ID`, `check_installable`, grant, the system's own `install` hook through a `Declarations`, then every claimed component type confirmed to have a table) and stores the token in `InstalledSystem`. `kernel/src/registry.rs` — the registry skeleton: registration order as an explicit `Vec`, entries by name, `check_installable` refusing a repeated name.
+- [x] Validation: **compile-fail — `tests/compile_fail/an_external_crate_cannot_construct_write_access.rs`**, all three steps of the A8 attack written out, `.stderr` pinning `E0624` on `new`, `E0599` on `default` and `E0624` on `grant`. `kernel/tests/world.rs` — 5 external tests: a world is what its systems declare it to be (tables, registration order, exactly the installed systems holding tokens); a system is installed once; a borrowed declaration is refused; a claimed component type with no table is refused; identity is allocated and never reused. Component and relation tests moved into `kernel/src/components/tests.rs` and `kernel/src/relations/tests.rs`, which is what lets them keep exercising a constructor the crate no longer exports.
+- [x] Review: the A8 probe was re-run against the sealed API by the C3–C5 session, independently of the one that sealed it: `cargo test --test compile_fail -p mineworld-kernel` — 7 cases, all refused, and the sealed-capability case's recorded reason is `error[E0624]: associated function 'new' is private` / `error[E0599]: no associated function or constant named 'default'` / `error[E0624]: method 'grant' is private`. The three steps of the attack that succeeded in 03a now fail at the first one, and the second error is what keeps it from being reopened by a derive. Inherited requirement 1 of §3 is discharged.
+
+**Why these boxes were ticked after the commit.** C2's code was committed at `92aa972` without its ledger boxes, and the session stalled there. They are ticked here from the tree, the commit and a re-run of the probe rather than from the previous session's report, per the PR context authority order (repository truth first). One regression the commit introduced is recorded in §4.8.4 and repaired in C5.
 
 ### C3 — Registry: dependencies, conflicts, enable/disable
-- [ ] Implementation: install with dependency resolution; refuse a missing dependency naming it; refuse two systems claiming one component type via `ComponentDeclaration::conflicts_with`; enable/disable maintaining the action route map.
-- [ ] Validation: missing dependency named; conflicting ownership refused; disabling removes routes; registration order preserved and observable.
-- [ ] Review: order is explicit, never map iteration.
+- [x] Implementation: `kernel/src/registry.rs` — `SystemRegistry` gains the route map (`BTreeMap<ActionTypeId, SystemId>`, enabled systems only) and an `enabled` flag per entry. `check_installable` now refuses, in the order a reader of the failure wants them: a repeated name, a dependency that is absent (`SystemDependencyMissing`) or disabled (`SystemDependencyDisabled`), a component type claimed by another system (`ComponentDeclaration::conflicts_with` → `ComponentTypeClaimedByAnotherSystem`, preceded by the check that the declaration only lists component types it actually owns), and an action type another installed system provides (`ActionTypeProvidedByAnotherSystem`). `enable`/`disable` maintain the route map and are reached through `World::enable`/`World::disable`; `disable` refuses while an enabled system depends on the system (`SystemRequiredByAnotherSystem`). Six new `KernelError` variants; `provider`, `routes`, `subscribers`, `enabled` and `is_enabled` are the new public queries.
+- [x] Validation: `kernel/tests/composition.rs` — 10 external tests, all passing (120 workspace tests, up from 111): a missing dependency refused by name with nothing granted; a disabled dependency refused *as disabled*; two systems claiming `"occupancy"` refused with the first system's table untouched; a declaration listing another system's component type refused; two systems providing `"enter"` refused; registration order reported by `order()`, `enabled()` and `declarations()` with `almanac` installed last and sorting first; disabling removing the route and enabling restoring it while the table and the token stay; a depended-on system not disablable, and the dependent not re-enablable while its dependency is off; an unknown name refused by `enable` and `disable` alike.
+- [x] Review: order is explicit and never map iteration — `declarations`, `enabled` and `subscribers` all walk the `order` `Vec` and look each entry up, so the crate states order once. Pinned by mutation rather than by assertion: see §4.8.5, M-1 and M-2.
 
 ### C4 — Dispatch pipeline
-- [ ] Implementation: route → validate → resolve → events → reduce, with the cascade limit.
-- [ ] Validation: an unprovided action returns `Unavailable` (`INV-10`); a rejection carries its `Rejection` unchanged; resolution emits events whose `CausedBy` names the intent (`AC-9`); reduction reaches subscribers in registration order; a deliberate two-system cycle errors naming both; the same intents replayed twice produce identical event sequences.
-- [ ] Review: no system observes another's validation; nothing mutates during validate.
+- [x] Implementation: `kernel/src/dispatch.rs` — `World::dispatch(&intent, at)` running route → validate → resolve → record → reduce, with `CASCADE_DEPTH_LIMIT = 16`. `Dispatched` carries the three things three different layers consume: the `ActionResult`, the recorded `EventEnvelope`s (S5 appends them; dispatch holds no log) and the `Deferral`s (S4 queues them; dispatch owns no queue). `EventIds` is the world's monotonic event-identity counter, and `Emission::into_envelope` is the only way an emission becomes a fact — the kernel supplies identity, instant, causation and provenance, so a system cannot misstate why a fact happened. `SystemRegistry::routed` returns the provider and its erased handle in one lookup, so the pipeline has no unreachable branch. `World::dispatch_parts` is the one place a world is split, which keeps `&mut ComponentStore` out of every public shape (`BD-2`). Three new `KernelError` variants (`EventIdSpaceExhausted`, `EventTypeNotInSystemDeclaration`, `ReductionCascadeTooDeep`).
+- [x] Validation: `kernel/tests/dispatch.rs` — 8 external tests plus one doc-test on `World::dispatch` (129 workspace tests, up from 120). An unprovided action is `Unavailable` and no system is consulted — pinned by `Bellringer::validate` asserting it is only ever asked about the action it provides, so a dispatcher that searched systems for a provider would trip it. A `Rejection::System` with a code the kernel does not understand comes back byte-for-byte. A recorded fact names `Causation::Action(7)`, its emitter, the controller decision, the instant dispatch was told, its declared audience and its subjects; identity is 1 in a fresh world. Reduction reaches `watch` then `almanac` — registration order, with `almanac` installed last and sorting first — twice identically, with each consequence naming `Causation::Event(parent)` and the answer listing every fact including the reducers'. A `ping`/`pong` cycle errors with `limit: 16` and `systems: [ping, pong]`, and the enabled `bystander` installed between them is *not* named. A deferral comes back at `t160` with nothing recorded and its own subscriber never run. An emission outside the emitting system's declaration is refused, and so is an action a provider leaves at the default `resolve`.
+- [x] Review: no system observes another's validation — `validate` is reached only through the route map's single provider, and the pipeline holds the read-only view for the duration of that one call. Nothing mutates during validation, and that is the type's statement rather than a rule: `WorldRead` exposes no write and no way to reach a store (`BD-6`). Four mutations confirm the guards are load-bearing; see §4.8.5, M-3 to M-6. One honesty item recorded in the module documentation rather than glossed: an `Err` out of `resolve` or `react` is reported *after* that system's writes have landed, because reduction is not transactional — so the crate's "a refusal changes nothing" promise covers `Rejected` (which cannot write, by type) and not `Err` (which means a system broke its own contract and the world should be discarded).
 
 ### C5 — Integration checkpoint and docs
-- [ ] Validation: **the `AC-2` evidence** — two systems installed, an action provided by the second; disabling it makes that action `Unavailable` with **no edit to any other module**, proven by the test changing only a configuration value.
-- [ ] `kernel/README.md`, ledger closed.
+- [x] Validation: **the `AC-2` evidence** — `kernel/tests/two_systems.rs`, `disabling_a_system_removes_its_action_and_nothing_else_changes`. Two systems, `Places` and `Weather`, installed in the same order by one `compose(Composition)` function; the scripted `run` submits the same four requests at the same instant to both worlds. The only difference between them is `Composition { weather: true }` versus `{ weather: false }` — one boolean, one field, read by one `if`. What changes: `forecast` is provided by `weather` in one world and by nobody in the other, where dispatch answers `Unavailable`; and `Weather`'s reaction to `Places`' facts does not happen, so its state is never written and its fact is never recorded (4 events versus 3). What does not change: `Places`' own action still resolves, its `Occupancy` is `present: 3` in both, its `Entered` payloads are equal, both worlds hold 2 edges — and the disabled system is still installed, still owns its declared table and still holds the write token this world granted it. Pinned by mutations M-7 and M-8, which break each half separately.
+- [x] Validation: **the coverage regression of §4.8.4 repaired** — `a_whole_world_round_trips_through_serde_unchanged` and `replaying_the_same_operations_reproduces_an_identical_world`, both against the real `World` rather than 03a's stand-in, and both carrying the recorded event envelopes as well as the three stores. Replay compares two independently composed worlds as serialized strings and then checks the parts a determinism claim is really about: `next_id` is 5, entity 4 is `leaving`, the first fact's identity is 1 and its cause is `{"action": 1}`, the fourth fact is `forecasted`, and the first edge starts at entity 1. `two_systems_write_their_own_state_and_read_each_others` restores the checkpoint's first claim through the pipeline instead of through the stores.
+- [x] `kernel/README.md` rewritten for what the crate now is — the module map, and the two ideas a reader needs first: a component is written only by its owner, and a world is its systems with configuration deciding which of them act. Ledger closed in §4.9.
 
 ## 4.5 Integration checkpoint
 
@@ -679,3 +682,521 @@ CHECKED  scope excludes clock, persistence and domain systems
 ```
 
 APPROVED for implementation.
+
+---
+
+## 4.8 Implementation ledger
+
+Execution context: branch `mvp0/pr-03b-systems-dispatch`, created from `main` @ `a079fff` — S1, S2 and
+S3a merged, 99 workspace tests green at the base. Toolchain `rustc`/`cargo` 1.97.1, `rustfmt` 1.9.0,
+`clippy` 0.1.97, pinned by `rust-toolchain.toml` (`DD-11`). No remote exists (`D-9`), so there is no
+push and no PR; the branch is the deliverable.
+
+`handoff.md` still carries PR 02's closed context. It is deliberately **not** rewritten from this
+branch: this document is the semantic authority for 03b, the session did not compact, and 03a made
+the same call for the same reason. Recorded so the omission is a decision rather than an oversight.
+
+### 4.8.1 Decisions taken during implementation
+
+Each of these was forced by something the frozen design left to implementation. None changes a
+frozen invariant; the two that touch a frozen *decision's wording* say so explicitly.
+
+**BI-1 — the payload type is `Vec<u8>`, and the kernel never interprets it.** `ActionIntent<P>` and
+`EventEnvelope<P>` are generic over an encoded payload. Threading `P` through the kernel would mean
+`World<P>`, `dyn DynSystem<P>` and a type parameter on every signature, for a value the kernel never
+looks at; a generic method cannot be object safe, so a per-call `P` is not available either. The
+kernel therefore uses the contract layer's own default, `Vec<u8>`, and documents the consequence:
+the *encoding* of an action or event payload is a contract between the system that declares the type
+and whoever reads it back, exactly as `ComponentRecord`'s is. No kernel code encodes or decodes a
+payload, which is what keeps `DD-13`'s "the format is the persistence layer's choice" true here.
+
+**BI-2 — `System` gained an `install` hook, which §4.4's C1 list does not name.** A
+`SystemDeclaration` lists owned components as `ComponentDeclaration` *values*, and a value cannot
+create a table: `ComponentStore::declare` needs the component's Rust **type**, which only the owning
+system's crate can name. Without a hook there is no path from a declaration to a table, and a world
+could hold no state at all. The hook is deliberately the narrowest thing that closes that gap — it
+is handed a `Declarations<'_, S>`, which declares component and relation types and exposes no rows,
+no reads and no edges, so a system cannot write state while being installed (state no event
+explains, `INV-15`). Both directions are checked: a table outside the system's declaration is
+refused (`ComponentTypeNotInSystemDeclaration`), and a declared component type with no table is
+refused at the end of installation (C2).
+
+**BI-3 — `DynSystem` is implemented for a wrapper, not blanketly for `T`.** `BD-3` says "a blanket
+`impl<T: System> DynSystem for T`". What is implemented is `impl<T: System> DynSystem for
+InstalledSystem<T>`, where `InstalledSystem { system, token }` holds the write token this world
+granted. The substance of `BD-3` is unchanged — `System` keeps `const ID`, is therefore not object
+safe, and the registry holds the object-safe half — but the token has to live *somewhere*, and the
+only alternative is minting a fresh `WriteToken<T>` inside the erased call. Minting on use would
+make `BD-1`'s "installation grants a system its token and stores it in the registry entry" a
+statement about documentation rather than about code: the grant would have no consumer, and the
+one-token-per-system bookkeeping would guard nothing. So the token travels from the grant into the
+wrapper and from the wrapper into the view, and nothing else ever holds it.
+
+**BI-4 — `DynSystem` and `WorldParts` are crate-private.** §3 describes "an object-safe wrapper so
+the registry can hold heterogeneous systems" without saying it is public. Nothing outside the kernel
+has a reason to name either: a pack implements `System`, and the world holds the erased form. Keeping
+them private means `WorldParts` — which holds `&mut ComponentStore` internally — is not part of the
+public surface at all, which is one fewer place for `BD-2` to leak from.
+
+**BI-5 — `System`'s methods take `&self`.** A system's mutable state is the components it owns, held
+in the world and written through a gated view. `&mut self` would invite a system to keep simulation
+state in its own fields, which is state no event log can reconstruct and no snapshot carries — the
+`AC-6` failure mode S5's adversarial criterion names. Recorded because it is load-bearing for later
+steps rather than an ergonomic preference.
+
+**BI-6 — the default `resolve` refuses.** A default returning `Ok(Vec::new())` would answer
+`Accepted` with an empty event list for a system that provides an action and forgot to resolve it,
+which looks exactly like a world that worked. The default returns `ActionNotResolvedBySystem`,
+naming the system and the action. `validate`, `react` and `install` keep permissive defaults, because
+a system that declares no action, subscribes to nothing or owns nothing is legal and common.
+
+**BI-7 — the registry refuses a second *provider of one action type*, which §4.4's C3 list does not
+name.** C3 names the component-type conflict. The action-type conflict is the same defect one line
+down: `BD-5` routes an action through a map from `ActionTypeId` to one system, so two providers would
+make the map's content depend on installation order, and `INV-10`'s answer — *no enabled system
+provides this* — would stop being decidable without asking which of the two was meant. The check is
+against *declarations*, not against the route map, because a disabled system still provides its
+actions: admitting a second provider while the first is disabled would build a world that cannot be
+enabled. Not a scope addition — §2's registry documentation already stated "one system per component
+type, one system per action type, and every declared dependency present" as what this module refuses.
+
+**BI-8 — a declared dependency must be installed *and enabled*, and disabling is refused while a
+dependent is enabled.** §3 says the registry "refuses to enable a system whose declared dependency
+is absent or disabled". Read only forwards, that leaves the hole open backwards: install A, install B
+depending on A, disable A, and B is now running against state nobody maintains — the state the
+forward check exists to prevent, reached from the other side. `disable` therefore refuses while an
+enabled system depends on the system, naming the dependent (`SystemRequiredByAnotherSystem`), and the
+world-pack author disables the dependent first. Chosen over cascading the disable, which would make
+one configuration change silently switch off systems the author did not name.
+
+**BI-9 — a declaration may only list component types it owns.** `SystemDeclaration::of::<Weather>()
+.owning::<Occupancy>()` is an ordinary expression even when `Occupancy` belongs to `Places`, and
+`conflicts_with` cannot see it: both declarations then carry `owner = places`, so they do not
+conflict. Before this check, such a system installed successfully whenever `Places` had already
+declared the table — `World::install`'s final loop only asks whether the table *exists* — and the
+registry then reported two systems owning one component type while only one could write it. The
+guard is one comparison in `check_owned_components`, and it reuses the existing
+`ComponentOwnerDisagreesWithDeclaration` variant, whose fields and message already say exactly this
+("declared as owned by X, registered by Y"). Found by writing C3's conflict test, not predicted by
+the design.
+
+**BI-10 — the world allocates event identity, and dispatch returns the facts rather than storing
+them.** Nothing in §4.2 gives the kernel an event log, and nothing should: `INV-11`'s log is S5's. But
+an `ActionResult::Accepted` carries `Vec<EventId>` and an `EventEnvelope` cannot exist without an
+identity, so *something* has to allocate one. It is a monotonic counter on `World` (`EventIds`),
+consulted by nothing else, for the same reason entity identity is a counter: a replayed world must
+produce the same identities in the same order (`AC-12`). The facts themselves are returned in
+`Dispatched::events`, unstored. That is the S5 seam, and it is the same shape as the S4 seam beside
+it: dispatch produces history and deferrals, and the layers that own the log and the queue take them.
+
+**BI-11 — an emission outside the emitting system's declaration is refused.** `SystemDeclaration`
+carries `emits`, and `Emission`'s documentation already said the event type is "what the kernel checks
+against the emitting system's declaration" — C1 wrote the accessor for a check no code performed yet.
+Dispatch performs it. Without it, `declarations()` would be an unreliable description of what facts a
+world can produce and from whom, which is the reading a world pack author and a persistence migration
+both depend on.
+
+**BI-12 — the cascade error names the systems that emitted *while reducing*, not the last
+generation's.** A two-system cycle alternates emitters, so naming the last generation's emitter names
+one of the two and reads like an accusation of the wrong system. Naming every installed system would
+be worse — it names the innocent. What the error carries is the set of systems that emitted a fact
+during reduction, in registration order, which for a cycle is exactly the participants and for a long
+finite chain is exactly the chain. `kernel/tests/dispatch.rs` installs an enabled bystander between
+the two cycling systems for no purpose other than to fail if that distinction is lost, and mutation
+M-3 confirms it does.
+
+**BI-13 — `CASCADE_DEPTH_LIMIT` is 16, and it is public.** `BD-7` requires a limit and does not choose
+one. Sixteen is far above any honest cross-domain chain (a wage falling due, a balance moving, a
+ledger noting it — three) and far below anything a person would experience as a hang. It is `pub`
+because a system author debugging a cascade needs to know the bound they exceeded, and because the
+test that pins the behaviour must not restate the number.
+
+### 4.8.2 Bounded deviations
+
+```text
+Deviation:      kernel/src/view.rs is a fifth module; §4.2 lists four
+Reason:         WorldRead, WorldView and the crate-private WorldParts are one conceptual unit —
+                what a running system is handed — and folding them into world.rs would put two
+                responsibilities in one file, past the size at which ENGINEERING_STANDARDS asks
+                for a review
+Source:         §4.2 lists the modules the PR delivers, not a prohibition on a fifth; 03a made
+                the same call for error.rs and macro_support.rs (§2.10.5)
+Impact:         none on scope — inside the kernel crate, no new public concept beyond the
+                WorldView BD-2 already requires
+Validation:     covered by kernel/src/system/tests.rs, which exercises both views
+
+Deviation:      C1's tests are in-crate (kernel/src/system/tests.rs), not in kernel/tests/
+Reason:         DynSystem and WorldParts are crate-private (BI-4) and a WriteToken exists only
+                inside a world, so an external test crate can construct none of them. That is the
+                guarantee C2 seals, not an inconvenience to work around
+Source:         the same constraint that makes the A8 compile-fail case possible at all
+Impact:         the pack-facing behaviour — routing, Unavailable, reduction order, enable and
+                disable — is still tested from outside the crate, in C3 to C5, where a pack lives
+Validation:     8 tests, all passing; the external suites are unchanged at C1
+
+Deviation:      WriteAccess::is_granted was deleted rather than kept
+Reason:         it had no caller in non-test code and, after C2 sealed the issuer, no possible
+                one: World::writers() is the observable half of BD-1, and grant() already refuses
+                a second token, so nothing in the crate needs to ask. Its one caller was a single
+                assertion in kernel/src/components/tests.rs that restated the line above it — the
+                granted() collection already proves "first-stub" holds a token
+Source:         cargo clippy -D warnings at C2's head reported it as never used; the terminal
+                condition requires a clean clippy, and an #[allow] on a method with no consumer
+                would be silencing the accurate report
+Impact:         none on the public surface; pub(crate), never exported
+Validation:     kernel/src/components/tests.rs still asserts the same fact through granted()
+```
+
+### 4.8.3 Validation record
+
+```text
+command:  cargo fmt --all --check
+result:   clean at C1
+
+command:  cargo check --workspace --all-targets
+result:   compiles at C1, with 6 dead-code warnings
+
+command:  cargo clippy --workspace --all-targets --all-features -- -D warnings
+result:   FAILS at C1, and expectedly: the 6 dead-code warnings above become errors. Every one
+          of them has the same root — InstalledSystem::new has no caller in non-test code until
+          C2's World::install, and rustc's dead-code pass then reports the constructors it
+          reaches only through that. C1 is an inert seam (working rules §14), and an inert seam
+          in Rust cannot satisfy the dead-code lint before its consumer exists. Recorded rather
+          than silenced with an allow attribute: clippy is verified clean from C2 onward and at
+          the final head, which is where the terminal evidence belongs.
+
+command:  cargo test --workspace
+result:   C1 — 108 tests, 0 failures (58 contract + 3 contract doc-tests, unchanged;
+          44 kernel + 3 kernel doc-tests). The 9 new tests are the 8 in kernel/src/system/tests.rs
+          and the System trait's doc example.
+```
+
+```text
+command:  cargo fmt --all --check
+result:   clean at C3
+
+command:  cargo test --workspace
+result:   C3 — 120 tests, 0 failures. The 10 new tests are kernel/tests/composition.rs; one
+          redundant assertion was removed from kernel/src/components/tests.rs with is_granted
+          (§4.8.2), which changes no test count because it was an assertion, not a test.
+
+command:  cargo test --test compile_fail -p mineworld-kernel
+result:   7 compile-fail cases, all refused — the independent re-run of the A8 probe recorded
+          against C2's review box above.
+
+command:  cargo clippy --workspace --all-targets --all-features -- -D warnings
+result:   FAILS at C3, with 5 dead-code errors, and for the same reason it failed at C1: the
+          object-safe half of the trait has no caller until dispatch exists. What remains is
+          exactly DynSystem::{validate, resolve, react}, WorldParts::new, WorldView::new and
+          registry Entry.system / SystemRegistry::system — the five things C4 consumes, and one
+          fewer family than at C2 because is_granted was deleted rather than silenced. No
+          #[allow] was added: clippy is verified clean at C4 and at the final head.
+```
+
+### 4.8.4 A coverage regression C2 introduced, repaired in C5
+
+```text
+FINDING
+  C2 deleted kernel/tests/two_systems.rs (316 lines), PR 03a's integration checkpoint, and
+  replaced it with kernel/tests/world.rs.
+
+SOURCE AUDIT
+  git show 4c35a57:kernel/tests/two_systems.rs against the committed tree at 92aa972.
+  Three of its four claims survived the move: each system writing its own state and reading the
+  other's is covered by kernel/src/components/tests.rs; the cross-write compile error is
+  tests/compile_fail/a_system_cannot_write_another_systems_component.rs; installation is
+  kernel/tests/world.rs. Two did not survive anywhere:
+
+    a whole world round-trips through serde unchanged
+    replaying the same operations on a fresh world yields a byte-identical snapshot
+
+WHY IT MATTERS
+  The replay property is this layer's AC-12 evidence, and AC-6's. Losing it silently is worse
+  than never having had it: the branch would read as though determinism were still pinned.
+
+DECISION
+  Deleting the hand-rolled stand-in was right — it built a fake `World` struct out of the three
+  stores because no real World existed, and keeping a fake world beside the real one would be two
+  definitions of the same thing. What was wrong was deleting the two claims with it. They are
+  reinstated in C5 against the real World, where they are stronger: the snapshot now includes the
+  dispatched event envelopes, so replay equality covers event identity, causation and reduction
+  order as well as state.
+
+IMPLEMENTATION
+  kernel/tests/two_systems.rs, restored as PR 03b's integration checkpoint (C5).
+
+DEVIATION
+  Not a deviation from the frozen design: §4.4's C5 asked for the AC-2 evidence and did not
+  mention round-trip or replay, because the design did not notice the deletion either.
+```
+
+### 4.8.5 Mutation evidence
+
+Each mutation was applied to the committed implementation, the suite was re-run, and the
+implementation was restored from a byte-identical backup afterwards (verified with `git diff`).
+A test that stays green when the thing it guards is broken is decoration.
+
+```text
+M-1  break registration ordering
+     mutation:    SystemRegistry::declarations() and enabled() iterate self.entries (the
+                  name-keyed BTreeMap) instead of walking self.order
+     expected:    registration_order_is_the_order_systems_were_installed goes red, because
+                  `almanac` is installed last and sorts first
+     observed:    FAILED at kernel/tests/composition.rs:332 — 8 passed, 1 failed
+     verdict:     behaviour-changing, killed. This is the mutation BD-4 exists to forbid, and it
+                  is why the test installs a third system whose name sorts before the others:
+                  with only `places` and `weather`, installed in that order, map iteration and
+                  registration order agree and the mutation would have survived.
+
+M-2  break the route map so a disabled system's action still dispatches
+     mutation:    delete `self.routes.retain(|_, provider| provider != system)` from
+                  SystemRegistry::disable — the entry is still marked disabled, only the routes
+                  survive
+     expected:    disabling_a_system_removes_its_actions_from_the_route_map goes red
+     observed:    FAILED at kernel/tests/composition.rs:358 — 8 passed, 1 failed
+     verdict:     behaviour-changing, killed. The INV-10 / AC-2 guard is load-bearing at the
+                  registry layer; C4 re-runs the same mutation against dispatch, where the
+                  observable consequence is an action answering Accepted instead of Unavailable.
+```
+
+```text
+command:  cargo fmt --all --check
+result:   clean at C4
+
+command:  cargo clippy --workspace --all-targets --all-features -- -D warnings
+result:   CLEAN at C4, for the first time on this branch. Every symbol the dead-code lint reported
+          at C1, C2 and C3 now has its consumer: DynSystem::{validate, resolve, react} are called
+          by the pipeline, WorldParts::new by Dispatcher::parts, WorldView::new by InstalledSystem
+          on the path the pipeline takes, and registry Entry.system through routed() and system().
+          No #[allow] was added anywhere; the lint was accurate every time, and dispatch is what it
+          was waiting for.
+
+command:  cargo test --workspace
+result:   C4 — 129 tests, 0 failures. The 9 new tests are the 8 in kernel/tests/dispatch.rs and the
+          doc example on World::dispatch, which is the INV-10 answer written as the smallest
+          runnable program: a world with no combat system answers Unavailable to a request to shoot.
+```
+
+### 4.8.5 Mutation evidence (continued — C4)
+
+```text
+M-3  make the cascade error name everything instead of what is cycling
+     mutation:    Dispatcher::cycling_systems() drops its filter, so it reports every installed
+                  system in registration order
+     expected:    a_reduction_cycle_errors_naming_the_cycling_systems goes red, because the
+                  enabled bystander installed between ping and pong would be named
+     observed:    FAILED — left [ping, bystander, pong], right [ping, pong] — 7 passed, 1 failed
+     verdict:     behaviour-changing, killed. This is the mutation the bystander system exists to
+                  catch: without it the test would accept an error that accuses every system in
+                  the world of cycling.
+
+M-4  remove the cascade limit
+     mutation:    `if depth > CASCADE_DEPTH_LIMIT` becomes `if depth > usize::MAX`, so reduction
+                  never stops
+     expected:    the cycle test cannot pass
+     observed:    DID NOT TERMINATE. Killed after 30.0s of wall time by an external bound; with
+                  the limit in place the same test finishes in under 0.01s.
+     verdict:     behaviour-changing, killed — and the shape of the failure is the point. Without
+                  the limit the suite does not go red, it hangs, which is exactly the failure mode
+                  BD-7 exists to convert into a named error. Recorded as a non-terminating run
+                  rather than as a test failure, because that is what was observed.
+     note:        `timeout` does not exist on this host (macOS); the first attempt at this mutation
+                  exited 127 with no test run at all, which would have been misread as a pass. The
+                  bound was re-imposed with python subprocess.run(timeout=30). Recorded because a
+                  mutation that silently never ran is worse than no mutation.
+
+M-5  drop the controller decision from provenance
+     mutation:    Provenance::new(emitter) without .from_controller_decision(decision)
+     expected:    recorded_facts_name_the_intent_that_caused_them goes red
+     observed:    FAILED — left None, right Some(ActionId(7)) — 7 passed, 1 failed
+     verdict:     behaviour-changing, killed. This is the half of AC-9 that makes an LM
+                  controller's effect on a world reviewable after the fact: without it a fact still
+                  knows it was caused by an action, but nothing connects the chain of consequences
+                  back to the decision that started it.
+
+M-6  reverse reduction order
+     mutation:    the collected subscriber list is reversed before reacting
+     expected:    reduction_reaches_subscribers_in_registration_order_twice_identically goes red
+     observed:    FAILED — left [bellringer, almanac, watch], right [bellringer, watch, almanac] —
+                  7 passed, 1 failed
+     verdict:     behaviour-changing, killed. Note that the mutation is *deterministic*: it would
+                  pass a test that only checked "the same order twice". The test discriminates
+                  because it also states which order, which is what AC-12 needs — a reproducible
+                  wrong order is still a wrong order.
+```
+
+### 4.8.5 Mutation evidence (continued — C5, the AC-2 guards)
+
+`AC-2` has two halves in the code, and each was broken separately. Both were applied to the committed
+registry, verified red, and the file was restored and confirmed byte-identical with `cmp`.
+
+```text
+M-7  make a disabled system's action dispatch anyway (the routing half)
+     mutation:    SystemRegistry::routed() finds the provider by searching installed declarations
+                  for one that provides the action type, instead of consulting the route map — so
+                  `enabled` stops mattering to routing
+     expected:    disabling_a_system_removes_its_action_and_nothing_else_changes goes red
+     observed:    FAILED at kernel/tests/two_systems.rs:396 — the world composed *without* weather
+                  answered something other than Unavailable. 3 passed, 1 failed; every other suite
+                  in the crate stayed green, including composition.rs, which is worth noting: the
+                  registry-level route assertions do not catch this, because the route map is still
+                  maintained correctly — it is simply no longer what decides. Only the dispatch-level
+                  test catches it.
+     verdict:     behaviour-changing, killed. This is precisely the mutation BD-5 exists to forbid.
+
+M-8  make a disabled system react anyway (the reduction half)
+     mutation:    SystemRegistry::subscribers() drops `entry.enabled &&`, so a disabled system still
+                  reduces the facts it subscribes to
+     expected:    the same test goes red on the state half rather than the routing half
+     observed:    FAILED at kernel/tests/two_systems.rs:417 — left Some(Overcast { reports: 3 }),
+                  right None. The disabled system had written its own state three times in a world
+                  that is supposed not to have weather in it.
+     verdict:     behaviour-changing, killed. Recorded separately from M-7 because "the action is
+                  gone" and "the consequences are gone" are two claims, and a test that only checked
+                  the first would let a disabled system keep changing the world.
+```
+
+```text
+command:  cargo test --workspace
+result:   C5 — 133 tests, 0 failures, from 111 at the start of this session's work. By target:
+
+            contracts   58 integration + 3 doc-tests            unchanged all PR
+            kernel      29 in-crate (system, components, relations)
+                         1 compile_fail harness (7 cases inside it)
+                         9 composition.rs        C3
+                         8 dispatch.rs           C4
+                        11 entities.rs           03a, unchanged
+                         4 two_systems.rs        C5
+                         5 world.rs              C2
+                         5 doc-tests             System, World, owned_component!, WorldTime, dispatch
+
+          §4.5's checkpoint list, each item to the test that owns it:
+
+            an action no enabled system provides → Unavailable
+                dispatch.rs::an_action_no_enabled_system_provides_is_unavailable, and the
+                World::dispatch doc-test
+            disabling a system removes its actions, nothing else changes          ← AC-2
+                two_systems.rs::disabling_a_system_removes_its_action_and_nothing_else_changes
+            a missing dependency is refused by name
+                composition.rs::a_missing_dependency_is_refused_by_name, and
+                a_disabled_dependency_is_refused_as_disabled for the other half
+            two systems claiming one component type are refused
+                composition.rs::two_systems_cannot_claim_one_component_type, and
+                a_declaration_cannot_list_another_systems_component_type
+            events carry CausedBy naming the intent                               ← AC-9
+                dispatch.rs::recorded_facts_name_the_intent_that_caused_them
+            reduction order is registration order, twice identically              ← AC-12
+                dispatch.rs::reduction_reaches_subscribers_in_registration_order_twice_identically,
+                and two_systems.rs::replaying_the_same_operations_reproduces_an_identical_world for
+                the whole-world form
+            a reduction cycle errors naming the systems
+                dispatch.rs::a_reduction_cycle_errors_naming_the_cycling_systems
+            an external crate cannot construct WriteAccess                        ← closes A8
+                tests/compile_fail/an_external_crate_cannot_construct_write_access.rs
+```
+
+**Adversarial criteria (§4.5).** 03a's A1–A9 probes re-run against the sealed API as the
+compile-fail suite, which is where six of them live: a cross-system write, a forged token, a token
+built from its fields, another crate's type made into a component, an impersonated `SystemId`, and a
+system type whose constructor is its own. `A8` — the one that succeeded in 03a — is now the seventh
+case and fails at its first line. On the three specific questions §4.5 asks: a running system cannot
+reach another system's token (the token lives in that system's registry entry, which is private to
+the registry and never lent), cannot reach the issuer (`WriteAccess` is a private field of `World`
+and its constructor is `pub(crate)`), and cannot reach a `&mut ComponentStore` (the only public
+shapes are `WorldRead` and `WorldView<S>`; `WorldParts` is crate-private and `World::dispatch_parts`
+is the single place a world is split). `A9` — interior mutability behind an open read — remains
+unfixable on stable Rust and remains a declared review convention.
+
+## 4.9 Closeout
+
+```text
+LIFECYCLE            READY FOR OPERATOR REVIEW — DO NOT MERGE
+branch               mvp0/pr-03b-systems-dispatch
+base                 a079fff (main at the time the branch was cut; main has since moved to a2b10d9
+                     with a documentation-only commit, deliberately not merged in mid-PR)
+commits              0fadb29  C1  System trait, declaration, views
+                     92aa972  C2  World and sealed write capability
+                     46cc6dd  C3  registry: dependencies, conflicts, enable/disable
+                     0a71211  C4  dispatch pipeline
+                     4168bc9  C5  integration checkpoint, README, ledger
+                     (this)   --  closeout: the exact-head verification below
+remote               origin exists as of this session and the branch is pushed; there is no pull
+                     request, and merging is the operator's (D-9 superseded for push only)
+scope                §4.2 only. No clock, no queue, no persistence, no domain system. The S4 seam is
+                     Dispatched::deferred and the instant parameter; the S5 seam is
+                     Dispatched::events and the erased-thunk requirement 03a's review recorded.
+```
+
+### Terminal verification
+
+`§4.6`'s four commands, run at the final executable head and again at the final PR head. The second
+run is against a documentation-only commit, so it is a confirmation rather than new evidence — but it
+was run, because the rule is that evidence belongs to an exact SHA.
+
+```text
+final executable HEAD   4168bc9e5a676992371976fe8771c20005e37d2b   (C5)
+final PR HEAD           the commit that adds this section           (docs only)
+
+cargo fmt --all --check                                             CLEAN
+cargo check --workspace --all-targets                               CLEAN, no warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings CLEAN, no warnings
+cargo test --workspace                                              133 passed, 0 failed
+git status                                                          clean working tree
+```
+
+Clippy is worth one sentence of its own, because it failed at C1, C2 and C3 and the ledger recorded
+each failure rather than silencing it. Every symbol the dead-code lint named was a piece of the
+object-safe seam waiting for its consumer, and dispatch is the consumer. Nothing in this PR carries an
+`#[allow]` or an `#[expect]`; the one symbol that turned out to have no possible consumer —
+`WriteAccess::is_granted` — was deleted (§4.8.2).
+
+### What a reviewer should look at first
+
+```text
+1  kernel/tests/two_systems.rs        the AC-2 claim, and the two properties C2 had dropped
+2  kernel/src/dispatch.rs             the pipeline, and the one place this crate's "a refusal
+                                      changes nothing" promise is narrower than it sounds
+3  kernel/src/registry.rs             what composition refuses, and why order is a Vec
+4  §4.8.1 BI-7 … BI-13                the seven decisions the frozen design left to implementation
+5  §4.8.5 M-1 … M-8                   eight mutations, all killed, one of which hangs rather than
+                                      failing — which is the failure mode the cascade limit exists
+                                      to convert into a named error
+```
+
+### Limitations and follow-ups
+
+```text
+open       An `Err` out of `resolve` or `react` is reported after that system's writes have landed.
+           Reduction is not transactional and the kernel holds no undo log. Documented in
+           kernel/src/dispatch.rs as a narrowing of the crate's refusal promise, with the rule that
+           follows from it: an `Err` means a system broke its own contract, so the caller discards
+           the world rather than retrying. A transactional reduction would mean the kernel holding a
+           shadow copy of every system's state, which is a design question for S5, not a defect to
+           patch here.
+
+open       Dispatch does not evaluate spatial requirements. `SpatialRequirement::evaluate` exists in
+           the contract layer and `ActionIntent::actor_location` carries the client's report, but
+           deciding whether an action's spatial requirement is met needs authoritative position,
+           which no system owns yet. Today a system evaluates it inside its own `validate`, which is
+           where ENGINEERING_RULES §8 puts the decision anyway. Revisit when the first system that
+           owns position exists (S6).
+
+open       There is no `react` for an event a world has *loaded* rather than dispatched. Replay is
+           S5's, and it will need to drive reduction without an originating intent — which is why
+           `Causation` is a value on the envelope rather than a parameter of the pipeline. No change
+           to dispatch is anticipated; recorded so S5's design checks rather than assumes it.
+
+open       A system's `install` hook cannot be rolled back, inherited from C2 and unchanged:
+           a failure part way through declaring tables leaves the earlier ones declared and the
+           token granted. Documented in kernel/src/world.rs with the rule that a failed installation
+           is a failed world assembly rather than a recoverable operation.
+
+carried    Relation ownership is checked at run time, not at the type level, because
+           `RelationTypeId` has no `from_static`. 03a's review recorded it as a follow-up for a
+           later contracts change; nothing in this PR moves it.
+
+carried    `ComponentStore` still cannot be serialized as a whole, and S5 must add the erased
+           encode/decode thunks at `ComponentStore::declare`. This PR's round-trip test works the
+           way a persistence layer cannot — by naming each component type statically — which is
+           exactly the limitation 03a's review recorded as binding on S5.
+```

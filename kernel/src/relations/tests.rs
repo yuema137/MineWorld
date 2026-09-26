@@ -4,13 +4,18 @@
 //! found from either end whichever way it was written; and an edge type belongs to the system that
 //! declared it, so nobody else writes its edges. The rest is what a graph has to get right to be
 //! replayable: one edge per triple, a canonical form for an undirected edge, and a fixed order.
+//!
+//! These tests moved inside the crate when PR 03b sealed `WriteAccess::new()` (`BD-1`). A write
+//! token now exists only inside a world, so no external test crate can obtain one — which is the
+//! guarantee, not an obstacle. What a pack author sees from outside is tested from outside, in
+//! `kernel/tests/`; what only the kernel can reach is tested here.
 
+use crate::{
+    KernelError, RelationStore, RelationStoreSnapshot, SystemIdentity, WriteAccess, WriteToken,
+};
 use mineworld_contracts::{
     ContractError, Entity, EntityId, EntityKey, EntityType, EntityTypeSet, LifecycleState,
     RelationDirection, RelationEnd, RelationTypeDeclaration, RelationTypeId, SelfEdges, SystemId,
-};
-use mineworld_kernel::{
-    KernelError, RelationStore, RelationStoreSnapshot, SystemIdentity, WriteAccess, WriteToken,
 };
 
 /// The first stub system: it declares the edge types in these tests.

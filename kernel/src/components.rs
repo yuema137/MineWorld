@@ -33,6 +33,9 @@
 //! owners remove them, because they are their owners' state (`INV-7`) and the kernel deleting
 //! them would be the kernel writing another system's component.
 
+#[cfg(test)]
+mod tests;
+
 use std::any::Any;
 use std::collections::BTreeMap;
 
