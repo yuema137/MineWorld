@@ -108,7 +108,12 @@ Restated here because every step is judged against them:
    duplicating game logic (§9, §22)? A "no" returns the contract to design.
 9. No mesh, animation, physics, skeleton, camera, scene tree, or navmesh concept enters a generic
    contract (§12). The headless server and the 2D client remain fully valid implementations.
-10. Clients report intent; systems decide. Rejections are semantic —  `Unavailable`, `Busy`,
+10. `REUSE_POLICY.md` is binding. Every step asks what the ecosystem already provides before
+   writing infrastructure, and records the answer in [`docs/DECISIONS.md`](../../../docs/DECISIONS.md)
+   whether it adopts or declines. Dependencies selected so far: `DEP-1` purpose-built component
+   store, `DEP-2` `rusqlite`, `DEP-3` `tokio`/`axum`, `DEP-4` Godot 4.7, `DEP-5` `serde`,
+   `DEP-6` scheduler pending S4.
+11. Clients report intent; systems decide. Rejections are semantic —  `Unavailable`, `Busy`,
    `TooFarAway`, `PermissionDenied`, `NoSupportedInteraction` — and are produced by the owning
    system, never by a renderer (§§4, 7–8).
 
@@ -358,7 +363,7 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 | ID | Decision | Resolution |
 | --- | --- | --- |
 | **D-4** | Contract representation. | **Rust types first.** `mineworld-contracts` holds the single source of truth as Rust types. Protobuf is introduced at the first real cross-language boundary (S10 Python cognition, S11/S12 Godot) and is mirrored from those types. `ARCHITECTURE.md` §13 is amended to record this route in the PR that first writes contracts. |
-| **D-5** | Component storage. | **Purpose-built typed store.** Keyed by `EntityId`, one component table per owning system. No general-purpose ECS: the requirements are single-writer enforcement, event-sourced reconstruction, schema migration and persistence, not frame-loop iteration speed. |
+| **D-5** | Component storage. | **Purpose-built typed store**, now recorded at project level as [`DEP-1`](../../../docs/DECISIONS.md) with the full comparison the reuse policy requires: ECS handles are mostly unstable across save/load, archetype storage optimizes an iteration profile MineWorld does not have, and `&mut World` access would reduce `INV-7` to a convention. |
 | **D-7** | Rust layout. | **One Cargo workspace at the repository root**, crates `mineworld-contracts` (`contracts/`), `mineworld-kernel` (`kernel/`), `mineworld-system-*` (`systems/<name>/`), `mineworld-server` (`server/`), `mineworld-cli` (`tools/cli/`). Crate boundaries make the one-way dependency rule compiler-checked rather than review-checked. |
 | **D-9** | Publication endpoint. | **Local-only until S13.** Each step commits on a local branch; no push, no remote, no PR, no remote CI. Every execution contract in this effort records a local-only endpoint. The GitHub repository and CI workflows are created in S13. |
 | **D-3** | Whether S2 includes the `Observation` contract. | **Included in S2.** `RuleController` in S7 needs observations, and defining the controller-facing triple (`ActionIntent`, `Event`, `Observation`) together prevents `INV-13` from being retrofitted. Recorded as a planning decision; raise it when agreeing to this document if you disagree. |

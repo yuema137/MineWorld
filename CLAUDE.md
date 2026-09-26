@@ -39,7 +39,9 @@ Authoritative specifications, in reading order:
 [`docs/NETWORKING.md`](docs/NETWORKING.md) ·
 [`docs/MVP.md`](docs/MVP.md) ·
 [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) ·
-[`docs/ENGINEERING_STANDARDS.md`](docs/ENGINEERING_STANDARDS.md).
+[`docs/ENGINEERING_STANDARDS.md`](docs/ENGINEERING_STANDARDS.md) ·
+[`docs/REUSE_POLICY.md`](docs/REUSE_POLICY.md) ·
+[`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 **Before modifying production code**, read [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)
 along with `VISION`, `ARCHITECTURE`, `ENGINEERING_STANDARDS`, and the contracts of the module you
@@ -305,10 +307,25 @@ document itself governs in every case:
     `PermissionDenied`, `NoSupportedInteraction`. A rule evaluated in a renderer is a defect
     ([`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) §§4, 7–9).
 
+16. **Reuse before reinvention.** Before building any substantial infrastructure component,
+    check whether a mature library already solves it, and prefer: adopt → adapt behind a
+    MineWorld interface → extend → build our own. Never adopt a dependency merely because it
+    exists, and never force MineWorld inside a framework's execution model — world state,
+    system ownership, network authority, plugin contracts and persistence semantics stay under
+    MineWorld's control. Commodity infrastructure (SQLite, HTTP/WebSocket, TLS, serialization,
+    rendering, physics, navigation, containers, model serving) is reused, not rebuilt. Both
+    adopting a substantial dependency **and** rejecting one in favour of our own code require a
+    short record in [`docs/DECISIONS.md`](docs/DECISIONS.md); "writing it ourselves feels
+    cleaner" is not a reason. Prototype before committing to anything large
+    ([`docs/REUSE_POLICY.md`](docs/REUSE_POLICY.md)).
+
 Two questions gate every spatial or interaction contract before it merges: can it support a
 Minecraft-like embodied 3D client without redesigning the kernel, and can both the 2D and 3D
 clients use the capability without duplicating game logic? A "no" to either sends the design
 back ([`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) §§11–12, §22).
+
+Every substantial design review also asks both halves of the reuse question: are we reinventing
+a mature wheel, and are we forcing an existing wheel where it does not fit?
 
 Size thresholds are review triggers, not mechanical rules: a function past ~50 lines is
 questioned and past ~100 is a strong warning; a file past ~500 lines is reviewed and past
