@@ -136,6 +136,67 @@ APPROVED for implementation once PR 02 merges.
 
 ---
 
+# 2.10 Review outcome for PR 03a (reviewer, 2026-09-26)
+
+**Accepted and merged.** Verification re-run independently at `e6dbd0c`: fmt, clippy `-D warnings`
+and 70 workspace tests clean. Three findings are recorded here because they bind later work.
+
+## KD-1 resolved better than specified
+
+The const *assertion* KD-1 asked for cannot compile: `SystemId` holds a `Cow<'static, str>`, so the
+type has a destructor and `E0493` refuses to materialise one inside a `const`. No accessor added to
+the contracts crate would change that.
+
+The implementation replaced it with const **derivation** — `owned_component!` generates
+`const OWNER: SystemId = <$owner as SystemIdentity>::ID;` — which is strictly stronger than what I
+specified. An assertion detects a disagreement; derivation makes the disagreement *unexpressible*.
+KD-2's runtime fallback is therefore not used for components. Accepted as an improvement on the
+frozen design, not a deviation from it.
+
+Relations are the one genuine KD-2 downgrade: `RelationTypeId` has no `from_static`, so no
+type-level owner exists and edge writes compare the owner at run time, refusing before mutating.
+Follow-up for a later contracts change, not a defect here.
+
+## A8 is a real hole, and the 03b fix is now binding
+
+I reproduced it myself from an external crate: construct `WriteAccess::new()`, grant yourself
+another system's token, write its component. It succeeded.
+
+The implementation judged this acceptable because it needs deliberate subversion. I judge it
+**easier than that assessment allows**: `grant` takes a value of the system type as a possession
+check, which only holds while system types are not externally constructible — and a system crate
+naturally exports `pub struct InventorySystem;`. The possession check is therefore not load-bearing
+today.
+
+It is not exploitable in anything shipped, because no system exists yet and no world runs. So 03a
+merges, and the fix becomes a **frozen requirement of 03b** (§3), including the part the
+implementation's own proposal omitted: sealing the constructor. Holding one `WriteAccess` in the
+kernel closes nothing while anyone can make a second one.
+
+`A9` — mutating another system's state through interior mutability behind an open read — is
+accepted as unfixable on stable Rust and recorded as a review convention: a component type must not
+carry interior mutability.
+
+## The serialization invariant was not met, and the fault is mine
+
+§2.3 froze "the store is serializable in full". The delivered `ComponentStore` implements neither
+`Serialize` nor `Deserialize`, and every accessor is generic over `C`, so nothing can walk the store
+without knowing each component type statically — which no persistence layer can.
+
+The implementation's reasoning is sound and it flagged this as the most likely objection. My
+invariant was the defect: I required an outcome without a mechanism, and a heterogeneous type map
+cannot serialize without either a format choice inside the kernel or an erasure facility, neither of
+which §2.2 permitted.
+
+Recorded as a **binding requirement on S5** rather than patched in haste: persistence must add the
+erased hook at `ComponentStore::declare`, because that is the only place the concrete type is known
+— monomorphized encode/decode thunks captured per declared type. Doing it anywhere else means
+re-plumbing `declare` later. S5's design will also decide, with a `DEP` record, between
+`erased-serde` and hand-written thunks; the format stays the persistence layer's choice, not the
+kernel's.
+
+---
+
 # 3. PR 03b — System interface, registry, and dispatch *(medium scope)*
 
 Detailed after 03a merges, per `CLAUDE.md` §3. What is already fixed:
