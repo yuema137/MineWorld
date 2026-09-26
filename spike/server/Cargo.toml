@@ -1,0 +1,22 @@
+[package]
+name = "mineworld-spike-server"
+description = "Renderer-integration spike: a hand-made world that speaks the real MineWorld contracts over WebSocket. Not production, not the kernel."
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97.1"
+license = "MIT"
+authors = ["Yue Ma"]
+publish = false
+
+# A workspace of its own on purpose: the spike must not touch the root workspace's
+# members, its Cargo.lock or its dependency set. It consumes `mineworld-contracts`
+# by path and changes nothing about it.
+[workspace]
+
+[dependencies]
+mineworld-contracts = { path = "../../contracts" }
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+futures-util = "0.3"
