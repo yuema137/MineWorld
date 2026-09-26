@@ -371,6 +371,7 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 | **D-3** | Whether S2 includes the `Observation` contract. | **Included in S2.** `RuleController` in S7 needs observations, and defining the controller-facing triple (`ActionIntent`, `Event`, `Observation`) together prevents `INV-13` from being retrofitted. Recorded as a planning decision; raise it when agreeing to this document if you disagree. |
 | **D-1** | License. | **MIT stays.** Operator decision 2026-09-25. Revisit only before publication in S13 if the patent-grant argument becomes material. |
 | **D-2** | `ENGINEERING_STANDARDS.md` §16 wording. | **Fixed** to "The principle does not change:" — operator approved 2026-09-25. |
+| **D-6** | Time model: fixed semantic tick versus a discrete-event queue. | **Discrete-event queue**, keyed by `(WorldTime, sequence)` with a monotonic sequence as the tie-break, at one-simulated-second granularity. Idle time is skipped rather than ticked, which is what makes `AC-11`'s hundreds of simulated days cheap. Recorded at project level as [`DEP-6`](../../../docs/DECISIONS.md) with the comparison against existing crates. |
 | **D-11** | How the reference clients are built and how their demos are verified, given that "actually run the renderer" must be mechanically possible. | **Godot 4.7.2 for both clients, as the frozen spec already names.** Installed and verified on 2026-09-25 to run headless and execute GDScript with stdout. Demo evidence comes from a scripted run that drives input and writes PNG frames, which are then inspected — not from compilation or from server tests. No deviation from `ARCHITECTURE.md` §13 is needed, and therefore no engine concept needs to enter a contract to make verification possible. **Proven end to end on 2026-09-25**, not assumed: a windowed run rendered through Metal on the host GPU, `get_viewport().get_texture().get_image().save_png()` returned `0`, and the resulting 640×360 PNG was read back and visually confirmed. The recipe is `godot --path <project>`, a `_process` counter that captures after a few frames and calls `get_tree().quit(0)`; `--headless` runs scripts and prints but renders nothing, so it is for logic checks only. |
 | **D-10** | Whether an embodied 3D client belongs in this effort or a later phase. | **In this effort, as S14.** Operator instruction 2026-09-25 adding `docs/ENGINEERING_RULES.md` §§2–3, §10: 3D is a required architecture target, not a cosmetic renderer added later. This materially expands the effort; `AC-1` is unaffected. |
 
@@ -378,7 +379,7 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 
 | ID | Decision | Blocks | Recommendation |
 | --- | --- | --- | --- |
-| **D-6** | Time model: fixed semantic tick versus a discrete-event queue. | S4 | Discrete-event queue at a declared semantic granularity (e.g. one simulated minute), with a documented deterministic tie-break. Decide when S4 is designed. |
+
 
 # 6. Risks
 

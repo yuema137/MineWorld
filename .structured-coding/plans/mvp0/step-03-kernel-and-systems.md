@@ -156,6 +156,15 @@ and the dispatch pipeline `ActionIntent → route → validate → resolve → E
 - The registry refuses to enable a system whose declared dependency is absent, naming it, and
   refuses two systems claiming the same component type.
 
-**Open question for its design:** whether reaction to events is synchronous within the same
-dispatch or queued for the next tick. It interacts with S4's scheduler and with `AC-12`, so it is
-decided with S4's `D-6` rather than guessed here.
+**Resolved, with `D-6`:** reaction is **synchronous within the logical instant, and scheduling is
+queued**. When a system emits an event, subscribed systems reduce it in deterministic system
+order before the clock advances; anything that must happen *later* is scheduled on the
+discrete-event queue at a strictly later `(WorldTime, sequence)`.
+
+This keeps one action's consequences atomic — a wage paid in the same instant it falls due, not a
+tick later — while all deferral flows through one ordered queue, so replay reproduces it exactly.
+
+It introduces one failure mode that must fail loudly rather than hang: a cascade where reductions
+keep emitting events within the same instant. The dispatcher enforces a cascade depth limit per
+instant and returns a named error when it is exceeded. An infinite cascade is a system bug, and a
+world that freezes silently is worse than one that says which systems were cycling.
