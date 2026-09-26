@@ -1,4 +1,4 @@
-# Handoff — active implementation context
+# Handoff — PR 01 implementation context: CLOSED / AWAITING OPERATOR ACTION
 
 **Active PR:** Step 01 / PR 01 — Entity and Component contracts
 **Effort:** `mvp0`
@@ -15,8 +15,8 @@ repository       /Users/yuema137/MineWorld
 branch           mvp0/pr-01-entity-component-contracts
 implementation   created from main @ 39abfb3
 base
-current HEAD     the C4b commit — the one that carries this handoff refresh
-                 (C1 = e040818, C2 = 80fdf2c, C3 = 40e448e, C4 = 868cdc3)
+current HEAD     the C5 commit — the one that carries this handoff refresh
+                 (C1 = e040818, C2 = 80fdf2c, C3 = 40e448e, C4 = 868cdc3, C4b = 90bb755)
                  (session start was f44b7d1; `git log --oneline` is authoritative)
 working tree     clean at each commit; the only untracked path is target/ (gitignored)
 remote           none (decision D-9: local-only until S13)
@@ -93,9 +93,10 @@ C3  DONE  40e448e  src/component.rs (Component, ComponentDeclaration, ComponentR
 C4  DONE  868cdc3  src/relation.rs (EntityTypeSet, RelationDirection, SelfEdges,
                    RelationTypeDeclaration, RelationEnd, Relation), three relation errors,
                    tests/relation.rs, sixth compile-fail case
-C4b DONE           src/time.rs (WorldTime, SimDuration), tests/time.rs
+C4b DONE  90bb755  src/time.rs (WorldTime, SimDuration), tests/time.rs
 C4  not started
-C5  next
+C5  DONE           docs/ARCHITECTURE.md §13 row + new §13.1 recording decision D-4,
+                   contracts/README.md rewritten, design ledger closed
 
 validation evidence: §8.2 of the design — all four §6 commands clean at C1…C4b;
                      32 tests pass (9 identity + 6 entity + 6 component + 6 relation
@@ -107,12 +108,34 @@ assumptions:         A-1 and A-2 resolved in C1 (§8.4); A-3 still carried to S4
 background jobs:     none
 ```
 
-## Exact next actions
+## State
 
-1. C5 — documentation: `docs/ARCHITECTURE.md` §13 amended for decision D-4,
-   `contracts/README.md` rewritten for what now exists, final ledger entries.
-2. Run §6's four commands at the final head, record evidence in §8.2, refresh this file, set the
-   lifecycle to READY FOR OPERATOR REVIEW and mark the implementation context CLOSED.
+```text
+PR 01 is READY FOR OPERATOR REVIEW on mvp0/pr-01-entity-component-contracts. DO NOT MERGE.
+
+implementation   complete — six commits, §7 fully checked off
+validation       §6's four commands clean at the final head; 32 tests pass
+documentation    design ledger §§7-8 synchronized; ARCHITECTURE.md §13.1 records D-4;
+                 contracts/README.md describes the real crate
+not done         no push (no remote exists — decision D-9), no PR, no remote CI, no merge
+```
+
+## What the operator decides next
+
+1. Review the branch. Two execution-time deviations change the shape of the PR and are argued in
+   §8.3 of the design: the added **C4b** commit (because §1.1 approves `WorldTime`/`SimDuration`
+   and the frozen §7 plan never implements them) and the **component payload as a type
+   parameter** (because encoding it here would mean a new dependency and would pre-empt D-4).
+2. Authorize or refuse the merge. Nothing in this branch has been merged.
+3. On merge, three statements that describe `main` as containing no Rust code become stale and
+   are updated in one commit — `README.md:35`, `CLAUDE.md:43`,
+   `.structured-coding/standards.md:15` and its note about the cargo checks. Listed as
+   follow-ups in §8.3.
+
+## If this context is resumed instead
+
+The next PR starts a fresh implementation context with its own filled contract (S2 —
+`ActionIntent` / `Event` contracts). Do not continue that work here.
 
 ## Stop conditions
 

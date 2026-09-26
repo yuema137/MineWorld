@@ -12,7 +12,18 @@ Approved by / evidence:  operator approval 2026-09-25 — "Freeze，开始实现
 Implementation base:     branch mvp0/pr-01-entity-component-contracts,
                          created from main @ 39abfb3
 Execution contract:      §9
-Lifecycle:               FROZEN
+Lifecycle:               READY FOR OPERATOR REVIEW — DO NOT MERGE
+Implementation context:  CLOSED / AWAITING OPERATOR ACTION
+Commits on the branch:   e040818  C1  workspace + identity
+                         80fdf2c  C2  entity record and lifecycle
+                         40e448e  C3  component model
+                         868cdc3  C4  relation model
+                         90bb755  C4b world time value types (added — §8.3)
+                         C5       the documentation commit that carries this line
+Final evidence:          §8.2 — §6's four commands clean at the final head, 32 tests passing
+Outstanding for the operator:
+                         review and merge authorization; the three stale statements listed as
+                         follow-ups in §8.3 are updated at merge, not here
 ```
 
 Frozen: scope (§1.1), non-goals (§1.2), invariants (§1.3), the integration checkpoint (§2),
@@ -545,19 +556,19 @@ Non-goals: no other specification edits; D-2 (§16 wording) is **not** bundled h
 separate open decision. Depends on: C1–C4.
 
 ### Implementation
-- [ ] `docs/ARCHITECTURE.md` §13: change the contracts row to state Rust types as the source of truth with Protobuf introduced at the first cross-language boundary, referencing decision D-4 and the step that will do it.
-- [ ] `contracts/README.md`: rewrite for what now exists, staying short and human-facing per the documentation law.
-- [ ] Final ledger entries in §8: evidence, decisions, deviations, and the resolution of A-1/A-2/A-3.
+- [x] `docs/ARCHITECTURE.md` §13: change the contracts row to state Rust types as the source of truth with Protobuf introduced at the first cross-language boundary, referencing decision D-4 and the step that will do it. The row now names `mineworld-contracts`, and a new §13.1 records D-4 in full: what the previous row said, the route now taken, three reasons a later session must not reverse by accident, and the two binding consequences.
+- [x] `contracts/README.md`: rewrite for what now exists, staying short and human-facing per the documentation law. One screen: what the crate is, the types that exist, what is still to come, the five rules in one sentence each pointing at the crate documentation, the two commands, and the compile-fail directory.
+- [x] Final ledger entries in §8: evidence, decisions, deviations, and the resolution of A-1/A-2/A-3.
 
 ### Validation
-- [ ] Every relative link in the touched documents resolves.
-- [ ] No specification statement contradicts the code that now exists — verified by re-reading the amended sections against the crate's public API.
-- [ ] Static: §6 commands once more at the final head (docs-only changes still shift the head; test rules §20).
+- [x] Every relative link in the touched documents resolves. Checked mechanically: every relative Markdown link in `contracts/README.md` and `docs/ARCHITECTURE.md` was resolved against the filesystem — 12 links, all present, none missing.
+- [x] No specification statement contradicts the code that now exists — verified by re-reading the amended sections against the crate's public API. §13.1's three claims about what Rust expresses and Protobuf does not are each realized in the crate (typed references with checked constructors; ownership as an associated constant on `Component`; one erasure boundary in `ComponentRecord`), and its statement that the payload encoding is left to the persistence layer matches `ComponentRecord<P = Vec<u8>>`. The README's type list was checked item by item against `lib.rs`'s re-exports.
+- [x] Static: §6 commands once more at the final head (docs-only changes still shift the head; test rules §20). See "final verification" in §8.2.
 
 ### Review
-- [ ] Confirm `contracts/README.md` stayed human-facing and short, and did not become a specification.
-- [ ] Confirm the D-4 amendment records the decision and its reason, not just the new state.
-- [ ] Confirm no other document drifted (`MODULE_SPEC.md` §9 versioning claims still hold).
+- [x] Confirm `contracts/README.md` stayed human-facing and short, and did not become a specification. 38 lines, no normative statement that exists only there: the five rules are a one-line summary of the crate documentation, which is the authority, and the specification links point onward to `ARCHITECTURE.md` and `CORE_CONCEPTS.md`.
+- [x] Confirm the D-4 amendment records the decision and its reason, not just the new state. §13.1 states what the row used to say, the decision, three reasons, and what follows from it — including that a later `.proto` is a mirror whose upkeep belongs to the change that adds it.
+- [x] Confirm no other document drifted (`MODULE_SPEC.md` §9 versioning claims still hold). `MODULE_SPEC.md` §9 requires core contracts to be versioned where long-term compatibility matters and a pack that changes an owned component's schema to ship a migration: `ComponentSchemaVersion` plus the two directional schema errors are exactly the mechanism that claim needs, so §9 is satisfied rather than contradicted. Three *stale* statements were found elsewhere and deliberately not touched, because they describe the state of `main` and become false only on merge — listed as follow-ups in §8.3.
 
 ### Acceptance criteria
 `docs/ARCHITECTURE.md` no longer states a Protobuf-first route; `contracts/README.md`
@@ -579,7 +590,7 @@ C2  DONE     entity record: Tag/Tags, LifecycleState, Metadata, Entity
 C3  DONE     component model: Component trait, declaration, record, const-checked ids
 C4  DONE     relation model: declaration, typed edge, canonical undirected ordering
 C4b DONE     world time value types (added commit — see §8.3)
-C5  not started
+C5  DONE     ARCHITECTURE.md §13 + new §13.1 for D-4, contracts/README.md, this ledger
 ```
 
 ## 8.2 Evidence
@@ -673,6 +684,27 @@ C4b — world time value types               (evidence for commit "feat(contract
       tests/time.rs                  3 passed
       doc-tests                      1 passed
       total                         32 passed, 0 failed, 0 ignored
+```
+
+```text
+C5 — specification synchronization        (documentation only; no code changed)
+  link resolution                               PASS   12 relative links in the two touched
+                                                       documents resolve on the filesystem
+  final verification at the final head
+      cargo fmt --all --check                   PASS
+      cargo check --workspace --all-targets     PASS
+      cargo clippy --workspace --all-targets
+          --all-features -- -D warnings         PASS   0 warnings
+      cargo test -p mineworld-contracts         PASS   32 passed, 0 failed, 0 ignored
+                                                       (9 identity, 6 entity, 6 component,
+                                                        6 relation, 3 time, 1 compile-fail
+                                                        harness over 6 cases, 1 doc-test)
+      total wall time for the four              ~4s
+  head identity
+      the four commands were run on the tree that became the C5 commit — the working tree was
+      clean and identical to that commit's content — and re-run at the resulting HEAD after
+      committing, with the same results. The exact final SHA is in the operator handoff and in
+      `git log`, and no code, test or configuration file changed after the run.
 ```
 
 ```text
@@ -854,6 +886,29 @@ FINDING (C1) — the approved scope contains a line the frozen commit plan never
         the operator can reverse it in review.
     VALIDATION
         C4b's own checklist and evidence, recorded in §7 and §8.2 like every other commit.
+
+FOLLOW-UP (C5) — three statements elsewhere become stale on merge, and were left alone
+    Each says the repository contains no Rust code. All three are true of `main` and false the
+    moment this branch merges, so they belong to the merge/post-merge synchronization rather
+    than to this PR, whose C5 non-goals forbid other specification edits:
+        README.md:35                  "Specification only — no kernel code yet. The next three
+                                       PRs define the contracts."
+        CLAUDE.md:43                  "Current repository state: specification-only. No kernel
+                                       code exists yet."
+        .structured-coding/standards.md:15
+                                      "No Rust crate and no Python package exists yet …"
+                                      and, below it, that the cargo checks "become meaningful
+                                      the moment kernel/ gains a Cargo.toml" and until then
+                                      "report INCONCLUSIVE, never PASS" — now satisfied by
+                                      contracts/Cargo.toml instead of kernel/.
+    Recommended at merge: update all three in one commit, and re-word the standards note to say
+    the cargo checks are live.
+
+FOLLOW-UP (C5) — P-2 is still open and still non-blocking
+    The standards helper will not run the declared cargo checks until
+    `standards.py approve --project .` is run once. The same four commands were run directly
+    throughout this PR, which is what §6 specifies, so nothing here depended on the helper. The
+    approval is an operator action whenever the helper's report is wanted.
 
 DEVIATION (C4) — `RelationKey` was not created; `Relation` is the key
     C4's scope line names three types: `RelationTypeDeclaration`, `Relation`, `RelationKey`.
@@ -1117,7 +1172,16 @@ MERGE AUTHORITY:
 2026-09-25  design presented for freeze, with P-1 raised as a blocking prerequisite
 2026-09-25  operator approved the freeze and authorized P-1
 2026-09-25  P-1 closed as already satisfied (see §8.3); design frozen at 39abfb3
+2026-09-25  implementation session executed C1 → C2 → C3 → C4 → C4b → C5 on branch
+            mvp0/pr-01-entity-component-contracts; §7 checkboxes, §8 ledger and the handoff
+            synchronized; lifecycle set to READY FOR OPERATOR REVIEW. Not merged, not pushed
+            (decision D-9: local-only until S13).
 ```
+
+The operator's decisions still outstanding: whether to accept the two execution-time deviations
+that touch the shape of this PR — the added C4b commit and the component payload being a type
+parameter rather than an encoded value this crate can decode (both in §8.3) — and whether to
+merge.
 
 Implementation runs in a session separate from the planning session that wrote this document,
 and that session re-reads this document in full, plus the working rules and test rules, before

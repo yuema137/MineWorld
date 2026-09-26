@@ -417,7 +417,7 @@ Network and filesystem access are never implicit.
 | Async runtime | Tokio |
 | Public server API | HTTP + WebSocket |
 | Internal service RPC | gRPC / Protobuf where useful |
-| Contracts | Protobuf + generated language bindings |
+| Contracts | Rust types in `mineworld-contracts`; Protobuf mirrored from them at the first cross-language boundary (decision D-4) |
 | Local persistence | SQLite |
 | Cloud persistence | Postgres, later |
 | Cognition runtime | Python |
@@ -432,6 +432,38 @@ Network and filesystem access are never implicit.
 Language boundaries are governed by [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §§3–4:
 language choice is local, world semantics are global, and cross-language communication goes
 through explicit contracts only.
+
+## 13.1 Contract representation: Rust types first (decision D-4)
+
+This row previously read "Protobuf + generated language bindings", which described a
+Protobuf-first pipeline. The decision, recorded when the contract layer was first written, is
+the other way round:
+
+```text
+source of truth   Rust types in contracts/  (crate mineworld-contracts)
+Protobuf          introduced at the first real cross-language boundary and
+                  mirrored from those types, never the reverse
+first boundary    Python cognition, then the Godot client
+```
+
+The reasons, so that a later session does not reverse it by accident:
+
+1. A Protobuf-first pipeline costs a second schema language, code generation and a build step
+   from the first commit, while the first non-Rust consumer arrives much later.
+2. The guarantees the kernel relies on are expressible in Rust's type system and not in
+   Protobuf: distinct identifier types that cannot be substituted for one another, component
+   ownership carried as part of a component's type, a payload-erasure boundary that exists in
+   exactly one place. Generating the contracts from a `.proto` would flatten all three into
+   integers and byte strings and move every check to runtime.
+3. Choosing a wire encoding early would also choose it for component payloads, which the
+   contract layer deliberately leaves to the persistence layer.
+
+Consequences, which are binding:
+
+- The Rust types are authoritative. A `.proto` file added later is a mirror, and keeping it in
+  step with the Rust types is part of the change that adds it.
+- Until that boundary exists, there is no cross-language contract to maintain, and adding one
+  "for later" is the premature work this decision exists to avoid.
 
 ---
 
