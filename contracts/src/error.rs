@@ -9,8 +9,9 @@ use core::fmt;
 
 use thiserror::Error;
 
+use crate::component::ComponentSchemaVersion;
 use crate::entity::LifecycleState;
-use crate::ids::{EntityId, EntityType};
+use crate::ids::{ComponentTypeId, EntityId, EntityType};
 
 /// Which validated textual identifier a [`ContractError`] is describing.
 ///
@@ -108,5 +109,38 @@ pub enum ContractError {
         from: LifecycleState,
         /// The state it was asked to move to.
         to: LifecycleState,
+    },
+
+    /// A component record was read as a component type it was not written for.
+    #[error("a {actual} record cannot be read as {expected}")]
+    ComponentTypeMismatch {
+        /// The component type the caller asked for.
+        expected: ComponentTypeId,
+        /// The component type the record was written from.
+        actual: ComponentTypeId,
+    },
+
+    /// A component record was written by a newer schema than the reading code knows. Refused
+    /// rather than guessed at: a newer schema may carry fields this code would drop.
+    #[error("{component_type} record is {record}, newer than the {supported} this code reads")]
+    ComponentSchemaTooNew {
+        /// The component type being read.
+        component_type: ComponentTypeId,
+        /// The version the record was written against.
+        record: ComponentSchemaVersion,
+        /// The version the reading code supports.
+        supported: ComponentSchemaVersion,
+    },
+
+    /// A component record predates the reading code's schema. Not a corruption: it is ordinary
+    /// history, and a migration has to bring it forward rather than the reader assuming.
+    #[error("{component_type} record is {record}, older than the {supported} this code reads")]
+    ComponentSchemaOutdated {
+        /// The component type being read.
+        component_type: ComponentTypeId,
+        /// The version the record was written against.
+        record: ComponentSchemaVersion,
+        /// The version the reading code supports.
+        supported: ComponentSchemaVersion,
     },
 }

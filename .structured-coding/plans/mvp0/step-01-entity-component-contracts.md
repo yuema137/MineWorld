@@ -394,25 +394,27 @@ Non-goals: no storage, no registry, no write enforcement (that is S3 consuming t
 on: C1, C2.
 
 ### Implementation
-- [ ] `ComponentSchemaVersion` newtype with ordering, so migrations in S5 can compare.
-- [ ] `Component` trait with associated `COMPONENT_TYPE: ComponentTypeId`, `OWNER: SystemId`, `SCHEMA_VERSION`, and serde bounds; documented so that implementing it *is* the ownership declaration (DD-4).
-- [ ] `ComponentDeclaration`: the runtime-inspectable form of the same facts, derivable from any `Component` implementation, for S3's registry.
-- [ ] `ComponentRecord`: `(EntityId, ComponentTypeId, ComponentSchemaVersion, payload)` — the single documented erasure boundary (DD-5), with typed conversion to and from a `Component`.
-- [ ] Two test-only component implementations owned by two different stub systems, used by this and later commits' tests.
+- [x] `ComponentSchemaVersion` newtype with ordering, so migrations in S5 can compare. `const fn new`, so it can be an associated constant.
+- [x] `Component` trait with associated `COMPONENT_TYPE: ComponentTypeId`, `OWNER: SystemId`, `SCHEMA_VERSION`, and serde bounds; documented so that implementing it *is* the ownership declaration (DD-4). The constants are exactly those types, which required `ComponentTypeId::from_static` / `SystemId::from_static` — see the deviation in §8.3. The trait carries a doc example that is compiled as a doc-test.
+- [x] `ComponentDeclaration`: the runtime-inspectable form of the same facts, derivable from any `Component` implementation, for S3's registry. `ComponentDeclaration::of::<C>()` is infallible, because the identifiers were checked when the declaring crate compiled, and `conflicts_with` is the ownership check S3 needs.
+- [x] `ComponentRecord`: `(EntityId, ComponentTypeId, ComponentSchemaVersion, payload)` — the single documented erasure boundary (DD-5), with typed conversion to and from a `Component`. Built as `ComponentRecord<P = Vec<u8>>`: the label comes from the component type, the encoding of the payload is the persistence layer's choice. The "conversion" is split — see the deviation in §8.3 — into labelling (`new::<C>`) and the checked read (`payload_for::<C>`), with the codec left to the caller.
+- [x] Two test-only component implementations owned by two different stub systems, used by this and later commits' tests. `Measured` (owner `first-stub`) and `Flagged` (owner `second-stub`) in `contracts/tests/component.rs`, plus `MeasuredV2` (same type, next schema version) and `MeasuredByTheWrongSystem` (same type, different owner) so that the version and conflict cases have something real to compare.
 
 ### Validation
-- [ ] Unit: a `Component` implementation's declaration reports the expected type id, owner and version.
-- [ ] Unit: typed → `ComponentRecord` → typed round-trip is lossless.
-- [ ] Unit: decoding a `ComponentRecord` into the wrong component type fails with a named error rather than producing a default value.
-- [ ] Unit: decoding a record whose schema version is newer than the target type fails explicitly (forward-incompatibility is an error, not a silent drop).
-- [ ] Unit: two components with the same `ComponentTypeId` but different owners are detectable as a conflict at declaration level — the check S3 will rely on.
-- [ ] Static: §6 commands.
+- [x] Unit: a `Component` implementation's declaration reports the expected type id, owner and version. `contracts/tests/component.rs::a_declaration_reports_the_component_types_own_facts`, which also pins the declaration's stored shape, since a registry will persist it.
+- [x] Unit: typed → `ComponentRecord` → typed round-trip is lossless. `::a_component_survives_erasure_and_comes_back_whole`.
+- [x] Unit: decoding a `ComponentRecord` into the wrong component type fails with a named error rather than producing a default value. `::a_record_is_not_readable_as_another_component_type` — the check runs before the payload is ever handed over, so no decode can produce a plausible wrong value.
+- [x] Unit: decoding a record whose schema version is newer than the target type fails explicitly (forward-incompatibility is an error, not a silent drop). `::a_schema_difference_is_reported_in_the_direction_it_points`, which covers both directions with distinct errors and shows that an outdated record's payload and version are still reachable for a migration.
+- [x] Unit: two components with the same `ComponentTypeId` but different owners are detectable as a conflict at declaration level — the check S3 will rely on. `::two_owners_of_one_component_type_are_a_conflict`, including the three non-conflicts (same owner's next version, an unrelated type, a declaration against itself).
+- [x] Static: §6 commands. All four clean — evidence in §8.2.
+- [x] *Added:* Compile-fail: a `Component` implementation that omits `OWNER` does not compile (`E0046`, missing `OWNER`), and an illegal identifier literal fails while it compiles (`E0080`, the const-evaluated rule). The first makes the review item below executable; the second is the guarantee that made `from_static` worth adding.
+- [x] *Added:* `::a_record_is_stored_as_its_documented_shape` pins the record's stored JSON, the shape a persistence layer will write to a row.
 
 ### Review
-- [ ] Confirm the erasure boundary exists in exactly one type and is documented as such.
-- [ ] Confirm nothing outside `ComponentRecord` accepts or returns an untyped payload.
-- [ ] Confirm the trait cannot be implemented without stating an owner.
-- [ ] Confirm no component defined in this crate carries domain meaning; the two test components are named for their role in tests, not for a gameplay concept.
+- [x] Confirm the erasure boundary exists in exactly one type and is documented as such. `grep -rn payload contracts/src/` outside `component.rs` and the crate docs returns one line, and it is a doc sentence about event payload *contracts* arriving in S2. `ComponentRecord`'s own documentation and rule 4 of the crate documentation both name it as the boundary and say why one is unavoidable.
+- [x] Confirm nothing outside `ComponentRecord` accepts or returns an untyped payload. `grep -rnE '\bValue\b|Box<dyn|dyn Any|serde_json' contracts/src/` is empty: there is no dynamic value type in the crate at all, and `serde_json` is a dev-dependency, so no production path can even name one.
+- [x] Confirm the trait cannot be implemented without stating an owner. Pinned by the added compile-fail case: the associated constant has no default, so `E0046` is the only possible outcome. Nothing in the trait can be defaulted into existence later without that case going red.
+- [x] Confirm no component defined in this crate carries domain meaning; the two test components are named for their role in tests, not for a gameplay concept. `grep -rn 'impl Component' contracts/src/` finds no implementation in the crate at all — the only one in `src/` is inside a doc example. The test components are `Measured`, `Flagged`, `MeasuredV2` and `MeasuredByTheWrongSystem`, named for what they do in the test; their owners are `first-stub` and `second-stub`, which name no system a world would have.
 
 ### Acceptance criteria
 Ownership and schema version are inseparable from the component type; wrong-type and
@@ -529,7 +531,7 @@ Filled during execution. Nothing here is pre-written.
 ```text
 C1  DONE     workspace, pinned toolchain, identity module, errors, compile-fail harness
 C2  DONE     entity record: Tag/Tags, LifecycleState, Metadata, Entity
-C3  not started
+C3  DONE     component model: Component trait, declaration, record, const-checked ids
 C4  not started
 C5  not started
 ```
@@ -572,6 +574,38 @@ C2 — entity record and lifecycle          (evidence for commit "feat(contracts
       tests/identity.rs              9 passed
       lib unit tests / doc-tests     0 / 0
       total                         16 passed, 0 failed, 0 ignored
+```
+
+```text
+C3 — component model                      (evidence for commit "feat(contracts): … component …")
+  cargo fmt --all --check                       PASS   <1s
+  cargo check --workspace --all-targets         PASS    1s
+  cargo clippy --workspace --all-targets
+      --all-features -- -D warnings             PASS   <1s   0 warnings
+  cargo test -p mineworld-contracts             PASS    4s
+      tests/compile_fail.rs          1 passed   — harness covering 5 compile-fail cases, each
+                                                  listed individually as ok with --nocapture
+      tests/component.rs             6 passed
+      tests/entity.rs                6 passed
+      tests/identity.rs              9 passed
+      doc-tests                      1 passed   — the `Component` example in the trait docs
+      total                         23 passed, 0 failed, 0 ignored
+  regression note
+      the identifier-rule refactor (one `const fn` feeding both the const and the runtime path)
+      left all 9 identity tests green without an edit, which is the evidence that the two paths
+      judge the same rule.
+```
+
+```text
+MUTATION 4 — does the ownership conflict check actually look at the owner?
+  mutation     `conflicts_with` reduced to `self.component_type == other.component_type`
+  expected     the conflict test fails on the non-conflict it asserts, not on the conflict
+  observed     `two_owners_of_one_component_type_are_a_conflict` FAILED at
+               `assertion failed: !owner.conflicts_with(&same_owner_next_version)`;
+               5 passed, 1 failed
+  verdict      behavior-changing — the test pins both halves of the check, so a version bump by
+               the owning system cannot be mistaken for a second writer
+  cleanup      reverted; `cargo test` green again before the commit
 ```
 
 ```text
@@ -729,6 +763,66 @@ FINDING (C1) — the approved scope contains a line the frozen commit plan never
         the operator can reverse it in review.
     VALIDATION
         C4b's own checklist and evidence, recorded in §7 and §8.2 like every other commit.
+
+DEVIATION (C3) — the component payload is a type parameter, and the codec is not in this crate
+    Previous assumption:
+        C3's checklist says `ComponentRecord` has "typed conversion to and from a `Component`",
+        and its edge-case table expects a named error for "payload that is not valid for the
+        declared type". Both presuppose that this crate can encode and decode a payload.
+    Audit evidence:
+        Encoding requires a format. DD-8 freezes the dependency list at `serde` + `thiserror`,
+        with `serde_json` dev-only, so no encoder exists in the crate; `serde` alone provides
+        traits, not a format. Promoting `serde_json` to a runtime dependency would (a) be a new
+        material dependency, which §7 of the working rules says to stop for, and (b) choose JSON
+        as the encoding of every component payload in the kernel's vocabulary — pre-empting
+        decision D-4, which says the cross-language wire format is introduced at the first real
+        cross-language boundary (S10/S11) and mirrored from these types.
+    Corrected understanding:
+        Erasure is unavoidable at a storage boundary, but *choosing the encoding* is not this
+        layer's job. The record therefore carries `P`, the encoded form, as a type parameter
+        defaulted to `Vec<u8>`, and the contract layer owns the part that is genuinely its own:
+        the label cannot lie, and the payload is not handed to the wrong reader.
+    Implementation consequence:
+        `ComponentRecord<P = Vec<u8>>`. `ComponentRecord::new::<C>(entity, payload)` takes the
+        component type and schema version from `C`, so a record cannot be mislabelled;
+        `payload_for::<C>()` returns the payload only for the right type at the right version,
+        with three distinct errors; `payload()` is the unchecked read a store uses to move a
+        record it does not interpret. The edge case "payload not valid for the declared type"
+        belongs to whoever decodes, which is S5 — recorded here rather than dropped.
+    Validation consequence:
+        `contracts/tests/component.rs` stands in for that caller: it encodes with `serde_json`
+        (dev-dependency), and the checks the contract layer owns are tested directly, including
+        both schema directions and the wrong-type read. MUTATION 4 in §8.2 shows the ownership
+        check is load-bearing.
+
+DEVIATION (C3) — `contracts/src/ids.rs` was changed, although C3's scope names only
+`component.rs` and `lib.rs`
+    Reason: DD-4 says a `Component` implementation "states its `ComponentTypeId`, its owning
+    `SystemId`, and its schema version". Those are associated constants, and Rust cannot build a
+    validated `String` in a constant, so with C1's `String`-backed identifiers the trait could
+    only have carried `&'static str` — which is not what DD-4 says, and would have moved
+    validation to load time.
+    Source evidence: `const` initializers may call a `const fn`; a `const fn` that panics is a
+    compile error at the site that evaluates it (const panic, stable since 1.57). `Cow::Borrowed`
+    is const-constructible, and `Cow<str>`'s `PartialEq`, `Ord` and `Hash` all compare by
+    content, so a borrowed and an owned identifier of the same text are the same value.
+    Impact: `SystemId` and `ComponentTypeId` are now `Cow<'static, str>`-backed and gained
+    `const fn from_static`. The identifier rule moved into one `const fn check_identifier`, with
+    the runtime path converting its verdict into the rich `ContractError` — one rule, two
+    entry points, no second implementation to drift. `EntityKey`, `RelationTypeId` and `Tag`
+    were deliberately left alone: they name authored data, not code, so nothing declares them as
+    a literal.
+    Validation: all 9 pre-existing identity tests passed unchanged after the refactor, and the
+    added compile-fail case proves an illegal literal is rejected at compile time
+    (`error[E0080]: evaluation panicked: a system id literal must be 1 to 64 bytes …`).
+
+CORRECTION (C3) — a C1 checklist note was inaccurate
+    C1's third implementation item claims the crate documentation states "one erasure boundary".
+    It did not: the C1 crate documentation had four rules and none of them was that one, and the
+    note I wrote against the item said the rule was "worded for the type that arrives in C3",
+    which overstated what was there. C3 adds it as rule 4 of five, now that `ComponentRecord`
+    exists to point at. Kept as a correction rather than an edit of the C1 note, because a
+    reviewer reading the C1 commit should know the rule was not yet in it.
 
 DECISION (C2) — `Metadata`'s provenance fields are `String`, not a new identity type
     QUESTION

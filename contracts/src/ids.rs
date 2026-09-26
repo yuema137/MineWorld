@@ -26,6 +26,7 @@
 //! because of identity.
 
 use core::fmt;
+use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +34,20 @@ use crate::error::{ContractError, IdentifierKind};
 
 /// Maximum length, in bytes, of every validated textual identifier in this crate.
 pub const MAX_IDENTIFIER_LENGTH: usize = 64;
+
+/// What is wrong with an identifier, as much of it as a `const fn` can determine.
+///
+/// The rule is checked in one place, [`check_identifier`], so that a name written as a literal
+/// in code and a name read from an authored file cannot be judged by two drifting
+/// implementations. This enum is the const-compatible half of the answer: byte positions and
+/// lengths, no `char` decoding and no [`ContractError`], which needs both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IdentifierFault {
+    Empty,
+    TooLong { length: usize },
+    IllegalByte { position: usize },
+    SeparatorAtEdge { position: usize },
+}
 
 /// The one character rule shared by every validated textual identifier in this crate: 1 to
 /// [`MAX_IDENTIFIER_LENGTH`] bytes of lowercase ASCII letters, digits, `-` and `_`, neither
@@ -43,47 +58,81 @@ pub const MAX_IDENTIFIER_LENGTH: usize = 64;
 /// restricted enough that an identifier can appear in a file name, a URL and a database key
 /// without escaping. A rejected value is never normalized: silently lower-casing or trimming
 /// an authored name would make two World Packs that read differently resolve to one entity.
-pub(crate) fn validate_identifier(kind: IdentifierKind, value: &str) -> Result<(), ContractError> {
-    if value.is_empty() {
-        return Err(ContractError::IdentifierEmpty { kind });
+///
+/// This is a `const fn` so that an identifier declared as a literal in code — a system's name,
+/// a component type's name — is checked while the crate that declares it compiles, rather than
+/// when it is first loaded.
+const fn check_identifier(value: &str) -> Result<(), IdentifierFault> {
+    let bytes = value.as_bytes();
+    if bytes.is_empty() {
+        return Err(IdentifierFault::Empty);
     }
-    if value.len() > MAX_IDENTIFIER_LENGTH {
-        return Err(ContractError::IdentifierTooLong {
-            kind,
-            length: value.len(),
-            max: MAX_IDENTIFIER_LENGTH,
-        });
-    }
-    if let Some((position, character)) = value
-        .char_indices()
-        .find(|(_, character)| !is_legal_identifier_character(*character))
-    {
-        return Err(ContractError::IdentifierIllegalCharacter {
-            kind,
-            character,
-            position,
+    if bytes.len() > MAX_IDENTIFIER_LENGTH {
+        return Err(IdentifierFault::TooLong {
+            length: bytes.len(),
         });
     }
 
-    // Safe to index: the value is non-empty and, after the character check above, ASCII.
-    let bytes = value.as_bytes();
-    for edge in [bytes[0], bytes[bytes.len() - 1]] {
-        if edge == b'-' || edge == b'_' {
-            return Err(ContractError::IdentifierSeparatorAtEdge {
-                kind,
-                character: char::from(edge),
-            });
+    let mut position = 0;
+    while position < bytes.len() {
+        if !is_legal_identifier_byte(bytes[position]) {
+            return Err(IdentifierFault::IllegalByte { position });
         }
+        position += 1;
+    }
+
+    // Every legal byte is ASCII, so the first and last bytes are whole characters here.
+    if is_separator(bytes[0]) {
+        return Err(IdentifierFault::SeparatorAtEdge { position: 0 });
+    }
+    let last = bytes.len() - 1;
+    if is_separator(bytes[last]) {
+        return Err(IdentifierFault::SeparatorAtEdge { position: last });
     }
 
     Ok(())
 }
 
-fn is_legal_identifier_character(character: char) -> bool {
-    character.is_ascii_lowercase()
-        || character.is_ascii_digit()
-        || character == '-'
-        || character == '_'
+/// Applies [`check_identifier`] and turns its verdict into the error a caller can act on,
+/// decoding the offending character only when there is one to report.
+pub(crate) fn validate_identifier(kind: IdentifierKind, value: &str) -> Result<(), ContractError> {
+    match check_identifier(value) {
+        Ok(()) => Ok(()),
+        Err(IdentifierFault::Empty) => Err(ContractError::IdentifierEmpty { kind }),
+        Err(IdentifierFault::TooLong { length }) => Err(ContractError::IdentifierTooLong {
+            kind,
+            length,
+            max: MAX_IDENTIFIER_LENGTH,
+        }),
+        Err(IdentifierFault::IllegalByte { position }) => {
+            // The first illegal byte is never a UTF-8 continuation byte: every legal byte is
+            // ASCII, so a multi-byte character's leading byte is itself illegal and is found
+            // first. The slice therefore starts on a character boundary.
+            let character = value
+                .get(position..)
+                .and_then(|rest| rest.chars().next())
+                .unwrap_or(char::REPLACEMENT_CHARACTER);
+            Err(ContractError::IdentifierIllegalCharacter {
+                kind,
+                character,
+                position,
+            })
+        }
+        Err(IdentifierFault::SeparatorAtEdge { position }) => {
+            Err(ContractError::IdentifierSeparatorAtEdge {
+                kind,
+                character: char::from(value.as_bytes()[position]),
+            })
+        }
+    }
+}
+
+const fn is_legal_identifier_byte(byte: u8) -> bool {
+    byte.is_ascii_lowercase() || byte.is_ascii_digit() || is_separator(byte)
+}
+
+const fn is_separator(byte: u8) -> bool {
+    byte == b'-' || byte == b'_'
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -254,7 +303,7 @@ impl fmt::Display for EntityKey {
 /// The declared name of a system, and therefore the name of a component's single writer.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
-pub struct SystemId(String);
+pub struct SystemId(Cow<'static, str>);
 
 impl SystemId {
     /// Validates a declared system name against the identifier rule stated in this module's
@@ -262,7 +311,23 @@ impl SystemId {
     pub fn new(value: impl Into<String>) -> Result<Self, ContractError> {
         let value = value.into();
         validate_identifier(IdentifierKind::SystemId, &value)?;
-        Ok(Self(value))
+        Ok(Self(Cow::Owned(value)))
+    }
+
+    /// Declares the name as a literal in code, checked while the declaring crate compiles.
+    ///
+    /// This is what lets a component state its type and its owning system as part of its type
+    /// rather than as data: an associated constant cannot hold a validated `String`, but it can
+    /// hold this. An illegal literal is a compile error, so a declaration that would be
+    /// rejected at load time never reaches a running world.
+    pub const fn from_static(value: &'static str) -> Self {
+        match check_identifier(value) {
+            Ok(()) => Self(Cow::Borrowed(value)),
+            Err(_) => panic!(
+                "a system id literal must be 1 to 64 bytes of lowercase ASCII letters, digits, \
+                 '-' and '_', and must not begin or end with a separator"
+            ),
+        }
     }
 
     /// The name as text.
@@ -289,7 +354,7 @@ impl TryFrom<&str> for SystemId {
 
 impl From<SystemId> for String {
     fn from(value: SystemId) -> Self {
-        value.0
+        value.0.into_owned()
     }
 }
 
@@ -302,7 +367,7 @@ impl fmt::Display for SystemId {
 /// The declared name of a component type.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
-pub struct ComponentTypeId(String);
+pub struct ComponentTypeId(Cow<'static, str>);
 
 impl ComponentTypeId {
     /// Validates a declared component type name against the identifier rule stated in this
@@ -310,7 +375,23 @@ impl ComponentTypeId {
     pub fn new(value: impl Into<String>) -> Result<Self, ContractError> {
         let value = value.into();
         validate_identifier(IdentifierKind::ComponentTypeId, &value)?;
-        Ok(Self(value))
+        Ok(Self(Cow::Owned(value)))
+    }
+
+    /// Declares the name as a literal in code, checked while the declaring crate compiles.
+    ///
+    /// This is what lets a component state its type and its owning system as part of its type
+    /// rather than as data: an associated constant cannot hold a validated `String`, but it can
+    /// hold this. An illegal literal is a compile error, so a declaration that would be
+    /// rejected at load time never reaches a running world.
+    pub const fn from_static(value: &'static str) -> Self {
+        match check_identifier(value) {
+            Ok(()) => Self(Cow::Borrowed(value)),
+            Err(_) => panic!(
+                "a component type id literal must be 1 to 64 bytes of lowercase ASCII letters, digits, \
+                 '-' and '_', and must not begin or end with a separator"
+            ),
+        }
     }
 
     /// The name as text.
@@ -337,7 +418,7 @@ impl TryFrom<&str> for ComponentTypeId {
 
 impl From<ComponentTypeId> for String {
     fn from(value: ComponentTypeId) -> Self {
-        value.0
+        value.0.into_owned()
     }
 }
 

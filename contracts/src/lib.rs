@@ -6,7 +6,7 @@
 //! well formed. Those live in the kernel and in systems, which depend on this crate; nothing
 //! here depends back.
 //!
-//! # Four rules for anything added to this crate
+//! # Five rules for anything added to this crate
 //!
 //! **1. No domain concept appears here.** A type called `Employment`, `Money`, `Hunger` or
 //! `Conversation` belongs to a System Pack, never to the contract layer. The kernel does not
@@ -22,7 +22,14 @@
 //! it, so a contract type that cannot round-trip through `serde` cannot be persisted or
 //! replayed.
 //!
-//! **4. Validation happens in constructors, and rejects rather than repairs.** A constructor
+//! **4. Exactly one type erases a payload.** [`ComponentRecord`] holds a component's contents
+//! in a form this crate cannot interpret, because a database row and a network frame carry
+//! bytes rather than Rust types. It is the only such type, it is documented as that boundary,
+//! and it cannot be mislabelled: a record is built from a component type and is handed back
+//! only to code that names the same type and schema version. Anywhere else, an untyped payload
+//! is a defect.
+//!
+//! **5. Validation happens in constructors, and rejects rather than repairs.** A constructor
 //! that can fail returns [`Result<_, ContractError>`](ContractError) and is named `new`.
 //! Deserialization runs the same check, so a malformed authored file or a corrupted record
 //! fails where it is read instead of somewhere later. Nothing is silently normalized.
@@ -30,10 +37,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod component;
 pub mod entity;
 pub mod error;
 pub mod ids;
 
+pub use component::{Component, ComponentDeclaration, ComponentRecord, ComponentSchemaVersion};
 pub use entity::{Entity, LifecycleState, Metadata, Tag, Tags};
 pub use error::{ContractError, IdentifierKind};
 pub use ids::{
