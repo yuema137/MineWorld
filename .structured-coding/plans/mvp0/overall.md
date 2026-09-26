@@ -190,7 +190,8 @@ ownership-gated writes, then the System interface and dispatch over it. **Design
 
 ### S4 — World clock, scheduler, and Process
 
-*Corresponds to the operator's commit 5.*
+*Corresponds to the operator's commit 5.* **Design:**
+[`step-04-clock-scheduler-process.md`](step-04-clock-scheduler-process.md), frozen.
 
 - **Output:** `WorldTime`; the discrete-event / semantic-tick scheduler; process lifecycle with
   interruption *requests* routed to the owning system; event delivery to subscribers.
@@ -258,7 +259,24 @@ ownership-gated writes, then the System interface and dispatch over it. **Design
   asserts mechanically that the change set touches only `systems/` and `worlds/` — no
   `kernel/`, no `contracts/`, no controller, no renderer (`AC-1`).
 
-### S10 — Cognition layer
+### S10 — Cognition layer *(reduced for MVP-0)*
+
+**Scope decision, 2026-09-25.** The finish line is two playable demos sharing one semantic path,
+and no part of it requires a language model: the operator's own direction is that LM integration
+is not the MVP's architectural centre and must not delay validating the world infrastructure, and
+that deterministic controllers are what stable integration testing should use. So MVP-0 delivers
+the **controller abstraction with `HumanController` and `RuleController`**, plus perception and
+`Observation` production, which the clients genuinely need. `LMController` over Ollama and one
+OpenAI-compatible endpoint, subjective memory, and hierarchical biography compression move to
+MVP-1.
+
+Consequences recorded honestly rather than quietly: `AC-4` (swapping the model backend changes no
+World Pack) and `AC-10` (bounded context after 100 simulated days) are **deferred with S10's LM
+half**, since neither can be demonstrated without a model. They remain MVP acceptance criteria;
+they are simply not gates on the demo finish line the operator set. Every other criterion stays
+in MVP-0.
+
+Original scope, retained for MVP-1:
 
 - **Output:** perception producing `Observation`s; subjective memory; hierarchical biography
   compression L0–L3 with retained Event IDs; `LMController` over Ollama and one

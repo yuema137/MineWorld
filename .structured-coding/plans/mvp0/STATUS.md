@@ -34,15 +34,15 @@ suite or a successful compile.
 | Stage | State |
 | --- | --- |
 | S1 entity/component contracts | **merged** `e85c889`, 32 tests, single-writer proven at compile time |
-| S2 action/event/observation/spatial | design frozen, implementing |
-| S3 system interface and registry | medium scope |
-| S4 clock, scheduler, process | medium scope, D-6 open |
+| S2 action/event/observation/spatial | **implementing** |
+| S3 system interface and registry | 03a **implementing**, 03b medium scope |
+| S4 clock, scheduler, process | **design frozen**, D-6 resolved |
 | S5 persistence and event log | medium scope |
 | S6 first systems: time, places, movement | medium scope |
 | S7 world pack loading, rule controller, headless run | medium scope |
 | S8 Social Café systems | medium scope |
 | S9 Market Town + AC-1 proof | medium scope |
-| S10 cognition | medium scope |
+| S10 cognition | reduced for MVP-0: controller abstraction + rule controller + perception; LM half deferred to MVP-1 with AC-4 and AC-10 |
 | S11 server and networking | medium scope |
 | S12 Demo A, 2D client | medium scope |
 | S13 deployment parity and CI layers | medium scope |
