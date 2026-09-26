@@ -1,0 +1,17 @@
+[package]
+name = "mineworld-kernel"
+description = "MineWorld's authoritative world state: entity identity, owned component storage and the relation graph, with every write gated on system ownership."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-contracts = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+trybuild = { workspace = true }

@@ -2,7 +2,7 @@
 
 **Role:** step document. S3 needs **two** PRs, detailed below at different depths.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md)
-**Lifecycle:** `PR 03a DESIGN FROZEN` · `PR 03b medium scope`
+**Lifecycle:** `PR 03a READY FOR OPERATOR REVIEW — DO NOT MERGE` · `PR 03b medium scope`
 **Base:** `main` after PR 02 merges
 
 Binding parents: [`overall.md`](overall.md) ·
@@ -73,22 +73,24 @@ domain component.
 ## 2.5 Commit plan
 
 ### C1 — Crate and entity registry
-- [ ] Implementation: `mineworld-kernel` crate wired into the workspace; `EntityRegistry` with monotonic allocation, key resolution, lifecycle lookup, and `BTreeMap` storage.
-- [ ] Validation: ids are allocated in order and never reused after a destroy; the same sequence of creates on two fresh registries yields identical ids; an unknown `EntityKey` resolves to a named error; a duplicate key is rejected.
-- [ ] Review: no domain concept; nothing here knows what a Person is beyond `EntityType`.
+- [x] Implementation: `mineworld-kernel` crate wired into the workspace; `EntityRegistry` with monotonic allocation, key resolution, lifecycle lookup, and `BTreeMap` storage. Files: `kernel/Cargo.toml`, `kernel/src/lib.rs`, `kernel/src/error.rs` (`KernelError`), `kernel/src/entities.rs` (`EntityRegistry`, `EntityRegistrySnapshot`); `Cargo.toml` gained the `kernel` member and a `mineworld-contracts` workspace dependency.
+- [x] Validation: `cargo test -p mineworld-kernel` — 11 tests in `kernel/tests/entities.rs`, all pass. Allocation is `1, 2, 3` from a counter; two independent registries given the same creations allocate the same identities; a destroyed entity keeps its identity and the next entity gets `id + 1`; resurrection is refused through the contract layer's state machine; a duplicate `EntityKey` is refused, names the holder, and consumes no identity; an unknown key resolves to `UnknownEntityKey`; iteration follows identity even when the keys sort the other way; a persisted registry round-trips and continues the sequence; four load-time refusals are checked as named variants. Three mutations killed (§2.10.3).
+- [x] Review: no domain concept. The registry names `Entity`, `EntityType`, `EntityKey`, `LifecycleState`, `Tags`, `Metadata` and nothing else; it has no notion of a person beyond `EntityType::Person` being one of four opaque values it never branches on.
 
 ### C2 — Component store with ownership-gated writes
-- [ ] Implementation: `ComponentStore` with per-type maps; `OwnedBy<S>` plus the declaring macro (KD-1); `WriteToken<S>`; insert / update / remove / get / iterate.
-- [ ] Validation: an owning system writes and reads back; a non-owning system's write **does not compile** (trybuild), or fails with a named error and leaves state unchanged if KD-2 applies; iteration is `EntityId`-ordered; the whole store round-trips through serde.
-- [ ] Review: the adversarial criterion — try, as an ordinary API user, to write a component you do not own without `unsafe` and without editing the owning crate. Record what you tried, not just the conclusion. If a bypass exists, stop and report it.
+- [x] Implementation: `kernel/src/access.rs` (`SystemIdentity`, `OwnedBy<S>`, `WriteToken<S>`, `WriteAccess`, the `owned_component!` macro), `kernel/src/components.rs` (`ComponentStore`, the private per-type `Table`), `kernel/src/macro_support.rs`, six new `KernelError` variants. Per-type `BTreeMap<EntityId, C>` behind a narrow API (`DEP-1`); `declare` / `insert` / `get_mut` / `remove` gated, `get` / `contains` / `iter` / `count` / `is_declared` / `declarations` open.
+- [x] Validation: 9 behaviour tests in `kernel/tests/components.rs` and 6 compile-fail cases in `kernel/tests/compile_fail/`, all pass. A non-owning system's write **does not compile** — `E0277: the trait bound Measured: OwnedBy<SecondStub> is not satisfied` — so KD-2 does not apply. Also pinned: writes to an undeclared type are refused by name and change nothing; a component type has exactly one declaration, with three distinct refusals; iteration is `EntityId`-ordered even when rows are written in descending order; the whole store round-trips through `serde_json` as `ComponentRecord`s and comes back identical; a record cannot be read back as another system's component; a system is granted its token exactly once. Three mutations killed (§2.10.3), including one that proves the compile-fail suite is load-bearing.
+- [x] Review: the adversarial criterion, with all eleven attempts recorded in §2.10.2 — seven refused by the compiler, two refused at declaration by a named error that leaves the store unchanged, and two that succeed and are recorded as boundaries this PR cannot close, with the requirements they place on PR 03b.
 
 ### C3 — Relation store
-- [ ] Implementation: triple-keyed storage over S1's `Relation`, with lookup by endpoint and by type, canonical ordering for undirected types, and ownership-gated writes as in C2.
-- [ ] Validation: an edge is found from either endpoint; an undirected edge inserted in both orders is one edge; removing an entity's edges is complete; ordering is deterministic.
-- [ ] Review: no assumption that endpoints share any spatial frame (the S1 review criterion, still binding).
+- [x] Implementation: `kernel/src/relations.rs` (`RelationStore`, `RelationStoreSnapshot`), seven new `KernelError` variants. Edges are a `BTreeSet<Relation>` — the triple *is* the identity (`DD-6`) — with the declarations in a `BTreeMap<RelationTypeId, RelationTypeDeclaration>`; lookup by type (`of_type`) and by endpoint (`touching`, either end); `declare` / `insert` / `remove` gated on the declared owner, plus one deliberately narrow ungated write, `remove_edges_of_destroyed_entity`. `insert` takes the two **entities** and forms the edge itself with `Relation::between` against this world's declaration, so endpoint types, the self-edge rule and the canonical ordering of an undirected edge cannot be bypassed by a caller supplying a pre-built edge. Ownership is checked at run time, not by the compiler — see §2.10.6 for the evidence that forces it.
+- [x] Validation: 12 behaviour tests in `kernel/tests/relations.rs` plus the 3-test integration checkpoint in `kernel/tests/two_systems.rs`, all pass. An edge is found from either endpoint, including a directed edge found from the end it points at; an undirected edge written both ways is one edge stored with the lower identity first; a directed edge reversed is a second edge; the declaration decides which edges can exist, with the contract layer's own refusals and nothing stored; a self-edge is permitted only where the declaration says so; every write path refuses a non-owning system by name and leaves the graph alone; an undeclared type cannot be written and is not declared as a side effect; an edge type has exactly one declaration, with three distinct refusals; destroying an entity clears every edge touching it in both directions and returns them, while a live entity's edges are refused; iteration order is identical for a graph built in one order and in the reverse; the graph round-trips through serde; three load-time refusals are checked as named variants. Three mutations killed (§2.10.3).
+- [x] Review: no assumption that endpoints share a spatial frame. The store reads exactly one fact about an endpoint — its `EntityType`, and only through the declaration — and nothing anywhere in `relations.rs` names a position, a distance, a container or a place. A person may be attached to an organization that has no location, and two places may be linked without sharing any frame; both are in the tests. The module documentation states it, because it is the kind of assumption that gets added later by accident.
 
 ### C4 — Documentation
-- [ ] `kernel/README.md` (short, human-facing); ledger closed; `ARCHITECTURE.md` §2 updated only if the built shape differs from what it already claims.
+- [x] `kernel/README.md` written: short, human-facing, one obvious main line — the single-writer rule, with the compiling and non-compiling call side by side — and links onward rather than carrying the specification (documentation law §2.1).
+- [x] Ledger closed: §2.10 carries the KD-1 decision, the adversarial review, nine mutations, the validation record, the bounded deviations and the relation-ownership finding; §2.11 is the closeout.
+- [x] `ARCHITECTURE.md` **not** amended, which is the audited answer rather than an omission. §2 lists `Identity`, `Component storage` and `Relationship graph` among the kernel's responsibilities; §4 states the single-writer rule in the terms C2 implemented; §14 describes `kernel/` as `entity, components, scheduler, event_log, process, actions, persistence, networking`. What was built is a strict subset of all three and contradicts none of them, so there is nothing to correct. `docs/DECISIONS.md` `DEP-1` likewise describes the store that was built — one `BTreeMap` per component type behind a narrow API — and needed no revision.
 
 ## 2.6 Integration checkpoint
 
@@ -135,6 +137,328 @@ OPEN     KD-1 versus KD-2 is decided during C2 by what actually compiles
 APPROVED for implementation once PR 02 merges.
 
 ---
+
+## 2.10 Implementation ledger
+
+Execution context: branch `mvp0/pr-03a-kernel-state`, created from `main` @ `a406040`. The frozen
+base line in the header says *after PR 02 merges*; PR 02 was still unmerged when this PR was
+authorized, and the operator authorized this base explicitly. Nothing in this PR reads an S2
+contract, so the difference is immaterial — the kernel crate depends on `mineworld-contracts`
+alone, and PR 02 adds to that crate without changing what this PR uses.
+
+Toolchain: `rustc`/`cargo` 1.97.1, `rustfmt` 1.9.0, `clippy` 0.1.97, as pinned by
+`rust-toolchain.toml` (`DD-11`).
+
+`handoff.md` is deliberately **not** rewritten for this PR. It currently carries PR 01's closed
+context and the concurrent PR 02 session owns that file; replacing it from this branch would
+clobber another PR's live continuation aid for no benefit, because this document is the semantic
+authority and this session never compacted. Recorded so the omission is visible as a decision.
+
+### 2.10.1 KD-1 versus KD-2 — decided by what compiles
+
+**Question.** KD-1 specifies ownership as a trait relationship `OwnedBy<S>` plus *"a `const`
+assertion comparing `C::OWNER` with `S::ID`"*. Does that const comparison compile?
+
+**Probe.** Written literally in the kernel crate, at `kernel/src/lib.rs`, against a stub system
+and a stub component:
+
+```rust
+const _: () = assert!(<Occupancy as Component>::OWNER == <Places as SystemIdentity>::ID);
+
+const fn probe_b() -> &'static str {
+    <Occupancy as Component>::OWNER.as_str()
+}
+```
+
+**Result: it cannot compile, for two independent reasons.**
+
+```text
+error[E0015]: cannot call non-const operator in constants
+   --> kernel/src/lib.rs:26:23
+note: impl defined here, but it is not `const`
+   --> contracts/src/ids.rs:304:24
+    | #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+
+error[E0493]: destructor of `mineworld_contracts::SystemId` cannot be evaluated at compile-time
+   --> kernel/src/lib.rs:26:58
+
+error[E0015]: cannot call non-const method `mineworld_contracts::SystemId::as_str` in constant
+             functions
+  --> kernel/src/lib.rs:30:37
+```
+
+The first error is the ordinary one and would be fixable in principle: `PartialEq` is not a
+`const` trait. The second is the decisive one. `SystemId` holds a `Cow<'static, str>`, so the
+type has a destructor, and a value with a destructor cannot be materialized and dropped inside a
+`const` item. No accessor added to `mineworld-contracts` would change that: *any* const
+expression that names `C::OWNER` as a value hits `E0493`. Making the comparison possible would
+mean changing `SystemId`'s representation — a frozen public contract in PR 01's crate, and
+outside this PR's scope.
+
+**Decision: KD-1 is implemented; KD-2 is not triggered.** The const *assertion* is replaced by
+const *derivation*, which is strictly stronger:
+
+```rust
+// what the macro generates
+impl Component for $component {
+    const OWNER: SystemId = <$system as SystemIdentity>::ID;
+    ...
+}
+impl OwnedBy<$system> for $component {}
+```
+
+`C::OWNER` is not compared with `S::ID`; it *is* `S::ID`, the same const expression. An
+assertion can only detect a disagreement that this shape cannot express. Probe C confirmed the
+derivation compiles.
+
+This is not KD-2. KD-2's fallback is a runtime check on every **write**, and writes here remain
+gated entirely at compile time: a write needs `&WriteToken<S>` and `C: OwnedBy<S>`, so a system
+cannot name a write to a component it does not own. What the derivation cannot reach is a
+hand-written `impl OwnedBy<S> for C` that contradicts `C::OWNER` — see §2.10.2 for why that
+cannot be used to write another system's state, and for the declaration-time check that refuses
+it anyway.
+
+### 2.10.2 The adversarial criterion
+
+Every attempt below was **actually run**, as an ordinary API user would: from a separate crate
+that depends on `mineworld-kernel` and `mineworld-contracts`, with no `unsafe` and no edit to the
+crate that owns the state. The refused ones are kept as executable cases under
+`kernel/tests/compile_fail/`; the two that succeed are not, because they compile.
+
+| # | Attempt | Outcome | Evidence |
+| --- | --- | --- | --- |
+| A1 | Hold my own system's token and use it on another system's component type | **refused by the compiler** | `E0277: the trait bound Measured: OwnedBy<SecondStub> is not satisfied`, with the compiler adding *"but trait `OwnedBy<FirstStub>` is implemented for it"* |
+| A2a | Construct the victim's token: `WriteToken::<FirstStub>::new()` | **refused** | `E0624: associated function new is private` |
+| A2b | `WriteToken::<FirstStub>::default()` | **refused** | `E0599: no associated function or constant named default` |
+| A2c | Build it out of its fields: `WriteToken { system: PhantomData }` | **refused** | `E0451: field system of struct WriteToken is private` |
+| A3 | Claim ownership of another crate's component type: `impl OwnedBy<Mine> for TheirComponent` | **refused, structurally** | `E0117`: `Component` is a foreign trait, so a pack cannot make another crate's type into a component at all, and `OwnedBy` requires `Component`. A dishonest claim can therefore only reach types the liar defined |
+| A4 | Declare my own system type with the victim's `SystemId` literal, take *its* token, write the victim's component | **refused by the compiler** | `E0277: ... OwnedBy<PretendingToBeFirstStub> is not satisfied`. Ownership is a relationship between two *types*; the name buys nothing |
+| A5 | Implement `OwnedBy<Mine>` dishonestly for my **own** component type whose declaration names another owner, then write it | **refused at declaration** | `ComponentOwnerDisagreesWithDeclaration`, and the store is left with no table — `an_ownership_claim_that_contradicts_the_declaration_is_refused` |
+| A6 | Inject rows by deserializing a store from JSON I wrote | **refused** | `E0277: the trait bound ComponentStore: serde::Deserialize<'de> is not satisfied` — the store has no `Deserialize`, and rows only enter through a gated write |
+| A7 | Claim the victim's *component type name* before it declares it | **refused, and detected** | `ComponentTypeClaimedByAnotherSystem` — whoever declares second is refused by name, so this is a visible collision at world assembly, not a silent theft |
+| **A8** | Construct a second `WriteAccess` of my own and grant myself the victim's token | **SUCCEEDS** | verified: `WriteAccess::new().grant(&Victim)` returns a usable `WriteToken<Victim>` and writes `Guarded { amount: 99 }` |
+| **A9** | Mutate a component I do not own through an open read, using interior mutability the component's own declaration chose (`Cell<u32>`) | **SUCCEEDS** | verified: `store.get::<Leaky>(e).unwrap().amount.set(1234)` changes state held by another system |
+
+**Verdict on the criterion.** The criterion is *"not bypassable by an ordinary API user who is not
+deliberately subverting it"*, and it holds: A8 and A9 are not things anybody does by accident.
+A8 requires constructing a second issuer of write capabilities and naming the victim's system type
+on purpose; A9 requires the *owner* of the state to have declared it with interior mutability, and
+then a reader to reach into it. Neither is reachable from an honest mistake, and A1–A7 — every
+attempt that looks like ordinary code — is refused, five of them before the program exists.
+
+This is not a reason to be satisfied, so both are recorded as boundaries with what closes them.
+
+**A8 — token provenance is PR 03b's to settle.** What this PR guarantees is precise: *given* a
+token, the component types writable through it are exactly the ones its system owns, checked by
+the type system with no runtime check on the write path. A token names a system; it does not prove
+that its holder *is* that system, and nothing in Rust can, because the language has no notion of
+which crate is calling. Two mitigations exist here and both are documented in `access.rs`:
+`grant` requires a **value** of the system type, so a pack whose system type has a private field
+cannot be impersonated (pinned by a compile-fail case, `E0451`), and a second grant for one
+`SystemId` is refused, so an impersonator is detected when the real system's installation fails.
+Two requirements therefore fall to 03b, and are stated in `access.rs` as well as here:
+
+```text
+1  the world's WriteAccess is held by the kernel; a system is granted its token once, at
+   installation, and never sees the issuer
+2  dispatch hands a running system a *view* of the store, not a &mut ComponentStore — a &mut
+   permits `*store = ComponentStore::new()`, which no ownership check of any kind can prevent
+```
+
+The second is the more important finding of this review: it means the choice of what dispatch
+passes a system is itself an `INV-7` decision, not an ergonomics decision.
+
+**A9 — a rule for component authors, unenforceable in stable Rust.** The bound that would rule out
+interior mutability (`Freeze`) is not available on stable, so the store cannot reject such a
+component type. `components.rs` states the rule where a component author will read it: *a component
+type must not carry interior mutability.* It is the one rule in that module a reviewer rather than
+the compiler has to enforce, and it is the owner's own declaration that opens the hole — a pack can
+only do this to itself.
+
+**Not a stop.** Neither succeeding attempt contradicts a frozen invariant, and neither can be
+closed inside this PR's scope: A8's answer is system installation, which §2.2 assigns to 03b, and
+A9's answer does not exist in stable Rust. They are recorded rather than shipped around.
+
+### 2.10.3 Mutation evidence
+
+| # | Mutation | Expected | Observed |
+| --- | --- | --- | --- |
+| M1 | `EntityRegistry::iter` iterates the authoring-key index instead of the identity map | the ordering test fails | `iteration_follows_identity_rather_than_insertion_or_key_order` FAILED, 10 passed |
+| M2 | `create_authored` drops the duplicate-key refusal | the key-uniqueness test fails | `an_authoring_key_belongs_to_exactly_one_entity` FAILED, 10 passed |
+| M3 | `FIRST_ENTITY_ID` becomes 0 | the allocation and load-refusal tests fail | 4 failed, 7 passed |
+| M4 | `ComponentStore::insert` requires `C: Component` instead of `C: OwnedBy<S>` | the cross-system write compiles, so the compile-fail suite goes red | `the_single_writer_rule_is_enforced_by_the_compiler` FAILED — the suite is load-bearing, not decorative |
+| M5 | `declare` stops comparing the declared owner with the token's system | the dishonest-claim test fails | `an_ownership_claim_that_contradicts_the_declaration_is_refused` FAILED, 8 passed |
+| M6 | `ComponentStore::iter` yields rows in reverse identity order | the ordering test fails | `iteration_is_in_identity_order_rather_than_write_order` FAILED, 8 passed |
+| M7 | the relation write path stops comparing the declared owner with the writing system | the single-writer test for edges fails | `only_the_declaring_system_writes_a_relation_type` FAILED, 11 passed |
+| M8 | `touching` looks only at the `from` end — the adjacency-on-one-side bug | the endpoint and cascade tests fail | 4 failed, 8 passed, including `an_edge_is_found_from_either_endpoint` and `destroying_an_entity_clears_every_edge_touching_it` |
+| M9 | the load-time canonical-order check is dropped | the persisted-graph test fails | `a_persisted_graph_that_lost_an_invariant_is_refused_at_load` FAILED, 11 passed |
+
+### 2.10.4 Validation record
+
+```text
+command:  cargo fmt --all --check
+result:   clean at C1
+
+command:  cargo check --workspace --all-targets
+result:   clean at C1
+
+command:  cargo clippy --workspace --all-targets --all-features -- -D warnings
+result:   clean at C1
+
+command:  cargo test --workspace
+result:   C1 — 32 contract tests (unchanged) + 11 kernel tests, 0 failures
+          C2 — 32 contract tests (unchanged) + 20 kernel tests + 2 kernel doc-tests,
+               0 failures (11 entities, 9 components, 1 trybuild harness over 6 cases)
+          C3 — 32 contract tests (unchanged) + 36 kernel tests + 2 kernel doc-tests,
+               0 failures (11 entities, 9 components, 12 relations, 3 two_systems,
+               1 trybuild harness over 6 cases)
+          C4 — all four commands clean at the final head; counts unchanged from C3,
+               because C4 is documentation only
+```
+
+### 2.10.5 Bounded deviations
+
+```text
+Deviation:      the crate has two modules §2.2 does not list — kernel/src/error.rs and
+                kernel/src/macro_support.rs
+Reason:         error.rs follows the convention PR 01 set (one error enum per crate, in its own
+                module); macro_support.rs is the doc-hidden re-export an exported macro_rules!
+                needs to name contract-layer items in the caller's crate
+Source:         contracts/src/error.rs; the macro expands where mineworld_contracts may not be
+                in scope
+Impact:         none on scope — both are inside the kernel crate §2.2 approves
+Validation:     covered by the same tests as the modules they serve
+
+Deviation:      ComponentStore implements neither Serialize nor Deserialize; "the store is
+                serializable in full" is satisfied through the typed record path instead
+Reason:         serializing a heterogeneous table map needs one of: a fixed intermediate encoding
+                chosen inside the kernel, a codec type parameter threaded through every store
+                type, or the `erased-serde` dependency. S1 answered the identical question for
+                ComponentRecord by leaving the payload a type parameter that "the persistence
+                layer supplies", and §2.2 lists persistence as a non-goal
+Source:         contracts/src/component.rs — "it exists because a store and a wire have to: a
+                table row or a network frame carries bytes, not a Rust type"; DEP-1 — "serialization
+                of dynamically registered types generally needs a reflection layer we would then
+                also own"
+Impact:         every value in the store is serde-serializable and reachable through the typed
+                API; the whole state of a two-system world round-trips through JSON text in
+                the_whole_store_round_trips_through_serde. What S5 will add is the per-type codec
+                registry that makes the round trip type-agnostic
+Validation:     the component round-trip test and the integration checkpoint
+
+Deviation:      no Send/Sync bound on component types, so ComponentStore is neither
+Reason:         nothing in this PR is threaded, and the bound can be widened later without
+                changing a single call site
+Impact:         S11's server will need it; recorded as a follow-up rather than guessed at now
+Validation:     n/a
+```
+
+### 2.10.6 Relation ownership is checked at run time, and why it has to be
+
+C3's plan says *"ownership-gated writes as in C2"*. For edges that is not reachable, and the reason
+is one line of the contract layer.
+
+Component ownership is compile-time because a component type is a Rust type and its owner is an
+associated constant on it: `ComponentTypeId::from_static` and `SystemId::from_static` are `const fn`,
+so both halves of the declaration can live in the type. A relation type has no Rust type. It is a
+[`RelationTypeId`] *value* inside a declaration, and unlike its two sibling identifiers
+`RelationTypeId` has **no `from_static`** — it is a `String` newtype with only a fallible `new`
+(`contracts/src/ids.rs`). So a relation type's name cannot appear in an associated constant, there
+is no type-level owner to compare against `S::ID`, and there is nothing for a trait relationship
+like `OwnedBy<S>` to be a relationship *between*.
+
+What the store does instead is exactly KD-2's shape, applied only where KD-1 is structurally
+impossible: the write path requires the system's `WriteToken` — so the writer is still a system, not
+arbitrary code — looks up the declaration this world holds, compares its owner with the writing
+system, and refuses with `RelationTypeNotOwned` **before touching the edge set**, so a refused write
+changes nothing. Three call sites share one check, `RelationStore::owned_declaration`, so the
+comparison cannot be forgotten at one of them, and M7 confirms the tests are load-bearing.
+
+Two consequences worth recording rather than discovering later:
+
+```text
+1  INV-7 holds for edges, but by a runtime check with a named error rather than by construction.
+   A pack that passes the wrong token gets a refusal at run time, not a compile error.
+2  making it compile-time needs `RelationTypeId::from_static` in mineworld-contracts, which is a
+   change to a public contract PR 01 froze, and §2.2 puts the contracts crate outside this PR's
+   scope. Recorded as a follow-up, not smuggled in.
+```
+
+The ungated write, `remove_edges_of_destroyed_entity`, is the one write no token authorizes, and it
+is narrow on purpose: it takes the entity **record** and refuses unless the lifecycle is
+`Destroyed`, which is terminal. An edge to an entity that has permanently stopped participating is a
+dangling reference no declaring system could want kept, and the removed edges are returned rather
+than dropped so that their owners can be told. Destroying a live entity's edges is refused with
+`EntityNotDestroyed`.
+
+---
+
+## 2.11 Closeout
+
+```text
+branch          mvp0/pr-03a-kernel-state
+base            main @ a406040 (operator-authorized; see §2.10)
+final HEAD      the C4 commit — the one that carries this closeout
+                (C1 = 67bcbe9, C2 = 2eb5d3e, C3 = 9cb7cdf); git log is authoritative
+working tree    clean at each commit; the only untracked path is target/ (gitignored)
+push / PR       none — no remote exists (decision D-9)
+merge           not done, not authorized
+state           PR CONTEXT CLOSED / AWAITING OPERATOR ACTION
+```
+
+### 2.9's checklist, resolved
+
+```text
+CHECKED   INV-7 has a mechanism, and an evidence-based fallback rather than an assumed one.
+          Components: compile-time, OwnedBy<S> + WriteToken<S>, six compile-fail cases.
+          Edges: a runtime check with a named error and no partial mutation, because
+          RelationTypeId is not const-declarable — §2.10.6 carries the evidence.
+CHECKED   INV-12: no domain concept anywhere in kernel/. The vocabulary is Entity, EntityType,
+          Component, Relation, SystemId. The tests are named for their role — Measured, Flagged,
+          FirstStub, SecondStub — precisely because there is no domain to name them after.
+CHECKED   DEP-1: one BTreeMap per component type behind a narrow API, no ECS, no archetypes, no
+          dependency beyond serde, thiserror and mineworld-contracts.
+CHECKED   AC-12: identities are a monotonic counter from 1, never reused; every iteration order is
+          a key order (EntityId within a component type, component type name across them, the
+          (type, from, to) triple for edges); replaying the same operations on a fresh world
+          produces a byte-identical snapshot.
+CHECKED   AC-6 is prepared, with one qualification recorded as a bounded deviation in §2.10.5:
+          every value the kernel stores is serde-serializable, the registry and the graph carry
+          their own validated snapshot types, and a whole two-system world round-trips through
+          JSON text and rebuilds. ComponentStore itself implements neither Serialize nor
+          Deserialize; the per-type codec registry that would make a heterogeneous snapshot
+          type-agnostic belongs to S5, which §2.2 lists as a non-goal.
+CHECKED   scope: no System trait, no dispatch, no scheduler, no time, no persistence, no domain
+          component. The kernel crate plus the workspace member and its dependency line.
+RESOLVED  KD-1 versus KD-2: KD-1, for components, with the const assertion replaced by const
+          derivation because the assertion cannot compile. KD-2 is not triggered. §2.10.1.
+```
+
+### Limitations and follow-ups
+
+```text
+for PR 03b   the world's WriteAccess is held by the kernel and each system is granted its token
+             once, at installation, so a system never sees the issuer (closes attempt A8)
+for PR 03b   dispatch hands a running system a *view* of the store, not &mut ComponentStore: a
+             &mut permits `*store = ComponentStore::new()`, which no ownership check can prevent.
+             The choice of what dispatch passes is an INV-7 decision, not an ergonomics one
+for S5       the per-type codec registry that makes a whole-store snapshot type-agnostic, and with
+             it Serialize/Deserialize for ComponentStore
+for S11      Send + Sync bounds on component types, so a world can cross a thread boundary; a
+             widening of bounds that changes no call site
+for S1's     RelationTypeId has no from_static, which is the only reason edge ownership is not
+crate        compile-time. Giving it one would let a relation type be declared as a Rust type and
+             make INV-7 uniform across components and edges. A change to a frozen public contract,
+             so it is recorded here rather than made here
+review rule  a component type must not carry interior mutability (attempt A9). Stable Rust has no
+             bound that expresses it, so components.rs states it where a component author reads it,
+             and it is a review item rather than a compiler one
+carried      three statements that describe main as containing no Rust code are stale and become
+             more visibly so with this branch: README.md:35, CLAUDE.md:43 and
+             .structured-coding/standards.md:15. PR 01's handoff already lists them as an
+             operator follow-up at merge; they are outside this PR's scope and are deliberately
+             left to whoever owns that commit, not least because another PR is in flight
+```
 
 # 2.10 Review outcome for PR 03a (reviewer, 2026-09-26)
 
@@ -216,6 +540,22 @@ and the dispatch pipeline `ActionIntent → route → validate → resolve → E
   first direct evidence for `AC-2`.
 - The registry refuses to enable a system whose declared dependency is absent, naming it, and
   refuses two systems claiming the same component type.
+
+## Frozen requirements inherited from 03a's review
+
+Settled, not open for weighing during 03b's design:
+
+1. **The kernel is the only issuer of write capability.** `WriteAccess::new()` stops being public;
+   the world owns the single issuer and grants each system its token once at installation, and a
+   system never sees the issuer. A compile-fail case must pin that an external crate cannot
+   construct a `WriteAccess`. Without this, ownership is advisory — the A8 bypass in §2.10, which
+   the reviewer reproduced from an external crate.
+2. **Dispatch hands a running system a *view* of the store, never `&mut ComponentStore`.** A `&mut`
+   permits `*store = ComponentStore::new()`, which no ownership check of any kind can prevent. What
+   dispatch passes is an `INV-7` decision, not an ergonomics one. Adopted verbatim from 03a's
+   sharpest finding.
+3. **A component type must not carry interior mutability.** Unenforceable on stable Rust, so it is
+   a declared review convention rather than a mechanism.
 
 **Resolved, with `D-6`:** reaction is **synchronous within the logical instant, and scheduling is
 queued**. When a system emits an event, subscribed systems reduce it in deterministic system
