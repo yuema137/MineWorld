@@ -10,7 +10,9 @@
 //! that can fail validates before it mutates, so a caller that handles the error is looking at
 //! the state it had before the call.
 
-use mineworld_contracts::{ComponentTypeId, ContractError, EntityId, EntityKey, SystemId};
+use mineworld_contracts::{
+    ComponentTypeId, ContractError, EntityId, EntityKey, LifecycleState, RelationTypeId, SystemId,
+};
 
 use thiserror::Error;
 
@@ -106,6 +108,85 @@ pub enum KernelError {
     ComponentTypeNotDeclared {
         /// The component type that was written.
         component_type: ComponentTypeId,
+    },
+
+    /// An edge type was declared or written by a system other than the one that owns it. The
+    /// declaring system is the single writer of its edges, exactly as it is of its components.
+    #[error(
+        "relation type '{relation_type}' is owned by '{owner}', \
+         so '{writing_system}' cannot write it"
+    )]
+    RelationTypeNotOwned {
+        /// The edge type.
+        relation_type: RelationTypeId,
+        /// The system that owns it.
+        owner: SystemId,
+        /// The system that tried to write it.
+        writing_system: SystemId,
+    },
+
+    /// Two systems claimed the same edge type.
+    #[error(
+        "relation type '{relation_type}' is already owned by '{declared_by}', \
+         so '{claimed_by}' cannot claim it"
+    )]
+    RelationTypeClaimedByAnotherSystem {
+        /// The contested edge type.
+        relation_type: RelationTypeId,
+        /// The system that declared it first.
+        declared_by: SystemId,
+        /// The system that tried to claim it as well.
+        claimed_by: SystemId,
+    },
+
+    /// One system declared the same edge type name twice with different rules. Edges already
+    /// stored were checked against the first declaration, so the second cannot quietly replace it.
+    #[error("relation type '{relation_type}' is already declared in this world with other rules")]
+    RelationTypeAlreadyDeclared {
+        /// The edge type declared a second time.
+        relation_type: RelationTypeId,
+    },
+
+    /// An edge named a type no system in this world declared.
+    #[error("relation type '{relation_type}' is not declared in this world")]
+    RelationTypeNotDeclared {
+        /// The undeclared edge type.
+        relation_type: RelationTypeId,
+    },
+
+    /// The destruction cascade was asked to clear the edges of an entity that is still part of the
+    /// world. Removing a live entity's edges is its declaring systems' business, not the kernel's.
+    #[error(
+        "entity {entity} is {lifecycle}, not destroyed, so its edges are not the kernel's to remove"
+    )]
+    EntityNotDestroyed {
+        /// The entity whose edges were to be removed.
+        entity: EntityId,
+        /// The lifecycle state it is actually in.
+        lifecycle: LifecycleState,
+    },
+
+    /// A persisted graph filed an edge type's declaration under a different name.
+    #[error("persisted relation type declaration at '{at}' calls itself '{found}'")]
+    PersistedRelationTypeMismatch {
+        /// The name it was filed under.
+        at: RelationTypeId,
+        /// The name the declaration itself carries.
+        found: RelationTypeId,
+    },
+
+    /// A persisted graph held an undirected edge with its ends the wrong way round. Stored that
+    /// way, one fact would read as two edges.
+    #[error(
+        "persisted undirected '{relation_type}' edge holds {from} and {to} in non-canonical order"
+    )]
+    PersistedRelationNotCanonical {
+        /// The undirected edge type.
+        relation_type: RelationTypeId,
+        /// The end stored as `from`.
+        from: EntityId,
+        /// The end stored as `to`.
+        to: EntityId,
     },
 
     /// A persisted registry held an entity under an identity other than its own — the record

@@ -34,6 +34,7 @@ pub mod access;
 pub mod components;
 pub mod entities;
 pub mod error;
+pub mod relations;
 
 #[doc(hidden)]
 pub mod macro_support;
@@ -42,3 +43,4 @@ pub use access::{OwnedBy, SystemIdentity, WriteAccess, WriteToken};
 pub use components::ComponentStore;
 pub use entities::{EntityRegistry, EntityRegistrySnapshot};
 pub use error::KernelError;
+pub use relations::{RelationStore, RelationStoreSnapshot};

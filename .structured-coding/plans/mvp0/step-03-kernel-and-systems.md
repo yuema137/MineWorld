@@ -83,9 +83,9 @@ domain component.
 - [x] Review: the adversarial criterion, with all eleven attempts recorded in §2.10.2 — seven refused by the compiler, two refused at declaration by a named error that leaves the store unchanged, and two that succeed and are recorded as boundaries this PR cannot close, with the requirements they place on PR 03b.
 
 ### C3 — Relation store
-- [ ] Implementation: triple-keyed storage over S1's `Relation`, with lookup by endpoint and by type, canonical ordering for undirected types, and ownership-gated writes as in C2.
-- [ ] Validation: an edge is found from either endpoint; an undirected edge inserted in both orders is one edge; removing an entity's edges is complete; ordering is deterministic.
-- [ ] Review: no assumption that endpoints share any spatial frame (the S1 review criterion, still binding).
+- [x] Implementation: `kernel/src/relations.rs` (`RelationStore`, `RelationStoreSnapshot`), seven new `KernelError` variants. Edges are a `BTreeSet<Relation>` — the triple *is* the identity (`DD-6`) — with the declarations in a `BTreeMap<RelationTypeId, RelationTypeDeclaration>`; lookup by type (`of_type`) and by endpoint (`touching`, either end); `declare` / `insert` / `remove` gated on the declared owner, plus one deliberately narrow ungated write, `remove_edges_of_destroyed_entity`. `insert` takes the two **entities** and forms the edge itself with `Relation::between` against this world's declaration, so endpoint types, the self-edge rule and the canonical ordering of an undirected edge cannot be bypassed by a caller supplying a pre-built edge. Ownership is checked at run time, not by the compiler — see §2.10.6 for the evidence that forces it.
+- [x] Validation: 12 behaviour tests in `kernel/tests/relations.rs` plus the 3-test integration checkpoint in `kernel/tests/two_systems.rs`, all pass. An edge is found from either endpoint, including a directed edge found from the end it points at; an undirected edge written both ways is one edge stored with the lower identity first; a directed edge reversed is a second edge; the declaration decides which edges can exist, with the contract layer's own refusals and nothing stored; a self-edge is permitted only where the declaration says so; every write path refuses a non-owning system by name and leaves the graph alone; an undeclared type cannot be written and is not declared as a side effect; an edge type has exactly one declaration, with three distinct refusals; destroying an entity clears every edge touching it in both directions and returns them, while a live entity's edges are refused; iteration order is identical for a graph built in one order and in the reverse; the graph round-trips through serde; three load-time refusals are checked as named variants. Three mutations killed (§2.10.3).
+- [x] Review: no assumption that endpoints share a spatial frame. The store reads exactly one fact about an endpoint — its `EntityType`, and only through the declaration — and nothing anywhere in `relations.rs` names a position, a distance, a container or a place. A person may be attached to an organization that has no location, and two places may be linked without sharing any frame; both are in the tests. The module documentation states it, because it is the kind of assumption that gets added later by accident.
 
 ### C4 — Documentation
 - [ ] `kernel/README.md` (short, human-facing); ledger closed; `ARCHITECTURE.md` §2 updated only if the built shape differs from what it already claims.
@@ -287,6 +287,9 @@ A9's answer does not exist in stable Rust. They are recorded rather than shipped
 | M4 | `ComponentStore::insert` requires `C: Component` instead of `C: OwnedBy<S>` | the cross-system write compiles, so the compile-fail suite goes red | `the_single_writer_rule_is_enforced_by_the_compiler` FAILED — the suite is load-bearing, not decorative |
 | M5 | `declare` stops comparing the declared owner with the token's system | the dishonest-claim test fails | `an_ownership_claim_that_contradicts_the_declaration_is_refused` FAILED, 8 passed |
 | M6 | `ComponentStore::iter` yields rows in reverse identity order | the ordering test fails | `iteration_is_in_identity_order_rather_than_write_order` FAILED, 8 passed |
+| M7 | the relation write path stops comparing the declared owner with the writing system | the single-writer test for edges fails | `only_the_declaring_system_writes_a_relation_type` FAILED, 11 passed |
+| M8 | `touching` looks only at the `from` end — the adjacency-on-one-side bug | the endpoint and cascade tests fail | 4 failed, 8 passed, including `an_edge_is_found_from_either_endpoint` and `destroying_an_entity_clears_every_edge_touching_it` |
+| M9 | the load-time canonical-order check is dropped | the persisted-graph test fails | `a_persisted_graph_that_lost_an_invariant_is_refused_at_load` FAILED, 11 passed |
 
 ### 2.10.4 Validation record
 
@@ -304,7 +307,48 @@ command:  cargo test --workspace
 result:   C1 — 32 contract tests (unchanged) + 11 kernel tests, 0 failures
           C2 — 32 contract tests (unchanged) + 20 kernel tests + 2 kernel doc-tests,
                0 failures (11 entities, 9 components, 1 trybuild harness over 6 cases)
+          C3 — 32 contract tests (unchanged) + 36 kernel tests + 2 kernel doc-tests,
+               0 failures (11 entities, 9 components, 12 relations, 3 two_systems,
+               1 trybuild harness over 6 cases)
 ```
+
+### 2.10.6 Relation ownership is checked at run time, and why it has to be
+
+C3's plan says *"ownership-gated writes as in C2"*. For edges that is not reachable, and the reason
+is one line of the contract layer.
+
+Component ownership is compile-time because a component type is a Rust type and its owner is an
+associated constant on it: `ComponentTypeId::from_static` and `SystemId::from_static` are `const fn`,
+so both halves of the declaration can live in the type. A relation type has no Rust type. It is a
+[`RelationTypeId`] *value* inside a declaration, and unlike its two sibling identifiers
+`RelationTypeId` has **no `from_static`** — it is a `String` newtype with only a fallible `new`
+(`contracts/src/ids.rs`). So a relation type's name cannot appear in an associated constant, there
+is no type-level owner to compare against `S::ID`, and there is nothing for a trait relationship
+like `OwnedBy<S>` to be a relationship *between*.
+
+What the store does instead is exactly KD-2's shape, applied only where KD-1 is structurally
+impossible: the write path requires the system's `WriteToken` — so the writer is still a system, not
+arbitrary code — looks up the declaration this world holds, compares its owner with the writing
+system, and refuses with `RelationTypeNotOwned` **before touching the edge set**, so a refused write
+changes nothing. Three call sites share one check, `RelationStore::owned_declaration`, so the
+comparison cannot be forgotten at one of them, and M7 confirms the tests are load-bearing.
+
+Two consequences worth recording rather than discovering later:
+
+```text
+1  INV-7 holds for edges, but by a runtime check with a named error rather than by construction.
+   A pack that passes the wrong token gets a refusal at run time, not a compile error.
+2  making it compile-time needs `RelationTypeId::from_static` in mineworld-contracts, which is a
+   change to a public contract PR 01 froze, and §2.2 puts the contracts crate outside this PR's
+   scope. Recorded as a follow-up, not smuggled in.
+```
+
+The ungated write, `remove_edges_of_destroyed_entity`, is the one write no token authorizes, and it
+is narrow on purpose: it takes the entity **record** and refuses unless the lifecycle is
+`Destroyed`, which is terminal. An edge to an entity that has permanently stopped participating is a
+dangling reference no declaring system could want kept, and the removed edges are returned rather
+than dropped so that their owners can be told. Destroying a live entity's edges is refused with
+`EntityNotDestroyed`.
 
 ### 2.10.5 Bounded deviations
 
