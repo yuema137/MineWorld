@@ -42,7 +42,7 @@ P = {
     "stone_hi": "#EDE6D6",
     "stone": "#DCD4C1",
     "stone_lo": "#C8BEA6",
-    "joint": "#B3A78B",
+    "joint": "#C2B69C",
     "quay": "#D3CAB4",
     "quay_lo": "#B6AB90",
     "quay_line": "#9C9075",
@@ -55,15 +55,15 @@ P = {
     "leaf": "#6FB544",
     "leaf_hi": "#95CF60",
     "leaf_top": "#B8E282",
-    "leaf_out": "#3C6E2E",
+    "leaf_out": "#57903A",
 
     "trunk": "#96683F",
-    "trunk_lo": "#6E4A2B",
+    "trunk_lo": "#795334",
 
     "wood": "#C48C52",
     "wood_lo": "#9A6A36",
     "wood_hi": "#DCAE74",
-    "wood_out": "#7A5227",
+    "wood_out": "#9C7040",
 
     "water": "#3FA8D6",
     "water_lo": "#2B85B6",
@@ -71,7 +71,7 @@ P = {
 
     "cream": "#F7EFDF",
     "cream_lo": "#E4D8C0",
-    "cream_out": "#B9A987",
+    "cream_out": "#CFC2A8",
 
     "rose": "#E0938A",
     "rose_lo": "#C97A70",
@@ -105,6 +105,34 @@ P = {
     "shadow": "#3A3226",
     "white": "#FFFFFF",
 }
+
+def _hex(c):
+    c = c.lstrip("#")
+    return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _rgb(t):
+    return "#%02X%02X%02X" % tuple(max(0, min(255, int(round(v)))) for v in t)
+
+
+SHADOW_TONE = (74, 56, 40)     # warm brown; shade here is never neutral grey
+SUN_TONE = (255, 247, 226)     # warm white
+
+
+def _mix(c, t, k):
+    r, g, b = _hex(c)
+    return _rgb((r + (t[0] - r) * k, g + (t[1] - g) * k, b + (t[2] - b) * k))
+
+
+def sh(c, k):
+    """Into shade: darker, and warmer rather than greyer."""
+    return _mix(c, SHADOW_TONE, k)
+
+
+def lt(c, k):
+    """Into sunlight."""
+    return _mix(c, SUN_TONE, k)
+
 
 FLOWERS = ["#F2A0B4", "#F4E07A", "#FFFFFF", "#C79BE0", "#F08C6A", "#8FB8EA"]
 
@@ -232,17 +260,17 @@ def make_tree(name, height=430, spread=1.0, seed=1, kind="round"):
         r2(cx + tw * 0.5), r2(ground - trunk_h),
         r2(cx + tw * 0.58), r2(ground - trunk_h * 0.8),
         r2(cx + tw * 0.72), r2(ground - trunk_h * 0.6), r2(cx + tw), r2(ground)),
-        fill=P["trunk"], stroke=P["trunk_lo"], sw=5))
+        fill=P["trunk"], stroke=P["trunk_lo"], sw=2.8))
     s.append(path("M %s %s L %s %s" % (r2(cx + tw * 0.35), r2(ground - 6),
                                        r2(cx + tw * 0.2), r2(ground - trunk_h * 0.85)),
-                  stroke=P["trunk_lo"], sw=6, opacity=0.5))
+                  stroke=P["trunk_lo"], sw=3.3, opacity=0.5))
     # a couple of limbs into the canopy
     for dx in (-1, 1):
         s.append(path("M %s %s Q %s %s, %s %s" % (
             r2(cx + dx * tw * 0.3), r2(ground - trunk_h * 0.85),
             r2(cx + dx * R * 0.34), r2(ground - trunk_h * 1.05),
             r2(cx + dx * R * 0.5), r2(canopy_cy + R * 0.42)),
-            stroke=P["trunk"], sw=11))
+            stroke=P["trunk"], sw=6.1))
 
     blobs = []
     if kind == "round":
@@ -323,10 +351,10 @@ def make_lamppost(name="lamppost", h=470):
     # lantern
     ly = ground - h * 0.80 - 10
     s.append(poly([(cx - 22, ly), (cx + 22, ly), (cx + 14, ly - 56), (cx - 14, ly - 56)],
-                  P["glow"], stroke=P["iron"], sw=7))
+                  P["glow"], stroke=P["iron"], sw=3.9))
     s.append(poly([(cx - 22, ly), (cx + 22, ly), (cx + 14, ly - 56), (cx - 14, ly - 56)],
                   P["glow_soft"], opacity=0.55))
-    s.append(line(cx, ly - 2, cx, ly - 54, P["iron"], sw=4, opacity=0.55))
+    s.append(line(cx, ly - 2, cx, ly - 54, P["iron"], sw=2.2, opacity=0.55))
     s.append(poly([(cx - 17, ly - 56), (cx + 17, ly - 56), (cx, ly - 82)], P["iron"]))
     s.append(circ(cx, ly - 86, 5, P["iron"]))
     # halo
@@ -374,13 +402,13 @@ def make_bench(name="bench", flip=False):
                        (x0 + sgn * dx + sgn * 26, y0 + dy - 4 + off),
                        (x0 + sgn * 26, y0 - 4 + off)],
                       P["wood"] if i % 2 == 0 else P["wood_hi"],
-                      stroke=P["wood_out"], sw=3))
+                      stroke=P["wood_out"], sw=1.7))
     # back
     for i in range(3):
         off = i * 15
         s.append(poly([(x0, y0 - 4 - off), (x0 + sgn * dx, y0 + dy - 4 - off),
                        (x0 + sgn * dx, y0 + dy - 15 - off), (x0, y0 - 15 - off)],
-                      P["wood_hi"] if i % 2 else P["wood"], stroke=P["wood_out"], sw=3))
+                      P["wood_hi"] if i % 2 else P["wood"], stroke=P["wood_out"], sw=1.7))
     for t in (0.06, 0.94):
         lx = x0 + sgn * dx * t
         ly = y0 + dy * t
@@ -397,11 +425,11 @@ def make_planter(name="planter", seed=3, tall=False):
                              P["wood_hi"], P["wood"], P["wood_lo"])
     s.append(box)
     a, b, c, d = corners
-    s.append(poly([a, b, c, d], "none", stroke=P["wood_out"], sw=4))
+    s.append(poly([a, b, c, d], "none", stroke=P["wood_out"], sw=2.2))
     for t in (0.3, 0.7):
         s.append(line(d[0] + (c[0] - d[0]) * t, d[1] + (c[1] - d[1]) * t + 4,
                       d[0] + (c[0] - d[0]) * t, d[1] + (c[1] - d[1]) * t + 54,
-                      P["wood_out"], sw=3, opacity=0.4))
+                      P["wood_out"], sw=1.7, opacity=0.4))
     # soil + planting
     cx = w / 2.0
     cy = (a[1] + c[1]) / 2.0
@@ -430,8 +458,8 @@ def make_pot(name="pot", seed=11):
     s.append(path("M %s %s L %s %s L %s %s L %s %s Z" % (
         r2(cx - 33), r2(ground - 62), r2(cx + 33), r2(ground - 62),
         r2(cx + 25), r2(ground - 2), r2(cx - 25), r2(ground - 2)),
-        fill=P["roof_terra"], stroke=P["roof_terra_lo"], sw=4))
-    s.append(rect(cx - 36, ground - 72, 72, 16, P["roof_terra"], stroke=P["roof_terra_lo"], sw=4, rx=4))
+        fill=P["roof_terra"], stroke=P["roof_terra_lo"], sw=2.2))
+    s.append(rect(cx - 36, ground - 72, 72, 16, P["roof_terra"], stroke=P["roof_terra_lo"], sw=2.2, rx=4))
     s.append(ell(cx, ground - 64, 30, 8, "#6B5233"))
     blobs = [(cx + rnd.uniform(-20, 20), ground - 84 + rnd.uniform(-14, 6), rnd.uniform(15, 22))
              for _ in range(5)]
@@ -450,16 +478,16 @@ def make_chalkboard(name="chalkboard"):
     s = [soft_shadow(cx + 4, ground, 48, 14)]
     s.append(poly([(cx - 6, ground - 140), (cx + 34, ground - 130),
                    (cx + 30, ground - 4), (cx - 8, ground - 8)],
-                  P["wood_lo"], stroke=P["wood_out"], sw=4))          # rear leg
+                  P["wood_lo"], stroke=P["wood_out"], sw=2.2))          # rear leg
     s.append(poly([(cx - 52, ground - 132), (cx + 8, ground - 144),
                    (cx + 12, ground - 6), (cx - 46, ground - 2)],
-                  P["board_edge"], stroke=P["wood_out"], sw=5))       # frame
+                  P["board_edge"], stroke=P["wood_out"], sw=2.8))       # frame
     s.append(poly([(cx - 44, ground - 126), (cx + 2, ground - 136),
                    (cx + 5, ground - 20), (cx - 39, ground - 14)],
                   P["board"]))
     for i in range(4):
         y = ground - 112 + i * 24
-        s.append(line(cx - 36, y, cx - 4 - i * 2, y - 8, "#DCD6C8", sw=5, opacity=0.75))
+        s.append(line(cx - 36, y, cx - 4 - i * 2, y - 8, "#DCD6C8", sw=2.8, opacity=0.75))
     write(name, w, h, cx, ground, "".join(s))
 
 
@@ -467,13 +495,13 @@ def make_signpost(name="signpost"):
     w, h = 240, 330
     cx, ground = w / 2.0 - 20, h - 8
     s = [soft_shadow(cx + 6, ground, 26, 10)]
-    s.append(rect(cx - 8, ground - 300, 16, 300, P["wood"], stroke=P["wood_out"], sw=4, rx=4))
+    s.append(rect(cx - 8, ground - 300, 16, 300, P["wood"], stroke=P["wood_out"], sw=2.2, rx=4))
     for i in range(3):
         y = ground - 286 + i * 44
         s.append(poly([(cx + 6, y), (cx + 150, y + 6), (cx + 168, y + 22),
                        (cx + 150, y + 38), (cx + 6, y + 32)],
-                      P["wood_hi"], stroke=P["wood_out"], sw=4))
-        s.append(line(cx + 22, y + 18, cx + 120, y + 22, P["wood_lo"], sw=4, opacity=0.35))
+                      P["wood_hi"], stroke=P["wood_out"], sw=2.2))
+        s.append(line(cx + 22, y + 18, cx + 120, y + 22, P["wood_lo"], sw=2.2, opacity=0.35))
     s.append(circ(cx, ground - 306, 9, P["wood_lo"]))
     write(name, w, h, cx, ground, "".join(s))
 
@@ -486,20 +514,20 @@ def make_umbrella_set(name="cafeset"):
     # chairs behind
     for sgn, ox in ((-1, -108), (1, 112)):
         bx = cx + ox
-        s.append(rect(bx - 30, ground - 96, 60, 12, P["wood"], stroke=P["wood_out"], sw=3, rx=4))
-        s.append(rect(bx - 26, ground - 150, 52, 56, P["wood_hi"], stroke=P["wood_out"], sw=3, rx=8))
+        s.append(rect(bx - 30, ground - 96, 60, 12, P["wood"], stroke=P["wood_out"], sw=1.7, rx=4))
+        s.append(rect(bx - 26, ground - 150, 52, 56, P["wood_hi"], stroke=P["wood_out"], sw=1.7, rx=8))
         s.append(rect(bx - 18, ground - 142, 36, 40, P["wood"], opacity=0.5, rx=6))
         for lx in (bx - 24, bx + 18):
             s.append(rect(lx, ground - 86, 8, 80, P["wood_lo"], rx=3))
     # table
     s.append(rect(cx - 10, ground - 116, 20, 108, P["iron"], rx=6))
     s.append(ell(cx, ground - 8, 46, 14, P["iron"]))
-    s.append(ell(cx, ground - 122, 84, 30, P["wood_hi"], stroke=P["wood_out"], sw=4))
-    s.append(ell(cx, ground - 128, 84, 30, P["wood"], stroke=P["wood_out"], sw=4))
+    s.append(ell(cx, ground - 122, 84, 30, P["wood_hi"], stroke=P["wood_out"], sw=2.2))
+    s.append(ell(cx, ground - 128, 84, 30, P["wood"], stroke=P["wood_out"], sw=2.2))
     s.append(ell(cx - 18, ground - 136, 30, 11, P["wood_hi"], opacity=0.5))
     # cup
-    s.append(rect(cx + 16, ground - 152, 20, 20, P["white"], stroke=P["cream_out"], sw=3, rx=4))
-    s.append(ell(cx + 26, ground - 152, 15, 5, P["white"], stroke=P["cream_out"], sw=3))
+    s.append(rect(cx + 16, ground - 152, 20, 20, P["white"], stroke=P["cream_out"], sw=1.7, rx=4))
+    s.append(ell(cx + 26, ground - 152, 15, 5, P["white"], stroke=P["cream_out"], sw=1.7))
     # pole + canopy
     s.append(rect(cx - 7, ground - 400, 14, 290, P["wood"], rx=5))
     scallops = []
@@ -519,7 +547,7 @@ def make_umbrella_set(name="cafeset"):
         mx = (a[0] + b[0]) / 2.0
         d += "Q %s %s, %s %s " % (r2(mx), r2((a[1] + b[1]) / 2.0 + 20), r2(b[0]), r2(b[1]))
     d += "Z"
-    s.append(path(d, fill=P["cream"], stroke=P["cream_out"], sw=5))
+    s.append(path(d, fill=P["cream"], stroke=P["cream_out"], sw=2.8))
     s.append(path("M %s %s L %s %s L %s %s Z" % (
         r2(cx), r2(ground - 400), r2(scallops[-1][0]), r2(scallops[-1][1]),
         r2(cx + 20), r2(ground - 332)), fill=P["cream_lo"], opacity=0.55))
@@ -532,25 +560,25 @@ def make_bicycle(name="bicycle"):
     cx, ground = w / 2.0, h - 8
     s = [soft_shadow(cx, ground, 110, 16)]
     for wx in (cx - 88, cx + 88):
-        s.append(circ(wx, ground - 54, 52, "none", stroke=P["iron"], sw=9))
-        s.append(circ(wx, ground - 54, 52, "none", stroke=P["iron_hi"], sw=3, opacity=0.6))
+        s.append(circ(wx, ground - 54, 52, "none", stroke=P["iron"], sw=5.0))
+        s.append(circ(wx, ground - 54, 52, "none", stroke=P["iron_hi"], sw=1.7, opacity=0.6))
         for k in range(6):
             a = k * math.pi / 6
             s.append(line(wx - math.cos(a) * 48, ground - 54 - math.sin(a) * 48,
                           wx + math.cos(a) * 48, ground - 54 + math.sin(a) * 48,
-                          P["iron_hi"], sw=2.5, opacity=0.75))
+                          P["iron_hi"], sw=1.4, opacity=0.75))
         s.append(circ(wx, ground - 54, 7, P["iron"]))
     frame = [(cx - 88, ground - 54), (cx - 18, ground - 54), (cx + 20, ground - 120),
              (cx - 46, ground - 120), (cx - 18, ground - 54), (cx + 88, ground - 54),
              (cx + 20, ground - 120)]
     for i in range(len(frame) - 1):
         s.append(line(frame[i][0], frame[i][1], frame[i + 1][0], frame[i + 1][1],
-                      P["wall_blue"], sw=10))
-    s.append(line(cx - 46, ground - 120, cx - 84, ground - 58, P["wall_blue"], sw=10))
+                      P["wall_blue"], sw=5.5))
+    s.append(line(cx - 46, ground - 120, cx - 84, ground - 58, P["wall_blue"], sw=5.5))
     s.append(rect(cx - 44, ground - 138, 52, 14, P["iron"], rx=6))       # saddle
-    s.append(line(cx + 6, ground - 128, cx + 34, ground - 152, P["iron"], sw=8))
-    s.append(line(cx + 14, ground - 152, cx + 54, ground - 148, P["iron"], sw=8))
-    s.append(rect(cx + 26, ground - 150, 58, 40, P["wood_hi"], stroke=P["wood_out"], sw=4, rx=6))
+    s.append(line(cx + 6, ground - 128, cx + 34, ground - 152, P["iron"], sw=4.4))
+    s.append(line(cx + 14, ground - 152, cx + 54, ground - 148, P["iron"], sw=4.4))
+    s.append(rect(cx + 26, ground - 150, 58, 40, P["wood_hi"], stroke=P["wood_out"], sw=2.2, rx=6))
     for i in range(4):
         s.append(circ(cx + 36 + i * 12, ground - 154 + (i % 2) * 6, 7,
                       FLOWERS[i % len(FLOWERS)]))
@@ -566,12 +594,12 @@ def make_barrel(name="barrel"):
         r2(cx - 46), r2(ground - 46), r2(cx - 34), r2(ground - 6),
         r2(cx + 34), r2(ground - 6), r2(cx + 46), r2(ground - 46),
         r2(cx + 46), r2(ground - 70), r2(cx + 36), r2(ground - 112)),
-        fill=P["wood"], stroke=P["wood_out"], sw=4))
+        fill=P["wood"], stroke=P["wood_out"], sw=2.2))
     for y in (ground - 98, ground - 58, ground - 20):
         s.append(path("M %s %s Q %s %s, %s %s" % (
             r2(cx - 45), r2(y), r2(cx), r2(y + 9), r2(cx + 45), r2(y)),
-            stroke=P["iron"], sw=8, opacity=0.85))
-    s.append(ell(cx, ground - 112, 36, 12, P["wood_hi"], stroke=P["wood_out"], sw=4))
+            stroke=P["iron"], sw=4.4, opacity=0.85))
+    s.append(ell(cx, ground - 112, 36, 12, P["wood_hi"], stroke=P["wood_out"], sw=2.2))
     write(name, w, h, cx, ground, "".join(s))
 
 
@@ -581,37 +609,37 @@ def make_fountain(name="fountain"):
     ground = h - 40
     s = [soft_shadow(cx + 12, ground + 6, 290, 88)]
     # outer basin
-    s.append(ell(cx, ground, 290, 116, P["stone_lo"], stroke=P["joint"], sw=6))
-    s.append(ell(cx, ground - 26, 290, 116, P["stone_hi"], stroke=P["joint"], sw=6))
+    s.append(ell(cx, ground, 290, 116, P["stone_lo"], stroke=P["joint"], sw=3.3))
+    s.append(ell(cx, ground - 26, 290, 116, P["stone_hi"], stroke=P["joint"], sw=3.3))
     s.append(ell(cx, ground - 26, 252, 96, P["water_lo"]))
     s.append(ell(cx, ground - 30, 252, 96, P["water"]))
     s.append(ell(cx - 40, ground - 44, 120, 38, P["water_hi"], opacity=0.45))
     for i in range(3):
         s.append(ell(cx, ground - 30, 90 + i * 52, 34 + i * 20, "none",
-                     stroke=P["water_hi"], sw=4, opacity=0.4))
+                     stroke=P["water_hi"], sw=2.2, opacity=0.4))
     # pedestal + bowls
     s.append(ell(cx, ground - 40, 76, 30, P["stone_lo"]))
-    s.append(ell(cx, ground - 52, 76, 30, P["stone_hi"], stroke=P["joint"], sw=4))
+    s.append(ell(cx, ground - 52, 76, 30, P["stone_hi"], stroke=P["joint"], sw=2.2))
     s.append(path("M %s %s L %s %s L %s %s L %s %s Z" % (
         r2(cx - 30), r2(ground - 56), r2(cx + 30), r2(ground - 56),
         r2(cx + 20), r2(ground - 132), r2(cx - 20), r2(ground - 132)),
-        fill=P["stone"], stroke=P["joint"], sw=4))
-    s.append(ell(cx, ground - 128, 104, 40, P["stone_hi"], stroke=P["joint"], sw=5))
-    s.append(ell(cx, ground - 136, 92, 34, P["water"], stroke=P["water_lo"], sw=3))
+        fill=P["stone"], stroke=P["joint"], sw=2.2))
+    s.append(ell(cx, ground - 128, 104, 40, P["stone_hi"], stroke=P["joint"], sw=2.8))
+    s.append(ell(cx, ground - 136, 92, 34, P["water"], stroke=P["water_lo"], sw=1.7))
     s.append(ell(cx - 16, ground - 140, 44, 14, P["water_hi"], opacity=0.5))
-    s.append(rect(cx - 13, ground - 208, 26, 78, P["stone"], stroke=P["joint"], sw=4, rx=6))
-    s.append(ell(cx, ground - 206, 56, 22, P["stone_hi"], stroke=P["joint"], sw=4))
+    s.append(rect(cx - 13, ground - 208, 26, 78, P["stone"], stroke=P["joint"], sw=2.2, rx=6))
+    s.append(ell(cx, ground - 206, 56, 22, P["stone_hi"], stroke=P["joint"], sw=2.2))
     s.append(ell(cx, ground - 212, 46, 17, P["water"], opacity=0.9))
     # jets
     for dx in (-1, 1):
         s.append(path("M %s %s Q %s %s, %s %s" % (
             r2(cx + dx * 6), r2(ground - 236), r2(cx + dx * 54), r2(ground - 214),
             r2(cx + dx * 70), r2(ground - 150)),
-            stroke=P["water_hi"], sw=8, opacity=0.8))
+            stroke=P["water_hi"], sw=4.4, opacity=0.8))
     s.append(path("M %s %s L %s %s" % (r2(cx), r2(ground - 214), r2(cx), r2(ground - 300)),
-                  stroke=P["white"], sw=11, opacity=0.75))
+                  stroke=P["white"], sw=6.1, opacity=0.75))
     s.append(path("M %s %s L %s %s" % (r2(cx), r2(ground - 240), r2(cx), r2(ground - 296)),
-                  stroke=P["white"], sw=5, opacity=0.9))
+                  stroke=P["white"], sw=2.8, opacity=0.9))
     s.append(ell(cx, ground - 302, 16, 9, P["white"], opacity=0.6))
     # droplets
     for (dx, dy, rr) in ((-46, -256, 6), (52, -262, 5), (-70, -210, 5), (74, -206, 6)):
@@ -624,7 +652,7 @@ def make_fountain(name="fountain"):
         fy = ground + 6 + math.sin(a) * 122
         if fy < ground - 80:
             continue
-        s.append(circ(fx, fy, 13, P["leaf"], stroke=P["leaf_out"], sw=3))
+        s.append(circ(fx, fy, 13, P["leaf"], stroke=P["leaf_out"], sw=1.7))
         s.append(circ(fx - 2, fy - 3, 6, FLOWERS[rnd.randrange(len(FLOWERS))]))
     write(name, w, h, cx, ground + 6, "".join(s))
 
@@ -651,8 +679,8 @@ def make_railing(name, direction=1, span=1.0):
         px, py = at(t)
         s.append(rect(px - 5, py - 96, 10, 96, P["iron"], rx=4))
         s.append(circ(px, py - 100, 7, P["iron"]))
-    s.append(line(at(0)[0], at(0)[1] - 92, at(1)[0], at(1)[1] - 92, P["iron"], sw=9))
-    s.append(line(at(0)[0], at(0)[1] - 48, at(1)[0], at(1)[1] - 48, P["iron"], sw=6))
+    s.append(line(at(0)[0], at(0)[1] - 92, at(1)[0], at(1)[1] - 92, P["iron"], sw=5.0))
+    s.append(line(at(0)[0], at(0)[1] - 48, at(1)[0], at(1)[1] - 48, P["iron"], sw=3.3))
     anchor_x = (at(0)[0] + at(1)[0]) / 2.0
     anchor_y = (at(0)[1] + at(1)[1]) / 2.0
     write(name, w, h, anchor_x, anchor_y, "".join(s))
@@ -668,18 +696,18 @@ def make_boat(name="boat"):
         r2(cx + 150), r2(ground + 22), r2(cx + 200), r2(ground - 66),
         r2(cx + 120), r2(ground - 40), r2(cx - 120), r2(ground - 40),
         r2(cx - 200), r2(ground - 66))
-    s.append(path(hull, fill=P["white"], stroke=P["cream_out"], sw=5))
+    s.append(path(hull, fill=P["white"], stroke=P["cream_out"], sw=2.8))
     s.append(path("M %s %s C %s %s, %s %s, %s %s" % (
         r2(cx - 182), r2(ground - 20), r2(cx - 130), r2(ground + 18),
         r2(cx + 130), r2(ground + 18), r2(cx + 182), r2(ground - 20)),
-        stroke=P["wall_blue"], sw=13))
+        stroke=P["wall_blue"], sw=7.2))
     s.append(ell(cx, ground - 52, 138, 26, P["water_lo"], opacity=0.25))
-    s.append(ell(cx, ground - 54, 138, 26, P["cream"], stroke=P["cream_out"], sw=4))
+    s.append(ell(cx, ground - 54, 138, 26, P["cream"], stroke=P["cream_out"], sw=2.2))
     for ox in (-60, 60):
         s.append(poly([(cx + ox - 54, ground - 58), (cx + ox + 54, ground - 58),
                        (cx + ox + 48, ground - 48), (cx + ox - 48, ground - 48)],
-                      P["wood_hi"], stroke=P["wood_out"], sw=3))
-    s.append(rect(cx - 26, ground - 96, 62, 44, P["wood"], stroke=P["wood_out"], sw=4, rx=5))
+                      P["wood_hi"], stroke=P["wood_out"], sw=1.7))
+    s.append(rect(cx - 26, ground - 96, 62, 44, P["wood"], stroke=P["wood_out"], sw=2.2, rx=5))
     s.append(rect(cx - 18, ground - 88, 46, 12, P["wood_hi"], opacity=0.6, rx=3))
     write(name, w, h, cx, ground, "".join(s))
 
@@ -705,24 +733,24 @@ def make_jetty(name="jetty", nx=3, ny=2):
     s = []
     # piles
     for (px, py) in (B, C, D):
-        s.append(rect(px - 11, py + th - 6, 22, 86, P["wood_lo"], stroke=P["wood_out"], sw=4, rx=4))
+        s.append(rect(px - 11, py + th - 6, 22, 86, P["wood_lo"], stroke=P["wood_out"], sw=2.2, rx=4))
     # side faces
     s.append(poly([B, C, (C[0], C[1] + th), (B[0], B[1] + th)], P["wood_lo"]))
     s.append(poly([D, C, (C[0], C[1] + th), (D[0], D[1] + th)], P["wood"]))
     # deck planks along +X
-    s.append(poly([A, B, C, D], P["wood_hi"], stroke=P["wood_out"], sw=4))
+    s.append(poly([A, B, C, D], P["wood_hi"], stroke=P["wood_out"], sw=2.2))
     steps = max(2, int(ny * 5))
     for i in range(1, steps):
         t = i / steps
         p1 = (A[0] + (D[0] - A[0]) * t, A[1] + (D[1] - A[1]) * t)
         p2 = (B[0] + (C[0] - B[0]) * t, B[1] + (C[1] - B[1]) * t)
-        s.append(line(p1[0], p1[1], p2[0], p2[1], P["wood_lo"], sw=3, opacity=0.5, cap="butt"))
-    s.append(poly([A, B, C, D], "none", stroke=P["wood_out"], sw=4))
+        s.append(line(p1[0], p1[1], p2[0], p2[1], P["wood_lo"], sw=1.7, opacity=0.5, cap="butt"))
+    s.append(poly([A, B, C, D], "none", stroke=P["wood_out"], sw=2.2))
     # bollards on the outer edge
     for t in (0.12, 0.88):
         px = B[0] + (C[0] - B[0]) * t
         py = B[1] + (C[1] - B[1]) * t
-        s.append(rect(px - 13, py - 52, 26, 60, P["wood"], stroke=P["wood_out"], sw=4, rx=8))
+        s.append(rect(px - 13, py - 52, 26, 60, P["wood"], stroke=P["wood_out"], sw=2.2, rx=8))
         s.append(ell(px, py - 52, 13, 6, P["wood_hi"]))
     write(name, w, h, C[0], C[1], "".join(s))
 
@@ -731,188 +759,364 @@ def make_jetty(name="jetty", nx=3, ny=2):
 # buildings
 # ---------------------------------------------------------------------------
 
+def _vine(x0, y0, length, seed, up=True):
+    """Climbing greenery. The references run it up every facade."""
+    rnd = random.Random(seed)
+    out = []
+    pts = []
+    n = 9
+    for i in range(n + 1):
+        t = i / n
+        pts.append((x0 + math.sin(t * 5.2 + seed) * 16, y0 - length * t if up else y0 + length * t))
+    d = "M %s %s" % (r2(pts[0][0]), r2(pts[0][1]))
+    for q in pts[1:]:
+        d += " L %s %s" % (r2(q[0]), r2(q[1]))
+    out.append(path(d, stroke=P["leaf_lo"], sw=2.5))
+    for i in range(int(length / 7)):
+        t = rnd.random()
+        cx = x0 + math.sin(t * 5.2 + seed) * 16 + rnd.uniform(-19, 19)
+        cy = (y0 - length * t) if up else (y0 + length * t)
+        rr = rnd.uniform(5.0, 9.5)
+        out.append(circ(cx, cy, rr, P["leaf_lo"]))
+        out.append(circ(cx - rr * 0.2, cy - rr * 0.25, rr * 0.72, P["leaf"]))
+        out.append(circ(cx - rr * 0.32, cy - rr * 0.38, rr * 0.38, P["leaf_hi"]))
+        if rnd.random() < 0.18:
+            out.append(circ(cx + rnd.uniform(-8, 8), cy + rnd.uniform(-8, 8), 3.4,
+                            FLOWERS[rnd.randrange(len(FLOWERS))]))
+    return "".join(out)
+
+
+def _basket(cx, cy, seed):
+    """Hanging flower basket."""
+    rnd = random.Random(seed)
+    out = [path("M %s %s L %s %s L %s %s" % (
+        r2(cx - 13), r2(cy - 2), r2(cx), r2(cy - 26), r2(cx + 13), r2(cy - 2)),
+        stroke=P["iron"], sw=2.0)]
+    out.append(path("M %s %s L %s %s L %s %s L %s %s Z" % (
+        r2(cx - 17), r2(cy), r2(cx + 17), r2(cy),
+        r2(cx + 12), r2(cy + 18), r2(cx - 12), r2(cy + 18)),
+        fill=P["wood"]))
+    out.append(rect(cx - 17, cy, 34, 5, sh(P["wood"], 0.26)))
+    for i in range(14):
+        rr = rnd.uniform(5, 9)
+        bx = cx + rnd.uniform(-19, 19)
+        by = cy + rnd.uniform(-8, 20)
+        out.append(circ(bx, by, rr, P["leaf_lo"]))
+        out.append(circ(bx - 1.5, by - 2, rr * 0.68, P["leaf"]))
+    for i in range(8):
+        out.append(circ(cx + rnd.uniform(-19, 19), cy + rnd.uniform(-6, 18), 3.6,
+                        FLOWERS[rnd.randrange(len(FLOWERS))]))
+    return "".join(out)
+
+
+def _interior(x, y, w, h, seed, kind):
+    """Suggested goods behind the glass: a dark warm room with lit shapes."""
+    rnd = random.Random(seed)
+    out = [rect(x, y, w, h, "#4A3524")]                       # dark room
+    out.append(rect(x, y + h * 0.42, w, h * 0.58, "#5E442C"))
+    # back-wall lamp pools
+    for i in range(max(2, int(w / 110))):
+        lx = x + w * (i + 0.5) / max(2, int(w / 110))
+        out.append(circ(lx, y + h * 0.16, h * 0.30, P["glow"], opacity=0.30))
+        out.append(circ(lx, y + h * 0.16, h * 0.16, P["glow_soft"], opacity=0.75))
+        out.append(path("M %s %s L %s %s" % (r2(lx), r2(y), r2(lx), r2(y + h * 0.08)),
+                        stroke="#6B5236", sw=2.5))
+    if kind == "books":
+        for r in range(3):
+            sy = y + h * (0.30 + r * 0.22)
+            out.append(rect(x + 8, sy + 22, w - 16, 5, "#8A6A46"))
+            bx = x + 14
+            while bx < x + w - 20:
+                bw = rnd.uniform(6, 11)
+                bh = rnd.uniform(14, 22)
+                out.append(rect(bx, sy + 22 - bh, bw, bh,
+                                FLOWERS[rnd.randrange(len(FLOWERS))]))
+                bx += bw + 2
+    elif kind == "bakery":
+        for r in range(2):
+            sy = y + h * (0.42 + r * 0.30)
+            out.append(rect(x + 8, sy + 20, w - 16, 5, "#8A6A46"))
+            bx = x + 16
+            while bx < x + w - 24:
+                out.append(ell(bx + 9, sy + 12, 10, 7, "#D9A866"))
+                out.append(ell(bx + 9, sy + 9, 7, 4, "#EFCB93"))
+                bx += 24
+    elif kind == "bloom":
+        bx = x + 14
+        while bx < x + w - 18:
+            out.append(rect(bx, y + h * 0.66, 13, 18, P["roof_terra"]))
+            for k in range(4):
+                out.append(circ(bx + 6 + rnd.uniform(-7, 7), y + h * 0.60 + rnd.uniform(-10, 4),
+                                5.5, FLOWERS[rnd.randrange(len(FLOWERS))]))
+            bx += 22
+    else:  # cafe: counter, cups, and someone behind it
+        out.append(rect(x + 6, y + h * 0.60, w - 12, h * 0.40, "#7A5634"))
+        out.append(rect(x + 6, y + h * 0.58, w - 12, 8, "#9A7346"))
+        for i in range(int((w - 30) / 26)):
+            out.append(rect(x + 18 + i * 26, y + h * 0.48, 11, 12, "#F0E6D2"))
+        px = x + w * 0.30
+        out.append(circ(px, y + h * 0.30, 13, "#EFC49E"))
+        out.append(path("M %s %s A 13 13 0 0 1 %s %s Z" % (
+            r2(px - 13), r2(y + h * 0.30), r2(px + 13), r2(y + h * 0.30)), fill="#4A3222"))
+        out.append(rect(px - 14, y + h * 0.40, 28, h * 0.24, "#5C7EA8"))
+    # glass sheen over the lot
+    out.append(path("M %s %s L %s %s L %s %s L %s %s Z" % (
+        r2(x), r2(y + h), r2(x + w * 0.34), r2(y),
+        r2(x + w * 0.60), r2(y), r2(x + w * 0.26), r2(y + h)),
+        fill="#FFFFFF", opacity=0.13))
+    return "".join(out)
+
+
+def vgrad(x, y, w, h, top_col, bot_col, n=10):
+    """A vertical ramp as stacked bands. ThorVG-safe stand-in for a gradient."""
+    out = []
+    for i in range(n):
+        t = i / float(n - 1)
+        r0, g0, b0 = _hex(top_col)
+        r1, g1, b1 = _hex(bot_col)
+        c = _rgb((r0 + (r1 - r0) * t, g0 + (g1 - g0) * t, b0 + (b1 - b0) * t))
+        out.append(rect(x, y + h * i / n, w, h / n + 1, c))
+    return "".join(out)
+
+
 def make_building(name, fx, fy, storeys, wall, wall_lo, roof, roof_lo,
-                  awning_a, awning_b, sign_w=430, seed=2, shop=True):
-    """A shop in 2:1 iso: front face along +X, side face along +Y."""
+                  awning_a, awning_b, sign_w=430, seed=2, shop=True, kind="cafe"):
+    """A shop in 2:1 iso: front face along +X, return face along +Y.
+
+    No outlines on the masonry. Separation is by value: the front face is
+    sunlit and ramps into shade at its base, the return face is in shadow, and
+    every junction where two surfaces meet gets an occlusion wash. The ground
+    floor is laid out as a real shopfront elevation -- fascia, awning, glazing,
+    plinth -- so nothing overlaps anything it should not.
+    """
     rnd = random.Random(seed)
     hw, hh = SX / 2.0, SY / 2.0
-    floor_h = 220.0
-    wall_h = floor_h * storeys
+    ground_h = 250.0
+    upper_h = 200.0
+    wall_h = ground_h + (storeys - 1) * upper_h
     eave = 26.0
-    rise = 96.0
+    rise = 66.0
+    gy = wall_h - ground_h
 
-    # footprint corners (world -> local screen), origin at back corner A
     A = (fy * hw, 0.0)
     B = (fy * hw + fx * hw, fx * hh)
     C = (fx * hw, fx * hh + fy * hh)
     D = (0.0, fy * hh)
 
-    pad = 60.0
+    pad = 110.0
     minx = min(p[0] for p in (A, B, C, D)) - pad
     maxx = max(p[0] for p in (A, B, C, D)) + pad
-    miny = -wall_h - rise - 90
-    maxy = max(p[1] for p in (A, B, C, D)) + 40
+    miny = -wall_h - rise - 130
+    maxy = max(p[1] for p in (A, B, C, D)) + 70
     w, h = maxx - minx, maxy - miny
     ox, oy = -minx, -miny
     A, B, C, D = [(p[0] + ox, p[1] + oy) for p in (A, B, C, D)]
 
     s = []
-    s.append(soft_shadow((A[0] + C[0]) / 2 + 20, (A[1] + C[1]) / 2 + 26,
-                         (maxx - minx) * 0.34, (maxy - miny) * 0.09))
+    s.append(soft_shadow((A[0] + C[0]) / 2 + 26, (A[1] + C[1]) / 2 + 32,
+                         (maxx - minx) * 0.33, (maxy - miny) * 0.085))
 
     Atop = (A[0], A[1] - wall_h)
     Btop = (B[0], B[1] - wall_h)
     Ctop = (C[0], C[1] - wall_h)
     Dtop = (D[0], D[1] - wall_h)
 
-    # --- side wall (along +Y), origin at C top, u to the right and up
+    # ---- return face: in shade, and darker still toward the ground --------
     side_len = fy * hw
     side = []
-    side.append(rect(0, 0, side_len, wall_h, wall_lo))
+    side.append(vgrad(0, 0, side_len, wall_h, sh(wall, 0.40), sh(wall, 0.56)))
+    side.append(rect(0, 0, side_len, 34, sh(wall, 0.62)))
     for st in range(storeys):
-        wy = wall_h - (st + 1) * floor_h + 62
+        wy = (wall_h - ground_h - st * upper_h + 56) if st else (gy + 70)
+        if wy < 10 or wy + 92 > wall_h - 10:
+            continue
         for k in range(max(1, int(fy))):
             wx = 60 + k * (side_len / max(1, int(fy)))
-            side.append(rect(wx, wy, 78, 96, P["glass_cool"], stroke=wall_lo, sw=5, rx=5))
-            side.append(rect(wx + 5, wy + 5, 30, 86, P["white"], opacity=0.25))
+            side.append(rect(wx, wy, 72, 92, sh(P["glass_cool"], 0.42), rx=3))
+            side.append(rect(wx + 4, wy + 4, 22, 84, "#FFFFFF", opacity=0.10))
     s.append(g("".join(side), "matrix(1,-0.5,0,1,%s,%s)" % (r2(C[0]), r2(C[1] - wall_h))))
 
-    # --- front wall (along +X), origin at D top, u to the right and down
+    # ---- sunlit front face ------------------------------------------------
     front_len = fx * hw
     fw = []
-    fw.append(rect(0, 0, front_len, wall_h, wall))
-    fw.append(rect(0, 0, front_len, 10, "#FFFFFF", opacity=0.14))
+    fw.append(vgrad(0, 0, front_len, wall_h, lt(wall, 0.26), sh(wall, 0.16)))
+    fw.append(rect(0, 0, front_len, 30, sh(wall, 0.26)))            # eave shade
+    fw.append(rect(0, 30, front_len, 18, sh(wall, 0.12)))
+    for i in range(int(front_len / 30)):                            # plaster mottle
+        fw.append(rect(rnd.uniform(0, front_len - 70), rnd.uniform(40, wall_h - 50),
+                       rnd.uniform(28, 68), rnd.uniform(13, 28),
+                       sh(wall, 0.055) if i % 2 else lt(wall, 0.07),
+                       rx=9, opacity=0.28))
+
     # upper storeys
     for st in range(storeys - 1):
-        wy = wall_h - (st + 2) * floor_h + 50
+        wy = wall_h - ground_h - (st + 1) * upper_h + 42
         cols = max(2, int(fx))
         for k in range(cols):
-            wx = front_len * (k + 0.5) / cols - 55
-            fw.append(rect(wx - 6, wy - 8, 122, 152, wall_lo, rx=8))
-            fw.append(rect(wx, wy, 110, 132, P["glass_cool"], stroke=wall_lo, sw=6, rx=5))
-            fw.append(rect(wx + 6, wy + 6, 44, 120, P["white"], opacity=0.3))
-            fw.append(line(wx + 55, wy + 2, wx + 55, wy + 130, wall_lo, sw=5))
-            fw.append(line(wx + 2, wy + 66, wx + 108, wy + 66, wall_lo, sw=5))
-            # window box
-            fw.append(rect(wx - 12, wy + 128, 134, 30, P["wood"], stroke=P["wood_out"], sw=4, rx=5))
-            for i in range(6):
-                fx2 = wx - 4 + i * 22 + rnd.uniform(-3, 3)
-                fw.append(circ(fx2, wy + 124, 13, P["leaf"], stroke=P["leaf_out"], sw=3))
-                fw.append(circ(fx2 - 2, wy + 120, 6, FLOWERS[rnd.randrange(len(FLOWERS))]))
+            wx = front_len * (k + 0.5) / cols - 54
+            fw.append(rect(wx - 9, wy - 11, 126, 150, sh(wall, 0.17), rx=5))
+            fw.append(rect(wx - 9, wy - 11, 126, 9, sh(wall, 0.30), rx=4))
+            fw.append(rect(wx, wy, 108, 124, "#34291E", rx=2))
+            fw.append(vgrad(wx + 3, wy + 3, 102, 118, "#6E6455", "#4A3E30"))
+            fw.append(rect(wx + 8, wy + 40, 92, 82, "#8A6A42", opacity=0.55))
+            fw.append(circ(wx + 54, wy + 58, 26, P["glow"], opacity=0.24))
+            fw.append(rect(wx + 3, wy + 3, 34, 118, "#DCE8EE", opacity=0.42))
+            fw.append(rect(wx + 3, wy + 3, 102, 20, "#DCE8EE", opacity=0.22))
+            fw.append(rect(wx + 52, wy + 2, 5, 122, lt(wall, 0.40)))
+            fw.append(rect(wx + 2, wy + 60, 104, 5, lt(wall, 0.40)))
+            # window box, with occlusion under it
+            for i in range(20):
+                fx2 = wx - 12 + i * 7.0 + rnd.uniform(-2, 2)
+                fy2 = wy + 124 + rnd.uniform(-4, 2)
+                fw.append(circ(fx2, fy2, rnd.uniform(4.5, 7.0), P["leaf_lo"]))
+            for i in range(16):
+                fx2 = wx - 10 + i * 8.6 + rnd.uniform(-2, 2)
+                fw.append(circ(fx2, wy + 121 + rnd.uniform(-3, 2), rnd.uniform(3.4, 5.4),
+                               P["leaf"]))
+            for i in range(9):
+                fw.append(circ(wx - 8 + i * 15.0 + rnd.uniform(-3, 3),
+                               wy + 120 + rnd.uniform(-4, 3), 3.2,
+                               FLOWERS[rnd.randrange(len(FLOWERS))]))
+            fw.append(rect(wx - 15, wy + 128, 138, 26, P["wood"], rx=4))
+            fw.append(rect(wx - 15, wy + 128, 138, 6, lt(P["wood"], 0.26), rx=4))
+            fw.append(rect(wx - 15, wy + 148, 138, 6, sh(P["wood"], 0.30), rx=3))
+            fw.append(rect(wx - 15, wy + 154, 138, 12, "#2A2018", opacity=0.26))
+
     if shop:
-        gy = wall_h - floor_h
-        # shopfront glazing
-        fw.append(rect(30, gy + 66, front_len * 0.40, floor_h - 76,
-                       P["glass"], stroke=P["wood_out"], sw=7, rx=6))
-        gx0, gwid = 30, front_len * 0.40
-        for i in range(1, 3):
-            fw.append(line(gx0 + gwid * i / 3, gy + 70, gx0 + gwid * i / 3, gy + floor_h - 12,
-                           P["wood_out"], sw=6))
-        fw.append(rect(gx0 + 8, gy + 74, gwid * 0.30, floor_h - 92, P["white"], opacity=0.22))
-        # warm interior glow
-        fw.append(rect(gx0 + 6, gy + 120, gwid - 12, 70, P["glow"], opacity=0.45))
-        for i in range(3):
-            fw.append(circ(gx0 + 34 + i * gwid * 0.30, gy + 112, 11, P["glow_soft"], opacity=0.9))
-        # door
-        dx0 = 30 + front_len * 0.40 + 40
-        fw.append(rect(dx0, gy + 52, 132, floor_h - 62, P["wood_lo"], stroke=P["wood_out"], sw=7, rx=8))
-        fw.append(rect(dx0 + 14, gy + 66, 104, 84, P["glass"], stroke=P["wood_out"], sw=5, rx=4))
-        fw.append(rect(dx0 + 14, gy + 164, 104, 56, P["wood"], rx=4))
-        fw.append(circ(dx0 + 106, gy + 178, 8, P["sign"]))
-        # second glazing
-        gx1 = dx0 + 152
-        gw1 = front_len - gx1 - 30
-        if gw1 > 80:
-            fw.append(rect(gx1, gy + 66, gw1, floor_h - 76, P["glass"],
-                           stroke=P["wood_out"], sw=7, rx=6))
-            fw.append(rect(gx1 + 8, gy + 74, gw1 * 0.3, floor_h - 92, P["white"], opacity=0.22))
-            fw.append(rect(gx1 + 6, gy + 120, gw1 - 12, 66, P["glow"], opacity=0.4))
-        # awning: striped, scalloped bottom
-        ay = gy + 30
-        aw = front_len - 20
-        stripes = []
-        n = max(6, int(aw / 62))
+        # --- shopfront elevation, laid out top to bottom, no collisions ----
+        fascia_y = gy + 6
+        fascia_h = 62
+        awn_y = gy + 74
+        awn_h = 54
+        glass_y = gy + 100
+        glass_h = 118
+        plinth_y = glass_y + glass_h
+        margin = 26.0
+        door_w = min(112.0, front_len * 0.24)
+        gap = 16.0
+        usable = front_len - 2 * margin
+        rest = usable - door_w - 2 * gap
+        w1 = rest * 0.55
+        w2 = rest * 0.45
+        x1 = margin
+        xd = x1 + w1 + gap
+        x2 = xd + door_w + gap
+
+        # plinth
+        fw.append(rect(0, plinth_y, front_len, wall_h - plinth_y, sh(wall, 0.22)))
+        fw.append(rect(0, plinth_y, front_len, 7, sh(wall, 0.34)))
+        fw.append(rect(0, wall_h - 22, front_len, 22, "#2A2018", opacity=0.22))
+
+        def window(x, wd, sd):
+            o = []
+            o.append(rect(x - 8, glass_y - 8, wd + 16, glass_h + 16, sh(P["wood"], 0.30), rx=4))
+            o.append(rect(x - 8, glass_y - 8, wd + 16, 6, sh(P["wood"], 0.46), rx=3))
+            o.append(_interior(x, glass_y, wd, glass_h, sd, kind))
+            n_m = max(1, int(wd / 78))
+            for i in range(1, n_m + 1):
+                o.append(rect(x + wd * i / (n_m + 1) - 3, glass_y, 6, glass_h,
+                              sh(P["wood"], 0.30)))
+            # the awning throws deep shade across the top of the glass
+            o.append(rect(x, glass_y, wd, 34, "#241B12", opacity=0.42))
+            o.append(rect(x, glass_y + 34, wd, 16, "#241B12", opacity=0.18))
+            return "".join(o)
+
+        fw.append(window(x1, w1, seed))
+        fw.append(window(x2, w2, seed + 3))
+
+        # door, recessed and darker
+        fw.append(rect(xd - 7, glass_y - 8, door_w + 14, glass_h + 8 + (plinth_y - glass_y - glass_h) + 18,
+                       sh(P["wood"], 0.34), rx=4))
+        fw.append(rect(xd, glass_y - 2, door_w, glass_h + 22, sh(P["wood"], 0.16), rx=3))
+        fw.append(rect(xd + 10, glass_y + 8, door_w - 20, 62, "#3E2E1E", rx=2))
+        fw.append(circ(xd + door_w * 0.5, glass_y + 40, 30, P["glow"], opacity=0.30))
+        fw.append(circ(xd + door_w * 0.5, glass_y + 40, 16, P["glow_soft"], opacity=0.45))
+        fw.append(rect(xd + 10, glass_y + 80, door_w - 20, glass_h - 74, sh(P["wood"], 0.04), rx=2))
+        fw.append(rect(xd + 10, glass_y + 80, 12, glass_h - 74, lt(P["wood"], 0.16), rx=2))
+        fw.append(circ(xd + door_w - 20, glass_y + 62, 6, lt(P["sign"], 0.3)))
+        fw.append(rect(xd - 7, glass_y - 14, door_w + 14, 12, "#241B12", opacity=0.34))
+
+        # --- awning: lit top, shaded underside, scalloped valance ----------
+        aw = front_len - 16
+        ax = 8
+        n = max(6, int(aw / 58))
         for i in range(n):
             col = awning_a if i % 2 == 0 else awning_b
-            stripes.append(rect(10 + aw * i / n, ay, aw / n + 1, 74, col))
-        fw.append(g("".join(stripes)))
-        scal = "M %s %s " % (r2(10), r2(ay + 74))
-        segs = max(5, int(aw / 70))
+            fw.append(rect(ax + aw * i / n, awn_y, aw / n + 1, awn_h, col))
+        fw.append(rect(ax, awn_y, aw, 16, "#FFFFFF", opacity=0.32))        # sunlit crest
+        fw.append(rect(ax, awn_y + awn_h - 18, aw, 18, "#241B12", opacity=0.16))
+        segs = max(5, int(aw / 64))
+        val = "M %s %s " % (r2(ax), r2(awn_y + awn_h))
         for i in range(segs):
-            x1 = 10 + aw * i / segs
-            x2 = 10 + aw * (i + 1) / segs
-            scal += "Q %s %s, %s %s " % (r2((x1 + x2) / 2), r2(ay + 108), r2(x2), r2(ay + 74))
-        scal += "L %s %s L %s %s Z" % (r2(10 + aw), r2(ay + 70), r2(10), r2(ay + 70))
-        fw.append(path(scal, fill=awning_a, opacity=0.0))
-        # redo scallops striped: draw shapes clipped by alternating rects is overkill;
-        # use a single cream valance with a coloured lip
-        val = "M %s %s " % (r2(10), r2(ay + 66))
-        for i in range(segs):
-            x1 = 10 + aw * i / segs
-            x2 = 10 + aw * (i + 1) / segs
-            val += "Q %s %s, %s %s " % (r2((x1 + x2) / 2), r2(ay + 106), r2(x2), r2(ay + 66))
-        val += "L %s %s L %s %s Z" % (r2(10 + aw), r2(ay + 60), r2(10), r2(ay + 60))
-        fw.append(path(val, fill=awning_b, stroke=P["cream_out"], sw=4))
-        fw.append(rect(10, ay - 6, aw, 16, P["cream"], stroke=P["cream_out"], sw=4, rx=4))
-        fw.append(rect(10, ay, aw, 74, "none", stroke=P["cream_out"], sw=4))
-        fw.append(rect(10, ay + 4, aw, 18, P["white"], opacity=0.18))
-        # hanging sign board (text is drawn by Godot on top)
-        sy = gy - 96
-        sx = (front_len - sign_w) / 2.0
-        fw.append(rect(sx - 10, sy - 10, sign_w + 20, 104, P["sign_lo"], rx=10))
-        fw.append(rect(sx, sy, sign_w, 84, P["sign"], stroke=P["wood_out"], sw=6, rx=8))
-        fw.append(rect(sx + 8, sy + 8, sign_w - 16, 22, P["white"], opacity=0.16, rx=6))
-        # lamps flanking the sign
-        for lx in (sx - 52, sx + sign_w + 52):
-            if 0 < lx < front_len:
-                fw.append(rect(lx - 6, sy - 46, 12, 40, P["iron"], rx=4))
-                fw.append(poly([(lx - 26, sy - 6), (lx + 26, sy - 6), (lx + 16, sy - 40),
-                                (lx - 16, sy - 40)], P["iron"]))
-                fw.append(ell(lx, sy - 4, 24, 8, P["glow"]))
-                fw.append(circ(lx, sy + 14, 34, P["glow"], opacity=0.16))
+            xa = ax + aw * i / segs
+            xb = ax + aw * (i + 1) / segs
+            val += "Q %s %s, %s %s " % (r2((xa + xb) / 2), r2(awn_y + awn_h + 34),
+                                        r2(xb), r2(awn_y + awn_h))
+        val += "L %s %s L %s %s Z" % (r2(ax + aw), r2(awn_y + awn_h - 8), r2(ax), r2(awn_y + awn_h - 8))
+        fw.append(path(val, fill=awning_b))
+        fw.append(path(val, fill="#241B12", opacity=0.13))
+        fw.append(rect(ax, awn_y - 7, aw, 13, lt(awning_a, 0.3), rx=3))
+
+        # --- fascia and sign ------------------------------------------------
+        fw.append(rect(0, fascia_y, front_len, fascia_h, sh(P["sign"], 0.30)))
+        fw.append(rect(0, fascia_y, front_len, 8, sh(P["sign"], 0.48)))
+        sgw = min(sign_w, front_len - 70)
+        sx = (front_len - sgw) / 2.0
+        fw.append(rect(sx, fascia_y + 6, sgw, fascia_h - 12, P["sign"], rx=4))
+        fw.append(rect(sx, fascia_y + 6, sgw, 16, lt(P["sign"], 0.20), rx=4))
+        fw.append(rect(sx, fascia_y + fascia_h - 18, sgw, 12, sh(P["sign"], 0.14)))
+        fw.append(rect(0, fascia_y + fascia_h, front_len, 10, "#241B12", opacity=0.22))
+        for lx in (sx - 40, sx + sgw + 40):
+            if 24 < lx < front_len - 24:
+                fw.append(rect(lx - 4, fascia_y - 34, 8, 32, P["iron"], rx=3))
+                fw.append(path("M %s %s L %s %s L %s %s L %s %s Z" % (
+                    r2(lx - 22), r2(fascia_y - 2), r2(lx + 22), r2(fascia_y - 2),
+                    r2(lx + 12), r2(fascia_y - 30), r2(lx - 12), r2(fascia_y - 30)),
+                    fill=P["iron"]))
+                fw.append(ell(lx, fascia_y - 1, 20, 7, P["glow"]))
+                fw.append(circ(lx, fascia_y + 16, 46, P["glow"], opacity=0.14))
+                fw.append(circ(lx, fascia_y + 8, 26, P["glow"], opacity=0.16))
+
+        # --- facade greenery, kept inside the wall so it actually reads ----
+        fw.append(_vine(front_len - 13, plinth_y - 6, wall_h * 0.80, seed + 11))
+        fw.append(_vine(11, plinth_y - 6, wall_h * 0.58, seed + 21))
     s.append(g("".join(fw), "matrix(1,0.5,0,1,%s,%s)" % (r2(D[0]), r2(D[1] - wall_h))))
 
-    # --- hip roof
+    # ---- hip roof ---------------------------------------------------------
     inset = 0.34
-    R1w = (0.0 + inset, fy / 2.0)
-    R2w = (fx - inset, fy / 2.0)
-    def wpt(p):
-        return (ox + (p[0] - p[1]) * hw + fy * hw, oy + (p[0] + p[1]) * hh - wall_h - rise)
-    R1 = wpt(R1w)
-    R2 = wpt(R2w)
-    # eaves overhang
-    def out(p, dx, dy):
-        return (p[0] + dx, p[1] + dy)
-    Deav = out(Dtop, -eave, eave * 0.5)
-    Ceav = out(Ctop, 0, eave)
-    Beav = out(Btop, eave, eave * 0.5)
-    Aeav = out(Atop, 0, -eave * 0.5)
-    s.append(poly([Deav, Ceav, R2, R1], roof, stroke=roof_lo, sw=6))
-    s.append(poly([Ceav, Beav, R2], roof_lo, stroke=roof_lo, sw=6))
-    s.append(poly([Aeav, Deav, R1], roof_lo, stroke=roof_lo, sw=6, opacity=0.9))
-    # roof tile courses on the front slope
-    for i in range(1, 5):
-        t = i / 5.0
+    def wpt(pt):
+        return (ox + (pt[0] - pt[1]) * hw + fy * hw,
+                oy + (pt[0] + pt[1]) * hh - wall_h - rise)
+    R1 = wpt((0.0 + inset, fy / 2.0))
+    R2 = wpt((fx - inset, fy / 2.0))
+    def outp(pt, dx, dy):
+        return (pt[0] + dx, pt[1] + dy)
+    Deav = outp(Dtop, -eave, eave * 0.5)
+    Ceav = outp(Ctop, 0, eave)
+    Beav = outp(Btop, eave, eave * 0.5)
+    Aeav = outp(Atop, 0, -eave * 0.5)
+    s.append(poly([Deav, Ceav, R2, R1], lt(roof, 0.12)))
+    s.append(poly([Ceav, Beav, R2], sh(roof, 0.30)))
+    s.append(poly([Aeav, Deav, R1], sh(roof, 0.40)))
+    for i in range(1, 7):
+        t = i / 7.0
         p1 = (Deav[0] + (R1[0] - Deav[0]) * t, Deav[1] + (R1[1] - Deav[1]) * t)
         p2 = (Ceav[0] + (R2[0] - Ceav[0]) * t, Ceav[1] + (R2[1] - Ceav[1]) * t)
-        s.append(line(p1[0], p1[1], p2[0], p2[1], roof_lo, sw=4, opacity=0.35, cap="butt"))
-    s.append(line(R1[0], R1[1], R2[0], R2[1], roof_lo, sw=8))
-    s.append(line(R1[0], R1[1] - 3, R2[0], R2[1] - 3, P["white"], sw=3, opacity=0.25))
-    # chimney
+        s.append(line(p1[0], p1[1], p2[0], p2[1], sh(roof, 0.14), sw=3, opacity=0.35, cap="butt"))
+    s.append(line(R1[0], R1[1] - 2, R2[0], R2[1] - 2, lt(roof, 0.34), sw=5))
+    s.append(poly([Deav, Ceav, Ctop, Dtop], "#241B12", opacity=0.26))   # eave shadow
     chx = R1[0] + (R2[0] - R1[0]) * 0.74
     chy = R1[1] + (R2[1] - R1[1]) * 0.74
-    s.append(rect(chx - 22, chy - 92, 44, 96, P["wall_sand"], stroke=P["cream_out"], sw=5, rx=3))
-    s.append(rect(chx - 28, chy - 102, 56, 18, P["stone_lo"], stroke=P["joint"], sw=4, rx=3))
+    s.append(rect(chx - 21, chy - 88, 42, 92, P["wall_sand"], rx=2))
+    s.append(rect(chx - 21, chy - 88, 14, 92, lt(P["wall_sand"], 0.20)))
+    s.append(rect(chx - 27, chy - 98, 54, 17, sh(P["wall_sand"], 0.24), rx=2))
 
     write(name, w, h, C[0], C[1], "".join(s))
     if shop:
-        gy = wall_h - floor_h
-        sy = gy - 96
-        sx = (front_len - sign_w) / 2.0
-        u = sx + sign_w / 2.0
-        v = sy + 42
+        u = front_len / 2.0
+        v = gy + 6 + 62 / 2.0
         props[name]["sign"] = [round(D[0] + u, 2), round(D[1] - wall_h + 0.5 * u + v, 2)]
-        props[name]["sign_w"] = sign_w
+        props[name]["sign_w"] = min(sign_w, front_len - 70)
 
 
 def make_house(name, fx, fy, wall, wall_lo, roof, roof_lo, seed=7):
@@ -1180,19 +1384,19 @@ def main():
     make_building("shop_cafe", fx=4.0, fy=2.6, storeys=2,
                   wall=P["wall_sand"], wall_lo=P["wall_sand_lo"],
                   roof=P["roof_terra"], roof_lo=P["roof_terra_lo"],
-                  awning_a=P["cream"], awning_b=P["rose"], sign_w=470, seed=2)
+                  awning_a=P["cream"], awning_b=P["rose"], sign_w=470, seed=2, kind="cafe")
     make_building("shop_bakery", fx=3.4, fy=2.6, storeys=2,
                   wall=P["wall_blue"], wall_lo=P["wall_blue_lo"],
                   roof=P["roof_slate"], roof_lo=P["roof_slate_lo"],
-                  awning_a=P["cream"], awning_b=P["cream_lo"], sign_w=400, seed=5)
+                  awning_a=P["cream"], awning_b=P["cream_lo"], sign_w=400, seed=5, kind="bakery")
     make_building("shop_books", fx=3.4, fy=2.6, storeys=2,
                   wall=P["wall_green"], wall_lo=P["wall_green_lo"],
                   roof=P["roof_terra"], roof_lo=P["roof_terra_lo"],
-                  awning_a=P["cream"], awning_b="#7FB6A2", sign_w=400, seed=8)
+                  awning_a=P["cream"], awning_b="#7FB6A2", sign_w=400, seed=8, kind="books")
     make_building("shop_bloom", fx=3.0, fy=2.4, storeys=2,
                   wall="#6E8FBE", wall_lo="#53719B",
                   roof=P["roof_slate"], roof_lo=P["roof_slate_lo"],
-                  awning_a=P["cream"], awning_b="#8FB4DC", sign_w=360, seed=12)
+                  awning_a=P["cream"], awning_b="#8FB4DC", sign_w=360, seed=12, kind="bloom")
 
     make_character("player", H=228, skin="#F3C9A2", hair="#6B4225",
                    top_c="#E8A23C", bottom_c="#37697A", shoe_c="#4A3A30",

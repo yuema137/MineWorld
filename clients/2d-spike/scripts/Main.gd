@@ -10,6 +10,7 @@ extends Node2D
 const Iso := preload("res://scripts/Iso.gd")
 const Demo := preload("res://scripts/Demo.gd")
 const GroundScript := preload("res://scripts/Ground.gd")
+const ShadowScript := preload("res://scripts/Shadows.gd")
 
 const ART := "res://art/svg/%s.svg"
 
@@ -35,9 +36,10 @@ var player_facing := 1.0
 var walkers: Array = []
 var cam: Camera2D
 var _jit := RandomNumberGenerator.new()
+var shadows: Node2D
 
-const WALK_MIN := Vector2(1.5, 0.2)
-const WALK_MAX := Vector2(17.2, 10.9)
+const WALK_MIN := Vector2(1.7, 0.3)
+const WALK_MAX := Vector2(16.8, 10.3)
 const PLAYER_SPEED := 2.4   # world units/second (~4.8 m/s, a brisk walk in a demo)
 
 
@@ -52,12 +54,16 @@ func _ready() -> void:
 	ground.set_script(GroundScript)
 	add_child(ground)
 
+	shadows = Node2D.new()
+	shadows.set_script(ShadowScript)
+	add_child(shadows)
+
 	_build_places()
 	_build_scenery()
 	_build_people()
 
 	cam = Camera2D.new()
-	cam.zoom = Vector2(1.05, 1.05)
+	cam.zoom = Vector2(1.55, 1.55)
 	cam.position_smoothing_enabled = true
 	cam.position_smoothing_speed = 4.0
 	cam.position = Iso.to_screen(player_at)
@@ -102,15 +108,33 @@ func _prop(name: String, at: Vector2, flip := false, z := 0) -> Node2D:
 	# Vegetation gets a little size and hue jitter, so a dozen copies of one
 	# tree do not read as a dozen copies of one tree.
 	if name.begins_with("tree") or name.begins_with("bush") or name == "hedge":
-		k *= 0.84 + _jit.randf() * 0.34
-		s.modulate = Color(0.90 + _jit.randf() * 0.16,
-			0.92 + _jit.randf() * 0.14, 0.86 + _jit.randf() * 0.18)
+		k *= 0.70 + _jit.randf() * 0.68
+		s.modulate = Color(0.82 + _jit.randf() * 0.30,
+			0.86 + _jit.randf() * 0.24, 0.76 + _jit.randf() * 0.32)
 	s.scale = Vector2(-k if flip else k, k)
 	if flip:
 		s.offset.x = -s.offset.x - float(m["w"]) + 2.0 * float(m["ax"])
 	holder.add_child(s)
 	world.add_child(holder)
+	_cast_shadow(name, holder.position, k)
 	return holder
+
+
+## Sun is fixed upper-left; everything with height throws a soft blob.
+func _cast_shadow(name: String, at: Vector2, k: float) -> void:
+	if shadows == null:
+		return
+	if name.begins_with("tree"):
+		shadows.add(at, 58.0 * k * 2.2, 24.0 * k * 2.2, 74.0 * k * 2.2, 0.30)
+	elif name.begins_with("bush") or name == "hedge":
+		shadows.add(at, 44.0 * k * 2.0, 17.0 * k * 2.0, 30.0 * k * 2.0, 0.24)
+	elif name == "lamppost":
+		shadows.add(at, 12.0, 6.0, 150.0 * k * 2.0, 0.20)
+	elif name.begins_with("shop_"):
+		shadows.add(at + Vector2(-70, -18), 250.0 * k, 96.0 * k, 190.0 * k, 0.24)
+	elif name in ["fountain", "cafeset", "bench", "bench_r", "planter", "planter_b",
+			"barrel", "bicycle", "signpost", "chalkboard", "pot", "pot_b"]:
+		shadows.add(at, 34.0 * k * 1.6, 13.0 * k * 1.6, 30.0 * k * 1.6, 0.22)
 
 
 ## World position of a point offset in *screen* pixels from another — handy for
@@ -198,31 +222,49 @@ func _build_scenery() -> void:
 	for it in park:
 		_prop(it[0], Vector2(it[1], it[2]))
 
-	# treeline closing the south and east sides, so the square has edges
+	# Deep foliage belts on every side. The world has to run off the edge of
+	# the frame; a visible map boundary is what made this read as a diorama.
 	var edge: Array = []
-	var i := 0.0
-	while i < 16.0:
-		edge.append(["tree_b" if int(i) % 3 == 0 else "tree_c", 2.2 + i, 11.9 + sin(i) * 0.35])
-		edge.append(["bush_a" if int(i) % 2 == 0 else "bush_b", 2.8 + i, 11.25])
-		i += 1.45
-	var j := 0.0
-	while j < 12.0:
-		edge.append(["tree_c" if int(j) % 2 == 0 else "tree_b", 18.3 + sin(j) * 0.3, 0.4 + j])
-		edge.append(["bush_b", 17.75, 0.9 + j])
-		j += 1.5
-	# and along the shopfront row, behind the buildings
-	var m := 0.0
-	while m < 16.0:
-		edge.append(["tree_b", 1.0 + m, -4.3])
-		m += 1.6
+	var b := 0.0
+	while b < 5.0:                      # south, four rows deep
+		var xx := -2.0
+		while xx < 24.0:
+			edge.append([["tree_b", "tree_a", "tree_c"][int(xx + b) % 3],
+				xx + b * 0.4, 11.7 + b * 1.25 + sin(xx) * 0.3])
+			if b < 2.0:
+				edge.append(["bush_a" if int(xx) % 2 == 0 else "bush_b",
+					xx + 0.6, 11.2 + b * 1.25])
+			xx += 1.25
+		b += 1.0
+	var e := 0.0
+	while e < 4.0:                      # east
+		var yy := -3.0
+		while yy < 18.0:
+			edge.append([["tree_c", "tree_b", "tree_a"][int(yy + e) % 3],
+				18.4 + e * 1.25 + sin(yy) * 0.3, yy + e * 0.4])
+			if e < 2.0:
+				edge.append(["bush_b", 17.9 + e * 1.25, yy + 0.6])
+			yy += 1.25
+		e += 1.0
+	var n := 0.0
+	while n < 3.0:                      # behind the shop row
+		var xn := -1.0
+		while xn < 20.0:
+			edge.append([["tree_a", "tree_b"][int(xn) % 2], xn, -4.6 - n * 1.3])
+			xn += 1.35
+		n += 1.0
 	for it in edge:
 		_prop(it[0], Vector2(it[1], it[2]))
 
-	# fill the paving: planters, pots and low greenery break up the expanse
+	# Foreground foliage: trees nearer the camera than the player can walk,
+	# so canopies break into the bottom of the frame.
+	for fgx in [2.4, 4.6, 7.0, 9.4, 11.8, 14.2, 16.4]:
+		_prop("tree_a", Vector2(fgx, 11.1 + sin(fgx) * 0.2))
+
+	# Density near the buildings: clusters, not singles.
 	var fill := [
 		["planter", 3.10, 4.10], ["planter_b", 3.10, 5.30], ["planter", 3.10, 6.50],
 		["planter_b", 9.90, 5.60], ["planter", 9.90, 6.80], ["planter_b", 9.90, 4.40],
-		["pot", 6.40, 1.90], ["pot_b", 7.30, 1.95], ["pot", 5.50, 1.85],
 		["bush_b", 4.60, 8.60], ["bush_a", 6.20, 8.30], ["bush_b", 8.20, 8.90],
 		["tree_c", 4.30, 7.40], ["tree_b", 9.10, 9.10], ["tree_c", 1.95, 4.40],
 		["pot_b", 1.60, 6.60], ["pot", 1.60, 7.70], ["pot_b", 1.60, 3.30],
@@ -230,9 +272,16 @@ func _build_scenery() -> void:
 		["planter", 12.60, 1.60], ["planter_b", 14.20, 1.80],
 		["pot", 13.30, 3.80], ["bush_a", 14.60, 3.40], ["pot_b", 15.60, 2.20],
 		["barrel", 2.55, 9.10], ["bicycle", 4.85, 0.35],
-		["chalkboard", 13.05, -0.22], ["chalkboard", 16.50, -0.20],
-		["cafeset", 5.55, 0.95],
+		["cafeset", 5.55, 0.95], ["cafeset", 11.40, 0.95],
 	]
+	# clusters of pots and chalkboards flanking every shopfront
+	for sx in [1.15, 5.30, 9.10, 12.85, 16.35]:
+		fill.append(["pot", sx, -0.30])
+		fill.append(["pot_b", sx + 0.32, -0.16])
+		fill.append(["pot", sx + 0.12, -0.02])
+		fill.append(["bush_b", sx + 0.62, -0.26])
+		fill.append(["chalkboard", sx + 1.00, -0.14])
+		fill.append(["planter_b", sx + 1.48, -0.24])
 	for it in fill:
 		_prop(it[0], Vector2(it[1], it[2]))
 
@@ -407,8 +456,8 @@ func _shots() -> void:
 	set_process(false)
 
 	# wide: the whole square
-	cam.zoom = Vector2(0.62, 0.62)
-	cam.position = Iso.to_screen(Vector2(8.0, 4.2))
+	cam.zoom = Vector2(0.80, 0.80)
+	cam.position = Iso.to_screen(Vector2(8.0, 4.6))
 	await _settle(8)
 	await _save("01_wide")
 
@@ -419,8 +468,8 @@ func _shots() -> void:
 	await _save("02_mid_npcs")
 
 	# close: the cafe frontage and its terrace
-	cam.zoom = Vector2(2.2, 2.2)
-	cam.position = Iso.to_screen(Vector2(3.2, 0.2))
+	cam.zoom = Vector2(1.55, 1.55)
+	cam.position = Iso.to_screen(Vector2(3.6, 1.9))
 	await _settle(6)
 	await _save("03_close_cafe")
 
