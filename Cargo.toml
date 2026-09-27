@@ -1,5 +1,5 @@
 [workspace]
-members = ["contracts", "kernel"]
+members = ["contracts", "kernel", "systems/presence"]
 resolver = "2"
 
 # Shared metadata: every crate in this workspace is part of one release unit, so the
@@ -15,6 +15,8 @@ authors = ["Yue Ma"]
 # dependency not listed here is adding a dependency, which is a reviewable decision.
 [workspace.dependencies]
 mineworld-contracts = { path = "contracts" }
+mineworld-kernel = { path = "kernel" }
+mineworld-presence = { path = "systems/presence" }
 serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
 serde_json = "1.0.151"
