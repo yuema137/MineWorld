@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Launch the MineWorld 2D presentation spike.
+#
+#   ./mineworld-2d            walk around (WASD or arrow keys, Esc to quit)
+#   ./mineworld-2d --shots    capture reference stills into clients/2d-spike/shots/
+#   ./mineworld-2d --drive    scripted movement check, prints distances travelled
+#
+# Requires Godot 4.4+ on PATH (tested with 4.7.2).  brew install godot
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+godot="${GODOT:-godot}"
+if ! command -v "$godot" >/dev/null 2>&1; then
+  echo "mineworld-2d: '$godot' not found on PATH. Install Godot 4 (brew install godot)," >&2
+  echo "              or point GODOT= at the binary." >&2
+  exit 127
+fi
+project="$here/clients/2d-spike"
+
+# Godot stores its import cache in .godot/, which is gitignored — so a fresh
+# clone or a moved worktree has none, and every sprite silently fails to load.
+# Import first whenever the cache is missing or older than the art it indexes.
+needs_import=0
+if [ ! -d "$project/.godot/imported" ]; then
+  needs_import=1
+else
+  for svg in "$project"/art/svg/*.svg; do
+    [ -e "$svg" ] || continue
+    if [ -z "$(find "$project/.godot/imported" -name "$(basename "$svg")-*.ctex" -newer "$svg" -print -quit 2>/dev/null)" ]; then
+      needs_import=1
+      break
+    fi
+  done
+fi
+if [ "$needs_import" -eq 1 ]; then
+  echo "mineworld-2d: building the Godot import cache (first run only, ~20 s)..." >&2
+  "$godot" --headless --path "$project" --import >/dev/null 2>&1 || true
+fi
+
+exec "$godot" --path "$project" -- "$@"
