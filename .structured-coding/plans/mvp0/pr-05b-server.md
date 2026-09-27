@@ -214,7 +214,7 @@ could not otherwise order two observations, since `WorldTime` has one-second gra
 | --- | --- | --- | --- | --- |
 | 1 | the crate: the frames, the perception seam, the host and the world thread | `[x]` | `[x]` | `[x]` |
 | 2 | the transport: HTTP control plane, WebSocket sessions, the binary | `[x]` | `[x]` | `[x]` |
-| 3 | the acceptance tests: two real clients on real sockets | `[ ]` | `[ ]` | `[ ]` |
+| 3 | the acceptance tests: two real clients on real sockets | `[x]` | `[x]` | `[x]` |
 | 4 | terminal validation and closeout | `[ ]` | `[ ]` | `[ ]` |
 
 Commit 1 and commit 2 were planned as three (frames / host / transport) and became two: a commit
@@ -297,6 +297,240 @@ seconds — the evidence that `/status` is answered by the world thread rather t
 transport captured at startup. An empty world with no seats is a valid world (`INV-12`) and the
 honest thing for this binary to host until PR 05c can load a World Pack.
 
+### Commit 3 — the acceptance, over real sockets
+
+```text
+Validation:
+  command:      cargo test -p mineworld-server
+  environment:  rustc/cargo 1.97.1, macOS (Darwin 25.2.0), Apple silicon; loopback TCP
+  result:       15 unit + 4 headless + 8 socket + 1 doc = 28 passed, 0 failed
+  runtime:      socket suite 0.21 s, headless suite 0.41 s
+  verdict:      PASS
+```
+
+The test world is two stub System Packs written the way a System Pack writes one — `placement`
+owns a `Room` component and provides `place`; `chatter` provides `speak` and `whisper` and emits
+`spoke` (`Visibility::Public`) and `whispered` (`Visibility::Participants`). Four people: alice and
+carol in the cafe, bob and dave in the street. Two seats: alice and bob.
+
+#### The transcript, from a run of two real clients against one server
+
+Captured from a throwaway test (deleted before the final head) that printed the frames verbatim.
+Trimmed only where a line repeats.
+
+```text
+[server] 127.0.0.1:61638
+
+[2d] {"t":"welcome","protocol":1,"seat":"alice","observer":"1","world":{"protocol":1,"at":0,
+      "entities":4,"systems":[{"system":"placement","enabled":true},
+      {"system":"chatter","enabled":true}],"seats":["alice","bob"],"clients":1}}
+[3d] {"t":"welcome","protocol":1,"seat":"bob","observer":"2", ... "clients":2}}
+
+[2d] observation seq 1  observer "1"  entities "1" (cafe), "3" (cafe)
+[3d] observation seq 1  observer "2"  entities "2" (street), "4" (street)
+
+[2d] {"t":"submit","token":"2d-1","request":{"actor":"1","action_type":"speak","target":"2", ...}}
+[2d] {"t":"result","token":"2d-1","action_id":"1","result":{"accepted":{"events":["1"]}}}
+
+[2d] seq 3 observer 1 events [{"id":"1","event_type":"spoke","subjects":["1","2"],
+      "participants":["1","2"],"caused_by":{"action":"1"},
+      "payload":{"event_type":"spoke","schema_version":1,
+                 "payload":{"to":"2","words":"hello from the cafe"}},
+      "visibility":"public","provenance":{"emitted_by":"chatter","controller_decision":"1"}}]
+      affordances [{"action_type":"speak","target":"3","available":true, ...}]
+[3d] seq 3 observer 2 events [{"id":"1", ... identical envelope ... }]
+      affordances [{"action_type":"speak","target":"4","available":true, ...}]
+
+[2d] {"t":"set_state","entity":"1","money":5000}
+[2d] {"t":"refused","code":"unknown_frame","detail":"this protocol has no frame of kind
+      \"set_state\"; a client may only join or submit"}
+```
+
+Read out of it, claim by claim:
+
+```text
+A1  two clients, two observers ("1" and "2"), and two different entity lists and affordance lists
+    from one world at the same instant. Neither list is a filtered copy of the other: the
+    affordance the server computed names entity "3" for one client and "4" for the other.
+A2  one fact, EventId "1", reached both clients — the same identity, the same
+    caused_by {"action":"1"} and the same provenance controller_decision "1". That is the
+    identity-not-appearance standard §1.3 requires, at this layer.
+A4  the assertion was refused by name, and nothing about the world changed.
+```
+
+Also visible, and each of them a thing the transport did not do:
+
+```text
+action_id "1"       allocated by the server; the client sent no identity and no instant
+"to":"2"            an EntityId INSIDE an event payload, as a decimal string — the exact position
+                    FINDINGS.md F2 measured as unreachable by a protocol-level encoder. This
+                    server has no encoder; the contract did it.
+seq 1,2,3           the per-connection counter F7 asked for, against an `at` of 0 throughout
+```
+
+#### The eight socket tests
+
+```text
+two_clients_connect_at_once_and_each_receives_its_own_observers_observation     A1
+an_intent_from_one_client_produces_an_event_both_clients_are_entitled_to_see    A2
+a_fact_only_one_observer_is_entitled_to_reaches_only_that_client                A2, the other half
+an_identity_inside_an_event_payload_reaches_a_client_as_a_decimal_string        F2
+killing_one_client_leaves_the_world_running_and_the_other_client_unaffected     A3
+a_message_that_asserts_state_is_refused_and_changes_nothing                     A4
+a_client_cannot_ask_the_world_to_act_as_somebody_else                           NETWORKING §2
+nothing_streams_until_a_seat_is_granted_and_a_seat_is_held_for_the_connection    INV-13
+```
+
+`A3` is the one worth stating precisely: the 2D client is **dropped**, not closed — no close frame,
+which is what a crashed client does. The 3D client's stream then advances (`seq` before < after),
+its own `speak` is still accepted, and `GET /status` answers `clients: 1, entities: 4`.
+
+#### The four headless tests
+
+The host without a transport, which `ENGINEERING_STANDARDS.md` §22 and `NETWORKING.md` §10
+require to be possible, and which owns the two claims a socket cannot show honestly:
+
+```text
+two_observers_of_one_world_receive_two_different_observations
+the_world_keeps_working_while_a_subscriber_never_reads          the no-blocking constraint
+the_server_allocates_the_identity_of_every_request              ActionIds 1 then 2, from the server
+a_seat_that_does_not_exist_and_an_actor_that_is_not_the_observer_are_both_refused
+```
+
+`the_world_keeps_working_while_a_subscriber_never_reads` is deliberately *not* a socket test: an
+operating system's own send buffer would absorb a slow reader long before the server's bounded
+channel filled, so a socket test of that claim would pass without exercising it. At the host seam
+the channel genuinely fills — 400 ms of sweeps at 20 ms against a backlog of 8 — and the world
+still answers `status` and still dispatches.
+
+### Mutation evidence
+
+Five mutations, each applied to committed production code, each reverted after the run. Every one
+was killed, which is what makes the tests above load-bearing rather than decorative.
+
+| # | Mutation | Expected | Observed |
+| --- | --- | --- | --- |
+| M1 | `sweep` computes every client's observation for `subscribers[0]` | scoping fails | `two_clients_connect...` FAILED, `two_observers_of_one_world...` FAILED |
+| M2 | the actor check in `submit` is disabled | impersonation succeeds | `a_client_cannot_ask_the_world_to_act_as_somebody_else` FAILED, with the server answering `Accepted { events: [EventId(1)] }` to a request from the wrong client |
+| M3 | `decode` no longer separates an unknown frame kind | a state assertion is merely "malformed" | unit test FAILED (`left: MalformedFrame, right: UnknownFrame`) and `a_message_that_asserts_state...` FAILED |
+| M4 | recorded events are dropped instead of remembered | no client learns of any fact | 3 socket tests FAILED |
+| M5 | `sweep` delivers only to the first subscriber | the second client receives nothing | 4 socket tests FAILED, three of them by timing out waiting for a frame |
+
+### Terminal validation
+
+```text
+command:  cargo fmt --all --check                                        clean
+          cargo check --workspace --all-targets                          clean
+          cargo clippy --workspace --all-targets --all-features -D warnings   clean
+          cargo test --workspace                                         172 passed, 0 failed
+          (144 before this PR + 28 new: 15 unit, 4 headless, 8 socket, 1 doc)
+verdict:  PASS
+```
+
 ## 7. Decisions, discoveries and limitations
 
-(filled during implementation)
+### DECISION — the world lives on its own thread, and the transport only sends it messages
+
+Question: how does an `axum` handler reach a `World`?
+
+Evidence: `kernel/src/registry.rs:65` stores `Box<dyn DynSystem>`, unbounded, so `World: !Send`.
+The spike answered this with `Arc<Mutex<SpikeWorld>>` locked across `.await` points, which works
+for one client and couples two.
+
+Options: (a) `Arc<Mutex<World>>` — impossible, `World` cannot be sent to the thread that would
+build it, let alone shared; (b) a `!Send` single-threaded runtime for everything, which gives up
+axum's multi-threaded serving; (c) a world thread built from a `Send` closure, reached by channels.
+
+Chosen: (c). It is the only one that compiles without a `Send` bound on systems, and it makes two
+frozen constraints structural: the world is never blocked by a client (bounded channels,
+`try_send`, drop on full) and dispatch cannot deadlock against streaming (no shared lock exists).
+
+Validation: `the_world_keeps_working_while_a_subscriber_never_reads`, plus every socket test that
+has two clients on one world at once.
+
+### DECISION — `Perception` is a seam in the server, not a new kernel hook
+
+Question: who produces the per-observer `Observation`?
+
+Evidence: the `System` trait has four methods and none of them observes; `ARCHITECTURE.md` §6 and
+`contracts/src/observation.rs` both assign the decision to perception systems; and
+`ENGINEERING_RULES.md` §8 forbids the transport deciding it.
+
+Options: (a) add a fifth method to `System` — a kernel contract change, out of this PR's scope and
+a material deviation; (b) compute perception in the server — forbidden; (c) one seam in the server
+crate that a perception system's adapter implements.
+
+Chosen: (c), with `PerceivesNothing` as the default so that the safe direction is the default.
+PR 05a's `PresenceSystem` is adapted onto it in 05c/05d. If a fifth `System` method turns out to
+be the right long-term home, that is a kernel decision with the seam's shape as evidence for it —
+not something this PR should have decided.
+
+### DISCOVERY — a World Pack cannot seed component state without inventing `ActionId`s
+
+Found while writing the test world. Component state is writable only by its owning system, only
+through a `WorldView`, and only during `resolve` or `react`; `install` may declare tables and
+nothing else. So placing four people in two rooms means dispatching four `place` intents, and
+`ActionIntent::new` needs an `ActionId` that, at world-assembly time, no allocator has issued —
+the world's own event counter is crate-private and the server's request allocator has not started.
+
+The test world works around it by allocating from `9_000_000` upwards, far above the server's
+allocator, so that assembly cannot collide with a client's request. That is fine for a test and it
+is **not** an answer for PR 05c, which will load a real World Pack and hit the same wall for real.
+Recorded here rather than solved here: the options are a kernel-side authored-state path, a
+`HostConfig` that seeds the allocator above whatever assembly used, or an assembly-time allocator
+the pack loader owns. Whichever 05c chooses is a decision with consequences for the event log, and
+it belongs to the PR that has to make it.
+
+### DISCOVERY — `Observation`'s payload type differs in each direction, and it has to
+
+Outbound the wire carries `Observation<serde_json::Value>`; inbound a request arrives as
+`ActionRequest<WirePayload>` and is re-parameterized to the kernel's `ActionRequest<Vec<u8>>`. The
+asymmetry is not an oversight: a perception implementation *builds* its observation and can build
+it with any payload type, while a transport *receives* a request and must hand the kernel bytes,
+and `ActionRecord` deliberately cannot be constructed from an `ActionTypeId` plus a payload without
+naming the action's Rust type. The conversion therefore goes through the contract's own `serde`
+rather than through a mirror of its shapes — one JSON round trip per submitted intent, on the rare
+frame rather than the frequent one.
+
+### DEVIATION (bounded) — `tokio-tungstenite` as a dev-dependency
+
+The acceptance requires real WebSocket clients, and `DEP-3` chose the axum/tokio stack without
+naming a client. `tokio-tungstenite` is the client half of that same stack — `tungstenite` is what
+axum's own WebSocket support is built on, and it is already in the dependency graph. It is a
+**dev**-dependency: no production code depends on it.
+
+`ENGINEERING_STANDARDS.md` §16 asks for a `docs/DECISIONS.md` record for a substantial dependency.
+This is recorded here rather than there, because `DEP-3` already froze the transport stack and
+because `docs/DECISIONS.md` is being touched by concurrent sessions on other branches. **For the
+operator:** if a `DEP-3` addendum naming the test client is wanted, it is a one-paragraph edit and
+this is the flag for it.
+
+### LIMITATION — the clock is provisional, and it is wall time
+
+`WorldTime` advances one simulated second per real second from a configured epoch, because S4's
+clock and scheduler do not exist yet and dispatch has to be told an instant. Consequences, all
+recorded rather than hidden: a replay would not reproduce these instants; several observations
+share one `at` (which is why the protocol frame carries `seq`); and a system that defers work gets
+its deferral counted and logged rather than queued, because there is no queue. `S4` replaces the
+clock behind `HostClock` and the deferral count is the seam it will plug into.
+
+### LIMITATION — a `KernelError` out of dispatch does not stop the world
+
+`kernel/src/dispatch.rs` says an `Err` is a bug in a system and that the caller should "stop the
+world and report it". This server counts it, logs it, and answers the client `dispatch_failed`,
+because tearing down a world other clients are connected to on one system's bug is a worse
+behaviour for a server and the right policy needs persistence (S5) to be honest — a world that can
+be restored can be stopped. Recorded as a deliberate divergence from the kernel's advice, with the
+fault counter as the evidence it is not silent.
+
+### LIMITATION — no Godot client ran
+
+This PR's acceptance is the server's. `AC-13`/`AC-15` and the two real clients are PR 05d's, and
+nothing here claims them. What is claimed is that two real WebSocket clients, over real sockets,
+receive correctly scoped observations from one world at once.
+
+### LIMITATION — logging is `println!`
+
+No `tracing` subscriber, no levels, no structured fields. Adequate for a development server and
+deliberately not a logging architecture chosen in passing; an observability decision belongs with
+the deployment work `NETWORKING.md` §7 anticipates.

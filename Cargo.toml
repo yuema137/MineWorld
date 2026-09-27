@@ -26,6 +26,6 @@ trybuild = "1.0.121"
 # `tokio-tungstenite` is the client half of the same stack and is a dev-dependency only —
 # the server's acceptance tests open real sockets rather than mocking them.
 axum = { version = "0.8.9", features = ["ws"] }
-tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal", "io-util"] }
 futures-util = { version = "0.3.34", default-features = false, features = ["sink", "std"] }
 tokio-tungstenite = "0.29.0"

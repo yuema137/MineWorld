@@ -188,6 +188,7 @@ impl SubscriptionIdSource {
 }
 
 /// A seated connection: which observer it is, and its own stream of observations.
+#[derive(Debug)]
 pub struct Seated {
     seat: EntityKey,
     observer: EntityId,
