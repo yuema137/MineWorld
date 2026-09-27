@@ -151,6 +151,7 @@ Three consequences, each of which a test pins:
 | 1 | `feat(systems): PresenceSystem — location, perception and the affordance seam` | `[x]` | `[x]` 10 tests, fmt/clippy/check clean | `[x]` §6 decisions D1, D5, D6, D7 recorded |
 | 2 | `feat(systems): ConversationSystem — talk, its facts and Alice's projection` | `[x]` | `[x]` 11 tests incl. AC-2; 165 total | `[x]` §6 decisions D2, D3, D4 recorded |
 | 3 | `docs(plan): PR 05a's ledger — evidence, decisions and mutation results` | `[x]` this file | `[x]` 6 mutations applied, 6 killed | `[x]` §5.4, §6 |
+| 4 | `docs(systems): disambiguate the observe intra-doc link` | `[x]` | `[x]` `cargo doc --workspace --no-deps`: both new crates warning-free | `[x]` §6, out-of-scope note |
 
 Split this way because the first commit is a complete, installable, tested pack on its own, and the
 second is the pack that depends on it: a reviewer can read either alone.
@@ -385,9 +386,22 @@ effort's convention.
 ## 7. Closeout
 
 ```text
-final executable HEAD:   see the branch tip of mvp0/pr-05a-conversation-presence
-validation at that HEAD: fmt PASS · clippy -D warnings PASS · cargo test --workspace PASS (165)
+branch:                  mvp0/pr-05a-conversation-presence, pushed to origin
+base:                    main @ 3d834f6
+commits:                 6e48e9d  PresenceSystem
+                         626ef47  ConversationSystem
+                         d8055d6  this ledger
+                         5d2cf9b  the intra-doc link fix
+                         (+ this closeout commit, which changes only this file)
+validation at that HEAD: cargo fmt --all --check                             PASS
+                         cargo check --workspace --all-targets               PASS, 0 warnings
+                         cargo clippy --workspace --all-targets --all-features -- -D warnings
+                                                                             PASS, 0 warnings
+                         cargo test --workspace                              PASS, 165/165
+                         cargo doc --workspace --no-deps    both new crates warning-free;
+                                                            9 pre-existing kernel warnings
 mutation evidence:       6 applied, 6 killed (§5.4)
+working tree:            clean
 PR:                      NOT OPENED — forbidden by operator instruction this session
 merge:                   NOT PERFORMED — requires explicit operator authorization
 state:                   PR 05a CLOSED / AWAITING OPERATOR REVIEW
