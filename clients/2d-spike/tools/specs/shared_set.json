@@ -1,0 +1,108 @@
+{
+  "_note": "Normalization only. These assets were generated on main by the shared pipeline in tools/asset_generation; this file gives each one a real-world height so Iso.gd's scale rule can place it.",
+  "refs_root": ".",
+  "defaults": {},
+  "style_preamble": "",
+  "specs": [
+    {
+      "name": "sib_building_apartment_block",
+      "file": "building_apartment_block",
+      "height_m": 12.0
+    },
+    {
+      "name": "sib_building_bakery",
+      "file": "building_bakery",
+      "height_m": 8.0
+    },
+    {
+      "name": "sib_building_bookshop",
+      "file": "building_bookshop",
+      "height_m": 8.4
+    },
+    {
+      "name": "sib_building_cafe",
+      "file": "building_cafe",
+      "height_m": 8.0
+    },
+    {
+      "name": "sib_building_flower_shop",
+      "file": "building_flower_shop",
+      "height_m": 7.8
+    },
+    {
+      "name": "sib_building_house_cottage",
+      "file": "building_house_cottage",
+      "height_m": 6.6
+    },
+    {
+      "name": "sib_building_house_townhouse",
+      "file": "building_house_townhouse",
+      "height_m": 9.2
+    },
+    {
+      "name": "sib_prop_bench",
+      "file": "prop_bench",
+      "height_m": 0.92
+    },
+    {
+      "name": "sib_prop_bicycle",
+      "file": "prop_bicycle",
+      "height_m": 1.1
+    },
+    {
+      "name": "sib_prop_cafe_parasol_table",
+      "file": "prop_cafe_parasol_table",
+      "height_m": 2.3
+    },
+    {
+      "name": "sib_prop_litter_bin",
+      "file": "prop_litter_bin",
+      "height_m": 0.98
+    },
+    {
+      "name": "sib_prop_planter",
+      "file": "prop_planter",
+      "height_m": 0.8
+    },
+    {
+      "name": "sib_prop_signpost",
+      "file": "prop_signpost",
+      "height_m": 2.6
+    },
+    {
+      "name": "sib_prop_streetlamp",
+      "file": "prop_streetlamp",
+      "height_m": 4.2
+    },
+    {
+      "name": "sib_tree_broadleaf_large",
+      "file": "tree_broadleaf_large",
+      "height_m": 8.2
+    },
+    {
+      "name": "sib_tree_cherry_blossom",
+      "file": "tree_cherry_blossom",
+      "height_m": 5.8
+    },
+    {
+      "name": "sib_tree_conifer",
+      "file": "tree_conifer",
+      "height_m": 9.0
+    },
+    {
+      "name": "sib_tree_flower_bed",
+      "file": "tree_flower_bed",
+      "height_m": 0.5
+    },
+    {
+      "name": "sib_tree_round_small",
+      "file": "tree_round_small",
+      "height_m": 4.4
+    },
+    {
+      "name": "sib_tree_shrub_cluster",
+      "file": "tree_shrub_cluster",
+      "height_m": 1.3
+    }
+  ]
+}

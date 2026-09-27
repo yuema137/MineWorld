@@ -21,6 +21,9 @@ const PX_PER_M := 32.0        # must match Iso.PX_PER_M_Z
 const AUTHOR_SCALE := 2.0     # art is authored at 2x and drawn down
 const PAVING := Color("bab1a6")   # must match Ground.gd C["stone"]
 
+## Where candidates come from. The spike generates its own into art/candidates;
+## the shared set produced on main lives under presentation/, so the directory
+## is overridable rather than assumed.
 const IN_DIR := "res://art/candidates"
 const OUT_DIR := "res://art/generated"
 const QA := "res://shots/_qa_normalize.png"
@@ -99,10 +102,13 @@ func _init():
 			manifest = old
 		prev.close()
 
+	var in_dir := OS.get_environment("MWNORM_IN")
+	if in_dir == "":
+		in_dir = ProjectSettings.globalize_path(IN_DIR)
+
 	for s in doc["specs"]:
 		var name: String = s["name"]
-		var src := "%s/%s.png" % [IN_DIR, name]
-		var path := ProjectSettings.globalize_path(src)
+		var path := "%s/%s.png" % [in_dir, s.get("file", name)]
 		if not FileAccess.file_exists(path):
 			continue
 		var img := Image.load_from_file(path)

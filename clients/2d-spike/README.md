@@ -3,6 +3,26 @@
 A walkable slice of one quayside square, built so a human can look at it and
 answer one question: **is this MineWorld's default 2D presentation?**
 
+> ## VIS-2D-1 READY FOR HUMAN STYLE REVIEW
+>
+> Three **default-style candidates**, each complete and playable. Nothing here
+> is an accepted look — per `ARC-11` the default style is taste and the
+> operator decides it, finally and always. Subjective polishing on this branch
+> has stopped so the target does not move while it is being judged.
+>
+> ```
+> ./mineworld-2d --variant=town          generated cast + the shared asset set
+> ./mineworld-2d --variant=full          generated cast + generated shopfronts and flora
+> ./mineworld-2d --variant=people        generated cast, procedural world
+> ./mineworld-2d --variant=procedural    the previous all-procedural build, for comparison
+> ```
+>
+> Walk around with WASD or the arrow keys. `--shots` writes stills per variant
+> into `shots/<variant>/`; `06_ref_framing.png` in each is framed to match
+> `references/02_cafe_street.png` so the comparison is like for like.
+>
+> The review question is which whole scene, not which asset.
+
 It is a spike. It requires no kernel changes, contains no semantics — no
 dialogue, no inventory, no networking, no `ActionIntent` — and invents no world
 rules. `scripts/Demo.gd` holds the only data model, and a `DemoPlace` or
@@ -20,7 +40,8 @@ Needs Godot 4.4+ on `PATH` (developed against 4.7.2; `brew install godot`).
 Set `GODOT=/path/to/godot` if it is not on `PATH`.
 
 **Controls:** `WASD` or the arrow keys to walk, `Esc` to quit. Movement is
-free and continuous, not tile-stepped.
+free and continuous, not tile-stepped. Add `--variant=<name>` to pick an art
+set; see the review box above.
 
 Two extra modes, both used to verify the spike:
 
@@ -69,6 +90,27 @@ One square, bounded on three sides and open to the water:
 | `tools/sheet.gd` | contact sheet of chosen sprites, for looking at art alone |
 | `scripts/Demo.gd` | `DemoPlace` / `DemoPerson` — deliberately dumb |
 | `scripts/Main.gd` | lays the square out, drives the player and the crowd |
+
+### Calibrating against the plates
+
+The plates are **bright pictures with dark accents**, and an early pass on this
+branch got that backwards. Measuring luminance over whole frames rather than
+sampling the palette extremes is what showed it:
+
+| | mean | p50 | >0.7 | <0.2 |
+| --- | --- | --- | --- | --- |
+| `references/02_cafe_street.png` | 0.517 | 0.512 | 24.2% | 4.4% |
+| that early build | 0.455 | 0.465 | 15.3% | 17.5% |
+| `--variant=town`, same framing as the plate | 0.513 | 0.498 | 19.9% | 4.0% |
+
+Four times too much dark mass and a third too few highlights. The individual
+findings behind it were sound — the foliage ramp really had no dark half, and
+nothing really was inked — but the fixes stacked, and ink plus a darker ramp
+plus warm-grey paving plus tooth plus a grade dropped the whole key. The
+correction was to overall value, not to any one of those features:
+`tools/luma.gd` reports the distribution, and it is the instrument to use for
+this, where the earlier k-means was the right instrument for hue and the wrong
+one for key.
 
 ### Where the look comes from
 

@@ -18,13 +18,13 @@ shader_type canvas_item;
 // lands at a roughly constant thickness on screen whether it is on a lamppost
 // drawn at 0.27 or a shopfront drawn at 0.5.
 
-uniform vec4 ink : source_color = vec4(0.12, 0.10, 0.08, 1.0);
+uniform vec4 ink : source_color = vec4(0.22, 0.19, 0.16, 1.0);
 uniform float width = 4.0;       // texels
-uniform float strength = 0.46;
+uniform float strength = 0.26;
 // How much the line takes its hue from what it outlines. A pure black contour
 // on everything reads as clip art; the plates' lines are dark versions of the
 // local colour.
-uniform float tint = 0.60;
+uniform float tint = 0.78;
 
 void fragment() {
 	vec4 mod_c = COLOR;
@@ -50,7 +50,7 @@ void fragment() {
 	float edge = smoothstep(0.30, 0.92, clamp(c.a - mn, 0.0, 1.0)) * step(0.45, c.a);
 
 	// the contour, darkened from the local colour rather than flat black
-	vec3 line = mix(ink.rgb, c.rgb * 0.46, tint);
+	vec3 line = mix(ink.rgb, c.rgb * 0.58, tint);
 	vec3 col = mix(c.rgb, line, edge * strength);
 
 	COLOR = vec4(col, c.a) * mod_c;

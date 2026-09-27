@@ -59,7 +59,11 @@ func _draw() -> void:
 		var a: float = s["a"]
 		var rx: float = s["rx"] + l * 0.16
 		var ry: float = s["ry"]
-		var tint := Color(0.20, 0.16, 0.11, a)
+		# The plates' shadows are soft, warm and fairly light - measured over
+		# their whole frame only ~4% of pixels fall below 0.20 luminance, and
+		# shadow is most of what a scene's dark mass is made of. A near-black
+		# tint here was pushing that to 11-13%.
+		var tint := Color(0.36, 0.32, 0.26, a)
 		_blob(c, rx, ry, tint)
 		if not s.get("dapple", false):
 			continue
@@ -71,7 +75,7 @@ func _draw() -> void:
 			var p := c + Vector2(cos(ang) * rx * 0.74 * d, sin(ang) * ry * 0.74 * d)
 			var r := rx * _rng.randf_range(0.14, 0.30)
 			_blob(p, r, r * (ry / maxf(rx, 1.0)) * 1.15,
-				Color(0.17, 0.14, 0.10, a * _rng.randf_range(0.30, 0.62)))
+				Color(0.33, 0.29, 0.23, a * _rng.randf_range(0.26, 0.52)))
 
 
 ## A footprint shadow for a building: the base quad, pushed along the sun.

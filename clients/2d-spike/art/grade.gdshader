@@ -27,12 +27,20 @@ uniform sampler2D paper : filter_linear, repeat_enable;
 uniform vec2 paper_size = vec2(512.0);
 
 uniform vec2 world_off = vec2(0.0);   // camera position, for world-anchored grain
-uniform float grain_coarse = 0.115;
-uniform float grain_fine = 0.055;
-uniform float contrast = 0.22;
-uniform float vignette = 0.30;
-uniform float warmth = 0.055;
-uniform float saturation = 0.96;
+uniform float grain_coarse = 0.042;
+uniform float grain_fine = 0.020;
+uniform float contrast = 0.05;
+uniform float vignette = 0.08;
+uniform float warmth = 0.040;
+
+// The plates are bright pictures with dark accents, not dark pictures. Measured
+// over their whole frame they sit at mean luminance 0.52 with only ~4% of
+// pixels below 0.20; an earlier build of this scene measured 0.41-0.48 with
+// 11-28% below 0.20. Exposure and a black floor are what close that gap: the
+// plates' shadows stop at a value and stay there rather than rolling off.
+uniform float exposure = 0.99;
+uniform float black_lift = 0.045;
+uniform float saturation = 0.94;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -99,6 +107,10 @@ void fragment() {
 	// vector fills are
 	float g = dot(c, vec3(0.2126, 0.7152, 0.0722));
 	c = mix(vec3(g), c, saturation);
+
+	// --- key ---------------------------------------------------------------
+	c *= exposure;
+	c = vec3(black_lift) + c * (1.0 - black_lift);
 
 	// --- vignette ----------------------------------------------------------
 	vec2 q = SCREEN_UV - 0.5;

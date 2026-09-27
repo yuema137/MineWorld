@@ -14,22 +14,22 @@ const C := {
 	# paving in those images is a warm *grey*. The cream this used to be ran
 	# about two steps light and much too yellow, which is most of the reason
 	# the plaza read as cardboard rather than stone.
-	"stone_hi": Color("cfc7bc"),
-	"stone": Color("bab1a6"),
-	"stone_lo": Color("9c948a"),
-	"joint": Color("7b746c"),
-	"quay": Color("b3aba0"),
-	"quay_lo": Color("8e867c"),
-	"quay_line": Color("6e675f"),
-	"grass": Color("6f9440"),
-	"grass_lo": Color("4e6f35"),
-	"grass_hi": Color("93af46"),
-	"grass_deep": Color("36502a"),
-	"water": Color("2f7f9e"),
-	"water_deep": Color("1f5f7d"),
-	"water_lo": Color("1a4f68"),
-	"water_hi": Color("5aa3bd"),
-	"sand": Color("c2b7a2"),
+	"stone_hi": Color("ddd6cb"),
+	"stone": Color("c7bfb3"),
+	"stone_lo": Color("aaa297"),
+	"joint": Color("948c82"),
+	"quay": Color("c2baaf"),
+	"quay_lo": Color("9f9789"),
+	"quay_line": Color("8b8377"),
+	"grass": Color("8ab251"),
+	"grass_lo": Color("668c3f"),
+	"grass_hi": Color("aecc63"),
+	"grass_deep": Color("4a6836"),
+	"water": Color("57abc8"),
+	"water_deep": Color("3f8fae"),
+	"water_lo": Color("357f9c"),
+	"water_hi": Color("a5dcec"),
+	"sand": Color("ddd3bf"),
 }
 
 const FLOWER := [Color("f2a0b4"), Color("f4e07a"), Color("ffffff"), Color("c79be0")]

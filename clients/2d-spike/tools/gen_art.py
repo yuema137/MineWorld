@@ -20,6 +20,7 @@ Conventions
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -42,32 +43,32 @@ P = {
     # Paving in the plates is a warm *grey*, not cream: the neutral k-means
     # lands on #8D847D / #9F9893 / #BAB1AA. The old cream ran ~2 steps light
     # and far too yellow, which is most of why the plaza read as cardboard.
-    "stone_hi": "#CFC7BC",
-    "stone": "#BAB1A6",
-    "stone_lo": "#9C948A",
-    "joint": "#8A8279",
-    "quay": "#B3ABA0",
-    "quay_lo": "#8E867C",
-    "quay_line": "#6E675F",
+    "stone_hi": "#DDD6CB",
+    "stone": "#C7BFB3",
+    "stone_lo": "#AAA297",
+    "joint": "#989086",
+    "quay": "#C2BAAF",
+    "quay_lo": "#9F9789",
+    "quay_line": "#8B8377",
 
-    "grass": "#6F9440",
-    "grass_lo": "#4E6F35",
-    "grass_hi": "#93AF46",
+    "grass": "#8AB251",
+    "grass_lo": "#668C3F",
+    "grass_hi": "#AECC63",
 
     # Foliage ramp measured off the reference plates (k-means over the green
     # pixels of 01/02/04). The span that matters is the dark half: the plates
     # put ~15% of their foliage below #365E39, which is what stops a canopy
     # reading as one bright blob.
-    "leaf_deep": "#22412C",
-    "leaf_lo": "#365E39",
-    "leaf": "#527B3C",
-    "leaf_mid": "#739940",
-    "leaf_hi": "#98B543",
-    "leaf_top": "#BFCE4B",
-    "leaf_out": "#1B3324",
+    "leaf_deep": "#2A4A32",
+    "leaf_lo": "#3F6B40",
+    "leaf": "#5E8B44",
+    "leaf_mid": "#84AC49",
+    "leaf_hi": "#AACB55",
+    "leaf_top": "#D2DE6A",
+    "leaf_out": "#3E5C44",
 
-    "trunk": "#7A5638",
-    "trunk_lo": "#513A28",
+    "trunk": "#8B6443",
+    "trunk_lo": "#664A33",
     "trunk_hi": "#9C7550",
 
     "wood": "#C48C52",
@@ -75,9 +76,9 @@ P = {
     "wood_hi": "#DCAE74",
     "wood_out": "#9C7040",
 
-    "water": "#2F7F9E",
-    "water_lo": "#1F5F7D",
-    "water_hi": "#5AA3BD",
+    "water": "#57ABC8",
+    "water_lo": "#3C8BAA",
+    "water_hi": "#94D0E2",
 
     "cream": "#F7EFDF",
     "cream_lo": "#E4D8C0",
@@ -178,12 +179,68 @@ def rect(x, y, w, h, fill, stroke=None, sw=3, rx=None, opacity=None):
              opacity=opacity)
 
 
+# ---------------------------------------------------------------------------
+# hand-drawn wobble
+#
+# The last tell that survives good shading, good texture and good colour is
+# that every shape is geometrically exact. A drawn circle is not a circle: its
+# radius breathes by a percent or two and its curvature is uneven. Every round
+# form in this file goes through circ() and ell(), so wobbling those two
+# reaches foliage lobes, pots, wheels, fruit, the fountain and the flowers in
+# one change.
+#
+# Deterministic: the jitter is hashed from the shape's own position and size,
+# so regenerating the art twice produces identical files. Straight-edged
+# architecture is deliberately left exact — a shopfront that wobbles reads as
+# subsidence, not as draughtsmanship.
+# ---------------------------------------------------------------------------
+
+WOBBLE = 0.030          # radius deviation, as a fraction
+WOBBLE_MIN_R = 5.0      # below this a shape is a mark, not a form
+
+
+def _wob_rng(*key):
+    h = hashlib.md5(("|".join("%.2f" % float(k) for k in key)).encode()).digest()
+    return random.Random(int.from_bytes(h[:8], "big"))
+
+
+def _blob_path(cx, cy, rx, ry, n=10, amp=WOBBLE):
+    """A closed cubic path around an ellipse, with an uneven radius."""
+    rnd = _wob_rng(cx, cy, rx, ry)
+    pts = []
+    for i in range(n):
+        a = math.tau * i / n
+        k = 1.0 + rnd.uniform(-amp, amp)
+        pts.append((cx + math.cos(a) * rx * k, cy + math.sin(a) * ry * k))
+    # Catmull-Rom through the points, emitted as cubic beziers
+    d = ["M %s %s" % (r2(pts[0][0]), r2(pts[0][1]))]
+    for i in range(n):
+        p0 = pts[(i - 1) % n]
+        p1 = pts[i]
+        p2 = pts[(i + 1) % n]
+        p3 = pts[(i + 2) % n]
+        c1 = (p1[0] + (p2[0] - p0[0]) / 6.0, p1[1] + (p2[1] - p0[1]) / 6.0)
+        c2 = (p2[0] - (p3[0] - p1[0]) / 6.0, p2[1] - (p3[1] - p1[1]) / 6.0)
+        d.append("C %s %s, %s %s, %s %s" % (
+            r2(c1[0]), r2(c1[1]), r2(c2[0]), r2(c2[1]), r2(p2[0]), r2(p2[1])))
+    d.append("Z")
+    return " ".join(d)
+
+
 def circ(cx, cy, r, fill, stroke=None, sw=3, opacity=None):
+    if r >= WOBBLE_MIN_R:
+        return e("path", d=_blob_path(cx, cy, r, r), fill=fill, stroke=stroke,
+                 stroke_width=sw if stroke else None,
+                 stroke_linejoin="round" if stroke else None, opacity=opacity)
     return e("circle", cx=r2(cx), cy=r2(cy), r=r2(r), fill=fill, stroke=stroke,
              stroke_width=sw if stroke else None, opacity=opacity)
 
 
 def ell(cx, cy, rx, ry, fill, stroke=None, sw=3, opacity=None):
+    if min(rx, ry) >= WOBBLE_MIN_R:
+        return e("path", d=_blob_path(cx, cy, rx, ry), fill=fill, stroke=stroke,
+                 stroke_width=sw if stroke else None,
+                 stroke_linejoin="round" if stroke else None, opacity=opacity)
     return e("ellipse", cx=r2(cx), cy=r2(cy), rx=r2(rx), ry=r2(ry), fill=fill,
              stroke=stroke, stroke_width=sw if stroke else None, opacity=opacity)
 
@@ -408,7 +465,7 @@ def blob_cluster(blobs, base=None, mid=None, hi=None, top=None, out_col=None,
         d = r * rnd.uniform(0.15, 0.45)
         s.append(ell(cx + math.cos(a) * d, cy + math.sin(a) * d,
                      r * rnd.uniform(0.26, 0.44), r * rnd.uniform(0.16, 0.28),
-                     P["leaf_deep"], opacity=rnd.uniform(0.18, 0.34)))
+                     P["leaf_deep"], opacity=rnd.uniform(0.10, 0.20)))
 
     # 5. rim light — a bright crescent on the sunward lobes only, drawn as a
     #    clipped arc so nothing haloes outside the canopy
@@ -536,10 +593,10 @@ TREE_KIND = {
 # Per-species foliage ramps. Real streets are not one green; the plates run
 # from a blue-green shade tree to a yellow-green ornamental.
 TREE_COLS = {
-    "cool":  ["#1B3A2C", "#2C5540", "#3F7048", "#5B8C4B", "#84A94E", "#AEC356"],
-    "warm":  ["#25402A", "#3A5E33", "#557E38", "#7A9C3E", "#A2BA45", "#C6D24E"],
-    "olive": ["#22392A", "#3B5733", "#5C743A", "#82963F", "#A6AE48", "#C6C25A"],
-    "pine":  ["#16302A", "#23483A", "#325C44", "#456F4A", "#5C8752", "#7CA062"],
+    "cool":  ["#325841", "#416C50", "#548A5A", "#72A45E", "#9AC063", "#C3D66E"],
+    "warm":  ["#3A5A3E", "#4E7444", "#6B9449", "#8FB14F", "#B5CC5A", "#D8E269"],
+    "olive": ["#38553E", "#4E6C42", "#6E8649", "#95A84F", "#B7C15E", "#D6D272"],
+    "pine":  ["#2B4C42", "#376052", "#47755B", "#578760", "#729E69", "#92B47A"],
 }
 
 

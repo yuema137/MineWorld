@@ -49,4 +49,4 @@ move_down={
 renderer/rendering_method="forward_plus"
 textures/canvas_textures/default_texture_filter=1
 anti_aliasing/quality/msaa_2d=2
-environment/defaults/default_clear_color=Color(0.803, 0.858, 0.815, 1)
+environment/defaults/default_clear_color=Color(0.878, 0.925, 0.933, 1)

@@ -26,7 +26,8 @@ const ART_GEN := "res://art/generated/%s.png"
 ##   ./mineworld-2d --variant=procedural   everything from gen_art.py
 ##   ./mineworld-2d --variant=people       generated cast, procedural world
 ##   ./mineworld-2d --variant=full         generated cast, shopfronts and flora
-const VARIANTS := ["procedural", "people", "full"]
+##   ./mineworld-2d --variant=town         generated cast, shared asset set
+const VARIANTS := ["procedural", "people", "full", "town"]
 var variant := "full"
 
 ## Scale applied to each 2x-authored sprite. Derived from one rule: a person is
@@ -172,6 +173,28 @@ const ROLE_WORLD := {
 	"pot": "gen_pot_plant", "pot_b": "gen_pot_plant",
 }
 
+## The shared asset set generated on main. Buildings, props and vegetation come
+## from there; the cast does not, because that set draws its people at eye
+## level with heavier linework than the plates use.
+const ROLE_SHARED := {
+	"shop_cafe": "sib_building_cafe", "shop_bakery": "sib_building_bakery",
+	"shop_books": "sib_building_bookshop", "shop_bloom": "sib_building_flower_shop",
+	"bench": "sib_prop_bench", "bench_r": "sib_prop_bench",
+	"bicycle": "sib_prop_bicycle", "cafeset": "sib_prop_cafe_parasol_table",
+	"planter": "sib_prop_planter", "planter_b": "sib_prop_planter",
+	"pot": "sib_tree_flower_bed", "pot_b": "sib_tree_flower_bed",
+	"signpost": "sib_prop_signpost", "lamppost": "sib_prop_streetlamp",
+	"barrel": "sib_prop_litter_bin",
+	"tree_a": "sib_tree_broadleaf_large", "tree_b": "sib_tree_round_small",
+	"tree_c": "sib_tree_cherry_blossom", "tree_d": "sib_tree_broadleaf_large",
+	"tree_e": "sib_tree_conifer", "tree_f": "sib_tree_round_small",
+	"tree_g": "sib_tree_conifer", "tree_h": "sib_tree_cherry_blossom",
+	"tree_i": "sib_tree_round_small",
+	"bush_a": "sib_tree_shrub_cluster", "bush_b": "sib_tree_shrub_cluster",
+	"bush_c": "sib_tree_shrub_cluster", "bush_d": "sib_tree_shrub_cluster",
+	"hedge": "sib_tree_shrub_cluster",
+}
+
 ## Built once at startup: const dictionaries cannot be merged in place.
 var role_map: Dictionary = {}
 
@@ -181,9 +204,12 @@ func _build_role_map() -> void:
 		"procedural": ROLE_PROC.duplicate(),
 		"people": ROLE_PEOPLE.duplicate(),
 		"full": ROLE_PEOPLE.duplicate(),
+		"town": ROLE_PEOPLE.duplicate(),
 	}
 	for k in ROLE_WORLD:
 		role_map["full"][k] = ROLE_WORLD[k]
+	for k in ROLE_SHARED:
+		role_map["town"][k] = ROLE_SHARED[k]
 
 
 ## Vegetation is scaled from its authored height to a target height in metres,
@@ -228,14 +254,14 @@ func _scale_for(name: String) -> float:
 ## width in texels is the screen width divided by the draw scale. Materials are
 ## shared between props that land on the same width, which collapses a few
 ## hundred sprites onto a handful of materials.
-const INK_PX := 1.8        # target contour thickness, screen pixels
+const INK_PX := 1.35        # target contour thickness, screen pixels
 
 
 ## How hard the contour bites, per prop class. Foliage and shopfronts already
 ## draw their own line work in the SVG — foliage a dark union silhouette,
 ## shopfronts a value break at every junction — so inking them at full
 ## strength draws the line twice and turns them to mud.
-const INK_BITE := {"veg": 0.20, "shop": 0.26, "prop": 0.46, "none": 0.0}
+const INK_BITE := {"veg": 0.08, "shop": 0.13, "prop": 0.24, "none": 0.0}
 
 
 func _ink_class(name: String) -> String:
@@ -304,18 +330,18 @@ func _cast_shadow(name: String, at: Vector2, k: float) -> void:
 	if name.begins_with("tree"):
 		# One broad soft pool per tree, dappled, rather than four hard blobs.
 		var r := 52.0 * k * 2.2
-		shadows.add(at, r, r * 0.46, 64.0 * k * 2.2, 0.46, true)
+		shadows.add(at, r, r * 0.46, 64.0 * k * 2.2, 0.34, true)
 		shadows.add(at + Vector2(r * 0.55, r * 0.16), r * 0.58, r * 0.28,
-			50.0 * k * 2.2, 0.26, true)
+			50.0 * k * 2.2, 0.18, true)
 	elif name.begins_with("bush") or name == "hedge":
-		shadows.add(at, 46.0 * k * 2.0, 18.0 * k * 2.0, 26.0 * k * 2.0, 0.40)
+		shadows.add(at, 46.0 * k * 2.0, 18.0 * k * 2.0, 26.0 * k * 2.0, 0.30)
 	elif name == "lamppost":
-		shadows.add(at, 13.0, 6.0, 150.0 * k * 2.0, 0.30)
+		shadows.add(at, 13.0, 6.0, 150.0 * k * 2.0, 0.22)
 	elif name.begins_with("shop_"):
-		shadows.add(at + Vector2(-70, -18), 250.0 * k, 96.0 * k, 190.0 * k, 0.38)
+		shadows.add(at + Vector2(-70, -18), 250.0 * k, 96.0 * k, 190.0 * k, 0.28)
 	elif name in ["fountain", "cafeset", "bench", "bench_r", "planter", "planter_b",
 			"barrel", "bicycle", "signpost", "chalkboard", "pot", "pot_b"]:
-		shadows.add(at, 36.0 * k * 1.6, 14.0 * k * 1.6, 26.0 * k * 1.6, 0.38)
+		shadows.add(at, 36.0 * k * 1.6, 14.0 * k * 1.6, 26.0 * k * 1.6, 0.28)
 
 
 ## Squash the square's depth. The references are streets, not fields: the
@@ -346,10 +372,16 @@ func _build_places() -> void:
 	]
 	for p in places:
 		var n := _prop(String(p.sprite), p.at)
-		var m: Dictionary = props[String(p.sprite)]
+		var drawn := _role(String(p.sprite))
+		var m: Dictionary = props[drawn]
+		# Generated buildings carry their own painted sign board and have no
+		# sign anchor in the manifest, so the overlaid Godot label is skipped
+		# for them. Looking this up against the role rather than the sprite
+		# actually drawn is what left the old labels floating in mid-air over
+		# the new shopfronts.
 		if not m.has("sign"):
 			continue
-		var k := _scale_for(String(p.sprite))
+		var k := _scale_for(drawn)
 		var sign_pos := (Vector2(m["sign"][0], m["sign"][1])
 			- Vector2(float(m["ax"]), float(m["ay"]))) * k
 		# the shopfront is sheared by the projection, so the lettering is too
