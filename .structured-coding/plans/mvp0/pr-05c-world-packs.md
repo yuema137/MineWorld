@@ -73,7 +73,7 @@ NON-GOALS:
                                                   authors none of them
   durable persistence of a loaded world          → S5
   the clients                                    → PR 05d
-  a display-name component                       → §9.1: a World Pack cannot own a component
+  a display-name component                       → §7.5: a World Pack cannot own a component
 
 FROZEN INVARIANTS:
   - a World Pack declares capabilities and content, never secrets and never rules
@@ -343,7 +343,7 @@ option surfaces. Recorded so it is a decision rather than an omission.
 | 1 | `feat(kernel)`: genesis — initial state is a recorded fact | `[x]` | `[x]` | `[x]` |
 | 2 | `refactor(presence,server)`: seed through genesis, and delete the invented ActionId | `[x]` | `[x]` | `[x]` |
 | 3 | `feat(worldpack)`: the pack, the loader and its refusals | `[x]` | `[x]` | `[x]` |
-| 4 | `feat(cli)`: mineworld server \<world\> | `[ ]` | `[ ]` | `[ ]` |
+| 4 | `feat(cli)`: mineworld server \<world\> | `[x]` | `[x]` | `[x]` |
 | 5 | `docs`: the format, the two decisions, and the ledger | `[ ]` | `[ ]` | `[ ]` |
 
 ### Commit 1 — the kernel genesis path
@@ -421,13 +421,29 @@ option surfaces. Recorded so it is a decision rather than an omission.
 
 ### Commit 4 — the command
 
-- [ ] Implementation: `tools/cli/` with `server` and `validate`; the perception adapter;
-      `server/src/main.rs` removed and the server crate made a library.
-- [ ] Validation: `tools/cli/tests/server_command.rs` starts the real binary on an ephemeral port,
-      connects a real WebSocket client, joins the `visitor` seat and reads an observation that
-      names Alice; `--help` and a bad argument exit non-zero with a named message.
-- [ ] Review: confirmed `mineworld-server`'s manifest gained no System Pack dependency and that
-      the adapter computes no rule of its own.
+- [x] Implementation: `tools/cli/` — `main.rs` (`server`, `validate`, `--help`, and a named refusal
+      for `create`/`inspect`/`run`), `perceive.rs` (the adapter); `server/src/main.rs` removed and
+      the server crate made a library; `HostError::Build` so a caller's world builder can fail
+      without the server learning what a World Pack is; `PerceptionContext` carries `&World`
+      (§7.4).
+- [x] Validation: **7 PASS** in this crate.
+      `tools/cli/tests/server_command.rs` — 3 tests running the **real binary** against the **real
+      pack** on an ephemeral port: `/status` reports 4 entities and `presence, conversation` in the
+      pack's order with one seat; a real WebSocket client joins `visitor`, is welcomed as observer
+      **4**, and its first observation names entities `[1, 2, 3, 4]` with Alice at `(1200, 2400)`
+      millimetres and `talk` offered twice and unavailable both times; a join for `alice` — a person
+      the pack does not offer as a seat — is refused.
+      `tools/cli/tests/commands.rs` — 4 tests: `validate` succeeds and reports the world including
+      `1  cafe` … `4  visitor`; a missing pack, a malformed pack and a command that does not exist
+      each exit non-zero naming the problem and its position, with `panicked` absent from every
+      message.
+      Manual run, recorded in §8.3: `./target/debug/mineworld server worlds/social-cafe` with
+      `curl /status`.
+- [x] Review: `server/Cargo.toml` gained no System Pack and no loader dependency (checked by
+      reading it and by `cargo tree`'s absence of one — `mineworld-server` compiles with only
+      contracts, kernel, axum, tokio, futures-util, serde, serde_json, thiserror). The adapter
+      computes no rule: it forwards to `observe` and re-parameterizes the payload. Checked that the
+      CLI holds no world state and no clock of its own.
 
 ### Commit 5 — documentation
 
@@ -478,7 +494,32 @@ says it, in the contract. Making `Emission` carry `E::OWNER` was therefore recov
 type already had access to, not adding a field with a new source of truth. Dispatch does not read
 it, so its behaviour is untouched.
 
-### 7.4 FINDING — a World Pack cannot give Alice a display name in MVP-0
+### 7.4 DEVIATION (bounded) — `PerceptionContext` had to carry the world, not only its stores
+
+```text
+Deviation:      server/src/perception.rs's PerceptionContext held a WorldRead. It now holds a
+                &World, and offers `read()` for an implementation that wants only state.
+Reason:         mineworld_presence::observe takes a `&World`, and its own documentation says why:
+                an affordance depends on whether the world still PROVIDES the action, which is the
+                system registry's answer and not the stores'. A WorldRead exposes no registry, so
+                the seam PR 05b built could not be connected to the perception system PR 05a built
+                at all. The alternatives were worse: a perception implementation keeping its own
+                copy of the route map is the exact thing observe.rs refuses ("that check is the
+                kernel's route map rather than a list kept here", because disabling a pack must
+                remove its affordances with no edit anywhere — AC-2), and threading a route-check
+                closure through the seam would be the same coupling with more machinery.
+Source:         systems/presence/src/observe.rs's signature and its rationale; kernel/src/view.rs,
+                where WorldRead has no registry accessor.
+Impact:         `&World` is as read-only as `WorldRead` — World has no `&self` method that changes
+                anything, every component write goes through a system's own write token, and the
+                kernel has no interior mutability — so the seam's guarantee is unchanged. Two
+                callers adjusted: server/src/runtime.rs passes `&self.world`, and the server's test
+                perception reads `context.read()`. The server's own 28 assertions pass unchanged.
+Validation:     cargo test -p mineworld-server (28 PASS) and the CLI's real-client acceptance,
+                which is the first thing that ever exercised this seam end to end.
+```
+
+### 7.5 FINDING — a World Pack cannot give Alice a display name in MVP-0
 
 `systems/presence/src/observe.rs` states it: "no system in this world owns a display name yet".
 A name is component state and a World Pack cannot own a component, so a `name:` field would be a

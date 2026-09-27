@@ -5,6 +5,7 @@ members = [
     "server",
     "systems/conversation",
     "systems/presence",
+    "tools/cli",
     "worldpack",
 ]
 resolver = "2"
@@ -25,6 +26,7 @@ mineworld-contracts = { path = "contracts" }
 mineworld-kernel = { path = "kernel" }
 mineworld-presence = { path = "systems/presence" }
 mineworld-conversation = { path = "systems/conversation" }
+mineworld-server = { path = "server" }
 mineworld-worldpack = { path = "worldpack" }
 serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"

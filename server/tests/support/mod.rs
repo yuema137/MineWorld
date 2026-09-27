@@ -319,7 +319,7 @@ pub struct RoomPerception;
 
 impl Perception for RoomPerception {
     fn observe(&self, context: &PerceptionContext<'_>) -> WireObservation {
-        let world = context.world();
+        let world = context.read();
         let Some(here) = world.component::<Room>(context.observer()) else {
             // An observer the placement system knows nothing about perceives nothing. Absence of
             // knowledge, not an error.
