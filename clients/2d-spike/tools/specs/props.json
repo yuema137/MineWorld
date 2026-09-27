@@ -1,0 +1,93 @@
+{
+  "refs_root": "../../art/style_refs",
+  "defaults": {
+    "model": "gpt-image-2.5-sunburst",
+    "size": "1024x1536",
+    "quality": "high",
+    "background": "transparent",
+    "n": 1,
+    "refs": [
+      "e_shop_cafe.png",
+      "f_shop_bakery.png",
+      "g_shop_left.png"
+    ]
+  },
+  "style_preamble": "Match the attached reference images exactly: the same illustrated storybook look, the same soft dark outline around every shape, the same matte painted shading with no gloss, the same warm muted daylight palette lit from the upper left, and the same viewing angle the reference buildings are drawn at - seen slightly from above and very slightly from the left, with the shopfront almost face-on. Draw one subject only, centred, with generous empty margin on every side. No ground, no paving, no pavement, no street, no sky, no neighbouring buildings, no people, and no background of any kind: the entire background must be fully transparent.",
+  "specs": [
+    {
+      "name": "gen_shop_cafe",
+      "height_m": 7.6,
+      "size": "1024x1024",
+      "prompt": "A two-storey corner cafe building, complete from the ground to the top of its roof, and noticeably wider than it is tall - a broad street frontage, not a narrow tower. Ground floor: a warm cream-painted shopfront with large glazed windows showing a lit interior with shelves and cakes, a central wooden door, a wide cream-and-dusty-rose striped awning above the windows, and a hanging wooden sign board over the door with a painted coffee cup on it and no lettering. Upper storey: two tall sash windows with wooden window boxes full of green trailing plants and small pink and white flowers. A terracotta pantile roof with a small chimney. Climbing ivy up one side. Warm lamplight glowing in the windows."
+    },
+    {
+      "name": "gen_shop_bakery",
+      "height_m": 7.4,
+      "prompt": "A two-storey bakery building, complete from the ground to the top of its roof, and noticeably wider than it is tall - a broad street frontage, not a narrow tower. Ground floor: a deep blue-painted shopfront with large glazed windows showing wooden shelves stacked with golden loaves and bread baskets, a central wooden door with a green wreath on it, a cream-and-white striped awning, and a hanging wooden sign board with a painted loaf of bread on it and no lettering. Upper storey: two tall windows with window boxes of green plants and small white flowers. A slate roof with a chimney. Hanging flower baskets either side of the door.",
+      "size": "1024x1024"
+    },
+    {
+      "name": "gen_shop_books",
+      "height_m": 7.2,
+      "prompt": "A two-storey bookshop building, complete from the ground to the top of its roof, and noticeably wider than it is tall - a broad street frontage, not a narrow tower. Ground floor: a deep green-painted shopfront with large glazed windows showing tall shelves of colourful books and a reading lamp, a central wooden door, a green-and-cream striped awning, and a hanging wooden sign board with a painted open book on it and no lettering. Upper storey: two tall windows with window boxes of ivy. A terracotta roof with a chimney. A small chalkboard A-frame beside the door and a wooden bench under the window.",
+      "size": "1024x1024"
+    },
+    {
+      "name": "gen_shop_bloom",
+      "height_m": 7.0,
+      "prompt": "A two-storey florist shop building, complete from the ground to the top of its roof, and noticeably wider than it is tall - a broad street frontage, not a narrow tower. Ground floor: a soft blue-painted shopfront almost hidden behind banked buckets and wooden crates of cut flowers in pink, yellow, white and lavender, large glazed windows, a central wooden door propped open, a blue-and-white striped awning, and a hanging wooden sign board with a painted flower on it and no lettering. Upper storey: two tall windows with overflowing window boxes. A slate roof. Hanging baskets of trailing flowers along the front.",
+      "size": "1024x1024"
+    },
+    {
+      "name": "gen_flowerbed",
+      "height_m": 0.55,
+      "size": "1024x1024",
+      "refs": [
+        "c_hat_bench.png",
+        "a_walk_dog.png",
+        "g_shop_left.png"
+      ],
+      "prompt": "A low clump of garden flowers growing close together, seen from above and slightly to the side: individually drawn blooms with visible petals in pink, white, yellow and lavender, on green stems with small leaves, massed into a rounded clump about knee high. Each flower is a real little flower with petals, not a dot."
+    },
+    {
+      "name": "gen_planter_flowers",
+      "height_m": 1.15,
+      "size": "1024x1024",
+      "refs": [
+        "c_hat_bench.png",
+        "f_shop_bakery.png"
+      ],
+      "prompt": "A square wooden planter box, seen from above and slightly to the side, planted with a dense mound of green foliage and many individually drawn small flowers with visible petals in white, pink and yellow, some trailing over the edge of the box. The wood is warm brown with visible plank lines and a soft dark outline."
+    },
+    {
+      "name": "gen_pot_plant",
+      "height_m": 0.85,
+      "size": "1024x1024",
+      "refs": [
+        "f_shop_bakery.png",
+        "g_shop_left.png"
+      ],
+      "prompt": "A single terracotta flower pot, seen from above and slightly to the side, planted with a leafy green shrub and a few small white and pink blooms with visible petals. Warm terracotta with a soft dark outline."
+    },
+    {
+      "name": "gen_hanging_basket",
+      "height_m": 0.9,
+      "size": "1024x1024",
+      "refs": [
+        "f_shop_bakery.png",
+        "e_shop_cafe.png"
+      ],
+      "prompt": "A woven wicker hanging basket on a short dark metal bracket, seen from above and slightly to the side, overflowing with trailing green foliage and many individually drawn small flowers with visible petals in pink, white and red, spilling down below the basket."
+    },
+    {
+      "name": "gen_window_box",
+      "height_m": 0.7,
+      "size": "1024x1024",
+      "refs": [
+        "f_shop_bakery.png",
+        "e_shop_cafe.png"
+      ],
+      "prompt": "A long narrow wooden window box seen from the front and slightly above, filled with green trailing plants and many individually drawn small flowers with visible petals in pink, white and yellow, trailing down over the front edge of the box."
+    }
+  ]
+}

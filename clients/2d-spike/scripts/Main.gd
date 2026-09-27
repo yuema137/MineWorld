@@ -68,6 +68,7 @@ func _ready() -> void:
 			else:
 				push_warning("unknown variant '%s'; using '%s'" % [v, variant])
 	print("variant: ", variant)
+	_build_role_map()
 	_jit.seed = 20260926
 	props = _load_props()
 	_ink_shader = load("res://art/ink.gdshader")
@@ -134,7 +135,7 @@ func _art(name: String) -> String:
 ## the scene's vocabulary — "npc_b", "shop_cafe" — and stay put; only what they
 ## resolve to changes.
 func _role(name: String) -> String:
-	var m: Dictionary = ROLE_GEN.get(variant, {})
+	var m: Dictionary = role_map.get(variant, {})
 	var to: String = m.get(name, "")
 	# A directional character resolves to a base name that is not itself a
 	# prop: only <base>_front and <base>_back exist. Accept either shape, or
@@ -163,9 +164,26 @@ const ROLE_PROC := {
 	"npc_f": "npc_a", "npc_g": "npc_b", "npc_h": "npc_c",
 	"npc_i": "npc_d", "npc_j": "npc_e", "cat": "dog",
 }
-const ROLE_GEN := {
-	"people": ROLE_PEOPLE, "full": ROLE_PEOPLE, "procedural": ROLE_PROC,
+## What "full" swaps on top of the cast: shopfronts and the planted props.
+const ROLE_WORLD := {
+	"shop_cafe": "gen_shop_cafe", "shop_bakery": "gen_shop_bakery",
+	"shop_books": "gen_shop_books", "shop_bloom": "gen_shop_bloom",
+	"planter": "gen_planter_flowers", "planter_b": "gen_planter_flowers",
+	"pot": "gen_pot_plant", "pot_b": "gen_pot_plant",
 }
+
+## Built once at startup: const dictionaries cannot be merged in place.
+var role_map: Dictionary = {}
+
+
+func _build_role_map() -> void:
+	role_map = {
+		"procedural": ROLE_PROC.duplicate(),
+		"people": ROLE_PEOPLE.duplicate(),
+		"full": ROLE_PEOPLE.duplicate(),
+	}
+	for k in ROLE_WORLD:
+		role_map["full"][k] = ROLE_WORLD[k]
 
 
 ## Vegetation is scaled from its authored height to a target height in metres,

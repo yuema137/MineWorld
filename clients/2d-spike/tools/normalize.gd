@@ -88,7 +88,16 @@ func _init():
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
 
 	var done: Array = []
+	# Merge into whatever is already there. Each spec file covers one family —
+	# characters, props — and writing the manifest fresh per run silently drops
+	# every family but the last one normalized.
 	var manifest := {}
+	var prev := FileAccess.open("%s/generated.json" % OUT_DIR, FileAccess.READ)
+	if prev != null:
+		var old = JSON.parse_string(prev.get_as_text())
+		if old is Dictionary:
+			manifest = old
+		prev.close()
 
 	for s in doc["specs"]:
 		var name: String = s["name"]
