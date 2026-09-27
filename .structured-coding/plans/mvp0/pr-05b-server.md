@@ -213,7 +213,7 @@ could not otherwise order two observations, since `WorldTime` has one-second gra
 | # | Commit | Implementation | Validation | LLM logic review |
 | --- | --- | --- | --- | --- |
 | 1 | the crate: the frames, the perception seam, the host and the world thread | `[x]` | `[x]` | `[x]` |
-| 2 | the transport: HTTP control plane, WebSocket sessions, the binary | `[ ]` | `[ ]` | `[ ]` |
+| 2 | the transport: HTTP control plane, WebSocket sessions, the binary | `[x]` | `[x]` | `[x]` |
 | 3 | the acceptance tests: two real clients on real sockets | `[ ]` | `[ ]` | `[ ]` |
 | 4 | terminal validation and closeout | `[ ]` | `[ ]` | `[ ]` |
 
@@ -266,6 +266,36 @@ a correlation token is bounded, printable, and round-trips unchanged
 
 Every expected JSON string in those tests is written by hand rather than produced by the code under
 test (`test-ci-gate-rules.md` §25).
+
+### Commit 2 — the transport and the binary
+
+```text
+Validation:
+  command:      cargo fmt --all --check
+                cargo clippy --workspace --all-targets --all-features -- -D warnings
+                cargo test -p mineworld-server
+                ./target/debug/mineworld-server --listen 127.0.0.1:7899   (then curl)
+  purpose:      the routes answer, and the world answers /status itself rather than the transport
+                answering from a cache
+  result:       fmt clean; clippy clean; 15 + 1 tests still pass
+  verdict:      PASS
+```
+
+The binary, run for real:
+
+```text
+[server] listening on http://127.0.0.1:7899 (ws://127.0.0.1:7899/ws), protocol 1
+[server] world: 0 entities, 0 system(s), 0 seat(s) — an empty world until a World Pack can be
+         loaded (PR 05c)
+
+GET /health  ->  {"status":"ok","protocol":1}
+GET /status  ->  {"protocol":1,"at":1,"entities":0,"systems":[],"seats":[],"clients":0}
+```
+
+`at` is `1` two seconds after start, which is the provisional wall clock in whole simulated
+seconds — the evidence that `/status` is answered by the world thread rather than by a value the
+transport captured at startup. An empty world with no seats is a valid world (`INV-12`) and the
+honest thing for this binary to host until PR 05c can load a World Pack.
 
 ## 7. Decisions, discoveries and limitations
 

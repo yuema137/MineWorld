@@ -17,18 +17,19 @@
 //! §2       a client may act, and may never assert. A frame that states a fact is a protocol
 //!          violation — see protocol::ClientFrame::decode and RefusalCode::UnknownFrame
 //! §1       one binary for localhost and network alike; there is no single-player path here
+//!          — see app::serve
 //! ```
 //!
 //! # The shape of it
 //!
 //! ```text
+//! app         the router: /health, /status, /ws
+//! session     one client's conversation: join, then observations out and requests in
 //! host        WorldHost — the handle, the seats, and the thread a World must live on
 //! runtime     the world thread: the clock, the request allocator, the subscribers
 //! perception  the one seam a hosted world provides: what each observer perceives
 //! protocol    the frames, and nothing else a client may say
 //! ```
-//!
-//! The routes and the per-client session are wired on top of this in the next commit.
 //!
 //! The kernel never sees an HTTP or WebSocket type, and nothing in this crate decides a world rule:
 //! admissibility is the kernel's and the systems', and perception is a perception system's
@@ -37,19 +38,22 @@
 //! # Hosting a world
 //!
 //! ```no_run
-//! use mineworld_server::{HostConfig, HostError, HostedWorld, SeatRoster, WorldHost};
+//! use mineworld_server::{HostConfig, HostedWorld, SeatRoster, WorldHost, app};
 //! use mineworld_kernel::World;
+//! use mineworld_contracts::EntityKey;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // The world is built inside its own thread, because a World is not Send.
 //! let host = WorldHost::spawn(HostConfig::default(), || {
-//!     let world = World::new();
+//!     let mut world = World::new();
 //!     // world.install(...) every System Pack this world is composed of, then:
-//!     Ok::<_, HostError>(HostedWorld::new(world).seating(SeatRoster::empty()))
+//!     Ok(HostedWorld::new(world).seating(SeatRoster::empty()))
 //! })
 //! .await?;
 //!
-//! println!("{} system(s) installed", host.status().await?.systems.len());
+//! let (listener, address) = app::bind("127.0.0.1:7878".parse()?).await?;
+//! println!("listening on ws://{address}/ws");
+//! app::serve(listener, host).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -57,10 +61,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod app;
 pub mod host;
 pub mod perception;
 pub mod protocol;
 mod runtime;
+mod session;
 
 pub use host::{
     HostConfig, HostError, HostedWorld, SeatRoster, Seated, Submitted, SubscriptionId, WorldHost,
