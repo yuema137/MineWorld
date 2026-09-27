@@ -35,6 +35,8 @@ var player_facing := 1.0
 var walkers: Array = []
 var cam: Camera2D
 var _jit := RandomNumberGenerator.new()
+var _ink_shader: Shader
+var _ink_mats: Dictionary = {}   # texel width -> shared ShaderMaterial
 var shadows: Node2D
 var grade: CanvasLayer
 
@@ -46,6 +48,7 @@ const PLAYER_SPEED := 2.4   # world units/second (~4.8 m/s, a brisk walk in a de
 func _ready() -> void:
 	_jit.seed = 20260926
 	props = _load_props()
+	_ink_shader = load("res://art/ink.gdshader")
 	world = Node2D.new()
 	world.y_sort_enabled = true
 	add_child(world)
@@ -119,6 +122,43 @@ func _scale_for(name: String) -> float:
 	return 0.3
 
 
+## The ink contour for a sprite drawn at scale `k`.
+##
+## The line should be about the same thickness on screen everywhere, so its
+## width in texels is the screen width divided by the draw scale. Materials are
+## shared between props that land on the same width, which collapses a few
+## hundred sprites onto a handful of materials.
+const INK_PX := 1.8        # target contour thickness, screen pixels
+
+
+## How hard the contour bites, per prop class. Foliage and shopfronts already
+## draw their own line work in the SVG — foliage a dark union silhouette,
+## shopfronts a value break at every junction — so inking them at full
+## strength draws the line twice and turns them to mud.
+const INK_BITE := {"veg": 0.20, "shop": 0.26, "prop": 0.46}
+
+
+func _ink_class(name: String) -> String:
+	if name.begins_with("tree") or name.begins_with("bush") or name == "hedge":
+		return "veg"
+	if name.begins_with("shop_"):
+		return "shop"
+	return "prop"
+
+
+func _ink_material(k: float, cls := "prop") -> ShaderMaterial:
+	var texels := clampf(INK_PX / maxf(k, 0.02), 1.5, 14.0)
+	var key := "%s:%.1f" % [cls, roundf(texels * 2.0) / 2.0]
+	if _ink_mats.has(key):
+		return _ink_mats[key]
+	var m := ShaderMaterial.new()
+	m.shader = _ink_shader
+	m.set_shader_parameter("width", roundf(texels * 2.0) / 2.0)
+	m.set_shader_parameter("strength", INK_BITE.get(cls, 0.46))
+	_ink_mats[key] = m
+	return m
+
+
 ## One prop, anchored on the ground so the painter's sort is correct.
 func _prop(name: String, at: Vector2, flip := false, z := 0) -> Node2D:
 	var holder := Node2D.new()
@@ -140,6 +180,7 @@ func _prop(name: String, at: Vector2, flip := false, z := 0) -> Node2D:
 		s.modulate = Color(0.93 + _jit.randf() * 0.14,
 			0.95 + _jit.randf() * 0.10, 0.90 + _jit.randf() * 0.16)
 	s.scale = Vector2(-k if flip else k, k)
+	s.material = _ink_material(k, _ink_class(name))
 	if flip:
 		s.offset.x = -s.offset.x - float(m["w"]) + 2.0 * float(m["ax"])
 	holder.add_child(s)
@@ -376,6 +417,7 @@ func _make_actor(p) -> Node2D:
 		s.offset = Vector2(-float(m["ax"]), -float(m["ay"]))
 		var k := _scale_for(nm)
 		s.scale = Vector2(k, k)
+		s.material = _ink_material(k)
 		s.name = "front" if suffix != "_back" else "back"
 		body.add_child(s)
 	if has_back:
@@ -536,6 +578,17 @@ func _shots() -> void:
 	cam.position = Iso.to_screen(Vector2(13.8, 4.2))
 	await _settle(6)
 	await _save("05_park")
+
+	# Framed to match references/02_cafe_street.png, so the comparison is
+	# like for like. In that plate a person stands about 8% of the frame
+	# width; at Iso.PX_PER_M_Z a 1.75 m person is 56 px, so 1600 px of
+	# viewport needs zoom ~2.3 to agree. Every earlier shot is wider than
+	# any reference plate, which flattered the art in some ways and
+	# punished it in others.
+	cam.zoom = Vector2(2.3, 2.3)
+	cam.position = Iso.to_screen(Vector2(3.6, 1.1))
+	await _settle(6)
+	await _save("06_ref_framing")
 
 	get_tree().quit(0)
 

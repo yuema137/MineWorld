@@ -245,6 +245,16 @@ def lin(stops, x1=0.0, y1=0.0, x2=0.0, y2=1.0):
     return "url(#%s)" % i
 
 
+def form(c, lit=0.20, shade=0.30, across=1.0):
+    """A body-form ramp: lit on the upper left, shaded on the lower right.
+
+    Flat fills with a hard-edged patch of shade over them is what made the
+    people read as paper dolls at close framing. One ramp per limb replaces
+    both."""
+    return lin([(0.0, lt(c, lit)), (0.48, c), (1.0, sh(c, shade))],
+               x1=0.0, y1=0.0, x2=across, y2=0.55)
+
+
 def rad(stops, cx=0.5, cy=0.5, r=0.5):
     """Radial ramp in object-bounding-box space. Returns a fill string."""
     _gid[0] += 1
@@ -1422,20 +1432,17 @@ def _char_body(H, skin, hair, top_c, bottom_c, shoe_c, back, hat=None, bag=None,
     lw = torso_w * 0.36
     for dx in (-1, 1):
         lx = W + dx * torso_w * 0.26 - lw / 2
-        s.append(rect(lx, neck_y + torso_h - 4, lw, leg_h + 6, bottom_c,
+        s.append(rect(lx, neck_y + torso_h - 4, lw, leg_h + 6,
+                      form(bottom_c, 0.16, 0.30),
                       stroke=e_bot, sw=4.2, rx=lw * 0.42))
-        s.append(rect(lx + lw * 0.58, neck_y + torso_h - 2, lw * 0.42, leg_h + 2,
-                      sh(bottom_c, 0.20), rx=lw * 0.30))
     for dx in (-1, 1):
         s.append(ell(W + dx * torso_w * 0.26, H - H * 0.018,
-                     lw * 0.72, H * 0.026, shoe_c, stroke=sh(shoe_c, 0.30), sw=4.0))
+                     lw * 0.72, H * 0.026, form(shoe_c, 0.20, 0.22),
+                     stroke=sh(shoe_c, 0.30), sw=4.0))
     # torso
     s.append(rect(W - torso_w / 2, neck_y - 2, torso_w, torso_h + 6,
-                  top_c, stroke=e_top, sw=4.6, rx=torso_w * 0.30))
-    s.append(rect(W + torso_w * 0.08, neck_y, torso_w * 0.42, torso_h + 2,
-                  sh(top_c, 0.16), rx=torso_w * 0.24))
-    s.append(rect(W - torso_w * 0.46, neck_y, torso_w * 0.26, torso_h * 0.80,
-                  lt(top_c, 0.22), rx=torso_w * 0.18))
+                  form(top_c, 0.22, 0.28), stroke=e_top, sw=4.6,
+                  rx=torso_w * 0.30))
     s.append(rect(W - torso_w / 2, neck_y - 2, torso_w, torso_h * 0.16,
                   sh(top_c, 0.26), rx=torso_w * 0.18))          # under the chin
     # arms
@@ -1443,7 +1450,8 @@ def _char_body(H, skin, hair, top_c, bottom_c, shoe_c, back, hat=None, bag=None,
     for dx in (-1, 1):
         ax = W + dx * (torso_w / 2 + aw * 0.18) - aw / 2
         s.append(rect(ax, neck_y + 4, aw, torso_h * 0.86,
-                      sh(top_c, 0.10) if dx > 0 else lt(top_c, 0.10),
+                      form(sh(top_c, 0.12) if dx > 0 else lt(top_c, 0.08),
+                           0.14, 0.26),
                       stroke=e_top, sw=4.0, rx=aw * 0.5))
         s.append(circ(W + dx * (torso_w / 2 + aw * 0.18), neck_y + 4 + torso_h * 0.86,
                       aw * 0.44, skin, stroke=e_skin, sw=3.6))
@@ -1456,12 +1464,10 @@ def _char_body(H, skin, hair, top_c, bottom_c, shoe_c, back, hat=None, bag=None,
         s.append(rect(W + torso_w * 0.30, neck_y + torso_h * 0.30, torso_w * 0.34,
                       torso_h * 0.42, bag, stroke=sh(bag, 0.30), sw=4.0, rx=5))
     # head
-    s.append(circ(W, head_cy, head_r, skin, stroke=e_skin, sw=4.6))
-    s.append(path("M %s %s A %s %s 0 0 0 %s %s Z" % (
-        r2(W + head_r * 0.30), r2(head_cy - head_r * 0.90),
-        r2(head_r), r2(head_r),
-        r2(W + head_r * 0.30), r2(head_cy + head_r * 0.94)),
-        fill=sh(skin, 0.13)))                                    # shaded cheek
+    s.append(circ(W, head_cy, head_r,
+                  rad([(0.0, lt(skin, 0.22)), (0.55, skin), (1.0, sh(skin, 0.24))],
+                      cx=0.36, cy=0.32, r=0.74),
+                  stroke=e_skin, sw=4.6))
     if not back:
         ey = head_cy + head_r * 0.14
         for dx in (-1, 1):

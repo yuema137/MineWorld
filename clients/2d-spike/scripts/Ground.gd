@@ -17,7 +17,7 @@ const C := {
 	"stone_hi": Color("cfc7bc"),
 	"stone": Color("bab1a6"),
 	"stone_lo": Color("9c948a"),
-	"joint": Color("8a8279"),
+	"joint": Color("7b746c"),
 	"quay": Color("b3aba0"),
 	"quay_lo": Color("8e867c"),
 	"quay_line": Color("6e675f"),
@@ -126,6 +126,18 @@ func _vjit(ix: int, iy: int) -> Vector2:
 	return Vector2((hx - 0.5) * STONE * 0.11, (hy - 0.5) * STONE * 0.11)
 
 
+## An irregular blob, for stains and wear. Round patches read as stamps.
+func _blob_poly(c: Vector2, rx: float, ry: float, rng: RandomNumberGenerator) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var n := 11
+	var ph := rng.randf() * TAU
+	for i in range(n):
+		var a := TAU * i / float(n)
+		var k := 0.68 + 0.42 * sin(a * 3.0 + ph) * 0.5 + rng.randf() * 0.30
+		pts.append(c + Vector2(cos(a) * rx * k, sin(a) * ry * k))
+	return pts
+
+
 func _draw_plaza() -> void:
 	draw_colored_polygon(_rect_poly(PLAZA), C["joint"])   # mortar shows through
 	var nx := int(PLAZA.size.x / STONE)
@@ -168,7 +180,7 @@ func _draw_plaza() -> void:
 			# pull each stone in from the joint
 			var mid := (pts[0] + pts[1] + pts[2] + pts[3]) * 0.25
 			for i in range(4):
-				pts[i] = pts[i] + (mid - pts[i]).normalized() * 1.0
+				pts[i] = pts[i] + (mid - pts[i]).normalized() * 0.7
 			# +/-5% value per stone, plus a slow large-scale drift so the
 			# paving weathers across the square instead of only dithering
 			var v := (float(int(hash(Vector2i(ix * 31, iy * 17))) % 1000) / 1000.0 - 0.5) * 0.055
@@ -180,8 +192,8 @@ func _draw_plaza() -> void:
 			# Gouraud, via draw_polygon's per-vertex colours — smooth, and the
 			# engine does it, so there is nothing to band.
 			var cols := PackedColorArray([
-				col.lightened(0.055), col.lightened(0.02),
-				col.darkened(0.065), col.darkened(0.02)])
+				col.lightened(0.022), col.lightened(0.008),
+				col.darkened(0.030), col.darkened(0.010)])
 			draw_polygon(pts, cols)
 
 	# a kerb, so the paving ends because someone built it that way
@@ -195,6 +207,27 @@ func _draw_plaza() -> void:
 		draw_line(a, b, C["stone_hi"], 9.0, true)
 		draw_line(a + Vector2(0, 11), b + Vector2(0, 11), Color(0.22, 0.19, 0.13, 0.22),
 			7.0, true)
+
+	# Weather. Paving in the plates is stained, worn along the lines people
+	# walk, and damp in the corners; clean stone is what makes a large flat
+	# surface read as a sheet of card however well it is jointed.
+	for i in range(120):
+		var wp := PLAZA.position + Vector2(_rng.randf() * PLAZA.size.x,
+			_rng.randf() * PLAZA.size.y)
+		if PARK.has_point(wp):
+			continue
+		var sp := Iso.to_screen(wp)
+		var rr := 14.0 + _rng.randf() * 46.0
+		var dark := _rng.randf() < 0.62
+		draw_colored_polygon(_blob_poly(sp, rr, rr * 0.5, _rng),
+			Color(0.36, 0.32, 0.26, 0.05) if dark else Color(0.96, 0.94, 0.88, 0.05))
+	# a worn desire line from the shop row to the quay
+	for i in range(64):
+		var t := i / 63.0
+		var wp2 := Vector2(2.2 + t * 9.0, 0.6 + sin(t * 2.4) * 1.5 + t * 3.4)
+		var sp2 := Iso.to_screen(wp2)
+		draw_colored_polygon(_blob_poly(sp2, 52.0, 24.0, _rng),
+			Color(0.38, 0.34, 0.28, 0.035))
 
 	var centre := Vector2(6.4, 3.24)
 	for r in [2.65]:

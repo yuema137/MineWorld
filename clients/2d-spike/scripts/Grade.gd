@@ -14,6 +14,10 @@ func _ready() -> void:
 	layer = 50
 	_mat = ShaderMaterial.new()
 	_mat.shader = load("res://art/grade.gdshader")
+	var paper: Texture2D = load("res://art/paper_grain.png")
+	_mat.set_shader_parameter("paper", paper)
+	_mat.set_shader_parameter("paper_size",
+		Vector2(paper.get_width(), paper.get_height()))
 	_rect = ColorRect.new()
 	_rect.material = _mat
 	_rect.set_anchors_preset(Control.PRESET_FULL_RECT)

@@ -18,6 +18,14 @@ shader_type canvas_item;
 
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear;
 
+// Real cold-press paper tooth, derived from PuzzleAndy's CC0 watercolour scans
+// (see ASSETS.md). Scanned paper is irregular in a way value noise is not:
+// noise is uniformly random at every point, whereas paper has fibre, direction
+// and clumping. Using both — this for the tooth, noise for the broad mottle —
+// costs one 512px texture and is the difference between "grainy" and "printed".
+uniform sampler2D paper : filter_linear, repeat_enable;
+uniform vec2 paper_size = vec2(512.0);
+
 uniform vec2 world_off = vec2(0.0);   // camera position, for world-anchored grain
 uniform float grain_coarse = 0.115;
 uniform float grain_fine = 0.055;
@@ -55,11 +63,17 @@ void fragment() {
 	vec3 c = texture(screen_tex, SCREEN_UV).rgb;
 
 	// --- grain -------------------------------------------------------------
-	// coarse: anchored to the world, so it is texture on the scene
+	// coarse: anchored to the world, so it is texture lying on the scene
 	float coarse = fbm((px + world_off) * 0.021) - 0.5;
-	// fine: anchored to the screen, so it is tooth in the paper
-	float fine = vnoise(px * 0.85) - 0.5;
-	float tooth = vnoise(px * 2.7) - 0.5;
+	// Sampled mirrored, so a 512px tile covers any viewport without a seam.
+	vec2 puv = px / paper_size;
+	puv = abs(fract(puv * 0.5) * 2.0 - 1.0);
+	float fine = texture(paper, puv).r - 0.5;
+	// a second, larger tap anchored to the world, so the ground carries
+	// paper texture that stays put as the camera moves
+	vec2 wuv = (px + world_off) / (paper_size * 2.6);
+	wuv = abs(fract(wuv * 0.5) * 2.0 - 1.0);
+	float tooth = texture(paper, wuv).r - 0.5;
 
 	// Grain bites hardest in the midtones and lets highlights stay clean,
 	// which is how paper actually behaves.
@@ -68,7 +82,7 @@ void fragment() {
 	bite = clamp(bite, 0.22, 1.0);
 
 	c += coarse * grain_coarse * bite;
-	c += (fine * 0.65 + tooth * 0.35) * grain_fine * bite;
+	c += (fine * 1.30 + tooth * 0.80) * grain_fine * bite;
 
 	// --- grade -------------------------------------------------------------
 	// S-curve: the references carry real dark mass; flat vector does not.
