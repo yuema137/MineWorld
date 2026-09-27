@@ -9,21 +9,27 @@ const Iso := preload("res://scripts/Iso.gd")
 ## keeps it looking drawn rather than tiled.
 
 const C := {
-	"stone_hi": Color("edE6d6"),
-	"stone": Color("ece1c6"),
-	"stone_lo": Color("c8bea6"),
-	"joint": Color("b3a78b"),
-	"quay": Color("d3cab4"),
-	"quay_lo": Color("b6ab90"),
-	"quay_line": Color("9c9075"),
-	"grass": Color("8cc260"),
-	"grass_lo": Color("6ca648"),
-	"grass_hi": Color("a9d579"),
-	"water": Color("3fa8d6"),
-	"water_deep": Color("2f8ec4"),
-	"water_lo": Color("2b85b6"),
-	"water_hi": Color("7fcbe8"),
-	"sand": Color("e2d6bb"),
+	# Measured off the reference plates rather than eyeballed: a k-means over
+	# their low-saturation pixels lands on #8D847D / #9F9893 / #BAB1AA. The
+	# paving in those images is a warm *grey*. The cream this used to be ran
+	# about two steps light and much too yellow, which is most of the reason
+	# the plaza read as cardboard rather than stone.
+	"stone_hi": Color("cfc7bc"),
+	"stone": Color("bab1a6"),
+	"stone_lo": Color("9c948a"),
+	"joint": Color("8a8279"),
+	"quay": Color("b3aba0"),
+	"quay_lo": Color("8e867c"),
+	"quay_line": Color("6e675f"),
+	"grass": Color("6f9440"),
+	"grass_lo": Color("4e6f35"),
+	"grass_hi": Color("93af46"),
+	"grass_deep": Color("36502a"),
+	"water": Color("2f7f9e"),
+	"water_deep": Color("1f5f7d"),
+	"water_lo": Color("1a4f68"),
+	"water_hi": Color("5aa3bd"),
+	"sand": Color("c2b7a2"),
 }
 
 const FLOWER := [Color("f2a0b4"), Color("f4e07a"), Color("ffffff"), Color("c79be0")]
@@ -124,28 +130,60 @@ func _draw_plaza() -> void:
 	draw_colored_polygon(_rect_poly(PLAZA), C["joint"])   # mortar shows through
 	var nx := int(PLAZA.size.x / STONE)
 	var ny := int(PLAZA.size.y / STONE)
+
+	# Slabs of mixed size. A perfect lattice of identical stones is the single
+	# most "vector" thing a large flat surface can do, and the plaza is the
+	# biggest surface in the frame. Cells are claimed greedily into 2x1, 1x2 or
+	# 1x1 slabs from a deterministic hash, so the bond breaks up without ever
+	# leaving a hole or an overlap.
+	var taken := {}
 	for iy in range(ny):
 		for ix in range(nx):
+			var key := Vector2i(ix, iy)
+			if taken.has(key):
+				continue
 			var wx := PLAZA.position.x + ix * STONE
 			var wy := PLAZA.position.y + iy * STONE
 			if PARK.has_point(Vector2(wx + STONE * 0.5, wy + STONE * 0.5)):
 				continue
+			var sx := 1
+			var sy := 1
+			var roll := float(int(hash(Vector2i(ix * 5, iy * 13))) % 1000) / 1000.0
+			if roll < 0.20 and ix + 1 < nx and not taken.has(Vector2i(ix + 1, iy)) \
+					and not PARK.has_point(Vector2(wx + STONE * 1.5, wy + STONE * 0.5)):
+				sx = 2
+			elif roll < 0.38 and iy + 1 < ny and not taken.has(Vector2i(ix, iy + 1)) \
+					and not PARK.has_point(Vector2(wx + STONE * 0.5, wy + STONE * 1.5)):
+				sy = 2
+			for dy in range(sy):
+				for dx in range(sx):
+					taken[Vector2i(ix + dx, iy + dy)] = true
+
 			var c00 := Vector2(wx, wy) + _vjit(ix, iy)
-			var c10 := Vector2(wx + STONE, wy) + _vjit(ix + 1, iy)
-			var c11 := Vector2(wx + STONE, wy + STONE) + _vjit(ix + 1, iy + 1)
-			var c01 := Vector2(wx, wy + STONE) + _vjit(ix, iy + 1)
+			var c10 := Vector2(wx + STONE * sx, wy) + _vjit(ix + sx, iy)
+			var c11 := Vector2(wx + STONE * sx, wy + STONE * sy) + _vjit(ix + sx, iy + sy)
+			var c01 := Vector2(wx, wy + STONE * sy) + _vjit(ix, iy + sy)
 			var pts := PackedVector2Array([Iso.to_screen(c00), Iso.to_screen(c10),
 				Iso.to_screen(c11), Iso.to_screen(c01)])
 			# pull each stone in from the joint
 			var mid := (pts[0] + pts[1] + pts[2] + pts[3]) * 0.25
 			for i in range(4):
-				pts[i] = pts[i] + (mid - pts[i]).normalized() * 1.1
-			# +/-8% value per stone, on a warm sunlit base
-			var v := (float(int(hash(Vector2i(ix * 31, iy * 17))) % 1000) / 1000.0 - 0.5) * 0.085
+				pts[i] = pts[i] + (mid - pts[i]).normalized() * 1.0
+			# +/-5% value per stone, plus a slow large-scale drift so the
+			# paving weathers across the square instead of only dithering
+			var v := (float(int(hash(Vector2i(ix * 31, iy * 17))) % 1000) / 1000.0 - 0.5) * 0.055
+			v += sin(wx * 0.9 + wy * 0.5) * 0.020 + sin(wx * 0.23 - wy * 0.41) * 0.026
 			var col := C["stone"]
 			col = Color(clampf(col.r + v, 0, 1), clampf(col.g + v * 0.97, 0, 1),
 				clampf(col.b + v * 0.90, 0, 1))
-			draw_colored_polygon(pts, col)
+			# Per-slab shading: a lit top-left edge and a shaded bottom-right.
+			# Gouraud, via draw_polygon's per-vertex colours — smooth, and the
+			# engine does it, so there is nothing to band.
+			var cols := PackedColorArray([
+				col.lightened(0.055), col.lightened(0.02),
+				col.darkened(0.065), col.darkened(0.02)])
+			draw_polygon(pts, cols)
+
 	# a kerb, so the paving ends because someone built it that way
 	var sw_c := Vector2(PLAZA.position.x, PLAZA.end.y)
 	var se_c := PLAZA.end

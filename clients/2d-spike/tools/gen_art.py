@@ -39,35 +39,45 @@ SY = TILE_H * 2.0  # world unit height at 2x  (half-height = SY/2 = 64)
 # palette, eyeballed off the four reference plates
 # ---------------------------------------------------------------------------
 P = {
-    "stone_hi": "#EDE6D6",
-    "stone": "#DCD4C1",
-    "stone_lo": "#C8BEA6",
-    "joint": "#C2B69C",
-    "quay": "#D3CAB4",
-    "quay_lo": "#B6AB90",
-    "quay_line": "#9C9075",
+    # Paving in the plates is a warm *grey*, not cream: the neutral k-means
+    # lands on #8D847D / #9F9893 / #BAB1AA. The old cream ran ~2 steps light
+    # and far too yellow, which is most of why the plaza read as cardboard.
+    "stone_hi": "#CFC7BC",
+    "stone": "#BAB1A6",
+    "stone_lo": "#9C948A",
+    "joint": "#8A8279",
+    "quay": "#B3ABA0",
+    "quay_lo": "#8E867C",
+    "quay_line": "#6E675F",
 
-    "grass": "#8CC260",
-    "grass_lo": "#6CA648",
-    "grass_hi": "#A9D579",
+    "grass": "#6F9440",
+    "grass_lo": "#4E6F35",
+    "grass_hi": "#93AF46",
 
-    "leaf_lo": "#4C8A3B",
-    "leaf": "#6FB544",
-    "leaf_hi": "#95CF60",
-    "leaf_top": "#B8E282",
-    "leaf_out": "#57903A",
+    # Foliage ramp measured off the reference plates (k-means over the green
+    # pixels of 01/02/04). The span that matters is the dark half: the plates
+    # put ~15% of their foliage below #365E39, which is what stops a canopy
+    # reading as one bright blob.
+    "leaf_deep": "#22412C",
+    "leaf_lo": "#365E39",
+    "leaf": "#527B3C",
+    "leaf_mid": "#739940",
+    "leaf_hi": "#98B543",
+    "leaf_top": "#BFCE4B",
+    "leaf_out": "#1B3324",
 
-    "trunk": "#96683F",
-    "trunk_lo": "#795334",
+    "trunk": "#7A5638",
+    "trunk_lo": "#513A28",
+    "trunk_hi": "#9C7550",
 
     "wood": "#C48C52",
     "wood_lo": "#9A6A36",
     "wood_hi": "#DCAE74",
     "wood_out": "#9C7040",
 
-    "water": "#3FA8D6",
-    "water_lo": "#2B85B6",
-    "water_hi": "#7FCBE8",
+    "water": "#2F7F9E",
+    "water_lo": "#1F5F7D",
+    "water_hi": "#5AA3BD",
 
     "cream": "#F7EFDF",
     "cream_lo": "#E4D8C0",
@@ -201,18 +211,63 @@ def r2(v):
     return ("%.2f" % float(v)).rstrip("0").rstrip(".")
 
 
-def soft_shadow(cx, cy, rx, ry):
-    """Three stacked ellipses stand in for a blur ThorVG may not support."""
+# ---------------------------------------------------------------------------
+# real SVG gradients
+#
+# The spike previously faked every ramp with ten stacked bands, on the
+# assumption that ThorVG (which Godot uses to rasterise these SVGs) could not
+# do gradients. It can: <linearGradient> and <radialGradient>, including
+# stop-opacity, render smoothly. Verified against Godot 4.7.2 before this was
+# written. Banding is therefore gone, and — more usefully — soft-edged shading
+# becomes available, which is what separates painted foliage from flat discs.
+# ---------------------------------------------------------------------------
+
+DEFS: list[str] = []
+_gid = [0]
+
+
+def _stops(stops):
     out = []
-    for k, a in ((1.34, 0.05), (1.14, 0.07), (1.0, 0.10)):
-        out.append(ell(cx, cy, rx * k, ry * k, P["shadow"], opacity=a))
+    for st in stops:
+        off, col = st[0], st[1]
+        op = st[2] if len(st) > 2 else None
+        out.append('<stop offset="%s" stop-color="%s"%s/>' % (
+            r2(off), col, "" if op is None else ' stop-opacity="%s"' % r2(op)))
     return "".join(out)
 
 
+def lin(stops, x1=0.0, y1=0.0, x2=0.0, y2=1.0):
+    """Linear ramp in object-bounding-box space. Returns a fill string."""
+    _gid[0] += 1
+    i = "l%d" % _gid[0]
+    DEFS.append('<linearGradient id="%s" x1="%s" y1="%s" x2="%s" y2="%s">%s</linearGradient>'
+                % (i, r2(x1), r2(y1), r2(x2), r2(y2), _stops(stops)))
+    return "url(#%s)" % i
+
+
+def rad(stops, cx=0.5, cy=0.5, r=0.5):
+    """Radial ramp in object-bounding-box space. Returns a fill string."""
+    _gid[0] += 1
+    i = "r%d" % _gid[0]
+    DEFS.append('<radialGradient id="%s" cx="%s" cy="%s" r="%s">%s</radialGradient>'
+                % (i, r2(cx), r2(cy), r2(r), _stops(stops)))
+    return "url(#%s)" % i
+
+
+def soft_shadow(cx, cy, rx, ry):
+    """A genuinely soft contact shadow: one ellipse, one radial alpha ramp."""
+    f = rad([(0.0, P["shadow"], 0.30), (0.55, P["shadow"], 0.20),
+             (1.0, P["shadow"], 0.0)])
+    return ell(cx, cy, rx * 1.30, ry * 1.30, f)
+
+
 def write(name, w, h, ax, ay, body):
+    defs = ('<defs>%s</defs>' % "".join(DEFS)) if DEFS else ""
+    DEFS.clear()
     doc = (
         '<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" '
-        'viewBox="0 0 %d %d">%s</svg>' % (int(w), int(h), int(w), int(h), body)
+        'viewBox="0 0 %d %d">%s%s</svg>'
+        % (int(w), int(h), int(w), int(h), defs, body)
     )
     with open(os.path.join(OUT, name + ".svg"), "w") as f:
         f.write(doc)
@@ -223,110 +278,330 @@ def write(name, w, h, ax, ay, body):
 # vegetation
 # ---------------------------------------------------------------------------
 
-def blob_cluster(blobs, base, mid, hi, top, out_col, out_w=9):
-    """Draw a union-outlined clump of circles, then light it from upper-left."""
+LEAF_RAMP = ["leaf_deep", "leaf_lo", "leaf", "leaf_mid", "leaf_hi", "leaf_top"]
+
+
+def ramp(t, cols=None):
+    """Sample a colour ramp at t in 0..1 (0 = deepest shade, 1 = full sun)."""
+    cols = cols or [P[k] for k in LEAF_RAMP]
+    t = max(0.0, min(1.0, t)) * (len(cols) - 1)
+    i = int(t)
+    if i >= len(cols) - 1:
+        return cols[-1]
+    f = t - i
+    r0, g0, b0 = _hex(cols[i])
+    r1, g1, b1 = _hex(cols[i + 1])
+    return _rgb((r0 + (r1 - r0) * f, g0 + (g1 - g0) * f, b0 + (b1 - b0) * f))
+
+
+def _lobes(blobs, rnd, n=6):
+    """Break each clump's rim with smaller lobes, so the canopy silhouette is
+    not a row of perfect circles. The single loudest tell of procedural
+    foliage is a circular edge; this is what removes it."""
+    lob = list(blobs)
+    for (cx, cy, r) in blobs:
+        for _ in range(n):
+            a = rnd.uniform(0, math.tau)
+            d = r * rnd.uniform(0.70, 0.99)
+            lob.append((cx + math.cos(a) * d,
+                        cy + math.sin(a) * d * 0.88,
+                        r * rnd.uniform(0.21, 0.40)))
+    return lob
+
+
+BUCKETS = 7
+
+
+def _shade_fills(lo=0.0, hi=1.0, cols=None):
+    """One *linear* ramp per light bucket, reused across every lobe.
+
+    Linear rather than radial on purpose. A radial ramp centred in each lobe
+    makes it read as a glossy sphere — the canopy turns into a heap of
+    bubbles. A directional ramp along the light axis reads as a painted mass
+    instead. Gradients are in objectBoundingBox units, so seven defs shade a
+    hundred lobes."""
+    fills = []
+    for i in range(BUCKETS):
+        t = lo + (hi - lo) * (i / float(BUCKETS - 1))
+        fills.append(lin([
+            (0.0, ramp(min(1.0, t + 0.20), cols)),
+            (0.55, ramp(t, cols)),
+            (1.0, ramp(max(0.0, t - 0.26), cols)),
+        ], x1=0.18, y1=0.0, x2=0.78, y2=1.0))
+    return fills
+
+
+def blob_cluster(blobs, base=None, mid=None, hi=None, top=None, out_col=None,
+                 out_w=9, seed=1, scallop=6, lo=0.06, hi_t=0.96, cols=None):
+    """A clump of foliage, lit from the upper left and shaded across the mass.
+
+    Five passes: a dark union silhouette, a softly-ramped body, a stipple of
+    individual leaf clusters, crevices where lobes meet, and a rim light along
+    the sunward edge. The stipple is the point — flat vector foliage fails
+    because it has no detail at the scale *below* the clump, and that is the
+    scale the eye reads as paint."""
+    rnd = random.Random(seed)
+    out_col = out_col or P["leaf_out"]
+    lob = _lobes(blobs, rnd, scallop)
+
+    xs0 = min(b[0] - b[2] for b in lob)
+    xs1 = max(b[0] + b[2] for b in lob)
+    ys0 = min(b[1] - b[2] for b in lob)
+    ys1 = max(b[1] + b[2] for b in lob)
+    w = max(1.0, xs1 - xs0)
+    h = max(1.0, ys1 - ys0)
+
+    def light_t(cx, cy):
+        u = (cx - xs0) / w
+        v = (cy - ys0) / h
+        return 1.0 - (u * 0.30 + v * 0.70)
+
+    fills = _shade_fills(lo, hi_t, cols)
     s = []
-    for (cx, cy, r) in blobs:                       # pass 1: silhouette
-        s.append(circ(cx, cy, r, out_col, stroke=out_col, sw=out_w))
-    for (cx, cy, r) in blobs:                       # pass 2: body
-        s.append(circ(cx, cy, r, base))
-    ordered = sorted(blobs, key=lambda b: b[1] - b[0] * 0.25)
-    n = len(ordered)
-    for i, (cx, cy, r) in enumerate(ordered):       # pass 3: light
-        if i < n * 0.34:
-            s.append(circ(cx - r * 0.16, cy - r * 0.20, r * 0.78, top))
-            s.append(circ(cx - r * 0.24, cy - r * 0.30, r * 0.46, hi))
-        elif i < n * 0.62:
-            s.append(circ(cx - r * 0.14, cy - r * 0.16, r * 0.66, mid))
+
+    # 1. silhouette — one dark mass under everything
+    for (cx, cy, r) in lob:
+        s.append(circ(cx, cy, r + out_w * 0.5, out_col))
+
+    order = sorted(lob, key=lambda b: b[1] - b[2] * 0.3)
+
+    # 2. body
+    for (cx, cy, r) in order:
+        t = light_t(cx, cy)
+        b = int(round(max(0.0, min(1.0, t)) * (BUCKETS - 1)))
+        s.append(circ(cx, cy, r, fills[b]))
+
+    # 3. leaf stipple — small rotated ellipses inside each lobe, never past
+    #    0.66r so they cannot leak over the silhouette edge
+    for (cx, cy, r) in order:
+        t = light_t(cx, cy)
+        n = max(3, int(r * 0.13))
+        for _ in range(n):
+            a = rnd.uniform(0, math.tau)
+            d = r * rnd.uniform(0.0, 0.66)
+            lx = cx + math.cos(a) * d
+            ly = cy + math.sin(a) * d * 0.9
+            lt = t + rnd.uniform(-0.20, 0.26)
+            rr = r * rnd.uniform(0.15, 0.27)
+            s.append(e("ellipse", cx=r2(lx), cy=r2(ly), rx=r2(rr),
+                       ry=r2(rr * rnd.uniform(0.52, 0.74)),
+                       fill=ramp(lt, cols),
+                       opacity=r2(rnd.uniform(0.30, 0.62)),
+                       transform="rotate(%s %s %s)" % (
+                           r2(rnd.uniform(-70, 70)), r2(lx), r2(ly))))
+
+    # 4. crevices — the shaded gaps between neighbouring clumps
+    for i, (cx, cy, r) in enumerate(order):
+        if light_t(cx, cy) > 0.5 or rnd.random() > 0.55:
+            continue
+        a = rnd.uniform(0, math.tau)
+        d = r * rnd.uniform(0.15, 0.45)
+        s.append(ell(cx + math.cos(a) * d, cy + math.sin(a) * d,
+                     r * rnd.uniform(0.26, 0.44), r * rnd.uniform(0.16, 0.28),
+                     P["leaf_deep"], opacity=rnd.uniform(0.18, 0.34)))
+
+    # 5. rim light — a bright crescent on the sunward lobes only, drawn as a
+    #    clipped arc so nothing haloes outside the canopy
+    for (cx, cy, r) in order:
+        t = light_t(cx, cy)
+        if t < 0.72:
+            continue
+        s.append(circ(cx - r * 0.13, cy - r * 0.15, r * 0.80,
+                      ramp(min(1.0, t + 0.30), cols),
+                      opacity=r2(0.22 + 0.22 * (t - 0.72) / 0.28)))
     return "".join(s)
 
 
-def make_tree(name, height=430, spread=1.0, seed=1, kind="round"):
+def _branches(s, cx, ground, trunk_h, R, canopy_cy, rnd, n=3, tw=10.0):
+    """Limbs that actually fork, and are visible against the canopy."""
+    for i in range(n):
+        dx = -1.0 + 2.0 * (i / max(1.0, n - 1.0)) + rnd.uniform(-0.18, 0.18)
+        tip = (cx + dx * R * 0.62, canopy_cy + R * rnd.uniform(0.18, 0.55))
+        mid = (cx + dx * R * 0.30, ground - trunk_h * 1.16)
+        s.append(path("M %s %s Q %s %s, %s %s" % (
+            r2(cx + dx * tw * 0.30), r2(ground - trunk_h * 0.86),
+            r2(mid[0]), r2(mid[1]), r2(tip[0]), r2(tip[1])),
+            stroke=P["trunk"], sw=tw * 0.62))
+        s.append(path("M %s %s Q %s %s, %s %s" % (
+            r2(mid[0]), r2(mid[1]),
+            r2(mid[0] + dx * R * 0.12), r2(mid[1] - R * 0.20),
+            r2(tip[0] + dx * R * 0.18), r2(tip[1] - R * 0.30)),
+            stroke=P["trunk_lo"], sw=tw * 0.34, opacity=0.9))
+
+
+def _trunk(s, cx, ground, trunk_h, tw, flare=1.0, lean=0.0):
+    """A tapered trunk with a root flare and a lit edge."""
+    top = ground - trunk_h
+    tx = cx + lean * trunk_h
+    s.append(path(
+        "M %s %s C %s %s, %s %s, %s %s L %s %s C %s %s, %s %s, %s %s Z" % (
+            r2(cx - tw * flare), r2(ground),
+            r2(cx - tw * 0.80), r2(ground - trunk_h * 0.34),
+            r2(tx - tw * 0.62), r2(ground - trunk_h * 0.72),
+            r2(tx - tw * 0.48), r2(top),
+            r2(tx + tw * 0.48), r2(top),
+            r2(tx + tw * 0.62), r2(ground - trunk_h * 0.72),
+            r2(cx + tw * 0.80), r2(ground - trunk_h * 0.34),
+            r2(cx + tw * flare), r2(ground)),
+        fill=lin([(0, P["trunk_hi"]), (0.42, P["trunk"]), (1, P["trunk_lo"])],
+                 x1=0, y1=0, x2=1, y2=0)))
+    # bark: a couple of vertical creases, and the shaded right edge
+    s.append(path("M %s %s L %s %s" % (
+        r2(cx + tw * 0.46), r2(ground - 4), r2(tx + tw * 0.30), r2(top + 4)),
+        stroke=P["trunk_lo"], sw=tw * 0.30, opacity=0.55))
+    s.append(path("M %s %s L %s %s" % (
+        r2(cx - tw * 0.30), r2(ground - 8), r2(tx - tw * 0.14), r2(top + 6)),
+        stroke=P["trunk_hi"], sw=tw * 0.16, opacity=0.40))
+
+
+# Canopy layouts. Each returns (blobs, trunk_frac, radius_frac, branch_count).
+# These are the silhouettes; the point of having six is that a wide shot of the
+# foliage belt should not read as one tree stamped forty times.
+
+def _canopy(kind, cx, canopy_cy, R, rnd):
+    b = []
+    if kind == "round":                       # classic street broadleaf
+        for i in range(8):
+            a = -math.pi / 2 + i * (math.tau / 8) + rnd.uniform(-0.20, 0.20)
+            b.append((cx + math.cos(a) * R * 0.64,
+                      canopy_cy + math.sin(a) * R * 0.48,
+                      R * rnd.uniform(0.46, 0.60)))
+        b.append((cx + rnd.uniform(-10, 10), canopy_cy + rnd.uniform(-6, 6), R * 0.62))
+    elif kind == "billow":                    # loose, cloud-like
+        for _ in range(10):
+            a = rnd.uniform(0, math.tau)
+            d = rnd.uniform(0.12, 0.82)
+            b.append((cx + math.cos(a) * R * 0.74 * d,
+                      canopy_cy + math.sin(a) * R * 0.64 * d - R * 0.10,
+                      R * rnd.uniform(0.38, 0.60)))
+        b.append((cx, canopy_cy - R * 0.16, R * 0.58))
+    elif kind == "spread":                    # broad, low, flat-crowned
+        for i in range(9):
+            a = math.pi + i * (math.pi / 8.0) + rnd.uniform(-0.12, 0.12)
+            b.append((cx + math.cos(a) * R * 1.02,
+                      canopy_cy + math.sin(a) * R * 0.34 + R * 0.10,
+                      R * rnd.uniform(0.40, 0.56)))
+        for dx in (-0.46, 0.06, 0.52):
+            b.append((cx + dx * R, canopy_cy - R * rnd.uniform(0.02, 0.24),
+                      R * rnd.uniform(0.44, 0.58)))
+    elif kind == "tall":                      # narrow upright, three tiers
+        for tier, (ry, rr, nn) in enumerate(
+                ((-0.74, 0.40, 4), (-0.16, 0.52, 5), (0.40, 0.44, 4))):
+            for i in range(nn):
+                a = i * (math.tau / nn) + rnd.uniform(-0.3, 0.3) + tier
+                b.append((cx + math.cos(a) * R * rr * 0.62,
+                          canopy_cy + R * ry + math.sin(a) * R * rr * 0.30,
+                          R * rr * rnd.uniform(0.62, 0.86)))
+    elif kind == "conifer":                   # layered, tapering skirts
+        for tier in range(4):
+            t = tier / 3.0
+            rr = R * (1.02 - t * 0.62)
+            yy = canopy_cy + R * (0.62 - t * 1.30)
+            n = max(2, 5 - tier)
+            for i in range(n):
+                a = math.pi + i * (math.pi / max(1, n - 1)) if n > 1 else math.pi
+                b.append((cx + math.cos(a) * rr * 0.72,
+                          yy + abs(math.sin(a)) * rr * 0.12,
+                          rr * rnd.uniform(0.34, 0.46)))
+        b.append((cx, canopy_cy - R * 0.86, R * 0.22))
+    else:                                     # "twin": two offset masses
+        for side, off in ((-1, -0.44), (1, 0.40)):
+            for i in range(6):
+                a = i * (math.tau / 6) + rnd.uniform(-0.25, 0.25)
+                b.append((cx + off * R + math.cos(a) * R * 0.40,
+                          canopy_cy + side * R * 0.10 + math.sin(a) * R * 0.34,
+                          R * rnd.uniform(0.34, 0.48)))
+    return b
+
+
+TREE_KIND = {
+    "round":   (0.30, 0.27, 3, 0.055),
+    "billow":  (0.34, 0.27, 3, 0.050),
+    "spread":  (0.26, 0.25, 4, 0.062),
+    "tall":    (0.34, 0.21, 2, 0.040),
+    "conifer": (0.20, 0.23, 0, 0.044),
+    "twin":    (0.30, 0.24, 3, 0.038),
+}
+
+# Per-species foliage ramps. Real streets are not one green; the plates run
+# from a blue-green shade tree to a yellow-green ornamental.
+TREE_COLS = {
+    "cool":  ["#1B3A2C", "#2C5540", "#3F7048", "#5B8C4B", "#84A94E", "#AEC356"],
+    "warm":  ["#25402A", "#3A5E33", "#557E38", "#7A9C3E", "#A2BA45", "#C6D24E"],
+    "olive": ["#22392A", "#3B5733", "#5C743A", "#82963F", "#A6AE48", "#C6C25A"],
+    "pine":  ["#16302A", "#23483A", "#325C44", "#456F4A", "#5C8752", "#7CA062"],
+}
+
+
+def make_tree(name, height=430, spread=1.0, seed=1, kind="round", cols="warm"):
     rnd = random.Random(seed)
-    w = int(height * 0.96 * spread)
+    trunk_frac, rad_frac, nbranch, tw_frac = TREE_KIND.get(kind, TREE_KIND["round"])
+    wide = 1.28 if kind == "spread" else (0.70 if kind in ("tall", "conifer") else 0.96)
+    w = int(height * wide * spread)
     h = int(height)
     cx = w / 2.0
     ground = h - 14
-    trunk_h = h * (0.30 if kind == "round" else 0.34)
-    canopy_cy = ground - trunk_h - h * 0.24
-    R = h * 0.27 * spread
+    trunk_h = h * trunk_frac
+    R = h * rad_frac * spread
+    canopy_cy = ground - trunk_h - h * (0.16 if kind == "spread" else 0.24)
+    tw = h * tw_frac
+    palette = TREE_COLS.get(cols, TREE_COLS["warm"])
 
-    s = [soft_shadow(cx + 6, ground + 2, R * 0.72, R * 0.26)]
-    # trunk
-    tw = h * 0.055
-    s.append(path("M %s %s C %s %s, %s %s, %s %s L %s %s C %s %s, %s %s, %s %s Z" % (
-        r2(cx - tw), r2(ground), r2(cx - tw * 0.72), r2(ground - trunk_h * 0.6),
-        r2(cx - tw * 0.58), r2(ground - trunk_h * 0.8), r2(cx - tw * 0.5), r2(ground - trunk_h),
-        r2(cx + tw * 0.5), r2(ground - trunk_h),
-        r2(cx + tw * 0.58), r2(ground - trunk_h * 0.8),
-        r2(cx + tw * 0.72), r2(ground - trunk_h * 0.6), r2(cx + tw), r2(ground)),
-        fill=P["trunk"], stroke=P["trunk_lo"], sw=2.8))
-    s.append(path("M %s %s L %s %s" % (r2(cx + tw * 0.35), r2(ground - 6),
-                                       r2(cx + tw * 0.2), r2(ground - trunk_h * 0.85)),
-                  stroke=P["trunk_lo"], sw=3.3, opacity=0.5))
-    # a couple of limbs into the canopy
-    for dx in (-1, 1):
-        s.append(path("M %s %s Q %s %s, %s %s" % (
-            r2(cx + dx * tw * 0.3), r2(ground - trunk_h * 0.85),
-            r2(cx + dx * R * 0.34), r2(ground - trunk_h * 1.05),
-            r2(cx + dx * R * 0.5), r2(canopy_cy + R * 0.42)),
-            stroke=P["trunk"], sw=6.1))
+    s = [soft_shadow(cx + 8, ground + 2, R * 0.86, R * 0.28)]
+    _trunk(s, cx, ground, trunk_h, tw, flare=1.30,
+           lean=rnd.uniform(-0.05, 0.05))
+    if nbranch:
+        _branches(s, cx, ground, trunk_h, R, canopy_cy, rnd, nbranch, tw)
 
-    blobs = []
-    if kind == "round":
-        ring = 7
-        for i in range(ring):
-            a = -math.pi / 2 + i * (2 * math.pi / ring) + rnd.uniform(-0.16, 0.16)
-            rr = R * rnd.uniform(0.50, 0.62)
-            blobs.append((cx + math.cos(a) * R * 0.62,
-                          canopy_cy + math.sin(a) * R * 0.46,
-                          rr))
-        blobs.append((cx + rnd.uniform(-8, 8), canopy_cy + rnd.uniform(-6, 6), R * 0.66))
-        blobs.append((cx - R * 0.26, canopy_cy - R * 0.34, R * 0.44))
-    else:  # billowy, taller
-        for i in range(9):
-            a = rnd.uniform(0, math.tau)
-            d = rnd.uniform(0.15, 0.78)
-            blobs.append((cx + math.cos(a) * R * 0.70 * d,
-                          canopy_cy + math.sin(a) * R * 0.62 * d - R * 0.1,
-                          R * rnd.uniform(0.40, 0.60)))
-        blobs.append((cx, canopy_cy - R * 0.18, R * 0.60))
-
-    s.append(blob_cluster(blobs, P["leaf"], P["leaf_hi"], P["leaf_top"],
-                          P["leaf_top"], P["leaf_out"], out_w=10))
-    # a little depth at the base of the canopy
-    s.append(ell(cx + R * 0.16, canopy_cy + R * 0.40, R * 0.46, R * 0.20,
-                 P["leaf_lo"], opacity=0.35))
+    blobs = _canopy(kind, cx, canopy_cy, R, rnd)
+    s.append(blob_cluster(blobs, out_col=P["leaf_out"], out_w=9, seed=seed,
+                          scallop=6, cols=palette))
     write(name, w, h, cx, ground, "".join(s))
 
 
-def make_bush(name, size=150, seed=5, flowers=True):
+def make_bush(name, size=150, seed=5, flowers=True, kind="mound", cols="warm"):
     rnd = random.Random(seed)
-    w = int(size * 1.35)
+    wide = 1.55 if kind == "wide" else (0.95 if kind == "tall" else 1.35)
+    w = int(size * wide)
     h = int(size)
     cx, ground = w / 2.0, h - 10
-    R = h * 0.42
-    s = [soft_shadow(cx + 3, ground, R * 1.0, R * 0.26)]
+    R = h * (0.34 if kind == "tall" else 0.42)
+    palette = TREE_COLS.get(cols, TREE_COLS["warm"])
+    s = [soft_shadow(cx + 3, ground, R * 1.05, R * 0.28)]
     blobs = []
-    for i in range(6):
-        a = math.pi + i * (math.pi / 5.0)
-        blobs.append((cx + math.cos(a) * R * 0.86, ground - R * 0.52 + math.sin(a) * R * 0.30,
-                      R * rnd.uniform(0.46, 0.60)))
-    blobs.append((cx, ground - R * 0.74, R * 0.58))
-    s.append(blob_cluster(blobs, P["leaf"], P["leaf_hi"], P["leaf_top"],
-                          P["leaf_top"], P["leaf_out"], out_w=8))
+    if kind == "tall":
+        for i in range(7):
+            blobs.append((cx + rnd.uniform(-R * 0.5, R * 0.5),
+                          ground - R * (0.35 + 0.22 * i) + rnd.uniform(-6, 6),
+                          R * rnd.uniform(0.38, 0.54)))
+    elif kind == "wide":
+        for i in range(8):
+            a = math.pi + i * (math.pi / 7.0)
+            blobs.append((cx + math.cos(a) * R * 1.20,
+                          ground - R * 0.44 + math.sin(a) * R * 0.24,
+                          R * rnd.uniform(0.38, 0.52)))
+    else:
+        for i in range(6):
+            a = math.pi + i * (math.pi / 5.0)
+            blobs.append((cx + math.cos(a) * R * 0.86,
+                          ground - R * 0.52 + math.sin(a) * R * 0.30,
+                          R * rnd.uniform(0.44, 0.60)))
+        blobs.append((cx, ground - R * 0.74, R * 0.56))
+    s.append(blob_cluster(blobs, out_col=P["leaf_out"], out_w=7, seed=seed,
+                          scallop=5, cols=palette))
     if flowers:
-        for i in range(9):
+        for _ in range(11):
             fx = cx + rnd.uniform(-R * 1.15, R * 1.15)
-            fy = ground - R * 0.5 + rnd.uniform(-R * 0.55, R * 0.30)
+            fy = ground - R * 0.5 + rnd.uniform(-R * 0.60, R * 0.30)
             c = FLOWERS[rnd.randrange(len(FLOWERS))]
             s.append(circ(fx, fy, R * 0.085, c))
-            s.append(circ(fx - R * 0.02, fy - R * 0.02, R * 0.04, P["white"], opacity=0.7))
+            s.append(circ(fx - R * 0.025, fy - R * 0.03, R * 0.042, P["white"],
+                          opacity=0.75))
     write(name, w, h, cx, ground, "".join(s))
 
 
 def make_hedge(name, size=120, seed=9):
-    make_bush(name, size=size, seed=seed, flowers=False)
+    make_bush(name, size=size, seed=seed, flowers=False, kind="wide", cols="cool")
 
 
 # ---------------------------------------------------------------------------
@@ -868,15 +1143,9 @@ def _interior(x, y, w, h, seed, kind):
 
 
 def vgrad(x, y, w, h, top_col, bot_col, n=10):
-    """A vertical ramp as stacked bands. ThorVG-safe stand-in for a gradient."""
-    out = []
-    for i in range(n):
-        t = i / float(n - 1)
-        r0, g0, b0 = _hex(top_col)
-        r1, g1, b1 = _hex(bot_col)
-        c = _rgb((r0 + (r1 - r0) * t, g0 + (g1 - g0) * t, b0 + (b1 - b0) * t))
-        out.append(rect(x, y + h * i / n, w, h / n + 1, c))
-    return "".join(out)
+    """A vertical ramp. One rect, one real gradient, no bands. `n` is ignored
+    and kept so existing call sites read unchanged."""
+    return rect(x, y, w, h, lin([(0, top_col), (1, bot_col)]))
 
 
 def make_building(name, fx, fy, storeys, wall, wall_lo, roof, roof_lo,
@@ -1397,11 +1666,22 @@ def main():
         if f.endswith(".svg"):
             os.remove(os.path.join(OUT, f))
 
-    make_tree("tree_a", height=520, spread=1.06, seed=11, kind="round")
-    make_tree("tree_b", height=470, spread=0.96, seed=23, kind="billow")
-    make_tree("tree_c", height=400, spread=0.88, seed=37, kind="round")
-    make_bush("bush_a", size=160, seed=5)
-    make_bush("bush_b", size=130, seed=8)
+    # Nine tree sprites across six silhouettes and four foliage ramps. The
+    # foliage belt stamps dozens of trees; with one shape and a hue jitter the
+    # repetition was visible at wide zoom, which no amount of shading fixes.
+    make_tree("tree_a", height=520, spread=1.06, seed=11, kind="round", cols="warm")
+    make_tree("tree_b", height=470, spread=0.96, seed=23, kind="billow", cols="cool")
+    make_tree("tree_c", height=400, spread=0.88, seed=37, kind="round", cols="olive")
+    make_tree("tree_d", height=505, spread=1.14, seed=53, kind="spread", cols="warm")
+    make_tree("tree_e", height=560, spread=0.92, seed=67, kind="tall", cols="cool")
+    make_tree("tree_f", height=470, spread=0.90, seed=71, kind="twin", cols="olive")
+    make_tree("tree_g", height=540, spread=0.86, seed=83, kind="conifer", cols="pine")
+    make_tree("tree_h", height=430, spread=1.02, seed=97, kind="spread", cols="cool")
+    make_tree("tree_i", height=490, spread=0.94, seed=101, kind="billow", cols="olive")
+    make_bush("bush_a", size=160, seed=5, kind="mound", cols="warm")
+    make_bush("bush_b", size=130, seed=8, kind="mound", cols="cool")
+    make_bush("bush_c", size=150, seed=29, kind="wide", cols="olive")
+    make_bush("bush_d", size=170, seed=41, kind="tall", cols="warm")
     make_hedge("hedge", size=118, seed=15)
 
     make_lamppost()

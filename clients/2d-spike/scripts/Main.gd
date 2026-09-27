@@ -11,6 +11,7 @@ const Iso := preload("res://scripts/Iso.gd")
 const Demo := preload("res://scripts/Demo.gd")
 const GroundScript := preload("res://scripts/Ground.gd")
 const ShadowScript := preload("res://scripts/Shadows.gd")
+const GradeScript := preload("res://scripts/Grade.gd")
 
 const ART := "res://art/svg/%s.svg"
 
@@ -19,8 +20,6 @@ const ART := "res://art/svg/%s.svg"
 ## everything else is sized against that.
 const SCALE := {
 	"shop": 0.5, "person": 0.34, "dog": 0.30, "bird": 0.26,
-	"tree_a": 0.37, "tree_b": 0.37, "tree_c": 0.34,
-	"bush_a": 0.30, "bush_b": 0.28, "hedge": 0.26,
 	"lamppost": 0.27, "bench": 0.26, "bench_r": 0.26,
 	"planter": 0.28, "planter_b": 0.28, "pot": 0.26, "pot_b": 0.26,
 	"chalkboard": 0.26, "signpost": 0.30, "cafeset": 0.30,
@@ -37,6 +36,7 @@ var walkers: Array = []
 var cam: Camera2D
 var _jit := RandomNumberGenerator.new()
 var shadows: Node2D
+var grade: CanvasLayer
 
 const WALK_MIN := Vector2(1.7, 0.3)
 const WALK_MAX := Vector2(16.8, 6.66)
@@ -70,6 +70,10 @@ func _ready() -> void:
 	add_child(cam)
 	cam.make_current()
 
+	grade = CanvasLayer.new()
+	grade.set_script(GradeScript)
+	add_child(grade)
+
 	_build_hud()
 
 	var args := OS.get_cmdline_user_args()
@@ -84,7 +88,28 @@ func _load_props() -> Dictionary:
 	return JSON.parse_string(f.get_as_text())
 
 
+## Vegetation is scaled from its authored height to a target height in metres,
+## rather than carrying a hand-tuned number per sprite. Nine tree sprites drawn
+## at nine different pixel heights have to agree about how tall a tree is, and
+## the only way that stays true as sprites are added is to derive it.
+const VEG_M := {
+	"tree_a": 6.4, "tree_b": 6.0, "tree_c": 5.2, "tree_d": 5.0, "tree_e": 7.0,
+	"tree_f": 5.6, "tree_g": 7.4, "tree_h": 4.6, "tree_i": 6.2,
+	"bush_a": 1.45, "bush_b": 1.20, "bush_c": 1.30, "bush_d": 1.75,
+	"hedge": 1.05,
+}
+
+## The species pool the scenery draws from. Ordering is deliberate: the belts
+## walk this list so neighbours differ in silhouette, not just in jitter.
+const TREES := ["tree_a", "tree_d", "tree_b", "tree_g", "tree_c", "tree_e",
+	"tree_h", "tree_f", "tree_i"]
+const BUSHES := ["bush_a", "bush_c", "bush_b", "bush_d"]
+
+
 func _scale_for(name: String) -> float:
+	if VEG_M.has(name):
+		var m: Dictionary = props[name]
+		return VEG_M[name] * Iso.PX_PER_M_Z / float(m["h"])
 	if SCALE.has(name):
 		return SCALE[name]
 	if name.begins_with("shop_"):
@@ -108,9 +133,12 @@ func _prop(name: String, at: Vector2, flip := false, z := 0) -> Node2D:
 	# Vegetation gets a little size and hue jitter, so a dozen copies of one
 	# tree do not read as a dozen copies of one tree.
 	if name.begins_with("tree") or name.begins_with("bush") or name == "hedge":
-		k *= 0.70 + _jit.randf() * 0.68
-		s.modulate = Color(0.82 + _jit.randf() * 0.30,
-			0.86 + _jit.randf() * 0.24, 0.76 + _jit.randf() * 0.32)
+		k *= 0.82 + _jit.randf() * 0.40
+		# Species now carry the variety, so the per-instance tint is a light
+		# touch — enough to break identical neighbours, not enough to undo the
+		# measured foliage ramp.
+		s.modulate = Color(0.93 + _jit.randf() * 0.14,
+			0.95 + _jit.randf() * 0.10, 0.90 + _jit.randf() * 0.16)
 	s.scale = Vector2(-k if flip else k, k)
 	if flip:
 		s.offset.x = -s.offset.x - float(m["w"]) + 2.0 * float(m["ax"])
@@ -125,20 +153,20 @@ func _cast_shadow(name: String, at: Vector2, k: float) -> void:
 	if shadows == null:
 		return
 	if name.begins_with("tree"):
-		var r := 46.0 * k * 2.2
-		for o in [[0.0, 0.0, 1.0], [0.9, 0.22, 0.72], [-0.55, 0.30, 0.62],
-				[0.45, -0.28, 0.58]]:
-			shadows.add(at + Vector2(o[0] * r, o[1] * r * 0.5),
-				r * o[2], r * 0.42 * o[2], 70.0 * k * 2.2, 0.17)
+		# One broad soft pool per tree, dappled, rather than four hard blobs.
+		var r := 52.0 * k * 2.2
+		shadows.add(at, r, r * 0.46, 64.0 * k * 2.2, 0.46, true)
+		shadows.add(at + Vector2(r * 0.55, r * 0.16), r * 0.58, r * 0.28,
+			50.0 * k * 2.2, 0.26, true)
 	elif name.begins_with("bush") or name == "hedge":
-		shadows.add(at, 44.0 * k * 2.0, 17.0 * k * 2.0, 30.0 * k * 2.0, 0.24)
+		shadows.add(at, 46.0 * k * 2.0, 18.0 * k * 2.0, 26.0 * k * 2.0, 0.40)
 	elif name == "lamppost":
-		shadows.add(at, 12.0, 6.0, 150.0 * k * 2.0, 0.20)
+		shadows.add(at, 13.0, 6.0, 150.0 * k * 2.0, 0.30)
 	elif name.begins_with("shop_"):
-		shadows.add(at + Vector2(-70, -18), 250.0 * k, 96.0 * k, 190.0 * k, 0.24)
+		shadows.add(at + Vector2(-70, -18), 250.0 * k, 96.0 * k, 190.0 * k, 0.38)
 	elif name in ["fountain", "cafeset", "bench", "bench_r", "planter", "planter_b",
 			"barrel", "bicycle", "signpost", "chalkboard", "pot", "pot_b"]:
-		shadows.add(at, 34.0 * k * 1.6, 13.0 * k * 1.6, 30.0 * k * 1.6, 0.22)
+		shadows.add(at, 36.0 * k * 1.6, 14.0 * k * 1.6, 26.0 * k * 1.6, 0.38)
 
 
 ## Squash the square's depth. The references are streets, not fields: the
@@ -227,11 +255,11 @@ func _build_scenery() -> void:
 
 	# the park corner
 	var park := [
-		["tree_a", 10.55, 2.45], ["tree_b", 2.05, 1.05], ["tree_c", 6.85, 9.9],
-		["tree_a", 14.10, 5.70], ["tree_b", 15.90, 8.55], ["tree_c", 12.70, 8.90],
-		["tree_c", 16.90, 3.10],
-		["bush_a", 12.45, 5.10], ["bush_b", 13.70, 8.05], ["bush_a", 15.30, 6.50],
-		["bush_b", 12.10, 9.70], ["bush_a", 16.70, 9.10], ["bush_b", 15.05, 4.75],
+		["tree_d", 10.55, 2.45], ["tree_b", 2.05, 1.05], ["tree_c", 6.85, 9.9],
+		["tree_a", 14.10, 5.70], ["tree_i", 15.90, 8.55], ["tree_h", 12.70, 8.90],
+		["tree_g", 16.90, 3.10],
+		["bush_a", 12.45, 5.10], ["bush_c", 13.70, 8.05], ["bush_d", 15.30, 6.50],
+		["bush_b", 12.10, 9.70], ["bush_c", 16.70, 9.10], ["bush_a", 15.05, 4.75],
 		["hedge", 12.05, 6.10], ["hedge", 12.05, 6.80], ["hedge", 12.05, 7.50],
 		["bench", 13.35, 6.20], ["bench_r", 15.65, 9.70],
 	]
@@ -245,10 +273,10 @@ func _build_scenery() -> void:
 	while b < 3.0:                      # south
 		var xx := -2.0
 		while xx < 24.0:
-			edge.append([["tree_b", "tree_a", "tree_c"][int(xx + b) % 3],
+			edge.append([TREES[int(xx * 3.0 + b * 2.0) % TREES.size()],
 				xx + b * 0.7, 11.9 + b * 2.30 + sin(xx * 1.7) * 0.6])
 			if b < 1.0:
-				edge.append(["bush_a" if int(xx) % 2 == 0 else "bush_b",
+				edge.append([BUSHES[int(xx) % BUSHES.size()],
 					xx + 0.9, 11.3 + b * 2.30])
 			xx += 1.95
 		b += 1.0
@@ -256,17 +284,19 @@ func _build_scenery() -> void:
 	while e < 3.0:                      # east
 		var yy := -3.0
 		while yy < 18.0:
-			edge.append([["tree_c", "tree_b", "tree_a"][int(yy + e) % 3],
+			edge.append([TREES[int(yy * 2.0 + e * 5.0 + 4.0) % TREES.size()],
 				18.4 + e * 1.45 + sin(yy) * 0.5, yy + e * 0.7])
 			if e < 1.0:
-				edge.append(["bush_b", 17.9 + e * 1.45, yy + 0.9])
+				edge.append([BUSHES[int(yy + 1.0) % BUSHES.size()],
+					17.9 + e * 1.45, yy + 0.9])
 			yy += 1.85
 		e += 1.0
 	var n := 0.0
 	while n < 3.0:                      # behind the shop row
 		var xn := -1.0
 		while xn < 20.0:
-			edge.append([["tree_a", "tree_b"][int(xn) % 2], xn, -4.6 - n * 1.3])
+			edge.append([TREES[int(xn * 2.0 + n * 3.0) % TREES.size()],
+				xn, -4.6 - n * 1.3])
 			xn += 1.35
 		n += 1.0
 	for it in edge:
@@ -274,19 +304,21 @@ func _build_scenery() -> void:
 
 	# Foreground foliage: trees nearer the camera than the player can walk,
 	# so canopies break into the bottom of the frame.
-	for fgx in [1.8, 5.4, 10.2, 15.6]:
-		_prop("tree_a", _wp(fgx, 11.1 + sin(fgx) * 0.2))
+	var fg := ["tree_a", "tree_d", "tree_i", "tree_b"]
+	for i in range(4):
+		var fgx: float = [1.8, 5.4, 10.2, 15.6][i]
+		_prop(fg[i], _wp(fgx, 11.1 + sin(fgx) * 0.2))
 
 	# Density near the buildings: clusters, not singles.
 	var fill := [
 		["planter", 3.10, 4.10], ["planter_b", 3.10, 5.30], ["planter", 3.10, 6.50],
 		["planter_b", 9.90, 5.60], ["planter", 9.90, 6.80], ["planter_b", 9.90, 4.40],
-		["bush_b", 4.60, 8.60], ["bush_a", 6.20, 8.30], ["bush_b", 8.20, 8.90],
-		["tree_c", 4.30, 7.40], ["tree_b", 9.10, 9.10], ["tree_c", 1.95, 4.40],
+		["bush_c", 4.60, 8.60], ["bush_a", 6.20, 8.30], ["bush_d", 8.20, 8.90],
+		["tree_h", 4.30, 7.40], ["tree_f", 9.10, 9.10], ["tree_c", 1.95, 4.40],
 		["pot_b", 1.60, 6.60], ["pot", 1.60, 7.70], ["pot_b", 1.60, 3.30],
 		["bench", 7.90, 3.55], ["bench_r", 8.40, 6.90],
 		["planter", 12.60, 1.60], ["planter_b", 14.20, 1.80],
-		["pot", 13.30, 3.80], ["bush_a", 14.60, 3.40], ["pot_b", 15.60, 2.20],
+		["pot", 13.30, 3.80], ["bush_d", 14.60, 3.40], ["pot_b", 15.60, 2.20],
 		["barrel", 2.55, 9.10], ["bicycle", 4.85, 0.35],
 		["cafeset", 5.55, 0.95], ["cafeset", 11.40, 0.95],
 	]
@@ -295,7 +327,7 @@ func _build_scenery() -> void:
 		fill.append(["pot", sx, -0.30])
 		fill.append(["pot_b", sx + 0.32, -0.16])
 		fill.append(["pot", sx + 0.12, -0.02])
-		fill.append(["bush_b", sx + 0.62, -0.26])
+		fill.append(["bush_b" if int(sx) % 2 == 0 else "bush_c", sx + 0.62, -0.26])
 		fill.append(["chalkboard", sx + 1.00, -0.14])
 		fill.append(["planter_b", sx + 1.48, -0.24])
 	for it in fill:
@@ -403,6 +435,8 @@ func _process(dt: float) -> void:
 	_animate(player, wdir, dt, player_facing)
 	if cam:
 		cam.position = Iso.to_screen(player_at)
+	if grade:
+		grade.set_world_offset(cam.position if cam else Vector2.ZERO)
 
 	for w in walkers:
 		_step_walker(w, dt)
@@ -455,6 +489,8 @@ func _animate(actor: Node2D, wdir: Vector2, dt: float, facing: float) -> void:
 # ---------------------------------------------------------------------------
 
 func _save(name: String) -> void:
+	if grade and cam:
+		grade.set_world_offset(cam.position)
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
 	img.save_png("res://shots/%s.png" % name)
