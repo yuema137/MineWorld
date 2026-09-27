@@ -1,0 +1,202 @@
+# Candidate asset set for the default 2D presentation pack.
+#
+# Prompts live here as reviewable data rather than buried in a script, because the prompt is
+# the part a human actually iterates on. `python -m mineworld_gen.batch recipes/2d_default.yaml`
+# runs it. Everything it produces is an ARC-9 *candidate*.
+#
+# `style` is prepended to every item's `subject`. Keeping one shared preamble is what makes the
+# set internally consistent; per-item text describes only the subject.
+
+defaults:
+  size: 1024x1024
+  quality: high
+  transparent: true
+  references:
+    - 01_town_square.png
+    - 02_cafe_street.png
+
+style: |
+  The attached images are STYLE REFERENCES ONLY - do not copy their content, layout, buildings
+  or characters. Match their art style exactly: clean illustrated isometric game art, crisp dark
+  outlines, cel shading with soft ambient occlusion, warm soft daylight from the upper left,
+  saturated but harmonious colour, moderate stylization, and low-to-moderate material detail
+  that stays highly readable at small size.
+
+  Render the subject ALONE and centred, in the same isometric three-quarter projection as the
+  references, at roughly 30 degrees elevation. NO ground plane, NO cast shadow, NO background
+  scenery, NO other objects, NO people unless explicitly requested, and NO text or lettering
+  except where explicitly requested. Fully transparent background.
+
+groups:
+  - name: buildings
+    prefix: building
+    items:
+      - name: cafe
+        subject: >
+          A single detached small-town CAFE building, two storeys, with a striped fabric awning,
+          a wooden hanging sign with a coffee-cup icon, large shopfront windows with a warm lit
+          interior, window boxes of flowers on the upper floor, and two small outdoor tables with
+          chairs tucked against the front wall.
+      - name: bookshop
+        subject: >
+          A single detached small-town BOOKSHOP building, two storeys, painted deep green
+          joinery, a wooden sign with an open-book icon, a bay shopfront window filled with
+          stacked books, warm interior light, and a narrow awning.
+      - name: flower_shop
+        subject: >
+          A single detached small-town FLOWER SHOP, one and a half storeys, painted soft blue,
+          an open shopfront with tiered display stands of potted flowers outside, a striped
+          awning, hanging flower baskets, and a wooden sign with a blossom icon.
+      - name: house_cottage
+        subject: >
+          A single detached small-town RESIDENTIAL COTTAGE, one and a half storeys, cream stucco
+          walls with a terracotta tiled roof, a dormer window, a small porch with a wooden door,
+          window boxes with flowers, and a low garden hedge against the front wall.
+      - name: house_townhouse
+        subject: >
+          A single narrow two-storey RESIDENTIAL TOWNHOUSE with brick walls, a slate roof, white
+          painted window frames, a coloured front door with a step, a small wrought-iron balcony
+          on the upper floor, and a climbing plant on one side.
+      - name: apartment_block
+        subject: >
+          A small three-storey RESIDENTIAL APARTMENT BLOCK, pale stucco and brick, regular rows
+          of windows with shutters, small balconies with planters, a recessed ground-floor
+          entrance with a canopy, and a flat parapet roof.
+
+  - name: vegetation
+    prefix: tree
+    references:
+      - 04_lakeside_park.png
+      - 01_town_square.png
+    items:
+      - name: broadleaf_large
+        subject: >
+          A single large mature BROADLEAF TREE with a thick brown trunk, spreading branches and a
+          full rounded canopy of layered green foliage clumps.
+      - name: round_small
+        subject: >
+          A single small ornamental ROUND-CANOPY TREE with a slender trunk and a compact, neatly
+          rounded ball of bright green foliage.
+      - name: conifer
+        subject: >
+          A single tall narrow CONIFER TREE, dark blue-green, with a conical layered silhouette
+          and a short visible trunk.
+      - name: cherry_blossom
+        subject: >
+          A single CHERRY BLOSSOM TREE in full bloom, with a dark slender trunk and a soft canopy
+          of pale pink blossom clumps.
+      - name: shrub_cluster
+        subject: >
+          A CLUSTER OF THREE LOW GARDEN SHRUBS of slightly different sizes, rounded, dense mid-green
+          foliage, sitting together as one asset.
+      - name: flower_bed
+        subject: >
+          A small oval FLOWER BED planted with mixed pink, white, yellow and blue flowers over low
+          green foliage, edged with a thin ring of soil.
+
+  - name: people
+    prefix: person
+    references:
+      - 02_cafe_street.png
+      - 03_harbour_cafe.png
+    items:
+      - name: woman_casual
+        subject: >
+          FOUR VIEWS OF ONE CHARACTER arranged in an evenly spaced 2x2 grid on a transparent
+          background: an ordinary modern young WOMAN in a cream jumper, olive skirt and flat shoes,
+          with dark hair in a low bun. Top-left facing towards the viewer, top-right facing away,
+          bottom-left facing left in profile, bottom-right facing right in profile. The clothing,
+          hair, colours, proportions and height must be IDENTICAL in all four views. Full body,
+          stylized game-character proportions with a slightly large head and simplified facial
+          features, matching the characters in the reference images.
+      - name: man_casual
+        subject: >
+          FOUR VIEWS OF ONE CHARACTER arranged in an evenly spaced 2x2 grid on a transparent
+          background: an ordinary modern young MAN in a blue jacket, beige trousers and trainers,
+          with short dark hair and a small backpack. Top-left facing towards the viewer, top-right
+          facing away, bottom-left facing left in profile, bottom-right facing right in profile.
+          The clothing, hair, colours, proportions and height must be IDENTICAL in all four views.
+          Full body, stylized game-character proportions with a slightly large head and simplified
+          facial features, matching the characters in the reference images.
+      - name: older_man
+        subject: >
+          FOUR VIEWS OF ONE CHARACTER arranged in an evenly spaced 2x2 grid on a transparent
+          background: an ordinary modern OLDER MAN with grey hair, a brown cardigan, dark trousers
+          and brown shoes. Top-left facing towards the viewer, top-right facing away, bottom-left
+          facing left in profile, bottom-right facing right in profile. The clothing, hair,
+          colours, proportions and height must be IDENTICAL in all four views. Full body, stylized
+          game-character proportions with a slightly large head and simplified facial features.
+      - name: woman_summer
+        subject: >
+          FOUR VIEWS OF ONE CHARACTER arranged in an evenly spaced 2x2 grid on a transparent
+          background: an ordinary modern WOMAN in a white blouse, green midi skirt, straw sun hat
+          and sandals, carrying a canvas tote bag. Top-left facing towards the viewer, top-right
+          facing away, bottom-left facing left in profile, bottom-right facing right in profile.
+          The clothing, hair, colours, proportions and height must be IDENTICAL in all four views.
+          Full body, stylized game-character proportions with a slightly large head.
+
+  - name: props
+    prefix: prop
+    items:
+      - name: bench
+        subject: >
+          A single public park BENCH with warm wooden slats and dark cast-iron ends and armrests,
+          seen from a three-quarter angle.
+      - name: streetlamp
+        subject: >
+          A single ornate black cast-iron STREET LAMP with a tapered post, a small decorative
+          crossbar and a glowing warm lantern head.
+      - name: cafe_parasol_table
+        subject: >
+          A single round CAFE TABLE with two chairs under an open cream canvas PARASOL, wooden
+          table top and dark metal frame, as one combined asset.
+      - name: planter
+        subject: >
+          A single rectangular WOODEN PLANTER BOX filled with green foliage and mixed pink and
+          white flowers.
+      - name: signpost
+        subject: >
+          A single wooden wayfinding SIGNPOST with a dark post and three blank arrow-shaped
+          directional boards pointing different ways. The boards must be completely blank with
+          NO lettering.
+      - name: litter_bin
+        subject: >
+          A single public LITTER BIN with dark green painted metal slats, a domed lid and a
+          small opening.
+      - name: bicycle
+        subject: >
+          A single vintage-style BICYCLE in dusty blue, standing on its kickstand, with a woven
+          wicker front basket holding a few flowers.
+
+  - name: ground
+    prefix: ground
+    transparent: false
+    references:
+      - 01_town_square.png
+      - 04_lakeside_park.png
+    style: |
+      The attached images are STYLE REFERENCES ONLY - do not copy their content or layout. Match
+      their illustrated art style, colour palette and level of surface detail exactly: clean
+      illustrated game art, soft warm daylight, moderate stylization, readable at small size.
+
+      Produce a SEAMLESS TILEABLE TEXTURE seen from DIRECTLY OVERHEAD (flat top-down, no
+      perspective, no horizon). The pattern must fill the entire frame edge to edge and tile
+      seamlessly when repeated. NO objects, NO people, NO plants other than the surface itself,
+      NO text, NO border, NO vignette, NO drop shadow.
+    items:
+      - name: pavement_slabs
+        subject: >
+          A pavement of regular rectangular pale grey stone paving slabs with fine joints and
+          subtle colour variation between slabs.
+      - name: stone_path
+        subject: >
+          A garden path of irregular flat warm-beige stepping stones set into thin strips of
+          soil and moss.
+      - name: grass
+        subject: >
+          Short mown green lawn grass with subtle tonal variation and a few tiny white clover
+          flowers scattered sparsely.
+      - name: plaza_cobble
+        subject: >
+          A town plaza surface of small square cobblestones laid in a regular grid, warm grey
+          with gentle colour variation.

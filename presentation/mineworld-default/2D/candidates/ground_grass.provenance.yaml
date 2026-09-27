@@ -1,0 +1,70 @@
+source_type: generated
+generation:
+  tool: tools/asset_generation (openai-images)
+  provider: openai-images
+  model: gpt-image-2.5-flare
+  workflow_version: 1.0.0
+  date: '2026-09-27'
+  prompt_summary: The attached images are STYLE REFERENCES ONLY - do not copy their content or layout.
+    Match their illustrated art style,…
+  prompt: 'The attached images are STYLE REFERENCES ONLY - do not copy their content or layout. Match
+
+    their illustrated art style, colour palette and level of surface detail exactly: clean
+
+    illustrated game art, soft warm daylight, moderate stylization, readable at small size.
+
+
+    Produce a SEAMLESS TILEABLE TEXTURE seen from DIRECTLY OVERHEAD (flat top-down, no
+
+    perspective, no horizon). The pattern must fill the entire frame edge to edge and tile
+
+    seamlessly when repeated. NO objects, NO people, NO plants other than the surface itself,
+
+    NO text, NO border, NO vignette, NO drop shadow.
+
+
+    Short mown green lawn grass with subtle tonal variation and a few tiny white clover flowers scattered
+    sparsely.'
+  parameters:
+    size: 1024x1024
+    quality: high
+    background: opaque
+    output_format: png
+    endpoint: images.edit
+    revised_prompt: null
+  seed: null
+  reference_images:
+  - path: presentation/mineworld-default/2D/references/01_town_square.png
+    digest: sha256:b3972e811123fb820a766f599ef2f02bb4da41b028fd3007eddcf2f53fdb1793
+  - path: presentation/mineworld-default/2D/references/04_lakeside_park.png
+    digest: sha256:ad483723363f0c601989db46d140d7033cd3771c0fb69579cb16789de4edcff3
+  human_curated: false
+  runtime:
+    wall_seconds: 23.06
+    cost_usd_estimate: 0.07679
+    usage:
+      input_tokens: 3079
+      input_tokens_details:
+        image_tokens: 2904
+        text_tokens: 175
+      output_tokens: 1756
+      total_tokens: 4835
+      output_tokens_details:
+        image_tokens: 1756
+        text_tokens: 0
+  asset_group: ground
+postprocess:
+  cleaned: false
+  retopology: false
+  texture_adjusted: false
+  background_removed: false
+approval:
+  status: candidate
+  approved_by: null
+  approved_date: null
+license:
+  redistribution_allowed: true
+  note: Generated with the OpenAI Images API. Under OpenAI's terms of use the customer owns the output
+    images and may use and redistribute them commercially, so these candidates may be committed to and
+    redistributed from MineWorld's MIT-licensed repository. No model weights are redistributed. Reference
+    images are MineWorld's own committed style references.
