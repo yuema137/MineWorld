@@ -53,6 +53,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-conversation"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "mineworld-kernel"
 version = "0.0.0"
 dependencies = [
@@ -61,6 +73,16 @@ dependencies = [
  "serde_json",
  "thiserror",
  "trybuild",
+]
+
+[[package]]
+name = "mineworld-presence"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
