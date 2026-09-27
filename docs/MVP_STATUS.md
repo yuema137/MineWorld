@@ -17,10 +17,10 @@ successful compile. `🚧` means in progress. `❌` means not started.
 | Spatial state | 🚧 contracts only | ❌ | ❌ |
 | Movement | ❌ | ❌ | ❌ |
 | Place | 🚧 contracts + storage | ❌ | ❌ |
-| Conversation | ❌ | ❌ | ❌ |
+| Conversation | 🚧 system merged, headless | ❌ | ❌ |
 | Object interaction | ❌ | ❌ | ❌ |
 | Persistence | ❌ | — | — |
-| Networking | ❌ | ❌ | ❌ |
+| Networking | 🚧 two real clients over WebSocket | ❌ | ❌ |
 
 ## Shippable artefacts
 
@@ -28,9 +28,9 @@ What a person can actually run. None of these exists yet.
 
 | Artefact | Command | State |
 | --- | --- | --- |
-| World server | `mineworld server worlds/social-cafe` | ❌ |
+| World server | `mineworld server worlds/social-cafe` | 🚧 server runs and serves two clients (PR 05b); world-pack loading is PR 05c |
 | 2D client | `mineworld-2d` | 🚧 presentation spike runnable, awaiting style decision ([queue](HUMAN_REVIEW_QUEUE.md)) |
-| 3D client | `mineworld-3d` | 🚧 presentation spike runnable, camera modes in progress |
+| 3D client | `mineworld-3d` | 🚧 presentation spike runnable with three camera modes; awaiting feel review ([queue](HUMAN_REVIEW_QUEUE.md)) |
 | Developer CLI | `mineworld create / validate / run / inspect` | ❌ |
 | `worlds/social-cafe` | — | ❌ |
 | `worlds/market-town` | — | ❌ |

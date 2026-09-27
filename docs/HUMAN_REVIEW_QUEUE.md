@@ -33,14 +33,29 @@ layout, projection, the scale rule and the shadow layer all survive it unchanged
 Also worth judging while walking: player legibility against the NPCs, camera framing, and
 whether the walking speed feels right.
 
-### 3D presentation spike — REBUILDING
-
-Currently runnable but being extended with three camera modes (F5 cycles first person → third
-person rear → third person front). Will be marked ready when those land.
+### 3D presentation spike — READY
 
 ```bash
 cd ~/mineworld-demos/3d && ./mineworld-3d
 ```
+
+`W/S` walk · `A/D` strafe · mouse look · `Shift` jog · **`F5` cycles the camera** (first person →
+third person rear → third person front) · `Esc` releases the mouse. The current mode is named in
+the HUD. Screenshots in `clients/3d-spike/screenshots/` — 11 through 15 cover the three modes,
+a scenic view, and the camera pulling in against a wall.
+
+**What to judge, since none of it survives a screenshot:** walking speed (1.45 m/s, deliberately
+a stroll rather than a sprint), eye height (1.66 m), mouse sensitivity (~3300 px for a full turn,
+deliberately calm), FOV 70, third-person camera distance (3.40 m rear, 2.55 m front), and whether
+the late-afternoon light and the street's scale feel like an ordinary town.
+
+Camera distance, lift, FOV and sensitivity are all first-guess defaults left deliberately
+untuned, because they are exactly what a person has to feel rather than be told.
+
+**Known and accepted:** characters read as mannequins closer than ~3 m, first person shows no
+body (deliberate — a first-person body is a separate problem and was not worth delaying this),
+and backed hard against a wall the rear camera pulls in to ~0.6 m and fills the frame with the
+back of a head. Predictable rather than pretty, which is the right trade for one raycast.
 
 ---
 
