@@ -69,7 +69,8 @@ from primitives in `scripts/`:
 
 | Thing | Where |
 | --- | --- |
-| First-person walking controller | `scripts/player.gd` |
+| Walking controller and the three cameras | `scripts/player.gd`, `scripts/camera_rig.gd` |
+| The player character | `scripts/player.gd` -- it *is* `scripts/npc.gd`'s mannequin, built by the same `NPC.make()` from the same primitives and the same clothing palette, with a fixed seed and its gait driven by the controller's measured ground speed instead of by a path. No second character, and no new third-party file. |
 | Buildings, shopfronts, doors, windows, fascias, awnings | `scripts/town.gd` |
 | Broadleaf trees and conifers (alpha-cut card canopies) | `scripts/props.gd` |
 | Leaf / needle / flower / grass / treeline cut-out textures | `scripts/procgen.gd` |
@@ -108,4 +109,8 @@ from primitives in `scripts/`:
   the intended path, not a fallback.
 - **Clothed, rigged, realistically-proportioned modern people** — likewise does
   not exist CC0. See `scripts/npc.gd` for what was done instead and why
-  (decision `ARC-4`).
+  (decision `ARC-4`). The visible player character, added for the two
+  third-person camera modes, is that same mannequin: **Mixamo, Synty,
+  marketplace packs and the SMPL/AMASS family remain excluded on licence, and
+  nothing from them is in this tree.** No asset was added for the camera work --
+  it is all engine primitives and code.

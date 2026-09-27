@@ -12,18 +12,30 @@ const OUT := "res://shots"
 
 var player: Player
 
+const FP := CameraRig.Mode.FIRST_PERSON
+const REAR := CameraRig.Mode.THIRD_REAR
+const FRONT := CameraRig.Mode.THIRD_FRONT
+
 var views := [
+	# name, position, yaw, pitch, camera mode.
 	# yaw 0 faces the lake (-Z), 90 faces west, 180 faces the shops, 270 east.
-	["01_promenade_wide", Vector3(11.0, 0.2, -19.0), 102.0, -2.0],
-	["02_street_mid", Vector3(17.0, 0.2, 42.0), 0.0, -1.0],
-	["03_cafe_near", Vector3(9.0, 0.2, -16.8), 180.0, 2.0],
-	["04_npc", Vector3(-32.0, 0.2, -20.5), 112.0, -2.0],
-	["05_lake_scenic", Vector3(-74.0, 0.2, -24.5), 352.0, -2.0],
-	["06_plaza_fountain", Vector3(0.0, 0.2, -19.0), 0.0, -1.0],
-	["07_shopfront_detail", Vector3(-12.0, 0.2, -15.6), 180.0, 3.0],
-	["08_lake_trail", Vector3(-95.0, 0.2, -20.0), 64.0, -1.0],
-	["09_quayside", Vector3(-20.0, 0.2, -23.0), 330.0, -3.0],
-	["10_street_corner", Vector3(24.0, 0.2, -16.0), 150.0, 1.0],
+	["01_promenade_wide", Vector3(11.0, 0.2, -19.0), 102.0, -2.0, FP],
+	["02_street_mid", Vector3(17.0, 0.2, 42.0), 0.0, -1.0, FP],
+	["03_cafe_near", Vector3(9.0, 0.2, -16.8), 180.0, 2.0, FP],
+	["04_npc", Vector3(-32.0, 0.2, -20.5), 112.0, -2.0, FP],
+	["05_lake_scenic", Vector3(-74.0, 0.2, -24.5), 352.0, -2.0, FP],
+	["06_plaza_fountain", Vector3(0.0, 0.2, -19.0), 0.0, -1.0, FP],
+	["07_shopfront_detail", Vector3(-12.0, 0.2, -15.6), 180.0, 3.0, FP],
+	["08_lake_trail", Vector3(-95.0, 0.2, -20.0), 64.0, -1.0, FP],
+	["09_quayside", Vector3(-20.0, 0.2, -23.0), 330.0, -3.0, FP],
+	["10_street_corner", Vector3(24.0, 0.2, -16.0), 150.0, 1.0, FP],
+	# The three camera modes, from one standing position so they compare.
+	["11_mode1_first_person", Vector3(6.0, 0.2, -18.6), 104.0, -2.0, FP],
+	["12_mode2_third_rear", Vector3(6.0, 0.2, -18.6), 104.0, -2.0, REAR],
+	["13_mode3_third_front", Vector3(6.0, 0.2, -18.6), 104.0, -2.0, FRONT],
+	# The character in the wider scene, and the rear boom pulled in by a wall.
+	["14_mode2_scenic_wide", Vector3(-70.0, 0.2, -24.0), 348.0, -1.0, REAR],
+	["15_mode2_camera_pull_in", Vector3(-12.0, 0.2, -12.9), 0.0, -2.0, REAR],
 ]
 
 var _i := 0
@@ -55,12 +67,13 @@ func _process(_d: float) -> void:
 func _capture() -> void:
 	for v in views:
 		player.place(v[1], v[2], v[3])
+		player.set_camera(v[4])
 		for i in range(12):
 			await get_tree().process_frame
 		await RenderingServer.frame_post_draw
 		var img := get_viewport().get_texture().get_image()
 		img.save_png("%s/%s.png" % [OUT, v[0]])
-		print("shot %s at %s yaw %.0f" % [v[0], v[1], v[2]])
+		print("shot %s at %s yaw %.0f  [%s]" % [v[0], v[1], v[2], player.rig.mode_name()])
 
 
 func _hold(action: String, secs: float) -> void:
@@ -138,6 +151,9 @@ func _drive() -> void:
 		await get_tree().process_frame
 	print("pitch clamp after 2400 px up: %+.1f deg" % rad_to_deg(player.cam.rotation.x))
 
+	await _camera_continuity()
+	await _camera_collision()
+
 	# collision: walk straight into the shopfront row
 	player.place(Vector3(-12.0, 0.2, -17.0), 180.0, 0.0)
 	await _settle(0.3)
@@ -182,3 +198,117 @@ func _drive() -> void:
 	print("55 s walk west: ended at %s, y stayed in [%.2f, %.2f], on_floor=%s"
 		% [player.global_position, min_y, max_y, player.is_on_floor()])
 	print("=== drive test done ===\n")
+
+
+## Press and release the real camera key, through the real input path, so this
+## measures what a person pressing F5 gets and not a private back door.
+func _tap_camera_key() -> void:
+	for down in [true, false]:
+		var ev := InputEventKey.new()
+		ev.physical_keycode = KEY_F5
+		ev.pressed = down
+		Input.parse_input_event(ev)
+
+
+## One measurement window of `ticks` physics ticks on a walking body, with the
+## camera key tapped at the start of the window when `switch`. Everything a
+## camera switch could plausibly damage is sampled at tick resolution.
+func _window(switch: bool, ticks: int) -> Dictionary:
+	await get_tree().physics_frame
+	var p0 := player.global_position
+	var v0 := player.velocity
+	var yaw0 := player.rotation.y
+	var id0 := player.get_instance_id()
+	var mode0 := player.rig.mode_name()
+	if switch:
+		_tap_camera_key()
+	var prev := p0
+	var max_step := 0.0
+	var min_step := 1e9
+	var min_speed := 1e9
+	var floor_all := true
+	for i in range(ticks):
+		await get_tree().physics_frame
+		var step := prev.distance_to(player.global_position)
+		max_step = maxf(max_step, step)
+		min_step = minf(min_step, step)
+		min_speed = minf(min_speed, Vector3(player.velocity.x, 0, player.velocity.z).length())
+		floor_all = floor_all and player.is_on_floor()
+		prev = player.global_position
+	return {
+		"moved": p0.distance_to(player.global_position),
+		"dv": (player.velocity - v0).length(),
+		"dyaw": absf(player.rotation.y - yaw0),
+		"max_step": max_step,
+		"min_step": min_step,
+		"min_speed": min_speed,
+		"on_floor": floor_all,
+		"same_node": id0 == player.get_instance_id(),
+		"mode": "%s -> %s" % [mode0, player.rig.mode_name()],
+	}
+
+
+## The requirement most likely to break silently: one movement controller, three
+## cameras, and a switch that leaves the body strictly alone. Measured on a body
+## that is walking at the time, against a control window with no switch.
+func _camera_continuity() -> void:
+	print("\n-- camera switching: three cameras, one body --")
+	print("cameras: %s" % [[
+		player.rig.first_person.name, player.rig.third_rear.name,
+		player.rig.third_front.name]])
+	player.place(Vector3(24.0, 0.2, -18.0), 96.0, 0.0)
+	await _settle(0.4)
+	Input.action_press("move_forward")
+	await _settle(2.5)  # up to steady walking speed before measuring
+
+	var ticks := 6
+	var dt := get_physics_process_delta_time()
+	print("each pair below is two adjacent %d-tick windows on the same walk: the first"
+		% ticks)
+	print("with no switch, the second with the camera key tapped at the start of it.")
+	for i in range(4):
+		var control: Dictionary = await _window(false, ticks)
+		var w: Dictionary = await _window(true, ticks)
+		print("%-42s moved %.4f m vs %.4f m with no switch (diff %+.5f m), per-tick %.4f-%.4f m, min speed %.4f m/s, |dv| %.4f m/s, dyaw %.5f rad, on_floor=%s, same body node=%s"
+			% [w["mode"], w["moved"], control["moved"], w["moved"] - control["moved"],
+				w["min_step"], w["max_step"], w["min_speed"], w["dv"], w["dyaw"],
+				w["on_floor"], w["same_node"]])
+	Input.action_release("move_forward")
+	await _settle(0.4)
+	print("expected per-tick step at 1.45 m/s and %.4f s ticks: %.4f m" % [dt, 1.45 * dt])
+
+	# And the same check with the body in mid-air, where a reset would be
+	# unmissable: switch while falling.
+	player.set_camera(CameraRig.Mode.FIRST_PERSON)
+	player.place(Vector3(2.0, 6.0, -19.0), 180.0, 0.0)
+	await _settle(0.25)
+	var vy0 := player.velocity.y
+	var y0 := player.global_position.y
+	_tap_camera_key()
+	await get_tree().physics_frame
+	print("switch mid-fall: vy %+.3f -> %+.3f m/s, y %.3f -> %.3f (gravity 22 m/s^2 over one tick = %+.3f)"
+		% [vy0, player.velocity.y, y0, player.global_position.y, -22.0 * dt])
+	await _settle(1.2)
+	print("landed at y=%.3f, on_floor=%s, camera now [%s]"
+		% [player.global_position.y, player.is_on_floor(), player.rig.mode_name()])
+
+
+## The third-person cameras must not sit inside the world. One ray, pulled in to
+## the first hit -- so the measurement is simply: is the boom shorter when there
+## is a building where the camera wanted to be?
+func _camera_collision() -> void:
+	print("\n-- third-person camera collision --")
+	var full := Vector3(0, CameraRig.REAR_LIFT, CameraRig.REAR_DISTANCE).length()
+	for c in [
+			["open promenade", Vector3(-60.0, 0.2, -22.0), 90.0],
+			["back to the shopfront row (wall at z=-12.0)", Vector3(-12.0, 0.2, -12.9), 0.0],
+			["back to a side-street facade (wall at x=13.0)", Vector3(14.3, 0.2, 19.0), 270.0],
+		]:
+		player.place(c[1], c[2], 0.0)
+		player.set_camera(CameraRig.Mode.THIRD_REAR)
+		await _settle(0.5)
+		var pivot := player.global_position + Vector3.UP * CameraRig.PIVOT_HEIGHT
+		var boom := pivot.distance_to(player.rig.third_rear.global_position)
+		print("rear boom, %-44s %.2f m of %.2f m -> %s"
+			% [c[0], boom, full, "PULLED IN" if boom < full - 0.05 else "clear"])
+	player.set_camera(CameraRig.Mode.FIRST_PERSON)
