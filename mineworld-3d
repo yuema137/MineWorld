@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Launch the MineWorld 3D presentation spike.
+#
+#   ./mineworld-3d            walk around it
+#   ./mineworld-3d --shots    capture the reference screenshots and exit
+#   ./mineworld-3d --drive    run the scripted movement/collision test and exit
+#
+# Needs Godot 4.7 on PATH (brew install godot). Nothing else.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+proj="$here/clients/3d-spike"
+godot_bin="${GODOT:-godot}"
+
+if ! command -v "$godot_bin" >/dev/null 2>&1; then
+  echo "error: '$godot_bin' not found on PATH. Install Godot 4.7 (brew install godot)," >&2
+  echo "       or set GODOT=/path/to/godot." >&2
+  exit 1
+fi
+
+# Godot resolves global class names (Mats, Build, Props, Town, NPC, Player,
+# CameraRig, Shots) outside the editor only from its resource cache. Build it on
+# the first run -- and rebuild it whenever a script is newer than the cache,
+# because adding a class_name to the tree otherwise fails to parse at startup.
+cache="$proj/.godot/global_script_class_cache.cfg"
+if [ ! -f "$cache" ] || [ -n "$(find "$proj/scripts" -name '*.gd' -newer "$cache" -print -quit)" ]; then
+  echo "building the Godot resource cache..."
+  "$godot_bin" --headless --path "$proj" --import >/dev/null 2>&1 || true
+fi
+
+# The drive test needs physics, not pixels -- and macOS throttles an
+# unfocused window hard enough to make a real-time test take minutes.
+if [ "${1:-}" = "--drive" ]; then
+  exec "$godot_bin" --headless --path "$proj" -- --drive
+fi
+
+if [ "${1:-}" = "--shots" ]; then
+  exec "$godot_bin" --path "$proj" --resolution 1600x900 -- --shots
+fi
+
+exec "$godot_bin" --path "$proj" "$@"
