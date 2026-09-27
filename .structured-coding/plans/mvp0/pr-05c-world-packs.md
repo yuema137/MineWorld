@@ -10,7 +10,16 @@ the scope, the decision this PR exists to make, the acceptance list, the constra
 publication authority verbatim.
 Implementation base: `main` @ `7f610ab`
 Branch: `mvp0/pr-05c-world-packs`
-Lifecycle: FROZEN
+Lifecycle: **READY FOR OPERATOR REVIEW** — implementation, validation and review complete; branch
+pushed; no PR opened and no merge, as the kickoff directs. The exact final head is the tip of
+`mvp0/pr-05c-world-packs`, which `git log --oneline` is authoritative for; a commit cannot carry its
+own hash, and §8.1's gate results were produced at that tip.
+
+Continuation state: **this file**. `.structured-coding/plans/mvp0/handoff.md` is still PR 02's and was
+left alone deliberately — PR 05a and PR 05b did the same while sibling PRs were in flight, and
+rewriting one shared file from a session that does not own the others' state would cost a conflict and
+buy nothing. Flagged here rather than silently ignored: the effort's handoff document is stale, and
+whoever starts PR 05d should replace it rather than read it.
 
 ---
 
