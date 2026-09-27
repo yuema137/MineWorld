@@ -118,7 +118,7 @@ that can disagree with itself (F8.1).
 | --- | --- | --- | --- | --- |
 | 1 | Fix 1: id encoding keyed on `is_human_readable`, and the DD-15 record | `[x]` | `[x]` | `[x]` |
 | 2 | Fix 1: delete the spike's `wire.rs` | `[x]` | `[x]` | `[x]` |
-| 3 | Fix 2: relations on `Observation` | `[ ]` | `[ ]` | `[ ]` |
+| 3 | Fix 2: relations on `Observation` | `[x]` | `[x]` | `[x]` |
 | 4 | Fix 3: `ActionRequest` and `ActionIntent::allocate` | `[ ]` | `[ ]` | `[ ]` |
 
 ## 5. Live evidence log
@@ -279,7 +279,49 @@ were **not re-run** — see §6.
 
 ### Fix 2 — relations on `Observation`
 
-PENDING.
+```text
+command:  cargo test --workspace   @ commit 3
+result:   141 passed, 0 failed   PASS   (+2 new tests)
+```
+
+`relations: Vec<Relation>` sits between `entities` and `events`, with `Observation::relating` to
+populate it and `Observation::relations()` to read it. The documented wire shape changed and the
+test that pins it changed with it:
+
+```text
+{"observer":"41","at":0,"self_location":null,"entities":[],"relations":[],
+ "events":[],"affordances":[]}
+```
+
+New tests in `contracts/tests/observation.rs`:
+
+```text
+an_observation_carries_the_place_structure_a_client_needs_to_render_a_world
+    the café (7) contains the kitchen (8) and adjoins the promenade (9) — F3's
+    "walk out of the café and along the promenade", expressible for the first
+    time. The frame asserted by hand:
+      "relations":[{"relation_type":"contains","from":"7","to":"8"},
+                   {"relation_type":"adjoins","from":"7","to":"9"}]
+    The undirected edge arrives canonically ordered (promenade 9 given first,
+    stored 7 -> 9), so an observation transports edges and never re-forms them.
+    The test also asserts that entity 9 is NOT in `entities`: being told the café
+    adjoins the promenade is not the same as perceiving the promenade.
+
+an_observation_exposes_no_relations_until_one_is_deliberately_added
+    a fresh observation lists none, and the file's existing two-person scene
+    lists none either — perceiving two people implies no edge between them.
+```
+
+No kernel call site: the kernel does not build `Observation`s yet (`kernel/src/view.rs` says so
+explicitly — an observation is S10/S11's). The spike server compiles unchanged and its frame now
+carries `"relations": []`, which is correct: it has exactly one place, and F3 itself says the
+second place is where the next surprise lives.
+
+`INV-13` review: the field is a list of what was exposed, like every other field on the type.
+There is no accessor that takes an identity and searches the world, no way to ask for more, and
+the doc comment on the field states the constraint a perception system must honour — an edge is
+here because this observer may know it, and a system that put every edge in a world here would be
+making the same mistake as one that listed every entity.
 
 ### Fix 3 — `ActionRequest`
 
