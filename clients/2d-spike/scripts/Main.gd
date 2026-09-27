@@ -18,7 +18,7 @@ const ART := "res://art/svg/%s.svg"
 ## 1.75 m and 1 m is Iso.PX_PER_M_Z pixels, so a person is ~56 px tall and
 ## everything else is sized against that.
 const SCALE := {
-	"shop": 0.5, "person": 0.28, "dog": 0.26, "bird": 0.24,
+	"shop": 0.5, "person": 0.34, "dog": 0.30, "bird": 0.26,
 	"tree_a": 0.37, "tree_b": 0.37, "tree_c": 0.34,
 	"bush_a": 0.30, "bush_b": 0.28, "hedge": 0.26,
 	"lamppost": 0.27, "bench": 0.26, "bench_r": 0.26,
@@ -31,7 +31,7 @@ const SCALE := {
 var props: Dictionary = {}
 var world: Node2D
 var player: Node2D
-var player_at := Vector2(6.6, 7.6)
+var player_at := Vector2(6.6, 5.1)
 var player_facing := 1.0
 var walkers: Array = []
 var cam: Camera2D
@@ -39,7 +39,7 @@ var _jit := RandomNumberGenerator.new()
 var shadows: Node2D
 
 const WALK_MIN := Vector2(1.7, 0.3)
-const WALK_MAX := Vector2(16.8, 10.3)
+const WALK_MAX := Vector2(16.8, 6.66)
 const PLAYER_SPEED := 2.4   # world units/second (~4.8 m/s, a brisk walk in a demo)
 
 
@@ -125,7 +125,11 @@ func _cast_shadow(name: String, at: Vector2, k: float) -> void:
 	if shadows == null:
 		return
 	if name.begins_with("tree"):
-		shadows.add(at, 58.0 * k * 2.2, 24.0 * k * 2.2, 74.0 * k * 2.2, 0.30)
+		var r := 46.0 * k * 2.2
+		for o in [[0.0, 0.0, 1.0], [0.9, 0.22, 0.72], [-0.55, 0.30, 0.62],
+				[0.45, -0.28, 0.58]]:
+			shadows.add(at + Vector2(o[0] * r, o[1] * r * 0.5),
+				r * o[2], r * 0.42 * o[2], 70.0 * k * 2.2, 0.17)
 	elif name.begins_with("bush") or name == "hedge":
 		shadows.add(at, 44.0 * k * 2.0, 17.0 * k * 2.0, 30.0 * k * 2.0, 0.24)
 	elif name == "lamppost":
@@ -135,6 +139,18 @@ func _cast_shadow(name: String, at: Vector2, k: float) -> void:
 	elif name in ["fountain", "cafeset", "bench", "bench_r", "planter", "planter_b",
 			"barrel", "bicycle", "signpost", "chalkboard", "pot", "pot_b"]:
 		shadows.add(at, 34.0 * k * 1.6, 13.0 * k * 1.6, 30.0 * k * 1.6, 0.22)
+
+
+## Squash the square's depth. The references are streets, not fields: the
+## shopfront row, its terrace and the greenery opposite should fill the frame
+## with very little bare paving between them. Everything from the terrace
+## backwards is pulled toward the shops by DEPTH.
+const DEPTH := 0.60
+const DEPTH_FROM := 1.2
+
+
+func _wp(x: float, y: float) -> Vector2:
+	return Vector2(x, y if y < DEPTH_FROM else DEPTH_FROM + (y - DEPTH_FROM) * DEPTH)
 
 
 ## World position of a point offset in *screen* pixels from another — handy for
@@ -177,17 +193,17 @@ func _build_places() -> void:
 
 func _build_scenery() -> void:
 	# quay, jetty and water
-	_prop("jetty", Vector2(0.6, 6.6), false, -2)
-	_prop("boat", Vector2(-1.6, 7.9), false, -1)
-	_prop("barrel", Vector2(-0.3, 5.1))
-	_prop("bird", Vector2(-3.2, 3.2), false, -1)
-	_prop("bird", Vector2(-1.2, 5.4), true)
+	_prop("jetty", _wp(0.6, 6.6), false, -2)
+	_prop("boat", _wp(-1.6, 7.9), false, -1)
+	_prop("barrel", _wp(-0.3, 5.1))
+	_prop("bird", _wp(-3.2, 3.2), false, -1)
+	_prop("bird", _wp(-1.2, 5.4), true)
 	for i in range(1, 12):
 		if i >= 4 and i <= 6:
 			continue   # gap where the jetty meets the quay
-		_prop("rail_y", Vector2(1.18, i + 0.5))
+		_prop("rail_y", _wp(1.18, i + 0.5))
 
-	_prop("fountain", Vector2(6.4, 4.6))
+	_prop("fountain", _wp(6.4, 4.6))
 
 	# shopfront clutter
 	var street := [
@@ -207,7 +223,7 @@ func _build_scenery() -> void:
 		["lamppost", 11.55, 8.40, false], ["lamppost", 7.60, 9.9, false],
 	]
 	for it in street:
-		_prop(it[0], Vector2(it[1], it[2]), it[3])
+		_prop(it[0], _wp(it[1], it[2]), it[3])
 
 	# the park corner
 	var park := [
@@ -220,31 +236,31 @@ func _build_scenery() -> void:
 		["bench", 13.35, 6.20], ["bench_r", 15.65, 9.70],
 	]
 	for it in park:
-		_prop(it[0], Vector2(it[1], it[2]))
+		_prop(it[0], _wp(it[1], it[2]))
 
 	# Deep foliage belts on every side. The world has to run off the edge of
 	# the frame; a visible map boundary is what made this read as a diorama.
 	var edge: Array = []
 	var b := 0.0
-	while b < 5.0:                      # south, four rows deep
+	while b < 3.0:                      # south
 		var xx := -2.0
 		while xx < 24.0:
 			edge.append([["tree_b", "tree_a", "tree_c"][int(xx + b) % 3],
-				xx + b * 0.4, 11.7 + b * 1.25 + sin(xx) * 0.3])
-			if b < 2.0:
+				xx + b * 0.7, 11.9 + b * 2.30 + sin(xx * 1.7) * 0.6])
+			if b < 1.0:
 				edge.append(["bush_a" if int(xx) % 2 == 0 else "bush_b",
-					xx + 0.6, 11.2 + b * 1.25])
-			xx += 1.25
+					xx + 0.9, 11.3 + b * 2.30])
+			xx += 1.95
 		b += 1.0
 	var e := 0.0
-	while e < 4.0:                      # east
+	while e < 3.0:                      # east
 		var yy := -3.0
 		while yy < 18.0:
 			edge.append([["tree_c", "tree_b", "tree_a"][int(yy + e) % 3],
-				18.4 + e * 1.25 + sin(yy) * 0.3, yy + e * 0.4])
-			if e < 2.0:
-				edge.append(["bush_b", 17.9 + e * 1.25, yy + 0.6])
-			yy += 1.25
+				18.4 + e * 1.45 + sin(yy) * 0.5, yy + e * 0.7])
+			if e < 1.0:
+				edge.append(["bush_b", 17.9 + e * 1.45, yy + 0.9])
+			yy += 1.85
 		e += 1.0
 	var n := 0.0
 	while n < 3.0:                      # behind the shop row
@@ -254,12 +270,12 @@ func _build_scenery() -> void:
 			xn += 1.35
 		n += 1.0
 	for it in edge:
-		_prop(it[0], Vector2(it[1], it[2]))
+		_prop(it[0], _wp(it[1], it[2]))
 
 	# Foreground foliage: trees nearer the camera than the player can walk,
 	# so canopies break into the bottom of the frame.
-	for fgx in [2.4, 4.6, 7.0, 9.4, 11.8, 14.2, 16.4]:
-		_prop("tree_a", Vector2(fgx, 11.1 + sin(fgx) * 0.2))
+	for fgx in [1.8, 5.4, 10.2, 15.6]:
+		_prop("tree_a", _wp(fgx, 11.1 + sin(fgx) * 0.2))
 
 	# Density near the buildings: clusters, not singles.
 	var fill := [
@@ -283,27 +299,27 @@ func _build_scenery() -> void:
 		fill.append(["chalkboard", sx + 1.00, -0.14])
 		fill.append(["planter_b", sx + 1.48, -0.24])
 	for it in fill:
-		_prop(it[0], Vector2(it[1], it[2]))
+		_prop(it[0], _wp(it[1], it[2]))
 
 
 func _build_people() -> void:
 	# Seated people: the Sit affordance in 2D form, as the references show it.
-	_prop("seated_a", _at_screen(Vector2(2.30, 0.55), Vector2(-33, 2)))
-	_prop("seated_b", _at_screen(Vector2(3.95, 1.05), Vector2(34, 2)))
+	_prop("seated_a", _at_screen(Vector2(2.30, 0.55), Vector2(-38, 2)))
+	_prop("seated_b", _at_screen(Vector2(3.95, 1.05), Vector2(39, 2)))
 
 	var crowd := [
-		Demo.DemoPerson.new(&"a", &"npc_a", Vector2(4.2, 6.4),
-			PackedVector2Array([Vector2(4.2, 6.4), Vector2(9.6, 6.9)]), 0.80),
-		Demo.DemoPerson.new(&"b", &"npc_b", Vector2(8.0, 8.6),
-			PackedVector2Array([Vector2(8.0, 8.6), Vector2(3.4, 8.9)]), 0.70),
-		Demo.DemoPerson.new(&"c", &"npc_c", Vector2(10.8, 4.1),
-			PackedVector2Array([Vector2(10.8, 4.1), Vector2(10.9, 8.6)]), 0.75),
-		Demo.DemoPerson.new(&"d", &"npc_d", Vector2(5.8, 2.1),
-			PackedVector2Array([Vector2(5.8, 2.1), Vector2(12.8, 2.3)]), 0.62),
-		Demo.DemoPerson.new(&"e", &"npc_e", Vector2(2.6, 9.6),
-			PackedVector2Array([Vector2(2.6, 9.6), Vector2(2.7, 4.6)]), 0.55),
-		Demo.DemoPerson.new(&"dog", &"dog", Vector2(6.4, 7.6),
-			PackedVector2Array([Vector2(6.4, 7.6), Vector2(8.8, 7.0), Vector2(7.2, 9.0)]), 1.25),
+		Demo.DemoPerson.new(&"a", &"npc_a", _wp(4.2, 6.4),
+			PackedVector2Array([_wp(4.2, 6.4), _wp(9.6, 6.9)]), 0.80),
+		Demo.DemoPerson.new(&"b", &"npc_b", _wp(8.0, 8.6),
+			PackedVector2Array([_wp(8.0, 8.6), _wp(3.4, 8.9)]), 0.70),
+		Demo.DemoPerson.new(&"c", &"npc_c", _wp(10.8, 4.1),
+			PackedVector2Array([_wp(10.8, 4.1), _wp(10.9, 8.6)]), 0.75),
+		Demo.DemoPerson.new(&"d", &"npc_d", _wp(5.8, 2.1),
+			PackedVector2Array([_wp(5.8, 2.1), _wp(12.8, 2.3)]), 0.62),
+		Demo.DemoPerson.new(&"e", &"npc_e", _wp(2.6, 9.6),
+			PackedVector2Array([_wp(2.6, 9.6), _wp(2.7, 4.6)]), 0.55),
+		Demo.DemoPerson.new(&"dog", &"dog", _wp(6.4, 7.6),
+			PackedVector2Array([_wp(6.4, 7.6), _wp(8.8, 7.0), _wp(7.2, 9.0)]), 1.25),
 	]
 	for c in crowd:
 		walkers.append(_make_actor(c))
@@ -456,32 +472,32 @@ func _shots() -> void:
 	set_process(false)
 
 	# wide: the whole square
-	cam.zoom = Vector2(0.80, 0.80)
-	cam.position = Iso.to_screen(Vector2(8.0, 4.6))
+	cam.zoom = Vector2(0.92, 0.92)
+	cam.position = Iso.to_screen(Vector2(8.6, 3.0))
 	await _settle(8)
 	await _save("01_wide")
 
 	# mid: people on the plaza
-	cam.zoom = Vector2(1.15, 1.15)
-	cam.position = Iso.to_screen(Vector2(6.6, 6.4))
+	cam.zoom = Vector2(1.5, 1.5)
+	cam.position = Iso.to_screen(Vector2(6.8, 3.6))
 	await _settle(6)
 	await _save("02_mid_npcs")
 
 	# close: the cafe frontage and its terrace
-	cam.zoom = Vector2(1.55, 1.55)
-	cam.position = Iso.to_screen(Vector2(3.6, 1.9))
+	cam.zoom = Vector2(1.6, 1.6)
+	cam.position = Iso.to_screen(Vector2(4.1, 1.5))
 	await _settle(6)
 	await _save("03_close_cafe")
 
 	# close: quay, jetty and boat
 	cam.zoom = Vector2(1.9, 1.9)
-	cam.position = Iso.to_screen(Vector2(0.4, 6.4))
+	cam.position = Iso.to_screen(Vector2(0.8, 4.0))
 	await _settle(6)
 	await _save("04_close_quay")
 
 	# the park corner
-	cam.zoom = Vector2(1.35, 1.35)
-	cam.position = Iso.to_screen(Vector2(13.6, 6.8))
+	cam.zoom = Vector2(1.45, 1.45)
+	cam.position = Iso.to_screen(Vector2(13.8, 4.2))
 	await _settle(6)
 	await _save("05_park")
 

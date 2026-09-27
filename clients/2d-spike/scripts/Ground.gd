@@ -10,7 +10,7 @@ const Iso := preload("res://scripts/Iso.gd")
 
 const C := {
 	"stone_hi": Color("edE6d6"),
-	"stone": Color("e4dbc6"),
+	"stone": Color("ece1c6"),
 	"stone_lo": Color("c8bea6"),
 	"joint": Color("b3a78b"),
 	"quay": Color("d3cab4"),
@@ -20,6 +20,7 @@ const C := {
 	"grass_lo": Color("6ca648"),
 	"grass_hi": Color("a9d579"),
 	"water": Color("3fa8d6"),
+	"water_deep": Color("2f8ec4"),
 	"water_lo": Color("2b85b6"),
 	"water_hi": Color("7fcbe8"),
 	"sand": Color("e2d6bb"),
@@ -29,9 +30,9 @@ const FLOWER := [Color("f2a0b4"), Color("f4e07a"), Color("ffffff"), Color("c79be
 
 # world-space extents
 const LAND := Rect2(-60.0, -60.0, 120.0, 120.0)   # fills the frame, no void
-const PLAZA := Rect2(0.9, -0.8, 17.8, 13.0)
+const PLAZA := Rect2(0.9, -0.8, 17.8, 8.7)
 const WATER := Rect2(-40.0, -30.0, 40.9, 70.0)
-const PARK := Rect2(11.9, 4.4, 5.7, 6.6)
+const PARK := Rect2(11.9, 3.12, 5.7, 4.0)
 const QUAY_X := 0.9
 const STONE := 0.44   # paving module, world units (~0.9 m slabs)
 
@@ -80,9 +81,16 @@ func _draw_land() -> void:
 
 
 func _draw_water() -> void:
-	draw_colored_polygon(_rect_poly(WATER), C["water_lo"])
-	var inner := WATER.grow(-0.04)
-	draw_colored_polygon(_rect_poly(inner), C["water"])
+	draw_colored_polygon(_rect_poly(WATER), C["water_deep"])
+	# ramp from deep open water to bright shallows against the quay
+	for i in range(14):
+		var t := i / 13.0
+		var band := Rect2(QUAY_X - 11.0 * (1.0 - t), WATER.position.y,
+			11.0 * (1.0 - t), WATER.size.y)
+		draw_colored_polygon(_rect_poly(band),
+			Color(C["water_deep"].lerp(C["water_hi"], t), 0.34))
+	var shore := Rect2(QUAY_X - 0.55, WATER.position.y, 0.55, WATER.size.y)
+	draw_colored_polygon(_rect_poly(shore), Color(C["water_hi"], 0.55))
 	# broad light bands, then short glints, both following the iso grid
 	for i in range(26):
 		var y := WATER.position.y + _rng.randf() * WATER.size.y
@@ -138,9 +146,20 @@ func _draw_plaza() -> void:
 			col = Color(clampf(col.r + v, 0, 1), clampf(col.g + v * 0.97, 0, 1),
 				clampf(col.b + v * 0.90, 0, 1))
 			draw_colored_polygon(pts, col)
-	# a broad warm sunlit wash, brighter to the upper left
-	var centre := Vector2(6.4, 4.6)
-	for r in [2.2, 2.7, 3.2]:
+	# a kerb, so the paving ends because someone built it that way
+	var sw_c := Vector2(PLAZA.position.x, PLAZA.end.y)
+	var se_c := PLAZA.end
+	var ne_c := Vector2(PLAZA.end.x, PLAZA.position.y)
+	for pair in [[sw_c, se_c], [se_c, ne_c]]:
+		var a := Iso.to_screen(pair[0])
+		var b := Iso.to_screen(pair[1])
+		draw_line(a + Vector2(0, 5), b + Vector2(0, 5), C["stone_lo"], 13.0, true)
+		draw_line(a, b, C["stone_hi"], 9.0, true)
+		draw_line(a + Vector2(0, 11), b + Vector2(0, 11), Color(0.22, 0.19, 0.13, 0.22),
+			7.0, true)
+
+	var centre := Vector2(6.4, 3.24)
+	for r in [2.65]:
 		var ring := PackedVector2Array()
 		for k in range(65):
 			var a := TAU * k / 64.0
@@ -162,7 +181,7 @@ func _draw_park() -> void:
 	var path := PackedVector2Array()
 	for k in range(31):
 		var t := k / 30.0
-		var w := Vector2(11.9 + t * 5.6, 5.4 + sin(t * PI) * 2.6)
+		var w := Vector2(11.9 + t * 5.6, 3.9 + sin(t * PI) * 1.6)
 		path.append(Iso.to_screen(w))
 	draw_polyline(path, C["stone_lo"], 42.0, true)
 	draw_polyline(path, C["stone_hi"], 34.0, true)

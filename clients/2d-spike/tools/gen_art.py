@@ -812,8 +812,8 @@ def _basket(cx, cy, seed):
 def _interior(x, y, w, h, seed, kind):
     """Suggested goods behind the glass: a dark warm room with lit shapes."""
     rnd = random.Random(seed)
-    out = [rect(x, y, w, h, "#4A3524")]                       # dark room
-    out.append(rect(x, y + h * 0.42, w, h * 0.58, "#5E442C"))
+    out = [rect(x, y, w, h, "#5E4630")]                       # dark room
+    out.append(rect(x, y + h * 0.42, w, h * 0.58, "#6E533A"))
     # back-wall lamp pools
     for i in range(max(2, int(w / 110))):
         lx = x + w * (i + 0.5) / max(2, int(w / 110))
@@ -1017,7 +1017,7 @@ def make_building(name, fx, fy, storeys, wall, wall_lo, roof, roof_lo,
                 o.append(rect(x + wd * i / (n_m + 1) - 3, glass_y, 6, glass_h,
                               sh(P["wood"], 0.30)))
             # the awning throws deep shade across the top of the glass
-            o.append(rect(x, glass_y, wd, 34, "#241B12", opacity=0.42))
+            o.append(rect(x, glass_y, wd, 30, "#241B12", opacity=0.30))
             o.append(rect(x, glass_y + 34, wd, 16, "#241B12", opacity=0.18))
             return "".join(o)
 
@@ -1130,7 +1130,12 @@ def make_house(name, fx, fy, wall, wall_lo, roof, roof_lo, seed=7):
 
 def _char_body(H, skin, hair, top_c, bottom_c, shoe_c, back, hat=None, bag=None,
                hair_style="short"):
-    """H is total pixel height at 2x. Returns svg body drawn with feet at y=H."""
+    """H is total pixel height at 2x. Returns svg body drawn with feet at y=H.
+
+    Sun from the upper left, same as everything else: each limb gets a lit
+    edge and a shaded edge, and the edge colour is the fill 32% darker rather
+    than one flat brown line.
+    """
     s = []
     head_r = H * 0.148
     head_cy = head_r + H * 0.055
@@ -1138,101 +1143,137 @@ def _char_body(H, skin, hair, top_c, bottom_c, shoe_c, back, hat=None, bag=None,
     torso_h = H * 0.30
     torso_w = H * 0.20
     leg_h = H - (neck_y + torso_h) - H * 0.035
-    out = "#4A3A30"
+    W = H * 0.5
+    e_top = sh(top_c, 0.34)
+    e_bot = sh(bottom_c, 0.34)
+    e_skin = sh(skin, 0.30)
+    e_hair = sh(hair, 0.32)
 
     # legs
     lw = torso_w * 0.36
     for dx in (-1, 1):
-        s.append(rect(H * 0.5 + dx * torso_w * 0.26 - lw / 2, neck_y + torso_h - 4,
-                      lw, leg_h + 6, bottom_c, stroke=out, sw=6.1, rx=lw * 0.42))
+        lx = W + dx * torso_w * 0.26 - lw / 2
+        s.append(rect(lx, neck_y + torso_h - 4, lw, leg_h + 6, bottom_c,
+                      stroke=e_bot, sw=4.2, rx=lw * 0.42))
+        s.append(rect(lx + lw * 0.58, neck_y + torso_h - 2, lw * 0.42, leg_h + 2,
+                      sh(bottom_c, 0.20), rx=lw * 0.30))
     for dx in (-1, 1):
-        s.append(ell(H * 0.5 + dx * torso_w * 0.26, H - H * 0.018,
-                     lw * 0.72, H * 0.026, shoe_c, stroke=out, sw=6.1))
+        s.append(ell(W + dx * torso_w * 0.26, H - H * 0.018,
+                     lw * 0.72, H * 0.026, shoe_c, stroke=sh(shoe_c, 0.30), sw=4.0))
     # torso
-    s.append(rect(H * 0.5 - torso_w / 2, neck_y - 2, torso_w, torso_h + 6,
-                  top_c, stroke=out, sw=6.9, rx=torso_w * 0.30))
-    if not back:
-        s.append(rect(H * 0.5 - torso_w * 0.10, neck_y + 2, torso_w * 0.20, torso_h * 0.62,
-                      "#FFFFFF", opacity=0.22, rx=6))
+    s.append(rect(W - torso_w / 2, neck_y - 2, torso_w, torso_h + 6,
+                  top_c, stroke=e_top, sw=4.6, rx=torso_w * 0.30))
+    s.append(rect(W + torso_w * 0.08, neck_y, torso_w * 0.42, torso_h + 2,
+                  sh(top_c, 0.16), rx=torso_w * 0.24))
+    s.append(rect(W - torso_w * 0.46, neck_y, torso_w * 0.26, torso_h * 0.80,
+                  lt(top_c, 0.22), rx=torso_w * 0.18))
+    s.append(rect(W - torso_w / 2, neck_y - 2, torso_w, torso_h * 0.16,
+                  sh(top_c, 0.26), rx=torso_w * 0.18))          # under the chin
     # arms
     aw = torso_w * 0.27
     for dx in (-1, 1):
-        s.append(rect(H * 0.5 + dx * (torso_w / 2 + aw * 0.18) - aw / 2, neck_y + 4,
-                      aw, torso_h * 0.86, top_c, stroke=out, sw=6.1, rx=aw * 0.5))
-        s.append(circ(H * 0.5 + dx * (torso_w / 2 + aw * 0.18), neck_y + 4 + torso_h * 0.86,
-                      aw * 0.44, skin, stroke=out, sw=5.4))
+        ax = W + dx * (torso_w / 2 + aw * 0.18) - aw / 2
+        s.append(rect(ax, neck_y + 4, aw, torso_h * 0.86,
+                      sh(top_c, 0.10) if dx > 0 else lt(top_c, 0.10),
+                      stroke=e_top, sw=4.0, rx=aw * 0.5))
+        s.append(circ(W + dx * (torso_w / 2 + aw * 0.18), neck_y + 4 + torso_h * 0.86,
+                      aw * 0.44, skin, stroke=e_skin, sw=3.6))
     if bag:
         s.append(path("M %s %s Q %s %s, %s %s" % (
-            r2(H * 0.5 - torso_w * 0.34), r2(neck_y + 4),
-            r2(H * 0.5), r2(neck_y + torso_h * 0.36),
-            r2(H * 0.5 + torso_w * 0.42), r2(neck_y + torso_h * 0.30)),
-            stroke=bag, sw=12.2))
-        s.append(rect(H * 0.5 + torso_w * 0.30, neck_y + torso_h * 0.30, torso_w * 0.34,
-                      torso_h * 0.42, bag, stroke=out, sw=6.1, rx=5))
+            r2(W - torso_w * 0.34), r2(neck_y + 4),
+            r2(W), r2(neck_y + torso_h * 0.36),
+            r2(W + torso_w * 0.42), r2(neck_y + torso_h * 0.30)),
+            stroke=bag, sw=7))
+        s.append(rect(W + torso_w * 0.30, neck_y + torso_h * 0.30, torso_w * 0.34,
+                      torso_h * 0.42, bag, stroke=sh(bag, 0.30), sw=4.0, rx=5))
     # head
-    s.append(circ(H * 0.5, head_cy, head_r, skin, stroke=out, sw=6.9))
+    s.append(circ(W, head_cy, head_r, skin, stroke=e_skin, sw=4.6))
+    s.append(path("M %s %s A %s %s 0 0 0 %s %s Z" % (
+        r2(W + head_r * 0.30), r2(head_cy - head_r * 0.90),
+        r2(head_r), r2(head_r),
+        r2(W + head_r * 0.30), r2(head_cy + head_r * 0.94)),
+        fill=sh(skin, 0.13)))                                    # shaded cheek
     if not back:
-        ey = head_cy + head_r * 0.12
-        s.append(ell(H * 0.5 - head_r * 0.34, ey, head_r * 0.10, head_r * 0.15, "#3A2F28"))
-        s.append(ell(H * 0.5 + head_r * 0.34, ey, head_r * 0.10, head_r * 0.15, "#3A2F28"))
-        s.append(ell(H * 0.5 - head_r * 0.56, ey + head_r * 0.24, head_r * 0.15,
-                     head_r * 0.10, "#F0A08E", opacity=0.55))
-        s.append(ell(H * 0.5 + head_r * 0.56, ey + head_r * 0.24, head_r * 0.15,
-                     head_r * 0.10, "#F0A08E", opacity=0.55))
+        ey = head_cy + head_r * 0.14
+        for dx in (-1, 1):
+            s.append(ell(W + dx * head_r * 0.34, ey, head_r * 0.12, head_r * 0.17, "#3A2F28"))
+            s.append(circ(W + dx * head_r * 0.34 - head_r * 0.04, ey - head_r * 0.06,
+                          head_r * 0.045, "#FFFFFF", opacity=0.9))
+            s.append(ell(W + dx * head_r * 0.58, ey + head_r * 0.26, head_r * 0.16,
+                         head_r * 0.10, "#F0A08E", opacity=0.55))
         s.append(path("M %s %s Q %s %s, %s %s" % (
-            r2(H * 0.5 - head_r * 0.16), r2(ey + head_r * 0.42),
-            r2(H * 0.5), r2(ey + head_r * 0.58), r2(H * 0.5 + head_r * 0.16),
-            r2(ey + head_r * 0.42)), stroke="#8A5A4A", sw=5.9))
+            r2(W - head_r * 0.16), r2(ey + head_r * 0.44),
+            r2(W), r2(ey + head_r * 0.60), r2(W + head_r * 0.16),
+            r2(ey + head_r * 0.44)), stroke=sh(skin, 0.42), sw=3.4))
     # hair
     if hair_style == "bun":
-        s.append(circ(H * 0.5 + head_r * (0.0 if back else 0.02), head_cy - head_r * 1.02,
-                      head_r * 0.42, hair, stroke=out, sw=6.1))
+        s.append(circ(W, head_cy - head_r * 1.02, head_r * 0.42, hair,
+                      stroke=e_hair, sw=4.0))
+        s.append(circ(W - head_r * 0.14, head_cy - head_r * 1.14, head_r * 0.20,
+                      lt(hair, 0.26)))
     if back:
-        s.append(circ(H * 0.5, head_cy, head_r, hair, stroke=out, sw=6.9))
+        s.append(circ(W, head_cy, head_r, hair, stroke=e_hair, sw=4.6))
+        s.append(circ(W - head_r * 0.30, head_cy - head_r * 0.34, head_r * 0.46,
+                      lt(hair, 0.22)))
         if hair_style == "long":
-            s.append(rect(H * 0.5 - head_r * 0.86, head_cy, head_r * 1.72, head_r * 1.5,
-                          hair, stroke=out, sw=6.1, rx=head_r * 0.5))
+            s.append(rect(W - head_r * 0.86, head_cy, head_r * 1.72, head_r * 1.5,
+                          hair, stroke=e_hair, sw=4.0, rx=head_r * 0.5))
     else:
         if hair_style == "long":
             s.append(path("M %s %s A %s %s 0 0 1 %s %s L %s %s Q %s %s, %s %s L %s %s Z" % (
-                r2(H * 0.5 - head_r), r2(head_cy + head_r * 0.10),
+                r2(W - head_r), r2(head_cy + head_r * 0.10),
                 r2(head_r), r2(head_r),
-                r2(H * 0.5 + head_r), r2(head_cy + head_r * 0.10),
-                r2(H * 0.5 + head_r * 0.98), r2(head_cy + head_r * 1.30),
-                r2(H * 0.5 + head_r * 0.60), r2(head_cy + head_r * 0.60),
-                r2(H * 0.5 + head_r * 0.62), r2(head_cy - head_r * 0.10),
-                r2(H * 0.5 - head_r * 0.62), r2(head_cy - head_r * 0.10)),
-                fill=hair, stroke=out, sw=6.1))
+                r2(W + head_r), r2(head_cy + head_r * 0.10),
+                r2(W + head_r * 0.98), r2(head_cy + head_r * 1.30),
+                r2(W + head_r * 0.60), r2(head_cy + head_r * 0.60),
+                r2(W + head_r * 0.62), r2(head_cy - head_r * 0.10),
+                r2(W - head_r * 0.62), r2(head_cy - head_r * 0.10)),
+                fill=hair, stroke=e_hair, sw=4.0))
             s.append(path("M %s %s Q %s %s, %s %s L %s %s Z" % (
-                r2(H * 0.5 - head_r * 0.98), r2(head_cy + head_r * 0.10),
-                r2(H * 0.5 - head_r * 0.70), r2(head_cy + head_r * 0.80),
-                r2(H * 0.5 - head_r * 0.92), r2(head_cy + head_r * 1.30),
-                r2(H * 0.5 - head_r * 0.60), r2(head_cy + head_r * 0.20)),
-                fill=hair, stroke=out, sw=6.1))
+                r2(W - head_r * 0.98), r2(head_cy + head_r * 0.10),
+                r2(W - head_r * 0.70), r2(head_cy + head_r * 0.80),
+                r2(W - head_r * 0.92), r2(head_cy + head_r * 1.30),
+                r2(W - head_r * 0.60), r2(head_cy + head_r * 0.20)),
+                fill=hair, stroke=e_hair, sw=4.0))
         else:
             s.append(path("M %s %s A %s %s 0 0 1 %s %s Q %s %s, %s %s Q %s %s, %s %s Z" % (
-                r2(H * 0.5 - head_r * 1.02), r2(head_cy + head_r * 0.04),
+                r2(W - head_r * 1.02), r2(head_cy + head_r * 0.04),
                 r2(head_r * 1.02), r2(head_r * 1.02),
-                r2(H * 0.5 + head_r * 1.02), r2(head_cy + head_r * 0.04),
-                r2(H * 0.5 + head_r * 0.7), r2(head_cy - head_r * 0.22),
-                r2(H * 0.5 + head_r * 0.10), r2(head_cy - head_r * 0.30),
-                r2(H * 0.5 - head_r * 0.50), r2(head_cy - head_r * 0.10),
-                r2(H * 0.5 - head_r * 1.02), r2(head_cy + head_r * 0.04)),
-                fill=hair, stroke=out, sw=6.1))
+                r2(W + head_r * 1.02), r2(head_cy + head_r * 0.04),
+                r2(W + head_r * 0.7), r2(head_cy - head_r * 0.22),
+                r2(W + head_r * 0.10), r2(head_cy - head_r * 0.30),
+                r2(W - head_r * 0.50), r2(head_cy - head_r * 0.10),
+                r2(W - head_r * 1.02), r2(head_cy + head_r * 0.04)),
+                fill=hair, stroke=e_hair, sw=4.0))
+        # hair mass: a lit crown and a shaded underside
+        s.append(path("M %s %s Q %s %s, %s %s Q %s %s, %s %s Z" % (
+            r2(W - head_r * 0.92), r2(head_cy - head_r * 0.30),
+            r2(W - head_r * 0.46), r2(head_cy - head_r * 1.02),
+            r2(W + head_r * 0.34), r2(head_cy - head_r * 0.86),
+            r2(W - head_r * 0.20), r2(head_cy - head_r * 0.62),
+            r2(W - head_r * 0.92), r2(head_cy - head_r * 0.30)),
+            fill=lt(hair, 0.30), opacity=0.85))
         s.append(path("M %s %s Q %s %s, %s %s" % (
-            r2(H * 0.5 - head_r * 0.72), r2(head_cy - head_r * 0.52),
-            r2(H * 0.5 - head_r * 0.30), r2(head_cy - head_r * 0.86),
-            r2(H * 0.5 + head_r * 0.20), r2(head_cy - head_r * 0.74)),
-            stroke="#FFFFFF", sw=7.4, opacity=0.22))
+            r2(W + head_r * 0.30), r2(head_cy - head_r * 0.80),
+            r2(W + head_r * 0.92), r2(head_cy - head_r * 0.40),
+            r2(W + head_r * 0.98), r2(head_cy + head_r * 0.06)),
+            stroke=sh(hair, 0.28), sw=7))
     if hat:
-        s.append(ell(H * 0.5, head_cy - head_r * 0.52, head_r * 1.62, head_r * 0.42,
-                     hat, stroke=out, sw=6.1))
+        s.append(ell(W, head_cy - head_r * 0.52, head_r * 1.62, head_r * 0.42,
+                     hat, stroke=sh(hat, 0.30), sw=4.0))
+        s.append(ell(W, head_cy - head_r * 0.44, head_r * 1.52, head_r * 0.30,
+                     sh(hat, 0.20)))
         s.append(path("M %s %s A %s %s 0 0 1 %s %s Z" % (
-            r2(H * 0.5 - head_r * 0.80), r2(head_cy - head_r * 0.56),
+            r2(W - head_r * 0.80), r2(head_cy - head_r * 0.56),
             r2(head_r * 0.80), r2(head_r * 0.80),
-            r2(H * 0.5 + head_r * 0.80), r2(head_cy - head_r * 0.56)),
-            fill=hat, stroke=out, sw=6.1))
-        s.append(rect(H * 0.5 - head_r * 0.80, head_cy - head_r * 0.74, head_r * 1.60,
+            r2(W + head_r * 0.80), r2(head_cy - head_r * 0.56)),
+            fill=hat, stroke=sh(hat, 0.30), sw=4.0))
+        s.append(path("M %s %s A %s %s 0 0 1 %s %s Z" % (
+            r2(W - head_r * 0.62), r2(head_cy - head_r * 0.70),
+            r2(head_r * 0.62), r2(head_r * 0.62),
+            r2(W + head_r * 0.10), r2(head_cy - head_r * 0.86)),
+            fill=lt(hat, 0.26)))
+        s.append(rect(W - head_r * 0.80, head_cy - head_r * 0.74, head_r * 1.60,
                       head_r * 0.20, "#C98B6A", rx=3))
     return "".join(s)
 
