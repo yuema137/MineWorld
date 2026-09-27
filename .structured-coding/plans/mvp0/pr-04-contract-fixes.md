@@ -119,7 +119,7 @@ that can disagree with itself (F8.1).
 | 1 | Fix 1: id encoding keyed on `is_human_readable`, and the DD-15 record | `[x]` | `[x]` | `[x]` |
 | 2 | Fix 1: delete the spike's `wire.rs` | `[x]` | `[x]` | `[x]` |
 | 3 | Fix 2: relations on `Observation` | `[x]` | `[x]` | `[x]` |
-| 4 | Fix 3: `ActionRequest` and `ActionIntent::allocate` | `[ ]` | `[ ]` | `[ ]` |
+| 4 | Fix 3: `ActionRequest` and `ActionIntent::allocate` | `[x]` | `[x]` | `[x]` |
 
 ## 5. Live evidence log
 
@@ -325,11 +325,81 @@ making the same mistake as one that listed every entity.
 
 ### Fix 3 — `ActionRequest`
 
-PENDING.
+```text
+command:  cargo test --workspace   @ commit 4
+result:   144 passed, 0 failed   PASS   (+3 new tests)
+command:  cargo test   (spike/server, its own workspace)
+result:   2 passed, 0 failed   PASS   (the spike had no tests before)
+```
+
+`ActionRequest<P>` carries `actor`, `action_type`, `target`, `payload` and an optional
+`actor_location`, and applies the same envelope/payload agreement check as `ActionIntent` in
+construction and in deserialization. `ActionIntent::allocate(request, action_id, issued_at)` is the
+only way to get an intent from a request. `ActionIntent::new` is kept for code inside the world, and
+its doc now says which of the two a caller wants and why.
+
+New contract tests in `contracts/tests/action.rs`:
+
+```text
+a_client_submits_a_request_and_the_world_makes_it_an_intent
+    the request carries no action_id and no issued_at; allocate adds
+    ActionId(9007199254741099) and WorldTime 32418, and every other field is
+    carried across unchanged — asserted field by field, because "the world does
+    not edit what was asked for" is the claim. Allocating twice from one request
+    yields two ids and one identical payload, which is the collision F4 measured,
+    now impossible.
+
+a_request_is_stored_as_its_documented_shape_and_cannot_disagree_with_itself
+    the frame, asserted by hand:
+      {"actor":"101","action_type":"give_item","target":"9007199254740995",
+       "payload":{"action_type":"give_item","payload":"{\"item\":18517}"},
+       "actor_location":null}
+    and the test asserts that the text contains neither "action_id" nor
+    "issued_at": there is nothing in this frame for a client to invent. A frame
+    whose envelope and payload name different action types is refused, which is
+    the check that matters most here because a request is what a non-Rust client
+    hand-builds.
+
+two_clients_that_acquire_a_request_differently_submit_the_same_request
+    a click and a camera ray produce requests equal in actor, action_type, target
+    and payload, differing only in actor_location — which the contract intends.
+    With ActionRequest, AC-13's list of unavoidable differences drops from three
+    fields to one.
+```
+
+And from the spike, which is the client side of the same claim:
+
+```text
+a_client_frame_with_no_identity_becomes_an_intent_the_world_identified
+    the exact JSON client-2d/main.gd now builds, written out by hand in the test,
+    deserializes into an ActionRequest with target 9007199254740995 intact; the
+    world then supplies ActionId(9007199254741001) and WorldTime 32400, neither of
+    which appeared in the frame.
+
+two_clients_sending_the_same_frame_receive_two_identities
+    the same frame twice yields 9007199254741001 and 9007199254741002 with an
+    identical payload — the collision that used to be a client's local counter.
+```
+
+`SpikeWorld::allocate` is now the spike's only allocator, and both Godot clients send
+`{"t":"request", ...}` frames with no `action_id` and no `issued_at`. The server's reply carries
+`action_id` in its **own** frame, which is the protocol doing the job §6 argues is the protocol's.
 
 ### Terminal validation
 
-PENDING.
+At the final HEAD:
+
+```text
+cargo fmt --all --check                                               clean
+cargo check --workspace --all-targets                                 clean
+cargo clippy --workspace --all-targets --all-features -- -D warnings  clean
+cargo test --workspace                                                144 passed, 0 failed
+spike/server: cargo clippy --all-targets -- -D warnings               clean
+spike/server: cargo test                                              2 passed, 0 failed
+spike/server: cargo run -- --dump                                     inspected, quoted above
+```
+
+146 tests in total against 133 at the base: +13, and 14 existing assertions restated.
 
 ## 6. Decisions, discoveries and limitations
 
@@ -362,6 +432,11 @@ answer  <-> facts     already carried: Accepted { events: Vec<EventId> } names t
 DECISION Not added. Recorded here rather than absorbed silently, and the `ActionResult` doc
 comment now states the case in its post-Fix-3 form instead of the pre-Fix-3 one.
 
+IMPLEMENTED CONSEQUENCE The spike's reply frame now carries `"action_id"` next to `"result"` — the
+protocol doing what the contract declines to do, in the one place where a client genuinely needs the
+world's answer to a question the contract does not answer for it. That is the shape S11 should
+inherit, and it cost one field in a protocol frame rather than a field in the kernel's vocabulary.
+
 LIMITATION, carried to S11 One case remains genuinely open: an action that starts a `Process`
 produces later events whose `Causation` is `Action(id)` or `Process(id)`, and a client that
 never learned its `ActionId` cannot attribute those to its own request. `Accepted { events }`
@@ -387,6 +462,36 @@ That is correct and is the evidence that Fix 1 keys on the *type* rather than on
 an encoder that protected them would be guessing. What changed is that a real `EntityId` in the
 same position is now protected. The trap's `protected=false` line in the spike logs remains
 true of the catalogue number and is no longer true of an id.
+
+### DECISION — the kernel gains no `World::submit`, and the spike allocates for itself
+
+QUESTION `ids.rs` says identity allocation belongs to the kernel. After Fix 3, who calls
+`ActionIntent::allocate`?
+
+EVIDENCE INSPECTED `kernel/src/dispatch.rs` (`World::dispatch(&intent, at)`, `EventIds` as the
+kernel's own monotonic allocator for event identity), and this PR's approved scope.
+
+FINDING The kernel already owns an identity allocator for events and would be the natural owner of
+one for actions, but adding `World::submit(request)` is new kernel functionality rather than a call
+site this change breaks — the frozen scope is "expect to update kernel call sites", and `dispatch`
+compiles unchanged because `ActionIntent::new` is kept. Adding a submission entry point would also
+decide where the action-identity counter lives, which is S3/S11's question and touches persistence
+(an action counter that a replay must reproduce).
+
+DECISION Not added. The contract now makes the only path from a request to an intent explicit, so
+whichever layer sites the allocator cannot get it wrong. The spike allocates for itself, in
+`SpikeWorld::allocate`, which is what a spike with no kernel is for. Carried to S11 as the one
+remaining question: where the action-identity counter lives, and whether a replay must reproduce it.
+
+### OUT OF SCOPE, FOUND WHILE WORKING — `overall.md`'s AC-13 text is stale
+
+`a6ad5c7` corrected `AC-13` in `docs/MVP.md`, but
+`.structured-coding/plans/mvp0/overall.md` still describes it at line 339 as "the *same*
+`ActionIntent`" and at line ~358 as "byte identical". That contradicts `MVP.md`, and Fix 3 makes the
+correct wording stronger still: `action_id` and `issued_at` are no longer in the value a client
+submits at all, so of F6's three unavoidable differences only `actor_location` remains. Not corrected
+here — `overall.md` is the parent ledger and is updated at merge by its owner (working rules §19,
+§28). Reported so it is not inherited silently.
 
 ### LIMITATION — the binary side is tested with a recording codec, not with a real binary crate
 

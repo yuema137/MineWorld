@@ -45,7 +45,6 @@ var built := false
 # entity id (wire form, a decimal string) -> the node drawn for it. DD-14 in both directions.
 var bodies: Dictionary = {}
 
-var next_action_id := 8000
 var last_result := ""
 var step := 0
 var settled := 0
@@ -302,8 +301,10 @@ func note(text: String) -> void:
 
 # The same fields the 2D client sends, with one deliberate difference: actor_location is present,
 # because this client does model a continuous position and the contract says it may report one.
+#
+# No action_id and no issued_at, for the same reason as the 2D client: the world allocates identity
+# and owns the clock (FINDINGS.md F4).
 func submit(action_type: String, target, payload: Dictionary, with_location: bool) -> void:
-	next_action_id += 1
 	var location = null
 	if with_location:
 		var here := to_world(player.global_position - Vector3(0, 0.9, 0))
@@ -312,16 +313,14 @@ func submit(action_type: String, target, payload: Dictionary, with_location: boo
 			"local": {"x": int(here.x), "y": int(here.y), "z": 0},
 			"facing": {"yaw": godot_yaw_to_bearing(player.rotation.y), "pitch": null},
 		}
-	var intent := {
-		"action_id": str(next_action_id),
+	var request := {
 		"actor": observation["observer"],
 		"action_type": action_type,
 		"target": target,
 		"payload": {"action_type": action_type, "payload": payload},
-		"issued_at": int(observation["at"]),
 		"actor_location": location,
 	}
-	send({"t": "intent", "client": CLIENT_TAG, "intent": intent})
+	send({"t": "request", "client": CLIENT_TAG, "request": request})
 
 
 # ---------------------------------------------------------------------------------------------

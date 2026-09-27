@@ -15,10 +15,11 @@
 //! it, at the type rather than at the frame, so this server holds no encoder.
 
 use mineworld_contracts::{
-    ActionId, ActionIntent, ActionResult, ActionTypeId, Affordance, Causation, ComponentRecord,
-    EntityId, EntityType, Event, EventEnvelope, EventId, EventRecord, LocalPosition, Location,
-    Millidegrees, Millimetres, Orientation, PerceivedEntity, PerceivedEvent, PlaceId, Provenance,
-    Rejection, SpatialRequirement, Tag, Tags, Visibility, WorldTime,
+    ActionId, ActionIntent, ActionRequest, ActionResult, ActionTypeId, Affordance, Causation,
+    ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventId, EventRecord,
+    LocalPosition, Location, Millidegrees, Millimetres, Orientation, PerceivedEntity,
+    PerceivedEvent, PlaceId, Provenance, Rejection, SpatialRequirement, Tag, Tags, Visibility,
+    WorldTime,
 };
 use serde_json::Value;
 
@@ -66,6 +67,7 @@ pub struct SpikeWorld {
     things: Vec<Thing>,
     /// Where the authoritative player body is walking to, and which request asked for it.
     goal: Option<(LocalPosition, ActionId)>,
+    next_action: u64,
     next_event: u64,
     log: Vec<EventEnvelope<Value>>,
 }
@@ -162,6 +164,7 @@ impl SpikeWorld {
                 },
             ],
             goal: None,
+            next_action: 9_007_199_254_741_001,
             next_event: 9_007_199_254_741_101,
             log: Vec::new(),
         }
@@ -401,6 +404,23 @@ impl SpikeWorld {
     // ---------------------------------------------------------------------------------------
     // Dispatch
     // ---------------------------------------------------------------------------------------
+
+    /// Allocates the identity of one submitted request, and turns the request into the intent the
+    /// world will dispatch.
+    ///
+    /// This is the half `FINDINGS.md` F4 said no client may perform. Both spike clients used to
+    /// invent an `ActionId` from a local counter, so two of them collided on their first action; now
+    /// they submit an `ActionRequest` with no identity at all and this counter — the world's — is the
+    /// only allocator. The instant is the world's clock for the same reason: a client knows only the
+    /// time of the last observation it received, which is a past frame.
+    ///
+    /// A plain monotonic counter, deliberately, and starting above 2^53 so that the id a client gets
+    /// back is one a naive parser would corrupt.
+    pub fn allocate(&mut self, request: ActionRequest<Value>) -> ActionIntent<Value> {
+        let action_id = ActionId::from_raw(self.next_action);
+        self.next_action += 1;
+        ActionIntent::allocate(request, action_id, self.now)
+    }
 
     /// Resolves a submitted request. The one place a world rule runs.
     ///

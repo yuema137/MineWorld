@@ -21,9 +21,16 @@
 //! output, unmodified, and the ids in them are already decimal strings wherever they appear,
 //! payloads included. The deletion of `wire.rs` is the observable result of that fix.
 //!
-//! Every intent the server accepts is written to `spike/evidence/intents.jsonl` in the
-//! contract's own canonical JSON, tagged by which client sent it. That file is the `AC-13`
-//! parity evidence: the two `talk` intents are compared field by field in `parity.json`.
+//! Every request the server accepts is written to `spike/evidence/intents.jsonl` in the contract's
+//! own canonical JSON, tagged by which client sent it. That file is the `AC-13` parity evidence: the
+//! two `talk` requests are compared field by field in `parity.json`.
+//!
+//! # A client submits a request; this server allocates the identity
+//!
+//! The clients used to send a whole `ActionIntent`, `action_id` and all, which `FINDINGS.md` F4
+//! recorded as a defect: `ids.rs` says allocation belongs to the world, and two clients with local
+//! counters collide on their first action. They now send an `ActionRequest` — no identity, no clock —
+//! and `SpikeWorld::allocate` turns it into the intent this server dispatches.
 
 mod vocabulary;
 mod world;
@@ -39,7 +46,7 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use axum::routing::any;
 use futures_util::{SinkExt, StreamExt};
-use mineworld_contracts::ActionIntent;
+use mineworld_contracts::ActionRequest;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
@@ -48,7 +55,7 @@ use world::SpikeWorld;
 /// Shared state: the world, and the intents each client has submitted.
 struct Shared {
     world: SpikeWorld,
-    /// The last `talk` intent each client tag submitted, in canonical contract JSON.
+    /// The last `talk` request each client tag submitted, in canonical contract JSON.
     talks: std::collections::BTreeMap<String, Value>,
 }
 
@@ -156,38 +163,42 @@ async fn handle(state: &App, text: &str) -> Option<String> {
             );
             None
         }
-        Some("intent") => Some(handle_intent(state, &frame).await),
+        Some("request") => Some(handle_request(state, &frame).await),
         _ => Some(json!({"t": "error", "detail": "unknown frame type"}).to_string()),
     }
 }
 
-async fn handle_intent(state: &App, frame: &Value) -> String {
+async fn handle_request(state: &App, frame: &Value) -> String {
     let tag = frame
         .get("client")
         .and_then(Value::as_str)
         .unwrap_or("unknown")
         .to_owned();
-    let Some(sent) = frame.get("intent") else {
-        return json!({"t": "error", "detail": "intent frame carries no intent"}).to_string();
+    let Some(sent) = frame.get("request") else {
+        return json!({"t": "error", "detail": "request frame carries no request"}).to_string();
     };
 
-    // No decoding step: the contract reads its own encoding, and is the only thing that decides
-    // whether the frame is well formed.
-    let intent = match serde_json::from_value::<ActionIntent<Value>>(sent.clone()) {
-        Ok(intent) => intent,
+    // The contract reads its own encoding, and is the only thing that decides whether the frame is
+    // well formed. What arrives has no `action_id` and no `issued_at`: there is nothing here for a
+    // client to have invented.
+    let request = match serde_json::from_value::<ActionRequest<Value>>(sent.clone()) {
+        Ok(request) => request,
         Err(error) => {
-            println!("[server] rejected a malformed intent from {tag}: {error}");
+            println!("[server] rejected a malformed request from {tag}: {error}");
             return json!({"t": "error", "detail": error.to_string()}).to_string();
         }
     };
 
-    // Canonical form: what the contract itself says this intent is. This — not the wire form —
-    // is what the AC-13 parity comparison is made of.
-    let canonical = serde_json::to_value(&intent).expect("an intent serializes");
-    let action_type = intent.action_type().to_string();
+    // Canonical form: what the contract itself says this *request* is. This — not the intent the
+    // world builds from it — is what the AC-13 parity comparison is made of, because it is what each
+    // client actually asked for.
+    let canonical = serde_json::to_value(&request).expect("a request serializes");
+    let action_type = request.action_type().to_string();
 
-    let result = {
+    let (action_id, result) = {
         let mut shared = state.lock().await;
+        let intent = shared.world.allocate(request);
+        let action_id = intent.action_id();
         let result = shared.world.resolve(&intent);
         if action_type == "talk" {
             shared.talks.insert(tag.clone(), canonical.clone());
@@ -195,15 +206,24 @@ async fn handle_intent(state: &App, frame: &Value) -> String {
             record_talk(&tag, &canonical);
             compare(&talks);
         }
-        result
+        (action_id, result)
     };
-    println!("[server] {tag} -> {action_type}: {result:?}");
+    println!("[server] {tag} -> {action_type} as {action_id}: {result:?}");
 
     let encoded = serde_json::to_value(&result).expect("a result serializes");
-    json!({"t": "result", "result": encoded, "canonical_intent": canonical}).to_string()
+    // `ActionResult` deliberately carries no `ActionId`, so a protocol that wants its client to be
+    // able to recognize the later facts its own request caused puts the allocated id in its own
+    // frame. This is that frame doing it.
+    json!({
+        "t": "result",
+        "action_id": action_id.to_string(),
+        "result": encoded,
+        "canonical_request": canonical,
+    })
+    .to_string()
 }
 
-/// Appends one accepted-or-refused `talk` intent to the evidence log.
+/// Appends one accepted-or-refused `talk` request to the evidence log.
 fn record_talk(tag: &str, canonical: &Value) {
     use std::io::Write as _;
     let directory = evidence_dir();
@@ -220,11 +240,14 @@ fn record_talk(tag: &str, canonical: &Value) {
 
 /// The `AC-13` comparison, written the moment both clients have spoken.
 ///
-/// Two verdicts, because they differ and the difference is the point. `identical_whole` compares
-/// the intents field for field. `identical_semantic_core` compares only what the world is being
-/// asked for — who, what, of whom, with what payload — and leaves out the three fields that
-/// cannot be equal: the `action_id` each client had to invent, the `issued_at` each read off a
-/// different observation, and the `actor_location` a 2D client has no business reporting.
+/// Two verdicts, because they may differ and the difference is the point. `identical_whole` compares
+/// the submitted requests field for field. `identical_semantic_core` compares only what the world is
+/// being asked for — who, what, of whom, with what payload.
+///
+/// Since the clients submit `ActionRequest`s, two of the three fields that used to make whole
+/// equality impossible are simply gone: no client names an `action_id` or an `issued_at` any more.
+/// What remains is `actor_location`, which the contract *intends* to differ — a 3D client reports the
+/// position it walked to, a 2D client that models no position reports none.
 fn compare(talks: &std::collections::BTreeMap<String, Value>) {
     let (Some(two), Some(three)) = (talks.get("2d"), talks.get("3d")) else {
         return;
@@ -240,12 +263,10 @@ fn compare(talks: &std::collections::BTreeMap<String, Value>) {
     let whole = two == three;
     let semantic = core(two) == core(three);
     let differing: Vec<&str> = [
-        "action_id",
         "actor",
         "action_type",
         "target",
         "payload",
-        "issued_at",
         "actor_location",
     ]
     .into_iter()
@@ -258,8 +279,8 @@ fn compare(talks: &std::collections::BTreeMap<String, Value>) {
         "fields_that_differ": differing,
         "semantic_core_2d": core(two),
         "semantic_core_3d": core(three),
-        "whole_intent_2d": two,
-        "whole_intent_3d": three,
+        "whole_request_2d": two,
+        "whole_request_3d": three,
     });
     let directory = evidence_dir();
     let _ = std::fs::create_dir_all(&directory);
@@ -270,4 +291,72 @@ fn compare(talks: &std::collections::BTreeMap<String, Value>) {
     println!(
         "[server] AC-13 parity: whole={whole} semantic_core={semantic} differing={differing:?}"
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mineworld_contracts::{ActionId, EntityId, WorldTime};
+
+    /// The exact frame a Godot client now builds, byte for byte, taken from `client-2d/main.gd`'s
+    /// `submit`. Written by hand here rather than produced by the contract, so that a change in the
+    /// contract's shape shows up as a failure rather than as agreement with itself.
+    const FROM_THE_2D_CLIENT: &str = r#"{
+        "actor": "101",
+        "action_type": "talk",
+        "target": "9007199254740995",
+        "payload": {"action_type": "talk", "payload": {"topic": "greeting"}},
+        "actor_location": null
+    }"#;
+
+    /// The half of `FINDINGS.md` F4 that can be checked without Godot: the frame a client sends
+    /// carries no identity, the contract accepts it, and the *world* supplies the `ActionId` and the
+    /// instant.
+    #[test]
+    fn a_client_frame_with_no_identity_becomes_an_intent_the_world_identified() {
+        let request: ActionRequest<Value> =
+            serde_json::from_str(FROM_THE_2D_CLIENT).expect("the client's frame is well formed");
+        assert_eq!(request.actor(), EntityId::from_raw(101));
+        assert_eq!(
+            request.target(),
+            Some(EntityId::from_raw(9_007_199_254_740_995)),
+            "the 64-bit target survived the client's decimal string"
+        );
+
+        let mut world = world::SpikeWorld::new();
+        let intent = world.allocate(request);
+
+        // The world's first allocation, and the world's clock — neither of which appeared in the
+        // frame above.
+        assert_eq!(
+            intent.action_id(),
+            ActionId::from_raw(9_007_199_254_741_001)
+        );
+        assert_eq!(intent.issued_at(), WorldTime::from_seconds(32_400));
+        assert_eq!(intent.action_type().as_str(), "talk");
+    }
+
+    /// Two clients submitting the identical frame cannot collide, which is the defect F4 measured:
+    /// the spike's clients used local counters, so their ids were both invented and different, and
+    /// two clients that happened to pick the same number would have been indistinguishable.
+    #[test]
+    fn two_clients_sending_the_same_frame_receive_two_identities() {
+        let mut world = world::SpikeWorld::new();
+        let first = world.allocate(
+            serde_json::from_str(FROM_THE_2D_CLIENT).expect("the client's frame is well formed"),
+        );
+        let second = world.allocate(
+            serde_json::from_str(FROM_THE_2D_CLIENT).expect("the client's frame is well formed"),
+        );
+
+        assert_ne!(first.action_id(), second.action_id());
+        assert_eq!(
+            second.action_id(),
+            ActionId::from_raw(9_007_199_254_741_002)
+        );
+        // The same request of the world, twice. Only the identity differs, and the world chose both.
+        assert_eq!(first.actor(), second.actor());
+        assert_eq!(first.target(), second.target());
+        assert_eq!(first.payload(), second.payload());
+    }
 }

@@ -41,7 +41,6 @@ var socket := WebSocketPeer.new()
 var observation: Dictionary = {}
 var font: Font = ThemeDB.fallback_font
 
-var next_action_id := 7000
 var log_lines: PackedStringArray = []
 var last_result := ""
 var step := 0
@@ -139,24 +138,23 @@ func note(text: String) -> void:
 		send({"t": "note", "text": "[2d] " + text})
 
 
-# Builds a real ActionIntent in its wire form.
+# Builds a real ActionRequest in its wire form.
 #
-# action_id is invented here, which the contract says a client may not do (FINDINGS.md F4).
-# issued_at is the world time of the last observation, not of this request (F4).
-# actor_location is deliberately absent: a 2D client models no continuous position of its own,
-# so it reports none, and the server evaluates against its own state (F6).
+# There is no action_id and no issued_at: this client has no allocator and no world clock, and the
+# contract no longer asks it to pretend otherwise (FINDINGS.md F4). The server allocates the
+# ActionId and tells us what it chose in its answer.
+#
+# actor_location is deliberately absent: a 2D client models no continuous position of its own, so it
+# reports none, and the server evaluates against its own state (F6).
 func submit(action_type: String, target, payload: Dictionary) -> void:
-	next_action_id += 1
-	var intent := {
-		"action_id": str(next_action_id),
+	var request := {
 		"actor": observation["observer"],
 		"action_type": action_type,
 		"target": target,
 		"payload": {"action_type": action_type, "payload": payload},
-		"issued_at": int(observation["at"]),
 		"actor_location": null,
 	}
-	send({"t": "intent", "client": CLIENT_TAG, "intent": intent})
+	send({"t": "request", "client": CLIENT_TAG, "request": request})
 	note("submitted %s -> %s" % [action_type, str(target)])
 
 

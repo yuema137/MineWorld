@@ -49,7 +49,8 @@ pub mod spatial;
 pub mod time;
 
 pub use action::{
-    Action, ActionIntent, ActionRecord, ActionResult, ActionTypeId, Rejection, RejectionCode,
+    Action, ActionIntent, ActionRecord, ActionRequest, ActionResult, ActionTypeId, Rejection,
+    RejectionCode,
 };
 pub use component::{Component, ComponentDeclaration, ComponentRecord, ComponentSchemaVersion};
 pub use entity::{Entity, LifecycleState, Metadata, Tag, Tags};

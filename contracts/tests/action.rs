@@ -10,9 +10,9 @@
 //! value is written by hand.
 
 use mineworld_contracts::{
-    Action, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId, ContractError,
-    EntityId, EntityType, EventId, LocalPosition, Location, Millidegrees, Millimetres, Orientation,
-    PlaceId, Rejection, RejectionCode, SystemId, WorldTime,
+    Action, ActionId, ActionIntent, ActionRecord, ActionRequest, ActionResult, ActionTypeId,
+    ContractError, EntityId, EntityType, EventId, LocalPosition, Location, Millidegrees,
+    Millimetres, Orientation, PlaceId, Rejection, RejectionCode, SystemId, WorldTime,
 };
 use serde::{Deserialize, Serialize};
 
@@ -259,4 +259,142 @@ fn an_intent_is_stored_as_its_documented_shape() {
     assert_eq!(flat.actor_location(), None);
     assert_eq!(flat.action_type(), intent.action_type());
     assert_eq!(flat.target(), intent.target());
+}
+
+// -------------------------------------------------------------------------------------------
+// A client submits a request; the world makes it an intent (`spike/FINDINGS.md` F4)
+// -------------------------------------------------------------------------------------------
+
+/// `INV-6` as a type-level fact rather than a documented rule: the value a client can build carries
+/// no `ActionId` and no `WorldTime`, because it has neither an allocator nor the world's clock, and
+/// the only way to get an intent out of it is for the world to supply both.
+///
+/// The spike measured what the absence of this cost: both of its Godot clients invented an
+/// `ActionId` from a local counter, so two clients collide on their first action, and
+/// `Causation::Action` and `Provenance::controller_decision` would anchor the event log's causal
+/// chain on identity a client chose.
+#[test]
+fn a_client_submits_a_request_and_the_world_makes_it_an_intent() {
+    let counter = PlaceId::new(EntityId::from_raw(7), EntityType::Place).unwrap();
+    let reported = Location::in_place(counter)
+        .with_local(LocalPosition::new(
+            Millimetres::new(867),
+            Millimetres::new(-46),
+            Millimetres::ZERO,
+        ))
+        .with_facing(Orientation::facing(Millidegrees::new(165_043)));
+
+    // Everything a client knows: who is asking, what of whom, and where it believes it stands.
+    let request = ActionRequest::new(EntityId::from_raw(101), talk_request())
+        .with_target(EntityId::from_raw(9_007_199_254_740_995))
+        .from_location(reported);
+
+    assert_eq!(request.actor(), EntityId::from_raw(101));
+    assert_eq!(request.action_type(), &ActionTypeId::new("talk").unwrap());
+    assert_eq!(
+        request.target(),
+        Some(EntityId::from_raw(9_007_199_254_740_995))
+    );
+    assert_eq!(request.actor_location(), Some(&reported));
+
+    // What only the world has: the identity it allocated and the instant it is working in.
+    let intent = ActionIntent::allocate(
+        request.clone(),
+        ActionId::from_raw(9_007_199_254_741_099),
+        WorldTime::from_seconds(32_418),
+    );
+
+    assert_eq!(
+        intent.action_id(),
+        ActionId::from_raw(9_007_199_254_741_099)
+    );
+    assert_eq!(intent.issued_at(), WorldTime::from_seconds(32_418));
+
+    // And nothing else changed. The world decides whether to grant a request; it does not edit it.
+    assert_eq!(intent.actor(), request.actor());
+    assert_eq!(intent.action_type(), request.action_type());
+    assert_eq!(intent.target(), request.target());
+    assert_eq!(intent.payload(), request.payload());
+    assert_eq!(intent.actor_location(), request.actor_location());
+
+    // Two clients submitting the same request cannot collide, because neither named an identity;
+    // the world names two, and they differ because the world says so.
+    let second = ActionIntent::allocate(
+        request,
+        ActionId::from_raw(9_007_199_254_741_100),
+        WorldTime::from_seconds(32_454),
+    );
+    assert_ne!(intent.action_id(), second.action_id());
+    assert_eq!(intent.payload(), second.payload());
+}
+
+/// A request is the value a non-Rust client hand-builds, so it is the boundary that most needs the
+/// envelope/payload agreement check — and the shape it is built to is a protocol contract, asserted
+/// exactly.
+#[test]
+fn a_request_is_stored_as_its_documented_shape_and_cannot_disagree_with_itself() {
+    let request = ActionRequest::new(
+        EntityId::from_raw(101),
+        ActionRecord::new::<GiveItem>(r#"{"item":18517}"#.to_owned()),
+    )
+    .with_target(EntityId::from_raw(9_007_199_254_740_995));
+
+    let text = r#"{"actor":"101","action_type":"give_item","target":"9007199254740995","payload":{"action_type":"give_item","payload":"{\"item\":18517}"},"actor_location":null}"#;
+    assert_eq!(serde_json::to_string(&request).unwrap(), text);
+    assert_eq!(
+        serde_json::from_str::<ActionRequest<String>>(text).unwrap(),
+        request
+    );
+
+    // No action_id and no issued_at anywhere in that frame: there is nothing for a client to invent.
+    assert!(!text.contains("action_id"));
+    assert!(!text.contains("issued_at"));
+
+    let agreeing = r#"{"actor":1,"action_type":"talk","target":null,"payload":{"action_type":"talk","payload":[]},"actor_location":null}"#;
+    assert!(serde_json::from_str::<ActionRequest>(agreeing).is_ok());
+
+    let disagreeing = r#"{"actor":1,"action_type":"give_item","target":null,"payload":{"action_type":"talk","payload":[]},"actor_location":null}"#;
+    let error = serde_json::from_str::<ActionRequest>(disagreeing)
+        .expect_err("a request whose envelope and payload name different action types is refused");
+    assert_eq!(
+        error.to_string(),
+        ContractError::ActionIntentPayloadMismatch {
+            action_type: ActionTypeId::new("give_item").unwrap(),
+            payload_action_type: ActionTypeId::new("talk").unwrap(),
+        }
+        .to_string()
+    );
+}
+
+/// The `AC-13` comparison the spike had to invent, expressed against the contract: two clients that
+/// acquire a request differently — a click and a walk-up-look-at-press-E — ask the world for the
+/// same thing, and the fields that differ are the ones no client can make agree.
+///
+/// With `ActionRequest` the list of unavoidable differences shrinks by one. `action_id` and
+/// `issued_at` are no longer in the submitted value at all, so the only field left that may
+/// legitimately differ is `actor_location`: a 3D client reports the position it walked to, and a 2D
+/// client that models no position reports none.
+#[test]
+fn two_clients_that_acquire_a_request_differently_submit_the_same_request() {
+    let counter = PlaceId::new(EntityId::from_raw(7), EntityType::Place).unwrap();
+    let alice = EntityId::from_raw(9_007_199_254_740_995);
+
+    let from_a_click =
+        ActionRequest::new(EntityId::from_raw(101), talk_request()).with_target(alice);
+    let from_a_camera_ray = ActionRequest::new(EntityId::from_raw(101), talk_request())
+        .with_target(alice)
+        .from_location(Location::in_place(counter).with_local(LocalPosition::new(
+            Millimetres::new(867),
+            Millimetres::new(-46),
+            Millimetres::ZERO,
+        )));
+
+    assert_eq!(from_a_click.actor(), from_a_camera_ray.actor());
+    assert_eq!(from_a_click.action_type(), from_a_camera_ray.action_type());
+    assert_eq!(from_a_click.target(), from_a_camera_ray.target());
+    assert_eq!(from_a_click.payload(), from_a_camera_ray.payload());
+
+    assert_eq!(from_a_click.actor_location(), None);
+    assert!(from_a_camera_ray.actor_location().is_some());
+    assert_ne!(from_a_click, from_a_camera_ray);
 }
