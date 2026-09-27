@@ -16,7 +16,7 @@
 //! # The two halves of this crate
 //!
 //! [`PresenceSystem`] is the installable half: four methods, and the only state it writes is its
-//! own. [`observe`] is the query half — perception is a *read*, not an action, so it is a function
+//! own. [`observe()`] is the query half — perception is a *read*, not an action, so it is a function
 //! over a composed [`World`](mineworld_kernel::World) rather than a method on the trait, and it
 //! produces the [`Observation`](mineworld_contracts::Observation) that `INV-13` requires a
 //! controller to be given instead of the world.
