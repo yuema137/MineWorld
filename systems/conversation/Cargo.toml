@@ -1,0 +1,16 @@
+[package]
+name = "mineworld-conversation"
+description = "MineWorld's ConversationSystem: the talk action, the facts it records, and the bounded history of who spoke to whom."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+mineworld-presence = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
