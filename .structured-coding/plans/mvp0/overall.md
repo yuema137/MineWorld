@@ -395,6 +395,12 @@ slice.
 
 This is a sequencing change, not a scope change: every acceptance criterion stands.
 
+### S5V — the vertical slice *(inserted 2026-09-26, ahead of S4)*
+
+**Design:** [`step-05-vertical-slice.md`](step-05-vertical-slice.md), frozen. Four PRs taking the
+project to three live windows and one Alice, since `AC-15`'s minimal form needs dispatch, a thin
+conversation system, perception, a server and two clients — and nothing from S4, S5 or S10.
+
 ### Cross-cutting, delivered with the step that first needs them
 
 ```text
