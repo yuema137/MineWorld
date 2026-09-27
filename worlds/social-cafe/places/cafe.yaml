@@ -1,0 +1,13 @@
+# The café: one room, with an origin the positions in `people/` are measured from.
+#
+# Millimetres from that origin, on the world's own axes — `x` and `y` across the floor, `z` up. What
+# the origin *is* is this world's business; the contract only requires that two positions in one
+# place be comparable (`contracts/src/spatial.rs`).
+
+tags:
+  - cafe
+  - public
+
+note: >-
+  A small café with a counter along one wall and two tables. The whole world, for now: enough for
+  three people to be in one room and speak to each other.

@@ -1,0 +1,15 @@
+# Bob — at the near table, two metres from the counter.
+#
+# Two metres is inside `conversation`'s three-metre interaction range, so Alice and Bob can speak
+# without anybody moving. That range is the conversation system's policy and is not restated here.
+
+tags:
+  - regular
+
+note: Comes in most days and sits at the same table.
+
+location:
+  place: cafe
+  position:
+    x: 1400
+    y: 600

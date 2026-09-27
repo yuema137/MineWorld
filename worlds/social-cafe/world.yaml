@@ -1,0 +1,37 @@
+# Social Café — the world the vertical slice is set in.
+#
+# A World Pack states population, places, capabilities and initial state. It states no rule: what
+# `talk` requires of space belongs to the conversation system, not to this file
+# (`docs/MODULE_SPEC.md` §4). It holds no secret and no endpoint either — the operator supplies
+# those.
+#
+# The fields this file may use are specified in `docs/MODULE_SPEC.md` §4.1. A field the loader does
+# not implement is refused by name rather than ignored, because a silently ignored field is a world
+# its author believes they authored.
+
+world:
+  # Must match this pack's directory name: a pack with two identities has none.
+  id: social-cafe
+  name: Social Café
+
+# The capabilities this world asks for, in the order they are installed — which is the order their
+# reducers run in, so it is the pack's statement and not a sort. `conversation` declares a
+# dependency on `presence`, so it comes after it.
+systems:
+  - presence
+  - conversation
+
+# One place. Travel between places is deliberately out of this slice.
+places:
+  - cafe
+
+# Everybody who exists here. Each key names a file in `people/`.
+population:
+  - alice
+  - bob
+  - visitor
+
+# The seats a client may occupy. A seat is an existing Person, named by its authoring key: a client
+# asks for a seat and the server resolves which entity that is, so no client ever names an entity.
+seats:
+  - visitor

@@ -342,7 +342,7 @@ option surfaces. Recorded so it is a decision rather than an omission.
 | --- | --- | --- | --- | --- |
 | 1 | `feat(kernel)`: genesis — initial state is a recorded fact | `[x]` | `[x]` | `[x]` |
 | 2 | `refactor(presence,server)`: seed through genesis, and delete the invented ActionId | `[x]` | `[x]` | `[x]` |
-| 3 | `feat(worldpack)`: the pack, the loader and its refusals | `[ ]` | `[ ]` | `[ ]` |
+| 3 | `feat(worldpack)`: the pack, the loader and its refusals | `[x]` | `[x]` | `[x]` |
 | 4 | `feat(cli)`: mineworld server \<world\> | `[ ]` | `[ ]` | `[ ]` |
 | 5 | `docs`: the format, the two decisions, and the ledger | `[ ]` | `[ ]` | `[ ]` |
 
@@ -391,13 +391,33 @@ option surfaces. Recorded so it is a decision rather than an omission.
 
 ### Commit 3 — the pack, the loader, the refusals
 
-- [ ] Implementation: `worlds/social-cafe/` (5 files); `worldpack/` (6 modules); workspace member;
-      `serde-saphyr` as the YAML reader.
-- [ ] Validation: `worldpack/tests/social_cafe.rs` (9 tests) loads the real pack and asserts the
-      world; `worldpack/tests/refusals.rs` (12 tests) writes malformed packs to a temporary
-      directory and asserts each named refusal; the mutation test of §5.3 run and recorded in §8.
-- [ ] Review: checked the loader for a hash map, a float, an insertion-ordered container, and for
-      any simulation rule; checked that no pack field carries a secret or a rule.
+- [x] Implementation: `worlds/social-cafe/` (`world.yaml`, `places/cafe.yaml`,
+      `people/{alice,bob,visitor}.yaml`, `README.md`); `worldpack/` (`format`, `read`, `load`,
+      `catalog`, `error`, `lib`, `README.md`); workspace member; `serde-saphyr` as the YAML reader.
+- [x] Validation: **27 PASS** in this crate.
+      `worldpack/tests/social_cafe.rs` — 9 tests, loading the real `worlds/social-cafe` off the
+      disk: the pack's own statement of itself; the world (4 entities, both systems enabled, tags
+      and authoring provenance as written); ids pinned as literals *and* compared across two loads;
+      the genesis sequence compared across two loads down to the payload bytes; each authored
+      position as an `arrived` fact with `WorldGenesis` and no controller decision, reduced into
+      `Presence` and the `present-in` edge; nobody holding a `ConversationHistory` (a pack seeds
+      only what it authored); a `talk` from Bob accepted and one from the visitor
+      `Rejected(TooFarAway)` — the authored geometry deciding what the world permits, with no
+      distance arithmetic in the test; an observation naming 4 entities and offering `talk` twice,
+      unavailable both times.
+      `worldpack/tests/refusals.rs` — 17 tests over real malformed pack directories under
+      `CARGO_TARGET_TMPDIR`; the messages are in §8.2.
+      **Mutation:** the `BTreeMap` that drives creation order replaced by a `HashMap`. Three runs:
+      `FAILED. 8 passed; 1 failed` (history), `FAILED. 8 passed; 1 failed` (literal ids),
+      `FAILED. 7 passed; 2 failed`. Red every time, and *which* test caught it varied — which is
+      the argument for having both: run 2's two-load comparison agreed while the pinned ids did
+      not. Reverted; 27/27 green.
+- [x] Review: read the loader for a hash map (none; `clippy.toml` bans them and clippy is clean), a
+      float (none — positions are `Millimetres`, an `i32` newtype), an insertion-ordered container
+      in any path that reaches identity, and for any simulation rule (none: the loader decides no
+      admissibility, evaluates no distance and writes no component). Checked the format against
+      `MODULE_SPEC.md` §4's three constraints: no field can carry a secret, an endpoint, a renderer
+      asset or a rule, and `deny_unknown_fields` means one cannot be smuggled in either.
 
 ### Commit 4 — the command
 
