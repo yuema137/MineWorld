@@ -412,10 +412,26 @@ pub enum HostError {
     /// world assembly, not a recoverable operation.
     #[error("the world could not be assembled: {0}")]
     Assembly(#[from] KernelError),
+    /// Whatever describes this world could not be turned into one.
+    ///
+    /// The builder [`WorldHost::spawn`] runs is the caller's, so its failure is the caller's too, and
+    /// this variant carries it without naming it: a World Pack that does not load, a snapshot that
+    /// does not restore, a fixture that could not be written. The server learns nothing about what a
+    /// World Pack is by carrying one — which is the point, because a transport that knew would be the
+    /// one-way dependency rule inverted.
+    #[error("the world could not be built: {0}")]
+    Build(Box<dyn std::error::Error + Send + Sync>),
     /// The world's thread could not be started.
     #[error("the world thread could not be started: {0}")]
     Thread(#[from] std::io::Error),
     /// The world is no longer running.
     #[error("the world is not running")]
     WorldStopped,
+}
+
+impl HostError {
+    /// Wraps whatever a world builder failed with.
+    pub fn build(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Build(Box::new(error))
+    }
 }

@@ -248,6 +248,15 @@ impl SystemDeclaration {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Emission {
     payload: EventRecord,
+    /// The system whose vocabulary this fact belongs to, read off
+    /// [`Event::OWNER`](mineworld_contracts::Event) rather than chosen.
+    ///
+    /// Dispatch does not consult it: while a world is running the emitter is whichever system is
+    /// running, which is a stronger statement than the event type's declared owner. World assembly
+    /// has no running system, so [`World::genesis`](crate::World::genesis) reads it here — and
+    /// because it comes from the contract rather than from an argument, a caller cannot attribute a
+    /// fact to a system that does not own the kind of fact it is.
+    owner: SystemId,
     visibility: Visibility,
     subjects: Vec<EntityId>,
     participants: Vec<EntityId>,
@@ -264,6 +273,7 @@ impl Emission {
     pub fn new<E: Event>(payload: Vec<u8>, visibility: Visibility) -> Self {
         Self {
             payload: EventRecord::new::<E>(payload),
+            owner: E::OWNER,
             visibility,
             subjects: Vec::new(),
             participants: Vec::new(),
@@ -297,6 +307,11 @@ impl Emission {
     /// declaration.
     pub const fn event_type(&self) -> &EventTypeId {
         self.payload.event_type()
+    }
+
+    /// The system whose vocabulary this kind of fact belongs to.
+    pub const fn owner(&self) -> &SystemId {
+        &self.owner
     }
 
     /// Becomes a fact the world has recorded, once the kernel has supplied the four fields a

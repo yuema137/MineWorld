@@ -341,6 +341,39 @@ pub enum KernelError {
         now: WorldTime,
     },
 
+    /// A world was asked to state a genesis fact after it had already dispatched something.
+    ///
+    /// Genesis is world *assembly*: [`Causation::WorldGenesis`](mineworld_contracts::Causation)
+    /// means "the world coming into existence", and a world that could state an uncaused fact
+    /// while running would make that claim untrue of its own log. Initial state is stated once,
+    /// before the world runs; everything afterwards is caused by a request, a process or another
+    /// fact.
+    #[error(
+        "this world has already dispatched a request, so it cannot state {facts} more \
+         genesis fact(s): initial state is stated before a world runs"
+    )]
+    GenesisAfterTheWorldHasRun {
+        /// How many facts were offered too late.
+        facts: usize,
+    },
+
+    /// A genesis fact named an event type whose owning system this world has not installed.
+    ///
+    /// The owner is read off the event type's own contract rather than supplied by the caller, so
+    /// this is not a mislabelling: it is a world being asked to begin with a fact that belongs to
+    /// a vocabulary it was not composed with. Nothing would reduce it, so the state it describes
+    /// would never exist.
+    #[error(
+        "genesis fact of type '{event_type}' belongs to system '{system}', \
+         which this world has not installed"
+    )]
+    GenesisFactHasNoInstalledOwner {
+        /// The system that owns the event type.
+        system: SystemId,
+        /// The kind of fact that was offered.
+        event_type: EventTypeId,
+    },
+
     /// A persisted graph filed an edge type's declaration under a different name.
     #[error("persisted relation type declaration at '{at}' calls itself '{found}'")]
     PersistedRelationTypeMismatch {

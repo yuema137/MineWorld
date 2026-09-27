@@ -186,6 +186,78 @@ Constraints:
 3. A World Pack never redefines simulation rules. If a world needs a new rule, that is a
    System Pack.
 
+## 4.1 The fields MVP-0's loader reads
+
+The model above is the frozen one and is unchanged. This subsection states the **subset MVP-0
+implements**, because the loader (`worldpack/`) exists and an author needs to know what it accepts.
+Fields of §4's model that MVP-0 does not implement — `era`, `calendar`, `geography`, `entity_packs`,
+`cognition_profile`, `presentation_profile`, `network_profile` — are **refused by name**, not ignored:
+a silently accepted field is a world its author believes they authored.
+
+```yaml
+# world.yaml
+world:
+  id: social-cafe          # required. Must equal the pack directory's name.
+  name: Social Café        # required. For a person; no system reads it.
+
+systems:                   # the capabilities this world enables, in installation order
+  - presence
+  - conversation
+
+places:                    # each key names places/<key>.yaml
+  - cafe
+
+population:                # each key names people/<key>.yaml
+  - alice
+  - bob
+  - visitor
+
+seats:                     # the Persons a client may connect as, each one of `population`
+  - visitor
+```
+
+```yaml
+# people/<key>.yaml — the file's name is the key; the file does not repeat it
+tags: [barista, staff]     # optional. An open vocabulary; reaches clients in an Observation.
+note: Runs the counter.    # optional. Authoring provenance, never gameplay state.
+location:                  # optional. Requires the `presence` system.
+  place: cafe              # required: one of `places`
+  position:                # optional: integer millimetres from the place's origin
+    x: 1200
+    y: 2400
+    z: 0
+  facing: 180000           # optional: integer millidegrees
+```
+
+```yaml
+# places/<key>.yaml
+tags: [cafe, public]       # optional
+note: A small café.        # optional
+```
+
+Five rules govern this subset, and each one is a decision rather than an implementation detail:
+
+1. **A key is stated once.** `population` and `places` name the keys; a content file never repeats
+   its own key. Two copies of one fact in a pack are two chances for them to disagree.
+2. **Order in a list is the pack's statement where it is observable, and nowhere else.** `systems`
+   order is installation order and therefore reduction order, which reaches the event log. `places`
+   and `population` order is *not* observable: entity identities are allocated in key order, so
+   reordering either list changes nothing.
+3. **`seats` is the world's, not the client's.** A client names a seat and the server resolves which
+   entity it is, which is why no protocol frame ever names an entity. A seat must be one of
+   `population`.
+4. **Content that needs a capability names it, and the pack must enable it.** `location` is state the
+   `presence` system owns; a pack that places its people without enabling `presence` is refused,
+   rather than starting a world in which everybody is quietly nowhere.
+5. **There are no floats.** Positions are integer millimetres and orientations integer millidegrees,
+   because these values reach the event log and floating-point arithmetic is not reproducible across
+   platforms (`MVP.md` §9 `AC-12`).
+
+Initial state is **not** written into the world by the loader. Each authored `location` becomes a
+recorded event caused by `Causation::WorldGenesis`, which the owning system reduces — so a loaded
+world's state has a causal origin in its own log, and a replay rebuilds it
+(`DECISIONS.md` `ARC-10`).
+
 ---
 
 # 5. Controller Pack (Cognition Pack)

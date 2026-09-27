@@ -28,6 +28,21 @@
 //! discards the world and reports; it does not retry. Recorded here because the rest of this crate
 //! promises that a refusal changes nothing, and this is the one place that promise is narrower than
 //! it sounds.
+//!
+//! # Assembly has three steps, and the third one is not a write
+//!
+//! ```text
+//! install         the systems this world is composed of        World::install
+//! create_entity   the things that exist in it                  World::create_authored_entity
+//! genesis         what is true of them as the world begins     World::genesis
+//! ```
+//!
+//! The third step is [`World::genesis`](crate::World::genesis), and it lives in
+//! [`crate::dispatch`] rather than here because it *records facts and reduces them* — the same
+//! pipeline a request goes through, with [`Causation::WorldGenesis`](mineworld_contracts::Causation)
+//! in place of a request. There is deliberately no method on this type that writes a component:
+//! initial state is state some system owns, and a world that could write it directly would hold
+//! state its own event log could not explain (`AC-9`).
 
 use mineworld_contracts::{
     Entity, EntityId, EntityKey, EntityType, LifecycleState, Metadata, Relation, SystemId, Tags,
@@ -87,6 +102,12 @@ pub struct World {
     /// This world's only issuer of write capability. Never lent out, never returned, and not
     /// constructible outside this crate (`BD-1`).
     access: WriteAccess,
+    /// Whether this world has dispatched anything yet.
+    ///
+    /// One bit, and it exists for one reason: [`World::genesis`] states facts caused by the world
+    /// coming into existence, and a world that had already run would be stating them about a past
+    /// that has moved on. Assembly is over as soon as the first request is dispatched.
+    dispatched: bool,
 }
 
 impl Default for World {
@@ -105,6 +126,7 @@ impl World {
             systems: SystemRegistry::new(),
             events: EventIds::new(),
             access: WriteAccess::new(),
+            dispatched: false,
         }
     }
 
@@ -235,6 +257,19 @@ impl World {
             &mut self.relations,
             &mut self.events,
         )
+    }
+
+    /// Whether this world has left assembly: `true` once anything has been dispatched.
+    ///
+    /// Read by [`World::genesis`](crate::World::genesis), which is in [`crate::dispatch`] and
+    /// therefore cannot see this struct's fields.
+    pub(crate) const fn has_dispatched(&self) -> bool {
+        self.dispatched
+    }
+
+    /// Records that assembly is over. Called by dispatch, once per request; there is no way back.
+    pub(crate) const fn note_dispatch(&mut self) {
+        self.dispatched = true;
     }
 
     /// The whole world as a system reads it: the same view `validate` is handed.

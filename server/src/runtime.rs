@@ -268,7 +268,7 @@ impl WorldRuntime {
 
         for subscriber in &self.subscribers {
             let context =
-                PerceptionContext::new(self.world.read(), subscriber.observer, at, &self.recent);
+                PerceptionContext::new(&self.world, subscriber.observer, at, &self.recent);
             let observation = self.perception.observe(&context);
             match subscriber.observations.try_send(observation) {
                 Ok(()) => {}

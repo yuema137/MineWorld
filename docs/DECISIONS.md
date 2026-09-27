@@ -734,3 +734,129 @@ and delivered events, never the queue.
 different design, and determinism currently matters more than throughput at MVP scale.
 
 **Licenses.** All candidates are permissive; none was rejected for licensing.
+
+---
+
+## ARC-10 — A world's initial state is a recorded genesis fact
+
+**Date** 2026-09-27 · **Implements** `MODULE_SPEC.md` §4 · **Relates to** `MVP.md` §9 `AC-9`,
+`AC-12`
+
+**Problem.** A World Pack states what is true of a world before anything happens: Alice is behind the
+counter. That is component state, and in MineWorld a component is written **only** by the system that
+owns it, **only** while it resolves an action or reacts to a fact. World assembly has no action to
+resolve — so PR 05b, writing the server's first test world, found that placing four people meant
+dispatching four intents, and `ActionIntent::new` needs an `ActionId` that at assembly time no
+allocator has issued. Its test world worked around it by allocating from `9_000_000`, far above the
+server's own allocator, so that assembly could not collide with a client's request.
+
+**Options considered.** (1) A seeded allocator handed to the loader through configuration — the
+server's allocator starts above whatever assembly spent. (2) An assembly-time allocator owned by the
+pack loader. (3) A kernel path for authored state.
+
+**Choice: (3), in the form that records events.** `World::genesis(at, facts)` records what a world
+begins with and reduces it through the systems that own that state, using the same recorder and the
+same reducer a request goes through. Two differences and no third: causation is
+`Causation::WorldGenesis`, and there is no controller decision to name.
+
+**Why, and the axis is the event log.** Options 1 and 2 both produce `Causation::Action(9_000_000)`
+in a world's history — a request no controller made, no client sent and no allocator issued.
+Replaying that log asks *what was action 9000000?* and the honest answer is *nothing; it was a number
+chosen to avoid a collision*. That is inventing history, and moving the fabrication from a test into
+the loader would tidy the workaround rather than answer it. Option 1 additionally leaks
+world-assembly detail into the transport's configuration, so a loader and a server would have to
+agree on a number to stay out of each other's way — a coupling with no owner.
+
+A kernel path that wrote components directly would fail the other way: state with no cause in the
+log, which breaks `AC-9` for the whole of a world's initial state and makes it unreconstructible from
+its own history. `kernel/src/system.rs` already refuses exactly that for `System::install` — "a
+system that wrote state while being installed would write facts no event explains" — and
+`contracts/src/event.rs` already named the answer: `WorldGenesis` exists "so that a world's initial
+state is *explained* rather than uncaused", and "a loaded World Pack's initial facts are caused by
+this and by nothing else". The decision was therefore less a choice than a reading of two contracts
+that had already made it.
+
+**What it buys.**
+
+```text
+no ActionId is invented      Provenance::controller_decision stays None, which is what it means:
+                             this fact came from no request. The server's allocator still starts at
+                             1 and can never collide with assembly, because assembly allocates no
+                             request identities at all.
+state has a causal origin    "where did Alice's initial position come from" answers with an event
+                             id, a genesis causation, and the system that reduced it — by the same
+                             path a walked arrival takes, so state and log cannot disagree.
+AC-12 holds through seeding  event ids come from the world's own counter in the order the loader
+                             states the facts, and that order is the pack's (places in key order,
+                             then people in key order).
+```
+
+**Scope, stated exactly.** Three public kernel items (`World::genesis`, `Emission::owner`, two
+`KernelError` variants) and no domain knowledge: `genesis` cannot name a component, an action or a
+system, and reads each fact's emitting system off `Event::OWNER` in the contract rather than from an
+argument. `contracts/` is unchanged — `WorldGenesis` becoming reachable is that layer's own stated
+intent.
+
+**Accepted limitations.** Genesis is refused once a world has dispatched anything, so *the world
+coming into existence* stays true of the log that claims it; a person who arrives while a world runs
+arrives by acting. Reduction of genesis facts is not transactional, exactly as dispatch's is not: a
+system that breaks its own contract while reducing leaves what it wrote, and a failed assembly is
+discarded rather than repaired (`kernel/src/world.rs`).
+
+---
+
+## DEP-10 — World Pack YAML: `serde-saphyr`
+
+**Date** 2026-09-27 · **Status** selected, integrated in PR 05c · **Extends** `DEP-5`
+
+**Problem.** Read hand-authored YAML — a World Pack's `world.yaml`, `people/*.yaml`, `places/*.yaml` —
+into validated Rust types, with errors an author can act on. The pack format is the surface a world
+creator actually writes, so *where* an error is reported matters as much as *that* it is.
+
+**Options considered.** `serde_yaml`, `serde_yml`, `serde_yaml_ng`, `noyalib`, `serde-saphyr`,
+`yaml-rust2`/`saphyr` with a hand-written mapping layer, or TOML/JSON instead of YAML.
+
+**Choice: `serde-saphyr` 1.3**, deserializer feature only.
+
+**Why not the `serde_yaml` lineage.** `serde_yaml` was archived by its author in 2024 and says so in
+its own README. `serde_yml` is a fork that has since self-deprecated. `serde_yaml_ng` is a
+continuation of the same lineage and therefore of `unsafe-libyaml`, which is archived as well — a C
+parser transliterated to `unsafe` Rust, under a crate nobody maintains, parsing files a world author
+downloads from the internet. That is the wrong dependency to adopt in a workspace where every crate
+carries `#![forbid(unsafe_code)]`.
+
+**Why not `noyalib`.** Pure Rust, `forbid(unsafe_code)`, and a drop-in `compat-serde-yaml` feature —
+attractive. But it is at `0.0.51`, pre-1.0 with no stability commitment, and it is published by the
+author of `serde_yml`, the fork that deprecated itself. MineWorld needs the `Value` type and the
+compatibility shim that are `noyalib`'s main argument for neither: the loader only ever calls
+`from_str::<MyStruct>`.
+
+**Why not a parser plus our own mapping.** `saphyr`/`yaml-rust2` is the right layer for a tool that
+needs the YAML tree — an editor, a formatter. Writing a `serde` bridge over one to read four struct
+shapes would be `REUSE_POLICY.md` §7's mistake in the other direction: rebuilding commodity
+infrastructure that exists and is maintained.
+
+**Why not TOML or JSON.** `MODULE_SPEC.md` §4 specifies a World Pack in YAML and MVP-0 does not
+reopen a frozen format decision. On the merits YAML is also right for this content: it is what a
+person hand-writes, it carries comments, and every one of this repository's pack files uses them to
+explain itself.
+
+**What `serde-saphyr` provides that decided it.** MIT OR Apache-2.0. Crate-level `deny(unsafe_code)`.
+A stable major version, actively maintained, with `serde` as its only reason to exist. Errors that
+carry line, column and an excerpt of the offending text — so `locatoin:` in `people/alice.yaml` is
+reported as *line 2 column 1: unknown field `locatoin`, expected one of tags, note, location*, with
+the source line printed under it. And a **duplicate-key policy that errors by default**, which is the
+behaviour a configuration format needs, and the opposite of the usual default: a reader that took the
+last of two identical keys would hand an author a world composed of a system they had deleted.
+
+**Isolating interface.** One call site: `worldpack::read::parse`, twelve lines, which reads a file to
+a string, deserializes it and turns any failure into `PackError::Malformed { path, kind, detail }`.
+No `serde_saphyr` type appears in any signature, any struct field or any error variant of this
+workspace, so replacing the parser is a change to one function.
+
+**Accepted limitations.** The parser's error text names the input as `<input>` rather than the file,
+so `PackError::Malformed` prints the path itself on the line above. Only the `deserialize` feature is
+enabled; nothing in MineWorld writes YAML, and if a `mineworld create` command ever does (S7), that
+is a feature flag and not a new decision. Anchors, aliases and `!include` are supported by the crate
+and are deliberately not used by any pack — a World Pack an author can read is worth more than one
+that avoids repetition.

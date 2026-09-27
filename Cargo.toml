@@ -1,5 +1,13 @@
 [workspace]
-members = ["contracts", "kernel", "server", "systems/conversation", "systems/presence"]
+members = [
+    "contracts",
+    "kernel",
+    "server",
+    "systems/conversation",
+    "systems/presence",
+    "tools/cli",
+    "worldpack",
+]
 resolver = "2"
 
 # Shared metadata: every crate in this workspace is part of one release unit, so the
@@ -18,10 +26,18 @@ mineworld-contracts = { path = "contracts" }
 mineworld-kernel = { path = "kernel" }
 mineworld-presence = { path = "systems/presence" }
 mineworld-conversation = { path = "systems/conversation" }
+mineworld-server = { path = "server" }
+mineworld-worldpack = { path = "worldpack" }
 serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
 serde_json = "1.0.151"
 trybuild = "1.0.121"
+
+# YAML, for World Packs. `serde_yaml` is archived and every fork of its lineage sits on the
+# archived `unsafe-libyaml`; `serde-saphyr` is a maintained parser with a stable major version, no
+# unsafe code, positioned error reports and a duplicate-key policy. DEP-10 records the comparison.
+# Only the deserializer is enabled: nothing in MineWorld writes YAML.
+serde-saphyr = { version = "1.3.0", default-features = false, features = ["deserialize"] }
 
 # The transport, frozen by DEP-3 / DEP-9: axum on tokio, HTTP and WebSocket. `futures-util`
 # comes with the WebSocket: a socket is split into its two halves to read and write at once.

@@ -1,0 +1,31 @@
+[package]
+name = "mineworld-cli"
+description = "The `mineworld` command: loads a World Pack and hosts it, or validates one and says what it is."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+# One binary, named after the command rather than the crate: `mineworld server worlds/social-cafe`
+# is the artefact `ARC-6` makes the deliverable.
+[[bin]]
+name = "mineworld"
+path = "src/main.rs"
+
+[dependencies]
+# The composition root: the only crate in the workspace that depends on the transport AND on the
+# System Packs, which is what lets `mineworld-server` stay ignorant of what a conversation is.
+mineworld-contracts = { workspace = true }
+mineworld-conversation = { workspace = true }
+mineworld-presence = { workspace = true }
+mineworld-server = { workspace = true }
+mineworld-worldpack = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+# The acceptance test starts the real binary and connects a real WebSocket client to it: the client
+# half of the stack DEP-3 chose, and `futures-util` because a socket is split to read and write.
+futures-util = { workspace = true }
+tokio-tungstenite = { workspace = true }
