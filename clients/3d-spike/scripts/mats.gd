@@ -85,11 +85,11 @@ static func glass() -> Material:
 	if _mat_cache.has("glass"):
 		return _mat_cache["glass"]
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.06, 0.07, 0.08, 0.72)
+	m.albedo_color = Color(0.030, 0.038, 0.045, 0.74)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.roughness = 0.04
-	m.metallic = 0.35
-	m.metallic_specular = 0.9
+	m.roughness = 0.06
+	m.metallic = 0.0
+	m.metallic_specular = 0.62
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_mat_cache["glass"] = m
 	return m
@@ -131,34 +131,34 @@ static func card(t: Texture2D, backlit := 0.0) -> Material:
 # --- named materials used across the town -------------------------------------
 
 static func promenade() -> Material:
-	return pbr("concrete_pavement", 2.6, Color(1.08, 1.02, 0.93), 0.95)
+	return pbr("concrete_pavement", 1.8, Color(1.08, 1.02, 0.93), 0.95)
 
 static func sidewalk() -> Material:
-	return pbr("pavement_02", 3.0, Color(1.04, 1.0, 0.95), 0.95)
+	return pbr("pavement_02", 2.2, Color(1.04, 1.0, 0.95), 0.95)
 
 static func setts() -> Material:
-	return pbr("cobblestone_floor_08", 2.4, Color(0.98, 0.96, 0.92))
+	return pbr("cobblestone_floor_08", 1.05, Color(0.98, 0.96, 0.92))
 
 static func road() -> Material:
 	return pbr("asphalt_01", 4.0, Color(0.82, 0.82, 0.84))
 
 static func brick() -> Material:
-	return pbr("red_brick_03", 2.2, Color(1.12, 0.98, 0.9))
+	return pbr("red_brick_03", 1.0, Color(1.12, 0.98, 0.9))
 
 static func brick_tan() -> Material:
-	return pbr("red_brick_03", 2.2, Color(1.55, 1.34, 1.05), 1.05)
+	return pbr("red_brick_03", 1.0, Color(1.55, 1.34, 1.05), 1.05)
 
 static func stucco(c := Color(1.0, 0.97, 0.9)) -> Material:
-	return pbr("beige_wall_001", 3.0, c)
+	return pbr("beige_wall_001", 2.0, c)
 
 static func cutstone() -> Material:
-	return pbr("stone_brick_wall_001", 2.0, Color(1.16, 1.1, 0.98))
+	return pbr("stone_brick_wall_001", 1.5, Color(1.16, 1.1, 0.98))
 
 static func planks() -> Material:
-	return pbr("weathered_brown_planks", 2.0, Color(1.0, 0.95, 0.86))
+	return pbr("weathered_brown_planks", 1.5, Color(1.0, 0.95, 0.86))
 
 static func roof() -> Material:
-	return pbr("roof_slates_03", 2.0, Color(0.86, 0.84, 0.84))
+	return pbr("roof_slates_03", 1.2, Color(0.86, 0.84, 0.84))
 
 static func lawn() -> Material:
-	return pbr("leafy_grass", 2.2, Color(0.62, 0.86, 0.42))
+	return pbr("leafy_grass", 1.4, Color(0.62, 0.86, 0.42))

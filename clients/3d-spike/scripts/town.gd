@@ -16,6 +16,10 @@ const PROM_S := -12.0   # shopfront line
 const STREET_W0 := 13.0 # side street, west edge
 const STREET_W1 := 21.0 # side street, east edge
 
+## Poly Haven's bench ships a dark reddish stain from its back-alley set.
+## Multiplying past 1.0 pushes it back to the honey wood of the references.
+const BENCH_TINT := Color(1.34, 1.24, 1.06)
+
 static var rng := RandomNumberGenerator.new()
 
 
@@ -45,11 +49,17 @@ static func _count(n: Node) -> int:
 
 # --- ground and water ----------------------------------------------------------
 
+const SHORE_Z := -28.0  # where the land ends and the lake begins
+
 static func _terrain(root: Node3D) -> void:
-	# Everything the town is not: grass, running under and behind it.
-	Build.ground(root, Vector3(0, -0.02, 60), 700, 260, Mats.lawn(), 0, true)
-	Build.ground(root, Vector3(-140, -0.02, -30), 200, 200, Mats.lawn(), 0, true)
-	Build.ground(root, Vector3(140, -0.02, -30), 200, 200, Mats.lawn(), 0, true)
+	# Everything the town is not: grass. It must stop at the shoreline -- a lawn
+	# plane running north over the water at y=-0.02 hides a lake at y=-1.15, and
+	# from the shore trail the whole lake reads as a field.
+	var d := 220.0
+	var cz := SHORE_Z + d * 0.5
+	Build.ground(root, Vector3(0, -0.02, cz), 260, d, Mats.lawn(), 0, true)
+	Build.ground(root, Vector3(-230, -0.02, cz), 200, d, Mats.lawn(), 0, true)
+	Build.ground(root, Vector3(230, -0.02, cz), 200, d, Mats.lawn(), 0, true)
 
 
 static func _lake(root: Node3D) -> void:
@@ -215,38 +225,42 @@ static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: f
 	var joinery := Mats.paint(accent, 0.42)
 	var glass := Mats.glass()
 
-	# --- ground floor shopfront, recessed 0.28 m -------------------------------
+	# --- ground floor shopfront -----------------------------------------------
+	# Everything here hangs in FRONT of the wall face (negative local z). Solid
+	# box geometry cannot be subtracted, so a shopfront modelled "recessed into"
+	# the mass is simply buried inside the brick and renders as a blank wall.
 	var gw := w - 0.9
 	var top := ground_h - 1.05
-	Build.slab(g, 0, 0.30, gw + 0.5, 0.30, 0.55, top - 0.55, joinery)          # frame board
-	Build.slab(g, 0, 0.14, gw, 0.10, 0.70, top - 0.95, glass)                  # glazing
-	# interior: an emissive card and a warm lamp, so windows glow like the refs
-	var inner := Mats.emissive(Color(1.0, 0.80, 0.52), 1.5)
-	Build.slab(g, 0, 1.9, gw - 0.4, 0.1, 0.9, top - 1.4, inner)
+	Build.slab(g, 0, -0.10, gw + 0.55, 0.22, 0.55, top - 0.55, joinery)   # surround
+	# the lit interior sits between the wall face and the glass, so it reads
+	# through the glazing the way a shop does at the end of the afternoon
+	var inner := Mats.emissive(Color(1.0, 0.78, 0.48), 2.4)
+	Build.slab(g, 0, -0.04, gw - 0.1, 0.05, 0.72, top - 1.0, inner)
+	Build.slab(g, 0, -0.20, gw, 0.06, 0.70, top - 0.95, glass)            # glazing
 	var lamp := OmniLight3D.new()
 	lamp.light_color = Color(1.0, 0.82, 0.58)
-	lamp.light_energy = 4.0
-	lamp.omni_range = 9.0
+	lamp.light_energy = 3.0
+	lamp.omni_range = 7.5
 	lamp.shadow_enabled = false
-	lamp.position = Vector3(0, 2.4, 1.5)
+	lamp.position = Vector3(0, 2.2, -1.1)
 	g.add_child(lamp)
 	# mullions
 	var bays := maxi(2, int(gw / 1.9))
 	for i in range(1, bays):
 		var mx := -gw * 0.5 + gw * float(i) / bays
-		Build.slab(g, mx, 0.12, 0.10, 0.22, 0.70, top - 0.95, joinery)
+		Build.slab(g, mx, -0.24, 0.10, 0.18, 0.70, top - 0.95, joinery)
 	# door, off-centre
 	var dx := -gw * 0.5 + 0.95
-	Build.slab(g, dx, 0.10, 1.10, 0.14, 0.0, 2.35, joinery)
-	Build.slab(g, dx, 0.03, 0.80, 0.06, 0.35, 1.75, glass)
-	Build.sphere(g, Vector3(dx + 0.44, 1.05, -0.04), 0.045,
+	Build.slab(g, dx, -0.14, 1.10, 0.16, 0.0, 2.35, joinery)
+	Build.slab(g, dx, -0.23, 0.78, 0.05, 0.38, 1.70, glass)
+	Build.sphere(g, Vector3(dx + 0.42, 1.05, -0.28), 0.045,
 		Mats.paint(Color(0.72, 0.60, 0.33), 0.30, 0.85), 8)
 	# step
-	Build.slab(g, dx, -0.22, 1.5, 0.45, 0.0, 0.10, Mats.cutstone())
+	Build.slab(g, dx, -0.45, 1.5, 0.45, 0.0, 0.10, Mats.cutstone())
 
 	# --- fascia ---------------------------------------------------------------
-	Build.slab(g, 0, 0.16, w - 0.5, 0.26, top, 0.80, joinery)
-	Build.label(g, Vector3(0, top + 0.40, 0.03), name_txt, 0.40,
+	Build.slab(g, 0, -0.16, w - 0.5, 0.30, top, 0.80, joinery)
+	Build.label(g, Vector3(0, top + 0.40, -0.33), name_txt, 0.40,
 		Color(0.95, 0.91, 0.80), PI, 64)
 
 	if awning_on:
@@ -258,15 +272,15 @@ static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: f
 		var n_win := maxi(2, int(w / 3.1))
 		for i in range(n_win):
 			var wx := -w * 0.5 + w * (float(i) + 0.5) / n_win
-			Build.slab(g, wx, 0.02, 1.15, 0.12, wy, 1.85, glass)
-			Build.slab(g, wx, -0.03, 1.38, 0.10, wy - 0.12, 2.09, joinery)
-			Build.slab(g, wx, -0.03, 1.38, 0.10, wy - 0.12, 0.10, Mats.cutstone())
-			Build.slab(g, wx, -0.03, 1.46, 0.10, wy + 1.97, 0.14, Mats.cutstone())
+			Build.slab(g, wx, -0.05, 1.15, 0.10, wy, 1.85, glass)
+			Build.slab(g, wx, -0.10, 1.38, 0.10, wy - 0.12, 2.09, joinery)
+			Build.slab(g, wx, -0.12, 1.44, 0.14, wy - 0.16, 0.10, Mats.cutstone())
+			Build.slab(g, wx, -0.12, 1.50, 0.14, wy + 1.97, 0.14, Mats.cutstone())
 			# flower box on some sills -- the references are full of them
 			if (seed_v + i + s) % 3 == 0:
-				Build.slab(g, wx, -0.22, 1.05, 0.30, wy - 0.28, 0.26,
+				Build.slab(g, wx, -0.30, 1.05, 0.30, wy - 0.28, 0.26,
 					Mats.paint(Color(0.34, 0.26, 0.19), 0.85))
-				Props.flowerbed(g, Vector3(wx, wy + 0.05, -0.22), 0.95, 0.26, seed_v * 31 + i)
+				Props.flowerbed(g, Vector3(wx, wy + 0.05, -0.30), 0.95, 0.26, seed_v * 31 + i)
 
 
 static func _shop_row(root: Node3D) -> void:
@@ -363,7 +377,7 @@ static func _plaza(root: Node3D) -> void:
 		var ang := TAU * float(a) / 6.0 + 0.4
 		Props.place(root, "painted_wooden_bench",
 			Vector3(cx + cos(ang) * 6.6, 0, cz + sin(ang) * 6.6),
-			-ang + PI * 0.5, Color(0.95, 0.88, 0.76))
+			-ang + PI * 0.5, BENCH_TINT)
 		Build.box_blocker(root, Vector3(cx + cos(ang) * 6.6, 0.4, cz + sin(ang) * 6.6),
 			Vector3(1.8, 0.8, 0.7), -ang + PI * 0.5)
 	Props.wayfinder(root, Vector3(9.5, 0, -26.8), 0.6,
@@ -384,9 +398,9 @@ static func _promenade_dressing(root: Node3D) -> void:
 	# street trees between promenade and shopfronts
 	for i in range(9):
 		var x := -45.0 + i * 11.3
-		if absf(x - 17.0) < 7.0:
+		if absf(x - 17.0) < 7.0 or absf(x) < 6.0:
 			continue
-		Props.broadleaf(root, Vector3(x, 0, PROM_N + 4.6), rng.randf_range(7.0, 9.2), 100 + i)
+		Props.broadleaf(root, Vector3(x, 0, PROM_N + 3.4), rng.randf_range(7.0, 9.2), 100 + i)
 
 	# planters, benches, boards, bins along the promenade
 	for i in range(8):
@@ -395,7 +409,7 @@ static func _promenade_dressing(root: Node3D) -> void:
 	for i in range(7):
 		var x := -38.0 + i * 12.5
 		Props.place(root, "painted_wooden_bench", Vector3(x, 0, PROM_N + 7.4), PI,
-			Color(0.95, 0.88, 0.76))
+			BENCH_TINT)
 		Build.box_blocker(root, Vector3(x, 0.4, PROM_N + 7.4), Vector3(1.8, 0.8, 0.7))
 	for i in range(6):
 		Props.bollard(root, Vector3(-30.0 + i * 13.0, 0, PROM_S + 2.9))
@@ -428,7 +442,7 @@ static func _promenade_dressing(root: Node3D) -> void:
 
 ## Nature outside the town: the west end of the shore, per 06.
 static func _lake_trail(root: Node3D) -> void:
-	var path := Mats.pbr("cobblestone_floor_08", 3.2, Color(1.25, 1.12, 0.92), 1.0)
+	var path := Mats.pbr("cobblestone_floor_08", 1.2, Color(1.25, 1.12, 0.92), 1.0)
 	for i in range(9):
 		var x := -52.0 - i * 9.0
 		var z := PROM_N + 4.0 + sin(i * 0.7) * 5.0
@@ -450,14 +464,14 @@ static func _lake_trail(root: Node3D) -> void:
 	var planks := Mats.planks()
 	var jx := -74.0
 	for i in range(13):
-		Build.slab(root, jx, PROM_N - 1.0 - i * 1.6, 3.0, 1.5, 0.05, 0.12, planks)
+		Build.slab(root, jx, SHORE_Z - 0.6 - i * 1.6, 3.0, 1.5, 0.05, 0.12, planks)
 	for i in range(7):
-		var pz := PROM_N - 1.5 - i * 3.0
+		var pz := SHORE_Z - 1.1 - i * 3.0
 		for px in [jx - 1.3, jx + 1.3]:
 			Build.cyl(root, Vector3(px, WATER_Y - 1.2, pz), 0.11, 0.13, 1.6, planks, 8)
-	Build.box_blocker(root, Vector3(jx, 0.4, PROM_N - 10.0), Vector3(3.2, 0.5, 20.0))
+	Build.box_blocker(root, Vector3(jx, 0.4, SHORE_Z - 9.6), Vector3(3.2, 0.5, 20.0))
 	var boat := Node3D.new()
-	boat.position = Vector3(jx + 2.6, WATER_Y + 0.22, PROM_N - 14.0)
+	boat.position = Vector3(jx + 2.6, WATER_Y + 0.22, SHORE_Z - 13.6)
 	boat.rotation.y = 0.35
 	root.add_child(boat)
 	var hull := Mats.paint(Color(0.68, 0.30, 0.24), 0.55)
@@ -469,7 +483,7 @@ static func _lake_trail(root: Node3D) -> void:
 	Props.wayfinder(root, Vector3(-52.0, 0, PROM_N + 7.0), 1.9,
 		["<Lakeside Trail", "<Pine Ridge", ">Town Centre"])
 	Props.place(root, "painted_wooden_bench", Vector3(-58.0, 0, PROM_N + 7.6), 2.9,
-		Color(0.95, 0.88, 0.76))
+		BENCH_TINT)
 	# grass creeping over the shore edge
 	for i in range(14):
 		Props.grass_patch(root, Vector3(rng.randf_range(-150.0, -50.0), 0,

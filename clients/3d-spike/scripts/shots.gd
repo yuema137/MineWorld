@@ -13,14 +13,17 @@ const OUT := "res://shots"
 var player: Player
 
 var views := [
-	["01_promenade_wide", Vector3(2.0, 0.2, -16.0), 200.0, -3.0],
-	["02_street_mid", Vector3(17.0, 0.2, 34.0), 0.0, -2.0],
-	["03_cafe_near", Vector3(7.6, 0.2, -16.6), 182.0, 1.0],
-	["04_npc", Vector3(-33.0, 0.2, -18.6), 212.0, -2.0],
-	["05_lake_scenic", Vector3(-70.0, 0.2, -22.0), 18.0, -1.0],
-	["06_plaza_fountain", Vector3(0.0, 0.2, -22.0), 178.0, 0.0],
-	["07_shopfront_detail", Vector3(-11.0, 0.2, -15.2), 170.0, 3.0],
-	["08_trail_north", Vector3(-88.0, 0.2, -18.0), 300.0, -2.0],
+	# yaw 0 faces the lake (-Z), 90 faces west, 180 faces the shops, 270 east.
+	["01_promenade_wide", Vector3(11.0, 0.2, -19.0), 102.0, -2.0],
+	["02_street_mid", Vector3(17.0, 0.2, 42.0), 0.0, -1.0],
+	["03_cafe_near", Vector3(9.0, 0.2, -16.8), 180.0, 2.0],
+	["04_npc", Vector3(-32.0, 0.2, -20.5), 112.0, -2.0],
+	["05_lake_scenic", Vector3(-74.0, 0.2, -24.5), 352.0, -2.0],
+	["06_plaza_fountain", Vector3(0.0, 0.2, -19.0), 0.0, -1.0],
+	["07_shopfront_detail", Vector3(-12.0, 0.2, -15.6), 180.0, 3.0],
+	["08_lake_trail", Vector3(-95.0, 0.2, -20.0), 64.0, -1.0],
+	["09_quayside", Vector3(-20.0, 0.2, -23.0), 330.0, -3.0],
+	["10_street_corner", Vector3(24.0, 0.2, -16.0), 150.0, 1.0],
 ]
 
 var _i := 0

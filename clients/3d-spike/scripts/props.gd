@@ -115,8 +115,8 @@ static func broadleaf(parent: Node3D, pos: Vector3, h := 7.5, seed_v := 0) -> No
 	var bark := bark_mat()
 
 	var trunk_h := h * 0.42
-	Build.cyl(t, Vector3.ZERO, h * 0.026, h * 0.045, trunk_h, bark, 9)
-	Build.blocker(t, Vector3.ZERO, h * 0.055, 2.2)
+	Build.cyl(t, Vector3.ZERO, h * 0.014, h * 0.023, trunk_h, bark, 9)
+	Build.blocker(t, Vector3.ZERO, h * 0.030, 2.2)
 
 	var boughs := 4
 	var tops: Array[Vector3] = []
@@ -127,7 +127,7 @@ static func broadleaf(parent: Node3D, pos: Vector3, h := 7.5, seed_v := 0) -> No
 		var from := Vector3(0, trunk_h * rng.randf_range(0.82, 1.0), 0)
 		var dir := Vector3(cos(a) * lean, 1.0, sin(a) * lean).normalized()
 		var to := from + dir * blen
-		var mi := Build.cyl(t, Vector3.ZERO, h * 0.011, h * 0.022, blen, bark, 7)
+		var mi := Build.cyl(t, Vector3.ZERO, h * 0.006, h * 0.012, blen, bark, 7)
 		mi.transform = Transform3D(Basis(), (from + to) * 0.5)
 		mi.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
 		mi.rotate_object_local(Vector3.RIGHT, PI * 0.5)
@@ -163,8 +163,8 @@ static func conifer(parent: Node3D, pos: Vector3, h := 9.0, seed_v := 0) -> Node
 	var t := Node3D.new()
 	t.position = pos
 	parent.add_child(t)
-	Build.cyl(t, Vector3.ZERO, h * 0.012, h * 0.035, h * 0.92, bark_mat(), 8)
-	Build.blocker(t, Vector3.ZERO, h * 0.05, 2.2)
+	Build.cyl(t, Vector3.ZERO, h * 0.007, h * 0.020, h * 0.92, bark_mat(), 8)
+	Build.blocker(t, Vector3.ZERO, h * 0.028, 2.2)
 	var nm := _needle_mat(seed_v % 3)
 	var whorls := 9
 	for w in range(whorls):
