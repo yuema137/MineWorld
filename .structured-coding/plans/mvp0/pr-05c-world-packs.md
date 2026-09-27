@@ -344,7 +344,7 @@ option surfaces. Recorded so it is a decision rather than an omission.
 | 2 | `refactor(presence,server)`: seed through genesis, and delete the invented ActionId | `[x]` | `[x]` | `[x]` |
 | 3 | `feat(worldpack)`: the pack, the loader and its refusals | `[x]` | `[x]` | `[x]` |
 | 4 | `feat(cli)`: mineworld server \<world\> | `[x]` | `[x]` | `[x]` |
-| 5 | `docs`: the format, the two decisions, and the ledger | `[ ]` | `[ ]` | `[ ]` |
+| 5 | `docs`: the format, the two decisions, and the ledger | `[x]` | `[x]` | `[x]` |
 
 ### Commit 1 — the kernel genesis path
 
@@ -447,14 +447,19 @@ option surfaces. Recorded so it is a decision rather than an omission.
 
 ### Commit 5 — documentation
 
-- [ ] Implementation: `MODULE_SPEC.md` §4.1 (the fields the loader reads); `DECISIONS.md` ARC-10
-      (genesis) and DEP-10 (`serde-saphyr`); `worldpack/README.md`, `tools/cli/README.md`,
-      `worlds/social-cafe/README.md`; `server/README.md` reconciled; this ledger.
-- [ ] Validation: `cargo fmt --all --check`, `cargo check --workspace --all-targets`,
-      `cargo clippy --workspace --all-targets --all-features -- -D warnings`,
-      `cargo test --workspace` — all four recorded in §8 at the final HEAD.
-- [ ] Review: checked every document changed against the two-kinds-of-Markdown rule and against
-      the terminology list in `CLAUDE.md` §2.1.
+- [x] Implementation: `MODULE_SPEC.md` §4.1 (the fields MVP-0's loader reads, with the five rules
+      that govern them); `DECISIONS.md` ARC-10 (initial state is a recorded genesis fact) and
+      DEP-10 (`serde-saphyr`, with the five rejected alternatives); `worldpack/README.md`,
+      `tools/cli/README.md`, `worlds/social-cafe/README.md`; `server/README.md` reconciled with
+      the binary having moved; §§8 and 9 of this ledger.
+- [x] Validation: the four gates at the final HEAD, recorded in §8.1 — fmt clean, check clean,
+      clippy `-D warnings` clean, `cargo test --workspace` **237 passed, 0 failed**. Per-crate
+      counts cross-checked with `cargo test -p <crate>` and they sum to the workspace figure.
+- [x] Review: every document checked against `CLAUDE.md` §2.1 — the three READMEs are short and
+      link onward, `MODULE_SPEC.md` §4.1 and the two `DECISIONS.md` records are complete
+      specifications, and no defined term is used for a second concept (`World Pack`, `System
+      Pack`, `Component`, `Event`, `Observation` and `Causation` all keep their meanings).
+      Confirmed §4.1 states the implemented subset without amending §4's frozen model.
 
 ---
 
@@ -532,10 +537,162 @@ one. Recorded rather than guessed at.
 
 ## 8. Validation record
 
-Filled during implementation; see the sections above for which commit owns each claim.
+Per-commit evidence is in §6. This section holds the three things that belong to the PR rather than to
+one commit: the final gate run, the refusal messages as an author actually sees them, and the real
+lifecycle run.
+
+### 8.1 The four gates, at the final HEAD
+
+```text
+command                                                              result
+cargo fmt --all --check                                              clean, no output
+cargo check --workspace --all-targets                                clean, no warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings clean, no warnings
+cargo test --workspace                                               see the table below
+```
+
+```text
+crate                    tests   of which new in this PR
+mineworld-contracts         72   —
+mineworld-kernel            82   10  (9 in tests/genesis.rs, 1 doctest on World::genesis)
+mineworld-presence          10   —
+mineworld-conversation      11   —
+mineworld-server            28   —   (the same assertions as before, over the new seeding route)
+mineworld-worldpack         27   27  (9 social_cafe, 17 refusals, 1 doctest)
+mineworld-cli                7   7   (3 server_command, 4 commands)
+                          ----  ----
+                           237    44
+```
+
+193 at the base commit, **237** at this head: 44 new tests, none of which is a parser test or an
+assertion that a library works as documented. Counted per crate with
+`cargo test -p <crate>`; the workspace run agrees (`237 tests passed`, 0 failed).
+
+### 8.2 The refusals, as an author sees them
+
+Collected by running the loader over each malformed pack. These are the messages, not paraphrases:
+
+```text
+people/alice.yaml is not a valid person file:
+error: line 2 column 1: unknown field `locatoin`, expected one of tags, note, location
+ --> <input>:2:1
+  |
+1 | tags: [barista]
+2 | locatoin:
+  | ^ unknown field `locatoin`, expected one of tags, note, location
+3 |   place: cafe
+
+world.yaml is not a valid world file:
+error: line 6 column 14: an entity key may contain only lowercase ASCII letters, digits, '-' and
+'_', but this one contains 'A' at byte 0
+ --> <input>:6:14
+  |
+6 | population: [Alice]
+  |              ^ ...
+
+people/alice.yaml is not a valid person file:
+error: line 4 column 8: invalid i32            (a float where millimetres belong)
+
+world.yaml is not a valid world file:
+error: line 5 column 1: duplicate mapping key: systems
+
+world.yaml enables the system 'economy', which this build does not provide
+  (it has: 'presence', 'conversation')
+
+people/alice.yaml puts 'alice' in the place 'park', which this pack does not declare (it has: 'cafe')
+
+'cafe' is declared twice in world.yaml: once in places, again in population
+
+people/carol.yaml describes a person that world.yaml does not list;
+  add 'carol' to population, or remove the file
+
+world.yaml does not exist, and a World Pack must have it
+
+world.yaml lists the person 'alice', but people/alice.yaml does not exist
+  (a person's key names its file)
+
+world.yaml calls this pack 'lakewood', but its directory is named 'not-lakewood';
+  a pack's id is its directory name
+
+world.yaml offers the seat 'cafe', which is not one of its people
+
+people/alice.yaml gives 'alice' a location, which the 'presence' system owns,
+  but world.yaml does not enable it
+
+the world this pack describes cannot be composed: system 'conversation' depends on 'presence',
+  which is not installed
+```
+
+Interpretation: every one names the file, the offending value and — where a reader knows the legal
+alternatives — the alternatives. Four of them carry a line and column from the parser. None is a
+panic: `commands.rs` asserts the absence of `panicked` from the command's output on three of these
+paths, and no test in this PR has ever produced one.
+
+### 8.3 GATE 2 — the real lifecycle
+
+```text
+claim:       `mineworld server worlds/social-cafe` starts and a client can connect to it (A4)
+owner:       real lifecycle — a real binary, a real pack on disk, a real socket
+HEAD:        363e75d (the CLI commit)
+command:     ./target/debug/mineworld server worlds/social-cafe   +   curl -s .../status
+runtime:     under a second to a serving socket
+result:      PASS
+```
+
+```text
+[mineworld] Social Café (social-cafe) — 2 system(s), 1 seat(s)
+[mineworld] listening on http://127.0.0.1:7878 (ws://127.0.0.1:7878/ws), protocol 1
+[mineworld] 4 entities, 2 system(s), seats: visitor
+
+GET /status
+{"protocol":1,"at":1,"entities":4,
+ "systems":[{"system":"presence","enabled":true},{"system":"conversation","enabled":true}],
+ "seats":["visitor"],"clients":0,"observations_dropped":0,"deferrals_unscheduled":0,"faults":0}
+```
+
+The WebSocket half is `tools/cli/tests/server_command.rs`, which runs the same binary on an ephemeral
+port and drives a real `tokio-tungstenite` client through it: join `visitor` → welcomed as observer
+**4** → first observation names entities `[1, 2, 3, 4]`, Alice at `(1200, 2400)` millimetres, `talk`
+offered twice and unavailable both times. That last line is the one worth reading twice: a position in
+a YAML file decided, through a loader, a kernel, a System Pack and a WebSocket, what a client is told
+it may do.
+
+**What this does NOT claim.** No Godot client ran. `AC-15` and the two reference clients are PR 05d's
+acceptance, and nothing here should be read as evidence for them.
 
 ---
 
 ## 9. Limitations and follow-ups
 
-Filled at review readiness.
+1. **No display name anywhere in the world.** §7.5. A pack carries `tags` and an authoring note, and
+   a client can render neither as "Alice". PR 05d needs a pack that owns a name component; until
+   then a client shows an entity id or a tag.
+2. **Genesis events are not in the host's recent-event window.** `WorldRuntime` starts its window
+   empty, so a client joining a fresh world is not told about the arrivals that placed everybody. That
+   is arguably correct — genesis is not recent news, and the positions are in the observation anyway —
+   but it is a choice nobody has stated, and S5's event log is where a world's full history will come
+   from. `LoadedWorld::genesis()` returns the facts for whoever wants them.
+3. **The perception adapter's payload conversion is exact only while observations carry no payload.**
+   `tools/cli/src/perceive.rs` documents the boundary precisely: presence's observation has no
+   component record and no event today, so the serde round trip is lossless; the day one exposes a
+   component, its payload reaches a client as `FINDINGS.md` F8.2's array of byte integers. The fix
+   belongs in the perception system, which knows the component's Rust type.
+4. **`world.id` duplicates the directory name.** Checked rather than derived, following the kernel's
+   treatment of a persisted record filed under another identity. When `Metadata::source_pack` becomes
+   a declared pack identity with a version (`MODULE_SPEC.md` §9), this field is where it lands.
+5. **One place, and no travel.** The pack has a single `cafe` and `presence` provides `arrive` rather
+   than movement. Deliberate, and the step document's non-goal; `ENGINEERING_RULES.md` §6's four
+   distinct things stay four.
+6. **System order in `world.yaml` is the author's responsibility.** `conversation` after `presence`,
+   or the kernel refuses to compose the world. The refusal is clear and names both systems, and a
+   topological sort would be the loader deciding reduction order — which is observable in the event
+   log — on the author's behalf. Worth revisiting when a pack enables six systems.
+7. **The system catalogue is compiled in.** `worldpack::catalog` is a closed enum of the two packs
+   this build links. `ARC-8` replaces it with a registry when System Packs are installed rather than
+   linked; the refusal message changes from *this build does not provide it* to *nothing installed
+   it*, and nothing else does.
+8. **Shared status documents are deliberately untouched.** `docs/MVP_STATUS.md`'s World-server row,
+   `README.md`'s status paragraph and `CLAUDE.md` §1.1's crate inventory are all stale now (the
+   server hosts a real world; `worldpack/` and `tools/cli/` exist). PR 05b left them to the planning
+   session for the same reason — sibling PRs are in flight — and this PR does the same rather than
+   racing it.
