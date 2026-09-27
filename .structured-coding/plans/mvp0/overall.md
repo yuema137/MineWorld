@@ -355,8 +355,15 @@ throwaway clients before any real one exists:
 ```
 
 Both clients submitted `{action_type: "talk", actor: "person:player", target: "person:alice"}`.
-The server recorded each verbatim, tagged only by which client sent it, and compared them: byte
-identical. The outcome — accept, or `TooFarAway`, or `Unavailable` — was decided by the server
+The server recorded each verbatim, tagged only by which client sent it, and compared them:
+identical.
+
+**Corrected 2026-09-26.** That proof used a stripped-down intent, so "byte identical" held for it
+and does not hold for the real contract — `docs/MVP.md` §9 now states the criterion as an
+identical *semantic core*. PR 04 narrowed the gap further: with `ActionRequest`, a client no
+longer invents an `action_id` or an `issued_at`, so of the three fields that legitimately
+differed, only `actor_location` remains — and that one differs by design, because a 2D client
+that models no position sends none. The outcome — accept, or `TooFarAway`, or `Unavailable` — was decided by the server
 alone; neither client evaluated distance, availability or permission.
 
 The harness for S12/S14 follows from that: the server records submitted intents with a client
