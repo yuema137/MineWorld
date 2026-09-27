@@ -166,7 +166,7 @@ fn a_declared_audience_survives_the_log_and_does_not_depend_on_insertion_order()
     ]));
     assert_eq!(
         serde_json::to_string(&ascending).unwrap(),
-        r#"{"entities":[41,42,43]}"#
+        r#"{"entities":["41","42","43"]}"#
     );
     assert_eq!(
         serde_json::to_string(&descending).unwrap(),
@@ -184,7 +184,7 @@ fn a_declared_audience_survives_the_log_and_does_not_depend_on_insertion_order()
 /// have to choose a default, and the only defaults available are omniscience and silence.
 #[test]
 fn a_fact_with_no_cause_or_no_audience_cannot_be_read_back() {
-    let complete = r#"{"id":9001,"at":64800,"event_type":"item-transferred","subjects":[],"participants":[],"place":null,"caused_by":"world_genesis","payload":{"event_type":"item-transferred","schema_version":1,"payload":"{}"},"visibility":"public","provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
+    let complete = r#"{"id":"9001","at":64800,"event_type":"item-transferred","subjects":[],"participants":[],"place":null,"caused_by":"world_genesis","payload":{"event_type":"item-transferred","schema_version":1,"payload":"{}"},"visibility":"public","provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
     assert!(serde_json::from_str::<EventEnvelope<String>>(complete).is_ok());
 
     let causeless = complete.replace(r#""caused_by":"world_genesis","#, "");
@@ -210,7 +210,7 @@ fn a_fact_with_no_cause_or_no_audience_cannot_be_read_back() {
 fn an_envelope_cannot_disagree_with_its_payload() {
     assert_eq!(envelope().event_type(), envelope().payload().event_type());
 
-    let disagreeing = r#"{"id":9001,"at":0,"event_type":"conversation-started","subjects":[],"participants":[],"place":null,"caused_by":"world_genesis","payload":{"event_type":"item-transferred","schema_version":1,"payload":"{}"},"visibility":"public","provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
+    let disagreeing = r#"{"id":"9001","at":0,"event_type":"conversation-started","subjects":[],"participants":[],"place":null,"caused_by":"world_genesis","payload":{"event_type":"item-transferred","schema_version":1,"payload":"{}"},"visibility":"public","provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
     let error = serde_json::from_str::<EventEnvelope<String>>(disagreeing)
         .expect_err("an envelope whose label and payload disagree is refused");
     assert_eq!(
@@ -242,7 +242,7 @@ fn an_event_is_stored_as_its_documented_shape() {
             .from_controller_decision(ActionId::from_raw(3)),
     );
 
-    let text = r#"{"id":9001,"at":64800,"event_type":"item-transferred","subjects":[41,42],"participants":[43],"place":{"entity":7,"entity_type":"place"},"caused_by":{"action":3},"payload":{"event_type":"item-transferred","schema_version":1,"payload":"{\"item\":18517}"},"visibility":{"place":{"entity":7,"entity_type":"place"}},"provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
+    let text = r#"{"id":"9001","at":64800,"event_type":"item-transferred","subjects":["41","42"],"participants":["43"],"place":{"entity":"7","entity_type":"place"},"caused_by":{"action":"3"},"payload":{"event_type":"item-transferred","schema_version":1,"payload":"{\"item\":18517}"},"visibility":{"place":{"entity":"7","entity_type":"place"}},"provenance":{"emitted_by":"inventory-stub","controller_decision":null}}"#;
     assert_eq!(serde_json::to_string(&recorded).unwrap(), text);
     assert_eq!(
         serde_json::from_str::<EventEnvelope<String>>(text).unwrap(),
@@ -257,7 +257,7 @@ fn an_event_is_stored_as_its_documented_shape() {
     // controller's effect on a world auditable after the fact.
     assert_eq!(
         serde_json::to_string(audited.provenance()).unwrap(),
-        r#"{"emitted_by":"inventory-stub","controller_decision":3}"#
+        r#"{"emitted_by":"inventory-stub","controller_decision":"3"}"#
     );
     assert_eq!(
         audited.provenance().controller_decision(),

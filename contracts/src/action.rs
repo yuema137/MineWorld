@@ -13,6 +13,22 @@
 //! systems' work and arrive with them; this module contains no rule, no check about whether an
 //! action is possible, and no way to turn an intent into state.
 //!
+//! # A client submits a request; the world makes it an intent
+//!
+//! The first arrow has two halves, because identity is the world's to give (`INV-6`):
+//!
+//! ```text
+//! ActionRequest    what a controller or client submits: who, what, of whom, from where
+//!      │           no ActionId, no WorldTime — a client has neither an allocator nor the clock
+//!      ▼           ActionIntent::allocate
+//! ActionIntent     what the world dispatches, carrying the identity and instant it assigned
+//! ```
+//!
+//! That split is `INV-6` in the types rather than in prose. It exists because a spike measured what
+//! its absence costs: two Godot clients each invented an [`ActionId`] from a local counter, so they
+//! collide on their first action, and the event log's causal chain would be anchored on identity a
+//! client chose (`spike/FINDINGS.md` F4).
+//!
 //! # Why the answer is a value and not an error
 //!
 //! [`ActionResult::Unavailable`] is a first-class answer (`INV-10`). An action that no enabled
@@ -234,10 +250,30 @@ pub enum Rejection {
 /// action itself does not exist in this world — there is no `shoot()` in a universe with no
 /// combat system, however convincingly a controller asks.
 ///
-/// The answer does not carry the [`ActionId`] it answers. Correlation is the responsibility of
-/// whatever paired the request with its answer: the dispatcher in process, and the protocol on a
-/// wire. Putting the identity here would make every in-process answer restate what its caller
-/// already holds, and would still not prevent a mismatched pair.
+/// The answer does not carry the [`ActionId`] it answers, and that survives the arrival of
+/// [`ActionRequest`] — which is worth stating, because a client no longer allocates the id and the
+/// obvious worry is that it can therefore no longer correlate.
+///
+/// Three facts, together, are why the field is still absent:
+///
+/// ```text
+/// the producer already holds it   an ActionResult comes from dispatching an ActionIntent, and
+///                                 ActionIntent::allocate is the only way one exists — so whoever
+///                                 has the answer has the id, and a field here would restate it
+/// request <-> answer              a protocol concern: the submitter's own correlation token in its
+///                                 own frame. A token in this type would be a protocol field in the
+///                                 kernel's vocabulary, and it would still not prevent a mismatched
+///                                 pair — it would only look as though it had
+/// answer <-> facts                already carried: Accepted { events } names the very facts the
+///                                 request caused, so a client finds its own events without ever
+///                                 learning the ActionId
+/// ```
+///
+/// One case is genuinely open and belongs to the protocol layer rather than here: an action that
+/// starts a process produces later facts, whose [`Causation`](crate::event::Causation) names the
+/// action, and `Accepted { events }` cannot list facts that do not exist yet. A transport whose
+/// client needs to recognize those must tell it the allocated id — the server holds it, having
+/// allocated it — and that is a field in a protocol frame, not in the kernel's answer.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActionResult {
@@ -352,11 +388,158 @@ impl<P> ActionRecord<P> {
     }
 }
 
-/// What a controller or a client asks the world for.
+/// What a controller or a client *submits*: a request with no identity and no instant, because it
+/// has neither to give.
+///
+/// This is the type-level form of `INV-6`. [`crate::ids`] says of every runtime identity that
+/// "allocation belongs to the kernel, not to this crate" and that `from_raw` "is not a way to invent
+/// one" — and yet an [`ActionIntent`] cannot be built without an [`ActionId`], so anything outside
+/// the kernel that wanted to submit one had to invent identity it has no right to allocate. A
+/// renderer-integration spike measured the consequence: both of its clients used a local counter, so
+/// two clients collide on the first action each submits and a server cannot tell a collision from a
+/// retransmission — while [`Causation::Action`](crate::event::Causation::Action) and
+/// [`Provenance::controller_decision`](crate::event::Provenance::controller_decision) would anchor
+/// the event log's causal chain on client-chosen identity (`spike/FINDINGS.md` F4).
+///
+/// So the division is now in the types rather than in prose:
+///
+/// ```text
+/// a client or controller submits   ActionRequest    who, what, of whom, from where
+/// the world makes it an intent     ActionIntent     + the ActionId and the WorldTime it assigns
+/// ```
+///
+/// `issued_at` is absent for the same reason `action_id` is: a client does not have the world's
+/// clock. The spike's clients echoed the `at` of the last observation they had received — the time of
+/// a past frame rather than of the request — which was harmless there and wrong in principle.
+///
+/// Correlating an answer with a request is a *protocol* concern and is deliberately not here: a
+/// transport pairs its own frames, with its own token, and a token in this type would be a protocol
+/// field in the kernel's vocabulary.
+///
+/// The fields are private for the same reason [`ActionIntent`]'s are: `action_type` is the type the
+/// payload record was written from, and no construction path — including deserialization — may let a
+/// request claim one type while carrying another. That check matters more here than anywhere, because
+/// a request is exactly the value a non-Rust client hand-builds.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(
+    try_from = "ActionRequestFields<P>",
+    bound(deserialize = "P: Deserialize<'de>")
+)]
+pub struct ActionRequest<P = Vec<u8>> {
+    actor: EntityId,
+    action_type: ActionTypeId,
+    target: Option<EntityId>,
+    payload: ActionRecord<P>,
+    actor_location: Option<Location>,
+}
+
+impl<P> ActionRequest<P> {
+    /// The two facts a request cannot omit: who is asking, and what is being asked with what
+    /// payload.
+    ///
+    /// The action type is read off the payload record rather than taken as an argument, so the two
+    /// cannot be given inconsistently. A target and a reported location are added with
+    /// [`ActionRequest::with_target`] and [`ActionRequest::from_location`], because an action may
+    /// genuinely have neither: `docs/ENGINEERING_RULES.md` §7 names sending a message and applying
+    /// for a remote job as actions with no target and no spatial grounding at all.
+    pub fn new(actor: EntityId, payload: ActionRecord<P>) -> Self {
+        Self {
+            actor,
+            action_type: payload.action_type().clone(),
+            target: None,
+            payload,
+            actor_location: None,
+        }
+    }
+
+    /// Names the entity the request is about.
+    #[must_use]
+    pub fn with_target(mut self, target: EntityId) -> Self {
+        self.target = Some(target);
+        self
+    }
+
+    /// Reports where the client believes the actor was when the request was made. See
+    /// [`ActionIntent`] for why this is a report and not an assertion.
+    #[must_use]
+    pub fn from_location(mut self, location: Location) -> Self {
+        self.actor_location = Some(location);
+        self
+    }
+
+    /// Who is asking.
+    pub const fn actor(&self) -> EntityId {
+        self.actor
+    }
+
+    /// What kind of request this is.
+    pub const fn action_type(&self) -> &ActionTypeId {
+        &self.action_type
+    }
+
+    /// The entity the request is about, if it is about one.
+    pub const fn target(&self) -> Option<EntityId> {
+        self.target
+    }
+
+    /// The request's payload, still encoded.
+    pub const fn payload(&self) -> &ActionRecord<P> {
+        &self.payload
+    }
+
+    /// Where the client reports the actor was, if it reported anything.
+    pub const fn actor_location(&self) -> Option<&Location> {
+        self.actor_location.as_ref()
+    }
+}
+
+/// The serialized shape of an [`ActionRequest`], read back through the same agreement check that
+/// construction applies.
+///
+/// This is the boundary that most needs the check. A Rust caller goes through
+/// [`ActionRequest::new`], which reads the action type off the record; a client hand-building JSON
+/// writes both and can write them differently.
+#[derive(Deserialize)]
+struct ActionRequestFields<P> {
+    actor: EntityId,
+    action_type: ActionTypeId,
+    target: Option<EntityId>,
+    payload: ActionRecord<P>,
+    actor_location: Option<Location>,
+}
+
+impl<P> TryFrom<ActionRequestFields<P>> for ActionRequest<P> {
+    type Error = ContractError;
+
+    fn try_from(value: ActionRequestFields<P>) -> Result<Self, Self::Error> {
+        if value.action_type != *value.payload.action_type() {
+            return Err(ContractError::ActionIntentPayloadMismatch {
+                action_type: value.action_type,
+                payload_action_type: value.payload.action_type().clone(),
+            });
+        }
+        Ok(Self {
+            actor: value.actor,
+            action_type: value.action_type,
+            target: value.target,
+            payload: value.payload,
+            actor_location: value.actor_location,
+        })
+    }
+}
+
+/// What a controller or a client asks the world for, once the world has given it an identity.
 ///
 /// A request, never a fact (`INV-2`). Nothing here resolves, validates or records anything; an
 /// intent that is never dispatched has no effect on any world, and an intent that is dispatched
 /// may be answered with any [`ActionResult`].
+///
+/// The identity and the instant are the world's, not the submitter's. [`ActionIntent::allocate`]
+/// takes an [`ActionRequest`] and adds them, and that is the path anything outside the kernel uses:
+/// see [`ActionRequest`] for why a client that allocated its own [`ActionId`] would anchor the event
+/// log's causal chain on identity it invented. [`ActionIntent::new`] remains for code that is *in*
+/// the world — a system, a test, the dispatcher's own callers — where the allocator is at hand and
+/// there is no request to convert.
 ///
 /// `actor_location` is what the *client* reports about where the actor was when the request was
 /// made — not the authoritative position, which the server holds. It exists because a spatial
@@ -390,6 +573,10 @@ impl<P> ActionIntent<P> {
     /// The four facts a request cannot omit: which request this is, who is asking, what is being
     /// asked with what payload, and when it was issued.
     ///
+    /// For code **inside** the world: a system, a test, or a caller that already holds the
+    /// allocator. Anything submitting from outside builds an [`ActionRequest`] and the world calls
+    /// [`ActionIntent::allocate`], because nothing outside the kernel may invent an [`ActionId`].
+    ///
     /// The action type is read off the payload record rather than taken as an argument, so the two
     /// cannot be given inconsistently. A target and a reported location are added with
     /// [`ActionIntent::with_target`] and [`ActionIntent::from_location`], because an action may
@@ -409,6 +596,24 @@ impl<P> ActionIntent<P> {
             payload,
             issued_at,
             actor_location: None,
+        }
+    }
+
+    /// Turns what a client submitted into what the world will dispatch, by supplying the two things
+    /// only the world has: the identity it allocated and the instant it is working in.
+    ///
+    /// This is the only way to obtain an intent from a request, and there is deliberately no way for
+    /// a request to acquire an identity by itself. Every other field is carried across unchanged —
+    /// the world does not edit what was asked for; it decides whether to grant it.
+    pub fn allocate(request: ActionRequest<P>, action_id: ActionId, issued_at: WorldTime) -> Self {
+        Self {
+            action_id,
+            actor: request.actor,
+            action_type: request.action_type,
+            target: request.target,
+            payload: request.payload,
+            issued_at,
+            actor_location: request.actor_location,
         }
     }
 

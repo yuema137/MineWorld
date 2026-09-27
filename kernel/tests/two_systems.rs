@@ -513,15 +513,15 @@ fn replaying_the_same_operations_reproduces_an_identical_world() {
         written["entities"]["entities"]["4"]["key"],
         serde_json::json!("leaving")
     );
-    assert_eq!(written["history"][0]["id"], 1);
+    assert_eq!(written["history"][0]["id"], "1");
     assert_eq!(
         written["history"][0]["caused_by"],
-        serde_json::json!({ "action": 1 })
+        serde_json::json!({ "action": "1" })
     );
     assert_eq!(written["history"][3]["event_type"], "forecasted");
     assert_eq!(
         written["relations"]["edges"][0]["from"],
-        serde_json::json!(EntityId::from_raw(1).raw())
+        serde_json::json!(EntityId::from_raw(1).to_string())
     );
 }
 

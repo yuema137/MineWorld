@@ -559,8 +559,13 @@ commitment was made (§15).
 HTTP or WebSocket type, and simulation semantics are transport-independent (`INV-14`).
 
 **Accepted limitations.** JSON over WebSocket is not a compact encoding; acceptable for a life
-simulation, and replaceable behind the same boundary. The wire encoding must render 64-bit ids as
-strings — see the S2 plan's DD-15 and risk R-9, a defect found by that same spike.
+simulation, and replaceable behind the same boundary. 64-bit ids must reach a client as decimal
+strings — a defect found by that same spike (the S2 plan's DD-15 and risk R-9). That is no longer
+the transport's obligation: the renderer-integration spike showed a protocol-level encoder cannot
+reach inside a component or event payload, so `mineworld-contracts` now encodes the four opaque
+identities as decimal strings whenever the format is human-readable and as a `u64` whenever it is
+not (`contracts/src/ids.rs`, `spike/FINDINGS.md` F2). A transport carrying contract types in JSON
+therefore inherits the correct encoding and must not re-implement it.
 
 ---
 

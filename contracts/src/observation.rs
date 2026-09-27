@@ -39,6 +39,7 @@ use crate::entity::Tags;
 use crate::error::ContractError;
 use crate::event::EventEnvelope;
 use crate::ids::{EntityId, EntityType};
+use crate::relation::Relation;
 use crate::spatial::{Location, SpatialRequirement};
 use crate::time::WorldTime;
 
@@ -276,12 +277,40 @@ impl TryFrom<AffordanceFields> for Affordance {
 ///
 /// `self_location` is the observer's own position, which is what lets a controller decide to move
 /// before deciding to act.
+///
+/// # Why relations are here, and what stops them widening the view
+///
+/// Place hierarchy and place adjacency are *relations*, deliberately: `spatial.rs` states that "a
+/// kitchen is inside a café is a relation (S1), not a field of this type". A place entity therefore
+/// has no [`Location`] of its own — giving the café a location inside itself is nonsense — and
+/// without relations an observation can describe one room and never a world. "Walk out of the café
+/// and along the promenade" is what this project exists to build, and it was unrepresentable in this
+/// type (`spike/FINDINGS.md` F3).
+///
+/// `relations` closes that, and is bounded the same way every other field here is: the perception
+/// system that decided which entities and which events this observer may know about decides the
+/// edges too. It is **not** the world's relation graph, not a subgraph the observer may query, and
+/// not a table a client filters — it is the edges the world chose to state, and `INV-13` holds for
+/// exactly the reason it holds for `entities`: there is nothing here to widen and nothing to ask
+/// again.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Observation<P = Vec<u8>> {
     observer: EntityId,
     at: WorldTime,
     self_location: Option<Location>,
     entities: Vec<PerceivedEntity<P>>,
+    /// The edges the observer is entitled to know about — never the world's relation graph.
+    ///
+    /// Filled by the same perception step that fills `entities`, and subject to the same rule: an
+    /// edge appears here because a perception system decided this observer may know it. A
+    /// perception system that put every edge in a world here would defeat `INV-13` as surely as one
+    /// that listed every entity, and the two mistakes are the same mistake.
+    ///
+    /// An edge may name an entity the observation does not list. That is not a defect: knowing that
+    /// the café adjoins the promenade is a different piece of knowledge from perceiving the
+    /// promenade, and a client must treat an unlisted endpoint as something it has been told about
+    /// rather than something it can draw.
+    relations: Vec<Relation>,
     events: Vec<PerceivedEvent<P>>,
     affordances: Vec<Affordance>,
 }
@@ -296,6 +325,7 @@ impl<P> Observation<P> {
             at,
             self_location: None,
             entities: Vec::new(),
+            relations: Vec::new(),
             events: Vec::new(),
             affordances: Vec::new(),
         }
@@ -312,6 +342,17 @@ impl<P> Observation<P> {
     #[must_use]
     pub fn perceiving(mut self, entities: Vec<PerceivedEntity<P>>) -> Self {
         self.entities = entities;
+        self
+    }
+
+    /// Exposes exactly these relations, and by that act exactly no others.
+    ///
+    /// Called by the perception system that also chose the entities, because the judgement is the
+    /// same judgement. A caller that means "every edge in the world" is not exposing an
+    /// observation.
+    #[must_use]
+    pub fn relating(mut self, relations: Vec<Relation>) -> Self {
+        self.relations = relations;
         self
     }
 
@@ -348,6 +389,13 @@ impl<P> Observation<P> {
     /// a page or a first result set, and there is no second call that would return more.
     pub fn entities(&self) -> &[PerceivedEntity<P>] {
         &self.entities
+    }
+
+    /// The edges the observer was shown. Exhaustive in the same sense as
+    /// [`Observation::entities`]: this is the whole of what was exposed, and there is no second
+    /// call that would return more.
+    pub fn relations(&self) -> &[Relation] {
+        &self.relations
     }
 
     /// The events the observer is entitled to.

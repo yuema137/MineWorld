@@ -14,6 +14,30 @@ A finding is marked `[verified]` only once a run produced the evidence named und
 
 ---
 
+## What happened to these findings (added 2026-09-26)
+
+**Nothing below has been rewritten.** The findings, the measurements and the evidence in
+`spike/evidence/` are the record as it was made, and a later fix does not get to edit the
+observation that motivated it. This section says only what was decided afterwards, so that a
+reader is not misled by a description of a file that no longer exists.
+
+| Finding | Decision | Where |
+| --- | --- | --- |
+| **F2** | Accepted. The encoding moved onto the four opaque id newtypes, keyed on `Serializer::is_human_readable()`. **`spike/server/src/wire.rs` is deleted** and this server now sends the contract's own `serde_json` output unmodified. Every description of `wire.rs` below is therefore historical. `DD-15` is marked superseded by evidence in the S2 plan. | PR 04 |
+| **F3** | Accepted in the half that was a contract defect: `Observation` now carries `relations: Vec<Relation>`. The `place-extent` half needed no change, as F3 itself concluded. | PR 04 |
+| **F4** | Accepted. `ActionRequest` is what a client submits, and `ActionIntent::allocate` is how the world turns one into an intent with the identity and the time it assigns. | PR 04 |
+| **F6** | Accepted; `AC-13` reworded. | `a6ad5c7` |
+| **F1, F5, F7, F8, F9** | F1 is subsumed by F2's fix. F5 was answered by documentation in `a6ad5c7`. F7, F8 and F9 are S11's, unchanged. | — |
+
+The spike's two clients and its server were updated to the post-fix frame — one encoding instead
+of two — and **were not re-run**: a Godot round trip against a server with no encoder at all is
+S11's acceptance test, where risk R-9 already assigns it. What was re-run is the server's own
+`--dump`, whose output is quoted in PR 04's ledger: an `EntityId` inside a component payload now
+reaches a client as `"9007199254740995"`, which is the exact position F2 measured as
+`protected=false`.
+
+---
+
 ## What was built
 
 ```text

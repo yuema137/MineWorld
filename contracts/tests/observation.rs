@@ -11,9 +11,10 @@
 
 use mineworld_contracts::{
     ActionTypeId, Affordance, Component, ComponentRecord, ComponentSchemaVersion, ComponentTypeId,
-    ContractError, EntityId, EntityType, LocalPosition, Location, Millidegrees, Millimetres,
-    Observation, Orientation, PerceivedEntity, PlaceId, Rejection, SpatialRequirement, SystemId,
-    Tag, Tags, WorldTime,
+    ContractError, Entity, EntityId, EntityKey, EntityType, EntityTypeSet, LocalPosition, Location,
+    Millidegrees, Millimetres, Observation, Orientation, PerceivedEntity, PlaceId, Rejection,
+    Relation, RelationTypeDeclaration, RelationTypeId, SpatialRequirement, SystemId, Tag, Tags,
+    WorldTime,
 };
 use serde::{Deserialize, Serialize};
 
@@ -207,7 +208,7 @@ fn an_affordance_cannot_disagree_with_itself_about_availability() {
     .unwrap();
     assert_eq!(
         available,
-        r#"{"action_type":"talk","target":42,"available":true,"unavailable_reason":null,"requirement":{"place":"any","within_range":null,"requires_line_of_access":false,"requires_target_available":false}}"#
+        r#"{"action_type":"talk","target":"42","available":true,"unavailable_reason":null,"requirement":{"place":"any","within_range":null,"requires_line_of_access":false,"requires_target_available":false}}"#
     );
     assert!(serde_json::from_str::<Affordance>(&available).is_ok());
 
@@ -244,8 +245,7 @@ fn an_affordance_cannot_disagree_with_itself_about_availability() {
 #[test]
 fn an_observation_is_stored_as_its_documented_shape() {
     let minimal = Observation::<String>::new(EntityId::from_raw(41), WorldTime::EPOCH);
-    let text =
-        r#"{"observer":41,"at":0,"self_location":null,"entities":[],"events":[],"affordances":[]}"#;
+    let text = r#"{"observer":"41","at":0,"self_location":null,"entities":[],"relations":[],"events":[],"affordances":[]}"#;
     assert_eq!(serde_json::to_string(&minimal).unwrap(), text);
     assert_eq!(
         serde_json::from_str::<Observation<String>>(text).unwrap(),
@@ -255,6 +255,7 @@ fn an_observation_is_stored_as_its_documented_shape() {
     // A world in which a person perceives nothing is a legitimate world, and it is also what an
     // observation is before anything is deliberately exposed.
     assert!(minimal.entities().is_empty());
+    assert!(minimal.relations().is_empty());
     assert!(minimal.affordances().is_empty());
     assert_eq!(minimal.entity(EntityId::from_raw(42)), None);
 
@@ -265,4 +266,107 @@ fn an_observation_is_stored_as_its_documented_shape() {
         serde_json::from_str::<Observation<String>>(&text).unwrap(),
         scene
     );
+}
+
+// -------------------------------------------------------------------------------------------
+// Relations in an observation (`spike/FINDINGS.md` F3)
+// -------------------------------------------------------------------------------------------
+
+/// The place hierarchy and adjacency a client needs in order to render a *world* rather than a
+/// room. Declared by an invented geography system, because relation types are a system's
+/// declaration and never the kernel's.
+fn contains() -> RelationTypeDeclaration {
+    RelationTypeDeclaration::directed(
+        RelationTypeId::new("contains").unwrap(),
+        SystemId::new("geography-stub").unwrap(),
+        EntityTypeSet::new([EntityType::Place]).unwrap(),
+        EntityTypeSet::new([EntityType::Place]).unwrap(),
+    )
+}
+
+fn adjoins() -> RelationTypeDeclaration {
+    RelationTypeDeclaration::undirected(
+        RelationTypeId::new("adjoins").unwrap(),
+        SystemId::new("geography-stub").unwrap(),
+        EntityTypeSet::new([EntityType::Place]).unwrap(),
+    )
+}
+
+fn place(id: u64, key: &str) -> Entity {
+    Entity::new(
+        EntityId::from_raw(id),
+        EntityKey::new(key).unwrap(),
+        EntityType::Place,
+    )
+}
+
+/// "Walk out of the café and along the promenade" — the project's north star
+/// (`ENGINEERING_RULES.md` §1), and unrepresentable in an `Observation` until this field existed.
+///
+/// A place entity has no `Location` of its own, and place hierarchy is *defined* as a relation
+/// rather than a field (`spatial.rs`), so relations were the one mechanism that could tell a client
+/// the café contains a kitchen and adjoins the promenade — and the one mechanism an observation
+/// could not deliver (`spike/FINDINGS.md` F3).
+#[test]
+fn an_observation_carries_the_place_structure_a_client_needs_to_render_a_world() {
+    let cafe = place(7, "lakeside-cafe");
+    let kitchen = place(8, "cafe-kitchen");
+    let promenade = place(9, "lakeside-promenade");
+
+    let inside =
+        Relation::between(&contains(), &cafe, &kitchen).expect("a café contains a kitchen");
+    let along = Relation::between(&adjoins(), &promenade, &cafe).expect("the two places adjoin");
+
+    let observation = Observation::<String>::new(EntityId::from_raw(41), WorldTime::EPOCH)
+        .perceiving(vec![PerceivedEntity::new(
+            EntityId::from_raw(7),
+            EntityType::Place,
+        )])
+        .relating(vec![inside.clone(), along.clone()]);
+
+    assert_eq!(observation.relations().len(), 2);
+    assert_eq!(observation.relations()[0], inside);
+    assert_eq!(
+        observation.relations()[0].relation_type(),
+        &RelationTypeId::new("contains").unwrap()
+    );
+    assert_eq!(observation.relations()[0].from(), EntityId::from_raw(7));
+    assert_eq!(observation.relations()[0].to(), EntityId::from_raw(8));
+
+    // The undirected edge arrived canonically ordered, as `Relation::between` guarantees: the
+    // observation transports edges and does not re-form them, so a client reading two observations
+    // cannot see one edge two ways.
+    assert_eq!(observation.relations()[1], along);
+    assert_eq!(observation.relations()[1].from(), EntityId::from_raw(7));
+    assert_eq!(observation.relations()[1].to(), EntityId::from_raw(9));
+
+    // An edge may name an entity this observer was not shown. Being told that the café adjoins the
+    // promenade is not the same as perceiving the promenade, and a client must not treat it as
+    // something it can draw.
+    assert!(observation.entity(EntityId::from_raw(9)).is_none());
+
+    // And it crosses the wire, ids and all. Written by hand, including the id encoding.
+    let text = serde_json::to_string(&observation).unwrap();
+    assert!(
+        text.contains(r#""relations":[{"relation_type":"contains","from":"7","to":"8"},{"relation_type":"adjoins","from":"7","to":"9"}]"#),
+        "the relations must be on the wire in the documented shape, but the frame was: {text}"
+    );
+    assert_eq!(
+        serde_json::from_str::<Observation<String>>(&text).unwrap(),
+        observation
+    );
+}
+
+/// Exposure is deliberate, never incidental: a fresh observation lists no relations, exactly as it
+/// lists no entities. `INV-13` is preserved by the same construction — the field is a list of what
+/// was chosen, and a perception system that put every edge in a world here would be making the same
+/// mistake as one that listed every entity.
+#[test]
+fn an_observation_exposes_no_relations_until_one_is_deliberately_added() {
+    let observation = Observation::<String>::new(EntityId::from_raw(41), WorldTime::EPOCH);
+    assert!(observation.relations().is_empty());
+
+    // The scene the rest of this file uses names no relations either, so nothing about perceiving
+    // two people implies an edge between them.
+    assert!(scene().relations().is_empty());
 }

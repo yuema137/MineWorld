@@ -10,19 +10,22 @@
 //!
 //! `PLACE`, `ALICE` and `MUG` are above 2^53, which is where an IEEE-754 double stops being able
 //! to count. As doubles, `9007199254740995` (Alice) and `9007199254740997` (the mug) are both
-//! `9007199254740996`: two distinct entities collapse into one. That is the `DD-15` trap, made
-//! unmissable rather than theoretical.
+//! `9007199254740996`: two distinct entities collapse into one. That is the trap `DD-15` was
+//! written for, made unmissable rather than theoretical — and it is now the contract that defuses
+//! it, at the type rather than at the frame, so this server holds no encoder.
 
 use mineworld_contracts::{
-    ActionId, ActionIntent, ActionResult, ActionTypeId, Affordance, Causation, ComponentRecord,
-    EntityId, EntityType, Event, EventEnvelope, EventId, EventRecord, LocalPosition, Location,
-    Millidegrees, Millimetres, Orientation, PerceivedEntity, PerceivedEvent, PlaceId, Provenance,
-    Rejection, SpatialRequirement, Tag, Tags, Visibility, WorldTime,
+    ActionId, ActionIntent, ActionRequest, ActionResult, ActionTypeId, Affordance, Causation,
+    ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventId, EventRecord,
+    LocalPosition, Location, Millidegrees, Millimetres, Orientation, PerceivedEntity,
+    PerceivedEvent, PlaceId, Provenance, Rejection, SpatialRequirement, Tag, Tags, Visibility,
+    WorldTime,
 };
 use serde_json::Value;
 
 use crate::vocabulary::{
-    Body, ConversationStarted, DisplayName, MoveTo, Moved, PickUp, PlaceExtent, Signage, Talk,
+    Body, ConversationStarted, DisplayName, MoveTo, Moved, Ownership, PickUp, PlaceExtent, Signage,
+    Talk,
 };
 
 /// `2^53 + 1`. A double rounds it to `9007199254740992`.
@@ -64,6 +67,7 @@ pub struct SpikeWorld {
     things: Vec<Thing>,
     /// Where the authoritative player body is walking to, and which request asked for it.
     goal: Option<(LocalPosition, ActionId)>,
+    next_action: u64,
     next_event: u64,
     log: Vec<EventEnvelope<Value>>,
 }
@@ -160,6 +164,7 @@ impl SpikeWorld {
                 },
             ],
             goal: None,
+            next_action: 9_007_199_254_741_001,
             next_event: 9_007_199_254_741_101,
             log: Vec::new(),
         }
@@ -292,6 +297,17 @@ impl SpikeWorld {
         if let Some(body) = &thing.body {
             components.push(component::<Body>(thing.id, body.clone()));
         }
+        // The mug belongs to Alice, whose id is above 2^53. An `EntityId` inside a component
+        // payload is the position `FINDINGS.md` F2 showed a protocol-level encoder cannot reach,
+        // and it now reaches a client as a decimal string with this server doing nothing.
+        if thing.id.raw() == MUG {
+            components.push(component::<Ownership>(
+                thing.id,
+                Ownership {
+                    owner: EntityId::from_raw(ALICE),
+                },
+            ));
+        }
         PerceivedEntity::new(thing.id, thing.entity_type)
             .at(self.location_of(thing.id))
             .with_tags(tags(thing.tags))
@@ -388,6 +404,23 @@ impl SpikeWorld {
     // ---------------------------------------------------------------------------------------
     // Dispatch
     // ---------------------------------------------------------------------------------------
+
+    /// Allocates the identity of one submitted request, and turns the request into the intent the
+    /// world will dispatch.
+    ///
+    /// This is the half `FINDINGS.md` F4 said no client may perform. Both spike clients used to
+    /// invent an `ActionId` from a local counter, so two of them collided on their first action; now
+    /// they submit an `ActionRequest` with no identity at all and this counter — the world's — is the
+    /// only allocator. The instant is the world's clock for the same reason: a client knows only the
+    /// time of the last observation it received, which is a past frame.
+    ///
+    /// A plain monotonic counter, deliberately, and starting above 2^53 so that the id a client gets
+    /// back is one a naive parser would corrupt.
+    pub fn allocate(&mut self, request: ActionRequest<Value>) -> ActionIntent<Value> {
+        let action_id = ActionId::from_raw(self.next_action);
+        self.next_action += 1;
+        ActionIntent::allocate(request, action_id, self.now)
+    }
 
     /// Resolves a submitted request. The one place a world rule runs.
     ///

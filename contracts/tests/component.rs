@@ -218,11 +218,11 @@ fn a_record_is_stored_as_its_documented_shape() {
 
     assert_eq!(
         serde_json::to_string(&record).unwrap(),
-        r#"{"entity":7,"component_type":"flagged","schema_version":1,"payload":"{}"}"#
+        r#"{"entity":"7","component_type":"flagged","schema_version":1,"payload":"{}"}"#
     );
     assert_eq!(
         serde_json::from_str::<ComponentRecord<String>>(
-            r#"{"entity":7,"component_type":"flagged","schema_version":1,"payload":"{}"}"#
+            r#"{"entity":"7","component_type":"flagged","schema_version":1,"payload":"{}"}"#
         )
         .unwrap(),
         record

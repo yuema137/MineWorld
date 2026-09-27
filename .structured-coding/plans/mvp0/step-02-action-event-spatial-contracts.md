@@ -108,6 +108,7 @@ This PR defines shapes and their invariants. Nothing here decides an outcome.
 | **DD-13** | `Affordance` carries `action_type` and `target`, not display text. The client maps an action type to a label ("talk" → "Talk") and reads the target's name from a component in the same `Observation`. | Label text and localization are presentation concerns, so putting them in the contract would pull presentation into the kernel. But the *name* of a target is world data and must come from a component, or the client would invent it. Established by the 3D spike below, which needed exactly `entity_id → name → action label` to render `[E] Talk to Alice`. |
 | **DD-14** | `PerceivedEntity` must carry enough for a client to bind a rendered body to a world entity and back: the `EntityId` is the join key, and the client attaches it to its own node. The contract says nothing about how. | The spike attached `entity_id` as node metadata and recovered it from a raycast collider. That pattern works for any engine and needs no contract support beyond the id already being in the observation — confirming no engine concept has to enter the contract (`ENGINEERING_RULES.md` §12). |
 | **DD-15** | Contract types keep integer ids. The **JSON wire encoding is S11's responsibility** and must render 64-bit ids as decimal strings. Recorded here so S11 inherits it as a requirement rather than rediscovering it. | A networking spike found that Godot's `JSON.parse_string` returns every number as a double: the server sent `"events":[9001]` and the client read `9001.0`. Ids above 2^53 would corrupt silently. The wrong fix is to make the contract serialize ids as strings — that would distort persistence and any binary encoding to suit one client's parser. The right fix is a wire-level representation at the protocol boundary, which is exactly what a presentation-independent architecture is for. |
+| **DD-15 (superseded 2026-09-26)** | **Superseded by evidence, not by opinion.** The contract's four opaque identities now encode themselves: a decimal string when `Serializer::is_human_readable()`, the `u64` when it does not. The wire encoding is no longer S11's responsibility and S11 must not re-implement it (`contracts/src/ids.rs`; PR 04). | The renderer-integration spike implemented DD-15 exactly as written (`spike/server/src/wire.rs`) and measured what it could not reach: `ComponentRecord<P>` and `EventRecord<P>` are payload-erasure boundaries, so a protocol layer cannot see inside them either — and real payloads carry ids (`Employment { employer }`, `Conversation { talking_to }`, `Ownership { owner }`). DD-15 protected the envelope and left the cargo exposed, silently: measured as `sent 9007199254740999, parsed 9007199254741000, protected=false` in `spike/evidence/client-2d.log`. DD-15's objection to "strings in the contract" was that it "would distort persistence and any binary encoding"; `is_human_readable()` is precisely the distinction that prevents that, so the objection is answered rather than overruled. See `spike/FINDINGS.md` F2. |
 | **DD-12** | Demos are validated by running Godot with a script that drives input and writes PNG frames, which are then inspected; Godot 4.7.2 is installed and confirmed to run headless with script output. | `ENGINEERING_RULES.md` §19 requires actually running the renderer. Recorded here because it is the reason no engine-visual concept needs to enter these contracts to make verification possible. |
 
 ---
@@ -757,6 +758,15 @@ WHY IT MATTERS  Godot parses every JSON number as a double. EntityId and
 DECISION  DD-15: contracts keep integer ids; S11 owns a wire encoding that
         renders 64-bit ids as decimal strings, with a round-trip test through
         an actual Godot client rather than through a Rust-only test.
+SUPERSEDED (2026-09-26, PR 04)  The renderer-integration spike implemented this
+        decision and measured that a protocol-level encoder cannot reach ids
+        inside a ComponentRecord or EventRecord payload, which is where real
+        System Pack payloads put them. The encoding moved onto the four id
+        newtypes, keyed on Serializer::is_human_readable(), which leaves binary
+        encodings untouched and so answers this decision's own objection. The
+        Godot round-trip requirement stands and remains S11's: it must now be
+        run against a server with no wire encoder at all. See FINDINGS.md F2
+        and the superseding row in §2's decision table.
 NOT A CHANGE TO S1  PR 01 is unaffected and was not interrupted: the defect is
         at the protocol boundary, not in the contract representation.
 ```

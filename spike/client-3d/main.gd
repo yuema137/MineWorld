@@ -45,7 +45,6 @@ var built := false
 # entity id (wire form, a decimal string) -> the node drawn for it. DD-14 in both directions.
 var bodies: Dictionary = {}
 
-var next_action_id := 8000
 var last_result := ""
 var step := 0
 var settled := 0
@@ -259,10 +258,10 @@ func _receive(text: String) -> void:
 		return
 	match frame.get("t", ""):
 		"observation":
-			observation = frame["wire"]
+			observation = frame["observation"]
 			if not reported:
 				reported = true
-				_report_dd15(frame["naive"])
+				_report_id_encoding()
 		"result":
 			last_result = _describe_result(frame["result"])
 			note("server answered: %s" % last_result)
@@ -271,23 +270,23 @@ func _receive(text: String) -> void:
 			note(last_result)
 
 
-func _report_dd15(naive: Dictionary) -> void:
+# One encoding now: the contract's own. The corruption is produced here, from the string, rather
+# than by asking the server for a second copy of the frame.
+func _report_id_encoding() -> void:
 	var alice := _entity_named("Alice")
 	var mug := _entity_named("Chipped mug")
-	var alice_naive = null
-	var mug_naive = null
-	for entity in naive["entities"]:
-		var found := ""
-		for component in entity.get("components", []):
-			if component["component_type"] == "display-name":
-				found = component["payload"]["name"]
-		if found == "Alice":
-			alice_naive = entity["id"]
-		elif found == "Chipped mug":
-			mug_naive = entity["id"]
-	note("DD-15 wire  alice=%s mug=%s (exact, typeof=%d)" % [alice["id"], mug["id"], typeof(alice["id"])])
-	note("DD-15 naive alice=%.0f mug=%.0f (typeof=%d) collide=%s"
-		% [float(alice_naive), float(mug_naive), typeof(alice_naive), str(float(alice_naive) == float(mug_naive))])
+	if alice.is_empty() or mug.is_empty():
+		return
+	var alice_id: String = alice["id"]
+	var mug_id: String = mug["id"]
+	note("contract alice=%s mug=%s (exact, typeof=%d)" % [alice_id, mug_id, typeof(alice["id"])])
+	note("as JSON numbers alice=%.0f mug=%.0f collide=%s"
+		% [float(alice_id), float(mug_id), str(float(alice_id) == float(mug_id))])
+	# F2: an EntityId inside a component payload, which no protocol-level encoder could reach.
+	for component in mug.get("components", []):
+		if component["component_type"] == "ownership":
+			var owner = component["payload"]["owner"]
+			note("F2 payload id: owner=%s protected=%s" % [str(owner), str(typeof(owner) == TYPE_STRING)])
 
 
 func send(frame: Dictionary) -> void:
@@ -302,8 +301,10 @@ func note(text: String) -> void:
 
 # The same fields the 2D client sends, with one deliberate difference: actor_location is present,
 # because this client does model a continuous position and the contract says it may report one.
+#
+# No action_id and no issued_at, for the same reason as the 2D client: the world allocates identity
+# and owns the clock (FINDINGS.md F4).
 func submit(action_type: String, target, payload: Dictionary, with_location: bool) -> void:
-	next_action_id += 1
 	var location = null
 	if with_location:
 		var here := to_world(player.global_position - Vector3(0, 0.9, 0))
@@ -312,16 +313,14 @@ func submit(action_type: String, target, payload: Dictionary, with_location: boo
 			"local": {"x": int(here.x), "y": int(here.y), "z": 0},
 			"facing": {"yaw": godot_yaw_to_bearing(player.rotation.y), "pitch": null},
 		}
-	var intent := {
-		"action_id": str(next_action_id),
+	var request := {
 		"actor": observation["observer"],
 		"action_type": action_type,
 		"target": target,
 		"payload": {"action_type": action_type, "payload": payload},
-		"issued_at": int(observation["at"]),
 		"actor_location": location,
 	}
-	send({"t": "intent", "client": CLIENT_TAG, "intent": intent})
+	send({"t": "request", "client": CLIENT_TAG, "request": request})
 
 
 # ---------------------------------------------------------------------------------------------
