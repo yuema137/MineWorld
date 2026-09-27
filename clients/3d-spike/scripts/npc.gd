@@ -13,7 +13,10 @@
 class_name NPC
 extends Node3D
 
-enum Pose { WALK, STAND, SIT, LEAN }
+## PUPPET is a body whose position and gait are driven from outside -- the
+## player character (see `player.gd`), which is this same mannequin moved by the
+## real controller instead of along a path.
+enum Pose { WALK, STAND, SIT, LEAN, PUPPET }
 
 const SKINS := [
 	Color(0.78, 0.60, 0.47), Color(0.62, 0.44, 0.32), Color(0.88, 0.72, 0.60),
@@ -45,6 +48,7 @@ var _leg_r: Node3D
 var _arm_l: Node3D
 var _arm_r: Node3D
 var _t := 0.0
+var _gait := 0.0
 var _dir := 1.0
 
 
@@ -197,6 +201,29 @@ func _apply_pose(k: float) -> void:
 			pass
 
 
+## Limb swing at gait phase `s`, scaled by `amount` (0 = standing still, 1 = a
+## stroll). One implementation, shared by the walking NPCs and by the player
+## character, which is the same mannequin.
+func _swing(s: float, amount: float) -> void:
+	var a := clampf(amount, 0.0, 1.35)
+	_leg_l.rotation.x = sin(s) * 0.50 * a
+	_leg_r.rotation.x = -sin(s) * 0.50 * a
+	(_leg_l.get_child(1) as Node3D).rotation.x = maxf(0.0, -cos(s)) * 0.75 * a
+	(_leg_r.get_child(1) as Node3D).rotation.x = maxf(0.0, cos(s)) * 0.75 * a
+	_arm_l.rotation.x = -sin(s) * 0.40 * a
+	_arm_r.rotation.x = sin(s) * 0.40 * a
+	(_arm_l.get_child(1) as Node3D).rotation.x = (-0.25 - maxf(0.0, sin(s)) * 0.35) * a
+	(_arm_r.get_child(1) as Node3D).rotation.x = (-0.25 - maxf(0.0, -sin(s)) * 0.35) * a
+
+
+## Drive a PUPPET body from a ground speed measured somewhere else. Phase
+## advances with distance covered, so the cadence follows the speed and a stroll
+## and a jog do not need separate animation states.
+func step(delta: float, speed_mps: float) -> void:
+	_gait += delta * maxf(speed_mps, 0.0) * 2.3
+	_swing(_gait + phase, speed_mps / 1.45)
+
+
 func _process(delta: float) -> void:
 	if pose == Pose.WALK:
 		_t += delta
@@ -211,16 +238,7 @@ func _process(delta: float) -> void:
 		global_position = Vector3(p.x, global_position.y, p.z)
 		var facing := -seg.normalized() if back else seg.normalized()
 		rotation.y = atan2(facing.x, facing.z)
-		var s := _t * speed * 3.3 + phase
-		var swing := 0.50
-		_leg_l.rotation.x = sin(s) * swing
-		_leg_r.rotation.x = -sin(s) * swing
-		(_leg_l.get_child(1) as Node3D).rotation.x = maxf(0.0, -cos(s)) * 0.75
-		(_leg_r.get_child(1) as Node3D).rotation.x = maxf(0.0, cos(s)) * 0.75
-		_arm_l.rotation.x = -sin(s) * 0.40
-		_arm_r.rotation.x = sin(s) * 0.40
-		(_arm_l.get_child(1) as Node3D).rotation.x = -0.25 - maxf(0.0, sin(s)) * 0.35
-		(_arm_r.get_child(1) as Node3D).rotation.x = -0.25 - maxf(0.0, -sin(s)) * 0.35
+		_swing(_t * speed * 3.3 + phase, 1.0)
 	elif pose == Pose.STAND or pose == Pose.LEAN:
 		_t += delta
 		var b := sin(_t * 0.8 + phase) * 0.012
