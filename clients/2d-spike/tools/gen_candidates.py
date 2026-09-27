@@ -64,7 +64,15 @@ def _multipart(fields, files):
 
 
 def generate(spec, api_key, refs_root):
-    refs = [os.path.join(refs_root, r) for r in spec["refs"]]
+    # A ref may point at an already-generated candidate. That is how the same
+    # person stays the same person across views: the back view is conditioned
+    # on the front view that was just produced, not on a description of it.
+    refs = []
+    for r in spec["refs"]:
+        if r.startswith("candidate:"):
+            refs.append(os.path.join(CANDIDATES, r[len("candidate:"):] + ".png"))
+        else:
+            refs.append(os.path.join(refs_root, r))
     for r in refs:
         if not os.path.exists(r):
             raise SystemExit("missing reference image: %s" % r)

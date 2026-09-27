@@ -1,0 +1,18 @@
+{
+  "gen_a_back": {
+    "ax": 23.5,
+    "ay": 112,
+    "h": 112,
+    "height_m": 1.75,
+    "source": "generated",
+    "w": 47
+  },
+  "gen_a_front": {
+    "ax": 22.0,
+    "ay": 112,
+    "h": 112,
+    "height_m": 1.75,
+    "source": "generated",
+    "w": 44
+  }
+}
