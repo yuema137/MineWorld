@@ -1,0 +1,77 @@
+source_type: generated
+generation:
+  tool: tools/asset_generation (openai-images)
+  provider: openai-images
+  model: gpt-image-2.5-flare
+  workflow_version: 1.0.0
+  date: '2026-09-27'
+  prompt_summary: The attached images are STYLE REFERENCES ONLY - do not copy their content, layout, buildings
+    or characters. Match their…
+  prompt: 'The attached images are STYLE REFERENCES ONLY - do not copy their content, layout, buildings
+
+    or characters. Match their art style exactly: clean illustrated isometric game art, crisp dark
+
+    outlines, cel shading with soft ambient occlusion, warm soft daylight from the upper left,
+
+    saturated but harmonious colour, moderate stylization, and low-to-moderate material detail
+
+    that stays highly readable at small size.
+
+
+    Render the subject ALONE and centred, in the same isometric three-quarter projection as the
+
+    references, at roughly 30 degrees elevation. NO ground plane, NO cast shadow, NO background
+
+    scenery, NO other objects, NO people unless explicitly requested, and NO text or lettering
+
+    except where explicitly requested. Fully transparent background.
+
+
+    A single large mature BROADLEAF TREE with a thick brown trunk, spreading branches and a full rounded
+    canopy of layered green foliage clumps.'
+  parameters:
+    size: 1024x1024
+    quality: high
+    background: transparent
+    output_format: png
+    endpoint: images.edit
+    revised_prompt: null
+  seed: null
+  reference_images:
+  - path: presentation/mineworld-default/2D/references/04_lakeside_park.png
+    digest: sha256:ad483723363f0c601989db46d140d7033cd3771c0fb69579cb16789de4edcff3
+  - path: presentation/mineworld-default/2D/references/01_town_square.png
+    digest: sha256:b3972e811123fb820a766f599ef2f02bb4da41b028fd3007eddcf2f53fdb1793
+  human_curated: false
+  runtime:
+    wall_seconds: 26.2
+    cost_usd_estimate: 0.07694
+    usage:
+      input_tokens: 3109
+      input_tokens_details:
+        image_tokens: 2904
+        text_tokens: 205
+      output_tokens: 1756
+      total_tokens: 4865
+      output_tokens_details:
+        image_tokens: 1756
+        text_tokens: 0
+  asset_group: vegetation
+postprocess:
+  cleaned: true
+  retopology: false
+  texture_adjusted: false
+  background_removed: false
+  normalization:
+  - alpha rescaled so peak 254 -> 255
+  - edge colour bled 8px into transparent region
+approval:
+  status: candidate
+  approved_by: null
+  approved_date: null
+license:
+  redistribution_allowed: true
+  note: Generated with the OpenAI Images API. Under OpenAI's terms of use the customer owns the output
+    images and may use and redistribute them commercially, so these candidates may be committed to and
+    redistributed from MineWorld's MIT-licensed repository. No model weights are redistributed. Reference
+    images are MineWorld's own committed style references.

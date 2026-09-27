@@ -1,0 +1,8 @@
+# Content-production tooling only. Never installed by the server, the clients or CI for tests.
+openai>=2.0
+pillow>=10.0
+pyyaml>=6.0
+
+# Optional: fallback background removal (`--cutout`) when a backend cannot emit alpha natively.
+# The current backend emits alpha directly, so this is not needed for the default recipe.
+# rembg[cpu]>=2.0
