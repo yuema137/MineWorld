@@ -341,7 +341,7 @@ option surfaces. Recorded so it is a decision rather than an omission.
 | # | Commit | Impl | Validation | Review |
 | --- | --- | --- | --- | --- |
 | 1 | `feat(kernel)`: genesis — initial state is a recorded fact | `[x]` | `[x]` | `[x]` |
-| 2 | `refactor(presence,server)`: seed through genesis, and delete the invented ActionId | `[ ]` | `[ ]` | `[ ]` |
+| 2 | `refactor(presence,server)`: seed through genesis, and delete the invented ActionId | `[x]` | `[x]` | `[x]` |
 | 3 | `feat(worldpack)`: the pack, the loader and its refusals | `[ ]` | `[ ]` | `[ ]` |
 | 4 | `feat(cli)`: mineworld server \<world\> | `[ ]` | `[ ]` | `[ ]` |
 | 5 | `docs`: the format, the two decisions, and the ledger | `[ ]` | `[ ]` | `[ ]` |
@@ -375,14 +375,19 @@ option surfaces. Recorded so it is a decision rather than an omission.
 
 ### Commit 2 — presence's genesis fact, and the workaround's removal
 
-- [ ] Implementation: `mineworld_presence::arrival`; `PresenceSystem::resolve` uses it;
-      `server/tests/support/mod.rs` seeds through `World::genesis`, its stub pack emits and
-      reduces a `placed` fact, and `ASSEMBLY_ACTION_ID` is deleted.
-- [ ] Validation: `cargo test -p mineworld-presence -p mineworld-conversation -p mineworld-server`
-      green; `grep -rn 9_000_000` finds nothing; the server's own acceptance tests still pass
-      unchanged, which is what says the seeding route swap is behaviour-preserving.
-- [ ] Review: confirmed the stub pack's `Room` is still written only while reducing, and that the
-      two server test binaries both still compile against the shared support module.
+- [x] Implementation: `mineworld_presence::arrival` in `systems/presence/src/event.rs`, used by
+      `PresenceSystem::resolve` and by world assembly; `server/tests/support/mod.rs` seeds through
+      `World::genesis`, its stub `placement` pack now emits and reduces a `placed` fact instead of
+      providing an action nothing dispatched, and `ASSEMBLY_ACTION_ID` is gone.
+- [x] Validation: `cargo test -p mineworld-presence -p mineworld-conversation` — 21 PASS;
+      `cargo test -p mineworld-server` — 15 + 4 + 8 + 1 = **28 PASS** (the same assertions as
+      before this PR, over real sockets), which is what says the seeding swap is
+      behaviour-preserving rather than merely compiling. `grep -rn 9_000_000` over `*.rs` finds
+      nothing outside prose in the two PR ledgers.
+- [x] Review: the stub pack's `Room` is written in exactly one place (`react`), so it is still a
+      projection; both server test binaries compile against the shared module; `arrival` is the
+      only route by which an `Arrived` payload is encoded, so a loader cannot grow a second copy
+      of presence's codec.
 
 ### Commit 3 — the pack, the loader, the refusals
 

@@ -1,9 +1,12 @@
 //! The fact this pack records: somebody is now somewhere.
 
-use mineworld_contracts::{Event, EventSchemaVersion, EventTypeId, Location, PersonId, SystemId};
-use mineworld_kernel::SystemIdentity;
+use mineworld_contracts::{
+    Event, EventSchemaVersion, EventTypeId, Location, PersonId, SystemId, Visibility,
+};
+use mineworld_kernel::{Emission, SystemIdentity};
 use serde::{Deserialize, Serialize};
 
+use crate::codec;
 use crate::system::PresenceSystem;
 
 /// Somebody is now at a location.
@@ -50,4 +53,33 @@ impl Arrived {
     pub const fn location(&self) -> Location {
         self.location
     }
+}
+
+/// This pack's [`Arrived`] as a fact ready to be recorded: the payload, the audience, the subject,
+/// the participants and the place.
+///
+/// Public because a world is *assembled* as well as run. A World Pack that wants Alice to start
+/// behind the counter needs a `Presence` component, a component is written only by its owner while
+/// reducing, and the only fact that writes this one is `Arrived` — so world assembly has to be able
+/// to state that fact. [`World::genesis`](mineworld_kernel::World::genesis) records it with
+/// [`Causation::WorldGenesis`](mineworld_contracts::Causation), and this pack reduces it through
+/// exactly the path a runtime `arrive` takes, which is what makes an authored position and a walked
+/// one the same kind of thing in the log.
+///
+/// It is a function here rather than a payload a loader encodes for itself, because the encoding is
+/// this pack's own business: "a payload's format is a contract between the system that declares the
+/// event type and whoever reads it back" (`kernel/src/system.rs`). A loader that built these bytes
+/// would be a second implementation of this pack's codec, and the first change to the codec would
+/// silently make a loaded world unreadable.
+///
+/// Used by [`PresenceSystem::resolve`](crate::PresenceSystem) too, so a `arrive` request and a
+/// genesis arrival cannot describe the same arrival differently.
+pub fn arrival(person: PersonId, location: Location) -> Emission {
+    Emission::new::<Arrived>(
+        codec::encode(&Arrived::new(person, location)),
+        Visibility::Place(location.place()),
+    )
+    .about(vec![person.entity_id()])
+    .with_participants(vec![person.entity_id()])
+    .at_place(location.place())
 }
