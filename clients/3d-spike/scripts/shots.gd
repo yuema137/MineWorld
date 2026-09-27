@@ -38,6 +38,22 @@ var views := [
 	["15_mode2_camera_pull_in", Vector3(-12.0, 0.2, -12.9), 0.0, -2.0, REAR],
 ]
 
+## Two of the frames also get a head-and-shoulders crop saved beside them. The
+## mannequin's face is deliberately minimal (ARC-4), so at 1600x900 the head is
+## about 40 px and the difference between mode 2 and mode 3 is not reliably
+## readable at a glance -- which is exactly how a correct front view gets read
+## as a back view. The crop is cut from the same captured frame, so it cannot
+## disagree with it.
+const HEAD_CROP := {
+	"12_mode2_third_rear": "12b_mode2_head_detail",
+	"13_mode3_third_front": "13b_mode3_head_detail",
+}
+const HEAD_RECT := Rect2i(680, 375, 240, 240)
+## The crop is shown at 2x. Nothing is invented: it is the captured pixels,
+## enlarged, because a 60 px head decides whether this is a front view or a
+## back view and it should not take a squint.
+const HEAD_ZOOM := 2
+
 var _i := 0
 var _warm := 0
 var _mode := ""
@@ -73,6 +89,12 @@ func _capture() -> void:
 		await RenderingServer.frame_post_draw
 		var img := get_viewport().get_texture().get_image()
 		img.save_png("%s/%s.png" % [OUT, v[0]])
+		if HEAD_CROP.has(v[0]):
+			var rect := HEAD_RECT.intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+			var head := img.get_region(rect)
+			head.resize(rect.size.x * HEAD_ZOOM, rect.size.y * HEAD_ZOOM,
+				Image.INTERPOLATE_CUBIC)
+			head.save_png("%s/%s.png" % [OUT, HEAD_CROP[v[0]]])
 		print("shot %s at %s yaw %.0f  [%s]" % [v[0], v[1], v[2], player.rig.mode_name()])
 
 
@@ -151,6 +173,7 @@ func _drive() -> void:
 		await get_tree().process_frame
 	print("pitch clamp after 2400 px up: %+.1f deg" % rad_to_deg(player.cam.rotation.x))
 
+	await _facing_report()
 	await _camera_continuity()
 	await _camera_collision()
 
@@ -312,3 +335,37 @@ func _camera_collision() -> void:
 		print("rear boom, %-44s %.2f m of %.2f m -> %s"
 			% [c[0], boom, full, "PULLED IN" if boom < full - 0.05 else "clear"])
 	player.set_camera(CameraRig.Mode.FIRST_PERSON)
+
+
+## Ground truth for "which way is the character facing", independent of what
+## any screenshot looks like. The mannequin is authored facing its own local
+## +Z, so `body.global_transform.basis.z` is the direction its face points.
+##
+## Note the invariant in the last two numbers: the two third-person cameras sit
+## on opposite sides of the body along the view axis, so the face can only ever
+## point toward exactly one of them. "Both views show the back of the head" is
+## not a state this rig can be in -- if it looks that way, the head is being
+## read at a scale where a 40 px face is not legible, which is what the head
+## detail crops are for.
+func _facing_report() -> void:
+	print("\n-- which way is the character facing --")
+	player.set_camera(CameraRig.Mode.FIRST_PERSON)
+	player.place(Vector3(6.0, 0.2, -18.6), 104.0, -2.0)
+	await _settle(0.4)
+
+	var face := player.body.global_transform.basis.z   # authored +Z = the face
+	var fwd := -player.global_transform.basis.z        # Godot forward = -Z
+	var view := player.rig.view_direction()
+	var pivot := player.global_position + Vector3.UP * CameraRig.PIVOT_HEIGHT
+	print("player forward (-basis.z)      %s" % fwd)
+	print("mesh face direction (+basis.z) %s" % face)
+	print("mesh face . player forward     %+.4f  (+1 = the character faces where it walks)"
+		% face.dot(fwd))
+
+	for c in [["rear ", player.rig.third_rear], ["front", player.rig.third_front]]:
+		var cam: Camera3D = c[1]
+		var off := cam.global_position - pivot
+		print("%s camera: offset along view axis %+.3f m (%s the body), mesh face . direction to camera %+.4f -> camera sees the %s"
+			% [c[0], off.dot(view), "ahead of" if off.dot(view) > 0.0 else "behind",
+				face.dot(off.normalized()),
+				"FACE" if face.dot(off.normalized()) > 0.0 else "BACK OF THE HEAD"])

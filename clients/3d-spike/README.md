@@ -56,7 +56,15 @@ buildings and terrain. One ray, deliberately: predictable beats clever.
   get the back of the character's head filling the frame (screenshot 15). That
   is what one ray and no shoulder offset buys you, and it is honest.
 - The character is the NPC mannequin: right proportions, ordinary clothes,
-  minimal face. Not a character pipeline.
+  minimal face. Not a character pipeline. A consequence worth knowing before
+  you judge the front view: at full-frame scale the face is too small to read,
+  so modes 2 and 3 look alike until you crop in or turn the character. The
+  `12b`/`13b` crops and the facing block in `--drive` both exist so that this
+  is decidable rather than arguable.
+- The mannequin is authored facing its local **+Z**, which is npc.gd's
+  convention and the opposite of Godot's. The player controller turns the body
+  180 degrees when it attaches it. That compensation is at one call site and
+  documented at both ends, but it is a trap for the next consumer.
 - Camera distance, height, FOV and mouse sensitivity are first-guess defaults in
   `camera_rig.gd` and `player.gd`, left deliberately untuned.
 
@@ -86,8 +94,13 @@ to be a town.
 
 `screenshots/` holds fifteen captured viewpoints: ten of the town (1-10), the
 same standing position in each of the three camera modes (11-13), the character
-in a wide scenic view (14), and the rear camera pulled in by a wall (15).
-`ASSETS.md` records every third-party file and its licence.
+in a wide scenic view (14), and the rear camera pulled in by a wall (15). Two
+head-and-shoulders crops (`12b`, `13b`) are cut from frames 12 and 13 by the
+same `--shots` run and shown at 2x: the mannequin's face is deliberately
+minimal, so at 1600x900 the head is about 60 px and mode 2 and mode 3 are not
+reliably distinguishable at a glance. In `12b` the head is featureless; in
+`13b` you can see brows, eyes and a nose. `ASSETS.md` records every third-party
+file and its licence.
 
 ## Shape of the code
 

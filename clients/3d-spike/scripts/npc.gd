@@ -8,6 +8,16 @@
 ## the right clothes reads as "a person over there"; a detailed head from a
 ## mismatched asset pack would not.
 ##
+## FACING CONVENTION, and read this before attaching a mannequin to anything:
+## the body is authored facing its own local **+Z**, not Godot's -Z. That is the
+## convention the walk code steers by (`rotation.y = atan2(facing.x, facing.z)`)
+## and the one town.gd's hand-placed yaws are written against. A consumer that
+## uses Godot's forward -- the player controller does -- has to turn the body
+## 180 degrees when it attaches it, and player.gd says so at that line. Get it
+## wrong and the character walks through the town backwards. `--drive` prints
+## the resulting world-space facing and what each camera therefore sees, so the
+## mistake is one line of output rather than a squint at a screenshot.
+##
 ## This is presentation only. An NPC here knows where it walks. It knows
 ## nothing about what is allowed in the world.
 class_name NPC
