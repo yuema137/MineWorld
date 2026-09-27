@@ -1,0 +1,31 @@
+{
+  "source_type": "generated",
+  "status": "candidate",
+  "generation": {
+    "provider": "openai",
+    "endpoint": "/v1/images/edits",
+    "model": "gpt-image-2.5-sunburst",
+    "date": "2026-09-27",
+    "reference_images": [
+      "a_walk_dog.png",
+      "c_hat_bench.png",
+      "b_seated.png",
+      "d_man_dog.png"
+    ],
+    "prompt": "Match the attached reference images exactly: the same illustrated storybook look, the same soft dark outline around every shape, the same matte painted shading with no gloss, the same warm muted daylight palette lit from the upper left, and above all the same high three-quarter isometric viewing angle that the reference street is drawn from - the viewer is above the figure and off to one side, never at eye level. Stylised proportions exactly as the references use them: a large rounded head roughly a quarter of the total height, small simple hands with no separate fingers, and simple facial features - two dark eyes and a small mouth, no nose.\nA single adult man walking to the right, shown in full from the top of his head to the soles of his shoes. He wears a blue jacket over a pale shirt, khaki trousers and white trainers, and carries a dark grey backpack on both shoulders. He is mid-stride with his near leg swung forward and his arms swinging naturally. He must be entirely alone in the picture, standing upright in the centre with generous empty margin above his head, below his feet and to either side. Draw only the person: no ground, no paving, no grass, no shadow, no scenery, no props and no background of any kind. The entire background must be fully transparent.",
+    "request": {
+      "model": "gpt-image-2.5-sunburst",
+      "size": "1024x1536",
+      "n": 1,
+      "output_format": "png",
+      "background": "transparent",
+      "quality": "high"
+    },
+    "response_id": 1790540875
+  },
+  "postprocess": {
+    "cleaned": false,
+    "normalized": false
+  },
+  "human_curated": false
+}
