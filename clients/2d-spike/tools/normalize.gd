@@ -134,34 +134,31 @@ func _init():
 		quit(1)
 		return
 
-	# --- QA sheet: over paving, over a dark ground, and at final draw size ---
-	var cell := 260
-	var sheet := Image.create(cell * mini(done.size(), 5),
-		cell * 3, false, Image.FORMAT_RGBA8)
+	# --- QA sheet: every sprite over paving and over the darkest ground ------
+	# Two grounds, because a fringe that is invisible on warm grey is obvious
+	# on foliage shade, and vice versa.
+	var cols := mini(done.size(), 7)
+	var rows := int(ceil(float(done.size()) / cols))
+	var cell := 150
+	var sheet := Image.create(cell * cols, cell * rows * 2, false, Image.FORMAT_RGBA8)
 	for y in sheet.get_height():
 		for x in sheet.get_width():
-			var band := y / cell
-			var bg := PAVING
-			if band == 1:
-				bg = Color("3c4a33")        # foliage shade, the darkest ground
-			elif band == 2:
-				bg = Color("e8e2d6")        # the lightest paving highlight
-			sheet.set_pixel(x, y, bg)
-	for i in mini(done.size(), 5):
+			var half := 0 if y < cell * rows else 1
+			sheet.set_pixel(x, y, PAVING if half == 0 else Color("3c4a33"))
+	for i in done.size():
 		var e: Dictionary = done[i]
 		var im: Image = e["img"]
-		for band in 3:
-			var use := im
-			if band == 2:
-				# at the size it will actually be drawn on screen
-				use = im.duplicate() as Image
-				use.resize(maxi(1, int(im.get_width() / AUTHOR_SCALE)),
-					maxi(1, int(im.get_height() / AUTHOR_SCALE)),
-					Image.INTERPOLATE_LANCZOS)
-			var ox := i * cell + (cell - use.get_width()) / 2
-			var oy := band * cell + (cell - use.get_height()) / 2
-			sheet.blend_rect(use, Rect2i(Vector2i.ZERO, use.get_size()),
-				Vector2i(ox, oy))
+		# drawn at the size it will actually appear on screen
+		var use := im.duplicate() as Image
+		use.resize(maxi(1, int(im.get_width() / AUTHOR_SCALE)),
+			maxi(1, int(im.get_height() / AUTHOR_SCALE)), Image.INTERPOLATE_LANCZOS)
+		for half in 2:
+			var src := im if half == 0 else use
+			var ox := (i % cols) * cell + (cell - src.get_width()) / 2
+			var oy := half * cell * rows + (i / cols) * cell + (cell - src.get_height()) / 2
+			if src.get_width() < cell and src.get_height() < cell:
+				sheet.blend_rect(src, Rect2i(Vector2i.ZERO, src.get_size()),
+					Vector2i(ox, oy))
 	sheet.save_png(QA)
-	print("qa sheet: ", QA, "  (top: over paving, middle: over shade, bottom: at draw size)")
+	print("qa sheet: ", QA, "  (top half: authored size over paving, bottom half: draw size over shade)")
 	quit(0)

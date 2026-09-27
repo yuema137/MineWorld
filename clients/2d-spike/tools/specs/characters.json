@@ -7,18 +7,199 @@
     "background": "transparent",
     "n": 1,
     "height_m": 1.75,
-    "refs": ["a_walk_dog.png", "c_hat_bench.png", "b_seated.png", "d_man_dog.png"]
+    "refs": [
+      "a_walk_dog.png",
+      "c_hat_bench.png",
+      "b_seated.png",
+      "d_man_dog.png"
+    ]
   },
   "style_preamble": "Match the attached reference images exactly: the same illustrated storybook look, the same soft dark outline around every shape, the same matte painted shading with no gloss, the same warm muted daylight palette lit from the upper left, and the same high three-quarter viewing angle the reference street is drawn from, looking down on the figure from above and slightly to one side. Stylised proportions exactly as the references use them: a large rounded head roughly a quarter of the total height, small simple hands with no separate fingers, and simple facial features - small dark eyes and a small mouth, no nose. Draw one person only, alone, upright and centred, with generous empty margin on every side. No ground, no paving, no grass, no shadow, no scenery, no props beyond what the person is wearing or carrying, and no background of any kind: the entire background must be fully transparent.",
   "specs": [
     {
       "name": "gen_a_front",
-      "prompt": "A man in his twenties walking towards the viewer and slightly to the right, seen in three-quarter view from above so that his face is visible. He wears a blue zip jacket open over a white t-shirt, khaki trousers and white trainers, and a dark grey backpack on both shoulders. He has short dark brown hair. Mid-stride, near leg forward, arms swinging. Full body, head to soles."
+      "height_m": 1.78,
+      "prompt": "A man in his twenties walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a blue zip jacket open over a white t-shirt, khaki trousers and white trainers, a dark grey backpack on both shoulders, short dark brown hair. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
     },
     {
       "name": "gen_a_back",
-      "refs": ["candidate:gen_a_front", "a_walk_dog.png", "c_hat_bench.png"],
-      "prompt": "The exact same man as in the first attached image - identical blue zip jacket, identical white t-shirt, identical khaki trousers, identical white trainers, identical dark grey backpack, identical short dark brown hair - now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. His face is not visible because he is facing away. Same build, same colours, same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+      "height_m": 1.78,
+      "refs": [
+        "candidate:gen_a_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a blue zip jacket open over a white t-shirt, khaki trousers and white trainers, a dark grey backpack on both shoulders, short dark brown hair \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_b_front",
+      "height_m": 1.66,
+      "prompt": "A woman in her thirties walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a cream knitted cardigan over a white blouse, a long olive-green skirt, brown flat shoes, a straw sun hat with a dark band, a pale canvas tote bag on one shoulder, wavy shoulder-length brown hair. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
+    },
+    {
+      "name": "gen_b_back",
+      "height_m": 1.66,
+      "refs": [
+        "candidate:gen_b_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a cream knitted cardigan over a white blouse, a long olive-green skirt, brown flat shoes, a straw sun hat with a dark band, a pale canvas tote bag on one shoulder, wavy shoulder-length brown hair \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_c_front",
+      "height_m": 1.7,
+      "prompt": "An older man in his sixties walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a grey flat cap, a brown buttoned waistcoat over a pale shirt with rolled sleeves, dark brown trousers, brown leather shoes, a wooden walking stick in one hand, short grey hair and a neat grey beard. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
+    },
+    {
+      "name": "gen_c_back",
+      "height_m": 1.7,
+      "refs": [
+        "candidate:gen_c_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a grey flat cap, a brown buttoned waistcoat over a pale shirt with rolled sleeves, dark brown trousers, brown leather shoes, a wooden walking stick in one hand, short grey hair and a neat grey beard \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_d_front",
+      "height_m": 1.64,
+      "prompt": "A woman in her twenties walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a bright yellow raincoat left open, blue jeans, dark green ankle boots, black hair tied in a high bun. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
+    },
+    {
+      "name": "gen_d_back",
+      "height_m": 1.64,
+      "refs": [
+        "candidate:gen_d_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a bright yellow raincoat left open, blue jeans, dark green ankle boots, black hair tied in a high bun \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_e_front",
+      "height_m": 1.8,
+      "prompt": "A man in his forties walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a forest-green button shirt tucked into navy chinos, brown shoes, round glasses, short black hair. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
+    },
+    {
+      "name": "gen_e_back",
+      "height_m": 1.8,
+      "refs": [
+        "candidate:gen_e_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a forest-green button shirt tucked into navy chinos, brown shoes, round glasses, short black hair \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_f_front",
+      "height_m": 1.6,
+      "prompt": "A teenage girl walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a dusty-pink hoodie, denim shorts, white socks and grey trainers, a brown leather satchel across her body, long light-brown hair. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
+    },
+    {
+      "name": "gen_f_back",
+      "height_m": 1.6,
+      "refs": [
+        "candidate:gen_f_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a dusty-pink hoodie, denim shorts, white socks and grey trainers, a brown leather satchel across her body, long light-brown hair \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_g_front",
+      "height_m": 1.63,
+      "prompt": "A woman in her fifties walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a teal blouse, grey wide trousers, navy slip-on shoes, short silver hair, carrying a woven shopping basket. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
+    },
+    {
+      "name": "gen_g_back",
+      "height_m": 1.63,
+      "refs": [
+        "candidate:gen_g_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a teal blouse, grey wide trousers, navy slip-on shoes, short silver hair, carrying a woven shopping basket \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_h_front",
+      "height_m": 1.76,
+      "prompt": "A man in his thirties walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a white shirt with the sleeves rolled to the elbow, a long dark-brown apron tied at the waist, black trousers and black shoes, short ginger hair \u2014 he works at the cafe. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
+    },
+    {
+      "name": "gen_h_back",
+      "height_m": 1.76,
+      "refs": [
+        "candidate:gen_h_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a white shirt with the sleeves rolled to the elbow, a long dark-brown apron tied at the waist, black trousers and black shoes, short ginger hair \u2014 he works at the cafe \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_i_front",
+      "height_m": 1.28,
+      "prompt": "A boy of about eight walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a red t-shirt, blue shorts, white socks and blue trainers, messy blond hair. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
+    },
+    {
+      "name": "gen_i_back",
+      "height_m": 1.28,
+      "refs": [
+        "candidate:gen_i_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a red t-shirt, blue shorts, white socks and blue trainers, messy blond hair \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_j_front",
+      "height_m": 1.68,
+      "prompt": "A woman in her forties walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a navy wool coat buttoned up, a red-and-grey plaid scarf, black trousers and black ankle boots, dark hair in a low bun. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
+    },
+    {
+      "name": "gen_j_back",
+      "height_m": 1.68,
+      "refs": [
+        "candidate:gen_j_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a navy wool coat buttoned up, a red-and-grey plaid scarf, black trousers and black ankle boots, dark hair in a low bun \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_player_front",
+      "height_m": 1.82,
+      "prompt": "A man in his twenties walking towards the viewer and slightly to the right, seen in three-quarter view from above so that the face is visible. Wearing a warm amber-orange jacket over a cream shirt, teal-blue trousers, dark brown boots, short reddish-brown hair \u2014 he stands slightly taller than everyone else. Mid-stride, near leg forward, arms swinging naturally. Full body, head to soles."
+    },
+    {
+      "name": "gen_player_back",
+      "height_m": 1.82,
+      "refs": [
+        "candidate:gen_player_front",
+        "a_walk_dog.png",
+        "c_hat_bench.png"
+      ],
+      "prompt": "The exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a warm amber-orange jacket over a cream shirt, teal-blue trousers, dark brown boots, short reddish-brown hair \u2014 he stands slightly taller than everyone else \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles."
+    },
+    {
+      "name": "gen_sit_a",
+      "height_m": 1.3,
+      "prompt": "A woman in her thirties sitting on a wooden cafe chair, seen in three-quarter view from above, holding a white coffee cup in both hands, wearing a soft blue jumper and dark jeans, shoulder-length brown hair. Her legs are bent and her feet rest on the ground. Draw the person AND the simple wooden chair she sits on, nothing else."
+    },
+    {
+      "name": "gen_sit_b",
+      "height_m": 1.3,
+      "prompt": "A man in his sixties sitting on a wooden park bench, seen in three-quarter view from above, one arm resting along the back of the bench, wearing a beige jacket, brown trousers and a flat cap, short grey hair. Draw the person AND the wooden bench he sits on, nothing else."
+    },
+    {
+      "name": "gen_dog",
+      "height_m": 0.55,
+      "prompt": "A small corgi dog standing in profile facing right, seen in three-quarter view from above, tan and white coat, upright ears, fluffy tail. Full body, head to paws."
+    },
+    {
+      "name": "gen_cat",
+      "height_m": 0.42,
+      "prompt": "A small ginger-and-white cat sitting upright in three-quarter view from above, tail curled around its front paws, looking towards the viewer. Full body."
     }
   ]
 }

@@ -1,0 +1,30 @@
+{
+  "source_type": "generated",
+  "status": "candidate",
+  "generation": {
+    "provider": "openai",
+    "endpoint": "/v1/images/edits",
+    "model": "gpt-image-2.5-sunburst",
+    "date": "2026-09-27",
+    "reference_images": [
+      "candidate:gen_player_front",
+      "a_walk_dog.png",
+      "c_hat_bench.png"
+    ],
+    "prompt": "Match the attached reference images exactly: the same illustrated storybook look, the same soft dark outline around every shape, the same matte painted shading with no gloss, the same warm muted daylight palette lit from the upper left, and the same high three-quarter viewing angle the reference street is drawn from, looking down on the figure from above and slightly to one side. Stylised proportions exactly as the references use them: a large rounded head roughly a quarter of the total height, small simple hands with no separate fingers, and simple facial features - small dark eyes and a small mouth, no nose. Draw one person only, alone, upright and centred, with generous empty margin on every side. No ground, no paving, no grass, no shadow, no scenery, no props beyond what the person is wearing or carrying, and no background of any kind: the entire background must be fully transparent.\nThe exact same person as in the first attached image, with identical clothing, identical colours, identical hair and identical build \u2014 a warm amber-orange jacket over a cream shirt, teal-blue trousers, dark brown boots, short reddish-brown hair \u2014 he stands slightly taller than everyone else \u2014 now seen from directly behind, walking away from the viewer, in the same three-quarter view from above. The face is not visible because they are facing away. Same line weight and same shading as the first attached image. Mid-stride, arms swinging. Full body, head to soles.",
+    "request": {
+      "model": "gpt-image-2.5-sunburst",
+      "size": "1024x1536",
+      "n": 1,
+      "output_format": "png",
+      "background": "transparent",
+      "quality": "high"
+    },
+    "response_id": 1790551129
+  },
+  "postprocess": {
+    "cleaned": false,
+    "normalized": false
+  },
+  "human_curated": false
+}

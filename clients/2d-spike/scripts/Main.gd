@@ -12,8 +12,22 @@ const Demo := preload("res://scripts/Demo.gd")
 const GroundScript := preload("res://scripts/Ground.gd")
 const ShadowScript := preload("res://scripts/Shadows.gd")
 const GradeScript := preload("res://scripts/Grade.gd")
+const RingScript := preload("res://scripts/Ring.gd")
 
 const ART := "res://art/svg/%s.svg"
+const ART_GEN := "res://art/generated/%s.png"
+
+## Art variants. The spike now has two sources of sprites — the procedural SVG
+## generator and a set generated from the reference plates — and the point of
+## the variants is that a person can look at whole scenes and pick one, rather
+## than judging assets on a contact sheet. `ARC-9` puts that call at the
+## integrated-scene level, not per asset.
+##
+##   ./mineworld-2d --variant=procedural   everything from gen_art.py
+##   ./mineworld-2d --variant=people       generated cast, procedural world
+##   ./mineworld-2d --variant=full         generated cast, shopfronts and flora
+const VARIANTS := ["procedural", "people", "full"]
+var variant := "full"
 
 ## Scale applied to each 2x-authored sprite. Derived from one rule: a person is
 ## 1.75 m and 1 m is Iso.PX_PER_M_Z pixels, so a person is ~56 px tall and
@@ -46,6 +60,14 @@ const PLAYER_SPEED := 2.4   # world units/second (~4.8 m/s, a brisk walk in a de
 
 
 func _ready() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--variant="):
+			var v := a.substr(10)
+			if VARIANTS.has(v):
+				variant = v
+			else:
+				push_warning("unknown variant '%s'; using '%s'" % [v, variant])
+	print("variant: ", variant)
 	_jit.seed = 20260926
 	props = _load_props()
 	_ink_shader = load("res://art/ink.gdshader")
@@ -88,7 +110,62 @@ func _ready() -> void:
 
 func _load_props() -> Dictionary:
 	var f := FileAccess.open("res://art/props.json", FileAccess.READ)
-	return JSON.parse_string(f.get_as_text())
+	var p: Dictionary = JSON.parse_string(f.get_as_text())
+	# Generated sprites carry their own manifest, written by tools/normalize.gd
+	# when it cuts each candidate to its bounding box. Merging rather than
+	# replacing means a variant can mix the two sources freely.
+	var g := FileAccess.open("res://art/generated/generated.json", FileAccess.READ)
+	if g != null:
+		var gen: Dictionary = JSON.parse_string(g.get_as_text())
+		for k in gen:
+			p[k] = gen[k]
+	return p
+
+
+func _is_generated(name: String) -> bool:
+	return props.has(name) and props[name].get("source", "") == "generated"
+
+
+func _art(name: String) -> String:
+	return (ART_GEN if _is_generated(name) else ART) % name
+
+
+## Which sprite actually gets drawn for a role, given the variant. Roles are
+## the scene's vocabulary — "npc_b", "shop_cafe" — and stay put; only what they
+## resolve to changes.
+func _role(name: String) -> String:
+	var m: Dictionary = ROLE_GEN.get(variant, {})
+	var to: String = m.get(name, "")
+	# A directional character resolves to a base name that is not itself a
+	# prop: only <base>_front and <base>_back exist. Accept either shape, or
+	# every walker silently falls back while seated figures do not.
+	if to != "" and (props.has(to) or props.has(to + "_front")):
+		return to
+	# a generated stand-in for a role that has none falls back to the original
+	if variant == "full" and (props.has("gen_" + name)
+			or props.has("gen_" + name + "_front")):
+		return "gen_" + name
+	return name
+
+
+const ROLE_PEOPLE := {
+	"player": "gen_player", "npc_a": "gen_a", "npc_b": "gen_b",
+	"npc_c": "gen_c", "npc_d": "gen_d", "npc_e": "gen_e",
+	"npc_f": "gen_f", "npc_g": "gen_g", "npc_h": "gen_h",
+	"npc_i": "gen_i", "npc_j": "gen_j",
+	"seated_a": "gen_sit_a", "seated_b": "gen_sit_b",
+	"dog": "gen_dog", "cat": "gen_cat",
+}
+## The procedural set has five walkers and no cat, but crowd density must not
+## differ between variants or the comparison stops being about art. The extra
+## roles reuse existing procedural sprites.
+const ROLE_PROC := {
+	"npc_f": "npc_a", "npc_g": "npc_b", "npc_h": "npc_c",
+	"npc_i": "npc_d", "npc_j": "npc_e", "cat": "dog",
+}
+const ROLE_GEN := {
+	"people": ROLE_PEOPLE, "full": ROLE_PEOPLE, "procedural": ROLE_PROC,
+}
 
 
 ## Vegetation is scaled from its authored height to a target height in metres,
@@ -110,6 +187,11 @@ const BUSHES := ["bush_a", "bush_c", "bush_b", "bush_d"]
 
 
 func _scale_for(name: String) -> float:
+	# Generated sprites were cut to their bounding box and resized so that
+	# pixel height is height_m * Iso.PX_PER_M_Z * 2. That makes their draw
+	# scale exactly one half, for every one of them, with no per-sprite tuning.
+	if _is_generated(name):
+		return 0.5
 	if VEG_M.has(name):
 		var m: Dictionary = props[name]
 		return VEG_M[name] * Iso.PX_PER_M_Z / float(m["h"])
@@ -135,10 +217,15 @@ const INK_PX := 1.8        # target contour thickness, screen pixels
 ## draw their own line work in the SVG — foliage a dark union silhouette,
 ## shopfronts a value break at every junction — so inking them at full
 ## strength draws the line twice and turns them to mud.
-const INK_BITE := {"veg": 0.20, "shop": 0.26, "prop": 0.46}
+const INK_BITE := {"veg": 0.20, "shop": 0.26, "prop": 0.46, "none": 0.0}
 
 
 func _ink_class(name: String) -> String:
+	# Generated sprites are drawn with their own contour already. Inking them
+	# again thickens every edge and loses the line's variation, which is one of
+	# the things that makes them read as drawn rather than traced.
+	if _is_generated(name):
+		return "none"
 	if name.begins_with("tree") or name.begins_with("bush") or name == "hedge":
 		return "veg"
 	if name.begins_with("shop_"):
@@ -147,6 +234,8 @@ func _ink_class(name: String) -> String:
 
 
 func _ink_material(k: float, cls := "prop") -> ShaderMaterial:
+	if cls == "none":
+		return null
 	var texels := clampf(INK_PX / maxf(k, 0.02), 1.5, 14.0)
 	var key := "%s:%.1f" % [cls, roundf(texels * 2.0) / 2.0]
 	if _ink_mats.has(key):
@@ -164,12 +253,13 @@ func _prop(name: String, at: Vector2, flip := false, z := 0) -> Node2D:
 	var holder := Node2D.new()
 	holder.position = Iso.to_screen(at)
 	holder.z_index = z
+	var sprite := _role(name)
 	var s := Sprite2D.new()
-	s.texture = load(ART % name)
+	s.texture = load(_art(sprite))
 	s.centered = false
-	var m: Dictionary = props[name]
+	var m: Dictionary = props[sprite]
 	s.offset = Vector2(-float(m["ax"]), -float(m["ay"]))
-	var k := _scale_for(name)
+	var k := _scale_for(sprite)
 	# Vegetation gets a little size and hue jitter, so a dozen copies of one
 	# tree do not read as a dozen copies of one tree.
 	if name.begins_with("tree") or name.begins_with("bush") or name == "hedge":
@@ -180,7 +270,7 @@ func _prop(name: String, at: Vector2, flip := false, z := 0) -> Node2D:
 		s.modulate = Color(0.93 + _jit.randf() * 0.14,
 			0.95 + _jit.randf() * 0.10, 0.90 + _jit.randf() * 0.16)
 	s.scale = Vector2(-k if flip else k, k)
-	s.material = _ink_material(k, _ink_class(name))
+	s.material = _ink_material(k, _ink_class(sprite))
 	if flip:
 		s.offset.x = -s.offset.x - float(m["w"]) + 2.0 * float(m["ax"])
 	holder.add_child(s)
@@ -393,12 +483,34 @@ func _build_people() -> void:
 			PackedVector2Array([_wp(2.6, 9.6), _wp(2.7, 4.6)]), 0.55),
 		Demo.DemoPerson.new(&"dog", &"dog", _wp(6.4, 7.6),
 			PackedVector2Array([_wp(6.4, 7.6), _wp(8.8, 7.0), _wp(7.2, 9.0)]), 1.25),
+		# The plates are busy. Five people in a square this size read as a town
+		# that has been evacuated.
+		Demo.DemoPerson.new(&"f", &"npc_f", _wp(13.6, 2.2),
+			PackedVector2Array([_wp(13.6, 2.2), _wp(16.4, 4.4)]), 0.66),
+		Demo.DemoPerson.new(&"g", &"npc_g", _wp(3.1, 3.4),
+			PackedVector2Array([_wp(3.1, 3.4), _wp(3.3, 7.8)]), 0.52),
+		Demo.DemoPerson.new(&"h", &"npc_h", _wp(7.4, 1.3),
+			PackedVector2Array([_wp(7.4, 1.3), _wp(10.4, 1.4)]), 0.48),
+		Demo.DemoPerson.new(&"i", &"npc_i", _wp(11.4, 6.6),
+			PackedVector2Array([_wp(11.4, 6.6), _wp(8.2, 5.2), _wp(11.0, 4.0)]), 0.95),
+		Demo.DemoPerson.new(&"j", &"npc_j", _wp(15.2, 7.4),
+			PackedVector2Array([_wp(15.2, 7.4), _wp(11.8, 8.6)]), 0.58),
+		Demo.DemoPerson.new(&"cat", &"cat", _wp(2.4, 6.2),
+			PackedVector2Array([_wp(2.4, 6.2), _wp(2.6, 8.4), _wp(4.0, 7.4)]), 0.62),
 	]
 	for c in crowd:
 		walkers.append(_make_actor(c))
 
 	player = _make_actor(Demo.DemoPerson.new(&"player", &"player", player_at))
 	player.set_meta("is_player", true)
+	if _is_generated(_role("player") + "_front"):
+		# The procedural player carries a warm ring drawn into its own sprite.
+		# The generated one does not, so the ring is drawn here instead —
+		# the player has to stay findable in a crowd of eleven.
+		var ring := Node2D.new()
+		ring.set_script(RingScript)
+		player.add_child(ring)
+		player.move_child(ring, 0)
 
 
 func _make_actor(p) -> Node2D:
@@ -406,18 +518,18 @@ func _make_actor(p) -> Node2D:
 	holder.position = Iso.to_screen(p.at)
 	var body := Node2D.new()
 	holder.add_child(body)
-	var base := String(p.sprite)
+	var base := _role(String(p.sprite))
 	var has_back := props.has(base + "_back")
 	for suffix in (["_front", "_back"] if has_back else [""]):
 		var s := Sprite2D.new()
 		var nm: String = base + suffix
-		s.texture = load(ART % nm)
+		s.texture = load(_art(nm))
 		s.centered = false
 		var m: Dictionary = props[nm]
 		s.offset = Vector2(-float(m["ax"]), -float(m["ay"]))
 		var k := _scale_for(nm)
 		s.scale = Vector2(k, k)
-		s.material = _ink_material(k)
+		s.material = _ink_material(k, _ink_class(nm))
 		s.name = "front" if suffix != "_back" else "back"
 		body.add_child(s)
 	if has_back:
@@ -535,7 +647,7 @@ func _save(name: String) -> void:
 		grade.set_world_offset(cam.position)
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
-	img.save_png("res://shots/%s.png" % name)
+	img.save_png("res://shots/%s/%s.png" % [variant, name])
 	print("shot: ", name)
 
 
@@ -545,7 +657,8 @@ func _settle(n: int) -> void:
 
 
 func _shots() -> void:
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
+	DirAccess.make_dir_recursive_absolute(
+		ProjectSettings.globalize_path("res://shots/%s" % variant))
 	cam.position_smoothing_enabled = false
 	set_process(false)
 

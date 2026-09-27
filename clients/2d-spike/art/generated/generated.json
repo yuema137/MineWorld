@@ -1,18 +1,210 @@
 {
   "gen_a_back": {
+    "ax": 24.0,
+    "ay": 114,
+    "h": 114,
+    "height_m": 1.78,
+    "source": "generated",
+    "w": 48
+  },
+  "gen_a_front": {
+    "ax": 22.5,
+    "ay": 114,
+    "h": 114,
+    "height_m": 1.78,
+    "source": "generated",
+    "w": 45
+  },
+  "gen_b_back": {
+    "ax": 22.0,
+    "ay": 106,
+    "h": 106,
+    "height_m": 1.66,
+    "source": "generated",
+    "w": 44
+  },
+  "gen_b_front": {
     "ax": 23.5,
-    "ay": 112,
-    "h": 112,
-    "height_m": 1.75,
+    "ay": 106,
+    "h": 106,
+    "height_m": 1.66,
     "source": "generated",
     "w": 47
   },
-  "gen_a_front": {
-    "ax": 22.0,
-    "ay": 112,
-    "h": 112,
-    "height_m": 1.75,
+  "gen_c_back": {
+    "ax": 28.5,
+    "ay": 109,
+    "h": 109,
+    "height_m": 1.7,
     "source": "generated",
-    "w": 44
+    "w": 57
+  },
+  "gen_c_front": {
+    "ax": 26.5,
+    "ay": 109,
+    "h": 109,
+    "height_m": 1.7,
+    "source": "generated",
+    "w": 53
+  },
+  "gen_cat": {
+    "ax": 9.5,
+    "ay": 27,
+    "h": 27,
+    "height_m": 0.42,
+    "source": "generated",
+    "w": 19
+  },
+  "gen_d_back": {
+    "ax": 22.5,
+    "ay": 105,
+    "h": 105,
+    "height_m": 1.64,
+    "source": "generated",
+    "w": 45
+  },
+  "gen_d_front": {
+    "ax": 20.5,
+    "ay": 105,
+    "h": 105,
+    "height_m": 1.64,
+    "source": "generated",
+    "w": 41
+  },
+  "gen_dog": {
+    "ax": 21.5,
+    "ay": 35,
+    "h": 35,
+    "height_m": 0.55,
+    "source": "generated",
+    "w": 43
+  },
+  "gen_e_back": {
+    "ax": 24.0,
+    "ay": 115,
+    "h": 115,
+    "height_m": 1.8,
+    "source": "generated",
+    "w": 48
+  },
+  "gen_e_front": {
+    "ax": 24.5,
+    "ay": 115,
+    "h": 115,
+    "height_m": 1.8,
+    "source": "generated",
+    "w": 49
+  },
+  "gen_f_back": {
+    "ax": 21.0,
+    "ay": 102,
+    "h": 102,
+    "height_m": 1.6,
+    "source": "generated",
+    "w": 42
+  },
+  "gen_f_front": {
+    "ax": 23.5,
+    "ay": 102,
+    "h": 102,
+    "height_m": 1.6,
+    "source": "generated",
+    "w": 47
+  },
+  "gen_g_back": {
+    "ax": 24.0,
+    "ay": 104,
+    "h": 104,
+    "height_m": 1.63,
+    "source": "generated",
+    "w": 48
+  },
+  "gen_g_front": {
+    "ax": 23.5,
+    "ay": 104,
+    "h": 104,
+    "height_m": 1.63,
+    "source": "generated",
+    "w": 47
+  },
+  "gen_h_back": {
+    "ax": 23.0,
+    "ay": 113,
+    "h": 113,
+    "height_m": 1.76,
+    "source": "generated",
+    "w": 46
+  },
+  "gen_h_front": {
+    "ax": 23.5,
+    "ay": 113,
+    "h": 113,
+    "height_m": 1.76,
+    "source": "generated",
+    "w": 47
+  },
+  "gen_i_back": {
+    "ax": 16.5,
+    "ay": 82,
+    "h": 82,
+    "height_m": 1.28,
+    "source": "generated",
+    "w": 33
+  },
+  "gen_i_front": {
+    "ax": 17.5,
+    "ay": 82,
+    "h": 82,
+    "height_m": 1.28,
+    "source": "generated",
+    "w": 35
+  },
+  "gen_j_back": {
+    "ax": 24.0,
+    "ay": 108,
+    "h": 108,
+    "height_m": 1.68,
+    "source": "generated",
+    "w": 48
+  },
+  "gen_j_front": {
+    "ax": 23.5,
+    "ay": 108,
+    "h": 108,
+    "height_m": 1.68,
+    "source": "generated",
+    "w": 47
+  },
+  "gen_player_back": {
+    "ax": 23.5,
+    "ay": 116,
+    "h": 116,
+    "height_m": 1.82,
+    "source": "generated",
+    "w": 47
+  },
+  "gen_player_front": {
+    "ax": 24.0,
+    "ay": 116,
+    "h": 116,
+    "height_m": 1.82,
+    "source": "generated",
+    "w": 48
+  },
+  "gen_sit_a": {
+    "ax": 23.5,
+    "ay": 83,
+    "h": 83,
+    "height_m": 1.3,
+    "source": "generated",
+    "w": 47
+  },
+  "gen_sit_b": {
+    "ax": 39.5,
+    "ay": 83,
+    "h": 83,
+    "height_m": 1.3,
+    "source": "generated",
+    "w": 79
   }
 }
