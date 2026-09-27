@@ -133,7 +133,7 @@ result:   133 passed, 0 failed   PASS
 ### Fix 1 — id encoding
 
 ```text
-command:  cargo test --workspace   @ commit 1 (fe/ids)
+command:  cargo test --workspace   @ commit 1 — 363f0a0
 purpose:  a 64-bit id above 2^53 survives JSON; binary stays numeric; a float is refused
 result:   139 passed, 0 failed   PASS   (133 at the base, +6 new tests)
 ```
@@ -280,7 +280,7 @@ were **not re-run** — see §6.
 ### Fix 2 — relations on `Observation`
 
 ```text
-command:  cargo test --workspace   @ commit 3
+command:  cargo test --workspace   @ commit 3 — 421f544
 result:   141 passed, 0 failed   PASS   (+2 new tests)
 ```
 
@@ -326,7 +326,7 @@ making the same mistake as one that listed every entity.
 ### Fix 3 — `ActionRequest`
 
 ```text
-command:  cargo test --workspace   @ commit 4
+command:  cargo test --workspace   @ commit 4 — 0d2398d
 result:   144 passed, 0 failed   PASS   (+3 new tests)
 command:  cargo test   (spike/server, its own workspace)
 result:   2 passed, 0 failed   PASS   (the spike had no tests before)
