@@ -18,10 +18,13 @@ if ! command -v "$godot_bin" >/dev/null 2>&1; then
   exit 1
 fi
 
-# First run only: let Godot build its resource cache so global class names
-# (Mats, Build, Props, Town, NPC, Player, Shots) resolve outside the editor.
-if [ ! -f "$proj/.godot/global_script_class_cache.cfg" ]; then
-  echo "first run: building the Godot resource cache..."
+# Godot resolves global class names (Mats, Build, Props, Town, NPC, Player,
+# CameraRig, Shots) outside the editor only from its resource cache. Build it on
+# the first run -- and rebuild it whenever a script is newer than the cache,
+# because adding a class_name to the tree otherwise fails to parse at startup.
+cache="$proj/.godot/global_script_class_cache.cfg"
+if [ ! -f "$cache" ] || [ -n "$(find "$proj/scripts" -name '*.gd' -newer "$cache" -print -quit)" ]; then
+  echo "building the Godot resource cache..."
   "$godot_bin" --headless --path "$proj" --import >/dev/null 2>&1 || true
 fi
 

@@ -10,6 +10,7 @@ const SHOT_DIR := "res://shots"
 
 var player: Player
 var _shots: Shots = null
+var _mode_label: Label = null
 
 
 func _ready() -> void:
@@ -143,13 +144,25 @@ func _spawn_player() -> void:
 func _hud() -> void:
 	if _scripted():
 		return
+	var c := CanvasLayer.new()
+	add_child(c)
+	c.add_child(_hud_line(
+		"W/S walk   A/D strafe   mouse look   Shift jog   F5 camera   Esc release mouse", 14))
+	_mode_label = _hud_line("camera: %s" % player.rig.mode_name(), 36)
+	c.add_child(_mode_label)
+	player.camera_mode_changed.connect(_on_camera_mode_changed)
+
+
+func _hud_line(txt: String, y: float) -> Label:
 	var l := Label.new()
-	l.text = "W/S walk   A/D strafe   mouse look   Shift jog   Esc release mouse"
-	l.position = Vector2(18, 14)
+	l.text = txt
+	l.position = Vector2(18, y)
 	l.add_theme_color_override("font_color", Color(1, 1, 1, 0.82))
 	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
 	l.add_theme_constant_override("shadow_offset_y", 1)
 	l.add_theme_constant_override("shadow_offset_x", 1)
-	var c := CanvasLayer.new()
-	c.add_child(l)
-	add_child(c)
+	return l
+
+
+func _on_camera_mode_changed(mode_name: String) -> void:
+	_mode_label.text = "camera: %s" % mode_name
