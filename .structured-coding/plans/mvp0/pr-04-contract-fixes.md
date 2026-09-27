@@ -514,3 +514,41 @@ Fix 1 works from the far side is a Godot round trip against a server with `wire.
 which is S11's acceptance test and is where risk R-9 already assigns it. This PR's claim is the
 narrower one it can prove: the contract now emits a decimal string in JSON for every id, in
 every position, including inside a payload.
+
+---
+
+## 7. Closeout
+
+**Status: READY FOR OPERATOR REVIEW — NOT MERGED, NO PR OPENED.**
+
+```text
+branch          mvp0/pr-04-contract-fixes  (pushed to origin)
+base            main @ a6ad5c7
+executable head 0d2398d — this section is the only later commit and changes no code,
+                so the validation above belongs to 0d2398d and to this head equally
+```
+
+Semantic commits:
+
+```text
+363f0a0  fix(contracts): 64-bit ids survive a JSON parser that has only doubles
+37fda11  spike(renderer): delete wire.rs — the contract now protects its own ids
+421f544  feat(contracts): an Observation can carry the relations an observer was shown
+0d2398d  feat(contracts): a client submits an ActionRequest; the world makes it an intent
+```
+
+Public contract changes, for the reviewer to weigh as a set:
+
+```text
+EntityId, EventId, ActionId, ProcessId   JSON encoding changes from number to decimal string.
+                                         Reading accepts both, so no fixture breaks. Binary
+                                         encodings unchanged.
+Observation                              gains relations: Vec<Relation>, Observation::relating,
+                                         Observation::relations(). The wire shape changes.
+ActionRequest                            new type, exported.
+ActionIntent::allocate                   new constructor. ActionIntent::new unchanged.
+ActionResult                             unchanged; documentation restated.
+```
+
+Not done, deliberately, each with its reason in §6: no `ActionId` on `ActionResult`; no
+`World::submit` on the kernel; no `overall.md` edit; no Godot re-run; no real binary codec.
