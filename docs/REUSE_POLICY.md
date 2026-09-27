@@ -581,6 +581,44 @@ not the one with either the fewest dependencies or the most dependencies.
 
 ---
 
+## 19. Reference audits
+
+*Added 2026-09-27, generalizing §8 from a warning into a practice.*
+
+§8 says existing agent projects are references rather than foundations. That is a judgement, and a
+judgement needs evidence, so MineWorld audits them deliberately rather than absorbing or dismissing
+them by reputation.
+
+A reference audit takes a project that has already built something we will need and asks, per area:
+
+```text
+what it does · what problem that solves · what is worth borrowing
+what must not be copied · whether MineWorld already has a stronger abstraction
+what mature component it reveals that we should reuse outright
+```
+
+Every idea is classified `REUSE` · `ADAPT` · `REFERENCE ONLY` · `REJECT`, with `REUSE` reserved for
+things whose licence *and* architecture permit clean adoption.
+
+Two rules make the audit useful rather than decorative:
+
+1. **Every coupling criticism maps to a MineWorld rule.** A large file is not a finding; a large
+   file that knows about both a coffee machine and an HTTP client is, because it violates the
+   separation our invariants exist to hold. Style complaints without a rule behind them are noise.
+2. **An audit is informational, never authoritative.** It does not change a frozen contract because
+   another project chose differently. Where it finds a genuinely better answer to something we have
+   *not* settled, that is recorded as a proposal and evaluated against the specs on its own.
+
+Audits live in `docs/references/`. The practice exists to keep us out of both failure modes — *"it
+has been done, so copy it"* and *"we are more ambitious, so write everything from nothing"* — and
+to leave one honest principle in their place:
+
+> **Do not re-step into pits others have already fallen into; reuse the wheels they have already
+> built well; decide MineWorld's own abstraction and long-term direction ourselves.**
+
+Audited so far: Microverse (`docs/references/MICROVERSE_AUDIT.md`, in progress). Worth auditing
+next: AI Town, Concordia, AgentSociety, SimWorld.
+
 ## 18. Final Principle
 
 MineWorld should build what is unique to MineWorld and reuse what the ecosystem already does well.
