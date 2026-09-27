@@ -14,4 +14,26 @@ if ! command -v "$godot" >/dev/null 2>&1; then
   echo "              or point GODOT= at the binary." >&2
   exit 127
 fi
-exec "$godot" --path "$here/clients/2d-spike" -- "$@"
+project="$here/clients/2d-spike"
+
+# Godot stores its import cache in .godot/, which is gitignored — so a fresh
+# clone or a moved worktree has none, and every sprite silently fails to load.
+# Import first whenever the cache is missing or older than the art it indexes.
+needs_import=0
+if [ ! -d "$project/.godot/imported" ]; then
+  needs_import=1
+else
+  for svg in "$project"/art/svg/*.svg; do
+    [ -e "$svg" ] || continue
+    if [ -z "$(find "$project/.godot/imported" -name "$(basename "$svg")-*.ctex" -newer "$svg" -print -quit 2>/dev/null)" ]; then
+      needs_import=1
+      break
+    fi
+  done
+fi
+if [ "$needs_import" -eq 1 ]; then
+  echo "mineworld-2d: building the Godot import cache (first run only, ~20 s)..." >&2
+  "$godot" --headless --path "$project" --import >/dev/null 2>&1 || true
+fi
+
+exec "$godot" --path "$project" -- "$@"
