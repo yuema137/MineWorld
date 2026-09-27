@@ -23,13 +23,18 @@ needs_import=0
 if [ ! -d "$project/.godot/imported" ]; then
   needs_import=1
 else
-  for svg in "$project"/art/svg/*.svg; do
-    [ -e "$svg" ] || continue
-    if [ -z "$(find "$project/.godot/imported" -name "$(basename "$svg")-*.ctex" -newer "$svg" -print -quit 2>/dev/null)" ]; then
+  # Every importable file under art/, not just the SVGs: the scene also loads
+  # a scanned grain texture, and a stale cache fails silently rather than
+  # loudly.
+  while IFS= read -r asset; do
+    [ -e "$asset" ] || continue
+    if [ -z "$(find "$project/.godot/imported" -name "$(basename "$asset")-*.ctex" -newer "$asset" -print -quit 2>/dev/null)" ]; then
       needs_import=1
       break
     fi
-  done
+  done <<EOF
+$(find "$project/art" -type f \( -name '*.svg' -o -name '*.png' \) 2>/dev/null)
+EOF
 fi
 if [ "$needs_import" -eq 1 ]; then
   echo "mineworld-2d: building the Godot import cache (first run only, ~20 s)..." >&2
