@@ -36,11 +36,20 @@ func _environment() -> void:
 	var env := Environment.new()
 
 	var sky := Sky.new()
+	# The sky is loaded as an *imported resource*, not read off the filesystem.
+	# Image.load_from_file() works from a project directory and silently fails
+	# once the project is exported to a binary -- the sky would simply vanish
+	# from a release build, which is exactly when it would cost the most, and
+	# ARC-6 has MVP-0 shipping mineworld-3d as something a person runs. Godot
+	# imports .hdr as a CompressedTexture2D, which is what PanoramaSkyMaterial
+	# wants, so this is also one object fewer than building an ImageTexture.
 	var hdr_path := "res://assets/hdri/kloofendal_48d_partly_cloudy_puresky_2k.hdr"
-	var img := Image.load_from_file(hdr_path)
-	if img != null:
+	var pano_tex: Texture2D = null
+	if ResourceLoader.exists(hdr_path):
+		pano_tex = load(hdr_path) as Texture2D
+	if pano_tex != null:
 		var pano := PanoramaSkyMaterial.new()
-		pano.panorama = ImageTexture.create_from_image(img)
+		pano.panorama = pano_tex
 		pano.energy_multiplier = 1.0
 		sky.sky_material = pano
 	else:
