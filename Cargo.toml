@@ -1,5 +1,5 @@
 [workspace]
-members = ["contracts", "kernel"]
+members = ["contracts", "kernel", "server"]
 resolver = "2"
 
 # Shared metadata: every crate in this workspace is part of one release unit, so the
@@ -15,7 +15,17 @@ authors = ["Yue Ma"]
 # dependency not listed here is adding a dependency, which is a reviewable decision.
 [workspace.dependencies]
 mineworld-contracts = { path = "contracts" }
+mineworld-kernel = { path = "kernel" }
 serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
 serde_json = "1.0.151"
 trybuild = "1.0.121"
+
+# The transport, frozen by DEP-3 / DEP-9: axum on tokio, HTTP and WebSocket. `futures-util`
+# comes with the WebSocket: a socket is split into its two halves to read and write at once.
+# `tokio-tungstenite` is the client half of the same stack and is a dev-dependency only —
+# the server's acceptance tests open real sockets rather than mocking them.
+axum = { version = "0.8.9", features = ["ws"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal"] }
+futures-util = { version = "0.3.34", default-features = false, features = ["sink", "std"] }
+tokio-tungstenite = "0.29.0"
