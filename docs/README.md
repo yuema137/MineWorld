@@ -12,6 +12,7 @@ Start with [`VISION.md`](VISION.md) — what MineWorld is and is not.
 | [`NETWORKING.md`](NETWORKING.md) | server authority, hosting, transport |
 | [`MVP.md`](MVP.md) | what the first milestone must prove |
 | [`MVP_STATUS.md`](MVP_STATUS.md) | what actually runs today, and the current blocker |
+| [`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md) | subjective decisions waiting on a person |
 | [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) | the rules to read before touching production code, and the playable-world requirements |
 | [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) | the complete engineering policy all code follows |
 | [`ART_DIRECTION.md`](ART_DIRECTION.md) | the default 3D look, and how any Presentation Style Pack is defined |

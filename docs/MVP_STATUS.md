@@ -5,7 +5,8 @@ The point of this file is to stop MVP-0 being declared complete while a real pat
 `✅` means **actually run and inspected**, never inferred from a passing test suite or a
 successful compile. `🚧` means in progress. `❌` means not started.
 
-**Updated:** 2026-09-26
+**Updated:** 2026-09-26. Subjective questions are queued in
+[`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md); a demo parked there does not block engineering.
 
 ## Capability matrix
 
@@ -28,8 +29,8 @@ What a person can actually run. None of these exists yet.
 | Artefact | Command | State |
 | --- | --- | --- |
 | World server | `mineworld server worlds/social-cafe` | ❌ |
-| 2D client | `mineworld-2d` | ❌ |
-| 3D client | `mineworld-3d` | ❌ |
+| 2D client | `mineworld-2d` | 🚧 presentation spike runnable, awaiting style decision ([queue](HUMAN_REVIEW_QUEUE.md)) |
+| 3D client | `mineworld-3d` | 🚧 presentation spike runnable, camera modes in progress |
 | Developer CLI | `mineworld create / validate / run / inspect` | ❌ |
 | `worlds/social-cafe` | — | ❌ |
 | `worlds/market-town` | — | ❌ |
