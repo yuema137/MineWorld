@@ -186,6 +186,9 @@ fn a_welcome_names_the_observer_as_a_decimal_string() {
             systems: Vec::new(),
             seats: vec![EntityKey::new("player").expect("a legal key")],
             clients: 1,
+            observations_dropped: 0,
+            deferrals_unscheduled: 0,
+            faults: 0,
         },
     };
 

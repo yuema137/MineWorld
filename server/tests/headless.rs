@@ -105,6 +105,11 @@ async fn the_world_keeps_working_while_a_subscriber_never_reads() {
         .expect("the world answers while a client is not reading")
         .expect("the world is running");
     assert_eq!(status.clients, 2);
+    assert!(
+        status.observations_dropped > 0,
+        "the world dropped frames for the client that stopped reading rather than waiting for it,          and says so: {status:?}"
+    );
+    assert_eq!(status.faults, 0, "and nothing about it was an error");
 
     let observation = tokio::time::timeout(PATIENCE, reading.observations().recv())
         .await

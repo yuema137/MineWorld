@@ -215,7 +215,7 @@ could not otherwise order two observations, since `WorldTime` has one-second gra
 | 1 | the crate: the frames, the perception seam, the host and the world thread | `[x]` | `[x]` | `[x]` |
 | 2 | the transport: HTTP control plane, WebSocket sessions, the binary | `[x]` | `[x]` | `[x]` |
 | 3 | the acceptance tests: two real clients on real sockets | `[x]` | `[x]` | `[x]` |
-| 4 | terminal validation and closeout | `[ ]` | `[ ]` | `[ ]` |
+| 4 | the drop policy made observable, terminal validation and closeout | `[x]` | `[x]` | `[x]` |
 
 Commit 1 and commit 2 were planned as three (frames / host / transport) and became two: a commit
 containing only the frames would not have a `lib.rs` that compiles, and a commit that cannot be
@@ -403,6 +403,31 @@ channel filled, so a socket test of that claim would pass without exercising it.
 the channel genuinely fills — 400 ms of sweeps at 20 ms against a backlog of 8 — and the world
 still answers `status` and still dispatches.
 
+### Commit 4 — the drop policy made observable
+
+Found by the logic review of commit 1's own code: `dropped`, `unscheduled` and `faults` were
+counted in the world thread and reachable by nobody, so the three things this server does *quietly*
+— losing a frame for a client that is not reading, failing to queue a deferral, surviving a system's
+broken contract — were invisible to whoever runs it. A number that only appears in a comment is not
+a policy anybody can audit.
+
+`WorldSummary` therefore carries `observations_dropped`, `deferrals_unscheduled` and `faults`, which
+puts them in `GET /status` and in the `welcome` frame. The no-blocking claim gains a direct
+observable, and this is the measured one:
+
+```text
+after 400 ms of 20 ms sweeps with one subscriber never reading, backlog 8:
+
+WorldSummary { protocol: 1, at: WorldTime(0), entities: 4,
+               systems: [placement (enabled), chatter (enabled)],
+               seats: [alice, bob], clients: 2,
+               observations_dropped: 24, deferrals_unscheduled: 0, faults: 0 }
+```
+
+24 frames were dropped rather than waited on, across two subscribers that were not reading, while
+`status` answered and dispatch continued. That is the constraint "the server never blocks the world
+on a client" as a number rather than as a description.
+
 ### Mutation evidence
 
 Five mutations, each applied to committed production code, each reverted after the run. Every one
@@ -529,8 +554,78 @@ This PR's acceptance is the server's. `AC-13`/`AC-15` and the two real clients a
 nothing here claims them. What is claimed is that two real WebSocket clients, over real sockets,
 receive correctly scoped observations from one world at once.
 
+### LIMITATION — `server/tests/two_clients.rs` is 550 lines
+
+Past the 500-line review threshold, which is a trigger rather than a rule
+(`ENGINEERING_STANDARDS.md`). It is one coherent responsibility — the acceptance list of this PR,
+plus the WebSocket client and HTTP helper those tests are written against — and splitting it would
+put the acceptance in two files and its instruments in a third. Recorded so the threshold is
+answered rather than ignored.
+
 ### LIMITATION — logging is `println!`
 
 No `tracing` subscriber, no levels, no structured fields. Adequate for a development server and
 deliberately not a logging architecture chosen in passing; an observability decision belongs with
 the deployment work `NETWORKING.md` §7 anticipates.
+
+## 8. Closeout and handoff
+
+```text
+PR                   MVP0 PR 05b — the world server
+branch               mvp0/pr-05b-server
+base                 main @ 3d834f6
+lifecycle            READY FOR OPERATOR REVIEW — NOT MERGED, NO PR OPENED
+implementation       CLOSED / AWAITING OPERATOR ACTION
+
+commits              1  feat(server): host a world on its own thread and speak a closed protocol
+                     2  feat(server): serve the world over HTTP and WebSocket
+                     3  test(server): two real clients, real sockets, one world
+                     4  feat(server): report what the world drops, defers and survives
+working tree         clean at the final commit
+validation           fmt / check / clippy -D warnings clean; cargo test --workspace 172 passed
+                     (144 before this PR + 28 new), 0 failed
+CI                   none exists in this repository yet; the four commands above are the gate
+```
+
+### Files
+
+```text
+server/Cargo.toml          the crate
+server/README.md           human orientation
+server/PROTOCOL.md         the frame-level specification a client is written against
+server/src/lib.rs          the crate's map, and where each frozen invariant is enforced
+server/src/protocol.rs     the frames, the refusal codes, the payload conversion  (+ tests/)
+server/src/perception.rs   the one seam a hosted world provides
+server/src/host.rs         WorldHost, HostedWorld, SeatRoster, HostConfig, Seated, Submitted
+server/src/runtime.rs      the world thread: clock, allocator, subscribers, sweep
+server/src/session.rs      one connection: handshake, then observations out and requests in
+server/src/app.rs          /health, /status, /ws
+server/src/main.rs         the binary
+server/tests/support/      two stub System Packs and a perception that scopes by room
+server/tests/two_clients.rs the acceptance, over real sockets
+server/tests/headless.rs   the same host with no transport at all
+Cargo.toml                 workspace member + the transport dependencies
+```
+
+### What the operator may want to decide
+
+```text
+1  a DEP-3 addendum naming tokio-tungstenite as the test client, if the DECISIONS record should
+   mention it (§7 explains why it was not edited here: concurrent sessions are touching that file)
+2  whether the World-Pack seeding gap in §7 is answered in PR 05c or raised to the step level
+3  post-merge: CLAUDE.md §1.1's "the contracts and kernel crates exist" inventory sentence,
+   docs/MVP_STATUS.md's networking row and the "World server" artefact row, and README.md's status
+   paragraph all become stale. They are the planning session's to synchronize, and this PR does not
+   touch shared status documents while sibling PRs are in flight.
+```
+
+### For PR 05c and 05d
+
+```text
+05c  fills the WorldHost::spawn closure: install the World Pack's systems, create its entities,
+     name its seats (SeatRoster of entity keys), and pass PresenceSystem's adapter as the
+     Perception. Nothing in server/src needs to change for that; main.rs's closure is the seam.
+05d  writes both clients against server/PROTOCOL.md. What changes in the spike clients is the frame
+     shape (join/submit/welcome/observation/result/refused) and that they no longer invent an
+     ActionId; everything they already do with Observation, Affordance and Rejection stands.
+```

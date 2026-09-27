@@ -95,8 +95,15 @@ Before a successful `join`, a `submit` is refused `not_joined` and no observatio
 { "t": "welcome", "protocol": 1, "seat": "player", "observer": "101",
   "world": { "protocol": 1, "at": 0, "entities": 4,
              "systems": [ { "system": "presence", "enabled": true } ],
-             "seats": [ "player" ], "clients": 1 } }
+             "seats": [ "player" ], "clients": 1,
+             "observations_dropped": 0, "deferrals_unscheduled": 0, "faults": 0 } }
 ```
+
+`observations_dropped` counts frames the server did not send because a client was not reading them:
+the world never waits for a client, so a client that falls behind loses observations rather than
+delaying anybody. `deferrals_unscheduled` counts work a system asked to happen later, which this
+revision has no scheduler for (S4). `faults` counts dispatches in which a system broke its own
+contract.
 
 `world` is the same value `GET /status` returns. It describes a world's **composition** — which
 systems it installed, how many entities it has — and never its state: no entity, no component and

@@ -381,6 +381,22 @@ pub struct WorldSummary {
     pub seats: Vec<EntityKey>,
     /// How many clients are connected and seated.
     pub clients: usize,
+    /// How many observations have been dropped because a client was not reading them.
+    ///
+    /// Reported rather than hidden: the world delivers observations without waiting for anybody, so
+    /// a slow client loses frames, and a number that only ever appeared in a comment would make
+    /// that policy invisible to whoever is running the server.
+    pub observations_dropped: u64,
+    /// How many deferrals dispatch handed back with no scheduler to queue them.
+    ///
+    /// Zero in a world whose systems defer nothing. Any other number is the size of what S4 will
+    /// take over, and until then it is work this server was asked for and could not do.
+    pub deferrals_unscheduled: u64,
+    /// How many dispatches ended in a system breaking its own contract.
+    ///
+    /// `kernel/src/dispatch.rs`: an error out of dispatch is a bug in a system, not a rejected
+    /// request. This server keeps serving and counts them here.
+    pub faults: u64,
 }
 
 /// One installed system, as a status answer names it.

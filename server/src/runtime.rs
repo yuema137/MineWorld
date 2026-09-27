@@ -301,6 +301,9 @@ impl WorldRuntime {
                 .collect(),
             seats: self.seats.iter().cloned().collect(),
             clients: self.subscribers.len(),
+            observations_dropped: self.dropped,
+            deferrals_unscheduled: self.unscheduled,
+            faults: self.faults,
         }
     }
 }
