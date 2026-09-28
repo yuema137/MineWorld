@@ -51,6 +51,50 @@ The floorboard tile is the one asset generated with an opaque background rather
 than a transparent one, because it is a surface and not an object, and it is
 excluded from bounding-box normalization for the same reason.
 
+### The cast's range
+
+[`ARC-22`](../../docs/DECISIONS.md) binds the default World Pack's cast to the
+skin and hair range broadly spanning fair European through East Asian, until a
+second texture set and a second head exist.
+
+**The mechanism here is not the 3D one, and the difference matters.** In 3D the
+crowd is one photographic albedo tinted per instance, so a tint far from the
+source yields the same person painted a different colour rather than a
+different person — the defect is in the method. This cast is *generated*, one
+image per character, so that particular failure does not arise. The bound still
+applies, because `ARC-22` scopes it to the default cast as a whole and because
+the generated set is produced from the same reference plates.
+
+**What `ARC-22` is not, restated because it is easy to get wrong:** it is not a
+finding that a wider cast is expensive in itself. The cost is **asset
+production** — a second albedo, a second head, matching grooms. Nothing here
+should be cited as evidence that breadth is the problem.
+
+**Measured, not assumed.** `tools/skin_range.gd` finds the skin pixels in each
+generated character's head region and reports the median luminance:
+
+```
+gen_g_front   #C0A48A  luma 0.675      gen_a_front       #E5AC7A  luma 0.771
+gen_sit_b     #C29E7A  luma 0.688      gen_player_front  #E1AD7E  luma 0.768
+span: luma 0.675 .. 0.771   floor 0.60   (ARC-22 cites 0.512 as past the limit)
+```
+
+The cast was already inside the range, so **nothing was regenerated** — the
+poses and stride pairs already verified are untouched. What changed is that the
+constraint is now *stated*: the generation spec never mentioned skin at all, so
+the model chose per character and happened to land in range. That is luck, not
+a constraint, and it would not have survived a regeneration. The preamble in
+`tools/specs/characters*.json` now says it, and the tool fails non-zero if a
+later regeneration drifts out. Its floor is a guard against drift and not a
+target.
+
+Hair across the cast is black, brown, auburn, blond, grey and silver, which is
+inside the same range; nothing there needed changing either.
+
+**Do not widen this on your own initiative.** `ARC-22` is explicit that
+widening is an operator decision prompted by a second texture set existing, not
+by the palette looking short.
+
 ### Stride poses
 
 Each walking character has a second pose, generated conditioned on its own
