@@ -157,6 +157,10 @@ the same defect three times: a face judged at 60 px, a character judged in stree
 screenshots, and a review montage at 620 px per tile that was read as *nothing changed* when both
 the footwear and the roofline had in fact changed.
 
+This is the image-specific case of a general rule: `DECISIONS.md` `ARC-23` — **locate before
+counting** — which records seven instances of an instrument measuring something adjacent to what
+it was named after, twice coming within a step of a wrong architectural conclusion.
+
 So: compare at the reference's own framing. If the reference is a chest-up portrait, the candidate
 crop is chest-up. If the claim is about a sole touching the ground, the crop is the foot. A contact
 sheet is for orientation, never for a verdict.
