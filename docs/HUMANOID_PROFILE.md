@@ -163,9 +163,9 @@ foot sliding: it rescales position tracks, and stride is not in them.
 
 ```
 standing still:   0.00 m travelled, 0.00 gait cycles
-walk 4.0 s:       4.00 cycles over 5.05 m, 0.793 cycles/m, planted foot drifts 21% of body speed
-walk 2.2 s:       2.00 cycles over 2.77 m, 0.721 cycles/m
-jog  4.0 s:       5.50 cycles over 11.18 m, 0.492 cycles/m, planted foot drifts 79% of body speed
+walk 4.0 s:       4.00 cycles over 5.24 m, 0.763 cycles/m, planted foot drifts 21% of body speed
+walk 2.2 s:       1.50 cycles over 2.19 m, 0.684 cycles/m
+jog  4.0 s:       5.00 cycles over 10.91 m, 0.458 cycles/m, planted foot drifts 82% of body speed
 ```
 
 Cycles are counted from the foot's own swing, between interpolated first and last
@@ -180,8 +180,8 @@ planted: a body hovering with its legs cycling below it would pass. So
 still, where the sole is on the ground by construction:
 
 ```
-lower foot vs its standing height: min -0.006 m, max +0.044 m
-in contact (within 15 mm of the ground) on 55% of sampled frames
+lower foot vs its standing height: min -0.006 m, max +0.045 m
+in contact (within 15 mm of the ground) on 61% of sampled frames
 ```
 
 There is a support phase. 6 mm of sole clipping at the low point is the
