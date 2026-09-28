@@ -882,9 +882,28 @@ outcome is decided rather than discovered afterwards. It also sharpens `ARC-19` 
 *"engine-specific Presentation Packs stay isolated from portable MineWorld assets"* — from a
 licensing rule into a technical one.
 
-**Unverified counterpart.** I did not verify Godot's runtime glTF capability from a primary source
-in this spike, so *"Godot can and Unreal cannot"* is stated as the thing to check, not as a finding.
-The Unreal half is cited; the Godot half is not.
+**The Godot counterpart, checked.** Godot's own documentation states the capability directly:
+
+> "Godot has first-class support for glTF 2.0, both in the editor **and exported projects**. Using
+> `GLTFDocument` and `GLTFState` together, Godot can load and save glTF files in exported projects,
+> in both text (`.gltf`) and binary (`.glb`) formats."
+> — *Runtime file loading and saving*, Godot documentation
+
+with `GLTFDocument.append_from_file()` and `GLTFDocument.generate_scene()` as the runtime path.
+
+**The two engines' evidence is not symmetrical, and the difference should be respected.** Epic
+**explicitly excludes** Skeletal Mesh and Animation from its runtime import path. Godot's page
+**says nothing either way** about skeletons or animation at runtime — it affirms glTF loading in
+exported projects and does not qualify it. So the honest statement is:
+
+```text
+Unreal    documented as NOT supporting rigged characters at runtime
+Godot     documented as supporting glTF in exported projects, silent on the rigged case
+```
+
+A silence is weaker than an affirmation. Loading a rigged, animated glTF character in an exported
+Godot build should be *tested* before the asymmetry is relied on in a decision — it is a short test
+and neither track has run it.
 
 ### 7.9 Running it on this machine
 
