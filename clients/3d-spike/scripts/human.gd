@@ -1,0 +1,477 @@
+## The rigged human body: CC0 geometry, MineWorld materials, Quaternius motion.
+##
+## This replaces the capsule mannequin that `npc.gd` used to build from
+## primitives. `npc.gd` still owns *behaviour* -- where a person walks, which
+## pose they hold -- and this file owns the *body*. The split matters because
+## the body is now an imported asset with a licence trail
+## (`docs/CHARACTER_ASSET_AUDIT.md`) while the behaviour is still ours.
+##
+## FACING: the character's rest pose faces its own local **+Z**, which is the
+## convention `npc.gd` already steers by and the same one Godot's
+## `SkeletonProfileHumanoid` defines for a humanoid reference pose. Nothing had
+## to change for the swap, and `--drive` still prints world-space facing so a
+## regression here is one line of output rather than a squint at a screenshot.
+##
+## SCALE: the authored figure measures 1.7688 m. An instance is scaled by
+## `height / 1.7688`, which is the rule `docs/HUMANOID_PROFILE.md` states and
+## the reason `height_mm` in the server means something visible here.
+##
+## Materials are re-authored rather than imported: the GLB ships bare materials
+## and the textures are separate CC0 files. That is also what `DEP-8`'s
+## coherence procedure asks for -- material authority stays with the project, so
+## a borrowed asset stops announcing that it was borrowed.
+class_name Human
+extends Node3D
+
+const SRC := "res://assets/characters/vitruvian/vitruvian.glb"
+const CLIPS := "res://assets/characters/quaternius_ual.glb"
+const TEX := "res://assets/characters/vitruvian/textures/"
+
+## Measured from the baked GLB, not assumed. `tools/character_bake.py` prints it.
+## It grew from 1.7688 when the generated shoes added a sole below the bare foot.
+const CANONICAL_HEIGHT := 1.7799
+
+## Ground speed each clip is authored at, **measured on this character** by
+## `tools/measure_stride.gd`: it samples a foot relative to the hips across one
+## cycle, takes the peak-to-peak travel as one stride, and a cycle holds two.
+##
+## These have to be measured and they have to be measured here, not on the
+## animation rig. `Normalize Position Tracks` rescales *position* tracks; stride
+## lives in the leg *rotations* applied to our limb lengths, so it survives
+## normalisation untouched and differs from the Quaternius mannequin's
+## (1.021 / 2.503 m/s on its own skeleton, 1.058 / 2.647 on ours).
+##
+## The first version of this file guessed 1.35 and 3.10. At the controller's
+## real 1.45 m/s that guess ran the clip ~30% too slow, which is precisely the
+## skating this constant exists to prevent.
+const WALK_CLIP_MPS := 1.058
+const JOG_CLIP_MPS := 2.647
+
+static var _scene: PackedScene
+static var _lib: AnimationLibrary
+static var _mats: Dictionary = {}
+
+var skeleton: Skeleton3D
+var _tree: AnimationTree
+var _posture: Posture
+var _speed := 0.0
+var _sitting := false
+var _seat_y := 0.45
+## The imported GLB instance, held typed: `get_child(0)` is a bare Node and
+## reaching through it for `.position` silently loses the type, which once
+## failed compilation and degraded the whole scene.
+var _inst: Node3D
+
+
+static func _tex(file: String, srgb: bool) -> Texture2D:
+	var t := load(TEX + file) as Texture2D
+	if t is CompressedTexture2D and not srgb:
+		pass  # import flags carry the colour space; nothing to do at runtime
+	return t
+
+
+## Eyes and mouth are identical on everyone, so they are built once.
+static func _shared() -> Dictionary:
+	if not _mats.is_empty():
+		return _mats
+	var sclera := StandardMaterial3D.new()
+	sclera.albedo_texture = _tex("sclera.jpg", true)
+	sclera.roughness = 0.25
+	_mats["sclera"] = sclera
+	var iris := StandardMaterial3D.new()
+	iris.albedo_texture = _tex("iris.jpg", true)
+	iris.roughness = 0.12
+	_mats["iris"] = iris
+	var mouth := StandardMaterial3D.new()
+	mouth.albedo_texture = _tex("mouth.jpg", true)
+	mouth.roughness = 0.35
+	_mats["mouth"] = mouth
+	return _mats
+
+
+## There is exactly one CC0 skin texture set, so a crowd built from it is a
+## crowd of one person in different shirts. A per-instance albedo tint buys back
+## some of that range: the map keeps all the photographic detail and the tint
+## shifts its tone. It is a real limitation of a one-character asset, not a
+## finished solution -- a second body texture set is the actual fix, and
+## `docs/HUMANOID_PROFILE.md` records what person #2 would cost.
+static func _skin(bc: String, nm: String, rough: String, tint: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _tex(bc, true)
+	m.albedo_color = tint
+	m.normal_enabled = true
+	m.normal_texture = _tex(nm, false)
+	m.normal_scale = 0.8
+	m.roughness_texture = _tex(rough, false)
+	m.roughness = 1.0
+	m.metallic = 0.0
+	# MakeHuman-family skins are diffuse-dominant and read waxy in Forward+
+	# without this; it is the cheapest large step toward the reference's
+	# material feel and costs nothing in the lighting rig.
+	m.subsurf_scatter_enabled = true
+	m.subsurf_scatter_strength = 0.28
+	m.subsurf_scatter_skin_mode = true
+	return m
+
+
+## The groom's coverage lives in its own map, which StandardMaterial3D cannot
+## sample -- see shaders/hair_card.gdshader.
+static func _hair(tint: Color) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/hair_card.gdshader")
+	m.set_shader_parameter("tex_diffuse", _tex("hair_bc.jpg", true))
+	m.set_shader_parameter("tex_opacity", _tex("hair_opacity.png", false))
+	m.set_shader_parameter("tint", tint)
+	m.set_shader_parameter("cutoff", 0.42)
+	m.set_shader_parameter("roughness_v", 0.55)
+	return m
+
+
+static func _cloth(c: Color, rough: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = rough
+	m.metallic = 0.0
+	m.normal_enabled = true
+	m.normal_texture = _tex("fabric_n.jpg", false)
+	# Fine and faint: a weave hint at conversation distance, not a quilted
+	# pattern. The garment UVs are near 1:1 with metres, so the tiling is high.
+	m.normal_scale = 0.12
+	m.uv1_scale = Vector3(14, 14, 1)
+	return m
+
+
+## Shoes get no weave -- leather is not fabric, and the tiled normal read as
+## camouflage on a foot-sized surface.
+static func _plain(c: Color, rough: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = rough
+	m.metallic = 0.0
+	return m
+
+
+## Colours come from `npc.gd`'s palettes so the crowd still reads as one town;
+## `shoe` tints the foot surface, which is where upstream put the shoes.
+## `hoodie` and `pack` are optional: pass a transparent colour for a person who
+## is not wearing them. Only the reference character does, for now.
+static func build(height_m: float, skin: Color, hair: Color,
+		top: Color, legs: Color, shoe: Color,
+		hoodie := Color(0, 0, 0, 0), pack := Color(0, 0, 0, 0)) -> Human:
+	if _scene == null:
+		_scene = load(SRC) as PackedScene
+	var h := Human.new()
+	h.name = "Human"
+	var inst := _scene.instantiate() as Node3D
+	h.add_child(inst)
+	h._inst = inst
+	h.scale = Vector3.ONE * (height_m / CANONICAL_HEIGHT)
+
+	h.skeleton = inst.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+	var m := _shared()
+	# Bound by the GLB's own material names rather than by surface index, so
+	# re-running the bake with a different surface order cannot silently paint
+	# the shirt with skin. `tools/character_bake.py` carries the names through.
+	var by_name := {
+		"VitBody": _skin("body_bc.jpg", "body_n.jpg", "body_rough.jpg", skin),
+		"VitShoes": _plain(shoe, 0.45),
+		"VitShoeL": _plain(shoe, 0.55), "VitShoeR": _plain(shoe, 0.55),
+		"VitPants": _cloth(legs, 0.85), "VitShirt": _cloth(top, 0.80),
+		"VitSkin": _skin("face_bc.jpg", "face_n.jpg", "face_rough.jpg", skin),
+		"VitMouth": m["mouth"],
+		"VitSclera": m["sclera"], "VitIris": m["iris"], "VitHair": _hair(hair),
+		"VitHoodie": _cloth(hoodie, 0.86),
+	}
+	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
+		if mi.name == "Hoodie" and hoodie.a <= 0.0:
+			mi.visible = false
+			continue
+		for i in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(i)
+			var key := (src.resource_name if src else "").trim_suffix(".001")
+			if by_name.has(key):
+				mi.set_surface_override_material(i, by_name[key])
+			else:
+				push_warning("human.gd: no material for surface '%s'" % key)
+		# The hair is alpha-scissored and self-shadows badly at grazing angles.
+		if mi.name == "Hair":
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
+
+	if pack.a > 0.0:
+		h._backpack(pack)
+
+	# Layered after the AnimationTree; see posture.gd for why it exists.
+	h._posture = Posture.natural_stance()
+	h.skeleton.add_child(h._posture)
+
+	h._build_tree(inst)
+	return h
+
+
+## A backpack on one shoulder. Built from primitives and hung off the profile's
+## UpperChest bone with a BoneAttachment3D, so it rides the spine and needs no
+## skinning -- a rucksack is rigid anyway. The strap across the chest is most of
+## what makes the reference silhouette recognisable, more than the bag itself.
+## A backpack on the shoulders, built from primitives.
+##
+## Parented to the character rather than to a bone. A `BoneAttachment3D` on
+## UpperChest is the textbook answer and it is what the first version did, but
+## the bone's frame after retargeting is not character space and undoing it put
+## the bag through the chest at an angle. A rucksack on a walking person barely
+## moves relative to the torso, so the honest trade is fixed placement that is
+## visibly right over rig-following that is visibly wrong. If the character ever
+## needs to bend, this is the thing to revisit.
+func _backpack(c: Color) -> void:
+	var hold := Node3D.new()
+	hold.name = "Pack"
+	add_child(hold)
+
+	var canvas := Mats.paint(c, 0.92)
+	var webbing := Mats.paint(c.darkened(0.30), 0.88)
+	var buckle := Mats.paint(Color(0.18, 0.18, 0.17), 0.45, 0.4)
+	# the bag on the upper back, with a lid flap and a lower pocket so the
+	# silhouette is not one plain box
+	Build.box(hold, Vector3(0, 1.235, -0.185), Vector3(0.265, 0.34, 0.145), canvas)
+	Build.box(hold, Vector3(0, 1.385, -0.185), Vector3(0.245, 0.10, 0.155),
+		Mats.paint(c.lightened(0.05), 0.92))
+	Build.box(hold, Vector3(0, 1.115, -0.205), Vector3(0.20, 0.11, 0.12),
+		Mats.paint(c.darkened(0.14), 0.92))
+	# straps over both shoulders and down the chest. The right-hand one is what
+	# the reference character grips, and it carries a lot of the silhouette.
+	for sx in [-1.0, 1.0]:
+		Build.box(hold, Vector3(sx * 0.105, 1.445, -0.02), Vector3(0.065, 0.075, 0.28),
+			webbing)
+		Build.box(hold, Vector3(sx * 0.115, 1.29, 0.105), Vector3(0.06, 0.34, 0.05),
+			webbing)
+		Build.box(hold, Vector3(sx * 0.115, 1.135, 0.120), Vector3(0.055, 0.055, 0.035),
+			buckle)
+
+
+func _build_tree(inst: Node) -> void:
+	if _lib == null:
+		var clips := (load(CLIPS) as PackedScene).instantiate()
+		var ap := clips.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
+		# duplicated because the imported library is shared and read-only, and
+		# a clip of our own has to go into it
+		_lib = ap.get_animation_library(ap.get_animation_library_list()[0]).duplicate()
+		_lib.add_animation("Sit", _sit_clip())
+		clips.queue_free()
+
+	var player := AnimationPlayer.new()
+	player.name = "AnimationPlayer"
+	inst.add_child(player)
+	player.add_animation_library("", _lib)
+	player.root_node = player.get_path_to(skeleton)
+
+	# Idle -> Walk -> Jog on one axis, driven by measured ground speed. Root
+	# motion stays off: the controller and the NPC paths move the body, exactly
+	# as they did with the mannequin.
+	var space := AnimationNodeBlendSpace1D.new()
+	space.min_space = 0.0
+	space.max_space = JOG_CLIP_MPS
+	# Without this the two locomotion clips run on their own clocks (1.333 s and
+	# 0.933 s), so a blend of them averages two footfall patterns that are out of
+	# phase. The legs stop reaching and the feet skate -- measured at 49% of body
+	# speed before this line existed.
+	space.sync = true
+	# Each clip sits at the speed it was authored for. That is what makes the
+	# cadence distance-driven with no tuning constant: between two blend points
+	# the blended stride interpolates exactly as the blend position does, so
+	# playing at rate 1.0 covers exactly the ground the body is covering. Put a
+	# clip at the wrong position and the whole band skates.
+	for pair in [["Idle", 0.0], ["Walk", WALK_CLIP_MPS], ["Jog_Fwd", JOG_CLIP_MPS]]:
+		var n := AnimationNodeAnimation.new()
+		n.animation = pair[0]
+		n.resource_name = pair[0]
+		space.add_blend_point(n, pair[1], -1, pair[0])
+
+	var scaler := AnimationNodeTimeScale.new()
+	var sit_node := AnimationNodeAnimation.new()
+	sit_node.animation = "Sit"
+	# Sitting is a state of the tree, not a correction applied to its output.
+	# The obvious design -- let the tree run and override the legs in a
+	# SkeletonModifier3D -- cannot work here: the AnimationTree writes every
+	# bone after the modifier, so the override was silently discarded and the
+	# figure sat with its legs straight. Measured as a thigh euler of
+	# (0, 0, -180) where (82, 0, -4) had been set. Fighting the evaluation
+	# order loses; the pose has to arrive through the tree.
+	var mode := AnimationNodeTransition.new()
+	mode.input_count = 2
+	mode.set_input_name(0, "move")
+	mode.set_input_name(1, "sit")
+	mode.xfade_time = 0.0
+
+	var tree_root := AnimationNodeBlendTree.new()
+	tree_root.add_node("Locomotion", space, Vector2(0, 0))
+	tree_root.add_node("Rate", scaler, Vector2(300, 0))
+	tree_root.add_node("Sit", sit_node, Vector2(300, 200))
+	tree_root.add_node("Mode", mode, Vector2(600, 0))
+	tree_root.connect_node("Rate", 0, "Locomotion")
+	tree_root.connect_node("Mode", 0, "Rate")
+	tree_root.connect_node("Mode", 1, "Sit")
+	tree_root.connect_node("output", 0, "Mode")
+
+	_tree = AnimationTree.new()
+	_tree.name = "AnimationTree"
+	_tree.tree_root = tree_root
+	# The node has to be in the tree before either path can be resolved.
+	inst.add_child(_tree)
+	_tree.anim_player = _tree.get_path_to(player)
+	_tree.active = true
+	set_gait(0.0)
+
+
+## A seated pose, authored as a one-key looping clip so the AnimationTree can
+## play it like any other.
+##
+## Quaternius ships Sitting_Enter/Idle/Exit in the paid tier only. A two-key
+## pose is still a clip, and being a clip is the whole point: it goes through
+## the same evaluation the locomotion does instead of trying to outrun it.
+##
+## Every bone the pose needs is keyed, including the arms. A track the clip
+## does not carry falls back to the rest pose, and the retargeted rest pose has
+## the arms horizontal -- so a seated figure with unkeyed arms sits in a T.
+static func _sit_clip() -> Animation:
+	var pose := {
+		"Hips": Vector3(-6, 0, 0), "Spine": Vector3(4, 0, 0), "Chest": Vector3(3, 0, 0),
+		"LeftUpperLeg": Vector3(82, 0, -4), "RightUpperLeg": Vector3(82, 0, 4),
+		"LeftLowerLeg": Vector3(100, 0, 0), "RightLowerLeg": Vector3(100, 0, 0),
+		# knee bend swept rather than guessed: the foot clearance bottoms out
+		# near +0.06 m around 100 degrees and does not improve past it
+		"LeftFoot": Vector3(-26, 0, 0), "RightFoot": Vector3(-26, 0, 0),
+		# Brought all the way down: the rest pose these start from is a T, so
+		# this is ~90 degrees of travel, not a nudge. The axis was swept rather
+		# than assumed -- X lowers the arm, Z swings it out to the side, and
+		# guessing Z first produced a figure sitting with its arms held out.
+		"LeftUpperArm": Vector3(-76, 0, 9), "RightUpperArm": Vector3(-76, 0, -9),
+		"LeftLowerArm": Vector3(-22, 0, 8), "RightLowerArm": Vector3(-22, 0, -8),
+	}
+	var a := Animation.new()
+	a.length = 2.0
+	a.loop_mode = Animation.LOOP_LINEAR
+	for bone: String in pose:
+		var ti := a.add_track(Animation.TYPE_ROTATION_3D)
+		# the same addressing the imported clips use, so it resolves the same way
+		a.track_set_path(ti, "%%GeneralSkeleton:%s" % bone)
+		var e: Vector3 = pose[bone]
+		var q := Quaternion(Basis.from_euler(Vector3(
+			deg_to_rad(e.x), deg_to_rad(e.y), deg_to_rad(e.z))))
+		a.rotation_track_insert_key(ti, 0.0, q)
+	return a
+
+
+## Drive the body from a ground speed measured elsewhere -- the same contract the
+## capsule mannequin had, so `npc.gd` and `player.gd` did not have to change.
+## The cadence rule, stated so it is testable: **animation phase advances with
+## distance travelled, never with wall-clock time.** Standing still advances no
+## phase; walking twice as fast takes steps twice as often, of the same length.
+##
+## The implementation falls out of putting each clip at its measured speed. A
+## body scaled to `s` covers `s` times the ground per cycle, so the blend
+## position is the speed expressed in the clip's own (unscaled) units, and the
+## playback rate is then exactly 1.0. Above the fastest clip there is nothing
+## left to blend toward, so the rate takes over.
+func set_gait(speed_mps: float) -> void:
+	if _tree == null:
+		return
+	var s := maxf(scale.y, 0.01)
+	var want := maxf(speed_mps, 0.0) / s
+	_speed = speed_mps
+
+	# Below walking pace the blend is idle-to-walk, which scales the stride
+	# amplitude with the blend weight -- speed and stride rise together, so the
+	# clip plays at its own rate. Above it, the band is pinned to a single clip
+	# and the rate carries the speed: cross-fading walk into jog blends two
+	# different cadences and shortens the stride even with sync on, which is
+	# skating by another route.
+	var blend := want
+	var rate := 1.0
+	if want > WALK_CLIP_MPS:
+		var jog := want >= (WALK_CLIP_MPS + JOG_CLIP_MPS) * 0.5
+		blend = JOG_CLIP_MPS if jog else WALK_CLIP_MPS
+		rate = want / blend
+	_tree.set("parameters/Locomotion/blend_position", blend)
+	_tree.set("parameters/Rate/scale", rate)
+
+
+## World position of a foot. Used by `--drive` to measure foot sliding directly
+## rather than inferring it from the numbers that were supposed to prevent it.
+func foot_position(left: bool) -> Vector3:
+	var i := skeleton.find_bone("LeftFoot" if left else "RightFoot")
+	if i < 0:
+		return global_position
+	return skeleton.global_transform * skeleton.get_bone_global_pose(i).origin
+
+
+## Play one clip straight, bypassing the blend space. Diagnostic only: playing
+## `A_TPose` is how you tell a broken retarget from a clip you simply dislike.
+func debug_clip(clip: String) -> void:
+	if _tree:
+		_tree.active = false
+	var ap := _player()
+	if ap:
+		ap.play(clip)
+
+
+func _player() -> AnimationPlayer:
+	for c in get_child(0).get_children():
+		if c is AnimationPlayer:
+			return c
+	return null
+
+
+## Sit on something `seat_y` high.
+##
+## The pose comes from the tree (see `_sit_clip`); this only switches the tree
+## into it, stands the standing-posture correction down, and puts the hips on
+## the seat.
+func sit(seat_y := 0.45) -> void:
+	_sitting = true
+	_seat_y = seat_y
+	if _posture:
+		# the standing correction tucks arms and thighs in and fights the pose
+		_posture.active = false
+	if _tree:
+		_tree.set("parameters/Mode/transition_request", "sit")
+	if is_inside_tree():
+		_settle_seat()
+
+
+func _ready() -> void:
+	if _sitting:
+		_settle_seat()
+
+
+## The hips can only be measured once the tree has actually written the seated
+## pose. A single deferred call is too early -- it measures the standing pose
+## and places the body half a metre out, which is what the first version did.
+func _settle_seat() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_place_on_seat()
+
+
+## Put the hips on the seat the caller says the person is sitting on.
+##
+## The first version solved for the feet instead -- drop the body until they
+## reach y = 0 -- and let the hips land wherever the pose put them, about
+## 0.39 m, which is below every chair in the scene. A seated person's contact
+## with the world is the seat, not the floor.
+func _place_on_seat() -> void:
+	var hi := skeleton.find_bone("Hips")
+	if hi < 0 or _inst == null:
+		return
+	var hips_y := skeleton.get_bone_global_pose(hi).origin.y * scale.y
+	_inst.position.y = (_seat_y - hips_y) / maxf(scale.y, 0.01)
+	# Report the foot clearance, so a seat height that does not suit the pose
+	# shows up in the log rather than only in a screenshot from one angle.
+	var lowest := INF
+	for bone in ["LeftFoot", "RightFoot"]:
+		var i := skeleton.find_bone(bone)
+		if i >= 0:
+			lowest = minf(lowest, skeleton.get_bone_global_pose(i).origin.y)
+	if lowest < INF:
+		var foot: float = (lowest + _inst.position.y) * scale.y
+		if absf(foot) > 0.10:
+			push_warning("human.gd: seated on a %.2f m seat leaves the feet %+.2f m off the floor"
+				% [_seat_y, foot])
