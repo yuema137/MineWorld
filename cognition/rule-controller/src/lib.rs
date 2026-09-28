@@ -126,8 +126,11 @@ impl RuleController {
         )
     }
 
-    /// Whether this controller has answered anybody yet. For a driver that wants to log the first
-    /// time it does.
+    /// Whether this controller has answered anybody yet.
+    ///
+    /// The whole of its observable state, which is what makes "it did not act, and it did not mark
+    /// anything answered either" a checkable claim — the difference between a controller that is
+    /// waiting for the server to say yes and one that has silently given up.
     pub fn is_silent(&self) -> bool {
         self.answered.is_empty()
     }

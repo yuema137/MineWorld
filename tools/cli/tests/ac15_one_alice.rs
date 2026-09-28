@@ -342,7 +342,7 @@ async fn killing_one_window_leaves_the_world_and_the_other_window_running() {
     let server = Server::start(&["server", support::PACK, "--agent", "alice"]).await;
     let mut two_d = Client::connect(server.address).await;
     let mut three_d = Client::connect(server.address).await;
-    let (visitor, _) = two_d.join("visitor").await;
+    two_d.join("visitor").await;
     let (wanderer, _) = three_d.join("wanderer").await;
 
     let seen = three_d.observation().await;
@@ -387,7 +387,6 @@ async fn killing_one_window_leaves_the_world_and_the_other_window_running() {
         json!(0),
         "and nothing broke while it died: {status}"
     );
-    let _ = visitor;
 }
 
 /// A client cannot read a stranger's memory, which is what makes the disclosure in the test above a

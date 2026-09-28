@@ -38,9 +38,6 @@ extends Node
 ## refused rather than guessed at.
 const PROTOCOL := 1
 
-## What this module does with a number it is about to send. See [method submit].
-const MAX_TOKEN_LENGTH := 64
-
 ## The connection got a seat: this is the observer it sees the world as, and what the world is.
 ##
 ## `observer` is an identity **string**. `world` is the summary the server sent, including

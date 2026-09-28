@@ -60,7 +60,6 @@ var _requests_path := ""
 var _shot_path := ""
 
 var _font: Font = ThemeDB.fallback_font
-var _log: PackedStringArray = []
 var _last_answer := "—"
 var _requests: Array = []
 var _step := 0
@@ -457,5 +456,4 @@ func _text(at: Vector2, line: String, colour: Color, size: int = 14) -> void:
 
 
 func _note(line: String) -> void:
-	_log.append(line)
 	print("[demo] %s" % line)
