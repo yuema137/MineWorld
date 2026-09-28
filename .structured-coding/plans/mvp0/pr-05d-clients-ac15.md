@@ -349,12 +349,19 @@ Every commit: implementation, deterministic validation, and LLM logic review, tr
 
 ### C4 — the agent driver, and the world it runs in
 
-- [ ] Implementation: `tools/cli/src/agent.rs` and `--agent <seat>`; `worlds/social-cafe/` gains
+- [x] Implementation: `tools/cli/src/agent.rs` and `--agent <seat>`; `worlds/social-cafe/` gains
       `people/wanderer.yaml`, a second seat, and Alice as a seat; READMEs; the corrected seat-refusal
       test in `tools/cli/tests/server_command.rs`.
-- [ ] Validation: `mineworld validate worlds/social-cafe`; the existing CLI tests; the agent
-      observed replying in a live run.
-- [ ] Review: that the agent's path is the client path — seat, actor check, server-allocated id.
+- [x] Validation: `mineworld validate worlds/social-cafe` prints the four people, three seats and
+      four genesis facts; a live `mineworld server worlds/social-cafe --agent alice` logged
+      `agent: driving 'alice' as entity 2` and `/status` reported `clients: 1` with the agent alone
+      connected; `cargo test --workspace` 256 tests pass (was 244), with the pack's new population
+      reflected in the worldpack and CLI suites.
+- [x] Review: `agent::drive` calls exactly `host.join` and `host.submit`, which are the two calls
+      `server/src/session.rs` makes; it holds no other handle. The seat check before spawning uses the
+      pack's own roster, so a mistyped `--agent` is an error before a socket is bound. A test pins that
+      a client cannot act as Alice even while an agent drives her
+      (`one_window_cannot_act_as_the_other_nor_as_alice`).
 
 ### C5 — the Godot client protocol module and its scene
 

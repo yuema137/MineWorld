@@ -30,8 +30,20 @@ population:
   - alice
   - bob
   - visitor
+  - wanderer
 
-# The seats a client may occupy. A seat is an existing Person, named by its authoring key: a client
-# asks for a seat and the server resolves which entity that is, so no client ever names an entity.
+# The seats a **controller** may occupy — a human client or an agent, because nothing about the world
+# distinguishes them (`INV-1`). A seat is an existing Person, named by its authoring key: whoever
+# connects asks for a seat and the server resolves which entity that is, so nothing outside the world
+# ever names an entity.
+#
+# Two of them are for players, because `AC-15` puts two clients in one world and two observers are two
+# people. The third is Alice, and it is what lets `mineworld server ... --agent alice` drive her
+# through exactly the path a player's client uses rather than through a privileged one. That a human
+# could occupy her instead is `AC-5`'s direction, not an oversight: mixed control is normal, and which
+# Person is driven by what is a fact about this world's configuration rather than about the person
+# (`MODULE_SPEC.md` §5).
 seats:
   - visitor
+  - wanderer
+  - alice

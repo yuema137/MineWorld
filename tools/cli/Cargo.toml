@@ -14,11 +14,13 @@ name = "mineworld"
 path = "src/main.rs"
 
 [dependencies]
-# The composition root: the only crate in the workspace that depends on the transport AND on the
-# System Packs, which is what lets `mineworld-server` stay ignorant of what a conversation is.
+# The composition root: the only crate in the workspace that depends on the transport, the System
+# Packs AND a controller, which is what lets `mineworld-server` stay ignorant of what a conversation
+# is and `mineworld-rule-controller` ignorant of how a request reaches a world.
 mineworld-contracts = { workspace = true }
 mineworld-conversation = { workspace = true }
 mineworld-presence = { workspace = true }
+mineworld-rule-controller = { workspace = true }
 mineworld-server = { workspace = true }
 mineworld-worldpack = { workspace = true }
 serde_json = { workspace = true }
