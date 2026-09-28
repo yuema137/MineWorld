@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Launch the MineWorld VIS-3D-GODOT-2 environment slice.
+#
+#   ./mineworld-slice                 walk it
+#   ./mineworld-slice --shots         capture the VISUAL_SLICE.md sec.12 review views
+#   ./mineworld-slice --drive         walk in through the door, headless, and report
+#   ./mineworld-slice --measure       print measured scale against VISUAL_SLICE.md sec.3
+#   ./mineworld-slice --threshold     the sec.7.1 indoor/outdoor measurement
+#   ./mineworld-slice --perf          frame cost at four viewpoints
+#   ./mineworld-slice --gi=<mode>     none | ssil | voxel | sdfgi  (default voxel)
+#
+# Needs Godot 4.7 on PATH (brew install godot). Nothing else.
+#
+# Separate from ./mineworld-3d on purpose: that launches the earlier promenade
+# spike, which is the artefact behind an accepted movement and camera decision
+# and is left working untouched. Both are scenes in one Godot project, so the
+# controller, the cameras, the material library and the CC0 assets are shared
+# rather than forked.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+proj="$here/clients/3d-spike"
+scene="res://scenes/slice.tscn"
+godot_bin="${GODOT:-godot}"
+res="1600x900"
+
+if ! command -v "$godot_bin" >/dev/null 2>&1; then
+  echo "error: '$godot_bin' not found on PATH. Install Godot 4.7 (brew install godot)," >&2
+  echo "       or set GODOT=/path/to/godot." >&2
+  exit 1
+fi
+
+# Godot resolves global class names outside the editor only from its resource
+# cache. Build it on the first run, and rebuild whenever a script is newer than
+# the cache: adding a class_name to the tree otherwise fails to parse at startup.
+cache="$proj/.godot/global_script_class_cache.cfg"
+if [ ! -f "$cache" ] || [ -n "$(find "$proj/scripts" -name '*.gd' -newer "$cache" -print -quit)" ]; then
+  echo "building the Godot resource cache..."
+  "$godot_bin" --headless --path "$proj" --import >/dev/null 2>&1 || true
+fi
+
+args=()
+headless=0
+for a in "$@"; do
+  case "$a" in
+    --shots|--drive|--measure|--threshold|--perf) args+=("--slice${a}") ;;
+    --gi=*)                                args+=("$a") ;;
+    --res=*)                               res="${a#--res=}" ;;
+    *)                                     args+=("$a") ;;
+  esac
+  [ "$a" = "--drive" ] && headless=1
+done
+
+# The drive test needs physics, not pixels -- and macOS throttles an unfocused
+# window hard enough to make a real-time test take minutes.
+if [ "$headless" = "1" ]; then
+  exec "$godot_bin" --headless --path "$proj" "$scene" -- "${args[@]}"
+fi
+
+exec "$godot_bin" --path "$proj" "$scene" --resolution "$res" -- "${args[@]:-}"
