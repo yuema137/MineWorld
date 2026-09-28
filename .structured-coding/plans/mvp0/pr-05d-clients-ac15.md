@@ -11,7 +11,10 @@ acceptance test"), the two open decisions it delegates (how Alice's history reac
 where the `AC-13` comparison lives), the objective gates, and the publication authority verbatim.
 Implementation base: `main` @ `cc40ad5`
 Branch: `mvp0/pr-05d-clients-ac15`
-Lifecycle: **IN IMPLEMENTATION**
+Lifecycle: **READY FOR OPERATOR REVIEW** — implementation, validation and review complete; branch
+pushed; no PR opened and no merge, as the kickoff directs. The exact final head is the tip of
+`mvp0/pr-05d-clients-ac15`, which `git log --oneline` is authoritative for: a commit cannot carry its
+own hash, and §9.1's gate results were produced at that tip.
 
 Continuation state: **this file**. `.structured-coding/plans/mvp0/handoff.md` is still PR 02's;
 PR 05c flagged it as stale and asked whoever started PR 05d to replace it rather than read it. This
@@ -394,9 +397,11 @@ Every commit: implementation, deterministic validation, and LLM logic review, tr
 
 ### C7 — the ledger
 
-- [ ] Implementation: this file's §§7-10, `handoff.md` replaced, `docs/MVP_STATUS.md` updated.
-- [ ] Validation: the four gates at the final HEAD (§9.1).
-- [ ] Review: that the report distinguishes what ran from what did not.
+- [x] Implementation: this file's §§7-10, `handoff.md` replaced, `docs/MVP_STATUS.md` updated where
+      this PR changed the answer.
+- [x] Validation: the four gates at the final HEAD (§9.1).
+- [x] Review: §9 separates what ran from what did not, and §10 states nine limitations including the
+      two that bound the central claim (the agent's transport, and the absent persistence line).
 
 ---
 
@@ -573,11 +578,165 @@ separately (`FINDINGS.md` F5) exist once.
 
 ## 9. Validation record
 
-See §9.1-§9.4. Every command below was actually run; a result is classified from its output, not
-from an exit code.
+Every command below was actually run on this host, at the commit named. A result is classified from
+what it printed, never from an exit code alone.
+
+### 9.1 The four gates, at the final executable HEAD
+
+```text
+export PATH="$HOME/.cargo/bin:$PATH"
+cargo fmt --all --check                                              clean
+cargo check --workspace --all-targets                                clean
+cargo clippy --workspace --all-targets --all-features -- -D warnings clean
+cargo test --workspace                                               258 passed, 0 failed
+```
+
+258 tests, up from 237 at `main @ cc40ad5`. The 21 new ones: 4 in the server (`parity`, the world
+instance, the shared instance across two connections), 3 in the conversation pack (the disclosure,
+its absence for a stranger, its absence when the pack is disabled), 6 in the rule controller, 6 in
+`ac15_one_alice.rs`, 2 in `ac13_semantic_parity.rs`. No test was weakened; four existing tests in
+`worldpack` and `tools/cli` were updated for the pack's new population and seats, which §7.3 records.
+
+### 9.2 Gate 2 — the real thing, running
+
+Godot `4.7.2.stable.official.ed1daf0bf`, Metal, Apple M5. `mineworld` built by cargo from this
+branch, hosting `worlds/social-cafe` from disk.
+
+| Run | Command | Result |
+| --- | --- | --- |
+| R1 | `mineworld server worlds/social-cafe --agent alice` | `PASS` — loads, listens, prints its world instance, and the controller occupies the `alice` seat: *agent: driving 'alice' as entity 2* |
+| R2 | `godot --headless --path clients/protocol -- --autopilot --flavour 2d --seat visitor` | `PASS` — joined, was told instance and observer, perceived 5 entities, was refused `too_far_away`, walked, saw the server's verdict change, spoke, and read Alice's reply out of its own disclosed history |
+| R3 | the same with `--flavour 3d --seat wanderer` | `PASS` — and Alice's reply to it quotes *what the 2D client said*, naming person 4 |
+| R4 | `godot --path clients/protocol` (windowed) with `--screenshot` | `PASS` — `clients/protocol/evidence/demo-scene.png`, read back and inspected: the world instance, the people at their authored positions, the server's four verdicts in three colours, and the disclosed history |
+| R5 | two Godot clients **at once** against one server | `PASS` — both told instance `0000000018d95a32bba34d4899250000`; the second was told `3 client(s)`; Alice answered both and told the first what the second had said |
+| R6 | `cargo test -p mineworld-cli --test ac15_one_alice` | `PASS` — six tests, §9.3 |
+| R7 | `cargo test -p mineworld-cli --test ac13_semantic_parity` | `PASS` — two tests, §9.5 |
+
+Transcripts, the two request fixtures and the screenshot are in `clients/protocol/evidence/`, with a
+README saying which run produced which file and how to regenerate them (`clients/protocol/run.sh`).
+
+### 9.3 `AC-15`, and the identities it actually recorded
+
+`there_is_only_one_alice`, printed by the test itself:
+
+```text
+AC-15 evidence, read off the frames two clients received:
+  same world instance          0000000018d958c063e6efd85a7a0000
+  same Alice EntityId          2
+  one event sequence           [6, 7, 10, 11]
+  one action-id allocator      2, 5
+  2D window (4) said   "hello Alice, this is the 2D window"
+  3D window (5) said   "hello Alice, this is the 3D window"
+  Alice told the 3D window     "I remember you. You said \"hello Alice, this is the 3D window\".
+                                Earlier, person 4 said \"hello Alice, this is the 2D window\" to me."
+```
+
+Read as evidence, in the terms `MVP.md` §9.1 sets:
+
+```text
+same world instance       both welcomes and GET /status carry one instance id
+same Alice EntityId       entity 2 is the barista BOTH windows perceive, and is the speaker of the
+                          reply each of them received — found by her tag, never by a literal
+one event sequence        [6, 7] are the 2D talk's facts and [10, 11] the 3D talk's; 8 and 9 are
+                          Alice's own reply in between. One monotonic sequence across three
+                          participants. Two worlds would each have started at 1.
+the carry-forward         she repeats to the second window what the first one said. Two
+                          synchronised copies cannot produce that sentence: neither was told the
+                          other's conversation.
+```
+
+`MVP.md` §9.1's fourth line, *same persisted state revision*, is **not** recorded: this server holds
+its world in memory and persistence is S5's (§10).
+
+### 9.4 The counterfactual, which makes §9.3 evidence rather than decoration
+
+`two_servers_are_two_worlds_and_the_evidence_can_tell`, a committed test rather than a note. Two
+servers, one client on each:
+
+```text
+alice_here == alice_there      the SAME EntityId, because two loads of one pack resolve the same
+                               keys to the same ids (AC-12 working)
+same authored position         she is standing in the same place in both
+different instance             which is what tells them apart
+no carry-forward               the second Alice says "You are the first person to speak to me
+                               here", which is true of her world
+```
+
+An "appearance" test passes there and is wrong. That is the false success `MVP.md` §9.1 exists to
+exclude, built on purpose so that the real evidence is demonstrably discriminative.
+
+### 9.5 `AC-13`, from what the real client sent
+
+The two `talk` requests in `clients/protocol/evidence/`, submitted by the Godot module in its two
+flavours as the same seat:
+
+```text
+              2D                                  3D
+actor         "4"                                 "4"
+action_type   "talk"                              "talk"
+target        "2"                                 "2"
+payload       {"utterance": "hello Alice, …"}     {"utterance": "hello Alice, …"}
+actor_location null                               {place 1, local (1200, 1400, 0), yaw 0}
+```
+
+`semantic_core(2d) == semantic_core(3d)`, and `differing_fields` is exactly
+`[RequestField::ActorLocation]` — the one field `MVP.md` §9's correction names, and the only one left
+after PR 04 removed `action_id` and `issued_at` from what a client submits. Replayed against a server
+each, both were answered identically: `Accepted` with two facts.
+
+### 9.6 The objective gates the kickoff names
+
+```text
+clean checkout                 ✅ `.godot/` is gitignored and was deleted and rebuilt during this
+                                  work; `git status` is clean at HEAD
+no hand-preserved caches       ✅ `run.sh` builds the Godot import cache itself; nothing in
+                                  `evidence/` is required to run anything
+reproducible relaunch          ✅ the server was started and stopped at least eight times over this
+                                  work, and `run.sh` is the scripted form
+no fatal errors                ✅ no panic, no `faults` above 0, no `observations_dropped` above 0,
+                                  and no error line in any transcript
+two clients at once            ✅ R5 (two Godot clients) and `there_is_only_one_alice` (two sockets
+                                  plus the agent). `/status` reported 3 clients.
+each sees only its own         ✅ `a_window_is_told_what_it_heard_and_never_what_somebody_else_heard`
+                                  — a window perceives Alice and is not shown her memory
+killing one leaves the rest    ✅ `killing_one_window_leaves_the_world_and_the_other_window_running`
+```
 
 ---
 
 ## 10. Limitations and follow-ups
 
-Filled during implementation.
+Stated plainly, because a precise account of what was not proved is worth more than a claim.
+
+1. **The agent is on the client authority path, not across the client transport.** It calls
+   `host.join` and `host.submit` — the same two calls a WebSocket session makes, with the same seat
+   resolution, actor check and server-allocated identity — but in the server's process, without JSON
+   framing or a TCP hop. §7.4 states the alternative and why it was not taken. What is *not* proved is
+   that a controller in another process behaves identically; nothing in the architecture prevents it,
+   and it is a driver swap.
+2. **`AC-15`'s fourth evidence line has no referent.** `MVP.md` §9.1 also asks for *same persisted
+   state revision*, and this server holds its world in memory. S5 gives that line something to name;
+   until then it is recorded as missing rather than approximated.
+3. **An `Observation` still carries no events.** Not needed here (§4.4), because what an NPC said to
+   you arrives in your own disclosed history, and the `AC-15` event evidence comes from the `EventId`s
+   on each `result`. A client that wants to *overhear* two other people — `Spoke` is emitted with
+   `Visibility::Place` — cannot yet. S10 owns it, and the seam it would use is the one this PR added.
+4. **The two reference clients have not adopted the module.** By instruction: they are under active
+   visual development on their own branches, and this PR must not merge or edit them. The module is
+   drop-in and `ADOPTION.md` is written for exactly that handover; nothing has yet proved it inside
+   *their* scene graphs.
+5. **The demonstration scene draws dots.** It is a protocol demonstration and not a style candidate,
+   and no fidelity claim is made from it (`ACCEPTANCE.md` §3.1).
+6. **Two controllers may occupy one Person.** Alice is a seat, so a human client could join as her
+   while the agent drives her, and MVP-0 arbitrates nothing. That is `AC-5`'s direction rather than a
+   defect, and it wants a decision — exclusive seats, or explicit hand-over — before a world is
+   exposed to strangers.
+7. **`WorldInstanceId` is not a security boundary.** It distinguishes one running world from another,
+   which is what the evidence needs. It is not random enough to be unguessable and nothing
+   authenticates with it.
+8. **The `AC-13` fixtures are frozen evidence and can go stale.** If the demonstration scene's wording
+   or walk changes, `run.sh evidence` regenerates them and the change belongs in the same commit. A
+   test reading a stale fixture would still be testing two real frames, but not the current client's.
+9. **`docs/MVP_STATUS.md` was updated only where this PR changed the answer.** Parts of it describe
+   work owned by branches this session must not touch; the rest of its staleness is recorded here
+   rather than silently fixed.

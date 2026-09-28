@@ -14,7 +14,10 @@ transcript-3d-wanderer.log a third run, on the OTHER seat: Alice tells it what t
                            said, which is AC-15 seen from inside a real client
 demo-scene.png             the windowed scene
 transcript-window.log      the run that produced it
-server.log                 the server all four runs were made against, in that order
+server.log                 the server those four runs were made against, in that order
+simultaneous-2d.log        two Godot clients at once against one server, with the agent: three
+simultaneous-3d.log        participants, one world instance in both, and Alice telling one of them
+server-simultaneous.log    what the other had said
 ```
 
 `tools/cli/tests/ac13_semantic_parity.rs` reads the two `request-*.json` files and compares them with
