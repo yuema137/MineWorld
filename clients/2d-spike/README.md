@@ -67,9 +67,29 @@ set; see the review box above.
 Two extra modes, both used to verify the spike:
 
 ```
-./mineworld-2d --shots    # capture stills into clients/2d-spike/shots/
-./mineworld-2d --drive    # press every movement key in turn and report distances
+./mineworld-2d --drive              # numeric checks; headless, ~6 s, exits non-zero on failure
+./mineworld-2d --shots              # capture stills into shots/<variant>/  (needs a window)
+./mineworld-2d --drive --capture    # the checks, plus stills               (needs a window)
 ```
+
+`--drive` is the half that can gate CI. It runs with no display and asserts
+every motion property, exiting non-zero if any fails:
+
+```
+[PASS] step bound on Up               max 0.0800, median 0.0200, bound 0.1200
+[PASS] half-second frame is clamped   moved 0.0800, bound 0.1200 (unclamped would be 1.2000)
+[PASS] walks inside through the door  entered=true steps=97 max_step=0.0400 gaps=0
+[PASS] every walker moved             12 of 12
+[PASS] cadence independent of speed   phase/m spread 0.0000 (4.363..4.363)
+[PASS] standing still costs no phase  phase +0.000000, moved 0.000000
+drive complete: PASS
+```
+
+It had to be split to get there: `_save()` awaits
+`RenderingServer.frame_post_draw`, and that frame never arrives without a
+rendering device, so any harness that screenshots will hang under `--headless`
+rather than fail. The measurements now contain no `_save` at all, and the
+stills moved behind `--capture`.
 
 `--shots` includes `06_ref_framing`, framed to match
 `presentation/mineworld-default/2D/references/02_cafe_street.png` so the two
@@ -134,6 +154,22 @@ long raking one the exterior uses, and the light comes from pools under the
 pendants.
 
 ### Motion
+
+Simulation time is clamped to `MAX_SIM_DT`, two frames at 60 Hz. Without that,
+anything stalling a frame displaces everything by however long the frame took.
+The harness was already showing it and it went unread: every key stepped a flat
+`0.0200` except the one straight after a PNG encode, which hit `0.2446` — a
+quarter of a metre in one frame — and `0.0009` on the recovery frame. A
+screenshot was only the trigger; a shader compile or a window drag does the
+same. With the clamp, that same PNG hitch now measures `0.0800`.
+
+The bound the harness asserts is an absolute `MAX_FRAME_STEP`, deliberately not
+derived from `MAX_SIM_DT`: the first version of that check computed its own
+expectation from the constant under test, so raising `MAX_SIM_DT` to 99 raised
+the bound to 237 and the assertion passed while the player crossed 2.4 m in one
+frame. It is also stated as an absolute rather than as a multiple of the median,
+because a clamped hitch legitimately is four times a 120 Hz median step and
+that is not the defect.
 
 Gait is a function of **distance travelled**, never of the clock. Phase
 advances by PI per stride (`STRIDE_M`, 0.72 m), so one cycle is two steps and

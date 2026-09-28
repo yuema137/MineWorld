@@ -738,7 +738,35 @@ func _unhandled_input(ev: InputEvent) -> void:
 		get_tree().quit(0)
 
 
-func _process(dt: float) -> void:
+## Longest frame that may drive movement, in seconds — two frames at 60 Hz.
+##
+## Without this, anything that stalls a frame displaces every moving thing by
+## however long the frame took. The drive harness was already showing it: every
+## key stepped a flat 0.0200 except the one straight after a PNG encode, which
+## jumped to 0.2446 and dipped to 0.0009 on the recovery frame. A screenshot
+## was only the trigger — a shader compile, a window drag or an OS hiccup does
+## the same, and the result is the player crossing a quarter of a metre in one
+## step. Simulation time is capped; the frame is simply allowed to be late.
+##
+## Gait needs no separate clamp: phase is driven by distance travelled, so
+## capping the movement caps the pose advance with it.
+const MAX_SIM_DT := 1.0 / 30.0
+
+## The invariant the harness asserts: no single frame may displace the player
+## further than this, in world units. A fixed literal on purpose — deriving it
+## from MAX_SIM_DT would make the expectation scale with the constant under
+## test, and the check could then never fail. The clamp yields 0.08; this
+## leaves a little headroom above that and is far below the 1.2 an unclamped
+## half-second frame produced.
+##
+## Stated as an absolute rather than as a multiple of the median, because a
+## clamped hitch legitimately is four times a 120 Hz median step and that is
+## not a defect — crossing a quarter of a metre in one frame is.
+const MAX_FRAME_STEP := 0.12
+
+
+func _process(delta: float) -> void:
+	var dt: float = minf(delta, MAX_SIM_DT)
 	var sdir := Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_down") - Input.get_action_strength("move_up"))
@@ -1015,8 +1043,26 @@ func _shots() -> void:
 
 ## Presses each movement key for real, through the input map, and reports how
 ## far the player actually travelled. This is the movement check.
+## The numeric half of the harness. No _save anywhere in here, because
+## _save awaits RenderingServer.frame_post_draw and that frame never arrives
+## without a rendering device — so a harness that screenshots cannot run
+## headless, and a harness that cannot run headless cannot gate CI. These are
+## exactly the properties that regress silently, so they are the ones that have
+## to be gateable. `--capture` re-enables the stills and needs a window.
+var _fail := 0
+
+
+func _check(ok: bool, what: String, detail: String) -> void:
+	if not ok:
+		_fail += 1
+	print("  [%s] %-34s %s" % ["PASS" if ok else "FAIL", what, detail])
+
+
 func _drive() -> void:
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
+	var capture := OS.get_cmdline_user_args().has("--capture")
+	if capture:
+		DirAccess.make_dir_recursive_absolute(
+			ProjectSettings.globalize_path("res://shots/%s" % variant))
 	await _settle(4)
 	var keys := [
 		["W", KEY_W], ["A", KEY_A], ["S", KEY_S], ["D", KEY_D],
@@ -1051,10 +1097,18 @@ func _drive() -> void:
 			Iso.to_screen(player_at).x - Iso.to_screen(before).x,
 			Iso.to_screen(player_at).y - Iso.to_screen(before).y,
 			steps[0], steps[steps.size() / 2], steps[steps.size() - 1]])
+		# A hitch shows up as one step far above the median. Now that movement
+		# is delta-clamped this must hold for every key, so it is asserted
+		# rather than printed and left for a human to notice.
+		var med: float = steps[steps.size() / 2]
+		var mx: float = steps[steps.size() - 1]
+		_check(mx <= MAX_FRAME_STEP, "step bound on %s" % k[0],
+			"max %.4f, median %.4f, bound %.4f" % [mx, med, MAX_FRAME_STEP])
 		i += 1
-		if i == 4:
+		if capture and i == 4:
 			await _save("06_after_wasd")
-	await _save("07_after_arrows")
+	if capture:
+		await _save("07_after_arrows")
 
 	# The capability check: can the player actually get inside, and does the
 	# world stay continuous while they do it? This drives the same _advance()
@@ -1062,14 +1116,44 @@ func _drive() -> void:
 	# and the real threshold, not a shortcut past them.
 	_place_player_sync(Vector2(5.25, 1.30))
 	var log := _walk_to(Vector2(5.25, -2.60), 900)
-	print("threshold  entered=%s  steps=%d  reached=%.2f,%.2f  max_step=%.4f  gaps=%d"
+	_check(_inside and log["stalls"] == 0, "walks inside through the door",
+		"entered=%s steps=%d at %.2f,%.2f max_step=%.4f gaps=%d"
 		% [str(_inside), log["steps"], log["pos"].x, log["pos"].y,
 		log["max_step"], log["stalls"]])
 	_place_player_sync(log["pos"])
 	var back := _walk_to(Vector2(5.25, 2.20), 900)
-	print("exit       inside=%s  steps=%d  reached=%.2f,%.2f  max_step=%.4f  gaps=%d"
+	_check(not _inside and back["stalls"] == 0, "walks back out",
+		"inside=%s steps=%d at %.2f,%.2f max_step=%.4f gaps=%d"
 		% [str(_inside), back["steps"], back["pos"].x, back["pos"].y,
 		back["max_step"], back["stalls"]])
+
+	# A hitch, injected deliberately. Waiting for a real stall to appear is not
+	# a test; this drives _process with half a second of delta and asserts the
+	# player advances by no more than the clamp allows.
+	print("--- hitch ---")
+	_place_player_sync(Vector2(6.0, 3.0))
+	var hitch_from := player_at
+	var ev := InputEventKey.new()
+	ev.physical_keycode = KEY_D
+	ev.keycode = KEY_D
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	await get_tree().process_frame
+	_process(0.5)
+	var up2 := InputEventKey.new()
+	up2.physical_keycode = KEY_D
+	up2.keycode = KEY_D
+	up2.pressed = false
+	Input.parse_input_event(up2)
+	var jump: float = player_at.distance_to(hitch_from)
+	# The bound is a fixed literal, deliberately NOT derived from MAX_SIM_DT.
+	# Deriving it from the constant under test makes the check scale with the
+	# defect: raising MAX_SIM_DT to 99 raised the cap to 237 and the assertion
+	# still passed while the player crossed 2.4 m in one frame. A test whose
+	# expectation moves with the implementation cannot fail.
+	_check(jump <= MAX_FRAME_STEP, "half-second frame is clamped",
+		"moved %.4f, bound %.4f (unclamped would be %.4f)"
+		% [jump, MAX_FRAME_STEP, PLAYER_SPEED * 0.5])
 
 	# --- motion probe ------------------------------------------------------
 	# Objective checks for the two motion defects: that the crowd actually
@@ -1104,7 +1188,19 @@ func _drive() -> void:
 		print("  %-6s speed %.2f  travelled %6.2f m  phase +%6.2f  phase/m %6.3f"
 			% [String(pdata.id), float(pdata.speed), dist, dph,
 			(dph / dist) if dist > 0.001 else 0.0])
-	print("  moving: %d of %d" % [moved_any, walkers.size()])
+	_check(moved_any == walkers.size(), "every walker moved",
+		"%d of %d" % [moved_any, walkers.size()])
+	# One phase-per-metre for the whole crowd, whatever their speeds.
+	var pm_lo := 1e9
+	var pm_hi := -1e9
+	for n in walkers.size():
+		var dm: float = path[n] * Iso.METRES_PER_UNIT
+		if dm > 0.05:
+			var r: float = (float(walkers[n].get_meta("phase")) - ph0[n]) / dm
+			pm_lo = minf(pm_lo, r)
+			pm_hi = maxf(pm_hi, r)
+	_check(pm_hi - pm_lo < 0.01, "cadence independent of speed",
+		"phase/m spread %.4f (%.3f..%.3f)" % [pm_hi - pm_lo, pm_lo, pm_hi])
 
 	# A standing character must not accumulate phase. If it does, the legs
 	# cycle on the spot, which is the other half of the same defect.
@@ -1112,9 +1208,10 @@ func _drive() -> void:
 	var idle_at := player_at
 	for f in range(120):
 		await get_tree().process_frame
-	print("  idle player: phase +%.6f  moved %.6f  (both must be zero)"
-		% [float(player.get_meta("phase")) - idle0,
-		player_at.distance_to(idle_at)])
+	var idle_ph: float = float(player.get_meta("phase")) - idle0
+	var idle_mv: float = player_at.distance_to(idle_at)
+	_check(idle_ph == 0.0 and idle_mv == 0.0, "standing still costs no phase",
+		"phase +%.6f, moved %.6f" % [idle_ph, idle_mv])
 
-	print("drive complete")
-	get_tree().quit(0)
+	print("drive complete: %s" % ("PASS" if _fail == 0 else "%d FAILED" % _fail))
+	get_tree().quit(0 if _fail == 0 else 1)

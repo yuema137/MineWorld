@@ -41,4 +41,15 @@ if [ "$needs_import" -eq 1 ]; then
   "$godot" --headless --path "$project" --import >/dev/null 2>&1 || true
 fi
 
-exec "$godot" --path "$project" -- "$@"
+# --drive is the numeric harness and must run without a display, so it can be
+# a CI gate. It only needs a window when --capture asks for stills, and
+# --shots always does.
+headless=""
+case " $* " in
+  *" --drive "*) headless="--headless" ;;
+esac
+case " $* " in
+  *" --capture "*|*" --shots "*) headless="" ;;
+esac
+
+exec "$godot" $headless --path "$project" -- "$@"
