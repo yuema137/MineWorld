@@ -1,48 +1,39 @@
 # MineWorld — 2D presentation spike
 
-A walkable slice of one quayside square, built so a human can look at it and
-answer one question: **is this MineWorld's default 2D presentation?**
+A walkable slice of one quayside square, built so a human could look at it and
+answer one question: **is this MineWorld's default 2D presentation?** It is —
+see below.
 
-> ## VIS-2D-1 READY FOR HUMAN STYLE REVIEW
+> ## The default 2D style is `town`
 >
-> Three **default-style candidates**, each complete and playable, **the café is
-> enterable in all of them**, and **the town is in motion** — the crowd walks
-> its routes and gait is driven by distance travelled, so cadence matches
-> speed and feet do not slide. Nothing here is an accepted look — per
-> `ARC-11` the default style is taste and the operator decides it, finally and
-> always. Subjective polishing on this branch has stopped so the target does
-> not move while it is being judged.
->
-> **Recommended candidate: `town`.** It measures closest to the plates on
-> overall key (mean 0.513 against the plate's 0.517, and 4.0% of the frame
-> below 0.20 luminance against 4.4%), and its buildings and planting carry the
-> density the plates have. Its one weakness is that the shared set has only
-> four distinct tree sprites, so repetition shows at wide zoom where `full`'s
-> nine procedural species do not.
+> The operator compared four complete scenes and chose `town`; it is the
+> default and no longer a candidate. What that means, and what distinguishes
+> it, is recorded in [`ARC-13`](../../docs/DECISIONS.md) — read that before
+> changing the look.
 >
 > ```
-> ./mineworld-2d                         the recommended candidate (town)
-> ./mineworld-2d --variant=town          generated cast + the shared asset set
-> ./mineworld-2d --variant=full          generated cast + generated shopfronts and flora
+> ./mineworld-2d                         the default (town)
+> ./mineworld-2d --variant=full          generated cast, shopfronts and flora generated here
 > ./mineworld-2d --variant=people        generated cast, procedural world
-> ./mineworld-2d --variant=procedural    the previous all-procedural build, for comparison
+> ./mineworld-2d --variant=procedural    the earlier all-procedural build
 > ```
+>
+> The other three are kept deliberately. They are the demonstration that the
+> presentation layer swaps, which is the point of
+> [`ARC-11`](../../docs/DECISIONS.md); `--variant=` is the interface, and a
+> change that can only be made to `town` is a change made in the wrong place.
+> This fixes the *default*, not the style system: a World Pack still ships its
+> own Presentation Pack and picks its own style without touching any of this.
 >
 > **Walk into the café.** It is at the left of the shop row; walk north through
-> the doorway and you are inside. There is no loading screen, no popup and no
-> scene change — the room occupies real world coordinates behind the frontage,
-> and the frontage lifts away once you are over the threshold, which is the
-> cutaway an isometric game normally uses. `--drive` checks this and reports
-> `entered=true ... max_step=0.0400 gaps=0`: uniform steps in and out, so the
-> transition is movement rather than a teleport.
+> the doorway and you are inside. No loading screen, no popup, no scene change
+> — the room occupies real world coordinates behind the frontage, and the
+> frontage lifts away once you are over the threshold.
 >
-> Walk around with WASD or the arrow keys. `--shots` writes stills per variant
-> into `shots/<variant>/`; `06_ref_framing.png` in each is framed to match
-> `references/02_cafe_street.png` so the comparison is like for like, and
-> `07_cafe_exterior` / `08_doorway` / `09_interior` are the three steps of
-> going inside.
->
-> The review question is which whole scene, not which asset.
+> Stills for all four variants are in `screenshots/`, rendered at one commit
+> and at matched framing, including one framed to
+> `references/02_cafe_street.png` so the comparison against the plates is like
+> for like.
 
 It is a spike. It requires no kernel changes, contains no semantics — no
 dialogue, no inventory, no networking, no `ActionIntent` — and invents no world
