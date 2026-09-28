@@ -38,9 +38,14 @@
 //! perception knows    which entities this observer perceives at all, and asks about those only
 //! ```
 //!
-//! What follows from that division is the property `AC-2` wants: a disabled pack is never asked, so
-//! its state leaves every observation in the world with no edit anywhere, exactly as its affordances
-//! do.
+//! What follows from that division is the property `AC-2` wants: a disabled pack's state leaves
+//! every observation in the world with no edit anywhere, exactly as its affordances do.
+//!
+//! The division is not symmetrical, and deliberately: **what** may be known is the owning pack's
+//! judgement, while **whom a record may be about** is not. Perception bounds the second, because it
+//! can do so without knowing what any component is and because an invariant that rests on every
+//! future pack being honest is a convention rather than a construction. See
+//! [`PerceptionProvider::discloses`] and [`observe`](crate::observe).
 
 use mineworld_contracts::{Action, ActionTypeId, ComponentRecord, EntityId, SpatialRequirement};
 use mineworld_kernel::WorldRead;
@@ -99,6 +104,15 @@ pub trait PerceptionProvider {
     /// that does not have the Rust type: an observation is read, while a log is replayed, and
     /// `spike/FINDINGS.md` F8.2 measured what opaque bytes reach a client as. Encoding it is the
     /// owning pack's own business, as every payload in this workspace is.
+    ///
+    /// # Every record must be about `subject`
+    ///
+    /// A record naming anybody else is **dropped**, silently and per record. That is not a courtesy
+    /// check on a well-behaved implementation: without it, *whom* a record may be about would rest
+    /// on every provider choosing to be honest, and this trait is extension surface — `ARC-8` makes
+    /// a Tier 1 pack a WASM component, which is not code this repository wrote. So an implementation
+    /// that is asked about one person and answers about another discloses nothing at all, rather
+    /// than leaking a third party's state to a client (`INV-13`).
     ///
     /// Returning nothing is the normal answer, and the default.
     fn discloses(

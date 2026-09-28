@@ -323,16 +323,18 @@ Every commit: implementation, deterministic validation, and LLM logic review, tr
       `ConversationSystem::discloses` in `systems/conversation/src/system.rs`; the rename at its two
       call sites (`worldpack/src/catalog.rs`, `worldpack/src/load.rs`); `wire()` deleted from
       `tools/cli/src/perceive.rs`.
-- [x] Validation (`cargo test --workspace`: 244 tests pass, up from 237; three new tests in the
-      conversation suite): `systems/conversation/tests/conversation_and_presence.rs` — a person's own history
+- [x] Validation (`cargo test --workspace`: 244 tests pass at the time of this commit, up from 237;
+      three new tests in the conversation suite, and a fourth added in review — §7.10):
+      `systems/conversation/tests/conversation_and_presence.rs` — a person's own history
       is disclosed to them, is absent from a stranger's observation of them, and disappears when the
       pack is disabled. `systems/presence/tests/presence.rs` still passes, including the structural
       scan that forbids this crate from naming another pack's vocabulary.
 - [x] Review: `git grep` for `insert(.*ConversationHistory` finds exactly one write, in `react`;
       `discloses` takes a `WorldRead` and so cannot write at all. The disclosure is called only from
       `perceived`, once per entity the observation already lists, so it cannot be used to learn about
-      an unperceived subject. DISCOVERY recorded in §7.6: a disabled pack was still disclosing,
-      because `observe`'s `AC-2` filter was on the action route map only.
+      an unperceived subject. Two DISCOVERIES recorded: §7.6, a disabled pack was still disclosing
+      because `observe`'s `AC-2` filter was on the action route map only; and §7.10, found in
+      operator review — the seam trusted a provider about *whom* a record was about.
 
 ### C3 — the `RuleController`
 
@@ -499,6 +501,51 @@ differ by — and writes the exact JSON it sent to `clients/protocol/evidence/`.
 reads those two files and compares them with the server's own definition. Frozen real evidence
 rather than a self-referential fixture (`test-ci-gate-rules.md` §25).
 
+### 7.10 REVIEW FINDING — the seam trusted a provider about *whom* a record was about
+
+Found by the coordinator reviewing the branch, not by a failing test. Recorded in full because it is
+the difference between the invariant holding and the invariant being intended.
+
+```text
+Previous claim:
+  ConversationSystem::discloses documented that "INV-13 holds by construction and not by
+  convention", because the pack names one component and one observer.
+
+Audit evidence:
+  true of THAT PACK, and not of the seam. `disclosed()` applied two filters — the subject must be
+  perceived, and the owning system must be enabled — and then attached whatever came back to the
+  PerceivedEntity for that subject. Nothing compared `record.entity()` to `subject`. A provider
+  returning `ComponentRecord::new::<T>(some_third_party, payload)` would have had that payload
+  shipped to a client. No live defect: this pack cannot trip it, and no test failed.
+
+Why it matters more than a hypothetical:
+  the trait is new public extension surface, and `ARC-8` makes a Tier 1 System Pack a WASM
+  component — not code this repository wrote and not code it can read. An invariant that rests on
+  every future pack choosing to be honest is a convention.
+
+Corrected understanding:
+  the division is not symmetrical. WHAT may be known is the owning pack's judgement. WHOM a record
+  may be about is not, and perception can bound it without knowing what any component is.
+
+Implementation consequence:
+  one filter beside the enabled-owner filter — `record.entity() == subject` — so a pack that lies
+  discloses nothing and fails closed. The three doc comments that made the old claim now say which
+  property is construction and which is the filter enforcing it
+  (`observe::disclosed`, `PerceptionProvider::discloses`, `ConversationSystem::discloses`).
+
+Validation consequence:
+  `a_pack_that_names_a_third_party_discloses_nothing` in `systems/presence/tests/presence.rs`. A
+  provider answers about Carol, who is in the promenade and whom the observer does not perceive,
+  whatever subject it is asked about. What it returns is a real `Presence`, owned by this installed
+  and enabled pack, so neither other filter can be what dropped it. The positive control in the
+  same test — the same provider answering about the subject — IS believed, so the test cannot pass
+  by nothing reaching a client at all.
+
+Mutation:
+  removing the one filter turns that test red (`FAILED`, the record attached to the perceived
+  entity) and restoring it turns it green. The test is load-bearing rather than decorative.
+```
+
 ### 7.7 The transcript is the demonstration scene, not a second script
 
 Bounded deviation from §6 C5, which planned a separate `headless.gd`.
@@ -588,13 +635,14 @@ export PATH="$HOME/.cargo/bin:$PATH"
 cargo fmt --all --check                                              clean
 cargo check --workspace --all-targets                                clean
 cargo clippy --workspace --all-targets --all-features -- -D warnings clean
-cargo test --workspace                                               258 passed, 0 failed
+cargo test --workspace --no-fail-fast                                259 passed, 0 failed
 ```
 
-258 tests, up from 237 at `main @ cc40ad5`. The 21 new ones: 4 in the server (`parity`, the world
+259 tests, up from 237 at `main @ cc40ad5`. The 22 new ones: 4 in the server (`parity`, the world
 instance, the shared instance across two connections), 3 in the conversation pack (the disclosure,
-its absence for a stranger, its absence when the pack is disabled), 6 in the rule controller, 6 in
-`ac15_one_alice.rs`, 2 in `ac13_semantic_parity.rs`. No test was weakened; four existing tests in
+its absence for a stranger, its absence when the pack is disabled), 1 in the presence pack (§7.10's
+third-party disclosure, added in review), 6 in the rule controller, 6 in `ac15_one_alice.rs`, 2 in
+`ac13_semantic_parity.rs`. No test was weakened; four existing tests in
 `worldpack` and `tools/cli` were updated for the pack's new population and seats, which §7.3 records.
 
 ### 9.2 Gate 2 — the real thing, running
@@ -740,6 +788,17 @@ Stated plainly, because a precise account of what was not proved is worth more t
 8. **The `AC-13` fixtures are frozen evidence and can go stale.** If the demonstration scene's wording
    or walk changes, `run.sh evidence` regenerates them and the change belongs in the same commit. A
    test reading a stale fixture would still be testing two real frames, but not the current client's.
-9. **`docs/MVP_STATUS.md` was updated only where this PR changed the answer.** Parts of it describe
+9. **The acceptance harness has a port race, and it is the likely cause of a flaky `/health`
+   timeout.** `support::free_port` binds an ephemeral port, reads it back and releases it, and the
+   server binds it a moment later; anything that takes the port in between makes the server exit and
+   the test wait out its 20-second health budget. Measured, because the other hypothesis was that
+   startup degrades under load and it does not: one server answers in **17 ms**, and seven started
+   simultaneously answer in **18-32 ms** (`scratchpad/run/startup.py`). A collision is also
+   *distinguishable in the transcript* — the child's stderr is inherited, and a bind failure prints
+   `[mineworld] cannot listen on 127.0.0.1:NNNN: Address already in use (os error 48)` before it
+   exits — so a failing run can be classified from its own output. Left as it is on the coordinator's
+   instruction; the fix is to let the server bind port 0 and report what it bound, which removes the
+   window rather than widening the timeout.
+10. **`docs/MVP_STATUS.md` was updated only where this PR changed the answer.** Parts of it describe
    work owned by branches this session must not touch; the rest of its staleness is recorded here
    rather than silently fixed.

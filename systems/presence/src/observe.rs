@@ -37,7 +37,8 @@
 //! *some* component because it happens to exist is how an observation quietly becomes a window onto
 //! everything, and this crate could not make the judgement honestly in any case: it does not know
 //! what another pack's state means, who may read it, or how it is encoded. So it asks the owner, per
-//! observer and per subject, and puts back exactly what comes out.
+//! observer and per subject — and then bounds the answer, because *what* may be known is the pack's
+//! judgement while *whom a record may be about* is not ([`disclosed`]).
 
 use mineworld_contracts::{
     Affordance, ComponentRecord, ComponentTypeId, EntityId, Location, Observation, PerceivedEntity,
@@ -148,14 +149,29 @@ fn perceived(
 /// Everything every pack says this observer may know about this subject, in the order a world
 /// composed the packs.
 ///
-/// This function decides nothing about *what* may be known. It asks, and it does two things with the
-/// answers, neither of which involves knowing what any component is:
+/// This function decides nothing about *what* may be known — that judgement is the owning pack's,
+/// and it is the one thing this crate must not make. It asks, and then it enforces three things
+/// about the answers, none of which involves knowing what any component is:
 ///
 /// 1. it asks only about an entity the observation already lists, so a pack cannot be used to learn
 ///    about somebody the observer does not perceive;
-/// 2. it drops a record whose owning system this world does not currently have — the same `AC-2`
+/// 2. it drops a record that is not **about this subject**, whatever the pack said — see below;
+/// 3. it drops a record whose owning system this world does not currently have — the same `AC-2`
 ///    route an offer takes, and decided by the kernel's declaration table rather than by a list kept
 ///    here.
+///
+/// # Why (2) is a filter and not a comment
+///
+/// Without it, a pack returning a record naming a *third party* would have that record attached to
+/// the entity being asked about and sent to the client, and `INV-13` would rest on every present and
+/// future provider choosing to be honest about the subject — which is the definition of convention,
+/// and the opposite of what the invariant asks for. It matters more than a hypothetical because this
+/// is extension surface: `ARC-8` makes a Tier 1 pack a WASM component, which is not code this
+/// repository wrote.
+///
+/// A [`ComponentRecord`] carries the entity it is about, so the check costs one comparison and needs
+/// no knowledge of the component. A pack that lies therefore discloses **nothing** — it fails closed,
+/// which is the same direction every other absence in this module takes.
 fn disclosed(
     world: &World,
     read: &WorldRead<'_>,
@@ -166,6 +182,7 @@ fn disclosed(
     providers
         .iter()
         .flat_map(|provider| provider.discloses(read, observer, subject))
+        .filter(|record| record.entity() == subject)
         .filter(|record| owned_by_an_enabled_system(world, record.component_type()))
         .collect()
 }

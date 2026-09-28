@@ -64,6 +64,9 @@ feat(cli): --agent drives a seat, and the café has room for two windows
 test(ac-15): there is only one Alice, and the evidence names identity
 feat(clients): the Godot client protocol module, and AC-13 from what it sent
 docs(mvp0): PR 05d's ledger, evidence and limitations
+chore: remove three things nothing uses
+fix(clients): say goodbye before the socket stops being polled
+fix(systems): a disclosure may only be about the subject it was asked about
 ```
 
 ## Validation state
@@ -72,7 +75,7 @@ docs(mvp0): PR 05d's ledger, evidence and limitations
 cargo fmt --all --check                                              clean
 cargo check --workspace --all-targets                                clean
 cargo clippy --workspace --all-targets --all-features -- -D warnings clean
-cargo test --workspace                                               258 passed, 0 failed
+cargo test --workspace --no-fail-fast                                259 passed, 0 failed
 Gate 2 (real binary + real Godot 4.7.2, seven runs)                  PASS — design doc §9.2
 AC-15                                                                HOLDS — §9.3, with the
                                                                      counterfactual in §9.4
@@ -88,6 +91,11 @@ Gate 1 (real LLM)                                                    NOT REQUIRE
 a component reaches an observation because its owning pack named it AND named who may see it.
   Walking the component stores would satisfy any test here and defeat INV-13 for every pack after
   (design doc §4)
+
+what may be known is the owning pack's judgement; WHOM a record may be about is not. Perception
+  drops any record whose entity is not the subject it asked about, so a pack that lies fails closed.
+  Removing that one filter turns `a_pack_that_names_a_third_party_discloses_nothing` red
+  (design doc §7.10, found in operator review)
 
 the AC-13 comparison lives in server/src/parity.rs and nowhere else. A test that writes its own
   comparison can drop a field (MVP.md §9's correction, design doc §5.2)

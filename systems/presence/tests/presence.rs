@@ -444,6 +444,115 @@ fn disabling_this_pack_removes_its_action_and_its_affordance_and_keeps_its_state
     assert_eq!(observation.entities().len(), 2);
 }
 
+// ---------------------------------------------------------------------------------------------
+// The disclosure seam, and the half of it a pack is NOT trusted with.
+// ---------------------------------------------------------------------------------------------
+
+/// A pack that answers about somebody other than the subject it was asked about.
+///
+/// Not a straw man: this is the shape of every honest mistake and of the one dishonest case that
+/// matters, because `ARC-8` makes a Tier 1 System Pack a WASM component and a WASM component is not
+/// code this repository wrote. It discloses a real component type owned by a real enabled system, so
+/// the only thing standing between it and a client is the subject check itself.
+struct NamesSomebodyElse {
+    /// The entity every record it returns is about, whoever it is asked about.
+    about: EntityId,
+}
+
+impl PerceptionProvider for NamesSomebodyElse {
+    fn discloses(
+        &self,
+        world: &mineworld_kernel::WorldRead<'_>,
+        _observer: EntityId,
+        _subject: EntityId,
+    ) -> Vec<mineworld_contracts::ComponentRecord<serde_json::Value>> {
+        let Some(presence) = world.component::<Presence>(self.about) else {
+            return Vec::new();
+        };
+        vec![mineworld_contracts::ComponentRecord::new::<Presence>(
+            self.about,
+            serde_json::to_value(presence).expect("a component serializes"),
+        )]
+    }
+}
+
+/// A record about anybody but the subject is dropped, so a pack cannot leak a third party's state
+/// through a disclosure about somebody else.
+///
+/// Carol is in the promenade, and Alice is in the café: Alice does not perceive her, and an
+/// observation is exactly the list of what was exposed. A pack that answers about Carol however it
+/// is asked is therefore trying to tell Alice something she was not shown — the leak the check
+/// exists for, and the one a WASM pack could attempt without this crate being able to read its code
+/// (`ARC-8`).
+///
+/// Two halves, and the second is what makes the first mean something. A provider answering about the
+/// subject it was asked about is believed, so the disclosure path is working and this test is not
+/// passing because nothing reaches a client at all. The same provider answering about Carol
+/// discloses nothing: not attached to her, not attached to anybody.
+///
+/// What it returns is a real `Presence`, owned by this pack, which is installed and enabled — so
+/// neither of perception's other two filters can be what dropped it. Only the subject check can,
+/// which is the point.
+#[test]
+fn a_pack_that_names_a_third_party_discloses_nothing() {
+    let mut fixture = Fixture::new();
+    fixture.arrive(fixture.alice, at(fixture.cafe, 0, 0));
+    fixture.arrive(fixture.bob, at(fixture.cafe, 900, 0));
+    let carol = create(&mut fixture.world, "carol", EntityType::Person);
+    fixture.arrive(carol, at(fixture.promenade, 0, 0));
+    let (alice, bob) = (fixture.alice, fixture.bob);
+
+    // The positive control: asked about Bob, a provider that answers about Bob is believed — and the
+    // same provider's answer is dropped for every other subject, which is the filter working in the
+    // same frame.
+    let honest = NamesSomebodyElse { about: bob };
+    let believed = mineworld_presence::observe(
+        &fixture.world,
+        alice,
+        NOW,
+        &[&PresenceSystem, &honest as &dyn PerceptionProvider],
+    );
+    assert_eq!(
+        believed
+            .entity(bob)
+            .expect("bob is perceived")
+            .components()
+            .len(),
+        1,
+        "a disclosure about the subject reaches the observation",
+    );
+    assert!(
+        believed
+            .entity(alice)
+            .expect("alice perceives herself")
+            .components()
+            .is_empty(),
+        "and the same provider's answer about Bob is not attached to Alice",
+    );
+
+    // And the case that must not reach anybody: a subject this observer was never shown.
+    let lying = NamesSomebodyElse { about: carol };
+    let refused = mineworld_presence::observe(
+        &fixture.world,
+        alice,
+        NOW,
+        &[&PresenceSystem, &lying as &dyn PerceptionProvider],
+    );
+    assert!(
+        refused.entity(carol).is_none(),
+        "carol is in another place and is not perceived, which is what makes her a third party",
+    );
+    for perceived in refused.entities() {
+        assert!(
+            perceived.components().is_empty(),
+            "a record naming a third party is dropped rather than attached to anybody: {} carries \
+             {:?}",
+            perceived.id(),
+            perceived.components(),
+        );
+    }
+}
+
 /// The offer is made against nobody and nobody else: this pack answers for its own action through
 /// the same seam every other pack uses, so `offers` is asked with each candidate target too.
 #[test]

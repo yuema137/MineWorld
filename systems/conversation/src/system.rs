@@ -247,8 +247,13 @@ impl PerceptionProvider for ConversationSystem {
     /// a client cannot read a stranger's memory by asking, because there is no asking: an observation
     /// is a list of what was exposed.
     ///
-    /// `INV-13` therefore holds by construction and not by convention: this pack names one component
-    /// and names who may see it, and perception exposes nothing it was not handed.
+    /// Two different things hold `INV-13` up here, and it is worth being exact about which is which.
+    /// *What* may be known is this pack's judgement, made by construction: one component is named,
+    /// and one observer. *Whom a record may be about* is not left to this pack's good behaviour —
+    /// perception drops any record that is not about the subject it asked about
+    /// ([`PerceptionProvider::discloses`]), so a pack that answered about a third party would
+    /// disclose nothing. The rule above is therefore honest about its own scope, and a client cannot
+    /// read a stranger's memory whichever half fails.
     ///
     /// A person who has been told nothing has no component, and nothing is disclosed — absence of
     /// knowledge rather than an empty record, which is the same answer the component store gives.
