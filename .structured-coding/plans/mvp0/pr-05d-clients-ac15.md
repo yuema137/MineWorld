@@ -365,16 +365,26 @@ Every commit: implementation, deterministic validation, and LLM logic review, tr
 
 ### C5 — the Godot client protocol module and its scene
 
-- [ ] Implementation: `clients/protocol/` — the module, the demonstration scene, the headless
-      transcript script, `README.md` and `ADOPTION.md`.
-- [ ] Validation: Godot 4.7.2 headless against the real server (transcript in
-      `clients/protocol/evidence/`), and windowed for the scene.
-- [ ] Review: no rule in the client; ids as strings; every non-id number integer-ified.
+- [x] Implementation: `clients/protocol/` — the module (`mineworld/world_client.gd`,
+      `observation.gd`, `space.gd`), the demonstration scene, `run.sh`, `README.md` and
+      `ADOPTION.md`. The transcript is the demonstration scene under `--autopilot` rather than a
+      second script (§7.7).
+- [x] Validation: Godot 4.7.2 (`4.7.2.stable.official.ed1daf0bf`) headless and windowed against
+      `mineworld server worlds/social-cafe --agent alice`, four runs, all in
+      `clients/protocol/evidence/`. The client joined a seat, was told the world instance, perceived
+      five entities, was refused `too_far_away`, walked, waited for the server's verdict to change,
+      spoke, and read Alice's reply out of its own disclosed history. The windowed run saved
+      `demo-scene.png`, which was read back and inspected.
+- [x] Review: no comparison of two positions anywhere in `clients/protocol` — every verdict comes
+      from `observation.may()` / `unavailable_reason()`, which read the server's answer; no `int()`
+      or arithmetic is applied to any identity (they are `String` everywhere, and the demo uses them
+      as dictionary keys and labels); every number the module sends goes through
+      `MineWorldSpace.millimetres` / `millidegrees`, and the two fixtures show integer millimetres on
+      the wire.
 
 ### C6 — `AC-15` and `AC-13`
 
-- [x] Implementation (AC-15; AC-13 follows C5, which produces its fixtures):
-      `tools/cli/tests/ac15_one_alice.rs`, and `tools/cli/tests/ac13_semantic_parity.rs`.
+- [x] Implementation: `tools/cli/tests/ac15_one_alice.rs` and `tools/cli/tests/ac13_semantic_parity.rs`.
 - [x] Validation: six AC-15 tests against the real binary, the real pack and real sockets; §9.3
       records the identities they read off the frames.
 - [x] Review: the assertions name a world instance, an `EntityId` and an `EventId` sequence, and not
@@ -483,6 +493,32 @@ that reports a position and one that reports none, which is the whole of what a 
 differ by — and writes the exact JSON it sent to `clients/protocol/evidence/`. The `AC-13` test
 reads those two files and compares them with the server's own definition. Frozen real evidence
 rather than a self-referential fixture (`test-ci-gate-rules.md` §25).
+
+### 7.7 The transcript is the demonstration scene, not a second script
+
+Bounded deviation from §6 C5, which planned a separate `headless.gd`.
+
+A second script would have been a second client, and the thing most worth proving is that *the one a
+person watches* is the one the evidence came from. So `demo/demo.gd` takes `--autopilot` and runs the
+same code path with nobody at the keyboard — the spike's discipline, and the reason the transcripts
+and the screenshot describe the same scene.
+
+### 7.8 DISCOVERY — a Godot project must be imported before a headless run
+
+`godot --headless --path clients/protocol` failed with *Identifier "MineWorldClient" not declared*.
+Godot registers `class_name` in `.godot/global_script_class_cache.cfg`, which it builds when it
+imports a project; a first headless run has no cache and no editor to build one.
+
+`godot --headless --path <project> --import` builds it, takes about a second, and is in `run.sh`,
+the README and `ADOPTION.md` §1 — because every adopting project will hit this. The cache is
+gitignored: a clean checkout builds its own, which is what `ACCEPTANCE.md` §4.1 requires.
+
+### 7.9 Godot 4.7 treats an inferred-from-Variant declaration as an error
+
+`var x := something_returning_Variant()` is a *warning treated as an error* in this Godot. Fixed by
+typing those declarations explicitly. Worth recording because it will hit the visual clients too, and
+because the resulting style — an explicit type wherever a dictionary is read — is the right one for a
+client reading JSON.
 
 ---
 

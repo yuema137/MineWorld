@@ -1,0 +1,2 @@
+# Godot's import cache. A clean checkout must import its own assets (`docs/ACCEPTANCE.md` §4.1).
+.godot/
