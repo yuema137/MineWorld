@@ -256,7 +256,7 @@ Five rules govern this subset, and each one is a decision rather than an impleme
 Initial state is **not** written into the world by the loader. Each authored `location` becomes a
 recorded event caused by `Causation::WorldGenesis`, which the owning system reduces — so a loaded
 world's state has a causal origin in its own log, and a replay rebuilds it
-(`DECISIONS.md` `ARC-10`).
+(`DECISIONS.md` `ARC-15`).
 
 ---
 
