@@ -34,7 +34,8 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
         "presence, conversation",
         "alice",
         "visitor",
-        "3 genesis fact(s)",
+        "wanderer",
+        "4 genesis fact(s)",
     ] {
         assert!(
             report.contains(expected),
@@ -44,7 +45,9 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     // The ids, in the order the pack allocates them: this is what an author checks before writing a
     // client that refers to them.
     assert!(
-        report.contains("1  cafe") && report.contains("4  visitor"),
+        report.contains("1  cafe")
+            && report.contains("4  visitor")
+            && report.contains("5  wanderer"),
         "the report states which key became which identity: {report}",
     );
 }

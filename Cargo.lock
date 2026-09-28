@@ -426,6 +426,7 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-presence",
+ "mineworld-rule-controller",
  "mineworld-server",
  "mineworld-worldpack",
  "serde_json",
@@ -473,6 +474,15 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mineworld-rule-controller"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
  "serde_json",
 ]
 

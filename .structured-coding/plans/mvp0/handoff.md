@@ -1,165 +1,127 @@
-# Handoff — PR 02 implementation context: CLOSED / AWAITING OPERATOR ACTION
+# Handoff — PR 05d implementation context: CLOSED / AWAITING OPERATOR ACTION
 
-**Active PR:** Step 02 / PR 02 — Action, Event, Observation and Spatial contracts
+**Active PR:** Step 05 / PR 05d — The clients, and `AC-15`
 **Effort:** `mvp0`
 **Primary design doc (semantic authority):**
-`.structured-coding/plans/mvp0/step-02-action-event-spatial-contracts.md`
-**Binding parents:** `.structured-coding/plans/mvp0/overall.md`, `docs/CORE_CONCEPTS.md`,
-`docs/ENGINEERING_RULES.md` §§4-12 and §15, `docs/ENGINEERING_STANDARDS.md`, `CLAUDE.md`
-**Execution contract:** §9 of the primary design doc
+`.structured-coding/plans/mvp0/pr-05d-clients-ac15.md`
+**Binding parents:** `.structured-coding/plans/mvp0/step-05-vertical-slice.md` §§1.3, 2;
+`docs/MVP.md` §9 (`AC-13`, `AC-15`, §9.1, §9.2); `docs/ACCEPTANCE.md`; `docs/CORE_CONCEPTS.md`;
+`docs/MODULE_SPEC.md` §5; `docs/ENGINEERING_RULES.md`; `docs/ENGINEERING_STANDARDS.md`; `CLAUDE.md`
+**Execution contract:** §2 of the primary design doc
 
-PR 01's handoff content is superseded: that PR is merged into `main` at `e85c889` and its record
-lives in `step-01-entity-component-contracts.md`.
+PR 02's handoff content, which stood here until now, is superseded: that PR is merged and its record
+lives in `step-02-action-event-spatial-contracts.md`. PR 05c flagged this file as stale and asked
+whoever started PR 05d to replace it rather than read it, which is what happened.
 
 ## Repository identity
 
 ```text
-repository       /Users/yuema137/MineWorld
-branch           mvp0/pr-02-action-event-spatial
-implementation   main @ c8f2934 (S1 merged; mineworld-contracts exists and is green)
+worktree         <scratchpad>/mw-05d   (an isolated worktree; several agents run concurrently, and
+                 /Users/yuema137/MineWorld and the sibling worktrees were not touched)
+branch           mvp0/pr-05d-clients-ac15
+implementation   main @ cc40ad5 — 05a, 05b and 05c merged; 237 tests green at that HEAD
 base
-current HEAD     the most recent commit on the branch; `git log --oneline` is authoritative
-working tree     clean at each commit; the only untracked path is target/ (gitignored)
-remote           none (decision D-9: local-only until S13)
+current HEAD     the tip of the branch; `git log --oneline` is authoritative — a commit cannot
+                 carry its own hash
+working tree     clean at each commit; `.godot/` and `target/` are gitignored
+remote           origin; the branch is pushed. NO PR, NO MERGE (operator kickoff)
 ```
 
 ## Environment
 
 ```text
-toolchain   rustc/cargo 1.97.1 pinned by rust-toolchain.toml, rustfmt 1.9.0, clippy 0.1.97
-PATH        ~/.cargo/bin is NOT on the default non-interactive PATH.
-            Every command must start with: export PATH="$HOME/.cargo/bin:$PATH"
-            A bare "command not found" is a PATH defect in the session, never a failed check.
-verify      cargo fmt --all --check
-            cargo check --workspace --all-targets
-            cargo clippy --workspace --all-targets --all-features -- -D warnings
-            cargo test -p mineworld-contracts
+toolchain   rustc/cargo 1.97.1 pinned by rust-toolchain.toml
+PATH        ~/.cargo/bin is NOT on the default non-interactive PATH:
+                export PATH="$HOME/.cargo/bin:$PATH"
+godot       4.7.2.stable.official.ed1daf0bf, on PATH as `godot`
+            headless runs scripts; windowed renders. A project must be imported once before a
+            headless run: `godot --headless --path <project> --import`
 ```
 
-## Approved scope
-
-§1.1 of the design: `contracts/src/action.rs`, `event.rs`, `spatial.rs`, `observation.rs`, the
-spatial and affordance vocabulary in `docs/CORE_CONCEPTS.md`, and the `contracts/README.md`
-inventory. Non-goals in §1.2 — dispatch, the System trait, the scheduler, persistence, concrete
-actions, perception systems and network encoding all belong to later steps.
-
-## Frozen invariants
+## What this PR delivered
 
 ```text
-no floating point anywhere in these contracts; positions are i32 millimetres and angles
-  i32 millidegrees, and a structural test asserts the crate contains no f32/f64
-no domain concept: talk, give_item, Cafe appear only in test fixtures, as opaque identifiers
-no engine concept: no mesh, navmesh, camera, scene tree, animation, skeleton, physics
-BTreeMap / BTreeSet / Vec only (clippy.toml denies HashMap/HashSet workspace-wide)
-an Event cannot be constructed without a Causation and a Visibility
-an Observation exposes only the entities it lists — no store handle, no global accessor
-ActionRecord and EventRecord are the only erasure boundaries, mirroring
-  ComponentRecord<P = Vec<u8>>: generic over the payload, the codec belongs to persistence
-INV-2, INV-10, INV-12, INV-13, INV-15 as stated in §1.3
+server/src/parity.rs            AC-13's comparison, defined once
+server/src/protocol.rs          WorldInstanceId on WorldSummary — AC-15's first evidence line
+systems/presence                PerceptionProvider (was InteractionProvider) with `discloses`;
+                                observe() returns Observation<Value>
+systems/conversation            discloses a person's own history, in that person's own observation
+cognition/rule-controller/      the RuleController: an Observation in, an ActionRequest out
+tools/cli/src/agent.rs          --agent SEAT, over the same host seam a WebSocket session uses
+worlds/social-cafe/             a second visitor, and Alice as a seat
+clients/protocol/               the Godot client protocol module, a demonstration scene, evidence
+tools/cli/tests/                ac15_one_alice.rs (6 tests), ac13_semantic_parity.rs (2)
+docs/MVP_STATUS.md              updated where this PR changed the answer
 ```
 
-## Endpoint authority
+## Semantic commits
 
 ```text
-implementation + local validation   authorized      (operator kickoff, 2026-09-25)
-semantic commits                    authorized      (operator kickoff, explicit)
-branch push                         NOT authorized  (operator kickoff; decision D-9)
-PR creation / remote CI             N/A — no remote exists (decision D-9)
-merge into main                     explicit operator authorization only
+feat(server): name the running world, and define AC-13's comparison once
+feat(systems): a pack discloses its own state to the observer entitled to it
+feat(cognition): a RuleController, so a Person can be driven by an agent
+feat(cli): --agent drives a seat, and the café has room for two windows
+test(ac-15): there is only one Alice, and the evidence names identity
+feat(clients): the Godot client protocol module, and AC-13 from what it sent
+docs(mvp0): PR 05d's ledger, evidence and limitations
+chore: remove three things nothing uses
+fix(clients): say goodbye before the socket stops being polled
+fix(systems): a disclosure may only be about the subject it was asked about
 ```
 
-## Implementation sequence
+## Validation state
 
 ```text
-C1  action contracts          — ActionTypeId, Action, ActionRecord, ActionIntent,
-                                ActionResult, Rejection, RejectionCode
-C2  event contracts           — EventTypeId, Event, EventRecord, EventEnvelope,
-                                Causation, Visibility, Provenance
-C3  spatial contract          — Millimetres, Millidegrees, LocalPosition, Orientation,
-                                Location, SpatialRequirement + evaluate;
-                                also adds ActionIntent.actor_location (deviation D-1)
-C4  observation contract      — PerceivedEntity, PerceivedEvent, Affordance, Observation
-C5  specification sync        — docs/CORE_CONCEPTS.md, contracts/README.md, this ledger
+cargo fmt --all --check                                              clean
+cargo check --workspace --all-targets                                clean
+cargo clippy --workspace --all-targets --all-features -- -D warnings clean
+cargo test --workspace --no-fail-fast                                259 passed, 0 failed
+Gate 2 (real binary + real Godot 4.7.2, seven runs)                  PASS — design doc §9.2
+AC-15                                                                HOLDS — §9.3, with the
+                                                                     counterfactual in §9.4
+AC-13                                                                HOLDS — §9.5
+Gate 1 (real LLM)                                                    NOT REQUIRED — MVP-0 has no
+                                                                     model, and nothing here is
+                                                                     LLM-facing
 ```
 
-## Current checkpoint
+## Decisions a later session must not silently undo
 
 ```text
-C1  DONE   contracts/src/action.rs, two IdentifierKind variants and two ContractError
-           variants in error.rs, check_identifier widened to pub(crate) in ids.rs,
-           module wiring and re-exports in lib.rs, contracts/tests/action.rs (5 tests),
-           identity.rs extended for the two new declaration names.
-           All four §6 commands clean; 36 integration tests + 2 doc-tests; three
-           mutations confirmed the new guards are load-bearing (§7.2).
-C2  DONE   contracts/src/event.rs, IdentifierKind::EventTypeId and two ContractError
-           variants, module wiring, contracts/tests/event.rs (6 tests) and a new
-           compile-fail case pinning that a recorded event cannot be reassigned.
-           All four §6 commands clean; 42 integration tests + 3 doc-tests; two
-           mutations confirmed the guards are load-bearing (§7.2).
-C3  DONE   contracts/src/spatial.rs (Millimetres, Millidegrees, LocalPosition,
-           Orientation, Location, PlaceRequirement, SpatialRequirement + evaluate),
-           two ContractError variants, ActionIntent.actor_location and from_location
-           (deviation D-1 closed), contracts/tests/spatial.rs (8 tests including the
-           no-float structural guard), action.rs tests extended to pin the reported
-           location. All four §6 commands clean; 50 integration tests + 3 doc-tests;
-           five mutations, one of which survived and led to a stronger degeneracy
-           test (§7.2 M9).
-C4  DONE   contracts/src/observation.rs (PerceivedEntity, PerceivedEvent, Affordance,
-           Observation), one ContractError variant, contracts/tests/observation.rs
-           (4 tests) and a compile-fail case pinning that an affordance cannot claim
-           availability and a reason at once. All four §6 commands clean; 54
-           integration tests + 3 doc-tests; two mutations, both caught.
-C5  DONE   docs/CORE_CONCEPTS.md §§6.1, 6.2, 11, 12.1, 15.1, 15.2; docs/ARCHITECTURE.md
-           §13.1 (one sentence this PR falsified); contracts/README.md inventory;
-           §7.4 of the design re-checks both gate questions against the written code.
+a component reaches an observation because its owning pack named it AND named who may see it.
+  Walking the component stores would satisfy any test here and defeat INV-13 for every pack after
+  (design doc §4)
 
-background jobs: none
-open items: O-1 (event payloads have no schema version — S5 owns it),
-            O-2 (no ActionDeclaration value — S3 owns it), both in §7.3
+what may be known is the owning pack's judgement; WHOM a record may be about is not. Perception
+  drops any record whose entity is not the subject it asked about, so a pack that lies fails closed.
+  Removing that one filter turns `a_pack_that_names_a_third_party_discloses_nothing` red
+  (design doc §7.10, found in operator review)
+
+the AC-13 comparison lives in server/src/parity.rs and nowhere else. A test that writes its own
+  comparison can drop a field (MVP.md §9's correction, design doc §5.2)
+
+Alice is a seat because the agent occupies one, which is what puts a controller on the same path a
+  client uses (design doc §7.3). A human may therefore occupy her: AC-5's direction, and an
+  unarbitrated case recorded in §10.6
+
+the AC-13 fixtures in clients/protocol/evidence/ come from the real Godot client. Replacing them
+  with hand-written frames would make the test prove the comparison and nothing about a client
 ```
 
-## State
+## Exact next actions
 
 ```text
-PR 02 is READY FOR OPERATOR REVIEW on mvp0/pr-02-action-event-spatial. DO NOT MERGE.
-
-implementation   complete — five commits, §5 fully checked off
-validation       §6's four commands clean at the final head; 54 integration tests +
-                 3 doc-tests; 12 mutations, one of which survived and led to a
-                 stronger test (§7.2 M9)
-documentation    design ledger §§7.1-7.4 synchronized; CORE_CONCEPTS.md gained the
-                 spatial, answer, observation and affordance vocabulary;
-                 ARCHITECTURE.md §13.1 corrected; contracts/README.md re-inventoried
-not done         no push (no remote exists — decision D-9), no PR, no remote CI,
-                 no merge
+1  operator review of this branch. No PR was opened and nothing was merged.
+2  the 2D and 3D visual agents adopt clients/protocol/mineworld/ — ADOPTION.md is written for
+   them, and coordination goes through the operator rather than across worktrees
+3  after merge: the planning session updates step-05 and overall.md (agent-workflow §10 owner
+   rule); this implementation session owns only the PR document
 ```
-
-## What the operator decides next
-
-1. Review the branch. One execution-time deviation (D-1: `ActionIntent.actor_location` arrives
-   with the spatial commit, because the frozen commit order puts `action.rs` before the type that
-   field holds) and six bounded decisions the design left open (K-1 … K-6) are argued in §7.3.
-2. Three open items are recorded rather than resolved: O-1 (an event payload has no schema
-   version, and the event log is permanent — S5 owns it), O-2 (no `ActionDeclaration` value for a
-   registry — S3 owns it), FU-1 (`README.md`, `CLAUDE.md` and `.structured-coding/standards.md`
-   still call the repository specification-only; already false on `main` before this PR, and
-   PR 01's own follow-up).
-3. Authorize or refuse the merge. Nothing in this branch has been merged.
-
-## If this context is resumed instead
-
-The next PR (S3 — the System interface) starts a fresh implementation context with its own filled
-contract. Do not continue that work here.
 
 ## Stop conditions
 
 ```text
-STOP and report when:
-  a frozen invariant in §1.3 would have to change
-  a gate question in §3.1 cannot be answered yes against the written code
-  a public specification statement is falsified
-  the PR reaches READY FOR OPERATOR REVIEW
-
-NORMAL STOP: PR 02 ready for operator review on
-mvp0/pr-02-action-event-spatial — DO NOT MERGE.
+NORMAL   PR 05d READY FOR OPERATOR REVIEW — reached
+NEVER    merge without explicit operator authorization
+NEVER    merge, edit or pull from vis/2d-generated-assets or vis/3d-human-pipeline
 ```

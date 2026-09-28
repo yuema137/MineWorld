@@ -24,13 +24,18 @@ Two halves, and they are different kinds of thing:
 An observation carries **affordances** — what this observer may attempt, each with the server's
 verdict — so that a 2D client and a 3D client can offer the same interactions without either
 implementing a rule. The answers are not computed from a list of actions kept here. Each pack
-implements `InteractionProvider` and offers its own actions; this pack asks the kernel's route map
+implements `PerceptionProvider` and offers its own actions; this pack asks the kernel's route map
 whether the action is still provided, and the contract layer's `SpatialRequirement::evaluate`
 whether it is possible right now.
 
-The consequence is the point: disabling a pack removes its affordance from every observation in the
-world, and adding a pack requires no edit here. A test scans these sources for another pack's
-vocabulary, because the claim is an absence and only a structural test can hold it.
+The same seam carries **state**: a pack says which of its own components an observer may know about
+a given entity, and this pack puts back exactly what it is handed. It never walks the component
+stores, because exposing a component on the grounds that it exists is how an observation becomes a
+window onto everything.
+
+The consequence is the point: disabling a pack removes its affordances *and* its state from every
+observation in the world, and adding a pack requires no edit here. A test scans these sources for
+another pack's vocabulary, because the claim is an absence and only a structural test can hold it.
 
 ## `arrive` is not movement
 

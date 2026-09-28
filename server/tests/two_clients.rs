@@ -208,13 +208,20 @@ async fn two_clients_connect_at_once_and_each_receives_its_own_observers_observa
     let mut two_d = Client::connect(address).await;
     let mut three_d = Client::connect(address).await;
     let (alice, world) = two_d.join(ALICE).await;
-    let (bob, _) = three_d.join(BOB).await;
+    let (bob, other_world) = three_d.join(BOB).await;
 
     assert_ne!(alice, bob, "two seats are two observers");
     assert_eq!(
         world.seats.len(),
         2,
         "the world states which seats it offers, and a client chooses among those"
+    );
+    // Two observers, one world, and the world says so by identity rather than by resemblance:
+    // `MVP.md` §9.1's first evidence line, without which "the same world" is only an assumption
+    // about what somebody typed into two address bars.
+    assert_eq!(
+        world.instance, other_world.instance,
+        "both clients were told the identity of the same running world"
     );
 
     let (first_seq, seen_by_alice) = two_d.observation().await;

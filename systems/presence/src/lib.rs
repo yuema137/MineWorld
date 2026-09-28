@@ -30,7 +30,7 @@
 //! failure `docs/ENGINEERING_STANDARDS.md` §8 exists to catch.
 //!
 //! So the question is asked rather than answered here. Each pack implements
-//! [`InteractionProvider`] and hands back [`Offer`]s: an action type read off its own
+//! [`PerceptionProvider`] and hands back [`Offer`]s: an action type read off its own
 //! [`Action`](mineworld_contracts::Action) type, the
 //! [`SpatialRequirement`](mineworld_contracts::SpatialRequirement) it declares, and the one
 //! judgement only its owner can make — whether the target is available. This crate then does two
@@ -60,6 +60,6 @@ pub mod system;
 pub use action::{Arrive, arrive_requirement};
 pub use component::Presence;
 pub use event::{Arrived, arrival};
-pub use interaction::{InteractionProvider, Offer};
+pub use interaction::{Offer, PerceptionProvider};
 pub use observe::observe;
 pub use system::{PresenceSystem, present_in, present_in_declaration};

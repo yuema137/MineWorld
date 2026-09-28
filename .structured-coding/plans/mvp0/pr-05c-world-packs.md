@@ -457,7 +457,7 @@ option surfaces. Recorded so it is a decision rather than an omission.
 ### Commit 5 — documentation
 
 - [x] Implementation: `MODULE_SPEC.md` §4.1 (the fields MVP-0's loader reads, with the five rules
-      that govern them); `DECISIONS.md` ARC-10 (initial state is a recorded genesis fact) and
+      that govern them); `DECISIONS.md` ARC-15 (initial state is a recorded genesis fact) and
       DEP-10 (`serde-saphyr`, with the five rejected alternatives); `worldpack/README.md`,
       `tools/cli/README.md`, `worlds/social-cafe/README.md`; `server/README.md` reconciled with
       the binary having moved; §§8 and 9 of this ledger.

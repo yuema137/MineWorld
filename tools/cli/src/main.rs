@@ -1,8 +1,8 @@
 //! `mineworld` — the command that runs a world.
 //!
 //! ```text
-//! mineworld server <world> [--listen ADDRESS]    load the pack and host it
-//! mineworld validate <world>                     load it, say what it is, and stop
+//! mineworld server <world> [--listen ADDRESS] [--agent SEAT]...   load the pack and host it
+//! mineworld validate <world>                                      load it, say what it is, and stop
 //! ```
 //!
 //! `ARC-6` makes the artefacts the deliverable: MineWorld is *an installable world runtime plus
@@ -37,13 +37,14 @@
 //! line that does not exist yet (`REUSE_POLICY.md`: never adopt a dependency merely because it
 //! exists). Recorded so it is a decision rather than an omission.
 
+mod agent;
 mod perceive;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use mineworld_contracts::WorldTime;
+use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_server::{HostConfig, HostError, HostedWorld, SeatRoster, WorldHost, app};
 use mineworld_worldpack::{PackError, WorldPack};
 
@@ -56,8 +57,13 @@ const DEFAULT_LISTEN: &str = "127.0.0.1:7878";
 const USAGE: &str = "\
 mineworld — run a MineWorld world
 
-    mineworld server <world> [--listen ADDRESS]   host a World Pack (default 127.0.0.1:7878)
-    mineworld validate <world>                    check a World Pack and say what it is
+    mineworld server <world> [--listen ADDRESS] [--agent SEAT]...
+        host a World Pack (default 127.0.0.1:7878)
+        --agent SEAT drives that seat with a rule controller, in this process, over the same
+        path a client's connection uses. Repeat it for more than one.
+
+    mineworld validate <world>
+        check a World Pack and say what it is
 
 `mineworld create` and `mineworld inspect` do not exist yet (they are S7).";
 
@@ -77,7 +83,11 @@ async fn main() -> ExitCode {
             return ExitCode::SUCCESS;
         }
         Command::Validate { world } => validate(&world),
-        Command::Server { world, listen } => serve(world, listen).await,
+        Command::Server {
+            world,
+            listen,
+            agents,
+        } => serve(world, listen, agents).await,
     };
 
     match outcome {
@@ -91,8 +101,12 @@ async fn main() -> ExitCode {
 
 /// What this invocation was asked to do.
 enum Command {
-    /// Host a world.
-    Server { world: PathBuf, listen: SocketAddr },
+    /// Host a world, and optionally drive some of its seats with a controller.
+    Server {
+        world: PathBuf,
+        listen: SocketAddr,
+        agents: Vec<EntityKey>,
+    },
     /// Check a world and report it.
     Validate { world: PathBuf },
     /// Say what the command can do.
@@ -117,6 +131,7 @@ impl Command {
             "server" => {
                 let world = world_argument(&subcommand, arguments.next())?;
                 let mut listen = DEFAULT_LISTEN.to_owned();
+                let mut agents = Vec::new();
                 while let Some(argument) = arguments.next() {
                     match argument.as_str() {
                         "--listen" => {
@@ -124,13 +139,25 @@ impl Command {
                                 "--listen needs an address, such as 0.0.0.0:7878".to_owned()
                             })?;
                         }
+                        "--agent" => {
+                            let seat = arguments.next().ok_or_else(|| {
+                                "--agent needs a seat, such as --agent alice".to_owned()
+                            })?;
+                            agents.push(EntityKey::new(&seat).map_err(|error| {
+                                format!("--agent {seat} is not a seat name: {error}")
+                            })?);
+                        }
                         other => return Err(unexpected(other)),
                     }
                 }
                 let listen = listen
                     .parse()
                     .map_err(|error| format!("--listen {listen} is not an address: {error}"))?;
-                Ok(Self::Server { world, listen })
+                Ok(Self::Server {
+                    world,
+                    listen,
+                    agents,
+                })
             }
             "validate" => {
                 let world = world_argument(&subcommand, arguments.next())?;
@@ -194,8 +221,8 @@ fn validate(world: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-/// Loads a pack and hosts it until interrupted.
-async fn serve(world: PathBuf, listen: SocketAddr) -> Result<(), String> {
+/// Loads a pack and hosts it until interrupted, with a controller on each requested seat.
+async fn serve(world: PathBuf, listen: SocketAddr, agents: Vec<EntityKey>) -> Result<(), String> {
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
     let pack = WorldPack::read(&world).map_err(described)?;
@@ -212,6 +239,18 @@ async fn serve(world: PathBuf, listen: SocketAddr) -> Result<(), String> {
     // The world itself is built *inside* its own thread, because a `World` is not `Send`. What crosses
     // the boundary is the pack, which is plain data — and loading it there rather than here is also
     // what keeps the world and its systems from ever being moved between threads.
+    // Checked against the pack before anything starts: an operator who mistyped a seat should be told
+    // so, not left watching a world in which nothing happens. The seat roster is the world's, and this
+    // is the same roster a client's `join` is answered from.
+    for seat in &agents {
+        if !pack.seats().contains(seat) {
+            return Err(format!(
+                "[mineworld] --agent {seat}: this world offers no such seat. It offers: {}",
+                listed(pack.seats().iter()),
+            ));
+        }
+    }
+
     let host = WorldHost::spawn(config, move || {
         let seats = SeatRoster::new(pack.seats().iter().cloned());
         let running = pack.load(epoch).map_err(HostError::build)?.into_running();
@@ -239,6 +278,12 @@ async fn serve(world: PathBuf, listen: SocketAddr) -> Result<(), String> {
         status.systems.len(),
         listed(status.seats.iter()),
     );
+    println!("[mineworld] world instance {}", status.instance);
+
+    // Each controller is a task of its own, occupying a seat exactly as a client's connection does.
+    for seat in agents {
+        tokio::spawn(agent::drive(host.clone(), seat));
+    }
 
     app::serve_with_shutdown(listener, host.clone(), async {
         let _ = tokio::signal::ctrl_c().await;

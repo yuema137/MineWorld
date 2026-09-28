@@ -14,7 +14,7 @@ use crate::action::{Arrive, arrive_requirement};
 use crate::codec;
 use crate::component::Presence;
 use crate::event::{Arrived, arrival};
-use crate::interaction::{InteractionProvider, Offer};
+use crate::interaction::{Offer, PerceptionProvider};
 
 /// Where people are, and what each of them perceives.
 ///
@@ -173,7 +173,7 @@ impl System for PresenceSystem {
     }
 }
 
-impl InteractionProvider for PresenceSystem {
+impl PerceptionProvider for PresenceSystem {
     /// Offers `arrive` to any person: it is directed at nobody, so it is offered exactly once, with
     /// no target.
     ///

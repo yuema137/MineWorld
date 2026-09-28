@@ -1,0 +1,16 @@
+; MineWorld client protocol module — the Godot project that gives `mineworld/` a runnable home.
+;
+; The module is `mineworld/`: a self-contained folder a client project copies or symlinks in. This
+; project exists so that it has a demonstration scene of its own and can be run without either
+; reference client. See README.md and ADOPTION.md.
+
+config_version=5
+
+[application]
+config/name="MineWorld client protocol"
+run/main_scene="res://demo/demo.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[display]
+window/size/viewport_width=1000
+window/size/viewport_height=640

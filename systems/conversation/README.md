@@ -22,6 +22,11 @@ Because it is a reduction of the log rather than a cache kept alongside it, a wo
 its events remembers the same conversations. Episodic memory, summarization and forgetting are a
 later step built on that property; they are not a larger number in this file.
 
+A controller reads it through the observation it is given, never from the world: this pack discloses
+a person's history **in that person's own observation and nowhere else**. So Alice's controller
+learns that somebody spoke to her, a player learns what Alice said to them out of their own history,
+and neither can read a stranger's memory — because there is no request that asks for one.
+
 ## Distance is checked, and not by arithmetic written here
 
 `talk` declares a `SpatialRequirement` — the same place, within three metres, of somebody available

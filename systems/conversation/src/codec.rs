@@ -25,6 +25,18 @@ pub(crate) fn encode<T: Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).expect("this pack's payloads are JSON-representable by construction")
 }
 
+/// Encodes a payload this pack declared as the self-describing value an observation carries.
+///
+/// The same encoder as [`encode`], and infallible for the same reason; what differs is the
+/// destination. A log entry is opaque bytes to be replayed, while a disclosed component is read by a
+/// controller or by a client that has no Rust type to decode it with — which is why
+/// [`PerceptionProvider::discloses`](mineworld_presence::PerceptionProvider::discloses) takes a
+/// [`Value`] (`spike/FINDINGS.md` F8.2).
+pub(crate) fn to_value<T: Serialize>(value: &T) -> serde_json::Value {
+    serde_json::to_value(value)
+        .expect("this pack's payloads are JSON-representable by construction")
+}
+
 /// Reads an action payload back as the action type this pack declared.
 ///
 /// Two failures, one error type, because a System Pack has only the contract layer's vocabulary to

@@ -39,6 +39,7 @@
 mod tests;
 
 use std::fmt;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use mineworld_contracts::{
     ActionId, ActionRequest, ActionResult, ContractError, EntityId, EntityKey, Observation,
@@ -360,6 +361,76 @@ impl Refusal {
     }
 }
 
+/// Which running world this is.
+///
+/// Not a name, not a secret and not a UUID: a value that distinguishes *this* running world from
+/// another one. It exists because `docs/MVP.md` §9.1 requires `AC-15`'s evidence to name identity
+/// rather than appearance — *same world instance*, first of three lines — and without it the only
+/// argument that two clients are connected to one world is that somebody typed one address twice.
+/// Two clients that were each talking to their own server would be told two different instances
+/// here, which is exactly the false success §9.1 exists to exclude.
+///
+/// Allocated when a world's thread starts (`runtime::WorldRuntime::new`) from the wall clock, the
+/// process and a per-process ordinal, so two worlds never share one — in the same process because
+/// the ordinal differs, and across processes because the instant and the process do. It is
+/// deliberately **not** derived from the world's content: two worlds loaded from the same World
+/// Pack are two instances, and `AC-15` is about the instance.
+///
+/// On the wire it is a lowercase hexadecimal string, for the reason every identity is a string
+/// (`DEP-3`): a JSON parser whose only number type is a double cannot carry 128 bits, and cannot
+/// carry 64 either.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(into = "String", try_from = "String")]
+pub struct WorldInstanceId(u128);
+
+impl WorldInstanceId {
+    /// The next instance identity this process will hand out.
+    pub(crate) fn allocate() -> Self {
+        // A world within this process, and this process at this instant. Not a cryptographic
+        // identity: nothing authenticates with it, and the only property required is that two
+        // worlds do not collide.
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let ordinal = u128::from(NEXT.fetch_add(1, Ordering::Relaxed));
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |since| since.as_nanos());
+        let process = u128::from(std::process::id());
+        Self((nanos << 32) ^ (process << 16) ^ ordinal)
+    }
+
+    /// The identity a caller already holds — for a test, or for reading one back off the wire.
+    pub const fn from_raw(value: u128) -> Self {
+        Self(value)
+    }
+
+    /// The identity as the number it is.
+    pub const fn raw(self) -> u128 {
+        self.0
+    }
+}
+
+impl fmt::Display for WorldInstanceId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:032x}", self.0)
+    }
+}
+
+impl From<WorldInstanceId> for String {
+    fn from(value: WorldInstanceId) -> Self {
+        value.to_string()
+    }
+}
+
+impl TryFrom<String> for WorldInstanceId {
+    type Error = ProtocolError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        u128::from_str_radix(&value, 16)
+            .map(Self)
+            .map_err(|_| ProtocolError::InstanceId(value))
+    }
+}
+
 /// What a world is, as a client or an operator is told: enough to see that it is running and what
 /// it is composed of, and nothing that would make this an observation.
 ///
@@ -371,6 +442,8 @@ impl Refusal {
 pub struct WorldSummary {
     /// Which revision of this protocol the server speaks.
     pub protocol: u32,
+    /// Which running world this is — the same value for every client connected to it.
+    pub instance: WorldInstanceId,
     /// The world's own clock, as of this answer.
     pub at: WorldTime,
     /// How many entities the world has allocated.
@@ -422,6 +495,9 @@ pub enum ProtocolError {
     /// A correlation token containing a control character.
     #[error("a correlation token must not contain control characters")]
     TokenNotPrintable,
+    /// A world instance identity that is not the hexadecimal string one is written as.
+    #[error("a world instance is 128 bits of lowercase hexadecimal, and this is {0:?}")]
+    InstanceId(String),
     /// A seat name that is not a legal entity key.
     #[error("a seat is named by an entity key: {0}")]
     Seat(#[from] ContractError),

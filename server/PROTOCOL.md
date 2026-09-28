@@ -93,11 +93,20 @@ Before a successful `join`, a `submit` is refused `not_joined` and no observatio
 
 ```json
 { "t": "welcome", "protocol": 1, "seat": "player", "observer": "101",
-  "world": { "protocol": 1, "at": 0, "entities": 4,
+  "world": { "protocol": 1, "instance": "1a2b3c4d5e6f70819293a4b5c6d7e8f9",
+             "at": 0, "entities": 4,
              "systems": [ { "system": "presence", "enabled": true } ],
              "seats": [ "player" ], "clients": 1,
              "observations_dropped": 0, "deferrals_unscheduled": 0, "faults": 0 } }
 ```
+
+`instance` is **which running world this is**: allocated when the world's thread starts, reported
+unchanged for as long as that world lives, and identical for every client connected to it. It is not
+a name, not a secret and not derived from the world's content — two worlds loaded from one World Pack
+are two instances. It exists because `docs/MVP.md` §9.1 requires `AC-15`'s evidence to name identity
+rather than appearance: two clients each talking to their own server are told two different
+instances, which is the false success that criterion exists to exclude. 128 bits as a lowercase
+hexadecimal string, for the reason in §7.
 
 `observations_dropped` counts frames the server did not send because a client was not reading them:
 the world never waits for a client, so a client that falls behind loses observations rather than
@@ -193,6 +202,26 @@ decides whether it is well formed. Four consequences a client must know:
 4. **`payload` is the owning system's own shape.** The server carries it without interpreting it;
    the system that provides the action decodes it. It reaches that system as the JSON bytes of what
    was sent.
+
+### 6.1 What two clients of different dimensions must agree about
+
+`docs/MVP.md` §9 `AC-13` requires a `talk` from a 2D click and a `talk` from a 3D
+walk-up-look-at-press to have an **identical semantic core**, and names the fields:
+
+```text
+identical        actor · action_type · target · payload
+may differ       actor_location — a 3D client reports the position it walked to, a 2D client
+                 that models no position sends null
+```
+
+The comparison is implemented **once**, in `server/src/parity.rs` (`semantic_core` and
+`differing_fields`), so that an acceptance test states which difference it permits rather than
+writing its own comparison and forgetting a field. `spike/FINDINGS.md` F6 measured three differing
+fields; PR 04 removed `action_id` and `issued_at` from what a client submits, so one is left.
+
+A client author's obligation is the short version of the same thing: everything after acquisition is
+identical. How the player expressed the wish — a click, a raycast, a menu — changes nothing in the
+frame except the position the client is able to report.
 
 ## 7. Numbers, and the one rule a client with a single number type must follow
 

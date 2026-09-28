@@ -1,0 +1,59 @@
+[
+  {
+    "flavour": "3d",
+    "request": {
+      "action_type": "arrive",
+      "actor": "4",
+      "actor_location": null,
+      "payload": {
+        "action_type": "arrive",
+        "payload": {
+          "location": {
+            "facing": null,
+            "local": {
+              "x": 1200,
+              "y": 1400,
+              "z": 0
+            },
+            "place": {
+              "entity": "1",
+              "entity_type": "place"
+            }
+          }
+        }
+      },
+      "target": null
+    },
+    "token": "c1"
+  },
+  {
+    "flavour": "3d",
+    "request": {
+      "action_type": "talk",
+      "actor": "4",
+      "actor_location": {
+        "facing": {
+          "pitch": null,
+          "yaw": 0
+        },
+        "local": {
+          "x": 1200,
+          "y": 1400,
+          "z": 0
+        },
+        "place": {
+          "entity": "1",
+          "entity_type": "place"
+        }
+      },
+      "payload": {
+        "action_type": "talk",
+        "payload": {
+          "utterance": "hello Alice, this is the demonstration scene"
+        }
+      },
+      "target": "2"
+    },
+    "token": "c2"
+  }
+]

@@ -36,7 +36,7 @@ use mineworld_contracts::{
     Millidegrees, Orientation, PersonId, PlaceId, WorldTime,
 };
 use mineworld_kernel::{Emission, World};
-use mineworld_presence::InteractionProvider;
+use mineworld_presence::PerceptionProvider;
 
 use crate::catalog::{self, Capability};
 use crate::error::{ContentKind, PackError};
@@ -48,7 +48,7 @@ pub struct LoadedWorld {
     world: World,
     ids: BTreeMap<EntityKey, EntityId>,
     genesis: Vec<EventEnvelope>,
-    providers: Vec<Box<dyn InteractionProvider>>,
+    providers: Vec<Box<dyn PerceptionProvider>>,
 }
 
 /// A loaded world handed over to whatever will run it.
@@ -61,7 +61,7 @@ pub struct RunningWorld {
     /// The world, ready to be hosted or driven headless.
     pub world: World,
     /// The packs that answer for their own actions, in the order the pack composed them.
-    pub providers: Vec<Box<dyn InteractionProvider>>,
+    pub providers: Vec<Box<dyn PerceptionProvider>>,
 }
 
 impl LoadedWorld {

@@ -24,6 +24,7 @@
 //!
 //! ```text
 //! app         the router: /health, /status, /ws
+//! parity      AC-13's comparison: what it means for two clients to ask the same thing
 //! session     one client's conversation: join, then observations out and requests in
 //! host        WorldHost — the handle, the seats, and the thread a World must live on
 //! runtime     the world thread: the clock, the request allocator, the subscribers
@@ -63,6 +64,7 @@
 
 pub mod app;
 pub mod host;
+pub mod parity;
 pub mod perception;
 pub mod protocol;
 mod runtime;
@@ -71,8 +73,9 @@ mod session;
 pub use host::{
     HostConfig, HostError, HostedWorld, SeatRoster, Seated, Submitted, SubscriptionId, WorldHost,
 };
+pub use parity::{RequestField, SemanticCore, differing_fields, semantic_core};
 pub use perception::{PerceivesNothing, Perception, PerceptionContext};
 pub use protocol::{
     ClientFrame, CorrelationToken, PROTOCOL_VERSION, ProtocolError, Refusal, RefusalCode,
-    ServerFrame, SystemSummary, WireObservation, WirePayload, WorldSummary,
+    ServerFrame, SystemSummary, WireObservation, WirePayload, WorldInstanceId, WorldSummary,
 };
