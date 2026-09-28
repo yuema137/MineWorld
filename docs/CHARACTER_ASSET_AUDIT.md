@@ -255,3 +255,54 @@ to reproduce the character.
 which are layered on top and none of which fix the silhouette. Morphing a male
 mesh toward a female one by scaling bones would distort the skinning and is not
 proposed.
+
+---
+
+## 9. Can CharMorph satisfy the identity contract? Body yes, hair and garments no
+
+**Date** 2026-09-27 · assessed against
+[`CHARACTER_IDENTITY.md`](../presentation/mineworld-default/3D/CHARACTER_IDENTITY.md)
+after Blender 5.2.2 was installed and the re-bake approved · **conclusion: a
+parametric human is the right answer for the body and the wrong answer for
+everything that carries recognition**
+
+| Contract category | CharMorph | Evidence |
+| --- | --- | --- |
+| Gender presentation, body silhouette | **Yes** | `Ultra Feminine.yaml`; `Waist_Hips_Width +0.262`, `Waist_Width −0.157`, `Waist_GluteSize +0.251`, `Chest_Breast_Size 0.222` |
+| Apparent age | **Yes** | `Age_Baby` / `Age_Old` L2 morphs |
+| Face shape | **Probably** | 185 L2 morphs including the full `Cheeks_*`, `Chin_*`, `Nose_*` families |
+| **Freckles** | **No** — not geometry | needs a skin albedo; Vitruvian ships 4K UDIM skins with no freckle variant |
+| **Hair: loose messy updo** | **No** | the character data ships exactly six hairstyles — `Back1`, `Bob`, `Combover_zoro_d`, `Eve`, `SceneHair_1_O4saken`, `SlickedBack`. None is an updo. |
+| **Hoodie with hood, drawstrings, ribbed cuffs** | **No** | the asset set is `Shirt.blend` and `Pants.blend`, plus eye parts. There is no outerwear at all. |
+| Tee graphic | **No** — texture work, and easy | |
+| Jeans | **Partly** | `Pants.blend` exists; the worn mid-blue denim is a texture |
+| Backpack | **No** | not in the asset set |
+
+**So the shape of the answer is a hybrid, and it is the arrangement `ARC-9`
+already prefers** — a standard rig carrying generated and sourced appearance:
+
+1. **CharMorph, in Blender, for the body and face.** This is what it is for and
+   it directly answers the silhouette hard-fail. The rig work already done
+   survives untouched, because the `BoneMap` addresses `SkeletonProfileHumanoid`
+   names rather than this mesh.
+2. **Hair, the hoodie and the backpack are modelling or sourcing jobs**, not
+   morphing jobs. The generated garment shell in `character_bake.py` is a
+   fallback that can produce a hood and a smooth fleece surface, but it cannot
+   produce drawstrings or ribbed cuffs, and `CHARACTER_IDENTITY.md` lists both.
+   With Blender now available, modelling them properly is possible for the
+   first time.
+3. **Textures via generation** (`ARC-9`, `tools/asset_generation/`): freckled
+   skin, the mountain-and-slogan tee graphic, worn denim.
+
+### The risk that has to be tested before any of this is planned
+
+**CharMorph declares `"blender": (3, 3, 0)` and was last updated 2025-05-29.
+The installed Blender is 5.2.2** — two major versions ahead. Blender 4.x and
+5.x both broke add-on APIs. Whether CharMorph even loads is unknown and is the
+first thing to establish; everything in row 1 above depends on it. If it does
+not load, the options are an older Blender alongside, or a different
+parametric base, and that is a decision rather than a workaround.
+
+**What is explicitly not proposed:** morphing the existing male mesh toward a
+female silhouette by scaling bones. It would distort the skinning and would not
+reach the contract.
