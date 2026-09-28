@@ -373,10 +373,14 @@ Every commit: implementation, deterministic validation, and LLM logic review, tr
 
 ### C6 — `AC-15` and `AC-13`
 
-- [ ] Implementation: `tools/cli/tests/ac15_one_alice.rs`, `tools/cli/tests/ac13_semantic_parity.rs`.
-- [ ] Validation: both run against the real binary; §9.3 records the identities.
-- [ ] Review: that the assertions name identity rather than appearance, and that they fail when
-      there are two Alices (§9.4).
+- [x] Implementation (AC-15; AC-13 follows C5, which produces its fixtures):
+      `tools/cli/tests/ac15_one_alice.rs`, and `tools/cli/tests/ac13_semantic_parity.rs`.
+- [x] Validation: six AC-15 tests against the real binary, the real pack and real sockets; §9.3
+      records the identities they read off the frames.
+- [x] Review: the assertions name a world instance, an `EntityId` and an `EventId` sequence, and not
+      one of them compares two renderings. The counterfactual is a committed test rather than a note
+      (§9.4): two servers, two Alices with the *same* `EntityId` and the same authored position, told
+      apart by the instance and by the carry-forward that cannot happen.
 
 ### C7 — the ledger
 
