@@ -127,6 +127,14 @@ actually block are CI's job.
         "scope": "repository"
       },
       {
+        "name": "decision-ids",
+        "command": [
+          "python3",
+          "scripts/check_decision_ids.py"
+        ],
+        "scope": "repository"
+      },
+      {
         "name": "cargo-test",
         "command": [
           "cargo",
