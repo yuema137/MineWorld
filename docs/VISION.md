@@ -241,7 +241,7 @@ Performance follows the same discipline. A rendering problem is answered by prof
 configuration, LOD, culling, asset optimization, then existing extensions — custom GPU code
 last, if ever.
 
-## 2.5 The kernel stays small
+## 2.7 The kernel stays small
 
 The kernel is responsible for identity, component storage, the world clock, spatial
 semantics, action dispatch, the system registry, process scheduling, event sourcing, the
