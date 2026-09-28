@@ -36,7 +36,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from model_lib import (  # noqa: E402  pylint: disable=wrong-import-position
     assign_material, bind, boundary_loop, cylindrical_uv, decimate,
     dominant_group, dup_region, extrude_band, extrude_strip, flare, inflate,
-    load_body, loft, new_object, planar_uv, relax, report, rib_displace,
+    load_body, loft, new_object, planar_uv, relax, report, report_boundaries,
+    rib_displace,
     rounded_box, set_material, shade_smooth, smooth_boundary, snap_opening,
     solidify, transfer_weights, tube,
 )
@@ -69,6 +70,12 @@ def any_in(dom, f, names) -> bool:
 
 def all_in(dom, f, names) -> bool:
     return all(grp(dom, v) in names for v in f.verts)
+
+
+# How many increments a normal offset is taken in.  One jump of 40 mm inverted
+# 183 faces of the hoodie where the shoulder, the armpit and the side of the
+# neck curve tighter than that; twenty increments leave 1.  See `inflate`.
+OFFSET_STEPS = 20
 
 
 def short(name: str) -> str:
@@ -114,7 +121,7 @@ def build_tee(body, dom):
     # inward, so relaxing an already-offset shell sank the tee back inside the
     # ribcage and the bare chest came through between the hoodie panels.
     relax(obj, iterations=3, factor=0.5)
-    inflate(obj, TEE_LIFT, smooth_first=2)
+    inflate(obj, TEE_LIFT, smooth_first=2, steps=OFFSET_STEPS)
     flare(obj, TEE_HEM_Z, HIP_Z + 0.14, 0.02)
     decimate(obj, 0.30)
     solidify(obj, 0.0022)
@@ -147,7 +154,7 @@ def build_jeans(body, dom):
 
     obj = dup_region(body, keep, "Jeans")
     relax(obj, iterations=1, factor=0.35)
-    inflate(obj, JEANS_LIFT, smooth_first=2)
+    inflate(obj, JEANS_LIFT, smooth_first=2, steps=OFFSET_STEPS)
     # "relaxed straight": the leg stops following the calf below the knee and
     # falls straight to the cuff instead.  A skinny jean is a different garment.
     bm = bmesh.new()
@@ -186,7 +193,7 @@ def build_jeans(body, dom):
 
 HOODIE_HEM_Z = 0.945      # hanging below the waistband, the lowest of the three
 HOODIE_TOP_Z = NECK_Z - 0.005     # the collar seam; the hood sits on top of it
-HOODIE_LIFT = 0.046       # 38 mm clear of the tee, which is more than
+HOODIE_LIFT = 0.040
                           # decimation can cut off a curved shoulder
 ZIP_HALF = 0.080          # half-width of the open front gap, at the centre line
 ZIP_TAPE = 0.018          # width of the lighter tape band folded in off it
@@ -210,9 +217,18 @@ def build_hoodie(body, dom, arm):
     # at the armhole belong to it and the sleeve starts exactly where it ends.
     def keep_torso(f):
         c = f.calc_center_median()
-        if c.z < HOODIE_HEM_Z or any_in(dom, f, HEAD_BONES):
+        if c.z < HOODIE_HEM_Z:
             return False
-        if not any_in(dom, f, TORSO_BONES):
+        # `any_in(HEAD_BONES)` here dropped every face that so much as touched
+        # the Neck vertex group -- which reaches down over the trapezius -- and
+        # `any_in(TORSO_BONES)` dropped the seat, whose faces are dominated by
+        # the upper leg. Between them they left six holes in the garment: two at
+        # the top of the shoulders, two over the glutes, and a large one across
+        # the upper back. The neckline is cut geometrically just below, so the
+        # joint test only has to exclude faces that are *entirely* head or neck.
+        if all_in(dom, f, HEAD_BONES):
+            return False
+        if not any_in(dom, f, TORSO_BONES | LEG_BONES):
             return False
         # A round neckline, cut geometrically.  Following the Neck joint's
         # weight boundary instead gives a collar with a ragged edge, because a
@@ -245,12 +261,14 @@ def build_hoodie(body, dom, arm):
     for pgon in obj.data.polygons:
         pgon.material_index = MAT_SHELL
     relax(obj, iterations=3, factor=0.5)
-    inflate(obj, HOODIE_LIFT, smooth_first=3)
+    inflate(obj, HOODIE_LIFT, smooth_first=3, steps=OFFSET_STEPS)
     decimate(obj, 0.55)
     flare(obj, HOODIE_HEM_Z, SPINE2_Z, 0.055)
 
     bm = bmesh.new()
     bm.from_mesh(obj.data)
+    # Intended openings: the hem, the neck, the front, and one cuff per sleeve.
+    report_boundaries(bm, "hoodie after cut+decimate", expect=5)
     # the two front panel edges, straightened after decimation
     def _flare_scale(z):
         t = 1.0 - min(1.0, max(0.0, (z - HOODIE_HEM_Z) / (SPINE2_Z - HOODIE_HEM_Z)))
@@ -468,7 +486,7 @@ def build_shoes(body, dom):
 
     obj = dup_region(body, keep, "Shoes")
     relax(obj, iterations=1, factor=0.35)
-    inflate(obj, SHOE_LIFT, smooth_first=2)
+    inflate(obj, SHOE_LIFT, smooth_first=2, steps=OFFSET_STEPS)
     decimate(obj, 0.30)
 
     # a sole: drop everything near the ground to a flat plane, which both gives

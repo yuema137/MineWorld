@@ -95,30 +95,77 @@ def dominant_group(body):
 
 # -------------------------------------------------------------------- reshaping
 
-def inflate(obj, dist: float, smooth_first: int = 0):
-    """Push every vertex out along its own normal.
+def inflate(obj, dist: float, smooth_first: int = 0, steps: int = 1,
+            relax_between: float = 0.0, report: bool = True):
+    """Push every vertex out along its own normal, and say if that tore it.
 
     `smooth_first` averages the *normals* before offsetting rather than the
     positions afterwards.  Offsetting along raw per-vertex normals is what made
     an earlier hoodie read as a quilted puffer: the surface underneath carries
     wrinkle detail, and a per-vertex push amplifies every fold into a panel.
+
+    **`steps` exists because a normal offset is only valid while the distance
+    stays under the surface's local radius of curvature.** Past that, neighbours
+    travelling along converging normals cross over and the surface folds through
+    itself; the faces in the fold come out inverted, and after decimation they
+    render as angular holes with the garment's backfaces showing through. A
+    shoulder, an armpit and the side of a neck all have radii well under the
+    46 mm this was once asked for in one jump. Offsetting in several smaller
+    steps, re-deriving the normals each time, follows the surface instead of
+    shooting past it -- the same reason a real offset is computed iteratively.
+
+    The flipped-face count is reported rather than left to be discovered in a
+    screenshot, because that is how it was discovered the first time.
     """
-    bm = bmesh.new()
-    bm.from_mesh(obj.data)
-    bm.normal_update()
-    nrm = {v.index: v.normal.copy() for v in bm.verts}
-    for _ in range(smooth_first):
-        nxt = {}
+    # Measured against the *original* orientation, not against the previous
+    # step: a face that inverted early and stayed inverted does not flip again,
+    # so a per-step count reports zero for a surface that is already inside out.
+    origin = None
+    flipped = 0
+    for _ in range(max(1, steps)):
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.normal_update()
+        if origin is None:
+            origin = {f.index: f.normal.copy() for f in bm.faces}
+        before = origin
+        nrm = {v.index: v.normal.copy() for v in bm.verts}
+        for _ in range(smooth_first):
+            nxt = {}
+            for v in bm.verts:
+                acc = nrm[v.index].copy()
+                for e in v.link_edges:
+                    acc += nrm[e.other_vert(v).index]
+                nxt[v.index] = acc.normalized()
+            nrm = nxt
         for v in bm.verts:
-            acc = nrm[v.index].copy()
-            for e in v.link_edges:
-                acc += nrm[e.other_vert(v).index]
-            nxt[v.index] = acc.normalized()
-        nrm = nxt
-    for v in bm.verts:
-        v.co += nrm[v.index] * dist
-    bm.to_mesh(obj.data)
-    bm.free()
+            v.co += nrm[v.index] * (dist / max(1, steps))
+        # Let converging normals relax instead of crossing. Smoothing *between*
+        # increments is what stops a fold forming at all; smoothing afterwards
+        # only averages a fold that already exists.
+        if relax_between > 0.0:
+            bmesh.ops.smooth_vert(bm, verts=bm.verts, factor=relax_between,
+                                  use_axis_x=True, use_axis_y=True,
+                                  use_axis_z=True)
+        bm.normal_update()
+        flipped = sum(1 for f in bm.faces if f.normal.dot(before[f.index]) < 0.0)
+        bm.to_mesh(obj.data)
+        bm.free()
+    if report:
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.normal_update()
+        bad = [f.calc_center_median() for f in bm.faces
+               if origin and f.normal.dot(origin[f.index]) < 0.0]
+        where = ""
+        if bad:
+            where = ("  z %.3f..%.3f  |x| %.3f..%.3f" % (
+                min(c.z for c in bad), max(c.z for c in bad),
+                min(abs(c.x) for c in bad), max(abs(c.x) for c in bad)))
+        bm.free()
+        print(f"    inflate {obj.name}: {dist * 1000:.0f} mm in {max(1, steps)} "
+              f"step(s), {flipped} inverted faces{where}")
+    return flipped
 
 
 def relax(obj, iterations: int = 4, factor: float = 0.6):
@@ -174,6 +221,52 @@ def flare(obj, z_lo: float, z_hi: float, amount: float, axis_y: float = 0.03):
 
 
 # ------------------------------------------------------------------------ edges
+
+def report_boundaries(bm, label: str, expect: int = 0):
+    """Enumerate the open edge loops of a mesh, with where each one is.
+
+    `ARC-23`: a hole *is* a boundary loop, so listing the loops names the cut
+    that made it, instead of inferring a cause from a symptom.  A garment cut
+    from the body should have one loop per intended opening — hem, neck, two
+    cuffs, the front — and any loop besides those is a hole someone has to
+    explain.
+
+    Location is printed with the count on purpose. The count alone cannot
+    distinguish a hem from a tear.
+    """
+    seen = set()
+    loops = []
+    for e0 in bm.edges:
+        if not e0.is_boundary or e0.index in seen:
+            continue
+        stack = [e0]
+        verts, edges = set(), []
+        while stack:
+            e = stack.pop()
+            if e.index in seen:
+                continue
+            seen.add(e.index)
+            edges.append(e)
+            for v in e.verts:
+                verts.add(v)
+                for e2 in v.link_edges:
+                    if e2.is_boundary and e2.index not in seen:
+                        stack.append(e2)
+        co = [v.co for v in verts]
+        perim = sum((e.verts[0].co - e.verts[1].co).length for e in edges)
+        loops.append((len(verts), perim, co))
+    loops.sort(key=lambda t: -t[1])
+    print(f"    {label}: {len(loops)} open loop(s)"
+          + (f"  [expected {expect}]" if expect else ""))
+    for n, perim, co in loops[:12]:
+        print(f"      {n:>4} verts  perimeter {perim * 1000:6.0f} mm  "
+              f"x {min(c.x for c in co):+.3f}..{max(c.x for c in co):+.3f}  "
+              f"y {min(c.y for c in co):+.3f}..{max(c.y for c in co):+.3f}  "
+              f"z {min(c.z for c in co):.3f}..{max(c.z for c in co):.3f}")
+    if len(loops) > 12:
+        print(f"      ... and {len(loops) - 12} more")
+    return loops
+
 
 def boundary_loop(bm, pick):
     """Boundary vertices of `bm` for which `pick(vertex.co)` is true."""

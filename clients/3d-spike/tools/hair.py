@@ -428,7 +428,7 @@ def _build_cap(body, dom):
     zs = [v.co.z for v in cap.data.vertices] or [0.0]
     print(f"  hair cap: {len(cap.data.vertices)} verts, z {min(zs):.3f}..{max(zs):.3f}")
     relax(cap, iterations=1, factor=0.3)
-    inflate(cap, 0.011, smooth_first=2)
+    inflate(cap, 0.011, smooth_first=2, steps=6)
     # not decimated: the cap's edge *is* the hairline, and a decimated edge
     # comes out as a visible sawtooth across the forehead
     set_material(cap, "MW_HairCap")
