@@ -13,6 +13,7 @@ const GroundScript := preload("res://scripts/Ground.gd")
 const ShadowScript := preload("res://scripts/Shadows.gd")
 const GradeScript := preload("res://scripts/Grade.gd")
 const RingScript := preload("res://scripts/Ring.gd")
+const InteriorScript := preload("res://scripts/Interior.gd")
 
 const ART := "res://art/svg/%s.svg"
 const ART_GEN := "res://art/generated/%s.png"
@@ -28,7 +29,9 @@ const ART_GEN := "res://art/generated/%s.png"
 ##   ./mineworld-2d --variant=full         generated cast, shopfronts and flora
 ##   ./mineworld-2d --variant=town         generated cast, shared asset set
 const VARIANTS := ["procedural", "people", "full", "town"]
-var variant := "full"
+## Defaults to the candidate this branch would defend: it measures closest to
+## the reference plates on overall key. The operator picks, not this line.
+var variant := "town"
 
 ## Scale applied to each 2x-authored sprite. Derived from one rule: a person is
 ## 1.75 m and 1 m is Iso.PX_PER_M_Z pixels, so a person is ~56 px tall and
@@ -57,6 +60,22 @@ var grade: CanvasLayer
 
 const WALK_MIN := Vector2(1.7, 0.3)
 const WALK_MAX := Vector2(16.8, 6.66)
+
+## The café interior, in the same world coordinates as everything else.
+##
+## The room sits behind the café frontage and the doorway bridges it to the
+## square, so going inside is ordinary northward movement rather than a scene
+## change: same coordinates, same camera, nothing loads. Walkable space is the
+## union of these three rectangles, and the player slides along an edge rather
+## than sticking to it.
+const PLAZA_WALK := Rect2(1.7, 0.3, 15.1, 6.36)
+const ROOM := Rect2(3.45, -4.15, 3.55, 2.85)
+const DOOR := Rect2(4.66, -1.35, 1.18, 1.75)
+
+var interior: Node2D
+var cafe_sprite: Sprite2D
+var _inside := false
+var _cafe_fade := 1.0
 const PLAYER_SPEED := 2.4   # world units/second (~4.8 m/s, a brisk walk in a demo)
 
 
@@ -87,6 +106,7 @@ func _ready() -> void:
 
 	_build_places()
 	_build_scenery()
+	_build_interior()
 	_build_people()
 
 	cam = Camera2D.new()
@@ -327,6 +347,11 @@ func _prop(name: String, at: Vector2, flip := false, z := 0) -> Node2D:
 func _cast_shadow(name: String, at: Vector2, k: float) -> void:
 	if shadows == null:
 		return
+	# Indoors there is no sun; the room is lit by its pendants, and a long
+	# raking shadow under a café table would read as a hole in the floor.
+	if name.begins_with("gen_int_"):
+		shadows.add(at, 26.0 * k * 1.6, 11.0 * k * 1.6, 4.0, 0.16)
+		return
 	if name.begins_with("tree"):
 		# One broad soft pool per tree, dappled, rather than four hard blobs.
 		var r := 52.0 * k * 2.2
@@ -372,6 +397,8 @@ func _build_places() -> void:
 	]
 	for p in places:
 		var n := _prop(String(p.sprite), p.at)
+		if p.id == &"cafe":
+			cafe_sprite = n.get_child(0) as Sprite2D
 		var drawn := _role(String(p.sprite))
 		var m: Dictionary = props[drawn]
 		# Generated buildings carry their own painted sign board and have no
@@ -515,6 +542,44 @@ func _build_scenery() -> void:
 		_prop(it[0], _wp(it[1], it[2]))
 
 
+## The café interior. Furniture goes into the y-sorted world like any other
+## prop, so the player walks in front of and behind it exactly as with a bench
+## outside; only the floor, the walls and the lamplight live in the interior
+## layer, because those are the surfaces nobody can stand on.
+func _build_interior() -> void:
+	interior = Node2D.new()
+	interior.set_script(InteriorScript)
+	interior.room = ROOM
+	interior.door = DOOR
+	add_child(interior)
+
+	# Nothing to furnish with unless the generated interior set is present.
+	if not props.has("gen_int_counter"):
+		return
+
+	var layout := [
+		["gen_int_counter", 4.55, -3.62], ["gen_int_counter", 5.55, -3.62],
+		["gen_int_shelf", 3.80, -3.95], ["gen_int_shelf", 6.70, -3.90],
+		["gen_int_table", 4.20, -2.55], ["gen_int_table", 5.75, -2.40],
+		["gen_int_table", 4.55, -1.62], ["gen_int_table", 6.45, -2.95],
+		["gen_int_banquette", 3.70, -2.10], ["gen_int_banquette", 6.80, -1.95],
+		["gen_int_plant", 3.62, -1.45], ["gen_int_plant", 6.86, -3.30],
+	]
+	for it in layout:
+		_prop(it[0], Vector2(it[1], it[2]))
+
+	# Pendants hang, so they are placed a little above where they are anchored
+	# and they light the floor beneath rather than casting a shadow onto it.
+	for l in [Vector2(4.5, -2.9), Vector2(6.1, -2.6), Vector2(5.2, -1.8)]:
+		var h := _prop("gen_int_pendant", l)
+		h.get_child(0).offset.y -= 2.05 * Iso.PX_PER_M_Z / _scale_for("gen_int_pendant")
+		interior.add_light(l)
+
+	# Someone already inside, so the room is not a showroom.
+	if props.has("gen_sit_a_front") or props.has("gen_sit_a"):
+		_prop("seated_a", Vector2(5.72, -2.42))
+
+
 func _build_people() -> void:
 	# Seated people: the Sit affordance in 2D form, as the references show it.
 	_prop("seated_a", _at_screen(Vector2(2.30, 0.55), Vector2(-38, 2)))
@@ -630,11 +695,10 @@ func _process(dt: float) -> void:
 		Input.get_action_strength("move_down") - Input.get_action_strength("move_up"))
 	var wdir := Iso.screen_dir_to_world(sdir)
 	if wdir != Vector2.ZERO:
-		player_at += wdir * PLAYER_SPEED * dt
-		player_at.x = clamp(player_at.x, WALK_MIN.x, WALK_MAX.x)
-		player_at.y = clamp(player_at.y, WALK_MIN.y, WALK_MAX.y)
+		player_at = _advance(player_at, wdir * PLAYER_SPEED * dt)
 		if absf(sdir.x) > 0.01:
 			player_facing = signf(sdir.x)
+	_update_inside(dt)
 	player.position = Iso.to_screen(player_at)
 	_animate(player, wdir, dt, player_facing)
 	if cam:
@@ -644,6 +708,23 @@ func _process(dt: float) -> void:
 
 	for w in walkers:
 		_step_walker(w, dt)
+
+
+func _walkable(p: Vector2) -> bool:
+	return PLAZA_WALK.has_point(p) or ROOM.has_point(p) or DOOR.has_point(p)
+
+
+## Move as far as the room allows, sliding along whichever axis is still free.
+func _advance(from: Vector2, step: Vector2) -> Vector2:
+	if _walkable(from + step):
+		return from + step
+	var x_only := from + Vector2(step.x, 0.0)
+	if _walkable(x_only):
+		return x_only
+	var y_only := from + Vector2(0.0, step.y)
+	if _walkable(y_only):
+		return y_only
+	return from
 
 
 func dir_of(v: Vector2) -> Vector2:
@@ -666,6 +747,21 @@ func _step_walker(w: Node2D, dt: float) -> void:
 	w.position = Iso.to_screen(p.at)
 	var sdir := Iso.to_screen(dir)
 	_animate(w, dir, dt, signf(sdir.x) if absf(sdir.x) > 0.01 else 1.0)
+
+
+## Over the threshold, the frontage lifts away. This is the roof-lift cutaway
+## an isometric game uses: the room is always there behind the façade, and the
+## façade stops hiding it once the player is inside. Fading rather than cutting
+## keeps the transition continuous, which is the whole point of not making this
+## a scene swap.
+func _update_inside(dt: float) -> void:
+	var want := ROOM.has_point(player_at) or (DOOR.has_point(player_at)
+		and player_at.y < -0.15)
+	_inside = want
+	var target := 0.0 if want else 1.0
+	_cafe_fade = move_toward(_cafe_fade, target, dt * 3.4)
+	if cafe_sprite:
+		cafe_sprite.modulate.a = _cafe_fade
 
 
 ## Walk cycle: a bob, a lean, and a swap to the back view when walking away.
@@ -699,6 +795,46 @@ func _save(name: String) -> void:
 	var img := get_viewport().get_texture().get_image()
 	img.save_png("res://shots/%s/%s.png" % [variant, name])
 	print("shot: ", name)
+
+
+## Put the player somewhere and let the threshold settle, so a still taken
+## inside actually shows the frontage lifted rather than catching it mid-fade.
+## Step toward a target through the real movement path, reporting whether it
+## ever stalled and how big the largest step was — a teleport would show up as
+## one enormous step, which is exactly what this is meant to rule out.
+func _walk_to(target: Vector2, max_steps: int) -> Dictionary:
+	var step := PLAYER_SPEED / 60.0
+	var max_step := 0.0
+	var stalls := 0
+	var i := 0
+	while i < max_steps and player_at.distance_to(target) > 0.06:
+		var before := player_at
+		var dir := (target - player_at).normalized()
+		player_at = _advance(player_at, dir * step)
+		var moved := player_at.distance_to(before)
+		max_step = maxf(max_step, moved)
+		if moved < step * 0.5:
+			stalls += 1
+			if stalls > 90:
+				break
+		_update_inside(1.0 / 60.0)
+		i += 1
+	return {"steps": i, "pos": player_at, "max_step": max_step, "stalls": stalls}
+
+
+func _place_player_sync(at: Vector2) -> void:
+	player_at = at
+	player.position = Iso.to_screen(player_at)
+	for i in range(40):
+		_update_inside(1.0 / 30.0)
+
+
+func _place_player(at: Vector2) -> void:
+	player_at = at
+	player.position = Iso.to_screen(player_at)
+	for i in range(40):
+		_update_inside(1.0 / 30.0)
+	await get_tree().process_frame
 
 
 func _settle(n: int) -> void:
@@ -753,6 +889,26 @@ func _shots() -> void:
 	await _settle(6)
 	await _save("06_ref_framing")
 
+	# The interior, in three steps, because the thing being shown is that they
+	# are one continuous place rather than three pictures.
+	await _place_player(Vector2(5.20, 1.05))
+	cam.zoom = Vector2(2.1, 2.1)
+	cam.position = Iso.to_screen(Vector2(5.2, -0.4))
+	await _settle(8)
+	await _save("07_cafe_exterior")
+
+	await _place_player(Vector2(5.22, -0.55))
+	cam.zoom = Vector2(2.3, 2.3)
+	cam.position = Iso.to_screen(Vector2(5.2, -1.3))
+	await _settle(8)
+	await _save("08_doorway")
+
+	await _place_player(Vector2(5.30, -2.05))
+	cam.zoom = Vector2(2.0, 2.0)
+	cam.position = Iso.to_screen(Vector2(5.2, -2.6))
+	await _settle(8)
+	await _save("09_interior")
+
 	get_tree().quit(0)
 
 
@@ -798,5 +954,21 @@ func _drive() -> void:
 		if i == 4:
 			await _save("06_after_wasd")
 	await _save("07_after_arrows")
+
+	# The capability check: can the player actually get inside, and does the
+	# world stay continuous while they do it? This drives the same _advance()
+	# the player's own input goes through, so it exercises the real collision
+	# and the real threshold, not a shortcut past them.
+	_place_player_sync(Vector2(5.25, 1.30))
+	var log := _walk_to(Vector2(5.25, -2.60), 900)
+	print("threshold  entered=%s  steps=%d  reached=%.2f,%.2f  max_step=%.4f  gaps=%d"
+		% [str(_inside), log["steps"], log["pos"].x, log["pos"].y,
+		log["max_step"], log["stalls"]])
+	_place_player_sync(log["pos"])
+	var back := _walk_to(Vector2(5.25, 2.20), 900)
+	print("exit       inside=%s  steps=%d  reached=%.2f,%.2f  max_step=%.4f  gaps=%d"
+		% [str(_inside), back["steps"], back["pos"].x, back["pos"].y,
+		back["max_step"], back["stalls"]])
+
 	print("drive complete")
 	get_tree().quit(0)

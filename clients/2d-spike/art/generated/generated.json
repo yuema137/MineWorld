@@ -175,6 +175,54 @@
     "source": "generated",
     "w": 35.0
   },
+  "gen_int_banquette": {
+    "ax": 38.0,
+    "ay": 67,
+    "h": 67,
+    "height_m": 1.05,
+    "source": "generated",
+    "w": 76
+  },
+  "gen_int_counter": {
+    "ax": 50.5,
+    "ay": 74,
+    "h": 74,
+    "height_m": 1.15,
+    "source": "generated",
+    "w": 101
+  },
+  "gen_int_pendant": {
+    "ax": 21.0,
+    "ay": 54,
+    "h": 54,
+    "height_m": 0.85,
+    "source": "generated",
+    "w": 42
+  },
+  "gen_int_plant": {
+    "ax": 36.0,
+    "ay": 86,
+    "h": 86,
+    "height_m": 1.35,
+    "source": "generated",
+    "w": 72
+  },
+  "gen_int_shelf": {
+    "ax": 39.5,
+    "ay": 134,
+    "h": 134,
+    "height_m": 2.1,
+    "source": "generated",
+    "w": 79
+  },
+  "gen_int_table": {
+    "ax": 33.0,
+    "ay": 64,
+    "h": 64,
+    "height_m": 1.0,
+    "source": "generated",
+    "w": 66
+  },
   "gen_j_back": {
     "ax": 24.0,
     "ay": 108.0,
@@ -281,162 +329,162 @@
   },
   "sib_building_apartment_block": {
     "ax": 251.0,
-    "ay": 768,
-    "h": 768,
+    "ay": 768.0,
+    "h": 768.0,
     "height_m": 12.0,
     "source": "generated",
-    "w": 502
+    "w": 502.0
   },
   "sib_building_bakery": {
     "ax": 195.5,
-    "ay": 512,
-    "h": 512,
+    "ay": 512.0,
+    "h": 512.0,
     "height_m": 8.0,
     "source": "generated",
-    "w": 391
+    "w": 391.0
   },
   "sib_building_bookshop": {
     "ax": 184.5,
-    "ay": 538,
-    "h": 538,
+    "ay": 538.0,
+    "h": 538.0,
     "height_m": 8.4,
     "source": "generated",
-    "w": 369
+    "w": 369.0
   },
   "sib_building_cafe": {
     "ax": 212.5,
-    "ay": 512,
-    "h": 512,
+    "ay": 512.0,
+    "h": 512.0,
     "height_m": 8.0,
     "source": "generated",
-    "w": 425
+    "w": 425.0
   },
   "sib_building_flower_shop": {
     "ax": 194.0,
-    "ay": 499,
-    "h": 499,
+    "ay": 499.0,
+    "h": 499.0,
     "height_m": 7.8,
     "source": "generated",
-    "w": 388
+    "w": 388.0
   },
   "sib_building_house_cottage": {
     "ax": 189.5,
-    "ay": 422,
-    "h": 422,
+    "ay": 422.0,
+    "h": 422.0,
     "height_m": 6.6,
     "source": "generated",
-    "w": 379
+    "w": 379.0
   },
   "sib_building_house_townhouse": {
     "ax": 143.0,
-    "ay": 589,
-    "h": 589,
+    "ay": 589.0,
+    "h": 589.0,
     "height_m": 9.2,
     "source": "generated",
-    "w": 286
+    "w": 286.0
   },
   "sib_prop_bench": {
     "ax": 30.5,
-    "ay": 59,
-    "h": 59,
+    "ay": 59.0,
+    "h": 59.0,
     "height_m": 0.92,
     "source": "generated",
-    "w": 61
+    "w": 61.0
   },
   "sib_prop_bicycle": {
     "ax": 35.5,
-    "ay": 70,
-    "h": 70,
+    "ay": 70.0,
+    "h": 70.0,
     "height_m": 1.1,
     "source": "generated",
-    "w": 71
+    "w": 71.0
   },
   "sib_prop_cafe_parasol_table": {
     "ax": 56.5,
-    "ay": 147,
-    "h": 147,
+    "ay": 147.0,
+    "h": 147.0,
     "height_m": 2.3,
     "source": "generated",
-    "w": 113
+    "w": 113.0
   },
   "sib_prop_litter_bin": {
     "ax": 16.0,
-    "ay": 63,
-    "h": 63,
+    "ay": 63.0,
+    "h": 63.0,
     "height_m": 0.98,
     "source": "generated",
-    "w": 32
+    "w": 32.0
   },
   "sib_prop_planter": {
     "ax": 29.0,
-    "ay": 51,
-    "h": 51,
+    "ay": 51.0,
+    "h": 51.0,
     "height_m": 0.8,
     "source": "generated",
-    "w": 58
+    "w": 58.0
   },
   "sib_prop_signpost": {
     "ax": 49.0,
-    "ay": 166,
-    "h": 166,
+    "ay": 166.0,
+    "h": 166.0,
     "height_m": 2.6,
     "source": "generated",
-    "w": 98
+    "w": 98.0
   },
   "sib_prop_streetlamp": {
     "ax": 25.0,
-    "ay": 269,
-    "h": 269,
+    "ay": 269.0,
+    "h": 269.0,
     "height_m": 4.2,
     "source": "generated",
-    "w": 50
+    "w": 50.0
   },
   "sib_tree_broadleaf_large": {
     "ax": 234.0,
-    "ay": 525,
-    "h": 525,
+    "ay": 525.0,
+    "h": 525.0,
     "height_m": 8.2,
     "source": "generated",
-    "w": 468
+    "w": 468.0
   },
   "sib_tree_cherry_blossom": {
     "ax": 143.0,
-    "ay": 371,
-    "h": 371,
+    "ay": 371.0,
+    "h": 371.0,
     "height_m": 5.8,
     "source": "generated",
-    "w": 286
+    "w": 286.0
   },
   "sib_tree_conifer": {
     "ax": 96.0,
-    "ay": 576,
-    "h": 576,
+    "ay": 576.0,
+    "h": 576.0,
     "height_m": 9.0,
     "source": "generated",
-    "w": 192
+    "w": 192.0
   },
   "sib_tree_flower_bed": {
     "ax": 20.5,
-    "ay": 32,
-    "h": 32,
+    "ay": 32.0,
+    "h": 32.0,
     "height_m": 0.5,
     "source": "generated",
-    "w": 41
+    "w": 41.0
   },
   "sib_tree_round_small": {
     "ax": 99.0,
-    "ay": 282,
-    "h": 282,
+    "ay": 282.0,
+    "h": 282.0,
     "height_m": 4.4,
     "source": "generated",
-    "w": 198
+    "w": 198.0
   },
   "sib_tree_shrub_cluster": {
     "ax": 45.0,
-    "ay": 83,
-    "h": 83,
+    "ay": 83.0,
+    "h": 83.0,
     "height_m": 1.3,
     "source": "generated",
-    "w": 90
+    "w": 90.0
   }
 }

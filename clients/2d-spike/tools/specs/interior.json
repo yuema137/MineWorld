@@ -1,0 +1,51 @@
+{
+  "refs_root": "../../art/style_refs",
+  "defaults": {
+    "model": "gpt-image-2.5-sunburst",
+    "size": "1024x1024",
+    "quality": "high",
+    "background": "transparent",
+    "n": 1,
+    "refs": ["h_int_upper.png", "i_int_glazing.png", "j_int_cafe01.png", "e_shop_cafe.png"]
+  },
+  "style_preamble": "Match the attached reference images exactly: the same illustrated storybook look, the same soft dark outline around every shape, the same matte painted shading with no gloss, and the same warm muted palette lit by warm interior lamplight. The attached crops show the inside of a cafe seen through its windows - that is the look wanted here, seen from inside instead. Draw at a high three-quarter isometric angle, looking down on the object from above and slightly to the left, the same angle the reference street is drawn from, so the object will sit correctly on an isometric floor. Draw one piece of furniture only, alone and centred, with generous empty margin on every side. No floor, no wall, no room, no people, no shadow and no background of any kind: the entire background must be fully transparent.",
+  "specs": [
+    {
+      "name": "gen_int_counter",
+      "height_m": 1.15,
+      "prompt": "A cafe service counter: a long wooden counter with a warm painted front panel, a glass display cabinet along it holding cakes and pastries on white stands, a chrome espresso machine at one end, a small stack of cups and a till. Rich warm wood with a soft dark outline."
+    },
+    {
+      "name": "gen_int_shelf",
+      "height_m": 2.10,
+      "prompt": "A tall wooden shelving unit standing against nothing, five open shelves holding glass storage jars, stacked cups and saucers, paper bags of coffee beans, a few small potted herbs and two books. Warm wood with a soft dark outline."
+    },
+    {
+      "name": "gen_int_table",
+      "height_m": 1.00,
+      "prompt": "A small round cafe table with a warm wooden top on a dark metal pedestal base, and two bentwood chairs pulled up to it, one on each side. On the table a white coffee cup on a saucer and a tiny vase with one flower."
+    },
+    {
+      "name": "gen_int_banquette",
+      "height_m": 1.05,
+      "prompt": "A padded bench seat for a cafe wall: a long upholstered banquette in soft sage-green fabric with a buttoned back, on a low wooden base, with two small cushions on it."
+    },
+    {
+      "name": "gen_int_plant",
+      "height_m": 1.35,
+      "prompt": "A large indoor pot plant: a leafy green house plant with broad leaves in a cream ceramic pot, the sort that stands in the corner of a cafe."
+    },
+    {
+      "name": "gen_int_pendant",
+      "height_m": 0.85,
+      "prompt": "A single pendant ceiling lamp hanging on a short dark flex: a warm brass shade with a glowing soft-yellow bulb beneath it, the light spilling downwards. Nothing above the flex, nothing below the light."
+    },
+    {
+      "name": "gen_int_floor_boards",
+      "height_m": 1.0,
+      "background": "opaque",
+      "refs": ["h_int_upper.png", "j_int_cafe01.png"],
+      "prompt": "A seamless repeating texture of warm honey-coloured wooden floorboards seen from directly above, painted in a soft illustrated style with gentle grain and slight variation between boards. Flat top-down view, even lighting, no objects, no shadows, no perspective. The texture must tile seamlessly: the left edge must continue into the right edge and the top edge into the bottom edge."
+    }
+  ]
+}

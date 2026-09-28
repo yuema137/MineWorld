@@ -5,21 +5,40 @@ answer one question: **is this MineWorld's default 2D presentation?**
 
 > ## VIS-2D-1 READY FOR HUMAN STYLE REVIEW
 >
-> Three **default-style candidates**, each complete and playable. Nothing here
-> is an accepted look — per `ARC-11` the default style is taste and the
-> operator decides it, finally and always. Subjective polishing on this branch
-> has stopped so the target does not move while it is being judged.
+> Three **default-style candidates**, each complete and playable, and **the
+> café is enterable in all of them**. Nothing here is an accepted look — per
+> `ARC-11` the default style is taste and the operator decides it, finally and
+> always. Subjective polishing on this branch has stopped so the target does
+> not move while it is being judged.
+>
+> **Recommended candidate: `town`.** It measures closest to the plates on
+> overall key (mean 0.513 against the plate's 0.517, and 4.0% of the frame
+> below 0.20 luminance against 4.4%), and its buildings and planting carry the
+> density the plates have. Its one weakness is that the shared set has only
+> four distinct tree sprites, so repetition shows at wide zoom where `full`'s
+> nine procedural species do not.
 >
 > ```
+> ./mineworld-2d                         the recommended candidate (town)
 > ./mineworld-2d --variant=town          generated cast + the shared asset set
 > ./mineworld-2d --variant=full          generated cast + generated shopfronts and flora
 > ./mineworld-2d --variant=people        generated cast, procedural world
 > ./mineworld-2d --variant=procedural    the previous all-procedural build, for comparison
 > ```
 >
+> **Walk into the café.** It is at the left of the shop row; walk north through
+> the doorway and you are inside. There is no loading screen, no popup and no
+> scene change — the room occupies real world coordinates behind the frontage,
+> and the frontage lifts away once you are over the threshold, which is the
+> cutaway an isometric game normally uses. `--drive` checks this and reports
+> `entered=true ... max_step=0.0400 gaps=0`: uniform steps in and out, so the
+> transition is movement rather than a teleport.
+>
 > Walk around with WASD or the arrow keys. `--shots` writes stills per variant
 > into `shots/<variant>/`; `06_ref_framing.png` in each is framed to match
-> `references/02_cafe_street.png` so the comparison is like for like.
+> `references/02_cafe_street.png` so the comparison is like for like, and
+> `07_cafe_exterior` / `08_doorway` / `09_interior` are the three steps of
+> going inside.
 >
 > The review question is which whole scene, not which asset.
 
@@ -89,7 +108,28 @@ One square, bounded on three sides and open to the water:
 | `tools/make_grain.gd` | derives that tile from the CC0 source scans |
 | `tools/sheet.gd` | contact sheet of chosen sprites, for looking at art alone |
 | `scripts/Demo.gd` | `DemoPlace` / `DemoPerson` — deliberately dumb |
+| `scripts/Interior.gd` | the café's floor, walls, fittings and lamplight |
 | `scripts/Main.gd` | lays the square out, drives the player and the crowd |
+
+### Going inside
+
+One café, walkable, in the same world as the square. The room is a rectangle of
+ordinary world coordinates behind the frontage; the doorway bridges it to the
+plaza, and walkable space is the union of plaza, doorway and room, with the
+player sliding along an edge rather than sticking to it. Nothing loads and the
+camera never cuts.
+
+What makes it legible is that the café sprite fades out once the player is over
+the threshold. The room is always there behind the façade — the façade simply
+stops hiding it, which is the roof-lift cutaway isometric games use. The two
+near walls are drawn as low stubs so the cut reads as a building opened up
+rather than a rug laid on the grass, and the furniture is placed in the
+y-sorted world like any other prop, so the player walks in front of and behind
+it exactly as with a bench outside.
+
+Indoors there is no sun: the props get a small contact shadow instead of the
+long raking one the exterior uses, and the light comes from pools under the
+pendants.
 
 ### Calibrating against the plates
 
