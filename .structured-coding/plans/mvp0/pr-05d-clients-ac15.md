@@ -333,13 +333,19 @@ Every commit: implementation, deterministic validation, and LLM logic review, tr
 
 ### C3 — the `RuleController`
 
-- [ ] Implementation: `cognition/rule-controller/` — a decision over an `Observation<Value>`
+- [x] Implementation: `cognition/rule-controller/` — a decision over an `Observation<Value>`
       returning at most one `ActionRequest`, with its own bookkeeping and no I/O.
-- [ ] Validation: unit tests over hand-built observations: it replies to a new utterance, does not
+- [x] Validation (`cargo test -p mineworld-rule-controller`: 6 tests pass): unit tests over
+      hand-built observations: it replies to a new utterance, does not
       reply twice to the same one, does not act when the server's affordance is unavailable, and
       names the earlier speaker when there is one.
-- [ ] Review: that it reads only the observation, evaluates no rule the server owns, and cannot
-      construct an identity or an instant.
+- [x] Review: `decide` takes one argument and it is an `Observation`; the crate's manifest depends
+      on contracts, the conversation pack and `serde_json` and on no server, kernel or transport, so
+      there is nothing else reachable to read or write. Availability comes from
+      `Affordance::is_available` and there is no arithmetic over positions anywhere in the crate.
+      `ActionRequest` has no `action_id` and no `issued_at` to set. The one piece of state it keeps
+      is a `BTreeMap` of what it has already answered, which is about its own past actions rather
+      than about the world, and is order-deterministic (`AC-12`).
 
 ### C4 — the agent driver, and the world it runs in
 
