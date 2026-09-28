@@ -95,6 +95,25 @@ static func glass() -> Material:
 	return m
 
 
+## Shop glazing for a unit you can walk into. The dark 74%-opaque `glass()` is
+## tuned to read as a reflective window from across the street; behind it there
+## used to be nothing worth seeing. Where there is now a real room, the glass
+## has to be clear enough to show it -- looking into the room is most of what
+## makes `03_cafe_frontage` and `05_main_street_golden_hour` work, and it has to
+## work from inside looking out as well.
+static func clear_glass() -> Material:
+	if _mat_cache.has("clear_glass"):
+		return _mat_cache["clear_glass"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.80, 0.84, 0.86, 0.09)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.roughness = 0.03
+	m.metallic = 0.0
+	m.metallic_specular = 0.42
+	_mat_cache["clear_glass"] = m
+	return m
+
+
 static func emissive(c: Color, energy := 1.0) -> Material:
 	var key := "emis|%s|%f" % [c, energy]
 	if _mat_cache.has(key):

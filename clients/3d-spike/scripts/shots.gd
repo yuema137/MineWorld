@@ -36,6 +36,15 @@ var views := [
 	# The character in the wider scene, and the rear boom pulled in by a wall.
 	["14_mode2_scenic_wide", Vector3(-70.0, 0.2, -24.0), 348.0, -1.0, REAR],
 	["15_mode2_camera_pull_in", Vector3(-12.0, 0.2, -12.9), 0.0, -2.0, REAR],
+	# Interiors. These are real rooms -- see interior.gd -- so the same three
+	# cameras work inside, and `--drive` walks in through the door rather than
+	# teleporting, which is the only way to prove the opening is not decoration.
+	["16_cafe_door", Vector3(4.6, 0.2, -17.6), 165.0, 1.0, FP],
+	["17_cafe_counter", Vector3(6.6, 0.2, -8.6), 225.0, 1.0, FP],
+	["18_cafe_window_out", Vector3(9.0, 0.2, -5.0), 18.0, -1.0, FP],
+	["19_cafe_third_front", Vector3(8.0, 0.2, -7.0), 200.0, 0.0, FRONT],
+	["20_mart_interior", Vector3(-1.0, 0.2, -10.0), 180.0, 1.0, FP],
+	["21_street_golden", Vector3(17.0, 0.2, -15.8), 99.0, 2.0, FP],
 ]
 
 ## Two of the frames also get a head-and-shoulders crop saved beside them. The
@@ -138,6 +147,26 @@ func _drive() -> void:
 	await _settle(0.2)
 	print("back 2.0 s:    returned to %.2f m from start" % p0.distance_to(player.global_position))
 
+	# --- can you actually walk inside? -------------------------------------
+	# The cafe door is at world x 5.9 on the shopfront line; the room runs back
+	# to z = +2. Teleporting a camera inside would prove nothing, so this walks
+	# the real controller through the opening and reports where it ended up.
+	player.place(Vector3(5.9, 0.2, -14.6), 180.0, 0.0)
+	await _settle(0.3)
+	var before_in := player.global_position
+	await _hold("move_forward", 4.0)
+	await _settle(0.2)
+	var after_in := player.global_position
+	var inside := after_in.z > -11.7 and absf(after_in.x - 9.0) < 4.4
+	print("walk into the cafe: z %.2f -> %.2f (door at -12.0), x %.2f, inside=%s"
+		% [before_in.z, after_in.z, after_in.x, inside])
+	await _hold("move_back", 4.0)
+	await _settle(0.2)
+	print("walk back out:      z %.2f, outside=%s"
+		% [player.global_position.z, player.global_position.z < -12.2])
+
+	player.place(Vector3(2.0, 0.2, -19.0), 180.0, 0.0)
+	await _settle(0.3)
 	var p2 := player.global_position
 	await _hold("move_right", 1.5)
 	await _settle(0.2)

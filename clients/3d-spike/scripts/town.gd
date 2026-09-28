@@ -204,7 +204,7 @@ static func _paving(root: Node3D) -> void:
 ## windows with flower boxes, cornice, roof, and a warm interior light.
 static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: float,
 		storeys: int, wall: Material, name_txt: String, accent: Color,
-		face := 0.0, awning_on := true, seed_v := 0) -> void:
+		face := 0.0, awning_on := true, seed_v := 0, inside := "") -> void:
 	var g := Node3D.new()
 	g.transform = Transform3D(Basis(Vector3.UP, face), Vector3(x, 0, front_z))
 	root.add_child(g)
@@ -214,8 +214,16 @@ static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: f
 	var h := ground_h + (storeys - 1) * floor_h
 	var zc := depth * 0.5
 
-	# mass (collides)
-	Build.slab(g, 0, zc, w, depth, 0, h, wall, 0.0, true)
+	var gw := w - 0.9
+	var top := ground_h - 1.05
+	var door_w := 1.30
+	var dx := -gw * 0.5 + 0.95
+
+	# mass (collides). An enterable unit is a shell instead -- see interior.gd.
+	if inside == "":
+		Build.slab(g, 0, zc, w, depth, 0, h, wall, 0.0, true)
+	else:
+		Interior.shell(g, w, depth, h, top, gw, dx, door_w, wall)
 	# plinth
 	Build.slab(g, 0, 0.06, w, 0.4, 0, 0.55, Mats.cutstone())
 	# cornice + roof
@@ -223,38 +231,71 @@ static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: f
 	Build.slab(g, 0, zc, w + 0.1, depth + 0.1, h + 0.37, 0.25, Mats.roof())
 
 	var joinery := Mats.paint(accent, 0.42)
-	var glass := Mats.glass()
+	# a room behind the window has to be visible through it
+	var glass: Material = Mats.clear_glass() if inside != "" else Mats.glass()
 
 	# --- ground floor shopfront -----------------------------------------------
 	# Everything here hangs in FRONT of the wall face (negative local z). Solid
 	# box geometry cannot be subtracted, so a shopfront modelled "recessed into"
 	# the mass is simply buried inside the brick and renders as a blank wall.
-	var gw := w - 0.9
-	var top := ground_h - 1.05
-	Build.slab(g, 0, -0.10, gw + 0.55, 0.22, 0.55, top - 0.55, joinery)   # surround
-	# the lit interior sits between the wall face and the glass, so it reads
-	# through the glazing the way a shop does at the end of the afternoon
-	var inner := Mats.emissive(Color(1.0, 0.78, 0.48), 2.4)
-	Build.slab(g, 0, -0.04, gw - 0.1, 0.05, 0.72, top - 1.0, inner)
-	Build.slab(g, 0, -0.20, gw, 0.06, 0.70, top - 0.95, glass)            # glazing
-	var lamp := OmniLight3D.new()
-	lamp.light_color = Color(1.0, 0.82, 0.58)
-	lamp.light_energy = 3.0
-	lamp.omni_range = 7.5
-	lamp.shadow_enabled = false
-	lamp.position = Vector3(0, 2.2, -1.1)
-	g.add_child(lamp)
+	if inside == "":
+		# a full-height panel behind the glazing. Harmless while the glass was
+		# 74% opaque and there was nothing behind it to see.
+		Build.slab(g, 0, -0.10, gw + 0.55, 0.22, 0.55, top - 0.55, joinery)
+	else:
+		# a real frame, because now there is a room behind it. The solid panel
+		# was what made the first enterable version look like a painted window:
+		# clear glass in front of an opaque board still reads as a board.
+		var fy0 := 0.55
+		var fy1 := top
+		Build.slab(g, 0, -0.10, gw + 0.55, 0.22, fy0, 0.22, joinery)          # cill
+		Build.slab(g, 0, -0.10, gw + 0.55, 0.22, fy1 - 0.26, 0.26, joinery)   # head
+		for sx in [-1.0, 1.0]:
+			Build.slab(g, sx * (gw + 0.30) * 0.5, -0.10, 0.25, 0.22, fy0,
+				fy1 - fy0, joinery)                                            # stiles
+	if inside == "":
+		# a lit card behind the glass stands in for a room. It reads from across
+		# the street and nowhere nearer, which is why two units on this row are
+		# real rooms instead.
+		var inner := Mats.emissive(Color(1.0, 0.78, 0.48), 2.4)
+		Build.slab(g, 0, -0.04, gw - 0.1, 0.05, 0.72, top - 1.0, inner)
+		Build.slab(g, 0, -0.20, gw, 0.06, 0.70, top - 0.95, glass)        # glazing
+	else:
+		# glazing everywhere except the doorway, which has to stay walkable
+		var l0 := -gw * 0.5
+		var r1 := gw * 0.5
+		var d0 := dx - door_w * 0.5
+		var d1 := dx + door_w * 0.5
+		if d0 > l0:
+			Build.slab(g, (l0 + d0) * 0.5, -0.20, d0 - l0, 0.06, 0.70, top - 0.95, glass)
+		if r1 > d1:
+			Build.slab(g, (d1 + r1) * 0.5, -0.20, r1 - d1, 0.06, 0.70, top - 0.95, glass)
+		Build.slab(g, dx, -0.20, door_w, 0.06, 2.34, maxf(0.05, top - 2.59), glass)
+	if inside == "":
+		var lamp := OmniLight3D.new()
+		lamp.light_color = Color(1.0, 0.82, 0.58)
+		lamp.light_energy = 3.0
+		lamp.omni_range = 7.5
+		lamp.shadow_enabled = false
+		lamp.position = Vector3(0, 2.2, -1.1)
+		g.add_child(lamp)
 	# mullions
 	var bays := maxi(2, int(gw / 1.9))
 	for i in range(1, bays):
 		var mx := -gw * 0.5 + gw * float(i) / bays
 		Build.slab(g, mx, -0.24, 0.10, 0.18, 0.70, top - 0.95, joinery)
 	# door, off-centre
-	var dx := -gw * 0.5 + 0.95
-	Build.slab(g, dx, -0.14, 1.10, 0.16, 0.0, 2.35, joinery)
-	Build.slab(g, dx, -0.23, 0.78, 0.05, 0.38, 1.70, glass)
-	Build.sphere(g, Vector3(dx + 0.42, 1.05, -0.28), 0.045,
-		Mats.paint(Color(0.72, 0.60, 0.33), 0.30, 0.85), 8)
+	if inside == "":
+		Build.slab(g, dx, -0.14, 1.10, 0.16, 0.0, 2.35, joinery)
+		Build.slab(g, dx, -0.23, 0.78, 0.05, 0.38, 1.70, glass)
+		Build.sphere(g, Vector3(dx + 0.42, 1.05, -0.28), 0.045,
+			Mats.paint(Color(0.72, 0.60, 0.33), 0.30, 0.85), 8)
+	else:
+		Interior.open_door(g, dx, door_w, accent)
+		if inside == "cafe":
+			Interior.cafe(g, w, depth, accent, seed_v)
+		else:
+			Interior.shop(g, w, depth, accent, seed_v)
 	# step
 	Build.slab(g, dx, -0.45, 1.5, 0.45, 0.0, 0.10, Mats.cutstone())
 
@@ -284,22 +325,26 @@ static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: f
 
 
 static func _shop_row(root: Node3D) -> void:
-	# (x_centre, width, storeys, wall, name, accent, awning)
+	# (x_centre, width, storeys, wall, name, accent, awning, interior)
+	#
+	# Two units are real rooms you can walk into. `interior.gd` explains why the
+	# rest are not: a shell costs geometry and a light budget, and the brief is
+	# better served by two complete interiors than by nine hollow ones.
 	var units := [
-		[-44.0, 11.0, 2, "stucco", "PINE & PAPER", Color(0.26, 0.31, 0.38), false],
-		[-33.0, 11.0, 3, "brick", "NORTHSHORE APARTMENTS", Color(0.34, 0.27, 0.22), false],
-		[-22.5, 10.0, 2, "brick_tan", "SUNRISE BAKERY", Color(0.44, 0.33, 0.20), true],
-		[-12.0, 11.0, 2, "stucco", "RIVERSTONE BOOKS", Color(0.17, 0.26, 0.22), true],
-		[-1.0, 11.0, 2, "cutstone", "EVERYDAY MART", Color(0.24, 0.34, 0.42), true],
-		[9.0, 9.0, 3, "brick", "LAKESIDE CAFE", Color(0.14, 0.24, 0.20), true],
-		[26.0, 10.0, 2, "stucco", "MAPLE & CO.", Color(0.40, 0.24, 0.23), true],
-		[36.0, 10.0, 3, "brick_tan", "HARBOUR CHANDLERY", Color(0.22, 0.28, 0.34), false],
-		[45.5, 9.0, 2, "brick", "THE DAILY BEAN", Color(0.16, 0.27, 0.23), true],
+		[-44.0, 11.0, 2, "stucco", "PINE & PAPER", Color(0.26, 0.31, 0.38), false, ""],
+		[-33.0, 11.0, 3, "brick", "NORTHSHORE APARTMENTS", Color(0.34, 0.27, 0.22), false, ""],
+		[-22.5, 10.0, 2, "brick_tan", "SUNRISE BAKERY", Color(0.44, 0.33, 0.20), true, ""],
+		[-12.0, 11.0, 2, "stucco", "RIVERSTONE BOOKS", Color(0.17, 0.26, 0.22), true, ""],
+		[-1.0, 11.0, 2, "cutstone", "EVERYDAY MART", Color(0.24, 0.34, 0.42), true, "shop"],
+		[9.0, 9.0, 3, "brick", "LAKESIDE CAFE", Color(0.14, 0.24, 0.20), true, "cafe"],
+		[26.0, 10.0, 2, "stucco", "MAPLE & CO.", Color(0.40, 0.24, 0.23), true, ""],
+		[36.0, 10.0, 3, "brick_tan", "HARBOUR CHANDLERY", Color(0.22, 0.28, 0.34), false, ""],
+		[45.5, 9.0, 2, "brick", "THE DAILY BEAN", Color(0.16, 0.27, 0.23), true, ""],
 	]
 	for i in range(units.size()):
 		var u: Array = units[i]
 		shopfront(root, u[0], u[1], PROM_S, 14.0, u[2], _wall(u[3]), u[4], u[5],
-			0.0, u[6], i * 17 + 3)
+			0.0, u[6], i * 17 + 3, u[7])
 
 
 static func _wall(k: String) -> Material:
