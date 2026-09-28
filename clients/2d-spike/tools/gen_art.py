@@ -1465,7 +1465,7 @@ def make_house(name, fx, fy, wall, wall_lo, roof, roof_lo, seed=7):
 # ---------------------------------------------------------------------------
 
 def _char_body(H, skin, hair, top_c, bottom_c, shoe_c, back, hat=None, bag=None,
-               hair_style="short"):
+               hair_style="short", stride=0):
     """H is total pixel height at 2x. Returns svg body drawn with feet at y=H.
 
     Sun from the upper left, same as everything else: each limb gets a lit
@@ -1485,15 +1485,25 @@ def _char_body(H, skin, hair, top_c, bottom_c, shoe_c, back, hat=None, bag=None,
     e_skin = sh(skin, 0.30)
     e_hair = sh(hair, 0.32)
 
-    # legs
+    # Legs. Two poses: one leg swings forward while the other trails, and they
+    # swap on `stride`. The whole point of having a second frame is that the
+    # legs are in different places in it, so this is where the walk actually
+    # lives; the bob on top of it is seasoning.
     lw = torso_w * 0.36
-    for dx in (-1, 1):
-        lx = W + dx * torso_w * 0.26 - lw / 2
-        s.append(rect(lx, neck_y + torso_h - 4, lw, leg_h + 6,
+    swing = [(1, -1), (-1, 1)][stride % 2]          # per-leg forward/back sign
+    reach = lw * 0.62
+    for i, dx in enumerate((-1, 1)):
+        k = swing[i]
+        lx = W + dx * torso_w * 0.26 - lw / 2 + k * reach * 0.5
+        # the trailing leg is foreshortened, the leading one is not
+        shorten = 0.0 if k > 0 else leg_h * 0.10
+        s.append(rect(lx, neck_y + torso_h - 4, lw, leg_h + 6 - shorten,
                       form(bottom_c, 0.16, 0.30),
                       stroke=e_bot, sw=4.2, rx=lw * 0.42))
-    for dx in (-1, 1):
-        s.append(ell(W + dx * torso_w * 0.26, H - H * 0.018,
+    for i, dx in enumerate((-1, 1)):
+        k = swing[i]
+        s.append(ell(W + dx * torso_w * 0.26 + k * reach * 0.5,
+                     H - H * 0.018 - (0.0 if k > 0 else H * 0.014),
                      lw * 0.72, H * 0.026, form(shoe_c, 0.20, 0.22),
                      stroke=sh(shoe_c, 0.30), sw=4.0))
     # torso
@@ -1504,13 +1514,14 @@ def _char_body(H, skin, hair, top_c, bottom_c, shoe_c, back, hat=None, bag=None,
                   sh(top_c, 0.26), rx=torso_w * 0.18))          # under the chin
     # arms
     aw = torso_w * 0.27
-    for dx in (-1, 1):
-        ax = W + dx * (torso_w / 2 + aw * 0.18) - aw / 2
+    for i, dx in enumerate((-1, 1)):
+        ax = W + dx * (torso_w / 2 + aw * 0.18) - aw / 2 - swing[i] * aw * 0.34
         s.append(rect(ax, neck_y + 4, aw, torso_h * 0.86,
                       form(sh(top_c, 0.12) if dx > 0 else lt(top_c, 0.08),
                            0.14, 0.26),
                       stroke=e_top, sw=4.0, rx=aw * 0.5))
-        s.append(circ(W + dx * (torso_w / 2 + aw * 0.18), neck_y + 4 + torso_h * 0.86,
+        s.append(circ(W + dx * (torso_w / 2 + aw * 0.18) - swing[i] * aw * 0.34,
+                      neck_y + 4 + torso_h * 0.86,
                       aw * 0.44, skin, stroke=e_skin, sw=3.6))
     if bag:
         s.append(path("M %s %s Q %s %s, %s %s" % (
@@ -1615,7 +1626,7 @@ def make_character(name, H=210, skin="#F0C39C", hair="#4A3222", top_c="#5C7EA8",
                    hair_style="short", ring=None):
     w = int(H * 1.0)
     h = int(H + H * 0.10)
-    for back in (False, True):
+    for back, stride in ((False, 0), (False, 1), (True, 0), (True, 1)):
         s = [soft_shadow(w / 2 + H * 0.03, H + 2, H * 0.155, H * 0.052)]
         if ring:
             s.append(ell(w / 2, H + 2, H * 0.225, H * 0.078, ring, opacity=0.30))
@@ -1623,9 +1634,11 @@ def make_character(name, H=210, skin="#F0C39C", hair="#4A3222", top_c="#5C7EA8",
                          sw=9.8, opacity=0.55))
             s.append(ell(w / 2, H + 2, H * 0.165, H * 0.056, ring, opacity=0.22))
         s.append(g(_char_body(H, skin, hair, top_c, bottom_c, shoe_c, back,
-                              hat=hat, bag=bag, hair_style=hair_style),
+                              hat=hat, bag=bag, hair_style=hair_style,
+                              stride=stride),
                    "translate(%s,0)" % r2(w / 2 - H * 0.5)))
-        write(name + ("_back" if back else "_front"), w, h, w / 2.0, H + 2, "".join(s))
+        write(name + ("_back" if back else "_front") + ("_b" if stride else ""),
+              w, h, w / 2.0, H + 2, "".join(s))
 
 
 def make_seated(name, H=210, skin="#F0C39C", hair="#4A3222", top_c="#8C7FA8",

@@ -90,6 +90,12 @@ func _init():
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
 
+	# Scale and canvas of each sprite already processed, so a second stride
+	# pose can be pinned to the first. Sizing each pose from its own bounding
+	# box would make the character pump: pose B lifts a heel, its box is a
+	# little shorter, and scaling it to the same metre height quietly enlarges
+	# the whole person for every other frame.
+	var sized := {}
 	var done: Array = []
 	# Merge into whatever is already there. Each spec file covers one family —
 	# characters, props — and writing the manifest fresh per run silently drops
@@ -101,6 +107,12 @@ func _init():
 		if old is Dictionary:
 			manifest = old
 		prev.close()
+	# Seed the pin cache from the manifest, so a second stride pose can be
+	# registered against a partner normalized in an earlier run.
+	for key in manifest:
+		if manifest[key].has("k"):
+			sized[key] = {"k": float(manifest[key]["k"]),
+				"w": int(manifest[key]["w"]), "h": int(manifest[key]["h"])}
 
 	var in_dir := OS.get_environment("MWNORM_IN")
 	if in_dir == "":
@@ -124,16 +136,35 @@ func _init():
 
 		# the scale rule: real height in metres decides pixel height
 		var m: float = float(s.get("height_m", 1.75))
-		var target_h := int(round(m * PX_PER_M * AUTHOR_SCALE))
-		var k := float(target_h) / float(cut.get_height())
-		cut.resize(maxi(1, int(round(cut.get_width() * k))), target_h,
-			Image.INTERPOLATE_LANCZOS)
+		var pin: String = s.get("scale_from", "")
+		var k: float
+		if pin != "" and sized.has(pin):
+			k = float(sized[pin]["k"])
+		else:
+			k = float(int(round(m * PX_PER_M * AUTHOR_SCALE))) / float(cut.get_height())
+		cut.resize(maxi(1, int(round(cut.get_width() * k))),
+			maxi(1, int(round(cut.get_height() * k))), Image.INTERPOLATE_LANCZOS)
+
+		if pin != "" and sized.has(pin):
+			# Drop it onto the partner's canvas, feet on the same ground line
+			# and centred on the same axis, so the two poses register.
+			var cw: int = sized[pin]["w"]
+			var ch: int = sized[pin]["h"]
+			var pad := Image.create(cw, ch, false, Image.FORMAT_RGBA8)
+			pad.fill(Color(0, 0, 0, 0))
+			var ox := (cw - cut.get_width()) / 2
+			var oy := ch - cut.get_height()
+			pad.blit_rect(cut, Rect2i(Vector2i.ZERO, cut.get_size()),
+				Vector2i(ox, oy))
+			cut = pad
+		else:
+			sized[name] = {"k": k, "w": cut.get_width(), "h": cut.get_height()}
 
 		cut.save_png("%s/%s.png" % [OUT_DIR, name])
 		manifest[name] = {
 			"w": cut.get_width(), "h": cut.get_height(),
 			"ax": cut.get_width() / 2.0, "ay": cut.get_height(),
-			"height_m": m, "source": "generated",
+			"height_m": m, "source": "generated", "k": k,
 		}
 		done.append({"name": name, "img": cut, "m": m})
 		print("normalized %-22s %dx%d  (%.2f m, draw scale %.3f)"

@@ -76,6 +76,11 @@ var interior: Node2D
 var cafe_sprite: Sprite2D
 var _inside := false
 var _cafe_fade := 1.0
+## Everything that belongs to the room. The building sprite does not quite
+## cover the room's far corners in screen space, so from outside the floor
+## showed past the building's edge. The room cross-fades against the façade
+## instead of being permanently present: façade out, room in.
+var interior_nodes: Array[Node2D] = []
 const PLAYER_SPEED := 2.4   # world units/second (~4.8 m/s, a brisk walk in a demo)
 
 
@@ -122,6 +127,12 @@ func _ready() -> void:
 	add_child(grade)
 
 	_build_hud()
+
+	# Apply the inside/outside state once up front. _process settles it every
+	# frame in play, but --shots disables processing, so without this the room
+	# renders at full alpha from outside and its floor shows past the edge of
+	# the building.
+	_update_inside(10.0)
 
 	var args := OS.get_cmdline_user_args()
 	if args.has("--drive"):
@@ -566,18 +577,19 @@ func _build_interior() -> void:
 		["gen_int_plant", 3.62, -1.45], ["gen_int_plant", 6.86, -3.30],
 	]
 	for it in layout:
-		_prop(it[0], Vector2(it[1], it[2]))
+		interior_nodes.append(_prop(it[0], Vector2(it[1], it[2])))
 
 	# Pendants hang, so they are placed a little above where they are anchored
 	# and they light the floor beneath rather than casting a shadow onto it.
 	for l in [Vector2(4.5, -2.9), Vector2(6.1, -2.6), Vector2(5.2, -1.8)]:
 		var h := _prop("gen_int_pendant", l)
 		h.get_child(0).offset.y -= 2.05 * Iso.PX_PER_M_Z / _scale_for("gen_int_pendant")
+		interior_nodes.append(h)
 		interior.add_light(l)
 
 	# Someone already inside, so the room is not a showroom.
 	if props.has("gen_sit_a_front") or props.has("gen_sit_a"):
-		_prop("seated_a", Vector2(5.72, -2.42))
+		interior_nodes.append(_prop("seated_a", Vector2(5.72, -2.42)))
 
 
 func _build_people() -> void:
@@ -624,36 +636,73 @@ func _build_people() -> void:
 		# the player has to stay findable in a crowd of eleven.
 		var ring := Node2D.new()
 		ring.set_script(RingScript)
+		# Ring.gd sets z_index -1, which is what puts it under the feet.
+		# Reordering children to achieve that is what broke the animation.
 		player.add_child(ring)
-		player.move_child(ring, 0)
 
 
 func _make_actor(p) -> Node2D:
 	var holder := Node2D.new()
 	holder.position = Iso.to_screen(p.at)
 	var body := Node2D.new()
+	body.name = "body"
 	holder.add_child(body)
 	var base := _role(String(p.sprite))
 	var has_back := props.has(base + "_back")
-	for suffix in (["_front", "_back"] if has_back else [""]):
-		var s := Sprite2D.new()
-		var nm: String = base + suffix
-		s.texture = load(_art(nm))
-		s.centered = false
-		var m: Dictionary = props[nm]
-		s.offset = Vector2(-float(m["ax"]), -float(m["ay"]))
-		var k := _scale_for(nm)
-		s.scale = Vector2(k, k)
-		s.material = _ink_material(k, _ink_class(nm))
-		s.name = "front" if suffix != "_back" else "back"
-		body.add_child(s)
+	# Up to four sprites per actor: the view we see, and a second stride pose
+	# for each. A character with no "_b" pose still works — _set_stride leaves
+	# the single pose visible and only the bob runs.
+	# A ternary yields an untyped Array, which will not assign to Array[String]
+	# and takes _make_actor down with it — leaving `player` null and the whole
+	# crowd unbuilt, which is a loud failure from a quiet line.
+	var views: Array[String] = []
+	if has_back:
+		views.append("_front")
+		views.append("_back")
+	else:
+		views.append("")
+	for suffix in views:
+		for alt in ["", "_b"]:
+			var nm: String = base + suffix + alt
+			if not props.has(nm):
+				continue
+			var s := Sprite2D.new()
+			s.texture = load(_art(nm))
+			s.centered = false
+			var m: Dictionary = props[nm]
+			s.offset = Vector2(-float(m["ax"]), -float(m["ay"]))
+			var k := _scale_for(nm)
+			s.scale = Vector2(k, k)
+			s.material = _ink_material(k, _ink_class(nm))
+			var view := "front" if suffix != "_back" else "back"
+			s.name = view + ("_b" if alt != "" else "")
+			s.visible = alt == ""
+			body.add_child(s)
 	if has_back:
 		body.get_node("back").visible = false
+		var bb := body.get_node_or_null("back_b")
+		if bb:
+			bb.visible = false
 	world.add_child(holder)
 	holder.set_meta("data", p)
 	holder.set_meta("leg", 0)
 	holder.set_meta("phase", randf() * TAU)
 	return holder
+
+
+## Show pose A or pose B of whichever view is facing us. A character with no
+## second pose simply keeps the one it has; the bob and lean still run, so the
+## gait degrades rather than breaking.
+func _set_stride(body: Node2D, view: String, use_b: bool) -> void:
+	var a := body.get_node_or_null(view)
+	var b := body.get_node_or_null(view + "_b")
+	if a == null:
+		return
+	if b == null:
+		a.visible = true
+		return
+	a.visible = not use_b
+	b.visible = use_b
 
 
 func _build_hud() -> void:
@@ -694,13 +743,16 @@ func _process(dt: float) -> void:
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_down") - Input.get_action_strength("move_up"))
 	var wdir := Iso.screen_dir_to_world(sdir)
+	var before := player_at
 	if wdir != Vector2.ZERO:
 		player_at = _advance(player_at, wdir * PLAYER_SPEED * dt)
 		if absf(sdir.x) > 0.01:
 			player_facing = signf(sdir.x)
 	_update_inside(dt)
+	var player_moved := player_at.distance_to(before)
 	player.position = Iso.to_screen(player_at)
-	_animate(player, wdir, dt, player_facing)
+	_animate(player, wdir if player_moved > 0.0 else Vector2.ZERO,
+		player_moved, player_facing)
 	if cam:
 		cam.position = Iso.to_screen(player_at)
 	if grade:
@@ -743,10 +795,12 @@ func _step_walker(w: Node2D, dt: float) -> void:
 		w.set_meta("leg", (leg + 1) % route.size())
 		return
 	var dir: Vector2 = dir_of(d)
+	var was: Vector2 = p.at
 	p.at = (p.at as Vector2) + dir * float(p.speed) * dt
 	w.position = Iso.to_screen(p.at)
 	var sdir := Iso.to_screen(dir)
-	_animate(w, dir, dt, signf(sdir.x) if absf(sdir.x) > 0.01 else 1.0)
+	_animate(w, dir, (p.at as Vector2).distance_to(was),
+		signf(sdir.x) if absf(sdir.x) > 0.01 else 1.0)
 
 
 ## Over the threshold, the frontage lifts away. This is the roof-lift cutaway
@@ -762,26 +816,62 @@ func _update_inside(dt: float) -> void:
 	_cafe_fade = move_toward(_cafe_fade, target, dt * 3.4)
 	if cafe_sprite:
 		cafe_sprite.modulate.a = _cafe_fade
+	var room_a := 1.0 - _cafe_fade
+	if interior:
+		interior.modulate.a = room_a
+		interior.visible = room_a > 0.002
+	for n in interior_nodes:
+		n.modulate.a = room_a
+		n.visible = room_a > 0.002
 
 
-## Walk cycle: a bob, a lean, and a swap to the back view when walking away.
-func _animate(actor: Node2D, wdir: Vector2, dt: float, facing: float) -> void:
-	var body: Node2D = actor.get_child(0)
-	var moving := wdir != Vector2.ZERO
+## How far a person travels between one footfall and the next. Everything about
+## the gait is derived from this rather than from a timer.
+const STRIDE_M := 0.72
+
+
+## Walk cycle, driven by distance travelled rather than by the clock.
+##
+## The phase advances by PI per stride, so one full cycle is two steps. Driving
+## it from `dt` instead — which is what this used to do — makes cadence a
+## function of frame rate and nothing else: measured across the crowd, phase
+## per metre ranged from 4.4 to 9.8 depending only on how fast each person
+## happened to walk. That mismatch is exactly what reads as skating, and no
+## amount of tuning a timer constant fixes it, because the two quantities are
+## not related by a constant.
+##
+## `moved` is the distance covered this frame, in world units.
+func _animate(actor: Node2D, wdir: Vector2, moved: float, facing: float) -> void:
+	# By name, not by index. The player gained a ring child that was moved to
+	# index 0 to sort behind, which silently handed every animation call the
+	# ring instead of the body — so the one actor the camera follows was the
+	# one actor that could not animate.
+	var body: Node2D = actor.get_node_or_null("body")
+	if body == null:
+		return
+	var metres := moved * Iso.METRES_PER_UNIT
+	var moving := wdir != Vector2.ZERO and metres > 0.00001
 	var ph: float = actor.get_meta("phase")
 	if moving:
-		ph += dt * 9.0
+		ph += (metres / STRIDE_M) * PI
 		actor.set_meta("phase", ph)
-	var bob := (absf(sin(ph)) * -3.0) if moving else 0.0
+	# Two footfalls per cycle, so the bob peaks on each one.
+	var bob := (absf(sin(ph)) * -3.2) if moving else 0.0
 	body.position = Vector2(0, bob)
 	body.scale = Vector2(facing, 1.0)
-	body.rotation = (sin(ph) * 0.03) if moving else 0.0
+	body.rotation = (sin(ph) * 0.035) if moving else 0.0
+
 	var back := body.get_node_or_null("back")
+	var away := false
 	if back:
 		# screen-up movement means we see their back
-		var away := Iso.to_screen(wdir).y < -0.5
+		away = Iso.to_screen(wdir).y < -0.5
 		back.visible = moving and away
 		body.get_node("front").visible = not (moving and away)
+	# Alternate the stride pose on every half cycle, so the legs actually swap
+	# rather than the whole body sliding along in one frozen position.
+	var step_b := int(floor(ph / PI)) % 2 != 0
+	_set_stride(body, "front" if not away else "back", step_b and moving)
 
 
 # ---------------------------------------------------------------------------
@@ -909,6 +999,17 @@ func _shots() -> void:
 	await _settle(8)
 	await _save("09_interior")
 
+	# Two frames exactly half a stride apart, close in. If the legs do not
+	# visibly swap between these two, the gait is a bob and nothing more.
+	await _place_player(Vector2(6.60, 2.30))
+	cam.zoom = Vector2(4.4, 4.4)
+	cam.position = Iso.to_screen(Vector2(6.60, 2.05))
+	for phase_step in [0.0, PI]:
+		player.set_meta("phase", phase_step)
+		_animate(player, Vector2(1, 0), 0.0002, 1.0)
+		await _settle(4)
+		await _save("10_stride_%s" % ("a" if phase_step == 0.0 else "b"))
+
 	get_tree().quit(0)
 
 
@@ -969,6 +1070,51 @@ func _drive() -> void:
 	print("exit       inside=%s  steps=%d  reached=%.2f,%.2f  max_step=%.4f  gaps=%d"
 		% [str(_inside), back["steps"], back["pos"].x, back["pos"].y,
 		back["max_step"], back["stalls"]])
+
+	# --- motion probe ------------------------------------------------------
+	# Objective checks for the two motion defects: that the crowd actually
+	# moves, and that the walk cycle is driven by distance rather than by the
+	# clock. Phase per metre must be the same number at every speed; if it is
+	# not, feet slide.
+	var prev: Array[Vector2] = []
+	var path: Array[float] = []
+	var ph0: Array[float] = []
+	for w in walkers:
+		prev.append(w.get_meta("data").at)
+		path.append(0.0)
+		ph0.append(w.get_meta("phase"))
+	for f in range(180):
+		await get_tree().process_frame
+		# Accumulate path length. Net displacement is the wrong measure: these
+		# routes double back, so a walker that covered four metres can show as
+		# having moved two, and phase-per-metre then looks wrong when it is not.
+		for n in walkers.size():
+			var now: Vector2 = walkers[n].get_meta("data").at
+			path[n] += now.distance_to(prev[n])
+			prev[n] = now
+	print("--- crowd ---")
+	var moved_any := 0
+	for n in walkers.size():
+		var w: Node2D = walkers[n]
+		var pdata = w.get_meta("data")
+		var dist: float = path[n] * Iso.METRES_PER_UNIT
+		var dph: float = float(w.get_meta("phase")) - ph0[n]
+		if dist > 0.05:
+			moved_any += 1
+		print("  %-6s speed %.2f  travelled %6.2f m  phase +%6.2f  phase/m %6.3f"
+			% [String(pdata.id), float(pdata.speed), dist, dph,
+			(dph / dist) if dist > 0.001 else 0.0])
+	print("  moving: %d of %d" % [moved_any, walkers.size()])
+
+	# A standing character must not accumulate phase. If it does, the legs
+	# cycle on the spot, which is the other half of the same defect.
+	var idle0: float = player.get_meta("phase")
+	var idle_at := player_at
+	for f in range(120):
+		await get_tree().process_frame
+	print("  idle player: phase +%.6f  moved %.6f  (both must be zero)"
+		% [float(player.get_meta("phase")) - idle0,
+		player_at.distance_to(idle_at)])
 
 	print("drive complete")
 	get_tree().quit(0)

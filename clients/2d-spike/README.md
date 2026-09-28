@@ -5,8 +5,10 @@ answer one question: **is this MineWorld's default 2D presentation?**
 
 > ## VIS-2D-1 READY FOR HUMAN STYLE REVIEW
 >
-> Three **default-style candidates**, each complete and playable, and **the
-> café is enterable in all of them**. Nothing here is an accepted look — per
+> Three **default-style candidates**, each complete and playable, **the café is
+> enterable in all of them**, and **the town is in motion** — the crowd walks
+> its routes and gait is driven by distance travelled, so cadence matches
+> speed and feet do not slide. Nothing here is an accepted look — per
 > `ARC-11` the default style is taste and the operator decides it, finally and
 > always. Subjective polishing on this branch has stopped so the target does
 > not move while it is being judged.
@@ -130,6 +132,37 @@ it exactly as with a bench outside.
 Indoors there is no sun: the props get a small contact shadow instead of the
 long raking one the exterior uses, and the light comes from pools under the
 pendants.
+
+### Motion
+
+Gait is a function of **distance travelled**, never of the clock. Phase
+advances by PI per stride (`STRIDE_M`, 0.72 m), so one cycle is two steps and
+a person walking twice as fast steps twice as often, with the same stride
+length. Driving the cycle from `delta` instead — which is what this did
+before — makes cadence a function of frame rate and nothing else; measured
+across the crowd, phase per metre ranged from 4.4 to 9.8 depending only on how
+fast each character happened to walk, and that mismatch is what reads as
+skating. `--drive` reports the number:
+
+```
+a      speed 0.80  travelled 2.61 m  phase + 11.40  phase/m  4.363
+dog    speed 1.25  travelled 4.06 m  phase + 17.73  phase/m  4.363
+h      speed 0.48  travelled 1.57 m  phase +  6.84  phase/m  4.363
+idle player: phase +0.000000  moved 0.000000
+```
+
+The same constant at every speed, and nothing at all when standing still.
+
+Each character has two stride poses per view — four sprites, `front`,
+`front_b`, `back`, `back_b` — and the pose alternates every half cycle. A bob
+alone was tried first and looked at: at 56 px tall it is sub-pixel and two
+frames half a stride apart were indistinguishable, so the legs had to actually
+move. Both poses of a pair are normalized with the *same* scale factor and
+onto the same canvas, or the character pumps vertically as a lifted heel
+shrinks its own bounding box.
+
+Characters with only one pose still work — the alternation is skipped and the
+bob runs, so the gait degrades rather than breaking.
 
 ### Calibrating against the plates
 
