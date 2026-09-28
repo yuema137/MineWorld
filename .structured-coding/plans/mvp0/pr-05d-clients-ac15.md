@@ -687,8 +687,11 @@ each, both were answered identically: `Accepted` with two facts.
 ### 9.6 The objective gates the kickoff names
 
 ```text
-clean checkout                 ✅ `.godot/` is gitignored and was deleted and rebuilt during this
-                                  work; `git status` is clean at HEAD
+clean checkout                 ✅ `git clone --branch mvp0/pr-05d-clients-ac15` into an empty
+                                  directory: `cargo test --workspace` built from nothing and
+                                  passed 258/258, and `clients/protocol/run.sh` built the CLI,
+                                  started the server, imported the Godot project and saved a
+                                  screenshot. No cache was carried over; `.godot/` is gitignored
 no hand-preserved caches       ✅ `run.sh` builds the Godot import cache itself; nothing in
                                   `evidence/` is required to run anything
 reproducible relaunch          ✅ the server was started and stopped at least eight times over this

@@ -181,6 +181,11 @@ func disconnect_from_world(reason: String = "closed by the client") -> void:
 	if state == State.CLOSED:
 		return
 	_socket.close()
+	# One more poll, so the close frame is actually written before this node stops polling: a client
+	# that vanishes without one is handled by the server anyway — it reaps a subscription whose
+	# channel has closed — but saying goodbye is cheap and makes the server's client count drop at
+	# once rather than at its next sweep.
+	_socket.poll()
 	_close(reason)
 
 
