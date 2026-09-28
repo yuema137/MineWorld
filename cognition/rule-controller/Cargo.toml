@@ -1,0 +1,16 @@
+[package]
+name = "mineworld-rule-controller"
+description = "A deterministic controller: decides what a Person attempts from the observation it is given, with no model."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# A controller is written against the System Packs of the world it plays in: it may use the actions
+# those packs provide and cannot invent one (`MODULE_SPEC.md` §5). It depends on no transport, no
+# server and no kernel — an observation in, a request out, and nothing else reachable from here.
+mineworld-contracts = { workspace = true }
+mineworld-conversation = { workspace = true }
+serde_json = { workspace = true }

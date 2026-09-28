@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "cognition/rule-controller",
     "contracts",
     "kernel",
     "server",
@@ -25,6 +26,7 @@ authors = ["Yue Ma"]
 mineworld-contracts = { path = "contracts" }
 mineworld-kernel = { path = "kernel" }
 mineworld-presence = { path = "systems/presence" }
+mineworld-rule-controller = { path = "cognition/rule-controller" }
 mineworld-conversation = { path = "systems/conversation" }
 mineworld-server = { path = "server" }
 mineworld-worldpack = { path = "worldpack" }

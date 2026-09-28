@@ -21,7 +21,7 @@ use mineworld_contracts::{
 };
 use mineworld_conversation::{ConversationHistory, ConversationSystem, Talk, Utterance};
 use mineworld_kernel::SystemIdentity;
-use mineworld_presence::{InteractionProvider, Presence, PresenceSystem, observe, present_in};
+use mineworld_presence::{PerceptionProvider, Presence, PresenceSystem, observe, present_in};
 use mineworld_worldpack::{Capability, LoadedWorld, WorldPack};
 
 /// The pack every test in this file loads: the real one, from the repository.
@@ -72,12 +72,13 @@ fn the_pack_says_what_world_it_is() {
     );
     assert_eq!(
         pack.people().keys().cloned().collect::<Vec<_>>(),
-        vec![key("alice"), key("bob"), key("visitor")],
+        vec![key("alice"), key("bob"), key("visitor"), key("wanderer")],
     );
     assert_eq!(
         pack.seats().iter().cloned().collect::<Vec<_>>(),
-        vec![key("visitor")],
-        "one seat: the Person a client occupies",
+        vec![key("alice"), key("visitor"), key("wanderer")],
+        "three seats: two Persons a client occupies, and the one an agent drives — nothing about \
+         the world distinguishes them (INV-1)",
     );
 }
 
@@ -86,7 +87,7 @@ fn the_world_is_the_one_the_yaml_describes() {
     let world = loaded();
     let read = world.world().read();
 
-    assert_eq!(world.world().entities().len(), 4, "one place, three people");
+    assert_eq!(world.world().entities().len(), 5, "one place, four people");
     let systems = world.world().systems();
     for system in [PresenceSystem::ID, ConversationSystem::ID] {
         assert!(
@@ -137,6 +138,7 @@ fn entity_keys_resolve_to_ids_deterministically() {
         (key("alice"), EntityId::from_raw(2)),
         (key("bob"), EntityId::from_raw(3)),
         (key("visitor"), EntityId::from_raw(4)),
+        (key("wanderer"), EntityId::from_raw(5)),
     ]
     .into_iter()
     .collect();
@@ -180,7 +182,7 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        3,
+        4,
         "one arrival per person the pack placed",
     );
 }
@@ -243,7 +245,7 @@ fn an_authored_position_is_a_recorded_fact_rather_than_a_write() {
             .read()
             .relations_of_type(&present_in())
             .count()
-            == 3,
+            == 4,
         "the presence pack's own edge for each person it placed",
     );
 }
@@ -314,15 +316,15 @@ fn the_authored_geometry_is_what_the_world_answers_with() {
 fn an_observer_perceives_the_world_through_the_systems_the_pack_enabled() {
     let world = loaded();
     let visitor = world.id(&key("visitor")).expect("the visitor resolves");
-    let providers: Vec<&dyn InteractionProvider> = vec![&PresenceSystem, &ConversationSystem];
+    let providers: Vec<&dyn PerceptionProvider> = vec![&PresenceSystem, &ConversationSystem];
 
     let observation = observe(world.world(), visitor, WorldTime::EPOCH, &providers);
 
     let perceived: Vec<EntityId> = observation.entities().iter().map(|e| e.id()).collect();
     assert_eq!(
         perceived.len(),
-        4,
-        "the place, and the three people in it: {perceived:?}",
+        5,
+        "the place, and the four people in it: {perceived:?}",
     );
     assert!(
         observation.self_location().is_some(),
@@ -338,8 +340,8 @@ fn an_observer_perceives_the_world_through_the_systems_the_pack_enabled() {
         .collect();
     assert_eq!(
         offered.len(),
-        2,
-        "talk is offered against the two other people: {offered:?}",
+        3,
+        "talk is offered against the three other people: {offered:?}",
     );
     assert!(
         offered.iter().all(|(available, _)| !*available),

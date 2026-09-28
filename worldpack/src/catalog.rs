@@ -20,7 +20,7 @@
 use mineworld_contracts::{Location, PersonId, SystemId};
 use mineworld_conversation::ConversationSystem;
 use mineworld_kernel::{Emission, KernelError, SystemIdentity, World};
-use mineworld_presence::{InteractionProvider, PresenceSystem, arrival};
+use mineworld_presence::{PerceptionProvider, PresenceSystem, arrival};
 
 /// One System Pack this build can install.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -66,7 +66,7 @@ impl Capability {
     /// A second value of the system type, which `systems/presence/src/interaction.rs` documents as
     /// safe by construction rather than merely convenient: a system holds no fields, because its
     /// mutable state is the components it owns and those live in the world.
-    pub fn provider(self) -> Box<dyn InteractionProvider> {
+    pub fn provider(self) -> Box<dyn PerceptionProvider> {
         match self {
             Self::Presence => Box::new(PresenceSystem),
             Self::Conversation => Box::new(ConversationSystem),

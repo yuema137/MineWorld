@@ -32,7 +32,8 @@ use crate::host::{
 };
 use crate::perception::{Perception, PerceptionContext};
 use crate::protocol::{
-    PROTOCOL_VERSION, Refusal, RefusalCode, SystemSummary, WireObservation, WorldSummary,
+    PROTOCOL_VERSION, Refusal, RefusalCode, SystemSummary, WireObservation, WorldInstanceId,
+    WorldSummary,
 };
 
 /// The first request identity a server allocates.
@@ -100,6 +101,9 @@ pub(crate) struct WorldRuntime {
     world: World,
     perception: Box<dyn Perception>,
     seats: SeatRoster,
+    /// Which running world this is: allocated once, here, and reported unchanged to every client
+    /// and every status answer for as long as the world lives (`AC-15`, `MVP.md` §9.1).
+    instance: WorldInstanceId,
     config: Arc<HostConfig>,
     clock: HostClock,
     actions: ActionIds,
@@ -121,6 +125,7 @@ impl WorldRuntime {
             world: hosted.world,
             perception: hosted.perception,
             seats: hosted.seats,
+            instance: WorldInstanceId::allocate(),
             clock: HostClock::new(config.epoch),
             actions: ActionIds::new(),
             subscriptions: SubscriptionIdSource::new(),
@@ -289,6 +294,7 @@ impl WorldRuntime {
         let systems = self.world.systems();
         WorldSummary {
             protocol: PROTOCOL_VERSION,
+            instance: self.instance,
             at: self.clock.now(),
             entities: self.world.entities().len(),
             systems: systems

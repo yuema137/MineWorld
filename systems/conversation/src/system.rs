@@ -1,14 +1,15 @@
 //! The installable system: what it declares, and the four things a world asks of it.
 
 use mineworld_contracts::{
-    ActionIntent, EntityId, EntityType, Event, EventEnvelope, LifecycleState, PersonId, PlaceId,
-    Rejection, RejectionCode, SimDuration, SystemId, Visibility, WorldTime,
+    ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, LifecycleState,
+    PersonId, PlaceId, Rejection, RejectionCode, SimDuration, SystemId, Visibility, WorldTime,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
     WorldRead, WorldView,
 };
-use mineworld_presence::{InteractionProvider, Offer, Presence, PresenceSystem};
+use mineworld_presence::{Offer, PerceptionProvider, Presence, PresenceSystem};
+use serde_json::Value;
 
 use crate::action::{Talk, talk_requirement};
 use crate::codec;
@@ -189,7 +190,7 @@ impl System for ConversationSystem {
     }
 }
 
-impl InteractionProvider for ConversationSystem {
+impl PerceptionProvider for ConversationSystem {
     /// Offers `talk` against every person the observer is not.
     ///
     /// This is the answer perception cannot produce: which of this pack's actions apply to this pair,
@@ -222,6 +223,58 @@ impl InteractionProvider for ConversationSystem {
             Offer::new::<Talk>(talk_requirement())
                 .with_target_available(listener.lifecycle() == LifecycleState::Active),
         ]
+    }
+
+    /// Discloses a person's [`ConversationHistory`] **in that person's own observation, and nowhere
+    /// else**.
+    ///
+    /// This is how `docs/MVP.md` §9.2's third arrow is drawn — *history → her controller's context*.
+    /// The first two arrows already existed: the log is the log, and `react` reduces `spoke` into the
+    /// component. What was missing was a way for whoever decides Alice's actions to read it, because
+    /// a controller is handed an [`Observation`](mineworld_contracts::Observation) and never the world
+    /// (`INV-13`), and an observation carried no component records at all.
+    ///
+    /// One rule, and the narrowest one that answers the question:
+    ///
+    /// ```text
+    /// subject == observer    disclosed: what I have been told is mine to know
+    /// otherwise              nothing: what somebody else was told is not mine to read
+    /// ```
+    ///
+    /// The asymmetry is the point. Alice's controller learns that a player spoke to her three minutes
+    /// ago; a player learns what Alice said *to them*, from their own history, through the same
+    /// mechanism rather than a second one — because `react` writes the entry on the **listener**. And
+    /// a client cannot read a stranger's memory by asking, because there is no asking: an observation
+    /// is a list of what was exposed.
+    ///
+    /// Two different things hold `INV-13` up here, and it is worth being exact about which is which.
+    /// *What* may be known is this pack's judgement, made by construction: one component is named,
+    /// and one observer. *Whom a record may be about* is not left to this pack's good behaviour —
+    /// perception drops any record that is not about the subject it asked about
+    /// ([`PerceptionProvider::discloses`]), so a pack that answered about a third party would
+    /// disclose nothing. The rule above is therefore honest about its own scope, and a client cannot
+    /// read a stranger's memory whichever half fails.
+    ///
+    /// A person who has been told nothing has no component, and nothing is disclosed — absence of
+    /// knowledge rather than an empty record, which is the same answer the component store gives.
+    fn discloses(
+        &self,
+        world: &WorldRead<'_>,
+        observer: EntityId,
+        subject: EntityId,
+    ) -> Vec<ComponentRecord<Value>> {
+        if subject != observer {
+            return Vec::new();
+        }
+        world
+            .component::<ConversationHistory>(observer)
+            .map(|history| {
+                vec![ComponentRecord::new::<ConversationHistory>(
+                    observer,
+                    codec::to_value(history),
+                )]
+            })
+            .unwrap_or_default()
     }
 }
 

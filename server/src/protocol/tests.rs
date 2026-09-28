@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 
 use super::{
     ClientFrame, CorrelationToken, MAX_TOKEN_LENGTH, PROTOCOL_VERSION, RefusalCode, ServerFrame,
-    WirePayload, into_kernel_request,
+    WirePayload, WorldInstanceId, into_kernel_request,
 };
 
 /// An action belonging to no real system: the tests need a payload the contract will label, and
@@ -181,6 +181,7 @@ fn a_welcome_names_the_observer_as_a_decimal_string() {
         observer: EntityId::from_raw(BIG),
         world: super::WorldSummary {
             protocol: PROTOCOL_VERSION,
+            instance: super::WorldInstanceId::from_raw(0x0123_4567_89ab_cdef),
             at: mineworld_contracts::WorldTime::from_seconds(32_400),
             entities: 4,
             systems: Vec::new(),
@@ -196,6 +197,32 @@ fn a_welcome_names_the_observer_as_a_decimal_string() {
 
     assert_eq!(encoded["observer"], json!("9007199254740995"));
     assert_eq!(encoded["world"]["at"], json!(32_400));
+    assert_eq!(
+        encoded["world"]["instance"],
+        json!("00000000000000000123456789abcdef"),
+        "a world instance reaches a client as a string, because 128 bits are not a double",
+    );
+}
+
+/// `AC-15`'s first evidence line is *same world instance*, and it is only evidence if two worlds
+/// are told apart. Two allocations differ; one instance says the same thing every time it is asked.
+#[test]
+fn two_running_worlds_have_two_identities_and_each_keeps_its_own() {
+    let first = WorldInstanceId::allocate();
+    let second = WorldInstanceId::allocate();
+
+    assert_ne!(first, second, "two worlds are never one world");
+    assert_eq!(
+        first.to_string(),
+        first.to_string(),
+        "and an instance's identity does not change while it is being asked",
+    );
+    assert_eq!(first.to_string().len(), 32, "128 bits of hexadecimal");
+
+    let round_tripped: WorldInstanceId =
+        serde_json::from_value(serde_json::to_value(first).expect("an instance serializes"))
+            .expect("and reads back");
+    assert_eq!(round_tripped, first);
 }
 
 /// A rejection is a value a client renders, and it arrives inside a result rather than as a refusal.
