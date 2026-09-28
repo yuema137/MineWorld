@@ -31,7 +31,7 @@ everything this document does not know.
 | Does a second client require a kernel or contract change? | **No.** A client with no game engine joined the running world, perceived it, moved, was refused for distance, moved closer and was accepted. The spatial frame transfers to a left-handed engine with one axis swap and **no sign flip**. | §§2–6 |
 | What would an Unreal client be made of? | Five components, each named against the MineWorld file it talks to. One finding constrains it: Unreal **cannot load a rigged glTF character at runtime**. | §7 |
 | What would it cost? | ~1.5 weeks for the proof of concept; ~2–2.5 weeks for parity with the Godot 3D demo; **5–10 weeks for the environment half of the reference slice, which is the same range in either engine**. | §8 |
-| Is the asset path the real cost, and does Unreal shorten it? | It is the real cost. **Unreal does not shorten it for anything MineWorld ships.** MetaHuman Content is UE-Only and may not be distributed in source format; Megascans fails `DEP-8` too. Only OpenRigLogic — the *technology* — is MIT. | §9 |
+| Is the asset path the real cost, and does Unreal shorten it? | It is the real cost. **Unreal does not shorten it for anything MineWorld ships.** Epic's grant is **non-sublicensable**, so nothing Epic authored can carry an MIT licence — MetaHuman, Megascans and Fab content alike, on both sides of Epic's UE 5.6 split. Only OpenRigLogic — the *technology* — is MIT. | §9 |
 | Is `ARC-18`'s recorded licence summary right? | **No.** It merged Epic's two different $1M thresholds. `ARC-18` has been corrected in place. | §10 |
 
 ---
@@ -988,7 +988,8 @@ discipline and the six refusals, all of which are otherwise discovered by hittin
 
 ```text
 DOWN   starting from the Third Person template and accepting the Mannequin removes most of
-       the camera and scene rows
+       the camera and scene rows — usable for a proof of concept, and NOT shippable in this
+       repository: §9.4.5 shows Epic's grant is non-sublicensable even for template content
 UP     +1–2 d if IWebSocket's connection lifecycle, threading or packaged-build SSL misbehaves;
        this is first-contact risk I cannot price without the engine
 UP     ×2–3 if the developer is learning Unreal C++. The build system, module dependencies,
@@ -1214,22 +1215,40 @@ returned **HTTP 403** to this session's own requests — verified directly, not 
 and `dev.epicgames.com`'s MetaHuman licensing and DCC-export pages serve an empty shell to an
 automated request.
 
-The Epic Content License Agreement quoted below was therefore retrieved from the **Internet Archive
-capture of Epic's own page dated 2026-09-15**, which the archive's index confirms is the most recent
-capture, twelve days before this was written. The full text rendered, and the clauses below are
-quoted from it verbatim. That is an archived copy of an Epic-authored agreement, and it is not the
-live document; a human should confirm against the live page before anything irreversible rests on
-it.
+The material below was obtained by **three independent routes**, and the grades differ:
 
-The OpenRigLogic material in §9.4.2 is different and stronger: it was fetched **first-hand from
-Epic's own repository** through GitHub's API in this session.
+```text
+FIRST-HAND, direct      OpenRigLogic's LICENSE and README, via GitHub's API (§9.4.2)
+                        metahuman.com/license, whose FAQ answers are in a JSON-LD block
+ARCHIVED                the Epic Content License Agreement, from the Internet Archive capture of
+                        Epic's own page dated 2026-09-15 — the most recent capture, twelve days
+                        before this was written. Full text rendered; clauses quoted verbatim.
+LIVE, VIA A READER      the Unreal Engine EULA, the Content EULA, the MetaHuman Creator EULA and
+PROXY                   the Fab EULA, whose live text a reader proxy returned when a direct
+                        request could not
+```
 
-**There is a specific trap on this topic, and I walked into the edge of it before reading the
-agreement.** A web search returns confident statements that MetaHuman may now be used outside
-Unreal Engine, and Epic's own Fab page says of the Fab Standard License *"usage is not limited to
-Unreal Engine"*. Both are true of the things they describe and **neither is true of MetaHuman
-Content**, which is carved out by its own addendum. The summaries and the agreement disagree, and
-the agreement governs.
+The Unreal Engine EULA quotes were **cross-verified**: every clause quoted from it appears verbatim,
+exactly once, in both an Internet Archive snapshot and the live proxy fetch. The Content EULA was
+retrieved twice by different routes in this spike and agreed. The Fab EULA's binding text rests on
+the proxy alone and is flagged where it is used.
+
+**A human should still confirm against the live pages before anything irreversible rests on this.**
+Epic's EULA change log has no archive captures at all, so nothing here can prove no amendment landed
+in the last weeks.
+
+**There is a specific trap on this topic, and an earlier draft of this section walked into it.** A
+web search returns confident statements that MetaHuman may now be used outside Unreal Engine, while
+the Epic Content License Agreement says MetaHuman Content is UE-Only. It is tempting — and it is
+wrong — to conclude that the summaries are wrong and the agreement governs. **Both are correct about
+different things**: Epic split the governing agreement at Unreal Engine 5.6, and §9.4.3 sets out
+which applies to what. The draft that got this backwards had a true quotation, from a live and
+current agreement, applied to the wrong path.
+
+The lesson worth keeping is narrower and more useful than "go to primary sources": **on this topic a
+correct quotation is not sufficient, because the same vendor runs two regimes in parallel and the
+older one is still live.** The question to ask of every clause here is not only *is this current?*
+but *which path does this govern?*
 
 #### 9.4.2 What is unambiguously open: the *technology*, and only the technology
 
@@ -1269,10 +1288,55 @@ libraries' licensing and does not address redistribution of MetaHuman character 
 a rig evaluator is not a licence on a face. Conflating them would be the same class of error §10.3
 found in `ARC-18`'s cost summary, and it is the error the search results above invite.
 
-#### 9.4.3 What the agreement actually says about the characters
+#### 9.4.3 Which agreement governs, and it depends on which MetaHuman
 
-From the Epic Content License Agreement (capture of `unrealengine.com/eula/content`, 2026-09-15).
-Four clauses decide this, and the fourth decides it twice over.
+**Epic split this at Unreal Engine 5.6, and getting the split wrong is the easiest way to be
+confidently wrong about MetaHuman.** There is no bespoke "MetaHuman Licence Agreement" today; three
+documents divide the ground, and the banner at the top of the old MetaHuman Creator EULA
+(`unrealengine.com/eula/mhc`) states the division itself:
+
+> "This EULA continues to apply to users of the cloud-based version of MetaHuman Creator on Unreal
+> Engine 5.5 or any earlier version. **If you're using MetaHuman with Unreal Engine 5.6 and beyond,
+> the Unreal Engine EULA applies.**"
+
+corroborated by Epic's documentation — *"The Unreal Engine EULA applies to MetaHuman characters you
+upgrade from the web application to Unreal Engine 5.6"* — and by `metahuman.com/license`: *"The
+MetaHuman-related technology and tools provided within Unreal Engine are Licensed Technology under
+the Unreal Engine license."*
+
+```text
+UE 5.6+ in-engine MetaHuman        →  Unreal Engine EULA
+pre-5.6 cloud-downloaded character →  Epic Content License Agreement, MetaHuman Content Addendum
+the pre-5.6 cloud tool itself      →  MetaHuman Creator EULA (+ Epic's Terms of Service)
+```
+
+**This matters, and it is a correction to an earlier draft of this section.** The UE-Only restriction
+quoted below is real, is still live today, and governs the **pre-5.6** path. It does **not** govern
+a MetaHuman authored in UE 5.6 or later. For that path Epic states the opposite:
+
+> "**Can I use MetaHuman characters and animation outside of Unreal Engine?** — Yes. The Unreal
+> Engine EULA provides for MetaHuman characters and animation to be used across all engines and
+> creative software, subject to applicable terms." — `metahuman.com/license`
+
+So §9.4.1's warning was half right and half wrong: the summaries claiming cross-engine use are
+**correct for 5.6+**, and wrong only if applied to pre-5.6 downloads. What no summary is correct
+about is redistribution, which §9.4.4 shows is prohibited on **both** paths.
+
+One honest note on how solid Epic's own 5.6+ permission is. Searching the live Unreal Engine EULA
+for "MetaHuman" returns exactly three hits — the AI-training prohibition, the trademark clause and
+the supersession clause. **The EULA never names MetaHuman as a permitted cross-engine asset.** Epic's
+FAQ is characterising the generic *Non-Engine Products* clause (§4(a)(i): *"asset files, such as
+character models and animations … Such asset files remain Non-Engine Products even if included in
+Products that use or rely on other video game engines"*), and two lines below that clause sits
+*"certain assets that we make available under separate agreements are available for use only with
+Unreal Engine."* Epic's FAQ is Epic's own reading of its own agreement, which is worth a great deal
+and is not the agreement.
+
+#### 9.4.4 What the agreements say about redistributing them — both paths, same answer
+
+**Path one: pre-5.6 cloud downloads.** From the Epic Content License Agreement
+(`unrealengine.com/eula/content`, confirmed live on 2026-09-27 and independently retrieved twice in
+this spike). Four clauses decide it, and the fourth decides it twice over.
 
 **The MetaHuman Content Addendum defines the object and puts it in one box.**
 
@@ -1333,24 +1397,93 @@ that this summary *"is for your convenience only and is not legally binding"*:
 
 A **private** repository shared with **collaborators on the Project** is precisely the opposite of
 what MineWorld needs, and *"or allow others to do the same"* is the clause that a fork of an MIT
-repository would violate on the forker's behalf.
+repository would violate on the forker's behalf. The binding text of the Fab EULA §5(a) says the same
+thing at greater length and names the repository explicitly:
 
-#### 9.4.4 One tension I am not resolving, and do not need to
+> "Under a Standard License, **you may not Distribute Content on a standalone basis to third parties
+> except to your collaborators** (either directly or through a third-party repository) who are
+> utilizing the Content in good faith to develop a Project with you or on your behalf. This means,
+> for example, that **you may share Content with your employees, affiliates, and contractors in a
+> private online repository** while you work on a Project together. **Those collaborators … are not
+> permitted to further Distribute the Content** (including as incorporated in a Project) **and must
+> delete the Content once it is no longer needed**…"
 
-The MetaHuman Content Addendum says MetaHuman Content is UE-Only. Epic's Devkit exists to use
-MetaHuman technology *"outside of Unreal Engine"*, and the OpenRigLogic README describes a DCC Export
-that produces DNA files for driving a character with those libraries in a third-party tool. Those
-two statements are in tension, and I can see at least three ways they might be reconciled — that
-authoring in a DCC feeding an Unreal project counts as *"in conjunction with Unreal Engine"*, that a
-newer agreement exists that the archive has not captured, or that Epic's practice is ahead of its
-terms.
+**Path two: UE 5.6+ in-engine MetaHumans**, where the UE-Only restriction does not apply. The Unreal
+Engine EULA closes the same door by a different route.
 
-**I am not going to pick one, and the DEP-8 answer does not depend on it.** §4's prohibition on
-distributing Licensed Content in source format to third parties is independent of the UE-Only
-designation and applies to all Licensed Content. Whichever way the tension resolves, a MetaHuman
-cannot be committed to a public repository.
+**§4 — the form in which anything may ship:**
 
-#### 9.4.5 What a portable MetaHuman export contains, and what it leaves out
+> "You may only Distribute Products as expressly permitted in this Section 4. **Any Product that you
+> Distribute that incorporates Licensed Technology must incorporate the Licensed Technology only in
+> object code and only as an inseparable part of the Product.**"
+
+**§5 — the exhaustive list of what may leave outside a Product:**
+
+> "You may only Distribute the Licensed Technology (including as modified by you) outside of a
+> Product **as expressly permitted by this Section 5**."
+
+and §5 permits exactly four things: Engine Code to third parties separately licensed by Epic for the
+same version; 30-line snippets in forums; non-C++ language integrations; and *"Examples"* (§5(b)),
+defined as *"the code, artwork, or other content made available by us in the Samples and Templates
+folders in the install directory"*. A MetaHuman is none of those.
+
+**§1 — and a modified one is still the same thing:**
+
+> "The Licensed Technology includes any modified version of any of the foregoing that you make under
+> the License."
+
+**A `.uasset`, `.fbx`, `.usd` or `.glb` in a git tree is neither object code nor an inseparable part
+of a Product.** Modification does not launder it.
+
+#### 9.4.5 The argument that closes it on every path, including the permitted ones
+
+There is a clause more general than any of the above, and it is the one that makes this a settled
+question rather than a clause-by-clause search.
+
+**Epic's grant is non-sublicensable and private.** Unreal Engine EULA §2:
+
+> "Epic grants you a **non-exclusive, non-transferable, non-sublicensable** license to **privately**
+> use, reproduce, display, perform, and modify the Licensed Technology…"
+
+Epic Content License Agreement §6:
+
+> "All rights granted to you under this Agreement are granted by the License only and not by sale …
+> No license or other right will be created hereunder by implication, estoppel, or otherwise. **Any
+> attempted sublicense that is not consistent with the terms of this Agreement will be null and
+> void.**"
+
+**An MIT `LICENSE` file at the root of a repository is an attempted sublicense.** MIT purports to
+grant every recipient the right to *"use, copy, modify, merge, publish, distribute, sublicense"*.
+MineWorld cannot grant what Epic never gave it.
+
+The consequence is broader than MetaHuman and is the cleanest way to state the whole of §9.4:
+
+> **Nothing Epic authored can be placed under MIT, even where Epic permits distributing the file.**
+> The Third Person template's mannequin and animations may well fall under §5(b) "Examples" and be
+> distributable in source *to any third party* — and they still cannot carry an MIT grant, because
+> each recipient's rights would have to come from Epic's EULA, which each of them must have
+> accepted. Under `DEP-8`'s test — free to redistribute **as part of an MIT-licensed package** —
+> that fails too.
+
+`ARC-19` consequence 4 anticipated the engine-portability half of this. It did not anticipate that
+the sublicensing half would be the binding one, and it is: even the assets Epic lets you ship cannot
+be relicensed.
+
+**One door is genuinely open**, and it should be recorded so nobody concludes Fab is useless. Fab
+EULA §2(c):
+
+> "**Alternative License.** The Epic Marketplace may identify Content as being offered under an open
+> source license. When you complete a Transaction for such Content, the Content Licensor grants you
+> a license for the Content under the open source license identified ("Alternative License"). **You
+> are not granted a Standard License to such Content.**"
+
+That is a pass-through: the redistributability comes from a **third-party publisher's** CC or
+open-source licence, never from Epic, and it must be identified on the listing. It is the same
+per-asset-check regime `DEP-8` already prescribes for Sketchfab and OpenGameArt. Note that Fab
+EULA §6(a) names CC-BY-SA as a Non-Compatible License, and `DEP-8` independently excludes CC-BY-SA
+as copyleft-incompatible with MIT, so the usable subset is CC0 and permissive listings only.
+
+#### 9.4.6 What a portable MetaHuman export contains, and what it leaves out
 
 Technical rather than legal, first-hand from Epic's OpenRigLogic README, and it lands squarely on
 §9.2's table:
@@ -1365,7 +1498,7 @@ hair that is MetaHuman's strongest contribution and an `ARC-17` §4 hard-fail ca
 not carry clothing, which §9.2 already showed MetaHuman does not solve. So even setting the licence
 aside entirely, what travels out of Unreal is the half of the character that was never the problem.
 
-#### 9.4.6 The environment half, found in the same document
+#### 9.4.7 The environment half, found in the same document
 
 Not asked for, and it belongs in the record because §8.3 prices environment assets and because
 `DEP-8` names *"Unreal marketplace packs"* as excluded without citing the clause. From the same
@@ -1378,7 +1511,14 @@ agreement's Megascans Addendum:
 > "**c. Unreal Engine Plan (UE-Only Content).** Megascans Content that you acquire from Epic while
 > your account is enrolled in an Unreal Engine plan may only be used and shared as UE-Only Content."
 
-with a Personal plan capped at $100,000 annual gross revenue and an Indie plan at $2,000,000.
+and the paid tier closes the same door:
+
+> "**a. Personal Plan.** Megascans Content that you acquire from Epic while your account is enrolled
+> in a personal plan for which you qualify may be used as any other Licensed Content. **Such
+> Megascans Content, however, may not be distributed in source format to anyone else.**"
+
+with a Personal tier capped at $100,000 of 12-month digital-content revenue and an Indie plan at
+$2,000,000.
 
 **So Quixel Megascans fails `DEP-8` too, and the free tier fails it harder than the paid tiers** —
 free-tier Megascans may not be distributed *even inside a shipped Project*, only evaluated
@@ -1396,20 +1536,40 @@ MetaHuman TECHNOLOGY       OpenRigLogic — the RigLogic and DNA libraries — i
                            macOS, consoles and mobile.
                            → PASSES DEP-8. Redistributable. A legitimate dependency.
 
-MetaHuman CHARACTER        "MetaHuman Content that you acquire may only be used and shared as
-ASSETS                     UE-Only Content" (MetaHuman Content Addendum §1), and "you may not
-                           Distribute Licensed Content in source format to third parties"
-                           (Epic Content License Agreement §4).
-                           → FAILS DEP-8. Not "probably" — the clause is quoted.
+MetaHuman CHARACTER        pre-5.6 cloud download: "may only be used and shared as UE-Only
+ASSETS, pre-5.6            Content" (MetaHuman Content Addendum §1) AND "you may not Distribute
+                           Licensed Content in source format to third parties" (Content EULA §4).
+                           → FAILS DEP-8 twice over.
+
+MetaHuman CHARACTER        UE 5.6+: cross-engine use IS permitted and carries no extra royalty.
+ASSETS, UE 5.6+            Redistribution is not: "must incorporate the Licensed Technology only
+                           in object code and only as an inseparable part of the Product"
+                           (UE EULA §4), and §5's list of what may leave outside a Product does
+                           not include it.
+                           → FAILS DEP-8 on form, not on engine.
 
 QUIXEL MEGASCANS           Free tier: "may not be distributed to any party, either in source
-                           format or as part of a Project." Unreal Engine plan: UE-Only Content.
-                           → FAILS DEP-8, and the free tier cannot even ship inside a build.
+                           format or as part of a Project." Personal plan: "may not be
+                           distributed in source format to anyone else." UE plan: UE-Only.
+                           → FAILS DEP-8 on every tier; the free tier cannot even ship in a build.
 
-FAB STANDARD LICENSE       "Share the asset … via a private repository … with your collaborators";
-(generally)                "may not … redistribute the asset for free on a standalone basis or
-                           allow others to do the same."
-                           → FAILS DEP-8 for a public repository.
+FAB STANDARD LICENSE       §5(a): no standalone distribution "except to your collaborators", in a
+(generally)                "private online repository", who "are not permitted to further
+                           Distribute" and "must delete the Content once it is no longer needed".
+                           → FAILS DEP-8 for a public repository. Tier-independent: Professional
+                             buys the source-asset download, not the right to publish it.
+
+FAB "ALTERNATIVE           §2(c): a third-party publisher may offer a listing under an open-source
+LICENSE" listings          licence, in which case "You are not granted a Standard License".
+                           → CAN PASS DEP-8, per asset, from the publisher and never from Epic.
+                             CC-BY-SA excluded (Fab §6(a), and DEP-8 independently).
+
+ANYTHING EPIC AUTHORED,    UE EULA §2 / Content EULA §2: the grant is "non-sublicensable" and for
+UNDER MIT                  "private" use. Content EULA §6: "Any attempted sublicense that is not
+                           consistent with the terms of this Agreement will be null and void."
+                           → FAILS DEP-8 categorically, INCLUDING assets Epic permits shipping in
+                             source (§5(b) "Examples" — the Samples and Templates folders). You
+                             may ship the file; you may not relicense it.
 
 WHAT A PORTABLE EXPORT     head DNA, body DNA, textures. NOT groom. NOT clothing.
 WOULD CONTAIN ANYWAY       → the hair does not travel, and hair is an ARC-17 hard-fail category.
@@ -1419,6 +1579,20 @@ WOULD CONTAIN ANYWAY       → the hair does not travel, and hair is an ARC-17 h
 the character, Megascans for the environment — is the whole of Unreal's claimed shortcut to the
 reference plates, and none of it can be redistributed by an MIT-licensed open-source project. The
 technical shortcut is real; the licence closes it for anything MineWorld ships.
+
+**And the reason is more general than any individual clause.** The decisive fact is not the UE-Only
+designation, which applies only to the pre-5.6 path, nor the object-code rule, which a determined
+reader might argue about. It is that **Epic's grant is non-sublicensable**, so an MIT `LICENSE` file
+covering an Epic-authored asset is a sublicense Epic never granted. That holds on both MetaHuman
+paths, on Fab Standard License content, and even on the Unreal templates that §5(b) expressly permits
+distributing in source form to anyone.
+
+The practical rule for this repository, stated once: **nothing Epic authored goes in it, whatever the
+distribution permission says.** Only a Fab listing carrying a third-party open-source licence can,
+and that is a per-asset check of exactly the kind `DEP-8` already prescribes for Sketchfab.
+
+This is also a direct answer to `ARC-18`'s hope that Unreal offers *"a shorter path"*: the path
+exists and it does not reach anything MineWorld may publish.
 
 **Where MetaHuman still has a legitimate role, and it should not be dismissed:**
 
@@ -1849,6 +2023,15 @@ Epic's explicitly excludes it. That silence should be closed by a test, not by a
 
 **Not researched.** Character Creator, MPFB2, image-to-3D and CC0 groom libraries, which `ARC-19`
 names alongside MetaHuman (§9.8).
+
+**Unresolved inside the licence work, and both are narrow.** Whether Megascans' free tier is still
+free and to whom — the *licence* position is settled in §9.4.7, the *pricing* position needs a
+JavaScript-capable browser on a Fab listing or Epic's Quixel-to-Fab transition FAQ, neither of which
+would fetch. And whether the Third Person template's mannequin and animations are "Examples" (the
+`Samples` and `Templates` folders, distributable in source under UE EULA §5(b)) or "Starter Content"
+(everything else, not distributable outside a Product) — the EULA classifies by install-directory
+path, which needs an Unreal installation to check. Neither changes any conclusion, because §9.4.5's
+non-sublicensable argument fails both categories for an MIT repository anyway.
 
 **Not this spike's to answer.** Whether compiling against Engine headers affects public MIT
 distribution of MineWorld's own source; only Epic can settle it (§10.4).
