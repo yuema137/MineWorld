@@ -1,3 +1,7 @@
 .godot/
 shots/
 screenshots/*.import
+preview_*.png
+preview_*.png.import
+compare_*.png
+compare_*.png.import

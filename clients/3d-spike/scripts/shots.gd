@@ -105,6 +105,51 @@ func _capture() -> void:
 				Image.INTERPOLATE_CUBIC)
 			head.save_png("%s/%s.png" % [OUT, HEAD_CROP[v[0]]])
 		print("shot %s at %s yaw %.0f  [%s]" % [v[0], v[1], v[2], player.rig.mode_name()])
+	await _stride_frames()
+
+
+## Two frames a known distance apart, while walking, from a fixed camera.
+##
+## The numbers in `--drive` say the gait is distance-driven; these say what it
+## looks like. Because the camera does not move between them, a planted foot
+## that has stayed planted occupies the same pixels in both, and a foot that
+## skated does not. The pair is the visual half of the foot-sliding check and
+## the reason the camera is parked rather than chasing the body.
+func _stride_frames() -> void:
+	var start := Vector3(-30.0, 0.2, -22.5)
+	player.place(start, 90.0, 0.0)
+	# REAR, not FP: first person hides the body, so the pair came back as two
+	# frames of empty pavement with the character standing invisibly in them.
+	player.set_camera(REAR)
+	await _settle(0.4)
+	# a fixed observer, off to the side, looking at where the walk will pass
+	var cam := Camera3D.new()
+	cam.fov = 42.0
+	get_tree().current_scene.add_child(cam)
+	cam.global_position = Vector3(-31.3, 0.95, -20.1)
+	cam.look_at(Vector3(-31.3, 0.50, -22.5))
+	# Walk to each mark, release the key, let the body settle, then capture.
+	# Holding the key through the capture lets the awaits advance the walk --
+	# the first attempt asked for frames 0.35 m apart and got 1.08 m and 8.95 m.
+	for mark in [1.00, 1.35]:
+		var guard := 0
+		Input.action_press("move_forward")
+		while start.distance_to(player.global_position) < mark and guard < 600:
+			guard += 1
+			await get_tree().physics_frame
+		Input.action_release("move_forward")
+		# claimed here, not at creation: the player rig makes its own camera
+		# current every frame, so an observer camera set up earlier is silently
+		# replaced and the pair comes back as two frames of empty pavement.
+		cam.make_current()
+		for k in range(8):
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		var tag := "a" if mark < 1.2 else "b"
+		get_viewport().get_texture().get_image().save_png("%s/22_stride_%s.png" % [OUT, tag])
+		print("stride frame %s at %.2f m from the start, same fixed camera"
+			% [tag, start.distance_to(player.global_position)])
+	cam.queue_free()
 
 
 ## Foot sliding is a defect class, not a style question, so it gets measured
