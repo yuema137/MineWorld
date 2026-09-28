@@ -6,7 +6,12 @@ var anim := "Walk"
 ## nothing in the body-length views showed it.
 const SHOTS := [["front", 0.0, 1.05, 2.4], ["face", 0.0, 1.60, 0.62],
 	["side", 90.0, 1.05, 2.4], ["back", 180.0, 1.05, 2.4],
-	["feet", 38.0, 0.30, 1.05]]
+	["feet", 38.0, 0.30, 1.05],
+	# Chest-up, which is the framing 04_character_closeup.png itself uses. The
+	# character was judged for weeks in street-distance shots where a person is
+	# 200 px tall and a red jacket is just a red jacket; at this framing the
+	# differences that matter are the ones a viewer actually resolves.
+	["bust", 12.0, 1.50, 1.05]]
 
 func _ready() -> void:
 	for i in 30:

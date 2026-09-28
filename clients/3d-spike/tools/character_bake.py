@@ -301,6 +301,124 @@ SLEEVE_JOINTS = {
 }
 
 
+def smooth_shell(P, tris, iterations=6, lam=0.55):
+    """Laplacian-smooth a shell in place-ish, returning new positions.
+
+    Offsetting every vertex along its own normal is what made the first hoodie
+    read as a quilted puffer rather than a fleece: the t-shirt underneath has
+    wrinkle detail, and pushing each vertex out along its own normal amplifies
+    every fold into a panel. Averaging each vertex toward its neighbours a few
+    times flattens that back out, which is the difference between a soft cotton
+    garment and a down jacket -- a category difference, not a finish one.
+    """
+    adj = {}
+    for i in range(0, len(tris), 3):
+        a, b, c = tris[i], tris[i + 1], tris[i + 2]
+        for u, v in ((a, b), (b, c), (c, a)):
+            adj.setdefault(u, set()).add(v)
+            adj.setdefault(v, set()).add(u)
+    out = [tuple(p) for p in P]
+    for _ in range(iterations):
+        nxt = list(out)
+        for i, nb in adj.items():
+            if not nb:
+                continue
+            ax = sum(out[j][0] for j in nb) / len(nb)
+            ay = sum(out[j][1] for j in nb) / len(nb)
+            az = sum(out[j][2] for j in nb) / len(nb)
+            p = out[i]
+            nxt[i] = (p[0] + (ax - p[0]) * lam,
+                      p[1] + (ay - p[1]) * lam,
+                      p[2] + (az - p[2]) * lam)
+        out = nxt
+    return out
+
+
+# Where the hood's cross-sections sit, base (0) to crown (1), as
+# (t, half-width, half-depth, backward lean).
+HOOD_SECTIONS = [
+    (0.00, 0.090, 0.055, 0.010), (0.22, 0.098, 0.068, 0.030),
+    (0.46, 0.098, 0.074, 0.048), (0.70, 0.088, 0.070, 0.055),
+    (0.88, 0.068, 0.056, 0.050), (1.00, 0.040, 0.034, 0.042),
+]
+
+
+def make_hood(out: Builder, matmap: dict, joint_names: list, neck_y: float,
+              neck_z: float, chest_idx: int, neck_idx: int):
+    """A hood, lying against the upper back behind the neck.
+
+    A zip hoodie without a hood is a zip jacket, and the hood is the single
+    feature that names the garment. It is lofted the same way the shoes are --
+    rings swept along an axis in mesh space, then hard-split between two joints
+    so nothing blends and collapses.
+    """
+    verts, uvs, tris = [], [], []
+    y0 = neck_y - 0.055
+    y1 = neck_y + 0.165
+    rings = []
+    for t, rw, rd, lean in HOOD_SECTIONS:
+        y = y0 + (y1 - y0) * t
+        cz = neck_z - 0.035 - lean
+        ring = []
+        for k in range(RING):
+            ang = math.tau * k / RING
+            ring.append((math.cos(ang) * rw, y, cz + math.sin(ang) * rd))
+        rings.append(ring)
+    for ring in rings:
+        for v in ring:
+            verts.append(v)
+            uvs.append((0.0, 0.0))
+    for r in range(len(rings) - 1):
+        for k in range(RING):
+            k2 = (k + 1) % RING
+            p00 = r * RING + k
+            p01 = r * RING + k2
+            p10 = (r + 1) * RING + k
+            p11 = (r + 1) * RING + k2
+            tris += [p00, p11, p10, p00, p01, p11]
+    for r, flip in ((0, False), (len(rings) - 1, True)):
+        c = len(verts)
+        cy = sum(v[1] for v in rings[r]) / RING
+        cz = sum(v[2] for v in rings[r]) / RING
+        verts.append((0.0, cy, cz))
+        uvs.append((0.0, 0.0))
+        for k in range(RING):
+            k2 = (k + 1) % RING
+            p0 = r * RING + k
+            p1 = r * RING + k2
+            tris += [c, p1, p0] if flip else [c, p0, p1]
+
+    norms = [[0.0, 0.0, 0.0] for _ in verts]
+    for i in range(0, len(tris), 3):
+        va, vb, vc = (verts[tris[i + k]] for k in range(3))
+        ux = (vb[0] - va[0], vb[1] - va[1], vb[2] - va[2])
+        vx = (vc[0] - va[0], vc[1] - va[1], vc[2] - va[2])
+        n = (ux[1] * vx[2] - ux[2] * vx[1], ux[2] * vx[0] - ux[0] * vx[2],
+             ux[0] * vx[1] - ux[1] * vx[0])
+        for k in range(3):
+            for c2 in range(3):
+                norms[tris[i + k]][c2] += n[c2]
+    for n in norms:
+        ln = math.sqrt(n[0] ** 2 + n[1] ** 2 + n[2] ** 2) or 1.0
+        n[0] /= ln; n[1] /= ln; n[2] /= ln
+
+    mid = neck_y + 0.02
+    J = [(neck_idx if v[1] > mid else chest_idx, 0, 0, 0) for v in verts]
+    W = [(255, 0, 0, 0)] * len(verts)
+    if "VitHoodie" not in matmap:
+        matmap["VitHoodie"] = out.material("VitHoodie")
+    attrs = {
+        "POSITION": out.accessor(verts, 5126, "VEC3", target=34962, minmax=True),
+        "NORMAL": out.accessor([tuple(n) for n in norms], 5126, "VEC3", target=34962),
+        "TEXCOORD_0": out.accessor(uvs, 5126, "VEC2", target=34962),
+        "JOINTS_0": out.accessor(J, 5121, "VEC4", target=34962),
+        "WEIGHTS_0": out.accessor(W, 5121, "VEC4", target=34962, normalized=True),
+    }
+    return ({"attributes": attrs,
+             "indices": out.accessor(tris, 5123, "SCALAR", target=34963),
+             "material": matmap["VitHoodie"]}, len(verts), len(tris) // 3)
+
+
 def make_hoodie(src: Glb, out: Builder, sources: list, matmap: dict, joint_names: list,
                 thickness: float, open_half_width: float):
     """Derive an open zip hoodie by offsetting existing garment and arm surfaces
@@ -371,6 +489,8 @@ def make_hoodie(src: Glb, out: Builder, sources: list, matmap: dict, joint_names
 
     if not tri:
         return None, 0, 0
+    # flatten the t-shirt's wrinkles out of the shell -- see smooth_shell
+    P = smooth_shell(P, tri, iterations=7, lam=0.6)
     attrs = {
         "POSITION": out.accessor(P, 5126, "VEC3", target=34962, minmax=True),
         "NORMAL": out.accessor(N, 5126, "VEC3", target=34962),
@@ -572,7 +692,7 @@ def main() -> int:
                     help="replace the bare feet with generated sneakers")
     ap.add_argument("--hoodie", action="store_true",
                     help="derive an open zip hoodie shell from the body mesh")
-    ap.add_argument("--hoodie-thickness", type=float, default=0.030)
+    ap.add_argument("--hoodie-thickness", type=float, default=0.022)
     ap.add_argument("--skip-textures", action="store_true")
     args = ap.parse_args()
 
@@ -691,12 +811,31 @@ def main() -> int:
             ni = next(i for i, n in enumerate(body.j["nodes"]) if n.get("name") == node_name)
             return body.j["meshes"][body.j["nodes"][ni]["mesh"]]["primitives"][k]
 
+        ibm_all = body.accessor(skin["inverseBindMatrices"])
         hp, hv, ht = make_hoodie(body, out,
                                  [(_prim("Shirt"), None),
                                   (_prim("cm_vitruvian"), SLEEVE_JOINTS)],
                                  matmap, jnames, args.hoodie_thickness, 0.055)
-        if hp:
-            out.doc["meshes"].append({"name": "Hoodie", "primitives": [hp]})
+        prims = [hp] if hp else []
+        # the hood, which is what makes it a hoodie rather than a zip jacket
+        def _bind_origin(name):
+            k = jnames_all.index(name)
+            m16 = ibm_all[k]
+            c0, c1, c2 = m16[0:3], m16[4:7], m16[8:11]
+            t = m16[12:15]
+            return (-(c0[0] * t[0] + c0[1] * t[1] + c0[2] * t[2]),
+                    -(c1[0] * t[0] + c1[1] * t[1] + c1[2] * t[2]),
+                    -(c2[0] * t[0] + c2[1] * t[1] + c2[2] * t[2]))
+        nk = _bind_origin("mixamorig:Neck")
+        hd, hv2, ht2 = make_hood(out, matmap, jnames_all, nk[1], nk[2],
+                                 jnames_all.index("mixamorig:Spine2"),
+                                 jnames_all.index("mixamorig:Neck"))
+        if hd:
+            prims.append(hd)
+            hv += hv2
+            ht += ht2
+        if prims:
+            out.doc["meshes"].append({"name": "Hoodie", "primitives": prims})
             out.doc["nodes"].append({"name": "Hoodie",
                                      "mesh": len(out.doc["meshes"]) - 1, "skin": 0})
             mesh_nodes.append(len(out.doc["nodes"]) - 1)
