@@ -21,6 +21,19 @@ document and a specification disagree, the specification governs and this file i
 | **Phase** | one of two. Phase one is everything that does not need the engine. |
 | **Engine installed** | **No.** Unreal is not installed on the machine this was run on, and installing it needs an interactive Epic account login and a very large download. Nothing in this document was verified inside Unreal. |
 
+## The four answers, and where each is argued
+
+A map, not a substitute. Every claim here is evidenced in the section named beside it, and §12 lists
+everything this document does not know.
+
+| `ARC-18` asked | Answer | Where |
+| --- | --- | --- |
+| Does a second client require a kernel or contract change? | **No.** A client with no game engine joined the running world, perceived it, moved, was refused for distance, moved closer and was accepted. The spatial frame transfers to a left-handed engine with one axis swap and **no sign flip**. | §§2–6 |
+| What would an Unreal client be made of? | Five components, each named against the MineWorld file it talks to. One finding constrains it: Unreal **cannot load a rigged glTF character at runtime**. | §7 |
+| What would it cost? | ~1.5 weeks for the proof of concept; ~2–2.5 weeks for parity with the Godot 3D demo; **5–10 weeks for the environment half of the reference slice, which is the same range in either engine**. | §8 |
+| Is the asset path the real cost, and does Unreal shorten it? | It is the real cost. **Unreal does not shorten it for anything MineWorld ships.** MetaHuman Content is UE-Only and may not be distributed in source format; Megascans fails `DEP-8` too. Only OpenRigLogic — the *technology* — is MIT. | §9 |
+| Is `ARC-18`'s recorded licence summary right? | **No.** It merged Epic's two different $1M thresholds. `ARC-18` has been corrected in place. | §10 |
+
 ---
 
 ## 1. Why phase one exists at all, and what it is for
@@ -1025,7 +1038,7 @@ character, street, enterable building, interior, lighting, movement, cameras —
 | Lighting rig, exposure, post-process, sky, and a street blockout in Unreal | 1–2 weeks | **Yes**, and Unreal's defaults start closer to the plates |
 | Architecture: box geometry at correct proportions dressed with CC0 materials, one enterable interior | 3–6 weeks | **No** |
 | Vegetation, props, street furniture, signage | 1–2 weeks | **No** |
-| The character to `04_character_closeup.png` under `ARC-17` and `ARC-19` | see §9 | **Contested — this is the whole question** |
+| The character to `04_character_closeup.png` under `ARC-17` and `ARC-19` | see §9 | **This is the whole question, and §9 answers it** |
 | **Total, excluding the character** | **5–10 weeks** | |
 
 **Confidence: low, and low specifically on the upper bound.** The asset half has never been completed
@@ -1047,14 +1060,470 @@ exactly one thing: **the character.** Automated high-fidelity human creation, gr
 animation retargeting are Unreal's genuine ecosystem advantage, and `ARC-19` §3 already directs that
 MetaHuman be evaluated for it rather than a bespoke pipeline built.
 
-Whether that advantage is *usable by MineWorld* is a licence question and not a technical one, which
-is §9.
+Whether that advantage is *usable by MineWorld* is a licence question and not a technical one, and
+§9 answers it: **no.** Epic's asset ecosystem — MetaHuman for the character, Megascans for the
+environment — cannot be redistributed by an MIT-licensed project, with the clauses quoted in §9.4.
+So the five-to-ten-week environment estimate above stands unchanged in either engine, and the
+character advantage narrows further still.
 
 The engine-side advantage that is real and should not be overstated: Unreal's out-of-the-box
 lighting, tonemapping and material response start closer to the plates than a from-scratch Godot
 Forward+ setup does, which is worth perhaps a week on the first row of the table and nothing on the
 others. `ARC-18` already assessed that nothing in the plates is out of Forward+'s reach, and phase
 one found no evidence against that assessment.
+
+## 9. The asset-production question, which `ARC-18` says is the real cost
+
+`ARC-18` §0 states the hypothesis this section tests:
+
+> The real cost is **character and asset production**, not the renderer's ceiling. […] Unreal's
+> advantage is therefore not a higher ceiling but a **shorter path** to it: a mature ecosystem for
+> high-fidelity humans, groom, cloth, cinematic lighting and retargeting.
+
+`ARC-19` consequence 3 turns that into an instruction — *"evaluate mature tools — MetaHuman,
+Character Creator, Blender with MPFB, image-to-3D reconstruction, CC0 groom and animation libraries
+— against quality, automation, licence, redistribution, engine portability and runtime
+compatibility. Do not build character-reconstruction technology."* — and consequence 4 sets the bar
+that evaluation must clear:
+
+> **`DEP-8` is not relaxed.** An asset must be free to *redistribute*, not merely free to use. An
+> ecosystem asset usable only inside one engine is recorded as exactly that, and engine-specific
+> Presentation Packs stay isolated from portable MineWorld assets.
+
+This section answers for MetaHuman. It does not evaluate Character Creator, MPFB or image-to-3D,
+which `ARC-19` also names; those are outside an Unreal spike's brief and are noted here so their
+absence is not mistaken for a verdict.
+
+### 9.1 The reference, stated as facts rather than as an impression
+
+`VISUAL_FIDELITY.md` §3 requires the identity contract to be written before the modelling, and
+`ARC-17` §5 prohibits vague comparative language. So the target is named here, from
+`presentation/mineworld-default/3D/references/04_character_closeup.png` at its own framing, and any
+later claim about an Unreal character is to be judged against this list and not against a feeling.
+
+```text
+person         a young adult woman, slim build, realistic adult proportions
+hair           warm mid-brown, short-to-mid length, wavy and tousled, loosely gathered at the
+               back with a side-swept fringe across the forehead
+skin           fair, with visible freckles across the nose and upper cheeks
+face           closed-mouth slight smile; head turned slightly, gaze directed off-camera
+outer garment  an OPEN full-zip hoodie in muted brick red / burgundy, hood down, full-length
+               sleeves, both front pockets visible, zip undone the whole way
+inner garment  a heather-oatmeal crew-neck t-shirt carrying a printed dark mountain-range graphic
+               above the words "Good Places Brighter People"
+lower garment  mid-blue straight-cut denim jeans
+accessory      an olive-grey canvas backpack worn on the RIGHT shoulder only, its strap gripped
+               in the right hand
+framing        hips-up three-quarter view, camera near chest height, subject about 1.5-2 m away
+light          warm low-angle sun from frame right; golden hour; soft shadows
+```
+
+Two of those lines are the ones that matter most for this section, because `ARC-17` records that the
+failed Godot candidate deferred exactly them: **the shirt graphic and the backpack were "the two
+strongest recognition cues on that character"**, and the outer garment was wrong by category — a red
+quilted puffer where the reference has an open burgundy zip hoodie.
+
+### 9.2 What MetaHuman would and would not do, measured against `ARC-17`'s own hard-fail list
+
+`ARC-17` §4 lists the categories an agent must reject itself on. Taking them one at a time against
+what a MetaHuman actually produces:
+
+| `ARC-17` hard-fail category | Does MetaHuman address it? |
+| --- | --- |
+| perceived gender presentation | **Yes** — a first-class parameter of the character |
+| apparent age | **Yes** |
+| body silhouette | **Yes** — body type and proportions are authored |
+| hairstyle category | **Yes** — strand-based groom, which is the strongest part of the offering |
+| major hair colour | **Yes** |
+| grossly wrong face shape | **Yes** — and this is what "Mesh to MetaHuman" exists for |
+| **outer-garment category** | **No** |
+| **a missing defining garment structure** | **No** |
+| **missing identity-defining accessories** | **No** |
+
+**That table is the finding of this section, and it is uncomfortable for `ARC-18`'s hypothesis.**
+
+MetaHuman solves six of the nine categories excellently and three of them not at all — and **the
+three it does not solve are precisely the three the Godot attempt actually failed on.** An open
+burgundy zip hoodie with correct structure, a t-shirt carrying a specific printed graphic, and a
+canvas backpack worn on one shoulder are garment and prop modelling. MetaHuman ships a limited set
+of preset clothing; a specific referenced garment is modelled in Blender or Marvelous Designer and
+fitted to the body, and that work is **the same work in Godot**.
+
+So the honest restatement of `ARC-18`'s "shorter path" is narrower than `ARC-18` assumes:
+
+> Unreal's character advantage is real and it is concentrated in **face, skin, hair and rig** —
+> where MetaHuman replaces weeks of manual work with a guided pipeline, and where strand-based
+> groom has no Godot equivalent at all. It is **zero** for garments and accessories, which is where
+> `VIS-3D-GODOT-1` actually failed. It is also zero for the environment (§8.3).
+
+Neither half of that should be softened. Strand groom and an automatically rigged, LOD'd,
+animation-ready head are a genuine multi-week saving that Godot cannot match today. And a character
+that is recognisably the reference still requires the garment work either way, and the garment work
+is what went wrong last time.
+
+### 9.3 What the Unreal path would actually be, step by step
+
+Recorded so the estimate in §9.6 is checkable and so nobody reads "use MetaHuman" as a single
+action.
+
+```text
+1  a head that resembles the reference     sculpt, generate, or reconstruct from the image;
+                                           this step is NOT MetaHuman and is the hard one
+2  Mesh to MetaHuman                       fits a MetaHuman topology and rig to that head
+3  groom                                   author or adapt strand hair to the reference's
+                                           tousled, loosely gathered shape
+4  body                                    MetaHuman body type matched to the reference silhouette
+5  garments                                Blender or Marvelous Designer: the open zip hoodie with
+                                           its structure, the graphic tee, the jeans — fitted to
+                                           the MetaHuman body, skinned to its skeleton
+6  the graphic and the backpack            a texture and a prop; small work, and the two cues
+                                           ARC-17 says are load-bearing
+7  animation                               IK Rig / IK Retargeter onto the MetaHuman skeleton from
+                                           whatever motion library is in use
+8  into the client                         cooked in at editor time — NOT loadable at runtime,
+                                           because §7.8 shows Interchange's runtime path excludes
+                                           Skeletal Mesh and Animation
+```
+
+Steps 2, 3, 4 and 7 are where Unreal's ecosystem earns its reputation. Steps 1, 5 and 6 are engine
+independent. Step 8 is a constraint Godot does not have.
+
+Two hardware facts from §7.9 bear on whether this machine can run the path at all. Epic's stated
+MetaHuman GPU floor is *"At least nVIDIA RTX 3070, AMD RX 6800 XT, or Apple M2 Ultra, with 8GB
+VRAM"* — an M2 **Ultra**, not a base M-series part — and *"Mac users with an M1 chip won't be able
+to render strands"*. MetaHuman Animator's markerless capture is Windows-only, though that is
+motion capture and not needed for this character. Whether an Apple M5 base part clears a bar Epic
+expressed as "M2 Ultra" is **unresolved**: Epic's page names a specific part rather than a
+capability, and I have not run it. This is a real question for the install decision and not a
+detail.
+
+### 9.4 MetaHuman's licence, forensically
+
+`DEP-8`'s test is redistribution, not use:
+
+> MineWorld is MIT and redistributes what it ships, so "free to use" is not the test —
+> **"free to redistribute"** is. Several well-known sources fail that test while looking fine.
+
+So the question is not whether MetaHuman may be used. It is whether a MetaHuman-derived Alice could
+be committed to this repository and redistributed by anyone who forks it.
+
+#### 9.4.1 How these quotes were obtained, and what they are worth
+
+`https://www.unrealengine.com/eula/content` and `https://www.unrealengine.com/eula/mhc` both
+returned **HTTP 403** to this session's own requests — verified directly, not reported second-hand —
+and `dev.epicgames.com`'s MetaHuman licensing and DCC-export pages serve an empty shell to an
+automated request.
+
+The Epic Content License Agreement quoted below was therefore retrieved from the **Internet Archive
+capture of Epic's own page dated 2026-09-15**, which the archive's index confirms is the most recent
+capture, twelve days before this was written. The full text rendered, and the clauses below are
+quoted from it verbatim. That is an archived copy of an Epic-authored agreement, and it is not the
+live document; a human should confirm against the live page before anything irreversible rests on
+it.
+
+The OpenRigLogic material in §9.4.2 is different and stronger: it was fetched **first-hand from
+Epic's own repository** through GitHub's API in this session.
+
+**There is a specific trap on this topic, and I walked into the edge of it before reading the
+agreement.** A web search returns confident statements that MetaHuman may now be used outside
+Unreal Engine, and Epic's own Fab page says of the Fab Standard License *"usage is not limited to
+Unreal Engine"*. Both are true of the things they describe and **neither is true of MetaHuman
+Content**, which is carved out by its own addendum. The summaries and the agreement disagree, and
+the agreement governs.
+
+#### 9.4.2 What is unambiguously open: the *technology*, and only the technology
+
+Epic publishes **OpenRigLogic** at `github.com/EpicGames/OpenRigLogic`. Its `LICENSE`, fetched
+first-hand:
+
+> "MIT License
+>
+> Copyright (c) 2026 Epic Games, Inc.
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+> associated documentation files (the "Software"), to deal in the Software without restriction,
+> including without limitation the rights to use, copy, modify, merge, publish, distribute,
+> sublicense, and/or sell copies of the Software…"
+
+GitHub reports `spdx_id: MIT`. Its README:
+
+> "OpenRigLogic contains the RigLogic and DNA libraries that enable you to load a MetaHuman character
+> with the same runtime rig evaluation as Unreal Engine. Both are available as native C++ libraries
+> with Python bindings, ready to integrate into third-party content creation tools."
+>
+> "OpenRigLogic supports a wide range of platforms that includes console platforms and mobile devices
+> in addition to Windows, Linux, and macOS."
+
+and Epic's Devkit documentation, which did render:
+
+> "The MetaHuman Devkit is an evolving collection of MetaHuman character technology that you can
+> integrate into the platform or application of your choice **outside of Unreal Engine**."
+
+**This is real and it is genuinely interesting for MineWorld.** An MIT-licensed, platform-independent
+C++ library that evaluates a MetaHuman rig is something a Presentation Pack could link against under
+`REUSE_POLICY.md`'s adopt-first preference, and it is the part of the MetaHuman story that is not an
+Unreal lock-in.
+
+**And it says nothing whatever about the characters.** Epic's Devkit documentation covers the
+libraries' licensing and does not address redistribution of MetaHuman character assets. A licence on
+a rig evaluator is not a licence on a face. Conflating them would be the same class of error §10.3
+found in `ARC-18`'s cost summary, and it is the error the search results above invite.
+
+#### 9.4.3 What the agreement actually says about the characters
+
+From the Epic Content License Agreement (capture of `unrealengine.com/eula/content`, 2026-09-15).
+Four clauses decide this, and the fourth decides it twice over.
+
+**The MetaHuman Content Addendum defines the object and puts it in one box.**
+
+> "This MetaHuman Content Addendum governs your use of digital human characters made available
+> through MetaHuman Creator that you download ("MetaHuman Content"). […] MetaHuman Content includes
+> both digital human characters created by your use of MetaHuman Creator and digital human characters
+> created by or on behalf of Epic."
+>
+> "**1. UE-Only Content.** MetaHuman Content that you acquire may only be used and shared as UE-Only
+> Content."
+
+**And §5(a) says what that box is.**
+
+> ""UE-Only Content" means Licensed Content that is designated as only permitted for use in
+> conjunction with Unreal Engine and Unreal Engine-based products as designated by Epic, such as
+> Twinmotion."
+
+**§3(a) governs shipping it inside something.**
+
+> "You may Distribute Licensed Content incorporated in object code format only as an inseparable part
+> of a Project to end users."
+
+**§4 governs shipping it as a file, which is what a git repository does — and this is the clause
+that ends the question.**
+
+> "**4. How You Can Share the Licensed Content When It Isn't Part of a Project.** Except as otherwise
+> stated in the Service-Specific Terms […], you may **not Distribute Licensed Content in source
+> format to third parties** except to employees, affiliates, and contractors who are utilizing the
+> Licensed Content in good faith to develop a Project on your behalf. Those employees, affiliates,
+> and contractors you share Licensed Content with are **not permitted to further Distribute** the
+> Licensed Content (including as incorporated in a Project) and **must delete** the Licensed Content
+> once it is no longer needed for developing a Project on your behalf."
+
+and §5(c) closes the remaining doors:
+
+> "ii. sell, rent, lease, or transfer Licensed Content on a "stand-alone basis" (Projects must
+> reasonably add value beyond the value of the Licensed Content, and the Licensed Content must be
+> merely a component of the Project and not the primary focus of the Project);"
+>
+> "vii. except where explicitly allowed by this Agreement, collect, aggregate, mine, scrape, or
+> otherwise use any Licensed Content for the purposes of publishing, selling, distributing or
+> otherwise making the content available to others to use, download or copy;"
+
+**A public MIT repository is "Distribute Licensed Content in source format to third parties" in the
+plainest possible sense, and the only exception is contractors who must then delete it.** There is
+no reading of §4 under which committing a MetaHuman to `github.com/yuema137/MineWorld` is permitted.
+
+**The Fab Standard License, which governs MetaHuman sample content and Fab assets generally, says the
+same thing in its own words.** From Epic's own summary on the Fab EULA page — and the page is careful
+that this summary *"is for your convenience only and is not legally binding"*:
+
+> You may: […] "Use the assets with any compatible tools (usage is not limited to Unreal Engine)";
+> "Share the asset (directly, **via a private repository** or in the Project) with your collaborators
+> that are working on the Project with you"
+>
+> You may not: "**Resell or redistribute the asset for free on a standalone basis** or allow others to
+> do the same"
+
+A **private** repository shared with **collaborators on the Project** is precisely the opposite of
+what MineWorld needs, and *"or allow others to do the same"* is the clause that a fork of an MIT
+repository would violate on the forker's behalf.
+
+#### 9.4.4 One tension I am not resolving, and do not need to
+
+The MetaHuman Content Addendum says MetaHuman Content is UE-Only. Epic's Devkit exists to use
+MetaHuman technology *"outside of Unreal Engine"*, and the OpenRigLogic README describes a DCC Export
+that produces DNA files for driving a character with those libraries in a third-party tool. Those
+two statements are in tension, and I can see at least three ways they might be reconciled — that
+authoring in a DCC feeding an Unreal project counts as *"in conjunction with Unreal Engine"*, that a
+newer agreement exists that the archive has not captured, or that Epic's practice is ahead of its
+terms.
+
+**I am not going to pick one, and the DEP-8 answer does not depend on it.** §4's prohibition on
+distributing Licensed Content in source format to third parties is independent of the UE-Only
+designation and applies to all Licensed Content. Whichever way the tension resolves, a MetaHuman
+cannot be committed to a public repository.
+
+#### 9.4.5 What a portable MetaHuman export contains, and what it leaves out
+
+Technical rather than legal, first-hand from Epic's OpenRigLogic README, and it lands squarely on
+§9.2's table:
+
+> "They can be exported using the **Export > DCC Export** tool. The exported package contains a DNA
+> file for the head and a DNA file for the body—the inputs needed to drive the character with the
+> libraries in OpenRigLogic. The character's textures are also included. **Groom and clothing
+> information is not currently part of this package.**"
+
+The portable export carries head, body and textures. It does **not** carry the groom — the strand
+hair that is MetaHuman's strongest contribution and an `ARC-17` §4 hard-fail category — and it does
+not carry clothing, which §9.2 already showed MetaHuman does not solve. So even setting the licence
+aside entirely, what travels out of Unreal is the half of the character that was never the problem.
+
+#### 9.4.6 The environment half, found in the same document
+
+Not asked for, and it belongs in the record because §8.3 prices environment assets and because
+`DEP-8` names *"Unreal marketplace packs"* as excluded without citing the clause. From the same
+agreement's Megascans Addendum:
+
+> "**e. Free Assets.** Megascans Content that you acquire from Epic under an account not enrolled in
+> a Megascans plan may only be used for your internal evaluation purposes. Such Megascans Content
+> **may not be distributed to any party, either in source format or as part of a Project**."
+>
+> "**c. Unreal Engine Plan (UE-Only Content).** Megascans Content that you acquire from Epic while
+> your account is enrolled in an Unreal Engine plan may only be used and shared as UE-Only Content."
+
+with a Personal plan capped at $100,000 annual gross revenue and an Indie plan at $2,000,000.
+
+**So Quixel Megascans fails `DEP-8` too, and the free tier fails it harder than the paid tiers** —
+free-tier Megascans may not be distributed *even inside a shipped Project*, only evaluated
+internally. `DEP-8`'s exclusion of Unreal marketplace packs is correct, and this is the citation it
+was missing.
+
+That removes the most obvious way Unreal might have shortened §8.3's environment estimate. Poly Haven
+and ambientCG CC0 remain the route, in either engine, exactly as `DEP-8` already decided.
+
+### 9.5 The verdict against `DEP-8`
+
+```text
+MetaHuman TECHNOLOGY       OpenRigLogic — the RigLogic and DNA libraries — is MIT, verified
+                           first-hand from Epic's own repository, and runs on Windows, Linux,
+                           macOS, consoles and mobile.
+                           → PASSES DEP-8. Redistributable. A legitimate dependency.
+
+MetaHuman CHARACTER        "MetaHuman Content that you acquire may only be used and shared as
+ASSETS                     UE-Only Content" (MetaHuman Content Addendum §1), and "you may not
+                           Distribute Licensed Content in source format to third parties"
+                           (Epic Content License Agreement §4).
+                           → FAILS DEP-8. Not "probably" — the clause is quoted.
+
+QUIXEL MEGASCANS           Free tier: "may not be distributed to any party, either in source
+                           format or as part of a Project." Unreal Engine plan: UE-Only Content.
+                           → FAILS DEP-8, and the free tier cannot even ship inside a build.
+
+FAB STANDARD LICENSE       "Share the asset … via a private repository … with your collaborators";
+(generally)                "may not … redistribute the asset for free on a standalone basis or
+                           allow others to do the same."
+                           → FAILS DEP-8 for a public repository.
+
+WHAT A PORTABLE EXPORT     head DNA, body DNA, textures. NOT groom. NOT clothing.
+WOULD CONTAIN ANYWAY       → the hair does not travel, and hair is an ARC-17 hard-fail category.
+```
+
+**The answer to `ARC-18`'s asset question is therefore: no.** Epic's asset ecosystem — MetaHuman for
+the character, Megascans for the environment — is the whole of Unreal's claimed shortcut to the
+reference plates, and none of it can be redistributed by an MIT-licensed open-source project. The
+technical shortcut is real; the licence closes it for anything MineWorld ships.
+
+**Where MetaHuman still has a legitimate role, and it should not be dismissed:**
+
+```text
+as an Unreal-only Presentation Pack   exactly what ARC-19 consequence 4 anticipates — "engine-
+                                      specific Presentation Packs stay isolated from portable
+                                      MineWorld assets." It would ship as a cooked Unreal build,
+                                      object code, inseparable part of a Project, and never as a
+                                      committed asset.
+as private, local work                ARC-9's two-layer standard: "MineWorld should not police
+                                      what someone generates for their own machine. It must be
+                                      strict about what it hands to someone else."
+OpenRigLogic as a dependency          MIT, portable, and the one part of this that a future
+                                      Presentation Pack could adopt outright.
+```
+
+**A note on `ARC-4` and `ARC-19`.** `ARC-4` excluded *"MetaHuman-level assets"* from the default
+character on a cost-to-community argument, and `ARC-19` superseded that exclusion and directed that
+MetaHuman be evaluated. This evaluation reaches the same practical answer `ARC-4` did — the default
+character is not a MetaHuman — for an entirely different and much harder reason: not that it would
+be too expensive for contributors, but that **MineWorld may not redistribute it at all**. That is a
+`DEP-8` fact rather than an `ART_DIRECTION.md` preference, and `ARC-19` consequence 4 is where it
+belongs. It does not revive `ARC-4`'s reasoning, and it does not change §5.4's finding that
+`presentation/mineworld-default/3D/references/README.md` still states the superseded version of it.
+
+### 9.6 The structural consequence, which holds whatever the licence says
+
+Set the licence aside for a paragraph, because there is a conclusion that does not depend on it.
+
+A MetaHuman is an **Unreal-native asset**: a DNA description, a Blueprint assembly, a strand groom,
+a control rig and LOD chain, authored against Unreal's skeleton and Unreal's renderer. Even in the
+most permissive licensing case imaginable, it is not a glTF character that a Godot client could
+load. `ARC-19` consequence 4 anticipated exactly this shape of asset:
+
+> An ecosystem asset usable only inside one engine is recorded as exactly that, and engine-specific
+> Presentation Packs stay isolated from portable MineWorld assets.
+
+So the structural cost of adopting MetaHuman for the default character is:
+
+```text
+Godot reference client    still needs its own Alice, built the DEP-8 way
+                          (MPFB2 mesh, CMU motion, retargeted through Blender)
+Unreal client             gets a MetaHuman Alice
+the project               now maintains TWO default characters that must stay recognisably the
+                          same person, judged against one reference by ARC-17's rules
+```
+
+**MetaHuman does not remove the Godot character cost. It adds a second character.** That is a
+maintenance obligation with a fidelity gate attached to it — `ARC-20` §2 requires the A/B to compare
+like with like, and two independently built characters of the same person drifting apart is the
+likeliest way that comparison stops measuring anything.
+
+This does not argue against the spike. `ARC-18` §4 explicitly leaves open the outcome in which both
+clients are kept, *"which would be the strongest demonstration of the framework claim"*. It argues
+that the cost of that outcome includes a duplicated character pipeline, and `ARC-18`'s cost
+paragraph did not.
+
+### 9.7 What it would cost, with the confidence stated
+
+Character work only. The environment estimate is §8.3.
+
+| Path | Estimate | Confidence |
+| --- | --- | --- |
+| Unreal, via MetaHuman: steps 2, 3, 4, 7 of §9.3 | 1–2 weeks | **Low-medium.** The pipeline is well documented and I have not run it. Step 1 — getting a head that resembles a specific person from a single image — is the unknown, and is why the range is not tighter. |
+| Garments and accessories: steps 1, 5, 6 | 2–4 weeks | **Low.** Identical in both engines, never done once in this project, and the thing the last attempt failed on. |
+| Godot, the `DEP-8` route: MPFB2 mesh, CMU motion, Blender retarget, hair cards | 4–8 weeks | **Low.** `DEP-8` records this as *"a pipeline to build … not a product to find"*, and `VIS-3D-GODOT-1` is the partial evidence — its rig, retarget, animation, cadence and ground contact were kept, so that half is done and the appearance half is not. |
+
+Read the table as: **Unreal plausibly saves two to six weeks on one character, entirely on the
+face-skin-hair-rig half, and saves nothing on garments** — *and then §9.5 takes the saving away for
+anything MineWorld ships*, because an asset the project may not redistribute is not a saving. It is
+a local convenience that produces something that can only leave the building inside a cooked Unreal
+build.
+
+The estimate is kept in the table anyway, because it is the right number for the one scenario in
+which it applies: an Unreal-only Presentation Pack, shipped as a build rather than as an asset,
+which `ARC-19` consequence 4 explicitly contemplates.
+
+The environment cost from §8.3 — five to ten weeks, engine independent — remains the larger number
+in every scenario. `ARC-18` is right that asset production and not the renderer's ceiling is the
+real cost. It is wrong, on this evidence, that Unreal materially shortens it: the shortening is
+confined to one part of one deliverable.
+
+### 9.8 What was not evaluated, so its absence is not read as a verdict
+
+`ARC-19` consequence 3 names five candidate routes. This section evaluated one.
+
+```text
+evaluated        MetaHuman
+NOT evaluated    Character Creator (Reallusion), Blender with MPFB2, image-to-3D reconstruction,
+                 CC0 groom and animation libraries
+```
+
+Two of those are worth a specific note for whoever picks this up, and neither is a finding:
+
+- **Character Creator** is a paid commercial tool whose output licensing for redistribution is its
+  own forensics job of exactly the kind §9.4 is, and it is *engine-neutral* in a way MetaHuman is
+  not, which under `ARC-19` consequence 4 is a structural advantage worth pricing.
+- **Image-to-3D reconstruction** speaks directly to step 1 of §9.3 — the step this section identifies
+  as the unknown — and `ARC-9` already establishes generation as a first-class candidate route with
+  a provenance requirement attached.
+
+An honest comparison of the four remaining routes is the work `ARC-19` actually asked for, and this
+spike answered only the part that was in front of it.
+
+---
 
 ## 10. Unreal's own licence and cost, verified — and `ARC-18`'s summary corrected
 
@@ -1314,3 +1783,72 @@ The paragraph that should replace `ARC-18`'s cost summary, and which has been pl
 because it is MIT and MineWorld can stay permissively licensed end to end, and nothing in the current
 EULA weakens that reasoning. What changes is that the cost paragraph beneath it now says what Epic's
 terms actually say.
+
+---
+
+## 11. What phase two should do, in order
+
+Phase two needs the engine and therefore needs the operator. This is what it should do when it has
+one, ordered so that the cheapest disconfirming evidence comes first.
+
+```text
+1  install, and check the two unknowns that could stop everything
+      IWebSocket in a packaged build on macOS (§7.1)
+      whether this machine clears MetaHuman's stated GPU floor (§7.9, §9.3)
+
+2  run the frame conformance fixture BEFORE any scene work
+      §3.5's conversion is derived and cited and unexecuted; a wrong sign discovered
+      after a town is built is discovered in the worst place (§3.6)
+
+3  the proof of concept, §8.1
+      connect · project Alice · walk · arrive · talk · first and third person
+
+4  the evidence path, early and not late
+      whether an Unreal client can produce AC-13 fixtures without a display is the
+      risk §8.2 could not price
+
+5  only then, VIS-3D-UE5-1
+      and per ARC-20 §2, only against a Godot track that has been pushed properly,
+      noting that on this machine Unreal's Nanite is Beta and Lumen hardware ray
+      tracing is Experimental (§7.9)
+```
+
+Two things that are **not** phase two's to decide. `ARC-20` §5: whether Godot stays default, Unreal
+is promoted, or both are kept is the operator's product decision on `VIS-3D-AB-1`. And §5.3 — the
+missing place-to-place spatial contract — belongs with movement and travel, is engine-neutral, and
+must not be resolved inside a renderer.
+
+---
+
+## 12. Everything this document does not know
+
+Collected in one place, because a spike that reports only what it found is half a report.
+
+**Not executed.** Unreal was never installed or run. §3.5's conversion, §7's whole plan, and every
+number in §8 are derived and cited, not measured. The only thing in this document that was measured
+is §2 and §3's architecture test, which needed no engine.
+
+**Not documented by Epic, or not reachable.**
+
+```text
+IWebSocket's supported platforms, and packaged-build behaviour        §7.1
+glTF's axis and unit conversion on import — Epic documents it for
+   FBX and is silent for glTF; do not assume either conversion        §7.8
+whether EFlags::None specifically yields FJsonValueNumber             §7.1, inference not quote
+whether an Apple M5 clears a floor Epic expressed as "M2 Ultra"       §7.9, §9.3
+```
+
+**Not verifiable from where this ran.** Epic's live licence pages return HTTP 403 to automated
+requests, so §10 rests on dated Internet Archive captures of Epic's own pages, and Epic's EULA
+change log has no captures at all. A human must open the live pages before a licensing decision
+rests on this (§10.1).
+
+**Not tested, where documentation was not enough.** Godot's documentation affirms glTF loading in
+exported projects and is silent on whether that extends to a rigged, animated character, where
+Epic's explicitly excludes it. That silence should be closed by a test, not by an inference (§7.8).
+
+**Not researched.** Character Creator, MPFB2, image-to-3D and CC0 groom libraries, which `ARC-19`
+names alongside MetaHuman (§9.8).
+
+**Not this spike's to answer.** Whether compiling against Engine headers affects public MIT
+distribution of MineWorld's own source; only Epic can settle it (§10.4).
