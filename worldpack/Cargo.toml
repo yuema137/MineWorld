@@ -1,0 +1,24 @@
+[package]
+name = "mineworld-worldpack"
+description = "Reads a MineWorld World Pack — world.yaml, people/, places/ — validates it, and loads the world it describes: systems installed, entity keys resolved to ids deterministically, and initial state stated as genesis facts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# A World Pack enables System Packs, so loading one means installing them. This is the one-way
+# dependency of ENGINEERING_STANDARDS §4 pointing the right way: World Pack → Systems → kernel.
+mineworld-conversation = { workspace = true }
+mineworld-presence = { workspace = true }
+serde = { workspace = true }
+serde-saphyr = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+# The tests encode an action payload the way a client does — with the contract's own serde, because a
+# System Pack's codec is private to it, which is the point of `DEP-5`'s choice reaching the wire.
+serde_json = { workspace = true }

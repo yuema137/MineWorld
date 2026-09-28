@@ -1,15 +1,20 @@
 # server/
 
-The process that hosts a world: **`mineworld-server`**, a crate and a binary. One authoritative
-world, HTTP for control and status, WebSocket for the live connection.
+What hosts a world: **`mineworld-server`**, a library. One authoritative world, HTTP for control and
+status, WebSocket for the live connection.
 
 ```text
-mineworld-server --listen 127.0.0.1:7878
+mineworld server worlds/social-cafe --listen 127.0.0.1:7878
 
 GET /health   is this process up
 GET /status   what the world is: time, entities, systems, seats, connected clients
 GET /ws       the live connection
 ```
+
+The binary is [`tools/cli`](../tools/cli), not this crate, and deliberately: hosting a world means
+loading a World Pack, which means installing System Packs, and a transport that depended on those
+would invert the one-way dependency rule. `WorldHost::spawn` takes a closure that assembles a world
+and serves whatever it is given — the CLI is what supplies one.
 
 Each connected client gets what **its** observer perceives — not a world dump, and not a filtered
 copy of one. It submits requests; the server allocates their identity and the world decides what
@@ -21,6 +26,4 @@ Read next:
 - [`docs/NETWORKING.md`](../docs/NETWORKING.md) — why the server is authoritative, and why there is
   only one binary.
 
-The world this binary hosts is empty until a World Pack can be loaded, which is the next PR. The
-crate is what a world is hosted *by*: `WorldHost::spawn` takes a closure that assembles the world,
-its systems, its seats and its perception, and serves whatever it is given.
+- [`tools/cli/README.md`](../tools/cli/README.md) — the command that runs a world.

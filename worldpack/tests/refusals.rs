@@ -1,0 +1,484 @@
+//! A bad pack is refused **by name**, saying what is wrong and where.
+//!
+//! This is the acceptance criterion this crate exists for as much as loading is. A World Pack is
+//! hand-written, so being wrong is its normal state during authoring, and the difference between a
+//! usable format and an unusable one is entirely in what happens then: a panic, a silently ignored
+//! field or *invalid world* all fail equally.
+//!
+//! Each test writes a real pack directory to disk, reads it, and asserts the variant and the values
+//! the refusal carries — not the message text, which is prose and may be improved. What the message
+//! *must* contain is checked once, in [`every_refusal_names_the_file_it_is_about`], because "and
+//! where" is half the requirement.
+
+use std::path::{Path, PathBuf};
+
+use mineworld_contracts::{EntityKey, SystemId};
+use mineworld_kernel::KernelError;
+use mineworld_worldpack::{ContentKind, Declared, PackError, WorldPack};
+
+/// A pack directory written for one test, under cargo's own temporary directory for this target.
+///
+/// Named after the test, and named after the pack's own id: a pack's id must be its directory's name,
+/// so a fixture that got that wrong would be refused for the wrong reason.
+struct Fixture {
+    root: PathBuf,
+}
+
+impl Fixture {
+    /// An empty directory called `id`, with `people/` and `places/` in it.
+    fn new(id: &str) -> Self {
+        let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(id);
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("people")).expect("a writable temporary directory");
+        std::fs::create_dir_all(root.join("places")).expect("a writable temporary directory");
+        Self { root }
+    }
+
+    /// A pack with a legal manifest naming one place and one person, both written. The starting point
+    /// for every test that breaks exactly one thing.
+    fn sound(id: &str) -> Self {
+        let fixture = Self::new(id);
+        fixture.manifest(
+            "
+systems:
+  - presence
+places:
+  - cafe
+population:
+  - alice
+",
+        );
+        fixture.write("places/cafe.yaml", "tags: [cafe]\n");
+        fixture.write(
+            "people/alice.yaml",
+            "tags: [barista]\nlocation:\n  place: cafe\n",
+        );
+        fixture
+    }
+
+    /// Writes `world.yaml`: the identity block, which every pack needs, plus `body`.
+    fn manifest(&self, body: &str) {
+        let id = self.id();
+        self.write(
+            "world.yaml",
+            &format!("world:\n  id: {id}\n  name: A Test World\n{body}"),
+        );
+    }
+
+    fn write(&self, relative: &str, contents: &str) {
+        let path = self.root.join(relative);
+        std::fs::write(&path, contents).unwrap_or_else(|error| {
+            panic!("the fixture must be writable: {} — {error}", path.display())
+        });
+    }
+
+    fn remove(&self, relative: &str) {
+        std::fs::remove_file(self.root.join(relative)).expect("the fixture file exists");
+    }
+
+    fn id(&self) -> String {
+        self.root
+            .file_name()
+            .expect("a named directory")
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    fn read(&self) -> Result<WorldPack, PackError> {
+        WorldPack::read(&self.root)
+    }
+
+    /// The refusal this pack produces. Panics if it loads, because a test that silently passed on a
+    /// pack that turned out to be valid would assert nothing.
+    fn refusal(&self) -> PackError {
+        match self.read() {
+            Ok(_) => panic!("this pack must be refused, and it loaded"),
+            Err(error) => error,
+        }
+    }
+}
+
+fn key(value: &str) -> EntityKey {
+    EntityKey::new(value).expect("a legal authoring key")
+}
+
+#[test]
+fn a_path_that_is_not_a_directory_is_refused_by_name() {
+    let refusal = WorldPack::read("worlds/social-cafe/world.yaml")
+        .expect_err("a World Pack is a directory, not a file");
+
+    assert!(
+        matches!(refusal, PackError::NotAPackDirectory { .. }),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_pack_with_no_manifest_is_refused_by_name() {
+    let fixture = Fixture::sound("no-manifest");
+    fixture.remove("world.yaml");
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(refusal, PackError::FileMissing { ref path } if path.ends_with("world.yaml")),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_declared_person_with_no_file_is_refused_by_name() {
+    let fixture = Fixture::sound("missing-person-file");
+    fixture.remove("people/alice.yaml");
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(
+            refusal,
+            PackError::ContentFileMissing { ref key, kind: ContentKind::Person, ref path }
+                if *key == self::key("alice") && path.ends_with("people/alice.yaml")
+        ),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_person_file_the_manifest_does_not_list_is_refused_by_name() {
+    let fixture = Fixture::sound("undeclared-person-file");
+    fixture.write("people/carol.yaml", "tags: [regular]\n");
+
+    let refusal = fixture.refusal();
+
+    // The commonest authoring mistake there is: the file is written, the list is not updated, and a
+    // loader that ignored the file would leave the author with a missing person and no reason why.
+    assert!(
+        matches!(
+            refusal,
+            PackError::ContentFileNotDeclared {
+                ref key,
+                kind: ContentKind::Person,
+                list: Declared::Population,
+                ..
+            } if key == "carol"
+        ),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn an_unknown_system_is_refused_by_name_and_lists_the_ones_that_exist() {
+    let fixture = Fixture::new("unknown-system");
+    fixture.manifest("systems:\n  - presence\n  - economy\n");
+
+    let refusal = fixture.refusal();
+
+    let PackError::UnknownSystem { system, available } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*system, SystemId::new("economy").expect("a legal name"));
+    assert!(
+        available.contains("presence") && available.contains("conversation"),
+        "an author who typed a system that does not exist is shown the ones that do: {available}",
+    );
+}
+
+#[test]
+fn a_system_enabled_twice_is_refused_by_name() {
+    let fixture = Fixture::new("system-twice");
+    fixture.manifest("systems:\n  - presence\n  - presence\n");
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(refusal, PackError::SystemDeclaredTwice { ref system }
+            if *system == SystemId::new("presence").expect("a legal name")),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_key_declared_twice_is_refused_by_name_and_says_where_both_were() {
+    let fixture = Fixture::new("duplicate-key");
+    fixture.manifest(
+        "
+systems:
+  - presence
+places:
+  - cafe
+population:
+  - cafe
+",
+    );
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(
+            refusal,
+            PackError::KeyDeclaredTwice {
+                ref key,
+                first: Declared::Places,
+                second: Declared::Population,
+            } if *key == self::key("cafe")
+        ),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_person_in_a_place_that_does_not_exist_is_refused_by_name() {
+    let fixture = Fixture::sound("person-in-no-such-place");
+    fixture.write(
+        "people/alice.yaml",
+        "tags: [barista]\nlocation:\n  place: park\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::PersonInUnknownPlace {
+        person,
+        place,
+        known,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*person, key("alice"));
+    assert_eq!(*place, key("park"));
+    assert!(known.contains("cafe"), "the places it does have: {known}");
+    assert!(path.ends_with("people/alice.yaml"));
+}
+
+#[test]
+fn a_bad_field_is_refused_by_name_and_located_in_its_file() {
+    let fixture = Fixture::sound("bad-field");
+    fixture.write(
+        "people/alice.yaml",
+        "tags: [barista]\nlocatoin:\n  place: cafe\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::Malformed { path, detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    assert!(path.ends_with("people/alice.yaml"));
+    assert!(
+        detail.contains("locatoin"),
+        "a misspelled field is named, not ignored: {detail}",
+    );
+    assert!(
+        detail.contains('2'),
+        "and located — line 2 is where it was written: {detail}",
+    );
+}
+
+#[test]
+fn a_field_of_the_wrong_shape_is_refused_by_name() {
+    let fixture = Fixture::sound("wrong-shape");
+    // A position is millimetres as an integer. There are no floats anywhere in MineWorld, because a
+    // float in the event log would make a replay platform-dependent (`AC-12`, `DD-5`).
+    fixture.write(
+        "people/alice.yaml",
+        "location:\n  place: cafe\n  position:\n    x: 1.5\n    y: 0\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(refusal, PackError::Malformed { ref path, .. }
+            if path.ends_with("people/alice.yaml")),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_repeated_yaml_key_is_refused_rather_than_resolved() {
+    let fixture = Fixture::new("duplicate-mapping-key");
+    fixture.write(
+        "world.yaml",
+        "world:\n  id: duplicate-mapping-key\n  name: T\nsystems: [presence]\nsystems: [conversation]\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    // The other reading of "a duplicate key": one YAML mapping with the same key twice. A parser that
+    // silently took the last wins would give the author a world composed of a system they deleted.
+    let PackError::Malformed { detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    assert!(
+        detail.contains("duplicate") && detail.contains("systems"),
+        "the repeated key is named and located: {detail}",
+    );
+}
+
+#[test]
+fn an_illegal_name_is_refused_in_the_contracts_own_words() {
+    let fixture = Fixture::sound("illegal-key");
+    fixture.manifest(
+        "
+systems:
+  - presence
+places:
+  - cafe
+population:
+  - Alice
+",
+    );
+
+    let refusal = fixture.refusal();
+
+    // The identifier rule lives in `contracts/src/ids.rs` and is applied by the contract's own
+    // deserializer, so the complaint is the contract's rather than a second implementation's.
+    let PackError::Malformed { path, detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    assert!(path.ends_with("world.yaml"));
+    assert!(
+        detail.to_lowercase().contains("lowercase") || detail.contains("Alice"),
+        "the rule that was broken, or at least the value that broke it: {detail}",
+    );
+}
+
+#[test]
+fn a_pack_whose_id_is_not_its_directory_is_refused_by_name() {
+    let fixture = Fixture::new("not-lakewood");
+    fixture.write(
+        "world.yaml",
+        "world:\n  id: lakewood\n  name: Lakewood\nsystems: []\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(refusal, PackError::PackIdIsNotItsDirectory { ref declared, ref directory }
+            if declared == "lakewood" && directory == "not-lakewood"),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_seat_that_is_not_one_of_the_people_is_refused_by_name() {
+    let fixture = Fixture::sound("seat-is-nobody");
+    fixture.manifest(
+        "
+systems:
+  - presence
+places:
+  - cafe
+population:
+  - alice
+seats:
+  - cafe
+",
+    );
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(refusal, PackError::SeatIsNotOneOfThePeople { ref seat }
+            if *seat == key("cafe")),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn content_that_needs_a_system_the_pack_did_not_enable_is_refused_by_name() {
+    let fixture = Fixture::sound("location-without-presence");
+    fixture.manifest(
+        "
+systems: []
+places:
+  - cafe
+population:
+  - alice
+",
+    );
+
+    let refusal = fixture.refusal();
+
+    // The pack places somebody without enabling the system that owns placement. Refused as the
+    // author's missing line rather than accepted as a world where everybody is quietly nowhere.
+    assert!(
+        matches!(
+            refusal,
+            PackError::ContentNeedsASystem { ref subject, content: "location", ref system, .. }
+                if *subject == key("alice") && *system == SystemId::new("presence").expect("legal")
+        ),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_composition_the_kernel_refuses_is_reported_in_the_kernels_own_words() {
+    let fixture = Fixture::sound("conversation-without-presence");
+    fixture.manifest(
+        "
+systems:
+  - conversation
+places:
+  - cafe
+population:
+  - alice
+",
+    );
+    // No location, so the pack-level capability check passes and the refusal comes from the kernel:
+    // `conversation` declares a dependency on `presence`, and a world is composed or it is not.
+    fixture.write("people/alice.yaml", "tags: [barista]\n");
+
+    let pack = fixture.read().expect("the pack itself is consistent");
+    let refusal = match pack.load(mineworld_contracts::WorldTime::EPOCH) {
+        Ok(_) => panic!("a world with conversation and no presence cannot be composed"),
+        Err(error) => error,
+    };
+
+    assert!(
+        matches!(
+            refusal,
+            PackError::Composition {
+                source: KernelError::SystemDependencyMissing { .. }
+            }
+        ),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn every_refusal_names_the_file_it_is_about() {
+    // "By name" is half the requirement; "and where" is the other half. Every refusal that concerns a
+    // file must mention that file in its own message, because the author is reading the message and
+    // not matching on the variant.
+    let cases: Vec<(&str, PackError)> = vec![
+        ("world.yaml", {
+            let fixture = Fixture::sound("named-missing-manifest");
+            fixture.remove("world.yaml");
+            fixture.refusal()
+        }),
+        ("people/alice.yaml", {
+            let fixture = Fixture::sound("named-missing-person");
+            fixture.remove("people/alice.yaml");
+            fixture.refusal()
+        }),
+        ("people/alice.yaml", {
+            let fixture = Fixture::sound("named-bad-field");
+            fixture.write("people/alice.yaml", "nmae: Alice\n");
+            fixture.refusal()
+        }),
+        ("people/alice.yaml", {
+            let fixture = Fixture::sound("named-unknown-place");
+            fixture.write("people/alice.yaml", "location:\n  place: park\n");
+            fixture.refusal()
+        }),
+    ];
+
+    for (expected, refusal) in cases {
+        let message = refusal.to_string();
+        assert!(
+            message.contains(expected),
+            "a refusal about {expected} must say so: {message}",
+        );
+    }
+}

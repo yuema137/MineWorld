@@ -17,6 +17,25 @@
 //! reduce     every enabled subscriber applies the fact to state it owns, in registration order
 //! ```
 //!
+//! # And the one thing that happens before any of it: genesis
+//!
+//! A world has to start with something true of it, and component state is writable only by its
+//! owning system while resolving an action or reacting to a fact. So a World Pack's initial state
+//! arrives as [`World::genesis`]: the same recording and the same reduction as above, with
+//! [`Causation::WorldGenesis`] in place of a request that never happened.
+//!
+//! ```text
+//! dispatch   Causation::Action(id)   provenance names the emitting system and the request
+//! genesis    Causation::WorldGenesis provenance names the owning system and NO request
+//! ```
+//!
+//! That second line is the whole of the decision. The alternative — writing components directly at
+//! assembly, or inventing an `ActionId` for state nobody requested — would leave a world whose
+//! initial state either has no cause in its log or claims a cause that never existed. `AC-9`
+//! requires every mutation to trace to something, and `contracts/src/event.rs` already says what
+//! initial state traces to: "a loaded World Pack's initial facts are caused by this and by nothing
+//! else."
+//!
 //! # Three things dispatch will not do
 //!
 //! **It does not interpret a payload.** An action's and an event's payloads are bytes the declaring
@@ -215,6 +234,128 @@ impl World {
         intent: &ActionIntent,
         at: WorldTime,
     ) -> Result<Dispatched, KernelError> {
+        self.note_dispatch();
+        self.dispatcher(at).dispatch(intent)
+    }
+
+    /// States what is true of this world as it comes into existence, and reduces those facts into
+    /// the state their owners hold.
+    ///
+    /// This is how a World Pack seeds component state, and it is the only way: a component is
+    /// written by its owning system, while resolving or reacting, so initial state has to be a fact
+    /// the owning system reduces. What genesis supplies is the fact — and the causation that makes
+    /// it honest.
+    ///
+    /// ```text
+    /// identity      allocated from this world's own event counter, continuing into dispatch
+    /// instant       `at`, the instant the world begins in
+    /// caused_by     Causation::WorldGenesis, always. There is no request, so none is named.
+    /// provenance    the system that owns the event type, with NO controller decision
+    /// ```
+    ///
+    /// The emitting system is read off each fact's own event type
+    /// ([`Emission::owner`](crate::Emission::owner)), never supplied by the caller: world assembly
+    /// may state facts drawn from the vocabulary its systems declared, and nothing else. A fact
+    /// whose owner is not installed, or whose owner does not declare emitting that type, is
+    /// refused by name.
+    ///
+    /// Refused once the world has dispatched anything. Genesis is assembly: a person who arrives
+    /// while a world is running arrives by *acting*, and a path that let a running world state an
+    /// uncaused fact would make the log's own claim about genesis untrue.
+    ///
+    /// Returns the facts as recorded, for the caller that has to log them (S5) or show them (S11).
+    ///
+    /// ```
+    /// # use mineworld_contracts::{
+    /// #     Causation, EntityKey, EntityType, Event, EventSchemaVersion, EventTypeId, SystemId,
+    /// #     Visibility, WorldTime,
+    /// # };
+    /// # use mineworld_kernel::{
+    /// #     Declarations, Emission, System, SystemDeclaration, SystemIdentity, SystemVersion,
+    /// #     World, owned_component,
+    /// # };
+    /// # use serde::{Deserialize, Serialize};
+    /// # struct Weather;
+    /// # impl SystemIdentity for Weather {
+    /// #     const ID: SystemId = SystemId::from_static("weather");
+    /// # }
+    /// # #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    /// # struct Season { name: String }
+    /// # owned_component! {
+    /// #     component = Season,
+    /// #     owner = Weather,
+    /// #     component_type = "season",
+    /// #     schema_version = 1,
+    /// # }
+    /// # #[derive(Serialize, Deserialize)]
+    /// # struct SeasonTurned { name: String }
+    /// # impl Event for SeasonTurned {
+    /// #     const EVENT_TYPE: EventTypeId = EventTypeId::from_static("season-turned");
+    /// #     const OWNER: SystemId = Weather::ID;
+    /// #     const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+    /// # }
+    /// # impl System for Weather {
+    /// #     const VERSION: SystemVersion = SystemVersion::new(1);
+    /// #     fn declaration(&self) -> SystemDeclaration {
+    /// #         SystemDeclaration::of::<Self>()
+    /// #             .owning::<Season>()
+    /// #             .emitting::<SeasonTurned>()
+    /// #             .subscribing_to::<SeasonTurned>()
+    /// #     }
+    /// #     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), mineworld_kernel::KernelError> {
+    /// #         tables.component::<Season>()
+    /// #     }
+    /// #     fn react(
+    /// #         &self,
+    /// #         world: &mut mineworld_kernel::WorldView<'_, Self>,
+    /// #         event: &mineworld_contracts::EventEnvelope,
+    /// #     ) -> Result<Vec<Emission>, mineworld_kernel::KernelError> {
+    /// #         let turned: SeasonTurned = serde_json::from_slice(event.payload().payload()).unwrap();
+    /// #         let subject = event.subjects()[0];
+    /// #         world.insert(subject, Season { name: turned.name })?;
+    /// #         Ok(Vec::new())
+    /// #     }
+    /// # }
+    /// # fn main() -> Result<(), mineworld_kernel::KernelError> {
+    /// let mut world = World::new();
+    /// world.install(Weather)?;
+    /// let valley = world.create_entity(EntityKey::new("valley")?, EntityType::Place)?;
+    ///
+    /// let recorded = world.genesis(
+    ///     WorldTime::EPOCH,
+    ///     vec![
+    ///         Emission::new::<SeasonTurned>(
+    ///             serde_json::to_vec(&SeasonTurned { name: "spring".to_owned() }).unwrap(),
+    ///             Visibility::Public,
+    ///         )
+    ///         .about(vec![valley]),
+    ///     ],
+    /// )?;
+    ///
+    /// assert_eq!(*recorded[0].caused_by(), Causation::WorldGenesis);
+    /// assert_eq!(recorded[0].provenance().controller_decision(), None);
+    /// assert_eq!(
+    ///     world.read().component::<Season>(valley).cloned(),
+    ///     Some(Season { name: "spring".to_owned() }),
+    ///     "the owning system reduced the fact into the state it owns",
+    /// );
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn genesis(
+        &mut self,
+        at: WorldTime,
+        facts: Vec<Emission>,
+    ) -> Result<Vec<EventEnvelope>, KernelError> {
+        if self.has_dispatched() {
+            return Err(KernelError::GenesisAfterTheWorldHasRun { facts: facts.len() });
+        }
+        self.dispatcher(at).genesis(facts)
+    }
+
+    /// One pipeline over this world at one instant. The single place a [`Dispatcher`] is built, so
+    /// that dispatch and genesis cannot end up recording or reducing differently.
+    fn dispatcher(&mut self, at: WorldTime) -> Dispatcher<'_> {
         let (systems, entities, components, relations, events) = self.dispatch_parts();
         Dispatcher {
             systems,
@@ -227,7 +368,6 @@ impl World {
             deferred: Vec::new(),
             emitted_while_reducing: BTreeSet::new(),
         }
-        .dispatch(intent)
     }
 }
 
@@ -284,10 +424,10 @@ impl Dispatcher<'_> {
             provider,
             emissions,
             &Causation::Action(intent.action_id()),
-            intent.action_id(),
+            Some(intent.action_id()),
         )?;
 
-        self.reduce(generation, intent.action_id())?;
+        self.reduce(generation, Some(intent.action_id()))?;
 
         Ok(Dispatched {
             result: ActionResult::Accepted {
@@ -298,12 +438,42 @@ impl Dispatcher<'_> {
         })
     }
 
+    /// The genesis pipeline: record what the world begins with, then reduce it exactly as dispatch
+    /// reduces what a request caused.
+    ///
+    /// Two differences from [`Dispatcher::dispatch`], and no third. Causation is
+    /// [`Causation::WorldGenesis`] rather than a request, and there is no controller decision to
+    /// name. Everything else — identity from the world's counter, the declaration check, the
+    /// subscriber order, the cascade limit — is shared code, because two recording paths that could
+    /// drift would be two accounts of one world's history.
+    ///
+    /// The emitting system comes from the fact itself. A caller may state a fact of any type an
+    /// installed system declares it emits, and nothing else: assembly composes a world out of the
+    /// vocabularies its systems brought, and inventing a fact outside them would be a World Pack
+    /// defining a rule (`MODULE_SPEC.md` §4).
+    fn genesis(mut self, facts: Vec<Emission>) -> Result<Vec<EventEnvelope>, KernelError> {
+        let mut generation = Vec::with_capacity(facts.len());
+        for fact in facts {
+            let owner = fact.owner().clone();
+            if self.systems.system(&owner).is_none() {
+                return Err(KernelError::GenesisFactHasNoInstalledOwner {
+                    system: owner,
+                    event_type: fact.event_type().clone(),
+                });
+            }
+            generation.extend(self.record(&owner, vec![fact], &Causation::WorldGenesis, None)?);
+        }
+
+        self.reduce(generation, None)?;
+        Ok(self.recorded)
+    }
+
     /// Reduction: every enabled subscriber applies each fact, in registration order, and whatever
     /// they emit is reduced in the next generation of the same instant (`BD-7`).
     fn reduce(
         &mut self,
         mut generation: Vec<EventEnvelope>,
-        decision: ActionId,
+        decision: Option<ActionId>,
     ) -> Result<(), KernelError> {
         let mut depth = 0;
         while !generation.is_empty() {
@@ -361,7 +531,7 @@ impl Dispatcher<'_> {
         emitter: &SystemId,
         emissions: Vec<Emission>,
         caused_by: &Causation,
-        decision: ActionId,
+        decision: Option<ActionId>,
     ) -> Result<Vec<EventEnvelope>, KernelError> {
         let mut recorded = Vec::with_capacity(emissions.len());
         for emission in emissions {
@@ -377,7 +547,14 @@ impl Dispatcher<'_> {
             }
 
             let id = self.ids.allocate()?;
-            let provenance = Provenance::new(emitter.clone()).from_controller_decision(decision);
+            // `None` is not a missing value: a genesis fact came from no request, and
+            // `controller_decision` is exactly the field that says so.
+            let provenance = match decision {
+                Some(decision) => {
+                    Provenance::new(emitter.clone()).from_controller_decision(decision)
+                }
+                None => Provenance::new(emitter.clone()),
+            };
             let envelope = emission.into_envelope(id, self.at, caused_by.clone(), provenance);
             self.recorded.push(envelope.clone());
             recorded.push(envelope);

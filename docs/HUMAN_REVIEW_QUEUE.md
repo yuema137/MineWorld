@@ -21,15 +21,32 @@ here does not block anything else.
 | **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | ❌ |
 | **E** | Package composition | a real world assembled from independently installable packs | ❌ |
 
-## Visual milestones
+## Default-style milestones — taste, and the operator decides
+
+These are candidates until the operator says otherwise (`ARC-11`). An agent may build and
+recommend; it may not declare something the default look.
 
 | | Milestone | State |
 | --- | --- | --- |
-| **VIS-2D-1** | Generated 2D default scene replacing the procedural art | 🚧 |
-| **VIS-3D-1** | First reusable believable MineWorld human, replacing the primitive mannequin | 🚧 |
-| **VIS-3D-2** | Integrated character and environment visual pass | ❌ |
+| **VIS-2D-1** | Generated 2D default scene replacing the procedural art | 🚧 candidate in progress |
+| **VIS-3D-1** | First believable default human replacing the primitive mannequin | 🚧 candidate in progress |
+| **VIS-3D-2** | Integrated default 3D scene, character and environment together | ❌ |
+
+## Style infrastructure — architecture, and it never waits here
+
+Tracked in [`MVP_STATUS.md`](MVP_STATUS.md), listed only so the split is visible: Presentation and
+Asset Pack interfaces, style manifest schema, provenance, generation-pipeline integration,
+renderer bindings, style switching, validation and composition. None of it blocks on a taste
+decision, and none of it may be tied to whichever style happens to be default.
 
 ---
+
+## Open questions for the operator, not blocking anything
+
+- **The project's name.** Microsoft published an unrelated "MineWorld" in 2025 — a video-generative
+  world model — with a paper, a repository and a Hugging Face presence. Purely a discoverability
+  and package-naming collision (`ARC-12`), and it blocks no engineering. Worth a deliberate
+  decision before public launch rather than discovering it in a search result.
 
 ## Accepted, not to be re-litigated
 

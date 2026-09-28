@@ -18,16 +18,31 @@
 //! `INV-13` requires that what is exposed be added deliberately.
 
 use mineworld_contracts::{EntityId, EventEnvelope, Observation, WorldTime};
-use mineworld_kernel::WorldRead;
+use mineworld_kernel::{World, WorldRead};
 
 use crate::protocol::WireObservation;
 
 /// What one perception decision is made against.
 ///
-/// Read-only by construction: it carries a [`WorldRead`], which is the same view a system's
-/// `validate` is handed, so producing an observation cannot change the world.
+/// Read-only by construction: it carries a `&World`, and [`World`] has no `&self` method that
+/// changes anything — every component write goes through a system holding its own write token
+/// (`INV-7`), and there is no interior mutability anywhere in the kernel. So producing an
+/// observation cannot change the world, for the same reason a system's `validate` cannot.
+///
+/// # Why the whole world rather than a [`WorldRead`]
+///
+/// A perception system's answer includes **affordances**, and an affordance depends on two different
+/// things: where everybody is, which is state, and whether this world still *provides* the action,
+/// which is the system registry's answer. `mineworld_presence::observe` therefore takes a `&World`,
+/// and its own documentation says why — that check has to be the kernel's route map rather than a
+/// list kept in a perception implementation, so that disabling a pack removes its affordances from
+/// every observation in the world with no edit anywhere (`AC-2`).
+///
+/// A context carrying only the stores would force every perception implementation to keep its own
+/// copy of the route map, which is the one thing it must not do. [`PerceptionContext::read`] is still
+/// here for an implementation that needs nothing but state.
 pub struct PerceptionContext<'a> {
-    world: WorldRead<'a>,
+    world: &'a World,
     observer: EntityId,
     at: WorldTime,
     recent_events: &'a [EventEnvelope],
@@ -36,7 +51,7 @@ pub struct PerceptionContext<'a> {
 impl<'a> PerceptionContext<'a> {
     /// Assembles the context for one observer at one instant.
     pub const fn new(
-        world: WorldRead<'a>,
+        world: &'a World,
         observer: EntityId,
         at: WorldTime,
         recent_events: &'a [EventEnvelope],
@@ -49,9 +64,14 @@ impl<'a> PerceptionContext<'a> {
         }
     }
 
-    /// The world, read-only.
-    pub const fn world(&self) -> &WorldRead<'a> {
-        &self.world
+    /// The world, read-only — including its composition, which is what an affordance needs.
+    pub const fn world(&self) -> &'a World {
+        self.world
+    }
+
+    /// The world's state, as the same view a system's `validate` is handed.
+    pub fn read(&self) -> WorldRead<'a> {
+        self.world.read()
     }
 
     /// Whose observation is being produced.

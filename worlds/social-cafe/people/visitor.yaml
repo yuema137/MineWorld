@@ -1,0 +1,20 @@
+# The visitor — the Person a client occupies, listed as a seat in `world.yaml`.
+#
+# Nothing in this file marks it as playable. A seat is the world host's decision, stated in
+# `world.yaml`, because whether a Person can be driven by a client is a fact about the world's
+# configuration rather than about the person.
+#
+# Placed at the door: out of conversational range of both of the others on arrival (3.2 m to Bob,
+# 4.0 m to Alice, against a three-metre range), so that walking closer is something a client can do
+# and be answered for.
+
+tags:
+  - visitor
+
+note: The player. Arrives at the door.
+
+location:
+  place: cafe
+  position:
+    x: 4600
+    y: 200

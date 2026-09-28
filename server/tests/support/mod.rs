@@ -7,13 +7,18 @@
 //! preview of them, and none of it belongs to the production crate.
 //!
 //! ```text
-//! placement   owns Room, provides `place`
+//! placement   owns Room, emits and reduces `placed`
 //! chatter     provides `speak` (an event everyone may learn of) and `whisper` (only the speaker)
 //!
 //! alice   cafe     bob     street
 //! carol   cafe     dave    street
 //! seats: alice, bob        so two clients can be two different observers
 //! ```
+//!
+//! The four people are put in their rooms by `World::genesis`: four `placed` facts, recorded as
+//! caused by the world coming into existence and reduced into `Room` by the system that owns it.
+//! Until PR 05c that was four dispatched intents carrying `ActionId`s allocated from `9_000_000`,
+//! because nothing else could write a component — the gap that PR recorded and this one closed.
 //!
 //! The two events are the point of the pack: `speak` emits with [`Visibility::Public`] and `whisper`
 //! with [`Visibility::Participants`], so one dispatch produces a fact both clients are entitled to
@@ -26,10 +31,10 @@
 #![allow(dead_code)]
 
 use mineworld_contracts::{
-    Action, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId, Affordance,
-    ComponentRecord, EntityId, EntityKey, EntityType, Event, EventEnvelope, EventRecord,
-    EventSchemaVersion, EventTypeId, Observation, PerceivedEntity, PerceivedEvent, Rejection,
-    SpatialRequirement, SystemId, Visibility, WorldTime,
+    Action, ActionIntent, ActionTypeId, Affordance, ComponentRecord, EntityId, EntityKey,
+    EntityType, Event, EventEnvelope, EventRecord, EventSchemaVersion, EventTypeId, Observation,
+    PerceivedEntity, PerceivedEvent, Rejection, SpatialRequirement, SystemId, Visibility,
+    WorldTime,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
@@ -50,14 +55,6 @@ pub const DAVE: &str = "dave";
 /// The two rooms. Alice and Carol are in one; Bob and Dave are in the other.
 pub const CAFE: &str = "cafe";
 pub const STREET: &str = "street";
-
-/// Where the request identities used during world assembly come from.
-///
-/// Far above the server's own allocator, which starts at 1, so that seeding a world cannot collide
-/// with a request a client submits. That a World Pack has to invent `ActionId`s at all in order to
-/// seed component state is a real gap — recorded in the PR ledger for PR 05c, which is the first
-/// code that will have to answer it outside a test.
-const ASSEMBLY_ACTION_ID: u64 = 9_000_000;
 
 pub fn key(value: &str) -> EntityKey {
     EntityKey::new(value).expect("a legal authoring key")
@@ -83,41 +80,18 @@ pub fn build() -> Result<HostedWorld, HostError> {
     world.install(Placement)?;
     world.install(Chatter)?;
 
-    for (index, (person, room)) in [(ALICE, CAFE), (BOB, STREET), (CAROL, CAFE), (DAVE, STREET)]
-        .into_iter()
-        .enumerate()
-    {
+    // Every person, then every fact about them: world assembly states what is true of the world it
+    // has just created, and the systems that own that state reduce it.
+    let mut facts = Vec::new();
+    for (person, room) in [(ALICE, CAFE), (BOB, STREET), (CAROL, CAFE), (DAVE, STREET)] {
         let entity = world.create_entity(key(person), EntityType::Person)?;
-        place(&mut world, entity, room, index)?;
+        facts.push(placed(entity, room));
     }
+    world.genesis(WorldTime::EPOCH, facts)?;
 
     Ok(HostedWorld::new(world)
         .seating(seats())
         .perceiving(RoomPerception))
-}
-
-/// Puts one person in one room, by dispatching the action that does it.
-fn place(
-    world: &mut World,
-    entity: EntityId,
-    room: &str,
-    nth: usize,
-) -> Result<(), mineworld_kernel::KernelError> {
-    let intent = ActionIntent::new(
-        ActionId::from_raw(ASSEMBLY_ACTION_ID + nth as u64),
-        entity,
-        ActionRecord::new::<Place>(payload(&Place {
-            room: room.to_owned(),
-        })),
-        WorldTime::EPOCH,
-    );
-    let dispatched = world.dispatch(&intent, WorldTime::EPOCH)?;
-    assert!(
-        matches!(dispatched.result(), ActionResult::Accepted { .. }),
-        "assembling the world must not be refused: {:?}",
-        dispatched.result()
-    );
-    Ok(())
 }
 
 pub fn payload<T: Serialize>(value: &T) -> Vec<u8> {
@@ -125,7 +99,7 @@ pub fn payload<T: Serialize>(value: &T) -> Vec<u8> {
 }
 
 // ---------------------------------------------------------------------------------------------
-// placement: owns where a person is, and provides the action that puts them there.
+// placement: owns where a person is, and reduces the fact the world begins with.
 // ---------------------------------------------------------------------------------------------
 
 pub struct Placement;
@@ -147,14 +121,31 @@ owned_component! {
     schema_version = 1,
 }
 
+/// The fact that puts somebody in a room, and the only thing that writes [`Room`].
+///
+/// This pack provides no action: nothing in this world asks to be placed, because placement is what
+/// the world *starts* with. So the fact is stated at genesis and reduced here, which is how a real
+/// System Pack makes its component a projection of the log rather than a parallel account of it.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Place {
+pub struct Placed {
     pub room: String,
 }
 
-impl Action for Place {
-    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("place");
+impl Event for Placed {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("placed");
     const OWNER: SystemId = Placement::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+/// One genesis fact: `entity` is in `room`.
+pub fn placed(entity: EntityId, room: &str) -> Emission {
+    Emission::new::<Placed>(
+        payload(&Placed {
+            room: room.to_owned(),
+        }),
+        Visibility::SystemInternal,
+    )
+    .about(vec![entity])
 }
 
 impl System for Placement {
@@ -163,32 +154,25 @@ impl System for Placement {
     fn declaration(&self) -> SystemDeclaration {
         SystemDeclaration::of::<Self>()
             .owning::<Room>()
-            .providing::<Place>()
+            .emitting::<Placed>()
+            .subscribing_to::<Placed>()
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
         tables.component::<Room>()
     }
 
-    /// Resolves to no event on purpose: a request may legitimately produce no recorded fact, and the
-    /// facts this pack's tests are about come from `chatter`.
-    fn resolve(
+    fn react(
         &self,
         world: &mut WorldView<'_, Self>,
-        intent: &ActionIntent,
+        event: &EventEnvelope,
     ) -> Result<Vec<Emission>, KernelError> {
-        let bytes = intent.payload().payload_for::<Place>().map_err(|_| {
-            KernelError::ActionNotResolvedBySystem {
-                system: Self::ID,
-                action_type: intent.action_type().clone(),
-            }
-        })?;
-        let request: Place =
-            serde_json::from_slice(bytes).map_err(|_| KernelError::ActionNotResolvedBySystem {
-                system: Self::ID,
-                action_type: intent.action_type().clone(),
-            })?;
-        world.insert(intent.actor(), Room { name: request.room })?;
+        if *event.event_type() != Placed::EVENT_TYPE {
+            return Ok(Vec::new());
+        }
+        let fact: Placed = serde_json::from_slice(event.payload().payload())
+            .expect("this pack's own payload, written by this pack");
+        world.insert(event.subjects()[0], Room { name: fact.room })?;
         Ok(Vec::new())
     }
 }
@@ -335,7 +319,7 @@ pub struct RoomPerception;
 
 impl Perception for RoomPerception {
     fn observe(&self, context: &PerceptionContext<'_>) -> WireObservation {
-        let world = context.world();
+        let world = context.read();
         let Some(here) = world.component::<Room>(context.observer()) else {
             // An observer the placement system knows nothing about perceives nothing. Absence of
             // knowledge, not an error.
