@@ -1,8 +1,12 @@
 extends Node
 var cam: Camera3D
 var anim := "Walk"
+## "feet" exists because a fix validated in one pose is validated in one pose:
+## the generated shoes were correct in the walk and collapsed in the stand, and
+## nothing in the body-length views showed it.
 const SHOTS := [["front", 0.0, 1.05, 2.4], ["face", 0.0, 1.60, 0.62],
-	["side", 90.0, 1.05, 2.4], ["back", 180.0, 1.05, 2.4]]
+	["side", 90.0, 1.05, 2.4], ["back", 180.0, 1.05, 2.4],
+	["feet", 38.0, 0.30, 1.05]]
 
 func _ready() -> void:
 	for i in 30:

@@ -45,6 +45,10 @@ var views := [
 	["19_cafe_third_front", Vector3(8.0, 0.2, -7.0), 200.0, 0.0, FRONT],
 	["20_mart_interior", Vector3(-1.0, 0.2, -10.0), 180.0, 1.0, FP],
 	["21_street_golden", Vector3(17.0, 0.2, -15.8), 99.0, 2.0, FP],
+	# seated figures, close: a person's contact with a chair is wrong from every
+	# angle but the one it was tuned on, so it gets its own viewpoints
+	["23_cafe_seated", Vector3(3.2, 0.2, -17.2), 128.0, -4.0, FP],
+	["24_bench_seated", Vector3(-34.0, 0.2, -20.6), 118.0, -5.0, FP],
 ]
 
 ## Two of the frames also get a head-and-shoulders crop saved beside them. The

@@ -462,9 +462,13 @@ def make_shoes(src: Glb, out: Builder, prim: dict, matmap: dict, joint_names: li
             else:
                 rw = half * 0.4
                 top = 0.05
-            # the heel gets a collar above the ankle; the toe box stays low
+            # A collar over the ankle, tapering forward. Without it there is a
+            # band of bare skin between the shoe and the trouser hem, which at
+            # a glance reads as a bare foot however solid the shoe is.
             if t <= 0.12:
-                top = max(top, (y0 + 0.098) - sole)
+                top = max(top, (y0 + 0.135) - sole)
+            elif t <= 0.30:
+                top = max(top, (y0 + 0.105) - sole)
             rw = max(rw, half * 0.35)
             ry = top * 0.5
             cy = sole + ry
@@ -485,9 +489,14 @@ def make_shoes(src: Glb, out: Builder, prim: dict, matmap: dict, joint_names: li
                 p01 = base + r * RING + k2
                 p10 = base + (r + 1) * RING + k
                 p11 = base + (r + 1) * RING + k2
-                tris += [p00, p10, p11, p00, p11, p01]
+                # Outward-facing. The first version had these the other way
+                # round, which made the shoe an inside-out tube: back-face
+                # culled, so what reached the screen was the inside of the far
+                # wall -- a flat dark sliver next to a bare-looking ankle, in
+                # every pose including the rest pose.
+                tris += [p00, p11, p10, p00, p01, p11]
         # caps
-        for r, flip in ((0, True), (len(rings) - 1, False)):
+        for r, flip in ((0, False), (len(rings) - 1, True)):
             c = len(verts)
             cz = rings[r][0][2]
             verts.append((cx, sum(v[1] for v in rings[r]) / RING, cz))
@@ -515,15 +524,24 @@ def make_shoes(src: Glb, out: Builder, prim: dict, matmap: dict, joint_names: li
 
         jidx = next(i for i, n in enumerate(joint_names) if n == foot_name)
         tidx = next(i for i, n in enumerate(joint_names) if n == toe_name)
-        # blend from the ankle to the toe joint over ~5 cm, so the front of the
-        # shoe bends with the toes and the back stays with the ankle
+        # A HARD split at the toe hinge: every vertex is 100% Foot or 100%
+        # ToeBase, never a mix.
+        #
+        # Blending the two over a few centimetres is the textbook answer and it
+        # is what broke. Linear blend skinning averages the two bones'
+        # transforms, so wherever they differ enough the blended band collapses
+        # toward the average -- the candy-wrapper artefact. In the walk pose it
+        # was invisible; in the standing pose the section flattened into a
+        # sliver beside a bare-looking ankle, which read as the barefoot bug
+        # coming back. A stiff shoe has no business being smooth across the
+        # flex point anyway, and a hard edge on a single-coloured shoe is not
+        # visible at any distance this character is seen from.
         tz = toe_z.get(toe_name, z0 + (z1 - z0) * 0.62)
         J, W = [], []
         for v in verts:
-            f = max(0.0, min(1.0, (v[2] - (tz - 0.015)) / 0.055))
-            wt = int(round(f * 255))
-            J.append((jidx, tidx, 0, 0))
-            W.append((255 - wt, wt, 0, 0))
+            front = v[2] > tz
+            J.append((tidx if front else jidx, 0, 0, 0))
+            W.append((255, 0, 0, 0))
         mname = "VitShoe" + side
         if mname not in matmap:
             matmap[mname] = out.material(mname)

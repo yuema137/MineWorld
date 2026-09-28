@@ -68,6 +68,16 @@ static func cyl(parent: Node3D, base: Vector3, radius_top: float, radius_bot: fl
 	return mi
 
 
+## Triangular prism, positioned by the centre of its bounding box. The ridge
+## runs along X, so this is a gable end when `size.z` is the building depth.
+static func prism(parent: Node3D, centre: Vector3, size: Vector3, mat: Material,
+		yaw := 0.0) -> MeshInstance3D:
+	var pm := PrismMesh.new()
+	pm.size = size
+	pm.left_to_right = 0.5
+	return _mi(pm, mat, Transform3D(Basis(Vector3.UP, yaw), centre), parent, "prism")
+
+
 static func sphere(parent: Node3D, centre: Vector3, r: float, mat: Material, segs := 12) -> MeshInstance3D:
 	var sm := SphereMesh.new()
 	sm.radius = r

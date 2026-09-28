@@ -20,6 +20,7 @@ const STREET_W1 := 21.0 # side street, east edge
 ## Multiplying past 1.0 pushes it back to the honey wood of the references.
 const BENCH_TINT := Color(1.34, 1.24, 1.06)
 
+
 static var rng := RandomNumberGenerator.new()
 
 
@@ -213,14 +214,21 @@ static func _paving(root: Node3D) -> void:
 ## windows with flower boxes, cornice, roof, and a warm interior light.
 static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: float,
 		storeys: int, wall: Material, name_txt: String, accent: Color,
-		face := 0.0, awning_on := true, seed_v := 0, inside := "") -> void:
+		face := 0.0, awning_on := true, seed_v := 0, inside := "",
+		roof_kind := "parapet", setback := 0.0) -> void:
 	var g := Node3D.new()
-	g.transform = Transform3D(Basis(Vector3.UP, face), Vector3(x, 0, front_z))
+	# A small setback breaks the dead-straight façade line. The references never
+	# show a row of units sharing one plane.
+	g.transform = Transform3D(Basis(Vector3.UP, face), Vector3(x, 0, front_z + setback))
 	root.add_child(g)
 
+	var rr := RandomNumberGenerator.new()
+	rr.seed = seed_v * 2749 + 11
 	var floor_h := 3.75
 	var ground_h := 4.30
-	var h := ground_h + (storeys - 1) * floor_h
+	# storey heights vary a little between units, which is most of what makes a
+	# roofline step rather than repeat
+	var h := ground_h + (storeys - 1) * floor_h + rr.randf_range(-0.35, 0.75)
 	var zc := depth * 0.5
 
 	var gw := w - 0.9
@@ -235,9 +243,17 @@ static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: f
 		Interior.shell(g, w, depth, h, top, gw, dx, door_w, wall)
 	# plinth
 	Build.slab(g, 0, 0.06, w, 0.4, 0, 0.55, Mats.cutstone())
-	# cornice + roof
-	Build.slab(g, 0, zc, w + 0.45, depth + 0.45, h - 0.05, 0.42, Mats.cutstone())
-	Build.slab(g, 0, zc, w + 0.1, depth + 0.1, h + 0.37, 0.25, Mats.roof())
+
+	# --- what happens above the top storey -----------------------------------
+	var crown := 0.0
+	if roof_kind == "gable":
+		crown = Roofline.gable(g, w, depth, h, wall, accent, seed_v)
+	else:
+		crown = Roofline.parapet(g, w, depth, h, wall, seed_v)
+		Build.slab(g, 0, zc, w + 0.1, depth + 0.1, h + 0.37, 0.25, Mats.roof())
+	if rr.randf() < 0.55:
+		Roofline.chimney(g, w, depth, h + 0.37, seed_v)
+	Roofline.downpipe(g, w, h, seed_v)
 
 	var joinery := Mats.paint(accent, 0.42)
 	# a room behind the window has to be visible through it
@@ -317,7 +333,13 @@ static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: f
 		Props.awning(g, Vector3(0, top - 0.12, -0.1), w - 1.0, PI, accent.lightened(0.05), 1.5)
 
 	# --- upper storeys --------------------------------------------------------
+	# one unit in three gets a projecting bay on the first floor instead of flat
+	# windows, which is what stops the façade being a plane
+	var bay_storey := 1 if (storeys > 1 and rr.randf() < 0.34) else -1
 	for s in range(1, storeys):
+		if s == bay_storey:
+			Roofline.bay(g, w, ground_h + (s - 1) * floor_h + 0.55, accent, seed_v)
+			continue
 		var wy := ground_h + (s - 1) * floor_h + 0.55
 		var n_win := maxi(2, int(w / 3.1))
 		for i in range(n_win):
@@ -339,21 +361,27 @@ static func _shop_row(root: Node3D) -> void:
 	# Two units are real rooms you can walk into. `interior.gd` explains why the
 	# rest are not: a shell costs geometry and a light budget, and the brief is
 	# better served by two complete interiors than by nine hollow ones.
+	# (x, width, storeys, wall, name, accent, awning, interior, roof, setback)
+	#
+	# Storeys, roof kind and setback are chosen per unit rather than randomised,
+	# because the skyline is a composition: two gables spaced apart, a four-
+	# storey block breaking the two-storey run, and the tallest unit NOT at the
+	# end of the row where it would read as a bookend.
 	var units := [
-		[-44.0, 11.0, 2, "stucco", "PINE & PAPER", Color(0.26, 0.31, 0.38), false, ""],
-		[-33.0, 11.0, 3, "brick", "NORTHSHORE APARTMENTS", Color(0.34, 0.27, 0.22), false, ""],
-		[-22.5, 10.0, 2, "brick_tan", "SUNRISE BAKERY", Color(0.44, 0.33, 0.20), true, ""],
-		[-12.0, 11.0, 2, "stucco", "RIVERSTONE BOOKS", Color(0.17, 0.26, 0.22), true, ""],
-		[-1.0, 11.0, 2, "cutstone", "EVERYDAY MART", Color(0.24, 0.34, 0.42), true, "shop"],
-		[9.0, 9.0, 3, "brick", "LAKESIDE CAFE", Color(0.14, 0.24, 0.20), true, "cafe"],
-		[26.0, 10.0, 2, "stucco", "MAPLE & CO.", Color(0.40, 0.24, 0.23), true, ""],
-		[36.0, 10.0, 3, "brick_tan", "HARBOUR CHANDLERY", Color(0.22, 0.28, 0.34), false, ""],
-		[45.5, 9.0, 2, "brick", "THE DAILY BEAN", Color(0.16, 0.27, 0.23), true, ""],
+		[-44.0, 11.0, 2, "stucco", "PINE & PAPER", Color(0.26, 0.31, 0.38), false, "", "gable", 0.0],
+		[-33.0, 11.0, 4, "brick", "NORTHSHORE APARTMENTS", Color(0.34, 0.27, 0.22), false, "", "parapet", -0.45],
+		[-22.5, 10.0, 2, "brick_tan", "SUNRISE BAKERY", Color(0.44, 0.33, 0.20), true, "", "parapet", 0.25],
+		[-12.0, 11.0, 3, "stucco", "RIVERSTONE BOOKS", Color(0.17, 0.26, 0.22), true, "", "parapet", 0.0],
+		[-1.0, 11.0, 2, "cutstone", "EVERYDAY MART", Color(0.24, 0.34, 0.42), true, "shop", "parapet", 0.3],
+		[9.0, 9.0, 3, "brick", "LAKESIDE CAFE", Color(0.14, 0.24, 0.20), true, "cafe", "parapet", 0.0],
+		[26.0, 10.0, 2, "stucco", "MAPLE & CO.", Color(0.40, 0.24, 0.23), true, "", "gable", 0.35],
+		[36.0, 10.0, 3, "brick_tan", "HARBOUR CHANDLERY", Color(0.22, 0.28, 0.34), false, "", "parapet", -0.3],
+		[45.5, 9.0, 2, "brick", "THE DAILY BEAN", Color(0.16, 0.27, 0.23), true, "", "parapet", 0.15],
 	]
 	for i in range(units.size()):
 		var u: Array = units[i]
 		shopfront(root, u[0], u[1], PROM_S, 14.0, u[2], _wall(u[3]), u[4], u[5],
-			0.0, u[6], i * 17 + 3, u[7])
+			0.0, u[6], i * 17 + 3, u[7], u[8], u[9])
 
 
 static func _wall(k: String) -> Material:
@@ -567,7 +595,10 @@ static func _people(root: Node3D) -> void:
 		n.position = n.path_a
 		root.add_child(n)
 
-	# seated at the cafe tables
+	# seated at the cafe tables. NOTE: these coordinates are chosen independently
+	# of the table/chair props, so a seated person is near a chair rather than
+	# on one. Unresolved -- see the hand-off; the fix needs the seat height and
+	# the chair position to come from the same place.
 	for i in range(2):
 		var s := NPC.make(r, NPC.Pose.SIT)
 		s.position = Vector3(9.0 - 2.6 + i * 5.2, 0, PROM_S - 3.5)
