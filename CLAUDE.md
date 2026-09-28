@@ -44,6 +44,7 @@ Authoritative specifications, in reading order:
 [`docs/REUSE_POLICY.md`](docs/REUSE_POLICY.md) ·
 [`docs/ART_DIRECTION.md`](docs/ART_DIRECTION.md) ·
 [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) ·
+[`docs/VISUAL_FIDELITY.md`](docs/VISUAL_FIDELITY.md) ·
 [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 **Before modifying production code**, read [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)
