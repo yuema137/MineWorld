@@ -24,27 +24,34 @@ represent**, and carries no authority outside them
 ([`../../../../docs/DECISIONS.md`](../../../../docs/DECISIONS.md) `ARC-4`). Each entry in
 `manifest.yaml` states its `authoritative_for` list.
 
-This matters most for `04_character_closeup.png`. It is a valuable reference for **body
-proportions, casual modern clothing, how a character sits in its environment, the camera distance
-of a close encounter, and ordinary-person visual identity**. Its **facial photorealism is
-explicitly not the fidelity target**.
+This matters most for `04_character_closeup.png`, and that image is the exception to the rule
+above: **`ARC-19` makes it the identity source of truth for the MineWorld default character.**
+Face, hair, freckles, garment structure and accessories are all in scope, superseding `ARC-4`'s
+earlier exclusion of facial fidelity, skin rendering and hair simulation for this one image. The
+contract derived from its pixels is `../CHARACTER_IDENTITY.md`.
 
-The default 3D character is:
+`ARC-4`'s reasoning — that a photoreal face standard would put character production beyond what
+community creators can afford — is not overturned. It is applied to the right object. There are
+two different bars:
 
 ```text
-realistic anatomy and proportions
-+ believable ordinary clothing
-+ natural animation
-+ recognizable facial expression
-+ moderate facial geometry and material detail
-+ subtle simplification
+the MineWorld default character   as faithful to 04_character_closeup.png as practical
+                                  paid once by this project, shipped as an asset
+
+what the framework requires       the humanoid profile alone: scale, axes, root convention,
+                                  skeleton, retarget compatibility, glTF expectations
+                                  paid by every creator, and it stays cheap
 ```
 
-and it explicitly does not depend on photoreal skin, MetaHuman-level facial assets, facial
-scanning, cinematic hair simulation, or a custom character pipeline. The reason is architectural
-rather than aesthetic: the default presentation has to stay practical for open-source and
-community-created worlds, and a photoreal face standard would make community character production
-prohibitively expensive.
+A creator shipping their own world needs a rig that satisfies the profile. They do not need our
+face — `same skeleton ≠ same mesh ≠ same face ≠ same clothes`, and one animation library serves
+characters who look nothing alike. A high-fidelity default is an example of what the framework
+permits, never a threshold it imposes.
+
+Still excluded, now on reuse grounds rather than fidelity grounds: **building character
+reconstruction technology from scratch**. Mature tools are evaluated instead, against quality,
+automation, licence, redistribution, engine portability and runtime compatibility. `DEP-8` is
+unchanged — an asset must be free to *redistribute*, not merely free to use.
 
 ## Still uncovered — follow-up, not a blocker
 
