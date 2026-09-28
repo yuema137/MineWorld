@@ -107,6 +107,139 @@ func _capture() -> void:
 		print("shot %s at %s yaw %.0f  [%s]" % [v[0], v[1], v[2], player.rig.mode_name()])
 
 
+## Foot sliding is a defect class, not a style question, so it gets measured
+## rather than eyeballed. Two things are reported:
+##
+## * **gait cycles per metre.** The animation must advance with distance, so at
+##   a given gait this number cannot change with speed. It legitimately differs
+##   between walk and jog -- a jog has a longer stride -- which is why walk is
+##   measured at two different speeds and compared with itself.
+## * **stance foot slip.** The real artefact. While a foot is planted its world
+##   position should not move; whatever it does move is the skate, in mm.
+##
+## Cycles are counted from the foot's own motion (its fore/aft position relative
+## to the hips crossing the midpoint), not from anything the animation system
+## reports about itself.
+func _measure_gait(action: String, secs: float) -> Dictionary:
+	var human: Human = player.body.body
+	var sk := human.skeleton
+	var b_hips := sk.find_bone("Hips")
+	var b_lf := sk.find_bone("LeftFoot")
+	var fore: Array[float] = []          # left foot fore/aft, relative to the hips
+	var along: Array[float] = []         # distance travelled at that sample
+	# Per tick, how far the better-planted foot moved. Taking the minimum of the
+	# two feet needs no stance detection and cannot be fooled by a foot swap,
+	# which is what wrecked the first version of this measurement: it tracked
+	# "the lower foot" and dutifully reported the 80 cm gap between one foot and
+	# the other as an 80 cm slide.
+	var planted: Array[float] = []
+	var p0 := player.global_position
+	var prev_l := Vector3.ZERO
+	var prev_r := Vector3.ZERO
+	var have_prev := false
+	if action != "":
+		Input.action_press(action)
+	# Sampled on physics frames. Render frames would read a fresher skeleton
+	# pose, but --drive runs headless where there is no frame pacing, so the
+	# process delta collapses and every per-tick figure derived from it is
+	# meaningless. A fixed 60 Hz tick is worth more than a fresher sample.
+	var t := 0.0
+	while t < secs:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		var hips := sk.get_bone_global_pose(b_hips).origin
+		fore.append((sk.get_bone_global_pose(b_lf).origin - hips).z)
+		along.append(p0.distance_to(player.global_position))
+		var wl := human.foot_position(true)
+		var wr := human.foot_position(false)
+		if have_prev:
+			var dl := Vector2(wl.x - prev_l.x, wl.z - prev_l.z).length()
+			var dr := Vector2(wr.x - prev_r.x, wr.z - prev_r.z).length()
+			planted.append(minf(dl, dr))
+		prev_l = wl
+		prev_r = wr
+		have_prev = true
+	if action != "":
+		Input.action_release(action)
+
+	# Cycles are counted between the FIRST and LAST midpoint crossing of the
+	# foot's own swing, with the crossing instants interpolated. Counting over
+	# the whole window instead would fold in the acceleration ramp and quantise
+	# to half a cycle, which at these durations is a 10% error -- big enough to
+	# hide the thing being tested.
+	var cycles := 0.0
+	var span := 0.0
+	var amp := 0.0
+	if fore.size() > 8:
+		var mean := 0.0
+		for v in fore:
+			mean += v
+		mean /= fore.size()
+		for v in fore:
+			amp = maxf(amp, absf(v - mean))
+		if amp > 0.05:   # below this the body is standing, not stepping
+			var xs: Array[float] = []
+			for i in range(1, fore.size()):
+				var a0 := fore[i - 1] - mean
+				var a1 := fore[i] - mean
+				if (a0 <= 0.0 and a1 > 0.0) or (a0 >= 0.0 and a1 < 0.0):
+					var f: float = absf(a0) / maxf(absf(a0) + absf(a1), 1e-6)
+					xs.append(lerpf(along[i - 1], along[i], f))
+			if xs.size() >= 2:
+				cycles = (xs.size() - 1) * 0.5
+				span = xs[xs.size() - 1] - xs[0]
+
+	planted.sort()
+	var med := planted[planted.size() / 2] if planted.size() > 0 else 0.0
+	var hz := 1.0 / maxf(get_physics_process_delta_time(), 1e-5)
+	var body_speed := p0.distance_to(player.global_position) / maxf(secs, 1e-5)
+	return {
+		"dist": p0.distance_to(player.global_position),
+		"cycles": cycles, "span": span,
+		"per_m": (cycles / span) if span > 0.05 else 0.0,
+		# median per-tick movement of the planted foot, as a speed, and as a
+		# fraction of how fast the body is going. Perfect footing is 0%;
+		# a body sliding with static legs is 100%.
+		"slip_mps": med * hz,
+		"slip_pct": (med * hz / body_speed * 100.0) if body_speed > 0.05 else 0.0,
+	}
+
+
+func _gait_report() -> void:
+	print("\n-- gait cadence: does the animation follow the ground, or the clock --")
+	player.place(Vector3(-16.0, 0.2, -22.0), 90.0, 0.0)
+	await _settle(0.4)
+
+	var still := await _measure_gait("", 1.5)
+	print("standing still:   %.2f m travelled, %.2f gait cycles  (must be ~0)"
+		% [still["dist"], still["cycles"]])
+
+	player.place(Vector3(-16.0, 0.2, -22.0), 90.0, 0.0)
+	await _settle(0.4)
+	var w1 := await _measure_gait("move_forward", 4.0)
+	print("walk 4.0 s:       %.2f m, %.2f cycles over %.2f m, %.3f cycles/m, planted foot drifts %.2f m/s = %.0f%% of body speed"
+		% [w1["dist"], w1["cycles"], w1["span"], w1["per_m"], w1["slip_mps"], w1["slip_pct"]])
+
+	player.place(Vector3(-16.0, 0.2, -22.0), 90.0, 0.0)
+	await _settle(0.4)
+	var w2 := await _measure_gait("move_forward", 2.2)
+	print("walk 2.2 s:       %.2f m, %.2f cycles over %.2f m, %.3f cycles/m  (same gait, less time:"
+		% [w2["dist"], w2["cycles"], w2["span"], w2["per_m"]])
+	print("                  cycles/m must match the 4.0 s walk -- %.3f vs %.3f, delta %.3f)"
+		% [w1["per_m"], w2["per_m"], absf(w1["per_m"] - w2["per_m"])])
+
+	player.place(Vector3(-16.0, 0.2, -22.0), 90.0, 0.0)
+	await _settle(0.4)
+	Input.action_press("jog")
+	var j := await _measure_gait("move_forward", 4.0)
+	Input.action_release("jog")
+	print("jog 4.0 s:        %.2f m, %.2f cycles over %.2f m, %.3f cycles/m, planted foot drifts %.2f m/s = %.0f%% of body speed"
+		% [j["dist"], j["cycles"], j["span"], j["per_m"], j["slip_mps"], j["slip_pct"]])
+	print("                  (a jog has a longer stride, so fewer cycles/m than a walk is")
+	print("                   correct; and a run has a flight phase where neither foot is")
+	print("                   planted, so its drift figure is not comparable to the walk)")
+
+
 func _hold(action: String, secs: float) -> void:
 	Input.action_press(action)
 	var t := 0.0
@@ -146,6 +279,8 @@ func _drive() -> void:
 	await _hold("move_back", 2.0)
 	await _settle(0.2)
 	print("back 2.0 s:    returned to %.2f m from start" % p0.distance_to(player.global_position))
+
+	await _gait_report()
 
 	# --- can you actually walk inside? -------------------------------------
 	# The cafe door is at world x 5.9 on the shopfront line; the room runs back

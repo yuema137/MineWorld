@@ -221,10 +221,12 @@ KEEP_ATTRS = ("POSITION", "NORMAL", "TEXCOORD_0", "JOINTS_0", "WEIGHTS_0")
 
 def copy_primitive(src: Glb, out: Builder, prim: dict, matmap: dict,
                    world=None, rigid_joint=None, keep=KEEP_ATTRS, quad_stride=1,
-                   offset=None):
+                   offset=None, min_y=None):
     """Copy one primitive into `out`, optionally baking a transform, rigid-binding
-    it to a single joint, dropping quads on a stride, and translating it
-    (`offset`, used to lift the iris out of the sclera it sits inside)."""
+    it to a single joint, dropping quads on a stride, translating it (`offset`,
+    used to lift the iris out of the sclera it sits inside), and discarding
+    triangles whose centre falls below `min_y` (used to crop the groom to a
+    short cut)."""
     attrs = {}
     src_attrs = {k: v for k, v in prim["attributes"].items() if k in keep}
     pos = src.accessor(src_attrs["POSITION"])
@@ -238,6 +240,18 @@ def copy_primitive(src: Glb, out: Builder, prim: dict, matmap: dict,
         quads = [tris[i:i + 2] for i in range(0, len(tris), 2)]
         quads = quads[::quad_stride]
         idx = [v for q in quads for t in q for v in t]
+
+    # Crop: the CC0 groom is shoulder length and the reference character's hair
+    # is a short tousled crop. Whole quads are dropped by the height of their
+    # centre, so every surviving card stays intact and the crown keeps its
+    # volume -- cutting through cards would leave them ending in hard edges.
+    if min_y is not None:
+        kept = []
+        for i in range(0, len(idx), 3):
+            t = idx[i:i + 3]
+            if sum(pos[v][1] for v in t) / 3.0 >= min_y:
+                kept.extend(t)
+        idx = kept
 
     used = sorted(set(idx))
     remap = {v: i for i, v in enumerate(used)}
@@ -278,6 +292,99 @@ def copy_primitive(src: Glb, out: Builder, prim: dict, matmap: dict,
     return out_prim, len(used), len(idx) // 3
 
 
+# Arm joints the sleeves come from. Hands and fingers are excluded, which is
+# what puts the cuff at the wrist.
+SLEEVE_JOINTS = {
+    "mixamorig:LeftShoulder", "mixamorig:LeftArm", "mixamorig:LeftForeArm",
+    "mixamorig:RightShoulder", "mixamorig:RightArm", "mixamorig:RightForeArm",
+}
+
+
+def make_hoodie(src: Glb, out: Builder, sources: list, matmap: dict, joint_names: list,
+                thickness: float, open_half_width: float):
+    """Derive an open zip hoodie by offsetting existing garment and arm surfaces
+    along their normals.
+
+    There is no hoodie in the CC0 asset and no Blender on this machine to model
+    one. What the asset does have is a correctly weighted t-shirt and a pair of
+    bare arms, and a shell offset from those is a garment that fits, drapes with
+    the character and needs no new skin weights because it inherits theirs.
+
+    It has to come from two surfaces, which is the part that is not obvious:
+    the body mesh's torso does not exist. Upstream occlusion-deletes the skin
+    hidden under the clothing, so a shell taken from the body alone is a pair of
+    sleeves with nothing between them. The torso comes from the t-shirt and the
+    sleeves from the arms, offset by the same amount so they meet.
+
+    The front opens by dropping the triangles down the centre line, which is
+    what makes it read as an unzipped jacket over the tee rather than a second
+    skin.
+
+    The limit, stated plainly: a close-fitting shell, not tailoring. No hood, no
+    zip teeth, no pockets, no slack. It reads as a red open jacket at
+    conversation distance and would not survive a close-up.
+    """
+    P, N, U, J, W, tri = [], [], [], [], [], []
+    aj = aw = None
+    for prim, joint_filter in sources:
+        a = prim["attributes"]
+        pos = src.accessor(a["POSITION"])
+        nrm = src.accessor(a["NORMAL"])
+        jts = src.accessor(a["JOINTS_0"])
+        wts = src.accessor(a["WEIGHTS_0"])
+        uvs = src.accessor(a["TEXCOORD_0"])
+        idx = src.accessor(prim["indices"])
+        aj = src.j["accessors"][a["JOINTS_0"]]
+        aw = src.j["accessors"][a["WEIGHTS_0"]]
+
+        ok = None
+        if joint_filter is not None:
+            ok = {i for i, n in enumerate(joint_names) if n in joint_filter}
+        dom = []
+        for v in range(len(pos)):
+            w = wts[v]
+            j = jts[v]
+            dom.append(j[max(range(4), key=lambda k: w[k])])
+
+        kept = []
+        for i in range(0, len(idx), 3):
+            t = idx[i:i + 3]
+            if ok is not None and not all(dom[v] in ok for v in t):
+                continue
+            cx = sum(pos[v][0] for v in t) / 3.0
+            cz = sum(pos[v][2] for v in t) / 3.0
+            if abs(cx) < open_half_width and cz > 0.0:
+                continue  # the open front
+            kept.extend(t)
+        if not kept:
+            continue
+        used = sorted(set(kept))
+        base = len(P)
+        remap = {v: base + i for i, v in enumerate(used)}
+        tri.extend(remap[v] for v in kept)
+        P.extend(tuple(pos[v][k] + nrm[v][k] * thickness for k in range(3)) for v in used)
+        N.extend(nrm[v] for v in used)
+        U.extend(uvs[v] for v in used)
+        J.extend(jts[v] for v in used)
+        W.extend(wts[v] for v in used)
+
+    if not tri:
+        return None, 0, 0
+    attrs = {
+        "POSITION": out.accessor(P, 5126, "VEC3", target=34962, minmax=True),
+        "NORMAL": out.accessor(N, 5126, "VEC3", target=34962),
+        "TEXCOORD_0": out.accessor(U, 5126, "VEC2", target=34962),
+        "JOINTS_0": out.accessor(J, aj["componentType"], "VEC4", target=34962),
+        "WEIGHTS_0": out.accessor(W, aw["componentType"], "VEC4", target=34962,
+                                  normalized=aw.get("normalized", False)),
+    }
+    ctype = 5125 if len(P) > 65535 else 5123
+    if "VitHoodie" not in matmap:
+        matmap["VitHoodie"] = out.material("VitHoodie")
+    return ({"attributes": attrs, "indices": out.accessor(tri, ctype, "SCALAR", target=34963),
+             "material": matmap["VitHoodie"]}, len(P), len(tri) // 3)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -285,6 +392,12 @@ def main() -> int:
     ap.add_argument("--out", required=True, help="output asset directory")
     ap.add_argument("--hair-stride", type=int, default=3,
                     help="keep 1 hair quad in N (default 3)")
+    ap.add_argument("--hair-crop", type=float, default=None,
+                    help="drop hair below this world Y, in metres (e.g. 1.62 for a "
+                         "short crop; the groom runs 1.477..1.761)")
+    ap.add_argument("--hoodie", action="store_true",
+                    help="derive an open zip hoodie shell from the body mesh")
+    ap.add_argument("--hoodie-thickness", type=float, default=0.030)
     ap.add_argument("--skip-textures", action="store_true")
     args = ap.parse_args()
 
@@ -328,7 +441,8 @@ def main() -> int:
 
     stats = []
 
-    def add_mesh(name, src, node_idx, rigid=None, keep=KEEP_ATTRS, stride=1, eye=False):
+    def add_mesh(name, src, node_idx, rigid=None, keep=KEEP_ATTRS, stride=1, eye=False,
+                 min_y=None):
         mesh = src.j["meshes"][src.j["nodes"][node_idx]["mesh"]]
         world = world_matrix(src, node_idx) if rigid is not None else None
         prims, nv, nt = [], 0, 0
@@ -350,7 +464,7 @@ def main() -> int:
                 off = (0.0, 0.0, front - back + 0.0006)
             pr, v, t = copy_primitive(src, out, p, matmap, world=world,
                                       rigid_joint=rigid, keep=keep, quad_stride=stride,
-                                      offset=off)
+                                      offset=off, min_y=min_y)
             prims.append(pr)
             nv += v
             nt += t
@@ -364,6 +478,24 @@ def main() -> int:
     for node_i, nm in ((i, n["name"]) for i, n in enumerate(body.j["nodes"]) if "mesh" in n):
         mesh_nodes.append(add_mesh({"cm_vitruvian": "Body"}.get(nm, nm), body, node_i))
 
+    if args.hoodie:
+        jnames = [body.j["nodes"][j]["name"] for j in joints]
+
+        def _prim(node_name, k=0):
+            ni = next(i for i, n in enumerate(body.j["nodes"]) if n.get("name") == node_name)
+            return body.j["meshes"][body.j["nodes"][ni]["mesh"]]["primitives"][k]
+
+        hp, hv, ht = make_hoodie(body, out,
+                                 [(_prim("Shirt"), None),
+                                  (_prim("cm_vitruvian"), SLEEVE_JOINTS)],
+                                 matmap, jnames, args.hoodie_thickness, 0.055)
+        if hp:
+            out.doc["meshes"].append({"name": "Hoodie", "primitives": [hp]})
+            out.doc["nodes"].append({"name": "Hoodie",
+                                     "mesh": len(out.doc["meshes"]) - 1, "skin": 0})
+            mesh_nodes.append(len(out.doc["nodes"]) - 1)
+            stats.append(("Hoodie", hv, ht))
+
     # --- head: strip the FACS morphs, rigid-bind to the Head joint ------------
     want_head = {"cm_vitruvian": "Head", "Eye_L_eyeball": "EyeL", "Eye_R_eyeball": "EyeR"}
     for node_i, n in enumerate(head.j["nodes"]):
@@ -376,7 +508,7 @@ def main() -> int:
         if n.get("name") == "VitHair" and "mesh" in n:
             mesh_nodes.append(add_mesh("Hair", hair, node_i, rigid=head_joint,
                                        keep=("POSITION", "NORMAL", "TEXCOORD_0"),
-                                       stride=args.hair_stride))
+                                       stride=args.hair_stride, min_y=args.hair_crop))
 
     # One root holding the joint hierarchy and every mesh, so Godot builds a single
     # Skeleton3D with the meshes as its siblings.

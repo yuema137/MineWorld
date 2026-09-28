@@ -24,8 +24,8 @@ func _initialize() -> void:
 	sun.shadow_enabled = true
 	sun.rotation_degrees = Vector3(-26.0, 128.0, 0.0)
 	root.add_child(sun)
-	var h := Human.build(1.72, Color(1.0, 0.94, 0.89), Color(0.42, 0.29, 0.15),
-		Color(0.46, 0.20, 0.19), Color(0.27, 0.32, 0.42), Color(0.14, 0.13, 0.12))
+	var h := Human.build(1.72, NPC.REF_SKIN, NPC.REF_HAIR, NPC.REF_TEE,
+		NPC.REF_JEANS, NPC.REF_SHOE, NPC.REF_HOODIE, NPC.REF_PACK)
 	root.add_child(h)
 	if anim == "Sit":
 		h.sit()

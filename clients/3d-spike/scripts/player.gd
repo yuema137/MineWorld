@@ -79,7 +79,7 @@ func _ready() -> void:
 func _make_body() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = BODY_SEED
-	body = NPC.make(rng, NPC.Pose.PUPPET, BODY_HEIGHT)
+	body = NPC.make(rng, NPC.Pose.PUPPET, BODY_HEIGHT, true)
 	body.name = "Body"
 	# The mannequin is authored facing its local +Z, which is the convention
 	# npc.gd steers by (`rotation.y = atan2(facing.x, facing.z)`). The

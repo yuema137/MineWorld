@@ -30,12 +30,21 @@ const TEX := "res://assets/characters/vitruvian/textures/"
 ## Measured from the baked GLB, not assumed. `tools/character_bake.py` prints it.
 const CANONICAL_HEIGHT := 1.7688
 
-## Ground speed the Quaternius Walk/Jog clips were authored at, measured by
-## stepping the clip against the controller's real 1.45 m/s (see
-## HUMANOID_PROFILE.md "stride"). Normalize Position Tracks does *not* fix this:
-## stride is baked into leg rotation, not position tracks.
-const WALK_CLIP_MPS := 1.35
-const JOG_CLIP_MPS := 3.10
+## Ground speed each clip is authored at, **measured on this character** by
+## `tools/measure_stride.gd`: it samples a foot relative to the hips across one
+## cycle, takes the peak-to-peak travel as one stride, and a cycle holds two.
+##
+## These have to be measured and they have to be measured here, not on the
+## animation rig. `Normalize Position Tracks` rescales *position* tracks; stride
+## lives in the leg *rotations* applied to our limb lengths, so it survives
+## normalisation untouched and differs from the Quaternius mannequin's
+## (1.021 / 2.503 m/s on its own skeleton, 1.058 / 2.647 on ours).
+##
+## The first version of this file guessed 1.35 and 3.10. At the controller's
+## real 1.45 m/s that guess ran the clip ~30% too slow, which is precisely the
+## skating this constant exists to prevent.
+const WALK_CLIP_MPS := 1.058
+const JOG_CLIP_MPS := 2.647
 
 static var _scene: PackedScene
 static var _lib: AnimationLibrary
@@ -138,8 +147,11 @@ static func _plain(c: Color, rough: float) -> StandardMaterial3D:
 
 ## Colours come from `npc.gd`'s palettes so the crowd still reads as one town;
 ## `shoe` tints the foot surface, which is where upstream put the shoes.
+## `hoodie` and `pack` are optional: pass a transparent colour for a person who
+## is not wearing them. Only the reference character does, for now.
 static func build(height_m: float, skin: Color, hair: Color,
-		top: Color, legs: Color, shoe: Color) -> Human:
+		top: Color, legs: Color, shoe: Color,
+		hoodie := Color(0, 0, 0, 0), pack := Color(0, 0, 0, 0)) -> Human:
 	if _scene == null:
 		_scene = load(SRC) as PackedScene
 	var h := Human.new()
@@ -160,8 +172,12 @@ static func build(height_m: float, skin: Color, hair: Color,
 		"VitSkin": _skin("face_bc.jpg", "face_n.jpg", "face_rough.jpg", skin),
 		"VitMouth": m["mouth"],
 		"VitSclera": m["sclera"], "VitIris": m["iris"], "VitHair": _hair(hair),
+		"VitHoodie": _cloth(hoodie, 0.86),
 	}
 	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
+		if mi.name == "Hoodie" and hoodie.a <= 0.0:
+			mi.visible = false
+			continue
 		for i in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(i)
 			var key := (src.resource_name if src else "").trim_suffix(".001")
@@ -173,12 +189,46 @@ static func build(height_m: float, skin: Color, hair: Color,
 		if mi.name == "Hair":
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 
+	if pack.a > 0.0:
+		h._backpack(pack)
+
 	# Layered after the AnimationTree; see posture.gd for why it exists.
 	h._posture = Posture.natural_stance()
 	h.skeleton.add_child(h._posture)
 
 	h._build_tree(inst)
 	return h
+
+
+## A backpack on one shoulder. Built from primitives and hung off the profile's
+## UpperChest bone with a BoneAttachment3D, so it rides the spine and needs no
+## skinning -- a rucksack is rigid anyway. The strap across the chest is most of
+## what makes the reference silhouette recognisable, more than the bag itself.
+func _backpack(c: Color) -> void:
+	var i := skeleton.find_bone("UpperChest")
+	if i < 0:
+		return
+	var att := BoneAttachment3D.new()
+	att.name = "Pack"
+	att.bone_name = "UpperChest"
+	att.bone_idx = i
+	skeleton.add_child(att)
+	# The attachment sits in bone space; the bag hangs behind and below it.
+	var hold := Node3D.new()
+	hold.position = Vector3(0, 0.02, -0.13)
+	att.add_child(hold)
+	var canvas := Mats.paint(c, 0.92)
+	var webbing := Mats.paint(c.darkened(0.25), 0.9)
+	Build.box(hold, Vector3(0, -0.06, -0.06), Vector3(0.30, 0.42, 0.17), canvas)
+	Build.box(hold, Vector3(0, -0.20, -0.07), Vector3(0.26, 0.14, 0.15),
+		Mats.paint(c.darkened(0.12), 0.92))
+	Build.box(hold, Vector3(0, 0.13, -0.05), Vector3(0.24, 0.06, 0.13), webbing)
+	# straps: over the right shoulder and down the chest, plus the left one
+	for sx in [-1.0, 1.0]:
+		Build.box(hold, Vector3(sx * 0.105, 0.10, 0.02), Vector3(0.055, 0.30, 0.10),
+			webbing, 0.0)
+		Build.box(hold, Vector3(sx * 0.11, -0.04, 0.115), Vector3(0.05, 0.30, 0.03),
+			webbing, 0.0)
 
 
 func _build_tree(inst: Node) -> void:
@@ -200,6 +250,16 @@ func _build_tree(inst: Node) -> void:
 	var space := AnimationNodeBlendSpace1D.new()
 	space.min_space = 0.0
 	space.max_space = JOG_CLIP_MPS
+	# Without this the two locomotion clips run on their own clocks (1.333 s and
+	# 0.933 s), so a blend of them averages two footfall patterns that are out of
+	# phase. The legs stop reaching and the feet skate -- measured at 49% of body
+	# speed before this line existed.
+	space.sync = true
+	# Each clip sits at the speed it was authored for. That is what makes the
+	# cadence distance-driven with no tuning constant: between two blend points
+	# the blended stride interpolates exactly as the blend position does, so
+	# playing at rate 1.0 covers exactly the ground the body is covering. Put a
+	# clip at the wrong position and the whole band skates.
 	for pair in [["Idle", 0.0], ["Walk", WALK_CLIP_MPS], ["Jog_Fwd", JOG_CLIP_MPS]]:
 		var n := AnimationNodeAnimation.new()
 		n.animation = pair[0]
@@ -225,18 +285,45 @@ func _build_tree(inst: Node) -> void:
 
 ## Drive the body from a ground speed measured elsewhere -- the same contract the
 ## capsule mannequin had, so `npc.gd` and `player.gd` did not have to change.
+## The cadence rule, stated so it is testable: **animation phase advances with
+## distance travelled, never with wall-clock time.** Standing still advances no
+## phase; walking twice as fast takes steps twice as often, of the same length.
+##
+## The implementation falls out of putting each clip at its measured speed. A
+## body scaled to `s` covers `s` times the ground per cycle, so the blend
+## position is the speed expressed in the clip's own (unscaled) units, and the
+## playback rate is then exactly 1.0. Above the fastest clip there is nothing
+## left to blend toward, so the rate takes over.
 func set_gait(speed_mps: float) -> void:
 	if _tree == null:
 		return
-	_speed = clampf(speed_mps, 0.0, JOG_CLIP_MPS)
-	_tree.set("parameters/Locomotion/blend_position", _speed)
-	# Keep the footfall cadence matched to real ground speed between the blend
-	# points, where the clip's own stride would otherwise slide.
-	var nominal := WALK_CLIP_MPS if _speed <= WALK_CLIP_MPS else JOG_CLIP_MPS
+	var s := maxf(scale.y, 0.01)
+	var want := maxf(speed_mps, 0.0) / s
+	_speed = speed_mps
+
+	# Below walking pace the blend is idle-to-walk, which scales the stride
+	# amplitude with the blend weight -- speed and stride rise together, so the
+	# clip plays at its own rate. Above it, the band is pinned to a single clip
+	# and the rate carries the speed: cross-fading walk into jog blends two
+	# different cadences and shortens the stride even with sync on, which is
+	# skating by another route.
+	var blend := want
 	var rate := 1.0
-	if _speed > 0.08:
-		rate = clampf(_speed / nominal, 0.65, 1.6)
+	if want > WALK_CLIP_MPS:
+		var jog := want >= (WALK_CLIP_MPS + JOG_CLIP_MPS) * 0.5
+		blend = JOG_CLIP_MPS if jog else WALK_CLIP_MPS
+		rate = want / blend
+	_tree.set("parameters/Locomotion/blend_position", blend)
 	_tree.set("parameters/Rate/scale", rate)
+
+
+## World position of a foot. Used by `--drive` to measure foot sliding directly
+## rather than inferring it from the numbers that were supposed to prevent it.
+func foot_position(left: bool) -> Vector3:
+	var i := skeleton.find_bone("LeftFoot" if left else "RightFoot")
+	if i < 0:
+		return global_position
+	return skeleton.global_transform * skeleton.get_bone_global_pose(i).origin
 
 
 ## Play one clip straight, bypassing the blend space. Diagnostic only: playing
