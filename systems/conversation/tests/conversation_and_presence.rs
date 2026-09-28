@@ -81,7 +81,7 @@ fn compose(configuration: Composition) -> World {
 /// The same list whatever the configuration: a disabled pack is still asked, and its offers are
 /// dropped because the kernel's route map no longer provides its actions. Filtering the list here
 /// instead would move the `AC-2` decision out of the world's composition and into a caller.
-const PROVIDERS: [&dyn mineworld_presence::InteractionProvider; 2] =
+const PROVIDERS: [&dyn mineworld_presence::PerceptionProvider; 2] =
     [&PresenceSystem, &ConversationSystem];
 
 // ---------------------------------------------------------------------------------------------
@@ -168,7 +168,10 @@ impl Cafe {
     }
 
     /// What this world tells `observer`, through the pack that owns perception.
-    fn observation(&self, observer: EntityId) -> mineworld_contracts::Observation {
+    fn observation(
+        &self,
+        observer: EntityId,
+    ) -> mineworld_contracts::Observation<serde_json::Value> {
         mineworld_presence::observe(&self.world, observer, NOW, &PROVIDERS)
     }
 
@@ -762,6 +765,149 @@ fn conversation_cannot_be_composed_without_presence() {
         KernelError::SystemRequiredByAnotherSystem { ref required_by, .. }
             if *required_by == ConversationSystem::ID
     ));
+}
+
+// ---------------------------------------------------------------------------------------------
+// How Alice remembers, from outside: the disclosure a controller reads (MVP.md §9.2, INV-13).
+// ---------------------------------------------------------------------------------------------
+
+/// `MVP.md` §9.2's third arrow: *history → her controller's context*.
+///
+/// A controller is handed an `Observation` and never the world, so a history it cannot read is a
+/// history it does not have. This is the whole of the mechanism: the pack that owns the component
+/// discloses it, in the observation of the person whose memory it is.
+///
+/// The second half of the test is the half that matters, and it is an **absence**: the same history is
+/// not in the other person's observation of her. A disclosure that exposed a component because it
+/// exists would pass the first assertion and fail this one, which is exactly the difference between
+/// `INV-13` holding and `INV-13` being intended.
+#[test]
+fn a_person_is_told_what_they_have_heard_and_nobody_is_told_what_somebody_else_heard() {
+    let mut cafe = Cafe::new(Composition { conversation: true });
+    cafe.stand(cafe.alice, 0);
+    cafe.stand(cafe.bob, ACROSS_A_TABLE);
+    cafe.talk(cafe.alice, cafe.bob, "we open at seven", NOW);
+
+    // Bob is the listener, so the entry is Bob's — and it is in Bob's own observation.
+    let disclosed =
+        heard_by(&cafe.observation(cafe.bob), cafe.bob).expect("bob is told what bob has heard");
+    assert_eq!(disclosed.len(), 1);
+    assert_eq!(disclosed.heard()[0].speaker().entity_id(), cafe.alice);
+    assert_eq!(
+        disclosed.heard()[0].utterance().as_str(),
+        "we open at seven",
+        "the words, not a summary of them: interpretation is a controller's business"
+    );
+    assert_eq!(
+        Some(&disclosed),
+        cafe.history(cafe.bob),
+        "and what he is told is what the world holds, not a second account of it"
+    );
+
+    // Alice perceives Bob — she is in the same room and the observation lists him — and is told
+    // nothing about what he has heard.
+    let alices_view = cafe.observation(cafe.alice);
+    assert!(
+        alices_view.entity(cafe.bob).is_some(),
+        "alice perceives bob, which is what makes the next assertion about disclosure and not \
+         about perception"
+    );
+    assert_eq!(
+        heard_by(&alices_view, cafe.bob),
+        None,
+        "what somebody else was told is not hers to read"
+    );
+    assert_eq!(
+        heard_by(&alices_view, cafe.alice),
+        None,
+        "and she has been told nothing herself, so there is nothing to disclose about her either"
+    );
+}
+
+/// Disabling the pack removes the disclosure from every observation in the world, with no edit
+/// anywhere — the same route `AC-2` takes for an affordance.
+///
+/// The state itself survives, which is the other half of `AC-2`: a disabled pack stops acting and
+/// stops answering, and does not lose what it knows.
+#[test]
+fn a_disabled_pack_discloses_nothing_and_still_holds_its_state() {
+    let mut cafe = Cafe::new(Composition { conversation: true });
+    cafe.stand(cafe.alice, 0);
+    cafe.stand(cafe.bob, ACROSS_A_TABLE);
+    cafe.talk(cafe.alice, cafe.bob, "we open at seven", NOW);
+    assert!(heard_by(&cafe.observation(cafe.bob), cafe.bob).is_some());
+
+    cafe.world
+        .disable(&ConversationSystem::ID)
+        .expect("nothing depends on it");
+
+    assert_eq!(
+        heard_by(&cafe.observation(cafe.bob), cafe.bob),
+        None,
+        "a world that does not have conversation in it does not disclose what anybody heard"
+    );
+    assert_eq!(
+        cafe.history(cafe.bob).map(ConversationHistory::len),
+        Some(1),
+        "and the state is still there, because disabling a pack is not forgetting"
+    );
+}
+
+/// The disclosed payload is a value a client can read, not the bytes a log carries.
+///
+/// `spike/FINDINGS.md` F8.2 measured what the opaque default reaches a client as: an array of byte
+/// integers, unusable. A client has no Rust type to decode with, so this is not a convenience.
+#[test]
+fn a_disclosed_component_is_self_describing_and_labelled_by_its_own_type() {
+    let mut cafe = Cafe::new(Composition { conversation: true });
+    cafe.stand(cafe.alice, 0);
+    cafe.stand(cafe.bob, ACROSS_A_TABLE);
+    cafe.talk(cafe.alice, cafe.bob, "we open at seven", NOW);
+
+    let observation = cafe.observation(cafe.bob);
+    let record = observation
+        .entity(cafe.bob)
+        .expect("bob perceives himself")
+        .components()
+        .iter()
+        .find(|record| *record.component_type() == ConversationHistory::COMPONENT_TYPE)
+        .expect("the disclosure is there");
+
+    assert_eq!(record.entity(), cafe.bob);
+    assert_eq!(record.schema_version(), ConversationHistory::SCHEMA_VERSION);
+    let payload = record.payload();
+    assert!(
+        payload.is_object() && payload["heard"].is_array(),
+        "a client reads fields, not a byte array: {payload}"
+    );
+    assert_eq!(
+        payload["heard"][0]["speaker"]["entity"],
+        serde_json::json!(cafe.alice.raw().to_string()),
+        "and an identity inside a disclosed payload is a decimal string, which is the position \
+         FINDINGS.md F2 measured as unprotected before PR 04"
+    );
+}
+
+/// The disclosed history of one observer, decoded with the real component type.
+///
+/// Through `payload_for`, so the test cannot read a record that was labelled with a different
+/// component type — the same check any other reader of a record gets.
+fn heard_by(
+    observation: &mineworld_contracts::Observation<serde_json::Value>,
+    subject: EntityId,
+) -> Option<ConversationHistory> {
+    let record = observation
+        .entity(subject)?
+        .components()
+        .iter()
+        .find(|record| *record.component_type() == ConversationHistory::COMPONENT_TYPE)?;
+    let payload = record
+        .payload_for::<ConversationHistory>()
+        .expect("a record labelled with this component type");
+    Some(
+        serde_json::from_value(payload.clone())
+            .expect("the pack's own payload, written by the pack"),
+    )
 }
 
 /// The two packs write only their own state, and the edge one of them declared belongs to it alone.

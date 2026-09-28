@@ -1,5 +1,5 @@
-//! The seam that lets an observation carry what a player may do without this pack knowing what any
-//! of it means.
+//! The seam that lets an observation carry what a player may do and what a player may know, without
+//! this pack knowing what any of it means.
 //!
 //! `ENGINEERING_RULES.md` §8 requires the server to answer whether an interaction is possible, and
 //! §9 requires the 2D and the 3D client to get that answer from the same place. An
@@ -20,26 +20,57 @@
 //!
 //! Neither half can produce an affordance alone, which is why the type system is arranged so that
 //! neither tries.
+//!
+//! # State is the same question with a different noun
+//!
+//! An observation also carries **component records**, and the tempting implementation of *that* is
+//! worse than a match on action names: walk the component stores and serialize what is there. It
+//! would defeat `INV-13` for every pack written afterwards, because exposing a component on the
+//! grounds that it exists is precisely the omniscience the invariant forbids, and this crate cannot
+//! judge what any other pack's state means or who may read it.
+//!
+//! So the same seam asks the same kind of question about state, and the owning pack answers it per
+//! observer:
+//!
+//! ```text
+//! the pack knows      which of its components this observer may know about this subject, and
+//!                     therefore what to encode
+//! perception knows    which entities this observer perceives at all, and asks about those only
+//! ```
+//!
+//! What follows from that division is the property `AC-2` wants: a disabled pack is never asked, so
+//! its state leaves every observation in the world with no edit anywhere, exactly as its affordances
+//! do.
 
-use mineworld_contracts::{Action, ActionTypeId, EntityId, SpatialRequirement};
+use mineworld_contracts::{Action, ActionTypeId, ComponentRecord, EntityId, SpatialRequirement};
 use mineworld_kernel::WorldRead;
+use serde_json::Value;
 
-/// What a System Pack says about its own actions, so that perception can price them.
+/// What a System Pack says about itself, so that perception can put it in an observation.
 ///
-/// Implemented by the pack that provides the actions, and called once per candidate target — plus
-/// once with no target, for actions that are directed at nobody. A pack that offers nothing in
-/// either case returns an empty list, which is the normal answer for most packs and most targets.
+/// Two questions, both of which only the owning pack can answer, and neither of which this crate
+/// could answer without learning what another pack's vocabulary means:
+///
+/// ```text
+/// offers      which of my actions may this observer attempt against that target
+/// discloses   which of my components may this observer know about that subject
+/// ```
+///
+/// Both have a default returning nothing, because most packs answer one of them and a pack that
+/// answers neither is still a legitimate pack — it simply contributes nothing to an observation.
+/// Defaulting to *nothing* rather than to *everything* is the same safe direction
+/// [`Observation::new`](mineworld_contracts::Observation::new) takes.
 ///
 /// The provider is handed a [`WorldRead`] and nothing else, so an implementation can consult any
-/// state it needs and can write none of it: deciding what is *possible* must not change the world,
-/// for the same reason [`System::validate`](mineworld_kernel::System::validate) is handed a
-/// read-only view (`BD-6`).
+/// state it needs and can write none of it: deciding what is *possible*, or what may be *known*,
+/// must not change the world, for the same reason
+/// [`System::validate`](mineworld_kernel::System::validate) is handed a read-only view (`BD-6`).
 ///
 /// The value implementing this is the pack's own system type, which a world has already taken by
 /// value at installation. Holding a second one to ask it questions is safe by construction rather
 /// than by convention: a system's mutable state is the components it owns, held in the world, so
 /// there is nothing in the value for two copies to disagree about (`INV-7`).
-pub trait InteractionProvider {
+pub trait PerceptionProvider {
     /// Which of this pack's actions `observer` may attempt against `target`, and what each needs.
     ///
     /// `target` is [`None`] for an action directed at nobody. The order of the returned offers is
@@ -51,7 +82,34 @@ pub trait InteractionProvider {
         world: &WorldRead<'_>,
         observer: EntityId,
         target: Option<EntityId>,
-    ) -> Vec<Offer>;
+    ) -> Vec<Offer> {
+        let _ = (world, observer, target);
+        Vec::new()
+    }
+
+    /// Which of this pack's components `observer` is entitled to know about `subject`, encoded.
+    ///
+    /// Called once per entity the observer already perceives, including the observer itself, so an
+    /// implementation never has to decide whether the subject is visible — only whether this
+    /// observer may know *this* state about it. A pack that discloses state about a stranger and
+    /// state about oneself differently says so by comparing the two arguments, which is the whole
+    /// reason both are passed.
+    ///
+    /// The payload is a [`Value`] rather than bytes because its reader is a controller or a client
+    /// that does not have the Rust type: an observation is read, while a log is replayed, and
+    /// `spike/FINDINGS.md` F8.2 measured what opaque bytes reach a client as. Encoding it is the
+    /// owning pack's own business, as every payload in this workspace is.
+    ///
+    /// Returning nothing is the normal answer, and the default.
+    fn discloses(
+        &self,
+        world: &WorldRead<'_>,
+        observer: EntityId,
+        subject: EntityId,
+    ) -> Vec<ComponentRecord<Value>> {
+        let _ = (world, observer, subject);
+        Vec::new()
+    }
 }
 
 /// One action a pack offers, before perception decides whether it is possible right now.

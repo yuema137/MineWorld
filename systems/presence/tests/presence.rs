@@ -17,7 +17,7 @@ use mineworld_contracts::{
 };
 use mineworld_kernel::{SystemIdentity, World};
 use mineworld_presence::{
-    Arrive, Arrived, InteractionProvider, Presence, PresenceSystem, present_in_declaration,
+    Arrive, Arrived, PerceptionProvider, Presence, PresenceSystem, present_in_declaration,
 };
 use serde::Serialize;
 
@@ -78,7 +78,7 @@ impl Fixture {
 
     /// What this pack tells `observer`, offering its own actions through the same seam every pack
     /// uses.
-    fn observation(&self, observer: EntityId) -> Observation {
+    fn observation(&self, observer: EntityId) -> Observation<serde_json::Value> {
         mineworld_presence::observe(&self.world, observer, NOW, &[&PresenceSystem])
     }
 }

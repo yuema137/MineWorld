@@ -21,7 +21,7 @@ use mineworld_contracts::{
 };
 use mineworld_conversation::{ConversationHistory, ConversationSystem, Talk, Utterance};
 use mineworld_kernel::SystemIdentity;
-use mineworld_presence::{InteractionProvider, Presence, PresenceSystem, observe, present_in};
+use mineworld_presence::{PerceptionProvider, Presence, PresenceSystem, observe, present_in};
 use mineworld_worldpack::{Capability, LoadedWorld, WorldPack};
 
 /// The pack every test in this file loads: the real one, from the repository.
@@ -314,7 +314,7 @@ fn the_authored_geometry_is_what_the_world_answers_with() {
 fn an_observer_perceives_the_world_through_the_systems_the_pack_enabled() {
     let world = loaded();
     let visitor = world.id(&key("visitor")).expect("the visitor resolves");
-    let providers: Vec<&dyn InteractionProvider> = vec![&PresenceSystem, &ConversationSystem];
+    let providers: Vec<&dyn PerceptionProvider> = vec![&PresenceSystem, &ConversationSystem];
 
     let observation = observe(world.world(), visitor, WorldTime::EPOCH, &providers);
 

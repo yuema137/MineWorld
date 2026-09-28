@@ -314,18 +314,22 @@ Every commit: implementation, deterministic validation, and LLM logic review, tr
 
 ### C2 — the disclosure seam
 
-- [ ] Implementation: `InteractionProvider` → `PerceptionProvider` with `discloses`, in
+- [x] Implementation: `InteractionProvider` → `PerceptionProvider` with `discloses`, in
       `systems/presence/src/interaction.rs`; `observe` returns `Observation<Value>` and calls the
       disclosure per perceived entity, in `systems/presence/src/observe.rs`;
       `ConversationSystem::discloses` in `systems/conversation/src/system.rs`; the rename at its two
       call sites (`worldpack/src/catalog.rs`, `worldpack/src/load.rs`); `wire()` deleted from
       `tools/cli/src/perceive.rs`.
-- [ ] Validation: `systems/conversation/tests/conversation_and_presence.rs` — a person's own history
+- [x] Validation (`cargo test --workspace`: 244 tests pass, up from 237; three new tests in the
+      conversation suite): `systems/conversation/tests/conversation_and_presence.rs` — a person's own history
       is disclosed to them, is absent from a stranger's observation of them, and disappears when the
       pack is disabled. `systems/presence/tests/presence.rs` still passes, including the structural
       scan that forbids this crate from naming another pack's vocabulary.
-- [ ] Review: that nothing outside `ConversationSystem::react` writes the component; that the
-      disclosure cannot be reached for a subject the observation does not list.
+- [x] Review: `git grep` for `insert(.*ConversationHistory` finds exactly one write, in `react`;
+      `discloses` takes a `WorldRead` and so cannot write at all. The disclosure is called only from
+      `perceived`, once per entity the observation already lists, so it cannot be used to learn about
+      an unperceived subject. DISCOVERY recorded in §7.6: a disabled pack was still disclosing,
+      because `observe`'s `AC-2` filter was on the action route map only.
 
 ### C3 — the `RuleController`
 
@@ -424,6 +428,35 @@ fourth terminal in front of the operator for a demo whose point is that there is
 honest statement of what was proved is in §10: the agent is on the client *authority* path, not
 across the client *transport*. Nothing in the architecture prevents the socket version; it is a
 driver swap.
+
+### 7.6 DISCOVERY — a disabled pack was still disclosing its state
+
+Found by a test written to fail if it did.
+
+```text
+Previous assumption:
+  perception's AC-2 filter covers everything a pack contributes, because an offer from a
+  disabled pack is already dropped by the kernel's route map.
+
+Audit evidence:
+  `observe`'s route-map check is `world.systems().provider(action_type)`, which is about ACTIONS.
+  A component has no route, so `a_disabled_pack_discloses_nothing_and_still_holds_its_state`
+  failed: the history was still in the observation of a world whose conversation pack was disabled.
+
+Corrected understanding:
+  the analogue of a route for state is the kernel's component DECLARATION table, which says who
+  owns a component type, plus the registry's `is_enabled`. `owned_by_an_enabled_system` asks those
+  two, so the decision stays the kernel's and this crate still never learns what the component is.
+
+Implementation consequence:
+  `disclosed` filters on that, and `observe` takes the `&World` it already had for the same reason
+  the affordance path does.
+
+Validation consequence:
+  the failing test passes, and it is the reason the filter exists rather than a decoration on it.
+  Without it, disabling a pack would remove what a player may *do* and leave what a player may
+  *know* — the half of AC-2 nobody would have noticed.
+```
 
 ### 7.5 The `AC-13` fixtures come from the real Godot client, not from the test
 

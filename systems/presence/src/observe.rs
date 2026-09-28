@@ -8,6 +8,7 @@
 //! ```text
 //! entities     the place you are in, and everybody this pack knows to be in it
 //! self         where you are, so a controller can decide to move before deciding to act
+//! components   what each pack says this observer may know about each of them — asked, never assumed
 //! relations    the present-in edges this pack wrote, for the entities you perceive
 //! affordances  what you may attempt, each with the server's verdict (ENGINEERING_RULES §8)
 //! events       nothing — see below
@@ -31,20 +32,22 @@
 //! The events a world emits are visible to whoever dispatched, and the slice this pack belongs to
 //! needs no more.
 //!
-//! **Components.** A perceived entity carries its identity, type, tags and location, and no
-//! component records. Not an omission: no system in this world owns a display name yet, and exposing
+//! **A component this function chose.** A perceived entity carries the component records the packs
+//! *asked* for, through [`PerceptionProvider::discloses`], and not one this file selected. Exposing
 //! *some* component because it happens to exist is how an observation quietly becomes a window onto
-//! everything. When a pack owns state a stranger may read, the world's perception configuration says
-//! so — it is not inferred here.
+//! everything, and this crate could not make the judgement honestly in any case: it does not know
+//! what another pack's state means, who may read it, or how it is encoded. So it asks the owner, per
+//! observer and per subject, and puts back exactly what comes out.
 
 use mineworld_contracts::{
-    Affordance, EntityId, Location, Observation, PerceivedEntity, Rejection, Relation,
-    SpatialRequirement, WorldTime,
+    Affordance, ComponentRecord, ComponentTypeId, EntityId, Location, Observation, PerceivedEntity,
+    Rejection, Relation, SpatialRequirement, WorldTime,
 };
 use mineworld_kernel::{World, WorldRead};
+use serde_json::Value;
 
 use crate::component::Presence;
-use crate::interaction::{InteractionProvider, Offer};
+use crate::interaction::{Offer, PerceptionProvider};
 use crate::system::present_in;
 
 /// What `observer` perceives of `world` at `at`, and what it may attempt.
@@ -53,16 +56,23 @@ use crate::system::present_in;
 /// nothing and is told so — an empty observation is a legitimate view of a world, and it is the safe
 /// answer, because everything exposed has to be added deliberately.
 ///
-/// `providers` are the packs whose actions may appear as affordances, in the order a world composed
+/// `providers` are the packs that may contribute to an observation, in the order a world composed
 /// them. An offer from a pack whose action is not currently provided by an *enabled* system is
 /// dropped, and that check is the kernel's route map rather than a list kept here: disabling a pack
 /// removes its affordances from every observation in the world, with no edit to this file (`AC-2`).
+/// A disabled pack is likewise not asked what it discloses, because a world does not compose it.
+///
+/// The payload type is [`Value`] rather than the contract's opaque `Vec<u8>` default. An observation
+/// is *read* — by a controller, or by a client with no Rust types at all — while a log is replayed,
+/// and `spike/FINDINGS.md` F8.2 measured what a byte payload reaches a client as. That is a
+/// serialization choice, not a transport one: no simulation semantics depend on it (`INV-14`), and
+/// every pack in this workspace already encodes its own payloads the same way.
 pub fn observe(
     world: &World,
     observer: EntityId,
     at: WorldTime,
-    providers: &[&dyn InteractionProvider],
-) -> Observation {
+    providers: &[&dyn PerceptionProvider],
+) -> Observation<Value> {
     let read = world.read();
     let here = read.component::<Presence>(observer).map(Presence::location);
     let present = present_with(&read, here);
@@ -73,7 +83,7 @@ pub fn observe(
         None => observation,
     };
     observation
-        .perceiving(perceived(&read, here, &present))
+        .perceiving(perceived(world, &read, here, &present, observer, providers))
         .relating(edges(&read, &present))
         .offering(affordances(
             world, &read, observer, here, &present, providers,
@@ -103,16 +113,21 @@ fn present_with(read: &WorldRead<'_>, here: Option<Location>) -> Vec<EntityId> {
 /// to ask. It carries no location of its own, because a place inside itself is nonsense
 /// (`contracts/src/observation.rs`).
 fn perceived(
+    world: &World,
     read: &WorldRead<'_>,
     here: Option<Location>,
     present: &[EntityId],
-) -> Vec<PerceivedEntity> {
+    observer: EntityId,
+    providers: &[&dyn PerceptionProvider],
+) -> Vec<PerceivedEntity<Value>> {
     let mut entities = Vec::new();
     if let Some(here) = here
         && let Some(place) = read.entity(here.place().entity_id())
     {
         entities.push(
-            PerceivedEntity::new(place.id(), place.entity_type()).with_tags(place.tags().clone()),
+            PerceivedEntity::new(place.id(), place.entity_type())
+                .with_tags(place.tags().clone())
+                .with_components(disclosed(world, read, observer, place.id(), providers)),
         );
     }
     for &entity in present {
@@ -120,13 +135,53 @@ fn perceived(
             continue;
         };
         let perceived = PerceivedEntity::new(record.id(), record.entity_type())
-            .with_tags(record.tags().clone());
+            .with_tags(record.tags().clone())
+            .with_components(disclosed(world, read, observer, entity, providers));
         entities.push(match read.component::<Presence>(entity) {
             Some(presence) => perceived.at(presence.location()),
             None => perceived,
         });
     }
     entities
+}
+
+/// Everything every pack says this observer may know about this subject, in the order a world
+/// composed the packs.
+///
+/// This function decides nothing about *what* may be known. It asks, and it does two things with the
+/// answers, neither of which involves knowing what any component is:
+///
+/// 1. it asks only about an entity the observation already lists, so a pack cannot be used to learn
+///    about somebody the observer does not perceive;
+/// 2. it drops a record whose owning system this world does not currently have — the same `AC-2`
+///    route an offer takes, and decided by the kernel's declaration table rather than by a list kept
+///    here.
+fn disclosed(
+    world: &World,
+    read: &WorldRead<'_>,
+    observer: EntityId,
+    subject: EntityId,
+    providers: &[&dyn PerceptionProvider],
+) -> Vec<ComponentRecord<Value>> {
+    providers
+        .iter()
+        .flat_map(|provider| provider.discloses(read, observer, subject))
+        .filter(|record| owned_by_an_enabled_system(world, record.component_type()))
+        .collect()
+}
+
+/// Whether the pack that owns this component type is one this world still has.
+///
+/// The kernel answers: the declaration table says who owns the type, and the system registry says
+/// whether that system is enabled. Disabling a pack therefore removes its state from every
+/// observation in the world with no edit anywhere — and this function never learns what the component
+/// is, exactly as [`affordances`] never learns what an action is.
+fn owned_by_an_enabled_system(world: &World, component_type: &ComponentTypeId) -> bool {
+    world
+        .components()
+        .declarations()
+        .find(|declaration| declaration.component_type() == component_type)
+        .is_some_and(|declaration| world.systems().is_enabled(declaration.owner()))
 }
 
 /// The edges this pack wrote about the entities the observer perceives.
@@ -162,7 +217,7 @@ fn affordances(
     observer: EntityId,
     here: Option<Location>,
     present: &[EntityId],
-    providers: &[&dyn InteractionProvider],
+    providers: &[&dyn PerceptionProvider],
 ) -> Vec<Affordance> {
     let targets = core::iter::once(None).chain(present.iter().copied().map(Some));
     let mut affordances = Vec::new();

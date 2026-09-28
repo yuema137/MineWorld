@@ -27,9 +27,13 @@ worked example every later pack copies, so they are written to be read in this o
 
 A client is told what a player may attempt, with the server's verdict for each, so that no
 renderer ever decides whether an interaction is valid. Perception produces those answers **without
-knowing what any action is**: a pack implements `InteractionProvider` and offers its own actions
+knowing what any action is**: a pack implements `PerceptionProvider` and offers its own actions
 with the spatial requirement it declared, and `presence` prices each offer through the kernel's
 route map and the contract layer's one evaluator.
+
+The same trait carries the other half — which of a pack's **components** an observer may know about
+a given entity. The owning pack answers, per observer, so state reaches an observation because
+somebody named it rather than because it exists.
 
 A pack that would need an edit to `systems/presence/` in order to be playable has not been written
 correctly. That is the difference between a framework and a hardcoded game, and
