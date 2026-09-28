@@ -13,6 +13,7 @@ Four steps, in order, because each depends on the last:
                character_model.py read off the geometry
 3  tee         the cream jersey with its mountain-and-slogan print
 4  denim       the worn mid-blue jeans albedo
+5  hair cards  the strand atlas the hair cards are mapped onto
 ```
 
 Steps 3 and 4 are **generated art** under `ARC-9`: a candidate comes back from
@@ -240,6 +241,81 @@ def denim(out: str) -> None:
     print(f"  denim_bc.jpg 512x512  ({os.path.getsize(dst) / 1e6:.2f} MB)")
 
 
+# -------------------------------------------------------------- 5  hair cards
+
+HAIR_COLS = 4
+HAIR_COL_PX = 256
+HAIR_ROWS_PX = 512
+HAIR_STRANDS = 17
+HAIR_SEED = 20260927
+
+
+def hair_cards(out: str) -> None:
+    """A hair-card atlas: four tapered strand clumps, each isolated in alpha.
+
+    This replaces sampling the CC0 *groom* map, and the difference is not a
+    matter of taste.  That map is a dense continuous field of strands: a card
+    takes a slice of it, every edge of the slice cuts through the middle of a
+    strand, and the card renders as an opaque rectangle.  A head of them reads
+    as a smooth brown cap, which is what three rounds of geometry tuning failed
+    to fix — the geometry was never the problem.
+
+    It also fixes the sampling.  The groom's strands are far finer than a pixel
+    at conversation distance; with `alpha_to_coverage` that dithers into the
+    yellow-tan speckling the operator saw.  These strands are 3–8 px in a 256 px
+    clump mapped across a ~20 mm card, so they survive a mip chain as strands.
+
+    Each clump is wide at the root and narrow at the tip, with transparent
+    margins on all four sides, so a card's *silhouette* is a lock of hair.
+    """
+    rng = random.Random(HAIR_SEED)
+    width = HAIR_COLS * HAIR_COL_PX
+    draw = []
+    for col in range(HAIR_COLS):
+        cx = col * HAIR_COL_PX + HAIR_COL_PX / 2
+        root_w = HAIR_COL_PX * rng.uniform(0.78, 0.90)
+        tip_w = HAIR_COL_PX * rng.uniform(0.10, 0.22)
+        length = HAIR_ROWS_PX * rng.uniform(0.86, 1.0)
+        for i in range(HAIR_STRANDS):
+            u = (i + rng.uniform(-0.3, 0.3)) / (HAIR_STRANDS - 1) - 0.5
+            x0 = cx + u * root_w
+            x1 = cx + u * tip_w + rng.uniform(-8, 8)
+            # a gentle S, so the clump is not a bundle of straight lines
+            bend = rng.uniform(-26, 26)
+            xm = (x0 + x1) / 2 + bend
+            y1 = length * rng.uniform(0.80, 1.0)
+            w = rng.uniform(3.0, 7.5)
+            g = rng.uniform(0.55, 1.0)
+            draw.append(
+                f"stroke-width {w:.1f} stroke rgba({int(g*255)},{int(g*255)},"
+                f"{int(g*255)},1) path 'M {x0:.0f},-6 Q {xm:.0f},{y1*0.55:.0f} "
+                f"{x1:.0f},{y1:.0f}'")
+
+    strands = os.path.join(out, "_strands.png")
+    run(["magick", "-size", f"{width}x{HAIR_ROWS_PX}", "xc:none",
+         "-fill", "none", "-draw", " ".join(draw), "-blur", "0x0.6", strands])
+    # fade the last third to nothing: a lock of hair ends in air, and a hard
+    # bottom edge on every card is what makes a groom read as plastic
+    fade = os.path.join(out, "_fade.png")
+    run(["magick", "-size", f"{width}x{HAIR_ROWS_PX}",
+         f"gradient:white-black", "-sigmoidal-contrast", "5x38%", fade])
+    dst = os.path.join(out, "hair_card.png")
+    run(["magick", strands, fade, "-alpha", "off", "-compose", "copy_opacity",
+         "-composite", "-channel", "A", "-evaluate", "multiply", "1.0",
+         "+channel", dst])
+    # RGB carries strand-to-strand shading; the shader reads .r for that and .a
+    # for coverage, so one file serves both of its texture slots.
+    run(["magick", strands, "-alpha", "extract", "-blur", "0x0.4",
+         os.path.join(out, "_cov.png")])
+    run(["magick", strands, "(", os.path.join(out, "_cov.png"), fade,
+         "-compose", "multiply", "-composite", ")",
+         "-compose", "copy_opacity", "-composite", dst])
+    for f in (strands, fade, os.path.join(out, "_cov.png")):
+        os.remove(f)
+    print(f"  hair_card.png {width}x{HAIR_ROWS_PX}, {HAIR_COLS} clumps of "
+          f"{HAIR_STRANDS} strands  ({os.path.getsize(dst) / 1e6:.2f} MB)")
+
+
 # --------------------------------------------------------------- generation
 
 def generate(name: str, prompt: str, size: str = "1024x1024") -> None:
@@ -285,6 +361,7 @@ def main() -> int:
         freckles(args.freckles, args.out)
     tee(args.out)
     denim(args.out)
+    hair_cards(args.out)
     return 0
 
 

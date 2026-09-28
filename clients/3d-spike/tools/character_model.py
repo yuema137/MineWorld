@@ -159,6 +159,7 @@ def main() -> int:
         garments.build_jeans(body, dom),
         garments.build_hoodie(body, dom, arm),
         garments.build_shoes(body, dom),
+        garments.build_pack(body, dom, arm),
     ]
     if not args.no_hair:
         made.append(hair_mod.build_hair(body, dom, arm))

@@ -146,9 +146,10 @@ def _sweep_path(centre, radii, start_dir, gather_dir, steps, volume, wobble, rng
         # The standoff grows toward the gather point rather than peaking in the
         # middle: hair swept up piles behind the crown, and a mid-path bulge
         # gives a helmet instead of an updo.
-        # zero at the root, but standing off early: the mass has to be wide at
-        # the temples, not just thick at the crown
-        lift = volume * (t ** 0.45) * (0.45 + 0.55 * t)
+        # A swept-up style hugs the skull and gets its height from the twist,
+        # not from the sweep.  Lifting the cards 40-80 mm off the head made
+        # every clump a spike and the whole groom read as straw.
+        lift = volume * (t ** 0.5)
         lift += wobble * math.sin(t * 9.0 + rng.random() * 0.3)
         path.append(surface(centre, radii, d, lift))
     return path
@@ -181,9 +182,9 @@ def build_hair(body, dom, arm):
     for c in range(30):
         ct = c / 29.0
         c_ang = math.radians(-176 + 352 * ct)
-        c_vol = 0.030 + 0.048 * rng.random()
+        c_vol = 0.014 + 0.026 * rng.random()
         c_drift = rng.uniform(-0.16, 0.16)
-        c_over = rng.uniform(0.0, 0.16)      # how far past the gather it splays
+        c_over = rng.uniform(0.0, 0.05)      # how far past the gather it splays
         for j in range(5):
             ang = c_ang + rng.uniform(-0.07, 0.07)
             elev = hairline(ang) + rng.uniform(-0.03, 0.03)
@@ -196,8 +197,8 @@ def build_hair(body, dom, arm):
             path = _sweep_path(centre, radii, start, jitter, 7,
                                c_vol * rng.uniform(0.85, 1.15),
                                0.003 * rng.random(), rng)
-            w0 = 0.016 + 0.008 * rng.random()
-            w = [w0 * q for q in (0.9, 1.0, 1.0, 0.95, 0.85, 0.65, 0.4)]
+            w0 = 0.020 + 0.010 * rng.random()
+            w = [w0 * q for q in (1.0, 1.05, 1.0, 0.92, 0.8, 0.62, 0.4)]
             col = rng.randrange(ATLAS_COLS)
             add(*ribbon(path, w, Vector((0, 0, 1)),
                         col / ATLAS_COLS, (col + 1) / ATLAS_COLS))
@@ -207,9 +208,9 @@ def build_hair(body, dom, arm):
     # A ring of cards through a single circle came out as a doughnut standing
     # off the back of the head; hair gathered into a soft twist is a rounded
     # mass with strands crossing it at every angle.
-    g = surface(centre, radii, gather, 0.030)
-    bun = Vector((0.060, 0.056, 0.046))
-    for _ in range(52):
+    g = surface(centre, radii, gather, 0.044)
+    bun = Vector((0.072, 0.066, 0.056))
+    for _ in range(62):
         axis = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1),
                        rng.uniform(-1, 1)))
         if axis.length < 1e-3:
@@ -244,14 +245,14 @@ def build_hair(body, dom, arm):
     # roots form a hard edge, and the opaque cap under them ends in a second
     # one: without this layer the character reads as wearing a brown swim cap.
     # These have their faded tips at the bottom, which is what a hairline is.
-    for k in range(46):
-        t = k / 45.0
+    for k in range(82):
+        t = k / 81.0
         ang = math.radians(-178 + 356 * t) + rng.uniform(-0.04, 0.04)
         base_el = hairline(ang)
         # length and reach vary per card; a row of equal-length cards produced a
         # continuous brim round the head, which is a hat, not a hairline
-        reach = rng.uniform(0.030, 0.085)
-        rise = rng.uniform(0.075, 0.150)
+        reach = rng.uniform(0.022, 0.050)
+        rise = rng.uniform(0.060, 0.115)
         n = 5
         path = []
         for i in range(n):
@@ -259,8 +260,8 @@ def build_hair(body, dom, arm):
             el = base_el + rise * (1.0 - s_) - reach * s_
             d = _dir(math.degrees(ang) + 7.0 * math.sin(t * 21.0) * s_, el)
             path.append(surface(centre, radii, d,
-                                0.012 + 0.012 * math.sin(math.pi * s_)))
-        w0 = 0.009 + 0.006 * rng.random()
+                                0.006 + 0.005 * math.sin(math.pi * s_)))
+        w0 = 0.019 + 0.009 * rng.random()
         col = rng.randrange(ATLAS_COLS)
         add(*ribbon(path, [w0 * q for q in (0.8, 1.0, 1.0, 0.85, 0.55)],
                     Vector((0, 0, 1)), col / ATLAS_COLS, (col + 1) / ATLAS_COLS))
@@ -363,8 +364,8 @@ def _loose(centre, radii, rng):
             # a loose strand mostly falls; it curls out at the tip but does not
             # stand away from the head, which an earlier version had it doing
             path.append(Vector((
-                root.x + out.x * length * t * t * 0.22 + wave * math.sin(t * 5.2),
-                root.y + out.y * length * t * t * 0.22 + wave * 0.6 * math.cos(t * 4.4),
+                root.x + out.x * length * t * t * 0.16 + wave * math.sin(t * 5.2),
+                root.y + out.y * length * t * t * 0.16 + wave * 0.6 * math.cos(t * 4.4),
                 root.z + drop * t + wave * 0.4 * math.sin(t * 6.0))))
         emit(path, [width * s for s in (1.0, 1.05, 1.0, 0.9, 0.75, 0.55, 0.3)])
     return verts, faces, uvs

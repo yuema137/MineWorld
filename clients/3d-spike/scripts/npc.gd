@@ -78,18 +78,17 @@ var _t := 0.0
 ## these colours tint them, so changing one shifts the tone without losing the
 ## artwork (`Human._printed`).
 const REF_SKIN := Color(1.0, 0.95, 0.90)
-const REF_HAIR := Color(0.36, 0.22, 0.13)   # warm mid-brown, not near-black
+const REF_HAIR := Color(0.43, 0.28, 0.17)   # warm mid-brown, not near-black
 const REF_TEE := Color(1.0, 0.99, 0.97)     # the tee albedo is already cream
 const REF_HOODIE := Color(0.44, 0.15, 0.14)
 const REF_JEANS := Color(0.92, 0.95, 1.0)   # the denim albedo is already blue
 const REF_SHOE := Color(0.30, 0.27, 0.24)
-## The backpack is DISABLED (alpha 0). `Human._backpack` builds one and it is
-## the last unmatched element of the reference silhouette, but every placement
-## attempt so far -- bone attachment, bone-space undo, plain character space --
-## has put it floating off the back rather than sitting on it, and a prop that
-## is visibly wrong is worse than a prop that is absent. Set the alpha to 1 to
-## see the current state. Tracked as unresolved in the hand-off.
-const REF_PACK := Color(0.36, 0.38, 0.32, 0.0)
+## Grey-green canvas. The bag is now part of the character mesh, skinned to
+## Spine1/Spine2 like the clothes, rather than primitives hung off the node or
+## off a `BoneAttachment3D` -- both of those floated it off her back, because a
+## bone's frame after retargeting is not character space. Alpha 0 hides it for
+## everyone else in town.
+const REF_PACK := Color(0.30, 0.32, 0.26, 1.0)
 
 
 ## `seat_y` is the height of the thing a SIT person sits on; the caller knows

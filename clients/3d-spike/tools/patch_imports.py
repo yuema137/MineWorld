@@ -96,7 +96,7 @@ TEXTURE_ROLES = {
     "iris.jpg": "albedo", "sclera.jpg": "albedo", "mouth.jpg": "albedo",
     "tee_bc.jpg": "albedo", "denim_bc.jpg": "albedo",
     "face_rough.jpg": "linear", "body_rough.jpg": "linear",
-    "hair_opacity.png": "linear",
+    "hair_opacity.png": "linear", "hair_card.png": "albedo",
     "face_n.jpg": "normal", "body_n.jpg": "normal", "fabric_n.jpg": "normal",
 }
 

@@ -122,16 +122,28 @@ static func _skin(bc: String, nm: String, rough: String, tint: Color) -> Standar
 	return m
 
 
-## The groom's coverage lives in its own map, which StandardMaterial3D cannot
-## sample -- see shaders/hair_card.gdshader.
+## The card atlas carries coverage in its alpha, which StandardMaterial3D cannot
+## sample separately -- see shaders/hair_card.gdshader.
+##
+## One file feeds both slots. It is a *card* atlas built by
+## `tools/character_textures.py`: four tapered locks with transparent margins,
+## not a slice of the CC0 groom field. The groom map is a continuous carpet of
+## strands, so every card cut from it is an opaque rectangle and a head of them
+## renders as a smooth brown cap however the geometry is arranged.
 static func _hair(tint: Color) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/hair_card.gdshader")
-	m.set_shader_parameter("tex_diffuse", _tex("hair_bc.jpg", true))
-	m.set_shader_parameter("tex_opacity", _tex("hair_opacity.png", false))
+	var atlas := _tex("hair_card.png", true)
+	m.set_shader_parameter("tex_diffuse", atlas)
+	m.set_shader_parameter("tex_opacity", atlas)
 	m.set_shader_parameter("tint", tint)
-	m.set_shader_parameter("cutoff", 0.42)
+	# lower than the groom needed: these strands taper, and scissoring at 0.42
+	# cuts the taper off square again
+	m.set_shader_parameter("cutoff", 0.28)
 	m.set_shader_parameter("roughness_v", 0.55)
+	# the atlas RGB already runs 0.55..1.0, so it is strand shading at 1:1
+	m.set_shader_parameter("diffuse_gain", 1.0)
+	m.set_shader_parameter("root_shade", 0.86)
 	return m
 
 
@@ -164,11 +176,15 @@ static func _printed(file: String, tint: Color, rough: float, tile := 1.0) -> St
 
 ## Shoes get no weave -- leather is not fabric, and the tiled normal read as
 ## camouflage on a foot-sized surface.
-static func _plain(c: Color, rough: float) -> StandardMaterial3D:
+static func _plain(c: Color, rough: float, spec := 0.5) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
 	m.roughness = rough
 	m.metallic = 0.0
+	m.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+	m.roughness = rough
+	m.albedo_color = c
+	m.metallic_specular = spec
 	return m
 
 
@@ -209,13 +225,24 @@ static func build(height_m: float, skin: Color, hair: Color,
 		"MW_Zip": _plain(Color(0.66, 0.64, 0.60), 0.55),
 		"MW_Cord": _plain(Color(0.88, 0.84, 0.74), 0.72),
 		"MW_Shoe": _plain(shoe, 0.55), "MW_Sole": _plain(shoe.darkened(0.35), 0.72),
+		# the rucksack: grey-green canvas, grey-green webbing over a dark navy
+		# lower section with a visible adjuster, as the reference shows
+		"MW_Pack": _cloth(pack, 0.92),
+		"MW_Webbing": _cloth(pack.darkened(0.16), 0.88),
+		"MW_StrapLow": _plain(Color(0.10, 0.11, 0.14), 0.80),
+		"MW_Buckle": _plain(Color(0.16, 0.16, 0.15), 0.42, 0.35),
 		"MW_Hair": _hair(hair),
-		# the opaque shell under the cards; alpha-scissored hair always leaks and
-		# this is what stops scalp showing between strands
-		"MW_HairCap": _plain(hair.darkened(0.45), 0.62),
+		# The opaque shell under the cards; alpha-scissored hair always leaks and
+		# this is what stops scalp showing between strands. Only slightly darker
+		# than the strands: at 45% darker its edge read as a black headband
+		# across the forehead wherever the cards were thin.
+		"MW_HairCap": _plain(hair.darkened(0.18), 0.68),
 	}
 	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
 		if mi.name == "Hoodie" and hoodie.a <= 0.0:
+			mi.visible = false
+			continue
+		if mi.name == "Pack" and pack.a <= 0.0:
 			mi.visible = false
 			continue
 		for i in mi.mesh.get_surface_count():
@@ -229,54 +256,14 @@ static func build(height_m: float, skin: Color, hair: Color,
 		if mi.name == "Hair":
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 
-	if pack.a > 0.0:
-		h._backpack(pack)
-
-	# Layered after the AnimationTree; see posture.gd for why it exists.
-	h._posture = Posture.natural_stance()
+	# Layered after the AnimationTree; see posture.gd for why it exists. The
+	# reference character also holds her backpack strap, which is a pose and not
+	# a prop: the hand has to be on the webbing, so it is solved and locked.
+	h._posture = Posture.holding_strap() if pack.a > 0.0 else Posture.natural_stance()
 	h.skeleton.add_child(h._posture)
 
 	h._build_tree(inst)
 	return h
-
-
-## A backpack on one shoulder. Built from primitives and hung off the profile's
-## UpperChest bone with a BoneAttachment3D, so it rides the spine and needs no
-## skinning -- a rucksack is rigid anyway. The strap across the chest is most of
-## what makes the reference silhouette recognisable, more than the bag itself.
-## A backpack on the shoulders, built from primitives.
-##
-## Parented to the character rather than to a bone. A `BoneAttachment3D` on
-## UpperChest is the textbook answer and it is what the first version did, but
-## the bone's frame after retargeting is not character space and undoing it put
-## the bag through the chest at an angle. A rucksack on a walking person barely
-## moves relative to the torso, so the honest trade is fixed placement that is
-## visibly right over rig-following that is visibly wrong. If the character ever
-## needs to bend, this is the thing to revisit.
-func _backpack(c: Color) -> void:
-	var hold := Node3D.new()
-	hold.name = "Pack"
-	add_child(hold)
-
-	var canvas := Mats.paint(c, 0.92)
-	var webbing := Mats.paint(c.darkened(0.30), 0.88)
-	var buckle := Mats.paint(Color(0.18, 0.18, 0.17), 0.45, 0.4)
-	# the bag on the upper back, with a lid flap and a lower pocket so the
-	# silhouette is not one plain box
-	Build.box(hold, Vector3(0, 1.235, -0.185), Vector3(0.265, 0.34, 0.145), canvas)
-	Build.box(hold, Vector3(0, 1.385, -0.185), Vector3(0.245, 0.10, 0.155),
-		Mats.paint(c.lightened(0.05), 0.92))
-	Build.box(hold, Vector3(0, 1.115, -0.205), Vector3(0.20, 0.11, 0.12),
-		Mats.paint(c.darkened(0.14), 0.92))
-	# straps over both shoulders and down the chest. The right-hand one is what
-	# the reference character grips, and it carries a lot of the silhouette.
-	for sx in [-1.0, 1.0]:
-		Build.box(hold, Vector3(sx * 0.105, 1.445, -0.02), Vector3(0.065, 0.075, 0.28),
-			webbing)
-		Build.box(hold, Vector3(sx * 0.115, 1.29, 0.105), Vector3(0.06, 0.34, 0.05),
-			webbing)
-		Build.box(hold, Vector3(sx * 0.115, 1.135, 0.120), Vector3(0.055, 0.055, 0.035),
-			buckle)
 
 
 func _build_tree(inst: Node) -> void:

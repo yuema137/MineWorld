@@ -21,6 +21,9 @@
 class_name Posture
 extends SkeletonModifier3D
 
+## How far the gripping hand's fingers close, in degrees at the proximal joint.
+const FINGER_CURL := 38.0
+
 ## Profile bone name -> local euler correction in degrees, post-multiplied onto
 ## whatever the animation produced.
 var tweaks := {}
@@ -52,6 +55,41 @@ static func natural_stance() -> Posture:
 		"Neck": Vector3(0, 7.0, 0),
 		"Head": Vector3(0, 9.0, 0),
 	}
+	return p
+
+
+## The reference character, who is holding her backpack strap.
+##
+## `CHARACTER_IDENTITY.md` §5 puts her **left** hand on the left strap at chest
+## height, fingers over the webbing, and §6 lists that grip among the five
+## things a viewer matches her by: "it fixes the pose and reads at any
+## distance."
+##
+## The two arm angles are **solved, not authored** — `tools/solve_grip.gd`
+## searches the real skeleton until the hand lands on the strap, with a second
+## term that keeps the elbow hanging down and forward instead of behind the
+## shoulder, which is where an unconstrained two-bone solution puts it. Re-run
+## it if the strap moves; the hand lands within a millimetre of the webbing.
+##
+## They are `absolute`, not `tweaks`: a corrective offset would still let the
+## walk cycle swing the arm, and a hand that swings through the strap it is
+## supposed to be holding is worse than no grip at all. The right arm, the legs
+## and the spine keep animating.
+static func holding_strap() -> Posture:
+	var p := natural_stance()
+	p.tweaks.erase("LeftUpperArm")
+	p.tweaks.erase("LeftLowerArm")
+	p.absolute["LeftUpperArm"] = Vector3(5.4, 107.4, -38.5)
+	p.absolute["LeftLowerArm"] = Vector3(113.7, 0.0, -15.7)
+	# Fingers curled over the webbing, thumb behind it -- the contract is
+	# specific about that and an open flat hand beside a strap reads as a hand
+	# that happens to be there. Relative, because the clips barely move fingers.
+	for f in ["Index", "Middle", "Ring", "Little"]:
+		p.tweaks["Left%sProximal" % f] = Vector3(0, 0, FINGER_CURL)
+		p.tweaks["Left%sIntermediate" % f] = Vector3(0, 0, FINGER_CURL * 1.25)
+		p.tweaks["Left%sDistal" % f] = Vector3(0, 0, FINGER_CURL * 0.7)
+	p.tweaks["LeftThumbProximal"] = Vector3(0, 0, -FINGER_CURL * 0.5)
+	p.tweaks["LeftThumbDistal"] = Vector3(0, 0, -FINGER_CURL * 0.4)
 	return p
 
 

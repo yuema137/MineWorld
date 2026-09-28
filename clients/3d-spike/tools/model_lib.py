@@ -480,3 +480,31 @@ def report(objs):
         tt += nt
         print(f"{o.name:<16}{nv:>9}{nt:>9}  {[m.name for m in o.data.materials]}")
     print(f"{'TOTAL':<16}{tv:>9}{tt:>9}")
+
+
+def rounded_box(centre, size, radius: float, segs: int = 5, slices: int = 6):
+    """(verts, faces) for a box with rounded vertical edges and a domed top/bottom.
+
+    A rucksack is a soft bag, not a crate: the corners are what stop it reading
+    as a cardboard box strapped to someone's back.
+    """
+    cx, cy, cz = centre
+    hx, hy, hz = size[0] / 2, size[1] / 2, size[2] / 2
+    r = min(radius, hx * 0.9, hy * 0.9)
+    ring_xy = []
+    corners = [(hx - r, hy - r), (-(hx - r), hy - r),
+               (-(hx - r), -(hy - r)), (hx - r, -(hy - r))]
+    for k, (qx, qy) in enumerate(corners):
+        a0 = math.tau * k / 4
+        for j in range(segs):
+            a = a0 + math.tau / 4 * j / segs
+            ring_xy.append((qx + math.cos(a) * r, qy + math.sin(a) * r))
+    rings = []
+    for s in range(slices + 1):
+        t = s / slices
+        z = cz - hz + 2 * hz * t
+        # dome the ends so the top and bottom are not flat lids
+        k = math.sin(math.pi * min(1.0, max(0.0, t))) ** 0.35
+        k = max(k, 0.25) if 0.0 < t < 1.0 else 0.62
+        rings.append([(cx + x * k, cy + y * k, z) for x, y in ring_xy])
+    return loft(rings, cap_first=True, cap_last=True)

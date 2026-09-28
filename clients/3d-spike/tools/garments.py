@@ -35,10 +35,10 @@ from mathutils import Vector  # pylint: disable=import-error
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from model_lib import (  # noqa: E402  pylint: disable=wrong-import-position
     assign_material, bind, boundary_loop, cylindrical_uv, decimate,
-    dominant_group, dup_region, extrude_band, inflate, load_body, loft,
-    extrude_strip, smooth_boundary, snap_opening,
-    flare, new_object, planar_uv, relax, report, rib_displace, set_material,
-    shade_smooth, solidify, transfer_weights, tube,
+    dominant_group, dup_region, extrude_band, extrude_strip, flare, inflate,
+    load_body, loft, new_object, planar_uv, relax, report, rib_displace,
+    rounded_box, set_material, shade_smooth, smooth_boundary, snap_opening,
+    solidify, transfer_weights, tube,
 )
 
 
@@ -471,6 +471,98 @@ def build_shoes(body, dom):
     assign_material(obj, "MW_Sole", lambda c, _n: c.z < 0.014)
     planar_uv(obj, 0.30)
     shade_smooth(obj)
+    return obj
+
+
+# ---------------------------------------------------------------- the backpack
+
+# The strap paths, over the hoodie rather than inside it: the shell stands
+# 40 mm off the body at the chest, so the webbing runs at about 55 mm.  Points
+# are (x for her left strap, y, z); the right strap is the mirror.
+STRAP_PATH = [
+    (0.086, -0.148, 1.120),
+    (0.092, -0.152, 1.250),
+    (0.090, -0.140, 1.360),
+    (0.086, -0.104, 1.442),
+    (0.098, -0.016, 1.516),
+    (0.094, 0.082, 1.466),
+    (0.084, 0.140, 1.352),
+    (0.074, 0.156, 1.250),
+]
+STRAP_W = 0.044           # padded webbing, flat against the chest
+STRAP_T = 0.013
+BAG_CENTRE = (0.0, 0.232, 1.262)
+BAG_SIZE = (0.268, 0.152, 0.350)
+
+
+def build_pack(body, dom, arm):
+    """The grey-green canvas rucksack, and the two padded straps.
+
+    Built here, with the clothes, and skinned to the same armature — not
+    parented to the character and not hung off a `BoneAttachment3D`.  Both of
+    those were tried and both put the bag floating off her back, because a bone
+    attachment's frame after retargeting is not character space.  A bag whose
+    vertices are weighted to `Spine1`/`Spine2` cannot float: it is on the back
+    the same way the hoodie is.
+
+    The contract's own emphasis is on the *straps*, not the bag — "sits behind
+    the shoulders; only the edges are visible from the front" — so the webbing
+    is where the detail goes.
+    """
+    verts, faces = [], []
+    lower, buckle = [], []
+
+    def add(v, f, bucket=None):
+        base = len(verts)
+        verts.extend(v)
+        for tri in f:
+            faces.append(tuple(base + i for i in tri))
+            if bucket is not None:
+                bucket.append(len(faces) - 1)
+
+    for sx in (-1.0, 1.0):
+        path = [Vector((sx * px, py, pz)) for px, py, pz in STRAP_PATH]
+        radii = [STRAP_W / 2] * len(path)
+        radii[0] = STRAP_W / 2 * 0.86          # tapers into the adjuster
+        v, f = tube(path, radii, segments=8, flatten=STRAP_T / STRAP_W)
+        add(v, f)
+        # the dark lower section the reference shows below the adjuster
+        low = [Vector((sx * px, py, pz)) for px, py, pz in STRAP_PATH[:2]]
+        v, f = tube([low[0] + Vector((0, 0, -0.085)), low[0]],
+                    [STRAP_W / 2 * 0.80, STRAP_W / 2 * 0.84],
+                    segments=8, flatten=STRAP_T / STRAP_W)
+        add(v, f, lower)
+        # the adjuster itself, a flat slider across the webbing
+        v, f = rounded_box((sx * 0.086, -0.150, 1.118), (0.058, 0.020, 0.024),
+                           0.006, segs=3, slices=2)
+        add(v, f, buckle)
+
+    n_strap = len(faces)
+    v, f = rounded_box(BAG_CENTRE, BAG_SIZE, 0.055)
+    add(v, f)
+    # a lid flap and a lower pocket, so the silhouette is not one plain box
+    v, f = rounded_box((0.0, 0.238, 1.408), (0.248, 0.140, 0.088), 0.040,
+                       segs=4, slices=3)
+    add(v, f)
+    v, f = rounded_box((0.0, 0.272, 1.148), (0.196, 0.086, 0.118), 0.034,
+                       segs=4, slices=3)
+    add(v, f)
+
+    obj = new_object("Pack", verts, faces, "MW_Pack")
+    assign_material(obj, "MW_Webbing", lambda c, _n: False)
+    assign_material(obj, "MW_StrapLow", lambda c, _n: False)
+    assign_material(obj, "MW_Buckle", lambda c, _n: False)
+    slots = {m.name: i for i, m in enumerate(obj.data.materials)}
+    for i, poly in enumerate(obj.data.polygons):
+        if i in buckle:
+            poly.material_index = slots["MW_Buckle"]
+        elif i in lower:
+            poly.material_index = slots["MW_StrapLow"]
+        elif i < n_strap:
+            poly.material_index = slots["MW_Webbing"]
+    planar_uv(obj, 0.30)
+    shade_smooth(obj)
+    print(f"  pack: {len(obj.data.vertices)} verts, straps {n_strap} faces")
     return obj
 
 
