@@ -34,3 +34,10 @@ spike/server/target/
 # Scratch files a shell-quoting slip can create at the repo root: a filename that
 # is itself a JSON object. Two were committed to main before this line existed.
 {"*
+
+# Personal, per-machine agent authorization. This is one developer's grant for their
+# own environment, never repository policy: a contributor inherits it silently
+# otherwise, which is how a broad permission spreads without anybody deciding to
+# grant it. `.claude/settings.json` is for shared project rules and is tracked when
+# it has any.
+.claude/settings.local.json

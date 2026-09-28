@@ -235,6 +235,17 @@ python3 .claude/skills/structured-coding/scripts/standards.py approve --project 
 python3 .claude/skills/structured-coding/scripts/standards.py run     --project . --base main
 ```
 
+**Agent permissions: `.claude/settings.json` is repository policy;
+`.claude/settings.local.json` is one developer's grant for their own machine.** A permission in
+the tracked file is inherited silently by every contributor and every agent that clones, so it is
+a decision the project makes, not a convenience one session needs. Personal authorization —
+anything granted to keep a local workflow autonomous — belongs in the untracked local file, which
+`.gitignore` covers so the protection travels with the repository rather than depending on a
+developer's global ignore. Never commit a personal grant, and never widen the shared file to
+unblock yourself: an agent asking for a permission is exactly the case where the answer is the
+operator's. Narrow, read-only, universally useful commands may be added to the shared file
+deliberately; a broad wildcard may not.
+
 No host hooks are registered. Do not register or enable the `continuity`, `checkpoints`, or
 `standards` presets on your own initiative; if the operator enables one, read its interface
 document and bind the session explicitly. Without hooks these obligations remain procedural,
