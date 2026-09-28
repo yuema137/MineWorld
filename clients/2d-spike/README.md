@@ -8,7 +8,7 @@ see below.
 >
 > The operator compared four complete scenes and chose `town`; it is the
 > default and no longer a candidate. What that means, and what distinguishes
-> it, is recorded in [`ARC-13`](../../docs/DECISIONS.md) — read that before
+> it, is recorded in [`ARC-14`](../../docs/DECISIONS.md) — read that before
 > changing the look.
 >
 > ```

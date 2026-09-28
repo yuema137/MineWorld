@@ -926,7 +926,7 @@ that avoids repetition.
 
 ---
 
-## ARC-13 — The default 2D style is `town`
+## ARC-14 — The default 2D style is `town`
 
 **Date** 2026-09-27
 
