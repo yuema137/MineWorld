@@ -306,3 +306,43 @@ parametric base, and that is a decision rather than a workaround.
 **What is explicitly not proposed:** morphing the existing male mesh toward a
 female silhouette by scaling bones. It would distort the skinning and would not
 reach the contract.
+
+---
+
+## 10. The Blender compatibility risk did not materialise
+
+**Date** 2026-09-27 · tested rather than assumed, because §9 made everything
+depend on it
+
+`CharMorph` declares `"blender": (3, 3, 0)` and the installed Blender is
+**5.2.2 LTS** (hash `d13f752e3b9c`, built 2026-09-15) — two major versions and
+two API breaks ahead. It **enables cleanly**:
+
+```
+BLENDER_USER_SCRIPTS=<scratch>/bl/scripts blender --background --factory-startup \
+  --python-expr "import addon_utils; addon_utils.enable('CharMorph', default_set=False)"
+
+  charmorph addon: Verbose is enabled
+  ENABLE_RESULT: <module 'CharMorph' from '.../CharMorph/__init__.py'>
+```
+
+The only complaint is the one that should appear — `data/characters is not
+found`, which is the 1.12 GB character payload distributed separately as
+`character.zip` on the `v1.6.1` release of `seenbuklee/CharMorph-Vitruvian`.
+
+**Reproducibility fact, because "which Blender" now matters to anyone
+re-deriving the character:** Blender **5.2.2 LTS**, CharMorph at `master`
+(bl_info version `0.3.5`), Vitruvian character data `v1.6.1`. No older Blender
+was needed and none is installed. Enabling is not the same as the morph
+pipeline working end to end; that is tested next and recorded when it is.
+
+### Licence boundary, restated because the add-on is copyleft
+
+`CharMorph` ships `agpl-3.0.txt` and is **AGPL-3.0**. It is authoring tooling:
+it runs in Blender on the operator's machine, it is downloaded to a scratch
+directory **outside this repository**, and no part of it is committed. Only its
+CC0 output crosses the boundary. This is exactly the line `DEP-8` already draws
+for MPFB2 — GPL code that stays in Blender, CC0 assets that ship — and the
+reason `Humanizer` was rejected outright is instructive by contrast: that is a
+Godot *plugin*, so it would have lived inside the project and been
+redistributed. A Blender add-on never is.
