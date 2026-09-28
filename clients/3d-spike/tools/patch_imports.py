@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Point the two character .import files at their BoneMaps.
+"""Own the character's import settings: the two BoneMaps, and the texture flags.
 
 Godot writes `_subresources={}` when it first imports a GLB, and the retarget
 settings live inside that dictionary. They are reachable from the editor's
@@ -30,6 +30,35 @@ set the way it is:
   motion_scale so one clip set serves a 1.68 m and a 1.80 m person. Note it
   rescales *position* tracks only; stride length is baked into leg *rotation*,
   so it does not fix foot sliding. That is tuned in `human.gd`.
+
+---
+
+**The texture flags, and why this file owns them too.**
+
+Godot writes a texture's `.import` on first sight and nobody looks at it again.
+That left every character map on this project's defaults, and two of those
+defaults were wrong in ways that look like art problems rather than settings:
+
+* **`mipmaps/generate=false`.** A 2048 face albedo on a head that covers 60–200
+  screen pixels means one pixel spans ten to thirty texels. With no mip chain
+  the sampler takes a single arbitrary texel per pixel, so the pore and crease
+  detail that should average into the *form* of a nose and a mouth aliases into
+  per-pixel noise instead. The face reads as a featureless smear, and no amount
+  of brightening fixes it. The same sampling on `hair_opacity.png`, whose strand
+  field is far finer than a pixel at this distance, is what produced the
+  yellow-tan speckling over the hair: alpha-to-coverage dithering a randomly
+  sampled alpha.
+* **`compress/normal_map=0` on the normal maps.** It tags a texture as normal
+  data so the importer packs and filters it as such. It is set correctly here
+  now, but honesty about the evidence: the A/B render that fixed the face
+  changed *only* mipmaps, so the mipmap flag is the demonstrated cause and this
+  one is correctness rather than a measured improvement.
+
+Godot 4 decides a texture's colour space at the material (an albedo slot samples
+sRGB, a normal slot does not), so there is no `flags/srgb` to set here; a first
+attempt wrote one and the importer silently dropped it.
+
+Both flags are now written here, per texture, by role.
 """
 
 from __future__ import annotations
@@ -42,11 +71,64 @@ PROJ = os.path.dirname(HERE)
 
 TARGETS = [
     # (.import file, skeleton node path, bone map, fix silhouette)
-    ("assets/characters/vitruvian/vitruvian.glb.import", "Vitruvian/Skeleton3D",
+    # The path is the imported *scene* path, not the glTF node name: the GLB now
+    # comes out of Blender, which nests the skeleton under the armature object.
+    ("assets/characters/vitruvian/vitruvian.glb.import",
+     "mixamo_vitruvian/Skeleton3D",
      "res://assets/characters/vitruvian/vitruvian_bonemap.tres", True),
     ("assets/characters/quaternius_ual.glb.import", "Rig/Skeleton3D",
      "res://assets/characters/quaternius_ual_bonemap.tres", False),
 ]
+
+
+# role -> (mipmaps, compress mode, normal_map flag)
+# compress/mode 0 is Lossless: skin and a hair alpha mask both show DXT blocking
+# badly, and these are small enough that VRAM compression buys little.
+ROLES = {
+    "albedo": (True, 0, 0),
+    "linear": (True, 0, 0),         # roughness, and the hair opacity mask
+    "normal": (True, 0, 1),
+}
+
+TEXTURE_DIR = "assets/characters/vitruvian/textures"
+TEXTURE_ROLES = {
+    "face_bc.jpg": "albedo", "body_bc.jpg": "albedo", "hair_bc.jpg": "albedo",
+    "iris.jpg": "albedo", "sclera.jpg": "albedo", "mouth.jpg": "albedo",
+    "tee_bc.jpg": "albedo", "denim_bc.jpg": "albedo",
+    "face_rough.jpg": "linear", "body_rough.jpg": "linear",
+    "hair_opacity.png": "linear",
+    "face_n.jpg": "normal", "body_n.jpg": "normal", "fabric_n.jpg": "normal",
+}
+
+
+def patch_texture(path: str, role: str) -> bool:
+    mip, mode, nmap = ROLES[role]
+    want = {
+        "mipmaps/generate": "true" if mip else "false",
+        "compress/mode": str(mode),
+        "compress/normal_map": str(nmap),
+    }
+    text = open(path).read()
+    lines = text.splitlines()
+    out, seen = [], set()
+    for line in lines:
+        key = line.split("=", 1)[0].strip()
+        if key in want:
+            out.append(f"{key}={want[key]}")
+            seen.add(key)
+        else:
+            out.append(line)
+    # keys Godot omitted because they were at their default have to be inserted
+    missing = [k for k in want if k not in seen]
+    if missing:
+        at = max(i for i, ln in enumerate(out) if ln.startswith("compress/")) + 1
+        for k in missing:
+            out.insert(at, f"{k}={want[k]}")
+    new = "\n".join(out) + "\n"
+    if new == text:
+        return False
+    open(path, "w").write(new)
+    return True
 
 
 def subresources(node_path: str, bone_map: str, fix_silhouette: bool) -> str:
@@ -99,6 +181,14 @@ def main() -> int:
             print(f"  patched {rel}  (fix_silhouette={fix})")
         else:
             print(f"  unchanged {rel}")
+    for name, role in sorted(TEXTURE_ROLES.items()):
+        tp = os.path.join(PROJ, TEXTURE_DIR, name + ".import")
+        if not os.path.exists(tp):
+            print(f"  missing {name}.import — import the project first")
+            continue
+        if patch_texture(tp, role):
+            changed += 1
+            print(f"  patched {name:<18} as {role}")
     print(f"{changed} file(s) changed; re-run `godot --headless --path . --import`")
     return 0
 

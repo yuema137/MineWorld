@@ -67,16 +67,21 @@ var body: Human
 var _t := 0.0
 
 
-## The person in `3D/references/04_character_closeup.png`, read off the plate:
-## a dark red / brick open zip hoodie, a cream tee with a mountain graphic, mid
-## blue jeans, a grey-green backpack, short tousled warm brown hair. `ARC-4`
-## scopes facial *fidelity* below the reference; it does not scope identity
-## down, so wardrobe and hair are matched rather than approximated.
+## The person in `3D/references/04_character_closeup.png`, read fact by fact in
+## `presentation/mineworld-default/3D/CHARACTER_IDENTITY.md`: an open burgundy
+## zip hoodie with a hood, cream drawstrings and ribbed cuffs, a cream tee
+## carrying a mountain-and-slogan print, worn mid-blue denim, and a warm
+## mid-brown messy updo. `ARC-19` supersedes `ARC-4`'s facial-fidelity
+## exclusion for this one character: identity is in scope, not approximated.
+##
+## The albedo *textures* carry the print, the denim weave and the freckles;
+## these colours tint them, so changing one shifts the tone without losing the
+## artwork (`Human._printed`).
 const REF_SKIN := Color(1.0, 0.95, 0.90)
-const REF_HAIR := Color(0.26, 0.16, 0.10)
-const REF_TEE := Color(0.84, 0.81, 0.73)
+const REF_HAIR := Color(0.36, 0.22, 0.13)   # warm mid-brown, not near-black
+const REF_TEE := Color(1.0, 0.99, 0.97)     # the tee albedo is already cream
 const REF_HOODIE := Color(0.44, 0.15, 0.14)
-const REF_JEANS := Color(0.36, 0.45, 0.58)
+const REF_JEANS := Color(0.92, 0.95, 1.0)   # the denim albedo is already blue
 const REF_SHOE := Color(0.30, 0.27, 0.24)
 ## The backpack is DISABLED (alpha 0). `Human._backpack` builds one and it is
 ## the last unmatched element of the reference silhouette, but every placement

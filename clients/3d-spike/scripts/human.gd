@@ -12,7 +12,8 @@
 ## to change for the swap, and `--drive` still prints world-space facing so a
 ## regression here is one line of output rather than a squint at a screenshot.
 ##
-## SCALE: the authored figure measures 1.7688 m. An instance is scaled by
+## SCALE: the authored figure measures 1.7670 m (sole to crown; the gathered
+## hair reaches 1.8026 and is deliberately not counted -- see character_model.py). An instance is scaled by
 ## `height / 1.7688`, which is the rule `docs/HUMANOID_PROFILE.md` states and
 ## the reason `height_mm` in the server means something visible here.
 ##
@@ -27,9 +28,10 @@ const SRC := "res://assets/characters/vitruvian/vitruvian.glb"
 const CLIPS := "res://assets/characters/quaternius_ual.glb"
 const TEX := "res://assets/characters/vitruvian/textures/"
 
-## Measured from the baked GLB, not assumed. `tools/character_bake.py` prints it.
-## It grew from 1.7688 when the generated shoes added a sole below the bare foot.
-const CANONICAL_HEIGHT := 1.7799
+## Measured from the baked GLB, not assumed. `tools/character_model.py` prints it.
+## It moved from 1.7799 when the body was re-baked through CharMorph's Ultra
+## Feminine morph and the shoes stopped being a swept tube.
+const CANONICAL_HEIGHT := 1.7670
 
 ## Ground speed each clip is authored at, **measured on this character** by
 ## `tools/measure_stride.gd`: it samples a foot relative to the hips across one
@@ -39,13 +41,13 @@ const CANONICAL_HEIGHT := 1.7799
 ## animation rig. `Normalize Position Tracks` rescales *position* tracks; stride
 ## lives in the leg *rotations* applied to our limb lengths, so it survives
 ## normalisation untouched and differs from the Quaternius mannequin's
-## (1.021 / 2.503 m/s on its own skeleton, 1.058 / 2.647 on ours).
+## (1.021 / 2.503 m/s on its own skeleton, 1.063 / 2.660 on ours).
 ##
 ## The first version of this file guessed 1.35 and 3.10. At the controller's
 ## real 1.45 m/s that guess ran the clip ~30% too slow, which is precisely the
 ## skating this constant exists to prevent.
-const WALK_CLIP_MPS := 1.058
-const JOG_CLIP_MPS := 2.647
+const WALK_CLIP_MPS := 1.063
+const JOG_CLIP_MPS := 2.660
 
 static var _scene: PackedScene
 static var _lib: AnimationLibrary
@@ -82,6 +84,12 @@ static func _shared() -> Dictionary:
 	iris.albedo_texture = _tex("iris.jpg", true)
 	iris.roughness = 0.12
 	_mats["iris"] = iris
+	# The pupil is its own 64-face disc in the CC0 mesh, sharing the sclera's UV
+	# island; textured with the sclera map it reads as a second white spot.
+	var pupil := StandardMaterial3D.new()
+	pupil.albedo_color = Color(0.03, 0.025, 0.02)
+	pupil.roughness = 0.10
+	_mats["pupil"] = pupil
 	var mouth := StandardMaterial3D.new()
 	mouth.albedo_texture = _tex("mouth.jpg", true)
 	mouth.roughness = 0.35
@@ -141,6 +149,19 @@ static func _cloth(c: Color, rough: float) -> StandardMaterial3D:
 	return m
 
 
+## A printed garment: the albedo carries the artwork, so the tiling weave normal
+## that `_cloth` applies would fight it and the UV scale must stay at 1:1.
+## `tile` repeats a seamless material (denim) across a planar UV in metres.
+static func _printed(file: String, tint: Color, rough: float, tile := 1.0) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _tex(file, true)
+	m.albedo_color = tint
+	m.roughness = rough
+	m.metallic = 0.0
+	m.uv1_scale = Vector3(tile, tile, 1)
+	return m
+
+
 ## Shoes get no weave -- leather is not fabric, and the tiled normal read as
 ## camouflage on a foot-sized surface.
 static func _plain(c: Color, rough: float) -> StandardMaterial3D:
@@ -173,14 +194,25 @@ static func build(height_m: float, skin: Color, hair: Color,
 	# re-running the bake with a different surface order cannot silently paint
 	# the shirt with skin. `tools/character_bake.py` carries the names through.
 	var by_name := {
-		"VitBody": _skin("body_bc.jpg", "body_n.jpg", "body_rough.jpg", skin),
-		"VitShoes": _plain(shoe, 0.45),
-		"VitShoeL": _plain(shoe, 0.55), "VitShoeR": _plain(shoe, 0.55),
-		"VitPants": _cloth(legs, 0.85), "VitShirt": _cloth(top, 0.80),
-		"VitSkin": _skin("face_bc.jpg", "face_n.jpg", "face_rough.jpg", skin),
-		"VitMouth": m["mouth"],
-		"VitSclera": m["sclera"], "VitIris": m["iris"], "VitHair": _hair(hair),
-		"VitHoodie": _cloth(hoodie, 0.86),
+		"MW_Body": _skin("body_bc.jpg", "body_n.jpg", "body_rough.jpg", skin),
+		"MW_Face": _skin("face_bc.jpg", "face_n.jpg", "face_rough.jpg", skin),
+		"MW_Mouth": m["mouth"],
+		"MW_Sclera": m["sclera"], "MW_Iris": m["iris"], "MW_Pupil": m["pupil"],
+		# the mountain-and-slogan print is the one unique object on the
+		# character, so the tee's albedo is artwork rather than a flat colour
+		"MW_Tee": _printed("tee_bc.jpg", top, 0.82),
+		"MW_Jeans": _printed("denim_bc.jpg", legs, 0.86, 2.0),
+		"MW_Denim_Trim": _printed("denim_bc.jpg", legs.darkened(0.10), 0.84, 2.0),
+		"MW_Hoodie": _cloth(hoodie, 0.86),
+		# the zip tape is a lighter woven strip, not metal: the teeth are below
+		# the resolution this character is ever seen at
+		"MW_Zip": _plain(Color(0.66, 0.64, 0.60), 0.55),
+		"MW_Cord": _plain(Color(0.88, 0.84, 0.74), 0.72),
+		"MW_Shoe": _plain(shoe, 0.55), "MW_Sole": _plain(shoe.darkened(0.35), 0.72),
+		"MW_Hair": _hair(hair),
+		# the opaque shell under the cards; alpha-scissored hair always leaks and
+		# this is what stops scalp showing between strands
+		"MW_HairCap": _plain(hair.darkened(0.45), 0.62),
 	}
 	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
 		if mi.name == "Hoodie" and hoodie.a <= 0.0:

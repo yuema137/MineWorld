@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c1qscsihm6uaw"
-path="res://.godot/imported/sclera.jpg-b1efa694262d243fb54268595f522370.ctex"
+uid="uid://ccr6ducwrm0y1"
+path="res://.godot/imported/denim_bc.jpg-d0bcb7432bacb712949c689a03a78462.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/characters/vitruvian/textures/sclera.jpg"
-dest_files=["res://.godot/imported/sclera.jpg-b1efa694262d243fb54268595f522370.ctex"]
+source_file="res://assets/characters/vitruvian/textures/denim_bc.jpg"
+dest_files=["res://.godot/imported/denim_bc.jpg-d0bcb7432bacb712949c689a03a78462.ctex"]
 
 [params]
 

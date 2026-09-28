@@ -76,7 +76,11 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if player != null:
 		player.scripted_look = true
-	_mode = "drive" if "--drive" in args else "shots"
+	_mode = "shots"
+	if "--drive" in args:
+		_mode = "drive"
+	elif "--portrait" in args:
+		_mode = "portrait"
 	DirAccess.make_dir_recursive_absolute(OUT)
 
 
@@ -88,6 +92,8 @@ func _process(_d: float) -> void:
 	set_process(false)
 	if _mode == "drive":
 		await _drive()
+	elif _mode == "portrait":
+		await _portrait()
 	else:
 		await _capture()
 	get_tree().quit(0)
@@ -110,6 +116,80 @@ func _capture() -> void:
 			head.save_png("%s/%s.png" % [OUT, HEAD_CROP[v[0]]])
 		print("shot %s at %s yaw %.0f  [%s]" % [v[0], v[1], v[2], player.rig.mode_name()])
 	await _stride_frames()
+
+
+## Where the character stands for her own portrait session, and the five views
+## `docs/VISUAL_FIDELITY.md` §10 asks a review submission to contain.
+##
+## The framing is the *reference's* framing, which is the rule §8 states: the
+## canonical plate is a chest-up portrait, so the comparison frame is chest-up.
+## Judging a face in a 60 px head inside a street screenshot is the mistake this
+## project has already made three times.
+## The window is 1600x900 and neither `--resolution` nor a runtime resize moves
+## it, so the portrait frame is cut out of the centre of the captured image.
+## `Camera3D.fov` is vertical, so cropping the width changes the aspect and not
+## the framing: what these files show is exactly what the client rendered.
+const PORTRAIT_CROP := Rect2i(490, 0, 620, 900)
+const PORTRAIT_SPOT := Vector3(14.0, 0.2, -17.4)
+const PORTRAIT_YAW := 104.0
+## name, camera distance, camera height, look-at height, yaw offset from her
+## front in degrees, field of view
+const PORTRAIT_VIEWS := [
+	["P1_portrait_front", 1.15, 1.50, 1.46, 8.0, 40.0],
+	["P2_portrait_tq", 1.15, 1.50, 1.46, 34.0, 40.0],
+	["P3_full_front", 3.10, 1.05, 0.95, 6.0, 42.0],
+	["P4_full_tq", 3.10, 1.05, 0.95, 38.0, 42.0],
+	["P5_full_rear", 3.10, 1.05, 0.95, 180.0, 42.0],  # the only one from behind
+	["P6_head", 0.68, 1.58, 1.56, 12.0, 46.0],
+]
+
+
+## The five review frames, from the running client, in its own lighting.
+func _portrait() -> void:
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, 0.0)
+	player.set_camera(CameraRig.Mode.THIRD_FRONT)
+	await _settle(0.6)
+	var cam := Camera3D.new()
+	add_child(cam)
+	var base := player.global_position
+	# her own facing, in world space: `place` sets the body yaw from PORTRAIT_YAW
+	var face := deg_to_rad(PORTRAIT_YAW)
+	for v in PORTRAIT_VIEWS:
+		var a: float = face + deg_to_rad(v[4])
+		cam.fov = v[5]
+		# Godot yaw θ puts forward at (-sin θ, 0, -cos θ); standing in front of
+		# her means stepping along that, not against it.  The first pass had the
+		# sign the other way and photographed the back of her head six times.
+		cam.position = base + Vector3(-sin(a) * v[1], v[2], -cos(a) * v[1])
+		cam.look_at(base + Vector3(0, v[3], 0), Vector3.UP)
+		cam.current = true
+		await _settle(0.25)
+		await RenderingServer.frame_post_draw
+		_save_portrait(v[0])
+		print("portrait %s  dist %.2f m  fov %.0f" % [v[0], v[1], v[5]])
+	# and one mid-stride, because a still figure hides everything about a walk
+	await _portrait_walk(cam, base, face)
+
+
+func _portrait_walk(cam: Camera3D, base: Vector3, face: float) -> void:
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, 0.0)
+	var a := face + deg_to_rad(52.0)
+	cam.fov = 42.0
+	cam.position = base + Vector3(-sin(a) * 3.2, 1.05, -cos(a) * 3.2)
+	cam.look_at(base + Vector3(0, 0.95, 0), Vector3.UP)
+	cam.current = true
+	Input.action_press("move_forward")
+	await _settle(0.85)
+	await RenderingServer.frame_post_draw
+	_save_portrait("P7_walk")
+	Input.action_release("move_forward")
+	print("portrait P7_walk")
+
+
+func _save_portrait(name: String) -> void:
+	var img := get_viewport().get_texture().get_image()
+	var rect := PORTRAIT_CROP.intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	img.get_region(rect).save_png("%s/%s.png" % [OUT, name])
 
 
 ## Two frames a known distance apart, while walking, from a fixed camera.

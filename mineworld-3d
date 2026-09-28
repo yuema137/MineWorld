@@ -4,6 +4,7 @@
 #   ./mineworld-3d            walk around it
 #   ./mineworld-3d --shots    capture the reference screenshots and exit
 #   ./mineworld-3d --drive    run the scripted movement/collision test and exit
+#   ./mineworld-3d --portrait capture the default character's review frames
 #
 # Needs Godot 4.7 on PATH (brew install godot). Nothing else.
 set -euo pipefail
@@ -32,6 +33,13 @@ fi
 # unfocused window hard enough to make a real-time test take minutes.
 if [ "${1:-}" = "--drive" ]; then
   exec "$godot_bin" --headless --path "$proj" -- --drive
+fi
+
+# The character review frames are captured in portrait aspect, because the
+# canonical reference is a portrait and a comparison has to be made at the
+# reference's own framing (docs/VISUAL_FIDELITY.md sec.8).
+if [ "${1:-}" = "--portrait" ]; then
+  exec "$godot_bin" --path "$proj" --resolution 1200x1500 -- --portrait
 fi
 
 if [ "${1:-}" = "--shots" ]; then

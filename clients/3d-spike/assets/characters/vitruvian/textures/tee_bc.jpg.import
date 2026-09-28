@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c1qscsihm6uaw"
-path="res://.godot/imported/sclera.jpg-b1efa694262d243fb54268595f522370.ctex"
+uid="uid://c6ckk4aypmttg"
+path="res://.godot/imported/tee_bc.jpg-4811317738633d4763bbff1391acc0b2.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/characters/vitruvian/textures/sclera.jpg"
-dest_files=["res://.godot/imported/sclera.jpg-b1efa694262d243fb54268595f522370.ctex"]
+source_file="res://assets/characters/vitruvian/textures/tee_bc.jpg"
+dest_files=["res://.godot/imported/tee_bc.jpg-4811317738633d4763bbff1391acc0b2.ctex"]
 
 [params]
 
