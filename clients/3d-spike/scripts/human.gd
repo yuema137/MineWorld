@@ -43,7 +43,9 @@ static var _mats: Dictionary = {}
 
 var skeleton: Skeleton3D
 var _tree: AnimationTree
+var _posture: Posture
 var _speed := 0.0
+var _sitting := false
 
 
 static func _tex(file: String, srgb: bool) -> Texture2D:
@@ -53,41 +55,10 @@ static func _tex(file: String, srgb: bool) -> Texture2D:
 	return t
 
 
-## One material set, shared by every instance. Skin, hair and eyes are fixed;
-## only the two garment tints vary per person, so those are built per instance.
+## Eyes and mouth are identical on everyone, so they are built once.
 static func _shared() -> Dictionary:
 	if not _mats.is_empty():
 		return _mats
-	var skin := func(bc: String, nm: String, rough: String) -> StandardMaterial3D:
-		var m := StandardMaterial3D.new()
-		m.albedo_texture = _tex(bc, true)
-		m.normal_enabled = true
-		m.normal_texture = _tex(nm, false)
-		m.normal_scale = 0.8
-		m.roughness_texture = _tex(rough, false)
-		m.roughness = 1.0
-		m.metallic = 0.0
-		# MakeHuman-family skins are diffuse-dominant and read waxy in Forward+
-		# without this; it is the cheapest large step toward the reference's
-		# material feel and costs nothing in the lighting rig.
-		m.subsurf_scatter_enabled = true
-		m.subsurf_scatter_strength = 0.28
-		m.subsurf_scatter_skin_mode = true
-		return m
-	_mats["skin_face"] = skin.call("face_bc.jpg", "face_n.jpg", "face_rough.jpg")
-	_mats["skin_body"] = skin.call("body_bc.jpg", "body_n.jpg", "body_rough.jpg")
-
-	# The groom's opacity lives in its own map, which StandardMaterial3D cannot
-	# sample -- see shaders/hair_card.gdshader.
-	var hair := ShaderMaterial.new()
-	hair.shader = load("res://shaders/hair_card.gdshader")
-	hair.set_shader_parameter("tex_diffuse", _tex("hair_bc.jpg", true))
-	hair.set_shader_parameter("tex_opacity", _tex("hair_opacity.png", false))
-	hair.set_shader_parameter("tint", Color(0.50, 0.36, 0.24))
-	hair.set_shader_parameter("cutoff", 0.42)
-	hair.set_shader_parameter("roughness_v", 0.55)
-	_mats["hair"] = hair
-
 	var sclera := StandardMaterial3D.new()
 	sclera.albedo_texture = _tex("sclera.jpg", true)
 	sclera.roughness = 0.25
@@ -96,15 +67,49 @@ static func _shared() -> Dictionary:
 	iris.albedo_texture = _tex("iris.jpg", true)
 	iris.roughness = 0.12
 	_mats["iris"] = iris
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.05, 0.04, 0.04)
-	dark.roughness = 0.5
-	_mats["dark"] = dark
 	var mouth := StandardMaterial3D.new()
 	mouth.albedo_texture = _tex("mouth.jpg", true)
 	mouth.roughness = 0.35
 	_mats["mouth"] = mouth
 	return _mats
+
+
+## There is exactly one CC0 skin texture set, so a crowd built from it is a
+## crowd of one person in different shirts. A per-instance albedo tint buys back
+## some of that range: the map keeps all the photographic detail and the tint
+## shifts its tone. It is a real limitation of a one-character asset, not a
+## finished solution -- a second body texture set is the actual fix, and
+## `docs/HUMANOID_PROFILE.md` records what person #2 would cost.
+static func _skin(bc: String, nm: String, rough: String, tint: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _tex(bc, true)
+	m.albedo_color = tint
+	m.normal_enabled = true
+	m.normal_texture = _tex(nm, false)
+	m.normal_scale = 0.8
+	m.roughness_texture = _tex(rough, false)
+	m.roughness = 1.0
+	m.metallic = 0.0
+	# MakeHuman-family skins are diffuse-dominant and read waxy in Forward+
+	# without this; it is the cheapest large step toward the reference's
+	# material feel and costs nothing in the lighting rig.
+	m.subsurf_scatter_enabled = true
+	m.subsurf_scatter_strength = 0.28
+	m.subsurf_scatter_skin_mode = true
+	return m
+
+
+## The groom's coverage lives in its own map, which StandardMaterial3D cannot
+## sample -- see shaders/hair_card.gdshader.
+static func _hair(tint: Color) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/hair_card.gdshader")
+	m.set_shader_parameter("tex_diffuse", _tex("hair_bc.jpg", true))
+	m.set_shader_parameter("tex_opacity", _tex("hair_opacity.png", false))
+	m.set_shader_parameter("tint", tint)
+	m.set_shader_parameter("cutoff", 0.42)
+	m.set_shader_parameter("roughness_v", 0.55)
+	return m
 
 
 static func _cloth(c: Color, rough: float) -> StandardMaterial3D:
@@ -131,9 +136,10 @@ static func _plain(c: Color, rough: float) -> StandardMaterial3D:
 	return m
 
 
-## `top` and `legs` come from `npc.gd`'s palette so the crowd still reads as one
-## town; `shoe` tints the foot surface, which is where upstream put the shoes.
-static func build(height_m: float, top: Color, legs: Color, shoe: Color) -> Human:
+## Colours come from `npc.gd`'s palettes so the crowd still reads as one town;
+## `shoe` tints the foot surface, which is where upstream put the shoes.
+static func build(height_m: float, skin: Color, hair: Color,
+		top: Color, legs: Color, shoe: Color) -> Human:
 	if _scene == null:
 		_scene = load(SRC) as PackedScene
 	var h := Human.new()
@@ -148,10 +154,12 @@ static func build(height_m: float, top: Color, legs: Color, shoe: Color) -> Huma
 	# re-running the bake with a different surface order cannot silently paint
 	# the shirt with skin. `tools/character_bake.py` carries the names through.
 	var by_name := {
-		"VitBody": m["skin_body"], "VitShoes": _plain(shoe, 0.45),
+		"VitBody": _skin("body_bc.jpg", "body_n.jpg", "body_rough.jpg", skin),
+		"VitShoes": _plain(shoe, 0.45),
 		"VitPants": _cloth(legs, 0.85), "VitShirt": _cloth(top, 0.80),
-		"VitSkin": m["skin_face"], "VitMouth": m["mouth"],
-		"VitSclera": m["sclera"], "VitIris": m["iris"], "VitHair": m["hair"],
+		"VitSkin": _skin("face_bc.jpg", "face_n.jpg", "face_rough.jpg", skin),
+		"VitMouth": m["mouth"],
+		"VitSclera": m["sclera"], "VitIris": m["iris"], "VitHair": _hair(hair),
 	}
 	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
 		for i in mi.mesh.get_surface_count():
@@ -164,6 +172,10 @@ static func build(height_m: float, top: Color, legs: Color, shoe: Color) -> Huma
 		# The hair is alpha-scissored and self-shadows badly at grazing angles.
 		if mi.name == "Hair":
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
+
+	# Layered after the AnimationTree; see posture.gd for why it exists.
+	h._posture = Posture.natural_stance()
+	h.skeleton.add_child(h._posture)
 
 	h._build_tree(inst)
 	return h
@@ -192,7 +204,7 @@ func _build_tree(inst: Node) -> void:
 		var n := AnimationNodeAnimation.new()
 		n.animation = pair[0]
 		n.resource_name = pair[0]
-		space.add_blend_point(n, pair[1])
+		space.add_blend_point(n, pair[1], -1, pair[0])
 
 	var scaler := AnimationNodeTimeScale.new()
 	var tree_root := AnimationNodeBlendTree.new()
@@ -227,24 +239,53 @@ func set_gait(speed_mps: float) -> void:
 	_tree.set("parameters/Rate/scale", rate)
 
 
-## Pose the skeleton for a seated person. The clip set has Sitting_Idle_Loop in
-## the paid tier only, so this is a static pose on the profile's bone names --
-## which is exactly the portability the BoneMap buys: it is written once and
-## works on any character mapped to the profile.
-func sit() -> void:
+## Play one clip straight, bypassing the blend space. Diagnostic only: playing
+## `A_TPose` is how you tell a broken retarget from a clip you simply dislike.
+func debug_clip(clip: String) -> void:
 	if _tree:
 		_tree.active = false
-	var pose := {
-		"LeftUpperLeg": Vector3(-85, 0, 0), "RightUpperLeg": Vector3(-85, 0, 0),
-		"LeftLowerLeg": Vector3(80, 0, 0), "RightLowerLeg": Vector3(80, 0, 0),
-		"Spine": Vector3(6, 0, 0),
-		"LeftUpperArm": Vector3(-12, 0, 8), "RightUpperArm": Vector3(-12, 0, -8),
-		"LeftLowerArm": Vector3(-28, 0, 0), "RightLowerArm": Vector3(-28, 0, 0),
-	}
-	for bone: String in pose:
+	var ap := _player()
+	if ap:
+		ap.play(clip)
+
+
+func _player() -> AnimationPlayer:
+	for c in get_child(0).get_children():
+		if c is AnimationPlayer:
+			return c
+	return null
+
+
+## Sit. The legs are replaced by `Posture.seated()` while the Idle clip keeps
+## driving spine, arms and head, so a person on a bench still breathes. The clip
+## set has Sitting_Idle_Loop in the paid tier only; this is the free-tier answer
+## and it is written against profile bone names, so it works unchanged on any
+## future character mapped to the profile.
+func sit() -> void:
+	_sitting = true
+	set_gait(0.0)
+	if _posture:
+		_posture.tweaks = Posture.seated().tweaks
+		_posture.absolute = Posture.seated().absolute
+	_drop_to_ground.call_deferred()
+
+
+func _ready() -> void:
+	if _sitting:
+		_drop_to_ground.call_deferred()
+
+
+## Folding the legs does not move the hips, so a seated figure would hover with
+## its feet underground. Drop the body until the lower foot rests on y = 0 and
+## the hips land at bench height on their own -- measured from the posed
+## skeleton, so it stays right if the pose or the character changes. It has to
+## run after a frame: `get_bone_global_pose()` reports the rest pose for a
+## skeleton that has never been processed.
+func _drop_to_ground() -> void:
+	var lowest := INF
+	for bone in ["LeftFoot", "RightFoot"]:
 		var i := skeleton.find_bone(bone)
-		if i < 0:
-			continue
-		var e: Vector3 = pose[bone]
-		skeleton.set_bone_pose_rotation(i, Quaternion(Basis.from_euler(
-			Vector3(deg_to_rad(e.x), deg_to_rad(e.y), deg_to_rad(e.z)))))
+		if i >= 0:
+			lowest = minf(lowest, skeleton.get_bone_global_pose(i).origin.y)
+	if lowest < INF:
+		get_child(0).position.y = -lowest

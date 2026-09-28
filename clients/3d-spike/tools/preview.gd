@@ -24,9 +24,20 @@ func _initialize() -> void:
 	sun.shadow_enabled = true
 	sun.rotation_degrees = Vector3(-26.0, 128.0, 0.0)
 	root.add_child(sun)
-	var h := Human.build(1.72, Color(0.46, 0.20, 0.19), Color(0.27, 0.32, 0.42), Color(0.14, 0.13, 0.12))
+	var h := Human.build(1.72, Color(1.0, 0.94, 0.89), Color(0.42, 0.29, 0.15),
+		Color(0.46, 0.20, 0.19), Color(0.27, 0.32, 0.42), Color(0.14, 0.13, 0.12))
 	root.add_child(h)
-	h.set_gait(1.45 if anim == "Walk" else 0.0)
+	if anim == "Sit":
+		h.sit()
+	elif anim in ["Walk", "Idle"]:
+		h.set_gait(1.45 if anim == "Walk" else 0.0)
+	else:
+		h.debug_clip(anim)
+	var ground := MeshInstance3D.new()
+	var pm := PlaneMesh.new(); pm.size = Vector2(8, 8); ground.mesh = pm
+	var gm := StandardMaterial3D.new(); gm.albedo_color = Color(0.62, 0.60, 0.56)
+	ground.material_override = gm
+	root.add_child(ground)
 	var cam := Camera3D.new(); root.add_child(cam); cam.fov = 45.0
 	print("bones=", h.skeleton.get_bone_count(), " motion_scale=", h.skeleton.motion_scale)
 	var runner := Node.new()
