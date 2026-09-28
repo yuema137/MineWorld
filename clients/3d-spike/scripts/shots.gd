@@ -147,7 +147,7 @@ func _stride_frames() -> void:
 		await RenderingServer.frame_post_draw
 		var tag := "a" if mark < 1.2 else "b"
 		get_viewport().get_texture().get_image().save_png("%s/22_stride_%s.png" % [OUT, tag])
-		print("stride frame %s at %.2f m from the start, same fixed camera"
+		print("stride frame %s at %.2f m from the start, walking, same fixed camera"
 			% [tag, start.distance_to(player.global_position)])
 	cam.queue_free()
 
@@ -283,6 +283,7 @@ func _gait_report() -> void:
 	print("                  (a jog has a longer stride, so fewer cycles/m than a walk is")
 	print("                   correct; and a run has a flight phase where neither foot is")
 	print("                   planted, so its drift figure is not comparable to the walk)")
+	await _contact_report()
 
 
 func _hold(action: String, secs: float) -> void:
@@ -578,3 +579,47 @@ func _facing_report() -> void:
 			% [c[0], off.dot(view), "ahead of" if off.dot(view) > 0.0 else "behind",
 				face.dot(off.normalized()),
 				"FACE" if face.dot(off.normalized()) > 0.0 else "BACK OF THE HEAD"])
+
+
+## Is either foot ever actually on the ground?
+##
+## A walk has a support phase: at least one foot in contact at all times. That
+## is a different property from the drift measured above -- drift asks whether
+## a planted foot slides, this asks whether anything is planted at all. A body
+## hovering with its legs cycling below it would pass the drift test and fail
+## this one, so the two are reported separately.
+##
+## Calibrated against the character standing still, where the sole is on the
+## ground by construction, so the number means "how far off the ground the sole
+## is" without needing to know where the sole sits inside the mesh.
+func _contact_report() -> void:
+	var human: Human = player.body.body
+	player.place(Vector3(-16.0, 0.2, -22.0), 90.0, 0.0)
+	await _settle(0.6)
+	var rest := minf(human.foot_position(true).y, human.foot_position(false).y)
+	var lo := 1e9
+	var hi := -1e9
+	var down := 0
+	var n := 0
+	Input.action_press("move_forward")
+	var t := 0.0
+	while t < 3.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		if t < 0.8:
+			continue     # let the walk reach steady state
+		var m: float = minf(human.foot_position(true).y,
+			human.foot_position(false).y) - rest
+		lo = minf(lo, m)
+		hi = maxf(hi, m)
+		if m <= 0.015:
+			down += 1
+		n += 1
+	Input.action_release("move_forward")
+	print("\n-- ground contact: is a foot ever actually down --")
+	print("lower foot vs its standing height: min %+.3f m, max %+.3f m" % [lo, hi])
+	print("in contact (within 15 mm of the ground) on %d%% of sampled frames"
+		% [int(round(100.0 * down / maxi(n, 1)))])
+	print("   (negative is the sole clipping into the pavement, positive is hover;")
+	print("    a walk needs a support phase, so this should sit near zero for a")
+	print("    good part of every cycle rather than always positive)")
