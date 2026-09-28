@@ -15,11 +15,32 @@ here does not block anything else.
 
 | | Milestone | Demonstrates | State |
 | --- | --- | --- | --- |
-| **A** | Runnable world runtime | load Social Café → server → 2D + 3D clients → cause a change → both observe it → restart → state survives | 🚧 in progress (05c, 05d) |
+| **A** | Runnable world runtime | load Social Café → server → two clients + an agent → cause a change → all observe it | ✅ **complete 2026-09-27** — `AC-15` holds, 259 tests · restart/persistence is S5 and moves to **B** |
 | **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ❌ |
 | **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ❌ |
 | **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | ❌ |
 | **E** | Package composition | a real world assembled from independently installable packs | ❌ |
+
+**Milestone A, and the one thing in it worth watching.** `AC-15` — *there is only one Alice* —
+holds, proved against the real binary hosting the real pack. The evidence names identity rather
+than appearance, which is the whole point: same world instance, same Alice `EntityId` found by
+tag and never by a literal, one monotonic event sequence `[6, 7, 10, 11]` across all three
+participants. The sentence that carries it is Alice repeating to the second window what the first
+window said, naming the other speaker by identity — **two synchronised copies of Alice could not
+produce that sentence.**
+
+The counterfactual is a committed, passing test rather than a caution: two servers, and the test
+*asserts* that both clients perceive a barista with the **same** `EntityId` at the same authored
+position, because two loads of one pack resolve the same keys (`AC-12` working). An appearance
+test passes there and is wrong.
+
+```sh
+clients/protocol/run.sh          # windowed, scripted — what a person watches
+clients/protocol/run.sh play     # windowed, driven by the keyboard
+```
+
+Recorded as **not** done and not approximated: `MVP.md` §9.1's fourth line, *same persisted state
+revision*. The world is in memory; persistence is S5's and belongs to Milestone B.
 
 ## Default-style milestones — taste, and the operator decides
 
