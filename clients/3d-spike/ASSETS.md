@@ -46,8 +46,13 @@ redistribution. Verified against <https://polyhaven.com/license>.
 | `celandine_01` | *(fetched, not yet placed)* |
 | `grass_medium_01` | *(fetched, not yet placed)* |
 
-**HDRI** — `assets/hdri/kloofendal_48d_partly_cloudy_puresky_2k.hdr`. The one
-sky and the only ambient/reflection source in the scene.
+**HDRI** — `assets/hdri/qwantani_puresky_2k.hdr`. The one sky and the only
+ambient/reflection source in the scene. It replaced
+`kloofendal_48d_partly_cloudy_puresky`, which was a bright overcast sky: with it
+every frame read grey and desaturated whatever the geometry did, and the plates
+are warm, saturated and lit by a low sun. Changing the sky and dropping the sun
+to 17 degrees was a larger step toward the reference look than any amount of
+geometry would have been.
 
 ### CharMorph "Vitruvian" — CC0 — `assets/characters/vitruvian/`
 

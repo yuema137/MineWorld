@@ -124,7 +124,11 @@ static func _mountains(root: Node3D) -> void:
 				var jj: int = j + d[1]
 				ps.append(Vector3(lerpf(x0, x1, float(ii) / nx), hs[jj][ii],
 					lerpf(z0, z1, float(jj) / nz)))
-			for tri in [[0, 2, 1], [0, 3, 2]]:
+			# Counter-clockwise seen from above, so the generated normals point
+			# at the sky. The original winding was the other way round: the
+			# ridge lit from underneath and culled from above, which read as
+			# pale angular shards floating over the lake rather than as terrain.
+			for tri in [[0, 1, 2], [0, 2, 3]]:
 				for k in tri:
 					var p: Vector3 = ps[k]
 					st.set_color(_ridge_colour(p.y))
@@ -142,15 +146,20 @@ static func _mountains(root: Node3D) -> void:
 
 
 static func _ridge_colour(h: float) -> Color:
-	var forest := Color(0.17, 0.25, 0.17)
-	var slope := Color(0.30, 0.31, 0.27)
-	var rock := Color(0.45, 0.43, 0.41)
+	# The bands sit high on purpose. The references are wooded green hills with
+	# snow only on the top of the tallest peaks; with the snow line at 190 m
+	# against a ridge that reaches ~430 m, most of the range came out white and
+	# the horizon read as an alpine glacier rather than as the hills behind a
+	# small lakeside town.
+	var forest := Color(0.16, 0.26, 0.16)
+	var slope := Color(0.24, 0.30, 0.21)
+	var rock := Color(0.42, 0.40, 0.37)
 	var snow := Color(0.93, 0.94, 0.96)
-	if h < 60.0:
-		return forest.lerp(slope, clampf(h / 60.0, 0.0, 1.0))
-	if h < 190.0:
-		return slope.lerp(rock, (h - 60.0) / 130.0)
-	return rock.lerp(snow, clampf((h - 190.0) / 90.0, 0.0, 1.0))
+	if h < 150.0:
+		return forest.lerp(slope, clampf(h / 150.0, 0.0, 1.0))
+	if h < 320.0:
+		return slope.lerp(rock, (h - 150.0) / 170.0)
+	return rock.lerp(snow, clampf((h - 320.0) / 95.0, 0.0, 1.0))
 
 
 ## Far shore: a strip of dark treeline cards, a scatter of pale houses and one

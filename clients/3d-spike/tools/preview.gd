@@ -8,7 +8,7 @@ func _initialize() -> void:
 	var env := Environment.new()
 	var sky := Sky.new()
 	var pano := PanoramaSkyMaterial.new()
-	pano.panorama = load("res://assets/hdri/kloofendal_48d_partly_cloudy_puresky_2k.hdr")
+	pano.panorama = load("res://assets/hdri/qwantani_puresky_2k.hdr")
 	sky.sky_material = pano
 	env.sky = sky
 	env.background_mode = Environment.BG_SKY

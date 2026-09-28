@@ -43,7 +43,7 @@ func _environment() -> void:
 	# ARC-6 has MVP-0 shipping mineworld-3d as something a person runs. Godot
 	# imports .hdr as a CompressedTexture2D, which is what PanoramaSkyMaterial
 	# wants, so this is also one object fewer than building an ImageTexture.
-	var hdr_path := "res://assets/hdri/kloofendal_48d_partly_cloudy_puresky_2k.hdr"
+	var hdr_path := "res://assets/hdri/qwantani_puresky_2k.hdr"
 	var pano_tex: Texture2D = null
 	if ResourceLoader.exists(hdr_path):
 		pano_tex = load(hdr_path) as Texture2D
@@ -73,7 +73,7 @@ func _environment() -> void:
 	# that this must not read as a movie poster, so: no heavy vignette, modest
 	# glow, a small warm lift rather than a teal-orange grade.
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
-	env.tonemap_exposure = 1.18
+	env.tonemap_exposure = 1.06
 	env.tonemap_white = 6.0
 
 	env.ssao_enabled = true
@@ -103,8 +103,8 @@ func _environment() -> void:
 
 	env.adjustment_enabled = true
 	env.adjustment_brightness = 1.0
-	env.adjustment_contrast = 1.04
-	env.adjustment_saturation = 1.06
+	env.adjustment_contrast = 1.07
+	env.adjustment_saturation = 1.16
 
 	var we := WorldEnvironment.new()
 	we.environment = env
@@ -118,8 +118,8 @@ func _environment() -> void:
 
 func _sun() -> void:
 	var sun := DirectionalLight3D.new()
-	sun.light_color = Color(1.0, 0.88, 0.71)
-	sun.light_energy = 2.35
+	sun.light_color = Color(1.0, 0.80, 0.56)
+	sun.light_energy = 2.9
 	sun.light_angular_distance = 0.6
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
@@ -128,9 +128,11 @@ func _sun() -> void:
 	sun.directional_shadow_blend_splits = true
 	sun.shadow_bias = 0.045
 	sun.shadow_normal_bias = 1.4
-	# 26 degrees above the horizon, raking across the street from the west:
-	# late afternoon, long shadows, warm faces on the shopfronts.
-	sun.rotation_degrees = Vector3(-26.0, 128.0, 0.0)
+	# 17 degrees above the horizon, raking across the street from the west:
+	# golden hour, long shadows, warm faces on the shopfronts. The plates are
+	# warm and saturated and this rig was neither -- an overcast sky and a pale
+	# sun made every frame read grey no matter what the geometry did.
+	sun.rotation_degrees = Vector3(-17.0, 124.0, 0.0)
 	add_child(sun)
 
 	# A cool sky-side fill. Without it the shadow side of every wall goes muddy

@@ -33,7 +33,7 @@ for s in "${SLUGS[@]}"; do
   done
 done
 
-for h in kloofendal_48d_partly_cloudy_puresky; do
+for h in qwantani_puresky; do
   f="$hdri/${h}_2k.hdr"
   [ -s "$f" ] && continue
   echo "fetch hdri $h"
