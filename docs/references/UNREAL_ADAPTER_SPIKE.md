@@ -990,3 +990,261 @@ Forward+ setup does, which is worth perhaps a week on the first row of the table
 others. `ARC-18` already assessed that nothing in the plates is out of Forward+'s reach, and phase
 one found no evidence against that assessment.
 
+## 10. Unreal's own licence and cost, verified — and `ARC-18`'s summary corrected
+
+`ARC-18` records a cost summary and says of it: *"This is a summary and the EULA governs."* This
+section is the check that sentence invites. **The summary is wrong in one material respect and
+incomplete in four others**, and `ARC-18` has been amended in place with a pointer here.
+
+### 10.1 How these findings were obtained, and the limitation that carries
+
+**Stated plainly, because it bears on how much weight these quotes can hold.**
+`www.unrealengine.com` and `www.fab.com` sit behind a Cloudflare interactive challenge and returned
+**HTTP 403 to every automated request** attempted — plain requests, requests with a full browser
+header set, and a rendering proxy — on `/eula/unreal`, `/eula/publishing`, `/eula/creators`,
+`/license`, `/eula/content`, `/eula-change-log/unreal` and `fab.com/eula`. Epic's documentation host
+`dev.epicgames.com` serves a JavaScript shell to automated fetches for the licensing pages.
+`legal.epicgames.com` has no Unreal EULA path.
+
+So the quotations below come from **Internet Archive captures of Epic's own pages**, each with its
+capture date. That is an archived copy of an Epic-authored document, which is a great deal better
+than a summary or a news article and is **not** the live document.
+
+**There is a specific trap here that this project should record, because it is very likely what
+produced an earlier wrong answer.** The PDF a web search returns as *the* Unreal Engine EULA —
+`cdn2.unrealengine.com/unreal-engine-end-user-license-agreement-d2812e10c642.pdf` — is live, fetches
+with HTTP 200, and its own header says `last-modified: Thu, 24 Mar 2022`. A second CDN copy is dated
+August 2022, and the superseded "EULA for Publishing v15" is also still live on Epic's CDN. None of
+the 2022 documents contains the words "Seat", "Launch Everywhere", "3.5%" or "Fab". **A confident,
+well-cited, four-year-stale answer is the default outcome of researching this topic**, and the
+citation looks perfect.
+
+**What a human must still do.** Open `https://www.unrealengine.com/eula/unreal` and
+`https://www.unrealengine.com/eula-change-log/unreal` in a normal browser before any licensing
+decision rests on this section. The change log has **no Wayback captures at all**, so nothing here
+can confirm that no amendment landed in the weeks before this document was written. That gap is
+stated rather than papered over.
+
+### 10.2 Which agreement, and is it open source
+
+**One agreement now governs**, and the Publishing / Creators split is gone. From the capture of
+`https://www.unrealengine.com/eula/unreal` (2026-08-29), §8(b):
+
+> "With respect to your rights and obligations related to Licensed Technology, this Agreement
+> supersedes any prior Unreal Engine End User License Agreement for Publishing, Unreal Engine End
+> User License Agreement for Creators, and MetaHuman Creator End User License Agreement you may
+> have."
+
+**It is proprietary, and under no OSI-approved licence.** The preamble:
+
+> "This Agreement is a legal document detailing your rights and obligations related to using Epic's
+> proprietary computer software program known as Unreal® Engine…"
+
+§7:
+
+> "we own all title, ownership rights, and intellectual property rights in the Licensed Technology."
+
+So `ARC-18`'s *"Epic grants source access under the Epic EULA and is not permissive open source"* is
+correct and can be stated more strongly: **source-available proprietary** is the accurate phrase.
+`ARC-18` §1's conclusion that the fully open reference client is not negotiable is untouched by
+anything in this section.
+
+One helpful specific: Epic's own GitHub FAQ names MIT as acceptable to combine with —
+*"Acceptable Non-Copyleft licenses include: Software licensed under the BSD License, MIT License,
+Microsoft Public License, or Apache License"* — while §6(c) forbids combining the Engine with GPL,
+LGPL (except dynamic linking) or CC-BY-SA. MineWorld's own licence is compatible for *combination*.
+That is not the same as making Engine Code redistributable, which §10.4 covers.
+
+### 10.3 The royalty, and the error in `ARC-18`
+
+**`ARC-18` says:** *"Unreal is free below $1M USD trailing-twelve-month revenue. For a product whose
+runtime depends on Unreal, the standard model is a 5% royalty on lifetime gross revenue above the
+first $1M per product, reducible under Epic's 'Launch Everywhere with Epic' terms."*
+
+**The error: those are two different $1M thresholds, belonging to two different payment regimes, and
+the sentence merges them.** Epic itself draws the distinction, on
+`https://www.unrealengine.com/license` (capture 2026-09-05):
+
+> "There are two $1 million thresholds and they depend on what you make and how much you make."
+>
+> "Royalties are determined by the *lifetime gross revenue of the product or title you've created*.
+> Once that project has earned $1 million—whether that happens in a month, or three years down the
+> line—you'll start paying royalties on your earnings above the first million dollars."
+>
+> "Unreal Subscription prices are determined by *your annual gross company revenue*. If your company
+> has reported earnings of $1 million or more in the last 12 months or fiscal year, you'll need to
+> pay for seats."
+
+The trailing-twelve-month figure is the **seat-subscription** test, EULA §6(b)(i):
+
+> "During any period that you, together with any entities in your corporate group, have generated
+> less than $1,000,000 USD in gross revenue over the last 12 months, the Seat subscription
+> requirement will not apply to your Users."
+
+The royalty test is the Royalty Addendum §4(b)(ii), and it is lifetime and per product:
+
+> "the first $1,000,000 in lifetime gross revenue for each Royalty Product"
+
+**Which regime a MineWorld Unreal client falls under, and it is not the seat one.** EULA §3:
+
+> "(a) If you are developing a Royalty Product (as defined in Section 4(b)), you do not need to pay
+> Epic any seat subscription fees for that use of the Licensed Technology. However, you may need to
+> pay Epic royalties on the worldwide gross revenue attributable to each Royalty Product.
+> (b) For any other use of the Licensed Technology, you will need to purchase seat subscriptions…"
+
+and Epic's pricing page: *"If you're creating a game or application that relies on engine code at
+runtime and will be licensed to third party end users, you'll pay royalties and won't be required to
+purchase seats."* An Unreal MineWorld client relies on Engine Code at runtime and is licensed to
+third-party end users. **Royalty regime, no seats, at any company revenue.**
+
+**The rate.** Royalty Addendum §3(a):
+
+> "The Royalty Rate is equal to 5% of all Royalty Revenue (as defined in Section 4) unless your
+> Royalty Product qualifies for a reduced royalty rate."
+
+§4:
+
+> ""Royalty Revenue" means all worldwide gross revenue attributable to each Royalty Product minus any
+> allowed exclusions enumerated in Section 4(b)…"
+
+**Four exclusions `ARC-18` omits**, all §4(b): the first $1,000,000 lifetime per product; a quarter
+in which the product earns under $10,000; the first $5,000,000 for the Oculus Store; and —
+
+> "revenue generated from sales of your Product on the Fab Marketplace or the Epic Games Store, and
+> from any subsequent in-Product purchases making use of Epic's payment services."
+
+**One omission that bears directly on MineWorld's two-client design.** The EULA's main body §4(b):
+
+> "A Royalty Product includes any Ports of that Royalty Product. A "Port" means a Royalty Product
+> which (a) is an adaptation of an already released Royalty Product under an existing Unreal Engine
+> License Agreement for its release on a different platform…"
+
+So platform builds of one MineWorld world share a single $1M allowance rather than each receiving
+their own.
+
+**"Launch Everywhere with Epic" is a rate reduction, not a waiver, and `ARC-18`'s word "reducible"
+understates what it costs.** Royalty Addendum §3(b):
+
+> "If your Royalty Product qualifies as a Launch Everywhere with Epic Release (defined below), then
+> beginning on the date the Royalty Product qualifies as a Launch Everywhere with Epic Release, the
+> Royalty Rate will be reduced to 3.5% of all Royalty Revenue collected going forward across all
+> platforms and stores."
+>
+> "If, at any time, a Royalty Product no longer qualifies as a Launch Everywhere with Epic Release
+> the Royalty Rate will revert to 5%…"
+
+Qualifying requires release on the Epic Games Store *before or simultaneously with* every other store
+on each platform where EGS exists, plus content parity, feature parity and **marketing parity** —
+*"any mention of availability of the Royalty Product on another store in any marketing materials…
+will include equivalent mention of availability on Epic Games Store. This requirement applies to
+pre-launch marketing."* It applies only to products released on or after 2025-01-01, and it is
+revocable.
+
+**The seat regime, which `ARC-18` omits entirely**, is real and current at *"$1,850 per seat per
+year"* (pricing page capture). It would reach MineWorld only for a use that is *not* a Royalty
+Product — internal tooling, work-for-hire builds, rendered marketing video — and then only once the
+corporate group passes $1M over the trailing twelve months. EULA §3 allows both regimes at once:
+*"either royalty payments, or seat subscription fees, or a combination"*.
+
+### 10.4 The clause that constrains an open-source MineWorld, and it is not the royalty
+
+`ARC-18` says an Unreal adapter *"would be a separately licensed deliverable"*. That is right, and
+the reason is sharper than the royalty. EULA §5(a)(i):
+
+> "You may Distribute Engine Code (including as modified by you) in Source Code or object code to a
+> third party who is separately licensed by us to use the same version of the Engine Code that you
+> are Distributing."
+>
+> "Any public Distribution of Engine Tools … must take place through a marketplace operated by Epic
+> such as the Fab Marketplace … or through a fork of Epic's GitHub UnrealEngine Network…"
+
+§5(a)(ii) caps public posting:
+
+> "You are permitted to post snippets of Engine Code, up to 30 lines of code in length, online in
+> public forums for the sole purpose of discussing the content of the snippet…"
+
+§4:
+
+> "Any Product that you Distribute that incorporates Licensed Technology must incorporate the
+> Licensed Technology only in object code and only as an inseparable part of the Product."
+
+**Hard consequence for this repository: no Engine Code may ever appear in a public MineWorld
+repository, including modifications MineWorld itself made to it.**
+
+**What can be published under MIT, and the part that is genuinely unresolved.** §7 gives us ownership
+of our own code — *"you own all rights, other than rights in the Licensed Technology, in the Products
+you develop"* — and Epic's licensing FAQ is relaxed about plugin authors. A **runtime-only** Unreal
+module containing only MineWorld-authored code and no copied Engine Code is not Engine Code and is
+not Engine Tools, so publishing it under MIT appears permitted.
+
+Two cautions, and I am labelling them as what they are.
+
+*Inference, not a quote.* **Editor-mode tooling is at risk.** §6(d) defines Engine Tools to include
+*"(iii) other software that may be used to develop standalone products based on the Licensed
+Technology"*, and a MineWorld world-authoring plugin living in the Unreal Editor could be argued into
+that limb — which would confine its distribution to Fab or a fork of Epic's GitHub network. The safe
+shape is: public MIT repository holds **runtime modules and non-Engine assets only**.
+
+*Unresolved from primary sources.* **Whether compiling against Engine headers affects public MIT
+distribution of our own source is not addressed anywhere in the EULA.** The agreement regulates
+distribution of Licensed Technology and of Products incorporating it; it says nothing about what
+licence you may place on your own separable code, and nothing about `#include`. Only a written
+clarification or a custom licence from Epic settles it, and §8(b) confirms a custom licence would
+override the EULA. That requires a human to ask Epic and is out of this spike's reach.
+
+### 10.5 Two clauses nobody asked about that MineWorld must see
+
+**Generative AI.** EULA §6(e) forbids:
+
+> "using the Licensed Technology as a training input to any Generative AI Program or as prompt-based
+> input where the Generative AI Program trains on input data"
+
+and separately forbids using MetaHuman characters, animation curves *"or any rendered output thereof
+if crafted to replicate the functionality of MetaHuman"* to build or enhance any database or to train
+or test machine-learning systems.
+
+*Inference, flagged.* MineWorld's cognition layer operates on simulation state behind contracts, not
+on Engine assets, so ordinary language-model-driven `Controller` behaviour appears untouched. The
+clause bites if Engine assets, Engine output or MetaHuman content were fed to a model that trains on
+its input. Given `tools/asset_generation/` exists in this repository, this deserves an explicit line
+in `DECISIONS.md` if an Unreal client is adopted, rather than an assumption.
+
+**Contributions.** EULA §7(c) grants Epic a *"non-exclusive, fully-paid, irrevocable, transferable,
+sublicensable license"* over anything submitted to Epic's GitHub UnrealEngine network. Relevant
+because §5(a)(i) makes that network one of only two legal routes for publicly distributing Engine
+Tools.
+
+### 10.6 The corrected record
+
+The paragraph that should replace `ARC-18`'s cost summary, and which has been placed there:
+
+> Unreal Engine is source-available proprietary software under a single agreement, the **Unreal
+> Engine End User License Agreement**, which supersedes the former Publishing and Creators EULAs. It
+> is under no OSI-approved licence.
+>
+> Epic operates **two** payment regimes and **two distinct $1M thresholds**, and conflating them is
+> the error this record contained. A MineWorld Unreal client relies on Engine Code at runtime and is
+> licensed to third-party end users, so it is a **Royalty Product**: **no seat fees at any company
+> revenue**, and **5% of worldwide gross revenue attributable to the product**, excluding the first
+> **$1,000,000 lifetime per product**, quarters under $10,000, the first $5M on the Oculus Store, and
+> Epic Games Store and Fab revenue outright. Ports share one $1M allowance. The rate falls to
+> **3.5%** for a "Launch Everywhere with Epic Release" — Epic Games Store release before or
+> simultaneous with other stores on each platform, plus content, feature and marketing parity;
+> products released on or after 2025-01-01; reverts to 5% on disqualification. The separate
+> **$1,850 per seat per year** subscription applies only to uses that are not Royalty Products, and
+> only once the corporate group passes **$1M gross revenue over the trailing twelve months**.
+>
+> **Repository constraint, and it is the binding one:** no Engine Code may appear in any public
+> MineWorld repository. Engine Code goes only to same-version Epic licensees; public distribution of
+> Engine Tools must go through Fab or a fork of Epic's GitHub `UnrealEngine` network; a Product
+> embeds Licensed Technology only in object code as an inseparable part; public posting is capped at
+> 30-line snippets. MineWorld-authored **runtime** modules containing no Engine Code may be published
+> under MIT — Epic names MIT as an acceptable non-copyleft licence to combine with — but **editor
+> tooling is at risk under the Engine Tools definition** and belongs outside the public MIT
+> repository. **Unresolved:** whether compiling against Engine headers affects public MIT
+> distribution of our own source; only Epic can settle it.
+
+`ARC-18` §1's decision is unaffected in substance: Godot remains the official reference renderer
+because it is MIT and MineWorld can stay permissively licensed end to end, and nothing in the current
+EULA weakens that reasoning. What changes is that the cost paragraph beneath it now says what Epic's
+terms actually say.
