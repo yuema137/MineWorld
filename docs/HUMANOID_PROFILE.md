@@ -69,7 +69,7 @@ that both maps make the same choice, and they do.
 | Bone axis | **+Y from parent to child** | enforced by the importer's *Overwrite Axis* |
 | Node transform on the skeleton | none | enforced by *Apply Node Transform* |
 | Rest pose | T-pose | see §3 |
-| **Canonical authored height** | **1.7687 m** | printed by `tools/character_bake.py` from the baked GLB's own bounding box (y −0.0101 … 1.7586) |
+| **Canonical authored height** | **1.7795 m** | printed by `tools/character_bake.py` from the baked GLB's own bounding box (y −0.0208 … 1.7586). It grew from 1.7687 when generated shoes put a sole below the bare foot. |
 | Skeleton `motion_scale` | 0.9956 | Godot sets it from hip height under *Normalize Position Tracks* |
 
 ### Height rule
@@ -77,7 +77,7 @@ that both maps make the same choice, and they do.
 Author once, scale the instance:
 
 ```
-instance.scale = height_m / 1.7687
+instance.scale = height_m / 1.7795
 ```
 
 `spike/server/src/world.rs` already declares `height_mm` per person (1800 / 1680 / 1750),
@@ -169,6 +169,23 @@ Cycles are counted from the foot's own swing, between interpolated first and las
 crossings, so the acceleration ramp is not folded in. Drift is the smaller per-tick
 movement of the two feet, which needs no stance detection.
 
+### Ground contact is a separate property, separately measured
+
+Drift asks whether a planted foot slides. It does not ask whether anything is
+planted: a body hovering with its legs cycling below it would pass. So
+`--drive` also reports contact, calibrated against the character standing
+still, where the sole is on the ground by construction:
+
+```
+lower foot vs its standing height: min -0.008 m, max +0.045 m
+in contact (within 15 mm of the ground) on 57% of sampled frames
+```
+
+There is a support phase. 8 mm of sole clipping at the low point is the
+remaining artefact. This measurement exists because a screenshot appeared to
+show both feet off the ground, and the measurement showed the screenshot was
+taken mid-deceleration rather than the gait being wrong.
+
 **Reading the numbers honestly.** Walk and jog legitimately differ in cycles/m — a jog
 has a longer stride. The jog drift figure is *not* comparable to the walk's, because a
 run has a flight phase where neither foot is planted. The 24% walk residual is ankle roll
@@ -213,4 +230,8 @@ possible.
   physics; upstream's spring-bone rig was dropped with its skin.
 - **The hoodie is a shell**, offset from the t-shirt and the bare arms. No hood, no zip,
   no pockets, no slack.
+- **The shoes are generated, not modelled.** The CC0 asset is barefoot -- its `VitShoes`
+  material is painted on bare toes -- so `--shoes` sweeps a cross-section along the foot's
+  measured bounding box and skins it across `Foot` and `ToeBase`. 204 verts for the pair.
+  It reads as a shoe at conversation distance and has no laces, tongue or sole tread.
 - **Godot 4.7.2** is what this was built and measured on.
