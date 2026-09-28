@@ -78,7 +78,13 @@ const REF_TEE := Color(0.84, 0.81, 0.73)
 const REF_HOODIE := Color(0.44, 0.15, 0.14)
 const REF_JEANS := Color(0.36, 0.45, 0.58)
 const REF_SHOE := Color(0.30, 0.27, 0.24)
-const REF_PACK := Color(0.36, 0.38, 0.32)
+## The backpack is DISABLED (alpha 0). `Human._backpack` builds one and it is
+## the last unmatched element of the reference silhouette, but every placement
+## attempt so far -- bone attachment, bone-space undo, plain character space --
+## has put it floating off the back rather than sitting on it, and a prop that
+## is visibly wrong is worse than a prop that is absent. Set the alpha to 1 to
+## see the current state. Tracked as unresolved in the hand-off.
+const REF_PACK := Color(0.36, 0.38, 0.32, 0.0)
 
 
 static func make(rng: RandomNumberGenerator, p_pose: Pose, height := 0.0,

@@ -204,31 +204,39 @@ static func build(height_m: float, skin: Color, hair: Color,
 ## UpperChest bone with a BoneAttachment3D, so it rides the spine and needs no
 ## skinning -- a rucksack is rigid anyway. The strap across the chest is most of
 ## what makes the reference silhouette recognisable, more than the bag itself.
+## A backpack on the shoulders, built from primitives.
+##
+## Parented to the character rather than to a bone. A `BoneAttachment3D` on
+## UpperChest is the textbook answer and it is what the first version did, but
+## the bone's frame after retargeting is not character space and undoing it put
+## the bag through the chest at an angle. A rucksack on a walking person barely
+## moves relative to the torso, so the honest trade is fixed placement that is
+## visibly right over rig-following that is visibly wrong. If the character ever
+## needs to bend, this is the thing to revisit.
 func _backpack(c: Color) -> void:
-	var i := skeleton.find_bone("UpperChest")
-	if i < 0:
-		return
-	var att := BoneAttachment3D.new()
-	att.name = "Pack"
-	att.bone_name = "UpperChest"
-	att.bone_idx = i
-	skeleton.add_child(att)
-	# The attachment sits in bone space; the bag hangs behind and below it.
 	var hold := Node3D.new()
-	hold.position = Vector3(0, 0.02, -0.13)
-	att.add_child(hold)
+	hold.name = "Pack"
+	add_child(hold)
+
 	var canvas := Mats.paint(c, 0.92)
-	var webbing := Mats.paint(c.darkened(0.25), 0.9)
-	Build.box(hold, Vector3(0, -0.06, -0.06), Vector3(0.30, 0.42, 0.17), canvas)
-	Build.box(hold, Vector3(0, -0.20, -0.07), Vector3(0.26, 0.14, 0.15),
-		Mats.paint(c.darkened(0.12), 0.92))
-	Build.box(hold, Vector3(0, 0.13, -0.05), Vector3(0.24, 0.06, 0.13), webbing)
-	# straps: over the right shoulder and down the chest, plus the left one
+	var webbing := Mats.paint(c.darkened(0.30), 0.88)
+	var buckle := Mats.paint(Color(0.18, 0.18, 0.17), 0.45, 0.4)
+	# the bag on the upper back, with a lid flap and a lower pocket so the
+	# silhouette is not one plain box
+	Build.box(hold, Vector3(0, 1.235, -0.185), Vector3(0.265, 0.34, 0.145), canvas)
+	Build.box(hold, Vector3(0, 1.385, -0.185), Vector3(0.245, 0.10, 0.155),
+		Mats.paint(c.lightened(0.05), 0.92))
+	Build.box(hold, Vector3(0, 1.115, -0.205), Vector3(0.20, 0.11, 0.12),
+		Mats.paint(c.darkened(0.14), 0.92))
+	# straps over both shoulders and down the chest. The right-hand one is what
+	# the reference character grips, and it carries a lot of the silhouette.
 	for sx in [-1.0, 1.0]:
-		Build.box(hold, Vector3(sx * 0.105, 0.10, 0.02), Vector3(0.055, 0.30, 0.10),
-			webbing, 0.0)
-		Build.box(hold, Vector3(sx * 0.11, -0.04, 0.115), Vector3(0.05, 0.30, 0.03),
-			webbing, 0.0)
+		Build.box(hold, Vector3(sx * 0.105, 1.445, -0.02), Vector3(0.065, 0.075, 0.28),
+			webbing)
+		Build.box(hold, Vector3(sx * 0.115, 1.29, 0.105), Vector3(0.06, 0.34, 0.05),
+			webbing)
+		Build.box(hold, Vector3(sx * 0.115, 1.135, 0.120), Vector3(0.055, 0.055, 0.035),
+			buckle)
 
 
 func _build_tree(inst: Node) -> void:

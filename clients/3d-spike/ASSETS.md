@@ -1,7 +1,7 @@
 # Assets used by the 3D presentation spike
 
 Every third-party file in this directory is **CC0 1.0** (public domain
-dedication), from a single library. Nothing here carries an attribution
+dedication), from two libraries. Nothing here carries an attribution
 requirement, a non-commercial clause, or a redistribution restriction.
 
 Everything not listed as third-party is authored in-engine, from primitives,
@@ -48,6 +48,31 @@ redistribution. Verified against <https://polyhaven.com/license>.
 
 **HDRI** — `assets/hdri/kloofendal_48d_partly_cloudy_puresky_2k.hdr`. The one
 sky and the only ambient/reflection source in the scene.
+
+### CharMorph "Vitruvian" — CC0 — `assets/characters/vitruvian/`
+
+The rigged human. Baked out of a [VitruvianGodot](https://github.com/ibrews/VitruvianGodot)
+clone by `tools/character_bake.py`; the clone itself is **not** in this tree.
+
+**Read [`docs/CHARACTER_ASSET_AUDIT.md`](../../docs/CHARACTER_ASSET_AUDIT.md) before
+touching this.** Upstream ships six Mixamo-derived animations baked into the body GLB
+and six Mixamo source FBX beside it. None of them are here: the bake drops the
+animation array and the clone stays outside the repository. What is here is the
+CharMorph character — mesh, skeleton and skin weights — which `config.yaml` in
+CharMorph-Vitruvian declares `license: CC0`, credits Sean Buckley and Olaf
+Delgado-Friedrichs for, and which derives from the CC0 *Antonia Polygon*. The
+`mixamorig:` bone names it carries are CharMorph's own "Mixamo (Game-Ready)"
+compatibility preset, not Mixamo output; the audit shows the evidence.
+
+The one gap, stated: the CharMorph-Vitruvian repositories carry no `LICENSE` file,
+so CC0 rests on a machine-readable field in the shipped data plus a documented
+relicensing permission plus a CC0 upstream.
+
+### Quaternius Universal Animation Library (Standard) — CC0 — `assets/characters/`
+
+`quaternius_ual.glb`, trimmed by `tools/animation_trim.py` to the four clips used
+(`Idle`, `Walk`, `Jog_Fwd`, `A_TPose`) with the mannequin removed. The pack's own
+`License.txt` ships alongside as `LICENSE.quaternius-ual.txt`.
 
 Two deliberate deviations from the sourcing advice:
 
@@ -107,10 +132,11 @@ from primitives in `scripts/`:
   licence. Every CC0 kit is low-poly or PSX-era. Box geometry at correct
   proportions dressed in Poly Haven brick, stucco, painted wood and roofing is
   the intended path, not a fallback.
-- **Clothed, rigged, realistically-proportioned modern people** — likewise does
-  not exist CC0. See `scripts/npc.gd` for what was done instead and why
-  (decision `ARC-4`). The visible player character, added for the two
-  third-person camera modes, is that same mannequin: **Mixamo, Synty,
-  marketplace packs and the SMPL/AMASS family remain excluded on licence, and
-  nothing from them is in this tree.** No asset was added for the camera work --
-  it is all engine primitives and code.
+- ~~**Clothed, rigged, realistically-proportioned modern people** — likewise does
+  not exist CC0.~~ **This was wrong, and it is the main correction this branch
+  makes.** One does: the CharMorph "Vitruvian" character, listed above. The capsule
+  mannequin that used to stand in for it is gone. `DEP-8` records the same gap and
+  should be amended with it. **Mixamo, Synty, marketplace packs and the SMPL/AMASS
+  family remain excluded on licence, and nothing from them is in this tree** — see
+  the audit for how the Mixamo-derived parts of the upstream project were separated
+  out.

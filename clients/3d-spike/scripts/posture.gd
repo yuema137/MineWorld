@@ -45,6 +45,12 @@ static func natural_stance() -> Posture:
 		# Feet closer together than a combat stance.
 		"LeftUpperLeg": Vector3(0, 0, -6.0),
 		"RightUpperLeg": Vector3(0, 0, 6.0),
+		# A slight glance off-axis. The reference character is looking away from
+		# camera and it is a surprising amount of what makes her read as someone
+		# rather than as a mannequin facing front. Kept small so it still looks
+		# natural on a body that is walking.
+		"Neck": Vector3(0, 7.0, 0),
+		"Head": Vector3(0, 9.0, 0),
 	}
 	return p
 
