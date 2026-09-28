@@ -39,11 +39,13 @@ Largest miss first. Comparative adjectives are not permitted here
 
 | Category | Reference | Candidate | |
 | --- | --- | --- | --- |
-| **Hairstyle category** | A loose messy updo: gathered up and back into a soft twist at the crown, the silhouette noticeably wider and taller than the skull, a soft fringe sweeping across the forehead to her right, and loose strands in front of and below both ears and at the nape. | A close-fitting brown cap over the skull with a small knot on top. The silhouette is **narrower** than the skull at the temples. A hard band of card tips runs across the forehead just above the brows, and isolated dark spikes project from the crown and above her right ear. No strand frames the face. | **FAIL** |
-| **Face shape** | Oval tending to heart: soft rounded jawline, small slightly pointed chin, cheekbones visible but not sharp. | A wider, squarer jaw with a heavier chin and flatter cheeks. The lower third of the face is broader than the reference's at the same eye width. | **FAIL** |
-| **Expression** | A slight closed-mouth smile, asymmetric, lifting more on her right, with a faint dimple on that side. | A flat closed mouth with no lift at either corner. The candidate **cannot** smile: the CC0 mesh's 26 FACS blendshapes are not carried through the export. | **FAIL** |
-| **Gaze** | Off camera, to the viewer's upper right — her own left. | Close to camera. The head and neck carry a 7°/9° yaw offset, which is a glance, not the reference's look away. | **FAIL** |
-| **Skin tone** | Warm light, gently tanned, with visible subsurface warmth at the ear, the nose and the jaw edge. | Cooler and greyer, with a hard specular sheen across the forehead, nose and chin that reads as damp rather than as skin. | **FAIL** |
+| **Hairstyle category** | A loose messy updo: gathered up and back into a soft twist at the crown, the silhouette noticeably **wider and taller than the skull**, a soft fringe sweeping across the forehead to her right, and loose strands in front of and below both ears and at the nape. | Hair swept up from the hairline and gathered at the crown, reading as strands rather than as a shell, with a short fringe and a few loose wisps beside each ear. The silhouette still follows the skull instead of standing away from it: it is roughly the width of her head at the temples where the reference's is wider, and the crown mass is thin. | **FAIL** |
+| **Face shape** | Oval tending to heart: soft rounded jawline, small slightly pointed chin, cheekbones visible but not sharp. | A wider, squarer jaw with a heavier chin and flatter cheeks. The lower third of the face is broader than the reference's at the same eye width. **Unchanged, and the largest remaining miss.** | **FAIL** |
+| **Expression** | A slight closed-mouth smile, asymmetric, lifting more on her right, with a faint dimple on that side. | A slight asymmetric lift is now **baked into the mesh** — 4.0 mm at her right corner, 2.5 mm at her left, with a falloff over 22 mm. It is present and it is the right asymmetry, but at 4 mm it reads as a neutral mouth that is not quite flat rather than as the reference's smile. No dimple. | **PARTIAL** |
+| **Gaze** | Off camera, to the viewer's upper right — her own left. | The eye geometry is rotated 9° toward her left and 3° up about each eye's own centre, on top of the head and neck's 7°/9° yaw. The direction is right and it is measured (the export prints the iris direction before and after). At 9° it is a glance rather than the reference's clear look away, because more than that showed too much sclera and read as startled. | **PARTIAL** |
+| **Eye opening** | Upper lid covering the top of the iris; a relaxed, slightly narrowed eye. | The lid sits high, so white shows above and below the iris and the eye reads wide. This is the CC0 mesh's lid shape, not a material setting. | **FAIL** |
+| **Skin tone** | Warm light, gently tanned, with visible subsurface warmth at the ear, the nose and the jaw edge. | Cooler and greyer, with a specular sheen across the forehead, nose and chin that reads as damp rather than as skin. | **FAIL** |
+| **Brows** | Dark brown, thick, naturally arched, groomed but not drawn. | Present and arched, in a material 42 % darker than the hair. CharMorph ships the brows as a particle system, which does not survive a glTF export, so before this the face had none at all. They are thinner than the reference's. | **PASS, weakly** |
 | **Backpack colour** | Grey-green olive canvas; the strap is grey-green upper webbing with a dark navy-black lower section and a visible adjuster. | Straps in the right place and gripped, but the webbing is a flat neutral grey-green, lighter than the reference's olive, and it is untextured. | **FAIL** |
 | **Hood** | Bunched in soft folds behind and around the neck, **standing proud of the shoulders**, reaching about ear height beside the neck. | Present as a roll behind the neck, but sitting level with the shoulder line rather than above it; at chest-up framing it reads as a thick collar. | **FAIL** |
 | **Drawstrings** | Cream flat cords hanging from the hood down the chest, her right one clearly visible against the tee. | Both cords exist and hang down the chest; in this view they are occluded by the backpack strap and the raised forearm. Visible in `candidate/p2_portrait_tq.jpg`. | **PARTIAL** |
@@ -57,9 +59,14 @@ Largest miss first. Comparative adjectives are not permitted here
 | **Apparent age** | Early-to-mid twenties. | Adult, not adolescent. The blunter jaw pushes it younger and less specific than the reference. | **PASS, weakly** |
 | **Body silhouette** | Slim, athletic, narrow-to-average sloped shoulders, visible waist taper. | The same, from CharMorph's Ultra Feminine morph: shoulder 0.419 → 0.392 m, waist 0.264 → 0.247 m, hip 0.344 → 0.346 m. | **PASS** |
 
-**Five hard-fail categories are wrong**: hairstyle category, face shape,
-expression, gaze and skin tone. Under `CHARACTER_IDENTITY.md` §1 and
-`VISUAL_FIDELITY.md` §5, any one of the first two alone rejects the candidate.
+**Three hard-fail categories are still wrong**: hairstyle category, face shape
+and skin tone; the eye opening compounds the third. Under
+`CHARACTER_IDENTITY.md` §1 and `VISUAL_FIDELITY.md` §5, either of the first two
+alone rejects the candidate.
+
+Expression and gaze moved from FAIL to PARTIAL in this pass: both are now real,
+baked into the mesh, and in the right direction, and both are smaller than the
+reference's. Brows moved from absent to present.
 
 ## 3. What the wardrobe proves, and what it does not
 
@@ -84,11 +91,13 @@ Ordered by how much identity each one buys, not by effort.
    permits evaluating other tools for exactly this and forbids only building
    character-reconstruction technology ourselves. **This is the decision that
    should be taken before more effort goes into the current head.**
-2. **The expression and the gaze.** Both are cheap and neither has been done.
-   The blendshapes exist in the source and are dropped at export; re-exporting
-   with them, then holding a small asymmetric smile, is a bounded change. The
-   gaze is a rotation of the eye geometry about each eye's centre, which the
-   export already touches when it pushes the iris proud of the cornea.
+2. **The expression and the gaze, further.** Both are now baked and both are
+   under-done. The smile is a 4 mm corner lift on a mesh that has no other
+   facial deformation available, and carrying the 26 FACS blendshapes through
+   the export instead would give a real zygomatic pull and an eye-crinkle. The
+   gaze is capped at 9° because the lid shape shows too much sclera beyond
+   that, which is the same limit as the eye-opening row: both want the head
+   decision in (1) first.
 3. **The hair.** The card atlas fix made strands render as strands, and the
    remaining gap is silhouette: the mass has to be wider than the skull at the
    temples and carry loose strands that separate from it. Card-hair authored

@@ -57,8 +57,14 @@ ATLAS_COLS = 4
 # of the cards, because they have to be the same line: a cap cut by a plane in
 # world space left the sides of the head bare above the ears while the cards
 # swept up from lower down, and the character read as having shaved sides.
-HAIRLINE_A = 0.40        # how much higher the hairline is at the brow
-HAIRLINE_B = -0.13       # and where it sits at the temples
+# Measured against this face, not tuned by feel: her brows sit at z = 1.656 to
+# 1.664 and the head ellipsoid is centred at z = 1.634 with a vertical radius of
+# 0.113, so a hairline elevation of 0.52 puts it at z = 1.693 -- a forehead
+# about 30 mm deep. An earlier 0.40/-0.13 put the cap edge at z = 1.664, which
+# is exactly on the brow ridge: she had no forehead and the eyebrows were buried
+# under the hair.
+HAIRLINE_A = 0.62        # how much higher the hairline is at the brow
+HAIRLINE_B = -0.10       # and where it sits at the temples
 CAP_MARGIN = 0.020       # the cap edge, a little below the roots that cover it
 
 
@@ -95,6 +101,11 @@ def head_frame(body, dom):
     radii = Vector(((max(xs) - min(xs)) / 2, (max(ys) - min(ys)) / 2,
                     (max(zs) - min(zs)) / 2))
     return centre, radii
+
+
+def centre_of(centre, radii, point):
+    """The ellipsoid centre, as the thing a point is pushed away from."""
+    return Vector(centre)
 
 
 def surface(centre, radii, direction, lift=0.0):
@@ -194,82 +205,47 @@ def build_hair(body, dom, arm):
                 c_drift + rng.uniform(-0.05, 0.05),
                 rng.uniform(-0.05, 0.05) - c_over,
                 rng.uniform(-0.04, 0.04) + c_over))
-            path = _sweep_path(centre, radii, start, jitter, 7,
+            path = _sweep_path(centre, radii, start, jitter, 9,
                                c_vol * rng.uniform(0.85, 1.15),
                                0.003 * rng.random(), rng)
-            w0 = 0.020 + 0.010 * rng.random()
-            w = [w0 * q for q in (1.0, 1.05, 1.0, 0.92, 0.8, 0.62, 0.4)]
-            col = rng.randrange(ATLAS_COLS)
-            add(*ribbon(path, w, Vector((0, 0, 1)),
-                        col / ATLAS_COLS, (col + 1) / ATLAS_COLS))
+            # Layered like roof tiles, not one ribbon from hairline to crown.
+            # A card is opaque at its root and fades to its tip, so a single
+            # long card per clump puts every opaque root in the same band and
+            # they merge into a smooth shell -- which is why the scalp read as
+            # a swim cap with strands only near the crown. Three shorter,
+            # overlapping cards put a tapered end partway up the head as well.
+            for lo, hi, off in ((0, 5, 0.000), (2, 7, 0.004), (4, 9, 0.008)):
+                seg = [p + (p - centre_of(centre, radii, p)).normalized() * off
+                       for p in path[lo:hi]]
+                w0 = 0.020 + 0.010 * rng.random()
+                n = len(seg)
+                w = [w0 * (1.0 - 0.72 * (i / (n - 1)) ** 1.6) for i in range(n)]
+                col = rng.randrange(ATLAS_COLS)
+                add(*ribbon(seg, w, Vector((0, 0, 1)),
+                            col / ATLAS_COLS, (col + 1) / ATLAS_COLS))
 
-    # --- the twist at the crown ------------------------------------------
-    # Short arcs wrapped in every direction around a small core, not one ring.
-    # A ring of cards through a single circle came out as a doughnut standing
-    # off the back of the head; hair gathered into a soft twist is a rounded
-    # mass with strands crossing it at every angle.
-    g = surface(centre, radii, gather, 0.044)
-    bun = Vector((0.072, 0.066, 0.056))
-    for _ in range(62):
-        axis = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1),
-                       rng.uniform(-1, 1)))
-        if axis.length < 1e-3:
-            axis = Vector((0, 0, 1))
-        axis.normalize()
-        seed_dir = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1),
-                           rng.uniform(-1, 1)))
-        start = (seed_dir - axis * seed_dir.dot(axis))
-        if start.length < 1e-3:
-            continue
-        start.normalize()
-        span = math.radians(rng.uniform(130, 210))
-        n = 8
-        loops = []
-        for i in range(n):
-            s = i / (n - 1)
-            d = start.copy()
-            d.rotate(Quaternion(axis, span * s))
-            r = 1.0 + 0.10 * math.sin(s * math.pi * 1.6)
-            loops.append(Vector((g.x + d.x * bun.x * r,
-                                 g.y + d.y * bun.y * r,
-                                 g.z + d.z * bun.z * r)))
-        w0 = rng.uniform(0.016, 0.026)
-        w = [w0 * k for k in (0.5, 0.9, 1.0, 1.0, 0.95, 0.8, 0.6, 0.3)]
-        col = rng.randrange(ATLAS_COLS)
-        add(*ribbon(loops, w, Vector((0, 0, 1)),
-                    col / ATLAS_COLS, (col + 1) / ATLAS_COLS))
+    # The hairline used to get its own layer of short cards pointing down
+    # across it, to soften the opaque cap's edge.  It made a ring of separate
+    # spikes round the head -- a crown of thorns, not a hairline -- because the
+    # cards are tapered locks and a row of locks pointing the same way reads as
+    # a fringe of spikes.  The swept clumps' own roots are wide and opaque at
+    # v = 0 and cover the cap edge on their own, so the layer is gone.
 
-    # --- the hairline ------------------------------------------------------
-    # Short cards rooted above the hairline and pointing *down* across it.  The
-    # swept cards all start at the hairline and run upward, so their opaque
-    # roots form a hard edge, and the opaque cap under them ends in a second
-    # one: without this layer the character reads as wearing a brown swim cap.
-    # These have their faded tips at the bottom, which is what a hairline is.
-    for k in range(82):
-        t = k / 81.0
-        ang = math.radians(-178 + 356 * t) + rng.uniform(-0.04, 0.04)
-        base_el = hairline(ang)
-        # length and reach vary per card; a row of equal-length cards produced a
-        # continuous brim round the head, which is a hat, not a hairline
-        reach = rng.uniform(0.022, 0.050)
-        rise = rng.uniform(0.060, 0.115)
-        n = 5
-        path = []
-        for i in range(n):
-            s_ = i / (n - 1)
-            el = base_el + rise * (1.0 - s_) - reach * s_
-            d = _dir(math.degrees(ang) + 7.0 * math.sin(t * 21.0) * s_, el)
-            path.append(surface(centre, radii, d,
-                                0.006 + 0.005 * math.sin(math.pi * s_)))
-        w0 = 0.019 + 0.009 * rng.random()
-        col = rng.randrange(ATLAS_COLS)
-        add(*ribbon(path, [w0 * q for q in (0.8, 1.0, 1.0, 0.85, 0.55)],
-                    Vector((0, 0, 1)), col / ATLAS_COLS, (col + 1) / ATLAS_COLS))
 
     # --- the loose strands ------------------------------------------------
     add(*_loose(centre, radii, rng))
 
+    # the brows are a second material: the contract calls them dark brown and
+    # thick, and at the hair's own tint they disappear into the fringe
+    brow_start = len(faces)
+    bv, bf, bu = _brows(rng)
+    add(bv, bf, bu)
     hair = new_object("Hair", verts, faces, "MW_Hair")
+    brow_mat = bpy.data.materials.get("MW_Brow") or bpy.data.materials.new("MW_Brow")
+    hair.data.materials.append(brow_mat)
+    for i, poly in enumerate(hair.data.polygons):
+        if i >= brow_start:
+            poly.material_index = 1
     me = hair.data
     lay = me.uv_layers.new(name="UVMap")
     for poly in me.polygons:
@@ -368,6 +344,61 @@ def _loose(centre, radii, rng):
                 root.y + out.y * length * t * t * 0.16 + wave * 0.6 * math.cos(t * 4.4),
                 root.z + drop * t + wave * 0.4 * math.sin(t * 6.0))))
         emit(path, [width * s for s in (1.0, 1.05, 1.0, 0.9, 0.75, 0.55, 0.3)])
+    return verts, faces, uvs
+
+
+# The brow arc, her left side, inner to outer: (x, y, z).  CharMorph ships the
+# eyebrows as a particle system, which does not survive a glTF export, so the
+# exported face has none at all -- and `CHARACTER_IDENTITY.md` §3 asks for
+# "dark brown, thick, naturally arched".  A face without brows does not read as
+# a face; it reads as a mannequin, whatever else is right about it.
+BROW_ARC = [(0.013, -0.0712, 1.6560), (0.024, -0.0700, 1.6615),
+            (0.035, -0.0662, 1.6642), (0.046, -0.0596, 1.6625),
+            (0.056, -0.0516, 1.6558)]
+BROW_CARDS = 15
+BROW_LEN = 0.0105
+BROW_W = 0.0052
+
+
+def _brow_point(t: float, sx: float) -> Vector:
+    """A point along the brow arc, `t` from inner (0) to outer (1)."""
+    f = t * (len(BROW_ARC) - 1)
+    i = min(int(f), len(BROW_ARC) - 2)
+    u = f - i
+    a = BROW_ARC[i]
+    b = BROW_ARC[i + 1]
+    return Vector((sx * (a[0] + (b[0] - a[0]) * u),
+                   a[1] + (b[1] - a[1]) * u,
+                   a[2] + (b[2] - a[2]) * u))
+
+
+def _brows(rng):
+    """Short cards laid along each brow ridge, angled the way brow hair grows."""
+    verts, faces, uvs = [], [], []
+    for sx in (-1.0, 1.0):
+        for k in range(BROW_CARDS):
+            t = (k + rng.uniform(-0.25, 0.25)) / (BROW_CARDS - 1)
+            t = min(1.0, max(0.0, t))
+            p0 = _brow_point(t, sx)
+            # brow hair sweeps outward and slightly up near the inner end,
+            # outward and slightly down past the arch
+            tangent = (_brow_point(min(1.0, t + 0.08), sx)
+                       - _brow_point(max(0.0, t - 0.08), sx))
+            if tangent.length < 1e-6:
+                continue
+            tangent.normalize()
+            rise = 0.35 * (1.0 - t) - 0.20 * t
+            tip = p0 + tangent * BROW_LEN * rng.uniform(0.8, 1.25) \
+                + Vector((0, -0.0016, rise * BROW_LEN))
+            path = [p0, p0 + (tip - p0) * 0.5, tip]
+            w = BROW_W * rng.uniform(0.8, 1.2)
+            col = rng.randrange(ATLAS_COLS)
+            base = len(verts)
+            v, f, u = ribbon(path, [w, w * 0.95, w * 0.35], Vector((0, 1, 0)),
+                             col / ATLAS_COLS, (col + 1) / ATLAS_COLS)
+            verts.extend(v)
+            uvs.extend(u)
+            faces.extend(tuple(base + i for i in q) for q in f)
     return verts, faces, uvs
 
 

@@ -78,7 +78,7 @@ static func _shared() -> Dictionary:
 		return _mats
 	var sclera := StandardMaterial3D.new()
 	sclera.albedo_texture = _tex("sclera.jpg", true)
-	sclera.roughness = 0.25
+	sclera.roughness = 0.46
 	_mats["sclera"] = sclera
 	var iris := StandardMaterial3D.new()
 	iris.albedo_texture = _tex("iris.jpg", true)
@@ -232,6 +232,8 @@ static func build(height_m: float, skin: Color, hair: Color,
 		"MW_StrapLow": _plain(Color(0.10, 0.11, 0.14), 0.80),
 		"MW_Buckle": _plain(Color(0.16, 0.16, 0.15), 0.42, 0.35),
 		"MW_Hair": _hair(hair),
+		# darker and cooler than the hair, as the reference's brows are
+		"MW_Brow": _hair(hair.darkened(0.42)),
 		# The opaque shell under the cards; alpha-scissored hair always leaks and
 		# this is what stops scalp showing between strands. Only slightly darker
 		# than the strands: at 45% darker its edge read as a black headband
