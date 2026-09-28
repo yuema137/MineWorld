@@ -271,6 +271,33 @@ a Godot `.pck`, say — is a build output and never something an author publishe
 MineWorld is MIT and redistributes what it ships, so "free to use" is not the test —
 **"free to redistribute"** is. Several well-known sources fail that test while looking fine.
 
+**Amended 2026-09-27 — relicensing, not distribution, is the binding test.** The Unreal spike
+went looking for a distribution clause to quote and found a broader rule that makes the
+clause-by-clause search unnecessary. Epic's grant is *"non-exclusive, non-transferable,
+**non-sublicensable**"* and for *"private"* use (Unreal Engine EULA §2), and the Content EULA §6
+declares any inconsistent sublicense *"null and void"*. **An MIT `LICENSE` file covering a
+vendor-authored asset is a sublicense that vendor never granted.**
+
+That holds even where distribution is expressly *allowed*: the Unreal templates may be shipped in
+source form to any third party under §5(b), and they still may not be relicensed. So the rule for
+this repository is simpler than reading each agreement — **nothing Epic authored enters it,
+whatever its distribution permission says**: not MetaHuman on either of its two licence paths, not
+Quixel Megascans on any tier including Personal, not Fab Standard License content, not the Third
+Person mannequin. The one door that stays open is a Fab §2(c) listing a third-party publisher has
+marked open source, which is the same per-asset check this decision already prescribes for
+Sketchfab.
+
+The generalisation is what matters: **ask whether we may relicense, not whether we may
+redistribute.** A permission to distribute is not a permission to place under MIT, and a project
+whose whole licence story is "MIT end to end" needs the second one. Details and the verbatim
+clauses are in [`references/UNREAL_ADAPTER_SPIKE.md`](references/UNREAL_ADAPTER_SPIKE.md) §9.
+
+**A second, independent problem** if an Unreal client is ever adopted: Unreal Engine EULA §6(e)
+bars using *"MetaHuman digital characters and animation curves … to build or enhance any database
+or training or testing any artificial intelligence"*. For a project whose purpose is LM-driven
+characters with recorded cognition fixtures, that constrains use even where redistribution is not
+at issue, and it needs its own decision at that point rather than being discovered later.
+
 ### Approved, licences confirmed from primary sources
 
 | Source | Licence | For |
@@ -1196,3 +1223,60 @@ descriptions, and a review round has already been lost to an ambiguous verdict (
    track waits on the other.
 5. **The engine choice is not the agent's.** Whether Godot remains default, Unreal is promoted, or
    both are supported is a product decision the operator makes on `VIS-3D-AB-1`.
+
+---
+
+## ARC-21 — The Unreal spike answered its question; the operator has paused it there
+
+**Date** 2026-09-27 · **Closes phase one of** `ARC-18` · **Evidence**
+[`references/UNREAL_ADAPTER_SPIKE.md`](references/UNREAL_ADAPTER_SPIKE.md)
+
+`ARC-18` authorised a spike to answer two things. Phase one answered both, and one of them came
+back differently from how the decision assumed.
+
+**1. The architecture claim holds.** No kernel, contract, System, World Pack, persistence or
+networking change is required to add a non-Godot client. This was not concluded from reading: a
+283-line Python client using only the standard library — no engine, no WebSocket library, no SDK,
+no MineWorld code, RFC 6455 spoken by hand — joined `worlds/social-cafe`, was told
+`talk → too_far_away`, submitted `arrive`, watched the server recompute the affordance to
+`available`, had `talk` accepted, and collected nine distinct refusal codes. Reproduced
+independently before this entry was written. A grep of the contracts, kernel, server and systems
+for renderer vocabulary returns seven hits, all in doc comments, all saying the concept is
+excluded; none in a type, field, variant or function name.
+
+**A load-bearing property nobody had recorded.** `CORE_CONCEPTS.md` §6.1 defines yaw by naming its
+two reference axes — "from +y toward +x" — rather than as a rotation sense about the vertical.
+That makes it handedness-free, so the conversion into a left-handed, Z-up, centimetre engine is one
+axis swap and one factor of ten with **zero sign flips**, cleaner than Godot's. A later edit
+"simplifying" it to "counter-clockwise about +z" would remain true for Godot and silently become a
+trap for every left-handed client. It is now written down as load-bearing.
+
+**2. Unreal's advantage is much smaller than the decision assumed, and the reason is licensing.**
+Epic's asset ecosystem was the whole of the claimed shortcut, and none of it can enter an MIT
+repository — see the `DEP-8` amendment above, which generalises past Unreal entirely. Two further
+findings narrow it: Unreal's runtime import does not support skeletal meshes or animation, so a
+rigged glTF character must be cooked in rather than installed as a pack, which cuts against
+`CLAUDE.md` §1's extension model; and measured against `ARC-17`'s hard-fail list, MetaHuman
+addresses six of nine categories well and **three not at all — outer-garment category, defining
+garment structure, identity-defining accessories — which are exactly the three
+`VIS-3D-GODOT-1` failed on.** It solves the half that was not the problem. Environment cost is
+unchanged by engine: box geometry dressed in CC0 materials is the same Blender work either way.
+
+**Decided by the operator: do not install Unreal; return the effort to Godot.** The remaining prize
+is a better out-of-the-box lighting start, worth roughly a week, against a client whose output can
+only leave the building inside a cooked build. `ARC-18` stands unamended in principle — Godot
+remains the reference renderer, a second renderer would be an additional Presentation Adapter, and
+the outcome of that question is still open. `VIS-3D-UE5-1` and `VIS-3D-AB-1` are parked, not
+cancelled, and the spike document is the record that restarting is cheap.
+
+**`ARC-18`'s cost summary was wrong and is corrected in place.** "Free below $1M revenue" describes
+the *seat-subscription* exception, measured on company revenue over twelve months; the *royalty*
+exemption is lifetime and per product. A client depending on Engine Code at runtime is a Royalty
+Product and needs no seats at any company revenue. Epic names the confusion itself.
+
+**Method note, recorded because it nearly produced a wrong answer.** The spike's first verdict
+rested on a clause it had quoted correctly and which was live and current — and which governed only
+pre-5.6 MetaHuman. Epic runs two licence regimes in parallel and the older one is still published.
+The question to ask of a clause is not only *is this current?* but *which path does this govern?*
+Epic's CDN also still serves a 2022 EULA that a search returns first and that contains none of the
+words "Seat", "Launch Everywhere", "3.5%" or "Fab".
