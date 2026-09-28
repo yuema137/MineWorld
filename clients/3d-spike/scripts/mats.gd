@@ -85,7 +85,10 @@ static func glass() -> Material:
 	if _mat_cache.has("glass"):
 		return _mat_cache["glass"]
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.030, 0.038, 0.045, 0.74)
+	# Lighter than it was. At 0.03 albedo and 74% opacity this read as a black
+	# void at golden hour rather than as a window, and the lit card behind it
+	# never came through -- 07_shopfront_detail was a wall of black glass.
+	m.albedo_color = Color(0.10, 0.115, 0.13, 0.52)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.roughness = 0.06
 	m.metallic = 0.0

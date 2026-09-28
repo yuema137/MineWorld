@@ -282,7 +282,7 @@ static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: f
 		# a lit card behind the glass stands in for a room. It reads from across
 		# the street and nowhere nearer, which is why two units on this row are
 		# real rooms instead.
-		var inner := Mats.emissive(Color(1.0, 0.78, 0.48), 2.4)
+		var inner := Mats.emissive(Color(1.0, 0.80, 0.52), 4.0)
 		Build.slab(g, 0, -0.04, gw - 0.1, 0.05, 0.72, top - 1.0, inner)
 		Build.slab(g, 0, -0.20, gw, 0.06, 0.70, top - 0.95, glass)        # glazing
 	else:
@@ -299,7 +299,9 @@ static func shopfront(root: Node3D, x: float, w: float, front_z: float, depth: f
 	if inside == "":
 		var lamp := OmniLight3D.new()
 		lamp.light_color = Color(1.0, 0.82, 0.58)
-		lamp.light_energy = 3.0
+		# A shaded shopfront at golden hour is very dark; this is what keeps a
+		# non-enterable unit's window reading as a lit shop rather than a hole.
+		lamp.light_energy = 5.0
 		lamp.omni_range = 7.5
 		lamp.shadow_enabled = false
 		lamp.position = Vector3(0, 2.2, -1.1)

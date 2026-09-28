@@ -50,7 +50,9 @@ func _environment() -> void:
 	if pano_tex != null:
 		var pano := PanoramaSkyMaterial.new()
 		pano.panorama = pano_tex
-		pano.energy_multiplier = 1.0
+		# Below 1.0 on purpose: qwantani's sun disc is very bright and at this
+		# exposure it blew the sky to white in any frame that included it.
+		pano.energy_multiplier = 0.80
 		sky.sky_material = pano
 	else:
 		push_warning("no HDRI at %s -- falling back to a procedural sky" % hdr_path)
@@ -66,7 +68,11 @@ func _environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_sky_contribution = 1.0
-	env.ambient_light_energy = 1.0
+	# A low sun leaves north-facing shopfronts in deep shade, and 07 was dark
+	# enough that its own signage stopped being legible. Lifting sky ambient
+	# fixes the shadow end without touching the key, which is what keeps the
+	# golden-hour read.
+	env.ambient_light_energy = 1.55
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 
 	# Warm late afternoon, moderate contrast. ART_DIRECTION sec.5 is explicit
@@ -126,8 +132,11 @@ func _sun() -> void:
 	sun.directional_shadow_max_distance = 115.0
 	sun.directional_shadow_split_1 = 0.14
 	sun.directional_shadow_blend_splits = true
-	sun.shadow_bias = 0.045
-	sun.shadow_normal_bias = 1.4
+	# A 17-degree sun rakes the pavement, and at grazing angles the old bias
+	# left dark blotches of self-shadowing on flat ground. More normal bias and
+	# less depth bias trades a little contact-shadow tightness for that.
+	sun.shadow_bias = 0.028
+	sun.shadow_normal_bias = 2.6
 	# 17 degrees above the horizon, raking across the street from the west:
 	# golden hour, long shadows, warm faces on the shopfronts. The plates are
 	# warm and saturated and this rig was neither -- an overcast sky and a pale
