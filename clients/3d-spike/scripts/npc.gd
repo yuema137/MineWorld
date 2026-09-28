@@ -87,8 +87,10 @@ const REF_SHOE := Color(0.30, 0.27, 0.24)
 const REF_PACK := Color(0.36, 0.38, 0.32, 0.0)
 
 
+## `seat_y` is the height of the thing a SIT person sits on; the caller knows
+## because the caller placed them there.
 static func make(rng: RandomNumberGenerator, p_pose: Pose, height := 0.0,
-		reference := false) -> NPC:
+		reference := false, seat_y := 0.45) -> NPC:
 	var n := NPC.new()
 	n.pose = p_pose
 	var h: float = height if height > 0.0 else rng.randf_range(1.62, 1.83)
@@ -110,7 +112,7 @@ static func make(rng: RandomNumberGenerator, p_pose: Pose, height := 0.0,
 	# row of NPCs breathing in unison.
 	n._t = n.phase
 	if p_pose == Pose.SIT:
-		n.body.sit()
+		n.body.sit(seat_y)
 	else:
 		n.body.set_gait(0.0)
 	return n

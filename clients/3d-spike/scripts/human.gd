@@ -56,6 +56,11 @@ var _tree: AnimationTree
 var _posture: Posture
 var _speed := 0.0
 var _sitting := false
+var _seat_y := 0.45
+## The imported GLB instance, held typed: `get_child(0)` is a bare Node and
+## reaching through it for `.position` silently loses the type, which once
+## failed compilation and degraded the whole scene.
+var _inst: Node3D
 
 
 static func _tex(file: String, srgb: bool) -> Texture2D:
@@ -157,8 +162,9 @@ static func build(height_m: float, skin: Color, hair: Color,
 		_scene = load(SRC) as PackedScene
 	var h := Human.new()
 	h.name = "Human"
-	var inst := _scene.instantiate()
+	var inst := _scene.instantiate() as Node3D
 	h.add_child(inst)
+	h._inst = inst
 	h.scale = Vector3.ONE * (height_m / CANONICAL_HEIGHT)
 
 	h.skeleton = inst.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
@@ -245,7 +251,10 @@ func _build_tree(inst: Node) -> void:
 	if _lib == null:
 		var clips := (load(CLIPS) as PackedScene).instantiate()
 		var ap := clips.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
-		_lib = ap.get_animation_library(ap.get_animation_library_list()[0])
+		# duplicated because the imported library is shared and read-only, and
+		# a clip of our own has to go into it
+		_lib = ap.get_animation_library(ap.get_animation_library_list()[0]).duplicate()
+		_lib.add_animation("Sit", _sit_clip())
 		clips.queue_free()
 
 	var player := AnimationPlayer.new()
@@ -277,11 +286,30 @@ func _build_tree(inst: Node) -> void:
 		space.add_blend_point(n, pair[1], -1, pair[0])
 
 	var scaler := AnimationNodeTimeScale.new()
+	var sit_node := AnimationNodeAnimation.new()
+	sit_node.animation = "Sit"
+	# Sitting is a state of the tree, not a correction applied to its output.
+	# The obvious design -- let the tree run and override the legs in a
+	# SkeletonModifier3D -- cannot work here: the AnimationTree writes every
+	# bone after the modifier, so the override was silently discarded and the
+	# figure sat with its legs straight. Measured as a thigh euler of
+	# (0, 0, -180) where (82, 0, -4) had been set. Fighting the evaluation
+	# order loses; the pose has to arrive through the tree.
+	var mode := AnimationNodeTransition.new()
+	mode.input_count = 2
+	mode.set_input_name(0, "move")
+	mode.set_input_name(1, "sit")
+	mode.xfade_time = 0.0
+
 	var tree_root := AnimationNodeBlendTree.new()
 	tree_root.add_node("Locomotion", space, Vector2(0, 0))
 	tree_root.add_node("Rate", scaler, Vector2(300, 0))
+	tree_root.add_node("Sit", sit_node, Vector2(300, 200))
+	tree_root.add_node("Mode", mode, Vector2(600, 0))
 	tree_root.connect_node("Rate", 0, "Locomotion")
-	tree_root.connect_node("output", 0, "Rate")
+	tree_root.connect_node("Mode", 0, "Rate")
+	tree_root.connect_node("Mode", 1, "Sit")
+	tree_root.connect_node("output", 0, "Mode")
 
 	_tree = AnimationTree.new()
 	_tree.name = "AnimationTree"
@@ -291,6 +319,45 @@ func _build_tree(inst: Node) -> void:
 	_tree.anim_player = _tree.get_path_to(player)
 	_tree.active = true
 	set_gait(0.0)
+
+
+## A seated pose, authored as a one-key looping clip so the AnimationTree can
+## play it like any other.
+##
+## Quaternius ships Sitting_Enter/Idle/Exit in the paid tier only. A two-key
+## pose is still a clip, and being a clip is the whole point: it goes through
+## the same evaluation the locomotion does instead of trying to outrun it.
+##
+## Every bone the pose needs is keyed, including the arms. A track the clip
+## does not carry falls back to the rest pose, and the retargeted rest pose has
+## the arms horizontal -- so a seated figure with unkeyed arms sits in a T.
+static func _sit_clip() -> Animation:
+	var pose := {
+		"Hips": Vector3(-6, 0, 0), "Spine": Vector3(4, 0, 0), "Chest": Vector3(3, 0, 0),
+		"LeftUpperLeg": Vector3(82, 0, -4), "RightUpperLeg": Vector3(82, 0, 4),
+		"LeftLowerLeg": Vector3(100, 0, 0), "RightLowerLeg": Vector3(100, 0, 0),
+		# knee bend swept rather than guessed: the foot clearance bottoms out
+		# near +0.06 m around 100 degrees and does not improve past it
+		"LeftFoot": Vector3(-26, 0, 0), "RightFoot": Vector3(-26, 0, 0),
+		# Brought all the way down: the rest pose these start from is a T, so
+		# this is ~90 degrees of travel, not a nudge. The axis was swept rather
+		# than assumed -- X lowers the arm, Z swings it out to the side, and
+		# guessing Z first produced a figure sitting with its arms held out.
+		"LeftUpperArm": Vector3(-76, 0, 9), "RightUpperArm": Vector3(-76, 0, -9),
+		"LeftLowerArm": Vector3(-22, 0, 8), "RightLowerArm": Vector3(-22, 0, -8),
+	}
+	var a := Animation.new()
+	a.length = 2.0
+	a.loop_mode = Animation.LOOP_LINEAR
+	for bone: String in pose:
+		var ti := a.add_track(Animation.TYPE_ROTATION_3D)
+		# the same addressing the imported clips use, so it resolves the same way
+		a.track_set_path(ti, "%%GeneralSkeleton:%s" % bone)
+		var e: Vector3 = pose[bone]
+		var q := Quaternion(Basis.from_euler(Vector3(
+			deg_to_rad(e.x), deg_to_rad(e.y), deg_to_rad(e.z))))
+		a.rotation_track_insert_key(ti, 0.0, q)
+	return a
 
 
 ## Drive the body from a ground speed measured elsewhere -- the same contract the
@@ -353,36 +420,58 @@ func _player() -> AnimationPlayer:
 	return null
 
 
-## Sit. The legs are replaced by `Posture.seated()` while the Idle clip keeps
-## driving spine, arms and head, so a person on a bench still breathes. The clip
-## set has Sitting_Idle_Loop in the paid tier only; this is the free-tier answer
-## and it is written against profile bone names, so it works unchanged on any
-## future character mapped to the profile.
-func sit() -> void:
+## Sit on something `seat_y` high.
+##
+## The pose comes from the tree (see `_sit_clip`); this only switches the tree
+## into it, stands the standing-posture correction down, and puts the hips on
+## the seat.
+func sit(seat_y := 0.45) -> void:
 	_sitting = true
-	set_gait(0.0)
+	_seat_y = seat_y
 	if _posture:
-		_posture.tweaks = Posture.seated().tweaks
-		_posture.absolute = Posture.seated().absolute
-	_drop_to_ground.call_deferred()
+		# the standing correction tucks arms and thighs in and fights the pose
+		_posture.active = false
+	if _tree:
+		_tree.set("parameters/Mode/transition_request", "sit")
+	if is_inside_tree():
+		_settle_seat()
 
 
 func _ready() -> void:
 	if _sitting:
-		_drop_to_ground.call_deferred()
+		_settle_seat()
 
 
-## Folding the legs does not move the hips, so a seated figure would hover with
-## its feet underground. Drop the body until the lower foot rests on y = 0 and
-## the hips land at bench height on their own -- measured from the posed
-## skeleton, so it stays right if the pose or the character changes. It has to
-## run after a frame: `get_bone_global_pose()` reports the rest pose for a
-## skeleton that has never been processed.
-func _drop_to_ground() -> void:
+## The hips can only be measured once the tree has actually written the seated
+## pose. A single deferred call is too early -- it measures the standing pose
+## and places the body half a metre out, which is what the first version did.
+func _settle_seat() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_place_on_seat()
+
+
+## Put the hips on the seat the caller says the person is sitting on.
+##
+## The first version solved for the feet instead -- drop the body until they
+## reach y = 0 -- and let the hips land wherever the pose put them, about
+## 0.39 m, which is below every chair in the scene. A seated person's contact
+## with the world is the seat, not the floor.
+func _place_on_seat() -> void:
+	var hi := skeleton.find_bone("Hips")
+	if hi < 0 or _inst == null:
+		return
+	var hips_y := skeleton.get_bone_global_pose(hi).origin.y * scale.y
+	_inst.position.y = (_seat_y - hips_y) / maxf(scale.y, 0.01)
+	# Report the foot clearance, so a seat height that does not suit the pose
+	# shows up in the log rather than only in a screenshot from one angle.
 	var lowest := INF
 	for bone in ["LeftFoot", "RightFoot"]:
 		var i := skeleton.find_bone(bone)
 		if i >= 0:
 			lowest = minf(lowest, skeleton.get_bone_global_pose(i).origin.y)
 	if lowest < INF:
-		get_child(0).position.y = -lowest
+		var foot: float = (lowest + _inst.position.y) * scale.y
+		if absf(foot) > 0.10:
+			push_warning("human.gd: seated on a %.2f m seat leaves the feet %+.2f m off the floor"
+				% [_seat_y, foot])

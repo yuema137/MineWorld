@@ -20,6 +20,12 @@ const STREET_W1 := 21.0 # side street, east edge
 ## Multiplying past 1.0 pushes it back to the honey wood of the references.
 const BENCH_TINT := Color(1.34, 1.24, 1.06)
 
+## Where the cafe table/chair sets stand, and how high the two things people
+## sit on are, so a seated figure can be put ON a chair instead of near one.
+const CAFE_TABLE_Z := PROM_S - 2.6
+const CAFE_SEAT_Y := 0.45
+const BENCH_SEAT_Y := 0.44
+
 
 static var rng := RandomNumberGenerator.new()
 
@@ -597,20 +603,21 @@ static func _people(root: Node3D) -> void:
 		n.position = n.path_a
 		root.add_child(n)
 
-	# seated at the cafe tables. NOTE: these coordinates are chosen independently
-	# of the table/chair props, so a seated person is near a chair rather than
-	# on one. Unresolved -- see the hand-off; the fix needs the seat height and
-	# the chair position to come from the same place.
+	# Seated at the cafe tables, on the lake side of the set so they face out.
+	# Derived from CAFE_TABLE_Z rather than from a separate hand-picked z: the
+	# old coordinates were chosen independently of the furniture and put the
+	# figure 0.9 m in front of its chair, floating in mid-air.
 	for i in range(2):
-		var s := NPC.make(r, NPC.Pose.SIT)
-		s.position = Vector3(9.0 - 2.6 + i * 5.2, 0, PROM_S - 3.5)
-		s.rotation.y = PI + (0.4 if i == 0 else -0.5)
+		var s := NPC.make(r, NPC.Pose.SIT, 0.0, false, CAFE_SEAT_Y)
+		s.position = Vector3(9.0 - 2.6 + i * 5.2, 0, CAFE_TABLE_Z - 0.58)
+		s.rotation.y = (0.20 if i == 0 else -0.26)
 		root.add_child(s)
 
 	# on a promenade bench, looking at the lake
-	var b := NPC.make(r, NPC.Pose.SIT)
-	b.position = Vector3(-38.0, 0, PROM_N + 7.4)
-	b.rotation.y = 0.0
+	# On the promenade bench, facing the way the bench faces.
+	var b := NPC.make(r, NPC.Pose.SIT, 0.0, false, BENCH_SEAT_Y)
+	b.position = Vector3(-38.0, 0, PROM_N + 7.30)
+	b.rotation.y = PI
 	root.add_child(b)
 
 	# standing pair by the fountain, and one at the mart window
