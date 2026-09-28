@@ -1074,7 +1074,7 @@ one found no evidence against that assessment.
 
 ## 9. The asset-production question, which `ARC-18` says is the real cost
 
-`ARC-18` §0 states the hypothesis this section tests:
+`ARC-18`'s preamble states the hypothesis this section tests:
 
 > The real cost is **character and asset production**, not the renderer's ceiling. […] Unreal's
 > advantage is therefore not a higher ceiling but a **shorter path** to it: a mature ecosystem for
@@ -1507,7 +1507,7 @@ confined to one part of one deliverable.
 
 ```text
 evaluated        MetaHuman
-NOT evaluated    Character Creator (Reallusion), Blender with MPFB2, image-to-3D reconstruction,
+NOT evaluated    Character Creator, Blender with MPFB, image-to-3D reconstruction,
                  CC0 groom and animation libraries
 ```
 
