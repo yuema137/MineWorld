@@ -1043,3 +1043,199 @@ and is left undecided.
 **Identifier gap.** `ARC-13` and `ARC-14` are allocated on `vis/3d-human-pipeline` and
 `vis/2d-generated-assets` and arrive on `main` when those branches land. The gap between `ARC-12`
 and `ARC-15` here is that, not a deleted decision.
+
+---
+
+## ARC-17 — A declared reference is the source of truth, and vague comparison is prohibited
+
+**Date** 2026-09-27 · **Governs** [`VISUAL_FIDELITY.md`](VISUAL_FIDELITY.md) · **Relates to**
+`ARC-9`, `ARC-11`, [`ACCEPTANCE.md`](ACCEPTANCE.md)
+
+A 3D character was brought to human review described as *"same wardrobe, recognisably not the same
+person"*. The reference is a young woman in an open burgundy zip hoodie; the candidate was a man in
+a red quilted puffer jacket, with black close-cropped hair against a brown voluminous updo, and
+with the shirt graphic and backpack — the two strongest recognition cues on that character —
+recorded as deferred. Nothing in the sentence was false, and it was still the wrong verdict.
+
+**The root cause is a task definition, not a tuning gap.** The reference was treated as style
+inspiration when it is the identity source of truth for one specific character. The implementation
+also ran backwards: an available humanoid was chosen first and the reference was then approximated
+around what that asset could provide.
+
+**Decided.**
+
+1. When a deliverable declares a reference, the task is to **recreate that specific visible thing
+   as faithfully as practical**. Attractive and recognisably something else is a failure.
+2. Requirements travel **reference → constraints → asset**, never asset → material edits →
+   approximate match. An asset that cannot meet a constraint is evidence about the asset.
+3. **Identity-defining features are never deferred** once a milestone is named for its reference.
+   Deferring them is legitimate only while the milestone is a technical one.
+4. **Hard-fail categories** the agent rejects itself, without involving the operator: perceived
+   gender presentation, apparent age, body silhouette, hairstyle category, major hair colour,
+   outer-garment category, a missing defining garment structure, grossly wrong face shape, missing
+   identity-defining accessories, and the massing or silhouette of a referenced building.
+5. **Vague comparative language is prohibited** in fidelity reporting — "broadly similar",
+   "roughly matches", "approximately right", "same wardrobe". A verdict names the reference fact
+   and the candidate fact side by side. This is the operative half of the decision: the banned
+   phrasing is what allowed a categorical failure to read as polish.
+6. Comparison is **pixels against pixels, at the reference's own framing**. This project has
+   produced the same evidence defect three times — a face judged at 60 px, a character judged at
+   street distance, and a review contact sheet at 620 px per tile read as "nothing changed" when
+   two things had in fact changed.
+
+**Deliberately general.** The failure was found on a character, but the reasoning that produced it
+—"warm town, broadly similar" — applies just as easily to buildings, interiors, vegetation and
+lighting, where each piece would run correctly and the whole would resemble nothing. The gate
+therefore governs every referenced visual deliverable in both reference clients.
+
+**What this does not change.** `ARC-11` still holds: the operator owns final visual acceptance and
+the agent owns the architecture. `REUSE_POLICY.md` still holds: reuse remains preferred, and this
+decision constrains only the direction the specification travels. A fidelity rejection resets a
+visual candidate and never the engineering beneath it.
+
+---
+
+## ARC-18 — Godot stays the reference renderer; a second renderer is a spike, not a migration
+
+**Date** 2026-09-27 · **Relates to** `ARC-17`, `DEP-9`, `ENGINEERING_RULES.md` §§11–12 ·
+**Status** spike authorised, outcome open
+
+`ARC-17` raises a fair question: can Godot reach the fidelity of the reference plates at all? The
+answer is that nothing in those plates is out of reach for Forward+ — PBR, subsurface scattering,
+baked `LightmapGI` with reflection probes, volumetric fog, HDR tonemapping are all present. The
+real cost is **character and asset production**, not the renderer's ceiling. The current character
+does not resemble the reference because it was built from the wrong mesh, hair, garment and
+materials, which is `ARC-17`'s finding and not a rendering limit.
+
+Unreal's advantage is therefore not a higher ceiling but a **shorter path** to it: a mature
+ecosystem for high-fidelity humans, groom, cloth, cinematic lighting and retargeting.
+
+**Decided — do not migrate.**
+
+1. **Godot remains the official reference renderer.** It is MIT, so MineWorld can stay permissively
+   licensed, forkable and modifiable end to end. Unreal grants source access under the Epic EULA
+   and is not permissive open source. For a project that ships as open infrastructure, the fully
+   open reference client is not negotiable.
+2. **A second renderer is an additional Presentation Adapter**, never a replacement, and this is
+   an architecture test as much as a visual one. Presentation independence is a claim this project
+   makes; if adding a high-fidelity client requires changes to kernel or System contracts, the
+   claim is false and we want to discover that now, while the kernel is small. If the interfaces
+   are clean, the new client is a client.
+3. **A time-boxed Unreal spike is authorised** to answer, with both slices in front of the
+   operator: connect to the existing server, project the same Alice, build a reference-quality
+   small-town slice with an enterable café and a reference-faithful character, and report the
+   actual engineering cost of reaching a given visual target in each engine.
+4. The outcome is **open**: Godot is good enough and continues alone; or Unreal becomes the default
+   high-fidelity 3D client with Godot retained as the open reference; or both are kept, which would
+   be the strongest demonstration of the framework claim.
+
+**Cost, recorded because it becomes a licensing question if the spike succeeds.** Unreal is free
+below $1M USD trailing-twelve-month revenue. For a product whose runtime depends on Unreal, the
+standard model is a 5% royalty on lifetime gross revenue above the first $1M per product, reducible
+under Epic's "Launch Everywhere with Epic" terms. This is a summary and the EULA governs. It does
+not affect MineWorld's own licence: the server, kernel, contracts and Godot clients are unaffected,
+and an Unreal adapter would be a separately licensed deliverable.
+
+**What is not in scope.** No kernel, contract, World Pack, persistence or networking change. Those
+carry over untouched and their being untouched is the point. Only client-side work is new: the
+protocol binding, `Entity` → actor projection, input → `ActionIntent`, cameras, and the scene.
+
+**If the spike requires a contract change to proceed, stop and report it.** That result is more
+valuable than the slice.
+
+---
+
+## ARC-19 — The default character is an identity reconstruction; the framework's bar stays low
+
+**Date** 2026-09-27 · **Supersedes** part of `ARC-4` · **Relates to** `ARC-17`,
+`ART_DIRECTION.md` §§3, 7, 10, 16
+
+`ARC-4` scoped `3D/references/04_character_closeup.png` as **not** authoritative for facial
+fidelity, skin rendering or hair simulation, and fixed the default 3D character at "realistic
+proportions with moderately simplified face and materials, medium detail — no photoreal skin, no
+MetaHuman-level assets, no bespoke character pipeline."
+
+The operator has since rejected a candidate character **specifically on face, hair, freckles and
+garment structure**, and has designated that image the identity source of truth for the default
+character. `ARC-4`'s scoping and the current requirement cannot both stand, and leaving the
+contradiction unrecorded is the defect `CLAUDE.md` §2.1(4) names.
+
+**Decided: `ARC-4`'s facial-fidelity exclusion is superseded for the default character, and
+`ARC-4`'s reasoning is preserved by separating two things it treated as one.**
+
+`ARC-4`'s argument was that a photoreal face standard puts character production beyond what
+community creators can afford, contradicting why a default style exists at all
+(`ART_DIRECTION.md` §10). **That argument is correct and is not overturned.** It was applied to
+the wrong object. It is an argument about **what the framework requires of every creator**, and it
+was used to cap **what this project's own default character may be**. Those are separate:
+
+| | Bar | Who pays it |
+| --- | --- | --- |
+| The MineWorld default character | as faithful to `04_character_closeup.png` as practical — face, hair, freckles, garment structure and accessories included | this project, once, and the result ships as an asset |
+| What the framework *requires* | the humanoid profile only: scale, axes, root convention, skeleton, retarget compatibility, glTF expectations | every creator, and it stays cheap |
+
+A creator shipping their own world needs a rig that satisfies the profile. They do not need our
+face. **The humanoid profile standardises the runtime contract, never appearance** —
+
+```text
+same skeleton  ≠  same mesh  ≠  same face  ≠  same clothes
+```
+
+— so one animation library serves characters who look nothing alike. A high-fidelity default is
+therefore an example of what the framework permits, not a threshold it imposes, and `ARC-11`
+already says the default style is ours and never a kernel assumption.
+
+**Consequences.**
+
+1. `04_character_closeup.png`'s `not_authoritative_for` list drops `facial_detail`,
+   `skin_rendering` and `hair_simulation` **for the default character**. Its `authoritative_for`
+   dimensions are unchanged. `ARC-4`'s mechanism — a reference declares what it is a reference for
+   — is untouched and remains correct; only this one image's scoping changes.
+2. `ART_DIRECTION.md` §§3 and 7 need amending where they rule out cinematic facial rendering for
+   the default character. A prose section and a decision disagreeing is the same defect as two
+   decisions sharing an id.
+3. The prohibition on a **bespoke from-scratch character pipeline** stands, on
+   `REUSE_POLICY.md` grounds rather than fidelity grounds: evaluate mature tools — MetaHuman,
+   Character Creator, Blender with MPFB, image-to-3D reconstruction, CC0 groom and animation
+   libraries — against quality, automation, licence, redistribution, engine portability and
+   runtime compatibility. Do not build character-reconstruction technology.
+4. **`DEP-8` is not relaxed.** An asset must be free to *redistribute*, not merely free to use. An
+   ecosystem asset usable only inside one engine is recorded as exactly that, and engine-specific
+   Presentation Packs stay isolated from portable MineWorld assets.
+
+**Cost accepted deliberately.** A higher default bar means the default character is expensive to
+reproduce and a contributor cannot casually regenerate it. That is the trade `ARC-4` refused, and
+it is accepted now because the artefact is shipped rather than re-derived, and because nothing
+about it reaches the framework's own requirements.
+
+---
+
+## ARC-20 — Visual milestones are named, reviewed as packages, and never block other work
+
+**Date** 2026-09-27 · **Relates to** `ARC-11`, `ARC-17`, `ARC-18`,
+[`ACCEPTANCE.md`](ACCEPTANCE.md), [`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md)
+
+With two 3D tracks running (`ARC-18`), "the 3D character" and "the 3D scene" stop being unique
+descriptions, and a review round has already been lost to an ambiguous verdict (`ARC-17`).
+
+**Decided.**
+
+1. **Named milestones.** `VIS-2D-1` (playable 2D default scene with an enterable interior);
+   `VIS-3D-GODOT-1` (reference-matched character in Godot); `VIS-3D-GODOT-2` (integrated Godot
+   slice: character, street, enterable building, interior, lighting, movement, cameras);
+   `VIS-3D-UE5-1` (Unreal slice of equivalent scope); `VIS-3D-AB-1` (the side-by-side).
+2. **The A/B must compare like with like.** Same reference, same demo scope, both tracks pushed.
+   A stale placeholder against a polished slice measures nothing, and `ARC-18` is only decidable
+   on honest evidence. Godot is pushed properly before it is judged: the current gap traces to the
+   wrong mesh, hair, garments, materials and lighting, not to a demonstrated rendering ceiling.
+3. **A review package, not an engineering log.** Milestone id · what changed · the exact launch
+   command · real runtime screenshots · the canonical reference · a side-by-side where applicable
+   · known limitations · the specific subjective questions being asked. The operator must be able
+   to launch, look, walk and judge quickly.
+4. **Waiting for review never blocks development.** On reaching `READY FOR HUMAN VISUAL REVIEW`,
+   an agent preserves the runnable candidate, saves the screenshots, records it in
+   `HUMAN_REVIEW_QUEUE.md`, **stops subjective polishing on that branch**, and moves to
+   independent work. Review is a branch-level checkpoint, never a global barrier, and neither 3D
+   track waits on the other.
+5. **The engine choice is not the agent's.** Whether Godot remains default, Unreal is promoted, or
+   both are supported is a product decision the operator makes on `VIS-3D-AB-1`.

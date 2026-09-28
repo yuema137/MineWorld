@@ -26,11 +26,35 @@ here does not block anything else.
 These are candidates until the operator says otherwise (`ARC-11`). An agent may build and
 recommend; it may not declare something the default look.
 
+Named per `ARC-20`, because with two 3D tracks running (`ARC-18`) "the 3D character" no longer
+identifies one thing.
+
 | | Milestone | State |
 | --- | --- | --- |
-| **VIS-2D-1** | Generated 2D default scene replacing the procedural art | 🚧 candidate in progress |
-| **VIS-3D-1** | First believable default human replacing the primitive mannequin | 🚧 candidate in progress |
-| **VIS-3D-2** | Integrated default 3D scene, character and environment together | ❌ |
+| **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | ❌ **failed fidelity gate 2026-09-27** — rebuilding |
+| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ❌ |
+| **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ❌ architecture spike phase |
+| **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ❌ |
+
+`VIS-3D-GODOT-1` failed on categorical identity mismatch, not polish: the reference is a young
+woman in an open burgundy zip hoodie and the candidate was a man in a red quilted puffer jacket
+(`ARC-17`). The rig, retarget, animation, cadence, footwear and ground-contact work underneath it
+is unaffected and is kept.
+
+### What a review package contains (`ARC-20`)
+
+Milestone id · what changed · **the exact launch command** · real runtime screenshots · the
+canonical reference · a side-by-side where applicable · known limitations · the specific
+subjective questions being asked. The operator must be able to launch, look, walk and judge
+quickly. An engineering log is not a review artefact.
+
+### Reaching review does not stop work
+
+On `READY FOR HUMAN VISUAL REVIEW`: preserve the runnable candidate, save the screenshots, record
+it here, **stop subjective polishing on that branch**, and move to independent work. Review is a
+branch-level checkpoint, never a global barrier. Neither 3D track waits on the other, and none of
+the framework milestones wait on any of them.
 
 ## Style infrastructure — architecture, and it never waits here
 
@@ -56,5 +80,8 @@ decision, and none of it may be tied to whichever style happens to be default.
 - **Procedural SVG is retired as the 2D art strategy**, keeping its layout, placement, projection,
   camera and occlusion logic. Visuals get replaced; architecture does not.
 - **Primitive humanoids are below baseline** and are being replaced by a reusable rigged pipeline.
-- **Facial fidelity is deliberately not the reference's** (`ARC-4`): a photoreal face standard
-  would put character production beyond community reach.
+- **The default character is an identity reconstruction of `04_character_closeup.png`**
+  (`ARC-19`), which supersedes `ARC-4`'s facial-fidelity exclusion for that one image. `ARC-4`'s
+  reasoning survives, applied to the right object: the bar is high for **our** default character,
+  which we pay once and ship as an asset, and stays low for **what the framework requires**, which
+  is the humanoid profile and nothing about appearance.
