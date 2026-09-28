@@ -238,14 +238,30 @@ contracts/src/spatial.rs:7-8    "render-space position — one client's: a mesh 
                                  point, an animation anchor, a camera"
 contracts/src/spatial.rs:29-30  "No mesh, no navmesh, no collider, no camera, no scene node, no
                                  animation, no skeleton, no physics"
-contracts/src/observation.rs:24 a 3D client shows a prompt over what the camera points at
-contracts/src/observation.rs:56 how a client uses a tag is its own business
+contracts/src/observation.rs:24 "a 2D client greys out a menu entry; a 3D client shows a prompt
+                                 over the thing the camera is pointing at; neither evaluates
+                                 distance, permission, availability or system presence"
+contracts/src/observation.rs:56 see below
 kernel/src/system.rs:4          "an enabled physics process" — CORE_CONCEPTS §13's phrase for a
                                  System, unrelated to a physics engine
 ```
 
 **Zero in a type name, a field name, a variant or a function name.** The renderer vocabulary appears
 in this codebase only in sentences that forbid it.
+
+The last of those is worth quoting in full, because the contract states this section's conclusion
+about itself, and the conclusion happens to be true (`contracts/src/observation.rs:54-58`):
+
+> "The `id` is also the join key a client needs in order to bind a rendered body back to a world
+> entity (`DD-14`): a 3D client attaches it to whatever node it drew and recovers it when the player
+> points at that node, and a 2D client attaches it to a sprite or a list row. How it does that is
+> the client's business, and the contract says nothing about it — **which is the evidence that no
+> engine concept has to enter this crate.**"
+
+An assertion in a doc comment is not evidence. What makes it true here is that the Unreal client
+planned in §7 binds its actors back to world entities by exactly that key, in exactly that way, and
+needs nothing added to the contract to do it — and that the probe in §2 did the same thing with a
+`dict`.
 
 **Where Godot is named outside `clients/`.** Three places, all doc comments, all provenance:
 
