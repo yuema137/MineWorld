@@ -196,3 +196,62 @@ installed here, so the first character carries a Blender install, an MPFB2 exten
 several asset-pack downloads and a modelling learning curve — before any MineWorld code is touched.
 The Vitruvian route needs none of that, because the character already exists as GLB. That is the
 reason to prefer it, and it is a tooling reason as much as a quality one.
+
+---
+
+## 8. Can this pipeline produce a female body? Yes — but not without Blender
+
+**Date** 2026-09-27 · asked because the baked character reads as male and the
+reference character is a young woman, which is the first thing a viewer
+resolves about a person.
+
+**The capability is there, and it is explicit.** From
+[`seenbuklee/CharMorph-Vitruvian`](https://github.com/seenbuklee/CharMorph-Vitruvian):
+
+- `morphs/L1/` contains **one** file, `Default.npy`. Vitruvian is a single
+  gender-neutral base; its README says so ("Gender Neutral morphing allows for
+  many more unique combinations").
+- `morphs/L2/` contains **185** morphs. Sex is expressed entirely here, and the
+  relevant ones are named for it: `Chest_Breast_Size`, `Chest_FemaleFlatChested`,
+  `Chest_FemaleSiliconeImplants`, `Chest_Areola_Radius`, alongside
+  `Waist_Hips_Width`, `Waist_Width`, `Waist_GluteSize` and the `BodyType_*` set.
+- `presets/` ships **`Ultra Feminine.yaml`** and **`Ultra Masculine.yaml`**. They
+  differ exactly where you would expect:
+
+  | | Ultra Feminine | Ultra Masculine |
+  | --- | --- | --- |
+  | `Estrogen` (material) | 1.0 | 0.0 |
+  | `Chest_Breast_Size` | 0.22157 | 0.0 |
+  | `Waist_Hips_Width` | +0.26239 | — |
+  | `Waist_Width` | −0.15743 | — |
+  | `Waist_GluteSize` | +0.25073 | — |
+
+  The shoulder-to-hip ratio that reads as sex at a glance is a literal
+  parameter in this system, not something to be approximated.
+
+**The blocker is tooling, not capability.** The morphs are numpy vertex-delta
+arrays (`.npy` / `.npz`) keyed to the base mesh's vertex order, and CharMorph —
+a Blender add-on — is what applies them. Three things follow:
+
+1. **Blender is not installed on this machine** (`which blender` → not found,
+   nothing in `/Applications`). The morph route needs it.
+2. Even with numpy, the deltas cannot be applied to what is in this tree. The
+   pipeline starts from VitruvianGodot's **already-baked** GLBs, whose geometry
+   has been occlusion-deleted under the clothing and re-indexed; its vertex
+   order no longer corresponds to CharMorph's base mesh.
+3. The base mesh itself lives in `char.blend`, a Blender binary. Reading it
+   without Blender is not a practical proposition.
+
+**So the honest answer is: re-baking, not adjusting — and re-baking has a
+prerequisite this machine does not meet.** The cost is a Blender install plus
+the ~1.12 GB Vitruvian character data plus the CharMorph add-on, after which
+`Ultra Feminine` is a preset selection and an export, and **the rig work already
+done carries over untouched** because the `BoneMap` addresses profile bone names
+rather than this particular mesh. That is the decision to take; it is not one an
+agent should take alone, because it changes what a contributor needs installed
+to reproduce the character.
+
+**What is possible without it:** clothing, hair, materials and textures — all of
+which are layered on top and none of which fix the silhouette. Morphing a male
+mesh toward a female one by scaling bones would distort the skinning and is not
+proposed.
