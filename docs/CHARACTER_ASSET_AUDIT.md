@@ -334,7 +334,7 @@ found`, which is the 1.12 GB character payload distributed separately as
 re-deriving the character:** Blender **5.2.2 LTS**, CharMorph at `master`
 (bl_info version `0.3.5`), Vitruvian character data `v1.6.1`. No older Blender
 was needed and none is installed. Enabling is not the same as the morph
-pipeline working end to end; that is tested next and recorded when it is.
+pipeline working end to end. That is tested in §11, and it works.
 
 ### Licence boundary, restated because the add-on is copyleft
 
@@ -346,3 +346,63 @@ for MPFB2 — GPL code that stays in Blender, CC0 assets that ship — and the
 reason `Humanizer` was rejected outright is instructive by contrast: that is a
 Godot *plugin*, so it would have lived inside the project and been
 redistributed. A Blender add-on never is.
+
+---
+
+## 11. The morph pipeline works, and the silhouette change is measured
+
+**Date** 2026-09-27 · the body half of the identity contract is **proven, not
+plausible**
+
+With the `v1.6.1` character data in place (1.2 GB extracted to
+`CharMorph/data/characters/Vitruvian/`, outside this repository), driven
+headless on Blender 5.2.2:
+
+```python
+addon_utils.enable('CharMorph', default_set=False, persistent=True)
+ui.base_model = 'Vitruvian'
+bpy.ops.charmorph.import_char()          # -> cm_vitruvian, 39,168 verts
+mm.create_charmorphs(obj)                # the morpher has to be created first;
+                                         # the preset enum is empty until it is
+data = mm.morpher.core.char.presets['Ultra Feminine']
+mm.morpher.apply_morph_data(data, False)
+```
+
+Result:
+
+```
+verts moved >1mm: 38,369 / 39,168    max 0.0394 m    mean 0.0064 m
+
+  shoulder   0.419 -> 0.392   (-6.5%)
+  chest      0.480 -> 0.479   (-0.1%)
+  waist      0.264 -> 0.247   (-6.6%)
+  hip        0.344 -> 0.346   (+0.6%)
+```
+
+Shoulders narrow, waist narrows, hips hold — the shoulder-to-hip ratio moves
+exactly the way `CHARACTER_IDENTITY.md` §2 requires, and it is a measurement
+rather than an impression. The base mesh is **39,168 vertices**, more than
+twice the 18,335 in the currently baked GLB, because that one has been
+occlusion-deleted under its clothing; a re-bake starts from the whole body.
+
+The preset emits a few `Unknown morph name` lines (`Race_Punjabi`,
+`Torso_RibWidth` and similar). The presets are shared across CharMorph
+characters and name morphs Vitruvian does not ship; they are skipped and are
+not an error.
+
+**So the toolchain question from §9 is closed.** The body and the face are
+reachable. Hair, the hoodie and the backpack still are not, and remain
+modelling or sourcing work — which is where the effort should go, because they
+are the categories that carry recognition.
+
+### Reproducibility
+
+| | |
+| --- | --- |
+| Blender | 5.2.2 LTS (`d13f752e3b9c`) |
+| CharMorph | `master`, `bl_info` version `0.3.5`, **AGPL-3.0**, scratch-only |
+| Vitruvian data | `seenbuklee/CharMorph-Vitruvian` release `v1.6.1`, `character.zip`, 1123 MB |
+| Preset | `Ultra Feminine` |
+
+None of it is committed. The add-on is AGPL and the data is CC0; only CC0
+output crosses into the repository, which is the boundary §10 states.
