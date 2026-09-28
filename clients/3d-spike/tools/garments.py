@@ -78,7 +78,7 @@ def short(name: str) -> str:
 # ------------------------------------------------------------------------- tee
 
 TEE_HEM_Z = 1.030         # over the jeans waistband, as the reference shows
-TEE_LIFT = 0.010          # how far the jersey stands off the skin
+TEE_LIFT = 0.008          # how far the jersey stands off the skin
 
 
 def build_tee(body, dom):
@@ -90,15 +90,24 @@ def build_tee(body, dom):
     """
     def keep(f):
         c = f.calc_center_median()
-        if c.z < TEE_HEM_Z:
+        if c.z < TEE_HEM_Z or any_in(dom, f, HEAD_BONES):
             return False
-        if any_in(dom, f, HEAD_BONES):
+        if not any_in(dom, f, TORSO_BONES | ARM_BONES | HAND_BONES):
             return False
-        if all_in(dom, f, ARM_BONES | HAND_BONES):
-            # a shoulder cap only: any more and the jersey's cut edge pokes out
-            # through the hoodie sleeve, which is 28 mm further out
-            return abs(c.x) <= 0.130
-        return any_in(dom, f, TORSO_BONES)
+        # Only where the tee is actually seen: the band the open hoodie shows,
+        # and the crew neckline above the collar.  The rest of the jersey is
+        # under 30 mm of fleece, and a decimated shell on a curved shoulder cuts
+        # corners by more than that -- which put jagged cream patches through
+        # the hoodie at the collarbone and across both shoulders.  Geometry that
+        # cannot be seen cannot clip through anything.
+        # A ring at the neck, and the band the open front shows.  Both were
+        # first set far too generously -- a 115 mm cylinder round the neck axis
+        # covers both shoulder tops, and a 135 mm half-band reaches round the
+        # side of the bust under the panel.  Jersey outside these is under
+        # 38 mm of fleece and can only ever appear by clipping through it.
+        if c.z > NECK_Z - 0.022 and math.hypot(c.x, c.y - 0.070) < 0.061:
+            return True
+        return abs(c.x) < ZIP_HALF + 0.022 and c.y < -0.02
 
     obj = dup_region(body, keep, "Tee")
     # Smooth *before* offsetting.  Laplacian smoothing pulls a convex surface
@@ -106,8 +115,8 @@ def build_tee(body, dom):
     # ribcage and the bare chest came through between the hoodie panels.
     relax(obj, iterations=3, factor=0.5)
     inflate(obj, TEE_LIFT, smooth_first=2)
-    flare(obj, TEE_HEM_Z, HIP_Z + 0.14, 0.05)
-    decimate(obj, 0.22)
+    flare(obj, TEE_HEM_Z, HIP_Z + 0.14, 0.02)
+    decimate(obj, 0.30)
     solidify(obj, 0.0022)
     set_material(obj, "MW_Tee")
     # the graphic must land on the chest, so the front of the shirt is pinned to
@@ -177,7 +186,8 @@ def build_jeans(body, dom):
 
 HOODIE_HEM_Z = 0.945      # hanging below the waistband, the lowest of the three
 HOODIE_TOP_Z = NECK_Z - 0.005     # the collar seam; the hood sits on top of it
-HOODIE_LIFT = 0.040       # clear of the tee's 0.012 with room for the zip tape
+HOODIE_LIFT = 0.046       # 38 mm clear of the tee, which is more than
+                          # decimation can cut off a curved shoulder
 ZIP_HALF = 0.080          # half-width of the open front gap, at the centre line
 ZIP_TAPE = 0.018          # width of the lighter tape band folded in off it
 

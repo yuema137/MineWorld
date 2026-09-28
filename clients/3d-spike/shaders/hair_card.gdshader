@@ -10,7 +10,12 @@
 // wrongly against the face in Forward+, and a hard edge with alpha-to-coverage
 // reads better than cards visibly drawing in front of a nose.
 shader_type spatial;
-render_mode cull_disabled, depth_prepass_alpha, alpha_to_coverage, diffuse_burley;
+// `alpha_to_coverage` was right for a dense groom sampled below a pixel: it
+// dithers partial coverage instead of scissoring it away. With a proper card
+// atlas it is wrong -- the soft margins of each lock dither into white
+// speckling along every card edge against a bright sky. A plain scissor with a
+// depth prepass gives clean edges on geometry this size.
+render_mode cull_disabled, depth_prepass_alpha, diffuse_burley;
 
 uniform sampler2D tex_diffuse : source_color, filter_linear_mipmap_anisotropic;
 // The strand atlas carries coverage in its ALPHA channel and a soft AO/shading
@@ -35,8 +40,12 @@ void fragment() {
 		discard;
 	}
 	float strand = clamp(texture(tex_diffuse, UV).r * diffuse_gain, 0.0, 1.5);
-	ALBEDO = tint * (0.55 + strand) * mix(root_shade, 1.0, clamp(UV.y, 0.0, 1.0))
-		* mix(0.75, 1.0, op.r);
+	// The strand map modulates `tint` around 1.0 rather than scaling it up:
+	// `0.55 + strand` reached 1.55 on a bright strand, which washed a mid-brown
+	// tint out to pale orange under sun.
+	ALBEDO = tint * (0.45 + 0.60 * strand)
+		* mix(root_shade, 1.0, clamp(UV.y, 0.0, 1.0))
+		* mix(0.78, 1.0, op.r);
 	ALPHA = a;
 	ALPHA_SCISSOR_THRESHOLD = cutoff;
 	ROUGHNESS = roughness_v;

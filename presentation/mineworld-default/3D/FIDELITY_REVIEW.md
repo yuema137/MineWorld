@@ -119,3 +119,101 @@ The engineering under the appearance is unaffected by this verdict and is kept
 distance-driven cadence, the ground-contact measurement, the garment and hair
 modelling tools, the texture pipeline and the import-flag fix. Their numbers are
 in [`../../../docs/HUMANOID_PROFILE.md`](../../../docs/HUMANOID_PROFILE.md).
+
+---
+
+## 6. The face morph search, as measurement
+
+The operator directed that the face morphs be tried before the head is replaced,
+and that the search be a measurement rather than a series of impressions. It
+was, and it settles the question: **the head does not need replacing for the
+jaw, the chin or the eye.**
+
+Two scratchpad tools drive it (they import CharMorph, so they stay out of the
+repository — `CHARACTER_ASSET_AUDIT.md` §12): one sweeps each morph over its
+range and reports what each contract row moves through, the other applies a
+candidate stack and reports the resulting ratios against the reference.
+
+### The rows, and where the reference sits
+
+The reference plate is a three-quarter view, so absolute widths foreshorten.
+**Ratios of two horizontal widths do not**, so the comparison is made on those,
+read off the plate in pixels at 3× (`cheek 458 px, jaw 375, chin 180`) and good
+to about ±10%.
+
+| Row | Reference | Base (Ultra Feminine) | After the morph stack |
+| --- | --- | --- | --- |
+| jaw width / cheek width | **0.819** | 0.948 | **0.849** (3.7% miss) |
+| chin width / cheek width | **0.393** | 0.397 | **0.374** (4.7% miss) |
+| visible sclera | relaxed lid, iris top covered | 105 points | **59 points (−44%)** |
+
+Both misses are inside the ±10% the pixel reads carry.
+
+### What each morph can actually reach
+
+Single-morph spans, measured on the Ultra Feminine base, against the row its
+family is aimed at. This is the list that would justify replacing the head if it
+came back empty — it does not.
+
+| Morph | Row | Span | Verdict |
+| --- | --- | --- | --- |
+| `Jaw_Ramus_Extrusion` | jaw width | 5.51% (0.1286 … 0.1359 m) | usable |
+| `Jaw_Width` | jaw width | 4.92% | usable |
+| `Jaw_Mandible` | jaw width | 3.11% | usable |
+| `Jaw_Mandible_GonialAngle` | jaw width | 2.86% | usable |
+| `Jaw_Definition` | jaw width | 1.27% | marginal |
+| `Jaw_Ramus_LocY` | jaw width | 0.43% | **dead end** |
+| `Face_Maxilla`, `Head_TemporalLines` | jaw width | 0.00% | **dead end** |
+| `Face_Zygomatic_Bone` | cheek width | 11.22% (0.1312 … 0.1468 m) | the strongest single control on the taper |
+| `Cheeks_BoneDefinition`, `Cheeks_UpperCheek_Bone`, `Cheeks_CheeksBonePositionZ`, `Face_Puffy`, `Cheeks_BuccalFat` | cheek width | 0.00–0.79% | **dead ends for width** (they move flesh in depth, which is why two are still used, for softness) |
+| `Chin_Width` | chin width | 19.19% (0.0498 … 0.0604 m) | usable |
+| `Chin_SecondaryWidth` | chin width | 12.53% | usable |
+| `Chin_Height`, `Chin_Portrusion`, `Chin_ChinCleft` | chin width | 0.00–0.01% | **dead ends for width** |
+
+**No single morph closes the jaw taper; four stacked ones plus the cheekbone
+do.** Narrowing the jaw and widening the zygomatic each contribute about half.
+At their full extremes the ratio lands at 0.813 against the reference's 0.819 —
+a 0.7% miss — but the face then reads gaunt, which fails the contract's own
+"soft, rounded" wording. The shipped values sit at roughly 0.9 of the extremes
+with `Cheeks_BuccalFat` and `Face_Puffy` putting flesh back, trading a 0.7% miss
+for 3.7% and a face that is not bony.
+
+### The eye was not skull geometry
+
+The operator's hypothesis was right. `Eyes_UpperLidOpenness` and
+`Eyes_LowerLidOpenness` exist as morphs, and the base pose simply sits near the
+open end of their range. Four morphs move the visible-sclera count
+monotonically: `Eyes_Eyelid_Hooded` (105 → 84 at +1), `Eyes_UpperLidOpenness`
+(105 → 84 at −1), `Eyes_EyeBagsSize` (105 → 92 at +1), `Eyes_LowerLidOpenness`
+(105 → 90 at −1). Stacked at moderate values they reach **−44%**, which is the
+relaxed lid the reference shows.
+
+**One measurement had to be thrown away and replaced**, which is worth recording
+because it nearly produced a wrong conclusion. The first eye metric was the
+vertical extent of the exposed eyeball, and it came back *non-monotonic across a
+single morph's own range* — `Eyes_Eyelid_Hooded` gave 0.0118 m at +0.5 and
+0.0230 m at +1.0. An extent decided by one stray vertex at the top or bottom is
+not a measurement. The count of exposed vertices is monotonic and is what the
+numbers above use.
+
+Likewise, three morphs reported a 100%+ span — `Eyes_Size`,
+`Face_EyeSocket_Protrusion`, `Age_Baby` — by moving the region out of the fixed
+measurement band entirely, so the band found nothing and returned zero. Those
+are **measurement failures, not results**, and none of them is cited as a
+finding above.
+
+And the first run of the whole sweep reported `0.00%` for *every* chin and
+*every* cheek morph, which looked exactly like the dead end that would have
+justified replacing the head. It was not: the band took `max |x|` over the whole
+head at a height, which measures the neck under the chin and the ears beside the
+cheeks. A measurement that cannot see the thing it measures reports no effect,
+and it is indistinguishable from the thing not moving.
+
+### What this does not settle
+
+The **face shape row in §2 is still FAIL**, because the ratios are not the whole
+of a face: the reference's jaw is soft and rounded where the candidate's is
+still flat-planed, and that is surface form rather than proportion. The morph
+search says the *proportions* are reachable and the head should not be replaced
+on their account. Whether the remaining difference is reachable is a separate
+question, and the cheap test for it has now been run.

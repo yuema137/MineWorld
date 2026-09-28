@@ -294,11 +294,16 @@ def hair_cards(out: str) -> None:
     strands = os.path.join(out, "_strands.png")
     run(["magick", "-size", f"{width}x{HAIR_ROWS_PX}", "xc:none",
          "-fill", "none", "-draw", " ".join(draw), "-blur", "0x0.6", strands])
-    # fade the last third to nothing: a lock of hair ends in air, and a hard
-    # bottom edge on every card is what makes a groom read as plastic
+    # Fade the tip to nothing, and the root too.  A lock of hair ends in air,
+    # and a card whose root is a straight fully-opaque cut shows that cut
+    # wherever it is not covered by the card above it -- which is most of what
+    # "hard card edges" was.
     fade = os.path.join(out, "_fade.png")
     run(["magick", "-size", f"{width}x{HAIR_ROWS_PX}",
-         f"gradient:white-black", "-sigmoidal-contrast", "5x38%", fade])
+         "gradient:white-black", "-sigmoidal-contrast", "5x38%",
+         "(", "-size", f"{width}x{HAIR_ROWS_PX}", "gradient:black-white",
+         "-function", "polynomial", "-14,14,0", ")",
+         "-compose", "multiply", "-composite", fade])
     dst = os.path.join(out, "hair_card.png")
     run(["magick", strands, fade, "-alpha", "off", "-compose", "copy_opacity",
          "-composite", "-channel", "A", "-evaluate", "multiply", "1.0",

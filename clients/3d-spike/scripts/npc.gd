@@ -36,16 +36,33 @@ extends Node3D
 ## real controller instead of along a path.
 enum Pose { WALK, STAND, SIT, LEAN, PUPPET }
 
-## Skin is a *tint over one photographic albedo*, so these stay close to neutral:
-## pushed further they read as paint rather than as people. The honest limit is
-## that the CC0 asset ships one body texture set; see `human.gd`.
+## Skin is a *tint over one photographic albedo* (`ARC-22`), and a tint changes
+## colour and nothing else: the facial structure, the hair geometry and the way
+## light behaves in the skin all stay whatever the CC0 asset was. So a tint far
+## from the source does not make a person of a different ethnicity — it makes
+## the *same* person painted a different colour, and it reads as that.
+##
+## The palette therefore stays inside the range this one albedo carries,
+## broadly fair European through East Asian. The previous entry at
+## `Color(0.63, 0.49, 0.39)` was well outside it, against the comment sitting
+## directly above it.
+##
+## **This is not a finding that a wider cast is expensive.** The cost is asset
+## production — a second albedo, a second head, matching grooms — and once a
+## second texture set exists, widening this is a palette change needing no new
+## decision. Do not widen it before then, and do not cite `ARC-22` as a reason
+## a wider cast is hard.
 const SKINS := [
-	Color(1.00, 0.96, 0.92), Color(0.82, 0.68, 0.56), Color(1.00, 0.90, 0.82),
-	Color(0.63, 0.49, 0.39), Color(0.93, 0.84, 0.75), Color(0.74, 0.58, 0.45),
+	Color(1.00, 0.96, 0.92), Color(0.94, 0.86, 0.78), Color(1.00, 0.90, 0.82),
+	Color(0.88, 0.78, 0.69), Color(0.93, 0.84, 0.75), Color(0.85, 0.73, 0.62),
 ]
+## Matched to the skins above, and to the same limit: one hair card atlas and
+## one groom, tinted. The pale blond at `Color(0.58, 0.46, 0.28)` and the grey
+## are kept — those are within what a warm-brown strand map carries — but the
+## range narrows with the skins so a head and its hair do not disagree.
 const HAIRS := [
-	Color(0.12, 0.09, 0.07), Color(0.26, 0.16, 0.09), Color(0.42, 0.29, 0.15),
-	Color(0.58, 0.46, 0.28), Color(0.20, 0.13, 0.10), Color(0.66, 0.64, 0.61),
+	Color(0.14, 0.10, 0.08), Color(0.26, 0.16, 0.09), Color(0.38, 0.25, 0.14),
+	Color(0.52, 0.41, 0.25), Color(0.20, 0.13, 0.10), Color(0.62, 0.60, 0.57),
 ]
 const TOPS := [
 	Color(0.46, 0.20, 0.19), Color(0.30, 0.35, 0.29), Color(0.85, 0.83, 0.77),
@@ -78,7 +95,7 @@ var _t := 0.0
 ## these colours tint them, so changing one shifts the tone without losing the
 ## artwork (`Human._printed`).
 const REF_SKIN := Color(1.0, 0.95, 0.90)
-const REF_HAIR := Color(0.43, 0.28, 0.17)   # warm mid-brown, not near-black
+const REF_HAIR := Color(0.35, 0.22, 0.135)  # warm mid-brown, not near-black
 const REF_TEE := Color(1.0, 0.99, 0.97)     # the tee albedo is already cream
 const REF_HOODIE := Color(0.44, 0.15, 0.14)
 const REF_JEANS := Color(0.92, 0.95, 1.0)   # the denim albedo is already blue

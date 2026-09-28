@@ -130,7 +130,11 @@ func _capture() -> void:
 ## `Camera3D.fov` is vertical, so cropping the width changes the aspect and not
 ## the framing: what these files show is exactly what the client rendered.
 const PORTRAIT_CROP := Rect2i(490, 0, 620, 900)
-const PORTRAIT_SPOT := Vector3(14.0, 0.2, -17.4)
+## Clear of the street trees' canopy. The first spot put her directly beneath
+## one, and its alpha-scissored leaves rendered as dark shards across her crown
+## -- which was read, reasonably, as an artefact of her hair. The promenade is
+## lined with them, so this is far enough along it to have sky overhead.
+const PORTRAIT_SPOT := Vector3(30.0, 0.2, -16.6)
 const PORTRAIT_YAW := 104.0
 ## name, camera distance, camera height, look-at height, yaw offset from her
 ## front in degrees, field of view
