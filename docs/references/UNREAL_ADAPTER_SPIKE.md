@@ -470,9 +470,9 @@ that will never catch this.
 
 ---
 
-## 5. Three defects found while running the test
+## 5. Four defects found while running the test
 
-None blocks an Unreal client. All three are recorded here rather than fixed, because this spike is
+None blocks an Unreal client. All four are recorded here rather than fixed, because this spike is
 chartered to report and not to amend merged specifications (`ARC-18`: *"No kernel, contract, World
 Pack, persistence or networking change"*). `CLAUDE.md` §2.1 rule 4 requires the contradiction to be
 recorded rather than left unrecorded, which is what this section is.
@@ -548,6 +548,35 @@ because a spike whose brief is *"surface architectural holes"* (`CLAUDE.md` §4 
 because the natural time to decide it is alongside `MoveIntent` and the travel `Process`
 (`ENGINEERING_RULES.md` §6), which do not exist yet.
 
+### 5.4 One `ARC-19` consequence lands on a file `ARC-19` does not name
+
+Found while writing §9, and flagged because it is directly load-bearing for it.
+
+`ARC-19` supersedes `ARC-4`'s facial-fidelity exclusion for the default character and directs in
+consequence 3 that mature character tools — *"MetaHuman, Character Creator, Blender with MPFB,
+image-to-3D reconstruction, CC0 groom and animation libraries"* — be **evaluated**. Its consequence 1
+updates `04_character_closeup.png`'s scoping and its consequence 2 names
+[`ART_DIRECTION.md`](../ART_DIRECTION.md) §§3 and 7 as needing amendment. Neither has been applied
+yet, which is expected: they are recorded work, not a hidden contradiction.
+
+`presentation/mineworld-default/3D/references/README.md` is a third file carrying the superseded
+statement, and `ARC-19` does not name it:
+
+```text
+line 29-30   "Its facial photorealism is explicitly not the fidelity target."
+line 43      "it explicitly does not depend on photoreal skin, MetaHuman-level facial assets,
+              facial scanning, cinematic hair simulation, or a custom character pipeline"
+```
+
+That line names MetaHuman by name and reads as a policy exclusion. A reader arriving at §9 of this
+document from that README would conclude MetaHuman is ruled out on MineWorld policy grounds, when
+`ARC-19` §3 in fact directs the opposite — evaluate it, and do not build a bespoke pipeline instead.
+`presentation/mineworld-default/3D/manifest.yaml:52` still carries the superseded
+`not_authoritative_for` list too, which `ARC-19` consequence 1 does cover.
+
+Recorded rather than fixed: amending the default presentation pack's own art documentation is
+outside a renderer spike's brief and belongs with whoever applies `ARC-19`'s other two consequences.
+
 ---
 
 ## 6. The verdict `ARC-18` asked for
@@ -564,9 +593,11 @@ keyed on the format rather than on the engine.
 
 Presentation independence, as `ARC-18` §2 poses it, holds.
 
-The three items in §5 are documentation and forward-looking findings. §5.1 and §5.2 are one-line and
-one-paragraph corrections to merged specifications. §5.3 is a real design question that belongs with
-movement and travel, is engine-neutral, and should not be decided by a renderer spike.
+The four items in §5 are documentation and forward-looking findings, and none of them is a contract.
+§5.1 and §5.2 are a one-line and a one-paragraph correction to merged specifications. §5.4 is a
+consequence of `ARC-19` landing on a file `ARC-19` does not name. §5.3 is a real design question —
+there is no contract for where one `Place` sits relative to another — which belongs with movement and
+travel, is engine-neutral, and should not be decided by a renderer spike.
 
 ---
 
