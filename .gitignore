@@ -30,3 +30,7 @@ node_modules/
 # Renderer-integration spike: engine caches and build output
 spike/**/.godot/
 spike/server/target/
+
+# Scratch files a shell-quoting slip can create at the repo root: a filename that
+# is itself a JSON object. Two were committed to main before this line existed.
+{"*
