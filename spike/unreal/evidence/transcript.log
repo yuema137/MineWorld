@@ -1,0 +1,230 @@
+=== 1. join =========================================================
+<-- {"t": "welcome", "protocol": 1, "seat": "visitor", "observer": "4", "world": {"protocol": 1, "instance": "0000000018d95e4c2ec4fcf003210000", "at": 3, "entities": 5, "systems": [{"system": "presence", "enabled": true}, {"system": "conversation", "enabled": true}], "seats": ["alice", "visitor", "wanderer"], "clients": 2, "observations_dropped": 0, "deferrals_unscheduled": 0, "faults": 0}}
+    observer is a JSON str = '4'
+
+=== 2. the first observation ========================================
+{
+  "observer": "4",
+  "at": 3,
+  "self_location": {
+    "place": {
+      "entity": "1",
+      "entity_type": "place"
+    },
+    "local": {
+      "x": 4600,
+      "y": 200,
+      "z": 0
+    },
+    "facing": null
+  },
+  "entities": [
+    {
+      "id": "1",
+      "entity_type": "place",
+      "location": null,
+      "tags": [
+        "cafe",
+        "public"
+      ],
+      "components": []
+    },
+    {
+      "id": "2",
+      "entity_type": "person",
+      "location": {
+        "place": {
+          "entity": "1",
+          "entity_type": "place"
+        },
+        "local": {
+          "x": 1200,
+          "y": 2400,
+          "z": 0
+        },
+        "facing": {
+          "yaw": 180000,
+          "pitch": null
+        }
+      },
+      "tags": [
+        "barista",
+        "staff"
+      ],
+      "components": []
+    },
+    {
+      "id": "3",
+      "entity_type": "person",
+      "location": {
+        "place": {
+          "entity": "1",
+          "entity_type": "place"
+        },
+        "local": {
+          "x": 1400,
+          "y": 600,
+          "z": 0
+        },
+        "facing": null
+      },
+      "tags": [
+        "regular"
+      ],
+      "components": []
+    },
+    {
+      "id": "4",
+      "entity_type": "person",
+      "location": {
+        "place": {
+          "entity": "1",
+          "entity_type": "place"
+        },
+        "local": {
+          "x": 4600,
+          "y": 200,
+          "z": 0
+        },
+        "facing": null
+      },
+      "tags": [
+        "visitor"
+      ],
+      "components": []
+    },
+    {
+      "id": "5",
+      "entity_type": "person",
+      "location": {
+        "place": {
+          "entity": "1",
+          "entity_type": "place"
+        },
+        "local": {
+          "x": 4600,
+          "y": 4400,
+          "z": 0
+        },
+        "facing": null
+      },
+      "tags": [
+        "visitor"
+      ],
+      "components": []
+    }
+  ],
+  "relations": [
+    {
+      "relation_type": "present-in",
+      "from": "2",
+      "to": "1"
+    },
+    {
+      "relation_type": "present-in",
+      "from": "3",
+      "to": "1"
+    },
+    {
+      "relation_type": "present-in",
+      "from": "4",
+      "to": "1"
+    },
+    {
+      "relation_type": "present-in",
+      "from": "5",
+      "to": "1"
+    }
+  ],
+  "events": [],
+  "affordances": [
+    {
+      "action_type": "arrive",
+      "target": null,
+      "available": true,
+      "unavailable_reason": null,
+      "requirement": {
+        "place": "any",
+        "within_range": null,
+        "requires_line_of_access": false,
+        "requires_target_available": false
+      }
+    },
+    {
+      "action_type": "talk",
+      "target": "2",
+      "available": false,
+      "unavailable_reason": "too_far_away",
+      "requirement": {
+        "place": "same_place_as_actor",
+        "within_range": 3000,
+        "requires_line_of_access": false,
+        "requires_target_available": true
+      }
+    },
+    {
+      "action_type": "talk",
+      "target": "3",
+      "available": false,
+      "unavailable_reason": "too_far_away",
+      "requirement": {
+        "place": "same_place_as_actor",
+        "within_range": 3000,
+        "requires_line_of_access": false,
+        "requires_target_available": true
+      }
+    },
+    {
+      "action_type": "talk",
+      "target": "5",
+      "available": false,
+      "unavailable_reason": "too_far_away",
+      "requirement": {
+        "place": "same_place_as_actor",
+        "within_range": 3000,
+        "requires_line_of_access": false,
+        "requires_target_available": true
+      }
+    }
+  ]
+}
+
+    place='1'  barista='2' at {'x': 1200, 'y': 2400, 'z': 0}
+    what the server says about acting on '2': [{"action_type": "talk", "target": "2", "available": false, "unavailable_reason": "too_far_away", "requirement": {"place": "same_place_as_actor", "within_range": 3000, "requires_line_of_access": false, "requires_target_available": true}}]
+
+=== 3. walk: the client moves in its own space and reports where ====
+--> {"t": "submit", "token": "p1", "request": {"actor": "4", "action_type": "arrive", "target": null, "payload": {"action_type": "arrive", "payload": {"location": {"place": {"entity": "1", "entity_type": "place"}, "local": {"x": 1200, "y": 1400, "z": 0}, "facing": {"yaw": 0, "pitch": null}}}}, "actor_location": {"place": {"entity": "1", "entity_type": "place"}, "local": {"x": 1200, "y": 1400, "z": 0}, "facing": {"yaw": 0, "pitch": null}}}}
+<-- {"t": "result", "token": "p1", "action_id": "1", "result": {"accepted": {"events": ["5"]}}}
+
+=== 4. the affordance the server recomputed =========================
+    [{"action_type": "talk", "target": "2", "available": true, "unavailable_reason": null, "requirement": {"place": "same_place_as_actor", "within_range": 3000, "requires_line_of_access": false, "requires_target_available": true}}]
+
+=== 5. talk, now that the server says it may ========================
+--> {"t": "submit", "token": "p2", "request": {"actor": "4", "action_type": "talk", "target": "2", "payload": {"action_type": "talk", "payload": {"utterance": "hello Alice, from a client with no game engine"}}, "actor_location": {"place": {"entity": "1", "entity_type": "place"}, "local": {"x": 1200, "y": 1400, "z": 0}, "facing": {"yaw": 0, "pitch": null}}}}
+<-- {"t": "result", "token": "p2", "action_id": "2", "result": {"accepted": {"events": ["6", "7"]}}}
+
+=== 6. refusals =====================================================
+
+-- a float where the contract declares an i32, at the PROTOCOL boundary
+--> {"t": "submit", "token": "p1", "request": {"actor": "5", "action_type": "talk", "target": "2", "payload": {"action_type": "talk", "payload": {"utterance": "x"}}, "actor_location": {"place": {"entity": "1", "entity_type": "place"}, "local": {"x": 1500.0, "y": 0, "z": 0}, "facing": null}}}
+<-- {"t": "refused", "token": "p1", "code": "malformed_frame", "detail": "invalid type: floating point `1500.0`, expected i32"}
+
+-- the same float inside a SYSTEM payload
+--> {"t": "submit", "token": "p2", "request": {"actor": "5", "action_type": "arrive", "target": null, "payload": {"action_type": "arrive", "payload": {"location": {"place": {"entity": "1", "entity_type": "place"}, "local": {"x": 1500.0, "y": 0, "z": 0}, "facing": null}}}, "actor_location": null}}
+<-- {"t": "result", "token": "p2", "action_id": "4", "result": {"rejected": {"system": {"code": "malformed-payload", "detail": "a arrive action payload cannot be read as arrive"}}}}
+
+-- an unquoted 64-bit identity (accepted, for a hand-written fixture)
+--> {"t": "submit", "token": "n1", "request": {"actor": 5, "action_type": "talk", "target": 2, "payload": {"action_type": "talk", "payload": {"utterance": "x"}}, "actor_location": null}}
+<-- {"t": "result", "token": "n1", "action_id": "5", "result": {"rejected": "too_far_away"}}
+
+-- asking the world to act as somebody else
+--> {"t": "submit", "token": "x1", "request": {"actor": "2", "action_type": "talk", "target": "3", "payload": {"action_type": "talk", "payload": {"utterance": "x"}}, "actor_location": null}}
+<-- {"t": "refused", "token": "x1", "code": "actor_not_observer", "detail": "a client may only ask the world to act as its own observer; the actor of this request is somebody else"}
+
+-- the two halves of action_type disagreeing
+--> {"t": "submit", "token": "d1", "request": {"actor": "5", "action_type": "talk", "target": "2", "payload": {"action_type": "arrive", "payload": {}}, "actor_location": null}}
+<-- {"t": "refused", "token": "d1", "code": "malformed_frame", "detail": "an action intent for talk cannot carry a arrive payload"}
+
+-- a frame that asserts a fact about the world
+--> {"t": "set_state", "money": 5000}
+<-- {"t": "refused", "code": "unknown_frame", "detail": "this protocol has no frame of kind \"set_state\"; a client may only join or submit"}

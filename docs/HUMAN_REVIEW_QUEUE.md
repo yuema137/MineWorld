@@ -34,8 +34,8 @@ identifies one thing.
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
 | **VIS-3D-GODOT-1** | Reference-matched character in Godot | ❌ **failed the agent's own fidelity gate, twice** — rebuilt, still not the same person; see below |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ❌ |
-| **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ❌ architecture spike phase |
-| **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ❌ |
+| **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
+| **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
 `VIS-3D-GODOT-1` first failed on categorical identity mismatch, not polish: the reference is a
 young woman in an open burgundy zip hoodie and the candidate was a man in a red quilted puffer

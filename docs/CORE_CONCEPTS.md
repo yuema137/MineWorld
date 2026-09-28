@@ -313,7 +313,7 @@ Worked example: a person at `LocalPosition { x: 2000, y: 0, z: 0 }` with
 top-down client maps `+y` to screen-up and flips its own axis; a 3D client maps `+y` to −Z. Both
 conversions live in the adapter, and neither is the contract's business — but the frame is.
 
-## 6.1 Location: semantic place, optionally refined
+## 6.2 Location: semantic place, optionally refined
 
 Where something is, is one type with an optional refinement:
 
@@ -349,7 +349,7 @@ Three properties are not negotiable:
 3. **Hierarchy is a Relation, not a field.** That a kitchen is inside a café is a fact about two
    Places and lives as a Relation (§9), not as a parent field on this type.
 
-## 6.2 SpatialRequirement: what an action needs of space
+## 6.3 SpatialRequirement: what an action needs of space
 
 Whether an action needs proximity belongs to the contract of the System that provides it, and no
 renderer decides it ([`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §7). The requirement is

@@ -1,0 +1,1 @@
+{"protocol":1,"instance":"0000000018d95e4c2ec4fcf003210000","at":3,"entities":5,"systems":[{"system":"presence","enabled":true},{"system":"conversation","enabled":true}],"seats":["alice","visitor","wanderer"],"clients":1,"observations_dropped":0,"deferrals_unscheduled":0,"faults":0}

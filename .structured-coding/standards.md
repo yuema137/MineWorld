@@ -135,6 +135,14 @@ actually block are CI's job.
         "scope": "repository"
       },
       {
+        "name": "doc-headings",
+        "command": [
+          "python3",
+          "scripts/check_doc_headings.py"
+        ],
+        "scope": "repository"
+      },
+      {
         "name": "cargo-test",
         "command": [
           "cargo",
