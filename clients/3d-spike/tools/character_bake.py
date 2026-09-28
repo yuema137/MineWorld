@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import math
 import struct
 import subprocess
 import sys
@@ -385,6 +386,160 @@ def make_hoodie(src: Glb, out: Builder, sources: list, matmap: dict, joint_names
              "material": matmap["VitHoodie"]}, len(P), len(tri) // 3)
 
 
+# Where the cross-sections sit along the foot, heel (0) to toe (1). The width
+# and height of each are *measured from the foot*, not authored -- a hand-picked
+# profile was too low across the instep and the top of the foot poked straight
+# through it.
+SHOE_SECTIONS = [0.0, 0.10, 0.24, 0.38, 0.52, 0.66, 0.78, 0.88, 0.95, 1.0]
+RING = 10       # points around each cross-section
+SHOE_PAD = 0.011  # clearance between the foot and the inside of the shoe
+
+
+def make_shoes(src: Glb, out: Builder, prim: dict, matmap: dict, joint_names: list,
+               toe_z: dict):
+    """Build a shoe for each foot and return the primitives.
+
+    The CC0 character is **barefoot**. Its `VitShoes` material is painted onto
+    bare foot geometry -- individually modelled toes and all -- which at any
+    distance reads as a person who forgot their shoes, not as a person whose
+    shoes lack detail. That is a broken-looking character rather than an
+    unfinished one, so it outranks every other likeness gap.
+
+    The shoe is generated rather than modelled: take the bounding box of the
+    foot vertices in mesh space, sweep `SHOE_PROFILE` along it, and rigid-bind
+    the result to that side's `Foot` joint. Mesh space is the bind pose, so no
+    bone-space arithmetic is involved -- the same reason the head rigid-bind
+    worked and the backpack did not.
+
+    The bare foot primitive is dropped rather than left inside the shoe. A shoe
+    is stiff and a foot flexes at the toes, so during toe-off the original toes
+    would push through the upper.
+
+    It is skinned across `Foot` and `ToeBase` rather than bound rigidly to the
+    ankle. Bound to `Foot` alone the whole shoe pivots about the ankle at
+    toe-off and swings out like a diving fin -- which is what the first version
+    did, and it looked far worse than the bare foot it replaced.
+    """
+    a = prim["attributes"]
+    pos = src.accessor(a["POSITION"])
+    jts = src.accessor(a["JOINTS_0"])
+    wts = src.accessor(a["WEIGHTS_0"])
+    idx = src.accessor(prim["indices"])
+
+    out_prims = []
+    for side, foot_name, toe_name in (("L", "mixamorig:LeftFoot", "mixamorig:LeftToeBase"),
+                                      ("R", "mixamorig:RightFoot", "mixamorig:RightToeBase")):
+        want = {i for i, n in enumerate(joint_names) if n in (foot_name, toe_name)}
+        pts = []
+        for v in sorted(set(idx)):
+            w = wts[v]
+            j = jts[v]
+            if j[max(range(4), key=lambda k: w[k])] in want:
+                pts.append(pos[v])
+        if len(pts) < 16:
+            continue
+        x0 = min(p[0] for p in pts); x1 = max(p[0] for p in pts)
+        y0 = min(p[1] for p in pts)
+        z0 = min(p[2] for p in pts); z1 = max(p[2] for p in pts)
+        cx = (x0 + x1) * 0.5
+        half = (x1 - x0) * 0.5 * 1.16          # a little wider than the foot
+        sole = y0 - 0.012                       # the sole sits below the skin
+        # the model faces +Z, so +z is the toe end
+        length = z1 - z0
+        heel = z0 - 0.018
+        toe = z1 + 0.016
+
+        verts, norms, uvs, tris = [], [], [], []
+        rings = []
+        for si, t in enumerate(SHOE_SECTIONS):
+            z = heel + (toe - heel) * t
+            # measure the foot in a slab around this section
+            slab = 0.5 * (toe - heel) / (len(SHOE_SECTIONS) - 1) + 0.012
+            near = [q for q in pts if abs(q[2] - z) <= slab]
+            if near:
+                rw = max(abs(q[0] - cx) for q in near) + SHOE_PAD
+                top = max(q[1] for q in near) - sole + SHOE_PAD
+            else:
+                rw = half * 0.4
+                top = 0.05
+            # the heel gets a collar above the ankle; the toe box stays low
+            if t <= 0.12:
+                top = max(top, (y0 + 0.098) - sole)
+            rw = max(rw, half * 0.35)
+            ry = top * 0.5
+            cy = sole + ry
+            ring = []
+            for k in range(RING):
+                ang = math.tau * k / RING
+                ring.append((cx + math.cos(ang) * rw, cy + math.sin(ang) * ry, z))
+            rings.append(ring)
+        base = 0
+        for ring in rings:
+            for v in ring:
+                verts.append(v)
+                uvs.append((0.0, 0.0))
+        for r in range(len(rings) - 1):
+            for k in range(RING):
+                k2 = (k + 1) % RING
+                p00 = base + r * RING + k
+                p01 = base + r * RING + k2
+                p10 = base + (r + 1) * RING + k
+                p11 = base + (r + 1) * RING + k2
+                tris += [p00, p10, p11, p00, p11, p01]
+        # caps
+        for r, flip in ((0, True), (len(rings) - 1, False)):
+            c = len(verts)
+            cz = rings[r][0][2]
+            verts.append((cx, sum(v[1] for v in rings[r]) / RING, cz))
+            uvs.append((0.0, 0.0))
+            for k in range(RING):
+                k2 = (k + 1) % RING
+                p0 = base + r * RING + k
+                p1 = base + r * RING + k2
+                tris += [c, p1, p0] if flip else [c, p0, p1]
+        # smooth normals from accumulated face normals
+        norms = [[0.0, 0.0, 0.0] for _ in verts]
+        for i in range(0, len(tris), 3):
+            va, vb, vc = (verts[tris[i + k]] for k in range(3))
+            ux = (vb[0] - va[0], vb[1] - va[1], vb[2] - va[2])
+            vx = (vc[0] - va[0], vc[1] - va[1], vc[2] - va[2])
+            n = (ux[1] * vx[2] - ux[2] * vx[1],
+                 ux[2] * vx[0] - ux[0] * vx[2],
+                 ux[0] * vx[1] - ux[1] * vx[0])
+            for k in range(3):
+                for c2 in range(3):
+                    norms[tris[i + k]][c2] += n[c2]
+        for n in norms:
+            ln = math.sqrt(n[0] ** 2 + n[1] ** 2 + n[2] ** 2) or 1.0
+            n[0] /= ln; n[1] /= ln; n[2] /= ln
+
+        jidx = next(i for i, n in enumerate(joint_names) if n == foot_name)
+        tidx = next(i for i, n in enumerate(joint_names) if n == toe_name)
+        # blend from the ankle to the toe joint over ~5 cm, so the front of the
+        # shoe bends with the toes and the back stays with the ankle
+        tz = toe_z.get(toe_name, z0 + (z1 - z0) * 0.62)
+        J, W = [], []
+        for v in verts:
+            f = max(0.0, min(1.0, (v[2] - (tz - 0.015)) / 0.055))
+            wt = int(round(f * 255))
+            J.append((jidx, tidx, 0, 0))
+            W.append((255 - wt, wt, 0, 0))
+        mname = "VitShoe" + side
+        if mname not in matmap:
+            matmap[mname] = out.material(mname)
+        attrs = {
+            "POSITION": out.accessor(verts, 5126, "VEC3", target=34962, minmax=True),
+            "NORMAL": out.accessor([tuple(n) for n in norms], 5126, "VEC3", target=34962),
+            "TEXCOORD_0": out.accessor(uvs, 5126, "VEC2", target=34962),
+            "JOINTS_0": out.accessor(J, 5121, "VEC4", target=34962),
+            "WEIGHTS_0": out.accessor(W, 5121, "VEC4", target=34962, normalized=True),
+        }
+        out_prims.append(({"attributes": attrs,
+                           "indices": out.accessor(tris, 5123, "SCALAR", target=34963),
+                           "material": matmap[mname]}, len(verts), len(tris) // 3))
+    return out_prims
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -395,6 +550,8 @@ def main() -> int:
     ap.add_argument("--hair-crop", type=float, default=None,
                     help="drop hair below this world Y, in metres (e.g. 1.62 for a "
                          "short crop; the groom runs 1.477..1.761)")
+    ap.add_argument("--shoes", action="store_true",
+                    help="replace the bare feet with generated sneakers")
     ap.add_argument("--hoodie", action="store_true",
                     help="derive an open zip hoodie shell from the body mesh")
     ap.add_argument("--hoodie-thickness", type=float, default=0.030)
@@ -442,7 +599,7 @@ def main() -> int:
     stats = []
 
     def add_mesh(name, src, node_idx, rigid=None, keep=KEEP_ATTRS, stride=1, eye=False,
-                 min_y=None):
+                 min_y=None, drop_feet=False):
         mesh = src.j["meshes"][src.j["nodes"][node_idx]["mesh"]]
         world = world_matrix(src, node_idx) if rigid is not None else None
         prims, nv, nt = [], 0, 0
@@ -457,6 +614,9 @@ def main() -> int:
         for p in mesh["primitives"]:
             mname = src.j["materials"][p["material"]]["name"] if "material" in p else ""
             if eye and ("EyeBack" in mname or "Cornea" in mname):
+                continue
+            # the bare feet are replaced by generated shoes -- see make_shoes
+            if drop_feet and mname == "VitShoes":
                 continue
             off = None
             if eye and "Iris" in mname:
@@ -475,8 +635,36 @@ def main() -> int:
 
     mesh_nodes = []
     # --- body, already skinned to all 52 joints ------------------------------
+    jnames_all = [body.j["nodes"][j]["name"] for j in joints]
     for node_i, nm in ((i, n["name"]) for i, n in enumerate(body.j["nodes"]) if "mesh" in n):
-        mesh_nodes.append(add_mesh({"cm_vitruvian": "Body"}.get(nm, nm), body, node_i))
+        mesh_nodes.append(add_mesh({"cm_vitruvian": "Body"}.get(nm, nm), body, node_i,
+                                   drop_feet=args.shoes))
+
+    if args.shoes:
+        bi = next(i for i, n in enumerate(body.j["nodes"]) if n.get("name") == "cm_vitruvian")
+        feet = body.j["meshes"][body.j["nodes"][bi]["mesh"]]["primitives"][1]
+        # the toe joints' rest positions, read out of the inverse bind matrices
+        # (IBM is the inverse of the joint's global bind transform, so the
+        # translation of its inverse is where the joint sits in mesh space)
+        ibm_src = body.accessor(skin["inverseBindMatrices"])
+        toe_z = {}
+        for k, nm2 in enumerate(jnames_all):
+            if nm2.endswith("ToeBase"):
+                m16 = ibm_src[k]
+                # inverse of a rigid 4x4: -R^T t
+                c2 = m16[8:11]
+                t = m16[12:15]
+                # inverse of a rigid 4x4 is [R^T | -R^T t]; the z of -R^T t is
+                # minus the dot of the third COLUMN with t. Getting this
+                # transposed put the toe hinge in the wrong place entirely.
+                toe_z[nm2] = -(c2[0] * t[0] + c2[1] * t[1] + c2[2] * t[2])
+        sp = make_shoes(body, out, feet, matmap, jnames_all, toe_z)
+        if sp:
+            out.doc["meshes"].append({"name": "Shoes", "primitives": [x[0] for x in sp]})
+            out.doc["nodes"].append({"name": "Shoes",
+                                     "mesh": len(out.doc["meshes"]) - 1, "skin": 0})
+            mesh_nodes.append(len(out.doc["nodes"]) - 1)
+            stats.append(("Shoes", sum(x[1] for x in sp), sum(x[2] for x in sp)))
 
     if args.hoodie:
         jnames = [body.j["nodes"][j]["name"] for j in joints]

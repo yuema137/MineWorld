@@ -28,7 +28,8 @@ const CLIPS := "res://assets/characters/quaternius_ual.glb"
 const TEX := "res://assets/characters/vitruvian/textures/"
 
 ## Measured from the baked GLB, not assumed. `tools/character_bake.py` prints it.
-const CANONICAL_HEIGHT := 1.7688
+## It grew from 1.7688 when the generated shoes added a sole below the bare foot.
+const CANONICAL_HEIGHT := 1.7799
 
 ## Ground speed each clip is authored at, **measured on this character** by
 ## `tools/measure_stride.gd`: it samples a foot relative to the hips across one
@@ -168,6 +169,7 @@ static func build(height_m: float, skin: Color, hair: Color,
 	var by_name := {
 		"VitBody": _skin("body_bc.jpg", "body_n.jpg", "body_rough.jpg", skin),
 		"VitShoes": _plain(shoe, 0.45),
+		"VitShoeL": _plain(shoe, 0.55), "VitShoeR": _plain(shoe, 0.55),
 		"VitPants": _cloth(legs, 0.85), "VitShirt": _cloth(top, 0.80),
 		"VitSkin": _skin("face_bc.jpg", "face_n.jpg", "face_rough.jpg", skin),
 		"VitMouth": m["mouth"],
