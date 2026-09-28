@@ -41,6 +41,13 @@ decision, and none of it may be tied to whichever style happens to be default.
 
 ---
 
+## Open questions for the operator, not blocking anything
+
+- **The project's name.** Microsoft published an unrelated "MineWorld" in 2025 — a video-generative
+  world model — with a paper, a repository and a Hugging Face presence. Purely a discoverability
+  and package-naming collision (`ARC-12`), and it blocks no engineering. Worth a deliberate
+  decision before public launch rather than discovering it in a search result.
+
 ## Accepted, not to be re-litigated
 
 - **The 2D and 3D presentation direction**, as of 2026-09-27. Movement, camera work and the

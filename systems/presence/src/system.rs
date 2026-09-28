@@ -3,7 +3,7 @@
 use mineworld_contracts::{
     ActionIntent, EntityId, EntityType, EntityTypeSet, Event, EventEnvelope, LifecycleState,
     PersonId, Rejection, RejectionCode, Relation, RelationTypeDeclaration, RelationTypeId,
-    SystemId, Visibility,
+    SystemId,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
@@ -13,7 +13,7 @@ use mineworld_kernel::{
 use crate::action::{Arrive, arrive_requirement};
 use crate::codec;
 use crate::component::Presence;
-use crate::event::Arrived;
+use crate::event::{Arrived, arrival};
 use crate::interaction::{InteractionProvider, Offer};
 
 /// Where people are, and what each of them perceives.
@@ -129,17 +129,7 @@ impl System for PresenceSystem {
             let actor = read.require_entity(intent.actor())?;
             PersonId::new(actor.id(), actor.entity_type())?
         };
-        let location = arrive.location();
-
-        Ok(vec![
-            Emission::new::<Arrived>(
-                codec::encode(&Arrived::new(person, location)),
-                Visibility::Place(location.place()),
-            )
-            .about(vec![intent.actor()])
-            .with_participants(vec![intent.actor()])
-            .at_place(location.place()),
-        ])
+        Ok(vec![arrival(person, arrive.location())])
     }
 
     /// Reduces an arrival into the state this pack owns: the position, and the edge that says which
