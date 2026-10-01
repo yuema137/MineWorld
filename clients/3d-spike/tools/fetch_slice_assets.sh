@@ -43,27 +43,17 @@ SLUGS=(
   long_white_tiles        # the back-bar tiling behind the counter
   painted_plaster_wall    # interior plaster
 )
-  granite_tile_02         # kerb, entrance step, thresholds
-  worn_asphalt            # carriageway
-  sandstone_blocks_05     # the cafe's coursed masonry above the shopfront (03)
-  red_bricks_04           # the bookshop's brick                            (05)
-  yellow_bricks           # the apartment block's buff brick                (05)
-  clay_roof_tiles_02      # terracotta pantiles                             (02)
-  plank_flooring_04       # cafe interior floor
-  brown_planks_09         # cafe interior ceiling boards                    (03)
-  wood_table_worn         # counters, shelving, table tops
-  long_white_tiles        # the back-bar tiling behind the counter
-  white_plaster_rough_02  # interior plaster
-  painted_plaster_wall    # secondary facade render
-)
 
+failed=()
 for s in "${SLUGS[@]}"; do
   mkdir -p "$tex/$s"
   for m in "${MAPS[@]}"; do
     f="$tex/$s/${s}_${m}_${RES}.jpg"
     [ -s "$f" ] && continue
     url="https://dl.polyhaven.org/file/ph-assets/Textures/jpg/$RES/$s/${s}_${m}_${RES}.jpg"
-    curl -fsSL --max-time 120 -o "$f" "$url" || rm -f "$f"
+    if ! curl -fsSL --retry 3 --max-time 120 -o "$f" "$url"; then
+      rm -f "$f"; failed+=("$s/$m")
+    fi
   done
   echo "texture $s"
 done
@@ -96,16 +86,24 @@ for s in "${MODELS[@]}"; do
   urls=$(curl -fsSL --max-time 60 "https://api.polyhaven.com/files/$s" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)['gltf']['1k']['gltf']
-print('%s.gltf\t%s' % (sys.argv[1], d['url']))
+# Dependencies first, the .gltf last: its presence is what marks a model
+# complete, so an interrupted download is retried rather than skipped.
 for rel,v in d.get('include',{}).items():
     print('%s\t%s' % (rel, v['url']))
-" "$s")
+print('%s.gltf\t%s' % (sys.argv[1], d['url']))
+" "$s") || { failed+=("$s"); continue; }
   while IFS=$'\t' read -r rel url; do
     [ -z "$rel" ] && continue
     mkdir -p "$models/$s/$(dirname "$rel")"
-    curl -fsSL --max-time 300 -o "$models/$s/$rel" "$url"
+    if ! curl -fsSL --retry 3 --max-time 300 -o "$models/$s/$rel" "$url"; then
+      rm -f "$models/$s/$rel"; failed+=("$s/$rel"); break
+    fi
   done <<< "$urls"
   echo "model $s"
 done
 
+if [ ${#failed[@]} -gt 0 ]; then
+  echo "FAILED -- re-run to retry: ${failed[*]}" >&2
+  exit 1
+fi
 echo "slice assets complete."
