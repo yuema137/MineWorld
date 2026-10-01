@@ -46,17 +46,34 @@
 
 use mineworld_contracts::{
     Entity, EntityId, EntityKey, EntityType, LifecycleState, Metadata, Relation, SystemId, Tags,
+    WorldTime,
 };
 
 use crate::access::WriteAccess;
+use crate::clock::WorldClock;
 use crate::components::ComponentStore;
 use crate::dispatch::EventIds;
 use crate::entities::EntityRegistry;
 use crate::error::KernelError;
+use crate::process::{Process, ProcessStore};
 use crate::registry::SystemRegistry;
 use crate::relations::RelationStore;
+use crate::schedule::{Schedule, ScheduleSnapshot, Scheduled, Sequence};
 use crate::system::{DynSystem, InstalledSystem, System};
 use crate::view::WorldRead;
+
+/// A world taken apart for one pass of the pipeline: the registry and the entity registry to read,
+/// and the stores, the event counter and the schedule to write. Crate-private; see
+/// [`World::dispatch_parts`].
+pub(crate) struct WorldSplit<'a> {
+    pub(crate) systems: &'a SystemRegistry,
+    pub(crate) entities: &'a EntityRegistry,
+    pub(crate) components: &'a mut ComponentStore,
+    pub(crate) relations: &'a mut RelationStore,
+    pub(crate) processes: &'a mut ProcessStore,
+    pub(crate) events: &'a mut EventIds,
+    pub(crate) schedule: &'a mut Schedule,
+}
 
 /// A composed world: its state, its systems, and the capability to write its state.
 ///
@@ -102,12 +119,18 @@ pub struct World {
     /// This world's only issuer of write capability. Never lent out, never returned, and not
     /// constructible outside this crate (`BD-1`).
     access: WriteAccess,
-    /// Whether this world has dispatched anything yet.
+    /// The instant this world is at. Moved only by this world's own operations (S4).
+    clock: WorldClock,
+    /// What is to happen later, in `(WorldTime, Sequence)` order (`DEP-6`).
+    schedule: Schedule,
+    /// Every process running or suspended in this world, each changed only by its owner.
+    processes: ProcessStore,
+    /// Whether this world has run yet: dispatched a request or advanced its clock.
     ///
     /// One bit, and it exists for one reason: [`World::genesis`] states facts caused by the world
     /// coming into existence, and a world that had already run would be stating them about a past
-    /// that has moved on. Assembly is over as soon as the first request is dispatched.
-    dispatched: bool,
+    /// that has moved on. Assembly is over as soon as the world first acts.
+    ran: bool,
 }
 
 impl Default for World {
@@ -126,7 +149,10 @@ impl World {
             systems: SystemRegistry::new(),
             events: EventIds::new(),
             access: WriteAccess::new(),
-            dispatched: false,
+            clock: WorldClock::new(),
+            schedule: Schedule::new(),
+            processes: ProcessStore::new(),
+            ran: false,
         }
     }
 
@@ -241,40 +267,150 @@ impl World {
     /// per field would hand out a `&mut ComponentStore` as a public shape, which is exactly what
     /// `BD-2` forbids, and borrowing the whole world would make the pipeline impossible to write.
     /// Splitting once, here, keeps both true.
-    pub(crate) fn dispatch_parts(
-        &mut self,
-    ) -> (
-        &SystemRegistry,
-        &EntityRegistry,
-        &mut ComponentStore,
-        &mut RelationStore,
-        &mut EventIds,
-    ) {
-        (
-            &self.systems,
-            &self.entities,
-            &mut self.components,
-            &mut self.relations,
-            &mut self.events,
-        )
+    pub(crate) fn dispatch_parts(&mut self) -> WorldSplit<'_> {
+        WorldSplit {
+            systems: &self.systems,
+            entities: &self.entities,
+            components: &mut self.components,
+            relations: &mut self.relations,
+            processes: &mut self.processes,
+            events: &mut self.events,
+            schedule: &mut self.schedule,
+        }
     }
 
-    /// Whether this world has left assembly: `true` once anything has been dispatched.
+    /// Whether this world has left assembly: `true` once it has dispatched a request or advanced.
     ///
     /// Read by [`World::genesis`](crate::World::genesis), which is in [`crate::dispatch`] and
     /// therefore cannot see this struct's fields.
-    pub(crate) const fn has_dispatched(&self) -> bool {
-        self.dispatched
+    pub(crate) const fn has_run(&self) -> bool {
+        self.ran
     }
 
-    /// Records that assembly is over. Called by dispatch, once per request; there is no way back.
-    pub(crate) const fn note_dispatch(&mut self) {
-        self.dispatched = true;
+    /// Moves the clock to `at` and records that assembly is over — the first thing dispatching and
+    /// advancing do, and the only way the clock moves while a world runs. There is no way back.
+    pub(crate) fn run_at(&mut self, at: WorldTime) -> Result<(), KernelError> {
+        self.clock.advance_to(at)?;
+        self.ran = true;
+        Ok(())
+    }
+
+    /// States the instant the world begins at. Assembly only: [`World::genesis`] calls it before
+    /// the world has run, and the clock still refuses an instant before one it was already given.
+    pub(crate) fn begin_at(&mut self, at: WorldTime) -> Result<(), KernelError> {
+        self.clock.advance_to(at)
+    }
+
+    /// The instant this world is at: the instant of the last request it dispatched, the last
+    /// instant it advanced to, or the instant it began at.
+    ///
+    /// The epoch until the world is first given an instant. Simulated seconds and nothing else
+    /// (`INV-12`): what those seconds *mean* — a day, an hour, opening time — is a system's.
+    pub const fn now(&self) -> WorldTime {
+        self.clock.now()
+    }
+
+    /// Whether the world has been given an instant yet.
+    pub(crate) const fn clock_has_started(&self) -> bool {
+        self.clock.has_started()
+    }
+
+    /// Removes the next entry due exactly at `at`, if there is one.
+    pub(crate) fn pop_due(&mut self, at: WorldTime) -> Option<(Sequence, Scheduled)> {
+        self.schedule.pop_at(at)
+    }
+
+    /// The earliest instant anything is scheduled for, if anything is.
+    pub fn next_instant(&self) -> Option<WorldTime> {
+        self.schedule.next_instant()
+    }
+
+    /// How many entries are waiting in the schedule.
+    pub fn scheduled(&self) -> usize {
+        self.schedule.len()
+    }
+
+    /// Refuses an instant a request may not be dispatched at, changing nothing.
+    ///
+    /// Two refusals. An instant before the clock would record facts that run backwards. An instant
+    /// at or after which something is still scheduled would let a request overtake work that was
+    /// due first — the order `(WorldTime, Sequence)` exists to fix — so the caller advances the world
+    /// to that instant before dispatching at it.
+    pub(crate) fn check_dispatch_instant(&self, at: WorldTime) -> Result<(), KernelError> {
+        self.clock.check(at)?;
+        match self.schedule.next_instant() {
+            Some(due) if due <= at => Err(KernelError::ScheduledWorkDue { due, at }),
+            _ => Ok(()),
+        }
+    }
+
+    /// Everything S4 adds to a world's state, for a caller that has to save it (S5) — the clock,
+    /// the schedule with its pending work, the processes, and the event and process counters, so
+    /// that a restored world continues identity where this one stopped.
+    pub fn schedule_snapshot(&self) -> ScheduleSnapshot {
+        ScheduleSnapshot {
+            now: self.clock.now(),
+            next_sequence: self.schedule.next_sequence(),
+            entries: self.schedule.entries(),
+            next_event: self.events.next(),
+            next_process: self.processes.next_id(),
+            processes: self.processes.records(),
+        }
+    }
+
+    /// Replaces this world's clock, schedule, processes and counters with a saved world's.
+    ///
+    /// World assembly, like [`World::genesis`]: refused once the world has run, and refused —
+    /// changing nothing — if the snapshot could not have come from a world: an entry before its own
+    /// `now`, a sequence used twice or ahead of its counter, a counter below the first identity, a
+    /// process identity used twice or ahead of its counter, or work or a process belonging to a
+    /// system this world has not installed. Component state is not in it: that is S5's.
+    pub fn restore_schedule(&mut self, snapshot: ScheduleSnapshot) -> Result<(), KernelError> {
+        if self.ran {
+            return Err(KernelError::RestoreAfterTheWorldHasRun);
+        }
+        let ScheduleSnapshot {
+            now,
+            next_sequence,
+            entries,
+            next_event,
+            next_process,
+            processes,
+        } = snapshot;
+        let named = entries
+            .iter()
+            .filter_map(|entry| entry.item.deferring_system())
+            .chain(processes.iter().map(Process::owner));
+        for system in named {
+            if !self.systems.is_installed(system) {
+                return Err(KernelError::PersistedEntryNamesUninstalledSystem {
+                    system: system.clone(),
+                });
+            }
+        }
+        let schedule = Schedule::restore(now, next_sequence, entries)?;
+        let events = EventIds::restore(next_event)?;
+        let processes = ProcessStore::restore(next_process, processes)?;
+        self.schedule = schedule;
+        self.events = events;
+        self.processes = processes;
+        self.clock.restore(now);
+        Ok(())
+    }
+
+    /// Every running or suspended process in this world.
+    pub const fn processes(&self) -> &ProcessStore {
+        &self.processes
     }
 
     /// The whole world as a system reads it: the same view `validate` is handed.
     pub const fn read(&self) -> WorldRead<'_> {
-        WorldRead::new(&self.entities, &self.components, &self.relations)
+        WorldRead::new(
+            &self.entities,
+            &self.components,
+            &self.relations,
+            &self.processes,
+        )
     }
 
     /// Brings an entity into being, allocating its identity.
@@ -327,6 +463,8 @@ impl core::fmt::Debug for World {
             .field("components", &self.components)
             .field("relations", &self.relations.len())
             .field("systems", &self.systems)
+            .field("now", &self.clock.now())
+            .field("scheduled", &self.schedule.len())
             .finish()
     }
 }

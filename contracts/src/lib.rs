@@ -61,7 +61,8 @@ pub use event::{
 };
 pub use ids::{
     ActionId, ComponentTypeId, EntityId, EntityKey, EntityType, EventId, ItemId,
-    MAX_IDENTIFIER_LENGTH, OrganizationId, PersonId, PlaceId, ProcessId, RelationTypeId, SystemId,
+    MAX_IDENTIFIER_LENGTH, OrganizationId, PersonId, PlaceId, ProcessId, ProcessTypeId,
+    RelationTypeId, SystemId,
 };
 pub use spatial::{
     LocalPosition, Location, Millidegrees, Millimetres, Orientation, PlaceRequirement,

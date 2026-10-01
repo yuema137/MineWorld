@@ -1,127 +1,63 @@
-# Handoff — PR 05d implementation context: CLOSED / AWAITING OPERATOR ACTION
+# Handoff — PR 06 implementation context: CLOSED / AWAITING OPERATOR ACTION
 
-**Active PR:** Step 05 / PR 05d — The clients, and `AC-15`
+**PR:** GitHub #20 (https://github.com/yuema137/MineWorld/pull/20), READY FOR OPERATOR REVIEW, not
+merged. Final executable HEAD `ecc5921`; the closeout commit after it changes planning documents
+only. The record is the primary design doc §§11–12; a session resuming this PR (for review repairs)
+starts there.
+
+**Active PR:** Step 04 / PR 06 — World clock, scheduler, and Process
 **Effort:** `mvp0`
 **Primary design doc (semantic authority):**
-`.structured-coding/plans/mvp0/pr-05d-clients-ac15.md`
-**Binding parents:** `.structured-coding/plans/mvp0/step-05-vertical-slice.md` §§1.3, 2;
-`docs/MVP.md` §9 (`AC-13`, `AC-15`, §9.1, §9.2); `docs/ACCEPTANCE.md`; `docs/CORE_CONCEPTS.md`;
-`docs/MODULE_SPEC.md` §5; `docs/ENGINEERING_RULES.md`; `docs/ENGINEERING_STANDARDS.md`; `CLAUDE.md`
-**Execution contract:** §2 of the primary design doc
+`.structured-coding/plans/mvp0/step-04-clock-scheduler-process.md` (combined step/PR document)
+**Execution contract:** §10 of the primary design doc
+**Binding parents:** `overall.md` §§2, 7; `docs/CORE_CONCEPTS.md` §§2, 10, 11, 13;
+`docs/ARCHITECTURE.md` §5; `docs/DECISIONS.md` `DEP-6`, `ARC-15`, `ARC-23`;
+`docs/ENGINEERING_RULES.md`; `docs/ENGINEERING_STANDARDS.md`; `CLAUDE.md`
 
-PR 02's handoff content, which stood here until now, is superseded: that PR is merged and its record
-lives in `step-02-action-event-spatial-contracts.md`. PR 05c flagged this file as stale and asked
-whoever started PR 05d to replace it rather than read it, which is what happened.
+PR 05d's handoff, which stood here until now, is superseded: that PR is merged (GitHub #7) and its
+record lives in `pr-05d-clients-ac15.md`.
 
 ## Repository identity
 
 ```text
-worktree         <scratchpad>/mw-05d   (an isolated worktree; several agents run concurrently, and
-                 /Users/yuema137/MineWorld and the sibling worktrees were not touched)
-branch           mvp0/pr-05d-clients-ac15
-implementation   main @ cc40ad5 — 05a, 05b and 05c merged; 237 tests green at that HEAD
-base
-current HEAD     the tip of the branch; `git log --oneline` is authoritative — a commit cannot
-                 carry its own hash
-working tree     clean at each commit; `.godot/` and `target/` are gitignored
-remote           origin; the branch is pushed. NO PR, NO MERGE (operator kickoff)
+worktree         /Users/yuema137/mineworld-worktrees/s4-scheduler — this session's only; the
+                 sibling worktrees vis-character and vis-environment belong to other agents
+branch           mvp0/pr-06-scheduler
+base             main @ 7cf8844 — 259 tests green there (32 s)
+current HEAD     `git log --oneline` is authoritative — a commit cannot carry its own hash
+remote           origin; push after every coherent step (the network has been intermittent)
 ```
 
 ## Environment
 
 ```text
-toolchain   rustc/cargo 1.97.1 pinned by rust-toolchain.toml
-PATH        ~/.cargo/bin is NOT on the default non-interactive PATH:
-                export PATH="$HOME/.cargo/bin:$PATH"
-godot       4.7.2.stable.official.ed1daf0bf, on PATH as `godot`
-            headless runs scripts; windowed renders. A project must be imported once before a
-            headless run: `godot --headless --path <project> --import`
+PATH   export PATH="$HOME/.cargo/bin:$PATH"   — ~/.cargo/bin is not on the non-interactive PATH
 ```
 
-## What this PR delivered
+## Scope, invariants, endpoints
+
+See the primary design doc §§1.1, 1.3, 8 and 10. Endpoints: implement, commit, push and open the PR
+are authorized; merge is not.
+
+## Current checkpoint
 
 ```text
-server/src/parity.rs            AC-13's comparison, defined once
-server/src/protocol.rs          WorldInstanceId on WorldSummary — AC-15's first evidence line
-systems/presence                PerceptionProvider (was InteractionProvider) with `discloses`;
-                                observe() returns Observation<Value>
-systems/conversation            discloses a person's own history, in that person's own observation
-cognition/rule-controller/      the RuleController: an Observation in, an ActionRequest out
-tools/cli/src/agent.rs          --agent SEAT, over the same host seam a WebSocket session uses
-worlds/social-cafe/             a second visitor, and Alice as a seat
-clients/protocol/               the Godot client protocol module, a demonstration scene, evidence
-tools/cli/tests/                ac15_one_alice.rs (6 tests), ac13_semantic_parity.rs (2)
-docs/MVP_STATUS.md              updated where this PR changed the answer
+C0  re-audit, rename, contract     done   38ab650
+C1  clock and queue                done   615785e   275 tests
+C2  instants, server integration   done   661aabf   279 tests
+C3  processes and interruption     done   b48afea   291 tests
+C4  long run and documentation     done   (C4 commit) 294 tests; final executable content
 ```
 
-## Semantic commits
-
-```text
-feat(server): name the running world, and define AC-13's comparison once
-feat(systems): a pack discloses its own state to the observer entitled to it
-feat(cognition): a RuleController, so a Person can be driven by an agent
-feat(cli): --agent drives a seat, and the café has room for two windows
-test(ac-15): there is only one Alice, and the evidence names identity
-feat(clients): the Godot client protocol module, and AC-13 from what it sent
-docs(mvp0): PR 05d's ledger, evidence and limitations
-chore: remove three things nothing uses
-fix(clients): say goodbye before the socket stops being polled
-fix(systems): a disclosure may only be about the subject it was asked about
-```
-
-## Validation state
-
-```text
-cargo fmt --all --check                                              clean
-cargo check --workspace --all-targets                                clean
-cargo clippy --workspace --all-targets --all-features -- -D warnings clean
-cargo test --workspace --no-fail-fast                                259 passed, 0 failed
-Gate 2 (real binary + real Godot 4.7.2, seven runs)                  PASS — design doc §9.2
-AC-15                                                                HOLDS — §9.3, with the
-                                                                     counterfactual in §9.4
-AC-13                                                                HOLDS — §9.5
-Gate 1 (real LLM)                                                    NOT REQUIRED — MVP-0 has no
-                                                                     model, and nothing here is
-                                                                     LLM-facing
-```
-
-## Decisions a later session must not silently undo
-
-```text
-a component reaches an observation because its owning pack named it AND named who may see it.
-  Walking the component stores would satisfy any test here and defeat INV-13 for every pack after
-  (design doc §4)
-
-what may be known is the owning pack's judgement; WHOM a record may be about is not. Perception
-  drops any record whose entity is not the subject it asked about, so a pack that lies fails closed.
-  Removing that one filter turns `a_pack_that_names_a_third_party_discloses_nothing` red
-  (design doc §7.10, found in operator review)
-
-the AC-13 comparison lives in server/src/parity.rs and nowhere else. A test that writes its own
-  comparison can drop a field (MVP.md §9's correction, design doc §5.2)
-
-Alice is a seat because the agent occupies one, which is what puts a controller on the same path a
-  client uses (design doc §7.3). A human may therefore occupy her: AC-5's direction, and an
-  unarbitrated case recorded in §10.6
-
-the AC-13 fixtures in clients/protocol/evidence/ come from the real Godot client. Replacing them
-  with hand-written frames would make the test prove the comparison and nothing about a client
-```
+Terminal gates passed on the C4 content (primary doc §11 E-4). No CI workflow exists (S13).
 
 ## Exact next actions
 
-```text
-1  operator review of this branch. No PR was opened and nothing was merged.
-2  the 2D and 3D visual agents adopt clients/protocol/mineworld/ — ADOPTION.md is written for
-   them, and coordination goes through the operator rather than across worktrees
-3  after merge: the planning session updates step-05 and overall.md (agent-workflow §10 owner
-   rule); this implementation session owns only the PR document
-```
+1. Open the PR against `main` with `gh pr create` — do not merge.
+2. Mark the primary doc `READY FOR OPERATOR REVIEW`; update `overall.md` §7 (brief assigns this
+   session the update at review readiness); push.
+3. Close this context: CLOSED / AWAITING OPERATOR ACTION.
 
 ## Stop conditions
 
-```text
-NORMAL   PR 05d READY FOR OPERATOR REVIEW — reached
-NEVER    merge without explicit operator authorization
-NEVER    merge, edit or pull from vis/2d-generated-assets or vis/3d-human-pipeline
-```
+Material deviation per §10 of the primary doc; otherwise READY FOR OPERATOR REVIEW — DO NOT MERGE.

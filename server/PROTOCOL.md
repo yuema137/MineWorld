@@ -110,8 +110,10 @@ hexadecimal string, for the reason in §7.
 
 `observations_dropped` counts frames the server did not send because a client was not reading them:
 the world never waits for a client, so a client that falls behind loses observations rather than
-delaying anybody. `deferrals_unscheduled` counts work a system asked to happen later, which this
-revision has no scheduler for (S4). `faults` counts dispatches in which a system broke its own
+delaying anybody. `deferrals_unscheduled` counted work a system asked to happen later while the
+server had no scheduler; since S4 the world's own schedule holds and fires every deferral, so it is
+always `0`, and it remains in this revision only because removing a field is a protocol change.
+`faults` counts dispatches, and advances of the world's clock, in which a system broke its own
 contract.
 
 `world` is the same value `GET /status` returns. It describes a world's **composition** — which

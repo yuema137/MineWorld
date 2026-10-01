@@ -18,11 +18,20 @@
 //! # And the systems that write to them
 //!
 //! ```text
-//! system       System: what a system declares, and the four things it is asked to do
+//! system       System: what a system declares, and the six things it is asked to do
 //! view         what a running system is handed — reads open, writes gated on ownership
 //! registry     which systems a world is composed of, in registration order
 //! dispatch     ActionIntent → route → validate → resolve → Event(s) → reduce
 //! world        World: the composed whole, and the only issuer of write capability in it
+//! ```
+//!
+//! # And time
+//!
+//! ```text
+//! clock        WorldClock: simulated seconds, only forward, never a wall clock (INV-12)
+//! schedule     the (WorldTime, Sequence) queue of deferred facts and process ends (DEP-6)
+//! advance      World::advance_to / step: jump to the next due instant, fire it
+//! process      Process: state over time, changed only by its owner (INV-3, INV-7)
 //! ```
 //!
 //! Reads are open and writes are owned. Any system may read any component; a component is
@@ -56,12 +65,16 @@
 #![warn(missing_docs)]
 
 pub mod access;
+pub mod advance;
+pub mod clock;
 pub mod components;
 pub mod dispatch;
 pub mod entities;
 pub mod error;
+pub mod process;
 pub mod registry;
 pub mod relations;
+pub mod schedule;
 pub mod system;
 pub mod view;
 pub mod world;
@@ -70,12 +83,19 @@ pub mod world;
 pub mod macro_support;
 
 pub use access::{OwnedBy, SystemIdentity, WriteAccess, WriteToken};
+pub use advance::Advanced;
+pub use clock::WorldClock;
 pub use components::ComponentStore;
 pub use dispatch::{CASCADE_DEPTH_LIMIT, Dispatched};
 pub use entities::{EntityRegistry, EntityRegistrySnapshot};
 pub use error::KernelError;
+pub use process::{
+    InterruptOutcome, InterruptRequest, Interruptibility, Process, ProcessKind, ProcessPhase,
+    ProcessStart, ProcessStore,
+};
 pub use registry::SystemRegistry;
 pub use relations::{RelationStore, RelationStoreSnapshot};
+pub use schedule::{ScheduleSnapshot, Scheduled, ScheduledEntry, Sequence};
 pub use system::{Deferral, Emission, System, SystemDeclaration, SystemVersion};
 pub use view::{Declarations, WorldRead, WorldView};
 pub use world::World;

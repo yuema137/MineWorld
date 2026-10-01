@@ -1,0 +1,41 @@
+error[E0271]: type mismatch resolving `<Dinner as ProcessKind>::Owner == Phone`
+  --> tests/compile_fail/a_system_cannot_end_or_start_another_systems_process.rs:44:29
+   |
+44 |         world.end_process::<Dinner>(ProcessId::from_raw(1))?;
+   |                             ^^^^^^ type mismatch resolving `<Dinner as ProcessKind>::Owner == Phone`
+   |
+note: expected this to be `Phone`
+  --> tests/compile_fail/a_system_cannot_end_or_start_another_systems_process.rs:29:18
+   |
+29 |     type Owner = Dining;
+   |                  ^^^^^^
+note: required by a bound in `WorldView::<'a, S>::end_process`
+  --> src/view.rs
+   |
+   |     pub fn end_process<P>(&mut self, process: ProcessId) -> Result<Process, KernelError>
+   |            ----------- required by a bound in this associated function
+   |     where
+   |         P: ProcessKind<Owner = S>,
+   |                        ^^^^^^^^^ required by this bound in `WorldView::<'a, S>::end_process`
+
+error[E0271]: type mismatch resolving `<Dinner as ProcessKind>::Owner == Phone`
+  --> tests/compile_fail/a_system_cannot_end_or_start_another_systems_process.rs:45:29
+   |
+45 |         world.start_process(ProcessStart::<Dinner>::new(Vec::new()))?;
+   |               ------------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ type mismatch resolving `<Dinner as ProcessKind>::Owner == Phone`
+   |               |
+   |               required by a bound introduced by this call
+   |
+note: expected this to be `Phone`
+  --> tests/compile_fail/a_system_cannot_end_or_start_another_systems_process.rs:29:18
+   |
+29 |     type Owner = Dining;
+   |                  ^^^^^^
+note: required by a bound in `WorldView::<'a, S>::start_process`
+  --> src/view.rs
+   |
+   |     pub fn start_process<P>(&mut self, start: ProcessStart<P>) -> Result<ProcessId, KernelError>
+   |            ------------- required by a bound in this associated function
+   |     where
+   |         P: ProcessKind<Owner = S>,
+   |                        ^^^^^^^^^ required by this bound in `WorldView::<'a, S>::start_process`

@@ -17,15 +17,19 @@ use mineworld_contracts::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    Deferral, DynSystem, Emission, InstalledSystem, System, SystemDeclaration, SystemVersion,
+    Cause, DynSystem, Emission, InstalledSystem, System, SystemDeclaration, SystemVersion,
 };
 use crate::access::{SystemIdentity, WriteAccess, WriteToken};
 use crate::components::ComponentStore;
 use crate::entities::EntityRegistry;
 use crate::error::KernelError;
+use crate::process::ProcessStore;
+use crate::registry::SystemRegistry;
 use crate::relations::RelationStore;
+use crate::schedule::Scheduled;
 use crate::view::WorldRead;
 use crate::view::{Declarations, WorldParts, WorldView};
+use mineworld_contracts::{Causation, EventId};
 
 /// A system that owns state, provides an action and reacts to its own fact.
 struct Alpha;
@@ -163,7 +167,13 @@ struct Bench {
     entities: EntityRegistry,
     components: ComponentStore,
     relations: RelationStore,
-    deferred: Vec<Deferral>,
+    /// The cause every call made through this bench is running under: reacting to fact 9, in a
+    /// chain that began with request 3.
+    cause: Cause,
+    pending: Vec<(WorldTime, Scheduled)>,
+    processes: ProcessStore,
+    systems: SystemRegistry,
+    foreign: Vec<(SystemId, Vec<Emission>)>,
 }
 
 impl Bench {
@@ -182,7 +192,14 @@ impl Bench {
                 entities,
                 components: ComponentStore::new(),
                 relations: RelationStore::new(),
-                deferred: Vec::new(),
+                cause: Cause {
+                    caused_by: Causation::Event(EventId::from_raw(9)),
+                    decision: Some(ActionId::from_raw(3)),
+                },
+                pending: Vec::new(),
+                processes: ProcessStore::new(),
+                systems: SystemRegistry::new(),
+                foreign: Vec::new(),
             },
             token,
         )
@@ -193,12 +210,26 @@ impl Bench {
     }
 
     fn parts(&mut self, at: WorldTime) -> WorldParts<'_> {
-        WorldParts::new(
-            &self.entities,
-            &mut self.components,
-            &mut self.relations,
+        WorldParts {
+            entities: &self.entities,
+            components: &mut self.components,
+            relations: &mut self.relations,
+            processes: &mut self.processes,
+            systems: &self.systems,
             at,
-            &mut self.deferred,
+            cause: &self.cause,
+            pending: &mut self.pending,
+            foreign: &mut self.foreign,
+            depth: 0,
+        }
+    }
+
+    fn read(&self) -> WorldRead<'_> {
+        WorldRead::new(
+            &self.entities,
+            &self.components,
+            &self.relations,
+            &self.processes,
         )
     }
 }
@@ -320,7 +351,7 @@ fn the_erased_half_calls_through_to_the_system() {
     );
 
     // Validation goes through the same wrapper, reads the state that write produced, and admits.
-    let read = WorldRead::new(&bench.entities, &bench.components, &bench.relations);
+    let read = bench.read();
     assert_eq!(installed.validate(&read, &intent), Ok(()));
 
     // Run again: the system reads its own state through the view and writes the next value, which
@@ -334,7 +365,7 @@ fn the_erased_half_calls_through_to_the_system() {
     );
 
     // And now the system's own rule refuses, through the erased half, from state alone.
-    let read = WorldRead::new(&bench.entities, &bench.components, &bench.relations);
+    let read = bench.read();
     assert_eq!(
         installed.validate(&read, &intent),
         Err(Rejection::PreconditionFailed)
@@ -420,12 +451,22 @@ fn a_deferral_must_name_a_later_instant() {
             .expect("a later instant is queued");
     }
 
-    assert_eq!(bench.deferred.len(), 1);
-    assert_eq!(bench.deferred[0].at(), WorldTime::from_seconds(41));
+    assert_eq!(bench.pending.len(), 1);
+    let (at, Scheduled::Fact(deferral)) = &bench.pending[0] else {
+        panic!("a deferral is queued as a fact, not a wake");
+    };
+    assert_eq!(*at, WorldTime::from_seconds(41));
+    assert_eq!(deferral.at(), WorldTime::from_seconds(41));
+    assert_eq!(*deferral.emission().event_type(), Ticked::EVENT_TYPE);
+
+    // The deferral carries who asked and why, taken from the kernel's side of the call rather than
+    // from anything the system said: the writer's token and the cause the bench supplied.
+    assert_eq!(*deferral.emitter(), Alpha::ID);
     assert_eq!(
-        *bench.deferred[0].emission().event_type(),
-        Ticked::EVENT_TYPE
+        *deferral.caused_by(),
+        Causation::Event(EventId::from_raw(9))
     );
+    assert_eq!(deferral.controller_decision(), Some(ActionId::from_raw(3)));
 }
 
 /// A system may only declare tables its own declaration lists. Otherwise it could hold state that

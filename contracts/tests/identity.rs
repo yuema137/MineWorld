@@ -8,7 +8,7 @@ use mineworld_contracts::{
     ActionId, ActionTypeId, Component, ComponentRecord, ComponentSchemaVersion, ComponentTypeId,
     ContractError, EntityId, EntityKey, EntityType, Event, EventId, EventRecord,
     EventSchemaVersion, EventTypeId, IdentifierKind, ItemId, OrganizationId, PersonId, PlaceId,
-    ProcessId, RejectionCode, RelationTypeId, SystemId,
+    ProcessId, ProcessTypeId, RejectionCode, RelationTypeId, SystemId,
 };
 use serde::{Deserialize, Serialize};
 
@@ -167,6 +167,19 @@ fn declaration_names_share_the_rule_and_report_their_own_kind() {
             kind: IdentifierKind::RejectionCode,
             character: '_',
         })
+    );
+    assert!(ProcessTypeId::new("having-dinner").is_ok());
+    assert_eq!(
+        ProcessTypeId::new("Dinner"),
+        Err(ContractError::IdentifierIllegalCharacter {
+            kind: IdentifierKind::ProcessTypeId,
+            character: 'D',
+            position: 0,
+        })
+    );
+    assert!(
+        serde_json::from_str::<ProcessTypeId>("\"having dinner\"").is_err(),
+        "a persisted process type is read through the same rule"
     );
 }
 
