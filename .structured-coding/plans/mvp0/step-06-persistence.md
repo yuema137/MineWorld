@@ -1,7 +1,7 @@
 # Step 06 / PR 07 — Persistence and event sourcing (S5)
 
 **Role:** combined step and PR document. S5 needs one PR.
-**Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S5 · **Lifecycle:** `DRAFT — AWAITING FREEZE`
+**Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S5 · **Lifecycle:** `DESIGN FROZEN` (2026-09-30, primary session; review recorded in §10.1)
 **Base:** `main @ 5f02332` (S4 merged as `1241cab`; `5f02332` is the docs-only post-merge update)
 **Branch / worktree:** `mvp0/pr-07-persistence` in `/Users/yuema137/mineworld-worktrees/s5-persistence`
 **Depends on:** S4's `ScheduleSnapshot` / `World::restore_schedule`, S3's single-writer stores, S5V's
@@ -680,9 +680,58 @@ Q7             No migration in S5: any system/component/save-format version diff
                step when the first pack needs it.
 ```
 
+## 10.1 Answers — primary session review, 2026-09-30
+
+All seven answered as recommended. Decided by the primary session under the operator's autonomous
+authorization (overall §7, 2026-09-25) and the operator's standing rule that objective architectural
+correctness belongs to the agent; recorded here so the operator can overrule any of them.
+
+**Q1 — ACCEPTED, journal reconstruction (PD-1 / ARC-25).** The deciding evidence was re-checked in
+source before answering, not taken from §8: `System::react`, `wake` and `interrupt` each receive
+writable `WorldParts` *and* return `Vec<Emission>` (`kernel/src/system.rs:617-629`), so a fact cannot
+be re-applied without re-emitting its consequences, and `wake` is driven by time, which is not a fact.
+Literal "replay the event log from empty" is therefore incompatible with the merged S3/S4 contract.
+The accepted design keeps what event sourcing is *for*: the fact log stays the append-only history,
+and every load re-executes the journal and must reproduce the logged facts byte for byte or refuse
+with `ReplayDiverged`. That is sound only because determinism is already proven — S4 replays 300
+simulated days byte-identically from one seed. Redesigning S3/S4 so that `resolve`, `wake` and
+`interrupt` are read-only and time is a fact would be a large change to two merged contracts for no
+gain the byte-verification does not already give. `ARCHITECTURE.md` §7 and overall S5 are reworded in
+C1, before code, so specification and implementation agree (`CLAUDE.md` §2.1(4)).
+
+**Q2 — ACCEPTED.** A persisted world keeps its `WorldInstanceId`. `AC-6` says a restarted world is the
+same world, and `AC-15` evidence names the instance; a resumed world reporting a new instance would
+make the evidence say the opposite of the truth.
+
+**Q3 — ACCEPTED, additive within protocol 1.** No client change. The Godot client is being worked on
+by two visual agents; a protocol bump belongs in a later, deliberate revision that also removes
+`deferrals_unscheduled`.
+
+**Q4 — ACCEPTED.** Time pauses while no process hosts the world. Wall-clock gaps are not world events;
+anything else is non-deterministic.
+
+**Q5 — ACCEPTED.** `synchronous = FULL` for hosted worlds; headless and bulk callers may opt down.
+
+**Q6 — ACCEPTED.** A faulted dispatch is a deterministic outcome and is journaled and replayed like
+any other. A *commit* failure stops the world: a world that can no longer persist must not keep
+accepting state it cannot save.
+
+**Q7 — ACCEPTED.** No migration in S5; every version difference is refused by name, consistent with
+the existing `…TooNew` / `…Outdated` refusals. Migration is a later step, taken when a pack first
+needs it.
+
+**Also confirmed from source:** the restart defect in §8 is real — `server/src/runtime.rs` constructs
+`ActionIds` at `FIRST_ACTION_ID` and `HostClock` at its epoch on every process start. It is latent only
+because nothing persists yet; PD-10 and C5 must close it, and IC-2 must exercise it.
+
+**Dependency note.** `serde_json` becoming a kernel runtime dependency is accepted under `DEP-5`;
+record it there in C1. `rusqlite` (bundled) is `DEP-2`, already decided. The network to crates.io has
+been intermittently unreachable in this project — retry fetches rather than treating a failure as a
+design problem.
+
 ---
 
-# 11. Execution contract (to be confirmed at freeze)
+# 11. Execution contract (confirmed at freeze, 2026-09-30)
 
 ```text
 PROJECT / PR        MVP-0 · Step 06 / PR 07 — Persistence and event sourcing (S5)
