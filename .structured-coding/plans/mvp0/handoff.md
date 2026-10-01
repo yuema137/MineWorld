@@ -1,63 +1,53 @@
-# Handoff — PR 06 implementation context: CLOSED / AWAITING OPERATOR ACTION
+# Handoff — PR 07 implementation context: ACTIVE
 
-**PR:** GitHub #20 (https://github.com/yuema137/MineWorld/pull/20), READY FOR OPERATOR REVIEW, not
-merged. Final executable HEAD `ecc5921`; the closeout commit after it changes planning documents
-only. The record is the primary design doc §§11–12; a session resuming this PR (for review repairs)
-starts there.
-
-**Active PR:** Step 04 / PR 06 — World clock, scheduler, and Process
+**Active PR:** Step 06 / PR 07 — Persistence and event sourcing (S5)
 **Effort:** `mvp0`
-**Primary design doc (semantic authority):**
-`.structured-coding/plans/mvp0/step-04-clock-scheduler-process.md` (combined step/PR document)
-**Execution contract:** §10 of the primary design doc
-**Binding parents:** `overall.md` §§2, 7; `docs/CORE_CONCEPTS.md` §§2, 10, 11, 13;
-`docs/ARCHITECTURE.md` §5; `docs/DECISIONS.md` `DEP-6`, `ARC-15`, `ARC-23`;
+**Primary design doc (semantic authority):** `.structured-coding/plans/mvp0/step-06-persistence.md`
+(combined step/PR document, `DESIGN FROZEN` 2026-09-30, answers in §10.1)
+**Execution contract:** §11 of the primary design doc
+**Binding parents:** `overall.md` §§2, 3 (S5), 7; `docs/CORE_CONCEPTS.md` §§2, 3, 11, 13;
+`docs/ARCHITECTURE.md` §§7, 8, 14; `docs/MVP.md` §9, §9.1; `docs/NETWORKING.md` §10;
+`docs/DECISIONS.md` `DEP-1`, `DEP-2`, `DEP-5`, `DEP-6`, `ARC-15`, `ARC-23`, `ARC-25` (from C1);
 `docs/ENGINEERING_RULES.md`; `docs/ENGINEERING_STANDARDS.md`; `CLAUDE.md`
 
-PR 05d's handoff, which stood here until now, is superseded: that PR is merged (GitHub #7) and its
-record lives in `pr-05d-clients-ac15.md`.
+PR 06's handoff, which stood here, is superseded: PR 06 is merged (`1241cab`) and its record lives in
+`step-04-clock-scheduler-process.md`.
 
 ## Repository identity
 
 ```text
-worktree         /Users/yuema137/mineworld-worktrees/s4-scheduler — this session's only; the
+worktree         /Users/yuema137/mineworld-worktrees/s5-persistence — this session's only; the
                  sibling worktrees vis-character and vis-environment belong to other agents
-branch           mvp0/pr-06-scheduler
-base             main @ 7cf8844 — 259 tests green there (32 s)
-current HEAD     `git log --oneline` is authoritative — a commit cannot carry its own hash
-remote           origin; push after every coherent step (the network has been intermittent)
+branch           mvp0/pr-07-persistence
+base             main @ 5f02332 — 294 tests green there
+current HEAD     `git log --oneline` is authoritative
+remote           origin; push after every coherent step (crates.io and the network are intermittent)
 ```
 
-## Environment
+## Scope, invariants, endpoint authority
+
+Approved scope: design §1.1 as answered in §10.1. Frozen invariants: §1.3 I-1 … I-9. Endpoint
+authority: §11 — implementation, commits, push and PR creation authorized; CI N/A; **merge only with
+explicit operator authorization**.
+
+## Sequence and current checkpoint
 
 ```text
-PATH   export PATH="$HOME/.cargo/bin:$PATH"   — ~/.cargo/bin is not on the non-interactive PATH
+C0  design                                         done (2dc8a7f), frozen (910c1f4)
+C1  spec amendments (ARC-25, DEP-2/5, ARCH, PROTO)  in progress
+C2  kernel WorldSnapshot / restore
+C3  mineworld-persistence
+C4  worldpack split + process-kill checkpoint (IC-1)
+C5  server + CLI --save, revision, restart test (IC-2), AC-15 line four
+C6  docs, ledger close, terminal gates, PR
 ```
 
-## Scope, invariants, endpoints
+## Validation budget and stop conditions
 
-See the primary design doc §§1.1, 1.3, 8 and 10. Endpoints: implement, commit, push and open the PR
-are authorized; merge is not.
+Unit/integration unrestricted; real-model NOT REQUIRED; process-kill and restart tests well under a
+minute in total. Normal stop: PR 07 READY FOR OPERATOR REVIEW — DO NOT MERGE. Material stop: any
+change to §1.3, an existing public contract beyond §1.1, ownership or scope.
 
-## Current checkpoint
+## Exact next action
 
-```text
-C0  re-audit, rename, contract     done   38ab650
-C1  clock and queue                done   615785e   275 tests
-C2  instants, server integration   done   661aabf   279 tests
-C3  processes and interruption     done   b48afea   291 tests
-C4  long run and documentation     done   (C4 commit) 294 tests; final executable content
-```
-
-Terminal gates passed on the C4 content (primary doc §11 E-4). No CI workflow exists (S13).
-
-## Exact next actions
-
-1. Open the PR against `main` with `gh pr create` — do not merge.
-2. Mark the primary doc `READY FOR OPERATOR REVIEW`; update `overall.md` §7 (brief assigns this
-   session the update at review readiness); push.
-3. Close this context: CLOSED / AWAITING OPERATOR ACTION.
-
-## Stop conditions
-
-Material deviation per §10 of the primary doc; otherwise READY FOR OPERATOR REVIEW — DO NOT MERGE.
+Finish C1, commit, push; then C2 starting from `kernel/src/components.rs` (`ComponentRows`).

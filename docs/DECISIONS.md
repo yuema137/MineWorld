@@ -729,6 +729,16 @@ system.
 model, which matches an authoritative single-world server and would need revisiting only for
 multi-world processes.
 
+**Implementation note, 2026-09-30 (S5, PR 07).** Integrated as the crate `mineworld-persistence`
+(`persistence/`), which holds `PersistenceBackend` and its one implementation `SqliteBackend`; the
+kernel, every system and the server name no SQLite type. A save is **one file**, `world.sqlite`, whose
+tables are the manifest, the journal, the facts and the snapshots (`ARC-25`), so that one transaction
+commits a whole revision — a separate `manifest.json` would be a second copy of a fact outside that
+transaction. WAL mode; `synchronous = FULL` for a hosted world, so a revision a client has been told
+survives power loss, with `NORMAL` (durable against a process crash) available to headless bulk runs.
+No `spawn_blocking` is needed: the server already runs its world on a dedicated blocking thread
+(`server/src/host.rs`), which is where every persistence call happens.
+
 ---
 
 ## DEP-3 — Server and transport: `tokio` + `axum`
@@ -803,6 +813,15 @@ protocol boundary rather than in the contracts.
 ecosystem standard, zero operational burden, and format-agnostic so a binary encoding later needs
 no contract change. `thiserror` accompanies it for typed errors, which
 [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §12 requires anyway. Both MIT/Apache-2.0.
+
+**Note, 2026-09-30 (S5, PR 07).** `serde_json` becomes a runtime dependency of `mineworld-kernel`,
+not only a dev-dependency. A world snapshot must encode every component row, and only the kernel still
+holds those rows as their Rust types (`DEP-1`'s store erases the type behind each table); it encodes
+each as a `ComponentRecord` whose payload is the component's JSON. This is the persistence encoding of
+state the kernel holds, not a choice of payload format for a system: event and action payloads remain
+bytes a system encodes and the kernel never interprets. JSON over values ordered by `BTreeMap` is
+canonical — and `clippy.toml` bans `HashMap` across the workspace — so equal state encodes to equal
+bytes, which is what replay verification compares (`ARC-25`).
 
 ---
 
@@ -1478,3 +1497,93 @@ only the operator marks anything accepted (`ARC-11`).
 preview is not a route for a categorically wrong candidate. The banned comparative language stays
 banned. And instability is not previewed: torn meshes, featureless faces and unloaded textures are
 repair, which is the agent's to finish.
+
+---
+
+## ARC-25 — A world's state is its journal re-executed; its history is the fact log
+
+**Date** 2026-09-30 · **Implements** [`ARCHITECTURE.md`](ARCHITECTURE.md) §§7–8 · **Relates to**
+`INV-11`, `INV-15`, [`MVP.md`](MVP.md) §9 `AC-6`, `AC-12`, `AC-15` §9.1, `DEP-1`, `DEP-2`, `ARC-15`,
+`ARC-23` · **Design** `.structured-coding/plans/mvp0/step-06-persistence.md` (S5, PR 07)
+
+**Problem.** A persisted world must be rebuilt after its process dies. `ARCHITECTURE.md` §7 described
+that as `snapshot + events after it`. Read literally — re-apply the logged facts through the reducers —
+it cannot be done with the System contract as merged in S3 and S4, for four independent reasons found
+in source:
+
+```text
+resolve writes      System::resolve is handed a writable view; a write made there is caused by a
+                    request and recorded in no fact
+processes           start, end, suspend, reschedule and set-state are writes in any hook, with or
+                    without a fact
+time                a process wake and a deferred fact fire because the clock reached an instant;
+                    nothing in the log says the world advanced
+react emits         react, wake and interrupt both write state and return further emissions, so
+                    re-applying a fact would emit its logged consequences a second time
+```
+
+**Options considered.** (1) Redesign the System contract for pure fact replay: `resolve`, `wake` and
+`interrupt` read-only, process lifecycle and time expressed as facts, `react` split into an apply half
+and an emit half. (2) Record the *inputs* that drive the deterministic pipeline, re-execute them, and
+check the result against the fact log.
+
+**Choice: (2).** A persisted world is three append-only things in one SQLite file, committed together
+one revision at a time:
+
+```text
+facts       every EventEnvelope in EventId order      HISTORY: what happened (INV-11)
+journal     every input that moved the world          what the world was asked, and when
+snapshots   the whole of a world's state at some      a checkpoint of the function below,
+            revisions                                 never an authority on its own
+```
+
+and the two questions have two answers:
+
+```text
+What happened?              the fact log. Append-only, never derived, never rewritten. Biographies and
+                            projections derive from it (INV-4).
+What is the world's state?  the kernel's one pipeline applied to the journal from genesis. A restart
+                            loads the newest snapshot at or below the head and re-executes the journal
+                            after it; every re-executed input must regenerate its logged answer and its
+                            logged facts byte for byte, or the load is refused (ReplayDiverged).
+                            Verification re-executes from genesis and requires every stored snapshot to
+                            equal the state the history produces at its revision.
+```
+
+**Journaled inputs.** Genesis, always — revision 1, recording the assembled world before genesis, the
+instant and the genesis facts (`ARC-15`), so genesis is re-run rather than trusted. Every
+`dispatch(intent, at)`, whatever the answer — accepted, rejected, unavailable, or a system fault —
+because a dispatch moves the clock even when refused and because journaling every request is what keeps
+an `ActionId` unique across a restart. An `advance_to(until)` only when it fired at least one instant or
+faulted: idle advances only move the clock, every later input carries its own instant, and the kernel's
+checks pass identically without them.
+
+**Revision.** A `WorldRevision` is the position of an input in the journal; genesis is 1. It is
+committed before anyone is told it, and it is what a client is told a persisted world is at — the
+referent of `MVP.md` §9.1's *same persisted state revision*.
+
+**Why (2), and the axis is the pipeline.** Option 1 changes two merged contracts and introduces a
+second way to reduce state — exactly the drift `kernel/src/dispatch.rs` was written to prevent, where
+two recording paths would be two accounts of one world. Option 2 adds one table and keeps one pipeline.
+It is sound only because the pipeline is deterministic, which is not assumed: S4 replays 300 simulated
+days byte for byte from one seed. And it is the form recorded cognition needs anyway: an LM controller's
+decision reaches a world only as an `ActionIntent`, so journaling intents is what makes an LM-driven run
+replayable without the model (`ARCHITECTURE.md` §7).
+
+**Why this is still event sourcing.** The fact log remains the one historical truth and the check on
+every reconstruction; no state is accepted that would have produced a different history. Every state
+change is still caused by an `ActionIntent`, a `Process` or an `Event` (`INV-15`) — the journal records
+the first and the clock that drives the second. State that existed only in memory — a system breaking
+`INV-7` through interior mutability, a global or a wall clock — makes re-execution differ, and the first
+differing fact refuses the load.
+
+**Versions are refused, never guessed.** A save format, system version, component schema or
+composition (the installed systems in registration order, which is the reduction order) that differs
+from the running code is refused by name. An event schema changed without a system version change is
+still caught, as a byte divergence on replay. Migration is a later step, taken when a pack first needs
+one (`MODULE_SPEC.md` §9 rule 2).
+
+**Accepted limitations.** Reconstruction costs re-execution of the journal tail since the last
+snapshot, not a load of facts. A restored world's clock is the instant of its last revision: idle
+seconds after it are not persisted, and world time does not pass while no process hosts the world.
+The log is kept whole; compaction and snapshot pruning are later work.

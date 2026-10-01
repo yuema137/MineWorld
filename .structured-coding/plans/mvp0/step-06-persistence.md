@@ -329,10 +329,18 @@ Each commit tracks implementation, validation and review separately. Evidence go
     (`persistence/`).
   - `server/PROTOCOL.md` §5: `instance` semantics for persisted worlds; `revision` in `world` and in
     `observation`; §9 unchanged except noting `revision` is additive.
-- [ ] Validation: both doc scripts; every new section heading unique; `ARC-25` id distinct.
-- [ ] Review: each amended paragraph agrees with §2 here and with `INV-11`, `INV-14`, `INV-15`; no term
-  from `CORE_CONCEPTS.md` used with a new meaning ("journal" and "revision" are defined in `ARC-25`, not
-  synonyms of Event Log).
+- [x] Implementation: all three, plus `overall.md` §3 S5 reworded (coordinator's instruction at
+  freeze: "C1 must reword `ARCHITECTURE.md` §7 and overall S5 before any code"), with a dated note
+  saying what it read before and why. `handoff.md` reinitialized for PR 07. Bounded deviation:
+  `PROTOCOL.md` now describes `revision` and the persisted `instance` ahead of C5, which implements
+  them in the same PR — the specification leads the code by design (`CLAUDE.md` §2.2).
+- [x] Validation: `check_decision_ids.py` → 34 ids, all distinct (ARC-25 new);
+  `check_doc_headings.py` → 134 sections, none duplicated. PASS.
+- [x] Review: `ARC-25` keeps `INV-11` (the fact log is history and is never rewritten or derived),
+  `INV-15` (journal records requests and the clock that drives processes) and `INV-14` (backend stores
+  bytes). "journal" and "revision" are defined in `ARC-25` and `ARCHITECTURE.md` §7 and are not
+  synonyms of Event Log; "Event Log" keeps its `CORE_CONCEPTS.md` meaning. `ARCHITECTURE.md` §14's
+  `event_log` entry under `kernel/` was removed rather than left contradicting the new crate.
 
 ## C2 — Kernel: a world's whole state as data
 **Goal:** `World::snapshot` and `World::restore` cover everything a world holds. **Depends on:** C1.
