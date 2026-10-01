@@ -34,6 +34,17 @@ var tweaks := {}
 ## breathes and shifts instead of freezing into a mannequin.
 var absolute := {}
 
+## Profile bone name -> euler in degrees that replaces the animated pose as
+## `rest * delta` -- the convention the `Stand` clip keys in, so the grip held
+## here while walking is the same grip the clip holds standing.
+var rest_relative := {}
+
+## How much of `tweaks` applies, 0..1. Standing, the `Stand` clip is authored
+## whole and the action-game corrections below only distort it; walking, the
+## imported clip still holds the arms out and they are wanted. `human.gd` sets
+## this from the gait. Finger curls are a grip, not a stance, and are exempt.
+var tweak_weight := 1.0
+
 
 static func natural_stance() -> Posture:
 	var p := Posture.new()
@@ -79,8 +90,9 @@ static func holding_strap() -> Posture:
 	var p := natural_stance()
 	p.tweaks.erase("LeftUpperArm")
 	p.tweaks.erase("LeftLowerArm")
-	p.absolute["LeftUpperArm"] = Vector3(5.4, 107.4, -38.5)
-	p.absolute["LeftLowerArm"] = Vector3(113.7, 0.0, -15.7)
+	# solved inside the standing pose by tools/stand_pose.gd -- grip
+	p.rest_relative["LeftUpperArm"] = Human.GRIP_UPPER
+	p.rest_relative["LeftLowerArm"] = Human.GRIP_LOWER
 	# Fingers curled over the webbing, thumb behind it -- the contract is
 	# specific about that and an open flat hand beside a strap reads as a hand
 	# that happens to be there. Relative, because the clips barely move fingers.
@@ -122,11 +134,16 @@ func _process_modification() -> void:
 		var i := sk.find_bone(bone)
 		if i >= 0:
 			sk.set_bone_pose_rotation(i, _quat(absolute[bone]))
+	for bone: String in rest_relative:
+		var i := sk.find_bone(bone)
+		if i >= 0:
+			sk.set_bone_pose_rotation(i,
+				sk.get_bone_rest(i).basis.get_rotation_quaternion() * _quat(rest_relative[bone]))
 	for bone: String in tweaks:
 		var i := sk.find_bone(bone)
 		if i < 0:
 			continue
-		var e: Vector3 = tweaks[bone]
-		var q := Quaternion(Basis.from_euler(Vector3(
-			deg_to_rad(e.x), deg_to_rad(e.y), deg_to_rad(e.z))))
+		var q := _quat(tweaks[bone])
+		if not ("Proximal" in bone or "Intermediate" in bone or "Distal" in bone):
+			q = Quaternion.IDENTITY.slerp(q, tweak_weight)
 		sk.set_bone_pose_rotation(i, sk.get_bone_pose_rotation(i) * q)

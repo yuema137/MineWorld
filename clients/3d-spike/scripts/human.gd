@@ -271,11 +271,11 @@ static func build(height_m: float, skin: Color, hair: Color,
 	h._posture = Posture.holding_strap() if pack.a > 0.0 else Posture.natural_stance()
 	h.skeleton.add_child(h._posture)
 
-	h._build_tree(inst)
+	h._build_tree(inst, pack.a > 0.0)
 	return h
 
 
-func _build_tree(inst: Node) -> void:
+func _build_tree(inst: Node, grip: bool) -> void:
 	if _lib == null:
 		var clips := (load(CLIPS) as PackedScene).instantiate()
 		var ap := clips.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
@@ -283,6 +283,9 @@ func _build_tree(inst: Node) -> void:
 		# a clip of our own has to go into it
 		_lib = ap.get_animation_library(ap.get_animation_library_list()[0]).duplicate()
 		_lib.add_animation("Sit", _sit_clip())
+		# every body is the same GLB, so the first skeleton's rests serve all
+		_lib.add_animation("Stand", _stand_clip(skeleton, false))
+		_lib.add_animation("StandGrip", _stand_clip(skeleton, true))
 		clips.queue_free()
 
 	var player := AnimationPlayer.new()
@@ -307,7 +310,11 @@ func _build_tree(inst: Node) -> void:
 	# the blended stride interpolates exactly as the blend position does, so
 	# playing at rate 1.0 covers exactly the ground the body is covering. Put a
 	# clip at the wrong position and the whole band skates.
-	for pair in [["Idle", 0.0], ["Walk", WALK_CLIP_MPS], ["Jog_Fwd", JOG_CLIP_MPS]]:
+	# Standing is our own clip, not the library's `Idle`: that one is authored
+	# for an action game -- feet wide, arms held clear, head back -- and it is
+	# what the operator called stiff. See `stand_key`.
+	var stand := "StandGrip" if grip else "Stand"
+	for pair in [[stand, 0.0], ["Walk", WALK_CLIP_MPS], ["Jog_Fwd", JOG_CLIP_MPS]]:
 		var n := AnimationNodeAnimation.new()
 		n.animation = pair[0]
 		n.resource_name = pair[0]
@@ -388,6 +395,121 @@ static func _sit_clip() -> Animation:
 	return a
 
 
+static func euler_q(e: Vector3) -> Quaternion:
+	return Quaternion(Basis.from_euler(Vector3(
+		deg_to_rad(e.x), deg_to_rad(e.y), deg_to_rad(e.z))))
+
+
+## The standing loop's length: three breaths, and one slow drift of the gaze.
+const STAND_LOOP := 12.6
+const BREATH := 4.2
+## Hips lowered so the straight standing leg's sole stays on the floor once the
+## pelvis tilts. Measured by `tools/stand_pose.gd -- eval`.
+const HIP_DROP := -0.009
+## The gripping arm, as rest-relative eulers, solved inside this pose by
+## `tools/stand_pose.gd -- grip`: the strap rides the chest, so a grip solved
+## against the old spine does not land on it here.
+## Knuckle 0.3 mm from the strap; the elbow hangs 216 mm below the shoulder and
+## 87 mm out, a little behind the side -- with this forearm a hand on the strap
+## at chest height cannot have its elbow in front, and the reference's is down
+## at her side.
+const GRIP_UPPER := Vector3(62.8, 57.2, 39.4)
+const GRIP_LOWER := Vector3(109.0, -16.9, -23.7)
+
+
+## The standing pose at time `t` in its loop.
+##
+## Profile bone name -> euler in degrees **relative to the rest pose** (the
+## clip keys `rest * delta`; limb rests are not identity on this skeleton),
+## plus `"Hips@pos"`, an offset from the hips' rest position. Every axis below
+## was measured by `tools/stand_pose.gd -- sweep`, not assumed:
+##
+##   Hips/Spine/Chest  X+ bends forward   Z+ leans to her right   Y twists
+##   Head              X+ face down       Y+ face to her left
+##   Right upper arm   X+ lowers from T   Z- swings the hand forward
+##   Left upper arm    X+ lowers from T   Z+ swings the hand forward
+##   Forearms          X+ bends the elbow forward
+##   Upper legs        X+ flexes the hip  Z+ moves the foot toward her left
+##   Lower legs        X+ bends the knee
+##
+## What the reference shows and this reproduces: weight on her right leg with
+## the left knee relaxed and the pelvis dropping to that side, the shoulders
+## countering it; the free arm hanging at her side with the elbow soft; the
+## other hand on the strap; the head turned to her left and level, not tipped
+## back. And the parts that make a still figure a person standing there: she
+## breathes, and her gaze drifts.
+static func stand_key(t: float, grip: bool) -> Dictionary:
+	var breath := sin(TAU * t / BREATH)
+	var g := TAU * t / STAND_LOOP
+	var look := 0.55 * sin(g) + 0.25 * sin(2.0 * g + 1.3)
+	var k := {
+		"Hips": Vector3(0, 0, -5.0),
+		"Hips@pos": Vector3(0, HIP_DROP, 0),
+		"Spine": Vector3(1.0, 0, 2.5),
+		"Chest": Vector3(0.5 + 0.5 * breath, 0, 2.0),
+		"UpperChest": Vector3(-0.7 * breath, 0, 1.0),
+		# Turned well to her left, as the reference's head is -- 29 degrees still
+		# read near-frontal at portrait framing -- and level, not tipped back.
+		# "Level" is judged on the frame, not on the probe: the head bone's +Z
+		# is not where the face points, and at a probe pitch of -4 degrees she
+		# was visibly looking up, chin raised.
+		"Neck": Vector3(3.0, 12.0 + 3.0 * look, 0),
+		"Head": Vector3(9.0 + 1.5 * sin(2.0 * g + 0.4), 24.0 + 7.0 * look, -3.0),
+		"RightShoulder": Vector3(0.5 * breath, 0, 0),
+		"RightUpperArm": Vector3(87.0, 0, -6.0),
+		"RightLowerArm": Vector3(14.0, 0, 0),
+		"LeftShoulder": Vector3(0.5 * breath, 0, 0),
+		"LeftUpperArm": Vector3(83.0, 0, 6.0),
+		"LeftLowerArm": Vector3(14.0, 0, 0),
+		# Standing leg: straight, foot flat under the hip. The pelvis roll
+		# swings both legs out to her right, so both thighs bring them back.
+		"RightUpperLeg": Vector3(1.5, 6.0, 10.9),
+		"RightLowerLeg": Vector3(0, 0, 0),
+		"RightFoot": Vector3(-1.0, 0, 0),
+		# Free leg: hip forward, knee soft, foot a little forward and out.
+		"LeftUpperLeg": Vector3(18.0, -6.6, 2.6),
+		"LeftLowerLeg": Vector3(22.0, 0, 0),
+		"LeftFoot": Vector3(0.5, 0, 0),
+	}
+	if grip:
+		k["LeftShoulder"] = Vector3.ZERO
+		k["LeftUpperArm"] = GRIP_UPPER
+		k["LeftLowerArm"] = GRIP_LOWER
+	return k
+
+
+## The standing loop as a clip, so it goes through the tree like `Sit` does
+## rather than being forced onto the bones afterwards. Keyed every 0.15 s from
+## `stand_key`, which keeps breathing and the gaze drift smooth under linear
+## interpolation; the loop's last key equals its first.
+static func _stand_clip(sk: Skeleton3D, grip: bool) -> Animation:
+	var a := Animation.new()
+	a.length = STAND_LOOP
+	a.loop_mode = Animation.LOOP_LINEAR
+	var tracks := {}
+	var steps := int(round(STAND_LOOP / 0.15))
+	for s in steps + 1:
+		var t := STAND_LOOP * s / steps
+		var k := stand_key(t, grip)
+		for bone: String in k:
+			var name := bone.trim_suffix("@pos")
+			var i := sk.find_bone(name)
+			if i < 0:
+				continue
+			if not tracks.has(bone):
+				var ti := a.add_track(Animation.TYPE_POSITION_3D if bone.ends_with("@pos")
+					else Animation.TYPE_ROTATION_3D)
+				a.track_set_path(ti, "%%GeneralSkeleton:%s" % name)
+				tracks[bone] = ti
+			var rest := sk.get_bone_rest(i)
+			if bone.ends_with("@pos"):
+				a.position_track_insert_key(tracks[bone], t, rest.origin + (k[bone] as Vector3))
+			else:
+				a.rotation_track_insert_key(tracks[bone], t,
+					rest.basis.get_rotation_quaternion() * euler_q(k[bone]))
+	return a
+
+
 ## Drive the body from a ground speed measured elsewhere -- the same contract the
 ## capsule mannequin had, so `npc.gd` and `player.gd` did not have to change.
 ## The cadence rule, stated so it is testable: **animation phase advances with
@@ -420,6 +542,8 @@ func set_gait(speed_mps: float) -> void:
 		rate = want / blend
 	_tree.set("parameters/Locomotion/blend_position", blend)
 	_tree.set("parameters/Rate/scale", rate)
+	if _posture:
+		_posture.tweak_weight = clampf(blend / WALK_CLIP_MPS, 0.0, 1.0)
 
 
 ## World position of a foot. Used by `--drive` to measure foot sliding directly
