@@ -133,6 +133,9 @@ frame cost 10.9–17.6 ms at 1600×900 (Apple M5) · build ~6 s · clean launch,
    asset or an authored board.
 7. **Interior rug** is a flat, untextured colour. In the rear-camera interior frame
    (`06_…`) a pendant fills the upper left.
+7a. **Street doors read as blank dark slabs.** The flats' door in `01_street_wide.jpg` and Maple
+   & Co.'s in the third-person frames are flat dark leaves. Their raised panels stand about 5 mm
+   proud and do not read in shade. In `05`, the doors are visibly panelled and glazed.
 8. **Not yet connected to the server** (`VISUAL_SLICE.md` §9). Place identity is a client-side
    volume reporting `cafe.main` / `street.main`, and no intent round-trip exists yet.
 
@@ -141,7 +144,10 @@ which never ran because of a flag typo; the fetch script, which did not parse; a
 the door; glass you could walk through; an unglazed bay beside the door; every upper window and
 shop window buried inside solid walls; tree boughs and bicycle frames drawn at the world
 origin as a floating fan of sticks; foliage cards with no alpha cut; review views that started
-inside furniture; and leaks on exit. The commits on the branch carry each one.
+inside furniture; and leaks on exit. After the preview went out: the flower shop's gable roof
+had its two tiled planes rising in a V (a rotation-sign error), and the flats' stone plinth ran
+across their doorway. Both are fixed, and `01r_street_at_05_framing.jpg` and
+`01_street_wide.jpg` are re-captured. The commits on the branch carry each one.
 
 **Assets.** 45 Poly Haven CC0 assets, checked one by one (`clients/3d-spike/ASSETS.md`).
 **Two are excluded on licence:** `CashRegister_01`, whose atlas reproduces a Bank of Canada

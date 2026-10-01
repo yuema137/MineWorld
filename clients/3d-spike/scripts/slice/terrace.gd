@@ -206,9 +206,15 @@ static func _awning(g: Node3D, x0: float, x1: float, y: float, u: Unit) -> void:
 ## A residential or blank ground storey: a doorcase, two windows, a plinth.
 static func _ground_floor(g: Node3D, u: Unit, h: float, holes: Array) -> void:
 	var w := u.width()
-	Build.box(g, Vector3(0, 0.30, 0.045), Vector3(w, 0.60, 0.09),
-		SlicePalette.kerbstone())
 	var door_x := -w * 0.5 + 1.25
+	# the plinth stops at the doorcase: it used to run straight across the
+	# doorway, a 0.6 m stone band in front of the door leaf
+	var dl := door_x - 0.72
+	var dr := door_x + 0.72
+	Build.box(g, Vector3((-w * 0.5 + dl) * 0.5, 0.30, 0.045), Vector3(dl + w * 0.5, 0.60, 0.09),
+		SlicePalette.kerbstone())
+	Build.box(g, Vector3((dr + w * 0.5) * 0.5, 0.30, 0.045), Vector3(w * 0.5 - dr, 0.60, 0.09),
+		SlicePalette.kerbstone())
 	var paint := SlicePalette.painted(u.front_c, 0.48)
 	holes.append(Rect2(door_x - 0.52, 0.0, 1.04, 2.53))
 	Build.box_blocker(g, Vector3(door_x, 1.2, -0.06), Vector3(1.04, 2.4, 0.10))
@@ -296,7 +302,11 @@ static func _roof(g: Node3D, u: Unit, top: float) -> void:
 				var mi := Build.box(g, Vector3(sx * (w * 0.25 + 0.16),
 					top + rise * 0.5 + 0.08, -u.depth * 0.5 + 0.18),
 					Vector3(w * 0.62, 0.16, u.depth + 0.34), u.roof_mat)
-				mi.rotate_object_local(Vector3.FORWARD, -sx * atan2(rise, w * 0.5))
+				# Each plane falls AWAY from the ridge: the +x plane turns by a
+				# negative angle about +z (BACK). This was FORWARD (-z) with the
+				# same sign, which lifted each plane's outer edge -- the two
+				# planes rose into a V above the gable.
+				mi.rotate_object_local(Vector3.BACK, -sx * atan2(rise, w * 0.5))
 				mi.position = Vector3(sx * w * 0.25, top + rise * 0.5, -u.depth * 0.5 + 0.18)
 
 
