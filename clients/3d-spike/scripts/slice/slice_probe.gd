@@ -64,12 +64,19 @@ const CROPS := {
 
 var _mode := ""
 var _warm := 0
+## Simulated time, counted on physics ticks -- immune to how long a frame
+## capture took in wall-clock time.
+var _phys_t := 0.0
+
+
+func _physics_process(delta: float) -> void:
+	_phys_t += delta
 
 
 static func scripted() -> bool:
 	var a := OS.get_cmdline_user_args()
 	for m in ["--slice-shots", "--slice-drive", "--slice-measure", "--slice-threshold",
-			"--slice-perf"]:
+			"--slice-perf", "--slice-hud", "--slice-jumpshots", "--slice-doors", "--slice-link"]:
 		if m in a:
 			return true
 	return false
@@ -88,7 +95,7 @@ func _ready() -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
 	OS.low_processor_usage_mode = false
-	for m in ["shots", "drive", "measure", "threshold", "perf"]:
+	for m in ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots"]:
 		if "--slice-" + m in a:
 			_mode = m
 	DirAccess.make_dir_recursive_absolute(OUT)
@@ -107,6 +114,8 @@ func _process(_d: float) -> void:
 		"measure": _measure()
 		"threshold": await _threshold()
 		"perf": await _perf()
+		"hud": await _hud_frames()
+		"jumpshots": await _jump_frames()
 	get_tree().quit(0)
 
 
@@ -188,6 +197,61 @@ func _pick_walk(n: Node, o: Vector3, d: Vector3, hits: Array) -> void:
 		var hit: Variant = bb.intersects_ray(o, d)
 		if hit != null:
 			hits.append([o.distance_to(hit as Vector3), str(gi.get_path()), bb])
+
+
+## The controls HUD as a player meets it: attached, the camera key pressed,
+## captured while the toast shows and again after it has faded.
+func _hud_frames() -> void:
+	var hud := ControlsHud.attach(slice, player)
+	hud.add_line("place: %s" % SliceWorld.STREET_PLACE)
+	player.place(SliceWorld.SPAWN, SliceWorld.SPAWN_YAW, -2.0)
+	await _settle(8)
+	player.cycle_camera()
+	await _settle(12)
+	get_viewport().get_texture().get_image().save_png("%s/hud_toast.png" % OUT)
+	var t := 0.0
+	while t < 2.8:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _settle(4)
+	get_viewport().get_texture().get_image().save_png("%s/hud_faded.png" % OUT)
+	print("hud    captured hud_toast.png and hud_faded.png, camera now '%s'"
+		% player.rig.mode_name())
+
+
+## A jump as a short frame sequence, third person front, so the body is seen.
+func _jump_frames() -> void:
+	player.place(Vector3(-4.0, 0.30, 0.6), 90.0, 0.0)
+	player.set_camera(FRONT)
+	await _settle(12)
+	await _hold(0.6)   # physics frames: on the floor before the jump, not still settling
+	# A fixed camera, not the rig: every rig camera follows the body, and a jump
+	# filmed by a camera that rises with it shows nothing.
+	var fixed := Camera3D.new()
+	fixed.fov = 50.0
+	slice.add_child(fixed)
+	fixed.global_position = player.global_position + Vector3(-3.6, 1.1, 0.0)
+	fixed.look_at(player.global_position + Vector3(0, 0.95, 0), Vector3.UP)
+	fixed.make_current()
+	await _settle(4)
+	print("jump   before: feet y %.3f, on floor %s" % [player.global_position.y, player.is_on_floor()])
+	# Saving a PNG takes longer than several physics ticks, which would leave
+	# three frames for a 0.4 s flight. Slow the clock for the capture only; the
+	# physics per tick is unchanged.
+	Engine.time_scale = 0.12
+	_phys_t = 0.0
+	Input.action_press("jump")
+	await get_tree().physics_frame
+	Input.action_release("jump")
+	var i := 0
+	while i < 60:
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("%s/jump_%02d.png" % [OUT, i])
+		print("jump   frame %02d  sim t %.3f s  feet y %.3f" % [i, _phys_t, player.global_position.y])
+		i += 1
+		if _phys_t > 0.1 and player.is_on_floor():
+			break
+	Engine.time_scale = 1.0
 
 
 # --- performance ---------------------------------------------------------------
@@ -625,7 +689,89 @@ func _drive() -> void:
 			fails += 1
 			print("  FAIL: the camera left the room")
 
+	fails += await _jumps()
+
 	print("\n%s" % ("all drive checks pass" if fails == 0 else "%d DRIVE CHECKS FAILED" % fails))
+
+
+## Space to jump, measured. Bounds are the requirement's, not the
+## implementation's (ARC-23 rule 2): a human jump of 0.40-0.50 m, landing where
+## it took off, and no second jump from mid-air.
+func _jumps() -> int:
+	var fails := 0
+	# 1. standing jump in the open carriageway
+	player.place(Vector3(0.0, 0.30, 0.0), 0.0, 0.0)
+	await _hold(0.4)
+	var start := player.global_position
+	var n0 := player.jumps
+	var peak := await _jump_and_track(false)
+	var end := player.global_position
+	var rise := peak - start.y
+	var drift := Vector2(end.x - start.x, end.z - start.z).length()
+	print("jump   standing: rose %.3f m, landed y %.3f (start %.3f), xy drift %.4f m, on floor %s"
+		% [rise, end.y, start.y, drift, player.is_on_floor()])
+	if rise < 0.40 or rise > 0.50:
+		fails += 1
+		print("  FAIL: jump height outside 0.40-0.50 m")
+	if drift > 0.02 or absf(end.y - start.y) > 0.02 or not player.is_on_floor():
+		fails += 1
+		print("  FAIL: did not land where it took off")
+	if player.jumps - n0 != 1:
+		fails += 1
+		print("  FAIL: %d jumps counted for one press" % (player.jumps - n0))
+
+	# 2. the same jump with a second press near the apex: must not jump again
+	player.place(Vector3(0.0, 0.30, 0.0), 0.0, 0.0)
+	await _hold(0.4)
+	n0 = player.jumps
+	var y0 := player.global_position.y
+	var peak2 := await _jump_and_track(true)
+	print("jump   pressed again in mid-air: jumps counted %d, rose %.3f m"
+		% [player.jumps - n0, peak2 - y0])
+	if player.jumps - n0 != 1 or peak2 - y0 > 0.50:
+		fails += 1
+		print("  FAIL: a press in mid-air made a second jump")
+
+	# 3. a running jump: forward motion continues, and it lands on the floor
+	player.place(Vector3(-6.0, 0.30, 0.0), -90.0, 0.0)
+	await _hold(0.3)
+	Input.action_press("move_forward")
+	await _hold(0.8)
+	var run0 := player.global_position
+	var peak3 := await _jump_and_track(false)
+	Input.action_release("move_forward")
+	await _hold(0.3)
+	print("jump   running: rose %.3f m, travelled %.2f m, on floor %s"
+		% [peak3 - run0.y, player.global_position.distance_to(run0), player.is_on_floor()])
+	if not player.is_on_floor():
+		fails += 1
+		print("  FAIL: running jump did not land")
+	return fails
+
+
+## Press jump for one physics tick, follow the body until it is back on the
+## floor, and return the highest y it reached. `again` presses jump a second
+## time at the apex.
+func _jump_and_track(again: bool) -> float:
+	Input.action_press("jump")
+	await get_tree().physics_frame
+	Input.action_release("jump")
+	var peak := player.global_position.y
+	var pressed_again := false
+	var t := 0.0
+	while t < 2.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		peak = maxf(peak, player.global_position.y)
+		if again and not pressed_again and player.velocity.y <= 0.0 and t > 0.1:
+			pressed_again = true
+			Input.action_press("jump")
+			await get_tree().physics_frame
+			Input.action_release("jump")
+		if t > 0.1 and player.is_on_floor():
+			break
+	await _hold(0.2)
+	return peak
 
 
 func _inside_room(p: Vector3) -> bool:

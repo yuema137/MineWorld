@@ -33,7 +33,7 @@ var probe: SliceProbe = null
 var gi_mode := GI.VOXEL
 
 var _env: Environment
-var _hud_mode: Label = null
+var hud: ControlsHud = null
 var _hud_place: Label = null
 
 
@@ -332,24 +332,5 @@ func _process(_d: float) -> void:
 func _hud() -> void:
 	if SliceProbe.scripted():
 		return
-	var c := CanvasLayer.new()
-	add_child(c)
-	c.add_child(_line(
-		"W/S walk   A/D strafe   mouse look   Shift jog   F5 camera   Esc release mouse", 14))
-	_hud_mode = _line("camera: %s" % player.rig.mode_name(), 36)
-	c.add_child(_hud_mode)
-	_hud_place = _line("place: -", 58)
-	c.add_child(_hud_place)
-	player.camera_mode_changed.connect(func(m: String) -> void:
-		_hud_mode.text = "camera: %s" % m)
-
-
-func _line(txt: String, y: float) -> Label:
-	var l := Label.new()
-	l.text = txt
-	l.position = Vector2(18, y)
-	l.add_theme_color_override("font_color", Color(1, 1, 1, 0.84))
-	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.72))
-	l.add_theme_constant_override("shadow_offset_y", 1)
-	l.add_theme_constant_override("shadow_offset_x", 1)
-	return l
+	hud = ControlsHud.attach(self, player)
+	_hud_place = hud.add_line("place: -")
