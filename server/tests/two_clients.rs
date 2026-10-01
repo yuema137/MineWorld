@@ -112,7 +112,10 @@ impl Client {
     /// The next observation, skipping anything else.
     async fn observation(&mut self) -> (u64, WireObservation) {
         loop {
-            if let ServerFrame::Observation { seq, observation } = self.frame().await {
+            if let ServerFrame::Observation {
+                seq, observation, ..
+            } = self.frame().await
+            {
                 return (seq, observation);
             }
         }

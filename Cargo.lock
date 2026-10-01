@@ -595,6 +595,7 @@ dependencies = [
  "futures-util",
  "mineworld-contracts",
  "mineworld-kernel",
+ "mineworld-persistence",
  "serde",
  "serde_json",
  "thiserror",

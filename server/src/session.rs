@@ -102,9 +102,13 @@ async fn stream(
             observation = seated.observations().recv() => {
                 // `None` means the world has stopped. The connection ends with it: there is nothing
                 // left to observe.
-                let Some(observation) = observation else { return };
+                let Some(perceived) = observation else { return };
                 seq += 1;
-                let frame = ServerFrame::Observation { seq, observation };
+                let frame = ServerFrame::Observation {
+                    seq,
+                    revision: perceived.revision,
+                    observation: perceived.observation,
+                };
                 if send(outgoing, &frame).await.is_err() {
                     return;
                 }
