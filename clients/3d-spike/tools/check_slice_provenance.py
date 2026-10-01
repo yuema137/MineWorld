@@ -75,7 +75,10 @@ def check_model(slug):
     on_disk = {os.path.relpath(p, base)
                for p in glob.glob(os.path.join(base, "**", "*"), recursive=True)
                if os.path.isfile(p) and not p.endswith(".import")}
-    extra = on_disk - set(uris) - {slug + ".gltf"}
+    # the one declared derivative: the base colour composed with Poly Haven's
+    # own published Alpha map by fetch_slice_assets.sh, for card foliage
+    derived = {"textures/%s_diff_alpha_1k.png" % slug}
+    extra = on_disk - set(uris) - {slug + ".gltf"} - derived
     if extra:
         problems.append("unreferenced " + ",".join(sorted(extra)))
     notes.append("%d files" % len(on_disk))
@@ -91,7 +94,21 @@ def check_texture(slug):
     return problems, ["3 maps"]
 
 
+def maps(slug):
+    """List the map types Poly Haven publishes for one asset (--maps <slug>)."""
+    req = urllib.request.Request("https://api.polyhaven.com/files/" + slug,
+                                 headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        d = json.load(r)
+    for k, v in sorted(d.items()):
+        fmts = sorted(v.get("1k", {}).keys()) if isinstance(v, dict) else []
+        print("%-14s 1k: %s" % (k, ", ".join(fmts)))
+    return 0
+
+
 def main():
+    if len(sys.argv) == 3 and sys.argv[1] == "--maps":
+        return maps(sys.argv[2])
     tex, mod = slugs()
     failed = 0
     for kind, items, fn in (("texture", tex, check_texture), ("model", mod, check_model)):

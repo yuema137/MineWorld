@@ -267,8 +267,9 @@ static func _bicycle(g: Node3D, pos: Vector3, yaw: float) -> void:
 		var a: Vector3 = seg[0]
 		var b: Vector3 = seg[1]
 		var mi := Build.cyl(n, Vector3.ZERO, 0.019, 0.019, a.distance_to(b), frame, 7)
-		mi.transform = Transform3D(Basis(), (a + b) * 0.5)
-		mi.look_at_from_position((a + b) * 0.5, b, Vector3.UP)
+		# local frame: look_at_from_position would read these as global
+		# positions and draw the frame on the road at the world origin
+		mi.transform = Transform3D(Basis.looking_at(b - a, Vector3.UP), (a + b) * 0.5)
 		mi.rotate_object_local(Vector3.RIGHT, PI * 0.5)
 	Build.box(n, Vector3(-0.06, 0.80, 0), Vector3(0.22, 0.05, 0.10), tyre)     # saddle
 	Build.box(n, Vector3(0.40, 1.02, 0), Vector3(0.05, 0.05, 0.44), frame)     # bars

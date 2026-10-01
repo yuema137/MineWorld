@@ -113,6 +113,38 @@ print('%s.gltf\t%s' % (sys.argv[1], d['url']))
   echo "model $s"
 done
 
+# --- alpha for card foliage ----------------------------------------------------
+# Poly Haven's glTF ships JPG base colour, which has no alpha channel, so a
+# material declared alphaMode MASK cuts nothing: shrub_02's leaf cards rendered
+# as opaque dark blades splayed into a fan. Poly Haven's PNG diffuse is opaque
+# too; the cut-out is published as a separate "Alpha" map. Both are fetched and
+# composed into one RGBA texture, which dressing.gd swaps in at load.
+# Composition needs ImageMagick (`magick`); the composed file is committed, so
+# only someone re-fetching from scratch needs it.
+ALPHA_PNG=(shrub_02 shrub_03)
+for s in "${ALPHA_PNG[@]}"; do
+  out="$models/$s/textures/${s}_diff_alpha_1k.png"
+  [ -s "$out" ] && continue
+  for map in Diffuse Alpha; do
+    f="$models/$s/textures/${s}_${map}_src_1k.png"
+    [ -s "$f" ] && continue
+    url=$(curl -fsSL -A "$UA" --retry 3 --max-time 60 "https://api.polyhaven.com/files/$s" \
+      | python3 -c "import json,sys; print(json.load(sys.stdin)[sys.argv[1]]['1k']['png']['url'])" "$map") \
+      || { failed+=("$s/$map"); continue; }
+    curl -fsSL -A "$UA" --retry 3 --max-time 120 -o "$f" "$url" || { rm -f "$f"; failed+=("$s/$map"); }
+  done
+  src="$models/$s/textures/${s}_Diffuse_src_1k.png"
+  alp="$models/$s/textures/${s}_Alpha_src_1k.png"
+  if [ -s "$src" ] && [ -s "$alp" ]; then
+    if command -v magick >/dev/null 2>&1; then
+      magick "$src" \( "$alp" -colorspace gray \) -alpha off -compose CopyOpacity -composite "$out" \
+        && rm -f "$src" "$alp" && echo "alpha $s" || failed+=("$s/compose")
+    else
+      failed+=("$s/compose: ImageMagick 'magick' not found")
+    fi
+  fi
+done
+
 if [ ${#failed[@]} -gt 0 ]; then
   echo "FAILED -- re-run to retry: ${failed[*]}" >&2
   exit 1

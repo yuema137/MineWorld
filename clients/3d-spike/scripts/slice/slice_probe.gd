@@ -112,7 +112,19 @@ func _settle(frames := 10) -> void:
 # --- shots ---------------------------------------------------------------------
 
 func _capture() -> void:
+	# --views=a,b captures only the named views (a prefix is enough)
+	var only: PackedStringArray = []
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--views="):
+			only = a.substr(8).split(",")
 	for v in views:
+		if not only.is_empty():
+			var want := false
+			for o in only:
+				if str(v[0]).begins_with(o):
+					want = true
+			if not want:
+				continue
 		player.place(v[1], v[2], v[3])
 		player.set_camera(v[4])
 		await _settle()
@@ -128,8 +140,41 @@ func _capture() -> void:
 			c.save_png("%s/%s.png" % [OUT, spec[0]])
 		print("shot %-26s at %s yaw %.0f  [%s]"
 			% [v[0], v[1], v[2], player.rig.mode_name()])
+		_pick_report()
 	print("\ngi mode: %s" % slice.gi_name())
 	print("character slot: %s" % player.slot.describe())
+
+
+## `--pick=x,y`: what is drawn at that pixel of the frame just captured? Lists
+## every visual instance whose world bounds the camera ray through the pixel
+## crosses, nearest first -- so an object seen in a frame is identified by its
+## node path rather than guessed at from its shape (`ARC-23`).
+func _pick_report() -> void:
+	for a in OS.get_cmdline_user_args():
+		if not a.begins_with("--pick="):
+			continue
+		var xy := a.substr(7).split(",")
+		var px := Vector2(float(xy[0]), float(xy[1]))
+		var cam := get_viewport().get_camera_3d()
+		var o := cam.project_ray_origin(px)
+		var d := cam.project_ray_normal(px)
+		var hits: Array = []
+		_pick_walk(slice.world, o, d, hits)
+		hits.sort_custom(func(p, q): return p[0] < q[0])
+		print("  pick %s:" % px)
+		for h in hits.slice(0, 8):
+			print("    %6.2f m  %s  aabb %s" % [h[0], h[1], h[2]])
+
+
+func _pick_walk(n: Node, o: Vector3, d: Vector3, hits: Array) -> void:
+	for c in n.get_children():
+		_pick_walk(c, o, d, hits)
+	if n is GeometryInstance3D:
+		var gi := n as GeometryInstance3D
+		var bb := gi.global_transform * gi.get_aabb()
+		var hit: Variant = bb.intersects_ray(o, d)
+		if hit != null:
+			hits.append([o.distance_to(hit as Vector3), str(gi.get_path()), bb])
 
 
 # --- performance ---------------------------------------------------------------
@@ -291,7 +336,8 @@ static func _lin(c: float) -> float:
 ## `VISUAL_SLICE.md` sec.3, checked rather than eyeballed. Every line prints the
 ## measured value beside the range it has to be in, and says which it is.
 func _measure() -> void:
-	print("== VISUAL_SLICE.md sec.3 -- scale, measured ==\n")
+	print("== VISUAL_SLICE.md sec.3 -- scale ==\n")
+	print("-- declared: the constants the geometry is built from --")
 	var fails := 0
 	var rows := [
 		["standing eye height", CameraRig.EYE_HEIGHT, 1.60, 1.70],
@@ -327,6 +373,8 @@ func _measure() -> void:
 		print("%-28s %7.3f   [%.2f .. %.2f]  %s"
 			% [r[0], v, r[2], r[3], "ok" if ok else "OUT OF RANGE"])
 
+	fails += _measure_geometry()
+
 	print("\n-- borrowed props, as measured from their own geometry --")
 	for line in SliceProps.audit():
 		print("  " + line)
@@ -337,6 +385,101 @@ func _measure() -> void:
 	print("  character slot               %s" % player.slot.describe())
 	print("\n%s" % ("all scale checks pass" if fails == 0
 		else "%d SCALE CHECKS OUT OF RANGE" % fails))
+
+
+## The same claims, measured from what was BUILT rather than read from the
+## constants it was built from (`ARC-23`): rays against the real colliders, and
+## the stand-in's stature from its own mesh. A constant can be right while the
+## geometry using it is wrong; this is what would catch that.
+func _measure_geometry() -> int:
+	print("\n-- measured: rays against the built colliders, and the occupant's mesh --")
+	var fails := 0
+	var nf := SliceStreet.NORTH_FACE
+	var floor_y := SliceStreet.WALK_Y + SliceCafe.FLOOR_Y
+	var door_x := 6.0 + SliceCafe.DOOR_X
+	var dz := nf - SliceCafe.WALL_T * 0.5
+
+	# floor and the solid structure above it, in the middle of the room
+	var mid := Vector3(4.0, 1.5, nf - 4.0)
+	var f: Variant = _ray(mid, mid + Vector3.DOWN * 3.0)
+	var c: Variant = _ray(mid, mid + Vector3.UP * 5.0)
+	if f != null and c != null:
+		print("  room floor y %.3f; first solid above it at %.3f m -- ceiling boards are"
+			% [f.y, c.y - f.y] + " %.2f m thick, so floor to ceiling underside %.3f m"
+			% [0.14, c.y - f.y - 0.14])
+		fails += _range("floor to ceiling underside", c.y - f.y - 0.14, 3.00, 3.60)
+	# door head: the first solid above the middle of the threshold
+	var head: Variant = _ray(Vector3(door_x, floor_y + 0.5, dz), Vector3(door_x, floor_y + 4.0, dz))
+	if head != null:
+		fails += _range("door clear head above threshold", head.y - floor_y, 2.00, 2.40)
+	# door clear width: rays sideways from the door's centre line at waist height
+	var y1 := floor_y + 1.0
+	var l: Variant = _ray(Vector3(door_x, y1, dz), Vector3(door_x - 3.0, y1, dz))
+	var r: Variant = _ray(Vector3(door_x, y1, dz), Vector3(door_x + 3.0, y1, dz))
+	if l != null and r != null:
+		print("  door opening at 1.0 m: solid at x %.3f and x %.3f" % [l.x, r.x])
+		fails += _range("door clear width (walkable)", r.x - l.x, 0.85, 1.60)
+	# the whole frontage: where can a body pass, at three heights? The only
+	# opening that may exist is the door.
+	for h in [0.30, 1.00, 1.60]:
+		var gaps: Array[String] = []
+		var open_from := INF
+		var x := 6.0 - SliceCafe.W * 0.5 + 0.05
+		while x <= 6.0 + SliceCafe.W * 0.5 - 0.05:
+			# from just inside the wall's inner face to just outside its outer
+			# face, so furniture or pots either side cannot mask a gap
+			var hit: Variant = _ray(Vector3(x, floor_y + h, nf - 0.40), Vector3(x, floor_y + h, nf + 0.25))
+			var open := hit == null
+			if open and open_from == INF:
+				open_from = x
+			if not open and open_from != INF:
+				gaps.append("x %.2f..%.2f" % [open_from, x])
+				open_from = INF
+			x += 0.05
+		if open_from != INF:
+			gaps.append("x %.2f..end" % open_from)
+		print("  frontage open at %.2f m above the floor: %s" % [h, ", ".join(gaps)])
+		if gaps.size() != 1:
+			fails += 1
+			print("    OUT OF RANGE: expected exactly one opening, the door")
+	# the stand-in occupant's stature, from its mesh
+	var occ := player.slot.occupant as Node3D
+	if occ != null:
+		var bb := _world_aabb(occ)
+		print("  slot occupant mesh: %.3f m tall (feet y %.3f, crown y %.3f)"
+			% [bb.size.y, bb.position.y, bb.end.y])
+		fails += _range("occupant stature, from its mesh", bb.size.y, 1.70, 1.80)
+	return fails
+
+
+func _range(nm: String, v: float, lo: float, hi: float) -> int:
+	var ok := v >= lo - 1e-6 and v <= hi + 1e-6
+	print("%-34s %7.3f   [%.2f .. %.2f]  %s" % [nm, v, lo, hi, "ok" if ok else "OUT OF RANGE"])
+	return 0 if ok else 1
+
+
+func _ray(a: Vector3, b: Vector3) -> Variant:
+	var q := PhysicsRayQueryParameters3D.create(a, b)
+	q.exclude = [player.get_rid()]
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
+	return null if hit.is_empty() else hit["position"]
+
+
+func _world_aabb(n: Node) -> AABB:
+	var out := AABB()
+	var have := false
+	if n is VisualInstance3D and not (n is Light3D):
+		var vi := n as VisualInstance3D
+		var bb := vi.global_transform * vi.get_aabb()
+		out = bb
+		have = true
+	for ch in n.get_children():
+		var sub := _world_aabb(ch)
+		if sub.size == Vector3.ZERO:
+			continue
+		out = sub if not have else out.merge(sub)
+		have = true
+	return out
 
 
 func _count(n: Node) -> int:

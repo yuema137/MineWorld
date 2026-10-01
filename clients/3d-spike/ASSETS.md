@@ -111,6 +111,12 @@ fetch script, beside the slug.
 `calathea_orbifolia_01` · `standing_chalkboard_01` · `planter_box_01` · `planter_pot_clay` ·
 `shrub_02` · `shrub_03` · `water_manhole_cover`.
 
+**One derived file per card-foliage model.** `shrub_02` and `shrub_03` draw their leaves on
+cards whose outline is an alpha cut, but Poly Haven's glTF ships the base colour as a JPG, which
+has no alpha. The fetch script therefore also downloads that asset's published `Alpha` map and
+composes it with the `Diffuse` PNG into `textures/<slug>_diff_alpha_1k.png`. It is the same
+asset's own data, so it is equally CC0. `scripts/slice/dressing.gd` swaps it in at load.
+
 Also fetched, inspected and rejected **on appearance**, not on licence: `granite_tile_02`,
 `white_plaster_rough_02`, `yellow_plaster_02` and `grey_cartago_02`. The reasons are in the
 fetch script.

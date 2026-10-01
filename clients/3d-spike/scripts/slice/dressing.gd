@@ -89,7 +89,39 @@ static func put(parent: Node3D, slug: String, pos: Vector3, yaw := 0.0,
 		box.position.z + box.size.z * 0.5))
 	if tint != Color.WHITE:
 		Props.retint(n, tint, rough_lo, rough_hi)
+	_alpha_swap(n, slug)
 	return n
+
+
+## Poly Haven's glTF ships JPG base colour, so a card-foliage material declared
+## alpha MASK cuts nothing and every leaf card renders as an opaque dark blade --
+## shrub_02 read as a brown fan of sticks. fetch_slice_assets.sh composes the
+## published Alpha map into `<slug>_diff_alpha_1k.png`; where that file exists,
+## it replaces the base colour on every alpha-tested surface.
+static func _alpha_swap(n: Node, slug: String) -> void:
+	var path := "%s/%s/textures/%s_diff_alpha_1k.png" % [Props.MODEL_DIR, slug, slug]
+	if not ResourceLoader.exists(path):
+		return
+	var tex := load(path) as Texture2D
+	_alpha_apply(n, tex)
+
+
+static func _alpha_apply(n: Node, tex: Texture2D) -> void:
+	for c in n.get_children():
+		_alpha_apply(c, tex)
+	if not (n is MeshInstance3D) or (n as MeshInstance3D).mesh == null:
+		return
+	var mi := n as MeshInstance3D
+	for i in range(mi.mesh.get_surface_count()):
+		var m := mi.get_active_material(i) as BaseMaterial3D
+		if m == null or m.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
+			continue
+		var d := m.duplicate() as BaseMaterial3D
+		d.albedo_texture = tex
+		d.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		d.alpha_scissor_threshold = 0.5
+		d.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mi.set_surface_override_material(i, d)
 
 
 ## The placed extents of a prop `put` has already positioned, in the parent's
