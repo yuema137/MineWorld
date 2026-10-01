@@ -491,28 +491,29 @@ PR → step → overall was skipped after nearly every merge. A plan that cannot
 we" has stopped being the authority, so the obligation is restated below and is not optional.
 
 ```text
-Done (main @ bf16ec0, 259 tests):
+Done (main @ 1241cab, 294 tests):
   S1   Entity / Component contracts                          PR 01
   S2   ActionIntent / Event / Observation / spatial          PR 02
   S3   System interface, registry, dispatch                  PR 03a, 03b
   --   contract fixes from the renderer-integration spike    GitHub PR #2 ("PR 04")
   S5V  vertical slice                                        05a 05b 05c 05d (GitHub #3 #4 #5 #7)
        -> Milestone A complete: AC-15 holds, one Alice across two clients and an agent
+  S4   world clock, scheduler, Process                       PR 06 (GitHub #20), merged 1241cab
+       Reviewed independently before merge: all gates re-run (294 passed, 0 failed); two
+       mutations the implementing session could not run were run in review — disabling the
+       clock's backwards check fails 2 tests, reversing same-instant queue order fails 5 — and
+       both were reverted. F-6 (ProcessTypeId added to contracts) accepted as bounded: purely
+       additive, follows the EventTypeId pattern, backs the `type` field CORE_CONCEPTS §10
+       already specifies. 300 simulated days replay byte for byte from one seed.
 
 Next, framework (critical path to Milestone B):
-  S4   world clock, scheduler, Process        PR 06 = GitHub #20, READY FOR OPERATOR REVIEW
-       (updated 2026-09-30)                   — not merged. Re-audited against main @ 7cf8844
-       first: 13 findings, all bounded (step-04 §8); F-6 adds ProcessTypeId to contracts and
-       is flagged for confirmation. 294 tests (259 + 35); 300 simulated days replay byte for
-       byte from one seed (first real AC-11 / AC-12 evidence); the server now advances the
-       kernel's clock, so deferred facts reach clients.
-  S5   persistence and event sourcing         not started; also closes the one AC-15 evidence
-                                              line still missing (same persisted revision).
-                                              Unblocked by S4's ScheduleSnapshot (clock,
-                                              queue, processes, counters); component state
-                                              is the remaining half
-       On #20's merge: S4 moves to Done, step-04 records the merge commit, and S5 is
-       detailed against the merged kernel.
+  S5   persistence and event sourcing         not started; detail it against main @ 1241cab.
+                                              Also closes the one AC-15 evidence line still
+                                              missing (same persisted revision). S4's
+                                              ScheduleSnapshot covers clock, queue, processes
+                                              and counters; component state is the remaining
+                                              half. Backend already decided: DEP-2, `rusqlite`
+                                              (bundled) behind `PersistenceBackend`.
 
 Remaining:  S6 ... S14, Milestones B-E
 
