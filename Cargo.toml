@@ -6,6 +6,7 @@ members = [
     "persistence",
     "server",
     "systems/conversation",
+    "systems/movement",
     "systems/presence",
     "tools/cli",
     "worldpack",
@@ -26,6 +27,7 @@ authors = ["Yue Ma"]
 [workspace.dependencies]
 mineworld-contracts = { path = "contracts" }
 mineworld-kernel = { path = "kernel" }
+mineworld-movement = { path = "systems/movement" }
 mineworld-persistence = { path = "persistence" }
 mineworld-presence = { path = "systems/presence" }
 mineworld-rule-controller = { path = "cognition/rule-controller" }

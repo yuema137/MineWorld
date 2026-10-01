@@ -557,6 +557,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-movement"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-kernel",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-persistence"
 version = "0.0.0"
 dependencies = [
