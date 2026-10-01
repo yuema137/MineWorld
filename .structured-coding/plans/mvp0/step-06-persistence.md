@@ -623,6 +623,60 @@ Each commit tracks implementation, validation and review separately. Evidence go
   happens on an async task (only the world thread touches the save); the server crate names no SQLite
   type; `INV-13` unchanged (the revision is a number about the world, not a view of state).
 
+**C5 as built** (server commit `7006314`, then the CLI and tests commit).
+- [x] Implementation:
+  - `server/src/host.rs`: `Hosted { Ephemeral(World), Persisted(PersistentWorld) }` (unboxed, per
+    clippy's variant-size lint once both variants hold a `World`); `HostedWorld::persisted(world,
+    recent) -> Result<_, HostError>` computes the allocator's first `ActionId` (journal highest + 1) and
+    pre-fills the perception window from the log's tail; `Perceived { revision, observation }` is what
+    the observation channel carries; `FIRST_ACTION_ID` moved here.
+  - `server/src/runtime.rs`: rewritten around `Hosted`. Instance from the save; `HostClock` epoch =
+    the restored world's `now` for a persisted world (config epoch otherwise, unchanged); every input
+    goes through `Hosted::{dispatch, advance_to}` and is committed before the reply and the sweep;
+    `Failure::{Fault, Stopped}` — a fault is counted as before, a storage failure answers
+    `world_stopped` and ends the world thread; `Shutdown` checkpoints a persisted world.
+  - `server/src/protocol.rs`: `WorldSummary.revision`, `ServerFrame::Observation.revision` (both
+    `Option<WorldRevision>`, an integer or `null`); `WorldInstanceId::allocate` public.
+    `server/src/session.rs` forwards the revision. `server/src/lib.rs` re-exports `Perceived`,
+    `WorldRevision`.
+  - `tools/cli/src/main.rs`: `server … --save DIR` (create from `WorldPack::assemble` when
+    `DIR/world.sqlite` is absent, resume into `WorldPack::compose` when present, printing which and
+    the snapshot/tail it used); `replay <world> --save DIR` (PD-12). `tools/cli/src/agent.rs` reads
+    `Perceived::observation`.
+  - Tests adapted, not weakened: `server/tests/headless.rs` reads `.observation` and now also asserts
+    an ephemeral world's revision is `None`; `server/tests/two_clients.rs` pattern gains `..`;
+    `server/src/protocol/tests.rs` asserts `world.revision` serializes as the integer `7`.
+- [x] Validation:
+  - **IC-2** `tools/cli/tests/restart.rs` (real binary, real sockets, real `SIGKILL`):
+    `a_killed_server_restarts_as_the_same_world_where_it_stopped` — new world welcomes at revision 1;
+    arrive + talk (2 facts) → `/status` revision 3; `SIGKILL` (exit signal 9 asserted); the same command
+    again → same instance, revision 3, the visitor resolves to the same Person, the first observation
+    names revision 3, the barista is the same `EntityId`, the visitor still stands at (1200, 1000) and
+    may talk at once; a second `talk` records **one** fact (the conversation continued: Alice's
+    `ConversationHistory` survived), with `EventId` = pre-kill highest + 1 and an `ActionId` above every
+    pre-kill one — the restart defect exercised and closed; `/status` revision 4, faults 0; `mineworld
+    replay` exits 0 reporting "4 revision(s) re-executed from genesis … head revision 4".
+    `a_refused_request_is_persisted_so_its_identity_is_never_reissued` — a talk from the door is
+    rejected (revision 2), `SIGKILL`, restart: the next request's `ActionId` is exactly the refused
+    one's + 1.
+  - **AC-15** `there_is_only_one_alice` now runs with `--save`: after both replies `/status` reports
+    revision 7 (genesis, two arrivals, two talks, two replies); both windows observe revision 7, no
+    window sees past it; with the server gone, `mineworld replay` reports head revision 7. Printed
+    evidence: instance, Alice `2`, events `[6, 7, 10, 11]`, revision 7, action ids 2 and 5.
+  - `cargo test -p mineworld-server`, `-p mineworld-cli`: all pass; `cargo clippy --workspace
+    --all-targets --all-features -D warnings` clean.
+- [x] Review: a frame's revision is read after every input of that command has committed
+  (`sweep` runs after `dispatch`/`advance` return `Ok`); the only persistence calls are on the world
+  thread; the server crate names no SQLite type (`grep rusqlite server/` — none); `INV-13` unchanged
+  (a revision number reveals no state).
+- **F-14 — a rule controller answers again after a restart (finding, not fixed).** `RuleController`
+  remembers whom it has answered in its own memory (`cognition/rule-controller/src/lib.rs`), which is
+  correctly not world state (`INV-1`) and so not persisted. A restarted `--agent alice` sees the last
+  unanswered-by-*this-process* line and answers it again. The world is preserved exactly; the
+  controller's decision differs. Fixing it needs either the observer's own utterances disclosed to
+  her (a perception change) or controller state persistence (a cognition concern) — both outside S5's
+  scope. Recorded as §9.1 L-3; the restart test runs without `--agent` so that this does not race it.
+
 ## C6 — Documentation and ledger close
 - [ ] Implementation: `persistence/README.md`, `server/README.md`, `tools/cli` usage, `docs/MVP_STATUS.md`
   (`AC-6`, `AC-15` line four), `kernel/README.md` "still to come"; this document's §9 ledger and closeout.
