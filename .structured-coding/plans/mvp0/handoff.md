@@ -1,4 +1,9 @@
-# Handoff — PR 06 implementation context: ACTIVE
+# Handoff — PR 06 implementation context: CLOSED / AWAITING OPERATOR ACTION
+
+**PR:** GitHub #20 (https://github.com/yuema137/MineWorld/pull/20), READY FOR OPERATOR REVIEW, not
+merged. Final executable HEAD `ecc5921`; the closeout commit after it changes planning documents
+only. The record is the primary design doc §§11–12; a session resuming this PR (for review repairs)
+starts there.
 
 **Active PR:** Step 04 / PR 06 — World clock, scheduler, and Process
 **Effort:** `mvp0`

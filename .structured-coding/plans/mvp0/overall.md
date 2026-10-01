@@ -112,7 +112,7 @@ Restated here because every step is judged against them:
    writing infrastructure, and records the answer in [`docs/DECISIONS.md`](../../../docs/DECISIONS.md)
    whether it adopts or declines. Dependencies selected so far: `DEP-1` purpose-built component
    store, `DEP-2` `rusqlite`, `DEP-3` `tokio`/`axum`, `DEP-4` Godot 4.7, `DEP-5` `serde`,
-   `DEP-6` scheduler pending S4.
+   `DEP-6` purpose-built discrete-event queue (implemented in S4).
 11. Clients report intent; systems decide. Rejections are semantic —  `Unavailable`, `Busy`,
    `TooFarAway`, `PermissionDenied`, `NoSupportedInteraction` — and are produced by the owning
    system, never by a renderer (§§4, 7–8).
@@ -191,7 +191,8 @@ ownership-gated writes, then the System interface and dispatch over it. **Design
 ### S4 — World clock, scheduler, and Process
 
 *Corresponds to the operator's commit 5.* **Design:**
-[`step-04-clock-scheduler-process.md`](step-04-clock-scheduler-process.md), frozen.
+[`step-04-clock-scheduler-process.md`](step-04-clock-scheduler-process.md), frozen; implemented as
+PR 06 (GitHub #20), ready for operator review — see §7.
 
 - **Output:** `WorldTime`; the discrete-event / semantic-tick scheduler; process lifecycle with
   interruption *requests* routed to the owning system; event delivery to subscribers.
@@ -499,11 +500,19 @@ Done (main @ bf16ec0, 259 tests):
        -> Milestone A complete: AC-15 holds, one Alice across two clients and an agent
 
 Next, framework (critical path to Milestone B):
-  S4   world clock, scheduler, Process        DESIGN FROZEN, not implemented
-       Its design predates S5V; it must be re-audited against current main before
-       implementation, and ships as PR 06 because "PR 04" is already taken on GitHub.
+  S4   world clock, scheduler, Process        PR 06 = GitHub #20, READY FOR OPERATOR REVIEW
+       (updated 2026-09-30)                   — not merged. Re-audited against main @ 7cf8844
+       first: 13 findings, all bounded (step-04 §8); F-6 adds ProcessTypeId to contracts and
+       is flagged for confirmation. 294 tests (259 + 35); 300 simulated days replay byte for
+       byte from one seed (first real AC-11 / AC-12 evidence); the server now advances the
+       kernel's clock, so deferred facts reach clients.
   S5   persistence and event sourcing         not started; also closes the one AC-15 evidence
-                                              line still missing (same persisted revision)
+                                              line still missing (same persisted revision).
+                                              Unblocked by S4's ScheduleSnapshot (clock,
+                                              queue, processes, counters); component state
+                                              is the remaining half
+       On #20's merge: S4 moves to Done, step-04 records the merge commit, and S5 is
+       detailed against the merged kernel.
 
 Remaining:  S6 ... S14, Milestones B-E
 

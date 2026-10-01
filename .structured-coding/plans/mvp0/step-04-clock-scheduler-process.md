@@ -1,7 +1,9 @@
 # Step 04 / PR 06 — World clock, scheduler, and Process
 
 **Role:** combined step and PR document. S4 needs one PR.
-**Effort:** `mvp0` · parent: [`overall.md`](overall.md) · **Lifecycle:** `DESIGN FROZEN — IN EXECUTION`
+**Effort:** `mvp0` · parent: [`overall.md`](overall.md) · **Lifecycle:** `READY FOR OPERATOR REVIEW` —
+GitHub [#20](https://github.com/yuema137/MineWorld/pull/20), not merged · implementation context
+`CLOSED / AWAITING OPERATOR ACTION` (§12)
 **Base:** `main @ 7cf8844` (re-audited 2026-09-30; originally "main after PR 02 and PR 03a/03b merge")
 **Branch / worktree:** `mvp0/pr-06-scheduler` in `/Users/yuema137/mineworld-worktrees/s4-scheduler`
 **Depends on:** S2's `EventEnvelope` and `Causation`, S3's system registry and dispatch (`BD-7` seam),
@@ -659,3 +661,26 @@ L-6  the server paces world time at one simulated second per wall second (HostCl
      rate, or pausing, is a host decision for S11/S13.
 L-7  no shipped System Pack schedules anything yet; the first is S6 (movement/travel).
 ```
+
+---
+
+# 12. Closeout — READY FOR OPERATOR REVIEW
+
+```text
+PR                    GitHub #20 — https://github.com/yuema137/MineWorld/pull/20 (base main)
+base                  main @ 7cf8844 (origin/main unchanged at PR creation)
+final executable HEAD ecc5921 — the last commit that changes code or tests; every gate in E-4 ran
+                      on this content
+final PR HEAD         the commit carrying this section (planning documents only); `git log` on the
+                      branch is authoritative — a commit cannot name its own hash
+semantic commits      38ab650 docs(plan) re-audit · 615785e C1 clock and schedule ·
+                      661aabf C2 instants and server · b48afea C3 processes · ecc5921 C4 long run
+CI                    N/A — no workflow in the repository (S13)
+working tree          clean after the closeout commit
+merge                 NOT authorized; the operator merges
+```
+
+**Post-merge, owned by whoever merges (per the brief, this session already updated `overall.md` §7 to
+"PR 06 open, awaiting review"):** set this document's lifecycle to `MERGED` with the merge commit,
+move S4 to "Done" in `overall.md` §7, and detail S5 (persistence) against the merged kernel —
+`World::schedule_snapshot` is the S4 half of what S5 must store, and component state is the other.
