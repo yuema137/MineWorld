@@ -129,6 +129,21 @@ static func _shopfront(g: Node3D, stone: Material) -> void:
 	# door reveal, lintel and threshold
 	_doorway(g, green, green_dk, stone)
 
+	# The sidelight between the left pilaster and the door. The first build
+	# left this bay as an open hole -- interior visible straight through, and
+	# 0.8 m of nothing solid above the stallriser, wide enough for a body. The
+	# frontage ray scan in --measure found it; frame 03 shows it.
+	var s0 := x_l + 0.26
+	var s1 := DOOR_X - DOOR_W * 0.5 - 0.15
+	Build.box(g, Vector3((s0 + s1) * 0.5, STALL_H + 0.045, 0.055),
+		Vector3(s1 - s0 + 0.10, 0.09, 0.19), green_dk)                         # cill
+	Build.box(g, Vector3((s0 + s1) * 0.5, GLAZE_HEAD + 0.06, 0.035),
+		Vector3(s1 - s0 + 0.10, 0.12, 0.17), green_dk)                         # head
+	Build.box(g, Vector3((s0 + s1) * 0.5, (STALL_H + GLAZE_HEAD) * 0.5, -0.045),
+		Vector3(s1 - s0, GLAZE_HEAD - STALL_H - 0.05, 0.016), glass)
+	Build.box_blocker(g, Vector3((x_l + DOOR_X - DOOR_W * 0.5) * 0.5, GLAZE_HEAD * 0.5, -0.06),
+		Vector3(DOOR_X - DOOR_W * 0.5 - x_l, GLAZE_HEAD, 0.10))
+
 	# window frame: cill, jambs, transom, head
 	var y0 := STALL_H
 	var y1 := GLAZE_HEAD
@@ -155,8 +170,10 @@ static func _shopfront(g: Node3D, stone: Material) -> void:
 	# The glass is solid. Without this the only barrier was the 0.42 m
 	# stallriser, and from inside the window bench is a step up onto it: the
 	# drive walked straight out through the pane.
-	Build.box_blocker(g, Vector3((win_l + win_r) * 0.5, GLAZE_HEAD * 0.5, -0.06),
-		Vector3(win_r - win_l, GLAZE_HEAD, 0.10))
+	# (to the pier, not the jamb: the scan found a 0.3 m sliver between them)
+	var bl := DOOR_X + DOOR_W * 0.5 + 0.08     # overlapping the right jamb
+	Build.box_blocker(g, Vector3((bl + x_r) * 0.5, GLAZE_HEAD * 0.5, -0.06),
+		Vector3(x_r - bl, GLAZE_HEAD, 0.10))
 
 	# white script painted on the left pane, exactly as 03 has it
 	Profile.text(g, Vector3(win_l + 0.62, 1.86, -0.030),
@@ -191,7 +208,8 @@ static func _doorway(g: Node3D, green: Material, dark: Material, stone: Material
 
 	# jambs and head, in painted timber, standing proud of the wall face
 	for jx in [d0 - 0.075, d1 + 0.075]:
-		Build.box(g, Vector3(jx, DOOR_H * 0.5, 0.045), Vector3(0.15, DOOR_H + 0.20, 0.19), green)
+		Build.box(g, Vector3(jx, DOOR_H * 0.5, 0.045), Vector3(0.15, DOOR_H + 0.20, 0.19), green,
+			0.0, true)
 	Build.box(g, Vector3(DOOR_X, DOOR_H + 0.075, 0.045),
 		Vector3(DOOR_W + 0.42, 0.15, 0.19), green)
 	# lintel and spandrel over the door up to the fascia

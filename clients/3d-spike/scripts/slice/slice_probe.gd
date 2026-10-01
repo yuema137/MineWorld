@@ -413,9 +413,11 @@ func _measure_geometry() -> int:
 	if head != null:
 		fails += _range("door clear head above threshold", head.y - floor_y, 2.00, 2.40)
 	# door clear width: rays sideways from the door's centre line at waist height
+	# at the jambs' own plane, just proud of the façade
 	var y1 := floor_y + 1.0
-	var l: Variant = _ray(Vector3(door_x, y1, dz), Vector3(door_x - 3.0, y1, dz))
-	var r: Variant = _ray(Vector3(door_x, y1, dz), Vector3(door_x + 3.0, y1, dz))
+	var jz := nf + 0.045
+	var l: Variant = _ray(Vector3(door_x, y1, jz), Vector3(door_x - 3.0, y1, jz))
+	var r: Variant = _ray(Vector3(door_x, y1, jz), Vector3(door_x + 3.0, y1, jz))
 	if l != null and r != null:
 		print("  door opening at 1.0 m: solid at x %.3f and x %.3f" % [l.x, r.x])
 		fails += _range("door clear width (walkable)", r.x - l.x, 0.85, 1.60)
