@@ -12,6 +12,16 @@
 > them as the same character. Shown `candidate/side_by_side_head.jpg`, they would
 > not. They would say: same clothes, different person.
 
+> **2026-09-30 — superseded in part by a preview.** A stable candidate has been
+> shown to the operator as a **preview** under §9.1 / `ARC-24`, which is not an
+> acceptance request and does not change the verdict above. The preview's own
+> per-category table, frames and questions are in
+> [`../../../docs/HUMAN_REVIEW_QUEUE.md`](../../../docs/HUMAN_REVIEW_QUEUE.md) and
+> are the current facts where they differ from §2 below: the garments are now
+> intact (they were torn when §2 was written, which its PASS rows did not show),
+> the eyes no longer render silver, and the frames in `candidate/` are new.
+> Hairstyle category still fails.
+
 This document exists because reporting that as near-success is the failure
 `ARC-17` was written about. It is not a request for review and it is not a
 milestone; it is the record of where the candidate actually is.

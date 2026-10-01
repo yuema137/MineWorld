@@ -7,7 +7,7 @@ a place here when a coherent capability can be *experienced* as a whole.
 Engineering progress is tracked separately in [`MVP_STATUS.md`](MVP_STATUS.md). A milestone parked
 here does not block anything else.
 
-**Updated:** 2026-09-27
+**Updated:** 2026-09-30
 
 ---
 
@@ -53,10 +53,89 @@ identifies one thing.
 | | Milestone | State |
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
-| **VIS-3D-GODOT-1** | Reference-matched character in Godot | ❌ **failed the agent's own fidelity gate, twice** — rebuilt, still not the same person; see below |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 👀 **preview 2026-09-30 — not an acceptance request** (`ARC-24`); one §5 hard-fail category is open and is the first question; see below |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ❌ |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
+
+### `VIS-3D-GODOT-1` — preview, 2026-09-30
+
+**This is a preview, not an acceptance request** (`VISUAL_FIDELITY.md` §9.1, `ARC-24`). It asks
+*is this the right direction, and what is most wrong?* It cannot end in `ACCEPTED`.
+
+**One thing must be said before the frames.** §9.1 requires the §5 hard-fail categories to pass
+before a preview, and **hairstyle category does not** (table below). It is shown anyway because
+the operator directed that a stable candidate be shown quickly and that hair is exactly what the
+operator wants to steer; whether that direction overrides §9.1 here is the operator's call, and it
+is question 1. Nothing else in §5 fails; the hood is at risk.
+
+**Launch**
+
+```sh
+./mineworld-3d              # walk around her: WASD, mouse to look, Shift jogs, F5 cycles the camera
+./mineworld-3d --portrait   # re-capture the seven frames into clients/3d-spike/shots/
+```
+
+**What changed since the last state.** The garments were torn — shoulders opened into flaps, a
+spiked sleeve and cuffs, a serrated hem, a split thigh and a broken neckline. That is repaired,
+and the cause was neither of the two the handover named: glTF splits a vertex at every UV seam,
+and the offset pulled each seam's two sides apart by up to 65 mm. The repair, the measurements
+and the three further defects found on the way are in commit `9320563`. The eyes, which rendered
+silver, are fixed in `3535a50`. The portrait frames are now deterministic — the real mouse used to
+turn her between shots, and the "rear" frame once showed her front.
+
+**Frames** — all from one `--portrait` run, in the client's ordinary daylight, in
+[`presentation/mineworld-default/3D/candidate/`](../presentation/mineworld-default/3D/candidate/):
+`side_by_side_chest.jpg` (reference | three-quarter | front), `side_by_side_head.jpg`,
+`full_body_sheet.jpg` (front | three-quarter | rear | walking), and `p1`–`p7` individually.
+
+**§5 hard-fail categories, each with the frame that shows it**
+
+| Category | Reference | Candidate | Frame | |
+| --- | --- | --- | --- | --- |
+| Hairstyle category | a loose messy updo, gathered into a voluminous twist at the crown, wider and taller than the skull, loose strands at the ears | hair lies close to the skull, swept back from a short fringe; no gathered mass shows from the front or three-quarter, and from behind it reads as a short crop | `p6`, `p5` | **FAIL** |
+| Missing defining garment structure | hood bunched behind the neck, standing proud of the shoulders | the hood roll exists as geometry but reads as a thick collar at chest-up, and nothing reads as a hood above the pack from behind | `p2`, `p5` | **AT RISK** |
+| Outer-garment category | open burgundy cotton zip hoodie | open zip hoodie: two panels apart, zip tape, ribbed cuffs and hem, intact | `p1`, `p2` | PASS |
+| Perceived gender presentation | female | female: bust, waist taper, hip line | `p3`, `p4` | PASS |
+| Body silhouette | slim, sloped shoulders, waist taper | the same | `p3` | PASS |
+| Apparent age | early-to-mid twenties | young adult | `p6` | PASS, weakly |
+| Major hair colour | warm mid-brown | warm brown, redder than the reference | `p6` | PASS |
+| Grossly wrong face shape | soft oval tending to heart | jaw/cheek and chin/cheek ratios within the ±10 % the plate allows (`FIDELITY_REVIEW.md` §6); the surface reads flatter-planed | `p6` | PASS, weakly |
+| Missing identity accessories | backpack, hand on the left strap | backpack, both straps, left hand on the strap | `p2` | PASS |
+
+**Known misses, largest first, as facts**
+
+1. **Hair** — row one above.
+2. **Face and expression.** Reference: a slight closed-mouth smile, warm brown eyes looking off to
+   her left under relaxed lids, matte warm skin. Candidate: the mouth reads neutral; the head
+   idles tilted up, so the gaze reads upward rather than sideways; the pupils are oversized and
+   leave a thin brown rim; the skin carries a specular sheen across the forehead, nose and chin.
+3. **Hoodie weight.** The fleece stands 40 mm off the body, and the sleeves and shoulders read as
+   padded, not as cotton jersey hanging on the arm — the direction of §5's own worked example
+   (zip hoodie → puffer), though no quilting is present.
+4. **Hood** — row two above.
+5. **Jeans.** At the front of the crotch the denim follows an 11 mm mound in the body and bridges
+   the crease below it, which reads as a rounded bulge at full-body distance (`p3`). In the rear
+   frame's low sun they read light grey, not mid-blue (`p5`).
+6. **Backpack** reads khaki rather than grey-green, untextured (`p5`).
+7. **Drawstrings** exist and are hidden behind the straps in every front frame.
+8. **Footwear** — dark low shoes read as bare feet at full-body distance. The reference crops
+   above the knee, so this is not a reference fact.
+9. **Hoodie hem** keeps a fine serration visible at 2× in `p5`.
+
+**Questions for the operator**
+
+1. **Hair.** It fails its category. Is this preview the right moment to steer it, and which way:
+   rebuild the procedural card updo with a gathered mass standing well above and behind the
+   crown; or source a redistributable CC0 updo (the search so far is in
+   `CHARACTER_ASSET_AUDIT.md` §13); or something else?
+2. **Hoodie.** Does it read to you as a hoodie or as a padded jacket? A thinner fleece (15–20 mm
+   instead of 40) would read more like cotton, at the risk of the tee clipping through again.
+3. **The face.** Which is most wrong: the skin's sheen, the eyes, the upward tilt, or the mouth?
+4. **Direction.** CharMorph body and face, with garments modelled from the body surface: keep
+   going on this base, or replace the head (`ARC-19` §3 permits it)?
+
+### History
 
 `VIS-3D-GODOT-1` first failed on categorical identity mismatch, not polish: the reference is a
 young woman in an open burgundy zip hoodie and the candidate was a man in a red quilted puffer

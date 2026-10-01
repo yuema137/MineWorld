@@ -461,6 +461,54 @@ holds. What it does is the specification:
 
 Result: **38,652 vertices**, 52 joints, one skinned mesh from crown to toe.
 
+### The values the export applies, so they cannot be lost again
+
+Steps 1–8 above were the specification, and they were not enough: the script
+also applies a face, a gaze and a smile whose values lived only in the scratch
+copy. When that scratchpad was wiped, the only record left was the transcript
+of the session that wrote it. These are the values, and with them the export is
+reproducible from this document alone.
+
+Applied **between steps 3 and 4**, through `window_manager.charmorphs.prop_<name>`
+(`FIDELITY_REVIEW.md` §6 is the measurement behind each):
+
+| Morph | Value | | Morph | Value |
+| --- | --- | --- | --- | --- |
+| `Jaw_Width` | −0.90 | | `Cheeks_BuccalFat` | +0.55 |
+| `Jaw_Ramus_Extrusion` | −0.95 | | `Face_Puffy` | +0.30 |
+| `Jaw_Mandible` | −0.90 | | `Eyes_Eyelid_Hooded` | +0.55 |
+| `Jaw_Mandible_GonialAngle` | −0.90 | | `Eyes_UpperLidOpenness` | −0.45 |
+| `Face_Zygomatic_Bone` | +0.80 | | `Eyes_EyeBagsSize` | +0.30 |
+| `Chin_Width` | +0.90 | | `Eyes_LowerLidOpenness` | −0.30 |
+| `Chin_SecondaryWidth` | +0.55 | | | |
+
+Applied **after step 7**, on the mesh:
+
+- **Pupil** pushed a further 0.3 mm along −Y past the iris, which it is
+  modelled coplanar with.
+- **Gaze**: each eye's sclera, iris and pupil vertices rotated about the eye's
+  own centroid, 9° yaw toward her left (+X) and −3° about X (up). Printed iris
+  direction after: `(0.168, −0.984, 0.051)` left, `(0.145, −0.988, 0.051)` right.
+- **Smile**: every `MW_Face` vertex within 22 mm of a lip corner at
+  `(±0.0235, −0.0735, 1.5715)` moves by `lift·w` up, `0.45·lift·w` back and
+  `0.30·lift·w` outward, `w = (1 − d/0.022)²`; `lift` is 4.0 mm at her right
+  corner (−X) and 2.5 mm (×0.62) at her left.
+
+The `AqueosLayer` delete (step 6) runs last, after everything that indexes
+`me.polygons`.
+
+**Reproduced 2026-09-30.** CharMorph (`Upliner/CharMorph`, `master`) and
+`character.zip` (`v1.6.1`, 1,122,993,038 bytes) were re-fetched into
+`/Users/yuema137/mineworld-worktrees/scratch-character/`, outside the
+repository, and the script was recovered from that session transcript. The zip
+holds two pairs of names that differ only in case
+(`Eyes_Eyelid_hooded.npz`/`Eyes_Eyelid_Hooded.npz`, and one under `L3/`), so on
+a case-insensitive filesystem one overwrites the other; the original bake ran
+on the same filesystem. The recovered export, run through the unchanged
+`character_model.py`, reproduced the committed bake's counts exactly —
+50,970 vertices, 88,686 triangles, 1.7672 m — which is the check that the
+recovery is faithful.
+
 ### What the export also emits, and why
 
 A small JSON of the face's `(x, y, z, u, v)` per vertex. `character_model.py`
