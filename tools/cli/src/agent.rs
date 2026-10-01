@@ -56,8 +56,8 @@ pub async fn drive(host: WorldHost, seat: EntityKey) {
     let mut controller = RuleController::new();
     // `None` means the world has stopped, which is the only way this loop ends — the same condition
     // that ends a client's stream.
-    while let Some(observation) = seated.observations().recv().await {
-        let Some(request) = controller.decide(&observation) else {
+    while let Some(perceived) = seated.observations().recv().await {
+        let Some(request) = controller.decide(&perceived.observation) else {
             continue;
         };
         let target = request.target();

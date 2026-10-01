@@ -97,16 +97,27 @@ Before a successful `join`, a `submit` is refused `not_joined` and no observatio
              "at": 0, "entities": 4,
              "systems": [ { "system": "presence", "enabled": true } ],
              "seats": [ "player" ], "clients": 1,
-             "observations_dropped": 0, "deferrals_unscheduled": 0, "faults": 0 } }
+             "observations_dropped": 0, "deferrals_unscheduled": 0, "faults": 0,
+             "revision": 7 } }
 ```
 
-`instance` is **which running world this is**: allocated when the world's thread starts, reported
-unchanged for as long as that world lives, and identical for every client connected to it. It is not
-a name, not a secret and not derived from the world's content — two worlds loaded from one World Pack
-are two instances. It exists because `docs/MVP.md` §9.1 requires `AC-15`'s evidence to name identity
-rather than appearance: two clients each talking to their own server are told two different
-instances, which is the false success that criterion exists to exclude. 128 bits as a lowercase
-hexadecimal string, for the reason in §7.
+`instance` is **which world this is**: allocated when the world is created, reported unchanged for as
+long as that world lives, and identical for every client connected to it. It is not a name, not a
+secret and not derived from the world's content — two worlds created from one World Pack are two
+instances. A world that is not persisted lives as long as its process, so its instance is allocated
+when the world's thread starts. A **persisted** world (`mineworld server <world> --save DIR`) outlives
+its process: its instance is stored in its save, and a server that resumes the save reports the same
+instance, because a restarted world is the same world (`docs/MVP.md` `AC-6`). It exists because
+`docs/MVP.md` §9.1 requires `AC-15`'s evidence to name identity rather than appearance: two clients
+each talking to their own world are told two different instances, which is the false success that
+criterion exists to exclude. 128 bits as a lowercase hexadecimal string, for the reason in §7.
+
+`revision` is **which persisted revision of the world this answer describes**: the number of the last
+input the world has committed to its save ([`docs/DECISIONS.md`](../docs/DECISIONS.md) `ARC-25`).
+Monotonic, never reused, and durable before any frame names it — a server never tells a client about a
+revision a crash could still lose. `null` for a world that is not persisted, which has no saved
+revision to name. An integer, like every non-identity number (§7). Added within revision 1 of this
+protocol: a client that does not read it is unaffected.
 
 `observations_dropped` counts frames the server did not send because a client was not reading them:
 the world never waits for a client, so a client that falls behind loses observations rather than
@@ -123,8 +134,12 @@ no position appears in it, because a client's knowledge of state arrives only in
 ### `observation`
 
 ```json
-{ "t": "observation", "seq": 12, "observation": { … } }
+{ "t": "observation", "seq": 12, "revision": 7, "observation": { … } }
 ```
+
+`revision` is the persisted revision of the world state this observation was computed from, with the
+meaning and the `null` given for `world.revision` above. Two clients whose observations carry the same
+revision are looking at one committed state of one world — the fourth line of `AC-15`'s evidence.
 
 `observation` is `mineworld-contracts`' own `Observation`, serialized by the contract, with
 `serde_json::Value` as its payload type. Every field of it is the perception system's answer for

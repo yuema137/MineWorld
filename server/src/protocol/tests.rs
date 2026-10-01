@@ -190,6 +190,7 @@ fn a_welcome_names_the_observer_as_a_decimal_string() {
             observations_dropped: 0,
             deferrals_unscheduled: 0,
             faults: 0,
+            revision: Some(mineworld_persistence::WorldRevision::from_raw(7)),
         },
     };
 
@@ -201,6 +202,11 @@ fn a_welcome_names_the_observer_as_a_decimal_string() {
         encoded["world"]["instance"],
         json!("00000000000000000123456789abcdef"),
         "a world instance reaches a client as a string, because 128 bits are not a double",
+    );
+    assert_eq!(
+        encoded["world"]["revision"],
+        json!(7),
+        "the persisted revision is a plain integer, like every non-identity number (PROTOCOL.md §7)",
     );
 }
 

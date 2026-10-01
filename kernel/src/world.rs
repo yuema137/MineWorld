@@ -53,12 +53,13 @@ use crate::access::WriteAccess;
 use crate::clock::WorldClock;
 use crate::components::ComponentStore;
 use crate::dispatch::EventIds;
-use crate::entities::EntityRegistry;
+use crate::entities::{EntityRegistry, EntityRegistrySnapshot};
 use crate::error::KernelError;
 use crate::process::{Process, ProcessStore};
 use crate::registry::SystemRegistry;
-use crate::relations::RelationStore;
+use crate::relations::{RelationStore, RelationStoreSnapshot};
 use crate::schedule::{Schedule, ScheduleSnapshot, Scheduled, Sequence};
+use crate::snapshot::{InstalledSystemRecord, WorldSnapshot};
 use crate::system::{DynSystem, InstalledSystem, System};
 use crate::view::WorldRead;
 
@@ -369,6 +370,21 @@ impl World {
         if self.ran {
             return Err(KernelError::RestoreAfterTheWorldHasRun);
         }
+        let (schedule, events, processes, now) = self.validated_time(snapshot)?;
+        self.schedule = schedule;
+        self.events = events;
+        self.processes = processes;
+        self.clock.restore(now);
+        Ok(())
+    }
+
+    /// The four parts of a world's time a [`ScheduleSnapshot`] describes, validated and built but
+    /// not yet installed — so that a caller restoring more than time can refuse before replacing
+    /// anything.
+    fn validated_time(
+        &self,
+        snapshot: ScheduleSnapshot,
+    ) -> Result<(Schedule, EventIds, ProcessStore, WorldTime), KernelError> {
         let ScheduleSnapshot {
             now,
             next_sequence,
@@ -391,11 +407,145 @@ impl World {
         let schedule = Schedule::restore(now, next_sequence, entries)?;
         let events = EventIds::restore(next_event)?;
         let processes = ProcessStore::restore(next_process, processes)?;
+        Ok((schedule, events, processes, now))
+    }
+
+    /// The systems this world is composed of, as a snapshot and a save manifest record them: each
+    /// declaration and whether it is enabled, in registration order.
+    pub fn composition(&self) -> Vec<InstalledSystemRecord> {
+        self.systems
+            .declarations()
+            .map(|declaration| InstalledSystemRecord {
+                declaration: declaration.clone(),
+                enabled: self.systems.is_enabled(declaration.system()),
+            })
+            .collect()
+    }
+
+    /// The whole of this world's state, written down (S5).
+    ///
+    /// Refused only if a component cannot be encoded, which is a bug in the system that declared it.
+    pub fn snapshot(&self) -> Result<WorldSnapshot, KernelError> {
+        Ok(WorldSnapshot {
+            composition: self.composition(),
+            entities: EntityRegistrySnapshot::from(&self.entities),
+            components: self.components.records()?,
+            relations: RelationStoreSnapshot::from(&self.relations),
+            time: self.schedule_snapshot(),
+            clock_started: self.clock.has_started(),
+            ran: self.ran,
+        })
+    }
+
+    /// Puts a snapshot's state into this world: world assembly from a save.
+    ///
+    /// This world must have its systems installed and nothing else — no entity, row, edge or clock —
+    /// and must be composed exactly as the snapshot's world was: the same declarations, enabled the
+    /// same way, in the same registration order. Everything is then validated before anything is
+    /// replaced (see [`crate::snapshot`]), so a refusal changes nothing. Identity is restored, never
+    /// re-allocated: every entity keeps its `EntityId`, and the event, process and sequence counters
+    /// continue where the snapshot's world stopped.
+    pub fn restore(&mut self, snapshot: WorldSnapshot) -> Result<(), KernelError> {
+        if self.ran {
+            return Err(KernelError::RestoreAfterTheWorldHasRun);
+        }
+        if !self.entities.is_empty()
+            || self.components.has_rows()
+            || !self.relations.is_empty()
+            || self.clock.has_started()
+        {
+            return Err(KernelError::RestoreIntoPopulatedWorld);
+        }
+        self.check_composition(&snapshot.composition)?;
+
+        let WorldSnapshot {
+            composition: _,
+            entities,
+            components,
+            relations,
+            time,
+            clock_started,
+            ran,
+        } = snapshot;
+        let entities = EntityRegistry::try_from(entities)?;
+        for record in &components {
+            if entities.get(record.entity()).is_none() {
+                return Err(KernelError::PersistedComponentForUnknownEntity {
+                    component_type: record.component_type().clone(),
+                    entity: record.entity(),
+                });
+            }
+        }
+        let components = self.components.restored(components)?;
+        let relations = self.validated_relations(relations, &entities)?;
+        let (schedule, events, processes, now) = self.validated_time(time)?;
+
+        self.entities = entities;
+        self.components = components;
+        self.relations = relations;
         self.schedule = schedule;
         self.events = events;
         self.processes = processes;
-        self.clock.restore(now);
+        if clock_started {
+            self.clock.restore(now);
+        }
+        self.ran = ran;
         Ok(())
+    }
+
+    /// Refuses a saved composition that is not this world's, naming the first position at which the
+    /// two differ.
+    fn check_composition(&self, saved: &[InstalledSystemRecord]) -> Result<(), KernelError> {
+        let installed = self.composition();
+        let length = saved.len().max(installed.len());
+        for position in 0..length {
+            let (left, right) = (saved.get(position), installed.get(position));
+            if left != right {
+                return Err(KernelError::RestoredCompositionDiffers {
+                    position,
+                    saved: left.map(|record| record.declaration.system().clone()),
+                    installed: right.map(|record| record.declaration.system().clone()),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// A relation graph rebuilt from a snapshot, refused unless its declarations are exactly the ones
+    /// this world's systems declared at installation and every edge joins two entities the snapshot's
+    /// registry holds, of the types the declaration allows.
+    fn validated_relations(
+        &self,
+        snapshot: RelationStoreSnapshot,
+        entities: &EntityRegistry,
+    ) -> Result<RelationStore, KernelError> {
+        let installed = RelationStoreSnapshot::from(&self.relations).declarations;
+        let names = installed.keys().chain(snapshot.declarations.keys());
+        for name in names {
+            if installed.get(name) != snapshot.declarations.get(name) {
+                return Err(KernelError::RestoredRelationDeclarationsDiffer {
+                    relation_type: name.clone(),
+                });
+            }
+        }
+        let store = RelationStore::try_from(snapshot)?;
+        for edge in store.iter() {
+            let ends = [edge.from(), edge.to()].map(|entity| {
+                entities
+                    .get(entity)
+                    .ok_or_else(|| KernelError::PersistedRelationForUnknownEntity {
+                        relation_type: edge.relation_type().clone(),
+                        entity,
+                    })
+            });
+            let [from, to] = ends;
+            let (from, to) = (from?, to?);
+            if let Some(declaration) = store.declaration(edge.relation_type()) {
+                // Re-forming the edge checks the endpoint types against the declaration.
+                Relation::between(declaration, from, to)?;
+            }
+        }
+        Ok(store)
     }
 
     /// Every running or suspended process in this world.

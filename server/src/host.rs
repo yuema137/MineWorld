@@ -38,7 +38,8 @@
 //! # What this module does not own
 //!
 //! It does not own history: recorded events are kept in a small window for perception to read, and
-//! the durable log is S5's (`NETWORKING.md` §10 — networking never owns world state). It does not
+//! the durable log belongs to the world's save, when it has one (`mineworld-persistence`, `ARC-25`;
+//! `NETWORKING.md` §10 — networking never owns world state). It does not
 //! own a scheduler: the world's clock and queue are the kernel's (S4), and the world thread only
 //! advances them to the host's instant, on each tick and before each request. And it owns no world
 //! rule: what an observer perceives comes from the
@@ -48,13 +49,22 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Duration;
 
-use mineworld_contracts::{ActionId, ActionRequest, ActionResult, EntityId, EntityKey, WorldTime};
+use mineworld_contracts::{
+    ActionId, ActionRequest, ActionResult, EntityId, EntityKey, EventEnvelope, WorldTime,
+};
 use mineworld_kernel::{KernelError, World};
+use mineworld_persistence::{PersistentWorld, WorldRevision};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::perception::{PerceivesNothing, Perception};
 use crate::protocol::{Refusal, RefusalCode, WireObservation, WorldSummary};
 use crate::runtime::WorldRuntime;
+
+/// The first request identity a server allocates for a world with no history of requests.
+///
+/// One, not zero, for the reason `kernel/src/dispatch.rs` gives for event identity: zero is what an
+/// absent, defaulted or truncated number looks like in a serialized record.
+pub(crate) const FIRST_ACTION_ID: u64 = 1;
 
 /// How many commands may be in flight before a submitter waits. Generous: a command is a request
 /// or a sweep, and the world answers each in microseconds.
@@ -66,19 +76,56 @@ const COMMAND_BACKLOG: usize = 256;
 /// Assembled by the closure [`WorldHost::spawn`] runs on the world's own thread, which is why this
 /// type carries a [`World`] without being `Send`.
 pub struct HostedWorld {
-    pub(crate) world: World,
+    pub(crate) world: Hosted,
     pub(crate) perception: Box<dyn Perception>,
     pub(crate) seats: SeatRoster,
+    /// Where the request allocator starts: past every `ActionId` the world's journal already holds,
+    /// so that a resumed world never issues one twice (step-06 §2.4, F-7).
+    pub(crate) first_action: u64,
+    /// The facts perception may look back over at the start — the tail of a save's log, so that a
+    /// restarted world does not silently forget what just happened (PD-13).
+    pub(crate) recent: Vec<EventEnvelope>,
+}
+
+/// The world a host holds: one that lives only as long as its process, or one with a save.
+pub(crate) enum Hosted {
+    /// Not persisted: its state ends with the process.
+    Ephemeral(World),
+    /// Persisted: every input committed to its save before anybody is told (S5, `ARC-25`).
+    Persisted(PersistentWorld),
 }
 
 impl HostedWorld {
     /// A world with no seats and no perception: legal, and what an unauthored world is.
     pub fn new(world: World) -> Self {
         Self {
-            world,
+            world: Hosted::Ephemeral(world),
             perception: Box::new(PerceivesNothing),
             seats: SeatRoster::empty(),
+            first_action: FIRST_ACTION_ID,
+            recent: Vec::new(),
         }
+    }
+
+    /// A world with a save: the server commits every request and every advance that fired something
+    /// before it answers or sweeps, tells clients the persisted revision, and resumes the world's
+    /// instance, request identities, clock and recent facts from the save rather than from zero.
+    ///
+    /// `recent` is how many of the log's newest facts perception starts with — normally
+    /// [`HostConfig::recent_events`].
+    pub fn persisted(world: PersistentWorld, recent: usize) -> Result<Self, HostError> {
+        let first_action = world
+            .highest_action_id()
+            .map_err(HostError::build)?
+            .map_or(FIRST_ACTION_ID, |highest| highest.saturating_add(1));
+        let recent = world.recent_facts(recent).map_err(HostError::build)?;
+        Ok(Self {
+            world: Hosted::Persisted(world),
+            perception: Box::new(PerceivesNothing),
+            seats: SeatRoster::empty(),
+            first_action,
+            recent,
+        })
     }
 
     /// Declares the seats a client may ask for.
@@ -188,6 +235,17 @@ impl SubscriptionIdSource {
     }
 }
 
+/// One observation as the world thread hands it to a connection: what the observer perceives, and
+/// the persisted revision of the state it was computed from.
+#[derive(Debug, Clone)]
+pub struct Perceived {
+    /// The world's persisted revision when the observation was computed; `None` for a world that is
+    /// not persisted.
+    pub revision: Option<WorldRevision>,
+    /// What the observer perceives.
+    pub observation: WireObservation,
+}
+
 /// A seated connection: which observer it is, and its own stream of observations.
 #[derive(Debug)]
 pub struct Seated {
@@ -195,7 +253,7 @@ pub struct Seated {
     observer: EntityId,
     world: WorldSummary,
     subscription: SubscriptionId,
-    observations: mpsc::Receiver<WireObservation>,
+    observations: mpsc::Receiver<Perceived>,
 }
 
 impl Seated {
@@ -204,7 +262,7 @@ impl Seated {
         observer: EntityId,
         world: WorldSummary,
         subscription: SubscriptionId,
-        observations: mpsc::Receiver<WireObservation>,
+        observations: mpsc::Receiver<Perceived>,
     ) -> Self {
         Self {
             seat,
@@ -236,7 +294,7 @@ impl Seated {
     }
 
     /// This connection's own observation stream.
-    pub const fn observations(&mut self) -> &mut mpsc::Receiver<WireObservation> {
+    pub const fn observations(&mut self) -> &mut mpsc::Receiver<Perceived> {
         &mut self.observations
     }
 }
@@ -400,7 +458,9 @@ impl WorldHost {
         let _ = self.commands.try_send(Command::Leave(subscription));
     }
 
-    /// Stops the world thread. The world's state goes with it: persistence is S5's.
+    /// Stops the world thread. A world that is not persisted goes with it; a persisted one is
+    /// checkpointed first, when its clock still stands at its last revision, and is otherwise already
+    /// whole on disk — every revision was committed before it was told to anybody.
     pub async fn shutdown(&self) {
         let _ = self.commands.send(Command::Shutdown).await;
     }

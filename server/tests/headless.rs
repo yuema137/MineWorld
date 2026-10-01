@@ -66,10 +66,16 @@ async fn two_observers_of_one_world_receive_two_different_observations() {
         .await
         .expect("an observation arrives")
         .expect("the world is running");
+    assert_eq!(
+        seen_by_alice.revision, None,
+        "a world that is not persisted has no persisted revision to name"
+    );
+    let seen_by_alice = seen_by_alice.observation;
     let seen_by_bob = tokio::time::timeout(PATIENCE, bob.observations().recv())
         .await
         .expect("an observation arrives")
-        .expect("the world is running");
+        .expect("the world is running")
+        .observation;
 
     assert_eq!(seen_by_alice.observer(), alice.observer());
     assert_eq!(seen_by_bob.observer(), bob.observer());
@@ -114,7 +120,8 @@ async fn the_world_keeps_working_while_a_subscriber_never_reads() {
     let observation = tokio::time::timeout(PATIENCE, reading.observations().recv())
         .await
         .expect("the reading client still receives observations")
-        .expect("the world is running");
+        .expect("the world is running")
+        .observation;
     assert_eq!(observation.observer(), reading.observer());
 
     let dave = *support::perceived_ids(&observation)
@@ -146,7 +153,8 @@ async fn the_server_allocates_the_identity_of_every_request() {
     let observation = tokio::time::timeout(PATIENCE, alice.observations().recv())
         .await
         .expect("an observation arrives")
-        .expect("the world is running");
+        .expect("the world is running")
+        .observation;
     let carol = *support::perceived_ids(&observation)
         .iter()
         .find(|entity| **entity != alice.observer())

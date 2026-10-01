@@ -34,6 +34,15 @@
 //! process      Process: state over time, changed only by its owner (INV-3, INV-7)
 //! ```
 //!
+//! # And a world written down
+//!
+//! ```text
+//! snapshot     WorldSnapshot: the whole of a world's state as data; World::snapshot / restore (S5)
+//! ```
+//!
+//! The journal and the fact log that make a snapshot part of a save live one crate up, in
+//! `mineworld-persistence`, so that no storage engine enters this crate (`DEP-2`, `ARC-25`).
+//!
 //! Reads are open and writes are owned. Any system may read any component; a component is
 //! written only by the system that owns it, and [`access`] is where that is made the compiler's
 //! rule rather than a review convention (`INV-7`). It is also where the edges of the guarantee
@@ -75,6 +84,7 @@ pub mod process;
 pub mod registry;
 pub mod relations;
 pub mod schedule;
+pub mod snapshot;
 pub mod system;
 pub mod view;
 pub mod world;
@@ -96,6 +106,7 @@ pub use process::{
 pub use registry::SystemRegistry;
 pub use relations::{RelationStore, RelationStoreSnapshot};
 pub use schedule::{ScheduleSnapshot, Scheduled, ScheduledEntry, Sequence};
+pub use snapshot::{InstalledSystemRecord, WorldSnapshot};
 pub use system::{Deferral, Emission, System, SystemDeclaration, SystemVersion};
 pub use view::{Declarations, WorldRead, WorldView};
 pub use world::World;

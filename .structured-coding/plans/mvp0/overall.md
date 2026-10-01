@@ -206,14 +206,24 @@ PR 06 (GitHub #20), ready for operator review — see §7.
 
 *Corresponds to the operator's commit 6.*
 
-- **Output:** `PersistenceBackend` trait and `SQLiteBackend`; append-only semantic event log;
-  periodic snapshots; `snapshot + events` reconstruction; save manifest.
+*Design:* [`step-06-persistence.md`](step-06-persistence.md), frozen 2026-09-30, PR 07.
+
+- **Output:** `PersistenceBackend` trait and `SqliteBackend`; append-only semantic event log;
+  the input journal; periodic snapshots; `snapshot + journal tail` reconstruction verified against
+  the event log; save manifest.
 - **Depends on:** S4.
-- **Acceptance checkpoint:** run N ticks → persist → restart process → state and event-log head
-  are identical (`AC-6`); replaying the event log from empty reproduces the same state; a
-  snapshot plus its tail reproduces the same state as full replay.
-- **Adversarial criterion:** no component state exists that the event log cannot reconstruct.
-  State that is only reachable by having been in memory is a defect.
+- **Acceptance checkpoint:** run N ticks → persist → kill the process → restart → state and
+  event-log head are identical (`AC-6`); re-executing the journal from genesis reproduces the event
+  log byte for byte and the same state; a snapshot plus its journal tail reproduces the same state as
+  full re-execution.
+- **Adversarial criterion:** no state exists that re-executing the journal cannot reconstruct, and
+  no reconstruction is accepted whose re-executed facts differ from the logged ones. State that is
+  only reachable by having been in memory is a defect, detected as a replay divergence.
+- **Reworded 2026-09-30 (`ARC-25`).** This entry read "replaying the event log from empty
+  reproduces the same state". The S5 audit showed that literal fact replay is incompatible with the
+  merged System contract — `react`, `wake` and `interrupt` write state *and* return further
+  emissions, `resolve` may write, and process wakes are driven by time rather than by facts — so
+  reconstruction re-executes the recorded inputs and the event log is the byte-for-byte check on it.
 
 ### S6 — First real systems: time, places, movement
 

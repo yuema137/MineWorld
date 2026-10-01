@@ -39,7 +39,9 @@ mod tests;
 use std::any::Any;
 use std::collections::BTreeMap;
 
-use mineworld_contracts::{Component, ComponentDeclaration, ComponentTypeId, EntityId};
+use mineworld_contracts::{
+    Component, ComponentDeclaration, ComponentRecord, ComponentTypeId, EntityId,
+};
 
 use crate::access::{OwnedBy, SystemIdentity, WriteToken};
 use crate::error::KernelError;
@@ -208,6 +210,63 @@ impl ComponentStore {
         self.tables.get(&C::COMPONENT_TYPE)?.rows_of::<C>()
     }
 
+    /// Every component in this world as a record a save can hold: tables in component type name
+    /// order, rows in [`EntityId`] order, each payload the component's JSON (`DEP-5` note, S5).
+    ///
+    /// Only this store can do it: it is the one place that still knows each table's Rust type.
+    pub fn records(&self) -> Result<Vec<ComponentRecord>, KernelError> {
+        let mut records = Vec::new();
+        for table in self.tables.values() {
+            records.extend(table.rows.encode()?);
+        }
+        Ok(records)
+    }
+
+    /// A store with the same tables as this one, filled from saved records instead of this store's
+    /// rows — or the refusal naming the first record no table here can take.
+    ///
+    /// Builds new tables and leaves this store untouched, so a refusal changes nothing. Each record
+    /// is decoded by the component type its table was declared with, through
+    /// [`ComponentRecord::payload_for`], so a record written by a newer or an older schema is refused
+    /// with the contract's own `ComponentSchemaTooNew` / `ComponentSchemaOutdated` rather than decoded
+    /// on a guess. A record for a component type this world did not install is refused too: it is
+    /// state of a system this world is not composed of.
+    pub(crate) fn restored(&self, records: Vec<ComponentRecord>) -> Result<Self, KernelError> {
+        let mut by_type: BTreeMap<ComponentTypeId, Vec<ComponentRecord>> = BTreeMap::new();
+        for record in records {
+            if !self.tables.contains_key(record.component_type()) {
+                return Err(KernelError::PersistedComponentTypeNotInstalled {
+                    component_type: record.component_type().clone(),
+                    entity: record.entity(),
+                });
+            }
+            by_type
+                .entry(record.component_type().clone())
+                .or_default()
+                .push(record);
+        }
+
+        let mut tables = BTreeMap::new();
+        for (component_type, table) in &self.tables {
+            let rows = table
+                .rows
+                .decoded(by_type.remove(component_type).unwrap_or_default())?;
+            tables.insert(
+                component_type.clone(),
+                Table {
+                    declaration: table.declaration.clone(),
+                    rows,
+                },
+            );
+        }
+        Ok(Self { tables })
+    }
+
+    /// Whether any table holds a row.
+    pub(crate) fn has_rows(&self) -> bool {
+        self.tables.values().any(|table| table.rows.len() > 0)
+    }
+
     /// The table `C`'s owner writes through, or the refusal that it was never declared.
     ///
     /// Undeclared is a refusal rather than an implicit declaration, because declaring is where
@@ -270,12 +329,18 @@ impl core::fmt::Debug for Table {
     }
 }
 
-/// What the store can do with a table without knowing its component type: count its rows and hand
-/// them back to code that names the type.
+/// What the store can do with a table without knowing its component type: count its rows, hand
+/// them back to code that names the type, and — because the implementation below *does* know the
+/// type — write them down and read them back for a save.
 trait ComponentRows {
     fn len(&self) -> usize;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    /// Every row as a record, in [`EntityId`] order.
+    fn encode(&self) -> Result<Vec<ComponentRecord>, KernelError>;
+    /// A new, separate table of the same component type holding exactly `records`.
+    fn decoded(&self, records: Vec<ComponentRecord>)
+    -> Result<Box<dyn ComponentRows>, KernelError>;
 }
 
 impl<C: Component + 'static> ComponentRows for BTreeMap<EntityId, C> {
@@ -289,5 +354,44 @@ impl<C: Component + 'static> ComponentRows for BTreeMap<EntityId, C> {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn encode(&self) -> Result<Vec<ComponentRecord>, KernelError> {
+        self.iter()
+            .map(|(entity, component)| {
+                let payload = serde_json::to_vec(component).map_err(|error| {
+                    KernelError::ComponentNotEncodable {
+                        component_type: C::COMPONENT_TYPE,
+                        entity: *entity,
+                        detail: error.to_string(),
+                    }
+                })?;
+                Ok(ComponentRecord::new::<C>(*entity, payload))
+            })
+            .collect()
+    }
+
+    fn decoded(
+        &self,
+        records: Vec<ComponentRecord>,
+    ) -> Result<Box<dyn ComponentRows>, KernelError> {
+        let mut rows: Self = BTreeMap::new();
+        for record in records {
+            let payload = record.payload_for::<C>()?;
+            let component: C = serde_json::from_slice(payload).map_err(|error| {
+                KernelError::PersistedComponentUndecodable {
+                    component_type: C::COMPONENT_TYPE,
+                    entity: record.entity(),
+                    detail: error.to_string(),
+                }
+            })?;
+            if rows.insert(record.entity(), component).is_some() {
+                return Err(KernelError::PersistedComponentRepeated {
+                    component_type: C::COMPONENT_TYPE,
+                    entity: record.entity(),
+                });
+            }
+        }
+        Ok(Box::new(rows))
     }
 }

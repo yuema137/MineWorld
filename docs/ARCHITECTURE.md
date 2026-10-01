@@ -215,8 +215,29 @@ World history is append-only at the semantic level.
 Snapshots are generated periodically, and a world state is reconstructed as:
 
 ```text
-snapshot_day_50  +  events_after_day_50
+snapshot at revision R  +  the journal after R, re-executed  →  checked against the facts after R
 ```
+
+Stated precisely, because two different things are authoritative for two different questions
+([`DECISIONS.md`](DECISIONS.md) `ARC-25`):
+
+```text
+history   the fact log: every Event, append-only, never rewritten and never derived (INV-11)
+state     the kernel's one pipeline applied to the journal — the recorded inputs that moved the
+          world: genesis, every ActionIntent with its instant, every advance of the clock that
+          fired something
+```
+
+A snapshot is a checkpoint of that function, never an authority on its own. Reconstruction loads the
+newest snapshot and re-executes the journal after it through the same pipeline a live world uses; each
+re-executed input must regenerate its logged facts byte for byte, or the load is refused. Facts are
+**not** re-applied through the reducers: a System reduces and emits in the same call and may write
+while resolving or waking a process, so re-applying a fact would re-emit its consequences. The log is
+instead the check every reconstruction must pass, and a full re-execution from genesis must reproduce
+every stored snapshot.
+
+Each journaled input is one **revision** of the world: a monotonic number, committed before any client
+is told it, and the persisted state revision `MVP.md` §9.1 asks `AC-15` evidence to name.
 
 What this buys, and why it is non-negotiable:
 
@@ -244,14 +265,18 @@ PersistenceBackend
 └── PostgresBackend    cloud, later
 ```
 
-Local save layout, conceptually:
+Local save layout:
 
 ```text
 save/
-├── world.sqlite
-├── manifest.json
-└── cognition_cache/
+├── world.sqlite       manifest · journal · facts · snapshots, one transaction per revision
+└── cognition_cache/   later (S10 / MVP-1)
 ```
+
+The manifest — save format version, world instance, composition — is a table inside `world.sqlite`
+rather than a `manifest.json` beside it, so that it is committed in the same transaction as the
+revisions it describes ([`DECISIONS.md`](DECISIONS.md) `DEP-2`). A save whose format, composition, system
+versions or component schemas differ from the running code is refused by name, never decoded on a guess.
 
 World semantics must not depend on the selected database (INV-14). A behavior that appears
 only under one backend is a defect in that backend, not a property of the world.
@@ -483,8 +508,9 @@ Consequences, which are binding:
 mineworld/
 ├── docs/          specifications
 ├── contracts/     entities, components, actions, events, observations, networking
-├── kernel/        entity, components, scheduler, event_log, process, actions,
-│                  persistence, networking
+├── kernel/        entity, components, scheduler, process, actions, world snapshots
+├── persistence/   the journal, the fact log and the save: PersistenceBackend, SqliteBackend
+│                  (the kernel layer, kept a separate crate so no SQL type enters the kernel)
 ├── systems/       time, places, movement, conversation, relationships, inventory,
 │                  group_activity, economy, employment, …
 ├── cognition/     runtime, controllers, memory, biography, models, budgets

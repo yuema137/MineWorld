@@ -636,4 +636,97 @@ pub enum KernelError {
         /// The second entity holding it.
         second: EntityId,
     },
+
+    /// A component could not be written down for a snapshot. A component type whose `Serialize`
+    /// fails is a bug in the system that declared it; the snapshot is refused rather than taken
+    /// without that row.
+    #[error("component '{component_type}' of entity {entity} cannot be encoded: {detail}")]
+    ComponentNotEncodable {
+        /// The component type.
+        component_type: ComponentTypeId,
+        /// The entity it belongs to.
+        entity: EntityId,
+        /// What the encoder said.
+        detail: String,
+    },
+
+    /// A world can only be restored while it is being assembled: systems installed, and nothing
+    /// else — no entity, no component row, no edge, no clock. Restoring over state would leave two
+    /// worlds' state mixed in one.
+    #[error("a snapshot can only be restored into a world with systems installed and nothing else")]
+    RestoreIntoPopulatedWorld,
+
+    /// The snapshot was taken of a world composed differently from this one: another system, a
+    /// different declaration or version, another enabled state, or the same systems in another
+    /// order — which is another reduction order, and therefore another world (`BD-4`).
+    #[error(
+        "the snapshot's composition differs at position {position}: saved {saved:?}, installed {installed:?}"
+    )]
+    RestoredCompositionDiffers {
+        /// The registration position of the first difference.
+        position: usize,
+        /// The system the snapshot has there, if any.
+        saved: Option<SystemId>,
+        /// The system this world has there, if any.
+        installed: Option<SystemId>,
+    },
+
+    /// A snapshot held a row of a component type this world has no table for: state of a system
+    /// this world is not composed of.
+    #[error("persisted component '{component_type}' of entity {entity} has no table in this world")]
+    PersistedComponentTypeNotInstalled {
+        /// The component type.
+        component_type: ComponentTypeId,
+        /// The entity the row belongs to.
+        entity: EntityId,
+    },
+
+    /// A snapshot held a component row for an entity its own registry does not have.
+    #[error(
+        "persisted component '{component_type}' belongs to entity {entity}, which does not exist"
+    )]
+    PersistedComponentForUnknownEntity {
+        /// The component type.
+        component_type: ComponentTypeId,
+        /// The missing entity.
+        entity: EntityId,
+    },
+
+    /// A snapshot held two rows of one component type for one entity.
+    #[error("persisted component '{component_type}' appears twice for entity {entity}")]
+    PersistedComponentRepeated {
+        /// The component type.
+        component_type: ComponentTypeId,
+        /// The entity.
+        entity: EntityId,
+    },
+
+    /// A snapshot row did not decode as the component type its table was declared with.
+    #[error("persisted component '{component_type}' of entity {entity} does not decode: {detail}")]
+    PersistedComponentUndecodable {
+        /// The component type.
+        component_type: ComponentTypeId,
+        /// The entity.
+        entity: EntityId,
+        /// What the decoder said.
+        detail: String,
+    },
+
+    /// A snapshot declared relation types differently from the systems installed in this world.
+    #[error(
+        "the snapshot's relation type declarations differ from this world's at '{relation_type}'"
+    )]
+    RestoredRelationDeclarationsDiffer {
+        /// The first relation type whose declaration differs or is missing on one side.
+        relation_type: RelationTypeId,
+    },
+
+    /// A snapshot held an edge whose endpoint its own registry does not have.
+    #[error("persisted '{relation_type}' edge touches entity {entity}, which does not exist")]
+    PersistedRelationForUnknownEntity {
+        /// The edge's relation type.
+        relation_type: RelationTypeId,
+        /// The missing endpoint.
+        entity: EntityId,
+    },
 }

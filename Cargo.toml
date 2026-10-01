@@ -3,6 +3,7 @@ members = [
     "cognition/rule-controller",
     "contracts",
     "kernel",
+    "persistence",
     "server",
     "systems/conversation",
     "systems/presence",
@@ -25,6 +26,7 @@ authors = ["Yue Ma"]
 [workspace.dependencies]
 mineworld-contracts = { path = "contracts" }
 mineworld-kernel = { path = "kernel" }
+mineworld-persistence = { path = "persistence" }
 mineworld-presence = { path = "systems/presence" }
 mineworld-rule-controller = { path = "cognition/rule-controller" }
 mineworld-conversation = { path = "systems/conversation" }
@@ -34,6 +36,10 @@ serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
 serde_json = "1.0.151"
 trybuild = "1.0.121"
+
+# Durable local world state (DEP-2): SQLite compiled into the binary by the `bundled` feature, so a
+# local server has no system dependency. Named only inside `persistence/src/sqlite.rs`.
+rusqlite = { version = "0.40.2", features = ["bundled"] }
 
 # YAML, for World Packs. `serde_yaml` is archived and every fork of its lineage sits on the
 # archived `unsafe-libyaml`; `serde-saphyr` is a maintained parser with a stable major version, no

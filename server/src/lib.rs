@@ -71,8 +71,10 @@ mod runtime;
 mod session;
 
 pub use host::{
-    HostConfig, HostError, HostedWorld, SeatRoster, Seated, Submitted, SubscriptionId, WorldHost,
+    HostConfig, HostError, HostedWorld, Perceived, SeatRoster, Seated, Submitted, SubscriptionId,
+    WorldHost,
 };
+pub use mineworld_persistence::WorldRevision;
 pub use parity::{RequestField, SemanticCore, differing_fields, semantic_core};
 pub use perception::{PerceivesNothing, Perception, PerceptionContext};
 pub use protocol::{
