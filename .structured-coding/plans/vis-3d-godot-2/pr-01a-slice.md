@@ -219,6 +219,55 @@ frontage open only at the door; `--threshold` four PASS (worst step ×1.38, 0.00
 looking out); `--perf` 10.9–17.6 ms; plain launch clean. The preview package is in
 `docs/HUMAN_REVIEW_QUEUE.md`.
 
+## 7a. C8 design — the slice as a MineWorld presentation (written before implementing)
+
+**Scope:** inside C8 as frozen in §5. No contract, kernel, system, server or World Pack change.
+
+```text
+module     clients/3d-spike/mineworld -> ../protocol/mineworld (symlink, ADOPTION.md §1). No copy,
+           no private transport, no second axis conversion: MineWorldSpace only.
+adapter    scripts/slice/slice_link.gd -- one Node. The ONLY slice file that names an action type.
+           const MOVE_ACTION := "arrive"   (presence pack on main @ a594164). S6 retires `arrive`
+           for `move`; that change is this one constant plus the payload builder beside it.
+launch     ./mineworld-slice --server=host:port [--seat=visitor]. Without --server the slice runs
+           offline and says so on the HUD; nothing else changes.
+world      worlds/social-cafe, served by `mineworld server` exactly as clients/protocol/run.sh does.
+```
+
+**Spatial binding — one constant, stated as a discrepancy.** The pack's café is a frame in
+millimetres with no authored geometry; its people stand at x 1.2–4.6 m, y 0.2–4.4 m, with the
+visitor "at the door" at (4.6, 0.2). The slice's room is 8.32 m × 10.32 m with its door 1.61 m
+from the west wall. Since a metre stays a metre, no single origin puts the pack's door on the
+slice's door while keeping the pack's people inside the room. The binding chosen is: **pack origin
+= the room's inner front-west corner, pack +x = east, pack +y = into the room**, so that every
+authored person stands inside the room. Recorded as a discrepancy between World Pack and
+presentation; resolving it means authoring the pack's café from the slice's geometry, or the
+reverse, which is a World Pack decision outside this PR.
+
+**Behaviour.**
+
+```text
+welcomed   HUD: seat, observer id (string), world instance
+observed   reconcile: every perceived Person with a location in the café gets a stand-in figure at
+           the mapped position, keyed by EntityId string (set_meta), removed when no longer listed.
+           The observer's own entity is the local player and is not drawn twice.
+move       the player inside the café volume: submit MOVE_ACTION with the mapped location and yaw
+           when the body has moved > 0.30 m or turned > 20 deg since the last submission, at most
+           every 0.4 s. Outside the café, nothing is submitted: social-cafe models no street place.
+           Prediction is local and the server is the authority (ADOPTION.md §4).
+talk       E: submit `talk` to the perceived person nearest the camera's forward ray (targeting is
+           presentation). Submitted whatever the affordance says; the HUD shows may()/the
+           unavailable reason as reported, never a client-side verdict (§3.3).
+answers    resolved/refused shown on the HUD by code; never branch on detail.
+```
+
+**Validation (C8):** `--slice-link` probe, headless, against a real `mineworld server
+worlds/social-cafe`. Welcome. Walk through the door on foot. At least one `arrive` resolved by the
+server. The next observation's `self_location` equals the submitted position, millimetre for
+millimetre. Alice and Bob reconciled as figures inside the room. One `talk` resolved or rejected
+by the server with its code printed. Transcript saved under `shots/slice/` (scratch, not
+committed).
+
 ## 8. Deviations and discoveries
 
 1. **Shared files edited.** `scripts/props.gd` (bough and bicycle orientation, a bug, which also
