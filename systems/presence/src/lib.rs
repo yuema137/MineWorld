@@ -59,7 +59,7 @@ pub mod system;
 
 pub use action::{Arrive, arrive_requirement};
 pub use component::Presence;
-pub use event::{Arrived, arrival};
+pub use event::{Arrived, admit, arrival};
 pub use interaction::{Offer, PerceptionProvider};
 pub use observe::observe;
 pub use system::{PresenceSystem, present_in, present_in_declaration};

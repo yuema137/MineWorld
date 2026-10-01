@@ -13,7 +13,7 @@ use mineworld_kernel::{
 use crate::action::{Arrive, arrive_requirement};
 use crate::codec;
 use crate::component::Presence;
-use crate::event::{Arrived, arrival};
+use crate::event::{Arrived, admit, arrival};
 use crate::interaction::{Offer, PerceptionProvider};
 
 /// Where people are, and what each of them perceives.
@@ -65,6 +65,19 @@ pub fn present_in_declaration() -> RelationTypeDeclaration {
 /// client by hand gets the detail that tells them why.
 const MALFORMED_PAYLOAD: RejectionCode = RejectionCode::from_static("malformed-payload");
 
+/// This pack refusing to let its state take a value, as the kernel's error for it.
+///
+/// Reached only when a fact is about to be built or reduced after the checks that should have
+/// refused it earlier passed — so it is a defect in whoever stated the fact, never an answer to a
+/// request, which is why it is a [`KernelError`] rather than a [`Rejection`] result.
+fn refused(reason: Rejection) -> KernelError {
+    KernelError::FactRefusedByOwner {
+        system: PresenceSystem::ID,
+        event_type: Arrived::EVENT_TYPE,
+        reason,
+    }
+}
+
 impl System for PresenceSystem {
     const VERSION: SystemVersion = SystemVersion::new(1);
 
@@ -101,17 +114,9 @@ impl System for PresenceSystem {
         if actor.entity_type() != EntityType::Person {
             return Err(Rejection::NoSupportedInteraction);
         }
-        if actor.lifecycle() == LifecycleState::Destroyed {
-            return Err(Rejection::PreconditionFailed);
-        }
-
-        let place = world
-            .entity(arrive.location().place().entity_id())
-            .ok_or(Rejection::PreconditionFailed)?;
-        if place.entity_type() != EntityType::Place {
-            return Err(Rejection::PreconditionFailed);
-        }
-        Ok(())
+        let person = PersonId::new(actor.id(), actor.entity_type())
+            .map_err(|_| Rejection::NoSupportedInteraction)?;
+        admit(world, person, arrive.location())
     }
 
     /// States the arrival as a fact, and writes nothing.
@@ -124,12 +129,11 @@ impl System for PresenceSystem {
         intent: &ActionIntent,
     ) -> Result<Vec<Emission>, KernelError> {
         let arrive: Arrive = codec::action_payload(intent.payload())?;
-        let person = {
-            let read = world.read();
-            let actor = read.require_entity(intent.actor())?;
-            PersonId::new(actor.id(), actor.entity_type())?
-        };
-        Ok(vec![arrival(person, arrive.location())])
+        let read = world.read();
+        let actor = read.require_entity(intent.actor())?;
+        let person = PersonId::new(actor.id(), actor.entity_type())?;
+        let fact = arrival(&read, person, arrive.location()).map_err(refused)?;
+        Ok(vec![fact])
     }
 
     /// Reduces an arrival into the state this pack owns: the position, and the edge that says which
@@ -138,6 +142,12 @@ impl System for PresenceSystem {
     /// The old edge is removed when the place changes. Leaving it would make a person present in two
     /// places at once — a stale edge is not a harmless leftover, it is a false fact about the world,
     /// and it is exactly what a reader of the relation graph would believe.
+    ///
+    /// **The owner still decides** (`DECISIONS.md` `ARC-26`). Another system may state an `arrived`
+    /// in this pack's vocabulary, so before writing anything the value is put to [`admit`] against
+    /// the world as it is now. A refusal writes nothing and is returned as
+    /// [`KernelError::FactRefusedByOwner`]: the stating system bypassed [`arrival`], which would have
+    /// refused the same value before it was recorded, and the world says so rather than taking it.
     fn react(
         &self,
         world: &mut WorldView<'_, Self>,
@@ -147,6 +157,7 @@ impl System for PresenceSystem {
             return Ok(Vec::new());
         }
         let arrived: Arrived = codec::event_payload(event.payload())?;
+        admit(&world.read(), arrived.person(), arrived.location()).map_err(refused)?;
         let person = arrived.person().entity_id();
         let arriving_at = arrived.location();
 

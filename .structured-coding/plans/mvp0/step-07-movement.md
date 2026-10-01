@@ -575,6 +575,38 @@ choose an invalid value for presence's state. **Depends on:** C2.
     be the check and not a broken path.
 - [ ] Review: presence is still the only writer of `Presence`; the reduction check reads only.
 
+**C2b as built.**
+- [x] Implementation. `systems/presence/src/event.rs`: `admit(&WorldRead, PersonId, Location) ->
+  Result<(), Rejection>` (person and place each exist, are of their type and are not `Destroyed`);
+  `arrival(&WorldRead, PersonId, Location) -> Result<Emission, Rejection>` calls it first. Both
+  re-exported from `lib.rs`. `system.rs`: `validate` keeps its first three answers (malformed payload,
+  missing actor → `PreconditionFailed`, non-person → `NoSupportedInteraction`) and then delegates to
+  `admit`; `resolve` uses the checked `arrival`; `react` asks `admit` before writing and maps a
+  refusal through a private `refused()` to `KernelError::FactRefusedByOwner { presence, arrived, .. }`.
+  `worldpack/src/catalog.rs` `located(&WorldRead, ..) -> Result<Emission, KernelError>` (same error
+  value, surfacing as `PackError::Composition`); `load.rs` `initial_facts` takes `world.read()` of the
+  assembled world. **Bounded deviation:** `admit` also refuses a *destroyed place*, which the old
+  `validate` did not check — §10.1 Q1.2 names "a dead entity" without restricting it to the person,
+  and a presence in a destroyed place is the same invalid state. No existing test relied on it.
+  `Arrived::new` stays public (the payload type is the vocabulary); the *fact* has no unchecked public
+  constructor in presence, which is what the reduction check backs up.
+- [x] Validation. `systems/presence/tests/presence.rs`, 2 new tests (13 total): the constructor refuses
+  a person entity named as a place, an unallocated place id and a destroyed person (each
+  `PreconditionFailed`) and builds the living case; a test-only `Mover` (depends on presence, states
+  `arrived`) is reduced when it states a valid arrival raw and via `arrival()` (positive controls),
+  and stating one raw for a destroyed person returns `Err(FactRefusedByOwner { presence, arrived,
+  PreconditionFailed })`, bob has no `Presence`, and the snapshot's component rows and edges are
+  byte-identical (the whole snapshot is not compared: recording advances the event counter before
+  reduction refuses, which is the kernel's existing behaviour for any reduction error).
+  **Mutation obtained:** with the `admit` line in `react` commented out, the refusal test FAILS
+  (`dispatch returned Ok(Accepted { events: [EventId(3)] })`); restored, PASS. Workspace: rc 0, 51
+  harness results, **315 passed, 0 failed**; `kill_and_resume` cafe PASS 0.3 s, clock PASS 0.4 s;
+  clippy `-D warnings` clean; fmt clean.
+- [x] Review: `react` reads through `world.read()` before any write and returns before the first
+  write on refusal; presence remains the only writer of `Presence`/`present-in`. The kernel learns
+  nothing new (the error variant landed in C2). Genesis goes through the same check, so an authored
+  placement and a decided one cannot differ in what presence admits.
+
 ## C3 — `mineworld-movement`: the system, its facts, and CP-1/CP-2/CP-3 in-process and persisted
 
 **Goal.** Movement exists and is proven against the floor, while `arrive` still exists so nothing

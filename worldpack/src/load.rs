@@ -35,7 +35,7 @@ use mineworld_contracts::{
     EntityId, EntityKey, EntityType, EventEnvelope, LocalPosition, Location, Metadata,
     Millidegrees, Orientation, PersonId, PlaceId, WorldTime,
 };
-use mineworld_kernel::{Emission, World};
+use mineworld_kernel::{Emission, World, WorldRead};
 use mineworld_presence::PerceptionProvider;
 
 use crate::catalog::{self, Capability};
@@ -176,7 +176,7 @@ impl WorldPack {
             ids.insert(key.clone(), id);
         }
 
-        let facts = self.initial_facts(&ids)?;
+        let facts = self.initial_facts(&world.read(), &ids)?;
         Ok(AssembledWorld {
             world,
             ids,
@@ -222,6 +222,7 @@ impl WorldPack {
     /// `location` is presence's, and [`crate::catalog`] is where that is said.
     fn initial_facts(
         &self,
+        world: &WorldRead<'_>,
         ids: &BTreeMap<EntityKey, EntityId>,
     ) -> Result<Vec<Emission>, PackError> {
         let mut facts = Vec::new();
@@ -233,9 +234,10 @@ impl WorldPack {
             let person_id = PersonId::new(ids[key], EntityType::Person)
                 .map_err(|error| PackError::value(path.clone(), error))?;
             facts.push(catalog::located(
+                world,
                 person_id,
                 self.location(key, authored, ids, &path)?,
-            ));
+            )?);
         }
         Ok(facts)
     }

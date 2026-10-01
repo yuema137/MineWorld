@@ -17,10 +17,10 @@
 //! items, an employment pack seeding jobs — is when the trait gets defined, and it will have two real
 //! implementations to be shaped by.
 
-use mineworld_contracts::{Location, PersonId, SystemId};
+use mineworld_contracts::{Event, Location, PersonId, SystemId};
 use mineworld_conversation::ConversationSystem;
-use mineworld_kernel::{Emission, KernelError, SystemIdentity, World};
-use mineworld_presence::{PerceptionProvider, PresenceSystem, arrival};
+use mineworld_kernel::{Emission, KernelError, SystemIdentity, World, WorldRead};
+use mineworld_presence::{Arrived, PerceptionProvider, PresenceSystem, arrival};
 
 /// One System Pack this build can install.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -90,7 +90,22 @@ pub const LOCATION_OWNER: Capability = Capability::Presence;
 /// The genesis fact an authored location becomes.
 ///
 /// The payload is built by the pack that declared the event type, not here: this function only says
-/// *which* fact a location is. See [`mineworld_presence::arrival`].
-pub fn located(person: PersonId, location: Location) -> Emission {
-    arrival(person, location)
+/// *which* fact a location is. See [`mineworld_presence::arrival`]. It is built against the
+/// assembled world, so an authored placement passes the same check the owner applies to every other
+/// arrival (`DECISIONS.md` `ARC-26`: the owner still decides).
+///
+/// # Errors
+///
+/// [`KernelError::FactRefusedByOwner`] when presence refuses the value. `read` has already refused
+/// a location naming a place the pack does not declare, so reaching this is the two disagreeing.
+pub fn located(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    location: Location,
+) -> Result<Emission, KernelError> {
+    arrival(world, person, location).map_err(|reason| KernelError::FactRefusedByOwner {
+        system: PresenceSystem::ID,
+        event_type: Arrived::EVENT_TYPE,
+        reason,
+    })
 }

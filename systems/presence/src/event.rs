@@ -1,9 +1,10 @@
 //! The fact this pack records: somebody is now somewhere.
 
 use mineworld_contracts::{
-    Event, EventSchemaVersion, EventTypeId, Location, PersonId, SystemId, Visibility,
+    EntityId, EntityType, Event, EventSchemaVersion, EventTypeId, LifecycleState, Location,
+    PersonId, Rejection, SystemId, Visibility,
 };
-use mineworld_kernel::{Emission, SystemIdentity};
+use mineworld_kernel::{Emission, SystemIdentity, WorldRead};
 use serde::{Deserialize, Serialize};
 
 use crate::codec;
@@ -73,13 +74,62 @@ impl Arrived {
 /// silently make a loaded world unreadable.
 ///
 /// Used by [`PresenceSystem::resolve`](crate::PresenceSystem) too, so a `arrive` request and a
-/// genesis arrival cannot describe the same arrival differently.
-pub fn arrival(person: PersonId, location: Location) -> Emission {
-    Emission::new::<Arrived>(
+/// genesis arrival cannot describe the same arrival differently — and by any system that decides
+/// where somebody goes and states it in this pack's vocabulary (`DECISIONS.md` `ARC-26`).
+///
+/// **Checked, because this pack still decides what its state may hold.** Another system may decide
+/// that a person *goes* somewhere; only this pack decides whether [`Presence`](crate::Presence) may
+/// *say* so. The constructor therefore asks [`admit`] against the world as it is and refuses before
+/// anything is built — there is no unchecked public way to make this fact, so a stating system that
+/// follows the contract cannot record one presence would refuse. [`PresenceSystem`] re-asks at
+/// reduction, for the system that did not follow it.
+///
+/// # Errors
+///
+/// [`Rejection::PreconditionFailed`] when [`admit`] refuses.
+pub fn arrival(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    location: Location,
+) -> Result<Emission, Rejection> {
+    admit(world, person, location)?;
+    Ok(Emission::new::<Arrived>(
         codec::encode(&Arrived::new(person, location)),
         Visibility::Place(location.place()),
     )
     .about(vec![person.entity_id()])
     .with_participants(vec![person.entity_id()])
-    .at_place(location.place())
+    .at_place(location.place()))
+}
+
+/// Whether [`Presence`](crate::Presence) may take this value: the person is in this world and not
+/// destroyed, and the location's place is a place in this world and not destroyed.
+///
+/// The whole of what this pack refuses about its own state, in one function, asked at three
+/// moments: by [`arrival`] before a fact is built, by
+/// [`PresenceSystem::validate`](crate::PresenceSystem) before a request is accepted, and by
+/// [`PresenceSystem::react`](crate::PresenceSystem) before a fact is reduced. One function, so the
+/// three cannot come to disagree. It reads only; a refusal writes nothing.
+///
+/// Nothing here is about distance or reachability. Whether somebody may *go* somewhere is the
+/// deciding system's question (`ARC-26`); this answers only whether the place they end up in is one
+/// a presence can name.
+///
+/// # Errors
+///
+/// [`Rejection::PreconditionFailed`] when the person or the place is missing, destroyed, or not of
+/// its entity type.
+pub fn admit(world: &WorldRead<'_>, person: PersonId, location: Location) -> Result<(), Rejection> {
+    let living = |entity: EntityId, entity_type: EntityType| {
+        world.entity(entity).is_some_and(|record| {
+            record.entity_type() == entity_type && record.lifecycle() != LifecycleState::Destroyed
+        })
+    };
+    if !living(person.entity_id(), EntityType::Person) {
+        return Err(Rejection::PreconditionFailed);
+    }
+    if !living(location.place().entity_id(), EntityType::Place) {
+        return Err(Rejection::PreconditionFailed);
+    }
+    Ok(())
 }
