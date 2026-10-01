@@ -15,6 +15,13 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
+# The process-kill checkpoint (IC-1) is its own program: the same binary is the parent that kills and
+# the child that is killed, selected by an environment variable, so it cannot use the test harness —
+# a harness would also count the child entry point as a test that "passed" by doing nothing.
+[[test]]
+name = "kill_and_resume"
+harness = false
+
 [dev-dependencies]
 # The process-kill checkpoint loads the repository's own World Pack (step-06 C4).
 mineworld-worldpack = { workspace = true }

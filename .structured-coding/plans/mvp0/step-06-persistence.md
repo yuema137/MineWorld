@@ -534,6 +534,58 @@ Each commit tracks implementation, validation and review separately. Evidence go
 - [ ] Review: the kill is a real `SIGKILL` of a real process, not a dropped value; nothing in the child
   flushes or checkpoints on a signal; the comparison is between files written by different processes.
 
+**C4 as built.**
+- [x] Implementation: `worldpack/src/load.rs` — `WorldPack::compose() -> ComposedWorld` and
+  `WorldPack::assemble() -> AssembledWorld { world, ids, facts, providers }`; `load(at)` is now
+  `assemble` + `genesis`, unchanged for its callers. Bounded deviation: `assemble` takes no instant
+  (the genesis facts do not depend on one; the caller states it at genesis).
+  `persistence/tests/kill_and_resume.rs` is a `harness = false` program — the same binary is the
+  parent and the killed child, and a harness would count the child entry point as a passing test.
+  Scenario **cafe**: `worlds/social-cafe` read and assembled by the pack loader, 300 requests (an
+  `arrive` every third, otherwise a `talk`, many refused for distance), `Durability::PowerLoss`, the
+  survivor resuming after the highest journaled `ActionId`. Scenario **clock**: a test-local
+  `routine` (process owner: 1–8 h activities, sleep refuses interruption, a `days` component) and
+  `pager` (defers pages 10–30 min after every third ended activity; a page requests interruption), six
+  people, an advance every simulated hour for 30 days, `Durability::ProcessCrash`.
+- **F-12 — a checkpoint after an idle advance disagreed with history (found by IC-1).**
+  *Previous assumption:* `checkpoint()` snapshots "the current revision". *Evidence:* the first clock
+  run's survivor failed `verify` with `SnapshotDisagreesWithHistory { 634 }`: the script's final
+  advance fired nothing, so it was not journaled (`ARC-25`), but it moved the clock, and the end-of-run
+  checkpoint recorded an instant no re-execution of revision 634 produces. The byte comparison
+  *between files* passed, because the control made the same mistake — only verification from genesis
+  saw it. *Corrected understanding:* the state at a revision has that revision's instant.
+  *Implementation:* `PersistentWorld` records the world's instant at each commit; `checkpoint()` writes
+  only when the clock has not moved since, and returns whether it wrote. *Validation:* the journaling
+  test now asserts a checkpoint is written at the head's instant, is not written after an idle advance,
+  and that the save then verifies; IC-1 passes.
+- [x] Validation — `cargo test -p mineworld-persistence --test kill_and_resume`, PASS, ~0.7 s total:
+
+```text
+[cafe]  control: 301 revisions, 197 facts (floor 100), 11 snapshots
+        early   kill at 60  → 60 committed; survivor restored snapshot 32,  re-executed 28 (17 facts)
+        middle  kill at 153 → 153 committed; survivor restored snapshot 128, re-executed 25 (15 facts)
+        late    kill at 247 → 247 committed; survivor restored snapshot 224, re-executed 23 (16 facts)
+[clock] control: 634 revisions, 1695 facts (floor 540), 20 snapshots
+        early   kill at 126 → 126 committed; survivor restored snapshot 96,  re-executed 30 (84 facts)
+        middle  kill at 320 → 320 committed; survivor restored snapshot 320, re-executed 0
+        late    kill at 514 → 514 committed; survivor restored snapshot 512, re-executed 2 (3 facts)
+```
+
+  Per kill point, asserted: the victim's exit status is signal 9; it never printed `done`; the file's
+  head is ≥ the kill point and < the control's; the survivor reports the head it resumed from, equal to
+  the file's, and `replayed == head − snapshot`; journal, facts and snapshots tables of the survivor's
+  file equal the control's **byte for byte**; `verify` of the survivor's file re-executes all
+  revisions. At least one kill point per scenario re-executes a non-empty tail. Fact floors come from
+  the scripts (every third cafe request is an always-accepted `arrive`; an activity lasts ≤ 8 h).
+  `worldpack` tests (27) pass unchanged.
+  *Limitation recorded honestly:* in every run the victim's last printed revision equalled its
+  committed head — the kill arrived before its next commit finished. Whether a kill ever landed
+  *inside* a SQLite transaction is not observed; the atomicity claim for that case rests on SQLite's
+  WAL commit, not on this test.
+- [x] Review: the kill is `Child::kill` (SIGKILL) of a separately spawned process; nothing in the
+  child handles signals or flushes on exit; the comparison is between files written by different
+  processes; a survivor that ignored the file and created a new save would be refused `SaveExists`.
+
 ## C5 — Server and CLI: `--save`, the revision on the wire, a real restart
 **Goal:** `AC-6` through the command an operator types, and `AC-15`'s fourth line. **Depends on:** C4.
 - [ ] Implementation:

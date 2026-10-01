@@ -54,6 +54,9 @@ pub struct PersistentWorld {
     /// Set when a commit failed: the world in memory is then ahead of its save, and refuses
     /// every further input.
     ahead_of_save: Option<(WorldRevision, String)>,
+    /// The world's instant when the head revision was committed: the instant the state at the head
+    /// has, which a checkpoint must match.
+    committed_at: WorldTime,
 }
 
 impl PersistentWorld {
@@ -93,6 +96,7 @@ impl PersistentWorld {
         )?;
         Ok((
             Self {
+                committed_at: world.now(),
                 world,
                 backend,
                 revision: WorldRevision::GENESIS,
@@ -128,6 +132,7 @@ impl PersistentWorld {
         let instance = manifest.instance_number()?;
         Ok((
             Self {
+                committed_at: composed.now(),
                 world: composed,
                 backend,
                 revision: head,
@@ -218,11 +223,20 @@ impl PersistentWorld {
     }
 
     /// Writes a snapshot of the current revision, unless one is already stored there — what a clean
-    /// shutdown does, so that the next start re-executes nothing.
-    pub fn checkpoint(&mut self) -> Result<(), PersistError> {
+    /// shutdown does, so that the next start re-executes nothing. Returns whether it wrote.
+    ///
+    /// Writes nothing if the clock has moved since the last revision. Idle advances are not journaled
+    /// (`ARC-25`), so the state *at* the head revision has the head's instant; a snapshot taken after
+    /// the clock idled forward would hold an instant no re-execution of the history produces, and
+    /// verification would rightly refuse it (step-06 §9, F-12).
+    pub fn checkpoint(&mut self) -> Result<bool, PersistError> {
         self.refuse_if_ahead()?;
+        if self.world.now() != self.committed_at {
+            return Ok(false);
+        }
         let snapshot = encode(&self.world.snapshot()?)?;
-        self.backend.checkpoint(self.revision, &snapshot)
+        self.backend.checkpoint(self.revision, &snapshot)?;
+        Ok(true)
     }
 
     fn refuse_if_ahead(&self) -> Result<(), PersistError> {
@@ -255,6 +269,7 @@ impl PersistentWorld {
         match committed {
             Ok(()) => {
                 self.revision = revision;
+                self.committed_at = self.world.now();
                 Ok(())
             }
             Err(error) => {

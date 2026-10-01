@@ -282,7 +282,7 @@ fn every_request_is_a_revision_and_an_idle_advance_is_not() {
     let world_now = persisted.world().now();
     drop(persisted);
 
-    let (resumed, how) = PersistentWorld::resume(open(&scratch), composed()).expect("resumes");
+    let (mut resumed, how) = PersistentWorld::resume(open(&scratch), composed()).expect("resumes");
     assert_eq!(
         (how.snapshot.raw(), how.replayed),
         (1, 4),
@@ -295,6 +295,17 @@ fn every_request_is_a_revision_and_an_idle_advance_is_not() {
     );
     assert_eq!(world_now, t(500));
     verify(open(&scratch).as_ref(), composed()).expect("and the history verifies");
+
+    assert!(
+        resumed.checkpoint().expect("checkpoints"),
+        "at the head's instant a checkpoint is written"
+    );
+    let _ = resumed.advance_to(t(600)).expect("an idle advance");
+    assert!(
+        !resumed.checkpoint().expect("answers"),
+        "after an idle advance it is not: the clock moved past every state the history produces (F-12)"
+    );
+    verify(open(&scratch).as_ref(), composed()).expect("and the checkpoint agrees with history");
 }
 
 #[test]
