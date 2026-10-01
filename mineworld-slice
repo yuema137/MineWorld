@@ -43,7 +43,7 @@ args=()
 headless=0
 for a in "$@"; do
   case "$a" in
-    --shots|--drive|--measure|--threshold|--perf) args+=("--slice${a}") ;;
+    --shots|--drive|--measure|--threshold|--perf) args+=("--slice-${a#--}") ;;
     --gi=*)                                args+=("$a") ;;
     --res=*)                               res="${a#--res=}" ;;
     *)                                     args+=("$a") ;;
