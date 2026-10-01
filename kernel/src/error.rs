@@ -17,6 +17,8 @@ use mineworld_contracts::{
 
 use thiserror::Error;
 
+use crate::schedule::Sequence;
+
 /// Every way a kernel operation can refuse.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum KernelError {
@@ -372,6 +374,97 @@ pub enum KernelError {
         system: SystemId,
         /// The kind of fact that was offered.
         event_type: EventTypeId,
+    },
+
+    /// A world was asked to move its clock to an instant before the one it is at. A fact recorded
+    /// after a later one would be a history that runs backwards.
+    #[error("this world is at {now}; it cannot move back to {at}")]
+    ClockWouldMoveBackwards {
+        /// The instant the world is at.
+        now: WorldTime,
+        /// The earlier instant it was asked to move to.
+        at: WorldTime,
+    },
+
+    /// A request was dispatched at an instant at or after which scheduled work is still due.
+    ///
+    /// Refused rather than run, because the request would overtake work that was due first and the
+    /// `(WorldTime, Sequence)` order replay depends on would be lost. The caller advances the world
+    /// to the request's instant first ([`World::advance_to`](crate::World::advance_to)).
+    #[error("work scheduled for {due} is still due; advance the world before dispatching at {at}")]
+    ScheduledWorkDue {
+        /// The earliest instant something is still scheduled for.
+        due: WorldTime,
+        /// The instant the request was to be dispatched at.
+        at: WorldTime,
+    },
+
+    /// The schedule assigned every available sequence number. Reported rather than wrapped: a
+    /// reused sequence would leave two entries with no defined order between them.
+    #[error("this world's schedule has assigned every available sequence number")]
+    ScheduleSequenceExhausted,
+
+    /// A saved schedule was restored into a world that has already run. Restoring is assembly:
+    /// it states where a world's time stands, and a world that has acted has a time of its own.
+    #[error("this world has already run, so a saved schedule cannot replace its time")]
+    RestoreAfterTheWorldHasRun,
+
+    /// A saved schedule held an entry due before the instant it was saved at — work a world would
+    /// already have fired.
+    #[error("persisted schedule holds an entry due at {at}, before its own instant {now}")]
+    PersistedEntryBeforeNow {
+        /// When the entry was due.
+        at: WorldTime,
+        /// The instant the schedule was saved at.
+        now: WorldTime,
+    },
+
+    /// A saved schedule held a sequence number its own counter had not yet assigned, or the
+    /// never-assigned zero.
+    #[error(
+        "persisted schedule holds sequence {sequence}, which its counter (next {next}) never assigned"
+    )]
+    PersistedSequenceOutsideCounter {
+        /// The sequence number found.
+        sequence: Sequence,
+        /// The next sequence number the saved schedule would assign.
+        next: u64,
+    },
+
+    /// A saved schedule held one sequence number on two entries.
+    #[error("persisted schedule holds sequence {sequence} twice")]
+    PersistedSequenceRepeated {
+        /// The repeated sequence number.
+        sequence: Sequence,
+    },
+
+    /// A saved schedule's counter is below the first sequence number a schedule assigns.
+    #[error("persisted schedule would next assign {next}, below the first sequence {first}")]
+    PersistedSequenceCounterTooLow {
+        /// The next sequence number the saved schedule would assign.
+        next: u64,
+        /// The first sequence number a schedule assigns.
+        first: u64,
+    },
+
+    /// A saved world's event counter is below the first event identity, so restoring it would hand
+    /// out identity zero.
+    #[error("persisted event counter would next allocate {next}, below the first identity {first}")]
+    PersistedEventCounterTooLow {
+        /// The next event identity the saved world would allocate.
+        next: u64,
+        /// The first event identity a world allocates.
+        first: u64,
+    },
+
+    /// A saved schedule holds work for a system this world has not installed. Nothing could fire it
+    /// as that system, so the fact it describes would never happen.
+    #[error(
+        "persisted schedule holds work for system '{system}', which this world has not installed"
+    )]
+    PersistedEntryNamesUninstalledSystem {
+        /// The system the entry belongs to.
+        system: SystemId,
     },
 
     /// A persisted graph filed an edge type's declaration under a different name.

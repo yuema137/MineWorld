@@ -41,7 +41,8 @@ use crate::components::ComponentStore;
 use crate::entities::EntityRegistry;
 use crate::error::KernelError;
 use crate::relations::RelationStore;
-use crate::system::{Deferral, Emission};
+use crate::schedule::Scheduled;
+use crate::system::{Cause, Deferral, Emission};
 
 /// Everything a system may read of a world, and nothing more.
 ///
@@ -154,7 +155,11 @@ pub(crate) struct WorldParts<'a> {
     components: &'a mut ComponentStore,
     relations: &'a mut RelationStore,
     at: WorldTime,
-    deferred: &'a mut Vec<Deferral>,
+    /// Why the system being called is running. Supplied by the kernel, never by the system.
+    cause: &'a Cause,
+    /// What this call asks to happen later, in the order it asked. The world files it in its
+    /// schedule once the call returns, so sequence numbers follow the order of asking.
+    pending: &'a mut Vec<(WorldTime, Scheduled)>,
 }
 
 impl<'a> WorldParts<'a> {
@@ -163,14 +168,16 @@ impl<'a> WorldParts<'a> {
         components: &'a mut ComponentStore,
         relations: &'a mut RelationStore,
         at: WorldTime,
-        deferred: &'a mut Vec<Deferral>,
+        cause: &'a Cause,
+        pending: &'a mut Vec<(WorldTime, Scheduled)>,
     ) -> Self {
         Self {
             entities,
             components,
             relations,
             at,
-            deferred,
+            cause,
+            pending,
         }
     }
 }
@@ -266,11 +273,13 @@ impl<'a, S: SystemIdentity> WorldView<'a, S> {
         self.parts.relations.remove(self.token, relation)
     }
 
-    /// Asks for a fact to happen at a strictly later instant, for the scheduler to queue.
+    /// Asks for a fact to happen at a strictly later instant.
     ///
-    /// The kernel does not queue it: S4 owns the queue, and dispatch hands deferrals back to
-    /// whoever called it (`BD-7`). What is checked here is that the instant really is later, so
-    /// that "defer" cannot quietly mean "now" and skip the ordering `D-6` depends on.
+    /// The world files it in its schedule when this call returns, and records it at `at` as this
+    /// system's fact, caused by whatever this call is handling — the request, the fact or the
+    /// process boundary it was handed (step-04 §8 F-2). What is checked here is that the instant
+    /// really is later, so that "defer" cannot quietly mean "now" and skip the ordering `D-6`
+    /// depends on.
     pub fn defer(&mut self, at: WorldTime, emission: Emission) -> Result<(), KernelError> {
         if at <= self.parts.at {
             return Err(KernelError::DeferralNotInTheFuture {
@@ -278,7 +287,8 @@ impl<'a, S: SystemIdentity> WorldView<'a, S> {
                 now: self.parts.at,
             });
         }
-        self.parts.deferred.push(Deferral::new(at, emission));
+        let deferral = Deferral::new(at, emission, self.writer(), self.parts.cause);
+        self.parts.pending.push((at, Scheduled::Fact(deferral)));
         Ok(())
     }
 }

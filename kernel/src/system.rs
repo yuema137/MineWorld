@@ -42,7 +42,7 @@
 mod tests;
 
 use mineworld_contracts::{
-    Action, ActionIntent, ActionTypeId, Causation, Component, ComponentDeclaration,
+    Action, ActionId, ActionIntent, ActionTypeId, Causation, Component, ComponentDeclaration,
     ComponentTypeId, EntityId, Event, EventEnvelope, EventId, EventRecord, EventTypeId, PlaceId,
     Provenance, Rejection, SystemId, Visibility, WorldTime,
 };
@@ -245,7 +245,12 @@ impl SystemDeclaration {
 /// The payload is bytes the emitting system encoded. The kernel never interprets them and never
 /// chooses their encoding: a payload's format is a contract between the system that declares the
 /// event type and whoever reads it back, exactly as `ComponentRecord`'s is.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// It serializes because a deferred emission waits in the schedule, and the schedule is saved with
+/// a world (S5). Deserializing one grants nothing a system could not already write: the fact is
+/// still recorded only as the system that deferred it, checked against that system's declaration
+/// when it fires.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Emission {
     payload: EventRecord,
     /// The system whose vocabulary this fact belongs to, read off
@@ -309,6 +314,11 @@ impl Emission {
         self.payload.event_type()
     }
 
+    /// The encoded fact, labelled with its event type.
+    pub const fn record(&self) -> &EventRecord {
+        &self.payload
+    }
+
     /// The system whose vocabulary this kind of fact belongs to.
     pub const fn owner(&self) -> &SystemId {
         &self.owner
@@ -344,23 +354,36 @@ impl Emission {
     }
 }
 
-/// A fact a system wants to happen *later*, handed back for the scheduler to queue.
+/// A fact a system wants to happen *later*, queued in the world's schedule until its instant.
 ///
-/// The seam `D-6` requires and `BD-7` keeps narrow. Reaction is synchronous within the logical
+/// The seam `D-6` requires and `BD-7` kept narrow. Reaction is synchronous within the logical
 /// instant — a wage paid in the same instant it falls due — and anything that must happen later is
-/// queued at a strictly later `(WorldTime, sequence)`. This kernel does not own that queue: S4
-/// does, and dispatch therefore returns deferrals unrecorded and unreduced rather than inventing
-/// a scheduler here. What the kernel does enforce is that the instant is genuinely later, so a
-/// system cannot use deferral to mean *now*.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// queued at a strictly later `(WorldTime, sequence)`. The kernel enforces that the instant is
+/// genuinely later, so a system cannot use deferral to mean *now*.
+///
+/// A deferral also carries **who deferred it and why**, captured when it was asked for: the system
+/// writing at the time, the causation of the call it was made in, and the controller decision that
+/// chain started from. When the schedule fires it, those become the fact's emitter, `caused_by` and
+/// provenance — so a fact that happens later is still traceable to what led to it (`INV-15`,
+/// `AC-9`), and no caller supplies that link (step-04 §8 F-2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Deferral {
     at: WorldTime,
     emission: Emission,
+    emitter: SystemId,
+    caused_by: Causation,
+    decision: Option<ActionId>,
 }
 
 impl Deferral {
-    pub(crate) const fn new(at: WorldTime, emission: Emission) -> Self {
-        Self { at, emission }
+    pub(crate) fn new(at: WorldTime, emission: Emission, emitter: SystemId, cause: &Cause) -> Self {
+        Self {
+            at,
+            emission,
+            emitter,
+            caused_by: cause.caused_by.clone(),
+            decision: cause.decision,
+        }
     }
 
     /// When the emitting system asked for it.
@@ -372,6 +395,45 @@ impl Deferral {
     pub const fn emission(&self) -> &Emission {
         &self.emission
     }
+
+    /// The system that deferred it, and that the fact will be recorded as.
+    pub const fn emitter(&self) -> &SystemId {
+        &self.emitter
+    }
+
+    /// What the deferring system was handling when it asked: the fact's `caused_by` once it fires.
+    pub const fn caused_by(&self) -> &Causation {
+        &self.caused_by
+    }
+
+    /// The controller decision the chain began from, if a request began it.
+    pub const fn controller_decision(&self) -> Option<ActionId> {
+        self.decision
+    }
+
+    /// Splits into what recording the fact needs.
+    pub(crate) fn into_parts(self) -> (Emission, SystemId, Cause) {
+        (
+            self.emission,
+            self.emitter,
+            Cause {
+                caused_by: self.caused_by,
+                decision: self.decision,
+            },
+        )
+    }
+}
+
+/// Why the system currently running is running: the causation the kernel will state for anything it
+/// emits, and the controller decision the chain started from.
+///
+/// Crate-private and kernel-supplied. A system never states its own causation; this travels with
+/// the parts of the world it is handed, so that what it defers, and what another system decides
+/// because it asked, can be attributed to the same cause its own facts are.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Cause {
+    pub(crate) caused_by: Causation,
+    pub(crate) decision: Option<ActionId>,
 }
 
 /// An installable system: an enabled process that owns some state and answers for some actions.

@@ -56,12 +56,15 @@
 #![warn(missing_docs)]
 
 pub mod access;
+pub mod advance;
+pub mod clock;
 pub mod components;
 pub mod dispatch;
 pub mod entities;
 pub mod error;
 pub mod registry;
 pub mod relations;
+pub mod schedule;
 pub mod system;
 pub mod view;
 pub mod world;
@@ -70,12 +73,15 @@ pub mod world;
 pub mod macro_support;
 
 pub use access::{OwnedBy, SystemIdentity, WriteAccess, WriteToken};
+pub use advance::Advanced;
+pub use clock::WorldClock;
 pub use components::ComponentStore;
 pub use dispatch::{CASCADE_DEPTH_LIMIT, Dispatched};
 pub use entities::{EntityRegistry, EntityRegistrySnapshot};
 pub use error::KernelError;
 pub use registry::SystemRegistry;
 pub use relations::{RelationStore, RelationStoreSnapshot};
+pub use schedule::{ScheduleSnapshot, Scheduled, ScheduledEntry, Sequence};
 pub use system::{Deferral, Emission, System, SystemDeclaration, SystemVersion};
 pub use view::{Declarations, WorldRead, WorldView};
 pub use world::World;

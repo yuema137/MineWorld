@@ -17,15 +17,17 @@ use mineworld_contracts::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    Deferral, DynSystem, Emission, InstalledSystem, System, SystemDeclaration, SystemVersion,
+    Cause, DynSystem, Emission, InstalledSystem, System, SystemDeclaration, SystemVersion,
 };
 use crate::access::{SystemIdentity, WriteAccess, WriteToken};
 use crate::components::ComponentStore;
 use crate::entities::EntityRegistry;
 use crate::error::KernelError;
 use crate::relations::RelationStore;
+use crate::schedule::Scheduled;
 use crate::view::WorldRead;
 use crate::view::{Declarations, WorldParts, WorldView};
+use mineworld_contracts::{Causation, EventId};
 
 /// A system that owns state, provides an action and reacts to its own fact.
 struct Alpha;
@@ -163,7 +165,10 @@ struct Bench {
     entities: EntityRegistry,
     components: ComponentStore,
     relations: RelationStore,
-    deferred: Vec<Deferral>,
+    /// The cause every call made through this bench is running under: reacting to fact 9, in a
+    /// chain that began with request 3.
+    cause: Cause,
+    pending: Vec<(WorldTime, Scheduled)>,
 }
 
 impl Bench {
@@ -182,7 +187,11 @@ impl Bench {
                 entities,
                 components: ComponentStore::new(),
                 relations: RelationStore::new(),
-                deferred: Vec::new(),
+                cause: Cause {
+                    caused_by: Causation::Event(EventId::from_raw(9)),
+                    decision: Some(ActionId::from_raw(3)),
+                },
+                pending: Vec::new(),
             },
             token,
         )
@@ -198,7 +207,8 @@ impl Bench {
             &mut self.components,
             &mut self.relations,
             at,
-            &mut self.deferred,
+            &self.cause,
+            &mut self.pending,
         )
     }
 }
@@ -420,12 +430,20 @@ fn a_deferral_must_name_a_later_instant() {
             .expect("a later instant is queued");
     }
 
-    assert_eq!(bench.deferred.len(), 1);
-    assert_eq!(bench.deferred[0].at(), WorldTime::from_seconds(41));
+    assert_eq!(bench.pending.len(), 1);
+    let (at, Scheduled::Fact(deferral)) = &bench.pending[0];
+    assert_eq!(*at, WorldTime::from_seconds(41));
+    assert_eq!(deferral.at(), WorldTime::from_seconds(41));
+    assert_eq!(*deferral.emission().event_type(), Ticked::EVENT_TYPE);
+
+    // The deferral carries who asked and why, taken from the kernel's side of the call rather than
+    // from anything the system said: the writer's token and the cause the bench supplied.
+    assert_eq!(*deferral.emitter(), Alpha::ID);
     assert_eq!(
-        *bench.deferred[0].emission().event_type(),
-        Ticked::EVENT_TYPE
+        *deferral.caused_by(),
+        Causation::Event(EventId::from_raw(9))
     );
+    assert_eq!(deferral.controller_decision(), Some(ActionId::from_raw(3)));
 }
 
 /// A system may only declare tables its own declaration lists. Otherwise it could hold state that

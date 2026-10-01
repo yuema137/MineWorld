@@ -112,17 +112,21 @@ recorded in §11 as each item completes.
 - [x] Review: every finding classified bounded or material with source evidence; no material finding (§8.3).
 
 ## C1 — Clock and queue
-- [ ] Implementation: `WorldClock` over S1's `WorldTime`; the `(time, sequence)` heap; `schedule_at`, `schedule_after`, `next_instant`, `drain_instant`.
-  - [ ] `kernel/src/clock.rs`: `WorldClock { now }` — `now()`, `advance_to(t)` refusing to move backwards (`KernelError::ClockWouldMoveBackwards`). Serializable.
-  - [ ] `kernel/src/schedule.rs`: `Schedule` — ordered map keyed `(WorldTime, Sequence)` (§9 ID-2), `insert(at, item) → Sequence`, `next_instant()`, `pop_due(at)` / `drain_instant()`, `len()`; `Scheduled` payload enum (`Fact(Deferral)`, `Wake(ProcessId)`); `ScheduleSnapshot` with canonical order and validated restore.
-  - [ ] `kernel/src/system.rs`: `Deferral` records its emitter, causation and controller decision at the moment of deferral (§8 F-2); `Emission`/`Deferral` serialize.
-  - [ ] `kernel/src/world.rs` + `dispatch.rs`: `World` owns clock and schedule; `World::now`, `next_instant`, `scheduled`; `dispatch` refuses an instant earlier than now and an instant at or after which scheduled work is still due, then queues its own deferrals; `genesis` sets the clock; `has_dispatched` becomes "has run".
-- [ ] Validation: items at the same time drain in insertion order; advancement skips empty spans; scheduling into the past is a named error rather than silent reordering; the queue serializes and restores with pending work intact; a 10,000-item queue drains in the right order (determinism at scale, not performance theatre).
-- [ ] Review: no calendar concept anywhere; no wall-clock time; nothing non-deterministic in ordering.
+- [x] Implementation: `WorldClock` over S1's `WorldTime`; the `(time, sequence)` heap; `schedule_at`, `schedule_after`, `next_instant`, `drain_instant`.
+  - [x] `kernel/src/clock.rs`: `WorldClock { now, started }` — `now()`, `has_started()`, crate-private `check`/`advance_to` refusing to move backwards (`ClockWouldMoveBackwards`) once started, `restore`. Serializable. The clock starts at the first instant a world is given (genesis, restore, dispatch or advance) rather than at a fixed epoch, so a world may begin wherever its assembler states (F-5).
+  - [x] `kernel/src/schedule.rs`: `Schedule` — `BTreeMap<(WorldTime, Sequence), Scheduled>` (§9 ID-2, F-9), `insert`, `next_instant`, `pop_at`, `len`, `entries`, validated `restore`; `Sequence`, `Scheduled::Fact(Deferral)` (the `Wake` variant arrives with processes in C3), `ScheduledEntry`, `ScheduleSnapshot { now, next_sequence, entries, next_event }`. Design-name mapping: `schedule_at` = `insert` (reached only through `WorldView::defer` and, in C3, process starts); `schedule_after` is not a separate method — a system computes `at` from `WorldView::at()`; `next_instant` = `next_instant`; `drain_instant` = `pop_at` looped by `World::fire_instant`.
+  - [x] `kernel/src/system.rs`: `Deferral { at, emission, emitter, caused_by, decision }` with accessors and crate-private `Cause`; `Emission` and `Deferral` serialize; `Emission::record()` accessor added.
+  - [x] `kernel/src/view.rs`: `WorldParts` carries the call's `Cause` and a `pending` list instead of a deferral vector; `defer` captures writer and cause.
+  - [x] `kernel/src/world.rs`: `World { clock, schedule, ran }`; `now`, `next_instant`, `scheduled`, `schedule_snapshot`, `restore_schedule`; crate-private `WorldSplit`, `check_dispatch_instant`, `run_at`, `begin_at`, `has_run`.
+  - [x] `kernel/src/dispatch.rs`: `dispatch` checks the instant (backwards / `ScheduledWorkDue`), moves the clock, and files pending entries after each system call (`file_pending`); `genesis` sets the clock; `Dispatcher` is shared by request, genesis and scheduled work; `EventIds::{next, restore}`.
+  - [x] `kernel/src/advance.rs` (pulled forward from C2, because "drain" belongs with the queue): `World::advance_to`, `World::step`, `Advanced { events, instants, skipped }`; each entry fired through `Dispatcher::fire_fact` → the existing `record` + `reduce`.
+  - [x] `kernel/src/error.rs`: `ClockWouldMoveBackwards`, `ScheduledWorkDue`, `ScheduleSequenceExhausted`, `RestoreAfterTheWorldHasRun`, `PersistedEntryBeforeNow`, `PersistedSequenceOutsideCounter`, `PersistedSequenceRepeated`, `PersistedSequenceCounterTooLow`, `PersistedEventCounterTooLow`, `PersistedEntryNamesUninstalledSystem`.
+- [x] Validation: items at the same time drain in insertion order; advancement skips empty spans; scheduling into the past is a named error rather than silent reordering; the queue serializes and restores with pending work intact; a 10,000-item queue drains in the right order (determinism at scale, not performance theatre). — §11 E-1.
+- [x] Review: no calendar concept anywhere; no wall-clock time; nothing non-deterministic in ordering. — §11 E-1 review.
 
 ## C2 — Logical instants and the cascade limit
 - [ ] Implementation: instant execution — drain, deliver to subscribed systems in registration order, collect emitted events, reduce them synchronously within the instant, re-queue deferred work; depth counter with the limit from SD-4.
-  - [ ] `kernel/src/dispatch.rs`: `World::advance_to(until) → Advanced` and `World::step()`; each due entry fired through the **existing** `Dispatcher::record` + `reduce` (no second cascade implementation, §8 F-1); a fired fact carries the causation captured at deferral; a deferral whose emitter is disabled at its instant is skipped and counted.
+  - [x] `World::advance_to(until) → Advanced` and `World::step()`; each due entry fired through the **existing** `Dispatcher::record` + `reduce` (no second cascade implementation, §8 F-1); a fired fact carries the causation captured at deferral; a deferral whose emitter is disabled at its instant is skipped and counted. — landed in C1 (`kernel/src/advance.rs`); see C1.
   - [ ] `server/src/runtime.rs`: advance the world to the host's instant before dispatching and on each sweep, so queued work fires and reaches observers (§8 F-4); `deferrals_unscheduled` stays on the wire, documented as always zero since S4.
 - [ ] Validation: an event emitted during reduction is reduced in the same instant; a deferred one lands strictly later; a deliberate two-system cycle hits the limit and the error names both; the same scenario replays identically twice.
 - [ ] Review: no path lets a reduction reorder already-queued work; the deterministic order is documented where a reader will find it.
@@ -428,4 +432,49 @@ MATERIAL STOP       any change to §1.3, to an existing public contract's shape,
 # 11. Ledger and evidence
 
 **E-0 (C0).** Baseline `cargo test --workspace --no-fail-fast` on `main @ 7cf8844`: 259 passed,
-0 failed, 32 s wall. Doc checks run on the C0 commit content: see the commit's ledger update.
+0 failed, 32 s wall. `check_decision_ids.py`: 33 ids, all distinct; `check_doc_headings.py`: 134
+numbered sections across 21 documents, none duplicated. PASS.
+
+**E-1 (C1).** Working tree on `mvp0/pr-06-scheduler` after C0, before the C1 commit.
+
+```text
+cargo fmt --all --check                                         clean
+cargo clippy --workspace --all-targets --all-features -D warnings   clean
+cargo test --workspace --no-fail-fast                           275 passed, 0 failed (259 + 16)
+  kernel/src/schedule/tests.rs   5 unit   same-instant insertion order; earlier instant first;
+                                          next_instant skips the span 10 → 1,000,000;
+                                          10,000 scattered entries vs an independent stable-sort
+                                          oracle; restore round trip and four refusals
+  kernel/src/system/tests.rs     1 changed   the deferral now carries the writer's id, the
+                                          call's causation and the controller decision
+  kernel/tests/schedule.rs      10 integ  deferred fact fires at its instant, caused by the
+                                          request, reduced in the same instant (ids continue);
+                                          a reaction's deferral lands strictly later naming its
+                                          parent; 2 instants for rings 10^4 and 10^7 s apart;
+                                          step fires one instant; backwards dispatch / advance
+                                          refused unchanged; ScheduledWorkDue at and after the
+                                          due instant, then accepted after advancing; genesis
+                                          sets the clock; disabled emitter skipped and counted;
+                                          save → JSON → restore fires identical envelopes;
+                                          restore refused after running / for an uninstalled
+                                          system
+```
+
+`ARC-23` in the 10,000-entry test: the expected order is a stable sort computed without the
+schedule; the test also asserts *where* the data lies — between 401 and 500 distinct instants, with
+at least ten entries per instant on average — so the tie-break is exercised rather than vacuous.
+
+Mutation evidence: **NOT OBTAINED.** Two mutations were prepared (`due <= at` → `due < at` in
+`check_dispatch_instant`; removing the disabled-emitter check in `fire_fact`) and their run was
+denied by the session's permission classifier as test-weakening. Both edits were reverted
+immediately and the revert verified by `grep`; no mutated code was committed. The two behaviours are
+pinned directly by `a_request_may_not_overtake_work_that_is_due` (dispatch *at* the due instant) and
+`a_disabled_system_does_not_fire_what_it_deferred`, but that the tests would fail under those
+mutations is argued from reading them, not observed.
+
+Review (C1): `grep` over `kernel/src` for `SystemTime`, `Instant::`, `std::time`, `HashMap`,
+`HashSet`, `BinaryHeap`, `rand` — none; no day/hour/weekday/calendar vocabulary in `clock.rs`,
+`schedule.rs`, `advance.rs`. Ordering is the `BTreeMap` key `(WorldTime, Sequence)` only; the
+sequence counter is the one source of tie-break and is persisted with the schedule. All existing
+callers dispatch at non-decreasing instants (audit in §8 F-3), and the 259 pre-existing tests pass
+unchanged except the one in-crate test whose bench had to carry the new `Cause`.
