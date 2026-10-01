@@ -81,6 +81,8 @@ func _ready() -> void:
 		_mode = "drive"
 	elif "--portrait" in args:
 		_mode = "portrait"
+	elif "--bodycheck" in args:
+		_mode = "bodycheck"
 	DirAccess.make_dir_recursive_absolute(OUT)
 
 
@@ -94,6 +96,8 @@ func _process(_d: float) -> void:
 		await _drive()
 	elif _mode == "portrait":
 		await _portrait()
+	elif _mode == "bodycheck":
+		await _bodycheck()
 	else:
 		await _capture()
 	get_tree().quit(0)
@@ -206,6 +210,60 @@ func _portrait_walk(cam: Camera3D, base: Vector3, face: float) -> void:
 	_save_portrait("P7_walk")
 	Input.action_release("move_forward")
 	print("portrait P7_walk")
+
+
+## The operator's own views of the player character, full window: the two
+## third-person cameras, standing and mid-stride, and each with her turned
+## both ways so every camera sees her front and her back.
+##
+## The portrait frames are composed for comparison with the reference; these
+## are what a player actually sees, and a body that is incomplete from some
+## angle in some pose shows up here and not there.
+func _bodycheck() -> void:
+	var modes := [["rear", CameraRig.Mode.THIRD_REAR], ["front", CameraRig.Mode.THIRD_FRONT]]
+	for m in modes:
+		for turn in [0.0, 180.0]:
+			for walking in [false, true]:
+				player.scripted_look = walking
+				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+				player.place(PORTRAIT_SPOT, PORTRAIT_YAW + turn, -8.0)
+				player.set_camera(m[1])
+				if walking:
+					Input.action_press("move_forward")
+				await _settle(0.9 if walking else 0.5)
+				await RenderingServer.frame_post_draw
+				var name := "B_%s_%s_%s" % [m[0], "turned" if turn > 0.0 else "facing",
+					"walk" if walking else "stand"]
+				get_viewport().get_texture().get_image().save_png("%s/%s.png" % [OUT, name])
+				print("bodycheck ", name)
+				if walking:
+					Input.action_release("move_forward")
+	player.scripted_look = false
+	# and the townspeople, who share the body but not the wardrobe: the nearest
+	# standing one and the nearest walking one, front and back, close up
+	var cam := Camera3D.new()
+	add_child(cam)
+	cam.fov = 40.0
+	var people := get_tree().root.find_children("*", "NPC", true, false)
+	people.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return a.global_position.distance_to(PORTRAIT_SPOT) < b.global_position.distance_to(PORTRAIT_SPOT))
+	var n := 0
+	for p: Node3D in people:
+		if n >= 3:
+			break
+		n += 1
+		for side in [["front", 0.0], ["back", PI]]:
+			var body := p.global_transform.basis
+			var fwd := (body * Vector3(0, 0, 1)).normalized()
+			fwd = fwd.rotated(Vector3.UP, side[1])
+			cam.global_position = p.global_position + fwd * 2.4 + Vector3(0, 1.2, 0)
+			cam.look_at(p.global_position + Vector3(0, 1.0, 0), Vector3.UP)
+			cam.current = true
+			await RenderingServer.frame_post_draw
+			await RenderingServer.frame_post_draw
+			var name := "B_npc%d_%s" % [n, side[0]]
+			get_viewport().get_texture().get_image().save_png("%s/%s.png" % [OUT, name])
+			print("bodycheck ", name)
 
 
 func _save_portrait(name: String) -> void:

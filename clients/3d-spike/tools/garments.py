@@ -110,38 +110,44 @@ def in_neck_zone(c) -> bool:
     return math.hypot(c.x, c.y - NECK_AXIS_Y) < CREW_REACH
 
 
-def build_tee(body, dom):
-    """The cream slogan tee: a short-sleeved jersey cut from the torso.
+# The short sleeve ends a little under halfway down the upper arm: the shoulder
+# joint is at |x| 0.159 and the elbow at 0.315 on this body.
+SLEEVE_X = 0.235
+UPPER_ARM_BONES = {"LeftArm", "RightArm"}
 
-    Only the chest between the open hoodie panels is ever seen, but the
-    shoulders and a short sleeve are modelled anyway — the hoodie is worn open
-    and a torso-only tee shows its cut edge at the armhole.
+
+def under_tee(dom, f, margin: float = 0.0) -> bool:
+    """Whether the full tee covers this body face; with `margin`, by that much.
+
+    **One predicate for the garment and for the skin it hides**, because the
+    two disagreeing is what took most of a body off every person in town. The
+    skin was trimmed for the *hoodie* -- back, shoulders, both arms -- while
+    the tee had been cut down to the band the reference character's open front
+    shows. Only she wears the hoodie. Everyone else was a front panel of
+    jersey, a floating head and two floating hands. The body is trimmed for what
+    every outfit covers, and that is the tee.
+    """
+    c = f.calc_center_median()
+    if c.z < TEE_HEM_Z + margin or all_in(dom, f, HEAD_BONES):
+        return False
+    if in_neck_zone(c) and c.z > crew_z(c.y) - margin:
+        return False
+    if any_in(dom, f, {"LeftForeArm", "RightForeArm"} | HAND_BONES):
+        return False
+    if all_in(dom, f, UPPER_ARM_BONES):
+        return abs(c.x) < SLEEVE_X - margin
+    return any_in(dom, f, TORSO_BONES | UPPER_ARM_BONES)
+
+
+def build_tee(body, dom):
+    """The cream slogan tee: torso, shoulders, short sleeves and a crew neck.
+
+    It is cut whole, not as the band the reference character's open hoodie
+    shows, because everyone else in town wears it without a hoodie and the
+    skin beneath it is trimmed away (`under_tee`).
     """
     def keep(f):
-        c = f.calc_center_median()
-        if c.z < TEE_HEM_Z or all_in(dom, f, HEAD_BONES):
-            return False
-        if c.z > crew_z(c.y):
-            return False
-        if in_neck_zone(c) and c.z > crew_z(c.y) - CREW_BAND:
-            return True
-        if any_in(dom, f, HEAD_BONES):
-            return False
-        if not any_in(dom, f, TORSO_BONES | ARM_BONES | HAND_BONES):
-            return False
-        # Only where the tee is actually seen: the band the open hoodie shows,
-        # and the crew neckline above the collar.  The rest of the jersey is
-        # under 30 mm of fleece, and a decimated shell on a curved shoulder cuts
-        # corners by more than that -- which put jagged cream patches through
-        # the hoodie at the collarbone and across both shoulders.  Geometry that
-        # cannot be seen cannot clip through anything.
-        # A ring at the neck, and the band the open front shows.  Both were
-        # first set far too generously -- a 115 mm cylinder round the neck axis
-        # covers both shoulder tops, and a 135 mm half-band reaches round the
-        # side of the bust under the panel.  Jersey outside these is under
-        # 38 mm of fleece and can only ever appear by clipping through it.
-        # (The ring is now the crew band above, cut on `crew_z`.)
-        return abs(c.x) < ZIP_HALF + 0.022 and c.y < -0.02
+        return under_tee(dom, f)
 
     obj = dup_region(body, keep, "Tee")
     # Smooth *before* offsetting.  Laplacian smoothing pulls a convex surface
@@ -172,6 +178,8 @@ def build_tee(body, dom):
     rib_displace(bm, lambda co: in_neck_zone(co) and co.z > crew_z(co.y) + 0.001,
                  ribs=40, depth=0.0008, centre_xy=(0.0, NECK_AXIS_Y))
     print(f"  tee collar: {len(ring)} neckline verts, {len(collar or [])} in the rib's top")
+    # hem, neck, two short sleeves; anything else is a hole in everyone's shirt
+    report_boundaries(bm, "tee", expect=4)
     bm.to_mesh(obj.data)
     bm.free()
     # smoothing and decimation both pull a convex shell inward; the collar
@@ -675,12 +683,11 @@ def trim_body(body, dom):
         if in_neck_zone(c) and not all_in(dom, f, HEAD_BONES) \
                 and c.z >= TEE_HEM_Z + m:
             return c.z < crew_z(c.y) + 0.004
-        if any_in(dom, f, torso) and not any_in(dom, f, HEAD_BONES | hands):
-            if c.z >= TEE_HEM_Z + m:
-                return True
-        if all_in(dom, f, arms):
-            d = (c - Vector((math.copysign(0.490, c.x), 0.032, 1.059))).length
-            return d > 0.075        # under the sleeve, short of the cuff
+        # Everything else above the jeans: only what the *tee* covers, never
+        # what the hoodie covers -- see `under_tee`.  The skin under the
+        # hoodie's long sleeves stays, as everyone else's forearms.
+        if under_tee(dom, f, margin=m):
+            return True
         if all_in(dom, f, feet) and c.z < SHOE_TOP_Z - m:
             return True
         return False
