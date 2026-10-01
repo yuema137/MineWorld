@@ -5,7 +5,7 @@ The point of this file is to stop MVP-0 being declared complete while a real pat
 `✅` means **actually run and inspected**, never inferred from a passing test suite or a
 successful compile. `🚧` means in progress. `❌` means not started.
 
-**Updated:** 2026-09-27 (PR 05d). Subjective questions are queued in
+**Updated:** 2026-09-30 (PR 07; persistence rows only — other rows stand as of PR 05d). Subjective questions are queued in
 [`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md); a demo parked there does not block engineering.
 
 ## Capability matrix
@@ -19,7 +19,7 @@ successful compile. `🚧` means in progress. `❌` means not started.
 | Place | 🚧 contracts + storage | ❌ | ❌ |
 | Conversation | ✅ `talk` end to end: request, refusal for distance, event, history | 🚧 a client can speak and read what it was told; the 2D client's own adoption is pending | 🚧 the same, and the 3D client's adoption is pending |
 | Object interaction | ❌ | ❌ | ❌ |
-| Persistence | ❌ | — | — |
+| Persistence | ✅ `mineworld server --save` killed with SIGKILL and restarted: same instance, revision, people and conversation; `mineworld replay` re-executes the save (PR 07) | — | — |
 | Networking | ✅ two clients and an agent on one server, from the real binary | 🚧 protocol module runs against the real server; adoption pending | 🚧 the same |
 
 ## Shippable artefacts
@@ -31,7 +31,7 @@ What a person can actually run. None of these exists yet.
 | World server | `mineworld server worlds/social-cafe --agent alice` | ✅ loads the pack, serves two clients and drives Alice with a rule controller |
 | 2D client | `mineworld-2d` | 🚧 presentation spike runnable, awaiting style decision ([queue](HUMAN_REVIEW_QUEUE.md)) |
 | 3D client | `mineworld-3d` | 🚧 presentation spike runnable with three camera modes; awaiting feel review ([queue](HUMAN_REVIEW_QUEUE.md)) |
-| Developer CLI | `mineworld create / validate / run / inspect` | 🚧 `server` and `validate` exist; `create`, `run` and `inspect` are S7 |
+| Developer CLI | `mineworld create / validate / run / inspect` | 🚧 `server` (with `--save`), `validate` and `replay` exist; `create`, `run` and `inspect` are S7 |
 | `worlds/social-cafe` | `mineworld validate worlds/social-cafe` | ✅ one café, four people, three seats, loaded and hosted |
 | `worlds/market-town` | — | ❌ |
 
@@ -45,7 +45,8 @@ Cross-renderer semantic equivalence:     ✅ AC-13 against the real contracts, f
                                             definition
 One world, many windows (AC-15):         ✅ two clients and an agent-driven Person on one live
                                             server; evidence names the world instance, Alice's
-                                            EntityId and one event sequence
+                                            EntityId, one event sequence and — since PR 07 — one
+                                            persisted state revision, held by the save on disk
 ```
 
 ## Current critical-path blocker
@@ -59,8 +60,6 @@ What the slice deliberately does not have, and what each is waiting for:
 ```text
 the scheduler and processes   S4 — nothing in the slice defers work, and the server counts it if
                               anything does
-durable persistence           S5 — the world is held in memory, so AC-15's fourth evidence line
-                              (same persisted state revision) has no referent yet
 travel between places         later — one place is enough to prove AC-15
 the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline, which adopt
                               clients/protocol/mineworld/ rather than reimplementing it
@@ -74,8 +73,8 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | S2 action/event/observation/spatial | ✅ merged `5df2c84`; review added event payload versioning |
 | S3a kernel world state | ✅ merged `4c35a57`; single-writer enforced at compile time |
 | S3b systems, registry, dispatch | ✅ merged; dispatch routes, validates, resolves and reduces |
-| S4 clock, scheduler, process | design frozen |
-| S5 persistence and event log | medium scope; owes the erased hook at `declare` |
+| S4 clock, scheduler, process | ✅ merged `1241cab` |
+| S5 persistence and event log | 🚧 PR 07 ready for review: journal + fact log + snapshots in one SQLite file, verified re-execution (`ARC-25`) |
 | S6 first systems: time, places, movement | medium scope |
 | S7 world pack loading, rule controller, headless run | 🚧 pack loading and a `RuleController` landed early with the step-05 slice; `create`, `run --headless --days` and `inspect` remain |
 | S8 Social Café systems | medium scope |
@@ -98,6 +97,7 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | The write capability cannot be forged | the reproduced A8 bypass no longer compiles once the issuer is sealed (E0624 ×2) |
 | `AC-13` holds against the real contracts | the two `talk` requests the real Godot module submitted — one reporting a position, one not — have an identical semantic core and are resolved to the same result. *Byte identity was the old wording and was wrong*: `MVP.md` §9's correction names `actor_location` as the permitted difference, and the comparison now lives in the server |
 | `AC-15` holds | two clients and an agent-driven Person on one `mineworld server worlds/social-cafe --agent alice`; the evidence names one world instance, one Alice `EntityId` and one event sequence, and Alice tells the second window what the first one said (`tools/cli/tests/ac15_one_alice.rs`, `clients/protocol/evidence/`) |
+| A world survives the death of its process (`AC-6`) | a child process SIGKILLed mid-run and a new one resuming its SQLite file produce a save byte-identical to an uninterrupted run (`persistence/tests/kill_and_resume.rs`); the real `mineworld server --save`, SIGKILLed and restarted, is the same world, and Alice's conversation continues (`tools/cli/tests/restart.rs`) |
 | A controller and a client are indistinguishable to the world | the rule controller occupies a seat, is answered by the actor check and is given a server-allocated `ActionId`, exactly as a socket client is (`INV-1`) |
 
 ## Non-blocking follow-ups

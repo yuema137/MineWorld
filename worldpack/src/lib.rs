@@ -68,5 +68,5 @@ pub use error::{ContentKind, Declared, PackError};
 pub use format::{
     AuthoredLocation, AuthoredPerson, AuthoredPlace, AuthoredPosition, WorldIdentity, WorldManifest,
 };
-pub use load::{LoadedWorld, RunningWorld};
+pub use load::{AssembledWorld, ComposedWorld, LoadedWorld, RunningWorld};
 pub use read::{MANIFEST, WorldPack};

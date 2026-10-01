@@ -1,0 +1,29 @@
+[package]
+name = "mineworld-persistence"
+description = "MineWorld's saves: the input journal, the append-only fact log and world snapshots in one SQLite file, and the replay that rebuilds a world from them and refuses any divergence."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+# The process-kill checkpoint (IC-1) is its own program: the same binary is the parent that kills and
+# the child that is killed, selected by an environment variable, so it cannot use the test harness —
+# a harness would also count the child entry point as a test that "passed" by doing nothing.
+[[test]]
+name = "kill_and_resume"
+harness = false
+
+[dev-dependencies]
+# The process-kill checkpoint loads the repository's own World Pack (step-06 C4).
+mineworld-worldpack = { workspace = true }
+# The tamper tests alter a stored row directly, as damage or an editor would, to show replay sees it.
+rusqlite = { workspace = true }

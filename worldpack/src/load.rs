@@ -109,17 +109,52 @@ impl LoadedWorld {
     }
 }
 
+/// A world with this pack's systems installed and nothing else: what a saved world is resumed into.
+///
+/// Composition is the part of a pack a save cannot carry — systems are code — so a host resuming a save
+/// composes the world from the pack and restores everything else from the save
+/// (`docs/DECISIONS.md` `ARC-25`).
+pub struct ComposedWorld {
+    /// The world: systems installed, in the order the pack states, and no entity.
+    pub world: World,
+    /// The packs that answer for their own actions, in the order the pack composed them.
+    pub providers: Vec<Box<dyn PerceptionProvider>>,
+}
+
+/// A world assembled from this pack — systems installed, entities created — that has **not** begun:
+/// its genesis facts are returned rather than applied, so that a persisted world can run genesis
+/// itself and journal exactly what it applied (step-06 PD-9).
+pub struct AssembledWorld {
+    /// The world, systems and entities in place, no state yet.
+    pub world: World,
+    /// What each authoring key resolved to.
+    pub ids: BTreeMap<EntityKey, EntityId>,
+    /// What is true of the world as it begins, in the order genesis must state it.
+    pub facts: Vec<Emission>,
+    /// The packs that answer for their own actions.
+    pub providers: Vec<Box<dyn PerceptionProvider>>,
+}
+
 impl WorldPack {
-    /// Builds the world this pack describes, beginning at `at`.
-    ///
-    /// The instant is supplied rather than assumed, for the reason dispatch takes one: a world's clock
-    /// is the host's, and a loader that read one would produce a world whose first facts are stamped
-    /// with the moment it happened to be loaded.
-    pub fn load(&self, at: WorldTime) -> Result<LoadedWorld, PackError> {
+    /// Installs this pack's systems into an empty world, in the order the pack states, and nothing
+    /// else.
+    pub fn compose(&self) -> Result<ComposedWorld, PackError> {
         let mut world = World::new();
         for capability in self.systems() {
             capability.install(&mut world)?;
         }
+        Ok(ComposedWorld {
+            world,
+            providers: self.providers(),
+        })
+    }
+
+    /// Composes the world and creates its entities, returning the genesis facts unapplied.
+    pub fn assemble(&self) -> Result<AssembledWorld, PackError> {
+        let ComposedWorld {
+            mut world,
+            providers,
+        } = self.compose()?;
 
         let mut ids = BTreeMap::new();
         for (key, place) in self.places() {
@@ -141,18 +176,43 @@ impl WorldPack {
             ids.insert(key.clone(), id);
         }
 
-        let genesis = world.genesis(at, self.initial_facts(&ids)?)?;
+        let facts = self.initial_facts(&ids)?;
+        Ok(AssembledWorld {
+            world,
+            ids,
+            facts,
+            providers,
+        })
+    }
+
+    /// Builds the world this pack describes, beginning at `at`: [`WorldPack::assemble`], then genesis.
+    ///
+    /// The instant is supplied rather than assumed, for the reason dispatch takes one: a world's clock
+    /// is the host's, and a loader that read one would produce a world whose first facts are stamped
+    /// with the moment it happened to be loaded.
+    pub fn load(&self, at: WorldTime) -> Result<LoadedWorld, PackError> {
+        let AssembledWorld {
+            mut world,
+            ids,
+            facts,
+            providers,
+        } = self.assemble()?;
+        let genesis = world.genesis(at, facts)?;
 
         Ok(LoadedWorld {
             world,
             ids,
             genesis,
-            providers: self
-                .systems()
-                .iter()
-                .map(|capability| Capability::provider(*capability))
-                .collect(),
+            providers,
         })
+    }
+
+    /// The packs that answer for their own actions, in the order the pack composed them.
+    fn providers(&self) -> Vec<Box<dyn PerceptionProvider>> {
+        self.systems()
+            .iter()
+            .map(|capability| Capability::provider(*capability))
+            .collect()
     }
 
     /// What is true of this world as it begins, as facts the systems that own that state will reduce.

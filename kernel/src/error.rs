@@ -12,10 +12,12 @@
 
 use mineworld_contracts::{
     ActionTypeId, ComponentTypeId, ContractError, EntityId, EntityKey, EventTypeId, LifecycleState,
-    RelationTypeId, SystemId, WorldTime,
+    ProcessId, ProcessTypeId, RelationTypeId, SystemId, WorldTime,
 };
 
 use thiserror::Error;
+
+use crate::schedule::Sequence;
 
 /// Every way a kernel operation can refuse.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -314,8 +316,10 @@ pub enum KernelError {
     /// reacting to each other's facts without the clock ever moving.
     ///
     /// Named rather than silent, because an infinite cascade is a system bug and a world that
-    /// freezes gives its author nothing to go on. The systems listed are those that emitted a fact
-    /// *while reducing*, in registration order — the ones that will not stop.
+    /// freezes gives its author nothing to go on. The systems listed are those that emitted while
+    /// reducing in the second half of the budget, in registration order — every member of a cycle
+    /// of period up to half the limit, and not a system that answered once, early in the chain, and
+    /// stopped.
     ///
     /// Unlike every other refusal in this crate, this one is reported after state has changed:
     /// reduction is not transactional. See [`crate::dispatch`].
@@ -326,7 +330,7 @@ pub enum KernelError {
     ReductionCascadeTooDeep {
         /// The limit that was exceeded.
         limit: usize,
-        /// The systems that emitted a fact while reducing, in registration order.
+        /// The systems still emitting when the limit was crossed, in registration order.
         systems: Vec<SystemId>,
     },
 
@@ -372,6 +376,199 @@ pub enum KernelError {
         system: SystemId,
         /// The kind of fact that was offered.
         event_type: EventTypeId,
+    },
+
+    /// A world was asked to move its clock to an instant before the one it is at. A fact recorded
+    /// after a later one would be a history that runs backwards.
+    #[error("this world is at {now}; it cannot move back to {at}")]
+    ClockWouldMoveBackwards {
+        /// The instant the world is at.
+        now: WorldTime,
+        /// The earlier instant it was asked to move to.
+        at: WorldTime,
+    },
+
+    /// A request was dispatched at an instant at or after which scheduled work is still due.
+    ///
+    /// Refused rather than run, because the request would overtake work that was due first and the
+    /// `(WorldTime, Sequence)` order replay depends on would be lost. The caller advances the world
+    /// to the request's instant first ([`World::advance_to`](crate::World::advance_to)).
+    #[error("work scheduled for {due} is still due; advance the world before dispatching at {at}")]
+    ScheduledWorkDue {
+        /// The earliest instant something is still scheduled for.
+        due: WorldTime,
+        /// The instant the request was to be dispatched at.
+        at: WorldTime,
+    },
+
+    /// The schedule assigned every available sequence number. Reported rather than wrapped: a
+    /// reused sequence would leave two entries with no defined order between them.
+    #[error("this world's schedule has assigned every available sequence number")]
+    ScheduleSequenceExhausted,
+
+    /// A saved schedule was restored into a world that has already run. Restoring is assembly:
+    /// it states where a world's time stands, and a world that has acted has a time of its own.
+    #[error("this world has already run, so a saved schedule cannot replace its time")]
+    RestoreAfterTheWorldHasRun,
+
+    /// A saved schedule held an entry due before the instant it was saved at — work a world would
+    /// already have fired.
+    #[error("persisted schedule holds an entry due at {at}, before its own instant {now}")]
+    PersistedEntryBeforeNow {
+        /// When the entry was due.
+        at: WorldTime,
+        /// The instant the schedule was saved at.
+        now: WorldTime,
+    },
+
+    /// A saved schedule held a sequence number its own counter had not yet assigned, or the
+    /// never-assigned zero.
+    #[error(
+        "persisted schedule holds sequence {sequence}, which its counter (next {next}) never assigned"
+    )]
+    PersistedSequenceOutsideCounter {
+        /// The sequence number found.
+        sequence: Sequence,
+        /// The next sequence number the saved schedule would assign.
+        next: u64,
+    },
+
+    /// A saved schedule held one sequence number on two entries.
+    #[error("persisted schedule holds sequence {sequence} twice")]
+    PersistedSequenceRepeated {
+        /// The repeated sequence number.
+        sequence: Sequence,
+    },
+
+    /// A saved schedule's counter is below the first sequence number a schedule assigns.
+    #[error("persisted schedule would next assign {next}, below the first sequence {first}")]
+    PersistedSequenceCounterTooLow {
+        /// The next sequence number the saved schedule would assign.
+        next: u64,
+        /// The first sequence number a schedule assigns.
+        first: u64,
+    },
+
+    /// A saved world's event counter is below the first event identity, so restoring it would hand
+    /// out identity zero.
+    #[error("persisted event counter would next allocate {next}, below the first identity {first}")]
+    PersistedEventCounterTooLow {
+        /// The next event identity the saved world would allocate.
+        next: u64,
+        /// The first event identity a world allocates.
+        first: u64,
+    },
+
+    /// A saved schedule holds work for a system this world has not installed. Nothing could fire it
+    /// as that system, so the fact it describes would never happen.
+    #[error(
+        "persisted schedule holds work for system '{system}', which this world has not installed"
+    )]
+    PersistedEntryNamesUninstalledSystem {
+        /// The system the entry belongs to.
+        system: SystemId,
+    },
+
+    /// A process was given an expected end that is not later than the instant it is in. A process
+    /// takes time; something that starts and ends in one instant is an event (`INV-3`).
+    #[error(
+        "a process cannot be expected to end at {end}: it is {now} now, and a process takes time"
+    )]
+    ProcessEndNotInTheFuture {
+        /// The expected end that was asked for.
+        end: WorldTime,
+        /// The instant the world is at.
+        now: WorldTime,
+    },
+
+    /// Process identity allocation reached the top of the identifier space.
+    #[error("this world has allocated every available process identity")]
+    ProcessIdSpaceExhausted,
+
+    /// An operation named a process that is not running or suspended in this world: it has ended,
+    /// or it never existed.
+    #[error("process {process} is not running in this world")]
+    ProcessNotRunning {
+        /// The process named.
+        process: ProcessId,
+    },
+
+    /// A system tried to change a process another system owns. The owner is the single writer of
+    /// its processes (`INV-7`); anyone else asks it to interrupt instead.
+    #[error("process {process} is owned by '{owner}', so '{writing_system}' cannot change it")]
+    ProcessNotOwned {
+        /// The process.
+        process: ProcessId,
+        /// The system that owns it.
+        owner: SystemId,
+        /// The system that tried to change it.
+        writing_system: SystemId,
+    },
+
+    /// A process was addressed as a kind it is not — its state read, or its owner acting on it,
+    /// through the wrong kind. Refused rather than decoded on the chance that the bytes fit.
+    #[error("process {process} is a '{actual}', not a '{expected}'")]
+    ProcessKindMismatch {
+        /// The process.
+        process: ProcessId,
+        /// The kind it was addressed as.
+        expected: ProcessTypeId,
+        /// The kind it is.
+        actual: ProcessTypeId,
+    },
+
+    /// A system started a process with an expected end and has no answer when that end comes. A
+    /// world that let the process run on silently would hide the bug.
+    #[error(
+        "system '{system}' started process {process} with an expected end but does not wake it"
+    )]
+    ProcessNotWokenBySystem {
+        /// The owning system.
+        system: SystemId,
+        /// The process whose end arrived.
+        process: ProcessId,
+    },
+
+    /// Interruption requests nested deeper than the cascade limit: owners deciding interruptions by
+    /// requesting interruptions of their own, without end.
+    #[error(
+        "interruption requests nested deeper than {limit}: '{requester}' asked '{owner}' while \
+         already answering a request"
+    )]
+    InterruptionsTooDeep {
+        /// The limit that was exceeded.
+        limit: usize,
+        /// The system whose request crossed the limit.
+        requester: SystemId,
+        /// The owner it would have been delivered to.
+        owner: SystemId,
+    },
+
+    /// A saved world's process counter is below the first process identity.
+    #[error(
+        "persisted process counter would next allocate {next}, below the first identity {first}"
+    )]
+    PersistedProcessCounterTooLow {
+        /// The next process identity the saved world would allocate.
+        next: u64,
+        /// The first process identity a world allocates.
+        first: u64,
+    },
+
+    /// A saved world held a process whose identity its own counter had not yet allocated.
+    #[error("persisted process {process} was never allocated by its counter (next {next})")]
+    PersistedProcessOutsideCounter {
+        /// The process found.
+        process: ProcessId,
+        /// The next process identity the saved world would allocate.
+        next: u64,
+    },
+
+    /// A saved world held two processes under one identity.
+    #[error("persisted processes hold identity {process} twice")]
+    PersistedProcessRepeated {
+        /// The repeated identity.
+        process: ProcessId,
     },
 
     /// A persisted graph filed an edge type's declaration under a different name.
@@ -438,5 +635,98 @@ pub enum KernelError {
         first: EntityId,
         /// The second entity holding it.
         second: EntityId,
+    },
+
+    /// A component could not be written down for a snapshot. A component type whose `Serialize`
+    /// fails is a bug in the system that declared it; the snapshot is refused rather than taken
+    /// without that row.
+    #[error("component '{component_type}' of entity {entity} cannot be encoded: {detail}")]
+    ComponentNotEncodable {
+        /// The component type.
+        component_type: ComponentTypeId,
+        /// The entity it belongs to.
+        entity: EntityId,
+        /// What the encoder said.
+        detail: String,
+    },
+
+    /// A world can only be restored while it is being assembled: systems installed, and nothing
+    /// else — no entity, no component row, no edge, no clock. Restoring over state would leave two
+    /// worlds' state mixed in one.
+    #[error("a snapshot can only be restored into a world with systems installed and nothing else")]
+    RestoreIntoPopulatedWorld,
+
+    /// The snapshot was taken of a world composed differently from this one: another system, a
+    /// different declaration or version, another enabled state, or the same systems in another
+    /// order — which is another reduction order, and therefore another world (`BD-4`).
+    #[error(
+        "the snapshot's composition differs at position {position}: saved {saved:?}, installed {installed:?}"
+    )]
+    RestoredCompositionDiffers {
+        /// The registration position of the first difference.
+        position: usize,
+        /// The system the snapshot has there, if any.
+        saved: Option<SystemId>,
+        /// The system this world has there, if any.
+        installed: Option<SystemId>,
+    },
+
+    /// A snapshot held a row of a component type this world has no table for: state of a system
+    /// this world is not composed of.
+    #[error("persisted component '{component_type}' of entity {entity} has no table in this world")]
+    PersistedComponentTypeNotInstalled {
+        /// The component type.
+        component_type: ComponentTypeId,
+        /// The entity the row belongs to.
+        entity: EntityId,
+    },
+
+    /// A snapshot held a component row for an entity its own registry does not have.
+    #[error(
+        "persisted component '{component_type}' belongs to entity {entity}, which does not exist"
+    )]
+    PersistedComponentForUnknownEntity {
+        /// The component type.
+        component_type: ComponentTypeId,
+        /// The missing entity.
+        entity: EntityId,
+    },
+
+    /// A snapshot held two rows of one component type for one entity.
+    #[error("persisted component '{component_type}' appears twice for entity {entity}")]
+    PersistedComponentRepeated {
+        /// The component type.
+        component_type: ComponentTypeId,
+        /// The entity.
+        entity: EntityId,
+    },
+
+    /// A snapshot row did not decode as the component type its table was declared with.
+    #[error("persisted component '{component_type}' of entity {entity} does not decode: {detail}")]
+    PersistedComponentUndecodable {
+        /// The component type.
+        component_type: ComponentTypeId,
+        /// The entity.
+        entity: EntityId,
+        /// What the decoder said.
+        detail: String,
+    },
+
+    /// A snapshot declared relation types differently from the systems installed in this world.
+    #[error(
+        "the snapshot's relation type declarations differ from this world's at '{relation_type}'"
+    )]
+    RestoredRelationDeclarationsDiffer {
+        /// The first relation type whose declaration differs or is missing on one side.
+        relation_type: RelationTypeId,
+    },
+
+    /// A snapshot held an edge whose endpoint its own registry does not have.
+    #[error("persisted '{relation_type}' edge touches entity {entity}, which does not exist")]
+    PersistedRelationForUnknownEntity {
+        /// The edge's relation type.
+        relation_type: RelationTypeId,
+        /// The missing endpoint.
+        entity: EntityId,
     },
 }

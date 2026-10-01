@@ -16,6 +16,10 @@ loading a World Pack, which means installing System Packs, and a transport that 
 would invert the one-way dependency rule. `WorldHost::spawn` takes a closure that assembles a world
 and serves whatever it is given — the CLI is what supplies one.
 
+A hosted world may have a save (`HostedWorld::persisted`, `--save DIR` on the command line). Then
+every request is written to it before it is answered, and each frame tells the client which saved
+`revision` of the world it describes.
+
 Each connected client gets what **its** observer perceives — not a world dump, and not a filtered
 copy of one. It submits requests; the server allocates their identity and the world decides what
 happens. A client can say two things: which seat it wants, and what it would like to happen.

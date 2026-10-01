@@ -10,8 +10,10 @@ authors.workspace = true
 [dependencies]
 mineworld-contracts = { workspace = true }
 serde = { workspace = true }
+# A world snapshot encodes each component row as JSON: only the kernel still holds the rows as their
+# Rust types (DEP-5 note, S5).
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
 trybuild = { workspace = true }
