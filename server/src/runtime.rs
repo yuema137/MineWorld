@@ -5,8 +5,9 @@
 //! world needs that the kernel deliberately does not own:
 //!
 //! ```text
-//! the clock          dispatch is told the instant; the authoritative clock is S4's, and this is a
-//!                    provisional stand-in that advances with wall time
+//! the pacing         how fast a hosted world's seconds pass in real time: one per wall second.
+//!                    The world's own clock and schedule are the kernel's (S4); this only says how
+//!                    far to advance them, on each tick and before each request
 //! the allocator      the server allocates every ActionId, because a client has no allocator
 //!                    (INV-6, FINDINGS.md F4)
 //! a recent window    the facts perception may look back over; the durable log is S5's
@@ -23,7 +24,7 @@ use std::time::Instant;
 use mineworld_contracts::{
     ActionId, ActionIntent, ActionRequest, EntityId, EntityKey, EventEnvelope, WorldTime,
 };
-use mineworld_kernel::World;
+use mineworld_kernel::{KernelError, World};
 use tokio::sync::mpsc;
 
 use crate::host::{
@@ -49,12 +50,13 @@ struct Subscriber {
     observations: mpsc::Sender<WireObservation>,
 }
 
-/// The world's clock while S4 does not exist yet.
+/// The host's pacing: which instant a hosted world should have reached by now.
 ///
-/// Wall time in whole simulated seconds from a configured epoch. Deliberately the smallest thing
-/// that can answer "which instant is this dispatch working in", and deliberately not a scheduler:
-/// `WorldTime` is seconds (`contracts/src/time.rs`), advancing it is S4's, and a server that
-/// invented tick semantics here would have to have them re-plumbed when the real clock lands.
+/// Wall time in whole simulated seconds from a configured epoch. Not the world's clock — that is the
+/// kernel's, moved only by advancing and dispatching (S4) — and not a scheduler: it answers "how far
+/// should the world be advanced", which is a deployment decision rather than a simulation one. A
+/// headless run that wants a hundred days in a second advances the kernel directly and has no use
+/// for this.
 struct HostClock {
     epoch: WorldTime,
     started: Instant,
@@ -113,9 +115,7 @@ pub(crate) struct WorldRuntime {
     recent: Vec<EventEnvelope>,
     /// Observations dropped because a client was not reading. Counted rather than waited on.
     dropped: u64,
-    /// Deferrals dispatch handed back with no scheduler to queue them.
-    unscheduled: u64,
-    /// Dispatches that ended in a `KernelError` — a system breaking its own contract.
+    /// Dispatches and advances that ended in a `KernelError` — a system breaking its own contract.
     faults: u64,
 }
 
@@ -132,7 +132,6 @@ impl WorldRuntime {
             subscribers: Vec::new(),
             recent: Vec::new(),
             dropped: 0,
-            unscheduled: 0,
             faults: 0,
             config,
         }
@@ -161,7 +160,7 @@ impl WorldRuntime {
                     let answer = self.submit(observer, *request);
                     let _ = reply.send(answer);
                 }
-                Command::Sweep => self.sweep(),
+                Command::Sweep => self.tick(),
                 Command::Shutdown => break,
             }
         }
@@ -213,21 +212,17 @@ impl WorldRuntime {
         let at = self.clock.now();
         let intent = ActionIntent::allocate(request, action_id, at);
 
+        // Whatever was due by now happens first: it was scheduled before this request arrived, and
+        // the kernel refuses a request that would overtake it (`ScheduledWorkDue`).
+        if let Err(error) = self.advance(at) {
+            return Err(Refusal::new(RefusalCode::DispatchFailed).detailed(error));
+        }
+
         match self.world.dispatch(&intent, at) {
             Ok(dispatched) => {
-                let (result, events, deferred) = dispatched.into_parts();
-                if !deferred.is_empty() {
-                    // Not dropped silently: dispatch hands deferrals back for a scheduler, and this
-                    // server has none until S4. A system that defers here is asking for something
-                    // the host cannot yet do, and the count is what makes that visible.
-                    self.unscheduled += deferred.len() as u64;
-                    eprintln!(
-                        "[world] {} deferral(s) had nowhere to go: this server has no scheduler \
-                         (S4). Total so far: {}",
-                        deferred.len(),
-                        self.unscheduled
-                    );
-                }
+                // What the request deferred is already in the world's schedule (S4); it fires when
+                // the world is advanced to its instant, at a later tick or a later request.
+                let (result, events, _deferred) = dispatched.into_parts();
                 let recorded = !events.is_empty();
                 self.remember(events);
                 // Straight away rather than at the next tick, so that the facts a request caused
@@ -246,6 +241,34 @@ impl WorldRuntime {
                 Err(Refusal::new(RefusalCode::DispatchFailed).detailed(error))
             }
         }
+    }
+
+    /// Moves the world to the host's instant, firing whatever was scheduled up to it, and keeps the
+    /// facts that produced for perception.
+    ///
+    /// An error is a system breaking its own contract while handling scheduled work, exactly as an
+    /// error out of dispatch is: counted and reported, never swallowed.
+    fn advance(&mut self, at: WorldTime) -> Result<(), KernelError> {
+        match self.world.advance_to(at) {
+            Ok(advanced) => {
+                self.remember(advanced.into_events());
+                Ok(())
+            }
+            Err(error) => {
+                self.faults += 1;
+                eprintln!("[world] a system broke its own contract while advancing: {error}");
+                Err(error)
+            }
+        }
+    }
+
+    /// One tick of the host's cadence: let the world's time catch up with the host's, then show
+    /// every client what it may now perceive.
+    fn tick(&mut self) {
+        let at = self.clock.now();
+        // A fault is already counted and reported; the clients still get their observation.
+        let _ = self.advance(at);
+        self.sweep();
     }
 
     /// Keeps the newest facts and forgets the rest.
@@ -308,7 +331,9 @@ impl WorldRuntime {
             seats: self.seats.iter().cloned().collect(),
             clients: self.subscribers.len(),
             observations_dropped: self.dropped,
-            deferrals_unscheduled: self.unscheduled,
+            // Always zero since S4: the world's own schedule holds every deferral. The field stays
+            // until the next protocol revision removes it (step-04 §8 F-4).
+            deferrals_unscheduled: 0,
             faults: self.faults,
         }
     }

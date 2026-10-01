@@ -65,7 +65,7 @@
 //! write. An `Err` means a system broke its own contract, and the caller's correct response is to
 //! stop the world and report it, not to retry.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use mineworld_contracts::{
     ActionId, ActionIntent, ActionResult, Causation, EventEnvelope, EventId, Provenance, SystemId,
@@ -394,7 +394,6 @@ impl World {
             recorded: Vec::new(),
             pending: Vec::new(),
             deferred: Vec::new(),
-            emitted_while_reducing: BTreeSet::new(),
         }
     }
 }
@@ -425,9 +424,6 @@ pub(crate) struct Dispatcher<'a> {
     pending: Vec<(WorldTime, Scheduled)>,
     /// Every deferral this pass filed, for [`Dispatched::deferred`].
     deferred: Vec<Deferral>,
-    /// Which systems have emitted a fact *while reducing*. This is the set the cascade limit names,
-    /// because a system that only emitted during resolution is not the one that will not stop.
-    emitted_while_reducing: BTreeSet<SystemId>,
 }
 
 impl Dispatcher<'_> {
@@ -537,12 +533,22 @@ impl Dispatcher<'_> {
         decision: Option<ActionId>,
     ) -> Result<(), KernelError> {
         let mut depth = 0;
+        // The generation in which each system last emitted while reducing. When the limit is
+        // crossed, the systems named are those that emitted in the second half of the budget: every
+        // member of a cycle of period up to half the limit has emitted there, and a system that
+        // answered once, early in the chain, and stopped has not (step-04 §8 F-13).
+        let mut last_emitted: BTreeMap<SystemId, usize> = BTreeMap::new();
         while !generation.is_empty() {
             depth += 1;
             if depth > CASCADE_DEPTH_LIMIT {
+                let still_emitting: BTreeSet<SystemId> = last_emitted
+                    .into_iter()
+                    .filter(|(_, generation)| *generation > CASCADE_DEPTH_LIMIT / 2)
+                    .map(|(system, _)| system)
+                    .collect();
                 return Err(KernelError::ReductionCascadeTooDeep {
                     limit: CASCADE_DEPTH_LIMIT,
-                    systems: self.cycling_systems(),
+                    systems: self.in_registration_order(&still_emitting),
                 });
             }
 
@@ -567,7 +573,7 @@ impl Dispatcher<'_> {
                     let emissions = system.react(self.parts(&cause), event)?;
                     self.file_pending()?;
                     if !emissions.is_empty() {
-                        self.emitted_while_reducing.insert(subscriber.clone());
+                        last_emitted.insert(subscriber.clone(), depth);
                     }
                     next.extend(self.record(&subscriber, emissions, &cause)?);
                 }
@@ -632,16 +638,16 @@ impl Dispatcher<'_> {
         Ok(())
     }
 
-    /// The systems that emitted a fact while reducing, in registration order.
+    /// The given systems, in registration order.
     ///
-    /// Registration order rather than name order, so that the error reads like the world's own
-    /// composition, and reproducibly: the same cycle names the same systems in the same order on
+    /// Registration order rather than name order, so that the cascade error reads like the world's
+    /// own composition, and reproducibly: the same cycle names the same systems in the same order on
     /// every run.
-    fn cycling_systems(&self) -> Vec<SystemId> {
+    fn in_registration_order(&self, systems: &BTreeSet<SystemId>) -> Vec<SystemId> {
         self.systems
             .order()
             .iter()
-            .filter(|system| self.emitted_while_reducing.contains(*system))
+            .filter(|system| systems.contains(*system))
             .cloned()
             .collect()
     }

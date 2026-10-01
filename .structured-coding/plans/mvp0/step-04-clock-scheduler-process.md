@@ -125,11 +125,13 @@ recorded in §11 as each item completes.
 - [x] Review: no calendar concept anywhere; no wall-clock time; nothing non-deterministic in ordering. — §11 E-1 review.
 
 ## C2 — Logical instants and the cascade limit
-- [ ] Implementation: instant execution — drain, deliver to subscribed systems in registration order, collect emitted events, reduce them synchronously within the instant, re-queue deferred work; depth counter with the limit from SD-4.
+- [x] Implementation: instant execution — drain, deliver to subscribed systems in registration order, collect emitted events, reduce them synchronously within the instant, re-queue deferred work; depth counter with the limit from SD-4.
+  - [x] `kernel/src/dispatch.rs`: cascade error names the systems still emitting in the second half of the budget (§8 F-13); `kernel/src/error.rs` doc updated.
   - [x] `World::advance_to(until) → Advanced` and `World::step()`; each due entry fired through the **existing** `Dispatcher::record` + `reduce` (no second cascade implementation, §8 F-1); a fired fact carries the causation captured at deferral; a deferral whose emitter is disabled at its instant is skipped and counted. — landed in C1 (`kernel/src/advance.rs`); see C1.
-  - [ ] `server/src/runtime.rs`: advance the world to the host's instant before dispatching and on each sweep, so queued work fires and reaches observers (§8 F-4); `deferrals_unscheduled` stays on the wire, documented as always zero since S4.
-- [ ] Validation: an event emitted during reduction is reduced in the same instant; a deferred one lands strictly later; a deliberate two-system cycle hits the limit and the error names both; the same scenario replays identically twice.
-- [ ] Review: no path lets a reduction reorder already-queued work; the deterministic order is documented where a reader will find it.
+  - [x] `server/src/runtime.rs`: advance the world to the host's instant before dispatching and on each sweep, so queued work fires and reaches observers (§8 F-4); `deferrals_unscheduled` stays on the wire, documented as always zero since S4. — `WorldRuntime::{advance, tick}`; `submit` advances first and refuses with `DispatchFailed` on a fault; `Command::Sweep` → `tick`; the `unscheduled` counter removed; `HostClock` re-documented as pacing; `server/src/{host,protocol}.rs` and `server/PROTOCOL.md` docs updated.
+  - [x] `server/tests/support/mod.rs`: `Chatter` provides `remind`, which defers a public `spoke` fact; `remind_request` helper.
+- [x] Validation: an event emitted during reduction is reduced in the same instant; a deferred one lands strictly later; a deliberate two-system cycle hits the limit and the error names both; the same scenario replays identically twice. — §11 E-2.
+- [x] Review: no path lets a reduction reorder already-queued work; the deterministic order is documented where a reader will find it. — §11 E-2 review.
 
 ## C3 — Process store and interruption
 - [ ] Implementation: `ProcessStore` with ownership-gated writes reusing S3's token; lifecycle start/progress/end; `request_interrupt` routed to the owner; the outcome returned to the requester.
@@ -346,6 +348,20 @@ the C4 long-run world assembled the way a pack loader assembles one (install sys
 entities, genesis, then run), and the server path of §4, through a real socket. Both run the real
 loop; neither substitutes a fixture for the scheduler.
 
+**F-13 — the cascade error named a system that was not cycling (bounded; found during C2).** The
+first scheduled-path cycle test set the ping/pong loop off with a ring that the chime also answers
+once. The error read `[chime, ping, pong]`: 03b's implementation names *every* system that emitted
+while reducing, anywhere in the chain. SD-4 says the error names "the systems that were cycling".
+*Previous assumption:* naming every reducing emitter equals naming the cycle (true in 03b's test,
+where no other system emitted). *Corrected understanding:* it over-names whenever an honest reaction
+shares the chain. A first correction — name only the last generation's emitters — was tried and
+failed both cycle tests, because a two-system cycle alternates one emitter per generation (recorded
+as a failed attempt). *Resolution:* name the systems whose last emission while reducing falls in the
+second half of the budget (generation > `CASCADE_DEPTH_LIMIT / 2`). Every member of a cycle of
+period ≤ 8 has emitted there; a one-off answer at generation 1 has not. A cycle of period > 8 would
+be named partially; recorded as a limitation, since an honest chain is two or three generations
+(`BI-13`). The existing dispatch test (`[ping, pong]`, bystander not named) passes unchanged.
+
 ## 8.3 Material findings
 
 None. No frozen invariant (§1.3), ownership boundary or scope line changes. F-6 is the only change
@@ -478,3 +494,41 @@ Review (C1): `grep` over `kernel/src` for `SystemTime`, `Instant::`, `std::time`
 sequence counter is the one source of tie-break and is persisted with the schedule. All existing
 callers dispatch at non-decreasing instants (audit in §8 F-3), and the 259 pre-existing tests pass
 unchanged except the one in-crate test whose bench had to carry the new `Cause`.
+
+**E-2 (C2).** Working tree after the C1 commit `615785e`, before the C2 commit.
+
+```text
+cargo fmt --all --check; cargo clippy … -D warnings            clean
+cargo test --workspace --no-fail-fast                           279 passed, 0 failed (275 + 4)
+  kernel/tests/schedule.rs  +3   a reaction's deferral to t100 fires after the t100 work queued
+                                 before it ([10, 8]); a ping/pong cycle set off by a *fired*
+                                 deferral errors with limit 16 naming [ping, pong] — not the
+                                 bystander, not the chime that answered once; twelve requests with
+                                 rings and echoes, run twice, serialize to identical bytes
+  server/tests/two_clients.rs +1 a `remind` over a real WebSocket is accepted with no events; the
+                                 deferred `spoke` reaches the *other* client within the 4 s bound,
+                                 caused by `Action(<the remind's id>)`, at an instant later than
+                                 /status reported before the request; afterwards /status reads
+                                 deferrals_unscheduled 0, faults 0 (real-lifecycle: real socket,
+                                 world thread, sweep cadence; ~1.0 s wall)
+  kernel/tests/dispatch.rs   unchanged and passing: [ping, pong] with the bystander not named
+  tools/cli/tests/ac15_one_alice.rs  unchanged and passing (AC-15)
+```
+
+Failed attempt, kept as evidence (F-13): naming only the last generation's emitters produced
+`[ping]` / `[pong]` for the two cycle tests; replaced by the second-half window.
+
+`ARC-23` in the replay test: before comparing bytes the test counts what the history holds — 12
+`timer-set`, 18 `rang` (12 requests + 6 echoes for the odd labels), 18 `chimed` — derived from the
+inputs the test states, not from the implementation, so equal bytes are not two empty histories.
+The cascade test states the limit as the literal 16 rather than trusting the constant.
+
+Review (C2): the only writers of the schedule are `Dispatcher::file_pending` (after each system
+call, in asking order) and `World::restore_schedule`; firing removes the earliest entry only
+(`pop_at`), and nothing can be filed at the instant being fired (deferral and, in C3, process ends
+are refused unless strictly later), so a reduction cannot reorder queued work — pinned by
+`a_reaction_cannot_jump_ahead_of_work_already_queued_for_the_same_instant`. The order is
+documented in `kernel/src/schedule.rs` (module docs, "the whole of the ordering rule") and
+`kernel/src/advance.rs` ("A logical instant"). Server: `advance` precedes every dispatch, so the
+kernel's `ScheduledWorkDue` refusal is unreachable from the host in normal operation; a fault in
+either is counted in `faults`, never swallowed.

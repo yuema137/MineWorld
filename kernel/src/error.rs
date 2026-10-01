@@ -316,8 +316,10 @@ pub enum KernelError {
     /// reacting to each other's facts without the clock ever moving.
     ///
     /// Named rather than silent, because an infinite cascade is a system bug and a world that
-    /// freezes gives its author nothing to go on. The systems listed are those that emitted a fact
-    /// *while reducing*, in registration order — the ones that will not stop.
+    /// freezes gives its author nothing to go on. The systems listed are those that emitted while
+    /// reducing in the second half of the budget, in registration order — every member of a cycle
+    /// of period up to half the limit, and not a system that answered once, early in the chain, and
+    /// stopped.
     ///
     /// Unlike every other refusal in this crate, this one is reported after state has changed:
     /// reduction is not transactional. See [`crate::dispatch`].
@@ -328,7 +330,7 @@ pub enum KernelError {
     ReductionCascadeTooDeep {
         /// The limit that was exceeded.
         limit: usize,
-        /// The systems that emitted a fact while reducing, in registration order.
+        /// The systems still emitting when the limit was crossed, in registration order.
         systems: Vec<SystemId>,
     },
 

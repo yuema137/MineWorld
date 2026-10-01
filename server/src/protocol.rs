@@ -460,10 +460,11 @@ pub struct WorldSummary {
     /// a slow client loses frames, and a number that only ever appeared in a comment would make
     /// that policy invisible to whoever is running the server.
     pub observations_dropped: u64,
-    /// How many deferrals dispatch handed back with no scheduler to queue them.
+    /// How many deferrals had no scheduler to queue them.
     ///
-    /// Zero in a world whose systems defer nothing. Any other number is the size of what S4 will
-    /// take over, and until then it is work this server was asked for and could not do.
+    /// Always zero since S4: the world's own schedule holds every deferral and fires it at its
+    /// instant. Kept on the wire until the next protocol revision removes it, because removing a
+    /// field is a protocol change (step-04 §8 F-4).
     pub deferrals_unscheduled: u64,
     /// How many dispatches ended in a system breaking its own contract.
     ///

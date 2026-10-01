@@ -39,8 +39,9 @@
 //!
 //! It does not own history: recorded events are kept in a small window for perception to read, and
 //! the durable log is S5's (`NETWORKING.md` §10 — networking never owns world state). It does not
-//! own a scheduler: deferrals come back from dispatch and are counted rather than queued, because
-//! the queue is S4's. And it owns no world rule: what an observer perceives comes from the
+//! own a scheduler: the world's clock and queue are the kernel's (S4), and the world thread only
+//! advances them to the host's instant, on each tick and before each request. And it owns no world
+//! rule: what an observer perceives comes from the
 //! [`Perception`] seam, and whether an action is admissible comes from the kernel.
 
 use std::collections::BTreeSet;

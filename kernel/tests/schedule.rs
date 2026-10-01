@@ -490,3 +490,188 @@ fn a_schedule_restores_only_into_a_world_that_could_fire_it() {
     assert_eq!(bare.scheduled(), 0);
     assert_eq!(bare.now(), WorldTime::EPOCH);
 }
+
+// ---------------------------------------------------------------------------------------------
+// C2 — logical instants on the scheduled path.
+// ---------------------------------------------------------------------------------------------
+
+/// Work a reaction defers to an instant that already has work queued goes *after* that work: a
+/// reduction never reorders what was queued before it.
+#[test]
+fn a_reaction_cannot_jump_ahead_of_work_already_queued_for_the_same_instant() {
+    let mut bench = Bench::new();
+    // Queued first, for t100.
+    bench.set(100, 10, t(0)).expect("dispatched");
+    // An odd ring at t40, whose chime defers an echo to t40 + 60 = t100 — queued second.
+    bench.set(40, 7, t(0)).expect("dispatched");
+
+    let advanced = bench.world.advance_to(t(100)).expect("advances");
+    let at_100: Vec<u32> = advanced
+        .events()
+        .iter()
+        .filter(|event| event.at() == t(100) && event.event_type().as_str() == "rang")
+        .map(|event| {
+            serde_json::from_slice::<Rang>(event.payload().payload())
+                .expect("decodes")
+                .label
+        })
+        .collect();
+    assert_eq!(at_100, vec![10, 8], "first queued, first fired");
+}
+
+struct Ping;
+
+impl SystemIdentity for Ping {
+    const ID: SystemId = SystemId::from_static("ping");
+}
+
+struct Pong;
+
+impl SystemIdentity for Pong {
+    const ID: SystemId = SystemId::from_static("pong");
+}
+
+/// Installed between the two, reacting to everything and emitting nothing: it must not be named.
+struct Bystander;
+
+impl SystemIdentity for Bystander {
+    const ID: SystemId = SystemId::from_static("bystander");
+}
+
+#[derive(Serialize, Deserialize)]
+struct Pinged;
+
+impl Event for Pinged {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("pinged");
+    const OWNER: SystemId = Ping::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+#[derive(Serialize, Deserialize)]
+struct Ponged;
+
+impl Event for Ponged {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("ponged");
+    const OWNER: SystemId = Pong::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl System for Ping {
+    const VERSION: SystemVersion = SystemVersion::new(1);
+
+    fn declaration(&self) -> SystemDeclaration {
+        SystemDeclaration::of::<Self>()
+            .emitting::<Pinged>()
+            .subscribing_to::<Rang>()
+            .subscribing_to::<Ponged>()
+    }
+
+    fn react(
+        &self,
+        _world: &mut WorldView<'_, Self>,
+        _event: &EventEnvelope,
+    ) -> Result<Vec<Emission>, KernelError> {
+        Ok(vec![Emission::new::<Pinged>(
+            encode(&Pinged),
+            Visibility::SystemInternal,
+        )])
+    }
+}
+
+impl System for Bystander {
+    const VERSION: SystemVersion = SystemVersion::new(1);
+
+    fn declaration(&self) -> SystemDeclaration {
+        SystemDeclaration::of::<Self>()
+            .subscribing_to::<Pinged>()
+            .subscribing_to::<Ponged>()
+    }
+}
+
+impl System for Pong {
+    const VERSION: SystemVersion = SystemVersion::new(1);
+
+    fn declaration(&self) -> SystemDeclaration {
+        SystemDeclaration::of::<Self>()
+            .emitting::<Ponged>()
+            .subscribing_to::<Pinged>()
+    }
+
+    fn react(
+        &self,
+        _world: &mut WorldView<'_, Self>,
+        _event: &EventEnvelope,
+    ) -> Result<Vec<Emission>, KernelError> {
+        Ok(vec![Emission::new::<Ponged>(
+            encode(&Ponged),
+            Visibility::SystemInternal,
+        )])
+    }
+}
+
+/// Two systems that answer each other forever, set off by a fact that fell due rather than by a
+/// request: the scheduled path has the same cascade limit as dispatch, and the error names exactly
+/// the two systems that kept emitting — not the bystander between them.
+#[test]
+fn a_cycle_set_off_by_scheduled_work_hits_the_limit_and_names_both_systems() {
+    let mut bench = Bench::new();
+    bench.world.install(Ping).expect("ping installs");
+    bench.world.install(Bystander).expect("bystander installs");
+    bench.world.install(Pong).expect("pong installs");
+    bench.set(5, 2, t(0)).expect("the request itself is fine");
+
+    assert_eq!(
+        bench.world.advance_to(t(5)),
+        Err(KernelError::ReductionCascadeTooDeep {
+            limit: mineworld_kernel::CASCADE_DEPTH_LIMIT,
+            systems: vec![Ping::ID, Pong::ID],
+        })
+    );
+    assert_eq!(
+        mineworld_kernel::CASCADE_DEPTH_LIMIT,
+        16,
+        "the limit SD-4 names, stated as a literal so the test does not move with the constant"
+    );
+}
+
+/// The same inputs produce the same history, byte for byte: every fact's identity, instant, cause,
+/// provenance and payload, across requests, reactions, deferrals and echoes (`AC-12`).
+#[test]
+fn the_same_inputs_replay_to_the_same_bytes() {
+    fn run() -> Vec<u8> {
+        let mut bench = Bench::new();
+        let mut history = Vec::new();
+        for (step, label) in (1..=12_u32).enumerate() {
+            let at = t(i64::try_from(step).expect("small") * 37);
+            history.extend(bench.world.advance_to(at).expect("advances").into_events());
+            let intent = bench.intent(i64::from(label) * 13, label, at);
+            let dispatched = bench.world.dispatch(&intent, at).expect("dispatched");
+            history.extend(dispatched.events().iter().cloned());
+        }
+        history.extend(
+            bench
+                .world
+                .advance_to(t(10_000))
+                .expect("advances")
+                .into_events(),
+        );
+        serde_json::to_vec(&history).expect("history serializes")
+    }
+
+    let first = run();
+    let second = run();
+    // Locate before comparing (`ARC-23`): the history is not trivially empty or uniform — it holds
+    // requests, rings and echoes from twelve requests, so equal bytes mean an equal history.
+    let parsed: Vec<EventEnvelope> = serde_json::from_slice(&first).expect("parses");
+    let count = |kind: &str| {
+        parsed
+            .iter()
+            .filter(|event| event.event_type().as_str() == kind)
+            .count()
+    };
+    assert_eq!(count("timer-set"), 12);
+    // Twelve rings from the requests, plus one echo for each of the six odd labels.
+    assert_eq!(count("rang"), 18);
+    assert_eq!(count("chimed"), 18);
+    assert_eq!(first, second);
+}
