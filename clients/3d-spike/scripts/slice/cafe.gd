@@ -94,8 +94,10 @@ static func _shell(g: Node3D, stone: Material) -> void:
 		Vector3(W, top, WALL_T), stone, 0.0, true)
 	# the storeys above the shop are solid: nobody goes up there, and a hollow
 	# volume would leak the interior's own lights into the upper windows.
-	Build.box(g, Vector3(0, (CEIL_Y + 0.14 + top) * 0.5, -DEPTH * 0.5),
-		Vector3(inner_w, top - CEIL_Y - 0.14, DEPTH), stone, 0.0, true)
+	# It starts behind the front wall, not at its face: a mass flush with the
+	# façade buried every upper window inside it.
+	Build.box(g, Vector3(0, (CEIL_Y + 0.14 + top) * 0.5, -(DEPTH + WALL_T) * 0.5),
+		Vector3(inner_w, top - CEIL_Y - 0.14, DEPTH - WALL_T), stone, 0.0, true)
 
 
 ## The shopfront: the wall that is almost entirely joinery and glass.
@@ -306,9 +308,13 @@ static func _upper_storeys(g: Node3D, stone: Material) -> void:
 	var x1 := W * 0.5
 	for s in range(2):
 		var y := base + s * STOREY
-		Build.box(g, Vector3(0, y + STOREY * 0.5, -WALL_T * 0.5),
-			Vector3(W, STOREY, WALL_T), stone, 0.0, true)
-		# three windows per storey, on the rhythm of the shopfront below
+		# three windows per storey, on the rhythm of the shopfront below, cut
+		# THROUGH the wall -- see Profile.wall_with_holes
+		var holes: Array = []
+		for i in range(3):
+			var hx := -W * 0.5 + W * (float(i) + 0.5) / 3.0
+			holes.append(Rect2(hx - 0.53, y + 0.72, 1.06, 1.82))
+		Profile.wall_with_holes(g, -W * 0.5, W * 0.5, y, y + STOREY, 0.0, WALL_T, holes, stone)
 		for i in range(3):
 			var cx := -W * 0.5 + W * (float(i) + 0.5) / 3.0
 			Profile.punched_window(g, cx, y + 0.72, 1.06, 1.82,

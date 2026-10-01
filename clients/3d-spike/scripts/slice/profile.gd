@@ -116,6 +116,58 @@ static func corbel(parent: Node3D, x: float, y: float, proj: float,
 ##
 ## `depth` is how far the frame sits back from the wall face (0.14-0.22 m is a
 ## masonry wall; anything under 0.06 reads as a sticker).
+## A wall slab spanning x0..x1, y0..y1, from `z_front` back by `thick`, with
+## rectangular holes cut through it (`holes` are Rect2 in the wall's x/y).
+## Built as the fewest boxes a row-by-row decomposition gives.
+##
+## This is what makes `punched_window` and every door a real opening. The first
+## build stood each window's reveal, frame and pane BEHIND the face of a solid
+## wall box, so every one was buried in the masonry and the frontage read as
+## blank stone above every shopfront -- `VISUAL_SLICE.md` sec.5's "window openings
+## that have reveals, sills and heads", failing invisibly.
+static func wall_with_holes(parent: Node3D, x0: float, x1: float, y0: float, y1: float,
+		z_front: float, thick: float, holes: Array, mat: Material,
+		collide := true) -> void:
+	var xs: Array[float] = [x0, x1]
+	var ys: Array[float] = [y0, y1]
+	for r in holes:
+		var h := r as Rect2
+		for x in [h.position.x, h.end.x]:
+			if x > x0 and x < x1:
+				xs.append(x)
+		for y in [h.position.y, h.end.y]:
+			if y > y0 and y < y1:
+				ys.append(y)
+	xs.sort()
+	ys.sort()
+	var zc := z_front - thick * 0.5
+	for j in range(ys.size() - 1):
+		var ya := ys[j]
+		var yb := ys[j + 1]
+		if yb - ya < 1e-4:
+			continue
+		var run_start := INF
+		for i in range(xs.size() - 1):
+			var xa := xs[i]
+			var xb := xs[i + 1]
+			var solid := xb - xa > 1e-4
+			if solid:
+				var mid := Vector2((xa + xb) * 0.5, (ya + yb) * 0.5)
+				for r in holes:
+					if (r as Rect2).has_point(mid):
+						solid = false
+						break
+			if solid and run_start == INF:
+				run_start = xa
+			var last := i == xs.size() - 2
+			if run_start != INF and (not solid or last):
+				var run_end := xb if (solid and last) else xa
+				if run_end - run_start > 1e-4:
+					Build.box(parent, Vector3((run_start + run_end) * 0.5, (ya + yb) * 0.5, zc),
+						Vector3(run_end - run_start, yb - ya, thick), mat, 0.0, collide)
+				run_start = INF
+
+
 static func punched_window(parent: Node3D, cx: float, y0: float, w: float, h: float,
 		frame_c: Color, glass: Material, stone: Material,
 		depth := 0.17, bars_x := 1, bars_y := 2, sill := true) -> void:

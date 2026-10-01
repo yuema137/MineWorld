@@ -27,8 +27,15 @@ const FRONT := CameraRig.Mode.THIRD_FRONT
 ## street; 180 faces south, out across the carriageway.
 var views := [
 	["01_street_wide", Vector3(-20.0, 0.45, -5.20), -75.0, -1.0, FP],
+	# 05's framing: across the carriageway from the opposite pavement, diagonal,
+	# the cafe frontage the subject
+	["01r_street_reference_framing", Vector3(-8.6, 0.45, 5.7), -46.0, 4.0, FP],
 	["02_cafe_approach", Vector3(-2.00, 0.45, -5.40), -55.0, 0.0, FP],
 	["03_cafe_exterior", Vector3(0.30, 0.45, -5.55), -52.0, 3.0, FP],
+	# 03's own framing: 03_cafe_frontage.png looks WEST along the frontage with
+	# the cafe on the right of frame and the terrace under its window; the view
+	# above looks east and mirrors it. This one stands east of the cafe.
+	["03r_reference_framing", Vector3(10.6, 0.45, -4.30), 40.0, 3.0, FP],
 	["04_doorway", Vector3(3.45, 0.45, -6.90), 0.0, 0.0, FP],
 	["05_interior_wide", Vector3(2.75, 0.60, -10.60), -38.0, -3.0, FP],
 	["06_interior_character", Vector3(4.60, 0.60, -12.60), -8.0, -2.0, REAR],

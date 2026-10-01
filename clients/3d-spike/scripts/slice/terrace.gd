@@ -14,6 +14,13 @@ extends RefCounted
 
 enum Roof { PARAPET, PITCHED, GABLE }
 
+## The façade skin's thickness: deep enough to hold a window's reveal, frame
+## and pane (punched_window recesses them up to ~0.19 m).
+const SKIN := 0.35
+## Behind a shop window, the shallow lit recess (`_lit_window`, 1.30 m deep)
+## needs the mass to start this far back.
+const RECESS_DEEP := 1.45
+
 ## One building. `origin` is the facade line; `yaw` turns it to face the street.
 class Unit extends RefCounted:
 	var x0: float
@@ -68,18 +75,29 @@ static func build(parent: Node3D, u: Unit, face_z: float, yaw: float) -> Node3D:
 	var ground_h := 4.30 if u.shopfront else u.storey_h
 	var top := ground_h + (u.storeys - 1) * u.storey_h
 
-	# the mass
-	Build.box(g, Vector3(0, top * 0.5, -u.depth * 0.5), Vector3(w, top, u.depth),
-		u.wall, 0.0, true)
-
+	# Every builder below reports the openings it puts in the façade, and the
+	# façade is then built with those openings cut through it. The first build
+	# was one solid mass flush with the façade, which buried every window, door
+	# and shop window of every unit in the masonry.
+	var holes: Array = []
+	var pocket: Array = []      # the shop-window recess, cut through the middle layer
 	if u.shopfront:
-		_shopfront(g, u, ground_h)
+		_shopfront(g, u, ground_h, holes, pocket)
 	else:
-		_ground_floor(g, u, ground_h)
+		_ground_floor(g, u, ground_h, holes)
+	for s in range(u.storeys - 1):
+		var y := ground_h + s * u.storey_h
+		_storey(g, u, y, holes)
+
+	# the mass, in three layers front to back
+	Build.box(g, Vector3(0, top * 0.5, -(u.depth + RECESS_DEEP) * 0.5),
+		Vector3(w, top, u.depth - RECESS_DEEP), u.wall, 0.0, true)
+	Profile.wall_with_holes(g, -w * 0.5, w * 0.5, 0.0, top, -SKIN, RECESS_DEEP - SKIN,
+		pocket, u.wall)
+	Profile.wall_with_holes(g, -w * 0.5, w * 0.5, 0.0, top, 0.0, SKIN, holes, u.wall)
 
 	for s in range(u.storeys - 1):
 		var y := ground_h + s * u.storey_h
-		_storey(g, u, y)
 		if s == 0 and u.storeys > 2:
 			Profile.band(g, -w * 0.5, w * 0.5, y - 0.16, 0.18, 0.09,
 				SlicePalette.painted(Color(0.780, 0.734, 0.640), 0.86))
@@ -91,7 +109,7 @@ static func build(parent: Node3D, u: Unit, face_z: float, yaw: float) -> Node3D:
 
 # --- the ground storey ---------------------------------------------------------
 
-static func _shopfront(g: Node3D, u: Unit, h: float) -> void:
+static func _shopfront(g: Node3D, u: Unit, h: float, holes: Array, pocket: Array) -> void:
 	var w := u.width()
 	var paint := SlicePalette.painted(u.front_c, 0.48)
 	var dark := SlicePalette.painted(u.front_c.darkened(0.30), 0.46)
@@ -122,6 +140,12 @@ static func _shopfront(g: Node3D, u: Unit, h: float) -> void:
 	var win_l := door_x + door_w * 0.5 + 0.22
 	var win_r := x_r - 0.26
 	var stall := 0.38
+	holes.append(Rect2(door_x - door_w * 0.5, 0.0, door_w, 2.23))
+	holes.append(Rect2(win_l, stall, win_r - win_l, glaze_head - stall))
+	pocket.append(Rect2(win_l, stall, win_r - win_l, glaze_head - stall))
+	# the glass is solid even though the shop is not enterable
+	Build.box_blocker(g, Vector3((win_l + win_r) * 0.5, glaze_head * 0.5, -0.05),
+		Vector3(win_r - win_l, glaze_head, 0.10))
 	Build.box(g, Vector3((win_l + win_r) * 0.5, stall * 0.5, -0.05),
 		Vector3(win_r - win_l + 0.2, stall, 0.24), dark, 0.0, true)
 	Build.box(g, Vector3((win_l + win_r) * 0.5, stall + 0.025, 0.04),
@@ -180,12 +204,14 @@ static func _awning(g: Node3D, x0: float, x1: float, y: float, u: Unit) -> void:
 
 
 ## A residential or blank ground storey: a doorcase, two windows, a plinth.
-static func _ground_floor(g: Node3D, u: Unit, h: float) -> void:
+static func _ground_floor(g: Node3D, u: Unit, h: float, holes: Array) -> void:
 	var w := u.width()
 	Build.box(g, Vector3(0, 0.30, 0.045), Vector3(w, 0.60, 0.09),
 		SlicePalette.kerbstone())
 	var door_x := -w * 0.5 + 1.25
 	var paint := SlicePalette.painted(u.front_c, 0.48)
+	holes.append(Rect2(door_x - 0.52, 0.0, 1.04, 2.53))
+	Build.box_blocker(g, Vector3(door_x, 1.2, -0.06), Vector3(1.04, 2.4, 0.10))
 	for jx in [door_x - 0.62, door_x + 0.62]:
 		Build.box(g, Vector3(jx, 1.16, 0.075), Vector3(0.20, 2.32, 0.15),
 			SlicePalette.kerbstone())
@@ -203,16 +229,18 @@ static func _ground_floor(g: Node3D, u: Unit, h: float) -> void:
 	var n := maxi(1, int((w - 3.2) / 2.6))
 	for i in range(n):
 		var cx := door_x + 1.9 + (w - 3.4 - 1.9) * (float(i) + 0.5) / float(n)
+		holes.append(Rect2(cx - 0.54, 1.05, 1.08, 1.90))
 		Profile.punched_window(g, cx, 1.05, 1.08, 1.90, u.front_c,
 			SlicePalette.dead_glass(), u.wall, 0.18, 1, 2)
 
 
 # --- upper storeys and roof ----------------------------------------------------
 
-static func _storey(g: Node3D, u: Unit, y: float) -> void:
+static func _storey(g: Node3D, u: Unit, y: float, holes: Array) -> void:
 	var w := u.width()
 	for i in range(u.bays):
 		var cx := -w * 0.5 + w * (float(i) + 0.5) / float(u.bays)
+		holes.append(Rect2(cx - 0.52, y + 0.78, 1.04, 1.76))
 		Profile.punched_window(g, cx, y + 0.78, 1.04, 1.76, u.front_c,
 			SlicePalette.dead_glass(), u.wall, 0.19, 1, 2)
 		# a juliet balcony on the middle bay of the tall block, as `05` has
