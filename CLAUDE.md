@@ -175,6 +175,11 @@ Specifically:
   finished.
 - Each new PR starts in a fresh implementation session. A resumed session after compaction is
   the *same* PR: recover repository truth, re-read the PR design in full, then continue.
+- **One working tree per branch, held by one session.** Two agents writing to one checkout
+  overwrite each other's uncommitted work with no conflict and no warning — git protects the
+  history, not the tree. A resumed agent returns to the directory it remembers, so a replacement
+  started on the same branch must take its own worktree. Before editing, confirm no other session
+  holds the one you are in; if one does, stop and say so rather than working around it.
 - Frozen means scope, invariants, and acceptance are frozen. Progress, evidence, audit
   findings, and bounded corrections stay writable and must be kept current.
 - A bounded discovery is resolved autonomously and recorded. A change to a frozen invariant,
@@ -234,6 +239,17 @@ python3 .claude/skills/structured-coding/scripts/standards.py inspect --project 
 python3 .claude/skills/structured-coding/scripts/standards.py approve --project .
 python3 .claude/skills/structured-coding/scripts/standards.py run     --project . --base main
 ```
+
+**Agent permissions: `.claude/settings.json` is repository policy;
+`.claude/settings.local.json` is one developer's grant for their own machine.** A permission in
+the tracked file is inherited silently by every contributor and every agent that clones, so it is
+a decision the project makes, not a convenience one session needs. Personal authorization —
+anything granted to keep a local workflow autonomous — belongs in the untracked local file, which
+`.gitignore` covers so the protection travels with the repository rather than depending on a
+developer's global ignore. Never commit a personal grant, and never widen the shared file to
+unblock yourself: an agent asking for a permission is exactly the case where the answer is the
+operator's. Narrow, read-only, universally useful commands may be added to the shared file
+deliberately; a broad wildcard may not.
 
 No host hooks are registered. Do not register or enable the `continuity`, `checkpoints`, or
 `standards` presets on your own initiative; if the operator enables one, read its interface

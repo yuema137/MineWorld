@@ -157,6 +157,10 @@ the same defect three times: a face judged at 60 px, a character judged in stree
 screenshots, and a review montage at 620 px per tile that was read as *nothing changed* when both
 the footwear and the roofline had in fact changed.
 
+This is the image-specific case of a general rule: `DECISIONS.md` `ARC-23` — **locate before
+counting** — which records seven instances of an instrument measuring something adjacent to what
+it was named after, twice coming within a step of a wrong architectural conclusion.
+
 So: compare at the reference's own framing. If the reference is a chest-up portrait, the candidate
 crop is chest-up. If the claim is about a sole touching the ground, the crop is the foot. A contact
 sheet is for orientation, never for a verdict.
@@ -168,8 +172,32 @@ Before requesting human review:
 > Shown the reference and the runtime screenshot side by side, would a person who had never seen
 > this project reasonably recognise them as the same character — or the same street?
 
-If the answer is clearly no, **do not request human review.** Report the failure and what it would
-take to fix, which is more useful than a candidate that will be rejected.
+If the answer is clearly no, **do not request acceptance review.** Report the failure and what it
+would take to fix.
+
+### 9.1 A stable candidate is shown early, as a preview (`ARC-24`)
+
+§9 governs **acceptance**. It does not govern **looking**. The operator is the judge of visual
+quality, and a candidate the operator never sees cannot be steered. Two consecutive rounds were
+lost to exactly this: the gate held every candidate back, correctly by its own terms, and the
+operator saw nothing while the direction drifted.
+
+So there are two kinds of review, and they are never confused:
+
+| | Preview | Acceptance review |
+| --- | --- | --- |
+| When | as soon as a candidate is **stable** — it launches cleanly, renders without broken geometry or missing textures, and the next change is refinement rather than repair | when §9's answer is yes |
+| Hard-fail categories (§5) | must already pass — a preview is not a way to show a man in a puffer jacket | must pass |
+| Asks the operator | *is this the right direction, and what is most wrong?* | *is this acceptable as the default?* |
+| Can end in `ACCEPTED` | **never** | only by the operator |
+
+A preview carries the same package as any review (`ARC-20`): the launch command, runtime frames at
+the reference's framing, the reference beside them, the known misses stated as facts largest
+first, and the specific questions. It says plainly that it is a preview.
+
+**Do not wait for perfection to show a stable candidate.** Waiting is the failure this section
+exists to prevent. Equally, do not show an unstable one: torn geometry, a featureless face, a
+texture that did not load — those are repair, and repair is the agent's to finish first.
 
 ## 10. What a review submission contains
 
