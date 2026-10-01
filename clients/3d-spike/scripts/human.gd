@@ -82,13 +82,20 @@ static func _shared() -> Dictionary:
 	_mats["sclera"] = sclera
 	var iris := StandardMaterial3D.new()
 	iris.albedo_texture = _tex("iris.jpg", true)
-	iris.roughness = 0.12
+	# Not glossy: the iris sits *behind* the cornea, and the cornea's highlight
+	# is not the iris's to carry.  At 0.12 a brown iris mirrored the sky and
+	# rendered silver-grey at every portrait framing.
+	iris.roughness = 0.5
 	_mats["iris"] = iris
 	# The pupil is its own 64-face disc in the CC0 mesh, sharing the sclera's UV
 	# island; textured with the sclera map it reads as a second white spot.
+	# And it is matte.  At roughness 0.10 the near-black disc was a mirror and
+	# reflected the sky, so every portrait showed silver-grey eyes over a brown
+	# iris.  It cannot simply be hidden: the iris mesh is a ring, and without
+	# the disc the white sclera shows through its centre.
 	var pupil := StandardMaterial3D.new()
 	pupil.albedo_color = Color(0.03, 0.025, 0.02)
-	pupil.roughness = 0.10
+	pupil.roughness = 0.7
 	_mats["pupil"] = pupil
 	var mouth := StandardMaterial3D.new()
 	mouth.albedo_texture = _tex("mouth.jpg", true)
