@@ -1,7 +1,7 @@
 # Step 06 / PR 07 — Persistence and event sourcing (S5)
 
 **Role:** combined step and PR document. S5 needs one PR.
-**Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S5 · **Lifecycle:** `DESIGN FROZEN` (2026-09-30, primary session; review recorded in §10.1)
+**Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S5 · **Lifecycle:** `READY FOR OPERATOR REVIEW` — GitHub [#22](https://github.com/yuema137/MineWorld/pull/22), not merged · design frozen 2026-09-30 (§10.1) · implementation context `CLOSED / AWAITING OPERATOR ACTION` (§12)
 **Base:** `main @ 5f02332` (S4 merged as `1241cab`; `5f02332` is the docs-only post-merge update)
 **Branch / worktree:** `mvp0/pr-07-persistence` in `/Users/yuema137/mineworld-worktrees/s5-persistence`
 **Depends on:** S4's `ScheduleSnapshot` / `World::restore_schedule`, S3's single-writer stores, S5V's
@@ -1015,3 +1015,31 @@ NORMAL STOP         PR 07 READY FOR OPERATOR REVIEW — DO NOT MERGE
 MATERIAL STOP       any change to §1.3, to an existing public contract's shape beyond §1.1, to
                     ownership, or to scope — stop and report with evidence
 ```
+
+---
+
+# 12. Closeout — READY FOR OPERATOR REVIEW
+
+```text
+PR                    GitHub #22 — https://github.com/yuema137/MineWorld/pull/22 (base main)
+base                  main @ 5f02332
+final executable HEAD 7db8611 — the last commit changing code or tests; every gate in §9 E-final ran
+                      on this content (plus documentation-only edits)
+final PR HEAD         the commit carrying this section (planning documents only); `git log` on the
+                      branch is authoritative — a commit cannot name its own hash
+semantic commits      2dc8a7f design · 910c1f4 freeze (primary session) · 2c897ab C1 specs ·
+                      9b98a52 C2 kernel · 61625de, 5706d00 C3 persistence · 330a507 C4 IC-1 ·
+                      7006314 C5 server · 7db8611 C5 CLI, IC-2, AC-15 · 8b7dd70 C6 docs
+CI                    N/A — no workflow in the repository (S13)
+material deviations   none: no frozen invariant (§1.3), public contract beyond §1.1, ownership or scope
+                      changed. Bounded deviations are recorded per commit; findings F-12 (fixed) and
+                      F-13 (recorded, L-3)
+working tree          clean after the closeout commit
+merge                 NOT authorized; the operator merges
+```
+
+**Post-merge, owned by the planning session (§11):** set this document's lifecycle to `MERGED` with
+the merge commit; move S5 to "Done" in `overall.md` §7 (its §3 S5 entry was already reworded in C1);
+detail S6 against the merged kernel — the first real System Packs will be the first journaled
+`dispatch`es of a hosted, persisted world, and S7's `mineworld run --headless` should drive a
+`PersistentWorld` with `Durability::ProcessCrash`.
