@@ -1,8 +1,8 @@
 # Step 07 / PR 08 — First real systems: places and movement (S6)
 
 **Role:** combined step and PR document. S6 needs one PR.
-**Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S6, §7 · **Lifecycle:** `DRAFT — AWAITING
-PRIMARY-SESSION REVIEW` (Phase 1 of the brief; no implementation code before `DESIGN FROZEN`)
+**Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S6, §7 · **Lifecycle:** `DESIGN FROZEN`
+(2026-09-30, primary session; review and answers recorded in §10.1)
 **Base:** `main @ a594164` (S5 merged as `41d4ab1`; `a594164` is the docs-only post-merge update)
 **Branch / worktree:** `mvp0/pr-08-movement` in `/Users/yuema137/mineworld-worktrees/s6-movement`
 (held by this session only; `vis-character` and `vis-environment` belong to other agents)
@@ -831,9 +831,76 @@ Q9             Existing social-cafe saves are refused after this PR (composition
                SAVE_FORMAT). Accept; migration stays a later step (S5 Q7).
 ```
 
+## 10.1 Answers — primary session review, 2026-09-30
+
+Decided under the operator's autonomous authorization (overall §7) and their standing rule that
+objective architectural correctness belongs to the agent. Q1 is reported to the operator by name
+because it touches `CLAUDE.md` §4 rule 1; they may overrule it. Two answers depart from the draft's
+recommendation: **Q4** gains a requirement and **Q6** is answered the other way.
+
+**Q1 — ACCEPTED, with Q3 as a hard condition and two clarifications.** Verified in source before
+answering. `contracts/src/event.rs` says `OWNER` is "the system that emits it", while
+`kernel/src/dispatch.rs` `record` checks only that the *emitter's own declaration* lists the type and
+never that `OWNER == emitter`. The specification and the kernel **already disagree**, which is a
+`CLAUDE.md` §2.1(4) defect in its own right; this decision resolves it rather than introducing it.
+
+Why this does not weaken single ownership (`CLAUDE.md` §4 rule 1). That rule is about **mutable
+state**: one owning system writes it, and others ask by emitting a fact. Under this design
+`Presence` is still written by exactly one thing — presence's own reduction of `Arrived`. Movement
+writes no presence state; it states a fact in presence's vocabulary, built through presence's
+constructor. The canonical alternative, movement emitting its own `MoveAccepted` for presence to
+react to, would make presence depend on movement while movement depends on presence to read where
+people are: a cycle, as §2.3 shows. Exposing the owner's vocabulary to declared dependents is the
+smallest acyclic form of the same rule.
+
+The two clarifications, which become part of `ARC-26`:
+
+1. `OWNER` means the system that **defines the fact's vocabulary and is the only system that reduces
+   it into owned state** — not merely the only system allowed to emit it.
+2. **The owner still decides.** Presence's constructor and reduction keep the power to refuse an
+   `Arrived` that would make presence's state invalid (an unknown place, a dead entity). Movement
+   decides whether a *move* is legal; presence decides whether its *state* may take the value.
+   Implement it so that refusal path exists and is tested.
+
+**Q2 — ACCEPTED.** Retire `arrive`. A distance rule that one `arrive` bypasses is not a rule, and
+`TooFarAway` would hold for the action but not for the world. C4 → C5 → C6 as drafted. The `AC-13`
+recordings are re-recorded from a real Godot run, never edited by hand.
+
+**Q3 — ACCEPTED.** Enforce "emitting another system's vocabulary requires declaring it and depending
+on its owner" in the kernel at install time. A rule this close to single ownership must not be a
+review convention. `SAVE_FORMAT` 1 → 2 is acceptable; no saves exist outside tests.
+
+**Q4 — ACCEPTED, with a requirement the draft lacks.** `MAX_STRIDE` = 2000 mm as a constant now and
+world configuration in S7. **But a per-request stride limit is only correct if clients report often
+enough.** A 3D client jogging at about 2.6 m/s that reports every second would be refused for moving
+legally. The design must state the client reporting rule — report before travelling `MAX_STRIDE`
+since the last accepted position — and put it in `PROTOCOL.md` and `ADOPTION.md`. A test must show a
+client following that rule at jog speed is never refused, and one that ignores it is.
+
+**Q5 — ACCEPTED.** `PersonEnteredPlace` is owned by presence, since occupancy is presence's state.
+The planning session rewords overall S6.
+
+**Q6 — ANSWERED THE OTHER WAY: add the street outside the café to social-cafe now.** With one place,
+`PersonEnteredPlace` never fires in any real world. The headline event of S6 would then exist only in
+test fixtures, against `CLAUDE.md` §4 rule 9 ("sample worlds are integration fixtures… major changes
+are evaluated by running them"). Two places joined by a doorway is also exactly what the 2D town and
+the 3D environment slice already depict, so the world pack catches up with its clients rather than
+running ahead of them. Add the doorway field to the World Pack format and record it in
+`docs/PACKAGE_FORMAT.md` in the same commit — that document is the specification and must not lag
+the schema (`CLAUDE.md` §2.1(4)).
+
+**Q7 — ACCEPTED**, together with the Q4 reporting rule. No speed limit and no walls within a place
+are recorded limitations, not hidden ones.
+
+**Q8 — RESOLVED.** `clients/protocol/run.sh`, bare and through `bash`, is added to the permission
+allow-list. It is a project launcher, within the tier the operator approved. Run C5's evidence step
+yourself.
+
+**Q9 — ACCEPTED.** Pre-PR saves are refused by name; migration stays a later step.
+
 ---
 
-# 11. Execution contract (proposed — to be confirmed at freeze)
+# 11. Execution contract (confirmed at freeze, 2026-09-30)
 
 ```text
 PROJECT / PR        MVP-0 · Step 07 / PR 08 — First real systems: places and movement (S6)
