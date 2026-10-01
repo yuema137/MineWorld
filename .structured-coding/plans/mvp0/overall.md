@@ -501,7 +501,7 @@ PR → step → overall was skipped after nearly every merge. A plan that cannot
 we" has stopped being the authority, so the obligation is restated below and is not optional.
 
 ```text
-Done (main @ 1241cab, 294 tests):
+Done (main @ 41d4ab1, 311 tests):
   S1   Entity / Component contracts                          PR 01
   S2   ActionIntent / Event / Observation / spatial          PR 02
   S3   System interface, registry, dispatch                  PR 03a, 03b
@@ -515,25 +515,40 @@ Done (main @ 1241cab, 294 tests):
        both were reverted. F-6 (ProcessTypeId added to contracts) accepted as bounded: purely
        additive, follows the EventTypeId pattern, backs the `type` field CORE_CONCEPTS §10
        already specifies. 300 simulated days replay byte for byte from one seed.
+  S5   persistence and event sourcing                        PR 07 (GitHub #22), merged 41d4ab1
+       ARC-25: state = newest snapshot + journal of inputs re-executed, verified byte for
+       byte against the append-only fact log (literal fact replay is incompatible with the
+       merged System contract — react/wake/interrupt both mutate and emit). Reviewed
+       independently before merge: gates re-run (311 passed, 0 failed); the process-kill
+       checkpoint IC-1 re-run (SIGKILL early/middle/late in two worlds, every resume
+       byte-identical to an uninterrupted run); one mutation run in review — restarting the
+       server's ActionId allocator at 1, i.e. reinstating the restart defect found at
+       freeze — fails both restart tests, then reverted. AC-15's fourth evidence line,
+       same persisted revision, now holds.
+       Open, outside S5 (F-13): a restarted `--agent` rule controller re-answers its last
+       line, because what it has answered lives in controller memory, not world state.
+       Belongs with S10 (cognition); recorded so Milestone D does not rediscover it.
 
 Next, framework (critical path to Milestone B):
-  S5   persistence and event sourcing         not started; detail it against main @ 1241cab.
-                                              Also closes the one AC-15 evidence line still
-                                              missing (same persisted revision). S4's
-                                              ScheduleSnapshot covers clock, queue, processes
-                                              and counters; component state is the remaining
-                                              half. Backend already decided: DEP-2, `rusqlite`
-                                              (bundled) behind `PersistenceBackend`.
+  S6   first real systems: places and movement   not started; detail against main @ 41d4ab1.
+       MovementSystem with MoveIntent, authoritative spatial state and rendered movement kept
+       distinct; disabling it must make `move` return ActionUnavailable with no change to any
+       other module (first real AC-2 evidence); a distance refusal is TooFarAway, decided
+       server-side. Note: `arrive` in PresenceSystem already carries movement today — the S6
+       re-audit must decide how MovementSystem relates to it rather than duplicate it.
 
-Remaining:  S6 ... S14, Milestones B-E
+Remaining:  S7 ... S14, Milestones B-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
-  VIS-3D-GODOT-1   vis/3d-human-pipeline @ 1b16dba — female body, hoodie, textures,
-                   backpack built; garment tears half fixed (predicate cause closed,
-                   offset-fold cause open)
-  VIS-3D-GODOT-2   vis/3d-godot-2-environment @ fa021cd — slice scene and scripts
-                   committed, never run; 63 CC0 assets to re-fetch and record
+  VIS-3D-GODOT-1   vis/3d-human-pipeline @ c03db4f — PREVIEW shown to the operator
+                   2026-09-30 (ARC-24). Garment tears fixed (cause: UV-seam vertices split by
+                   glTF and moved apart, not offset folding). Hair still fails its category;
+                   four steering questions awaiting the operator.
+  VIS-3D-GODOT-2   vis/3d-godot-2-environment @ 5652875 — PREVIEW shown to the operator
+                   2026-09-30. Runs, enterable, scale measured; 45 CC0 assets checked one by
+                   one, two excluded on relicensing grounds. Four steering questions awaiting
+                   the operator. Not yet connected to the server.
   VIS-3D-UE5-1     parked (ARC-21)
 
 Toolchain:  rust 1.97.1, Godot 4.7.2, Blender 5.2.2, Python 3.14.7

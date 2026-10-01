@@ -1,7 +1,7 @@
 # Step 06 / PR 07 — Persistence and event sourcing (S5)
 
 **Role:** combined step and PR document. S5 needs one PR.
-**Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S5 · **Lifecycle:** `READY FOR OPERATOR REVIEW` — GitHub [#22](https://github.com/yuema137/MineWorld/pull/22), not merged · design frozen 2026-09-30 (§10.1) · implementation context `CLOSED / AWAITING OPERATOR ACTION` (§12)
+**Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S5 · **Lifecycle:** `MERGED` — GitHub [#22](https://github.com/yuema137/MineWorld/pull/22), merge commit `41d4ab1`, 2026-09-30 · design frozen 2026-09-30 (§10.1) · implementation context `CLOSED` (§12)
 **Base:** `main @ 5f02332` (S4 merged as `1241cab`; `5f02332` is the docs-only post-merge update)
 **Branch / worktree:** `mvp0/pr-07-persistence` in `/Users/yuema137/mineworld-worktrees/s5-persistence`
 **Depends on:** S4's `ScheduleSnapshot` / `World::restore_schedule`, S3's single-writer stores, S5V's
