@@ -484,27 +484,54 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 
 # 7. Current position
 
+**Updated 2026-09-29.** This section had not been updated since PR 01 — it still read
+"In flight: PR 01" with seventeen PRs merged — because the post-merge obligation to update
+PR → step → overall was skipped after nearly every merge. A plan that cannot answer "where are
+we" has stopped being the authority, so the obligation is restated below and is not optional.
+
 ```text
-Completed:  commit 1 — specifications and process (75e1d2b)
-            commit 2 — planning documents (39abfb3)
-            commit 3 — playable 2D/3D requirements + governance (10dc9ef, 30630b8)
-In flight:  PR 01 — S1, Entity and Component contracts (frozen, executing)
-Designed:   PR 02 — S2, action/event/observation/spatial contracts (approved, blocked on S1)
-Remaining:  S3 … S14
-Toolchain:  rust 1.97.1, Godot 4.7.2, Docker 29.7.2, Python 3.14.7, Node 26.4.0
+Done (main @ bf16ec0, 259 tests):
+  S1   Entity / Component contracts                          PR 01
+  S2   ActionIntent / Event / Observation / spatial          PR 02
+  S3   System interface, registry, dispatch                  PR 03a, 03b
+  --   contract fixes from the renderer-integration spike    GitHub PR #2 ("PR 04")
+  S5V  vertical slice                                        05a 05b 05c 05d (GitHub #3 #4 #5 #7)
+       -> Milestone A complete: AC-15 holds, one Alice across two clients and an agent
+
+Next, framework (critical path to Milestone B):
+  S4   world clock, scheduler, Process        DESIGN FROZEN, not implemented
+       Its design predates S5V; it must be re-audited against current main before
+       implementation, and ships as PR 06 because "PR 04" is already taken on GitHub.
+  S5   persistence and event sourcing         not started; also closes the one AC-15 evidence
+                                              line still missing (same persisted revision)
+
+Remaining:  S6 ... S14, Milestones B-E
+
+Visual track (parallel, never blocking the above; ARC-20):
+  VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
+  VIS-3D-GODOT-1   vis/3d-human-pipeline @ 1b16dba — female body, hoodie, textures,
+                   backpack built; garment tears half fixed (predicate cause closed,
+                   offset-fold cause open)
+  VIS-3D-GODOT-2   vis/3d-godot-2-environment @ fa021cd — slice scene and scripts
+                   committed, never run; 63 CC0 assets to re-fetch and record
+  VIS-3D-UE5-1     parked (ARC-21)
+
+Toolchain:  rust 1.97.1, Godot 4.7.2, Blender 5.2.2, Python 3.14.7
 ```
 
-**Effect of the 2026-09-25 scope change on PR 01: none.** S1 delivers identity, the entity
-record, the component model and the relation model. It defines no spatial type, no movement, and
-no action, so it cannot encode a 2D-only assumption; the §11 gate first applies to S2, which owns
-the spatial contract. PR 01 therefore stays frozen as approved rather than being reopened.
+## Why the framework track stopped, recorded so it does not recur
 
-PR 01 covers S1 only: the contract layer for identity, components, and relations, plus the
-Cargo workspace it lives in and the fast structural checks that run on it. It does not
-implement dispatch, scheduling, persistence, or any system.
+Between 05d's merge and 2026-09-29 no framework work was scheduled. Every PR in that window
+(GitHub #6, #8–#18) was visual or process documentation, although the operator's direction was
+explicit that Milestones A–E continue and that the visual track never blocks them. Nothing was
+waiting on the operator: S4 was frozen and ready. The cause was the primary session directing
+every agent at the visual track.
 
-D-4, D-5, D-7 and D-9 are resolved (§5), so PR 01 can be designed in detail. Its execution
-contract records a local-only endpoint.
+**Standing rule from here:** while any framework step is unblocked, at least one agent is
+working on it. The visual track runs beside it, never instead of it.
+
+**Post-merge rule, restated:** after every merge, update the PR document, its step, and this
+section before starting the next PR on that track.
 
 ## Governance and merge order (operator, 2026-09-25)
 
