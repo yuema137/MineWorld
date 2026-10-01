@@ -23,6 +23,8 @@ use crate::access::{SystemIdentity, WriteAccess, WriteToken};
 use crate::components::ComponentStore;
 use crate::entities::EntityRegistry;
 use crate::error::KernelError;
+use crate::process::ProcessStore;
+use crate::registry::SystemRegistry;
 use crate::relations::RelationStore;
 use crate::schedule::Scheduled;
 use crate::view::WorldRead;
@@ -169,6 +171,9 @@ struct Bench {
     /// chain that began with request 3.
     cause: Cause,
     pending: Vec<(WorldTime, Scheduled)>,
+    processes: ProcessStore,
+    systems: SystemRegistry,
+    foreign: Vec<(SystemId, Vec<Emission>)>,
 }
 
 impl Bench {
@@ -192,6 +197,9 @@ impl Bench {
                     decision: Some(ActionId::from_raw(3)),
                 },
                 pending: Vec::new(),
+                processes: ProcessStore::new(),
+                systems: SystemRegistry::new(),
+                foreign: Vec::new(),
             },
             token,
         )
@@ -202,13 +210,26 @@ impl Bench {
     }
 
     fn parts(&mut self, at: WorldTime) -> WorldParts<'_> {
-        WorldParts::new(
-            &self.entities,
-            &mut self.components,
-            &mut self.relations,
+        WorldParts {
+            entities: &self.entities,
+            components: &mut self.components,
+            relations: &mut self.relations,
+            processes: &mut self.processes,
+            systems: &self.systems,
             at,
-            &self.cause,
-            &mut self.pending,
+            cause: &self.cause,
+            pending: &mut self.pending,
+            foreign: &mut self.foreign,
+            depth: 0,
+        }
+    }
+
+    fn read(&self) -> WorldRead<'_> {
+        WorldRead::new(
+            &self.entities,
+            &self.components,
+            &self.relations,
+            &self.processes,
         )
     }
 }
@@ -330,7 +351,7 @@ fn the_erased_half_calls_through_to_the_system() {
     );
 
     // Validation goes through the same wrapper, reads the state that write produced, and admits.
-    let read = WorldRead::new(&bench.entities, &bench.components, &bench.relations);
+    let read = bench.read();
     assert_eq!(installed.validate(&read, &intent), Ok(()));
 
     // Run again: the system reads its own state through the view and writes the next value, which
@@ -344,7 +365,7 @@ fn the_erased_half_calls_through_to_the_system() {
     );
 
     // And now the system's own rule refuses, through the erased half, from state alone.
-    let read = WorldRead::new(&bench.entities, &bench.components, &bench.relations);
+    let read = bench.read();
     assert_eq!(
         installed.validate(&read, &intent),
         Err(Rejection::PreconditionFailed)
@@ -431,7 +452,9 @@ fn a_deferral_must_name_a_later_instant() {
     }
 
     assert_eq!(bench.pending.len(), 1);
-    let (at, Scheduled::Fact(deferral)) = &bench.pending[0];
+    let (at, Scheduled::Fact(deferral)) = &bench.pending[0] else {
+        panic!("a deferral is queued as a fact, not a wake");
+    };
     assert_eq!(*at, WorldTime::from_seconds(41));
     assert_eq!(deferral.at(), WorldTime::from_seconds(41));
     assert_eq!(*deferral.emission().event_type(), Ticked::EVENT_TYPE);

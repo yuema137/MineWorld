@@ -12,7 +12,7 @@
 
 use mineworld_contracts::{
     ActionTypeId, ComponentTypeId, ContractError, EntityId, EntityKey, EventTypeId, LifecycleState,
-    RelationTypeId, SystemId, WorldTime,
+    ProcessId, ProcessTypeId, RelationTypeId, SystemId, WorldTime,
 };
 
 use thiserror::Error;
@@ -467,6 +467,108 @@ pub enum KernelError {
     PersistedEntryNamesUninstalledSystem {
         /// The system the entry belongs to.
         system: SystemId,
+    },
+
+    /// A process was given an expected end that is not later than the instant it is in. A process
+    /// takes time; something that starts and ends in one instant is an event (`INV-3`).
+    #[error(
+        "a process cannot be expected to end at {end}: it is {now} now, and a process takes time"
+    )]
+    ProcessEndNotInTheFuture {
+        /// The expected end that was asked for.
+        end: WorldTime,
+        /// The instant the world is at.
+        now: WorldTime,
+    },
+
+    /// Process identity allocation reached the top of the identifier space.
+    #[error("this world has allocated every available process identity")]
+    ProcessIdSpaceExhausted,
+
+    /// An operation named a process that is not running or suspended in this world: it has ended,
+    /// or it never existed.
+    #[error("process {process} is not running in this world")]
+    ProcessNotRunning {
+        /// The process named.
+        process: ProcessId,
+    },
+
+    /// A system tried to change a process another system owns. The owner is the single writer of
+    /// its processes (`INV-7`); anyone else asks it to interrupt instead.
+    #[error("process {process} is owned by '{owner}', so '{writing_system}' cannot change it")]
+    ProcessNotOwned {
+        /// The process.
+        process: ProcessId,
+        /// The system that owns it.
+        owner: SystemId,
+        /// The system that tried to change it.
+        writing_system: SystemId,
+    },
+
+    /// A process was addressed as a kind it is not — its state read, or its owner acting on it,
+    /// through the wrong kind. Refused rather than decoded on the chance that the bytes fit.
+    #[error("process {process} is a '{actual}', not a '{expected}'")]
+    ProcessKindMismatch {
+        /// The process.
+        process: ProcessId,
+        /// The kind it was addressed as.
+        expected: ProcessTypeId,
+        /// The kind it is.
+        actual: ProcessTypeId,
+    },
+
+    /// A system started a process with an expected end and has no answer when that end comes. A
+    /// world that let the process run on silently would hide the bug.
+    #[error(
+        "system '{system}' started process {process} with an expected end but does not wake it"
+    )]
+    ProcessNotWokenBySystem {
+        /// The owning system.
+        system: SystemId,
+        /// The process whose end arrived.
+        process: ProcessId,
+    },
+
+    /// Interruption requests nested deeper than the cascade limit: owners deciding interruptions by
+    /// requesting interruptions of their own, without end.
+    #[error(
+        "interruption requests nested deeper than {limit}: '{requester}' asked '{owner}' while \
+         already answering a request"
+    )]
+    InterruptionsTooDeep {
+        /// The limit that was exceeded.
+        limit: usize,
+        /// The system whose request crossed the limit.
+        requester: SystemId,
+        /// The owner it would have been delivered to.
+        owner: SystemId,
+    },
+
+    /// A saved world's process counter is below the first process identity.
+    #[error(
+        "persisted process counter would next allocate {next}, below the first identity {first}"
+    )]
+    PersistedProcessCounterTooLow {
+        /// The next process identity the saved world would allocate.
+        next: u64,
+        /// The first process identity a world allocates.
+        first: u64,
+    },
+
+    /// A saved world held a process whose identity its own counter had not yet allocated.
+    #[error("persisted process {process} was never allocated by its counter (next {next})")]
+    PersistedProcessOutsideCounter {
+        /// The process found.
+        process: ProcessId,
+        /// The next process identity the saved world would allocate.
+        next: u64,
+    },
+
+    /// A saved world held two processes under one identity.
+    #[error("persisted processes hold identity {process} twice")]
+    PersistedProcessRepeated {
+        /// The repeated identity.
+        process: ProcessId,
     },
 
     /// A persisted graph filed an edge type's declaration under a different name.

@@ -11,6 +11,9 @@
 //! validate   read state and decide whether a request is admissible — no writes, by type
 //! resolve    decide the outcome and return the facts it caused
 //! react      apply a fact this system subscribed to, into the state it owns
+//! wake       decide what happens when a process it owns reaches its expected end      (S4)
+//! interrupt  decide whether to end, suspend or keep a process another system asked
+//!            to interrupt                                                             (S4)
 //! ```
 //!
 //! # Why a declaration is a value and identity is a type
@@ -51,6 +54,7 @@ use serde::{Deserialize, Serialize};
 use crate::access::{SystemIdentity, WriteToken};
 use crate::components::ComponentStore;
 use crate::error::KernelError;
+use crate::process::{InterruptRequest, Process};
 use crate::relations::RelationStore;
 use crate::view::{Declarations, WorldParts, WorldRead, WorldView};
 
@@ -545,6 +549,47 @@ pub trait System: SystemIdentity + Sized + 'static {
         let _ = (world, event);
         Ok(Vec::new())
     }
+
+    /// A process this system owns has reached its expected end: decide what happens.
+    ///
+    /// Typically the system ends it and emits the fact that it ended, or sets a later end. The facts
+    /// it returns are caused by the process ([`Causation::Process`]). Called only for a running
+    /// process whose expected end is this instant; a wake left behind by a rescheduled, suspended
+    /// or ended process is ignored.
+    ///
+    /// The default **refuses**, naming the process, for the reason the default `resolve` does: a
+    /// system that starts a process with an expected end and does not handle its end is a bug in
+    /// that system, and a world that silently let the process run on would hide it.
+    fn wake(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        process: &Process,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let _ = world;
+        Err(KernelError::ProcessNotWokenBySystem {
+            system: Self::ID,
+            process: process.id(),
+        })
+    }
+
+    /// Another system asks that a process this system owns be interrupted: decide.
+    ///
+    /// End it ([`WorldView::end_process`]), suspend it ([`WorldView::suspend_process`]), or leave it
+    /// running — which is a refusal. The requester learns which from the world afterwards, not from
+    /// anything this method says, so the answer cannot be misreported. Facts returned here are this
+    /// system's, caused by whatever the requester was handling (the phone call, say).
+    ///
+    /// The default leaves the process running: a system that declares nothing about interruption
+    /// refuses every request. A process that must never be interrupted is better started
+    /// [`uninterruptible`](crate::ProcessStart::uninterruptible), so the owner is not even asked.
+    fn interrupt(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        request: &InterruptRequest,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let _ = (world, request);
+        Ok(Vec::new())
+    }
 }
 
 /// What the registry can ask of an installed system without naming its type.
@@ -573,6 +618,14 @@ pub(crate) trait DynSystem {
         &self,
         parts: WorldParts<'_>,
         event: &EventEnvelope,
+    ) -> Result<Vec<Emission>, KernelError>;
+
+    fn wake(&self, parts: WorldParts<'_>, process: &Process) -> Result<Vec<Emission>, KernelError>;
+
+    fn interrupt(
+        &self,
+        parts: WorldParts<'_>,
+        request: &InterruptRequest,
     ) -> Result<Vec<Emission>, KernelError>;
 }
 
@@ -626,5 +679,19 @@ impl<T: System> DynSystem for InstalledSystem<T> {
     ) -> Result<Vec<Emission>, KernelError> {
         let mut view = WorldView::new(parts, &self.token);
         self.system.react(&mut view, event)
+    }
+
+    fn wake(&self, parts: WorldParts<'_>, process: &Process) -> Result<Vec<Emission>, KernelError> {
+        let mut view = WorldView::new(parts, &self.token);
+        self.system.wake(&mut view, process)
+    }
+
+    fn interrupt(
+        &self,
+        parts: WorldParts<'_>,
+        request: &InterruptRequest,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let mut view = WorldView::new(parts, &self.token);
+        self.system.interrupt(&mut view, request)
     }
 }

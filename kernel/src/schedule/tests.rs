@@ -34,16 +34,18 @@ fn item(index: usize, at: WorldTime) -> Scheduled {
         },
         decision: None,
     };
-    Scheduled::Fact(Deferral::new(
+    Scheduled::Fact(Box::new(Deferral::new(
         at,
         emission,
         SystemId::from_static("marker"),
         &cause,
-    ))
+    )))
 }
 
 fn index_of(item: &Scheduled) -> usize {
-    let Scheduled::Fact(deferral) = item;
+    let Scheduled::Fact(deferral) = item else {
+        panic!("these tests queue only facts");
+    };
     let bytes: [u8; 8] = deferral
         .emission()
         .record()

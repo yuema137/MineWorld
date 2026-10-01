@@ -38,10 +38,11 @@ mod tests;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use mineworld_contracts::{SystemId, WorldTime};
+use mineworld_contracts::{ProcessId, SystemId, WorldTime};
 use serde::{Deserialize, Serialize};
 
 use crate::error::KernelError;
+use crate::process::Process;
 use crate::system::Deferral;
 
 /// The first sequence number a schedule assigns. One, not zero, for the reason identities start at
@@ -67,18 +68,26 @@ impl core::fmt::Display for Sequence {
 }
 
 /// What can be due at an instant.
+///
+/// Two things and no third, because only two things in a world happen later than they were decided:
+/// a fact a system deferred, and a process reaching the end its owner expected.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Scheduled {
-    /// A fact a system asked to happen at this instant.
-    Fact(Deferral),
+    /// A fact a system asked to happen at this instant. Boxed because a deferral carries a whole
+    /// emission and a wake carries one identity; the queue should not pay the larger for both.
+    Fact(Box<Deferral>),
+    /// A process's expected end: its owning system is woken to decide what happens.
+    Wake(ProcessId),
 }
 
 impl Scheduled {
-    /// The system that acts when this entry fires, if it names one directly.
+    /// The system that acts when this entry fires, if it names one directly. A wake names a
+    /// process, and the process names its owner.
     pub(crate) fn deferring_system(&self) -> Option<&SystemId> {
         match self {
             Self::Fact(deferral) => Some(deferral.emitter()),
+            Self::Wake(_) => None,
         }
     }
 }
@@ -109,6 +118,10 @@ pub struct ScheduleSnapshot {
     pub entries: Vec<ScheduledEntry>,
     /// The next event identity the world would have allocated.
     pub next_event: u64,
+    /// The next process identity the world would have allocated.
+    pub next_process: u64,
+    /// Every running or suspended process, in identity order.
+    pub processes: Vec<Process>,
 }
 
 /// The queue a world advances through.

@@ -62,6 +62,7 @@ pub mod components;
 pub mod dispatch;
 pub mod entities;
 pub mod error;
+pub mod process;
 pub mod registry;
 pub mod relations;
 pub mod schedule;
@@ -79,6 +80,10 @@ pub use components::ComponentStore;
 pub use dispatch::{CASCADE_DEPTH_LIMIT, Dispatched};
 pub use entities::{EntityRegistry, EntityRegistrySnapshot};
 pub use error::KernelError;
+pub use process::{
+    InterruptOutcome, InterruptRequest, Interruptibility, Process, ProcessKind, ProcessPhase,
+    ProcessStart, ProcessStore,
+};
 pub use registry::SystemRegistry;
 pub use relations::{RelationStore, RelationStoreSnapshot};
 pub use schedule::{ScheduleSnapshot, Scheduled, ScheduledEntry, Sequence};

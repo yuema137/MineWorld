@@ -32,14 +32,20 @@
 //! (`INV-13`), not a view.
 
 use mineworld_contracts::{
-    Component, ComponentDeclaration, Entity, EntityId, EntityKey, Relation,
+    Component, ComponentDeclaration, Entity, EntityId, EntityKey, ProcessId, Relation,
     RelationTypeDeclaration, RelationTypeId, SystemId, WorldTime,
 };
 
 use crate::access::{OwnedBy, SystemIdentity, WriteToken};
 use crate::components::ComponentStore;
+use crate::dispatch::CASCADE_DEPTH_LIMIT;
 use crate::entities::EntityRegistry;
 use crate::error::KernelError;
+use crate::process::{
+    InterruptOutcome, InterruptRequest, Interruptibility, Process, ProcessKind, ProcessPhase,
+    ProcessStart, ProcessStore,
+};
+use crate::registry::SystemRegistry;
 use crate::relations::RelationStore;
 use crate::schedule::Scheduled;
 use crate::system::{Cause, Deferral, Emission};
@@ -54,6 +60,7 @@ pub struct WorldRead<'a> {
     entities: &'a EntityRegistry,
     components: &'a ComponentStore,
     relations: &'a RelationStore,
+    processes: &'a ProcessStore,
 }
 
 impl<'a> WorldRead<'a> {
@@ -61,12 +68,27 @@ impl<'a> WorldRead<'a> {
         entities: &'a EntityRegistry,
         components: &'a ComponentStore,
         relations: &'a RelationStore,
+        processes: &'a ProcessStore,
     ) -> Self {
         Self {
             entities,
             components,
             relations,
+            processes,
         }
+    }
+
+    /// A running or suspended process, if there is one with this identity.
+    ///
+    /// Open to every system, as components are: a phone system may see that Bob is having dinner.
+    /// What it may not do is change that — it asks the owner instead.
+    pub fn process(&self, process: ProcessId) -> Option<&'a Process> {
+        self.processes.get(process)
+    }
+
+    /// Every running or suspended process, in [`ProcessId`] order.
+    pub fn processes(&self) -> impl Iterator<Item = &'a Process> {
+        self.processes.iter()
     }
 
     /// The entity record, if this world allocated that identity.
@@ -151,33 +173,40 @@ impl<'a> WorldRead<'a> {
 /// this way is what lets the object-safe half of the trait carry a world across a `dyn` boundary
 /// without naming a system type (`BD-3`).
 pub(crate) struct WorldParts<'a> {
-    entities: &'a EntityRegistry,
-    components: &'a mut ComponentStore,
-    relations: &'a mut RelationStore,
-    at: WorldTime,
+    pub(crate) entities: &'a EntityRegistry,
+    pub(crate) components: &'a mut ComponentStore,
+    pub(crate) relations: &'a mut RelationStore,
+    pub(crate) processes: &'a mut ProcessStore,
+    /// The registry, read-only: how an interruption request finds the owner it is delivered to.
+    pub(crate) systems: &'a SystemRegistry,
+    pub(crate) at: WorldTime,
     /// Why the system being called is running. Supplied by the kernel, never by the system.
-    cause: &'a Cause,
+    pub(crate) cause: &'a Cause,
     /// What this call asks to happen later, in the order it asked. The world files it in its
     /// schedule once the call returns, so sequence numbers follow the order of asking.
-    pending: &'a mut Vec<(WorldTime, Scheduled)>,
+    pub(crate) pending: &'a mut Vec<(WorldTime, Scheduled)>,
+    /// Facts another system decided while this call ran — an owner answering an interruption this
+    /// call requested — each with the system that decided it. Recorded as that system's once this
+    /// call returns, ahead of this call's own facts, because they happened first.
+    pub(crate) foreign: &'a mut Vec<(SystemId, Vec<Emission>)>,
+    /// How many interruption deliveries deep this call is. Bounded like reduction is.
+    pub(crate) depth: usize,
 }
 
-impl<'a> WorldParts<'a> {
-    pub(crate) fn new(
-        entities: &'a EntityRegistry,
-        components: &'a mut ComponentStore,
-        relations: &'a mut RelationStore,
-        at: WorldTime,
-        cause: &'a Cause,
-        pending: &'a mut Vec<(WorldTime, Scheduled)>,
-    ) -> Self {
-        Self {
-            entities,
-            components,
-            relations,
-            at,
-            cause,
-            pending,
+impl WorldParts<'_> {
+    /// The same parts, reborrowed for one nested call — an owner deciding an interruption.
+    fn nested(&mut self) -> WorldParts<'_> {
+        WorldParts {
+            entities: self.entities,
+            components: self.components,
+            relations: self.relations,
+            processes: self.processes,
+            systems: self.systems,
+            at: self.at,
+            cause: self.cause,
+            pending: self.pending,
+            foreign: self.foreign,
+            depth: self.depth + 1,
         }
     }
 }
@@ -219,6 +248,7 @@ impl<'a, S: SystemIdentity> WorldView<'a, S> {
             self.parts.entities,
             self.parts.components,
             self.parts.relations,
+            self.parts.processes,
         )
     }
 
@@ -288,8 +318,144 @@ impl<'a, S: SystemIdentity> WorldView<'a, S> {
             });
         }
         let deferral = Deferral::new(at, emission, self.writer(), self.parts.cause);
-        self.parts.pending.push((at, Scheduled::Fact(deferral)));
+        self.parts
+            .pending
+            .push((at, Scheduled::Fact(Box::new(deferral))));
         Ok(())
+    }
+
+    /// Starts a process of a kind this system owns, at this instant, and returns its identity.
+    ///
+    /// `P::Owner = S` is the compiler's check: a system cannot start a process of a kind it does not
+    /// own. If the start names an expected end, it must be strictly later than now, and this
+    /// system's [`System::wake`](crate::System::wake) is called then.
+    pub fn start_process<P>(&mut self, start: ProcessStart<P>) -> Result<ProcessId, KernelError>
+    where
+        P: ProcessKind<Owner = S>,
+    {
+        let end = start.expected_end_instant();
+        let process = self.parts.processes.start(S::ID, start, self.parts.at)?;
+        if let Some(end) = end {
+            self.parts.pending.push((end, Scheduled::Wake(process)));
+        }
+        Ok(process)
+    }
+
+    /// Ends a process this system owns, returning its final record. The facts that say it ended are
+    /// this system's to emit; ending one records nothing by itself.
+    pub fn end_process<P>(&mut self, process: ProcessId) -> Result<Process, KernelError>
+    where
+        P: ProcessKind<Owner = S>,
+    {
+        self.parts.processes.end::<P>(process, &S::ID)
+    }
+
+    /// Pauses a process this system owns. A suspended process is not woken at its expected end.
+    pub fn suspend_process<P>(&mut self, process: ProcessId) -> Result<(), KernelError>
+    where
+        P: ProcessKind<Owner = S>,
+    {
+        self.parts
+            .processes
+            .owned_mut::<P>(process, &S::ID)?
+            .set_phase(ProcessPhase::Suspended);
+        Ok(())
+    }
+
+    /// Sets when a process this system owns is expected to end — or that it has no expected end —
+    /// and resumes it if it was suspended. A new end must be strictly later than now; the system is
+    /// woken then, and a wake for the old end is ignored when it falls due.
+    pub fn reschedule_process<P>(
+        &mut self,
+        process: ProcessId,
+        expected_end: Option<WorldTime>,
+    ) -> Result<(), KernelError>
+    where
+        P: ProcessKind<Owner = S>,
+    {
+        let now = self.parts.at;
+        if let Some(end) = expected_end
+            && end <= now
+        {
+            return Err(KernelError::ProcessEndNotInTheFuture { end, now });
+        }
+        let record = self.parts.processes.owned_mut::<P>(process, &S::ID)?;
+        record.set_expected_end(expected_end);
+        record.set_phase(ProcessPhase::Running);
+        if let Some(end) = expected_end {
+            self.parts.pending.push((end, Scheduled::Wake(process)));
+        }
+        Ok(())
+    }
+
+    /// Replaces this system's own state for a process it owns: the course a dinner is on.
+    pub fn set_process_state<P>(
+        &mut self,
+        process: ProcessId,
+        state: Vec<u8>,
+    ) -> Result<(), KernelError>
+    where
+        P: ProcessKind<Owner = S>,
+    {
+        self.parts
+            .processes
+            .owned_mut::<P>(process, &S::ID)?
+            .set_state(state);
+        Ok(())
+    }
+
+    /// Asks the owner of a process to interrupt it, and returns what the owner did.
+    ///
+    /// The request is delivered now, to the owning system's
+    /// [`System::interrupt`](crate::System::interrupt), with the owner's own view of the world — so
+    /// the owner writes only what the owner owns — and the outcome is read off the world afterwards.
+    /// This system learns the answer and changes nothing itself (`INV-7`, SD-6).
+    ///
+    /// Answered without consulting the owner when the process is not running
+    /// ([`InterruptOutcome::NotRunning`]), is uninterruptible, or belongs to a disabled system.
+    /// Facts the owner emits while deciding are recorded as the owner's, caused by what this call is
+    /// handling, ahead of this call's own facts.
+    pub fn request_interrupt(
+        &mut self,
+        process: ProcessId,
+    ) -> Result<InterruptOutcome, KernelError> {
+        let Some(record) = self.parts.processes.get(process) else {
+            return Ok(InterruptOutcome::NotRunning);
+        };
+        if record.interruptibility() == Interruptibility::Uninterruptible {
+            return Ok(InterruptOutcome::Uninterruptible);
+        }
+        let owner = record.owner().clone();
+        let was_suspended = record.phase() == ProcessPhase::Suspended;
+        let systems = self.parts.systems;
+        let Some(handler) = systems
+            .is_enabled(&owner)
+            .then(|| systems.system(&owner))
+            .flatten()
+        else {
+            return Ok(InterruptOutcome::OwnerDisabled);
+        };
+        if self.parts.depth >= CASCADE_DEPTH_LIMIT {
+            return Err(KernelError::InterruptionsTooDeep {
+                limit: CASCADE_DEPTH_LIMIT,
+                requester: S::ID,
+                owner,
+            });
+        }
+
+        let request = InterruptRequest::new(process, S::ID, self.parts.cause.caused_by.clone());
+        let emissions = handler.interrupt(self.parts.nested(), &request)?;
+        self.parts.foreign.push((owner, emissions));
+
+        // What the owner *did*, read off the store: a process already suspended and left so has
+        // been refused, not suspended again.
+        Ok(match self.parts.processes.get(process) {
+            None => InterruptOutcome::Ended,
+            Some(after) if after.phase() == ProcessPhase::Suspended && !was_suspended => {
+                InterruptOutcome::Suspended
+            }
+            Some(_) => InterruptOutcome::Refused,
+        })
     }
 }
 

@@ -55,6 +55,7 @@ use crate::components::ComponentStore;
 use crate::dispatch::EventIds;
 use crate::entities::EntityRegistry;
 use crate::error::KernelError;
+use crate::process::{Process, ProcessStore};
 use crate::registry::SystemRegistry;
 use crate::relations::RelationStore;
 use crate::schedule::{Schedule, ScheduleSnapshot, Scheduled, Sequence};
@@ -69,6 +70,7 @@ pub(crate) struct WorldSplit<'a> {
     pub(crate) entities: &'a EntityRegistry,
     pub(crate) components: &'a mut ComponentStore,
     pub(crate) relations: &'a mut RelationStore,
+    pub(crate) processes: &'a mut ProcessStore,
     pub(crate) events: &'a mut EventIds,
     pub(crate) schedule: &'a mut Schedule,
 }
@@ -121,6 +123,8 @@ pub struct World {
     clock: WorldClock,
     /// What is to happen later, in `(WorldTime, Sequence)` order (`DEP-6`).
     schedule: Schedule,
+    /// Every process running or suspended in this world, each changed only by its owner.
+    processes: ProcessStore,
     /// Whether this world has run yet: dispatched a request or advanced its clock.
     ///
     /// One bit, and it exists for one reason: [`World::genesis`] states facts caused by the world
@@ -147,6 +151,7 @@ impl World {
             access: WriteAccess::new(),
             clock: WorldClock::new(),
             schedule: Schedule::new(),
+            processes: ProcessStore::new(),
             ran: false,
         }
     }
@@ -268,6 +273,7 @@ impl World {
             entities: &self.entities,
             components: &mut self.components,
             relations: &mut self.relations,
+            processes: &mut self.processes,
             events: &mut self.events,
             schedule: &mut self.schedule,
         }
@@ -338,25 +344,27 @@ impl World {
         }
     }
 
-    /// Everything this PR adds to a world's state, for a caller that has to save it (S5) — the
-    /// clock, the schedule with its pending work, and the event counter, so that a restored world
-    /// continues identity where this one stopped.
+    /// Everything S4 adds to a world's state, for a caller that has to save it (S5) — the clock,
+    /// the schedule with its pending work, the processes, and the event and process counters, so
+    /// that a restored world continues identity where this one stopped.
     pub fn schedule_snapshot(&self) -> ScheduleSnapshot {
         ScheduleSnapshot {
             now: self.clock.now(),
             next_sequence: self.schedule.next_sequence(),
             entries: self.schedule.entries(),
             next_event: self.events.next(),
+            next_process: self.processes.next_id(),
+            processes: self.processes.records(),
         }
     }
 
-    /// Replaces this world's clock, schedule and event counter with a saved world's.
+    /// Replaces this world's clock, schedule, processes and counters with a saved world's.
     ///
     /// World assembly, like [`World::genesis`]: refused once the world has run, and refused —
     /// changing nothing — if the snapshot could not have come from a world: an entry before its own
-    /// `now`, a sequence used twice or ahead of its counter, an event counter below the first
-    /// identity, or a deferral by a system this world has not installed. Component state is not in
-    /// it: that is S5's.
+    /// `now`, a sequence used twice or ahead of its counter, a counter below the first identity, a
+    /// process identity used twice or ahead of its counter, or work or a process belonging to a
+    /// system this world has not installed. Component state is not in it: that is S5's.
     pub fn restore_schedule(&mut self, snapshot: ScheduleSnapshot) -> Result<(), KernelError> {
         if self.ran {
             return Err(KernelError::RestoreAfterTheWorldHasRun);
@@ -366,11 +374,15 @@ impl World {
             next_sequence,
             entries,
             next_event,
+            next_process,
+            processes,
         } = snapshot;
-        for entry in &entries {
-            if let Some(system) = entry.item.deferring_system()
-                && !self.systems.is_installed(system)
-            {
+        let named = entries
+            .iter()
+            .filter_map(|entry| entry.item.deferring_system())
+            .chain(processes.iter().map(Process::owner));
+        for system in named {
+            if !self.systems.is_installed(system) {
                 return Err(KernelError::PersistedEntryNamesUninstalledSystem {
                     system: system.clone(),
                 });
@@ -378,15 +390,27 @@ impl World {
         }
         let schedule = Schedule::restore(now, next_sequence, entries)?;
         let events = EventIds::restore(next_event)?;
+        let processes = ProcessStore::restore(next_process, processes)?;
         self.schedule = schedule;
         self.events = events;
+        self.processes = processes;
         self.clock.restore(now);
         Ok(())
     }
 
+    /// Every running or suspended process in this world.
+    pub const fn processes(&self) -> &ProcessStore {
+        &self.processes
+    }
+
     /// The whole world as a system reads it: the same view `validate` is handed.
     pub const fn read(&self) -> WorldRead<'_> {
-        WorldRead::new(&self.entities, &self.components, &self.relations)
+        WorldRead::new(
+            &self.entities,
+            &self.components,
+            &self.relations,
+            &self.processes,
+        )
     }
 
     /// Brings an entity into being, allocating its identity.

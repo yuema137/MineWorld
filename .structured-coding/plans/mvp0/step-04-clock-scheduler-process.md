@@ -134,20 +134,22 @@ recorded in §11 as each item completes.
 - [x] Review: no path lets a reduction reorder already-queued work; the deterministic order is documented where a reader will find it. — §11 E-2 review.
 
 ## C3 — Process store and interruption
-- [ ] Implementation: `ProcessStore` with ownership-gated writes reusing S3's token; lifecycle start/progress/end; `request_interrupt` routed to the owner; the outcome returned to the requester.
-  - [ ] `contracts/src/ids.rs` + `error.rs`: `ProcessTypeId` (§8 F-6).
-  - [ ] `kernel/src/process.rs`: `ProcessKind` (type id + `type Owner: SystemIdentity`), `Process` record, `ProcessPhase`, `Interruptibility`, `ProcessStart`, `ProcessStore` (open reads; crate-private writes), `InterruptRequest`, `InterruptOutcome`; snapshot/restore with validation.
-  - [ ] `kernel/src/view.rs`: `WorldRead::{process, processes}`; `WorldView<S>::{start_process, end_process, suspend_process, resume_process, set_process_state, request_interrupt}` — typed methods gated by `P: ProcessKind<Owner = S>` at compile time, the id-addressed target checked at run time.
-  - [ ] `kernel/src/system.rs`: `System::wake` (default refuses by name, as `resolve` does) and `System::interrupt` (default leaves the process as it is, i.e. refuses); `DynSystem` counterparts.
-  - [ ] `kernel/src/dispatch.rs`: a process boundary is a `Scheduled::Wake`; firing it calls the owner's `wake` with `Causation::Process(id)`; stale wakes (process ended, suspended or rescheduled) are skipped.
-- [ ] Validation: an owning system ends its own process; a non-owning system's direct mutation does not compile (or fails per KD-2); a refused interruption leaves the process running and tells the requester; a process surviving a save/restore round trip keeps its scheduled end.
-- [ ] Review: no API lets a non-owner mutate; the dinner-and-phone-call scenario from `CORE_CONCEPTS.md` §10 is expressible with the types as built.
+- [x] Implementation: `ProcessStore` with ownership-gated writes reusing S3's token; lifecycle start/progress/end; `request_interrupt` routed to the owner; the outcome returned to the requester.
+  - [x] `contracts/src/ids.rs` + `error.rs` + `lib.rs`: `ProcessTypeId` and `IdentifierKind::ProcessTypeId` (§8 F-6); `contracts/tests/identity.rs` extended so the kind-reporting test covers it.
+  - [x] `kernel/src/process.rs`: `ProcessKind`, `Process`, `ProcessPhase`, `Interruptibility`, `ProcessStart<P>`, `ProcessStore` (open reads; crate-private writes, validated `restore`), `InterruptRequest`, `InterruptOutcome { Ended, Suspended, Refused, Uninterruptible, NotRunning, OwnerDisabled }`.
+  - [x] `kernel/src/view.rs`: `WorldRead::{process, processes}`; `WorldView<S>::{start_process, end_process, suspend_process, reschedule_process, set_process_state, request_interrupt}`. Mapping: the planned `resume_process` is `reschedule_process`, which sets a new end and resumes — resuming without stating when the process now ends would leave it unwoken. `WorldParts` gains the process store, the registry (read-only), a foreign-emission buffer and a nesting depth; `nested()` reborrows it for an owner's decision.
+  - [x] `kernel/src/system.rs`: `System::wake` (default refuses with `ProcessNotWokenBySystem`) and `System::interrupt` (default leaves the process running); `DynSystem` counterparts.
+  - [x] `kernel/src/dispatch.rs`: `Dispatcher::call` (one system call → file pending → record foreign facts then own), `fire_wake`, `Firing { Fired, Stale, Skipped }`; `kernel/src/advance.rs` fires `Scheduled::Wake`; `kernel/src/schedule.rs` `Scheduled::Fact(Box<Deferral>) | Wake(ProcessId)` (boxed per clippy's variant-size lint); `ScheduleSnapshot` gains `next_process`, `processes`.
+  - [x] `kernel/src/world.rs`: `processes` field, `World::processes()`, snapshot/restore include processes and check their owners are installed.
+  - [x] `kernel/src/error.rs`: `ProcessEndNotInTheFuture`, `ProcessIdSpaceExhausted`, `ProcessNotRunning`, `ProcessNotOwned`, `ProcessKindMismatch`, `ProcessNotWokenBySystem`, `InterruptionsTooDeep`, `PersistedProcessCounterTooLow`, `PersistedProcessOutsideCounter`, `PersistedProcessRepeated`.
+- [x] Validation: an owning system ends its own process; a non-owning system's direct mutation does not compile (or fails per KD-2); a refused interruption leaves the process running and tells the requester; a process surviving a save/restore round trip keeps its scheduled end. — §11 E-3.
+- [x] Review: no API lets a non-owner mutate; the dinner-and-phone-call scenario from `CORE_CONCEPTS.md` §10 is expressible with the types as built. — §11 E-3 review.
 
 ## C4 — Long-run and documentation
 - [ ] Validation: a seeded scenario runs **hundreds of simulated days** headless, with wall time and event count recorded, and a second run with the same seed produces an identical event sequence — the first real `AC-11` and `AC-12` evidence.
 - [ ] `kernel/README.md` updated; ledger closed.
   - [ ] `docs/DECISIONS.md` `DEP-6`: dated implementation note for §9 ID-2 (ordered map rather than a heap), so code and decision do not disagree (`CLAUDE.md` §2.1 rule 4).
-  - [ ] `server/PROTOCOL.md`: `deferrals_unscheduled` documented as zero since S4.
+  - [x] `server/PROTOCOL.md`: `deferrals_unscheduled` documented as zero since S4. — done with the server change in C2.
 
 ---
 
@@ -532,3 +534,58 @@ documented in `kernel/src/schedule.rs` (module docs, "the whole of the ordering 
 `kernel/src/advance.rs` ("A logical instant"). Server: `advance` precedes every dispatch, so the
 kernel's `ScheduledWorkDue` refusal is unreachable from the host in normal operation; a fault in
 either is counted in `faults`, never swallowed.
+
+**E-3 (C3).** Working tree after the C2 commit `661aabf`, before the C3 commit.
+
+```text
+cargo fmt --all --check; cargo clippy … -D warnings            clean (after boxing the deferral
+                                                                variant: clippy::large_enum_variant)
+cargo test --workspace --no-fail-fast                           291 passed, 0 failed (279 + 12)
+  kernel/tests/process.rs          11 integ  the dinner and the phone call (CORE_CONCEPTS §10):
+     owner ends its own dinner at t3600, the fact caused by Process(id), no controller decision;
+     dessert → Refused, dinner unchanged (record equal before/after) and still ends at t3600;
+     starters → Ended, the dining fact recorded as dining's, caused by Event(phone-rang), BEFORE the
+       phone's own fact, and the t3600 wake is visited and ignored (stale, not counted as skipped);
+     main → Suspended, not woken at t3600; asked again while suspended → Refused;
+     uninterruptible → Uninterruptible although the owner would have ended it (owner not consulted);
+     no dinner → NotRunning; dining disabled → OwnerDisabled, and its wake is skipped and counted;
+     the phone using its OWN kind on the dinner → Err(ProcessNotOwned{dinner, dining, phone}),
+       dinner unchanged;
+     zero-length dinner → Err(ProcessEndNotInTheFuture{t50, t50}), nothing stored;
+     save mid-main-course → JSON → restore: same record, course Main, end t3600, and the restored
+       world's dinner-ended envelope equals the original's;
+     a system with no `wake` → Err(ProcessNotWokenBySystem{forgetful, 1});
+     two owners requesting each other's interruption forever → Err(InterruptionsTooDeep{limit 16})
+  kernel/tests/compile_fail/a_system_cannot_end_or_start_another_systems_process.rs
+     both `end_process::<Dinner>` and `start_process(ProcessStart::<Dinner>…)` written in the phone's
+     own `react` fail with E0271 "type mismatch resolving <Dinner as ProcessKind>::Owner == Phone";
+     the .stderr pins that reason for each call
+  contracts/tests/identity.rs      1 extended  ProcessTypeId reports its own IdentifierKind and
+                                   deserializes through the rule
+  kernel doc-test                  1 new       the ProcessKind example compiles
+```
+
+Review (C3), against "no API lets a non-owner mutate":
+
+```text
+WorldView<S> process writes   every one requires P: ProcessKind<Owner = S> (compile time) and
+                              ProcessStore::owned_mut checks the stored owner and kind (run time)
+ProcessStore                  start / owned_mut / end / restore are pub(crate); public: get, iter,
+                              len, is_empty
+Process                       setters pub(crate); public accessors read-only; state_for::<P>
+                              checks the kind before handing bytes back
+World                         processes() is &ProcessStore; restore_schedule replaces processes
+                              only before the world has run (assembly), checking owners installed
+interrupt delivery            the owner's hook gets a WorldView built with the OWNER's token by
+                              InstalledSystem — the requester never holds it; the outcome is read
+                              off the store, so neither side can misreport it
+Deserialize for Process       lets a caller build a record; the only sink for one is
+                              restore_schedule, which is assembly
+```
+
+The dinner-and-phone-call scenario is not merely expressible — it is `kernel/tests/process.rs`,
+with the phone deciding nothing and the dining system deciding everything. File sizes:
+`kernel/src/dispatch.rs` 748 lines and `kernel/src/system.rs` 697 are past the 500-line review
+trigger and below the 800 warning; both are mostly the module documentation the crate keeps for its
+contracts, and splitting the pipeline across files would separate the four entry points that the
+module exists to keep on one code path. Recorded rather than split.

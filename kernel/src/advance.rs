@@ -34,6 +34,7 @@
 
 use mineworld_contracts::{EventEnvelope, WorldTime};
 
+use crate::dispatch::Firing;
 use crate::error::KernelError;
 use crate::schedule::Scheduled;
 use crate::world::World;
@@ -124,10 +125,11 @@ impl World {
         };
         while let Some((_, item)) = self.pop_due(at) {
             let mut dispatcher = self.dispatcher(at);
-            let fired = match item {
-                Scheduled::Fact(deferral) => dispatcher.fire_fact(deferral)?,
+            let firing = match item {
+                Scheduled::Fact(deferral) => dispatcher.fire_fact(*deferral)?,
+                Scheduled::Wake(process) => dispatcher.fire_wake(process)?,
             };
-            if !fired {
+            if firing == Firing::Skipped {
                 advanced.skipped += 1;
             }
             advanced.events.extend(dispatcher.into_recorded());

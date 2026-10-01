@@ -18,7 +18,9 @@
 //! - a pack cannot turn another crate's type into a component, which is what confines a
 //!   dishonest ownership claim to the claiming pack's own state;
 //! - taking another system's declared name does not take its ownership;
-//! - a system type that keeps its constructor to itself cannot be installed by anybody else.
+//! - a system type that keeps its constructor to itself cannot be installed by anybody else;
+//! - a system cannot start or end a process of a kind another system owns (S4): a process kind
+//!   names its owner as a type, and every typed process operation requires it to be the writer.
 //!
 //! The attempts that are *not* here, because they compile, are recorded as residual boundaries in
 //! §2.10.2 and §4.8 of `.structured-coding/plans/mvp0/step-03-kernel-and-systems.md`.

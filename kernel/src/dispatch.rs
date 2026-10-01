@@ -68,13 +68,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use mineworld_contracts::{
-    ActionId, ActionIntent, ActionResult, Causation, EventEnvelope, EventId, Provenance, SystemId,
-    WorldTime,
+    ActionId, ActionIntent, ActionResult, Causation, EventEnvelope, EventId, ProcessId, Provenance,
+    SystemId, WorldTime,
 };
 
 use crate::components::ComponentStore;
 use crate::entities::EntityRegistry;
 use crate::error::KernelError;
+use crate::process::{ProcessPhase, ProcessStore};
 use crate::registry::SystemRegistry;
 use crate::relations::RelationStore;
 use crate::schedule::{Schedule, Scheduled};
@@ -388,14 +389,28 @@ impl World {
             entities: split.entities,
             components: split.components,
             relations: split.relations,
+            processes: split.processes,
             ids: split.events,
             schedule: split.schedule,
             at,
             recorded: Vec::new(),
             pending: Vec::new(),
+            foreign: Vec::new(),
             deferred: Vec::new(),
         }
     }
+}
+
+/// What became of one scheduled entry when its instant came.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Firing {
+    /// It happened: its fact was recorded, or its owner was woken.
+    Fired,
+    /// It was a wake left behind by a process since ended, suspended or rescheduled. Ignored by
+    /// design, not counted.
+    Stale,
+    /// The system that would have acted is disabled, so nothing happened. Counted.
+    Skipped,
 }
 
 /// One pass of the pipeline, holding the parts of a world it is allowed to touch and nothing else.
@@ -407,13 +422,15 @@ impl World {
 ///
 /// Three entry points share it, and that sharing is the point: a request ([`Dispatcher::dispatch`]),
 /// a world's initial facts ([`Dispatcher::genesis`]) and work falling due
-/// ([`Dispatcher::fire_fact`]) all record through [`Dispatcher::record`]
-/// and reduce through [`Dispatcher::reduce`], so none of them can record or reduce differently.
+/// ([`Dispatcher::fire_fact`], [`Dispatcher::fire_wake`]) all call systems through
+/// [`Dispatcher::call`], record through [`Dispatcher::record`] and reduce through
+/// [`Dispatcher::reduce`], so none of them can record or reduce differently.
 pub(crate) struct Dispatcher<'a> {
     systems: &'a SystemRegistry,
     entities: &'a EntityRegistry,
     components: &'a mut ComponentStore,
     relations: &'a mut RelationStore,
+    processes: &'a mut ProcessStore,
     ids: &'a mut EventIds,
     schedule: &'a mut Schedule,
     at: WorldTime,
@@ -422,6 +439,8 @@ pub(crate) struct Dispatcher<'a> {
     /// What the current system call asked to happen later. Filed in the schedule as soon as that
     /// call returns, so sequence numbers follow the order of asking across the whole pass.
     pending: Vec<(WorldTime, Scheduled)>,
+    /// Facts an owner decided while answering an interruption the current call requested.
+    foreign: Vec<(SystemId, Vec<Emission>)>,
     /// Every deferral this pass filed, for [`Dispatched::deferred`].
     deferred: Vec<Deferral>,
 }
@@ -441,7 +460,12 @@ impl Dispatcher<'_> {
 
         // Validate. The view is read-only, so "validation has no side effects" is the type's
         // statement rather than a rule a system could break (`BD-6`).
-        let read = WorldRead::new(self.entities, self.components, self.relations);
+        let read = WorldRead::new(
+            self.entities,
+            self.components,
+            self.relations,
+            self.processes,
+        );
         if let Err(rejection) = system.validate(&read, intent) {
             return Ok(Dispatched {
                 result: ActionResult::Rejected(rejection),
@@ -456,9 +480,7 @@ impl Dispatcher<'_> {
             caused_by: Causation::Action(intent.action_id()),
             decision: Some(intent.action_id()),
         };
-        let emissions = system.resolve(self.parts(&cause), intent)?;
-        self.file_pending()?;
-        let generation = self.record(provider, emissions, &cause)?;
+        let generation = self.call(provider, &cause, |parts| system.resolve(parts, intent))?;
 
         self.reduce(generation, cause.decision)?;
 
@@ -510,14 +532,67 @@ impl Dispatcher<'_> {
     ///
     /// Returns `false`, recording nothing, if the deferring system is disabled at this instant: a
     /// disabled system does not act, and a fact it scheduled is that system acting later.
-    pub(crate) fn fire_fact(&mut self, deferral: Deferral) -> Result<bool, KernelError> {
+    pub(crate) fn fire_fact(&mut self, deferral: Deferral) -> Result<Firing, KernelError> {
         let (emission, emitter, cause) = deferral.into_parts();
         if !self.systems.is_enabled(&emitter) {
-            return Ok(false);
+            return Ok(Firing::Skipped);
         }
         let generation = self.record(&emitter, vec![emission], &cause)?;
         self.reduce(generation, cause.decision)?;
-        Ok(true)
+        Ok(Firing::Fired)
+    }
+
+    /// A process's expected end falling due: its owner is woken to decide what happens, and what
+    /// it emits is caused by the process.
+    ///
+    /// A wake is stale — and ignored — unless the process still exists, is running, and still
+    /// expects to end at exactly this instant: an owner that ended, suspended or rescheduled it has
+    /// already decided, and its old wake is not a second question. A disabled owner is not woken.
+    pub(crate) fn fire_wake(&mut self, process: ProcessId) -> Result<Firing, KernelError> {
+        let Some(record) = self.processes.get(process) else {
+            return Ok(Firing::Stale);
+        };
+        if record.phase() != ProcessPhase::Running || record.expected_end() != Some(self.at) {
+            return Ok(Firing::Stale);
+        }
+        let owner = record.owner().clone();
+        let systems = self.systems;
+        let Some(system) = systems
+            .is_enabled(&owner)
+            .then(|| systems.system(&owner))
+            .flatten()
+        else {
+            return Ok(Firing::Skipped);
+        };
+        let record = record.clone();
+        let cause = Cause {
+            caused_by: Causation::Process(process),
+            decision: None,
+        };
+        let generation = self.call(&owner, &cause, |parts| system.wake(parts, &record))?;
+        self.reduce(generation, None)?;
+        Ok(Firing::Fired)
+    }
+
+    /// Calls one system, then files what it scheduled and records what it — and any owner it
+    /// asked to interrupt something — decided.
+    ///
+    /// The owner's facts come first: they were decided while the call was still running, at the
+    /// moment of the request, and the caller's own facts are what it returned afterwards.
+    fn call(
+        &mut self,
+        emitter: &SystemId,
+        cause: &Cause,
+        call: impl FnOnce(WorldParts<'_>) -> Result<Vec<Emission>, KernelError>,
+    ) -> Result<Vec<EventEnvelope>, KernelError> {
+        let emissions = call(self.parts(cause))?;
+        self.file_pending()?;
+        let mut recorded = Vec::new();
+        for (owner, decided) in core::mem::take(&mut self.foreign) {
+            recorded.extend(self.record(&owner, decided, cause)?);
+        }
+        recorded.extend(self.record(emitter, emissions, cause)?);
+        Ok(recorded)
     }
 
     /// Everything this pass recorded, in recording order.
@@ -567,15 +642,16 @@ impl Dispatcher<'_> {
                     decision,
                 };
                 for subscriber in subscribers {
-                    let Some(system) = self.systems.system(&subscriber) else {
+                    let systems = self.systems;
+                    let Some(system) = systems.system(&subscriber) else {
                         continue;
                     };
-                    let emissions = system.react(self.parts(&cause), event)?;
-                    self.file_pending()?;
-                    if !emissions.is_empty() {
-                        last_emitted.insert(subscriber.clone(), depth);
+                    let recorded =
+                        self.call(&subscriber, &cause, |parts| system.react(parts, event))?;
+                    for fact in &recorded {
+                        last_emitted.insert(fact.provenance().emitted_by().clone(), depth);
                     }
-                    next.extend(self.record(&subscriber, emissions, &cause)?);
+                    next.extend(recorded);
                 }
             }
             generation = next;
@@ -631,8 +707,9 @@ impl Dispatcher<'_> {
     /// Files what the last system call asked to happen later, in the order it asked.
     fn file_pending(&mut self) -> Result<(), KernelError> {
         for (at, item) in core::mem::take(&mut self.pending) {
-            let Scheduled::Fact(deferral) = &item;
-            self.deferred.push(deferral.clone());
+            if let Scheduled::Fact(deferral) = &item {
+                self.deferred.push(Deferral::clone(deferral));
+            }
             self.schedule.insert(at, item)?;
         }
         Ok(())
@@ -655,13 +732,17 @@ impl Dispatcher<'_> {
     /// The parts of the world one call of one system is given, for the duration of that call, with
     /// the cause the kernel will state for anything the call leads to.
     fn parts<'p>(&'p mut self, cause: &'p Cause) -> WorldParts<'p> {
-        WorldParts::new(
-            self.entities,
-            self.components,
-            self.relations,
-            self.at,
+        WorldParts {
+            entities: self.entities,
+            components: self.components,
+            relations: self.relations,
+            processes: self.processes,
+            systems: self.systems,
+            at: self.at,
             cause,
-            &mut self.pending,
-        )
+            pending: &mut self.pending,
+            foreign: &mut self.foreign,
+            depth: 0,
+        }
     }
 }
