@@ -19,8 +19,10 @@ Binding: [`CLAUDE.md`](../../../CLAUDE.md) §4 rules 1, 4, 5, 14, 15 ·
 [`step-04-clock-scheduler-process.md`](step-04-clock-scheduler-process.md) ·
 [`step-06-persistence.md`](step-06-persistence.md)
 
-`DESIGN FROZEN` is **not** recorded. This document is a draft for the primary session's review; §10
-lists what that review has to decide, and two of those questions are **material** (§2.7).
+**`DESIGN FROZEN`** at `4d6e42e` by the primary session (§10.1). The answers changed the plan in four
+places — Q1's two clarifications, Q3 as a hard condition, Q4's client reporting rule, Q6's street —
+and §4 was extended for them before C1 (the "Frozen-answer amendments" block at the head of §4).
+Implementation context: this session, Phase 2 of the brief.
 
 ## Why this is PR 08, and why the file is `step-07`
 
@@ -409,14 +411,47 @@ Each commit tracks implementation, validation and review separately; evidence go
 compiles and passes the full workspace suite on its own — the order below exists so that `arrive`
 is retired only after every caller has moved off it.
 
+### Frozen-answer amendments (recorded at the start of execution, from §10.1)
+
+The freeze answered four questions in ways the drafted commits did not yet carry. Each is placed
+below, and none widens scope beyond what §10.1 instructs:
+
+```text
+Q1.1  OWNER = the vocabulary owner and the ONLY reducer of the fact into owned state
+                                                       → ARC-26 text (C1); Event::OWNER doc (C2)
+Q1.2  the owner still decides: presence can refuse an Arrived that would make its state invalid
+                                                       → new commit C2b: mineworld_presence::admit,
+                                                         arrival() checked against the world, and a
+                                                         reduction that refuses rather than writes;
+                                                         kernel KernelError::FactRefusedByOwner (C2)
+Q3    kernel enforcement is a hard condition           → C2 is no longer conditional
+Q4    client reporting rule: report before travelling MAX_STRIDE since the last accepted position
+                                                       → PROTOCOL.md + ADOPTION.md (C1); a test of a
+                                                         rule-following and a rule-ignoring jogging
+                                                         client (C3); the Godot demo follows it (C5)
+Q6    a street outside the café, joined by a doorway   → new commit C4b: the World Pack `passages`
+                                                         field + MODULE_SPEC §4.1 + PACKAGE_FORMAT §8
+                                                         in one commit; the street itself lands in
+                                                         worlds/social-cafe with C5 (see below)
+```
+
+**Why the street lands with C5 and not C4b (bounded sequencing decision).** A new place shifts every
+person's `EntityId` — places are created before people (`worldpack/src/load.rs` `assemble`) — so the
+visitor seat becomes entity 5, not 4. `tools/cli/tests/ac13_semantic_parity.rs` replays frozen Godot
+frames naming actor `"4"` and asserts it. Adding the street in C4b would leave a red commit until C5
+re-recorded the frames, and re-recording in C5 against a one-place world would have to be redone
+after. So C4b delivers the format and the loader (proven on a test pack), and C5 adds the street and
+records the evidence against the world as it will be. **Field-spec location:** the fields a World Pack
+may use are specified in `docs/MODULE_SPEC.md` §4.1 (`worldpack/src/format.rs` cites it), so C4b
+updates §4.1 as the authority and `docs/PACKAGE_FORMAT.md` §8 as the brief instructs.
+
 ## C0 — Design (this document) — docs only
 
 - [x] Implementation: audit (§8), design (§§1–7), proposed execution contract (§11).
 - [x] Validation: baseline `cargo test --workspace --no-fail-fast` on `main @ a594164` → 311 passed,
   0 failed, `kill_and_resume` cafe PASS, clock PASS (E-0). `check_decision_ids.py` → 34 ids distinct;
   `check_doc_headings.py` → 134 sections, none duplicated (E-0).
-- [ ] Review: primary-session review against the frozen specifications; answers to §10 recorded in
-  §10.1; `DESIGN FROZEN` header. **Implementation does not start before this.**
+- [x] Review: primary-session review recorded in §10.1; `DESIGN FROZEN` at `4d6e42e`.
 
 ## C1 — Specification amendments, before code
 
@@ -432,6 +467,9 @@ is retired only after every caller has moved off it.
     include a dependency's vocabulary).
   - `clients/protocol/ADOPTION.md`: "moving is submitting `move`, in strides of at most 2 m; a refused
     stride is answered `too_far_away`; reconcile to the position you are shown".
+  - **Amended at freeze (Q4):** the client reporting rule — *report before travelling `MAX_STRIDE`
+    since the last accepted position* — in `server/PROTOCOL.md` and `clients/protocol/ADOPTION.md`,
+    with the jog-speed example that motivates it.
   - Handoff reinitialized for PR 08.
 - [ ] Validation: `check_decision_ids.py` (one new id, all distinct); `check_doc_headings.py` (no
   duplicated numbered section).
@@ -471,6 +509,33 @@ accepted; otherwise this commit becomes a review convention in `.structured-codi
   types (no string-typed owner a system could misstate); `SAVE_FORMAT` bump is the only persistence
   change.
 
+## C2b — Presence: the owner still decides (Q1.2)
+
+**Goal.** Presence can refuse an `Arrived` that would make its state invalid, at the constructor and
+at reduction, so that "movement states the fact, presence reduces it" never lets another system
+choose an invalid value for presence's state. **Depends on:** C2.
+
+- [ ] Implementation:
+  - `systems/presence/src/event.rs`: `pub fn admit(world: &WorldRead, person: PersonId, location:
+    Location) -> Result<(), Rejection>` — the person exists, is a Person and is not Destroyed; the
+    place exists and is a Place. `arrival(world, person, location) -> Result<Emission, Rejection>`
+    calls it before building the fact; there is no unchecked public constructor.
+  - `systems/presence/src/system.rs` `react`: re-checks `admit` against the world as it is when the
+    fact is reduced and, on refusal, writes nothing and returns
+    `KernelError::FactRefusedByOwner { system, event_type, reason }` (C2) — the emitter broke the
+    contract, and the world says so instead of taking the value. `validate` uses `admit` too.
+  - `worldpack/src/{catalog,load}.rs`: `located` and `initial_facts` read the assembled world, so a
+    genesis placement goes through the same check.
+- [ ] Validation (`systems/presence/tests/presence.rs`):
+  - the constructor refuses a destroyed person and a place that is not a place
+    (`PreconditionFailed`), and accepts the living case;
+  - a test-only system that depends on presence and states an `Arrived` built **without** the
+    constructor (raw `Emission::new::<Arrived>`) for a destroyed person → dispatch returns
+    `Err(FactRefusedByOwner { system: presence, .. })` and `Presence` is unchanged (snapshot bytes);
+    the same system stating a valid one is reduced — the positive control, so the refusal is shown to
+    be the check and not a broken path.
+- [ ] Review: presence is still the only writer of `Presence`; the reduction check reads only.
+
 ## C3 — `mineworld-movement`: the system, its facts, and CP-1/CP-2/CP-3 in-process and persisted
 
 **Goal.** Movement exists and is proven against the floor, while `arrive` still exists so nothing
@@ -508,6 +573,18 @@ else changes yet. **Depends on:** C2.
   - structural: no `f32`/`f64` in `systems/movement/src`; presence's and conversation's sources name
     no `movement`/`passage` vocabulary (a scan over their `src/`, owned here because the claim is
     about this pack's isolation).
+  - **Q4 reporting rule (amended at freeze):** a model client jogging at a literal 2 600 mm/s along a
+    straight line for a literal 20 s, sampled every 100 ms. The rule-following client reports whenever
+    its next sample would put it more than 2 000 mm from its last *accepted* position → every report
+    accepted, final `Presence` = its final reported position. The rule-ignoring client reports once
+    per second (2 600 mm) → its first report refused `TooFarAway`, and with no accepted position to
+    advance from, every later report too; `Presence` stays at the start. Both counts printed and
+    asserted (`ARC-23`).
+  - **`ARC-23` counterfactual for CP-2 (amended at freeze):** the removability test is run once as
+    written and once against a deliberately broken world in which movement is "disabled" by a
+    mechanism that leaves it reachable (the test's own negative control: the same assertions applied
+    to a world where movement stays enabled must FAIL). The test owns both halves, so it cannot pass
+    whether or not movement is unreachable.
 - [ ] Validation — `systems/movement/tests/persisted.rs` (real lifecycle, real SQLite file):
   `PersistentWorld::create` a two-place world (genesis: places, people, one passage) → a stride, a
   refused stride, a passage crossing → drop → `SqliteBackend::open` + `PersistentWorld::resume` into a
@@ -542,7 +619,31 @@ else changes yet. **Depends on:** C2.
 - [ ] Review: no claim weakened in a migrated test (diff read line by line); the walk helper computes
   strides from the literal positions and the documented 2 000 mm, not from production code.
 
+## C4b — The World Pack `passages` field (Q6)
+
+**Goal.** A World Pack can state that two of its places open onto each other and where the doorway
+is, as a genesis fact movement reduces. **Depends on:** C4. Format, loader and specification in one
+commit (§10.1 Q6).
+
+- [ ] Implementation:
+  - `worldpack/src/format.rs`: `AuthoredPlace.passages: Vec<AuthoredPassage { to: EntityKey, here:
+    Option<AuthoredPosition>, there: Option<AuthoredPosition> }>` (`deny_unknown_fields`).
+  - `worldpack/src/read.rs` / `error.rs`: refused by name — a passage to an undeclared place, to
+    itself, a pair stated twice (from both files or twice in one), and passages in a pack that does
+    not enable `movement` (rule 4 of §4.1, as for `location` and `presence`).
+  - `worldpack/src/{catalog,load}.rs`: `PASSAGE_OWNER = Movement`; each passage becomes
+    `mineworld_movement::passage(..)`, stated after the places' and before the people's facts.
+  - `docs/MODULE_SPEC.md` §4.1 (the field, rule 4 extended) and `docs/PACKAGE_FORMAT.md` §8.
+- [ ] Validation (`worldpack/tests/`): a test pack with two places and a doorway loads and movement's
+  `Passages` holds the doorway on both sides; each refusal above names its file and field.
+- [ ] Review: a World Pack still states no rule — the doorway is a fact movement owns, not a
+  movement policy; social-cafe unchanged in this commit (see the amendments block).
+
 ## C5 — The Godot demo walks with `move`; `AC-13` evidence re-recorded
+
+**Amended at freeze (Q6, Q4).** This commit also adds `places/street.yaml` and the café's doorway to
+`worlds/social-cafe` (ids shift: re-checked in every test that names one), and the demo's stride
+loop follows the Q4 reporting rule.
 
 **Goal.** The reference client that exists submits `move`, and the frozen evidence `AC-13` reads comes
 from a real run. **Depends on:** C4 (the server must provide `move`).
@@ -592,6 +693,10 @@ left).
     existing fact-sequence assertion in the repository passes unchanged;
   - `arrive` submitted to the social-cafe server → `Unavailable` (a cli test, one assertion added to an
     existing scenario);
+  - **amended at freeze (Q6):** in the real `worlds/social-cafe`, the visitor walks to the café
+    doorway and out into the street with `move` strides; `PersonEnteredPlace { from: cafe, place:
+    street }` is recorded and the `present-in` edge moves — the headline fact of S6 in a world the
+    repository ships, not only in a fixture;
   - full workspace suite green; `kill_and_resume` PASS.
 - [ ] Review: `rg -w arrive` over non-historical sources is empty except the retirement note;
   presence no longer reads any action payload; no other pack's vocabulary in presence.
