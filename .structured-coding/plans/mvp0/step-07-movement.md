@@ -471,11 +471,19 @@ updates §4.1 as the authority and `docs/PACKAGE_FORMAT.md` §8 as the brief ins
     since the last accepted position* — in `server/PROTOCOL.md` and `clients/protocol/ADOPTION.md`,
     with the jog-speed example that motivates it.
   - Handoff reinitialized for PR 08.
-- [ ] Validation: `check_decision_ids.py` (one new id, all distinct); `check_doc_headings.py` (no
-  duplicated numbered section).
-- [ ] Review: terminology — "vocabulary owner" is defined once in `ARC-26` and `CORE_CONCEPTS` §11 and
-  is not a synonym of `System`; `MoveIntent` is stated as the spec's name for an `ActionIntent`
-  carrying `move`, not a new type; no README carries the rule.
+- [x] Implementation, as planned: `ARC-26` (with §10.1's two clarifications, the reporting rule and the
+  limitations); `CORE_CONCEPTS.md` §11 (an EventType's owner; the three conditions; the owner still
+  decides) and §13 (when the requester states the owner's vocabulary); `server/PROTOCOL.md` new §6.2
+  (the `move` frame, what the server decides, the reporting rule); `clients/protocol/ADOPTION.md` new
+  §4.1; handoff reinitialized for PR 08. `ARC-26` was checked free on every remote branch before use.
+- [x] Validation: `check_decision_ids.py` → 35 decision ids, all distinct; `check_doc_headings.py` →
+  134 numbered sections across 21 documents, none duplicated. PASS.
+- [x] Review: the term used is the EventType's **owner**, already the contract's word (`Event::OWNER`),
+  now defined as vocabulary + sole reducer rather than coined anew — no synonym introduced. "MoveIntent"
+  is not introduced as a type anywhere; the documents say `move` request / action. The rule lives in
+  `ARC-26`, `CORE_CONCEPTS` and `PROTOCOL.md`; `ADOPTION.md` restates it for client authors and links
+  `PROTOCOL.md` §6.2. Bounded note: `PROTOCOL.md` describes `move` before C3 implements it, by design
+  (specification leads code, `CLAUDE.md` §2.2).
 - **Commit boundary:** docs only. Note: the parent `overall.md` S6 text (which names
   `PersonEnteredPlace` under `MovementSystem`) is the planning session's to reword; this commit does not
   edit it unless the freeze instructs so (as S5's freeze did).
