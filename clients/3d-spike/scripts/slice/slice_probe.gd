@@ -380,14 +380,16 @@ func _drive() -> void:
 		print("  FAIL: walking through the door did not change the semantic place")
 	if inside.z > SliceStreet.NORTH_FACE - 0.8:
 		fails += 1
-		print("  FAIL: the player did not get through the opening")
+		print("  FAIL: the player did not get through the opening -- %s" % _blocker())
 
-	# 3. the loop. Four legs around the room, back to the door.
+	# 3. the loop. Four legs around the room, back to the door. Each leg is a
+	# DISTANCE, not a duration: timed legs overshot, and the south leg walked
+	# 6.5 m straight back out of the door and reported that as a failed loop.
 	var legs := [
-		[Vector3(3.55, 0.60, -10.20), -90.0, 3.4],   # east along the front
-		[Vector3(0.0, 0.0, 0.0), 0.0, 4.6],          # north, deeper in
-		[Vector3(0.0, 0.0, 0.0), 90.0, 3.4],         # west, past the counter
-		[Vector3(0.0, 0.0, 0.0), 180.0, 4.6],        # south, back to the door
+		[Vector3(3.55, 0.60, -10.20), -90.0, 4.6],   # east along the front
+		[Vector3(0.0, 0.0, 0.0), 0.0, 2.0],          # north, deeper in
+		[Vector3(0.0, 0.0, 0.0), 90.0, 4.6],         # west, back across
+		[Vector3(0.0, 0.0, 0.0), 180.0, 2.0],        # south, back to the door
 	]
 	player.place(legs[0][0], legs[0][1], 0.0)
 	await _hold(0.3)
@@ -396,10 +398,15 @@ func _drive() -> void:
 	for i in range(legs.size()):
 		player.rotation.y = deg_to_rad(float(legs[i][1]))
 		var before := player.global_position
-		await _walk(float(legs[i][2]))
-		travelled += before.distance_to(player.global_position)
+		await _walk_dist(float(legs[i][2]), 6.0)
+		var leg := before.distance_to(player.global_position)
+		travelled += leg
 		var p := player.global_position
-		print("loop   leg %d ended at (%.2f, %.2f, %.2f)" % [i + 1, p.x, p.y, p.z])
+		print("loop   leg %d ended at (%.2f, %.2f, %.2f), %.2f of %.2f m%s" % [i + 1, p.x, p.y,
+			p.z, leg, legs[i][2], "" if leg > float(legs[i][2]) - 0.1
+			else "  SHORT -- stopped by %s" % _blocker()])
+		if leg < float(legs[i][2]) - 0.1:
+			fails += 1
 		if SliceWorld.place_at(slice.world, p) != SliceWorld.CAFE_PLACE:
 			fails += 1
 			print("  FAIL: leg %d left the cafe" % (i + 1))
@@ -409,11 +416,24 @@ func _drive() -> void:
 	if travelled < 8.0:
 		fails += 1
 		print("  FAIL: the loop did not get anywhere -- something is blocking it")
+	if back > 0.8:
+		fails += 1
+		print("  FAIL: the loop did not close -- ended %.2f m from its start" % back)
 
 	# 4. walls. Push into the back wall and into the counter and go nowhere.
-	fails += await _wall("back wall", Vector3(5.60, 0.60, -17.50), 0.0)
-	fails += await _wall("counter", Vector3(7.40, 0.60, -14.60), 0.0)
-	fails += await _wall("shopfront glazing", Vector3(7.60, 0.60, -9.40), 180.0)
+	# from the lane west of the counter (the counter spans x 5.70..10.16), so the
+	# push has a clear run at the wall rather than starting wedged against the
+	# end of the back bar, which is what x 5.60 did: 0.00 m and no contact
+	# Each push names the plane it must not cross -- the obstacle's own face,
+	# from the geometry constants -- and fails if the body's centre gets past
+	# it. The first version failed on "moved more than 1.4 m", a distance proxy
+	# that called a body stopped 9 cm short of the back wall a pass-through.
+	var nf := SliceStreet.NORTH_FACE
+	var back_face := nf - SliceCafe.DEPTH + SliceCafe.WALL_T
+	var counter_face := nf + SliceCafeInterior.COUNTER_Z + SliceCafeInterior.COUNTER_D * 0.5
+	fails += await _wall("back wall", Vector3(3.00, 0.60, -16.80), 0.0, back_face, -1.0)
+	fails += await _wall("counter", Vector3(7.40, 0.60, -14.60), 0.0, counter_face, -1.0)
+	fails += await _wall("shopfront glazing", Vector3(7.60, 0.60, -9.40), 180.0, nf, 1.0)
 
 	# 5. the way out, and the place changing back.
 	player.place(Vector3(3.55, 0.60, -10.60), 180.0, 0.0)
@@ -423,9 +443,10 @@ func _drive() -> void:
 	var out_place := SliceWorld.place_at(slice.world, out)
 	print("exit   ended at (%.2f, %.2f, %.2f), place = '%s'"
 		% [out.x, out.y, out.z, out_place])
-	if out_place == SliceWorld.CAFE_PLACE:
+	if out_place != SliceWorld.STREET_PLACE:
 		fails += 1
-		print("  FAIL: the player could not get back out")
+		print("  FAIL: back outside, the semantic place is '%s', not '%s'"
+			% [out_place, SliceWorld.STREET_PLACE])
 
 	# 6. cameras, indoors. A mode switch must change nothing the controller owns.
 	player.place(Vector3(5.20, 0.60, -12.40), -20.0, 0.0)
@@ -456,22 +477,78 @@ func _inside_room(p: Vector3) -> bool:
 		and p.y > 0.0 and p.y < SliceCafe.CEIL_Y + 0.3
 
 
-func _wall(nm: String, from: Vector3, yaw: float) -> int:
+## Push into an obstacle along z. `face_z` is the obstacle's face; `dir` is the
+## sign of z the push travels in. Fails if the body's centre crosses the face.
+func _wall(nm: String, from: Vector3, yaw: float, face_z: float, dir: float) -> int:
 	player.place(from, yaw, 0.0)
 	await _hold(0.3)
 	var before := player.global_position
 	await _walk(2.2)
 	var d := before.distance_to(player.global_position)
-	print("wall   %-20s pushed for 2.2 s, moved %.2f m" % [nm, d])
-	if d > 1.4:
-		print("  FAIL: the player went through the %s" % nm)
+	var gap := (face_z - player.global_position.z) * dir
+	print("wall   %-20s pushed 2.2 s, moved %.2f m; body centre %.2f m short of the face at z %.2f"
+		% [nm, d, gap, face_z])
+	if gap < 0.0:
+		print("  FAIL: the player went through the %s, ended at %s" % [nm, player.global_position])
 		return 1
+	print("         stopped by %s" % _blocker())
 	return 0
 
 
-func _walk(secs: float) -> void:
+## What the body last collided with, by node path and position -- so a failure
+## names the obstacle instead of leaving it to be guessed (`ARC-23`: locate
+## before counting).
+var _last_block := ""
+
+
+func _blocker() -> String:
+	return _last_block if _last_block != "" else "no wall contact (floor only)"
+
+
+func _sample_block() -> void:
+	var best := ""
+	for i in range(player.get_slide_collision_count()):
+		var c := player.get_slide_collision(i)
+		var o := c.get_collider() as Node
+		if o == null:
+			continue
+		var n := c.get_normal()
+		if absf(n.y) > 0.7:
+			continue  # the floor, not an obstacle
+		best = "%s at %s, contact %s normal %s" % [
+			o.get_path(), (o as Node3D).global_position if o is Node3D else Vector3.ZERO,
+			c.get_position(), n]
+	if best != "":
+		_last_block = best
+
+
+## Walk forward until the body has covered `metres` in the horizontal plane,
+## or `max_secs` pass -- whichever is first. Stops dead, then settles.
+func _walk_dist(metres: float, max_secs: float) -> void:
+	_last_block = ""
+	var start := player.global_position
 	Input.action_press("move_forward")
-	await _hold(secs)
+	var t := 0.0
+	while t < max_secs:
+		await get_tree().physics_frame
+		_sample_block()
+		t += get_physics_process_delta_time()
+		var d := player.global_position - start
+		if Vector2(d.x, d.z).length() >= metres:
+			break
+	Input.action_release("move_forward")
+	player.velocity = Vector3.ZERO
+	await _hold(0.25)
+
+
+func _walk(secs: float) -> void:
+	_last_block = ""
+	Input.action_press("move_forward")
+	var t := 0.0
+	while t < secs:
+		await get_tree().physics_frame
+		_sample_block()
+		t += get_physics_process_delta_time()
 	Input.action_release("move_forward")
 	await _hold(0.25)
 

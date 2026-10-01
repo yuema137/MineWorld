@@ -164,7 +164,11 @@ static func _planting(g: Node3D) -> void:
 		# one shrub out of the file's four, by name -- see dressing.gd
 		SliceProps.put(g, "shrub_02", p + Vector3(0, 0.44, 0), 0.7,
 			Color(0.90, 1.00, 0.84), 0.28, 0.86, ["_d"])
-	for p in [Vector3(3.55, WALK, -7.25), Vector3(8.70, WALK, -7.25)]:
+	# Flanking the door, never in it: the door opening is x 2.96..3.94, and the
+	# first version stood a pot at x 3.55, which the drive found as the thing
+	# the body stopped against 1.3 m short of the threshold.
+	for p in [Vector3(2.30, WALK, -7.62), Vector3(4.62, WALK, -7.62),
+			Vector3(8.70, WALK, -7.25)]:
 		SliceProps.put_solid(g, "planter_pot_clay", p, -0.4, Color(0.94, 0.90, 0.86))
 		SliceProps.put(g, "shrub_03", p + Vector3(0, 0.22, 0), 1.4,
 			Color(0.92, 1.00, 0.86), 0.28, 0.86, ["_a"])

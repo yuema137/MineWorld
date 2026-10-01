@@ -152,6 +152,12 @@ static func _shopfront(g: Node3D, stone: Material) -> void:
 		Build.box(g, Vector3((bay[0] + bay[1]) * 0.5, (transom + y1) * 0.5, -0.045),
 			Vector3(bay[1] - bay[0] - 0.05, y1 - transom - 0.09, 0.016), glass)
 
+	# The glass is solid. Without this the only barrier was the 0.42 m
+	# stallriser, and from inside the window bench is a step up onto it: the
+	# drive walked straight out through the pane.
+	Build.box_blocker(g, Vector3((win_l + win_r) * 0.5, GLAZE_HEAD * 0.5, -0.06),
+		Vector3(win_r - win_l, GLAZE_HEAD, 0.10))
+
 	# white script painted on the left pane, exactly as 03 has it
 	Profile.text(g, Vector3(win_l + 0.62, 1.86, -0.030),
 		"Better\nCoffee\nBrighter\nDays", 0.145, Color(0.96, 0.94, 0.90, 0.92),

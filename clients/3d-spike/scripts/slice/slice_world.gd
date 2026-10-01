@@ -168,12 +168,18 @@ static func _south_frontage(g: Node3D) -> void:
 ## it never decides what that means, what is allowed there, or who else is
 ## present -- that is the server's, and `ADOPTION.md` sec.3.3 makes deciding it
 ## here a defect rather than an optimisation.
+##
+## Both volumes reach 0.5 m BELOW the pavement. A player's position is their
+## feet, and a volume whose floor is exactly the walking surface puts a body
+## standing on that surface on the boundary: the first run reported the player
+## back on the pavement as being in no place at all.
 static func _place_volumes(g: Node3D) -> void:
+	var y := SliceStreet.WALK_Y + 1.25
 	_place(g, CAFE_PLACE,
-		Vector3(6.0, SliceStreet.WALK_Y + 1.7, SliceStreet.NORTH_FACE - SliceCafe.DEPTH * 0.5),
-		Vector3(SliceCafe.W - SliceCafe.WALL_T * 2.0, 3.4, SliceCafe.DEPTH - SliceCafe.WALL_T * 2.0))
-	_place(g, STREET_PLACE, Vector3(0.0, SliceStreet.WALK_Y + 1.7, 0.0),
-		Vector3(SliceStreet.X_MAX - SliceStreet.X_MIN, 3.4,
+		Vector3(6.0, y, SliceStreet.NORTH_FACE - SliceCafe.DEPTH * 0.5),
+		Vector3(SliceCafe.W - SliceCafe.WALL_T * 2.0, 3.5, SliceCafe.DEPTH - SliceCafe.WALL_T * 2.0))
+	_place(g, STREET_PLACE, Vector3(0.0, y, 0.0),
+		Vector3(SliceStreet.X_MAX - SliceStreet.X_MIN, 3.5,
 			SliceStreet.SOUTH_FACE - SliceStreet.NORTH_FACE))
 
 
