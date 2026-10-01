@@ -40,7 +40,12 @@ use mineworld_presence::PerceptionProvider;
 
 use crate::catalog::{self, Capability};
 use crate::error::{ContentKind, PackError};
-use crate::format::AuthoredLocation;
+use crate::format::{AuthoredLocation, AuthoredPosition};
+
+/// An authored position as the contract's own [`LocalPosition`].
+fn position(authored: AuthoredPosition) -> LocalPosition {
+    LocalPosition::new(authored.x, authored.y, authored.z)
+}
 use crate::read::WorldPack;
 
 /// A world built from a pack: the world itself, what its keys resolved to, and what it began with.
@@ -226,6 +231,23 @@ impl WorldPack {
         ids: &BTreeMap<EntityKey, EntityId>,
     ) -> Result<Vec<Emission>, PackError> {
         let mut facts = Vec::new();
+        // Passages first: they are facts about the places, which exist before anybody is in them.
+        for (key, place) in self.places() {
+            let path = self.content_file(ContentKind::Place, key);
+            for passage in &place.passages {
+                let (a, b) = (ids[key], ids[&passage.to]);
+                let a = PlaceId::new(a, EntityType::Place)
+                    .map_err(|error| PackError::value(path.clone(), error))?;
+                let b = PlaceId::new(b, EntityType::Place)
+                    .map_err(|error| PackError::value(path.clone(), error))?;
+                facts.push(catalog::opened(
+                    a,
+                    passage.here.map(position),
+                    b,
+                    passage.there.map(position),
+                ));
+            }
+        }
         for (key, person) in self.people() {
             let Some(authored) = &person.location else {
                 continue;
@@ -265,8 +287,8 @@ impl WorldPack {
             .map_err(|error| PackError::value(path, error))?;
 
         let mut location = Location::in_place(place);
-        if let Some(position) = authored.position {
-            location = location.with_local(LocalPosition::new(position.x, position.y, position.z));
+        if let Some(authored) = authored.position {
+            location = location.with_local(position(authored));
         }
         if let Some(facing) = authored.facing {
             let orientation = Orientation::new(Millidegrees::new(facing), None)

@@ -790,6 +790,32 @@ commit (§10.1 Q6).
 - [ ] Review: a World Pack still states no rule — the doorway is a fact movement owns, not a
   movement policy; social-cafe unchanged in this commit (see the amendments block).
 
+**C4b as built.**
+- [x] Implementation. `format.rs`: `AuthoredPlace.passages: Vec<AuthoredPassage { to, here, there }>`
+  (`deny_unknown_fields`). `error.rs`: `PassageToUnknownPlace`, `PassageToItself`,
+  `PassageStatedTwice` (pair named in key order; the file that states it again); a pack without
+  `movement` reuses `ContentNeedsASystem { content: "passage", system: movement }`. `read.rs`: check 9,
+  `check_passages`. `catalog.rs`: `PASSAGE_OWNER = Movement`, `opened(..)` → `mineworld_movement::
+  passage`. `load.rs`: passages are stated first, then placements; a shared `position()` converter.
+  `docs/MODULE_SPEC.md` §4.1 (the field, its once-only rule, rule 4 extended, the genesis order; the
+  example manifest gains `movement` and `street`) and `docs/PACKAGE_FORMAT.md` §8 (a row for the World
+  Pack field subset). **Decision (bounded):** `catalog.rs`'s module doc said the `ContentSeeder`
+  trait would be defined at the second mapping. `opened` is that second mapping, but it has the same
+  shape as `located` (one optional field of an existing content kind → one owner's genesis
+  constructor), so a trait abstracted from the two would describe only that shape; the doc now says
+  the trait waits for a mapping that differs (a content kind of its own). Recorded here and in the
+  module doc.
+- [x] Validation. `worldpack/tests/refusals.rs` +6 (23 total): a two-place pack with a doorway loads;
+  genesis `2 fact(s), 1 passage-opened`, the passage first; `Passages` of the café holds `to street,
+  here (4600, 2000), there (0, 2000)` and the street's holds the mirror. Refusals by variant and values:
+  unknown place, itself, stated twice (both-files and one-file cases), no `movement`; each refusal's
+  message names its file (`places/cafe.yaml`, or `places/street.yaml` for the second statement), and an
+  unknown passage field is refused by the parser at `line 3 column 5`. Workspace rc 0, **329 passed, 0
+  failed**; clippy, fmt clean; decision ids 35 distinct, doc headings 134 none duplicated.
+- [x] Review: the pack states where the doorway is, never how near one must be — the stride stays
+  movement's; social-cafe is unchanged in this commit (its genesis count, `4 genesis fact(s)`, still
+  asserted by `commands.rs`).
+
 ## C5 — The Godot demo walks with `move`; `AC-13` evidence re-recorded
 
 **Amended at freeze (Q6, Q4).** This commit also adds `places/street.yaml` and the café's doorway to

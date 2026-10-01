@@ -7,20 +7,23 @@
 //! provide it* to *nothing installed it*. The shape of the question does not change, which is why
 //! this seam is one type rather than a `match` spread through the loader.
 //!
-//! # Why the loader knows that a `location` is presence's
+//! # Why the loader knows that a `location` is presence's, and a `passage` movement's
 //!
 //! A pack's `location:` field exists because some system owns location, and in this build that
 //! system is `presence` — so [`located`] is where the pack format's vocabulary meets a System Pack's.
-//! It is a function rather than a `ContentSeeder` trait deliberately: there is exactly one such
-//! mapping today, and `docs/ENGINEERING_STANDARDS.md` §28 asks for the abstraction after the second
-//! implementation rather than in anticipation of it. The second one — an inventory pack seeding
-//! items, an employment pack seeding jobs — is when the trait gets defined, and it will have two real
-//! implementations to be shaped by.
+//! [`opened`] is the second such meeting: a place's `passages:` become movement's fact.
+//!
+//! They are functions rather than a `ContentSeeder` trait, still deliberately. Both are the same
+//! shape — one optional field of an existing content kind, mapped to one owner's genesis
+//! constructor — so a trait abstracted from them would describe that shape and nothing else
+//! (`docs/ENGINEERING_STANDARDS.md` §28: the abstraction follows observed variation). The mapping
+//! that would shape a trait is one that differs: a pack seeding a content kind of its own — items,
+//! jobs — with its own directory and its own checks.
 
-use mineworld_contracts::{Event, Location, PersonId, SystemId};
+use mineworld_contracts::{Event, LocalPosition, Location, PersonId, PlaceId, SystemId};
 use mineworld_conversation::ConversationSystem;
 use mineworld_kernel::{Emission, KernelError, SystemIdentity, World, WorldRead};
-use mineworld_movement::MovementSystem;
+use mineworld_movement::{MovementSystem, passage};
 use mineworld_presence::{Arrived, PerceptionProvider, PresenceSystem, arrival};
 
 /// One System Pack this build can install.
@@ -96,6 +99,21 @@ impl core::fmt::Display for Capability {
 /// somebody without enabling the system that owns placement* — says the name of the system they have
 /// to enable.
 pub const LOCATION_OWNER: Capability = Capability::Presence;
+
+/// Which capability owns the state an authored `passage` becomes: the places a place opens onto.
+pub const PASSAGE_OWNER: Capability = Capability::Movement;
+
+/// The genesis fact an authored passage becomes: `a` opens onto `b`, through a doorway at `a_at` in
+/// `a` and `b_at` in `b`. Built by the pack that declared the event type
+/// ([`mineworld_movement::passage`]); this function only says which fact a passage is.
+pub fn opened(
+    a: PlaceId,
+    a_at: Option<LocalPosition>,
+    b: PlaceId,
+    b_at: Option<LocalPosition>,
+) -> Emission {
+    passage(a, a_at, b, b_at)
+}
 
 /// The genesis fact an authored location becomes.
 ///
