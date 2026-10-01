@@ -28,9 +28,9 @@ const FRONT := CameraRig.Mode.THIRD_FRONT
 var views := [
 	["01_street_wide", Vector3(-20.0, 0.45, -5.20), -75.0, -1.0, FP],
 	["02_cafe_approach", Vector3(-2.00, 0.45, -5.40), -55.0, 0.0, FP],
-	["03_cafe_exterior", Vector3(0.50, 0.45, -4.20), -53.0, 2.0, FP],
+	["03_cafe_exterior", Vector3(0.30, 0.45, -5.55), -52.0, 3.0, FP],
 	["04_doorway", Vector3(3.45, 0.45, -6.90), 0.0, 0.0, FP],
-	["05_interior_wide", Vector3(3.70, 0.60, -9.90), -16.0, -1.0, FP],
+	["05_interior_wide", Vector3(2.75, 0.60, -10.60), -38.0, -3.0, FP],
 	["06_interior_character", Vector3(4.60, 0.60, -12.60), -8.0, -2.0, REAR],
 	["07_third_rear", Vector3(-4.00, 0.45, -5.60), -80.0, -3.0, REAR],
 	["08_third_front", Vector3(4.20, 0.45, -6.10), -20.0, -1.0, FRONT],
@@ -40,7 +40,7 @@ var views := [
 	["11_interior_looking_out", Vector3(6.20, 0.60, -11.60), 178.0, 0.0, FP],
 	["12_back_wall", Vector3(5.20, 0.60, -13.60), 4.0, 1.0, FP],
 	["13_doorway_from_inside", Vector3(3.55, 0.60, -10.40), 179.0, -1.0, FP],
-	["14_west_frontage", Vector3(-15.0, 0.45, -5.00), -40.0, 4.0, FP],
+	["14_west_frontage", Vector3(-15.0, 0.45, -6.40), -40.0, 4.0, FP],
 	["15_east_end", Vector3(17.0, 0.45, -5.40), -70.0, 2.0, FP],
 	["16_south_side", Vector3(2.0, 0.45, -4.60), 165.0, 1.0, FP],
 	["17_street_from_east", Vector3(22.0, 0.45, -5.30), 96.0, -1.0, FP],
@@ -140,6 +140,12 @@ func _capture() -> void:
 			c.save_png("%s/%s.png" % [OUT, spec[0]])
 		print("shot %-26s at %s yaw %.0f  [%s]"
 			% [v[0], v[1], v[2], player.rig.mode_name()])
+		# The body's feet should be on a floor: 0.14 outside, 0.29 inside. Higher
+		# means the view's start point was inside furniture and the body was
+		# pushed up on top of it -- which is what made 05 look down from 3 m.
+		if player.global_position.y > 0.40:
+			print("  WARNING: body standing at y %.2f -- on top of something, not the floor"
+				% player.global_position.y)
 		_pick_report()
 	print("\ngi mode: %s" % slice.gi_name())
 	print("character slot: %s" % player.slot.describe())
@@ -186,9 +192,9 @@ func _pick_walk(n: Node, o: Vector3, d: Vector3, hits: Array) -> void:
 ## needs a number and because a regression needs something to regress from.
 var perf_views := [
 	["street wide", Vector3(-20.0, 0.45, -5.20), -75.0, -1.0],
-	["cafe frontage", Vector3(0.50, 0.45, -4.20), -53.0, 2.0],
+	["cafe frontage", Vector3(0.30, 0.45, -5.55), -52.0, 3.0],
+	["interior", Vector3(2.75, 0.60, -10.60), -38.0, -3.0],
 	["doorway", Vector3(3.45, 0.45, -6.90), 0.0, 0.0],
-	["interior", Vector3(3.70, 0.60, -9.90), -16.0, -1.0],
 ]
 
 
