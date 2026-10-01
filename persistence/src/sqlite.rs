@@ -181,11 +181,7 @@ impl SqliteBackend {
         Ok(())
     }
 
-    fn fact_rows(
-        &self,
-        sql: &str,
-        parameter: i64,
-    ) -> Result<Vec<FactRow>, PersistError> {
+    fn fact_rows(&self, sql: &str, parameter: i64) -> Result<Vec<FactRow>, PersistError> {
         let mut statement = self.connection.prepare(sql).map_err(storage)?;
         let rows = statement
             .query_map([parameter], |row| {
@@ -223,12 +219,16 @@ impl PersistenceBackend for SqliteBackend {
 
     fn manifest(&self) -> Result<ManifestRow, PersistError> {
         self.connection
-            .query_row("SELECT format, body FROM manifest WHERE id = 1", [], |row| {
-                Ok(ManifestRow {
-                    format: row.get(0)?,
-                    body: row.get(1)?,
-                })
-            })
+            .query_row(
+                "SELECT format, body FROM manifest WHERE id = 1",
+                [],
+                |row| {
+                    Ok(ManifestRow {
+                        format: row.get(0)?,
+                        body: row.get(1)?,
+                    })
+                },
+            )
             .optional()
             .map_err(storage)?
             .ok_or_else(|| PersistError::Damaged {

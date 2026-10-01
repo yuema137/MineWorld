@@ -53,8 +53,11 @@ pub struct ManifestRow {
 /// process that dies during one, leaves the previous revision as the head.
 pub trait PersistenceBackend {
     /// Writes the manifest and the genesis revision of a new save, together.
-    fn initialize(&mut self, manifest: &ManifestRow, genesis: &RevisionRow)
-    -> Result<(), PersistError>;
+    fn initialize(
+        &mut self,
+        manifest: &ManifestRow,
+        genesis: &RevisionRow,
+    ) -> Result<(), PersistError>;
 
     /// The manifest.
     fn manifest(&self) -> Result<ManifestRow, PersistError>;

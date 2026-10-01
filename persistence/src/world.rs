@@ -244,7 +244,7 @@ impl PersistentWorld {
     ) -> Result<(), PersistError> {
         let revision = self.revision.next();
         let committed = (|| {
-            let snapshot = if revision.raw() % self.snapshot_interval == 0 {
+            let snapshot = if revision.raw().is_multiple_of(self.snapshot_interval) {
                 Some(self.world.snapshot()?)
             } else {
                 None

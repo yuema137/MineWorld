@@ -18,3 +18,5 @@ thiserror = { workspace = true }
 [dev-dependencies]
 # The process-kill checkpoint loads the repository's own World Pack (step-06 C4).
 mineworld-worldpack = { workspace = true }
+# The tamper tests alter a stored row directly, as damage or an editor would, to show replay sees it.
+rusqlite = { workspace = true }

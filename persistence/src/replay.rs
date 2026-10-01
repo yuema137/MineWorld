@@ -14,7 +14,9 @@ use crate::format::{Manifest, check_format, decode, encode};
 use crate::input::{JournalEntry, Outcome, WorldInput, WorldRevision};
 
 /// What a request's dispatch amounts to in the journal: its answer, or the fault, and its facts.
-pub(crate) fn dispatched(result: &Result<Dispatched, KernelError>) -> (Outcome, Vec<EventEnvelope>) {
+pub(crate) fn dispatched(
+    result: &Result<Dispatched, KernelError>,
+) -> (Outcome, Vec<EventEnvelope>) {
     match result {
         Ok(dispatched) => (
             Outcome::Dispatched(dispatched.result().clone()),
@@ -176,7 +178,10 @@ pub(crate) fn replay_after(
     for (revision, entry) in backend.journal_after(from)? {
         if revision != expected {
             return Err(PersistError::Damaged {
-                detail: format!("the journal skips from {} to {revision}", expected.raw() - 1),
+                detail: format!(
+                    "the journal skips from {} to {revision}",
+                    expected.raw() - 1
+                ),
             });
         }
         facts += reproduce(world, backend, revision, &entry)? as u64;

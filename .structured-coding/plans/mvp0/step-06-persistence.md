@@ -463,6 +463,51 @@ Each commit tracks implementation, validation and review separately. Evidence go
   `&mut World`; every refusal changes nothing in the file; facts are never decoded; rows are compared as
   bytes, not re-serialized values.
 
+**C3 as built** (commits `61625de` crate, then the tests commit).
+- [x] Implementation: `persistence/src/{lib,input,error,backend,sqlite,format,replay,world}.rs`,
+  `persistence/README.md`; workspace member and `rusqlite 0.40.2` (`bundled`) — fetched and built
+  without incident. Bounded deviations:
+  - The backend trait speaks **encoded rows** (`RevisionRow`, `FactRow`, `ManifestRow`) rather than
+    typed records: replay must compare a regenerated fact with the *stored bytes*, so the backend has
+    to hand back exactly the bytes it was given; encoding is `format.rs`'s. The backend cannot
+    interpret a row, which is `INV-14` by construction.
+  - `PersistError::WorldAheadOfSave` carries the commit's cause, so the refusal of every later input
+    still says why.
+  - `Outcome::Advanced { instants, skipped }`; a journal column `action_id` makes "highest `ActionId`"
+    a query.
+  - Genesis revision stores the **post-genesis** snapshot, so a resume never re-runs genesis; only
+    `verify` does, from the recorded pre-genesis snapshot.
+- [x] Validation — `persistence/tests/save.rs`, 10 tests, all PASS (0.08 s); clippy `-D warnings`
+  clean. Each test drives a real `SqliteBackend` file; the in-memory **twin** (bare kernel, same calls)
+  is the independent oracle.
+  - resume: 151 steps; head located first as `1 + 151 + (advances that fired, counted on the twin)`;
+    persisted facts equal the twin's byte for byte; resume reads the newest snapshot
+    (`head − head mod 16`) and re-executes a non-empty tail of exactly `head mod 16` rows; instance
+    kept; rebuilt snapshot bytes equal the twin's; 40 more steps continue at the next `EventId` with
+    byte-identical facts and state;
+  - verify from genesis: `revisions == head`, `facts ==` the twin's fact count, `snapshots == 1 +
+    head / 16`;
+  - journaling rules: idle advance → no revision; rejected request → revision; a system fault →
+    revision, `PersistError::Kernel`, and re-executed to the same error on resume; an advance that
+    fired → revision; highest `ActionId` 3; clock resumes at the last revision's instant; verifies;
+  - durability ordering: after each `dispatch` returns, a second connection sees the head;
+  - **adversarial — memory-only state:** `Forgetful` keeps a counter in a process-wide static (the
+    `INV-7` breach) and states it in its facts. Resume refuses `ReplayDiverged` at exactly the first
+    tail revision whose facts carry the count; `verify` refuses at revision 1 (genesis), whose four
+    `born` facts the count had already followed — the instrument is shown to see the defect;
+  - tampering via raw SQL: the newest fact altered → resume refuses at exactly that fact's revision
+    (located by query, asserted to lie in the tail); the revision-16 snapshot replaced → `verify`
+    refuses `SnapshotDisagreesWithHistory { 16 }`;
+  - refusals: format 2 → `SaveFormatTooNew`, 0 → `SaveFormatOutdated`; missing system →
+    `CompositionDiffers { 1, Some(echo), None }`; swapped → position 0; system v2 save resumed by v1 →
+    `PersistedSystemTooNew`, the reverse → `PersistedSystemOutdated`; create over a save →
+    `SaveExists`; open of nothing → `NoSave`;
+  - commit failure: a delegating backend with an injected commit error → `WorldAheadOfSave { 3 }`, and
+    after the storage "recovers" the world still refuses; the file's head stays at 2.
+- [x] Review: `grep rusqlite` — only `persistence/src/sqlite.rs` and the tamper test name it.
+  `PersistentWorld` exposes `world()` as `&World` only. Facts are never decoded during replay; rows are
+  compared as stored bytes. Refusals happen before any write to the file (resume never writes).
+
 ## C4 — Pack composition split and the process-kill checkpoint
 **Goal:** prove continuity across a real process death against a real SQLite file. **Depends on:** C3.
 - [ ] Implementation:

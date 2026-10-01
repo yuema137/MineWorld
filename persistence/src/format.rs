@@ -34,7 +34,10 @@ impl Manifest {
     /// The instance as the number it is.
     pub fn instance_number(&self) -> Result<u128, PersistError> {
         u128::from_str_radix(&self.instance, 16).map_err(|_| PersistError::Damaged {
-            detail: format!("the manifest's instance '{}' is not a number", self.instance),
+            detail: format!(
+                "the manifest's instance '{}' is not a number",
+                self.instance
+            ),
         })
     }
 }
