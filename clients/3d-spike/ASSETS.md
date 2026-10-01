@@ -54,6 +54,67 @@ are warm, saturated and lit by a low sun. Changing the sky and dropping the sun
 to 17 degrees was a larger step toward the reference look than any amount of
 geometry would have been.
 
+### Poly Haven, slice set (`VIS-3D-GODOT-2`) — CC0 1.0
+
+Fetched by `tools/fetch_slice_assets.sh`, which names every file, and checked **one asset at a
+time** by `tools/check_slice_provenance.py` and by eye. Checked 2026-09-30.
+
+**The licence test (`DEP-8` as amended 2026-09-27) is whether we may relicense, not whether we
+may redistribute.** CC0 1.0 is a waiver of all copyright and related rights to the extent the
+law allows, with a fallback licence where it does not, so a CC0 file may be placed under MIT.
+Poly Haven, at <https://polyhaven.com/license>, verbatim: *"Our assets are all licensed as CC0"*;
+*"All assets (HDRIs, textures and 3D models) on this site are the original work of Poly Haven
+staff, or artists who willingly and directly donate/sell their work to Poly Haven."*; *"You can
+redistribute them, share them around, include them when sharing your own work, or even in a
+product you sell."* Poly Haven's API terms (fetched from
+`github.com/Poly-Haven/Public-API/blob/master/ToS.md`) state that the assets stay CC0 when
+fetched through the API (*"CC0 assets carry no attribution requirement whatsoever, now or
+ever"*) and ask API calls to carry an identifying User-Agent, which both tools send.
+
+**What CC0 can and cannot cover.** A CC0 dedication waives the rights *its authors* held. It
+cannot waive someone else's copyright reproduced inside the asset, such as a signed painting, a
+banknote or a logo. That is not visible in the catalogue, so every model atlas was inspected as
+pixels. Two failed, and are **excluded: not fetched, not on disk, not in this repository**:
+
+| Slug | What the atlas contains | Why it fails |
+| --- | --- | --- |
+| `CashRegister_01` | a reproduction of a Bank of Canada $1 note (portrait, `CANADA` legend) in `CashRegister_01_diff_1k.jpg`; also `I ♥ LAS VEGAS` / `I ♥ QUEBEC` badges | banknote designs are the issuing bank's copyright; Poly Haven's authors (credited: Joe Seabuhr) could not dedicate it. The till in the café is authored in-engine instead (`cafe_interior.gd` `_till`) |
+| `hanging_picture_frame_02` | a painting of a palace façade signed **"Celine F"** in `hanging_picture_frame_02_artwork_diff_1k.jpg` | the credited author is James Ray Cock; nothing establishes that the painter dedicated the painting to CC0. Removed from the café wall rather than replaced |
+
+Atlases that contain imagery or lettering, inspected and **passed**:
+
+| Slug | What was seen | Why it passes |
+| --- | --- | --- |
+| `fancy_picture_frame_01` | an unsigned Dutch-manner oil landscape (stepped-gable mill, bridge, riders) | an antique painting photographed by the credited authors (Rob Tuytel, Rico Cilliers); no signature, no modern artist named. **Residual:** the painting's date is not documented. Its style and craquelure point to pre-20th-century, and that is a judgement from the pixels, not a fact |
+| `wine_bottles_01` | four labels: *Ftero Vinea*, *Clearwater Crystals*, *Intertwine* | invented brands. The Intertwine label's own copy names "the Haven Vineyards", which is Poly Haven's in-joke |
+| `wall_clock` | dial numerals and a small `URBAN quartz` wordmark | numerals and a bare wordmark carry no copyright. A wordmark is a trademark question at most, and that does not bear on relicensing the file |
+| `tea_set_01` | floral transfer decoration | generic period decoration on a scanned object, by the credited authors |
+
+`check_slice_provenance.py` result for the set that remains: 12 textures and 33 models, each
+found in Poly Haven's own catalogue as the asset type it is fetched as, each with credited
+authors, every glTF dependency present locally, none external, nothing unreferenced, no
+`asset.copyright` field in any glTF. **0 failed.**
+
+**Textures** — `assets/textures/<slug>/`, 1k JPG, `diff` + `nor_gl` + `arm`:
+`rectangular_paving` · `concrete` · `worn_asphalt` · `sandstone_blocks_05` · `red_bricks_04` ·
+`yellow_bricks` · `clay_roof_tiles_02` · `wood_floor_worn` · `brown_planks_09` ·
+`wood_table_worn` · `long_white_tiles` · `painted_plaster_wall`. What each is for is in the
+fetch script, beside the slug.
+
+**Models** — `assets/models/<slug>/`, 1k glTF:
+`wooden_bookshelf_worn` · `wooden_display_shelves_01` · `steel_frame_shelves_02` · `Shelf_01` ·
+`round_wooden_table_02` · `dining_chair_02` · `painted_wooden_chair_01` · `bar_chair_round_01` ·
+`wooden_crate_01` · `wicker_basket_01` · `hanging_industrial_lamp` · `modern_ceiling_lamp_01` ·
+`industrial_pipe_lamp` · `croissant` · `carrot_cake` · `tea_set_01` · `wine_bottles_01` ·
+`jug_01` · `wooden_bowl_01` · `food_apple_01` · `ceramic_vase_02` · `antique_ceramic_vase_01` ·
+`brass_pot_01` · `pot_enamel_01` · `fancy_picture_frame_01` · `wall_clock` ·
+`calathea_orbifolia_01` · `standing_chalkboard_01` · `planter_box_01` · `planter_pot_clay` ·
+`shrub_02` · `shrub_03` · `water_manhole_cover`.
+
+Also fetched, inspected and rejected **on appearance**, not on licence: `granite_tile_02`,
+`white_plaster_rough_02`, `yellow_plaster_02` and `grey_cartago_02`. The reasons are in the
+fetch script.
+
 ### CharMorph "Vitruvian" — CC0 — `assets/characters/vitruvian/`
 
 The rigged human. Baked out of a [VitruvianGodot](https://github.com/ibrews/VitruvianGodot)

@@ -13,7 +13,18 @@
 # the whole rest of this list. The slice's trees are generated instead
 # (scripts/slice/foliage.gd), which is also what lets their canopy density,
 # leaf size and colour be tuned to the references.
+#
+# EXCLUDED on licence, after inspecting their texture atlases as pixels -- the
+# test is whether we may RELICENSE (DEP-8 as amended), and an asset's CC0 can
+# only cover what its author owned. See ../ASSETS.md "Excluded".
+#   CashRegister_01           the atlas reproduces a Bank of Canada $1 note
+#   hanging_picture_frame_02  the painting is signed "Celine F", who is not among
+#                             the asset's credited authors
+#
+# Poly Haven's API terms (2.4) ask every API call to carry an identifying
+# User-Agent; $UA is it.
 set -euo pipefail
+UA="MineWorld-fetch_slice_assets (https://github.com/yuema137/MineWorld)"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 tex="$here/../assets/textures"
 models="$here/../assets/models"
@@ -51,7 +62,7 @@ for s in "${SLUGS[@]}"; do
     f="$tex/$s/${s}_${m}_${RES}.jpg"
     [ -s "$f" ] && continue
     url="https://dl.polyhaven.org/file/ph-assets/Textures/jpg/$RES/$s/${s}_${m}_${RES}.jpg"
-    if ! curl -fsSL --retry 3 --max-time 120 -o "$f" "$url"; then
+    if ! curl -fsSL -A "$UA" --retry 3 --max-time 120 -o "$f" "$url"; then
       rm -f "$f"; failed+=("$s/$m")
     fi
   done
@@ -71,11 +82,11 @@ MODELS=(
   # light fittings, as visible objects
   hanging_industrial_lamp modern_ceiling_lamp_01 industrial_pipe_lamp
   # hand-scale: the size class an interior most often lacks
-  CashRegister_01 croissant carrot_cake tea_set_01 wine_bottles_01 jug_01
+  croissant carrot_cake tea_set_01 wine_bottles_01 jug_01
   wooden_bowl_01 food_apple_01 ceramic_vase_02 antique_ceramic_vase_01
   brass_pot_01 pot_enamel_01
   # decoration
-  hanging_picture_frame_02 fancy_picture_frame_01 wall_clock calathea_orbifolia_01
+  fancy_picture_frame_01 wall_clock calathea_orbifolia_01
   # the street
   standing_chalkboard_01 planter_box_01 planter_pot_clay shrub_02 shrub_03
   water_manhole_cover
@@ -83,7 +94,7 @@ MODELS=(
 
 for s in "${MODELS[@]}"; do
   [ -s "$models/$s/$s.gltf" ] && continue
-  urls=$(curl -fsSL --max-time 60 "https://api.polyhaven.com/files/$s" | python3 -c "
+  urls=$(curl -fsSL -A "$UA" --retry 3 --max-time 60 "https://api.polyhaven.com/files/$s" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)['gltf']['1k']['gltf']
 # Dependencies first, the .gltf last: its presence is what marks a model
@@ -95,7 +106,7 @@ print('%s.gltf\t%s' % (sys.argv[1], d['url']))
   while IFS=$'\t' read -r rel url; do
     [ -z "$rel" ] && continue
     mkdir -p "$models/$s/$(dirname "$rel")"
-    if ! curl -fsSL --retry 3 --max-time 300 -o "$models/$s/$rel" "$url"; then
+    if ! curl -fsSL -A "$UA" --retry 3 --max-time 300 -o "$models/$s/$rel" "$url"; then
       rm -f "$models/$s/$rel"; failed+=("$s/$rel"); break
     fi
   done <<< "$urls"

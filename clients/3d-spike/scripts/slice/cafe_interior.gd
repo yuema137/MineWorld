@@ -237,8 +237,9 @@ static func _counter(n: Node3D, x0: float, x1: float, z_back: float, fy: float) 
 	# the machine, the grinder and the till: the three objects a viewer looks
 	# for behind a counter, in the order they look for them
 	_espresso_machine(n, cx0 + 2.45, top_y, COUNTER_Z - 0.06)
-	SliceProps.put(n, "CashRegister_01", Vector3(cx1 - 0.52, top_y, COUNTER_Z - 0.02),
-		-0.35, Color(0.90, 0.88, 0.84))
+	# Authored, not Poly Haven's CashRegister_01: that model's atlas reproduces a
+	# Bank of Canada banknote, which Poly Haven's CC0 cannot relicense (ASSETS.md).
+	_till(n, cx1 - 0.52, top_y, COUNTER_Z - 0.02)
 	SliceProps.put(n, "jug_01", Vector3(cx0 + 3.35, top_y, COUNTER_Z + 0.10), 0.8)
 	SliceProps.put(n, "wooden_bowl_01", Vector3(cx1 - 1.20, top_y, COUNTER_Z + 0.16), 0.3)
 	SliceProps.put(n, "food_apple_01", Vector3(cx1 - 1.22, top_y + 0.055, COUNTER_Z + 0.14), 1.1)
@@ -333,6 +334,20 @@ static func _espresso_machine(n: Node3D, cx: float, y: float, z: float) -> void:
 	for i in range(4):
 		Build.cyl(n, Vector3(cx - 0.30 + i * 0.20, y + 0.53, z - 0.10),
 			0.038, 0.030, 0.052, Mats.paint(Color(0.90, 0.88, 0.84), 0.36), 10)
+
+
+## A small modern till: cash drawer, angled screen on a stem, card reader.
+## ~0.40 x 0.42 x 0.38 m overall, which is the size class of a real one.
+static func _till(n: Node3D, cx: float, y: float, z: float) -> void:
+	var shell := Mats.paint(Color(0.86, 0.85, 0.82), 0.40)
+	var dark := Mats.paint(Color(0.10, 0.10, 0.11), 0.30, 0.20)
+	Build.box(n, Vector3(cx, y + 0.06, z), Vector3(0.40, 0.12, 0.38), shell)
+	Build.box(n, Vector3(cx, y + 0.06, z + 0.192), Vector3(0.34, 0.006, 0.006), dark)
+	Build.cyl(n, Vector3(cx, y + 0.12, z - 0.06), 0.022, 0.022, 0.12, dark, 8)
+	Build.box(n, Vector3(cx, y + 0.30, z - 0.06), Vector3(0.30, 0.20, 0.020), dark)
+	Build.box(n, Vector3(cx, y + 0.30, z - 0.06), Vector3(0.27, 0.17, 0.028),
+		Mats.emissive(Color(0.62, 0.74, 0.78), 0.35))
+	Build.box(n, Vector3(cx + 0.27, y + 0.03, z + 0.08), Vector3(0.08, 0.06, 0.15), dark)
 
 
 # --- seating -------------------------------------------------------------------
@@ -447,8 +462,8 @@ static func _decoration(n: Node3D, x0: float, x1: float, z_back: float,
 		fy: float, cy: float) -> void:
 	var warm := Color(1.02, 0.96, 0.88)
 	# pictures on the left wall, at two heights
-	SliceProps.put(n, "hanging_picture_frame_02", Vector3(x0 + 0.06, fy + 1.62, -3.20),
-		PI * 0.5, warm)
+	# hanging_picture_frame_02 was here until its painting turned out to be
+	# signed by an artist Poly Haven does not credit -- excluded, see ASSETS.md.
 	SliceProps.put(n, "fancy_picture_frame_01", Vector3(x0 + 0.06, fy + 2.10, -5.10),
 		PI * 0.5, warm)
 	SliceProps.put(n, "wall_clock", Vector3(x1 - 0.06, fy + 2.32, -4.40), -PI * 0.5, warm)
