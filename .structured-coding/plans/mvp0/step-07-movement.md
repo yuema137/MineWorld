@@ -666,6 +666,60 @@ else changes yet. **Depends on:** C2.
   `SpatialRequirement::evaluate`; the payload of `Arrived` is built only by `arrival()`; README is short
   and links to the crate docs.
 
+**C3 as built** — split into two commits for survivability: `41bb073` (the crate) and the tests commit.
+- [x] Implementation. `systems/movement/src/{lib,action,component,event,codec,system}.rs`, `README.md`;
+  workspace member + dependency. `Move { to }`, `MAX_STRIDE = 2 000 mm`, `stride_requirement()`,
+  `move_offer_requirement() = NONE` (MD-9); `Passages { leads_to: Vec<Passage> }` kept sorted by
+  `PlaceId` (`open` replaces a passage to the same place); `PassageOpened { a, a_at, b, b_at }` and the
+  genesis constructor `passage(..)` (visibility `Public`, subjects both places, at `a`). `validate`
+  follows §2.5 with one refinement: steps 2–3 call presence's `admit` (C2b), so a destroyed actor or a
+  destroyed/non-place destination is `PreconditionFailed` from the owner's single check. `resolve`
+  states `arrival(&read, person, to)`; a refusal there (validate and resolve disagreeing) is
+  `FactRefusedByOwner { presence, arrived }`. `react` reduces `PassageOpened` into both places and,
+  **owner decides** as in C2b, refuses a self-passage or a non-place end with `FactRefusedByOwner {
+  movement, passage-opened }`. `offers`: `move` once, targetless, to a living person.
+- [x] Validation. `systems/movement/tests/movement.rs` (7) + `persisted.rs` (1), fixture in
+  `tests/support/mod.rs` (café, street joined at café (4600, 2000) ↔ street (0, 2000), attic with no
+  passage):
+  - CP-1: two strides and a crossing, each one `arrived` with provenance `movement`; `present-in`
+    printed before `[EntityId(1)]` and after `[EntityId(2)]`.
+  - CP-3: 6 literal cases, 4 refused `TooFarAway` (2 001 mm stride; 2 001 mm off the near doorway;
+    landing 2 001 mm off the far doorway; the attic), 2 accepted at exactly 2 000 mm (stride; both
+    doorway sides); each refusal leaves presence and the world's state bytes unchanged.
+  - negatives: unplaced person, non-place destination → `PreconditionFailed`; a place as actor →
+    `NoSupportedInteraction`; unreadable payload → `System(malformed-payload)`.
+  - semantic world: within place and through passage accepted, attic `TooFarAway`.
+  - **CP-2 with its negative control (`ARC-23`)**: `removability_violations` states the AC-2 claims once
+    (move `Unavailable`, no fact, not offered; entities, Presence rows, edges, every fact, every answer
+    and both observations equal to the never-installed world after the same script). Disabled → **0
+    violations**. Enabled (movement reachable) → **7 violations** (`move was answered Accepted`, `move
+    recorded 1 fact`, `move is still offered`, `presence/facts/results/observations differ`), and the
+    test asserts four of them are present. So the test cannot pass whether or not movement is
+    unreachable.
+  - **Q4**: jog 2 600 mm/s × 20 s at 100 ms (literals). Rule-following client: **29 accepted, 0
+    refused**, final Presence (52 000, 0). Rule-ignoring client (once a second): **0 accepted, 20
+    refused**, Presence stays at the start.
+  - structural: no `f32`/`f64` in movement's 6 sources; presence (8 files) and conversation (8 files)
+    name none of `mineworld_movement`, `MovementSystem`, `Passage`, `passage`, `MAX_STRIDE`, `stride`.
+    **Bounded deviation:** the scan is over identifiers, case-sensitive, not the lowercase word
+    "movement" — presence's `action.rs` (deleted in C6) and conversation's `validate` doc say "a
+    movement system" in general prose, which is not a dependency. C6 extends presence's own scan.
+  - IC-1 (`persisted.rs`): real SQLite file; genesis 3 facts; walk answers `Accepted, TooFarAway,
+    Accepted, Accepted`; head revision 5, 6 facts in the log; resume → snapshot revision 1, **replayed
+    4, facts 3**; component rows + edges byte-identical; `verify` 5 revisions; the next move's fact is
+    `EventId(7)`.
+  - **Finding (test seam):** comparing whole snapshot bytes around a *first* refused request fails,
+    because `WorldSnapshot.ran` flips on any dispatch, whatever the answer. The fixture compares every
+    snapshot field except `ran` and says why; no production change.
+  - **Mutation obtained:** `MAX_STRIDE` 2 000 → 2 001 turns the boundary test red (6 passed, 1 failed);
+    restored.
+  - Workspace: rc 0, 55 harness results, **323 passed, 0 failed**; `kill_and_resume` cafe/clock PASS;
+    clippy `-D warnings` and fmt clean.
+- [x] Review: movement writes only `Passages` (only `react` inserts); `resolve` writes nothing;
+  `reachable` is the only spatial decision and it calls `SpatialRequirement::evaluate` three ways
+  (destination, near doorway, far doorway) — no arithmetic; `arrived` is built only by presence's
+  `arrival`. README is 25 lines and links the crate docs, `ARC-26` and `PROTOCOL.md` §6.2.
+
 ## C4 — The pack, the server and the Rust clients walk with `move`
 
 **Goal.** The real world installs movement and every Rust caller that relocates a person does it with
