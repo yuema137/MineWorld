@@ -1,0 +1,20 @@
+[package]
+name = "mineworld-persistence"
+description = "MineWorld's saves: the input journal, the append-only fact log and world snapshots in one SQLite file, and the replay that rebuilds a world from them and refuses any divergence."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+# The process-kill checkpoint loads the repository's own World Pack (step-06 C4).
+mineworld-worldpack = { workspace = true }
