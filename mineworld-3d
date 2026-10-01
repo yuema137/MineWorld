@@ -38,8 +38,10 @@ fi
 # The character review frames are captured in portrait aspect, because the
 # canonical reference is a portrait and a comparison has to be made at the
 # reference's own framing (docs/VISUAL_FIDELITY.md sec.8).
+# Always on top: macOS stops drawing an occluded window, and the capture then
+# waits on a frame that never comes -- it stalled for ten minutes twice.
 if [ "${1:-}" = "--portrait" ]; then
-  exec "$godot_bin" --path "$proj" --resolution 1200x1500 -- --portrait
+  exec "$godot_bin" --path "$proj" --always-on-top --resolution 1200x1500 -- --portrait
 fi
 
 if [ "${1:-}" = "--shots" ]; then
