@@ -54,6 +54,19 @@ func _ready() -> void:
 		add_child(probe)
 
 
+## `Props.gltf` keeps one generated scene per slug as a template it duplicates
+## from. Those templates are never in the tree, so nothing frees them, and every
+## quit reported each one -- with its meshes, materials and textures -- as
+## leaked. Freed here, from the slice's own exit, rather than by editing the
+## shared `props.gd` the promenade scene also runs on.
+func _exit_tree() -> void:
+	for k in Props._scenes.keys():
+		var n: Node = Props._scenes[k]
+		if n != null and is_instance_valid(n):
+			n.free()
+	Props._scenes.clear()
+
+
 static func _gi_from_args() -> GI:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--gi="):
