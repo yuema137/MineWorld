@@ -192,6 +192,40 @@ Result recorded with the commit. Occurrences of `Godot` and `Unreal` are permitt
 document names the two **tracks** (`VIS-3D-GODOT-2`, `VIS-3D-UE5-1`) rather than a technique; any
 other hit is a defect in the document.
 
+### Recovery session, 2026-09-30 — first run, repair, preview
+
+Taken over from a stalled session at `fa021cd`. `origin/main` was merged first (`b651208`). Every
+item below is a commit on the branch, carrying its own evidence.
+
+```text
+assets      fetch_slice_assets.sh did not parse (stale duplicate list); fixed, made to fail loudly
+            45 assets checked one by one: check_slice_provenance.py 0 failed, every atlas by eye
+            EXCLUDED on licence: CashRegister_01 (Bank of Canada note), hanging_picture_frame_02
+            (painting signed "Celine F", not a credited author)
+first run   launcher passed --slice--drive, so no scripted mode had ever run
+drive       door blocked by a pot; glass walkable; Place volumes floored at foot height;
+            instrument defects: timed loop legs, distance-proxy wall test, wedged start
+measure     constants only -> added rays against built colliders + occupant mesh; found an
+            unglazed bay beside the door, a 0.3 m sliver, non-colliding jambs
+render      boughs/bicycle frames at world origin (look_at_from_position with local args);
+            foliage cards uncut (JPG base colour has no alpha); every window, door and shop
+            window buried inside solid walls (wall_with_holes); window lettering faced inward;
+            three views started inside furniture (capture now warns)
+exit        510 leaked instances from the Props template cache; freed from SliceMain
+```
+
+Final evidence, all on the same build: `--drive` all pass; `--measure` all pass, with the
+frontage open only at the door; `--threshold` four PASS (worst step ×1.38, 0.00 % clipped
+looking out); `--perf` 10.9–17.6 ms; plain launch clean. The preview package is in
+`docs/HUMAN_REVIEW_QUEUE.md`.
+
 ## 8. Deviations and discoveries
 
-None yet.
+1. **Shared files edited.** `scripts/props.gd` (bough and bicycle orientation, a bug, which also
+   corrects the promenade's trees) and `clients/3d-spike/.gitignore` (admit
+   `shots/slice/preview/` only). Neither is owned by `vis/3d-human-pipeline`. The promenade's
+   `./mineworld-3d --drive` still completes with its checks.
+2. **Preview before `TECHNICALLY READY`**, per the operator's direction and `ARC-24`. C8
+   (server integration) is not done; the preview says so.
+3. **The constants-only scale table** was an `ARC-23` instrument defect. It is kept, labelled
+   *declared*, beside the new *measured* section.
