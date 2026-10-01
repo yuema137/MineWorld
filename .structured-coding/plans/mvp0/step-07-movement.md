@@ -539,6 +539,11 @@ accepted; otherwise this commit becomes a review convention in `.structured-codi
   attempted and refused by the session's permission classifier; the mutation was reverted at once
   (`git diff` confirms). The refusal test asserts the exact error value, so it cannot pass without
   the check returning that error; recorded as reasoning, not as a mutation result.
+  **Terminal gates on the committed C2 head `47874ca`** (resumed session, 2026-10-01, clean tree):
+  `cargo test --workspace --no-fail-fast` rc 0, 51 harness results summing to **313 passed, 0
+  failed** (311 + the 2 in `borrowed_vocabulary.rs`); `cargo test -p mineworld-persistence --test
+  kill_and_resume` → `[cafe] PASS in 0.3 s`, `[clock] PASS in 0.4 s`; `check_decision_ids.py` → 35
+  ids distinct; `check_doc_headings.py` → 134 sections, none duplicated. PASS (E-2).
 - [x] Review: the kernel change names no domain concept; the owner is read off `E::OWNER`, never passed
   as a value; `enable` needs no repeat (a declaration is fixed at install, and `enable` re-checks
   dependencies). `SAVE_FORMAT` is the only persistence change.
@@ -917,6 +922,10 @@ or contains, so neither is assumed; implementation waits on the answers.
 `python3 scripts/check_decision_ids.py` → 34 decision ids, all distinct;
 `python3 scripts/check_doc_headings.py` → 134 numbered sections across 21 documents, none duplicated.
 PASS.
+
+**E-2 (C2, `47874ca`).** Full workspace suite rc 0, 51 harness results, **313 passed, 0 failed**;
+`kill_and_resume` cafe PASS 0.3 s, clock PASS 0.4 s; decision ids 35 distinct; doc headings 134, none
+duplicated. fmt and clippy `-D warnings` clean (before the stall, same head). PASS.
 
 ## 9.1 Limitations and follow-ups (expected)
 

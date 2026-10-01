@@ -41,9 +41,10 @@ clients/protocol/run.sh                      allowed without prompt (§10.1 Q8)
 
 ## Current checkpoint and next actions
 
-Checkpoint: C1 (specification amendments) in progress / see `git log`.
-Next: C2 kernel — `SystemDeclaration` records emitted owners; install refusal
-`EmittedEventOwnerNotADependency`; `FactRefusedByOwner`; `SAVE_FORMAT` 2.
+Checkpoint: C0, C1 (`507c041`), C2 (`47874ca`, gates E-2: 313 passed) done.
+Next: C2b — `mineworld_presence::admit`, `arrival(world, ..)` checked, `react` refuses with
+`FactRefusedByOwner`; then C3 → C4 → C4b → C5 → C6 → C7.
+Note: earlier sessions stalled on connection problems; commit and push after each small step.
 
 ## Stop conditions
 
