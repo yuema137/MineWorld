@@ -1,5 +1,10 @@
 .godot/
-shots/
+# capture output is scratch -- except the slice's preview package, which is
+# the reviewed artefact (VISUAL_SLICE.md sec.12, ARC-24) and is committed
+shots/*
+!shots/slice/
+shots/slice/*
+!shots/slice/preview/
 screenshots/*.import
 preview_*.png
 preview_*.png.import
