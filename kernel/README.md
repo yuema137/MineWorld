@@ -20,11 +20,13 @@ clock        WorldClock: simulated seconds, moved only forward, never read from 
 schedule     the (WorldTime, Sequence) queue of deferred facts and process ends
 advance      World::advance_to / step: jump to the next due instant and fire it
 process      Process: stored state over time, changed only by its owner; interruption by request
+snapshot     WorldSnapshot: the whole of a world's state as data; World::snapshot / World::restore
 errors       KernelError
 ```
 
-Still to come: persistence and the event log (S5). The clock, the schedule and the processes
-already save and restore (`World::schedule_snapshot`), so S5 adds storage, not a retrofit.
+A world can be written down and read back whole (`World::snapshot`, `World::restore`). The journal,
+the event log and the save file live one crate up, in `persistence/`, so no storage engine enters the
+kernel (`docs/DECISIONS.md` `ARC-25`, `DEP-2`).
 
 ## The two ideas to understand first
 

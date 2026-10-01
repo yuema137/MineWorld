@@ -378,6 +378,43 @@ Each commit tracks implementation, validation and review separately. Evidence go
   owner's own type decodes — no `WriteToken` is needed or minted); no `HashMap`; no wall clock; restore
   validates before mutating; `INV-12` (no domain term in the new code).
 
+**C2 as built.**
+- [x] Implementation. Bounded deviations from the plan above, each recorded:
+  - `ComponentRows::encode` takes no declaration: the row's type already carries
+    `COMPONENT_TYPE` and `SCHEMA_VERSION` through `ComponentRecord::new::<C>`.
+  - `InstalledSystemRecord` is `{ declaration: SystemDeclaration, enabled }` rather than separate
+    fields: the declaration already holds name, version, dependencies, owned components, actions and
+    events, and comparing whole declarations catches any of them changing. Relation declarations are
+    compared through `RelationStoreSnapshot.declarations` against what installation declared.
+  - `WorldSnapshot` gains `clock_started` and `ran`. *Previous assumption:* `ScheduleSnapshot` carries
+    the clock. *Audit:* `WorldClock` has a `started` bit and `World` a `ran` bit that `ScheduleSnapshot`
+    does not record, and `restore_schedule` sets `started` unconditionally. *Consequence:* a pre-genesis
+    snapshot (C3's genesis revision) restored that way would refuse a genesis before the epoch and
+    allow a second genesis after a world had run. Both bits are restored exactly.
+  - `restore_schedule`'s validation was factored into `World::validated_time`, shared with `restore`,
+    so the two restore paths cannot check time differently.
+  - Files: `kernel/src/{snapshot.rs (new), world.rs, components.rs, error.rs, lib.rs}`,
+    `kernel/Cargo.toml`, `kernel/README.md`. `error.rs` 732 lines, `world.rs` 620: under the 800
+    warning; `world.rs` gains the restore validation because it alone can see the stores' fields.
+- [x] Validation — `kernel/tests/snapshot.rs`, 5 tests, all PASS; `cargo test -p mineworld-kernel`
+  all green; `cargo clippy -p mineworld-kernel --all-targets --all-features -D warnings` clean.
+  - round trip: the snapshot is first located — rows of exactly `{heard, tally}`, 4 rows (bo and cy
+    were noted), 3 entities, 2 edges, 4 pending entries (3 reminders + 1 brew end), 1 process,
+    `next_event` 4 — then restored into a freshly composed world and re-snapshotted: identical bytes;
+    both worlds then run the same continuation: 7 facts each (count derived from the script), the
+    first with `EventId` 4, byte-identical, and identical final snapshots;
+  - refusals, each asserting the target world's snapshot bytes are unchanged: after the world ran;
+    into a world with an entity; a missing system (position 1), the two systems swapped (position 0),
+    the same systems with one disabled (position 1); a `wallet` row (uninstalled type); a row for
+    entity 999; a repeated row; an undecodable payload; a schema-2 `tally` →
+    `Contract(ComponentSchemaTooNew)`; a schema-0 `tally` → `Contract(ComponentSchemaOutdated)`;
+    relation declarations removed; an edge to entity 999. An *extra* system is the missing-system case
+    seen from the other side and is not separately tested.
+- [x] Review: restore mints and uses no `WriteToken` and calls no system; rows are decoded only by
+  the type the owning system declared. `grep HashMap|HashSet|SystemTime|Instant::|std::time` over
+  `kernel/src` — none. `restore` builds every new store before assigning any (`world.rs`). No domain
+  vocabulary in the new code (`INV-12`).
+
 ## C3 — `mineworld-persistence`: journal, save format, SQLite, resume, verify
 **Goal:** a world can be created into a save, driven, reopened, and verified against its own history.
 **Depends on:** C2.
