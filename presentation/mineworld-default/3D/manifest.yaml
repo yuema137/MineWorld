@@ -48,8 +48,11 @@ reference_images:
   - path: references/03_cafe_frontage.png
     authoritative_for: [environment, architecture, interaction_scale, outdoor_seating, signage]
   - path: references/04_character_closeup.png
-    authoritative_for: [character_proportions, clothing, character_environment_integration, camera_distance, ordinary_person_identity, atmosphere]
-    not_authoritative_for: [facial_fidelity, skin_rendering, hair_simulation, character_asset_budget]
+    # ARC-19: the identity source of truth for the default character. Face, skin and hair are in
+    # scope; ARC-4's earlier exclusion of them is superseded for this one image. The asset budget
+    # stays out of scope: the reference shows a person, not a production cost.
+    authoritative_for: [character_proportions, clothing, character_environment_integration, camera_distance, ordinary_person_identity, atmosphere, facial_fidelity, skin_rendering, hair_styling]
+    not_authoritative_for: [character_asset_budget]
   - path: references/05_main_street_golden_hour.png
     authoritative_for: [architecture, materials, lighting, colour]
   - path: references/06_lake_trail.png
