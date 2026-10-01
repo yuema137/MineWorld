@@ -517,6 +517,32 @@ accepted; otherwise this commit becomes a review convention in `.structured-codi
   types (no string-typed owner a system could misstate); `SAVE_FORMAT` bump is the only persistence
   change.
 
+**C2 as built.**
+- [x] Implementation. Field shape: `SystemDeclaration.emits_owned_by_others: Vec<(EventTypeId,
+  SystemId)>`, filled by `emitting::<E>()` only when `E::OWNER` differs from the declaring system, with
+  accessor `emits_owned_by_others()`; `emits()` unchanged. `SystemRegistry::check_emitted_vocabularies`
+  runs after the dependency check. Also in this commit, ahead of C2b which uses it:
+  `KernelError::FactRefusedByOwner { system, event_type, reason: Rejection }`. Tests in a new file,
+  `kernel/tests/borrowed_vocabulary.rs` (neither `composition.rs` nor `two_systems.rs` had an
+  emitter/owner pair to reuse). Process deviation: the six source files were committed by the primary
+  session as `wip` `7eb7cd0` after this session stalled mid-commit; that commit is squashed into this
+  semantic one after verification.
+- [x] Validation. `7eb7cd0` as recovered (untested when committed): `cargo test --workspace
+  --no-fail-fast` rc 0, **311 passed, 0 failed**, `kill_and_resume` cafe PASS, clock PASS — so the
+  `SAVE_FORMAT` bump and the declaration change break no existing test. Then
+  `kernel/tests/borrowed_vocabulary.rs`: 2 passed — refusal names `undeclared-clerk` / `counted` /
+  `ledger` and the world's snapshot bytes are unchanged; the accepted case records exactly one fact
+  (counted before reading it) whose type is `counted` and whose provenance is `clerk`, and the tally is
+  written by `ledger`. `persistence/tests/save.rs` format refusal now asserts format 3 → `TooNew
+  {3, 2}` and S5's format 1 → `Outdated {1, 2}`. fmt, clippy `-D warnings` clean.
+  **Mutation evidence NOT obtained:** a run of the refusal test with the registry check disabled was
+  attempted and refused by the session's permission classifier; the mutation was reverted at once
+  (`git diff` confirms). The refusal test asserts the exact error value, so it cannot pass without
+  the check returning that error; recorded as reasoning, not as a mutation result.
+- [x] Review: the kernel change names no domain concept; the owner is read off `E::OWNER`, never passed
+  as a value; `enable` needs no repeat (a declaration is fixed at install, and `enable` re-checks
+  dependencies). `SAVE_FORMAT` is the only persistence change.
+
 ## C2b — Presence: the owner still decides (Q1.2)
 
 **Goal.** Presence can refuse an `Arrived` that would make its state invalid, at the constructor and

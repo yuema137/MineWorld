@@ -137,12 +137,19 @@ impl core::fmt::Display for EventSchemaVersion {
     }
 }
 
-/// A kind of fact one system emits.
+/// A kind of fact, and the system whose vocabulary it is.
 ///
 /// Implementing this trait *is* the declaration, exactly as for
 /// [`Component`](crate::component::Component) and [`Action`](crate::action::Action): the event
-/// type and the emitting system are part of the type, so no event kind exists without an owner,
-/// and a system cannot emit another system's events by accident.
+/// type and its owner are part of the type, so no event kind exists without an owner.
+///
+/// The owner is the system that defines the fact's schema and public constructor and is the
+/// **only** system that reduces it into owned state (`docs/DECISIONS.md` `ARC-26`). Usually it is
+/// also the only emitter. Another system may state a fact of this kind only by declaring the
+/// emission and a dependency on the owner — the kernel refuses either omission at installation, so
+/// it cannot happen by accident — and the owner still decides whether its state may take the value.
+/// A recorded fact's provenance names the system that stated it; this constant names whose
+/// vocabulary it is.
 ///
 /// ```
 /// use mineworld_contracts::{Event, EventSchemaVersion, EventTypeId, SystemId};
@@ -162,7 +169,8 @@ impl core::fmt::Display for EventSchemaVersion {
 pub trait Event: Serialize + DeserializeOwned + Sized {
     /// The name of this kind of fact.
     const EVENT_TYPE: EventTypeId;
-    /// The system that emits it.
+    /// The system whose vocabulary it is: it defines the schema and alone reduces the fact into
+    /// owned state (`ARC-26`).
     const OWNER: SystemId;
     /// The version of this payload's schema.
     ///
