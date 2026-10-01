@@ -624,6 +624,7 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-kernel",
+ "mineworld-movement",
  "mineworld-presence",
  "serde",
  "serde-saphyr",

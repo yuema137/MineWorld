@@ -42,7 +42,7 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
         .collect();
     assert_eq!(
         systems,
-        ["presence", "conversation"],
+        ["presence", "movement", "conversation"],
         "in the order world.yaml states, which is the order they reduce in",
     );
     assert_eq!(

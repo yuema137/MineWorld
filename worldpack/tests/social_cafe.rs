@@ -63,7 +63,11 @@ fn the_pack_says_what_world_it_is() {
     assert_eq!(pack.name(), "Social Café");
     assert_eq!(
         pack.systems(),
-        [Capability::Presence, Capability::Conversation],
+        [
+            Capability::Presence,
+            Capability::Movement,
+            Capability::Conversation
+        ],
         "in the order the pack states, which is installation order",
     );
     assert_eq!(

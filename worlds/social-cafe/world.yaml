@@ -15,10 +15,12 @@ world:
   name: Social Café
 
 # The capabilities this world asks for, in the order they are installed — which is the order their
-# reducers run in, so it is the pack's statement and not a sort. `conversation` declares a
-# dependency on `presence`, so it comes after it.
+# reducers run in, so it is the pack's statement and not a sort. `movement` and `conversation` each
+# declare a dependency on `presence`, so they come after it. Without `movement`, nobody here could
+# walk: `move` would be answered unavailable and the world would otherwise be the same.
 systems:
   - presence
+  - movement
   - conversation
 
 # One place. Travel between places is deliberately out of this slice.

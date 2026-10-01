@@ -744,6 +744,32 @@ else changes yet. **Depends on:** C2.
 - [ ] Review: no claim weakened in a migrated test (diff read line by line); the walk helper computes
   strides from the literal positions and the documented 2 000 mm, not from production code.
 
+**C4 as built.**
+- [x] Implementation. `worldpack/Cargo.toml` depends on `mineworld-movement`; `catalog.rs`
+  `Capability::Movement` (id, install, provider), `AVAILABLE` of 3 in pack order. `world.yaml`
+  `systems: [presence, movement, conversation]`. `tools/cli/tests/support/mod.rs`: `arrive` replaced by
+  `stride(..)` (one `move` frame), `STRIDE_MM = 2_000` (a literal, `ARC-23` rule 2), `walk(actor, place,
+  from, to)` (fewest equal integer strides, `n` grown until each stride's squared length fits) and
+  `Client::walk_accepted`. `ac15_one_alice.rs` (5 walks) and `restart.rs` (1) walk from the pack's
+  literal seats `(4600, 200)` / `(4600, 4400)`. `kill_and_resume.rs`: every third cafe request is a
+  `move` to a point in the 2.4 m square around the actor's seat (`CAFE_SEATS`, literals); the child
+  prints each move's answer and the parent counts them.
+- [x] Validation. AC-15 6/6 PASS, printing `the 2D window walked to Alice in 2 strides` / `the 3D
+  window … 2 strides` and asserting 2 each (3 493 mm and 2 970 mm). Restart 2/2 PASS. `kill_and_resume`:
+  `[cafe] control: 100 moves, 94 accepted, 6 refused too-far-away` (asserted: sum = 100, both > 0;
+  the fact floor is now the located accepted count instead of "every arrive is accepted"); cafe PASS
+  0.3 s, clock PASS 0.4 s, byte-identical survivor saves at 3 kill points. Workspace rc 0, **323
+  passed, 0 failed**; clippy `-D warnings` clean.
+  **Expected-value updates (composition grew, claims unchanged):** `commands.rs` report lists
+  `presence, movement, conversation`; `server_command.rs` systems list; `worldpack/tests/social_cafe.rs`
+  `pack.systems()`; `restart.rs` revision counts 3 → 4 before the kill ("genesis, the two strides and
+  the talk"), 4 → 5 after it, replay "5 revision(s) … head revision 5" — each is the same claim counted
+  over one more request, because a walk to Alice is now two requests.
+- [x] Review: diffs read line by line — no assertion removed or loosened; every changed number is a
+  located count of requests (`ARC-23` rule 1) and the stride bound in the helper is a literal. The
+  genesis fact count reported by `validate` is unchanged (`4 genesis fact(s)`): installing movement adds
+  no fact to a pack without passages.
+
 ## C4b — The World Pack `passages` field (Q6)
 
 **Goal.** A World Pack can state that two of its places open onto each other and where the doorway

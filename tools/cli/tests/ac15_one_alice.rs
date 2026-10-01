@@ -55,9 +55,7 @@ mod support;
 use mineworld_contracts::EntityId;
 use mineworld_server::RefusalCode;
 use serde_json::json;
-use support::{
-    Client, SaveDir, Server, arrive, may_talk_to, own_history, run_command, tagged, talk,
-};
+use support::{Client, SaveDir, Server, may_talk_to, own_history, run_command, tagged, talk, walk};
 
 /// What the 2D window says, and what the 3D window says. Distinct on purpose: the test asserts that
 /// the *first* window's words come back out of the mouth of the person the *second* window meets.
@@ -68,6 +66,12 @@ const FROM_THE_3D_WINDOW: &str = "hello Alice, this is the 3D window";
 /// three-metre reach, which the **server** decides and this test only walks into.
 const NEXT_TO_ALICE: (i32, i32) = (1_200, 1_000);
 const ALSO_NEXT_TO_ALICE: (i32, i32) = (2_400, 2_400);
+
+/// Where the pack seats the two players (`worlds/social-cafe/people/{visitor,wanderer}.yaml`), which is
+/// where each walk starts. The walks are 3 493 mm and 2 970 mm: two `move` strides each, since the
+/// server takes at most 2 m per request (`server/PROTOCOL.md` §6.2).
+const VISITOR_AT_THE_DOOR: (i32, i32) = (4_600, 200);
+const WANDERER_AT_THE_DOOR: (i32, i32) = (4_600, 4_400);
 
 #[tokio::test]
 async fn there_is_only_one_alice() {
@@ -132,9 +136,11 @@ async fn there_is_only_one_alice() {
         .expect("the visitor knows where it is")
         .place()
         .entity_id();
-    two_d
-        .submit_accepted(arrive(visitor, cafe, NEXT_TO_ALICE.0, NEXT_TO_ALICE.1))
+    let strides = two_d
+        .walk_accepted(walk(visitor, cafe, VISITOR_AT_THE_DOOR, NEXT_TO_ALICE))
         .await;
+    println!("the 2D window walked to Alice in {} strides", strides.len());
+    assert_eq!(strides.len(), 2, "3 493 mm is two strides of at most 2 m");
     let in_reach = two_d
         .observation_where("talk to alice available", |observation| {
             may_talk_to(observation, alice)
@@ -175,14 +181,16 @@ async fn there_is_only_one_alice() {
     );
 
     // ── The 3D window walks up to the same Alice. ────────────────────────────────────────────
-    three_d
-        .submit_accepted(arrive(
+    let strides = three_d
+        .walk_accepted(walk(
             wanderer,
             cafe,
-            ALSO_NEXT_TO_ALICE.0,
-            ALSO_NEXT_TO_ALICE.1,
+            WANDERER_AT_THE_DOOR,
+            ALSO_NEXT_TO_ALICE,
         ))
         .await;
+    println!("the 3D window walked to Alice in {} strides", strides.len());
+    assert_eq!(strides.len(), 2, "2 970 mm is two strides of at most 2 m");
     three_d
         .observation_where("talk to alice available", |observation| {
             may_talk_to(observation, alice)
@@ -362,17 +370,24 @@ async fn two_servers_are_two_worlds_and_the_evidence_can_tell() {
         .expect("a location")
         .place()
         .entity_id();
-    for (client, actor, position, words) in [
-        (&mut two_d, visitor, NEXT_TO_ALICE, FROM_THE_2D_WINDOW),
+    for (client, actor, start, position, words) in [
+        (
+            &mut two_d,
+            visitor,
+            VISITOR_AT_THE_DOOR,
+            NEXT_TO_ALICE,
+            FROM_THE_2D_WINDOW,
+        ),
         (
             &mut three_d,
             wanderer,
+            WANDERER_AT_THE_DOOR,
             ALSO_NEXT_TO_ALICE,
             FROM_THE_3D_WINDOW,
         ),
     ] {
         client
-            .submit_accepted(arrive(actor, cafe, position.0, position.1))
+            .walk_accepted(walk(actor, cafe, start, position))
             .await;
         client
             .observation_where("talk available", |observation| {
@@ -426,11 +441,11 @@ async fn killing_one_window_leaves_the_world_and_the_other_window_running() {
     // The world is still there, and so is the other client — which can still act, and is still
     // answered by the same Alice.
     three_d
-        .submit_accepted(arrive(
+        .walk_accepted(walk(
             wanderer,
             cafe,
-            ALSO_NEXT_TO_ALICE.0,
-            ALSO_NEXT_TO_ALICE.1,
+            WANDERER_AT_THE_DOOR,
+            ALSO_NEXT_TO_ALICE,
         ))
         .await;
     three_d
@@ -476,7 +491,7 @@ async fn a_window_is_told_what_it_heard_and_never_what_somebody_else_heard() {
         .place()
         .entity_id();
     window
-        .submit_accepted(arrive(visitor, cafe, NEXT_TO_ALICE.0, NEXT_TO_ALICE.1))
+        .walk_accepted(walk(visitor, cafe, VISITOR_AT_THE_DOOR, NEXT_TO_ALICE))
         .await;
     window
         .observation_where("talk to alice available", |observation| {
@@ -552,7 +567,7 @@ async fn what_a_window_reads_is_the_world_s_own_projection() {
         .place()
         .entity_id();
     window
-        .submit_accepted(arrive(visitor, cafe, NEXT_TO_ALICE.0, NEXT_TO_ALICE.1))
+        .walk_accepted(walk(visitor, cafe, VISITOR_AT_THE_DOOR, NEXT_TO_ALICE))
         .await;
     window
         .observation_where("talk to alice available", |observation| {

@@ -20,6 +20,7 @@
 use mineworld_contracts::{Event, Location, PersonId, SystemId};
 use mineworld_conversation::ConversationSystem;
 use mineworld_kernel::{Emission, KernelError, SystemIdentity, World, WorldRead};
+use mineworld_movement::MovementSystem;
 use mineworld_presence::{Arrived, PerceptionProvider, PresenceSystem, arrival};
 
 /// One System Pack this build can install.
@@ -27,12 +28,18 @@ use mineworld_presence::{Arrived, PerceptionProvider, PresenceSystem, arrival};
 pub enum Capability {
     /// Where people are, and what each of them perceives.
     Presence,
+    /// Whether a person may walk where they ask, and which places open onto which.
+    Movement,
     /// Speaking to somebody, and remembering that they spoke to you.
     Conversation,
 }
 
 /// Every system this build provides, in a fixed order — the order an error message lists them in.
-pub const AVAILABLE: [Capability; 2] = [Capability::Presence, Capability::Conversation];
+pub const AVAILABLE: [Capability; 3] = [
+    Capability::Presence,
+    Capability::Movement,
+    Capability::Conversation,
+];
 
 impl Capability {
     /// Which capability a pack is asking for, or [`None`] if this build has no such system.
@@ -46,6 +53,7 @@ impl Capability {
     pub fn id(self) -> SystemId {
         match self {
             Self::Presence => PresenceSystem::ID,
+            Self::Movement => MovementSystem::ID,
             Self::Conversation => ConversationSystem::ID,
         }
     }
@@ -57,6 +65,7 @@ impl Capability {
     pub fn install(self, world: &mut World) -> Result<(), KernelError> {
         match self {
             Self::Presence => world.install(PresenceSystem),
+            Self::Movement => world.install(MovementSystem),
             Self::Conversation => world.install(ConversationSystem),
         }
     }
@@ -69,6 +78,7 @@ impl Capability {
     pub fn provider(self) -> Box<dyn PerceptionProvider> {
         match self {
             Self::Presence => Box::new(PresenceSystem),
+            Self::Movement => Box::new(MovementSystem),
             Self::Conversation => Box::new(ConversationSystem),
         }
     }

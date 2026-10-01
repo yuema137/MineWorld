@@ -41,9 +41,11 @@ clients/protocol/run.sh                      allowed without prompt (§10.1 Q8)
 
 ## Current checkpoint and next actions
 
-Checkpoint: C0, C1 (`507c041`), C2 (`47874ca`, gates E-2: 313 passed) done.
-Next: C2b — `mineworld_presence::admit`, `arrival(world, ..)` checked, `react` refuses with
-`FactRefusedByOwner`; then C3 → C4 → C4b → C5 → C6 → C7.
+Checkpoint: C0, C1 (`507c041`), C2 (`47874ca`), C2b (`2725821`), C3 (`41bb073` + `28aae3d`), C4 done
+(323 passed). `git log` is authoritative for later commits.
+Next: C4b — World Pack `passages` field (format, read refusals, loader, MODULE_SPEC §4.1,
+PACKAGE_FORMAT §8); then C5 (street + Godot evidence), C6 (retire `arrive`, `PersonEnteredPlace`),
+C7 (docs, terminal gates, PR).
 Note: earlier sessions stalled on connection problems; commit and push after each small step.
 
 ## Stop conditions
