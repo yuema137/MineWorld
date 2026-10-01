@@ -37,8 +37,10 @@ from model_lib import (  # noqa: E402  pylint: disable=wrong-import-position
     assign_material, bind, boundary_loop, cylindrical_uv, decimate,
     dominant_group, dup_region, extrude_band, extrude_strip, flare, inflate,
     load_body, loft, new_object, planar_uv, relax, report, report_boundaries,
+    report_winding,
     rib_displace,
-    rounded_box, set_material, shade_smooth, smooth_boundary, snap_opening,
+    keep_outside,
+    rounded_box, set_material, shade_smooth, smooth_boundary, snap_opening, stitch,
     solidify, transfer_weights, tube,
 )
 
@@ -87,6 +89,26 @@ def short(name: str) -> str:
 TEE_HEM_Z = 1.030         # over the jeans waistband, as the reference shows
 TEE_LIFT = 0.008          # how far the jersey stands off the skin
 
+# The crew neckline, as one geometric curve shared by the tee and the body trim:
+# a plane tilted front to back through the sternal notch (z 1.425 at skin
+# y -0.010) and the base of the nape (z 1.475 at y +0.130), both measured off
+# this body.  The tee's neckline used to be a 61 mm cylinder at the back and
+# wherever the Neck weights stopped at the front -- a weight boundary is not a
+# seam -- and the skin's trim edge was a third, unrelated line; between them the
+# collar showed serrated skin, white teeth of jersey and the hoodie's inside.
+NECK_AXIS_Y = 0.065
+CREW_BAND = 0.040         # how far below the neckline the visible jersey ring runs
+CREW_REACH = 0.090        # radius from the neck axis the ring is kept within
+
+
+def crew_z(y: float) -> float:
+    """Height of the crew neckline at depth `y` (front is -Y)."""
+    return 1.425 + 0.357 * (y + 0.010)
+
+
+def in_neck_zone(c) -> bool:
+    return math.hypot(c.x, c.y - NECK_AXIS_Y) < CREW_REACH
+
 
 def build_tee(body, dom):
     """The cream slogan tee: a short-sleeved jersey cut from the torso.
@@ -97,7 +119,13 @@ def build_tee(body, dom):
     """
     def keep(f):
         c = f.calc_center_median()
-        if c.z < TEE_HEM_Z or any_in(dom, f, HEAD_BONES):
+        if c.z < TEE_HEM_Z or all_in(dom, f, HEAD_BONES):
+            return False
+        if c.z > crew_z(c.y):
+            return False
+        if in_neck_zone(c) and c.z > crew_z(c.y) - CREW_BAND:
+            return True
+        if any_in(dom, f, HEAD_BONES):
             return False
         if not any_in(dom, f, TORSO_BONES | ARM_BONES | HAND_BONES):
             return False
@@ -112,8 +140,7 @@ def build_tee(body, dom):
         # covers both shoulder tops, and a 135 mm half-band reaches round the
         # side of the bust under the panel.  Jersey outside these is under
         # 38 mm of fleece and can only ever appear by clipping through it.
-        if c.z > NECK_Z - 0.022 and math.hypot(c.x, c.y - 0.070) < 0.061:
-            return True
+        # (The ring is now the crew band above, cut on `crew_z`.)
         return abs(c.x) < ZIP_HALF + 0.022 and c.y < -0.02
 
     obj = dup_region(body, keep, "Tee")
@@ -124,6 +151,33 @@ def build_tee(body, dom):
     inflate(obj, TEE_LIFT, smooth_first=2, steps=OFFSET_STEPS)
     flare(obj, TEE_HEM_Z, HIP_Z + 0.14, 0.02)
     decimate(obj, 0.30)
+    # The crew neckline is the one edge of the tee anyone sees, standing above
+    # the hoodie's collar.  Cut by face centre and then decimated, it came out
+    # as a ring of white teeth.  Put the loop back on the curve it was cut on,
+    # straighten it along the loop, and knit a rib collar off it.
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+
+    def _neck_edge(co):
+        return in_neck_zone(co) and co.z > crew_z(co.y) - 0.02
+
+    ring = [v for v in bm.verts
+            if any(e.is_boundary for e in v.link_edges) and _neck_edge(v.co)]
+    for v in ring:
+        v.co.z = crew_z(v.co.y)
+    smooth_boundary(bm, _neck_edge, iterations=6, factor=0.5)
+    collar = extrude_band(bm, ring, [(Vector((0, 0, 0.006)), 1.015),
+                                     (Vector((0, 0, 0.007)), 0.990)],
+                          centre=Vector((0.0, NECK_AXIS_Y, 0.0)))
+    rib_displace(bm, lambda co: in_neck_zone(co) and co.z > crew_z(co.y) + 0.001,
+                 ribs=40, depth=0.0008, centre_xy=(0.0, NECK_AXIS_Y))
+    print(f"  tee collar: {len(ring)} neckline verts, {len(collar or [])} in the rib's top")
+    bm.to_mesh(obj.data)
+    bm.free()
+    # smoothing and decimation both pull a convex shell inward; the collar
+    # is what sank into the neck, so hold the whole tee off the skin
+    moved = keep_outside(obj, body, TEE_LIFT * 0.6)
+    print(f"  tee: {moved} verts pushed back out of the skin")
     solidify(obj, 0.0022)
     set_material(obj, "MW_Tee")
     # the graphic must land on the chest, so the front of the shirt is pinned to
@@ -178,6 +232,7 @@ def build_jeans(body, dom):
     top = boundary_loop(bm, lambda co: co.z > JEANS_WAIST_Z - 0.02)
     extrude_band(bm, top, [(Vector((0, 0, 0.018)), 1.006),
                            (Vector((0, 0, 0.015)), 1.002)])
+    report_winding(bm, "jeans after waistband")
     bm.to_mesh(obj.data)
     bm.free()
 
@@ -267,8 +322,11 @@ def build_hoodie(body, dom, arm):
 
     bm = bmesh.new()
     bm.from_mesh(obj.data)
-    # Intended openings: the hem, the neck, the front, and one cuff per sleeve.
-    report_boundaries(bm, "hoodie after cut+decimate", expect=5)
+    # Intended openings: the front-and-hem (one loop, because the open front
+    # runs down through the hem), the neck, and one cuff per sleeve.  "Five"
+    # was written while the welded seams still showed as ten loops, and it
+    # counted the hem and the front twice.
+    report_boundaries(bm, "hoodie after cut+decimate", expect=4)
     # the two front panel edges, straightened after decimation
     def _flare_scale(z):
         t = 1.0 - min(1.0, max(0.0, (z - HOODIE_HEM_Z) / (SPINE2_Z - HOODIE_HEM_Z)))
@@ -314,17 +372,7 @@ def build_hoodie(body, dom, arm):
                 rad = a.co - centre
                 rad -= axis * rad.dot(axis)
                 b.co = a.co + axis * step + rad * (sc - 1.0)
-            made = set()
-            for a in ring:
-                for e in a.link_edges:
-                    o2 = e.other_vert(a)
-                    if o2 not in pair or (o2, a) in made or not e.is_boundary:
-                        continue
-                    made.add((a, o2))
-                    try:
-                        bm.faces.new((a, o2, pair[o2], pair[a]))
-                    except ValueError:
-                        pass
+            stitch(bm, ring, pair)
             ring = [pair[v] for v in ring]
             centre = centre + axis * step
         for v in bm.verts:
@@ -336,6 +384,8 @@ def build_hoodie(body, dom, arm):
                     ang = math.atan2(rad.z, rad.y)
                     v.co += rad / r * (math.cos(ang * 16) * 0.0014)
     bm.normal_update()
+    report_winding(bm, "hoodie after hem, tape and cuffs")
+    report_boundaries(bm, "hoodie after hem, tape and cuffs", expect=4)
     bm.to_mesh(obj.data)
     bm.free()
 
@@ -619,8 +669,14 @@ def trim_body(body, dom):
         c = f.calc_center_median()
         if all_in(dom, f, legs) and JEANS_CUFF_Z + m <= c.z <= JEANS_WAIST_Z - m:
             return True
+        # Round the neck the skin is cut on the tee's own neckline, a little
+        # above it, so the cut edge sits under the knitted collar instead of
+        # showing as a serrated line between the collar and the throat.
+        if in_neck_zone(c) and not all_in(dom, f, HEAD_BONES) \
+                and c.z >= TEE_HEM_Z + m:
+            return c.z < crew_z(c.y) + 0.004
         if any_in(dom, f, torso) and not any_in(dom, f, HEAD_BONES | hands):
-            if c.z >= TEE_HEM_Z + m and math.hypot(c.x, c.y - 0.070) > 0.062:
+            if c.z >= TEE_HEM_Z + m:
                 return True
         if all_in(dom, f, arms):
             d = (c - Vector((math.copysign(0.490, c.x), 0.032, 1.059))).length

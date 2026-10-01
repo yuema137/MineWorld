@@ -134,7 +134,11 @@ const PORTRAIT_CROP := Rect2i(490, 0, 620, 900)
 ## one, and its alpha-scissored leaves rendered as dark shards across her crown
 ## -- which was read, reasonably, as an artefact of her hair. The promenade is
 ## lined with them, so this is far enough along it to have sky overhead.
-const PORTRAIT_SPOT := Vector3(30.0, 0.2, -16.6)
+## x = 30 was not: the street trees stand at z -22.6 every 11.3 m with gaps
+## at |x| < 6 and |x - 17| < 7, so x = 30 sat between the x = 22.8 and 34.1
+## trees and the camera, looking along +x, framed the 34.1 canopy over her
+## crown in every portrait.  x = 4 is in the promontory gap, 15 m from either.
+const PORTRAIT_SPOT := Vector3(4.0, 0.2, -16.6)
 const PORTRAIT_YAW := 104.0
 ## name, camera distance, camera height, look-at height, yaw offset from her
 ## front in degrees, field of view
@@ -150,6 +154,12 @@ const PORTRAIT_VIEWS := [
 
 ## The five review frames, from the running client, in its own lighting.
 func _portrait() -> void:
+	# No look input at all for the stills.  `scripted_look` lets the drive
+	# test's synthetic mouse turn the player -- and with it, any real mouse
+	# moving over the window turned her between shots, so the "rear" frame
+	# once came back showing her front and two runs never agreed on a pose.
+	player.scripted_look = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, 0.0)
 	player.set_camera(CameraRig.Mode.THIRD_FRONT)
 	await _settle(0.6)
@@ -159,6 +169,7 @@ func _portrait() -> void:
 	# her own facing, in world space: `place` sets the body yaw from PORTRAIT_YAW
 	var face := deg_to_rad(PORTRAIT_YAW)
 	for v in PORTRAIT_VIEWS:
+		player.place(PORTRAIT_SPOT, PORTRAIT_YAW, 0.0)
 		var a: float = face + deg_to_rad(v[4])
 		cam.fov = v[5]
 		# Godot yaw θ puts forward at (-sin θ, 0, -cos θ); standing in front of
@@ -176,6 +187,8 @@ func _portrait() -> void:
 
 
 func _portrait_walk(cam: Camera3D, base: Vector3, face: float) -> void:
+	# walking needs the scripted controls back; she is re-placed first
+	player.scripted_look = true
 	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, 0.0)
 	var a := face + deg_to_rad(52.0)
 	cam.fov = 42.0
@@ -184,6 +197,11 @@ func _portrait_walk(cam: Camera3D, base: Vector3, face: float) -> void:
 	cam.current = true
 	Input.action_press("move_forward")
 	await _settle(0.85)
+	# frame her where she has walked to, from the same side and distance
+	var now := player.global_position
+	cam.position = now + Vector3(-sin(a) * 3.2, 1.05, -cos(a) * 3.2)
+	cam.look_at(now + Vector3(0, 0.95, 0), Vector3.UP)
+	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	_save_portrait("P7_walk")
 	Input.action_release("move_forward")

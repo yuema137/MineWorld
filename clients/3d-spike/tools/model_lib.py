@@ -74,9 +74,23 @@ def dup_region(body, keep, name: str):
     loose = [v for v in bm.verts if not v.link_faces]
     if loose:
         bmesh.ops.delete(bm, geom=loose, context="VERTS")
+    # Weld the UV seams before anything moves a vertex.  The body arrives from
+    # glTF, which splits a vertex wherever its UV or normal differs, so every
+    # texture seam is two coincident, *disconnected* edges -- 290 seam pairs in
+    # the hoodie's cut, 317 in the jeans'.  Coincident, they are invisible; but
+    # `relax` pulls each side toward its own one-sided neighbours and `inflate`
+    # pushes each side along a normal computed from that side alone, and the
+    # seams opened by up to 65 mm: the torn shoulders, the spiked sleeve and
+    # shoulder seams, the serrated hem, the split thigh and the neckline.  That
+    # was the tearing blamed on the offset's radius of curvature.  UVs are per
+    # face corner, so welding loses none of them, and every garment is re-UV'd.
+    n0 = len(bm.verts)
+    bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=1e-6)
+    welded = n0 - len(bm.verts)
     bm.to_mesh(obj.data)
     bm.free()
     obj.data.update()
+    print(f"    cut {name}: {len(obj.data.vertices)} verts, {welded} seam verts welded")
     return obj
 
 
@@ -95,8 +109,50 @@ def dominant_group(body):
 
 # -------------------------------------------------------------------- reshaping
 
+def _untangle(obj, origin, report: bool, rings: int = 2, passes: int = 40) -> int:
+    """Smooth out the folds an offset left in concave creases, and only there.
+
+    Where the surface is concave -- the crotch between the thighs, the armpit,
+    the cleft of the seat -- neighbours' normals converge, and offsetting them
+    any distance at all makes them cross.  Cloth does not follow skin into a
+    crease; it bridges it.  So the faces that came out inverted, plus `rings`
+    of neighbours, are relaxed until none is inverted.  Smoothing the whole
+    shell instead (`relax_between`) was measured: it made the armpit worse and
+    took 10 mm off the lift everywhere.
+
+    Boundary vertices are held, so an opening does not move.  Returns the
+    inverted-face count that remains.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.faces.ensure_lookup_table()
+    start = left = None
+    for _ in range(passes):
+        bm.normal_update()
+        bad = [f for f in bm.faces if f.normal.dot(origin[f.index]) < 0.0]
+        left = len(bad)
+        if start is None:
+            start = left
+        if not bad:
+            break
+        region = {v for f in bad for v in f.verts}
+        for _ in range(rings):
+            region |= {e.other_vert(v) for v in region for e in v.link_edges}
+        region = [v for v in region if not any(e.is_boundary for e in v.link_edges)]
+        bmesh.ops.smooth_vert(bm, verts=region, factor=0.5,
+                              use_axis_x=True, use_axis_y=True, use_axis_z=True)
+    bm.normal_update()
+    left = sum(1 for f in bm.faces if f.normal.dot(origin[f.index]) < 0.0)
+    bm.to_mesh(obj.data)
+    bm.free()
+    if report:
+        print(f"    untangle {obj.name}: {start} inverted faces -> {left}")
+    return left
+
+
 def inflate(obj, dist: float, smooth_first: int = 0, steps: int = 1,
-            relax_between: float = 0.0, report: bool = True):
+            relax_between: float = 0.0, report: bool = True,
+            untangle: bool = True):
     """Push every vertex out along its own normal, and say if that tore it.
 
     `smooth_first` averages the *normals* before offsetting rather than the
@@ -151,6 +207,8 @@ def inflate(obj, dist: float, smooth_first: int = 0, steps: int = 1,
         flipped = sum(1 for f in bm.faces if f.normal.dot(before[f.index]) < 0.0)
         bm.to_mesh(obj.data)
         bm.free()
+    if untangle and flipped:
+        flipped = _untangle(obj, origin, report)
     if report:
         bm = bmesh.new()
         bm.from_mesh(obj.data)
@@ -166,6 +224,35 @@ def inflate(obj, dist: float, smooth_first: int = 0, steps: int = 1,
         print(f"    inflate {obj.name}: {dist * 1000:.0f} mm in {max(1, steps)} "
               f"step(s), {flipped} inverted faces{where}")
     return flipped
+
+
+def keep_outside(obj, body, gap: float, pick=None) -> int:
+    """Push any vertex closer than `gap` to the skin back out to `gap`.
+
+    Measured against the body's nearest surface point and normal, so it holds
+    after smoothing and decimation have moved things -- both of which pull a
+    convex garment inward, and both of which sank the tee's collar into the
+    neck.  Returns how many vertices moved.
+    """
+    from mathutils.bvhtree import BVHTree  # pylint: disable=import-error,import-outside-toplevel
+    src = bmesh.new()
+    src.from_mesh(body.data)
+    src.normal_update()
+    tree = BVHTree.FromBMesh(src)
+    src.free()
+    n = 0
+    for v in obj.data.vertices:
+        if pick is not None and not pick(v.co):
+            continue
+        hit, nrm, _i, _d = tree.find_nearest(v.co)
+        if hit is None:
+            continue
+        depth = (v.co - hit).dot(nrm)
+        if depth < gap:
+            v.co = v.co + nrm * (gap - depth)
+            n += 1
+    obj.data.update()
+    return n
 
 
 def relax(obj, iterations: int = 4, factor: float = 0.6):
@@ -234,23 +321,27 @@ def report_boundaries(bm, label: str, expect: int = 0):
     Location is printed with the count on purpose. The count alone cannot
     distinguish a hem from a tear.
     """
+    # Tracked by the edge itself, not `e.index`: edges an extrusion has just
+    # created carry stale indices until `index_update()`, and an index-keyed
+    # seen-set merged the +X cuff's ring into another loop and reported it as
+    # a two-vertex fragment.
     seen = set()
     loops = []
     for e0 in bm.edges:
-        if not e0.is_boundary or e0.index in seen:
+        if not e0.is_boundary or e0 in seen:
             continue
         stack = [e0]
         verts, edges = set(), []
         while stack:
             e = stack.pop()
-            if e.index in seen:
+            if e in seen:
                 continue
-            seen.add(e.index)
+            seen.add(e)
             edges.append(e)
             for v in e.verts:
                 verts.add(v)
                 for e2 in v.link_edges:
-                    if e2.is_boundary and e2.index not in seen:
+                    if e2.is_boundary and e2 not in seen:
                         stack.append(e2)
         co = [v.co for v in verts]
         perim = sum((e.verts[0].co - e.verts[1].co).length for e in edges)
@@ -268,10 +359,78 @@ def report_boundaries(bm, label: str, expect: int = 0):
     return loops
 
 
+def report_winding(bm, label: str):
+    """Count, and locate, edges whose two faces disagree about winding.
+
+    Two faces sharing an edge must traverse it in opposite directions.  Where
+    they do not, one of them is a backface to the renderer and disappears;
+    this is the measurement that names a striped cuff, before a screenshot
+    does.
+    """
+    bad, fan = [], []
+    for e in bm.edges:
+        mid = (e.verts[0].co + e.verts[1].co) * 0.5
+        if len(e.link_loops) > 2:
+            fan.append(mid)
+        if len(e.link_loops) != 2:
+            continue
+        l0, l1 = e.link_loops
+        if l0.vert is l1.vert:
+            bad.append(mid)
+
+    def where(pts):
+        if not pts:
+            return ""
+        return "  x %+.3f..%+.3f  z %.3f..%.3f" % (
+            min(c.x for c in pts), max(c.x for c in pts),
+            min(c.z for c in pts), max(c.z for c in pts))
+    print(f"    {label}: {len(bad)} edges with inconsistent winding{where(bad)}; "
+          f"{len(fan)} edges with more than two faces{where(fan)}")
+    return len(bad) + len(fan)
+
+
 def boundary_loop(bm, pick):
     """Boundary vertices of `bm` for which `pick(vertex.co)` is true."""
     return [v for v in bm.verts
             if any(e.is_boundary for e in v.link_edges) and pick(v.co)]
+
+
+def stitch(bm, ring, pair, material_index=None):
+    """Quads between a boundary ring and its extruded copy, wound consistently.
+
+    Each new quad continues the face already on its boundary edge, so it must
+    run that edge the *opposite* way.  Winding a quad by whichever endpoint a
+    loop happened to visit first -- what the three extruders here each used to
+    do -- flips every other quad, and a renderer that culls backfaces drops
+    them: the cuffs came out as separate strips with the wrist showing through
+    the slits, the hem serrated and the zip tape a sawtooth.
+
+    The boundary edges are collected before any face is added, because adding
+    one makes its edge stop being a boundary.
+    """
+    edges = []
+    for a in ring:
+        for e in a.link_edges:
+            b = e.other_vert(a)
+            if b in pair and e.is_boundary and e not in edges:
+                edges.append(e)
+    made = []
+    for e in edges:
+        a, b = e.verts
+        lp = e.link_loops[0] if e.link_loops else None
+        # the existing face runs lp.vert -> other; the new one runs back
+        if lp is not None and lp.vert is a:
+            quad = (b, a, pair[a], pair[b])
+        else:
+            quad = (a, b, pair[b], pair[a])
+        try:
+            f = bm.faces.new(quad)
+        except ValueError:
+            continue
+        if material_index is not None:
+            f.material_index = material_index
+        made.append(f)
+    return made
 
 
 def extrude_band(bm, verts, steps, centre=None):
@@ -296,18 +455,7 @@ def extrude_band(bm, verts, steps, centre=None):
         for v_old, v_new in pair.items():
             rad = Vector((v_old.co.x - centre.x, v_old.co.y - centre.y, 0.0))
             v_new.co = v_old.co + shift + rad * (scale - 1.0)
-        # stitch: for every boundary edge of the old ring, make a quad
-        made = set()
-        for v_old in ring:
-            for e in v_old.link_edges:
-                o = e.other_vert(v_old)
-                if o not in pair or (o, v_old) in made or not e.is_boundary:
-                    continue
-                made.add((v_old, o))
-                try:
-                    bm.faces.new((v_old, o, pair[o], pair[v_old]))
-                except ValueError:
-                    pass
+        stitch(bm, ring, pair)
         ring = [pair[v] for v in ring]
     bm.normal_update()
     return ring
@@ -359,19 +507,7 @@ def extrude_strip(bm, ring, disp, material_index=None):
     pair = dict(zip(ring, res["verts"]))
     for old, new in pair.items():
         new.co = old.co + disp(old.co)
-    made = set()
-    for a in ring:
-        for e in a.link_edges:
-            b = e.other_vert(a)
-            if b not in pair or (b, a) in made or not e.is_boundary:
-                continue
-            made.add((a, b))
-            try:
-                f = bm.faces.new((a, b, pair[b], pair[a]))
-                if material_index is not None:
-                    f.material_index = material_index
-            except ValueError:
-                pass
+    stitch(bm, ring, pair, material_index)
     bm.normal_update()
     return [pair[v] for v in ring]
 
