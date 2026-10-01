@@ -180,7 +180,7 @@ static func _shopfront(g: Node3D, stone: Material) -> void:
 	# white script painted on the left pane, exactly as 03 has it
 	Profile.text(g, Vector3(win_l + 0.62, 1.86, -0.030),
 		"Better\nCoffee\nBrighter\nDays", 0.145, Color(0.96, 0.94, 0.90, 0.92),
-		SlicePalette.script_font(), PI, HORIZONTAL_ALIGNMENT_LEFT)
+		SlicePalette.script_font(), 0.0, HORIZONTAL_ALIGNMENT_LEFT)   # reads from the street, as in 03
 
 	# spandrel above the glazing, then the fascia
 	Build.box(g, Vector3(0, (GLAZE_HEAD + FASCIA_Y) * 0.5 + 0.06, -0.02),
