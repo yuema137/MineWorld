@@ -146,9 +146,9 @@ recorded in §11 as each item completes.
 - [x] Review: no API lets a non-owner mutate; the dinner-and-phone-call scenario from `CORE_CONCEPTS.md` §10 is expressible with the types as built. — §11 E-3 review.
 
 ## C4 — Long-run and documentation
-- [ ] Validation: a seeded scenario runs **hundreds of simulated days** headless, with wall time and event count recorded, and a second run with the same seed produces an identical event sequence — the first real `AC-11` and `AC-12` evidence.
-- [ ] `kernel/README.md` updated; ledger closed.
-  - [ ] `docs/DECISIONS.md` `DEP-6`: dated implementation note for §9 ID-2 (ordered map rather than a heap), so code and decision do not disagree (`CLAUDE.md` §2.1 rule 4).
+- [x] Validation: a seeded scenario runs **hundreds of simulated days** headless, with wall time and event count recorded, and a second run with the same seed produces an identical event sequence — the first real `AC-11` and `AC-12` evidence. — `kernel/tests/long_run.rs`, §11 E-4.
+- [x] `kernel/README.md` updated; ledger closed. — README module table and a paragraph on time; `kernel/src/lib.rs` crate docs gain a "time" table; ledger §11 E-4.
+  - [x] `docs/DECISIONS.md` `DEP-6`: dated implementation note for §9 ID-2 (ordered map rather than a heap), so code and decision do not disagree (`CLAUDE.md` §2.1 rule 4).
   - [x] `server/PROTOCOL.md`: `deferrals_unscheduled` documented as zero since S4. — done with the server change in C2.
 
 ---
@@ -589,3 +589,73 @@ with the phone deciding nothing and the dining system deciding everything. File 
 trigger and below the 800 warning; both are mostly the module documentation the crate keeps for its
 contracts, and splitting the pipeline across files would separate the four entry points that the
 module exists to keep on one code path. Recorded rather than split.
+
+**E-4 (C4) — the long run, and the terminal gates.** Working tree after the C3 commit `b48afea`,
+with the C4 content; this is the final executable content of the PR (later commits change only
+planning documents).
+
+The long run (`kernel/tests/long_run.rs`, real-lifecycle evidence: the real clock, queue, processes,
+deferrals and interruptions, driven only by `World::advance_to`). Gate specification, written before
+the run: *claim* — 300 simulated days run headless and cheaply (`AC-11`) and replay identically from
+one seed (`AC-12`); *evidence* — equal serialized histories for two seed-42 runs, a different history
+for seed 43, coverage of every person on every day, and a mid-run save/restore that continues
+byte-identically; *counterfactual* — a hash-ordered iteration, a clock read, or a sequence not
+persisted would make one of the three comparisons differ.
+
+```text
+world      6 people; routine (process owner: one-to-eight-hour activities, refuses interruption
+           while asleep) + pager (defers seeded pages minutes later, then requests interruptions);
+           assembled as a pack loader would: entities, install, genesis; seed 42
+result     300 days, 16,372 facts: 10,858 activity-ended, 2,754 paged, 2,754 page-answered
+           (912 refused while asleep, 1,842 ended early); 13,608 instants visited for
+           25,920,000 simulated seconds
+wall       ~0.10 s first run, ~0.07 s second (debug profile, Apple Silicon host)
+replay     seed 42 twice → identical bytes, identical instant counts                   PASS
+seed       seed 42 vs 43 → different bytes (the seed is read)                          PASS
+coverage   every one of 300 days, every one of 6 people has an ended activity; last
+           fact on day 300 (locate-before-counting, ARC-23)                            PASS
+bound      10,858 ≥ 300 × (86,400 / 28,800) × 6 = 5,400, the floor the 8-hour maximum
+           guarantees — a bound from the stated requirement, not from the code         PASS
+idle       13,608 × 100 < 25,920,000: instants are under 1% of simulated seconds       PASS
+restore    saved at day 137 with processes and entries in flight, restored into a
+           freshly assembled world, continued to day 300: byte-identical to the
+           uninterrupted run's facts after day 137 (> 1,000 facts asserted)            PASS
+```
+
+Terminal gates on the final content:
+
+```text
+cargo fmt --all --check                                          PASS
+cargo check --workspace --all-targets                            PASS (rc 0)
+cargo clippy --workspace --all-targets --all-features -D warnings PASS (rc 0)
+cargo test --workspace --no-fail-fast                            PASS — 294 passed, 0 failed
+                                                                 (259 pre-existing + 35), 17 s
+  of which tools/cli/tests/ac15_one_alice.rs                     6 passed (AC-15 unchanged)
+python3 scripts/check_decision_ids.py                            PASS — 33 ids, all distinct
+python3 scripts/check_doc_headings.py                            PASS — 134 sections, none duplicated
+cargo doc -p mineworld-kernel                                    9 pre-existing private-link
+                                                                 warnings (access, entities,
+                                                                 registry, system, world); none in
+                                                                 the modules this PR adds
+CI                                                               N/A — the repository has no
+                                                                 workflow (S13); the local gates
+                                                                 above are the terminal evidence
+```
+
+Test count by commit: 259 → 275 (C1, +16) → 279 (C2, +4) → 291 (C3, +12) → 294 (C4, +3).
+
+## 11.1 Limitations and follow-ups
+
+```text
+L-1  mutation evidence was not obtained (E-1): the session's permission classifier denied running
+     deliberately weakened code. The behaviours are pinned by direct tests.
+L-2  deferrals_unscheduled remains on the wire at zero (F-4) — remove in the next protocol revision.
+L-3  the cascade error names a cycle of period > 8 only partially (F-13).
+L-4  a process whose owner is disabled at its expected end is not woken and stays past its end;
+     re-enabling the owner does not re-wake it (the wake was skipped and counted). A future
+     "re-enable resumes due wakes" rule would be S6+ design.
+L-5  ProcessTypeId was added to contracts (F-6) — flagged for the primary session's confirmation.
+L-6  the server paces world time at one simulated second per wall second (HostClock); a different
+     rate, or pausing, is a host decision for S11/S13.
+L-7  no shipped System Pack schedules anything yet; the first is S6 (movement/travel).
+```

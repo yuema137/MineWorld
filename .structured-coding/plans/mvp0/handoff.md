@@ -37,18 +37,21 @@ are authorized; merge is not.
 ## Current checkpoint
 
 ```text
-C0  re-audit, rename, contract     done
-C1  clock and queue                next
-C2  instants, server integration   pending
-C3  processes and interruption     pending
-C4  long run and documentation     pending
+C0  re-audit, rename, contract     done   38ab650
+C1  clock and queue                done   615785e   275 tests
+C2  instants, server integration   done   661aabf   279 tests
+C3  processes and interruption     done   b48afea   291 tests
+C4  long run and documentation     done   (C4 commit) 294 tests; final executable content
 ```
+
+Terminal gates passed on the C4 content (primary doc §11 E-4). No CI workflow exists (S13).
 
 ## Exact next actions
 
-1. C1: `kernel/src/clock.rs`, `kernel/src/schedule.rs`; `World` owns both; `Deferral` captures its
-   cause; dispatch refuses backwards time and outstanding work, then queues its deferrals.
-2. Targeted tests, ledger, commit, push.
+1. Open the PR against `main` with `gh pr create` — do not merge.
+2. Mark the primary doc `READY FOR OPERATOR REVIEW`; update `overall.md` §7 (brief assigns this
+   session the update at review readiness); push.
+3. Close this context: CLOSED / AWAITING OPERATOR ACTION.
 
 ## Stop conditions
 

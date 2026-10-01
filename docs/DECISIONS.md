@@ -845,6 +845,14 @@ different design, and determinism currently matters more than throughput at MVP 
 
 **Licenses.** All candidates are permissive; none was rejected for licensing.
 
+**Implementation note, 2026-09-30 (S4, PR 06).** The queue is a `BTreeMap` keyed by
+`(WorldTime, Sequence)` rather than a `BinaryHeap`: the same key and the same order, but a heap's
+layout depends on its insertion history, so two equal queues could serialize to different bytes,
+and a queue S5 saves and compares across runs needs a canonical form. The choice — purpose-built,
+not a crate — and the reason for it are unchanged. Recorded here so that the code and this decision
+do not disagree (`CLAUDE.md` §2.1 rule 4); the evidence is
+`.structured-coding/plans/mvp0/step-04-clock-scheduler-process.md` §8 F-9.
+
 ---
 
 ## ARC-15 — A world's initial state is a recorded genesis fact

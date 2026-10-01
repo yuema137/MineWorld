@@ -18,11 +18,20 @@
 //! # And the systems that write to them
 //!
 //! ```text
-//! system       System: what a system declares, and the four things it is asked to do
+//! system       System: what a system declares, and the six things it is asked to do
 //! view         what a running system is handed — reads open, writes gated on ownership
 //! registry     which systems a world is composed of, in registration order
 //! dispatch     ActionIntent → route → validate → resolve → Event(s) → reduce
 //! world        World: the composed whole, and the only issuer of write capability in it
+//! ```
+//!
+//! # And time
+//!
+//! ```text
+//! clock        WorldClock: simulated seconds, only forward, never a wall clock (INV-12)
+//! schedule     the (WorldTime, Sequence) queue of deferred facts and process ends (DEP-6)
+//! advance      World::advance_to / step: jump to the next due instant, fire it
+//! process      Process: state over time, changed only by its owner (INV-3, INV-7)
 //! ```
 //!
 //! Reads are open and writes are owned. Any system may read any component; a component is
