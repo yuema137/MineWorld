@@ -4,8 +4,15 @@
 mineworld server worlds/social-cafe                  # host a world
 mineworld server worlds/social-cafe --listen 0.0.0.0:7878
 mineworld server worlds/social-cafe --agent alice     # and drive one of its people with a rule
+mineworld server worlds/social-cafe --save saves/cafe # keep the world: stop it, start it, same world
+mineworld replay worlds/social-cafe --save saves/cafe # re-run a save's whole history and check it
 mineworld validate worlds/social-cafe                # check one, and say what it is
 ```
+
+`--save DIR` creates the world in `DIR/world.sqlite` the first time and resumes it every time after —
+even after the process was killed. The resumed world is the same world: the same instance, the same
+people, the same history, continuing where it stopped. `replay` re-executes the save from its beginning
+and fails if a single fact or snapshot does not reproduce.
 
 `--agent SEAT` occupies that seat with a deterministic controller, in this process, over the same
 path a client's connection uses — the same roster, the same actor check, the same server-allocated

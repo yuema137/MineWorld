@@ -314,13 +314,13 @@ Each commit tracks implementation, validation and review separately. Evidence go
 - [x] Implementation: audit (§8), design (§§1–7), execution contract (§11).
 - [x] Validation: `python3 scripts/check_decision_ids.py` → 33 ids, all distinct;
   `python3 scripts/check_doc_headings.py` → 134 numbered sections across 21 documents, none duplicated.
-- [ ] Review: primary-session review against the frozen specifications; `DESIGN FROZEN` recorded or
-  revisions requested. **Implementation does not start before this.**
+- [x] Review: primary-session review against the frozen specifications; `DESIGN FROZEN` recorded at
+  `910c1f4` with the seven answers in §10.1. **Implementation does not start before this.**
 
 ## C1 — Specification amendments, before code
 **Goal:** the decisions this step makes exist in the specifications before any code depends on them
 (`CLAUDE.md` §2.2; §2.1 rule 4).
-- [ ] Implementation:
+- [x] Implementation (planned items; evidence in the `[x]` lines below):
   - `docs/DECISIONS.md`: new `ARC-25` (§2.2: state authority vs history authority, journal, revision,
     divergence refusal, what is and is not journaled); `DEP-2` implementation note (crate placement,
     one file, WAL, `synchronous`, no `spawn_blocking` because the world already lives on its own
@@ -344,7 +344,7 @@ Each commit tracks implementation, validation and review separately. Evidence go
 
 ## C2 — Kernel: a world's whole state as data
 **Goal:** `World::snapshot` and `World::restore` cover everything a world holds. **Depends on:** C1.
-- [ ] Implementation:
+- [x] Implementation (as planned, with the deviations under "C2 as built"):
   - `kernel/src/components.rs`: `ComponentRows` gains `encode(&self, &ComponentDeclaration) ->
     Result<Vec<ComponentRecord>, KernelError>` and `decoded(&self, Vec<ComponentRecord>) ->
     Result<Box<dyn ComponentRows>, KernelError>` (a *new* table of the same type — decode never touches
@@ -361,7 +361,7 @@ Each commit tracks implementation, validation and review separately. Evidence go
     implementation; each names what it found).
   - `kernel/Cargo.toml`: `serde_json` to `[dependencies]`.
   - `kernel/README.md`, `kernel/src/lib.rs` module table.
-- [ ] Validation (`kernel/tests/snapshot.rs`):
+- [x] Validation (`kernel/tests/snapshot.rs`; evidence under "C2 as built"):
   - a world with components of two systems, relations, a pending deferral and a running process:
     snapshot → JSON → restore into a freshly composed world → snapshot again: identical bytes; then the
     same requests dispatched to both worlds produce identical facts (continuation, not just equality);
@@ -374,7 +374,7 @@ Each commit tracks implementation, validation and review separately. Evidence go
     one older → `Contract(ComponentSchemaOutdated)`; a relation endpoint not in the registry;
   - `ARC-23`: the round-trip test asserts the snapshot holds the counts the scenario implies (components
     per type, edges, entries, processes) before comparing bytes, so "equal" is not two empty worlds.
-- [ ] Review: no component written outside its owner (restore swaps whole stores built from records the
+- [x] Review: no component written outside its owner (restore swaps whole stores built from records the
   owner's own type decodes — no `WriteToken` is needed or minted); no `HashMap`; no wall clock; restore
   validates before mutating; `INV-12` (no domain term in the new code).
 
@@ -418,7 +418,7 @@ Each commit tracks implementation, validation and review separately. Evidence go
 ## C3 — `mineworld-persistence`: journal, save format, SQLite, resume, verify
 **Goal:** a world can be created into a save, driven, reopened, and verified against its own history.
 **Depends on:** C2.
-- [ ] Implementation:
+- [x] Implementation (as planned, with the deviations under "C3 as built"):
   - `Cargo.toml`: member `persistence`; `rusqlite = { version = <current>, features = ["bundled"] }`.
   - `persistence/src/input.rs`: `WorldInput::{Genesis { before: WorldSnapshot, at, facts: Vec<Emission> },
     Dispatch { intent: ActionIntent, at }, Advance { until }}`; `Outcome::{Dispatched(ActionResult),
@@ -441,7 +441,8 @@ Each commit tracks implementation, validation and review separately. Evidence go
     detail }`, `SnapshotDisagreesWithHistory { revision }`, `WorldAheadOfSave`, `SaveExists`, `NoSave`,
     `Storage`, `Kernel(#[from] KernelError)`.
   - `persistence/README.md`.
-- [ ] Validation (`persistence/tests/`, real files in a per-test directory under `std::env::temp_dir()`):
+- [x] Validation (`persistence/tests/`, real files in a per-test directory under `std::env::temp_dir()`;
+  evidence under "C3 as built"):
   - create → 200 dispatches and advances over a test world with components, relations, deferrals and
     processes → drop → `resume` → identical `WorldSnapshot` bytes and identical continuation facts
     against an uninterrupted in-memory twin;
@@ -459,7 +460,7 @@ Each commit tracks implementation, validation and review separately. Evidence go
     create over an existing save; open of a missing one;
   - durability ordering: after `dispatch` returns, a second connection opened on the file sees the
     revision (committed, not buffered).
-- [ ] Review: no SQL type crosses `persistence/src/sqlite.rs`; `PersistentWorld` hands out no
+- [x] Review: no SQL type crosses `persistence/src/sqlite.rs`; `PersistentWorld` hands out no
   `&mut World`; every refusal changes nothing in the file; facts are never decoded; rows are compared as
   bytes, not re-serialized values.
 
@@ -510,7 +511,7 @@ Each commit tracks implementation, validation and review separately. Evidence go
 
 ## C4 — Pack composition split and the process-kill checkpoint
 **Goal:** prove continuity across a real process death against a real SQLite file. **Depends on:** C3.
-- [ ] Implementation:
+- [x] Implementation (as planned, with the deviations under "C4 as built"):
   - `worldpack/src/load.rs`: `WorldPack::compose() -> Composed { world, providers }` (install only),
     `WorldPack::assemble(at) -> Assembled { world, ids, at, facts: Vec<Emission>, providers }`; `load`
     = `assemble` then `World::genesis`, behaviour and errors unchanged.
@@ -526,12 +527,12 @@ Each commit tracks implementation, validation and review separately. Evidence go
     then the parent `SIGKILL`s it (`Child::kill`) while it is still writing; child B resumes the same
     file and finishes the script from the first step after the restored world's `now`; child C runs the
     whole script uninterrupted into a second file.
-- [ ] Validation: per run, the facts table, the journal and the final head snapshot of B's file equal
+- [x] Validation: per run, the facts table, the journal and the final head snapshot of B's file equal
   C's **byte for byte**; `verify` passes on B's file; B reports the head H it resumed at (H ≥ K), the
   snapshot revision it loaded and the tail length it replayed — each asserted non-trivial (tail > 0 for
   at least one kill point per scenario); the scenario's facts are counted against bounds derived from
   the script (`ARC-23`). Existing `worldpack/tests` pass unchanged (the split changes nothing they see).
-- [ ] Review: the kill is a real `SIGKILL` of a real process, not a dropped value; nothing in the child
+- [x] Review: the kill is a real `SIGKILL` of a real process, not a dropped value; nothing in the child
   flushes or checkpoints on a signal; the comparison is between files written by different processes.
 
 **C4 as built.**
@@ -588,7 +589,7 @@ Each commit tracks implementation, validation and review separately. Evidence go
 
 ## C5 — Server and CLI: `--save`, the revision on the wire, a real restart
 **Goal:** `AC-6` through the command an operator types, and `AC-15`'s fourth line. **Depends on:** C4.
-- [ ] Implementation:
+- [x] Implementation (as planned, with the deviations under "C5 as built"):
   - `server/Cargo.toml`: depends on `mineworld-persistence`.
   - `server/src/host.rs`: `HostedWorld::persisted(PersistentWorld)`; `WorldHost::shutdown` checkpoints a
     persisted world.
@@ -603,7 +604,8 @@ Each commit tracks implementation, validation and review separately. Evidence go
   - `tools/cli/src/main.rs`: `server <world> --save DIR` (create when `DIR/world.sqlite` is absent,
     resume when present — printing which, with the snapshot revision and tail replayed);
     `replay <world> --save DIR` (PD-12). `--help` text.
-- [ ] Validation:
+- [x] Validation (bounded deviation: the restart test runs **without** `--agent`, and so asserts
+  history survival through the continuing conversation rather than through Alice's reply — F-13):
   - `tools/cli/tests/restart.rs` (real binary, real socket, real kill): `server social-cafe --agent alice
     --save DIR`; the visitor arrives next to Alice and talks; Alice's controller replies; record the
     instance, Alice's `EntityId`, the highest `EventId` seen, the action ids, `GET /status` revision R;
@@ -619,7 +621,7 @@ Each commit tracks implementation, validation and review separately. Evidence go
     `GET /status`; after the server stops, the save's journal head equals it. The module comment that
     records the fourth line as missing is replaced by the evidence;
   - existing `server/tests` (ephemeral worlds) pass unchanged: `revision` is `null` there.
-- [ ] Review: an observation is never sent with a revision that is not committed; no persistence call
+- [x] Review: an observation is never sent with a revision that is not committed; no persistence call
   happens on an async task (only the world thread touches the save); the server crate names no SQLite
   type; `INV-13` unchanged (the revision is a number about the world, not a view of state).
 
@@ -669,7 +671,7 @@ Each commit tracks implementation, validation and review separately. Evidence go
   (`sweep` runs after `dispatch`/`advance` return `Ok`); the only persistence calls are on the world
   thread; the server crate names no SQLite type (`grep rusqlite server/` — none); `INV-13` unchanged
   (a revision number reveals no state).
-- **F-14 — a rule controller answers again after a restart (finding, not fixed).** `RuleController`
+- **F-13 — a rule controller answers again after a restart (finding, not fixed).** `RuleController`
   remembers whom it has answered in its own memory (`cognition/rule-controller/src/lib.rs`), which is
   correctly not world state (`INV-1`) and so not persisted. A restarted `--agent alice` sees the last
   unanswered-by-*this-process* line and answers it again. The world is preserved exactly; the
@@ -678,10 +680,15 @@ Each commit tracks implementation, validation and review separately. Evidence go
   scope. Recorded as §9.1 L-3; the restart test runs without `--agent` so that this does not race it.
 
 ## C6 — Documentation and ledger close
-- [ ] Implementation: `persistence/README.md`, `server/README.md`, `tools/cli` usage, `docs/MVP_STATUS.md`
-  (`AC-6`, `AC-15` line four), `kernel/README.md` "still to come"; this document's §9 ledger and closeout.
-- [ ] Validation: the terminal gates of §6 on the final executable head.
-- [ ] Review: every claim in the docs points at the test that demonstrates it.
+- [x] Implementation: `persistence/README.md` (C3), `server/README.md`, `tools/cli/README.md` (`--save`,
+  `replay`), `docs/MVP_STATUS.md` (persistence row, CLI row, AC-15 axis, S4/S5 stage rows, an `AC-6`
+  evidence row; the "durable persistence" gap removed), `kernel/README.md` (C2); this document's §9
+  ledger and §12 closeout.
+- [x] Validation: the terminal gates of §6 on the final executable content — §9 E-final.
+- [x] Review: each new MVP_STATUS claim names its test (`persistence/tests/kill_and_resume.rs`,
+  `tools/cli/tests/restart.rs`, `tools/cli/tests/ac15_one_alice.rs`); `git diff 5f02332 -- systems
+  contracts cognition clients mineworld-3d` is empty — no System Pack, contract, controller or client
+  changed (the change-amplification check of §1.1).
 
 ---
 
@@ -848,6 +855,54 @@ specification's wording, so it is raised (§10 Q1) rather than assumed.
 
 **E-0 (C0).** Baseline on `main @ 5f02332`: `cargo test --workspace --no-fail-fast` → 294 passed,
 0 failed. Design drafted; both doc checks PASS (33 ids distinct; 134 sections, none duplicated).
+
+**E-1 … E-5.** Per commit, recorded under each commit's "as built" block in §4: C1 doc checks; C2 5
+kernel tests; C3 10 persistence tests; C4 the process-kill program (IC-1) and F-12; C5 2 restart tests
+(IC-2), the AC-15 extension and F-13.
+
+**E-final — terminal gates**, on the working tree after the C5 commit `7db8611` plus the C6
+documentation edits (no executable change after `7db8611`):
+
+```text
+cargo fmt --all --check                                           PASS (rc 0)
+cargo check --workspace --all-targets                             PASS
+cargo clippy --workspace --all-targets --all-features -D warnings PASS
+cargo test --workspace --no-fail-fast                             PASS (rc 0), ~19 s wall
+    harness tests                311 passed, 0 failed  (294 pre-existing + 17 new:
+                                 kernel/tests/snapshot.rs 5, persistence/tests/save.rs 10,
+                                 tools/cli/tests/restart.rs 2)
+    kill_and_resume (program)    cafe PASS, clock PASS — six SIGKILLs, six byte-identical resumes
+    of which ac15_one_alice      6 passed; AC-15 now with one persisted revision (7)
+python3 scripts/check_decision_ids.py                             PASS — 34 ids, all distinct
+python3 scripts/check_doc_headings.py                             PASS — 134 sections, none duplicated
+git diff 5f02332 -- systems contracts cognition clients mineworld-3d   empty
+CI                                                                N/A — no workflow in the repository (S13)
+```
+
+Test count by commit: 294 → 299 (C2, +5) → 309 (C3, +10) → 309 + IC-1 program (C4) → 311 (C5, +2).
+
+## 9.1 Limitations and follow-ups
+
+```text
+L-1  Migration does not exist: any save-format, system-version or component-schema difference is
+     refused (§10.1 Q7). The first pack that changes an owned schema needs the migration step.
+L-2  Whether a SIGKILL ever landed *inside* a SQLite transaction was not observed: in every IC-1 run
+     the victim's committed head equalled its last printed revision. Atomicity in that case rests on
+     SQLite's WAL commit, not on this PR's evidence (C4).
+L-3  A rule controller's memory of whom it answered is not world state and is not persisted, so a
+     restarted `--agent` answers the last line again (F-13). Needs a perception or cognition change.
+L-4  A restarted world resumes at its last revision's instant; idle seconds after it are lost, and
+     world time does not pass while no process hosts the world (§10.1 Q4, by decision).
+L-5  The server's shutdown checkpoint writes nothing whenever the clock has idled past the head —
+     which on a hosted world is almost always — so a restart re-executes up to 63 revisions after the
+     last periodic snapshot (F-12, by construction).
+L-6  The log and snapshots are kept whole; compaction and snapshot pruning are later work.
+L-7  `deferrals_unscheduled` still on the wire, and `revision` added within protocol 1 (§10.1 Q3); the
+     next protocol revision removes the former and may bump the number.
+L-8  Mutation evidence: the counterfactuals are real adversarial tests (memory-only state, altered
+     fact, altered snapshot, injected commit failure, version and composition differences), not
+     mutated production code; no production-code mutation was run in this PR.
+```
 
 ---
 
