@@ -21,7 +21,7 @@ const DEFAULT_ADDRESS := "127.0.0.1:7878"
 const DEFAULT_SEAT := "visitor"
 
 # What a client is allowed to decide for itself: wording, colour and layout.
-const VERB := { "talk": "Talk to", "arrive": "Walk to" }
+const VERB := { "talk": "Talk to", "move": "Walk to" }
 const REASON := {
 	"busy": "busy",
 	"too_far_away": "too far away",
@@ -49,6 +49,14 @@ const PIXELS_PER_METRE := 60.0
 const STAND_BESIDE := 1.0
 const GREETING := "hello Alice, this is the demonstration scene"
 
+# The longest single `move` this client sends, in metres.
+#
+# The server takes at most 2 m per request and a client must report before its body has gone that
+# far since the last position the server accepted (`server/PROTOCOL.md` §6.2, the reporting rule).
+# This is a request size, not a rule the client enforces: the server still decides every stride. It
+# is a little under 2 m so that rounding a stride to whole millimetres can never make it 2.001 m.
+const STRIDE := 1.9
+
 var _world := MineWorldClient.new()
 var _address := DEFAULT_ADDRESS
 var _seat := DEFAULT_SEAT
@@ -64,6 +72,14 @@ var _last_answer := "—"
 var _requests: Array = []
 var _step := 0
 var _settled := 0
+
+# A walk in progress, in this client's own 2D metres: where it is going, where the server last
+# accepted it to be, the stride it is waiting to hear about, and that stride's token.
+var _walk_to: Variant = null
+var _walk_from := Vector2.ZERO
+var _stride_to := Vector2.ZERO
+var _stride_token := ""
+var _strides := 0
 
 
 func _ready() -> void:
@@ -131,11 +147,15 @@ func _on_observed(observation: MineWorldObservation) -> void:
 func _on_resolved(token: String, action_id: String, result: Dictionary) -> void:
 	_last_answer = _describe(result)
 	_note("%s -> action %s: %s" % [token, action_id, _last_answer])
+	if token == _stride_token:
+		_stride_answered(result.has("accepted"))
 
 
 func _on_refused(code: String, token: String, detail: String) -> void:
 	_last_answer = "refused (%s)" % code
 	_note("%s refused: %s — %s" % [token, code, detail])
+	if token == _stride_token:
+		_stride_answered(false)
 
 
 func _on_disconnected(reason: String) -> void:
@@ -186,24 +206,57 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_tree().quit()
 
 
-## Walks up to somebody: an `arrive` request, which is this slice's protocol-level form of movement.
+## Walks up to somebody: `move` requests, one stride at a time, which is how a client moves a person.
 ##
 ## The client works in its own space — where that person is *on the screen*, a metre below them — and
 ## converts once at the boundary. `MineWorldSpace` turns metres into the integer millimetres the
 ## contract declares, which is what keeps GDScript's single number type from sending `1500.0` where an
 ## `i32` is expected (`spike/FINDINGS.md` F9).
 ##
-## It does not ask whether that is close enough. The server answers that, in the next observation.
+## It follows the reporting rule: each stride is at most [constant STRIDE] from the last position the
+## server accepted, and the next is sent only once the server has answered the last. It does not ask
+## whether a stride is allowed, nor whether the end of the walk is close enough to talk — the server
+## answers both.
 func _walk_beside(whom: String) -> void:
 	var place := _world.latest.place()
 	if place.is_empty() or whom.is_empty():
 		_note("this world models no position for me, so there is nowhere to walk")
 		return
 	var them := MineWorldSpace.to_2d(_world.latest.location_of(whom).get("local"))
-	var beside := them + Vector2(0.0, STAND_BESIDE)
-	_world.submit("arrive", null, {
-		"location": MineWorldSpace.location(place, MineWorldSpace.from_2d(beside)),
+	_walk_from = MineWorldSpace.to_2d(_world.latest.self_location().get("local"))
+	_walk_to = them + Vector2(0.0, STAND_BESIDE)
+	_strides = 0
+	_next_stride()
+
+
+## Sends the next stride of the walk in progress, toward its end and at most [constant STRIDE] long.
+func _next_stride() -> void:
+	if _walk_to == null:
+		return
+	var remaining: Vector2 = _walk_to - _walk_from
+	var step := remaining if remaining.length() <= STRIDE else remaining.normalized() * STRIDE
+	_stride_to = _walk_from + step
+	_strides += 1
+	_stride_token = _world.submit("move", null, {
+		"to": MineWorldSpace.location(_world.latest.place(), MineWorldSpace.from_2d(_stride_to)),
 	})
+
+
+## The server answered the stride in flight. Accepted: that is where the person now is, so the walk
+## continues from there. Refused: the client stops and keeps to whatever the next observation shows,
+## which is the reconciliation `server/PROTOCOL.md` §6.2 asks for — it does not argue or retry.
+func _stride_answered(accepted: bool) -> void:
+	_stride_token = ""
+	if not accepted:
+		_note("stride %d refused; stopping where the world says I am" % _strides)
+		_walk_to = null
+		return
+	_walk_from = _stride_to
+	if _walk_from.distance_to(_walk_to) < 0.001:
+		_note("walked there in %d stride(s)" % _strides)
+		_walk_to = null
+		return
+	_next_stride()
 
 
 ## Speaks to whoever the world says is the barista — found by tag, never by a hard-coded identity.

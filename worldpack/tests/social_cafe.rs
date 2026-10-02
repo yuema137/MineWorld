@@ -72,7 +72,7 @@ fn the_pack_says_what_world_it_is() {
     );
     assert_eq!(
         pack.places().keys().cloned().collect::<Vec<_>>(),
-        vec![key("cafe")],
+        vec![key("cafe"), key("street")],
     );
     assert_eq!(
         pack.people().keys().cloned().collect::<Vec<_>>(),
@@ -91,7 +91,7 @@ fn the_world_is_the_one_the_yaml_describes() {
     let world = loaded();
     let read = world.world().read();
 
-    assert_eq!(world.world().entities().len(), 5, "one place, four people");
+    assert_eq!(world.world().entities().len(), 6, "two places, four people");
     let systems = world.world().systems();
     for system in [PresenceSystem::ID, ConversationSystem::ID] {
         assert!(
@@ -139,10 +139,11 @@ fn entity_keys_resolve_to_ids_deterministically() {
     // world's log refers to.
     let expected: BTreeMap<EntityKey, EntityId> = [
         (key("cafe"), EntityId::from_raw(1)),
-        (key("alice"), EntityId::from_raw(2)),
-        (key("bob"), EntityId::from_raw(3)),
-        (key("visitor"), EntityId::from_raw(4)),
-        (key("wanderer"), EntityId::from_raw(5)),
+        (key("street"), EntityId::from_raw(2)),
+        (key("alice"), EntityId::from_raw(3)),
+        (key("bob"), EntityId::from_raw(4)),
+        (key("visitor"), EntityId::from_raw(5)),
+        (key("wanderer"), EntityId::from_raw(6)),
     ]
     .into_iter()
     .collect();
@@ -186,8 +187,8 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        4,
-        "one arrival per person the pack placed",
+        5,
+        "the café's front door, then one arrival per person the pack placed",
     );
 }
 
@@ -195,8 +196,18 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
 fn an_authored_position_is_a_recorded_fact_rather_than_a_write() {
     let world = loaded();
 
+    // The passage comes first — a fact about places, which exist before anybody is in them — and it
+    // is movement's, stated by movement.
+    let door = &world.genesis()[0];
+    assert_eq!(
+        *door.event_type(),
+        EventTypeId::new("passage-opened").expect("a legal event type")
+    );
+    assert_eq!(door.provenance().emitted_by().as_str(), "movement");
+    assert_eq!(*door.caused_by(), Causation::WorldGenesis);
+
     for (nth, person) in ["alice", "bob", "visitor"].into_iter().enumerate() {
-        let event = &world.genesis()[nth];
+        let event = &world.genesis()[nth + 1];
         assert_eq!(
             *event.event_type(),
             EventTypeId::new("arrived").expect("a legal event type"),

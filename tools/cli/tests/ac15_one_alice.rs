@@ -532,7 +532,9 @@ async fn one_window_cannot_act_as_the_other_nor_as_alice() {
     two_d.join("visitor").await;
     let seen = two_d.observation().await;
     let alice = tagged(&seen, "barista").expect("the barista is there");
-    let wanderer = EntityId::from_raw(5);
+    // Places are allocated first, in key order (cafe 1, street 2), then people (alice 3, bob 4,
+    // visitor 5, wanderer 6) — `mineworld validate worlds/social-cafe` lists them.
+    let wanderer = EntityId::from_raw(6);
 
     assert_eq!(
         two_d

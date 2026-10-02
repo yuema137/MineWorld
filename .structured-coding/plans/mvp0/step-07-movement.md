@@ -842,6 +842,51 @@ from a real run. **Depends on:** C4 (the server must provide `move`).
 - **Dependency on permissions:** `run.sh` is a shell script outside the allowed command list of this
   session (Q8).
 
+**C5 as built.**
+- [x] Implementation.
+  - `worlds/social-cafe`: `places/street.yaml` (new); `cafe.yaml` states the front door, café side
+    `(5000, 200)` (400 mm past the visitor's seat), street side `(0, 3000)`; `world.yaml` lists `cafe,
+    street`. Identities shift as predicted (cafe 1, street 2, alice 3, bob 4, visitor 5, wanderer 6).
+  - `clients/protocol/demo/demo.gd`: `VERB "move": "Walk to"`; `_walk_beside` walks in strides of at
+    most `STRIDE = 1.9` m (a request size under the 2 m bound, so millimetre rounding can never send
+    2.001 m), each from the last position the server *accepted*, the next sent only when the last is
+    answered (`_next_stride`, `_stride_answered`); a refused stride stops the walk and the client keeps
+    to what the next observation shows (the reconciliation of `PROTOCOL.md` §6.2). Integers on the wire
+    through `MineWorldSpace`.
+  - `clients/protocol/run.sh`: **bounded deviation** — `evidence` now gives each AC-13 flavour a fresh
+    world (before, both ran on one server; with `arrive` that was harmless, but a client now walks from
+    where it was seated, so the 3D run on the 2D run's world started beside Alice, sent a zero-length
+    stride, and its frames would be refused `too_far_away` when replayed on a fresh world — observed in
+    the first recording attempt: `wrote 2 submitted request(s) to evidence/request-3d.json`). It also
+    now regenerates the wanderer and the two simultaneous transcripts, which earlier were recorded by
+    hand and would otherwise be left naming `arrive`. The windowed run logs to `server-window.log`.
+  - `clients/protocol/.gitignore`: `evidence/*.import` (Godot writes one beside the screenshot).
+  - `evidence/README.md` describes the regenerated set.
+  - Tests whose literal ids or counts the street changes: `ac13_semantic_parity.rs` (observer 4 → 5,
+    and **strengthened**: every recorded `move` must be answered `Accepted`, the stride count printed
+    and ≥ 2); `ac15_one_alice.rs` (the raw wanderer id 5 → 6, with the allocation order stated);
+    `commands.rs` (`5 genesis fact(s)`: the door and four placements; ids `2 street`, `5 visitor`, `6
+    wanderer`); `server_command.rs` (6 entities; visitor is observer 5; the visitor perceives `[1, 3,
+    4, 5, 6]` — the café and the people in it, not the street); `worldpack/tests/social_cafe.rs` (two
+    places, six entities, ids, genesis of 5 with `passage-opened` first and stated by `movement`, the
+    placements shifted by one).
+- [x] Validation.
+  - Real Godot 4.7.2, `clients/protocol/run.sh evidence` (headless): `transcript-2d` and
+    `transcript-3d` each `c1`/`c2` moves `accepted (1 fact(s))`, `walked there in 2 stride(s)`, the
+    talk `accepted (2 fact(s))`, Alice replies; `wrote 3 submitted request(s)` for both flavours; the
+    wanderer run is told by Alice what person 5 said (AC-15 inside a client); the simultaneous pair
+    shares one world and Alice tells one what the other said.
+  - `clients/protocol/run.sh` (windowed): screenshot saved and **inspected** — Alice (3), Bob (4), the
+    wanderer (6) beside Alice with `Talk to 3 (needs 3.0 m)` available, the visitor (5) at the door,
+    `Talk to 5 — too far away`, `Walk to —` offered, the reply from Alice in "what I have been told".
+    (`arrive —` is still offered at this commit; C6 retires it and re-records.)
+  - `ac13_semantic_parity.rs` against the regenerated frames: 2/2 PASS, `2d: the client walked in 2
+    stride(s) before it spoke`, `3d: … 2 stride(s)`.
+  - Workspace rc 0, **329 passed, 0 failed**; `kill_and_resume` cafe/clock PASS; clippy, fmt clean.
+- [x] Review: the client decides nothing — it never measures whether a stride is allowed or whether
+  it is close enough to talk; it sizes its requests and renders the server's answers. `STRIDE` appears
+  only as a request size. The frozen frames were produced by a real run, not edited.
+
 ## C6 — `arrive` retired; `PersonEnteredPlace`
 
 **Goal.** One movement path (I-2) and an occupancy-change fact (MD-7). **Depends on:** C5 (no caller
