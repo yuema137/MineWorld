@@ -83,6 +83,8 @@ func _ready() -> void:
 		_mode = "portrait"
 	elif "--bodycheck" in args:
 		_mode = "bodycheck"
+	elif "--motion" in args:
+		_mode = "motion"
 	DirAccess.make_dir_recursive_absolute(OUT)
 
 
@@ -98,6 +100,8 @@ func _process(_d: float) -> void:
 		await _portrait()
 	elif _mode == "bodycheck":
 		await _bodycheck()
+	elif _mode == "motion":
+		await _motion()
 	else:
 		await _capture()
 	get_tree().quit(0)
@@ -221,6 +225,49 @@ func _portrait_walk(cam: Camera3D, base: Vector3, face: float) -> void:
 	_save_portrait("P7_walk")
 	Input.action_release("move_forward")
 	print("portrait P7_walk")
+
+
+## Frame sequences, because stiffness is about motion and stills under-show
+## it. `idle`: one whole standing loop at the reference's three-quarter
+## chest-up framing, every 0.5 s. `walk`: from the operator's third-person
+## front camera, two seconds walking, then stopping, then standing, every
+## 0.1 s. Written to shots/motion/; the launcher's caller assembles them.
+func _motion() -> void:
+	DirAccess.make_dir_recursive_absolute(OUT + "/motion")
+	player.scripted_look = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, 0.0)
+	player.set_camera(CameraRig.Mode.THIRD_FRONT)
+	await _settle(0.6)
+	var cam := Camera3D.new()
+	add_child(cam)
+	var base := player.global_position
+	var a := deg_to_rad(PORTRAIT_YAW + 34.0)
+	cam.fov = 40.0
+	cam.position = base + Vector3(-sin(a) * 1.15, 1.50, -cos(a) * 1.15)
+	cam.look_at(base + Vector3(0, 1.46, 0), Vector3.UP)
+	cam.current = true
+	for i in 26:
+		await _settle(0.5)
+		await RenderingServer.frame_post_draw
+		_save_portrait("motion/idle_%02d" % i)
+	print("motion idle: 26 frames")
+	cam.current = false
+	cam.queue_free()
+	player.scripted_look = true
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+	player.set_camera(CameraRig.Mode.THIRD_FRONT)
+	await _settle(0.3)
+	for i in 45:
+		if i == 0:
+			Input.action_press("move_forward")
+		if i == 20:
+			Input.action_release("move_forward")
+		await _settle(0.1)
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("%s/motion/walk_%02d.png" % [OUT, i])
+	print("motion walk: 45 frames")
+	player.scripted_look = false
 
 
 ## The operator's own views of the player character, full window: the two
