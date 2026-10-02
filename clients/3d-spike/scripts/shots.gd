@@ -186,6 +186,17 @@ func _portrait() -> void:
 		await RenderingServer.frame_post_draw
 		_save_portrait(v[0])
 		print("portrait %s  dist %.2f m  fov %.0f" % [v[0], v[1], v[5]])
+		if v[0] == "P6_head":
+			# the same head with the lids held shut: the evidence that the blink
+			# closes the eye rather than merely moving the lid
+			var bodies := player.find_children("*", "Human", true, false)
+			if not bodies.is_empty():
+				(bodies[0] as Human).blink_hold = Human.BLINK_PEAK
+				await RenderingServer.frame_post_draw
+				await RenderingServer.frame_post_draw
+				_save_portrait("P6b_blink")
+				(bodies[0] as Human).blink_hold = -1.0
+				print("portrait P6b_blink")
 	# and one mid-stride, because a still figure hides everything about a walk
 	await _portrait_walk(cam, base, face)
 

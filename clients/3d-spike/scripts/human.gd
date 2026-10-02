@@ -64,6 +64,24 @@ var _seat_y := 0.45
 ## failed compilation and degraded the whole scene.
 var _inst: Node3D
 
+## Blinking. The rig has no lid bones, so the lids close through the body
+## mesh's `Blink` shape key (CharMorph's L3 Eyes_Closed, baked by
+## `character_model.py`). Driven here rather than keyed in `Stand`, so a person
+## blinks while walking as well as standing; each person's rhythm is their own.
+var _face: MeshInstance3D
+var _blink_idx := -1
+var _blink_t := 0.0
+var _blink_next := 3.0
+var _blink_double := false
+var _blink_rng := RandomNumberGenerator.new()
+## Diagnostic: hold the lids at this weight (>= 0) instead of blinking.
+var blink_hold := -1.0
+## The shape key's weight at the bottom of a blink. Past 1.0 because the
+## export pushes the iris 5 mm proud of the cornea (it rendered as a blank
+## ball otherwise), and at 1.0 CharMorph's lids stopped just short of it:
+## a closed eye with a slit of iris showing.
+const BLINK_PEAK := 1.3
+
 
 static func _tex(file: String, srgb: bool) -> Texture2D:
 	var t := load(TEX + file) as Texture2D
@@ -261,6 +279,9 @@ static func build(height_m: float, skin: Color, hair: Color,
 				mi.set_surface_override_material(i, by_name[key])
 			else:
 				push_warning("human.gd: no material for surface '%s'" % key)
+		if mi.name == "Body" and mi.find_blend_shape_by_name("Blink") >= 0:
+			h._face = mi
+			h._blink_idx = mi.find_blend_shape_by_name("Blink")
 		# The hair is alpha-scissored and self-shadows badly at grazing angles.
 		if mi.name == "Hair":
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
@@ -592,6 +613,37 @@ func sit(seat_y := 0.45) -> void:
 func _ready() -> void:
 	if _sitting:
 		_settle_seat()
+	_blink_rng.seed = get_instance_id()
+	_blink_next = _blink_rng.randf_range(0.5, 4.0)
+
+
+## One blink: 70 ms closing, 30 ms shut, 120 ms opening -- the lid comes down
+## faster than it goes up. Every 2.4-5.5 s, and one time in six a double.
+func _process(delta: float) -> void:
+	if _blink_idx < 0:
+		return
+	if blink_hold >= 0.0:
+		_face.set_blend_shape_value(_blink_idx, blink_hold)
+		return
+	_blink_t += delta
+	var w := 0.0
+	var t := _blink_t - _blink_next
+	if t >= 0.0:
+		if t < 0.07:
+			w = t / 0.07
+		elif t < 0.10:
+			w = 1.0
+		elif t < 0.22:
+			w = 1.0 - (t - 0.10) / 0.12
+		else:
+			_blink_t = 0.0
+			if _blink_double:
+				_blink_double = false
+				_blink_next = 0.12
+			else:
+				_blink_double = _blink_rng.randf() < 0.16
+				_blink_next = _blink_rng.randf_range(2.4, 5.5)
+	_face.set_blend_shape_value(_blink_idx, w * BLINK_PEAK)
 
 
 ## The hips can only be measured once the tree has actually written the seated

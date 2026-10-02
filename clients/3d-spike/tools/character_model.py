@@ -37,6 +37,7 @@ import os
 import sys
 
 import bpy  # pylint: disable=import-error
+from mathutils import Vector  # pylint: disable=import-error
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import garments  # noqa: E402  pylint: disable=wrong-import-position
@@ -142,6 +143,44 @@ def write_freckles(body, path: str) -> int:
     return len(out)
 
 
+def add_blink(body, path: str) -> None:
+    """A `Blink` shape key on the final body, from the export's lid deltas.
+
+    The rig has no eyelid bones, and a person who never blinks reads as a
+    mannequin however good the pose. The export writes CharMorph's L3
+    `Eyes_Closed_Left/Right` (CC0) as position + delta -- base-mesh vertex
+    indices do not survive the trim here, positions do -- so each lid vertex
+    is found again by position. The match count and the worst distance are
+    printed, because a blink that silently matched nothing looks exactly like
+    a blink that was never added.
+    """
+    import json          # pylint: disable=import-outside-toplevel
+    from mathutils.kdtree import KDTree  # pylint: disable=import-error,import-outside-toplevel
+
+    if not os.path.exists(path):
+        print(f"  blink: {path} not found -- no Blink shape key")
+        return
+    pts = json.load(open(path, encoding="utf-8"))["points"]
+    me = body.data
+    kd = KDTree(len(me.vertices))
+    for v in me.vertices:
+        kd.insert(v.co, v.index)
+    kd.balance()
+    body.shape_key_add(name="Basis", from_mix=False)
+    kb = body.shape_key_add(name="Blink", from_mix=False)
+    matched, worst, travel = 0, 0.0, 0.0
+    for x, y, z, dx, dy, dz in pts:
+        co, i, d = kd.find((x, y, z))
+        if d > 2e-4:
+            continue
+        kb.data[i].co = co + Vector((dx, dy, dz))
+        matched += 1
+        worst = max(worst, d)
+        travel = max(travel, Vector((dx, dy, dz)).length)
+    print(f"  blink: {matched} of {len(pts)} lid vertices matched "
+          f"(worst {worst * 1000:.3f} mm), lid travel up to {travel * 1000:.1f} mm")
+
+
 def main() -> int:
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     ap = argparse.ArgumentParser()
@@ -177,6 +216,7 @@ def main() -> int:
     os.makedirs(args.out, exist_ok=True)
     report([body] + made)
     write_freckles(body, os.path.join(args.out, "freckles.json"))
+    add_blink(body, os.path.splitext(args.body)[0] + "_blink.json")
 
     out = os.path.join(args.out, "vitruvian.glb")
     for o in bpy.data.objects:
@@ -188,7 +228,8 @@ def main() -> int:
         filepath=out, export_format="GLB", use_selection=True,
         export_apply=False, export_yup=True, export_materials="EXPORT",
         export_normals=True, export_tangents=False, export_texcoords=True,
-        export_skins=True, export_animations=False, export_morph=False)
+        export_skins=True, export_animations=False, export_morph=True,
+        export_morph_normal=False)
 
     # Hair is excluded from the authored height on purpose.  `human.gd` scales
     # an instance by `height_m / CANONICAL_HEIGHT`, and `height_mm` in the world
