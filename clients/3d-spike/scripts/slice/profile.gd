@@ -285,6 +285,84 @@ static func panel(parent: Node3D, cx: float, cy: float, w: float, h: float, z: f
 	Build.box(parent, Vector3(cx + w * 0.5 - bead * 0.5, cy, z), Vector3(bead, h, 0.05), mat)
 
 
+## A street door that reads as a door from the pavement.
+##
+## Operator, after playing the slice: "none of the shops has an obvious door to
+## go in." The old doors were a flat dark leaf flush with the shopfront, panels
+## 5 mm proud, and a handle modelled BEHIND the leaf. A door is recognised by
+## outline, depth and the things a hand touches, so this builds exactly those:
+##
+##   an architrave in a contrasting light paint, standing proud of the wall;
+##   the leaf set back in a reveal, so the opening casts a shadow line;
+##   shop doors: a large glazed upper panel lit warm from behind (an open
+##     shop), a glazing bar, a brass kick plate;
+##   house doors: two raised panels with 30 mm of relief, and a lit fanlight;
+##   a brass lever and plate on the leaf's FRONT face, at 1.0 m;
+##   a stone step in front.
+##
+## (cx, y0) is the bottom centre of the opening on the façade plane z = 0, in
+## the façade's local frame; +z is the street. The caller cuts the hole.
+static func door(parent: Node3D, cx: float, y0: float, w: float, h: float,
+		leaf_c: Color, shop: bool) -> void:
+	var leaf := SlicePalette.painted(leaf_c, 0.42)
+	var leaf_dk := SlicePalette.painted(leaf_c.darkened(0.25), 0.40)
+	var arch := SlicePalette.painted(Color(0.905, 0.876, 0.800), 0.55)
+	var brass := SlicePalette.brass()
+	var z_leaf := -0.15
+	var t := 0.055
+
+	# architrave: two jambs and a head, proud of the wall, in a light colour
+	for sx in [-1.0, 1.0]:
+		Build.box(parent, Vector3(cx + sx * (w * 0.5 + 0.07), y0 + (h + 0.10) * 0.5, 0.03),
+			Vector3(0.14, h + 0.10, 0.10), arch)
+	Build.box(parent, Vector3(cx, y0 + h + 0.12, 0.04), Vector3(w + 0.40, 0.16, 0.12), arch)
+	Build.box(parent, Vector3(cx, y0 + h + 0.215, 0.07), Vector3(w + 0.50, 0.05, 0.16), arch)
+	# reveal linings, so the recess has visible sides
+	for sx in [-1.0, 1.0]:
+		Build.box(parent, Vector3(cx + sx * (w * 0.5 - 0.015), y0 + h * 0.5, z_leaf * 0.5),
+			Vector3(0.03, h, -z_leaf), leaf_dk)
+	Build.box(parent, Vector3(cx, y0 + h - 0.015, z_leaf * 0.5), Vector3(w, 0.03, -z_leaf), leaf_dk)
+
+	# the leaf
+	var lw := w - 0.06
+	Build.box(parent, Vector3(cx, y0 + h * 0.5, z_leaf), Vector3(lw, h, t), leaf)
+	var face := z_leaf + t * 0.5
+	if shop:
+		var gy0 := y0 + h * 0.40
+		var gy1 := y0 + h - 0.16
+		# the lit glazing: an open shop shows its light through the door
+		Build.box(parent, Vector3(cx, (gy0 + gy1) * 0.5, face - 0.01),
+			Vector3(lw - 0.22, gy1 - gy0, 0.012), Mats.emissive(Color(1.0, 0.80, 0.55), 0.9))
+		Build.box(parent, Vector3(cx, (gy0 + gy1) * 0.5, face + 0.004),
+			Vector3(lw - 0.22, gy1 - gy0, 0.008), SlicePalette.door_glass())
+		Build.box(parent, Vector3(cx, (gy0 + gy1) * 0.5, face + 0.012),
+			Vector3(0.035, gy1 - gy0, 0.02), leaf)                              # glazing bar
+		# glazing bead, proud
+		for gy in [gy0, gy1]:
+			Build.box(parent, Vector3(cx, gy, face + 0.012), Vector3(lw - 0.18, 0.04, 0.03), leaf)
+		panel(parent, cx, y0 + h * 0.20, lw - 0.24, h * 0.26, face + 0.03, leaf_dk, 0.05, 0.03)
+		Build.box(parent, Vector3(cx, y0 + 0.11, face + 0.006), Vector3(lw - 0.08, 0.18, 0.012), brass)
+	else:
+		for k in range(2):
+			var py := y0 + h * (0.26 + 0.46 * float(k))
+			for sx in [-1.0, 1.0]:
+				panel(parent, cx + sx * lw * 0.24, py, lw * 0.36, h * 0.36, face + 0.03,
+					leaf_dk, 0.05, 0.03)
+		# fanlight over the house door, lit
+		Build.box(parent, Vector3(cx, y0 + h + 0.30, -0.06), Vector3(w - 0.04, 0.26, 0.012),
+			Mats.emissive(Color(1.0, 0.82, 0.58), 0.55))
+	# handle and plate on the FRONT of the leaf, at a hand's height
+	var hx := cx + lw * 0.5 - 0.12
+	Build.box(parent, Vector3(hx, y0 + 1.00, face + 0.008), Vector3(0.05, 0.24, 0.016), brass)
+	Build.box(parent, Vector3(hx - 0.05, y0 + 1.02, face + 0.05), Vector3(0.13, 0.025, 0.025), brass)
+	Build.box(parent, Vector3(hx, y0 + 1.02, face + 0.03), Vector3(0.025, 0.025, 0.05), brass)
+	# a stone step, wider than the door
+	Build.box(parent, Vector3(cx, y0 + 0.06, 0.20), Vector3(w + 0.50, 0.12, 0.40),
+		SlicePalette.kerbstone())
+	# the opening is solid at the leaf
+	Build.box_blocker(parent, Vector3(cx, y0 + h * 0.5, z_leaf), Vector3(w, h, 0.10))
+
+
 ## A straight canvas awning on folding arms, with a valance and printed text.
 ## `proj` is how far it reaches over the pavement; the plates put it at 1.3-1.6 m.
 static func awning(parent: Node3D, x0: float, x1: float, y: float, proj: float,

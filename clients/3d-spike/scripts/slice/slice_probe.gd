@@ -95,7 +95,7 @@ func _ready() -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
 	OS.low_processor_usage_mode = false
-	for m in ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots"]:
+	for m in ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors"]:
 		if "--slice-" + m in a:
 			_mode = m
 	DirAccess.make_dir_recursive_absolute(OUT)
@@ -116,6 +116,7 @@ func _process(_d: float) -> void:
 		"perf": await _perf()
 		"hud": await _hud_frames()
 		"jumpshots": await _jump_frames()
+		"doors": await _door_frames()
 	get_tree().quit(0)
 
 
@@ -217,6 +218,26 @@ func _hud_frames() -> void:
 	get_viewport().get_texture().get_image().save_png("%s/hud_faded.png" % OUT)
 	print("hud    captured hud_toast.png and hud_faded.png, camera now '%s'"
 		% player.rig.mode_name())
+
+
+## Every street door, from the pavement 3 m out and 1.4 m to one side, so the
+## reveal's depth shows: where a first-time player looks for the way in.
+func _door_frames() -> void:
+	var k := 0
+	for d in SliceTerrace.doors:
+		var p: Vector3 = d[0]
+		var fy: float = d[1]
+		var b := Basis(Vector3.UP, fy)
+		var stand := p + b * Vector3(1.4, 0.0, 3.0)
+		stand.y = 0.45
+		player.place(stand, rad_to_deg(fy) + 25.0, 2.0)
+		player.set_camera(FP)
+		await _settle(10)
+		var nm := "door_%02d" % k
+		get_viewport().get_texture().get_image().save_png("%s/%s.png" % [OUT, nm])
+		print("door   %s  %-30s at %s%s" % [nm, d[2], p,
+			"  WARNING: body lifted" if player.global_position.y > 0.40 else ""])
+		k += 1
 
 
 ## A jump as a short frame sequence, third person front, so the body is seen.

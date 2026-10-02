@@ -21,6 +21,16 @@ const SKIN := 0.35
 ## needs the mass to start this far back.
 const RECESS_DEEP := 1.45
 
+## House door colours, chosen to stand out against stone, brick and render:
+## oxblood, deep blue, bottle green, dark teal.
+const HOUSE_DOOR := [Color(0.420, 0.118, 0.110), Color(0.140, 0.200, 0.330),
+	Color(0.120, 0.290, 0.200), Color(0.100, 0.300, 0.320)]
+
+## Every street door built, as [world position of its sill centre, the
+## façade's yaw, a label] -- so `--doors` can photograph each one from the
+## pavement where a first-time player would look for it.
+static var doors: Array = []
+
 ## One building. `origin` is the facade line; `yaw` turns it to face the street.
 class Unit extends RefCounted:
 	var x0: float
@@ -126,16 +136,8 @@ static func _shopfront(g: Node3D, u: Unit, h: float, holes: Array, pocket: Array
 	# door to one side, window to the other
 	var door_x := x_l + 0.82
 	var door_w := 1.02
-	for jx in [door_x - door_w * 0.5 - 0.07, door_x + door_w * 0.5 + 0.07]:
-		Build.box(g, Vector3(jx, 1.12, 0.04), Vector3(0.14, 2.24, 0.18), paint)
-	Build.box(g, Vector3(door_x, 2.30, 0.04), Vector3(door_w + 0.38, 0.14, 0.18), paint)
-	Build.box(g, Vector3(door_x, 1.12, -0.05), Vector3(door_w, 2.22, 0.07), dark)
-	Build.box(g, Vector3(door_x, 1.44, -0.02), Vector3(door_w - 0.22, 1.10, 0.016),
-		SlicePalette.dead_glass())
-	Build.box(g, Vector3(door_x + door_w * 0.35, 1.05, -0.09), Vector3(0.045, 0.20, 0.04),
-		SlicePalette.brass())
-	Build.box(g, Vector3(door_x, 0.06, 0.16), Vector3(door_w + 0.5, 0.12, 0.34),
-		SlicePalette.kerbstone())
+	Profile.door(g, door_x, 0.0, door_w, 2.22, u.front_c, true)
+	doors.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y, u.name_text])
 
 	var win_l := door_x + door_w * 0.5 + 0.22
 	var win_r := x_r - 0.26
@@ -215,23 +217,11 @@ static func _ground_floor(g: Node3D, u: Unit, h: float, holes: Array) -> void:
 		SlicePalette.kerbstone())
 	Build.box(g, Vector3((dr + w * 0.5) * 0.5, 0.30, 0.045), Vector3(w * 0.5 - dr, 0.60, 0.09),
 		SlicePalette.kerbstone())
-	var paint := SlicePalette.painted(u.front_c, 0.48)
-	holes.append(Rect2(door_x - 0.52, 0.0, 1.04, 2.53))
-	Build.box_blocker(g, Vector3(door_x, 1.2, -0.06), Vector3(1.04, 2.4, 0.10))
-	for jx in [door_x - 0.62, door_x + 0.62]:
-		Build.box(g, Vector3(jx, 1.16, 0.075), Vector3(0.20, 2.32, 0.15),
-			SlicePalette.kerbstone())
-	Build.box(g, Vector3(door_x, 2.40, 0.10), Vector3(1.60, 0.20, 0.20),
-		SlicePalette.kerbstone())
-	Build.box(g, Vector3(door_x, 1.10, -0.06), Vector3(1.04, 2.20, 0.08), paint)
-	for i in range(2):
-		Profile.panel(g, door_x, 0.60 + i * 1.10, 0.74, 0.82, -0.015, paint, 0.05, 0.016)
-	Build.box(g, Vector3(door_x, 2.36, -0.03), Vector3(1.00, 0.34, 0.014),
-		SlicePalette.dead_glass())
-	Build.box(g, Vector3(door_x + 0.38, 1.02, -0.10), Vector3(0.05, 0.18, 0.05),
-		SlicePalette.brass())
-	Build.box(g, Vector3(door_x, 0.07, 0.20), Vector3(1.50, 0.14, 0.40),
-		SlicePalette.kerbstone())
+	# a house door in a colour that stands out from its wall, with a lit fanlight
+	holes.append(Rect2(door_x - 0.52, 0.0, 1.04, 2.56))
+	Profile.door(g, door_x, 0.0, 1.04, 2.10, HOUSE_DOOR[int(absf(u.x0)) % HOUSE_DOOR.size()],
+		false)
+	doors.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y, "house door"])
 	var n := maxi(1, int((w - 3.2) / 2.6))
 	for i in range(n):
 		var cx := door_x + 1.9 + (w - 3.4 - 1.9) * (float(i) + 0.5) / float(n)

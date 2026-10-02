@@ -246,6 +246,8 @@ static func _doorway(g: Node3D, green: Material, dark: Material, stone: Material
 	g.add_child(ramp)
 
 	_door_leaf(g, d0)
+	SliceTerrace.doors.append([g.to_global(Vector3(DOOR_X, 0.0, 0.0)), g.global_rotation.y,
+		"The Daily Bean -- enterable"])
 
 
 ## An open door leaf, hinged at the left jamb and swung inward.
