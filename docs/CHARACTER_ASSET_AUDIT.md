@@ -497,6 +497,15 @@ Applied **after step 7**, on the mesh:
 The `AqueosLayer` delete (step 6) runs last, after everything that indexes
 `me.polygons`.
 
+**Blink (added 2026-10-01).** Just before that delete, while the vertex order
+is still the base mesh's, the export loads CharMorph's L3
+`Eyes_Closed_Left.npz` and `Eyes_Closed_Right.npz` (CC0; arrays `idx` uint16
+and `delta` float64 ×3) and writes `<out>_blink.json`: for each listed vertex,
+its current position and its delta, 1,099 vertices in all. Positions rather
+than indices, because the trim in `character_model.py` renumbers the body;
+`add_blink` there finds every one again (1,099 of 1,099, worst 0.001 mm) and
+adds the `Blink` shape key.
+
 **Reproduced 2026-09-30.** CharMorph (`Upliner/CharMorph`, `master`) and
 `character.zip` (`v1.6.1`, 1,122,993,038 bytes) were re-fetched into
 `/Users/yuema137/mineworld-worktrees/scratch-character/`, outside the

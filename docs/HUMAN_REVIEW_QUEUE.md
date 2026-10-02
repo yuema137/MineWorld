@@ -7,7 +7,7 @@ a place here when a coherent capability can be *experienced* as a whole.
 Engineering progress is tracked separately in [`MVP_STATUS.md`](MVP_STATUS.md). A milestone parked
 here does not block anything else.
 
-**Updated:** 2026-09-30
+**Updated:** 2026-10-01
 
 ---
 
@@ -53,10 +53,77 @@ identifies one thing.
 | | Milestone | State |
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
-| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 👀 **preview 2026-09-30 — not an acceptance request** (`ARC-24`); one §5 hard-fail category is open and is the first question; see below |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 👀 **preview 2, 2026-10-01 — not an acceptance request** (`ARC-24`): the body repaired and an authored standing pose with breathing, gaze drift and blinks; hairstyle category (§5) still open; see below |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ❌ |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
+
+### `VIS-3D-GODOT-1` — preview 2, 2026-10-01: the body repaired, and she stands like a person
+
+**A preview, not an acceptance request** (`ARC-24`). It answers the operator's two verdicts on
+preview 1, *"the character renders incomplete — the body is broken / missing parts"* and *"still
+looks too stiff"*. Hairstyle category still fails §5; the hair, the hoodie method and the face are
+the next work and are not in this preview (see the end of this entry).
+
+**Launch**
+
+```sh
+./mineworld-3d              # walk: WASD, mouse to look, Shift jogs, F5 cycles the camera
+./mineworld-3d --portrait   # the reference-framing frames, incl. P6b_blink, into clients/3d-spike/shots/
+godot --path clients/3d-spike --always-on-top -- --bodycheck   # the operator's views + townspeople
+godot --path clients/3d-spike --always-on-top --resolution 1200x1500 -- --motion   # frame sequences
+```
+
+**1. The missing body parts — located and fixed.** The player character was whole from every
+camera, standing and walking. **The townspeople were not:** the seated café customer rendered as
+a front panel of jersey, a floating head and two floating hands, with no shoulders, arms or back.
+The skin had been trimmed for the *hoodie* (torso, shoulders, both arms to the cuff), the tee had
+been cut down to the band the reference character's open front shows, and only she wears the
+hoodie. Now one predicate cuts the tee and decides the trim. The tee is whole again (torso,
+shoulders, short sleeves, crew neck), and the skin under the hoodie's long sleeves stays as
+everyone else's forearms. Evidence: `candidate/townspeople_whole.jpg` (seated and standing, front
+and back) and `candidate/operator_views.jpg` (rear and front cameras, standing and walking).
+
+**2. Stiffness — the standing pose is authored, through the `AnimationTree`.** The library's
+`Idle` is an action-game stance: feet wide, arms held clear, head back. It is replaced by a
+`Stand` clip of our own at the same blend point, the way `Sit` is done:
+
+| | Reference | Candidate now | Frame |
+| --- | --- | --- | --- |
+| Arms | her left hand on her left strap at chest height, elbow down at her side; the other arm relaxed | the same grip, knuckle 0 mm from the strap at every sampled time; the free arm hangs at her side with the elbow soft, the hand 100–108 mm out from the hip joint | `p1`, `p3` |
+| Weight | on one leg, body slightly turned | on her right leg: pelvis dropped 5° to the free side, the spine countering, the free knee soft and the foot a little forward; both soles on the floor (measured) | `p3`, `p4` |
+| Head | turned to her left, level, looking off-frame | turned 28–39° to her left over the loop, level | `p1`, `p2`, `p6` |
+| Life | — | breathes (a 4.2 s cycle in the chest and shoulders), the gaze drifts over 12.6 s, and she **blinks** every 2.4–5.5 s, sometimes twice | `motion_idle.gif`, `p6b_blink` |
+
+The townspeople use the same standing clip, without the grip.
+
+**Motion:** `candidate/motion_idle.gif` (one 12.6 s standing loop at the reference's
+three-quarter chest-up framing, played at 2× speed) and `candidate/motion_walk_stop.gif` (walking
+towards the front camera, stopping, standing).
+
+**Known misses, largest first**
+
+1. **Hair** — still the procedural cap; it fails its category (§5).
+2. **Face.** The skin carries a specular sheen; the mouth is neutral where the reference smiles;
+   the pupils are oversized. The head is now level, so she no longer reads as looking up.
+3. **Hoodie** — reads padded; it is a body-surface offset with no drape.
+4. **Weight shift** — present and measured, but at full-body distance it is subtle. Lightly
+   built, as asked; it can go further.
+5. **Blink** — at its 30 ms closed peak a speck of iris shows at the nearer eye
+   (`p6b_blink`).
+
+**Questions**
+
+1. Does she still read as stiff, standing and walking (the two GIFs)? If so, what reads stiff
+   first?
+2. Is the head turn right, at 28–39° to her left, or should she look further away from the
+   viewer, as the reference does?
+3. Is the weight shift too subtle?
+
+**Next, in this order** (direction from `CHARACTER_ROUTE_ASSESSMENT.md`, keeping the CharMorph
+body and rig): the hair groomed from strands and converted to cards; the hoodie as a draped
+cloth-simulated garment with a real hood; then a skin material pass. The face beyond tilt, eyes
+and sheen is the operator's decision.
 
 ### `VIS-3D-GODOT-1` — preview, 2026-09-30
 
