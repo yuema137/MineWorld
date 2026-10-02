@@ -95,7 +95,8 @@ func _ready() -> void:
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
 	OS.low_processor_usage_mode = false
-	for m in ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors"]:
+	for m in ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors",
+			"link"]:
 		if "--slice-" + m in a:
 			_mode = m
 	DirAccess.make_dir_recursive_absolute(OUT)
@@ -117,6 +118,7 @@ func _process(_d: float) -> void:
 		"hud": await _hud_frames()
 		"jumpshots": await _jump_frames()
 		"doors": await _door_frames()
+		"link": await _link_check()
 	get_tree().quit(0)
 
 
@@ -218,6 +220,97 @@ func _hud_frames() -> void:
 	get_viewport().get_texture().get_image().save_png("%s/hud_faded.png" % OUT)
 	print("hud    captured hud_toast.png and hud_faded.png, camera now '%s'"
 		% player.rig.mode_name())
+
+
+## C8: the slice against a real `mineworld server worlds/social-cafe`.
+## Pass: seated; a position report accepted; the server's next view of the
+## player equals what was reported, millimetre for millimetre; every perceived
+## person drawn inside the room; a `talk` answered by the server.
+func _link_check() -> void:
+	print("== VISUAL_SLICE.md sec.9 -- the slice as a MineWorld presentation ==\n")
+	var link := slice.link
+	var fails := 0
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.cafe_place == ""):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	if not link.client.is_seated():
+		print("FAIL: not seated after 10 s")
+		return
+	print("seated   observer %s in place %s" % [link.client.observer, link.cafe_place])
+	await _hold(0.5)
+
+	# perceived people, drawn where the world says, inside the room
+	for id in link.figures:
+		var fp: Vector3 = (link.figures[id] as Node3D).global_position
+		var inside := _inside_room(fp + Vector3(0, 0.5, 0))
+		print("person   %s at %s  %s" % [id, fp, "inside the room" if inside else "OUTSIDE THE ROOM"])
+		if not inside:
+			fails += 1
+	if link.figures.size() < 2:
+		fails += 1
+		print("FAIL: expected at least two other people perceived, got %d" % link.figures.size())
+
+	# walk in through the door; the link reports on its own as the body moves
+	player.place(Vector3(3.45, 0.45, -6.20), 0.0, 0.0)
+	await _hold(0.4)
+	await _walk(3.0)
+	var tok := link.report_position()
+	var sent: Dictionary = link.last_sent_local.duplicate()
+	var t := 0.0
+	while t < 3.0 and not _answered(link, tok):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.6)   # the next observation after the answer
+	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
+	var accepted := moves.filter(func(a): return a["result"] == "accepted").size()
+	print("move     %d %s reports, %d accepted" % [moves.size(), SliceLink.MOVE_ACTION, accepted])
+	if accepted < 1:
+		fails += 1
+		print("FAIL: no position report accepted -- %s" % [moves])
+	var seen: Variant = link.client.latest.self_location().get("local")
+	print("position sent %s, server now says %s" % [sent, seen])
+	if typeof(seen) != TYPE_DICTIONARY or int(seen.get("x", -1)) != int(sent["x"]) \
+			or int(seen.get("y", -1)) != int(sent["y"]):
+		fails += 1
+		print("FAIL: the server's view of the player is not where the player reported")
+
+	# talk to whoever the world tags as the barista, by turning to face them
+	var barista := ""
+	for id in link.client.latest.tagged("barista"):
+		barista = id
+	if barista == "" or not link.figures.has(barista):
+		fails += 1
+		print("FAIL: no barista perceived")
+	else:
+		var to: Vector3 = (link.figures[barista] as Node3D).global_position - player.global_position
+		player.rotation.y = atan2(-to.x, -to.z)
+		player.rig.pitch = 0.0
+		await _hold(0.2)
+		var ttok := link.talk_to_facing("Hello! A coffee, please.")
+		t = 0.0
+		while t < 4.0 and not _answered(link, ttok):
+			await get_tree().process_frame
+			t += get_process_delta_time()
+		var ans := link.answers.filter(func(a): return a["token"] == ttok)
+		print("talk     to %s -> %s" % [barista, ans[0]["result"] if not ans.is_empty() else "NO ANSWER"])
+		if ans.is_empty():
+			fails += 1
+		else:
+			print("         %s" % JSON.stringify(ans[0].get("detail", ans[0])))
+	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+func _answered(link: SliceLink, tok: String) -> bool:
+	for a in link.answers:
+		if a["token"] == tok:
+			return true
+	return false
 
 
 ## Every street door, from the pavement 3 m out and 1.4 m to one side, so the

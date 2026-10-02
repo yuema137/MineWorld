@@ -46,6 +46,7 @@ func _ready() -> void:
 	_reflections()
 	_spawn_player()
 	_hud()
+	_link()
 
 	if SliceProbe.scripted():
 		probe = SliceProbe.new()
@@ -334,3 +335,28 @@ func _hud() -> void:
 		return
 	hud = ControlsHud.attach(self, player)
 	_hud_place = hud.add_line("place: -")
+	_hud_world = hud.add_line("world: offline  (./mineworld-slice --server=host:port)")
+
+
+## The connection to a running MineWorld world (`VISUAL_SLICE.md` sec.9), when
+## `--server=` is given. Without it the slice runs offline and says so.
+var link: SliceLink = null
+var _hud_world: Label = null
+
+
+func _link() -> void:
+	var address := SliceLink.address_from_args()
+	if address == "":
+		return
+	link = SliceLink.new()
+	link.name = "SliceLink"
+	link.player = player
+	link.world_root = world
+	add_child(link)
+	link.said.connect(func(text: String) -> void:
+		if _hud_world != null:
+			_hud_world.text = "world: " + text
+		if hud != null and (text.begins_with("seated") or text.begins_with("talk")
+				or text.begins_with("refused") or text.begins_with("disconnected")):
+			hud.toast(text))
+	link.start(address, SliceLink.seat_from_args())
