@@ -163,6 +163,21 @@ banknote, and `hanging_picture_frame_02`, whose painting is signed by an uncredi
 3. Should the paving go to grey setts, as in both references?
 4. Of interior density, paving, light on the frontage and planting, which should come first?
 
+#### Preview update, 2026-10-01 — playability: camera key, jump, doors
+
+From the operator's first walk. **Still a preview.** Same launch command.
+
+| | What changed | Frames (`clients/3d-spike/shots/slice/preview/`) |
+| --- | --- | --- |
+| camera | **V** cycles the camera (F5 kept: on a Mac it is a media key without Fn). A controls line is always on screen, and a centred toast names the new mode ("Third person — rear"), fading after about 2 s. Both scenes share one HUD | `controls_hud_toast.jpg`, `controls_hud_after_fade.jpg` |
+| jump | **Space** jumps 0.45 m by design (0.49 m measured at 60 Hz): a person, not Minecraft's 1.25 m. From the floor only, so no mid-air second jump; client-local rendered movement, not a server action. No jump clip exists in the rig's set, so the body holds its idle/walk blend in the air | `jump_sequence.jpg` |
+| doors | every street door now has a light architrave, a recessed leaf with real panels or glazing, a brass handle on the front, and a step. House doors are coloured to stand out. The café's door is the one that opens: it stands open onto the lit room | `doors_from_the_pavement.jpg` (all 12), `door_detail_shop.jpg`, `door_detail_house.jpg`, `door_cafe_enterable.jpg` |
+
+**One question this raises.** The operator's rule, "buildings must be real and enterable", suggests making
+a second shop enterable. `VISUAL_SLICE.md` §4 lists *a second enterable building* as explicitly out
+of scope, because the Godot and Unreal slices must stay comparable. Should §4 change? Until it
+does, the other doors read as doors and do not open.
+
 ### What a review package contains (`ARC-20`)
 
 Milestone id · what changed · **the exact launch command** · real runtime screenshots · the
