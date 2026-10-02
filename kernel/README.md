@@ -16,10 +16,17 @@ view         what a running system is handed — reads open, writes gated on own
 registry     which systems a world is composed of, and which of them are enabled
 dispatch     ActionIntent → route → validate → resolve → Event(s) → reduce
 world        World: the composed whole, and the only issuer of write capability in it
+clock        WorldClock: simulated seconds, moved only forward, never read from a wall clock
+schedule     the (WorldTime, Sequence) queue of deferred facts and process ends
+advance      World::advance_to / step: jump to the next due instant and fire it
+process      Process: stored state over time, changed only by its owner; interruption by request
+snapshot     WorldSnapshot: the whole of a world's state as data; World::snapshot / World::restore
 errors       KernelError
 ```
 
-Still to come, in this order: the world clock and scheduler, then persistence and the event log.
+A world can be written down and read back whole (`World::snapshot`, `World::restore`). The journal,
+the event log and the save file live one crate up, in `persistence/`, so no storage engine enters the
+kernel (`docs/DECISIONS.md` `ARC-25`, `DEP-2`).
 
 ## The two ideas to understand first
 
@@ -41,6 +48,13 @@ its actions out of dispatch and its reductions out of the pipeline, with no edit
 an action no enabled system provides is answered `Unavailable`, which is an ordinary answer and not
 a failure. That is the whole point of the project, so it has a test of its own:
 [`tests/two_systems.rs`](tests/two_systems.rs), where two worlds differ by one boolean.
+
+**Time moves only when the world is told to move it.** `World::advance_to(t)` fires everything due
+up to `t` in `(instant, order queued)` order and skips the empty spans between; a request is
+dispatched at an instant and may not overtake work already due. Three hundred simulated days run in
+a fraction of a second and replay byte for byte from the same seed —
+[`tests/long_run.rs`](tests/long_run.rs). What a day or an hour *means* is a system's business, never
+the kernel's.
 
 Some of these guarantees are checked by code that must **not** compile — a system writing state it
 does not own, a forged token, an external crate building its own issuer of write capability — in

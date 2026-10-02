@@ -34,8 +34,14 @@
 //! said.** That sentence cannot be produced by two synchronised copies, because neither copy was ever
 //! told the other's conversation — it can only be produced by one Person holding both.
 //!
-//! `MVP.md` §9.1's fourth line, *same persisted state revision*, has no referent yet: this server
-//! holds its world in memory and persistence is S5's. Recorded as missing rather than approximated.
+//! and, since S5, the fourth line of `MVP.md` §9.1:
+//!
+//! ```text
+//! same persisted state       the server runs with --save; both windows' observations name the same
+//!   revision                 revision, which GET /status reports as the world's persisted head, and
+//!                            which the save on disk holds as its journal head once the server is gone
+//!                            (`docs/DECISIONS.md` ARC-25, `server/PROTOCOL.md` §5)
+//! ```
 //!
 //! # Why the evidence is read off frames rather than out of the server
 //!
@@ -49,7 +55,9 @@ mod support;
 use mineworld_contracts::EntityId;
 use mineworld_server::RefusalCode;
 use serde_json::json;
-use support::{Client, Server, arrive, may_talk_to, own_history, tagged, talk};
+use support::{
+    Client, SaveDir, Server, arrive, may_talk_to, own_history, run_command, tagged, talk,
+};
 
 /// What the 2D window says, and what the 3D window says. Distinct on purpose: the test asserts that
 /// the *first* window's words come back out of the mouth of the person the *second* window meets.
@@ -63,7 +71,16 @@ const ALSO_NEXT_TO_ALICE: (i32, i32) = (2_400, 2_400);
 
 #[tokio::test]
 async fn there_is_only_one_alice() {
-    let server = Server::start(&["server", support::PACK, "--agent", "alice"]).await;
+    let save = SaveDir::new("ac15");
+    let server = Server::start(&[
+        "server",
+        support::PACK,
+        "--agent",
+        "alice",
+        "--save",
+        save.path(),
+    ])
+    .await;
 
     // ── Three participants, one server. ──────────────────────────────────────────────────────
     let mut two_d = Client::connect(server.address).await;
@@ -231,11 +248,61 @@ async fn there_is_only_one_alice() {
         "the agent's facts are in the same sequence, between the two windows': {sequence:?}"
     );
 
+    // ── EVIDENCE 4: one persisted state revision. ────────────────────────────────────────────
+    // Alice has answered both windows and nobody else is acting, so the world's persisted head is
+    // settled. Both windows must come to observe exactly that revision — the state they look at is one
+    // committed state of one world, not two states that happen to look alike.
+    let head = server.status().await["revision"]
+        .as_u64()
+        .expect("a persisted world reports its revision");
+    assert!(
+        head >= 7,
+        "genesis, two arrivals, two talks and Alice's two replies are seven revisions at least: {head}"
+    );
+    let mut seen_at = Vec::new();
+    for window in [&mut two_d, &mut three_d] {
+        let deadline = std::time::Instant::now() + support::PATIENCE;
+        loop {
+            let (revision, _) = window.perceived().await;
+            let revision =
+                revision.expect("every observation of a persisted world names a revision");
+            assert!(
+                revision.raw() <= head,
+                "no window sees past the persisted head"
+            );
+            if revision.raw() == head {
+                seen_at.push(revision.raw());
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the window reached revision {head}"
+            );
+        }
+    }
+    assert_eq!(
+        seen_at,
+        vec![head, head],
+        "both windows observe the same persisted revision"
+    );
+    drop(two_d);
+    drop(three_d);
+    drop(server);
+    // And it is persisted: with the server gone, the save on disk holds exactly that head, and its
+    // whole history re-executes.
+    let (status, printed) = run_command(&["replay", support::PACK, "--save", save.path()]);
+    assert!(status.success(), "the save verifies: {printed}");
+    assert!(
+        printed.contains(&format!("head revision {head}")),
+        "the save's head is the revision both windows observed: {printed}"
+    );
+
     // ── What the evidence actually was. ──────────────────────────────────────────────────────
     println!("AC-15 evidence, read off the frames two clients received:");
     println!("  same world instance          {instance}");
     println!("  same Alice EntityId          {alice}");
     println!("  one event sequence           {sequence:?}");
+    println!("  one persisted revision       {head} (both windows; GET /status; the save's head)");
     println!("  one action-id allocator      {first_action}, {second_action}");
     println!("  2D window ({visitor}) said   {FROM_THE_2D_WINDOW:?}");
     println!("  3D window ({wanderer}) said  {FROM_THE_3D_WINDOW:?}");

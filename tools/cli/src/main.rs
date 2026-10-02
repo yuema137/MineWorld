@@ -1,8 +1,10 @@
 //! `mineworld` — the command that runs a world.
 //!
 //! ```text
-//! mineworld server <world> [--listen ADDRESS] [--agent SEAT]...   load the pack and host it
-//! mineworld validate <world>                                      load it, say what it is, and stop
+//! mineworld server <world> [--listen ADDRESS] [--agent SEAT]... [--save DIR]
+//!                                       load the pack and host it; with --save, persisted
+//! mineworld validate <world>            load it, say what it is, and stop
+//! mineworld replay <world> --save DIR   re-execute a save's whole history and check it
 //! ```
 //!
 //! `ARC-6` makes the artefacts the deliverable: MineWorld is *an installable world runtime plus
@@ -41,11 +43,15 @@ mod agent;
 mod perceive;
 
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use mineworld_contracts::{EntityKey, WorldTime};
-use mineworld_server::{HostConfig, HostError, HostedWorld, SeatRoster, WorldHost, app};
+use mineworld_persistence::{Creation, Durability, PersistentWorld, SqliteBackend, verify};
+use mineworld_presence::PerceptionProvider;
+use mineworld_server::{
+    HostConfig, HostError, HostedWorld, SeatRoster, WorldHost, WorldInstanceId, app,
+};
 use mineworld_worldpack::{PackError, WorldPack};
 
 use crate::perceive::PackPerception;
@@ -57,13 +63,19 @@ const DEFAULT_LISTEN: &str = "127.0.0.1:7878";
 const USAGE: &str = "\
 mineworld — run a MineWorld world
 
-    mineworld server <world> [--listen ADDRESS] [--agent SEAT]...
+    mineworld server <world> [--listen ADDRESS] [--agent SEAT]... [--save DIR]
         host a World Pack (default 127.0.0.1:7878)
         --agent SEAT drives that seat with a rule controller, in this process, over the same
         path a client's connection uses. Repeat it for more than one.
+        --save DIR keeps the world in DIR/world.sqlite: created from the pack the first time,
+        resumed — the same world, where it stopped — every time after.
 
     mineworld validate <world>
         check a World Pack and say what it is
+
+    mineworld replay <world> --save DIR
+        re-execute the saved world's whole history from its beginning and check that every
+        fact and every snapshot reproduces, byte for byte
 
 `mineworld create` and `mineworld inspect` do not exist yet (they are S7).";
 
@@ -83,11 +95,13 @@ async fn main() -> ExitCode {
             return ExitCode::SUCCESS;
         }
         Command::Validate { world } => validate(&world),
+        Command::Replay { world, save } => replay(&world, &save),
         Command::Server {
             world,
             listen,
             agents,
-        } => serve(world, listen, agents).await,
+            save,
+        } => serve(world, listen, agents, save).await,
     };
 
     match outcome {
@@ -106,9 +120,12 @@ enum Command {
         world: PathBuf,
         listen: SocketAddr,
         agents: Vec<EntityKey>,
+        save: Option<PathBuf>,
     },
     /// Check a world and report it.
     Validate { world: PathBuf },
+    /// Re-execute a save's history and check it.
+    Replay { world: PathBuf, save: PathBuf },
     /// Say what the command can do.
     Help,
 }
@@ -132,8 +149,10 @@ impl Command {
                 let world = world_argument(&subcommand, arguments.next())?;
                 let mut listen = DEFAULT_LISTEN.to_owned();
                 let mut agents = Vec::new();
+                let mut save = None;
                 while let Some(argument) = arguments.next() {
                     match argument.as_str() {
+                        "--save" => save = Some(save_argument(arguments.next())?),
                         "--listen" => {
                             listen = arguments.next().ok_or_else(|| {
                                 "--listen needs an address, such as 0.0.0.0:7878".to_owned()
@@ -157,7 +176,22 @@ impl Command {
                     world,
                     listen,
                     agents,
+                    save,
                 })
+            }
+            "replay" => {
+                let world = world_argument(&subcommand, arguments.next())?;
+                let mut save = None;
+                while let Some(argument) = arguments.next() {
+                    match argument.as_str() {
+                        "--save" => save = Some(save_argument(arguments.next())?),
+                        other => return Err(unexpected(other)),
+                    }
+                }
+                let save = save.ok_or_else(|| {
+                    "mineworld replay needs --save DIR, the save to check".to_owned()
+                })?;
+                Ok(Self::Replay { world, save })
             }
             "validate" => {
                 let world = world_argument(&subcommand, arguments.next())?;
@@ -183,6 +217,13 @@ fn world_argument(subcommand: &str, argument: Option<String>) -> Result<PathBuf,
                 "mineworld {subcommand} needs a World Pack directory, such as worlds/social-cafe"
             )
         })
+}
+
+fn save_argument(argument: Option<String>) -> Result<PathBuf, String> {
+    argument
+        .filter(|directory| !directory.starts_with('-'))
+        .map(PathBuf::from)
+        .ok_or_else(|| "--save needs a directory, such as --save saves/social-cafe".to_owned())
 }
 
 fn unexpected(argument: &str) -> String {
@@ -222,7 +263,12 @@ fn validate(world: &PathBuf) -> Result<(), String> {
 }
 
 /// Loads a pack and hosts it until interrupted, with a controller on each requested seat.
-async fn serve(world: PathBuf, listen: SocketAddr, agents: Vec<EntityKey>) -> Result<(), String> {
+async fn serve(
+    world: PathBuf,
+    listen: SocketAddr,
+    agents: Vec<EntityKey>,
+    save: Option<PathBuf>,
+) -> Result<(), String> {
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
     let pack = WorldPack::read(&world).map_err(described)?;
@@ -251,12 +297,21 @@ async fn serve(world: PathBuf, listen: SocketAddr, agents: Vec<EntityKey>) -> Re
         }
     }
 
+    let recent = config.recent_events;
     let host = WorldHost::spawn(config, move || {
         let seats = SeatRoster::new(pack.seats().iter().cloned());
-        let running = pack.load(epoch).map_err(HostError::build)?.into_running();
-        Ok(HostedWorld::new(running.world)
-            .seating(seats)
-            .perceiving(PackPerception::new(running.providers)))
+        let hosted = match save {
+            None => {
+                let running = pack.load(epoch).map_err(HostError::build)?.into_running();
+                HostedWorld::new(running.world).perceiving(PackPerception::new(running.providers))
+            }
+            Some(save) => {
+                let (persisted, providers) = persisted(&pack, &save, epoch)?;
+                HostedWorld::persisted(persisted, recent)?
+                    .perceiving(PackPerception::new(providers))
+            }
+        };
+        Ok(hosted.seating(seats))
     })
     .await
     .map_err(|error| format!("[mineworld] {error}"))?;
@@ -293,6 +348,75 @@ async fn serve(world: PathBuf, listen: SocketAddr, agents: Vec<EntityKey>) -> Re
     .map_err(|error| format!("[mineworld] {error}"))?;
 
     host.shutdown().await;
+    Ok(())
+}
+
+/// The pack's world with a save in `save`: created from the pack, beginning at `epoch`, if `save` holds
+/// none; otherwise resumed — composed from the pack, everything else from the save.
+///
+/// Runs on the world's own thread (a `World` is not `Send`), so it reports what it did on stdout
+/// itself: an operator should be able to tell a new world from a resumed one, and see that a resume
+/// read a snapshot and re-executed what came after it.
+fn persisted(
+    pack: &WorldPack,
+    save: &Path,
+    epoch: WorldTime,
+) -> Result<(PersistentWorld, Vec<Box<dyn PerceptionProvider>>), HostError> {
+    if SqliteBackend::exists(save) {
+        let backend = SqliteBackend::open(save, Durability::PowerLoss).map_err(HostError::build)?;
+        let composed = pack.compose().map_err(HostError::build)?;
+        let (world, how) =
+            PersistentWorld::resume(Box::new(backend), composed.world).map_err(HostError::build)?;
+        println!(
+            "[mineworld] resumed {}: revision {}, from the snapshot at revision {} plus {} \
+             re-executed revision(s) whose {} fact(s) reproduced byte for byte",
+            SqliteBackend::file(save).display(),
+            how.head.raw(),
+            how.snapshot.raw(),
+            how.replayed,
+            how.facts,
+        );
+        return Ok((world, composed.providers));
+    }
+    let backend = SqliteBackend::create(save, Durability::PowerLoss).map_err(HostError::build)?;
+    let assembled = pack.assemble().map_err(HostError::build)?;
+    let (world, began) = PersistentWorld::create(
+        Box::new(backend),
+        assembled.world,
+        Creation {
+            instance: WorldInstanceId::allocate().raw(),
+            pack: pack.id().to_owned(),
+            at: epoch,
+            facts: assembled.facts,
+        },
+    )
+    .map_err(HostError::build)?;
+    println!(
+        "[mineworld] created {}: a new world, {} genesis fact(s) at revision {}",
+        SqliteBackend::file(save).display(),
+        began.len(),
+        world.revision().raw(),
+    );
+    Ok((world, assembled.providers))
+}
+
+/// Re-executes a save's whole history from genesis and reports what it compared.
+fn replay(world: &Path, save: &Path) -> Result<(), String> {
+    let pack = WorldPack::read(world).map_err(described)?;
+    let composed = pack.compose().map_err(described)?;
+    let backend = SqliteBackend::open(save, Durability::PowerLoss)
+        .map_err(|error| format!("[mineworld] {error}"))?;
+    let verified = verify(&backend, composed.world)
+        .map_err(|error| format!("[mineworld] the save does not reproduce: {error}"))?;
+    println!(
+        "{}: {} revision(s) re-executed from genesis, {} fact(s) and {} snapshot(s) reproduced byte \
+         for byte; head revision {}",
+        SqliteBackend::file(save).display(),
+        verified.revisions,
+        verified.facts,
+        verified.snapshots,
+        verified.head.raw(),
+    );
     Ok(())
 }
 

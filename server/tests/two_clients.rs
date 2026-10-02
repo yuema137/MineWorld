@@ -112,7 +112,10 @@ impl Client {
     /// The next observation, skipping anything else.
     async fn observation(&mut self) -> (u64, WireObservation) {
         loop {
-            if let ServerFrame::Observation { seq, observation } = self.frame().await {
+            if let ServerFrame::Observation {
+                seq, observation, ..
+            } = self.frame().await
+            {
                 return (seq, observation);
             }
         }
@@ -554,4 +557,84 @@ async fn nothing_streams_until_a_seat_is_granted_and_a_seat_is_held_for_the_conn
         alice,
         "and it is still the observer it was granted"
     );
+}
+
+// ---------------------------------------------------------------------------------------------
+// S4 — work a system defers reaches clients at its instant, through the real host loop.
+// ---------------------------------------------------------------------------------------------
+
+/// A request whose system defers a fact is answered with nothing *now*; the fact is held in the
+/// world's own schedule, fired when the host's clock reaches its instant, and reaches every client
+/// entitled to it — carrying the request as its cause. Until S4 this server could only count such a
+/// deferral as `deferrals_unscheduled`; the counter now stays at zero because nothing is dropped.
+#[tokio::test]
+async fn a_fact_a_system_defers_reaches_the_clients_at_its_instant() {
+    let address = start().await;
+    let mut two_d = Client::connect(address).await;
+    let mut three_d = Client::connect(address).await;
+    let (alice, _) = two_d.join(ALICE).await;
+    let _ = three_d.join(BOB).await;
+
+    let before: WorldSummary =
+        serde_json::from_value(get(address, "/status").await).expect("a status answer");
+
+    two_d
+        .send(
+            json!({ "t": "submit", "token": "remind-1",
+                    "request": support::remind_request(alice, "the kettle", 1) })
+            .to_string(),
+        )
+        .await;
+    let request = match two_d.answer().await {
+        ServerFrame::Result {
+            action_id,
+            result: ActionResult::Accepted { events },
+            ..
+        } => {
+            assert!(
+                events.is_empty(),
+                "nothing happens at the request's own instant"
+            );
+            action_id
+        }
+        other => panic!("the reminder should have been accepted, and the server said {other:?}"),
+    };
+
+    // The host's clock counts whole seconds, so the reminder is due within about two seconds of
+    // wall time. Read Bob's stream until it arrives, within a bound that is generous against that.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(4);
+    let reminder = loop {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the deferred fact never reached the other client"
+        );
+        let (_, observation) = three_d.observation().await;
+        if let Some(perceived) = observation.events().iter().find(|perceived| {
+            let envelope = perceived.envelope();
+            envelope.event_type().as_str() == "spoke"
+                && envelope.payload().payload()["words"] == json!("the kettle")
+        }) {
+            break perceived.envelope().clone();
+        }
+    };
+
+    assert_eq!(
+        *reminder.caused_by(),
+        mineworld_contracts::Causation::Action(request),
+        "the fact names the request that deferred it"
+    );
+    assert!(
+        reminder.at().seconds() > before.at.seconds(),
+        "it happened at a later instant than the world was at before the request: {} vs {}",
+        reminder.at(),
+        before.at
+    );
+
+    let after: WorldSummary =
+        serde_json::from_value(get(address, "/status").await).expect("a status answer");
+    assert_eq!(
+        after.deferrals_unscheduled, 0,
+        "nothing was left unscheduled"
+    );
+    assert_eq!(after.faults, 0);
 }

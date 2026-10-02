@@ -11,6 +11,9 @@
 //! validate   read state and decide whether a request is admissible — no writes, by type
 //! resolve    decide the outcome and return the facts it caused
 //! react      apply a fact this system subscribed to, into the state it owns
+//! wake       decide what happens when a process it owns reaches its expected end      (S4)
+//! interrupt  decide whether to end, suspend or keep a process another system asked
+//!            to interrupt                                                             (S4)
 //! ```
 //!
 //! # Why a declaration is a value and identity is a type
@@ -42,7 +45,7 @@
 mod tests;
 
 use mineworld_contracts::{
-    Action, ActionIntent, ActionTypeId, Causation, Component, ComponentDeclaration,
+    Action, ActionId, ActionIntent, ActionTypeId, Causation, Component, ComponentDeclaration,
     ComponentTypeId, EntityId, Event, EventEnvelope, EventId, EventRecord, EventTypeId, PlaceId,
     Provenance, Rejection, SystemId, Visibility, WorldTime,
 };
@@ -51,6 +54,7 @@ use serde::{Deserialize, Serialize};
 use crate::access::{SystemIdentity, WriteToken};
 use crate::components::ComponentStore;
 use crate::error::KernelError;
+use crate::process::{InterruptRequest, Process};
 use crate::relations::RelationStore;
 use crate::view::{Declarations, WorldParts, WorldRead, WorldView};
 
@@ -245,7 +249,12 @@ impl SystemDeclaration {
 /// The payload is bytes the emitting system encoded. The kernel never interprets them and never
 /// chooses their encoding: a payload's format is a contract between the system that declares the
 /// event type and whoever reads it back, exactly as `ComponentRecord`'s is.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// It serializes because a deferred emission waits in the schedule, and the schedule is saved with
+/// a world (S5). Deserializing one grants nothing a system could not already write: the fact is
+/// still recorded only as the system that deferred it, checked against that system's declaration
+/// when it fires.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Emission {
     payload: EventRecord,
     /// The system whose vocabulary this fact belongs to, read off
@@ -309,6 +318,11 @@ impl Emission {
         self.payload.event_type()
     }
 
+    /// The encoded fact, labelled with its event type.
+    pub const fn record(&self) -> &EventRecord {
+        &self.payload
+    }
+
     /// The system whose vocabulary this kind of fact belongs to.
     pub const fn owner(&self) -> &SystemId {
         &self.owner
@@ -344,23 +358,36 @@ impl Emission {
     }
 }
 
-/// A fact a system wants to happen *later*, handed back for the scheduler to queue.
+/// A fact a system wants to happen *later*, queued in the world's schedule until its instant.
 ///
-/// The seam `D-6` requires and `BD-7` keeps narrow. Reaction is synchronous within the logical
+/// The seam `D-6` requires and `BD-7` kept narrow. Reaction is synchronous within the logical
 /// instant — a wage paid in the same instant it falls due — and anything that must happen later is
-/// queued at a strictly later `(WorldTime, sequence)`. This kernel does not own that queue: S4
-/// does, and dispatch therefore returns deferrals unrecorded and unreduced rather than inventing
-/// a scheduler here. What the kernel does enforce is that the instant is genuinely later, so a
-/// system cannot use deferral to mean *now*.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// queued at a strictly later `(WorldTime, sequence)`. The kernel enforces that the instant is
+/// genuinely later, so a system cannot use deferral to mean *now*.
+///
+/// A deferral also carries **who deferred it and why**, captured when it was asked for: the system
+/// writing at the time, the causation of the call it was made in, and the controller decision that
+/// chain started from. When the schedule fires it, those become the fact's emitter, `caused_by` and
+/// provenance — so a fact that happens later is still traceable to what led to it (`INV-15`,
+/// `AC-9`), and no caller supplies that link (step-04 §8 F-2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Deferral {
     at: WorldTime,
     emission: Emission,
+    emitter: SystemId,
+    caused_by: Causation,
+    decision: Option<ActionId>,
 }
 
 impl Deferral {
-    pub(crate) const fn new(at: WorldTime, emission: Emission) -> Self {
-        Self { at, emission }
+    pub(crate) fn new(at: WorldTime, emission: Emission, emitter: SystemId, cause: &Cause) -> Self {
+        Self {
+            at,
+            emission,
+            emitter,
+            caused_by: cause.caused_by.clone(),
+            decision: cause.decision,
+        }
     }
 
     /// When the emitting system asked for it.
@@ -372,6 +399,45 @@ impl Deferral {
     pub const fn emission(&self) -> &Emission {
         &self.emission
     }
+
+    /// The system that deferred it, and that the fact will be recorded as.
+    pub const fn emitter(&self) -> &SystemId {
+        &self.emitter
+    }
+
+    /// What the deferring system was handling when it asked: the fact's `caused_by` once it fires.
+    pub const fn caused_by(&self) -> &Causation {
+        &self.caused_by
+    }
+
+    /// The controller decision the chain began from, if a request began it.
+    pub const fn controller_decision(&self) -> Option<ActionId> {
+        self.decision
+    }
+
+    /// Splits into what recording the fact needs.
+    pub(crate) fn into_parts(self) -> (Emission, SystemId, Cause) {
+        (
+            self.emission,
+            self.emitter,
+            Cause {
+                caused_by: self.caused_by,
+                decision: self.decision,
+            },
+        )
+    }
+}
+
+/// Why the system currently running is running: the causation the kernel will state for anything it
+/// emits, and the controller decision the chain started from.
+///
+/// Crate-private and kernel-supplied. A system never states its own causation; this travels with
+/// the parts of the world it is handed, so that what it defers, and what another system decides
+/// because it asked, can be attributed to the same cause its own facts are.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Cause {
+    pub(crate) caused_by: Causation,
+    pub(crate) decision: Option<ActionId>,
 }
 
 /// An installable system: an enabled process that owns some state and answers for some actions.
@@ -483,6 +549,47 @@ pub trait System: SystemIdentity + Sized + 'static {
         let _ = (world, event);
         Ok(Vec::new())
     }
+
+    /// A process this system owns has reached its expected end: decide what happens.
+    ///
+    /// Typically the system ends it and emits the fact that it ended, or sets a later end. The facts
+    /// it returns are caused by the process ([`Causation::Process`]). Called only for a running
+    /// process whose expected end is this instant; a wake left behind by a rescheduled, suspended
+    /// or ended process is ignored.
+    ///
+    /// The default **refuses**, naming the process, for the reason the default `resolve` does: a
+    /// system that starts a process with an expected end and does not handle its end is a bug in
+    /// that system, and a world that silently let the process run on would hide it.
+    fn wake(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        process: &Process,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let _ = world;
+        Err(KernelError::ProcessNotWokenBySystem {
+            system: Self::ID,
+            process: process.id(),
+        })
+    }
+
+    /// Another system asks that a process this system owns be interrupted: decide.
+    ///
+    /// End it ([`WorldView::end_process`]), suspend it ([`WorldView::suspend_process`]), or leave it
+    /// running — which is a refusal. The requester learns which from the world afterwards, not from
+    /// anything this method says, so the answer cannot be misreported. Facts returned here are this
+    /// system's, caused by whatever the requester was handling (the phone call, say).
+    ///
+    /// The default leaves the process running: a system that declares nothing about interruption
+    /// refuses every request. A process that must never be interrupted is better started
+    /// [`uninterruptible`](crate::ProcessStart::uninterruptible), so the owner is not even asked.
+    fn interrupt(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        request: &InterruptRequest,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let _ = (world, request);
+        Ok(Vec::new())
+    }
 }
 
 /// What the registry can ask of an installed system without naming its type.
@@ -511,6 +618,14 @@ pub(crate) trait DynSystem {
         &self,
         parts: WorldParts<'_>,
         event: &EventEnvelope,
+    ) -> Result<Vec<Emission>, KernelError>;
+
+    fn wake(&self, parts: WorldParts<'_>, process: &Process) -> Result<Vec<Emission>, KernelError>;
+
+    fn interrupt(
+        &self,
+        parts: WorldParts<'_>,
+        request: &InterruptRequest,
     ) -> Result<Vec<Emission>, KernelError>;
 }
 
@@ -564,5 +679,19 @@ impl<T: System> DynSystem for InstalledSystem<T> {
     ) -> Result<Vec<Emission>, KernelError> {
         let mut view = WorldView::new(parts, &self.token);
         self.system.react(&mut view, event)
+    }
+
+    fn wake(&self, parts: WorldParts<'_>, process: &Process) -> Result<Vec<Emission>, KernelError> {
+        let mut view = WorldView::new(parts, &self.token);
+        self.system.wake(&mut view, process)
+    }
+
+    fn interrupt(
+        &self,
+        parts: WorldParts<'_>,
+        request: &InterruptRequest,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let mut view = WorldView::new(parts, &self.token);
+        self.system.interrupt(&mut view, request)
     }
 }

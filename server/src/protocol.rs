@@ -45,6 +45,7 @@ use mineworld_contracts::{
     ActionId, ActionRequest, ActionResult, ContractError, EntityId, EntityKey, Observation,
     SystemId, WorldTime,
 };
+use mineworld_persistence::WorldRevision;
 use serde::de::Error as _;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
@@ -252,6 +253,9 @@ pub enum ServerFrame {
         /// `WorldTime` — which a one-second clock and a 10 Hz stream otherwise cannot be
         /// (`FINDINGS.md` F7).
         seq: u64,
+        /// The persisted revision of the state this observation was computed from, or `None` for a
+        /// world that is not persisted (`PROTOCOL.md` §5). Committed before this frame was sent.
+        revision: Option<WorldRevision>,
         /// The observation itself.
         observation: WireObservation,
     },
@@ -384,8 +388,9 @@ impl Refusal {
 pub struct WorldInstanceId(u128);
 
 impl WorldInstanceId {
-    /// The next instance identity this process will hand out.
-    pub(crate) fn allocate() -> Self {
+    /// A new instance identity, for a world being created — by the world thread for a world that is
+    /// not persisted, or by whoever creates a save, which then keeps it for the world's whole life.
+    pub fn allocate() -> Self {
         // A world within this process, and this process at this instant. Not a cryptographic
         // identity: nothing authenticates with it, and the only property required is that two
         // worlds do not collide.
@@ -460,16 +465,20 @@ pub struct WorldSummary {
     /// a slow client loses frames, and a number that only ever appeared in a comment would make
     /// that policy invisible to whoever is running the server.
     pub observations_dropped: u64,
-    /// How many deferrals dispatch handed back with no scheduler to queue them.
+    /// How many deferrals had no scheduler to queue them.
     ///
-    /// Zero in a world whose systems defer nothing. Any other number is the size of what S4 will
-    /// take over, and until then it is work this server was asked for and could not do.
+    /// Always zero since S4: the world's own schedule holds every deferral and fires it at its
+    /// instant. Kept on the wire until the next protocol revision removes it, because removing a
+    /// field is a protocol change (step-04 §8 F-4).
     pub deferrals_unscheduled: u64,
     /// How many dispatches ended in a system breaking its own contract.
     ///
     /// `kernel/src/dispatch.rs`: an error out of dispatch is a bug in a system, not a rejected
     /// request. This server keeps serving and counts them here.
     pub faults: u64,
+    /// The world's persisted head — the last revision committed to its save — or `None` for a world
+    /// that is not persisted (`PROTOCOL.md` §5, `docs/DECISIONS.md` `ARC-25`).
+    pub revision: Option<WorldRevision>,
 }
 
 /// One installed system, as a status answer names it.

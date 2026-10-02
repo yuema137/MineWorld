@@ -10,6 +10,9 @@ authors.workspace = true
 [dependencies]
 mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
+# A hosted world may be persisted (S5). The server names no storage type: it holds a
+# PersistentWorld, built by the composition root with whatever backend that chose.
+mineworld-persistence = { workspace = true }
 axum = { workspace = true }
 tokio = { workspace = true }
 futures-util = { workspace = true }

@@ -566,6 +566,69 @@ impl fmt::Display for ComponentTypeId {
     }
 }
 
+/// The declared name of a kind of process: the `type` field `docs/CORE_CONCEPTS.md` §10 gives every
+/// Process — `having-dinner`, `travelling`, `working-a-shift`.
+///
+/// System Pack vocabulary, like an event type: the kernel stores it and compares it, and never knows
+/// what any process type means (`INV-12`).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct ProcessTypeId(Cow<'static, str>);
+
+impl ProcessTypeId {
+    /// Validates a declared process type name against the identifier rule stated in this module's
+    /// documentation.
+    pub fn new(value: impl Into<String>) -> Result<Self, ContractError> {
+        let value = value.into();
+        validate_identifier(IdentifierKind::ProcessTypeId, &value)?;
+        Ok(Self(Cow::Owned(value)))
+    }
+
+    /// Declares the name as a literal in code, checked while the declaring crate compiles.
+    pub const fn from_static(value: &'static str) -> Self {
+        match check_identifier(value) {
+            Ok(()) => Self(Cow::Borrowed(value)),
+            Err(_) => panic!(
+                "a process type id literal must be 1 to 64 bytes of lowercase ASCII letters, digits, \
+                 '-' and '_', and must not begin or end with a separator"
+            ),
+        }
+    }
+
+    /// The name as text.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for ProcessTypeId {
+    type Error = ContractError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl TryFrom<&str> for ProcessTypeId {
+    type Error = ContractError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl From<ProcessTypeId> for String {
+    fn from(value: ProcessTypeId) -> Self {
+        value.0.into_owned()
+    }
+}
+
+impl fmt::Display for ProcessTypeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
 /// The declared name of a relation type.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]

@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use futures_util::{SinkExt, StreamExt};
 use mineworld_contracts::{ActionId, ActionResult, EntityId, EventId, PerceivedEntity};
 use mineworld_conversation::ConversationHistory;
-use mineworld_server::{ServerFrame, WireObservation, WorldSummary};
+use mineworld_server::{ServerFrame, WireObservation, WorldRevision, WorldSummary};
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -82,6 +82,51 @@ impl Server {
                 .expect("the server answers /status"),
         )
     }
+
+    /// Kills the process with `SIGKILL` — no shutdown, no checkpoint, no flush — and returns how it
+    /// ended, so that a test can show the death was real.
+    pub fn kill(&mut self) -> std::process::ExitStatus {
+        self.process.kill().expect("SIGKILL is delivered");
+        self.process.wait().expect("the process is reaped")
+    }
+}
+
+/// A save directory of its own under the system temporary directory, empty when made and removed
+/// when dropped.
+pub struct SaveDir {
+    path: std::path::PathBuf,
+}
+
+impl SaveDir {
+    pub fn new(name: &str) -> Self {
+        let path =
+            std::env::temp_dir().join(format!("mineworld-cli-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&path);
+        Self { path }
+    }
+
+    pub fn path(&self) -> &str {
+        self.path.to_str().expect("a UTF-8 temporary path")
+    }
+}
+
+impl Drop for SaveDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
+    }
+}
+
+/// Runs `mineworld <arguments>` to completion and returns its exit status and standard output.
+pub fn run_command(arguments: &[&str]) -> (std::process::ExitStatus, String) {
+    let output = Command::new(env!("CARGO_BIN_EXE_mineworld"))
+        .args(arguments)
+        .stderr(Stdio::inherit())
+        .output()
+        .expect("the mineworld binary runs");
+    (
+        output.status,
+        String::from_utf8(output.stdout).expect("UTF-8 output"),
+    )
 }
 
 /// An address nothing is listening on: bound, read back, released.
@@ -161,9 +206,19 @@ impl Client {
 
     /// The next observation, skipping anything else.
     pub async fn observation(&mut self) -> WireObservation {
+        self.perceived().await.1
+    }
+
+    /// The next observation with the persisted revision its frame named (`PROTOCOL.md` §5).
+    pub async fn perceived(&mut self) -> (Option<WorldRevision>, WireObservation) {
         loop {
-            if let ServerFrame::Observation { observation, .. } = self.frame().await {
-                return observation;
+            if let ServerFrame::Observation {
+                revision,
+                observation,
+                ..
+            } = self.frame().await
+            {
+                return (revision, observation);
             }
         }
     }

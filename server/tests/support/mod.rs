@@ -207,6 +207,19 @@ impl Action for Whisper {
     const OWNER: SystemId = Chatter::ID;
 }
 
+/// Asks for something to be said to the actor later: the pack's one deferral, so the server's
+/// scheduling path has a real system behind it (S4).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Remind {
+    pub words: String,
+    pub after_seconds: i64,
+}
+
+impl Action for Remind {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("remind");
+    const OWNER: SystemId = Chatter::ID;
+}
+
 /// A fact anyone in the world may learn of — and one that carries an `EntityId` **inside its
 /// payload**, which is the position `FINDINGS.md` F2 showed a protocol-level encoder cannot reach.
 #[derive(Debug, Serialize, Deserialize)]
@@ -241,6 +254,7 @@ impl System for Chatter {
             .depending_on([Placement::ID])
             .providing::<Speak>()
             .providing::<Whisper>()
+            .providing::<Remind>()
             .emitting::<Spoke>()
             .emitting::<Whispered>()
     }
@@ -262,7 +276,6 @@ impl System for Chatter {
         world: &mut WorldView<'_, Self>,
         intent: &ActionIntent,
     ) -> Result<Vec<Emission>, KernelError> {
-        let _ = world;
         let unresolved = || KernelError::ActionNotResolvedBySystem {
             system: Self::ID,
             action_type: intent.action_type().clone(),
@@ -286,6 +299,31 @@ impl System for Chatter {
                 .about(vec![intent.actor(), target])
                 .with_participants(vec![intent.actor(), target]),
             ]);
+        }
+
+        if *intent.action_type() == Remind::ACTION_TYPE {
+            let bytes = intent
+                .payload()
+                .payload_for::<Remind>()
+                .map_err(|_| unresolved())?;
+            let request: Remind = serde_json::from_slice(bytes).map_err(|_| unresolved())?;
+            // Nothing happens now. The reminder is a public fact at a later instant, held by the
+            // world's schedule until the host's clock reaches it (S4).
+            let at = mineworld_contracts::WorldTime::from_seconds(
+                world.at().seconds() + request.after_seconds,
+            );
+            world.defer(
+                at,
+                Emission::new::<Spoke>(
+                    payload(&Spoke {
+                        words: request.words,
+                        to: intent.actor(),
+                    }),
+                    Visibility::Public,
+                )
+                .about(vec![intent.actor()]),
+            )?;
+            return Ok(Vec::new());
         }
 
         let bytes = intent
@@ -436,6 +474,20 @@ pub fn speak_request(actor: EntityId, target: EntityId, words: &str) -> Value {
         "action_type": "speak",
         "target": target,
         "payload": { "action_type": "speak", "payload": { "words": words } },
+        "actor_location": null,
+    })
+}
+
+/// A `remind` request: nothing now, and a public fact `after_seconds` later.
+pub fn remind_request(actor: EntityId, words: &str, after_seconds: i64) -> Value {
+    json!({
+        "actor": actor,
+        "action_type": "remind",
+        "payload": {
+            "action_type": "remind",
+            "payload": { "words": words, "after_seconds": after_seconds },
+        },
+        "target": null,
         "actor_location": null,
     })
 }

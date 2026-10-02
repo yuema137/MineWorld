@@ -39,6 +39,8 @@ pub enum IdentifierKind {
     EventTypeId,
     /// A [`crate::entity::Tag`]: one semantic label on an entity.
     Tag,
+    /// A [`crate::ids::ProcessTypeId`]: the name of a kind of process a system runs.
+    ProcessTypeId,
 }
 
 impl fmt::Display for IdentifierKind {
@@ -52,6 +54,7 @@ impl fmt::Display for IdentifierKind {
             Self::RejectionCode => "rejection code",
             Self::EventTypeId => "event type id",
             Self::Tag => "tag",
+            Self::ProcessTypeId => "process type id",
         };
         f.write_str(name)
     }

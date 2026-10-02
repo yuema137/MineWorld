@@ -112,7 +112,7 @@ Restated here because every step is judged against them:
    writing infrastructure, and records the answer in [`docs/DECISIONS.md`](../../../docs/DECISIONS.md)
    whether it adopts or declines. Dependencies selected so far: `DEP-1` purpose-built component
    store, `DEP-2` `rusqlite`, `DEP-3` `tokio`/`axum`, `DEP-4` Godot 4.7, `DEP-5` `serde`,
-   `DEP-6` scheduler pending S4.
+   `DEP-6` purpose-built discrete-event queue (implemented in S4).
 11. Clients report intent; systems decide. Rejections are semantic —  `Unavailable`, `Busy`,
    `TooFarAway`, `PermissionDenied`, `NoSupportedInteraction` — and are produced by the owning
    system, never by a renderer (§§4, 7–8).
@@ -191,7 +191,8 @@ ownership-gated writes, then the System interface and dispatch over it. **Design
 ### S4 — World clock, scheduler, and Process
 
 *Corresponds to the operator's commit 5.* **Design:**
-[`step-04-clock-scheduler-process.md`](step-04-clock-scheduler-process.md), frozen.
+[`step-04-clock-scheduler-process.md`](step-04-clock-scheduler-process.md), frozen; implemented as
+PR 06 (GitHub #20), ready for operator review — see §7.
 
 - **Output:** `WorldTime`; the discrete-event / semantic-tick scheduler; process lifecycle with
   interruption *requests* routed to the owning system; event delivery to subscribers.
@@ -205,14 +206,24 @@ ownership-gated writes, then the System interface and dispatch over it. **Design
 
 *Corresponds to the operator's commit 6.*
 
-- **Output:** `PersistenceBackend` trait and `SQLiteBackend`; append-only semantic event log;
-  periodic snapshots; `snapshot + events` reconstruction; save manifest.
+*Design:* [`step-06-persistence.md`](step-06-persistence.md), frozen 2026-09-30, PR 07.
+
+- **Output:** `PersistenceBackend` trait and `SqliteBackend`; append-only semantic event log;
+  the input journal; periodic snapshots; `snapshot + journal tail` reconstruction verified against
+  the event log; save manifest.
 - **Depends on:** S4.
-- **Acceptance checkpoint:** run N ticks → persist → restart process → state and event-log head
-  are identical (`AC-6`); replaying the event log from empty reproduces the same state; a
-  snapshot plus its tail reproduces the same state as full replay.
-- **Adversarial criterion:** no component state exists that the event log cannot reconstruct.
-  State that is only reachable by having been in memory is a defect.
+- **Acceptance checkpoint:** run N ticks → persist → kill the process → restart → state and
+  event-log head are identical (`AC-6`); re-executing the journal from genesis reproduces the event
+  log byte for byte and the same state; a snapshot plus its journal tail reproduces the same state as
+  full re-execution.
+- **Adversarial criterion:** no state exists that re-executing the journal cannot reconstruct, and
+  no reconstruction is accepted whose re-executed facts differ from the logged ones. State that is
+  only reachable by having been in memory is a defect, detected as a replay divergence.
+- **Reworded 2026-09-30 (`ARC-25`).** This entry read "replaying the event log from empty
+  reproduces the same state". The S5 audit showed that literal fact replay is incompatible with the
+  merged System contract — `react`, `wake` and `interrupt` write state *and* return further
+  emissions, `resolve` may write, and process wakes are driven by time rather than by facts — so
+  reconstruction re-executes the recorded inputs and the event log is the byte-for-byte check on it.
 
 ### S6 — First real systems: time, places, movement
 
@@ -490,30 +501,54 @@ PR → step → overall was skipped after nearly every merge. A plan that cannot
 we" has stopped being the authority, so the obligation is restated below and is not optional.
 
 ```text
-Done (main @ bf16ec0, 259 tests):
+Done (main @ 41d4ab1, 311 tests):
   S1   Entity / Component contracts                          PR 01
   S2   ActionIntent / Event / Observation / spatial          PR 02
   S3   System interface, registry, dispatch                  PR 03a, 03b
   --   contract fixes from the renderer-integration spike    GitHub PR #2 ("PR 04")
   S5V  vertical slice                                        05a 05b 05c 05d (GitHub #3 #4 #5 #7)
        -> Milestone A complete: AC-15 holds, one Alice across two clients and an agent
+  S4   world clock, scheduler, Process                       PR 06 (GitHub #20), merged 1241cab
+       Reviewed independently before merge: all gates re-run (294 passed, 0 failed); two
+       mutations the implementing session could not run were run in review — disabling the
+       clock's backwards check fails 2 tests, reversing same-instant queue order fails 5 — and
+       both were reverted. F-6 (ProcessTypeId added to contracts) accepted as bounded: purely
+       additive, follows the EventTypeId pattern, backs the `type` field CORE_CONCEPTS §10
+       already specifies. 300 simulated days replay byte for byte from one seed.
+  S5   persistence and event sourcing                        PR 07 (GitHub #22), merged 41d4ab1
+       ARC-25: state = newest snapshot + journal of inputs re-executed, verified byte for
+       byte against the append-only fact log (literal fact replay is incompatible with the
+       merged System contract — react/wake/interrupt both mutate and emit). Reviewed
+       independently before merge: gates re-run (311 passed, 0 failed); the process-kill
+       checkpoint IC-1 re-run (SIGKILL early/middle/late in two worlds, every resume
+       byte-identical to an uninterrupted run); one mutation run in review — restarting the
+       server's ActionId allocator at 1, i.e. reinstating the restart defect found at
+       freeze — fails both restart tests, then reverted. AC-15's fourth evidence line,
+       same persisted revision, now holds.
+       Open, outside S5 (F-13): a restarted `--agent` rule controller re-answers its last
+       line, because what it has answered lives in controller memory, not world state.
+       Belongs with S10 (cognition); recorded so Milestone D does not rediscover it.
 
 Next, framework (critical path to Milestone B):
-  S4   world clock, scheduler, Process        DESIGN FROZEN, not implemented
-       Its design predates S5V; it must be re-audited against current main before
-       implementation, and ships as PR 06 because "PR 04" is already taken on GitHub.
-  S5   persistence and event sourcing         not started; also closes the one AC-15 evidence
-                                              line still missing (same persisted revision)
+  S6   first real systems: places and movement   not started; detail against main @ 41d4ab1.
+       MovementSystem with MoveIntent, authoritative spatial state and rendered movement kept
+       distinct; disabling it must make `move` return ActionUnavailable with no change to any
+       other module (first real AC-2 evidence); a distance refusal is TooFarAway, decided
+       server-side. Note: `arrive` in PresenceSystem already carries movement today — the S6
+       re-audit must decide how MovementSystem relates to it rather than duplicate it.
 
-Remaining:  S6 ... S14, Milestones B-E
+Remaining:  S7 ... S14, Milestones B-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
-  VIS-3D-GODOT-1   vis/3d-human-pipeline @ 1b16dba — female body, hoodie, textures,
-                   backpack built; garment tears half fixed (predicate cause closed,
-                   offset-fold cause open)
-  VIS-3D-GODOT-2   vis/3d-godot-2-environment @ fa021cd — slice scene and scripts
-                   committed, never run; 63 CC0 assets to re-fetch and record
+  VIS-3D-GODOT-1   vis/3d-human-pipeline @ c03db4f — PREVIEW shown to the operator
+                   2026-09-30 (ARC-24). Garment tears fixed (cause: UV-seam vertices split by
+                   glTF and moved apart, not offset folding). Hair still fails its category;
+                   four steering questions awaiting the operator.
+  VIS-3D-GODOT-2   vis/3d-godot-2-environment @ 5652875 — PREVIEW shown to the operator
+                   2026-09-30. Runs, enterable, scale measured; 45 CC0 assets checked one by
+                   one, two excluded on relicensing grounds. Four steering questions awaiting
+                   the operator. Not yet connected to the server.
   VIS-3D-UE5-1     parked (ARC-21)
 
 Toolchain:  rust 1.97.1, Godot 4.7.2, Blender 5.2.2, Python 3.14.7
