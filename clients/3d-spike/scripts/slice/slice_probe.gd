@@ -51,6 +51,8 @@ var views := [
 	["15_east_end", Vector3(17.0, 0.45, -5.40), -70.0, 2.0, FP],
 	["16_south_side", Vector3(2.0, 0.45, -4.60), 165.0, 1.0, FP],
 	["17_street_from_east", Vector3(22.0, 0.45, -5.30), 96.0, -1.0, FP],
+	# connected (--world): the world's people where the world says they are
+	["19_connected_people", Vector3(9.2, 0.60, -14.3), 135.0, -4.0, FP],
 	["18_pavement_detail", Vector3(6.00, 0.45, -5.20), -20.0, -26.0, FP],
 ]
 
@@ -131,6 +133,13 @@ func _settle(frames := 10) -> void:
 # --- shots ---------------------------------------------------------------------
 
 func _capture() -> void:
+	# connected (--world/--server): wait for the world's people to be drawn
+	if slice.link != null:
+		var w := 0.0
+		while w < 10.0 and slice.link.figures.is_empty():
+			await get_tree().process_frame
+			w += get_process_delta_time()
+		print("link   %d perceived people drawn" % slice.link.figures.size())
 	# --views=a,b captures only the named views (a prefix is enough)
 	var only: PackedStringArray = []
 	for a in OS.get_cmdline_user_args():
