@@ -1,26 +1,25 @@
-//! The installable system: what it declares, and the four things a world asks of it.
+//! The installable system: what it declares, what it installs, and how it reduces `arrived`. It
+//! provides no action, so a world never asks it to validate or resolve one (`ARC-26`).
 
 use mineworld_contracts::{
-    ActionIntent, EntityId, EntityType, EntityTypeSet, Event, EventEnvelope, LifecycleState,
-    PersonId, Rejection, RejectionCode, Relation, RelationTypeDeclaration, RelationTypeId,
-    SystemId,
+    EntityType, EntityTypeSet, Event, EventEnvelope, Rejection, Relation, RelationTypeDeclaration,
+    RelationTypeId, SystemId,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
-    WorldRead, WorldView,
+    WorldView,
 };
 
-use crate::action::{Arrive, arrive_requirement};
 use crate::codec;
 use crate::component::Presence;
-use crate::event::{Arrived, admit, arrival};
-use crate::interaction::{Offer, PerceptionProvider};
+use crate::event::{Arrived, PersonEnteredPlace, admit, entered_place};
+use crate::interaction::PerceptionProvider;
 
 /// Where people are, and what each of them perceives.
 ///
 /// A unit struct, like most System Packs: a system owns no fields, because its mutable state is the
 /// components it owns and those live in the world behind a gated view (`INV-7`). That is also why
-/// holding a second value of this type — to ask it for [`Offer`]s after a world has taken the first
+/// holding a second value of this type — to hand it to perception after a world has taken the first
 /// one — is safe rather than merely convenient.
 pub struct PresenceSystem;
 
@@ -57,14 +56,6 @@ pub fn present_in_declaration() -> RelationTypeDeclaration {
     )
 }
 
-/// This pack's own reason for refusing a request it cannot read.
-///
-/// A [`Rejection::System`] code rather than one of the kernel's five, because a malformed payload is
-/// not a fact about the world — it is a fact about the request. A client that does not recognize the
-/// code shows the request as refused, which is the correct outcome, and a developer building a
-/// client by hand gets the detail that tells them why.
-const MALFORMED_PAYLOAD: RejectionCode = RejectionCode::from_static("malformed-payload");
-
 /// This pack refusing to let its state take a value, as the kernel's error for it.
 ///
 /// Reached only when a fact is about to be built or reduced after the checks that should have
@@ -79,13 +70,22 @@ fn refused(reason: Rejection) -> KernelError {
 }
 
 impl System for PresenceSystem {
-    const VERSION: SystemVersion = SystemVersion::new(1);
+    /// Version 2: no longer provides `arrive`, and states [`PersonEnteredPlace`] (`ARC-26`). A save
+    /// written by version 1 is refused by name rather than resumed into a world that answers
+    /// differently (S5).
+    const VERSION: SystemVersion = SystemVersion::new(2);
 
+    /// Owns where people are, and provides **no action**: who may move a person is another system's
+    /// decision (`DECISIONS.md` `ARC-26`). A world places its people by genesis (`ARC-15`) and lets
+    /// whatever system it installs for the purpose decide where they go; that system states this
+    /// pack's `arrived` for this pack to reduce, and this pack never learns its name. So the only requests this
+    /// system would ever be asked to validate do not exist, and the kernel's defaults for `validate`
+    /// and `resolve` are never reached.
     fn declaration(&self) -> SystemDeclaration {
         SystemDeclaration::of::<Self>()
             .owning::<Presence>()
-            .providing::<Arrive>()
             .emitting::<Arrived>()
+            .emitting::<PersonEnteredPlace>()
             .subscribing_to::<Arrived>()
     }
 
@@ -94,54 +94,17 @@ impl System for PresenceSystem {
         tables.relation(present_in_declaration())
     }
 
-    /// Decides whether somebody can be somewhere: the actor is a person who is still in the world,
-    /// and the destination is a place this world has.
-    ///
-    /// `arrive` requires nothing of space (see [`arrive_requirement`]), so there is no distance to
-    /// check here — and this is the one place in this pack that says so out loud. The checks that do
-    /// run are about identity rather than geometry, and none of them writes anything: the view is
-    /// read-only, which is the type's guarantee and not this function's discipline (`BD-6`).
-    fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
-        let arrive: Arrive =
-            codec::action_payload(intent.payload()).map_err(|error| Rejection::System {
-                code: MALFORMED_PAYLOAD,
-                detail: Some(error.to_string()),
-            })?;
-
-        let actor = world
-            .entity(intent.actor())
-            .ok_or(Rejection::PreconditionFailed)?;
-        if actor.entity_type() != EntityType::Person {
-            return Err(Rejection::NoSupportedInteraction);
-        }
-        let person = PersonId::new(actor.id(), actor.entity_type())
-            .map_err(|_| Rejection::NoSupportedInteraction)?;
-        admit(world, person, arrive.location())
-    }
-
-    /// States the arrival as a fact, and writes nothing.
-    ///
-    /// The component is written while reducing that fact, not here, so that the world's positions
-    /// are a projection of its history rather than a parallel account of it.
-    fn resolve(
-        &self,
-        world: &mut WorldView<'_, Self>,
-        intent: &ActionIntent,
-    ) -> Result<Vec<Emission>, KernelError> {
-        let arrive: Arrive = codec::action_payload(intent.payload())?;
-        let read = world.read();
-        let actor = read.require_entity(intent.actor())?;
-        let person = PersonId::new(actor.id(), actor.entity_type())?;
-        let fact = arrival(&read, person, arrive.location()).map_err(refused)?;
-        Ok(vec![fact])
-    }
-
     /// Reduces an arrival into the state this pack owns: the position, and the edge that says which
-    /// place it is in.
+    /// place it is in — and, when the place changed, states that the person entered it.
     ///
     /// The old edge is removed when the place changes. Leaving it would make a person present in two
     /// places at once — a stale edge is not a harmless leftover, it is a false fact about the world,
     /// and it is exactly what a reader of the relation graph would believe.
+    ///
+    /// **Occupancy changes are this pack's facts.** A [`PersonEnteredPlace`] is stated here, caused by
+    /// the `arrived`, whenever a person who was known to be in one place is now in another — whoever
+    /// decided the move. Not on a first placement (genesis: nobody *entered*, they were there) and not
+    /// within a place (nobody's occupancy changed).
     ///
     /// **The owner still decides** (`DECISIONS.md` `ARC-26`). Another system may state an `arrived`
     /// in this pack's vocabulary, so before writing anything the value is put to [`admit`] against
@@ -166,6 +129,7 @@ impl System for PresenceSystem {
             .component::<Presence>(person)
             .map(Presence::location)
             .filter(|previous| previous.place() != arriving_at.place());
+        let mut entered = Vec::new();
         if let Some(left) = left {
             let edge = {
                 let read = world.read();
@@ -176,37 +140,20 @@ impl System for PresenceSystem {
                 )?
             };
             world.unrelate(&edge)?;
+            entered.push(entered_place(
+                arrived.person(),
+                arriving_at.place(),
+                left.place(),
+            ));
         }
 
         world.insert(person, Presence::at(arriving_at))?;
         world.relate(&present_in(), person, arriving_at.place().entity_id())?;
-        Ok(Vec::new())
+        Ok(entered)
     }
 }
 
-impl PerceptionProvider for PresenceSystem {
-    /// Offers `arrive` to any person: it is directed at nobody, so it is offered exactly once, with
-    /// no target.
-    ///
-    /// This pack answers for its own action through the same seam every other pack uses, rather than
-    /// through a shortcut into perception. That is not tidiness — a shortcut would be a second way of
-    /// producing an affordance, and the second way is the one that stops agreeing with dispatch.
-    fn offers(
-        &self,
-        world: &WorldRead<'_>,
-        observer: EntityId,
-        target: Option<EntityId>,
-    ) -> Vec<Offer> {
-        if target.is_some() {
-            return Vec::new();
-        }
-        let is_living_person = world.entity(observer).is_some_and(|entity| {
-            entity.entity_type() == EntityType::Person
-                && entity.lifecycle() != LifecycleState::Destroyed
-        });
-        if !is_living_person {
-            return Vec::new();
-        }
-        vec![Offer::new::<Arrive>(arrive_requirement())]
-    }
-}
+/// Presence offers no action and discloses no component: it answers perception's *questions* in
+/// [`observe`](crate::observe()) rather than contributing offers of its own. Implemented — with the
+/// trait's defaults — so that a world lists this pack among its providers like any other.
+impl PerceptionProvider for PresenceSystem {}

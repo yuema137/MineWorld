@@ -125,6 +125,23 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
         !may_talk_to(&observation, alice),
         "which is the same answer read the way a client reads it",
     );
+
+    // `arrive` is retired (`DECISIONS.md` `ARC-26`): no system in this world provides it, so a
+    // client that still sends it is answered `unavailable`, and nobody is moved. Moving is `move`.
+    let (_, answer) = client
+        .submit(json!({
+            "actor": observer,
+            "action_type": "arrive",
+            "target": null,
+            "payload": { "action_type": "arrive", "payload": { "location": {
+                "place": { "entity": "1", "entity_type": "place" },
+                "local": { "x": 1200, "y": 1000, "z": 0 },
+                "facing": null,
+            } } },
+            "actor_location": null,
+        }))
+        .await;
+    assert_eq!(answer, mineworld_contracts::ActionResult::Unavailable);
 }
 
 #[tokio::test]

@@ -30,7 +30,8 @@ use mineworld_conversation::{
 use mineworld_kernel::{
     EntityRegistrySnapshot, KernelError, RelationStoreSnapshot, SystemIdentity, World,
 };
-use mineworld_presence::{Arrive, Arrived, Presence, PresenceSystem, present_in_declaration};
+use mineworld_movement::{Move, MovementSystem};
+use mineworld_presence::{Arrived, Presence, PresenceSystem, arrival, present_in_declaration};
 use serde::{Deserialize, Serialize};
 
 /// The instant the scripted part of every test happens in. Supplied to dispatch, never read from a
@@ -65,6 +66,10 @@ struct Composition {
 fn compose(configuration: Composition) -> World {
     let mut world = World::new();
     world.install(PresenceSystem).expect("presence installs");
+    // People walk here, so a test can move somebody closer the way a client does: with `move`.
+    world
+        .install(MovementSystem)
+        .expect("movement installs after presence");
     world
         .install(ConversationSystem)
         .expect("conversation installs, its dependency being present and enabled");
@@ -81,8 +86,8 @@ fn compose(configuration: Composition) -> World {
 /// The same list whatever the configuration: a disabled pack is still asked, and its offers are
 /// dropped because the kernel's route map no longer provides its actions. Filtering the list here
 /// instead would move the `AC-2` decision out of the world's composition and into a caller.
-const PROVIDERS: [&dyn mineworld_presence::PerceptionProvider; 2] =
-    [&PresenceSystem, &ConversationSystem];
+const PROVIDERS: [&dyn mineworld_presence::PerceptionProvider; 3] =
+    [&PresenceSystem, &MovementSystem, &ConversationSystem];
 
 // ---------------------------------------------------------------------------------------------
 // The world under test, and the script both configurations run.
@@ -96,11 +101,15 @@ struct Cafe {
     bob: EntityId,
     cafe: PlaceId,
     next_action: u64,
+    /// Whether the world has been asked anything yet. Before that, placing somebody is genesis.
+    running: bool,
+    /// The facts genesis recorded, in order.
+    genesis: Vec<EventEnvelope>,
 }
 
 impl Cafe {
     /// A world composed as `configuration` says, with Alice, Bob and one café in it — and nobody
-    /// anywhere yet, because where people are is something an action has to say.
+    /// anywhere yet, because where people are is something the world has to be told.
     fn new(configuration: Composition) -> Self {
         let mut world = compose(configuration);
         let alice = create(&mut world, "alice", EntityType::Person);
@@ -112,7 +121,22 @@ impl Cafe {
             bob,
             cafe,
             next_action: 1,
+            running: false,
+            genesis: Vec::new(),
         }
+    }
+
+    /// Places somebody at `location` as the world begins: a genesis fact presence reduces, exactly
+    /// as a World Pack places its people (`ARC-15`). Only before the world has been asked anything.
+    fn place_at(&mut self, person: EntityId, location: Location) {
+        assert!(!self.running, "placement is genesis, before the world runs");
+        let person = PersonId::new(person, EntityType::Person).expect("a person");
+        let fact = arrival(&self.world.read(), person, location).expect("presence admits it");
+        let recorded = self
+            .world
+            .genesis(NOW, vec![fact])
+            .expect("the world begins with this fact");
+        self.genesis.extend(recorded);
     }
 
     /// Dispatches one request the way a server does: the world allocates the identity and supplies
@@ -126,6 +150,7 @@ impl Cafe {
     ) -> (ActionResult, Vec<EventEnvelope>) {
         let id = ActionId::from_raw(self.next_action);
         self.next_action += 1;
+        self.running = true;
         let mut intent = ActionIntent::new(id, actor, ActionRecord::new::<A>(encode(payload)), at);
         if let Some(target) = target {
             intent = intent.with_target(target);
@@ -142,17 +167,42 @@ impl Cafe {
         (result, events)
     }
 
-    /// Puts somebody at a position inside the café.
+    /// Puts somebody at a position inside the café, along one wall.
+    ///
+    /// Before the world runs, that is a genesis placement. Afterwards it is a walk: `move` strides of
+    /// at most 2 000 mm (a literal, `ARC-23`) from where presence says they are, each of which the
+    /// movement system must accept — the way a client walks somebody closer.
     fn stand(&mut self, person: EntityId, millimetres_along: i32) {
-        let location = Location::in_place(self.cafe).with_local(LocalPosition::on_ground(
-            Millimetres::new(millimetres_along),
-            Millimetres::ZERO,
-        ));
-        let (result, _) = self.submit(person, None, &Arrive::new(location), NOW);
-        assert!(
-            matches!(result, ActionResult::Accepted { .. }),
-            "arriving is accepted in this world: {result:?}"
-        );
+        let cafe = self.cafe;
+        let at_x = move |x: i32| {
+            Location::in_place(cafe).with_local(LocalPosition::on_ground(
+                Millimetres::new(x),
+                Millimetres::ZERO,
+            ))
+        };
+        if !self.running {
+            self.place_at(person, at_x(millimetres_along));
+            return;
+        }
+        let mut x = self
+            .world
+            .components()
+            .get::<Presence>(person)
+            .and_then(|presence| presence.location().local())
+            .map(|local| local.x().value())
+            .expect("somebody already placed walks from where they are");
+        while x != millimetres_along {
+            x = if millimetres_along > x {
+                millimetres_along.min(x + 2_000)
+            } else {
+                millimetres_along.max(x - 2_000)
+            };
+            let (result, _) = self.submit(person, None, &Move::new(at_x(x)), NOW);
+            assert!(
+                matches!(result, ActionResult::Accepted { .. }),
+                "a stride of at most 2 m is accepted: {result:?}"
+            );
+        }
     }
 
     /// Speaks, and hands back the answer and the facts.
@@ -273,19 +323,9 @@ impl EverythingElse {
 /// It returns every fact the world recorded, in order, which is what the `AC-2` test compares: history
 /// is state too.
 fn run(cafe: &mut Cafe) -> Vec<EventEnvelope> {
-    let mut history = Vec::new();
-    for (person, along) in [(cafe.alice, 0), (cafe.bob, ACROSS_A_TABLE)] {
-        let location = Location::in_place(cafe.cafe).with_local(LocalPosition::on_ground(
-            Millimetres::new(along),
-            Millimetres::ZERO,
-        ));
-        let (result, events) = cafe.submit(person, None, &Arrive::new(location), NOW);
-        assert!(
-            matches!(result, ActionResult::Accepted { .. }),
-            "arriving is accepted in both configurations: {result:?}"
-        );
-        history.extend(events);
-    }
+    cafe.stand(cafe.alice, 0);
+    cafe.stand(cafe.bob, ACROSS_A_TABLE);
+    let mut history = cafe.genesis.clone();
 
     let (_, spoken) = cafe.talk(cafe.alice, cafe.bob, "good morning", NOW);
     history.extend(spoken);
@@ -428,13 +468,7 @@ fn the_wrong_room_is_too_far_and_an_unlocated_speaker_cannot_speak() {
     let mut cafe = Cafe::new(Composition { conversation: true });
     let promenade = place(create(&mut cafe.world, "promenade", EntityType::Place));
     cafe.stand(cafe.alice, 0);
-    let (result, _) = cafe.submit(
-        cafe.bob,
-        None,
-        &Arrive::new(Location::in_place(promenade)),
-        NOW,
-    );
-    assert!(matches!(result, ActionResult::Accepted { .. }));
+    cafe.place_at(cafe.bob, Location::in_place(promenade));
 
     let (result, events) = cafe.talk(cafe.alice, cafe.bob, "good morning", NOW);
     assert_eq!(result, ActionResult::Rejected(Rejection::TooFarAway));
@@ -512,8 +546,8 @@ fn disabling_conversation_makes_talk_unavailable_with_nothing_else_changing() {
             .map(|affordance| affordance.action_type().as_str().to_owned())
             .collect()
     };
-    assert_eq!(offered(&talkative), vec!["arrive", "talk"]);
-    assert_eq!(offered(&silent), vec!["arrive"]);
+    assert_eq!(offered(&talkative), vec!["move", "talk"]);
+    assert_eq!(offered(&silent), vec!["move"]);
 
     // ── What it did not change. ─────────────────────────────────────────────────────────────
     assert_eq!(
@@ -532,7 +566,11 @@ fn disabling_conversation_makes_talk_unavailable_with_nothing_else_changing() {
             .components()
             .is_declared(&ConversationHistory::COMPONENT_TYPE)
     );
-    assert_eq!(silent.world.writers().count(), 2);
+    assert_eq!(
+        silent.world.writers().count(),
+        3,
+        "presence, movement and conversation each still own their component"
+    );
 
     // Re-enabling is the same boolean read the other way: the world gains the action back, with the
     // state it kept.
@@ -757,6 +795,10 @@ fn conversation_cannot_be_composed_without_presence() {
     );
 
     let mut composed = compose(Composition { conversation: true });
+    // Movement depends on presence too; disabled first, so the refusal below can only be conversation's.
+    composed
+        .disable(&MovementSystem::ID)
+        .expect("nothing depends on movement");
     let refusal = composed
         .disable(&PresenceSystem::ID)
         .expect_err("conversation depends on it");
@@ -930,7 +972,7 @@ fn each_pack_writes_its_own_state_and_reads_the_others() {
             .declarations()
             .map(|declaration| declaration.owner().as_str().to_owned())
             .collect::<Vec<_>>(),
-        vec!["conversation", "presence"],
+        vec!["conversation", "movement", "presence"],
         "one component type each, each owned by the pack that declared it"
     );
 

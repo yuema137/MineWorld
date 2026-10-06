@@ -127,8 +127,22 @@ fn a_walk_through_the_doorway_is_saved_and_a_resumed_world_holds_and_continues_i
     assert_eq!(head.raw(), 1 + 4);
     assert_eq!(
         saved_facts.len(),
-        3 + 3,
-        "genesis, then three accepted moves; the refusal has none"
+        3 + 3 + 1,
+        "genesis, then three accepted moves, and presence's occupancy change for the crossing; \
+         the refusal has none"
+    );
+    let kinds: Vec<&str> = saved_facts
+        .iter()
+        .map(|fact| fact.event_type().as_str())
+        .collect();
+    println!("facts: {kinds:?}");
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == "person-entered-place")
+            .count(),
+        1,
+        "the crossing, and only the crossing, changed occupancy"
     );
 
     let (composed, _) = compose(Movement::Enabled);
@@ -142,7 +156,7 @@ fn a_walk_through_the_doorway_is_saved_and_a_resumed_world_holds_and_continues_i
         how.replayed, 4,
         "the whole walk was re-executed, the refusal included"
     );
-    assert_eq!(how.facts, 3, "and reproduced its three facts byte for byte");
+    assert_eq!(how.facts, 4, "and reproduced its four facts byte for byte");
     assert_eq!(
         spatial_state(resumed.world()),
         saved,
@@ -164,7 +178,7 @@ fn a_walk_through_the_doorway_is_saved_and_a_resumed_world_holds_and_continues_i
     let dispatched = resumed.dispatch(&intent, t(10)).expect("dispatches");
     let next = dispatched.events()[0].id().raw();
     println!("the next move's fact: EventId({next})");
-    assert_eq!(next, 3 + 3 + 1, "identity continues at the next EventId");
+    assert_eq!(next, 3 + 4 + 1, "identity continues at the next EventId");
     assert_eq!(
         resumed
             .world()

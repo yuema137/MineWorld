@@ -381,3 +381,83 @@ fn a_seat_is_a_person_the_world_can_resolve() {
         );
     }
 }
+
+/// S6's headline fact in the world the repository ships, not only in a fixture: the visitor walks to
+/// the café's front door and out into the street with `move` strides, presence states
+/// `person-entered-place` from the café to the street, and the `present-in` edge moves with them.
+///
+/// Positions are the pack's own literals: the visitor is seated at (4600, 200), the door is at
+/// (5000, 200) in the café and (0, 3000) on the street.
+#[test]
+fn the_visitor_walks_out_of_the_cafe_into_the_street() {
+    use mineworld_contracts::{LocalPosition, Millimetres, PlaceId};
+    use mineworld_movement::Move;
+    use mineworld_presence::PersonEnteredPlace;
+
+    let mut world = loaded();
+    let visitor = world.id(&key("visitor")).expect("the visitor resolves");
+    let place = |name: &str, world: &LoadedWorld| {
+        PlaceId::new(world.id(&key(name)).expect("declared"), EntityType::Place).expect("a place")
+    };
+    let (cafe, street) = (place("cafe", &world), place("street", &world));
+    let at = |place: PlaceId, x: i32, y: i32| {
+        Location::in_place(place).with_local(LocalPosition::on_ground(
+            Millimetres::new(x),
+            Millimetres::new(y),
+        ))
+    };
+    let edges = |world: &LoadedWorld| -> Vec<EntityId> {
+        world
+            .world()
+            .relations()
+            .touching(visitor)
+            .filter(|edge| *edge.relation_type() == present_in())
+            .map(|edge| edge.to())
+            .collect()
+    };
+
+    let before = edges(&world);
+    let mut kinds = Vec::new();
+    let mut entered = None;
+    for (index, to) in [at(cafe, 5_000, 200), at(street, 500, 3_000)]
+        .into_iter()
+        .enumerate()
+    {
+        let request = ActionIntent::new(
+            ActionId::from_raw(u64::try_from(index).expect("small") + 1),
+            visitor,
+            ActionRecord::new::<Move>(serde_json::to_vec(&Move::new(to)).expect("encodes")),
+            WorldTime::EPOCH,
+        );
+        let dispatched = world
+            .world_mut()
+            .dispatch(&request, WorldTime::EPOCH)
+            .expect("dispatch answers");
+        assert!(
+            matches!(dispatched.result(), ActionResult::Accepted { .. }),
+            "{to:?}: {:?}",
+            dispatched.result()
+        );
+        for event in dispatched.events() {
+            kinds.push(event.event_type().as_str().to_owned());
+            if event.event_type().as_str() == "person-entered-place" {
+                entered = Some(event.clone());
+            }
+        }
+    }
+    let after = edges(&world);
+    println!("facts: {kinds:?}; present-in before {before:?}, after {after:?}");
+
+    assert_eq!(kinds, ["arrived", "arrived", "person-entered-place"]);
+    let entered = entered.expect("the occupancy change was recorded");
+    assert_eq!(entered.provenance().emitted_by(), &PresenceSystem::ID);
+    let fact: PersonEnteredPlace =
+        serde_json::from_slice(entered.payload().payload()).expect("it decodes");
+    assert_eq!(
+        (fact.person().entity_id(), fact.from(), fact.place()),
+        (visitor, cafe, street)
+    );
+    assert_eq!(before, vec![cafe.entity_id()]);
+    assert_eq!(after, vec![street.entity_id()]);
+    assert_eq!(where_is(&world, "visitor"), Some(at(street, 500, 3_000)));
+}

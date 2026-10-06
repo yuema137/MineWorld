@@ -17,13 +17,13 @@
 mod support;
 
 use mineworld_contracts::{
-    Action, ActionRecord, ActionResult, ComponentRecord, EntityType, Event, EventEnvelope,
-    Location, PlaceId, Rejection, RejectionCode,
+    Action, ActionRecord, ActionResult, Causation, ComponentRecord, EntityType, Event,
+    EventEnvelope, Location, PlaceId, Rejection, RejectionCode,
 };
 use mineworld_conversation::{Talk, Utterance};
 use mineworld_kernel::{EntityRegistrySnapshot, RelationStoreSnapshot, SystemIdentity};
 use mineworld_movement::{Move, MovementSystem};
-use mineworld_presence::{Arrived, Presence, PresenceSystem};
+use mineworld_presence::{Arrived, PersonEnteredPlace, Presence, PresenceSystem};
 use serde::Serialize;
 use support::{Layout, Movement, NOW, Town, at, encode};
 
@@ -65,8 +65,23 @@ fn a_stride_and_a_crossing_are_stated_by_movement_and_reduced_by_presence() {
         events.len()
     );
     assert!(accepted(&result), "through the doorway: {result:?}");
-    assert_eq!(events.len(), 1);
+    // Two facts: movement's `arrived`, and presence's occupancy change caused by it (C6).
+    assert_eq!(events.len(), 2, "the arrival and the occupancy change");
+    assert_eq!(*events[0].event_type(), Arrived::EVENT_TYPE);
     assert_eq!(events[0].provenance().emitted_by(), &MovementSystem::ID);
+    assert_eq!(*events[1].event_type(), PersonEnteredPlace::EVENT_TYPE);
+    assert_eq!(events[1].provenance().emitted_by(), &PresenceSystem::ID);
+    assert_eq!(*events[1].caused_by(), Causation::Event(events[0].id()));
+    let entered: PersonEnteredPlace =
+        serde_json::from_slice(events[1].payload().payload()).expect("presence's own encoding");
+    assert_eq!(
+        (
+            entered.person().entity_id(),
+            entered.from(),
+            entered.place()
+        ),
+        (visitor, cafe, street)
+    );
     assert_eq!(before, vec![cafe.entity_id()]);
     assert_eq!(
         after,
