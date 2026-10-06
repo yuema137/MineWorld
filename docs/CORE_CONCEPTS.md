@@ -537,6 +537,16 @@ shouted across a room or noticed by nobody.
 `Provenance` records which system emitted it and, where relevant, which controller decision led
 to it.
 
+Every EventType has exactly one **owner** — the System that defines its vocabulary (schema and
+public constructor) and the **only** System that reduces it into owned state. Usually the owner is
+also the only System that emits it. Another System may state a fact of that type only if it
+declares the emission, declares a dependency on the owner, and builds the payload with the owner's
+constructor; the kernel refuses the first two at installation otherwise. The owner still decides:
+it may refuse a fact its state may not take, at construction and again at reduction. Provenance
+then names the System that *stated* the fact, and the type's owner names whose vocabulary it is
+(`DECISIONS.md` `ARC-26`). Example: `MovementSystem` decides that a move is legal and states
+`PresenceSystem`'s `Arrived`; only `PresenceSystem` writes where the person now is.
+
 `Location` here is the **semantic** location: the Place the fact happened in (§6). It is not a
 `Location` with a continuous refinement, because a millimetre position and an orientation are
 properties an *entity* has rather than properties a *fact* has. A System whose events genuinely
@@ -667,6 +677,12 @@ EmploymentSystem  ──WageDue──►  EconomySystem  ──MoneyTransferred�
 
 `EmploymentSystem` must never write `BankAccount.balance`. This is what keeps systems
 independently installable and removable.
+
+The event that carries a cross-domain effect is normally the requester's own (`WageDue` is
+`EmploymentSystem`'s). When the owner of the state cannot depend on the requester — because the
+requester already depends on the owner to read its state — the requester instead states a fact in
+the owner's vocabulary, under the conditions of §11 (`ARC-26`). Either way, only the owner writes
+its components.
 
 ---
 

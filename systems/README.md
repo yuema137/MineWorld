@@ -6,10 +6,11 @@ what the world is without changing anything else.
 
 ```text
 presence/       where people are, what each of them perceives, and what they may attempt
+movement/       walking: whether a `move` is allowed, and which places open onto each other
 conversation/   speaking to somebody, and remembering that they spoke to you
 ```
 
-Both are real packs, not examples: they are what the vertical slice runs on. They are also the
+All three are real packs, not examples: they are what the vertical slice runs on. They are also the
 worked example every later pack copies, so they are written to be read in this order —
 `src/lib.rs` first, then the action, the event, the component, and `src/system.rs` last.
 
@@ -19,6 +20,9 @@ worked example every later pack copies, so they are written to be read in this o
    owner decides what it means. The compiler enforces this, not a reviewer.
 2. **It never assumes a system it has not declared as a dependency.** `conversation` declares
    `presence`, because space is presence's state; a world composed without it is refused by name.
+   A pack may state a fact in another pack's vocabulary only if it depends on that pack — `movement`
+   states presence's `arrived`, and presence still decides what its state may hold
+   ([`DECISIONS.md` `ARC-26`](../docs/DECISIONS.md)); the kernel refuses anything else at install.
 3. **It names no renderer, transport or model provider.** A pack does not know it is being drawn.
 4. **Removing it removes its actions and its state contribution**, and nothing else — no edit to
    `Person`, to another pack, or to the kernel.
@@ -41,7 +45,8 @@ correctly. That is the difference between a framework and a hardcoded game, and
 
 ```sh
 cargo test -p mineworld-presence
-cargo test -p mineworld-conversation      # the two packs in one world, and AC-2
+cargo test -p mineworld-movement          # walking, TooFarAway, and AC-2 with its negative control
+cargo test -p mineworld-conversation      # talking where people are, and AC-2
 cargo doc -p mineworld-conversation --open
 ```
 

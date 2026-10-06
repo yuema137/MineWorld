@@ -15,7 +15,10 @@ use crate::error::PersistError;
 /// Raised whenever the encoding of any row changes — including a change to `WorldSnapshot`,
 /// `EventEnvelope` or a journal entry's shape. A save of another format is refused, never decoded on
 /// a guess (step-06 I-5).
-pub const SAVE_FORMAT: u32 = 1;
+///
+/// History: 1 — S5. 2 — S6 (`ARC-26`): a `SystemDeclaration`, stored in every snapshot's composition
+/// and in the manifest, gained the owners of the vocabularies it borrows.
+pub const SAVE_FORMAT: u32 = 2;
 
 /// What a save says about itself.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

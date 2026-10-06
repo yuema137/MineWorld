@@ -1,0 +1,12 @@
+# The street outside the café: a second place, with an origin of its own.
+#
+# Joined to the café by the doorway `places/cafe.yaml` states — a passage is stated once, in either
+# of the two files, and holds both ways (`docs/MODULE_SPEC.md` §4.1).
+
+tags:
+  - street
+  - public
+
+note: >-
+  The pavement outside the café's front door. Somewhere to step out to, and the reason a person in
+  this world can enter a place rather than only stand in one.

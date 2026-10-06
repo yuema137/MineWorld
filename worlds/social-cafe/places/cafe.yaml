@@ -9,5 +9,16 @@ tags:
   - public
 
 note: >-
-  A small café with a counter along one wall and two tables. The whole world, for now: enough for
-  three people to be in one room and speak to each other.
+  A small café with a counter along one wall and two tables, and a front door onto the street.
+
+# The front door. `here` is where it is in the café — 400 mm past where the visitor is seated —
+# and `there` where the same door is on the street. Where it is, not how near one must be to use it:
+# that is the movement system's rule (`docs/DECISIONS.md` `ARC-26`).
+passages:
+  - to: street
+    here:
+      x: 5000
+      y: 200
+    there:
+      x: 0
+      y: 3000

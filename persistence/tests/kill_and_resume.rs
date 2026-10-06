@@ -13,7 +13,8 @@
 //! ```
 //!
 //! Two scenarios. **cafe**: the repository's own `worlds/social-cafe`, assembled by the pack loader,
-//! driven by `arrive` and `talk` requests (some refused by the conversation system for distance) at
+//! driven by `move` and `talk` requests (some refused for distance by the movement and conversation
+//! systems) at
 //! `Durability::PowerLoss`, the hosted setting. **clock**: a test-local world whose state lives in
 //! processes, deferrals and interruptions, driven only by the clock for thirty simulated days at
 //! `Durability::ProcessCrash`.
@@ -40,8 +41,9 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use mineworld_contracts::{
-    ActionId, ActionIntent, ActionRequest, EntityId, EntityKey, EntityType, Event, EventEnvelope,
-    EventSchemaVersion, EventTypeId, ProcessId, ProcessTypeId, SystemId, Visibility, WorldTime,
+    ActionId, ActionIntent, ActionRequest, ActionResult, EntityId, EntityKey, EntityType, Event,
+    EventEnvelope, EventSchemaVersion, EventTypeId, ProcessId, ProcessTypeId, Rejection, SystemId,
+    Visibility, WorldTime,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, Process, ProcessKind, ProcessPhase, ProcessStart, System,
@@ -303,10 +305,13 @@ fn social_cafe() -> WorldPack {
 
 const CAFE_STEPS: u64 = 300;
 const CAFE_PEOPLE: [&str; 4] = ["alice", "bob", "visitor", "wanderer"];
+/// Where `worlds/social-cafe` seats each of [`CAFE_PEOPLE`], in millimetres (its `people/*.yaml`).
+const CAFE_SEATS: [(i32, i32); 4] = [(1_200, 2_400), (1_400, 600), (4_600, 200), (4_600, 4_400)];
 
-/// The cafe scenario's step `index`: at `20 * (index + 1)` seconds, request `index + 1` — an
-/// `arrive` somewhere in the cafe or a `talk` to the next person, which the conversation system
-/// refuses when they are out of reach.
+/// The cafe scenario's step `index`: at `20 * (index + 1)` seconds, request `index + 1` — a `move`
+/// near where the actor was seated, which the movement system refuses when it is more than a stride
+/// from where they are, or a `talk` to the next person, which the conversation system refuses when
+/// they are out of reach.
 fn cafe_intent(index: u64, ids: &BTreeMap<EntityKey, EntityId>) -> (i64, ActionIntent) {
     let id = |key: &str| ids[&EntityKey::new(key).expect("a key")];
     let actor = id(CAFE_PEOPLE[usize::try_from(index % 4).expect("small")]);
@@ -315,14 +320,18 @@ fn cafe_intent(index: u64, ids: &BTreeMap<EntityKey, EntityId>) -> (i64, ActionI
     // The action payload is the owning system's JSON, carried as its bytes — exactly what the server
     // makes of a client's frame (`server/src/protocol.rs`, `WirePayload`).
     let request = if index.is_multiple_of(3) {
-        let x = i32::try_from(roll % 6_000).expect("small");
-        let y = i32::try_from((roll >> 16) % 6_000).expect("small");
-        let payload = encode(&json!({ "location": {
+        // A point in the 2.4 m square centred on where the pack seats this person, so a move lands
+        // within the server's 2 m stride of the person's current position often and outside it
+        // often: both answers are journaled and replayed (counted by the parent, `ARC-23`).
+        let (home_x, home_y) = CAFE_SEATS[usize::try_from(index % 4).expect("small")];
+        let x = home_x + i32::try_from(roll % 2_400).expect("small") - 1_200;
+        let y = home_y + i32::try_from((roll >> 16) % 2_400).expect("small") - 1_200;
+        let payload = encode(&json!({ "to": {
             "place": { "entity": id("cafe").to_string(), "entity_type": "place" },
             "local": { "x": x, "y": y, "z": 0 }, "facing": null } }));
         json!({
-            "actor": actor, "action_type": "arrive", "target": null, "actor_location": null,
-            "payload": { "action_type": "arrive", "payload": payload },
+            "actor": actor, "action_type": "move", "target": null, "actor_location": null,
+            "payload": { "action_type": "move", "payload": payload },
         })
     } else {
         let payload = encode(&json!({ "utterance": format!("line {index}") }));
@@ -430,7 +439,17 @@ impl Scenario {
                     let (at, intent) = cafe_intent(index, &ids);
                     let _ = world.advance_to(t(at)).expect("advances");
                     report(world);
-                    let _ = world.dispatch(&intent, t(at)).expect("answered");
+                    let answered = world.dispatch(&intent, t(at)).expect("answered");
+                    if intent.action_type().as_str() == "move" {
+                        // Counted by the parent, so the claim that both answers occur is located.
+                        match answered.result() {
+                            ActionResult::Accepted { .. } => println!("move accepted"),
+                            ActionResult::Rejected(Rejection::TooFarAway) => {
+                                println!("move too-far-away");
+                            }
+                            other => println!("move {other:?}"),
+                        }
+                    }
                     report(world);
                 }
             }
@@ -608,11 +627,35 @@ fn scenario(scenario: Scenario) {
         "{}: the control run holds {total} revisions",
         scenario.name()
     );
-    // Floors from what the scripts guarantee, not from the code: in the cafe every third request is
-    // an `arrive`, which is always accepted and states one fact; in the clock world an activity lasts
-    // at most eight hours, so every person ends at least three a day.
+    // Floors from what the run shows, not from the code: in the cafe every third request is a `move`,
+    // and each one accepted states one fact — counted from the control child's own report, which also
+    // shows that refusals for distance occur and are therefore journaled and replayed too; in the
+    // clock world an activity lasts at most eight hours, so every person ends at least three a day.
     let floor = match scenario {
-        Scenario::Cafe => CAFE_STEPS / 3,
+        Scenario::Cafe => {
+            let count = |what: &str| {
+                control
+                    .lines
+                    .iter()
+                    .filter(|line| line.as_str() == what)
+                    .count() as u64
+            };
+            let (accepted, refused) = (count("move accepted"), count("move too-far-away"));
+            println!(
+                "[cafe] control: {} moves, {accepted} accepted, {refused} refused too-far-away",
+                CAFE_STEPS / 3
+            );
+            assert_eq!(
+                accepted + refused,
+                CAFE_STEPS / 3,
+                "every move is answered one of the two ways"
+            );
+            assert!(
+                accepted > 0 && refused > 0,
+                "both answers occur: {accepted} accepted, {refused} refused"
+            );
+            accepted
+        }
         Scenario::Clock => CLOCK_DAYS.unsigned_abs() * 3 * CLOCK_PEOPLE as u64,
     };
     assert!(

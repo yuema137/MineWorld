@@ -107,6 +107,10 @@ pub struct SystemDeclaration {
     owns: Vec<ComponentDeclaration>,
     provides: Vec<ActionTypeId>,
     emits: Vec<EventTypeId>,
+    /// The emitted kinds of fact whose vocabulary another system owns, each with that owner — read
+    /// off [`Event::OWNER`] by [`emitting`](SystemDeclaration::emitting), never supplied. Installation
+    /// requires every owner listed here to be a declared dependency (`ARC-26`).
+    emits_owned_by_others: Vec<(EventTypeId, SystemId)>,
     subscribes: Vec<EventTypeId>,
 }
 
@@ -126,6 +130,7 @@ impl SystemDeclaration {
             owns: Vec::new(),
             provides: Vec::new(),
             emits: Vec::new(),
+            emits_owned_by_others: Vec::new(),
             subscribes: Vec::new(),
         }
     }
@@ -155,9 +160,17 @@ impl SystemDeclaration {
 
     /// Declares a kind of fact this system emits. Emitting an undeclared event type is refused:
     /// the declaration is what a reader of a world's composition goes by, so it must be true.
+    ///
+    /// A kind of fact whose vocabulary another system owns ([`Event::OWNER`]) may be declared too —
+    /// that is how a system asks the owner to change state only the owner writes — and installation
+    /// then requires a declared dependency on that owner (`DECISIONS.md` `ARC-26`). The owner is
+    /// read off the type, so a declaration cannot misstate whose vocabulary it is speaking.
     #[must_use]
     pub fn emitting<E: Event>(mut self) -> Self {
         self.emits.push(E::EVENT_TYPE);
+        if E::OWNER != self.system {
+            self.emits_owned_by_others.push((E::EVENT_TYPE, E::OWNER));
+        }
         self
     }
 
@@ -197,6 +210,11 @@ impl SystemDeclaration {
     /// The kinds of fact this system emits.
     pub fn emits(&self) -> &[EventTypeId] {
         &self.emits
+    }
+
+    /// The emitted kinds of fact whose vocabulary another system owns, each paired with its owner.
+    pub fn emits_owned_by_others(&self) -> &[(EventTypeId, SystemId)] {
+        &self.emits_owned_by_others
     }
 
     /// The kinds of fact this system reacts to.

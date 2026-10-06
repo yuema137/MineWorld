@@ -8,24 +8,32 @@
 //!
 //! The two-pack claims — talking, its spatial refusal, and `AC-2` with a real system — live in
 //! `systems/conversation/tests/conversation_and_presence.rs`, on the side of the dependency that
-//! points at this crate.
+//! points at this crate; walking, with its spatial rules, lives in `systems/movement/tests/`.
+//!
+//! This pack provides no action (`DECISIONS.md` `ARC-26`), so people are moved here by `Mover`, a
+//! test-only system that depends on presence and states presence's `arrived` through the checked
+//! constructor [`arrival`] — the pattern from presence's side, with no movement rule in the way.
 
 use mineworld_contracts::{
-    Action, ActionId, ActionIntent, ActionRecord, ActionResult, Component, EntityId, EntityKey,
-    EntityType, Event, EventEnvelope, LocalPosition, Location, Millimetres, Observation, PlaceId,
-    Rejection, Relation, Visibility, WorldTime,
+    Action, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId, Causation, Component,
+    EntityId, EntityKey, EntityType, Event, EventEnvelope, LocalPosition, Location, Millimetres,
+    Observation, PersonId, PlaceId, Rejection, Relation, SystemId, Visibility, WorldTime,
 };
-use mineworld_kernel::{SystemIdentity, World};
+use mineworld_kernel::{
+    Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
+    WorldView,
+};
 use mineworld_presence::{
-    Arrive, Arrived, PerceptionProvider, Presence, PresenceSystem, present_in_declaration,
+    Arrived, PerceptionProvider, PersonEnteredPlace, Presence, PresenceSystem, admit, arrival,
+    present_in_declaration,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// The instant every test in this file works in. Supplied to dispatch, never read from a clock, so
 /// that a replayed run produces the same facts (`AC-12`).
 const NOW: WorldTime = WorldTime::from_seconds(3_600);
 
-/// A world with this pack installed and nothing else, and the three entities the tests use.
+/// A world with this pack and `Mover` installed, and the four entities the tests use.
 struct Fixture {
     world: World,
     alice: EntityId,
@@ -39,6 +47,9 @@ impl Fixture {
     fn new() -> Self {
         let mut world = World::new();
         world.install(PresenceSystem).expect("the pack installs");
+        world
+            .install(Mover)
+            .expect("Mover depends on presence, so it may state presence's fact");
         let alice = create(&mut world, "alice", EntityType::Person);
         let bob = create(&mut world, "bob", EntityType::Person);
         let cafe = place(create(&mut world, "cafe", EntityType::Place));
@@ -53,17 +64,17 @@ impl Fixture {
         }
     }
 
-    /// Dispatches one `arrive`, the way a server would: the world allocates the identity, the world
-    /// supplies the instant.
-    fn arrive(&mut self, person: EntityId, at: Location) -> Vec<EventEnvelope> {
+    /// Has `Mover` put `person` at `at`, through presence's checked constructor, the way a server
+    /// dispatches: the world allocates the identity and supplies the instant.
+    fn relocate(&mut self, person: EntityId, at: Location) -> Vec<EventEnvelope> {
         let id = ActionId::from_raw(self.next_action);
         self.next_action += 1;
-        let intent = ActionIntent::new(
-            id,
-            person,
-            ActionRecord::new::<Arrive>(encode(&Arrive::new(at))),
-            NOW,
-        );
+        let put = Put {
+            person: PersonId::new(person, EntityType::Person).expect("a person"),
+            to: at,
+            raw: false,
+        };
+        let intent = ActionIntent::new(id, person, ActionRecord::new::<Put>(encode(&put)), NOW);
         let dispatched = self
             .world
             .dispatch(&intent, NOW)
@@ -125,7 +136,7 @@ fn present_in_edge(world: &World, person: EntityId, place: PlaceId) -> Relation 
 // What an arrival changes.
 // ---------------------------------------------------------------------------------------------
 
-/// The whole of what `arrive` does, end to end: it records one fact, and reducing that fact writes
+/// The whole of what an arrival does, end to end: it records one fact, and reducing that fact writes
 /// the position and the edge that says which place it is in.
 ///
 /// The fact is checked as well as the state, because the state *is* a reduction of the fact: if the
@@ -135,7 +146,7 @@ fn present_in_edge(world: &World, person: EntityId, place: PlaceId) -> Relation 
 fn arriving_records_a_fact_and_reducing_it_writes_the_position_and_the_edge() {
     let mut fixture = Fixture::new();
     let counter = at(fixture.cafe, 1_000, 0);
-    let events = fixture.arrive(fixture.alice, counter);
+    let events = fixture.relocate(fixture.alice, counter);
 
     assert_eq!(events.len(), 1, "one arrival is one fact");
     let arrival = &events[0];
@@ -153,9 +164,10 @@ fn arriving_records_a_fact_and_reducing_it_writes_the_position_and_the_edge() {
     );
     assert_eq!(
         arrival.provenance().emitted_by(),
-        &PresenceSystem::ID,
-        "the kernel records who emitted it, not the system"
+        &Mover::ID,
+        "the kernel records who stated it — the deciding system — while the fact stays presence's"
     );
+    assert_eq!(Arrived::OWNER, PresenceSystem::ID);
     let payload: Arrived = serde_json::from_slice(arrival.payload().payload()).expect("it decodes");
     assert_eq!(payload.person().entity_id(), fixture.alice);
     assert_eq!(payload.location(), counter);
@@ -184,8 +196,8 @@ fn arriving_records_a_fact_and_reducing_it_writes_the_position_and_the_edge() {
 #[test]
 fn arriving_somewhere_else_replaces_the_edge_rather_than_adding_one() {
     let mut fixture = Fixture::new();
-    fixture.arrive(fixture.alice, at(fixture.cafe, 0, 0));
-    fixture.arrive(fixture.alice, at(fixture.promenade, 4_000, 0));
+    fixture.relocate(fixture.alice, at(fixture.cafe, 0, 0));
+    fixture.relocate(fixture.alice, at(fixture.promenade, 4_000, 0));
 
     assert_eq!(fixture.world.relations().len(), 1, "she is in one place");
     assert!(fixture.world.read().is_related(&present_in_edge(
@@ -216,9 +228,9 @@ fn arriving_somewhere_else_replaces_the_edge_rather_than_adding_one() {
 #[test]
 fn moving_within_a_place_updates_the_position_and_keeps_the_one_edge() {
     let mut fixture = Fixture::new();
-    fixture.arrive(fixture.alice, at(fixture.cafe, 0, 0));
+    fixture.relocate(fixture.alice, at(fixture.cafe, 0, 0));
     let by_the_window = at(fixture.cafe, 2_500, 1_200);
-    fixture.arrive(fixture.alice, by_the_window);
+    fixture.relocate(fixture.alice, by_the_window);
 
     assert_eq!(
         fixture.world.components().get::<Presence>(fixture.alice),
@@ -227,44 +239,44 @@ fn moving_within_a_place_updates_the_position_and_keeps_the_one_edge() {
     assert_eq!(fixture.world.relations().len(), 1);
 }
 
-/// A place is not a person, and this pack's state is about people.
-///
-/// The refusal is `NoSupportedInteraction` rather than a system code: the café exists and is
-/// reachable, and there is simply no sense in which it arrives somewhere.
-#[test]
-fn a_place_cannot_arrive_anywhere() {
-    let mut fixture = Fixture::new();
-    let intent = ActionIntent::new(
-        ActionId::from_raw(99),
-        fixture.cafe.entity_id(),
-        ActionRecord::new::<Arrive>(encode(&Arrive::new(Location::in_place(fixture.promenade)))),
-        NOW,
-    );
-    let dispatched = fixture
-        .world
-        .dispatch(&intent, NOW)
-        .expect("dispatch answers");
-
-    assert_eq!(
-        *dispatched.result(),
-        ActionResult::Rejected(Rejection::NoSupportedInteraction)
-    );
-    assert!(dispatched.events().is_empty(), "a refusal records nothing");
-    assert_eq!(fixture.world.relations().len(), 0);
+/// The action this pack used to provide, as a client would still send it.
+#[derive(Serialize, Deserialize)]
+struct RetiredArrive {
+    location: Location,
 }
 
-/// A request this pack cannot read is refused with its own reason code and a detail a client
-/// developer can act on — and, being a refusal, changes nothing.
+impl Action for RetiredArrive {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("arrive");
+    const OWNER: SystemId = PresenceSystem::ID;
+}
+
+/// This pack provides no action: `arrive` is retired (`DECISIONS.md` `ARC-26`), and a request for it
+/// is answered `Unavailable` by the world, with nothing recorded and nobody moved.
 ///
-/// This is the one place a `Rejection::System` is exercised end to end: the five kernel reasons are
-/// facts about the world, and a frame that does not decode is a fact about the request.
+/// The point is the bypass it closes. An action that relocated anybody anywhere, checking only who
+/// and where, would make any distance rule another system declares decorative — the same client
+/// would get the refused position one request later.
 #[test]
-fn a_payload_this_pack_cannot_read_is_refused_with_its_own_code() {
+fn this_pack_provides_no_action_and_an_arrive_request_is_unavailable() {
     let mut fixture = Fixture::new();
+    let declared = fixture
+        .world
+        .composition()
+        .into_iter()
+        .find(|record| record.declaration.system() == &PresenceSystem::ID)
+        .expect("presence is installed");
+    assert!(
+        declared.declaration.provides().is_empty(),
+        "presence declares no action: {:?}",
+        declared.declaration.provides()
+    );
+
     let intent = ActionIntent::new(
-        ActionId::from_raw(1),
+        ActionId::from_raw(99),
         fixture.alice,
-        ActionRecord::new::<Arrive>(b"{\"location\":\"the cafe\"}".to_vec()),
+        ActionRecord::new::<RetiredArrive>(encode(&RetiredArrive {
+            location: at(fixture.promenade, 0, 0),
+        })),
         NOW,
     );
     let dispatched = fixture
@@ -272,22 +284,57 @@ fn a_payload_this_pack_cannot_read_is_refused_with_its_own_code() {
         .dispatch(&intent, NOW)
         .expect("dispatch answers");
 
-    match dispatched.result() {
-        ActionResult::Rejected(Rejection::System { code, detail }) => {
-            assert_eq!(code.as_str(), "malformed-payload");
-            assert!(
-                detail.is_some(),
-                "a client developer is told what was wrong"
-            );
-        }
-        other => panic!("expected this pack's own refusal, got {other:?}"),
-    }
-    assert!(
-        fixture
-            .world
-            .components()
-            .get::<Presence>(fixture.alice)
-            .is_none()
+    assert_eq!(*dispatched.result(), ActionResult::Unavailable);
+    assert!(dispatched.events().is_empty(), "a refusal records nothing");
+    assert_eq!(
+        fixture.world.components().get::<Presence>(fixture.alice),
+        None
+    );
+}
+
+/// Occupancy changes are presence's facts: a change of place is stated as `person-entered-place`,
+/// caused by the `arrived`, stated by presence whoever decided the move, naming where the person came
+/// from. A first placement at genesis and a move within a place state none.
+#[test]
+fn entering_another_place_is_stated_by_presence_and_nothing_else_is() {
+    let mut fixture = Fixture::new();
+    let alice = PersonId::new(fixture.alice, EntityType::Person).expect("a person");
+    let placed = arrival(&fixture.world.read(), alice, at(fixture.cafe, 0, 0)).expect("admitted");
+    let genesis = fixture.world.genesis(NOW, vec![placed]).expect("begins");
+    let kinds = |events: &[EventEnvelope]| -> Vec<String> {
+        events
+            .iter()
+            .map(|event| event.event_type().as_str().to_owned())
+            .collect()
+    };
+    println!("genesis: {:?}", kinds(&genesis));
+    assert_eq!(
+        kinds(&genesis),
+        ["arrived"],
+        "a first placement enters nothing"
+    );
+
+    let within = fixture.relocate(fixture.alice, at(fixture.cafe, 1_500, 0));
+    println!("within the café: {:?}", kinds(&within));
+    assert_eq!(
+        kinds(&within),
+        ["arrived"],
+        "a move within a place enters nothing"
+    );
+
+    let out = fixture.relocate(fixture.alice, at(fixture.promenade, 0, 0));
+    println!("onto the promenade: {:?}", kinds(&out));
+    assert_eq!(kinds(&out), ["arrived", "person-entered-place"]);
+    let (arrived, entered) = (&out[0], &out[1]);
+    assert_eq!(entered.provenance().emitted_by(), &PresenceSystem::ID);
+    assert_eq!(*entered.caused_by(), Causation::Event(arrived.id()));
+    assert_eq!(*entered.visibility(), Visibility::Place(fixture.promenade));
+    assert_eq!(entered.place(), Some(fixture.promenade));
+    let fact: PersonEnteredPlace =
+        serde_json::from_slice(entered.payload().payload()).expect("it decodes");
+    assert_eq!(
+        (fact.person(), fact.place(), fact.from()),
+        (alice, fixture.promenade, fixture.cafe)
     );
 }
 
@@ -306,9 +353,9 @@ fn an_observation_lists_who_is_here_where_they_are_and_the_edges_this_pack_wrote
     let carol = create(&mut fixture.world, "carol", EntityType::Person);
     let counter = at(fixture.cafe, 0, 0);
     let table = at(fixture.cafe, 1_500, 0);
-    fixture.arrive(fixture.alice, counter);
-    fixture.arrive(fixture.bob, table);
-    fixture.arrive(carol, at(fixture.promenade, 0, 0));
+    fixture.relocate(fixture.alice, counter);
+    fixture.relocate(fixture.bob, table);
+    fixture.relocate(carol, at(fixture.promenade, 0, 0));
 
     let observation = fixture.observation(fixture.alice);
 
@@ -363,58 +410,57 @@ fn an_observation_lists_who_is_here_where_they_are_and_the_edges_this_pack_wrote
     );
 }
 
-/// Somebody this pack knows no location for perceives nothing — and is still told they may arrive,
-/// because arriving requires nothing of space.
+/// Somebody this pack knows no location for perceives nothing, and is offered nothing by this pack.
 ///
-/// Both halves matter. The first is that absence of state is treated as ignorance rather than as an
-/// error, which is what lets a pack be installed into a world that already has people in it. The
-/// second is that an affordance whose requirement is `NONE` does not need a position to be answered,
-/// which is the same reason a message or a telephone call will not.
+/// Absence of state is treated as ignorance rather than as an error, which is what lets a pack be
+/// installed into a world that already has people in it. And this pack offers no action of its own:
+/// what a person may attempt — walking, talking — is offered by the packs that provide it.
 #[test]
-fn an_observer_with_no_recorded_location_perceives_nothing_and_may_still_arrive() {
+fn an_observer_with_no_recorded_location_perceives_nothing_and_is_offered_nothing_here() {
     let fixture = Fixture::new();
     let observation = fixture.observation(fixture.alice);
 
     assert!(observation.entities().is_empty());
     assert!(observation.relations().is_empty());
     assert_eq!(observation.self_location(), None);
-
-    assert_eq!(observation.affordances().len(), 1);
-    let affordance = &observation.affordances()[0];
-    assert_eq!(*affordance.action_type(), Arrive::ACTION_TYPE);
-    assert_eq!(affordance.target(), None, "arriving is directed at nobody");
-    assert!(affordance.is_available());
-    assert_eq!(affordance.unavailable_reason(), None);
+    assert!(observation.affordances().is_empty());
 }
 
-/// Disabling this pack removes its action and its affordance, and leaves the state it owns alone.
+/// Disabling this pack — once the one system depending on it is disabled first, as the registry
+/// requires — leaves the state it owns alone, and stops it reducing anything.
 ///
-/// The affordance half is the load-bearing one. Perception asks the *kernel's route map* whether an
-/// action is still provided, rather than keeping a list of its own — so a world that disables a pack
-/// stops advertising it everywhere, with no edit to the pack that produces observations (`AC-2`).
-/// A client would otherwise keep drawing an interaction the server now answers `Unavailable`.
+/// A disabled owner reduces nothing: a request that would state an arrival is `Unavailable` because
+/// the deciding system is disabled too, and the position stays what it was. The observation still
+/// describes the world, because perception is a read and reading is not an action.
 #[test]
-fn disabling_this_pack_removes_its_action_and_its_affordance_and_keeps_its_state() {
+fn disabling_this_pack_keeps_its_state() {
     let mut fixture = Fixture::new();
     let counter = at(fixture.cafe, 0, 0);
-    fixture.arrive(fixture.alice, counter);
-    assert_eq!(fixture.observation(fixture.alice).affordances().len(), 1);
+    fixture.relocate(fixture.alice, counter);
 
+    assert!(
+        fixture.world.disable(&PresenceSystem::ID).is_err(),
+        "a system another enabled system depends on cannot be disabled"
+    );
+    fixture
+        .world
+        .disable(&Mover::ID)
+        .expect("nothing depends on Mover");
     fixture
         .world
         .disable(&PresenceSystem::ID)
-        .expect("nothing depends on it in this world");
+        .expect("and now nothing enabled depends on presence");
 
     let observation = fixture.observation(fixture.alice);
-    assert!(
-        observation.affordances().is_empty(),
-        "an action no enabled system provides is not offered to anybody"
-    );
-
+    let put = Put {
+        person: PersonId::new(fixture.alice, EntityType::Person).expect("a person"),
+        to: at(fixture.promenade, 0, 0),
+        raw: false,
+    };
     let intent = ActionIntent::new(
         ActionId::from_raw(50),
         fixture.alice,
-        ActionRecord::new::<Arrive>(encode(&Arrive::new(at(fixture.promenade, 0, 0)))),
+        ActionRecord::new::<Put>(encode(&put)),
         NOW,
     );
     let dispatched = fixture
@@ -438,8 +484,7 @@ fn disabling_this_pack_removes_its_action_and_its_affordance_and_keeps_its_state
     assert!(fixture.world.systems().is_installed(&PresenceSystem::ID));
     assert!(!fixture.world.systems().is_enabled(&PresenceSystem::ID));
 
-    // The observation still describes the world, because perception is a read and reading is not an
-    // action this pack provides.
+    // The observation still describes the world, because perception is a read.
     assert_eq!(observation.self_location(), Some(&counter));
     assert_eq!(observation.entities().len(), 2);
 }
@@ -496,10 +541,10 @@ impl PerceptionProvider for NamesSomebodyElse {
 #[test]
 fn a_pack_that_names_a_third_party_discloses_nothing() {
     let mut fixture = Fixture::new();
-    fixture.arrive(fixture.alice, at(fixture.cafe, 0, 0));
-    fixture.arrive(fixture.bob, at(fixture.cafe, 900, 0));
+    fixture.relocate(fixture.alice, at(fixture.cafe, 0, 0));
+    fixture.relocate(fixture.bob, at(fixture.cafe, 900, 0));
     let carol = create(&mut fixture.world, "carol", EntityType::Person);
-    fixture.arrive(carol, at(fixture.promenade, 0, 0));
+    fixture.relocate(carol, at(fixture.promenade, 0, 0));
     let (alice, bob) = (fixture.alice, fixture.bob);
 
     // The positive control: asked about Bob, a provider that answers about Bob is believed — and the
@@ -553,31 +598,21 @@ fn a_pack_that_names_a_third_party_discloses_nothing() {
     }
 }
 
-/// The offer is made against nobody and nobody else: this pack answers for its own action through
-/// the same seam every other pack uses, so `offers` is asked with each candidate target too.
+/// This pack offers nothing, against nobody and against anybody: it provides no action.
 #[test]
-fn this_pack_offers_its_action_once_and_not_against_a_target() {
+fn this_pack_offers_nothing_with_or_without_a_target() {
     let mut fixture = Fixture::new();
-    fixture.arrive(fixture.alice, at(fixture.cafe, 0, 0));
-    fixture.arrive(fixture.bob, at(fixture.cafe, 100, 0));
+    fixture.relocate(fixture.alice, at(fixture.cafe, 0, 0));
+    fixture.relocate(fixture.bob, at(fixture.cafe, 100, 0));
     let read = fixture.world.read();
 
-    assert_eq!(
-        PresenceSystem.offers(&read, fixture.alice, None).len(),
-        1,
-        "offered once, with no target"
-    );
+    assert!(PresenceSystem.offers(&read, fixture.alice, None).is_empty());
     assert!(
         PresenceSystem
             .offers(&read, fixture.alice, Some(fixture.bob))
-            .is_empty(),
-        "arriving is not something one does to somebody"
+            .is_empty()
     );
-    assert_eq!(
-        fixture.observation(fixture.alice).affordances().len(),
-        1,
-        "and two people in the room do not multiply it"
-    );
+    assert!(fixture.observation(fixture.alice).affordances().is_empty());
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -603,7 +638,18 @@ fn this_pack_offers_its_action_once_and_not_against_a_target() {
 #[test]
 fn no_other_packs_vocabulary_and_no_floating_point_appear_in_this_crate() {
     let sources = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-    let forbidden = ["talk", "conversation", "spoke", "utterance", "f32", "f64"];
+    // Walking is another pack's too: presence owns where people are and never names who moves them.
+    let forbidden = [
+        "talk",
+        "conversation",
+        "spoke",
+        "utterance",
+        "movement",
+        "passage",
+        "stride",
+        "f32",
+        "f64",
+    ];
     let mut scanned = 0;
     let mut offences = Vec::new();
 
@@ -634,5 +680,195 @@ fn no_other_packs_vocabulary_and_no_floating_point_appear_in_this_crate() {
         offences.is_empty(),
         "this pack must know neither another pack's vocabulary nor a float:\n{}",
         offences.join("\n")
+    );
+}
+
+// ---------------------------------------------------------------------------------------------
+// The owner still decides (`DECISIONS.md` `ARC-26`, clarification 2).
+// ---------------------------------------------------------------------------------------------
+
+/// A system that decides where somebody goes and states it in this pack's vocabulary, as `ARC-26`
+/// allows: it depends on presence and declares `arrived`. It can state the fact the contract's way,
+/// through [`arrival`], or bypass the constructor and build the payload itself — the second is the
+/// defect the reduction check exists for.
+struct Mover;
+
+impl SystemIdentity for Mover {
+    const ID: SystemId = SystemId::from_static("test-mover");
+}
+
+/// `Mover`'s one request: put `person` at `to`, built `raw` or through the constructor.
+#[derive(Serialize, Deserialize)]
+struct Put {
+    person: PersonId,
+    to: Location,
+    raw: bool,
+}
+
+impl Action for Put {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("test-put");
+    const OWNER: SystemId = Mover::ID;
+}
+
+impl System for Mover {
+    const VERSION: SystemVersion = SystemVersion::new(1);
+
+    fn declaration(&self) -> SystemDeclaration {
+        SystemDeclaration::of::<Self>()
+            .depending_on([PresenceSystem::ID])
+            .providing::<Put>()
+            .emitting::<Arrived>()
+    }
+
+    fn resolve(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        intent: &ActionIntent,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let put: Put = serde_json::from_slice(intent.payload().payload()).expect("a Put");
+        if put.raw {
+            // The bypass: presence's payload, built without asking presence.
+            return Ok(vec![
+                Emission::new::<Arrived>(
+                    encode(&Arrived::new(put.person, put.to)),
+                    Visibility::Place(put.to.place()),
+                )
+                .about(vec![put.person.entity_id()]),
+            ]);
+        }
+        let fact = arrival(&world.read(), put.person, put.to)
+            .expect("the contract's way refuses before anything is built");
+        Ok(vec![fact])
+    }
+}
+
+fn put(
+    fixture: &mut Fixture,
+    person: EntityId,
+    to: Location,
+    raw: bool,
+) -> Result<ActionResult, KernelError> {
+    let id = ActionId::from_raw(fixture.next_action);
+    fixture.next_action += 1;
+    let person = PersonId::new(person, EntityType::Person).expect("a person");
+    let intent = ActionIntent::new(
+        id,
+        person.entity_id(),
+        ActionRecord::new::<Put>(encode(&Put { person, to, raw })),
+        NOW,
+    );
+    fixture
+        .world
+        .dispatch(&intent, NOW)
+        .map(|dispatched| dispatched.result().clone())
+}
+
+/// The state presence owns, as bytes: every component row and every edge.
+fn owned_state(world: &World) -> Vec<u8> {
+    let snapshot = world.snapshot().expect("a snapshot");
+    encode(&(snapshot.components, snapshot.relations))
+}
+
+/// The constructor is the first place presence decides: a destroyed person, a place that is not a
+/// place, and a place this world never allocated are refused before any fact exists, and the living
+/// case is built.
+#[test]
+fn the_constructor_refuses_what_presence_may_not_hold_and_builds_the_rest() {
+    let mut fixture = Fixture::new();
+    let bob = PersonId::new(fixture.bob, EntityType::Person).expect("a person");
+    let alice = PersonId::new(fixture.alice, EntityType::Person).expect("a person");
+    let counter = at(fixture.cafe, 0, 0);
+
+    let built =
+        arrival(&fixture.world.read(), alice, counter).expect("a living person, a real place");
+    assert_eq!(built.owner(), &PresenceSystem::ID);
+
+    // A person entity named as if it were a place: the typed id carries the claim, the world refutes it.
+    let not_a_place =
+        PlaceId::new(fixture.bob, EntityType::Place).expect("the id trusts its claim");
+    let never_allocated =
+        PlaceId::new(EntityId::from_raw(999), EntityType::Place).expect("the id trusts its claim");
+    for (case, location) in [
+        ("a person as the place", Location::in_place(not_a_place)),
+        (
+            "a place this world never allocated",
+            Location::in_place(never_allocated),
+        ),
+    ] {
+        assert_eq!(
+            arrival(&fixture.world.read(), alice, location).err(),
+            Some(Rejection::PreconditionFailed),
+            "{case}"
+        );
+    }
+
+    fixture
+        .world
+        .destroy_entity(fixture.bob)
+        .expect("bob is destroyed");
+    assert_eq!(
+        arrival(&fixture.world.read(), bob, counter).err(),
+        Some(Rejection::PreconditionFailed),
+        "a destroyed person cannot be anywhere"
+    );
+    assert_eq!(admit(&fixture.world.read(), alice, counter), Ok(()));
+}
+
+/// The reduction is the second: a system that bypasses the constructor and states an `arrived` for a
+/// destroyed person is refused by presence as the owner, and presence writes nothing. The same
+/// system stating a valid arrival the same raw way is reduced — the positive control that makes the
+/// refusal the check, not a path that never worked.
+#[test]
+fn presence_refuses_to_reduce_an_arrival_it_may_not_hold_and_writes_nothing() {
+    let mut fixture = Fixture::new();
+    let counter = at(fixture.cafe, 0, 0);
+    let (alice, bob) = (fixture.alice, fixture.bob);
+
+    let accepted = put(&mut fixture, alice, counter, true).expect("a valid raw arrival reduces");
+    assert!(
+        matches!(accepted, ActionResult::Accepted { .. }),
+        "{accepted:?}"
+    );
+    assert_eq!(
+        fixture.world.components().get::<Presence>(alice),
+        Some(&Presence::at(counter)),
+        "positive control: presence reduced a fact another system stated"
+    );
+    let outside = at(fixture.promenade, 0, 0);
+    let accepted = put(&mut fixture, alice, outside, false).expect("the constructor's way reduces");
+    assert!(
+        matches!(accepted, ActionResult::Accepted { .. }),
+        "{accepted:?}"
+    );
+    assert_eq!(
+        fixture.world.components().get::<Presence>(alice),
+        Some(&Presence::at(outside))
+    );
+
+    fixture.world.destroy_entity(bob).expect("bob is destroyed");
+    let before = owned_state(&fixture.world);
+    let beside = at(fixture.promenade, 500, 0);
+    let refused = put(&mut fixture, bob, beside, true);
+    match refused {
+        Err(KernelError::FactRefusedByOwner {
+            system,
+            event_type,
+            reason,
+        }) => {
+            assert_eq!(system, PresenceSystem::ID);
+            assert_eq!(event_type, Arrived::EVENT_TYPE);
+            assert_eq!(reason, Rejection::PreconditionFailed);
+        }
+        other => panic!("presence must refuse as the owner, but dispatch returned {other:?}"),
+    }
+    assert_eq!(
+        fixture.world.components().get::<Presence>(bob),
+        None,
+        "a refused arrival writes no position"
+    );
+    assert_eq!(
+        owned_state(&fixture.world),
+        before,
+        "no component row and no edge changed"
     );
 }

@@ -9,7 +9,7 @@
 //! JSON here, because `DEP-5` already chose `serde_json` for the wire and because a payload a
 //! human can read in a log is worth more than a few bytes in a world of this size.
 
-use mineworld_contracts::{Action, ActionRecord, ContractError, Event, EventRecord};
+use mineworld_contracts::{ContractError, Event, EventRecord};
 use serde::Serialize;
 
 /// Encodes a payload this pack declared.
@@ -25,22 +25,12 @@ pub(crate) fn encode<T: Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).expect("this pack's payloads are JSON-representable by construction")
 }
 
-/// Reads an action payload back as the action type this pack declared.
+/// Reads an event payload back as the event type this pack declared.
 ///
 /// Two failures, one error type, because a System Pack has only the contract layer's vocabulary to
-/// report in: a record written for another action type is
-/// [`ContractError::ActionTypeMismatch`] from [`ActionRecord::payload_for`] itself, and a record
-/// whose bytes are not a readable `A` is reported as the same refusal — literally true (*this
-/// payload cannot be read as `A`*), and the one thing a caller can act on.
-pub(crate) fn action_payload<A: Action>(record: &ActionRecord) -> Result<A, ContractError> {
-    let payload = record.payload_for::<A>()?;
-    serde_json::from_slice(payload).map_err(|_| ContractError::ActionTypeMismatch {
-        expected: A::ACTION_TYPE,
-        actual: record.action_type().clone(),
-    })
-}
-
-/// Reads an event payload back as the event type this pack declared, on the same terms.
+/// report in: a record written for another event type is [`ContractError::EventTypeMismatch`] from
+/// [`EventRecord::payload_for`] itself, and a record whose bytes are not a readable `E` is reported
+/// as the same refusal — literally true, and the one thing a caller can act on.
 pub(crate) fn event_payload<E: Event>(record: &EventRecord) -> Result<E, ContractError> {
     let payload = record.payload_for::<E>()?;
     serde_json::from_slice(payload).map_err(|_| ContractError::EventTypeMismatch {
