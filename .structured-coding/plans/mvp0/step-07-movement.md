@@ -2,7 +2,8 @@
 
 **Role:** combined step and PR document. S6 needs one PR.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S6, §7 · **Lifecycle:** `DESIGN FROZEN`
-(2026-09-30, primary session; review and answers recorded in §10.1)
+(2026-09-30, primary session; review and answers recorded in §10.1) · `PR 08 READY FOR OPERATOR
+REVIEW` (2026-10-06; C0–C7 done, terminal gates E-7 on the executable tree of `125391b`; not merged)
 **Base:** `main @ a594164` (S5 merged as `41d4ab1`; `a594164` is the docs-only post-merge update)
 **Branch / worktree:** `mvp0/pr-08-movement` in `/Users/yuema137/mineworld-worktrees/s6-movement`
 (held by this session only; `vis-character` and `vis-environment` belong to other agents)
@@ -923,6 +924,60 @@ left).
 - [ ] Review: `rg -w arrive` over non-historical sources is empty except the retirement note;
   presence no longer reads any action payload; no other pack's vocabulary in presence.
 
+**C6 as built** — `a546ed8` (code and tests) and `125391b` (evidence re-recorded). Process note: the
+code was first committed by the primary session as a recovered, untested `wip` (`a380b14`) after a
+stall; this session ran the gates on it, finished C6, and amended it into `a546ed8`. No `wip` commit
+remains in the PR.
+- [x] Implementation. `systems/presence/src/action.rs` deleted; `codec::action_payload` and
+  `MALFORMED_PAYLOAD` removed; `system.rs`: no `providing`, `emitting::<PersonEnteredPlace>()`,
+  `validate`/`resolve` left to the kernel's defaults, `VERSION` 2, `react` returns
+  `entered_place(person, place, from)` when a known place changes; `PerceptionProvider` implemented
+  with the trait's defaults (offers nothing). `event.rs`: `PersonEnteredPlace { person, place, from }`
+  (`person-entered-place`, schema 1, owner presence; visibility the place entered, subjects and
+  participants the person). `lib.rs`, crate docs and `README.md`: "presence owns where people are; who
+  may move them is another system's decision (`ARC-26`)". `conversation` gains `mineworld-movement`
+  as a **dev**-dependency only. Bounded deviations: (1) presence's fixture relocates through the
+  test-only `Mover` for most tests and uses genesis where the claim is about a first placement — the
+  plan said "places by genesis"; both paths are the `ARC-26` pattern and genesis is still exercised;
+  the fixture method is named `relocate`, not `arrive`. (2) The plan's "every existing fact-sequence
+  assertion passes unchanged" did not hold for two assertions written in C3 after the plan:
+  `movement.rs` CP-1's crossing (1 fact → 2) and `persisted.rs` IC-1 (6 facts → 7, replayed facts 3 →
+  4, next `EventId` 7 → 8). Both were **extended**, not loosened: the crossing now asserts the second
+  fact is `person-entered-place`, stated by presence, `Causation::Event(<the arrived>)`, payload
+  `(visitor, cafe, street)`; IC-1 asserts exactly one `person-entered-place` in the log.
+  (3) The social-cafe walk-out (Q6) is in `worldpack/tests/social_cafe.rs` (the shipped pack loaded
+  in-process, real dispatch), not over the server; the server-side claim for C6 is `arrive` →
+  `unavailable` in `tools/cli/tests/server_command.rs`.
+- [x] Validation.
+  - The recovered `wip` `a380b14` as found: fmt clean, clippy `-D warnings` clean, workspace rc
+    **101** — 2 failures, both the expected consequence of C6 (`movement.rs:68` `left: 2, right: 1`;
+    `persisted.rs:128` `left: 7, right: 6`). Fixed as in deviation (2).
+  - `presence.rs` (13): genesis `["arrived"]`, within the café `["arrived"]`, onto the promenade
+    `["arrived", "person-entered-place"]` with provenance presence, `caused_by` the arrived,
+    visibility the promenade, payload `(alice, promenade, cafe)`; an `arrive` request →
+    `Unavailable`, no fact, no `Presence`; presence's declaration provides nothing; presence offers
+    nothing with or without a target; structural scan (now also `movement`, `passage`, `stride`) clean.
+  - `movement.rs`: `crossing: present-in before [EntityId(1)], after [EntityId(2)]; 2 fact(s)`.
+    `persisted.rs`: `facts: ["passage-opened", "arrived" ×5, "person-entered-place"]`, `resumed:
+    snapshot WorldRevision(1), replayed 4, facts 4`, `the next move's fact: EventId(8)`.
+  - Real social-cafe: `the_visitor_walks_out_of_the_cafe_into_the_street` → facts `["arrived",
+    "arrived", "person-entered-place"]`, `present-in` `[cafe]` → `[street]`, payload `(visitor, cafe,
+    street)` stated by presence. Server: `arrive` → `ActionResult::Unavailable`.
+  - Godot 4.7.2 `run.sh evidence` re-run: every transcript offers `move` and `talk`, none `arrive`;
+    every stride `accepted`; `request-{2d,3d}.json` byte-identical to C5's; `ac13_semantic_parity`
+    2/2 (`2 stride(s)` each). `run.sh` windowed: screenshot inspected — `Walk to —`, `Talk to 3`,
+    `Talk to 4`, `Talk to 5 — too far away`, no `arrive`.
+  - Workspace rc 0, 55 harness results, **330 passed, 0 failed**; `kill_and_resume` cafe PASS 0.3 s
+    (`100 moves, 94 accepted, 6 refused too-far-away`), clock PASS 0.4 s; fmt, clippy clean.
+- [x] Review. `rg -w arrive` over the tree outside `.structured-coding/`: what remains is (a) the
+  retirement itself — `DECISIONS.md` `ARC-26`, presence's `VERSION` doc, presence's test that sends a
+  retired `arrive` and the server test that does the same; (b) the English verb in unrelated prose
+  ("ids arrive as strings", "`create` and `inspect` arrive with S7"); (c) historical records left as
+  written — `DECISIONS.md` line 1339 (an earlier decision's evidence), `docs/references/
+  UNREAL_ADAPTER_SPIKE.md`, `docs/references/MICROVERSE_AUDIT.md`, `spike/unreal/` and its evidence,
+  which describe the repository as it was when they were made. Presence reads no action payload
+  (`codec` decodes events only). Presence's sources name no other pack (structural test).
+
 ## C7 — Documentation and ledger close
 
 - [ ] Implementation: `systems/README.md`, `docs/MVP_STATUS.md`, `worlds/social-cafe/README.md`,
@@ -931,6 +986,26 @@ left).
 - [ ] Validation: terminal gates (§6) on the final executable head; doc checks.
 - [ ] Review: change-amplification diff check — `git diff a594164 -- kernel contracts` contains only C2;
   `server/` unchanged; `cognition/` unchanged.
+
+**C7 as built.**
+- [x] Implementation. `systems/README.md` (movement listed; rule 2 states the `ARC-26` condition;
+  `cargo test -p mineworld-movement`), `docs/MVP_STATUS.md` (spatial state, movement, place rows; the
+  social-cafe artefact; composition; S5 merged `41d4ab1`, S6 PR 08 ready; `AC-2` and Q4 banked as
+  evidence), `worlds/social-cafe/README.md` (two places, three systems, how walking works). These
+  landed in the C7 documentation commit. `tools/cli/README.md` unaffected (names no action).
+  `docs/ARCHITECTURE.md` already lists `movement` among the systems (line 514); no change. This
+  document's §9 (E-3 … E-7); there is no §12 — the plan's reference was to the ledger and the
+  self-review, and §7 needed no change. Handoff updated to the close. Note: the parent `overall.md`
+  S6 wording ("MovementSystem … PersonEnteredPlace") is the planning session's to reword (Q5).
+- [x] Validation. Terminal gates on the final executable tree, `125391b`'s — every later commit
+  is documentation only (E-7): fmt clean; `cargo
+  check --workspace --all-targets` clean; clippy `-D warnings` clean; `cargo test --workspace
+  --no-fail-fast` rc 0, 55 harness results, **330 passed, 0 failed**; `kill_and_resume` cafe PASS
+  0.4 s, clock PASS 0.4 s; decision ids 35 distinct; doc headings 134, none duplicated. PASS.
+- [x] Review. `git diff --stat a594164 -- kernel contracts server cognition`: `contracts/src/event.rs`,
+  `kernel/src/{error,registry,system}.rs`, `kernel/tests/borrowed_vocabulary.rs` — all from C2
+  (`47874ca`) — and `server/PROTOCOL.md` from C1 (`507c041`, specification only). `server/` source
+  unchanged; `cognition/` unchanged.
 
 ---
 
@@ -1109,6 +1184,58 @@ PASS.
 **E-2 (C2, `47874ca`).** Full workspace suite rc 0, 51 harness results, **313 passed, 0 failed**;
 `kill_and_resume` cafe PASS 0.3 s, clock PASS 0.4 s; decision ids 35 distinct; doc headings 134, none
 duplicated. fmt and clippy `-D warnings` clean (before the stall, same head). PASS.
+
+**E-1 (C1, `507c041`).** Docs only: decision ids 35 distinct; doc headings 134, none duplicated. PASS.
+
+**E-2b (C2b, `2725821`).** Workspace rc 0, 51 harness results, **315 passed, 0 failed**;
+`kill_and_resume` cafe/clock PASS; fmt, clippy clean. Mutation: `admit` removed from `react` → the
+refusal test FAILS (`Ok(Accepted { events: [EventId(3)] })`); restored → PASS. PASS.
+
+**E-3 (C3, `41bb073` + `28aae3d`).** Workspace rc 0, 55 harness results, **323 passed, 0 failed**;
+`kill_and_resume` PASS; fmt, clippy clean. CP-2 disabled 0 violations, negative control 7; Q4 29/0 and
+0/20; mutation `MAX_STRIDE` 2 001 → boundary test red. PASS.
+
+**E-4 (C4, `d78fa7d`; C4b, `98b45bb`).** C4: **323 passed**, AC-15 6/6 (2 strides each), restart 2/2,
+`kill_and_resume` `100 moves, 94 accepted, 6 refused`, PASS. C4b: **329 passed, 0 failed**; decision
+ids 35; doc headings 134. PASS.
+
+**E-5 (C5, `5639a43`).** Real Godot 4.7.2 `run.sh evidence` and windowed `run.sh`; screenshot
+inspected; `ac13_semantic_parity` 2/2; workspace **329 passed, 0 failed**; `kill_and_resume` PASS.
+PASS.
+
+**E-6 (C6, `a546ed8`, `125391b`).** The recovered `wip` `a380b14`, as found: fmt and clippy clean,
+workspace rc **101** with 2 failures (`movement.rs:68` 2 ≠ 1; `persisted.rs:128` 7 ≠ 6) — the
+crossing's new `person-entered-place`; INCONCLUSIVE → fixed by extending both assertions (C6 deviation
+2). After the fix: workspace rc 0, **330 passed, 0 failed**; `kill_and_resume` PASS. Godot evidence
+re-recorded (no `arrive` offered; `request-{2d,3d}.json` unchanged); screenshot inspected. PASS.
+
+**E-7 (C7, terminal gates on the final executable tree, `125391b`'s; later commits are docs
+only).** fmt clean; check clean; clippy
+`-D warnings` clean; `cargo test --workspace --no-fail-fast` rc 0, 55 harness results, **330
+passed, 0 failed**; `cargo test -p mineworld-persistence --test kill_and_resume`: `[cafe] control:
+100 moves, 94 accepted, 6 refused too-far-away`, `[cafe] PASS in 0.4 s`, `[clock] PASS in 0.4 s`;
+`check_decision_ids.py` → 35 distinct; `check_doc_headings.py` → 134 sections, none duplicated. PASS.
+
+**ARC-23 evidence for the two operator-named claims (E-7, re-run on the same tree).**
+
+```text
+AC-2 removability  disabling_movement_makes_move_unavailable_and_changes_nothing_else
+  as written       disabled: 0 violation(s); reachable (negative control, movement left enabled):
+                   7 violation(s) — "move was answered Accepted", "move recorded 1 fact(s)",
+                   "move is still offered", presence/facts/results/observations differ. The test
+                   asserts four of the seven are present, so it owns its own failing half.
+  live mutation    kernel/src/registry.rs `disable`: the line removing the system's routes commented
+                   out, so a disabled movement stays reachable. Result: `disabled: 7 violation(s)`,
+                   the test FAILED at movement.rs:388. Reverted with `git checkout`; tree clean.
+Q4 reporting rule  a_client_that_follows_the_reporting_rule_at_jog_speed_is_never_refused_and_one_
+                   that_ignores_it_is — 2 600 mm/s, 20 s, 100 ms samples (literals)
+  as written       following: 29 accepted, 0 refused (Presence ends at (52 000, 0));
+                   ignoring (once a second): 0 accepted, 20 refused (Presence stays at the start)
+  live mutation 1  MAX_STRIDE 2 000 → 1 500: following 0 accepted, 194 refused — FAILED at :450
+  live mutation 2  MAX_STRIDE 2 000 → 2 600: ignoring 20 accepted, 0 refused — FAILED at :457
+                   Both reverted with `git checkout`; tree clean. So each half of the claim is
+                   decided by the server's bound, not by the test's arithmetic.
+```
 
 ## 9.1 Limitations and follow-ups (expected)
 

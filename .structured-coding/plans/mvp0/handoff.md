@@ -27,7 +27,7 @@ current HEAD     `git log --oneline` is authoritative; pushed after every commit
 ```text
 scope        design §1.1 as answered in §10.1 (street in social-cafe, pack `passages`, reporting rule)
 invariants   design §1.3 I-1 … I-8
-sequence     C0 ✓ → C1 → C2 → C2b → C3 → C4 → C4b → C5 → C6 → C7
+sequence     C0 → C1 → C2 → C2b → C3 → C4 → C4b → C5 → C6 → C7, all done
 budget       unit/integration/static unrestricted; real model NOT REQUIRED; Godot run bounded by run.sh
 ```
 
@@ -41,12 +41,12 @@ clients/protocol/run.sh                      allowed without prompt (§10.1 Q8)
 
 ## Current checkpoint and next actions
 
-Checkpoint: C0, C1 (`507c041`), C2 (`47874ca`), C2b (`2725821`), C3 (`41bb073` + `28aae3d`), C4 done
-(323 passed). `git log` is authoritative for later commits.
-Next: C4b — World Pack `passages` field (format, read refusals, loader, MODULE_SPEC §4.1,
-PACKAGE_FORMAT §8); then C5 (street + Godot evidence), C6 (retire `arrive`, `PersonEnteredPlace`),
-C7 (docs, terminal gates, PR).
-Note: earlier sessions stalled on connection problems; commit and push after each small step.
+Checkpoint: **PR 08 READY FOR OPERATOR REVIEW.** C0–C7 committed and pushed: C1 `507c041`, C2
+`47874ca`, C2b `2725821`, C3 `41bb073` + `28aae3d`, C4 `d78fa7d`, C4b `98b45bb`, C5 `5639a43`, C6
+`a546ed8` (the recovered `wip` `a380b14`, tested, fixed and amended) + `125391b` (evidence), C7 docs and
+ledger. Terminal gates on the executable tree of `125391b` (later commits docs only): 330 passed, 0 failed; `kill_and_resume` PASS (design §9 E-7).
+Next: operator review of the PR. Merge is the operator's. After merge, the planning session rewords
+`overall.md` S6 (Q5: `PersonEnteredPlace` is presence's) and updates the step/overall status.
 
 ## Stop conditions
 
