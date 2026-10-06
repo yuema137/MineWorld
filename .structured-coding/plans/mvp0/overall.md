@@ -230,16 +230,19 @@ PR 06 (GitHub #20), ready for operator review — see §7.
 *Corresponds to the operator's commit 7.*
 
 - **Output:** the smallest system set that makes a world do something observable: place
-  occupancy and the `move` action with its `PersonEnteredPlace` event. `MovementSystem` keeps
-  `MoveIntent`, authoritative spatial state, and rendered movement distinct, and leaves room for
-  a travel `Process` at the larger scale without implementing one (`ENGINEERING_RULES.md` §6).
+  occupancy and the `move` action. `MovementSystem` decides whether a step is legal and states
+  presence's `Arrived` fact; **presence** owns location and states `PersonEnteredPlace`, because
+  occupancy is presence's state (`ARC-26`; reworded after step-07 Q5). `MoveIntent`,
+  authoritative spatial state, and rendered movement stay distinct, with room for a travel
+  `Process` at the larger scale without implementing one (`ENGINEERING_RULES.md` §6). The old
+  `arrive` action is retired, since it bypassed every distance rule.
 - **Depends on:** S5.
 - **Acceptance checkpoint:** `move` intent → validate → resolve → event → occupancy change,
   persisted and reloaded; disabling `MovementSystem` makes `move` return `ActionUnavailable`
   with no change to any other module (first real evidence for `AC-2`); a movement rejected for
   distance returns `TooFarAway` from the system, decided server-side.
 
-### S7 — Headless demo: World Pack loading, rule controller, and the CLI
+### Artefact note, from S7 onward
 
 **Artefact note (`ARC-6`).** From S7 onward every step produces something a person can *run*, not
 a library another step will use. S7 is where `mineworld` becomes a real command:
@@ -528,27 +531,40 @@ Done (main @ 41d4ab1, 311 tests):
        Open, outside S5 (F-13): a restarted `--agent` rule controller re-answers its last
        line, because what it has answered lives in controller memory, not world state.
        Belongs with S10 (cognition); recorded so Milestone D does not rediscover it.
+  S6   places and movement                                   PR 08 (GitHub #25), merged 6f61582
+       ARC-26: movement decides whether a step is legal and states presence's `Arrived`;
+       presence alone reduces it and keeps the power to refuse an invalid one. A system may
+       emit another's vocabulary only by declaring it and depending on its owner, enforced by
+       the kernel at install. `arrive` retired; social-cafe gains the street outside the café,
+       joined by a passage, so `PersonEnteredPlace` fires in a real world. Client reporting
+       rule: report before travelling MAX_STRIDE (2 m). Reviewed independently before merge:
+       gates re-run (330 passed, 0 failed); one mutation run in review — disabling the ARC-26
+       install check fails its targeted test, then reverted. The implementing session's own
+       mutations showed the AC-2 removability test and the reporting-rule test both bite.
 
 Next, framework (critical path to Milestone B):
-  S6   first real systems: places and movement   not started; detail against main @ 41d4ab1.
-       MovementSystem with MoveIntent, authoritative spatial state and rendered movement kept
-       distinct; disabling it must make `move` return ActionUnavailable with no change to any
-       other module (first real AC-2 evidence); a distance refusal is TooFarAway, decided
-       server-side. Note: `arrive` in PresenceSystem already carries movement today — the S6
-       re-audit must decide how MovementSystem relates to it rather than duplicate it.
+  S7   headless demo: World Pack loading, rule controller, CLI   not started; detail against
+       main @ 6f61582. Much of S7's original scope landed early in S5V (pack loading, the
+       rule controller, `mineworld server`), so its re-audit must state what is actually left —
+       chiefly `mineworld run <world> --headless --seed --days` and AC-11/AC-12 over hundreds
+       of simulated days with real systems, not S4's test-only ones.
 
-Remaining:  S7 ... S14, Milestones B-E
+Remaining:  S8 ... S14, Milestones B-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
-  VIS-3D-GODOT-1   vis/3d-human-pipeline @ c03db4f — PREVIEW shown to the operator
-                   2026-09-30 (ARC-24). Garment tears fixed (cause: UV-seam vertices split by
-                   glTF and moved apart, not offset folding). Hair still fails its category;
-                   four steering questions awaiting the operator.
-  VIS-3D-GODOT-2   vis/3d-godot-2-environment @ 5652875 — PREVIEW shown to the operator
-                   2026-09-30. Runs, enterable, scale measured; 45 CC0 assets checked one by
-                   one, two excluded on relicensing grounds. Four steering questions awaiting
-                   the operator. Not yet connected to the server.
+  VIS-3D-GODOT-1   vis/3d-human-pipeline @ 098c371 — PREVIEW 2 shown 2026-10-06. Operator's
+                   verdict on preview 1: "too stiff, not like the reference". Fixed since:
+                   townspeople's missing body parts; a reference-matched standing pose with
+                   breathing, gaze drift and blinks. Next, per CHARACTER_ROUTE_ASSESSMENT:
+                   hair groomed from strands into cards, the hoodie draped by cloth simulation,
+                   a skin pass. The face is deferred by the operator until those land.
+  VIS-3D-GODOT-2   vis/3d-godot-2-environment — operator: "café and street look good".
+                   Since then: V/F5 camera key with an on-screen toast, Space to jump, every
+                   door rebuilt to read as a door, and the slice connected to a real MineWorld
+                   world through clients/protocol/mineworld. In progress: raking light,
+                   grey setts, planting, and a second enterable building (VISUAL_SLICE §4
+                   amended to require it; the shared spec keeps the A/B fair).
   VIS-3D-UE5-1     parked (ARC-21)
 
 Toolchain:  rust 1.97.1, Godot 4.7.2, Blender 5.2.2, Python 3.14.7
