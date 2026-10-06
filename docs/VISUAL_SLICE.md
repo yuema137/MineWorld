@@ -37,14 +37,14 @@ does NOT belong   glass uses a roughness of 0.04 and a screen-space reflection
 ## 1. The one-sentence scope
 
 > **One short street frontage with one café you can walk into, furnished, lit, and inhabited at
-> the scale of a person standing in it.**
+> the scale of a person standing in it — and one more shop that opens too (§4.1).**
 
 Small and complete beats broad and shallow ([`ACCEPTANCE.md`](ACCEPTANCE.md) §5). Cutting content
 to buy a real interior is the correct trade; the reverse is not.
 
-**The town is not to be expanded.** A track that adds a second street, a second interior, a
-harbour or a plaza has left this specification, and its slice is no longer comparable with the
-other track's.
+**The town is not to be expanded.** A track that adds a second street, a harbour or a plaza has
+left this specification, and its slice is no longer comparable with the other track's. The one
+second interior the slice has is **required** of every track, not added by one of them (§4.1).
 
 ## 2. The references that govern the slice
 
@@ -134,7 +134,8 @@ Required, and nothing beyond it:
 | | Requirement |
 | --- | --- |
 | **the café** | one, primary, enterable. §5 and §6 |
-| **secondary façades** | three to five, non-enterable, forming the rest of the frontage. Each must have its own massing, roofline, material and shopfront or window treatment; a repeated unit is a defect |
+| **the second enterable building** | exactly one shop on the café's side of the street, enterable on foot, with a real interior. §4.1 |
+| **secondary façades** | three to five, forming the rest of the frontage; all except the second enterable building are non-enterable. Each must have its own massing, roofline, material and shopfront or window treatment; a repeated unit is a defect |
 | **opposite side** | a frontage or a bounding landscape across the street. It may be non-enterable and lower detail, but the street must not read as a single-sided stage set |
 | **ground** | pavement, kerb, carriageway, and the crossing between them, all at §3.3 dimensions |
 | **street furniture** | at least: street lamps, bollards or a kerbside edge treatment, one bench, litter bin, A-boards, planters, and the café's own outdoor tables and chairs |
@@ -143,9 +144,48 @@ Required, and nothing beyond it:
 | **backdrop** | a distant element closing the view where the frontage ends: a hillside, a further townscape, water, or a treeline |
 | **people** | at least two other figures somewhere in the slice. They may be static or on a simple path; they exist so the street is not empty |
 
-**Explicitly out of scope:** a second enterable building, a town square, a market, vehicles in
+**Explicitly out of scope:** a third enterable building, a town square, a market, vehicles in
 motion, weather, a day/night cycle, water simulation, crowds, and any building the player can see
 but never reach.
+
+### 4.1 The second enterable building — amended 2026-10-06
+
+**Amendment.** Until 2026-10-06 this section listed *a second enterable building* as out of scope.
+It is now **required**, exactly one, of every track.
+
+**Why.** On walking the slice, the operator asked that shops be enterable. The operator's standing
+rule is *prefer a smaller world with complete interiors over a larger fake town*. A street in which
+one door of a dozen opens tests the café, not the claim that the world's buildings are places: the
+player learns that a shop door is scenery, which is the "larger fake town" the rule rejects. One
+more complete interior, on a frontage that does not grow, is the smallest change that makes
+*buildings are places you enter* true of the street rather than of one exception in it. It costs no
+street length, no new reference, and no new system, and it follows §1's trade of breadth for
+completeness.
+
+**Comparability is preserved, not traded.** `ARC-20` §2 requires both tracks to be judged against
+the same scope. The amendment is made **here**, in the shared target, so it binds every track: a
+resumed `VIS-3D-UE5-1` builds the same second interior to the same requirements. It is not one
+track's addition.
+
+Requirements:
+
+```text
+one existing secondary shopfront on the café's side becomes enterable; the frontage
+   does not grow, and no building is added to make room for it
+a door that reads as enterable from the pavement: a real leaf in a real opening,
+   standing open or visibly glazed onto a lit room, distinguishable at the framing of
+   §12 view 1 from the doors that do not open
+the same structure rules as §6.1: four walls with thickness, a walked floor, a treated
+   ceiling, glazing shared with the exterior, and one opening besides the front
+a fit-out that identifies the shop's trade from inside, at the three object sizes of §6.2:
+   room-scale fittings, furniture-scale pieces, and hand-scale stock
+the navigability and collision rules of §6.3, with its own semantic Place where the
+   world has one
+the same threshold measurement as §7.1, at the same four points, reported separately
+```
+
+It is a **second** interior and is held to completeness, not to the café's density: the café stays
+the primary subject of every reference comparison (§§2, 5–6).
 
 ## 5. The café exterior
 
@@ -329,6 +369,7 @@ client at its normal resolution and in its normal lighting, at the framing named
 7  third person rear               the framing of 01_lakeside_promenade.png
 8  third person front              the character facing the camera
 9  character in environment, close enough to judge the character against its reference
+10 the second enterable building   its door from the pavement, and its interior wide (§4.1)
 ```
 
 Plus, in the review package (`ARC-20` §3): the milestone id, **the exact launch command**, the
