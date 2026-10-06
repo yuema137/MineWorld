@@ -2,17 +2,17 @@ Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
 [demo] connecting to 127.0.0.1:7878 as seat 'wanderer' (3d)
 [demo] seated: seat 'wanderer' is observer 6
-[demo] world instance 0000000018da8d91d2af84f143e70000, 6 entities, 2 client(s)
+[demo] world instance 0000000018dc15816aea01a12b340000, 6 entities, 3 client(s)
 [demo] observation 1: 1, 3, 4, 5, 6
 [demo] the server says talk to 3 is not available (too far away)
 [demo] c1 -> action 1: accepted (1 fact(s))
 [demo] the server now says talk to 3 is available
 [demo] c2 -> action 3: accepted (1 fact(s))
-[demo] c3 -> action 4: accepted (2 fact(s))
+[demo] c3 -> action 5: accepted (2 fact(s))
 [demo] c4 -> action 9: accepted (1 fact(s))
 [demo] walked there in 3 stride(s)
 [demo] --- what this client was told ---
-[demo] world instance      0000000018da8d91d2af84f143e70000
+[demo] world instance      0000000018dc15816aea01a12b340000
 [demo] observer            6
 [demo] perceived           1, 3, 4, 5, 6
 [demo]   1  tags ["cafe","public"]  at (0.0, 0.0) m
@@ -20,7 +20,6 @@ Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 [demo]   4  tags ["regular"]  at (1.4, -0.6) m
 [demo]   5  tags ["visitor"]  at (1.2, -1.4) m
 [demo]   6  tags ["visitor"]  at (1.2, -1.4) m
-[demo]   affordance arrive -> null : available
 [demo]   affordance move -> null : available
 [demo]   affordance talk -> "3" : available
 [demo]   affordance talk -> "4" : available
