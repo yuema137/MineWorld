@@ -532,7 +532,9 @@ static func _lighting(n: Node3D, x0: float, x1: float, z_back: float,
 			Mats.emissive(warm, 9.0), 8)
 		var l := OmniLight3D.new()
 		l.light_color = warm
-		l.light_energy = p[4]
+		# x0.6: the room was brighter than the sunlit street (mean 0.34 vs 0.20
+		# measured); 03's room is darker than its street, lit in pools
+		l.light_energy = float(p[4]) * 0.6
 		l.omni_range = p[5]
 		l.omni_attenuation = 1.15
 		l.shadow_enabled = p[6]
@@ -544,7 +546,7 @@ static func _lighting(n: Node3D, x0: float, x1: float, z_back: float,
 	# room is flat.
 	var fill := OmniLight3D.new()
 	fill.light_color = Color(1.0, 0.88, 0.74)
-	fill.light_energy = 2.3
+	fill.light_energy = 0.9
 	fill.omni_range = 16.0
 	fill.omni_attenuation = 0.55
 	fill.shadow_enabled = false

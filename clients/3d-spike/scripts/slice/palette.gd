@@ -119,7 +119,9 @@ static func bar_tile() -> Material:
 	return Mats.pbr("long_white_tiles", 1.00, Color(1.02, 0.98, 0.92), 0.22)
 
 static func plaster_interior() -> Material:
-	return Mats.pbr("painted_plaster_wall", 2.60, Color(1.06, 0.98, 0.88), 0.92)
+	# a warm limewash rather than near-white: through the glass, pale plaster was
+	# most of what the room read as (preview miss #1)
+	return Mats.pbr("painted_plaster_wall", 2.60, Color(0.86, 0.72, 0.56), 0.92)
 
 
 # --- painted joinery ----------------------------------------------------------

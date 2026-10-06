@@ -25,7 +25,16 @@ extends Node3D
 enum GI { NONE, SSIL, VOXEL, SDFGI }
 
 const SUN_ELEVATION := -19.3
-const SUN_AZIMUTH := -55.8
+## -48, was -55.8. Measured with --measure's sun rays: at -68 the beam met the
+## café façade at 20.7 deg (irradiance factor 0.35) -- raking, but too dim to
+## read as sunlit. At -48 it meets it at ~42 deg (factor ~0.6), and at 19 deg
+## elevation every table, A-board and pilaster still throws a long shadow.
+const SUN_AZIMUTH := -48.0
+const SUN_ENERGY := 4.4
+## The sky's share, lowered against the sun's so sunlit and shaded planes part.
+const SKY_AMBIENT := 1.0
+const INTERIOR_AMBIENT := Color(0.46, 0.33, 0.22)
+const INTERIOR_AMBIENT_ENERGY := 0.55
 
 var player: SlicePlayer
 var world: Node3D
@@ -116,7 +125,7 @@ func _environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_sky_contribution = 1.0
-	env.ambient_light_energy = 1.42
+	env.ambient_light_energy = SKY_AMBIENT
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
@@ -176,7 +185,7 @@ func _sun() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.light_color = SlicePalette.SUN_WARM
-	sun.light_energy = 3.05
+	sun.light_energy = SUN_ENERGY
 	sun.light_angular_distance = 0.55
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -300,6 +309,13 @@ func _reflections() -> void:
 	inside.intensity = 1.0
 	inside.max_distance = 26.0
 	inside.update_mode = ReflectionProbe.UPDATE_ONCE
+	# The room's own ambient, in place of the sky's: inside an interior probe
+	# Godot takes ambient light from the probe, so the café is lit by a warm,
+	# dim fill instead of a cool sky it cannot see. This is what lets the room
+	# read darker and warmer than the street, as in 03, without a black corner.
+	inside.ambient_mode = ReflectionProbe.AMBIENT_COLOR
+	inside.ambient_color = INTERIOR_AMBIENT
+	inside.ambient_color_energy = INTERIOR_AMBIENT_ENERGY
 	add_child(inside)
 
 	var outside := ReflectionProbe.new()

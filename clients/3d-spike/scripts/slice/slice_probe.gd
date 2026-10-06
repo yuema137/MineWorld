@@ -644,6 +644,22 @@ func _measure_geometry() -> int:
 		if gaps.size() != 1:
 			fails += 1
 			print("    OUT OF RANGE: expected exactly one opening, the door")
+	# Is the café frontage in sun at all? A ray from each point toward the sun:
+	# blocked means in shadow, and the collider that blocks it is named. And the
+	# angle the beam meets the façade at, which is how strongly sun lights it.
+	var sun := slice.get_node("Sun") as DirectionalLight3D
+	var to_sun := sun.global_transform.basis.z.normalized()
+	var face_n := Vector3(0, 0, 1)
+	print("  sun: toward-sun %s; meets the café façade at %.1f deg; irradiance factor %.2f"
+		% [to_sun, rad_to_deg(asin(clampf(to_sun.dot(face_n), -1, 1))), maxf(to_sun.dot(face_n), 0.0)])
+	for pt in [Vector3(4.5, 1.2, nf + 0.25), Vector3(7.5, 1.6, nf + 0.25), Vector3(6.0, 4.5, nf + 0.25),
+			Vector3(6.0, 0.16, nf + 1.5), Vector3(6.0, 0.16, nf + 3.5)]:
+		var q := PhysicsRayQueryParameters3D.create(pt, pt + to_sun * 120.0)
+		q.exclude = [player.get_rid()]
+		var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
+		print("  sun at %s: %s" % [pt, "LIT" if hit.is_empty()
+			else "shadowed by %s at %s" % [(hit["collider"] as Node).get_path(), hit["position"]]])
+
 	# the stand-in occupant's stature, from its mesh
 	var occ := player.slot.occupant as Node3D
 	if occ != null:
