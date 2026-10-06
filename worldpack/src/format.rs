@@ -103,6 +103,28 @@ pub struct AuthoredPlace {
     /// A note from whoever authored it.
     #[serde(default)]
     pub note: Option<String>,
+    /// The places this one opens onto, each through one doorway.
+    ///
+    /// A fact about where one can walk, which the `movement` system owns: each becomes a genesis
+    /// fact that system reduces into both places, so a passage is stated once, in either of the two
+    /// files, and holds both ways. It states no rule — how far from a doorway a person may pass is
+    /// movement's decision, not this file's.
+    #[serde(default)]
+    pub passages: Vec<AuthoredPassage>,
+}
+
+/// One doorway from the place whose file states it to another place.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthoredPassage {
+    /// The place it leads to, by its authoring key.
+    pub to: EntityKey,
+    /// Where the doorway is in this place, if the world models positions.
+    #[serde(default)]
+    pub here: Option<AuthoredPosition>,
+    /// Where the same doorway is in `to`, if the world models positions.
+    #[serde(default)]
+    pub there: Option<AuthoredPosition>,
 }
 
 /// Where somebody starts: a place, and optionally where in it and which way they face.

@@ -12,7 +12,7 @@
 
 use mineworld_contracts::{
     ActionTypeId, ComponentTypeId, ContractError, EntityId, EntityKey, EventTypeId, LifecycleState,
-    ProcessId, ProcessTypeId, RelationTypeId, SystemId, WorldTime,
+    ProcessId, ProcessTypeId, Rejection, RelationTypeId, SystemId, WorldTime,
 };
 
 use thiserror::Error;
@@ -310,6 +310,43 @@ pub enum KernelError {
         system: SystemId,
         /// The kind of fact it emitted.
         event_type: EventTypeId,
+    },
+
+    /// A system declares that it emits a kind of fact whose vocabulary another system owns, and does
+    /// not declare a dependency on that owner (`DECISIONS.md` `ARC-26`).
+    ///
+    /// Stating a fact in another system's vocabulary is how a system asks the owner to change state
+    /// the owner alone writes. Without the dependency the owner may be absent, and the fact would
+    /// be recorded with nothing to reduce it — history claiming a change that no state reflects.
+    #[error(
+        "system '{system}' declares that it emits '{event_type}', owned by '{owner}', \
+         without depending on '{owner}'"
+    )]
+    EmittedEventOwnerNotADependency {
+        /// The system being installed.
+        system: SystemId,
+        /// The kind of fact it declared it emits.
+        event_type: EventTypeId,
+        /// The system that owns that kind of fact.
+        owner: SystemId,
+    },
+
+    /// The system that owns a kind of fact refused to reduce one into its state, because the state
+    /// may not take that value (`DECISIONS.md` `ARC-26`: the owner still decides).
+    ///
+    /// A system that states a fact in an owner's vocabulary is required to build it through the
+    /// owner's checked constructor, which refuses the same value as an ordinary rejection before
+    /// anything is recorded. Reaching this error therefore means the stating system broke that
+    /// contract, and — like every error out of reduction — it is a bug in a system rather than a
+    /// refused request. The owner wrote nothing for the refused fact.
+    #[error("system '{system}' refused to reduce '{event_type}': {reason:?}")]
+    FactRefusedByOwner {
+        /// The owner that refused.
+        system: SystemId,
+        /// The kind of fact it refused.
+        event_type: EventTypeId,
+        /// Why the state may not take the value, in the contract's own vocabulary.
+        reason: Rejection,
     },
 
     /// Reaction within one logical instant went deeper than the cascade limit: systems kept

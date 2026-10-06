@@ -31,8 +31,8 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
     let status = server.status().await;
 
     assert_eq!(
-        status["entities"], 5,
-        "the world the pack describes: one place and four people — {status}",
+        status["entities"], 6,
+        "the world the pack describes: two places and four people — {status}",
     );
     let systems: Vec<&str> = status["systems"]
         .as_array()
@@ -42,7 +42,7 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
         .collect();
     assert_eq!(
         systems,
-        ["presence", "conversation"],
+        ["presence", "movement", "conversation"],
         "in the order world.yaml states, which is the order they reduce in",
     );
     assert_eq!(
@@ -67,10 +67,11 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
     let (observer, world) = client.join("visitor").await;
     assert_eq!(
         observer.raw(),
-        4,
-        "the visitor is the fourth entity the pack allocates — deterministically, every time",
+        5,
+        "the visitor is the fifth entity the pack allocates (two places, then alice and bob) — \
+         deterministically, every time",
     );
-    assert_eq!(world.entities, 5);
+    assert_eq!(world.entities, 6);
 
     // And then the world itself, as this observer perceives it.
     let observation = client.observation().await;
@@ -81,12 +82,13 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
         .collect();
     assert_eq!(
         perceived,
-        [1, 2, 3, 4, 5],
-        "the café and everybody in it, by the ids the pack resolved its keys to",
+        [1, 3, 4, 5, 6],
+        "the café and everybody in it, by the ids the pack resolved its keys to — and not the \
+         street (2), which is another place",
     );
 
     let alice = tagged(&observation, "barista").expect("alice is perceived, by her tag");
-    assert_eq!(alice.raw(), 2);
+    assert_eq!(alice.raw(), 3);
     let position = observation
         .entity(alice)
         .and_then(|alice| alice.location())
@@ -123,6 +125,23 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
         !may_talk_to(&observation, alice),
         "which is the same answer read the way a client reads it",
     );
+
+    // `arrive` is retired (`DECISIONS.md` `ARC-26`): no system in this world provides it, so a
+    // client that still sends it is answered `unavailable`, and nobody is moved. Moving is `move`.
+    let (_, answer) = client
+        .submit(json!({
+            "actor": observer,
+            "action_type": "arrive",
+            "target": null,
+            "payload": { "action_type": "arrive", "payload": { "location": {
+                "place": { "entity": "1", "entity_type": "place" },
+                "local": { "x": 1200, "y": 1000, "z": 0 },
+                "facing": null,
+            } } },
+            "actor_location": null,
+        }))
+        .await;
+    assert_eq!(answer, mineworld_contracts::ActionResult::Unavailable);
 }
 
 #[tokio::test]

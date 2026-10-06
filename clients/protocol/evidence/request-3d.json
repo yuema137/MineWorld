@@ -2,17 +2,17 @@
   {
     "flavour": "3d",
     "request": {
-      "action_type": "arrive",
-      "actor": "4",
+      "action_type": "move",
+      "actor": "5",
       "actor_location": null,
       "payload": {
-        "action_type": "arrive",
+        "action_type": "move",
         "payload": {
-          "location": {
+          "to": {
             "facing": null,
             "local": {
-              "x": 1200,
-              "y": 1400,
+              "x": 2808,
+              "y": 832,
               "z": 0
             },
             "place": {
@@ -29,16 +29,43 @@
   {
     "flavour": "3d",
     "request": {
+      "action_type": "move",
+      "actor": "5",
+      "actor_location": null,
+      "payload": {
+        "action_type": "move",
+        "payload": {
+          "to": {
+            "facing": null,
+            "local": {
+              "x": 1200,
+              "y": 1400,
+              "z": 0
+            },
+            "place": {
+              "entity": "1",
+              "entity_type": "place"
+            }
+          }
+        }
+      },
+      "target": null
+    },
+    "token": "c2"
+  },
+  {
+    "flavour": "3d",
+    "request": {
       "action_type": "talk",
-      "actor": "4",
+      "actor": "5",
       "actor_location": {
         "facing": {
           "pitch": null,
           "yaw": 0
         },
         "local": {
-          "x": 1200,
-          "y": 1400,
+          "x": 2808,
+          "y": 832,
           "z": 0
         },
         "place": {
@@ -52,8 +79,8 @@
           "utterance": "hello Alice, this is the demonstration scene"
         }
       },
-      "target": "2"
+      "target": "3"
     },
-    "token": "c2"
+    "token": "c3"
   }
 ]

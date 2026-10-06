@@ -31,11 +31,12 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     let report = stdout(&output);
     for expected in [
         "Social Café",
-        "presence, conversation",
+        "presence, movement, conversation",
         "alice",
         "visitor",
         "wanderer",
-        "4 genesis fact(s)",
+        // One passage (the café's front door) and four placements.
+        "5 genesis fact(s)",
     ] {
         assert!(
             report.contains(expected),
@@ -46,8 +47,9 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     // client that refers to them.
     assert!(
         report.contains("1  cafe")
-            && report.contains("4  visitor")
-            && report.contains("5  wanderer"),
+            && report.contains("2  street")
+            && report.contains("5  visitor")
+            && report.contains("6  wanderer"),
         "the report states which key became which identity: {report}",
     );
 }

@@ -14,3 +14,7 @@ mineworld-presence = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+# The tests walk people closer with `move`, the way a client does; the pack itself never names it.
+mineworld-movement = { workspace = true }

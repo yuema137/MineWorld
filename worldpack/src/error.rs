@@ -226,6 +226,49 @@ pub enum PackError {
         path: PathBuf,
     },
 
+    /// A place opens onto a place this pack does not have.
+    #[error(
+        "{path} gives '{place}' a passage to '{to}', which this pack does not declare \
+         (it has: {known})"
+    )]
+    PassageToUnknownPlace {
+        /// The place whose file states the passage.
+        place: EntityKey,
+        /// The place it was said to lead to.
+        to: EntityKey,
+        /// The places the pack does declare, in key order.
+        known: String,
+        /// The file that says so.
+        path: PathBuf,
+    },
+
+    /// A place opens onto itself. A doorway joins two places; one that leads back into the room it
+    /// is in is a position, not a passage.
+    #[error("{path} gives '{place}' a passage to itself")]
+    PassageToItself {
+        /// The place.
+        place: EntityKey,
+        /// The file that says so.
+        path: PathBuf,
+    },
+
+    /// Two places are joined twice — in both of their files, or twice in one.
+    ///
+    /// A passage holds both ways, so it is stated once. Two statements could disagree about where
+    /// the doorway is, and a loader that picked one would be choosing for the author.
+    #[error(
+        "'{first}' and '{second}' are joined by more than one passage (stated again in {path}); \
+         a passage holds both ways, so state it once"
+    )]
+    PassageStatedTwice {
+        /// One of the two places, the earlier in key order.
+        first: EntityKey,
+        /// The other.
+        second: EntityKey,
+        /// The file that states it again.
+        path: PathBuf,
+    },
+
     /// A seat names something that is not a person in this pack.
     ///
     /// A seat is an existing Person a client may occupy, so a seat naming a place, or naming nobody,

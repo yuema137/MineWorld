@@ -1,2 +1,5 @@
 # Godot's import cache. A clean checkout must import its own assets (`docs/ACCEPTANCE.md` §4.1).
 .godot/
+# The sidecar Godot writes next to the screenshot when it imports the project: an import setting for
+# a file that is evidence, not an asset of the scene.
+evidence/*.import

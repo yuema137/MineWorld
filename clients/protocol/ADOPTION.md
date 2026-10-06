@@ -165,6 +165,29 @@ On the last one, know what you are doing: an affordance is computed against the 
 already left. The spike measured about 250 mm of it on localhost (`FINDINGS.md` F7). Show the server's
 answer, not your guess at the next one.
 
+### 4.1 Moving: submit `move`, and report often enough
+
+Moving a body is prediction; moving a *person* is a request. Submit `move` with the `Location` the body
+walked to (`PROTOCOL.md` §6.2):
+
+```gdscript
+world.submit("move", null, { "to": MineWorldSpace.location(place, MineWorldSpace.from_2d(here)) })
+```
+
+The server accepts a move of at most **2 000 mm** from the position it last accepted, or through a
+doorway the world declares, and answers anything else `too_far_away`. That makes one rule binding on
+every client that moves continuously:
+
+```text
+report before your body has travelled 2 000 mm since the last ACCEPTED position
+```
+
+A walking or jogging 3D body must report several times a second, not once: at 2.6 m/s, once a second
+is refused every time. A 2D client that walks to a click splits the walk into strides of at most
+2 000 mm. Neither is a world rule in the client — the number is a request size, and a client that
+ignores it is refused by the server, not by itself. On `too_far_away`, move the body back to the
+position the next observation shows.
+
 ## 5. The shape of a client, as this module expects it
 
 ```text

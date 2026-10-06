@@ -13,6 +13,7 @@ mineworld-kernel = { workspace = true }
 # A World Pack enables System Packs, so loading one means installing them. This is the one-way
 # dependency of ENGINEERING_STANDARDS §4 pointing the right way: World Pack → Systems → kernel.
 mineworld-conversation = { workspace = true }
+mineworld-movement = { workspace = true }
 mineworld-presence = { workspace = true }
 serde = { workspace = true }
 serde-saphyr = { workspace = true }
