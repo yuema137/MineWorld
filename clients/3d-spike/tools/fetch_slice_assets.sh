@@ -41,7 +41,8 @@ MAPS=(diff nor_gl arm)
 # is a herringbone marble. Recorded so the next contributor does not re-fetch
 # them on the strength of the slug.
 SLUGS=(
-  rectangular_paving      # pavement setts, both frontages  (05, 03)
+  cobblestone_floor_08    # grey setts, both pavements and the gutters      (05, 03)
+  rectangular_paving      # the crossing bars only, since 2026-10-06
   concrete                # kerb, entrance step, plinths, bollard bases
   worn_asphalt            # carriageway
   sandstone_blocks_05     # the cafe's coursed masonry above the shopfront (03)

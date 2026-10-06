@@ -38,6 +38,7 @@ static func fit_out(g: Node3D, w: float, depth: float, wall_t: float,
 
 	_wall_linings(n, x0, x1, z_back, floor_y, ceil_y)
 	_back_wall(n, x0, x1, z_back, floor_y, ceil_y)
+	_side_dresser(n, x0, floor_y, ceil_y)
 	_counter(n, x0, x1, z_back, floor_y)
 	_window_bench(n, x0, x1, floor_y)
 	_loose_seating(n, x0, floor_y)
@@ -119,6 +120,68 @@ static func _back_wall(n: Node3D, x0: float, x1: float, z_back: float,
 			Vector3(bx1 - bx0 + 0.16, 0.07, 0.52), timber)
 
 	_menu_board(n, x0 + 7.98, fy, cy, z_back)
+
+
+## A floor-to-ceiling dresser on the west wall. At `03`'s framing the glass
+## looks diagonally across the room onto this wall, and in `03` what fills that
+## view is dark timber shelving loaded with jars, bottles and ceramics up to the
+## ceiling -- not plaster. The back wall alone could not supply it: it is 10 m
+## from the glass and seen square-on only from the doorway.
+const SIDE_DRESSER_Z := [-2.45, -4.85]
+
+static func _side_dresser(n: Node3D, x0: float, fy: float, cy: float) -> void:
+	var timber := SlicePalette.painted(SlicePalette.SHELF_TIMBER, 0.62)
+	var boards := SlicePalette.joinery_timber()
+	var za: float = SIDE_DRESSER_Z[0]
+	var zb: float = SIDE_DRESSER_Z[1]
+	var zm := (za + zb) * 0.5
+	var ln := za - zb
+	var dpt := 0.34
+	var xm := x0 + dpt * 0.5
+	# back board and the two end cheeks, full height
+	Build.box(n, Vector3(x0 + 0.03, (fy + cy) * 0.5, zm), Vector3(0.04, cy - fy, ln), timber)
+	for ez in [za, zb]:
+		Build.box(n, Vector3(xm, (fy + cy) * 0.5, ez), Vector3(dpt, cy - fy, 0.07), timber)
+	# a closed cupboard base, then six open shelves at the back wall's pitch
+	Build.box(n, Vector3(xm, fy + 0.42, zm), Vector3(dpt, 0.84, ln), timber, 0.0, true)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4471
+	for i in range(6):
+		var sy := fy + 0.86 + i * 0.40
+		if sy > cy - 0.20:
+			break
+		Build.box(n, Vector3(xm, sy, zm), Vector3(dpt, 0.04, ln), boards)
+		var top := sy + 0.02
+		# what stands on it: jars, canisters and bottles, many and at several
+		# sizes, so the run reads as stock and not as a pattern
+		var z := za - 0.12
+		while z > zb + 0.12:
+			var kind := rng.randi() % 4
+			var h := rng.randf_range(0.12, 0.26)
+			var r := rng.randf_range(0.045, 0.072)
+			var px := x0 + 0.17 + rng.randf_range(-0.04, 0.04)
+			match kind:
+				0:  # a glass jar with a lid, its contents a dark fill
+					Build.cyl(n, Vector3(px, top, z), r, r, h,
+						Mats.paint(Color(0.36, 0.24, 0.14), 0.30), 10)
+					Build.cyl(n, Vector3(px, top + h, z), r * 0.9, r * 0.9, 0.025,
+						Mats.paint(Color(0.62, 0.52, 0.34), 0.30, 0.7), 10)
+				1:  # a ceramic canister, glazed
+					var c := Color(0.82, 0.78, 0.70).lerp(Color(0.40, 0.48, 0.42), rng.randf())
+					Build.cyl(n, Vector3(px, top, z), r * 0.85, r, h, Mats.paint(c, 0.38), 10)
+				2:  # a bottle
+					var g := Color(0.16, 0.22, 0.14).lerp(Color(0.36, 0.20, 0.10), rng.randf())
+					Build.cyl(n, Vector3(px, top, z), 0.036, 0.036, 0.22, Mats.paint(g, 0.12), 8)
+					Build.cyl(n, Vector3(px, top + 0.22, z), 0.012, 0.030, 0.09, Mats.paint(g, 0.12), 8)
+				_:  # a stack of cups
+					for k in range(3):
+						Build.cyl(n, Vector3(px, top + k * 0.05, z), 0.040, 0.032, 0.05,
+							Mats.paint(Color(0.90, 0.88, 0.84), 0.36), 10)
+			z -= rng.randf_range(0.12, 0.20)
+		if i == 2:
+			SliceProps.put(n, "calathea_orbifolia_01", Vector3(x0 + 0.18, top, zm + 0.70),
+				0.4, Color(0.94, 1.02, 0.90), 0.28, 0.86, PLANT_SMALL)
+	Build.box(n, Vector3(xm + 0.04, cy - 0.06, zm), Vector3(dpt + 0.08, 0.10, ln + 0.10), timber)
 
 
 ## The variant sets. Several Poly Haven props are a display of alternatives in
@@ -464,7 +527,7 @@ static func _decoration(n: Node3D, x0: float, x1: float, z_back: float,
 	# pictures on the left wall, at two heights
 	# hanging_picture_frame_02 was here until its painting turned out to be
 	# signed by an artist Poly Haven does not credit -- excluded, see ASSETS.md.
-	SliceProps.put(n, "fancy_picture_frame_01", Vector3(x0 + 0.06, fy + 2.10, -5.10),
+	SliceProps.put(n, "fancy_picture_frame_01", Vector3(x0 + 0.06, fy + 2.10, -5.25),
 		PI * 0.5, warm)
 	SliceProps.put(n, "wall_clock", Vector3(x1 - 0.06, fy + 2.32, -4.40), -PI * 0.5, warm)
 	# a chalk-written strapline on the left wall's plaster, as the frontage has

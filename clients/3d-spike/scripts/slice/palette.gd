@@ -49,23 +49,29 @@ const LAMP_WARM := Color(1.0, 0.760, 0.470)
 const SUN_WARM := Color(1.0, 0.80, 0.56)
 
 # Timber inside the cafe: the ceiling boards, the shelving, the counter front.
-const CEIL_TIMBER := Color(0.474, 0.320, 0.196)
-const SHELF_TIMBER := Color(0.418, 0.286, 0.180)
+# Darkened 2026-10-06: through 03's glass the shelving and the ceiling are dark
+# stained timber, and the pale versions made the room read as lit by daylight.
+const CEIL_TIMBER := Color(0.330, 0.218, 0.136)
+const SHELF_TIMBER := Color(0.262, 0.176, 0.112)
 const COUNTER_TIMBER := Color(0.300, 0.208, 0.142)
 
 
 # --- architectural surfaces ---------------------------------------------------
 # One tile size per surface class, stated in metres of world space.
 
-## Pale grey-buff setts in stretcher courses. 05 lays them roughly 0.30 x 0.20 m;
-## the 1k tile carries about six courses, so 1.9 m puts a course near 0.30 m.
+## Grey-buff granite setts with dark soil joints, as both 03 and 05 lay them:
+## roughly square heads of 0.15-0.22 m, in loose courses, each stone a slightly
+## different grey. `cobblestone_floor_08` carries about nine courses per 1k tile,
+## so 1.6 m puts a course near 0.18 m. Was `rectangular_paving` until 2026-10-06:
+## warm beige oblong slabs whose joints did not read at 03's framing (preview
+## miss #2).
 static func setts() -> Material:
-	return Mats.pbr("rectangular_paving", 1.90, Color(1.12, 1.07, 0.99), 0.92)
+	return Mats.pbr("cobblestone_floor_08", 1.60, Color(1.10, 1.06, 0.99), 0.90)
 
-## The same stone, darker and wetter-looking, for the carriageway margin and the
-## crossing bars so the road edge is not one flat plane.
+## The same stone, darker, for the gutter course so the road edge is not one
+## flat plane.
 static func setts_grey() -> Material:
-	return Mats.pbr("rectangular_paving", 1.90, Color(0.86, 0.86, 0.86), 0.88)
+	return Mats.pbr("cobblestone_floor_08", 1.60, Color(0.78, 0.78, 0.78), 0.88)
 
 static func asphalt() -> Material:
 	return Mats.pbr("worn_asphalt", 4.20, Color(0.78, 0.78, 0.82), 0.96)
@@ -101,12 +107,14 @@ static func slate_roof() -> Material:
 # --- interior surfaces --------------------------------------------------------
 
 static func floor_boards() -> Material:
-	return Mats.pbr("wood_floor_worn", 2.20, Color(1.00, 0.92, 0.82), 0.62)
+	# stained, not raw: the raw tint filled the lower half of every interior
+	# frame with bright orange board
+	return Mats.pbr("wood_floor_worn", 2.20, Color(0.74, 0.62, 0.52), 0.62)
 
 ## 03: the ceiling is exposed warm boards running front to back, and it is the
 ## single most visible interior surface after the shelving wall.
 static func ceiling_boards() -> Material:
-	return Mats.pbr("brown_planks_09", 1.60, Color(0.86, 0.66, 0.46), 0.82)
+	return Mats.pbr("brown_planks_09", 1.60, Color(0.58, 0.44, 0.32), 0.82)
 
 static func joinery_timber() -> Material:
 	return Mats.pbr("wood_table_worn", 1.30, Color(1.06, 0.94, 0.82), 0.48)
@@ -120,8 +128,9 @@ static func bar_tile() -> Material:
 
 static func plaster_interior() -> Material:
 	# a warm limewash rather than near-white: through the glass, pale plaster was
-	# most of what the room read as (preview miss #1)
-	return Mats.pbr("painted_plaster_wall", 2.60, Color(0.86, 0.72, 0.56), 0.92)
+	# most of what the room read as (preview miss #1). 0.86/0.72/0.56 rendered
+	# orange under the pendants; this is a browner, darker limewash.
+	return Mats.pbr("painted_plaster_wall", 2.60, Color(0.66, 0.56, 0.45), 0.92)
 
 
 # --- painted joinery ----------------------------------------------------------

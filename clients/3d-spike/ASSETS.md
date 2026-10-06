@@ -90,13 +90,18 @@ Atlases that contain imagery or lettering, inspected and **passed**:
 | `wall_clock` | dial numerals and a small `URBAN quartz` wordmark | numerals and a bare wordmark carry no copyright. A wordmark is a trademark question at most, and that does not bear on relicensing the file |
 | `tea_set_01` | floral transfer decoration | generic period decoration on a scanned object, by the credited authors |
 
-`check_slice_provenance.py` result for the set that remains: 12 textures and 33 models, each
+**Added 2026-10-06:** `cobblestone_floor_08` (Rob Tuytel), the grey setts of both pavements.
+Already on disk for the promenade spike (`tools/fetch_assets.sh`); now also named in the slice
+script so the slice's own check covers it. Its diffuse atlas was inspected at 1024 px: a
+photograph of granite setts, soil joints and weeds, with no lettering, logo or artwork.
+
+`check_slice_provenance.py` result for the set that remains: 13 textures and 33 models, each
 found in Poly Haven's own catalogue as the asset type it is fetched as, each with credited
 authors, every glTF dependency present locally, none external, nothing unreferenced, no
 `asset.copyright` field in any glTF. **0 failed.**
 
 **Textures** — `assets/textures/<slug>/`, 1k JPG, `diff` + `nor_gl` + `arm`:
-`rectangular_paving` · `concrete` · `worn_asphalt` · `sandstone_blocks_05` · `red_bricks_04` ·
+`cobblestone_floor_08` · `rectangular_paving` · `concrete` · `worn_asphalt` · `sandstone_blocks_05` · `red_bricks_04` ·
 `yellow_bricks` · `clay_roof_tiles_02` · `wood_floor_worn` · `brown_planks_09` ·
 `wood_table_worn` · `long_white_tiles` · `painted_plaster_wall`. What each is for is in the
 fetch script, beside the slug.
