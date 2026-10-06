@@ -4,17 +4,18 @@
 they may attempt.
 
 ```text
-owns        Presence            where a person is: a place, and optionally where in it
-            present-in          the edge that says which place a person is in
-provides    arrive              a person comes to be at a location
-emits       arrived             and the fact that records it
-subscribes  arrived             so the state above is a projection of the event log
+owns        Presence               where a person is: a place, and optionally where in it
+            present-in             the edge that says which place a person is in
+provides    nothing                who may move a person is another system's decision
+emits       arrived                somebody is now somewhere (genesis, or through `arrival`)
+            person-entered-place   somebody is now in another place: an occupancy change
+subscribes  arrived                so the state above is a projection of the event log
 ```
 
 Two halves, and they are different kinds of thing:
 
-- **`PresenceSystem`** is installed into a world and asked four things — install, validate,
-  resolve, react.
+- **`PresenceSystem`** is installed into a world, declares what it owns, and reduces `arrived`
+  into that state.
 - **`observe(...)`** is a query. Perception is a read, so it is a function over a composed world,
   and what it returns is an `Observation`: a value listing what one observer was shown, with no
   handle to the world inside it.
@@ -37,11 +38,14 @@ The consequence is the point: disabling a pack removes its affordances *and* its
 observation in the world, and adding a pack requires no edit here. A test scans these sources for
 another pack's vocabulary, because the claim is an absence and only a structural test can hold it.
 
-## `arrive` is not movement
+## Presence owns where people are; who may move them is another system's decision
 
-It records an arrival; it does not walk anybody anywhere. Travel is a `Process` that takes simulated
-time and does not exist yet. Without an action, though, location could not exist at all — a
-component is written only by its owning system, so nothing else can say where anybody is.
+A world places its people by genesis. After that, a system that decides movement — `movement`, in
+the worlds this repository ships — depends on this pack and states its `arrived` through the checked
+`arrival` constructor; this pack reduces it and still refuses a value its state may not hold
+([`DECISIONS.md` `ARC-26`](../../docs/DECISIONS.md)). When a person's place changes, this pack states
+`person-entered-place`, because occupancy is its state. The `arrive` action this pack once provided
+is retired: a distance rule beside an unrestricted relocation is not a rule.
 
 ```sh
 cargo test -p mineworld-presence

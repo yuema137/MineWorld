@@ -16,6 +16,7 @@
 //! 6  every declared key has its file, and every file is declared
 //! 7  every person's place exists, and every seat is one of the people
 //! 8  content that needs a capability has it enabled
+//! 9  every passage joins two distinct declared places, each pair once, with `movement` enabled
 //! ```
 //!
 //! The order is deliberate: each check assumes the previous one passed, so an author fixes one thing
@@ -28,7 +29,7 @@ use std::path::{Path, PathBuf};
 use mineworld_contracts::{EntityKey, SystemId};
 use serde::de::DeserializeOwned;
 
-use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER};
+use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
 use crate::error::{ContentKind, Declared, PackError};
 use crate::format::{AuthoredPerson, AuthoredPlace, WorldManifest};
 
@@ -87,6 +88,7 @@ impl WorldPack {
 
         let seats = seats_of(&manifest, &people)?;
         check_locations(&root, &people, &places, &systems)?;
+        check_passages(&root, &places, &systems)?;
 
         Ok(Self {
             root,
@@ -350,6 +352,56 @@ fn check_locations(
                 system: LOCATION_OWNER.id(),
                 path,
             });
+        }
+    }
+    Ok(())
+}
+
+/// Every passage joins two distinct places this pack has, each pair is joined once, and the pack
+/// enables the system that owns passages.
+fn check_passages(
+    root: &Path,
+    places: &BTreeMap<EntityKey, AuthoredPlace>,
+    systems: &[Capability],
+) -> Result<(), PackError> {
+    let mut joined = BTreeSet::new();
+    for (key, place) in places {
+        let path = content_path(root, ContentKind::Place, key.as_str());
+        for passage in &place.passages {
+            if !places.contains_key(&passage.to) {
+                return Err(PackError::PassageToUnknownPlace {
+                    place: key.clone(),
+                    to: passage.to.clone(),
+                    known: names(places.keys().cloned()),
+                    path,
+                });
+            }
+            if passage.to == *key {
+                return Err(PackError::PassageToItself {
+                    place: key.clone(),
+                    path,
+                });
+            }
+            let pair = if *key < passage.to {
+                (key.clone(), passage.to.clone())
+            } else {
+                (passage.to.clone(), key.clone())
+            };
+            if !joined.insert(pair.clone()) {
+                return Err(PackError::PassageStatedTwice {
+                    first: pair.0,
+                    second: pair.1,
+                    path,
+                });
+            }
+            if !systems.contains(&PASSAGE_OWNER) {
+                return Err(PackError::ContentNeedsASystem {
+                    subject: key.clone(),
+                    content: "passage",
+                    system: PASSAGE_OWNER.id(),
+                    path,
+                });
+            }
         }
     }
     Ok(())

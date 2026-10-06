@@ -164,9 +164,9 @@ impl SystemRegistry {
     /// Whether a declaration can join this world, decided from declarations alone.
     ///
     /// Called before anything is granted or declared, so that a refusal leaves the world exactly as
-    /// it was. Four refusals, in the order a reader of the failure would want them: the name is
-    /// free, every dependency is present and enabled, no component type is claimed twice, and no
-    /// action type is answered twice.
+    /// it was. Five refusals, in the order a reader of the failure would want them: the name is
+    /// free, every dependency is present and enabled, every vocabulary it borrows belongs to one of
+    /// those dependencies, no component type is claimed twice, and no action type is answered twice.
     pub(crate) fn check_installable(
         &self,
         declaration: &SystemDeclaration,
@@ -177,8 +177,31 @@ impl SystemRegistry {
             });
         }
         self.check_dependencies(declaration)?;
+        Self::check_emitted_vocabularies(declaration)?;
         self.check_owned_components(declaration)?;
         self.check_provided_actions(declaration)
+    }
+
+    /// Every kind of fact this declaration emits in another system's vocabulary names an owner it
+    /// declares a dependency on (`ARC-26`).
+    ///
+    /// Decided from the declaration alone, and before the dependency check's own question — whether
+    /// those dependencies are installed and enabled — matters: a system that speaks presence's
+    /// vocabulary without depending on presence is a wrong declaration in any world. Together the two
+    /// checks guarantee that whenever such a fact can be stated, its owner is present to reduce it.
+    /// `enable` needs no repeat of this check: a declaration cannot change after installation, and
+    /// `enable` re-checks the dependencies themselves.
+    fn check_emitted_vocabularies(declaration: &SystemDeclaration) -> Result<(), KernelError> {
+        for (event_type, owner) in declaration.emits_owned_by_others() {
+            if !declaration.depends_on().contains(owner) {
+                return Err(KernelError::EmittedEventOwnerNotADependency {
+                    system: declaration.system().clone(),
+                    event_type: event_type.clone(),
+                    owner: owner.clone(),
+                });
+            }
+        }
+        Ok(())
     }
 
     /// Every system this declaration depends on is installed and enabled.

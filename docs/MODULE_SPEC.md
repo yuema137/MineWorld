@@ -202,10 +202,12 @@ world:
 
 systems:                   # the capabilities this world enables, in installation order
   - presence
+  - movement
   - conversation
 
 places:                    # each key names places/<key>.yaml
   - cafe
+  - street
 
 population:                # each key names people/<key>.yaml
   - alice
@@ -233,7 +235,23 @@ location:                  # optional. Requires the `presence` system.
 # places/<key>.yaml
 tags: [cafe, public]       # optional
 note: A small café.        # optional
+passages:                  # optional. Requires the `movement` system.
+  - to: street             # required: another of `places`
+    here:                  # optional: the doorway in this place, integer millimetres
+      x: 4600
+      y: 2000
+    there:                 # optional: the same doorway in `to`, integer millimetres
+      x: 0
+      y: 2000
 ```
+
+A passage is a doorway joining two places, and it holds both ways: it is stated **once**, in either
+of the two places' files, and the `movement` system records it on both. Stating the same pair twice
+— in both files, or twice in one — is refused, because two statements could disagree about where the
+doorway is. A passage to an undeclared place, or from a place to itself, is refused. Either position
+may be omitted, for the reason `location.position` may: a world that models no positions says only
+that the café opens onto the street. How far from a doorway a person may pass through it is the
+`movement` system's rule, not the pack's (`DECISIONS.md` `ARC-26`).
 
 Five rules govern this subset, and each one is a decision rather than an implementation detail:
 
@@ -248,14 +266,17 @@ Five rules govern this subset, and each one is a decision rather than an impleme
    `population`.
 4. **Content that needs a capability names it, and the pack must enable it.** `location` is state the
    `presence` system owns; a pack that places its people without enabling `presence` is refused,
-   rather than starting a world in which everybody is quietly nowhere.
+   rather than starting a world in which everybody is quietly nowhere. `passages` are state the
+   `movement` system owns, and a pack that joins its places without enabling `movement` is refused
+   the same way.
 5. **There are no floats.** Positions are integer millimetres and orientations integer millidegrees,
    because these values reach the event log and floating-point arithmetic is not reproducible across
    platforms (`MVP.md` §9 `AC-12`).
 
-Initial state is **not** written into the world by the loader. Each authored `location` becomes a
-recorded event caused by `Causation::WorldGenesis`, which the owning system reduces — so a loaded
-world's state has a causal origin in its own log, and a replay rebuilds it
+Initial state is **not** written into the world by the loader. Each authored `passage` and each
+authored `location` becomes a recorded event caused by `Causation::WorldGenesis` — passages first,
+because they are facts about places that exist before anybody is in them — which the owning system
+reduces. So a loaded world's state has a causal origin in its own log, and a replay rebuilds it
 (`DECISIONS.md` `ARC-15`).
 
 ---

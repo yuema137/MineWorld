@@ -539,6 +539,7 @@ version = "0.0.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
+ "mineworld-movement",
  "mineworld-presence",
  "serde",
  "serde_json",
@@ -554,6 +555,19 @@ dependencies = [
  "serde_json",
  "thiserror",
  "trybuild",
+]
+
+[[package]]
+name = "mineworld-movement"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-kernel",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -611,6 +625,7 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-kernel",
+ "mineworld-movement",
  "mineworld-presence",
  "serde",
  "serde-saphyr",

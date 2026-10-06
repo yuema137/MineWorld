@@ -482,3 +482,206 @@ fn every_refusal_names_the_file_it_is_about() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Passages (`MODULE_SPEC.md` §4.1): a doorway between two places, owned by `movement`.
+// ---------------------------------------------------------------------------------------------
+
+/// A sound pack with two places, `cafe` and `street`, `movement` enabled, and `cafe`'s file stating
+/// `passages` as given.
+fn with_passages(id: &str, cafe: &str) -> Fixture {
+    let fixture = Fixture::sound(id);
+    fixture.manifest(
+        "
+systems:
+  - presence
+  - movement
+places:
+  - cafe
+  - street
+population:
+  - alice
+",
+    );
+    fixture.write("places/cafe.yaml", cafe);
+    fixture.write("places/street.yaml", "tags: [street]\n");
+    fixture
+}
+
+const DOORWAY: &str = "
+passages:
+  - to: street
+    here: { x: 4600, y: 2000 }
+    there: { x: 0, y: 2000 }
+";
+
+#[test]
+fn a_doorway_between_two_places_loads_into_both_places_passages() {
+    use mineworld_contracts::{LocalPosition, Millimetres, PlaceId};
+    use mineworld_movement::{PassageOpened, Passages};
+
+    let fixture = with_passages("doorway", DOORWAY);
+    let loaded = fixture
+        .read()
+        .expect("a doorway between two declared places reads")
+        .load(mineworld_contracts::WorldTime::EPOCH)
+        .expect("and loads");
+
+    let place = |name: &str| {
+        PlaceId::new(
+            loaded.id(&key(name)).expect("declared"),
+            mineworld_contracts::EntityType::Place,
+        )
+        .expect("a place")
+    };
+    let (cafe, street) = (place("cafe"), place("street"));
+    let at = |x, y| LocalPosition::on_ground(Millimetres::new(x), Millimetres::new(y));
+    let passages = |of: PlaceId| {
+        loaded
+            .world()
+            .components()
+            .get::<Passages>(of.entity_id())
+            .cloned()
+            .expect("movement reduced the passage into this place")
+    };
+
+    let opened: Vec<_> = loaded
+        .genesis()
+        .iter()
+        .filter(|fact| {
+            *fact.event_type() == <PassageOpened as mineworld_contracts::Event>::EVENT_TYPE
+        })
+        .collect();
+    println!(
+        "genesis: {} fact(s), {} passage-opened",
+        loaded.genesis().len(),
+        opened.len()
+    );
+    assert_eq!(opened.len(), 1, "one passage, stated once");
+    assert_eq!(
+        *loaded.genesis()[0].event_type(),
+        <PassageOpened as mineworld_contracts::Event>::EVENT_TYPE,
+        "passages are stated before anybody is placed"
+    );
+
+    let out = passages(cafe);
+    let way_out = out.to(street).expect("the café opens onto the street");
+    assert_eq!(
+        (way_out.here(), way_out.there()),
+        (Some(at(4_600, 2_000)), Some(at(0, 2_000)))
+    );
+    let back = passages(street);
+    let way_back = back.to(cafe).expect("and the street onto the café");
+    assert_eq!(
+        (way_back.here(), way_back.there()),
+        (Some(at(0, 2_000)), Some(at(4_600, 2_000)))
+    );
+}
+
+#[test]
+fn a_passage_to_an_undeclared_place_is_refused_by_name() {
+    let fixture = with_passages("passage-unknown", "passages:\n  - to: park\n");
+    let refusal = fixture.refusal();
+    assert!(
+        matches!(
+            refusal,
+            PackError::PassageToUnknownPlace { ref place, ref to, .. }
+                if *place == key("cafe") && *to == key("park")
+        ),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_passage_from_a_place_to_itself_is_refused_by_name() {
+    let fixture = with_passages("passage-itself", "passages:\n  - to: cafe\n");
+    let refusal = fixture.refusal();
+    assert!(
+        matches!(refusal, PackError::PassageToItself { ref place, .. } if *place == key("cafe")),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_passage_stated_twice_is_refused_by_name_whichever_files_state_it() {
+    // Once in each of the two files: a passage holds both ways, so this is the same doorway twice.
+    let both_files = with_passages("passage-both-files", "passages:\n  - to: street\n");
+    both_files.write("places/street.yaml", "passages:\n  - to: cafe\n");
+    // Twice in one file.
+    let one_file = with_passages(
+        "passage-one-file",
+        "passages:\n  - to: street\n  - to: street\n",
+    );
+
+    for fixture in [both_files, one_file] {
+        let refusal = fixture.refusal();
+        assert!(
+            matches!(
+                refusal,
+                PackError::PassageStatedTwice { ref first, ref second, .. }
+                    if *first == key("cafe") && *second == key("street")
+            ),
+            "{}: got: {refusal}",
+            fixture.id()
+        );
+    }
+}
+
+#[test]
+fn a_passage_in_a_pack_without_movement_is_refused_by_name() {
+    let fixture = with_passages("passage-without-movement", DOORWAY);
+    fixture.manifest(
+        "
+systems:
+  - presence
+places:
+  - cafe
+  - street
+population:
+  - alice
+",
+    );
+    let refusal = fixture.refusal();
+    assert!(
+        matches!(
+            refusal,
+            PackError::ContentNeedsASystem { ref subject, content: "passage", ref system, .. }
+                if *subject == key("cafe") && *system == SystemId::new("movement").expect("legal")
+        ),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn every_passage_refusal_names_the_file_that_states_it() {
+    let cases = [
+        (
+            "places/cafe.yaml",
+            with_passages("named-passage-unknown", "passages:\n  - to: park\n"),
+        ),
+        (
+            "places/cafe.yaml",
+            with_passages("named-passage-itself", "passages:\n  - to: cafe\n"),
+        ),
+        ("places/street.yaml", {
+            let fixture = with_passages("named-passage-twice", "passages:\n  - to: street\n");
+            fixture.write("places/street.yaml", "passages:\n  - to: cafe\n");
+            fixture
+        }),
+        (
+            "places/cafe.yaml",
+            with_passages(
+                "named-passage-field",
+                "passages:\n  - to: street\n    door: 1\n",
+            ),
+        ),
+    ];
+    for (expected, fixture) in cases {
+        let message = fixture.refusal().to_string();
+        println!("{}: {message}", fixture.id());
+        assert!(
+            message.contains(expected),
+            "a refusal about {expected} must say so: {message}"
+        );
+    }
+}

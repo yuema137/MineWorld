@@ -292,6 +292,7 @@ Frozen as a design; implemented only as far as MVP-0 needs.
 | Asset Pack as a type, glTF canonical, asset contract | specified; the 3D spike is its first real test |
 | `.mwpack`, `mineworld validate asset`, dependency resolution | after the vertical slice |
 | Tier 0 | what the sample worlds already are |
+| World Pack fields | the subset [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 specifies: identity, `systems`, `places`, `population`, `seats`, a person's `location`, and a place's `passages` (doorways between places, owned by the `movement` system, `DECISIONS.md` `ARC-26`); every other field of §4's model is refused by name |
 | Tier 1 WASM/WIT | specified; MVP-0 ships trusted in-process Rust systems ([`ARCHITECTURE.md`](ARCHITECTURE.md) §12) |
 | Tier 2 | available by virtue of Godot; unused |
 

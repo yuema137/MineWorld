@@ -511,20 +511,22 @@ fn an_altered_fact_or_snapshot_is_refused_where_it_was_altered() {
 fn a_save_of_another_format_or_another_composition_is_refused_by_name() {
     let scratch = Scratch::new("format");
     saved(&scratch, 3);
-    sql(&scratch, "UPDATE manifest SET format = 2");
+    sql(&scratch, "UPDATE manifest SET format = 3");
     assert!(matches!(
         PersistentWorld::resume(open(&scratch), composed()),
         Err(PersistError::SaveFormatTooNew {
-            saved: 2,
-            supported: 1
+            saved: 3,
+            supported: 2
         })
     ));
-    sql(&scratch, "UPDATE manifest SET format = 0");
+    // Format 1 is S5's, written before a declaration recorded the owners of borrowed vocabularies
+    // (ARC-26): refused by name rather than decoded on a guess.
+    sql(&scratch, "UPDATE manifest SET format = 1");
     assert!(matches!(
         PersistentWorld::resume(open(&scratch), composed()),
         Err(PersistError::SaveFormatOutdated {
-            saved: 0,
-            supported: 1
+            saved: 1,
+            supported: 2
         })
     ));
 

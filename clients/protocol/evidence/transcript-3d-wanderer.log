@@ -1,26 +1,29 @@
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
 [demo] connecting to 127.0.0.1:7878 as seat 'wanderer' (3d)
-[demo] seated: seat 'wanderer' is observer 5
-[demo] world instance 0000000018d95a0599a0daf88ecb0000, 5 entities, 2 client(s)
-[demo] observation 1: 1, 2, 3, 4, 5
-[demo] the server says talk to 2 is not available (too far away)
-[demo] c1 -> action 4: accepted (1 fact(s))
-[demo] the server now says talk to 2 is available
-[demo] c2 -> action 5: accepted (2 fact(s))
+[demo] seated: seat 'wanderer' is observer 6
+[demo] world instance 0000000018dc157f4ae608112a380000, 6 entities, 2 client(s)
+[demo] observation 1: 1, 3, 4, 5, 6
+[demo] the server says talk to 3 is not available (too far away)
+[demo] c1 -> action 5: accepted (1 fact(s))
+[demo] the server now says talk to 3 is available
+[demo] c2 -> action 6: accepted (1 fact(s))
+[demo] c3 -> action 7: accepted (2 fact(s))
+[demo] c4 -> action 9: accepted (1 fact(s))
+[demo] walked there in 3 stride(s)
 [demo] --- what this client was told ---
-[demo] world instance      0000000018d95a0599a0daf88ecb0000
-[demo] observer            5
-[demo] perceived           1, 2, 3, 4, 5
+[demo] world instance      0000000018dc157f4ae608112a380000
+[demo] observer            6
+[demo] perceived           1, 3, 4, 5, 6
 [demo]   1  tags ["cafe","public"]  at (0.0, 0.0) m
-[demo]   2  tags ["barista","staff"]  at (1.2, -2.4) m
-[demo]   3  tags ["regular"]  at (1.4, -0.6) m
-[demo]   4  tags ["visitor"]  at (1.2, -1.4) m
+[demo]   3  tags ["barista","staff"]  at (1.2, -2.4) m
+[demo]   4  tags ["regular"]  at (1.4, -0.6) m
 [demo]   5  tags ["visitor"]  at (1.2, -1.4) m
-[demo]   affordance arrive -> null : available
-[demo]   affordance talk -> "2" : available
+[demo]   6  tags ["visitor"]  at (1.2, -1.4) m
+[demo]   affordance move -> null : available
 [demo]   affordance talk -> "3" : available
 [demo]   affordance talk -> "4" : available
+[demo]   affordance talk -> "5" : available
 [demo] --- what I have been told (my own disclosed history) ---
-[demo]   "2" said "I remember you. You said \"hello Alice, this is the demonstration scene\". Earlier, person 4 said \"hello Alice, this is the demonstration scene\" to me."
+[demo]   "3" said "I remember you. You said \"hello Alice, this is the demonstration scene\". Earlier, person 5 said \"hello Alice, this is the demonstration scene\" to me."
 [demo] disconnected: the scripted run is over

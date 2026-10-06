@@ -275,6 +275,16 @@ impl Client {
         }
     }
 
+    /// Submits each stride of a [`walk`] in order, requiring each to be accepted, and returns every
+    /// answer — one per stride, so a caller can count the requests a walk took.
+    pub async fn walk_accepted(&mut self, strides: Vec<Value>) -> Vec<(ActionId, Vec<EventId>)> {
+        let mut answers = Vec::with_capacity(strides.len());
+        for stride in strides {
+            answers.push(self.submit_accepted(stride).await);
+        }
+        answers
+    }
+
     /// Waits until this observer's observation satisfies `ready`, or fails the test.
     ///
     /// Polling the stream rather than sleeping: the world is swept on its own cadence, and what a
@@ -377,20 +387,61 @@ pub fn talk(actor: EntityId, target: EntityId, said: &str) -> Value {
     })
 }
 
-/// An `arrive` request: the protocol-level form of walking somewhere.
+/// One `move` request to a position in `place`: the protocol-level form of a stride.
 ///
 /// Millimetres as integers, because the contract refuses a float where an `i32` is declared — the
 /// loud failure `spike/FINDINGS.md` F9 measured.
-pub fn arrive(actor: EntityId, place: EntityId, x: i32, y: i32) -> Value {
+pub fn stride(actor: EntityId, place: EntityId, x: i32, y: i32) -> Value {
     json!({
         "actor": actor,
-        "action_type": "arrive",
+        "action_type": "move",
         "target": null,
-        "payload": { "action_type": "arrive", "payload": { "location": {
+        "payload": { "action_type": "move", "payload": { "to": {
             "place": { "entity": place.to_string(), "entity_type": "place" },
             "local": { "x": x, "y": y, "z": 0 },
             "facing": null,
         } } },
         "actor_location": null,
     })
+}
+
+/// The longest stride a client sends, in millimetres: the 2 m `server/PROTOCOL.md` §6.2 publishes.
+/// A literal here, not the movement pack's constant, so a change to the server's bound is caught by
+/// these tests rather than followed by them (`ARC-23` rule 2).
+pub const STRIDE_MM: i64 = 2_000;
+
+/// A straight walk inside `place` from `from` to `to`, as the `move` requests a client sends: the
+/// fewest equal strides, each at most [`STRIDE_MM`], ending exactly at `to`.
+///
+/// Integer arithmetic only. The waypoint after `k` of `n` strides is `from + (to − from)·k / n`,
+/// rounded toward zero; `n` grows until every stride, measured by its squared length, fits — so
+/// rounding can never make one stride a millimetre too long.
+pub fn walk(actor: EntityId, place: EntityId, from: (i32, i32), to: (i32, i32)) -> Vec<Value> {
+    let (dx, dy) = (i64::from(to.0 - from.0), i64::from(to.1 - from.1));
+    let point = |k: i64, n: i64| {
+        let x = i64::from(from.0) + dx * k / n;
+        let y = i64::from(from.1) + dy * k / n;
+        (x, y)
+    };
+    let fits = |n: i64| {
+        (1..=n).all(|k| {
+            let (a, b) = (point(k - 1, n), point(k, n));
+            let (sx, sy) = (b.0 - a.0, b.1 - a.1);
+            sx * sx + sy * sy <= STRIDE_MM * STRIDE_MM
+        })
+    };
+    let n = (1..)
+        .find(|n| fits(*n))
+        .expect("some number of strides fits");
+    (1..=n)
+        .map(|k| {
+            let (x, y) = point(k, n);
+            stride(
+                actor,
+                place,
+                i32::try_from(x).expect("on the map"),
+                i32::try_from(y).expect("on the map"),
+            )
+        })
+        .collect()
 }

@@ -240,6 +240,43 @@ A client author's obligation is the short version of the same thing: everything 
 identical. How the player expressed the wish — a click, a raycast, a menu — changes nothing in the
 frame except the position the client is able to report.
 
+### 6.2 Moving, and the reporting rule
+
+A person moves only by a `move` request, provided by the `movement` system when a world enables it
+(`DECISIONS.md` `ARC-26`). There is no other way for a client to change where anybody is.
+
+```json
+{ "t": "submit", "token": "c7", "request": {
+    "actor": "5",
+    "action_type": "move",
+    "target": null,
+    "payload": { "action_type": "move", "payload": { "to": {
+        "place": { "entity": "1", "entity_type": "place" },
+        "local": { "x": 3200, "y": 600, "z": 0 },
+        "facing": { "yaw": 270000, "pitch": null } } } },
+    "actor_location": null } }
+```
+
+The server, not the client, decides whether the move is possible, against the person's
+authoritative position:
+
+```text
+same place       accepted if `to` is at most MAX_STRIDE = 2 000 mm from the authoritative position
+another place    accepted only through a passage the world declares, within MAX_STRIDE of the
+                 doorway on this side, landing within MAX_STRIDE of it on the other
+otherwise        rejected too_far_away — reaching a place that does not open onto this one is travel
+```
+
+**The reporting rule.** Because the bound is per request, a client must **report a `move` before its
+body has travelled `MAX_STRIDE` since the last position the server accepted**. The bound is not a
+speed limit, and a client that reports too rarely is refused for moving legally: a body jogging at
+about 2.6 m/s that reports once a second asks to move 2.6 m and is answered `too_far_away`, after
+which every later report is further still. A client that is refused reconciles: it moves its body
+back to the position the next observation shows, and continues from there.
+
+Turning on the spot is a `move` to the same position with a new `facing`. A world that models no
+continuous position moves within a place and through passages with `local: null`.
+
 ## 7. Numbers, and the one rule a client with a single number type must follow
 
 **Identities are decimal strings.** `EntityId`, `EventId`, `ActionId` and `ProcessId` are written
