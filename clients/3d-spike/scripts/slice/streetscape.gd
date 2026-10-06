@@ -164,6 +164,13 @@ static func _planting(g: Node3D) -> void:
 		# one shrub out of the file's four, by name -- see dressing.gd
 		SliceProps.put(g, "shrub_02", p + Vector3(0, 0.44, 0), 0.7,
 			Color(0.90, 1.00, 0.84), 0.28, 0.86, ["_d"])
+		# 03's planter box is in flower and spills over its front edge; a box of
+		# shrub alone read as a hedge
+		Props.flowerbed(g, p + Vector3(0, 0.42, 0), 0.80, 0.32, int(p.x * 97.0) + 11)
+		for k in range(3):
+			Build.card(g, p + Vector3(-0.30 + k * 0.30, 0.30, 0.24), 0.30, 0.42,
+				Mats.card(ProcGen.leaf_card(int(p.x * 13.0) + k, Color(0.286, 0.430, 0.184)), 0.9),
+				0.0, 0.0, false)
 	# Flanking the door, never in it: the door opening is x 2.96..3.94, and the
 	# first version stood a pot at x 3.55, which the drive found as the thing
 	# the body stopped against 1.3 m short of the threshold.

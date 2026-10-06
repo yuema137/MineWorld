@@ -323,11 +323,14 @@ static func _upper_storeys(g: Node3D, stone: Material) -> void:
 				SlicePalette.CAFE_GREEN_LIGHT, SlicePalette.dead_glass(), stone,
 				0.19, 1, 2)
 		if s == 0:
-			# 03 puts a timber window box of trailing greenery on the first floor
-			var anchor := Profile.window_box(g, -W * 0.5 + W / 6.0, base + 0.60, 1.42,
-				SlicePalette.painted(Color(0.360, 0.268, 0.184), 0.82))
-			Props.flowerbed(g, anchor + Vector3(0, 0.10, 0.02), 1.30, 0.22, 4409)
-			_trailing(g, Vector3(-W * 0.5 + W / 6.0, base + 0.58, 0.28), 1.30, 1.25, 8821)
+			# 03 puts timber window boxes of trailing greenery on the first floor;
+			# one box under three windows read as an exception, not a habit
+			for i in range(3):
+				var wx := -W * 0.5 + W * (float(i) + 0.5) / 3.0
+				var anchor := Profile.window_box(g, wx, base + 0.60, 1.42,
+					SlicePalette.painted(Color(0.360, 0.268, 0.184), 0.82))
+				Props.flowerbed(g, anchor + Vector3(0, 0.10, 0.02), 1.30, 0.22, 4409 + i * 31)
+				_trailing(g, Vector3(wx, base + 0.58, 0.28), 1.30, 1.25 - i * 0.25, 8821 + i * 7)
 			Profile.band(g, x0, x1, base + STOREY - 0.22, 0.20, 0.10,
 				SlicePalette.painted(Color(0.796, 0.744, 0.640), 0.86))
 
@@ -391,17 +394,31 @@ static func _frontage_dressing(g: Node3D) -> void:
 	Profile.text(g, Vector3(px, 1.80, 0.112), "GREAT\nCOFFEE\nKINDER\nPEOPLE\nBRIGHTER\nDAYS",
 		0.068, Color(0.86, 0.85, 0.82), SlicePalette.serif_font())
 
-	# a hanging basket on the left pier, spilling over
-	var hx := -W * 0.5 + PIER * 0.5
-	Build.cyl(g, Vector3(hx, 2.88, 0.34), 0.012, 0.012, 0.52, iron, 5)
-	Build.box(g, Vector3(hx, 3.16, 0.20), Vector3(0.09, 0.09, 0.34), iron)
-	Build.cyl(g, Vector3(hx, 2.66, 0.34), 0.30, 0.19, 0.24,
-		SlicePalette.painted(Color(0.372, 0.294, 0.212), 0.92), 14)
-	Props.flowerbed(g, Vector3(hx, 2.92, 0.34), 0.52, 0.42, 1213)
-	_trailing(g, Vector3(hx, 2.70, 0.34), 0.48, 0.95, 3307)
+	# hanging baskets, spilling over. 03 has two: a small one by the sign and a
+	# large one on the right-hand pier, above the slate board, whose trailing
+	# stems reach down past the board's top corner.
+	_basket(g, -W * 0.5 + PIER * 0.5, 2.66, 0.30, 0.95, 1213)
+	_basket(g, W * 0.5 - PIER * 0.5, 2.62, 0.30, 0.60, 1907)
 
-	# ivy climbing the left pier, which is the plate's strongest soft edge
+	# ivy on both piers, which are the plate's strongest soft edges
 	_trailing(g, Vector3(-W * 0.5 + 0.12, 5.9, 0.10), 0.55, 3.2, 5501)
+	_trailing(g, Vector3(W * 0.5 - 0.20, 5.6, 0.10), 0.50, 2.2, 5519)
+
+
+## A hanging basket on a wall bracket: a coir bowl, flowers in its top, and
+## trailing stems below. `r` is the bowl's rim radius.
+static func _basket(g: Node3D, hx: float, y: float, r: float, drop: float,
+		seed_v: int) -> void:
+	var iron := SlicePalette.iron()
+	var out := 0.14 + r
+	Build.cyl(g, Vector3(hx, y + 0.22, out), 0.012, 0.012, 0.52, iron, 5)
+	Build.box(g, Vector3(hx, y + 0.50, out * 0.5 + 0.03), Vector3(0.09, 0.09, out), iron)
+	# a bowl, not a cone: a wide rim course over a rounded underside
+	var coir := SlicePalette.painted(Color(0.372, 0.294, 0.212), 0.92)
+	Build.cyl(g, Vector3(hx, y + r * 0.30, out), r, r * 0.86, r * 0.30, coir, 14)
+	Build.cyl(g, Vector3(hx, y, out), r * 0.86, r * 0.40, r * 0.30, coir, 14)
+	Props.flowerbed(g, Vector3(hx, y + r * 0.62, out), r * 1.75, r * 1.40, seed_v)
+	_trailing(g, Vector3(hx, y + 0.04, out), r * 1.6, drop, seed_v + 2094)
 
 
 ## A curtain of trailing foliage cards, for baskets, window boxes and climbers.
