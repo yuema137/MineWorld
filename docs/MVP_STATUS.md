@@ -5,7 +5,8 @@ The point of this file is to stop MVP-0 being declared complete while a real pat
 `✅` means **actually run and inspected**, never inferred from a passing test suite or a
 successful compile. `🚧` means in progress. `❌` means not started.
 
-**Updated:** 2026-09-30 (PR 07; persistence rows only — other rows stand as of PR 05d). Subjective questions are queued in
+**Updated:** 2026-10-06 (PR 08; spatial state, movement, place, Social Café and stage rows — other
+rows stand as of PR 07). Subjective questions are queued in
 [`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md); a demo parked there does not block engineering.
 
 ## Capability matrix
@@ -14,9 +15,9 @@ successful compile. `🚧` means in progress. `❌` means not started.
 | --- | --- | --- | --- |
 | World boot | 🚧 composed from declarations; no runtime loop yet | ❌ | ❌ |
 | Person | 🚧 contracts + storage | ❌ | ❌ |
-| Spatial state | 🚧 contracts only | ❌ | ❌ |
-| Movement | ❌ | ❌ | ❌ |
-| Place | 🚧 contracts + storage | ❌ | ❌ |
+| Spatial state | ✅ `Presence` and `present-in`, owned by `presence` and changed only by reducing `arrived`; persisted and rebuilt identically (PR 08) | — | — |
+| Movement | ✅ `move` end to end: strides of at most 2 m decided by `movement`, `too_far_away` from the server, a doorway crossing recorded as `person-entered-place`, persisted and resumed; disabling `movement` answers `move` `unavailable` and changes nothing else (`AC-2`, PR 08) | 🚧 the Godot protocol demo walks in `move` strides against the real server (2D flavour); the 2D client's own adoption is pending | 🚧 the same, 3D flavour; the 3D client's adoption is pending |
+| Place | 🚧 two places joined by a doorway (`passages`, owned by `movement`) in `worlds/social-cafe`; no interiors, doors or capacity | ❌ | ❌ |
 | Conversation | ✅ `talk` end to end: request, refusal for distance, event, history | 🚧 a client can speak and read what it was told; the 2D client's own adoption is pending | 🚧 the same, and the 3D client's adoption is pending |
 | Object interaction | ❌ | ❌ | ❌ |
 | Persistence | ✅ `mineworld server --save` killed with SIGKILL and restarted: same instance, revision, people and conversation; `mineworld replay` re-executes the save (PR 07) | — | — |
@@ -32,13 +33,13 @@ What a person can actually run. None of these exists yet.
 | 2D client | `mineworld-2d` | 🚧 presentation spike runnable, awaiting style decision ([queue](HUMAN_REVIEW_QUEUE.md)) |
 | 3D client | `mineworld-3d` | 🚧 presentation spike runnable with three camera modes; awaiting feel review ([queue](HUMAN_REVIEW_QUEUE.md)) |
 | Developer CLI | `mineworld create / validate / run / inspect` | 🚧 `server` (with `--save`), `validate` and `replay` exist; `create`, `run` and `inspect` are S7 |
-| `worlds/social-cafe` | `mineworld validate worlds/social-cafe` | ✅ one café, four people, three seats, loaded and hosted |
+| `worlds/social-cafe` | `mineworld validate worlds/social-cafe` | ✅ a café and the street outside it, joined by a doorway; four people, three seats, loaded and hosted |
 | `worlds/market-town` | — | ❌ |
 
 ## Independent axes
 
 ```text
-Social Café composition:                 🚧 presence + conversation; the economy set is S9
+Social Café composition:                 🚧 presence + movement + conversation; the economy set is S9
 Market Town composition:                 ❌
 Cross-renderer semantic equivalence:     ✅ AC-13 against the real contracts, from frames the real
                                             Godot client submitted, compared by the server's own
@@ -60,7 +61,8 @@ What the slice deliberately does not have, and what each is waiting for:
 ```text
 the scheduler and processes   S4 — nothing in the slice defers work, and the server counts it if
                               anything does
-travel between places         later — one place is enough to prove AC-15
+a travel Process              later — walking through a doorway between adjoining places exists
+                              (PR 08); travel that takes simulated time does not
 the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline, which adopt
                               clients/protocol/mineworld/ rather than reimplementing it
 ```
@@ -74,8 +76,8 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | S3a kernel world state | ✅ merged `4c35a57`; single-writer enforced at compile time |
 | S3b systems, registry, dispatch | ✅ merged; dispatch routes, validates, resolves and reduces |
 | S4 clock, scheduler, process | ✅ merged `1241cab` |
-| S5 persistence and event log | 🚧 PR 07 ready for review: journal + fact log + snapshots in one SQLite file, verified re-execution (`ARC-25`) |
-| S6 first systems: time, places, movement | medium scope |
+| S5 persistence and event log | ✅ merged `41d4ab1`: journal + fact log + snapshots in one SQLite file, verified re-execution (`ARC-25`) |
+| S6 first systems: time, places, movement | 🚧 PR 08 ready for review: `movement` decides, `presence` owns (`ARC-26`); `arrive` retired; `passages` in the World Pack format; the street in social-cafe |
 | S7 world pack loading, rule controller, headless run | 🚧 pack loading and a `RuleController` landed early with the step-05 slice; `create`, `run --headless --days` and `inspect` remain |
 | S8 Social Café systems | medium scope |
 | S9 Market Town + AC-1 proof | medium scope |
@@ -98,6 +100,8 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | `AC-13` holds against the real contracts | the two `talk` requests the real Godot module submitted — one reporting a position, one not — have an identical semantic core and are resolved to the same result. *Byte identity was the old wording and was wrong*: `MVP.md` §9's correction names `actor_location` as the permitted difference, and the comparison now lives in the server |
 | `AC-15` holds | two clients and an agent-driven Person on one `mineworld server worlds/social-cafe --agent alice`; the evidence names one world instance, one Alice `EntityId` and one event sequence, and Alice tells the second window what the first one said (`tools/cli/tests/ac15_one_alice.rs`, `clients/protocol/evidence/`) |
 | A world survives the death of its process (`AC-6`) | a child process SIGKILLed mid-run and a new one resuming its SQLite file produce a save byte-identical to an uninterrupted run (`persistence/tests/kill_and_resume.rs`); the real `mineworld server --save`, SIGKILLed and restarted, is the same world, and Alice's conversation continues (`tools/cli/tests/restart.rs`) |
+| A capability is removable (`AC-2`, first real evidence) | with `movement` disabled, `move` is `unavailable`, records nothing and is not offered, and the world is otherwise identical to one that never had it; the same comparison against a world where movement stays reachable reports 7 violations, so the test cannot pass by accident (`systems/movement/tests/movement.rs`) |
+| A per-request stride bound does not punish an honest client | a client jogging at 2.6 m/s that reports before travelling 2 m since its last accepted position is never refused (29 accepted, 0 refused); one reporting once a second is refused every time (`systems/movement/tests/movement.rs`, the reporting rule of `server/PROTOCOL.md` §6.2) |
 | A controller and a client are indistinguishable to the world | the rule controller occupies a seat, is answered by the actor check and is given a server-allocated `ActionId`, exactly as a socket client is (`INV-1`) |
 
 ## Non-blocking follow-ups
