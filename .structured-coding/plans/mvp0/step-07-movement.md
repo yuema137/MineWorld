@@ -1,9 +1,9 @@
 # Step 07 / PR 08 — First real systems: places and movement (S6)
 
 **Role:** combined step and PR document. S6 needs one PR.
-**Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S6, §7 · **Lifecycle:** `DESIGN FROZEN`
-(2026-09-30, primary session; review and answers recorded in §10.1) · `PR 08 READY FOR OPERATOR
-REVIEW` (2026-10-06; C0–C7 done, terminal gates E-7 on the executable tree of `125391b`; not merged)
+**Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S6, §7 · **Lifecycle:** `MERGED`
+— GitHub #25, merge commit `6f61582`, 2026-10-06 · design frozen 2026-09-30 (review in §10.1) ·
+reviewed before merge: gates re-run (330/0) and the ARC-26 install check mutated (its test fails)
 **Base:** `main @ a594164` (S5 merged as `41d4ab1`; `a594164` is the docs-only post-merge update)
 **Branch / worktree:** `mvp0/pr-08-movement` in `/Users/yuema137/mineworld-worktrees/s6-movement`
 (held by this session only; `vis-character` and `vis-environment` belong to other agents)
