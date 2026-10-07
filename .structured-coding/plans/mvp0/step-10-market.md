@@ -452,8 +452,11 @@ The AC-1 test is three independent checks, so that no single blind spot passes i
                         - the direct dependents of each market pack are systems/* crates only
                         - no path leads to a market pack from kernel, contracts, persistence, server,
                           authoring, sdk or rule-controller
-                        - no code file outside systems/, worlds/ and tests/acceptance/ (*.rs, *.gd,
-                          Cargo.toml) names a market pack's crate, action type or event type
+                        - no code file outside systems/, worlds/ and tests/acceptance/ (*.rs,
+                          Cargo.toml) names a market pack's crate (`mineworld-economy`,
+                          `mineworld_economy`, …). Crate names, not action or event type slugs:
+                          contract tests already use stub ids such as `inventory-stub` and
+                          `item-transferred` (contracts/tests/event.rs), which name no pack
 3  the world delta      market-town is social-cafe plus configuration:
                         - systems: social-cafe's list, in order, then the five market packs
                         - places, population and seats: identical keys
@@ -551,6 +554,14 @@ wages from what it took in.
 After 11a–11c, the market rows touch nothing but new modules and the installed set. That is the
 change-amplification test passing, and it is what AC-1's check 1 measures.
 
+**A trap found in the audit, and closed in 11a (F-10).** `worldpack/tests/refusals.rs:169–184`
+(`an_unknown_system_is_refused_by_name_and_lists_the_ones_that_exist`) uses **`economy`** as the
+example of a system the build does not provide. The day economy is installed, that test fails, and the
+only fix is an edit to `worldpack/tests/` — outside the AC-1 range. So 11a changes the fixture's
+unknown name to one no pack will ever take (a slug that is not a word, e.g. `no-such-system`), with
+its claim unchanged. Every other test that names a market word outside `systems/` was audited and is a
+contract-layer stub that names no pack (§8.2 F-10).
+
 ## 2.8 Why six PRs, and why this split
 
 ```text
@@ -582,3 +593,25 @@ change-amplification test passing, and it is what AC-1's check 1 measures.
   `tools/cli/tests/` and so cannot be inside the range; they land here.
 - **Not fewer.** One S9 PR would mix framework contracts with market content and fail AC-1's own
   check. **Not more.** Splitting item from inventory would create a PR with nothing to check end to end.
+
+---
+
+# 3. Design decisions
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **SD-1** | **A System Pack declares itself.** A new trait `SystemPack: System + Default`, in a new crate `mineworld-sdk` (`sdk/rust/`), carries what the build needs to know about a pack beyond `System`: `BIOGRAPHICAL` (default `&[]`), `SECTION: Option<SectionOwner>` (default `None`) and `decode_section` (default: refuses, "owns no section"). A section owner writes `mineworld_sdk::owns_section!();` inside its `impl`, which defines `SECTION` and `decode_section` together from its `AuthoredSection` impl, so the two cannot disagree. `SectionOwner` moves from `worldpack::catalog` to the SDK unchanged. | §2.2 (g). What `catalog.rs` says about each pack today, said once by the pack. `sdk/rust` is where `ARCHITECTURE.md` §14 and overall §3 put Rust pack authoring. The SDK depends on `authoring`, `contracts`, `kernel` and `serde` — never on a pack, so `presence` can implement it without a cycle. |
+| **SD-2** | **The installed set is a crate whose only content is the list.** `systems/installed/` (crate `mineworld-installed-systems`) depends on the SDK, on `presence` (for `PerceptionProvider`) and on every installed pack, and its `lib.rs` is one invocation: `mineworld_sdk::installed! { Presence => mineworld_presence::PresenceSystem, … }`. The macro expands to today's `Capability` enum, `AVAILABLE`, and the methods `resolve`, `id`, `section`, `owning_section`, `decode_section`, `biographical`, `install`, `provider` and `Display` — the same closed enum and matches, generated. | §2.2. Keeps every code path monomorphic, so the section decoder still reads straight from the YAML stream and keeps line and column (`DEP-10`). `provider` coerces the pack to `Box<dyn PerceptionProvider>` at the install site, so a pack that is not a perception provider does not compile into the set. |
+| **SD-3** | **Root manifest: glob members, sibling packs by path.** `members` gains `"systems/*"` (replacing seven lines) and `"sdk/rust"`. `[workspace.dependencies]` gains `mineworld-sdk` and `mineworld-installed-systems`. Existing packs keep their `workspace = true` sibling dependencies; **a new pack depends on a sibling pack by `path = "../<name>"`**, so the root manifest never learns it. Verified: the glob resolves on `b9e5937` with `systems/README.md` present (§8.2 F-9). | The root manifest stops being a registration point. Path dependencies between sibling packs add no external dependency, so the root's "a crate that needs a dependency not listed here is adding a dependency" policy is untouched. |
+| **SD-4** | **`worldpack` names only the packs its format fields belong to.** Its `[dependencies]` keep `presence` and `movement` (a person's `location` and a place's `passages` are format fields bound to them, `ARC-31` item 5) and gain `mineworld-sdk` and `mineworld-installed-systems`; the other five pack dependencies go. `catalog.rs` keeps `LOCATION_OWNER`, `PASSAGE_OWNER`, `opened`, `located` and the section-namespace guard, and re-exports `Capability`, `AVAILABLE` and `SectionOwner`. A structural test holds the allow-list. | §2.2. The public API of `mineworld_worldpack` does not change, so no caller changes (I-4). |
+| **SD-5** | **Installing is two lines in `systems/installed/`, and nothing else is edited.** Shown before any market pack exists by a canary install on a scratch branch (§4.1 C5), and checked for good by AC-1's check 1 on 11d and 11e. | CP-2. Located before counted (`ARC-23`): the mechanism is demonstrated on a pack nobody needs before it is relied on. |
+| **SD-6** | **How AC-1 is measured** is §2.5's three checks, the transformation being the merges of 11d and 11e. Recorded as a decision before any market code exists. | CP-1. A measurement chosen after seeing the result is not a measurement (`ARC-23`). Operator-material (QS-2). |
+| **SD-7** | **Items and organizations are content kinds** (11b): `items:` and `organizations:` in `world.yaml`; `items/<key>.yaml` and `organizations/<key>.yaml` carry `tags`, `note` and sections. Entity ids: places, then people (unchanged), then items, then organizations, each in key order. Genesis: passages, locations, then sections in the order items, organizations, places, people. Keys remain one namespace across every kind. | §2.4 (c). Items and organizations are allocated after people, so no existing id moves; their sections seed first because they are what people's and places' sections refer to. |
+| **SD-8** | **An authored Item is an item kind; holdings are counts** (stacked items, `CORE_CONCEPTS.md` §7). Unique instances are a later pack's. | §2.4. Operator-material (QS-6). |
+| **SD-9** | **Complete affordances** (11c). `Affordance<P>` gains `payload: Option<P>`, serialized only when present. It is set only through `Offer::with_payload::<A>(&A)` in presence, where `A` is the action the offer was made for; a payload of another action type cannot be attached. `Affordance::request(actor)` turns a complete affordance into an `ActionRequest` with the affordance's own action type and target. | §2.3 (f). Additive and absent by default, so every existing observation, transcript and test is unchanged (I-4). Operator-material: a public contract (QS-4). |
+| **SD-10** | **The paced controller attempts what it is offered.** One new band in `decide`, after the social initiative and before the walking scheme: if the observation holds at least one *available* complete affordance, then with draw index 14 below `ATTEMPTS_OFFERED` (proposed 20 of 100) it submits one, chosen by draw index 15 among them in observation order. No pack type is imported for it. | §2.3. Stateless (`ARC-27`). No existing pack offers a complete affordance, so social-cafe draws nothing new and decides byte-identically (I-4). Constants fixed in 11c (I-9). |
+| **SD-11** | `RuleController` (`--agent`) does not attempt complete affordances. | I-5, `AC-15`. It answers; it takes no initiative. |
+| **SD-12** | **Clients read the payload and decide nothing new.** `server/PROTOCOL.md` documents the field; `clients/protocol/mineworld/observation.gd` gains `payload(action_type, target)`; `ADOPTION.md` says a client may submit it unchanged. `demo.gd` is not changed in S9. | `ENGINEERING_RULES.md` §§8–9: a payload is the server's answer, carried; no rule moves into a client. Using it in the 2D client is S12's. |
+| **SD-13** | **The market packs and their ownership** are §2.6. Work is attendance during a shift (QS-8); buying happens at a shop place (QS-9); economy reacts to employment's `wage-due` without a system dependency (`ARC-28`); item-transfer, economy and employment state inventory's facts under `ARC-26`. | CP-5. `CORE_CONCEPTS.md` §13.1. |
+| **SD-14** | **market-town is social-cafe plus configuration**, checked by §2.5 check 3: the same places, people, seats, routines and names; the five packs appended to `systems`; items, organizations, holdings, wallets, shops and jobs added. Jobs are fitted to the routines people already have, because changing a routine would change social-cafe's configuration rather than add to it. | CP-1, CP-8. |
+| **SD-15** | **The proof is a crate of its own** at `tests/acceptance/` (`mineworld-acceptance`), the home `ARCHITECTURE.md` §14 gives acceptance tests. It reads the two transformation merge commits by id, which are recorded in it in 11f. | §2.5, §2.8. |
