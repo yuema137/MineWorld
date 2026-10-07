@@ -242,3 +242,12 @@ These are a later decision (coordinator, 2026-10-07): **not faked here.**
   Metal window, and the viewport's GPU timer reads 0 on it. So the result is **no measurable
   difference at the cap**, not a headroom figure. `INCONCLUSIVE` as a cost comparison; `PASS` as
   "the candidate does not drop a frame where the old character does not".
+- **Motion** (`--motion`, `runtime_d5/motion`, sheets `walk_sheet.jpg`, `idle_sheet.jpg`, 2×
+  crops `walk_zoom_pair.png`): `Walk` drives her; the free arm swings, the gripping hand stays
+  on the strap at the chest through the stride, elbows and shoulders bend without collapsing
+  through the torso, the hoodie hem rides over the jeans. The townspeople in the same frames
+  are the CharMorph body — the slot split works. No tear seen at 2×. Visible at 2× walking
+  distance: light flecks along the hair's outline (the bake flecks of §8.1).
+- **Rear** (`runtime_d5/P8_rear_chest`): the hood lies over the top of the pack, the hair's
+  nape strand hangs clear of the hood, the pack sits flat on the spine; no tear. In the low sun
+  the hoodie reads orange-red from behind.
