@@ -3171,10 +3171,22 @@ market-pack-list guard. `tests/acceptance/src/lib.rs`'s table (a comment).
 `check_3_the_world_delta`; `tests/acceptance/Cargo.toml` gains `mineworld-worldpack` and `serde-saphyr`
 dev-dependencies (`workspace = true`); `Cargo.lock` regenerated (two names in mineworld-acceptance's list).
 
-- [ ] Implementation: SD-32.
-- [ ] Validation: the test on the head (P-4's positive); M-P13, M-P14 (§9.6 E-P4).
-- [ ] Review: a key Market Town adds whose owner is not installed at all fails (no owner); the comparison
-  of values is order-sensitive for lists and order-insensitive for map keys, as YAML means.
+- [x] Implementation: SD-32 — `SOCIAL_CAFE`, `MARKET_TOWN`, `ENTITY_FIELDS`, `read_yaml`
+  (serde-saphyr → `serde_json::Value`), `market_section` (`Capability::owning_section` ∩
+  `MARKET_PACKS`), `compare_systems`, `compare_manifests`, `compare_content`, `market_only_content`,
+  `entries`, `world_delta_failures`; tests `check_3_the_world_delta`,
+  `a_section_is_the_market_s_by_the_build_s_own_catalog`,
+  `the_world_delta_names_every_difference_by_file_and_key`. `tests/acceptance/Cargo.toml` gains
+  `mineworld-worldpack` and `serde-saphyr` (`workspace = true`); `Cargo.lock`: exactly those two
+  names added to mineworld-acceptance's list (F-69).
+- [x] Validation: 13 passed; M-P13, M-P14 fail by name (§9.6 E-P4); clippy and fmt clean; the I-2
+  scan (precursor_vocabulary) still 4 passed, unchanged.
+- [x] Review: `market_section("no-such-section")` is false (unit test), so a key no installed pack
+  owns fails; `serde_json::Value` compares maps by key (unit test: reordered keys equal) and lists in
+  order (unit test: `["b","a"]` ≠ `["a","b"]`); a pack that does not read fails the check before any
+  comparison (`world_delta_failures` returns `Err`, the test panics with the refusal). Bounded
+  addition: an item or organization file's keys other than `tags`/`note` must also be market
+  sections (§4.6.8 DP-2). File size: 1 343 lines, past the ~800 warning (§4.6.8 DP-1).
 
 ### P-C5 — `tools/cli/tests`: the Market Town reader and CP-4
 
@@ -3325,6 +3337,20 @@ to bite, then reverted, on a scratch branch):**
 - check 3: one tag of one person changed in market-town → fails naming the file and the field;
 - CP-4: market-town with `buy` never offered complete (economy edited on the scratch branch) → the
   precondition fails before any determinism comparison runs (the instrument sees the absence).
+
+### 4.6.8 Deviations and discoveries during implementation (11f session)
+
+```text
+DP-1  ac1_composability.rs is 1 343 lines, past ENGINEERING_STANDARDS' ~800-line warning.
+      Reason: SD-29 fixes one file with one #[test] per check; each check's core and its unit tests
+      sit in its own section (~370 lines for check 1, ~360 for check 2, ~350 for check 3). A module
+      split (tests/acceptance/tests/ac1/…) is a path §4.6.1 does not list. Impact: none on behaviour.
+      Recorded as a review finding, not changed.
+DP-2  Check 3 also reads items/ and organizations/ files: every key other than the format's own
+      `tags` and `note` must be a section a market pack owns. SD-32 names only "items/ and
+      organizations/ exist in Market Town only"; this tightens it within ARC-35 item 4's intent
+      ("plus sections owned by market packs only") and loosens nothing. Holds on the head.
+```
 
 ---
 
@@ -4641,6 +4667,19 @@ E-P3 P-C3: `cargo test -p mineworld-acceptance --test ac1_composability` → 10 
        "tools/cli/tests/probe_untracked.rs:1 names mineworld-item"; removed.
      After: `git status` shows only the uncommitted test file; `git grep -n 'MUTATION\|mineworld_economy'
      -- tools/cli/src server cognition` empty.
+E-P4 P-C4: `cargo test -p mineworld-acceptance --test ac1_composability` → 13 passed, 0.31 s; the
+     whole crate: precursor_vocabulary 4, complete_affordances 4, ac1_composability 13, 0 failed.
+     Positive (P-4): both packs read by WorldPack::read; world.yaml: id/name differ, systems = Social
+     Café's seven then the six market packs, items and organizations in Market Town only, every other
+     key equal; places/ and people/: the same files, every Social Café key equal; the keys Market Town
+     adds are {people: economy, holdings, job} (places: none), each owned by a market pack by the
+     build's catalog; items/ (item, tags) and organizations/ (holdings, economy, tags, note) only in
+     Market Town. `git diff Cargo.lock`: +"mineworld-worldpack", +"serde-saphyr" in
+     mineworld-acceptance's dependencies, nothing else.
+     M-P13 (bob.yaml `- regular` → `- newcomer`) → FAIL "people/bob.yaml: `tags` differs from Social
+       Café's". M-P14 (carol.yaml routine "07:00" → "07:30") → FAIL "people/carol.yaml: `routine`
+       differs from Social Café's". Each run against the built test binary and `git restore`d; `git grep
+       -n MUTATION -- worlds tests tools` empty.
 ```
 
 ---

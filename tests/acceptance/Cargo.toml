@@ -17,5 +17,9 @@ mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
 mineworld-presence = { workspace = true }
 mineworld-rule-controller = { workspace = true }
+# AC-1 check 3 (ARC-35 item 4): both World Packs are read by the real loader, their YAML compared as
+# structural values, and a section's owner answered by the build's own catalog (step-10 SD-32).
+mineworld-worldpack = { workspace = true }
 serde = { workspace = true }
+serde-saphyr = { workspace = true }
 serde_json = { workspace = true }

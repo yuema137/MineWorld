@@ -998,3 +998,346 @@ fn a_market_crate_is_named_only_as_a_word() {
         );
     }
 }
+
+// ── Check 3: the world delta ─────────────────────────────────────────────────────────────────────
+
+const SOCIAL_CAFE: &str = "worlds/social-cafe";
+const MARKET_TOWN: &str = "worlds/market-town";
+
+/// The format's own fields of an item or organization file; anything else in one is a section
+/// (`MODULE_SPEC.md` §4.1, `ARC-36`). A literal, not the loader's constant: the oracle is the spec.
+const ENTITY_FIELDS: [&str; 2] = ["tags", "note"];
+
+type Value = serde_json::Value;
+
+/// A YAML file as a structural value: maps compare by key whatever their order, lists in order.
+fn read_yaml(path: &Path) -> Result<Value, String> {
+    let text = std::fs::read_to_string(path)
+        .map_err(|error| format!("{}: could not be read: {error}", path.display()))?;
+    serde_saphyr::from_str(&text).map_err(|error| format!("{}: {error}", path.display()))
+}
+
+/// Whether `key` is a section owned, by this build's own catalog, by one of the market packs. A key
+/// no installed pack owns is not.
+fn market_section(key: &str) -> bool {
+    mineworld_worldpack::Capability::owning_section(key)
+        .is_some_and(|(capability, _)| MARKET_PACKS.contains(&capability.id().as_str()))
+}
+
+/// `systems`: Social Café's list, in order, then exactly the six market packs, as a set.
+fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String> {
+    let names = |value: Option<&Value>| -> Option<Vec<String>> {
+        value?
+            .as_array()?
+            .iter()
+            .map(|name| name.as_str().map(str::to_owned))
+            .collect()
+    };
+    let (Some(social), Some(market)) = (names(social), names(market)) else {
+        return vec!["world.yaml: `systems` is not a list of names in both packs".to_owned()];
+    };
+    if !market.starts_with(&social) {
+        return vec![format!(
+            "world.yaml: `systems` does not begin with Social Café's list, in order: {market:?}"
+        )];
+    }
+    let appended = &market[social.len()..];
+    let set: BTreeSet<&str> = appended.iter().map(String::as_str).collect();
+    if appended.len() == MARKET_PACKS.len() && set == MARKET_PACKS.into_iter().collect() {
+        Vec::new()
+    } else {
+        vec![format!(
+            "world.yaml: the systems appended to Social Café's are {appended:?}, not the six market \
+             packs {MARKET_PACKS:?}"
+        )]
+    }
+}
+
+/// The two manifests: `world.id` and `world.name` may differ, `systems` as above, `items` and
+/// `organizations` in Market Town only, every other key equal.
+fn compare_manifests(social: &Value, market: &Value) -> Vec<String> {
+    let (Some(social), Some(market)) = (social.as_object(), market.as_object()) else {
+        return vec!["world.yaml: not a map in both packs".to_owned()];
+    };
+    let mut found = Vec::new();
+    let keys: BTreeSet<&String> = social.keys().chain(market.keys()).collect();
+    for key in keys {
+        let (ours, theirs) = (social.get(key), market.get(key));
+        match key.as_str() {
+            "world" => {
+                fn rest(value: Option<&Value>) -> Option<BTreeMap<&String, &Value>> {
+                    value.and_then(Value::as_object).map(|world| {
+                        world
+                            .iter()
+                            .filter(|(field, _)| *field != "id" && *field != "name")
+                            .collect()
+                    })
+                }
+                if rest(ours) != rest(theirs) {
+                    found.push("world.yaml: `world` differs beyond its id and name".to_owned());
+                }
+            }
+            "systems" => found.extend(compare_systems(ours, theirs)),
+            "items" | "organizations" if ours.is_some() || theirs.is_none() => found.push(format!(
+                "world.yaml: `{key}` must be absent in Social Café and present in Market Town"
+            )),
+            "items" | "organizations" => {}
+            _ if ours != theirs => found.push(format!("world.yaml: `{key}` differs")),
+            _ => {}
+        }
+    }
+    found
+}
+
+/// A place or person file of both packs: each of Social Café's keys present with an equal value, and
+/// each key Market Town adds a section a market pack owns.
+fn compare_content(
+    file: &str,
+    social: &Value,
+    market: &Value,
+    owned_by_the_market: &dyn Fn(&str) -> bool,
+) -> Vec<String> {
+    let (Some(social), Some(market)) = (social.as_object(), market.as_object()) else {
+        return vec![format!("{file}: not a map in both packs")];
+    };
+    let mut found = Vec::new();
+    for (key, value) in social {
+        match market.get(key) {
+            None => found.push(format!("{file}: `{key}` is missing in Market Town")),
+            Some(theirs) if theirs != value => {
+                found.push(format!("{file}: `{key}` differs from Social Café's"));
+            }
+            Some(_) => {}
+        }
+    }
+    for key in market.keys().filter(|key| !social.contains_key(*key)) {
+        if !owned_by_the_market(key) {
+            found.push(format!(
+                "{file}: `{key}` is added, and is not a section a market pack owns"
+            ));
+        }
+    }
+    found
+}
+
+/// An item or organization file, which exists in Market Town only: every key is the format's own or
+/// a section a market pack owns.
+fn market_only_content(
+    file: &str,
+    market: &Value,
+    owned_by_the_market: &dyn Fn(&str) -> bool,
+) -> Vec<String> {
+    let Some(market) = market.as_object() else {
+        return vec![format!("{file}: not a map")];
+    };
+    market
+        .keys()
+        .filter(|key| !ENTITY_FIELDS.contains(&key.as_str()) && !owned_by_the_market(key))
+        .map(|key| format!("{file}: `{key}` is not a section a market pack owns"))
+        .collect()
+}
+
+/// The names in a directory, or an empty set if it does not exist.
+fn entries(directory: &Path) -> Result<BTreeSet<String>, String> {
+    if !directory.exists() {
+        return Ok(BTreeSet::new());
+    }
+    std::fs::read_dir(directory)
+        .map_err(|error| format!("{}: could not be listed: {error}", directory.display()))?
+        .map(|entry| {
+            entry
+                .map(|entry| entry.file_name().to_string_lossy().into_owned())
+                .map_err(|error| format!("{}: {error}", directory.display()))
+        })
+        .collect()
+}
+
+/// Check 3 over the two packs under `root`: every difference that is not configuration, named by
+/// file and key. Empty means the check holds.
+fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
+    let (social, market) = (root.join(SOCIAL_CAFE), root.join(MARKET_TOWN));
+    for pack in [&social, &market] {
+        mineworld_worldpack::WorldPack::read(pack.as_path()).map_err(|error| {
+            format!("{}: the World Pack does not read: {error}", pack.display())
+        })?;
+    }
+    let mut found = compare_manifests(
+        &read_yaml(&social.join("world.yaml"))?,
+        &read_yaml(&market.join("world.yaml"))?,
+    );
+
+    let not_configuration = |name: &String| name != "README.md";
+    let ours: BTreeSet<String> = entries(&social)?
+        .into_iter()
+        .filter(not_configuration)
+        .collect();
+    let theirs: BTreeSet<String> = entries(&market)?
+        .into_iter()
+        .filter(not_configuration)
+        .collect();
+    let market_only: BTreeSet<String> = ["items", "organizations"].map(str::to_owned).into();
+    for name in ours.symmetric_difference(&theirs) {
+        if !(market_only.contains(name) && theirs.contains(name)) {
+            found.push(format!("{name}: present in one pack only"));
+        }
+    }
+    for name in &market_only {
+        if ours.contains(name) || !theirs.contains(name) {
+            found.push(format!("{name}/: must exist in Market Town only"));
+        }
+    }
+
+    for directory in ["places", "people"] {
+        let (ours, theirs) = (
+            entries(&social.join(directory))?,
+            entries(&market.join(directory))?,
+        );
+        for file in ours.symmetric_difference(&theirs) {
+            found.push(format!("{directory}/{file}: present in one pack only"));
+        }
+        for file in ours.intersection(&theirs) {
+            found.extend(compare_content(
+                &format!("{directory}/{file}"),
+                &read_yaml(&social.join(directory).join(file))?,
+                &read_yaml(&market.join(directory).join(file))?,
+                &market_section,
+            ));
+        }
+    }
+    for directory in &market_only {
+        for file in entries(&market.join(directory))? {
+            found.extend(market_only_content(
+                &format!("{directory}/{file}"),
+                &read_yaml(&market.join(directory).join(&file))?,
+                &market_section,
+            ));
+        }
+    }
+    Ok(found)
+}
+
+#[test]
+fn check_3_the_world_delta() {
+    let failures = world_delta_failures(&repository()).unwrap_or_else(|error| panic!("{error}"));
+    let added: BTreeSet<String> = ["people", "places"]
+        .into_iter()
+        .flat_map(|directory| {
+            let (social, market) = (
+                repository().join(SOCIAL_CAFE).join(directory),
+                repository().join(MARKET_TOWN).join(directory),
+            );
+            entries(&market)
+                .expect("lists")
+                .into_iter()
+                .flat_map(move |file| {
+                    let ours = read_yaml(&social.join(&file)).expect("reads");
+                    let theirs = read_yaml(&market.join(&file)).expect("reads");
+                    let ours = ours.as_object().cloned().unwrap_or_default();
+                    theirs
+                        .as_object()
+                        .map(|map| {
+                            map.keys()
+                                .filter(|key| !ours.contains_key(*key))
+                                .map(|key| format!("{directory}: {key}"))
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default()
+                })
+        })
+        .collect();
+    eprintln!("sections Market Town adds to Social Café's files: {added:?}");
+    assert!(
+        failures.is_empty(),
+        "AC-1 check 3 (ARC-35 item 4) fails:\n{}",
+        failures.join("\n")
+    );
+}
+
+/// The section owners come from the build: the market packs' sections are recognised, Social Café's
+/// are not, and a key no installed pack owns is not.
+#[test]
+fn a_section_is_the_market_s_by_the_build_s_own_catalog() {
+    for key in ["item", "holdings", "economy", "job"] {
+        assert!(market_section(key), "{key}");
+    }
+    for key in ["name", "routine", "location", "tags", "no-such-section"] {
+        assert!(!market_section(key), "{key}");
+    }
+}
+
+/// The comparison names a changed value, a removed key and an added key that is not the market's;
+/// maps compare whatever their key order, and lists in order.
+#[test]
+fn the_world_delta_names_every_difference_by_file_and_key() {
+    use serde_json::json;
+    let market = |key: &str| key == "holdings";
+    let social = json!({ "tags": ["a", "b"], "routine": [{ "from": "06:00" }], "note": "n" });
+    assert!(
+        compare_content(
+            "people/x.yaml",
+            &social,
+            &json!({ "note": "n", "routine": [{ "from": "06:00" }], "tags": ["a", "b"],
+                     "holdings": { "k": 1 } }),
+            &market
+        )
+        .is_empty()
+    );
+    assert_eq!(
+        compare_content(
+            "people/x.yaml",
+            &social,
+            &json!({ "tags": ["b", "a"], "routine": [{ "from": "07:00" }], "job": {} }),
+            &market
+        ),
+        [
+            "people/x.yaml: `note` is missing in Market Town",
+            "people/x.yaml: `routine` differs from Social Café's",
+            "people/x.yaml: `tags` differs from Social Café's",
+            "people/x.yaml: `job` is added, and is not a section a market pack owns",
+        ]
+    );
+    assert_eq!(
+        market_only_content(
+            "items/k.yaml",
+            &json!({ "tags": [], "routine": 1 }),
+            &market
+        ),
+        ["items/k.yaml: `routine` is not a section a market pack owns"]
+    );
+
+    let systems = |list: Value| json!({ "world": { "id": "x", "name": "X" }, "systems": list });
+    let base = systems(json!(["presence", "naming"]));
+    let mut town = systems(json!([
+        "presence",
+        "naming",
+        "economy",
+        "item",
+        "inventory",
+        "item-transfer",
+        "employment",
+        "consumption"
+    ]));
+    town["world"] = json!({ "name": "Y", "id": "y" });
+    town["items"] = json!(["k"]);
+    town["organizations"] = json!(["o"]);
+    assert!(compare_manifests(&base, &town).is_empty());
+    let reordered = systems(json!([
+        "naming",
+        "presence",
+        "item",
+        "inventory",
+        "item-transfer",
+        "economy",
+        "employment",
+        "consumption"
+    ]));
+    assert_eq!(compare_manifests(&base, &reordered).len(), 1);
+    let mut seats = town.clone();
+    seats["seats"] = json!(["alice"]);
+    assert_eq!(
+        compare_manifests(&base, &seats),
+        ["world.yaml: `seats` differs"]
+    );
+    let short = systems(json!(["presence", "naming", "item"]));
+    assert!(compare_manifests(&base, &short)[0].contains("not the six market packs"));
+}
