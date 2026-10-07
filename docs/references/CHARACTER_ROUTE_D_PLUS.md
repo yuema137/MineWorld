@@ -366,3 +366,39 @@ fingers per finger, (2) hide the open fingers behind the strap, (3) a relaxed ar
   up-gaze and the open hand are gone and the head turn matches, while the heavy sculpted locks
   and the flatter light remain. §9 answer unchanged: yes. Evidence `d3`–`d7`
   regenerated from `runtime_d11`.
+
+### 8.7 Clipping fixed after the operator's acceptance (2026-10-07)
+
+The operator accepted route D+ as the interim standard (*"跟上一版本相比好多了，我们可以就先维持这个
+标准。以后再精雕细琢"* — much better than the previous version; keep this as the standard for now,
+refine later) and flagged one defect: *"人的手和背包好像还是有点穿模"* — the hand and the backpack
+still clip. The coordinator located it: the fist at the chest read as pushed into the hoodie (the
+strap runs under the hoodie's open edge there) and floated in front of the cloth in the street
+frames; from behind, the strap-side sleeve cut into the pack's side panel while walking.
+
+Measured, not chosen: `--sweep` (new, `shots.gd`) films the walk and the jog, eight frames
+0.125 s apart each (one walk cycle, more than one jog cycle), from behind, rear three-quarter and
+front three-quarter on her strap side, with a camera riding along at chest height.
+
+1. **The grip while moving.** `Posture.grip_weight` blends the solved grip and the finger curl;
+   the reference body lets go as it sets off (1 standing, smoothstep to 0 at half walking pace),
+   so in the walk and the jog both arms swing with the clip and nothing is held in front of the
+   cloth. The town body holds its grip at every speed, as before.
+2. **The grip standing.** Re-solved one strap point higher, y 1.36 instead of 1.31, where the
+   padded strap lies on top of the hoodie's shoulder rather than passing under its open edge
+   (`STRAP_D`, `GRIP_*_D`; knuckle 0.1 mm from the target, wrist in front of the cloth, elbow
+   255 mm below the shoulder). At 3× (`runtime_d12/p1_grip3x`, `p2_grip3x`) the fist is on the
+   strap's lower padded end, fingers round it, in front of the hoodie; nothing passes into the
+   cloth. Residual: the fingertips show dark creases and the thumb stands out at 3×.
+3. **Pack side panels** (`reweight_pack.py`, scratch, on top of §8.6's finger weights): pack
+   vertices out to |x| 0.21 that are not sleeve (arm share < 0.5) are blended toward `Spine2`,
+   1 at the rigid core's edge (0.12) falling to 0 at 0.21, so there is no hard seam at the
+   armpit; 2,114 vertices, 276 sleeve vertices left alone. In the walk sweep the side panels
+   no longer stretch with the arm swing (`sweep_a` → `sweep_b`, `walk_rear_1` at 1.5×).
+4. **Arms clear of the pack.** The town body's stance pulls the upper arms 11° in; on this body
+   that swung the sleeves into the pack's side panels. The reference body's arms hang 4° wider
+   than the clip instead (`ARM_OUT_D`).
+5. **The jog was worse than the walk, before any of this** (`sweep_a`, `jog_rear`): the jog
+   clip's torso twist swung the rigid pack off her back and stretched the hoodie below it into
+   ridges. `Posture.damp` pulls `Spine`, `Chest` and `UpperChest` 60 % back toward rest on the
+   reference body, scaled by gait, so standing is untouched.
