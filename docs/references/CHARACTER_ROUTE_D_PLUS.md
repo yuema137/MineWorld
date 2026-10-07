@@ -294,3 +294,47 @@ These are a later decision (coordinator, 2026-10-07): **not faked here.**
   `presentation/mineworld-default/LICENSES/MESHY_ROUTE_D_CHARACTER.txt` and an `ASSETS.md`
   entry marking it a candidate under `ARC-9`. The extracted PNG carries no identifier, as the
   original texture carried none.
+
+### 8.5 Runtime comparison at the reference's framing, and the outcome
+
+Frames from `./mineworld-3d --portrait` with the committed asset (`runtime_d10`), in the client's
+own lighting. Evidence in `presentation/mineworld-default/3D/candidate/route_d/`:
+`d3_side_by_side.jpg` (reference chest-up | P2 three-quarter | P1 front), `d4_full_and_rear.jpg`
+(P3, P4, P5 rear, P8 rear chest), `d5_walk.jpg` (two mid-stride crops at 2×, P7),
+`d6_grip_armpit_hairline_zoom.jpg` (grip and armpit at 2.5×, hairline in P6 at 2×),
+`d7_idle_loop.jpg` (the standing loop, every 2.5 s).
+
+Largest miss first, in a viewer's words: **the gripping hand looks like an open hand with its
+fingers splayed against the strap, one finger pointing up, a dark mark across it**; the
+reference's hand is a relaxed fist closed round the strap.
+
+| Row | Reference | Candidate (frame) | Verdict |
+| --- | --- | --- | --- |
+| Face identity | small soft young face; large warm-brown eyes under dark brows; small nose; soft closed smile; light freckles; looking off to her left | the same young face: large brown eyes, dark brows, small nose, soft closed smile; freckles fainter; eyes painted, so she looks straight ahead and a little up, not off-camera (P1, P2, `d3`) | PARTIAL |
+| Hair silhouette | loose high updo with volume on top, wisps and two face-framing strands | high bun at the back, face-framing strands at both temples (P1, P8); the locks are sculpted ropes that read heavier and more clumped than the reference's soft wisps; from the front the bun barely shows (P2) | PARTIAL |
+| Hair colour | warm mid-brown with caramel highlights | dark cool brown, no highlights; reads chestnut only in full sun from behind (P8) | PARTIAL |
+| Hoodie structure | open burgundy zip hoodie, hood, white drawstrings, ribbed cuffs, soft drape | open burgundy zip hoodie, hood lying over the pack, zip edges light, ribbed cuffs (P2, P4, P8); the drawstrings do not read in the chest-up frames; reads orange-red in back light (P5, P8) | PARTIAL |
+| T-shirt and graphic | oatmeal tee, maroon ringer collar, charcoal mountain print, "Good Places / Brighter People" | light tee, maroon collar, mountain print and slogan; the tee is greyer-white, and the first word's "oo" is a garbled glyph (P1, P2) | PARTIAL |
+| Backpack | olive-grey canvas pack, padded straps, her left hand closed round the strap at the chest | charcoal-grey pack with straps, sitting flat on her back (P5, P8); hand on the strap at the chest, but open and splayed (`d6`) | PARTIAL |
+| Material quality | soft warm skin, soft hair, clean cloth, promo-image lighting | smooth even skin, clean cloth with fold detail in the texture, solid sculpted hair; flatter light than the reference (P2) | PARTIAL |
+| Overall identity | — | yes: the same young woman in the same clothes, recognisable at the reference's framing (`d3`) | PASS |
+| Overall vibe | warm, relaxed, approachable | relaxed stance with weight on one leg and a calm face; the upward gaze and the open hand make it stiffer than the reference | PARTIAL |
+
+No §5 hard-fail category fails: gender presentation, age, body silhouette, hairstyle category
+(updo), major hair colour (brown), outer garment (open zip hoodie), defining structures (hood,
+zip, cuffs) and accessories (pack, both straps) all match.
+
+**§7 criteria.**
+
+- Runs in the real client: `PASS` — no import error; `Idle`/`Stand`, `Walk`, `Jog` blend
+  through the same tree; frame time `INCONCLUSIVE` as a cost figure, no frame lost at the cap
+  (§8.4).
+- Deformation: `PASS` — no tear, inside-out surface or limb through the torso at 2–3× in the
+  stand, the grip, the idle loop and mid-stride; shoulders, elbows, the hood at the neck, the
+  pack against the spine and the hair against the hood checked (`d5`, `d6`, `d4`, P8).
+- Identity: scorecard above. `PARTIAL` on face identity, so not acceptance-ready (§6).
+- **§9 answer: yes.** Shown `d3`, a person who had never seen the project would recognise the
+  same character. With §9 yes and nothing torn, a **preview** is prepared (§9.1), reported to
+  the coordinator, not handed to the operator.
+
+Credits: 0 in this session; route D+ total 90 of its ~200 (the three A-pose generations, §3).
