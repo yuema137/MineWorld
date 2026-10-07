@@ -22,12 +22,12 @@ static func build(parent: Node3D) -> Node3D:
 	_lamps(g)
 	_kerbline(g)
 	_trees(g)
-	_cafe_terrace(g)
+	var terrace := _cafe_terrace(g)
 	_planting(g)
 	_seating_and_bins(g)
 	_signs(g)
 	_bicycle(g, Vector3(12.4, WALK, -7.05), -0.22)
-	_people(g)
+	_people(g, terrace[1])
 	return g
 
 
@@ -201,12 +201,15 @@ static func _stone_planter(g: Node3D, pos: Vector3, w: float, d: float) -> void:
 
 ## `03` puts three bistro tables under the window with timber-slat chairs on
 ## black metal frames, a potted plant on one table, and the A-board beside them.
-static func _cafe_terrace(g: Node3D) -> void:
+## Returns the three placed sets, west to east, so a seated figure can be put on
+## one of their chairs rather than at a coordinate of its own.
+static func _cafe_terrace(g: Node3D) -> Array[Node3D]:
 	var warm := Color(1.04, 0.96, 0.86)
+	var sets: Array[Node3D] = []
 	for i in range(3):
 		var x := 4.60 + i * 2.05
-		Props.place(g, "outdoor_table_chair_set_01", Vector3(x, WALK, -6.30),
-			1.55 + i * 0.22, warm)
+		sets.append(Props.place(g, "outdoor_table_chair_set_01", Vector3(x, WALK, -6.30),
+			1.55 + i * 0.22, warm))
 		Build.blocker(g, Vector3(x, WALK, -6.30), 0.62, 0.85)
 	SliceProps.put(g, "potted_plant_02", Vector3(5.72, WALK + 0.735, -6.30), 0.4,
 		Color(0.92, 1.02, 0.88))
@@ -219,6 +222,39 @@ static func _cafe_terrace(g: Node3D) -> void:
 		Color(0.92, 0.90, 0.86))
 	SliceProps.put_solid(g, "standing_chalkboard_01", Vector3(-27.2, WALK, -6.30), -0.42,
 		Color(0.92, 0.90, 0.86))
+	return sets
+
+
+## Where a person sits on one chair of a placed table set, in `g`'s frame: on the
+## chair's seat, facing the table. Read from the set's own meshes, because the
+## asset's chairs sit at its origin with their geometry offset inside the mesh --
+## a coordinate typed beside the set is a guess about the asset. (The figure was
+## once typed at the set's own coordinate, which is the table's middle, and sat
+## inside the table top: the operator's 2026-10-06 review.)
+static func _chair_seat(set: Node3D, chair: String) -> Transform3D:
+	var c := _part_bounds(set, chair).get_center()
+	var t := _part_bounds(set, "outdoor_table_chair_set_01_table").get_center()
+	var to_table := Vector3(t.x - c.x, 0.0, t.z - c.z).normalized()
+	# the bounds include the chair's back, so the seat's middle is a little nearer
+	# the table than the bounds' middle
+	var seat := Vector3(c.x, WALK, c.z) + to_table * 0.06
+	# a body faces +z at yaw 0
+	return Transform3D(Basis(Vector3.UP, atan2(to_table.x, to_table.z)), seat)
+
+
+## A named mesh of a placed asset, as bounds in the asset's parent's frame.
+static func _part_bounds(set: Node3D, part: String) -> AABB:
+	var mi := set.find_child(part, true, false) as MeshInstance3D
+	assert(mi != null, "no part %s in %s" % [part, set.name])
+	var xf := set.transform
+	var n: Node = mi
+	var chain: Array[Transform3D] = []
+	while n != set:
+		chain.push_front((n as Node3D).transform)
+		n = n.get_parent()
+	for x in chain:
+		xf = xf * x
+	return xf * mi.get_aabb()
 
 
 static func _seating_and_bins(g: Node3D) -> void:
@@ -306,7 +342,7 @@ static func _ring(n: Node3D, c: Vector3, r_out: float, r_in: float, mat: Materia
 
 ## Two figures on the pavement, so the street is inhabited. Static, deliberately:
 ## a walking crowd is a simulation question and this slice is a presentation one.
-static func _people(g: Node3D) -> void:
+static func _people(g: Node3D, terrace_set: Node3D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 40711
 	var a := NPC.make(rng, NPC.Pose.STAND, 1.74, false)
@@ -316,7 +352,8 @@ static func _people(g: Node3D) -> void:
 	b.transform = Transform3D(Basis(Vector3.UP, -0.6), Vector3(-8.5, WALK, -5.95))
 	g.add_child(b)
 	var c := NPC.make(rng, NPC.Pose.SIT, 1.72, false)
-	c.transform = Transform3D(Basis(Vector3.UP, -1.55), Vector3(6.66, WALK, -6.28))
+	# on the east chair of the middle terrace table, facing it
+	c.transform = _chair_seat(terrace_set, "outdoor_table_chair_set_01_chair_01")
 	g.add_child(c)
 	var d := NPC.make(rng, NPC.Pose.STAND, 1.76, false)
 	d.transform = Transform3D(Basis(Vector3.UP, 1.3), Vector3(19.8, WALK, 5.2))
