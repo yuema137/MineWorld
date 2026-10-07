@@ -78,7 +78,7 @@ identifies one thing.
 | | Milestone | State |
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
-| **VIS-3D-GODOT-1** | Reference-matched character in Godot | ✅ **ACCEPTED as the interim default (operator, 2026-10-07)**: route D+, "much better than the previous version; hold this as the standard for now, refine later". Its known misses are deferred refinements, not blockers (see below). Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | ✅ **ACCEPTED as the interim default (operator, 2026-10-07), with one open defect: the hand and the pack clip ("人的手和背包好像还是有点穿模"), being fixed** on `vis/3d-human-pipeline`. Route D+: "much better than the previous version; hold this as the standard for now, refine later". Its other known misses are deferred refinements, not blockers (see below). Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟢 **Accepted on screenshots, interactive test pending** (operator, 2026-10-07): judged from the slice's screenshots together with the character; the operator has not yet run the build, so the combined test session below is still to be done. Before that, 🟡 READY FOR HUMAN VISUAL REVIEW (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
@@ -94,7 +94,17 @@ and rear, doorway, counter, hand detail, full body and rear, walking.
 refine it later."
 
 So route D+ is **accepted as the interim default character** (`ARC-11`: only the operator
-accepts). The known misses below are **deferred refinements, not blockers**: the hair's tone and
+accepts), **with one open defect**. After accepting, the operator added:
+
+> 人的手和背包好像还是有点穿模
+
+*Gloss:* "The person's hand and the backpack still seem to clip a little."
+
+**Open defect, being fixed: the hand and the pack clip.** The character is not clean. The fix is
+being made on `vis/3d-human-pipeline` by the character's session, not in the slice's branch, and
+this entry is updated when it lands.
+
+The other known misses below are **deferred refinements, not blockers**: the hair's tone and
 locks, the painted eyes with no blink or expression, the hand, the pack's colour, and the tee's
 first word. They are what "refine later" refers to, and this acceptance neither closes nor
 relaxes them.
@@ -485,6 +495,13 @@ better than the previous version; hold this as the standard for now, refine late
 operator has not yet run the build.** So this is acceptance on screenshots only, and the
 interactive check — the combined session below, walked by the operator — is still pending. Nothing
 here claims more than that.
+
+The character in it carries `VIS-3D-GODOT-1`'s open defect: **the hand and the pack clip**, and that
+is being fixed on `vis/3d-human-pipeline`. When the fix lands it is merged here, and the street and
+doorway frames are re-captured. The slice's own claim of "no clipping" (below) is about the
+character against the scene — jambs, counter, case, bench — and was made before this was
+reported. It does not cover the hand against the pack, and it is not a claim that the character
+is clean.
 
 The entry as it was submitted follows.
 
