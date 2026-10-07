@@ -1493,50 +1493,230 @@ CI          none configured (S13); the full local gate once on the final head
   material, and is raised so the primary session sees it.
 - Nothing in 11b changes ownership: no state, no System Pack, no fact.
 
-## 4.3 PR 11c — complete affordances (medium scope; detailed after 11a merges)
+## 4.3 PR 11c — complete affordances (full design; PROPOSED, NOT FROZEN)
 
-**Goal.** A requester can submit an action it does not know, exactly as the offering system offered it
-(SD-9 … SD-12, ARC-34).
+### 4.3.1 Identity, base, approved scope
 
 ```text
-contracts/src/observation.rs   Affordance<P = Vec<u8>> gains `payload: Option<P>` (serde: default,
-                               skip_serializing_if none — so every existing observation serializes
-                               byte-identically); Affordance::with_payload(P); payload(); request(actor)
-                               → Option<ActionRequest<P>> built from the affordance's own action type and
-                               target. Observation<P>'s affordances become Vec<Affordance<P>>.
-                               AffordanceFields gains the field; the availability-agreement check stays
-contracts/tests/               round trip with and without a payload; an old frame (no field) still
-                               decodes; request() carries the affordance's type, target and payload
-systems/presence/src/          Offer gains `payload: Option<Value>`; Offer::with_payload::<A: Action +
-  interaction.rs, observe.rs   Serialize>(self, &A) — refuses (debug-asserts) an A other than the offer's
-                               own type; verdict() carries it into the Affordance
-cognition/rule-controller/     src/offered.rs: attempt(observation, draw) — the available complete
-                               affordances, in observation order; draw 14 < ATTEMPTS_OFFERED (proposed 20)
-                               → pick by draw 15 → Affordance::request; decide() calls it after the social
-                               initiative, before the walking roll. Payload Value → bytes with serde_json,
-                               as the controller already encodes
-cognition/rule-controller/     a synthetic test pack (in the test module, never a real pack): one action
-  tests                        `ring-bell { bell }`, offered complete once per bell; the paced controller,
-                               which has never been compiled against it, rings bells in a hand-built
-                               world through presence's real observe() and the kernel's real dispatch
-server/PROTOCOL.md             the field, its meaning, and that a client may submit it unchanged
-clients/protocol/mineworld/    observation.gd: payload(action_type, target); ADOPTION.md
-docs                           DECISIONS ARC-34; CORE_CONCEPTS §15.2 (the Affordance row and one
-                               paragraph); MODULE_SPEC §5 (a controller may attempt complete affordances;
-                               it still cannot create an interaction, INV-10)
+PR            11c — complete affordances: a controller acts on what it is offered (S9, third of six;
+              a precursor; resolves F-3)
+base          main @ 7ed1648 plus this planning branch once merged, or the main the primary session
+              names at freeze (re-audit §8.4 if contracts/, systems/presence/, cognition/ or
+              tests/acceptance/ moved)
+branch        mvp0/pr-11c-affordances, in its own worktree, held by the implementing session only;
+              runs in parallel with 11b under §12
+audit         §8 (b9e5937) and §8.4 (7ed1648)
+scope         §1.1 PR 11c; SD-9 … SD-12 as refined by QS-20 … QS-22; F-3, F-24 … F-29, F-33, F-35;
+              QS-4 (approved)
+depends on    11a (merged). Independent of 11b.
 ```
 
-**Checkpoint.** In a hand-built world with presence and the synthetic pack, a seeded paced controller
-attempts the synthetic action and it is Accepted, its fact caused by that request (`AC-9`); with the
-synthetic pack disabled, no such request is ever made (`INV-10`); the 300-day social-cafe run is
-byte-identical to E-0 (I-4); the recorded AC-13/AC-15 transcripts are unchanged (no payload anywhere).
-**Adversarial (decided now).** (1) Mutation: the band ignores `is_available()` → a test that offers an
-unavailable complete affordance fails. (2) Mutation: draw index 14 reused by another band → the
-social-cafe byte comparison fails. (3) A payload attached for the wrong action type cannot be
-constructed (typed `with_payload::<A>`); shown by a test that the affordance's type is the offer's.
-**I-9.** `ATTEMPTS_OFFERED` and the band's position are fixed here, against the synthetic pack, and are
-not changed by any later S9 PR.
-**Material?** Yes: `contracts/` public contract and the controller contract (QS-4).
+**Goal.** An affordance may carry the complete request payload the offering system would accept (a
+**complete affordance**), and any requester — a controller, a client — may submit it unchanged without
+knowing the action. The paced controller gains exactly one band that attempts an available complete
+affordance by a seeded draw at a fixed rate. Every existing observation, transcript and run is
+unchanged, because no existing pack offers a complete affordance.
+
+**Justified and proven without the market (I-2, I-9).** The proof is a synthetic test-only System Pack
+`chimes`, defined inside one acceptance test file and compiled into no library, so the controller crate
+has never been compiled against it:
+
+```text
+chimes   owns nothing it does not need; provides `ring { bell }`; states its own `rang { ringer, bell }`
+         offers one complete `ring` per bell its belfry hangs (target none), with the requirement
+         "at the belfry's place" — so the same offers are available in the belfry and unavailable,
+         with the reason, anywhere else
+         offers one incomplete action as well, so "only complete affordances are attempted" is observed
+```
+
+The band's constants are fixed in this PR against `chimes` (I-9), measured under worst-case exposure on
+a scratch install that is never merged (C-C6). 11c adds **no** allow-list entry to the I-2 scan: nothing
+it needs is a market word (F-35 lists the existing lines it must not rewrite).
+
+**Non-goals.** `RuleController` / `--agent` unchanged (I-5, SD-11); no change to the rule-controller's
+manifest; free-form actions (`talk`, `move`, `invite`) stay known by name (§2.3); no GDScript code
+change (QS-20); no existing pack offers a complete affordance; no kernel change (I-8).
+
+**Acceptance (decided before measuring, `ARC-23`).**
+
+```text
+C-1  Nothing existing moves (I-4, I-5). The 300-day seed-7 social-cafe run's sha (all but `wall`) =
+     E-0; `validate worlds/social-cafe` byte-identical to the base's; every existing test passes,
+     including AC-13 and AC-15 against their recorded transcripts. Existing-test edits are limited to
+     type annotations forced by Affordance<P> (F-24) and, if the compiler's wording changes, the
+     trybuild .stderr of the private-fields test — each listed with its unchanged claim.
+C-2  The contract (ARC-34). An affordance without a payload serializes to the frozen literal captured
+     on the base before any edit; a frame without the field decodes; a payload round-trips;
+     Affordance::request builds exactly the request the affordance names (type, target, encoded
+     payload); the availability/reason agreement is still refused.
+     Mutation M-C1: drop `skip_serializing_if` → the frozen-literal test fails.
+C-3  Presence carries it. Offer::complete(&action, requirement) reaches the observation with the
+     action's own type and its payload, for available and unavailable verdicts; Offer::new carries
+     none; a disabled pack's complete offers are absent (INV-10, AC-2).
+     Mutation M-C2: verdict drops the payload → the presence test fails.
+C-4  The band. Only available complete affordances are attempted; the submitted request equals the
+     chosen affordance's; greetings still occur when complete affordances are offered; RuleController
+     never attempts one.
+     M-C3: ignore is_available → the availability test fails. M-C4: OFFER_DRAW = 0 (reuse the walking
+     roll, F-28) → the coexistence test fails. M-C5: call the band from RuleController → its test fails.
+C-5  CP-3 end to end. In a hand-built world (presence + chimes) driven by the paced schedule, people in
+     the belfry ring every simulated day; people elsewhere never ring; every `rang` is caused by the
+     request that asked for it (AC-9); two runs of one seed are byte-identical; with chimes disabled,
+     no `ring` request is ever made.
+     M-C6: remove the band's call from decide → the ring assertion fails.
+C-6  I-9. ATTEMPTS_OFFERED, OFFER_DRAW = 14, OFFERED_CHOICE_DRAW = 15 and the band's position are
+     fixed from C-C6's measurement and recorded; no later S9 PR changes them.
+C-7  I-2 and I-8. The scan is green with 11c's row and no 11c allow-list entry; kernel/ diff empty;
+     contracts/ diff is observation.rs (the field and its methods) plus one pub(crate) labelling
+     constructor in action.rs (F-25), and its tests.
+```
+
+### C-C0 — Design (this section) — docs only
+
+- [x] Implementation: §4.3, §8.4, §12, §14, QS-20 … QS-25 by the planning session.
+- [x] Validation: both doc checks (§9 E-2).
+- [x] Review: draw indices 14 and 15 confirmed free from source (F-27); the drafted adversarial (2)
+  shown not to bite and replaced (F-28); operator-material points marked (§10).
+
+### C-C1 — Specs before code: ARC-34, CORE_CONCEPTS §15.2, MODULE_SPEC §5, PROTOCOL, ADOPTION
+
+**Scope.**
+- `docs/DECISIONS.md` — **ARC-34** *Complete affordances: an offer may carry the request it would
+  accept*, inserted **immediately before `## ARC-35`** (its reserved slot; §12): §2.3's options and
+  choice; `Affordance<P>.payload`, serialized only when present; `Affordance::request(actor, encode)`;
+  `Offer::complete`; the paced controller's band, its constants and position, fixed against a synthetic
+  pack (I-9); RuleController unchanged; free-form actions stay known by name. Accepted limitations:
+  the offerer must be able to enumerate the choices; payload size grows with offers (R-S9-2).
+- `docs/CORE_CONCEPTS.md` §15.2 — the Affordance block gains `payload  the complete request, when the
+  offering system can state one`, and one paragraph: a requester may submit it unchanged; the server
+  still revalidates; a controller still cannot create an interaction (INV-10).
+- `docs/MODULE_SPEC.md` §5 — hard constraint 1 gains a sentence: a Controller Pack may attempt a
+  complete affordance it was offered; that is not creating an interaction.
+- `server/PROTOCOL.md` §5 (`observation`) — the field and its meaning; §6 — submitting it: `request.
+  payload = { "action_type": <affordance's>, "payload": <affordance's payload> }`, target the
+  affordance's.
+- `clients/protocol/ADOPTION.md` — `affordances()` carries `payload` on complete affordances; submit it
+  with `submit(action_type, target, payload)`; `affordance(type, target)` returns only the first of
+  several complete affordances sharing a type and target (F-29).
+
+- [ ] Implementation: as scoped; `git fetch` first and confirm ARC-34 is free everywhere.
+- [ ] Validation: both doc checks; every cited section resolves.
+- [ ] Review: no defined term redefined; PROTOCOL stays revision 1 (an additive, optional field).
+
+### C-C2 — `contracts/`: `Affordance<P>` gains its payload
+
+**Scope.**
+- `contracts/src/observation.rs`: `Affordance<P = Vec<u8>>` with a last field `payload: Option<P>`,
+  `#[serde(default, skip_serializing_if = "Option::is_none")]`, serde `try_from = "AffordanceFields<P>"`
+  with a deserialize bound; `available`/`unavailable` unchanged in signature (payload `None`);
+  `#[must_use] fn with_payload(self, P) -> Self`; `fn payload(&self) -> Option<&P>`; `fn request<Q>(&self,
+  actor: EntityId, encode: impl FnOnce(&P) -> Q) -> Option<ActionRequest<Q>>` — `None` without a payload,
+  otherwise labelled with the affordance's own action type and targeted at its target; availability is
+  the caller's judgement. `Observation<P>` holds, offers and returns `Affordance<P>`. Docs: what a
+  complete affordance is (ARC-34).
+- `contracts/src/action.rs`: `pub(crate) fn ActionRecord::labelled(action_type, payload)` (F-25).
+- `contracts/tests/observation.rs`: new tests — `an_affordance_without_a_payload_is_the_shape_it_always
+  _was` (the literal captured on the base **before** the edit and recorded in §9.3), `an_old_frame_
+  decodes_and_a_payload_round_trips`, `a_complete_affordance_requests_exactly_what_it_offers`.
+- Forced type annotations (F-24): presence `observe.rs` (`Vec<Affordance<Value>>`), conversation and
+  group-activity tests, contracts' own `:203` if inference requires it, `spike/server/src/world.rs:350`
+  (QS-23). Each listed with its unchanged claim.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-contracts -p mineworld-presence -p mineworld-conversation
+  -p mineworld-group-activity -p mineworld-server`; M-C1 → fails, reverted; trybuild expectation
+  regenerated only if its wording changed (claim: private fields refused); `cargo check --manifest-path
+  spike/server/Cargo.toml` before and after (if the base's spike does not build offline, recorded N/A).
+- [ ] Review: additive only; no existing frame changes; `request` cannot mislabel (the label is the
+  affordance's own); no encoding decided in contracts.
+
+### C-C3 — presence: `Offer::complete`
+
+**Scope.** `systems/presence/src/interaction.rs`: `Offer` gains `payload: Option<Value>`;
+`pub fn complete<A: Action + Serialize>(action: &A, requirement) -> Result<Self, serde_json::Error>` (the
+type is read off the value, so a payload of another action cannot be attached — QS-22); `payload()`.
+`observe.rs` `verdict`: the payload travels into the affordance whatever the verdict. Tests in
+`systems/presence/tests/presence.rs` (a test pack as its `Mover` pattern): complete offer → affordance
+with its type and payload, available in place and unavailable elsewhere; `Offer::new` → none; pack
+disabled → absent.
+
+- [ ] Implementation (do not rewrite observe.rs:207 or :220 — F-35).
+- [ ] Validation: presence suite; M-C2 → fails, reverted.
+- [ ] Review: perception still decides nothing about what a payload means; INV-10 filter unchanged.
+
+### C-C4 — the paced controller's offer band
+
+**Scope.** `cognition/rule-controller/src/offered.rs`: `ATTEMPTS_OFFERED = 20` (out of 100),
+`OFFER_DRAW = 14`, `OFFERED_CHOICE_DRAW = 15`; `attempt(observation, draw)`: the available affordances
+with a payload, in observation order, collected into a `Vec`; none → `None`; draw 14 ≥ rate → `None`;
+else the one chosen by draw 15, through `Affordance::request` with `serde_json::to_vec`. `paced.rs`
+`decide`: one call after the social initiative, before the walking roll; the module doc gains a table of
+every draw index (0–6, 8–13, 14, 15; 7 free). `src/offered_tests.rs`:
+`only_available_complete_affordances_are_attempted`, `the_request_is_exactly_the_offer`,
+`greetings_still_happen_where_offers_are_made` (over SEEDS × instants, both greet and offer occur),
+`incomplete_affordances_of_unknown_actions_are_never_attempted`, `no_complete_affordance_no_new_draw
+_decides_anything`; `src/tests.rs`: `the_reactive_controller_never_attempts_an_offer`.
+`Cargo.toml` of the crate is **not** edited.
+
+- [ ] Implementation (no line naming `shifted`, no `Iterator<Item = …>` — F-35).
+- [ ] Validation: crate tests; M-C3, M-C4, M-C5 each fail by name, reverted; the 300-day social-cafe
+  sha = E-0 at this commit.
+- [ ] Review: `decide(&self, …)` still pure (ARC-27); no pack type imported; draw indices distinct.
+
+### C-C5 — CP-3: `tests/acceptance/tests/complete_affordances.rs`
+
+**Scope.** `tests/acceptance/Cargo.toml` gains `[dev-dependencies]` (all existing workspace entries:
+contracts, kernel, presence, rule-controller, serde, serde_json) and its comment and `src/lib.rs` doc
+say the crate now also holds S9's cross-crate checkpoints (QS-24). The test file defines `chimes`
+(system, `Ring`, `Rang`, a `Belfry` with two bells at one place, its offers as above), builds a world
+with `belfry` and `hall`, two people in each, presence + chimes, and drives it with
+`PacedRuleController` on the `mineworld run` schedule (pace 900 s, seat k at genesis + k + m·P) for 10
+days. Assertions C-5. A further assertion: `cognition/rule-controller/Cargo.toml` names no `chimes`.
+
+- [ ] Implementation.
+- [ ] Validation: `cargo test -p mineworld-acceptance`; M-C6 → fails, reverted.
+- [ ] Review: the driver calls only what `run` calls; the synthetic pack is reachable from no library.
+
+### C-C6 — I-9 measured on a scratch install (evidence, never merged); close
+
+- [ ] Scratch branch `scratch/11c-chimes` (local, deleted after): `systems/chimes/` as a real pack
+  offering `ring { low | high }` complete to everyone, requirement none (worst-case exposure); two lines
+  in `systems/installed/`; `worlds/chimes-cafe/` = social-cafe + `chimes`. Criterion, stated before the
+  run: over 300 days seed 7, the step-08 I-9 activity precondition holds in every bucket (every seat moved
+  and talked) **and** every seat's `ring` is accepted in every bucket (counted from the save by a
+  scratch-only reader). If either fails at 20, lower `ATTEMPTS_OFFERED` on the branch, re-measure, record
+  both runs; the value that passes is frozen (C-6). Also: social-cafe's sha on the scratch build = E-0.
+  `git ls-remote --heads origin | grep -c scratch` → 0.
+- [ ] Documentation: `docs/MVP_STATUS.md` — one capability row directly after "Conversation", one
+  evidence row appended after the table's last row; `Updated:` line and S9 row not edited (§12); §4.3
+  checkboxes, §9.3 `E-C*`, `handoff-11c.md`.
+- [ ] Full gates once on the final head (fmt, clippy -D warnings, workspace tests in background), C-1's
+  sha and validate diff, both doc checks.
+- [ ] Review: C-1 … C-7 each with evidence; deviations listed.
+
+**PR 11c lifecycle:** PROPOSED, NOT FROZEN.
+
+### 4.3.2 Test ownership for 11c
+
+```text
+STATIC      fmt, clippy; the type parameter (a payload of another encoding does not compile into an
+            observation); Offer::complete makes a mislabelled payload unrepresentable
+UNIT        contract serialization and request() (C-C2); presence's verdict (C-C3); the band (C-C4)
+INTEGRATION CP-3 through real observe() and kernel dispatch with a synthetic pack (C-C5); every
+            existing test, AC-13/AC-15 transcripts included (C-1)
+REAL RUN    300-day social-cafe comparison; the scratch chimes install over 300 days (C-C6)
+GATE 1      NOT REQUIRED
+CI          none configured; the full local gate once on the final head
+```
+
+### 4.3.3 Is any of this material?
+
+- The public contract change (`Affordance<P>.payload`) and the controller band were approved as QS-4.
+  The refinements QS-21 (`request` takes the encoder) and QS-22 (`Offer::complete` instead of
+  `with_payload::<A>`) keep that shape and are raised for the primary session, not as operator-material.
+- QS-20 amends frozen SD-12 (no GDScript change) — a primary-session decision.
+- No ownership boundary changes; `kernel/` untouched; the controller's dependencies unchanged.
+
 
 ## 4.4 PR 11d — the transformation, part 1: owning and giving things (medium scope; AC-1 range)
 
@@ -1661,7 +1841,7 @@ to bite, then reverted, on a scratch branch):**
 | --- | --- | --- |
 | 11a | social-cafe's 300-day run byte-identical to E-0; a canary pack installed by two lines in `systems/installed/` (A-1 … A-4) | removing a list line, or re-adding a pack import to `worldpack`, fails a named guard |
 | 11b | a pack with items and organizations loads; social-cafe's ids, genesis count and run unchanged | items' sections seeded after people's fails the genesis-order test |
-| 11c | a synthetic pack's action, unknown to the controller, is attempted and accepted headless; social-cafe byte-identical | the band taking an unavailable affordance, or sharing a draw index, fails a named test or the byte comparison |
+| 11c | a synthetic pack's action, unknown to the controller, is attempted and accepted headless; social-cafe byte-identical | the band taking an unavailable affordance fails a named test; the band reusing the walking roll's draw fails the greeting-coexistence test (F-28 — the social-cafe comparison cannot see it) |
 | 11d | market-town (owning, giving) validates and runs 30 days with gives accepted; per-pack tests incl. restart; AC-2 for item-transfer at pack level | a transfer beyond what the giver holds is refused by inventory itself |
 | 11e | wages, purchases and production in a 30-day run; restart mid-shift; economy and employment each install without the other | wage-due against an empty wallet yields wage-unpaid, never a negative |
 | 11f | the AC-1 test (three checks), CP-4 over 300 days, AC-2 at world level, Milestone C through the real server | each of the four scratch mutations in §4.6 fails its check by name |
@@ -1912,6 +2092,11 @@ F-33  The rule-controller's tests are in-crate (src/*_tests.rs) and the crate ha
       An end-to-end check through presence's real observe() and the kernel's real dispatch needs the
       kernel and presence; tests/acceptance already exists as the acceptance home (11a C4b).
 F-34  ARC-34 and ARC-36 (reserved by §§2.3–2.4) are free on every origin/* branch after `git fetch`.
+F-35  Existing lines in files 11c edits already contain market-prefixed words, which the scan would
+      refuse if 11c re-added them: presence observe.rs:207 ("employs") and :220 ("priced");
+      rule-controller paced.rs `shifted` (:333, :413–414, :426) and `Iterator<Item = …>` (:346). 11c
+      leaves those lines untouched and writes its own code without such words, so it needs no
+      allow-list entry.
 ```
 
 ---
