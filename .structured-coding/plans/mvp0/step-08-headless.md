@@ -2,7 +2,9 @@
 
 **Role:** combined step and PR document. S7 needs one PR.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S7, artefact note `ARC-6`, §7 ·
-**Lifecycle:** `DESIGN FROZEN` (2026-10-06, primary session; review and answers in §10.1)
+**Lifecycle:** `READY FOR OPERATOR REVIEW` — GitHub #27, not merged · design frozen 2026-10-06
+(primary session; review and answers in §10.1) · implementation context `CLOSED / AWAITING OPERATOR
+ACTION` (§12)
 **Base:** `main @ ef53484` (S6 merged as `6f61582`; `ef53484` is the docs-only post-merge update)
 **Branch / worktree:** `mvp0/pr-09-headless` in `/Users/yuema137/mineworld-worktrees/s7-headless`
 (held by this session only; `vis-character` and `vis-environment` belong to other agents)
@@ -766,3 +768,35 @@ NORMAL STOP         PR 09 READY FOR OPERATOR REVIEW — DO NOT MERGE
 MATERIAL STOP       any change to §1.3, to an existing public contract beyond §1.1 as answered, to
                     ownership, or to scope — stop and report with evidence
 ```
+
+---
+
+# 12. Closeout — READY FOR OPERATOR REVIEW
+
+```text
+PR                    GitHub #27 — https://github.com/yuema137/MineWorld/pull/27 (base main)
+base                  main @ ef53484
+final executable HEAD e5bba45 — the last commit changing code, tests or specifications; every gate in
+                      §9 E-final ran on it
+final PR HEAD         the commit carrying this section (planning documents only); `git log` on the
+                      branch is authoritative — a commit cannot name its own hash
+semantic commits      33e3e07 design · c78aefb freeze (primary session) · 08f788a amendments ·
+                      72cceda C1 specs · af3dce1 C1b clap · 6d097ef C2 disclosure + Godot ·
+                      143d521 C3 paced controller · 180903b Q4 sharpening note · 433ca54 C4 run ·
+                      d951fbb C5 restart · c0f7d0c C6 inspect · a53652d C7 create · e5bba45 C8 docs ·
+                      96fac81 gates
+CI                    N/A — no workflow in the repository (S13)
+material deviations   none: no frozen invariant (§1.3), public contract beyond §1.1, ownership or scope
+                      changed. Bounded deviations recorded per commit (C1b exit status 2; C3 answer
+                      probability; C4 five items; C5 located restart day and replaced once-check; C6
+                      whole-log check and logical read-only check; C7 install/add-system refusals).
+                      Outside I-1's list but within scope: clients/protocol/demo/demo.gd gained report
+                      lines for the far-side check (C2).
+working tree          clean after the closeout commit
+merge                 NOT authorized; the operator merges
+```
+
+**Post-merge, owned by the planning session (§11):** set this document's lifecycle to `MERGED` with the
+merge commit; move S7 to "Done" in `overall.md` §7, closing the `tools/world-validator` cross-cutting
+line (§8.2 F-9) and noting that `F-13` is closed for `run` and stays open for `--agent` (S10); the 3D
+slice's `--places=` stopgap can be retired (E-3a); L-6 goes to the next protocol revision.

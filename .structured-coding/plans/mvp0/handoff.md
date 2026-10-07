@@ -41,8 +41,12 @@ clients/protocol/run.sh                      allowed without prompt
 
 ## Current checkpoint and next actions
 
-Checkpoint: C0 done (`33e3e07`), frozen (`c78aefb`); execution started with the §4 amendments.
-Next: C1 specification amendments (MODULE_SPEC §8, ARC-27, ARC-26 note, DEP-11), then C1b.
+Checkpoint: **PR 09 READY FOR OPERATOR REVIEW** — GitHub #27. C0–C8 committed and pushed (design §12
+lists them). Final executable head `e5bba45`: fmt, check, clippy, 350 tests ok / 0 failed,
+`kill_and_resume` PASS, both doc checks PASS (design §9 E-final). Implementation context CLOSED /
+AWAITING OPERATOR ACTION.
+Next: operator review and merge (the operator's). After merge, the planning session updates the step
+lifecycle and `overall.md` §7 (design §12's post-merge list).
 
 ## Stop conditions
 
