@@ -615,3 +615,279 @@ contract-layer stub that names no pack (§8.2 F-10).
 | **SD-13** | **The market packs and their ownership** are §2.6. Work is attendance during a shift (QS-8); buying happens at a shop place (QS-9); economy reacts to employment's `wage-due` without a system dependency (`ARC-28`); item-transfer, economy and employment state inventory's facts under `ARC-26`. | CP-5. `CORE_CONCEPTS.md` §13.1. |
 | **SD-14** | **market-town is social-cafe plus configuration**, checked by §2.5 check 3: the same places, people, seats, routines and names; the five packs appended to `systems`; items, organizations, holdings, wallets, shops and jobs added. Jobs are fitted to the routines people already have, because changing a routine would change social-cafe's configuration rather than add to it. | CP-1, CP-8. |
 | **SD-15** | **The proof is a crate of its own** at `tests/acceptance/` (`mineworld-acceptance`), the home `ARCHITECTURE.md` §14 gives acceptance tests. It reads the two transformation merge commits by id, which are recorded in it in 11f. | §2.5, §2.8. |
+
+---
+
+# 4. Commit plan
+
+Each commit tracks implementation, validation and review separately. Evidence goes into §9 as
+`E-A<n>` for 11a. A planned commit may become several coherent commits; the mapping is recorded.
+Line counts are estimates, never targets.
+
+## 4.1 PR 11a — installable System Packs (full design)
+
+### 4.1.1 Identity, base, approved scope
+
+```text
+PR            11a — installable System Packs (S9, first of six)
+base          main @ b9e5937, or the main the primary session names at freeze (re-audit if it moved)
+branch        mvp0/pr-11a-installable (proposed), in a worktree held by the implementing session only
+audit         §8 (files and symbols read on b9e5937)
+scope         §1.1 PR 11a; SD-1 … SD-6; F-10's fixture
+```
+
+**Acceptance (all observable, decided before measuring):**
+
+```text
+A-1  no behaviour changes: the 300-day seed-7 social-cafe run prints, apart from `wall`, exactly the
+     lines of E-0 (sha-256 ad49c723…c64b over those lines); every existing test passes; the only
+     edit to an existing test is F-10's fixture name, its claim unchanged
+A-2  worldpack's [dependencies] and src/ name no System Pack crate other than presence and movement —
+     a structural test over worldpack's own manifest and sources, shown to fail when a pack import
+     is added back
+A-3  the installed set is consistent: every pack crate systems/installed depends on is listed in its
+     `installed!` invocation and vice versa, and no two listed packs share a SystemId — a test, shown
+     to fail when a list line is removed
+A-4  a canary pack installed on a scratch branch changes only systems/** and Cargo.lock (plus the
+     scratch world that enables it under worlds/**); Cargo.lock gains exactly one path package under
+     systems/ and changes only systems/installed's dependency list; `mineworld validate` of a world
+     enabling it lists it. Evidence recorded; the branch is never merged
+```
+
+### C0 — Design (this document) — docs only
+
+- [ ] Implementation: §§1–11 of this file, from the audit in §8.
+- [ ] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py` (§9 E-0).
+- [ ] Review: every claim in §2 cites a file and line, a command, or a measurement; F-1 and F-3 are
+  resolved or bounded, not routed around; the operator-material questions are marked (§10).
+
+### C1 — Specs before code: DEP-12, ARC-33, ARC-35, MODULE_SPEC §3.1
+
+**Goal.** The installation mechanism and the AC-1 measurement exist as reviewable specifications
+before any code relies on them (`CLAUDE.md` §2.2).
+
+**Scope.**
+- `docs/DECISIONS.md`:
+  - **DEP-12** — *System Pack registration: a declared installed set, not linker-section registration
+    or dynamic loading.* §2.2's options (b)–(g), the reason each was declined, the isolating interface
+    (`mineworld-sdk`'s `SystemPack` and `installed!`), the trigger for revisiting (`ARC-8` Tier 1).
+  - **ARC-33** — *A System Pack is installed by declaring it in the build's installed set.* SD-1 …
+    SD-5; what "independently installable" means in MVP-0 and what it does not (Milestone E's
+    publishing sense).
+  - **ARC-35** — *How AC-1 is measured.* SD-6 / §2.5, the transformation being named PRs, the allowed
+    set, the `Cargo.lock` rule, documentation admitted, fail-closed without history.
+  - Ids are proposals: before writing, `git grep "^## \(ARC\|DEP\)-"` over every `origin/*` branch
+    carrying `DECISIONS.md`, and take the next free numbers if these were taken (record the mapping).
+- `docs/MODULE_SPEC.md`: new §3.1 *Installing a System Pack in MVP-0* (the two lines, the
+  `SystemPack` trait, path dependencies between sibling packs, what is refused and how). §8's
+  sentence "`install` and `add-system` are not implemented in MVP-0" stays true and gains a pointer.
+- `systems/README.md`: "Adding a pack" — the trait, the two lines, the sibling-path convention.
+
+**Depends on:** freeze. **Non-goals:** no code.
+
+- [ ] Implementation: the three records, §3.1, the README section.
+- [ ] Validation: both doc checks; every cross-reference resolves (`git grep` for each cited section).
+- [ ] Review: DEP-12 answers `REUSE_POLICY.md` §11's six questions and §12's rejection reason for
+  each declined crate; ARC-35 is consistent with `overall.md` §1's gloss and `MVP.md` §2 (or the
+  difference is stated); no defined term is redefined (`CLAUDE.md` §2.1(3)).
+
+**Acceptance.** As validation. **Commit boundary.** Documentation only.
+
+### C2 — `sdk/rust`: the `SystemPack` trait, `SectionOwner`, `owns_section!` and `installed!`
+
+**Goal.** The vocabulary a pack uses to declare itself, and the macro an installed set is written in.
+
+**Scope.**
+- `sdk/rust/Cargo.toml` — crate `mineworld-sdk`; dependencies `mineworld-authoring`,
+  `mineworld-contracts`, `mineworld-kernel`, `serde` (all `workspace = true`). No pack.
+- `sdk/rust/src/lib.rs` — crate documentation (what a pack declares and why, with the two-line
+  install), `#![forbid(unsafe_code)]`, `#![warn(missing_docs)]`, re-exports used by the macros
+  (`$crate::__private::{…}` for `World`, `KernelError`, `SystemIdentity`, `SystemId`, `EventTypeId`,
+  `AuthoredContent`, `Decode`, `MapAccess`, `Arc`), so an installed set needs no dependency but the
+  SDK, its perception trait's crate and its packs.
+- `sdk/rust/src/pack.rs` — `pub trait SystemPack: System + Default` with `const BIOGRAPHICAL`,
+  `const SECTION: Option<SectionOwner>`, `fn decode_section<'de, A: MapAccess<'de>>(map: &mut A) ->
+  Result<Arc<dyn AuthoredContent>, A::Error>` (default: `A::Error::custom("the '<id>' system owns no
+  section")`, the message `catalog.rs` gives today); `macro_rules! owns_section` defining both from
+  `AuthoredSection` (`Some(SectionOwner::of::<Self>())`, `map.next_value_seed(Decode::<Self>::new())`).
+- `sdk/rust/src/section.rs` — `SectionOwner { name, carried_by }`, `SectionOwner::of::<S>()`,
+  `carried_by(kind)`, moved verbatim from `worldpack/src/catalog.rs:75–98`.
+- `sdk/rust/src/installed.rs` — `macro_rules! installed`, input
+  `perception: <path to the PerceptionProvider trait>; $( $Variant:ident => $System:path ),+`,
+  expanding to: `pub enum Capability { $Variant, … }` with the derives today's has; `pub const
+  AVAILABLE: [Capability; N]` in the listed order; `impl Capability` with `resolve`, `id`, `section`,
+  `owning_section`, `decode_section` (now `pub`), `biographical`, `install`, `provider`, and
+  `type_name` (from `core::any::type_name`, used only by the installed set's own guard); `impl
+  Display`. Each method's doc comment is carried from `catalog.rs`.
+- Root `Cargo.toml`: member `"sdk/rust"`; `[workspace.dependencies]` `mineworld-sdk = { path =
+  "sdk/rust" }`.
+- `sdk/rust/README.md` — the human orientation (`CLAUDE.md` §2.1): one paragraph and the two lines.
+
+**Depends on:** C1. **Non-goals:** no pack implements the trait yet; `worldpack` unchanged.
+
+- [ ] Implementation:
+  - [ ] the crate and its four modules, as scoped;
+  - [ ] `installed!`'s expansion reproduces `catalog.rs`'s public surface method by method — checked by
+    reading the expansion (`cargo expand` is not installed; the C4 build is the check that matters).
+- [ ] Validation:
+  - [ ] `cargo check -p mineworld-sdk`, `cargo clippy -p mineworld-sdk --all-targets -- -D warnings`.
+  - [ ] Unit (`pack.rs`): a stub pack that declares no section refuses `decode_section` with an error
+    naming its own id — the fail-closed default the catalog's last arm gives today. One test; it owns
+    the "a pack that owns nothing is refused, not silently decoded" failure class.
+- [ ] Review: the SDK names no pack and no perception trait by path; no `unsafe`; `#[macro_export]`
+  macros refer only to `$crate::__private` paths; the trait's defaults are the safe direction.
+
+**Acceptance.** The SDK builds and lints clean with no pack depending on it; its one test passes.
+**Failure cases.** A macro that cannot express `decode_section` generically over `MapAccess` would
+invalidate SD-2: stop and report (material — it reopens §2.2's choice).
+
+### C3 — Every existing pack declares itself
+
+**Goal.** What `catalog.rs` says about each pack is said by the pack.
+
+**Scope (each pack: its `Cargo.toml` gains `mineworld-sdk = { workspace = true }`; its system struct
+gains `#[derive(Default)]` (and keeps whatever it derives); one `impl SystemPack`):**
+
+```text
+presence        impl SystemPack for PresenceSystem {}
+movement        impl SystemPack for MovementSystem {}
+conversation    impl SystemPack for ConversationSystem {}
+group-activity  impl SystemPack for GroupActivitySystem { const BIOGRAPHICAL = BIOGRAPHICAL; }
+relationships   impl SystemPack for RelationshipsSystem { const BIOGRAPHICAL = BIOGRAPHICAL; }
+naming          impl SystemPack for NamingSystem { const BIOGRAPHICAL = BIOGRAPHICAL; owns_section!(); }
+schedule        impl SystemPack for ScheduleSystem { const BIOGRAPHICAL = BIOGRAPHICAL; owns_section!(); }
+```
+
+Each impl sits beside the pack's `impl System` (`systems/<pack>/src/system.rs`), or in `section.rs`
+beside `impl AuthoredSection` for the two section owners — whichever the pack's own layout makes
+obvious; the choice is recorded.
+
+**Depends on:** C2. **Non-goals:** no behaviour change in any pack; `worldpack` still uses its own
+enum, so nothing reads these impls yet.
+
+- [ ] Implementation: seven impls, seven manifests.
+- [ ] Validation: `cargo test -p` each of the seven packs (unchanged suites, unchanged counts —
+  recorded); clippy on each.
+- [ ] Review: `BIOGRAPHICAL` and the section are each stated once per pack, and agree with today's
+  catalog arms (`catalog.rs:126–176`) — read side by side, the comparison recorded in §9 E-A3.
+
+### C4 — The installed set; `worldpack` names no pack it does not read; the root manifest stops registering
+
+**Goal.** A–1, A–2, A–3. After this commit, installing a pack edits only `systems/`.
+
+**Scope.**
+- `systems/installed/Cargo.toml` — crate `mineworld-installed-systems`; dependencies: `mineworld-sdk`,
+  and the seven packs (`workspace = true`, as they are existing workspace dependencies).
+- `systems/installed/src/lib.rs` — crate documentation (this is the build's installed set; how to
+  install; why it lives in `systems/`, ARC-33), and:
+  `mineworld_sdk::installed! { perception: mineworld_presence::PerceptionProvider; Presence =>
+  mineworld_presence::PresenceSystem, Movement => …, Conversation => …, GroupActivity => …,
+  Relationships => …, Naming => …, Schedule => … }` — the order of today's `AVAILABLE`, which is the
+  order refusals list systems in.
+- `systems/installed/tests/installed.rs` — the consistency guard (A-3): parses its own `Cargo.toml`
+  (`env!("CARGO_MANIFEST_DIR")`, `[dependencies]` table, `mineworld-*` keys minus `mineworld-sdk`) and
+  compares with the crate prefixes of `Capability::type_name` over `AVAILABLE`; asserts no two
+  capabilities share an `id()`. Hand-parsed line by line (a `[dependencies]` table of `name = { … }`
+  lines), so no TOML dependency is added; a line it cannot parse fails the test, never skips.
+- `worldpack/Cargo.toml` — remove `mineworld-conversation`, `-group-activity`, `-naming`,
+  `-relationships`, `-schedule`; add `mineworld-sdk`, `mineworld-installed-systems`; keep `presence`
+  and `movement` with a comment naming the format fields they own.
+- `worldpack/src/catalog.rs` — delete `Capability`, `AVAILABLE`, `SectionOwner` and the `impl`s
+  (`:46–204`); add `pub use mineworld_installed_systems::{AVAILABLE, Capability};` and `pub use
+  mineworld_sdk::SectionOwner;`; keep `LOCATION_OWNER`, `PASSAGE_OWNER`, `opened`, `located` and the
+  section-namespace guard test; rewrite the module documentation (what moved where, ARC-33).
+- `worldpack/src/{content,format,read,load}.rs` — imports only, if any path changes (`decode_section`
+  becomes `pub`).
+- `worldpack/src/lib.rs` — the layout diagram's `catalog` line.
+- `worldpack/tests/structure.rs` (new) — the allow-list guard (A-2): every `mineworld-*` key in
+  worldpack's `[dependencies]` and every `mineworld_*` crate named in `src/**/*.rs` is one of
+  `{contracts, kernel, authoring, sdk, installed_systems, presence, movement}`. The allow-list names
+  infrastructure, never a pack beyond the two format owners, so adding a pack never edits it.
+- `worldpack/tests/refusals.rs:171,178` — F-10: `economy` → `no-such-system`; the claim (an unknown
+  system is refused by name and the available ones are listed) unchanged.
+- Root `Cargo.toml` — `members`: the seven `"systems/<name>"` lines become `"systems/*"`;
+  `[workspace.dependencies]` gains `mineworld-installed-systems = { path = "systems/installed" }`.
+  The seven existing pack entries stay (existing packs and tests use them).
+
+**Depends on:** C3.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation:
+  - [ ] `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`;
+    `cargo test --workspace` (counts and wall time recorded; the counts equal the base's plus the new
+    tests, and no test was removed).
+  - [ ] A-1: `mineworld run worlds/social-cafe --headless --seed 7 --days 300`; the sha-256 of every line
+    but `wall` equals E-0's.
+  - [ ] `mineworld validate worlds/social-cafe` output identical to the base's (diffed).
+  - [ ] Mutations, each reverted and recorded:
+    - remove `Schedule => …` from `installed!` → `installed.rs` fails naming `mineworld-schedule`, and
+      `worldpack/tests/social_cafe.rs` fails with `UnknownSystem { system: schedule }`;
+    - add `use mineworld_naming as _;` to `worldpack/src/catalog.rs` (and the dependency back) →
+      `structure.rs` fails naming it;
+    - give a stub listed pack the id of another (a test-only list in `installed.rs`'s unit test, not
+      the real list) → the duplicate-id assertion fails.
+- [ ] Review:
+  - `worldpack`'s public API is unchanged: `git diff` of `worldpack/src/lib.rs`'s `pub use`s is empty
+    apart from the diagram, and no caller outside `worldpack` changed.
+  - The section decoder still reads from the stream: `refusals.rs`'s line-and-column assertions for a
+    bad section still pass unchanged.
+  - The only existing-test edit is F-10's, listed with its unchanged claim.
+  - `systems/installed/` holds no logic beyond the list and its guard.
+
+**Failure cases.** An existing test that fails for a reason other than F-10 means the expansion is not
+equivalent to the old catalog: fix the macro, never the test. A changed run fingerprint is a stop:
+something reordered installation or reduction (`MODULE_SPEC.md` §4.1 rule 2).
+
+### C5 — The canary install (evidence, never merged); documentation and ledger close
+
+**Goal.** A-4: show, before any market pack exists, that installing a pack touches only what ARC-33
+says it does (`ARC-23`: an instrument shown to see before it is trusted).
+
+- [ ] Implementation (on a scratch branch from C4's head, deleted afterwards):
+  - [ ] `systems/canary/`: a pack with one action (`wave`, no target, `SpatialRequirement::NONE`), one
+    fact (`waved`), an offer through `PerceptionProvider`, `impl SystemPack {}` — the smallest real pack.
+  - [ ] Two lines in `systems/installed/`.
+  - [ ] `worlds/canary-cafe/`: a copy of `worlds/social-cafe` with `canary` appended to `systems`.
+- [ ] Validation (recorded in §9 E-A5, then the branch is deleted):
+  - [ ] `git diff --name-only <C4 head>` lists only `systems/canary/**`, `systems/installed/Cargo.toml`,
+    `systems/installed/src/lib.rs`, `worlds/canary-cafe/**`, `Cargo.lock`.
+  - [ ] `git diff <C4 head> -- Cargo.lock`: one new `[[package]]` `mineworld-canary` with no `source`;
+    `mineworld-installed-systems`'s dependency list gains it; nothing else.
+  - [ ] `mineworld validate worlds/canary-cafe` lists `canary`; `mineworld run worlds/canary-cafe
+    --headless --seed 7 --days 1` completes; the installed-set guard passes.
+  - [ ] `cargo test -p mineworld-worldpack` passes unchanged on the scratch branch (installing a pack
+    breaks no loader test — the property F-10 was about).
+- [ ] Documentation: `worldpack/README.md` (the catalog paragraph), `docs/MVP_STATUS.md` (the F-1 row,
+  if it has one, or a new "independently installable packs (MVP-0 form)" row), the handoff.
+- [ ] Full gates once on the final executable head (§6), recorded with counts and wall time.
+- [ ] Review: A-1 … A-4 each hold with recorded evidence; the scratch branch was not pushed, or was
+  deleted from the remote if it was.
+
+**Commit boundary.** Only documentation and the ledger are committed in C5; the canary lives only in
+the ledger's evidence.
+
+### 4.1.2 Test ownership for 11a
+
+```text
+STATIC      cargo fmt, cargo clippy -D warnings: formatting, unused imports, the trait bounds (a listed
+            pack that is not a PerceptionProvider or not Default does not compile)
+UNIT        sdk: the fail-closed default of decode_section (C2)
+            installed: manifest ↔ list consistency; distinct ids (C4)
+            worldpack: the dependency allow-list (C4); the section-namespace guard (moved unchanged)
+INTEGRATION every existing test, unchanged (A-1) — the loader, the CLI, persistence and the server all
+            run through the generated catalog
+REAL RUN    the 300-day social-cafe run, byte-compared with E-0 (A-1); the canary install (A-4)
+GATE 1      NOT REQUIRED — no model anywhere in S9
+GATE 2      the real run and the canary install above are this PR's real-lifecycle evidence
+CI          none configured (S13); the local full gate runs once on the final head
+```
+
+### 4.1.3 Is any of this material?
+
+Yes, and it is raised rather than assumed:
+- **ARC-33 / SD-2** change how a System Pack becomes part of a build — a public contract for pack
+  authors (`SystemPack`) and the meaning of "independently installable" for `AC-1` (QS-3).
+- **ARC-35 / SD-6** decide how the frozen top-level criterion is measured (QS-2).
+
+Nothing in 11a changes a frozen invariant of an earlier step, `kernel/`, `contracts/`, or the behaviour
+of any world.
