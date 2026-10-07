@@ -579,7 +579,8 @@ F1's catalog is not world state: it is the build's compiled-in list of resolver 
 world in the process, set before any world runs and never changed — the same kind of thing as the
 `installed!` list itself. Per-world applicability needs no filter, because a resolver is required to be
 inert where its own state is absent (§4.4.1): a world that does not install bodies has no `BodyShape`
-table, so bodies' resolver returns `so_far`. Its one weakness is a host that assembles a world without
+table, and a lookup in a missing table answers `None` rather than failing (`kernel/src/components.rs`
+`ComponentStore::get`: `self.rows::<C>()?.get(&entity)`), so bodies' resolver returns `so_far`. Its one weakness is a host that assembles a world without
 `worldpack::compose` and forgets to register: such a host would record unresolved strides. Two guards:
 every host already composes through `worldpack`; and bodies, reacting to every `arrived` (§4.5.4), checks
 the invariant it exists to keep and fails the dispatch, naming the pair, if a recorded arrival overlaps —
