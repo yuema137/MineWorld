@@ -629,8 +629,8 @@ What it edits that already exists, and only this:
 systems/presence   Arrived gains `from`; arrival() fills it; VERSION 3. Operator-material (QB-2).
 ```
 
-What it must **not** edit: `kernel/`, `contracts/`, `persistence/`, `server/` (beyond nothing — the
-server carries any action unchanged), `systems/movement`, any other System Pack, `worldpack` (sections
+What it must **not** edit: `kernel/`, `contracts/`, `persistence/`, `server/src` (the server carries any
+action unchanged; only the document `server/PROTOCOL.md` changes), `systems/movement`, any other System Pack, `worldpack` (sections
 are bound through `ARC-31`), `cognition/` (the paced controller attempts complete affordances it was
 never compiled against, `ARC-34`). If any of these turns out to need an edit, the work stops and the
 question returns to the operator.
@@ -964,7 +964,9 @@ PresenceSystem::VERSION            2 → 3
   (QB-3).
 - The world validator (bodies' `AuthoredSection` refusals) refuses: a passage whose `there` point is not
   free for the default capsule; two authored people, or a person and an object, overlapping at genesis; an
-  object outside its place's walls; an item with a `body:` that is also held in an inventory.
+  object outside its place's walls. An item with a `body:` that is also held in an inventory must be
+  refused too, but bodies cannot see inventory's section without depending on it; where that check
+  lives is part of QB-3.
 - `docs/MODULE_SPEC.md` §4.1 gains the `body:` section.
 
 ---
