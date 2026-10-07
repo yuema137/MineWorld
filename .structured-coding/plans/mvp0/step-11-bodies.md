@@ -897,6 +897,56 @@ cargo build && target/debug/physics-spike p run base out/p-dev.loc   # PC-f; q a
 DEBUG=1 $B p e2; NOWAKE=1 DEBUG=1 BOXZ=0.8 $B p e2                   # locating PC-e2 P; F-P1
 ```
 
+## 9.6 Revision 1 (operator decisions 2026-10-07): criteria for mode R, stated before any run
+
+The operator rejected correcting arrivals after they are recorded (QB-1) and chose nudging over blocking
+when a walker meets a person (QB-10). The prototype gains a mode **R**, the shape of the revised design
+(§4.6): each move is **resolved before anything is recorded**, and the recorded state is the resolved
+state. Its algorithm, fixed here before the code is written:
+
+```text
+per move request, on a world rebuilt from integer state in canonical order:
+1  walls-only reach W: the character controller sweeps the walker from `from` toward `to`
+   against fixed geometry only
+2  contact reach B: the same sweep with people solid (objects never block at this stage)
+3  candidate: W if |W − from| ≤ |B − from| + NUDGE_MAX, else the point on the walls-only path
+   NUDGE_MAX beyond contact               NUDGE_MAX = 300 mm
+4  nudge pass, generations g = 1 .. CHAIN_MAX (CHAIN_MAX = 2), at most NUDGED_MAX = 4 people:
+   every person not yet moved who overlaps a pusher of the previous generation (in EntityId
+   order) is moved directly away from that pusher's centre by exactly the overlap + 10 mm, by the
+   character controller against fixed geometry. A required nudge above NUDGE_MAX + 10 mm, a nudge
+   the walls cut short by more than 1 mm, an overlap left after CHAIN_MAX generations, or more
+   than NUDGED_MAX people → the whole nudge fails
+5  on failure: the walker ends at B, nobody else moves (blocked)
+6  objects: as in `ql` — stepped only if the walker's path box meets an object, with the nudged
+   people fixed at their new positions; if the walker then overlaps an object by more than 5 mm,
+   the request is re-resolved with objects solid and no stepping
+7  quantize everything to whole millimetres
+```
+
+| ID | Claim | Measurement | PASS iff |
+| --- | --- | --- | --- |
+| **PC-a/R**, **PC-b/R** | As PC-a and PC-b, for mode R. | R = 3 000 requests from the same request sequence as Q; snapshot at 1 300. Two processes; a third resumes. | Equal digests. |
+| **PC-c/R** | As PC-c″ for mode R. | Traces of base, c2 and c4. | c2 and c4 each differ from base at the request where they take effect. |
+| **PC-d/R** | Cost. | Mean µs per request, release. | At most **100 µs**. |
+| **N-1** | Nobody interpenetrates. | After every request of the R long run and of scenarios n1–n3: the smallest centre distance over every pair of people in the place; the closest pair and request are printed. | Always ≥ **0.595 m**. |
+| **N-2** | A nudge is small. | Every nudge's length, per stride. | Every nudge ≤ **310 mm**. |
+| **N-3** | Chains are bounded. | Per stride: generations used and people nudged. | Generations ≤ **2**, people nudged ≤ **4**; strides that needed more are counted as blocked and reported. |
+| **N-4** | Nobody leaves the room or enters the counter. | Every person's centre after every request. | Inside the walls (0.300 m from each wall, 5 mm tolerance) and outside the counter's footprint grown by the radius (5 mm tolerance). |
+| **N-5** | The measurement sees a nudge. | n2 with nudging on, and again with nudging forced to fail. | On: the stationary person moves at least **100 mm** in total. Forced off: they move **0 mm** and the walker stops at contact. |
+| **N-6** | Determinism of the scenarios. | Digest of each scenario's final state, two processes. | Equal. |
+| **PC-g** | Another architecture gives the same bytes. | Build `x86_64-apple-darwin`, run under Rosetta: PC-a for P, Q, `ql` and R; PC-b for each with the snapshot written **by the arm64 binary** and resumed **by the x86_64 one**. | Every x86_64 digest equals its arm64 counterpart. |
+
+Scenarios, each a fixed request sequence in mode R in the café room:
+
+```text
+n1 head-on     A (2.00, 5.00) and B (6.32, 5.00) alternate 0.5 m strides toward each other,
+               12 each
+n2 stationary  A from (2.00, 5.00) walks +x in 12 strides of 0.5 m; B stands at (4.00, 5.10)
+n3 crowd       A from (2.00, 5.00) walks +x in 12 strides of 0.5 m into five standing people at
+               (5.00, 5.00) (5.00, 5.65) (5.00, 4.35) (5.65, 5.00) (5.65, 5.65)
+```
+
 ---
 
 # 10. Proposed contracts and invariants
