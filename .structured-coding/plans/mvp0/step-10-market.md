@@ -999,25 +999,42 @@ or `HEAD` not descending from base → failure naming the cause.
 **Goal.** A-4: show, before any market pack exists, that installing a pack touches only what ARC-33
 says it does (`ARC-23`: an instrument shown to see before it is trusted).
 
-- [ ] Implementation (on a scratch branch from C4's head, deleted afterwards):
-  - [ ] `systems/canary/`: a pack with one action (`wave`, no target, `SpatialRequirement::NONE`), one
-    fact (`waved`), an offer through `PerceptionProvider`, `impl SystemPack {}` — the smallest real pack.
-  - [ ] Two lines in `systems/installed/`.
-  - [ ] `worlds/canary-cafe/`: a copy of `worlds/social-cafe` with `canary` appended to `systems`.
-- [ ] Validation (recorded in §9 E-A5, then the branch is deleted):
-  - [ ] `git diff --name-only <C4 head>` lists only `systems/canary/**`, `systems/installed/Cargo.toml`,
-    `systems/installed/src/lib.rs`, `worlds/canary-cafe/**`, `Cargo.lock`.
-  - [ ] `git diff <C4 head> -- Cargo.lock`: one new `[[package]]` `mineworld-canary` with no `source`;
-    `mineworld-installed-systems`'s dependency list gains it; nothing else.
-  - [ ] `mineworld validate worlds/canary-cafe` lists `canary`; `mineworld run worlds/canary-cafe
-    --headless --seed 7 --days 1` completes; the installed-set guard passes.
-  - [ ] `cargo test -p mineworld-worldpack` passes unchanged on the scratch branch (installing a pack
-    breaks no loader test — the property F-10 was about).
-- [ ] Documentation: `worldpack/README.md` (the catalog paragraph), `docs/MVP_STATUS.md` (the F-1 row,
-  if it has one, or a new "independently installable packs (MVP-0 form)" row), the handoff.
-- [ ] Full gates once on the final executable head (§6), recorded with counts and wall time.
-- [ ] Review: A-1 … A-4 each hold with recorded evidence; the scratch branch was not pushed, or was
-  deleted from the remote if it was.
+- [x] Implementation (local scratch branch `scratch/11a-canary` from `1f05232` — C4b's head, the
+  executable head after C4 plus the scan; deleted afterwards, never pushed):
+  - [x] `systems/canary/`: `Wave` (no target), `Waved`, an offer through `PerceptionProvider` with
+    `SpatialRequirement::NONE`, `impl SystemPack for CanarySystem {}`; sibling dependency by path
+    (`mineworld-presence = { path = "../presence" }`), infrastructure by `workspace = true` (already in
+    the root, so no root edit). Compiled on the first build.
+  - [x] Two lines in `systems/installed/`.
+  - [x] `worlds/canary-cafe/`: a copy of `worlds/social-cafe`, `id: canary-cafe`, `canary` appended.
+- [x] Validation (§9 E-A5; the branch then deleted):
+  - [x] `git diff --name-only 1f05232 HEAD` → `Cargo.lock`, `systems/canary/{Cargo.toml,src/lib.rs}`,
+    `systems/installed/{Cargo.toml,src/lib.rs}`, `worlds/canary-cafe/**` (25 files, 20 of them the
+    world copy). Nothing else.
+  - [x] `Cargo.lock`: one new `[[package]] mineworld-canary` with no `source`; one line added to
+    `mineworld-installed-systems`'s dependencies; nothing else.
+  - [x] `mineworld validate worlds/canary-cafe` → "systems presence, …, schedule, canary", valid;
+    `mineworld run worlds/canary-cafe --headless --seed 7 --days 1` → exit 0, faults 0, 1 368 facts. No
+    `wave` was attempted: the paced controller knows no action it was not compiled against (F-3, 11c's
+    to resolve) — expected, recorded, not a defect of 11a.
+  - [x] installed + worldpack suites on the scratch branch: 55 passed, 0 failed — the same as without
+    the canary (installing a pack breaks no loader test; F-10's property). social-cafe's 300-day sha on
+    the scratch build = E-0 (installing a pack a world does not enable changes nothing).
+  - [x] The I-2 scan on the scratch branch FAILED, naming 12 lines of `worlds/canary-cafe/` (`shop`,
+    `shopping`, `items`, `job`, `employment` in social-cafe's own comments and tags, copied). Correct:
+    on that branch they are added lines. Recorded because 11b/11c must not copy social-cafe content
+    without allow-list entries for "pre-existing use carried".
+  - [x] **E-A5b, the scan's merged-range path:** scratch `scratch/11a-merged` from `b53e19d`, `git merge
+    --no-ff 1f05232 -m "Merge pull request #999 from yuema137/mvp0/pr-11a-installable"`, then a commit
+    adding `worlds/later/shop.yaml` (`price: 3`) → scan PASSES (range `base..M^2` excludes the later
+    commit). Control `scratch/11a-merged-control`: same, merge subject "Merge branch 'something-else'"
+    → FAILS naming `worlds/later/shop.yaml` (path and `price`). Both branches deleted.
+  - [x] `git ls-remote --heads origin | grep -c scratch` → 0.
+- [x] Documentation: `worldpack/README.md` (third bullet: names no pack but two),
+  `docs/MVP_STATUS.md` (a capability row, an evidence row, S9's stage line), the handoff.
+- [ ] Full gates once on the final executable head (§6), recorded with counts and wall time (§9
+  E-A-final).
+- [ ] Review: A-1 … A-4 each hold with recorded evidence (§9); the scratch branches were never pushed.
 
 **Commit boundary.** Only documentation and the ledger are committed in C5; the canary lives only in
 the ledger's evidence.
@@ -1414,6 +1431,30 @@ E-0  C0 design, 2026-10-07, on main @ b9e5937 + this file.
      this file only; DECISIONS.md is untouched; no origin/* branch holds ARC-33+ or DEP-12+).
      No cargo gate run (docs only). The baseline command was run once to fix A-1's reference, not as
      a gate.
+
+--- PR 11a (branch mvp0/pr-11a-installable, base main @ b53e19d) ---
+
+E-A0 E-0 reproduced on b53e19d before any edit (debug, opt-level 1): 339 lines, sha-256 of all but
+     `wall` = ad49c723…c64b, faults 0, fingerprint 59339a9c281829c9, wall 12.5 s.
+E-A1 C1 (83850df): check_decision_ids 45 ids distinct; check_doc_headings 143 sections / 22 documents.
+     ARC-33 (static-linking boundary), DEP-12, ARC-35 (point 7: the I-2 scan and how "the PR's added
+     lines" are determined). Ids free on every origin/* branch after `git fetch`.
+E-A2 C2 (816b80c): cargo check/clippy -p mineworld-sdk clean; sdk unit test 1 passed.
+E-A3 C3 (8c82c1e): the seven impls vs catalog.rs arms — biographical: presence/movement/conversation
+     &[], group-activity/relationships/naming/schedule their BIOGRAPHICAL; section: naming and
+     schedule only, via owns_section!. Identical. Pack suites 68 passed (13/11/14/11/6/5/8).
+E-A4 C4 (d9c9394): fmt, clippy --workspace --all-targets --all-features -D warnings clean;
+     cargo test --workspace --no-fail-fast 425 passed 0 failed (419 base + 6 new), 174 s.
+     A-1 sha = E-0 (wall 12.2 s); validate output identical to base. Mutations M1–M3 each fail by
+     name and are reverted (§4.1 C4).
+E-A4b C4b (1f05232): the I-2 scan — first run caught 'item' in five comments this PR added
+     (reworded); planted violations (tracked edit + untracked fixture) fail with three named
+     refusals; a missing base fails closed. Reverted.
+E-A5 C5 canary (scratch, local, deleted): changed paths ⊆ {systems/canary/**,
+     systems/installed/{Cargo.toml,src/lib.rs}, worlds/canary-cafe/**, Cargo.lock}; Cargo.lock +1 path
+     package, +1 dependency line; validate lists canary; 1-day run exit 0, faults 0; installed +
+     worldpack 55 passed. E-A5b: the scan's merged-range path passes with a later market commit and
+     fails without a recognised merge.
 ```
 
 ## 9.1 Risks
