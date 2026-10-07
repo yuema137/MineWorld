@@ -677,6 +677,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-economy"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-employment",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-presence",
+ "mineworld-rule-controller",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-employment"
 version = "0.0.0"
 dependencies = [

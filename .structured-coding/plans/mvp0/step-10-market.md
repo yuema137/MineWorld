@@ -2647,14 +2647,22 @@ codec}.rs, tests/{buy.rs, wages.rs, removable.rs, paced.rs, support/mod.rs}}`. `
 `mineworld-employment` by path (employment for `WageDue`'s type only, `ARC-28`); dev: item (path),
 movement, rule-controller (`workspace = true`, D-6's direction), serde-saphyr.
 
-- [ ] Implementation: SD-24 — `Wallet`, `Shop`, `Price`, `Funded`, `ShopOpened`, `MoneyTransferred`,
-  `WageUnpaid`, `Buy`, `buy_requirement`, `purchasable`, the `economy:` section (shop only on an
+- [x] Implementation: SD-24 — `Wallet`, `Shop`, `Price`, `Listing`/`Listed` (the typed view a shop's
+  place discloses), `Funded`, `ShopOpened`, `MoneyTransferred`, `WageUnpaid`, `Buy`, `buy_requirement`,
+  `purchasable`, `admit_payment`/`balance` (`money.rs`, DE-6), the `economy:` section (shop only on an
   organization; references Place and Items), validate/resolve, react (funded, shop-opened,
-  money-transferred, wage-due), offers, disclosure (wallet to holder; listing to the place's perceivers).
-- [ ] Validation: `cargo test -p mineworld-economy`; E-4, E-5, the economy half of E-7; M-E3, M-E4,
-  M-E5; clippy, fmt.
-- [ ] Review: `depending_on` lists inventory and presence, never employment; `subscribing_to::<WageDue>`;
-  the only writes of Wallet and Shop are in react; no `f32`/`f64`; offers only at a shop place.
+  money-transferred, wage-due), offers, disclosure (wallet to holder; listing to the place's
+  perceivers). Files: `systems/economy/{Cargo.toml, README.md, src/{lib,system,section,event,component,
+  action,offer,money,codec}.rs, tests/{buy.rs, wages.rs, removable.rs, paced.rs, support/mod.rs}}`.
+  The reduction refuses a second `funded` for one holder and a second shop in one place (DE-7).
+- [x] Validation: `cargo test -p mineworld-economy` → buy 6, paced 3, removable 3, wages 1 passed, 0
+  failed; clippy `--all-targets -D warnings`, fmt clean. E-4, E-5, the economy half of E-7; M-E3,
+  M-E4, M-E5 in §9.5 E-E4.
+- [x] Review: `depending_on([inventory, presence])`, never employment (asserted by removable.rs on the
+  declaration); `subscribing_to::<WageDue>`; the only `insert`s of Wallet and Shop are in `react`; no
+  `f32`/`f64` (u64 throughout, `checked_add` for the payee); offers only when the observer stands in
+  a place with a Shop, none with a target. The wage answer and `purchasable` each ask
+  `admit_payment` themselves, so the reduction's check is the second guard (M-E3 shows it).
 
 ### E-C5 — `systems/consumption`
 
@@ -2770,6 +2778,16 @@ DE-5  bounded  At a shift's end, a production line inventory's `produce` refuses
                item file without `item:`); failing the wake would stop the world for content no pack
                trades. The wage is still due. Validation: by construction (no test world authors an
                undeclared produced kind; market-town's `validate` names every kind).
+DE-6  bounded  economy has a `money.rs` (admit_payment, balance, the private `pay` constructor) beside
+               §4.5 E-C4's file list: the one payment rule asked by `purchasable`, by the wage answer
+               and by the reduction (inventory's admit.rs pattern). `Listing`/`Listed` are typed structs
+               in component.rs, so the disclosed listing is not an untyped JSON blob (CLAUDE.md §4
+               rule 7).
+DE-7  bounded  economy's reduction also refuses a second `funded` for a holder that already has a
+               Wallet, and a `shop-opened` for a place that already has a Shop or whose operator is not a
+               living Person or Organization. SD-24 did not say. Reason: both facts are genesis facts
+               from a pack's own section, so a repeat is a defect; two shops in one place would make
+               "the shop here" ambiguous. Validation: by construction; no test world repeats either.
 ```
 
 ## 4.6 PR 11f — the proof (medium scope; detailed after 11e merges)
@@ -3788,6 +3806,44 @@ E-E3 E-C3 employment: `cargo test -p mineworld-employment` → employment.rs 5, 
      a_shift_is_paid… FAILED "seconds at the workplace during the shift: left [… ("bob", 14400) …]
      right [… ("bob", 7200) …]" (paid for the whole shift), and persisted.rs FAILED too. Reverted;
      `git grep MUTATION -- systems` empty; 5 + 1 + 3 passed again.
+E-E4 E-C4 economy: `cargo test -p mineworld-economy` → buy.rs 6, paced.rs 3, removable.rs 3, wages.rs 1
+     passed, 0 failed; clippy -p mineworld-economy --all-targets -D warnings clean; fmt clean.
+     Cargo.lock: +1 path package (mineworld-economy, no `source`).
+     E-5 (store: apple 100, bread 300, juice 200 priced, juice not stocked, pen unpriced): alice (1 000)
+     offered apple ✓ bread ✓ juice ✗; bob (150) apple ✓ bread ✗ juice ✗; erin (carrying six) all ✗;
+     every ✗ TargetUnavailable; carol on the street none; no buy carries a target. alice buys bread →
+     money-transferred alice → corner-store 300, Visibility::Place(store), and items-transferred
+     corner-store → alice bread 1, Participants, both Causation::Action; wallets 700 / 1 300. At
+     dispatch: cannot pay, out of stock, cannot carry → TargetUnavailable; on the street, unpriced →
+     NoSupportedInteraction; each writes nothing. Listing seen by bob in the store: (100, 3), (300, 2),
+     (200, 0), operator corner-store; not seen by carol on the street; after alice buys an apple bob
+     sees (100, 2) — CP-7's perception path. Wallet disclosed to its holder only. Paced, 10 days, seed
+     7, pace 900 s, seats alice/bob/carol, store stocked apple 40 + bread 40: 1 507 requests, 7 buys by
+     2 buyers, every buy accepted, each caused exactly [money-transferred, items-transferred] paid by
+     the asker; nobody past six; two runs byte-identical; the controller's manifest names none of the
+     six market packs. → PASS.
+     E-4: forged money-transferred (ledger stater) — more than the payer holds, zero, to oneself, to a
+     place → FactRefusedByOwner { economy, money-transferred, PreconditionFailed }, state bytes
+     unchanged; positive control (bob → alice 150, to exactly zero) reduced. Wages (employment
+     installed): alice's 480 from corner-store (1 000) → one money-transferred caused by
+     Causation::Event(her wage-due), Participants; bob's 480 from poor-co (100) → wage-unpaid caused by
+     his wage-due, no money-transferred; wallets alice 1 480, corner-store 520, bob 150, poor-co 100. →
+     PASS. Static, recorded not tested: employment cannot write a Wallet (no write token; its manifest
+     does not name economy).
+     E-7 (economy half): economy's declaration does not depend on employment, and a world without
+     employment sells; a world without economy offers no buy, answers Unavailable, holdings and wallets
+     unchanged; economy without inventory → SystemDependencyMissing { economy, inventory }. → PASS.
+     M-E3 (`// MUTATION M-E3`: the wage answer pays without the balance check): wages.rs FAILED —
+     "advances: FactRefusedByOwner { economy, money-transferred, PreconditionFailed }": the payment
+     was refused by the reduction instead, as §4.5.3 predicted. Reverted.
+     M-E4 (offers built with Offer::new, incomplete): buy.rs a_person_in_a_shop… FAILED ("a complete
+     affordance carries its request"); paced.rs the_unchanged… FAILED ("at least two people buy: {}
+     (0 buys)") and two_runs… FAILED ("the comparison is of runs that bought"). Reverted.
+     M-E5 (`purchasable` ignores the balance, `|| true`): buy.rs a_person_in_a_shop… FAILED ("bob's 150
+     pays for an apple (100), not for bread (300)": bread offered available) and a_buy_is_refused…
+     FAILED (bob's bread passed validate and was refused by the reduction); both paced tests FAILED the
+     same way. Reverted; `git grep MUTATION -- systems` and grep of the untracked packs empty; 6 + 3 +
+     3 + 1 passed again.
 ```
 
 ---

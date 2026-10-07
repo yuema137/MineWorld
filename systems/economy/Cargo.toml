@@ -1,0 +1,36 @@
+[package]
+name = "mineworld-economy"
+description = "MineWorld's EconomySystem: wallets and shops, `buy` offered as a complete affordance per priced kind, and wages paid when employment says one is due. The only mover of money, in integer minor units."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# The seam a pack owns a section of an authored file through: `economy:` (ARC-31, ARC-36).
+mineworld-authoring = { workspace = true }
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# Where people are is presence's state: a buy needs the buyer in the shop. Also the perception trait.
+mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
+# A purchase states inventory's items-transferred through its checked constructor (ARC-26), and the
+# listing reads the operator's stock. A sibling pack, named by path (MODULE_SPEC §3.1).
+mineworld-inventory = { path = "../inventory" }
+# wage-due's published type only (ARC-28): economy hears it and is not a dependent of employment's
+# system — a world without employment installs economy and sells.
+mineworld-employment = { path = "../employment" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The tests seed kinds through item's section, decode sections from YAML as the loader does, and walk
+# people under the paced controller as `mineworld run` does.
+mineworld-item = { path = "../item" }
+mineworld-movement = { workspace = true }
+serde-saphyr = { workspace = true }
+# E-5: the unchanged paced controller buys without knowing `buy` (ARC-34). A dependency from a market
+# pack's tests to the controller, the direction ARC-35 check 2 allows; never the reverse.
+mineworld-rule-controller = { workspace = true }
