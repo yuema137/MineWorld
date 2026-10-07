@@ -105,7 +105,8 @@ fn a_malformed_pack_is_refused_by_the_command_with_its_position_in_the_file() {
 
 #[test]
 fn a_command_that_does_not_exist_says_so_and_says_what_does() {
-    let output = run(&["inspect", PACK]);
+    // `inspect` exists since step-08 C6; the claim is unchanged, about a command that still does not.
+    let output = run(&["create", PACK]);
 
     assert!(!output.status.success());
     let complaint = stderr(&output);

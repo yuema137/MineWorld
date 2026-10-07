@@ -384,12 +384,13 @@ No change to `move`'s rule, to `Passages`, or to any other pack. **Depends on:**
 
 **Goal.** CP-4. **Scope.** `tools/cli/src/{main.rs, inspect.rs (new)}`, `tools/cli/tests/inspect.rs` (new), `tools/cli/tests/commands.rs` (re-point I-6). **Depends on:** C4.
 
-- [ ] Implementation: HD-9 / HD-10 over `SqliteBackend::open` read-only use (`manifest`, `head`, `journal_after`, `facts_of` / `last_facts`), decoding with `persistence::format::decode`; a failed cause check exits non-zero and names the fact.
-- [ ] Validation:
-  - [ ] on a 30-day `run --save`: the report states head, instant, journal kinds, facts by type, causes by kind, and "every cause resolves"; a window of 200 facts mid-run (the sampled window) is printed with causes;
-  - [ ] negative: a save whose fact log cites an `ActionId` the journal lacks — the check fails and names the fact. Built through the public `PersistenceBackend::commit` with a hand-encoded `RevisionRow` (no new dependency; `rusqlite` is not a `tools/cli` dependency today, and the test must not add one only to corrupt a file);
-  - [ ] a directory with no save is refused by name; inspect leaves the file's bytes unchanged (compare before/after).
-- [ ] Review: nothing in `inspect.rs` names a domain concept; the check's limit (process causes counted, not resolved) is stated in the output.
+- [x] Implementation: `tools/cli/src/inspect.rs` (HD-9 / HD-10) over `SqliteBackend` reads only (`manifest` + `check_format`, `head`, `journal_after`, `facts_of(GENESIS)`, `last_facts`), decoded with `persistence::format::decode`; `inspect <save> [--last N]` as a clap subcommand; a failed check exits non-zero naming up to ten facts. — §9 E-7.
+- [x] Validation — `tools/cli/tests/inspect.rs`, 3 tests:
+  - [x] on a 30-day `run --save`: the report's head equals the journal length on disk, its fact count equals the save's, systems with versions, all three cause kinds, 200 window lines, "every cause resolves: N fact(s) checked". Bounded deviation: the check covers the **whole** log, not a sampled window — reading it all is cheap, and a sample would be the weaker claim; the printed window is the newest N, not a mid-run slice.
+  - [x] negative: a forged revision committed through `PersistenceBackend::commit` (a copy of the newest fact, renumbered, caused by action 999999) — the unforged save passes first, the forged one fails naming `fact #… caused by action 999999`.
+  - [x] a directory with no save is refused by name. "Leaves the file's bytes unchanged" is checked as the logical tables (facts, journal, snapshots, manifest) before and after: the SQLite file's raw bytes may legitimately change when a WAL is checkpointed on close, which is not a write of world data.
+  - [x] `commands.rs`'s missing-command test re-pointed from `inspect` to `create` (still missing until C7), claim and assertions unchanged (I-6).
+- [x] Review: `inspect.rs` names event types, causes and journal kinds as stored; no domain concept; the output states that process and system-tick causes are counted, not resolved.
 
 **Acceptance / failure cases.** As validation.
 
@@ -595,6 +596,10 @@ E-6  C5 restart. `cargo test -p mineworld-cli --test run_restart`: 2 passed, 15.
      resume → 2 FAILED (8.1 s); two-pace window → FAILED ("lines answered more than once, said at:
      [2400, 3002, 4202, …]"); the earlier one-pace-only once-check missed that mutation and was
      replaced. F-13 for `run`: closed by I-3 and shown across a real restart.
+E-7  C6 inspect. `cargo test -p mineworld-cli --test inspect --test commands`: 3 + 4 passed (4.0 s).
+     By hand on a 2-day save: head revision 747 at t172201 (day 2, 23:50:01); journal genesis 1,
+     move accepted 425, move rejected TooFarAway 13, talk accepted 308; 991 facts; causes action 933,
+     event 53, world genesis 5; "every cause resolves: 991 fact(s) checked". clippy clean.
 ```
 
 ## 9.1 Limitations (expected)

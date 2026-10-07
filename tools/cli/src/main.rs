@@ -39,6 +39,7 @@
 //! is specified in `docs/MODULE_SPEC.md` §8.1.
 
 mod agent;
+mod inspect;
 mod perceive;
 mod run;
 
@@ -107,11 +108,14 @@ enum Subcommand {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         rest: Vec<String>,
     },
-    /// Not yet: S7.
-    #[command(hide = true)]
+    /// Say what a save holds, and check that every fact in it has a cause — without resuming or
+    /// writing it.
     Inspect {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        rest: Vec<String>,
+        /// The save directory (the one given to --save).
+        save: PathBuf,
+        /// How many of the newest facts to list.
+        #[arg(long, default_value_t = 20)]
+        last: usize,
     },
     /// Run a World Pack headless — no renderer, no network, no model — every seat driven by a
     /// seeded rule, and print what happened.
@@ -151,7 +155,7 @@ async fn main() -> ExitCode {
             save,
         } => serve(world, listen, agents, save).await,
         Subcommand::Create { .. } => not_yet("create"),
-        Subcommand::Inspect { .. } => not_yet("inspect"),
+        Subcommand::Inspect { save, last } => inspect::inspect(&save, last),
         Subcommand::Run {
             world,
             headless: _,
@@ -180,7 +184,7 @@ async fn main() -> ExitCode {
 fn not_yet(command: &str) -> Result<(), String> {
     Err(format!(
         "mineworld {command} does not exist yet — it is S7's. What works today: mineworld server, \
-         mineworld validate, mineworld replay, mineworld run (see mineworld --help)."
+         mineworld validate, mineworld replay, mineworld run, mineworld inspect (see mineworld --help)."
     ))
 }
 
