@@ -578,9 +578,25 @@ Next, framework (critical path to Milestone B):
             **Known gap:** relationships never decay, so the social graph saturates — level
             crossings are 313 in days 1–30, 39 in 31–60, and 0 in every later bucket, while group
             activities continue at ~640 per bucket. A living-world deficiency for a later step.
-       10c  routines, on a generic content seam (step-09 Q9) — HELD until the operator has tested
-            Milestone B, since it changes the social-cafe behaviour under test. Its decision
-            record will be ARC-31.
+       10c  names and routines, on a generic content seam   PR 10c (GitHub #33), merged 9ab5e62
+            The `authoring/` crate (`AuthoredSection`, ARC-31): a pack owns its section of a
+            person file and seeds its own facts. `naming` owns `display-name`; it is public, and
+            every name differs from its key. Replies say "Earlier, Vera Lindgren said …" or
+            "someone else", and never an id. The biography and the Godot module show names.
+            `schedule` (ARC-32) gives each person an agenda. It never moves anyone itself, and
+            the controller follows it: seats reach 96.7–100 % of agenda time against 39–51 %
+            with following off. I-1 held: kernel, contracts, persistence and server unchanged.
+            Freeze condition met: the restart and AC-15 tests assert the routine-free
+            00:00–05:00 window themselves and fail by name when a boundary moves into it.
+            Reviewed before merge: gates re-run (419/0; 407 tests + 12 doctests, which explains
+            10b's 369 vs 381). Mutation check: with name disclosure turned off, three tests fail
+            (AC-15, naming's AC-2, disclosure).
+            **Known gap (L-12):** people walk ~8 m per in-world hour at the headless pace, so a
+            journey takes a median of 2 h. The routines were authored with parts of the day of
+            at least 4 h so that they can be followed. This is a living-world deficiency for a
+            later step, alongside relationship saturation.
+       S8 COMPLETE. Milestone B is demonstrated and awaits the operator's test (on 266daf7;
+       10c does not change its claims).
        F-1 and F-3 (AC-1: independently installable packs; a controller limited to actions it
        knows by name) are carried to S9 as material findings (step-09 §10.1).
 
@@ -588,12 +604,13 @@ Remaining:  S9 ... S14, Milestones C-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
-  VIS-3D-GODOT-1   vis/3d-human-pipeline @ 098c371 — PREVIEW 2 shown 2026-10-06. Operator's
-                   verdict on preview 1: "too stiff, not like the reference". Fixed since:
-                   townspeople's missing body parts; a reference-matched standing pose with
-                   breathing, gaze drift and blinks. Next, per CHARACTER_ROUTE_ASSESSMENT:
-                   hair groomed from strands into cards, the hoodie draped by cloth simulation,
-                   a skin pass. The face is deferred by the operator until those land.
+  VIS-3D-GODOT-1   vis/3d-human-pipeline @ 6bfcfb7 — FAILED by the operator 2026-10-06 on
+                   preview 3: not the same person, and not the reference's quality tier. The
+                   candidate is kept only as pipeline validation (VISUAL_FIDELITY §9.2). The
+                   operator chose route E: an image-to-3D head as a wrap target, run locally
+                   where an MIT-class generator works on Apple silicon, and through a paid Meshy
+                   account once the operator provides one. Route C (a commissioned artist)
+                   stays the fallback.
   VIS-3D-GODOT-2   vis/3d-godot-2-environment — operator: "café and street look good".
                    Since then: V/F5 camera key with an on-screen toast, Space to jump, every
                    door rebuilt to read as a door, and the slice connected to a real MineWorld
