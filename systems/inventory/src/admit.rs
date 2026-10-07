@@ -6,7 +6,7 @@ use mineworld_kernel::{Emission, WorldRead};
 
 use crate::codec;
 use crate::component::Holdings;
-use crate::event::{ItemsTransferred, Stocked};
+use crate::event::{ItemsConsumed, ItemsProduced, ItemsTransferred, Stocked};
 
 /// How many items a person can carry, every kind together.
 ///
@@ -109,6 +109,111 @@ pub fn transfer(
     )
     .about(vec![from, to])
     .with_participants(vec![from, to]))
+}
+
+/// Whether holdings may take `count` of `item` coming into being in `holder`'s hands: the whole of
+/// what this pack refuses about production (`ARC-38` item 1).
+///
+/// Asked by a producing pack before it states the fact, by [`produce`], and again by this pack's
+/// reduction. A person still carries at most [`PERSON_CAPACITY`]: production is not a way past it.
+///
+/// # Errors
+///
+/// - [`Rejection::PreconditionFailed`]: a count of zero; `holder` not a living Person or Organization;
+///   `item` not a declared kind.
+/// - [`Rejection::TargetUnavailable`]: `holder` cannot take `count` more ([`can_take`]).
+pub fn admit_production(
+    world: &WorldRead<'_>,
+    holder: EntityId,
+    item: ItemId,
+    count: u32,
+) -> Result<(), Rejection> {
+    if count == 0 || !is_holder(world, holder) || !mineworld_item::is_declared(world, item) {
+        return Err(Rejection::PreconditionFailed);
+    }
+    if !can_take(world, holder, count) {
+        return Err(Rejection::TargetUnavailable);
+    }
+    Ok(())
+}
+
+/// The checked constructor: `count` of `item` produced into `holder`'s holdings, as this pack's
+/// [`ItemsProduced`], ready to record.
+///
+/// The only way another pack states the fact (`ARC-26`) — `employment`, when a shift ends. Asks
+/// [`admit_production`] first. Visible to the holder.
+///
+/// # Errors
+///
+/// What [`admit_production`] refuses.
+pub fn produce(
+    world: &WorldRead<'_>,
+    holder: EntityId,
+    item: ItemId,
+    count: u32,
+) -> Result<Emission, Rejection> {
+    admit_production(world, holder, item, count)?;
+    Ok(held_fact::<ItemsProduced>(
+        codec::encode(&ItemsProduced::new(holder, item, count)),
+        holder,
+    ))
+}
+
+/// Whether holdings may give up `count` of `item` by its being used: the whole of what this pack
+/// refuses about consumption (`ARC-38` item 1).
+///
+/// Asked by a consuming pack's `validate`, by [`consume`], and again by this pack's reduction.
+///
+/// # Errors
+///
+/// [`Rejection::PreconditionFailed`]: a count of zero; `holder` not a living Person or Organization;
+/// `item` not a declared kind; `holder` holding fewer than `count`.
+pub fn admit_consumption(
+    world: &WorldRead<'_>,
+    holder: EntityId,
+    item: ItemId,
+    count: u32,
+) -> Result<(), Rejection> {
+    if count == 0 || !is_holder(world, holder) || !mineworld_item::is_declared(world, item) {
+        return Err(Rejection::PreconditionFailed);
+    }
+    let has = world
+        .component::<Holdings>(holder)
+        .map_or(0, |held| held.count(item));
+    if has < count {
+        return Err(Rejection::PreconditionFailed);
+    }
+    Ok(())
+}
+
+/// The checked constructor: `count` of `item` used up from `holder`'s holdings, as this pack's
+/// [`ItemsConsumed`], ready to record.
+///
+/// The only way another pack states the fact (`ARC-26`) — `consumption`, when somebody eats or
+/// drinks. Asks [`admit_consumption`] first. Visible to the holder.
+///
+/// # Errors
+///
+/// What [`admit_consumption`] refuses.
+pub fn consume(
+    world: &WorldRead<'_>,
+    holder: EntityId,
+    item: ItemId,
+    count: u32,
+) -> Result<Emission, Rejection> {
+    admit_consumption(world, holder, item, count)?;
+    Ok(held_fact::<ItemsConsumed>(
+        codec::encode(&ItemsConsumed::new(holder, item, count)),
+        holder,
+    ))
+}
+
+/// A fact about one holder's holdings: visible to that holder, about them, with them as its only
+/// participant.
+fn held_fact<E: mineworld_contracts::Event>(payload: Vec<u8>, holder: EntityId) -> Emission {
+    Emission::new::<E>(payload, Visibility::Participants)
+        .about(vec![holder])
+        .with_participants(vec![holder])
 }
 
 /// Whether holdings may take a `stocked` fact: a living holder, a count of at least one, a declared

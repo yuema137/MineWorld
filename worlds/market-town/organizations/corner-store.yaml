@@ -1,0 +1,17 @@
+# The Corner Store — the organization that runs the convenience store. Its key is not the store's
+# (docs/DECISIONS.md ARC-36).
+tags: [business, store]
+note: Runs the convenience store. Felix works there in the mornings.
+
+# What it has on the shelf at genesis (inventory's `holdings`, ARC-37). Felix's shift restocks it
+# (his `job:` in people/felix.yaml).
+holdings: { apple: 20, bread: 10, milk: 10, juice: 10 }
+
+# The opening balance and the shop it runs (economy's section, ARC-38). Its capital is larger than the
+# café's because it sells cheaper things and pays a larger wage: sized so that it can pay Felix every
+# day for the whole measured run (step-10 §9 E-6, F-51).
+economy:
+  wallet: 300000
+  shop:
+    at: store
+    prices: { apple: 100, bread: 300, milk: 200, juice: 250 }

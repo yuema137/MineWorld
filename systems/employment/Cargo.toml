@@ -1,0 +1,35 @@
+[package]
+name = "mineworld-employment"
+description = "MineWorld's EmploymentSystem: jobs, the employed-by edge and a shift Process per job. Work is attendance at the workplace; a shift ends in wage-due and in inventory's items-produced for the employer. Never touches money."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# The seam a pack owns a section of an authored file through: a person's `job:` (ARC-31).
+mineworld-authoring = { workspace = true }
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# Where people are is presence's state: attendance is read from it at a wake, and heard from its
+# person-entered-place between wakes. Also the perception trait.
+mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
+# TimeOfDay only: the town keeps one time-of-day convention (ARC-32). No system dependency.
+mineworld-schedule = { workspace = true }
+# A shift's production is inventory's items-produced, stated through its checked constructor
+# (ARC-26). A sibling pack, named by path (MODULE_SPEC §3.1).
+mineworld-inventory = { path = "../inventory" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+# The tests seed kinds through item's section, walk people with `move`, decode sections from YAML as
+# the loader does, and restart a saved world mid-shift.
+mineworld-item = { path = "../item" }
+mineworld-movement = { workspace = true }
+mineworld-persistence = { workspace = true }
+serde-saphyr = { workspace = true }

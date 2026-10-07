@@ -7,6 +7,8 @@
 //! must decide a transfer to exercise it. Its `pass` states inventory's `items-transferred` either
 //! through the checked constructor, as every real pack must, or **forged** — bytes built by hand,
 //! past the constructor — which is the defect the owner's reduction exists to refuse (`ARC-26`).
+//! `workshop` is its twin for `items-produced` and `items-consumed` (`ARC-38`), installed only by the
+//! tests of those two facts, so every older test's world is unchanged.
 
 #![allow(dead_code)]
 
@@ -18,7 +20,9 @@ use mineworld_contracts::{
     EventEnvelope, ItemId, LocalPosition, Location, Millimetres, Observation, PersonId, PlaceId,
     Rejection, SystemId, Visibility, WorldTime,
 };
-use mineworld_inventory::{AuthoredHoldings, Holdings, InventorySystem, ItemsTransferred};
+use mineworld_inventory::{
+    AuthoredHoldings, Holdings, InventorySystem, ItemsConsumed, ItemsProduced, ItemsTransferred,
+};
 use mineworld_item::{AuthoredItem, ItemSystem};
 use mineworld_kernel::{
     Dispatched, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
@@ -116,6 +120,146 @@ impl System for Hands {
 }
 
 impl PerceptionProvider for Hands {}
+
+// ---------------------------------------------------------------------------------------------
+// make and use: the same stater for the facts that create and remove items (ARC-38)
+// ---------------------------------------------------------------------------------------------
+
+/// What a [`Change`] does to `holder`'s holdings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Way {
+    /// `items-produced`.
+    Make,
+    /// `items-consumed`.
+    UseUp,
+}
+
+/// Produce or use up `count` of `item` in `holder`'s holdings; `forged` skips the checked
+/// constructor. The holder is named, not taken from the actor, so a test can name a non-holder.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Change {
+    pub holder: EntityId,
+    pub item: ItemId,
+    pub count: u32,
+    pub way: Way,
+    pub forged: bool,
+}
+
+impl Action for Change {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("change");
+    const OWNER: SystemId = Workshop::ID;
+}
+
+/// A second test-only stater beside [`Hands`], for production and consumption. A system of its own,
+/// so that `Hands`' declaration — and every existing test's world — is exactly as it was.
+#[derive(Default)]
+pub struct Workshop;
+
+impl SystemIdentity for Workshop {
+    const ID: SystemId = SystemId::from_static("workshop");
+}
+
+impl System for Workshop {
+    const VERSION: SystemVersion = SystemVersion::new(1);
+
+    fn declaration(&self) -> SystemDeclaration {
+        SystemDeclaration::of::<Self>()
+            .depending_on([InventorySystem::ID])
+            .providing::<Change>()
+            .emitting::<ItemsProduced>()
+            .emitting::<ItemsConsumed>()
+    }
+
+    /// The honest path asks the owner's rule; the forged one asks nothing.
+    fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
+        let change = read_change(intent);
+        if change.forged {
+            return Ok(());
+        }
+        match change.way {
+            Way::Make => mineworld_inventory::admit_production(
+                world,
+                change.holder,
+                change.item,
+                change.count,
+            ),
+            Way::UseUp => mineworld_inventory::admit_consumption(
+                world,
+                change.holder,
+                change.item,
+                change.count,
+            ),
+        }
+    }
+
+    fn resolve(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        intent: &ActionIntent,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let change = read_change(intent);
+        if change.forged {
+            let bytes = serde_json::to_vec(&serde_json::json!({
+                "holder": change.holder,
+                "item": change.item,
+                "count": change.count,
+            }))
+            .expect("encodes");
+            let fact = match change.way {
+                Way::Make => Emission::new::<ItemsProduced>(bytes, Visibility::Participants),
+                Way::UseUp => Emission::new::<ItemsConsumed>(bytes, Visibility::Participants),
+            };
+            return Ok(vec![
+                fact.about(vec![change.holder])
+                    .with_participants(vec![change.holder]),
+            ]);
+        }
+        let read = world.read();
+        let fact = match change.way {
+            Way::Make => {
+                mineworld_inventory::produce(&read, change.holder, change.item, change.count)
+            }
+            Way::UseUp => {
+                mineworld_inventory::consume(&read, change.holder, change.item, change.count)
+            }
+        }
+        .expect("validated against the same rule");
+        Ok(vec![fact])
+    }
+}
+
+impl PerceptionProvider for Workshop {}
+
+fn read_change(intent: &ActionIntent) -> Change {
+    serde_json::from_slice(intent.payload().payload()).expect("a change")
+}
+
+/// The town of [`Town::begun`] with the workshop installed after inventory.
+pub fn begun_with_workshop() -> Town {
+    let (mut town, facts) = Town::assemble();
+    town.world
+        .install(Workshop)
+        .expect("the workshop installs after inventory");
+    town.world.genesis(GENESIS, facts).expect("begins");
+    town
+}
+
+/// Dispatches one `change` at the workshop, asked by `actor`.
+pub fn change(
+    world: &mut World,
+    actor: EntityId,
+    change: &Change,
+    id: u64,
+) -> Result<Dispatched, KernelError> {
+    let at = t(i64::try_from(id).expect("small"));
+    let intent = ActionIntent::new(
+        ActionId::from_raw(id),
+        actor,
+        ActionRecord::new::<Change>(serde_json::to_vec(change).expect("encodes")),
+        at,
+    );
+    world.dispatch(&intent, at)
+}
 
 // ---------------------------------------------------------------------------------------------
 // The town

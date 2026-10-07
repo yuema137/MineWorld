@@ -2578,23 +2578,39 @@ no hunger or sleep; one rejection reason for a buy; shifts within a day). An **A
 packs). `docs/MODULE_SPEC.md` §4.1: "four sections" → six (`economy`, `job`). `docs/PACKAGE_FORMAT.md`
 §8: names the six. `systems/README.md`: the three packs.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: both doc checks; ARC-38 absent from every `origin/*` branch.
-- [ ] Review: no defined term redefined (`Organization`, `Item`, `Process` used as CORE_CONCEPTS
-  defines them; "wallet", "shop", "job" are packs' components, not core terms); the section table
-  matches SD-23/SD-24.
+- [x] Implementation: as scoped. ARC-38 appended after ARC-37 (SD-22 … SD-27 as items 1–6, the five
+  option tables, the dependency diagram, limitations incl. L-13); the ARC-35 note "six market packs"
+  appended after its 11b note; MODULE_SPEC §4.1 "four sections" → six (`economy`, `job` rows);
+  PACKAGE_FORMAT §8 names the six; systems/README lists the three packs and their test commands.
+- [x] Validation: both doc checks (49 ids distinct; 143 sections / 22 documents); ARC-38 absent from
+  every `origin/*` branch after `git fetch` (§9.5 E-E1).
+- [x] Review: no defined term redefined — `Organization`, `Item`, `Process` used as CORE_CONCEPTS
+  defines them; "wallet", "shop", "job", "listing" are packs' components or views, not core terms;
+  the section table matches SD-23/SD-24 (`economy` on people and organizations, `job` on people). One
+  bounded refinement recorded as DE-1 (§4.5.7): `money-transferred`'s reduction also refuses a party
+  that is not a living Person or Organization (SD-24 listed amount, zero and self), the same "living
+  holder" rule inventory applies; ARC-38 states it.
 
 ### E-C2 — `systems/inventory`: produced and consumed
 
 **Scope.** `systems/inventory/src/{event.rs, admit.rs, system.rs, lib.rs}`, `tests/inventory.rs` (new
 cases; existing ones unchanged), README. No dependency change.
 
-- [ ] Implementation: SD-22 — `ItemsProduced`, `ItemsConsumed` (accessors, `pub(crate)` constructors),
+- [x] Implementation: SD-22 — `ItemsProduced`, `ItemsConsumed` (accessors, `pub(crate)` constructors),
   `admit_production`, `admit_consumption`, `produce`, `consume`; declaration emits and subscribes to both;
-  two reduction arms, each asking its admit function before writing.
-- [ ] Validation: `cargo test -p mineworld-inventory` (existing 9 + new); E-3; M-E2; clippy, fmt.
-- [ ] Review: one write path per fact; `PERSON_CAPACITY` applies to production into a person; the
-  existing `transfer` path untouched.
+  two reduction arms, each asking its admit function before writing. Files: `systems/inventory/src/
+  {admit,event,lib,system}.rs`, `README.md`, `tests/{inventory.rs, support/mod.rs}`. Both facts are
+  `Visibility::Participants` with the holder as the only participant (a private `held_fact` helper).
+  The tests' stater for the new facts is a second test-only system, `workshop` (action `change`), so
+  `hands` and every existing test's world are unchanged (DE-2).
+- [x] Validation: `cargo test -p mineworld-inventory` → inventory.rs 10 passed (8 existing + 2 new),
+  persisted.rs 1 passed, 0 failed; clippy `--all-targets -D warnings` and fmt clean. E-3 and M-E2 in
+  §9.5 E-E2 (M-E2 caught by the count-zero case, not the undeclared-kind and non-holder cases: DE-3).
+- [x] Review: one write path per fact (`react`: produced → `adding`, consumed → `removing`, each after
+  its admit function); `admit_production` calls `can_take`, so a person's six holds for production
+  (the forged "past six" case and the positive control "up to six exactly" show it); `transfer`,
+  `admit_transfer`, `admit_stock` and `stocked` byte-for-byte unchanged; no existing test edited —
+  the diff of `tests/inventory.rs` adds imports and two functions only.
 
 ### E-C3 — `systems/employment`
 
@@ -2604,15 +2620,25 @@ Dependencies: authoring, contracts, kernel, presence, sdk, schedule (TimeOfDay o
 (`workspace = true`); `mineworld-inventory = { path = "../inventory" }`; dev: item (path), movement,
 persistence, serde-saphyr.
 
-- [ ] Implementation: SD-23 — `Job`, `Employment` (`owned_component!`), `employed-by` relation
-  declaration, `ShiftProcess`, `Hired`, `ShiftStarted`, `ShiftEnded`, `WageDue` (public accessors — economy
-  decodes it), the `job:` section (`references`: Organization, Place, Items; refuses `until ≤ from` at its
-  line), react (hired, shift-started, shift-ended, person-entered-place), wake, disclosure, `BIOGRAPHICAL
-  = [hired]`.
-- [ ] Validation: `cargo test -p mineworld-employment`; E-6 (incl. the persisted mid-shift restart), the
-  employment half of E-7; M-E6; clippy, fmt.
-- [ ] Review: never names a Wallet or economy (manifest: no economy); wage arithmetic `u64`, no float;
-  a wake reschedules exactly once; `items-produced` only through `produce`.
+- [x] Implementation: SD-23 — `Job`, `Produces`, `Employment` + `OnShift` (`owned_component!`
+  `employment`; the shift in progress is `Option<OnShift>`, so "on shift" and its spans cannot
+  disagree), `employed_by()` / `employed_by_declaration()` (Person → Organization), `ShiftProcess` /
+  `ShiftState`, `Hired`, `ShiftStarted`, `ShiftEnded`, `WageDue` (public accessors — economy decodes
+  it), the `job:` section (`references`: Organization, Place, Items; `#[serde(try_from)]` refuses
+  `until ≤ from` as it is decoded, `EmploymentError::ShiftOutOfOrder`), react (hired, shift-started,
+  shift-ended, person-entered-place), wake, disclosure to the employee, `BIOGRAPHICAL = [hired]`.
+  Files: `systems/employment/{Cargo.toml, README.md, src/{lib,system,section,event,component,error,
+  process,codec}.rs, tests/{employment.rs, persisted.rs, removable.rs, support/mod.rs}}` — `error.rs`
+  added beside §4.5's list, as schedule has one (DE-4). Wage `wage × worked ÷ 3 600` and production
+  `per_shift × worked ÷ shift` computed in `u128`, floored, no float.
+- [x] Validation: `cargo test -p mineworld-employment` → employment 5, persisted 1, removable 3 passed, 0
+  failed; clippy `--all-targets -D warnings`, fmt clean. E-6, the employment half of E-7, M-E6 in §9.5
+  E-E3.
+- [x] Review: names no Wallet and no economy in code or manifest (grep: comments only, saying it does
+  not); wage arithmetic integer; a wake reschedules exactly once per branch (start → `until`, end →
+  `from`), shown by the second day's shifts at the same times; `items-produced` only through
+  `mineworld_inventory::produce`; production refused by inventory (an undeclared kind) is skipped,
+  the wage still due — the only refusal possible for an organization (DE-5).
 
 ### E-C4 — `systems/economy`
 
@@ -2621,51 +2647,72 @@ codec}.rs, tests/{buy.rs, wages.rs, removable.rs, paced.rs, support/mod.rs}}`. `
 `mineworld-employment` by path (employment for `WageDue`'s type only, `ARC-28`); dev: item (path),
 movement, rule-controller (`workspace = true`, D-6's direction), serde-saphyr.
 
-- [ ] Implementation: SD-24 — `Wallet`, `Shop`, `Price`, `Funded`, `ShopOpened`, `MoneyTransferred`,
-  `WageUnpaid`, `Buy`, `buy_requirement`, `purchasable`, the `economy:` section (shop only on an
+- [x] Implementation: SD-24 — `Wallet`, `Shop`, `Price`, `Listing`/`Listed` (the typed view a shop's
+  place discloses), `Funded`, `ShopOpened`, `MoneyTransferred`, `WageUnpaid`, `Buy`, `buy_requirement`,
+  `purchasable`, `admit_payment`/`balance` (`money.rs`, DE-6), the `economy:` section (shop only on an
   organization; references Place and Items), validate/resolve, react (funded, shop-opened,
-  money-transferred, wage-due), offers, disclosure (wallet to holder; listing to the place's perceivers).
-- [ ] Validation: `cargo test -p mineworld-economy`; E-4, E-5, the economy half of E-7; M-E3, M-E4,
-  M-E5; clippy, fmt.
-- [ ] Review: `depending_on` lists inventory and presence, never employment; `subscribing_to::<WageDue>`;
-  the only writes of Wallet and Shop are in react; no `f32`/`f64`; offers only at a shop place.
+  money-transferred, wage-due), offers, disclosure (wallet to holder; listing to the place's
+  perceivers). Files: `systems/economy/{Cargo.toml, README.md, src/{lib,system,section,event,component,
+  action,offer,money,codec}.rs, tests/{buy.rs, wages.rs, removable.rs, paced.rs, support/mod.rs}}`.
+  The reduction refuses a second `funded` for one holder and a second shop in one place (DE-7).
+- [x] Validation: `cargo test -p mineworld-economy` → buy 6, paced 3, removable 3, wages 1 passed, 0
+  failed; clippy `--all-targets -D warnings`, fmt clean. E-4, E-5, the economy half of E-7; M-E3,
+  M-E4, M-E5 in §9.5 E-E4.
+- [x] Review: `depending_on([inventory, presence])`, never employment (asserted by removable.rs on the
+  declaration); `subscribing_to::<WageDue>`; the only `insert`s of Wallet and Shop are in `react`; no
+  `f32`/`f64` (u64 throughout, `checked_add` for the payee); offers only when the observer stands in
+  a place with a Shop, none with a target. The wage answer and `purchasable` each ask
+  `admit_payment` themselves, so the reduction's check is the second guard (M-E3 shows it).
 
 ### E-C5 — `systems/consumption`
 
 **Scope.** `systems/consumption/{Cargo.toml, README.md, src/{lib,system,action,offer,codec}.rs,
 tests/{eat.rs, removable.rs, paced.rs, support/mod.rs}}`. `mineworld-inventory`, `mineworld-item` by path.
 
-- [ ] Implementation: SD-25.
-- [ ] Validation: `cargo test -p mineworld-consumption`; E-8, the consumption half of E-7 (incl. a 10-day
-  paced run in which people eat and drink); M-E7, M-E8; clippy, fmt.
-- [ ] Review: owns no component; `resolve` emits only `consume`'s emission; goods never offered.
+- [x] Implementation: SD-25 — `Eat`, `Drink`, `EATEN = "food"`, `DRUNK = "drink"`, `read_meal` (the
+  action type picks the payload and the category it needs), `meals` offers (complete, no target,
+  `SpatialRequirement::NONE`, in item order), validate (payload → living Person, no target →
+  category matches → `admit_consumption`), resolve (`consume` only). Files: `systems/consumption/
+  {Cargo.toml, README.md, src/{lib,system,action,offer,codec}.rs, tests/{eat.rs, removable.rs, paced.rs,
+  support/mod.rs}}`.
+- [x] Validation: `cargo test -p mineworld-consumption` → eat 3, paced 2, removable 2 passed, 0 failed;
+  clippy `--all-targets -D warnings`, fmt clean. E-8, the consumption half of E-7, the 10-day paced
+  run; M-E7, M-E8 in §9.5 E-E5.
+- [x] Review: declares no component (`owning` absent); `resolve` returns exactly
+  `mineworld_inventory::consume`'s emission; goods fall through `meals`' match and are refused at
+  validate; the category is read from item's `ItemKind`, never stored here.
 
 ### E-C6 — Install: three lines each in `systems/installed`
 
-- [ ] Implementation: `Cargo.toml` three `path` lines; `src/lib.rs` `Economy`, `Employment`,
-  `Consumption` after `ItemTransfer`; `Cargo.lock` regenerated by the build.
-- [ ] Validation: `cargo test -p mineworld-installed-systems -p mineworld-worldpack`; E-2's sha and
-  validate.
-- [ ] Review: `git diff --stat` 3 + 3 lines; no root manifest edit.
+- [x] Implementation: `Cargo.toml` three `path` lines; `src/lib.rs` `Economy`, `Employment`,
+  `Consumption` after `ItemTransfer`; `Cargo.lock` regenerated by the build (+3 names in
+  mineworld-installed-systems' dependency list; the three path packages arrived with E-C3 … E-C5).
+- [x] Validation: `cargo test -p mineworld-installed-systems -p mineworld-worldpack` all passed; E-2's
+  sha = E-0 and validate byte-identical (§9.5 E-E6).
+- [x] Review: `git diff --stat` 3 + 3 lines and Cargo.lock +3; no root manifest edit was needed.
 
 ### E-C7 — `worlds/market-town`
 
-- [ ] Implementation: SD-26, SD-27. Starting sizes from §9 E-6 run 2 (people 200 000 minor units, the two
-  job holders 20 000; café 20 000 and store 300 000; alice 120/h, felix 200/h; per shift café coffee 4,
-  tea 2, croissant 3, cake 2, sandwich 2, soup 2, store apple 4, bread 2, milk 2, juice 2; prices café
-  250–600, store 100–300; opening stock as E-6). Each block commented for a human author.
-- [ ] Validation: E-9 a–d with the scratch reader on a local scratch branch (deleted after), E-10; M-E9.
-  If b fails, re-size and re-measure against the same conditions (at most three 300-day runs, §16).
-- [ ] Review: no place file or existing line changed; every authored person within capacity; every
-  key resolves.
+- [x] Implementation: SD-26, SD-27 at those starting sizes (they are §9 E-6 run 3's, which the text
+  above calls run 2's starting values plus run 3's two changes): people 200 000, alice and felix
+  20 000; café 20 000, store 300 000; alice 120/h at the café 05:30–14:00, felix 200/h at the store
+  08:00–13:00; per shift café coffee 4, tea 2, croissant 3, cake 2, sandwich 2, soup 2, store apple 4,
+  bread 2, milk 2, juice 2; prices café 250–600, store 100–300; opening stock café 58, store 50. Files:
+  `worlds/market-town/{world.yaml, organizations/{cafe-company,corner-store}.yaml, people/*.yaml}`,
+  every block commented. Content commit 1611c1a.
+- [x] Validation: E-9 a, then b (one 300-day sizing run; it passed, so nothing was re-sized), then c,
+  then d; E-10; M-E9 — all in §9.5 E-E7. 300-day market-town runs used: 2 of 4 (E-9, M-E9).
+- [x] Review: no place file or existing line changed (E-10's removals are 11d's README and id/name
+  only); every authored person within capacity (max 3); every key resolves (validate). The world.yaml
+  header paragraph above Social Café's header is market-town's own (11d's), rewritten for 11e.
 
 ### E-C8 — Close: status, change set, full gates, ledger
 
-- [ ] Documentation: `docs/MVP_STATUS.md` rows of E-12; §4.5 checkboxes; a new §9.5 `E-E*`; the handoff.
-- [ ] Validation, once, on the final executable head: fmt, clippy `-D warnings`, `cargo test --workspace`,
-  kill_and_resume, both doc checks, E-1 (with M-E1), E-2.
-- [ ] Review: E-1 … E-12 each with evidence; deviations in a §4.5.7; the PR is merged **with a merge
-  commit** (ARC-35 reads `M^1..M`), said in the PR body.
+- [x] Documentation: `docs/MVP_STATUS.md` rows of E-12 (DE-8); §4.5 checkboxes; §9.5 `E-E0` … `E-E7`,
+  `E-E-final`; §4.5.7 DE-1 … DE-10; the handoff; worlds/market-town/README.md.
+- [x] Validation, once, on the final executable head 15c4651: all PASS (§9.5 E-E-final).
+- [x] Review: E-1 … E-12 each with evidence (E-E-final's table); deviations DE-1 … DE-10 (§4.5.7); the
+  PR is to be merged **with a merge commit** (ARC-35 reads `M^1..M`), said in the PR body.
 
 ### 4.5.4 Test ownership for 11e
 
@@ -2715,6 +2762,67 @@ E-9 replaces them as the current market-town evidence. 11d's per-seat give crite
 carried forward as a criterion: CP-4 is world-level, and gives continue (E-6: ≥ 1 196 per bucket) beside
 purchases and meals; per-seat gives are reported, not required. The social-cafe evidence (E-0) is not
 superseded: E-2 requires it unchanged.
+
+### 4.5.7 Deviations and discoveries during implementation (11e session)
+
+Deviation ids are `DE-<n>` (11d's were `D-D<n>`; `E-D<n>` are 11d's evidence ids).
+
+```text
+DE-1  bounded  money-transferred's reduction also refuses a party that is not a living Person or
+               Organization (SD-24 listed only "more than the payer holds, zero, payer = payee"). Reason:
+               a Wallet lives on holders only, as inventory's Holdings do (is_holder); without it a
+               forged fact could create a wallet on a place. Stated in ARC-38 item 3. Validation:
+               economy's forged-money test.
+DE-2  bounded  inventory's tests state the new facts through a second test-only system, `workshop`
+               (action `change { holder, item, count, way: Make | UseUp, forged }`), not by extending
+               `hands`. Reason: `hands`' declaration is part of every existing test's world; a new
+               system leaves those worlds byte-identical (E-2: existing tests keep their claims).
+DE-3  bounded  M-E2 (items-consumed's reduction skips admit_consumption) is caught by the count-zero
+               case, not by the undeclared-kind and non-holder cases §4.5.3 E-3 named: those are
+               still refused because a holder can only hold declared kinds and a non-holder holds
+               nothing, so Holdings::removing returns None (D-D2's second guard, again). A zero count
+               is the case only the owner's rule refuses — removing 0 is a no-op write. The mutation is
+               caught; no test weakened.
+DE-4  bounded  employment has an `error.rs` (EmploymentError::ShiftOutOfOrder) beside §4.5 E-C3's file
+               list, so `until ≤ from` is refused with the pack's own message as the section is
+               decoded (schedule's pattern, ScheduleError). No behaviour beyond SD-23.
+DE-5  bounded  At a shift's end, a production line inventory's `produce` refuses is skipped, not a
+               failed wake. An organization is unbounded, so the only refusal is an undeclared kind (an
+               item file without `item:`); failing the wake would stop the world for content no pack
+               trades. The wage is still due. Validation: by construction (no test world authors an
+               undeclared produced kind; market-town's `validate` names every kind).
+DE-6  bounded  economy has a `money.rs` (admit_payment, balance, the private `pay` constructor) beside
+               §4.5 E-C4's file list: the one payment rule asked by `purchasable`, by the wage answer
+               and by the reduction (inventory's admit.rs pattern). `Listing`/`Listed` are typed structs
+               in component.rs, so the disclosed listing is not an untyped JSON blob (CLAUDE.md §4
+               rule 7).
+DE-7  bounded  economy's reduction also refuses a second `funded` for a holder that already has a
+               Wallet, and a `shop-opened` for a place that already has a Shop or whose operator is not a
+               living Person or Organization. SD-24 did not say. Reason: both facts are genesis facts
+               from a pack's own section, so a repeat is a defect; two shops in one place would make
+               "the shop here" ambiguous. Validation: by construction; no test world repeats either.
+DE-8  bounded  MVP_STATUS's `worlds/market-town` artefact row is updated here, because E-12 requires it;
+               §16's POST-MERGE SYNC line gives the artefact line to the planning session. The
+               `Updated:` line and the S9 row are left to the planning session. The 11d capability row's
+               "No money, work or shops yet" became a pointer to the new row; its 11d evidence row is
+               kept and marked superseded as current evidence (QS-51, §4.5.6).
+DE-9  process  The handoff edit made on the scratch branch was swept into a local scratch commit by
+               `git commit -a` and deleted with the branch; the handoff was rewritten at E-C8. Nothing
+               scratch reached origin (`git ls-remote --heads origin | grep -c scratch` → 0). No
+               `python3 -c`, `sed -i`, `awk`, `xargs` or `curl` was used in this session.
+DE-10 observ.  E-9 b passed on the first sizing run, with the spike's run-3 sizes unchanged; the numbers
+               equal §9 E-6 run 3 exactly (372 755 facts, buy 2 710, eat 1 710, drink 1 007, give
+               13 032). The store's shelf is empty at day 300 (it sells each morning's production the
+               same day); purchases there continue every bucket. Recorded, not a criterion.
+```
+
+QS-51 (what 11e supersedes): §4.5.6 stands as written. 11d's market-town measurements (§9.4 E-D6) and its
+MVP_STATUS evidence row describe 11d's merge and stay true of it; §9.5 E-E7 replaces them as the current
+market-town evidence. Social Café's E-0 is not superseded (E-2 re-measured it unchanged).
+
+QS-47 (L-13, the bounded-horizon economy): recorded in ARC-38's accepted limitations and in market-town's
+world.yaml header: ten of twelve people have no income; their lowest wallets over 300 days are 95 150 …
+200 000 of 200 000 (E-E7), so the measured horizon holds with margin; past it they run out.
 
 ## 4.6 PR 11f — the proof (medium scope; detailed after 11e merges)
 
@@ -3674,6 +3782,223 @@ E-D-final on 341f2f2 (clean tree; final executable head — later commits are Ma
      D-8  PASS (E-D3 persisted; F-38 reproduced)
      D-9  PASS a, then b, then c, then d (E-D6; M-D7)
      D-10 PASS (E-D6)             D-11 PASS (D-C1 committed first, 27dfbca; doc checks above)
+```
+
+## 9.5 Evidence — PR 11e
+
+Written by the 11e implementation session only (`E-E<n>`).
+
+```text
+--- PR 11e (branch mvp0/pr-11e-work-money-shops, base main @ 4f2a4cd) ---
+
+E-E0 Base captures on 4f2a4cd before any edit, 2026-10-07 (debug, opt-level 1):
+     300-day seed-7 social-cafe: exit 0, 339 lines, sha-256 of all but `wall` =
+     ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 12.0 s.
+     `mineworld validate worlds/social-cafe` sha-256 ebcd60a0…f56a8 = E-D0's.
+     `git diff 70e532f 4f2a4cd -- systems worlds Cargo.lock` empty: §8.6's audit stands (no re-audit).
+     The R-S9-1 spike commits 22a6b58 and d856f1d are still in the object store (unreachable, never
+     pushed); used as a reference only — the packs are written to §4.5's layout, not cherry-picked.
+E-E1 E-C1 specs: check_decision_ids 49 ids, all distinct (ARC-38 new); check_doc_headings 143 sections
+     across 22 documents, none duplicated. ARC-38 absent from every origin/* branch after `git fetch`.
+E-E2 E-C2 inventory: `cargo test -p mineworld-inventory` → inventory.rs 10 passed (8 + 2 new),
+     persisted.rs 1 passed, 0 failed; clippy -p mineworld-inventory --all-targets -D warnings clean;
+     fmt clean. No dependency change (Cargo.lock untouched).
+     E-3: through produce/consume, kiosk coffee 20 → 23 and alice's last tea removed (no zero entry),
+     nobody else changed; each fact Participants = [holder], caused by the request. Past the
+     constructors (forged, workshop): produced undeclared / 0 / into a place / past bob's six, consumed
+     undeclared / 0 / from a place / more than held → each FactRefusedByOwner { inventory,
+     items-produced | items-consumed } with PreconditionFailed (TargetUnavailable for past six), state
+     bytes unchanged, and the constructor refuses each with the same reason; positive controls (forged
+     valid production up to exactly six, forged valid consumption) reduced. → PASS.
+     M-E2 (`// MUTATION M-E2`: the items-consumed arm skips admit_consumption): the refusal test
+     FAILED — "inventory must refuse as the owner, but got Ok(… Accepted … items-consumed …
+     ActionId(6))", the count-zero case (DE-3). Reverted; `git grep MUTATION -- systems` empty;
+     10 + 1 passed again.
+E-E3 E-C3 employment: `cargo test -p mineworld-employment` → employment.rs 5, persisted.rs 1,
+     removable.rs 3 passed, 0 failed; clippy -p mineworld-employment --all-targets -D warnings clean;
+     fmt clean. Cargo.lock: +1 path package (mineworld-employment, no `source`).
+     E-6 (job 08:00–12:00, 120/h, coffee 4 + croissant 2 per full shift; numbers worked by hand in the
+     test's doc): shift-started present alice true, bob true, carol false, dave false; shift-ended
+     worked 14 400 / 7 200 / 3 600 / 0; wage-due 480 / 240 / 120 and none for dave; items-produced for
+     the employer coffee 4, croissant 2 (alice), coffee 2, croissant 1 (bob), coffee 1 (carol: the
+     croissant's 0.5 floored and skipped); employer's stock 1 → coffee 8, croissant 3; every shift
+     fact caused by its Process; wage-due Participants = [employee, employer]; no money-transferred.
+     Day 1: one start per employee at 08:00 and one end at 12:00, nothing between shifts. hired:
+     genesis, visible to the employee, Employment written, employed-by edge to the organization.
+     Disclosure: to the employee only. Section: until ≤ from, an empty shift, an unknown key, a zero
+     production and a negative wage refused at decode. → PASS.
+     Persisted (E-6 restart): saved at 10:30 (alice's open span since 08:00, bob's closed 7 200 s —
+     located in the saved state), resumed into a freshly composed world: both Employments equal; the
+     shift ends worked [14 400, 7 200, 3 600, 0]; the facts after the stop byte-identical to the
+     uninterrupted world's; verify() passes. → PASS.
+     E-7 (employment half): without economy, three days state 7 wage-dues and 12 shift-ends with no
+     money fact and no fault; a world without employment runs the same walks and its facts equal the
+     world-with's minus hired/shift-*/wage-due/items-produced (causes compared by the causing fact's
+     instant, type and payload, since the hired facts shift event ids); employment without inventory →
+     SystemDependencyMissing { employment, inventory }. → PASS.
+     M-E6 (`// MUTATION M-E6`: the reaction ignores a departure, `&& false`): employment.rs
+     a_shift_is_paid… FAILED "seconds at the workplace during the shift: left [… ("bob", 14400) …]
+     right [… ("bob", 7200) …]" (paid for the whole shift), and persisted.rs FAILED too. Reverted;
+     `git grep MUTATION -- systems` empty; 5 + 1 + 3 passed again.
+E-E4 E-C4 economy: `cargo test -p mineworld-economy` → buy.rs 6, paced.rs 3, removable.rs 3, wages.rs 1
+     passed, 0 failed; clippy -p mineworld-economy --all-targets -D warnings clean; fmt clean.
+     Cargo.lock: +1 path package (mineworld-economy, no `source`).
+     E-5 (store: apple 100, bread 300, juice 200 priced, juice not stocked, pen unpriced): alice (1 000)
+     offered apple ✓ bread ✓ juice ✗; bob (150) apple ✓ bread ✗ juice ✗; erin (carrying six) all ✗;
+     every ✗ TargetUnavailable; carol on the street none; no buy carries a target. alice buys bread →
+     money-transferred alice → corner-store 300, Visibility::Place(store), and items-transferred
+     corner-store → alice bread 1, Participants, both Causation::Action; wallets 700 / 1 300. At
+     dispatch: cannot pay, out of stock, cannot carry → TargetUnavailable; on the street, unpriced →
+     NoSupportedInteraction; each writes nothing. Listing seen by bob in the store: (100, 3), (300, 2),
+     (200, 0), operator corner-store; not seen by carol on the street; after alice buys an apple bob
+     sees (100, 2) — CP-7's perception path. Wallet disclosed to its holder only. Paced, 10 days, seed
+     7, pace 900 s, seats alice/bob/carol, store stocked apple 40 + bread 40: 1 507 requests, 7 buys by
+     2 buyers, every buy accepted, each caused exactly [money-transferred, items-transferred] paid by
+     the asker; nobody past six; two runs byte-identical; the controller's manifest names none of the
+     six market packs. → PASS.
+     E-4: forged money-transferred (ledger stater) — more than the payer holds, zero, to oneself, to a
+     place → FactRefusedByOwner { economy, money-transferred, PreconditionFailed }, state bytes
+     unchanged; positive control (bob → alice 150, to exactly zero) reduced. Wages (employment
+     installed): alice's 480 from corner-store (1 000) → one money-transferred caused by
+     Causation::Event(her wage-due), Participants; bob's 480 from poor-co (100) → wage-unpaid caused by
+     his wage-due, no money-transferred; wallets alice 1 480, corner-store 520, bob 150, poor-co 100. →
+     PASS. Static, recorded not tested: employment cannot write a Wallet (no write token; its manifest
+     does not name economy).
+     E-7 (economy half): economy's declaration does not depend on employment, and a world without
+     employment sells; a world without economy offers no buy, answers Unavailable, holdings and wallets
+     unchanged; economy without inventory → SystemDependencyMissing { economy, inventory }. → PASS.
+     M-E3 (`// MUTATION M-E3`: the wage answer pays without the balance check): wages.rs FAILED —
+     "advances: FactRefusedByOwner { economy, money-transferred, PreconditionFailed }": the payment
+     was refused by the reduction instead, as §4.5.3 predicted. Reverted.
+     M-E4 (offers built with Offer::new, incomplete): buy.rs a_person_in_a_shop… FAILED ("a complete
+     affordance carries its request"); paced.rs the_unchanged… FAILED ("at least two people buy: {}
+     (0 buys)") and two_runs… FAILED ("the comparison is of runs that bought"). Reverted.
+     M-E5 (`purchasable` ignores the balance, `|| true`): buy.rs a_person_in_a_shop… FAILED ("bob's 150
+     pays for an apple (100), not for bread (300)": bread offered available) and a_buy_is_refused…
+     FAILED (bob's bread passed validate and was refused by the reduction); both paced tests FAILED the
+     same way. Reverted; `git grep MUTATION -- systems` and grep of the untracked packs empty; 6 + 3 +
+     3 + 1 passed again.
+E-E5 E-C5 consumption: `cargo test -p mineworld-consumption` → eat.rs 3, paced.rs 2, removable.rs 2
+     passed, 0 failed; clippy -p mineworld-consumption --all-targets -D warnings clean; fmt clean.
+     Cargo.lock: +1 path package (mineworld-consumption, no `source`).
+     E-8: alice (coffee, croissant, mug) offered [drink coffee, eat croissant], no target, available;
+     bob [drink tea]; carol nothing; the mug never. alice eats the croissant and drinks the coffee →
+     one items-consumed each (and nothing else), Participants = [alice], Causation::Action; she keeps
+     the mug. Refused at dispatch, writing nothing: eat a drink, drink a food, eat goods, a meal with a
+     target → NoSupportedInteraction; eat what one does not carry → PreconditionFailed. Paced, 10
+     days, seed 7, pace 900 s: 11 meals by 2 people, every one accepted, each exactly one
+     items-consumed caused by it and eaten by the asker; at the end alice holds only the mug and bob
+     nothing; two runs byte-identical. → PASS.
+     E-7 (consumption half): without consumption, no eat/drink offered to anybody, both answered
+     Unavailable, holdings unchanged; consumption without inventory → SystemDependencyMissing {
+     consumption, inventory }. → PASS.
+     M-E7 (`WITHOUT = true`: the "without" world enables consumption) and M-E8 (`// MUTATION M-E8`:
+     validate's category check removed) applied together, each failing in a binary the other cannot
+     touch: removable.rs FAILED "alice is offered a meal in a world without consumption" (offers do not
+     pass through validate); eat.rs the_wrong_meal… FAILED "a drink is not eaten: left Accepted, right
+     Rejected(NoSupportedInteraction)" (eat.rs's world does not read WITHOUT). Reverted; grep MUTATION
+     over systems/ empty; 3 + 2 + 2 passed again.
+E-E6 E-C6 install: `cargo test --no-fail-fast -p mineworld-installed-systems -p mineworld-worldpack` →
+     installed 3, worldpack unit 4, content_kinds 1, refusals 38, social_cafe 15, structure 2, doc 1;
+     0 failed. Diff: systems/installed/Cargo.toml +3, src/lib.rs +3, Cargo.lock +3 (the three names in
+     mineworld-installed-systems' dependencies). I-4 on this working tree (debug, opt-level 1):
+     300-day seed-7 social-cafe sha-256 of all but `wall` = ad49c723…c64b = E-0; wall 12.3 s.
+     `validate worlds/social-cafe` byte-identical to E-E0's (cmp).
+E-E7 E-C7 market-town, content commit 1611c1a (the spike's run-3 sizing, unchanged), on c2d9b8f's
+     build (debug, opt-level 1), 2026-10-07. The scratch reader lived on local branch
+     scratch/11e-reader (systems/employment/tests/scratch_reader.rs, decoding JSON payloads; commits
+     fe882e1, 5feffc1, 8b9633d), never pushed, deleted after (`git branch -D`; `git ls-remote --heads
+     origin | grep -c scratch` → 0). Logs in /tmp/s9-11e/. In the order I-7 binds:
+     a. `mineworld validate worlds/market-town` → valid; ids 1–38 exactly 11d's (places 1–6, people
+        7–18, kinds 19–38), cafe-company 39, corner-store 40; 129 genesis facts = 101 + 10 stocked
+        (organizations) + 14 funded + 2 shop-opened + 2 hired. → PASS.
+     b. ACTIVITY FIRST. Sizing run 1 — the only sizing run; it passed, so no re-sizing — `run
+        worlds/market-town --headless --seed 7 --days 300 --save /tmp/s9-11e/mt300-run1` → exit 0,
+        faults 0, 372 755 facts; requests: buy accepted 2 710, eat 1 710, drink 1 007, give 13 032, move
+        173 113, talk 60 524, no rejected or unavailable line. Every seat moved and talked in every
+        30-day bucket (minima: move 1 395, talk 388 per seat-bucket). Reader, every condition stated in
+        §4.5.3 E-9 b before measuring:
+          purchases per bucket   349, 256, 276, 265, 250, 271, 247, 264, 258, 274        (≥ 1 ✓)
+          wages paid alice/felix [30,29] [30,29] [30,30] [30,30] [30,28] [30,29] [30,28] [30,28]
+                                 [30,29] [30,30]                                       (each ≥ 1 ✓)
+          items-produced facts   203, 197, 194, 195, 194, 195, 198, 196, 200, 197       (≥ 1 ✓)
+          items-consumed facts   358, 256, 275, 265, 251, 270, 251, 262, 258, 271       (≥ 1 ✓)
+          gives                  1 382, 1 317, 1 293, 1 316, 1 253, 1 274, 1 262, 1 349, 1 290, 1 296
+                                 (≥ 1 ✓; per seat reported, not required: every seat gave in every
+                                 bucket, fewest 77)
+          wage-due 590, wage-unpaid 0                                                   (✓)
+          lowest wallet ever     felix 2 313, alice 16 710, café 20 000 (its opening balance), store
+                                 246 190, every other person ≥ 95 150 — all ≥ 100, the cheapest price
+                                 (✓; Otto and dev never spend: 200 000)
+          money                  2 360 000 at genesis and at the end                     (✓)
+          most anybody held      6, all twelve people                                   (✓)
+        At the end the café holds 170 items and 670 100; the store holds 0 items (it sells each
+        morning's production the same day) and 246 290. → PASS. These numbers equal the spike's run 3
+        (§9 E-6) exactly: the same content on the same packs' semantics.
+     c. ONLY THEN DETERMINISM. Two 30-day seed-7 runs: identical but `wall` (diff empty; sha-256 of all
+        but wall cf859e57…24ed; 38 004 facts, faults 0). A save run to day 15 (19 175 facts) then
+        resumed to day 30 ("resumed … at revision 14500 (snapshot 14464 + 36 re-executed)") vs the
+        uninterrupted 30-day save: both 38 004 facts, fingerprint f4055c0cff59c9fe; every fact dumped
+        from each save (scratch `dump`) byte-identical (cmp; sha-256 a5a50bf6…16e4). → PASS.
+     d. COST. The 300-day run with --save: wall 33.5 s (≤ 60 s). → PASS.
+     M-E9 (scratch commit: `consumption` removed from world.yaml's systems): 300 days with --save, exit
+       0, faults 0, wall 35.2 s, buy accepted 42, give accepted 253; reader FAILED: purchases 42 in
+       bucket 0 and none after; gives 253 then none (everybody holds six: the 11d sink, everywhere);
+       consumed 0; alice paid 30 then 13 then never — wage-unpaid 257 (the café's wallet fell to 30);
+       "holder 39 fell to 30". QS-35's failure, seen by the instrument. Scratch branch deleted.
+     E-10: `git diff --no-index worlds/social-cafe worlds/market-town` → 36 files, 293+ 49−; the
+       removals are README.md (rewritten in 11d) and world.yaml's id/name only. Beyond 11d's delta:
+       world.yaml's header paragraph, the three appended systems with their comment, the
+       `organizations:` list; organizations/cafe-company.yaml and corner-store.yaml; per person file an
+       appended commented `economy:` block, and `job:` for alice and felix. No place file differs. →
+       PASS.
+E-E-final on 15c4651 (clean tree; final executable head — the last non-Markdown commit is 1611c1a, and
+     every later commit is Markdown only), base 4f2a4cd, 2026-10-07; logs /tmp/s9-11e/final/:
+     cargo fmt --all --check                                           PASS
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS
+     cargo test --workspace --no-fail-fast    510 passed, 0 failed, 0 ignored across 121 test binaries
+                                              and doc-test runs (11d's 479 + 31 new: inventory 2,
+                                              employment 9, economy 13, consumption 7); 176 s wall
+     kill_and_resume                          cafe PASS (0.2 s), clock PASS (0.1 s)
+     check_decision_ids                       49 ids, all distinct
+     check_doc_headings                       143 sections across 22 documents, none duplicated
+     I-2 scan                                 the_precursors_add_no_market_concept PASS inside the run
+                                              (no row or entry added)
+     E-2 / I-4                                300-day seed-7 social-cafe sha-256 of all but wall =
+                                              ad49c723…c64b = E-0; faults 0; 365 330 facts; wall 12.1 s;
+                                              `validate worlds/social-cafe` byte-identical (E-E6)
+     E-1                                      `git diff --name-only 4f2a4cd...HEAD`: 74 paths —
+                                              .structured-coding/plans/mvp0/{handoff,step-10-market}.md,
+                                              Cargo.lock, docs/{DECISIONS,MODULE_SPEC,MVP_STATUS,
+                                              PACKAGE_FORMAT}.md, systems/README.md,
+                                              systems/consumption/** (11), systems/economy/** (16),
+                                              systems/employment/** (14), systems/installed/{Cargo.toml,
+                                              src/lib.rs}, systems/inventory/{README.md, src/{admit,event,
+                                              lib,system}.rs, tests/{inventory.rs,support/mod.rs}},
+                                              worlds/market-town/{README.md, world.yaml,
+                                              organizations/{cafe-company,corner-store}.yaml, people/*.yaml
+                                              (12)}; non-Markdown paths outside systems/, worlds/ and
+                                              Cargo.lock: 0. `git diff 4f2a4cd...HEAD -- Cargo.lock`: +3
+                                              [[package]] (mineworld-consumption, -economy, -employment),
+                                              none with a `source`; +3 names in
+                                              mineworld-installed-systems' dependency list; nothing else.
+     M-E1                                     `// MUTATION M-E1` added to kernel/src/lib.rs in the working
+                                              tree → the same filter (`git diff --name-only 4f2a4cd`)
+                                              listed `kernel/src/lib.rs`; reverted (git checkout), count
+                                              of outside paths back to 0, tree clean.
+     CI: none configured (S13).
+
+     E-1 … E-12 at a glance:
+     E-1  PASS (above; M-E1)               E-2  PASS (above; no existing test outside
+                                                inventory's edited; inventory's 8 existing cases
+                                                unchanged, two added)
+     E-3  PASS (E-E2; M-E2, DE-3)          E-4  PASS (E-E4; M-E3)
+     E-5  PASS (E-E4; M-E4, M-E5)          E-6  PASS (E-E3; M-E6)
+     E-7  PASS (E-E3, E-E4, E-E5; M-E7)    E-8  PASS (E-E5; M-E8)
+     E-9  PASS a, then b, then c, then d (E-E7; M-E9)
+     E-10 PASS (E-E7)                      E-11 PASS (E-C1 committed first, 75d3dc1; doc checks above)
+     E-12 PASS (MVP_STATUS: the 11d rows kept and marked superseded as current market-town evidence;
+          a new capability row and evidence row; the artefact row updated — DE-8)
 ```
 
 ---

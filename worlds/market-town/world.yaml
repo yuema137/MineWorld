@@ -2,9 +2,15 @@
 #
 # Every file of `worlds/social-cafe` was copied byte for byte. The difference is configuration only
 # (`docs/DECISIONS.md` `ARC-35` check 3): this header, the world's id and name, the systems appended to
-# `systems`, the `items` list and `items/`, and one `holdings:` section appended to each person file.
-# No place file and no existing field or section changes. The second half of the market — economy,
-# employment, organizations, shops and work — arrives in step-10 PR 11e.
+# `systems`, the `items` and `organizations` lists with `items/` and `organizations/`, and sections
+# appended to each person file — `holdings:` and `economy:` for everybody, `job:` for Alice and Felix.
+# No place file and no existing field or section changes.
+#
+# People own things and give them (`ARC-37`); two of them work, every shift paid and producing stock;
+# everyone buys food and drink at the café and the store, and eats and drinks what they carry
+# (`ARC-38`). Endowments, prices, wages and production are sized so that the market lives through a
+# 300-day run without draining a wallet (step-10 §4.5.3 E-9). People without a job live on their
+# endowment: a bounded horizon, not a closed economy (living-world gap L-13).
 #
 # What follows is Social Café's own header, unchanged.
 #
@@ -56,6 +62,22 @@ systems:
   - item
   - inventory
   - item-transfer
+  # Work, money, shops and eating (`ARC-38`), appended in turn. `economy` (which depends on
+  # `inventory` and `presence`) owns wallets and shops and is the only system that moves money;
+  # `employment` (same dependencies) owns the two jobs and states the wages due, which economy pays;
+  # `consumption` (which depends on `inventory`) lets people eat food and drink drinks they carry.
+  # Leave out `consumption` and nothing is ever used up; leave out `employment` and nobody is paid
+  # and nothing is restocked; leave out `economy` and nothing is sold — each with its sections.
+  - economy
+  - employment
+  - consumption
+
+# The two organizations that run the shops (`ARC-36`): each key names a file in `organizations/`, and
+# is not the key of the place it runs, because keys are one namespace. Allocated identities after the
+# items, so every identity above stays where it was.
+organizations:
+  - cafe-company
+  - corner-store
 
 # The five places of `docs/MVP.md` §3, and the street that joins them. Each place has one doorway, onto
 # the street, so a person walks between any two through at most two doors; travel between places that

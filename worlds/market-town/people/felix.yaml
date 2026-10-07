@@ -25,3 +25,16 @@ location:
 
 # Market Town: what he carries at the start (inventory's `holdings`, ARC-37; see alice.yaml).
 holdings: { juice: 1, sandwich: 1 }
+
+# Market Town: his money (economy's section, ARC-38; see alice.yaml).
+economy: { wallet: 20000 }
+
+# Market Town: his job (employment's section, ARC-38; see alice.yaml). His routine already has him in
+# the store from 08:00 to 13:00, and he starts the day there.
+job:
+  employer: corner-store
+  workplace: store
+  from: "08:00"
+  until: "13:00"
+  wage: 200
+  produces: { apple: 4, bread: 2, milk: 2, juice: 2 }

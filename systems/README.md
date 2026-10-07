@@ -15,10 +15,13 @@ schedule/        a person's day, from their `routine:` section — an agenda kep
 item/            what kinds of things exist, from an item file's `item:` section
 inventory/       who holds how many of each kind — the only writer of holdings, with a person's capacity
 item-transfer/   `give`: offered complete for each kind held; states inventory's fact, owns nothing
+employment/      jobs from a person's `job:` section; a shift is a Process, work is being there; wage-due
+economy/         wallets and shops from the `economy:` section, `buy`, and wages — the only mover of money
+consumption/     `eat` food and `drink` drinks a person carries; states inventory's fact, owns nothing
 ```
 
-All ten are real packs, not examples. The first seven are what the vertical slice runs on; the last
-three are the first half of Market Town ([`DECISIONS.md` `ARC-37`](../docs/DECISIONS.md)). The first
+All thirteen are real packs, not examples. The first seven are what the vertical slice runs on; the
+last six are Market Town ([`DECISIONS.md` `ARC-37`, `ARC-38`](../docs/DECISIONS.md)). The first
 three are also the
 worked example every later pack copies, so they are written to be read in this order —
 `src/lib.rs` first, then the action, the event, the component, and `src/system.rs` last.
@@ -82,6 +85,9 @@ cargo test -p mineworld-schedule          # a day kept by a Process that moves n
 cargo test -p mineworld-item              # a kind declared from an item file's section
 cargo test -p mineworld-inventory         # holdings, refused facts, capacity, a restart
 cargo test -p mineworld-item-transfer     # give through the unchanged controller, and AC-2
+cargo test -p mineworld-employment        # shifts paid for the time present, and a restart mid-shift
+cargo test -p mineworld-economy           # buy through the unchanged controller, wages, AC-2 both ways
+cargo test -p mineworld-consumption       # eat food, drink drinks, never goods, and AC-2
 cargo doc -p mineworld-conversation --open
 ```
 

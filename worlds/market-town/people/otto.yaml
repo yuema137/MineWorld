@@ -30,3 +30,7 @@ location:
 # drives Otto, so he never gives — and people who meet him may give to him. A person carries at most
 # six, so he can take only so much; that bound is inventory's rule, kept for exactly this person.
 holdings: { newspaper: 1, soup: 1 }
+
+# Market Town: his money (economy's section, ARC-38; see alice.yaml). Nobody drives Otto, so he never
+# buys; his wallet is there because everybody here has one.
+economy: { wallet: 200000 }
