@@ -607,9 +607,13 @@ town.
 
 ### C5 — Documentation and ledger close for 10a
 
-- [ ] `worlds/social-cafe/README.md` (the town, the seats, the café's provenance), `docs/MVP_STATUS.md`.
+- [x] `worlds/social-cafe/README.md` (the town, the seats, the café's provenance), `docs/MVP_STATUS.md`
+  (Place row, `worlds/social-cafe` artefact row, S8 stage row, the AC-11 evidence row, and a new
+  counter evidence row). The handoff is refreshed.
 - [ ] Full gates once on the final executable head (§6).
-- [ ] Review: the README links to MODULE_SPEC §4 and does not restate rules.
+- [x] Review: the README links to MODULE_SPEC §4, `docs/MVP.md` §9, `server/PROTOCOL.md` §6.2 and this
+  design. It states no rule; distances and ranges stay with the systems. MVP_STATUS marks ✅ only
+  what was run and inspected in E-1 to E-3.
 
 ## 4.2 PR 10b — social life → Milestone B (commit level; detailed after 10a merges)
 

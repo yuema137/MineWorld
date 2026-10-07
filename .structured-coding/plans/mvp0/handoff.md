@@ -44,9 +44,15 @@ merge                                        operator only — DO NOT MERGE
 
 ## Current checkpoint and next actions
 
-Checkpoint: freeze recorded; C1 next.
-Next: C1 — derive the café frame from vis-environment @ 27820df, rewrite positions, update pinned
-literals, add `a_person_at_the_counter_can_talk_to_alice`, show it fails on the old geometry.
+Checkpoint: C1 (7eb4462), C2 (aacfa16), C3 (d61fb29) committed and pushed. C4's work was folded into
+C1 and C2 (bounded deviation: ac13 replays recorded frames). Evidence is in design §9, E-1 to E-3.
+Discoveries so far:
+- the pre-existing `toward` overshoot defect, fixed in C3;
+- pace raised to 900 s under Q4;
+- two procedural slips (`sed -i`, a no-op `awk`), recorded in E-1 and E-3 and reported.
+Next: C5. Update `worlds/social-cafe/README.md` and `docs/MVP_STATUS.md` (lines 19 and 35 are stale:
+"two places", "four people, three seats"). Then run the full gates once on the final executable head,
+open the PR with `gh pr create` without merging, and write the closeout §12.
 
 ## Stop conditions
 
