@@ -195,7 +195,7 @@ a part or a wrap target.
 ## 8. Blocked or operator-gated items, recorded up front
 
 - **Meshy**: needs the operator's paid account and `MESHY_API_KEY`. Absent at the time of
-  writing; reported as "blocked on operator: Meshy key" if still absent at that step.
+  writing; **provided by the operator on 2026-10-06 (Pro plan) and used, §§9.4–9.6.**
 - **TRELLIS.2 on Apple silicon**: installing the port means cloning and compiling Metal extensions
   from individual developers' repositories and logging into Hugging Face for gated weights. The
   session's permission policy refused the dependency clone as untrusted code integration on
@@ -447,3 +447,127 @@ object at the reference's framing, Meshy's whole character is at the reference's
 reads as the same character. As a game character it is one fused, unrigged, 1.3-million-triangle
 statue: the hair, hood and pack cannot move separately, the hand is welded to the strap, and the
 face cannot blink or smile.
+
+### 9.7 The wrap of the Meshy head onto the CharMorph head — three configurations
+
+**Harness check first.** The body export the committed character was built from was identified as
+`scratch-character/s3/body_g5.glb` by rebuilding it through the unchanged `character_model.py`: the
+result is **byte-identical** to the committed `vitruvian.glb` (`cmp`). An identity wrap (blend 0)
+re-exported through Blender and rebuilt gives the same face count, the blink matching 1,099 of
+1,099, the same height, and 23 extra vertices from glTF normal splitting on re-export (faces
+unchanged) — recorded, harmless.
+
+**Tool:** `/Users/yuema137/mineworld-demos/i23d/wrap_head.py` (Blender headless), landmarks in
+`wrap/landmarks_meshy_head_v1.json`. It implements §4 with these specifics, each a bounded
+adjustment:
+
+- the target is decimated to 469,233 faces for the BVH;
+- landmark similarity with the nose down-weighted (0.15): the nose projection is a style
+  difference, not an alignment cue; then a similarity ICP on 2,218 face vertices with the landmarks
+  kept in the fit at half the weight. Residual after alignment: median surface distance 2.3 mm;
+  canthi 4–8 mm, mouth corners 7–9 mm, chin 6 mm (these residuals *are* the shape difference the
+  wrap transfers);
+- nearest-surface displacement, field-smoothed (12 passes), snap limit `MAX_D`;
+- eyes by the similarity of their canthi; the far eye's outer canthus is unreliable in the
+  target's turned view (8 mm residual; measured eye scale 1.39 against 1.17 for the near eye), so
+  both eyes take the near eye's scale, mirrored;
+- **one bug found and fixed (`ARC-23`):** glTF splits vertices along UV and normal seams, the
+  mesh graph does not connect the copies, so the smoothed field differed across 95 seam groups and
+  opened hairline cracks (one visible on the philtrum, one showing the red nasal interior through a
+  nostril at runtime). All coincident vertices now take one displacement.
+
+| | Settings | Result | Frame |
+| --- | --- | --- | --- |
+| 1 | blend 1.0, `MAX_D` 12 mm, eyes per side, blend ring 0.75–1.25 eye widths | rounder cheeks and jaw; **a visible ring around her left eye and a torn outer corner** (from the 1.39 scale) | `e11` (right tile) |
+| 2 | eyes symmetric at 1.17, ring 0.55–1.6, field re-smoothed outside the lids | ring gone; at runtime the **lips part and show teeth**, and a red fleck shows in a nostril | `e11` (second tile); runtime frames kept in `runtime_w2/` |
+| 3 | blend 0.8, `MAX_D` 6 mm, the mouth moved as one piece, seams welded | **clean**: no ring, no crack, lips closed, blink 1,099 / 1,099 matched (lid travel 13.8 mm against 10.5 mm before, because the lids are 14 % larger) | `e8`, `e9`, `e10` |
+
+Attempt 3 is the result. The stop rule (§7.2) allowed three configurations; the third is not
+broken, so the wrap itself did not stop on geometry.
+
+**Evidence, from the running client** (`./mineworld-3d --portrait`, the before frames captured in
+the same session from the committed GLB; the committed GLB was restored afterwards and nothing of
+the wrap is committed):
+[`e8_wrap_runtime_head.jpg`](../../presentation/mineworld-default/3D/candidate/route_e/e8_wrap_runtime_head.jpg)
+(reference | P6 before | P6 after),
+[`e9_wrap_runtime_chest.jpg`](../../presentation/mineworld-default/3D/candidate/route_e/e9_wrap_runtime_chest.jpg)
+(reference | P1 before | after | P2 before | after),
+[`e10_wrap_runtime_face_3x.jpg`](../../presentation/mineworld-default/3D/candidate/route_e/e10_wrap_runtime_face_3x.jpg)
+(P6 face, before | after, 3×).
+
+**§6.2 ratios on P6** (before → after, reference): (a) inter-eye 0.52 → **0.57** (0.67);
+(b) nose → mouth 0.26 → 0.27 (0.25); (c) mouth → chin 0.38 → 0.39 (0.40); (d) face width 1.18 →
+**1.24** (1.34). Three of four nearer on paper, but only (a) and (d) move by more than the reading
+error, and both remain 0.10 short of the reference.
+
+**What moved, as visible fact:** the eyes are about 14 % larger with the lids following them; the
+cheeks are fuller below the eyes and the jaw line softer; the chin a little rounder. **What did not
+move:** everything a viewer reads first — the iris rolled to the corner with white showing beside
+it, no heavy upper lash line, the flat neutral mouth with no smile, the hard-edged painted brows,
+the dark freckle-spotted skin, the hair. At P1/P2 framing the before and after frames are hard to
+tell apart.
+
+### 9.8 Scorecard (`VISUAL_FIDELITY.md` §6), wrapped head, runtime frames
+
+Largest miss first.
+
+| Row | Reference | Candidate (attempt 3) | Frame | Verdict |
+| --- | --- | --- | --- | --- |
+| Overall identity | — | not the same person; the wrap is visible only side by side with the before frame | `e8`, `e9` | **FAIL** |
+| Face identity | small soft young face, large almond eyes under a heavy lash line, short small nose, closed warm smile, freckles | the same realistic face with eyes 14 % larger and fuller cheeks; blank stare, no lash line, neutral flat mouth | `e8`, `e10` | **FAIL** |
+| Material quality | soft warm skin, clean materials, a high-quality game render | unchanged: dark mottled skin, painted-block hair, dry cloth | `e8`, `e9` | **FAIL** |
+| Hair silhouette | light fluffy updo, loose face strands | unchanged (not in route E's scope) | `e9` | **FAIL** |
+| Hair colour | warm brown with caramel highlights | unchanged; orange-brown blocks | `e8` | **FAIL** |
+| Hoodie structure | open burgundy zip hoodie, hood, cords, cuffs, drape | unchanged | `e9` | **FAIL** |
+| T-shirt and graphic | oatmeal tee, mountain print high on the chest | unchanged | `e9` | **FAIL** |
+| Backpack | natural straps sitting on her | unchanged | `e9` | **FAIL** |
+| Overall vibe | warm, relaxed, cute, everyday | still a stiff low-cost demo character | `e9` | **FAIL** |
+
+**§9 answer: no.** A stranger shown the reference and the wrapped head side by side would not
+recognise them as the same character, and would not see a different tier of quality from the
+FAILED candidate. **This is not a preview** (§9.1 requires face identity at least `PARTIAL` with a
+visible improvement; it is `FAIL`). **Route E, as specified, is `FAILED`** for every generator
+tried.
+
+### 9.9 What the experiment found
+
+1. **The local generators cannot do it.** TripoSR and TripoSG both run on this Mac without CUDA
+   and without any non-commercial component; both stop at the raw-mesh gate (§§9.2–9.3).
+2. **Meshy 7.1 can produce the reference's identity and quality tier — as a statue.** Its head and
+   whole character are the first artefacts in this project's history that read as the same person
+   at the reference's framing (§§9.5–9.6, `e4`, `e6`). The route D prediction was wrong about
+   appearance and right about structure: one fused, unrigged, million-triangle surface.
+3. **Wrapping does not carry the identity across.** After alignment, Meshy's face surface lies
+   within a median 2.3 mm of CharMorph's. The identity the generated head carries is in its
+   **painted** layer — the lash line, the iris, the brows, the smile corners, the skin — and in its
+   hair, not in a few millimetres of shape. Route E transfers only shape, by design (§4), so it
+   moves the ratios and leaves the person unchanged.
+
+### 9.10 Credits and kept outputs
+
+Meshy: **60 credits** of 1,100 (two tasks at 30; balance 1,040 after). Kept with their exact
+requests in `/Users/yuema137/mineworld-demos/i23d/out/meshy/head_v1/` and `chest_v1/`. Committed
+to the repository: only the evidence renders under `route_e/` (our renders of owned paid-plan
+output, `DEP-8` §9.4). No generated mesh, texture or wrapped GLB is committed.
+
+### 9.11 Recommendation
+
+**Stop route E as a wrap.** Two directions remain, both for the operator to choose; neither was run.
+
+- **C, commission, now with a much better brief.** The Meshy whole character (`e6`, `e7`) is the
+  concept sculpt the assessment's commission lacked: an artist retopologises it onto the existing
+  rig (or sculpts CharMorph toward it), separates hair into cards, hood, cords and pack into
+  garments, and builds the face rig. That replaces the most expensive and least predictable part of
+  the commission (finding the likeness) with a 3D target the operator has already seen. Recorded
+  licence condition: Meshy-derived committed meshes carry `ARC-9` provenance and Meshy's AI
+  identifiers.
+- **A bounded follow-up the agent can run, which this experiment's §4 excluded:** bake Meshy's
+  base colour onto the wrapped CharMorph face UVs (selected-to-active, the surfaces are already
+  within ~2 mm), with the eye region handled separately because Meshy paints the iris on a surface
+  where CharMorph has an eyeball. That tests whether the painted layer — where this experiment says
+  the identity lives — transfers. Risks: baked-in lighting; the eye and mouth seams; it does nothing
+  for hair, hoodie or material tier, which also `FAIL`. It needs the operator's agreement because it
+  changes this design (texture, not only shape, would reach the character).
+
+Not recommended: route D as a shipped asset (no rig, fused hand and strap, no face animation,
+1.3 M triangles), or further wrap tuning (three configurations, the identity is not in the shape).

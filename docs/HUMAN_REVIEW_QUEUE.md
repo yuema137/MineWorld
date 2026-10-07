@@ -89,6 +89,28 @@ the operator's words (`VISUAL_FIDELITY.md` §6).
 the existing rig) or route E (an image-to-3D head as a wrap target, which needs a paid generator
 account or a CUDA GPU) has to be chosen.
 
+**Route E, run 2026-10-06/07: `FAILED`. Not a preview.** Full record and frames in
+[`references/CHARACTER_ROUTE_E_EXPERIMENT.md`](references/CHARACTER_ROUTE_E_EXPERIMENT.md) §9;
+evidence in `presentation/mineworld-default/3D/candidate/route_e/` (`e1`–`e11`).
+
+- **TripoSR** and **TripoSG** (both MIT, both run on this Mac without CUDA and without any
+  non-commercial background remover) stopped at the raw-mesh gate: relief-quality or closed-eyed
+  faces, one of four proportions nearer the reference.
+- **Meshy 7.1 (Pro, 60 credits)** passed the gate. Its head and its whole character read as the
+  same person at the reference's quality tier (`e4`, `e6`) — but as one fused, unrigged,
+  million-triangle statue: hair, hood and pack cannot move, the hand is welded to the strap, no face
+  rig. Route D's prediction was wrong about appearance and right about structure.
+- **The wrap** of Meshy's head onto the CharMorph head (three configurations; the last one clean:
+  topology, UVs, eyes, rig and blink kept) moved eye size and face width toward the reference by
+  measurement, and **did not change who she is** (`e8`–`e10`). Face identity `FAIL`; every other row
+  unchanged and `FAIL`. The identity in the generated head lives in its painted layer and its hair,
+  not in a few millimetres of shape.
+
+**Operator decision now:** (1) route C with the Meshy whole character as the artist's likeness
+target; or (2) one more bounded agent test outside route E's own design: bake Meshy's face colour
+onto the wrapped CharMorph face (the surfaces are within ~2 mm) to test whether the painted
+identity transfers. See the experiment doc §9.11.
+
 ### `VIS-3D-GODOT-1` — working state after preview 3, 2026-10-06 (superseded by the FAILED verdict above)
 
 The primary session's four items on preview 3, worked at working resolution (620 × 900 per tile)
