@@ -274,3 +274,14 @@ These are a later decision (coordinator, 2026-10-07): **not faked here.**
      inside a skin island, for one). With 15 mm extrusion and 40 mm rays, a ray from a lock
      thinner than 15 mm starts beyond it. Next: re-bake the head and hair onto the rigged body
      with 4 mm / 12 mm rays (`rebake_head.py`, scratch), misses keeping the old texel.
+  7. Short-ray re-bake: 248,329 head texels changed; the flecks in `runtime_d9/p6_hairline`
+     are unchanged. So they are not in the base colour at all — most likely slivers of inner
+     surface (scalp, lock undersides) that decimation opened between the locks. Fixing that
+     means re-decimating the hair, which is out of proportion to the defect.
+  8. **Judged at the reference's framing** (`runtime_d9/p2_hair_1x`, P2 at 1:1): **not
+     visible**. Visible only in the head close-up (P6) at 2×. Recorded as a known miss, not
+     fixed. The committed asset is therefore the reviewed bake (`rig/meshy_char.glb`, base
+     colour `gr/base_color.png`), not either experiment; the material change (step 4) stays.
+- **Zip-edge fringes**, at the reference's framing (`runtime_d5/p2_zoom`): thin light lines run
+  along both edges of the open hoodie, where the reference has its silver zip; at 1:1 they read
+  as the zip. Not fixed.
