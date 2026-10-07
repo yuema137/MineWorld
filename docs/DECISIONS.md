@@ -1842,7 +1842,12 @@ facts     (a) one per value change (~+43 000 per 300 days)               doubles
    "keyed by the triple" without a kernel change.
 2. **No system dependency.** Subscribing is not emitting. `ARC-26` requires a dependency only to
    *state* another system's vocabulary. A world with relationships and no conversation installs; it
-   simply hears no speech.
+   simply hears no speech. `ARC-26` also calls the owner "the only system that reduces it into owned
+   state". Read with `CORE_CONCEPTS.md` §13.1, that sentence is about the state the fact describes:
+   only presence turns `arrived` into a `Presence`. It does not stop another system reacting to the
+   fact by writing **its own** state, which is how `EconomySystem` answers `WageDue`. Relationships
+   writes only `Acquaintances` and `knows`, never `ConversationHistory`. This sentence records the
+   reading, so the two decisions do not appear to disagree (`CLAUDE.md` §2.1(4)).
 3. **Decoding goes through the owner's published type**, a Cargo dependency on its vocabulary and never
    a registry dependency. A local mirror of another pack's payload is refused in review, because it
    would bypass `EventSchemaTooNew` / `EventSchemaOutdated`.
