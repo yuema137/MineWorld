@@ -1277,19 +1277,64 @@ biography. **Boundary.** One subcommand and its test.
       fault; every seat moves and talks in every bucket; no `invite`/`join` request is ever made (the
       controller reads affordances). `became-acquainted` still occurs, and every relationship fact is
       caused by a `spoke`. No group-activity fact exists.
-- [ ] Validation: the three test files green; `inspect` over K and the 300-day save PASS. Counterfactuals,
-  run and reverted:
-  - [ ] Milestone B: the kill-day computed one day too early (before the located history) is detected,
-    because the history located in K before the re-run lacks the shared activity. Recorded as the
-    reason the kill day is computed.
-  - [ ] Milestone B: a relationships `react` that does not write `Acquaintances` fails step 5.
-  - [ ] AC-2: the projection comparison can see a difference. The same comparison between the full
-    seed-7 run and a full seed-8 run fails at a located row, so equality without relationships is not
-    the comparison seeing nothing (`ARC-23`).
-- [ ] Review:
+**C7 result (§9 E-B7).**
+- [x] Implementation:
+  - `tools/cli/tests/social/mod.rs` gains `per_bucket` and `precondition` (and `facts_of`).
+    `per_bucket` splits `relationship-changed` into up and down. A fact at exactly the run's final
+    instant counts in the last bucket: a 30-day run's last wake fires at t = 30 × 86 400, and it first
+    showed up as a phantom bucket 2 holding one `group-activity-ended`.
+  - The precondition is asserted before every byte comparison in `run.rs` (300 days, and both 30-day
+    seeds), `run_restart.rs`, `milestone_b.rs` and `social_composition.rs`.
+  - New files: `milestone_b.rs`, `social_composition.rs`. No production code changed in C7.
+- [x] Validation: `milestone_b` 1 PASS (6.5 s); `social_composition` 2 PASS (7.9 s); `run` 3 PASS
+  (56.5 s); `run_restart` 2 PASS (10.7 s). Clippy `--workspace --all-targets -D warnings` is clean.
+  - **Saturation numbers, printed per bucket** by the 300-day run (seed 7):
+    - days 1–30: became-acquainted 132, relationship-changed up 313 / down 20;
+    - days 31–60: up 39 / down 2;
+    - days 61–300: **0 relationship facts in every bucket**, while group activities go on at about
+      620–650 started and ended per bucket;
+    - all 506 relationship facts have a subscribed cause.
+
+    This is the no-decay gap of ARC-28 / QB-2, visible and not hidden.
+  - **Milestone B, located** (seed 7, 30 days):
+    - `#20` became-acquainted alice→bob and `#21` bob→alice at t0, through the `spoke` `#19`;
+    - `#2555` relationship-changed up at t184 500 (day 3);
+    - `#98` group-activity-ended with both at t5 400 (day 1).
+
+    Killed after "day 4" (computed). The kill was real: signal 9, no summary, 3 503 of 26 142
+    revisions on disk, and the four located facts were in the save byte-identical to the control
+    **before** the re-run. The re-run resumed at 3 503, and K equals C byte for byte (facts, journal,
+    snapshots).
+
+    Both biographies, from fresh processes, equal the control's and contain the four ids.
+
+    `mineworld server --save K`, alice and bob seated:
+    - alice→bob: Close, familiarity 1 000, regard 1 000, exchanges 145, activities 26;
+    - bob→alice: Close, familiarity 1 000, regard 990, exchanges 145, activities 26;
+    - revision 26 142.
+
+    After the server's SIGKILL (signal 9) and a restart: the same instance and revision, and both
+    `Acquaintances` equal. Both biographies are unchanged. `first_met_by` equals the located
+    became-acquainted's cause. `inspect` K: every cause resolves, process causes 394.
+  - **AC-2:**
+    - Without relationships: 33 486 non-relationship facts of the full run equal the 33 486 facts of
+      the run without it, in order, by (type, at, subjects, participants, place, payload bytes).
+      `requests`, `activity` and `consults` are equal, and there are no faults.
+    - Without group-activity: no fault, every seat active, no invite/accept/decline/join request, and
+      `inspect` shows `presence v2, movement v1, conversation v1, relationships v1`. All 132
+      became-acquainted facts are caused by `spoke`, and there is no group-activity fact.
+  - [x] Counterfactuals, run and reverted:
+    - [x] Kill day 1 instead of the computed day 4 → FAILS "`#2555 relationship-changed` was in the
+      save, as in the control, when the process died". The history must exist before the death.
+    - [x] Relationships' `react` not writing `Acquaintances` (temporary, never committed) → FAILS. It
+      fails earlier than planned: the precondition's "no relationship-changed-up in the first bucket",
+      because values that are never stored never cross a level. Recorded as found.
+    - [x] AC-2 sensitivity: the same projection, seed 7 against seed 8, first differs at row 17
+      (conversation-started vs arrived).
+- [x] Review:
   - Each claim is located before it is counted.
-  - The restart is a real process death, and the history is read by processes that never held the
-    world (I-8).
+  - Both restarts are real process deaths (`run` and `server`, each SIGKILL, signal asserted), and
+    every read after them is by a process that never held the world.
   - No in-memory world stands in.
 **Acceptance.** As validation, evidence in §9 E-B7 with the located ids, days and values.
 **Failure.** If the history is not located at D = 30, raise D (recorded). The seed and the precondition

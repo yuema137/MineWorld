@@ -21,6 +21,7 @@
 //! ```
 
 mod headless;
+mod social;
 
 use std::io::{BufRead, BufReader};
 use std::os::unix::process::ExitStatusExt;
@@ -106,6 +107,9 @@ fn a_killed_run_re_run_finishes_the_same_world_byte_for_byte() {
     let seats: Vec<&str> = seats.iter().map(String::as_str).collect();
     every_seat_active_in_every_bucket(&printed, &seats);
     let control = Tables::read(&control);
+    // Social life too, before any comparison (step-09 C7): the kills land in a world where activities
+    // are running and relationships are moving, so the restart has social state to get right.
+    social::precondition(&social::facts_of(&control), 30, true);
     let control_head = u64::try_from(control.journal.len()).expect("fits");
 
     let mut tails = Vec::new();
