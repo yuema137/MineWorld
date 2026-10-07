@@ -2,7 +2,7 @@
 
 **Role:** combined step and PR document. S7 needs one PR.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S7, artefact note `ARC-6`, §7 ·
-**Lifecycle:** `DRAFT — AWAITING REVIEW` (Phase 1 of the brief; no implementation code written)
+**Lifecycle:** `DESIGN FROZEN` (2026-10-06, primary session; review and answers in §10.1)
 **Base:** `main @ ef53484` (S6 merged as `6f61582`; `ef53484` is the docs-only post-merge update)
 **Branch / worktree:** `mvp0/pr-09-headless` in `/Users/yuema137/mineworld-worktrees/s7-headless`
 (held by this session only; `vis-character` and `vis-environment` belong to other agents)
@@ -561,9 +561,65 @@ Q12  Argument parsing stays by hand (each command has at most four options); mai
      Recommended: by hand.
 ```
 
+## 10.1 Answers — primary session review, 2026-10-06
+
+Decided under the operator's autonomous authorization (overall §7) and their standing rule that
+objective architectural correctness belongs to the agent. Ten answers are accepted as recommended,
+two carry conditions, and **Q12 is overruled**.
+
+**The audit finding is the most valuable thing in this design.** A headless social-cafe today does
+nothing: no system acts on its own, and `RuleController` only ever answers. `run --days 300` would
+therefore produce five genesis facts, perfectly reproducible and proving nothing. That is exactly
+the `ARC-23` trap, a clean number from an instrument that cannot see. The activity precondition
+(every seat moved and talked in every 30-day bucket, checked *before* determinism is compared) is
+what makes `AC-11`/`AC-12` mean something, and it is frozen as an invariant.
+
+**Q1 — ACCEPTED.** `PacedRuleController`, with `RuleController` untouched so `AC-15` is undisturbed.
+It is a rule controller, not a model, so the "no LM before commit 8" rule (`CLAUDE.md` §5) holds.
+
+**Q2 — ACCEPTED.** The stateless pace-window design is the right shape: `decide(&self)` makes "no
+controller memory" something the compiler enforces rather than a convention. F-13 stays open for
+`--agent` and belongs to S10.
+
+**Q3 — ACCEPTED.**
+
+**Q4 — ACCEPTED, with a far-side condition.** Movement discloses a place's passages. The claim that
+"clients look components up by type, so an extra record is ignored" must be **verified from the far
+side**, not asserted from Rust: risk R-9 records a client-side defect no Rust test could see. Show
+the Godot protocol module (`clients/protocol/mineworld/`) handling an observation that carries the
+passages record, through a real `run.sh` run, and record the evidence.
+
+**Q5 — ACCEPTED.**
+
+**Q6 — ACCEPTED.**
+
+**Q7 — ACCEPTED.**
+
+**Q8 — ACCEPTED.**
+
+**Q9 — ACCEPTED, with a condition.** A purpose-built FNV-1a fingerprint is fine **for display only**.
+Every equality claim in a test (facts, journal, snapshots) compares the bytes themselves, never
+fingerprints. A fingerprint match must never be the evidence that two runs agree.
+
+**Q10 — ACCEPTED.**
+
+**Q11 — ACCEPTED.**
+
+**Q12 — OVERRULED: adopt `clap` now, with a DEP record.** `tools/cli/src/main.rs` already records
+the decision this question would reverse: *"`clap` is the right answer the day `create` and `inspect`
+arrive with real option surfaces."* S7 is that day. It adds `create`, `inspect` and a `run` with
+four options, on top of `server`, `validate` and `replay`. Rewriting the note to say the trigger is
+not yet met would move the goalposts after reaching them, which is the self-persuasion `REUSE_POLICY`
+and `CLAUDE.md` §4 rule 16 exist to stop. Argument parsing is commodity infrastructure.
+
+Record **`DEP-11`** (the CLI's argument parsing: `clap` with derive), naming the option counts as
+the trigger that was met. Migrate the existing subcommands in **their own commit, before** the new
+ones, with every existing CLI test passing unchanged across it. Replace the main.rs note with a
+pointer to `DEP-11`.
+
 ---
 
-# 11. Execution contract (proposed; confirmed at freeze)
+# 11. Execution contract (confirmed at freeze, 2026-10-06)
 
 ```text
 PROJECT / PR        MVP-0 · Step 08 / PR 09 — Headless demo: World Pack loading, rule controller and
