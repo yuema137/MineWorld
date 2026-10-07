@@ -40,10 +40,14 @@ var views := [
 	# above looks east and mirrors it. This one stands east of the cafe.
 	["03r_reference_framing", Vector3(10.6, 0.45, -4.30), 40.0, 3.0, FP],
 	["04_doorway", Vector3(3.45, 0.45, -6.90), 0.0, 0.0, FP],
+	# the same crossing with the character in it: she stands on the threshold
+	["04c_doorway_character", Vector3(3.45, 0.45, -8.05), 0.0, -2.0, REAR],
 	["05_interior_wide", Vector3(2.75, 0.60, -10.60), -38.0, -3.0, FP],
 	["06_interior_character", Vector3(4.60, 0.60, -12.60), -8.0, -2.0, REAR],
 	["07_third_rear", Vector3(-4.00, 0.45, -5.60), -80.0, -3.0, REAR],
-	["08_third_front", Vector3(4.20, 0.45, -6.10), -20.0, -1.0, FRONT],
+	# facing the road with the café behind her; at (4.2, -6.1) the boom put a
+	# terrace chair across her legs
+	["08_third_front", Vector3(3.00, 0.45, -5.20), 180.0, -1.0, FRONT],
 	["09_character_in_place", Vector3(5.20, 0.60, -11.20), 155.0, -1.0, FRONT],
 	# diagnostics, for the agent rather than for the operator
 	["10_interior_counter", Vector3(7.40, 0.60, -12.80), -6.0, 0.0, FP],
@@ -61,6 +65,23 @@ var views := [
 	["20_florist_door", Vector3(9.60, 0.45, -4.20), -22.0, 3.0, FP],
 	["21_florist_interior", Vector3(11.40, 0.45, -9.10), -38.0, -6.0, FP],
 	["22_florist_looking_out", Vector3(17.40, 0.45, -13.30), 140.0, -3.0, FP],
+]
+
+## Compositions the player's camera rig cannot frame: a camera that stays put
+## while the body stands where it is placed. Real runtime frames, the same scene
+## and lighting; only the viewpoint is free of the boom.
+##   [name, camera position, camera yaw, camera pitch, fov, body position, body yaw]
+## Camera heights are floor + eye height: pavement 0.14, café floor 0.29.
+var fixed_views := [
+	# 03's framing (as 03r) with her where 03 has its walker: on the pavement,
+	# walking away along the frontage
+	["03s_reference_framing_character", Vector3(10.6, 0.14 + CameraRig.EYE_HEIGHT, -4.30),
+		40.0, 3.0, 75.0, Vector3(7.5, 0.45, -5.60), 90.0],
+	# VISUAL_SLICE.md sec.12 view 9 at a distance a person can be judged at: chest
+	# up to full figure, 1.9 m away, the counter and shelving behind her
+	# (camera a little above her eye: at 1.45 m a pendant behind sat on her bun)
+	["09c_character_close", Vector3(5.2 - 0.423 * 1.9, 0.29 + 1.65, -11.2 + 0.906 * 1.9),
+		-25.0, -12.0, 50.0, Vector3(5.20, 0.60, -11.20), 155.0],
 ]
 
 ## Frames cropped and enlarged beside the capture, because a claim decided at
@@ -184,8 +205,29 @@ func _capture() -> void:
 			print("  WARNING: body standing at y %.2f -- on top of something, not the floor"
 				% player.global_position.y)
 		_pick_report()
+	for v in fixed_views:
+		if not only.is_empty() and not Array(only).any(func(o): return str(v[0]).begins_with(o)):
+			continue
+		await _fixed_shot(v)
 	print("\ngi mode: %s" % slice.gi_name())
 	print("character slot: %s" % player.slot.describe())
+
+
+func _fixed_shot(v: Array) -> void:
+	player.place(v[5], v[6], 0.0)
+	player.set_camera(REAR)   # any third-person mode: the body is drawn
+	var cam := Camera3D.new()
+	cam.fov = v[4]
+	slice.add_child(cam)
+	cam.global_transform = Transform3D(
+		Basis.from_euler(Vector3(deg_to_rad(v[3]), deg_to_rad(v[2]), 0.0)), v[1])
+	cam.make_current()
+	await _settle(12)
+	await _save(v[0])
+	print("shot %-26s camera %s yaw %.0f, body at %s yaw %.0f  [fixed camera]"
+		% [v[0], v[1], v[2], player.global_position, v[6]])
+	cam.queue_free()
+	player.set_camera(REAR)   # hand the view back to the rig
 
 
 ## `--pick=x,y`: what is drawn at that pixel of the frame just captured? Lists
