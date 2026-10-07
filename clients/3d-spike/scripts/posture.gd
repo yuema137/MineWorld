@@ -23,6 +23,7 @@ extends SkeletonModifier3D
 
 ## How far the gripping hand's fingers close, in degrees at the proximal joint.
 const FINGER_CURL := 38.0
+const FINGER_CURL_D := 62.0
 
 ## Profile bone name -> local euler correction in degrees, post-multiplied onto
 ## whatever the animation produced.
@@ -99,12 +100,15 @@ static func holding_strap(body := Human.Body.TOWN) -> Posture:
 	# Fingers curled over the webbing, thumb behind it -- the contract is
 	# specific about that and an open flat hand beside a strap reads as a hand
 	# that happens to be there. Relative, because the clips barely move fingers.
+	# The reference body's fingers start straighter (its A-pose hand is open),
+	# so they close further to wrap the webbing.
+	var curl := FINGER_CURL_D if body == Human.Body.REFERENCE else FINGER_CURL
 	for f in ["Index", "Middle", "Ring", "Little"]:
-		p.tweaks["Left%sProximal" % f] = Vector3(0, 0, FINGER_CURL)
-		p.tweaks["Left%sIntermediate" % f] = Vector3(0, 0, FINGER_CURL * 1.25)
-		p.tweaks["Left%sDistal" % f] = Vector3(0, 0, FINGER_CURL * 0.7)
-	p.tweaks["LeftThumbProximal"] = Vector3(0, 0, -FINGER_CURL * 0.5)
-	p.tweaks["LeftThumbDistal"] = Vector3(0, 0, -FINGER_CURL * 0.4)
+		p.tweaks["Left%sProximal" % f] = Vector3(0, 0, curl)
+		p.tweaks["Left%sIntermediate" % f] = Vector3(0, 0, curl * 1.25)
+		p.tweaks["Left%sDistal" % f] = Vector3(0, 0, curl * 0.7)
+	p.tweaks["LeftThumbProximal"] = Vector3(0, 0, -curl * 0.5)
+	p.tweaks["LeftThumbDistal"] = Vector3(0, 0, -curl * 0.4)
 	return p
 
 

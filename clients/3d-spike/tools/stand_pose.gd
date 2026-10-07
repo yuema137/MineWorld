@@ -366,6 +366,8 @@ const SWEEP := {
 	"RightShoulder": "RightLowerArm", "RightUpperArm": "RightHand",
 	"RightLowerArm": "RightHand", "RightHand": "RightMiddleDistal",
 	"LeftShoulder": "LeftLowerArm", "LeftUpperArm": "LeftHand", "LeftLowerArm": "LeftHand",
+	"LeftHand": "LeftMiddleDistal", "LeftIndexProximal": "LeftIndexDistal",
+	"LeftMiddleProximal": "LeftMiddleDistal", "LeftThumbProximal": "LeftThumbDistal",
 	"LeftUpperLeg": "LeftFoot", "LeftLowerLeg": "LeftFoot", "LeftFoot": "LeftToes",
 	"RightUpperLeg": "RightFoot", "RightLowerLeg": "RightFoot",
 }
