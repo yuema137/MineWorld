@@ -349,6 +349,18 @@ func _report(observation: MineWorldObservation) -> void:
 			JSON.stringify(tags),
 			MineWorldSpace.to_2d(observation.location_of(String(id)).get("local")),
 		])
+		# Every record disclosed on this entity, by type: a record this client has no use for is
+		# carried and ignored, never an error (step-08 C2, the far-side check of Q4).
+		var types: Array = []
+		for record in observation.entity(String(id)).get("components", []):
+			types.append(String(record.get("component_type", "")))
+		if not types.is_empty():
+			_note("      components %s" % JSON.stringify(types))
+		var passages: Dictionary = observation.component(String(id), "passages")
+		if not passages.is_empty():
+			_note("      doorways   %d (read through MineWorldObservation.component)" % [
+				passages.get("leads_to", []).size(),
+			])
 	for offered in observation.affordances():
 		_note("  affordance %s -> %s : %s" % [
 			String(offered.get("action_type", "")),

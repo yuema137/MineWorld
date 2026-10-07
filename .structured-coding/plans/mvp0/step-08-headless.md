@@ -320,10 +320,10 @@ existing CLI tests are its regression net. **Scope.** `Cargo.toml` (workspace de
 **Scope.** `systems/movement/src/system.rs` (`PerceptionProvider::discloses`), its test file, README.
 No change to `move`'s rule, to `Passages`, or to any other pack. **Depends on:** C1.
 
-- [ ] Implementation: `MovementSystem::discloses(world, observer, subject)` returns the `Passages` record when `subject` is a place entity that has one, to any observer (perception already lists only the observer's own place, `observe.rs` `perceived`); nothing for people.
-- [ ] Validation: a social-cafe observer in the café sees the café's `passages` record with the street doorway at (5000, 200); an observer's view of a person carries no `passages`; with movement disabled the record is gone (the existing `owned_by_an_enabled_system` route) — `AC-2` direction.
-- [ ] Validation (far side, Q4 condition): a real `clients/protocol/run.sh` run against a server hosting social-cafe with this change — the Godot protocol module receives an observation carrying the `passages` record and completes its scripted walk/talk without error; log recorded in §9.
-- [ ] Review: no rule moved into disclosure (it states where a door is, never whether one may pass); the Godot client reads components by type (`clients/protocol/mineworld/observation.gd:102–108`); `AC-13`/`AC-15` tests unaffected.
+- [x] Implementation: `MovementSystem::discloses(world, observer, subject)` returns the `Passages` record when `subject` is a place entity that has one, to any observer (perception already lists only the observer's own place, `observe.rs` `perceived`); nothing for people. `codec::to_value` added. — §9 E-3.
+- [x] Validation: `systems/movement/tests/disclosure.rs` (3 tests) over the movement test town rather than social-cafe (the movement crate cannot depend on the pack loader; the town has the same doorway shape with literal coordinates) — the café's record names the street and both doorway positions; the street's side from the street; no record on persons; none for an unjoined place; none after `disable` while the state is still present. Mutation (invert the place check) fails all 3. — §9 E-3.
+- [x] Validation (far side, Q4 condition): PASS — `clients/protocol/run.sh evidence`, real Godot 4.7.2 headless, five transcripts; see §9 E-3.
+- [x] Review: no rule moved into disclosure (it states where a door is, never whether one may pass); the Godot client reads components by type (`clients/protocol/mineworld/observation.gd:102–108`); `AC-13`/`AC-15` tests unaffected.
 
 **Acceptance.** The record appears exactly for place subjects and disappears with the system.
 **Failure cases.** A place with no passages discloses nothing (not an empty record).
@@ -548,6 +548,21 @@ E-2  C1b clap. clap 4.6.7 resolved (workspace pin 4.6.6, features derive). `carg
      (ac13 2, ac15 6, commands 4, restart 2, server_command 3), no test file changed. By hand:
      `--listen nope` → "invalid value 'nope' for '--listen'", exit 2; `--agent "Bad Seat"` → names
      the key rule, exit 2; `--help` lists server, validate, replay (the not-yet commands hidden).
+E-3  C2 disclosure. `cargo test -p mineworld-movement`: disclosure 3/3, movement 7/7, persisted 1/1;
+     mutation `if is_place { return Vec::new() }` → 0/3, reverted. Workspace `cargo test --no-fail-fast`
+     after the change: no failure anywhere (counted at the final gates).
+     Far side (Q4 condition), CLAIM: the Godot protocol module handles an observation carrying the
+     passages record. OWNER: real lifecycle. COMMAND: `clients/protocol/run.sh evidence` (22.6 s wall;
+     starts `mineworld server worlds/social-cafe --agent alice` per run; Godot 4.7.2 headless). The
+     demo's report now lists each perceived entity's component types and reads `passages` through
+     `MineWorldObservation.component` (clients/protocol/demo/demo.gd, reporting only).
+     OBSERVED in clients/protocol/evidence/transcript-2d.log:17–19, transcript-3d.log:17–19,
+     simultaneous-3d.log:18–20: `1  tags ["cafe","public"]` / `components ["passages"]` /
+     `doorways 1 (read through MineWorldObservation.component)`; every transcript then completed its
+     scripted run (accepted moves and talks, Alice's recall line, "the scripted run is over"), and
+     request-2d.json / request-3d.json are byte-unchanged (git diff shows no change); `cargo test -p
+     mineworld-cli --test ac13_semantic_parity` 2/2 over them. RESULT: PASS. Evidence files
+     re-recorded by the run, never edited.
 ```
 
 ## 9.1 Limitations (expected)
