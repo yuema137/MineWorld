@@ -1850,7 +1850,7 @@ days. Assertions C-5. A further assertion: `cognition/rule-controller/Cargo.toml
 
 ### C-C6 — I-9 measured on a scratch install (evidence, never merged); close
 
-- [ ] Scratch branch `scratch/11c-chimes` (local, deleted after): `systems/chimes/` as a real pack
+- [x] Scratch branch `scratch/11c-chimes` (local, deleted after) — done, PASS at 20, E-C6: `systems/chimes/` as a real pack
   offering `ring { low | high }` complete to everyone, requirement none (worst-case exposure); two lines
   in `systems/installed/`; `worlds/chimes-cafe/` = social-cafe + `chimes`. Criterion, stated before the
   run: over 300 days seed 7, the step-08 I-9 activity precondition holds in every bucket (every seat moved
@@ -1858,8 +1858,8 @@ days. Assertions C-5. A further assertion: `cognition/rule-controller/Cargo.toml
   scratch-only reader). If either fails at 20, lower `ATTEMPTS_OFFERED` on the branch, re-measure, record
   both runs; the value that passes is frozen (C-6). Also: social-cafe's sha on the scratch build = E-0.
   `git ls-remote --heads origin | grep -c scratch` → 0.
-- [ ] Documentation: `docs/MVP_STATUS.md` — one capability row directly after "Conversation", one
-  evidence row appended after the table's last row; `Updated:` line and S9 row not edited (§12); §4.3
+- [x] Documentation: `docs/MVP_STATUS.md` — one capability row directly after "Conversation", one
+  evidence row appended after the table's last row (done; plus ARC-34's measurement note); `Updated:` line and S9 row not edited (§12); §4.3
   checkboxes, §9.3 `E-C*`, `handoff-11c.md`.
 - [ ] Full gates once on the final head (fmt, clippy -D warnings, workspace tests in background), C-1's
   sha and validate diff, both doc checks.
@@ -2459,6 +2459,29 @@ E-C5 C-C5 CP-3. `cargo test -p mineworld-acceptance` → complete_affordances 4 
        `// a wage is due` in offered.rs): refused by name — `shop` at planted_11c.rs:1, `wage` at
        offered.rs:59 → both removed.
      Cargo.lock: +8 lines, mineworld-acceptance's dependency list only.
+E-C6 C-C6 I-9 measurement, scratch branch `scratch/11c-chimes` from 6486d5b, local only, 2026-10-07.
+     Scratch commit 998a7ad (deleted after; `git ls-remote --heads origin | grep -c scratch` → 0).
+     Changed paths: systems/chimes/{Cargo.toml, src/lib.rs, tests/count.rs}, systems/installed/
+     {Cargo.toml, src/lib.rs} (one line each), worlds/chimes-cafe/** (social-cafe copied, id/name
+     changed, `chimes` appended to `systems`), Cargo.lock. `chimes` offers complete `ring { low |
+     high }` to every observer, target none, requirement NONE (worst-case exposure); emits `rang`.
+     Criterion (QS-25, stated before measuring): over 300 days seed 7, every seat moves and talks in
+     every 30-day bucket, AND every seat's `ring` is accepted in every bucket.
+     Run 1, ATTEMPTS_OFFERED = 20: `mineworld run worlds/chimes-cafe --headless --seed 7 --days 300
+       --save …` exit 0, faults 0, 367 125 facts, wall 43.0 s (with --save).
+       requests: ring accepted 29 907; move accepted 167 348; talk accepted 57 741 (social-cafe:
+       180 665 / 67 752); no rejected or unavailable request lines.
+       activity: no `move 0` or `talk 0` in any of the 10 buckets × 11 seats; minima per bucket move
+       1 346, talk 393.
+       rings from the save (scratch reader systems/chimes/tests/count.rs, `rang` facts by ringer and
+       ⌊at / 30 d⌋): 110 (ringer, bucket) cells = ids 7–15, 17, 18 (the 11 seats; 16 is otto, no seat)
+       × buckets 0–9; minimum 197 per cell; total 29 907 = the accepted ring requests.
+       → PASS at 20. No second run needed. ATTEMPTS_OFFERED = 20, OFFER_DRAW = 14,
+       OFFERED_CHOICE_DRAW = 15, position after the social initiative and before the walking roll:
+       FROZEN for S9 (C-6, I-9). Recorded in ARC-34's note.
+     social-cafe on the scratch build (chimes installed, not enabled): 300-day seed-7 sha-256 of all
+       but `wall` = ad49c723…c64b = E-0 — installing a pack that offers complete affordances changes
+       no world that does not enable it.
 ```
 
 ---

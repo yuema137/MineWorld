@@ -2333,8 +2333,8 @@ yet *what exactly to send*.
    `ATTEMPTS_OFFERED` is fixed by step-10 C-C6's measurement on a scratch install of a synthetic pack
    offering a complete affordance to every person everywhere — the worst case — against a criterion
    stated before measuring: every seat still moves and talks in every 30-day bucket, and every seat's
-   offered request is accepted in every bucket. The measured value is recorded in step-10 §9.3 and in
-   the note below. The band's constants and position are then frozen for S9 (`ARC-35` item 6, I-9): if
+   offered request is accepted in every bucket. It passed at **20**, which is frozen (step-10 §9.3
+   E-C6, and the note below). The band's constants and position are then frozen for S9 (`ARC-35` item 6, I-9): if
    a later world behaves badly, the remedy is in what its packs offer, never in the controller.
 5. **`RuleController` is unchanged.** The reactive controller (`--agent`) answers and takes no
    initiative; it never attempts a complete affordance (`AC-15`).
@@ -2360,6 +2360,18 @@ existing world byte-identical, because no existing pack offers a complete afford
   remedy is that the pack offers less, never a change to the pace or the controller.
 - The band's rate is one number for every pack: a world with many packs offering complete affordances
   divides the same rate among them, in observation order.
+
+**Note, 2026-10-07 (S9, step-10 C-C6) — the measurement that fixed the rate.** A scratch install,
+never merged, put a pack offering a complete `ring { low | high }` to every person everywhere, with no
+spatial requirement, into Social Café, and ran it 300 days with seed 7. The criterion, stated before
+measuring (step-10 QS-25): every seat moves and talks in every 30-day bucket, and every seat's `ring` is
+accepted in every bucket. At `ATTEMPTS_OFFERED = 20` both held — every seat moved at least 1 346 and
+talked at least 393 times per bucket, and rang at least 197 times per bucket (29 907 rings in all, no
+fault). The value is therefore **20**, frozen with `OFFER_DRAW = 14`, `OFFERED_CHOICE_DRAW = 15` and
+the band's position. Under that worst case, moves fell from 180 665 to 167 348 and talks from 67 752
+to 57 741 over the 300 days — the share of consults the band takes — which is what a pack offering
+something to everyone everywhere costs, and a reason for a pack to offer less, not for the controller
+to change.
 
 ---
 
