@@ -78,10 +78,10 @@ an LM, an LM controller, recorded cognition             S10
 tools/inspector beyond `inspect`'s summary              S8 (overall §3 cross-cutting)
 performance benchmarking, CI workflows                  S13
 save migration                                          S5 L-1, unchanged
-`clap`                                                  hand parsing stays (Q12)
+~~`clap` — hand parsing stays (Q12)~~                    void: Q12 overruled, clap adopted (DEP-11, C1b)
 ```
 
-## 1.3 Frozen invariants (proposed)
+## 1.3 Frozen invariants (frozen 2026-10-06; I-9 added from §10.1)
 
 - **I-1 No layer below the composition root changes, except one disclosure.** No edit to `kernel/`,
   `contracts/`, `persistence/` or `server/`. The only System Pack change is Q4's `Passages` disclosure
@@ -106,6 +106,8 @@ save migration                                          S5 L-1, unchanged
   so re-running a killed `run --save` completes the identical history; it never appends a second run.
 - **I-8 `create` never overwrites** and never reports success for a pack `WorldPack::read` + `load`
   refuse.
+- **I-9 Activity before determinism** (§10.1). Every seat has an accepted `move` and an accepted
+  `talk` in every 30-day bucket, checked before any `AC-11`/`AC-12` comparison is made.
 
 ---
 
@@ -262,6 +264,24 @@ Every source found, and its disposition:
 Each commit lists implementation, validation and review separately. Evidence is recorded in §9 as each
 item completes. Line counts are estimates from the audit, not targets.
 
+### Frozen-answer amendments (recorded at the start of execution, from §10.1)
+
+```text
+Q12 overruled   C1 also records DEP-11 (clap, derive). A new commit C1b migrates server, validate and
+                replay to clap BEFORE any new command, with every existing CLI test unchanged and
+                green across it; main.rs's hand-parsing note becomes a pointer to DEP-11. §1.2's
+                "clap — hand parsing stays" non-goal is void. C4, C6, C7 add their commands as clap
+                subcommands.
+Q4 condition    C2 gains a far-side check: the real Godot protocol module handles an observation
+                carrying the passages record, through a real clients/protocol/run.sh run; evidence
+                recorded in §9.
+Q9 condition    The fingerprint is display only. Every equality claim in a test compares the bytes
+                of facts, journal and snapshots (and stdout text), never fingerprints.
+I-9 (frozen)    The activity precondition: before any determinism comparison, every seat has an
+                accepted move AND an accepted talk in every 30-day bucket of the run. A comparison
+                made without it is not evidence.
+```
+
 ## C0 — Design (this document) — docs only
 
 - [x] Implementation: §§1–11 written from the source audit of §8.
@@ -276,12 +296,23 @@ exist (`CLAUDE.md` §2.2). **Scope.** `docs/MODULE_SPEC.md` §8, `docs/DECISIONS
 - [ ] Implementation:
   - [ ] `MODULE_SPEC.md` §8: add the implemented command surface — `server`, `validate`, `replay`, `run`, `inspect`, `create`, with their options and the meaning of `--days` (HD-5) and `--seed` — keeping §8's install/add-system lines marked as intended, not implemented.
   - [ ] `DECISIONS.md` **ARC-27** — *a headless run is a pace schedule over stateless seeded controllers*: problem (§2.2, §2.3), options (reuse the server path; scripted inputs; a stateful controller with persisted memory; the paced stateless controller), choice HD-2/HD-3/I-3, what `AC-12` covers and excludes (instance id, wall time), `F-13` resolved for `run` and kept for `--agent` (§2.5).
-  - [ ] `DECISIONS.md` `ARC-26`: dated note that `MAX_STRIDE` stays a constant past S7 (Q5), if Q5 is accepted.
+  - [ ] `DECISIONS.md` `ARC-26`: dated note that `MAX_STRIDE` stays a constant past S7 (Q5).
+  - [ ] `DECISIONS.md` **DEP-11** — the CLI's argument parsing: `clap` with derive; the trigger that was met (six subcommands, `run` with four options), alternatives (hand parsing, `argh`, `pico-args`, `lexopt`), isolating interface (`main.rs` only), accepted limitation (build time).
 - [ ] Validation: both check scripts pass; `ARC-27` is unique on every remote branch (`git grep` over `refs/remotes/origin`).
 - [ ] Review: the CLI text in §8 matches §3 exactly; no synonym for a defined term (`Controller`, `Observation`, `World Pack`); `ARC-27` says what it excludes.
 
 **Acceptance.** A reader of MODULE_SPEC §8 and ARC-27 alone can implement `run` and predict its output's determinism.
 **Failure cases.** None executable. **Commit boundary.** Docs only.
+
+## C1b — The existing commands move to `clap` (DEP-11), and nothing else changes
+
+**Goal.** Adopt the parser before the new commands, so the migration is reviewable on its own and the
+existing CLI tests are its regression net. **Scope.** `Cargo.toml` (workspace dependency),
+`tools/cli/Cargo.toml`, `tools/cli/src/main.rs`. **Depends on:** C1.
+
+- [ ] Implementation: `clap` (derive) parses `server`, `validate`, `replay`; `create`/`inspect`/`run` still answered "does not exist yet"; the `Why the arguments are parsed by hand` doc becomes a pointer to `DEP-11`.
+- [ ] Validation: every existing `tools/cli/tests/*` test passes **unchanged** (no test file in the diff); complaint texts the tests assert still appear.
+- [ ] Review: no behaviour change beyond help formatting; exit codes kept (a parse error is a failure, not a panic).
 
 ## C2 — Movement discloses a place's doorways (Q4)
 
@@ -291,7 +322,8 @@ No change to `move`'s rule, to `Passages`, or to any other pack. **Depends on:**
 
 - [ ] Implementation: `MovementSystem::discloses(world, observer, subject)` returns the `Passages` record when `subject` is a place entity that has one, to any observer (perception already lists only the observer's own place, `observe.rs` `perceived`); nothing for people.
 - [ ] Validation: a social-cafe observer in the café sees the café's `passages` record with the street doorway at (5000, 200); an observer's view of a person carries no `passages`; with movement disabled the record is gone (the existing `owned_by_an_enabled_system` route) — `AC-2` direction.
-- [ ] Review: no rule moved into disclosure (it states where a door is, never whether one may pass); the Godot client reads components by type (`clients/protocol/mineworld/observation.gd:102–108`) so an extra record is ignored; `AC-13`/`AC-15` tests unaffected.
+- [ ] Validation (far side, Q4 condition): a real `clients/protocol/run.sh` run against a server hosting social-cafe with this change — the Godot protocol module receives an observation carrying the `passages` record and completes its scripted walk/talk without error; log recorded in §9.
+- [ ] Review: no rule moved into disclosure (it states where a door is, never whether one may pass); the Godot client reads components by type (`clients/protocol/mineworld/observation.gd:102–108`); `AC-13`/`AC-15` tests unaffected.
 
 **Acceptance.** The record appears exactly for place subjects and disappears with the system.
 **Failure cases.** A place with no passages discloses nothing (not an empty record).
@@ -632,7 +664,8 @@ IMPLEMENTATION BASE main @ ef53484; branch mvp0/pr-09-headless; worktree
                     /Users/yuema137/mineworld-worktrees/s7-headless (held by this session only)
 APPROVED SCOPE      §1.1, as answered in §10
 FROZEN INVARIANTS   §1.3 I-1 … I-8
-SEQUENCE            C0 → C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8, each committed and pushed when coherent
+SEQUENCE            C0 → C1 → C1b → C2 → C3 → C4 → C5 → C6 → C7 → C8, each committed and pushed when
+                    coherent (C1b added from §10.1 Q12)
 VALIDATION BUDGET   unit/integration/static: unrestricted; real-model: NOT REQUIRED; long runs and
                     kill tests bounded to a few minutes of wall time in total (Q10)
 LIVE DOCUMENTATION  this file (§4 checkboxes, §9 ledger)
