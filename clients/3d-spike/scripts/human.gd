@@ -509,6 +509,9 @@ const GRIP_LOWER := Vector3(109.0, -16.9, -23.7)
 const GRIP_UPPER_D := Vector3(70.6, 49.2, 19.0)
 const GRIP_LOWER_D := Vector3(130.4, -12.2, -18.4)
 const GRIP_HAND_D := Vector3(-72.0, -4.7, 75.0)
+## The reference body's extra head turn (X+ face down, Y+ face to her left).
+const GAZE_NECK_D := Vector3(0, 5.0, 0)
+const GAZE_HEAD_D := Vector3(6.0, 14.0, 0)
 
 
 ## The gripping arm's rest-relative eulers for a body: [upper, lower], plus the
@@ -580,6 +583,14 @@ static func stand_key(t: float, grip: bool, body := Body.TOWN) -> Dictionary:
 		k["LeftLowerArm"] = ga[1]
 		if ga.size() > 2:
 			k["LeftHand"] = ga[2]
+	if body == Body.REFERENCE:
+		# Her eyes are painted and look straight out of the face, so the
+		# reference's off-camera look to her left has to come from the head:
+		# turned further left than the town body's, and the chin a little down
+		# (with the head alone at 24 degrees she looked at the three-quarter
+		# camera, chin up).
+		k["Neck"] += GAZE_NECK_D
+		k["Head"] += GAZE_HEAD_D
 	return k
 
 
