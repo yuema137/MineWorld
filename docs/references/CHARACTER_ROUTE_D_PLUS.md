@@ -475,4 +475,13 @@ Checked, every phase, not chosen frames (`--sweep`, eight phases 0.125 s apart p
   and no hand is held against the cloth. The last jog frame is a bench across the camera.
 - **Head** (`d10`, §8.8): faces ahead in every walk and jog phase. Residual: in the walk the
   face reads very slightly chin-up at the front three-quarter.
-- Evidence `d3`–`d7` regenerated from `runtime_d13` and the matching `--motion` run.
+- **Arms while moving, last change** (`ARM_OUT_D`, commit `7ea8ad1`): with the side panels on
+  the spine, §8.7 step 4's outward setting read as arms held out in the walk; it is now 4° in
+  (7° less than the town body's 11°). The final sweep (`sweep_g`, all 48 frames, the sheets
+  `d9`, `d10` regenerated from it) shows sleeve and pack side panel meeting cleanly in every
+  walk phase (rear three-quarter at 2.5×, `walk_rear_tq_2`) and no slits or ridges in any jog
+  phase.
+- Evidence `d3`, `d4`, `d6`, `d7` regenerated from `runtime_d13`; `d5` from the final sweep's
+  walk frames (front three-quarter and rear three-quarter).
+- Capture note: one sweep stalled at 25 frames while another worktree's Godot window was open
+  (macOS stops drawing an occluded window); the rerun completed.
