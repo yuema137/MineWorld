@@ -10,11 +10,11 @@
 //! contains someone the player cannot perceive at all.
 
 use mineworld_contracts::{
-    ActionTypeId, Affordance, Component, ComponentRecord, ComponentSchemaVersion, ComponentTypeId,
-    ContractError, Entity, EntityId, EntityKey, EntityType, EntityTypeSet, LocalPosition, Location,
-    Millidegrees, Millimetres, Observation, Orientation, PerceivedEntity, PlaceId, Rejection,
-    Relation, RelationTypeDeclaration, RelationTypeId, SpatialRequirement, SystemId, Tag, Tags,
-    WorldTime,
+    Action, ActionTypeId, Affordance, Component, ComponentRecord, ComponentSchemaVersion,
+    ComponentTypeId, ContractError, Entity, EntityId, EntityKey, EntityType, EntityTypeSet,
+    LocalPosition, Location, Millidegrees, Millimetres, Observation, Orientation, PerceivedEntity,
+    PlaceId, Rejection, Relation, RelationTypeDeclaration, RelationTypeId, SpatialRequirement,
+    SystemId, Tag, Tags, WorldTime,
 };
 use serde::{Deserialize, Serialize};
 
@@ -200,7 +200,7 @@ fn a_client_can_render_an_interaction_prompt_from_the_observation_alone() {
 /// neither construction nor deserialization may produce a disagreeing pair.
 #[test]
 fn an_affordance_cannot_disagree_with_itself_about_availability() {
-    let available = serde_json::to_string(&Affordance::available(
+    let available = serde_json::to_string(&Affordance::<String>::available(
         TALK,
         Some(EntityId::from_raw(42)),
         SpatialRequirement::NONE,
@@ -237,6 +237,173 @@ fn an_affordance_cannot_disagree_with_itself_about_availability() {
             has_reason: false,
         }
         .to_string()
+    );
+}
+
+// -------------------------------------------------------------------------------------------
+// Complete affordances (`ARC-34`)
+// -------------------------------------------------------------------------------------------
+
+/// A request a test system would accept: one of a bounded set of choices, so the offering system can
+/// state every complete request it would take.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct Ring {
+    bell: String,
+}
+
+impl Action for Ring {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("ring");
+    const OWNER: SystemId = SystemId::from_static("chimes-stub");
+}
+
+/// Another action, to show a request is labelled for exactly one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct Knock {
+    bell: String,
+}
+
+impl Action for Knock {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("knock");
+    const OWNER: SystemId = SystemId::from_static("chimes-stub");
+}
+
+/// The base's literals, captured on `main @ da31613` before the field existed (step-10 §9.3 E-C0).
+const AVAILABLE_ON_THE_BASE: &str = r#"{"action_type":"talk","target":"42","available":true,"unavailable_reason":null,"requirement":{"place":"any","within_range":null,"requires_line_of_access":false,"requires_target_available":false}}"#;
+const UNAVAILABLE_ON_THE_BASE: &str = r#"{"action_type":"talk","target":"43","available":false,"unavailable_reason":"too_far_away","requirement":{"place":"same_place_as_actor","within_range":3000,"requires_line_of_access":false,"requires_target_available":false}}"#;
+const UNTARGETED_ON_THE_BASE: &str = r#"{"action_type":"ring","target":null,"available":true,"unavailable_reason":null,"requirement":{"place":"any","within_range":null,"requires_line_of_access":false,"requires_target_available":false}}"#;
+
+/// An affordance that is not complete crosses the wire exactly as it did before the field existed:
+/// every observation, transcript and frame of a world whose packs offer nothing complete is unchanged.
+#[test]
+fn an_affordance_without_a_payload_is_the_shape_it_always_was() {
+    let shapes = [
+        (
+            Affordance::<serde_json::Value>::available(
+                TALK,
+                Some(EntityId::from_raw(42)),
+                SpatialRequirement::NONE,
+            ),
+            AVAILABLE_ON_THE_BASE,
+        ),
+        (
+            Affordance::unavailable(
+                TALK,
+                Some(EntityId::from_raw(43)),
+                reach(),
+                Rejection::TooFarAway,
+            ),
+            UNAVAILABLE_ON_THE_BASE,
+        ),
+        (
+            Affordance::available(Ring::ACTION_TYPE, None, SpatialRequirement::NONE),
+            UNTARGETED_ON_THE_BASE,
+        ),
+    ];
+    for (affordance, literal) in shapes {
+        assert_eq!(serde_json::to_string(&affordance).unwrap(), literal);
+        assert_eq!(affordance.payload(), None);
+        assert_eq!(
+            affordance.request(EntityId::from_raw(41), Clone::clone),
+            None,
+            "an affordance that is not complete names no request"
+        );
+    }
+}
+
+/// A frame written before the field existed decodes, with no payload; a complete affordance carries
+/// its payload last and survives the transport; and the payload does not loosen the availability
+/// check.
+#[test]
+fn an_old_frame_decodes_and_a_payload_round_trips() {
+    let old: Affordance<serde_json::Value> =
+        serde_json::from_str(UNAVAILABLE_ON_THE_BASE).expect("a frame without the field decodes");
+    assert_eq!(old.payload(), None);
+    assert_eq!(old.unavailable_reason(), Some(&Rejection::TooFarAway));
+
+    let complete = Affordance::available(Ring::ACTION_TYPE, None, SpatialRequirement::NONE)
+        .with_payload(serde_json::json!({ "bell": "low" }));
+    let text = serde_json::to_string(&complete).unwrap();
+    assert_eq!(
+        text,
+        format!(
+            "{},\"payload\":{{\"bell\":\"low\"}}}}",
+            UNTARGETED_ON_THE_BASE
+                .strip_suffix('}')
+                .expect("a JSON object")
+        )
+    );
+    let back: Affordance<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    assert_eq!(back, complete);
+    assert_eq!(back.payload(), Some(&serde_json::json!({ "bell": "low" })));
+
+    // Inside an observation too.
+    let observation =
+        Observation::new(EntityId::from_raw(41), WorldTime::EPOCH).offering(vec![complete.clone()]);
+    let text = serde_json::to_string(&observation).unwrap();
+    assert_eq!(
+        serde_json::from_str::<Observation<serde_json::Value>>(&text).unwrap(),
+        observation
+    );
+
+    // A payload does not make "available, because too far away" representable.
+    let both = text.replace(
+        r#""available":true,"unavailable_reason":null"#,
+        r#""available":true,"unavailable_reason":"too_far_away""#,
+    );
+    assert!(serde_json::from_str::<Observation<serde_json::Value>>(&both).is_err());
+}
+
+/// A complete affordance names exactly one request: the affordance's own action type, its own target,
+/// and its payload as the caller encodes it — which the owning system's type then decodes.
+#[test]
+fn a_complete_affordance_requests_exactly_what_it_offers() {
+    let me = EntityId::from_raw(41);
+    let bell = EntityId::from_raw(42);
+    let offered = Affordance::available(Ring::ACTION_TYPE, Some(bell), SpatialRequirement::NONE)
+        .with_payload(serde_json::json!({ "bell": "high" }));
+
+    let request = offered
+        .request(me, |payload| serde_json::to_vec(payload).unwrap())
+        .expect("a complete affordance names a request");
+    assert_eq!(request.actor(), me);
+    assert_eq!(request.action_type(), &Ring::ACTION_TYPE);
+    assert_eq!(request.payload().action_type(), &Ring::ACTION_TYPE);
+    assert_eq!(request.target(), Some(bell));
+    assert_eq!(request.actor_location(), None);
+    let decoded: Ring =
+        serde_json::from_slice(request.payload().payload_for::<Ring>().unwrap()).unwrap();
+    assert_eq!(
+        decoded,
+        Ring {
+            bell: "high".to_owned()
+        }
+    );
+    assert!(
+        request.payload().payload_for::<Knock>().is_err(),
+        "the request is labelled for the action it was offered as, and no other"
+    );
+
+    // A well-formed request: it crosses the wire through the contract's own agreement check.
+    let text = serde_json::to_string(&request).unwrap();
+    assert_eq!(
+        serde_json::from_str::<mineworld_contracts::ActionRequest>(&text).unwrap(),
+        request
+    );
+
+    // Untargeted, and unavailable: the request is still the one named; whether to submit is the
+    // requester's judgement and whether it is accepted is the server's.
+    let elsewhere = Affordance::unavailable(
+        Ring::ACTION_TYPE,
+        None,
+        SpatialRequirement::same_place(),
+        Rejection::TooFarAway,
+    )
+    .with_payload(serde_json::json!({ "bell": "low" }));
+    let request = elsewhere.request(me, Clone::clone).unwrap();
+    assert_eq!(request.target(), None);
+    assert_eq!(
+        request.payload().payload_for::<Ring>().unwrap(),
+        &serde_json::json!({ "bell": "low" })
     );
 }
 

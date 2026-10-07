@@ -231,7 +231,7 @@ impl Cafe {
         observer: EntityId,
         action_type: &mineworld_contracts::ActionTypeId,
         target: Option<EntityId>,
-    ) -> Option<mineworld_contracts::Affordance> {
+    ) -> Option<mineworld_contracts::Affordance<serde_json::Value>> {
         self.observation(observer)
             .affordances()
             .iter()

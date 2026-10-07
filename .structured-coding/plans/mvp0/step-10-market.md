@@ -1738,13 +1738,27 @@ C-7  I-2 and I-8. The scan is green with 11c's row and no 11c allow-list entry; 
   group-activity tests, contracts' own `:203` if inference requires it, `spike/server/src/world.rs:350`
   (QS-23). Each listed with its unchanged claim.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-contracts -p mineworld-presence -p mineworld-conversation
-  -p mineworld-group-activity -p mineworld-server`; M-C1 → fails, reverted; trybuild expectation
-  regenerated only if its wording changed (claim: private fields refused); `cargo check --manifest-path
-  spike/server/Cargo.toml` before and after (if the base's spike does not build offline, recorded N/A).
-- [ ] Review: additive only; no existing frame changes; `request` cannot mislabel (the label is the
-  affordance's own); no encoding decided in contracts.
+- [x] Implementation: as scoped. `observation.rs`: `Affordance<P = Vec<u8>>`, last field `payload:
+  Option<P>` with `skip_serializing_if`; the `#[serde(default)]` sits on `AffordanceFields<P>`'s field
+  (the deserialize side, because of `try_from`) — a bounded placement detail; `with_payload`,
+  `payload`, `request(actor, encode)`; `Observation<P>` holds/offers/returns `Affordance<P>`. `action.rs`:
+  `pub(crate) const fn ActionRecord::labelled`. Tests: the three named tests plus test-only `Ring` /
+  `Knock` actions. Forced annotations (F-24), each claim unchanged: presence `observe.rs`
+  `affordances`/`verdict` return `Affordance<Value>` (lines 207/220 untouched); conversation test
+  `:234` and group-activity test `:306` (`Affordance<serde_json::Value>`); contracts' own `:203`
+  (`Affordance::<String>::available` — inference needed it); `spike/server/src/world.rs:350`
+  (`Vec<Affordance<Value>>`, QS-23's one line). Rule-controller tests needed no edit (inferred inside
+  `.offering`). E-C2.
+- [x] Validation: E-C2 — the five suites pass; M-C1 fails three tests including the frozen-literal
+  test, reverted; trybuild `.stderr` regenerated (wording changed: "cannot construct `Affordance<_>`
+  with struct literal syntax due to private fields", plus a note naming `payload`) — claim unchanged,
+  private fields refused; spike `cargo check --offline` PASS on base and after.
+- [x] Review: additive only — no existing frame changes (the base literals are asserted); `request`
+  labels with the affordance's own type and `labelled` is crate-private; the encoding is the caller's
+  closure, none decided in contracts. Finding: my first `an_old_frame…` test built its expected text
+  with `trim_end_matches('}')`, which strips both closing braces — a test defect, fixed to
+  `strip_suffix`; it was one of the three M-C1 failures, so M-C1 is re-stated against the frozen-literal
+  test alone, which failed under M-C1 for the intended reason.
 
 ### C-C3 — presence: `Offer::complete`
 
@@ -2370,6 +2384,15 @@ E-C0 Base captures on da31613 before any code edit, 2026-10-07 (debug, opt-level
 E-C1 C-C1 specs: check_decision_ids 46 ids, all distinct (ARC-34 added); check_doc_headings 143
      sections across 22 documents, none duplicated. ARC-34 absent from every origin/* branch after
      `git fetch`.
+E-C2 C-C2 contracts. `cargo test --no-fail-fast -p mineworld-contracts -p mineworld-presence
+     -p mineworld-conversation -p mineworld-group-activity -p mineworld-server` → exit 0, every binary
+     ok, 0 failed (contracts observation 9 = 6 existing + 3 new; conversation_and_presence 14;
+     group_activity 10; presence 13; server two_clients 9, headless 4).
+     M-C1 (drop `skip_serializing_if`): an_affordance_without_a_payload_is_the_shape_it_always_was
+     FAILED (and an_affordance_cannot_disagree…, whose base literal also gains "payload":null) →
+     reverted (`grep -c skip_serializing_if` = 1).
+     spike/server: `cargo check --offline --manifest-path spike/server/Cargo.toml` exit 0 on da31613;
+     after the change E0308 at world.rs:401 until the one-line annotation at :350, then exit 0.
 ```
 
 ---

@@ -235,7 +235,7 @@ fn affordances(
     here: Option<Location>,
     present: &[EntityId],
     providers: &[&dyn PerceptionProvider],
-) -> Vec<Affordance> {
+) -> Vec<Affordance<Value>> {
     let targets = core::iter::once(None).chain(present.iter().copied().map(Some));
     let mut affordances = Vec::new();
     for target in targets {
@@ -262,7 +262,7 @@ fn verdict(
     here: Option<Location>,
     target: Option<EntityId>,
     offer: &Offer,
-) -> Affordance {
+) -> Affordance<Value> {
     let requirement = offer.requirement();
     let there = target
         .and_then(|target| read.component::<Presence>(target))

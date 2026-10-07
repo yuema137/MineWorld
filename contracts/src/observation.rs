@@ -33,7 +33,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::action::{ActionTypeId, Rejection};
+use crate::action::{ActionRecord, ActionRequest, ActionTypeId, Rejection};
 use crate::component::ComponentRecord;
 use crate::entity::Tags;
 use crate::error::ContractError;
@@ -167,17 +167,33 @@ impl<P> PerceivedEvent<P> {
 /// [`Affordance::available`] or [`Affordance::unavailable`], and deserialization applies the same
 /// check. Without that, "available, because too far away" would be representable, and a client
 /// would have to decide which half to believe.
+///
+/// # Complete affordances (`ARC-34`)
+///
+/// An affordance may also carry a `payload`: the complete request payload the offering system would
+/// accept, in the observation's payload encoding `P`. Such an affordance is a **complete
+/// affordance**, and a requester — a controller, a client — may submit it unchanged through
+/// [`Affordance::request`] without knowing what the action is. It is still only an offer: the server
+/// validates whatever is submitted, exactly as it validates anything else.
+///
+/// The field is serialized only when present, and a frame without it decodes, so an affordance with
+/// no payload has exactly the shape it had before the field existed.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(try_from = "AffordanceFields")]
-pub struct Affordance {
+#[serde(
+    try_from = "AffordanceFields<P>",
+    bound(deserialize = "P: Deserialize<'de>")
+)]
+pub struct Affordance<P = Vec<u8>> {
     action_type: ActionTypeId,
     target: Option<EntityId>,
     available: bool,
     unavailable_reason: Option<Rejection>,
     requirement: SpatialRequirement,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payload: Option<P>,
 }
 
-impl Affordance {
+impl<P> Affordance<P> {
     /// Something the observer may attempt right now.
     pub const fn available(
         action_type: ActionTypeId,
@@ -190,6 +206,7 @@ impl Affordance {
             available: true,
             unavailable_reason: None,
             requirement,
+            payload: None,
         }
     }
 
@@ -207,7 +224,50 @@ impl Affordance {
             available: false,
             unavailable_reason: Some(reason),
             requirement,
+            payload: None,
         }
+    }
+
+    /// Makes this a complete affordance: the exact request payload the offering system would accept.
+    ///
+    /// Attached by the system that made the offer, in the action type it offered (presence's
+    /// `Offer::complete` reads that type off the action value itself), and by nobody else.
+    #[must_use]
+    pub fn with_payload(mut self, payload: P) -> Self {
+        self.payload = Some(payload);
+        self
+    }
+
+    /// The complete request payload, when the offering system stated one.
+    pub const fn payload(&self) -> Option<&P> {
+        self.payload.as_ref()
+    }
+
+    /// The request this complete affordance names, made by `actor`: labelled with the affordance's
+    /// own action type, directed at its target, and carrying its payload re-encoded by `encode`.
+    ///
+    /// `None` when the affordance carries no payload — an offer the requester would have to complete
+    /// itself, which only a requester that knows the action can do. Whether the affordance is
+    /// *available* is the caller's judgement, read from [`Affordance::is_available`]; submitting an
+    /// unavailable one is legitimate and is answered by the server.
+    ///
+    /// The encoding is the caller's because an observation and a dispatch need not share one: an
+    /// observation is read as JSON values while a request travels as bytes, and this crate decides
+    /// neither (`ARC-34`).
+    pub fn request<Q>(
+        &self,
+        actor: EntityId,
+        encode: impl FnOnce(&P) -> Q,
+    ) -> Option<ActionRequest<Q>> {
+        let payload = self.payload.as_ref()?;
+        let request = ActionRequest::new(
+            actor,
+            ActionRecord::labelled(self.action_type.clone(), encode(payload)),
+        );
+        Some(match self.target {
+            Some(target) => request.with_target(target),
+            None => request,
+        })
     }
 
     /// Which kind of action this is. A client maps it to its own wording; the kernel has none
@@ -239,18 +299,22 @@ impl Affordance {
 
 /// The serialized shape of an [`Affordance`], with the same agreement check construction applies.
 #[derive(Deserialize)]
-struct AffordanceFields {
+struct AffordanceFields<P> {
     action_type: ActionTypeId,
     target: Option<EntityId>,
     available: bool,
     unavailable_reason: Option<Rejection>,
     requirement: SpatialRequirement,
+    /// Absent on every affordance that is not complete, including every frame written before the
+    /// field existed.
+    #[serde(default = "Option::default")]
+    payload: Option<P>,
 }
 
-impl TryFrom<AffordanceFields> for Affordance {
+impl<P> TryFrom<AffordanceFields<P>> for Affordance<P> {
     type Error = ContractError;
 
-    fn try_from(value: AffordanceFields) -> Result<Self, Self::Error> {
+    fn try_from(value: AffordanceFields<P>) -> Result<Self, Self::Error> {
         if value.available != value.unavailable_reason.is_none() {
             return Err(ContractError::AffordanceAvailabilityDisagreement {
                 available: value.available,
@@ -263,6 +327,7 @@ impl TryFrom<AffordanceFields> for Affordance {
             available: value.available,
             unavailable_reason: value.unavailable_reason,
             requirement: value.requirement,
+            payload: value.payload,
         })
     }
 }
@@ -312,7 +377,7 @@ pub struct Observation<P = Vec<u8>> {
     /// rather than something it can draw.
     relations: Vec<Relation>,
     events: Vec<PerceivedEvent<P>>,
-    affordances: Vec<Affordance>,
+    affordances: Vec<Affordance<P>>,
 }
 
 impl<P> Observation<P> {
@@ -365,7 +430,7 @@ impl<P> Observation<P> {
 
     /// States what the observer may attempt, with the server's answer for each.
     #[must_use]
-    pub fn offering(mut self, affordances: Vec<Affordance>) -> Self {
+    pub fn offering(mut self, affordances: Vec<Affordance<P>>) -> Self {
         self.affordances = affordances;
         self
     }
@@ -404,7 +469,7 @@ impl<P> Observation<P> {
     }
 
     /// What the observer may attempt.
-    pub fn affordances(&self) -> &[Affordance] {
+    pub fn affordances(&self) -> &[Affordance<P>] {
         &self.affordances
     }
 

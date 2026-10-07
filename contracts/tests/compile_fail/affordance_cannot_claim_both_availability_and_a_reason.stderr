@@ -1,15 +1,37 @@
-error[E0451]: fields `action_type`, `target`, `available`, `unavailable_reason` and `requirement` of struct `Affordance` are private
-  --> tests/compile_fail/affordance_cannot_claim_both_availability_and_a_reason.rs:9:9
+error: cannot construct `Affordance<_>` with struct literal syntax due to private fields
+  --> tests/compile_fail/affordance_cannot_claim_both_availability_and_a_reason.rs:8:20
    |
  8 |     let _offered = Affordance {
-   |                    ---------- in this type
+   |                    ^^^^^^^^^^
  9 |         action_type: ActionTypeId::from_static("talk"),
-   |         ^^^^^^^^^^^ private field
+   |         ---------------------------------------------- private field
 10 |         target: Some(EntityId::from_raw(42)),
-   |         ^^^^^^ private field
+   |         ------------------------------------ private field
 11 |         available: true,
-   |         ^^^^^^^^^ private field
+   |         --------------- private field
 12 |         unavailable_reason: Some(Rejection::TooFarAway),
-   |         ^^^^^^^^^^^^^^^^^^ private field
+   |         ----------------------------------------------- private field
 13 |         requirement: SpatialRequirement::NONE,
-   |         ^^^^^^^^^^^ private field
+   |         ------------------------------------- private field
+   |
+   = note: ...and other private field `payload` that was not provided
+help: you might have meant to use an associated function to build this type
+   |
+ 8 -     let _offered = Affordance {
+ 9 -         action_type: ActionTypeId::from_static("talk"),
+10 -         target: Some(EntityId::from_raw(42)),
+11 -         available: true,
+12 -         unavailable_reason: Some(Rejection::TooFarAway),
+13 -         requirement: SpatialRequirement::NONE,
+14 -     };
+ 8 +     let _offered = Affordance::available(_, _, _);
+   |
+ 8 -     let _offered = Affordance {
+ 9 -         action_type: ActionTypeId::from_static("talk"),
+10 -         target: Some(EntityId::from_raw(42)),
+11 -         available: true,
+12 -         unavailable_reason: Some(Rejection::TooFarAway),
+13 -         requirement: SpatialRequirement::NONE,
+14 -     };
+ 8 +     let _offered = Affordance::unavailable(_, _, _, _);
+   |
