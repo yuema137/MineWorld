@@ -1,0 +1,26 @@
+# The workplace: an office on the south side of the street.
+#
+# Millimetres from the office's own origin, its inner north-west corner — the front wall faces the
+# street to the north; `x` east, `y` north (`docs/CORE_CONCEPTS.md` §6.1). So the room lies at
+# negative `y`. No drawn geometry yet; the positions are semantic.
+#
+# A place and nothing more in this world: a job is a Relation between a Person and an Organization
+# with employment state, which is a System Pack this world does not install (`docs/CORE_CONCEPTS.md`
+# §1). People who come here are where they are; nobody here is employed.
+
+tags:
+  - workplace
+  - office
+
+note: >-
+  A small office across the street from the café: desks, a meeting table, a kitchenette.
+
+# Its door: 0.2 m inside the north wall, and on the street's south side, west of the park gate.
+passages:
+  - to: street
+    here:
+      x: 1500
+      y: -200
+    there:
+      x: -6000
+      y: -13000

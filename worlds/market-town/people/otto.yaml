@@ -1,0 +1,32 @@
+# Otto — upstairs in the apartments, and the one person in this world no seat names.
+#
+# `world.yaml` lists every other Person as a seat, so a client or an agent may occupy them. Otto is
+# deliberately left out: a Person nobody drives is a legitimate member of a world, and asking for a
+# seat the world does not offer must be refused by name (`tools/cli/tests/server_command.rs`). Being a
+# seat is a fact about the world's configuration, not about him (`INV-1`).
+
+name: Otto Brandt
+
+# His day (schedule's `routine`, ARC-32) — which nobody walks him through, since no seat names him: his
+# agenda changes and he stays upstairs, which is what an agenda that moves nobody looks like. Boundaries
+# stay within 05:00–23:00: a fixture dependency of the restart tests, explained in alice.yaml and
+# checked by those tests.
+routine:
+  - { from: "09:00", place: store, label: errands }
+  - { from: "13:00", place: apartments, label: home }
+
+tags:
+  - resident
+
+note: Lives on the top floor. Rarely comes down.
+
+location:
+  place: apartments
+  position:
+    x: 6000
+    y: 4000
+
+# Market Town: what he carries at the start (inventory's `holdings`, ARC-37; see alice.yaml). Nobody
+# drives Otto, so he never gives — and people who meet him may give to him. A person carries at most
+# six, so he can take only so much; that bound is inventory's rule, kept for exactly this person.
+holdings: { newspaper: 1, soup: 1 }

@@ -1,0 +1,24 @@
+# Hana — at the office's meeting table, 2.1 m from Grace.
+
+name: Hana Sato
+
+# Her day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
+# the restart tests, explained in alice.yaml and checked by those tests.
+routine:
+  - { from: "08:00", place: workplace, label: work }
+  - { from: "15:00", place: cafe, label: coffee }
+  - { from: "19:00", place: apartments, label: home }
+
+tags:
+  - commuter
+
+note: Shares the office with Grace.
+
+location:
+  place: workplace
+  position:
+    x: 5000
+    y: -3500
+
+# Market Town: what she carries at the start (inventory's `holdings`, ARC-37; see alice.yaml).
+holdings: { bread: 1, milk: 1 }

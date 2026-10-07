@@ -1,0 +1,139 @@
+# Market Town — Social Café plus installed systems and configuration (`docs/MVP.md` §2, `AC-1`).
+#
+# Every file of `worlds/social-cafe` was copied byte for byte. The difference is configuration only
+# (`docs/DECISIONS.md` `ARC-35` check 3): this header, the world's id and name, the systems appended to
+# `systems`, the `items` list and `items/`, and one `holdings:` section appended to each person file.
+# No place file and no existing field or section changes. The second half of the market — economy,
+# employment, organizations, shops and work — arrives in step-10 PR 11e.
+#
+# What follows is Social Café's own header, unchanged.
+#
+# Social Café — a small town around a café: the world the vertical slice is set in, and `docs/MVP.md`
+# §3's MVP town.
+#
+# A World Pack states population, places, capabilities and initial state. It states no rule: what
+# `talk` requires of space belongs to the conversation system, not to this file
+# (`docs/MODULE_SPEC.md` §4). It holds no secret and no endpoint either — the operator supplies
+# those.
+#
+# The fields this file may use are specified in `docs/MODULE_SPEC.md` §4.1. A field the loader does
+# not implement is refused by name rather than ignored, because a silently ignored field is a world
+# its author believes they authored.
+
+world:
+  # Must match this pack's directory name: a pack with two identities has none.
+  id: market-town
+  name: Market Town
+
+# The capabilities this world asks for, in the order they are installed — which is the order their
+# reducers run in, so it is the pack's statement and not a sort. `movement`, `conversation` and
+# `group-activity` each declare a dependency on `presence`, so they come after it. Without `movement`,
+# nobody here could walk: `move` would be answered unavailable and the world would otherwise be the
+# same. `relationships` depends on nothing — it only hears what the others record — and nothing
+# depends on it, so it comes last; leave it out and people still meet, talk and spend time together,
+# and simply never come to know each other (`DECISIONS.md` `ARC-28`). `naming` owns each person's
+# `name:` section (`ARC-31`); it depends on nothing and nothing depends on it, so it is appended and
+# every earlier reduction order stays as it was. Leave it out — and the `name:` lines with it, which a
+# world that does not enable `naming` refuses — and people are still themselves, only nameless.
+# `schedule` owns each person's `routine:` (`ARC-32`): an agenda, kept by a process, that moves nobody;
+# also independent, also appended. Leave it out with the `routine:` blocks and people still live here,
+# only without a day to keep. Every routine boundary lies between 05:00 and 23:00 — a fixture
+# dependency the restart tests check (`people/alice.yaml`).
+systems:
+  - presence
+  - movement
+  - conversation
+  - group-activity
+  - relationships
+  - naming
+  - schedule
+  # Market Town's systems, appended so that every reduction order above stays as it was (`ARC-37`).
+  # `item` declares what kinds of things exist, from each item file's `item:` section; `inventory`
+  # (which depends on `item`) owns what each person holds, from each person file's `holdings:`, and
+  # is the only system that writes it; `item-transfer` (which depends on `inventory` and `presence`)
+  # lets people give each other things. Leave out `item-transfer` and nobody can give, and nothing
+  # else changes (`AC-2`); leave out `inventory` and the `holdings:` sections must go too.
+  - item
+  - inventory
+  - item-transfer
+
+# The five places of `docs/MVP.md` §3, and the street that joins them. Each place has one doorway, onto
+# the street, so a person walks between any two through at most two doors; travel between places that
+# do not adjoin is a later system, not a shortcut here. Listed in key order, which is also the order
+# the pack allocates their identities in.
+places:
+  - apartments
+  - cafe
+  - park
+  - store
+  - street
+  - workplace
+
+# Everybody who exists here — twelve people, within `docs/MVP.md` §3's ten to fifteen. Each key names a
+# file in `people/`.
+population:
+  - alice
+  - bob
+  - carol
+  - dev
+  - erin
+  - felix
+  - grace
+  - hana
+  - ivan
+  - otto
+  - visitor
+  - wanderer
+
+# Market Town's kinds of things — twenty, `docs/MVP.md` §3's "~20 item types". Each key names a file in
+# `items/`, which declares a kind, not one object: what anybody holds is a count of it (`ARC-36`). Kinds
+# are allocated identities after people, so every identity above stays where Social Café has it.
+items:
+  - apple
+  - book
+  - bread
+  - cake
+  - candle
+  - coffee
+  - croissant
+  - flowers
+  - juice
+  - milk
+  - mug
+  - newspaper
+  - notebook
+  - pen
+  - sandwich
+  - scarf
+  - soap
+  - soup
+  - tea
+  - umbrella
+
+# The seats a **controller** may occupy — a human client or an agent, because nothing about the world
+# distinguishes them (`INV-1`). A seat is an existing Person, named by its authoring key: whoever
+# connects asks for a seat and the server resolves which entity that is, so nothing outside the world
+# ever names an entity.
+#
+# Every Person but one is a seat. `visitor` and `wanderer` are the two players `AC-15` puts in one world,
+# because two observers are two people. Alice is what lets `mineworld server ... --agent alice` drive
+# her through exactly the path a player's client uses rather than through a privileged one. The rest
+# are the town's other people: `mineworld run` drives every seat with a seeded rule controller, so a
+# headless town is a town where everybody acts, and any of them could be taken over by a human instead
+# — `AC-5`'s direction, not an oversight: mixed control is normal, and which Person is driven by what
+# is a fact about this world's configuration rather than about the person (`MODULE_SPEC.md` §5).
+#
+# Otto is left out on purpose: a Person nobody may drive, so that asking for a seat the world does not
+# offer has a subject (`people/otto.yaml`).
+seats:
+  - visitor
+  - wanderer
+  - alice
+  - bob
+  - carol
+  - dev
+  - erin
+  - felix
+  - grace
+  - hana
+  - ivan

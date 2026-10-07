@@ -1,0 +1,3 @@
+# A loaf of bread.
+tags: [food, bakery]
+item: { category: food }
