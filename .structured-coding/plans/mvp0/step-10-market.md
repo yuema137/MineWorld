@@ -727,11 +727,25 @@ before any code relies on them (`CLAUDE.md` §2.2).
 
 **Depends on:** freeze. **Non-goals:** no code.
 
-- [ ] Implementation: the three records, §3.1, the README section.
-- [ ] Validation: both doc checks; every cross-reference resolves (`git grep` for each cited section).
-- [ ] Review: DEP-12 answers `REUSE_POLICY.md` §11's six questions and §12's rejection reason for
-  each declined crate; ARC-35 is consistent with `overall.md` §1's gloss and `MVP.md` §2 (or the
-  difference is stated); no defined term is redefined (`CLAUDE.md` §2.1(3)).
+- [x] Implementation: the three records, §3.1, the README section. `docs/DECISIONS.md` gains ARC-33,
+  DEP-12 and ARC-35 (ids as proposed: no `origin/*` branch holds ARC-33+ or DEP-12+, re-checked
+  2026-10-07 after `git fetch`). ARC-33 carries freeze condition 2 (the static-linking boundary) in
+  its own paragraph; ARC-35 item 7 carries freeze condition 1 (how the I-2 scan works, including how
+  "the PR's added lines" are determined — §9 E-A1). `docs/MODULE_SPEC.md` §3.1 and a pointer in §8;
+  `systems/README.md` "Adding a pack".
+- [x] Validation: `check_decision_ids` → 45 ids, all distinct; `check_doc_headings` → 143 numbered
+  sections across 22 documents, none duplicated. Cross-references checked by grep: ARCHITECTURE §12
+  ("v0 trusted Rust systems", :431) and §14 (`sdk/`, `tests/`), overall §1 non-goals ("WASM plugin
+  sandbox", :72), ARC-5 (merge commits), ARC-8, ARC-26, ARC-28, ARC-29, ARC-31, DEP-10,
+  `interaction.rs` (`PerceptionProvider`'s defaults return nothing, :85–93, :117–126), kernel
+  `SystemDependencyMissing` (error.rs:210).
+- [x] Review: DEP-12 answers §11's six questions (problem; options; choice; why ours — a
+  `macro_rules!` over existing code; isolating interface; limitations and revisit trigger) and gives
+  a §12 reason per declined option. ARC-35 states its relation to MVP §2 and overall §1's gloss
+  ("What this does not claim"). "Installing" (into the build) and "enabling" (a world's `systems:`)
+  are kept distinct, matching CORE_CONCEPTS' use of "enabled system" (INV-10); no defined term is
+  redefined. Overall §1's gloss citing ARC-35 is a parent-document update left to the planning session
+  (handoff).
 
 **Acceptance.** As validation. **Commit boundary.** Documentation only.
 

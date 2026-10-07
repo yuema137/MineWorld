@@ -2080,3 +2080,275 @@ rejected for the reasons above. (b) **The schedule owns an agenda, and controlle
   boundaries. A world hosted from genesis or from a day-end save therefore commits nothing for five
   hours, and the restart tests' "revision unchanged" claims rely on that. Each of those tests checks
   the assumption first, and fails naming it.
+
+---
+
+## ARC-33 — A System Pack is installed by declaring it in the build's installed set
+
+**Date** 2026-10-07 · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1 · **Relates to** `ARC-8`,
+`ARC-23`, `ARC-26`, `ARC-29`, `ARC-31`, `DEP-10`, `DEP-12`, `ARC-35`, [`MVP.md`](MVP.md) §9 `AC-1`
+· **Design** `.structured-coding/plans/mvp0/step-10-market.md` §2.2, SD-1 … SD-5 (S9, PR 11a)
+
+**Problem.** The frozen top-level criterion asks for *independently installable* interaction
+systems. Until this decision, installing one System Pack edited about eleven lines in five files,
+three of them outside `systems/` (finding F-1, step-09 §8.2):
+
+```text
+Cargo.toml (root)          a `members` line and a `[workspace.dependencies]` line
+worldpack/Cargo.toml       a dependency line
+worldpack/src/catalog.rs   an enum variant, an AVAILABLE entry, and one arm in each of six matches
+Cargo.lock                 regenerated
+```
+
+`ARC-31`'s accepted limitations already said so: "The catalog is still a closed list compiled into
+the build. The seam removes the format edit, not the registration." Every one of those edits teaches
+the World Pack loader that a pack exists, which is the change amplification `CLAUDE.md` §4 rule 5
+forbids.
+
+**What cannot be removed.** MVP-0's System Packs are trusted, statically linked Rust
+(`ARCHITECTURE.md` §12, `PACKAGE_FORMAT.md` §8). A crate is in a statically linked Rust binary only
+if some crate in the build declares it as a Cargo dependency, and no build script, macro or linker
+trick links a crate nobody declares. So one declarative line naming the pack must exist in some
+manifest. The decision is only *where* that line lives and what else must change with it.
+
+**Choice.**
+
+1. **A System Pack declares itself.** The SDK crate `mineworld-sdk` (`sdk/rust/`) defines
+   `SystemPack: System + Default`. A pack implements it once, in its own crate, and says there
+   everything the build needs to know about it beyond `System`:
+   - `BIOGRAPHICAL`: which of its event types belong in a biography (`ARC-29`; default none);
+   - `SECTION`: the authored section it owns, if any (`ARC-31`; default none);
+   - `decode_section`: how that section is decoded. A section owner writes
+     `mineworld_sdk::owns_section!();` inside its `impl`, which defines `SECTION` and
+     `decode_section` together from its `AuthoredSection` impl, so the two cannot disagree. The
+     default refuses, naming the pack: "the '<id>' system owns no section".
+
+   The SDK depends on `authoring`, `contracts`, `kernel` and `serde`, and never on a pack, so every
+   pack can implement it without a dependency cycle.
+2. **The installed set is a crate whose only content is the list.** `systems/installed/` (crate
+   `mineworld-installed-systems`) depends on the SDK, on `presence` for the perception trait, and on
+   every installed pack. Its `lib.rs` is one invocation of `mineworld_sdk::installed!`, one line per
+   pack. The macro expands to the closed enum `Capability`, the constant `AVAILABLE` in the listed
+   order, and the methods `resolve`, `id`, `section`, `owning_section`, `decode_section`,
+   `biographical`, `install`, `provider` and `Display` — the same closed enum and matches the
+   catalog held, generated. Every code path therefore stays monomorphic, and a section is still
+   decoded straight from the YAML stream with its line and column (`DEP-10`). A listed pack that is
+   not a `PerceptionProvider`, not `Default`, or not a `SystemPack` does not compile into the set. A
+   test holds the list and the crate's manifest equal, and no two listed packs may share an id.
+3. **The root manifest stops registering.** Its `members` names `"systems/*"` instead of one line
+   per pack. A new pack depends on a sibling pack by `path = "../<name>"`, so the root
+   `[workspace.dependencies]` never learns it. Path dependencies between sibling packs add no
+   external dependency, so the root's rule — a crate that needs a dependency not listed there is
+   adding one, which is a reviewable decision — is unchanged.
+4. **`worldpack` names only the packs its format fields belong to.** A person's `location` is
+   `presence`'s and a place's `passages` are `movement`'s (`ARC-31` item 5), so `worldpack` keeps
+   those two dependencies and gains the SDK and the installed set. It drops every other pack, and
+   re-exports `Capability`, `AVAILABLE` and `SectionOwner`, so its public API does not change. A
+   structural test holds its dependency allow-list, which names infrastructure and the two format
+   owners and never another pack.
+
+**What installing a System Pack means in MVP-0 — the static-linking boundary.** This is the whole of
+it, and a reader must not take "independently installable" as more:
+
+```text
+systems/<name>/                        the pack                                   (a new directory)
+systems/installed/Cargo.toml           mineworld-<name> = { path = "../<name>" }  (one line)
+systems/installed/src/lib.rs           <Variant> => mineworld_<name>::<System>,   (one line)
+Cargo.lock                             regenerated by Cargo                       (generated)
+then                                   rebuild the binary
+```
+
+- No other file is edited: not the root manifest, not `worldpack`, not the CLI, not the server, not
+  a controller, not the kernel.
+- **Installing** puts a pack into the build. **Enabling** it is a world's choice: a World Pack's
+  `systems:` list names it. A world that does not enable an installed pack is not affected by it.
+- **Installing without a rebuild is not MVP-0.** Adding a pack to a binary that is already built or
+  to a server that is already running, or installing a pack that is not compiled from this
+  repository's build, is the WASM component model of `ARC-8` (Tier 1). That is outside MVP-0
+  (`overall.md` §1 non-goals). So is Milestone E's publishing sense of "a real world assembled from
+  independently installable packs": `.mwpack`, a registry, and packs from outside this repository.
+- `mineworld install` and `mineworld add-system` (`MODULE_SPEC.md` §8) remain unimplemented. The
+  two lines are written by hand.
+
+**Why `systems/installed` lives under `systems/`.** The installed set is the list of System Packs in
+this build. Placing it beside the packs makes installing one an edit under `systems/` only, which is
+what `ARC-35` measures. The operator approved this placement at S9's freeze (step-10 QS-3).
+
+**Accepted limitations.**
+- A rebuild is required to install or remove a pack, as above.
+- Cargo still needs one dependency line per pack, and `Cargo.lock` changes with every install.
+  `ARC-35` admits `Cargo.lock` only as a generated file under a rule that it gains path packages
+  under `systems/` and nothing else.
+- A declarative macro generates the catalog, which is harder to read than a hand-written enum. The
+  macro is one file, documented method by method, and every existing loader, CLI, persistence and
+  server test runs through its expansion.
+- Revisit this decision together with `DEP-12` when the first build installs packs it does not
+  compile from this repository: that is `ARC-8`'s Tier 1. The question each catalog method answers
+  stays the same; the catalog becomes a registry populated at startup.
+
+---
+
+## DEP-12 — System Pack registration: a declared installed set, not linker-section registration or dynamic loading
+
+**Date** 2026-10-07 · **Status** selected; no dependency added · **Relates to** `ARC-8`, `ARC-33`,
+`DEP-10` · **Design** `.structured-coding/plans/mvp0/step-10-market.md` §2.2 (S9, PR 11a)
+
+**Problem.** Make a statically linked Rust System Pack installable by declaring it in one place,
+with no code elsewhere that has to learn it (`ARC-33`). The build must still be able to do what the
+World Pack loader's catalog does with each pack:
+- resolve it by id;
+- install it;
+- hand it out as a perception provider;
+- list its biographical event types;
+- decode its authored section **generically over the YAML stream**, so that a refusal keeps the line
+  and column `DEP-10` chose `serde-saphyr` for.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17 — both directions):
+
+```text
+(a) the status quo: a closed enum in worldpack, one arm per pack
+(b) linker-section registration: `inventory` (dtolnay, MIT/Apache-2.0) or `linkme`'s distributed_slice
+(c) dynamic loading: `libloading`, `abi_stable`
+(d) a value registry with type-erased section decoding: `erased-serde`
+(e) worldpack generic over a catalog type supplied by the binary
+(f) a build script scanning systems/*/Cargo.toml to generate the list (needs the `toml` crate)
+(g) a SystemPack trait each pack implements, and an installed-set crate whose only content is the
+    list, expanded by a declarative macro into the closed enum (`ARC-33`)
+```
+
+**Choice: (g).** No dependency is added. The "implementation of our own" is a `macro_rules!` over the
+code the catalog already held.
+
+**Why not the others** (`REUSE_POLICY.md` §12's reasons):
+
+- **(a)** is finding F-1 itself: about eleven edits in five files per pack.
+- **(b) `inventory` / `linkme` — dependency larger than the problem, and an architecture mismatch.**
+  - They solve distributed registration of *values*. MineWorld's remaining cost after (g) is not
+    registration code; it is the one Cargo line no crate can remove. Both also need a `use pack as
+    _;` line, or the linker drops a crate nothing references, so they would not save even the list
+    line.
+  - They would add a dependency with life-before-main (`inventory`) or per-platform linker support
+    (`linkme`).
+  - Registering values would force the section decoder from a generic function into a type-erased
+    value, which is (d)'s risk.
+  - This is the case of forcing an existing wheel where it does not fit (`REUSE_POLICY.md` §17), not
+    of reinventing one.
+- **(c) `libloading` / `abi_stable` — architecture mismatch and an unacceptable trust model.** Loading
+  native libraries needs `unsafe` (every crate here is `forbid(unsafe_code)`), relies on an unstable
+  Rust ABI, and runs downloaded native code with full privileges. `ARC-8` already chose the WASM
+  component model for code that is not compiled into the build.
+- **(d) `erased-serde` — missing required semantics, unverified.** Whether `serde-saphyr`'s line and
+  column survive an erased round trip has not been shown, and they are `DEP-10`'s reason for the
+  parser. It would add a dependency to put that at risk.
+- **(e) a generic worldpack — inability to isolate it cleanly.** Every caller of `WorldPack::read` —
+  the CLI, the server's and persistence's tests, worldpack's own tests — would change, and
+  worldpack's tests would need a dev-dependency cycle to name a catalog.
+- **(f) a build script — dependency larger than the problem.** Cargo still needs the dependency
+  line, so the script would save one list line at the price of a TOML parser in the build.
+
+**Isolating interface.** `mineworld-sdk`: the `SystemPack` trait, `SectionOwner`, and the macros
+`owns_section!` and `installed!`. A pack names only `SystemPack`; the World Pack loader names only
+the generated `Capability`. If registration moves to a startup registry, these two surfaces are what
+change.
+
+**Accepted limitations and the revisit trigger.**
+- One Cargo line per pack remains, as it must for static linking (`ARC-33`).
+- Revisit when the first build installs packs it does not compile from this repository, which is
+  `ARC-8`'s Tier 1. A runtime registry is then needed anyway, and the comparison above is reopened
+  rather than assumed.
+
+---
+
+## ARC-35 — How AC-1 is measured
+
+**Date** 2026-10-07 · **Approved by** the operator at S9's design freeze (step-10 QS-2) · **Implements**
+[`MVP.md`](MVP.md) §2, §9 `AC-1` · **Relates to** `ARC-23`, `ARC-33`, `DEP-12` · **Design**
+`.structured-coding/plans/mvp0/step-10-market.md` §1.3 (I-1, I-2, I-9), §2.5, SD-6 (S9)
+
+**Problem.** `AC-1` and the frozen top-level criterion say that Market Town is Social Café plus
+installed systems and a configuration change, with no edit to the kernel, `Person`, a renderer or a
+controller. `overall.md` §1 glosses that as a change that touches only `systems/` and `worlds/`. Two
+things make the sentence measurable only if the measurement is decided first:
+- Making packs installable (F-1, `ARC-33`) and letting a controller attempt an action it was never
+  compiled against (F-3) are framework changes. They must land before the market, and outside the
+  measured change.
+- A measurement chosen after seeing the result is not a measurement (`ARC-23`).
+
+**Choice.**
+
+1. **The transformation is two named merges.** The market arrives in PRs 11d (item, inventory,
+   item-transfer, and `worlds/market-town`) and 11e (economy, employment, and their content). Each
+   merge commit `M` is read against its own first parent, so unrelated PRs merging in between do not
+   enter the range.
+2. **Check 1, the change set.** `git diff --name-only M^1 M` ⊆ allowed, where allowed is:
+   - `systems/**`;
+   - `worlds/**`;
+   - `Cargo.lock`, under a rule: every `[[package]]` added between `M^1` and `M` has no `source`
+     (a path package) and lives under `systems/`, and every `[[package]]` whose dependency list
+     changed lives under `systems/`. No external dependency arrives with the market;
+   - Markdown documentation: `**/*.md` under `docs/`, `systems/`, `worlds/` and
+     `.structured-coding/plans/`, because a PR here always updates its ledger.
+3. **Check 2, the structure** — from `cargo metadata` at HEAD, independent of history:
+   - the direct dependents of each market pack are `systems/*` crates only;
+   - no dependency path leads to a market pack from `kernel`, `contracts`, `persistence`, `server`,
+     `authoring`, `sdk` or `rule-controller`;
+   - no code file (`*.rs`, `Cargo.toml`) outside `systems/`, `worlds/` and `tests/acceptance/` names
+     a market pack's crate. Crate names are matched, not action or event slugs: contract tests
+     already use stub ids such as `inventory-stub` that name no pack.
+
+   Check 2 catches what a path diff cannot: a kernel or controller taught the market *before* the
+   transformation range.
+4. **Check 3, the world delta.** Market Town is Social Café plus configuration:
+   - `systems`: Social Café's list, in order, then the five market packs;
+   - places, population and seats: identical keys;
+   - every person and place file: Social Café's fields and sections unchanged, plus sections owned
+     by market packs only;
+   - `items/` and `organizations/`: present only in Market Town.
+5. **Fail closed.** Check 1 needs git history. Without it the test fails, naming the missing
+   history. It never skips.
+6. **The precursors are bounded instead of measured** — by two frozen invariants, each checked:
+   - **I-2: the precursors know no market.** PRs 11a, 11b and 11c add no market concept (item 7).
+   - **I-9: the controller's offer band is decided before the market exists.** Its constants are
+     fixed in 11c against a synthetic pack. If Market Town behaves badly, the remedy is in
+     `systems/` or `worlds/`, never in the controller.
+7. **I-2 is checked mechanically**, by `tests/acceptance/tests/precursor_vocabulary.rs` (crate
+   `mineworld-acceptance`, the home `ARCHITECTURE.md` §14 gives acceptance tests):
+   - **Vocabulary:** `item`, `inventory`, `money`, `price`, `wage`, `job`, `shift`, `shop`,
+     `economy`, `employ`.
+   - **What is scanned:** every line a precursor adds, and the path of every file it adds, in every
+     file except Markdown. Code, comments, manifests, `Cargo.lock` and fixtures are all scanned.
+     Documentation is not, because documentation must be able to discuss the market; this record
+     does.
+   - **How a match is found:** a line is split into words at every character that is not a letter
+     or a digit, and at every lower-to-upper case boundary. A word matches when, lowercased, it
+     begins with a vocabulary word, so `items`, `ShopFront`, `employer` and `wages` all match.
+   - **Which lines are "the PR's added lines", deterministically.** The test holds one row per
+     precursor: the PR, its recorded base commit, and its branch.
+     - If the first-parent history of `HEAD` holds that branch's merge commit `M` (subject
+       `Merge pull request #N from <owner>/<branch>`, the form every merge to the protected `main`
+       takes, `ARC-5`), the range is `base..M^2`: exactly what the PR added, whatever merged later.
+     - Otherwise the PR is not merged, and the range is from `base` to the working tree: tracked
+       changes (`git diff <base>`) plus every untracked file Git does not ignore. A line is
+       therefore scanned before it is committed.
+     - A precursor PR adds its own row and its own allow-list entries; 11b and 11c extend the same
+       test.
+   - **Allow-list:** each entry names a file, a line substring and a reason. It admits only matches
+     that are not a market concept: the scan's own vocabulary list, a word in another sense (Rust's
+     `Iterator::Item`), or a pre-existing use carried into an added line. An entry with an empty
+     reason fails the test, and so does an entry that matches nothing, so the list cannot go stale.
+   - **Fail closed:** the test fails, naming the cause, when `git` cannot run, the directory is not a
+     repository, a recorded base is missing (a shallow clone), or `HEAD` does not descend from it.
+     It never skips.
+   - **A precursor that turns out to need a market word is a material stop**, decided by the
+     operator, never an allow-list entry added to pass.
+   - A squash merge would leave no merge commit. The range would then fall back to `base..HEAD`,
+     which fails once the market exists. The failure is loud, not silent.
+
+**What this does not claim.** That S9 as a whole changed only `systems/` and `worlds/`: it did not,
+and could not for any linked pack (`ARC-33`). The criterion is read as `MVP.md` §2 words it, and
+`overall.md` §1's path gloss is made exact by items 1–7.
+
+**Accepted limitations.**
+- The measurement depends on two merge commits being identified by id, which exist only after they
+  merge. The proof (PR 11f) records them.
+- Documentation inside the range is admitted by path and extension, not by content.
