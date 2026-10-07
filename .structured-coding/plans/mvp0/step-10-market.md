@@ -781,17 +781,30 @@ before any code relies on them (`CLAUDE.md` §2.2).
 
 **Depends on:** C1. **Non-goals:** no pack implements the trait yet; `worldpack` unchanged.
 
-- [ ] Implementation:
-  - [ ] the crate and its four modules, as scoped;
-  - [ ] `installed!`'s expansion reproduces `catalog.rs`'s public surface method by method — checked by
-    reading the expansion (`cargo expand` is not installed; the C4 build is the check that matters).
-- [ ] Validation:
-  - [ ] `cargo check -p mineworld-sdk`, `cargo clippy -p mineworld-sdk --all-targets -- -D warnings`.
-  - [ ] Unit (`pack.rs`): a stub pack that declares no section refuses `decode_section` with an error
-    naming its own id — the fail-closed default the catalog's last arm gives today. One test; it owns
-    the "a pack that owns nothing is refused, not silently decoded" failure class.
-- [ ] Review: the SDK names no pack and no perception trait by path; no `unsafe`; `#[macro_export]`
-  macros refer only to `$crate::__private` paths; the trait's defaults are the safe direction.
+- [x] Implementation:
+  - [x] the crate and its four modules, as scoped: `sdk/rust/{Cargo.toml, README.md,
+    src/lib.rs, src/pack.rs, src/section.rs, src/installed.rs}`; root `Cargo.toml` member `sdk/rust`
+    and `mineworld-sdk` workspace dependency; `sdk/.gitkeep` removed (the directory has content).
+  - [x] `installed!`'s expansion reproduces `catalog.rs`'s public surface method by method — read side
+    by side: `resolve`, `id`, `section` (still `const fn`), `owning_section`, `decode_section` (now
+    `pub`), `biographical`, `install`, `provider`, `Display`; plus `type_name` for the guard. Each
+    method's doc comment carried. The C4 build and the existing suites are the check that matters.
+  - Bounded detail: the list's system type is a `ty` fragment (`$System:ty`), not `path`, because it
+    is used as `<$System as Trait>::…`; the perception trait stays a `path` (`dyn $perception`). Variant
+    docs are generated ("The System Pack `…`.") so an install line needs no doc line beside it. `N` in
+    `[Capability; N]` is the length of the stringified variant list, so no counting macro exists.
+- [x] Validation:
+  - [x] `cargo check -p mineworld-sdk`, `cargo clippy -p mineworld-sdk --all-targets -- -D warnings`:
+    clean (E-A2).
+  - [x] Unit (`pack.rs`): `a_pack_that_owns_no_section_refuses_to_decode_one_and_says_which_pack_it_is`
+    — a stub pack refuses with exactly "the 'silent' system owns no section", the message the
+    catalog's last arm gave. Driven through serde's own `MapDeserializer`, so no dependency was added.
+    1 passed.
+- [x] Review: the SDK's manifest names authoring, contracts, kernel and serde only — no pack, and no
+  perception trait (the installed set passes it in by path). `#![forbid(unsafe_code)]`. Both
+  `#[macro_export]` macros refer only to `$crate::…` and `::core`/`::std` paths. Defaults: no
+  biography, no section, and `decode_section` refuses — the safe direction; a pack that sets `SECTION`
+  by hand without `owns_section!` still refuses to decode, never decodes wrongly.
 
 **Acceptance.** The SDK builds and lints clean with no pack depending on it; its one test passes.
 **Failure cases.** A macro that cannot express `decode_section` generically over `MapAccess` would

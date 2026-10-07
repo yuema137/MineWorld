@@ -1,0 +1,17 @@
+[package]
+name = "mineworld-sdk"
+description = "What a Rust System Pack declares about itself — the SystemPack trait — and the macro a build's installed set of System Packs is written in."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Below every System Pack, beside the kernel: a pack implements this crate's trait, and the installed
+# set (systems/installed) expands this crate's macro. It names no pack and no perception trait, so any
+# pack — presence included — can implement it without a cycle (DECISIONS.md ARC-33).
+mineworld-authoring = { workspace = true }
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+serde = { workspace = true }
