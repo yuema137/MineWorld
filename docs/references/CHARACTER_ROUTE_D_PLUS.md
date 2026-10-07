@@ -264,3 +264,13 @@ These are a later decision (coordinator, 2026-10-07): **not faked here.**
      fixed PNG was copied over the extracted one.
   3. With the fixed texture (`runtime_d7/p6_hairline`) the flecks are unchanged. So they are
      not (only) the bake. Next test: the imported material's specular response.
+  4. Specular: the imported material is roughness 0.80, specular 0.50. `human.gd` now gives it
+     roughness 0.90, specular 0.25 (`_meshy`). The hair reads warmer and less sheeny
+     (`runtime_d8/p6_hairline`); the flecks are fewer but remain. Not the main cause.
+  5. UV seams: no low triangle straddles two islands (UV edge length against 3D edge length at
+     the median 1,157 texels/m: 0 of 95,000 flagged). Not the cause.
+  6. At native resolution the bake's island borders differ from Meshy's (the low islands' edges
+     moved with decimation) and carry wrong-surface colour at some borders (a hoodie-red patch
+     inside a skin island, for one). With 15 mm extrusion and 40 mm rays, a ray from a lock
+     thinner than 15 mm starts beyond it. Next: re-bake the head and hair onto the rigged body
+     with 4 mm / 12 mm rays (`rebake_head.py`, scratch), misses keeping the old texel.
