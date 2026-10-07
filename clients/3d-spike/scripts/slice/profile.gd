@@ -257,9 +257,12 @@ static func pitched_roof(parent: Node3D, cx: float, w: float, y: float,
 	var ww := w + overhang * 2.0
 	Build.prism(parent, Vector3(cx, y + rise * 0.5, -depth * 0.5),
 		Vector3(d, rise, ww), mat, PI * 0.5)
-	# a ridge tile so the apex is not a knife edge
+	# a ridge tile so the apex is not a knife edge. Along the ridge, which the
+	# prism's quarter turn lays parallel to the street: it was sized (0.16, 0.10,
+	# d), front to back, and stood as a 9.6 m bar across the front slope at apex
+	# height -- the dark diagonal stroke over Maple & Co. at 05's framing.
 	Build.box(parent, Vector3(cx, y + rise, -depth * 0.5),
-		Vector3(0.16, 0.10, d), mat)
+		Vector3(ww, 0.10, 0.16), mat)
 
 
 ## A flat roof behind a parapet, with a coping stone on top of the parapet.

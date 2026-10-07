@@ -73,6 +73,11 @@ static func setts() -> Material:
 static func setts_grey() -> Material:
 	return Mats.pbr("cobblestone_floor_08", 1.60, Color(0.78, 0.78, 0.78), 0.88)
 
+## 05's carriageway: the pavements' setts, a course larger and a shade darker,
+## worn smoother by wheels.
+static func road_setts() -> Material:
+	return Mats.pbr("cobblestone_floor_08", 2.10, Color(0.80, 0.79, 0.77), 0.82)
+
 static func asphalt() -> Material:
 	return Mats.pbr("worn_asphalt", 4.20, Color(0.78, 0.78, 0.82), 0.96)
 

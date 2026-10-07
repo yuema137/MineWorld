@@ -57,8 +57,10 @@ static func build(parent: Node3D) -> Node3D:
 
 static func _carriageway(g: Node3D) -> void:
 	var w := X_MAX - X_MIN
+	# setts, not asphalt: 05's carriageway is the same grey stone as its
+	# pavements, laid larger and darker (SlicePalette.road_setts)
 	Build.box(g, Vector3((X_MIN + X_MAX) * 0.5, -0.06, 0.0),
-		Vector3(w, 0.12, HALF_ROAD * 2.0), SlicePalette.asphalt(), 0.0, true)
+		Vector3(w, 0.12, HALF_ROAD * 2.0), SlicePalette.road_setts(), 0.0, true)
 	# the gutter channel: one course of setts laid flat against each kerb, a
 	# shade darker and slightly dished. It is the line that tells the eye where
 	# the road stops, and 05 has it on both sides.
