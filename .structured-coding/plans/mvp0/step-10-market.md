@@ -1904,6 +1904,8 @@ CHECKED  ENGINEERING_RULES §§9, 11–12 (the two gate questions): complete aff
 CHECKED  determinism (AC-12): every new map is a BTreeMap; every choice is a seeded draw; no float
 FLAGGED  QS-2, QS-3, QS-4, QS-5, QS-6 — operator-material (§10)
 FLAGGED  MVP §5's eat and sleep are not in S9 (QS-10)
+FLAGGED  QS-15 — operator-material (amends ARC-35 point 7's merged-range detection); QS-20 amends
+         frozen SD-12 (primary session)
 ```
 
 ---
@@ -2161,7 +2163,10 @@ E-1  I-4 baseline after 11a, on 7ed1648 (debug, opt-level 1), 2026-10-07:
      `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, 339 lines, faults 0,
      365 330 facts, sha-256 of all but `wall` =
      ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 12.6 s.
-     §8.4's audit; no other code run. Doc checks: §9 E-2 (end of this planning branch).
+     §8.4's audit; no other code run.
+E-2  End of this planning branch: check_doc_headings → 143 numbered sections across 22 documents, none
+     duplicated; check_decision_ids → 45 ids, all distinct (ARC-34, ARC-36 still proposals in this file
+     only). Docs-only branch; no cargo gate run.
 ```
 
 Each implementation PR records its evidence in its own section — §9.2 for 11b, §9.3 for 11c — so that
@@ -2301,6 +2306,76 @@ QS-14  The execution contract for 11a (§11): fresh session, its own worktree an
        authorized as for 10a–10c, merge the operator's. Recommended: confirm at freeze.
 ```
 
+**Raised while detailing 11b and 11c (2026-10-07, on `7ed1648`).**
+
+```text
+QS-15  [OPERATOR-MATERIAL — amends ARC-35 point 7, how I-2 is measured] The scan finds a merged
+       precursor on HEAD's first-parent chain only (F-30). With 11b and 11c in parallel, the second to
+       merge integrates main by a merge (project practice), so on its branch the first one's PR merge is
+       reachable only through a second parent and reads as unmerged. If 11b is second, its own `item`
+       lines are then scanned under 11c's row and refused.
+       Proposal: in 11b's B-C2, search every merge reachable from HEAD and require exactly one
+       `Merge pull request #N from <owner>/<branch>` per row (two fail closed, naming both); unit-tested
+       on log text; an ARC-35 dated note. Once both are on main nothing changes (first-parent holds).
+       Alternative (no amendment): the second PR integrates main by rebase and force-pushes its own
+       unmerged branch; its evidence is then re-run on the rebased head anyway.
+       Recommended: the amendment.
+
+QS-16  The scan admits whole lines (F-31): an admitted `item` would hide `price` on the same line. 11b
+       makes an entry admit named words (`Words::Only`), `Any` only for the scan's own file; every other
+       market word on an admitted line is refused. Tightens an approved check; an ARC-35 note.
+       Not operator-material. Recommended: accept.
+
+QS-17  11b's allow-list (§4.2.2): only the words `item`, `items`, per listed file, each with its reason;
+       a further file needing them for the same reason is a recorded bounded addition; any other market
+       word is a material stop. Recommended: accept.
+
+QS-18  `mineworld validate` prints `items` and `organizations` summary lines only when a pack declares
+       some, so social-cafe's report stays byte-identical (F-32). Alternative: always print them (social-
+       cafe's report gains two `none` lines). Recommended: only when declared.
+
+QS-19  11b proves the order and reference typing of sections on items and organizations with a probe
+       owner in worldpack's unit tests (F-22), and teaches no installed pack to carry them (`naming`
+       stays people-only, §1.2). The first real owners arrive in 11d. Recommended: accept.
+
+QS-20  [primary session — amends frozen SD-12] No GDScript change in 11c: `affordance(type, target)`
+       returns the first match, and SD-12's `payload(action_type, target)` would be ambiguous whenever
+       several complete affordances share a type and target, which is the normal case (F-29).
+       `affordances()` already returns the payload in each dictionary; ADOPTION.md documents it; the
+       accessor arrives in S12 with its first consumer. Recommended: amend SD-12 so.
+
+QS-21  `Affordance::request(actor, encode)` takes the encoder, because observations carry JSON values and
+       dispatch takes bytes (F-26); it needs a pub(crate) labelling constructor on ActionRecord (F-25).
+       A refinement of SD-9's `request(actor)` within QS-4. Recommended: accept.
+
+QS-22  `Offer::complete(&action, requirement) -> Result<Offer, serde_json::Error>` replaces SD-9's
+       `Offer::with_payload::<A>(&A)` with a debug assertion: the type is read off the value, so a
+       payload of another action cannot be attached at all. Recommended: accept.
+
+QS-23  `spike/server` (its own workspace, consuming contracts by path) stops compiling once Affordance is
+       generic (F-24). Options: one type annotation in 11c, checked with `cargo check --manifest-path
+       spike/server/Cargo.toml` (N/A if its base does not build offline); or leave the frozen spike stale
+       and say so in spike/README. Recommended: the one-line update.
+
+QS-24  CP-3's end-to-end test lives in tests/acceptance (gaining dev-dependencies on contracts, kernel,
+       presence, rule-controller, serde, serde_json), so the rule-controller's manifest is not edited and
+       the synthetic pack is compiled into no library. Alternatives: rule-controller dev-dependencies
+       (its manifest says it depends on no kernel); tools/cli/tests (wrong owner). Recommended:
+       tests/acceptance.
+
+QS-25  The offer band: ATTEMPTS_OFFERED 20, OFFER_DRAW 14, OFFERED_CHOICE_DRAW 15, after the social
+       initiative and before the walking roll. Criterion, fixed now: on a scratch install of chimes
+       offering to everyone everywhere (worst case), 300 days of social-cafe keep step-08 I-9's activity
+       precondition and every seat rings in every bucket; if 20 fails, 11c lowers it, and the passing
+       value is frozen for S9 (I-9). §4.3's drafted adversarial (2) is replaced (F-28).
+       Recommended: accept.
+
+QS-26  Parallel coordination (§12): one handoff per PR (handoff-11b.md, handoff-11c.md), each PR's own
+       ledger sections, fixed anchors in MVP_STATUS, ARC-34 before ARC-35 and ARC-36 at the end of
+       DECISIONS, scan rows kept side by side, the second PR moving its scan base on integrating main,
+       merge commits only. Recommended: accept.
+```
+
 ---
 
 # 11. Execution contract for PR 11a (proposed; confirmed at 11a's freeze)
@@ -2338,4 +2413,141 @@ MATERIAL STOP       any change to §1.3, to a public contract beyond SD-1 … SD
                     scope; an existing test that fails for any reason but F-10's; a changed social-cafe
                     run (A-1); a needed edit to kernel/, contracts/, persistence/, server/, clients/ or
                     cognition/; C2's failure case (the macro cannot express the generic decoder)
+```
+
+---
+
+# 12. Running 11b and 11c in parallel
+
+Two sessions, two worktrees, two branches, both from the same `main`. Neither touches the other's
+worktree (`CLAUDE.md` §3.1). Every file both could touch has an owner or an anchor here, so a conflict
+is either avoided or resolved mechanically by whoever merges second.
+
+```text
+file                                    11b                          11c                          how
+tests/acceptance/tests/                 row 11b; word-level          row 11c; no allow-list       second to merge keeps both rows
+  precursor_vocabulary.rs               allow-list (B-C2); entries   entry                        in order 11a, 11b, 11c and takes
+                                        (§4.2.2); merged detection                                11b's structure; textual only
+                                        (QS-15)
+the PR's own scan row base              moved on integrating main    moved on integrating main    in the same commit as the
+                                                                                                  integration (below)
+tests/acceptance/{Cargo.toml,           —                            dev-dependencies, doc        11c only
+  src/lib.rs}
+Cargo.lock                              no change expected           acceptance's dependency      11c only; if 11b needs a
+                                                                     list                         dependency after all, the second
+                                                                                                  regenerates with `cargo metadata`
+docs/DECISIONS.md                       ARC-36 appended at the end;  ARC-34 inserted directly     different hunks
+                                        ARC-35 note under ARC-35     before `## ARC-35`
+                                                                     (ARC-35's note is 11b's)
+docs/MODULE_SPEC.md                     §4.1                         §5                           different sections
+docs/CORE_CONCEPTS.md                   §7 note                      §15.2                        different sections
+docs/PACKAGE_FORMAT.md                  §8 row                       —                            11b only
+server/PROTOCOL.md,                     —                            yes                          11c only
+  clients/protocol/ADOPTION.md
+docs/MVP_STATUS.md                      capability row after         capability row after         distinct anchors; `Updated:` line
+                                        "Authored content owned by   "Conversation"; evidence     and S9 stage row edited by
+                                        packs"; evidence row after   row after the table's last   neither (planning session)
+                                        "People are named, …"        row
+step-10-market.md                       §4.2, §9.2, §13 live parts   §4.3, §9.3, §14 live parts   header, §§1–3, §5, §10, §12 and
+                                                                                                  every other PR's sections are the
+                                                                                                  planning session's
+handoff                                 handoff-11b.md               handoff-11c.md               handoff.md stays 11a's closed
+                                                                                                  record until the planning session
+                                                                                                  folds both back after merge
+overall.md                              —                            —                            planning session only
+authoring/, worldpack/, tools/cli/      11b only                     —
+contracts/, systems/presence/,          —                            11c only
+  cognition/, systems/{conversation,
+  group-activity}/tests, spike/server
+```
+
+**Integrating main.** Whichever PR is still open when the other merges integrates `main` before its
+final gates (by merge, project practice). In that same commit it sets its own `PRECURSORS` row's `base`
+to the `main` commit it integrated, so its unmerged range — `base` to the working tree — again holds only
+its own lines. If QS-15 is declined, it integrates by rebase instead and force-pushes its own branch.
+After integrating, it re-runs its targeted tests, the I-2 scan, the 300-day sha (I-4) and its final full
+gate on the integrated head; earlier evidence does not carry over.
+
+**Merging.** Each PR is merged with a **merge commit** — never squash, never rebase-merge — because the
+scan's merged range is `base..M^2` of `Merge pull request #N from yuema137/<branch>` (ARC-35 point 7). A
+squash would fall back to `base..HEAD` and fail loudly once later PRs add the market.
+
+**After both merge.** The planning session records both merges in §4.2 and §4.3, the header, overall §7
+and MVP_STATUS's `Updated:` line and S9 row; folds the two handoffs into `handoff.md`; confirms on `main`
+that the I-2 scan passes with three rows and that the 300-day sha is E-0.
+
+# 13. Execution contract for PR 11b (proposed; confirmed at 11b's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 10 / PR 11b — items and organizations as World Pack content kinds
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-10-market.md §4.2 (4.2.1–4.2.4), §9.2
+RELATED / BINDING   overall.md §§1, 7; this file §§1.3, 2.4, 2.5, 3 (SD-7, SD-8), 8.4, 10 (QS-5, QS-6,
+                    QS-15 … QS-19, as answered), 12; MODULE_SPEC §§4, 4.1; PACKAGE_FORMAT §8;
+                    CORE_CONCEPTS §§7, 8; DECISIONS ARC-15, ARC-31, ARC-33, ARC-35, DEP-10
+IMPLEMENTATION BASE the main named at freeze (main @ 7ed1648 + this planning branch); branch
+                    mvp0/pr-11b-content-kinds; worktree /Users/yuema137/mineworld-worktrees/s9-11b (proposed),
+                    held by the implementing session only
+APPROVED SCOPE      §4.2: B-C1 … B-C6; nothing in contracts/, kernel/, persistence/, server/, clients/,
+                    cognition/, systems/
+FROZEN INVARIANTS   I-2 (§4.2.2's allow-list; any other market word is a material stop), I-4 (B-1),
+                    I-8 (no contracts/ or kernel/ diff); the parallel rules of §12
+SEQUENCE            B-C1 → B-C2 → B-C3 → B-C4 → B-C5 → B-C6, each committed and pushed when coherent
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: 300-day social-cafe (~15 s) and the
+                    10-day CLI runs; one full workspace gate on the final head (background); about one
+                    hour in total; real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §4.2 checkboxes; §9.2 E-B ledger
+HANDOFF             .structured-coding/plans/mvp0/handoff-11b.md, initialized at B-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the primary session's freeze message
+  semantic commits, branch push       recommended authorized, as for 11a
+  PR creation / update                recommended authorized, as for 11a
+  integrating main (§12)              recommended authorized, with the base move
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     the planning session owns step header/§§1–3, overall and MVP_STATUS's Updated/S9 lines;
+                    the implementing session owns §4.2 and §9.2
+NORMAL STOP         PR 11b READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a market word other than item/items needed; a change to a public contract, the kernel
+                    or ownership; an existing id, event id or the social-cafe run changing; a needed new
+                    meaning for an existing PackError variant; QS-15 unanswered when the parallel
+                    integration arises (use §12's fallback only if the operator declined it)
+```
+
+# 14. Execution contract for PR 11c (proposed; confirmed at 11c's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 10 / PR 11c — complete affordances (F-3)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-10-market.md §4.3 (4.3.1–4.3.3), §9.3
+RELATED / BINDING   overall.md §§1, 7; this file §§1.3 (I-5, I-8, I-9), 2.3, 3 (SD-9 … SD-12), 8.4,
+                    10 (QS-4, QS-20 … QS-25, as answered), 12; CORE_CONCEPTS §15; MODULE_SPEC §5;
+                    server/PROTOCOL.md §§5–6; DECISIONS ARC-23, ARC-26, ARC-27, ARC-35
+IMPLEMENTATION BASE the main named at freeze (main @ 7ed1648 + this planning branch); branch
+                    mvp0/pr-11c-affordances; worktree /Users/yuema137/mineworld-worktrees/s9-11c (proposed),
+                    held by the implementing session only
+APPROVED SCOPE      §4.3: C-C1 … C-C6; contracts/ only observation.rs plus the pub(crate) labeller in
+                    action.rs and their tests; no kernel/, worldpack/, authoring/, tools/cli/src change
+FROZEN INVARIANTS   I-2 (no 11c allow-list entry), I-4 (C-1), I-5 (decide stays pure; RuleController and
+                    the rule-controller manifest unchanged), I-8, I-9 (constants fixed by C-C6's
+                    criterion, then frozen); the parallel rules of §12
+SEQUENCE            C-C1 → C-C2 → C-C3 → C-C4 → C-C5 → C-C6, each committed and pushed when coherent
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: 300-day social-cafe (~15 s) at C-C4 and
+                    the final head; the scratch chimes install's 300-day run (≤ 2 runs if the rate must be
+                    lowered); one full workspace gate on the final head; about one hour in total;
+                    real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §4.3 checkboxes; §9.3 E-C ledger
+HANDOFF             .structured-coding/plans/mvp0/handoff-11c.md, initialized at C-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the primary session's freeze message
+  semantic commits, branch push       recommended authorized, as for 11a
+  PR creation / update                recommended authorized, as for 11a
+  scratch branch for chimes (C-C6)    recommended authorized, local only, deleted after evidence
+  integrating main (§12)              recommended authorized, with the base move
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     as §13
+NORMAL STOP         PR 11c READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a market word needed; a contracts/ change beyond the payload field and its methods; a
+                    change to RuleController, decide's purity or the rule-controller manifest; a change of
+                    behaviour (not a type annotation) in any existing pack or test; the social-cafe run
+                    or an AC-13/AC-15 transcript changing; C-C6's criterion failing at every rate ≥ 5
 ```
