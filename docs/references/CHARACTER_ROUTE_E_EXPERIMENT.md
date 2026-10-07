@@ -205,3 +205,61 @@ a part or a wrap target.
 
 *(filled in as the experiment runs; nothing below this line was written before the measurement it
 reports.)*
+
+### 9.1 Inputs, as run
+
+`/Users/yuema137/mineworld-demos/i23d/prep_inputs.py`: the reference cropped at
+`(300, 40, 700, 440)` (head) and `(230, 40, 860, 1086)` (chest-up), alpha from BiRefNet through
+`rembg` 2.0.85 (MIT) with its `birefnet-portrait` ONNX export
+(`BiRefNet-portrait-epoch_150.onnx`, from the `danielgatis/rembg` release assets; the network is
+`ZhengPeng7/BiRefNet`, MIT). ONNX weights only, no remote model code executed. Foreground padded to
+85 % of a 1024² square on 50 % grey. No derived (OpenAI) view was used for any run below.
+
+### 9.2 TripoSR — stopped at the raw-mesh gate
+
+**Ran:** clone `VAST-AI-Research/TripoSR` at `107cefd`, weights `stabilityai/TripoSR`
+(`model.ckpt`), `transformers` 4.46.3 (5.x renamed the ViT keys and the checkpoint no longer
+loads), PyTorch 2.14.1 on MPS, `torchmcubes` replaced by `skimage.measure.marching_cubes`
+(`run_triposr.py`), marching-cubes resolution 384. Head: 217,469 vertices, 28 s. Chest-up:
+116,152 vertices, 18 s. Rendered by `render_raw.py` (Blender 5.2 headless, EEVEE); azimuth 0 is
+the generator's input view and reproduces the reference's pose.
+
+**Evidence:** [`e1_triposr_head_gate.jpg`](../../presentation/mineworld-default/3D/candidate/route_e/e1_triposr_head_gate.jpg)
+(reference crop | TripoSR vertex colour | TripoSR clay | current CharMorph head, clay, same
+three-quarter pose, `render_head.py`, yaw 30°), 640 px per tile.
+
+**§6.1(1) ratios.** Landmarks read by eye on 768 px frames with a 96 px grid; the reading error is
+about ±5 px, i.e. about ±0.02–0.03 on each ratio. `E` = eye line to chin.
+
+| Landmarks (px) | Reference | TripoSR | CharMorph |
+| --- | --- | --- | --- |
+| eye centres | (330, 375), (485, 385) | (350, 375), (497, 380) | (382, 372), (494, 372) |
+| nose tip / mouth centre / chin | (415, 462) / (400, 520) / (400, 612) | (430, 452) / (420, 492) / (410, 578) | (450, 452) / (430, 500) / (425, 577) |
+| face contour at the eye line | x 215 … 525 | x 262 … 560 | x 250 … 512 |
+
+| Ratio | Reference | TripoSR | CharMorph | Nearer |
+| --- | --- | --- | --- | --- |
+| (a) inter-eye / `E` | 0.67 | 0.74 | 0.55 | TripoSR |
+| (b) nose tip → mouth / `E` | 0.25 | 0.20 | 0.23 | CharMorph |
+| (c) mouth → chin / `E` | 0.40 | 0.43 | 0.38 | CharMorph (within reading error) |
+| (d) face width at eye line / `E` | 1.34 | 1.49 | 1.28 | CharMorph |
+
+**One of four.** Criterion 1 fails.
+
+**§6.1(2), features as geometry: weak.** In the clay render the eyes are two horizontal ridges with
+no lid shape or socket depth, the mouth is a single slit with no lip volume, the nose is present.
+**§6.1(3), not broken: fails.** The face is a shallow relief: the surface is stair-stepped along the
+voxel grid (visible as horizontal banding across the cheeks and forehead in clay), the mouth's
+corners smear into the cheeks, and the hair is fused onto both sides of the face as one shell
+with drips below the jaw.
+
+**Verdict: TripoSR is stopped at the gate and is not wrapped.** Its face is not closer to the
+reference than the current head on the stated ratios, and its surface quality is below the head it
+would be wrapped onto.
+
+**Whole character (§6.3), TripoSR:** [`e2_triposr_whole_character.jpg`](../../presentation/mineworld-default/3D/candidate/route_e/e2_triposr_whole_character.jpg)
+(reference | front colour | front clay | side | back). Hair: one fused shell of lumpy ridges —
+**confirmed**. Hood, drawstrings, zip, cuffs: paint on one surface; the hood is a bump at the
+neck — **confirmed**. Backpack: fused into the back as one lumpy mass, the visible strap merged with
+the hand — **confirmed**. Face: melted at this scale, the mouth a dark smear. Legs end at the crop
+line; the back is invented. Route D's prediction holds for this generator on every part.
