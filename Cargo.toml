@@ -9,6 +9,7 @@ members = [
     "systems/group-activity",
     "systems/movement",
     "systems/presence",
+    "systems/relationships",
     "tools/cli",
     "worldpack",
 ]
@@ -31,6 +32,7 @@ mineworld-kernel = { path = "kernel" }
 mineworld-movement = { path = "systems/movement" }
 mineworld-persistence = { path = "persistence" }
 mineworld-presence = { path = "systems/presence" }
+mineworld-relationships = { path = "systems/relationships" }
 mineworld-rule-controller = { path = "cognition/rule-controller" }
 mineworld-conversation = { path = "systems/conversation" }
 mineworld-group-activity = { path = "systems/group-activity" }

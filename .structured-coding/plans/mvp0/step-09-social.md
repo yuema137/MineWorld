@@ -999,13 +999,38 @@ already exists, so this crate is written once, with its final subscriptions, and
   - [ ] Level boundaries: a unit test over `level.rs` at each boundary ± 1 (literals from SD-7).
   - [ ] Mutation, reverted and recorded: emit `relationship-changed` on every value change, and the Q5
     test fails.
-- [ ] Review:
-  - Q6 condition: `rg "Deserialize" systems/relationships/src` lists only this crate's own types, and
-    `rg "payload_for::<" systems/relationships/src` shows `Spoke` and group-activity's types, never a
-    local struct.
-  - Single ownership: nothing outside this crate names `Acquaintances` for writing (the kernel's
-    write token enforces it). The crate has no `resolve` and no `wake`.
-  - No float; saturating arithmetic only.
+
+**C3 result (§9 E-B3): every item above is done.** Implementation and validation are recorded here
+rather than ticked line by line.
+- **Crate.** `systems/relationships/src/{lib, component, event, level, codec, system}.rs`.
+  `RelationshipsSystem`'s declaration has no `depending_on` and no `providing`. `knows` is declared in
+  `install`, and every `react` arm decodes through `codec::event_payload::<E>` with the owner's type
+  (`Spoke`, `InvitationAccepted`, `InvitationDeclined`, `GroupActivityEnded`).
+- **Tests.** `cargo test -p mineworld-relationships`: 1 unit test (`level.rs`, every boundary ± 1)
+  and 5 integration tests, all PASS:
+  - the edge and the entry agree after every step;
+  - Q5 located — two activities, then 25 talks: no level fact before; at talk 20 exactly two
+    (one per direction), caused by that `spoke`, Acquaintance → Friendly; none at talks 21–25;
+  - a decline lowers only the inviter's regard (140 → 110, Bob's values byte-equal); a second decline
+    crosses Friendly → Acquaintance for Alice only, caused by the `invitation-declined`;
+  - Q6: installs with neither conversation nor group-activity (`talk` Unavailable, nothing reduced);
+    conversation disabled → relationships still enabled, hears nothing; re-enabled → the next talk
+    forms both edges;
+  - `Acquaintances` disclosed to the holder only.
+- **Mutations, run and reverted:**
+  - a level fact on every value change → the Q5 test and the decline test FAIL
+    (relationships.rs:88, :142);
+  - `relate` skipped on the first meeting → the edge ⇔ entry test FAILS (relationships.rs:56).
+- [x] Review:
+  - Q6 condition: `grep -rn Deserialize systems/relationships/src` lists only this crate's own types
+    (`BecameAcquainted`, `RelationshipChanged`, `RelationshipValues`, `Acquaintance`,
+    `Acquaintances`, `Level`). The only `payload_for::<` is the generic one in `codec.rs`, and its four
+    callers name `Spoke`, `InvitationAccepted`, `InvitationDeclined` and `GroupActivityEnded`.
+  - Single ownership: the crate has no `resolve` and no `wake`, so `react` is its only writer. The
+    kernel's write token keeps `Acquaintances` and `knows` this crate's.
+  - No float; values saturate through `saturating_add` + `clamp`. `grep f32|f64|HashMap|HashSet` →
+    none. fmt and clippy `-D warnings` are clean.
+  - Q1: no later 10b commit may touch `systems/relationships/src`. C9 re-checks this with `git log`.
 **Acceptance.** As validation (§9 E-B3). **Failure.** If the decode needs a type group-activity does not
 export, that is a C2 omission: fix it in C2's crate in a follow-up commit, recorded. Relationships
 itself is never patched to work around it. **Boundary.** One new crate.

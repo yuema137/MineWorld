@@ -712,6 +712,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-relationships"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-group-activity",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-presence",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-rule-controller"
 version = "0.0.0"
 dependencies = [
