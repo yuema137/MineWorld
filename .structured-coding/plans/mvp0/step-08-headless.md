@@ -2,9 +2,8 @@
 
 **Role:** combined step and PR document. S7 needs one PR.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S7, artefact note `ARC-6`, §7 ·
-**Lifecycle:** `READY FOR OPERATOR REVIEW` — GitHub #27, not merged · design frozen 2026-10-06
-(primary session; review and answers in §10.1) · implementation context `CLOSED / AWAITING OPERATOR
-ACTION` (§12)
+**Lifecycle:** `MERGED` — GitHub #27, merge commit `4f4cb1d`, 2026-10-06 · design frozen 2026-10-06
+(primary session; review and answers in §10.1) · implementation context `CLOSED` (§12)
 **Base:** `main @ ef53484` (S6 merged as `6f61582`; `ef53484` is the docs-only post-merge update)
 **Branch / worktree:** `mvp0/pr-09-headless` in `/Users/yuema137/mineworld-worktrees/s7-headless`
 (held by this session only; `vis-character` and `vis-environment` belong to other agents)
