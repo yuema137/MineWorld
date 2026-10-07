@@ -2310,7 +2310,11 @@ D-D5  process  One read-only `xargs cat` slipped into a wait command (reading a 
                kickoff's tool discipline. No file was changed by it. Recorded, not repeated.
 ```
 
-## 4.5 PR 11e — the transformation, part 2: work, money and shops (medium scope; AC-1 range)
+## 4.5 PR 11e — the transformation, part 2: work, money, shops and consumption (full design; proposed for freeze)
+
+The medium scope below is kept as it was written before 11d merged, so a reviewer can see what the
+detailing changed. Where it and §§4.5.1 … 4.5.6 disagree, §§4.5.1 … 4.5.6 govern, and each change is
+named there with its finding (§8.6) and question (§10, QS-39 …).
 
 **Scope amended 2026-10-07 (QS-35, operator).** 11e also adds a **consumption System Pack** under
 `systems/`, so that items are used up and the market keeps turning. Its removal of items goes through
@@ -2355,6 +2359,331 @@ market-town run shows purchases, wages and production — ledger evidence.
 never a negative balance (`u64` makes the negative unrepresentable; the test shows the refusal path is
 the one taken). A mutation that lets employment write a Wallet does not compile (`INV-7` by the kernel's
 write tokens) — recorded as a static guarantee, not a test.
+
+### 4.5.1 Identity, base, approved scope
+
+```text
+PR            11e — work, money, shops and consumption (S9, fifth of six; the second and last half of
+              the measured AC-1 transformation, ARC-35 point 1, widened by the operator's QS-35)
+base          main @ 70e532f (11d merged) plus the docs-only merges named at freeze (#44, and this
+              planning branch once merged). Re-audit §8.6 if anything under systems/, worlds/,
+              authoring/, sdk/, worldpack/src/load.rs or cognition/rule-controller/src/offered.rs moved
+branch        mvp0/pr-11e-work-money-shops, in its own worktree, held by the implementing session only
+audit         §8.6 (70e532f), including the R-S9-1 spike (§9 E-6)
+scope         §1.1 PR 11e as amended by QS-35; SD-13 as refined by SD-22 … SD-28; QS-39 … QS-53 as
+              answered
+depends on    11a (installed set), 11b (organizations as content), 11c (complete affordances), 11d
+              (item, inventory, item-transfer, market-town): all merged
+```
+
+**Goal.** People in Market Town work, earn, spend, and use things up. Three new System Packs —
+`economy` (wallets, shops and `buy`; the only mover of money), `employment` (jobs, shifts as a
+Process, `wage-due`, production) and `consumption` (`eat` and `drink`) — are installed by three lines
+each in `systems/installed`. `inventory` (11d's) gains the two facts that create and remove items,
+`items-produced` and `items-consumed`, each with its checked constructor. `worlds/market-town` gains two
+organizations, wallets, two shops, two jobs and the three packs. Every headless person buys, eats and
+drinks through the unchanged paced controller's offer band, because `buy`, `eat` and `drink` are offered
+as complete affordances (`ARC-34`); work is attendance, so the two job holders work by following the
+routines they already have (`ARC-32`, QS-8).
+
+**The change set is inside AC-1 by construction (I-1).** Every path this PR may touch:
+
+```text
+systems/economy/**                      new pack
+systems/employment/**                   new pack
+systems/consumption/**                  new pack
+systems/inventory/{src/**, tests/**, README.md}   items-produced, items-consumed, produce, consume
+                                        (a merged pack, under systems/ — inside the range, QS-42)
+systems/installed/Cargo.toml            three dependency lines, by path
+systems/installed/src/lib.rs            three installed! lines
+systems/README.md                       the pack list (Markdown)
+worlds/market-town/**                   organizations/, sections appended to person files, world.yaml
+Cargo.lock                              three new path packages under systems/, and
+                                        mineworld-installed-systems' dependency list; nothing else
+docs/*.md                               DECISIONS (ARC-38, ARC-35 note), MODULE_SPEC §4.1, PACKAGE_FORMAT §8,
+                                        MVP_STATUS
+.structured-coding/plans/mvp0/*.md      this ledger, handoff
+```
+
+Why nothing else can be needed, from the spike (§9 E-6): the same three packs, the inventory edit,
+the six install lines and the content touched exactly `Cargo.lock`, `systems/{economy,employment,
+consumption,inventory,installed}/**` and `worlds/market-town/**` (29 paths), compiled on the first build,
+and the whole workspace suite passed unchanged (480 = 479 + the scratch reader). **A needed edit to any
+other path is a material stop**, reported with evidence and answered by a precursor justified without the
+market (I-2), never by a quiet edit inside the range.
+
+**Non-goals.** No sleep, hunger or needs (QS-10 stays open for `sleep`; consumption closes `eat`, not
+hunger); no shop buying back (QS-35 (a), declined by the operator); no hiring, firing, promotion or
+business ownership (§1.2); no item instances (`ARC-36`); no names for items or organizations (F-41); no
+client change (QS-13); no world-level test in `tools/cli/tests` or `tests/acceptance` — the AC-1 test,
+CP-4's test, AC-2 at world level and Milestone C are 11f's, outside the range; no change to any pack but
+`inventory`, nor to `kernel/`, `contracts/`, `authoring/`, `sdk/`, `worldpack/`, `cognition/`, `tools/`,
+`server/` or `persistence/`; no edit to any place file of market-town.
+
+### 4.5.2 Design (SD-22 … SD-28)
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **SD-22** | **`inventory` gains the two facts that create and remove items.** `items-produced { holder, item, count }` and `items-consumed { holder, item, count }`, both its vocabulary, both reduced by it alone, both visible to the holder (`Participants`, the holder). Checked constructors `produce(world, holder, item, count)` and `consume(world, holder, item, count) -> Result<Emission, Rejection>`, each asking a public `admit_production` (living holder, count ≥ 1, declared kind, `can_take` — a person still carries at most six) or `admit_consumption` (living holder, count ≥ 1, declared kind, holds at least `count`); the reduction asks the same function again and on refusal writes nothing and fails `FactRefusedByOwner`. | `ARC-26`, `ARC-37` item 3's pattern, applied to the two holdings changes 11d did not have. QS-28 is answered here: production comes in now because consumption destroys items, so without it the shops' stock and CP-4's purchases end (QS-41). The fact names say what happened to holdings, not why: the stater (a shift, a meal) is the cause (QS-42). |
+| **SD-23** | **`employment` owns jobs, the `employed-by` edge and the `shift` Process; work is attendance.** Section `job:` on person files: `{ employer: <organization key>, workplace: <place key>, from: "HH:MM", until: "HH:MM", wage: <minor units per hour>, produces: { <item key>: <count per full shift ≥ 1> } }`, `from < until` (no shift across midnight, QS-50), times in schedule's `TimeOfDay` (a Cargo dependency on its type only). Genesis fact `hired { employee, job }` → `Employment` on the person, the `employed-by` edge (Person → Organization), and one `shift` Process woken at each next `from` and `until`. At `from` the wake states `shift-started { employee, present }` (present = presence's `Presence` at the workplace); between wakes employment reacts to presence's `person-entered-place` for an employee on shift — entering the workplace starts a present span, leaving it (`from` = workplace) adds the span to the worked seconds (`ARC-28`: its own state, written by reacting). At `until` the wake states `shift-ended { employee, worked }`, then — when worked > 0 — `wage-due { employee, employer, amount = wage × worked ÷ 3 600 }` and, per produced kind, inventory's `items-produced` for the employer, `count = per_shift × worked ÷ shift length` (floor, skipped at 0), through `produce`. Depends on `inventory` (states its fact) and `presence` (reads positions). Discloses `Employment` to the employee only. `hired` is biographical (QS-49). Never reads or writes a `Wallet`. | QS-8 as approved, made exact by the spike: `PersonEnteredPlace` carries `from` (F-49), so a departure is seen without polling. Production is prorated by attendance, so an absent worker produces nothing and is paid nothing. Integer arithmetic throughout (I-6). |
+| **SD-24** | **`economy` owns `Wallet` and `Shop`, and is the only mover of money.** One section, **`economy:`**, on person and organization files: `{ wallet: <minor units> }`, and on an organization optionally `shop: { at: <place key>, prices: { <item key>: <price ≥ 1> } }` — shops are authored on their operator, because a pack owns exactly one section (F-47, QS-43). Genesis facts `funded { holder, balance }` (the holder) and `shop-opened { place, operator, prices }` (public) → `Wallet { balance: u64 }` on the holder, `Shop { operator, prices }` on the place. `money-transferred { from, to, amount }` is the one fact that moves money; its reduction refuses an amount larger than the payer holds, a zero amount or a payer that is the payee (`FactRefusedByOwner`, writing nothing). **`buy { item }`**: no target; requirement `at_place(shop)` and target available; offered, to a living person standing in a shop's place, as **one complete affordance per priced kind**, available iff the operator holds one (`admit_transfer`), the buyer can pay, and the buyer can carry it — otherwise unavailable `TargetUnavailable`, the one reason an offer can carry (F-48, QS-44). `validate` asks the same through `SpatialRequirement::evaluate`; `resolve` states `money-transferred` (buyer → operator, `Place(shop)`, QS-45) and inventory's `items-transferred` (operator → buyer) through `transfer`. **Wages:** economy subscribes to employment's `wage-due` (Cargo dependency on employment's type, **no system dependency**, `ARC-28`) and states `money-transferred` (employer → employee, caused by the `wage-due`) or, when the employer cannot pay, `wage-unpaid { employee, employer, amount }`. Depends on `inventory` and `presence`. Discloses a `Wallet` to its holder, and to everyone perceiving a shop's place the shop's listing: operator, and per priced kind its price and how many the operator holds (QS-45). Nothing biographical. | `CORE_CONCEPTS.md` §13.1's canonical example implemented literally; CP-5. `u64` makes a negative balance unrepresentable and the refusal path is the one a test shows taken. The listing is how a second client perceives a purchase (CP-7, 11f) without anybody's holdings being disclosed. |
+| **SD-25** | **`consumption` provides `eat { item }` and `drink { item }`, and owns nothing.** A held kind whose `ItemKind` category is `food` is eaten, `drink` drunk (published constants `EATEN`, `DRUNK`); goods are never consumed. Requirement: none — a person eats what they carry, wherever they are (QS-40). Offered, to a living person, as one complete affordance per edible or drinkable kind held, target none, in item order. `validate`: payload, a living Person actor, no target, the action matching the kind's category (`NoSupportedInteraction` otherwise), then `admit_consumption(actor, item, 1)`. `resolve`: inventory's `items-consumed` through `consume`, nothing else. Depends on `inventory` (system and Cargo); Cargo dependency on `item` for `ItemKind`. Nothing biographical, no disclosure. | QS-35's pack (QS-39). It closes MVP §5's `eat` as an interaction (and adds `drink`, without which drinks would fill hands, F-50); hunger, appetite and `sleep` remain a needs pack's (QS-10). The category is item's public attribute, introduced as "the smallest real attribute" (QS-32); what is edible is this pack's rule about it. |
+| **SD-26** | **Shops sell consumables only, and stock is produced by the shift.** The café sells coffee, tea, croissant, cake, sandwich, soup; the store apple, bread, milk, juice. Goods (mug, pen, …) keep circulating by `give` as in 11d but are not sold, because nothing consumes them and a bought good would occupy one of six places in a person's hands for good (F-50, QS-48). | The item loop closes: produce → buy → give → eat/drink. |
+| **SD-27** | **`market-town` gains configuration only.** `world.yaml`: `economy, employment, consumption` appended to `systems` (after `item-transfer`; each depends only on packs above it), an `organizations:` list (`cafe-company`, `corner-store` — keys distinct from the places', F-16), header paragraph. `organizations/<key>.yaml`: tags, note, `holdings:` (opening stock) and `economy:` (wallet, shop). Every person file: one appended `economy: { wallet }` block; `alice` (café, 05:30–14:00 — her routine's `work`) and `felix` (store, 08:00–13:00 — inside his routine's store part, and he starts there) one appended `job:` block (F-17, QS-46). No place file, no existing field or section, changes (`ARC-35` check 3). Sizes (endowments, prices, wages, production) are content, fixed by E-9's 300-day measurement against a criterion stated now (I-9; §9 E-6 gives the starting values). | CP-1's world delta stays configuration only. Fitting jobs to existing routines avoids changing Social Café's configuration. |
+| **SD-28** | **The decisions are recorded before code.** `ARC-38` (SD-22 … SD-27, the money loop and how it is sized, the accepted limitations); an `ARC-35` dated note: the transformation's second merge carries six market packs in all (QS-35), so check 2's "market pack" and check 3's "the five market packs" read "the six"; MODULE_SPEC §4.1's section table gains `economy` and `job`; PACKAGE_FORMAT §8 names them; systems/README lists the three packs. | `CLAUDE.md` §2.2. |
+
+### 4.5.3 Acceptance (decided before measuring, `ARC-23`)
+
+Each guard names the mutation shown to break it. A mutation is applied to the working tree, observed to
+fail by name, and reverted; `git status` and `git grep MUTATION -- systems` are recorded afterwards.
+
+```text
+E-1  The change set is inside AC-1 (I-1). `git diff --name-only <base>...HEAD` lists only the paths of
+     §4.5.1's table; Cargo.lock gains exactly three [[package]] entries (mineworld-economy, -employment,
+     -consumption), none with a `source`, all under systems/, and changes otherwise only the dependency
+     lists of those packages and of mineworld-installed-systems. Guard: the recorded commands of E-C8.
+     Mutation M-E1: a comment added to kernel/src/lib.rs in the working tree → the same command lists it.
+E-2  Nothing outside the market moves (I-4). 300-day seed-7 social-cafe sha (all but `wall`) = E-0
+     (ad49c723…c64b); `validate worlds/social-cafe` identical to the base's; every existing test passes;
+     no existing test outside systems/inventory/tests is edited, and inventory's existing tests keep their
+     claims (an edit there is listed with its unchanged claim).
+E-3  Inventory still decides (I-3, ARC-26, CP-5). `items-produced` and `items-consumed` stated past the
+     constructors — an undeclared kind, a count of 0, a non-holder, production past a person's six,
+     consumption of more than is held — are refused FactRefusedByOwner and write nothing; through the
+     constructors they change exactly one holder by exactly the count. Guards: systems/inventory/tests.
+     Mutation M-E2: the items-consumed reduction skips admit_consumption → the undeclared-kind and
+     non-holder cases fail (over-consumption alone may survive by Holdings::removing's checked_sub, as
+     D-D2 found for transfers; recorded if so).
+E-4  Only economy moves money; a wallet never goes negative (I-3, I-6, CP-5). A `money-transferred`
+     stated past `buy` for more than the payer holds is refused FactRefusedByOwner, writing nothing; a
+     `wage-due` against an employer whose wallet is short becomes `wage-unpaid`, both balances unchanged
+     and no `money-transferred`; one the employer can pay becomes one `money-transferred` caused by the
+     `wage-due`. Guards: systems/economy/tests. Mutation M-E3: economy's wage reaction pays without the
+     balance check → the wage-unpaid test fails (the payment is refused by the reduction instead).
+     Static, recorded not tested: employment cannot write a Wallet (INV-7 write tokens; it has none).
+E-5  Buying works through the unchanged controller (CP-3 for buy). Hand-built world (presence,
+     movement, item, inventory, economy; a shop place with an operator holding two kinds, one priced
+     above a buyer's wallet): an observer in the shop is offered exactly one complete `buy` per priced
+     kind, available iff stocked, affordable and carriable, otherwise TargetUnavailable; an observer
+     elsewhere is offered none; an accepted buy moves one item operator → buyer and the price buyer →
+     operator, both facts caused by the request (AC-9); a buy refused at dispatch for the same three
+     reasons; driven by PacedRuleController on `mineworld run`'s schedule for 10 days people buy; two runs
+     of one seed are byte-identical. Guards: systems/economy/tests. Mutation M-E4: offers built with
+     Offer::new (incomplete) → the controller-buys test fails. Mutation M-E5: `purchasable` ignores the
+     balance → the over-budget test fails.
+E-6  Work is attendance, exactly (QS-8). Hand-built world (presence, movement, item, inventory,
+     employment): a person present for the whole shift is paid wage × shift ÷ 3 600 and the employer
+     receives each `produces` count in full; one who leaves at a known instant is paid for the time
+     present only, and production is prorated (floor); one absent all shift gets `shift-started {present:
+     false}`, `shift-ended {worked: 0}`, no wage-due and no production; a world stopped mid-shift, saved
+     and resumed ends the shift with the same facts as the uninterrupted run (the schedule/persisted.rs
+     pattern). Guards: systems/employment/tests. Mutation M-E6: the reaction ignores a departure from the
+     workplace → the leaves-early test fails (paid for the whole shift).
+E-7  Removability, each direction (AC-2, pack level; CP-6's pattern). economy installed without
+     employment loads and sells; employment installed without economy states `wage-due` that nobody
+     reduces, and the world runs with no fault; a world without consumption offers no `eat`/`drink`,
+     answers them Unavailable, and holdings change only by gives, purchases and production; a world
+     without economy offers no `buy` and answers it Unavailable. The registry refuses employment or
+     consumption without inventory, naming inventory. Guards: the three packs' tests. Mutation M-E7
+     (negative control): the "without consumption" world enables it → the no-offer assertion fails.
+E-8  Consumption eats food and drinks drinks only. Offers: one per edible or drinkable kind held, none
+     for goods, none to another person; `eat` of a drink and `drink` of a food are NoSupportedInteraction
+     at dispatch; an accepted eat removes one through `items-consumed` caused by the request. Guards:
+     systems/consumption/tests. Mutation M-E8: the category check removed from validate → the
+     cross-category test fails.
+E-9  market-town lives for 300 days with the money loop closed (CP-4's precondition, I-7, I-9, R-S9-2,
+     R-S9-3) — ledger evidence, never a test inside the range (world-level tests are 11f's). In order:
+       a. `mineworld validate worlds/market-town` → valid; ids 1–38 exactly 11d's; the organizations
+          after them (39, 40); genesis = 11d's 101 + the organizations' stocked + one funded per wallet +
+          one shop-opened per shop + one hired per job.
+       b. Activity first (I-7). `run --seed 7 --days 300 --save`, then a scratch reader on the save
+          (never committed, F-45's pattern), every condition stated here before the first run:
+          - faults 0; every seat moved and talked in every 30-day bucket;
+          - in every bucket: ≥ 1 purchase; each job holder paid ≥ 1 wage; ≥ 1 items-produced; ≥ 1 eat
+            or drink; ≥ 1 give;
+          - no employer drained: zero `wage-unpaid` in 300 days;
+          - no wallet drained: no wallet — person or organization — is ever below the cheapest price in
+            the town (QS-47's reading);
+          - money conserved: the wallets' total at the end equals the genesis total;
+          - nobody ever holds more than six.
+       c. Only then determinism: two 30-day seed-7 runs print identical lines but `wall`; a save run to
+          day 15 then resumed to 30 equals the uninterrupted 30-day save's history and fingerprint.
+       d. Cost: the 300-day run's wall ≤ 60 s with --save (R-S9-2).
+     If b fails, the remedy is content or pack design, re-measured against the same conditions — never
+     the controller (I-9); a failure no content can fix is a material stop (R-S9-3).
+     Mutation M-E9 (scratch branch, never pushed): `consumption` removed from market-town's systems →
+     b fails: purchases stop once hands are full (QS-35's failure, seen by the instrument).
+E-10 The world delta is configuration only (ARC-35 check 3, by hand until 11f automates it):
+     `git diff --no-index worlds/social-cafe worlds/market-town` shows, beyond 11d's delta, only
+     world.yaml's appended systems, organizations list and header; added organizations/ files; and, per
+     person file, the appended `economy:` block (and `job:` for alice and felix). No place file differs.
+E-11 The documents say it first (CLAUDE.md §2.2): ARC-38, the ARC-35 note, MODULE_SPEC §4.1,
+     PACKAGE_FORMAT §8 and systems/README exist before the code; both doc checks pass.
+E-12 11d's market-town evidence is superseded, and said so: MVP_STATUS's "Owning and giving things"
+     capability row and its 11d evidence row stay true of 11d's merge; a new capability row ("Work, money,
+     shops and eating") and evidence row carry E-9; the `worlds/market-town` artefact row is updated.
+```
+
+### E-C0 — Design (this section) — docs only
+
+- [x] Implementation: §4.5.1 … 4.5.6, §8.6, §9 E-6/E-7, QS-39 … QS-53, §16, by the planning session on
+  `mvp0/s9-11e-plan`.
+- [x] Validation: both doc checks (§9 E-7).
+- [x] Review: every file and symbol named here was read on `70e532f` (§8.6); the riskiest cross-pack
+  flows were run end to end on a scratch branch before this design was finalized (E-6); the change set
+  is shown inside AC-1 by that run; operator-material points are marked (§10). Self-review by the
+  planning session only; the primary session's review is pending.
+
+### E-C1 — Specs before code: ARC-38, the ARC-35 note, MODULE_SPEC §4.1, PACKAGE_FORMAT §8, systems/README
+
+**Goal.** Ownership of money, work, production and consumption, how the loop is sized, and what the
+AC-1 measurement now counts are reviewable before code. All Markdown: inside the range.
+
+**Scope.** `docs/DECISIONS.md` — **ARC-38** *Work, money, shops and consumption*, appended after ARC-37
+(`git fetch`, confirm ARC-38 free first): SD-22 … SD-27; options for closing the item loop (the
+operator's QS-35 record; buy-back declined), for attendance (polling vs `person-entered-place`), for
+authoring shops (place section vs operator's section, F-47); limitations (non-employees have no income;
+no hunger or sleep; one rejection reason for a buy; shifts within a day). An **ARC-35 note** (six market
+packs). `docs/MODULE_SPEC.md` §4.1: "four sections" → six (`economy`, `job`). `docs/PACKAGE_FORMAT.md`
+§8: names the six. `systems/README.md`: the three packs.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: both doc checks; ARC-38 absent from every `origin/*` branch.
+- [ ] Review: no defined term redefined (`Organization`, `Item`, `Process` used as CORE_CONCEPTS
+  defines them; "wallet", "shop", "job" are packs' components, not core terms); the section table
+  matches SD-23/SD-24.
+
+### E-C2 — `systems/inventory`: produced and consumed
+
+**Scope.** `systems/inventory/src/{event.rs, admit.rs, system.rs, lib.rs}`, `tests/inventory.rs` (new
+cases; existing ones unchanged), README. No dependency change.
+
+- [ ] Implementation: SD-22 — `ItemsProduced`, `ItemsConsumed` (accessors, `pub(crate)` constructors),
+  `admit_production`, `admit_consumption`, `produce`, `consume`; declaration emits and subscribes to both;
+  two reduction arms, each asking its admit function before writing.
+- [ ] Validation: `cargo test -p mineworld-inventory` (existing 9 + new); E-3; M-E2; clippy, fmt.
+- [ ] Review: one write path per fact; `PERSON_CAPACITY` applies to production into a person; the
+  existing `transfer` path untouched.
+
+### E-C3 — `systems/employment`
+
+**Scope.** `systems/employment/{Cargo.toml, README.md, src/{lib,system,section,event,component,process,
+codec}.rs, tests/{employment.rs, persisted.rs, removable.rs, support/mod.rs}}`, laid out as `schedule`.
+Dependencies: authoring, contracts, kernel, presence, sdk, schedule (TimeOfDay only), serde, serde_json
+(`workspace = true`); `mineworld-inventory = { path = "../inventory" }`; dev: item (path), movement,
+persistence, serde-saphyr.
+
+- [ ] Implementation: SD-23 — `Job`, `Employment` (`owned_component!`), `employed-by` relation
+  declaration, `ShiftProcess`, `Hired`, `ShiftStarted`, `ShiftEnded`, `WageDue` (public accessors — economy
+  decodes it), the `job:` section (`references`: Organization, Place, Items; refuses `until ≤ from` at its
+  line), react (hired, shift-started, shift-ended, person-entered-place), wake, disclosure, `BIOGRAPHICAL
+  = [hired]`.
+- [ ] Validation: `cargo test -p mineworld-employment`; E-6 (incl. the persisted mid-shift restart), the
+  employment half of E-7; M-E6; clippy, fmt.
+- [ ] Review: never names a Wallet or economy (manifest: no economy); wage arithmetic `u64`, no float;
+  a wake reschedules exactly once; `items-produced` only through `produce`.
+
+### E-C4 — `systems/economy`
+
+**Scope.** `systems/economy/{Cargo.toml, README.md, src/{lib,system,section,event,component,action,offer,
+codec}.rs, tests/{buy.rs, wages.rs, removable.rs, paced.rs, support/mod.rs}}`. `mineworld-inventory` and
+`mineworld-employment` by path (employment for `WageDue`'s type only, `ARC-28`); dev: item (path),
+movement, rule-controller (`workspace = true`, D-6's direction), serde-saphyr.
+
+- [ ] Implementation: SD-24 — `Wallet`, `Shop`, `Price`, `Funded`, `ShopOpened`, `MoneyTransferred`,
+  `WageUnpaid`, `Buy`, `buy_requirement`, `purchasable`, the `economy:` section (shop only on an
+  organization; references Place and Items), validate/resolve, react (funded, shop-opened,
+  money-transferred, wage-due), offers, disclosure (wallet to holder; listing to the place's perceivers).
+- [ ] Validation: `cargo test -p mineworld-economy`; E-4, E-5, the economy half of E-7; M-E3, M-E4,
+  M-E5; clippy, fmt.
+- [ ] Review: `depending_on` lists inventory and presence, never employment; `subscribing_to::<WageDue>`;
+  the only writes of Wallet and Shop are in react; no `f32`/`f64`; offers only at a shop place.
+
+### E-C5 — `systems/consumption`
+
+**Scope.** `systems/consumption/{Cargo.toml, README.md, src/{lib,system,action,offer,codec}.rs,
+tests/{eat.rs, removable.rs, paced.rs, support/mod.rs}}`. `mineworld-inventory`, `mineworld-item` by path.
+
+- [ ] Implementation: SD-25.
+- [ ] Validation: `cargo test -p mineworld-consumption`; E-8, the consumption half of E-7 (incl. a 10-day
+  paced run in which people eat and drink); M-E7, M-E8; clippy, fmt.
+- [ ] Review: owns no component; `resolve` emits only `consume`'s emission; goods never offered.
+
+### E-C6 — Install: three lines each in `systems/installed`
+
+- [ ] Implementation: `Cargo.toml` three `path` lines; `src/lib.rs` `Economy`, `Employment`,
+  `Consumption` after `ItemTransfer`; `Cargo.lock` regenerated by the build.
+- [ ] Validation: `cargo test -p mineworld-installed-systems -p mineworld-worldpack`; E-2's sha and
+  validate.
+- [ ] Review: `git diff --stat` 3 + 3 lines; no root manifest edit.
+
+### E-C7 — `worlds/market-town`
+
+- [ ] Implementation: SD-26, SD-27. Starting sizes from §9 E-6 run 2 (people 200 000 minor units, the two
+  job holders 20 000; café 20 000 and store 300 000; alice 120/h, felix 200/h; per shift café coffee 4,
+  tea 2, croissant 3, cake 2, sandwich 2, soup 2, store apple 4, bread 2, milk 2, juice 2; prices café
+  250–600, store 100–300; opening stock as E-6). Each block commented for a human author.
+- [ ] Validation: E-9 a–d with the scratch reader on a local scratch branch (deleted after), E-10; M-E9.
+  If b fails, re-size and re-measure against the same conditions (at most three 300-day runs, §16).
+- [ ] Review: no place file or existing line changed; every authored person within capacity; every
+  key resolves.
+
+### E-C8 — Close: status, change set, full gates, ledger
+
+- [ ] Documentation: `docs/MVP_STATUS.md` rows of E-12; §4.5 checkboxes; a new §9.5 `E-E*`; the handoff.
+- [ ] Validation, once, on the final executable head: fmt, clippy `-D warnings`, `cargo test --workspace`,
+  kill_and_resume, both doc checks, E-1 (with M-E1), E-2.
+- [ ] Review: E-1 … E-12 each with evidence; deviations in a §4.5.7; the PR is merged **with a merge
+  commit** (ARC-35 reads `M^1..M`), said in the PR body.
+
+### 4.5.4 Test ownership for 11e
+
+```text
+STATIC      fmt, clippy -D warnings; installed! bounds; INV-7 write tokens (employment and consumption
+            cannot write Wallet or Holdings — they have no token)
+UNIT        inventory's admit_production/admit_consumption refusals; economy's purchasable and money
+            reduction; employment's attendance arithmetic and the job section's refusals (E-3, E-4, E-6)
+INTEGRATION hand-built worlds through the kernel's real dispatch, presence's real observe() and real
+            processes: owner refusals of forged facts (E-3, E-4); buy offered, validated, resolved,
+            reduced, and attempted by the unchanged PacedRuleController (E-5); shifts with arrivals and
+            departures, and a persisted mid-shift restart (E-6); AC-2 in each direction (E-7); eat and
+            drink (E-8); every existing test (E-2)
+REAL RUN    validate; the 300-day seed-7 market-town run with its scratch reader; two 30-day runs; a
+            15+15 resume; the 300-day social-cafe comparison (E-2, E-9)
+GATE 1      NOT REQUIRED — no model
+GATE 2      the real runs above
+CI          none configured (S13); the full local gate once on the final head
+```
+
+### 4.5.5 Is any of this material?
+
+- **No framework change is needed.** The spike (E-6) ran every flow the operator named — the shift
+  Process reading presence and stating `wage-due`, economy reducing it into a wallet move with no system
+  dependency, a purchase at a shop stated through inventory's checked constructor and paid through
+  economy, consumption through inventory's checked constructor, all attempted by the unchanged paced
+  controller through complete affordances — with no edit outside `systems/**`, `worlds/**` and
+  `Cargo.lock`. No precursor is proposed.
+- **Two framework limits are worked within, not changed** (F-47 one section per pack; F-48 one
+  pack-supplied unavailability reason). Both are bounded inside the packs; each is raised so the primary
+  session sees the shape it forces (QS-43, QS-44).
+- **Operator-material:** QS-45 (economy discloses a shop's stock count, read from inventory's state, to
+  everyone in the shop — an `INV-13` reading), QS-47 (how "no wallet drained" is read, and that people
+  without a job live on endowments for the 300 days), QS-39 (the pack adds `drink` beside MVP §5's `eat`).
+  QS-43 changes the authoring format §4.5's medium scope proposed (shops on the operator, not the place).
+- **New ownership, approved in QS-7 and QS-35:** Wallet, Shop (economy); Employment, `employed-by`, the
+  shift Process (employment); consumption owns nothing. Inventory's ownership grows by two facts of its
+  own vocabulary (QS-42); no existing ownership moves.
+- Nothing changes a public contract, `kernel/`, `contracts/`, or a frozen invariant.
+
+### 4.5.6 What 11e supersedes of 11d's evidence
+
+11d's market-town measurements (§9.4 E-D6: 17 639 gives, 30 items conserved, Otto ending with six,
+37 090 facts in 30 days, 32.5 s) describe 11d's merge and stay true of it; they are not claims about
+market-town after 11e, where items are produced, bought and consumed and are no longer conserved. 11e's
+E-9 replaces them as the current market-town evidence. 11d's per-seat give criterion (D-9 b) is not
+carried forward as a criterion: CP-4 is world-level, and gives continue (E-6: ≥ 1 196 per bucket) beside
+purchases and meals; per-seat gives are reported, not required. The social-cafe evidence (E-0) is not
+superseded: E-2 requires it unchanged.
 
 ## 4.6 PR 11f — the proof (medium scope; detailed after 11e merges)
 
