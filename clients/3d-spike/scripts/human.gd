@@ -492,9 +492,9 @@ const GRIP_LOWER := Vector3(109.0, -16.9, -23.7)
 ## do not land on its strap.
 ## The wrist is solved too: turned up, so the knuckles sit on the webbing above
 ## it and the elbow can hang at her side.
-const GRIP_UPPER_D := Vector3(69.5, 9.3, -48.7)
-const GRIP_LOWER_D := Vector3(132.9, -21.2, -36.8)
-const GRIP_HAND_D := Vector3(0, 0, 0)
+const GRIP_UPPER_D := Vector3(70.6, 49.2, 19.0)
+const GRIP_LOWER_D := Vector3(130.4, -12.2, -18.4)
+const GRIP_HAND_D := Vector3(-72.0, -4.7, 75.0)
 
 
 ## The gripping arm's rest-relative eulers for a body: [upper, lower], plus the
