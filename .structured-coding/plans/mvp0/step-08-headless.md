@@ -370,12 +370,13 @@ No change to `move`'s rule, to `Passages`, or to any other pack. **Depends on:**
 
 **Goal.** CP-3 through real processes. **Scope.** `tools/cli/tests/run_restart.rs` (new); `run.rs` only if the test finds a defect. **Depends on:** C4.
 
-- [ ] Implementation: test harness — a control run `--days 30 --save A`; for kill points early / middle / late, a victim `--days 30 --save B` killed (`Child::kill`, SIGKILL) once its progress line for day *k* is read, then the same command re-run to completion.
-- [ ] Validation:
-  - [ ] the victim's exit status is a signal and it printed no summary; the survivor reports a resume with head < control's head and a re-executed tail;
-  - [ ] the survivor's `facts`, `journal` and `snapshots` equal the control's byte for byte, and its fingerprint equals the control's;
-  - [ ] **stop and continue, deterministically**: `--days 10 --save C` then `--days 30 --save C` equals the control byte for byte. Where a SIGKILL lands is timing; this restart point is not, so it is the one that *locates* `F-13`: the test finds, in the log, a line heard before the day-10 boundary whose reply comes after it, and asserts that reply occurs exactly once. (A stateful controller re-answering is not rebuilt as a harness; C3's unit test owns "a fresh instance decides identically", and this test owns "and it matters across a real restart".) If no line straddles the boundary for seed 7, the test fails rather than passing vacuously, and the boundary or seed is changed and recorded.
-- [ ] Review: what would make this pass without proving anything — never killed, survivor ignored the file, empty tail, two empty logs — each excluded as in `persistence/tests/kill_and_resume.rs` (`ARC-23`).
+- [x] Implementation: `tools/cli/tests/run_restart.rs` — control `--days 30 --save A`; kill points day 5 / 15 / 25 (`Child::kill`, SIGKILL, after reading the `day k` line); the same command re-run. `run.rs` unchanged by this commit. — §9 E-6.
+- [x] Validation:
+  - [x] each victim: signal 9, no `history` line, head on disk < control's; each survivor reports resuming at exactly that head; at least one re-executed a tail after its snapshot;
+  - [x] each survivor's facts, journal and snapshots equal the control's row by row as bytes (Q9: fingerprints not compared — the plan's "and its fingerprint" is dropped as redundant with the byte equality and forbidden as evidence);
+  - [x] **stop and continue**. Bounded deviation: seed 7 has *no* line straddling day 10 (located: one spoke fact within 20 minutes of it), so the test does what this item said to do instead of failing — it finds, in the control's log, the first day boundary with a straddling line (day 6, one line), stops a run there and continues it to day 30: byte-identical to the control. It then asserts that *no* line in the 30 days is quoted back more than once before its speaker says something new to the same listener, and that the straddling line is quoted back exactly once.
+  - [x] Mutations, each reverted: resume point made inclusive after a request (HD-7) → both tests FAIL; the paced answer window widened to two paces (a controller that "forgets" it answered) → the stop-and-continue test FAILS with dozens of lines answered twice. A first version of the once-check counted replies within one pace only and did **not** fail under that mutation — an instrument that could not see a second answer (`ARC-23`); replaced by the quote-and-next-line check above.
+- [x] Review: never killed / ignored the file / empty tail / two empty logs — each excluded as listed in the file's header.
 
 **Acceptance.** All three kill points identical to the control. **Failure cases.** A kill landing inside a commit: the head is the previous revision (SQLite WAL; S5 L-2).
 
@@ -588,6 +589,12 @@ E-5  C4 run. By hand (debug build, this machine): seed 7, 300 days in memory 19.
      `cargo test -p mineworld-cli --test run`: 3 passed, 55.2 s (three 300-day runs in parallel
      dominate). clippy -D warnings clean. Mutation (process id in the seed) → FAILED at the byte
      comparison, reverted (44.6 s).
+E-6  C5 restart. `cargo test -p mineworld-cli --test run_restart`: 2 passed, 15.1 s. Kill points 5,
+     15, 25: all identical to the control byte for byte. Stop-and-continue located at day 6 (one
+     straddling line), identical; no line answered twice in 30 days. Mutations: HD-7 inclusive
+     resume → 2 FAILED (8.1 s); two-pace window → FAILED ("lines answered more than once, said at:
+     [2400, 3002, 4202, …]"); the earlier one-pace-only once-check missed that mutation and was
+     replaced. F-13 for `run`: closed by I-3 and shown across a real restart.
 ```
 
 ## 9.1 Limitations (expected)
