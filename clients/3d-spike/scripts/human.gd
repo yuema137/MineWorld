@@ -153,25 +153,22 @@ static func _skin(bc: String, nm: String, rough: String, tint: Color) -> Standar
 ## The card atlas carries coverage in its alpha, which StandardMaterial3D cannot
 ## sample separately -- see shaders/hair_card.gdshader.
 ##
-## One file feeds both slots. It is a *card* atlas built by
-## `tools/character_textures.py`: four tapered locks with transparent margins,
-## not a slice of the CC0 groom field. The groom map is a continuous carpet of
-## strands, so every card cut from it is an opaque rectangle and a head of them
-## renders as a smooth brown cap however the geometry is arranged.
+## One file feeds both slots. It is the strand atlas built by
+## `tools/hair_atlas.py`: eight columns of fine strands with transparent gaps,
+## for the groomed cards of `tools/hair_groom.py`. The previous atlas drew a
+## dozen thick bars per lock, and a head of them read as stripes.
 static func _hair(tint: Color) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/hair_card.gdshader")
-	var atlas := _tex("hair_card.png", true)
+	var atlas := _tex("hair_strands.png", true)
 	m.set_shader_parameter("tex_diffuse", atlas)
 	m.set_shader_parameter("tex_opacity", atlas)
 	m.set_shader_parameter("tint", tint)
-	# lower than the groom needed: these strands taper, and scissoring at 0.42
-	# cuts the taper off square again
-	m.set_shader_parameter("cutoff", 0.28)
+	m.set_shader_parameter("highlight", Color(tint.r * 1.45, tint.g * 1.35, tint.b * 1.20))
+	m.set_shader_parameter("cutoff", 0.30)
 	m.set_shader_parameter("roughness_v", 0.55)
-	# the atlas RGB already runs 0.55..1.0, so it is strand shading at 1:1
 	m.set_shader_parameter("diffuse_gain", 1.0)
-	m.set_shader_parameter("root_shade", 0.86)
+	m.set_shader_parameter("root_shade", 0.72)
 	return m
 
 

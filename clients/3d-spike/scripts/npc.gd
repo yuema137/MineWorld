@@ -95,7 +95,10 @@ var _t := 0.0
 ## these colours tint them, so changing one shifts the tone without losing the
 ## artwork (`Human._printed`).
 const REF_SKIN := Color(1.0, 0.95, 0.90)
-const REF_HAIR := Color(0.35, 0.22, 0.135)  # warm mid-brown, not near-black
+## Warm mid-brown, not near-black. Raised for the groomed cards (preview 3):
+## the crown's mean colour measured 0.21/0.14/0.12 sRGB in `P6_head` against
+## the reference's 0.42/0.29/0.21 at the same region.
+const REF_HAIR := Color(0.40, 0.27, 0.18)
 const REF_TEE := Color(1.0, 0.99, 0.97)     # the tee albedo is already cream
 const REF_HOODIE := Color(0.44, 0.15, 0.14)
 const REF_JEANS := Color(0.92, 0.95, 1.0)   # the denim albedo is already blue
