@@ -1374,15 +1374,17 @@ every PR's final head. **If QB-3 is declined**, C8 is `N/A`.
 
 #### C9 — Documentation and ledger close for 10b
 
-- [ ] `systems/group-activity/README.md`, `systems/relationships/README.md` (short, human, linking to
+- [x] (0906918) `systems/group-activity/README.md`, `systems/relationships/README.md` (short, human, linking to
   ARC-28/29 and MODULE_SPEC), `systems/README.md`, `cognition/rule-controller/README.md`,
   `worlds/social-cafe/README.md` (five systems), `docs/MVP_STATUS.md` (Relationship and Process rows,
   S8 stage row, the Milestone B evidence row). `docs/HUMAN_REVIEW_QUEUE.md` Milestone B: ✅ only if
   C7 is green on the final head, with the exact commands (`run … --save`, `biography --person alice`,
   `server --save`) and what to look at.
-- [ ] Full gates once on the final executable head (§4.2.4), recorded in §9 E-B-final.
-- [ ] Review: READMEs state no rule. MVP_STATUS marks ✅ only what was run and inspected. The handoff
-  is refreshed. `git log --oneline -- systems/relationships/src` lists C3's commit(s) only (Q1, shown).
+- [x] Full gates once on the final executable head `0906918` (§4.2.4), recorded in §9 E-B-final. All
+  PASS.
+- [x] Review: READMEs state no rule. MVP_STATUS marks ✅ only what was run and inspected in E-B2…E-B7.
+  Milestone B is marked "demonstrated, awaiting the operator's review", not accepted. The handoff is
+  refreshed. `git log --oneline -- systems/relationships/src` → `5feaf50` only (Q1, shown).
 
 ### 4.2.4 Integration checkpoint, test ownership, verification
 
@@ -1905,12 +1907,69 @@ E-B0 PR 10b C0 design and baseline, 2026-10-07, on main @ 0592b3e (clean tree), 
      PROCEDURAL DEVIATION: one summarizing command piped the baseline log through `awk` (read-only, on
        /tmp/s8b/baseline-tests.log), which the brief forbids. It wrote nothing; the counts above were
        re-read from the log with grep. Reported.
+E-B1 C1 specs (83634f1, + 1512e86 the ARC-26 reading in ARC-28): ARC-28, ARC-29, MODULE_SPEC §8.1.
+     Every remote branch's highest decision id read first: ARC-27, so 28 and 29 were free. Doc checks:
+     39 ids, 142 sections, PASS.
+E-B2 C2 group-activity (0eeb7b6): `cargo test -p mineworld-group-activity` — group_activity 10 PASS,
+     persisted 1 PASS (resumed: snapshot 1 + 2 re-executed; verify 4 revisions). Mutations: expiry `<`
+     → FAIL group_activity.rs:88; wake without end_process → FAIL group_activity.rs:198. Deviations
+     D-B1…D-B4 recorded in C2.
+E-B3 C3 relationships (5feaf50): 1 unit + 5 integration PASS. Mutations: a level fact per value change
+     → FAIL relationships.rs:88 and :142; relate skipped on first meeting → FAIL relationships.rs:56.
+E-B4 C4 registration (59c247a): validate lists five systems; worldpack 23+12+1, cli ac13 2 / ac15 6 /
+     commands 4 / create 2 / inspect 3 / restart 2 / server_command 3, kill_and_resume cafe+clock PASS;
+     Godot `run.sh evidence` 23.7 s, 5 transcripts end "the scripted run is over". I-5 list in C4.
+E-B5 C5 controller (ddf7abf): rule-controller 20 PASS (14 unedited + 6). Pre-C5 vs post-C5 binaries on
+     a pack copy without group-activity, 300 days seed 7: identical (327 672 facts, bbdfd4041103d54d).
+     The real pack, 300 days, in memory: 10.5 s. invite 10 432, accept 6 309, decline 2 729, join
+     1 520, leave 3 018, every request accepted. 6 308 activities. run 3 PASS; run_restart 2 PASS
+     after its straddling-line locator was fixed (C5).
+E-B6 C6 biography (bc1103b): biography 2 PASS. Alice has 428 entries over all six types. Mutations
+     (a) drop left-group-activity → LOCATED + COMPLETE (36 dropped) FAIL; (b) subjects only → COMPLETE
+     (42 dropped, first #21 #218 #235 became-acquainted) FAIL; (c) ignore the person → SOUND (1 824
+     unsupported) FAIL.
+E-B7 C7 Milestone B, precondition, AC-2 (3005ec2): milestone_b 1 PASS (6.5 s), social_composition 2
+     PASS, run 3 PASS, run_restart 2 PASS. Located ids, the kill and the hosted values are in C7.
+     Per-bucket saturation (300 days):
+       days 1–30   relationship-changed up 313 / down 20
+       days 31–60  up 39 / down 2
+       days 61–300 0 relationship facts per bucket
+     Group activities run at ~620–650 per bucket throughout.
+E-B8 C8 opt-level 1 (4596271): clean build 15.1 s (level 0) vs 39.4 s (level 1). Default test loop
+     90.4 s (370 passed) against E-B0's 272.1 s. The 300-day run is byte-identical at both levels on
+     the C4 tree.
+E-B-final Gates on 0906918 (the final executable head; later commits are planning documents only), clean
+     tree, 2026-10-07, this machine, `[profile.dev] opt-level = 1`:
+       cargo fmt --all --check                                         PASS
+       cargo check --workspace --all-targets                           PASS
+       cargo clippy --workspace --all-targets --all-features -D warnings   PASS
+       cargo test --workspace --no-fail-fast                           PASS — exit 0; 70 test binaries,
+                                                                       every one "ok"; 381 passed, 0
+                                                                       failed (353 before + 28 new);
+                                                                       104.2 s wall (run 55.8 s,
+                                                                       run_restart 11.1 s)
+       cargo test -p mineworld-persistence --test kill_and_resume      PASS — exit 0; cafe and clock each
+                                                                       "PASS" (cafe 301 revisions, 159
+                                                                       facts: +4 became-acquainted from
+                                                                       its talks; clock 634, 1 695)
+       python3 scripts/check_decision_ids.py                           PASS — 40 ids, all distinct
+       python3 scripts/check_doc_headings.py                           PASS — 142 sections
+     CI: N/A — no workflow in the repository (S13).
+     Q1 shown: `git log --oneline -- systems/relationships/src` lists 5feaf50 (C3) only.
+     PROCEDURAL: no forbidden tool was used in Phase 2. The mutations were made and reverted with the
+     Edit tool, and `git diff --stat -- systems` was empty after each revert.
 ```
 
 ## 9.1 Limitations (expected)
 
 ```text
-L-1  Relationship values do not decay; a pair who never meet again stay at their level.
+L-1  Relationship values do not decay; a pair who never meet again stay at their level. MEASURED in
+     10b (E-B7): a 300-day world's relationship facts stop after day ~60, when every meeting pair is
+     at its top level. A living-world gap, named in ARC-28 and carried to overall §7 (QB-2).
+L-7  Offers see no clock: an expired invitation is still offered `accept` until it is written over,
+     and dispatch refuses it (D-B4). The paced controller compares ages itself.
+L-8  `RuleController` (--agent) and the clients take no social initiative; a hosted world's social life
+     comes from players. The Godot demo shows the affordances, but no client has UI for them yet.
 L-2  Activity kinds are uninterpreted slugs; an activity is "being together, at a place, for a while".
 L-3  Routes are found only in a star town (SD-3); a general route-finder is not built.
 L-4  Biography is L0 only (CORE_CONCEPTS §5.4): long runs give long biographies; compression is S10.
@@ -2146,3 +2205,39 @@ implementation ctx    CLOSED / AWAITING OPERATOR ACTION. Do not start 10b until 
 - Re-audit and detail 10b against the merged state. Note for 10b: `run.rs` costs about 218 s, and 10b
   adds two systems and new facts to every run.
 ```
+
+## 12.1 Closeout, PR 10b — READY FOR OPERATOR REVIEW
+
+```text
+PR                    opened with gh pr create against main (number recorded in the handoff); NOT
+                      merged
+base                  main @ 0592b3e
+final executable HEAD 0906918 — every gate in §9 E-B-final ran on it, clean tree
+final PR HEAD         the commit carrying this section or the handoff update after it (planning
+                      documents only); `git log` on the branch is authoritative
+semantic commits      85d2009 design · db118c0 freeze (primary session) · b728b01 execution start ·
+                      83634f1 + 1512e86 C1 specs · 0eeb7b6 C2 group-activity · 5feaf50 C3 relationships ·
+                      59c247a C4 registration + evidence · 4596271 C8 opt-level 1 (ARC-30) · ddf7abf C5
+                      controller · bc1103b C6 biography · 3005ec2 C7 Milestone B / precondition / AC-2 ·
+                      0906918 C9 docs
+CI                    N/A — no workflow in the repository (S13)
+material deviations   none: I-1 held (no kernel/, contracts/, persistence/, server/, presence, movement
+                      or conversation edit). I-4 was amended only as QB-2 approved. No public contract
+                      or ownership boundary changed.
+bounded deviations    D-B1 action names join-/leave-group-activity; D-B2 an invitee in an activity is
+                      TargetUnavailable; D-B3 a repeated invitation replaces the pending one; D-B4
+                      offers do not see expiry; D-B5 a line reply keeps precedence over initiative; C8
+                      done before C5 and recorded as ARC-30 (its own record, as the freeze asked); the
+                      run_restart straddling-line locator fixed to require the quotation it asserts;
+                      the bucket clamp for facts at the run's final instant
+procedural            Phase 1's `awk` (E-B0) is the only deviation from the brief's tool rules
+working tree          clean after the closeout commit
+merge                 NOT authorized; the operator merges
+implementation ctx    CLOSED / AWAITING OPERATOR ACTION. Do not start 10c until told 10b is merged.
+```
+
+**Post-merge, owned by the planning session (§11.1):**
+- Mark 10b merged here and in `overall.md` §7, Milestone B with it.
+- Carry L-1, the saturation measured in E-B7, to overall §7 as a living-world gap for a later step.
+- Renumber 10c's planned decision to `ARC-31` (`ARC-30` is now the dev profile).
+- Re-audit and detail 10c (routines on the generic content seam) against the merged state.
