@@ -87,6 +87,8 @@ func _ready() -> void:
 		_mode = "motion"
 	elif "--frametime" in args:
 		_mode = "frametime"
+	elif "--sweep" in args:
+		_mode = "sweep"
 	DirAccess.make_dir_recursive_absolute(OUT)
 
 
@@ -106,6 +108,8 @@ func _process(_d: float) -> void:
 		await _motion()
 	elif _mode == "frametime":
 		await _frametime()
+	elif _mode == "sweep":
+		await _sweep()
 	else:
 		await _capture()
 	get_tree().quit(0)
@@ -366,6 +370,46 @@ func _frametime() -> void:
 		print("frametime %s body=%s  frame median %.2f ms p95 %.2f ms  gpu median %.2f ms p95 %.2f ms" % [
 			phase, "town" if "--town-body" in OS.get_cmdline_user_args() else "reference",
 			cpu[120], cpu[228], gpu[120], gpu[228]])
+
+
+## Interpenetration sweep: the player walking and jogging, filmed by a camera
+## that rides along with her at chest height, from behind, from behind on her
+## strap side, and from the front on her strap side. Eight frames 0.125 s
+## apart cover one walk cycle (about 1 s at 1.45 m/s) and more than one jog
+## cycle, so every phase of the arm swing is seen, not one chosen frame.
+## Written to shots/sweep/, cropped to the middle of the window.
+const SWEEP_VIEWS := [["rear", 180.0], ["rear_tq", 140.0], ["front_tq", 40.0]]
+
+
+func _sweep() -> void:
+	DirAccess.make_dir_recursive_absolute(OUT + "/sweep")
+	var cam := Camera3D.new()
+	add_child(cam)
+	cam.fov = 40.0
+	for gait in ["walk", "jog"]:
+		for v in SWEEP_VIEWS:
+			player.scripted_look = true
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+			if gait == "jog":
+				Input.action_press("jog")
+			Input.action_press("move_forward")
+			await _settle(1.2)
+			cam.current = true
+			for i in 8:
+				var face := player.body.global_transform.basis * Vector3(0, 0, 1)
+				var yaw := atan2(face.x, face.z) + deg_to_rad(v[1])
+				var at := player.body.global_position
+				cam.position = at + Vector3(sin(yaw) * 1.7, 1.35, cos(yaw) * 1.7)
+				cam.look_at(at + Vector3(0, 1.15, 0), Vector3.UP)
+				await RenderingServer.frame_post_draw
+				_save_portrait("sweep/%s_%s_%d" % [gait, v[0], i])
+				await _settle(0.125)
+			Input.action_release("move_forward")
+			Input.action_release("jog")
+			cam.current = false
+			print("sweep %s %s: 8 frames" % [gait, v[0]])
+	player.scripted_look = false
 
 
 func _save_portrait(name: String) -> void:

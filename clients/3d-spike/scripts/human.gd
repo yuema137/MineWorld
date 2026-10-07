@@ -76,6 +76,7 @@ var _seat_y := 0.45
 ## reaching through it for `.position` silently loses the type, which once
 ## failed compilation and degraded the whole scene.
 var _inst: Node3D
+var _body := Body.TOWN
 
 ## Blinking. The rig has no lid bones, so the lids close through the body
 ## mesh's `Blink` shape key (CharMorph's L3 Eyes_Closed, baked by
@@ -277,6 +278,7 @@ static func build(height_m: float, skin: Color, hair: Color,
 	var inst := (_scenes[body] as PackedScene).instantiate() as Node3D
 	h.add_child(inst)
 	h._inst = inst
+	h._body = body
 	h.scale = Vector3.ONE * (height_m / CANONICAL_HEIGHT)
 
 	h.skeleton = inst.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
@@ -660,6 +662,9 @@ func set_gait(speed_mps: float) -> void:
 	_tree.set("parameters/Rate/scale", rate)
 	if _posture:
 		_posture.tweak_weight = clampf(blend / WALK_CLIP_MPS, 0.0, 1.0)
+		if _body == Body.REFERENCE:
+			# lets go of the strap as she sets off; see Posture.grip_weight
+			_posture.grip_weight = 1.0 - smoothstep(0.0, 0.5 * WALK_CLIP_MPS, blend)
 
 
 ## World position of a foot. Used by `--drive` to measure foot sliding directly

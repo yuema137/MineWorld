@@ -24,6 +24,9 @@ extends SkeletonModifier3D
 ## How far the gripping hand's fingers close, in degrees at the proximal joint.
 const FINGER_CURL := 38.0
 const FINGER_CURL_D := 62.0
+## The reference body's upper arms, outward from the clip while moving (Z,
+## degrees; the town body's stance uses +11 inward on the left).
+const ARM_OUT_D := -4.0
 
 ## Profile bone name -> local euler correction in degrees, post-multiplied onto
 ## whatever the animation produced.
@@ -45,6 +48,13 @@ var rest_relative := {}
 ## imported clip still holds the arms out and they are wanted. `human.gd` sets
 ## this from the gait. Finger curls are a grip, not a stance, and are exempt.
 var tweak_weight := 1.0
+
+## How much of `rest_relative` and of the finger curl applies, 0..1. The town
+## body holds its grip at every speed; the reference body lets go while it
+## moves (`human.gd`), because its strap passes under the hoodie's open edge
+## and a fist held to it through the stride reads as floating in front of the
+## cloth (CHARACTER_ROUTE_D_PLUS.md §8.7).
+var grip_weight := 1.0
 
 
 static func natural_stance() -> Posture:
@@ -89,8 +99,15 @@ static func natural_stance() -> Posture:
 ## and the spine keep animating.
 static func holding_strap(body := Human.Body.TOWN) -> Posture:
 	var p := natural_stance()
-	p.tweaks.erase("LeftUpperArm")
-	p.tweaks.erase("LeftLowerArm")
+	if body == Human.Body.REFERENCE:
+		# Her pack's side panels stand out past her ribs, and the town body's
+		# arms-in correction swung the sleeves through them on the back swing.
+		# Here the arms hang a little wider than the clip's instead.
+		p.tweaks["LeftUpperArm"] = Vector3(0, 0, ARM_OUT_D)
+		p.tweaks["RightUpperArm"] = Vector3(0, 0, -ARM_OUT_D)
+	else:
+		p.tweaks.erase("LeftUpperArm")
+		p.tweaks.erase("LeftLowerArm")
 	# solved inside the standing pose by tools/stand_pose.gd -- grip, per body
 	var ga := Human.grip_angles(body)
 	p.rest_relative["LeftUpperArm"] = ga[0]
@@ -144,8 +161,8 @@ func _process_modification() -> void:
 	for bone: String in rest_relative:
 		var i := sk.find_bone(bone)
 		if i >= 0:
-			sk.set_bone_pose_rotation(i,
-				sk.get_bone_rest(i).basis.get_rotation_quaternion() * _quat(rest_relative[bone]))
+			var target := sk.get_bone_rest(i).basis.get_rotation_quaternion() * _quat(rest_relative[bone])
+			sk.set_bone_pose_rotation(i, sk.get_bone_pose_rotation(i).slerp(target, grip_weight))
 	for bone: String in tweaks:
 		var i := sk.find_bone(bone)
 		if i < 0:
@@ -153,4 +170,6 @@ func _process_modification() -> void:
 		var q := _quat(tweaks[bone])
 		if not ("Proximal" in bone or "Intermediate" in bone or "Distal" in bone):
 			q = Quaternion.IDENTITY.slerp(q, tweak_weight)
+		elif bone.begins_with("Left"):
+			q = Quaternion.IDENTITY.slerp(q, grip_weight)
 		sk.set_bone_pose_rotation(i, sk.get_bone_pose_rotation(i) * q)
