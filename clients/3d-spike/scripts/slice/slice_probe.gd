@@ -526,6 +526,24 @@ func _conversation_frames() -> void:
 	print("counter  %.2f m -> %s; reply on screen %.1f s after pressing talk, captured %.1f s "
 		% [at_counter[1], at_counter[0], (t_reply - t0) / 1000.0,
 		(Time.get_ticks_msec() - t_reply) / 1000.0] + "after it; on screen:\n%s" % shown)
+	# The same moment from beside the counter: the player's character and the
+	# person she is talking to in one frame, the lines still up. A fixed camera,
+	# because the rear boom puts her body between the camera and the barista.
+	var ap: Vector3 = (link.figures[barista] as Node3D).global_position
+	var mid := (player.global_position + ap) * 0.5 + Vector3(0, 1.15, 0)
+	var cam := Camera3D.new()
+	cam.fov = 60.0
+	slice.add_child(cam)
+	# from the east end of the counter: west of it stand Bob and the pastry case
+	cam.look_at_from_position(mid + Vector3(1.85, 0.55, 1.45), mid)
+	cam.make_current()
+	# draw the body without a mode switch, whose toast would cover the caption
+	player.body.visible = true
+	await _save("conversation_3_at_counter_side")
+	player.body.visible = false
+	print("side     fixed camera at %s, the caption then: %d lines"
+		% [cam.global_position, slice.hud._caption.text.count("\n") + 1])
+	cam.queue_free()
 	# no entity id on screen: the barista's id must not appear as a word
 	var leaked := false
 	for w in shown.split(" "):
