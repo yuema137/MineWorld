@@ -1770,9 +1770,20 @@ type is read off the value, so a payload of another action cannot be attached �
 with its type and payload, available in place and unavailable elsewhere; `Offer::new` → none; pack
 disabled → absent.
 
-- [ ] Implementation (do not rewrite observe.rs:207 or :220 — F-35).
-- [ ] Validation: presence suite; M-C2 → fails, reverted.
-- [ ] Review: perception still decides nothing about what a payload means; INV-10 filter unchanged.
+- [x] Implementation (do not rewrite observe.rs:207 or :220 — F-35). `Offer` gains `payload:
+  Option<Value>`; `Offer::complete<A: Action>(&A, requirement) -> Result<Offer, serde_json::Error>`
+  (struct update over `Offer::new::<A>`, so the type is read off `A`); `Offer::payload()`. `verdict`
+  computes the affordance as before and then attaches the offer's payload whatever the verdict. Tests:
+  a `Bellringer` test pack (complete `test-toll { bell }` low/high at its belfry, plus one `Offer::new`),
+  `a_complete_offer_reaches_the_observation_with_its_own_type_and_payload`,
+  `a_disabled_packs_complete_offers_are_absent`. `Action` already implies `Serialize`, so the bound is
+  `A: Action` (the design's `Action + Serialize` is redundant). E-C3.
+- [x] Validation: E-C3 — presence 15 passed (13 + 2); M-C2 fails the payload test, reverted;
+  conversation, group-activity, movement suites green; clippy `-D warnings` on presence and contracts
+  clean; presence's own vocabulary scan still green.
+- [x] Review: perception attaches the payload and decides nothing about it; the `INV-10` filter (`world
+  .systems().provider(...)`) is the unchanged `continue` before `verdict`, so a disabled pack's complete
+  offer never reaches `verdict` (shown by the disabled test).
 
 ### C-C4 — the paced controller's offer band
 
@@ -2393,6 +2404,10 @@ E-C2 C-C2 contracts. `cargo test --no-fail-fast -p mineworld-contracts -p minewo
      reverted (`grep -c skip_serializing_if` = 1).
      spike/server: `cargo check --offline --manifest-path spike/server/Cargo.toml` exit 0 on da31613;
      after the change E0308 at world.rs:401 until the one-line annotation at :350, then exit 0.
+E-C3 C-C3 presence. `cargo test -p mineworld-presence` → presence.rs 15 passed (13 + 2 new), 0 failed.
+     M-C2 (verdict keeps the affordance, drops the payload): a_complete_offer_reaches_the_observation
+     _with_its_own_type_and_payload FAILED, 14 passed → reverted. conversation 14, group_activity 10,
+     movement 1 + 3 + 7 + 1 passed. clippy -p presence -p contracts --all-targets -D warnings clean.
 ```
 
 ---

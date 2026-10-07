@@ -272,10 +272,17 @@ fn verdict(
         None if requirement == SpatialRequirement::NONE => Ok(()),
         None => Err(Rejection::PreconditionFailed),
     };
-    match evaluated {
+    let affordance = match evaluated {
         Ok(()) => Affordance::available(offer.action_type().clone(), target, requirement),
         Err(reason) => {
             Affordance::unavailable(offer.action_type().clone(), target, requirement, reason)
         }
+    };
+    // A complete offer's request travels whatever the verdict: a client shown an unavailable choice
+    // can still show what it would be. What the payload means is the offering pack's, never this
+    // function's (`ARC-34`).
+    match offer.payload() {
+        Some(payload) => affordance.with_payload(payload.clone()),
+        None => affordance,
     }
 }
