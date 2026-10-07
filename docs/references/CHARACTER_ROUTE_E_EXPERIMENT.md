@@ -263,3 +263,51 @@ would be wrapped onto.
 neck — **confirmed**. Backpack: fused into the back as one lumpy mass, the visible strap merged with
 the hand — **confirmed**. Face: melted at this scale, the mouth a dark smear. Legs end at the crop
 line; the back is invented. Route D's prediction holds for this generator on every part.
+
+### 9.3 TripoSG — runs on Apple silicon; stopped at the raw-mesh gate
+
+**Ran:** clone `VAST-AI-Research/TripoSG` at `fc5c409`, weights `VAST-AI/TripoSG` (11 files),
+float32 on MPS, `diffusers` 0.41.0, `transformers` 5.19.0. `run_triposg.py` stubs `diso`, calls
+the pipeline with `use_flash_decoder=False` so extraction is upstream's own
+`hierarchical_extract_geometry` (skimage marching cubes), replaces the one function that hardcodes
+`device='cuda'` with the same computation on the input's device, and feeds the BiRefNet-masked
+RGBA composited on white — **`briaai/RMBG-1.4` was never downloaded or run.** 50 flow steps,
+guidance 7.0, seed 42, octree 8 → 9 (512³). The flow sampling took about 10 s; extraction at 512³
+on MPS took most of **1,159 s** in all. Output 1,688,601 vertices. So the upstream statement that
+a CUDA GPU is required is true of its fast path only; the slow path runs here.
+
+TripoSG canonicalises the head to face its own front, so the matched pose is a 30° turn from its
+frontal azimuth (azimuth 240 in `render_raw.py` with `OBJ_YUP=1`).
+
+**Evidence:** [`e3_triposg_head_gate.jpg`](../../presentation/mineworld-default/3D/candidate/route_e/e3_triposg_head_gate.jpg)
+(reference | TripoSG clay at the matched turn | TripoSG clay frontal | current CharMorph head).
+Shape only; TripoSG produces no texture.
+
+**§6.1(1) ratios** (same method and error as §9.2; TripoSG landmarks on the matched-turn render:
+eyes (400, 395), (520, 400); nose tip (480, 465); mouth (455, 525); chin (450, 600); contour
+x 250 … 548 at the eye line):
+
+| Ratio | Reference | TripoSG | CharMorph | Nearer |
+| --- | --- | --- | --- | --- |
+| (a) inter-eye / `E` | 0.67 | 0.59 | 0.55 | TripoSG |
+| (b) nose tip → mouth / `E` | 0.25 | 0.30 | 0.23 | CharMorph |
+| (c) mouth → chin / `E` | 0.40 | 0.37 | 0.38 | CharMorph (within reading error) |
+| (d) face width at eye line / `E` | 1.34 | 1.47 | 1.28 | CharMorph |
+
+**One of four.** Criterion 1 fails.
+
+**§6.1(2): fails on the eyes.** The eyes are modelled **closed**: smooth convex lids with no
+opening, no lid margin and no socket for an eyeball, in every view. The lips are a thick everted
+pout, much fuller than the reference's thin closed smile; the nose has a modelled nostril. **§6.1(3):
+the face region is clean** (smooth, no holes); the hair is a perforated shell with a hole above the
+ear and hundreds of detached flakes around it.
+
+**What it does carry that CharMorph does not:** a round, full-cheeked face with a small soft chin —
+the reference's softness of the lower face reads in the clay. It reads as a young child's face,
+not the reference's young woman.
+
+**Verdict: stopped at the gate, not wrapped.** A wrap onto it would close CharMorph's lids over
+the eyeballs and swell the lips, which is a different face, and the measured proportions do not
+favour it. The whole-character run was **not made** for TripoSG (20 minutes per run, shape only):
+its head result already shows hair as a perforated fused shell, and the route D question is put to
+Meshy instead, which produces textured whole characters.
