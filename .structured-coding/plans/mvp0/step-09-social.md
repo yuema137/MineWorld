@@ -7,6 +7,18 @@ re-audited and detailed only after the PR before it merges (`CLAUDE.md` §3, "de
 follow-up)
 **Lifecycle:** `DESIGN FROZEN` (2026-10-07, primary session; answers in §10.1). 10a frozen to the
 commit; 10b and 10c frozen at the step level and detailed after the previous PR merges.
+**PR 10a implementation context:** `ACTIVE` since 2026-10-07 (this session; §4.1 ledger, §9 evidence).
+
+## DESIGN FROZEN
+
+```text
+Design revision        700f0e0 — §§1–8, 10, 10.1 as committed there (draft f19e84c + §10.1 answers)
+Approved by / evidence primary session, §10.1 and the freeze commit 700f0e0; relayed to this session
+                       by the coordinator, 2026-10-07 ("Proceed with PR 10a now")
+Implementation base    main @ f4301c1; branch mvp0/pr-10-social
+Execution contract     §11 (confirmed at freeze for PR 10a)
+Lifecycle              FROZEN — 10a to the commit; 10b, 10c at the step level
+```
 **Base:** `main @ f4301c1`. S7 merged as `4f4cb1d`, and `f4301c1` is the docs-only post-merge update.
 **Branch / worktree:** `mvp0/pr-10-social` in `/Users/yuema137/mineworld-worktrees/s8-social`. Only
 this session holds it. `vis-character` and `vis-environment` belong to other agents. This session
@@ -568,6 +580,11 @@ C3  systems/relationships: `knows`, Acquaintances, SD-6 reductions, SD-7 level f
     self only; tests: edge ⇔ entry agree after every reduction; values move both ways; level crossings
     caused by the crossing fact; a world with relationships and no conversation installs and is inert;
     disabling conversation leaves relationships enabled (AC-2 direction)
+    Q6 CONDITION (§10.1, binding on C3): relationships decodes `spoke`, `invitation-accepted`,
+    `invitation-declined` and `group-activity-ended` ONLY through the owner crates' published event
+    types (`mineworld_conversation::Spoke`, group-activity's own) — a Cargo dependency on the
+    vocabulary, no registry dependency, and never a local struct mirroring their payload shape.
+    Review item: `grep` the crate for any `Deserialize` type shaped like another pack's event.
 C4  registration: worldpack catalog (Capability::GroupActivity, ::Relationships; biographical());
     world.yaml systems; literal updates under I-5 (composition lists, "systems" lines, the AC-15 talk
     fact count which grows by relationships' facts)
@@ -588,13 +605,21 @@ C8  docs: systems/{relationships,group-activity}/README, systems/README, MVP_STA
 
 ## 4.3 PR 10c — routines (outline; detailed after 10b merges)
 
+Q9 was answered the other way (§10.1): 10c builds the **generic content seam**, not a `routine:` field.
+SD-14 is superseded for 10c by: a System Pack owns a named section of a person or place file,
+validates it with its own type, and seeds its own genesis facts; `routine` is its first user, and
+`location` migrates onto it only if that is a no-op for every existing test (otherwise it stays, with
+the reason recorded). The outline below is amended accordingly; 10c's commit detail is written and
+reviewed after 10b merges.
+
 ```text
-C1  specs: DECISIONS ARC-30 (schedule is an agenda, never a mover — SD-13); PACKAGE_FORMAT and
-    MODULE_SPEC §4.1 `routine:` (or the seam, per Q9)
+C1  specs: DECISIONS ARC-30 (schedule is an agenda, never a mover — SD-13) and the content seam;
+    PACKAGE_FORMAT and MODULE_SPEC §4.1 (a pack-owned section of a person/place file)
 C2  systems/schedule: Routine, Agenda, routine Process (genesis start, wake → agenda-changed,
     reschedule), disclosure to self; tests incl. a restart across a boundary
-C3  worldpack: `routine:` → routine-assigned genesis via schedule's constructor; refusals by name
-    (unknown place, overlapping or empty segments)
+C3  worldpack: the content seam — a section named by a System Pack is validated and seeded by that
+    pack (routine-assigned via schedule's constructor); refusals by name (unknown section owner,
+    unknown place, overlapping or empty segments); `location` migrated only if a no-op
 C4  PacedRuleController walks toward its agenda's place (SD-4/SD-15); social-cafe routines
 C5  the run: agenda-changed per person per day located; `inspect` now meets Process causes —
     extend its AC-9 check to resolve them against the routine and group-activity process facts, or
@@ -894,7 +919,7 @@ named here and in overall §7, not left in a limitations list:
 
 ---
 
-# 11. Execution contract (proposed for PR 10a; confirmed only at freeze)
+# 11. Execution contract (confirmed at freeze for PR 10a, 2026-10-07)
 
 ```text
 PROJECT / PR        MVP-0 · Step 09 / PR 10a — the town (S8, first of three)
@@ -911,12 +936,14 @@ VALIDATION BUDGET   unit/integration/static: unrestricted; real-model: NOT REQUI
 LIVE DOCUMENTATION  this file (§4 checkboxes, §9 ledger)
 HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for PR 10a at C1
 ENDPOINT AUTHORITY
-  implementation + local validation   after DESIGN FROZEN only — source: the brief ("Phase 2 — only
-                                      after you are told the design is frozen")
+  implementation + local validation   authorized for PR 10a only — source: the coordinator's freeze
+                                      message ("Proceed with PR 10a now … Do not start 10b until I
+                                      tell you 10a is merged")
   semantic commits, branch push       authorized — source: the brief ("Commit and push after every
                                       small step"); D-12
   PR creation / update                authorized — source: the brief ("Open a PR with gh pr create")
-  clients/protocol/run.sh             UNRESOLVED — Q11
+  clients/protocol/run.sh             authorized — source: §10.1 Q11 and the coordinator's freeze
+                                      message ("Run it yourself in 10a's C4")
   CI repair                           N/A — no CI workflow (S13)
   merge                               operator only; the brief: "do not merge it"
 POST-MERGE SYNC     the planning session owns step/overall updates; this session owns this document
