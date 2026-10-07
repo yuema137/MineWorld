@@ -58,6 +58,20 @@ identifies one thing.
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
+### `VIS-3D-GODOT-1` — working state after preview 3, 2026-10-06 (not a preview)
+
+The primary session's four items on preview 3, worked at working resolution (620 × 900 per tile)
+against the reference at its own framing. The frames in `candidate/` are regenerated from this
+state (`side_by_side_chest.jpg`, `side_by_side_head.jpg`, `side_by_side_rear.jpg`, `p1`–`p8`).
+
+| Item | Reference | Candidate now | Frame | |
+| --- | --- | --- | --- | --- |
+| 1. Hood structure (§5 hard fail) | hood stands up at both shoulders, bunched behind and around the neck | a rolled rim round the neck, standing up at both sides of it; from behind, a flap over the rucksack lid with a centre point and three large folds. Modelled and laid on the body, hoodie and bag by ray cast (`garments.build_hood`); the bag hangs 45 mm lower | `side_by_side_rear`, `p5`, `p1` | PASS: reads as a hood from behind |
+| 2. Hair, front | soft, loose volume; a visible messy bun; caramel lights | strands from eight CC0 OwlishMedia maps; the front and side lift is about doubled; the knot is a quarter larger; back-facing cards are lit correctly (no dark stiff strands); crown 0.37/0.28/0.23 sRGB against 0.42/0.29/0.21 | `side_by_side_head` | improved, still a weak PASS: the swept front is still one continuous mass, smoother than the reference's separate locks |
+| 2. Hair, rear | — (not shown by the reference) | card edges show from behind, and the low sun turns the hair orange, as it does the hoodie | `p8` | open |
+| 3. Rucksack | grey-green canvas, straps, a lid | seams round the lid and pocket and down both sides; two compression straps with buckles; a greyer canvas, but still olive in the rear frame's low sun | `p8`, `p5` | PASS on structure; the colour depends on the light |
+| 4. Tee | cream/oatmeal 0.75/0.62/0.54 on the upper chest; the print high, mountains as wide as the text | oatmeal albedo `#CBB9A0` (was `#D9D2C4`, which rendered 0.70/0.71/0.72); the print is cropped to the range, in the reference's proportions, with its top 82 px under the crew band | `side_by_side_chest` | PASS |
+
 ### `VIS-3D-GODOT-1` — preview 3, 2026-10-06: groomed hair, a draped hoodie with a hood
 
 **A preview, not an acceptance request** (`ARC-24`). It answers the operator's verdict on preview 1,
