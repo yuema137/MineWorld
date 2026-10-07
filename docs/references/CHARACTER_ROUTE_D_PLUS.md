@@ -222,3 +222,11 @@ These are a later decision (coordinator, 2026-10-07): **not faked here.**
 - **First frame** (`shots/P2_portrait_tq`): the hand is on the strap at the chest, as in the
   reference. It reads as an open hand laid against the strap, palm toward the viewer, rather
   than a fist closed round it. Next: the armpit at 3× in this pose, then the hand.
+- **Armpit at 3×** in this pose (`runtime_d4/p2_zoom`): no tear; the strap, the hoodie's
+  shoulder and the sleeve stay continuous.
+- **Hand.** The finger axes measure the same on both bodies (`stand_pose.gd -- sweep
+  [reference]`: Z+ curls each finger forward). A deeper curl on the reference body (62° against
+  38°, commit `c9518d6`) closes the fingers only a little (`runtime_d5/p2_zoom`): the generated
+  hand's fingers are fused into one surface, so their heat weights blur across the finger
+  bones. What reads at 2.5×: the hand on the strap at the chest, the thumb up along the
+  webbing, the fingers bunched against it — not the reference's fist closed round it.
