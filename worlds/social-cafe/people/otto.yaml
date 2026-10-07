@@ -1,0 +1,17 @@
+# Otto — upstairs in the apartments, and the one person in this world no seat names.
+#
+# `world.yaml` lists every other Person as a seat, so a client or an agent may occupy them. Otto is
+# deliberately left out: a Person nobody drives is a legitimate member of a world, and asking for a
+# seat the world does not offer must be refused by name (`tools/cli/tests/server_command.rs`). Being a
+# seat is a fact about the world's configuration, not about him (`INV-1`).
+
+tags:
+  - resident
+
+note: Lives on the top floor. Rarely comes down.
+
+location:
+  place: apartments
+  position:
+    x: 6000
+    y: 4000

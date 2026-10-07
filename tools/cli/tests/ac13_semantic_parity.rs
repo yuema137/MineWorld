@@ -143,7 +143,7 @@ async fn both_are_resolved_by_the_same_system_to_the_same_result() {
         let (observer, _) = client.join("visitor").await;
         assert_eq!(
             observer.raw(),
-            5,
+            17,
             "the recorded frames were submitted as this observer, and a request naming another is \
              refused",
         );

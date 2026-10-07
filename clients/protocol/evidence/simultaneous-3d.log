@@ -1,31 +1,31 @@
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
 [demo] connecting to 127.0.0.1:7878 as seat 'wanderer' (3d)
-[demo] seated: seat 'wanderer' is observer 6
-[demo] world instance 0000000018dc198c253efe812f270000, 6 entities, 2 client(s)
-[demo] observation 1: 1, 3, 4, 5, 6
-[demo] the server says talk to 3 is not available (too far away)
+[demo] seated: seat 'wanderer' is observer 18
+[demo] world instance 0000000018dc19e75a14a141504f0000, 18 entities, 3 client(s)
+[demo] observation 1: 2, 7, 8, 17, 18
+[demo] the server says talk to 7 is not available (too far away)
 [demo] c1 -> action 1: accepted (1 fact(s))
-[demo] the server now says talk to 3 is available
+[demo] the server now says talk to 7 is available
 [demo] c2 -> action 3: accepted (1 fact(s))
 [demo] walked there in 2 stride(s)
-[demo] c3 -> action 4: accepted (2 fact(s))
+[demo] c3 -> action 5: accepted (2 fact(s))
 [demo] --- what this client was told ---
-[demo] world instance      0000000018dc198c253efe812f270000
-[demo] observer            6
-[demo] perceived           1, 3, 4, 5, 6
-[demo]   1  tags ["cafe","public"]  at (0.0, 0.0) m
+[demo] world instance      0000000018dc19e75a14a141504f0000
+[demo] observer            18
+[demo] perceived           2, 7, 8, 17, 18
+[demo]   2  tags ["cafe","public"]  at (0.0, 0.0) m
 [demo]       components ["passages"]
 [demo]       doorways   1 (read through MineWorldObservation.component)
-[demo]   3  tags ["barista","staff"]  at (6.0, -8.0) m
-[demo]   4  tags ["regular"]  at (4.5, -6.1) m
-[demo]   5  tags ["visitor"]  at (6.0, -6.0) m
-[demo]   6  tags ["visitor"]  at (6.0, -6.0) m
+[demo]   7  tags ["barista","staff"]  at (6.0, -8.0) m
+[demo]   8  tags ["regular"]  at (4.5, -6.1) m
+[demo]   17  tags ["visitor"]  at (6.0, -6.0) m
+[demo]   18  tags ["visitor"]  at (6.0, -6.0) m
 [demo]       components ["conversation-history"]
 [demo]   affordance move -> null : available
-[demo]   affordance talk -> "3" : available
-[demo]   affordance talk -> "4" : available
-[demo]   affordance talk -> "5" : available
+[demo]   affordance talk -> "7" : available
+[demo]   affordance talk -> "8" : available
+[demo]   affordance talk -> "17" : available
 [demo] --- what I have been told (my own disclosed history) ---
-[demo]   "3" said "I remember you. You said \"hello Alice, this is the demonstration scene\". You are the first person to speak to me here."
+[demo]   "7" said "I remember you. You said \"hello Alice, this is the demonstration scene\". You are the first person to speak to me here."
 [demo] disconnected: the scripted run is over

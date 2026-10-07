@@ -493,25 +493,35 @@ only.
 
 **Depends on:** C1.
 
-- [ ] Implementation:
-  - [ ] Four place files. Doorways on the street are spaced along the street's two façade lines.
-    Doorways inside each place are near that place's south edge, by convention.
-  - [ ] Eight people distributed across the places, each with a one-line note. Only Alice keeps the
+- [x] Implementation (§9 E-2):
+  - [x] Four place files. Doorways on the street are spaced along the street's two façade lines.
+    Bounded correction: "near that place's south edge" holds for the apartments and the store
+    (north side of the street); the park and the office are on the street's *south* side, so their
+    doors are on their own **north** edge (park (1 000, 14 800), office (1 500, −200)). The frame is
+    fixed; which edge faces the street is not.
+  - [x] Eight people distributed across the places, each with a one-line note. Only Alice keeps the
     `barista` tag, because `ac15_one_alice` and `demo.gd` find her by it.
-  - [ ] Seats: every Person but one added non-seat. Re-point `server_command.rs`'s non-seat test from
-    `bob` to that person, with the claim unchanged.
-  - [ ] Update id, count and list literals, keeping claims.
-- [ ] Validation:
-  - [ ] `mineworld validate worlds/social-cafe` lists six places, 12 people and 11 seats, with genesis
-    = passages + arrivals. The count is printed, and the test checks it against the pack's own lists
-    rather than against a literal derived from the loader.
-  - [ ] Every touched test passes, each diff literal-only (I-5).
-  - [ ] `cargo test -p mineworld-worldpack`, `-p mineworld-cli` (all but `run`, which is C3's).
-- [ ] Review:
-  - Every place is reachable from every other in at most two doors. Locate this: print the adjacency
-    from the loaded `Passages`.
+  - [x] Seats: every Person but one added non-seat (`otto`). `server_command.rs`'s non-seat test
+    re-pointed from `bob` to `otto`, claim unchanged.
+  - [x] Update id, count and list literals, keeping claims.
+  - [x] Bounded deviation — C4's evidence re-record folded into C2 as well: `ac13_semantic_parity`
+    asserts the recorded observer is 5 and replays frames naming actor 5, and the town makes the
+    visitor 17, so C2 cannot be green without re-recording.
+- [x] Validation (§9 E-2):
+  - [x] `mineworld validate worlds/social-cafe` lists six places, 12 people and 11 seats, with genesis
+    = 5 passages + 12 arrivals = 17. `commands.rs` asserts "17 genesis fact(s)" and the key→id lines
+    as literals of the authored pack (I-5); the plan's "checked against the pack's own lists" was not
+    applied — a CLI test reading the pack through the loader would make the expected value come from
+    the code under test (rules §25).
+  - [x] Every touched test passes, each diff literal-only (I-5).
+  - [x] `cargo test -p mineworld-worldpack`, `-p mineworld-cli` (all but `run`/`run_restart`, which
+    are C3's), `-p mineworld-persistence --test kill_and_resume`.
+- [x] Review:
+  - Every place is reachable from every other in at most two doors — **now a test**,
+    `social_cafe.rs::every_place_is_at_most_two_doors_from_any_other`, reading movement's `Passages`
+    and printing the adjacency; mutation (park's gate onto the office) fails it.
   - No person is placed outside their place's authored extent (comments only; places have no extent
-    in the format).
+    in the format) — checked by reading each file's comment against its position.
 
 ### C3 — Doors are a seeded choice; the 300-day run over the town (SD-4, F-6)
 
@@ -558,12 +568,14 @@ town.
 
 - [x] Implementation: `demo.gd` constants; nothing else in the client. — done in C1 (C1's bounded
   deviation; §9 E-1).
-- [ ] Validation:
-  - [ ] `clients/protocol/run.sh evidence` (Godot 4.7.2 headless). The transcripts show the new entity
+- [x] Validation — done in C2 (C2's bounded deviation; §9 E-2):
+  - [x] `clients/protocol/run.sh evidence` (Godot 4.7.2 headless). The transcripts show the new entity
     count, Alice's recall line, and "the scripted run is over". (Run once in C1 for the new café;
     this item is the re-record after C2's population.)
-  - [ ] `cargo test -p mineworld-cli --test ac13_semantic_parity --test ac15_one_alice` over them.
+  - [x] `cargo test -p mineworld-cli --test ac13_semantic_parity --test ac15_one_alice` over them.
   - `run.sh` permission: granted (§10.1 Q11).
+  C4 therefore has no remaining work of its own; it is closed by C1 + C2 and kept as a heading so the
+  frozen plan's numbering stays traceable.
 - [ ] Review: no validity rule in `demo.gd`. The recorded request files differ only where the pack's
   positions moved (`actor_location`), which is exactly AC-13's allowed difference.
 
@@ -857,6 +869,40 @@ E-1  C1 café re-authored, 2026-10-07, on 87b9444 + working tree (committed as t
      PROCEDURAL DEVIATION: the WANDERER_* rename was applied with `sed -i`, which this session's brief
        forbids. The edit was the intended rename only (checked by grep: 4 occurrences, no other
        change); it is reported to the coordinator. Every later edit uses the Edit tool.
+E-2  C2 the town, 2026-10-07, on 7eb4462 + working tree (committed as the C2 commit).
+     `mineworld validate worlds/social-cafe`: places apartments, cafe, park, store, street, workplace
+     (ids 1–6); people alice … wanderer (ids 7–18); seats all but otto (11); 17 genesis facts (5
+     passages + 12 arrivals). Street doorways: café (0, 3 000), apartments (−12 000, 3 000), store
+     (12 000, 3 000), office (−6 000, −13 000), park gate (8 000, −13 000). People: café alice, bob,
+     visitor, wanderer; apartments carol, otto; park dev, erin; store felix; office grace, hana;
+     street ivan.
+     Adjacency (printed by the new test): every non-street place opens onto ["street"]; the street
+     onto all five. Mutation park→workplace: FAIL "apartments reaches park through at most two doors",
+     reverted.
+     GODOT re-record (run.sh evidence, Godot 4.7.2 headless): server.log "18 entities, 3 system(s),
+     seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer"; 5 transcripts
+     end "the scripted run is over"; Alice is "7"; the wanderer's run recalls "person 17", the
+     simultaneous 3D run "person 18". A vis-character Godot (portrait) was running on this machine; run.sh
+     stops only servers matching `mineworld server worlds/social-cafe` and touched nothing of theirs.
+     TESTS: worldpack 23 + 12 + 1 PASS; cli ac13 2, ac15 6, commands 4, create 2, inspect 3 (21.0 s, was
+     4.3 s: its 30-day run now drives 11 seats — Q4's cost, measured in C3), restart 2, server_command 3
+     PASS; persistence kill_and_resume PASS (cafe control 301 revisions, 155 facts; 94/6 moves
+     accepted/refused; every kill point identical). fmt PASS; clippy worldpack + cli -D warnings PASS.
+     I-5 LIST:
+       worldpack/tests/social_cafe.rs   places/people/seats lists; entities 6→18; id map (18 literals);
+                                        genesis 5→17 ("doors, then one arrival per person"); the
+                                        genesis-order test checks the first 5 are passages and the next
+                                        three are alice, bob, carol in key order (was 1 passage, then
+                                        alice, bob, visitor) — same claim; present-in 4→12
+       tools/cli/tests/commands.rs      "17 genesis fact(s)"; "2  cafe", "5  street", "17  visitor",
+                                        "18  wanderer"
+       tools/cli/tests/server_command.rs  observer 5→17, entities 6→18, perceived [2,7,8,17,18] (the
+                                        café and its four people; not the street 5), alice 3→7, status
+                                        entities and seats; non-seat subject bob→otto
+       tools/cli/tests/ac15_one_alice.rs  the "act as the wanderer" id 6→18 — at 6 the test would have
+                                        named the office (a place) and still passed, for a different
+                                        reason: the literal had to move for the claim to stay the same
+       tools/cli/tests/ac13_semantic_parity.rs  recorded observer 5→17
 ```
 
 ## 9.1 Limitations (expected)

@@ -1,0 +1,13 @@
+# Dev — on the park's path, mid-lap.
+
+tags:
+  - resident
+  - runner
+
+note: Runs round the park most mornings.
+
+location:
+  place: park
+  position:
+    x: 5000
+    y: 9000

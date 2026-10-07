@@ -3,7 +3,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "move",
-      "actor": "5",
+      "actor": "17",
       "actor_location": null,
       "payload": {
         "action_type": "move",
@@ -16,7 +16,7 @@
               "z": 0
             },
             "place": {
-              "entity": "1",
+              "entity": "2",
               "entity_type": "place"
             }
           }
@@ -30,7 +30,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "move",
-      "actor": "5",
+      "actor": "17",
       "actor_location": null,
       "payload": {
         "action_type": "move",
@@ -43,7 +43,7 @@
               "z": 0
             },
             "place": {
-              "entity": "1",
+              "entity": "2",
               "entity_type": "place"
             }
           }
@@ -57,7 +57,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "move",
-      "actor": "5",
+      "actor": "17",
       "actor_location": null,
       "payload": {
         "action_type": "move",
@@ -70,7 +70,7 @@
               "z": 0
             },
             "place": {
-              "entity": "1",
+              "entity": "2",
               "entity_type": "place"
             }
           }
@@ -84,7 +84,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "move",
-      "actor": "5",
+      "actor": "17",
       "actor_location": null,
       "payload": {
         "action_type": "move",
@@ -97,7 +97,7 @@
               "z": 0
             },
             "place": {
-              "entity": "1",
+              "entity": "2",
               "entity_type": "place"
             }
           }
@@ -111,7 +111,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "talk",
-      "actor": "5",
+      "actor": "17",
       "actor_location": {
         "facing": {
           "pitch": null,
@@ -123,7 +123,7 @@
           "z": 0
         },
         "place": {
-          "entity": "1",
+          "entity": "2",
           "entity_type": "place"
         }
       },
@@ -133,7 +133,7 @@
           "utterance": "hello Alice, this is the demonstration scene"
         }
       },
-      "target": "3"
+      "target": "7"
     },
     "token": "c5"
   }

@@ -72,17 +72,25 @@ fn the_pack_says_what_world_it_is() {
     );
     assert_eq!(
         pack.places().keys().cloned().collect::<Vec<_>>(),
-        vec![key("cafe"), key("street")],
+        ["apartments", "cafe", "park", "store", "street", "workplace"].map(key),
     );
     assert_eq!(
         pack.people().keys().cloned().collect::<Vec<_>>(),
-        vec![key("alice"), key("bob"), key("visitor"), key("wanderer")],
+        [
+            "alice", "bob", "carol", "dev", "erin", "felix", "grace", "hana", "ivan", "otto",
+            "visitor", "wanderer",
+        ]
+        .map(key),
     );
     assert_eq!(
         pack.seats().iter().cloned().collect::<Vec<_>>(),
-        vec![key("alice"), key("visitor"), key("wanderer")],
-        "three seats: two Persons a client occupies, and the one an agent drives — nothing about \
-         the world distinguishes them (INV-1)",
+        [
+            "alice", "bob", "carol", "dev", "erin", "felix", "grace", "hana", "ivan", "visitor",
+            "wanderer",
+        ]
+        .map(key),
+        "every Person but one is a seat: the Persons a client occupies, the one an agent drives and \
+         the town a headless run drives — nothing about the world distinguishes them (INV-1)",
     );
 }
 
@@ -91,7 +99,11 @@ fn the_world_is_the_one_the_yaml_describes() {
     let world = loaded();
     let read = world.world().read();
 
-    assert_eq!(world.world().entities().len(), 6, "two places, four people");
+    assert_eq!(
+        world.world().entities().len(),
+        18,
+        "six places, twelve people"
+    );
     let systems = world.world().systems();
     for system in [PresenceSystem::ID, ConversationSystem::ID] {
         assert!(
@@ -138,12 +150,24 @@ fn entity_keys_resolve_to_ids_deterministically() {
     // runs would pass if both were wrong in the same way, and the ids are what every event in this
     // world's log refers to.
     let expected: BTreeMap<EntityKey, EntityId> = [
-        (key("cafe"), EntityId::from_raw(1)),
-        (key("street"), EntityId::from_raw(2)),
-        (key("alice"), EntityId::from_raw(3)),
-        (key("bob"), EntityId::from_raw(4)),
-        (key("visitor"), EntityId::from_raw(5)),
-        (key("wanderer"), EntityId::from_raw(6)),
+        (key("apartments"), EntityId::from_raw(1)),
+        (key("cafe"), EntityId::from_raw(2)),
+        (key("park"), EntityId::from_raw(3)),
+        (key("store"), EntityId::from_raw(4)),
+        (key("street"), EntityId::from_raw(5)),
+        (key("workplace"), EntityId::from_raw(6)),
+        (key("alice"), EntityId::from_raw(7)),
+        (key("bob"), EntityId::from_raw(8)),
+        (key("carol"), EntityId::from_raw(9)),
+        (key("dev"), EntityId::from_raw(10)),
+        (key("erin"), EntityId::from_raw(11)),
+        (key("felix"), EntityId::from_raw(12)),
+        (key("grace"), EntityId::from_raw(13)),
+        (key("hana"), EntityId::from_raw(14)),
+        (key("ivan"), EntityId::from_raw(15)),
+        (key("otto"), EntityId::from_raw(16)),
+        (key("visitor"), EntityId::from_raw(17)),
+        (key("wanderer"), EntityId::from_raw(18)),
     ]
     .into_iter()
     .collect();
@@ -187,8 +211,8 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        5,
-        "the café's front door, then one arrival per person the pack placed",
+        17,
+        "the five places' doors onto the street, then one arrival per person the pack placed",
     );
 }
 
@@ -196,18 +220,20 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
 fn an_authored_position_is_a_recorded_fact_rather_than_a_write() {
     let world = loaded();
 
-    // The passage comes first — a fact about places, which exist before anybody is in them — and it
-    // is movement's, stated by movement.
-    let door = &world.genesis()[0];
-    assert_eq!(
-        *door.event_type(),
-        EventTypeId::new("passage-opened").expect("a legal event type")
-    );
-    assert_eq!(door.provenance().emitted_by().as_str(), "movement");
-    assert_eq!(*door.caused_by(), Causation::WorldGenesis);
+    // The passages come first — facts about places, which exist before anybody is in them — and they
+    // are movement's, stated by movement: one per place that opens onto the street.
+    const DOORS: usize = 5;
+    for door in &world.genesis()[..DOORS] {
+        assert_eq!(
+            *door.event_type(),
+            EventTypeId::new("passage-opened").expect("a legal event type")
+        );
+        assert_eq!(door.provenance().emitted_by().as_str(), "movement");
+        assert_eq!(*door.caused_by(), Causation::WorldGenesis);
+    }
 
-    for (nth, person) in ["alice", "bob", "visitor"].into_iter().enumerate() {
-        let event = &world.genesis()[nth + 1];
+    for (nth, person) in ["alice", "bob", "carol"].into_iter().enumerate() {
+        let event = &world.genesis()[nth + DOORS];
         assert_eq!(
             *event.event_type(),
             EventTypeId::new("arrived").expect("a legal event type"),
@@ -260,7 +286,7 @@ fn an_authored_position_is_a_recorded_fact_rather_than_a_write() {
             .read()
             .relations_of_type(&present_in())
             .count()
-            == 4,
+            == 12,
         "the presence pack's own edge for each person it placed",
     );
 }
@@ -380,6 +406,58 @@ fn a_seat_is_a_person_the_world_can_resolve() {
             "and it must be a Person, or a client would connect as something that cannot act",
         );
     }
+}
+
+/// `step-09-social.md` SD-3: the town is a star — every place opens onto the street and nothing else —
+/// so any place is at most two doors from any other. Read from the doors the movement system recorded
+/// at genesis, which are what decides whether a walk between two places is possible, not from the
+/// YAML.
+#[test]
+fn every_place_is_at_most_two_doors_from_any_other() {
+    use mineworld_movement::Passages;
+
+    let world = loaded();
+    let read = world.world().read();
+    let places: Vec<(EntityKey, EntityId)> = pack()
+        .places()
+        .keys()
+        .map(|place| (place.clone(), world.id(place).expect("declared")))
+        .collect();
+    let name = |id: EntityId| {
+        places
+            .iter()
+            .find(|(_, place)| *place == id)
+            .map(|(key, _)| key.as_str().to_owned())
+            .expect("a declared place")
+    };
+    let doors = |id: EntityId| -> Vec<EntityId> {
+        read.component::<Passages>(id)
+            .map(|passages| passages.iter().map(|p| p.to().entity_id()).collect())
+            .unwrap_or_default()
+    };
+
+    for (key, id) in &places {
+        println!(
+            "{key:>10} opens onto {:?}",
+            doors(*id).into_iter().map(name).collect::<Vec<_>>()
+        );
+    }
+    for (from, a) in &places {
+        for (to, b) in &places {
+            let one = doors(*a).contains(b);
+            let two = doors(*a).iter().any(|middle| doors(*middle).contains(b));
+            assert!(
+                a == b || one || two,
+                "{from} reaches {to} through at most two doors",
+            );
+        }
+    }
+    let street = world.id(&key("street")).expect("declared");
+    assert_eq!(
+        doors(street).len(),
+        places.len() - 1,
+        "the street opens onto every other place",
+    );
 }
 
 /// Where a customer stands at the café counter, in the café's frame: 6.0 m along the frontage from the
