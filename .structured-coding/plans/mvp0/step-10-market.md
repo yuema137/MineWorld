@@ -1500,23 +1500,46 @@ restart → verify), and F-32's summary gap.
 
 ### B-C6 — Close: status, planted violations, full gates, ledger
 
-- [ ] Documentation: `docs/MVP_STATUS.md` — one capability row inserted directly after "Authored content
-  owned by packs", and one evidence row inserted directly after "People are named, and removing names
-  changes nothing else"; the `Updated:` line and the S9 stage row are **not** edited (§12: the planning
-  session's). `worldpack/README.md` names the four kinds. §4.2 checkboxes and §9.2 `E-B*`;
-  `.structured-coding/plans/mvp0/handoff-11b.md` (§12).
-- [ ] Validation, once, on the final executable head:
-  - [ ] `cargo fmt --all --check`; `cargo clippy --workspace --all-targets --all-features -- -D warnings`;
-    `cargo test --workspace --no-fail-fast` (background, ~3–6 min unloaded): counts recorded against the
-    base's.
-  - [ ] B-1: the 300-day seed-7 run's sha = E-0; `validate worlds/social-cafe` identical to the base's.
-  - [ ] B-6: the two planted violations refused as stated, then reverted (`git status` clean of both).
-  - [ ] Both doc checks.
-- [ ] Review: B-1 … B-7 each hold with recorded evidence; every deviation is listed; nothing in the diff
-  touches `contracts/`, `kernel/`, `persistence/`, `server/`, `clients/` or `cognition/`.
+- [x] Documentation (8350ba4):
+  - `docs/MVP_STATUS.md` gains its two rows at the stated anchors. The `Updated:` line and the S9 row
+    are untouched.
+  - `worldpack/README.md` names the four kinds and their id order.
+  - §4.2 checkboxes, §9.2 `E-B*` and `handoff-11b.md` are kept current.
+- [x] Validation, once, on the final executable head **8350ba4** (clean tree), E-B6:
+  - [x] fmt PASS (0 s). clippy `--workspace --all-targets --all-features -D warnings` PASS (26 crates
+    checked, 2 s). `cargo test --workspace --no-fail-fast` 441 passed, 0 failed, 0 ignored, 185 s wall.
+    That is the base's 428 (E-A-final) plus 13 new tests:
+    - scan +1;
+    - refusals +6;
+    - worldpack unit +2;
+    - worldpack content_kinds +1;
+    - cli content_kinds +3.
+  - [x] B-1: the 300-day seed-7 run exits 0 with 339 lines, faults 0, history 365 330 facts and
+    fingerprint 59339a9c281829c9. sha-256 of all lines but `wall` =
+    `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b` = E-0 (wall 12.9 s).
+    `validate worlds/social-cafe` is identical to the base's (E-B5).
+  - [x] B-6: `// PLANTED: an item_price` in worldpack/src/format.rs →
+    `11b: worldpack/src/format.rs:235: \`price\` in: // PLANTED: an item_price`, and `item` is not
+    named. The untracked `worldpack/tests/wages.rs` → `11b: the added file worldpack/tests/wages.rs is
+    named \`wages\``. Both were reverted with `git checkout` and `rm`; `git status` is then clean, and
+    the scan passes 4/4 again.
+  - [x] kill_and_resume: cafe PASS, clock PASS (6 s). check_decision_ids: 46 ids, distinct.
+    check_doc_headings: 143 sections, none duplicated.
+- [x] Review:
+  - B-1 … B-7 hold (§9.2).
+  - Deviations D-B1 … D-B4 are listed in B-C2 … B-C4, plus process deviation D-B5, below.
+  - `git diff --stat da31613..8350ba4` touches only authoring/, worldpack/, tools/cli/,
+    tests/acceptance/, docs/ and the plan files: no contracts/, kernel/, persistence/, server/,
+    clients/, cognition/ or systems/.
+  - **D-B5 (process):** an `awk` one-liner was used once to sum test counts. The kickoff's tool
+    discipline forbids `awk`. It changed no file and the sum is reproducible from
+    `/tmp/s9-11b-final/test.txt`, but it is recorded, not hidden.
 
-**PR 11b lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §13 confirmed. See the
-freeze record for 11b and 11c in §12.0.
+**PR 11b lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §13 confirmed (freeze record
+§12.0). **READY FOR OPERATOR REVIEW**: final executable head `8350ba4` with all gates in E-B6. Later
+commits are ledger and handoff only. The PR is to be merged with a merge commit (§12). The
+implementation context is CLOSED / AWAITING OPERATOR ACTION. If 11c merges first, this branch
+rebases per §12.0 and its evidence is rerun.
 
 ### 4.2.2 The 11b allow-list
 
@@ -2296,6 +2319,21 @@ E-B4 B-C4: worldpack + acceptance all pass (unit 4, content_kinds 1, refusals 38
 E-B5 B-C5: scan 4, cli commands 4 (unedited), cli content_kinds 3 — pass. validate worlds/social-cafe
      identical to da31613's (base binary built in a scratch worktree; diff empty). M-B5 → the validate
      test fails ("every existing id stays where it was"); reverted. clippy, fmt clean.
+E-B6 final gate on 8350ba4 (clean tree), 2026-10-07; logs /tmp/s9-11b-final/:
+     cargo fmt --all --check                                           PASS (0 s)
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS (26 crates, 2 s)
+     cargo test --workspace --no-fail-fast    441 passed, 0 failed, 0 ignored (428 base + 13 new); 185 s
+     kill_and_resume                          cafe PASS, clock PASS (6 s)
+     check_decision_ids                       46 ids, all distinct
+     check_doc_headings                       143 sections, none duplicated
+     B-1 / I-4  300-day seed-7 social-cafe: 339 lines, faults 0, 365 330 facts, fingerprint
+                59339a9c281829c9; sha-256 (all but wall) =
+                ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 12.9 s
+     B-6 planted: `// PLANTED: an item_price` refused naming `price` (not `item`); untracked
+                worldpack/tests/wages.rs refused by its path; both reverted, tree clean, scan 4/4.
+     diff da31613..8350ba4: 21 files; no contracts/, kernel/, persistence/, server/, clients/,
+     cognition/, systems/ or Cargo.lock path.
+     CI: none configured (S13).
 ```
 
 ## 9.3 Evidence — PR 11c

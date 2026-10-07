@@ -1,4 +1,4 @@
-# Handoff — PR 11b implementation context: ACTIVE
+# Handoff — PR 11b implementation context: CLOSED / AWAITING OPERATOR ACTION
 
 **Active PR:** Step 10 / PR 11b — items and organizations as World Pack content kinds (S9, second of
 six; a precursor)
@@ -49,11 +49,35 @@ B-C1 → B-C2 → B-C3 → B-C4 → B-C5 → B-C6, each committed and pushed. Un
 
 ## Checkpoint
 
-B-C1 in progress (docs).
+B-C1 … B-C6 are done. The commits:
+
+```text
+55b5afc  B-C1
+0d8ff47  B-C2
+59627e2  B-C3
+fb74604  B-C4
+cace108  B-C5
+8350ba4  B-C6 docs — the final executable head
+```
+
+Later commits are ledger and handoff only. The full gate passed on 8350ba4 (§9.2 E-B6):
+
+- 441 passed, 0 failed, 185 s;
+- sha = E-0;
+- planted violations refused and reverted.
+
+The scratch base worktree is removed. No background processes of this session remain.
 
 ## Next actions
 
-B-C1 doc checks, commit, push; then B-C2 (scan word-level admission + 11b row).
+- The operator reviews and merges, with a **merge commit**. Only the operator merges.
+- If 11c merges first:
+  1. rebase onto the new main; never merge main in;
+  2. set the 11b row's `base` to that main in the same commit;
+  3. rerun the targeted tests, the sha, the plants and the full gate;
+  4. force-push this branch (§12.0).
+- After merge, this session records the merge identity in §4.2. The planning session owns the header,
+  overall, MVP_STATUS Updated/S9 lines and the handoff fold.
 
 ## Stop conditions
 
