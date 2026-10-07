@@ -2732,7 +2732,7 @@ to bite, then reverted, on a scratch branch):**
 | 11b | a pack with items and organizations loads; social-cafe's ids, genesis count and run unchanged | items' sections seeded after people's fails the genesis-order test |
 | 11c | a synthetic pack's action, unknown to the controller, is attempted and accepted headless; social-cafe byte-identical | the band taking an unavailable affordance fails a named test; the band reusing the walking roll's draw fails the greeting-coexistence test (F-28 — the social-cafe comparison cannot see it) |
 | 11d | market-town (owning, giving) validates; over 300 days every seat gives in every bucket and nobody holds more than six; the unchanged paced controller gives in a pack test; per-pack tests incl. restart; AC-2 for item-transfer at pack level (§4.4.3, D-1 … D-11) | a transfer beyond what the giver holds, stated directly, is refused by inventory itself (M-D3); without the capacity the gives collapse into the unseated person (M-D7) |
-| 11e | wages, purchases and production in a 30-day run; restart mid-shift; economy and employment each install without the other | wage-due against an empty wallet yields wage-unpaid, never a negative |
+| 11e | market-town (work, money, shops, eating) lives 300 days: purchases, wages, production, consumption and gives in every bucket, zero wage-unpaid, no wallet below the cheapest price, money conserved; the unchanged controller buys in a pack test; restart mid-shift; each of economy, employment and consumption removable in its direction (§4.5.3, E-1 … E-12) | wage-due against a short wallet yields wage-unpaid, never a negative (M-E3); without consumption, purchases stop once hands are full (M-E9) |
 | 11f | the AC-1 test (three checks), CP-4 over 300 days, AC-2 at world level, Milestone C through the real server | each of the four scratch mutations in §4.6 fails its check by name |
 
 # 6. Test ownership and verification
@@ -2798,6 +2798,8 @@ FLAGGED  QS-15 — operator-material (amends ARC-35 point 7's merged-range detec
 FLAGGED  QS-35 — operator-material: without consumption, 11e's purchases stop once people are full;
          11e must close the item loop (QS-10 can no longer be deferred past 11e's design). QS-27 (the
          capacity) is part of how 11d answers QS-10, and is operator-visible
+FLAGGED  11e (§4.5.5): QS-39, QS-45, QS-47 operator-material; QS-43 amends the medium scope's authoring
+         format; no framework gap (E-6)
 ```
 
 ---
@@ -3306,8 +3308,9 @@ E-6  The R-S9-1 spike for 11e, 2026-10-07. Local scratch branch `scratch/11e-spi
      social-cafe 300-day on the spike build: sha-256 of all but `wall` = ad49c723…c64b = E-0.
      `cargo test --workspace --no-fail-fast`: exit 0, 480 passed (479 + the scratch reader), 0 failed.
      Verdict: PASS — no framework gap; F-47 … F-56. No precursor proposed.
-E-7  End of this planning branch: check_doc_headings and check_decision_ids (results in the commit that
-     closes this section). Docs-only branch; no cargo gate beyond the spike.
+E-7  End of this planning branch: check_doc_headings → 143 numbered sections across 22 documents, none
+     duplicated; check_decision_ids → 48 ids, all distinct (ARC-38 a proposal in this file only; absent
+     from every origin/* branch after `git fetch`). Docs-only branch; no cargo gate beyond the spike.
 ```
 
 Each implementation PR records its evidence in its own section — §9.2 for 11b, §9.3 for 11c — so that
@@ -3885,6 +3888,77 @@ QS-38  The execution contract for 11d (§15): fresh session, its own worktree on
        freeze.
 ```
 
+**Raised while detailing 11e (2026-10-07, on `70e532f`).**
+
+```text
+QS-39  [OPERATOR-MATERIAL — the interaction set, within QS-35's scope] The consumption pack is
+       `consumption`, providing `eat { item }` for kinds of category `food` and `drink { item }` for
+       `drink`; goods are never consumed (SD-25). It closes MVP §5's `eat` as an interaction and adds
+       `drink`, which MVP §5 does not list: without it drinks fill hands (F-50). Hunger and `sleep` stay
+       open (QS-10). Alternatives: (a) `eat` only, drinks not sold — the café without coffee; (b) one
+       `consume` action — not MVP's word; (c) a pack-owned `consumable:` section on item files instead of
+       reading item's category — more content and a genesis fact per kind for a rule the category
+       already carries. Recommended: eat + drink by category.
+QS-40  A person eats or drinks what they carry, anywhere (requirement none). Alternative: only at the
+       café or a place with a shop — a rule tied to places no MVP criterion needs, and fewer meals for
+       people whose day passes no shop. Recommended: anywhere.
+QS-41  Production (QS-28 answered): `items-produced` comes in now, in inventory's vocabulary, stated by
+       employment when a shift ends, for the employer, prorated by the worked share of the shift
+       (`produces: { item: per full shift }`). Consumption destroys items, so without production the
+       shops empty and CP-4's purchases end. Alternative: endow shops for 300 days and drop production —
+       CP-4 asks for an item produced in every bucket. Recommended: as designed.
+QS-42  11e edits a merged pack: inventory gains `items-produced`, `items-consumed`, `produce`,
+       `consume` and their admit functions. Under systems/, so inside ARC-35's range; inventory stays the
+       only writer of holdings, and the facts name what happened to holdings, not why. Alternative:
+       facts in the stating packs' vocabularies reduced by inventory via ARC-28 — inventory would then
+       reduce other packs' vocabulary, against ARC-26 point 1. Recommended: accept.
+QS-43  [operator-visible — authoring format of a new pack; amends §4.5's medium scope] A pack owns one
+       section (F-47), so economy's is `economy:` on person and organization files — `{ wallet }`, and on
+       an organization `shop: { at: <place>, prices }`. The medium scope's `shop:` section on place files
+       is not possible without a framework change. Side effect: no place file of market-town changes.
+       Alternative: a precursor letting a pack own several sections (framework work justified only by the
+       market — I-2 forbids). Recommended: accept.
+QS-44  `buy` is target-less, `at_place(shop)` + target available; out of stock, cannot pay and cannot carry
+       all read TargetUnavailable, in the affordance and at dispatch (F-48). Alternative: offer only the
+       buys that would succeed — a client could not show what is for sale but unaffordable. Recommended:
+       accept; finer reasons wait for a contract that lets an offer carry one.
+QS-45  [OPERATOR-MATERIAL — an INV-13 reading] Economy discloses, to everyone perceiving a shop's
+       place, the listing: operator, prices, and how many of each kind the operator holds — a count read
+       from inventory's Holdings, which inventory itself discloses to the holder only. It is economy's
+       judgement that a shop's shelf is visible to whoever is in the shop, and it is how a second client
+       perceives a purchase (CP-7, F-54). A purchase's `money-transferred` is `Place(shop)`-visible
+       (answers QS-30); `items-transferred` stays participants-only (inventory's choice). Alternatives:
+       prices only (CP-7 then sees nothing change until a kind runs out); a stock component economy keeps
+       itself — a second truth about holdings. Recommended: the listing with counts.
+QS-46  Two jobs, read literally from MVP §3 (alice at the café 05:30–14:00, felix at the store 08:00–13:00,
+       each inside a routine they already have, F-17). Alternative: "2 Jobs" as two roles held by
+       several people, so most seats earn — more circulation, more content, and a reading of MVP §3 the
+       operator has not made. Recommended: two job holders.
+QS-47  [OPERATOR-MATERIAL — how CP-4's "no wallet or employer drained" is read] Read as: zero `wage-unpaid`
+       in 300 days, and no wallet — person or organization — ever below the cheapest price in the town;
+       money conserved. With two jobs, ten people have no income and live on an endowment sized for 300
+       days (F-52); over years they would drain, which §1.2 already places outside S9 (R-S9-3). The spike
+       shows the instrument sees a drain (F-51 run 2) and that content alone closes it (run 3), the
+       controller untouched (I-9). Alternatives: more job holders (QS-46); a basic income — a rule no MVP
+       criterion needs. Recommended: as read, recorded as an ARC-38 limitation.
+QS-48  Shops sell consumables only (food and drink); goods keep circulating by give (F-50). Recommended:
+       accept.
+QS-49  Biographical: employment's `hired` only — a life event, once per job. Shifts, wages, purchases and
+       meals are thousands of facts that would bury a biography (QS-29's reasoning). Recommended: accept.
+QS-50  Employment reuses schedule's `TimeOfDay` (a Cargo dependency on its type, no system dependency) so
+       the town has one time-of-day convention (ARC-32); a shift lies within one day (`from < until`).
+       Recommended: accept.
+QS-51  11d's market-town evidence is superseded as current evidence, not withdrawn (§4.5.6); per-seat
+       gives are reported, not required. Recommended: accept.
+QS-52  ARC-38 records 11e; an ARC-35 dated note says the transformation carries six market packs (the
+       sixth by QS-35), so its checks read "the six market packs". The AC-1 test that reads the list is
+       11f's. Recommended: accept.
+QS-53  The execution contract for 11e (§16): fresh session, its own worktree on
+       mvp0/pr-11e-work-money-shops, commits, push and PR authorized as for 11a–11d, a scratch branch for
+       E-C7's measurements and M-E9, merge the operator's with a merge commit. Recommended: confirm at
+       freeze.
+```
+
 ---
 
 # 11. Execution contract for PR 11a (proposed; confirmed at 11a's freeze)
@@ -4130,4 +4204,51 @@ MATERIAL STOP       a needed edit outside §4.4.1's paths (a framework gap: repo
                     edited existing test; a Cargo.lock change other than three path packages and the
                     installed set's list; a need to change the controller or its constants (I-9); D-9 b
                     failing with the capacity (the market cannot be kept alive by packs or content)
+```
+
+# 16. Execution contract for PR 11e (proposed; confirmed at 11e's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 10 / PR 11e — work, money, shops and consumption (S9, fifth of six; the
+                    second half of the measured AC-1 transformation)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-10-market.md §4.5 (4.5.1–4.5.6); evidence in a
+                    new §9.5 (E-E<n>); deviations in a new §4.5.7
+RELATED / BINDING   overall.md §§1, 7; this file §§1.3 (I-1, I-3, I-4, I-6, I-7, I-8, I-9), 2.5, 2.6, 3
+                    (SD-13), 4.4.0 (QS-35), 8.6, 9 E-6, 10 (QS-7 … QS-11, QS-39 … QS-53, as answered);
+                    DECISIONS ARC-23, ARC-26, ARC-28, ARC-31 … ARC-37; MODULE_SPEC §§3.1, 4.1;
+                    CORE_CONCEPTS §§7, 8, 10, 13.1, 15.2; MVP §§3, 5
+IMPLEMENTATION BASE the main named at freeze (main @ 70e532f + the docs-only merges #44 and this planning
+                    branch); branch mvp0/pr-11e-work-money-shops; worktree
+                    /Users/yuema137/mineworld-worktrees/s9-11e (proposed), held by the implementing
+                    session only
+APPROVED SCOPE      §4.5: E-C1 … E-C8; only the paths of §4.5.1's table
+FROZEN INVARIANTS   I-1 (any path outside §4.5.1's table is a material stop), I-3 (only economy moves
+                    money; employment never touches a Wallet; only inventory writes Holdings; consumption
+                    removes only through `consume`), I-4 (sha ad49c723…c64b), I-6 (integer minor units),
+                    I-7 (E-9 b before c before d), I-8, I-9 (no controller change; a quiet or draining
+                    market is fixed in packs or content); I-2's scan unchanged (no row, no entry)
+SEQUENCE            E-C1 → E-C2 → E-C3 → E-C4 → E-C5 → E-C6 → E-C7 → E-C8, each committed and pushed when
+                    coherent (employment before economy: economy's crate names employment's WageDue)
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: 300-day social-cafe (~15 s) twice;
+                    300-day market-town with save (~35 s) at most four times (E-9, re-sizing, M-E9); 30-day
+                    runs; one full workspace gate on the final head (background); about one hour in total;
+                    real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §4.5 checkboxes; §9.5 E-E ledger; §4.5.7 deviations
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 11e at E-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the primary session's freeze message
+  semantic commits, branch push       recommended authorized, as for 11a–11d
+  PR creation / update                recommended authorized, as for 11a–11d
+  scratch branch (E-C7, M-E9)         recommended authorized, local only, deleted after evidence
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     the planning session owns the step header, §§1–3, §5, §10, overall and MVP_STATUS's
+                    Updated/S9/artefact lines; the implementing session owns §4.5 and §9.5
+NORMAL STOP         PR 11e READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a needed edit outside §4.5.1's paths (a framework gap: report it and propose a precursor
+                    justified without the market, I-2); a changed social-cafe run or an edited existing
+                    test outside inventory's (or one there whose claim changes); a Cargo.lock change other
+                    than three path packages and their lists; a need to change the controller or its
+                    constants (I-9); E-9 b failing after content re-sizing (the loop cannot be kept alive by
+                    packs or content); an answer to QS-39, QS-43, QS-45 or QS-47 other than the design's
 ```
