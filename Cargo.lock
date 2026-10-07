@@ -702,6 +702,8 @@ version = "0.0.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-conversation",
+ "mineworld-movement",
+ "serde",
  "serde_json",
 ]
 

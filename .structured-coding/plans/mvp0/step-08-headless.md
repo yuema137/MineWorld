@@ -333,16 +333,16 @@ No change to `move`'s rule, to `Passages`, or to any other pack. **Depends on:**
 **Goal.** A controller that takes initiative, deterministically, with no memory (HD-3, I-3).
 **Scope.** `cognition/rule-controller/src/{lib.rs, paced.rs (new), tests.rs}`, `Cargo.toml` (+ `mineworld-movement`), README. `RuleController` unchanged. **Depends on:** C2 (doorways are read from the observation).
 
-- [ ] Implementation:
-  - [ ] `paced.rs`: `PacedRuleController::new(seed: u64, pace: SimDuration)` (`contracts/src/time.rs`); `decide(&self, &Observation<Value>) -> Option<ActionRequest>` with the HD-3 priority; `mix` (SplitMix64) private; integer stride geometry (HD-4) against `MAX_STRIDE`.
-  - [ ] `lib.rs`: share `disclosed_history`, `may_talk_to`, `reply_to`, `quoted` between the two types (move, do not change); re-export the new type.
-- [ ] Validation (unit — deterministic local semantics this crate owns):
-  - [ ] a line heard inside the window is answered; the same observation one pace later does not answer it again; a line heard at exactly `t − P` is not answered at `t` (window boundary);
-  - [ ] two controllers built with the same seed decide identically on the same observation (the restart property, located: a *fresh* instance, not the same one); a different seed yields a different decision on at least one of a fixed set of observations;
-  - [ ] every proposed stride, over a sweep of directions and distances including the axis cases and 1 mm, has length ≤ `MAX_STRIDE` and stays in the observer's place unless it targets a doorway;
-  - [ ] with `talk` unavailable it neither answers nor greets; with no `move` affordance it does not move;
-  - [ ] `RuleController`'s six existing tests unchanged and green.
-- [ ] Review: `&self` makes I-3 structural; no `HashMap`, no float, no clock; the controller reads verdicts, never decides one (`ENGINEERING_RULES.md` §8); it cannot invent an action (it submits only `talk` and `move`, provided by installed packs).
+- [x] Implementation (§9 E-4):
+  - [x] `paced.rs`: `PacedRuleController::new(seed: u64, pace: SimDuration)` (`contracts/src/time.rs`); `decide(&self, &Observation<Value>) -> Option<ActionRequest>` with the HD-3 priority; `mix` (SplitMix64) private; integer stride geometry (HD-4) against `MAX_STRIDE`. Bounded addition to HD-3: an in-window line is answered with probability 75/100 (seeded), so conversations end and people walk — otherwise two paced controllers in range answer each other at every consult forever and never move, which would starve I-9's move count.
+  - [x] `lib.rs`: the four helpers stay where they are; `paced` is a child module and uses them through `crate::` (no move needed, no change to them); re-export the new type.
+- [x] Validation (unit — deterministic local semantics this crate owns) — `cognition/rule-controller/src/paced_tests.rs`, 7 tests:
+  - [x] window: answered (some of 64 seeds) when heard 10 s before; heard at `t` inside, at `t+P` never again (no seed), `t−P` outside (no seed), `t−P+1` inside. Mutation `opened <= at` → the window test fails, reverted.
+  - [x] fresh controllers with one seed decide identically over 50 consults × 8 seeds; seeds 7 and 8 differ over 40 consults, and seed 7 acts at > 10 of 40 consults with nobody speaking to it (initiative located).
+  - [x] stride sweep (axes, 1 mm, diagonals, 2 000 km) ≤ `MAX_STRIDE` and always closer; stop-short never overshot; every walk proposed from the café over 64 seeds × 16 consults is ≤ 2 000 mm; by the door, the crossing lands exactly on the street side of the doorway.
+  - [x] greets only Bob (Sue unavailable); with no `move` offered and nobody to talk to, nothing from any seed.
+  - [x] `RuleController`'s six existing tests unchanged and green (13/13 in the crate).
+- [x] Review: `&self` makes I-3 structural; no `HashMap`, no float (`isqrt` on `u64`), no clock — the instant is the observation's; verdicts read through `may_talk_to` and the `move` affordance; submits only `talk` and `move`. clippy `-D warnings` clean.
 
 **Acceptance.** All of the above, and `cargo clippy -D warnings` clean for the crate.
 **Failure cases.** An observation without the observer's location: no move, may still answer. A reply that would exceed `UTTERANCE_MAX_BYTES`: silent, as `RuleController`.
@@ -563,6 +563,10 @@ E-3  C2 disclosure. `cargo test -p mineworld-movement`: disclosure 3/3, movement
      request-2d.json / request-3d.json are byte-unchanged (git diff shows no change); `cargo test -p
      mineworld-cli --test ac13_semantic_parity` 2/2 over them. RESULT: PASS. Evidence files
      re-recorded by the run, never edited.
+E-4  C3 PacedRuleController. `cargo test -p mineworld-rule-controller`: 13 passed (6 RuleController,
+     7 paced). Mutation `opened <= at` (window boundary) → a_line_is_answered_in_one_window_only_and_
+     never_again FAILED, reverted. `cargo clippy -p mineworld-rule-controller --all-targets -D warnings`
+     clean. New dependency edges: rule-controller → movement (in-workspace), serde (workspace).
 ```
 
 ## 9.1 Limitations (expected)
