@@ -1,0 +1,32 @@
+[package]
+name = "mineworld-item-transfer"
+description = "MineWorld's ItemTransferSystem: give — offered as a complete affordance for every kind the giver holds, decided here, and stated in inventory's vocabulary through its checked constructor. Owns nothing."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# Space is presence's state: a give needs the same place and reach. Also the perception trait.
+mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
+# Holdings are inventory's: a give states inventory's fact through its checked constructor (ARC-26).
+# A sibling pack, named by path (MODULE_SPEC §3.1).
+mineworld-inventory = { path = "../inventory" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The tests seed kinds and holdings through the section contract, as the loader does.
+mineworld-authoring = { workspace = true }
+mineworld-item = { path = "../item" }
+serde-saphyr = { workspace = true }
+# People walk with `move` under the paced controller, as in `mineworld run`.
+mineworld-movement = { workspace = true }
+# D-6: the unchanged paced controller gives without knowing `give` (ARC-34). A dependency from a
+# market pack's tests to the controller, the direction ARC-35 check 2 allows; never the reverse.
+mineworld-rule-controller = { workspace = true }

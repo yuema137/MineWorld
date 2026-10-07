@@ -1,0 +1,25 @@
+# The park: the town's one open green, on the south side of the street.
+#
+# Millimetres from the park's own origin, its south-west corner; `x` east, `y` north
+# (`docs/CORE_CONCEPTS.md` §6.1). The park is about 20 m by 15 m, and its gate is on its north edge,
+# facing the street. Like every place but the café, it has no drawn geometry yet — the 3D slice
+# depicts the café and the street — so these positions are semantic: where people are relative to
+# each other and to the gate, which is all the world decides with.
+
+tags:
+  - park
+  - public
+  - outdoor
+
+note: >-
+  A small park on the south side of the street: a lawn, a few benches, and a path round it.
+
+# The gate: 0.2 m inside the park's north edge, and on the street's south side.
+passages:
+  - to: street
+    here:
+      x: 1000
+      y: 14800
+    there:
+      x: 8000
+      y: -13000

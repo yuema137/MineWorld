@@ -1,0 +1,25 @@
+# Ivan — on the pavement, 4 m west of the café's door.
+
+name: Ivan Petrov
+
+# His day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
+# the restart tests, explained in alice.yaml and checked by those tests.
+routine:
+  - { from: "07:00", place: street, label: stroll }
+  - { from: "11:00", place: cafe, label: chat }
+  - { from: "15:00", place: park, label: walk }
+  - { from: "19:00", place: apartments, label: home }
+
+tags:
+  - passerby
+
+note: Walks the street a lot, and stops to talk to anyone who will.
+
+location:
+  place: street
+  position:
+    x: -4000
+    y: 1000
+
+# Market Town: what he carries at the start (inventory's `holdings`, ARC-37; see alice.yaml).
+holdings: { apple: 1, coffee: 1, mug: 1 }

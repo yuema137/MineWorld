@@ -698,6 +698,9 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-group-activity",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-item-transfer",
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-naming",
@@ -705,6 +708,55 @@ dependencies = [
  "mineworld-relationships",
  "mineworld-schedule",
  "mineworld-sdk",
+]
+
+[[package]]
+name = "mineworld-inventory"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
+name = "mineworld-item"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "mineworld-item-transfer"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-presence",
+ "mineworld-rule-controller",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
 ]
 
 [[package]]

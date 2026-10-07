@@ -31,4 +31,7 @@ mineworld_sdk::installed! {
     Relationships => mineworld_relationships::RelationshipsSystem,
     Naming => mineworld_naming::NamingSystem,
     Schedule => mineworld_schedule::ScheduleSystem,
+    Item => mineworld_item::ItemSystem,
+    Inventory => mineworld_inventory::InventorySystem,
+    ItemTransfer => mineworld_item_transfer::ItemTransferSystem,
 }

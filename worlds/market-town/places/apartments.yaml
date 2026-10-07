@@ -1,0 +1,23 @@
+# The apartments: where most of the town lives, across the street from nothing in particular.
+#
+# Millimetres from the building's own origin, its entrance hall's inner south-west corner; `x` east,
+# `y` north (`docs/CORE_CONCEPTS.md` §6.1). Like every place but the café, it has no drawn geometry
+# yet — the 3D slice depicts the café and the street — so these positions are semantic: where people
+# are relative to each other and to the door, which is all the world decides with.
+
+tags:
+  - apartments
+  - residential
+
+note: >-
+  A block of flats at the west end of the street. One front door, a hall, and the stairs up.
+
+# Its front door, onto the street's north side, 12 m west of the café's.
+passages:
+  - to: street
+    here:
+      x: 2000
+      y: 200
+    there:
+      x: -12000
+      y: 3000

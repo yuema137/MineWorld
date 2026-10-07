@@ -2129,10 +2129,15 @@ consumption are reviewable before code (`CLAUDE.md` §2.2). All Markdown: inside
 - `docs/PACKAGE_FORMAT.md` §8 — the sections parenthesis names the four.
 - `systems/README.md` — the three packs in its list.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: both doc checks; ARC-37 absent from every `origin/*` branch.
-- [ ] Review: no defined term redefined (`Item` stays `ARC-36`'s kind; "holdings" is inventory's
-  component, not a core term); the section table matches SD-16/SD-17 exactly.
+- [x] Implementation: as scoped. ARC-37 appended after ARC-36; MODULE_SPEC §4.1 "two sections" →
+  four (`item`, `holdings`); PACKAGE_FORMAT §8 names the four; systems/README lists the three packs and
+  their test commands.
+- [x] Validation: both doc checks; ARC-37 absent from every `origin/*` branch (§9.4 E-D1).
+- [x] Review: no defined term redefined (`Item` stays `ARC-36`'s kind; "holdings" is inventory's
+  component, not a core term); the section table matches SD-16/SD-17. One bounded refinement,
+  recorded as D-D1: a category also may not begin or end with `-` (SD-16 said only "1–32 bytes of
+  `a–z`, `0–9`, `-`"), the usual slug rule, so `-drink` and `drink-` cannot name two categories that
+  read alike. ARC-37 and MODULE_SPEC state it.
 
 ### D-C2 — `systems/item`
 
@@ -2141,13 +2146,20 @@ codec}.rs, tests/item.rs}`, laid out as `naming`. Dependencies: authoring, contr
 sdk, serde, serde_json, thiserror (`workspace = true`); dev: serde-saphyr (decode a section as the
 loader does), as naming's tests.
 
-- [ ] Implementation: `ItemSystem` (`impl SystemPack { owns_section!(); }`, empty
+- [x] Implementation: `ItemSystem` (`impl SystemPack { owns_section!(); }`, empty
   `PerceptionProvider`), `Category`, `ItemKind` (`owned_component!`, `item-kind`), `ItemKindDeclared`,
-  `AuthoredSection` (`item`, carried by items), `is_declared`.
-- [ ] Validation: `cargo test -p mineworld-item`; clippy `-D warnings`. Tests: the section seeds one
-  fact reduced into ItemKind; bad categories refused with the message; `is_declared` false for an Item
-  entity without the section and for a non-item. M-D2 is run in D-C3 (it needs inventory).
-- [ ] Review: no dependency on any market pack; no disclosure; owns exactly one component.
+  `AuthoredSection` (`item`, carried by items), `is_declared`. Files: `systems/item/{Cargo.toml,
+  README.md, src/{lib,system,section,event,component,category,codec}.rs, tests/item.rs}`. The
+  reduction also refuses a declaration about an entity that is not a living Item
+  (`FactRefusedByOwner`), because an `ItemId`'s type tag is only a label in the payload.
+- [x] Validation: `cargo test -p mineworld-item` 4 passed; clippy `-D warnings` and fmt clean (§9.4
+  E-D2). Tests: the section seeds one public genesis fact reduced into ItemKind; bad categories
+  refused with Category's message, an unknown key by name; `is_declared` false for an Item entity
+  without the section; a seed for a place or person refused; a hand-built declaration about a place
+  refused at reduction, writing nothing. M-D2 is run in D-C3 (it needs inventory).
+- [x] Review: no dependency on any market pack (manifest: authoring, contracts, kernel, presence for
+  the trait, sdk, serde, serde_json, thiserror); no disclosure (empty provider); owns exactly one
+  component (`item-kind`); the only write is in `react`.
 
 ### D-C3 — `systems/inventory`
 
@@ -2155,15 +2167,25 @@ loader does), as naming's tests.
 codec}.rs, tests/{inventory.rs, persisted.rs, support/mod.rs}}`. `mineworld-item = { path = "../item" }`;
 dev: persistence, serde-saphyr.
 
-- [ ] Implementation: SD-17 … SD-19 — `Holdings`/`Held`, `PERSON_CAPACITY`, `can_take`,
+- [x] Implementation: SD-17 … SD-19 — `Holdings`/`Held`, `PERSON_CAPACITY`, `can_take`,
   `admit_transfer`, `transfer`, `Stocked`, `ItemsTransferred` (accessors), `holdings:` section
-  (`references` = Items), reductions, disclosure to the holder.
-- [ ] Validation: `cargo test -p mineworld-inventory`; clippy. Tests: genesis stocking (people and an
-  organization); D-4's four direct-statement refusals; D-5's capacity refusals at genesis and in the
-  constructor; disclosure only to the holder; persisted restart (D-8). Mutations M-D2, M-D3, M-D4
-  (constructor half). F-38's counter-example recorded if it reproduces.
-- [ ] Review: the one write path per fact; `admit_transfer` is the only refusal logic; no `f32`/`f64`;
-  every map a `BTreeMap` or a sorted `Vec`.
+  (`references` = Items), reductions, disclosure to the holder. Files: `systems/inventory/{Cargo.toml,
+  README.md, src/{lib,system,section,event,component,admit,codec}.rs, tests/{inventory.rs,
+  persisted.rs, support/mod.rs}}`. `stocked` is checked at reduction by a crate-private `admit_stock`
+  (living holder, count ≥ 1, declared kind, `can_take`) — the stock half of SD-18's "checked for a
+  declared kind at reduction". The authored count is `NonZeroU32`, so a zero is refused as it is
+  decoded, at its line. `can_take` answers false for anything that is not a living holder.
+  The tests' stater `hands` (support/mod.rs) exists only in the tests: inventory provides no action,
+  so `pass` decides transfers either through the checked constructor or **forged** past it.
+- [x] Validation: `cargo test -p mineworld-inventory` 9 passed (inventory 8, persisted 1); clippy
+  `--all-targets -D warnings`, fmt clean. M-D2, M-D3, M-D4 (constructor half) each fail and are reverted;
+  F-38 reproduced (§9.4 E-D3).
+- [x] Review: one write path per fact (`react`: `stocked` → `adding`; `items-transferred` →
+  `removing` + `adding`); `admit_transfer` is the refusal logic for transfers and `admit_stock` for
+  stock, both calling `can_take`; no `f32`/`f64`; the authored map is a `BTreeMap`, `Holdings` a sorted
+  `Vec` (binary search by `ItemId`). The seed's capacity check sums the authored counts itself
+  (`AuthoredHoldings::total`), because no state exists at seeding (F-37); the reduction's `can_take`
+  is the second check.
 
 ### D-C4 — `systems/item-transfer`
 
@@ -2173,42 +2195,54 @@ tests/{give.rs, removable.rs, paced.rs, support/mod.rs}}`. `mineworld-inventory 
 D-6's controller test — a dev-dependency from a market pack to the controller, the direction ARC-35
 check 2 allows).
 
-- [ ] Implementation: SD-20.
-- [ ] Validation: `cargo test -p mineworld-item-transfer`; clippy. D-5 (offer/dispatch half), D-6,
-  D-7; mutations M-D4 (offer half), M-D5, M-D6.
-- [ ] Review: owns no component; emits only inventory's fact, declared and depended on (the kernel
-  refuses it otherwise); offers never include the observer; complete offers only for kinds held.
+- [x] Implementation: SD-20. Files: `systems/item-transfer/{Cargo.toml, README.md,
+  src/{lib,system,action,offer,codec}.rs, tests/{give.rs, removable.rs, paced.rs, support/mod.rs}}`.
+  `GIVE_RANGE = 3 000 mm`, `give_requirement()`; a missing target is `NoSupportedInteraction` (SD-20's
+  "a different living Person target (NoSupportedInteraction otherwise)"). Dev-dependencies: authoring,
+  item (path), serde-saphyr (seed through the section contract), movement, rule-controller.
+- [x] Validation: `cargo test -p mineworld-item-transfer` 10 passed (give 4, removable 3, paced 3);
+  clippy `--all-targets -D warnings`, fmt clean. D-5 (offer/dispatch half), D-6, D-7; M-D4 (offer
+  half), M-D5, M-D6 each fail by name and are reverted (§9.4 E-D4).
+- [x] Review: owns no component (declaration: depends on inventory and presence, provides `give`,
+  emits `items-transferred` only); `resolve` emits only `mineworld_inventory::transfer`'s emission;
+  offers exclude the observer, non-persons and observers with no holdings; complete offers only for
+  kinds held, in item order (Holdings is sorted).
 
 ### D-C5 — Install: three lines each in `systems/installed`
 
-- [ ] Implementation: `systems/installed/Cargo.toml` three `path` lines; `src/lib.rs` `Item`,
-  `Inventory`, `ItemTransfer` after `Schedule`; `Cargo.lock` regenerated by the build.
-- [ ] Validation: `cargo test -p mineworld-installed-systems -p mineworld-worldpack` (the consistency
-  guard and the section-namespace guard now cover `item` and `holdings`); D-2's sha and validate;
-  `git diff -- Cargo.lock` matches D-1's rule.
-- [ ] Review: the two files gain exactly those lines; no root manifest edit was needed.
+- [x] Implementation: `systems/installed/Cargo.toml` three `path` lines; `src/lib.rs` `Item`,
+  `Inventory`, `ItemTransfer` after `Schedule`; `Cargo.lock` regenerated by the build (+3 lines in
+  mineworld-installed-systems' dependency list; the three path packages arrived with D-C2…D-C4).
+- [x] Validation: `cargo test -p mineworld-installed-systems -p mineworld-worldpack` all passed
+  (installed 3; worldpack unit 4, content_kinds 1, refusals 38, social_cafe 15, structure 2, doc 1);
+  D-2's sha = E-0 and validate byte-identical to E-D0 (§9.4 E-D5).
+- [x] Review: the two files gain exactly those lines (`git diff --stat`: 3 + 3, Cargo.lock 3); no root
+  manifest edit was needed.
 
 ### D-C6 — `worlds/market-town`
 
-- [ ] Implementation: SD-21 — copy with `git read-tree --prefix=worlds/market-town/ -u
-  HEAD:worlds/social-cafe` then edit; items; holdings; README.
-- [ ] Validation: D-9 a–d, D-10, with the scratch reader on a local scratch branch (deleted after;
-  `git ls-remote --heads origin | grep -c scratch` → 0); M-D7 on that branch; a scratch copy with one
-  person authored at seven items → `validate` refuses it naming the file and inventory (D-5).
-- [ ] Review: no social-cafe field or section changed in the copy; Otto present with holdings; every
-  authored person within capacity.
+- [x] Implementation: SD-21 — copied with `git read-tree --prefix=worlds/market-town/ -u
+  HEAD:worlds/social-cafe`, then: world.yaml header (a Market Town paragraph above Social Café's
+  unchanged header), id/name, `item, inventory, item-transfer` appended to `systems` with a comment,
+  an `items:` list of 20 kinds; `items/<key>.yaml` × 20 (tags + `item: { category }`: drink 4, food 6,
+  goods 10); one commented `holdings:` block appended to each of the 12 person files (28 entries, 30
+  items, 2–3 per person, Otto 2); README.md rewritten for Market Town (human orientation).
+- [x] Validation: D-9 a–d, D-10, the scratch reader on local branch `scratch/11d-reader` (deleted;
+  `git ls-remote --heads origin | grep -c scratch` → 0); M-D7 on that branch; the seven-item scratch
+  copy refused by `validate` (§9.4 E-D6).
+- [x] Review: no social-cafe field or section changed in the copy (D-10's diff has removals only in
+  README.md and the id/name lines); Otto present with holdings; every authored person within capacity
+  (max 3).
 
 ### D-C7 — Close: status, change set, full gates, ledger
 
-- [ ] Documentation: `docs/MVP_STATUS.md` — a capability row ("Owning and giving things") and an
-  evidence row (`Updated:` line and S9 row stay the planning session's); §4.4 checkboxes; §9.4 `E-D*`;
-  the handoff.
-- [ ] Validation, once, on the final executable head: fmt, clippy `--workspace --all-targets
-  --all-features -D warnings`, `cargo test --workspace --no-fail-fast` (background), kill_and_resume,
-  both doc checks, D-2's sha and validate diff; D-1: `git diff --name-only <base>...HEAD`, `git diff
-  <base>...HEAD -- Cargo.lock`, M-D1.
-- [ ] Review: D-1 … D-11 each with evidence; deviations listed; the PR is to be merged **with a merge
-  commit** (ARC-35 point 1 reads `M^1..M`).
+- [x] Documentation: `docs/MVP_STATUS.md` — a capability row ("Owning and giving things", after
+  "Independently installable System Packs") and an evidence row (after CP-3's); the `Updated:` line,
+  the S9 row and the `worlds/market-town` artefact row (still ❌) are left to the planning session;
+  §4.4 checkboxes; §9.4 `E-D*`; the handoff.
+- [x] Validation, once, on the final executable head 341f2f2 (§9.4 E-D-final): all PASS.
+- [x] Review: D-1 … D-11 each with evidence (E-D-final's table); deviations D-D1 … D-D4 (§4.4.6); the
+  PR is to be merged **with a merge commit** (ARC-35 point 1 reads `M^1..M`), said in the PR body.
 
 ### 4.4.4 Test ownership for 11d
 
@@ -2245,6 +2279,29 @@ CI          none configured (S13); the full local gate once on the final head
 - **Forward, operator-material (QS-35):** without consumption, 11e's purchases will fill people to
   capacity and stop. 11e's design must answer it; deciding how is the operator's.
 - Nothing changes a public contract, `kernel/`, `contracts/`, or a frozen invariant.
+
+### 4.4.6 Deviations and discoveries during implementation (11d session)
+
+```text
+D-D1  bounded  A category may not begin or end with '-' (SD-16 listed only the byte set). Reason: the
+               usual slug rule; two spellings of one category cannot differ by a stray dash. Stated in
+               ARC-37 and MODULE_SPEC §4.1. Validation: item's category test.
+D-D2  bounded  M-D3's named test case (over-transfer) is not the one that fails: Holdings::removing's
+               checked_sub is a second guard, so with admit_transfer skipped that case is still refused
+               (FactRefusedByOwner, PreconditionFailed). The "to oneself" and capacity cases fail
+               instead (E-D3). The guard is kept: a reduction that cannot underflow is not a weaker
+               owner. No test weakened; the mutation is caught.
+D-D3  bounded  inventory's tests need a stater, because inventory provides no action. A test-only
+               System `hands` (tests/support/mod.rs) provides `pass`, honest (through transfer) or
+               forged (bytes built by hand). It depends on inventory and declares the emission, as
+               ARC-26 requires of any stater. Lives only in the tests.
+D-D4  bounded  M-D4 fails two capacity tests, not "the three": the authored-holdings test sums the
+               authored counts at seeding (no state exists then, F-37) and does not call can_take, so it
+               survives by construction; the constructor/reduction test and the offer/dispatch test
+               both fail (E-D3, E-D4).
+D-D5  process  One read-only `xargs cat` slipped into a wait command (reading a task log), against the
+               kickoff's tool discipline. No file was changed by it. Recorded, not repeated.
+```
 
 ## 4.5 PR 11e — the transformation, part 2: work, money and shops (medium scope; AC-1 range)
 
@@ -2970,6 +3027,151 @@ E-C-rebase 11b merged first (GitHub #39, merge commit ae1a315). Per §12.0, 2026
                                               `validate worlds/social-cafe` identical to E-C0's
      check_decision_ids 47 ids distinct; check_doc_headings 143 sections, none duplicated.
      Branch force-pushed (permitted by §12.0 for this rebase only).
+```
+
+## 9.4 Evidence — PR 11d
+
+Written by the 11d implementation session only (`E-D<n>`).
+
+```text
+--- PR 11d (branch mvp0/pr-11d-owning-things, base main @ e3a1106) ---
+
+E-D0 Base captures on e3a1106 before any edit, 2026-10-07 (debug, opt-level 1):
+     300-day seed-7 social-cafe: 339 lines, sha-256 of all but `wall` =
+     ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 13.2 s.
+     `mineworld validate worlds/social-cafe` sha-256 ebcd60a0…f56a8 = E-C0's.
+     The R-S9-1 spike commit 74bf597 is still in the object store (unreachable, never pushed); it is
+     used as a reference only, and nothing is cherry-picked from it.
+E-D1 D-C1 specs: check_decision_ids 48 ids, all distinct (ARC-37 new); check_doc_headings 143 sections
+     across 22 documents, none duplicated. ARC-37 absent from every origin/* branch after `git fetch`.
+E-D2 D-C2 item: `cargo test -p mineworld-item` → tests/item.rs 4 passed, 0 failed; clippy -p
+     mineworld-item --all-targets -D warnings clean; fmt clean. Cargo.lock: +1 path package
+     (mineworld-item, no `source`) — a workspace member is locked whether or not it is installed.
+     First run of the reduction-refusal test failed on its own fixture (a hand-written `{entity, type}`
+     JSON that did not decode, EventTypeMismatch); fixed by re-pointing a real ItemId's encoding.
+E-D3 D-C3 inventory: `cargo test -p mineworld-inventory` → inventory.rs 8 passed, persisted.rs 1
+     passed, 0 failed; item 4 passed; clippy -p inventory -p item --all-targets -D warnings clean; fmt
+     clean. Cargo.lock: +1 path package (mineworld-inventory).
+     M-D2 (item's react writes nothing): 5 of 8 inventory tests FAILED, each at genesis with
+       `FactRefusedByOwner { system: "inventory", event_type: "stocked", reason: PreconditionFailed }`
+       — the declared-kind check at reduction is real. Reverted.
+     M-D3 (the transfer reduction skips admit_transfer): 2 FAILED —
+       transfers_stated_past_the_constructor… (the "to oneself" case was Accepted, writing both sides
+       from one read) and a_person_carries_at_most_six… (a forged transfer past capacity Accepted).
+       Observed deviation from §4.4.3's expectation: the *over-transfer* case alone survives M-D3,
+       because `Holdings::removing` refuses a count larger than held (checked_sub) and the reduction
+       turns its None into FactRefusedByOwner — a second guard, not the owner's rule. Recorded D-D2;
+       the mutation is still caught by two cases. Reverted.
+     M-D4 constructor half (can_take always true): a_person_carries_at_most_six… FAILED ("bob is
+       full"). The seeding capacity test survives by design (the seed sums authored counts; no state
+       exists at seeding). The offer and dispatch halves run in D-C4. Reverted;
+       `git grep MUTATION -- systems` empty.
+     F-38 reproduced: serde_json::to_vec(&BTreeMap<ItemId, u32>) → Err("key must be a string")
+       (throwaway test file, deleted, never committed).
+     D-8: persisted.rs creates a SQLite save, makes 2 of 4 passes, drops, resumes into a freshly
+       composed world: state bytes equal the saved ones; alice's holdings located (apple 2, coffee 1,
+       tea 1); the remaining 2 passes end in the uninterrupted world's state, and the last facts are
+       byte-identical; verify() passes.
+E-D4 D-C4 item-transfer: `cargo test -p mineworld-item-transfer` → give 4, removable 3, paced 3 passed,
+     0 failed; clippy --all-targets -D warnings clean (after two lints in test code: an elidable
+     lifetime, a complex tuple type named `Step`); fmt clean. Cargo.lock: +1 path package.
+     D-6 paced run (10 days, seed 7, pace 900 s, 3 seats in one café): 1 630 requests, 351 gives by all
+       3 people, every give accepted, transfers per day 37, 36, 30, 28, 28, 36, 45, 39, 32, 40; every
+       items-transferred caused by the give that asked for it; holdings conserved, nobody past six.
+       First run FAILED on the test's own constant (expected 4 items; HOLDINGS authors 3) — fixed to
+       3, the claim unchanged.
+     D-7: a world without item-transfer offers no give to anybody, answers a give Unavailable, holds
+       still; the scripted run's facts (genesis + 2 walks) equal the enabled run's minus its 3
+       items-transferred, compared by (instant, type, payload, cause); installing item-transfer
+       without inventory → SystemDependencyMissing { item-transfer, inventory }.
+     M-D4 offer half (can_take always true): give.rs a_give_to_a_full_person… FAILED ("Bob carries six":
+       both offers available) and inventory's a_person_carries_at_most_six… FAILED; two capacity tests,
+       not three: the authored-holdings test sums its own counts at seeding (no state exists then) and
+       survives by design. Reverted.
+     M-D5 (offers built with Offer::new, incomplete): give.rs 2 FAILED ("a complete affordance carries
+       its request"); paced.rs the_unchanged_paced_controller_gives… FAILED ("at least two people give:
+       {} (0 gives)") and two_runs… FAILED ("the comparison is of runs that gave"). Reverted.
+     M-D6 (WITHOUT = true: the "without" world enables item-transfer): removable.rs 2 FAILED ("alice is
+       offered a give in a world without item-transfer"; the fact comparison). Reverted;
+       `git grep MUTATION -- systems` empty; all three packs green again.
+E-D5 D-C5 install: `cargo test --no-fail-fast -p mineworld-installed-systems -p mineworld-worldpack` →
+     installed 3, worldpack unit 4, content_kinds 1, refusals 38, social_cafe 15, structure 2, doc 1;
+     0 failed. Diff: systems/installed/Cargo.toml +3, src/lib.rs +3, Cargo.lock +3 (the three names
+     in mineworld-installed-systems' dependencies). I-4 on this working tree (debug, opt-level 1):
+     300-day seed-7 social-cafe sha-256 of all but `wall` = ad49c723…c64b = E-0; faults 0; 365 330
+     facts; fingerprint 59339a9c281829c9; wall 12.2 s. `validate worlds/social-cafe` byte-identical
+     to E-D0's (cmp; sha ebcd60a0…f56a8).
+E-D6 D-C6 market-town, on 069e9e4's build (debug, opt-level 1), 2026-10-07. In the order I-7 binds:
+     a. `mineworld validate worlds/market-town` → valid; ids 1–18 identical to social-cafe's (diff of
+        the id lines empty), kinds 19–38; 101 genesis facts = 53 + 20 kinds + 28 authored holdings.
+     b. ACTIVITY FIRST. `run worlds/market-town --headless --seed 7 --days 300 --save …` → exit 0,
+        faults 0, no rejected/unavailable request line, 365 126 facts; requests: give accepted 17 639,
+        move 173 161, talk 60 520. Every seat moved and talked in every 30-day bucket (minima: move
+        1 370, talk 412 per seat-bucket).
+        Scratch reader (systems/item-transfer/tests/scratch_reader.rs on scratch/11d-reader, decoding
+        with inventory's own Stocked/ItemsTransferred; never pushed): gives per bucket 1 727, 1 749,
+        1 720, 1 803, 1 719, 1 810, 1 725, 1 841, 1 772, 1 773 (total 17 639 = the accepted gives);
+        all 110 (seat, bucket) cells present — seats 7–15, 17, 18 × buckets 0–9 — minimum 114 per
+        cell; the most any person ever held was 6 (all 12, Otto included); final holdings total 30
+        (conserved), Otto 6. → PASS.
+     c. ONLY THEN DETERMINISM. Two 30-day seed-7 runs: identical but `wall` (diff empty; sha-256 of all
+        but wall 6e27e8b0…7d71a19). A save run to day 15 (give accepted 884) then resumed to day 30
+        (843 more) vs the uninterrupted 30-day save: both 37 090 facts, fingerprint 46f09300e34ad1ad
+        = the unsaved run's; every fact dumped from each save (scratch `dump`) byte-identical (cmp;
+        sha-256 6523edd5…3f96). → PASS.
+     d. COST. The 300-day run with --save: wall 32.5 s (≤ 60 s). → PASS.
+     M-D7 (PERSON_CAPACITY = u32::MAX, scratch commit, never pushed): 300 days with --save, exit 0,
+       faults 0, wall 32.8 s; reader FAILED "a seat that did not give in a bucket": gives 993 in
+       bucket 0, 17 in bucket 1, none after; 92 of 110 cells empty; Otto (16) held 30 of 30 items at the
+       end, the most any seat ever held 10. The instrument sees the sink. Scratch branch deleted.
+     D-10: `git diff --no-index --stat worlds/social-cafe worlds/market-town` → 34 files, 167+ 49−; the
+       removals are README.md (rewritten) and world.yaml's id/name only; additions: world.yaml header
+       paragraph, appended systems with comment, items list; 20 items/ files; one holdings: block with
+       its comment per person file. No place file differs. → PASS.
+     D-5 through the real CLI: a /tmp copy with bob authored at 7 items → `validate` exit 1:
+       "[mineworld] …/people/bob.yaml: the 'inventory' system refused 'bob''s 'holdings' section:
+       TargetUnavailable".
+E-D-final on 341f2f2 (clean tree; final executable head — later commits are Markdown only), base
+     e3a1106, 2026-10-07; logs /tmp/s9-11d/final/:
+     cargo fmt --all --check                                           PASS
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS
+     cargo test --workspace --no-fail-fast    479 passed, 0 failed, 0 ignored across 104 test binaries
+                                              (main's 456 + 23 new: item 4, inventory 9, item-transfer
+                                              10); 173 s wall
+     kill_and_resume                          cafe PASS (0.3 s), clock PASS (0.1 s)
+     check_decision_ids                       48 ids, all distinct
+     check_doc_headings                       143 sections across 22 documents, none duplicated
+     I-2 scan                                 the_precursors_add_no_market_concept PASS inside the run
+                                              (rows 11a/11b/11c read as merged; no row or entry added)
+     D-2 / I-4                                300-day seed-7 social-cafe sha-256 of all but wall =
+                                              ad49c723…c64b = E-0; faults 0; 365 330 facts; wall 12.0 s;
+                                              `validate worlds/social-cafe` byte-identical to E-D0's
+     D-1                                      `git diff --name-only e3a1106...HEAD`: 83 paths — docs/
+                                              {DECISIONS,MODULE_SPEC,MVP_STATUS,PACKAGE_FORMAT}.md,
+                                              .structured-coding/plans/mvp0/{handoff,step-10-market}.md,
+                                              Cargo.lock, systems/README.md, systems/installed/
+                                              {Cargo.toml,src/lib.rs}, systems/item/** (10),
+                                              systems/inventory/** (12), systems/item-transfer/** (11),
+                                              worlds/market-town/** (40: README, world.yaml, 20 items,
+                                              12 people, 6 places); paths outside the allowed set: 0.
+                                              `git diff e3a1106...HEAD -- Cargo.lock`: +3 [[package]]
+                                              (mineworld-item, -inventory, -item-transfer), none with a
+                                              `source`; +3 names in mineworld-installed-systems'
+                                              dependency list; nothing else.
+     M-D1                                     `// MUTATION M-D1` added to kernel/src/lib.rs in the working
+                                              tree → the same filter (`git diff --name-only e3a1106`)
+                                              listed `kernel/src/lib.rs`; reverted (git checkout), count
+                                              of outside paths back to 0, tree clean.
+     CI: none configured (S13).
+
+     D-1 … D-11 at a glance:
+     D-1  PASS (above)            D-2  PASS (above; no existing test edited — D-1's list has none)
+     D-3  PASS (E-D2; M-D2 E-D3)  D-4  PASS (E-D3; M-D3, D-D2)
+     D-5  PASS (E-D3, E-D4, E-D6 CLI; M-D4, D-D4)
+     D-6  PASS (E-D4; M-D5)       D-7  PASS (E-D4; M-D6)
+     D-8  PASS (E-D3 persisted; F-38 reproduced)
+     D-9  PASS a, then b, then c, then d (E-D6; M-D7)
+     D-10 PASS (E-D6)             D-11 PASS (D-C1 committed first, 27dfbca; doc checks above)
 ```
 
 ---

@@ -12,10 +12,14 @@ group-activity/  inviting, answering, joining and leaving something done togethe
 relationships/   who knows whom, and how well — changed only by reacting to the others' facts
 naming/          what people are called, from a person file's `name:` section
 schedule/        a person's day, from their `routine:` section — an agenda kept by a Process
+item/            what kinds of things exist, from an item file's `item:` section
+inventory/       who holds how many of each kind — the only writer of holdings, with a person's capacity
+item-transfer/   `give`: offered complete for each kind held; states inventory's fact, owns nothing
 ```
 
-All seven are real packs, not examples: they are what the vertical slice runs on. The first three are
-also the
+All ten are real packs, not examples. The first seven are what the vertical slice runs on; the last
+three are the first half of Market Town ([`DECISIONS.md` `ARC-37`](../docs/DECISIONS.md)). The first
+three are also the
 worked example every later pack copies, so they are written to be read in this order —
 `src/lib.rs` first, then the action, the event, the component, and `src/system.rs` last.
 
@@ -75,6 +79,9 @@ cargo test -p mineworld-group-activity    # invitations, and an activity that is
 cargo test -p mineworld-relationships     # values changed only by other packs' facts
 cargo test -p mineworld-naming            # a name, seeded from a pack file, disclosed to perceivers
 cargo test -p mineworld-schedule          # a day kept by a Process that moves nobody
+cargo test -p mineworld-item              # a kind declared from an item file's section
+cargo test -p mineworld-inventory         # holdings, refused facts, capacity, a restart
+cargo test -p mineworld-item-transfer     # give through the unchanged controller, and AC-2
 cargo doc -p mineworld-conversation --open
 ```
 
