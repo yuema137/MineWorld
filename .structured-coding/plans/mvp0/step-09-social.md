@@ -5,7 +5,8 @@ design for the first of them, **PR 10a**. PRs 10b and 10c are specified here at 
 re-audited and detailed only after the PR before it merges (`CLAUDE.md` §3, "detail one step ahead").
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S8, §7 (current position and the world-data
 follow-up)
-**Lifecycle:** `DRAFT — AWAITING PRIMARY-SESSION REVIEW`. Not frozen. No implementation has started.
+**Lifecycle:** `DESIGN FROZEN` (2026-10-07, primary session; answers in §10.1). 10a frozen to the
+commit; 10b and 10c frozen at the step level and detailed after the previous PR merges.
 **Base:** `main @ f4301c1`. S7 merged as `4f4cb1d`, and `f4301c1` is the docs-only post-merge update.
 **Branch / worktree:** `mvp0/pr-10-social` in `/Users/yuema137/mineworld-worktrees/s8-social`. Only
 this session holds it. `vis-character` and `vis-environment` belong to other agents. This session
@@ -821,6 +822,75 @@ Q12  I-5: existing tests may have pack literals updated, claims unchanged, each 
      Alternative: keep the four-person café as a frozen second fixture for the old tests — two
      fixtures for one world, and the old one would stop being "the" social-cafe. Recommended: update.
 ```
+
+## 10.1 Answers — primary session review, 2026-10-07
+
+Decided under the operator's autonomous authorization (overall §7) and their standing rule that
+objective architectural correctness belongs to the agent. **10a is frozen to the commit.** 10b and
+10c are frozen at the step level: their scope, invariants and acceptance are fixed here, and each is
+detailed to the commit and reviewed after the previous PR merges. Eleven answers follow the
+recommendation; **Q9 is answered the other way**; Q6 carries a condition.
+
+**Q1 — ACCEPTED.** Three PRs, in order. Milestone B closes at 10b.
+
+**Q2 — ACCEPTED.** The server-side acceptance — a client at the counter can `talk` to Alice and is
+refused from the door — is 10a's. The 3D far-side run is routed to the environment session after 10a
+merges.
+
+**Q3 — ACCEPTED.** All five MVP places now, to avoid renumbering every id twice. The 3D slice
+depicts only the café, the street and the florist; the other places are semantic, which is permitted —
+presentation may lag the world, never the reverse.
+
+**Q4 — ACCEPTED.**
+
+**Q5 — ACCEPTED.**
+
+**Q6 — ACCEPTED, with a condition.** Subscribing is not emitting. `ARC-26` requires a dependency only
+to *state* another system's vocabulary, and reacting to facts is the intended inter-system channel
+(`CLAUDE.md` §4 rule 1). No registry dependency is right, and it is better for `AC-2`: relationships
+stays enabled with conversation disabled and simply hears nothing. **Condition:** decode through the
+owner crate's published event types — a Cargo dependency on the vocabulary, not a system dependency
+— never by re-implementing their payload shape locally. A local copy of another pack's schema is
+exactly the drift risk R-3 names, and it would bypass the `…TooNew`/`…Outdated` refusals.
+
+**Q7 — ACCEPTED.**
+
+**Q8 — ACCEPTED.** An agenda that controllers follow, never a mover. Anything else would bypass
+movement and override a human player.
+
+**Q9 — ANSWERED THE OTHER WAY: build the generic seam in 10c, not a `routine:` field.** The design's
+own trigger is "when a second content kind differs", and `routine` *is* the second kind: `location`
+was the first, and it is owned by presence. `CLAUDE.md` §4 rule 11 asks for exactly this — observe the
+repeated concept, then define the abstraction. A per-system field in the World Pack format is also
+the same change-amplification pattern as F-1: adding a system edits a central format. The seam — a
+System Pack owns a named section of a person or place file, validates it, and seeds its own genesis
+facts — keeps 10c's diff out of worldpack's format and spares S9 a second format change. Record it in
+`docs/PACKAGE_FORMAT.md` and `MODULE_SPEC` §4.1 when 10c lands, and migrate `location` onto it only if
+that stays a no-op for every existing test; otherwise leave `location` as it is and say why.
+
+**Q10 — ACCEPTED.**
+
+**Q11 — RESOLVED.** `clients/protocol/run.sh` is already allow-listed for every session, bare,
+with arguments, or through `bash`. Run it yourself.
+
+**Q12 — ACCEPTED.** Every changed literal is listed in §9 with its unchanged claim.
+
+### F-1 and F-3 are carried to S9 as material findings against `AC-1`
+
+They are recorded correctly here and are not S8's to fix. But they bear on the project's frozen
+top-level criterion — *"materially different games … composing the same core entities with
+different independently installable interaction systems, without modifying the kernel"* — so they are
+named here and in overall §7, not left in a limitations list:
+
+- **F-1:** installing a pack today means editing `worldpack/src/catalog.rs`, the root `Cargo.toml`
+  and `Cargo.lock`. The kernel stays unmodified, so the letter of `AC-1` holds. But "independently
+  installable" does not: a pack cannot be added without recompiling a central list.
+- **F-3:** `PacedRuleController` submits only the actions it knows by name, so a new pack's actions
+  go unused until the controller is edited. The likely direction is a controller that acts on the
+  **affordances an observation offers**, which the protocol already carries, rather than on a
+  hard-coded action list.
+
+**S9's design must resolve both, or record why `AC-1` is still met without resolving them.**
 
 ---
 
