@@ -660,10 +660,11 @@ A-4  a canary pack installed on a scratch branch changes only systems/** and Car
 
 ### C0 — Design (this document) — docs only
 
-- [ ] Implementation: §§1–11 of this file, from the audit in §8.
-- [ ] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py` (§9 E-0).
-- [ ] Review: every claim in §2 cites a file and line, a command, or a measurement; F-1 and F-3 are
-  resolved or bounded, not routed around; the operator-material questions are marked (§10).
+- [x] Implementation: §§1–11 of this file, from the audit in §8 (draft; not frozen).
+- [x] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py` (§9 E-0).
+- [x] Review: every claim in §2 cites a file and line, a command, or a measurement; F-1 and F-3 are
+  resolved or bounded, not routed around; the operator-material questions are marked (§10). Self-review
+  by the drafting session only; the primary session's review is pending.
 
 ### C1 — Specs before code: DEP-12, ARC-33, ARC-35, MODULE_SPEC §3.1
 
@@ -1008,7 +1009,7 @@ worlds/market-town/      social-cafe's files verbatim (world.yaml: id, name, and
 group-activity pattern), including a persisted restart for inventory; `mineworld validate
 worlds/market-town`; `mineworld run worlds/market-town --headless --seed 7 --days 30` with `give`
 accepted at least once per seat-bucket — recorded as ledger evidence (the world-level test lands in 11f,
-outside the range). **Adversarial.** A give of more than one holds is refused by inventory's
+outside the range). **Adversarial.** A transfer of more than the giver holds is refused by inventory's
 constructor even if item-transfer's validate were skipped (owner still decides, ARC-26): a test states
 the fact directly and expects `FactRefusedByOwner`.
 
@@ -1257,8 +1258,11 @@ E-0  C0 design, 2026-10-07, on main @ b9e5937 + this file.
      ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b.
      F-9 experiment: cargo metadata --no-deps with members "systems/*" → 15 workspace packages; root
      Cargo.toml restored (cmp identical), Cargo.lock untouched (git status clean).
-     check_doc_headings / check_decision_ids: recorded at the commit that adds §10 (below).
-     No cargo gate run (docs only).
+     check_doc_headings: 142 numbered sections across 22 documents, none duplicated.
+     check_decision_ids: 42 decision ids, all distinct (ARC-33 … ARC-36 and DEP-12 are proposals in
+     this file only; DECISIONS.md is untouched; no origin/* branch holds ARC-33+ or DEP-12+).
+     No cargo gate run (docs only). The baseline command was run once to fix A-1's reference, not as
+     a gate.
 ```
 
 ## 9.1 Risks
@@ -1271,3 +1275,147 @@ E-0  C0 design, 2026-10-07, on main @ b9e5937 + this file.
 | **R-S9-4** | A declarative macro that generates the catalog is harder to read and to debug than the hand-written enum. | The macro is one file, documented method by method; its expansion is exercised by every existing test (A-1). |
 | **R-S9-5** | New content kinds or genesis order perturb social-cafe. | I-4: byte comparison against E-0 in every PR. |
 | **R-S9-6** | `Cargo.lock` churn unrelated to the market (a `cargo update`) lands inside a transformation PR. | AC-1's `Cargo.lock` rule fails on any changed non-path package; a transformation PR never runs `cargo update`. |
+
+---
+
+# 10. Questions for the primary session / operator
+
+`[OPERATOR-MATERIAL]` marks a question whose answer changes a public contract, an ownership boundary, a
+frozen invariant, or how the frozen top-level criterion is read. Those are not the primary session's to
+settle alone under the autonomous authorization (overall §7: "frozen invariants still require an
+explicit revision with evidence").
+
+```text
+QS-1   Split S9 into six PRs: 11a installable packs, 11b items and organizations, 11c complete
+       affordances, 11d + 11e the transformation, 11f the proof (§2.8). 11b and 11c may run in parallel
+       after 11a. Alternatives: fold precursors into the transformation (fails AC-1's check by
+       construction); one transformation PR (five packs and a world, ~10b + 10c in size).
+       Recommended: six.
+
+QS-2   [OPERATOR-MATERIAL] How AC-1 is measured (§2.5, SD-6, ARC-35). The transformation is the merge
+       diffs of 11d and 11e against their first parents; the allowed set is systems/**, worlds/**,
+       Cargo.lock (only new path packages under systems/; only systems/ dependency lists change) and
+       Markdown documentation; plus a dependency-structure check and a configuration-only world-delta
+       check; fail closed without git history. The precursors (11a–11c) are outside the range and
+       bounded instead by I-2 (they name no market concept and are proven without it) and I-9 (the
+       controller's offer band is fixed before the market exists).
+       Alternatives: (a) measure all of S9 — impossible for any linked pack, and would forbid the
+       framework fixes F-1/F-3 require; (b) read AC-1 only as MVP.md words it (no edit to kernel, Person,
+       renderer, controllers) and drop overall §1's path gloss — weaker and less mechanical.
+       Recommended: accept, recorded as ARC-35 in 11a C1, and overall §1's gloss amended to cite it.
+
+QS-3   [OPERATOR-MATERIAL] F-1's resolution (§2.2, SD-1 … SD-5, ARC-33, DEP-12). A pack implements
+       SystemPack (sdk/rust); the build's installed set is systems/installed, one macro invocation;
+       root members glob "systems/*"; new packs depend on siblings by path. Installing = a pack
+       directory + two lines in systems/installed + a regenerated Cargo.lock, then a rebuild. What it
+       does not deliver: installing without a rebuild, or packs from outside the repository — ARC-8's
+       Tier 1, and Milestone E's publishing sense.
+       Alternatives: linker-section registration (`inventory`/`linkme`), dynamic loading, a type-erased
+       registry (`erased-serde`), worldpack generic over a catalog (§2.2, all declined with reasons);
+       or the same design with the installed set outside systems/ (e.g. `distribution/`) and overall's
+       gloss amended to admit that one directory.
+       Recommended: as designed, installed set in systems/.
+
+QS-4   [OPERATOR-MATERIAL — public contract, controller contract] F-3's resolution (§2.3, SD-9 … SD-12,
+       ARC-34). `Affordance<P>` gains an optional payload, attachable only through the offer's own
+       action type; `PacedRuleController` gains one band that attempts an available complete affordance
+       at a fixed rate; `RuleController` unchanged; existing packs offer no complete affordance, so every
+       existing world and transcript is unchanged. Free-form actions (talk, move, invite) stay
+       known-by-name.
+       Alternatives: controller learns market actions (fails AC-1); policies as world data (rules in a
+       World Pack); a server-resolved `interact` (the server choosing for the person, and a resolver
+       that knows every pack); payload schemas (heavier than the problem); scoping headless use out of
+       AC-1 (an instrument that cannot see, ARC-23).
+       Recommended: complete affordances.
+
+QS-5   [OPERATOR-MATERIAL — public World Pack format] Items and organizations as content kinds (11b,
+       SD-7): world.yaml `items:`/`organizations:`; items/ and organizations/ files with tags, note and
+       sections; ids after people; their sections seeded before places' and people's. It implements
+       the frozen MODULE_SPEC §4 layout (F-13) rather than inventing format. Alternative: items as slugs
+       inside an inventory and organizations as place tags — no identity to share between packs, and an
+       Organization is a CORE_CONCEPTS §8 primitive. Recommended: accept.
+
+QS-6   [OPERATOR-MATERIAL — ontology] An authored Item entity is an item *kind*; what a Person or an
+       Organization holds is a count of kinds (CORE_CONCEPTS §7's "stacked items"). Unique instances
+       need a pack that creates entities, which the kernel does not allow a system to do (F-12), so
+       they are out of S9. Alternative: add entity creation to the kernel's WorldView now — a kernel
+       change in S9 (I-8) for a capability no MVP criterion needs. Recommended: kinds and counts,
+       recorded as ARC-36.
+
+QS-7   The five packs and their boundaries (§2.6, SD-13): item (kinds), inventory (holdings; the only
+       writer), item-transfer (give; no state), economy (wallets, shops, buy; the only mover of money;
+       reacts to wage-due with no system dependency), employment (jobs, shifts, wage-due, production;
+       never touches a wallet). These establish new ownership; none changes an existing one.
+       Sub-question: keep `item` as its own pack, or fold item kinds into inventory? Recommended: keep —
+       it is the vocabulary inventory, economy and employment share, and MVP §2 names Item as an
+       installable system.
+
+QS-8   Work is attendance during a shift (a Process employment owns; presence read at wakes and
+       person-entered-place between), not an action a controller must know. Alternative: start-work /
+       stop-work actions offered as complete affordances. Recommended: attendance — a human works by
+       being there, the paced controller already walks to its agenda (ARC-32), and no controller has
+       to learn that jobs exist.
+
+QS-9   Buying happens at a shop place (target none, complete affordance per priced, stocked kind; the
+       operator is an Organization). Alternative: buy from a staff Person on duty — more embodied for
+       Demo B, but economy would depend on employment's state. Recommended: place-based in S9; staffed
+       selling a later refinement.
+
+QS-10  MVP §5 lists `eat` and `sleep`; overall §3 S9 does not list a needs pack, and neither is required
+       by any AC. S9 delivers neither, so held items have no sink. Recommended: record them in overall
+       §4 as an MVP-0 interaction gap with no step, for the operator to place (a needs pack after S9, or
+       MVP-1).
+
+QS-11  CP-4's precondition (per 30-day bucket of a 300-day run: ≥1 purchase, wage paid, item produced,
+       item given), checked before any determinism comparison, with I-9: if the market does not live,
+       the remedy is pack design or content, never the controller. Recommended: accept.
+
+QS-12  Milestone C's evidence (CP-7) is a real-server test with two clients and a server restart (§4.6),
+       plus the operator's runnable list at the milestone. Recommended: accept.
+
+QS-13  Should the 2D demo learn to submit complete affordances (so a human can buy in Demo A) in S9?
+       Recommended: no — it is S12's (Demo A's "basic items"); S9's CP-7 is shown at the protocol level,
+       and keeping clients/ out of S9 keeps AC-1's "no renderer change" trivially true.
+
+QS-14  The execution contract for 11a (§11): fresh session, its own worktree and branch, push and PR
+       authorized as for 10a–10c, merge the operator's. Recommended: confirm at freeze.
+```
+
+---
+
+# 11. Execution contract for PR 11a (proposed; confirmed at 11a's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 10 / PR 11a — installable System Packs (S9, first of six)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-10-market.md (this file), §4.1 (4.1.1–4.1.3)
+RELATED / BINDING   overall.md §§1, 2, 3 (S9), 7; MVP §§1–2, 9 (AC-1, AC-2, AC-12); MODULE_SPEC §§3, 4.1,
+                    8; PACKAGE_FORMAT §§6, 8; ARCHITECTURE §§12, 14; REUSE_POLICY §§11–12, 17;
+                    DECISIONS ARC-8, ARC-26, ARC-28, ARC-31, DEP-10; step-09-social.md §10.1 (F-1, F-3);
+                    this file §§1.3, 2.2, 2.5, 3, 10 (as answered)
+IMPLEMENTATION BASE main @ b9e5937 (or the main named at freeze, re-audited); branch
+                    mvp0/pr-11a-installable; a worktree under /Users/yuema137/mineworld-worktrees/,
+                    held by the implementing session only — unresolved until the primary session names it
+APPROVED SCOPE      §1.1 PR 11a; SD-1 … SD-6; F-10's fixture — as QS-1 … QS-3 are answered
+FROZEN INVARIANTS   §1.3 I-2, I-4, I-5, I-8 (I-1, I-3, I-6, I-7, I-9 bind later PRs)
+SEQUENCE            C1 → C2 → C3 → C4 → C5, each committed and pushed when coherent
+VALIDATION BUDGET   unit/integration/static: unrestricted; real-model: NOT REQUIRED; real runs: the 300-day
+                    social-cafe comparison (~15 s) and the canary install; about one hour in total
+LIVE DOCUMENTATION  this file (§4.1 checkboxes, §9 E-A ledger)
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for PR 11a at C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved — this document is a planning deliverable; the source
+                                      will be the primary session's freeze message
+  semantic commits, branch push       unresolved until freeze; recommended authorized, as for 10a–10c
+                                      ("Commit and push after every small step")
+  PR creation / update                unresolved until freeze; recommended authorized (D-12)
+  scratch branch for the canary (C5)  recommended authorized, local only, deleted after evidence
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only; never inherited, never widened
+POST-MERGE SYNC     the planning session owns step/overall updates; the implementing session owns §4.1
+                    and §9 E-A
+NORMAL STOP         PR 11a READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       any change to §1.3, to a public contract beyond SD-1 … SD-4, to ownership, or to
+                    scope; an existing test that fails for any reason but F-10's; a changed social-cafe
+                    run (A-1); a needed edit to kernel/, contracts/, persistence/, server/, clients/ or
+                    cognition/; C2's failure case (the macro cannot express the generic decoder)
+```
