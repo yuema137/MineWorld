@@ -1076,40 +1076,422 @@ Yes, and it is raised rather than assumed:
 Nothing in 11a changes a frozen invariant of an earlier step, `kernel/`, `contracts/`, or the behaviour
 of any world.
 
-## 4.2 PR 11b — items and organizations in the World Pack format (medium scope; detailed after 11a merges)
+## 4.2 PR 11b — items and organizations as World Pack content kinds (full design; PROPOSED, NOT FROZEN)
 
-**Goal.** A World Pack can declare Item and Organization entities and give them sections, as
-`MODULE_SPEC.md` §4's frozen layout already says it can (SD-7, F-4, F-13).
+### 4.2.1 Identity, base, approved scope
 
 ```text
-authoring/src/section.rs   ContentKind::{Item, Organization}: directory (`items`, `organizations`),
-                           describes, entity_type; Seeding gains typed lookups item(key) and
-                           organization(key) beside place(key) and person(key)
-worldpack/src/format.rs    WorldManifest: `items: Vec<EntityKey>`, `organizations: Vec<EntityKey>`
-                           (both default empty); AuthoredItem, AuthoredOrganization: tags, note, sections
-worldpack/src/content.rs   ITEM_FIELDS, ORGANIZATION_FIELDS = ["tags", "note"]; ContentFile::{item,
-                           organization}
-worldpack/src/read.rs      read items/<key>.yaml and organizations/<key>.yaml; keys stay one namespace
-                           across all four kinds (check_keys_are_declared_once gains two Declared
-                           variants); a section's references may name items and organizations
-worldpack/src/load.rs      ids: places, people (unchanged), items, organizations, each in key order;
-                           genesis: passages, locations, then sections — items', organizations',
-                           places', people's
-worldpack/tests/           refusals (an item file with an unknown key; a `name` section on an item file
-                           refused NotCarriedHere; an item key that is also a place key; a missing
-                           items/<key>.yaml), loading (a tags-only pack with items and organizations:
-                           ids after people, entity types right), social-cafe unchanged
-docs                       MODULE_SPEC §4.1 (the two keys and files, the order rule), PACKAGE_FORMAT §8
-                           row, DECISIONS ARC-36 (an authored Item is a kind — SD-8, if QS-6 is accepted)
+PR            11b — items and organizations as World Pack content kinds (S9, second of six; a precursor)
+base          main @ 7ed1648 plus this planning branch once merged, or the main the primary session
+              names at freeze (re-audit §8.4 if anything under authoring/, worldpack/, tools/cli/src/
+              or tests/acceptance/ moved)
+branch        mvp0/pr-11b-content-kinds, in its own worktree, held by the implementing session only;
+              runs in parallel with 11c under §12
+audit         §8 (b9e5937) and §8.4 (7ed1648)
+scope         §1.1 PR 11b; SD-7, SD-8; F-13, F-16, F-20 … F-23, F-31, F-32; QS-5, QS-6 (approved)
+depends on    11a (merged): the generated Capability, SectionOwner, the I-2 scan
 ```
 
-**Checkpoint.** A pack with items and organizations validates and loads; every refusal names the file;
-`social-cafe`'s ids, genesis count (53) and 300-day run are unchanged (I-4).
-**Adversarial.** A pack whose people's sections were seeded before an item's would let a holding name an
-undeclared kind: the genesis-order test fails if items' sections are moved after people's (mutation).
-**Non-goals.** No section is carried by items or organizations yet — the first owners arrive in 11d and
-11e; no change to `naming` (names for items and organizations are a later choice).
-**Material?** A public format extension, implementing a frozen model (QS-5). No contract or kernel change.
+**Goal.** A World Pack can declare `Item` and `Organization` entities — `items:` and `organizations:` in
+`world.yaml`, one file each under `items/` and `organizations/` — exactly as `MODULE_SPEC.md` §4's frozen
+layout already lists them, and those files can carry sections, so a System Pack can own state on them
+the way `naming` and `schedule` own state on people (`ARC-31`). The capability is the format's, not the
+market's: §4.1's implemented subset simply stops omitting two of the four kinds of entity
+`CORE_CONCEPTS.md` defines.
+
+**Justified and proven without the market (I-2).** Every fixture and test of 11b uses neutral content,
+chosen so that nothing in it is or implies trade:
+
+```text
+items           lantern, pebble          things that exist in a world and can be named by key
+organizations   chess-club               CORE_CONCEPTS §8 names "club" among its examples
+people, places  the existing fixtures', or social-cafe copied at runtime (never committed)
+```
+
+Nothing 11b adds is a section owner; no installed pack is taught to carry a section on an item or an
+organization file (F-22). The genesis order and the reference typing of sections on those files are
+proven with a probe section owner that exists only in worldpack's own unit tests.
+
+**Non-goals.** No System Pack, no installed-set line, no section owned by an existing pack on the new
+kinds (`naming` stays people-only: §1.2); no `Seeding` change (F-20); no item instances (SD-8, QS-6); no
+`create` template change; no client, server, persistence, kernel or contracts change (I-8).
+
+**Acceptance (all observable, decided before measuring, `ARC-23`).** Each criterion that guards
+something names the mutation shown to break it; every mutation is applied to the working tree, observed
+to fail by name, and reverted, with `git status` recorded afterwards.
+
+```text
+B-1  Nothing existing moves (I-4). The 300-day seed-7 social-cafe run prints, apart from `wall`, the
+     lines of E-0 (sha-256 ad49c723…c64b); `mineworld validate worlds/social-cafe` is byte-identical to
+     the base's output; every existing test passes, and no existing test is edited — a literal update
+     that turns out to be needed is listed with its unchanged claim.
+B-2  A pack declaring items and organizations reads and loads, and they are allocated after people:
+     places, then people, then items, then organizations, each in key order. Their entity types are
+     Item and Organization; their tags reach the registry; their provenance names items/<key>.yaml and
+     organizations/<key>.yaml; tags-only files add no genesis fact.
+     Guards: worldpack/tests/content_kinds.rs. Mutation M-B1: create items before people in
+     load.rs → the id assertions fail, naming the first moved key.
+B-3  A bad item or organization file is refused by name and file (the refusals.rs standard): a declared
+     key with no file; a file no list declares; a key declared in two lists across kinds (both lists
+     named); a field the kind does not have (`location:` on an item), with line and column; a section
+     its owner does not let the kind carry (`name:` on an item, `NotCarriedHere`, naming `person`).
+     Guards: refusals.rs. Mutation M-B2: drop items from check_keys_are_declared_once → the
+     cross-kind duplicate test fails.
+B-4  Sections on the new kinds are seeded first and referenced by type. A pack whose items,
+     organizations, places and people each carry a probe section seeds them in the order items',
+     organizations', places', people' (each in key order); a section naming an item key as an Item is
+     accepted, and naming it as a Place is refused `SectionNamesUnknownEntity`.
+     Guards: worldpack's unit tests with a probe owner (F-22). Mutation M-B3: move items after people
+     in the one genesis-order function → the order test fails (§4.2's adversarial). Mutation M-B4:
+     restore the `_ => false` reference arm (F-21) → the Item-reference test fails.
+B-5  Inert content changes no simulation, through the real CLI. Social-cafe copied at runtime with two
+     items and one organization added: `mineworld validate` lists them in `items` and `organizations`
+     lines and allocates them ids 19–21 after social-cafe's unchanged 1–18, with 53 genesis facts; a
+     10-day seed-7 run's fact table is byte-identical to social-cafe's own 10-day run; the same world
+     run to day 5 and continued to day 10 on one save equals its uninterrupted 10-day run in facts,
+     journal and snapshots (`AC-6`, `AC-12` for a world holding Item and Organization entities).
+     Guards: tools/cli/tests/content_kinds.rs. Mutation M-B5: allocate items before places → the id
+     assertion fails.
+B-6  I-2 holds and the scan sees past an admitted word. The scan is green with 11b's row; its allow-list
+     admits only the words `item` and `items`, per file, each with a reason (§4.2.2); every other market
+     word on an admitted line is refused. Planted, in the working tree: `// PLANTED: an item_price` in
+     worldpack/src/format.rs → refused naming `price` and not `item`; an untracked file
+     worldpack/tests/wages.rs → refused by its path. Mutation M-B6: admit lines instead of words
+     (11a's rule) → the scan's unit test `an_admitted_word_admits_no_other` fails.
+B-7  The documents say it first (`CLAUDE.md` §2.2): ARC-36, MODULE_SPEC §4.1, PACKAGE_FORMAT §8 and a
+     CORE_CONCEPTS §7 note exist before the code that relies on them; both doc checks pass.
+```
+
+**Commit plan.** Six commits after this design (C0). Evidence goes into §9.2 as `E-B<n>`; a planned
+commit may become several coherent commits, and the mapping is recorded.
+
+### B-C0 — Design (this section) — docs only
+
+- [x] Implementation: §4.2, §8.4, §12, §13 and QS-15 … QS-19, by the planning session (`mvp0/s9-11bc-plan`).
+- [x] Validation: both doc checks (§9 E-2).
+- [x] Review: every file and symbol named here was read on `7ed1648` (§8.4); I-2's neutral content and
+  allow-list are stated before any code exists; operator-material points are marked (§10). Self-review
+  by the planning session only; the primary session's review is pending.
+
+### B-C1 — Specs before code: ARC-36, ARC-35 note, MODULE_SPEC §4.1, PACKAGE_FORMAT §8, CORE_CONCEPTS §7
+
+**Goal.** The format extension and the reading of `Item` exist as reviewable specification before code
+relies on them (`CLAUDE.md` §2.2, B-7).
+
+**Scope.**
+- `docs/DECISIONS.md` — **ARC-36** *An authored Item is a kind; items and organizations are content
+  kinds of a World Pack*, appended at the end of the file (§12): SD-7 and SD-8; stacked items only, a
+  held quantity being a count of a kind (`CORE_CONCEPTS.md` §7's "stacked items"); instances need a pack
+  that creates entities, which no system may do (F-12); ids after people so no existing id moves; keys
+  one namespace across the four kinds (F-16); sections may be carried by item and organization files,
+  extending `ARC-31`'s person-or-place wording; their genesis order and why (what people's and places'
+  sections refer to is seeded first). Accepted limitations: no instances; no names for items or
+  organizations (`naming` is people-only); no installed pack carries a section on them until 11d.
+- `docs/DECISIONS.md` — a dated **note on ARC-35** point 7 (the I-2 scan): an allow-list entry admits
+  named words, never a whole line (F-31, QS-16); and, only if QS-15 is approved, the merged-range
+  detection reads every merge reachable from `HEAD`, requiring exactly one match (F-30).
+- `docs/MODULE_SPEC.md` §4.1 — `world.yaml` gains `items:` and `organizations:`; the two file kinds
+  with their fields (`tags`, `note`); sections may be carried by them; rule 1 says a key is stated once
+  across all four lists; rule 2's "entity identities are allocated in key order" becomes "places, then
+  people, then items, then organizations, each in key order"; the genesis paragraph's "places' before
+  people's" becomes "items', organizations', places', people's". The §4 model above it is unchanged.
+- `docs/PACKAGE_FORMAT.md` §8 — the World Pack fields row names `items`, `organizations` and their files.
+- `docs/CORE_CONCEPTS.md` §7 — one sentence: in MVP-0 an authored Item is an item kind and holdings are
+  counts of kinds (`ARC-36`). A pointer, not a new rule; the ontology text is unchanged.
+
+**Depends on:** freeze. **Non-goals:** no code.
+
+- [ ] Implementation: as scoped. Before writing, `git fetch` and confirm ARC-36 is still free on every
+  `origin/*` branch (11c holds ARC-34).
+- [ ] Validation: `python3 scripts/check_decision_ids.py`, `python3 scripts/check_doc_headings.py`;
+  grep that every section number cited (`§4.1`, `§7`, `§8`) still resolves.
+- [ ] Review: ARC-36 answers what an Item is in MVP-0 without redefining the term (`CLAUDE.md` §2.1(3));
+  MODULE_SPEC §4.1's six rules still read as six; the ARC-35 note only tightens point 7 (QS-16) and, if
+  present, states QS-15's approval as its source.
+
+**Acceptance.** As validation. **Commit boundary.** Documentation only.
+
+### B-C2 — The I-2 scan admits words, not lines; 11b's row
+
+**Goal.** Close F-31 before 11b relies on the allow-list for the word `item`, and register 11b with the
+scan (freeze condition 1, B-6).
+
+**Scope** (`tests/acceptance/tests/precursor_vocabulary.rs` only):
+- `Allowed` gains `words: Words`, with `enum Words { Any, Only(&'static [&'static str]) }`. `Only` names
+  the exact lowercase words an entry admits; `Any` is legal only for the scan's own file, and the test
+  fails naming any other entry that uses it.
+- Every market word on an added line is found (not only the first); each is refused unless an entry
+  for that PR and path whose `contains` the line holds admits that exact word. A refusal names the
+  word. The stale-entry rule is unchanged: an entry that admits nothing fails.
+- 11a's entry gains `words: Words::Any`; its meaning is unchanged (the scan's own file).
+- `PRECURSORS` gains `{ pr: "11b", base: "<the full sha the branch was cut from>", branch:
+  "mvp0/pr-11b-content-kinds" }`. When the branch later integrates main, the base moves to the
+  integrated main commit in the same commit (§12).
+- `ALLOWED` gains 11b's self-entry `{ pr: "11b", path: <this file>, contains: "", words: Words::Any,
+  reason: "this scan: its allow-list names the words it admits" }`. Every other 11b entry is added in the
+  commit that adds the lines it admits, because an entry that matches nothing fails.
+- **Only if QS-15 is approved:** `merged_head` reads `git log --merges --format=%H %s HEAD` (every merge
+  reachable from `HEAD`, not only the first-parent chain) and requires exactly one subject of the form
+  `Merge pull request #N from <owner>/<branch>`; two are a failure naming both. The parsing becomes a
+  pure function over the log text so it can be unit-tested.
+- New unit test `an_admitted_word_admits_no_other`: under an entry `Only(&["item", "items"])`, the lines
+  `let item_price = 1;`, `struct ItemPrice;` and `items: [wage]` are each refused, naming `price`,
+  `price` and `wage`; `let itemprice = 1;` is refused as `itemprice` (not the admitted word); `let items
+  = 1;` passes. If QS-15 is approved, a second unit test over hand-written log text: one match → the
+  merge's `^2`; none → unmerged; two → the failure.
+
+**Depends on:** B-C1. **Non-goals:** no change to the vocabulary, to what is scanned (every non-Markdown
+added line and added path) or to fail-closed behaviour.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation:
+  - [ ] `cargo test -p mineworld-acceptance`: all pass, including the 11b row over this branch's working
+    tree (at this commit the branch adds no other market word).
+  - [ ] Mutation M-B6 (one entry admits its whole line again, i.e. the word check bypassed) →
+    `an_admitted_word_admits_no_other` fails; reverted.
+  - [ ] `cargo clippy -p mineworld-acceptance --all-targets -- -D warnings`; `cargo fmt --check`.
+- [ ] Review: the change only tightens (a line admitted before is admitted now only if every market word
+  on it is admitted); `Any` cannot leak to another file; the reasons are non-empty; ARC-35's note (B-C1)
+  describes exactly this behaviour.
+
+**Failure cases.** A precursor line that needs a market word other than `item`/`items` is a material stop
+(ARC-35 point 7), never an entry added to pass.
+
+### B-C3 — Items and organizations are read: kinds, format, files, refusals
+
+**Goal.** B-3, and the read half of B-2: `WorldPack::read` accepts the two keys and their files and
+refuses a bad one by name. Kinds and reading land together because adding the `ContentKind` variants
+makes worldpack's `fields(kind)` match non-exhaustive — one does not compile without the other.
+
+**Scope.**
+- `authoring/src/section.rs` — `ContentKind::{Item, Organization}` after `Place` (the derived order of
+  the existing two is unchanged); `directory` → `items`, `organizations`; `describes` → `item`,
+  `organization`; `entity_type` → `EntityType::Item`, `EntityType::Organization`; `pub const ALL:
+  [ContentKind; 4]` in that order, for guards that must cover every kind. Doc comments say "a person,
+  place, item or organization file".
+- `worldpack/src/format.rs` — `WorldManifest.items`, `WorldManifest.organizations`: `Vec<EntityKey>`,
+  `#[serde(default)]`, each "names a file in `items/`" / "`organizations/`"; `AuthoredItem` and
+  `AuthoredOrganization`, each `{ tags: Tags, note: Option<String>, sections: Vec<FoundSection> }`,
+  `Default`, documented like `AuthoredPlace`. Two structs, not one shared one: the kinds are distinct
+  concepts that will diverge, and a shared struct now would be the premature abstraction `CLAUDE.md`
+  §4 rule 11 forbids.
+- `worldpack/src/content.rs` — `ITEM_FIELDS` and `ORGANIZATION_FIELDS` = `["tags", "note"]`; `fields`
+  gains both arms; `ContentFile::item` and `ContentFile::organization` beside `person` and `place`. A
+  `location:` or `passages:` key on the new kinds is therefore an unknown key, refused at its line by the
+  existing visitor — no new refusal path.
+- `worldpack/src/error.rs` — `Declared::{Items, Organizations}`, displayed `items`, `organizations`.
+- `worldpack/src/read.rs`:
+  - `WorldPack` gains `items` and `organizations` (`BTreeMap<EntityKey, Authored…>`) and accessors
+    `items()`, `organizations()`, documented "in key order".
+  - `check_keys_are_declared_once` covers all four lists in the order places, population, items,
+    organizations, so a cross-kind duplicate names both lists.
+  - `read_content` for `items/` and `organizations/`; `check_nothing_undeclared` for both directories
+    (a directory that does not exist is still fine).
+  - One function states the order every per-file pass uses — items, organizations, places, people, each
+    in key order — and both `check_sections` (here) and genesis (B-C4) iterate it, so the order the
+    loader refuses in and the order it seeds in are one statement.
+  - `check_sections` takes a `BTreeMap<EntityKey, EntityType>` of every declared key, built once, and
+    accepts a reference iff the key is declared with the required type; the `_ => false` arm goes (F-21).
+  - The module's numbered check list is updated (step 5 covers four lists; step 6 four directories).
+- `worldpack/src/lib.rs` — the layout diagram gains `items/` and `organizations/`; re-export
+  `AuthoredItem`, `AuthoredOrganization`.
+- `worldpack/src/catalog.rs` — the section-namespace guard checks every kind's fields
+  (`ContentKind::ALL`), not only people's and places'.
+- `worldpack/tests/refusals.rs` — new tests, each writing its own `items/` or `organizations/`
+  directory (F-23):
+  - `a_declared_item_with_no_file_is_refused_by_name` (`ContentFileMissing`, kind Item);
+  - `an_organization_file_no_list_declares_is_refused_by_name` (`ContentFileNotDeclared`, list
+    Organizations);
+  - `a_key_declared_as_a_place_and_an_item_is_refused_naming_both_lists` (`KeyDeclaredTwice`, Places,
+    Items) and the same for population and organizations;
+  - `a_field_an_item_does_not_have_is_refused_at_its_line` (`location:` in `items/lantern.yaml`,
+    `Malformed` with line and column, listing `tags`, `note`);
+  - `a_section_an_item_may_not_carry_is_refused_naming_the_kinds_that_may` (`name:` on an item with
+    `naming` enabled → `SectionNotCarriedHere`, kind Item, carried by `person`);
+  - `every_refusal_names_the_file_it_is_about` gains an item case and an organization case.
+
+**Depends on:** B-C2 (the scan must see these lines with word-level admission). **Non-goals:** loading
+(ids, genesis) is B-C4; no CLI change.
+
+- [ ] Implementation: as scoped, plus `ALLOWED` entries for every file above that now holds `item` or
+  `items` (§4.2.2), each with its reason.
+- [ ] Validation:
+  - [ ] `cargo test -p mineworld-worldpack -p mineworld-authoring -p mineworld-acceptance`: all pass;
+    the new refusal tests pass; no existing test edited.
+  - [ ] Mutation M-B2 (items dropped from `check_keys_are_declared_once`) → the cross-kind duplicate
+    test fails; reverted.
+  - [ ] clippy `-D warnings` over the three crates; fmt.
+- [ ] Review: every new refusal reuses an existing `PackError` variant with the new kind or list as a
+  value, so a tool matching on variants keeps working; `fields(kind)` is the only place a kind's legal
+  keys live; the order function is the only statement of per-file order; no pack crate is named
+  (worldpack's structure test still passes).
+
+**Failure cases.** A needed new `PackError` variant is a bounded addition, recorded; a needed change to
+an existing variant's meaning is a stop (it changes what authors are told).
+
+### B-C4 — Items and organizations are loaded: identity, provenance, genesis order
+
+**Goal.** B-2 and B-4: entities are created after people, and sections on the new kinds are seeded first.
+
+**Scope.**
+- `worldpack/src/load.rs`:
+  - `assemble` creates places, then people (unchanged), then items, then organizations, each in key
+    order, with provenance `items/<key>.yaml` / `organizations/<key>.yaml` and the file's `note`.
+  - `initial_facts` seeds sections over B-C3's order function: items', organizations', places',
+    people', each in key order, within a file in composition order. Passages and locations stay first.
+  - The module documentation's creation-order block and genesis paragraph state the new order and why
+    (what other sections refer to is seeded before them; existing ids and event ids do not move).
+- Unit tests, in worldpack's own source (F-22): a probe section owner `Probe` (`AuthoredSection`,
+  carried by all four kinds, seeding one `probed { subject }` fact of its own vocabulary, with
+  `references` naming whatever key the authored value lists and the type it lists it as), decoded with
+  `Decode::<Probe>` and attributed to an installed `Capability` for ranking only — as
+  `a_section_that_seeds_another_packs_fact_is_refused_by_name` does with `Trespasser`. A
+  `#[cfg(test)]` constructor builds a `WorldPack` holding probe sections on two items, one organization,
+  one place and one person. Two tests:
+  - `sections_on_items_and_organizations_are_seeded_before_places_and_people`: `assemble()`'s facts, in
+    order, are the probe facts for the items (key order), the organization, the place, the person.
+  - `a_section_may_name_an_item_as_an_item_and_not_as_a_place`: through `check_sections`, a reference
+    `(lantern, Item)` is accepted and `(lantern, Place)` is refused `SectionNamesUnknownEntity`.
+- `worldpack/tests/content_kinds.rs` (new) — a fixture pack written at runtime: places `cafe`, `park`;
+  people `alice`, `bob`; items `pebble`, `lantern` (listed out of key order on purpose); organization
+  `chess-club`; `systems: [presence]`; tags-only item and organization files. One test,
+  `items_and_organizations_are_allocated_after_people_in_key_order`: ids cafe 1, park 2, alice 3, bob
+  4, lantern 5, pebble 6, chess-club 7; entity types; tags; provenance paths; genesis facts identical
+  in ids, types and payload bytes to the same pack with the two lists and directories removed.
+
+**Depends on:** B-C3.
+
+- [ ] Implementation: as scoped, plus `ALLOWED` entries for any file newly holding `item`/`items`.
+- [ ] Validation:
+  - [ ] `cargo test -p mineworld-worldpack -p mineworld-acceptance`: all pass; `social_cafe.rs` unedited
+    and green (ids, genesis count 53, sections-do-not-move — the existing guards of B-1 at this layer).
+  - [ ] Mutation M-B1 (items created before people) → `content_kinds.rs` fails naming `alice`'s id;
+    reverted.
+  - [ ] Mutation M-B3 (items after people in the order function) → the order unit test fails; reverted.
+  - [ ] Mutation M-B4 (the `_ => false` reference arm restored) → the reference unit test fails; reverted.
+  - [ ] clippy, fmt.
+- [ ] Review: no existing id or event id can move — items and organizations are created after every
+  existing entity and their sections are seeded after every passage and location, and social-cafe has
+  neither; the probe owner exists only under `#[cfg(test)]` and is never installed; the
+  `SectionStatedAnotherPacksFact` guard still applies to sections on the new kinds.
+
+### B-C5 — The real CLI: `validate` names them; inert content changes no run
+
+**Goal.** B-5, through the real binary (`CLAUDE.md` §4 rule 9: create world → load → act → persist →
+restart → verify), and F-32's summary gap.
+
+**Scope.**
+- `tools/cli/src/main.rs` `validate` — prints `  items      …` and `  organizations …` **only when the
+  pack declares some**, so social-cafe's report is byte-identical (B-1). The id list needs no change
+  (F-32).
+- `tools/cli/tests/content_kinds.rs` (new; uses the existing `headless` module by `mod headless;`, editing
+  nothing in it):
+  - a helper copies `worlds/social-cafe` into `CARGO_TARGET_TMPDIR/with-things/`, sets `id:
+    with-things`, appends `items: [lantern, pebble]` and `organizations: [chess-club]` to `world.yaml`,
+    and writes the three tags-only files. Nothing is committed under `worlds/` (I-2: copied social-cafe
+    content would be added lines with market words, E-A5).
+  - `validate_lists_items_and_organizations_after_every_existing_id`: success; the two summary lines;
+    `19  lantern`, `20  pebble`, `21  chess-club`; every id line 1–18 equal to social-cafe's own report's;
+    `53 genesis fact(s)`.
+  - `inert_items_and_organizations_change_no_fact_of_a_run`: `run --seed 7 --days 10 --save` of both
+    worlds; the two fact tables are equal row for row and byte for byte. If a fact row turns out to
+    carry the pack id, the comparison is of the decoded envelopes without it, recorded as a bounded
+    deviation with the reason.
+  - `a_world_with_items_and_organizations_resumes_byte_for_byte`: `--days 5 --save C`, then `--days 10
+    --save C`, against an uninterrupted `--days 10 --save A`: `Tables::assert_same_history`.
+
+**Depends on:** B-C4.
+
+- [ ] Implementation: as scoped, plus `ALLOWED` entries for the two CLI files (§4.2.2).
+- [ ] Validation:
+  - [ ] `cargo test -p mineworld-cli --test content_kinds --test commands`: all pass; `commands.rs`
+    unedited.
+  - [ ] `mineworld validate worlds/social-cafe` byte-identical to the base's (diff of the two outputs
+    empty).
+  - [ ] Mutation M-B5 (items allocated before places) → the validate test fails on `cafe`'s id; reverted.
+- [ ] Review: the CLI change is presentation of what the pack declared; `run`, `inspect`, `biography`
+  and `server` are untouched; the resume test proves Item and Organization entities survive a snapshot.
+
+### B-C6 — Close: status, planted violations, full gates, ledger
+
+- [ ] Documentation: `docs/MVP_STATUS.md` — one capability row inserted directly after "Authored content
+  owned by packs", and one evidence row inserted directly after "People are named, and removing names
+  changes nothing else"; the `Updated:` line and the S9 stage row are **not** edited (§12: the planning
+  session's). `worldpack/README.md` names the four kinds. §4.2 checkboxes and §9.2 `E-B*`;
+  `.structured-coding/plans/mvp0/handoff-11b.md` (§12).
+- [ ] Validation, once, on the final executable head:
+  - [ ] `cargo fmt --all --check`; `cargo clippy --workspace --all-targets --all-features -- -D warnings`;
+    `cargo test --workspace --no-fail-fast` (background, ~3–6 min unloaded): counts recorded against the
+    base's.
+  - [ ] B-1: the 300-day seed-7 run's sha = E-0; `validate worlds/social-cafe` identical to the base's.
+  - [ ] B-6: the two planted violations refused as stated, then reverted (`git status` clean of both).
+  - [ ] Both doc checks.
+- [ ] Review: B-1 … B-7 each hold with recorded evidence; every deviation is listed; nothing in the diff
+  touches `contracts/`, `kernel/`, `persistence/`, `server/`, `clients/` or `cognition/`.
+
+**PR 11b lifecycle:** PROPOSED, NOT FROZEN.
+
+### 4.2.2 The 11b allow-list
+
+`ARC-35` point 7 admits a match that is not a market concept. 11b needs exactly one such word: the
+defined term **Item** (`CORE_CONCEPTS.md` §7), which is already `EntityType::Item` and `ItemId` in
+`contracts/src/ids.rs` and `items/` in `MODULE_SPEC.md` §4's frozen layout. Its plural is the
+directory's and the key's name. So every 11b entry is `Words::Only(&["item", "items"])`, and any other
+market word on the same line is still refused (B-C2).
+
+```text
+path                                            words          why the word is there (the entry's reason)
+authoring/src/section.rs                        item, items    ContentKind::Item, its directory `items`
+                                                               and its description `item`
+worldpack/src/format.rs                         item, items    world.yaml's `items:` list and AuthoredItem
+worldpack/src/content.rs                        item, items    ITEM_FIELDS and ContentFile::item
+worldpack/src/error.rs                          item, items    Declared::Items, displayed `items`
+worldpack/src/read.rs                           item, items    the items map, its accessor, its reading
+                                                               and the per-file order
+worldpack/src/load.rs                           item, items    creating Item entities; the probe tests
+worldpack/src/lib.rs                            item, items    the layout diagram and the AuthoredItem
+                                                               re-export
+worldpack/tests/refusals.rs                     item, items    refusal fixtures for items/<key>.yaml
+worldpack/tests/content_kinds.rs                item, items    the loading fixture's items
+tools/cli/src/main.rs                           items          validate's `items` summary line
+tools/cli/tests/content_kinds.rs                item, items    the CLI fixture's items
+tests/acceptance/tests/precursor_vocabulary.rs  Any            this scan: its allow-list names the words
+                                                               it admits
+```
+
+Rules the implementing session follows: an entry is added in the commit that adds the lines it admits;
+a listed file that ends up not needing the word loses its entry (an unused entry fails); a file not
+listed that needs `item`/`items` for the same reason gets an entry of the same form, recorded as a
+bounded deviation; prose in comments uses another word where `item` would mean "entry of a list"
+(11a's E-A4b precedent); **any other market word is a material stop**. No file 11b adds has a market
+word in its path: fixtures are written at runtime.
+
+### 4.2.3 Test ownership for 11b
+
+```text
+STATIC      fmt, clippy -D warnings; exhaustive matches over ContentKind (a kind with no fields, no
+            directory or no entity type does not compile)
+UNIT        the scan's word-level admission (B-C2); genesis order of sections on the new kinds and
+            typed references, with a probe owner (B-C4); the section-namespace guard over every kind
+INTEGRATION refusals over real pack directories (B-C3); loading a fixture pack (B-C4); every existing
+            worldpack, CLI, persistence and server test unchanged (B-1)
+REAL RUN    validate and 10-day runs of a social-cafe copy with inert items and organizations, saved and
+            resumed (B-C5); the 300-day social-cafe comparison (B-1)
+GATE 1      NOT REQUIRED — no model
+GATE 2      the real runs above
+CI          none configured (S13); the full local gate once on the final head
+```
+
+### 4.2.4 Is any of this material?
+
+- The World Pack format extension (QS-5) and the reading of `Item` as a kind (QS-6) were approved at
+  S9's freeze; ARC-36 records them. No public contract in `contracts/` changes, and `kernel/` is untouched
+  (I-8).
+- **QS-15 is operator-material**: it would amend how ARC-35 point 7 finds a merged precursor. If it is
+  declined, nothing in 11b changes except B-C2's conditional item, and §12's fallback applies.
+- QS-16 (word-level admission) tightens an approved check and is recorded as an ARC-35 note; it is not
+  material, and is raised so the primary session sees it.
+- Nothing in 11b changes ownership: no state, no System Pack, no fact.
 
 ## 4.3 PR 11c — complete affordances (medium scope; detailed after 11a merges)
 
