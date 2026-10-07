@@ -1,7 +1,7 @@
 # `mineworld-worldpack`
 
-Reads a **World Pack** — a directory of YAML describing a world's places, people and capabilities —
-and loads the world it describes.
+Reads a **World Pack** — a directory of YAML describing a world's places, people, item kinds,
+organizations and capabilities — and loads the world it describes.
 
 ```rust
 let pack = WorldPack::read("worlds/social-cafe")?;   // validate, or say what is wrong and where
@@ -10,8 +10,9 @@ let loaded = pack.load(WorldTime::EPOCH)?;           // install, create, resolve
 
 Three things are worth knowing before reading the code:
 
-- **Authoring keys resolve to ids deterministically.** Places in key order, then people in key
-  order. That order reaches the event log, so it is a property of the pack and never of the run.
+- **Authoring keys resolve to ids deterministically.** Places, then people, then item kinds, then
+  organizations, each in key order ([`ARC-36`](../docs/DECISIONS.md)). That order reaches the event
+  log, so it is a property of the pack and never of the run.
 - **Initial state is a recorded fact, not a write.** Each authored position becomes a genesis event
   the owning system reduces, so *where did Alice's initial position come from* has an answer that
   survives a replay.
