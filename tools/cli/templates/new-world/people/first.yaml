@@ -1,0 +1,12 @@
+# The first person here.
+
+tags:
+  - resident
+
+note: Lives here.
+
+location:
+  place: home
+  position:
+    x: 1000
+    y: 1000

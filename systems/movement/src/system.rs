@@ -1,13 +1,15 @@
 //! The installable system: what it declares, and the four things a world asks of it.
 
 use mineworld_contracts::{
-    ActionIntent, EntityId, EntityType, Event, EventEnvelope, LifecycleState, Location, PersonId,
-    PlaceId, Rejection, RejectionCode, SystemId,
+    ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, LifecycleState,
+    Location, PersonId, PlaceId, Rejection, RejectionCode, SystemId,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
     WorldRead, WorldView,
 };
+use serde_json::Value;
+
 use mineworld_presence::{
     Arrived, Offer, PerceptionProvider, Presence, PresenceSystem, admit, arrival,
 };
@@ -174,6 +176,38 @@ impl PerceptionProvider for MovementSystem {
             return Vec::new();
         }
         vec![Offer::new::<Move>(move_offer_requirement())]
+    }
+
+    /// Discloses a place's [`Passages`] — where its doorways are — to whoever perceives the place.
+    ///
+    /// Perception asks only about entities the observation already lists, and it lists only the
+    /// observer's own place, so this tells a person the ways out of the room they stand in and of no
+    /// other. It states *where* a doorway is, never whether one may pass: that stays
+    /// [`MovementSystem::validate`]'s judgement, made when a `move` is asked (`ENGINEERING_RULES.md`
+    /// §8). A controller that cannot see the door cannot walk out of the room, which is why this
+    /// exists (step-08 §10.1 Q4). A person, and a place with no passages, disclose nothing — absence
+    /// rather than an empty record.
+    fn discloses(
+        &self,
+        world: &WorldRead<'_>,
+        _observer: EntityId,
+        subject: EntityId,
+    ) -> Vec<ComponentRecord<Value>> {
+        let is_place = world
+            .entity(subject)
+            .is_some_and(|entity| entity.entity_type() == EntityType::Place);
+        if !is_place {
+            return Vec::new();
+        }
+        world
+            .component::<Passages>(subject)
+            .map(|passages| {
+                vec![ComponentRecord::new::<Passages>(
+                    subject,
+                    codec::to_value(passages),
+                )]
+            })
+            .unwrap_or_default()
     }
 }
 

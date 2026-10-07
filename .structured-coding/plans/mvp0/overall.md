@@ -418,9 +418,9 @@ conversation system, perception, a server and two clients — and nothing from S
 ### Cross-cutting, delivered with the step that first needs them
 
 ```text
-tools/world-validator   with S7
-tools/replay            with S5
-tools/inspector         with S8
+tools/world-validator   with S7 — delivered as `mineworld validate` (S5V/05c); no separate tool
+tools/replay            with S5 — delivered as `mineworld replay` (S5)
+tools/inspector         with S8 — delivered early as `mineworld inspect` (S7, with the AC-9 check)
 tools/benchmark         with S13
 sdk/rust, sdk/python    with S10 (Python) and S9 (Rust pack authoring)
 ```
@@ -541,15 +541,30 @@ Done (main @ 41d4ab1, 311 tests):
        gates re-run (330 passed, 0 failed); one mutation run in review — disabling the ARC-26
        install check fails its targeted test, then reverted. The implementing session's own
        mutations showed the AC-2 removability test and the reporting-rule test both bite.
+  S7   headless demo: run, create, inspect                   PR 09 (GitHub #27), merged 4f4cb1d
+       The audit's key finding: a headless social-cafe did nothing (no system acts alone and
+       RuleController only answers), so a 300-day run would have been five reproducible,
+       meaningless facts. A seeded PacedRuleController takes initiative; an activity
+       precondition (every seat moved and talked in every 30-day bucket) is checked before
+       determinism. `mineworld run|create|inspect`; argument parsing on clap (DEP-11, the
+       trigger recorded in main.rs having been met). Movement discloses a place's passages,
+       verified through the real Godot module. F-13 closed for `run` by a stateless pace
+       window; still open for `--agent` (S10). Reviewed independently before merge: gates re-run
+       (350 passed, 0 failed), and the deliverable run by hand — two `run --seed 7 --days 60`
+       saves dump to byte-identical 55 MB fact tables, seed 8 differs, every seat moved ~2,000
+       and talked ~1,400 times per 30 days, and `inspect` resolved all 28,170 causes.
 
 Next, framework (critical path to Milestone B):
-  S7   headless demo: World Pack loading, rule controller, CLI   not started; detail against
-       main @ 6f61582. Much of S7's original scope landed early in S5V (pack loading, the
-       rule controller, `mineworld server`), so its re-audit must state what is actually left —
-       chiefly `mineworld run <world> --headless --seed --days` and AC-11/AC-12 over hundreds
-       of simulated days with real systems, not S4's test-only ones.
+  S8   Social Café system set                    not started; detail against main @ 4f4cb1d.
+       Milestone B ("Alice and Bob persist, know each other, share an activity, and survive a
+       restart with their history") is S8's to reach. `conversation` already exists (05a), so
+       the re-audit states what is left: relationships, schedule, group activity, the MVP
+       population, and a biography derived from the event log.
+       Follow-up, world data: social-cafe's people and café doorway were authored before the
+       3D slice existed and do not match its geometry (the slice follows reference `03`).
+       Re-author the pack's local positions to the slice's layout; S8 may fold this in.
 
-Remaining:  S8 ... S14, Milestones B-E
+Remaining:  S9 ... S14, Milestones B-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged

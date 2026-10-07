@@ -484,7 +484,64 @@ After `add-system university`, the world gains `University`, `Student`, `Profess
 implementing a university simulation. That leverage is the reason the pack system exists.
 
 The command surface above is the intended shape, not a frozen CLI contract; the CLI is
-specified in the PR that implements it.
+specified in the PR that implements it. `install` and `add-system` are not implemented in
+MVP-0; §8.1 is what exists.
+
+## 8.1 The `mineworld` command as implemented (MVP-0, S7)
+
+One binary, `mineworld`, built from `tools/cli`. Its arguments are parsed by `clap`
+([`DECISIONS.md`](DECISIONS.md) `DEP-11`). Every refusal is a message on stderr naming what was
+wrong and a non-zero exit status, never a panic.
+
+```text
+mineworld server <world> [--listen ADDRESS] [--agent SEAT]... [--save DIR]
+mineworld validate <world>
+mineworld replay <world> --save DIR
+mineworld run <world> --headless --seed N --days N [--save DIR]
+mineworld inspect <save-directory> [--last N]
+mineworld create <directory>
+```
+
+| Command | What it does |
+| --- | --- |
+| `server` | Hosts a World Pack for clients (`NETWORKING.md`). `--agent SEAT` drives that seat with the reactive rule controller in-process; `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. |
+| `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. |
+| `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
+| `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by a seeded paced rule controller (`ARC-27`). Described below. |
+| `inspect` | Reports what a save holds, without resuming or writing it. Described below. |
+| `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
+
+**`run`.** `--headless` is required: it states the only mode `run` has in MVP-0, and leaves a
+non-headless `run` possible later without changing what an existing invocation means. `--seed N`
+is an unsigned 64-bit integer; it is the controllers' seed and nothing else in a world consumes
+randomness. `--days N` (N ≥ 1) is the **age** the world is run to: until
+`genesis instant + N × 86 400` simulated seconds. A day is the command's unit, not the kernel's
+(`INV-12`). Without `--save` the world lives in memory. With `--save DIR`, a save that does not
+exist is created and one that exists is resumed and run on to the same age, so re-running a killed
+command completes the same world rather than appending a second run (`ARC-27`).
+
+`run` prints, in this order: one line naming the world and its seats; one `day` line per completed
+simulated day (`day D  revision R  facts F`; revision `-` without `--save`; F counts the facts
+this invocation recorded); a summary of consults, requests by action type and outcome, facts by
+event type, accepted `move` and `talk` per seat in each 30-day bucket, faults, and the history
+fingerprint, which always covers the world's whole history; and last, on its own line beginning `wall`, the elapsed real time. Everything
+before the `wall` line is a function of the pack, the seed, the age and the code. The fingerprint
+(`FNV-1a 64` over every fact's stored encoding in `EventId` order, printed with the number of facts
+it covers) is for a person comparing two runs by eye; it is not a proof of equality.
+
+**`inspect`.** Reads `DIR/world.sqlite` and prints the manifest (pack, instance, composition), the
+head revision and its instant, the journal counted by input kind and outcome, the facts counted by
+event type and by cause kind, the result of the causation check, and the last N facts
+(default 20) with their causes. The causation check (`MVP.md` §9 `AC-9`) requires every fact
+caused by an action to name an `ActionId` some journaled request carried, every fact caused by an
+event to name a fact with a smaller `EventId`, and world genesis to cause facts in revision 1
+only; facts caused by a process or a system tick are counted, since the log alone cannot resolve
+them. A failed check names the fact and exits non-zero.
+
+**`create`.** The directory's final component becomes the world's id and must be a valid key (the
+rule `EntityKey` enforces). The pack written has one place, two people who are both seats, and the
+systems `presence`, `movement` and `conversation`, and it is read and loaded before `create`
+reports success. An existing directory is refused and left untouched.
 
 ---
 

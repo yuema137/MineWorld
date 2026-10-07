@@ -5,7 +5,13 @@
 //!                                       load the pack and host it; with --save, persisted
 //! mineworld validate <world>            load it, say what it is, and stop
 //! mineworld replay <world> --save DIR   re-execute a save's whole history and check it
+//! mineworld run <world> --headless --seed N --days N [--save DIR]
+//!                                       run it headless, every seat a seeded rule (ARC-27)
+//! mineworld inspect <save> [--last N]   what a save holds; every fact's cause checked (AC-9)
+//! mineworld create <directory>          a new, minimal World Pack
 //! ```
+//!
+//! `docs/MODULE_SPEC.md` §8.1 specifies the command surface.
 //!
 //! `ARC-6` makes the artefacts the deliverable: MineWorld is *an installable world runtime plus
 //! developer tools plus reference clients*, and this is the tool a person actually types. One binary
@@ -13,9 +19,10 @@
 //! `--listen 0.0.0.0:7878` is how friends on a LAN reach it. There is no separate single-player mode
 //! to choose, because there is no separate single-player path to choose it with.
 //!
-//! `create` and `inspect` are S7's and are absent rather than stubbed: a command that exists and
-//! does nothing is worse than one that does not exist, because a person builds a habit on it.
-//! `validate` is here because it is [`WorldPack::read`] plus [`WorldPack::load`] with no new code.
+//! `install` and `add-system` (`MODULE_SPEC.md` §8's intended shape) are refused rather than
+//! stubbed: a command that exists and does nothing is worse than one that does not exist, because a
+//! person builds a habit on it. `validate` is [`WorldPack::read`] plus [`WorldPack::load`] with no
+//! new code.
 //!
 //! # This is the composition root, and it is the only one
 //!
@@ -32,20 +39,23 @@
 //! one-way rule inverted — and two binaries that both start a server would contradict
 //! `NETWORKING.md` §1 besides.
 //!
-//! # Why the arguments are parsed by hand
+//! # Arguments
 //!
-//! Two subcommands and one option. `clap` is the right answer the day `create` and `inspect` arrive
-//! with real option surfaces, and adopting it now would be a dependency decision made for a command
-//! line that does not exist yet (`REUSE_POLICY.md`: never adopt a dependency merely because it
-//! exists). Recorded so it is a decision rather than an omission.
+//! Parsed by `clap` (`docs/DECISIONS.md` `DEP-11`), in this file only: the derived [`Cli`] is turned
+//! into plain values before anything runs, so no other module names the parser. The command surface
+//! is specified in `docs/MODULE_SPEC.md` §8.1.
 
 mod agent;
+mod create;
+mod inspect;
 mod perceive;
+mod run;
 
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use clap::Parser;
 use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_persistence::{Creation, Durability, PersistentWorld, SqliteBackend, verify};
 use mineworld_presence::PerceptionProvider;
@@ -59,49 +69,127 @@ use crate::perceive::PackPerception;
 /// Where the server listens when nothing says otherwise: the local player's own machine.
 const DEFAULT_LISTEN: &str = "127.0.0.1:7878";
 
-/// What this command can do, as a person is told.
-const USAGE: &str = "\
-mineworld — run a MineWorld world
+/// `mineworld` — run a MineWorld world.
+#[derive(Debug, Parser)]
+#[command(name = "mineworld", about = "Run a MineWorld world", version)]
+struct Cli {
+    #[command(subcommand)]
+    command: Subcommand,
+}
 
-    mineworld server <world> [--listen ADDRESS] [--agent SEAT]... [--save DIR]
-        host a World Pack (default 127.0.0.1:7878)
-        --agent SEAT drives that seat with a rule controller, in this process, over the same
-        path a client's connection uses. Repeat it for more than one.
-        --save DIR keeps the world in DIR/world.sqlite: created from the pack the first time,
-        resumed — the same world, where it stopped — every time after.
+/// What this invocation was asked to do.
+#[derive(Debug, clap::Subcommand)]
+enum Subcommand {
+    /// Host a World Pack for clients.
+    Server {
+        /// The World Pack directory, such as worlds/social-cafe.
+        world: PathBuf,
+        /// Where to listen; 0.0.0.0:7878 lets friends on a LAN reach it.
+        #[arg(long, default_value = DEFAULT_LISTEN)]
+        listen: SocketAddr,
+        /// Drive that seat with a rule controller, in this process, over the same path a client's
+        /// connection uses. Repeat it for more than one.
+        #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
+        agents: Vec<EntityKey>,
+        /// Keep the world in DIR/world.sqlite: created from the pack the first time, resumed — the
+        /// same world, where it stopped — every time after.
+        #[arg(long, value_name = "DIR")]
+        save: Option<PathBuf>,
+    },
+    /// Check a World Pack and say what it is.
+    Validate {
+        /// The World Pack directory.
+        world: PathBuf,
+    },
+    /// Re-execute a saved world's whole history from its beginning and check that every fact and
+    /// every snapshot reproduces, byte for byte.
+    Replay {
+        /// The World Pack the save was created from.
+        world: PathBuf,
+        /// The save to check.
+        #[arg(long, value_name = "DIR")]
+        save: PathBuf,
+    },
+    /// Write a new, minimal World Pack into a directory that does not exist yet; its name becomes
+    /// the world's id.
+    Create {
+        /// The directory to create, such as worlds/my-town.
+        directory: PathBuf,
+    },
+    /// Not in MVP-0 (MODULE_SPEC §8: the intended shape, not implemented).
+    #[command(hide = true)]
+    Install {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        rest: Vec<String>,
+    },
+    /// Not in MVP-0 (MODULE_SPEC §8: the intended shape, not implemented).
+    #[command(hide = true, name = "add-system")]
+    AddSystem {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        rest: Vec<String>,
+    },
+    /// Say what a save holds, and check that every fact in it has a cause — without resuming or
+    /// writing it.
+    Inspect {
+        /// The save directory (the one given to --save).
+        save: PathBuf,
+        /// How many of the newest facts to list.
+        #[arg(long, default_value_t = 20)]
+        last: usize,
+    },
+    /// Run a World Pack headless — no renderer, no network, no model — every seat driven by a
+    /// seeded rule, and print what happened.
+    Run {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// Required: the only mode `run` has (MODULE_SPEC §8.1).
+        #[arg(long, required = true)]
+        headless: bool,
+        /// The controllers' seed. The same seed reproduces the run exactly.
+        #[arg(long)]
+        seed: u64,
+        /// The age to run the world to, in simulated days since its genesis.
+        #[arg(long, value_parser = clap::value_parser!(u64).range(1..))]
+        days: u64,
+        /// Keep the world in DIR/world.sqlite; an existing save is resumed and run on to the same
+        /// age, so re-running a killed command finishes the same world.
+        #[arg(long, value_name = "DIR")]
+        save: Option<PathBuf>,
+    },
+}
 
-    mineworld validate <world>
-        check a World Pack and say what it is
-
-    mineworld replay <world> --save DIR
-        re-execute the saved world's whole history from its beginning and check that every
-        fact and every snapshot reproduces, byte for byte
-
-`mineworld create` and `mineworld inspect` do not exist yet (they are S7).";
+/// A seat name on the command line, checked as the key it must be.
+fn seat(text: &str) -> Result<EntityKey, String> {
+    EntityKey::new(text).map_err(|error| format!("'{text}' is not a seat name: {error}"))
+}
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    let command = match Command::from_arguments(std::env::args().skip(1)) {
-        Ok(command) => command,
-        Err(complaint) => {
-            eprintln!("{complaint}");
-            return ExitCode::FAILURE;
-        }
-    };
-
-    let outcome = match command {
-        Command::Help => {
-            println!("{USAGE}");
-            return ExitCode::SUCCESS;
-        }
-        Command::Validate { world } => validate(&world),
-        Command::Replay { world, save } => replay(&world, &save),
-        Command::Server {
+    let outcome = match Cli::parse().command {
+        Subcommand::Validate { world } => validate(&world),
+        Subcommand::Replay { world, save } => replay(&world, &save),
+        Subcommand::Server {
             world,
             listen,
             agents,
             save,
         } => serve(world, listen, agents, save).await,
+        Subcommand::Create { directory } => create::create(&directory),
+        Subcommand::Install { .. } => not_yet("install"),
+        Subcommand::AddSystem { .. } => not_yet("add-system"),
+        Subcommand::Inspect { save, last } => inspect::inspect(&save, last),
+        Subcommand::Run {
+            world,
+            headless: _,
+            seed,
+            days,
+            save,
+        } => run::run(&run::RunRequest {
+            world,
+            seed,
+            days,
+            save,
+        }),
     };
 
     match outcome {
@@ -113,121 +201,15 @@ async fn main() -> ExitCode {
     }
 }
 
-/// What this invocation was asked to do.
-enum Command {
-    /// Host a world, and optionally drive some of its seats with a controller.
-    Server {
-        world: PathBuf,
-        listen: SocketAddr,
-        agents: Vec<EntityKey>,
-        save: Option<PathBuf>,
-    },
-    /// Check a world and report it.
-    Validate { world: PathBuf },
-    /// Re-execute a save's history and check it.
-    Replay { world: PathBuf, save: PathBuf },
-    /// Say what the command can do.
-    Help,
-}
-
-impl Command {
-    /// Reads the arguments, or explains what is wrong with them.
-    ///
-    /// Every complaint names the offending argument and then points at `--help`, because a command
-    /// line is the first thing a person meets and *usage: ...* is not an explanation.
-    fn from_arguments(arguments: impl IntoIterator<Item = String>) -> Result<Self, String> {
-        let mut arguments = arguments.into_iter();
-        let Some(subcommand) = arguments.next() else {
-            return Err(format!("mineworld needs a command.\n\n{USAGE}"));
-        };
-        if subcommand == "--help" || subcommand == "-h" || subcommand == "help" {
-            return Ok(Self::Help);
-        }
-
-        match subcommand.as_str() {
-            "server" => {
-                let world = world_argument(&subcommand, arguments.next())?;
-                let mut listen = DEFAULT_LISTEN.to_owned();
-                let mut agents = Vec::new();
-                let mut save = None;
-                while let Some(argument) = arguments.next() {
-                    match argument.as_str() {
-                        "--save" => save = Some(save_argument(arguments.next())?),
-                        "--listen" => {
-                            listen = arguments.next().ok_or_else(|| {
-                                "--listen needs an address, such as 0.0.0.0:7878".to_owned()
-                            })?;
-                        }
-                        "--agent" => {
-                            let seat = arguments.next().ok_or_else(|| {
-                                "--agent needs a seat, such as --agent alice".to_owned()
-                            })?;
-                            agents.push(EntityKey::new(&seat).map_err(|error| {
-                                format!("--agent {seat} is not a seat name: {error}")
-                            })?);
-                        }
-                        other => return Err(unexpected(other)),
-                    }
-                }
-                let listen = listen
-                    .parse()
-                    .map_err(|error| format!("--listen {listen} is not an address: {error}"))?;
-                Ok(Self::Server {
-                    world,
-                    listen,
-                    agents,
-                    save,
-                })
-            }
-            "replay" => {
-                let world = world_argument(&subcommand, arguments.next())?;
-                let mut save = None;
-                while let Some(argument) = arguments.next() {
-                    match argument.as_str() {
-                        "--save" => save = Some(save_argument(arguments.next())?),
-                        other => return Err(unexpected(other)),
-                    }
-                }
-                let save = save.ok_or_else(|| {
-                    "mineworld replay needs --save DIR, the save to check".to_owned()
-                })?;
-                Ok(Self::Replay { world, save })
-            }
-            "validate" => {
-                let world = world_argument(&subcommand, arguments.next())?;
-                if let Some(extra) = arguments.next() {
-                    return Err(unexpected(&extra));
-                }
-                Ok(Self::Validate { world })
-            }
-            "create" | "inspect" | "run" => Err(format!(
-                "mineworld {subcommand} does not exist yet — it is S7's.\n\n{USAGE}"
-            )),
-            other => Err(format!("mineworld has no command '{other}'.\n\n{USAGE}")),
-        }
-    }
-}
-
-fn world_argument(subcommand: &str, argument: Option<String>) -> Result<PathBuf, String> {
-    argument
-        .filter(|world| !world.starts_with('-'))
-        .map(PathBuf::from)
-        .ok_or_else(|| {
-            format!(
-                "mineworld {subcommand} needs a World Pack directory, such as worlds/social-cafe"
-            )
-        })
-}
-
-fn save_argument(argument: Option<String>) -> Result<PathBuf, String> {
-    argument
-        .filter(|directory| !directory.starts_with('-'))
-        .map(PathBuf::from)
-        .ok_or_else(|| "--save needs a directory, such as --save saves/social-cafe".to_owned())
-}
-
-fn unexpected(argument: &str) -> String {
-    format!("unexpected argument '{argument}'.\n\n{USAGE}")
+/// A command `MODULE_SPEC.md` §8 describes as intended and MVP-0 does not implement, refused rather
+/// than stubbed: a command that exists and does nothing is worse than one that does not, because a
+/// person builds a habit on it.
+fn not_yet(command: &str) -> Result<(), String> {
+    Err(format!(
+        "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
+         and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
+         mineworld replay, mineworld run, mineworld inspect, mineworld create (see mineworld --help)."
+    ))
 }
 
 /// Checks a pack and says what world it describes.

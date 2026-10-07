@@ -1,0 +1,9 @@
+# Home — the one place this world starts with.
+#
+# Positions in `people/` are millimetres from this place's own origin. A second place, and a
+# doorway joining the two (`passages:`), are described in `docs/MODULE_SPEC.md` §4.1.
+
+tags:
+  - home
+
+note: Where everybody in this world begins.
