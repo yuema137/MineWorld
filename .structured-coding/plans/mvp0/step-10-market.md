@@ -2693,14 +2693,18 @@ tests/{eat.rs, removable.rs, paced.rs, support/mod.rs}}`. `mineworld-inventory`,
 
 ### E-C7 — `worlds/market-town`
 
-- [ ] Implementation: SD-26, SD-27. Starting sizes from §9 E-6 run 2 (people 200 000 minor units, the two
-  job holders 20 000; café 20 000 and store 300 000; alice 120/h, felix 200/h; per shift café coffee 4,
-  tea 2, croissant 3, cake 2, sandwich 2, soup 2, store apple 4, bread 2, milk 2, juice 2; prices café
-  250–600, store 100–300; opening stock as E-6). Each block commented for a human author.
-- [ ] Validation: E-9 a–d with the scratch reader on a local scratch branch (deleted after), E-10; M-E9.
-  If b fails, re-size and re-measure against the same conditions (at most three 300-day runs, §16).
-- [ ] Review: no place file or existing line changed; every authored person within capacity; every
-  key resolves.
+- [x] Implementation: SD-26, SD-27 at those starting sizes (they are §9 E-6 run 3's, which the text
+  above calls run 2's starting values plus run 3's two changes): people 200 000, alice and felix
+  20 000; café 20 000, store 300 000; alice 120/h at the café 05:30–14:00, felix 200/h at the store
+  08:00–13:00; per shift café coffee 4, tea 2, croissant 3, cake 2, sandwich 2, soup 2, store apple 4,
+  bread 2, milk 2, juice 2; prices café 250–600, store 100–300; opening stock café 58, store 50. Files:
+  `worlds/market-town/{world.yaml, organizations/{cafe-company,corner-store}.yaml, people/*.yaml}`,
+  every block commented. Content commit 1611c1a.
+- [x] Validation: E-9 a, then b (one 300-day sizing run; it passed, so nothing was re-sized), then c,
+  then d; E-10; M-E9 — all in §9.5 E-E7. 300-day market-town runs used: 2 of 4 (E-9, M-E9).
+- [x] Review: no place file or existing line changed (E-10's removals are 11d's README and id/name
+  only); every authored person within capacity (max 3); every key resolves (validate). The world.yaml
+  header paragraph above Social Café's header is market-town's own (11d's), rewritten for 11e.
 
 ### E-C8 — Close: status, change set, full gates, ledger
 
@@ -3879,6 +3883,54 @@ E-E6 E-C6 install: `cargo test --no-fail-fast -p mineworld-installed-systems -p 
      mineworld-installed-systems' dependencies). I-4 on this working tree (debug, opt-level 1):
      300-day seed-7 social-cafe sha-256 of all but `wall` = ad49c723…c64b = E-0; wall 12.3 s.
      `validate worlds/social-cafe` byte-identical to E-E0's (cmp).
+E-E7 E-C7 market-town, content commit 1611c1a (the spike's run-3 sizing, unchanged), on c2d9b8f's
+     build (debug, opt-level 1), 2026-10-07. The scratch reader lived on local branch
+     scratch/11e-reader (systems/employment/tests/scratch_reader.rs, decoding JSON payloads; commits
+     fe882e1, 5feffc1, 8b9633d), never pushed, deleted after (`git branch -D`; `git ls-remote --heads
+     origin | grep -c scratch` → 0). Logs in /tmp/s9-11e/. In the order I-7 binds:
+     a. `mineworld validate worlds/market-town` → valid; ids 1–38 exactly 11d's (places 1–6, people
+        7–18, kinds 19–38), cafe-company 39, corner-store 40; 129 genesis facts = 101 + 10 stocked
+        (organizations) + 14 funded + 2 shop-opened + 2 hired. → PASS.
+     b. ACTIVITY FIRST. Sizing run 1 — the only sizing run; it passed, so no re-sizing — `run
+        worlds/market-town --headless --seed 7 --days 300 --save /tmp/s9-11e/mt300-run1` → exit 0,
+        faults 0, 372 755 facts; requests: buy accepted 2 710, eat 1 710, drink 1 007, give 13 032, move
+        173 113, talk 60 524, no rejected or unavailable line. Every seat moved and talked in every
+        30-day bucket (minima: move 1 395, talk 388 per seat-bucket). Reader, every condition stated in
+        §4.5.3 E-9 b before measuring:
+          purchases per bucket   349, 256, 276, 265, 250, 271, 247, 264, 258, 274        (≥ 1 ✓)
+          wages paid alice/felix [30,29] [30,29] [30,30] [30,30] [30,28] [30,29] [30,28] [30,28]
+                                 [30,29] [30,30]                                       (each ≥ 1 ✓)
+          items-produced facts   203, 197, 194, 195, 194, 195, 198, 196, 200, 197       (≥ 1 ✓)
+          items-consumed facts   358, 256, 275, 265, 251, 270, 251, 262, 258, 271       (≥ 1 ✓)
+          gives                  1 382, 1 317, 1 293, 1 316, 1 253, 1 274, 1 262, 1 349, 1 290, 1 296
+                                 (≥ 1 ✓; per seat reported, not required: every seat gave in every
+                                 bucket, fewest 77)
+          wage-due 590, wage-unpaid 0                                                   (✓)
+          lowest wallet ever     felix 2 313, alice 16 710, café 20 000 (its opening balance), store
+                                 246 190, every other person ≥ 95 150 — all ≥ 100, the cheapest price
+                                 (✓; Otto and dev never spend: 200 000)
+          money                  2 360 000 at genesis and at the end                     (✓)
+          most anybody held      6, all twelve people                                   (✓)
+        At the end the café holds 170 items and 670 100; the store holds 0 items (it sells each
+        morning's production the same day) and 246 290. → PASS. These numbers equal the spike's run 3
+        (§9 E-6) exactly: the same content on the same packs' semantics.
+     c. ONLY THEN DETERMINISM. Two 30-day seed-7 runs: identical but `wall` (diff empty; sha-256 of all
+        but wall cf859e57…24ed; 38 004 facts, faults 0). A save run to day 15 (19 175 facts) then
+        resumed to day 30 ("resumed … at revision 14500 (snapshot 14464 + 36 re-executed)") vs the
+        uninterrupted 30-day save: both 38 004 facts, fingerprint f4055c0cff59c9fe; every fact dumped
+        from each save (scratch `dump`) byte-identical (cmp; sha-256 a5a50bf6…16e4). → PASS.
+     d. COST. The 300-day run with --save: wall 33.5 s (≤ 60 s). → PASS.
+     M-E9 (scratch commit: `consumption` removed from world.yaml's systems): 300 days with --save, exit
+       0, faults 0, wall 35.2 s, buy accepted 42, give accepted 253; reader FAILED: purchases 42 in
+       bucket 0 and none after; gives 253 then none (everybody holds six: the 11d sink, everywhere);
+       consumed 0; alice paid 30 then 13 then never — wage-unpaid 257 (the café's wallet fell to 30);
+       "holder 39 fell to 30". QS-35's failure, seen by the instrument. Scratch branch deleted.
+     E-10: `git diff --no-index worlds/social-cafe worlds/market-town` → 36 files, 293+ 49−; the
+       removals are README.md (rewritten in 11d) and world.yaml's id/name only. Beyond 11d's delta:
+       world.yaml's header paragraph, the three appended systems with their comment, the
+       `organizations:` list; organizations/cafe-company.yaml and corner-store.yaml; per person file an
+       appended commented `economy:` block, and `job:` for alice and felix. No place file differs. →
+       PASS.
 ```
 
 ---
