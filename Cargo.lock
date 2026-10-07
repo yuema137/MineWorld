@@ -658,6 +658,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde_json",
  "thiserror",
@@ -672,6 +673,7 @@ dependencies = [
  "mineworld-movement",
  "mineworld-persistence",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde_json",
  "thiserror",
@@ -697,6 +699,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-persistence",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde_json",
 ]
@@ -709,6 +712,7 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -734,6 +738,7 @@ version = "0.0.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
+ "mineworld-sdk",
  "serde",
  "serde_json",
 ]
@@ -748,6 +753,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde_json",
 ]
@@ -776,6 +782,7 @@ dependencies = [
  "mineworld-movement",
  "mineworld-persistence",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde-saphyr",
  "serde_json",

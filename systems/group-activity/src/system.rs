@@ -9,6 +9,7 @@ use mineworld_kernel::{
     SystemIdentity, SystemVersion, WorldRead, WorldView,
 };
 use mineworld_presence::{PersonEnteredPlace, Presence, PresenceSystem};
+use mineworld_sdk::SystemPack;
 
 use crate::action::{
     AcceptInvitation, DeclineInvitation, Invite, JoinGroupActivity, LeaveGroupActivity,
@@ -26,10 +27,17 @@ use crate::process::{ACTIVITY_LENGTH, ActivityState, GroupActivity};
 /// Doing things together.
 ///
 /// A unit struct: its state is the components and processes it owns, held in the world (`INV-7`).
+#[derive(Default)]
 pub struct GroupActivitySystem;
 
 impl SystemIdentity for GroupActivitySystem {
     const ID: SystemId = SystemId::from_static("group-activity");
+}
+
+/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): its
+/// biographical facts. It owns no authored section.
+impl SystemPack for GroupActivitySystem {
+    const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
 }
 
 /// Which of this pack's facts belong in a person's objective biography (`ARC-29`): beginning,

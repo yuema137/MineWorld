@@ -8,6 +8,7 @@ use mineworld_kernel::{
     SystemIdentity, SystemVersion, WorldRead, WorldView,
 };
 use mineworld_presence::PerceptionProvider;
+use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
 use crate::codec;
@@ -22,10 +23,19 @@ use crate::segment::Segments;
 pub const BIOGRAPHICAL: &[EventTypeId] = &[AgendaChanged::EVENT_TYPE];
 
 /// A person's day: a routine, and the agenda in force.
+#[derive(Default)]
 pub struct ScheduleSystem;
 
 impl SystemIdentity for ScheduleSystem {
     const ID: SystemId = SystemId::from_static("schedule");
+}
+
+/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): its
+/// biographical facts, and the `routine:` section of a person's file, which its
+/// `AuthoredSection` impl (`src/section.rs`) describes.
+impl SystemPack for ScheduleSystem {
+    const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
+    mineworld_sdk::owns_section!();
 }
 
 impl System for ScheduleSystem {

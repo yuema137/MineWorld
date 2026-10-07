@@ -834,11 +834,21 @@ obvious; the choice is recorded.
 **Depends on:** C2. **Non-goals:** no behaviour change in any pack; `worldpack` still uses its own
 enum, so nothing reads these impls yet.
 
-- [ ] Implementation: seven impls, seven manifests.
-- [ ] Validation: `cargo test -p` each of the seven packs (unchanged suites, unchanged counts —
-  recorded); clippy on each.
-- [ ] Review: `BIOGRAPHICAL` and the section are each stated once per pack, and agree with today's
-  catalog arms (`catalog.rs:126–176`) — read side by side, the comparison recorded in §9 E-A3.
+- [x] Implementation: seven impls, seven manifests. Every impl sits in `systems/<pack>/src/system.rs`,
+  directly after `impl SystemIdentity` (recorded choice: one place per pack, beside the identity it
+  extends and the `BIOGRAPHICAL` constant it names; the two section owners' `owns_section!()` reads its
+  key from the `AuthoredSection` impl in `section.rs`, so nothing is stated twice). Each struct gains
+  `#[derive(Default)]` (none derived anything before). Each manifest gains `mineworld-sdk`.
+- [x] Validation: clippy `-D warnings` over the seven packs, all targets: clean. `cargo test -p` each:
+  presence 13, movement 11, conversation 14, group-activity 11, relationships 6, naming 5, schedule 8
+  (68 passed, 0 failed). Counts unchanged by construction: the C3 diff adds and removes no `#[test]`
+  (`git diff -U0 -- systems | grep -c '#\[test\]'` → 0). `owns_section!` compiles in naming and
+  schedule, the macro's first real use.
+- [x] Review: side by side with `catalog.rs:120–131` (`section`) and `:169–177` (`biographical`):
+  presence, movement, conversation → `&[]` and no section (trait defaults); group-activity,
+  relationships → their `BIOGRAPHICAL`, no section; naming, schedule → their `BIOGRAPHICAL` and
+  `SectionOwner::of::<Self>()`. Identical to the arms (§9 E-A3). No behaviour changed in any pack:
+  the impls are read by nothing until C4.
 
 ### C4 — The installed set; `worldpack` names no pack it does not read; the root manifest stops registering
 
