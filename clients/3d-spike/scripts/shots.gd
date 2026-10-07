@@ -391,6 +391,8 @@ func _sweep() -> void:
 			player.scripted_look = true
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 			player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+			# a third-person mode, or the body is hidden (first person shows none)
+			player.set_camera(CameraRig.Mode.THIRD_REAR)
 			if gait == "jog":
 				Input.action_press("jog")
 			Input.action_press("move_forward")
