@@ -2352,3 +2352,97 @@ and could not for any linked pack (`ARC-33`). The criterion is read as `MVP.md` 
 - The measurement depends on two merge commits being identified by id, which exist only after they
   merge. The proof (PR 11f) records them.
 - Documentation inside the range is admitted by path and extension, not by content.
+
+**Note, 2026-10-07 (S9, PR 11b; step-10 QS-16, F-31).** Item 7's allow-list admits **words, not
+lines**. This tightens the check and loosens nothing:
+
+1. Each entry names a file, a line substring, the exact lowercase words it admits, and a reason. Every
+   market word on an added line is found, not only the first. Each one is refused unless an entry for
+   that precursor and that file, whose substring the line contains, admits that exact word. A refusal
+   names the word.
+2. Before this note, an entry admitted every match on the lines it covered. A line such as
+   `item_price`, admitted for the defined term `item`, would then have hidden `price`. Now the same
+   line is refused, naming `price`. A word that merely begins with an admitted one is refused as
+   itself: `itemprice` is not `item`.
+3. An entry may admit **any** word only for the scan's own file, which must name the vocabulary it
+   looks for. The test fails, naming any other entry that admits any word.
+4. The other rules of item 7 are unchanged:
+   - the vocabulary;
+   - what is scanned (every non-Markdown added line and added path);
+   - how a precursor's range is found;
+   - failing closed;
+   - an entry with an empty reason fails, and so does an entry that admits nothing.
+
+Item 7's first-parent detection of a merged precursor is unchanged as well. Step-10 QS-15 proposed
+reading every merge reachable from `HEAD`, and the primary session declined it. PRs 11b and 11c are
+merged one at a time instead. The second to merge rebases onto the new `main` and moves its own row's
+base to that commit (step-10 §12.0).
+
+---
+
+## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack
+
+**Date** 2026-10-07 · **Approved by** the operator at S9's design freeze (step-10 QS-5, QS-6) ·
+**Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1, [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §8 ·
+**Relates to** [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §§7–8, `ARC-15`, `ARC-31`, `ARC-35` · **Design**
+`.structured-coding/plans/mvp0/step-10-market.md` §2.4, SD-7, SD-8, §4.2 (S9, PR 11b)
+
+**Problem.** `CORE_CONCEPTS.md` defines four kinds of entity that a world is authored with: `Person`,
+`Place`, `Item` and `Organization`. `MODULE_SPEC.md` §4's frozen World Pack layout already lists
+`items/` and `organizations/`, and the contracts already have `EntityType::Item` and
+`EntityType::Organization`. But the MVP-0 loader read only `places` and `population`, so no World Pack
+could declare an Item or an Organization. A System Pack therefore could not own state on one the way
+`naming` and `schedule` own state on a person (`ARC-31`).
+
+There are three ways to give a world such entities:
+
+```text
+(a) a System Pack creates them at genesis      no system can create an entity: the view a system is
+                                               handed has no create, and adding one is a kernel change
+(b) no entities: kinds as slugs inside some    a kind would have no identity and no tags, and nothing
+    pack's state, organizations as tags        for several packs to share; an Organization is a core
+    on places                                  primitive (CORE_CONCEPTS §8), not a tag
+(c) complete §4's frozen layout                chosen
+```
+
+**Choice: (c).**
+
+1. **Two content kinds.** `world.yaml` gains `items:` and `organizations:`. Each key names a file,
+   `items/<key>.yaml` or `organizations/<key>.yaml`, which may carry `tags`, `note` and sections. Both
+   lists are optional, and a World Pack that declares neither is read exactly as before.
+2. **An authored Item is a kind.** `CORE_CONCEPTS.md` §7 separates a type from an instance and allows
+   "unique items, stacked items, or abstract resources". MVP-0 implements **stacked items only**. An
+   Item entity declared in `items/lantern.yaml` *is* the kind `lantern`, and a quantity held of it is a
+   count of that kind, kept by whichever System Pack owns holdings. This reads the defined term one
+   of the two ways the ontology permits. It does not redefine it (`CLAUDE.md` §2.1(3)).
+3. **Instances are out of MVP-0.** A unique instance, with its own owner, place or condition, would be
+   an Item entity created while the world runs, by the pack that owns it. No system may create an
+   entity (option (a)), so instances need a kernel decision of their own.
+4. **Identities are allocated after people.** The order is places, then people, then items, then
+   organizations, each in key order. Every identity a world had before it declared items or
+   organizations stays where it was, and so does every event id of its genesis.
+5. **Keys are one namespace across the four lists.** A key declared in two lists is refused, naming
+   both. A section names another entity by key together with the kind it requires, so one key must
+   never mean two entities.
+6. **Item and organization files may carry sections.** This extends `ARC-31`'s person-or-place wording
+   unchanged in every other respect:
+   - the owner declares which kinds may carry its section;
+   - the loader decodes the section with the owner's type;
+   - a reference must name a declared key of the required kind, and that now includes items and
+     organizations.
+7. **Genesis order.** Passages and locations are seeded first, unchanged. Then sections are seeded:
+   items', organizations', places', people's, each in key order, and within one file in composition
+   order. What people's and places' sections are likely to refer to (a kind, an organization) is
+   therefore seeded before them. The worlds that existed before this decision declare neither kind,
+   so their genesis is unchanged.
+
+**Accepted limitations.**
+
+- There are no item instances (item 3).
+- Items and organizations have no display names. `naming` carries people only, and a place has none
+  either (`ARC-31`).
+- No installed System Pack owns a section on an item or organization file yet. The first owners
+  arrive with the packs that need them (step-10 PR 11d). Until then, the order and reference rules of
+  items 5–7 are proven with a section owner that exists only in the loader's own tests.
+- Organization membership, roles and accounts (`CORE_CONCEPTS.md` §8) are not authored fields. They
+  are the state of whichever System Pack owns them, carried as its section.

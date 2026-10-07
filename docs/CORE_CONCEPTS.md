@@ -405,6 +405,9 @@ Not every world needs individual instances. A system may support unique items, s
 or abstract resources. This is what prevents a world from being forced to instantiate millions
 of forks, plates, and coins.
 
+In MVP-0, an Item authored in a World Pack is an item kind, and what anybody holds of it is a count
+of that kind: stacked items only ([`DECISIONS.md`](DECISIONS.md) `ARC-36`).
+
 ---
 
 # 8. Organization

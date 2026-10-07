@@ -1201,13 +1201,22 @@ relies on them (`CLAUDE.md` §2.2, B-7).
 
 **Depends on:** freeze. **Non-goals:** no code.
 
-- [ ] Implementation: as scoped. Before writing, `git fetch` and confirm ARC-36 is still free on every
-  `origin/*` branch (11c holds ARC-34).
-- [ ] Validation: `python3 scripts/check_decision_ids.py`, `python3 scripts/check_doc_headings.py`;
-  grep that every section number cited (`§4.1`, `§7`, `§8`) still resolves.
-- [ ] Review: ARC-36 answers what an Item is in MVP-0 without redefining the term (`CLAUDE.md` §2.1(3));
-  MODULE_SPEC §4.1's six rules still read as six; the ARC-35 note only tightens point 7 (QS-16) and, if
-  present, states QS-15's approval as its source.
+- [x] Implementation: as scoped. `git fetch` on 2026-10-07: no `origin/*` branch holds `ARC-36`
+  (`git grep -l ARC-36 <branch> -- docs/DECISIONS.md` empty for every branch). ARC-36 appended after
+  ARC-35; the ARC-35 note sits directly under ARC-35 (11c inserts ARC-34 *before* `## ARC-35`, so the
+  hunks stay distinct). QS-15 was declined (§12.0), so the note records that the first-parent detection
+  is unchanged and names §12.0's one-at-a-time rule instead of an amendment. MODULE_SPEC §4.1: example
+  `items:`/`organizations:` lists, the item/organization file block, the sections sentence and the
+  "which content files" bullet; rules 1 and 2 and the genesis paragraph as scoped. PACKAGE_FORMAT §8's
+  row names `items`, `organizations`, the four content directories and four carrying kinds.
+  CORE_CONCEPTS §7: one pointer sentence. Handoff `handoff-11b.md` initialized.
+- [x] Validation: E-B1 — `check_decision_ids` 46 ids distinct; `check_doc_headings` 143 sections, none
+  duplicated; `MODULE_SPEC.md:265 ## 4.1`, `CORE_CONCEPTS.md:389 # 7. Item`, `PACKAGE_FORMAT.md:286
+  # 8.` resolve.
+- [x] Review: ARC-36 reads `Item` as one of the two forms CORE_CONCEPTS §7 permits (stacked) and says
+  so, no new term; MODULE_SPEC §4.1 still has six numbered rules (1 and 2 extended in place); the
+  ARC-35 note only tightens point 7 and states QS-15 as declined with §12.0 as the source. Prose in the
+  docs is not scanned (Markdown), so market words there are not an I-2 concern.
 
 **Acceptance.** As validation. **Commit boundary.** Documentation only.
 
@@ -2192,7 +2201,10 @@ two sessions writing at once never append to the same block (§12).
 Written by the 11b implementation session only (`E-B<n>`).
 
 ```text
-(none yet)
+--- PR 11b (branch mvp0/pr-11b-content-kinds, base main @ da31613) ---
+
+E-B1 B-C1 (docs): check_decision_ids 46 ids distinct (ARC-36 new); check_doc_headings 143 sections /
+     22 documents, none duplicated. ARC-36 free on every origin/* branch after git fetch.
 ```
 
 ## 9.3 Evidence — PR 11c
