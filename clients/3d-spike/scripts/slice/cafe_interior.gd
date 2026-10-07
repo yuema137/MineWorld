@@ -304,8 +304,14 @@ static func _counter(n: Node3D, x0: float, x1: float, z_back: float, fy: float) 
 	_pastry_case(n, cx0 + 0.95, top_y, front - 0.06)
 
 	# the machine, the grinder and the till: the three objects a viewer looks
-	# for behind a counter, in the order they look for them
-	_espresso_machine(n, cx0 + 2.45, top_y, COUNTER_Z - 0.06)
+	# for behind a counter, in the order they look for them. The machine and
+	# grinder stand on the back worktop (below), not on this counter: at
+	# cx0 + 2.45 their tops were 1.96 m, above a customer's eye, squarely
+	# between the counter and where the world stands the barista (6.0 m along,
+	# 8.0 m in -- `worlds/social-cafe/people/alice.yaml`), so the person you
+	# talk to was hidden from the one place talking is accepted (operator,
+	# 2026-10-07). The counter in front of her is kept clear of anything taller
+	# than the till.
 	# Authored, not Poly Haven's CashRegister_01: that model's atlas reproduces a
 	# Bank of Canada banknote, which Poly Haven's CC0 cannot relicense (ASSETS.md).
 	_till(n, cx1 - 0.52, top_y, COUNTER_Z - 0.02)
@@ -332,7 +338,9 @@ static func _counter(n: Node3D, x0: float, x1: float, z_back: float, fy: float) 
 		SlicePalette.counter_top())
 	_cup(n, cx0 + 1.10, fy + 0.95, bz, 0.4)
 	_cup(n, cx0 + 1.52, fy + 0.95, bz + 0.04, -0.5)
-	SliceProps.put(n, "pot_enamel_01", Vector3(cx0 + 2.30, fy + 0.95, bz), -0.6)
+	SliceProps.put(n, "pot_enamel_01", Vector3(cx0 + 1.95, fy + 0.95, bz), -0.6)
+	# behind the barista, facing the room: in view over her shoulder
+	_espresso_machine(n, cx0 + 2.75, fy + 0.925, bz + 0.02)
 	SliceProps.put(n, "brass_pot_01", Vector3(cx1 - 0.60, fy + 0.95, bz), 0.9)
 
 
