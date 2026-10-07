@@ -610,7 +610,7 @@ town.
 - [x] `worlds/social-cafe/README.md` (the town, the seats, the café's provenance), `docs/MVP_STATUS.md`
   (Place row, `worlds/social-cafe` artefact row, S8 stage row, the AC-11 evidence row, and a new
   counter evidence row). The handoff is refreshed.
-- [ ] Full gates once on the final executable head (§6).
+- [x] Full gates once on the final executable head (§6) — `03a4df3`, §9 E-final.
 - [x] Review: the README links to MODULE_SPEC §4, `docs/MVP.md` §9, `server/PROTOCOL.md` §6.2 and this
   design. It states no rule; distances and ranges stay with the systems. MVP_STATUS marks ✅ only
   what was run and inspected in E-1 to E-3.
@@ -958,6 +958,28 @@ E-3  C3 doors, pace, stride, 2026-10-07, on aacfa16 + working tree (committed as
        4.7 min (run + run_restart + inspect), inside "a few minutes"; recorded here, not hidden.
      PROCEDURAL: a later diagnostic command included a no-op `awk 'BEGIN{}' /dev/null`, also outside the
        brief's allowed tools; it read and wrote nothing. Reported with E-1's `sed -i`.
+E-final  Gates on 03a4df3 (the final executable head; later commits are planning documents only),
+     clean tree, 2026-10-07, debug profile, this machine:
+       cargo fmt --all --check                                         PASS
+       cargo check --workspace --all-targets                           PASS
+       cargo clippy --workspace --all-targets --all-features -D warnings   PASS
+       cargo test --workspace --no-fail-fast                           PASS — exit 0; 60 test binaries,
+                                                                       every one "ok"; 353 passed, 0
+                                                                       failed (350 before + 3 new:
+                                                                       a_person_at_the_counter_can_talk_
+                                                                       to_alice, every_place_is_at_most_
+                                                                       two_doors_from_any_other, on_a_
+                                                                       street_of_five_doors…); 315.6 s
+       cargo test -p mineworld-persistence --test kill_and_resume      PASS — custom harness, exit 0;
+                                                                       cafe and clock each "PASS", every
+                                                                       kill point identical (cafe 301
+                                                                       revisions, 155 facts; clock 634,
+                                                                       1 695)
+       python3 scripts/check_decision_ids.py                           PASS — 37 ids, all distinct
+       python3 scripts/check_doc_headings.py                           PASS — 142 sections
+     Godot evidence (E-1, E-2) was recorded on the C2 working tree; C3 changed only `mineworld run` and
+     the paced controller, which a hosted world (`--agent`, RuleController) does not use, so it stands.
+     CI: N/A — no workflow in the repository (S13).
 ```
 
 ## 9.1 Limitations (expected)
