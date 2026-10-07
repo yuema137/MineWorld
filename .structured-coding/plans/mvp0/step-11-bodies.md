@@ -907,7 +907,7 @@ add roughly 30–65 %. Under Rosetta (x86_64 translated) R′ measured 104.7 µs
 native x86_64 host and is recorded only so nobody reads it as one. Two further reductions are designed in, not yet measured: skipping Rapier altogether
 when no other body's box meets the stride's box (an integer test), which is most strides in an open
 street; and building the place's fixed geometry once per resolution from a pre-sorted list. The bound
-to hold in PR 12b's acceptance is stated there (§11, QB-11), not derived from what the code happens to cost.
+to hold in PR 12c's and 12d's acceptance is stated there (§11.1, QB-11), not derived from what the code happens to cost.
 
 Only a world that installs bodies pays. With no resolver registered, `arrivals()` costs one empty fold
 over the catalog. `social-cafe` and `market-town` install bodies only in PR 12d (§11); until then their
@@ -997,7 +997,7 @@ What the step adds:
 ```text
 systems/bodies/                 the pack: components, facts, actions, resolution, Rapier behind it
 systems/installed               one entry (ARC-33)
-worlds/<a world with bodies>    body: sections on places and objects; see §11, PR 12c
+worlds/<a world with bodies>    body: sections on places and objects; see §11.1, PR 12d
 clients/ (3D, and the 2D when it exists)   colliders for people, reconciliation, intents
 docs                            ARC-39, DEP-13, DEP-14, MODULE_SPEC §4.1 (the body: section),
                                 server/PROTOCOL.md §6.2 (reconciliation), ADOPTION.md
@@ -1140,7 +1140,7 @@ Logs: `/Users/yuema137/mineworld-demos/physics-spike/out/` — `e.log`, `runs-re
 | PC-e1 | **PASS** (P and Q) | Smallest centre distance: P 0.6045 m, Q 0.6100 m; bound 0.595 m. Q's final positions (4 000, 5 000) and (4 610, 5 000): the two stop 10 mm apart (the controller's offset). |
 | PC-e2 | **P: FAIL. Q: PASS** | P: the box moved 5.121 m (≥ 0.100), but the person overlapped it by up to 0.179 m. Located (`DEBUG=1`): the overlap begins when the box reaches the east wall (box x 8.121 = 8.32 − 0.2) and the kinematic person, which ignores dynamic bodies so that it can push them, walks on into it. Q: the box moved 5.135 m and the worst gap was 0.000 m: each request ends by depenetrating the mover, so the person stops at the jammed box (person 7 625 mm, box 8 135 mm). |
 | PC-f | **PASS** | Dev profile at `opt-level = 1`: P `9ccd9417…`, Q `57863631…`, `ql` `2ca7c6fe…` — identical to release. (Times: Q 201.7 µs, `ql` 72.0 µs.) |
-| PC-g | **NOT RUN** | Needs `rustup target add x86_64-apple-darwin`, outside this session's permitted commands. QB-12. |
+| PC-g | **NOT RUN** in revision 0 | Needs `rustup target add x86_64-apple-darwin`, outside revision 0's permitted commands. QB-12. **Run in revision 1 after the operator permitted it: PASS (§9.8).** |
 
 ### Findings
 
@@ -1484,12 +1484,16 @@ pub fn move_r(state: &mut StateQ, variant: Variant, walker: usize, desired: Vect
 
 ## 10.1 Frozen invariants (proposed; frozen only by the operator or primary session)
 
+Revised for revision 1: I-1, I-6 and I-7 are rewritten, I-11 to I-13 are new.
+
 - **I-1 The kernel and the contracts are untouched.** `kernel/`, `contracts/`, `persistence/` and
-  `server/src` have no diff in any S15 PR, and neither has `systems/movement` or any System Pack other
-  than `presence` (one change, I-7) and the new `bodies`. A need to edit any of them is a material stop.
+  `server/src` have no diff in any S15 PR. Outside the new `bodies`, only the precursor's set changes —
+  presence, the sdk's `installed!`, `systems/installed`, `worldpack`'s compose, and movement's two lines
+  (§8.2) — and only in PR 12a. A need to edit anything else, or to add the kernel extension slot (F2), is
+  a material stop.
 - **I-2 Single ownership.** `Presence` and `present-in` are written only by presence's reductions.
   Body shapes, place geometry and where a loose object lies are written only by bodies' reductions. A
-  change to where a person is travels only as presence's `arrived`, stated under `ARC-26`.
+  change to where a person is travels only as presence's `arrived`, built by presence's constructors.
 - **I-3 No float is persisted.** Every value in a component, fact or journal entry is an integer:
   millimetres, millidegrees, counts. Floats exist only inside one resolution.
 - **I-4 Determinism conditions.** `rapier3d` pinned exactly, `enhanced-determinism` on, `simd8` and
@@ -1497,17 +1501,28 @@ pub fn move_r(state: &mut StateQ, variant: Variant, walker: usize, desired: Vect
   directions without `std` transcendental functions (DC-1 to DC-6).
 - **I-5 Nothing of Rapier survives a resolution.** No component, field, global or cache holds Rapier
   state. A resolution is a pure function of the world's integer state and the request.
-- **I-6 Uniformity (R-2).** In a world with bodies, every `arrived` with a local position is resolved,
-  whoever stated it. No pack can bypass it, because bodies subscribes to the fact, not to an action.
-- **I-7 Existing worlds change only by `from`.** After the presence change, every existing world's run
-  differs from before only in the `arrived` payloads gaining `from`; every other line of the seed-7
-  summaries is unchanged, and the re-baselined digests are recorded with that statement.
+- **I-6 Uniformity (R-2), resolved before recorded (QB-1).** Every `arrived` is built by presence's
+  constructors after every registered resolver has answered; `arrival()` refuses what it cannot record
+  truthfully. No `arrived` is ever recorded and then corrected: the log holds only true arrivals.
+- **I-7 Existing worlds are byte-identical.** With no resolver registered, the facts and journal inputs
+  of the 300-day seed-7 runs of social-cafe and market-town are identical before and after PR 12a; only a
+  save's composition record differs, and old saves are refused by name (§4.4.8). No digest is
+  re-baselined in 12a.
 - **I-8 Clients decide nothing.** No rule about blocking, pushing, reach or force exists in a client. Local
   collision is prediction; removing it changes no outcome.
 - **I-9 Removability (`AC-2`).** A world without bodies answers `kick`, `throw` and `shove` with
   `ActionUnavailable` and is otherwise the same world as before this step.
 - **I-10 Locate before counting (`ARC-23`).** The non-interpenetration check reports the closest pair, the
   place and the instant, not only a count; and it is shown to fail on a world where bodies is disabled.
+- **I-11 Nudges are bounded (QB-10).** Per stride: no person moved by more than `NUDGE_MAX + GAP`
+  (310 mm), at most `CHAIN_MAX` (2) generations and `NUDGED_MAX` (4) people; a stride that needs more is
+  blocked. A nudge never changes place and never passes through fixed geometry.
+- **I-12 The invariant is checked, not trusted.** After every resolution, on quantized integers, no pair
+  of people in a place is closer than 595 mm unless they already were; the fallbacks are blocked, halved,
+  stay (DC-8). The character controller's answer is never the last word (F-P6).
+- **I-13 Resolvers are pure, inert when absent, and ordered.** A resolver reads only its `WorldRead`,
+  writes and emits nothing, keeps nothing, returns `so_far` when its own state does not name the people
+  involved, and is asked in ascending `SystemId` order. Movement names no resolver.
 
 ## 10.2 The pack, `systems/bodies` (crate `mineworld-bodies`, `SystemId "bodies"`)
 
@@ -1521,21 +1536,27 @@ provides    kick   { }                       target: an Item lying in the same p
             throw  { toward: LocalPosition } target: an Item lying in the same place
             shove  { }                       target: a Person in the same place
 emits       body-formed, place-shaped, object-placed       genesis, from the `body:` sections
-            stride-blocked, object-moved, person-shoved    reactions and actions
-            arrived (presence's, ARC-26)
-subscribes  arrived (presence's); its own genesis facts
+            object-moved, person-shoved                    reactions and actions
+            arrived, stride-blocked (presence's, ARC-26)   for `shove`, through arrivals()
+resolves    ArrivalResolver (presence's trait), listed in `installed!`'s `resolution:` line
+subscribes  arrived (presence's: object pushes, invariant guard); its own genesis facts
 authored    one section, `body:` (ARC-31), in person, place and item files (F-47: one section per
             pack)
 discloses   PlaceShape to whoever perceives the place, and BodyShape and Lying of what the
             observation lists — so a client can build the same colliders the server uses (R-B4)
 ```
 
-## 10.3 What presence gains (QB-2)
+## 10.3 What presence gains (revision 1; revision 0's `from` is withdrawn)
 
 ```text
-Arrived { person: PersonId, location: Location, from: Option<Location> }   schema 2
-arrival(world, person, location)   unchanged signature; fills `from` from the current Presence
-PresenceSystem::VERSION            2 → 3
+trait ArrivalResolver, Stride, Resolution          §4.4.1
+register_resolvers(Vec<Box<dyn ArrivalResolver>>)  write-once catalog (§4.4.4, F1)
+arrivals(world, person, to) -> Vec<Emission>        resolves; walker, nudged, stride-blocked
+arrival(world, person, to)  -> Emission             unchanged signature; refuses a placement a
+                                                    resolver would change
+StrideBlocked { person, wanted, reached, by }       new event type, schema 1
+Arrived                                             unchanged, schema 1
+PresenceSystem::VERSION                             2 → 3
 ```
 
 ## 10.4 World Pack and validation
@@ -1555,7 +1576,19 @@ PresenceSystem::VERSION            2 → 3
 # 11. Proposed PR split
 
 PR numbers follow the step files' convention (`step-09` → PR 10, `step-10` → PR 11): this is PR 12.
-Each PR has an integration checkpoint that runs the product, not a unit.
+Each PR has an integration checkpoint that runs the product, not a unit. All start after 11f merges.
+
+## 11.1 Revision 1 split: the precursor seam first
+
+| PR | Scope | Integration checkpoint | Adversarial criterion |
+| --- | --- | --- | --- |
+| **12a** The arrival-resolver seam (framework precursor; names no physics) | ARC-39 into `docs/DECISIONS.md`. presence: `ArrivalResolver`, `Stride`, `Resolution`, the catalog, `arrivals()`, `arrival()` refusing what it cannot record truthfully, `stride-blocked`, VERSION 3. sdk: `installed!`'s `resolution:` line and `Capability::resolvers()`. `systems/installed`: `resolution: … => [];`. worldpack: compose registers the catalog. movement: the two lines. A test-only `fences` resolver (§4.4.9), never installed. | SC-1 to SC-7 through the real dispatch and persistence: with fences, the recorded arrival is the stopped one, the displaced person's arrival is caused by the walker's `ActionId`, SIGKILL and resume byte-identical; without it, the 300-day seed-7 facts of social-cafe and market-town are byte-identical to main (I-7). | A resolver that lengthens a stride, changes place or displaces the walker is refused, never recorded. A scan in the style of the I-2 scan: the PR names no body, physics, Rapier, nudge or collision. |
+| **12b** People: walls and nudging | DEP-13. `systems/bodies` with `BodyShape`, `PlaceShape`, the `body:` section, genesis facts, and its resolver: walls, nudging, verify-then-degrade (§4.5), Rapier behind one module; F-P1 regression test; the invariant guard; a test world with walls and a crowd. | Headless: a seeded test world with twelve people in two walled rooms runs 30 days; after every request no two people in a place are closer than 595 mm, nobody is outside the walls, every nudge ≤ 310 mm, chains ≤ 2 generations and 4 people; SIGKILL and resume byte-identical; n1–n3 reproduced as tests; the same world without bodies shows overlaps (I-10). | Mutations: remove verify-then-degrade (the R N-1 failure must reappear), raise `NUDGE_MAX`: the bound test fails by name. Sideways bias for collinear head-on walkers decided here (QB-16). |
+| **12c** Objects: push, kick, throw; shove | `Lying`, `object-moved`, `person-shoved`; bodies' reaction pushes objects out of each recorded arrival, predicted by the resolver (§4.5.4); `kick`, `throw`, `shove` with declared requirements; complete affordances for `kick` and `shove`. | Headless: the unchanged paced controller kicks and shoves (`ARC-34`); every fact is caused by an action; a person walking into a box moves it; a jammed box stops the person; a shove into a crowd nudges within I-11; resume byte-identical; QB-11's cost bound on a 300-day run. | A thrown object never ends inside a wall or a person; `TooFarAway` from 801 mm and acceptance at 800 mm. |
+| **12d** The town gets bodies | `body:` sections for social-cafe's places matching the 3D slice's layout, default capsules, a few loose objects; bodies installed in social-cafe and market-town (QB-5); the validator checks of §10.4. Digests re-baselined here, and only here, with the activity precondition checked first. | The 300-day seed-7 runs of both worlds hold the activity precondition (`ARC-23`) with walls in place; no overlap after any request; runs reproduce byte for byte; wall time within QB-11. | A doorway authored inside a wall, or two people authored overlapping, is refused at load by name. |
+| **12e** The 3D client | Jolt selected explicitly; people and objects get colliders at observed positions (shapes from disclosure); reconciliation on difference (150 mm), which now also covers being nudged; `kick`, `throw`, `shove` from the camera ray; objects animated along `path`; `server/PROTOCOL.md` §6.2 and `ADOPTION.md`. After `vis/3d-godot-2-environment` merges (QB-13). | The client run for real (`ENGINEERING_RULES.md` §19): a scripted drive walks the player into Alice, who is nudged aside; into a crowd, which blocks; into a box, which moves; kicks it; is shoved; frames inspected, and the server's facts match what is drawn. | No rule in the client: with its people colliders removed, the server still resolves and the client reconciles. |
+
+## 11.2 Revision 0's split (superseded)
 
 | PR | Scope | Integration checkpoint | Adversarial criterion |
 | --- | --- | --- | --- |
@@ -1565,23 +1598,25 @@ Each PR has an integration checkpoint that runs the product, not a unit.
 | **12d** The 3D client | Jolt selected explicitly; people and objects get colliders at observed positions (shapes from disclosure); reconciliation on difference (150 mm); `kick`, `throw`, `shove` from the camera ray; objects animated along `path`; `server/PROTOCOL.md` §6.2 and `ADOPTION.md` updated. Lands on, or after, the visual track's `vis/3d-godot-2-environment` (QB-13). | The client run for real (`ENGINEERING_RULES.md` §19): a scripted drive walks the player into Alice and stops at her; walks into a box and pushes it; kicks it; is shoved by a test seat; frames captured and inspected, and the server's facts match what is drawn. | No blocking rule in the client: with the client's people colliders removed, the server still stops the player and the client reconciles. |
 
 The 2D client's intents (`kick`, `throw`, `shove` by click) belong to S12, which builds that client; they
-need nothing from the server that 12b does not already provide.
+need nothing from the server that 12c does not already provide.
 
 ---
 
 # 12. Where this step sits
 
 ```text
-S9   11f, the AC-1 proof — finishing now. S15 starts after 11f merges: the presence change
-     re-baselines every world's digest, and must not land inside the AC-1 measurement.
-S15  this step: 12a → 12b → 12c, then 12d.
+S9   11f, the AC-1 proof — finishing now. S15 starts after 11f merges: 12a changes presence,
+     movement, the sdk and worldpack, which must not land inside the AC-1 measurement, and 12d
+     re-baselines both worlds' digests.
+S15  this step: 12a (seam) → 12b (people) → 12c (objects, actions) → 12d (the town), then 12e
+     (3D client).
 S10  cognition (reduced): independent of S15.
 S11  server: nothing new needed; the server carries any action unchanged.
-S12  2D client: consumes 12b's actions; no dependency the other way.
-S13  CI and container parity: PC-g (another architecture) belongs here if not run in 12a — the
-     container is the second architecture `AC-8` cares about.
+S12  2D client: consumes 12c's actions; no dependency the other way.
+S13  CI and container parity: PC-g ran under Rosetta (§9.8); a native x86_64 host in S13's
+     container is the stronger check of AC-8 for physics.
 S14  Demo B: its required "collision / basic navigation" and "interact with at least one
-     Item/Object" (ENGINEERING_RULES §10) are delivered in substance by 12c and 12d. S15
+     Item/Object" (ENGINEERING_RULES §10) are delivered in substance by 12d and 12e. S15
      therefore precedes S14.
 ```
 
@@ -1593,22 +1628,27 @@ In §3, after S14:
 ### S15 — Bodies and physical interaction *(inserted 2026-10-07, operator requirement)*
 
 **Design:** [`step-11-bodies.md`](step-11-bodies.md). People never pass through each other or through
-walls; walking pushes loose objects aside; people can kick, throw and shove. A `bodies` System Pack on
-Rapier (`DEP-13`) resolves every arrival (`ARC-39`); presence's `arrived` gains `from`; the 3D client
-collides with people and reconciles on difference (Jolt, `DEP-14`). No kernel or contract change.
+walls; walking nudges people and pushes loose objects aside; people can kick, throw and shove. Presence
+resolves every arrival before recording it, through an `ArrivalResolver` seam carried by `installed!`
+(`ARC-39`, a framework precursor proven with a synthetic resolver); a `bodies` System Pack on Rapier
+(`DEP-13`) is the first resolver. The 3D client collides with people and reconciles on difference (Jolt,
+`DEP-14`). No kernel or contract change; the log holds only true arrivals.
 
 - **Depends on:** S9 complete (11f merged). **Feeds:** S14 (`AC-14` collision and object interaction),
   S12 (the same three actions).
-- **Acceptance checkpoint:** at every observation instant of a seeded 30-day run, no two bodies in one
-  place overlap by more than 5 mm; a person walking into a box moves it; kick, throw and shove are
-  resolved server-side and replay byte for byte after SIGKILL; removing `bodies` makes the three actions
-  unavailable and changes nothing else.
+- **Acceptance checkpoint:** with no resolver installed, existing worlds' facts are byte-identical; after
+  every request of a seeded 30-day run with bodies, no two people in one place are closer than 595 mm,
+  every nudge is at most 310 mm and every chain at most two generations; a person walking into a box
+  moves it; kick, throw and shove are resolved server-side and replay byte for byte after SIGKILL, on
+  arm64 and on x86_64; removing `bodies` makes the three actions unavailable and changes nothing else.
 ```
 
-In §4, a row: `Operator requirement 2026-10-07: bodies do not interpenetrate; push, kick, throw | S15`.
+In §4, a row: `Operator requirement 2026-10-07: bodies do not interpenetrate; nudge, push, kick, throw |
+S15`.
 
-In §7, under "Next": `S15 bodies (step-11, DRAFT 2026-10-07): PRs 12a–12d after 11f; awaiting QB-1,
-QB-2, QB-3, QB-5, QB-10, QB-12.`
+In §7, under "Next": `S15 bodies (step-11, DRAFT revision 1, 2026-10-07): PRs 12a–12e after 11f; the
+operator's decisions on QB-1, QB-10, QB-2, QB-3, QB-4, QB-5, QB-12 applied; open: QB-15 (catalog or
+kernel slot), QB-16, QB-17.`
 
 ---
 
@@ -1618,20 +1658,23 @@ Operator-material questions are marked **[OM]**. Each has a recommendation.
 
 | ID | Question | Recommendation |
 | --- | --- | --- |
-| **QB-1 [OM]** | Accept option C — bodies corrects arrivals after the fact, so a blocked stride leaves `arrived X`, `stride-blocked`, `arrived X′` in the log — over A (movement depends on bodies) or B (kernel geometry seam)? | **C.** It is the only option that makes non-interpenetration a property of the world for every mover, with no kernel change and bodies removable. Record as ARC-39. |
-| **QB-2 [OM]** | Change presence's `arrived` to carry `from` (schema 2, presence VERSION 3, old saves refused, every world's digest re-baselined)? | **Yes, in 12a, after 11f merges.** C cannot see a stride without it, and it is generic. |
-| **QB-3 [OM]** | What is a loose object? (a) an Item file with a `body:` section, which then names exactly one physical object — amending `ARC-36` ("stacked items only") for such items; (b) a new World Pack content kind `objects/` (a `worldpack` change); (c) pack-local keys that are not entities (against "everything persistent is an Entity"). | **(a)**, with the validator refusing an item that has a body and is also held in an inventory. |
-| **QB-4** | `rapier3d` (z up, capsules) or `rapier2d` (circles and boxes on the floor)? | **`rapier3d`.** Objects resting on furniture and a later stairs/ramp need the third axis; the cost is measured (§9.4) and acceptable with `ql`. |
-| **QB-5 [OM]** | Which worlds install bodies? | **social-cafe and market-town, in 12c.** The 3D slice walks in social-cafe, and that is where the operator saw the defect. Both worlds' seed-7 runs are re-baselined with the activity precondition checked first. |
+| **QB-1 [OM]** | Accept option C — bodies corrects arrivals after the fact, so a blocked stride leaves `arrived X`, `stride-blocked`, `arrived X′` in the log — over A (movement depends on bodies) or B (kernel geometry seam)? | Revision 0: **C.** **DECIDED 2026-10-07: rejected.** Resolve before recording through a provider seam (§4.3–§4.4, F). |
+| **QB-2 [OM]** | Change presence's `arrived` to carry `from` (schema 2, presence VERSION 3, old saves refused, every world's digest re-baselined)? | Revision 0: yes. **Accepted, then re-checked under QB-1's decision: withdrawn.** The resolver receives `from` from presence directly; `arrived` keeps schema 1 (§4.4.7). |
+| **QB-3 [OM]** | What is a loose object? (a) an Item file with a `body:` section, which then names exactly one physical object — amending `ARC-36` ("stacked items only") for such items; (b) a new World Pack content kind `objects/` (a `worldpack` change); (c) pack-local keys that are not entities (against "everything persistent is an Entity"). | **(a)**, with the validator refusing an item that has a body and is also held in an inventory. **DECIDED: (a), amending ARC-36's wording** (in 12c). |
+| **QB-4** | `rapier3d` (z up, capsules) or `rapier2d` (circles and boxes on the floor)? | **`rapier3d`.** Objects resting on furniture and a later stairs/ramp need the third axis; the cost is measured (§9.4, §9.8) and acceptable. **DECIDED: rapier3d.** |
+| **QB-5 [OM]** | Which worlds install bodies? | **social-cafe and market-town**, now in **12d**. The 3D slice walks in social-cafe, and that is where the operator saw the defect. Both worlds' seed-7 runs are re-baselined there, with the activity precondition checked first. **DECIDED as recommended.** |
 | **QB-6** | Should a kicked or thrown object land later (a deferred fact at the end of its flight) rather than at the instant of the kick? | **Not now.** Resolve at the instant and state the path; the client animates it. A deferred landing is a later refinement and needs no contract change. |
-| **QB-7** | Should the 3D client predict object pushes locally with a Jolt `RigidBody3D`? | **Not in 12d.** Objects are drawn where the server says; pushes show at the next observation (≤ 100 ms). Revisit if it feels wrong when played. |
+| **QB-7** | Should the 3D client predict object pushes locally with a Jolt `RigidBody3D`? | **Not in 12e.** Objects are drawn where the server says; pushes show at the next observation (≤ 100 ms). Revisit if it feels wrong when played. |
 | **QB-8** | Should `shove` be refused (`Busy`) while the target is seated or in an activity? | **Not now.** There is no generic "may this person be interrupted" query; adding one is outside this step. |
 | **QB-9** | Line of access (talking through a wall) now that a layer owns geometry? | **A later step**, probably the kernel geometry seam (option B), because every pack's `SpatialRequirement` would use it. Not needed for R-1 to R-4. |
-| **QB-10 [OM]** | Walking into a person: blocked (stop and slide), or nudged aside ("挤开")? | **Blocked.** People are displaced only by an explicit `shove`. A crowd that parts on its own is a product choice, and easy to add later inside bodies. |
-| **QB-11** | The wall-time bound for a 300-day run with bodies installed. | **At most +50 %** over the same world without bodies, measured in 12b and 12c. A bound from the requirement, not from what the code costs. |
-| **QB-12 [OM]** | Authorize `rustup target add x86_64-apple-darwin` so PC-g (another architecture under Rosetta) can be run as 12a evidence? | **Yes.** It is the cheapest available evidence for `AC-8` before S13's container. |
-| **QB-13** | The 3D slice (`slice_link.gd`) lives on the unmerged visual branch `vis/3d-godot-2-environment`. Does 12d land there, or after it merges? | **After it merges**, so the client work is reviewed on main. 12a–12c do not depend on it. |
+| **QB-10 [OM]** | Walking into a person: blocked (stop and slide), or nudged aside ("挤开")? | Revision 0: blocked. **DECIDED 2026-10-07: nudged aside**, bounded (§4.5; I-11). `shove` stays the larger, deliberate displacement. |
+| **QB-11** | The wall-time bound for a 300-day run with bodies installed. | **At most +50 %** over the same world without bodies, measured in 12c and 12d. A bound from the requirement, not from what the code costs. |
+| **QB-12 [OM]** | Authorize `rustup target add x86_64-apple-darwin` so PC-g (another architecture under Rosetta) can be run? | **DECIDED: authorized. Run in revision 1: PASS** (§9.8). |
+| **QB-13** | The 3D slice (`slice_link.gd`) lives on the unmerged visual branch `vis/3d-godot-2-environment`. Does the client PR (now 12e) land there, or after it merges? | **After it merges**, so the client work is reviewed on main. 12a–12d do not depend on it. |
 | **QB-14** | A speed limit (S6 L-1)? | **Out of scope.** Bodies does not change how often a client may move. |
+| **QB-15 [OM]** | How do resolvers reach presence's constructor inside `dispatch`? F1: a write-once, process-wide resolver catalog in presence, registered by `worldpack::compose` from `installed!` (no kernel change). F2: a generic extension slot in the kernel (`World::provide` / `WorldRead::provided`), per world (a kernel change). | **F1** for MVP-0 (§4.4.4): the catalog is compiled-in code identical for every world, not world state; resolvers are inert where their state is absent; bodies' reaction guard and `ARC-25` replay make a forgotten registration loud. F2 if the operator prefers no process-wide value at all. |
+| **QB-16** | Collinear head-on walkers push each other back and never pass (F-P7). Add a fixed sideways bias to a nearly collinear nudge? | **Yes, decided and measured in 12b** with the n1 scenario as its test: they must pass within a stated number of strides. |
+| **QB-17 [OM]** | Honour runtime `World::disable` of a resolver pack? Needs an additive kernel read, `WorldRead::is_enabled(SystemId)`. | **Not now.** `AC-2` for bodies is shown at world level (a world that does not list it). Revisit if a world ever needs to disable bodies while running. |
 
 ---
 
@@ -1641,11 +1684,14 @@ Operator-material questions are marked **[OM]**. Each has a recommendation.
 | --- | --- | --- |
 | **R-B1** | Rapier breaks its API about monthly (0.33–0.36 in four months). | Pin exactly (DC-1). An upgrade is its own PR: bump bodies' VERSION, re-run the prototype's criteria in the pack's tests, re-baseline. Rapier sits behind one module of the pack. |
 | **R-B2** | More Rapier defects like F-P1. | Regression test per defect; the per-request model touches a small, well-trodden part of the API (character controller, insertion, a few steps). |
-| **R-B3** | Headless cost grows past QB-11's bound. | The integer pre-check (skip Rapier when no body's box meets the stride's box); per-place worlds are small. Measured in 12b and 12c, never assumed. |
+| **R-B3** | Headless cost grows past QB-11's bound. | The integer pre-check (skip Rapier when no body's box meets the stride's box); per-place worlds are small. Measured in 12c and 12d, never assumed. |
 | **R-B4** | Server geometry (`body:` sections) and the client's scene disagree, so players are corrected at invisible walls. | One source: bodies discloses `PlaceShape`, and the 3D client builds its collision from the disclosure, not from its scene. The visual scene stays the client's. |
 | **R-B5** | Event volume: a blocked stride records three facts instead of one. | Only blocked strides pay. Measured in 12c's 300-day runs and reported. |
-| **R-B6** | A subscriber reacts to the transient `arrived X`. | Audited: only presence subscribes to `arrived` today; employment and group-activity subscribe to `person-entered-place`, which a correction never re-emits (it never changes place). Any new subscriber must be written knowing ARC-39. |
-| **R-B7** | Cross-architecture float identity is unproven (PC-g not run). | QB-12 in 12a; S13's container run as the second check. Until then, a save is only claimed resumable on the architecture that wrote it. |
+| **R-B6** | ~~A subscriber reacts to the transient `arrived X`.~~ Retired by revision 1: nothing transient is recorded. Remaining form: a subscriber to `arrived` now also sees nudged people's arrivals. | Audited: only presence subscribes to `arrived` today; employment and group-activity subscribe to `person-entered-place`, which a nudge never emits (it never changes place). |
+| **R-B7** | Cross-architecture float identity. | Revision 1: **evidenced under Rosetta** (PC-g PASS, §9.8), including an arm64 snapshot resumed on x86_64. A native x86_64 host (S13) is the remaining, stronger check. |
+| **R-B9** | The character controller is trusted where it errs (F-P6). | DC-8 / I-12: checked on integers after every resolution, with fallbacks; a mutation test in 12b removes the check and must fail. |
+| **R-B10** | A host assembles a world without `worldpack::compose` and never registers the resolver catalog (F1). | Every host composes through worldpack today; bodies' reaction guard fails the dispatch at the first overlapping arrival; a replay by such a host diverges and is refused (`ARC-25`). F2 (QB-15) removes the risk at the cost of a kernel change. |
+| **R-B11** | A second resolver pack interacts badly with bodies. | Order fixed by `SystemId`; presence's final checks (§4.4.6) bound what any resolver can do; out of MVP-0 scope until a second resolver exists. |
 | **R-B8** | Walls make the paced controller's wandering less productive, and activity drops. | `ARC-23` activity precondition before any determinism claim in 12c; a remedy, if needed, is in world data (room layout), not in the controller (`ARC-27`). |
 
 ---
@@ -1677,8 +1723,10 @@ Rapier type appears in a component, a fact, a contract or another crate. Nothing
 resolution.
 
 **Accepted limitations.** Monthly breaking releases (pin; an upgrade bumps the pack's version). A defect
-found in 0.36.0 (F-P1) and worked around. Cross-architecture identity not yet evidenced. No momentum
-between resolutions. Apache-2.0, compatible with MIT.
+found in 0.36.0 (F-P1) and worked around. Its character controller is not an interpenetration guarantee
+(F-P6); the pack checks the invariant itself (DC-8). Cross-architecture identity evidenced under Rosetta
+(arm64 ↔ x86_64, §9.8), not yet on a native x86_64 host. No momentum between resolutions. Apache-2.0,
+compatible with MIT.
 
 ## 15.2 DEP-14 — Client collision: Godot's built-in Jolt, never authoritative
 
@@ -1696,23 +1744,33 @@ incomplete).
 **Isolating interface.** The wire protocol. Colliders are built from disclosed shapes; the client's rule is
 only "reconcile on a difference above 150 mm".
 
-## 15.3 ARC-39 — Bodies resolve arrivals: movement decides whether, bodies decide what happens
+## 15.3 ARC-39 — An arrival is resolved before it is recorded (revision 1)
 
 **Problem.** Non-interpenetration must hold for every way a person can come to be somewhere, without a
-kernel change and without making the deciding packs depend on physics.
+kernel change, without making the deciding packs depend on physics, and — the operator's decision of
+2026-10-07 — without ever recording an arrival that is then corrected.
 
-**Choice.** A `bodies` System Pack depends on presence and subscribes to presence's `arrived`. For every
-arrival with a local position it resolves the stride, from the arrival's new `from`, against the place's
-fixed geometry, other people and loose objects. If the body stopped short it states `stride-blocked` and
-presence's `arrived` at the reached position (`ARC-26`); loose objects pushed aside are its own
-`object-moved`. Movement still alone decides whether a move is allowed. Presence's `arrived` gains `from`,
-filled by presence's constructor.
+**Choice.** Presence asks before it records. Its constructors build a `Stride` from its own `Presence` and
+fold it through every registered `ArrivalResolver` (a presence-owned trait, read-only, pure, asked in
+`SystemId` order), then check the result as the owner and record only it: the walker's `arrived`, an
+`arrived` for each person moved by the stride, and its own `stride-blocked` when the walker stopped
+short — all stated by the stating system, in one emission list, caused by the request. `arrival()` keeps
+its signature for placement and refuses what a resolver would change; `arrivals()` is for movers. The
+resolvers reach presence through a write-once catalog registered from `installed!`'s `resolution:` line
+by `worldpack::compose` (F1). With no resolver registered every world records exactly what it recorded
+before. A `bodies` System Pack is the first resolver; movement still alone decides whether a move is
+allowed and names no resolver.
 
-**Consequence stated, not hidden.** A blocked stride leaves two `arrived` facts in one instant, the second
-caused by the first. No observation shows the first. The cascade ends at depth 3, because the corrected
-position resolves to itself.
+**Bounds stated with the choice.** Bodies' nudge: at most 310 mm per person per stride, two generations,
+four people, never through fixed geometry or into another place; the invariant is checked on integers
+after every resolution, with blocked, halved and stay as fallbacks.
 
-**Rejected.** Movement depending on bodies (bodies no longer removable; every future mover must
-remember); a kernel geometry seam (a kernel change, unnecessary for this requirement, the likely route for
-line of access later); a persistent stepped world (no idle skipping: about 82 hours per café per 300
-days, §9.4).
+**Rejected.** Correcting after recording (revision 0's C: true-in-sequence but transient facts, refused
+by the operator); movement depending on bodies (bodies no longer removable; every future mover must
+remember); a kernel geometry seam (a kernel change, the likely route for line of access later); a kernel
+extension slot for the resolvers (F2: per-world rather than per-process, but a kernel change — QB-15); a
+persistent stepped world (no idle skipping: about 82 hours per café per 300 days, §9.4).
+
+**Accepted limitations.** A process-wide catalog (one per build). Runtime disable of a resolver pack is
+not honoured (QB-17). A resolver cannot emit; its pack's consequences happen in its reactions to the
+recorded facts, which the resolver must predict (bodies' object pushes, §4.5.4).
