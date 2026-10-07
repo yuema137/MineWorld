@@ -2310,7 +2310,38 @@ D-D5  process  One read-only `xargs cat` slipped into a wait command (reading a 
                kickoff's tool discipline. No file was changed by it. Recorded, not repeated.
 ```
 
-## 4.5 PR 11e — the transformation, part 2: work, money, shops and consumption (full design; proposed for freeze)
+## 4.5 PR 11e — the transformation, part 2: work, money, shops and consumption (full design; DESIGN FROZEN 2026-10-07)
+
+### 4.5.0 Freeze record (primary session, 2026-10-07)
+
+The 11e design is frozen, and its execution contract (§16) is confirmed. These rulings bind, and they
+override any other text in §4.5 and §16.
+
+- **QS-39 — accepted (primary session).** `consumption` provides `drink` beside `eat`. The operator's
+  QS-35 decision chose a consumption pack, and a café that consumes drinks is that decision applied.
+  It does not widen it.
+- **QS-45 — accepted.** Economy discloses a shop's stock count to whoever is in the shop. It reads
+  inventory's state for this, which is allowed because economy declares inventory as a dependency;
+  it never writes that state.
+- **QS-47 — accepted, with the horizon recorded.** "No wallet drained" means three things together:
+  zero `wage-unpaid`, no wallet ever below the cheapest price, and money conserved.
+  - People without a job live on endowments sized for 300 days.
+  - That is a **bounded-horizon economy, not a closed one**. Recorded as living-world gap L-13: past
+    the measured horizon, those people run out. Closing it (more jobs, or income without one) is a
+    later step's work, not a tuning of this one.
+- **QS-40 to QS-44, QS-46, QS-48 to QS-53 — accepted as recommended.** This includes:
+  - `items-produced` by employment, prorated by attendance (QS-41);
+  - 11e editing the merged `inventory` pack, which is under `systems/` and inside the AC-1 range
+    (QS-42);
+  - shops authored in the operator organization's `economy:` section (QS-43);
+  - ARC-38 plus an ARC-35 note (QS-52).
+- **F-47 and F-48** are framework limits that 11e works around inside its packs. Neither blocks AC-1.
+  They are carried to the S9 closeout as findings, not fixed here.
+- **E-9 b's conditions were stated before the first measured run, and they bind.** If the final
+  content fails any of them, fix the content or the packs, never the controller (I-9). Record every
+  sizing run, including the failures.
+- **Merge rules:** a merge commit, never a squash. Check the AC-1 change set on the actual merge diff
+  before the handoff, and the primary session checks it again at merge.
 
 The medium scope below is kept as it was written before 11d merged, so a reviewer can see what the
 detailing changed. Where it and §§4.5.1 … 4.5.6 disagree, §§4.5.1 … 4.5.6 govern, and each change is
