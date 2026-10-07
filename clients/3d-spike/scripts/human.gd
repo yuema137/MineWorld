@@ -242,6 +242,8 @@ static func build(height_m: float, skin: Color, hair: Color,
 		# the mountain-and-slogan print is the one unique object on the
 		# character, so the tee's albedo is artwork rather than a flat colour
 		"MW_Tee": _printed("tee_bc.jpg", top, 0.82),
+		# the ribbed crew neck, a darker maroon-brown band than the tee body
+		"MW_TeeRib": _cloth(Color(top.r * 0.46, top.g * 0.30, top.b * 0.27), 0.9),
 		"MW_Jeans": _printed("denim_bc.jpg", legs, 0.86, 2.0),
 		"MW_Denim_Trim": _printed("denim_bc.jpg", legs.darkened(0.10), 0.84, 2.0),
 		"MW_Hoodie": _cloth(hoodie, 0.86),

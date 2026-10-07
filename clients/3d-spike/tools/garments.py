@@ -172,12 +172,9 @@ def build_tee(body, dom):
     for v in ring:
         v.co.z = crew_z(v.co.y)
     smooth_boundary(bm, _neck_edge, iterations=6, factor=0.5)
-    collar = extrude_band(bm, ring, [(Vector((0, 0, 0.006)), 1.015),
-                                     (Vector((0, 0, 0.007)), 0.990)],
-                          centre=Vector((0.0, NECK_AXIS_Y, 0.0)))
-    rib_displace(bm, lambda co: in_neck_zone(co) and co.z > crew_z(co.y) + 0.001,
-                 ribs=40, depth=0.0008, centre_xy=(0.0, NECK_AXIS_Y))
-    print(f"  tee collar: {len(ring)} neckline verts, {len(collar or [])} in the rib's top")
+    # The collar itself is a separate band sewn over this edge (`_crew_rib`).
+    # Extruded off the decimated edge, it stood up as a ring of white teeth.
+    print(f"  tee neckline: {len(ring)} verts on the crew curve")
     # hem, neck, two short sleeves; anything else is a hole in everyone's shirt
     report_boundaries(bm, "tee", expect=4)
     bm.to_mesh(obj.data)
@@ -186,13 +183,98 @@ def build_tee(body, dom):
     # is what sank into the neck, so hold the whole tee off the skin
     moved = keep_outside(obj, body, TEE_LIFT * 0.6)
     print(f"  tee: {moved} verts pushed back out of the skin")
+    # Anything of the tee left above the neckline is under the crew band at
+    # best, and at the front it poked through it as white teeth: the push
+    # above lifts the edge forward along the chest's normal.  Trim it.
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    high = [f for f in bm.faces
+            if in_neck_zone(f.calc_center_median())
+            and f.calc_center_median().z > crew_z(f.calc_center_median().y) - 0.003]
+    bmesh.ops.delete(bm, geom=high, context="FACES")
+    loose_v = [v for v in bm.verts if not v.link_faces]
+    bmesh.ops.delete(bm, geom=loose_v, context="VERTS")
+    bm.to_mesh(obj.data)
+    bm.free()
+    print(f"  tee: {len(high)} faces above the neckline trimmed under the crew band")
     solidify(obj, 0.0022)
     set_material(obj, "MW_Tee")
+    # The reference's crew neck is a ribbed band in a darker maroon-brown
+    # than the cream body, and with the hoodie open to the collar it is the
+    # tee's most visible edge.
+    assign_material(obj, "MW_TeeRib",
+                    lambda c, _n: in_neck_zone(c) and c.z > crew_z(c.y) - 0.0015)
     # the graphic must land on the chest, so the front of the shirt is pinned to
     # the middle of the texture (see cylindrical_uv)
     cylindrical_uv(obj, TEE_HEM_Z - 0.02, NECK_Z + 0.03)
     shade_smooth(obj)
+    rib = _crew_rib(obj)
+    for x in bpy.data.objects:
+        x.select_set(False)
+    obj.select_set(True)
+    rib.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.join()
     return obj
+
+
+CREW_RIB_H = 0.011        # how far the band rises above the neckline
+CREW_RIB_T = 0.0035       # and its thickness
+
+
+def _crew_rib(tee):
+    """The crew neck as a clean knitted band laid over the tee's neckline.
+
+    The tee's own neck edge is a decimated cut, and with the hoodie open to
+    the collar it showed as a jagged white line with skin above it.  A real
+    crew neck is a separate ribbed band sewn over that edge, so it is built as
+    one: a closed band following the neckline round the neck, at the radius
+    the tee's own edge has at each angle, covering the cut.
+    """
+    cx, cy = 0.0, NECK_AXIS_Y
+    edge = [v.co.copy() for v in tee.data.vertices
+            if in_neck_zone(v.co) and abs(v.co.z - crew_z(v.co.y)) < 0.012]
+    steps = 56
+    radius = []
+    for k in range(steps):
+        a = math.tau * k / steps
+        near = [p for p in edge
+                if abs(math.remainder(math.atan2(p.x - cx, p.y - cy) - a, math.tau)) < 0.20]
+        radius.append(max(math.hypot(p.x - cx, p.y - cy) for p in near) if near else None)
+    known = [r for r in radius if r is not None] or [0.07]
+    radius = [r if r is not None else sum(known) / len(known) for r in radius]
+    # a little smoothing round the ring, so the band is a curve and not the
+    # decimated edge again
+    for _ in range(4):
+        radius = [(radius[k - 1] + 2 * radius[k] + radius[(k + 1) % steps]) / 4
+                  for k in range(steps)]
+    rings = []
+    for k in range(steps + 1):
+        a = math.tau * (k % steps) / steps
+        r = radius[k % steps] + 0.0015
+        ox, oy = math.sin(a), math.cos(a)
+        z = crew_z(cy + oy * r)
+        ring = []
+        # from 6 mm below the neckline to 10 mm above it: the cut edge, and
+        # the vertices `keep_outside` lifted off it, are under the band
+        for dr, dz in ((0.0, -0.006), (CREW_RIB_T, -0.006),
+                       (CREW_RIB_T * 0.6, CREW_RIB_H - 0.001), (-0.002, CREW_RIB_H - 0.001)):
+            ring.append((cx + ox * (r + dr), cy + oy * (r + dr), z + dz))
+        rings.append(ring)
+    verts, faces = loft(rings, cap_first=False, cap_last=False)
+    rib = new_object("CrewRib", verts, faces, "MW_TeeRib")
+    bm = bmesh.new()
+    bm.from_mesh(rib.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    rib_displace(bm, lambda co: True, ribs=90, depth=0.0004, centre_xy=(cx, cy))
+    bm.to_mesh(rib.data)
+    bm.free()
+    shade_smooth(rib)
+    rib.data.uv_layers.new(name="UVMap")
+    print(f"  crew rib: {len(rib.data.vertices)} verts, radius "
+          f"{min(radius) * 1000:.0f}..{max(radius) * 1000:.0f} mm from the neck axis")
+    return rib
 
 
 # ------------------------------------------------------------------------ jeans
@@ -256,24 +338,38 @@ def build_jeans(body, dom):
 
 HOODIE_HEM_Z = 0.945      # hanging below the waistband, the lowest of the three
 HOODIE_TOP_Z = NECK_Z - 0.005     # the collar seam; the hood sits on top of it
-HOODIE_LIFT = 0.040
-                          # decimation can cut off a curved shoulder
+# The slack the garment starts with before it is draped.  Not a stand-off: the
+# cloth simulation drops the fabric onto the shoulders and arms and it ends up
+# lying on them; this is how much more cloth there is than body, which is what
+# becomes the folds.  (Until preview 3 it was a 40 mm stand-off, frozen: the
+# padded jacket.)
+HOODIE_SLACK = 0.030
 ZIP_HALF = 0.080          # half-width of the open front gap, at the centre line
 ZIP_TAPE = 0.018          # width of the lighter tape band folded in off it
+
+HOODIE_DRAPE_FRAMES = 45
+# How far from the skin the draped fabric rests: over the tee (8 mm lift and
+# 2.2 mm thick) with a little air.
+HOODIE_CLEAR = 0.013
 
 MATS = ("MW_Hoodie", "MW_Zip", "MW_Cord")
 MAT_SHELL, MAT_ZIP, MAT_CORD = 0, 1, 2
 
 
-def build_hoodie(body, dom, arm):
+def build_hoodie(body, dom, arm, colliders=()):
     """The open burgundy zip hoodie: two front panels, hood, cords, ribbing.
 
-    Built in five passes, because each needs geometry the previous one created:
-    the shell off the body, the front opened and taped, the cuffs and hem
-    extruded off the shell's own boundary loops, the pocket lifted off the front
-    panels, and finally the hood and drawstrings, which have no body surface
-    under them at all.
+    Built in passes, because each needs geometry the previous one created: a
+    loose shell with the garment's openings, **draped by cloth simulation**
+    onto the body (`drape.py`) so it hangs and folds; the front taped, the
+    cuffs and hem extruded off the draped shell's own boundary loops; and
+    finally the hood -- a pouch of cloth sewn to the collar and draped down the
+    back -- and the drawstrings.
+
+    `colliders` are the garments already built under it (tee, jeans): the
+    hoodie rests on them, not through them.
     """
+    import drape  # pylint: disable=import-outside-toplevel
     # Selected by joint, not by height: a height cut across the top takes the
     # shoulder cap off with the neck and leaves the garment open at the seam.
     # The torso takes every face that touches a torso joint, so the mixed faces
@@ -300,8 +396,12 @@ def build_hoodie(body, dom, arm):
             return False
         # The open front, cut here on the dense body rather than after
         # decimation: a strip removed from a decimated shell leaves triangles
-        # reaching across the opening, which read as a torn garment.
-        if abs(c.x) < ZIP_HALF and c.y < 0.01 and c.z < 1.405:
+        # reaching across the opening, which read as a torn garment.  It runs
+        # right up through the neckline: an open zip hoodie is open to the
+        # collar, and the tee's crew neck shows between the hood's two ends.
+        # Stopped at z 1.405, a strip of hoodie crossed her upper chest above
+        # the tee, and its cut edge was the jagged line at the neckline.
+        if abs(c.x) < ZIP_HALF and c.y < 0.01:
             return False
         return True
 
@@ -323,42 +423,101 @@ def build_hoodie(body, dom, arm):
         obj.data.materials.append(bpy.data.materials.get(nm) or bpy.data.materials.new(nm))
     for pgon in obj.data.polygons:
         pgon.material_index = MAT_SHELL
-    relax(obj, iterations=3, factor=0.5)
-    inflate(obj, HOODIE_LIFT, smooth_first=3, steps=OFFSET_STEPS)
+    # Smoothed *before* the offset, never after: Laplacian smoothing pulls a
+    # convex shell inward, and a starting shape that dips inside the tee or
+    # the jeans is pushed the wrong way by the solver -- the first drape came
+    # out under the tee, with the shirt showing through in patches.
+    relax(obj, iterations=6, factor=0.5)
+    inflate(obj, HOODIE_SLACK, smooth_first=4, steps=OFFSET_STEPS)
     decimate(obj, 0.55)
     flare(obj, HOODIE_HEM_Z, SPINE2_Z, 0.055)
+    moved = keep_outside(obj, body, HOODIE_SLACK * 0.8)
+    print(f"  hoodie start: {moved} verts pushed back out to {HOODIE_SLACK * 0.8 * 1000:.0f} mm")
 
     bm = bmesh.new()
     bm.from_mesh(obj.data)
-    # Intended openings: the front-and-hem (one loop, because the open front
-    # runs down through the hem), the neck, and one cuff per sleeve.  "Five"
-    # was written while the welded seams still showed as ten loops, and it
-    # counted the hem and the front twice.
-    report_boundaries(bm, "hoodie after cut+decimate", expect=4)
-    # the two front panel edges, straightened after decimation
-    def _flare_scale(z):
-        t = 1.0 - min(1.0, max(0.0, (z - HOODIE_HEM_Z) / (SPINE2_Z - HOODIE_HEM_Z)))
-        return ZIP_HALF * (1.0 + 0.055 * t * t)
+    # Intended openings: the front, the hem and the neck as one loop -- the
+    # open front runs down through the hem and up through the neckline --
+    # and one cuff per sleeve.  "Five" was written while the welded seams
+    # still showed as ten loops; "four" while the front stopped short of the
+    # neck.
+    report_boundaries(bm, "hoodie after cut+decimate", expect=3)
 
     def _front_edge(co):
+        # below the neckline: above it the edge turns round the neck, and a
+        # tape folded in off that stretch crossed her throat as white teeth
         return abs(co.x) < 0.16 and co.y < 0.03 and co.z < 1.40
 
-    n_snap = snap_opening(bm, _front_edge, _flare_scale)
+    # The front edges are straightened before the drape (a decimated cut is
+    # jagged) and never snapped back to a line after it: the open panels hang
+    # where the cloth puts them.
     smooth_boundary(bm, _front_edge, iterations=8, factor=0.5)
+    # The hem, cut by face centre across the seat and decimated, is a ragged
+    # edge; level it before the drape, and remember which vertices it is so
+    # the ribbed band is extruded off exactly them afterwards -- the drape
+    # moves the hem, so a height test no longer finds it.
+    hem_ids = []
+    for v in bm.verts:
+        if any(e.is_boundary for e in v.link_edges) and v.co.z < HOODIE_HEM_Z + 0.025:
+            v.co.z = HOODIE_HEM_Z
+            hem_ids.append(v.index)
+    smooth_boundary(bm, lambda co: co.z < HOODIE_HEM_Z + 0.001, iterations=4, factor=0.5)
+    # What is held: the collar, where the hood is sewn on and the garment
+    # hangs from the neck, and the two wrist openings, where the cuffs grip.
+    bm.verts.ensure_lookup_table()
+    bm.verts.index_update()
+    held = set()
+    for v in bm.verts:
+        if not any(e.is_boundary for e in v.link_edges):
+            continue
+        c = v.co
+        if c.z > 1.36 and math.hypot(c.x, c.y - 0.07) < 0.13:
+            held.add(v.index)
+        elif abs(c.x) > 0.39 and c.z < 1.16:
+            held.add(v.index)
+    ring = {e.other_vert(bm.verts[i]).index
+            for i in held for e in bm.verts[i].link_edges} - held
+    bm.verts.ensure_lookup_table()
+    bm.to_mesh(obj.data)
+    bm.free()
+    # The body is the only collider, with a skin thick enough to hold the
+    # fabric clear of the tee lying on it.  The tee and the jeans as colliders
+    # in their own right made the solver unstable -- thin solidified shells
+    # the starting shape grazes; the fabric was thrown up to 196 mm and ended
+    # under the tee -- so the layer under the hoodie is kept by distance
+    # instead, and the jeans' waistband by `keep_outside` after the drape.
+    del colliders
+    drape.add_collider(body, thickness=HOODIE_CLEAR)
+    drape.simulate(obj, lambda v: 1.0 if v.index in held else (0.5 if v.index in ring else 0.0),
+                   frames=HOODIE_DRAPE_FRAMES)
+    n_out = keep_outside(obj, body, HOODIE_CLEAR + 0.002)
+    n_waist = keep_outside(obj, body, JEANS_LIFT + 0.012, pick=lambda co: co.z < JEANS_WAIST_Z + 0.04)
+    print(f"  hoodie after drape: {n_out} verts lifted clear of the tee, {n_waist} of the waistband")
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    n_snap = len(held)
+    report_boundaries(bm, "hoodie after drape", expect=3)
     # the zip tape, as real geometry folded in off the panel edge
     tape = [v for v in bm.verts
             if any(e.is_boundary for e in v.link_edges) and _front_edge(v.co)]
     extrude_strip(bm, tape,
                   lambda co: Vector((-math.copysign(ZIP_TAPE, co.x), 0.0035, 0.0)),
                   material_index=MAT_ZIP)
-    print(f"  opening: {n_snap} boundary verts snapped, {len(tape)} tape verts")
+    print(f"  opening: {n_snap} seam verts held in the drape, {len(tape)} tape verts")
 
     # --- ribbed hem, off the shell's own bottom boundary --------------------
-    hem = boundary_loop(bm, lambda co: co.z < HOODIE_HEM_Z + 0.012)
+    # The vertices levelled as the hem before the drape, wherever the drape
+    # has put them.
+    bm.verts.ensure_lookup_table()
+    hem = [bm.verts[i] for i in hem_ids]
+    hem_top = max((v.co.z for v in hem), default=HOODIE_HEM_Z)
     extrude_band(bm, hem, [(Vector((0, 0, -0.017)), 0.997),
                            (Vector((0, 0, -0.018)), 0.988),
                            (Vector((0, 0, -0.015)), 0.994)])
-    rib_displace(bm, lambda co: co.z < HOODIE_HEM_Z - 0.004, ribs=34, depth=0.0016)
+    hem_low = min((v.co.z for v in hem), default=HOODIE_HEM_Z) - 0.004
+    rib_displace(bm, lambda co: co.z < hem_low and abs(co.x) < 0.30
+                 and co.z < 1.10, ribs=34, depth=0.0016)
+    print(f"  hem: {len(hem)} verts, top of the draped hem at z {hem_top:.3f}")
 
     # --- ribbed cuffs, off each sleeve's wrist boundary ---------------------
     for sx in (-1.0, 1.0):
@@ -393,15 +552,19 @@ def build_hoodie(body, dom, arm):
                     v.co += rad / r * (math.cos(ang * 16) * 0.0014)
     bm.normal_update()
     report_winding(bm, "hoodie after hem, tape and cuffs")
-    report_boundaries(bm, "hoodie after hem, tape and cuffs", expect=4)
+    report_boundaries(bm, "hoodie after hem, tape and cuffs", expect=3)
+    # the neckline, where the hood is sewn on
+    collar = [v.co.copy() for v in bm.verts
+              if any(e.is_boundary for e in v.link_edges)
+              and v.co.z > 1.36 and math.hypot(v.co.x, v.co.y - 0.07) < 0.13]
     bm.to_mesh(obj.data)
     bm.free()
 
     solidify(obj, 0.0032)
 
     # --- hood and drawstrings ----------------------------------------------
-    hood = build_hood()
-    cords = build_cords()
+    hood = build_hood(collar, body)
+    cords = build_cords(body)
     for o in (hood, cords):
         bpy.context.view_layer.objects.active = obj
         for x in bpy.data.objects:
@@ -418,98 +581,130 @@ def build_hoodie(body, dom, arm):
 # The hood, down.  The neck axis it wraps, and how far round it goes: 0° is
 # straight behind the neck, ±HOOD_SWEEP are the two free ends beside the throat.
 HOOD_CENTRE = (0.0, 0.070)        # x, y of the neck axis at collar height
-HOOD_RADIUS = 0.094               # from that axis out to the middle of the roll
 HOOD_SWEEP = 128.0                # degrees each way from straight behind
-HOOD_STEPS = 15
-HOOD_SEG = 12
-HOOD_Z_BACK = 1.478               # height of the roll's axis at the back
-HOOD_Z_END = 1.418                # and at the two front ends
-HOOD_R_BACK = 0.070               # cross-section radius at the back
-HOOD_R_END = 0.040                # and at the ends, where it tapers into the seam
 
 
-def build_hood():
-    """A hood lying down: a soft roll around the back and sides of the neck,
-    with the fabric falling behind it onto the upper back.
+# The hood, as cloth.  Columns run round the collar from one front end (-SWEEP)
+# through straight behind the neck (0) to the other; rows run from the seam
+# down into the pouch and back up to the face opening.
+HOOD_COLS = 30
+HOOD_ROWS = 16
+HOOD_DEPTH = 0.115        # how far the pouch hangs below the seam, at the back
+HOOD_RIM_OUT = 0.040      # how far outside the seam the opening starts
+HOOD_DRAPE_FRAMES = 40
+
+
+def _collar_at(collar, a):
+    """The collar point at azimuth `a` round the neck axis (0 straight behind)."""
+    cx, cy = HOOD_CENTRE
+    best = min(collar, key=lambda p: abs(math.remainder(
+        math.atan2(p.x - cx, p.y - cy) - a, math.tau)))
+    return best
+
+
+def build_hood(collar, body):
+    """The hood, down: a pouch of cloth sewn to the collar and draped.
 
     A zip hoodie without a hood is a zip jacket, and the contract calls the hood
-    the feature that names the garment.  What the reference actually shows is
-    not a hood over the head and not a flat yoke — it is a thick bunched roll
-    standing proud of the shoulders, reaching about ear height beside the neck,
-    and that is the shape modelled here.  The folds are a low-frequency radial
-    wobble that drifts along the sweep: a hood pushed off the head bunches, and
-    a perfectly smooth tube reads as a travel pillow.
+    the feature that names the garment: "bunched in soft folds behind and around
+    the neck, standing proud of the shoulders".  A hood pushed off the head is a
+    two-layer pouch -- the outer layer hangs from the neck seam down the back,
+    the inner layer comes back up to the face opening, which ends up lying
+    round the neck -- and its folds come from it having far more cloth than the
+    space it lies in.  So it is built as that pouch, sewn (pinned) along the
+    hoodie's own collar, and dropped under gravity onto the body and the
+    backpack, which a proxy stands in for.  Until preview 3 it was a modelled
+    roll with a sine wobble for folds, and from behind nothing read as a hood.
     """
+    import drape  # pylint: disable=import-outside-toplevel
+    if not collar:
+        print("  hood: no collar ring found -- no hood")
+        return new_object("Hood", [], [], "MW_Hoodie")
     cx, cy = HOOD_CENTRE
-    rings = []
-    for i in range(HOOD_STEPS):
-        t = i / (HOOD_STEPS - 1)                 # 0..1 across the sweep
-        a = math.radians((t * 2 - 1) * HOOD_SWEEP)
-        s = abs(t * 2 - 1)                       # 0 at the back, 1 at the ends
-        # centre of the cross-section, on a circle around the neck
-        px = cx + math.sin(a) * HOOD_RADIUS
-        py = cy + math.cos(a) * HOOD_RADIUS
-        pz = HOOD_Z_BACK + (HOOD_Z_END - HOOD_Z_BACK) * s ** 1.6
-        r = HOOD_R_BACK + (HOOD_R_END - HOOD_R_BACK) * s ** 1.5
-        # outward (away from the neck) and up
-        ox, oy = math.sin(a), math.cos(a)
-        ring = []
-        for k in range(HOOD_SEG):
-            th = math.tau * k / HOOD_SEG
-            fold = 1.0 + 0.10 * math.cos(th * 3.0 + t * 7.0) + 0.05 * math.cos(th * 5.0 - t * 4.0)
-            rr = r * fold
-            # squash the inner side so the roll sits against the neck, not in it
-            inner = 0.72 if math.cos(th) < 0 else 1.0
-            ring.append((px + ox * math.cos(th) * rr * inner,
-                         py + oy * math.cos(th) * rr * inner,
-                         pz + math.sin(th) * rr * 1.15))
-        rings.append(ring)
-    verts, faces = loft(rings, cap_first=True, cap_last=True)
+    sweep = math.radians(HOOD_SWEEP)
+    verts, faces = [], []
+    for i in range(HOOD_COLS):
+        t = i / (HOOD_COLS - 1)
+        a = (t * 2 - 1) * sweep
+        seam = _collar_at(collar, a)
+        out = Vector((math.sin(a), math.cos(a), 0.0))
+        # The pouch starts folded flat and lying back over the top of the
+        # rucksack, deepest behind the neck and closing at the two front ends
+        # where the hood meets the zip; gravity then drapes it over the lid.
+        # Started hanging straight down, it fell between her back and the
+        # bag, and from behind there was no hood to see.
+        depth = HOOD_DEPTH * math.cos((t * 2 - 1) * math.pi / 2) ** 0.7 + 0.012
+        for j in range(HOOD_ROWS):
+            s = j / (HOOD_ROWS - 1)
+            reach = depth * math.sin(math.pi * s)
+            p = (seam + out * (0.006 + HOOD_RIM_OUT * s * 0.5 + reach)
+                 + Vector((0.0, 0.0, 0.004 + 0.030 * s + 0.012 * math.sin(math.pi * s))))
+            verts.append(p)
+    for i in range(HOOD_COLS - 1):
+        for j in range(HOOD_ROWS - 1):
+            a = i * HOOD_ROWS + j
+            faces.append((a, a + HOOD_ROWS, a + HOOD_ROWS + 1, a + 1))
+    hood = new_object("Hood", verts, faces, "MW_Hoodie")
 
-    # the fabric behind the roll, falling onto the upper back
-    drape = []
-    for j, (dz, spread, back) in enumerate((
-            (1.452, 1.00, 0.008), (1.400, 1.02, 0.026), (1.348, 0.96, 0.034),
-            (1.300, 0.84, 0.030), (1.262, 0.62, 0.020))):
-        ring = []
-        for k in range(HOOD_SEG):
-            t = k / (HOOD_SEG - 1)
-            a = math.radians((t * 2 - 1) * (HOOD_SWEEP - 26.0))
-            wob = 0.006 * math.cos(t * 14.0 + j)
-            ring.append((cx + math.sin(a) * HOOD_RADIUS * spread,
-                         cy + math.cos(a) * (HOOD_RADIUS * spread + back) + wob,
-                         dz))
-        drape.append(ring)
-    base = len(verts)
-    for ring in drape:
-        verts.extend(ring)
-    for r in range(len(drape) - 1):
-        for k in range(HOOD_SEG - 1):
-            a = base + r * HOOD_SEG + k
-            faces.append((a, a + 1, a + HOOD_SEG + 1, a + HOOD_SEG))
-    return new_object("Hood", verts, faces, "MW_Hoodie")
+    # the rucksack, which the hood comes down onto
+    pv, pf = rounded_box(BAG_CENTRE, BAG_SIZE, 0.055)
+    lv, lf = rounded_box((0.0, 0.238, 1.408), (0.248, 0.140, 0.088), 0.040, segs=4, slices=3)
+    n = len(pv)
+    proxy = new_object("PackProxy", pv + lv, pf + [tuple(n + k for k in f) for f in lf],
+                       "MW_Pack")
+    drape.add_collider(proxy, thickness=0.004)
+    drape.add_collider(body, thickness=HOODIE_CLEAR + 0.006)
+    drape.simulate(hood, lambda v: 1.0 if v.index % HOOD_ROWS == 0
+                   else (0.35 if v.index % HOOD_ROWS == 1 else 0.0),
+                   frames=HOOD_DRAPE_FRAMES)
+    drape.add_collider(body, thickness=HOODIE_CLEAR)
+    bpy.data.objects.remove(proxy, do_unlink=True)
+    solidify(hood, 0.0030)
+    zs = [v.co.z for v in hood.data.vertices]
+    print(f"  hood: {len(hood.data.vertices)} verts, z {min(zs):.3f}..{max(zs):.3f}")
+    return hood
 
 
-def build_cords():
+CORD_CLEAR = HOODIE_CLEAR + 0.008     # a cord lies on the fabric, not in the air
+
+
+def build_cords(body=None):
     """Two flat cream drawstrings hanging from the collar down the chest.
 
     The reference shows the character's right cord (the viewer's left) long and
     clearly readable against the tee, and the left one shorter.  The character's
     right is -X.
+
+    The path is written in the air and then laid onto the figure: each point
+    is kept `CORD_CLEAR` off the skin along the skin's normal.  Written for the
+    40 mm stand-off hoodie, it hung 60 mm in front of the draped one.
     """
+    tree = None
+    if body is not None:
+        from mathutils.bvhtree import BVHTree  # pylint: disable=import-error,import-outside-toplevel
+        src = bmesh.new()
+        src.from_mesh(body.data)
+        src.normal_update()
+        tree = BVHTree.FromBMesh(src)
+        src.free()
     verts, faces = [], []
     for sx, bottom, sway in ((-1.0, 1.138, -0.014), (1.0, 1.268, 0.010)):
         path = []
-        # in front of the panel, not inside it: the shell's front face sits at
-        # about y = -0.11 at the collar and -0.13 at the chest
-        top = Vector((sx * 0.066, -0.116, 1.424))
+        # just inside the zip edge, over the tee, as the reference shows the
+        # right cord; at 66 mm out they hung behind the backpack straps
+        top = Vector((sx * 0.052, -0.100, 1.428))
         n = 8
         for i in range(n):
             t = i / (n - 1)
-            path.append(Vector((
+            p = Vector((
                 top.x + sx * (0.012 * math.sin(t * 2.4)) + sway * t,
-                top.y - 0.026 * math.sin(t * 1.9) - 0.008 * t,
-                top.z - (top.z - bottom) * t)))
+                top.y - 0.010 * t,
+                top.z - (top.z - bottom) * t))
+            if tree is not None:
+                q, nrm, _i, _d = tree.find_nearest(p)
+                if q is not None:
+                    p = q + nrm * CORD_CLEAR
+            path.append(p)
         radii = [0.0040] * n
         radii[-1] = 0.0046          # the aglet
         v, f = tube(path, radii, segments=7, flatten=0.55)
@@ -581,7 +776,38 @@ BAG_CENTRE = (0.0, 0.232, 1.262)
 BAG_SIZE = (0.268, 0.152, 0.350)
 
 
-def build_pack(body, dom, arm):
+STRAP_GAP = 0.009         # strap centreline above the hoodie surface it lies on
+
+
+def _strap_onto(path, over, hold=None):
+    """Lay a strap's centreline on the draped hoodie rather than in the air.
+
+    The strap path was written for a hoodie standing 40 mm off the body.  The
+    draped one lies on the body, so each point is moved to the hoodie's
+    surface plus `STRAP_GAP` along the surface normal -- wherever the hoodie is
+    within reach.  Where it is not (over the open front, beside the zip) the
+    point is left alone.
+    """
+    from mathutils.bvhtree import BVHTree  # pylint: disable=import-error,import-outside-toplevel
+    tree = BVHTree.FromObject(over, bpy.context.evaluated_depsgraph_get())
+    out, moved = [], 0
+    for p in path:
+        if hold is not None and hold(p):
+            out.append(p)
+            continue
+        hit = tree.find_nearest(p, 0.06)
+        if hit[0] is None:
+            out.append(p)
+            continue
+        q, n = hit[0], hit[1].normalized()
+        if n.dot(p - q) < 0:
+            n = -n
+        out.append(q + n * STRAP_GAP)
+        moved += 1
+    return out, moved
+
+
+def build_pack(body, dom, arm, over=None):
     """The grey-green canvas rucksack, and the two padded straps.
 
     Built here, with the clothes, and skinned to the same armature — not
@@ -608,18 +834,28 @@ def build_pack(body, dom, arm):
 
     for sx in (-1.0, 1.0):
         path = [Vector((sx * px, py, pz)) for px, py, pz in STRAP_PATH]
+        if over is not None:
+            # Her left strap's front run is in her hand: the grip pulls it off
+            # the chest, and the arm is solved to that run (`solve_grip.gd`,
+            # `stand_pose.gd`). Laid on the hoodie it moved 30 mm under her
+            # knuckles and she held nothing. Only the run over the shoulder
+            # and down the back is laid on the fabric on that side.
+            path, n = _strap_onto(path, over,
+                                  hold=(lambda p: p.z < 1.40 and p.y < 0.0) if sx > 0 else None)
+            print(f"  strap {'L' if sx > 0 else 'R'}: {n} of {len(path)} points laid on the hoodie")
         radii = [STRAP_W / 2] * len(path)
         radii[0] = STRAP_W / 2 * 0.86          # tapers into the adjuster
         v, f = tube(path, radii, segments=8, flatten=STRAP_T / STRAP_W)
         add(v, f)
         # the dark lower section the reference shows below the adjuster
-        low = [Vector((sx * px, py, pz)) for px, py, pz in STRAP_PATH[:2]]
+        low = [p.copy() for p in path[:2]]
         v, f = tube([low[0] + Vector((0, 0, -0.085)), low[0]],
                     [STRAP_W / 2 * 0.80, STRAP_W / 2 * 0.84],
                     segments=8, flatten=STRAP_T / STRAP_W)
         add(v, f, lower)
         # the adjuster itself, a flat slider across the webbing
-        v, f = rounded_box((sx * 0.086, -0.150, 1.118), (0.058, 0.020, 0.024),
+        v, f = rounded_box((path[0].x, path[0].y - 0.002, path[0].z - 0.002),
+                           (0.058, 0.020, 0.024),
                            0.006, segs=3, slices=2)
         add(v, f, buckle)
 
@@ -682,7 +918,10 @@ def trim_body(body, dom):
         # showing as a serrated line between the collar and the throat.
         if in_neck_zone(c) and not all_in(dom, f, HEAD_BONES) \
                 and c.z >= TEE_HEM_Z + m:
-            return c.z < crew_z(c.y) + 0.004
+            # a little *below* it since the crew band (preview 3): the trim's
+            # serrated edge has to fall under the band, and at +4 mm its
+            # teeth stood above the band's inner face as holes in the skin
+            return c.z < crew_z(c.y) - 0.002
         # Everything else above the jeans: only what the *tee* covers, never
         # what the hoodie covers -- see `under_tee`.  The skin under the
         # hoodie's long sleeves stays, as everyone else's forearms.

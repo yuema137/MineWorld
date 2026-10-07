@@ -40,6 +40,7 @@ import bpy  # pylint: disable=import-error
 from mathutils import Vector  # pylint: disable=import-error
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import drape  # noqa: E402  pylint: disable=wrong-import-position
 import garments  # noqa: E402  pylint: disable=wrong-import-position
 import hair as hair_mod  # noqa: E402  pylint: disable=wrong-import-position
 from model_lib import (  # noqa: E402  pylint: disable=wrong-import-position
@@ -193,12 +194,18 @@ def main() -> int:
     dom = dominant_group(body)
     print(f"body: {len(body.data.vertices)} verts, {len(arm.data.bones)} bones")
 
+    tee = garments.build_tee(body, dom)
+    jeans = garments.build_jeans(body, dom)
+    # the hoodie is draped onto the body and the two garments under it
+    hoodie = garments.build_hoodie(body, dom, arm, colliders=(tee, jeans))
+    for o in (body, tee, jeans):
+        drape.remove_collider(o)
     made = [
-        garments.build_tee(body, dom),
-        garments.build_jeans(body, dom),
-        garments.build_hoodie(body, dom, arm),
+        tee,
+        jeans,
+        hoodie,
         garments.build_shoes(body, dom),
-        garments.build_pack(body, dom, arm),
+        garments.build_pack(body, dom, arm, over=hoodie),
     ]
     if not args.no_hair:
         made.append(hair_mod.build_hair(body, dom, arm))
