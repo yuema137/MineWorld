@@ -53,12 +53,43 @@ identifies one thing.
 | | Milestone | State |
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
-| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 👀 **preview 3, 2026-10-06 — not an acceptance request** (`ARC-24`): the updo groomed from strands and cut into cards, the hoodie draped by cloth simulation with a real hood, the eyes level, the skin matte; the face itself deferred by the operator; see below |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | ❌ **FAILED by the operator, 2026-10-06**: not the same person and not the reference's quality tier. The candidate is kept as pipeline validation only (`VISUAL_FIDELITY.md` §9.2); the route decision is with the operator, see below |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ❌ |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
-### `VIS-3D-GODOT-1` — working state after preview 3, 2026-10-06 (not a preview)
+### `VIS-3D-GODOT-1` — FAILED, 2026-10-06 (operator verdict on the preview 3 state)
+
+The operator compared the candidate with `04_character_closeup.png` side by side and called it
+**far off, not a polish gap**: the reference's surface features were copied onto a low-fidelity
+character, and it is neither the same person nor the same quality tier. The scorecard below is in
+the operator's words (`VISUAL_FIDELITY.md` §6).
+
+| Row | Reference | Candidate | Verdict |
+| --- | --- | --- | --- |
+| Face identity | small, soft, young face; large bright eyes; delicate, balanced features; a natural warm expression; light freckles | a wider, harder face; the eyes are blank, the expression wooden; the nose, mouth and chin are wrong | FAIL |
+| Hair silhouette | a light, fluffy, tied-up updo with natural loose strands at the face | it takes "a high updo" literally: the mass is coarse, the locks messy, the volume is clumped rather than soft, and the face strands are unnatural | FAIL |
+| Hoodie structure | a clear open burgundy zip hoodie: hood, zip, cords, cuffs | a red shell; the hoodie structure is weak and the cut is wrong | FAIL |
+| T-shirt and graphic | an oatmeal tee with a natural mountain print | the print is present but reads as a crude texture | FAIL |
+| Backpack | natural straps, sitting naturally on her | the straps do not relate naturally to the clothes | FAIL |
+| Material quality | soft skin, warm light, clean materials, like a high-quality game promo image | rough skin texture, dry materials, plain lighting, hair like painted blocks: a low-quality real-time character | FAIL |
+| Overall identity | — | not the same character | FAIL |
+| Overall vibe | warm, relaxed, cute, everyday | a low-cost demo character: stiff and rough | FAIL |
+
+**Consequence.**
+
+- Work on this candidate as the default character stops.
+- The parts it proved stay as pipeline validation: the character slot, the import, the rig, the
+  retarget and the animation.
+- `CHARACTER_ROUTE_ASSESSMENT.md` §1 already found that its route B (an agent doing artist methods
+  in Blender) would not close the face. Preview 3 ran that route, and the operator's verdict shows
+  it does not reach the quality tier either.
+
+**What remains is a route decision for the operator.** Either route C (a commissioned artist on
+the existing rig) or route E (an image-to-3D head as a wrap target, which needs a paid generator
+account or a CUDA GPU) has to be chosen.
+
+### `VIS-3D-GODOT-1` — working state after preview 3, 2026-10-06 (superseded by the FAILED verdict above)
 
 The primary session's four items on preview 3, worked at working resolution (620 × 900 per tile)
 against the reference at its own framing. The frames in `candidate/` are regenerated from this

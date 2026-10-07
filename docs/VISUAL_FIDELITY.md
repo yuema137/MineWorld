@@ -117,6 +117,13 @@ young woman              → adult man
 stepped varied roofline  → one flat continuous parapet
 ```
 
+**Quality level is a hard-fail category in its own right.** A candidate that matches every
+category above but renders at a visibly lower quality tier than the reference has failed. Examples
+of such a tier: crude skin, hair that reads as painted blocks, garments that read as shells, flat
+lighting. The reference sets the tier as well as the identity, so "the right clothes on a
+low-fidelity demo character" is a failure, not a partial pass. The operator recorded this on
+2026-10-06 against `VIS-3D-GODOT-1`.
+
 ## 6. How a comparison is reported
 
 Per category, with the reference fact and the candidate fact beside each other, and a verdict:
@@ -132,6 +139,25 @@ reference`, `same wardrobe`, and every other comparative that names no fact. The
 self-persuasion, and a reader cannot act on them.
 
 List the **largest** miss first, in the words a viewer would use.
+
+**Character scorecard.** Every serious character candidate carries this table. Each row has the
+reference fact, the candidate fact, the frame it was read from, and one of `PASS`, `PARTIAL` or
+`FAIL`.
+
+```text
+Face identity        face shape, eyes, nose, mouth, chin, expression, freckles
+Hair silhouette      front silhouette, top volume, the tied-up structure, loose strands at the face
+Hair colour          warm brown, highlights
+Hoodie structure     open zip, hood, drawstrings, cuffs, drape
+T-shirt and graphic  colour, layering, the mountain print
+Backpack             body, straps, how it sits on her
+Material quality     skin, hair, cloth
+Overall identity     the §9 question, answered yes or no
+Overall vibe         warm, relaxed, approachable; or not
+```
+
+`PARTIAL` is not a pass. A candidate with any `FAIL` row, or with `PARTIAL` on face identity or
+overall identity, does not go to acceptance review.
 
 ## 7. The loop
 
@@ -198,6 +224,19 @@ first, and the specific questions. It says plainly that it is a preview.
 **Do not wait for perfection to show a stable candidate.** Waiting is the failure this section
 exists to prevent. Equally, do not show an unstable one: torn geometry, a featureless face, a
 texture that did not load — those are repair, and repair is the agent's to finish first.
+
+### 9.2 A fundamentally wrong candidate is not patched indefinitely
+
+When the operator judges a candidate to be the wrong person, or the wrong quality tier, the
+candidate is recorded as `FAILED`. From then on it is kept only as **technical pipeline
+validation**, meaning the character slot, import, rig, retarget and animation it proved. It is no
+longer the default-character candidate, and it is never again described as close, near, or mostly
+there.
+
+The next step is to re-examine the **authoring method**, not to run another round of tuning. Ask
+whether the base, the head, the hair method or the garment method can reach the reference at all.
+If a part cannot, replace it; sunk cost is not a reason to keep it. Further rounds on the same
+method need a stated reason to expect a different result.
 
 ## 10. What a review submission contains
 
