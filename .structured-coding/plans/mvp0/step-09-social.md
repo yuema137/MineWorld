@@ -963,8 +963,8 @@ already exists, so this crate is written once, with its final subscriptions, and
 - Root `Cargo.toml`: a workspace member and a dependency.
 
 **Depends on:** C2.
-- [ ] Implementation:
-  - [ ] `knows` declared in `install` (`Declarations::relation`, directed Person → Person).
+- [x] Implementation (see "C3 result" below for the evidence of every sub-item):
+  - [x] `knows` declared in `install` (`Declarations::relation`, directed Person → Person).
   - [ ] `Acquaintances` / `RelationshipValues` (SD-5). `Level` and its boundaries (SD-7), in `level.rs`,
     as a pure function of `(familiarity, regard)`.
   - [ ] `react`, one arm per subscribed type, each decoding through the owner's published type:
@@ -979,8 +979,9 @@ already exists, so this crate is written once, with its final subscriptions, and
     `depending_on`**; no `providing`.
   - [ ] `discloses`: `Acquaintances` to its holder only. `pub const BIOGRAPHICAL`. Saturating integer
     arithmetic.
-- [ ] Validation (`cargo test -p mineworld-relationships`), over a hand-built world with presence,
-  movement, conversation and group-activity, driving the real actions:
+- [x] Validation (`cargo test -p mineworld-relationships`), over a hand-built world with presence,
+  movement, conversation and group-activity, driving the real actions (each sub-item is evidenced in
+  "C3 result" below):
   - [ ] **Edge ⇔ entry agree after every reduction**, over a scripted sequence of talks, accepts,
     declines and activity ends. After each step every `knows` edge has an `Acquaintances` entry and
     every entry has its edge (a both-ways check).
@@ -1053,20 +1054,46 @@ itself is never patched to work around it. **Boundary.** One new crate.
 - `clients/protocol/evidence/*`: re-recorded by `clients/protocol/run.sh evidence` (B-10).
 
 **Depends on:** C2, C3.
-- [ ] Implementation: as scope. `Capability::biographical()` returns each new pack's constant, and `&[]`
+- [x] Implementation: as scope. `Capability::biographical()` returns each new pack's constant, and `&[]`
   for presence, movement and conversation.
-- [ ] Validation:
-  - [ ] `mineworld validate worlds/social-cafe` lists five systems in order.
-  - [ ] `cargo test -p mineworld-worldpack -p mineworld-cli` (all but the long `run`/`run_restart`,
-    which C5 changes anyway) and `cargo test -p mineworld-persistence --test kill_and_resume`. Every
-    touched test passes, and each diff is literal-only (I-5).
-  - [ ] `clients/protocol/run.sh evidence`: the transcripts show 5 systems, Alice's recall line, and
-    "the scripted run is over". Then `ac13_semantic_parity` and `ac15_one_alice` pass over them.
-- [ ] Review:
-  - The catalog is the only shared file touched (F-1, §2.4).
-  - The `RuleController` (`--agent`) path is unchanged (I-9). `AC-15` still holds: one Alice, one
-    monotonic event sequence.
-  - The new facts appear only where relationships reduces a `spoke`.
+- [x] Validation (§9 E-B4):
+  - [x] `mineworld validate worlds/social-cafe` → `systems    presence, movement, conversation,
+    group-activity, relationships`.
+  - [x] `cargo test -p mineworld-worldpack` PASS (23 + 12 + 1). `cargo test -p mineworld-cli` over
+    ac13 (2), ac15 (6), commands (4), create (2), inspect (3, 14.8 s), restart (2) and server_command
+    (3): PASS. `kill_and_resume`: cafe PASS, clock PASS. **I-5 list**, each edit literal-only with its
+    claim unchanged:
+    - `worldpack/tests/social_cafe.rs` `the_pack_says_what_world_it_is`: the systems list gains
+      `GroupActivity`, `Relationships` ("in the order the pack states").
+    - `tools/cli/tests/server_command.rs`: the status systems list, the same claim.
+    - `tools/cli/tests/commands.rs` and `inspect.rs`: the composition substrings extended to the full
+      list. Both still **passed** with the old three-system substring, because it is a prefix of the
+      new line. They were updated so the claim names the whole composition, and `inspect`'s ends at
+      the newline.
+    - `tools/cli/tests/ac15_one_alice.rs`: the first-talk fact count 2 → 4 (conversation-started,
+      spoke, and became-acquainted once per direction; message extended to say so). "The agent's
+      facts lie between the windows'" now compares against the 2D talk's **last** fact rather than
+      index `[1]`, which was the last when there were two.
+    - `tools/cli/tests/restart.rs`: the first-talk count 2 → 4. The after-restart talk is still
+      exactly ONE fact: the acquaintance survived the kill, so nothing new forms and familiarity
+      20 → 30 crosses no level. The counterfactual in the message is now "would have recorded four".
+  - [x] `clients/protocol/run.sh evidence` (Godot 4.7.2 headless, 23.7 s):
+    - `server.log` reads "18 entities, 5 system(s)";
+    - all 5 transcripts end "the scripted run is over", with Alice's recall line;
+    - observations now carry `acquaintances` among the observer's own components, and `invite`
+      affordances;
+    - `request-{2d,3d}.json` are byte-unchanged, so AC-13's frames did not move;
+    - `ac13_semantic_parity` (2) and `ac15_one_alice` (6) PASS over them.
+
+    Not re-recorded: `server-window.log` / `transcript-window.log`. They come from the windowed
+    `run.sh`, which no test reads, and they were already stale before 10b (last touched in 10a C1,
+    pre-town).
+- [x] Review:
+  - The catalog is the only shared code file touched (F-1, §2.4), plus `worldpack/Cargo.toml`.
+  - `RuleController` (`--agent`) is unchanged (I-9). `AC-15` still holds: one monotonic sequence, and
+    Alice tells the 3D window what the 2D window said.
+  - The extra facts are only relationships' `became-acquainted`, caused by the `spoke`.
+  - fmt and clippy `-D warnings` are clean on worldpack and cli.
 **Acceptance.** As validation. **Failure.** A claim that cannot be kept under I-5 is a material stop.
 **Boundary.** Registration, pack composition, literals, and re-recorded evidence.
 
