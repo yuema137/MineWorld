@@ -2898,7 +2898,7 @@ tools/cli/tests/milestone_c.rs          new: Milestone C (SD-36)
 tools/cli/tests/fixture/mod.rs          one new function, `assert_quiet_in` (SD-36); the existing
                                         `assert_quiet` and its callers unchanged
 Cargo.lock                              mineworld-acceptance's dependency list gains two names; nothing
-                                        else (F-68)
+                                        else (F-69)
 docs/DECISIONS.md                       ARC-35 note (11f) (SD-37)
 docs/MVP_STATUS.md, docs/HUMAN_REVIEW_QUEUE.md        status and Milestone C (SD-37)
 worlds/market-town/README.md            human orientation: the proof and how to run it (Markdown only)
@@ -2907,7 +2907,7 @@ worlds/market-town/README.md            human orientation: the proof and how to 
 
 No path under `systems/`, under `worlds/` other than that README, nor `kernel/`, `contracts/`,
 `persistence/`, `server/`, `cognition/`, `sdk/`, `authoring/`, `worldpack/`, `tools/cli/src/`, `clients/`
-or the root `Cargo.toml` (F-58: `tests/acceptance` is already a member). The existing tests under
+or the root `Cargo.toml` (F-59: `tests/acceptance` is already a member). The existing tests under
 `tools/cli/tests/` other than `fixture/mod.rs`'s addition are not edited.
 
 **Non-goals.** No fix to F-47, F-48, L-12, L-13 or relationship saturation (closeout items, §4.6.6); no
@@ -2922,13 +2922,13 @@ a material stop, not a retune — I-9).
 | ID | Decision | Rationale |
 | --- | --- | --- |
 | **SD-29** | **The AC-1 test is one file, `tests/acceptance/tests/ac1_composability.rs`, with one `#[test]` per check**, so a failing check never hides another: `check_1_the_change_set`, `check_2_the_dependency_structure`, `check_3_the_world_delta`. It holds two tables, both literals: `TRANSFORMATION` — `{ pr: "11d", number: 43, branch: "mvp0/pr-11d-owning-things", merge: "70e532f383ff81464d00066ff85e1b7fdc2296b0" }` and `{ pr: "11e", number: 46, branch: "mvp0/pr-11e-work-money-shops", merge: "2dddda86a4347d54de7bd2303d5268a421870b5f" }` — and `MARKET_PACKS`, the six pack ids (`item`, `inventory`, `item-transfer`, `economy`, `employment`, `consumption`; ARC-35's 11e note), from which the crate names `mineworld-<id>` and `mineworld_<id with _>` are derived. A guard test asserts that each listed pack is a directory `systems/<id>/` whose `Cargo.toml` names that crate, so the list cannot go stale silently. Each check's core is a function over plain inputs (paths, lock text, metadata, YAML values), unit-tested on hand-written inputs, and called by its `#[test]` with what the repository holds. | `ARC-35` items 1–5 and its two notes; `ARC-23` (three independent checks); SD-15. The precursor scan's file is the template (`precursor_vocabulary.rs`: `git` through one helper that names its failure; fail closed; unit tests on text). |
-| **SD-30** | **Check 1, the change set, from history, fail closed.** (a) The repository must be a work tree and **not shallow** (`git rev-parse --is-shallow-repository` = `false`); a shallow clone fails naming the missing history and the remedy (`fetch-depth: 0`). (b) Each row's merge is found on `git log --first-parent --merges HEAD` by its GitHub subject, `Merge pull request #<number> from <owner>/<branch>`: exactly one match, or the test fails naming zero or both; the match's id must equal the recorded `merge`, and it must have exactly two parents (a squash would have one, and is refused, as `ARC-35` item 7 says of the scan). (c) `git diff --name-only --no-renames M^1 M` ⊆ allowed: `systems/**`, `worlds/**`, `Cargo.lock`, and `**/*.md` under `docs/`, `systems/`, `worlds/`, `.structured-coding/plans/`; every other path is named. (d) **`Cargo.lock`:** both versions are read with `git show <rev>:Cargo.lock` and parsed by a line reader of the `[[package]]` blocks (name, version, source, dependencies; no TOML dependency is added, F-68). Every package added, removed, or changed in any field between `M^1` and `M` must have no `source` and be a crate under `systems/` at `M` — found by `git grep` at `M` for `name = "<name>"` in `systems/*/Cargo.toml` — or the test fails naming the package and what changed. | `ARC-35` items 1, 2, 5. The subject **and** the id (QS-55): the subject proves the id is that PR's merge on `main`'s first-parent chain; the id pins it, so a later merge with a recycled branch name cannot take its place. "Changed in any field" is `R-S9-6`'s wording ("fails on any changed non-path package"), tighter than item 2's "added" and "dependency list changed" (QS-56). |
-| **SD-31** | **Check 2, the structure, from `cargo metadata --no-deps --format-version 1 --offline` at the working tree**, run through the `cargo` that built the test (`env!("CARGO")`); a `cargo` that cannot run, or output that does not parse, fails naming it. `--no-deps` is enough and is offline: only a workspace member can depend on a path crate, so every path to a market pack runs through workspace members, whose declared dependencies (`name`, `kind`, `path`) the output lists (F-59: full metadata wants Windows-only crates that are never downloaded here). Three bullets, each naming what it finds: (1) every workspace crate that declares a market pack as a dependency, **of any kind** (normal, build or dev), lives under `systems/`; (2) no path over **normal and build** dependency edges leads to a market pack from `mineworld-kernel`, `-contracts`, `-persistence`, `-server`, `-authoring`, `-sdk` or `-rule-controller` (the path is printed); (3) no `*.rs` or `Cargo.toml` outside `systems/`, `worlds/` and `tests/acceptance/` — tracked files and untracked files Git does not ignore, read from the working tree so an uncommitted edit is seen — contains a market pack's crate name as a word (`mineworld-economy`, `mineworld_economy`, …; `mineworld-item` does not match inside `mineworld-item-transfer` by accident, both being market names). | `ARC-35` item 3. Bullet 2's edge reading is **QS-54, operator-material**: `persistence`'s *test* `kill_and_resume` dev-depends on `worldpack`, which links the installed set and so the market packs (F-57). Counting dev edges would fail AC-1 for a test that loads a World Pack — the composition `ARC-33` built — while nothing in `persistence` knows the market; bullets 1 and 3 still see any dev dependency on, or naming of, a market pack. |
-| **SD-32** | **Check 3, the world delta, structurally.** Both packs are first read with `WorldPack::read` (a pack that does not read fails the check, naming the refusal). Then each YAML file of both packs is parsed with `serde-saphyr` into `serde_json::Value` (supported by the parser for exactly this, F-61) and compared: `world.yaml` — `world.id` and `world.name` may differ; `systems` is Social Café's list, in order, followed by exactly the six market packs (as a set; their order among themselves is the registry's to judge, and `validate` already does); `places`, `population` and `seats` are equal; `items` and `organizations` are absent in Social Café and present in Market Town; no other top-level key differs. Every file under `places/` and `people/`: the same set of files; every top-level key of Social Café's file is present in Market Town's with an equal value; every key Market Town adds is a section whose owner, by the build's own `Capability::owning_section`, is one of the six market packs. `items/` and `organizations/` exist in Market Town only. `README.md` is not configuration and is not compared. Every difference is named by file and key. | `ARC-35` item 4 with its 11e note (six packs). `WorldPack::read` hands sections over decoded as opaque `AuthoredContent` (F-61), so the comparison is of the authored values, which is what "configuration" means; the section's owner comes from the build, not from a list in the test. Two dev-dependencies are added to `tests/acceptance` (F-68). |
-| **SD-33** | **World-level tests read market facts and components by their type slugs, through test-local mirrors — never through a market crate.** `tools/cli/tests/market/mod.rs` holds `MARKET_TOWN` (the pack path), `run_market(seed, days, save)`, mirrors of the ten payloads the tests read (`funded`, `shop-opened`, `money-transferred`, `wage-due`, `wage-unpaid`, `hired`, `stocked`, `items-transferred`, `items-produced`, `items-consumed`) and of the `wallet`, `holdings` and `shop` (listing) components — each a `#[derive(Deserialize)] #[serde(deny_unknown_fields)]` struct over `mineworld-contracts`' id types, decoded from `EventRecord::payload()` only after `event_type()` matches the literal slug and `schema_version()` is 1 — and a `Ledger` that replays wallets and holdings from those facts. | `ARC-35` check 2 bullet 3 forbids naming a market crate outside `systems/`, `worlds/`, `tests/acceptance/`, and a test that runs the `mineworld` binary must live in `tools/cli` (`CARGO_BIN_EXE_mineworld` exists only there) (F-60, QS-58). Literal slugs and shapes are also the independent oracle rules §25 asks for; `deny_unknown_fields` and the version check make a changed shape a loud failure, not a test that keeps passing. |
-| **SD-34** | **CP-4 is `tools/cli/tests/market_town.rs`, at the full 300-day horizon, in the default suite (no `#[ignore]`)** (QS-59). One test, in the order I-7 binds: the 300-day seed-7 run with `--save`, the two 30-day runs and the killed-and-rerun 30-day run are started together (the `run.rs` pattern); then **activity is checked first**, on the 300-day save — the conditions of P-5 — and on the 30-day control — the same conditions over its one bucket; **only then** are runs compared: the two 30-day saves byte-identical (facts, journal, snapshots), and the 30-day run SIGKILLed after day 15 and run again equal to the uninterrupted one byte for byte (the `run_restart.rs` pattern). Money conservation and the capacity are checked against the **state** in the save's newest snapshot, not against the facts alone (F-62). | CP-4 is a 300-day claim and `L-13`'s bounded horizon is exactly the measured 300 days, so a shorter committed horizon would let content that drains after its end pass. `run.rs` already runs three 300-day Social Café runs in the default suite; the market run costs ~34 s of a ~3-minute gate, in parallel with the 30-day runs. An ignored test is a test not run (§3.1 of `CLAUDE.md`). Replaying money from `money-transferred` alone would conserve it by construction; comparing with the wallets economy actually wrote is what can see a payer that was never debited (the primary session's 11e mutation). |
+| **SD-30** | **Check 1, the change set, from history, fail closed.** (a) The repository must be a work tree and **not shallow** (`git rev-parse --is-shallow-repository` = `false`); a shallow clone fails naming the missing history and the remedy (`fetch-depth: 0`). (b) Each row's merge is found on `git log --first-parent --merges HEAD` by its GitHub subject, `Merge pull request #<number> from <owner>/<branch>`: exactly one match, or the test fails naming zero or both; the match's id must equal the recorded `merge`, and it must have exactly two parents (a squash would have one, and is refused, as `ARC-35` item 7 says of the scan). (c) `git diff --name-only --no-renames M^1 M` ⊆ allowed: `systems/**`, `worlds/**`, `Cargo.lock`, and `**/*.md` under `docs/`, `systems/`, `worlds/`, `.structured-coding/plans/`; every other path is named. (d) **`Cargo.lock`:** both versions are read with `git show <rev>:Cargo.lock` and parsed by a line reader of the `[[package]]` blocks (name, version, source, dependencies; no TOML dependency is added, F-69). Every package added, removed, or changed in any field between `M^1` and `M` must have no `source` and be a crate under `systems/` at `M` — found by `git grep` at `M` for `name = "<name>"` in `systems/*/Cargo.toml` — or the test fails naming the package and what changed. | `ARC-35` items 1, 2, 5. The subject **and** the id (QS-55): the subject proves the id is that PR's merge on `main`'s first-parent chain; the id pins it, so a later merge with a recycled branch name cannot take its place. "Changed in any field" is `R-S9-6`'s wording ("fails on any changed non-path package"), tighter than item 2's "added" and "dependency list changed" (QS-56). |
+| **SD-31** | **Check 2, the structure, from `cargo metadata --no-deps --format-version 1 --offline` at the working tree**, run through the `cargo` that built the test (`env!("CARGO")`); a `cargo` that cannot run, or output that does not parse, fails naming it. `--no-deps` is enough and is offline: only a workspace member can depend on a path crate, so every path to a market pack runs through workspace members, whose declared dependencies (`name`, `kind`, `path`) the output lists (F-60: full metadata wants Windows-only crates that are never downloaded here). Three bullets, each naming what it finds: (1) every workspace crate that declares a market pack as a dependency, **of any kind** (normal, build or dev), lives under `systems/`; (2) no path over **normal and build** dependency edges leads to a market pack from `mineworld-kernel`, `-contracts`, `-persistence`, `-server`, `-authoring`, `-sdk` or `-rule-controller` (the path is printed); (3) no `*.rs` or `Cargo.toml` outside `systems/`, `worlds/` and `tests/acceptance/` — tracked files and untracked files Git does not ignore, read from the working tree so an uncommitted edit is seen — contains a market pack's crate name as a word (`mineworld-economy`, `mineworld_economy`, …; `mineworld-item` does not match inside `mineworld-item-transfer` by accident, both being market names). | `ARC-35` item 3. Bullet 2's edge reading is **QS-54, operator-material**: `persistence`'s *test* `kill_and_resume` dev-depends on `worldpack`, which links the installed set and so the market packs (F-58). Counting dev edges would fail AC-1 for a test that loads a World Pack — the composition `ARC-33` built — while nothing in `persistence` knows the market; bullets 1 and 3 still see any dev dependency on, or naming of, a market pack. |
+| **SD-32** | **Check 3, the world delta, structurally.** Both packs are first read with `WorldPack::read` (a pack that does not read fails the check, naming the refusal). Then each YAML file of both packs is parsed with `serde-saphyr` into `serde_json::Value` (supported by the parser for exactly this, F-62) and compared: `world.yaml` — `world.id` and `world.name` may differ; `systems` is Social Café's list, in order, followed by exactly the six market packs (as a set; their order among themselves is the registry's to judge, and `validate` already does); `places`, `population` and `seats` are equal; `items` and `organizations` are absent in Social Café and present in Market Town; no other top-level key differs. Every file under `places/` and `people/`: the same set of files; every top-level key of Social Café's file is present in Market Town's with an equal value; every key Market Town adds is a section whose owner, by the build's own `Capability::owning_section`, is one of the six market packs. `items/` and `organizations/` exist in Market Town only. `README.md` is not configuration and is not compared. Every difference is named by file and key. | `ARC-35` item 4 with its 11e note (six packs). `WorldPack::read` hands sections over decoded as opaque `AuthoredContent` (F-62), so the comparison is of the authored values, which is what "configuration" means; the section's owner comes from the build, not from a list in the test. Two dev-dependencies are added to `tests/acceptance` (F-69). |
+| **SD-33** | **World-level tests read market facts and components by their type slugs, through test-local mirrors — never through a market crate.** `tools/cli/tests/market/mod.rs` holds `MARKET_TOWN` (the pack path), `run_market(seed, days, save)`, mirrors of the ten payloads the tests read (`funded`, `shop-opened`, `money-transferred`, `wage-due`, `wage-unpaid`, `hired`, `stocked`, `items-transferred`, `items-produced`, `items-consumed`) and of the `wallet`, `holdings` and `shop` (listing) components — each a `#[derive(Deserialize)] #[serde(deny_unknown_fields)]` struct over `mineworld-contracts`' id types, decoded from `EventRecord::payload()` only after `event_type()` matches the literal slug and `schema_version()` is 1 — and a `Ledger` that replays wallets and holdings from those facts. | `ARC-35` check 2 bullet 3 forbids naming a market crate outside `systems/`, `worlds/`, `tests/acceptance/`, and a test that runs the `mineworld` binary must live in `tools/cli` (`CARGO_BIN_EXE_mineworld` exists only there) (F-61, QS-58). Literal slugs and shapes are also the independent oracle rules §25 asks for; `deny_unknown_fields` and the version check make a changed shape a loud failure, not a test that keeps passing. |
+| **SD-34** | **CP-4 is `tools/cli/tests/market_town.rs`, at the full 300-day horizon, in the default suite (no `#[ignore]`)** (QS-59). One test, in the order I-7 binds: the 300-day seed-7 run with `--save`, the two 30-day runs and the killed-and-rerun 30-day run are started together (the `run.rs` pattern); then **activity is checked first**, on the 300-day save — the conditions of P-5 — and on the 30-day control — the same conditions over its one bucket; **only then** are runs compared: the two 30-day saves byte-identical (facts, journal, snapshots), and the 30-day run SIGKILLed after day 15 and run again equal to the uninterrupted one byte for byte (the `run_restart.rs` pattern). Money conservation and the capacity are checked against the **state** in the save's newest snapshot, not against the facts alone (F-63). | CP-4 is a 300-day claim and `L-13`'s bounded horizon is exactly the measured 300 days, so a shorter committed horizon would let content that drains after its end pass. `run.rs` already runs three 300-day Social Café runs in the default suite; the market run costs ~34 s of a ~3-minute gate, in parallel with the 30-day runs. An ignored test is a test not run (§3.1 of `CLAUDE.md`). Replaying money from `money-transferred` alone would conserve it by construction; comparing with the wallets economy actually wrote is what can see a payer that was never debited (the primary session's 11e mutation). |
 | **SD-35** | **AC-2 at world level is `tools/cli/tests/market_composition.rs`, one copy of Market Town per market pack** (the `social_composition.rs` pattern): the pack's id removed from `world.yaml`'s `systems`, and its section — `item:`, `holdings:`, `economy:`, `job:`; `item-transfer` and `consumption` own none — removed from every file that carries it, so the only difference is the pack. Expected, from the declared dependencies (§2.6, `ARC-37`, `ARC-38`): **refused** — without `item`, `validate` fails naming `inventory`'s missing dependency `item`; without `inventory`, it fails naming `inventory` as a dependency of a pack still enabled. **Runs** — without `item-transfer`, `economy`, `employment` or `consumption`, `validate` succeeds and a 30-day seed-7 run has 0 faults and every seat moving and talking in its bucket, with the pack's interactions absent and the others present (P-7's table). | MVP §9's AC-2 names `ItemTransferSystem`; QS-61 applies the same question to every pack the transformation installed, because "independently installable" is only half shown if removal is not. A refusal by name is the honest answer for a pack others depend on (`INV-10`, the registry's dependency rule), not a failure of AC-2. |
-| **SD-36** | **Milestone C is `tools/cli/tests/milestone_c.rs`**, in `milestone_b.rs`'s shape. `run worlds/market-town --headless --seed 7 --days 2 --save K`; in K, **work and earn are located**: alice's `hired`, a `shift-started { present: true }` and `shift-ended { worked > 0 }`, a `wage-due` for her and the `money-transferred` to her caused by it (`Causation::Event`). `fixture::assert_quiet_in(market-town's people, head, 3 600, …)` — a new function reading every `from: "HH:MM"` **and** `until: "HH:MM"`, so job shifts count as well as routines (F-63) — then `server worlds/market-town --save K`. Clients **alice** and **bob** join; each walks from where the save left them, through the doorways the pack declares (read with `WorldPack::read`), along the street and into the **café** — the shop alice works for (F-64) — with `move` strides the server accepts one by one. Alice's own disclosed `wallet` equals the `Ledger`'s balance for her at the head (earned wages included). If she carries six, she first submits one offered, available `eat` or `drink` unchanged (F-65). Bob reads the café's `shop` listing. Alice submits one **available complete `buy` affordance unchanged** (`PROTOCOL.md` §6) and it is accepted with exactly two events. Then: alice's wallet is lower by the price, her holdings higher by one of that kind; **bob's next observation shows that kind's `in_stock` one lower**, and discloses neither alice's `wallet` nor her `holdings` (INV-13). The server is SIGKILLed and started again on K: the same `instance`, the same `revision` for both, alice's wallet and holdings and bob's listing unchanged. Finally `inspect K` resolves every cause. | CP-7 and `HUMAN_REVIEW_QUEUE.md`'s Milestone C, literally. The work and the wage happen in the saved run because a hosted clock runs one world second per wall second and a shift is hours long; the buy, the perception and the restart happen through the protocol, which is the claim. The café, because the store sells out each day (E-E7: empty at day 300) and alice buying from her own employer is the loop *run a shop* closes. |
+| **SD-36** | **Milestone C is `tools/cli/tests/milestone_c.rs`**, in `milestone_b.rs`'s shape. `run worlds/market-town --headless --seed 7 --days 2 --save K`; in K, **work and earn are located**: alice's `hired`, a `shift-started { present: true }` and `shift-ended { worked > 0 }`, a `wage-due` for her and the `money-transferred` to her caused by it (`Causation::Event`). `fixture::assert_quiet_in(market-town's people, head, 3 600, …)` — a new function reading every `from: "HH:MM"` **and** `until: "HH:MM"`, so job shifts count as well as routines (F-64) — then `server worlds/market-town --save K`. Clients **alice** and **bob** join; each walks from where the save left them, through the doorways the pack declares (read with `WorldPack::read`), along the street and into the **café** — the shop alice works for (F-65) — with `move` strides the server accepts one by one. Alice's own disclosed `wallet` equals the `Ledger`'s balance for her at the head (earned wages included). If she carries six, she first submits one offered, available `eat` or `drink` unchanged (F-66). Bob reads the café's `shop` listing. Alice submits one **available complete `buy` affordance unchanged** (`PROTOCOL.md` §6) and it is accepted with exactly two events. Then: alice's wallet is lower by the price, her holdings higher by one of that kind; **bob's next observation shows that kind's `in_stock` one lower**, and discloses neither alice's `wallet` nor her `holdings` (INV-13). The server is SIGKILLed and started again on K: the same `instance`, the same `revision` for both, alice's wallet and holdings and bob's listing unchanged. Finally `inspect K` resolves every cause. | CP-7 and `HUMAN_REVIEW_QUEUE.md`'s Milestone C, literally. The work and the wage happen in the saved run because a hosted clock runs one world second per wall second and a shift is hours long; the buy, the perception and the restart happen through the protocol, which is the claim. The café, because the store sells out each day (E-E7: empty at day 300) and alice buying from her own employer is the loop *run a shop* closes. |
 | **SD-37** | **Documents.** `docs/DECISIONS.md`: an **ARC-35 note (11f)** — the two merges by subject and id, the Cargo.lock reading, check 2's edge reading as answered (QS-54), check 3's structural comparison, that world-level tests read the market by slugs, the 300-day horizon, and the evidence. `MVP_STATUS.md`: the Market Town composition axis, the S9 row, an evidence row per proof, the `worlds/market-town` artefact. `HUMAN_REVIEW_QUEUE.md`: Milestone C demonstrated, awaiting the operator, with a "how to see it for yourself" section and its launch commands. `worlds/market-town/README.md`: the proof and how to run it. Overall §7 and the step header are the planning session's (POST-MERGE SYNC). | `CLAUDE.md` §2.2; ARC-35's accepted limitation ("the proof records them"). |
 
 ### 4.6.3 Acceptance (decided before measuring, `ARC-23`)
@@ -2967,7 +2967,7 @@ P-3  AC-1 check 2 holds and bites. On the PR head: the market packs' dependents 
            [dependencies] → bullet 2 names the path server → installed-systems → a market pack.
      M-P7  `// mineworld_economy` appended to tools/cli/src/run.rs → bullet 3 names the file and line.
      A unit test feeds the core function a hand-written metadata value with a dev edge from persistence
-     through worldpack (F-57's shape) and asserts the reading QS-54 decides.
+     through worldpack (F-58's shape) and asserts the reading QS-54 decides.
 P-4  AC-1 check 3 holds and bites. On the PR head: Market Town = Social Café + the six packs appended to
      systems + items/ and organizations/ + sections owned by market packs only (holdings, economy, job
      on people; item on items; holdings, economy on organizations); README.md not compared. Mutations
@@ -3058,8 +3058,8 @@ P-11 Status is true: MVP_STATUS's Market Town composition axis ✅ with the AC-1
   `mvp0/s9-11f-plan`.
 - [x] Validation: both doc checks (§9 E-9).
 - [x] Review: every file and symbol named here was read on `2dddda8` (§8.7); the riskiest unknowns were
-  measured, not assumed — the dependency graph (`cargo tree`, F-57), offline `cargo metadata` (F-59), the
-  two merges' diffs and lock changes (§9 E-8), a 2-day market-town save's head and activity (F-63, E-8);
+  measured, not assumed — the dependency graph (`cargo tree`, F-58), offline `cargo metadata` (F-60), the
+  two merges' diffs and lock changes (§9 E-8), a 2-day market-town save's head and activity (F-64, E-8);
   operator-material points are marked (§10). Self-review by the planning session only; the primary
   session's review is pending.
 
@@ -3069,7 +3069,7 @@ P-11 Status is true: MVP_STATUS's Market Town composition axis ✅ with the AC-1
 
 **Scope.** `docs/DECISIONS.md`: an ARC-35 dated note after its 11e note (`git fetch` first; no new ARC id):
 the merges by subject and id (SD-30, QS-55); the Cargo.lock rule as R-S9-6 words it (QS-56); check 2's
-edge reading as answered (QS-54) and why (F-57); check 3's structural comparison and the section owner
+edge reading as answered (QS-54) and why (F-58); check 3's structural comparison and the section owner
 from the build (SD-32); world-level tests reading the market by slugs (SD-33, QS-58); CP-4's 300-day
 committed horizon (QS-59); fail closed without full history (CI needs `fetch-depth: 0`, S13).
 
@@ -3098,7 +3098,7 @@ market-pack-list guard. `tests/acceptance/src/lib.rs`'s table (a comment).
 **Scope.** The same file: `metadata()` (`env!("CARGO") metadata --no-deps --format-version 1 --offline`),
 `Workspace` (crate → directory, declared dependencies with kind), `direct_dependents`, `paths_to`
 (normal + build edges per QS-54's answer), `names_a_market_crate` over the working tree's code files,
-`check_2_the_dependency_structure`; a unit test on a hand-written metadata value (F-57's shape).
+`check_2_the_dependency_structure`; a unit test on a hand-written metadata value (F-58's shape).
 
 - [ ] Implementation: SD-31.
 - [ ] Validation: the test on the head (P-3's positive); M-P5 … M-P7 (§9.6 E-P3).
@@ -3189,7 +3189,7 @@ CI          none configured (S13); the full local gate once on the final head
   `Capability::owning_section`, the save's tables through `SqliteBackend`, `EventRecord::payload()`, the
   server's protocol. A needed edit to any pack, world or framework crate is a material stop.
 - **Operator-material:** QS-54 (how ARC-35 check 2 reads "a dependency path": normal and build edges,
-  because of F-57) and QS-65 (declaring AC-1 demonstrated, and Milestone C's review).
+  because of F-58) and QS-65 (declaring AC-1 demonstrated, and Milestone C's review).
 - **Bounded readings the primary session settles:** QS-55 (merges by subject and id), QS-56 (the
   Cargo.lock rule as R-S9-6 words it), QS-57 (check 3 structural), QS-58 (slugs, not crates, in
   tools/cli), QS-59 (300 days, default-on), QS-60 (11d's per-seat gives reinstated as a criterion), QS-61
@@ -3224,7 +3224,7 @@ L-13      a bounded-horizon economy: ten of twelve people have no income and liv
 Rel.sat.  relationships never decay; the social graph saturates after ~60 days (step-09, 10b).
 QS-10     `sleep` is still an open MVP §5 interaction, with no step; `eat` (and `drink`) closed by
           consumption (QS-35). Hunger and needs remain a later needs pack.
-F-57      persistence's kill_and_resume test links the market packs through worldpack and the installed
+F-58      persistence's kill_and_resume test links the market packs through worldpack and the installed
           set; check 2 reads normal and build edges (QS-54's answer).
 S13       the AC-1 test needs full history: CI must check out with fetch-depth 0, or the test fails (by
           design, never a skip).
@@ -3695,6 +3695,84 @@ F-57  Process: during this audit one `xargs` (listing file sizes) and one `awk` 
       Recorded, not repeated.
 ```
 
+## 8.7 Re-audit for 11f (`main @ 2dddda8`, 2026-10-07)
+
+What was inspected, on `2dddda8` (11e merged), for the proof:
+
+```text
+tests/acceptance/{Cargo.toml, src/lib.rs, tests/precursor_vocabulary.rs (whole), tests/complete_affordances.rs
+  (header)}; root Cargo.toml (members, [workspace.dependencies], [profile.dev])
+tools/cli/{Cargo.toml, src/main.rs (commands, validate, serve), src/run.rs (the pace loop, the end,
+  the printed report), src/inspect.rs (what it reads and prints)}
+tools/cli/tests/{milestone_b.rs (whole), headless/mod.rs (whole), social/mod.rs (whole), support/mod.rs
+  (whole), fixture/mod.rs (whole), run.rs (header, the 300-day test), run_restart.rs (header),
+  social_composition.rs (header, without / without_owning)}
+persistence/src/{lib.rs (exports), backend.rs (the trait), world.rs (snapshots)}; kernel/src/snapshot.rs
+  (WorldSnapshot); contracts/src/event.rs (EventRecord: event_type, schema_version, payload, payload_for)
+worldpack/src/{lib.rs (exports), read.rs (WorldPack accessors), format.rs (WorldManifest, Authored*,
+  FoundSection, SectionState)}; authoring/src/content.rs (AuthoredContent); sdk/rust/src/installed.rs
+  (Capability: resolve, id, section, owning_section)
+server/PROTOCOL.md (whole)
+worlds/market-town/{world.yaml, people/felix.yaml, people/alice.yaml (routine, job comments),
+  places/{store,apartments}.yaml (passages)}; git ls-files of both worlds
+systems/{economy/src/{event.rs, component.rs, system.rs (discloses)}, inventory/src/{event.rs,
+  component.rs}, employment/src/event.rs}: payload fields, slugs, schema versions, component types
+docs/{DECISIONS.md ARC-35 (with both notes), ARC-36, ARC-37, ARC-38; HUMAN_REVIEW_QUEUE.md (whole);
+  ACCEPTANCE.md (whole); MVP.md §§1–2, 9; MVP_STATUS.md}
+history: git log --first-parent --merges HEAD (both transformation merges); git diff --name-only and
+  -- Cargo.lock of 70e532f^1..70e532f and 2dddda8^1..2dddda8
+commands run: cargo tree -i per market pack and -p per framework crate (offline); cargo metadata (full,
+  then --no-deps); mineworld run worlds/market-town --days 2 --save, then inspect (§9 E-8)
+```
+
+Findings (F-58 onward; F-1 … F-57 are earlier sections'):
+
+```text
+F-58  persistence's dev-dependency on worldpack (for the kill_and_resume checkpoint) reaches the market
+      packs through the installed set: `cargo tree -p mineworld-persistence -e normal,dev,build` shows
+      them, `-e normal,build` does not. kernel, contracts, server, authoring, sdk and rule-controller reach
+      none by any edge. ARC-35 check 2's "no dependency path" is ambiguous about dev edges, and read with
+      them it fails AC-1 for a test that loads a World Pack (QS-54, operator-material).
+F-59  tests/acceptance is already a workspace member (11a); 11f needs no root Cargo.toml edit. §4.6.7's
+      "root Cargo.toml: one member line" is stale.
+F-60  `cargo metadata --offline` (full) fails: it wants anstyle-wincon, a Windows-only crate never
+      downloaded here. `cargo metadata --no-deps --offline` runs in ~0.03 s and lists every workspace
+      package's declared dependencies with `kind` and `path` — enough, because only a workspace member can
+      depend on a path crate, so every path to a market pack runs through members.
+F-61  World-level tests that run the binary must live in tools/cli (CARGO_BIN_EXE_mineworld exists only
+      for the binary's own package), and ARC-35 check 2 bullet 3 forbids naming a market crate there. The
+      existing social tests decode facts with the owner packs' types (social/mod.rs); the market tests
+      cannot. EventRecord::payload() gives the bytes unchecked beside event_type() and schema_version(),
+      so test-local mirrors keyed by slug are possible without any framework change (SD-33, QS-58).
+F-62  WorldPack::read keeps a section only as Arc<dyn AuthoredContent> (Debug; owner, section,
+      references, seed), so check 3 cannot compare sections through it. serde-saphyr documents
+      deserializing YAML into serde_json::Value for this case; the section's owner is answered by the
+      build's Capability::owning_section (SD-32).
+F-63  `mineworld run` writes no snapshot at its end (no checkpoint call in run.rs); a save holds a snapshot
+      every 64 revisions (DEFAULT_SNAPSHOT_INTERVAL). A state cross-check is therefore at the newest
+      snapshot, against the facts at or before its revision (SD-34).
+F-64  A save's head is the last journaled input, not midnight: a 2-day market-town save's head is
+      revision 1 946 at t171 910 (day 2, 23:45:10), the last consult. Every routine and job boundary of
+      market-town lies in 05:00–23:00, so an hour hosted from the head is quiet. fixture::assert_quiet
+      reads social-cafe's people and only `from:`, so it cannot see a job's `until:` (SD-36).
+F-65  The store sells each morning's production the same day (E-E7: 0 items at day 300), so a buy at
+      the store at the head is likely unavailable; the café keeps stock (170 items at day 300). Milestone
+      C buys at the café, alice's employer (SD-36).
+F-66  A buyer carrying six is offered `buy` unavailable (TargetUnavailable, ARC-38 item 3), and E-E7
+      saw every person at six at some point. Milestone C frees one place first, through an offered
+      `eat` or `drink`, when the buyer is full (SD-36).
+F-67  The I-2 scan reads each precursor's base..M^2, all three merged; 11f's lines are in no precursor's
+      range, so 11f may name market words freely and adds no row.
+F-68  The CP-4-style helpers are social-cafe-bound (headless::PACK, fixture's PEOPLE, seats()). Market
+      Town needs its own pack path; a new shared module avoids editing those helpers' existing callers.
+F-69  11f's Cargo.lock change is mineworld-acceptance's dependency list gaining mineworld-worldpack and
+      serde-saphyr — outside systems/, which is allowed for 11f (not in the AC-1 range), and never read
+      by check 1, which reads only the two transformation merges.
+```
+
+Material findings: F-58 (QS-54). Everything else is bounded, and no framework gap was found: every seam
+the proof needs is already public.
+
 ---
 
 # 9. Ledger and evidence
@@ -3856,6 +3934,35 @@ E-6  The R-S9-1 spike for 11e, 2026-10-07. Local scratch branch `scratch/11e-spi
 E-7  End of this planning branch: check_doc_headings → 143 numbered sections across 22 documents, none
      duplicated; check_decision_ids → 48 ids, all distinct (ARC-38 a proposal in this file only; absent
      from every origin/* branch after `git fetch`). Docs-only branch; no cargo gate beyond the spike.
+
+--- after 11e merged; planning 11f (branch mvp0/s9-11f-plan, base main @ 2dddda8) ---
+
+E-8  The 11f audit's measurements, 2026-10-07, on 2dddda8 (debug, opt-level 1); logs in /tmp/s9-11f-plan/.
+     No code was written; nothing was committed but this ledger.
+     History: `git log --first-parent --merges HEAD` holds exactly one `Merge pull request #43 from
+       yuema137/mvp0/pr-11d-owning-things` = 70e532f383ff… (parents e3a1106, ff3509c) and one `#46 from
+       yuema137/mvp0/pr-11e-work-money-shops` = 2dddda86a434… (parents 4f2a4cd, d5efd02).
+       `git diff --name-only M^1 M` minus systems/, worlds/, Cargo.lock: only
+       .structured-coding/plans/mvp0/{handoff,step-10-market}.md and docs/{DECISIONS,MODULE_SPEC,
+       MVP_STATUS,PACKAGE_FORMAT}.md, for both merges. Cargo.lock of 70e532f: +3 [[package]]
+       (mineworld-inventory, -item, -item-transfer), none with a source, and three names in
+       mineworld-installed-systems' list — check 1's positive case, by hand, before the test exists.
+     Structure: `cargo tree --offline -i mineworld-<pack> -e normal,dev,build --depth 1` for the six packs:
+       every direct dependent is under systems/ (the packs themselves and mineworld-installed-systems).
+       `cargo tree -p <crate> -e normal,dev,build`: kernel, contracts, server, authoring, sdk,
+       rule-controller reach no market pack; persistence, worldpack and cli do (F-58); persistence by
+       normal and build edges alone reaches none. `git grep` of the six crate names (both spellings) in
+       *.rs and *Cargo.toml outside systems/, worlds/, tests/acceptance/: no match.
+       `cargo metadata --offline --locked --format-version 1`: FAILED (anstyle-wincon not downloaded);
+       `--no-deps`: 0.03 s, dependencies listed with kind and path (F-60).
+     Market Town, 2 days: `mineworld run worlds/market-town --headless --seed 7 --days 2 --save
+       /tmp/s9-11f-plan/mt2` → buy 23, eat 20, drink 9, give 85 accepted; 2 hired, 4 shift-started, 4
+       shift-ended, 4 wage-due, 27 money-transferred (= 23 purchases + 4 wages), 14 items-produced, 29
+       items-consumed. `inspect`: head revision 1 946 at t171 910 (day 2, 23:45:10) (F-64); every cause
+       resolves (2 763 facts). The work → earn half of Milestone C exists in a 2-day save.
+     Verdict: no framework gap; F-58 … F-69. No precursor and no behaviour change proposed.
+E-9  End of this planning branch: check_doc_headings and check_decision_ids (recorded at the last commit
+     of the branch, §9 below the QS list is unchanged). Docs-only branch; no cargo gate run.
 ```
 
 Each implementation PR records its evidence in its own section — §9.2 for 11b, §9.3 for 11c — so that
