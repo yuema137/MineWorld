@@ -8,7 +8,7 @@ before them merges (`CLAUDE.md` §3, "detail one step ahead").
 **Lifecycle:** step design `DESIGN FROZEN (2026-10-07)` for §§1–3 and the six-PR split; **PR 11a**
 `MERGED` as `c472636` (GitHub #36, 2026-10-07; post-merge docs `7ed1648`). **PRs 11b and 11c**
 detailed to the commit in §4.2 and §4.3 by the planning session on `mvp0/s9-11bc-plan` from
-`main @ 7ed1648` — `PROPOSED, NOT FROZEN`, with proposed execution contracts in §13 and §14 and the
+`main @ 7ed1648` — `DESIGN FROZEN (2026-10-07)` per §12.0, with execution contracts in §13 and §14 and the
 rules for running them in parallel in §12. PRs 11d–11f stay at medium scope until each is detailed and
 frozen in turn.
 
@@ -655,7 +655,7 @@ contract-layer stub that names no pack (§8.2 F-10).
 | **SD-9** | **Complete affordances** (11c). `Affordance<P>` gains `payload: Option<P>`, serialized only when present. It is set only through `Offer::with_payload::<A>(&A)` in presence, where `A` is the action the offer was made for; a payload of another action type cannot be attached. `Affordance::request(actor)` turns a complete affordance into an `ActionRequest` with the affordance's own action type and target. | §2.3 (f). Additive and absent by default, so every existing observation, transcript and test is unchanged (I-4). Operator-material: a public contract (QS-4). |
 | **SD-10** | **The paced controller attempts what it is offered.** One new band in `decide`, after the social initiative and before the walking scheme: if the observation holds at least one *available* complete affordance, then with draw index 14 below `ATTEMPTS_OFFERED` (proposed 20 of 100) it submits one, chosen by draw index 15 among them in observation order. No pack type is imported for it. | §2.3. Stateless (`ARC-27`). No existing pack offers a complete affordance, so social-cafe draws nothing new and decides byte-identically (I-4). Constants fixed in 11c (I-9). |
 | **SD-11** | `RuleController` (`--agent`) does not attempt complete affordances. | I-5, `AC-15`. It answers; it takes no initiative. |
-| **SD-12** | **Clients read the payload and decide nothing new.** `server/PROTOCOL.md` documents the field; `clients/protocol/mineworld/observation.gd` gains `payload(action_type, target)`; `ADOPTION.md` says a client may submit it unchanged. `demo.gd` is not changed in S9. | `ENGINEERING_RULES.md` §§8–9: a payload is the server's answer, carried; no rule moves into a client. Using it in the 2D client is S12's. |
+| **SD-12** | **Clients read the payload and decide nothing new.** `server/PROTOCOL.md` documents the field; ~~`clients/protocol/mineworld/observation.gd` gains `payload(action_type, target)`~~ (amended by QS-20, §12.0: no GDScript change in S9 — that lookup is ambiguous when several complete affordances share a type and target; client use is S12's); `ADOPTION.md` says a client may submit it unchanged. `demo.gd` is not changed in S9. | `ENGINEERING_RULES.md` §§8–9: a payload is the server's answer, carried; no rule moves into a client. Using it in the 2D client is S12's. |
 | **SD-13** | **The market packs and their ownership** are §2.6. Work is attendance during a shift (QS-8); buying happens at a shop place (QS-9); economy reacts to employment's `wage-due` without a system dependency (`ARC-28`); item-transfer, economy and employment state inventory's facts under `ARC-26`. | CP-5. `CORE_CONCEPTS.md` §13.1. |
 | **SD-14** | **market-town is social-cafe plus configuration**, checked by §2.5 check 3: the same places, people, seats, routines and names; the five packs appended to `systems`; items, organizations, holdings, wallets, shops and jobs added. Jobs are fitted to the routines people already have, because changing a routine would change social-cafe's configuration rather than add to it. | CP-1, CP-8. |
 | **SD-15** | **The proof is a crate of its own** at `tests/acceptance/` (`mineworld-acceptance`), the home `ARCHITECTURE.md` §14 gives acceptance tests. It reads the two transformation merge commits by id, which are recorded in it in 11f. | §2.5, §2.8. |
@@ -1429,7 +1429,8 @@ restart → verify), and F-32's summary gap.
 - [ ] Review: B-1 … B-7 each hold with recorded evidence; every deviation is listed; nothing in the diff
   touches `contracts/`, `kernel/`, `persistence/`, `server/`, `clients/` or `cognition/`.
 
-**PR 11b lifecycle:** PROPOSED, NOT FROZEN.
+**PR 11b lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §13 confirmed. See the
+freeze record for 11b and 11c in §12.0.
 
 ### 4.2.2 The 11b allow-list
 
@@ -1694,7 +1695,8 @@ days. Assertions C-5. A further assertion: `cognition/rule-controller/Cargo.toml
   sha and validate diff, both doc checks.
 - [ ] Review: C-1 … C-7 each with evidence; deviations listed.
 
-**PR 11c lifecycle:** PROPOSED, NOT FROZEN.
+**PR 11c lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §14 confirmed. See the
+freeze record for 11b and 11c in §12.0.
 
 ### 4.3.2 Test ownership for 11c
 
@@ -2418,6 +2420,34 @@ MATERIAL STOP       any change to §1.3, to a public contract beyond SD-1 … SD
 ---
 
 # 12. Running 11b and 11c in parallel
+
+## 12.0 Freeze record for 11b and 11c (primary session, 2026-10-07)
+
+Both designs are frozen. The rulings below bind, and they override any other text in §§4.2, 4.3,
+12, 13 and 14.
+
+- **QS-15 — declined; the fallback is adopted instead.**
+  - ARC-35 point 7 keeps its approved first-parent merge detection. The operator approved that
+    measurement, and changing it is not needed to run two PRs in parallel.
+  - 11b and 11c are implemented in parallel but **merged one at a time**.
+  - The PR that merges second must **rebase onto the new main** before its final gates. It must
+    never merge main into its branch.
+  - That rebase moves its scan row's base to the main it rebased onto, and it re-runs its evidence
+    (the sha, the planted violations and the full gate) on the rebased head.
+  - Force-pushing that PR's own branch after the rebase is permitted, and only for that.
+  - §12's merge-main steps are superseded by this ruling.
+- **QS-16 — accepted.** The scan admits words, not lines. The change is recorded as an ARC-35 note
+  because it tightens the check without loosening it. The mutation that shows the tightening (an
+  `item_price` line refused for `price`) is part of B-C2's validation.
+- **QS-17, QS-18, QS-19 — accepted.** These cover the allow-list as tabled, the conditional
+  `validate` lines, and the probe section owner.
+- **QS-20 — accepted, amending frozen SD-12.** 11c makes no GDScript change. Client-side use of
+  complete affordances is S12's. SD-12's text is amended to say so, with this record cited.
+- **QS-21, QS-22, QS-23, QS-24, QS-25, QS-26 — accepted as recommended.** QS-25's
+  pass criterion was stated before measuring, and it binds: if 20 fails, the value that passes is
+  frozen, and the scratch measurement is recorded.
+- **The order of the two merges** is decided by whichever PR is ready first. Neither waits for the
+  other.
 
 Two sessions, two worktrees, two branches, both from the same `main`. Neither touches the other's
 worktree (`CLAUDE.md` §3.1). Every file both could touch has an owner or an anchor here, so a conflict
