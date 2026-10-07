@@ -70,13 +70,14 @@ func add_line(text: String) -> Label:
 
 ## Lines of conversation, as subtitles: bottom centre, wrapped, the newest
 ## CAPTION_LINES stacked, each held long enough to read -- CAPTION_BASE plus one
-## second per CAPTION_CPS characters, within CAPTION_MIN..CAPTION_MAX. A toast's
+## second per CAPTION_CPS characters, within CAPTION_MIN..CAPTION_MAX (so a short
+## line stays up beside the reply that answers it). A toast's
 ## 1.6 s is for "Third person"; a sentence needs longer, and a reply must not
 ## wipe the line it answers.
 const CAPTION_LINES := 3
 const CAPTION_BASE := 2.5
 const CAPTION_CPS := 14.0
-const CAPTION_MIN := 4.0
+const CAPTION_MIN := 6.0
 const CAPTION_MAX := 14.0
 
 var _caption: Label = null

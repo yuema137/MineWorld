@@ -501,16 +501,20 @@ func _conversation_frames() -> void:
 	await _walk_to(Vector3(bp.x, 0.0, bp.z + 1.85), 6.0)
 	await _hold(0.8)
 	var heard_before := link.heard.size()
+	var t0 := Time.get_ticks_msec()
 	var at_counter := await _talk_to(link, barista)
 	var t := 0.0
 	while t < 15.0 and link.heard.size() == heard_before:
 		await get_tree().process_frame
 		t += get_process_delta_time()
-	await _hold(0.5)
-	await _settle(4)
+	var t_reply := Time.get_ticks_msec()
+	# straight away: an unfocused capture window draws about a frame a second,
+	# and the captions' hold is real seconds
 	await _save("conversation_2_at_counter")
 	var shown := slice.hud._caption.text if slice.hud._caption != null else ""
-	print("counter  %.2f m -> %s; on screen:\n%s" % [at_counter[1], at_counter[0], shown])
+	print("counter  %.2f m -> %s; reply on screen %.1f s after pressing talk, captured %.1f s "
+		% [at_counter[1], at_counter[0], (t_reply - t0) / 1000.0,
+		(Time.get_ticks_msec() - t_reply) / 1000.0] + "after it; on screen:\n%s" % shown)
 	# no entity id on screen: the barista's id must not appear as a word
 	var leaked := false
 	for w in shown.split(" "):
