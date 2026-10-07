@@ -219,6 +219,7 @@ resumed Unreal track builds the same second interior and A/B stays like-for-like
 | window lettering | `03`: crisp cream upright serif, centred | thin white script, barely legible | cream serif, centred, opaque; all four words read at 1600×900 |
 | rug | — | one flat colour | a woven flat-weave pattern, generated in-engine |
 | roofs | — | — | **a defect found and fixed:** every pitched roof had its ridge tile turned front-to-back, a dark bar over Maple & Co. at `05`'s framing |
+| bicycle | `05`: a spoked bicycle against the kerb | — | **a defect found in review and fixed:** the slice's one bicycle, beside The Flower Room, had solid black disc wheels that hid its spokes and read as a toy. Now a tyre ring, a steel rim and twelve spokes, checked at 3× in `10_second_building_door.jpg` |
 
 **Measured** (`--threshold`, `--drive`, `--world --link`):
 

@@ -260,13 +260,17 @@ static func _bicycle(g: Node3D, pos: Vector3, yaw: float) -> void:
 	var frame := Mats.paint(Color(0.176, 0.212, 0.240), 0.34, 0.55)
 	var steel := Mats.paint(Color(0.62, 0.63, 0.62), 0.28, 0.85)
 	for sx in [-0.54, 0.54]:
-		Profile.disc(n, Vector3(sx, 0.345, 0), 0.345, 0.035, tyre, 22)
-		Profile.disc(n, Vector3(sx, 0.345, 0), 0.30, 0.018, Mats.paint(Color(0.10, 0.10, 0.10), 0.9), 22)
-		for i in range(10):
-			var a := TAU * float(i) / 10.0
-			var s := Build.cyl(n, Vector3.ZERO, 0.006, 0.006, 0.58, steel, 4)
-			s.transform = Transform3D(Basis(Vector3.FORWARD, a), Vector3(sx, 0.345, 0))
-		Profile.disc(n, Vector3(sx, 0.345, 0), 0.055, 0.05, steel, 10)
+		# Rings, not discs. The tyre and the rim were two solid filled discs,
+		# 0.345 and 0.30 m, which hid the spokes entirely: the wheels read as
+		# black toy discs (operator review, 10_second_building_door.jpg).
+		var c := Vector3(sx, 0.345, 0)
+		_ring(n, c, 0.345, 0.312, tyre)
+		_ring(n, c, 0.312, 0.296, steel)
+		for i in range(12):
+			var a := TAU * float(i) / 12.0
+			var s := Build.cyl(n, Vector3.ZERO, 0.0035, 0.0035, 0.60, steel, 4)
+			s.transform = Transform3D(Basis(Vector3.FORWARD, a), c)
+		Profile.disc(n, c, 0.035, 0.07, steel, 10)   # the hub
 	for seg in [[Vector3(-0.54, 0.345, 0), Vector3(-0.06, 0.74, 0)],
 			[Vector3(-0.06, 0.74, 0), Vector3(0.36, 0.98, 0)],
 			[Vector3(-0.06, 0.74, 0), Vector3(0.10, 0.31, 0)],
@@ -283,6 +287,21 @@ static func _bicycle(g: Node3D, pos: Vector3, yaw: float) -> void:
 	Build.box(n, Vector3(-0.06, 0.80, 0), Vector3(0.22, 0.05, 0.10), tyre)     # saddle
 	Build.box(n, Vector3(0.40, 1.02, 0), Vector3(0.05, 0.05, 0.44), frame)     # bars
 	Build.blocker(g, pos, 0.5, 1.1)
+
+
+## An open ring in the bicycle's wheel plane (local x-y), centred on `c`.
+static func _ring(n: Node3D, c: Vector3, r_out: float, r_in: float, mat: Material) -> void:
+	var t := TorusMesh.new()
+	t.outer_radius = r_out
+	t.inner_radius = r_in
+	t.rings = 40
+	t.ring_segments = 8
+	var mi := MeshInstance3D.new()
+	mi.mesh = t
+	mi.material_override = mat
+	# TorusMesh lies in x-z, round y; a quarter turn about x stands it upright
+	mi.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.5), c)
+	n.add_child(mi)
 
 
 ## Two figures on the pavement, so the street is inhabited. Static, deliberately:
