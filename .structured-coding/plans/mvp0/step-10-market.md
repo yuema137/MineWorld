@@ -1353,7 +1353,7 @@ makes worldpack's `fields(kind)` match non-exhaustive — one does not compile w
     a doc follow-up.
 - [x] Validation (E-B3):
   - [x] `cargo test --no-fail-fast -p mineworld-worldpack -p mineworld-authoring -p mineworld-acceptance`:
-    all pass. refusals 38 (31 existing + 6 new + `every_refusal…` extended with item and organization
+    all pass. refusals 38 (32 existing + 6 new + `every_refusal…` extended with item and organization
     cases), social_cafe 15, structure 2, worldpack unit 2 (the section-namespace guard now over
     `ContentKind::ALL`), acceptance 4. No existing test edited except the design-sanctioned extension of
     `every_refusal_names_the_file_it_is_about`.
@@ -1404,19 +1404,45 @@ an existing variant's meaning is a stop (it changes what authors are told).
 
 **Depends on:** B-C3.
 
-- [ ] Implementation: as scoped, plus `ALLOWED` entries for any file newly holding `item`/`items`.
-- [ ] Validation:
-  - [ ] `cargo test -p mineworld-worldpack -p mineworld-acceptance`: all pass; `social_cafe.rs` unedited
-    and green (ids, genesis count 53, sections-do-not-move — the existing guards of B-1 at this layer).
-  - [ ] Mutation M-B1 (items created before people) → `content_kinds.rs` fails naming `alice`'s id;
-    reverted.
-  - [ ] Mutation M-B3 (items after people in the order function) → the order unit test fails; reverted.
-  - [ ] Mutation M-B4 (the `_ => false` reference arm restored) → the reference unit test fails; reverted.
-  - [ ] clippy, fmt.
-- [ ] Review: no existing id or event id can move — items and organizations are created after every
-  existing entity and their sections are seeded after every passage and location, and social-cafe has
-  neither; the probe owner exists only under `#[cfg(test)]` and is never installed; the
-  `SectionStatedAnotherPacksFact` guard still applies to sections on the new kinds.
+- [x] Implementation: as scoped, plus `ALLOWED` entries for `worldpack/src/load.rs` and
+  `worldpack/tests/content_kinds.rs`. Before those two entries existed, the scan refused only
+  `item`/`items` in those two files.
+  - `assemble` creates item kinds and then organizations after people.
+  - `initial_facts` seeds sections over `WorldPack::sectioned_files()`, the function B-C3 added. Its
+    hand-built places-then-people chain is gone.
+  - The module docs state the new creation and genesis order.
+  - Test-only seams:
+    - `#[cfg(test)] WorldPack::in_memory(systems, places, people, items, organizations)` in read.rs;
+    - `check_sections` became `pub(crate)` so the reference test can reach it.
+  - The probe owner `Probe` (section `probe`, carried by `ContentKind::ALL`) is test-only. It seeds
+    one `probed { subject }` fact of its own vocabulary, and its `references` list whatever
+    `{key, entity_type}` pairs its value holds.
+  - **Bounded deviation D-B4:** the content_kinds fixture places alice and bob with `location:`, so
+    genesis is non-empty and the byte comparison compares something. The test asserts that. The design
+    named only tags-only item and organization files, and those are unchanged.
+- [x] Validation (E-B4):
+  - [x] `cargo test --no-fail-fast -p mineworld-worldpack -p mineworld-acceptance`: all pass. Worldpack
+    unit 4 (2 new probe tests), content_kinds 1 (new), refusals 38, social_cafe 15 (unedited: ids,
+    genesis 53, sections-do-not-move), structure 2, doc 1, acceptance 4.
+  - [x] Mutation M-B1: an items loop was placed before places and the real one disabled.
+    `content_kinds` FAILED with left `[("lantern", 1), ("pebble", 2), ("cafe", 3), ("park", 4),
+    ("alice", 5), …]` and right `[("cafe", 1), …, ("alice", 3), …]`. The probe order test failed too.
+    Reverted, and `git grep MUTATION` is empty.
+  - [x] Mutation M-B3 (`organizations.chain(places).chain(people).chain(items)` in `sectioned_files`)
+    → `sections_on_items_and_organizations_are_seeded_before_places_and_people` FAILED. Reverted.
+  - [x] Mutation M-B4: the reference rule was restricted to Place and Person, with `_ => false` for
+    every other type. `a_section_may_name_an_item_as_an_item_and_not_as_a_place` FAILED on the Item
+    acceptance. Reverted.
+  - [x] clippy `-D warnings` (worldpack, acceptance; forced recheck) clean; fmt clean.
+- [x] Review:
+  - Existing ids cannot move: items and organizations are created after the last person.
+  - Event ids cannot move:
+    - their sections are seeded after every passage and location;
+    - in a pack with neither kind, `sectioned_files` yields exactly places then people, as before;
+    - social_cafe's genesis-53 and sections-do-not-move guards pass unedited.
+  - `Probe` and `in_memory` exist only under `#[cfg(test)]`, and `Probe` is never installed.
+  - `seeded()`'s `SectionStatedAnotherPacksFact` guard runs for every file `sectioned_files` yields,
+    and that includes the new kinds.
 
 ### B-C5 — The real CLI: `validate` names them; inert content changes no run
 
@@ -2246,6 +2272,10 @@ E-B3 B-C3: worldpack + authoring + acceptance all pass (refusals 38, social_cafe
      worldpack unit 2, acceptance 4). The scan, without entries, refused 109 hits, only item/items, only
      in the seven listed files; with them it is green. M-B2 → the place-and-item duplicate test fails;
      reverted. clippy -D warnings, fmt clean. D-B2 (message article), D-B3 (manifest prose left).
+E-B4 B-C4: worldpack + acceptance all pass (unit 4, content_kinds 1, refusals 38, social_cafe 15
+     unedited, structure 2, doc 1, acceptance 4). M-B1 → content_kinds fails (lantern 1 … alice 5 vs
+     cafe 1 … alice 3); M-B3 → probe order test fails; M-B4 → item-reference test fails; each reverted,
+     `git grep MUTATION` empty. clippy (forced) and fmt clean. D-B4 (fixture locations).
 ```
 
 ## 9.3 Evidence — PR 11c

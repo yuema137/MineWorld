@@ -170,6 +170,20 @@ const ALLOWED: &[Allowed] = &[
         words: ITEM,
         reason: "refusal fixtures for items/<key>.yaml (ARC-36)",
     },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/load.rs",
+        contains: "",
+        words: ITEM,
+        reason: "creating Item entities, their genesis order, and the probe tests (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/tests/content_kinds.rs",
+        contains: "",
+        words: ITEM,
+        reason: "the loading fixture's item kinds (ARC-36)",
+    },
 ];
 
 /// The defined term `Item` (`CORE_CONCEPTS.md` §7, `EntityType::Item`) and its plural, the directory

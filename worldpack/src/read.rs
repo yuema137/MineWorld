@@ -216,6 +216,29 @@ impl WorldPack {
         items.chain(organizations).chain(places).chain(people)
     }
 
+    /// A pack built in memory, for this crate's own tests of what no installed pack can show yet: a
+    /// section on an item or organization file (F-22). Never read from disk and never checked.
+    #[cfg(test)]
+    pub(crate) fn in_memory(
+        systems: Vec<Capability>,
+        places: BTreeMap<EntityKey, AuthoredPlace>,
+        people: BTreeMap<EntityKey, AuthoredPerson>,
+        items: BTreeMap<EntityKey, AuthoredItem>,
+        organizations: BTreeMap<EntityKey, AuthoredOrganization>,
+    ) -> Self {
+        Self {
+            root: PathBuf::from("in-memory"),
+            id: "in-memory".to_owned(),
+            name: "In Memory".to_owned(),
+            systems,
+            places,
+            people,
+            items,
+            organizations,
+            seats: BTreeSet::new(),
+        }
+    }
+
     /// Every declared key and the entity type it will be: one namespace across the four lists.
     fn declared_entities(&self) -> BTreeMap<&EntityKey, EntityType> {
         let places = self.places.keys().map(|key| (key, EntityType::Place));
@@ -520,7 +543,7 @@ fn check_passages(
 /// every section shares. Files are checked in [`WorldPack::sectioned_files`]' order, so the first
 /// refusal is the same on every machine. A reference is accepted iff its key is declared in the list of
 /// the type it requires (`ARC-36` item 5).
-fn check_sections(pack: &WorldPack) -> Result<(), PackError> {
+pub(crate) fn check_sections(pack: &WorldPack) -> Result<(), PackError> {
     let root = &pack.root;
     let declared_entities = pack.declared_entities();
     for (kind, subject, sections) in pack.sectioned_files() {
