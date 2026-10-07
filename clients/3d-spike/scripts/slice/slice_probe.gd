@@ -54,6 +54,10 @@ var views := [
 	# connected (--world): the world's people where the world says they are
 	["19_connected_people", Vector3(9.2, 0.60, -14.3), 135.0, -4.0, FP],
 	["18_pavement_detail", Vector3(6.00, 0.45, -5.20), -20.0, -26.0, FP],
+	# VISUAL_SLICE.md sec.12 view 10: the second enterable building, sec.4.1
+	["20_florist_door", Vector3(9.60, 0.45, -4.20), -22.0, 3.0, FP],
+	["21_florist_interior", Vector3(11.40, 0.45, -9.10), -38.0, -6.0, FP],
+	["22_florist_looking_out", Vector3(17.40, 0.45, -13.30), 140.0, -3.0, FP],
 ]
 
 ## Frames cropped and enlarged beside the capture, because a claim decided at
@@ -513,9 +517,27 @@ var samples := [
 ]
 
 
+## The same four points through the florist's door (sec.4.1: "the same
+## threshold measurement ... reported separately"), and its looking-out pose.
+var florist_samples := [
+	["florist_outside", Vector3(11.84, 0.45, -5.60), 0.0, 0.0],
+	["florist_doorway", Vector3(11.84, 0.45, -8.30), 0.0, 0.0],
+	["florist_two_m_in", Vector3(11.84, 0.45, -10.40), -6.0, 0.0],
+	["florist_deep", Vector3(13.20, 0.45, -13.40), -10.0, 0.0],
+]
+
+
 func _threshold() -> void:
 	print("== VISUAL_SLICE.md sec.7.1 -- indoor/outdoor, measured ==")
 	print("gi mode: %s" % slice.gi_name())
+	print("\n-- The Daily Bean --")
+	await _threshold_run(samples, [Vector3(6.20, 0.60, -11.60), 178.0], "th_looking_out")
+	print("\n-- The Flower Room (sec.4.1) --")
+	await _threshold_run(florist_samples, [Vector3(15.0, 0.45, -12.0), 175.0],
+		"th_florist_looking_out")
+
+
+func _threshold_run(samples: Array, out_pose: Array, out_name: String) -> void:
 	print("%-20s %8s %8s %8s %8s %8s" % ["sample", "mean", "p10", "p50", "p90", "clip%"])
 	var means: Array[float] = []
 	var stats: Array[Dictionary] = []
@@ -532,10 +554,10 @@ func _threshold() -> void:
 			st["p10"], st["p50"], st["p90"], st["clip"] * 100.0])
 
 	# looking back out through the glazing, from inside: the blown-out test
-	player.place(Vector3(6.20, 0.60, -11.60), 178.0, 0.0)
+	player.place(out_pose[0], out_pose[1], 0.0)
 	await _settle(18)
 	var out_img := get_viewport().get_texture().get_image()
-	out_img.save_png("%s/th_looking_out.png" % OUT)
+	out_img.save_png("%s/%s.png" % [OUT, out_name])
 	var out_st := _luma_stats(out_img)
 	print("%-20s %8.4f %8.4f %8.4f %8.4f %7.2f%%" % ["looking_out", out_st["mean"],
 		out_st["p10"], out_st["p50"], out_st["p90"], out_st["clip"] * 100.0])
@@ -899,8 +921,60 @@ func _drive() -> void:
 			print("  FAIL: the camera left the room")
 
 	fails += await _jumps()
+	fails += await _florist_walk()
 
 	print("\n%s" % ("all drive checks pass" if fails == 0 else "%d DRIVE CHECKS FAILED" % fails))
+
+
+## VISUAL_SLICE.md sec.4.1 / 6.3 for the second building: in through the
+## florist's door on foot, a closed loop round the room clear of its staging,
+## table, buckets and counter, and out again.
+func _florist_walk() -> int:
+	print("\n-- the second enterable building: The Flower Room --")
+	var fails := 0
+	var door_x := 11.84
+	player.place(Vector3(door_x, 0.45, -5.50), 0.0, 0.0)
+	await _hold(0.4)
+	# in; north up the west lane; east past the table; south down the bucket
+	# side; west along behind the window staging
+	var legs := [[0.0, 4.0], [0.0, 3.7], [-90.0, 4.46], [180.0, 3.30], [90.0, 4.46], [0.0, -1.0]]
+	var path: Array[String] = []
+	var loop_start := Vector3.INF
+	for leg in legs:
+		if leg[1] < 0.0:
+			break
+		player.rotation.y = deg_to_rad(leg[0])
+		await _walk_dist(leg[1], 6.0)
+		var p := player.global_position
+		var pl := SliceWorld.place_at(slice.world, p)
+		path.append(pl)
+		print("  leg yaw %4.0f %.2f m -> at (%.2f, %.2f) in %s%s" % [leg[0], leg[1], p.x, p.z,
+			pl, "" if _last_block == "" else "  [touched %s]" % _last_block])
+		if loop_start == Vector3.INF:
+			loop_start = p
+	# close the loop: the last leg ends level with where it began, give or take
+	var back_to := loop_start - player.global_position
+	player.rotation.y = 0.0 if back_to.z < 0.0 else PI
+	await _walk_dist(absf(back_to.z), 4.0)
+	var close := Vector2(player.global_position.x - loop_start.x,
+		player.global_position.z - loop_start.z).length()
+	print("  loop closes within %.2f m of where it began" % close)
+	if close > 0.60:
+		fails += 1
+		print("  FAIL: the loop round the room did not close -- something is in the way")
+	if not path.has(SliceWorld.FLORIST_PLACE):
+		fails += 1
+		print("  FAIL: the body never entered the florist")
+	# and out through the door again
+	await _walk_to_x(door_x)
+	player.rotation.y = PI
+	await _walk_dist(4.5, 6.0)
+	var out := SliceWorld.place_at(slice.world, player.global_position)
+	print("  out through the door: at %s in %s" % [player.global_position, out])
+	if out != SliceWorld.STREET_PLACE:
+		fails += 1
+		print("  FAIL: did not walk back out onto the street")
+	return fails
 
 
 ## Space to jump, measured. Bounds are the requirement's, not the

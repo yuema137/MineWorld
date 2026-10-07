@@ -17,6 +17,10 @@ extends RefCounted
 ## The cafe's semantic identity, matching `worlds/social-cafe`.
 const CAFE_PLACE := "cafe.main"
 const STREET_PLACE := "street.main"
+## The second enterable building (`VISUAL_SLICE.md` sec.4.1). The slice's own
+## volume: `social-cafe` models no florist, so to the world this is still the
+## street -- see `SliceLink.PLACE_KEY`.
+const FLORIST_PLACE := "florist.main"
 
 ## Where the player starts: on the pavement, west of the cafe, facing east
 ## along the street so the first frame is the approach.
@@ -124,6 +128,11 @@ static func _north_frontage(g: Node3D) -> void:
 	florist.awning_c = Color(0.344, 0.268, 0.296)
 	florist.bays = 2
 	florist.depth = 8.0
+	# VISUAL_SLICE.md sec.4.1: the second enterable building. The florist rather
+	# than Maple & Co.: connected to social-cafe, the world's café people are
+	# drawn inside Maple & Co.'s footprint (slice_link.gd), and a shop you can
+	# walk into must not show somebody else's customers standing in it.
+	florist.enterable = true
 	SliceTerrace.build(g, florist, SliceStreet.NORTH_FACE, 0.0)
 
 	# the frontage stops against a stone retaining wall and the planted bank
@@ -178,6 +187,8 @@ static func _place_volumes(g: Node3D) -> void:
 	_place(g, CAFE_PLACE,
 		Vector3(6.0, y, SliceStreet.NORTH_FACE - SliceCafe.DEPTH * 0.5),
 		Vector3(SliceCafe.W - SliceCafe.WALL_T * 2.0, 3.5, SliceCafe.DEPTH - SliceCafe.WALL_T * 2.0))
+	var fb := SliceShopInterior.room_box
+	_place(g, FLORIST_PLACE, fb.position + fb.size * 0.5, fb.size)
 	_place(g, STREET_PLACE, Vector3(0.0, y, 0.0),
 		Vector3(SliceStreet.X_MAX - SliceStreet.X_MIN, 3.5,
 			SliceStreet.SOUTH_FACE - SliceStreet.NORTH_FACE))

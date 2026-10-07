@@ -49,6 +49,9 @@ class Unit extends RefCounted:
 	var bays: int
 	var depth: float
 	var stripes: bool
+	## `VISUAL_SLICE.md` sec.4.1: the one secondary shop the player walks into.
+	## Its door stands open and its mass is a real room (`shop_interior.gd`).
+	var enterable := false
 
 	func _init(a: float, b: float) -> void:
 		x0 = a
@@ -99,11 +102,15 @@ static func build(parent: Node3D, u: Unit, face_z: float, yaw: float) -> Node3D:
 		var y := ground_h + s * u.storey_h
 		_storey(g, u, y, holes)
 
-	# the mass, in three layers front to back
-	Build.box(g, Vector3(0, top * 0.5, -(u.depth + RECESS_DEEP) * 0.5),
-		Vector3(w, top, u.depth - RECESS_DEEP), u.wall, 0.0, true)
-	Profile.wall_with_holes(g, -w * 0.5, w * 0.5, 0.0, top, -SKIN, RECESS_DEEP - SKIN,
-		pocket, u.wall)
+	# the mass, in three layers front to back -- or, for the enterable shop, the
+	# façade skin in front of a real room
+	if u.enterable:
+		SliceShopInterior.build(g, u, ground_h, top, SKIN)
+	else:
+		Build.box(g, Vector3(0, top * 0.5, -(u.depth + RECESS_DEEP) * 0.5),
+			Vector3(w, top, u.depth - RECESS_DEEP), u.wall, 0.0, true)
+		Profile.wall_with_holes(g, -w * 0.5, w * 0.5, 0.0, top, -SKIN, RECESS_DEEP - SKIN,
+			pocket, u.wall)
 	Profile.wall_with_holes(g, -w * 0.5, w * 0.5, 0.0, top, 0.0, SKIN, holes, u.wall)
 
 	for s in range(u.storeys - 1):
@@ -136,8 +143,9 @@ static func _shopfront(g: Node3D, u: Unit, h: float, holes: Array, pocket: Array
 	# door to one side, window to the other
 	var door_x := x_l + 0.82
 	var door_w := 1.02
-	Profile.door(g, door_x, 0.0, door_w, 2.22, u.front_c, true)
-	doors.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y, u.name_text])
+	Profile.door(g, door_x, 0.0, door_w, 2.22, u.front_c, true, u.enterable)
+	doors.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y,
+		u.name_text + (" -- enterable" if u.enterable else "")])
 
 	var win_l := door_x + door_w * 0.5 + 0.22
 	var win_r := x_r - 0.26
@@ -161,8 +169,9 @@ static func _shopfront(g: Node3D, u: Unit, h: float, holes: Array, pocket: Array
 	Build.box(g, Vector3((win_l + win_r) * 0.5, glaze_head + 0.06, 0.03),
 		Vector3(win_r - win_l + 0.22, 0.12, 0.16), dark)
 
-	_lit_window(g, (win_l + win_r) * 0.5, stall, glaze_head, win_r - win_l,
-		u.name_text)
+	if not u.enterable:
+		_lit_window(g, (win_l + win_r) * 0.5, stall, glaze_head, win_r - win_l,
+			u.name_text)
 	Build.box(g, Vector3((win_l + win_r) * 0.5, (stall + glaze_head) * 0.5, -0.02),
 		Vector3(win_r - win_l - 0.04, glaze_head - stall - 0.04, 0.014),
 		SlicePalette.shop_glass())

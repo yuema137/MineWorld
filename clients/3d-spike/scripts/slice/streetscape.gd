@@ -159,7 +159,9 @@ static func _planting(g: Node3D) -> void:
 	for x in [-24.5, -10.0, 6.5]:
 		_stone_planter(g, Vector3(x, WALK, 4.42), 1.35, 0.90)
 	# the cafe's own pots, either side of its door
-	for p in [Vector3(1.05, WALK, -7.35), Vector3(11.10, WALK, -7.35)]:
+	# 10.75, was 11.10: the florist's door (x 11.33-12.35) opens now, and the
+	# planter stood 0.22 m across its approach
+	for p in [Vector3(1.05, WALK, -7.35), Vector3(10.75, WALK, -7.35)]:
 		SliceProps.put_solid(g, "planter_box_01", p, 0.2, Color(0.96, 0.94, 0.90))
 		# one shrub out of the file's four, by name -- see dressing.gd
 		SliceProps.put(g, "shrub_02", p + Vector3(0, 0.44, 0), 0.7,

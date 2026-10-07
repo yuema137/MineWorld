@@ -302,8 +302,15 @@ static func panel(parent: Node3D, cx: float, cy: float, w: float, h: float, z: f
 ##
 ## (cx, y0) is the bottom centre of the opening on the façade plane z = 0, in
 ## the façade's local frame; +z is the street. The caller cuts the hole.
+##
+## `open`: the door of a shop you can walk into. The leaf stands swung inward
+## against the reveal, so the opening shows the lit room through it -- which is
+## what makes a door read as enterable from the pavement, beside the shut ones.
 static func door(parent: Node3D, cx: float, y0: float, w: float, h: float,
-		leaf_c: Color, shop: bool) -> void:
+		leaf_c: Color, shop: bool, open := false) -> void:
+	if open:
+		_open_door(parent, cx, y0, w, h, leaf_c)
+		return
 	var leaf := SlicePalette.painted(leaf_c, 0.42)
 	var leaf_dk := SlicePalette.painted(leaf_c.darkened(0.25), 0.40)
 	var arch := SlicePalette.painted(Color(0.905, 0.876, 0.800), 0.55)
@@ -361,6 +368,52 @@ static func door(parent: Node3D, cx: float, y0: float, w: float, h: float,
 		SlicePalette.kerbstone())
 	# the opening is solid at the leaf
 	Build.box_blocker(parent, Vector3(cx, y0 + h * 0.5, z_leaf), Vector3(w, h, 0.10))
+
+
+## The open variant of `door`: the same architrave, reveal and step, and the
+## leaf hinged at the left jamb and swung ~110 degrees into the room. No blocker
+## in the opening. `y0` is the pavement; the room's floor is the step's top.
+static func _open_door(parent: Node3D, cx: float, y0: float, w: float, h: float,
+		leaf_c: Color) -> void:
+	var leaf_m := SlicePalette.painted(leaf_c, 0.42)
+	var leaf_dk := SlicePalette.painted(leaf_c.darkened(0.25), 0.40)
+	var arch := SlicePalette.painted(Color(0.905, 0.876, 0.800), 0.55)
+	var brass := SlicePalette.brass()
+	for sx in [-1.0, 1.0]:
+		Build.box(parent, Vector3(cx + sx * (w * 0.5 + 0.07), y0 + (h + 0.10) * 0.5, 0.03),
+			Vector3(0.14, h + 0.10, 0.10), arch, 0.0, true)
+	Build.box(parent, Vector3(cx, y0 + h + 0.12, 0.04), Vector3(w + 0.40, 0.16, 0.12), arch)
+	Build.box(parent, Vector3(cx, y0 + h + 0.215, 0.07), Vector3(w + 0.50, 0.05, 0.16), arch)
+	# a step and a threshold, at the room's floor height
+	Build.box(parent, Vector3(cx, y0 + 0.06, 0.20), Vector3(w + 0.50, 0.12, 0.40),
+		SlicePalette.kerbstone())
+	Build.box(parent, Vector3(cx, y0 + 0.06, -0.18), Vector3(w, 0.12, 0.38),
+		SlicePalette.kerbstone())
+	# a hidden wedge so the step is a walk, not a hop
+	var ramp := StaticBody3D.new()
+	ramp.collision_layer = Build.LAYER_WORLD
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(w + 0.40, 0.30, 0.62)
+	cs.shape = bs
+	ramp.add_child(cs)
+	ramp.transform = Transform3D(Basis(Vector3.RIGHT, deg_to_rad(13.0)),
+		Vector3(cx, y0 + 0.12 - 0.15, 0.30))
+	parent.add_child(ramp)
+	# the leaf, swung in against the left reveal
+	var leaf := Node3D.new()
+	leaf.position = Vector3(cx - w * 0.5 + 0.03, y0 + 0.12, -0.30)
+	leaf.rotation.y = 1.92
+	parent.add_child(leaf)
+	var lw := w - 0.06
+	var lh := h - 0.14
+	Build.box(leaf, Vector3(lw * 0.5, lh * 0.5, 0.0), Vector3(lw, lh, 0.055), leaf_m)
+	Build.box(leaf, Vector3(lw * 0.5, lh * 0.68, -0.005), Vector3(lw - 0.22, lh * 0.46, 0.018),
+		SlicePalette.door_glass())
+	panel(leaf, lw * 0.5, lh * 0.20, lw - 0.24, lh * 0.26, 0.03, leaf_dk, 0.05, 0.03)
+	Build.box(leaf, Vector3(lw - 0.12, lh * 0.47, -0.05), Vector3(0.05, 0.22, 0.045), brass)
+	Build.box(leaf, Vector3(lw * 0.5, 0.11, -0.033), Vector3(lw - 0.10, 0.18, 0.012), brass)
+	Build.box_blocker(leaf, Vector3(lw * 0.5, lh * 0.5, 0.0), Vector3(lw, lh, 0.07))
 
 
 ## A straight canvas awning on folding arms, with a valance and printed text.

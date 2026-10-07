@@ -60,9 +60,15 @@ const PACK_DOOR := {
 }
 ## The slice's own place volumes (`SliceWorld`) -> the pack's authoring keys,
 ## which the world also carries as each place's tag.
+## The florist (`VISUAL_SLICE.md` sec.4.1) is a room the world does not model:
+## `social-cafe` has no such place. So a body inside it is reported where the
+## world can put it -- in the street's frame -- rather than not at all, which
+## would leave the server's last position behind at the florist's door and
+## refuse the first report after it.
 const PLACE_KEY := {
 	SliceWorld.CAFE_PLACE: "cafe",
 	SliceWorld.STREET_PLACE: "street",
+	SliceWorld.FLORIST_PLACE: "street",
 }
 
 
