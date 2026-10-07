@@ -5,8 +5,45 @@ design for the first of them, **PR 11a**, and a proposed execution contract for 
 are specified at medium scope and are each re-audited and detailed to the commit only after the PR
 before them merges (`CLAUDE.md` §3, "detail one step ahead").
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S9, §4 (`AC-1`, `AC-2`), §7 (F-1, F-3)
-**Lifecycle:** `DRAFT — awaiting the primary session's review`. Nothing here is frozen. No
-implementation is authorized by this document.
+**Lifecycle:** step design `DESIGN FROZEN (2026-10-07)` for §§1–3 and the six-PR split; **PR 11a**
+`DESIGN FROZEN (2026-10-07)` with its execution contract (§11) confirmed. PRs 11b–11f stay at medium
+scope until each is detailed and frozen in turn.
+
+**Freeze record (2026-10-07).**
+
+The operator approved how AC-1 is measured (QS-2 → `ARC-35`), in reply to the primary session's
+question. The approval covers these points:
+
+- Three precursor PRs, 11a–11c, add framework capability and name no market concept.
+- The transformation is the merges of 11d and 11e only. Those merges may touch only `systems/**`,
+  `worlds/**`, `Cargo.lock` and Markdown documentation, and three independent checks enforce this.
+- Statically linked installation still needs two lines in `systems/installed` and a rebuild. This
+  is recorded as stated.
+
+That approval also covers QS-3 (the F-1 mechanism, `ARC-33`, `systems/installed`) and QS-4 (the
+additive `payload` on `Affordance`, and the paced controller's offer band). The primary session
+accepts QS-1 and QS-5 to QS-9, QS-11, QS-12 and QS-14, as recommended. Kinds and counts
+(QS-6, `ARC-36`) are accepted for MVP-0. QS-13 stays out of S9.
+
+QS-10 is recorded as an MVP-0 gap, to be placed with the operator later: nothing eats or sleeps,
+so held items are never used up.
+
+**Two conditions, binding:**
+
+1. **I-2 is checked mechanically, not just stated.**
+   - Each of 11a, 11b and 11c adds a test, or extends one shared test, that scans the PR's added
+     lines in identifiers, tests and fixtures for the market vocabulary (`item`, `inventory`,
+     `money`, `price`, `wage`, `job`, `shift`, `shop`, `economy`, `employ`).
+   - The scan has an explicit allow-list for pre-existing uses, e.g. `items/` in MODULE_SPEC §4 and
+     11b's content-kind names, and every allow-list entry carries its reason.
+   - It must be shown to fail on a planted violation.
+   - A precursor that turns out to need a market word is a material stop.
+2. **ARC-33's record carries the static-linking boundary.** It states that installation means
+   "add a directory, two lines in `systems/installed`, rebuild", and that installation without a
+   rebuild belongs to the WASM plugin model (`ARC-8`), outside MVP-0. A reader must not take
+   "independently installable" as more than that.
+
+Implementation of 11a starts in a fresh session on `mvp0/pr-11a-installable`, in its own worktree.
 
 **Base:** `main @ b9e5937` (S8 complete: 10c merged as `9ab5e62`; `b9e5937` is the docs-only
 post-merge update).
