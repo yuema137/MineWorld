@@ -567,6 +567,16 @@ E-4  C3 PacedRuleController. `cargo test -p mineworld-rule-controller`: 13 passe
      7 paced). Mutation `opened <= at` (window boundary) → a_line_is_answered_in_one_window_only_and_
      never_again FAILED, reverted. `cargo clippy -p mineworld-rule-controller --all-targets -D warnings`
      clean. New dependency edges: rule-controller → movement (in-workspace), serde (workspace).
+E-3a Coordinator sharpening of Q4 (2026-10-06, from the 3D environment slice, which walks café →
+     street → café with `move` and had to be told place identities by a `--places=` launcher flag):
+     C2 must disclose the *observer's own place's* passages. Already covered by C2 as built — the
+     only place an observation lists is the observer's own, so that is the only place movement can
+     disclose on. Pinned by `systems/movement/tests/disclosure.rs`
+     `a_person_in_the_cafe_is_told_where_its_door_is_and_where_it_leads` (observer inside the café sees
+     the café's passage to the street, both doorway positions) and, from the street,
+     `the_street_is_not_described_…` (the street's own side). Far side: E-3's Godot transcripts show
+     it in the observer's own place (`1 tags ["cafe","public"] … components ["passages"]`). No change
+     to C2; the slice's `--places=` stopgap can go once this merges (its owners' call).
 ```
 
 ## 9.1 Limitations (expected)
@@ -580,6 +590,9 @@ L-3  Places have no extent, so a wandering Person is bounded only by the pull of
 L-4  The AC-9 check resolves Action and Event causes from the log; Process and SystemTick causes are
      counted, not resolved (none occur in social-cafe).
 L-5  The fingerprint is FNV-1a 64: detects accidental divergence, proves nothing against an adversary.
+L-6  Protocol revision 1 names facts to a client only by id, so a client cannot see a fact's type: the
+     3D slice inferred PersonEnteredPlace from a fact count. Recorded at the coordinator's request, not
+     fixed here — it belongs to a later protocol revision (server/PROTOCOL.md), with step-06 L-7's removal of `deferrals_unscheduled`.
 ```
 
 ---
