@@ -54,7 +54,7 @@ identifies one thing.
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
 | **VIS-3D-GODOT-1** | Reference-matched character in Godot | 👀 **preview 3, 2026-10-06 — not an acceptance request** (`ARC-24`): the updo groomed from strands and cut into cards, the hoodie draped by cloth simulation with a real hood, the eyes level, the skin matte; the face itself deferred by the operator; see below |
-| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟡 **READY FOR HUMAN VISUAL REVIEW** (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; see below |
+| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟡 **READY FOR HUMAN VISUAL REVIEW** (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); names arrive with S8 PR 10c; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
@@ -342,6 +342,20 @@ Accepting it does not accept the character itself: that is still `VIS-3D-GODOT-1
 The world it connects to is the MVP town merged from `main` (`2f24eef`, S8 PR 10a), whose café is
 authored to this slice's layout: Alice stands behind the counter you see.
 
+#### Your findings of 2026-10-06, and what changed
+
+| You saw | Cause, located | Fix | Evidence |
+| --- | --- | --- | --- |
+| Standalone: a person outside the shop clips through a table | The seated townsperson on the café terrace (`SliceStreetscape._people`, figure `c`) was placed at the middle terrace table set's own coordinate (6.65, −6.30), which is the **table's centre**: her torso came up through the table top, with no chair under her. Identified by `--pick` on the frame as `outdoor_table_chair_set_01_table` and her `Body`/`Hoodie` meshes at the same spot | She sits on the set's east chair, facing the table. The seat and facing are read from the placed set's chair and table meshes, not typed beside it (`_chair_seat`) | `review/fix1_terrace_before.jpg` (before, ×3 crop), `fix1_terrace_after.jpg` (after, same viewpoint, ×3), `fix1_terrace_from_pavement.jpg` (the pavement east of the café, looking west along the frontage), `fix1_terrace_across_table.jpg` (from the pavement across her table); `sbs_03_cafe_frontage.jpg` re-captured |
+| Character names are not shown, only things like `regular` | **The world has no names yet**: `worlds/social-cafe/people/*.yaml` author tags, not names, so the client had only tags to show | Every figure label, HUD line and conversation line now comes from one function, `SliceLink.display_label`. Until names exist it shows the role: the first tag that names a role, capitalised (`Barista`, `Regular`; `staff`/`public` are skipped), and `You` for you. It never shows an entity id: ids, tokens and raw results go to the log only. **Names arrive with S8 PR 10c**, whose System Pack discloses them; `display_label` will then show the name, with the role as fallback | `fix3_conversation_from_door.jpg`, `fix3_conversation_at_counter.jpg` |
+| The dialogue doesn't look like natural language | The heard line was printed as `<speaker id> (<tags>) said: <utterance JSON-encoded>`, which quoted and backslash-escaped the words | A heard line is now a conversation line, `Barista: words`, with the words as plain text. What you say is shown the same way (`You: Hello! A coffee, please.`) once the world accepts it. Lines appear as subtitles at the bottom centre, wrapped, the last three stacked, each held 6–14 s depending on length | `fix3_conversation_at_counter.jpg`, `fix3_conversation_caption_detail.jpg` |
+
+**What this does not fix: the wording of Alice's reply.** "I remember you. You said "Hello! A coffee,
+please.". You are the first person to speak to me here." (and, once others have spoken, "Earlier,
+person 4 said …") is the fixed template of the town's **rule controller**. The client now shows it
+cleanly, but cannot make it natural. "person 4" is the missing-names problem, which S8 PR 10c fixes
+in the world. Natural dialogue needs a language-model controller, which is Milestone D.
+
 **Launch.** Branch `vis/3d-godot-2-environment`, from the repository root, Godot 4.7 on `PATH`:
 
 ```sh
@@ -370,19 +384,22 @@ the mouse.
 6. **Walk on east to The Flower Room** (maroon front, next door, the open door at its left end) and
    go in. A florist's interior, lighter and cooler than the café.
 7. **Quit, then `./mineworld-slice --world`.** You start just inside the café door, where the
-   world puts the visitor. Labelled figures stand in the room: `barista, staff` (Alice) behind the
-   counter, `regular` (Bob) at it. Walk out onto the pavement and back in: no snapping back, no
-   refusals on screen (each crossing is the server's decision).
+   world puts the visitor. Labelled figures stand in the room: `Barista` (Alice) behind the
+   counter, `Regular` (Bob) at it, and a second `Visitor`. These are roles, not names, until S8 PR
+   10c. Walk out onto the pavement and back in: no snapping back, no refusals on screen (each
+   crossing is the server's decision).
 8. **Talk, from the door and then from the counter.** Just inside the door, face Alice and press
-   **E**: a toast says `talk … -> rejected {"rejected":"too_far_away"}` — she is about 8 m away,
-   and the world, not the client, says no. Walk up to the counter in front of her and press **E**
-   again: `talk … -> accepted`, then her answer, e.g. `7 (barista, staff) said: "I remember you.
-   You said "Hello! A coffee, please.". You are the first person to speak to me here."`
+   **E**: a toast says `can't talk to Barista: too far away`. She is about 8 m away, and the world,
+   not the client, says no. Walk up to the counter in front of her and press **E** again. Two
+   subtitle lines appear at the bottom of the screen:
+   `You: Hello! A coffee, please.`, then
+   `Barista: I remember you. You said "Hello! A coffee, please.". You are the first person to speak to me here.`
 
 The objective checks behind this, if you want them: `./mineworld-slice --drive` (walk-in, loop,
 walls, cameras, jumps, The Flower Room), `--measure` (scale), `--threshold` (light at the door),
-`--character` (she animates; every camera mode), `--world --link` (the connected round trip).
-Each ends with *all … checks pass*.
+`--character` (she animates; every camera mode), `--world --link` (the connected round trip),
+`--world --conversation` (windowed: talk from the door and at the counter, capturing the HUD you
+see). Each ends with *all … checks pass*, or for `--conversation` *conversation on screen, no ids*.
 
 #### Frames — `clients/3d-spike/shots/slice/review/`
 
@@ -402,6 +419,7 @@ From the running client, 1600×900, its normal lighting, the character in the sl
 | 10 The Flower Room | `10_flower_room_door.jpg`, `10b_flower_room_interior.jpg` |
 | **side by side** | `sbs_03_cafe_frontage.jpg` (`03` / runtime at `03`'s framing, her on the pavement where `03` has its walker), `sbs_05_main_street.jpg` (`05` / runtime at `05`'s framing) |
 | motion and cameras | `walk_cycle_strip.jpg` (eight frames of the walk, fixed camera), `camera_modes_standing_walking.jpg` (rear, front, first person; standing and walking; street then café) |
+| your 2026-10-06 findings | `fix1_terrace_*.jpg` (the clipping, before and after), `fix3_conversation_*.jpg` (the talk, as on your screen) |
 
 Views 1–5 and 10 are first person, at the framings §12 names, so the body is not drawn in them;
 `04c`, `06`–`09` and the side-by-side of `03` have her in frame. The runtime half of
@@ -424,6 +442,11 @@ connected     the MVP town; places learned from the world (café 2, street 5). c
               café on foot: 50 moves, 50 accepted, 0 refused; last position = the server's.
               talk from the door, 8.15 m: rejected too_far_away. On foot to the counter (19 moves,
               all accepted), 1.99 m: accepted, and Alice's reply heard
+              (re-run after the 2026-10-06 fixes: 50 moves, 50 accepted, 0 refused)
+conversation  windowed, the player's HUD: from the door "can't talk to Barista: too far away";
+              at the counter (1.88 m) the reply drawn 0.3 s after E, both lines on screen,
+              no entity id in the caption
+drive         re-run after the fixes: all drive checks pass
 launch        plain launch and every mode exit 0; no script or resource errors
 ```
 
@@ -461,6 +484,13 @@ launch        plain launch and every mode exit 0; no script or resource errors
    The Flower Room is brighter inside than the street.
 11. **The character's own open items** are `VIS-3D-GODOT-1`'s (above): the face, deferred by you;
    card edges in the hair from behind.
+12. **People are labelled by role, not name, until S8 PR 10c.** Two people with the same role share
+   a label (the town has two `Visitor`s and several `Resident`s).
+13. **Alice's reply is a rule controller's fixed template**, shown verbatim, so it reads as a
+   template. Natural dialogue is Milestone D (a language-model controller).
+14. **At the counter Alice is partly hidden** by the espresso machine on the counter between you,
+   and from the door her label overlaps Bob's, because they stand in line from there. Both follow
+   from where the world puts them; the labels are drawn with depth, so a prop can cover one.
 
 #### Questions for you
 
