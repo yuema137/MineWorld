@@ -197,4 +197,28 @@ These are a later decision (coordinator, 2026-10-07): **not faked here.**
   height forces the elbow 30 cm behind her. A grip lower on the strap (y 1.15) reads as a hand on
   the hip with the elbow out, not as the reference's hand at the chest. And with the arm out and
   back, the fused armpit/pack surface **tore** (`runtime_d2`, P2/P4 at 3×). Re-bound with the
-  narrower pack region and smoothed weights; re-capture in progress.
+  narrower pack region and smoothed weights; re-captured as `runtime_d3`: at 3× (`p2_zoom`,
+  `p4_zoom`) the armpit no longer tears with the hip grip.
+
+### 8.4 Own slot and the chest grip (2026-10-07, resumed session)
+
+- **Own slot** (asked by the coordinator; amends §2's "the slot" constraint). `human.gd` gains
+  `Human.Body { TOWN, REFERENCE }`. The player (`NPC.make(..., reference = true)`, its only caller)
+  is built from `assets/characters/meshy_d/meshy_d.glb`; every townsperson keeps
+  `vitruvian/vitruvian.glb`, restored byte-identical. Same import settings and bone map. Scenes
+  and animation libraries are cached per body, because the standing clips key `rest * delta` and
+  each GLB has its own rests. The town body's grip constants are restored to their committed
+  values; the reference body has its own (`GRIP_*_D`). Commit `5c6dfce`.
+- **Where the strap is**, measured on the rest mesh in Godot (`stand_pose.gd -- strap
+  reference`): the strap's ridge runs at x 0.14–0.16, z +0.015…+0.025 from y 1.31 up to the
+  shoulder (y 1.46); below y 1.28 it turns round her side (z −0.01 … −0.05). The chest front is
+  at z +0.06. So the strap *is* at the chest above y 1.30, at the front of the armpit — the
+  earlier target (y 1.15, z −0.02) was on the part that runs down her side.
+- **Grip, re-solved** (`stand_pose.gd -- grip reference`, commit `d71b849`): the target is the
+  knuckle 2.5 cm proud of that ridge at y 1.31, and the wrist is solved too, turned up below
+  the knuckle — the reference's hand, fingers round the webbing. Result: knuckle 0.3 mm from the
+  target, wrist at y 1.23, elbow 240 mm below the shoulder, 95 mm out, 13 cm behind the shoulder
+  joint. No change to her proportions. The hand reaches its wrist-limit clamp (±75°) on two axes.
+- **First frame** (`shots/P2_portrait_tq`): the hand is on the strap at the chest, as in the
+  reference. It reads as an open hand laid against the strap, palm toward the viewer, rather
+  than a fist closed round it. Next: the armpit at 3× in this pose, then the hand.
