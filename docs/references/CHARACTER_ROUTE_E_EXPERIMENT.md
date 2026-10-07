@@ -311,3 +311,60 @@ the eyeballs and swell the lips, which is a different face, and the measured pro
 favour it. The whole-character run was **not made** for TripoSG (20 minutes per run, shape only):
 its head result already shows hair as a perforated fused shell, and the route D question is put to
 Meshy instead, which produces textured whole characters.
+
+### 9.4 Meshy (paid, Pro) — the licence, read at the source before generating
+
+The operator's Pro key was placed in `~/.config/mineworld/secrets.env` on 2026-10-06 (presence
+checked only). Read 2026-10-06, before any generation.
+
+**Terms of Use**, *"Last Updated: September 19, 2026"*, <https://www.meshy.ai/terms-of-use>:
+
+- Paid plans: *"Customers on a paid Meshy plan have the option to keep their User Content private
+  and your User Content will not be used for any purpose other than as outlined here. As between
+  Meshy and those Customers on a paid Meshy plan, and to the extent possible under applicable law,
+  such customers on a paid Meshy plan own their Customer Output."*
+- Free plan, for contrast: *"Meshy owns all right, title, and interest, including all intellectual
+  property rights, in and to the Customer Output"*.
+- Meshy's retained licence: *"By using our Service and providing or generating User Content,
+  Customers grant Meshy a non-exclusive, royalty-free, worldwide license to reproduce, distribute,
+  and otherwise use and display the User Content and Process the User Content as may be
+  necessary"*; and *"Meshy may use Customer Inputs and Customer Outputs (collectively, 'User
+  Content') from non-Enterprise Customers to train, validate, test, or improve Services unless
+  otherwise agreed to in the Order."*
+- Community: content posted to the Meshy Community page is licensed to the public as CC0.
+- Use restrictions on outputs: not to *"use generated digital assets to train, develop, or improve
+  AI models that are competitive with Meshy"*; and *"You agree not to remove, alter, disable, or
+  otherwise tamper with such identifiers"* (AI-generation identifiers in watermarks or metadata).
+- **No clause** in the Terms addresses cancellation.
+
+**Help centre**, <https://help.meshy.ai/en/articles/9992023-if-i-cancel-my-subscription-will-all-my-models-revert-to-a-cc-by-4-0-license>:
+*"You'll retain the rights to the models you created while you were a subscriber, and they will
+remain private indefinitely."* And
+<https://help.meshy.ai/en/articles/10137554-what-is-the-ownership-of-the-generated-models>: paid
+users *"retain full private ownership of all assets you create with Meshy"*, provided they are not
+published to the community. Pricing page, <https://www.meshy.ai/pricing>: *"If you are on a premium
+plan, you own all assets you create with Meshy"*; Pro is *"1,000 credits/month"*.
+
+**Answers to the operator's three questions.**
+
+| | Answer | Rests on |
+| --- | --- | --- |
+| (a) Is paid-plan output owned by the user, and may it be relicensed under MIT? | **Yes.** Ownership, not a licence; an owner may place it under MIT. Meshy's own non-exclusive licence back does not prevent that | Terms, paid-plan clause |
+| (b) Does it survive cancellation? | **Yes, per the help centre; the Terms are silent.** Ownership is a property of the generation, made while paid; nothing in the Terms makes it conditional on a continuing subscription, and the help centre states it survives. The Terms are what binds, so this is a moderate-confidence yes, not a contractual certainty | help centre article 9992023; absence of any reversion clause in the Terms |
+| (c) Are the assets private? | **Yes, by option**, on paid plans; they become CC0 public if posted to the Community. *"Private license for all assets"* on the plan page is consistent with this. Meshy still holds its non-exclusive operating licence and may train on non-Enterprise content | Terms, paid-plan and community clauses |
+
+**`DEP-8` verdict: passes** for output generated on the paid plan and never posted to the
+Community, with two obligations carried with any committed Meshy-derived asset: keep any AI
+identifier Meshy embeds, and record `ARC-9` provenance. Because (b) rests on the help centre rather
+than the Terms, a Meshy mesh that is **committed** should be recorded as such in the pack's
+`LICENSES/`; used only as a wrap target (route E), nothing of Meshy's mesh is committed at all —
+only CharMorph vertices moved toward it — so the question does not arise for that use.
+
+**Budget and settings.** Image-to-3D on `meshy-7.1`: 20 credits mesh only, 30 with 2K texture
+(<https://docs.meshy.ai/en/api/pricing>). Plan: one head task and one whole-character task, at
+most two more if a setting has to change: **≤ 140 of 1,000 credits.** Settings
+(`meshy_i23d.py`): `ai_model meshy-7.1`, `should_texture true`, `texture_resolution 2k`,
+`enable_pbr false`, `should_remesh false` (the raw generated surface), `image_enhancement false`
+(no restyling of the input before lifting), `remove_lighting true`, `moderation false`,
+`target_formats [glb]`. REST only; no SDK, MCP, skills or animation library. Every output and the
+exact request are kept in `/Users/yuema137/mineworld-demos/i23d/out/meshy/<name>/`.
