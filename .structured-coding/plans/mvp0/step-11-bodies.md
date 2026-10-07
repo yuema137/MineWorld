@@ -801,15 +801,15 @@ genesis facts.
 - **A world without positions loses nothing.** An arrival with `local: None` is not resolved (there is no
   body to place), so a semantic or 2D-without-positions world behaves exactly as now. This is the same
   degeneracy `SpatialRequirement::evaluate` already has.
-- **Passages.** A stride that changes place starts in one frame and ends in another. Bodies does not sweep
-  across frames: for an arrival in a new place it resolves the destination only — if the body overlaps
-  something there, it is moved to the nearest free position, starting from the arrival point (a
-  zero-length character-controller move depenetrates, `move_shape`'s step 1). The doorway on the far side
-  must be clear in the place's authored geometry; the world validator checks that every passage's `there`
-  point is free for the default human capsule (§10.4). A crowd in a doorway is resolved by the same
-  depenetration: the arriving person is placed beside the crowd, not inside it.
-- **Travel between towns** stays a Process that ends in `arrived` (`ARC-26`). Bodies resolves its end like
-  any other arrival. Nothing here prevents it.
+- **Passages.** A stride that changes place starts in one frame and ends in another. The resolver does
+  not sweep across frames: when `from` is in another place, it treats the stride as a placement at `to` —
+  the same nudge rule with the walker's capsule at the far doorway point as the pusher, and, if the
+  doorway is crowded beyond the nudge bounds, the stride is blocked (the person stays on their side of the
+  door) rather than placed inside anybody. The doorway on the far side must be clear in the place's
+  authored geometry; the world validator checks that every passage's `there` point is free for the
+  default human capsule (§10.4). Nudges never change anybody's place (§4.4.6).
+- **Travel between towns** stays a Process that ends in `arrived` (`ARC-26`). Its arrival goes through the
+  same constructors and is resolved like any other. Nothing here prevents it.
 - **Height.** z is the floor for people (positions keep `z = 0`; the capsule is held at floor height);
   objects may come to rest above the floor (on a counter), so an object's `z` is meaningful. The 3D client
   already never reports height (`REPORT_HEIGHT = false`), and a jump stays rendered movement.
@@ -818,7 +818,11 @@ genesis facts.
 
 # 6. Question 4 — Determinism and persistence
 
-## 6.1 Recommended model: integer state, resolution rebuilt each time (mode Q / `ql`)
+## 6.1 Recommended model: integer state, resolution rebuilt each time (mode R′; revision 0: Q / `ql`)
+
+Revision 1 keeps this model unchanged and moves where it runs: the people part of a resolution runs
+inside bodies' `ArrivalResolver` (before recording), the object part inside bodies' reactions to the
+recorded arrivals (§4.5.4). Both rebuild from integers and quantize; neither keeps anything.
 
 ```text
 between resolutions   integers only: Presence (presence), body shapes, place geometry, where each
@@ -876,6 +880,14 @@ DC-5  A Rapier upgrade is a change of results: it bumps bodies' VERSION, so an o
       name instead of diverging on replay.
 DC-6  Every quantization is `round()` of `metres × 1000` to `i32`, in one function.
 DC-7  Workaround for the defect found in §9.4 F-P1, with a regression test in the pack.
+DC-8  (revision 1) Verify, then degrade: the non-overlap invariant is checked on the quantized
+      integers after every resolution, with blocked → halved → stay as fallbacks (§4.5.1 step 8).
+      The character controller alone does not guarantee it: §9.8 caught it letting a walker onto a
+      person against a wall, and the revision-0 `ql` design left two people 235 mm apart.
+DC-9  (revision 1) Cross-architecture identity is evidenced (PC-g, §9.8): arm64 and x86_64 under
+      Rosetta give identical digests and identical snapshot bytes, and an arm64 snapshot resumes on
+      x86_64 byte for byte. Rosetta translates x86_64 instructions on the same machine; a native
+      x86_64 host (S13's container on such a host) remains the stronger check.
 ```
 
 ## 6.4 Headless cost
@@ -886,16 +898,20 @@ Movement volume, measured on main: a 30-day social-cafe run accepted 16 595 move
 ```text
 mode Q    160.9 µs per request (§9.4)  →  ≈ 26.7 s per 300-day run
 mode ql    58.6 µs per request (§9.4)  →  ≈  9.7 s per 300-day run
+mode R′    61.0 µs per request (§9.8)  →  ≈ 10.1 s per 300-day run     revision 1, with nudging
+                                          and verify-then-degrade
 ```
 
-Against current 300-day runs of 15.2 s (market-town, 11d) to 33.7 s (11e with `--save`), `ql` adds
-roughly 30–65 %. Two further reductions are designed in, not yet measured: skipping Rapier altogether
+Against current 300-day runs of 15.2 s (market-town, 11d) to 33.7 s (11e with `--save`), `ql` and R′
+add roughly 30–65 %. Under Rosetta (x86_64 translated) R′ measured 104.7 µs, which says nothing about a
+native x86_64 host and is recorded only so nobody reads it as one. Two further reductions are designed in, not yet measured: skipping Rapier altogether
 when no other body's box meets the stride's box (an integer test), which is most strides in an open
 street; and building the place's fixed geometry once per resolution from a pre-sorted list. The bound
 to hold in PR 12b's acceptance is stated there (§11, QB-11), not derived from what the code happens to cost.
 
-Only a world that installs bodies pays. `social-cafe` and `market-town` do not install it in this step
-until PR 12c (§11), so until then their run times are unchanged except for the `from` field.
+Only a world that installs bodies pays. With no resolver registered, `arrivals()` costs one empty fold
+over the catalog. `social-cafe` and `market-town` install bodies only in PR 12d (§11); until then their
+facts and run times are unchanged (§4.4.8).
 
 ---
 
@@ -915,7 +931,8 @@ until PR 12c (§11), so until then their run times are unchanged except for the 
 4. **Reconcile on difference, not only on refusal.** When an observation places the observer more than
    **150 mm** from where the client last reported it (more than the server's quantization and the
    controller's 10 mm gap, less than a visible jump), the client moves its body to the authoritative
-   position. That covers a stride stopped short by the server, a shove, and a refusal, with one rule.
+   position. That covers a stride stopped short by the server, being nudged aside by somebody walking
+   into you (revision 1), a shove, and a refusal, with one rule.
    It replaces the refusal-only reconciliation in `slice_link.gd` (`ADOPTION.md` gains the rule).
 5. **Animate objects.** An `object-moved` with a `path` is drawn along it over its stated duration.
 
@@ -962,8 +979,9 @@ Blocking and pushing are decided once, on the server, and the 2D client shows th
 
 | Interaction | How | Declared requirement (`SpatialRequirement`) | Refusals |
 | --- | --- | --- | --- |
-| People never interpenetrate | Every arrival resolved: the character controller sweeps the capsule from `from` to `to` against fixed geometry and other people; it slides along them and stops at contact. | none (a reaction, not an action) | — |
-| A person pushes an object aside by walking | If the stride's box meets a loose object, the person is carried along the stride over fixed sub-steps as a kinematic body and the object, dynamic, is pushed; then the person is depenetrated, so an object jammed against a wall stops the person instead of being entered (PC-e2). | — | — |
+| People never interpenetrate | (revision 1) Every arrival resolved before it is recorded (§4.4): the walker slides along walls; verify-then-degrade guarantees the invariant on integers. | none (part of every arrival, not an action) | — |
+| A person nudges another aside by walking | (revision 1, QB-10) §4.5: at most 300 mm per person per stride, two generations, four people; otherwise blocked. Recorded as presence's `arrived` for each nudged person, caused by the walker's request. | — | — |
+| A person pushes an object aside by walking | (revision 1) bodies' reaction to each recorded arrival pushes overlapping loose objects out, against walls and people as they now stand; the resolver has already checked there is room (§4.5.4). | — | — |
 | `kick` an object | Impulse away from the kicker (direction from the kicker's centre to the object's, so it needs no aim), fixed strength, resolved until rest or 180 sub-steps (3 s). | same place, within 800 mm, target available | `TooFarAway`, `TargetUnavailable` (not a loose object, or not in the place), `malformed-payload` |
 | `throw` an object | The thrower picks up and throws in one action: the object starts at chest height in front of the thrower with a velocity toward `toward`, clamped to 6 m, and is resolved until rest or 240 sub-steps (4 s). | same place, within 800 mm, target available | as kick, plus `PreconditionFailed` when `toward` is outside the place's geometry bounds |
 | `shove` a person | The target is moved 500 mm away from the shover by the character controller (so a wall or a third person stops them), stated as `person-shoved` plus presence's `arrived`. | same place, within 1 000 mm, target available | `TooFarAway`, `TargetUnavailable`; `Busy` while the target is in a process its owner marks uninterruptible is out of scope (no such query exists, QB-8) |
@@ -985,22 +1003,31 @@ docs                            ARC-39, DEP-13, DEP-14, MODULE_SPEC §4.1 (the b
                                 server/PROTOCOL.md §6.2 (reconciliation), ADOPTION.md
 ```
 
-What it edits that already exists, and only this:
+What it edits that already exists, and only this (revision 1; all in PR 12a, the precursor):
 
 ```text
-systems/presence   Arrived gains `from`; arrival() fills it; VERSION 3. Operator-material (QB-2).
+systems/presence     the ArrivalResolver trait, the resolver catalog, arrivals(), arrival() refusing
+                     what it cannot record truthfully, stride-blocked; VERSION 3 (§4.4)
+sdk/rust             installed!: the `resolution: <trait> => [<variants>]` line and
+                     Capability::resolvers() (§4.4.4). sdk still names no pack.
+systems/installed    `resolution: mineworld_presence::ArrivalResolver => [];` (bodies joins in 12b)
+worldpack            compose() registers the catalog beside building providers (one call)
+systems/movement     two mechanical lines: `arrivals()` in resolve, `.emitting::<StrideBlocked>()`
+                     in the declaration. It names no resolver and no other pack (SC-7)
 ```
 
+Revision 0's `from` on `arrived` is withdrawn (§4.4.7).
+
 What it must **not** edit: `kernel/`, `contracts/`, `persistence/`, `server/src` (the server carries any
-action unchanged; only the document `server/PROTOCOL.md` changes), `systems/movement`, any other System Pack, `worldpack` (sections
-are bound through `ARC-31`), `cognition/` (the paced controller attempts complete affordances it was
-never compiled against, `ARC-34`). If any of these turns out to need an edit, the work stops and the
-question returns to the operator.
+action unchanged; only the document `server/PROTOCOL.md` changes), any System Pack other than presence and
+movement as above, `cognition/` (the paced controller attempts complete affordances it was never compiled
+against, `ARC-34`). If any of these turns out to need an edit — in particular if F1 cannot work and the
+kernel extension slot F2 is needed — the work stops and the question returns to the operator.
 
 **One kernel-adjacent fact to verify in PR 12a, not assumed:** that a system may subscribe to a fact type
-it also states (bodies subscribes to `arrived` and states `arrived`). `ARC-26`'s install check requires
-only a declared emission and a dependency on the owner. If the kernel refuses this combination, that is a
-kernel change and goes to the operator.
+it also states (bodies subscribes to `arrived` and, for `shove`, states `arrived`). `ARC-26`'s install
+check requires only a declared emission and a dependency on the owner. If the kernel refuses this
+combination, that is a kernel change and goes to the operator.
 
 ---
 
@@ -1338,6 +1365,118 @@ reported by level (blocked, halved, stayed).
 The same overlap and inside checks are also **reported, not judged,** for the earlier modes Q and `ql`
 over their 3 000 requests, because §9.4 never measured them: the old design blocked strides with the
 same character controller, and whether it ever let people overlap is evidence about §6.1's claims.
+
+## 9.8 Revision 1 results (2026-10-07)
+
+Logs in `out/`: `nudge.log`, `nudge-off.log` (R), `runs-r.log`, `rv-n1.log` … `rv-n3.log`,
+`runs-rv.log` (R′), `runs-x86.log` (PC-g). Source: `src/resolve.rs` (new) and `src/main.rs`.
+
+### Mode R (§9.6) — superseded by R′, kept as evidence
+
+| ID | Verdict | Evidence |
+| --- | --- | --- |
+| PC-a/R | PASS | `3261dec016fd15d6…28fd48a7` twice; 59.5 / 59.3 µs per request |
+| PC-b/R | PASS | snapshot at 1 300 (129 bytes); resumed to `3261dec0…` |
+| PC-c/R | c2 PASS (differs init … request 40, then converges); **c4 FAIL as specified** | c4 picked request 1 000, `person 1 moved (−100, 0) mm`: a move clipped by the walls, so +1 mm went nowhere — the same defect of the c4 rule as PC-c″ located in Q; replaced by c5 in §9.7 |
+| N-1 (long run) | **FAIL** | closest pair **33 mm**, persons 2 and 8 after request 551. Located (`r show 551`, `DEBUG=1`): `move person 8 by (1412, −1412) mm from [2536, 782]`; person 2 stood at (2 970, 314), against the south wall. Both sweeps slid the walker along the wall onto person 2: `t_b = (0.433, −0.435)` m, the blocked fallback itself, ended at (2 969, 347). The character controller with people solid let a sliding walker through a person who was touching the wall. |
+| N-1…N-6 (scenarios) | PASS | identical to R′ below: the scenarios never reached the failing geometry |
+
+### Mode R′ (§9.7) — the design
+
+| ID | Verdict | Evidence |
+| --- | --- | --- |
+| **PC-a/R′** | **PASS** | `c98ead06cac20eb7…a84e7b62` in two processes |
+| **PC-b/R′** | **PASS** | snapshot at 1 300 (127 bytes); a new process resumed to `c98ead06…` |
+| **PC-c/R′** | **PASS** | c2: traces differ from `init` through request 40, then converge. c5 perturbs request 1 001 (`person 2 moved (1153, 0) mm unclipped in base`): traces differ from 1 001 through 1 016, then converge |
+| **PC-d/R′** | **PASS** | 61.0 / 61.1 µs per request (≤ 100). 225 of 2 548 moves stepped for objects |
+| **N-1** | **PASS** | long run: closest pair **600.1 mm** (persons 2 and 8, request 551 — the R failure, now halved: `degraded: blocked 0, halved 1, stayed 0`). Scenarios: n1 610, n2 610, n3 600 mm |
+| **N-2** | **PASS** | largest nudge: long run 309 mm; n1 300, n2 289, n3 301 mm (bound 310) |
+| **N-3** | **PASS** | long run: max 2 generations, max 3 people per stride; 178 strides blocked, 398 strides nudged someone (454 nudges). n3: 2 generations, 2 people, 3 of 12 strides blocked |
+| **N-4** | **PASS** | nobody outside the room or inside the counter, in the long run or any scenario |
+| **N-5** | **PASS** | n2 on: the standing person moved 495 mm in all (≥ 100). Forced off (`NUDGE_OFF=1`): 0 mm, and the walker stopped at contact after 1 403 mm, 12 strides blocked |
+| **N-6** | **PASS** | n1 `47ec2419…`, n2 `a690a4f7…`, n3 `61941cab…`, each identical in a second process |
+| **PC-g** | **PASS** | x86_64 build (`rustup target add x86_64-apple-darwin`, the stable 1.97.1 toolchain the arm64 build used), run with `arch -x86_64` under Rosetta: P `9ccd9417…`, Q `57863631…`, `ql` `2ca7c6fe…`, R′ `c98ead06…` — each equal to arm64. Snapshots written by the **arm64** binary (P, Q, `ql`, R′) resumed by the **x86_64** binary to the same digests. Snapshots written on x86_64 are byte-identical files to arm64's (P, Q, R′; `cmp`). Scenario digests n1–n3 equal. |
+
+### Reported, not judged: the revision-0 modes
+
+```text
+Q    closest pair 604.4 mm (persons 5, 7, request 451)   never overlapped
+ql   closest pair 235.0 mm (persons 2, 8, request 2 801) OVERLAPPED — the lean path trusted the
+                                                         character controller's answer
+```
+
+So revision 0's recommended mode, `ql`, would have let people interpenetrate. That is a finding against
+revision 0's §6.1 as written, not only against R; DC-8 is the remedy in either design.
+
+### Findings (revision 1)
+
+- **F-P6 — the character controller is not an interpenetration guarantee.** Sliding along a wall, it let
+  the walker onto a person touching that wall (R, request 551) and, in `ql`, left two people 235 mm apart.
+  Verify-then-degrade on the quantized integers (DC-8) closed it: one halving in 3 000 requests.
+- **F-P7 — collinear head-on walkers never pass.** Each stride nudges the other straight back; they
+  oscillate 300 mm (n1). Not a failure of any criterion; a behaviour to fix with a sideways bias (QB-16).
+- **F-P8 — the perturbation rule must pick an effective input.** c3 (Q) and c4 (R) both chose moves the
+  walls clipped. c5 ("reaches its destination unclipped") is the rule that works; PR tests that perturb
+  inputs use it.
+- **F-P9 — cross-architecture identity holds under Rosetta**, including across a snapshot written on one
+  architecture and resumed on the other. This is the first evidence for `AC-8`'s physics half.
+
+### Commands (revision 1)
+
+```sh
+cargo build --release                                     # arm64
+B=target/release/physics-spike
+for n in n1 n2 n3; do $B rv scenario $n; done             # N-1..N-6 (run twice for N-6)
+NUDGE_OFF=1 $B rv scenario n2                             # N-5 off
+$B rv run base out/rv-base-1.loc; $B rv run base out/rv-base-2.loc        # PC-a/R′
+$B rv snap base out/rv.snap; $B rv resume out/rv.snap out/rv-resumed.loc  # PC-b/R′
+$B rv trace base out/rv-base.trace; $B rv trace c5 out/rv-c5.trace
+$B tracediff out/rv-base.trace out/rv-c5.trace                            # PC-c/R′
+$B r run base out/r-base-1.loc; $B r show 551; DEBUG=1 $B r show 551      # R, and locating N-1
+rustup target add x86_64-apple-darwin
+cargo build --release --target x86_64-apple-darwin
+cp target/x86_64-apple-darwin/release/physics-spike out/spike-x86_64
+arch -x86_64 out/spike-x86_64 rv run base out/x86-rv.loc                  # PC-g (a); p, q, ql too
+arch -x86_64 out/spike-x86_64 rv resume out/rv.snap out/x86-rv-resumed.loc   # PC-g (b), arm64 snapshot
+arch -x86_64 out/spike-x86_64 rv snap base out/x86-rv.snap; cmp out/x86-rv.snap out/rv.snap
+```
+
+The resolver, as the prototype implements it (`src/resolve.rs`, excerpt; the design's trait shape is
+§4.4.1):
+
+```rust
+pub const NUDGE_MAX: f32 = 0.300;
+pub const GAP: f32 = 0.010;
+pub const CHAIN_MAX: usize = 2;
+pub const NUDGED_MAX: usize = 4;
+
+fn resolve_people(world: &mut PhysicsWorld, people: &[RigidBodyHandle], walker: usize,
+                  desired: Vector, objects_solid: bool, force_block: bool)
+                  -> (Vector, Option<(Vec<(usize, f32)>, usize)>) {
+    let me = people[walker];
+    let from = world.bodies[me].translation();
+    let walls = if objects_solid { QueryFilter::exclude_kinematic() } else { QueryFilter::only_fixed() };
+    let t_w = sweep(world, me, desired, walls);                       // 1 walls-only reach
+    let solid = if objects_solid { QueryFilter::default() } else { QueryFilter::exclude_dynamic() };
+    let t_b = sweep(world, me, desired, solid);                       // 2 contact reach
+    let blocked_at = from + t_b;
+    let (s_w, s_b) = (len(t_w), len(t_b));
+    let candidate = if s_w <= s_b + NUDGE_MAX { from + t_w }          // 3 candidate
+                    else { from + t_w * ((s_b + NUDGE_MAX) / s_w) };
+    // 4 nudge pass: generations of pushers; each overlapping person is swept against fixed
+    //   geometry only, directly away from its pusher, by the overlap + GAP; any bound broken,
+    //   or any overlap left, → 5 blocked (walker at blocked_at, everyone else restored)
+    /* … */
+}
+
+/// R′ step 8: verify on integers, then degrade.
+pub fn move_r(state: &mut StateQ, variant: Variant, walker: usize, desired: Vector) {
+    let before = state.clone();
+    /* resolve, quantize */
+    if !VERIFY.load(Ordering::Relaxed) || !new_overlap(&before.people, &state.people) { return; }
+    /* blocked → halved along the blocked path (1/2 … 1/256, integer division) → stay */
+}
+```
 
 ---
 
