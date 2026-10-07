@@ -54,7 +54,9 @@ func _occupy(height_m: float, seed_v: int) -> void:
 	# one file rather than a hunt through the scene.
 	occupant.rotation.y = PI
 	add_child(occupant)
-	source = "npc.gd reference build over the Human rig (%s)" % Human.SRC.get_file()
+	# named from the scene the body actually instantiated, not from a constant:
+	# since route D+ the reference character has its own body (`Human.Body`)
+	source = "npc.gd reference build, body %s" % occupant.body._inst.scene_file_path.get_file()
 
 
 ## The only thing the environment ever tells the character: how fast the body it
