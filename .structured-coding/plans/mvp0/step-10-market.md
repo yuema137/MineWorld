@@ -3071,6 +3071,83 @@ F-46  ItemsTransferred's audience is inventory's choice (the vocabulary owner bu
       11e should be place-visible is 11e's question (QS-30).
 ```
 
+## 8.6 Re-audit for 11e (`main @ 70e532f`, 2026-10-07)
+
+Made by the planning session after 11d merged, before detailing §4.5. Where §4.5's medium scope and the
+source disagree, the source wins and the finding says so.
+
+**Inspected.**
+
+```text
+systems/inventory/src/{admit, system, event, component, section, lib}.rs (whole), Cargo.toml
+systems/item/src/{system, section, event, component, lib}.rs (whole); category.rs (API)
+systems/item-transfer/src/{system, offer, action, codec}.rs (whole), Cargo.toml
+systems/schedule/src/{system, process, time}.rs (whole), lib.rs (exports)
+systems/presence/src/{interaction.rs (whole: Offer::complete), observe.rs (whole: present, perceived,
+  disclosed, affordances, verdict)}, event.rs (PersonEnteredPlace: person, place, from), lib.rs, Cargo.toml
+systems/relationships/src/system.rs (relation declaration, install)
+systems/installed/{Cargo.toml, src/lib.rs}
+sdk/rust/src/pack.rs (whole: SystemPack, owns_section!)
+cognition/rule-controller/src/offered.rs (whole)
+authoring/src/section.rs (Seeding, AuthoredSection); worldpack/src/load.rs (:190–335 assemble, load,
+  initial_facts)
+contracts/src/{spatial.rs (:356–515 SpatialRequirement, at_place, evaluate), action.rs (Rejection),
+  event.rs (Visibility, Causation, EventRecord), relation.rs (EntityTypeSet, directed), ids.rs (id types)}
+kernel/src/{process.rs, view.rs, system.rs} (public API)
+persistence/src/{lib.rs, backend.rs (last_facts), format.rs (decode)}; tools/cli/src/biography.rs
+  (:40–110, reading a save)
+worlds/market-town (world.yaml, every person file's routine/location/holdings, places/cafe.yaml,
+  places/store.yaml, items' categories)
+docs: MVP §§2–5; CORE_CONCEPTS §§7, 8, 9, 10, 13.1; MODULE_SPEC §4.1 (sections); PACKAGE_FORMAT §8;
+  DECISIONS ARC-26, ARC-28, ARC-33 … ARC-37
+runs: E-6 (the R-S9-1 spike)
+```
+
+**Findings.**
+
+```text
+F-47  A System Pack owns at most one section (sdk/rust/src/pack.rs: `SECTION: Option<SectionOwner>`,
+      one AuthoredSection impl through owns_section!). §4.5's medium scope gave economy two (`wallet:`
+      on people and organizations, `shop:` on places). Bounded inside the pack: one `economy:` section
+      on people and organizations, a shop authored on its operator as `shop: { at, prices }`, Shop still
+      written on the place by economy's reduction. A side effect: no place file changes (QS-43). No
+      precursor: the limit is a reasonable shape, and lifting it would be framework work justified only
+      by the market (I-2).
+F-48  An Offer carries only `target_available` as a pack-supplied verdict, and a target-less offer's
+      requirement can say only "at that place" (contracts spatial.rs evaluate: SamePlaceAsActor needs a
+      target; at_place(place) does not). So `buy` is target-less with `at_place(shop)` and
+      `requiring_target_available`, and "out of stock", "cannot pay" and "cannot carry" all read
+      TargetUnavailable, in the affordance and at dispatch alike (QS-44).
+F-49  PersonEnteredPlace carries `from` (presence event.rs), so leaving the workplace is visible as an
+      entry elsewhere whose `from` is the workplace. Attendance is exact without polling.
+F-50  Only food and drink can be consumed; goods sold by a shop would fill a person's six places for
+      good and stop buying and receiving (the 11d sink in another form). Shops sell consumables only
+      (QS-48), and `drink` exists beside `eat`, or drinks would clog the same way (QS-39).
+F-51  The money loop, measured (§9 E-6). Run 1 (the first sizing, wages 1 500 per hour): 28 of 58
+      wage-dues unpaid in 30 days — wages far above what the shops take. Run 2 at the first realistic
+      sizing: every CP-4 condition held but felix's wallet went to 3 by day 90 and the store's fell
+      every month — a store employee spends more than a 100/h wage and the store sells less than it
+      pays. Run 3 (felix 200/h, the store's capital 300 000): every condition of E-9 b held. So the loop
+      is sized in content, as I-9 requires, and the instrument sees a drained wallet when there is one.
+F-52  Without a job a person has no income: ten of twelve people live on their endowment and spend
+      ~2 000–10 000 per 30 days. 300 days is within reach of an endowment; years are not (R-S9-3, §1.2:
+      a market that balances itself over years is a non-goal). Recorded in ARC-38 (QS-47).
+F-53  dev never stands in a shop (park, workplace, apartments) and buys nothing, and Otto is driven by
+      nobody: a per-seat purchase criterion is impossible by content, so CP-4's purchase criterion is
+      world-level, as written.
+F-54  The café's place record reaches every perceiver (observe.rs perceived(): the place first, its
+      components from disclosed()), so a listing disclosed on the shop's place is seen by everyone there
+      and by nobody elsewhere — CP-7's perception path, with no client change.
+F-55  economy's react can answer `wage-due` with its own `money-transferred`, caused by the `wage-due`
+      (Causation::Event), and a subscription to an event whose owner is not installed is legal (as
+      relationships hears `spoke` without conversation). The ARC-28 direction holds with a Cargo
+      dependency economy → employment and no system dependency.
+F-56  Cost: 300 days of the spike's market-town with --save took 34.5 s (11d: 32.5 s). R-S9-2 holds.
+F-57  Process: during this audit one `xargs` (listing file sizes) and one `awk` (summing test counts)
+      slipped into read-only commands, against the kickoff's tool discipline. Neither changed a file.
+      Recorded, not repeated.
+```
+
 ---
 
 # 9. Ledger and evidence
@@ -3178,6 +3255,59 @@ E-4  The R-S9-1 spike for 11d. Local scratch branch `scratch/11d-spike` from c5d
 E-5  End of this planning branch: check_doc_headings → 143 numbered sections across 22 documents, none
      duplicated; check_decision_ids → 47 ids, all distinct (ARC-37 a proposal in this file only).
      Docs-only branch; no cargo gate run beyond E-3 and the spike.
+
+--- after 11d merged; planning 11e (branch mvp0/s9-11e-plan, base main @ 70e532f) ---
+
+E-6  The R-S9-1 spike for 11e, 2026-10-07. Local scratch branch `scratch/11e-spike` from 70e532f,
+     scratch commits 22a6b58 (packs, content) and d856f1d (sizing), never pushed, deleted after
+     (`git ls-remote --heads origin | grep -c scratch` → 0). Logs in /tmp/s9-11e-plan/.
+     Flows under test (the operator's list): employment's shift Process reading presence and stating
+     wage-due, reduced by economy into a wallet move (ARC-28); a purchase at a shop place stated through
+     inventory's checked constructor and paid through economy; consumption through inventory's checked
+     constructor; all attempted by the unchanged paced controller through complete affordances.
+     Built: inventory + items-produced/items-consumed with produce/consume and admit_*; systems/
+     employment (job: section, hired, Employment, employed-by, shift Process, attendance from Presence and
+     person-entered-place, shift-started/-ended, wage-due, items-produced via produce); systems/economy
+     (economy: section with wallet and an organization's shop, Wallet, Shop, funded, shop-opened,
+     money-transferred, wage-unpaid, buy offered complete per priced kind at a shop, wages on wage-due with
+     no system dependency, wallet and listing disclosure); systems/consumption (eat/drink by category,
+     complete offers per held kind, validate + consume); three lines each in systems/installed;
+     market-town + two organizations, an economy: block per person, jobs for alice and felix.
+     Changed paths vs 70e532f: Cargo.lock, systems/{economy,employment,consumption}/**,
+     systems/inventory/src/{admit,event,lib,system}.rs, systems/installed/{Cargo.toml,src/lib.rs},
+     worlds/market-town/** — 29 files, nothing else. Cargo.lock: +3 [[package]] (mineworld-consumption,
+     -economy, -employment), no `source`; +3 names in mineworld-installed-systems' dependencies.
+     Compiled on the first build.
+     validate: valid; ids 1–38 = 11d's, cafe-company 39, corner-store 40; 129 genesis facts = 101 + 10
+       stocked (organizations) + 14 funded + 2 shop-opened + 2 hired.
+     Run 1 (first sizing: wallets 50 000, wages 1 500/h, production per hour), 30 days, --save: exit 0,
+       faults 0, 37 999 facts, 3.5 s; buy accepted 372, eat 249, drink 127, give 1 329, no rejected
+       request line; shift-started/ended 60/60, wage-due 58, money-transferred 402 (372 purchases + 30
+       wages), wage-unpaid 28 → the employers were drained by wages ~10× their takings (F-51).
+     Criterion for the 300-day runs, stated before the first of them (= E-9 b): faults 0; every seat
+       moved and talked in every bucket; per bucket ≥ 1 purchase, both job holders paid, ≥ 1 produced,
+       ≥ 1 eaten or drunk, ≥ 1 given; zero wage-unpaid; no wallet ever below 100 (the cheapest price);
+       money conserved; cost ≤ 60 s.
+     Run 2 (people 200 000, job holders 20 000, organizations 20 000, alice 120/h, felix 100/h,
+       production per full shift), 300 days, --save: exit 0, faults 0, 372 621 facts, wall 34.2 s; buy
+       2 627, eat 1 690, drink 943, give 12 797; every bucket ≥ 235 purchases, 57–60 wages paid,
+       ≥ 191 produced, ≥ 238 consumed, ≥ 1 196 given; zero wage-unpaid; money conserved (2 080 000).
+       FAILED the wallet condition: felix (12) fell to 3 (bucket 2) and lived on each wage; the store
+       (40) fell from 27 354 to 6 388 over the run (F-51). The instrument sees a drain.
+     Run 3 (felix 200/h, store 300 000; nothing else changed), 300 days, --save: exit 0, faults 0,
+       372 755 facts, wall 34.5 s; buy 2 710, eat 1 710, drink 1 007, give 13 032; no `move 0`/`talk 0`
+       in any bucket; per bucket: purchases 349, 256, 276, 265, 250, 271, 247, 264, 258, 274; wages paid
+       59, 59, 60, 60, 58, 59, 58, 58, 59, 60 (wage-due equal, wage-unpaid 0); produced 191–203; consumed
+       251–358; given 1 253–1 382. Lowest wallet over the run: felix 2 313, store 246 190, café 21 440,
+       alice 16 710, every other person ≥ 95 150. Money conserved: 2 360 000 at genesis and at the end.
+       Final holdings: no person above 6 (Otto 6, grace 6). → PASS of every E-9 b condition.
+     Determinism (run 3's content): two 30-day runs identical but `wall`; 15 days saved then resumed to
+       30 = the uninterrupted 30-day save (38 004 facts, fingerprint aaface7abc5a3097, both).
+     social-cafe 300-day on the spike build: sha-256 of all but `wall` = ad49c723…c64b = E-0.
+     `cargo test --workspace --no-fail-fast`: exit 0, 480 passed (479 + the scratch reader), 0 failed.
+     Verdict: PASS — no framework gap; F-47 … F-56. No precursor proposed.
+E-7  End of this planning branch: check_doc_headings and check_decision_ids (results in the commit that
+     closes this section). Docs-only branch; no cargo gate beyond the spike.
 ```
 
 Each implementation PR records its evidence in its own section — §9.2 for 11b, §9.3 for 11c — so that
