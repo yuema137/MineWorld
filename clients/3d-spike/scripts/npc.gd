@@ -94,7 +94,11 @@ var _t := 0.0
 ## The albedo *textures* carry the print, the denim weave and the freckles;
 ## these colours tint them, so changing one shifts the tone without losing the
 ## artwork (`Human._printed`).
-const REF_SKIN := Color(1.0, 0.95, 0.90)
+## Warmer than the albedo as shipped: measured on a lit cheek in `P6_head`,
+## preview 2 read 0.41/0.30/0.29 sRGB against the reference's 0.59/0.38/0.30 --
+## darker, and cool where the reference is warm. Within the one albedo's range
+## (`ARC-22`): a warmer tint of the same person, not a different skin.
+const REF_SKIN := Color(1.10, 0.97, 0.84)
 ## Warm mid-brown, not near-black. Raised for the groomed cards (preview 3):
 ## the crown's mean colour measured 0.21/0.14/0.12 sRGB in `P6_head` against
 ## the reference's 0.42/0.29/0.21 at the same region.

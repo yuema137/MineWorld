@@ -138,15 +138,27 @@ static func _skin(bc: String, nm: String, rough: String, tint: Color) -> Standar
 	m.normal_enabled = true
 	m.normal_texture = _tex(nm, false)
 	m.normal_scale = 0.8
-	m.roughness_texture = _tex(rough, false)
-	m.roughness = 1.0
+	# Matte, not wet. The CC0 roughness map runs glossy across the T-zone, and
+	# with the default specular every preview showed a wet sheen on the
+	# forehead, nose and chin where the reference's skin is matte with a soft
+	# glow. A constant, fairly rough surface and a low specular level give
+	# skin's broad, dim highlight instead of a lacquer's. (`rough` is kept in
+	# the signature: the map is still the right input once a material model
+	# with a separate sheen lobe is used.)
+	m.roughness = 0.66
 	m.metallic = 0.0
+	m.metallic_specular = 0.30
 	# MakeHuman-family skins are diffuse-dominant and read waxy in Forward+
-	# without this; it is the cheapest large step toward the reference's
-	# material feel and costs nothing in the lighting rig.
+	# without subsurface scattering. Stronger than before, and with warm
+	# transmittance, for the reference's "visible subsurface warmth at the ear,
+	# the nose and the jaw edge where light passes through".
 	m.subsurf_scatter_enabled = true
-	m.subsurf_scatter_strength = 0.28
+	m.subsurf_scatter_strength = 0.45
 	m.subsurf_scatter_skin_mode = true
+	m.subsurf_scatter_transmittance_enabled = true
+	m.subsurf_scatter_transmittance_color = Color(0.95, 0.42, 0.28)
+	m.subsurf_scatter_transmittance_depth = 0.12
+	m.subsurf_scatter_transmittance_boost = 0.25
 	return m
 
 

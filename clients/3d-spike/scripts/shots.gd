@@ -157,6 +157,9 @@ const PORTRAIT_VIEWS := [
 	["P4_full_tq", 3.10, 1.05, 0.95, 38.0, 42.0],
 	["P5_full_rear", 3.10, 1.05, 0.95, 180.0, 42.0],  # the only one from behind
 	["P6_head", 0.68, 1.58, 1.56, 12.0, 46.0],
+	# from behind, chest-up and a little above: the hood, which names the
+	# garment, has to be visible from the back as well as at the sides
+	["P8_rear_chest", 1.25, 1.62, 1.40, 165.0, 40.0],
 ]
 
 

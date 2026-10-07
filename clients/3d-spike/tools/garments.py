@@ -662,7 +662,11 @@ HOOD_SWEEP = 128.0                # degrees each way from straight behind
 # down into the pouch and back up to the face opening.
 HOOD_COLS = 30
 HOOD_ROWS = 16
-HOOD_DEPTH = 0.115        # how far the pouch hangs below the seam, at the back
+HOOD_DEPTH = 0.150        # how far the pouch reaches from the seam, at the back
+# Stiffer in bending than the body of the garment: a hood is two layers of
+# fleece and a lined, seamed edge, and with the jersey's own bending it
+# crumpled into many small creases, like paper, rather than a few soft folds.
+HOOD_CLOTH = {"bending_stiffness": 2.5, "bending_damping": 1.0}
 HOOD_RIM_OUT = 0.040      # how far outside the seam the opening starts
 HOOD_DRAPE_FRAMES = 40
 
@@ -729,7 +733,7 @@ def build_hood(collar, body):
     drape.add_collider(body, thickness=HOODIE_CLEAR + 0.006)
     drape.simulate(hood, lambda v: 1.0 if v.index % HOOD_ROWS == 0
                    else (0.35 if v.index % HOOD_ROWS == 1 else 0.0),
-                   frames=HOOD_DRAPE_FRAMES)
+                   frames=HOOD_DRAPE_FRAMES, settings=HOOD_CLOTH)
     drape.add_collider(body, thickness=HOODIE_CLEAR)
     bpy.data.objects.remove(proxy, do_unlink=True)
     solidify(hood, 0.0030)
