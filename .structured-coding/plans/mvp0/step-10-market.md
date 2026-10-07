@@ -5,12 +5,17 @@ design for the first of them, **PR 11a**, and a proposed execution contract for 
 are specified at medium scope and are each re-audited and detailed to the commit only after the PR
 before them merges (`CLAUDE.md` §3, "detail one step ahead").
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S9, §4 (`AC-1`, `AC-2`), §7 (F-1, F-3)
-**Lifecycle:** step design `DESIGN FROZEN (2026-10-07)` for §§1–3 and the six-PR split; **PR 11a**
-`MERGED` as `c472636` (GitHub #36, 2026-10-07; post-merge docs `7ed1648`). **PRs 11b and 11c**
-detailed to the commit in §4.2 and §4.3 by the planning session on `mvp0/s9-11bc-plan` from
-`main @ 7ed1648` — `DESIGN FROZEN (2026-10-07)` per §12.0, with execution contracts in §13 and §14 and the
-rules for running them in parallel in §12. PRs 11d–11f stay at medium scope until each is detailed and
-frozen in turn.
+**Lifecycle:** step design `DESIGN FROZEN (2026-10-07)` for §§1–3 and the six-PR split.
+- **PR 11a** `MERGED` as `c472636` (GitHub #36, 2026-10-07; post-merge docs `7ed1648`).
+- **PR 11b** `MERGED` as `ae1a315` (GitHub #39, 2026-10-07), merged first.
+- **PR 11c** `MERGED` as `c5dc51c` (GitHub #40, 2026-10-07), rebased onto `ae1a315` before merging
+  (§12.0, E-C-rebase).
+- **The precursors are complete.** 11a, 11b and 11c are on `main`, each by a merge commit, so the I-2
+  scan reads all three as merged on `main`'s first-parent chain (§9 E-3). Every framework capability
+  the transformation relies on now exists.
+- **PR 11d** is next. The planning session details it to the commit in §4.4, on `mvp0/s9-11d-plan`
+  from `main @ c5dc51c`.
+- PRs 11e and 11f stay at medium scope until each is detailed and frozen in turn.
 
 **Freeze record (2026-10-07).**
 
@@ -1076,7 +1081,7 @@ Yes, and it is raised rather than assumed:
 Nothing in 11a changes a frozen invariant of an earlier step, `kernel/`, `contracts/`, or the behaviour
 of any world.
 
-## 4.2 PR 11b — items and organizations as World Pack content kinds (full design; PROPOSED, NOT FROZEN)
+## 4.2 PR 11b — items and organizations as World Pack content kinds (full design; MERGED as `ae1a315`)
 
 ### 4.2.1 Identity, base, approved scope
 
@@ -1535,7 +1540,12 @@ restart → verify), and F-32's summary gap.
     discipline forbids `awk`. It changed no file and the sum is reproducible from
     `/tmp/s9-11b-final/test.txt`, but it is recorded, not hidden.
 
-**PR 11b lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §13 confirmed (freeze record
+**PR 11b lifecycle: MERGED** — GitHub #39, merge commit `ae1a315` (2026-10-07), merged first, by a
+merge commit. Operator's review: gates re-run 441/0; the operator's own plant (`// an item shop` in
+`worldpack/src/read.rs`) was refused naming `shop`; the diff touched no `contracts`, `kernel`,
+`persistence`, `server`, `clients` or `systems`. Recorded by the planning session (§12.0, "After both
+merge"). The record below is the implementing session's, as it stood at review:
+`DESIGN FROZEN (2026-10-07)`, execution contract §13 confirmed (freeze record
 §12.0). **READY FOR OPERATOR REVIEW**: final executable head `8350ba4` with all gates in E-B6. Later
 commits are ledger and handoff only. The PR is to be merged with a merge commit (§12). The
 implementation context is CLOSED / AWAITING OPERATOR ACTION. If 11c merges first, this branch
@@ -1603,7 +1613,7 @@ CI          none configured (S13); the full local gate once on the final head
   material, and is raised so the primary session sees it.
 - Nothing in 11b changes ownership: no state, no System Pack, no fact.
 
-## 4.3 PR 11c — complete affordances (full design; PROPOSED, NOT FROZEN)
+## 4.3 PR 11c — complete affordances (full design; MERGED as `c5dc51c`)
 
 ### 4.3.1 Identity, base, approved scope
 
@@ -1882,7 +1892,12 @@ days. Assertions C-5. A further assertion: `cognition/rule-controller/Cargo.toml
     component; the C-C2 test bug (`trim_end_matches`) found and fixed; the scan caught `item` in a
     C-C4 comment, reworded. No material deviation; no stop condition reached.
 
-**PR 11c lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §14 confirmed. See the
+**PR 11c lifecycle: MERGED** — GitHub #40, merge commit `c5dc51c` (2026-10-07), second, after a
+rebase onto `ae1a315`, by a merge commit. Operator's review: gates re-run on the rebased head 456/0;
+the operator's own mutation (`ATTEMPTS_OFFERED = 0`) failed the CP-3 ring test and the byte-identity
+test; the contract change is additive; the worst-case `chimes` measurement passed at 20. Recorded by
+the planning session. The record below is the implementing session's, as it stood at review:
+`DESIGN FROZEN (2026-10-07)`, execution contract §14 confirmed. See the
 freeze record for 11b and 11c in §12.0. **READY FOR OPERATOR REVIEW** — rebased onto main @
 `ae1a315` after 11b merged (E-C-rebase); final executable head `6003e07`, gated there; the PR head is
 the Markdown-only commit after it (the pre-rebase heads `20cf29b` / `c7b33df` are superseded).
@@ -2361,6 +2376,17 @@ E-1  I-4 baseline after 11a, on 7ed1648 (debug, opt-level 1), 2026-10-07:
 E-2  End of this planning branch: check_doc_headings → 143 numbered sections across 22 documents, none
      duplicated; check_decision_ids → 45 ids, all distinct (ARC-34, ARC-36 still proposals in this file
      only). Docs-only branch; no cargo gate run.
+
+--- after 11b and 11c merged; planning 11d (branch mvp0/s9-11d-plan, base main @ c5dc51c) ---
+
+E-3  §12.0 "After both merge", confirmed on c5dc51c (debug, opt-level 1), 2026-10-07:
+     `cargo test -p mineworld-acceptance` → precursor_vocabulary 4 passed, complete_affordances 4
+     passed, 0 failed: the I-2 scan is green on main with rows 11a, 11b, 11c, all three read as merged
+     on the first-parent chain (c472636, ae1a315, c5dc51c).
+     `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, 339 lines, faults 0,
+     365 330 facts, fingerprint 59339a9c281829c9, sha-256 of all but `wall` =
+     ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 12.2 s.
+     This is 11d's I-4 baseline.
 ```
 
 Each implementation PR records its evidence in its own section — §9.2 for 11b, §9.3 for 11c — so that

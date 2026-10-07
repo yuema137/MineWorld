@@ -1,41 +1,42 @@
-# Handoff — PR 11a implementation context: CLOSED / AWAITING OPERATOR ACTION
+# Handoff — S9: precursors closed; PR 11d in planning
 
-**Active PR:** Step 10 / PR 11a — installable System Packs (S9, first of six) — READY FOR OPERATOR
-REVIEW, not merged
-**Effort:** `mvp0`
-**Primary design doc (semantic authority):** `.structured-coding/plans/mvp0/step-10-market.md` §4.1
-(`DESIGN FROZEN (2026-10-07)`; ledger §4.1 C1–C5 incl. C4b; evidence §9 `E-A*`)
-**Execution contract:** step-10 §11, as confirmed by the freeze record and the operator-relayed kickoff.
+A continuation aid, never a design authority. The authority is
+[`step-10-market.md`](step-10-market.md) (header, §§1–3, §4 per PR, §9 evidence, §10 questions, §12.0
+freeze record for 11b/11c) and [`overall.md`](overall.md) §7.
 
-## Repository identity
+## Closed implementation contexts (folded here per step-10 §12.0, "After both merge")
 
 ```text
-worktree         /Users/yuema137/mineworld-worktrees/s9-11a — this session's only
-branch           mvp0/pr-11a-installable (pushed)
-base             main @ b53e19d
-final exec HEAD  70b0857 (all gates, §9 E-A-final); later commits are ledger/handoff only
-PR               GitHub #36 — https://github.com/yuema137/MineWorld/pull/36 (base main), OPEN
+PR    branch                       GitHub  merge     final exec head  gates at review
+11a   mvp0/pr-11a-installable      #36     c472636   70b0857          428/0 (§9 E-A-final)
+11b   mvp0/pr-11b-content-kinds    #39     ae1a315   8350ba4          441/0 (§9.2 E-B6); merged first
+11c   mvp0/pr-11c-affordances      #40     c5dc51c   6003e07          456/0 (§9.3 E-C-rebase); rebased
+                                                                      onto ae1a315, merged second
 ```
 
-## Checkpoint
+All three were merged by merge commits, so the I-2 scan reads each as `base..M^2`. Their contexts are
+CLOSED. The per-PR handoffs `handoff-11b.md` and `handoff-11c.md` are folded into this file and
+removed. Their full text is in git history at `c5dc51c`. Nothing in them is still open:
+- no background process;
+- no scratch branch on `origin`;
+- every deviation is recorded in §4.2 or §4.3.
 
-Gates on 70b0857: fmt and clippy -D warnings PASS; 428 passed, 0 failed (1 926 s wall under heavy
-machine contention; 174 s at C4 for the same suite minus 3); kill_and_resume cafe and clock PASS;
-both doc checks PASS; A-1 sha = E-0. Scratch branches `scratch/11a-canary`, `scratch/11a-merged`,
-`scratch/11a-merged-control` were local only and are deleted. No background processes of this session
-remain. `/tmp/s9-11a/` holds scratch transcripts; nothing depends on them.
+Confirmed on `main @ c5dc51c` by the planning session (§9 E-3):
+- the I-2 scan passes with three rows, all read as merged;
+- the 300-day seed-7 social-cafe sha is E-0 (`ad49c723…c64b`).
 
-Bounded deviations D-A1 … D-A3 (§4.1 C4, C4b). Nothing material.
+## Active: planning PR 11d
+
+```text
+session     planning (not implementation)
+worktree    /Users/yuema137/mineworld-worktrees/s9-market — this session's only
+branch      mvp0/s9-11d-plan, from main @ c5dc51c
+deliverable step-10 §4.4 expanded into 11d's full PR design, its proposed execution contract, and
+            QS-27 onward; a throwaway R-S9-1 spike on a local scratch branch, never pushed
+```
 
 ## Next actions
 
-- The operator reviews and merges. Only the operator merges.
-- After merge: this session (or its successor) records the merge identity in §4.1; the planning
-  session owns step/overall synchronization — including overall §1's AC-1 gloss citing ARC-35
-  (QS-2) — and details 11b and 11c. 11b/11c extend `tests/acceptance/tests/precursor_vocabulary.rs`
-  with their own rows and allow-list entries; copying social-cafe content trips the scan (E-A5).
-
-## Stop conditions
-
-- Normal: reached.
-- Material: step-10 §11.
+- The operator reviews the post-merge docs PR and the 11d design. Only the operator merges and freezes.
+- 11d's implementation starts in a fresh session on `mvp0/pr-11d-owning-things`, in its own worktree,
+  after `DESIGN FROZEN` and a confirmed execution contract.
