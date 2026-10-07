@@ -6,6 +6,7 @@ members = [
     "persistence",
     "server",
     "systems/conversation",
+    "systems/group-activity",
     "systems/movement",
     "systems/presence",
     "tools/cli",
@@ -32,6 +33,7 @@ mineworld-persistence = { path = "persistence" }
 mineworld-presence = { path = "systems/presence" }
 mineworld-rule-controller = { path = "cognition/rule-controller" }
 mineworld-conversation = { path = "systems/conversation" }
+mineworld-group-activity = { path = "systems/group-activity" }
 mineworld-server = { path = "server" }
 mineworld-worldpack = { path = "worldpack" }
 serde = { version = "1.0.229", features = ["derive"] }

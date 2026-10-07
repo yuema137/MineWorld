@@ -1,0 +1,23 @@
+[package]
+name = "mineworld-group-activity"
+description = "MineWorld's GroupActivitySystem: inviting, answering, joining and leaving a shared activity that runs as a Process its owner ends."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# Where people are is presence's state; an invitation needs reach and an activity a place, and
+# leaving the place is presence's `person-entered-place`, which this pack reacts to.
+mineworld-presence = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+# The tests walk a member out through a doorway with `move`, the way a client does.
+mineworld-movement = { workspace = true }
+mineworld-persistence = { workspace = true }

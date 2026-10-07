@@ -868,60 +868,86 @@ that needs a contract or kernel change is a material stop. **Boundary.** Docs on
 
 No registration in the catalog yet (C4), and no edit to presence, movement or conversation (I-1).
 **Depends on:** C1.
-- [ ] Implementation:
-  - [ ] Actions (`Invite { kind }`, `AcceptInvitation`, `DeclineInvitation`, `Join`, `Leave`), with
-    their requirements as published functions (as `talk_requirement`): invite within `INVITE_RANGE`,
-    accept/decline/join in the same place, leave none. `kind` is a validated slug type (`ActivityKind`,
-    1–32 bytes of `[a-z0-9-]`), refused at construction.
-  - [ ] Components `Invitations`, `Participation`; the `GroupActivity` `ProcessKind`; the state
-    `{ kind, members, took_part }`. `BTreeMap`/`Vec` only; no float (I-7).
-  - [ ] The seven facts with public constructors and accessors. Each payload names its people
-    (members, inviter, invitee), as `Spoke` does, and each envelope puts them in subjects and
-    participants.
-  - [ ] `validate`, with the order and rejections of §4.2.2. Positions come from `Presence`; the
-    client's `actor_location` is ignored (conversation's rule).
-  - [ ] `resolve`:
-    - accept → `invitation-accepted`, then either `joined-group-activity` (the inviter is in an
-      activity) or `start_process` + `group-activity-started` with both;
-    - join → `joined-group-activity`, with the process state updated;
-    - leave → `left-group-activity`, then, below two members, `end_process` + `group-activity-ended`.
-  - [ ] `react`: own facts → `Participation` and `Invitations` (reductions). Presence's
-    `person-entered-place` for a member whose place differs → left, then ended below two.
-  - [ ] `wake` → `group-activity-ended` and `end_process`; `interrupt` keeps the default (refuse).
-  - [ ] `PerceptionProvider::offers` and `discloses` per §4.2.2. `pub const BIOGRAPHICAL`.
-- [ ] Validation (`cargo test -p mineworld-group-activity`), over a hand-built town (presence, movement,
-  group-activity; genesis arrivals; literals from its own layout, never from a constant under test,
-  `ARC-23` rule 2):
-  - [ ] invite → accept starts an activity: `[invited]`, then `[invitation-accepted,
-    group-activity-started]`; both `Participation`s name the process; the process is running at the
-    place with expected end = start + 3 600.
-  - [ ] invite → decline: `[invitation-declined]`; no process. Accept after 600 s (or QB-1's value) is
-    `PreconditionFailed`, and one second before the limit it is accepted. Both sides of the bound are
-    tested.
-  - [ ] Refusals from the system, by name: `TooFarAway` (invitee 3 001 mm off), `Busy` (invitee
-    already a member), `PreconditionFailed` (duplicate invitation, nothing to accept, leave when in
-    nothing), `NoSupportedInteraction` (invite oneself, invite a place).
-  - [ ] A third person joins (target a member); leave by one of three keeps it running; leave by the
-    second-last ends it with `members` = all three who took part.
-  - [ ] The wake: `advance_to(start + 3 600)` emits `group-activity-ended` caused by
-    `Causation::Process(id)`. The process is gone, no `Participation` remains, and the facts at
-    3 599 s are none (located on both sides).
-  - [ ] Leaving the place: a member `move`s through the doorway, so presence's `person-entered-place`
-    → `left-group-activity` → `group-activity-ended`. Each is caused by the previous fact.
-  - [ ] Offers and disclosure: a perceived member's `Participation` is disclosed to a bystander; an
-    `Invitations` record is disclosed to the invitee only; join is priced unavailable when the
-    observer is already a member.
-  - [ ] **Real persistence** (`tests/persisted.rs`, as movement's): an activity started in a SQLite
-    save; the world is dropped mid-activity; a freshly composed world resumes it; the process and the
-    pending wake are restored, and advancing past the expected end emits `group-activity-ended`. The
-    history verifies from genesis (`verify`). This is F-8's first real use of a process across a
-    restart.
-  - [ ] Mutations, each reverted and recorded: the wake not ending the process (the restart test
-    fails); expiry compared with `<` instead of `<=` (the boundary test fails).
-- [ ] Review: single writer (only this crate writes `Invitations`, `Participation` and the process). No
-  `HashMap`, no float, no wall clock. Every refusal is decided server-side. `resolve` and `validate`
-  agree, and an `Err` from `resolve` is `ActionNotResolvedBySystem`, never a panic. The crate does not
-  name conversation.
+- [x] Implementation (§9 E-B2): `systems/group-activity/src/{lib, action, component, event, kind,
+  process, perception, codec, error, system}.rs` (`perception.rs` holds `offers`/`discloses`, keeping
+  `system.rs` under 500 lines).
+  - [x] Actions with published requirement functions; `ActivityKind` (1–32 bytes of `[a-z0-9-]`,
+    refused at construction and on deserialization).
+  - [x] `Invitations` (at most one per inviter, expired entries pruned at every write),
+    `Participation`, the `GroupActivity` `ProcessKind`, `ActivityState { kind, members, took_part }`.
+    `Vec` only; no float.
+  - [x] The seven facts. Each payload names its people, and each envelope has them as subjects and
+    participants (invitations: about the invitee, participants both).
+  - [x] `validate`, `resolve`, `react`, `wake` as planned; `interrupt` keeps the default.
+  - [x] `offers`/`discloses`; `BIOGRAPHICAL` = started, joined, left, ended.
+  - **Bounded deviations (recorded; none changes Q7's semantics):**
+    - **D-B1 action names.** `join` and `leave` are `join-group-activity` and `leave-group-activity`
+      (MVP.md §5's own words). Action types are one namespace across all installed packs, and the
+      registry refuses two providers of one name. A bare `leave` would collide with the first pack
+      that lets a person leave anything else.
+    - **D-B2 an invitee who is part of an activity is `TargetUnavailable`, not `Busy`.** It is priced
+      through the shared `SpatialRequirement::evaluate` with this pack's availability. The affordance
+      a client is shown and the dispatch answer are then the same value, while the evaluator's
+      vocabulary for "the target cannot be acted on" is `TargetUnavailable`. `Busy` is the *actor's*
+      state: accepting or joining while already a member.
+    - **D-B3 a repeated invitation replaces the pending one** instead of being refused
+      `PreconditionFailed`. Offers are handed no clock, so an offer cannot tell an expired entry from
+      an open one. A "duplicate" refusal would make the invite affordance and dispatch disagree, or
+      block re-inviting forever behind an expired entry. Replacing keeps one entry per inviter with
+      the newest instant.
+    - **D-B4 the accept/decline affordance does not know expiry.** `PerceptionProvider::offers` gets
+      no instant, and presence may not be edited (I-1). An invitation past its lifetime that has not
+      been written over yet is still offered, and dispatch refuses it `PreconditionFailed`, checking
+      the request's `issued_at` inclusively. The controller compares the invitation's disclosed
+      instant with the published `INVITATION_LIFETIME` (C5).
+    - **QB-1 recorded:** `INVITATION_LIFETIME` = 1 800 s, with the derivation from the consult
+      schedule in `component.rs`'s doc comment.
+- [x] Validation (`cargo test -p mineworld-group-activity`: `group_activity` 10 passed, `persisted` 1
+  passed), over a hand-built café (presence, movement, group-activity; positions are literals of its
+  own layout):
+  - [x] invite → accept: `[invited]`, then `[invitation-accepted, group-activity-started]`. Both
+    `Participation`s name one process, at the café, with expected end start + 3 600; the answered
+    invitation is gone.
+  - [x] Decline → `[invitation-declined]`, no process. Accept at +1 800 is accepted, accept at +1 801
+    and decline at +1 802 are `PreconditionFailed` (QB-1's value; both sides).
+  - [x] Refusals by name:
+    - `TooFarAway`: the invitee is 3 001 mm off;
+    - `NoSupportedInteraction`: oneself, a place;
+    - `PreconditionFailed`: nothing to accept, leave while in nothing;
+    - `TargetUnavailable`: invite a member (D-B2), join a non-member;
+    - `Busy`: accept while a member, join while a member;
+    - the pack's own `malformed-payload` for an invalid slug.
+  - [x] A third joins; one of three leaves (it goes on); the second-last leaves →
+    `[left-group-activity, group-activity-ended]` with members = all three, in order.
+  - [x] The wake: nothing at +3 599; at +3 600 `[group-activity-ended]` caused by
+    `Causation::Process(id)`; the process is gone, and no `Participation` remains.
+  - [x] Leaving the place: three `move`s, the last through the doorway → `[arrived,
+    person-entered-place, left-group-activity, group-activity-ended]`. Both group-activity facts are
+    caused by presence's entry.
+  - [x] Offers and disclosure:
+    - invite is available to Bob and out of reach for the far one;
+    - accept is offered to the invitee, and `Invitations` is disclosed to Bob and not to Carol about
+      Bob;
+    - `Participation` is disclosed to a bystander;
+    - join is available to the non-member and absent for a member;
+    - leave is offered to a member only.
+  - [x] Envelope ⇔ payload for `group-activity-started`: both founders in each.
+  - [x] **Real persistence** (`tests/persisted.rs`): an activity started in a SQLite save, the world
+    dropped, resumed (snapshot 1 + 2 re-executed). The process is found with its expected end, nothing
+    happens at +3 599, and `group-activity-ended` is caused by that process at +3 600. `verify` from
+    genesis passes (4 revisions).
+  - [x] Mutations, each run and reverted:
+    - expiry `<` instead of `<=` → `an_invitation_can_be_answered_up_to_its_lifetime…` FAILS
+      (group_activity.rs:88);
+    - `wake` without `end_process` → `the_activity_ends_at_its_expected_end…` FAILS (the process is
+      still there).
+- [x] Review:
+  - Only this crate's `react` writes `Invitations` and `Participation`. Only `resolve`, `react` and
+    `wake` touch the process.
+  - `grep -rn "f32\|f64\|HashMap\|HashSet" systems/group-activity/` → none. No wall clock: expiry
+    uses the request's `issued_at`, and every reduction uses the fact's `at`.
+  - Every `resolve` failure is `ActionNotResolvedBySystem` or `ProcessNotRunning`, never a panic.
+  - The crate names no other pack but presence. fmt and clippy `-D warnings` are clean.
 **Acceptance.** As validation, with the evidence in §9 E-B2. **Failure cases.** A required behaviour
 needing a kernel or contract change is a material stop (I-1). **Boundary.** One new crate and two
 lines of the root `Cargo.toml`.
