@@ -2407,12 +2407,48 @@ QC-8 `inspect` keeps counting process causes (C-12). The outline left this to th
 ### 4.3.7 Freeze record for 10c
 
 ```text
-Lifecycle              DRAFT — awaiting the primary session's review
-Design revision        —
-Approved by / evidence —
+Lifecycle              DESIGN FROZEN (2026-10-07)
+Design revision        the commit carrying this record
+Approved by / evidence primary session, under the operator's autonomous authorization (overall §7);
+                       review recorded below
 Implementation base    main @ 266daf7; branch mvp0/pr-10c-social
-Execution contract     §11.2 (proposed)
+Execution contract     §11.2, confirmed
 ```
+
+**Review.** §§4.3.1–4.3.5 are approved. Two choices are worth naming as right:
+
+- The pack is called `naming`, not `identity`, because `identity` is already the kernel's word for
+  `EntityId` (`CLAUDE.md` §2.1(3)).
+- Every name differs from its key, so no test that finds a name can be satisfied by a key.
+
+**Leaving `location` and `passages` off the seam is accepted:** moving them would edit presence and
+movement and change pinned error variants, so it is not the no-op Q9 required.
+
+**QC-1, QC-2, QC-4, QC-5, QC-7 — ACCEPTED** as recommended. **QC-6 and QC-8 — NOTED**, both as
+designed.
+
+**QC-3 — ACCEPTED: two records.** `ARC-31` is the seam and `ARC-32` is the schedule. One identifier,
+one decision (`ARC-16`). The brief's "ARC-31" was a label, not a merge of two decisions.
+
+**One condition: make the test's dependence on a quiet window explicit, not accidental.** To keep
+`milestone_b.rs` and `restart.rs` valid, the routines leave 00:00–05:00 free of boundaries. Without
+that, a hosted world would commit new revisions during a restart, and "revision unchanged after
+restart" would fail. As designed, two tests silently depend on world *content*: a later edit to a
+routine would break them with a misleading failure.
+
+So:
+
+1. Wherever a test relies on that window, assert the assumption directly. Before the claim it
+   protects, check that no routine boundary falls in the window the test uses. If one does, fail
+   with a message naming the assumption, e.g. "fixture assumption violated: a routine boundary falls
+   in the restart window".
+2. Record the dependency in the routine content's own comments, so someone editing the routine sees it.
+
+A test whose pass depends on content it never checks is an `ARC-23` instrument problem, not a world
+problem.
+
+**Test count.** Re-read it from the first full gate, as you said. Report the real number and what
+the 369 vs 381 gap is.
 
 ---
 
