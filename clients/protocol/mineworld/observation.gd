@@ -119,6 +119,17 @@ func own_component(component_type: String) -> Dictionary:
 	return component(observer(), component_type)
 
 
+## What a perceived entity is called, or `""` when the world disclosed no name for it.
+##
+## The `naming` System Pack's `display-name` record, payload `{ "name": "Alice Moreau" }`
+## (`docs/DECISIONS.md` `ARC-31`). A client shows it and never invents one: an empty answer means
+## this observer was told no name — the world has no `naming`, or nobody named that entity — and the
+## honest thing to show is then something else the frame carries, never a guess.
+func display_name(id: String) -> String:
+	var name: Variant = component(id, "display-name").get("name", "")
+	return name if typeof(name) == TYPE_STRING else ""
+
+
 ## The edges the observer was shown. Never the world's relation graph.
 func relations() -> Array:
 	var listed: Variant = frame.get("relations", [])

@@ -1798,3 +1798,285 @@ any other module or crate, so replacing the parser is a change to one file.
 
 **Accepted limitations.** Compile time and binary size grow by the parser's; the command's help
 and error wording become `clap`'s format rather than hand-written prose.
+
+---
+
+## ARC-28 — Relationships are a `knows` edge with values its owner reduces from other systems' facts
+
+**Date** 2026-10-07 · **Implements** [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §§4.4, 9, 13.1 ·
+**Relates to** `INV-7`, `INV-13`, `DD-6`, `ARC-25`, `ARC-26`, [`MVP.md`](MVP.md) §9 `AC-2` ·
+**Design** `.structured-coding/plans/mvp0/step-09-social.md` SD-5 … SD-9, §10.1 Q5/Q6, §4.2 (S8,
+PR 10b)
+
+**Problem.** S8 adds the first System Pack whose state changes *only* because of what other packs
+did: people get to know each other because they spoke, accepted an invitation, or spent an hour
+together. Four questions follow:
+1. Where per-relation state lives, when the specification says "a component keyed by the triple"
+   (`contracts/src/relation.rs`, `DD-6`) and the kernel keys components by `EntityId` alone.
+2. Whether the pack must depend on the packs whose facts it reads.
+3. How it reads their payloads.
+4. Which changes are worth a fact of their own.
+
+**Options considered.**
+
+```text
+state     (a) a kernel change: components keyed by a Relation          kernel learns a new key kind
+          (b) a component on the `from` Person, keyed by the counterpart  chosen — same identity, no
+              under the one relation type this pack declares               kernel change
+dependency (a) depend on conversation and group-activity                 disabling either is refused
+                                                                         while relationships is on
+          (b) no system dependency; subscribe                             chosen
+decoding  (a) a local struct shaped like the other pack's payload        drifts silently; bypasses the
+                                                                         schema-version refusals
+          (b) the owner crate's published event type, through            chosen
+              EventRecord::payload_for
+facts     (a) one per value change (~+43 000 per 300 days)               doubles the log, names nothing
+          (b) one when a derived level crosses a boundary                 chosen (Q5)
+```
+
+**Choice.**
+1. `RelationshipsSystem` declares a directed relation type `knows` (Person → Person, no self edges)
+   and owns `Acquaintances` on the `from` Person: counterpart → `RelationshipValues { familiarity
+   0..=1000, regard −1000..=1000, exchanges, activities_shared, first_met, last_contact }`. The edge
+   and the entry are written together, in one reduction, by the one owner. That realizes `DD-6`'s
+   "keyed by the triple" without a kernel change.
+2. **No system dependency.** Subscribing is not emitting. `ARC-26` requires a dependency only to
+   *state* another system's vocabulary. A world with relationships and no conversation installs; it
+   simply hears no speech. `ARC-26` also calls the owner "the only system that reduces it into owned
+   state". Read with `CORE_CONCEPTS.md` §13.1, that sentence is about the state the fact describes:
+   only presence turns `arrived` into a `Presence`. It does not stop another system reacting to the
+   fact by writing **its own** state, which is how `EconomySystem` answers `WageDue`. Relationships
+   writes only `Acquaintances` and `knows`, never `ConversationHistory`. This sentence records the
+   reading, so the two decisions do not appear to disagree (`CLAUDE.md` §2.1(4)).
+3. **Decoding goes through the owner's published type**, a Cargo dependency on its vocabulary and never
+   a registry dependency. A local mirror of another pack's payload is refused in review, because it
+   would bypass `EventSchemaTooNew` / `EventSchemaOutdated`.
+4. **Facts at level crossings only.** `became-acquainted` when an edge first forms (once per
+   direction); `relationship-changed { from, to }` when the level (`Acquaintance`, `Friendly`,
+   `Friend`, `Close`, from familiarity and regard) changes, up or down. Each is caused by the fact that
+   formed or crossed it. Fine-grained values are reductions of logged facts, so a replay reproduces
+   them (`ARC-25`).
+5. **It provides no action, runs no process and has no wake.** Its state changes only by reducing
+   `spoke`, `invitation-accepted`, `invitation-declined` and `group-activity-ended`. That is
+   `CLAUDE.md` §4 rule 1 in its plainest form: the owner reacts, nobody else writes.
+6. Values are disclosed to their holder only (`INV-13`): how Alice regards Bob is Alice's to know.
+
+**Accepted limitations.** Values never decay, so a long-running world's social graph saturates: every
+pair that keeps meeting reaches its top level within weeks and stops changing. That is a living-world
+gap, recorded for a later step, not hidden by the tests (`step-09-social.md` QB-2). The constants are
+published and not world configuration yet (the `ARC-26` note's rule). Only `knows` exists; romance and
+typed relationships are later packs (`MVP.md` §4).
+
+---
+
+## ARC-29 — A biography is a projection of the fact log, selected by what each pack declares biographical
+
+**Date** 2026-10-07 · **Implements** [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §§5.2, 5.4 · **Relates to**
+`INV-4`, `INV-11`, `ARC-25`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §8.1 · **Design**
+`.structured-coding/plans/mvp0/step-09-social.md` SD-12, §10.1 Q10, §4.2 (S8, PR 10b)
+
+**Problem.** Milestone B asks that Alice and Bob "survive a restart with their history", and
+`CORE_CONCEPTS.md` §5.2 says a Person's objective biography is derived from the event log and can
+always be regenerated. Something must derive it. It must not become a second account of history, and
+adding a pack must not mean writing biography code.
+
+**Options considered.** (a) A stored biography component, maintained by reducers: a second truth that
+can disagree with the log. (b) Per-pack narrator functions returning typed entries: more expressive,
+and an abstraction with one shape so far (`CLAUDE.md` §4 rule 11). (c) **A generic projection over
+fact envelopes**, with each pack declaring which of its own event types are biographical.
+
+**Choice: (c).**
+- An entry is `{ at, event id, event type, place, counterparts }`, read only from the envelope's
+  kernel fields.
+- A fact belongs to Person P's biography when P is among its subjects or participants **and** its
+  type is in the composition's biographical set.
+- Each System Pack exports `pub const BIOGRAPHICAL: &[EventTypeId]`, its own judgement over its own
+  vocabulary, and the World Pack catalog aggregates them (`Capability::biographical`). A pack that
+  declares none contributes none: presence, movement and conversation contribute nothing in S8.
+- `mineworld biography <world> --save DIR --person KEY` reads a save's fact table and nothing else. It
+  never resumes or writes the world, and every line carries its event id (§5.4).
+
+**Why it is honest.** The biography is never stored, so it cannot drift. It is tested against the
+owner packs' typed payloads rather than against the envelope rule it implements, so a biography that
+invented or dropped an entry fails. It is regenerated identically from a restarted world's save.
+
+**Accepted limitations.** L0 only: a long world's biography is long. Compression (L1–L3) is `AC-10`'s,
+in S10. Generated prose is display, never state (§4.4). A pack that states a fact without naming its
+people in the envelope is invisible to biographies; that is the pack's defect, not the projection's.
+
+---
+
+## ARC-30 — The development profile is optimized at level 1, with its debug checks stated explicitly
+
+**Date** 2026-10-07 · **Relates to** [`MVP.md`](MVP.md) §9 `AC-11`, `AC-12`; `ARC-27`;
+[`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §§15–16 · **Design**
+`.structured-coding/plans/mvp0/step-09-social.md` §4.2.5 QB-3, §4.2.6 (S8, PR 10b)
+
+**Problem.** MineWorld's strongest evidence is real worlds run for hundreds of simulated days:
+`AC-11`/`AC-12` run `social-cafe` for 300 days three times and replay the save. In the default debug
+profile (level 0), the default test loop took 272 s on `main @ 0592b3e`, 264 s of it in four
+real-lifecycle test binaries, and 10b adds two systems to every run. A slow default loop gets run less,
+and the long tests are the first a contributor is tempted to skip.
+
+**Options considered.**
+
+```text
+(A) [profile.dev] opt-level = 1        every test stays in the default loop; runs get ~6× faster
+(B) #[ignore] the 300-day test behind  keeps level 0, but the slowest and most important evidence
+    a named gate command               becomes the easiest to skip
+(C) neither                            a default loop of 6–7 minutes after 10b
+```
+
+**Choice: (A).** `[profile.dev]` sets `opt-level = 1` for the whole workspace and states
+`debug-assertions = true` and `overflow-checks = true` explicitly. Those two are what make a debug build
+a debug build. Stating them means a later change to the level cannot silently turn them off.
+
+**Evidence** (this machine, `step-09-social.md` §9 E-B0, E-B8):
+- `mineworld run worlds/social-cafe --headless --seed 7 --days 300` in memory: 50.3 s at level 0,
+  8.4 s at level 1.
+- Every printed line but the header and `wall` is identical (`diff` empty; 327 540 facts, fingerprint
+  `fd0fe804108e9bf0` both). The level changes speed, not behaviour, as expected of integer-only
+  simulation code (no float anywhere in the workspace).
+- A clean `cargo build --workspace --all-targets`: 15.1 s at level 0, 39.4 s at level 1.
+
+**Why it is safe.**
+- The determinism claims (`AC-12`) are about the pipeline's semantics, which no optimization level may
+  change in safe Rust without floating point.
+- Overflow is still checked, and debug assertions still fire.
+- Release builds are unaffected.
+- No test left the default loop, and none changed.
+
+**Accepted limitations.**
+- A slower clean build (above).
+- A debugger sees some values optimized out; a contributor who needs level 0 for one session sets
+  `CARGO_PROFILE_DEV_OPT_LEVEL=0`.
+
+---
+
+## ARC-31 — A System Pack owns a section of an authored person or place file
+
+**Date** 2026-10-07 · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 (sections, rule 6),
+[`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §8 · **Relates to** `INV-7`, `INV-13`, `ARC-15`, `ARC-26`,
+`DEP-10`, [`MVP.md`](MVP.md) §9 `AC-2` · **Design** `.structured-coding/plans/mvp0/step-09-social.md`
+§10.1 Q9, §4.3 (S8, PR 10c)
+
+**Problem.** Authored content becomes state only as a genesis fact its owner reduces (`ARC-15`), and
+until now the loader knew each such field by name: a person's `location` is presence's, a place's
+`passages` are movement's. A third and a fourth arrived together — a person's routine (`schedule`)
+and a person's name. Nobody owned a name, so none reached a client: the 3D slice showed only tags,
+and Alice said "Earlier, person 4 said …". Adding each one as another loader field would make every
+new System Pack an edit to the World Pack format and its loader, the change-amplification
+`CLAUDE.md` §4 rule 5 forbids, and the pattern finding F-1 already names. The repeated concept is now
+observed twice over (`CLAUDE.md` §4 rule 11).
+
+**Options considered.**
+
+```text
+(a) one loader field per pack (`routine:`), as `location`    each new pack edits the format, the
+                                                            reader and the loader
+(b) free items per pack (a const, two functions) matched     lighter; the shape is unchecked by the
+    by the catalog, as `biographical` is                    compiler
+(c) a trait a System Pack implements, in a crate of its     chosen
+    own below the packs
+```
+
+**Choice: (c).**
+
+1. **The contract.** `mineworld-authoring` (`authoring/`) defines `AuthoredSection`, implemented by a
+   System Pack:
+   - `SECTION`: the key it owns, one word;
+   - `CARRIED_BY`: the content files that may carry it;
+   - `Authored`: the section's own type. Deserializing it *is* the owner's validation, so an
+     invalid section cannot be constructed;
+   - `references`: the other entities it names by key, each with the entity type it must be;
+   - `seed`: its genesis facts, in its own vocabulary, built with its own codec.
+
+   The crate depends on the kernel's contracts only. It lives below the packs because the kernel and
+   contracts know nothing of authored files, and a pack cannot depend on the World Pack loader,
+   which depends on every pack.
+2. **The loader never learns what a section means.** It decodes a section straight from the YAML
+   stream into the owner's type, so a refusal keeps the line and column `DEP-10` chose `serde-saphyr`
+   for. It checks only what every section shares:
+   - the owner is enabled (otherwise refused, naming the pack, as an unowned `location` is);
+   - the file kind may carry it;
+   - every reference is a declared key of the required type.
+
+   An unknown key is still refused, now listing the sections this build knows beside the fields.
+3. **A seeded fact must be the owner's own.** World genesis attributes a fact to its event type's
+   owner and checks no dependency, so a section that seeded another pack's vocabulary would bypass
+   `ARC-26`'s rule. The loader refuses it.
+4. **Order.** Sections are seeded after passages and locations, whose event ids therefore do not
+   move: places' before people's, each in key order, and within one file in composition order.
+5. **`location` and `passages` stay fields.** Moving them would edit `presence` and `movement` and
+   change refusals authors already see, so it was not the no-op the step required. They are the
+   pre-seam special cases, and their move is a later candidate, made when those packs are next
+   opened.
+6. **Section names are one namespace.** Each pack chooses its word. No two packs may claim one, and
+   none may shadow a field, which a structural test over the build's catalog enforces. This follows
+   the precedent of action types, which are already one namespace across packs.
+
+**The first two users.**
+
+- **`name`, owned by `naming`.** It owns `DisplayName` (component `display-name`, payload
+  `{ "name": … }`), seeded by a genesis `named` fact.
+  - The pack is called `naming`, not `identity`, because identity is the kernel's word for
+    `EntityId` (`CLAUDE.md` §2.1(3)).
+  - Names are **public**: disclosed to whoever perceives the person, oneself included.
+  - A controller reads a name only from its observation. When the person it means is not
+    perceived, it says "someone else" — never an id.
+  - Readers of a save (`mineworld biography`) use naming's published projection of its own facts.
+- **`routine`, owned by `schedule`** (`ARC-32`).
+
+**Accepted limitations.**
+- The catalog is still a closed list compiled into the build (F-1). The seam removes the format
+  edit, not the registration.
+- Places carry no names yet.
+- Names are not gated on acquaintance. That would couple naming to relationships' state, and it is
+  a decision for the step that wants strangers to stay nameless.
+- There is no rename action.
+
+---
+
+## ARC-32 — A schedule is an agenda that controllers follow, never a mover
+
+**Date** 2026-10-07 · **Implements** [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §10 · **Relates to**
+`INV-1`, `INV-3`, `INV-6`, `INV-12`, `INV-13`, `ARC-26`, `ARC-27`, `ARC-31` · **Design**
+`.structured-coding/plans/mvp0/step-09-social.md` SD-13, §10.1 Q8, §4.3 (S8, PR 10c)
+
+**Problem.** People in a living town keep a day: the café in the morning, work, the park, home. Someone
+must own that day, and something must make it happen. If the owner also moved people, it would
+override whoever controls them — a human included — and bypass movement's rules: a person teleported
+to work never crossed a street.
+
+**Options considered.** (a) The schedule states presence's `arrived` at each boundary: a mover,
+rejected for the reasons above. (b) **The schedule owns an agenda, and controllers walk to it.**
+
+**Choice: (b).**
+
+1. `ScheduleSystem` owns, on each person:
+   - `Routine`: the authored segments, each `{ from: time of day, place, label }`;
+   - `Agenda`: the segment in force, with its start and end and the routine's process.
+2. Each person's day is **one `Process` of kind `routine`**, started while schedule reduces the
+   genesis `routine-assigned`. Its expected end is the next boundary. At each wake, schedule emits
+   `agenda-changed` (`Causation::Process`) and reschedules the process. The process never ends.
+3. **It moves no one.** It provides no action, depends on no system, and states no other pack's
+   vocabulary, so the registry would refuse it if it tried. Following an agenda is a controller's
+   choice:
+   - `mineworld run`'s paced controller walks there through `move`, after being addressed and
+     before taking any initiative;
+   - a human may ignore it;
+   - a person nobody drives keeps their place while their agenda changes.
+4. **Time of day is world seconds since the epoch, modulo 86 400.** That is schedule's own
+   convention, and the kernel does not know it (`INV-12`).
+5. The agenda is disclosed to its holder only (`INV-13`). `agenda-changed` is biographical (`ARC-29`),
+   and validation guarantees that every one is a real change.
+
+**Accepted limitations.**
+- A day is the same every day: no weekdays, no exceptions.
+- Routes are found only in a star town.
+- Hosted worlds have no paced controller, so their agendas change and nobody follows them unless a
+  person chooses to.
+- **Fixture dependency (step-09 §4.3.7).** `social-cafe`'s routines keep 00:00–05:00 free of
+  boundaries. A world hosted from genesis or from a day-end save therefore commits nothing for five
+  hours, and the restart tests' "revision unchanged" claims rely on that. Each of those tests checks
+  the assumption first, and fails naming it.

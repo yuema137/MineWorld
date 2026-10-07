@@ -1,41 +1,39 @@
-# Handoff — PR 10a implementation context: CLOSED / AWAITING OPERATOR ACTION
+# Handoff — PR 10c implementation context: CLOSED / AWAITING OPERATOR ACTION
 
-**Active PR:** Step 09 / PR 10a — the town (S8, first of three) — READY FOR OPERATOR REVIEW, GitHub #29
+**Active PR:** Step 09 / PR 10c — the content seam, names and routines (S8, third of three) —
+READY FOR OPERATOR REVIEW
 **Effort:** `mvp0`
-**Primary design doc (semantic authority):** `.structured-coding/plans/mvp0/step-09-social.md`
-(`DESIGN FROZEN` at `700f0e0`, answers in §10.1; PR 10a ledger §4.1, evidence §9, closeout §12)
-**Execution contract:** §11 of the primary design doc
-**Binding parents:** `overall.md` §§2, 3 (S8), 7; `docs/MVP.md` §§3, 6, 9; `docs/CORE_CONCEPTS.md` §6.1;
-`docs/DECISIONS.md` `ARC-23`, `ARC-26`, `ARC-27`; step-08 §§1.3, 10.1; `CLAUDE.md`
+**Primary design doc (semantic authority):** `.structured-coding/plans/mvp0/step-09-social.md` §4.3
+(`DESIGN FROZEN` at `805bf4d`, freeze record §4.3.7; ledger §4.3.3, evidence §9 `E-C*`, closeout §12.2)
+**Execution contract:** §11.2
 
 ## Repository identity
 
 ```text
 worktree         /Users/yuema137/mineworld-worktrees/s8-social — this session's only
-branch           mvp0/pr-10-social (pushed)
-base             main @ f4301c1
-final exec HEAD  03a4df3 (all gates, design §9 E-final); later commits are planning documents only
+branch           mvp0/pr-10c-social (pushed)
+base             main @ 266daf7
+final exec HEAD  8dee781 (all gates, §9 E-C-final); later commits are planning documents only
+PR               GitHub #33 — https://github.com/yuema137/MineWorld/pull/33 (base main), OPEN
 ```
 
 ## Checkpoint
 
-PR 10a READY FOR OPERATOR REVIEW (GitHub #29), not merged. Gates on 03a4df3:
+PR 10c is READY FOR OPERATOR REVIEW and not merged. Gates on 8dee781:
 - fmt, check, clippy -D warnings: PASS;
-- 353 passed, 0 failed;
+- 419 passed, 0 failed (112.8 s wall at opt-level 1), which is 407 tests + 12 doctests;
 - kill_and_resume: PASS;
 - both doc checks: PASS.
 
-No background processes are running.
+No background processes. The scratch worktree `s8c-pre-c7` (frozen-binary parity) was removed;
+`/tmp/s8c` holds the parity transcripts, and nothing depends on them.
 
 ## Next actions
 
-- The operator reviews and merges #29. Only the operator merges.
-- After the merge, the planning session updates `overall.md` §7 and routes the 3D far-side counter
-  check to the environment session (design §12).
-- 10b (relationships, group activity, biography, Milestone B) starts only when the coordinator says
-  10a is merged. Its commit detail is written and reviewed before it is built (§10.1).
+- The operator reviews and merges. Only the operator merges.
+- After the merge, the planning session runs §12.2's list.
 
 ## Stop conditions
 
-Normal: reached (PR open, not merged). Material: any change to §1.3, to a public contract beyond §1.1,
-to ownership, or to scope.
+- Normal: reached.
+- Material: §11.2.

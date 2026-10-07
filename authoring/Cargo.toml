@@ -1,0 +1,15 @@
+[package]
+name = "mineworld-authoring"
+description = "The seam between authored World Pack content and the System Pack that owns it: a pack declares a section of a person or place file, validates it with its own type, and seeds its own genesis facts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Below the System Packs and beside the kernel: a pack implements this crate's trait, and the World
+# Pack loader calls it. It names no pack and no file format (DECISIONS.md ARC-31).
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+serde = { workspace = true }

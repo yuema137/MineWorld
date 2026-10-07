@@ -15,5 +15,12 @@ mineworld-contracts = { workspace = true }
 mineworld-conversation = { workspace = true }
 # For `move` and the doorways a place discloses: the paced controller walks (step-08 C3).
 mineworld-movement = { workspace = true }
+# For invite / accept / decline / join / leave and the invitations and participation a person is
+# disclosed: the paced controller does things together (step-09 C5).
+mineworld-group-activity = { workspace = true }
+# For the display name a person is disclosed with: a reply names the other speaker by it (ARC-31).
+mineworld-naming = { workspace = true }
+# For the Agenda a person is disclosed: the paced controller walks where its day says (ARC-32).
+mineworld-schedule = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

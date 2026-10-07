@@ -13,6 +13,9 @@
 //!                                  an accepted move AND talk in every one of the ten 30-day buckets
 //!                                  (step-08 I-9), every one of the town's places must have been
 //!                                  entered (step-09 C3), and the fact count is located
+//! two worlds with no social life   group activities start, end, are accepted and joined in every
+//!   agreeing                       bucket, relationships move both ways, and every relationship fact
+//!                                  has a subscribed cause (step-09 C7, I-4 amended by QB-2)
 //! a seed that is never read        seed 8 makes a different fact log
 //! a fingerprint standing in for    equality is the bytes of facts, journal and snapshots, row by
 //!   equality                       row; the printed fingerprint is never compared (§10.1 Q9)
@@ -21,6 +24,7 @@
 //! ```
 
 mod headless;
+mod social;
 
 use headless::{
     PACK, Tables, count_after, deterministic, entries_per_place, every_seat_active_in_every_bucket,
@@ -70,6 +74,15 @@ fn three_hundred_days_with_the_real_systems_and_the_same_seed_is_the_same_world(
 
     // ── AC-12: the same seed is the same world, byte for byte. ────────────────────────────────
     let (first_tables, second_tables) = (Tables::read(&first), Tables::read(&second));
+
+    // Social life, located before anything is compared (I-4 as amended by QB-2, step-09 C7): people
+    // invite, accept, join and end activities in every one of the ten buckets; they become acquainted
+    // and closer in the first; somewhere a relationship goes down; every relationship fact was caused
+    // by a fact relationships subscribes to.
+    assert_eq!(
+        social::precondition(&social::facts_of(&first_tables), 300, true),
+        10
+    );
 
     // The town is walked, not only the café (step-09 C3): every place is entered, located per place
     // from presence's facts. Before S8's door choice, everybody on the street went into the
@@ -124,6 +137,8 @@ fn a_different_seed_makes_a_different_world() {
     every_seat_active_in_every_bucket(&printed_eight, &seats);
 
     let (seven, eight) = (Tables::read(&seven), Tables::read(&eight));
+    social::precondition(&social::facts_of(&seven), 30, true);
+    social::precondition(&social::facts_of(&eight), 30, true);
     // Genesis is the pack's and is the same; what the controllers did is not.
     assert_eq!(seven.facts.first(), eight.facts.first());
     assert_ne!(

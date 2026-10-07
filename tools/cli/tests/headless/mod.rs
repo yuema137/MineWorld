@@ -203,6 +203,18 @@ impl Tables {
         }
     }
 
+    /// The instant of the save's head — its last journaled input — in world seconds: where a hosted
+    /// world's clock resumes from (`ARC-25`).
+    pub fn head_instant(&self) -> i64 {
+        let (_, bytes) = self
+            .journal
+            .last()
+            .expect("a save has at least its genesis");
+        let entry: mineworld_persistence::JournalEntry =
+            format::decode(bytes, "journal entry").expect("the head decodes");
+        entry.input.at().seconds()
+    }
+
     /// Byte-for-byte equality of facts, journal and snapshots — the claim `AC-12` and `AC-6` make —
     /// with the first difference named rather than a bare `false`.
     pub fn assert_same_history(&self, other: &Self, what: &str) {

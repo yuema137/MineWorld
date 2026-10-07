@@ -33,10 +33,23 @@ answer, read out of an affordance. Nothing here measures a distance.
 minutes and takes initiative: it answers what was said to it since it was last asked, and otherwise —
 by a seeded draw — greets somebody, walks toward somebody, wanders, or heads for a door. Which door is
 a draw it keeps for six simulated hours, and on a street, which many places open onto, it mostly walks
-on. It keeps
+on.
+
+It also does things with other people. An open invitation is answered first, mostly with yes. When it
+is part of nothing, it sometimes invites somebody or joins what somebody nearby is doing. When it is
+part of an activity, it sometimes leaves, and it never walks out of the door. Every one of these
+choices is limited to what the server's affordances say it may do (`src/social.rs`). It keeps
 no memory at all (`decide(&self)`), so the same seed always makes the same choices, and a run that is
 killed and restarted continues exactly as if it had not been. The decision is
 [`DECISIONS.md` `ARC-27`](../../docs/DECISIONS.md).
+
+It keeps its day. When its agenda says to be somewhere else, it mostly heads there, through the door
+that leads there. When it is where the agenda says, it does not walk out (`src/agenda.rs`;
+[`ARC-32`](../../docs/DECISIONS.md)). Being spoken to still comes first. With no agenda in the
+observation, it decides exactly as it did before agendas existed.
+
+Both controllers name people by the name the world discloses, so Alice says "Earlier, Vera Lindgren
+said …". When the observation discloses no name, she says "someone else", never an id.
 
 ```sh
 cargo test -p mineworld-rule-controller

@@ -26,6 +26,7 @@
 //! controller's own memory, not world state, and is not persisted (step-06 §9.1 L-3) — with an agent on
 //! Alice the restarted controller would answer the old line again and race the test's request.
 
+mod fixture;
 mod support;
 
 use std::os::unix::process::ExitStatusExt;
@@ -39,8 +40,15 @@ const NEXT_TO_ALICE: (i32, i32) = (6_000, 6_200);
 /// Where the pack seats the visitor (`worlds/social-cafe/people/visitor.yaml`).
 const AT_THE_DOOR: (i32, i32) = (1_610, 600);
 
+/// How much of the day a hosted world here runs through: it begins at genesis, 00:00, and a world
+/// second passes per wall second, so the test is over long before five hours of world time.
+const HOSTED_FROM_GENESIS: (i64, i64) = (0, 5 * 3_600);
+
 #[tokio::test]
 async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
+    // The revision literals below hold only while no routine boundary falls as the world runs
+    // (step-09 §4.3.7): checked first, so a routine edited into this window fails here, by name.
+    fixture::assert_quiet(HOSTED_FROM_GENESIS.0, HOSTED_FROM_GENESIS.1, "restart.rs");
     let save = SaveDir::new("restart");
     let command = ["server", support::PACK, "--save", save.path()];
 
@@ -80,8 +88,9 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
         .await;
     assert_eq!(
         talked_facts.len(),
-        2,
-        "a first exchange starts a conversation and records what was said"
+        4,
+        "a first exchange starts a conversation and records what was said, and the two become \
+         acquainted (relationships, once per direction)"
     );
     let status = first.status().await;
     let instance = status["instance"].clone();
@@ -156,8 +165,9 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     assert_eq!(
         facts.len(),
         1,
-        "ONE fact: the conversation continued, because Alice's history survived the kill — a world \
-         rebuilt from the pack alone would have started a new conversation and recorded two"
+        "ONE fact: the conversation continued, because Alice's history survived the kill, and so did
+         the two people's acquaintance — a world rebuilt from the pack alone would have started a new
+         conversation and a new acquaintance, and recorded four"
     );
     assert_eq!(
         facts[0].raw(),
@@ -196,6 +206,8 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
 /// be issued again — which a restart would do if the journal skipped it.
 #[tokio::test]
 async fn a_refused_request_is_persisted_so_its_identity_is_never_reissued() {
+    // Its revision literal (2) holds only while no routine boundary falls as the world runs.
+    fixture::assert_quiet(HOSTED_FROM_GENESIS.0, HOSTED_FROM_GENESIS.1, "restart.rs");
     let save = SaveDir::new("refused");
     let command = ["server", support::PACK, "--save", save.path()];
     let mut first = Server::start(&command).await;

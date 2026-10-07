@@ -1,0 +1,23 @@
+[package]
+name = "mineworld-naming"
+description = "MineWorld's NamingSystem: a person's display name, authored in their World Pack file, seeded as a genesis fact and disclosed to whoever perceives them."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# The seam a pack owns a section of an authored file through (DECISIONS.md ARC-31).
+mineworld-authoring = { workspace = true }
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# For PerceptionProvider: the seam a pack discloses its own state through. No system dependency.
+mineworld-presence = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+# The tests decode a section from YAML text exactly as the World Pack loader does (DEP-10).
+serde-saphyr = { workspace = true }

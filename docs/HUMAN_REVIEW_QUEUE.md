@@ -7,7 +7,7 @@ a place here when a coherent capability can be *experienced* as a whole.
 Engineering progress is tracked separately in [`MVP_STATUS.md`](MVP_STATUS.md). A milestone parked
 here does not block anything else.
 
-**Updated:** 2026-10-06
+**Updated:** 2026-10-07 (Milestone B)
 
 ---
 
@@ -16,7 +16,7 @@ here does not block anything else.
 | | Milestone | Demonstrates | State |
 | --- | --- | --- | --- |
 | **A** | Runnable world runtime | load Social Café → server → two clients + an agent → cause a change → all observe it | ✅ **complete 2026-09-27** — `AC-15` holds, 259 tests · restart/persistence is S5 and moves to **B** |
-| **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ❌ |
+| **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **demonstrated 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`; awaiting the operator's review (below) |
 | **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ❌ |
 | **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | ❌ |
 | **E** | Package composition | a real world assembled from independently installable packs | ❌ |
@@ -41,6 +41,31 @@ clients/protocol/run.sh play     # windowed, driven by the keyboard
 
 Recorded as **not** done and not approximated: `MVP.md` §9.1's fourth line, *same persisted state
 revision*. The world is in memory; persistence is S5's and belongs to Milestone B.
+
+**Milestone B, and how to see it for yourself.** Twelve people live a month in the town, headless.
+They talk, invite each other for coffee or a walk, and come to know each other. Alice's life is then
+read back out of the log:
+
+```sh
+mineworld run worlds/social-cafe --headless --seed 7 --days 30 --save /tmp/cafe
+mineworld biography worlds/social-cafe --save /tmp/cafe --person alice
+mineworld biography worlds/social-cafe --save /tmp/cafe --person bob
+mineworld server worlds/social-cafe --save /tmp/cafe     # then join the `alice` seat with a client
+```
+
+What to look at:
+- On day 1, Alice and Bob each `became-acquainted` with the other. On day 1 they share a
+  `group-activity` (event `#98`). By day 3 a `relationship-changed` shows them growing closer.
+- Every line of the biography carries the event id it came from.
+- Kill the `run` with Ctrl-C or SIGKILL partway and run the same command again: the world finishes
+  identically, and so do both biographies.
+- Alice's own observation in the server shows her `acquaintances`: how she regards Bob, and nobody
+  else's view.
+
+The test performs all of this with real SIGKILLs of both `run` and `server`.
+
+Watch for one known gap: relationships never decay. After about two months every pair is as close as
+it gets, and no more relationship changes happen. The 300-day test prints that per month.
 
 ## Default-style milestones — taste, and the operator decides
 

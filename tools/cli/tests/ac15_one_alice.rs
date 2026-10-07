@@ -50,9 +50,11 @@
 //! knows exactly what a client knows, which is the only position from which "the two clients see one
 //! world" can honestly be checked.
 
+mod fixture;
 mod support;
 
-use mineworld_contracts::EntityId;
+use mineworld_contracts::{Component, EntityId, Observation};
+use mineworld_naming::DisplayName;
 use mineworld_server::RefusalCode;
 use serde_json::json;
 use support::{Client, SaveDir, Server, may_talk_to, own_history, run_command, tagged, talk, walk};
@@ -76,6 +78,9 @@ const WANDERER_BY_THE_TABLE: (i32, i32) = (7_110, 3_900);
 
 #[tokio::test]
 async fn there_is_only_one_alice() {
+    // "The world's persisted head is settled" once Alice has answered both windows holds only while no
+    // routine boundary falls as the world runs from genesis, 00:00 (step-09 §4.3.7): checked first.
+    fixture::assert_quiet(0, 5 * 3_600, "ac15_one_alice.rs");
     let save = SaveDir::new("ac15");
     let server = Server::start(&[
         "server",
@@ -154,8 +159,9 @@ async fn there_is_only_one_alice() {
         .await;
     assert_eq!(
         facts_of_the_2d_talk.len(),
-        2,
-        "a first exchange records both that a conversation started and what was said"
+        4,
+        "a first exchange records both that a conversation started and what was said — and, with \
+         relationships installed, that the two became acquainted, once per direction"
     );
 
     // Alice answers, because a controller read her history out of her own observation and decided to.
@@ -224,12 +230,15 @@ async fn there_is_only_one_alice() {
          said was: {}",
         reply_to_3d.utterance()
     );
+    // The other speaker, named: by the name the 3D window's own observation discloses about the
+    // visitor (naming's `display-name`), which is the pack's authored name — so an empty or invented
+    // name cannot pass, and neither can the key, which differs from it.
+    let visitors_name = disclosed_name(&carried_forward, visitor)
+        .expect("the 3D window perceives the visitor, and is told their name");
+    assert_eq!(visitors_name, "Vera Lindgren", "the name the pack authored");
     assert!(
-        reply_to_3d
-            .utterance()
-            .as_str()
-            .contains(&visitor.raw().to_string()),
-        "and she named the other speaker by identity: {}",
+        reply_to_3d.utterance().as_str().contains(&visitors_name),
+        "and she named the other speaker: {}",
         reply_to_3d.utterance()
     );
 
@@ -253,7 +262,12 @@ async fn there_is_only_one_alice() {
     // Alice's two replies were dispatched between the two talks, so the gap between the windows'
     // facts is the agent's own — the third participant's actions are in the same sequence.
     assert!(
-        facts_of_the_3d_talk[0].raw() > facts_of_the_2d_talk[1].raw() + 1,
+        facts_of_the_3d_talk[0].raw()
+            > facts_of_the_2d_talk
+                .last()
+                .expect("the 2D talk's facts")
+                .raw()
+                + 1,
         "the agent's facts are in the same sequence, between the two windows': {sequence:?}"
     );
 
@@ -608,4 +622,19 @@ async fn what_a_window_reads_is_the_world_s_own_projection() {
             .all(|heard| heard.speaker().entity_id() == alice),
         "and every one of them is from her"
     );
+}
+
+/// The display name an observation discloses about `person`, decoded with `naming`'s own type.
+fn disclosed_name(
+    observation: &Observation<serde_json::Value>,
+    person: EntityId,
+) -> Option<String> {
+    let record = observation
+        .entity(person)?
+        .components()
+        .iter()
+        .find(|record| *record.component_type() == DisplayName::COMPONENT_TYPE)?;
+    let name: DisplayName =
+        serde_json::from_value(record.payload_for::<DisplayName>().ok()?.clone()).ok()?;
+    Some(name.name().as_str().to_owned())
 }

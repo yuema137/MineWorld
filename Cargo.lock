@@ -609,6 +609,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
+name = "mineworld-authoring"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "serde",
+]
+
+[[package]]
 name = "mineworld-cli"
 version = "0.0.0"
 dependencies = [
@@ -616,10 +625,14 @@ dependencies = [
  "futures-util",
  "mineworld-contracts",
  "mineworld-conversation",
+ "mineworld-group-activity",
  "mineworld-kernel",
+ "mineworld-naming",
  "mineworld-persistence",
  "mineworld-presence",
+ "mineworld-relationships",
  "mineworld-rule-controller",
+ "mineworld-schedule",
  "mineworld-server",
  "mineworld-worldpack",
  "serde_json",
@@ -651,6 +664,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-group-activity"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "mineworld-kernel"
 version = "0.0.0"
 dependencies = [
@@ -672,6 +699,20 @@ dependencies = [
  "mineworld-presence",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "mineworld-naming"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -698,14 +739,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-relationships"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-group-activity",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-presence",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-rule-controller"
 version = "0.0.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-conversation",
+ "mineworld-group-activity",
  "mineworld-movement",
+ "mineworld-naming",
+ "mineworld-schedule",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "mineworld-schedule"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -728,11 +802,16 @@ dependencies = [
 name = "mineworld-worldpack"
 version = "0.0.0"
 dependencies = [
+ "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-conversation",
+ "mineworld-group-activity",
  "mineworld-kernel",
  "mineworld-movement",
+ "mineworld-naming",
  "mineworld-presence",
+ "mineworld-relationships",
+ "mineworld-schedule",
  "serde",
  "serde-saphyr",
  "serde_json",

@@ -555,16 +555,36 @@ Done (main @ 41d4ab1, 311 tests):
        and talked ~1,400 times per 30 days, and `inspect` resolved all 28,170 causes.
 
 Next, framework (critical path to Milestone B):
-  S8   Social Café system set                    not started; detail against main @ 4f4cb1d.
-       Milestone B ("Alice and Bob persist, know each other, share an activity, and survive a
-       restart with their history") is S8's to reach. `conversation` already exists (05a), so
-       the re-audit states what is left: relationships, schedule, group activity, the MVP
-       population, and a biography derived from the event log.
-       Follow-up, world data: social-cafe's people and café doorway were authored before the
-       3D slice existed and do not match its geometry (the slice follows reference `03`).
-       Re-author the pack's local positions to the slice's layout; S8 may fold this in.
+  S8   Social Café system set — three PRs (step-09, frozen 2026-10-07). Milestone B closes at 10b.
+       10a  the town                              PR 10a (GitHub #29), merged 2f24eef
+            The café re-authored to the 3D slice's layout, so a person at the counter can talk to
+            Alice (and is refused from the door) — the world-data follow-up is closed. The MVP
+            town: six places on one street, twelve people, eleven seats. Also fixed a latent S7
+            bug: the paced controller's strides came out a fraction of a millimetre over 2 m
+            through a rounded-down square root, and S7's own test measured with the same
+            rounding, so it passed. Reviewed before merge: gates re-run (353/0), and a 30-day
+            run checked by hand — 16,595 moves accepted, none refused, after confirming the run
+            summary does print rejected outcomes when they occur.
+       10b  social life                             PR 10b (GitHub #31), merged 85451c7
+            `relationships` and `group-activity` System Packs, `mineworld biography`, and a
+            controller that invites, answers, joins and leaves. Milestone B DEMONSTRATED,
+            awaiting the operator: `milestone_b.rs` locates Alice and Bob becoming acquainted,
+            sharing an activity and crossing a relationship level, SIGKILLs the run after that
+            history, resumes it byte-identical, then hosts the save, SIGKILLs and restarts the
+            server, and reads both relationship values and both biographies unchanged. Reviewed
+            before merge: gates re-run (381/0); a 30-day run and Alice's biography read by hand;
+            the Milestone B test confirmed to have run and passed in the review's own run.
+            Dev profile now opt-level 1 (ARC-30): a 300-day run 64.7 s → 10.6 s, output identical.
+            **Known gap:** relationships never decay, so the social graph saturates — level
+            crossings are 313 in days 1–30, 39 in 31–60, and 0 in every later bucket, while group
+            activities continue at ~640 per bucket. A living-world deficiency for a later step.
+       10c  routines, on a generic content seam (step-09 Q9) — HELD until the operator has tested
+            Milestone B, since it changes the social-cafe behaviour under test. Its decision
+            record will be ARC-31.
+       F-1 and F-3 (AC-1: independently installable packs; a controller limited to actions it
+       knows by name) are carried to S9 as material findings (step-09 §10.1).
 
-Remaining:  S9 ... S14, Milestones B-E
+Remaining:  S9 ... S14, Milestones C-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
