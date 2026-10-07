@@ -1675,3 +1675,109 @@ model, which needs time accounting finer than `WorldTime`'s one second. Walls in
 evaluated (line of access needs geometry no layer owns, `DD-7`). Passages are stated at genesis and are
 always open; doors are a later system. `MAX_STRIDE` is a constant until world configuration exists
 (S7). Saves made before this decision are refused by name (`SAVE_FORMAT` 2), not migrated.
+
+**Note, 2026-10-06 (S7, step-08 §10.1 Q5).** S7 did not make `MAX_STRIDE` world configuration. No
+pack yet needs another value, and a configuration mechanism built for one constant is the premature
+abstraction `CLAUDE.md` §4 rule 11 forbids. It stays a published constant until the first pack that
+needs a different stride, which introduces System Pack configuration (`MODULE_SPEC.md` §9) then.
+
+---
+
+## ARC-27 — A headless run is a pace schedule over stateless seeded controllers
+
+**Date** 2026-10-06 · **Implements** [`MVP.md`](MVP.md) §9 `AC-6`, `AC-11`, `AC-12` ·
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §8.1 `run` · **Relates to** `INV-1`, `INV-13`, `ARC-23`, `ARC-25`,
+`DEP-6` · **Design** `.structured-coding/plans/mvp0/step-08-headless.md` (S7, PR 09)
+
+**Problem.** `AC-11` asks that *a seeded rule-based configuration* run hundreds of simulated days with
+no renderer and no model, and `AC-12` that the same seed reproduce the run. Three facts found in
+source made the obvious reading empty. The real System Packs (presence, movement, conversation) are
+time-inert: none starts a process or defers a fact. The only controller, `RuleController`, answers
+whoever spoke to its Person and otherwise does nothing. And with no client connected nothing else
+submits a request. A headless café would therefore advance an idle clock for three hundred days and
+record its five genesis facts — a history perfectly stable and perfectly reproducible, which is the
+clean number from an instrument that cannot see that `ARC-23` forbids trusting.
+
+A second problem: the server's agent path cannot be reused. A hosted world's time follows the wall
+clock, observations are delivered with `try_send` and dropped under load, and the agent is a task.
+Which observation a controller decides on is a matter of timing. And the reactive controller keeps
+*which line it has answered* in memory, so a restarted one answers its last line again (step-06
+`F-13`) — a killed-and-resumed run would then differ from an uninterrupted one.
+
+**Options considered.**
+
+```text
+(a) drive the world through the server, as --agent does     wall-paced and timing-dependent
+(b) a scripted input file                                    reproducible, but a replay of a script,
+                                                             not a rule-based configuration
+(c) a stateful seeded controller whose memory is persisted   controller bookkeeping becomes world
+                                                             state, against INV-1's separation
+(d) a stateless seeded controller on a fixed pace schedule   chosen
+```
+
+**Choice: (d).**
+
+1. **The driver.** `mineworld run` steps the world itself, synchronously, on one thread, calling only
+   what the server calls: `advance_to`, the pack's perception, `ActionIntent::allocate`, `dispatch`.
+   A run's `ActionId`s are allocated in order from 1, and a resumed run's from one past the
+   journal's highest.
+2. **The pace.** Seat *k*, in the pack's seat order, is consulted at `genesis + k + m·P` simulated
+   seconds, `m = 0, 1, …` (P = 600 s; refused if the pack has P seats or more). No two seats are ever
+   consulted at one instant, so the order of decisions inside an instant never arises.
+3. **The controller is stateless.** `PacedRuleController::decide(&self, &Observation)`: its decision
+   is a pure function of its seed, its pace and the observation, which the compiler enforces. Every
+   choice is a SplitMix64 mix of `(seed, observer, instant)`. It answers the newest line a speaker
+   said to it *since its previous consult* — a line heard at `h` is answered at `t` only if
+   `t − P < h ≤ t` — and otherwise takes seeded initiative: greet, approach, wander, use a doorway.
+   Because only consults dispatch and no two share an instant, each line lies in exactly one of its
+   listener's windows: *answer once* holds with no record of having answered, and a controller built
+   after a restart decides exactly as the one that died.
+4. **Age, not duration.** `--days N` runs the world until it is N days old, so the same command run
+   again after a crash completes the same world.
+
+**What `AC-12` covers, and what it excludes.** Covered: the facts, the journal and the snapshots of a
+run, byte for byte, as a function of the pack, the seed, the age, the pace and the code. Excluded by
+name: the world instance identity in a save's manifest (allocated from the wall clock and the
+process, because two runs are two worlds — `server/PROTOCOL.md` §5), and the elapsed wall time `run`
+prints on its own line. Equality is always shown by comparing bytes; the printed fingerprint is for
+reading, never evidence.
+
+**What it does not cover.** A hosted world's `--agent` keeps the reactive controller and keeps `F-13`:
+it has no fixed consult schedule, receives many observations per simulated second, and needs its
+memory. Its remedy is a perception or cognition change (S10).
+
+**Accepted limitations.** A line whose window passes while `talk` is unavailable is never answered —
+the listener missed the moment. The controller's speech is formulaic, as a rule's is; interpretation
+is cognition's. Places have no extent, so wandering is bounded only by the pull of nearby people.
+
+---
+
+## DEP-11 — The CLI's argument parsing: `clap`
+
+**Date** 2026-10-06 · **Status** selected, integrated in PR 09 · **Design**
+`.structured-coding/plans/mvp0/step-08-headless.md` §10.1 Q12
+
+**Problem.** `mineworld` parses its own command line. Until S7 it had three subcommands and four
+options, parsed by hand, and `tools/cli/src/main.rs` recorded when that would stop being right:
+*"`clap` is the right answer the day `create` and `inspect` arrive with real option surfaces."*
+
+**The trigger that was met.** S7 adds `run` (`--headless`, `--seed`, `--days`, `--save`), `inspect`
+(`--last`) and `create`: six subcommands and ten options, with typed values (`u64`, a path, a socket
+address), required and repeatable options, and help text per command. Hand parsing at that size is
+re-implementing commodity infrastructure (`REUSE_POLICY.md`), and keeping it would have meant moving
+the recorded trigger after reaching it.
+
+**Options considered.** Hand parsing (status quo: grows with every option, and every refusal text
+is ours to keep consistent); `pico-args` and `lexopt` (small, but still leave usage, help and
+validation to us); `argh` (derive-based and small, but its conventions are Fuchsia's and its
+ecosystem thin); **`clap` 4 with `derive`** (the ecosystem's standard, maintained, typed values,
+generated help and errors that name the offending argument).
+
+**Choice: `clap` 4 with the `derive` feature.** Dual MIT / Apache-2.0.
+
+**Isolating interface.** `tools/cli/src/main.rs` alone: one derived `Cli` type and its subcommand
+enum, turned into the command's own plain values before anything runs. No `clap` type appears in
+any other module or crate, so replacing the parser is a change to one file.
+
+**Accepted limitations.** Compile time and binary size grow by the parser's; the command's help
+and error wording become `clap`'s format rather than hand-written prose.

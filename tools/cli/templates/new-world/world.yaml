@@ -1,0 +1,35 @@
+# {id} — a new World Pack, written by `mineworld create`.
+#
+# A World Pack states population, places, capabilities and initial state. It states no rule: what
+# an action requires belongs to the System Pack that provides it. The fields this file may use are
+# specified in `docs/MODULE_SPEC.md` §4.1; a field the loader does not implement is refused by name.
+#
+# Check it with `mineworld validate <this directory>`, watch it run with
+# `mineworld run <this directory> --headless --seed 1 --days 7`, and host it with
+# `mineworld server <this directory>`.
+
+world:
+  # Must match this pack's directory name.
+  id: {id}
+  name: {id}
+
+# The capabilities this world asks for, in the order they are installed. `movement` and
+# `conversation` depend on `presence`, so they come after it.
+systems:
+  - presence
+  - movement
+  - conversation
+
+# Each key names a file in `places/`.
+places:
+  - home
+
+# Everybody who exists here. Each key names a file in `people/`.
+population:
+  - first
+  - second
+
+# The people a controller — a client or an agent — may occupy.
+seats:
+  - first
+  - second

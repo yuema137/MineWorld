@@ -13,4 +13,7 @@ authors.workspace = true
 # server and no kernel — an observation in, a request out, and nothing else reachable from here.
 mineworld-contracts = { workspace = true }
 mineworld-conversation = { workspace = true }
+# For `move` and the doorways a place discloses: the paced controller walks (step-08 C3).
+mineworld-movement = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }

@@ -27,6 +27,15 @@ event log and disclosed in this observer's own observation
 ([`../../docs/MVP.md`](../../docs/MVP.md) §9.2). Whether Alice may speak to somebody is the server's
 answer, read out of an affordance. Nothing here measures a distance.
 
+## The paced rule
+
+`PacedRuleController` is what `mineworld run` puts in every seat. It is consulted every ten simulated
+minutes and takes initiative: it answers what was said to it since it was last asked, and otherwise —
+by a seeded draw — greets somebody, walks toward somebody, wanders, or heads out of the door. It keeps
+no memory at all (`decide(&self)`), so the same seed always makes the same choices, and a run that is
+killed and restarted continues exactly as if it had not been. The decision is
+[`DECISIONS.md` `ARC-27`](../../docs/DECISIONS.md).
+
 ```sh
 cargo test -p mineworld-rule-controller
 ```

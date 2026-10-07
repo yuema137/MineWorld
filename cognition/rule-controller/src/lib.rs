@@ -240,5 +240,12 @@ fn encoded(value: &Talk) -> Vec<u8> {
     serde_json::to_vec(value).expect("a request payload is JSON-representable by construction")
 }
 
+mod paced;
+
+pub use paced::PacedRuleController;
+
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod paced_tests;

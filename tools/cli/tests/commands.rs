@@ -105,7 +105,9 @@ fn a_malformed_pack_is_refused_by_the_command_with_its_position_in_the_file() {
 
 #[test]
 fn a_command_that_does_not_exist_says_so_and_says_what_does() {
-    let output = run(&["inspect", PACK]);
+    // `inspect` and `create` exist since step-08 C6 and C7; the claim is unchanged, about a command
+    // that still does not (MODULE_SPEC §8's `install`).
+    let output = run(&["install", "employment"]);
 
     assert!(!output.status.success());
     let complaint = stderr(&output);
