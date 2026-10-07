@@ -452,3 +452,27 @@ of whipping it 60° in 0.2 s with the gait blend. The stance glance (`Neck`/`Hea
 dropped on this body while moving. A first version low-passed the *local* rotations; with the
 spine still swinging under a lagging neck it made the jog worse (39.5° yaw, 14.6° roll) and was
 replaced. **Within the bound in both gaits.**
+
+### 8.9 Final state after §§8.7–8.8
+
+Asset `rig7` (scratch): §8.6's finger weights, then `ARMZERO=1 SMOOTH=1 reweight_pack.py`:
+the side panels' arm shares moved to `Spine2`, then all weights smoothed over the pack volume
+(7,034 vertices, 8 passes), limited to 4 influences and normalised — the slits of §8.7 step 5
+came from the seam between the re-weighted panels and the pack's side wall nearest the body,
+which had kept its heat weights.
+
+Checked, every phase, not chosen frames (`--sweep`, eight phases 0.125 s apart per view):
+
+- **Pack, walking** (rear three-quarter on the strap side, `d9_sweep_pack.jpg` top row): the
+  sleeves pass beside the pack's side panels; the panels stay flat and on her back. No clipping.
+- **Pack, jogging** (rear, `d9` bottom row): the pack stays on her back; no slits, no ridges in
+  the hoodie below it. A dark band under the pack's bottom edge is its contact shading in the
+  baked texture, present standing too.
+- **Pack, standing** (`runtime_d13/p8_pack`, P8 at 1:1): sleeve and side panel meet without
+  either passing into the other.
+- **Hand, standing** (`runtime_d13/p2_grip3x`): as §8.7 step 2; the armpit holds (no tear).
+- **Hand, walking and jogging** (`d10_sweep_front.jpg`): the grip is released; both arms swing
+  and no hand is held against the cloth. The last jog frame is a bench across the camera.
+- **Head** (`d10`, §8.8): faces ahead in every walk and jog phase. Residual: in the walk the
+  face reads very slightly chin-up at the front three-quarter.
+- Evidence `d3`–`d7` regenerated from `runtime_d13` and the matching `--motion` run.

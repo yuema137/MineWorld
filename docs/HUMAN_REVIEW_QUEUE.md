@@ -53,12 +53,12 @@ identifies one thing.
 | | Milestone | State |
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
-| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 🔍 **route D+ preview prepared, 2026-10-07**, held for the coordinator (see below). Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | ✅ **route D+ accepted by the operator as the interim standard, 2026-10-07**; the clipping and head-sway defects flagged after it are fixed (see below). Not a final acceptance: refinement continues later. Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ❌ |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
-### `VIS-3D-GODOT-1` — route D+ preview, PREPARED 2026-10-07 (not yet shown to the operator)
+### `VIS-3D-GODOT-1` — route D+, accepted as the interim standard 2026-10-07 (prepared as a preview the same day)
 
 **This is a preview (`VISUAL_FIDELITY.md` §9.1), not an acceptance request.** It is held for
 the coordinator, who will show it to the operator with the other items. It asks: *is this the
@@ -87,16 +87,27 @@ portraits), `d4_full_and_rear.jpg`, `d5_walk.jpg`, `d6_grip_armpit_hairline_zoom
    sculpted ropes than the reference's soft wisps.
 2. The eyes are painted: the look to her left comes from turning the head, and the eyes cannot
    move. No blink and no expressions either; the face has no lids or mouth that move.
-3. The hand on the strap is a loose fist on the strap's front edge, larger and paler than the
-   reference's; the reference's hand sits further onto the strap.
+3. She holds the strap only while standing. When she walks or jogs she lets go and both arms
+   swing; the reference pose is a standing pose. Standing, the fist sits on the strap's lower
+   padded end, a little higher on the chest than the reference's hand; at 3× the fingertips show
+   dark creases and the thumb stands out.
 4. The backpack is charcoal grey where the reference's is olive.
 5. The tee's slogan has a garbled first word; the tee is greyer-white than oatmeal.
 6. Light flecks along the hair's locks in the head close-up at 2×; not visible at the
    reference's framing.
+7. While moving, the head faces the direction of travel and holds steady (within 4.2° in the
+   jog); the look to her left is a standing pose only.
 
 (Fixed before preparation, at the coordinator's review: the gripping hand had read as an open,
 splayed hand with one finger pointing up, and she had looked straight at the camera, chin up.
 Record §8.6.)
+
+**Accepted by the operator as the interim standard, 2026-10-07** (*"跟上一版本相比好多了，我们可以就先维持这个
+标准。以后再精雕细琢"*). Two defects the operator flagged afterwards are fixed (record §§8.7–8.9):
+the hand and the pack clipped (*"人的手和背包好像还是有点穿模"*), and the head bobbed and swayed when
+she ran (*"人物跑步的时候不要摇头晃脑的"*). Evidence: `d8_head_trace.png` (before, after, and the town
+body as control), `d9_sweep_pack.jpg` (rear three-quarter walk and rear jog, eight phases each),
+`d10_sweep_front.jpg` (front three-quarter walk and jog, eight phases each).
 
 **Scorecard** (§6, full table in the record §8.5): overall identity `PASS`; face identity, hair
 silhouette, hair colour, hoodie, tee, backpack, material quality and vibe `PARTIAL`; no hard-fail
