@@ -14,7 +14,7 @@ use mineworld_group_activity::{
     GroupActivityEnded, GroupActivityStarted, JoinedGroupActivity, LeftGroupActivity,
 };
 use mineworld_relationships::{BecameAcquainted, RelationshipChanged};
-use mineworld_schedule::AgendaChanged;
+use mineworld_schedule::{AgendaChanged, RoutineAssigned};
 
 /// SD-12's set; `agenda-changed` joined it with 10c's schedule (a literal added, the claim unchanged).
 pub const BIOGRAPHICAL_TYPES: [&str; 7] = [
@@ -208,7 +208,52 @@ pub fn precondition(facts: &[EventEnvelope], days: i64, downward: bool) -> usize
     }
     assert!(checked > 0, "relationship facts were read");
     eprintln!("  every one of {checked} relationship facts is caused by a subscribed fact");
+    every_person_has_an_agenda_change_every_day(facts, days);
     buckets
+}
+
+/// I-4's 10c clause: every person — every one the pack gave a routine, otto included, whom nobody
+/// drives — has at least one `agenda-changed` on every simulated day of the run. The people are
+/// read from the genesis `routine-assigned` facts and must be all twelve, so the clause cannot pass
+/// over a world that quietly lost its routines.
+pub fn every_person_has_an_agenda_change_every_day(facts: &[EventEnvelope], days: i64) {
+    let people: std::collections::BTreeSet<EntityId> = facts
+        .iter()
+        .filter_map(decoded::<RoutineAssigned>)
+        .map(|assigned| assigned.person().entity_id())
+        .collect();
+    assert_eq!(
+        people.len(),
+        AUTHORED_NAMES.len(),
+        "every person of the pack has a routine"
+    );
+    let mut per_day: BTreeMap<(EntityId, i64), u64> = BTreeMap::new();
+    for changed in facts
+        .iter()
+        .filter(|fact| fact.event_type().as_str() == "agenda-changed")
+    {
+        let Some(agenda) = decoded::<AgendaChanged>(changed) else {
+            continue;
+        };
+        let day = (changed.at().seconds() / 86_400).min(days - 1);
+        *per_day
+            .entry((agenda.person().entity_id(), day))
+            .or_default() += 1;
+    }
+    for person in &people {
+        for day in 0..days {
+            assert!(
+                per_day.get(&(*person, day)).copied().unwrap_or(0) > 0,
+                "I-4 (10c): person {} has no agenda-changed on day {} — the precondition fails",
+                person.raw(),
+                day + 1
+            );
+        }
+    }
+    eprintln!(
+        "  every one of {} people had an agenda change on each of {days} days",
+        people.len()
+    );
 }
 
 /// Every fact of a save, decoded.

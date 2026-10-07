@@ -16,9 +16,8 @@ name: Vera Lindgren
 routine:
   - { from: "08:00", place: cafe, label: visit }
   - { from: "12:00", place: park, label: sightsee }
-  - { from: "15:00", place: store, label: shopping }
-  - { from: "17:00", place: cafe, label: visit }
-  - { from: "21:00", place: apartments, label: stay }
+  - { from: "16:00", place: store, label: shopping }
+  - { from: "20:00", place: apartments, label: stay }
 
 tags:
   - visitor

@@ -16,10 +16,9 @@ name: Wes Calloway
 # tests.
 routine:
   - { from: "09:00", place: street, label: wander }
-  - { from: "11:00", place: cafe, label: visit }
-  - { from: "14:00", place: park, label: wander }
-  - { from: "18:00", place: street, label: wander }
-  - { from: "22:00", place: apartments, label: stay }
+  - { from: "13:00", place: cafe, label: visit }
+  - { from: "17:00", place: park, label: wander }
+  - { from: "21:00", place: apartments, label: stay }
 
 tags:
   - visitor

@@ -7,9 +7,8 @@ name: Ivan Petrov
 routine:
   - { from: "07:00", place: street, label: stroll }
   - { from: "11:00", place: cafe, label: chat }
-  - { from: "13:00", place: street, label: stroll }
-  - { from: "16:00", place: park, label: walk }
-  - { from: "20:00", place: apartments, label: home }
+  - { from: "15:00", place: park, label: walk }
+  - { from: "19:00", place: apartments, label: home }
 
 tags:
   - passerby

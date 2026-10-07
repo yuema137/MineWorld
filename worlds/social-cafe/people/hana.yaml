@@ -6,9 +6,7 @@ name: Hana Sato
 # the restart tests, explained in alice.yaml and checked by those tests.
 routine:
   - { from: "08:00", place: workplace, label: work }
-  - { from: "12:00", place: park, label: lunch }
-  - { from: "13:00", place: workplace, label: work }
-  - { from: "17:00", place: cafe, label: coffee }
+  - { from: "15:00", place: cafe, label: coffee }
   - { from: "19:00", place: apartments, label: home }
 
 tags:

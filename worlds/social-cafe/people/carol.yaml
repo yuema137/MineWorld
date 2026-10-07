@@ -5,10 +5,9 @@ name: Carol Mensah
 # Her day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
 # the restart tests, explained in alice.yaml and checked by those tests.
 routine:
-  - { from: "08:00", place: store, label: shopping }
-  - { from: "10:00", place: park, label: walk }
+  - { from: "07:00", place: store, label: shopping }
   - { from: "12:00", place: cafe, label: lunch }
-  - { from: "14:00", place: apartments, label: home }
+  - { from: "16:00", place: apartments, label: home }
 
 tags:
   - resident

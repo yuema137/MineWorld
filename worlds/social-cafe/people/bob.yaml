@@ -10,8 +10,7 @@ name: Bob Achterberg
 # tests, explained in alice.yaml and checked by those tests.
 routine:
   - { from: "07:00", place: cafe, label: coffee }
-  - { from: "10:00", place: park, label: read }
-  - { from: "13:00", place: cafe, label: lunch }
+  - { from: "11:00", place: park, label: read }
   - { from: "15:00", place: store, label: errands }
   - { from: "19:00", place: apartments, label: home }
 

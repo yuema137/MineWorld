@@ -342,6 +342,47 @@ fn spoken(fact: &EventEnvelope) -> String {
         .to_owned()
 }
 
+/// `AC-2` for `schedule` (10c C8): without it — and without the `routine:` sections, which a world
+/// that does not enable schedule refuses — the world runs, every seat moves and talks in every bucket,
+/// nobody has an agenda, and naming is still there. That the paced controller then decides exactly as
+/// it did before agendas existed is C7's frozen-binary parity, made on such a copy (step-09 §9 E-C7).
+#[test]
+fn without_schedule_the_world_runs_and_nobody_keeps_a_day() {
+    let pack = without_owning("schedule", Some("routine"));
+    let save = fresh("composition-no-schedule-save");
+    let printed = run_pack(&pack, 7, &save);
+    assert_eq!(
+        lines(&printed, "faults     0").len(),
+        1,
+        "no fault: {printed}"
+    );
+    let seats = seats();
+    let seats: Vec<&str> = seats.iter().map(String::as_str).collect();
+    assert_eq!(every_seat_active_in_every_bucket(&printed, &seats), 1);
+    let facts = social::facts_of(&Tables::read(&save));
+    assert!(
+        !facts.iter().any(|fact| matches!(
+            fact.event_type().as_str(),
+            "routine-assigned" | "agenda-changed"
+        )),
+        "no routine and no agenda in a world without schedule"
+    );
+    let named = facts
+        .iter()
+        .filter(|fact| fact.event_type().as_str() == "named")
+        .count();
+    assert_eq!(named, 12, "naming is untouched: everybody is still named");
+    let inspected = mineworld(&["inspect", save.to_str().expect("path"), "--last", "0"]);
+    assert!(inspected.status.success(), "{}", stderr(&inspected));
+    assert_eq!(
+        lines(&stdout(&inspected), "systems "),
+        [
+            "systems    presence v2, movement v1, conversation v1, group-activity v1, \
+             relationships v1, naming v1"
+        ],
+    );
+}
+
 #[test]
 fn without_group_activity_relationships_stays_and_the_world_runs() {
     let pack = without("group-activity");

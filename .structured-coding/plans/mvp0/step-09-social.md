@@ -2342,10 +2342,81 @@ tested.
 milestone_b.rs's own assertions are not edited. It calls the shared precondition, which gains a
 clause.
 **Depends on:** C7.
-- [ ] Implementation:
-  - [ ] **I-4, 10c clause**, in every precondition call: every person (all 12, otto included) has at
+
+**C8 result (§9 E-C8). Every item below is done.** The evidence is recorded here, item by item.
+- **I-4, 10c clause.** `social::every_person_has_an_agenda_change_every_day` is called from
+  `precondition`, so it runs in run.rs (300 and 30 days), run_restart, milestone_b and
+  social_composition, and directly from routines.rs.
+  - Its people are the genesis `routine-assigned` facts, and it asserts all 12 are there.
+  - Prints "every one of 12 people had an agenda change on each of 30 days".
+  - Counterfactual: schedule's `wake` without its reschedule FAILS it, "I-4 (10c): person 7 has no
+    agenda-changed on day 2". Reverted, `git diff --stat` empty.
+- **`routines.rs`** (new, 1 test, 3.3 s):
+  - Every post-genesis `agenda-changed` is caused by `Process(p)`, where `p` is its own payload's
+    `routine`, one `p` per person. Every genesis one is caused by a `routine-assigned`.
+  - Every one falls on a boundary of the person's file, read by the test's own literal parser.
+  - Each person has exactly 30 × their segment count. There is one `routine-assigned` per person.
+  - **"Reached"** is implemented from presence's `arrived` facts, which give the place each person
+    is in. A segment counts as reached if the person is already there when it begins, or arrives
+    there before the next `agenda-changed`. That is the planned definition; `person-entered-place`
+    would give the same result. Every person is measured and printed before the verdict.
+- **Followed: FAILED as first authored, then fixed in the content (bounded deviation D-C3).** With
+  §4.3.2's proposed routines (55 segments, many of 1–2 h), the seats reached 39–99 %; carol was
+  lowest at 39 %.
+  - The test then measured the journeys: median 120 min, 90th percentile 195 min, longest 585 min.
+    The consult pace (900 s) and the stride (2 m) make crossing town take hours.
+  - `FOLLOWS_AGENDA` = 100 barely moved the numbers (carol 46 %), so the controller was not the
+    cause. The segments were shorter than the walk.
+  - The threshold, the seed and the controller were left as they were. **The routines were
+    re-authored:** every segment lasts at least 4 h, and the far places (the park and the store,
+    from the apartments) get 5–6.5 h.
+  - The quiet window, every place in some routine, and Alice and Bob's shared café mornings
+    (07:00–11:00) are all kept.
+  - **Result:** the eleven seats reach 96.7–100 % (alice 90/91, bob 117/121, carol 89/91, dev 91/91,
+    erin 88/91, felix 89/91, grace 90/91, hana 91/91, ivan 121/121, visitor 121/121, wanderer
+    120/121). Journeys: median 150 min, 90th percentile 225 min.
+  - alice.yaml explains the 4-hour rule and why.
+  - The walking-speed gap itself (8 m/h at the headless pace) is recorded as L-12, a living-world
+    gap.
+- **Counterfactual, `FOLLOWS_AGENDA` = 0:** `routines` FAILS for all eleven seats (alice 39/91 … ivan
+  51/121), against 96.7–100 % with it. Reverted. otto is 31/61 in both runs: the segments in which he
+  is already at home.
+- **It moves nobody:** otto `arrived` exactly once (at genesis). His store segments are located (30),
+  and none of them is reached.
+- **AC-2, schedule** (`without_schedule_the_world_runs_and_nobody_keeps_a_day`, PASS):
+  - the copy omits `schedule` and the 12 `routine:` blocks;
+  - no fault; every seat active in the bucket;
+  - no `routine-assigned` and no `agenda-changed`;
+  - 12 `named`;
+  - `inspect` lists the six other systems.
+
+  Controller fallback: C7's frozen parity.
+- **Biography:** done at C6 (reordered there, recorded). C8 adds nothing.
+- **Validation (full workspace on the C8 tree): 419 passed, 0 failed.**
+  - routines 1;
+  - `run` 3 (64.7 s; AC-11/12, 300-day precondition with the 10c clause, every place entered);
+  - `run_restart` 2;
+  - `social_composition` 4;
+  - `biography` 2;
+  - `inspect` 3 (process causes counted);
+  - `milestone_b` 1 (7.4 s). Located #208/#209 became-acquainted day 1, #3883 relationship-changed
+    day 4, #1964 group-activity-ended day 2. Killed after day 5 (4 742 of 28 523 revisions).
+    Hosted: Close both ways, revision 28 523 before and after the server's SIGKILL; process causes
+    1 501.
+- **Review:**
+  - Every claim is located before it is counted, and every seat's number is printed before the
+    verdict.
+  - The 90 % literal is unchanged since the freeze. The content was changed to fit the world's
+    walking speed, not the threshold to fit the content.
+  - milestone_b.rs's **claims** are unedited. Its one added assertion is the §4.3.7 quiet-window
+    check (C6), which the freeze condition requires. So the plan's "byte-unchanged" is superseded
+    by that binding condition, and is recorded rather than claimed.
+
+The planned items, kept for reference (all met as recorded above):
+- [x] Implementation:
+  - [x] **I-4, 10c clause**, in every precondition call: every person (all 12, otto included) has at
     least one `agenda-changed` on every simulated day.
-  - [ ] **`routines.rs`** (CP-4), `run worlds/social-cafe --headless --seed 7 --days 30 --save`, then
+  - [x] **`routines.rs`** (CP-4), `run worlds/social-cafe --headless --seed 7 --days 30 --save`, then
     reading the save:
     - **Caused by the routine.** Every `agenda-changed` after genesis is caused by
       `Causation::Process(p)`, where `p` is the payload's `routine`. Each person has exactly one
@@ -2360,7 +2431,7 @@ clause.
       before measuring (QC-7).
     - **A human may ignore it.** otto (not a seat, never driven) reaches none of his away
       segments, and his agenda still changes daily. The agenda is shown to move no one.
-  - [ ] **AC-2, schedule** (`social_composition.rs`): the copy omits `schedule` and every `routine:`
+  - [x] **AC-2, schedule** (`social_composition.rs`): the copy omits `schedule` and every `routine:`
     block. 30 days, seed 7:
     - no fault;
     - no `agenda-changed`;
@@ -2369,10 +2440,10 @@ clause.
 
     That the controller then decides exactly as it did before agendas existed is C7's frozen-parity
     evidence, made on this same copy and recorded in §9 E-C7. A test cannot run a frozen binary.
-  - [ ] **Biography:** `tests/social/mod.rs`'s literal list gains `agenda-changed`. The soundness
+  - [x] **Biography:** `tests/social/mod.rs`'s literal list gains `agenda-changed`. The soundness
     oracle decodes it with schedule's type (it names the person), and LOCATED requires Alice's
     biography to hold it. This is a literal addition with the claim unchanged; §9 lists it.
-- [ ] Validation:
+- [x] Validation:
   - `routines` PASS, with the numbers located (per-seat reach %, agenda changes per day, the
     process ids);
   - `run` 3 PASS: AC-11/12, the extended precondition, every place entered;
@@ -2381,14 +2452,15 @@ clause.
   - `social_composition` 4 PASS;
   - `biography` 2 PASS;
   - `inspect` PASS: process causes counted, the count printed.
-- [ ] Counterfactuals, each run and reverted:
+- [x] Counterfactuals, each run and reverted:
   - `FOLLOWS_AGENDA = 0` → `routines` FAILS on "followed", and the reached % is recorded;
   - schedule's `wake` emitting with `Causation` from a deferral instead of the process (or skipping
     the reschedule) → "caused by the routine" or "on schedule" FAILS.
-- [ ] Review:
+- [x] Review:
   - Every claim is located before it is counted.
   - The 90 % bound is not derived from the measurement.
-  - milestone_b.rs is byte-unchanged (`git diff --stat`).
+  - milestone_b.rs is byte-unchanged (`git diff --stat`). Superseded by the §4.3.7 condition: one
+    assertion was added, and the claims are unchanged.
 
 **Acceptance.** As validation (§9 E-C8).
 **Failure.** If milestone_b no longer locates its history in 30 days, that is a content defect in the
@@ -3057,6 +3129,11 @@ E-C7 the paced controller follows its agenda. Frozen-binary parity (C6 binary ag
      without schedule, 300 days, seed 7): diff empty, 335 454 facts. Real pack 300 days: 12.3 s, 0
      faults, 0 refusals, 369 931 facts. Full workspace 417 passed, 0 failed; milestone_b located by
      day 3 and killed after day 4. Bounded refinement D-C2 (door band toward the agenda).
+E-C8 CP-4 located (routines.rs). The first measurement failed the 90 % literal: the proposed routines'
+     1–2 h segments were shorter than the walk (journeys: median 120 min, 90th percentile 195 min).
+     The routines were re-authored to segments of ≥ 4 h (D-C3), and the seats now reach 96.7–100 %.
+     Counterfactuals: agenda band 0 → seats 39–51 % FAIL; wake without reschedule → I-4 FAIL. Full
+     workspace 419 passed, 0 failed; milestone_b located by day 4 and killed after day 5.
 ```
 
 ## 9.1 Limitations (expected)
@@ -3082,6 +3159,11 @@ L-10 (10c, expected) Hosted worlds follow no agenda: `--agent` and players are n
 L-11 (10c, expected) The 3D slice shows names only once the vis track binds `display-name` through
      the Godot module's `display_name(id)`. That is the environment session's work, handed over
      with the module change (C4).
+L-12 (10c, MEASURED, E-C8) People walk at about 8 m an hour in a headless run: one stride (≤ 2 m)
+     per consult, every 900 s. Crossing the town takes 2½ h, and nearly 4 h for one journey in ten,
+     so a routine's parts of the day must be at least 4 h long to be lived. That is a living-world
+     gap, not a schedule defect. Its remedies are a later step's: travel as a Process (ARC-26's room
+     for travel), or a pace that consults a walker more often.
 ```
 
 ---

@@ -13,7 +13,7 @@ name: Otto Brandt
 # checked by those tests.
 routine:
   - { from: "09:00", place: store, label: errands }
-  - { from: "10:00", place: apartments, label: home }
+  - { from: "13:00", place: apartments, label: home }
 
 tags:
   - resident

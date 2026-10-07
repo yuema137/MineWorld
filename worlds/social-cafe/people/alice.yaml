@@ -18,10 +18,15 @@ name: Alice Moreau
 # nothing for five hours, and the restart tests' "revision unchanged" claims rely on that
 # (tools/cli/tests/restart.rs, milestone_b.rs). Those tests check this first and fail naming it, so
 # moving a boundary into 00:00–05:00 breaks them loudly, not mysteriously.
+#
+# Every part of a day here lasts at least four hours, and five or more where the way there is long (the
+# park and the store from the apartments). A headless run consults each person every fifteen minutes
+# and a stride is at most two metres, so crossing town takes about two and a half hours, nearly four
+# for one journey in ten (step-09 §9 E-C8): a shorter part of the day would be over before anybody
+# arrived.
 routine:
   - { from: "05:30", place: cafe, label: work }
-  - { from: "14:00", place: store, label: errands }
-  - { from: "15:30", place: park, label: walk }
+  - { from: "14:00", place: park, label: walk }
   - { from: "18:00", place: apartments, label: home }
 
 tags:
