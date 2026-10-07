@@ -75,7 +75,7 @@ route.
 ```text
 observer() at() self_location() place()
 entities() ids() entity(id) tagged(tag) location_of(id)
-component(id, component_type) own_component(component_type)
+component(id, component_type) own_component(component_type) display_name(id)
 relations() events() affordances()
 affordance(action_type, target := "") may(action_type, target := "")
 unavailable_reason(action_type, target := "") requirement(action_type, target := "")
@@ -84,6 +84,11 @@ frame        the dictionary exactly as it arrived
 ```
 
 `may()` **reports** the server's verdict. It does not compute one, and neither may you.
+
+`display_name(id)` is what a person is called: the `naming` System Pack's `display-name` record,
+payload `{ "name": "Alice Moreau" }`, disclosed about everybody the observer perceives
+(`docs/DECISIONS.md` `ARC-31`). It answers `""` when the world told this observer no name — show
+something else the frame carries then, such as the id, and never a name of your own making.
 
 ### `MineWorldSpace` — static, and the only place the axes are converted
 

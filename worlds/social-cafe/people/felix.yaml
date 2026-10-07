@@ -3,6 +3,15 @@
 # A customer, not the person who runs it: who runs a shop is employment, which this world does not
 # install (`places/store.yaml`).
 
+name: Felix Okafor
+
+# His day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
+# the restart tests, explained in alice.yaml and checked by those tests.
+routine:
+  - { from: "08:00", place: store, label: errands }
+  - { from: "13:00", place: cafe, label: coffee }
+  - { from: "17:00", place: apartments, label: home }
+
 tags:
   - neighbour
 

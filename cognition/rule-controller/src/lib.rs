@@ -58,6 +58,7 @@ use mineworld_contracts::{
     Action, ActionRecord, ActionRequest, Component, EntityId, Observation, PerceivedEntity,
 };
 use mineworld_conversation::{ConversationHistory, Heard, Talk, UTTERANCE_MAX_BYTES, Utterance};
+use mineworld_naming::DisplayName;
 use serde_json::Value;
 
 /// How much of somebody's words this controller quotes back.
@@ -118,7 +119,7 @@ impl RuleController {
                 self.answered.get(speaker) != Some(*heard) && may_talk_to(observation, *speaker)
             })?;
 
-        let said = reply_to(heard, &newest, speaker)?;
+        let said = reply_to(heard, &newest, speaker, observation)?;
         self.answered.insert(speaker, heard.clone());
         Some(
             ActionRequest::new(me, ActionRecord::new::<Talk>(encoded(&Talk::new(said))))
@@ -189,23 +190,27 @@ fn may_talk_to(observation: &Observation<Value>, person: EntityId) -> bool {
 /// sentence can only be produced by a Person who holds both conversations, which is what "there is
 /// only one Alice" means.
 ///
-/// People are named by identity, because in this world nothing owns a display name: a name is
-/// component state, and a controller that invented one would be inventing world data (`DD-13`). The
-/// day a pack owns and discloses a name, this reads it out of the same observation.
+/// The other speaker is named by the display name the observation discloses about them — `naming`'s
+/// `display-name`, read here and never invented, since a name is component state and a controller
+/// that made one up would be inventing world data (`DECISIONS.md` `ARC-31`). When the observation
+/// discloses none — they have left the room, or the world has no `naming` — they are "someone else":
+/// never an entity id, which is the world's bookkeeping and not something a person says.
 fn reply_to(
     heard: &Heard,
     newest: &BTreeMap<EntityId, &Heard>,
     speaker: EntityId,
+    observation: &Observation<Value>,
 ) -> Option<Utterance> {
     let mine = quoted(heard.utterance().as_str());
     let said = match newest
         .iter()
         .find(|(other, _)| **other != speaker)
-        .map(|(other, theirs)| (other, quoted(theirs.utterance().as_str())))
+        .map(|(other, theirs)| (*other, quoted(theirs.utterance().as_str())))
     {
-        Some((other, theirs)) => format!(
-            "I remember you. You said \"{mine}\". Earlier, person {other} said \"{theirs}\" to me."
-        ),
+        Some((other, theirs)) => {
+            let who = disclosed_name(observation, other).unwrap_or_else(|| SOMEONE.to_owned());
+            format!("I remember you. You said \"{mine}\". Earlier, {who} said \"{theirs}\" to me.")
+        }
         None => format!(
             "I remember you. You said \"{mine}\". You are the first person to speak to me here."
         ),
@@ -218,6 +223,21 @@ fn reply_to(
         "a reply fits an utterance"
     );
     Utterance::new(said).ok()
+}
+
+/// What a person who is not named in the observation is called in a reply.
+const SOMEONE: &str = "someone else";
+
+/// The display name an observation discloses about `person`, decoded with `naming`'s own type.
+fn disclosed_name(observation: &Observation<Value>, person: EntityId) -> Option<String> {
+    let record = observation
+        .entity(person)?
+        .components()
+        .iter()
+        .find(|record| *record.component_type() == DisplayName::COMPONENT_TYPE)?;
+    let name: DisplayName =
+        serde_json::from_value(record.payload_for::<DisplayName>().ok()?.clone()).ok()?;
+    Some(name.name().as_str().to_owned())
 }
 
 /// Somebody's words, short enough to quote inside a reply.
@@ -240,6 +260,7 @@ fn encoded(value: &Talk) -> Vec<u8> {
     serde_json::to_vec(value).expect("a request payload is JSON-representable by construction")
 }
 
+mod agenda;
 mod paced;
 mod social;
 
@@ -253,3 +274,6 @@ mod paced_tests;
 
 #[cfg(test)]
 mod social_tests;
+
+#[cfg(test)]
+mod agenda_tests;

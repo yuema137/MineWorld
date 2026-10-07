@@ -97,15 +97,23 @@ pub fn biography(request: &BiographyRequest<'_>) -> Result<(), String> {
         .filter(|fact| selected.contains(fact.event_type()) && names(fact, person))
         .collect();
 
+    // Display names, from the save's own `named` facts through naming's projection of them, so this
+    // command still decodes no pack's payload itself (ARC-31). A world without naming names nobody.
+    let names = mineworld_naming::names_in(&facts);
+    let display = |id: EntityId| names.get(&id).map(|name| name.as_str().to_owned());
     let name = |id: EntityId| {
         keys.get(&id)
             .map_or_else(|| format!("entity {}", id.raw()), ToString::to_string)
+    };
+    let named = |id: EntityId| match display(id) {
+        Some(display) => format!("{} \"{display}\"", name(id)),
+        None => name(id),
     };
     if !request.json {
         let types: Vec<&str> = selected.iter().map(EventTypeId::as_str).collect();
         println!(
             "biography  {} (entity {}) in {}: {} entries from {} facts; biographical: {}",
-            request.person,
+            named(person),
             person.raw(),
             pack.id(),
             entries.len(),
@@ -115,8 +123,10 @@ pub fn biography(request: &BiographyRequest<'_>) -> Result<(), String> {
     }
     for fact in entries {
         let place = fact.place().map(|place| name(place.entity_id()));
-        let others: Vec<String> = counterparts(fact, person).into_iter().map(name).collect();
+        let met = counterparts(fact, person);
         if request.json {
+            let others: Vec<String> = met.iter().copied().map(name).collect();
+            let their_names: Vec<Option<String>> = met.iter().copied().map(display).collect();
             println!(
                 "{}",
                 json!({
@@ -125,9 +135,12 @@ pub fn biography(request: &BiographyRequest<'_>) -> Result<(), String> {
                     "event_type": fact.event_type().as_str(),
                     "place": place,
                     "counterparts": others,
+                    "name": display(person),
+                    "counterpart_names": their_names,
                 })
             );
         } else {
+            let others: Vec<String> = met.iter().copied().map(named).collect();
             let at = fact.at().seconds();
             println!(
                 "  t{at:<10} day {:<4} {}  #{:<8} {:<24} at {:<10} with {}",

@@ -29,14 +29,14 @@
 
 use mineworld_contracts::{
     Action, ActionRecord, ActionRequest, Component, EntityId, EntityType, LocalPosition, Location,
-    Millimetres, Observation, PerceivedEntity, SimDuration,
+    Millimetres, Observation, PerceivedEntity, PlaceId, SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
 use mineworld_movement::{MAX_STRIDE, Move, Passage, Passages};
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::social;
+use crate::{agenda, social};
 use crate::{disclosed_history, may_talk_to, newest_per_speaker, reply_to};
 
 /// How close an approach stops short of the person approached: near enough to talk, not on top of
@@ -120,6 +120,18 @@ impl PacedRuleController {
         if let Some(reply) = self.answer(observation, &draw) {
             return Some(reply);
         }
+        // Then the day: away from where my agenda says, usually head there; at it, stay — no doorway
+        // (`agenda.rs`). No agenda disclosed, nothing here changes and no draw is taken.
+        let mine = agenda::own(observation);
+        let at_agenda = mine
+            .as_ref()
+            .is_some_and(|agenda| agenda::is_there(observation, agenda));
+        if let Some(agenda) = mine.as_ref().filter(|_| !at_agenda)
+            && agenda::follows(&draw)
+            && let Some(step) = self.head_for(observation, agenda.place())
+        {
+            return Some(step);
+        }
         // Part of an activity: sometimes leave it, and never head for a door — walking into another
         // place would leave it anyway. Part of nothing: sometimes invite somebody, or join somebody.
         let member = social::in_activity(observation);
@@ -131,12 +143,13 @@ impl PacedRuleController {
         if social.is_some() {
             return social;
         }
-        let leave = |observation| {
-            if member {
-                None
-            } else {
-                self.leave(observation)
-            }
+        // Heading for a door: never while part of an activity, never away from the agenda's place, and
+        // — with an agenda elsewhere — only ever the door toward it, so a person on their way takes
+        // no detour through somebody else's door. With no agenda, the seeded door, as before.
+        let leave = |observation| match &mine {
+            _ if member || at_agenda => None,
+            Some(agenda) => self.head_for(observation, agenda.place()),
+            None => self.leave(observation),
         };
         let roll = draw.below(100, 0);
         let passing_through = observation
@@ -173,7 +186,7 @@ impl PacedRuleController {
         if draw.below(100, 1) >= ANSWERS {
             return None;
         }
-        let said = reply_to(heard, &newest, *speaker)?;
+        let said = reply_to(heard, &newest, *speaker, observation)?;
         Some(ActionRequest::new(me, record(&Talk::new(said))).with_target(*speaker))
     }
 
@@ -187,7 +200,6 @@ impl PacedRuleController {
     /// lowest-numbered place and never back (`step-09-social.md` F-6).
     fn leave(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
         let here = *observation.self_location()?;
-        let from = here.local()?;
         let doors: Vec<Passage> = doorways(observation, here)?.iter().copied().collect();
         let window = observation
             .at()
@@ -199,17 +211,47 @@ impl PacedRuleController {
             window,
         ) % (doors.len() as u64);
         let passage = *doors.get(usize::try_from(chosen).ok()?)?;
-        let door = passage.here()?;
-        if within(from, door, i64::from(MAX_STRIDE.value())) {
-            // Through: to the same doorway on the other side, which is within a stride of itself.
-            let there = passage.there()?;
-            return walk(
-                observation,
-                Location::in_place(passage.to()).with_local(there),
-            );
-        }
-        walk(observation, here.with_local(toward(from, door, 0)?))
+        through(observation, here, passage)
     }
+
+    /// Toward `place`: through the doorway that leads there if this place discloses one, otherwise
+    /// through the seeded door [`Self::leave`] would take — which in a star town is the way to the
+    /// street, and from the street every place is one door away (`step-09-social.md` L-3). The route
+    /// is never computed beyond "the disclosed door whose `to` is the place".
+    pub(crate) fn head_for(
+        &self,
+        observation: &Observation<Value>,
+        place: PlaceId,
+    ) -> Option<ActionRequest> {
+        let here = *observation.self_location()?;
+        let leads_there = doorways(observation, here)?
+            .iter()
+            .copied()
+            .find(|passage| passage.to() == place);
+        match leads_there {
+            Some(passage) => through(observation, here, passage),
+            None => self.leave(observation),
+        }
+    }
+}
+
+/// A stride toward `passage`'s doorway, or through it when it is a stride away.
+fn through(
+    observation: &Observation<Value>,
+    here: Location,
+    passage: Passage,
+) -> Option<ActionRequest> {
+    let from = here.local()?;
+    let door = passage.here()?;
+    if within(from, door, i64::from(MAX_STRIDE.value())) {
+        // Through: to the same doorway on the other side, which is within a stride of itself.
+        let there = passage.there()?;
+        return walk(
+            observation,
+            Location::in_place(passage.to()).with_local(there),
+        );
+    }
+    walk(observation, here.with_local(toward(from, door, 0)?))
 }
 
 /// The seeded draws for one decision: a pure function of the seed, the observer and the instant.

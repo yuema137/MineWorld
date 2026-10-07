@@ -361,6 +361,9 @@ func _report(observation: MineWorldObservation) -> void:
 			types.append(String(record.get("component_type", "")))
 		if not types.is_empty():
 			_note("      components %s" % JSON.stringify(types))
+		var name := observation.display_name(String(id))
+		if not name.is_empty():
+			_note("      name       %s (read through MineWorldObservation.display_name)" % JSON.stringify(name))
 		var passages: Dictionary = observation.component(String(id), "passages")
 		if not passages.is_empty():
 			_note("      doorways   %d (read through MineWorldObservation.component)" % [
@@ -472,7 +475,9 @@ func _draw_people(observation: MineWorldObservation) -> void:
 		if facing != null:
 			var heading := MineWorldSpace.yaw_to_2d_radians(facing)
 			draw_line(at, at + Vector2(cos(heading), sin(heading)) * 20.0, colour, 1.5)
-		_text(at + Vector2(14, 4), String(id), colour)
+		# By name when the world disclosed one (naming's `display-name`), otherwise by id — never by
+		# a key, which is authoring vocabulary the world never sends.
+		_text(at + Vector2(14, 4), _called(observation, String(id)), colour)
 
 
 func _draw_affordances(observation: MineWorldObservation) -> void:
@@ -506,10 +511,16 @@ func _draw_history(observation: MineWorldObservation) -> void:
 		_text(Vector2(16, y), "nothing yet", Color(0.55, 0.60, 0.70))
 		return
 	for entry in heard:
-		var speaker := String(entry.get("speaker", {}).get("entity", "?"))
+		var speaker := _called(observation, String(entry.get("speaker", {}).get("entity", "?")))
 		var said := String(entry.get("utterance", ""))
 		_text(Vector2(16, y), "%s: %s" % [speaker, said.substr(0, 64)], Color(0.80, 0.85, 0.95))
 		y += 18.0
+
+
+## What to call somebody on screen: the name the world disclosed, or their id when it disclosed none.
+func _called(observation: MineWorldObservation, id: String) -> String:
+	var name := observation.display_name(id)
+	return name if not name.is_empty() else id
 
 
 func _colour(entity: Dictionary) -> Color:

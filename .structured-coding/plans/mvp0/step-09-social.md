@@ -10,7 +10,11 @@ commit; 10b and 10c frozen at the step level and detailed after the previous PR 
 **PR 10a implementation context:** `CLOSED / AWAITING OPERATOR ACTION` — PR 10a `READY FOR OPERATOR
 REVIEW`, GitHub #29 (§12); §4.1 ledger, §9 evidence. 10a merged as `2f24eef` (overall §7).
 **PR 10b:** detailed to the commit in §4.2.1–4.2.6 on `main @ 0592b3e` — `DESIGN FROZEN`
-2026-10-07 (§4.2.6, QB-1…QB-4 answered).
+2026-10-07 (§4.2.6, QB-1…QB-4 answered). Merged as `85451c7`.
+**PR 10c:** detailed to the commit in §4.3.1–4.3.7 on `main @ 266daf7`, with people's names added
+as approved scope. `DESIGN FROZEN` at `805bf4d` (§4.3.7). **PR 10c implementation context:**
+`CLOSED / AWAITING OPERATOR ACTION` — READY FOR OPERATOR REVIEW, GitHub #33 (§12.2); final executable
+head `8dee781`.
 
 ## DESIGN FROZEN
 
@@ -1552,6 +1556,1118 @@ C5  the run: agenda-changed per person per day located; `inspect` now meets Proc
     keep counting them, decided from the audit then; gates; docs
 ```
 
+The block above is the frozen step-level outline and stays as frozen. §§4.3.1–4.3.7 detail it to the
+commit. They also add **people's names**, a scope addition approved for 10c by the primary session
+(§4.3.1). They are a **draft for review**, not frozen: `DESIGN FROZEN` for 10c is recorded only by the
+primary session (§4.3.7).
+
+### 4.3.1 Identity, base, approved scope, and what the re-audit found
+
+```text
+PR            10c — the content seam, names and routines (S8, third of three)
+base          main @ 266daf7 (10b merged as 85451c7; 266daf7 is the docs-only post-merge update)
+branch        mvp0/pr-10c-social, worktree /Users/yuema137/mineworld-worktrees/s8-social, held by this
+              session only (vis-environment and vis-character belong to other agents)
+audit         §8.5 (files and symbols read on 266daf7)
+```
+
+**Approved scope, and where each part comes from.**
+
+1. **The frozen outline above, as Q9 amended it** (§10.1). It covers the generic content seam,
+   `systems/schedule`, the paced controller following its agenda, routines for the population, and
+   the `inspect` decision.
+2. **People's names**, added by the primary session in the 10c brief. The operator ran the 3D café
+   slice against the real world. No name ever appeared: the client showed only tags such as
+   `regular`, and Alice's replies read "Earlier, person 4 said …".
+
+   The cause is in the world data. `worlds/social-cafe/people/alice.yaml:3–5` says a name "is
+   component state, a component is owned by a system, and no system in this world owns one yet".
+   A name is therefore the seam's **second user**, beside routines. It is approved scope, not a
+   deviation (§4.3.5).
+
+The re-audit found sixteen things:
+
+```text
+C-1  Names have no owner anywhere, and every reader has a placeholder for one:
+     - alice.yaml:3–5 (no system owns a name);
+     - rule-controller lib.rs:192–194 ("the day a pack owns and discloses a name, this reads it out
+       of the same observation") and lib.rs:207 ("Earlier, person {other} said");
+     - clients/protocol/demo/demo.gd:475 (a person is labelled with the raw entity id; tags only
+       choose the colour) and :509 (the history panel names the speaker by id);
+     - tools/cli/src/biography.rs:100–103 (keys only).
+C-2  "identity" is the kernel's word. CLAUDE.md §4 rule 2: "The kernel knows identity". contracts/ and
+     kernel/ use it for EntityId throughout, and ac15_one_alice.rs:233 says "named the other speaker
+     by identity". A System Pack called `identity` would reuse a defined term for a different concept
+     (CLAUDE.md §2.1(3)). The pack is therefore called `naming` (QC-2).
+C-3  The seam's trait has no home in an existing crate:
+     - kernel/ and contracts/ are frozen for S8 (I-1);
+     - a System Pack cannot depend on worldpack, because worldpack depends on every System Pack
+       (worldpack/Cargo.toml) and that would be a cycle.
+     So the trait lives in a new crate below the System Packs and beside the kernel (QC-4).
+C-4  serde-saphyr 1.3 exposes `with_deserializer_from_str` (src/de/with_deserializer.rs:151). A
+     section can therefore be decoded by its owner's type **straight from the YAML stream**, through
+     a `DeserializeSeed`, and keep the line and column that were DEP-10's reason for choosing the
+     crate. No untyped intermediate value is needed. The DEP-10 isolating interface stays inside
+     `worldpack::read`.
+C-5  Genesis attributes a fact to `Event::OWNER` (kernel/src/system.rs:276–286) and checks no
+     dependency rule. A section could therefore seed another pack's vocabulary at genesis, which
+     ARC-26 forbids a running system to do without a dependency. Worldpack must refuse any seeded
+     emission whose owner is not the section's owner.
+C-6  Moving `location` (and `passages`) onto the seam is NOT a no-op, so per Q9 they stay where they
+     are:
+     - presence and movement would have to export section types and seeding functions, and I-1
+       forbids editing either;
+     - refusals.rs pins the variants the move would replace: PersonInUnknownPlace,
+       PassageToUnknownPlace, PassageToItself, PassageStatedTwice, and ContentNeedsASystem with
+       content "location"/"passage".
+     The reason is recorded in ARC-31 and in MODULE_SPEC §4.1.
+C-7  A `react` may start a process (kernel/src/view.rs:332, `WorldView::start_process`), and genesis
+     runs reducers (the `Weather` example, kernel/src/dispatch.rs:350–367). So schedule can start a
+     person's routine process while it reduces that person's genesis `routine-assigned`.
+C-8  Both drivers begin a world at `WorldTime::EPOCH`, which is 00:00:
+     - `run` at run.rs:194;
+     - the server at server/src/host.rs:203, then one world second per wall second
+       (server/runtime.rs:8).
+     An `advance` is journaled only when an instant fires (ARC-25). If no routine boundary falls
+     between 00:00 and 05:00, then:
+     - a freshly hosted world stays quiet for five hours, so restart.rs's revision literals
+       (:51–211) and ac15's head hold;
+     - a save that ends at a day boundary also stays quiet for five hours, which is milestone_b's
+       "welcome revision unchanged" after the server restart.
+     This is a content rule for social-cafe, not a schedule rule.
+C-9  A name reaches a controller only through perception: `discloses` is called once per perceived
+     entity (systems/presence/src/interaction.rs:95–126), and disclosure is filtered to enabled
+     owners (observe.rs). The reply's "earlier" speaker may have left the room. Their name is then
+     not in the observation, and the reply falls back to neutral wording. The controller never
+     invents a name and never falls back to an id.
+C-10 Literal coupling (delegated audit, every file that loads the pack). Literal-only updates under
+     I-5:
+     - genesis count 17 → 53 (commands.rs:39; worldpack social_cafe.rs:214–217);
+     - composition lists (social_cafe.rs:64–74, server_command.rs:43–53, inspect.rs:35–37,
+       social_composition.rs:210–213; commands.rs:34 is a prefix substring and survives because
+       `naming` and `schedule` are appended after `relationships`);
+     - the reply's id (ac15_one_alice.rs:228–235 → the disclosed name; rule-controller
+       tests.rs:198–202 → see C4).
+     Unchanged, because no entity is added and neither pack reacts to a move or a talk:
+     - entity ids (ac13 observer 17, server_command, commands);
+     - the first talk's 4 facts (restart.rs:81, ac15:155);
+     - the revision literals (C-8);
+     - social_cafe.rs:660 (a visitor's two moves produce exactly arrived, arrived,
+       person-entered-place).
+C-11 Every history-dependent test locates rather than pins (milestone_b, run_restart, run's
+     per-place counts, social_composition, biography). Agendas change every run's history, so their
+     claims stay as they are and must be re-measured:
+     - run.rs:92–99 needs every place entered, so every place appears in some routine;
+     - milestone_b needs Alice and Bob together, so their routines share the café every morning;
+     - milestone_b also needs a downward relationship change within 30 days.
+C-12 The kernel records no fact when a process starts. Process lifecycle is journal-re-executed
+     state, not history (ARC-25). So a generic log reader cannot resolve `Causation::Process(p)`
+     without decoding pack payloads. Decision: `inspect` keeps counting process causes (its output
+     already says why). CP-4's cause check lives in the tests' oracle, which decodes schedule's own
+     payload (QC-8).
+C-13 The Godot protocol module carries component records generically:
+     - `observation.gd:102–120` `component(id, type)` returns `{}` unless the payload is a JSON
+       object;
+     - unknown types are kept and ignored (demo.gd:357–358).
+     Receiving a name needs no change; showing one does (C-1). No test reads the transcripts, and
+     ac13 replays only request-{2d,3d}.json, as observer 17, which is unaffected.
+C-14 `mineworld biography` already builds the pack's world at EPOCH (biography.rs:67) and reads the
+     save's facts. Names can come from the save's own `named` facts, through naming's published
+     projection, so the command still names no event type of its own.
+C-15 Test count: grep finds 369 `#[test]`/`#[tokio::test]` functions in the workspace members. 10b's
+     final gate reported 381 passed. The difference is presumably doctests; this is not verified.
+     The number is re-read from the first full gate, never assumed.
+C-16 `mineworld create`'s template has neither naming nor schedule (create.rs:30–35). Its seats must
+     still move and talk, so with no `Agenda` disclosed the paced controller must decide exactly as
+     today. This is a parity requirement (C7).
+```
+
+### 4.3.2 The shapes 10c adds
+
+**`authoring/`**: a new crate, `mineworld-authoring`. It is the seam between authored World Pack
+content and the System Pack that owns it. It depends on `mineworld-contracts`, `mineworld-kernel` and
+`serde`. It has no format library and knows no pack.
+
+```text
+SectionName       a validated slug (1–32 bytes of [a-z0-9-]), `from_static` for constants
+ContentKind       Person | Place — moved here from worldpack::error, which re-exports it
+Reference         { key: &EntityKey, entity_type: EntityType }: another entity a section names
+Seeding<'a>       what an owner is handed when it seeds: the assembled world (read-only) and the
+                  key → EntityId map, with typed lookups (`place(key)`, `person(key)`)
+trait AuthoredSection: SystemIdentity
+  const SECTION: SectionName                  the key this pack owns in a content file
+  const CARRIED_BY: &'static [ContentKind]    the files that may carry it
+  type Authored: DeserializeOwned + Debug + Send + Sync + 'static
+                                              the section as authored. Deserializing it IS the
+                                              owner's validation, so an invalid section cannot be
+                                              constructed
+  fn references(&Self::Authored) -> Vec<Reference>
+                                              the keys it names, each with the entity type it must
+                                              be; default none
+  fn seed(&Seeding, subject: EntityId, &Self::Authored) -> Result<Vec<Emission>, Rejection>
+                                              genesis facts in this pack's own vocabulary, built
+                                              with its own codec
+```
+
+**The seam in `worldpack`.** Worldpack never names a section's type and never reads a section's
+contents. The match in `catalog.rs` that already says which crate each capability is (`install`,
+`provider`, `biographical`) gains one arm per section owner (F-1 is unchanged).
+
+```text
+catalog   Capability::section(self) -> Option<SectionOwner>: name, carried-by, and two monomorphic
+          entry points, decode (from a serde Deserializer) and seed, each generic over the owner's
+          AuthoredSection impl
+format    AuthoredPerson / AuthoredPlace keep their fields and gain `sections`: the decoded sections,
+          type-erased (Arc<dyn AuthoredContent>), in the file's order
+read      a content file is parsed through a DeserializeSeed that knows the enabled sections for its
+          kind. For each top-level key:
+            a format field                         → its typed field, as today
+            a section an enabled pack owns         → decoded by the owner's type, from the stream
+            a section this build has, not enabled  → refused ContentNeedsASystem { content: <section>,
+                                                     system } (MODULE_SPEC §4.1 rule 4, as `location`)
+            a section owned, but not in this kind  → refused SectionNotCarriedHere
+              of file
+            anything else                          → serde's own "unknown field", listing the format
+                                                     fields and the sections this build knows; line
+                                                     and column kept
+          then (new check 10): every Reference names a declared key of the stated entity type, or
+          the pack is refused SectionNamesUnknownEntity { subject, section, key, expected, path }
+load      initial_facts: passages, then locations, exactly as today (their event ids do not move);
+          then, for places in key order and then people in key order, each section in composition
+          order: the owner's `seed`. Two refusals:
+            SectionRefusedByOwner { subject, section, system, reason }  the owner's own Rejection;
+            SectionStatedAnotherPacksFact { section, system, event_type } an emission whose
+                                         Event::OWNER is not the section's owner (C-5)
+guard     a unit test over AVAILABLE: no two capabilities claim one section name, and no section
+          shadows a format field (tags, note, location, passages). This is a structural guard over a
+          closed catalog. A refusal at read time would be unreachable in this build.
+```
+
+**`systems/naming`**: crate `mineworld-naming`, `NamingSystem`, id `naming`. No system dependency, no
+action, no process.
+
+```text
+Name           validated: 1–64 bytes of UTF-8, no control characters, no leading or trailing
+               whitespace; refused at construction and on deserialization
+owns           DisplayName (component type `display-name`), payload `{ "name": "<Name>" }`. A JSON
+               object, because the Godot module reads only object payloads (C-13)
+facts          named { person: PersonId, name } — stated only at genesis; Visibility::Public; about
+               and participants [person]. Reduced by naming alone into DisplayName
+section        `name`, carried by person files; Authored = Name (a scalar: `name: Alice Moreau`);
+               seed = [named]
+discloses      the subject's DisplayName to every observer who perceives the subject, oneself
+               included. Names are public in 10c
+published      names_in(&[EventEnvelope]) -> BTreeMap<EntityId, Name>: naming's own projection of its
+               own facts, latest per person. For readers of a save (biography), so no reader decodes
+               naming's payload itself (the Q6 condition, applied to readers)
+BIOGRAPHICAL   none (a name is not an event in a life)
+later options  (recorded, not built) names for places; a rename/introduce action; disclosure gated on
+               acquaintance, which would couple naming to relationships' state and is a decision for
+               the step that wants strangers to stay nameless
+```
+
+**`systems/schedule`**: crate `mineworld-schedule`, `ScheduleSystem`, id `schedule`. It is an
+**agenda, never a mover** (SD-13, Q8). No action. It states no fact in any other pack's vocabulary, so
+it **cannot** move anyone: the registry would refuse it.
+
+```text
+TimeOfDay      seconds 0..86 400, authored "HH:MM"
+AgendaLabel    a slug, 1–32 bytes of [a-z0-9-] ("work", "coffee", "home"); content, uninterpreted
+Segment        { from: TimeOfDay, place: PlaceId, label: AgendaLabel }
+section        `routine`, carried by person files. Authored = a list of { from: "HH:MM", place: <key>,
+               label } that is refused on decoding unless:
+               - it has 2..=24 segments;
+               - `from` is strictly increasing;
+               - neighbouring segments differ in place or label, including the last against the
+                 first, since the day wraps (a boundary that changes nothing is not a boundary).
+               references = every place key, as a Place. seed = [routine-assigned]
+owns           Routine (on the person): the segments
+               Agenda (on the person): { place, label, since, until, routine: ProcessId }
+               the process kind `routine`: one per person, participants [person], no place; its
+               expected end is the next boundary
+facts          routine-assigned { person, segments } — at genesis only, Visibility::Participants
+               agenda-changed { person, place, label, until, routine } — Visibility::Participants,
+               about and participants [person], no envelope place (the change does not happen at the
+               agenda's place)
+react          routine-assigned → insert Routine; start the routine process (C-7); emit
+                                  agenda-changed for the segment the instant falls in (caused by the
+                                  assignment)
+               agenda-changed   → insert Agenda (the only writer of Agenda is this reduction)
+wake           the routine process: the segment now in force; reschedule the process to the next
+               boundary; emit agenda-changed (Causation::Process). The process never ends
+time of day    world seconds since the epoch, modulo 86 400: schedule's own convention, unknown to the
+               kernel (INV-12)
+discloses      Agenda to its holder only (INV-13). Routine is not disclosed in 10c
+dependency     none. A place is checked to be a Place through the kernel's entity registry, which needs
+               no presence. This refines §2.3's "reads presence"; it is bounded and recorded
+BIOGRAPHICAL   agenda-changed (SD-12). Validation guarantees every one is a real change
+```
+
+**`PacedRuleController` follows its agenda**: `cognition/rule-controller/src/agenda.rs`, one call
+in `decide`.
+
+```text
+order         invitation answer → line reply → AGENDA → member's leave / non-member's initiative →
+              walking scheme
+              (being addressed keeps precedence over initiative, D-B5; SD-15's "before anything
+              else" is refined to "before any initiative", QC-6)
+away          my disclosed Agenda names a place I am not in, and draw(13) < FOLLOWS_AGENDA (90 of 100)
+              → head for the door whose `to` is the agenda's place, if this place discloses one;
+              otherwise for the seeded door (today's `leave`). This is exact in a star town (L-3).
+              A member who walks out leaves its activity, as today
+there         at the agenda's place: the doorway band is suppressed, as it is for a member. Greeting,
+              approaching, wandering, inviting and joining go on unchanged
+no agenda     an observation with no Agenda decides exactly what it decides today (C-16), byte for
+              byte
+stateless     the agenda is world state disclosed to the observer, so a rebuilt controller decides
+              identically (ARC-27, I-3)
+```
+
+**Names in what people say and read.**
+
+```text
+reply_to      (lib.rs; shared by RuleController and PacedRuleController) takes the observation. The
+              "earlier" speaker is named by the DisplayName the observation discloses about them,
+              decoded with naming's type: "Earlier, Vera Lindgren said …". Undisclosed (not
+              perceived, or no naming in the world): "Earlier, someone else said …". Never an id.
+              Who is chosen, and when anyone answers, is unchanged (I-9's decisions; only the
+              wording changes)
+biography     header `biography  alice "Alice Moreau" (entity 7) …`; each line's place and
+              counterparts as `key "Name"` where named. --json gains `name` and `counterpart_names`
+              (aligned with `counterparts`, null where unnamed) and changes no existing field. Names
+              come from naming's `names_in` over the save's facts, only when the save's composition
+              includes naming
+Godot         clients/protocol/mineworld/observation.gd: `display_name(id) -> String` ("" when
+              undisclosed), documented in ADOPTION.md. demo.gd labels a person with the name (falling
+              back to the id), the history panel names the speaker the same way, and the transcript
+              `_report` prints `name "…"` per perceived person
+```
+
+**`worlds/social-cafe`** gains `naming` and `schedule` at the end of `systems:` (neither depends on
+anything, nothing depends on them, and appending keeps every existing reduction order). Each of the
+twelve people gets a `name:` and a `routine:`. alice.yaml's "she has no name" comment is replaced. The
+proposed names and routines are content, settled in C3/C6 and changeable on the operator's word:
+
+```text
+key        name             routine (from → place:label), every boundary inside 05:00–23:00 (C-8)
+alice      Alice Moreau     05:30 cafe:work · 14:00 store:errands · 15:30 park:walk · 18:00 apartments:home
+bob        Bob Achterberg   07:00 cafe:coffee · 10:00 park:read · 13:00 cafe:lunch · 15:00 store:errands
+                            · 19:00 apartments:home
+carol      Carol Mensah     08:00 store:shopping · 10:00 park:walk · 12:00 cafe:lunch · 14:00 apartments:home
+dev        Dev Raman        06:00 park:run · 08:00 cafe:breakfast · 09:00 workplace:work · 17:00 park:run
+                            · 19:00 apartments:home
+erin       Erin Walsh       09:00 park:read · 12:30 cafe:lunch · 14:00 park:read · 18:00 apartments:home
+felix      Felix Okafor     09:00 store:errands · 10:00 cafe:coffee · 12:00 park:walk · 16:00 store:errands
+                            · 18:00 apartments:home
+grace      Grace Liu        07:30 cafe:coffee · 08:30 workplace:work · 12:00 cafe:lunch · 13:00 workplace:work
+                            · 17:30 store:errands · 19:00 apartments:home
+hana       Hana Sato        08:00 workplace:work · 12:00 park:lunch · 13:00 workplace:work · 17:00 cafe:coffee
+                            · 19:00 apartments:home
+ivan       Ivan Petrov      07:00 street:stroll · 11:00 cafe:chat · 13:00 street:stroll · 16:00 park:walk
+                            · 20:00 apartments:home
+otto       Otto Brandt      09:00 store:errands · 10:00 apartments:home       (not a seat: never driven)
+visitor    Vera Lindgren    08:00 cafe:visit · 12:00 park:sightsee · 15:00 store:shopping · 17:00 cafe:visit
+                            · 21:00 apartments:stay
+wanderer   Wes Calloway     09:00 street:wander · 11:00 cafe:visit · 14:00 park:wander · 18:00 street:wander
+                            · 22:00 apartments:stay
+```
+
+Every place is in some routine. Alice and Bob share the café 07:00–10:00 and 13:00–14:00 every day.
+The names differ from the keys, so a test that finds a name cannot be satisfied by a key.
+
+### 4.3.3 Commit plan
+
+Each commit tracks implementation, validation and review separately (§4 preamble). Evidence goes into
+§9 as `E-C<n>`. A commit may split into several coherent commits; the mapping is recorded.
+
+#### C0 — This design (docs only)
+
+- [x] Implementation: §§4.3.1–4.3.7, §8.5, §9 E-C0, §11.2, written from the audit on `266daf7`.
+- [x] Validation: `python3 scripts/check_decision_ids.py`, `python3 scripts/check_doc_headings.py`
+  (§9 E-C0).
+- [x] Review: every finding cites a file and line. Each place where the frozen outline's wording no
+  longer fits is raised as a question (QC-1 … QC-8) rather than routed around: SD-15's ordering, §2.3's
+  "reads presence", and `location`'s migration.
+
+#### C1 — Specs before code: ARC-31, ARC-32, PACKAGE_FORMAT, MODULE_SPEC §4.1
+
+**Goal.** The seam and the agenda exist as reviewable records before any code does (`CLAUDE.md` §2.2).
+**Scope.**
+- `docs/DECISIONS.md` `ARC-31`: a System Pack owns a section of an authored person or place file. It
+  covers:
+  - the trait, its crate and why there (C-3);
+  - decoding from the stream (C-4);
+  - the refusals;
+  - the foreign-fact refusal (C-5);
+  - `location` and `passages` staying, with the reason (C-6);
+  - its two users, `name` (naming: public, disclosed to every perceiver, acquaintance gating a later
+    option) and `routine`.
+- `docs/DECISIONS.md` `ARC-32`: schedule is an agenda, never a mover (SD-13, Q8). It covers the
+  routine process and its wake, the time-of-day convention, self-only disclosure, and no dependency.
+  Two records, because `ARC-16` gives one identifier one decision (QC-3).
+- `docs/PACKAGE_FORMAT.md` §8: the World Pack fields row gains pack-owned sections.
+- `docs/MODULE_SPEC.md` §4.1:
+  - the people example gains `name:` and `routine:`;
+  - a sixth rule: a section belongs to the pack that declares it; the pack must enable that pack; an
+    unknown key is refused; a section is decoded and validated by its owner;
+  - the genesis-order paragraph: passages, locations, then sections.
+
+  MODULE_SPEC §8.1 `biography` notes names.
+
+No code. `CORE_CONCEPTS.md` is untouched.
+**Depends on:** freeze of this section.
+- [x] Implementation: as scope, in the house form (Problem, Options, Choice, Accepted limitations).
+  ARC-32 records the §4.3.7 fixture dependency (the quiet window) among its limitations (E-C1).
+- [x] Validation: both doc scripts PASS (42 ids, all distinct; 142 sections). Remote branches were
+  re-read after `git fetch`: no `ARC-3x` on any `origin/*` branch.
+- [x] Review: no new term outside the vocabulary of `CORE_CONCEPTS`. "Section" is defined in
+  MODULE_SPEC §4.1 as a part of a World Pack content file, and nowhere else. No document says
+  `identity` for the pack: ARC-31 explains why the pack is `naming`.
+
+**Acceptance.** The two records exist and say what C2–C8 then implement.
+**Failure.** A decision text that needs a kernel or contracts change is a material stop (I-1).
+**Boundary.** Docs only.
+
+#### C2 — `authoring` and `systems/naming`
+
+**Goal.** The seam's contract exists, and a first owner implements it with its own typed state and
+disclosure (Q9, the names scope).
+**Scope.**
+- `authoring/{Cargo.toml, src/lib.rs, src/section.rs}`.
+- `systems/naming/{Cargo.toml, src/{lib, name, component, event, section, codec, system}.rs,
+  tests/{support/mod.rs, naming.rs}}`.
+- Root `Cargo.toml`: two members and two workspace dependencies.
+
+No catalog registration yet (C3). No edit to any existing pack (I-1).
+**Depends on:** C1.
+- [x] Implementation (§9 E-C2):
+  - [x] `authoring/src/{lib, section, content}.rs`: `SectionName` (const-checked), `ContentKind`
+    (with `entity_type()`), `Reference`, `Seeding` (with `resolve(key, type)`), `AuthoredSection`.
+    Also `AuthoredContent` + `Decode<S>`: a `DeserializeSeed` that decodes an owner's section and
+    erases its type until seeding.
+  - [x] `systems/naming/src/{lib, name, component, event, section, codec, system}.rs`: `Name`,
+    `DisplayName` (`{ "name": … }`), `Named`, the `name` section, `discloses`, `names_in`.
+- [x] Validation (`cargo test -p mineworld-naming`: 5 passed), over a hand-built world (presence +
+  naming; Alice and Bob in the café, Carol on the street):
+  - [x] genesis `named` → DisplayName reduced by naming, caused by `WorldGenesis`. A person with no
+    section has no name. "A replay from genesis holds the same names" is **moved**, not dropped: it
+    is owned by the real-save `replay`/`verify` runs over the pack in C3/C4, which re-execute genesis.
+    A second hand-built world here would compare the code with itself.
+  - [x] Disclosure: Alice receives Bob's `display-name` (a JSON object) and her own. Carol, on the
+    street, is not perceived from the café, and Carol is told nothing about Alice.
+  - [x] Decoding with serde-saphyr through `<NamingSystem as AuthoredSection>::Authored`:
+    `Alice Moreau` and `Zoë Ångström` are accepted, and 64 bytes passes. `""`, 65 bytes, `"\tAlice"`,
+    `"Al\nice"` and `" Alice"` are each refused with Name's own message.
+  - [x] `seed` refuses the café as a subject (`PreconditionFailed`).
+  - [x] `names_in` over the genesis facts gives two names, the later `named` wins, and it agrees with
+    the reduced DisplayName.
+- [x] Review:
+  - `react` is the only writer (no `resolve`, no `wake`).
+  - `rg "f32|f64|HashMap|HashSet" authoring systems/naming` → none.
+  - `authoring` names no pack, only contracts/kernel/serde.
+  - `cargo fmt --all` applied; `cargo clippy -p mineworld-authoring -p mineworld-naming
+    --all-targets --all-features -- -D warnings` is clean.
+
+**Acceptance.** As validation (§9 E-C2).
+**Failure.** A required kernel or contracts change is a material stop.
+**Boundary.** Two new crates.
+
+#### C3 — The seam in worldpack; naming registered; twelve names
+
+**Goal.** A World Pack carries a pack-owned section. The loader validates it by the owner's type and
+seeds the owner's genesis facts, and the loader never learns what the section means.
+**Scope.**
+- `worldpack/src/{catalog, format, read, load, error}.rs`.
+- `worldpack/Cargo.toml`.
+- `worldpack/tests/{refusals.rs (new cases), social_cafe.rs (literals)}`.
+- `worlds/social-cafe/{world.yaml, people/*.yaml}`: `naming` and twelve `name:` lines.
+- The I-5 literal updates of C-10 (genesis count, composition lists), each listed in §9 E-C3 with its
+  unchanged claim.
+
+`location` and `passages` are not touched (C-6).
+**Depends on:** C2.
+- [x] Implementation (§9 E-C3):
+  - `worldpack/src/content.rs` (new): a `DeserializeSeed` for person and place files. Keys are
+    recognized **inside** `next_key_seed`, so an unknown key keeps its line and column. The first
+    attempt raised the refusal from the map visitor and lost the position; `a_bad_field…` caught it
+    and it was fixed before commit.
+  - `catalog.rs`: `Capability::Naming`, `SectionOwner`, `section()`, `owning_section()`,
+    `decode_section()`.
+  - `format.rs`: `FoundSection` and `SectionState`; the person and place structs lose the
+    `Deserialize` derive and gain `sections`.
+  - `read.rs`: check 10, `check_sections`; `parse_with`, so serde-saphyr is still called from this
+    module only.
+  - `load.rs`: `seeded`, and sections seeded after locations in composition order.
+  - `error.rs`: `ContentKind` re-exported from authoring; three new variants. A clippy
+    `result_large_err` finding was fixed by boxing the owner's `Rejection` and dropping `subject` from
+    the foreign-fact variant, whose `path` already names the file.
+  - Pack: `naming` appended to `systems:`; twelve `name:` lines; alice's "no name" comment replaced.
+- [x] Validation (`cargo test -p mineworld-worldpack`: lib 2, refusals 28, social_cafe 14, doctest 1,
+  all PASS):
+  - [x] `validate`: six systems, `29 genesis fact(s)`. The new test
+    `every_person_is_named_by_the_owner_of_the_name_section_after_everything_else` locates all twelve
+    `named` facts:
+    - each decoded with naming's type, equal to the authored name;
+    - each at an index ≥ 17, emitted by `naming`;
+    - each reduced into DisplayName;
+    - no name equal to its key.
+
+    `sections_do_not_move_the_facts_stated_before_them` loads a copy without naming and without
+    `name:` lines. Its 17 genesis facts equal the full pack's first 17, by (id, type, payload bytes).
+  - [x] Refusals (5 new tests), each named and each with its file path:
+    - ContentNeedsASystem `name`/`naming`;
+    - `line 2 column 1: unknown field \`nmae\`, expected one of \`tags\`, \`note\`, \`location\`,
+      \`name\``;
+    - `line 4 column 7: a name must be …` (the owner's message, at the value);
+    - SectionNotCarriedHere (cafe, place, carried by "person");
+    - plus the positive case: a named person loads as `[arrived, named]`.
+  - [x] Foreign-fact refusal: the `load.rs` unit test `Trespasser` seeds presence's `arrived` →
+    SectionStatedAnotherPacksFact { trespasser, arrived, presence }, and the message names the file.
+  - [x] Catalog guard: `no_two_sections_share_a_name_and_none_shadows_a_field`.
+  - [x] I-5 literals, claim unchanged:
+    - worldpack `the_pack_says_what_world_it_is` (+Naming);
+    - `the_same_pack_loaded_twice…` (17 → 29, message extended);
+    - cli `commands.rs` (the composition now names `naming`, ending at the newline; 17 → 29);
+    - `server_command.rs` (+"naming");
+    - `inspect.rs` (+", naming v1");
+    - `social_composition.rs` without-group-activity list (+", naming v1").
+  - [x] Full workspace (E-C3): 395 passed, 0 failed, 2 min 1 s.
+- [x] Review:
+  - `grep -rn "naming|Naming|DisplayName|\bName\b" worldpack/src` outside catalog.rs → only the
+    English verb "naming" in prose, and the `load.rs` unit test's placeholder owner. `read.rs`,
+    `content.rs` and `load.rs` name no pack type.
+  - The DEP-10 call site is still one module.
+  - fmt and clippy `--workspace -D warnings` are clean.
+
+**Acceptance.** As validation (§9 E-C3).
+**Failure.** If decoding from the stream loses line and column, the fallback is decoding via an
+intermediate value. That is a recorded bounded deviation, not silent.
+**Boundary.** The loader, the catalog and the pack's names.
+
+#### C4 — Names reach what people say and read
+
+**Goal.** Item 4 and the wire half of item 6 of the names scope, with naming's `AC-2`.
+**Scope.**
+- `cognition/rule-controller/{Cargo.toml, src/lib.rs (reply_to), src/tests.rs}`.
+- `tools/cli/{Cargo.toml, src/biography.rs, tests/ac15_one_alice.rs, tests/biography.rs,
+  tests/social_composition.rs}`.
+- `clients/protocol/{mineworld/observation.gd, demo/demo.gd, ADOPTION.md, evidence/*}`.
+
+**Depends on:** C3.
+- [x] Implementation (§9 E-C4):
+  - rule-controller `lib.rs`: `reply_to(…, observation)`, `disclosed_name`, `SOMEONE`; both call
+    sites (`decide`, paced `answer`); Cargo dependency on naming.
+  - cli `biography.rs`: names via `mineworld_naming::names_in` over the save's facts; Cargo
+    dependency on naming.
+  - Godot: `observation.gd` `display_name(id)`; `demo.gd` `_called` (labels and history panel by
+    name, else id) and `name …` lines in `_report`; ADOPTION.md.
+- [x] Validation:
+  - [x] Rule-controller: 22 passed (20 + 2 new).
+    - `she_names_the_other_speaker_by_the_name_she_is_told`: "Earlier, Vera Lindgren said …", and
+      not the addressee's own name.
+    - `the_longest_name_still_fits_a_reply`: 64 bytes beside two 80-character quotations.
+    - `she_tells_the_second_person…` (tests.rs:198–202): **claim replaced**, as approved. It was
+      "named by identity because this world has no display name"; it is now "Earlier, someone else
+      said", and no id appears.
+    - Every other test is unedited.
+  - [x] **AC-15**: `ac15_one_alice` 6 passed. The literal moved from `visitor.raw()` to
+    `disclosed_name(&carried_forward, visitor)`, decoded with naming's type and asserted equal to
+    "Vera Lindgren". The claim ("she named the other speaker") is kept, and every other assertion is
+    untouched.
+  - [x] `biography` 2 passed. Additions, against the authored literals (`social::AUTHORED_NAMES`,
+    never through naming):
+    - the header starts `biography  alice "Alice Moreau" (entity `;
+    - every JSON entry has `name` "Alice Moreau";
+    - `counterpart_names` is aligned with `counterparts`, each equal to the authored name;
+    - a text line shows `bob "Bob Achterberg"`.
+
+    Soundness, completeness and determinism are unchanged and pass.
+  - [x] **AC-2, naming**: `without_naming_every_other_system_is_unchanged_but_for_the_names_people_say`
+    PASS (5.5 s). 33 951 facts compared row for row:
+    - every non-naming fact is equal by (type, at, subjects, participants, place);
+    - payload bytes are equal except `spoke` words;
+    - 1 615 replies differ, each between two replies, and the bare one names nobody;
+    - 1 549 full-world replies say "Earlier, <full name> said" (located);
+    - no bare-world utterance contains any given name;
+    - `requests`, `activity` and `consults` are equal.
+
+    **Bounded deviation D-C1 (oracle corrected):** the plan's "equal after replacing exactly one
+    name with 'someone else'" is false, and the first run showed why. A reply quotes earlier replies,
+    each cut at 80 characters, so names nest and are themselves cut ("Ali…" against "som…"). The
+    text cannot be mapped one onto the other. The asserted property is the one that holds and is
+    the AC-2 point: the controller's decisions are identical, row for row, and only the words of
+    replies differ, the bare world's naming nobody.
+  - [x] **Far side:** `clients/protocol/run.sh evidence` (Godot 4.7.2 headless, real server, 23.5 s):
+    - `server.log`: "18 entities, 6 system(s)";
+    - every transcript lists `name "Alice Moreau"`, "Bob Achterberg", "Vera Lindgren", "Wes
+      Calloway" for the perceived people, read through `MineWorldObservation.display_name`, and
+      `display-name` in the components lists;
+    - `transcript-3d-wanderer.log`: Alice says "… Earlier, Vera Lindgren said \"hello Alice, this is
+      the demonstration scene\" to me.";
+    - `request-{2d,3d}.json` are byte-unchanged (`git diff --stat` lists neither);
+    - `ac13_semantic_parity` and `ac15_one_alice` pass in the full run.
+  - [x] Full workspace: 398 passed, 0 failed, 1 min 50 s.
+- [x] Review:
+  - `reply_to` reads names only through `observation.entity(id).components()`.
+  - RuleController's decisions are unchanged (I-9): the diff adds one argument and the wording
+    branch. `answered`, the speaker choice and `may_talk_to` are untouched, which AC-2's row-for-row
+    equality also shows.
+  - No client computes a name; the demo's fallback is the id.
+  - fmt and clippy `--workspace -D warnings` are clean.
+
+**Acceptance.** As validation (§9 E-C4).
+**Failure.** An AC-15 claim that cannot be kept with a literal update is a material stop.
+**Boundary.** Controller wording, biography output, the Godot module and demo, evidence, tests.
+
+#### C5 — `systems/schedule`
+
+**Goal.** A routine is a schedule-owned Process whose wakes cause the facts that begin each part of a
+day, and it moves no one (SD-13, Q8, CP-4's mechanism).
+**Scope.**
+- `systems/schedule/{Cargo.toml, src/{lib, time, label, segment, component, event, process, section,
+  codec, system}.rs, tests/{support/mod.rs, schedule.rs, persisted.rs}}`.
+- Root `Cargo.toml`.
+
+**Depends on:** C2 (authoring).
+- [x] Implementation (§9 E-C5):
+  - `systems/schedule/src/{lib, error, time, label, segment, component, event, process, codec,
+    section, system}.rs`. The planned file list was `time, label, segment, component, event,
+    process, section, codec, system`; `error.rs` was added for `ScheduleError`.
+  - `Segments<P>` is generic over how a place is named: `EntityKey` as authored, `PlaceId` as
+    recorded. The rules are stated once, in `Segments::new`, and enforced on deserialization.
+  - The routine process is started `uninterruptible`.
+  - Agenda's `since` is the fact's own instant, so the first agenda's `since` is genesis.
+- [x] Validation (`cargo test -p mineworld-schedule`: schedule 7, persisted 1, all PASS), over a
+  hand-built town (presence, movement, schedule; café and park; Alice's day "06:00 cafe work · 18:00
+  park walk"; genesis at 00:00):
+  - [x] Genesis is `[arrived, arrived, routine-assigned, agenda-changed]`. The agenda is caused by
+    `Event(routine-assigned)`. At 00:00 the agenda is the park walk until 06:00 (the wrap). The
+    process has kind `routine`, expected end 06:00, and participants [alice]. Bob, with no section,
+    has no agenda.
+  - [x] Wakes:
+    - nothing at 05:59:59;
+    - over three days, exactly six `agenda-changed`, alternating work and walk, each caused by
+      `Process(p)` with the same `p`;
+    - the process is rescheduled to the next morning.
+  - [x] It moves no one:
+    - four agenda changes produce only `agenda-changed` facts;
+    - Alice's Presence is byte-equal, while her agenda names the park;
+    - `schedule_states_only_its_own_vocabulary`: no action, no dependency, nothing in
+      `emits_owned_by_others`, and emits exactly routine-assigned and agenda-changed.
+  - [x] Section refusals through serde-saphyr, each with its message:
+    - empty `[]` and one segment (count);
+    - 18:00 → 06:00 and 06:00 → 06:00 (strictly increasing);
+    - "24:00" and "6:00" (HH:MM);
+    - "Work" (label);
+    - a repeated middle neighbour, and last-against-first (wrap);
+    - an unknown field `note`.
+
+    `references` lists cafe and park as Places. `seed` refuses `place: bob`, and refuses a place as
+    subject.
+  - [x] Disclosure: Alice is told her Agenda. Bob perceives Alice and is not told hers.
+  - [x] **Real persistence across a boundary:**
+    - a SQLite save, advanced to 05:59:59 (fires nothing, so per ARC-25 nothing is journaled), then
+      dropped;
+    - resumed from snapshot 1 with 0 replayed;
+    - the process is found with expected end 06:00;
+    - at 06:00, one `agenda-changed` caused by the same `Process(p)`, label "work";
+    - `verify` passes over 2 revisions.
+  - [x] Mutations, each run and reverted (`git diff --stat -- systems/schedule/src` was empty after
+    each):
+    - the reschedule removed → `every_boundary_fires_once…` FAILS ("at t64800, left [] right
+      [agenda-changed]") and `an_agenda_moves_nobody` FAILS (1 change, not 4);
+    - the wrap removed → `a_routine_assigned_at_midnight…` FAILS (cafe, not park).
+  - [x] Full workspace: 405 passed, 0 failed.
+- [x] Review:
+  - Only schedule's `react` writes Routine and Agenda, and only `react` and `wake` touch the
+    process.
+  - `rg "f32|f64|HashMap|HashSet|SystemTime|Instant::now" systems/schedule/src` → none. Every
+    instant is the fact's (`event.at()`) or the view's (`world.at()`).
+  - fmt and clippy `--workspace -D warnings` are clean.
+
+**Acceptance.** As validation (§9 E-C5).
+**Failure.** A required kernel change is a material stop.
+**Boundary.** One new crate.
+
+#### C6 — Schedule registered; twelve routines
+
+**Goal.** social-cafe's people have routines, seeded through the seam's second user.
+**Scope.**
+- `worldpack/src/catalog.rs` (`Capability::Schedule`, section, biographical).
+- `worldpack/Cargo.toml`.
+- `worldpack/tests/{refusals, social_cafe}.rs`.
+- `worlds/social-cafe/{world.yaml, people/*.yaml}` (routines, the C-8 content rule stated in
+  world.yaml's comment).
+- I-5 literals (genesis 53, composition lists).
+- `clients/protocol/evidence/*` re-recorded.
+
+**Depends on:** C3, C5.
+- [x] Implementation (§9 E-C6):
+  - `Capability::Schedule` added in every arm of the catalog.
+  - The twelve routines of §4.3.2, verbatim.
+  - The **§4.3.7 freeze condition** (comments): alice.yaml carries the full FIXTURE DEPENDENCY
+    note, and every other person file, and world.yaml, states it briefly and points to alice.yaml.
+  - The **§4.3.7 freeze condition** (assertions): `tools/cli/tests/fixture/mod.rs` (new).
+    - `assert_quiet(from, length, test)` reads every `from: "HH:MM"` in `people/*.yaml` with its
+      own literal reader. It fails "fixture assumption violated: a routine boundary falls in the
+      restart window that <test> relies on …", naming each boundary inside the window.
+    - It refuses to pass vacuously if it finds no boundary.
+    - It is called first in both `restart.rs` tests (window 00:00 + 5 h, hosted from genesis), in
+      `ac15_one_alice::there_is_only_one_alice` (its "head is settled" claim; same window), and in
+      `milestone_b.rs` before the save is hosted. There the window is the head's own instant + 1 h,
+      read from the save by the new `Tables::head_instant`.
+    - The audit found no other test that relies on the window: no other test hosts a world and
+      claims a revision or a settled head.
+  - **Bounded reordering:** C8's biography-set change is done here, because registering schedule
+    put `agenda-changed` into every biography at once. `social::BIOGRAPHICAL_TYPES` gains it (7
+    types), `payload_names` decodes it with schedule's type, and the cli gains a dev-dependency.
+- [x] Validation:
+  - [x] `validate`: `presence, movement, conversation, group-activity, relationships, naming,
+    schedule` and `53 genesis fact(s)`.
+    `every_persons_first_agenda_is_the_part_of_their_authored_day_in_force_at_midnight` checks all
+    12, against a literal reading of each file (the last segment's place and label).
+    `sections_do_not_move…` now strips both sections; its 17 facts are still byte-equal.
+  - [x] Refusals (4 new tests, each with its file path):
+    - `beach` → SectionNamesUnknownEntity { routine, beach, Place };
+    - `bob` → the same, expected Place;
+    - no schedule → ContentNeedsASystem { routine, schedule };
+    - 18:00 then 06:00 → `line 4 column 3: routine segments must start at strictly increasing
+      times, but 06:00 follows 18:00`.
+  - [x] I-5 literals, claims unchanged: worldpack (+Schedule; 29 → 53); cli `commands` (+schedule,
+    53), `server_command` (+schedule), `inspect` (+schedule v1), `social_composition`
+    without-group-activity (+schedule v1). `restart.rs`'s revision literals (1, 6, 6, 7, 7, 2) pass
+    **unedited**: C-8 observed.
+  - [x] **The quiet-window checks are load-bearing**, both run and reverted:
+    - alice 05:30 → 04:30: both `restart.rs` tests FAIL "fixture assumption violated … (00:00 for
+      18000 s) … Inside the window: alice at 04:30";
+    - 05:30 → 00:30: `milestone_b` FAILS "… milestone_b.rs (hosting the killed save) relies on
+      (00:00 for 3600 s) … alice at 00:30", which also shows the 30-day save's head is at 00:00.
+  - [x] `run.sh evidence` re-recorded (server "7 system(s)"). The visitor's own record lists
+    `["conversation-history","acquaintances","display-name","agenda"]`, and other people's list
+    only `display-name`. `request-*.json` are unchanged.
+  - [x] Full workspace: 411 passed, 0 failed; kill_and_resume: cafe PASS, clock PASS.
+- [x] Review:
+  - The shared code file touched is the catalog (and worldpack/Cargo.toml).
+  - All twelve routines: earliest boundary 05:30 (alice), latest 22:00 (wanderer). None falls in
+    00:00–05:00, and the test helper now checks this mechanically.
+  - fmt and clippy `--workspace -D warnings` are clean.
+
+**Acceptance.** As validation (§9 E-C6).
+**Failure.** A claim that cannot be kept under I-5 is a material stop.
+**Boundary.** Registration, content, literals, evidence.
+
+#### C7 — `PacedRuleController` follows its agenda
+
+**Goal.** A headless run's people go where their day says. Without this, CP-4 would count agenda
+changes that nobody acts on (`ARC-23`).
+**Scope.**
+- `cognition/rule-controller/{Cargo.toml (mineworld-schedule), src/{lib.rs (mod), agenda.rs,
+  agenda_tests.rs, paced.rs (one call, and the doorway suppression at the agenda's place)}}`.
+- `README.md`.
+
+`RuleController` is untouched (I-9).
+**Depends on:** C6.
+- [x] Implementation (§9 E-C7):
+  - `agenda.rs` (new): `own`, `is_there`, `follows`, with `FOLLOWS_AGENDA` = 90 and draw index 13.
+  - `paced.rs`:
+    - `head_for(observation, place)` takes the disclosed door whose `to` is the place, otherwise
+      the seeded door;
+    - the door logic is factored into `through(…)`, behaviour unchanged;
+    - `decide` gains one agenda step after the invitation and the line.
+  - Cargo: mineworld-schedule.
+  - **Bounded refinement D-C2**, found by the first run of `on_the_street…`. The walking scheme's own
+    door band (the 10 % of consults that do not follow the agenda, plus the street's "walk on" band)
+    still took a seeded door, so a person bound for the park sometimes crossed into the store, a
+    detour. Now, with an agenda disclosed, the door band heads only toward the agenda's place, and
+    at the agenda's place it is suppressed. With no agenda, the seeded door is unchanged, which the
+    parity run below shows.
+- [x] Validation:
+  - [x] `agenda_tests.rs`, 6 tests, PASS:
+    - away in the café, 58 of 64 seeds stride toward its only door (≥ 75 % asserted);
+    - on a street of five doors, 12 windows × 64 seeds: every crossing is into the agenda's place.
+      The first run, before D-C2, showed crossings into 10, 11, 13 and 14 as well;
+    - by the café door with the agenda here: no seed leaves, though without an agenda some do, and
+      people still act there;
+    - no `move` offered: no walk;
+    - a line in the window: every seed that replies without an agenda replies with one. The first
+      version counted any `talk` and so also counted greetings; it was corrected to replies;
+    - a rebuilt controller decides identically.
+  - [x] **No-agenda parity, unit:** the 22 rule-controller tests from before C7 pass unedited
+    (28 = 22 + 6). The "agenda module removed" comparison is owned by the real-world run below; a
+    unit test cannot run the old code.
+  - [x] **No-agenda parity, real world (frozen evidence):**
+    - the pre-C7 binary was built from `ac67286` (C6) in a detached worktree,
+      `/Users/yuema137/mineworld-worktrees/s8c-pre-c7`;
+    - the pack copy is that worktree's `worlds/social-cafe`, checked out at `3ddafbf` (C5, so naming
+      without schedule);
+    - each binary ran 300 days with seed 7;
+    - `diff` of every line but `wall` is **empty**: 335 454 facts, fingerprint `37c14eb7b90bc4a5`
+      both. Re-run after D-C2: still empty.
+  - [x] 300-day in-memory run of the real pack: **12.3 s**, faults 0, no request refused.
+    - Requests: move 186 423, talk 65 585, invite 9 817, accept 6 200, decline 2 597, join 3 338,
+      leave 2 691.
+    - Facts: agenda-changed 16 512 = 12 at genesis + 300 × 55 boundaries; 369 931 in all.
+  - [x] Full workspace: 417 passed, 0 failed. Among them:
+    - `run` 3 (AC-11/12, every seat in every bucket, every place entered);
+    - `run_restart` 2;
+    - `social_composition` 3;
+    - `milestone_b` 1, its claims unedited. Located #208/#209 became-acquainted at day 1, #3199
+      relationship-changed at day 3, #1723 group-activity-ended at day 2. Killed after day 4 (3 867
+      of 28 970 revisions on disk). Hosted: alice→bob and bob→alice Close, revision 28 970 before and
+      after the server's SIGKILL; process causes 1 964.
+- [x] Review:
+  - `agenda.rs` reads Agenda through `payload_for::<Agenda>()`.
+  - The only route knowledge is "the disclosed door whose `to` is the place".
+  - No float, no HashMap.
+  - fmt and clippy `--workspace -D warnings` are clean.
+
+**Acceptance.** In a 30-day run, people are located entering their agenda's place after an
+`agenda-changed` (§9 E-C7, the numbers that C8 then asserts).
+**Failure.** If parity breaks, the no-agenda path is the defect. If following starves an I-4 clause,
+`FOLLOWS_AGENDA` or the suppression is tuned, and the tuning is recorded. The precondition is never
+lowered.
+**Boundary.** The controller crate.
+
+#### C8 — CP-4 in the real run; I-4's 10c clause; schedule's AC-2; biography's set
+
+**Goal.** CP-4, located. The I-4 clause for 10c. `AC-2` for schedule. The extended biographical set is
+tested.
+**Scope.**
+- `tools/cli/tests/social/mod.rs`: the precondition gains the 10c clause, and a `routines` oracle.
+- `tools/cli/tests/routines.rs` (new).
+- `tools/cli/tests/social_composition.rs` (without schedule).
+- `tools/cli/tests/biography.rs` plus its literal type list.
+- `tools/cli/tests/run.rs` / `run_restart.rs`: the precondition only.
+- `tools/cli/Cargo.toml` dev-dependency on schedule.
+
+milestone_b.rs's own assertions are not edited. It calls the shared precondition, which gains a
+clause.
+**Depends on:** C7.
+
+**C8 result (§9 E-C8). Every item below is done.** The evidence is recorded here, item by item.
+- **I-4, 10c clause.** `social::every_person_has_an_agenda_change_every_day` is called from
+  `precondition`, so it runs in run.rs (300 and 30 days), run_restart, milestone_b and
+  social_composition, and directly from routines.rs.
+  - Its people are the genesis `routine-assigned` facts, and it asserts all 12 are there.
+  - Prints "every one of 12 people had an agenda change on each of 30 days".
+  - Counterfactual: schedule's `wake` without its reschedule FAILS it, "I-4 (10c): person 7 has no
+    agenda-changed on day 2". Reverted, `git diff --stat` empty.
+- **`routines.rs`** (new, 1 test, 3.3 s):
+  - Every post-genesis `agenda-changed` is caused by `Process(p)`, where `p` is its own payload's
+    `routine`, one `p` per person. Every genesis one is caused by a `routine-assigned`.
+  - Every one falls on a boundary of the person's file, read by the test's own literal parser.
+  - Each person has exactly 30 × their segment count. There is one `routine-assigned` per person.
+  - **"Reached"** is implemented from presence's `arrived` facts, which give the place each person
+    is in. A segment counts as reached if the person is already there when it begins, or arrives
+    there before the next `agenda-changed`. That is the planned definition; `person-entered-place`
+    would give the same result. Every person is measured and printed before the verdict.
+- **Followed: FAILED as first authored, then fixed in the content (bounded deviation D-C3).** With
+  §4.3.2's proposed routines (55 segments, many of 1–2 h), the seats reached 39–99 %; carol was
+  lowest at 39 %.
+  - The test then measured the journeys: median 120 min, 90th percentile 195 min, longest 585 min.
+    The consult pace (900 s) and the stride (2 m) make crossing town take hours.
+  - `FOLLOWS_AGENDA` = 100 barely moved the numbers (carol 46 %), so the controller was not the
+    cause. The segments were shorter than the walk.
+  - The threshold, the seed and the controller were left as they were. **The routines were
+    re-authored:** every segment lasts at least 4 h, and the far places (the park and the store,
+    from the apartments) get 5–6.5 h.
+  - The quiet window, every place in some routine, and Alice and Bob's shared café mornings
+    (07:00–11:00) are all kept.
+  - **Result:** the eleven seats reach 96.7–100 % (alice 90/91, bob 117/121, carol 89/91, dev 91/91,
+    erin 88/91, felix 89/91, grace 90/91, hana 91/91, ivan 121/121, visitor 121/121, wanderer
+    120/121). Journeys: median 150 min, 90th percentile 225 min.
+  - alice.yaml explains the 4-hour rule and why.
+  - The walking-speed gap itself (8 m/h at the headless pace) is recorded as L-12, a living-world
+    gap.
+- **Counterfactual, `FOLLOWS_AGENDA` = 0:** `routines` FAILS for all eleven seats (alice 39/91 … ivan
+  51/121), against 96.7–100 % with it. Reverted. otto is 31/61 in both runs: the segments in which he
+  is already at home.
+- **It moves nobody:** otto `arrived` exactly once (at genesis). His store segments are located (30),
+  and none of them is reached.
+- **AC-2, schedule** (`without_schedule_the_world_runs_and_nobody_keeps_a_day`, PASS):
+  - the copy omits `schedule` and the 12 `routine:` blocks;
+  - no fault; every seat active in the bucket;
+  - no `routine-assigned` and no `agenda-changed`;
+  - 12 `named`;
+  - `inspect` lists the six other systems.
+
+  Controller fallback: C7's frozen parity.
+- **Biography:** done at C6 (reordered there, recorded). C8 adds nothing.
+- **Validation (full workspace on the C8 tree): 419 passed, 0 failed.**
+  - routines 1;
+  - `run` 3 (64.7 s; AC-11/12, 300-day precondition with the 10c clause, every place entered);
+  - `run_restart` 2;
+  - `social_composition` 4;
+  - `biography` 2;
+  - `inspect` 3 (process causes counted);
+  - `milestone_b` 1 (7.4 s). Located #208/#209 became-acquainted day 1, #3883 relationship-changed
+    day 4, #1964 group-activity-ended day 2. Killed after day 5 (4 742 of 28 523 revisions).
+    Hosted: Close both ways, revision 28 523 before and after the server's SIGKILL; process causes
+    1 501.
+- **Review:**
+  - Every claim is located before it is counted, and every seat's number is printed before the
+    verdict.
+  - The 90 % literal is unchanged since the freeze. The content was changed to fit the world's
+    walking speed, not the threshold to fit the content.
+  - milestone_b.rs's **claims** are unedited. Its one added assertion is the §4.3.7 quiet-window
+    check (C6), which the freeze condition requires. So the plan's "byte-unchanged" is superseded
+    by that binding condition, and is recorded rather than claimed.
+
+The planned items, kept for reference (all met as recorded above):
+- [x] Implementation:
+  - [x] **I-4, 10c clause**, in every precondition call: every person (all 12, otto included) has at
+    least one `agenda-changed` on every simulated day.
+  - [x] **`routines.rs`** (CP-4), `run worlds/social-cafe --headless --seed 7 --days 30 --save`, then
+    reading the save:
+    - **Caused by the routine.** Every `agenda-changed` after genesis is caused by
+      `Causation::Process(p)`, where `p` is the payload's `routine`. Each person has exactly one
+      `p` for the whole run. The genesis ones are caused by that person's `routine-assigned`.
+    - **On schedule.** Every `agenda-changed` after genesis falls exactly on a boundary of that
+      person's authored routine. The oracle reads the YAML files with its own literal parser of "HH:MM"; it never uses
+      schedule's code (rules §25). The day count is days × segments per person.
+    - **Followed.** For every seat and every segment, the segment is *reached* if the person is in
+      the agenda's place at its start, or a `person-entered-place` into it occurs before the
+      segment ends. Each seat must reach ≥ 90 % of its segments. 90 is a literal from the
+      requirement: a routine followed less than nine times in ten is not a routine. It is fixed
+      before measuring (QC-7).
+    - **A human may ignore it.** otto (not a seat, never driven) reaches none of his away
+      segments, and his agenda still changes daily. The agenda is shown to move no one.
+  - [x] **AC-2, schedule** (`social_composition.rs`): the copy omits `schedule` and every `routine:`
+    block. 30 days, seed 7:
+    - no fault;
+    - no `agenda-changed`;
+    - every seat moves and talks in every bucket;
+    - naming is still installed and named.
+
+    That the controller then decides exactly as it did before agendas existed is C7's frozen-parity
+    evidence, made on this same copy and recorded in §9 E-C7. A test cannot run a frozen binary.
+  - [x] **Biography:** `tests/social/mod.rs`'s literal list gains `agenda-changed`. The soundness
+    oracle decodes it with schedule's type (it names the person), and LOCATED requires Alice's
+    biography to hold it. This is a literal addition with the claim unchanged; §9 lists it.
+- [x] Validation:
+  - `routines` PASS, with the numbers located (per-seat reach %, agenda changes per day, the
+    process ids);
+  - `run` 3 PASS: AC-11/12, the extended precondition, every place entered;
+  - `run_restart` 2 PASS;
+  - `milestone_b` 1 PASS, its four located facts and both restarts, claims unedited;
+  - `social_composition` 4 PASS;
+  - `biography` 2 PASS;
+  - `inspect` PASS: process causes counted, the count printed.
+- [x] Counterfactuals, each run and reverted:
+  - `FOLLOWS_AGENDA = 0` → `routines` FAILS on "followed", and the reached % is recorded;
+  - schedule's `wake` emitting with `Causation` from a deferral instead of the process (or skipping
+    the reschedule) → "caused by the routine" or "on schedule" FAILS.
+- [x] Review:
+  - Every claim is located before it is counted.
+  - The 90 % bound is not derived from the measurement.
+  - milestone_b.rs is byte-unchanged (`git diff --stat`). Superseded by the §4.3.7 condition: one
+    assertion was added, and the claims are unchanged.
+
+**Acceptance.** As validation (§9 E-C8).
+**Failure.** If milestone_b no longer locates its history in 30 days, that is a content defect in the
+routines (Alice and Bob apart), fixed in the content (recorded). The test, the seed and D never change.
+**Boundary.** Tests only. A defect found here is fixed in its owning commit's crate, as a separate
+recorded commit.
+
+#### C9 — Documentation and ledger close for 10c
+
+- [x] Docs (8dee781):
+  - `authoring/README.md`, `systems/naming/README.md`, `systems/schedule/README.md` (short, human,
+    linking to ARC-31/32 and MODULE_SPEC);
+  - `systems/README.md`, `cognition/rule-controller/README.md`;
+  - `worlds/social-cafe/README.md` (seven systems, names, routines, the 4-hour rule, the quiet
+    window);
+  - `docs/MVP_STATUS.md`:
+    - Names, Routines and "authored content owned by packs" rows;
+    - Biography gains names;
+    - the Social Café composition axis;
+    - the S8 stage row;
+    - two evidence rows (CP-4, names/AC-2).
+  - The evidence was re-recorded on the final routines.
+- [x] Full gates once on the final executable head `8dee781` (§4.3.4), recorded in §9 E-C-final. All
+  PASS.
+- [x] Review: READMEs state no rule. MVP_STATUS marks ✅ only what E-C2…E-C8 ran, and leaves the 2D
+  and 3D columns 🚧 where no client UI exists. I-1: `git diff main --stat -- kernel contracts
+  persistence server systems/{presence,movement,conversation,group-activity,relationships}` is
+  **empty**. The handoff is refreshed.
+- (Planned review items, met as above:)
+  - READMEs state no rule.
+  - MVP_STATUS marks ✅ only what E-C2…E-C8 ran.
+  - The handoff is refreshed.
+  - `git diff main --stat -- kernel contracts persistence server systems/{presence,movement,
+    conversation,group-activity,relationships}` is empty (I-1).
+
+### 4.3.4 Integration checkpoint, test ownership, verification
+
+**Integration checkpoint (10c).**
+
+```text
+mineworld validate worlds/social-cafe → seven systems, 53 genesis facts; names and routines seeded by
+    their owners through the seam                                                       Q9
+a 30-day seeded run: every person's agenda changes on schedule, caused by their routine process;
+    every seat reaches ≥ 90 % of its segments                                           CP-4
+Alice tells the 3D window what Vera Lindgren said, by name, through the real server     AC-15 + names
+clients/protocol/run.sh evidence → names on every perceived person, read by the Godot module   R-9
+without naming / without schedule → the world runs; every other system unchanged         AC-2
+```
+
+**Adversarial criteria.**
+- A "followed" rate measured where everyone happens to be already is excluded: the rate is per
+  segment and counts entries into the place, and the counterfactual shows it falls without the
+  agenda band.
+- A name assertion satisfiable by a key is excluded, because the names differ from the keys.
+- An agenda that moves people by itself is excluded by otto. He is undriven, his agenda changes,
+  and he never moves.
+- A seam that knows its sections is excluded by the grep review in C3.
+- A wake that fires once and never again is excluded by the three-day test and its mutation.
+
+```text
+STATIC      fmt, check, clippy -D warnings (unused code; HashMap/HashSet banned by clippy.toml). I-7 (no
+            float) is owned by review: `rg "f32|f64" authoring systems/{naming,schedule}
+            cognition/rule-controller/src/agenda.rs` → none
+UNIT        Name, TimeOfDay/segment validation (refusals carry a semantic rule: ordering, wrap); the
+            catalog section guard; the foreign-fact refusal; controller agenda decisions and parity;
+            reply wording
+INTEGRATION naming and schedule over hand-built worlds with real packs, including schedule's persisted
+            restart across a boundary; worldpack over the real pack and the refusal fixtures
+REAL-LIFECYCLE the real binary over the real pack: routines (CP-4), run (AC-11/12 + I-4), run_restart
+            (AC-6), milestone_b (unchanged claims), social_composition (AC-2 ×2), biography, inspect,
+            ac15 (names through the server); Godot `run.sh evidence` (the far side)
+REAL-LLM    NOT REQUIRED — no model anywhere (CLAUDE.md §5)
+CI          no workflow exists (S13); the local gates are terminal evidence, once on the final head
+```
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+cargo fmt --all --check
+cargo check --workspace --all-targets
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --no-fail-fast      # 381 existing (10b's final gate) + 10c's new, all green
+cargo test -p mineworld-persistence --test kill_and_resume
+python3 scripts/check_decision_ids.py
+python3 scripts/check_doc_headings.py
+```
+
+**Budget.** At opt-level 1 (ARC-30), a 300-day run takes about 10 s and 10b's whole default loop took
+104 s. 10c adds:
+- `routines` (one 30-day save);
+- two `social_composition` configurations (30 days each);
+- a frozen-parity pair of 300-day runs (C7, once, outside the test suite).
+
+The projection is +30–60 s on the default loop. Long runs and kill tests stay within a few minutes of
+wall time per gate run, and the PR within about one hour of validation wall time. Beyond that, stop
+with a projection.
+
+### 4.3.5 Is any of this material?
+
+```text
+public contract shape   YES, and approved: the seam is a new public contract between a World Pack
+                        and a System Pack. It is a trait in a new crate, `mineworld-authoring` (C-3),
+                        and the person/place file format gains pack-owned sections. Q9 asked for
+                        exactly this ("build the generic seam in 10c"). Its concrete form is what the
+                        freeze approves (QC-1, QC-4)
+ownership boundary      no existing boundary moves. New state has one owner each: DisplayName
+                        (naming); Routine, Agenda and the routine process (schedule). No pack writes
+                        another's state, and no seeded fact may be another pack's (C-5)
+scope beyond the        YES, and approved: names (the naming pack, its section, the reply wording,
+frozen outline          biography names, the Godot module and demo) are added by the primary session's
+                        10c brief. Recorded as approved scope, not as a deviation
+frozen invariants       I-1 holds: no kernel/, contracts/, persistence/, server/ edit, and no edit to
+                        presence, movement, conversation, group-activity or relationships.
+                        I-9: RuleController's decisions are unchanged. Only its wording names
+                        people, which is part of the approved names scope; the text of I-9 is read
+                        with that amendment.
+                        I-4's 10c clause is implemented as frozen
+frozen decisions        SD-14: superseded by Q9 (already). SD-13: refined — schedule needs no
+refined, bounded        dependency on presence. SD-15: "before anything else" is refined to "after
+                        being addressed", D-B5's rule (QC-6). §1.2's "a generic pack-content seeding
+                        seam — S9": superseded by Q9
+saves                   a save made with 10b's social-cafe is refused by 10c's (composition differs;
+                        ARC-25 refuses rather than migrates). By design; the operator's local 10b
+                        build and its saves are unaffected
+```
+
+### 4.3.6 Questions for the primary session (10c)
+
+```text
+QC-1 Section names. Each pack declares its own word (`name`, `routine`), and the catalog guard refuses
+     a duplicate or a word that shadows a format field. That follows D-B1's precedent: action types
+     are already one namespace across packs.
+     Alternative: sections keyed by the owning SystemId (`naming: { name: … }`, `schedule:
+     { routine: … }`). Unique by construction, but heavier to author.
+     Recommended: the pack's own word.
+QC-2 The pack is `naming`, not `identity`, because "identity" is the kernel's defined term for
+     EntityId (C-2). Recommended.
+QC-3 Two decision records, not one: ARC-31 for the seam (with names and routines as its users) and
+     ARC-32 for "schedule is an agenda, never a mover". The brief says "10c's decision record is
+     ARC-31", and ARC-16 says one identifier names one decision. No branch holds ARC-31 or ARC-32
+     today. Recommended: two.
+QC-4 The seam is a trait in a new crate, `authoring/` (C-3).
+     Alternative: no trait, and each pack exports free items (a const and two functions) that the
+     catalog matches, as `biographical` does. That is lighter, but the shape is unchecked by the
+     compiler, and Q9 asks for the abstraction now that there are two users.
+     Recommended: the trait.
+QC-5 Names are public and disclosed to every perceiver. A reply names the earlier speaker only if
+     the observation discloses them, and otherwise says "someone else" (C-9).
+     Alternative: naming discloses the names of everyone in the observer's conversation history.
+     That couples naming to conversation's state.
+     Recommended: accept, with the limitation recorded.
+QC-6 Agenda priority: after being addressed (an invitation, a line), before any initiative. A 90/100
+     band while away; doors suppressed at the agenda's place. This refines SD-15's "before anything
+     else" to D-B5's rule. Recorded as bounded, listed for visibility.
+QC-7 "People follow it" means each seat reaches ≥ 90 % of its routine's segments over 30 days. The
+     literal is fixed before measuring and shown load-bearing by FOLLOWS_AGENDA = 0. Recommended.
+QC-8 `inspect` keeps counting process causes (C-12). The outline left this to the audit. A generic log
+     reader cannot resolve them without pack payloads, so CP-4's causal check is in `routines.rs`'s
+     oracle. Listed for visibility.
+```
+
+### 4.3.7 Freeze record for 10c
+
+```text
+Lifecycle              DESIGN FROZEN (2026-10-07)
+Design revision        the commit carrying this record
+Approved by / evidence primary session, under the operator's autonomous authorization (overall §7);
+                       review recorded below
+Implementation base    main @ 266daf7; branch mvp0/pr-10c-social
+Execution contract     §11.2, confirmed
+```
+
+**Review.** §§4.3.1–4.3.5 are approved. Two choices are worth naming as right:
+
+- The pack is called `naming`, not `identity`, because `identity` is already the kernel's word for
+  `EntityId` (`CLAUDE.md` §2.1(3)).
+- Every name differs from its key, so no test that finds a name can be satisfied by a key.
+
+**Leaving `location` and `passages` off the seam is accepted:** moving them would edit presence and
+movement and change pinned error variants, so it is not the no-op Q9 required.
+
+**QC-1, QC-2, QC-4, QC-5, QC-7 — ACCEPTED** as recommended. **QC-6 and QC-8 — NOTED**, both as
+designed.
+
+**QC-3 — ACCEPTED: two records.** `ARC-31` is the seam and `ARC-32` is the schedule. One identifier,
+one decision (`ARC-16`). The brief's "ARC-31" was a label, not a merge of two decisions.
+
+**One condition: make the test's dependence on a quiet window explicit, not accidental.** To keep
+`milestone_b.rs` and `restart.rs` valid, the routines leave 00:00–05:00 free of boundaries. Without
+that, a hosted world would commit new revisions during a restart, and "revision unchanged after
+restart" would fail. As designed, two tests silently depend on world *content*: a later edit to a
+routine would break them with a misleading failure.
+
+So:
+
+1. Wherever a test relies on that window, assert the assumption directly. Before the claim it
+   protects, check that no routine boundary falls in the window the test uses. If one does, fail
+   with a message naming the assumption, e.g. "fixture assumption violated: a routine boundary falls
+   in the restart window".
+2. Record the dependency in the routine content's own comments, so someone editing the routine sees it.
+
+A test whose pass depends on content it never checks is an `ARC-23` instrument problem, not a world
+problem.
+
+**Test count.** Re-read it from the first full gate, as you said. Report the real number and what
+the 369 vs 381 gap is.
+
 ---
 
 # 5. Integration checkpoints
@@ -1739,6 +2855,41 @@ docs: MVP §§3–5, 9; HUMAN_REVIEW_QUEUE (Milestone B row); CORE_CONCEPTS §§
 
 For 10b, B-1 and B-2 (§4.2.1) contradict frozen values (Q7's 600 s; I-4's relationship clauses) and
 are raised as QB-1 and QB-2 rather than resolved here. No public contract or ownership boundary moves.
+
+## 8.5 Re-audit for PR 10c (`main @ 266daf7`, 2026-10-07)
+
+```text
+worlds/social-cafe/{world.yaml, people/*.yaml} (tags, starting places; alice.yaml:3–5 — C-1)
+worldpack/src/{format, read, load, catalog}.rs (deny_unknown_fields; the nine read checks; genesis
+  order passages → locations; `located`/`opened`; the closed Capability match); worldpack/Cargo.toml
+  (depends on every pack — C-3)
+kernel/src/system.rs:260–340 (Emission's owner from Event::OWNER — C-5), :495–610 (react/wake/
+  interrupt); kernel/src/view.rs:258–380 (insert, defer, start/end/reschedule_process — C-7);
+  kernel/src/dispatch.rs:330–400 (genesis, the Weather example)
+systems/presence/src/{interaction.rs:78–127 (PerceptionProvider), event.rs (arrival: the checked
+  genesis constructor pattern)}; systems/relationships/src/system.rs (a subscriber pack with no
+  dependency, self-only disclosure); systems/group-activity/src/{system.rs:226–430 (process started
+  and woken by its owner), perception.rs:97–121 (disclosure about a perceived subject)}
+cognition/rule-controller/src/{lib.rs (reply_to, :192–220 — C-1, C-9), paced.rs (decide order, Draw
+  indices, leave/doorways), social.rs (indices 8–12, disclosed::<C>)}; Cargo.toml
+tools/cli/src/{run.rs (EPOCH genesis, PACE, consult schedule — C-8), biography.rs (C-14),
+  inspect.rs (process causes counted — C-12)}; tools/cli/Cargo.toml
+server/src/{host.rs:203, runtime.rs:8} (EPOCH, one world second per wall second — C-8)
+serde-saphyr 1.3.0 src/de/with_deserializer.rs:120–160 (a Deserializer for a DeserializeSeed — C-4);
+  DECISIONS DEP-10 (why line/column matter)
+clients/protocol/{mineworld/observation.gd, demo/demo.gd, run.sh, evidence/, ADOPTION.md} and
+  server/PROTOCOL.md §5 — delegated read-only audit (C-13)
+every test that loads social-cafe (tools/cli/tests/**, worldpack/tests/*, persistence/tests/
+  kill_and_resume.rs, rule-controller tests) — delegated read-only audit (C-10, C-11, C-15, C-16)
+docs: PACKAGE_FORMAT (§8 row), MODULE_SPEC §§3, 4, 4.1, 8.1; DECISIONS ARC-23, ARC-25 … ARC-30;
+  overall §7 at 266daf7 ("10c … HELD until the operator has tested Milestone B"; ARC-31)
+remote branches: `git grep "^## ARC-3[0-9]"` over every origin/* branch carrying DECISIONS → none
+```
+
+For 10c, nothing contradicts a frozen invariant. Where the frozen outline's wording does not fit what
+the source allows — `location`'s migration (C-6), schedule's dependency (§2.3), SD-15's ordering — the
+design says so and raises it (QC-6, §4.3.5) rather than routing around it. The new public contract
+(the seam) and the scope addition (names) are approved scope, and §4.3.5 states both.
 
 ---
 
@@ -1958,6 +3109,66 @@ E-B-final Gates on 0906918 (the final executable head; later commits are plannin
      Q1 shown: `git log --oneline -- systems/relationships/src` lists 5feaf50 (C3) only.
      PROCEDURAL: no forbidden tool was used in Phase 2. The mutations were made and reverted with the
      Edit tool, and `git diff --stat -- systems` was empty after each revert.
+E-C0 C0 design for 10c, 2026-10-07, on main @ 266daf7 + this file (branch mvp0/pr-10c-social).
+     check_decision_ids: 40 ids, all distinct; check_doc_headings: 142 sections, none duplicated.
+     No cargo gate was run: docs only. Two delegated read-only audits fed C-10 … C-16: the Godot
+     module and its evidence, and every test that loads social-cafe. Their findings are cited by
+     file and line in §4.3.1 and were spot-checked here: ac15_one_alice.rs:228–235;
+     rule-controller lib.rs:207; worldpack load.rs (genesis order).
+     PROCEDURAL: Phase 1 used no forbidden tool.
+E-C1 (923b438) ARC-31, ARC-32, MODULE_SPEC §4.1 sections + rule 6 + genesis order, §8.1 biography
+     names, PACKAGE_FORMAT §8. check_decision_ids 42 distinct; check_doc_headings 142.
+E-C2 authoring + naming. `cargo test -p mineworld-naming`: 5 passed, 0 failed (0.00 s). clippy -D
+     warnings clean on both crates; fmt applied.
+E-C3 The seam in worldpack; naming registered. `cargo test --workspace --no-fail-fast`: 395 passed,
+     0 failed, 2 min 1 s wall (run 61.5 s, run_restart 11.4 s). That is 381 + 14 new (naming 5,
+     worldpack lib 2, social_cafe 2, refusals 5).
+     THE TEST COUNT, explained: the 381 of 10b's gate is 369 `#[test]`/`#[tokio::test]` functions
+     plus 12 doctests (contracts 3, kernel 7, server 1, worldpack 1 — the last a `no_run` example,
+     compiled and counted). kill_and_resume is `harness = false` and is counted by neither; it runs
+     as its own gate.
+     clippy --workspace -D warnings clean, after boxing `SectionRefusedByOwner.reason` (a
+     result_large_err finding).
+E-C4 Names reach what people say and read. Full workspace 398 passed, 0 failed (1 min 50 s).
+     run.sh evidence 23.5 s; seven evidence files re-recorded, request-*.json unchanged. The AC-2
+     oracle was corrected (D-C1), after two failing runs located the nested, cut quotations at rows
+     249 and 5 156.
+E-C5 systems/schedule. schedule 7 + persisted 1 PASS; two mutations each FAIL the named test and were
+     reverted. Full workspace 405 passed, 0 failed.
+E-C6 schedule registered; twelve routines; the §4.3.7 quiet-window assertions (restart ×2, ac15,
+     milestone_b), each shown to fail by name on a moved boundary. Full workspace 411 passed, 0
+     failed; kill_and_resume PASS ×2; run.sh evidence re-recorded.
+E-C7 the paced controller follows its agenda. Frozen-binary parity (C6 binary against post-C7, pack
+     without schedule, 300 days, seed 7): diff empty, 335 454 facts. Real pack 300 days: 12.3 s, 0
+     faults, 0 refusals, 369 931 facts. Full workspace 417 passed, 0 failed; milestone_b located by
+     day 3 and killed after day 4. Bounded refinement D-C2 (door band toward the agenda).
+E-C8 CP-4 located (routines.rs). The first measurement failed the 90 % literal: the proposed routines'
+     1–2 h segments were shorter than the walk (journeys: median 120 min, 90th percentile 195 min).
+     The routines were re-authored to segments of ≥ 4 h (D-C3), and the seats now reach 96.7–100 %.
+     Counterfactuals: agenda band 0 → seats 39–51 % FAIL; wake without reschedule → I-4 FAIL. Full
+     workspace 419 passed, 0 failed; milestone_b located by day 4 and killed after day 5.
+E-C-final Gates on 8dee781 (the final executable head; later commits are planning documents only),
+     clean tree, 2026-10-07, this machine, `[profile.dev] opt-level = 1`:
+       cargo fmt --all --check                                         PASS
+       cargo check --workspace --all-targets                           PASS
+       cargo clippy --workspace --all-targets --all-features -D warnings   PASS
+       cargo test --workspace --no-fail-fast                           PASS — exit 0; 80 "test result:
+                                                                       ok" lines, none failed; 419
+                                                                       passed, 0 failed; 112.8 s wall
+       cargo test -p mineworld-persistence --test kill_and_resume      PASS — cafe PASS, clock PASS
+       python3 scripts/check_decision_ids.py                           PASS — 42 ids, all distinct
+       python3 scripts/check_doc_headings.py                           PASS — 142 sections
+     THE TEST COUNT: 419 = 407 `#[test]`/`#[tokio::test]` functions + 12 doctests (contracts 3,
+     kernel 7, server 1, worldpack 1). 10b's 381 was the same split: 369 + 12. kill_and_resume is
+     `harness = false` and is counted in neither number; it runs as its own gate. 10c adds 38 tests:
+     naming 5, schedule 8, worldpack 14 (lib 2, social_cafe 3, refusals 9), rule-controller 8, cli 3
+     (social_composition 2, routines 1).
+     I-1: `git diff main --stat` over kernel/, contracts/, persistence/, server/ and the five earlier
+     packs is empty.
+     CI: N/A — no workflow in the repository (S13).
+     PROCEDURAL: Phase 2 used no forbidden tool. Mutations and counterfactuals were made and reverted
+     with the Edit tool, and each revert was checked with `git diff --stat`. The frozen-binary parity
+     used a second worktree, `/Users/yuema137/mineworld-worktrees/s8c-pre-c7`, removed after use.
 ```
 
 ## 9.1 Limitations (expected)
@@ -1975,6 +3186,19 @@ L-3  Routes are found only in a star town (SD-3); a general route-finder is not 
 L-4  Biography is L0 only (CORE_CONCEPTS §5.4): long runs give long biographies; compression is S10.
 L-5  The 3D far-side counter check is the vis-environment session's to run (Q2).
 L-6  RuleController (--agent) takes no new initiative: a hosted Alice answers but never invites (I-9).
+L-9  (10c, expected) A reply names the earlier speaker only while they are perceived; otherwise
+     "someone else" (C-9, QC-5). Names are public; acquaintance gating and place names are later
+     options (ARC-31).
+L-10 (10c, expected) Hosted worlds follow no agenda: `--agent` and players are not paced controllers,
+     so in a hosted world agendas change and nobody acts on them unless a person chooses to.
+L-11 (10c, expected) The 3D slice shows names only once the vis track binds `display-name` through
+     the Godot module's `display_name(id)`. That is the environment session's work, handed over
+     with the module change (C4).
+L-12 (10c, MEASURED, E-C8) People walk at about 8 m an hour in a headless run: one stride (≤ 2 m)
+     per consult, every 900 s. Crossing the town takes 2½ h, and nearly 4 h for one journey in ten,
+     so a routine's parts of the day must be at least 4 h long to be lived. That is a living-world
+     gap, not a schedule defect. Its remedies are a later step's: travel as a Process (ARC-26's room
+     for travel), or a pace that consults a walker more often.
 ```
 
 ---
@@ -2166,6 +3390,46 @@ MATERIAL STOP       any change to §1.3 beyond QB-2's amendment, to a public con
                     conversation (I-1)
 ```
 
+## 11.2 Execution contract for PR 10c (proposed; confirmed at 10c's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 09 / PR 10c — the content seam, names and routines (S8, third of three)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-09-social.md (this file), §4.3 (4.3.1–4.3.7)
+RELATED / BINDING   overall.md §§2, 3 (S8), 7; MVP §§3, 5, 9 (AC-2, AC-6, AC-9, AC-11, AC-12, AC-15);
+                    CORE_CONCEPTS §§5, 10, 13; MODULE_SPEC §4.1; PACKAGE_FORMAT §8; DECISIONS ARC-15,
+                    ARC-23, ARC-25 … ARC-30, DEP-10; this file §§1.3, 10.1 (Q8, Q9)
+IMPLEMENTATION BASE main @ 266daf7; branch mvp0/pr-10c-social; worktree
+                    /Users/yuema137/mineworld-worktrees/s8-social (held by this session only)
+APPROVED SCOPE      the §4.3 outline as amended by Q9, plus people's names (the primary session's 10c
+                    brief), as §4.3.5 states; QC-1 … QC-8 as answered at freeze
+FROZEN INVARIANTS   §1.3 I-1 … I-9 (I-4 as amended by QB-2, with its 10c clause; I-9 read with the
+                    approved wording change of §4.3.5)
+SEQUENCE            C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8 → C9, each committed and pushed when coherent
+VALIDATION BUDGET   unit/integration/static: unrestricted; real-model: NOT REQUIRED; long runs and kill
+                    tests a few minutes of wall time per gate run (S7 Q10); about one hour in total
+LIVE DOCUMENTATION  this file (§4.3.3 checkboxes, §9 E-C ledger)
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for PR 10c at C1
+ENDPOINT AUTHORITY
+  implementation + local validation   authorized — source: the coordinator's freeze message,
+                                      2026-10-07 ("PR 10c is DESIGN FROZEN as of commit 805bf4d …
+                                      begin Phase 2"); this replaces the earlier "NOT YET" line.
+                                      Binding condition: §4.3.7's quiet-window assertions
+  semantic commits, branch push       authorized — source: the brief ("Commit and push after every
+                                      small step")
+  PR creation / update                authorized in Phase 2 — source: the brief ("Open a PR with gh pr
+                                      create")
+  clients/protocol/run.sh             authorized — source: the brief's permission list and item 6
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only; the brief: "do not merge"
+POST-MERGE SYNC     the planning session owns step/overall updates; this session owns §4.3 and §9 E-C
+NORMAL STOP         PR 10c READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       any change to §1.3 beyond what §4.3.5 states, to a public contract beyond the seam
+                    as frozen, to ownership, or to scope; an existing test whose claim cannot be kept
+                    under I-5 (milestone_b.rs's claims above all); a needed edit to kernel/, contracts/,
+                    persistence/, server/, presence, movement, conversation, group-activity or
+                    relationships (I-1)
+```
+
 ---
 
 # 12. Closeout, PR 10a — READY FOR OPERATOR REVIEW
@@ -2241,3 +3505,46 @@ implementation ctx    CLOSED / AWAITING OPERATOR ACTION. Do not start 10c until 
 - Carry L-1, the saturation measured in E-B7, to overall §7 as a living-world gap for a later step.
 - Renumber 10c's planned decision to `ARC-31` (`ARC-30` is now the dev profile).
 - Re-audit and detail 10c (routines on the generic content seam) against the merged state.
+
+## 12.2 Closeout, PR 10c — READY FOR OPERATOR REVIEW
+
+```text
+PR                    GitHub #33 — https://github.com/yuema137/MineWorld/pull/33 (base main), OPEN;
+                      NOT merged
+base                  main @ 266daf7
+final executable HEAD 8dee781 — every gate in §9 E-C-final ran on it, clean tree
+final PR HEAD         the commit carrying this section (planning documents only); `git log` on the
+                      branch is authoritative — a commit cannot name its own hash
+semantic commits      d0cbaf1 design · 805bf4d freeze (primary session) · 2891114 execution start ·
+                      923b438 C1 specs (ARC-31, ARC-32) · fc2fdd3 C2 authoring + naming ·
+                      9f1d1c0 C3 the seam in worldpack, twelve names · 5aa7c69 C4 names in replies,
+                      biography, Godot · 3ddafbf C5 schedule · ac67286 C6 schedule registered, routines,
+                      quiet-window assertions · 8e45ea4 C7 controller follows its agenda · 7ab010c C8
+                      CP-4, I-4 clause, AC-2 schedule, routines re-authored · 8dee781 C9 docs ·
+                      00b7760 gates
+CI                    N/A — no workflow in the repository (S13)
+material deviations   none. I-1 held (empty diff over kernel/, contracts/, persistence/, server/ and
+                      the five earlier packs). The seam is the public contract Q9 approved; names are
+                      the approved scope addition; I-9 changed only in wording, as approved.
+bounded deviations    D-C1 the AC-2 naming oracle (nested, cut quotations); D-C2 the door band heads
+                      only toward the agenda; D-C3 routines re-authored to parts of ≥ 4 h after the
+                      90 % literal failed against the proposed content (threshold unchanged; L-12
+                      recorded); the biography set moved from C8 to C6; C5 added `error.rs`; the
+                      foreign-fact variant dropped `subject` and boxed the owner's Rejection (clippy
+                      result_large_err)
+freeze condition      §4.3.7 met: restart.rs (both tests), ac15_one_alice.rs and milestone_b.rs assert
+                      the quiet window first and fail by name; each shown red on a moved boundary;
+                      every routine file carries the comment
+test count            419 = 407 test functions + 12 doctests (10b: 381 = 369 + 12)
+procedural            no forbidden tool used in Phase 2
+working tree          clean after the closeout commit
+merge                 NOT authorized; the operator merges
+implementation ctx    CLOSED / AWAITING OPERATOR ACTION
+```
+
+**Post-merge, owned by the planning session (§11.2):**
+- Mark 10c merged here and in `overall.md` §7, and S8 complete.
+- Carry L-12 (walking speed at the headless pace) to overall §7 as a living-world gap, beside L-1.
+- Hand the vis track the `display-name` record and `MineWorldObservation.display_name(id)` (L-11),
+  so the 3D slice can show names.
+- F-1 and F-3 remain S9's (§10.1).

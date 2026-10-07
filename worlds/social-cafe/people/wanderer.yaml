@@ -9,6 +9,17 @@
 # arriving closer is something a client does and is answered for rather than something the pack
 # pre-arranges.
 
+name: Wes Calloway
+
+# His day (schedule's `routine`, ARC-32) — a plan a player may follow or ignore. Boundaries stay within
+# 05:00–23:00: a fixture dependency of the restart tests, explained in alice.yaml and checked by those
+# tests.
+routine:
+  - { from: "09:00", place: street, label: wander }
+  - { from: "13:00", place: cafe, label: visit }
+  - { from: "17:00", place: park, label: wander }
+  - { from: "21:00", place: apartments, label: stay }
+
 tags:
   - visitor
 

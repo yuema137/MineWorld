@@ -17,6 +17,9 @@
 //! 7  every person's place exists, and every seat is one of the people
 //! 8  content that needs a capability has it enabled
 //! 9  every passage joins two distinct declared places, each pair once, with `movement` enabled
+//! 10 every section's owner is enabled, its file may carry it, and every entity it names is
+//!    declared, of the type its owner needs (ARC-31) — what a section says was already checked as it
+//!    was read, by its owner's own type
 //! ```
 //!
 //! The order is deliberate: each check assumes the previous one passed, so an author fixes one thing
@@ -26,12 +29,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use mineworld_contracts::{EntityKey, SystemId};
+use mineworld_contracts::{EntityKey, EntityType, SystemId};
 use serde::de::DeserializeOwned;
 
 use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
+use crate::content::ContentFile;
 use crate::error::{ContentKind, Declared, PackError};
-use crate::format::{AuthoredPerson, AuthoredPlace, WorldManifest};
+use crate::format::{AuthoredPerson, AuthoredPlace, FoundSection, SectionState, WorldManifest};
 
 /// The file every World Pack has.
 pub const MANIFEST: &str = "world.yaml";
@@ -71,8 +75,16 @@ impl WorldPack {
         let systems = resolve_systems(&manifest.systems)?;
         check_keys_are_declared_once(&manifest)?;
 
-        let places = read_content(&root, &manifest.places, ContentKind::Place)?;
-        let people = read_content(&root, &manifest.population, ContentKind::Person)?;
+        let places = read_content(&root, &manifest.places, ContentKind::Place, |text| {
+            serde_saphyr::with_deserializer_from_str(text, |file| {
+                ContentFile::new(ContentKind::Place, &systems).place(file)
+            })
+        })?;
+        let people = read_content(&root, &manifest.population, ContentKind::Person, |text| {
+            serde_saphyr::with_deserializer_from_str(text, |file| {
+                ContentFile::new(ContentKind::Person, &systems).person(file)
+            })
+        })?;
         check_nothing_undeclared(
             &root,
             ContentKind::Place,
@@ -89,6 +101,15 @@ impl WorldPack {
         let seats = seats_of(&manifest, &people)?;
         check_locations(&root, &people, &places, &systems)?;
         check_passages(&root, &places, &systems)?;
+        let sections = places
+            .iter()
+            .map(|(key, place)| (ContentKind::Place, key, &place.sections))
+            .chain(
+                people
+                    .iter()
+                    .map(|(key, person)| (ContentKind::Person, key, &person.sections)),
+            );
+        check_sections(&root, sections, &places, &people)?;
 
         Ok(Self {
             root,
@@ -143,6 +164,17 @@ impl WorldPack {
 /// The parser's report becomes the error's detail unaltered: it carries the line, the column and an
 /// excerpt, and rewriting it in this crate's words would lose exactly the part an author needs.
 fn parse<T: DeserializeOwned>(path: &Path, kind: &'static str) -> Result<T, PackError> {
+    parse_with(path, kind, |text| serde_saphyr::from_str(text))
+}
+
+/// [`parse`], with the decoding supplied: a content file is decoded through a seed that knows which
+/// sections this build's packs own ([`ContentFile`]). The one place `serde-saphyr` is called from
+/// stays this module (`DEP-10`).
+fn parse_with<T>(
+    path: &Path,
+    kind: &'static str,
+    decode: impl FnOnce(&str) -> Result<T, serde_saphyr::Error>,
+) -> Result<T, PackError> {
     if !path.exists() {
         return Err(PackError::FileMissing {
             path: path.to_path_buf(),
@@ -152,7 +184,7 @@ fn parse<T: DeserializeOwned>(path: &Path, kind: &'static str) -> Result<T, Pack
         path: path.to_path_buf(),
         source,
     })?;
-    serde_saphyr::from_str(&text).map_err(|error| PackError::Malformed {
+    decode(&text).map_err(|error| PackError::Malformed {
         path: path.to_path_buf(),
         kind,
         detail: error.to_string(),
@@ -238,10 +270,11 @@ fn check_keys_are_declared_once(manifest: &WorldManifest) -> Result<(), PackErro
 }
 
 /// Reads the file each declared key names.
-fn read_content<T: DeserializeOwned>(
+fn read_content<T>(
     root: &Path,
     declared: &[EntityKey],
     kind: ContentKind,
+    decode: impl Fn(&str) -> Result<T, serde_saphyr::Error>,
 ) -> Result<BTreeMap<EntityKey, T>, PackError> {
     let mut content = BTreeMap::new();
     for key in declared {
@@ -253,7 +286,7 @@ fn read_content<T: DeserializeOwned>(
                 path,
             });
         }
-        content.insert(key.clone(), parse(&path, kind.describes())?);
+        content.insert(key.clone(), parse_with(&path, kind.describes(), &decode)?);
     }
     Ok(content)
 }
@@ -401,6 +434,74 @@ fn check_passages(
                     system: PASSAGE_OWNER.id(),
                     path,
                 });
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Every section is owned by an enabled pack, sits in a kind of file its owner lets carry it, and
+/// names only entities this pack declares, of the type its owner needs (`ARC-31`).
+///
+/// What a section *says* was checked as it was read, by its owner's own type; this checks only what
+/// every section shares. Places are checked before people, each in key order, so the first refusal is
+/// the same on every machine.
+fn check_sections<'a>(
+    root: &Path,
+    files: impl Iterator<Item = (ContentKind, &'a EntityKey, &'a Vec<FoundSection>)>,
+    places: &BTreeMap<EntityKey, AuthoredPlace>,
+    people: &BTreeMap<EntityKey, AuthoredPerson>,
+) -> Result<(), PackError> {
+    for (kind, subject, sections) in files {
+        let path = content_path(root, kind, subject.as_str());
+        for section in sections {
+            let content = match &section.state {
+                SectionState::Decoded(content) => content,
+                SectionState::OwnerNotEnabled => {
+                    return Err(PackError::ContentNeedsASystem {
+                        subject: subject.clone(),
+                        content: section.name.as_str(),
+                        system: section.owner.id(),
+                        path,
+                    });
+                }
+                SectionState::NotCarriedHere => {
+                    let carried_by = section
+                        .owner
+                        .section()
+                        .map(|owner| {
+                            owner
+                                .carried_by
+                                .iter()
+                                .map(|kind| kind.describes())
+                                .collect::<Vec<_>>()
+                                .join(" and ")
+                        })
+                        .unwrap_or_default();
+                    return Err(PackError::SectionNotCarriedHere {
+                        subject: subject.clone(),
+                        section: section.name,
+                        kind,
+                        carried_by,
+                        path,
+                    });
+                }
+            };
+            for reference in content.references() {
+                let declared = match reference.entity_type {
+                    EntityType::Place => places.contains_key(reference.key),
+                    EntityType::Person => people.contains_key(reference.key),
+                    _ => false,
+                };
+                if !declared {
+                    return Err(PackError::SectionNamesUnknownEntity {
+                        subject: subject.clone(),
+                        section: section.name,
+                        key: reference.key.clone(),
+                        expected: reference.entity_type,
+                        path,
+                    });
+                }
             }
         }
     }

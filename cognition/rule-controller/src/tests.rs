@@ -12,6 +12,7 @@ use mineworld_contracts::{
     WorldTime,
 };
 use mineworld_conversation::{ConversationHistory, Heard, Talk, Utterance, talk_requirement};
+use mineworld_naming::{DisplayName, NAME_MAX_BYTES, Name};
 use serde_json::Value;
 
 use super::RuleController;
@@ -41,6 +42,16 @@ fn said(speaker: u64, words: &str, at: i64) -> Heard {
 /// What Alice's observation looks like: herself, her disclosed history, and the verdicts the server
 /// reached about whom she may speak to.
 fn alices_view(heard: &[Heard], available_against: &[u64]) -> Observation<Value> {
+    alices_view_naming(heard, available_against, &[])
+}
+
+/// [`alices_view`], with the `display-name` records the world discloses about some of the people she
+/// perceives — as `naming` does for everybody it names.
+fn alices_view_naming(
+    heard: &[Heard],
+    available_against: &[u64],
+    names: &[(u64, &str)],
+) -> Observation<Value> {
     let mut history = ConversationHistory::default();
     for entry in heard {
         history.remember(entry.clone());
@@ -60,7 +71,22 @@ fn alices_view(heard: &[Heard], available_against: &[u64]) -> Observation<Value>
     let mut entities = vec![me];
     let mut affordances = Vec::new();
     for speaker in [VISITOR, WANDERER] {
-        entities.push(PerceivedEntity::new(id(speaker), EntityType::Person).at(here));
+        let disclosed: Vec<ComponentRecord<Value>> = names
+            .iter()
+            .filter(|(named, _)| *named == speaker)
+            .map(|(_, name)| {
+                let name = DisplayName::new(Name::new(*name).expect("a legal name"));
+                ComponentRecord::new::<DisplayName>(
+                    id(speaker),
+                    serde_json::to_value(&name).expect("serializes"),
+                )
+            })
+            .collect();
+        entities.push(
+            PerceivedEntity::new(id(speaker), EntityType::Person)
+                .at(here)
+                .with_components(disclosed),
+        );
         // The server's verdict, which this controller reads and never computes.
         affordances.push(if available_against.contains(&speaker) {
             Affordance::available(Talk::ACTION_TYPE, Some(id(speaker)), talk_requirement())
@@ -195,11 +221,59 @@ fn she_tells_the_second_person_what_the_first_one_said() {
         words.contains("hello from the 2D window"),
         "the other window's words, carried forward by the person met in this one: {words}"
     );
+    // Replaced claim (step-09 §4.3.3 C4): this view discloses no name, so the other speaker is
+    // "someone else" — and never an entity id, which the operator saw as "person 4" in the 3D slice.
     assert!(
-        words.contains(&VISITOR.to_string()),
-        "and the other speaker named by identity, because this world has no display name to use: \
-         {words}"
+        words.contains("Earlier, someone else said"),
+        "with no name disclosed, the other speaker is someone else: {words}"
     );
+    assert!(
+        !words.contains(&VISITOR.to_string()),
+        "and never an entity id: {words}"
+    );
+}
+
+/// The same sentence in a world that names people: the other speaker by the name the observation
+/// discloses about them.
+#[test]
+fn she_names_the_other_speaker_by_the_name_she_is_told() {
+    let mut alice = RuleController::new();
+    let both = alices_view_naming(
+        &[
+            said(VISITOR, "hello from the 2D window", 3_500),
+            said(WANDERER, "hello from the 3D window", 3_560),
+        ],
+        &[VISITOR, WANDERER],
+        &[(VISITOR, "Vera Lindgren"), (WANDERER, "Wes Calloway")],
+    );
+    let _to_visitor = alice.decide(&both).expect("the visitor first");
+    let words = requested(&alice.decide(&both).expect("then the wanderer")).2;
+    assert!(
+        words.contains("Earlier, Vera Lindgren said \"hello from the 2D window\""),
+        "the earlier speaker, by name: {words}"
+    );
+    assert!(
+        !words.contains("Wes Calloway"),
+        "and not the name of the person she is answering, who knows what they said: {words}"
+    );
+}
+
+/// The longest legal name beside two quotations at their bound still fits an utterance, so naming
+/// somebody can never make a controller fall silent.
+#[test]
+fn the_longest_name_still_fits_a_reply() {
+    let mut alice = RuleController::new();
+    let long = "y".repeat(mineworld_conversation::UTTERANCE_MAX_BYTES);
+    let longest = "N".repeat(NAME_MAX_BYTES);
+    let both = alices_view_naming(
+        &[said(VISITOR, &long, 3_500), said(WANDERER, &long, 3_560)],
+        &[VISITOR, WANDERER],
+        &[(VISITOR, &longest)],
+    );
+    let _to_visitor = alice.decide(&both).expect("the visitor first");
+    let words = requested(&alice.decide(&both).expect("a reply, not silence")).2;
+    assert!(words.contains(&longest), "{words}");
+    assert!(words.len() <= mineworld_conversation::UTTERANCE_MAX_BYTES);
 }
 
 /// Nothing disclosed is nothing known. A controller cannot ask again, so it does nothing.

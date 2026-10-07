@@ -8,6 +8,17 @@
 # of both of the others on arrival (6.2 m to Bob, 8.6 m to Alice, against a three-metre range), so
 # that walking up to the counter is something a client does and is answered for.
 
+name: Vera Lindgren
+
+# Her day (schedule's `routine`, ARC-32) — a plan a player may follow or ignore: it is disclosed to her
+# seat and moves her nowhere. Boundaries stay within 05:00–23:00: a fixture dependency of the restart
+# tests, explained in alice.yaml and checked by those tests.
+routine:
+  - { from: "08:00", place: cafe, label: visit }
+  - { from: "12:00", place: park, label: sightsee }
+  - { from: "16:00", place: store, label: shopping }
+  - { from: "20:00", place: apartments, label: stay }
+
 tags:
   - visitor
 

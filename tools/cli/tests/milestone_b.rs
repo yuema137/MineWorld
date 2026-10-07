@@ -29,6 +29,7 @@
 //! an idle world                       the social precondition (every bucket) holds on C first
 //! ```
 
+mod fixture;
 mod headless;
 mod social;
 mod support;
@@ -280,6 +281,11 @@ async fn alice_and_bob_know_each_other_share_an_activity_and_survive_a_restart_w
     }
 
     // ── Hosted, killed and hosted again on the same save. ────────────────────────────────────
+    // "At the revision it was killed at" holds only while no routine boundary falls as the hosted
+    // world's clock runs on from the save's head (step-09 §4.3.7). Checked first, for the hour of the
+    // day that follows the head: a routine edited into it fails here, by name, not as a mystery below.
+    let head_at = Tables::read(&killed).head_instant();
+    fixture::assert_quiet(head_at, 3_600, "milestone_b.rs (hosting the killed save)");
     let save = killed.to_str().expect("path");
     let command = ["server", PACK, "--save", save];
     let mut first = Server::start(&command).await;

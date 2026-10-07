@@ -13,6 +13,8 @@
 //! without group-activity   relationships stays installed and enabled; the world runs, every seat
 //!                          moves and talks; nobody invites or joins (the controller reads the
 //!                          affordances it is offered); people still become acquainted, by talking
+//! without naming           every other fact is the same row for row; only a reply's words may
+//!                          differ, and the bare world's replies name nobody (10c C4)
 //! ```
 //!
 //! The comparison is shown able to see a difference (`ARC-23`): the same projection of seed 7 and
@@ -33,6 +35,12 @@ const DAYS: u64 = 30;
 
 /// A copy of the pack, named as the pack (a pack's id is its directory), with `system` left out.
 fn without(system: &str) -> PathBuf {
+    without_owning(system, None)
+}
+
+/// [`without`], and with the section `system` owns removed from every person's file: a world that
+/// does not enable a section's owner refuses the section (`MODULE_SPEC.md` §4.1 rule 6).
+fn without_owning(system: &str, section: Option<&str>) -> PathBuf {
     let root = fresh(&format!("composition-without-{system}"));
     let copy = root.join("social-cafe");
     copy_dir(Path::new(PACK), &copy);
@@ -41,7 +49,38 @@ fn without(system: &str) -> PathBuf {
     let line = format!("  - {system}\n");
     assert!(text.contains(&line), "the pack enables {system}");
     std::fs::write(&manifest, text.replace(&line, "")).expect("world.yaml writes");
+    if let Some(section) = section {
+        let mut removed = 0;
+        for entry in std::fs::read_dir(copy.join("people")).expect("people/ lists") {
+            let path = entry.expect("an entry").path();
+            let text = std::fs::read_to_string(&path).expect("reads");
+            let (kept, found) = strip_section(&text, section);
+            removed += usize::from(found);
+            std::fs::write(&path, kept).expect("writes");
+        }
+        assert_eq!(removed, 12, "every person carried a `{section}:` section");
+    }
     copy
+}
+
+/// `text` without its top-level `key:` and the indented lines that continue it; whether it had one.
+fn strip_section(text: &str, key: &str) -> (String, bool) {
+    let mut kept = Vec::new();
+    let mut inside = false;
+    let mut found = false;
+    for line in text.lines() {
+        if line.starts_with(&format!("{key}:")) {
+            inside = true;
+            found = true;
+            continue;
+        }
+        if inside && (line.starts_with(' ') || line.starts_with('-')) {
+            continue;
+        }
+        inside = false;
+        kept.push(line);
+    }
+    (kept.join("\n") + "\n", found)
 }
 
 fn copy_dir(from: &Path, to: &Path) {
@@ -176,6 +215,174 @@ fn without_relationships_every_other_system_is_unchanged() {
     );
 }
 
+/// `AC-2` for `naming` (10c C4): without it, every other system's facts are the same — except that
+/// a reply which named somebody now says "someone else", because the controller is told no name. The
+/// controller is not a system; what it says is the one thing that may move, and only by that one
+/// substitution.
+#[test]
+fn without_naming_every_other_system_is_unchanged_but_for_the_names_people_say() {
+    let full_save = fresh("composition-full-for-naming");
+    let full = run(7, DAYS, Some(&full_save));
+    let full_facts = social::facts_of(&Tables::read(&full_save));
+
+    let pack = without_owning("naming", Some("name"));
+    let save = fresh("composition-no-naming-save");
+    let printed = run_pack(&pack, 7, &save);
+    assert_eq!(
+        lines(&printed, "faults     0").len(),
+        1,
+        "no fault: {printed}"
+    );
+    let bare = social::facts_of(&Tables::read(&save));
+    assert!(
+        !bare
+            .iter()
+            .any(|fact| fact.event_type().as_str() == "named"),
+        "nobody is named in a world without naming"
+    );
+
+    let others: Vec<&EventEnvelope> = full_facts
+        .iter()
+        .filter(|fact| fact.event_type().as_str() != "named")
+        .collect();
+    assert_eq!(
+        others.len(),
+        bare.len(),
+        "the same number of every other fact"
+    );
+    assert!(others.len() > 10_000, "a busy month: {}", others.len());
+    let mut substituted = 0;
+    for (row, (full, bare)) in others.iter().zip(&bare).enumerate() {
+        let (mut a, mut b) = (said(full), said(bare));
+        if a.0 == "spoke" {
+            // Not "equal but for one substituted name", as first planned: a reply quotes earlier
+            // replies, each cut at 80 characters, so a name inside a quotation may itself be cut
+            // ("Ali…" against "som…") and a substituted name moves where later cuts fall. The text
+            // cannot be mapped one onto the other. What holds, and is asserted: who spoke to whom,
+            // when, is the same on every row (below); words that are not a reply are byte-equal; and
+            // a reply differs only between two replies, the bare one naming nobody (step-09 §9
+            // E-C4, the oracle as corrected).
+            let full_words = spoken(full);
+            let bare_words = spoken(bare);
+            if full_words != bare_words {
+                assert!(
+                    full_words.starts_with(REPLY) && bare_words.starts_with(REPLY),
+                    "row {row}: only a reply's words may differ: {full_words:?} vs {bare_words:?}"
+                );
+                assert!(
+                    !says_a_given_name(&bare_words),
+                    "row {row}: a name in a world that names nobody: {bare_words:?}"
+                );
+                substituted += 1;
+            }
+            // Compared above, by the words; everything else about the fact is compared below.
+            a.5.clear();
+            b.5.clear();
+        }
+        assert_eq!(a, b, "row {row}: every other system's fact is the same");
+    }
+    assert!(
+        substituted > 0,
+        "located: some reply named somebody in the full world"
+    );
+    let bare_names = bare
+        .iter()
+        .filter(|fact| fact.event_type().as_str() == "spoke")
+        .filter(|fact| says_a_given_name(&spoken(fact)))
+        .count();
+    assert_eq!(bare_names, 0, "and nobody says a name nobody was told");
+    let full_names = others
+        .iter()
+        .filter(|fact| fact.event_type().as_str() == "spoke")
+        .filter(|fact| {
+            let words = spoken(fact);
+            social::AUTHORED_NAMES
+                .iter()
+                .any(|(_, name)| words.contains(&format!("Earlier, {name} said")))
+        })
+        .count();
+    assert!(
+        full_names > 0,
+        "located: in the full world a reply names the earlier speaker in full"
+    );
+    for prefix in ["requests ", "activity ", "consults "] {
+        assert_eq!(
+            lines(&full, prefix),
+            lines(&printed, prefix),
+            "{prefix}lines"
+        );
+    }
+    eprintln!(
+        "without naming: {} facts compared; {substituted} replies differ, the bare ones naming \
+         nobody; {full_names} full-world replies say a full name",
+        others.len()
+    );
+}
+
+/// How every reply the rule controllers make begins.
+const REPLY: &str = "I remember you. You said ";
+
+/// Whether `words` contain any person's given name, as a word of its own — the part of a name that
+/// survives a quotation cut short.
+fn says_a_given_name(words: &str) -> bool {
+    social::AUTHORED_NAMES.iter().any(|(_, name)| {
+        let given = name.split(' ').next().unwrap_or(name);
+        words
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|word| word == given)
+    })
+}
+
+/// The words of a `spoke`, decoded with conversation's own type.
+fn spoken(fact: &EventEnvelope) -> String {
+    social::decoded::<mineworld_conversation::Spoke>(fact)
+        .expect("a spoke")
+        .utterance()
+        .as_str()
+        .to_owned()
+}
+
+/// `AC-2` for `schedule` (10c C8): without it — and without the `routine:` sections, which a world
+/// that does not enable schedule refuses — the world runs, every seat moves and talks in every bucket,
+/// nobody has an agenda, and naming is still there. That the paced controller then decides exactly as
+/// it did before agendas existed is C7's frozen-binary parity, made on such a copy (step-09 §9 E-C7).
+#[test]
+fn without_schedule_the_world_runs_and_nobody_keeps_a_day() {
+    let pack = without_owning("schedule", Some("routine"));
+    let save = fresh("composition-no-schedule-save");
+    let printed = run_pack(&pack, 7, &save);
+    assert_eq!(
+        lines(&printed, "faults     0").len(),
+        1,
+        "no fault: {printed}"
+    );
+    let seats = seats();
+    let seats: Vec<&str> = seats.iter().map(String::as_str).collect();
+    assert_eq!(every_seat_active_in_every_bucket(&printed, &seats), 1);
+    let facts = social::facts_of(&Tables::read(&save));
+    assert!(
+        !facts.iter().any(|fact| matches!(
+            fact.event_type().as_str(),
+            "routine-assigned" | "agenda-changed"
+        )),
+        "no routine and no agenda in a world without schedule"
+    );
+    let named = facts
+        .iter()
+        .filter(|fact| fact.event_type().as_str() == "named")
+        .count();
+    assert_eq!(named, 12, "naming is untouched: everybody is still named");
+    let inspected = mineworld(&["inspect", save.to_str().expect("path"), "--last", "0"]);
+    assert!(inspected.status.success(), "{}", stderr(&inspected));
+    assert_eq!(
+        lines(&stdout(&inspected), "systems "),
+        [
+            "systems    presence v2, movement v1, conversation v1, group-activity v1, \
+             relationships v1, naming v1"
+        ],
+    );
+}
+
 #[test]
 fn without_group_activity_relationships_stays_and_the_world_runs() {
     let pack = without("group-activity");
@@ -209,7 +416,10 @@ fn without_group_activity_relationships_stays_and_the_world_runs() {
     let systems = lines(&report, "systems ");
     assert_eq!(
         systems,
-        ["systems    presence v2, movement v1, conversation v1, relationships v1"],
+        [
+            "systems    presence v2, movement v1, conversation v1, relationships v1, naming v1, \
+             schedule v1"
+        ],
         "relationships is installed and enabled, group-activity is not there"
     );
 

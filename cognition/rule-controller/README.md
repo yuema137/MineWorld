@@ -43,6 +43,14 @@ no memory at all (`decide(&self)`), so the same seed always makes the same choic
 killed and restarted continues exactly as if it had not been. The decision is
 [`DECISIONS.md` `ARC-27`](../../docs/DECISIONS.md).
 
+It keeps its day. When its agenda says to be somewhere else, it mostly heads there, through the door
+that leads there. When it is where the agenda says, it does not walk out (`src/agenda.rs`;
+[`ARC-32`](../../docs/DECISIONS.md)). Being spoken to still comes first. With no agenda in the
+observation, it decides exactly as it did before agendas existed.
+
+Both controllers name people by the name the world discloses, so Alice says "Earlier, Vera Lindgren
+said …". When the observation discloses no name, she says "someone else", never an id.
+
 ```sh
 cargo test -p mineworld-rule-controller
 ```

@@ -1,8 +1,8 @@
 //! Shared by the social acceptance tests (biography, Milestone B, composition): reading the social
 //! packs' facts with their owners' published types, and counting them where they happened.
 //!
-//! The six biographical types are literals here, from `step-09-social.md` SD-12, rather than read from
-//! the packs' `BIOGRAPHICAL` constants: this is the oracle a biography is checked against, and an
+//! The seven biographical types are literals here, from `step-09-social.md` SD-12, rather than read
+//! from the packs' `BIOGRAPHICAL` constants: this is the oracle a biography is checked against, and an
 //! oracle built from the code under test would agree with any mistake in it (rules §25).
 
 #![allow(dead_code)]
@@ -14,15 +14,43 @@ use mineworld_group_activity::{
     GroupActivityEnded, GroupActivityStarted, JoinedGroupActivity, LeftGroupActivity,
 };
 use mineworld_relationships::{BecameAcquainted, RelationshipChanged};
+use mineworld_schedule::{AgendaChanged, RoutineAssigned};
 
-pub const BIOGRAPHICAL_TYPES: [&str; 6] = [
+/// SD-12's set; `agenda-changed` joined it with 10c's schedule (a literal added, the claim unchanged).
+pub const BIOGRAPHICAL_TYPES: [&str; 7] = [
     "became-acquainted",
     "relationship-changed",
     "group-activity-started",
     "joined-group-activity",
     "left-group-activity",
     "group-activity-ended",
+    "agenda-changed",
 ];
+
+/// Every person's authored name, as literals from `worlds/social-cafe/people/*.yaml` — the oracle a
+/// name a command or a controller prints is checked against, never read through `naming` itself.
+pub const AUTHORED_NAMES: [(&str, &str); 12] = [
+    ("alice", "Alice Moreau"),
+    ("bob", "Bob Achterberg"),
+    ("carol", "Carol Mensah"),
+    ("dev", "Dev Raman"),
+    ("erin", "Erin Walsh"),
+    ("felix", "Felix Okafor"),
+    ("grace", "Grace Liu"),
+    ("hana", "Hana Sato"),
+    ("ivan", "Ivan Petrov"),
+    ("otto", "Otto Brandt"),
+    ("visitor", "Vera Lindgren"),
+    ("wanderer", "Wes Calloway"),
+];
+
+/// The authored name of the person with this key.
+pub fn authored_name(key: &str) -> Option<&'static str> {
+    AUTHORED_NAMES
+        .iter()
+        .find(|(person, _)| *person == key)
+        .map(|(_, name)| *name)
+}
 
 /// A fact's payload as its owner's type `E`, if it is an `E`.
 pub fn decoded<E: Event>(fact: &EventEnvelope) -> Option<E> {
@@ -49,6 +77,7 @@ pub fn payload_names(fact: &EventEnvelope, person: EntityId) -> Option<bool> {
             decoded::<JoinedGroupActivity>(fact).map(|fact| is(fact.person()))
         }
         "left-group-activity" => decoded::<LeftGroupActivity>(fact).map(|fact| is(fact.person())),
+        "agenda-changed" => decoded::<AgendaChanged>(fact).map(|fact| is(fact.person())),
         _ => None,
     }
 }
@@ -179,7 +208,52 @@ pub fn precondition(facts: &[EventEnvelope], days: i64, downward: bool) -> usize
     }
     assert!(checked > 0, "relationship facts were read");
     eprintln!("  every one of {checked} relationship facts is caused by a subscribed fact");
+    every_person_has_an_agenda_change_every_day(facts, days);
     buckets
+}
+
+/// I-4's 10c clause: every person — every one the pack gave a routine, otto included, whom nobody
+/// drives — has at least one `agenda-changed` on every simulated day of the run. The people are
+/// read from the genesis `routine-assigned` facts and must be all twelve, so the clause cannot pass
+/// over a world that quietly lost its routines.
+pub fn every_person_has_an_agenda_change_every_day(facts: &[EventEnvelope], days: i64) {
+    let people: std::collections::BTreeSet<EntityId> = facts
+        .iter()
+        .filter_map(decoded::<RoutineAssigned>)
+        .map(|assigned| assigned.person().entity_id())
+        .collect();
+    assert_eq!(
+        people.len(),
+        AUTHORED_NAMES.len(),
+        "every person of the pack has a routine"
+    );
+    let mut per_day: BTreeMap<(EntityId, i64), u64> = BTreeMap::new();
+    for changed in facts
+        .iter()
+        .filter(|fact| fact.event_type().as_str() == "agenda-changed")
+    {
+        let Some(agenda) = decoded::<AgendaChanged>(changed) else {
+            continue;
+        };
+        let day = (changed.at().seconds() / 86_400).min(days - 1);
+        *per_day
+            .entry((agenda.person().entity_id(), day))
+            .or_default() += 1;
+    }
+    for person in &people {
+        for day in 0..days {
+            assert!(
+                per_day.get(&(*person, day)).copied().unwrap_or(0) > 0,
+                "I-4 (10c): person {} has no agenda-changed on day {} — the precondition fails",
+                person.raw(),
+                day + 1
+            );
+        }
+    }
+    eprintln!(
+        "  every one of {} people had an agenda change on each of {days} days",
+        people.len()
+    );
 }
 
 /// Every fact of a save, decoded.

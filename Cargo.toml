@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "authoring",
     "cognition/rule-controller",
     "contracts",
     "kernel",
@@ -8,8 +9,10 @@ members = [
     "systems/conversation",
     "systems/group-activity",
     "systems/movement",
+    "systems/naming",
     "systems/presence",
     "systems/relationships",
+    "systems/schedule",
     "tools/cli",
     "worldpack",
 ]
@@ -27,12 +30,15 @@ authors = ["Yue Ma"]
 # One authoritative version per dependency across the workspace. A crate that needs a
 # dependency not listed here is adding a dependency, which is a reviewable decision.
 [workspace.dependencies]
+mineworld-authoring = { path = "authoring" }
 mineworld-contracts = { path = "contracts" }
+mineworld-naming = { path = "systems/naming" }
 mineworld-kernel = { path = "kernel" }
 mineworld-movement = { path = "systems/movement" }
 mineworld-persistence = { path = "persistence" }
 mineworld-presence = { path = "systems/presence" }
 mineworld-relationships = { path = "systems/relationships" }
+mineworld-schedule = { path = "systems/schedule" }
 mineworld-rule-controller = { path = "cognition/rule-controller" }
 mineworld-conversation = { path = "systems/conversation" }
 mineworld-group-activity = { path = "systems/group-activity" }

@@ -1,0 +1,26 @@
+[package]
+name = "mineworld-schedule"
+description = "MineWorld's ScheduleSystem: a person's routine and current agenda, kept by a Process whose wakes begin each part of the day. An agenda people may follow — never a mover."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# The seam a pack owns a section of an authored file through: a person's `routine:` (ARC-31).
+mineworld-authoring = { workspace = true }
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# For PerceptionProvider: the seam a pack discloses its own state through. No system dependency:
+# schedule states nobody's facts but its own, which is why it cannot move anyone (ARC-32).
+mineworld-presence = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+# The tests walk a person, decode a section from YAML as the loader does, and restart a saved world.
+mineworld-movement = { workspace = true }
+mineworld-persistence = { workspace = true }
+serde-saphyr = { workspace = true }

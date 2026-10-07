@@ -685,3 +685,277 @@ fn every_passage_refusal_names_the_file_that_states_it() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Sections (`MODULE_SPEC.md` §4.1 rule 6, `DECISIONS.md` `ARC-31`): a top-level key of a content
+// file that a System Pack owns, decoded by that pack's own type.
+// ---------------------------------------------------------------------------------------------
+
+/// A sound pack with `naming` enabled (or not), and alice's file as given.
+fn with_naming(id: &str, enabled: bool, alice: &str) -> Fixture {
+    let fixture = Fixture::sound(id);
+    let naming = if enabled { "  - naming\n" } else { "" };
+    fixture.manifest(&format!(
+        "
+systems:
+  - presence
+{naming}places:
+  - cafe
+population:
+  - alice
+"
+    ));
+    fixture.write("people/alice.yaml", alice);
+    fixture
+}
+
+#[test]
+fn a_section_is_read_by_its_owner_when_the_owner_is_enabled() {
+    let fixture = with_naming(
+        "section-sound",
+        true,
+        "tags: [barista]\nname: Alice Moreau\nlocation:\n  place: cafe\n",
+    );
+    let pack = fixture
+        .read()
+        .expect("a named person in a world that enables naming");
+    let loaded = pack
+        .load(mineworld_contracts::WorldTime::EPOCH)
+        .expect("loads");
+    let named: Vec<&str> = loaded
+        .genesis()
+        .iter()
+        .map(|fact| fact.event_type().as_str())
+        .collect();
+    assert_eq!(
+        named,
+        ["arrived", "named"],
+        "the arrival, then the section's own fact"
+    );
+}
+
+#[test]
+fn a_section_whose_owner_is_not_enabled_is_refused_naming_the_owner() {
+    let fixture = with_naming(
+        "section-owner-off",
+        false,
+        "name: Alice Moreau\nlocation:\n  place: cafe\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::ContentNeedsASystem {
+        subject,
+        content,
+        system,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*subject, key("alice"));
+    assert_eq!(*content, "name");
+    assert_eq!(*system, SystemId::new("naming").expect("an id"));
+    assert!(path.ends_with("people/alice.yaml"));
+}
+
+#[test]
+fn a_misspelled_section_is_an_unknown_field_listing_the_sections_too() {
+    let fixture = with_naming(
+        "section-misspelled",
+        true,
+        "tags: [barista]\nnmae: Alice Moreau\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::Malformed { path, detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    println!("{detail}");
+    assert!(path.ends_with("people/alice.yaml"));
+    assert!(detail.contains("nmae"), "the key is named: {detail}");
+    assert!(
+        detail.contains("`name`"),
+        "and the legal keys include the sections this build's packs own: {detail}"
+    );
+    assert!(detail.contains("line 2 column 1"), "located: {detail}");
+}
+
+#[test]
+fn an_invalid_section_is_refused_by_its_owners_type_at_its_line() {
+    let fixture = with_naming(
+        "section-invalid",
+        true,
+        "tags: [barista]\nlocation:\n  place: cafe\nname: \"\"\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::Malformed { path, detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    println!("{detail}");
+    assert!(path.ends_with("people/alice.yaml"));
+    assert!(
+        detail.contains("a name must be"),
+        "the owner's own words, not the loader's: {detail}"
+    );
+    assert!(
+        detail.contains("line 4 column 7"),
+        "located at the value, straight from the stream (DEP-10): {detail}"
+    );
+}
+
+#[test]
+fn a_section_in_a_kind_of_file_its_owner_does_not_allow_is_refused() {
+    let fixture = with_naming("section-in-a-place", true, "location:\n  place: cafe\n");
+    fixture.write(
+        "places/cafe.yaml",
+        "tags: [cafe]\nname: The Copper Kettle\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::SectionNotCarriedHere {
+        subject,
+        section,
+        kind,
+        carried_by,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*subject, key("cafe"));
+    assert_eq!(section.as_str(), "name");
+    assert_eq!(*kind, ContentKind::Place);
+    assert_eq!(carried_by, "person");
+    assert!(path.ends_with("places/cafe.yaml"));
+    assert!(refusal.to_string().contains("places/cafe.yaml"));
+}
+
+/// A sound pack with `schedule` enabled (or not), places `cafe` and `park`, and alice's file as given.
+fn with_schedule(id: &str, enabled: bool, alice: &str) -> Fixture {
+    let fixture = Fixture::sound(id);
+    let schedule = if enabled { "  - schedule\n" } else { "" };
+    fixture.manifest(&format!(
+        "
+systems:
+  - presence
+{schedule}places:
+  - cafe
+  - park
+population:
+  - alice
+  - bob
+"
+    ));
+    fixture.write("places/park.yaml", "tags: [park]\n");
+    fixture.write("people/bob.yaml", "location:\n  place: cafe\n");
+    fixture.write("people/alice.yaml", alice);
+    fixture
+}
+
+const ALICE_WITH: &str = "location:\n  place: cafe\nroutine:\n";
+
+#[test]
+fn a_routine_naming_an_undeclared_place_is_refused_by_name() {
+    let fixture = with_schedule(
+        "routine-unknown-place",
+        true,
+        &format!(
+            "{ALICE_WITH}  - {{ from: \"06:00\", place: cafe, label: work }}\n  - {{ from: \"18:00\", place: beach, label: swim }}\n"
+        ),
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::SectionNamesUnknownEntity {
+        subject,
+        section,
+        key: named,
+        expected,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*subject, key("alice"));
+    assert_eq!(section.as_str(), "routine");
+    assert_eq!(*named, key("beach"));
+    assert_eq!(*expected, mineworld_contracts::EntityType::Place);
+    assert!(path.ends_with("people/alice.yaml"));
+    assert!(refusal.to_string().contains("people/alice.yaml"));
+}
+
+#[test]
+fn a_routine_naming_a_person_where_a_place_belongs_is_refused_by_name() {
+    let fixture = with_schedule(
+        "routine-person-as-place",
+        true,
+        &format!(
+            "{ALICE_WITH}  - {{ from: \"06:00\", place: cafe, label: work }}\n  - {{ from: \"18:00\", place: bob, label: visit }}\n"
+        ),
+    );
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(
+            &refusal,
+            PackError::SectionNamesUnknownEntity { key: named, expected, .. }
+                if *named == key("bob") && *expected == mineworld_contracts::EntityType::Place
+        ),
+        "got: {refusal}"
+    );
+}
+
+#[test]
+fn a_routine_in_a_world_without_schedule_is_refused_naming_schedule() {
+    let fixture = with_schedule(
+        "routine-owner-off",
+        false,
+        &format!(
+            "{ALICE_WITH}  - {{ from: \"06:00\", place: cafe, label: work }}\n  - {{ from: \"18:00\", place: park, label: walk }}\n"
+        ),
+    );
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(
+            &refusal,
+            PackError::ContentNeedsASystem { content: "routine", system, .. }
+                if *system == SystemId::new("schedule").expect("an id")
+        ),
+        "got: {refusal}"
+    );
+}
+
+#[test]
+fn an_overlapping_routine_is_refused_by_schedules_own_rule_at_its_line() {
+    let fixture = with_schedule(
+        "routine-overlapping",
+        true,
+        &format!(
+            "{ALICE_WITH}  - {{ from: \"18:00\", place: cafe, label: work }}\n  - {{ from: \"06:00\", place: park, label: walk }}\n"
+        ),
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::Malformed { path, detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    println!("{detail}");
+    assert!(path.ends_with("people/alice.yaml"));
+    assert!(
+        detail.contains("strictly increasing times, but 06:00 follows 18:00"),
+        "schedule's own words: {detail}"
+    );
+    assert!(
+        detail.contains("line 4"),
+        "located at the section: {detail}"
+    );
+}
