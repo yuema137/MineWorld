@@ -1,55 +1,49 @@
-# Handoff — S9: PR 11e implementation (work, money, shops and consumption)
+# Handoff — S9: PR 11f implementation (the proof)
 
 A continuation aid, never a design authority. The authority is
-[`step-10-market.md`](step-10-market.md) §4.5 (4.5.0 freeze record binds), §9.5 (evidence, `E-E<n>`),
-§4.5.7 (deviations) and §16 (execution contract). Earlier contexts (11a … 11d, 11e planning) are
-CLOSED; their handoff text is in git history at `4f2a4cd`.
+[`step-10-market.md`](step-10-market.md) §4.6 (the first §4.6.0, the freeze record, binds and
+overrides), §9.6 (evidence, `E-P<n>`), §4.6.8 (deviations) and §17 (execution contract). Earlier
+contexts (11a … 11e, 11f planning) are CLOSED; their handoff text is in git history at `e97a408`.
 
 ```text
-PROJECT / PR        MVP-0 · Step 10 / PR 11e — work, money, shops and consumption (second and last half
-                    of the measured AC-1 transformation)
-PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-10-market.md §4.5; evidence §9.5; deviations §4.5.7
-RELATED / BINDING   overall.md §§1, 7; step-10 §§1.3, 2.5, 2.6, 3 (SD-13), 4.4.0, 8.6, 9 E-6, 10 (QS-39 …
-                    QS-53), 16; DECISIONS ARC-23, ARC-26, ARC-28, ARC-31 … ARC-37; MODULE_SPEC §§3.1, 4.1
-BRANCH / WORKTREE   mvp0/pr-11e-work-money-shops in /Users/yuema137/mineworld-worktrees/s9-11e (sole writer)
-BASE                main @ 4f2a4cd (70e532f + docs-only merges #44, #45); nothing under systems/, worlds/
-                    or Cargo.lock moved since 70e532f (git diff 70e532f 4f2a4cd -- those paths: empty)
-APPROVED SCOPE      §4.5 E-C1 … E-C8; only the paths of §4.5.1's table (I-1)
-FROZEN INVARIANTS   I-1 (outside path = material stop), I-3 (only economy moves money; employment never
-                    touches a Wallet; only inventory writes Holdings; consumption removes only through
-                    `consume`), I-4 (sha ad49c723…c64b), I-6 (integer minor units), I-7 (E-9 b before c
-                    before d), I-8, I-9 (no controller change); I-2 scan unchanged
-ENDPOINT AUTHORITY  source: the primary session's kickoff message for 11e (2026-10-07)
+PROJECT / PR        MVP-0 · Step 10 / PR 11f — the proof (S9, sixth and last; outside the AC-1 range)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-10-market.md §4.6; evidence §9.6; deviations §4.6.8
+RELATED / BINDING   overall.md §§1, 4, 7; step-10 §§1, 1.3, 2.5, 2.6, 4.4.3, 4.5.3, 4.5.7, 8.7, 9 E-8, 10
+                    (QS-54 … QS-66 as answered), 17; DECISIONS ARC-23, ARC-25, ARC-33 … ARC-38;
+                    MVP §§2, 9; HUMAN_REVIEW_QUEUE (B, C); server/PROTOCOL.md §§5, 6
+BRANCH / WORKTREE   mvp0/pr-11f-proof in /Users/yuema137/mineworld-worktrees/s9-11f (sole writer)
+BASE                main @ e97a408 (2dddda8 + docs-only merges #47, #48)
+APPROVED SCOPE      §4.6 P-C1 … P-C8; only the paths of §4.6.1's table
+FROZEN INVARIANTS   no behaviour change: no edit under systems/, worlds/ (but market-town/README.md),
+                    kernel/, contracts/, persistence/, server/, cognition/, sdk/, authoring/, worldpack/,
+                    tools/cli/src/, clients/, root Cargo.toml; I-4 (social-cafe sha ad49c723…c64b;
+                    market-town 300-day summary but wall = base's, 372 755 facts); I-7; I-9; no existing
+                    test edited (fixture/mod.rs gains one function); no market crate named outside
+                    systems/, worlds/, tests/acceptance/; the I-2 scan unchanged
+ENDPOINT AUTHORITY  source: the primary session's kickoff message for 11f (2026-10-07) and §17
   implementation + local validation   authorized
   semantic commits, branch push       authorized ("commit and push after every small step")
   PR creation / update                authorized; marked READY FOR OPERATOR REVIEW
-  scratch branch (E-C7, M-E9)         authorized, local only, never merged, deleted after evidence
+  scratch branch (M-P1, M-P2)         authorized, local only, never pushed, deleted after evidence
   CI repair                           N/A — no CI workflow (S13)
   merge                               operator only, with a merge commit — NOT this session
-VALIDATION BUDGET   unit/integration/static unrestricted; 300-day social-cafe ×2; 300-day market-town
-                    with save ≤ 4 (E-9, re-sizing, M-E9); 30-day runs; one full workspace gate on the
-                    final head (background); about one hour; real model NOT REQUIRED
-STOP CONDITIONS     normal: PR 11e READY FOR OPERATOR REVIEW — DO NOT MERGE. Material: a needed edit
-                    outside §4.5.1's paths; a changed social-cafe run or an edited existing test outside
-                    inventory's (or one there whose claim changes); a Cargo.lock change beyond three path
-                    packages and their lists; a controller change (I-9); E-9 b failing after re-sizing;
-                    an answer to QS-39, QS-43, QS-45 or QS-47 other than the design's
+VALIDATION BUDGET   unit/integration/static unrestricted; market_town test ≤ 6 runs; market_composition
+                    and milestone_c freely; 300-day social-cafe ×2; one full workspace gate on the final
+                    head (background); about one hour; real model NOT REQUIRED
+STOP CONDITIONS     normal: PR 11f READY FOR OPERATOR REVIEW — DO NOT MERGE. Material: a needed edit to a
+                    pack, a world (beyond its README) or a framework crate; a check failing on the merged
+                    history that is not a test defect; CP-4, AC-2 or Milestone C failing for a reason no
+                    test defect explains; a need to name a market crate outside the three directories
 ```
 
 ## Current checkpoint
 
-**READY FOR OPERATOR REVIEW. Context CLOSED / AWAITING OPERATOR ACTION.** E-C1 … E-C8 done.
-Final executable head 15c4651 (gates in step-10 §9.5 E-E-final: 510/0, 176 s); later commits are
-Markdown only. Deviations DE-1 … DE-10 in §4.5.7. Scratch branch deleted; nothing on origin named
-scratch.
+P-C1 in progress (the ARC-35 note).
 
 ## Next actions
 
-- Operator reviews the PR; merge **with a merge commit** (ARC-35 reads `M^1..M`). The primary session
-  re-runs E-1 on the actual merge diff.
-- Post-merge: this session's §4.5/§9.5 are final; the step header, §§1–3, overall, MVP_STATUS's
-  `Updated:` line and S9 row are the planning session's. 11f (the proof) is next.
+P-C1 → P-C2 → P-C3 → P-C4 → P-C5 → P-C6 → P-C7 → P-C8, each committed and pushed when coherent.
 
 ## Background processes
 
-None. Logs under /tmp/s9-11e/ (final gates in /tmp/s9-11e/final/).
+None recorded yet.

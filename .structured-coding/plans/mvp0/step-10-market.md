@@ -3104,10 +3104,16 @@ edge reading as answered (QS-54) and why (F-58); check 3's structural comparison
 from the build (SD-32); world-level tests reading the market by slugs (SD-33, QS-58); CP-4's 300-day
 committed horizon (QS-59); fail closed without full history (CI needs `fetch-depth: 0`, S13).
 
-- [ ] Implementation: the note, as scoped.
-- [ ] Validation: `python3 scripts/check_decision_ids.py`, `python3 scripts/check_doc_headings.py`.
-- [ ] Review: no ARC-35 item is relaxed without its QS answer; terms are CORE_CONCEPTS'; the note says
-  what the proof does not claim (installation without a rebuild, ARC-33/ARC-8).
+- [x] Implementation: the note, as scoped — `docs/DECISIONS.md`, ARC-35 "Note, 2026-10-07 (S9, PR
+  11f)", eight numbered points (merges by subject and id; the lock rule; QS-54 quoting the operator;
+  how check 2 reads; check 3 structural; slugs; 300 days; fail closed) and "what the proof does not
+  claim".
+- [x] Validation: `check_decision_ids` 49 distinct; `check_doc_headings` 143 / 22, none duplicated
+  (§9.6 E-P1).
+- [x] Review: the only relaxation is item 3's path rule, and it carries the operator's QS-54 words
+  verbatim; the lock rule (QS-56) and the subject+id match (QS-55) tighten; Market Town, Social Café,
+  System Pack, World Pack used as CORE_CONCEPTS/MODULE_SPEC define them; the note closes with the
+  ARC-33/ARC-8 boundary.
 
 ### P-C2 — `tests/acceptance`: check 1 (the change set), fail closed
 
@@ -4548,6 +4554,19 @@ E-E-final on 15c4651 (clean tree; final executable head — the last non-Markdow
      E-10 PASS (E-E7)                      E-11 PASS (E-C1 committed first, 75d3dc1; doc checks above)
      E-12 PASS (MVP_STATUS: the 11d rows kept and marked superseded as current market-town evidence;
           a new capability row and evidence row; the artefact row updated — DE-8)
+```
+
+## 9.6 Evidence — PR 11f
+
+Branch `mvp0/pr-11f-proof`, worktree `/Users/yuema137/mineworld-worktrees/s9-11f`, base `main @ e97a408`
+(2dddda8 + the docs-only merges #47 and #48; nothing under systems/, worlds/, tools/cli/src/,
+persistence/src/, server/src/ or tests/acceptance/ moved since 2dddda8). Debug profile, opt-level 1.
+Logs under /tmp/s9-11f/.
+
+```text
+E-P1 P-C1 — the ARC-35 note (11f), committed before any test code (P-10).
+     python3 scripts/check_decision_ids.py → 49 decision ids, all distinct (no new id: a note).
+     python3 scripts/check_doc_headings.py → 143 numbered sections across 22 documents, none duplicated.
 ```
 
 ---
