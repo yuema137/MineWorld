@@ -5,8 +5,8 @@ What the real Godot 4.7.2 engine produced, running `demo/` against a real
 `../run.sh`.
 
 ```text
-request-2d.json            the frames the 2D flavour submitted, as they went out: two `move` strides
-                           from the door to beside Alice, then the `talk`
+request-2d.json            the frames the 2D flavour submitted, as they went out: four `move` strides
+                           from the door to the counter beside Alice, then the `talk`
 request-3d.json            the frames the 3D flavour submitted — the same seat, the same strides, the
                            same words, and a reported position on the `talk`, which is the only
                            difference AC-13 permits

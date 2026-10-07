@@ -1,0 +1,15 @@
+# Felix — in the convenience store, between the shelves.
+#
+# A customer, not the person who runs it: who runs a shop is employment, which this world does not
+# install (`places/store.yaml`).
+
+tags:
+  - neighbour
+
+note: Pops into the store for whatever he forgot.
+
+location:
+  place: store
+  position:
+    x: 3000
+    y: 3000

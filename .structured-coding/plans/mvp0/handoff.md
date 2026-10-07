@@ -1,54 +1,41 @@
-# Handoff — PR 09 implementation context: ACTIVE
+# Handoff — PR 10a implementation context: CLOSED / AWAITING OPERATOR ACTION
 
-**Active PR:** Step 08 / PR 09 — Headless demo: World Pack loading, rule controller and the CLI (S7)
+**Active PR:** Step 09 / PR 10a — the town (S8, first of three) — READY FOR OPERATOR REVIEW, GitHub #29
 **Effort:** `mvp0`
-**Primary design doc (semantic authority):** `.structured-coding/plans/mvp0/step-08-headless.md`
-(combined step/PR document, `DESIGN FROZEN` at `c78aefb`, answers in §10.1, frozen-answer amendments
-at the head of §4)
+**Primary design doc (semantic authority):** `.structured-coding/plans/mvp0/step-09-social.md`
+(`DESIGN FROZEN` at `700f0e0`, answers in §10.1; PR 10a ledger §4.1, evidence §9, closeout §12)
 **Execution contract:** §11 of the primary design doc
-**Binding parents:** `overall.md` §§2, 3 (S7), 7; `docs/MVP.md` §§7, 9; `docs/MODULE_SPEC.md` §§5, 8;
-`docs/DECISIONS.md` `ARC-6`, `ARC-23`, `ARC-25`, `ARC-26`; `docs/ENGINEERING_STANDARDS.md`; `CLAUDE.md`
-
-The previous content of this file described PR 08 (merged as `6f61582`) and is replaced.
+**Binding parents:** `overall.md` §§2, 3 (S8), 7; `docs/MVP.md` §§3, 6, 9; `docs/CORE_CONCEPTS.md` §6.1;
+`docs/DECISIONS.md` `ARC-23`, `ARC-26`, `ARC-27`; step-08 §§1.3, 10.1; `CLAUDE.md`
 
 ## Repository identity
 
 ```text
-worktree         /Users/yuema137/mineworld-worktrees/s7-headless — this session's only; the sibling
-                 worktrees vis-character and vis-environment belong to other agents
-branch           mvp0/pr-09-headless
-base             main @ ef53484 — 330 tests per overall §7
-current HEAD     `git log --oneline` is authoritative; pushed after every commit
+worktree         /Users/yuema137/mineworld-worktrees/s8-social — this session's only
+branch           mvp0/pr-10-social (pushed)
+base             main @ f4301c1
+final exec HEAD  03a4df3 (all gates, design §9 E-final); later commits are planning documents only
 ```
 
-## Scope, invariants, sequence
+## Checkpoint
 
-```text
-scope        design §1.1 as answered in §10.1 (clap adopted; passages disclosed with a Godot check)
-invariants   design §1.3 I-1 … I-9
-sequence     C0 → C1 → C1b → C2 → C3 → C4 → C5 → C6 → C7 → C8
-budget       unit/integration/static unrestricted; real model NOT REQUIRED; long runs and kill tests a
-             few minutes in total
-```
+PR 10a READY FOR OPERATOR REVIEW (GitHub #29), not merged. Gates on 03a4df3:
+- fmt, check, clippy -D warnings: PASS;
+- 353 passed, 0 failed;
+- kill_and_resume: PASS;
+- both doc checks: PASS.
 
-## Endpoint authority (design §11)
+No background processes are running.
 
-```text
-implementation, commits, push, PR creation   authorized (brief; freeze message; D-12)
-merge                                        operator only — DO NOT MERGE
-clients/protocol/run.sh                      allowed without prompt
-```
+## Next actions
 
-## Current checkpoint and next actions
-
-Checkpoint: **PR 09 READY FOR OPERATOR REVIEW** — GitHub #27. C0–C8 committed and pushed (design §12
-lists them). Final executable head `e5bba45`: fmt, check, clippy, 350 tests ok / 0 failed,
-`kill_and_resume` PASS, both doc checks PASS (design §9 E-final). Implementation context CLOSED /
-AWAITING OPERATOR ACTION.
-Next: operator review and merge (the operator's). After merge, the planning session updates the step
-lifecycle and `overall.md` §7 (design §12's post-merge list).
+- The operator reviews and merges #29. Only the operator merges.
+- After the merge, the planning session updates `overall.md` §7 and routes the 3D far-side counter
+  check to the environment session (design §12).
+- 10b (relationships, group activity, biography, Milestone B) starts only when the coordinator says
+  10a is merged. Its commit detail is written and reviewed before it is built (§10.1).
 
 ## Stop conditions
 
-Normal: PR 09 READY FOR OPERATOR REVIEW, PR open, not merged. Material: any change to §1.3, to a public
-contract beyond §1.1 as answered, to ownership, or to scope — stop and report with evidence.
+Normal: reached (PR open, not merged). Material: any change to §1.3, to a public contract beyond §1.1,
+to ownership, or to scope.

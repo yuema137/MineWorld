@@ -31,8 +31,8 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
     let status = server.status().await;
 
     assert_eq!(
-        status["entities"], 6,
-        "the world the pack describes: two places and four people — {status}",
+        status["entities"], 18,
+        "the world the pack describes: six places and twelve people — {status}",
     );
     let systems: Vec<&str> = status["systems"]
         .as_array()
@@ -47,9 +47,12 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
     );
     assert_eq!(
         status["seats"],
-        json!(["alice", "visitor", "wanderer"]),
-        "the seats the pack offers: two for players, and Alice for the agent that drives her \
-         through the same roster — {status}",
+        json!([
+            "alice", "bob", "carol", "dev", "erin", "felix", "grace", "hana", "ivan", "visitor",
+            "wanderer"
+        ]),
+        "the seats the pack offers: two for players, Alice for the agent that drives her, and the \
+         town's other people, all through the same roster — {status}",
     );
     assert!(
         status["instance"].as_str().is_some_and(|id| id.len() == 32),
@@ -67,11 +70,11 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
     let (observer, world) = client.join("visitor").await;
     assert_eq!(
         observer.raw(),
-        5,
-        "the visitor is the fifth entity the pack allocates (two places, then alice and bob) — \
-         deterministically, every time",
+        17,
+        "the visitor is the seventeenth entity the pack allocates (six places, then ten people \
+         before it in key order) — deterministically, every time",
     );
-    assert_eq!(world.entities, 6);
+    assert_eq!(world.entities, 18);
 
     // And then the world itself, as this observer perceives it.
     let observation = client.observation().await;
@@ -82,13 +85,13 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
         .collect();
     assert_eq!(
         perceived,
-        [1, 3, 4, 5, 6],
+        [2, 7, 8, 17, 18],
         "the café and everybody in it, by the ids the pack resolved its keys to — and not the \
-         street (2), which is another place",
+         street (5) or anybody in another place, which this observer is not in",
     );
 
     let alice = tagged(&observation, "barista").expect("alice is perceived, by her tag");
-    assert_eq!(alice.raw(), 3);
+    assert_eq!(alice.raw(), 7);
     let position = observation
         .entity(alice)
         .and_then(|alice| alice.location())
@@ -96,7 +99,7 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
         .expect("the position people/alice.yaml authored");
     assert_eq!(
         (position.x().value(), position.y().value()),
-        (1200, 2400),
+        (6000, 8000),
         "millimetres, exactly as the file wrote them, through the whole stack",
     );
 
@@ -149,9 +152,9 @@ async fn a_seat_the_pack_does_not_offer_is_refused() {
     let server = Server::start(&["server", support::PACK]).await;
     let mut client = Client::connect(server.address).await;
 
-    // `bob` exists in this world and is not a seat: `world.yaml` offers `visitor`, `wanderer` and
-    // `alice`, so nothing can connect *as* him. The roster is the world's, not the client's.
-    client.send(json!({ "t": "join", "seat": "bob" })).await;
+    // `otto` exists in this world and is not a seat: `world.yaml` offers every other Person and not
+    // him, so nothing can connect *as* him. The roster is the world's, not the client's.
+    client.send(json!({ "t": "join", "seat": "otto" })).await;
     let frame = client.frame().await;
     assert!(
         matches!(frame, ServerFrame::Refused { .. }),

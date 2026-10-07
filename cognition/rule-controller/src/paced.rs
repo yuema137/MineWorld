@@ -32,7 +32,7 @@ use mineworld_contracts::{
     Millimetres, Observation, PerceivedEntity, SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
-use mineworld_movement::{MAX_STRIDE, Move, Passages};
+use mineworld_movement::{MAX_STRIDE, Move, Passage, Passages};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -70,6 +70,18 @@ const APPROACHES_BELOW: u64 = 50;
 const LEAVES_BELOW: u64 = 62;
 const WANDERS_BELOW: u64 = 85;
 
+/// In a place with more than one doorway — a street, which every other place opens onto — heading
+/// for a door takes the bands from greeting up to here: people greet whoever they pass, and otherwise
+/// mostly walk on. Without it a person on a street of five doors twelve to eighteen metres apart
+/// spends most of a day getting to any of them (`step-09-social.md` C3).
+const PASSES_THROUGH_BELOW: u64 = 80;
+
+/// How long a person keeps heading for the same door, in simulated seconds: six hours. Which door is a
+/// draw over `(seed, observer, instant ÷ this)`, so it is still a pure function of the observation —
+/// and it holds for long enough to arrive: a door eighteen metres off is nine strides away, about
+/// fifteen consults at the street's rate of walking on, under four hours at `mineworld run`'s pace.
+const DOOR_WINDOW: i64 = 21_600;
+
 /// A Person whose actions are a seeded rule, consulted every `pace` simulated seconds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PacedRuleController {
@@ -95,19 +107,27 @@ impl PacedRuleController {
     ///
     /// In order: answer the newest line somebody said to me since my last consult, if the server
     /// says I may speak to them; otherwise, by the seeded draw, greet somebody I may speak to,
-    /// walk toward somebody, walk toward or through a doorway, wander a stride, or do nothing.
+    /// walk toward somebody, walk toward or through a doorway, wander a stride, or do nothing. In a
+    /// place with several doorways the draw favours walking on toward one of them.
     pub fn decide(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
         let draw = Draw::new(self.seed, observation);
         if let Some(reply) = self.answer(observation, &draw) {
             return Some(reply);
         }
         let roll = draw.below(100, 0);
+        let passing_through = observation
+            .self_location()
+            .and_then(|here| doorways(observation, *here))
+            .is_some_and(|doors| doors.iter().count() > 1);
         if roll < GREETS_BELOW {
             greet(observation, &draw)
+        } else if passing_through && roll < PASSES_THROUGH_BELOW {
+            self.leave(observation)
+                .or_else(|| wander(observation, &draw))
         } else if roll < APPROACHES_BELOW {
             approach(observation, &draw).or_else(|| wander(observation, &draw))
         } else if roll < LEAVES_BELOW {
-            leave(observation)
+            self.leave(observation)
         } else if roll < WANDERS_BELOW {
             wander(observation, &draw)
         } else {
@@ -132,6 +152,40 @@ impl PacedRuleController {
         }
         let said = reply_to(heard, &newest, *speaker)?;
         Some(ActionRequest::new(me, record(&Talk::new(said))).with_target(*speaker))
+    }
+
+    /// Toward a doorway this place discloses, or through it when it is a stride away.
+    ///
+    /// Which doorway is a draw over `(seed, observer, instant ÷ DOOR_WINDOW)`: the same door for the
+    /// whole window, so a person crossing a street keeps walking to one door rather than turning at
+    /// every consult, and a different door in the next window, so every place is visited. A place with
+    /// one doorway has only one to choose. The passages are disclosed in `PlaceId` order, and before
+    /// S8 this always took the first — on a street of five doors that sent everybody into the
+    /// lowest-numbered place and never back (`step-09-social.md` F-6).
+    fn leave(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
+        let here = *observation.self_location()?;
+        let from = here.local()?;
+        let doors: Vec<Passage> = doorways(observation, here)?.iter().copied().collect();
+        let window = observation
+            .at()
+            .seconds()
+            .div_euclid(DOOR_WINDOW)
+            .cast_unsigned();
+        let chosen = mix(
+            mix(self.seed ^ 0x646f_6f72, observation.observer().raw()),
+            window,
+        ) % (doors.len() as u64);
+        let passage = *doors.get(usize::try_from(chosen).ok()?)?;
+        let door = passage.here()?;
+        if within(from, door, i64::from(MAX_STRIDE.value())) {
+            // Through: to the same doorway on the other side, which is within a stride of itself.
+            let there = passage.there()?;
+            return walk(
+                observation,
+                Location::in_place(passage.to()).with_local(there),
+            );
+        }
+        walk(observation, here.with_local(toward(from, door, 0)?))
     }
 }
 
@@ -203,23 +257,6 @@ fn approach(observation: &Observation<Value>, draw: &Draw) -> Option<ActionReque
     walk(observation, here.with_local(stride))
 }
 
-/// Toward the first doorway this place discloses, or through it when it is a stride away.
-fn leave(observation: &Observation<Value>) -> Option<ActionRequest> {
-    let here = *observation.self_location()?;
-    let from = here.local()?;
-    let passage = doorways(observation, here)?.iter().next().copied()?;
-    let door = passage.here()?;
-    if distance(from, door) <= i64::from(MAX_STRIDE.value()) {
-        // Through: to the same doorway on the other side, which is within a stride of itself.
-        let there = passage.there()?;
-        return walk(
-            observation,
-            Location::in_place(passage.to()).with_local(there),
-        );
-    }
-    walk(observation, here.with_local(toward(from, door, 0)?))
-}
-
 /// A stride in a seeded direction within the place.
 fn wander(observation: &Observation<Value>, draw: &Draw) -> Option<ActionRequest> {
     let here = *observation.self_location()?;
@@ -267,6 +304,14 @@ fn pick<'a, T>(choices: &'a [T], draw: &Draw, n: u64) -> Option<&'a T> {
     choices.get(usize::try_from(draw.below(choices.len() as u64, n)).ok()?)
 }
 
+/// Whether `b` is at most `limit` from `a` on the floor, decided exactly on squared integers — never
+/// on a rounded distance, which would call 2 000.4 mm "2 000" and propose a crossing the movement
+/// system refuses.
+pub(crate) fn within(a: LocalPosition, b: LocalPosition, limit: i64) -> bool {
+    let (dx, dy) = delta(a, b);
+    dx * dx + dy * dy <= limit * limit
+}
+
 /// Straight-line distance on the floor, in whole millimetres, rounded down.
 pub(crate) fn distance(a: LocalPosition, b: LocalPosition) -> i64 {
     let (dx, dy) = delta(a, b);
@@ -276,15 +321,21 @@ pub(crate) fn distance(a: LocalPosition, b: LocalPosition) -> i64 {
 /// A stride from `from` toward `to`, ending `stop_short` short of it and never longer than
 /// [`MAX_STRIDE`]; `None` when there is nowhere to go.
 ///
-/// Floor division toward zero on each axis, so the stride's length never exceeds the travel asked
-/// for: `|dx·travel/d| ≤ |dx|·travel/d`, and likewise for `dy`.
+/// Floor division toward zero on each axis over the distance rounded **up**, so the stride's length
+/// never exceeds the travel asked for: with `D ≥ √(dx² + dy²)`, `|dx·travel/D| ≤ |dx|·travel/D`, and
+/// the stride's length is at most `√(dx² + dy²)·travel/D ≤ travel`.
+///
+/// Rounded up, not down. Dividing by the floored root — as this did until step-09 C3 — makes `D`
+/// slightly *short* of the true distance and the stride a fraction of a millimetre *over* `travel`:
+/// (1 640, 1 145) is 2 000.16 mm, which the movement system rightly refuses `TooFarAway`. The old test
+/// measured strides with the same floored root and could not see it (`DECISIONS.md` `ARC-23`).
 pub(crate) fn toward(
     from: LocalPosition,
     to: LocalPosition,
     stop_short: i64,
 ) -> Option<LocalPosition> {
     let (dx, dy) = delta(from, to);
-    let d = isqrt(dx * dx + dy * dy);
+    let d = isqrt_up(dx * dx + dy * dy);
     if d <= stop_short {
         return None;
     }
@@ -313,9 +364,15 @@ fn shifted(value: Millimetres, by: i64) -> Option<Millimetres> {
         .map(Millimetres::new)
 }
 
-/// The integer square root of a non-negative number.
+/// The integer square root of a non-negative number, rounded down.
 fn isqrt(value: i64) -> i64 {
     value.max(0).cast_unsigned().isqrt().cast_signed()
+}
+
+/// The integer square root of a non-negative number, rounded up: the least `r` with `r² ≥ value`.
+fn isqrt_up(value: i64) -> i64 {
+    let root = isqrt(value);
+    if root * root < value { root + 1 } else { root }
 }
 
 /// This controller's own payload encoding, as [`RuleController`](crate::RuleController)'s.

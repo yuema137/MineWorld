@@ -1,0 +1,12 @@
+# Carol — at home in the apartments' hall, by the stairs.
+
+tags:
+  - resident
+
+note: Lives in the apartments. Knows everybody on the stairs by sight.
+
+location:
+  place: apartments
+  position:
+    x: 3000
+    y: 2500

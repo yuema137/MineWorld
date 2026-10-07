@@ -9,9 +9,10 @@
 //! What would make this pass without proving anything, and how each is excluded (`ARC-23`):
 //!
 //! ```text
-//! two idle histories agreeing      before anything is compared, every seat must have an accepted
-//!                                  move AND talk in every one of the ten 30-day buckets (I-9), the
-//!                                  street must have been entered, and the fact count is located
+//! two idle histories agreeing      before anything is compared, every seat the pack offers must have
+//!                                  an accepted move AND talk in every one of the ten 30-day buckets
+//!                                  (step-08 I-9), every one of the town's places must have been
+//!                                  entered (step-09 C3), and the fact count is located
 //! a seed that is never read        seed 8 makes a different fact log
 //! a fingerprint standing in for    equality is the bytes of facts, journal and snapshots, row by
 //!   equality                       row; the printed fingerprint is never compared (§10.1 Q9)
@@ -22,11 +23,9 @@
 mod headless;
 
 use headless::{
-    PACK, Tables, count_after, deterministic, every_seat_active_in_every_bucket, fresh, lines,
-    mineworld, run, stderr,
+    PACK, Tables, count_after, deterministic, entries_per_place, every_seat_active_in_every_bucket,
+    fresh, lines, mineworld, run, seats, stderr,
 };
-
-const SEATS: [&str; 3] = ["alice", "visitor", "wanderer"];
 
 #[test]
 fn three_hundred_days_with_the_real_systems_and_the_same_seed_is_the_same_world() {
@@ -48,8 +47,10 @@ fn three_hundred_days_with_the_real_systems_and_the_same_seed_is_the_same_world(
     );
 
     // ── AC-11, located before anything is compared (I-9). ──────────────────────────────────────
+    let seats = seats();
+    let seats: Vec<&str> = seats.iter().map(String::as_str).collect();
     assert_eq!(
-        every_seat_active_in_every_bucket(&a, &SEATS),
+        every_seat_active_in_every_bucket(&a, &seats),
         10,
         "ten 30-day buckets were read"
     );
@@ -58,7 +59,7 @@ fn three_hundred_days_with_the_real_systems_and_the_same_seed_is_the_same_world(
     let entered = lines(&a, "facts      person-entered-place ");
     assert!(
         entered.len() == 1 && count_after(entered[0], "person-entered-place ") > 0,
-        "the street is used, so S6's PersonEnteredPlace occurs in a real run: {a}"
+        "doors are used, so S6's PersonEnteredPlace occurs in a real run: {a}"
     );
     let history = lines(&a, "history ");
     let facts = count_after(history[0], "history ");
@@ -69,6 +70,20 @@ fn three_hundred_days_with_the_real_systems_and_the_same_seed_is_the_same_world(
 
     // ── AC-12: the same seed is the same world, byte for byte. ────────────────────────────────
     let (first_tables, second_tables) = (Tables::read(&first), Tables::read(&second));
+
+    // The town is walked, not only the café (step-09 C3): every place is entered, located per place
+    // from presence's facts. Before S8's door choice, everybody on the street went into the
+    // lowest-numbered place and never came back.
+    let per_place = entries_per_place(&first_tables);
+    eprintln!("person-entered-place by place: {per_place:?}");
+    assert_eq!(
+        per_place.len(),
+        6,
+        "every place the pack declares was counted"
+    );
+    for (place, count) in &per_place {
+        assert!(*count > 0, "nobody ever entered {place}: {per_place:?}");
+    }
     assert_eq!(
         u64::try_from(first_tables.facts.len()).expect("fits"),
         facts,
@@ -103,8 +118,10 @@ fn a_different_seed_makes_a_different_world() {
     let (seven, eight) = (fresh("run-seed-7"), fresh("run-seed-8"));
     let printed_seven = run(7, 30, Some(&seven));
     let printed_eight = run(8, 30, Some(&eight));
-    every_seat_active_in_every_bucket(&printed_seven, &SEATS);
-    every_seat_active_in_every_bucket(&printed_eight, &SEATS);
+    let seats = seats();
+    let seats: Vec<&str> = seats.iter().map(String::as_str).collect();
+    every_seat_active_in_every_bucket(&printed_seven, &seats);
+    every_seat_active_in_every_bucket(&printed_eight, &seats);
 
     let (seven, eight) = (Tables::read(&seven), Tables::read(&eight));
     // Genesis is the pack's and is the same; what the controllers did is not.

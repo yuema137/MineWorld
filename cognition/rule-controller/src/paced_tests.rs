@@ -50,11 +50,19 @@ fn said(speaker: u64, words: &str, at: i64) -> Heard {
     )
 }
 
+/// The exact squared floor distance between two positions — what a stride bound is checked against.
+fn squared(a: LocalPosition, b: LocalPosition) -> i64 {
+    let dx = i64::from(b.x().value()) - i64::from(a.x().value());
+    let dy = i64::from(b.y().value()) - i64::from(a.y().value());
+    dx * dx + dy * dy
+}
+
 fn controller(seed: u64) -> PacedRuleController {
     PacedRuleController::new(seed, SimDuration::from_seconds(PACE))
 }
 
 /// One view of the café, built as perception builds it.
+#[derive(Clone)]
 struct View {
     at: i64,
     me: Location,
@@ -62,7 +70,8 @@ struct View {
     /// Who is here, and whether the server says I may talk to them.
     people: Vec<(u64, Location, bool)>,
     move_offered: bool,
-    door: Option<Passage>,
+    /// The doorways the place I stand in discloses.
+    doors: Vec<Passage>,
 }
 
 impl View {
@@ -76,11 +85,11 @@ impl View {
                 (SUE, in_cafe(6_000, 1_000), false),
             ],
             move_offered: true,
-            door: Some(Passage::new(
+            doors: vec![Passage::new(
                 place(STREET),
                 Some(spot(8_000, 1_000)),
                 Some(spot(0, 3_000)),
-            )),
+            )],
         }
     }
 
@@ -89,11 +98,17 @@ impl View {
         for entry in &self.heard {
             history.remember(entry.clone());
         }
-        let mut cafe = PerceivedEntity::new(id(CAFE), EntityType::Place);
-        if let Some(door) = self.door {
+        let here = self.me.place().entity_id();
+        let mut cafe = PerceivedEntity::new(here, EntityType::Place);
+        if !self.doors.is_empty() {
+            let leads_to: Vec<Value> = self
+                .doors
+                .iter()
+                .map(|door| serde_json::to_value(door).expect("serializes"))
+                .collect();
             cafe = cafe.with_components(vec![ComponentRecord::new::<Passages>(
-                id(CAFE),
-                json!({ "leads_to": [serde_json::to_value(door).expect("serializes")] }),
+                here,
+                json!({ "leads_to": leads_to }),
             )]);
         }
         let me = PerceivedEntity::new(id(ME), EntityType::Person)
@@ -290,8 +305,12 @@ fn every_proposed_walk_is_one_stride_or_a_crossing_at_a_doorway() {
                 continue;
             };
             if to.place() == place(CAFE) {
-                let length = distance(from, to.local().expect("positioned"));
-                assert!(length <= stride, "a {length} mm stride from seed {seed}");
+                let landed = to.local().expect("positioned");
+                assert!(
+                    squared(from, landed) <= stride * stride,
+                    "a {} mm stride from seed {seed}",
+                    distance(from, landed)
+                );
             } else {
                 crossings += 1;
             }
@@ -314,6 +333,93 @@ fn every_proposed_walk_is_one_stride_or_a_crossing_at_a_doorway() {
     assert!(crossed.iter().all(|to| to.local() == Some(spot(0, 3_000))));
 }
 
+/// `step-09-social.md` C3 / F-6: on a street that five places open onto, a person heads for a door
+/// chosen by the draw — every door is chosen by some seed or window, the same door is kept for a
+/// whole `DOOR_WINDOW`, and walking on is what people on a street mostly do.
+///
+/// Every door is placed within a stride of the observer, so a decision to leave is a crossing and its
+/// destination says which door was chosen; no distance is computed by the test.
+#[test]
+fn on_a_street_of_five_doors_every_door_is_chosen_and_each_is_kept_for_a_window() {
+    const DOOR_WINDOW: i64 = 21_600;
+    let destinations = [10_u64, 11, 12, 13, 14];
+    let at_doors = [
+        (1_500, 0),
+        (-1_500, 0),
+        (0, 1_500),
+        (0, -1_500),
+        (1_000, 1_000),
+    ];
+    let street = View {
+        me: Location::in_place(place(STREET)).with_local(spot(0, 0)),
+        people: Vec::new(),
+        doors: destinations
+            .iter()
+            .zip(at_doors)
+            .map(|(to, (x, y))| Passage::new(place(*to), Some(spot(x, y)), Some(spot(500, 500))))
+            .collect(),
+        ..View::new()
+    };
+    // Consults inside one window: NOW is 36 000 s, the window 21 600 … 43 199.
+    let first_window: Vec<i64> = (0..12).map(|step| NOW + step * PACE).collect();
+    assert!(
+        first_window
+            .iter()
+            .all(|at| at.div_euclid(DOOR_WINDOW) == NOW.div_euclid(DOOR_WINDOW))
+    );
+
+    let mut chosen = std::collections::BTreeSet::new();
+    let (mut consults, mut crossings) = (0, 0);
+    for seed in 0..SEEDS {
+        let mut this_window = std::collections::BTreeSet::new();
+        for at in &first_window {
+            consults += 1;
+            let observation = View {
+                at: *at,
+                ..street.clone()
+            }
+            .build();
+            let Some(to) = controller(seed)
+                .decide(&observation)
+                .as_ref()
+                .and_then(moved_to)
+            else {
+                continue;
+            };
+            if to.place() != place(STREET) {
+                crossings += 1;
+                this_window.insert(to.place().entity_id().raw());
+            }
+        }
+        assert!(
+            this_window.len() <= 1,
+            "seed {seed} changed door within one window: {this_window:?}"
+        );
+        chosen.extend(this_window);
+        // And the next window is a draw of its own.
+        let later = View {
+            at: NOW + DOOR_WINDOW,
+            ..street.clone()
+        }
+        .build();
+        if let Some(to) = controller(seed).decide(&later).as_ref().and_then(moved_to)
+            && to.place() != place(STREET)
+        {
+            chosen.insert(to.place().entity_id().raw());
+        }
+    }
+    println!("{crossings} crossings in {consults} consults; doors chosen {chosen:?}");
+    assert_eq!(
+        chosen,
+        destinations.into_iter().collect(),
+        "every door on the street is chosen by some seed or window"
+    );
+    assert!(
+        crossings * 100 > consults * 40,
+        "on a street people mostly walk on: {crossings} of {consults} consults crossed"
+    );
+}
+
 #[test]
 fn a_stride_never_exceeds_the_published_bound_in_any_direction() {
     let stride = i64::from(MAX_STRIDE.value());
@@ -330,13 +436,25 @@ fn a_stride_never_exceeds_the_published_bound_in_any_direction() {
         (1_414, 1_415),
         (2_000_000, 1),
         (3, -4),
+        // Located in step-09 C3: the café door from (−6 232, −1 351) on the street. Divided by the
+        // floored root (7 600 for 7 600.6) this proposed (1 640, 1 145) — 2 000.16 mm, refused.
+        (6_232, 4_351),
     ];
-    for (x, y) in targets {
+    // And a sweep of directions and lengths, every one checked exactly.
+    let swept = (-9_000..=9_000)
+        .step_by(997)
+        .flat_map(|x| (-9_000..=9_000).step_by(1_009).map(move |y| (x, y)));
+    for (x, y) in targets.into_iter().chain(swept) {
         let to = spot(x, y);
         let before = distance(from, to);
         if let Some(stepped) = toward(from, to, 0) {
-            let length = distance(from, stepped);
-            assert!(length <= stride, "{length} mm toward ({x}, {y})");
+            // Exact, on squared integers: a rounded length would call 2 000.16 mm "2 000" and pass
+            // the very stride the movement system refuses (`ARC-23`).
+            assert!(
+                squared(from, stepped) <= stride * stride,
+                "{} mm toward ({x}, {y})",
+                distance(from, stepped)
+            );
             assert!(
                 distance(stepped, to) < before,
                 "the stride toward ({x}, {y}) gets closer"
