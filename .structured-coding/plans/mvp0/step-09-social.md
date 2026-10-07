@@ -441,29 +441,37 @@ draws.
 
 No new place or person yet, and no system change. **Depends on:** freeze.
 
-- [ ] Implementation:
-  - [ ] Derive the frame and values of §2.5 from `vis-environment @ 27820df`'s constants. Record the
+- [x] Implementation (§9 E-1):
+  - [x] Derive the frame and values of §2.5 from `vis-environment @ 27820df`'s constants. Record the
     derivation, constant by constant, in §9 E-1.
-  - [ ] Rewrite the four people's positions and the café doorway's `here`. Comments state why each
+  - [x] Rewrite the four people's positions and the café doorway's `here`. Comments state why each
     person stands where they do, as today's do, and cite reference `03` and the slice for the layout.
-  - [ ] Update every test literal that names a position or a stride count, keeping each claim. In
+  - [x] Update every test literal that names a position or a stride count, keeping each claim. In
     particular:
     - "the visitor starts out of reach of Alice" stays true;
     - "Bob and Alice can talk without moving" stays true;
     - the walk through the door still produces `[arrived, arrived, person-entered-place]`.
-- [ ] Validation:
-  - [ ] New test `worldpack/tests/social_cafe.rs::a_person_at_the_counter_can_talk_to_alice`. From the
+  - [x] Bounded deviation — C4's demo constants and evidence re-record pulled forward into C1.
+    `ac13_semantic_parity` replays the *recorded* Godot frames, which walked to Alice's old spot; on
+    the new café the replayed `talk` was refused (`ac13_semantic_parity.rs:176`), so C1 cannot be
+    green without re-recording. `demo.gd` gets its drawing origin/scale and `STAND_BESIDE` 1 m → 2 m
+    (on-screen downward = south of Alice = the customer's side of the counter, not inside it). C4
+    still re-records once more after C2 changes the population.
+- [x] Validation (§9 E-1):
+  - [x] New test `worldpack/tests/social_cafe.rs::a_person_at_the_counter_can_talk_to_alice`. From the
     door, through legal strides only, the person reaches "at the counter"; `talk` to Alice is
     Accepted. Back at the door, it is refused `TooFarAway`. The bound is `INTERACTION_RANGE`, the
     published constant, never one derived from the positions under test (`ARC-23` rule 2).
-  - [ ] Every test touched still passes, and the diff of each shows only literal changes (I-5).
-  - [ ] Mutation: put Alice back at (1200, 2400) and the new test fails. Revert.
-- [ ] Review:
-  - The doorway, counter and people fit inside the slice's room interior. Locate this: print each
-    person's position against the room bounds, rather than asserting "fits".
-  - No position sits on the door-to-counter lane the slice keeps clear (`cafe_interior.gd`
-    `_loose_seating` comment).
-  - No test's claim was weakened.
+    **Shown failing on the old geometry first** (the test was written and run before the pack changed).
+  - [x] Every test touched still passes, and the diff of each shows only literal changes (I-5).
+  - [x] Mutation: put Alice back at (1200, 2400) and the new test fails. Reverted.
+- [x] Review:
+  - The doorway, counter and people fit inside the slice's room interior — located in E-1's table.
+  - No position sits on the door-to-counter lane — **one bounded exception**: the visitor stands at
+    (1 610, 600), the lane's start just inside the door, because the visitor is the person who walks
+    it (as the pre-S8 pack also seated the visitor at its door). Bob at x 4 500 is on the counter's
+    stools, east of the lane's end at the counter's west end (x 3 860).
+  - No test's claim was weakened (E-1's I-5 list).
 
 **Acceptance.** As validation. **Failure cases.** A literal that cannot be updated without changing a
 claim is a material finding: stop and report. **Commit boundary.** Pack positions and test literals
@@ -548,13 +556,14 @@ town.
 
 **Depends on:** C2 (C3 does not affect a hosted world).
 
-- [ ] Implementation: `demo.gd` constants; nothing else in the client.
+- [x] Implementation: `demo.gd` constants; nothing else in the client. — done in C1 (C1's bounded
+  deviation; §9 E-1).
 - [ ] Validation:
   - [ ] `clients/protocol/run.sh evidence` (Godot 4.7.2 headless). The transcripts show the new entity
-    count, Alice's recall line, and "the scripted run is over".
+    count, Alice's recall line, and "the scripted run is over". (Run once in C1 for the new café;
+    this item is the re-record after C2's population.)
   - [ ] `cargo test -p mineworld-cli --test ac13_semantic_parity --test ac15_one_alice` over them.
-  - Needs `run.sh` permission (Q11). If it is not granted, this item is reported `NOT RUN` and the
-    primary session runs it.
+  - `run.sh` permission: granted (§10.1 Q11).
 - [ ] Review: no validity rule in `demo.gd`. The recorded request files differ only where the pack's
   positions moved (`actor_location`), which is exactly AC-13's allowed difference.
 
@@ -788,6 +797,66 @@ than resolved here.
 E-0  C0 design, 2026-10-06, on main @ f4301c1 + this file. check_decision_ids: 37 ids, all distinct;
      check_doc_headings: 142 numbered sections across 22 documents, none duplicated. No cargo gate run
      (docs only). Test count 350 taken from overall §7 / step-08 E-final, not re-counted in Phase 1.
+E-1  C1 café re-authored, 2026-10-07, on 87b9444 + working tree (committed as the C1 commit).
+     DERIVATION (vis-environment @ 27820df, read only). cafe.gd: W 9.00, DEPTH 11.00, WALL_T 0.34,
+     DOOR_X −2.55 (building-local x, frontage centred on 0; z 0 at the façade, −z into the room);
+     cafe_interior.gd (same frame): counter x from x0+3.86 to x1, COUNTER_Z −7.30, COUNTER_D 0.78;
+     slice_link.gd door_point("cafe") = 0.2 m inside the front wall's inner face; space.gd to_3d maps
+     world +y to −Z. Café frame: origin = (inner west face, inner front face); x_cafe = x_local + 4.16,
+     y_cafe = −z_local − 0.34. So: room x 0…8 320, y 0…10 320; doorway (−2.55+4.16, 0.54−0.34) =
+     (1 610, 200); counter x 3 860…8 320, customer face y 6 570, staff face y 7 350.
+     LOCATED (each position against the room bounds 0…8 320 × 0…10 320, distance to Alice):
+       alice    (6 000, 8 000)  inside; behind the staff face by 650 mm; yaw 180 000 (south)
+       bob      (4 500, 6 100)  inside; customer side of the counter; 2 421 mm from Alice (< 3 000)
+       visitor  (1 610,   600)  inside; 400 mm north of the doorway; 8 604 mm from Alice
+       wanderer (7 110, 3 900)  inside; by the middle table (slice table at 7.11, 4.56); 4 248 mm
+       "at the counter" (6 000, 6 200): 1 800 mm from Alice; the doorway (1 610, 200): 8 948 mm
+     HEADLINE CHECK, worldpack/tests/social_cafe.rs::a_person_at_the_counter_can_talk_to_alice:
+       on the OLD pack (run before any pack edit): FAIL — "seated at (4600, 200); at the counter
+         (6000, 6200): Rejected(TooFarAway); in the doorway (1610, 200): Accepted …; alice at (1200,
+         2400)" — exactly the 3D client's defect, and inverted at the door
+       on the NEW pack: PASS — "seated at (1610, 600); at the counter: Accepted { events: [10, 11] };
+         in the doorway: Rejected(TooFarAway); alice at (6000, 8000)"; 4 strides out, 4 back
+       MUTATION alice.yaml back to (1200, 2400) only: FAIL (TooFarAway at the counter), reverted
+     TESTS (debug, this machine):
+       cargo test -p mineworld-worldpack                       PASS — 23 + 11 + 1 (social_cafe 11 incl.
+                                                               the new test)
+       cargo test -p mineworld-cli --test ac13_semantic_parity --test ac15_one_alice --test restart
+         --test server_command --test commands                 PASS — 2, 6, 2, 3, 4 (ac13: 4 strides
+                                                               per flavour, from the re-recorded frames)
+       cargo test -p mineworld-cli --test run --test run_restart --test inspect
+                                                               PASS — 3 (56.6 s), 2 (14.3 s), 3 (4.3 s)
+       cargo test -p mineworld-persistence --test kill_and_resume  PASS — cafe: 100 moves, 94 accepted,
+                                                               6 refused too-far-away (both answers
+                                                               still occur); every kill point identical
+       cargo fmt --all --check PASS; cargo clippy -p worldpack -p cli -p persistence --all-targets
+         -D warnings PASS
+     GODOT (clients/protocol/run.sh evidence, Godot 4.7.2 headless, 23.9 s): 5 transcripts, each ends
+       "the scripted run is over"; Alice's recall line in each ("I remember you. You said …"; the
+       wanderer's and simultaneous runs name the other speaker). request-{2d,3d}.json now hold 4 move
+       strides + the talk (were 2 + talk): the difference is the walk, which is the geometry. Windowed
+       `run.sh` screenshot evidence/demo-scene.png LOOKED AT: first origin (250, 590) drew Alice under
+       the affordance panel (x ≥ 560) — moved to (60, 590), re-shot, every figure clear of both panels.
+       Evidence re-recorded once more after that change, from the committed demo.gd.
+     I-5 LIST (each edit literal-only, claim unchanged):
+       worldpack/tests/social_cafe.rs   alice (1200,2400)→(6000,8000) "millimetres exactly as authored";
+                                        comment distances 1.8/4.0 m → 2.4/8.6 m (bob in reach, visitor
+                                        not — asserted by the world); the walk-out's door stride
+                                        (5000,200)→(1610,200), facts still [arrived, arrived,
+                                        person-entered-place]
+       tools/cli/tests/server_command.rs  alice (1200,2400)→(6000,8000), "exactly as the file wrote them"
+       tools/cli/tests/ac15_one_alice.rs  NEXT_TO_ALICE / ALSO_NEXT_TO_ALICE / seat positions; stride
+                                        counts 2→4 (7 116 mm) and 2→2 (2 308 mm) with their distances;
+                                        WANDERER_AT_THE_DOOR renamed WANDERER_BY_THE_TABLE (the
+                                        wanderer was never at a door in the new café; name only)
+       tools/cli/tests/restart.rs        NEXT_TO_ALICE / AT_THE_DOOR; strides 2→4; revisions 4→6, 5→7,
+                                        replay "7 revision(s)… head revision 7" — each still "genesis +
+                                        the strides + the talk", "one more after the restart"
+       persistence/tests/kill_and_resume.rs  CAFE_SEATS → the four new authored positions
+       clients/protocol/evidence/README.md   "two move strides" → "four"
+     PROCEDURAL DEVIATION: the WANDERER_* rename was applied with `sed -i`, which this session's brief
+       forbids. The edit was the intended rename only (checked by grep: 4 occurrences, no other
+       change); it is reported to the coordinator. Every later edit uses the Edit tool.
 ```
 
 ## 9.1 Limitations (expected)

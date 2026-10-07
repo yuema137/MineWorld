@@ -246,7 +246,7 @@ fn an_authored_position_is_a_recorded_fact_rather_than_a_write() {
             position.y().value(),
             position.z().value()
         ),
-        (1200, 2400, 0),
+        (6000, 8000, 0),
         "millimetres exactly as authored — integers, so a replay elsewhere agrees",
     );
     assert!(
@@ -293,7 +293,7 @@ fn the_authored_geometry_is_what_the_world_answers_with() {
     let visitor = world.id(&key("visitor")).expect("the visitor resolves");
 
     // The strongest form of "the world is the one the YAML describes": the positions in the files
-    // decide what the world permits. Bob is 1.8 m from Alice and the visitor is 4.0 m away, against
+    // decide what the world permits. Bob is 2.4 m from Alice and the visitor is 8.6 m away, against
     // conversation's three-metre range — and no test here computes that distance, the world does.
     let mut speak = |actor: EntityId, target: EntityId, nth: u64| -> ActionResult {
         let request = ActionIntent::new(
@@ -382,12 +382,141 @@ fn a_seat_is_a_person_the_world_can_resolve() {
     }
 }
 
+/// Where a customer stands at the café counter, in the café's frame: 6.0 m along the frontage from the
+/// room's inner west face, 6.2 m in from the inner face of the front wall — just short of the
+/// counter's customer face at y = 6 570 mm. Derived from the 3D slice's own constants
+/// (`clients/3d-spike/scripts/slice/cafe_interior.gd`: the counter runs from 3.86 m to the east wall,
+/// `COUNTER_Z` −7.30 m, `COUNTER_D` 0.78 m), not from where the pack happens to put Alice — this is the
+/// spot a player in Demo B walks up to.
+const AT_THE_COUNTER: (i32, i32) = (6_000, 6_200);
+
+/// The café's doorway on the café side, where the slice binds its door: 1.61 m from the inner west
+/// face (`cafe.gd` `DOOR_X` −2.55 m on a 9 m frontage with 0.34 m walls), 0.2 m into the room.
+const IN_THE_DOORWAY: (i32, i32) = (1_610, 200);
+
+/// `step-09-social.md` §2.5, CP-5 — the check the 3D client failed before S8: a person who walks to the
+/// counter can talk to Alice, and the same person standing in the doorway cannot.
+///
+/// The person walks there in `move` strides the server accepts, from wherever the pack seated them,
+/// so the positions are reached the way a client reaches them. Whether `talk` is in reach is decided by
+/// the conversation system against `INTERACTION_RANGE`; this test computes no distance to Alice. With
+/// the pre-S8 café — Alice at (1 200, 2 400), the door on the east wall — the same walk ends 6.1 m from
+/// her and the talk is refused, which is the defect this test exists to keep fixed.
+#[test]
+fn a_person_at_the_counter_can_talk_to_alice() {
+    use mineworld_contracts::{LocalPosition, Millimetres, PlaceId};
+    use mineworld_movement::{MAX_STRIDE, Move};
+
+    let mut world = loaded();
+    let alice = world.id(&key("alice")).expect("alice resolves");
+    let visitor = world.id(&key("visitor")).expect("the visitor resolves");
+    let cafe = PlaceId::new(world.id(&key("cafe")).expect("declared"), EntityType::Place)
+        .expect("a place");
+    let seated = where_is(&world, "visitor")
+        .and_then(|location| location.local())
+        .expect("the pack seats the visitor at a position");
+    let mut here = (seated.x().value(), seated.y().value());
+    let mut next_action = 0_u64;
+
+    // Straight-line strides of at most MAX_STRIDE, the same division `tools/cli/tests/support` uses:
+    // the fewest equal strides such that every consecutive pair is within the published limit.
+    let strides = |from: (i32, i32), to: (i32, i32)| -> Vec<(i32, i32)> {
+        let (dx, dy) = (i64::from(to.0 - from.0), i64::from(to.1 - from.1));
+        let limit = i64::from(MAX_STRIDE.value());
+        let point = |k: i64, n: i64| {
+            (
+                i32::try_from(i64::from(from.0) + dx * k / n).expect("on the map"),
+                i32::try_from(i64::from(from.1) + dy * k / n).expect("on the map"),
+            )
+        };
+        let fits = |n: i64| {
+            (1..=n).all(|k| {
+                let (a, b) = (point(k - 1, n), point(k, n));
+                let (sx, sy) = (i64::from(b.0 - a.0), i64::from(b.1 - a.1));
+                sx * sx + sy * sy <= limit * limit
+            })
+        };
+        let n = (1_i64..)
+            .find(|n| fits(*n))
+            .expect("some number of strides fits");
+        (1..=n).map(|k| point(k, n)).collect()
+    };
+    let walk_to = |world: &mut LoadedWorld, here: &mut (i32, i32), to: (i32, i32), id: &mut u64| {
+        for point in strides(*here, to) {
+            *id += 1;
+            let to = Location::in_place(cafe).with_local(LocalPosition::on_ground(
+                Millimetres::new(point.0),
+                Millimetres::new(point.1),
+            ));
+            let request = ActionIntent::new(
+                ActionId::from_raw(*id),
+                visitor,
+                ActionRecord::new::<Move>(serde_json::to_vec(&Move::new(to)).expect("encodes")),
+                WorldTime::EPOCH,
+            );
+            let answer = world
+                .world_mut()
+                .dispatch(&request, WorldTime::EPOCH)
+                .expect("dispatch answers");
+            assert!(
+                matches!(answer.result(), ActionResult::Accepted { .. }),
+                "the stride to {point:?} is legal: {:?}",
+                answer.result(),
+            );
+            *here = point;
+        }
+    };
+    let talk = |world: &mut LoadedWorld, id: &mut u64| -> ActionResult {
+        *id += 1;
+        let id = ActionId::from_raw(*id);
+        let request = ActionIntent::new(
+            id,
+            visitor,
+            ActionRecord::new::<Talk>(
+                serde_json::to_vec(&Talk::new(
+                    Utterance::new("a flat white, please").expect("a legal utterance"),
+                ))
+                .expect("a payload encodes"),
+            ),
+            WorldTime::EPOCH,
+        )
+        .with_target(alice);
+        world
+            .world_mut()
+            .dispatch(&request, WorldTime::EPOCH)
+            .expect("the conversation system resolves its own action")
+            .result()
+            .clone()
+    };
+
+    walk_to(&mut world, &mut here, AT_THE_COUNTER, &mut next_action);
+    let at_counter = talk(&mut world, &mut next_action);
+    walk_to(&mut world, &mut here, IN_THE_DOORWAY, &mut next_action);
+    let at_door = talk(&mut world, &mut next_action);
+    println!(
+        "seated at {:?}; at the counter {AT_THE_COUNTER:?}: {at_counter:?}; in the doorway \
+         {IN_THE_DOORWAY:?}: {at_door:?}; alice at {:?}",
+        (seated.x().value(), seated.y().value()),
+        where_is(&world, "alice").and_then(|l| l.local()),
+    );
+
+    assert!(
+        matches!(at_counter, ActionResult::Accepted { .. }),
+        "a person at the counter can talk to Alice: {at_counter:?}",
+    );
+    assert_eq!(
+        at_door,
+        ActionResult::Rejected(Rejection::TooFarAway),
+        "and from the doorway Alice is out of reach — decided by the conversation system",
+    );
+}
+
 /// S6's headline fact in the world the repository ships, not only in a fixture: the visitor walks to
 /// the café's front door and out into the street with `move` strides, presence states
 /// `person-entered-place` from the café to the street, and the `present-in` edge moves with them.
 ///
-/// Positions are the pack's own literals: the visitor is seated at (4600, 200), the door is at
-/// (5000, 200) in the café and (0, 3000) on the street.
+/// Positions are the pack's own literals: the visitor is seated at (1610, 600), the door is at
+/// (1610, 200) in the café and (0, 3000) on the street.
 #[test]
 fn the_visitor_walks_out_of_the_cafe_into_the_street() {
     use mineworld_contracts::{LocalPosition, Millimetres, PlaceId};
@@ -419,7 +548,7 @@ fn the_visitor_walks_out_of_the_cafe_into_the_street() {
     let before = edges(&world);
     let mut kinds = Vec::new();
     let mut entered = None;
-    for (index, to) in [at(cafe, 5_000, 200), at(street, 500, 3_000)]
+    for (index, to) in [at(cafe, 1_610, 200), at(street, 500, 3_000)]
         .into_iter()
         .enumerate()
     {

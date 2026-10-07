@@ -96,7 +96,7 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
         .expect("the position people/alice.yaml authored");
     assert_eq!(
         (position.x().value(), position.y().value()),
-        (1200, 2400),
+        (6000, 8000),
         "millimetres, exactly as the file wrote them, through the whole stack",
     );
 

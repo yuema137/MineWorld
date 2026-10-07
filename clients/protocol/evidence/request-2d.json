@@ -11,8 +11,8 @@
           "to": {
             "facing": null,
             "local": {
-              "x": 2808,
-              "y": 832,
+              "x": 2809,
+              "y": 2074,
               "z": 0
             },
             "place": {
@@ -38,8 +38,8 @@
           "to": {
             "facing": null,
             "local": {
-              "x": 1200,
-              "y": 1400,
+              "x": 4007,
+              "y": 3549,
               "z": 0
             },
             "place": {
@@ -56,6 +56,60 @@
   {
     "flavour": "2d",
     "request": {
+      "action_type": "move",
+      "actor": "5",
+      "actor_location": null,
+      "payload": {
+        "action_type": "move",
+        "payload": {
+          "to": {
+            "facing": null,
+            "local": {
+              "x": 5206,
+              "y": 5023,
+              "z": 0
+            },
+            "place": {
+              "entity": "1",
+              "entity_type": "place"
+            }
+          }
+        }
+      },
+      "target": null
+    },
+    "token": "c3"
+  },
+  {
+    "flavour": "2d",
+    "request": {
+      "action_type": "move",
+      "actor": "5",
+      "actor_location": null,
+      "payload": {
+        "action_type": "move",
+        "payload": {
+          "to": {
+            "facing": null,
+            "local": {
+              "x": 6000,
+              "y": 6000,
+              "z": 0
+            },
+            "place": {
+              "entity": "1",
+              "entity_type": "place"
+            }
+          }
+        }
+      },
+      "target": null
+    },
+    "token": "c4"
+  },
+  {
+    "flavour": "2d",
+    "request": {
       "action_type": "talk",
       "actor": "5",
       "actor_location": null,
@@ -67,6 +121,6 @@
       },
       "target": "3"
     },
-    "token": "c3"
+    "token": "c5"
   }
 ]

@@ -62,16 +62,17 @@ use support::{Client, SaveDir, Server, may_talk_to, own_history, run_command, ta
 const FROM_THE_2D_WINDOW: &str = "hello Alice, this is the 2D window";
 const FROM_THE_3D_WINDOW: &str = "hello Alice, this is the 3D window";
 
-/// Conversational distance from Alice, who stands at (1200, 2400) mm: inside `talk`'s declared
-/// three-metre reach, which the **server** decides and this test only walks into.
-const NEXT_TO_ALICE: (i32, i32) = (1_200, 1_000);
-const ALSO_NEXT_TO_ALICE: (i32, i32) = (2_400, 2_400);
+/// Conversational distance from Alice, who stands behind the counter at (6000, 8000) mm: two places at
+/// the counter, inside `talk`'s declared three-metre reach, which the **server** decides and this
+/// test only walks into.
+const NEXT_TO_ALICE: (i32, i32) = (6_000, 6_200);
+const ALSO_NEXT_TO_ALICE: (i32, i32) = (7_300, 6_200);
 
 /// Where the pack seats the two players (`worlds/social-cafe/people/{visitor,wanderer}.yaml`), which is
-/// where each walk starts. The walks are 3 493 mm and 2 970 mm: two `move` strides each, since the
+/// where each walk starts. The walks are 7 116 mm and 2 308 mm: four `move` strides and two, since the
 /// server takes at most 2 m per request (`server/PROTOCOL.md` §6.2).
-const VISITOR_AT_THE_DOOR: (i32, i32) = (4_600, 200);
-const WANDERER_AT_THE_DOOR: (i32, i32) = (4_600, 4_400);
+const VISITOR_AT_THE_DOOR: (i32, i32) = (1_610, 600);
+const WANDERER_BY_THE_TABLE: (i32, i32) = (7_110, 3_900);
 
 #[tokio::test]
 async fn there_is_only_one_alice() {
@@ -140,7 +141,7 @@ async fn there_is_only_one_alice() {
         .walk_accepted(walk(visitor, cafe, VISITOR_AT_THE_DOOR, NEXT_TO_ALICE))
         .await;
     println!("the 2D window walked to Alice in {} strides", strides.len());
-    assert_eq!(strides.len(), 2, "3 493 mm is two strides of at most 2 m");
+    assert_eq!(strides.len(), 4, "7 116 mm is four strides of at most 2 m");
     let in_reach = two_d
         .observation_where("talk to alice available", |observation| {
             may_talk_to(observation, alice)
@@ -185,12 +186,12 @@ async fn there_is_only_one_alice() {
         .walk_accepted(walk(
             wanderer,
             cafe,
-            WANDERER_AT_THE_DOOR,
+            WANDERER_BY_THE_TABLE,
             ALSO_NEXT_TO_ALICE,
         ))
         .await;
     println!("the 3D window walked to Alice in {} strides", strides.len());
-    assert_eq!(strides.len(), 2, "2 970 mm is two strides of at most 2 m");
+    assert_eq!(strides.len(), 2, "2 308 mm is two strides of at most 2 m");
     three_d
         .observation_where("talk to alice available", |observation| {
             may_talk_to(observation, alice)
@@ -381,7 +382,7 @@ async fn two_servers_are_two_worlds_and_the_evidence_can_tell() {
         (
             &mut three_d,
             wanderer,
-            WANDERER_AT_THE_DOOR,
+            WANDERER_BY_THE_TABLE,
             ALSO_NEXT_TO_ALICE,
             FROM_THE_3D_WINDOW,
         ),
@@ -444,7 +445,7 @@ async fn killing_one_window_leaves_the_world_and_the_other_window_running() {
         .walk_accepted(walk(
             wanderer,
             cafe,
-            WANDERER_AT_THE_DOOR,
+            WANDERER_BY_THE_TABLE,
             ALSO_NEXT_TO_ALICE,
         ))
         .await;
