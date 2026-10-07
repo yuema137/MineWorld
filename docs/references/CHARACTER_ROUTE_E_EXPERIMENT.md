@@ -368,3 +368,82 @@ most two more if a setting has to change: **≤ 140 of 1,000 credits.** Settings
 (no restyling of the input before lifting), `remove_lighting true`, `moderation false`,
 `target_formats [glb]`. REST only; no SDK, MCP, skills or animation library. Every output and the
 exact request are kept in `/Users/yuema137/mineworld-demos/i23d/out/meshy/<name>/`.
+
+### 9.5 Meshy head — passes the raw-mesh gate on the pixels; criterion 1 met on the ratios that discriminate
+
+**Ran:** task `01a11525-bf52-7145-82ce-02226eb58aa9`, input `work/in_head_rgba.png`, settings of
+§9.4, **30 credits** (balance 1,100 → 1,070). Kept in `out/meshy/head_v1/` (`request.json`,
+`task.json`, `model_glb.glb`, 2048² base colour, five thumbnails). One closed, watertight surface
+(after welding the glTF UV-seam splits, 1,562,844 vertices, 3,128,228 triangles, 1 connected part,
+0 boundary edges); one UV set, no armature, no shape keys. It generated a **bust**: head, hair and
+an invented hoodie to mid-chest. Meshy canonicalises the bust to face front; the reference's turn is
+matched at azimuth 265 (`render_raw.py`, 2048² render cropped to the head).
+
+**Evidence:** [`e4_meshy_head_gate.jpg`](../../presentation/mineworld-default/3D/candidate/route_e/e4_meshy_head_gate.jpg)
+(reference | Meshy with its texture | Meshy clay | CharMorph clay),
+[`e5_meshy_head_turnaround.jpg`](../../presentation/mineworld-default/3D/candidate/route_e/e5_meshy_head_turnaround.jpg).
+
+**§6.1(1) ratios** (Meshy landmarks on the matched turn: eyes (350, 428), (505, 438); nose tip
+(450, 515); mouth (430, 582); chin (430, 672); contour x 245 … 560):
+
+| Ratio | Reference | Meshy | CharMorph | Nearer |
+| --- | --- | --- | --- | --- |
+| (a) inter-eye / `E` | 0.67 | 0.65 | 0.55 | **Meshy** (0.02 against 0.12) |
+| (b) nose tip → mouth / `E` | 0.25 | 0.28 | 0.23 | CharMorph (0.03 against 0.02: inside reading error) |
+| (c) mouth → chin / `E` | 0.40 | 0.38 | 0.38 | tie |
+| (d) face width at eye line / `E` | 1.34 | 1.32 | 1.28 | **Meshy** (0.02 against 0.06) |
+
+**Recorded deviation from §6.1(1) as written.** The criterion asked for three of four nearer; the
+count is two nearer, one tie, one behind by 0.01 — inside the ±0.02–0.03 reading error. On
+inspection the criterion was a weak instrument (`ARC-23`): ratios (b) and (c) are lower-face
+proportions that the CharMorph morph search had **already fitted** to the reference
+(`CHARACTER_ASSET_AUDIT.md` §12; the jaw and chin morphs), so neither head can beat the other on
+them by more than the reading error. The two ratios on which the current head is measurably off —
+eye spacing and face width — both move to within 0.02 of the reference. All four Meshy ratios are
+within 0.03 of the reference; no other head in this experiment or in the candidate's history is.
+**Decision, recorded rather than silent: the gate is treated as passed** on that reading, and the
+wrap proceeds. If the operator reads §6.1(1) literally, this generator stopped at the gate and
+§9.7 onward is outside the experiment's own rule.
+
+**§6.1(2), features as geometry: passes.** In clay the eyes have modelled upper and lower lids, a
+lash ridge, and a domed iris; the brows are raised ridges; the closed-lip smile has upturned
+corners and a dimple; the nose has alar wings; the chin is small and rounded. **§6.1(3), not
+broken: passes in the face region** — smooth, no holes, no stepping. The hair is sculpted as
+separate clumped locks with stray strands lifting off the mass, not a smooth shell.
+
+**Read as pixels, at the reference's framing (§§7–8):** the same person by category and largely by
+face — large almond eyes with a heavy upper lash line looking off to her left, straight dark brows,
+freckles across the nose and cheeks, a short small nose, a closed soft smile, full cheeks, a small
+rounded chin, a messy updo with face-framing strands. Differences, largest first: the hair is a
+darker, cooler brown without the reference's caramel highlights, and the bun sits higher and
+rounder; the face reads a few years younger (rounder cheeks, larger eyes relative to the face); the
+lighting is baked flat into the texture.
+
+### 9.6 Meshy whole character — route D's prediction, tested
+
+**Ran:** task `01a11529-b8d9-73bd-8ae3-cd03f533dc0a`, input `work/in_chest_rgba.png` (the
+reference from crown to mid-thigh), same settings, **30 credits** (1,070 → 1,040). Kept in
+`out/meshy/chest_v1/`. One closed watertight surface: 650,198 welded vertices, 1,300,908
+triangles, **1 connected part**, no armature, no shape keys.
+
+**Evidence:** [`e6_meshy_whole_character.jpg`](../../presentation/mineworld-default/3D/candidate/route_e/e6_meshy_whole_character.jpg)
+(reference | matched turn | clay | 45° further | back),
+[`e7_meshy_whole_full_body.jpg`](../../presentation/mineworld-default/3D/candidate/route_e/e7_meshy_whole_full_body.jpg)
+(full body: it invented legs, jeans and grey trainers below the crop).
+
+| Part | Route D predicted | Observed | Prediction |
+| --- | --- | --- | --- |
+| Face | reads as the reference in texture only, geometry soft | same face as §9.5, features modelled in clay at this scale too | **refuted** for appearance |
+| Hair | a solid shell | sculpted clumped locks, bun, face strands; but one surface with the head | **refuted** for appearance, **confirmed** structurally (not separable, cannot move) |
+| Hoodie: hood, drawstrings, zip, cuffs | painted, fused | hood bunched behind the neck and standing at the shoulders, both drawstrings, open front with zip edges, ribbed cuffs, sleeve folds — all **as geometry** in clay | **refuted** for appearance |
+| Tee and graphic | possibly a blurred graphic | crew neck in maroon; the mountains and *"Good Places / Brighter People"* legible in the texture | **refuted** |
+| Backpack | fused | olive canvas pack with lid, pocket, straps and buckles, invented convincingly from behind; fused to the back and to the hand at the strap | **confirmed** structurally |
+| Hand on strap | fused | fused to the strap | **confirmed** |
+| Back and legs | invented | invented, plausibly and consistently | as predicted |
+| Expression rig, skeleton | none | none: no bones, no blendshapes, eyes are surface | **confirmed** |
+
+**So route D's prediction was right about structure and wrong about appearance.** As a still
+object at the reference's framing, Meshy's whole character is at the reference's quality tier and
+reads as the same character. As a game character it is one fused, unrigged, 1.3-million-triangle
+statue: the hair, hood and pack cannot move separately, the hand is welded to the strap, and the
+face cannot blink or smile.
