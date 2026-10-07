@@ -2470,14 +2470,26 @@ recorded commit.
 
 #### C9 — Documentation and ledger close for 10c
 
-- [ ] Docs:
+- [x] Docs (8dee781):
   - `authoring/README.md`, `systems/naming/README.md`, `systems/schedule/README.md` (short, human,
     linking to ARC-31/32 and MODULE_SPEC);
   - `systems/README.md`, `cognition/rule-controller/README.md`;
-  - `worlds/social-cafe/README.md` (seven systems, names, routines);
-  - `docs/MVP_STATUS.md` (Process row: routines; S8 complete).
-- [ ] Full gates once on the final executable head (§4.3.4), recorded in §9 E-C-final.
-- [ ] Review:
+  - `worlds/social-cafe/README.md` (seven systems, names, routines, the 4-hour rule, the quiet
+    window);
+  - `docs/MVP_STATUS.md`:
+    - Names, Routines and "authored content owned by packs" rows;
+    - Biography gains names;
+    - the Social Café composition axis;
+    - the S8 stage row;
+    - two evidence rows (CP-4, names/AC-2).
+  - The evidence was re-recorded on the final routines.
+- [x] Full gates once on the final executable head `8dee781` (§4.3.4), recorded in §9 E-C-final. All
+  PASS.
+- [x] Review: READMEs state no rule. MVP_STATUS marks ✅ only what E-C2…E-C8 ran, and leaves the 2D
+  and 3D columns 🚧 where no client UI exists. I-1: `git diff main --stat -- kernel contracts
+  persistence server systems/{presence,movement,conversation,group-activity,relationships}` is
+  **empty**. The handoff is refreshed.
+- (Planned review items, met as above:)
   - READMEs state no rule.
   - MVP_STATUS marks ✅ only what E-C2…E-C8 ran.
   - The handoff is refreshed.
@@ -3134,6 +3146,28 @@ E-C8 CP-4 located (routines.rs). The first measurement failed the 90 % literal: 
      The routines were re-authored to segments of ≥ 4 h (D-C3), and the seats now reach 96.7–100 %.
      Counterfactuals: agenda band 0 → seats 39–51 % FAIL; wake without reschedule → I-4 FAIL. Full
      workspace 419 passed, 0 failed; milestone_b located by day 4 and killed after day 5.
+E-C-final Gates on 8dee781 (the final executable head; later commits are planning documents only),
+     clean tree, 2026-10-07, this machine, `[profile.dev] opt-level = 1`:
+       cargo fmt --all --check                                         PASS
+       cargo check --workspace --all-targets                           PASS
+       cargo clippy --workspace --all-targets --all-features -D warnings   PASS
+       cargo test --workspace --no-fail-fast                           PASS — exit 0; 80 "test result:
+                                                                       ok" lines, none failed; 419
+                                                                       passed, 0 failed; 112.8 s wall
+       cargo test -p mineworld-persistence --test kill_and_resume      PASS — cafe PASS, clock PASS
+       python3 scripts/check_decision_ids.py                           PASS — 42 ids, all distinct
+       python3 scripts/check_doc_headings.py                           PASS — 142 sections
+     THE TEST COUNT: 419 = 407 `#[test]`/`#[tokio::test]` functions + 12 doctests (contracts 3,
+     kernel 7, server 1, worldpack 1). 10b's 381 was the same split: 369 + 12. kill_and_resume is
+     `harness = false` and is counted in neither number; it runs as its own gate. 10c adds 38 tests:
+     naming 5, schedule 8, worldpack 14 (lib 2, social_cafe 3, refusals 9), rule-controller 8, cli 3
+     (social_composition 2, routines 1).
+     I-1: `git diff main --stat` over kernel/, contracts/, persistence/, server/ and the five earlier
+     packs is empty.
+     CI: N/A — no workflow in the repository (S13).
+     PROCEDURAL: Phase 2 used no forbidden tool. Mutations and counterfactuals were made and reverted
+     with the Edit tool, and each revert was checked with `git diff --stat`. The frozen-binary parity
+     used a second worktree, `/Users/yuema137/mineworld-worktrees/s8c-pre-c7`, removed after use.
 ```
 
 ## 9.1 Limitations (expected)
