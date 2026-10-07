@@ -209,7 +209,7 @@ fn without_group_activity_relationships_stays_and_the_world_runs() {
     let systems = lines(&report, "systems ");
     assert_eq!(
         systems,
-        ["systems    presence v2, movement v1, conversation v1, relationships v1"],
+        ["systems    presence v2, movement v1, conversation v1, relationships v1, naming v1"],
         "relationships is installed and enabled, group-activity is not there"
     );
 

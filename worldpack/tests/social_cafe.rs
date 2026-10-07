@@ -14,13 +14,15 @@
 //! A3 — refusals — is `refusals.rs`. A4 — the command — is `tools/cli/tests/`.
 
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionResult, Causation, EntityId, EntityKey,
-    EntityType, EventTypeId, LifecycleState, Location, PersonId, Rejection, Tag, WorldTime,
+    EntityType, Event, EventTypeId, LifecycleState, Location, PersonId, Rejection, Tag, WorldTime,
 };
 use mineworld_conversation::{ConversationHistory, ConversationSystem, Talk, Utterance};
 use mineworld_kernel::SystemIdentity;
+use mineworld_naming::{DisplayName, Named};
 use mineworld_presence::{PerceptionProvider, Presence, PresenceSystem, observe, present_in};
 use mineworld_worldpack::{Capability, LoadedWorld, WorldPack};
 
@@ -69,6 +71,7 @@ fn the_pack_says_what_world_it_is() {
             Capability::Conversation,
             Capability::GroupActivity,
             Capability::Relationships,
+            Capability::Naming,
         ],
         "in the order the pack states, which is installation order",
     );
@@ -213,8 +216,112 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        17,
-        "the five places' doors onto the street, then one arrival per person the pack placed",
+        29,
+        "the five places' doors onto the street, then one arrival per person the pack placed, then \
+         one name per person (the `name` sections, ARC-31)",
+    );
+}
+
+#[test]
+fn every_person_is_named_by_the_owner_of_the_name_section_after_everything_else() {
+    let world = loaded();
+    let read = world.world().read();
+    // Located, not assumed to sit at an index: every `named` fact, decoded with naming's own type.
+    let named: Vec<(usize, Named)> = world
+        .genesis()
+        .iter()
+        .enumerate()
+        .filter(|(_, fact)| *fact.event_type() == Named::EVENT_TYPE)
+        .map(|(at, fact)| {
+            let payload = fact
+                .payload()
+                .payload_for::<Named>()
+                .expect("naming's fact");
+            (at, serde_json::from_slice(payload).expect("decodes"))
+        })
+        .collect();
+    let authored = [
+        ("alice", "Alice Moreau"),
+        ("bob", "Bob Achterberg"),
+        ("carol", "Carol Mensah"),
+        ("dev", "Dev Raman"),
+        ("erin", "Erin Walsh"),
+        ("felix", "Felix Okafor"),
+        ("grace", "Grace Liu"),
+        ("hana", "Hana Sato"),
+        ("ivan", "Ivan Petrov"),
+        ("otto", "Otto Brandt"),
+        ("visitor", "Vera Lindgren"),
+        ("wanderer", "Wes Calloway"),
+    ];
+    assert_eq!(named.len(), authored.len(), "one name per person");
+    for ((at, fact), (person, name)) in named.iter().zip(authored) {
+        let id = world.id(&key(person)).expect("resolves");
+        assert_eq!(fact.person().entity_id(), id, "people in key order");
+        assert_eq!(fact.name().as_str(), name, "{person}'s authored name");
+        assert!(*at >= 17, "after every passage and arrival: index {at}");
+        assert_eq!(
+            world.genesis()[*at].provenance().emitted_by().as_str(),
+            "naming",
+            "stated as the owner of the section"
+        );
+        assert_eq!(
+            read.component::<DisplayName>(id)
+                .map(|held| held.name().as_str()),
+            Some(name),
+            "and reduced by naming into {person}'s display name"
+        );
+        assert_ne!(name.to_lowercase(), person, "a name is not its key");
+    }
+}
+
+#[test]
+fn sections_do_not_move_the_facts_stated_before_them() {
+    // The same pack without `naming` and without its `name:` lines (a world that does not enable a
+    // section's owner refuses the section): the first seventeen genesis facts must be the same bytes
+    // with or without sections — passages and arrivals keep their event ids (ARC-31).
+    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("unnamed/social-cafe");
+    let _ = std::fs::remove_dir_all(&root);
+    for directory in ["people", "places"] {
+        std::fs::create_dir_all(root.join(directory)).expect("writable");
+        for entry in std::fs::read_dir(Path::new(PACK).join(directory)).expect("readable") {
+            let entry = entry.expect("an entry");
+            let text = std::fs::read_to_string(entry.path()).expect("a file");
+            let kept: Vec<&str> = text
+                .lines()
+                .filter(|line| !line.starts_with("name:"))
+                .collect();
+            std::fs::write(
+                root.join(directory).join(entry.file_name()),
+                kept.join("\n"),
+            )
+            .expect("writable");
+        }
+    }
+    let manifest = std::fs::read_to_string(Path::new(PACK).join("world.yaml")).expect("readable");
+    std::fs::write(
+        root.join("world.yaml"),
+        manifest.replace("  - naming\n", ""),
+    )
+    .expect("writable");
+
+    let bare = WorldPack::read(&root)
+        .expect("the pack without names reads")
+        .load(WorldTime::EPOCH)
+        .expect("and loads");
+    let full = loaded();
+    assert_eq!(bare.genesis().len(), 17, "passages and arrivals only");
+    let bytes = |fact: &mineworld_contracts::EventEnvelope| {
+        (
+            fact.id(),
+            fact.event_type().clone(),
+            fact.payload().payload().to_vec(),
+        )
+    };
+    assert_eq!(
+        bare.genesis().iter().map(bytes).collect::<Vec<_>>(),
+        full.genesis()[..17].iter().map(bytes).collect::<Vec<_>>(),
+        "the facts before the sections are byte-identical, ids included"
     );
 }
 

@@ -685,3 +685,152 @@ fn every_passage_refusal_names_the_file_that_states_it() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Sections (`MODULE_SPEC.md` §4.1 rule 6, `DECISIONS.md` `ARC-31`): a top-level key of a content
+// file that a System Pack owns, decoded by that pack's own type.
+// ---------------------------------------------------------------------------------------------
+
+/// A sound pack with `naming` enabled (or not), and alice's file as given.
+fn with_naming(id: &str, enabled: bool, alice: &str) -> Fixture {
+    let fixture = Fixture::sound(id);
+    let naming = if enabled { "  - naming\n" } else { "" };
+    fixture.manifest(&format!(
+        "
+systems:
+  - presence
+{naming}places:
+  - cafe
+population:
+  - alice
+"
+    ));
+    fixture.write("people/alice.yaml", alice);
+    fixture
+}
+
+#[test]
+fn a_section_is_read_by_its_owner_when_the_owner_is_enabled() {
+    let fixture = with_naming(
+        "section-sound",
+        true,
+        "tags: [barista]\nname: Alice Moreau\nlocation:\n  place: cafe\n",
+    );
+    let pack = fixture
+        .read()
+        .expect("a named person in a world that enables naming");
+    let loaded = pack
+        .load(mineworld_contracts::WorldTime::EPOCH)
+        .expect("loads");
+    let named: Vec<&str> = loaded
+        .genesis()
+        .iter()
+        .map(|fact| fact.event_type().as_str())
+        .collect();
+    assert_eq!(
+        named,
+        ["arrived", "named"],
+        "the arrival, then the section's own fact"
+    );
+}
+
+#[test]
+fn a_section_whose_owner_is_not_enabled_is_refused_naming_the_owner() {
+    let fixture = with_naming(
+        "section-owner-off",
+        false,
+        "name: Alice Moreau\nlocation:\n  place: cafe\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::ContentNeedsASystem {
+        subject,
+        content,
+        system,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*subject, key("alice"));
+    assert_eq!(*content, "name");
+    assert_eq!(*system, SystemId::new("naming").expect("an id"));
+    assert!(path.ends_with("people/alice.yaml"));
+}
+
+#[test]
+fn a_misspelled_section_is_an_unknown_field_listing_the_sections_too() {
+    let fixture = with_naming(
+        "section-misspelled",
+        true,
+        "tags: [barista]\nnmae: Alice Moreau\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::Malformed { path, detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    println!("{detail}");
+    assert!(path.ends_with("people/alice.yaml"));
+    assert!(detail.contains("nmae"), "the key is named: {detail}");
+    assert!(
+        detail.contains("`name`"),
+        "and the legal keys include the sections this build's packs own: {detail}"
+    );
+    assert!(detail.contains("line 2 column 1"), "located: {detail}");
+}
+
+#[test]
+fn an_invalid_section_is_refused_by_its_owners_type_at_its_line() {
+    let fixture = with_naming(
+        "section-invalid",
+        true,
+        "tags: [barista]\nlocation:\n  place: cafe\nname: \"\"\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::Malformed { path, detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    println!("{detail}");
+    assert!(path.ends_with("people/alice.yaml"));
+    assert!(
+        detail.contains("a name must be"),
+        "the owner's own words, not the loader's: {detail}"
+    );
+    assert!(
+        detail.contains("line 4 column 7"),
+        "located at the value, straight from the stream (DEP-10): {detail}"
+    );
+}
+
+#[test]
+fn a_section_in_a_kind_of_file_its_owner_does_not_allow_is_refused() {
+    let fixture = with_naming("section-in-a-place", true, "location:\n  place: cafe\n");
+    fixture.write(
+        "places/cafe.yaml",
+        "tags: [cafe]\nname: The Copper Kettle\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::SectionNotCarriedHere {
+        subject,
+        section,
+        kind,
+        carried_by,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*subject, key("cafe"));
+    assert_eq!(section.as_str(), "name");
+    assert_eq!(*kind, ContentKind::Place);
+    assert_eq!(carried_by, "person");
+    assert!(path.ends_with("places/cafe.yaml"));
+    assert!(refusal.to_string().contains("places/cafe.yaml"));
+}

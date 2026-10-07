@@ -13,13 +13,22 @@
 //! system is `presence` — so [`located`] is where the pack format's vocabulary meets a System Pack's.
 //! [`opened`] is the second such meeting: a place's `passages:` become movement's fact.
 //!
-//! They are functions rather than a `ContentSeeder` trait, still deliberately. Both are the same
-//! shape — one optional field of an existing content kind, mapped to one owner's genesis
-//! constructor — so a trait abstracted from them would describe that shape and nothing else
-//! (`docs/ENGINEERING_STANDARDS.md` §28: the abstraction follows observed variation). The mapping
-//! that would shape a trait is one that differs: a pack seeding a content kind of its own — items,
-//! jobs — with its own directory and its own checks.
+//! Those two are fields of the format, mapped here by name. They predate the section seam and stay
+//! where they are: moving them would edit presence and movement and change refusals authors already
+//! see (`DECISIONS.md` `ARC-31`).
+//!
+//! # Sections: content a pack owns, which the loader does not understand
+//!
+//! Everything newer is a **section** (`ARC-31`): a pack implements
+//! [`AuthoredSection`](mineworld_authoring::AuthoredSection), and the only thing this file says about
+//! it is which capability that is — [`Capability::section`] and [`Capability::decode_section`] — in
+//! the same closed match that already says which crate each capability is. The loader decodes a
+//! section with the owner's type and seeds it with the owner's function, and never learns what it
+//! means. Adding a section-owning pack adds an arm here and no loader code.
 
+use std::sync::Arc;
+
+use mineworld_authoring::{AuthoredContent, AuthoredSection, ContentKind, Decode, SectionName};
 use mineworld_contracts::{
     Event, EventTypeId, LocalPosition, Location, PersonId, PlaceId, SystemId,
 };
@@ -27,8 +36,10 @@ use mineworld_conversation::ConversationSystem;
 use mineworld_group_activity::GroupActivitySystem;
 use mineworld_kernel::{Emission, KernelError, SystemIdentity, World, WorldRead};
 use mineworld_movement::{MovementSystem, passage};
+use mineworld_naming::NamingSystem;
 use mineworld_presence::{Arrived, PerceptionProvider, PresenceSystem, arrival};
 use mineworld_relationships::RelationshipsSystem;
+use serde::de::{Error as _, MapAccess};
 
 /// One System Pack this build can install.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -43,16 +54,43 @@ pub enum Capability {
     GroupActivity,
     /// Who knows whom, and how well — changed only by what happened between them.
     Relationships,
+    /// What people are called.
+    Naming,
 }
 
 /// Every system this build provides, in a fixed order — the order an error message lists them in.
-pub const AVAILABLE: [Capability; 5] = [
+pub const AVAILABLE: [Capability; 6] = [
     Capability::Presence,
     Capability::Movement,
     Capability::Conversation,
     Capability::GroupActivity,
     Capability::Relationships,
+    Capability::Naming,
 ];
+
+/// The section of authored content a capability owns: its key, and the files that may carry it
+/// (`DECISIONS.md` `ARC-31`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SectionOwner {
+    /// The key.
+    pub name: SectionName,
+    /// The kinds of content file that may carry it.
+    pub carried_by: &'static [ContentKind],
+}
+
+impl SectionOwner {
+    const fn of<S: AuthoredSection>() -> Self {
+        Self {
+            name: S::SECTION,
+            carried_by: S::CARRIED_BY,
+        }
+    }
+
+    /// Whether a file of this kind may carry the section.
+    pub fn carried_by(&self, kind: ContentKind) -> bool {
+        self.carried_by.contains(&kind)
+    }
+}
 
 impl Capability {
     /// Which capability a pack is asking for, or [`None`] if this build has no such system.
@@ -70,6 +108,48 @@ impl Capability {
             Self::Conversation => ConversationSystem::ID,
             Self::GroupActivity => GroupActivitySystem::ID,
             Self::Relationships => RelationshipsSystem::ID,
+            Self::Naming => NamingSystem::ID,
+        }
+    }
+
+    /// The section of authored content this capability owns, if any (`ARC-31`).
+    pub const fn section(self) -> Option<SectionOwner> {
+        match self {
+            Self::Presence
+            | Self::Movement
+            | Self::Conversation
+            | Self::GroupActivity
+            | Self::Relationships => None,
+            Self::Naming => Some(SectionOwner::of::<NamingSystem>()),
+        }
+    }
+
+    /// The capability that owns the section with this key, and that section, if this build has one.
+    pub fn owning_section(key: &str) -> Option<(Self, SectionOwner)> {
+        AVAILABLE.into_iter().find_map(|capability| {
+            capability
+                .section()
+                .filter(|section| section.name.as_str() == key)
+                .map(|section| (capability, section))
+        })
+    }
+
+    /// Decodes this capability's section as the next value of an authored file's map, with the
+    /// owner's own type — straight from the stream, so a refusal keeps its line and column (`DEP-10`).
+    /// The loader holds the result without knowing its type.
+    pub(crate) fn decode_section<'de, A: MapAccess<'de>>(
+        self,
+        map: &mut A,
+    ) -> Result<Arc<dyn AuthoredContent>, A::Error> {
+        match self {
+            Self::Naming => map.next_value_seed(Decode::<NamingSystem>::new()),
+            Self::Presence
+            | Self::Movement
+            | Self::Conversation
+            | Self::GroupActivity
+            | Self::Relationships => Err(A::Error::custom(format!(
+                "the '{self}' system owns no section"
+            ))),
         }
     }
 
@@ -84,6 +164,7 @@ impl Capability {
             Self::Presence | Self::Movement | Self::Conversation => &[],
             Self::GroupActivity => mineworld_group_activity::BIOGRAPHICAL,
             Self::Relationships => mineworld_relationships::BIOGRAPHICAL,
+            Self::Naming => mineworld_naming::BIOGRAPHICAL,
         }
     }
 
@@ -98,6 +179,7 @@ impl Capability {
             Self::Conversation => world.install(ConversationSystem),
             Self::GroupActivity => world.install(GroupActivitySystem),
             Self::Relationships => world.install(RelationshipsSystem),
+            Self::Naming => world.install(NamingSystem),
         }
     }
 
@@ -113,6 +195,7 @@ impl Capability {
             Self::Conversation => Box::new(ConversationSystem),
             Self::GroupActivity => Box::new(GroupActivitySystem),
             Self::Relationships => Box::new(RelationshipsSystem),
+            Self::Naming => Box::new(NamingSystem),
         }
     }
 }
@@ -166,4 +249,46 @@ pub fn located(
         event_type: Arrived::EVENT_TYPE,
         reason,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::*;
+    use crate::content::{PERSON_FIELDS, PLACE_FIELDS};
+
+    /// Section names are one namespace across every pack this build provides, and none may shadow a
+    /// field of the format (`ARC-31`). A structural guard over a closed catalog: in this build a
+    /// refusal at read time could never be reached, so the property is held here.
+    #[test]
+    fn no_two_sections_share_a_name_and_none_shadows_a_field() {
+        let sections: Vec<SectionOwner> = AVAILABLE
+            .into_iter()
+            .filter_map(Capability::section)
+            .collect();
+        assert!(!sections.is_empty(), "the guard guards something");
+        let names: BTreeSet<&str> = sections
+            .iter()
+            .map(|section| section.name.as_str())
+            .collect();
+        assert_eq!(
+            names.len(),
+            sections.len(),
+            "two packs claim one section: {names:?}"
+        );
+        for name in &names {
+            assert!(
+                !PERSON_FIELDS.contains(name) && !PLACE_FIELDS.contains(name),
+                "the section `{name}` shadows a field of the format"
+            );
+        }
+        for section in &sections {
+            assert!(
+                !section.carried_by.is_empty(),
+                "`{}` is carried by no kind of file, so it could never be authored",
+                section.name
+            );
+        }
+    }
 }

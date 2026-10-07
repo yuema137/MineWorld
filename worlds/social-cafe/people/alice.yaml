@@ -1,12 +1,14 @@
 # Alice — behind the counter, facing the room.
 #
-# She has no name in the world, only here: a display name is component state, a component is owned
-# by a system, and no system in this world owns one yet. `tags` is what does reach a client, through
-# the observation.
+# `name` is a section the `naming` system owns (docs/DECISIONS.md ARC-31): it becomes her display
+# name, reduced by that system and shown to whoever can see her. `tags` reach a client too, through
+# the observation; the key `alice` never does.
 #
 # The counter's staff face is 7.35 m in from the front wall; she stands 0.65 m behind it, so a
 # customer at the counter is within `conversation`'s three-metre reach and somebody at the front door
 # is not. That range is the conversation system's policy and is not restated here.
+
+name: Alice Moreau
 
 tags:
   - barista

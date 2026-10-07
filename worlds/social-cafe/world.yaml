@@ -21,13 +21,17 @@ world:
 # nobody here could walk: `move` would be answered unavailable and the world would otherwise be the
 # same. `relationships` depends on nothing — it only hears what the others record — and nothing
 # depends on it, so it comes last; leave it out and people still meet, talk and spend time together,
-# and simply never come to know each other (`DECISIONS.md` `ARC-28`).
+# and simply never come to know each other (`DECISIONS.md` `ARC-28`). `naming` owns each person's
+# `name:` section (`ARC-31`); it depends on nothing and nothing depends on it, so it is appended and
+# every earlier reduction order stays as it was. Leave it out — and the `name:` lines with it, which a
+# world that does not enable `naming` refuses — and people are still themselves, only nameless.
 systems:
   - presence
   - movement
   - conversation
   - group-activity
   - relationships
+  - naming
 
 # The five places of `docs/MVP.md` §3, and the street that joins them. Each place has one doorway, onto
 # the street, so a person walks between any two through at most two doors; travel between places that

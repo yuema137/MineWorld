@@ -29,8 +29,10 @@
 //! Genesis facts follow the same order, so the event identities are fixed too.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+use mineworld_authoring::{AuthoredContent, Seeding};
 use mineworld_contracts::{
     EntityId, EntityKey, EntityType, EventEnvelope, LocalPosition, Location, Metadata,
     Millidegrees, Orientation, PersonId, PlaceId, WorldTime,
@@ -40,13 +42,46 @@ use mineworld_presence::PerceptionProvider;
 
 use crate::catalog::{self, Capability};
 use crate::error::{ContentKind, PackError};
-use crate::format::{AuthoredLocation, AuthoredPosition};
+use crate::format::{AuthoredLocation, AuthoredPosition, FoundSection, SectionState};
+
+use crate::read::WorldPack;
 
 /// An authored position as the contract's own [`LocalPosition`].
 fn position(authored: AuthoredPosition) -> LocalPosition {
     LocalPosition::new(authored.x, authored.y, authored.z)
 }
-use crate::read::WorldPack;
+
+/// The genesis facts one section becomes, from its owner — refused if the owner refuses the value,
+/// and refused if any of them is another pack's vocabulary (`ARC-31`, `ARC-26`).
+fn seeded(
+    world: &WorldRead<'_>,
+    ids: &BTreeMap<EntityKey, EntityId>,
+    subject: &EntityKey,
+    section: &FoundSection,
+    content: &Arc<dyn AuthoredContent>,
+    path: &Path,
+) -> Result<Vec<Emission>, PackError> {
+    let owner = content.owner();
+    let emissions = content
+        .seed(&Seeding::new(world, ids), ids[subject])
+        .map_err(|reason| PackError::SectionRefusedByOwner {
+            subject: subject.clone(),
+            section: section.name,
+            system: owner.clone(),
+            reason: Box::new(reason),
+            path: path.to_path_buf(),
+        })?;
+    if let Some(foreign) = emissions.iter().find(|emission| *emission.owner() != owner) {
+        return Err(PackError::SectionStatedAnotherPacksFact {
+            section: section.name,
+            system: owner,
+            event_type: foreign.event_type().clone(),
+            owner: foreign.owner().clone(),
+            path: path.to_path_buf(),
+        });
+    }
+    Ok(emissions)
+}
 
 /// A world built from a pack: the world itself, what its keys resolved to, and what it began with.
 pub struct LoadedWorld {
@@ -261,7 +296,52 @@ impl WorldPack {
                 self.location(key, authored, ids, &path)?,
             )?);
         }
+        // Then sections (ARC-31): after every passage and location, so those keep the event ids they
+        // had before sections existed; places' before people's, each in key order.
+        let files = self
+            .places()
+            .iter()
+            .map(|(key, place)| (ContentKind::Place, key, &place.sections))
+            .chain(
+                self.people()
+                    .iter()
+                    .map(|(key, person)| (ContentKind::Person, key, &person.sections)),
+            );
+        for (kind, key, sections) in files {
+            let path = self.content_file(kind, key);
+            for (section, content) in self.in_composition_order(sections) {
+                facts.extend(seeded(world, ids, key, section, content, &path)?);
+            }
+        }
         Ok(facts)
+    }
+
+    /// A file's decoded sections, in the order the world's `systems` lists their owners: the order
+    /// is the pack's statement wherever it reaches the log (MODULE_SPEC §4.1 rule 2), and the order
+    /// keys happen to appear in a file is not.
+    fn in_composition_order<'a>(
+        &self,
+        sections: &'a [FoundSection],
+    ) -> Vec<(&'a FoundSection, &'a Arc<dyn AuthoredContent>)> {
+        let mut decoded: Vec<(usize, &FoundSection, &Arc<dyn AuthoredContent>)> = sections
+            .iter()
+            .filter_map(|section| match &section.state {
+                SectionState::Decoded(content) => {
+                    let rank = self
+                        .systems()
+                        .iter()
+                        .position(|system| *system == section.owner)
+                        .unwrap_or(usize::MAX);
+                    Some((rank, section, content))
+                }
+                SectionState::OwnerNotEnabled | SectionState::NotCarriedHere => None,
+            })
+            .collect();
+        decoded.sort_by_key(|(rank, _, _)| *rank);
+        decoded
+            .into_iter()
+            .map(|(_, section, content)| (section, content))
+            .collect()
     }
 
     /// One authored location as the contract's own [`Location`].
@@ -317,5 +397,92 @@ impl WorldPack {
         self.root()
             .join(kind.directory())
             .join(format!("{key}.yaml"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use mineworld_authoring::{AuthoredSection, ContentKind, Decode, SectionName};
+    use mineworld_contracts::{Rejection, SystemId};
+    use mineworld_kernel::SystemIdentity;
+    use mineworld_presence::{PresenceSystem, arrival};
+    use serde::de::DeserializeSeed;
+
+    use super::*;
+
+    /// A section owner that does what `ARC-31` forbids: it seeds presence's `arrived`.
+    struct Trespasser;
+
+    impl SystemIdentity for Trespasser {
+        const ID: SystemId = SystemId::from_static("trespasser");
+    }
+
+    impl AuthoredSection for Trespasser {
+        const SECTION: SectionName = SectionName::from_static("trespass");
+        const CARRIED_BY: &'static [ContentKind] = &[ContentKind::Person];
+        type Authored = ();
+
+        fn seed(
+            seeding: &Seeding<'_, '_>,
+            subject: EntityId,
+            (): &(),
+        ) -> Result<Vec<Emission>, Rejection> {
+            let world = seeding.world();
+            let place = seeding
+                .resolve(&EntityKey::new("cafe").expect("a key"), EntityType::Place)
+                .ok_or(Rejection::PreconditionFailed)?;
+            let person = PersonId::new(subject, EntityType::Person)
+                .map_err(|_| Rejection::PreconditionFailed)?;
+            let place = PlaceId::new(place, EntityType::Place)
+                .map_err(|_| Rejection::PreconditionFailed)?;
+            Ok(vec![arrival(world, person, Location::in_place(place))?])
+        }
+    }
+
+    #[test]
+    fn a_section_that_seeds_another_packs_fact_is_refused_by_name() {
+        let mut world = World::new();
+        world.install(PresenceSystem).expect("presence");
+        let mut ids = BTreeMap::new();
+        let cafe = world
+            .create_entity(EntityKey::new("cafe").expect("a key"), EntityType::Place)
+            .expect("a place");
+        let alice = world
+            .create_entity(EntityKey::new("alice").expect("a key"), EntityType::Person)
+            .expect("a person");
+        ids.insert(EntityKey::new("cafe").expect("a key"), cafe);
+        ids.insert(EntityKey::new("alice").expect("a key"), alice);
+
+        let content = Decode::<Trespasser>::new()
+            .deserialize(serde_json::Value::Null)
+            .expect("an empty section decodes");
+        let section = FoundSection {
+            owner: Capability::Naming,
+            name: Trespasser::SECTION,
+            state: SectionState::Decoded(content.clone()),
+        };
+        let refusal = seeded(
+            &world.read(),
+            &ids,
+            &EntityKey::new("alice").expect("a key"),
+            &section,
+            &content,
+            Path::new("people/alice.yaml"),
+        )
+        .expect_err("another pack's vocabulary");
+
+        let PackError::SectionStatedAnotherPacksFact {
+            system,
+            event_type,
+            owner,
+            ..
+        } = &refusal
+        else {
+            panic!("got: {refusal}");
+        };
+        assert_eq!(*system, Trespasser::ID);
+        assert_eq!(event_type.as_str(), "arrived");
+        assert_eq!(*owner, PresenceSystem::ID);
+        assert!(refusal.to_string().contains("people/alice.yaml"));
     }
 }

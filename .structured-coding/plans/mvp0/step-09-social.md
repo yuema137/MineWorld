@@ -1985,27 +1985,58 @@ seeds the owner's genesis facts, and the loader never learns what the section me
 
 `location` and `passages` are not touched (C-6).
 **Depends on:** C2.
-- [ ] Implementation: as §4.3.2 "the seam in worldpack". `Capability::Naming` added to `AVAILABLE`,
-  `id`, `install`, `provider`, `biographical` (`&[]`) and `section`.
-- [ ] Validation (`cargo test -p mineworld-worldpack`):
-  - [ ] The real pack: `mineworld validate worlds/social-cafe` prints six systems and the genesis count.
-    Each person's genesis `named` fact is located, and its payload decoded with naming's type equals
-    the authored name. Genesis facts 1–17 are byte-identical to before (passages and locations keep
-    their ids). Literal update: 17 → 29 here; it becomes 53 in C6.
-  - [ ] Refusals, each named and each with its file path:
-    - `name:` with `naming` not enabled → ContentNeedsASystem naming;
-    - `nmae:` → unknown field, with line and column, listing `name` among the known keys;
-    - `name: ""` → Malformed, with line and column;
-    - `name:` in a place file → SectionNotCarriedHere.
-  - [ ] The foreign-fact refusal, reached through a test-only owner. The catalog is closed, so this
-    is a unit test in `load.rs` over a fake `AuthoredSection` that seeds presence's `arrived`, and
-    it asserts SectionStatedAnotherPacksFact.
-  - [ ] The catalog guard: no duplicate section names, and none shadowing a format field.
-  - [ ] All existing worldpack tests pass, with the I-5 literals updated.
-- [ ] Review:
-  - `grep -n "naming\|Name\b\|DisplayName" worldpack/src` → only `catalog.rs`.
-  - `read.rs` and `load.rs` name no pack type.
-  - The DEP-10 isolating interface is still one module (`read.rs`).
+- [x] Implementation (§9 E-C3):
+  - `worldpack/src/content.rs` (new): a `DeserializeSeed` for person and place files. Keys are
+    recognized **inside** `next_key_seed`, so an unknown key keeps its line and column. The first
+    attempt raised the refusal from the map visitor and lost the position; `a_bad_field…` caught it
+    and it was fixed before commit.
+  - `catalog.rs`: `Capability::Naming`, `SectionOwner`, `section()`, `owning_section()`,
+    `decode_section()`.
+  - `format.rs`: `FoundSection` and `SectionState`; the person and place structs lose the
+    `Deserialize` derive and gain `sections`.
+  - `read.rs`: check 10, `check_sections`; `parse_with`, so serde-saphyr is still called from this
+    module only.
+  - `load.rs`: `seeded`, and sections seeded after locations in composition order.
+  - `error.rs`: `ContentKind` re-exported from authoring; three new variants. A clippy
+    `result_large_err` finding was fixed by boxing the owner's `Rejection` and dropping `subject` from
+    the foreign-fact variant, whose `path` already names the file.
+  - Pack: `naming` appended to `systems:`; twelve `name:` lines; alice's "no name" comment replaced.
+- [x] Validation (`cargo test -p mineworld-worldpack`: lib 2, refusals 28, social_cafe 14, doctest 1,
+  all PASS):
+  - [x] `validate`: six systems, `29 genesis fact(s)`. The new test
+    `every_person_is_named_by_the_owner_of_the_name_section_after_everything_else` locates all twelve
+    `named` facts:
+    - each decoded with naming's type, equal to the authored name;
+    - each at an index ≥ 17, emitted by `naming`;
+    - each reduced into DisplayName;
+    - no name equal to its key.
+
+    `sections_do_not_move_the_facts_stated_before_them` loads a copy without naming and without
+    `name:` lines. Its 17 genesis facts equal the full pack's first 17, by (id, type, payload bytes).
+  - [x] Refusals (5 new tests), each named and each with its file path:
+    - ContentNeedsASystem `name`/`naming`;
+    - `line 2 column 1: unknown field \`nmae\`, expected one of \`tags\`, \`note\`, \`location\`,
+      \`name\``;
+    - `line 4 column 7: a name must be …` (the owner's message, at the value);
+    - SectionNotCarriedHere (cafe, place, carried by "person");
+    - plus the positive case: a named person loads as `[arrived, named]`.
+  - [x] Foreign-fact refusal: the `load.rs` unit test `Trespasser` seeds presence's `arrived` →
+    SectionStatedAnotherPacksFact { trespasser, arrived, presence }, and the message names the file.
+  - [x] Catalog guard: `no_two_sections_share_a_name_and_none_shadows_a_field`.
+  - [x] I-5 literals, claim unchanged:
+    - worldpack `the_pack_says_what_world_it_is` (+Naming);
+    - `the_same_pack_loaded_twice…` (17 → 29, message extended);
+    - cli `commands.rs` (the composition now names `naming`, ending at the newline; 17 → 29);
+    - `server_command.rs` (+"naming");
+    - `inspect.rs` (+", naming v1");
+    - `social_composition.rs` without-group-activity list (+", naming v1").
+  - [x] Full workspace (E-C3): 395 passed, 0 failed, 2 min 1 s.
+- [x] Review:
+  - `grep -rn "naming|Naming|DisplayName|\bName\b" worldpack/src` outside catalog.rs → only the
+    English verb "naming" in prose, and the `load.rs` unit test's placeholder owner. `read.rs`,
+    `content.rs` and `load.rs` name no pack type.
+  - The DEP-10 call site is still one module.
+  - fmt and clippy `--workspace -D warnings` are clean.
 
 **Acceptance.** As validation (§9 E-C3).
 **Failure.** If decoding from the stream loses line and column, the fallback is decoding via an
@@ -2909,6 +2940,15 @@ E-C1 (923b438) ARC-31, ARC-32, MODULE_SPEC §4.1 sections + rule 6 + genesis ord
      names, PACKAGE_FORMAT §8. check_decision_ids 42 distinct; check_doc_headings 142.
 E-C2 authoring + naming. `cargo test -p mineworld-naming`: 5 passed, 0 failed (0.00 s). clippy -D
      warnings clean on both crates; fmt applied.
+E-C3 The seam in worldpack; naming registered. `cargo test --workspace --no-fail-fast`: 395 passed,
+     0 failed, 2 min 1 s wall (run 61.5 s, run_restart 11.4 s). That is 381 + 14 new (naming 5,
+     worldpack lib 2, social_cafe 2, refusals 5).
+     THE TEST COUNT, explained: the 381 of 10b's gate is 369 `#[test]`/`#[tokio::test]` functions
+     plus 12 doctests (contracts 3, kernel 7, server 1, worldpack 1 — the last a `no_run` example,
+     compiled and counted). kill_and_resume is `harness = false` and is counted by neither; it runs
+     as its own gate.
+     clippy --workspace -D warnings clean, after boxing `SectionRefusedByOwner.reason` (a
+     result_large_err finding).
 ```
 
 ## 9.1 Limitations (expected)

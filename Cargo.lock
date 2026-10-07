@@ -782,11 +782,13 @@ dependencies = [
 name = "mineworld-worldpack"
 version = "0.0.0"
 dependencies = [
+ "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-group-activity",
  "mineworld-kernel",
  "mineworld-movement",
+ "mineworld-naming",
  "mineworld-presence",
  "mineworld-relationships",
  "serde",

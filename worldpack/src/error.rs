@@ -15,7 +15,8 @@
 
 use std::path::PathBuf;
 
-use mineworld_contracts::{ContractError, EntityKey, SystemId};
+use mineworld_authoring::SectionName;
+use mineworld_contracts::{ContractError, EntityKey, EntityType, EventTypeId, Rejection, SystemId};
 use mineworld_kernel::KernelError;
 use thiserror::Error;
 
@@ -40,41 +41,9 @@ impl core::fmt::Display for Declared {
     }
 }
 
-/// What kind of content file a key names.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ContentKind {
-    /// `people/<key>.yaml`.
-    Person,
-    /// `places/<key>.yaml`.
-    Place,
-}
-
-impl ContentKind {
-    /// The directory this kind of content lives in.
-    pub const fn directory(self) -> &'static str {
-        match self {
-            Self::Person => "people",
-            Self::Place => "places",
-        }
-    }
-
-    /// What one file of this kind describes, for a message to name it.
-    pub const fn describes(self) -> &'static str {
-        match self {
-            Self::Person => "person",
-            Self::Place => "place",
-        }
-    }
-}
-
-impl core::fmt::Display for ContentKind {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str(match self {
-            Self::Person => "person",
-            Self::Place => "place",
-        })
-    }
-}
+/// What kind of content file a key names. Defined beside the section contract, because a System Pack
+/// states which kinds of file may carry its section (`ARC-31`).
+pub use mineworld_authoring::ContentKind;
 
 /// Every way reading or loading a World Pack can refuse.
 #[derive(Debug, Error)]
@@ -297,6 +266,81 @@ pub enum PackError {
         /// The system that owns the state it would become.
         system: SystemId,
         /// The file that authored it.
+        path: PathBuf,
+    },
+
+    /// A section that a System Pack owns appears in a kind of file that pack does not let carry it —
+    /// a `routine:` in a place's file.
+    #[error(
+        "{path} gives the {kind} '{subject}' a '{section}' section, which only {carried_by} files \
+         may carry"
+    )]
+    SectionNotCarriedHere {
+        /// The entity the file describes.
+        subject: EntityKey,
+        /// The section.
+        section: SectionName,
+        /// The kind of file it was found in.
+        kind: ContentKind,
+        /// The kinds that may carry it, for the author to read.
+        carried_by: String,
+        /// The file.
+        path: PathBuf,
+    },
+
+    /// A section names, by key, an entity the pack does not declare — or one of the wrong kind, a
+    /// person where its owner needs a place.
+    #[error(
+        "{path} gives '{subject}' a '{section}' section naming '{key}', which is not a {expected} \
+         this pack declares"
+    )]
+    SectionNamesUnknownEntity {
+        /// The entity the file describes.
+        subject: EntityKey,
+        /// The section.
+        section: SectionName,
+        /// The key it names.
+        key: EntityKey,
+        /// What the section's owner needs that key to be.
+        expected: EntityType,
+        /// The file.
+        path: PathBuf,
+    },
+
+    /// The System Pack that owns a section refused the value as the assembled world stands. The
+    /// owner's own refusal, unaltered.
+    #[error("{path}: the '{system}' system refused '{subject}''s '{section}' section: {reason:?}")]
+    SectionRefusedByOwner {
+        /// The entity the file describes.
+        subject: EntityKey,
+        /// The section.
+        section: SectionName,
+        /// Its owner.
+        system: SystemId,
+        /// What the owner said. Boxed: a rejection may carry a system's own detail, and every other
+        /// refusal should not pay for its size.
+        reason: Box<Rejection>,
+        /// The file.
+        path: PathBuf,
+    },
+
+    /// A section's owner seeded a fact in another System Pack's vocabulary. World genesis attributes a
+    /// fact to its type's owner and checks no dependency, so this is refused here: stating another
+    /// pack's fact needs a dependency on it (`ARC-26`), and a section is not a way around that.
+    #[error(
+        "{path}: the '{system}' system's '{section}' section stated a '{event_type}' fact, which is \
+         the '{owner}' system's vocabulary"
+    )]
+    SectionStatedAnotherPacksFact {
+        /// The section. (The entity is the file's: `path` names it.)
+        section: SectionName,
+        /// The section's owner.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
+        /// Whose vocabulary that fact is.
+        owner: SystemId,
+        /// The file.
         path: PathBuf,
     },
 

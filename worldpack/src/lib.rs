@@ -58,6 +58,7 @@
 #![warn(missing_docs)]
 
 pub mod catalog;
+pub mod content;
 pub mod error;
 pub mod format;
 pub mod load;
@@ -66,7 +67,8 @@ pub mod read;
 pub use catalog::Capability;
 pub use error::{ContentKind, Declared, PackError};
 pub use format::{
-    AuthoredLocation, AuthoredPerson, AuthoredPlace, AuthoredPosition, WorldIdentity, WorldManifest,
+    AuthoredLocation, AuthoredPerson, AuthoredPlace, AuthoredPosition, FoundSection, SectionState,
+    WorldIdentity, WorldManifest,
 };
 pub use load::{AssembledWorld, ComposedWorld, LoadedWorld, RunningWorld};
 pub use read::{MANIFEST, WorldPack};

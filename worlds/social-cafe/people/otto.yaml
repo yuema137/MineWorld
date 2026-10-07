@@ -5,6 +5,8 @@
 # seat the world does not offer must be refused by name (`tools/cli/tests/server_command.rs`). Being a
 # seat is a fact about the world's configuration, not about him (`INV-1`).
 
+name: Otto Brandt
+
 tags:
   - resident
 

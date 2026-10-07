@@ -7,9 +7,11 @@
 //!
 //! Three properties are the whole design of this module.
 //!
-//! **Unknown fields are refused, not ignored.** Every struct carries `deny_unknown_fields`, so
-//! `nmae: Alice` is an error at the line that wrote it rather than an entity with no name and no
-//! reason why. `docs/MODULE_SPEC.md` §4's full model is wider than what MVP-0 implements, and §4.1
+//! **Unknown fields are refused, not ignored.** Every struct carries `deny_unknown_fields`, and a
+//! person or place file — whose legal keys also include the sections System Packs own
+//! (`DECISIONS.md` `ARC-31`) — is read by [`crate::content`], which refuses any other key the same
+//! way. So `nmae: Alice` is an error at the line that wrote it rather than an entity with no name and
+//! no reason why. `docs/MODULE_SPEC.md` §4's full model is wider than what MVP-0 implements, and §4.1
 //! names the implemented subset — a field outside it is refused rather than silently accepted,
 //! because an accepted field an author believes in is worse than a refused one.
 //!
@@ -24,8 +26,13 @@
 //! them to disagree, which is the reason `EntityRegistry` derives its key index rather than storing
 //! it.
 
+use std::sync::Arc;
+
+use mineworld_authoring::{AuthoredContent, SectionName};
 use mineworld_contracts::{EntityKey, Millimetres, SystemId, Tags};
 use serde::Deserialize;
+
+use crate::catalog::Capability;
 
 /// `world.yaml`: what this world is, what it is composed of, and who is in it.
 #[derive(Debug, Clone, Deserialize)]
@@ -71,37 +78,63 @@ pub struct WorldIdentity {
     pub name: String,
 }
 
+/// One section a content file carries: a top-level key a System Pack owns (`DECISIONS.md` `ARC-31`).
+///
+/// The loader holds it without knowing what it means. Its fate is decided while the file is read,
+/// because only then is it known whether the owner is enabled and whether this kind of file may carry
+/// it — and a section that will be refused is not decoded, so the author hears the refusal that
+/// matters rather than a complaint about the inside of a section that could never be used.
+#[derive(Debug, Clone)]
+pub struct FoundSection {
+    /// The capability that owns it.
+    pub owner: Capability,
+    /// Its key.
+    pub name: SectionName,
+    /// What became of it.
+    pub state: SectionState,
+}
+
+/// What became of a section as its file was read.
+#[derive(Debug, Clone)]
+pub enum SectionState {
+    /// Decoded, and so validated, by its owner's own type.
+    Decoded(Arc<dyn AuthoredContent>),
+    /// Its owner is a system this build provides that the world does not enable.
+    OwnerNotEnabled,
+    /// Its owner does not let this kind of file carry it.
+    NotCarriedHere,
+}
+
 /// A file in `people/`: one Person, as authored.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields)]
+///
+/// Read through [`crate::content`] rather than a derived `Deserialize`, because which top-level keys
+/// are legal depends on the sections this build's System Packs own — and an unknown key is still
+/// refused rather than ignored.
+#[derive(Debug, Clone, Default)]
 pub struct AuthoredPerson {
     /// The labels this person carries. An open vocabulary the contract validates, and the only thing
     /// in this file a system may read: a system decides whether an entity is of interest to it by
     /// reading tags and components, never by reading prose.
-    #[serde(default)]
     pub tags: Tags,
     /// A note from whoever authored them, for a person debugging a world. Never gameplay state.
-    #[serde(default)]
     pub note: Option<String>,
     /// Where this person starts.
     ///
     /// Optional: a person with no location is not "nowhere", they are somebody the presence system
     /// has not been told about, which `systems/presence` treats as knowing nothing rather than as an
     /// error.
-    #[serde(default)]
     pub location: Option<AuthoredLocation>,
+    /// The sections this file carries, in the order it states them.
+    pub sections: Vec<FoundSection>,
 }
 
 /// A file in `places/`: one Place, as authored.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, Default)]
 pub struct AuthoredPlace {
     /// The labels this place carries. These reach a client through the observation, which is what
     /// lets it choose how to draw a café without the simulation knowing it is one.
-    #[serde(default)]
     pub tags: Tags,
     /// A note from whoever authored it.
-    #[serde(default)]
     pub note: Option<String>,
     /// The places this one opens onto, each through one doorway.
     ///
@@ -109,8 +142,9 @@ pub struct AuthoredPlace {
     /// fact that system reduces into both places, so a passage is stated once, in either of the two
     /// files, and holds both ways. It states no rule — how far from a doorway a person may pass is
     /// movement's decision, not this file's.
-    #[serde(default)]
     pub passages: Vec<AuthoredPassage>,
+    /// The sections this file carries, in the order it states them.
+    pub sections: Vec<FoundSection>,
 }
 
 /// One doorway from the place whose file states it to another place.
