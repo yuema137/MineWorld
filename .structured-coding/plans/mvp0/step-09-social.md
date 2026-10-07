@@ -2201,27 +2201,55 @@ day, and it moves no one (SD-13, Q8, CP-4's mechanism).
 - `clients/protocol/evidence/*` re-recorded.
 
 **Depends on:** C3, C5.
-- [ ] Implementation: as scope.
-- [ ] Validation:
-  - [ ] `validate` prints seven systems and 53 genesis facts. Every person's `agenda-changed` is
-    located in genesis, decoded with schedule's type, and equals the segment at 00:00 of their
-    authored routine.
-  - [ ] Refusals through the real loader:
-    - `routine:` naming an undeclared place → SectionNamesUnknownEntity;
-    - naming a person → the same, expected Place;
-    - `routine:` with `schedule` not enabled → ContentNeedsASystem schedule;
-    - overlapping segments → Malformed, with line and column.
-  - [ ] The existing suites over the pack pass with I-5 literals:
-    - worldpack;
-    - cli ac13, ac15, commands, create, inspect, restart, server_command;
-    - kill_and_resume.
-
-    `restart.rs`'s revision literals pass **unchanged**. This is C-8, observed rather than assumed.
-  - [ ] `run.sh evidence` re-recorded. The visitor's own observation carries `agenda`; other people's
-    do not.
-- [ ] Review:
-  - The only shared code file touched is the catalog.
-  - No routine boundary falls in 00:00–05:00 (C-8), checked by reading all twelve files.
+- [x] Implementation (§9 E-C6):
+  - `Capability::Schedule` added in every arm of the catalog.
+  - The twelve routines of §4.3.2, verbatim.
+  - The **§4.3.7 freeze condition** (comments): alice.yaml carries the full FIXTURE DEPENDENCY
+    note, and every other person file, and world.yaml, states it briefly and points to alice.yaml.
+  - The **§4.3.7 freeze condition** (assertions): `tools/cli/tests/fixture/mod.rs` (new).
+    - `assert_quiet(from, length, test)` reads every `from: "HH:MM"` in `people/*.yaml` with its
+      own literal reader. It fails "fixture assumption violated: a routine boundary falls in the
+      restart window that <test> relies on …", naming each boundary inside the window.
+    - It refuses to pass vacuously if it finds no boundary.
+    - It is called first in both `restart.rs` tests (window 00:00 + 5 h, hosted from genesis), in
+      `ac15_one_alice::there_is_only_one_alice` (its "head is settled" claim; same window), and in
+      `milestone_b.rs` before the save is hosted. There the window is the head's own instant + 1 h,
+      read from the save by the new `Tables::head_instant`.
+    - The audit found no other test that relies on the window: no other test hosts a world and
+      claims a revision or a settled head.
+  - **Bounded reordering:** C8's biography-set change is done here, because registering schedule
+    put `agenda-changed` into every biography at once. `social::BIOGRAPHICAL_TYPES` gains it (7
+    types), `payload_names` decodes it with schedule's type, and the cli gains a dev-dependency.
+- [x] Validation:
+  - [x] `validate`: `presence, movement, conversation, group-activity, relationships, naming,
+    schedule` and `53 genesis fact(s)`.
+    `every_persons_first_agenda_is_the_part_of_their_authored_day_in_force_at_midnight` checks all
+    12, against a literal reading of each file (the last segment's place and label).
+    `sections_do_not_move…` now strips both sections; its 17 facts are still byte-equal.
+  - [x] Refusals (4 new tests, each with its file path):
+    - `beach` → SectionNamesUnknownEntity { routine, beach, Place };
+    - `bob` → the same, expected Place;
+    - no schedule → ContentNeedsASystem { routine, schedule };
+    - 18:00 then 06:00 → `line 4 column 3: routine segments must start at strictly increasing
+      times, but 06:00 follows 18:00`.
+  - [x] I-5 literals, claims unchanged: worldpack (+Schedule; 29 → 53); cli `commands` (+schedule,
+    53), `server_command` (+schedule), `inspect` (+schedule v1), `social_composition`
+    without-group-activity (+schedule v1). `restart.rs`'s revision literals (1, 6, 6, 7, 7, 2) pass
+    **unedited**: C-8 observed.
+  - [x] **The quiet-window checks are load-bearing**, both run and reverted:
+    - alice 05:30 → 04:30: both `restart.rs` tests FAIL "fixture assumption violated … (00:00 for
+      18000 s) … Inside the window: alice at 04:30";
+    - 05:30 → 00:30: `milestone_b` FAILS "… milestone_b.rs (hosting the killed save) relies on
+      (00:00 for 3600 s) … alice at 00:30", which also shows the 30-day save's head is at 00:00.
+  - [x] `run.sh evidence` re-recorded (server "7 system(s)"). The visitor's own record lists
+    `["conversation-history","acquaintances","display-name","agenda"]`, and other people's list
+    only `display-name`. `request-*.json` are unchanged.
+  - [x] Full workspace: 411 passed, 0 failed; kill_and_resume: cafe PASS, clock PASS.
+- [x] Review:
+  - The shared code file touched is the catalog (and worldpack/Cargo.toml).
+  - All twelve routines: earliest boundary 05:30 (alice), latest 22:00 (wanderer). None falls in
+    00:00–05:00, and the test helper now checks this mechanically.
+  - fmt and clippy `--workspace -D warnings` are clean.
 
 **Acceptance.** As validation (§9 E-C6).
 **Failure.** A claim that cannot be kept under I-5 is a material stop.
@@ -2991,6 +3019,9 @@ E-C4 Names reach what people say and read. Full workspace 398 passed, 0 failed (
      249 and 5 156.
 E-C5 systems/schedule. schedule 7 + persisted 1 PASS; two mutations each FAIL the named test and were
      reverted. Full workspace 405 passed, 0 failed.
+E-C6 schedule registered; twelve routines; the §4.3.7 quiet-window assertions (restart ×2, ac15,
+     milestone_b), each shown to fail by name on a moved boundary. Full workspace 411 passed, 0
+     failed; kill_and_resume PASS ×2; run.sh evidence re-recorded.
 ```
 
 ## 9.1 Limitations (expected)

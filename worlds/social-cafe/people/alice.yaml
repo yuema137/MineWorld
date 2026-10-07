@@ -10,6 +10,20 @@
 
 name: Alice Moreau
 
+# `routine` is a section the `schedule` system owns (ARC-32): the day she means to keep. It moves her
+# nowhere — whoever drives her walks there, or does not.
+#
+# FIXTURE DEPENDENCY (step-09 §4.3.7): every routine boundary in this world lies between 05:00 and
+# 23:00. A world hosted from genesis (00:00), or from a save that ends at midnight, then commits
+# nothing for five hours, and the restart tests' "revision unchanged" claims rely on that
+# (tools/cli/tests/restart.rs, milestone_b.rs). Those tests check this first and fail naming it, so
+# moving a boundary into 00:00–05:00 breaks them loudly, not mysteriously.
+routine:
+  - { from: "05:30", place: cafe, label: work }
+  - { from: "14:00", place: store, label: errands }
+  - { from: "15:30", place: park, label: walk }
+  - { from: "18:00", place: apartments, label: home }
+
 tags:
   - barista
   - staff

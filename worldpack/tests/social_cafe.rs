@@ -72,6 +72,7 @@ fn the_pack_says_what_world_it_is() {
             Capability::GroupActivity,
             Capability::Relationships,
             Capability::Naming,
+            Capability::Schedule,
         ],
         "in the order the pack states, which is installation order",
     );
@@ -216,10 +217,68 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        29,
+        53,
         "the five places' doors onto the street, then one arrival per person the pack placed, then \
-         one name per person (the `name` sections, ARC-31)",
+         per person their name and their routine (the sections, ARC-31) and the first agenda that \
+         routine implies (ARC-32)",
     );
+}
+
+#[test]
+fn every_persons_first_agenda_is_the_part_of_their_authored_day_in_force_at_midnight() {
+    let world = loaded();
+    let mut located = 0;
+    for person in [
+        "alice", "bob", "carol", "dev", "erin", "felix", "grace", "hana", "ivan", "otto",
+        "visitor", "wanderer",
+    ] {
+        // The oracle reads the person's own file with a literal reader of its `- { from, place,
+        // label }` lines, never schedule's code (rules §25). Every boundary is after midnight, so at
+        // 00:00 the day's last segment — begun the evening before — is in force.
+        let text = std::fs::read_to_string(Path::new(PACK).join(format!("people/{person}.yaml")))
+            .expect("the person's file");
+        let segments: Vec<(String, String)> = text
+            .lines()
+            .filter(|line| line.trim_start().starts_with("- { from:"))
+            .map(|line| {
+                let field = |name: &str| {
+                    let start = line.find(&format!("{name}: ")).expect("a field") + name.len() + 2;
+                    line[start..]
+                        .split([',', ' ', '}'])
+                        .next()
+                        .expect("a value")
+                        .trim_matches('"')
+                        .to_owned()
+                };
+                (field("place"), field("label"))
+            })
+            .collect();
+        let (place, label) = segments.last().expect("a routine").clone();
+        let id = world.id(&key(person)).expect("resolves");
+        let first = world
+            .genesis()
+            .iter()
+            .filter(|fact| fact.event_type().as_str() == "agenda-changed")
+            .map(|fact| {
+                let changed: mineworld_schedule::AgendaChanged = serde_json::from_slice(
+                    fact.payload()
+                        .payload_for::<mineworld_schedule::AgendaChanged>()
+                        .expect("schedule's fact"),
+                )
+                .expect("decodes");
+                changed
+            })
+            .find(|changed| changed.person().entity_id() == id)
+            .unwrap_or_else(|| panic!("{person} has a first agenda at genesis"));
+        assert_eq!(
+            Some(first.place().entity_id()),
+            world.id(&key(&place)),
+            "{person}'s agenda at midnight is the evening's place, {place}"
+        );
+        assert_eq!(first.label().as_str(), label, "{person}'s label");
+        located += 1;
+    }
+    assert_eq!(located, 12);
 }
 
 #[test]
@@ -277,9 +336,9 @@ fn every_person_is_named_by_the_owner_of_the_name_section_after_everything_else(
 
 #[test]
 fn sections_do_not_move_the_facts_stated_before_them() {
-    // The same pack without `naming` and without its `name:` lines (a world that does not enable a
-    // section's owner refuses the section): the first seventeen genesis facts must be the same bytes
-    // with or without sections — passages and arrivals keep their event ids (ARC-31).
+    // The same pack without `naming` and `schedule` and without their sections (a world that does not
+    // enable a section's owner refuses the section): the first seventeen genesis facts must be the same
+    // bytes with or without sections — passages and arrivals keep their event ids (ARC-31).
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("unnamed/social-cafe");
     let _ = std::fs::remove_dir_all(&root);
     for directory in ["people", "places"] {
@@ -289,7 +348,11 @@ fn sections_do_not_move_the_facts_stated_before_them() {
             let text = std::fs::read_to_string(entry.path()).expect("a file");
             let kept: Vec<&str> = text
                 .lines()
-                .filter(|line| !line.starts_with("name:"))
+                .filter(|line| {
+                    !line.starts_with("name:")
+                        && !line.starts_with("routine:")
+                        && !line.starts_with("  - { from:")
+                })
                 .collect();
             std::fs::write(
                 root.join(directory).join(entry.file_name()),
@@ -301,7 +364,9 @@ fn sections_do_not_move_the_facts_stated_before_them() {
     let manifest = std::fs::read_to_string(Path::new(PACK).join("world.yaml")).expect("readable");
     std::fs::write(
         root.join("world.yaml"),
-        manifest.replace("  - naming\n", ""),
+        manifest
+            .replace("  - naming\n", "")
+            .replace("  - schedule\n", ""),
     )
     .expect("writable");
 

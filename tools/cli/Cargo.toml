@@ -41,3 +41,4 @@ tokio-tungstenite = { workspace = true }
 # fields the command selects by (step-09 C6, rules §25).
 mineworld-group-activity = { workspace = true }
 mineworld-relationships = { workspace = true }
+mineworld-schedule = { workspace = true }

@@ -50,6 +50,7 @@
 //! knows exactly what a client knows, which is the only position from which "the two clients see one
 //! world" can honestly be checked.
 
+mod fixture;
 mod support;
 
 use mineworld_contracts::{Component, EntityId, Observation};
@@ -77,6 +78,9 @@ const WANDERER_BY_THE_TABLE: (i32, i32) = (7_110, 3_900);
 
 #[tokio::test]
 async fn there_is_only_one_alice() {
+    // "The world's persisted head is settled" once Alice has answered both windows holds only while no
+    // routine boundary falls as the world runs from genesis, 00:00 (step-09 §4.3.7): checked first.
+    fixture::assert_quiet(0, 5 * 3_600, "ac15_one_alice.rs");
     let save = SaveDir::new("ac15");
     let server = Server::start(&[
         "server",

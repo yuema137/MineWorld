@@ -12,7 +12,7 @@
 //! (`ARC-23`):
 //!
 //! ```text
-//! an empty biography              matches any log; Alice's must hold every one of the six types
+//! an empty biography              matches any log; Alice's must hold every one of the seven types
 //! an invented entry               sound: every entry is a fact of the log whose payload names her
 //! a dropped entry                 complete: every such fact appears, exactly once
 //! ```

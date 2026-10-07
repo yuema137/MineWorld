@@ -31,12 +31,13 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     let report = stdout(&output);
     for expected in [
         "Social Café",
-        "presence, movement, conversation, group-activity, relationships, naming\n",
+        "presence, movement, conversation, group-activity, relationships, naming, schedule\n",
         "alice",
         "visitor",
         "wanderer",
-        // Five passages (each place's door onto the street), twelve placements and twelve names.
-        "29 genesis fact(s)",
+        // Five passages (each place's door onto the street), twelve placements, twelve names, twelve
+        // routines and the twelve first agendas they imply.
+        "53 genesis fact(s)",
     ] {
         assert!(
             report.contains(expected),

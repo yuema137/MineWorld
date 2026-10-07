@@ -1,8 +1,8 @@
 //! Shared by the social acceptance tests (biography, Milestone B, composition): reading the social
 //! packs' facts with their owners' published types, and counting them where they happened.
 //!
-//! The six biographical types are literals here, from `step-09-social.md` SD-12, rather than read from
-//! the packs' `BIOGRAPHICAL` constants: this is the oracle a biography is checked against, and an
+//! The seven biographical types are literals here, from `step-09-social.md` SD-12, rather than read
+//! from the packs' `BIOGRAPHICAL` constants: this is the oracle a biography is checked against, and an
 //! oracle built from the code under test would agree with any mistake in it (rules §25).
 
 #![allow(dead_code)]
@@ -14,14 +14,17 @@ use mineworld_group_activity::{
     GroupActivityEnded, GroupActivityStarted, JoinedGroupActivity, LeftGroupActivity,
 };
 use mineworld_relationships::{BecameAcquainted, RelationshipChanged};
+use mineworld_schedule::AgendaChanged;
 
-pub const BIOGRAPHICAL_TYPES: [&str; 6] = [
+/// SD-12's set; `agenda-changed` joined it with 10c's schedule (a literal added, the claim unchanged).
+pub const BIOGRAPHICAL_TYPES: [&str; 7] = [
     "became-acquainted",
     "relationship-changed",
     "group-activity-started",
     "joined-group-activity",
     "left-group-activity",
     "group-activity-ended",
+    "agenda-changed",
 ];
 
 /// Every person's authored name, as literals from `worlds/social-cafe/people/*.yaml` — the oracle a
@@ -74,6 +77,7 @@ pub fn payload_names(fact: &EventEnvelope, person: EntityId) -> Option<bool> {
             decoded::<JoinedGroupActivity>(fact).map(|fact| is(fact.person()))
         }
         "left-group-activity" => decoded::<LeftGroupActivity>(fact).map(|fact| is(fact.person())),
+        "agenda-changed" => decoded::<AgendaChanged>(fact).map(|fact| is(fact.person())),
         _ => None,
     }
 }

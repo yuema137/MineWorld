@@ -20,6 +20,7 @@ mineworld-movement = { workspace = true }
 mineworld-naming = { workspace = true }
 mineworld-presence = { workspace = true }
 mineworld-relationships = { workspace = true }
+mineworld-schedule = { workspace = true }
 serde = { workspace = true }
 serde-saphyr = { workspace = true }
 thiserror = { workspace = true }

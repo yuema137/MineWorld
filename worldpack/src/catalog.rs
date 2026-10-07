@@ -39,6 +39,7 @@ use mineworld_movement::{MovementSystem, passage};
 use mineworld_naming::NamingSystem;
 use mineworld_presence::{Arrived, PerceptionProvider, PresenceSystem, arrival};
 use mineworld_relationships::RelationshipsSystem;
+use mineworld_schedule::ScheduleSystem;
 use serde::de::{Error as _, MapAccess};
 
 /// One System Pack this build can install.
@@ -56,16 +57,19 @@ pub enum Capability {
     Relationships,
     /// What people are called.
     Naming,
+    /// A person's day: where they mean to be, and when — an agenda, never a mover.
+    Schedule,
 }
 
 /// Every system this build provides, in a fixed order — the order an error message lists them in.
-pub const AVAILABLE: [Capability; 6] = [
+pub const AVAILABLE: [Capability; 7] = [
     Capability::Presence,
     Capability::Movement,
     Capability::Conversation,
     Capability::GroupActivity,
     Capability::Relationships,
     Capability::Naming,
+    Capability::Schedule,
 ];
 
 /// The section of authored content a capability owns: its key, and the files that may carry it
@@ -109,6 +113,7 @@ impl Capability {
             Self::GroupActivity => GroupActivitySystem::ID,
             Self::Relationships => RelationshipsSystem::ID,
             Self::Naming => NamingSystem::ID,
+            Self::Schedule => ScheduleSystem::ID,
         }
     }
 
@@ -121,6 +126,7 @@ impl Capability {
             | Self::GroupActivity
             | Self::Relationships => None,
             Self::Naming => Some(SectionOwner::of::<NamingSystem>()),
+            Self::Schedule => Some(SectionOwner::of::<ScheduleSystem>()),
         }
     }
 
@@ -143,6 +149,7 @@ impl Capability {
     ) -> Result<Arc<dyn AuthoredContent>, A::Error> {
         match self {
             Self::Naming => map.next_value_seed(Decode::<NamingSystem>::new()),
+            Self::Schedule => map.next_value_seed(Decode::<ScheduleSystem>::new()),
             Self::Presence
             | Self::Movement
             | Self::Conversation
@@ -165,6 +172,7 @@ impl Capability {
             Self::GroupActivity => mineworld_group_activity::BIOGRAPHICAL,
             Self::Relationships => mineworld_relationships::BIOGRAPHICAL,
             Self::Naming => mineworld_naming::BIOGRAPHICAL,
+            Self::Schedule => mineworld_schedule::BIOGRAPHICAL,
         }
     }
 
@@ -180,6 +188,7 @@ impl Capability {
             Self::GroupActivity => world.install(GroupActivitySystem),
             Self::Relationships => world.install(RelationshipsSystem),
             Self::Naming => world.install(NamingSystem),
+            Self::Schedule => world.install(ScheduleSystem),
         }
     }
 
@@ -196,6 +205,7 @@ impl Capability {
             Self::GroupActivity => Box::new(GroupActivitySystem),
             Self::Relationships => Box::new(RelationshipsSystem),
             Self::Naming => Box::new(NamingSystem),
+            Self::Schedule => Box::new(ScheduleSystem),
         }
     }
 }

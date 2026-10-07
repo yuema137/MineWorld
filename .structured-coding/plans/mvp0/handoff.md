@@ -30,11 +30,16 @@ base             main @ 266daf7
 
 ## Checkpoint
 
-Starting C1 (specs: ARC-31, ARC-32, PACKAGE_FORMAT §8, MODULE_SPEC §4.1/§8.1).
+C1–C5 committed and pushed (923b438 specs, fc2fdd3 authoring+naming, 9f1d1c0 worldpack seam,
+5aa7c69 names in replies/biography/Godot, 3ddafbf schedule). Full workspace 405 passed at C5.
+Bounded deviation D-C1 (AC-2 naming oracle) recorded in §4.3.3 C4.
 
 ## Next actions
 
-C1 → commit/push → C2 (authoring + naming).
+C6: register schedule (catalog), twelve routines in social-cafe with the quiet-window comment,
+refusals for routines, literal 29 → 53, run.sh evidence. Then C7 (controller follows agenda; frozen
+pre-C7 binary from the C6 commit for parity), C8 (routines.rs, I-4 clause, quiet-window assertions
+in milestone_b/restart per §4.3.7, AC-2 schedule, biography set), C9 docs + gates + PR.
 
 ## Stop conditions
 
