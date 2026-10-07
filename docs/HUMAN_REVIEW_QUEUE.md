@@ -83,18 +83,20 @@ portraits), `d4_full_and_rear.jpg`, `d5_walk.jpg`, `d6_grip_armpit_hairline_zoom
 
 **Known misses, largest first.**
 
-1. The hand on the strap is open, fingers splayed, one finger pointing up, with a dark mark
-   across it; the reference's is a relaxed fist. The generated hand's fingers are one fused
-   surface, so they barely curl.
-2. She looks straight ahead and a little up; the reference looks off to her left. The eyes are
-   painted and cannot turn; only the head turns.
-3. The hair is a darker, cooler brown with no caramel highlights, and its locks read as heavier
+1. The hair is a darker, cooler brown with no caramel highlights, and its locks read as heavier
    sculpted ropes than the reference's soft wisps.
+2. The eyes are painted: the look to her left comes from turning the head, and the eyes cannot
+   move. No blink and no expressions either; the face has no lids or mouth that move.
+3. The hand on the strap is a loose fist on the strap's front edge, larger and paler than the
+   reference's; the reference's hand sits further onto the strap.
 4. The backpack is charcoal grey where the reference's is olive.
 5. The tee's slogan has a garbled first word; the tee is greyer-white than oatmeal.
-6. No blink and no expressions: the face has no lids or mouth that move.
-7. Light flecks along the hair's locks in the head close-up at 2×; not visible at the
+6. Light flecks along the hair's locks in the head close-up at 2×; not visible at the
    reference's framing.
+
+(Fixed before preparation, at the coordinator's review: the gripping hand had read as an open,
+splayed hand with one finger pointing up, and she had looked straight at the camera, chin up.
+Record §8.6.)
 
 **Scorecard** (§6, full table in the record §8.5): overall identity `PASS`; face identity, hair
 silhouette, hair colour, hoodie, tee, backpack, material quality and vibe `PARTIAL`; no hard-fail
@@ -104,7 +106,7 @@ category fails. No tear in any pose or in motion.
 
 1. Is this the right person at the right quality tier — enough to continue on this candidate
    rather than return to route C?
-2. Which miss matters most: the hand, the fixed gaze, or the hair colour and texture?
+2. Which miss matters most: the hair colour and texture, the painted eyes, or the hand?
 3. Is a character without blink or expression acceptable for now, or is that a blocker?
 
 ### `VIS-3D-GODOT-1` — FAILED, 2026-10-06 (operator verdict on the preview 3 state)

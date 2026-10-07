@@ -338,3 +338,31 @@ zip, cuffs) and accessories (pack, both straps) all match.
   the coordinator, not handed to the operator.
 
 Credits: 0 in this session; route D+ total 90 of its ~200 (the three A-pose generations, §3).
+
+### 8.6 Hand and gaze fixed before the preview (coordinator review of `d3`)
+
+The coordinator agreed with §8.5 and required one fix first: the gripping hand read as an open,
+splayed hand with one finger up — a gesture, not a grip. Options in order: (1) re-weight the
+fingers per finger, (2) hide the open fingers behind the strap, (3) a relaxed arm. **(1) worked;
+(2) and (3) were not needed.**
+
+- **Finger re-weight** (`reweight_fingers.py`, scratch, on the reviewed `rig/meshy_char.blend`):
+  for every vertex weighted more than 95 % to one hand's bones, the heat weights are replaced by
+  inverse-distance weights (power 6) to that hand's bone segments, the two nearest kept and
+  normalised. Left hand 461 vertices, right 528; every finger bone gets its own vertices
+  (left: Index 65/29/69, Middle 50/21/33, Ring 36/18/24, Pinky 28/14/24, Thumb 6/22/22). Base
+  colour and provenance unchanged (verified: same PNG, `"ai_generated": true` present).
+- **Result** (`runtime_d11`): the 62° curl now closes the hand into a loose fist on the strap's
+  front edge at the chest. At the reference's 1:1 framing (`d3`, P2) and mid-stride at 2×
+  (`d5`) it reads as a hand holding a strap; the finger pointing up is gone. The free hand,
+  re-weighted the same way, hangs as a relaxed half-curled hand. No tear at 2× (`d6`).
+- **Gaze** (`human.gd`, `GAZE_*_D`): +14° head yaw, +5° neck yaw and 6° chin-down on the
+  reference body. In P2 she now looks off to her left past the camera with the chin level, as
+  the reference does; the bun shows above the crown. In the walk the clip owns the head, so she
+  looks ahead.
+- **Scorecard changes** against §8.5: face identity stays `PARTIAL` (freckles fainter, eyes
+  fixed in the head), now with the reference's head turn; backpack stays `PARTIAL` (charcoal
+  where the reference is olive), the grip itself now matching; vibe stays `PARTIAL`: the
+  up-gaze and the open hand are gone and the head turn matches, while the heavy sculpted locks
+  and the flatter light remain. §9 answer unchanged: yes. Evidence `d3`–`d7`
+  regenerated from `runtime_d11`.
