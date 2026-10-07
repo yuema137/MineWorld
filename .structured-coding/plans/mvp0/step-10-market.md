@@ -3278,7 +3278,7 @@ to bite, then reverted, on a scratch branch):**
 | 11c | a synthetic pack's action, unknown to the controller, is attempted and accepted headless; social-cafe byte-identical | the band taking an unavailable affordance fails a named test; the band reusing the walking roll's draw fails the greeting-coexistence test (F-28 — the social-cafe comparison cannot see it) |
 | 11d | market-town (owning, giving) validates; over 300 days every seat gives in every bucket and nobody holds more than six; the unchanged paced controller gives in a pack test; per-pack tests incl. restart; AC-2 for item-transfer at pack level (§4.4.3, D-1 … D-11) | a transfer beyond what the giver holds, stated directly, is refused by inventory itself (M-D3); without the capacity the gives collapse into the unseated person (M-D7) |
 | 11e | market-town (work, money, shops, eating) lives 300 days: purchases, wages, production, consumption and gives in every bucket, zero wage-unpaid, no wallet below the cheapest price, money conserved; the unchanged controller buys in a pack test; restart mid-shift; each of economy, employment and consumption removable in its direction (§4.5.3, E-1 … E-12) | wage-due against a short wallet yields wage-unpaid, never a negative (M-E3); without consumption, purchases stop once hands are full (M-E9) |
-| 11f | the AC-1 test (three checks), CP-4 over 300 days, AC-2 at world level, Milestone C through the real server | each of the four scratch mutations in §4.6 fails its check by name |
+| 11f | the AC-1 test (three checks, fail closed without history), CP-4 over 300 days from a real save then AC-11/12/6, AC-2 at world level for all six market packs, Milestone C through the real server (§4.6.3, P-1 … P-11) | a framework path, an external package or a misidentified merge fails check 1 by name (M-P1 … M-P4); a controller or server linking a market pack fails check 2 (M-P5 … M-P7); a changed tag or routine fails check 3 (M-P13, M-P14); without consumption, or with a payer never debited, CP-4 fails before any comparison (M-P8 … M-P10) |
 
 # 6. Test ownership and verification
 
@@ -3345,6 +3345,8 @@ FLAGGED  QS-35 — operator-material: without consumption, 11e's purchases stop 
          capacity) is part of how 11d answers QS-10, and is operator-visible
 FLAGGED  11e (§4.5.5): QS-39, QS-45, QS-47 operator-material; QS-43 amends the medium scope's authoring
          format; no framework gap (E-6)
+FLAGGED  11f (§4.6.5): QS-54 (check 2's edge reading, F-58) and QS-65 (declaring AC-1 demonstrated)
+         operator-material; no behaviour change and no framework gap (§8.7, E-8)
 ```
 
 ---
@@ -3961,8 +3963,11 @@ E-8  The 11f audit's measurements, 2026-10-07, on 2dddda8 (debug, opt-level 1); 
        items-consumed. `inspect`: head revision 1 946 at t171 910 (day 2, 23:45:10) (F-64); every cause
        resolves (2 763 facts). The work → earn half of Milestone C exists in a 2-day save.
      Verdict: no framework gap; F-58 … F-69. No precursor and no behaviour change proposed.
-E-9  End of this planning branch: check_doc_headings and check_decision_ids (recorded at the last commit
-     of the branch, §9 below the QS list is unchanged). Docs-only branch; no cargo gate run.
+E-9  End of this planning branch: check_doc_headings → 143 numbered sections across 22 documents, none
+     duplicated; check_decision_ids → 49 ids, all distinct (11f proposes no new id: an ARC-35 note,
+     QS-64). Docs-only branch; no cargo gate run beyond E-8's commands. The post-merge update for 11e is
+     the separate docs PR #47 (branch docs/s9-11e-merged), which touches the step header, overall §7 and
+     MVP_STATUS — none of the lines this branch changes.
 ```
 
 Each implementation PR records its evidence in its own section — §9.2 for 11b, §9.3 for 11c — so that
@@ -4828,6 +4833,95 @@ QS-53  The execution contract for 11e (§16): fresh session, its own worktree on
        freeze.
 ```
 
+**Raised while detailing 11f (2026-10-07, on `2dddda8`).**
+
+```text
+QS-54  [OPERATOR-MATERIAL — how ARC-35 check 2 is read] "No dependency path leads to a market pack from
+       kernel, contracts, persistence, server, authoring, sdk or rule-controller." persistence's
+       kill_and_resume test dev-depends on worldpack, which links the installed set and so every market
+       pack (F-58). Counted over every edge kind, check 2 fails AC-1 for a test that loads a World Pack,
+       though nothing in persistence knows the market.
+       Proposal: bullet 2 follows normal and build edges — what a library or a binary links. Dev edges are
+       still seen by bullet 1 (any declared dependency on a market pack, of any kind, must come from
+       systems/) and bullet 3 (no code file outside the three directories names a market crate).
+       Alternatives: (b) every edge, but a path through mineworld-installed-systems is admitted as
+       ARC-33's composition — then a kernel that linked worldpack in production would pass, which (a)
+       refuses; (c) every edge, and persistence's checkpoint stops loading the repository's World Pack —
+       an edit to an existing test outside the proof's scope, to satisfy a measurement.
+       Recommended: (a), recorded in the ARC-35 note (11f).
+QS-55  The two transformation merges are found on `git log --first-parent --merges HEAD` by their GitHub
+       subject (`Merge pull request #43 from <owner>/mvp0/pr-11d-owning-things`, #46 for 11e), exactly
+       one match each, with two parents, and each must equal the id recorded in the test (70e532f…,
+       2dddda8…). ARC-35's limitation says the proof records the ids; the subject proves the recorded id is
+       that PR's merge on main's first-parent chain, so a mistyped id cannot point the check at an
+       innocuous merge (M-P3, M-P4). Recommended: accept (bounded).
+QS-56  The Cargo.lock rule as R-S9-6 words it: every package added, removed, or changed in any field
+       between M^1 and M has no source and is a crate under systems/ at M. ARC-35 item 2 names "added"
+       and "dependency list changed"; this also refuses a version or checksum change of an external
+       package (a `cargo update` inside the range). Tightens, loosens nothing; both merges pass it
+       (E-8). Recommended: accept.
+QS-57  Check 3 compares the authored YAML structurally (serde-saphyr into serde_json::Value) after both
+       packs pass WorldPack::read; a section Market Town adds must be owned, by the build's
+       Capability::owning_section, by one of the six market packs; world.id/name may differ; the six
+       packs follow Social Café's list as a set; README.md is not configuration. tests/acceptance gains
+       two dev-dependencies, worldpack and serde-saphyr, both existing workspace entries (F-62, F-69).
+       Alternative: byte-prefix of each file (market-town's file begins with social-cafe's) — stricter
+       about layout and comments, blind to what the appended text is. Recommended: structural.
+QS-58  The world-level tests in tools/cli read market facts and components by their type slugs into
+       test-local mirrors (deny_unknown_fields, schema version 1 asserted), never through a market crate:
+       ARC-35 check 2 bullet 3 forbids naming one outside systems/, worlds/ and tests/acceptance/, and a
+       test that runs the binary must live in tools/cli (F-61). Literal slugs are also the independent
+       oracle rules §25 asks for. Alternatives: amend check 2 to admit tools/cli/tests (weakens AC-1's
+       instrument for convenience); a test-only command that prints market state (a CLI change in the
+       proof). Recommended: slugs and mirrors.
+QS-59  CP-4's committed horizon is the full 300 days, in the default suite, not #[ignore]d: CP-4 and L-13
+       are 300-day claims, run.rs already runs three 300-day runs by default, and the market run costs
+       ~34 s of a ~3-minute gate, in parallel with the 30-day runs. An ignored test is a test not run.
+       Alternatives: (b) 90 days committed (sees M-E9 at bucket 1 and F-51's drain at bucket 2) with the
+       300-day run as a named manual gate — cheaper, but content that drains after day 90 passes the
+       committed suite; (c) 300 days #[ignore]d with a named gate — runs only when someone remembers.
+       Recommended: (a), 300 days default-on.
+QS-60  The committed CP-4 conditions are E-9 b's plus 11d's give conditions: every seat gave in every
+       bucket, and nobody ever holds more than six. QS-51 made per-seat gives "reported, not required"
+       for 11e's ledger evidence; the operator's 11f brief asks for 11d's give conditions in the test,
+       and E-E7 shows them holding with margin (fewest 77 per seat-bucket). Money conservation and the
+       capacity are checked against the save's snapshot state as well as the replayed facts, because
+       facts alone conserve money by construction. Recommended: accept (primary session).
+QS-61  AC-2 at world level for all six market packs, not item-transfer alone (CP-6 widened): a pack
+       removed with its section either runs (item-transfer, economy, employment, consumption — each with
+       its interactions absent and the others present) or is refused by validate naming the dependency
+       (item: inventory needs it; inventory: four packs need it), as the declared dependencies say.
+       Recommended: accept.
+QS-62  Milestone C's shape: a 2-day seed-7 market-town run with --save (alice works at the café and is
+       paid — located in the save); the server hosts the save; alice and bob walk into the café through
+       the street; alice submits an available complete `buy` unchanged (after an offered eat or drink
+       if she carries six, F-66); bob perceives the café's in_stock fall by one and sees neither alice's
+       wallet nor her holdings; SIGKILL and restart: same instance and revision, alice's wallet and
+       holdings and bob's listing unchanged; inspect resolves every cause.
+       Alternatives: (a) the store, with felix — it sells out every day (F-65), so at the head a buy is
+       likely unavailable; (b) hosting a fresh world and working through the protocol — a shift is hours
+       of wall time at one world second per wall second. Recommended: the café after a 2-day run.
+       Operator-visible: it is the milestone the operator reviews (HUMAN_REVIEW_QUEUE).
+QS-63  The quiet-window check for a hosted Market Town reads `from:` and `until:` of every person file in
+       worlds/market-town, so a job's boundary counts as a routine's does (F-64); a new function beside
+       fixture::assert_quiet, whose body and callers are unchanged. Recommended: accept.
+QS-64  11f's documents: an ARC-35 note (11f) rather than a new ARC — the proof applies ARC-35, it decides
+       nothing new beyond the readings QS-54 … QS-57 settle; MVP_STATUS, HUMAN_REVIEW_QUEUE (Milestone C
+       with launch commands), worlds/market-town/README. Overall §7 and the step header stay the planning
+       session's. Recommended: accept.
+QS-65  [OPERATOR-MATERIAL — declaring the primary criterion met] When 11f merges with the AC-1 test green
+       on main and its mutations recorded, MVP_STATUS marks the Market Town composition ✅ and the S9
+       closeout records AC-1 as demonstrated — as ARC-35 measures it and within ARC-33's static-linking
+       boundary (installing = a directory, two lines in systems/installed, a rebuild). ✅ there means
+       "actually run and inspected", which the agent can establish; whether that is the criterion the
+       project set itself is the operator's to accept. Milestone C is marked "demonstrated, awaiting the
+       operator's review", like B. Recommended: so, with the operator's review of Milestone C and of the
+       AC-1 claim at 11f's merge.
+QS-66  The execution contract for 11f (§17): fresh session, its own worktree on mvp0/pr-11f-proof, commits,
+       push and PR authorized as for 11a–11e, a local scratch branch for M-P1 and M-P2 and working-tree
+       mutations for the rest, merge the operator's with a merge commit. Recommended: confirm at freeze.
+```
+
 ---
 
 # 11. Execution contract for PR 11a (proposed; confirmed at 11a's freeze)
@@ -5120,4 +5214,56 @@ MATERIAL STOP       a needed edit outside §4.5.1's paths (a framework gap: repo
                     than three path packages and their lists; a need to change the controller or its
                     constants (I-9); E-9 b failing after content re-sizing (the loop cannot be kept alive by
                     packs or content); an answer to QS-39, QS-43, QS-45 or QS-47 other than the design's
+```
+
+# 17. Execution contract for PR 11f (proposed; confirmed at 11f's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 10 / PR 11f — the proof (S9, sixth and last; outside the AC-1 range)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-10-market.md §4.6 (4.6.1–4.6.6); evidence in a
+                    new §9.6 (E-P<n>); deviations in a new §4.6.8
+RELATED / BINDING   overall.md §§1, 4, 7; this file §§1 (CP-1, CP-4, CP-6, CP-7), 1.3 (I-1, I-3, I-4, I-7,
+                    I-8, I-9), 2.5, 2.6, 3 (SD-6, SD-15), 4.4.3 D-9, 4.5.3 E-9, 4.5.7, 8.7, 9 E-8, 10
+                    (QS-11, QS-12, QS-37, QS-51, QS-54 … QS-66, as answered); DECISIONS ARC-23, ARC-25,
+                    ARC-33, ARC-35 (with its notes), ARC-37, ARC-38; MVP §§2, 9 (AC-1, AC-2, AC-6, AC-11,
+                    AC-12); HUMAN_REVIEW_QUEUE (Milestones B, C); server/PROTOCOL.md §§5, 6
+IMPLEMENTATION BASE the main named at freeze (main @ 2dddda8 + the docs-only merges #47 and this planning
+                    branch); branch mvp0/pr-11f-proof; worktree /Users/yuema137/mineworld-worktrees/s9-11f
+                    (proposed), held by the implementing session only
+APPROVED SCOPE      §4.6: P-C1 … P-C8; only the paths of §4.6.1's table
+FROZEN INVARIANTS   no behaviour change: no edit under systems/, worlds/ (but market-town's README.md),
+                    kernel/, contracts/, persistence/, server/, cognition/, sdk/, authoring/, worldpack/,
+                    tools/cli/src/, clients/, nor the root Cargo.toml; I-4 (social-cafe sha ad49c723…c64b;
+                    the 300-day market-town summary but `wall` = the base's, 372 755 facts); I-7 (activity
+                    before any comparison, in every test that compares runs); I-9 (a failing proof is never
+                    answered by a controller, pack or content change); no existing test edited (fixture/
+                    mod.rs gains one function); no market crate named outside systems/, worlds/,
+                    tests/acceptance/ (ARC-35 check 2, which this PR's own test enforces); the I-2 scan
+                    unchanged (no row, no entry)
+SEQUENCE            P-C1 → P-C2 → P-C3 → P-C4 → P-C5 → P-C6 → P-C7 → P-C8, each committed and pushed when
+                    coherent; P-C5 … P-C7 may run in any order after P-C1
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: the market_town test (~40 s) at most
+                    six times (P-5/P-6, M-P8 … M-P10, one re-run); market_composition and milestone_c freely
+                    (each under a minute); the 300-day social-cafe comparison (~13 s) twice; one full
+                    workspace gate on the final head (background, ~4 min); about one hour in total;
+                    real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §4.6 checkboxes; §9.6 E-P ledger; §4.6.8 deviations
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 11f at P-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the primary session's freeze message
+  semantic commits, branch push       recommended authorized, as for 11a–11e
+  PR creation / update                recommended authorized, as for 11a–11e
+  scratch branch (M-P1, M-P2)         recommended authorized, local only, never pushed, deleted after
+                                      evidence; every other mutation in the working tree, reverted
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     the planning session owns the step header, §§1–3, §5, §10, overall and MVP_STATUS's
+                    Updated/S9 lines and the S9 closeout (§4.6.6); the implementing session owns §4.6,
+                    §9.6 and P-11's status rows (MVP_STATUS evidence and axis rows, HUMAN_REVIEW_QUEUE)
+NORMAL STOP         PR 11f READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a needed edit to any pack, world (beyond its README) or framework crate — the proof
+                    needs a behaviour change; a check that fails on the merged history and is not a defect
+                    of the test (AC-1 does not hold as ARC-35 measures it); CP-4, AC-2 or Milestone C
+                    failing for a reason no test defect explains; an answer to QS-54 or QS-65 other than
+                    the design's; a need to name a market crate outside the three directories
 ```
