@@ -124,6 +124,9 @@ func _ready() -> void:
 	var a := OS.get_cmdline_user_args()
 	if player != null:
 		player.scripted_look = true
+		# this runner turns the body by setting its yaw; any mouse motion is
+		# the real cursor over the window
+		player.ignore_mouse_look = true
 	# A scripted capture must not be paced by the display. macOS throttles an
 	# unfocused or occluded window hard: with vsync on, a capture run that
 	# should take twenty seconds sat waiting on the GPU present at well under
@@ -491,6 +494,12 @@ func _conversation_frames() -> void:
 		print("FAIL: no barista perceived")
 		return
 	player.set_camera(FP)
+	# where everyone is, so a frame that differs from the last run can be traced
+	# to who moved (`ARC-23`)
+	for id in link.figures:
+		print("person   %s (%s) at %s" % [id, link.display_label(id),
+			(link.figures[id] as Node3D).global_position])
+	print("body     at %s" % player.global_position)
 	var near_door := await _talk_to(link, barista)
 	await _settle(4)
 	await _save("conversation_1_from_door")
@@ -500,6 +509,8 @@ func _conversation_frames() -> void:
 	var bp: Vector3 = (link.figures[barista] as Node3D).global_position
 	await _walk_to(Vector3(bp.x, 0.0, bp.z + 1.85), 6.0)
 	await _hold(0.8)
+	print("counter  body at %s, %s at %s" % [player.global_position, link.display_label(barista),
+		(link.figures[barista] as Node3D).global_position])
 	var heard_before := link.heard.size()
 	var t0 := Time.get_ticks_msec()
 	var at_counter := await _talk_to(link, barista)

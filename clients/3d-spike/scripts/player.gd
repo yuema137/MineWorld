@@ -49,6 +49,12 @@ signal camera_mode_changed(mode_name: String)
 ## Set by the scripted runner: headless has no capturable mouse, so the
 ## capture check would otherwise swallow every synthetic motion event.
 var scripted_look := false
+## Set by a scripted runner that turns the body itself and sends no mouse
+## motion. Then every mouse motion is the real cursor crossing the capture
+## window, and it would turn the view between the runner's turn and its
+## capture: the slice's frames and its talk target varied from run to run with
+## every person in the same place (2026-10-07).
+var ignore_mouse_look := false
 
 ## The three cameras. Not a movement system -- a passive observer.
 var rig: CameraRig
@@ -131,7 +137,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (look_enabled or scripted_look):
 		return
 	var looking := scripted_look or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-	if event is InputEventMouseMotion and looking:
+	if event is InputEventMouseMotion and looking and not ignore_mouse_look:
 		var mm := event as InputEventMouseMotion
 		rotate_y(-mm.relative.x * MOUSE_SENS)
 		rig.pitch = clampf(rig.pitch - mm.relative.y * MOUSE_SENS, -PITCH_LIMIT, PITCH_LIMIT)
