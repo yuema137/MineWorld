@@ -103,10 +103,13 @@ static func _shared() -> Dictionary:
 	# Not glossy: the iris sits *behind* the cornea, and the cornea's highlight
 	# is not the iris's to carry.  At 0.12 a brown iris mirrored the sky and
 	# rendered silver-grey at every portrait framing.
-	iris.roughness = 0.5
+	# Matte and barely specular: in shade at 0.5 the sky's reflection turned
+	# the iris grey-blue in the three-quarter portrait.
+	iris.roughness = 0.85
+	iris.metallic_specular = 0.15
 	# The CC0 iris map is amber; the reference's eyes are warm brown, and at
 	# chest-up framing the amber read as yellow-gold.
-	iris.albedo_color = Color(0.62, 0.48, 0.38)
+	iris.albedo_color = Color(0.58, 0.40, 0.28)
 	_mats["iris"] = iris
 	# The pupil is its own 64-face disc in the CC0 mesh, sharing the sclera's UV
 	# island; textured with the sclera map it reads as a second white spot.

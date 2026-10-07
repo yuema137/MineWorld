@@ -489,20 +489,20 @@ Applied **after step 7**, on the mesh:
 - **Pupil** scaled ×0.62 about its own centre in the iris plane (x and z),
   per eye: modelled dilated, it filled the iris and left a thin rim.
 - **Gaze**: each eye's sclera, iris and pupil vertices rotated about the eye's
-  own centroid, 15° yaw toward her left (+X) and +4° about X. **Positive
+  own centroid, 15° yaw toward her left (+X) and +7° about X. **Positive
   pitch is down** (rotation about +X takes −Y toward −Z). Printed iris
-  direction after: `(0.269, −0.960, −0.071)` left, `(0.247, −0.966, −0.071)`
-  right.
+  direction after, left eye: `(0.268, −0.955, −0.123)`.
 
 **Changed 2026-10-06 (preview 3), and why.** Preview 2 used hooded +0.55,
 upper-lid −0.45 and a gaze of 9° yaw, −3° pitch. −3° turned the iris *up*,
 and the lowered, hooded upper lid then covered its top so the eye showed white
 below the iris and read as looking upward. Turning the iris down alone (tried
 at +7°) left a slit under a heavy lid that read as drowsy. With the lid morphs
-relaxed to the values above and the iris turned 4° down, the iris touches
-both lids, with no white below, and sits toward the outer corner of her left
-— judged on the runtime `P1_portrait_front` frame at 5× crop, not on the
-printed direction. The overrides are environment variables in the scratch
+relaxed to the values above and the iris turned 4° down, `P1_portrait_front`
+was right, but `P2_portrait_tq` -- whose camera is 0.12 m below her eyes --
+still showed white below the iris; at 7° both frames show the iris touching
+both lids, no white below, toward the outer corner of her left. Judged on
+the runtime frames at 4–5× crop, not on the printed direction. The overrides are environment variables in the scratch
 script (`MW_HOODED`, `MW_UPPERLID`, `MW_GAZE_YAW`, `MW_GAZE_PITCH`,
 `MW_PUPIL_SCALE`); the values in this section are the ones baked.
 - **Smile**: every `MW_Face` vertex within 22 mm of a lip corner at
