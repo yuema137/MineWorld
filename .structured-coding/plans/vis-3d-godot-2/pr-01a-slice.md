@@ -381,9 +381,34 @@ sitting   N/A in the slice: the occupant is PUPPET and never seated; the only se
           townsperson built without hood or pack (streetscape.gd).
 ```
 
+**S8 PR 10a merged from `main` (`2f24eef`, merge `04423b8`), no conflict, nothing under
+`clients/3d-spike` touched.** The MVP town: six places on one street; the café authored to this
+slice's layout. The binding learned the new ids from the world with no code change
+(`{cafe: "2", street: "5"}`); body placed at the world's (1610, 600); Alice (7), Bob (8) and the
+second player seat (18) now drawn inside the room. The §7b geometry mismatch is resolved by 10a.
+
+```text
+talk      door: 8.15 m from Alice -> rejected too_far_away (the affordance said so first)
+          on foot to the counter: 19 moves, 0 not accepted; 1.99 m -> accepted, events [90, 91]
+          reply: 7 (barista, staff) said "I remember you. You said \"Hello! A coffee, please.\".
+          You are the first person to speak to me here." -- read from the observer's own
+          disclosed conversation-history (ADOPTION.md sec.6), now shown on the HUD
+moves     50 reports, 50 accepted, 0 refused, café -> street -> café; position = server's
+street    hosted (`mineworld server`), controllers are the reactive RuleController: nobody walks.
+          The walking PacedRuleController runs only under `mineworld run` (no clients). Seen on
+          the pavement for 90 s: one passerby (15) at (-0.55, -5.9), still.
+doorways  disclosed by the street, mapped into the scene, nearest drawn door:
+          café 2 -> 0.20 m (the café door); workplace 6 -> 0.30 m (a house door, south);
+          apartments 1 -> 3.40 m (blank north frontage W of Maple & Co.);
+          store 4 -> 3.62 m (E of The Flower Room); park 3 -> 3.29 m (south, E of Lakeside Deli)
+```
+
+Recorded as limitations, not fixed here: aligning the town's other doorways with drawn doors is a
+World Pack or a slice-layout decision, outside this PR, as the café's was.
+
 Review package: `clients/3d-spike/shots/slice/review/`, entry in `docs/HUMAN_REVIEW_QUEUE.md`,
-state `READY FOR HUMAN VISUAL REVIEW — pending S8 PR 10a for the talk step`. Per `ARC-20` §4,
-subjective polishing on this branch stops here.
+state `READY FOR HUMAN VISUAL REVIEW`. Per `ARC-20` §4, subjective polishing on this branch stops
+here.
 
 ## 8. Deviations and discoveries
 
