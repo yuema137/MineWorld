@@ -57,3 +57,6 @@ axum = { version = "0.8.9", features = ["ws"] }
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "signal", "io-util"] }
 futures-util = { version = "0.3.34", default-features = false, features = ["sink", "std"] }
 tokio-tungstenite = "0.29.0"
+
+# The `mineworld` command's argument parsing (DEP-11): named only in `tools/cli/src/main.rs`.
+clap = { version = "4.6.6", features = ["derive"] }

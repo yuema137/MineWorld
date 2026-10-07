@@ -310,9 +310,9 @@ exist (`CLAUDE.md` §2.2). **Scope.** `docs/MODULE_SPEC.md` §8, `docs/DECISIONS
 existing CLI tests are its regression net. **Scope.** `Cargo.toml` (workspace dependency),
 `tools/cli/Cargo.toml`, `tools/cli/src/main.rs`. **Depends on:** C1.
 
-- [ ] Implementation: `clap` (derive) parses `server`, `validate`, `replay`; `create`/`inspect`/`run` still answered "does not exist yet"; the `Why the arguments are parsed by hand` doc becomes a pointer to `DEP-11`.
-- [ ] Validation: every existing `tools/cli/tests/*` test passes **unchanged** (no test file in the diff); complaint texts the tests assert still appear.
-- [ ] Review: no behaviour change beyond help formatting; exit codes kept (a parse error is a failure, not a panic).
+- [x] Implementation: `clap` (derive) parses `server`, `validate`, `replay`; `create`/`inspect`/`run` still answered "does not exist yet" (hidden subcommands taking any trailing arguments); the `Why the arguments are parsed by hand` doc becomes a pointer to `DEP-11`. — §9 E-2.
+- [x] Validation: every existing `tools/cli/tests/*` test passes **unchanged** (no test file in the diff); complaint texts the tests assert still appear. — §9 E-2.
+- [x] Review: no behaviour change beyond help formatting. One bounded deviation: a parse error now exits with clap's status 2 rather than 1 — still non-zero, still a message naming the argument, never a panic (no test or document asserts 1). — §9 E-2.
 
 ## C2 — Movement discloses a place's doorways (Q4)
 
@@ -543,6 +543,11 @@ E-1  C1 specs. MODULE_SPEC §8.1 (the implemented CLI), DECISIONS ARC-26 dated n
      `git grep "## ARC-27" / "## DEP-11"` over every origin branch except this one: no match.
      Review: §8.1 matches HD-5, HD-8, HD-9, HD-10, HD-11 and Q3; ARC-27 names its exclusions
      (instance id, wall time) and states the fingerprint is never evidence (Q9 condition).
+E-2  C1b clap. clap 4.6.7 resolved (workspace pin 4.6.6, features derive). `cargo clippy -p
+     mineworld-cli --all-targets -D warnings` clean. `cargo test -p mineworld-cli`: 17 passed, 0 failed
+     (ac13 2, ac15 6, commands 4, restart 2, server_command 3), no test file changed. By hand:
+     `--listen nope` → "invalid value 'nope' for '--listen'", exit 2; `--agent "Bad Seat"` → names
+     the key rule, exit 2; `--help` lists server, validate, replay (the not-yet commands hidden).
 ```
 
 ## 9.1 Limitations (expected)
