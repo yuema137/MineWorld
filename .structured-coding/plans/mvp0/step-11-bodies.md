@@ -947,6 +947,36 @@ n3 crowd       A from (2.00, 5.00) walks +x in 12 strides of 0.5 m into five sta
                (5.00, 5.00) (5.00, 5.65) (5.00, 4.35) (5.65, 5.00) (5.65, 5.65)
 ```
 
+## 9.7 Revision 1, second set of criteria: mode R′, stated before its runs
+
+The first R runs (§9.8) failed N-1 in the long run: after request 551 two people stood **33 mm**
+apart. Located: person 8 walked diagonally toward the south wall and slid along it; person 2 stood
+against that wall (y = 314 mm); the character controller **with people solid** (step 2) let the walker
+slide onto person 2, so even the blocked fallback overlapped. The character controller is therefore not
+a guarantee of non-interpenetration on its own. And c4 picked request 1 000, a move the walls clip to
+100 mm, so its 1 mm went nowhere — PC-c″'s fault again, in a new run.
+
+Mode **R′** is R with one added rule, fixed here before it is coded:
+
+```text
+8  verify, then degrade. After steps 1–7, check every pair of people in the place on the quantized
+   result. If any pair is closer than 600 mm − 5 mm and was not already that close before the
+   request, the request is re-resolved as blocked (step 5); if the blocked result still fails the
+   check, the walker's advance along the blocked path is halved, up to 8 times; if that still fails,
+   the walker stays where they were. A walker who stays is a valid result: the state before the
+   request passed the same check.
+```
+
+Criteria for R′: PC-a/R, PC-b/R, PC-d/R and N-1 to N-6 exactly as in §9.6, applied to R′. PC-c/R is
+measured with c2 and with **c5**: the first move at or after request 1 000 whose base result reaches
+its requested destination exactly (it was clipped by nothing), given 1 mm more stride in x. PASS iff
+the c5 trace differs from base at that request. The verify-and-degrade fallbacks are counted and
+reported by level (blocked, halved, stayed).
+
+The same overlap and inside checks are also **reported, not judged,** for the earlier modes Q and `ql`
+over their 3 000 requests, because §9.4 never measured them: the old design blocked strides with the
+same character controller, and whether it ever let people overlap is evidence about §6.1's claims.
+
 ---
 
 # 10. Proposed contracts and invariants
