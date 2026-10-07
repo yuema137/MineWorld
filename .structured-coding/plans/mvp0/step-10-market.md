@@ -2837,7 +2837,35 @@ QS-47 (L-13, the bounded-horizon economy): recorded in ARC-38's accepted limitat
 world.yaml header: ten of twelve people have no income; their lowest wallets over 300 days are 95 150 …
 200 000 of 200 000 (E-E7), so the measured horizon holds with margin; past it they run out.
 
-## 4.6 PR 11f — the proof (full design; proposed 2026-10-07, awaiting the primary session's freeze)
+## 4.6 PR 11f — the proof (full design; DESIGN FROZEN 2026-10-07)
+
+### 4.6.0 Freeze record (primary session, 2026-10-07)
+
+The 11f design is frozen and its execution contract (§17) is confirmed. These rulings bind and
+override any other text in §4.6 and §17.
+
+- **QS-54: accepted by the operator (2026-10-07).** ARC-35 check 2's "no dependency path" rule
+  counts normal and build edges only. Dev edges stay bound by check 2's other two rules: every
+  dependent of a market pack lives under `systems/`, and no code outside `systems/`, `worlds/` and
+  `tests/acceptance/` names a market crate. Record this as part of 11f's ARC-35 note (P-C1), quoting
+  the operator's decision.
+- **QS-65: accepted, worded precisely.** At 11f's merge:
+  - AC-1 is recorded as **demonstrated as ARC-35 measures it, within ARC-33's static-linking
+    boundary**;
+  - Market Town composition becomes ✅;
+  - Milestone C is "demonstrated, awaiting the operator's review".
+
+  The operator's own acceptance of AC-1 and Milestone C is asked for at the S9 closeout, with a
+  short runnable checklist. It is never assumed.
+- **QS-55 to QS-64 and QS-66: accepted as recommended.** That includes:
+  - the full 300-day activity test, default-on (QS-59);
+  - market facts read by type name, never through a market crate (QS-58);
+  - Milestone C at the café after a 2-day run (QS-62).
+- **11f is not part of the measured transformation.** It may touch the paths §4.6 lists. It must
+  change no pack, no world (except market-town's README) and no framework behaviour. A proof that
+  needs a behaviour change is a material stop.
+- **The merge is a merge commit.** After the merge, the AC-1 test must pass on `main` itself, in
+  the primary session's own run.
 
 ### 4.6.0 Freeze record
 
