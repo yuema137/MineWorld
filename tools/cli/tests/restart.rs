@@ -34,9 +34,10 @@ use mineworld_contracts::ActionResult;
 use serde_json::json;
 use support::{Client, SaveDir, Server, run_command, tagged, talk, walk};
 
-const NEXT_TO_ALICE: (i32, i32) = (1_200, 1_000);
+/// At the café counter, in reach of Alice behind it (`worldpack/tests/social_cafe.rs` `AT_THE_COUNTER`).
+const NEXT_TO_ALICE: (i32, i32) = (6_000, 6_200);
 /// Where the pack seats the visitor (`worlds/social-cafe/people/visitor.yaml`).
-const AT_THE_DOOR: (i32, i32) = (4_600, 200);
+const AT_THE_DOOR: (i32, i32) = (1_610, 600);
 
 #[tokio::test]
 async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
@@ -63,7 +64,7 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
         .walk_accepted(walk(visitor, cafe, AT_THE_DOOR, NEXT_TO_ALICE))
         .await;
     println!("walked to Alice in {} strides", strides.len());
-    assert_eq!(strides.len(), 2, "3 493 mm is two strides of at most 2 m");
+    assert_eq!(strides.len(), 4, "7 116 mm is four strides of at most 2 m");
     let walked = strides.last().expect("a stride").0;
     let walked_facts: Vec<_> = strides
         .iter()
@@ -87,8 +88,8 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     let revision = status["revision"].clone();
     assert_eq!(
         revision,
-        json!(4),
-        "genesis, the two strides and the talk: four revisions, all committed"
+        json!(6),
+        "genesis, the four strides and the talk: six revisions, all committed"
     );
     let last_event = walked_facts
         .iter()
@@ -128,8 +129,8 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     let (seen_revision, seen) = window.perceived().await;
     assert_eq!(
         seen_revision.map(|revision| revision.raw()),
-        Some(4),
-        "the first observation after the restart is of revision 4"
+        Some(6),
+        "the first observation after the restart is of revision 6"
     );
     assert_eq!(
         tagged(&seen, "barista"),
@@ -171,8 +172,8 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     let after = second.status().await;
     assert_eq!(
         after["revision"],
-        json!(5),
-        "the four before the kill, and one talk after"
+        json!(7),
+        "the six before the kill, and one talk after"
     );
     assert_eq!(after["faults"], json!(0));
     drop(window);
@@ -185,8 +186,8 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
         "mineworld replay verifies the save: {printed}"
     );
     assert!(
-        printed.contains("5 revision(s) re-executed from genesis")
-            && printed.contains("head revision 5"),
+        printed.contains("7 revision(s) re-executed from genesis")
+            && printed.contains("head revision 7"),
         "{printed}"
     );
 }

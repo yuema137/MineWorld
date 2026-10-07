@@ -5,7 +5,7 @@ The point of this file is to stop MVP-0 being declared complete while a real pat
 `✅` means **actually run and inspected**, never inferred from a passing test suite or a
 successful compile. `🚧` means in progress. `❌` means not started.
 
-**Updated:** 2026-10-06 (PR 09; world boot, CLI, S7 and evidence rows — PR 08's rows stand). Subjective questions are queued in
+**Updated:** 2026-10-07 (PR 10a; Place, `worlds/social-cafe`, S8 and evidence rows — PR 09's rows stand). Subjective questions are queued in
 [`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md); a demo parked there does not block engineering.
 
 ## Capability matrix
@@ -16,7 +16,7 @@ successful compile. `🚧` means in progress. `❌` means not started.
 | Person | 🚧 contracts + storage | ❌ | ❌ |
 | Spatial state | ✅ `Presence` and `present-in`, owned by `presence` and changed only by reducing `arrived`; persisted and rebuilt identically (PR 08) | — | — |
 | Movement | ✅ `move` end to end: strides of at most 2 m decided by `movement`, `too_far_away` from the server, a doorway crossing recorded as `person-entered-place`, persisted and resumed; disabling `movement` answers `move` `unavailable` and changes nothing else (`AC-2`, PR 08) | 🚧 the Godot protocol demo walks in `move` strides against the real server (2D flavour); the 2D client's own adoption is pending | 🚧 the same, 3D flavour; the 3D client's adoption is pending |
-| Place | 🚧 two places joined by a doorway (`passages`, owned by `movement`) in `worlds/social-cafe`; no interiors, doors or capacity | ❌ | ❌ |
+| Place | 🚧 the MVP town in `worlds/social-cafe`: apartments, café, park, store and office, each with one doorway onto a street (`passages`, owned by `movement`), every place entered in a 300-day headless run (PR 10a). No interiors beyond positions, no doors that close, no capacity | ❌ | 🚧 the café's positions match the 3D slice, so a person at the counter can `talk` to Alice; the other places have no drawn geometry |
 | Conversation | ✅ `talk` end to end: request, refusal for distance, event, history | 🚧 a client can speak and read what it was told; the 2D client's own adoption is pending | 🚧 the same, and the 3D client's adoption is pending |
 | Object interaction | ❌ | ❌ | ❌ |
 | Persistence | ✅ `mineworld server --save` killed with SIGKILL and restarted: same instance, revision, people and conversation; `mineworld replay` re-executes the save (PR 07) | — | — |
@@ -32,7 +32,7 @@ What a person can actually run. None of these exists yet.
 | 2D client | `mineworld-2d` | 🚧 presentation spike runnable, awaiting style decision ([queue](HUMAN_REVIEW_QUEUE.md)) |
 | 3D client | `mineworld-3d` | 🚧 presentation spike runnable with three camera modes; awaiting feel review ([queue](HUMAN_REVIEW_QUEUE.md)) |
 | Developer CLI | `mineworld create / validate / run / inspect` | ✅ all four, plus `server` and `replay` (PR 09; `docs/MODULE_SPEC.md` §8.1) |
-| `worlds/social-cafe` | `mineworld validate worlds/social-cafe` | ✅ a café and the street outside it, joined by a doorway; four people, three seats, loaded and hosted |
+| `worlds/social-cafe` | `mineworld validate worlds/social-cafe` | ✅ the MVP town: six places joined by a street, twelve people, eleven seats; the café laid out as the 3D slice draws it; loaded, hosted and run headless (PR 10a) |
 | `worlds/market-town` | — | ❌ |
 
 ## Independent axes
@@ -78,7 +78,7 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | S5 persistence and event log | ✅ merged `41d4ab1`: journal + fact log + snapshots in one SQLite file, verified re-execution (`ARC-25`) |
 | S6 first systems: time, places, movement | 🚧 PR 08 ready for review: `movement` decides, `presence` owns (`ARC-26`); `arrive` retired; `passages` in the World Pack format; the street in social-cafe |
 | S7 world pack loading, rule controller, headless run | 🚧 PR 09 ready for review: `run --headless --seed --days`, `inspect`, `create`; a seeded paced rule controller (`ARC-27`); `clap` (`DEP-11`) |
-| S8 Social Café systems | medium scope |
+| S8 Social Café systems | 🚧 three PRs (`step-09-social.md`). PR 10a is ready for review: the MVP town, the café re-authored to the 3D slice, doors chosen by the paced controller, pace 900 s. 10b (relationships, group activity, biography, Milestone B) and 10c (routines) follow |
 | S9 Market Town + AC-1 proof | medium scope |
 | S10 cognition | reduced: controllers + perception only; LM half deferred to MVP-1 with AC-4 and AC-10 |
 | S11 server and networking | 🚧 the server, the protocol and multi-client sessions landed with the step-05 slice; the id encoding is in the contracts (PR 04). Authentication, admin frames and deltas remain |
@@ -101,7 +101,8 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | A world survives the death of its process (`AC-6`) | a child process SIGKILLed mid-run and a new one resuming its SQLite file produce a save byte-identical to an uninterrupted run (`persistence/tests/kill_and_resume.rs`); the real `mineworld server --save`, SIGKILLed and restarted, is the same world, and Alice's conversation continues (`tools/cli/tests/restart.rs`) |
 | A capability is removable (`AC-2`, first real evidence) | with `movement` disabled, `move` is `unavailable`, records nothing and is not offered, and the world is otherwise identical to one that never had it; the same comparison against a world where movement stays reachable reports 7 violations, so the test cannot pass by accident (`systems/movement/tests/movement.rs`) |
 | A per-request stride bound does not punish an honest client | a client jogging at 2.6 m/s that reports before travelling 2 m since its last accepted position is never refused (29 accepted, 0 refused); one reporting once a second is refused every time (`systems/movement/tests/movement.rs`, the reporting rule of `server/PROTOCOL.md` §6.2) |
-| Hundreds of days, headless, with the real systems (`AC-11`) | 300 simulated days of social-cafe with presence, movement and conversation, no renderer, no model: every seat has accepted moves and talks in every 30-day bucket, the street is entered, no fault — 141 043 facts (`tools/cli/tests/run.rs`) |
+| Hundreds of days, headless, with the real systems (`AC-11`) | 300 simulated days of social-cafe with presence, movement and conversation, no renderer and no model. Since PR 10a this is the twelve-person town: all eleven seats have accepted moves and talks in every 30-day bucket, every one of the six places is entered (counted per place), and there are no faults and no refused strides — 327 540 facts (`tools/cli/tests/run.rs`) |
+| A person at the café counter can talk to Alice | walked there from the visitor's seat in accepted strides, `talk` is accepted; from the doorway it is refused `too_far_away`. On the pre-S8 café the same walk was refused at the counter, which is the 3D client's old failure (`worldpack/tests/social_cafe.rs::a_person_at_the_counter_can_talk_to_alice`, PR 10a) |
 | The same seed is the same world (`AC-12`) | two saved 300-day runs of one seed are byte-identical in facts, journal and snapshots; another seed differs; the instance identity is the one excluded field (`ARC-27`, `tools/cli/tests/run.rs`) |
 | A killed run finishes the same world (`AC-6` with controllers) | `run --save` SIGKILLed at days 5, 15 and 25 and run again, and a run stopped and continued, each byte-identical to an uninterrupted run; no line is ever answered twice, so step-06's `F-13` does not arise in `run` (`tools/cli/tests/run_restart.rs`) |
 | Every fact has a cause (`AC-9`) | `mineworld inspect` resolves every action and event cause in a month-long save, and fails by name on a forged one (`tools/cli/tests/inspect.rs`) |

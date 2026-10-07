@@ -1,23 +1,32 @@
 # The café: one room, with an origin the positions in `people/` are measured from.
 #
-# Millimetres from that origin, on the world's own axes — `x` and `y` across the floor, `z` up. What
-# the origin *is* is this world's business; the contract only requires that two positions in one
-# place be comparable (`contracts/src/spatial.rs`).
+# Millimetres from that origin, on the world's own axes — `x` east and `y` north across the floor, `z`
+# up (`docs/CORE_CONCEPTS.md` §6.1). What the origin *is* is this world's business; the contract only
+# requires that two positions in one place be comparable (`contracts/src/spatial.rs`).
+#
+# Here the origin is the room's inner south-west corner: the inner face of the west wall where it meets
+# the inner face of the front wall, which looks south onto the street. The room runs 8.32 m east and
+# 10.32 m north from it. The layout is the 3D slice's, which follows reference image `03`: the front
+# door near the west end of the shopfront, a clear lane from it to the counter, the counter across the
+# back of the room from 3.86 m to the east wall, and its customer face 6.57 m in from the front wall.
+# A World Pack authors no geometry beyond these positions; the slice draws the rest.
 
 tags:
   - cafe
   - public
 
 note: >-
-  A small café with a counter along one wall and two tables, and a front door onto the street.
+  A small café with a counter across the back of the room, tables by the window and in the room, and
+  a front door onto the street.
 
-# The front door. `here` is where it is in the café — 400 mm past where the visitor is seated —
-# and `there` where the same door is on the street. Where it is, not how near one must be to use it:
-# that is the movement system's rule (`docs/DECISIONS.md` `ARC-26`).
+# The front door. `here` is where it is in the café — 1.61 m along the front wall from the west wall
+# and 0.2 m into the room, the point a client binds its drawn door to — and `there` where the same
+# door is on the street. Where it is, not how near one must be to use it: that is the movement
+# system's rule (`docs/DECISIONS.md` `ARC-26`).
 passages:
   - to: street
     here:
-      x: 5000
+      x: 1610
       y: 200
     there:
       x: 0

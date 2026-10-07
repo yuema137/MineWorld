@@ -1,0 +1,12 @@
+# Ivan — on the pavement, 4 m west of the café's door.
+
+tags:
+  - passerby
+
+note: Walks the street a lot, and stops to talk to anyone who will.
+
+location:
+  place: street
+  position:
+    x: -4000
+    y: 1000

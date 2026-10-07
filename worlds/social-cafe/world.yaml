@@ -1,4 +1,5 @@
-# Social Café — the world the vertical slice is set in.
+# Social Café — a small town around a café: the world the vertical slice is set in, and `docs/MVP.md`
+# §3's MVP town.
 #
 # A World Pack states population, places, capabilities and initial state. It states no rule: what
 # `talk` requires of space belongs to the conversation system, not to this file
@@ -23,16 +24,31 @@ systems:
   - movement
   - conversation
 
-# The café, and the street outside its front door. The two are joined by a doorway, so a person can
-# walk out and back in; travel between places that do not adjoin is still out of this slice.
+# The five places of `docs/MVP.md` §3, and the street that joins them. Each place has one doorway, onto
+# the street, so a person walks between any two through at most two doors; travel between places that
+# do not adjoin is a later system, not a shortcut here. Listed in key order, which is also the order
+# the pack allocates their identities in.
 places:
+  - apartments
   - cafe
+  - park
+  - store
   - street
+  - workplace
 
-# Everybody who exists here. Each key names a file in `people/`.
+# Everybody who exists here — twelve people, within `docs/MVP.md` §3's ten to fifteen. Each key names a
+# file in `people/`.
 population:
   - alice
   - bob
+  - carol
+  - dev
+  - erin
+  - felix
+  - grace
+  - hana
+  - ivan
+  - otto
   - visitor
   - wanderer
 
@@ -41,13 +57,25 @@ population:
 # connects asks for a seat and the server resolves which entity that is, so nothing outside the world
 # ever names an entity.
 #
-# Two of them are for players, because `AC-15` puts two clients in one world and two observers are two
-# people. The third is Alice, and it is what lets `mineworld server ... --agent alice` drive her
-# through exactly the path a player's client uses rather than through a privileged one. That a human
-# could occupy her instead is `AC-5`'s direction, not an oversight: mixed control is normal, and which
-# Person is driven by what is a fact about this world's configuration rather than about the person
-# (`MODULE_SPEC.md` §5).
+# Every Person but one is a seat. `visitor` and `wanderer` are the two players `AC-15` puts in one world,
+# because two observers are two people. Alice is what lets `mineworld server ... --agent alice` drive
+# her through exactly the path a player's client uses rather than through a privileged one. The rest
+# are the town's other people: `mineworld run` drives every seat with a seeded rule controller, so a
+# headless town is a town where everybody acts, and any of them could be taken over by a human instead
+# — `AC-5`'s direction, not an oversight: mixed control is normal, and which Person is driven by what
+# is a fact about this world's configuration rather than about the person (`MODULE_SPEC.md` §5).
+#
+# Otto is left out on purpose: a Person nobody may drive, so that asking for a seat the world does not
+# offer has a subject (`people/otto.yaml`).
 seats:
   - visitor
   - wanderer
   - alice
+  - bob
+  - carol
+  - dev
+  - erin
+  - felix
+  - grace
+  - hana
+  - ivan

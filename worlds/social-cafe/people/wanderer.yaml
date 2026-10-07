@@ -5,8 +5,9 @@
 # `world.yaml` offers this seat as well, and the demonstration is that a *different* player walks up
 # to the same Alice and is told what the first one said.
 #
-# Placed at the other end of the room, 4.4 m from Alice against a three-metre range, so arriving
-# closer is something a client does and is answered for rather than something the pack pre-arranges.
+# Standing by the table in the middle of the room, 4.2 m from Alice against a three-metre range, so
+# arriving closer is something a client does and is answered for rather than something the pack
+# pre-arranges.
 
 tags:
   - visitor
@@ -16,5 +17,5 @@ note: Passing through. Comes in after the visitor.
 location:
   place: cafe
   position:
-    x: 4600
-    y: 4400
+    x: 7110
+    y: 3900

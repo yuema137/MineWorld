@@ -35,8 +35,10 @@ use mineworld_worldpack::WorldPack;
 
 use crate::described;
 
-/// How often each seat is consulted: every ten simulated minutes (step-08 HD-2).
-pub const PACE: SimDuration = SimDuration::from_seconds(600);
+/// How often each seat is consulted: every fifteen simulated minutes. Ten in S7 (step-08 HD-2); raised
+/// when the twelve-person town made one 300-day debug run take 77 s, under the rule that the pace
+/// rises before the days fall (step-08 Q10, step-09 Q4; `DECISIONS.md` `ARC-27` note).
+pub const PACE: SimDuration = SimDuration::from_seconds(900);
 
 /// A simulated day, in seconds: the command's unit, never the kernel's (`INV-12`).
 const DAY: i64 = 86_400;

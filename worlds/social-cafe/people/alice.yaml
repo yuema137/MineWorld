@@ -3,6 +3,10 @@
 # She has no name in the world, only here: a display name is component state, a component is owned
 # by a system, and no system in this world owns one yet. `tags` is what does reach a client, through
 # the observation.
+#
+# The counter's staff face is 7.35 m in from the front wall; she stands 0.65 m behind it, so a
+# customer at the counter is within `conversation`'s three-metre reach and somebody at the front door
+# is not. That range is the conversation system's policy and is not restated here.
 
 tags:
   - barista
@@ -12,9 +16,9 @@ note: Runs the counter. Speaks to whoever comes in.
 
 location:
   place: cafe
-  # 1.2 m along the counter, 2.4 m into the room.
+  # 6.0 m along the counter from the west wall, 8.0 m into the room.
   position:
-    x: 1200
-    y: 2400
-  # Facing back across the room, in millidegrees.
+    x: 6000
+    y: 8000
+  # Facing south, across the counter and down the room toward the door, in millidegrees.
   facing: 180000

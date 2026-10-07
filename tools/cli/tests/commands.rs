@@ -35,8 +35,8 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
         "alice",
         "visitor",
         "wanderer",
-        // One passage (the café's front door) and four placements.
-        "5 genesis fact(s)",
+        // Five passages (each place's door onto the street) and twelve placements.
+        "17 genesis fact(s)",
     ] {
         assert!(
             report.contains(expected),
@@ -46,10 +46,10 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     // The ids, in the order the pack allocates them: this is what an author checks before writing a
     // client that refers to them.
     assert!(
-        report.contains("1  cafe")
-            && report.contains("2  street")
-            && report.contains("5  visitor")
-            && report.contains("6  wanderer"),
+        report.contains("2  cafe")
+            && report.contains("5  street")
+            && report.contains("17  visitor")
+            && report.contains("18  wanderer"),
         "the report states which key became which identity: {report}",
     );
 }

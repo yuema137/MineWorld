@@ -38,15 +38,20 @@ const TAG_COLOUR := {
 	"visitor": Color(0.30, 0.75, 1.00),
 	"cafe": Color(0.35, 0.35, 0.42),
 }
-const ROOM_CENTRE := Vector2(300.0, 330.0)
-const PIXELS_PER_METRE := 60.0
+# Where the place's origin is drawn, and at what scale: sized so the café of `worlds/social-cafe` —
+# 8.3 m east by 10.3 m north of its origin — fits the 1000 × 640 window above the two status lines
+# and left of the affordance panel at x 560. Drawing only: nothing here is a rule, and a place of
+# another size is simply drawn off the edge.
+const ROOM_CENTRE := Vector2(60.0, 590.0)
+const PIXELS_PER_METRE := 55.0
 
 # How close to stand, in metres on the screen, and what to say there.
 #
 # Beside somebody rather than at a fixed point, because that is what a client actually does with a
 # click: it works in its own space and converts once. Whether the result is close *enough* is the
-# server's to answer, and the autopilot waits for that answer rather than predicting it.
-const STAND_BESIDE := 1.0
+# server's to answer, and the autopilot waits for that answer rather than predicting it. Two metres
+# on the screen's downward side, which in the café is the customer's side of the counter.
+const STAND_BESIDE := 2.0
 const GREETING := "hello Alice, this is the demonstration scene"
 
 # The longest single `move` this client sends, in metres.

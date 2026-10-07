@@ -306,7 +306,7 @@ fn social_cafe() -> WorldPack {
 const CAFE_STEPS: u64 = 300;
 const CAFE_PEOPLE: [&str; 4] = ["alice", "bob", "visitor", "wanderer"];
 /// Where `worlds/social-cafe` seats each of [`CAFE_PEOPLE`], in millimetres (its `people/*.yaml`).
-const CAFE_SEATS: [(i32, i32); 4] = [(1_200, 2_400), (1_400, 600), (4_600, 200), (4_600, 4_400)];
+const CAFE_SEATS: [(i32, i32); 4] = [(6_000, 8_000), (4_500, 6_100), (1_610, 600), (7_110, 3_900)];
 
 /// The cafe scenario's step `index`: at `20 * (index + 1)` seconds, request `index + 1` — a `move`
 /// near where the actor was seated, which the movement system refuses when it is more than a stride
