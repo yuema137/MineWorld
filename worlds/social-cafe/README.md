@@ -1,8 +1,17 @@
 # `social-cafe`
 
 A small town around a café, and the world the MVP-0 vertical slice is set in. It has five places
-joined by a street, twelve people, and the three systems that make being there mean anything:
-`presence`, `movement` and `conversation`.
+joined by a street, twelve people, and five systems:
+- `presence`, `movement` and `conversation` make being there mean anything;
+- `group-activity` lets people do things together;
+- `relationships` lets them come to know each other.
+
+Run it headless, then read Alice's life out of the log:
+
+```sh
+mineworld run worlds/social-cafe --headless --seed 7 --days 30 --save /tmp/cafe
+mineworld biography worlds/social-cafe --save /tmp/cafe --person alice
+```
 
 ```text
 world.yaml           what this world is, what it enables, who is in it, and which seats may be occupied

@@ -5,12 +5,15 @@ MineWorld's composability lives — a world is its systems, and installing or di
 what the world is without changing anything else.
 
 ```text
-presence/       where people are, what each of them perceives, and what they may attempt
-movement/       walking: whether a `move` is allowed, and which places open onto each other
-conversation/   speaking to somebody, and remembering that they spoke to you
+presence/        where people are, what each of them perceives, and what they may attempt
+movement/        walking: whether a `move` is allowed, and which places open onto each other
+conversation/    speaking to somebody, and remembering that they spoke to you
+group-activity/  inviting, answering, joining and leaving something done together (a Process)
+relationships/   who knows whom, and how well — changed only by reacting to the others' facts
 ```
 
-All three are real packs, not examples: they are what the vertical slice runs on. They are also the
+All five are real packs, not examples: they are what the vertical slice runs on. The first three are
+also the
 worked example every later pack copies, so they are written to be read in this order —
 `src/lib.rs` first, then the action, the event, the component, and `src/system.rs` last.
 
@@ -47,6 +50,8 @@ correctly. That is the difference between a framework and a hardcoded game, and
 cargo test -p mineworld-presence
 cargo test -p mineworld-movement          # walking, TooFarAway, and AC-2 with its negative control
 cargo test -p mineworld-conversation      # talking where people are, and AC-2
+cargo test -p mineworld-group-activity    # invitations, and an activity that is a Process
+cargo test -p mineworld-relationships     # values changed only by other packs' facts
 cargo doc -p mineworld-conversation --open
 ```
 

@@ -80,8 +80,9 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
         .await;
     assert_eq!(
         talked_facts.len(),
-        2,
-        "a first exchange starts a conversation and records what was said"
+        4,
+        "a first exchange starts a conversation and records what was said, and the two become \
+         acquainted (relationships, once per direction)"
     );
     let status = first.status().await;
     let instance = status["instance"].clone();
@@ -156,8 +157,9 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     assert_eq!(
         facts.len(),
         1,
-        "ONE fact: the conversation continued, because Alice's history survived the kill — a world \
-         rebuilt from the pack alone would have started a new conversation and recorded two"
+        "ONE fact: the conversation continued, because Alice's history survived the kill, and so did
+         the two people's acquaintance — a world rebuilt from the pack alone would have started a new
+         conversation and a new acquaintance, and recorded four"
     );
     assert_eq!(
         facts[0].raw(),

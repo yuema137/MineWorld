@@ -66,7 +66,9 @@ fn the_pack_says_what_world_it_is() {
         [
             Capability::Presence,
             Capability::Movement,
-            Capability::Conversation
+            Capability::Conversation,
+            Capability::GroupActivity,
+            Capability::Relationships,
         ],
         "in the order the pack states, which is installation order",
     );

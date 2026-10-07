@@ -20,11 +20,15 @@
 //! that would shape a trait is one that differs: a pack seeding a content kind of its own — items,
 //! jobs — with its own directory and its own checks.
 
-use mineworld_contracts::{Event, LocalPosition, Location, PersonId, PlaceId, SystemId};
+use mineworld_contracts::{
+    Event, EventTypeId, LocalPosition, Location, PersonId, PlaceId, SystemId,
+};
 use mineworld_conversation::ConversationSystem;
+use mineworld_group_activity::GroupActivitySystem;
 use mineworld_kernel::{Emission, KernelError, SystemIdentity, World, WorldRead};
 use mineworld_movement::{MovementSystem, passage};
 use mineworld_presence::{Arrived, PerceptionProvider, PresenceSystem, arrival};
+use mineworld_relationships::RelationshipsSystem;
 
 /// One System Pack this build can install.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -35,13 +39,19 @@ pub enum Capability {
     Movement,
     /// Speaking to somebody, and remembering that they spoke to you.
     Conversation,
+    /// Inviting, answering, joining and leaving something done together.
+    GroupActivity,
+    /// Who knows whom, and how well — changed only by what happened between them.
+    Relationships,
 }
 
 /// Every system this build provides, in a fixed order — the order an error message lists them in.
-pub const AVAILABLE: [Capability; 3] = [
+pub const AVAILABLE: [Capability; 5] = [
     Capability::Presence,
     Capability::Movement,
     Capability::Conversation,
+    Capability::GroupActivity,
+    Capability::Relationships,
 ];
 
 impl Capability {
@@ -58,6 +68,22 @@ impl Capability {
             Self::Presence => PresenceSystem::ID,
             Self::Movement => MovementSystem::ID,
             Self::Conversation => ConversationSystem::ID,
+            Self::GroupActivity => GroupActivitySystem::ID,
+            Self::Relationships => RelationshipsSystem::ID,
+        }
+    }
+
+    /// Which of this capability's event types belong in a person's objective biography
+    /// (`DECISIONS.md` `ARC-29`) — each pack's own judgement over its own vocabulary, aggregated here.
+    ///
+    /// A pack that declares none contributes none: presence, movement and conversation export no such
+    /// list in S8, and they are answered `&[]` here rather than edited to say so (`step-09-social.md`
+    /// B-5, I-1). Adding a biographical pack adds its constant to this match and no biography code.
+    pub fn biographical(self) -> &'static [EventTypeId] {
+        match self {
+            Self::Presence | Self::Movement | Self::Conversation => &[],
+            Self::GroupActivity => mineworld_group_activity::BIOGRAPHICAL,
+            Self::Relationships => mineworld_relationships::BIOGRAPHICAL,
         }
     }
 
@@ -70,6 +96,8 @@ impl Capability {
             Self::Presence => world.install(PresenceSystem),
             Self::Movement => world.install(MovementSystem),
             Self::Conversation => world.install(ConversationSystem),
+            Self::GroupActivity => world.install(GroupActivitySystem),
+            Self::Relationships => world.install(RelationshipsSystem),
         }
     }
 
@@ -83,6 +111,8 @@ impl Capability {
             Self::Presence => Box::new(PresenceSystem),
             Self::Movement => Box::new(MovementSystem),
             Self::Conversation => Box::new(ConversationSystem),
+            Self::GroupActivity => Box::new(GroupActivitySystem),
+            Self::Relationships => Box::new(RelationshipsSystem),
         }
     }
 }

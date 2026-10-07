@@ -5,7 +5,7 @@ The point of this file is to stop MVP-0 being declared complete while a real pat
 `✅` means **actually run and inspected**, never inferred from a passing test suite or a
 successful compile. `🚧` means in progress. `❌` means not started.
 
-**Updated:** 2026-10-07 (PR 10a; Place, `worlds/social-cafe`, S8 and evidence rows — PR 09's rows stand). Subjective questions are queued in
+**Updated:** 2026-10-07 (PR 10b: social life, biography and Milestone B rows; PR 10a's rows stand). Subjective questions are queued in
 [`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md); a demo parked there does not block engineering.
 
 ## Capability matrix
@@ -18,6 +18,8 @@ successful compile. `🚧` means in progress. `❌` means not started.
 | Movement | ✅ `move` end to end: strides of at most 2 m decided by `movement`, `too_far_away` from the server, a doorway crossing recorded as `person-entered-place`, persisted and resumed; disabling `movement` answers `move` `unavailable` and changes nothing else (`AC-2`, PR 08) | 🚧 the Godot protocol demo walks in `move` strides against the real server (2D flavour); the 2D client's own adoption is pending | 🚧 the same, 3D flavour; the 3D client's adoption is pending |
 | Place | 🚧 the MVP town in `worlds/social-cafe`: apartments, café, park, store and office, each with one doorway onto a street (`passages`, owned by `movement`), every place entered in a 300-day headless run (PR 10a). No interiors beyond positions, no doors that close, no capacity | ❌ | 🚧 the café's positions match the 3D slice, so a person at the counter can `talk` to Alice; the other places have no drawn geometry |
 | Conversation | ✅ `talk` end to end: request, refusal for distance, event, history | 🚧 a client can speak and read what it was told; the 2D client's own adoption is pending | 🚧 the same, and the 3D client's adoption is pending |
+| Social life | ✅ `group-activity`: invite, accept, decline, join, leave, with an activity that is a `Process` its owner ends. `relationships`: `knows` edges and values changed only by reacting to those facts and to `spoke`. A 300-day run forms ~6 300 activities. Known gap: relationships never decay and saturate after ~60 days (PR 10b, `ARC-28`) | 🚧 the protocol demo shows `invite` affordances and the observer's own `acquaintances`; no client UI for them yet | 🚧 the same |
+| Biography | ✅ `mineworld biography <world> --save DIR --person KEY`: derived from the fact log, never stored, checked complete and sound against the facts' typed payloads (PR 10b, `ARC-29`) | — | — |
 | Object interaction | ❌ | ❌ | ❌ |
 | Persistence | ✅ `mineworld server --save` killed with SIGKILL and restarted: same instance, revision, people and conversation; `mineworld replay` re-executes the save (PR 07) | — | — |
 | Networking | ✅ two clients and an agent on one server, from the real binary | 🚧 protocol module runs against the real server; adoption pending | 🚧 the same |
@@ -31,14 +33,15 @@ What a person can actually run. None of these exists yet.
 | World server | `mineworld server worlds/social-cafe --agent alice` | ✅ loads the pack, serves two clients and drives Alice with a rule controller |
 | 2D client | `mineworld-2d` | 🚧 presentation spike runnable, awaiting style decision ([queue](HUMAN_REVIEW_QUEUE.md)) |
 | 3D client | `mineworld-3d` | 🚧 presentation spike runnable with three camera modes; awaiting feel review ([queue](HUMAN_REVIEW_QUEUE.md)) |
-| Developer CLI | `mineworld create / validate / run / inspect` | ✅ all four, plus `server` and `replay` (PR 09; `docs/MODULE_SPEC.md` §8.1) |
+| Developer CLI | `mineworld create / validate / run / inspect / biography` | ✅ all five, plus `server` and `replay` (PR 09, `biography` PR 10b; `docs/MODULE_SPEC.md` §8.1) |
 | `worlds/social-cafe` | `mineworld validate worlds/social-cafe` | ✅ the MVP town: six places joined by a street, twelve people, eleven seats; the café laid out as the 3D slice draws it; loaded, hosted and run headless (PR 10a) |
 | `worlds/market-town` | — | ❌ |
 
 ## Independent axes
 
 ```text
-Social Café composition:                 🚧 presence + movement + conversation; the economy set is S9
+Social Café composition:                 🚧 presence + movement + conversation + group-activity +
+                                            relationships; routines are 10c, the economy set is S9
 Market Town composition:                 ❌
 Cross-renderer semantic equivalence:     ✅ AC-13 against the real contracts, from frames the real
                                             Godot client submitted, compared by the server's own
@@ -78,7 +81,7 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | S5 persistence and event log | ✅ merged `41d4ab1`: journal + fact log + snapshots in one SQLite file, verified re-execution (`ARC-25`) |
 | S6 first systems: time, places, movement | 🚧 PR 08 ready for review: `movement` decides, `presence` owns (`ARC-26`); `arrive` retired; `passages` in the World Pack format; the street in social-cafe |
 | S7 world pack loading, rule controller, headless run | 🚧 PR 09 ready for review: `run --headless --seed --days`, `inspect`, `create`; a seeded paced rule controller (`ARC-27`); `clap` (`DEP-11`) |
-| S8 Social Café systems | 🚧 three PRs (`step-09-social.md`). PR 10a is ready for review: the MVP town, the café re-authored to the 3D slice, doors chosen by the paced controller, pace 900 s. 10b (relationships, group activity, biography, Milestone B) and 10c (routines) follow |
+| S8 Social Café systems | 🚧 three PRs (`step-09-social.md`). 10a merged (`2f24eef`): the MVP town and the café re-authored to the 3D slice. PR 10b ready for review: `group-activity`, `relationships`, `mineworld biography`, the paced controller's social initiative, `[profile.dev] opt-level = 1` (`ARC-30`), and Milestone B. 10c (routines) follows |
 | S9 Market Town + AC-1 proof | medium scope |
 | S10 cognition | reduced: controllers + perception only; LM half deferred to MVP-1 with AC-4 and AC-10 |
 | S11 server and networking | 🚧 the server, the protocol and multi-client sessions landed with the step-05 slice; the id encoding is in the contracts (PR 04). Authentication, admin frames and deltas remain |
@@ -106,6 +109,9 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | The same seed is the same world (`AC-12`) | two saved 300-day runs of one seed are byte-identical in facts, journal and snapshots; another seed differs; the instance identity is the one excluded field (`ARC-27`, `tools/cli/tests/run.rs`) |
 | A killed run finishes the same world (`AC-6` with controllers) | `run --save` SIGKILLed at days 5, 15 and 25 and run again, and a run stopped and continued, each byte-identical to an uninterrupted run; no line is ever answered twice, so step-06's `F-13` does not arise in `run` (`tools/cli/tests/run_restart.rs`) |
 | Every fact has a cause (`AC-9`) | `mineworld inspect` resolves every action and event cause in a month-long save, and fails by name on a forged one (`tools/cli/tests/inspect.rs`) |
+| Milestone B: Alice and Bob know each other, share an activity, and survive a restart with their history | `run --save` SIGKILLed after the located history, which is shown already on disk, then run again to a world byte-identical to the control. The history: both became acquainted, a level crossed, an activity both took part in. Both biographies, read by fresh processes, are unchanged. The save is then hosted by `mineworld server`, SIGKILLed and restarted, and Alice and Bob read their own relationship values unchanged (Close, 26 activities shared) (`tools/cli/tests/milestone_b.rs`, PR 10b) |
+| A biography matches the log that produced it | Alice's biography (428 entries, all six biographical types) equals the set of facts whose own typed payload names her. Dropping a type, ignoring participants, or ignoring the person each fails the test (`tools/cli/tests/biography.rs`, PR 10b) |
+| Relationships and group activity are removable (`AC-2`) | without `relationships`, every other system's 33 486 facts in 30 days are identical in order and content to the full run's. Without `group-activity`, relationships stays enabled, the world runs, and acquaintance comes from speech alone. The comparison is shown to see seed 7 against seed 8 (`tools/cli/tests/social_composition.rs`, PR 10b) |
 | A controller and a client are indistinguishable to the world | the rule controller occupies a seat, is answered by the actor check and is given a server-allocated `ActionId`, exactly as a socket client is (`INV-1`) |
 
 ## Non-blocking follow-ups
@@ -114,4 +120,6 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 presentation: an interior at room scale, and a night or overcast reference
 contracts:    RelationTypeId::from_static, which would make edge ownership compile-time
 tooling:      one standards.py approve so the helper can run the cargo checks
+social life:  relationship values never decay, so a long world's social graph saturates within ~60
+              days (ARC-28, step-09 QB-2) — a living-world gap for a later step
 ```

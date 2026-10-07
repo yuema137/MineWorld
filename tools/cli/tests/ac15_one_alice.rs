@@ -154,8 +154,9 @@ async fn there_is_only_one_alice() {
         .await;
     assert_eq!(
         facts_of_the_2d_talk.len(),
-        2,
-        "a first exchange records both that a conversation started and what was said"
+        4,
+        "a first exchange records both that a conversation started and what was said — and, with \
+         relationships installed, that the two became acquainted, once per direction"
     );
 
     // Alice answers, because a controller read her history out of her own observation and decided to.
@@ -253,7 +254,12 @@ async fn there_is_only_one_alice() {
     // Alice's two replies were dispatched between the two talks, so the gap between the windows'
     // facts is the agent's own — the third participant's actions are in the same sequence.
     assert!(
-        facts_of_the_3d_talk[0].raw() > facts_of_the_2d_talk[1].raw() + 1,
+        facts_of_the_3d_talk[0].raw()
+            > facts_of_the_2d_talk
+                .last()
+                .expect("the 2D talk's facts")
+                .raw()
+                + 1,
         "the agent's facts are in the same sequence, between the two windows': {sequence:?}"
     );
 

@@ -241,6 +241,7 @@ fn encoded(value: &Talk) -> Vec<u8> {
 }
 
 mod paced;
+mod social;
 
 pub use paced::PacedRuleController;
 
@@ -249,3 +250,6 @@ mod tests;
 
 #[cfg(test)]
 mod paced_tests;
+
+#[cfg(test)]
+mod social_tests;

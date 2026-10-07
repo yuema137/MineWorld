@@ -36,6 +36,7 @@ use mineworld_movement::{MAX_STRIDE, Move, Passage, Passages};
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::social;
 use crate::{disclosed_history, may_talk_to, newest_per_speaker, reply_to};
 
 /// How close an approach stops short of the person approached: near enough to talk, not on top of
@@ -111,9 +112,32 @@ impl PacedRuleController {
     /// place with several doorways the draw favours walking on toward one of them.
     pub fn decide(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
         let draw = Draw::new(self.seed, observation);
+        // An invitation waiting for an answer first, then a line waiting for a reply: being addressed
+        // comes before taking initiative (`social.rs`).
+        if let Some(answer) = social::answer_invitation(observation, &draw) {
+            return Some(answer);
+        }
         if let Some(reply) = self.answer(observation, &draw) {
             return Some(reply);
         }
+        // Part of an activity: sometimes leave it, and never head for a door — walking into another
+        // place would leave it anyway. Part of nothing: sometimes invite somebody, or join somebody.
+        let member = social::in_activity(observation);
+        let social = if member {
+            social::maybe_leave(observation, &draw)
+        } else {
+            social::initiative(observation, &draw)
+        };
+        if social.is_some() {
+            return social;
+        }
+        let leave = |observation| {
+            if member {
+                None
+            } else {
+                self.leave(observation)
+            }
+        };
         let roll = draw.below(100, 0);
         let passing_through = observation
             .self_location()
@@ -122,12 +146,11 @@ impl PacedRuleController {
         if roll < GREETS_BELOW {
             greet(observation, &draw)
         } else if passing_through && roll < PASSES_THROUGH_BELOW {
-            self.leave(observation)
-                .or_else(|| wander(observation, &draw))
+            leave(observation).or_else(|| wander(observation, &draw))
         } else if roll < APPROACHES_BELOW {
             approach(observation, &draw).or_else(|| wander(observation, &draw))
         } else if roll < LEAVES_BELOW {
-            self.leave(observation)
+            leave(observation)
         } else if roll < WANDERS_BELOW {
             wander(observation, &draw)
         } else {
@@ -190,12 +213,12 @@ impl PacedRuleController {
 }
 
 /// The seeded draws for one decision: a pure function of the seed, the observer and the instant.
-struct Draw {
+pub(crate) struct Draw {
     mixed: u64,
 }
 
 impl Draw {
-    fn new(seed: u64, observation: &Observation<Value>) -> Self {
+    pub(crate) fn new(seed: u64, observation: &Observation<Value>) -> Self {
         let observer = observation.observer().raw();
         // Two's complement bits of the instant: any i64 is a distinct input.
         let at = observation.at().seconds().cast_unsigned();
@@ -205,7 +228,7 @@ impl Draw {
     }
 
     /// The `n`th independent draw, in `0..bound`.
-    fn below(&self, bound: u64, n: u64) -> u64 {
+    pub(crate) fn below(&self, bound: u64, n: u64) -> u64 {
         mix(self.mixed, n) % bound
     }
 

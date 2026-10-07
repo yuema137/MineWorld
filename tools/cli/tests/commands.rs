@@ -31,7 +31,7 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     let report = stdout(&output);
     for expected in [
         "Social Café",
-        "presence, movement, conversation",
+        "presence, movement, conversation, group-activity, relationships",
         "alice",
         "visitor",
         "wanderer",

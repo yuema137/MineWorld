@@ -21,6 +21,7 @@
 //! ```
 
 mod headless;
+mod social;
 
 use std::io::{BufRead, BufReader};
 use std::os::unix::process::ExitStatusExt;
@@ -106,6 +107,9 @@ fn a_killed_run_re_run_finishes_the_same_world_byte_for_byte() {
     let seats: Vec<&str> = seats.iter().map(String::as_str).collect();
     every_seat_active_in_every_bucket(&printed, &seats);
     let control = Tables::read(&control);
+    // Social life too, before any comparison (step-09 C7): the kills land in a world where activities
+    // are running and relationships are moving, so the restart has social state to get right.
+    social::precondition(&social::facts_of(&control), 30, true);
     let control_head = u64::try_from(control.journal.len()).expect("fits");
 
     let mut tails = Vec::new();
@@ -135,18 +139,27 @@ fn spoken(fact: &EventEnvelope) -> Option<Spoke> {
     serde_json::from_slice(record.payload_for::<Spoke>().ok()?).ok()
 }
 
-/// Lines said to somebody before `restart` and answered by them after it, within one pace:
-/// `(said at, speaker, listener)`.
+/// Lines said to somebody before `restart` and answered by them — quoted back — after it, within one
+/// pace: `(said at, speaker, listener)`.
+///
+/// Located by the quotation, not by "the listener said anything to the speaker": since S8 (step-09
+/// C5) the listener's next consult may answer an invitation first, and then a later greeting would
+/// be mistaken for the answer (`ARC-23` rule 3: measure the property the claim names).
 fn straddling(facts: &[(i64, Spoke)], restart: i64) -> Vec<(i64, Spoke)> {
     facts
         .iter()
         .filter(|(said_at, line)| {
+            let opening = format!(
+                "I remember you. You said \"{}\"",
+                quoted(line.utterance().as_str())
+            );
             *said_at < restart
                 && facts.iter().any(|(at, reply)| {
                     *at >= restart
                         && *at - *said_at < PACE
                         && reply.speaker() == line.listener()
                         && reply.listener() == line.speaker()
+                        && reply.utterance().as_str().starts_with(&opening)
                 })
         })
         .cloned()

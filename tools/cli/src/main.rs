@@ -8,6 +8,8 @@
 //! mineworld run <world> --headless --seed N --days N [--save DIR]
 //!                                       run it headless, every seat a seeded rule (ARC-27)
 //! mineworld inspect <save> [--last N]   what a save holds; every fact's cause checked (AC-9)
+//! mineworld biography <world> --save DIR --person KEY [--json]
+//!                                       a Person's objective biography, from the fact log (ARC-29)
 //! mineworld create <directory>          a new, minimal World Pack
 //! ```
 //!
@@ -46,6 +48,7 @@
 //! is specified in `docs/MODULE_SPEC.md` §8.1.
 
 mod agent;
+mod biography;
 mod create;
 mod inspect;
 mod perceive;
@@ -156,6 +159,21 @@ enum Subcommand {
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
     },
+    /// Print a Person's objective biography, derived from a save's fact log without resuming or
+    /// writing it.
+    Biography {
+        /// The World Pack the save was created from (it names people by their keys).
+        world: PathBuf,
+        /// The save to read.
+        #[arg(long, value_name = "DIR")]
+        save: PathBuf,
+        /// The Person, by authoring key, such as alice.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        person: EntityKey,
+        /// One JSON object per entry instead of lines for reading.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// A seat name on the command line, checked as the key it must be.
@@ -190,6 +208,17 @@ async fn main() -> ExitCode {
             days,
             save,
         }),
+        Subcommand::Biography {
+            world,
+            save,
+            person,
+            json,
+        } => biography::biography(&biography::BiographyRequest {
+            world: &world,
+            save: &save,
+            person: &person,
+            json,
+        }),
     };
 
     match outcome {
@@ -208,7 +237,8 @@ fn not_yet(command: &str) -> Result<(), String> {
     Err(format!(
         "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
          and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
-         mineworld replay, mineworld run, mineworld inspect, mineworld create (see mineworld --help)."
+         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld create \
+         (see mineworld --help)."
     ))
 }
 
