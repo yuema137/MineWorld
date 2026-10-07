@@ -146,6 +146,23 @@ revision are looking at one committed state of one world — the fourth line of 
 **this** observer: two connected clients receive two different observations, computed separately,
 and neither is a filtered copy of a world frame.
 
+Each entry of `observation.affordances` is the contract's `Affordance`: `action_type`, `target`,
+`available`, `unavailable_reason` and `requirement`, and — only on a **complete affordance** — a
+`payload`: the complete request payload the offering system would accept, in the same JSON shape a
+client would send inside `request.payload.payload` (§6). The field is **absent**, not `null`, on an
+affordance without one, so every frame a world without complete affordances sends is unchanged.
+Several complete affordances may share an `action_type` and a `target` — one per choice the system
+offers — and differ only in `payload`; a client keeps them apart by their position in the list, never
+by looking one up by type and target. Added within revision 1 of this protocol: a client that does not
+read it is unaffected (`docs/DECISIONS.md` `ARC-34`).
+
+```json
+{ "action_type": "ring", "target": null, "available": true, "unavailable_reason": null,
+  "requirement": { "place": "any", "within_range": null, "requires_line_of_access": false,
+                   "requires_target_available": false },
+  "payload": { "bell": "low" } }
+```
+
 `seq` counts frames on this connection, from 1. It exists because `Observation.at` is a `WorldTime`
 in whole seconds, so several frames of a 10 Hz stream carry the same instant and could not otherwise
 be ordered (`spike/FINDINGS.md` F7). A client should treat a lower `seq` as stale. A gap in `seq`
@@ -219,6 +236,23 @@ decides whether it is well formed. Four consequences a client must know:
 4. **`payload` is the owning system's own shape.** The server carries it without interpreting it;
    the system that provides the action decodes it. It reaches that system as the JSON bytes of what
    was sent.
+
+**Submitting a complete affordance.** A client may submit a complete affordance (§5) unchanged,
+without knowing the action: `request.action_type` and `request.payload.action_type` are the
+affordance's `action_type`, `request.payload.payload` is the affordance's `payload`, and
+`request.target` is the affordance's `target`. The offer decides nothing: the server validates the
+request exactly as any other, and the world may have changed since the observation. A client still
+decides nothing new — whether to offer the player the choice is presentation, and whether it is
+valid is the server's.
+
+```json
+{ "t": "submit", "token": "c9", "request": {
+    "actor": "101",
+    "action_type": "ring",
+    "target": null,
+    "payload": { "action_type": "ring", "payload": { "bell": "low" } },
+    "actor_location": null } }
+```
 
 ### 6.1 What two clients of different dimensions must agree about
 

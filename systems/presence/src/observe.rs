@@ -235,7 +235,7 @@ fn affordances(
     here: Option<Location>,
     present: &[EntityId],
     providers: &[&dyn PerceptionProvider],
-) -> Vec<Affordance> {
+) -> Vec<Affordance<Value>> {
     let targets = core::iter::once(None).chain(present.iter().copied().map(Some));
     let mut affordances = Vec::new();
     for target in targets {
@@ -262,7 +262,7 @@ fn verdict(
     here: Option<Location>,
     target: Option<EntityId>,
     offer: &Offer,
-) -> Affordance {
+) -> Affordance<Value> {
     let requirement = offer.requirement();
     let there = target
         .and_then(|target| read.component::<Presence>(target))
@@ -272,10 +272,17 @@ fn verdict(
         None if requirement == SpatialRequirement::NONE => Ok(()),
         None => Err(Rejection::PreconditionFailed),
     };
-    match evaluated {
+    let affordance = match evaluated {
         Ok(()) => Affordance::available(offer.action_type().clone(), target, requirement),
         Err(reason) => {
             Affordance::unavailable(offer.action_type().clone(), target, requirement, reason)
         }
+    };
+    // A complete offer's request travels whatever the verdict: a client shown an unavailable choice
+    // can still show what it would be. What the payload means is the offering pack's, never this
+    // function's (`ARC-34`).
+    match offer.payload() {
+        Some(payload) => affordance.with_payload(payload.clone()),
+        None => affordance,
     }
 }

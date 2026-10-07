@@ -8,4 +8,14 @@ license.workspace = true
 authors.workspace = true
 publish = false
 
-# No dependencies: these tests read files and run `git`, and assert nothing about any crate's types.
+# No dependencies of its own: the repository-reading tests read files and run `git`. The cross-crate
+# checkpoints of S9 drive real crates together, so they need those crates as dev-dependencies — and
+# here, rather than in any of them, a test-only System Pack can be defined that no library is ever
+# compiled against (step-10 QS-24).
+[dev-dependencies]
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+mineworld-presence = { workspace = true }
+mineworld-rule-controller = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

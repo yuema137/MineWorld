@@ -347,7 +347,7 @@ impl SpikeWorld {
     ///
     /// Every answer comes from `SpatialRequirement::evaluate`, the contract's one implementation
     /// of the check, run here against the server's own authoritative locations.
-    fn affordances(&self) -> Vec<Affordance> {
+    fn affordances(&self) -> Vec<Affordance<Value>> {
         let actor = self.location_of(EntityId::from_raw(PLAYER));
         let mut affordances = vec![Affordance::available(
             ActionTypeId::from_static("move-to"),

@@ -317,3 +317,42 @@ fn a_very_long_utterance_is_quoted_short_enough_to_reply_to() {
     );
     assert!(words.contains('…'), "and says that it was cut: {words}");
 }
+
+/// The reactive controller answers and takes no initiative, so it never attempts a complete affordance
+/// — offered or not, at any instant, before or after it has somebody to answer (`ARC-34` point 5,
+/// `AC-15`). The offer band is the paced rule's alone.
+#[test]
+fn the_reactive_controller_never_attempts_an_offer() {
+    let ring = mineworld_contracts::ActionTypeId::from_static("ring");
+    let complete = |bell: &str| {
+        Affordance::available(ring.clone(), None, SpatialRequirement::NONE)
+            .with_payload(serde_json::json!({ "bell": bell }))
+    };
+    let heard = [said(VISITOR, "is the hall open?", 3_500)];
+    for history in [&heard[..], &[]] {
+        let mut alice = RuleController::new();
+        let mut decided = 0;
+        for k in 0..256 {
+            let seen = alices_view(history, &[VISITOR]);
+            let offered = Observation::new(id(ALICE), WorldTime::from_seconds(3_600 + k))
+                .at_location(*seen.self_location().expect("Alice is somewhere"))
+                .perceiving(seen.entities().to_vec())
+                .offering(
+                    seen.affordances()
+                        .iter()
+                        .cloned()
+                        .chain([complete("low"), complete("high")])
+                        .collect(),
+                );
+            if let Some(request) = alice.decide(&offered) {
+                decided += 1;
+                assert_eq!(
+                    request.action_type(),
+                    &Talk::ACTION_TYPE,
+                    "the reactive controller only ever answers"
+                );
+            }
+        }
+        assert!(decided <= 1, "it answers a line once, and nothing else");
+    }
+}

@@ -303,7 +303,7 @@ fn offered<'a>(
     observation: &'a mineworld_contracts::Observation<serde_json::Value>,
     action: &str,
     target: Option<mineworld_contracts::EntityId>,
-) -> Option<&'a Affordance> {
+) -> Option<&'a Affordance<serde_json::Value>> {
     observation.affordances().iter().find(|affordance| {
         affordance.action_type().as_str() == action && affordance.target() == target
     })

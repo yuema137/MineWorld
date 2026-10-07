@@ -616,6 +616,180 @@ fn this_pack_offers_nothing_with_or_without_a_target() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Complete offers (`DECISIONS.md` `ARC-34`).
+// ---------------------------------------------------------------------------------------------
+
+/// A test pack whose one action has a bounded set of choices, offered complete — one offer per bell —
+/// and only at its own place. It also makes one ordinary offer, so the two kinds are seen side by side.
+struct Bellringer {
+    belfry: PlaceId,
+}
+
+impl SystemIdentity for Bellringer {
+    const ID: SystemId = SystemId::from_static("test-bellringer");
+}
+
+/// `Bellringer`'s request: which bell.
+#[derive(Debug, Serialize, Deserialize)]
+struct Toll {
+    bell: String,
+}
+
+impl Action for Toll {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("test-toll");
+    const OWNER: SystemId = Bellringer::ID;
+}
+
+impl System for Bellringer {
+    const VERSION: SystemVersion = SystemVersion::new(1);
+
+    fn declaration(&self) -> SystemDeclaration {
+        SystemDeclaration::of::<Self>().providing::<Toll>()
+    }
+
+    fn resolve(
+        &self,
+        _world: &mut WorldView<'_, Self>,
+        _intent: &ActionIntent,
+    ) -> Result<Vec<Emission>, KernelError> {
+        Ok(Vec::new())
+    }
+}
+
+impl PerceptionProvider for Bellringer {
+    fn offers(
+        &self,
+        _world: &mineworld_kernel::WorldRead<'_>,
+        _observer: EntityId,
+        target: Option<EntityId>,
+    ) -> Vec<mineworld_presence::Offer> {
+        if target.is_some() {
+            return Vec::new();
+        }
+        let here = mineworld_contracts::SpatialRequirement::at_place(self.belfry);
+        let complete = |bell: &str| {
+            mineworld_presence::Offer::complete(
+                &Toll {
+                    bell: bell.to_owned(),
+                },
+                here,
+            )
+            .expect("a toll encodes")
+        };
+        vec![
+            complete("low"),
+            complete("high"),
+            mineworld_presence::Offer::new::<Toll>(here),
+        ]
+    }
+}
+
+/// The fixture with `Bellringer` installed, its belfry the café; Alice in the café, Bob on the
+/// promenade.
+fn with_bells() -> (Fixture, Bellringer) {
+    let mut fixture = Fixture::new();
+    let belfry = fixture.cafe;
+    fixture
+        .world
+        .install(Bellringer { belfry })
+        .expect("the test pack installs");
+    fixture.relocate(fixture.alice, at(fixture.cafe, 0, 0));
+    fixture.relocate(fixture.bob, at(fixture.promenade, 0, 0));
+    (fixture, Bellringer { belfry })
+}
+
+fn observed(
+    fixture: &Fixture,
+    bells: &Bellringer,
+    observer: EntityId,
+) -> Observation<serde_json::Value> {
+    mineworld_presence::observe(
+        &fixture.world,
+        observer,
+        NOW,
+        &[&PresenceSystem, bells as &dyn PerceptionProvider],
+    )
+}
+
+/// A complete offer reaches the observation with the action's own type and its payload, for an
+/// available verdict and an unavailable one alike; an ordinary offer carries none.
+#[test]
+fn a_complete_offer_reaches_the_observation_with_its_own_type_and_payload() {
+    let offer = mineworld_presence::Offer::complete(
+        &Toll {
+            bell: "low".to_owned(),
+        },
+        mineworld_contracts::SpatialRequirement::NONE,
+    )
+    .expect("a toll encodes");
+    assert_eq!(offer.action_type(), &Toll::ACTION_TYPE);
+    assert_eq!(offer.payload(), Some(&serde_json::json!({ "bell": "low" })));
+    assert_eq!(
+        mineworld_presence::Offer::new::<Toll>(mineworld_contracts::SpatialRequirement::NONE)
+            .payload(),
+        None
+    );
+
+    let (fixture, bells) = with_bells();
+    let expected = [
+        Some(serde_json::json!({ "bell": "low" })),
+        Some(serde_json::json!({ "bell": "high" })),
+        None,
+    ];
+
+    let inside = observed(&fixture, &bells, fixture.alice);
+    let tolls: Vec<_> = inside
+        .affordances()
+        .iter()
+        .filter(|affordance| *affordance.action_type() == Toll::ACTION_TYPE)
+        .collect();
+    assert_eq!(tolls.len(), 3);
+    for (affordance, payload) in tolls.iter().zip(&expected) {
+        assert!(affordance.is_available(), "in the belfry: {affordance:?}");
+        assert_eq!(affordance.target(), None);
+        assert_eq!(affordance.payload(), payload.as_ref());
+    }
+
+    let outside = observed(&fixture, &bells, fixture.bob);
+    let tolls: Vec<_> = outside
+        .affordances()
+        .iter()
+        .filter(|affordance| *affordance.action_type() == Toll::ACTION_TYPE)
+        .collect();
+    assert_eq!(tolls.len(), 3);
+    for (affordance, payload) in tolls.iter().zip(&expected) {
+        assert!(!affordance.is_available(), "elsewhere: {affordance:?}");
+        assert!(affordance.unavailable_reason().is_some());
+        assert_eq!(
+            affordance.payload(),
+            payload.as_ref(),
+            "the request travels with an unavailable verdict too"
+        );
+    }
+}
+
+/// A disabled pack's complete offers are absent, payload and all: the route map drops them exactly
+/// as it drops any other offer (`INV-10`, `AC-2`).
+#[test]
+fn a_disabled_packs_complete_offers_are_absent() {
+    let (mut fixture, bells) = with_bells();
+    fixture
+        .world
+        .disable(&Bellringer::ID)
+        .expect("nothing depends on the test pack");
+    let observation = observed(&fixture, &bells, fixture.alice);
+    assert!(
+        observation
+            .affordances()
+            .iter()
+            .all(|affordance| *affordance.action_type() != Toll::ACTION_TYPE
+                && affordance.payload().is_none()),
+        "{:?}",
+        observation.affordances()
+    );
+}
+
+// ---------------------------------------------------------------------------------------------
 // The structural claim.
 // ---------------------------------------------------------------------------------------------
 

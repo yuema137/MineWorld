@@ -1709,9 +1709,15 @@ C-7  I-2 and I-8. The scan is green with 11c's row and no 11c allow-list entry; 
   with `submit(action_type, target, payload)`; `affordance(type, target)` returns only the first of
   several complete affordances sharing a type and target (F-29).
 
-- [ ] Implementation: as scoped; `git fetch` first and confirm ARC-34 is free everywhere.
-- [ ] Validation: both doc checks; every cited section resolves.
-- [ ] Review: no defined term redefined; PROTOCOL stays revision 1 (an additive, optional field).
+- [x] Implementation: as scoped; `git fetch` first and confirm ARC-34 is free everywhere. ARC-34
+  inserted before `## ARC-35`; CORE_CONCEPTS §15.2 (field + one paragraph); MODULE_SPEC §5 constraint
+  1; PROTOCOL §5 (field, example, "absent not null", entries sharing type and target) and §6
+  (submitting it); ADOPTION.md §2 (`submit(action_type, target, payload)`, `affordance()` returns the
+  first). No `.gd` file touched (QS-20). E-C1.
+- [x] Validation: both doc checks (E-C1); cited sections (`CORE_CONCEPTS` §15.2, `MODULE_SPEC` §5,
+  `PROTOCOL` §§5–6, `ARC-34`) exist; `submit`'s real signature read from `world_client.gd:155`.
+- [x] Review: no defined term redefined ("complete affordance" is a qualified Affordance, defined in
+  §15.2); PROTOCOL stays revision 1 — the field is optional and absent by default.
 
 ### C-C2 — `contracts/`: `Affordance<P>` gains its payload
 
@@ -1732,13 +1738,27 @@ C-7  I-2 and I-8. The scan is green with 11c's row and no 11c allow-list entry; 
   group-activity tests, contracts' own `:203` if inference requires it, `spike/server/src/world.rs:350`
   (QS-23). Each listed with its unchanged claim.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-contracts -p mineworld-presence -p mineworld-conversation
-  -p mineworld-group-activity -p mineworld-server`; M-C1 → fails, reverted; trybuild expectation
-  regenerated only if its wording changed (claim: private fields refused); `cargo check --manifest-path
-  spike/server/Cargo.toml` before and after (if the base's spike does not build offline, recorded N/A).
-- [ ] Review: additive only; no existing frame changes; `request` cannot mislabel (the label is the
-  affordance's own); no encoding decided in contracts.
+- [x] Implementation: as scoped. `observation.rs`: `Affordance<P = Vec<u8>>`, last field `payload:
+  Option<P>` with `skip_serializing_if`; the `#[serde(default)]` sits on `AffordanceFields<P>`'s field
+  (the deserialize side, because of `try_from`) — a bounded placement detail; `with_payload`,
+  `payload`, `request(actor, encode)`; `Observation<P>` holds/offers/returns `Affordance<P>`. `action.rs`:
+  `pub(crate) const fn ActionRecord::labelled`. Tests: the three named tests plus test-only `Ring` /
+  `Knock` actions. Forced annotations (F-24), each claim unchanged: presence `observe.rs`
+  `affordances`/`verdict` return `Affordance<Value>` (lines 207/220 untouched); conversation test
+  `:234` and group-activity test `:306` (`Affordance<serde_json::Value>`); contracts' own `:203`
+  (`Affordance::<String>::available` — inference needed it); `spike/server/src/world.rs:350`
+  (`Vec<Affordance<Value>>`, QS-23's one line). Rule-controller tests needed no edit (inferred inside
+  `.offering`). E-C2.
+- [x] Validation: E-C2 — the five suites pass; M-C1 fails three tests including the frozen-literal
+  test, reverted; trybuild `.stderr` regenerated (wording changed: "cannot construct `Affordance<_>`
+  with struct literal syntax due to private fields", plus a note naming `payload`) — claim unchanged,
+  private fields refused; spike `cargo check --offline` PASS on base and after.
+- [x] Review: additive only — no existing frame changes (the base literals are asserted); `request`
+  labels with the affordance's own type and `labelled` is crate-private; the encoding is the caller's
+  closure, none decided in contracts. Finding: my first `an_old_frame…` test built its expected text
+  with `trim_end_matches('}')`, which strips both closing braces — a test defect, fixed to
+  `strip_suffix`; it was one of the three M-C1 failures, so M-C1 is re-stated against the frozen-literal
+  test alone, which failed under M-C1 for the intended reason.
 
 ### C-C3 — presence: `Offer::complete`
 
@@ -1750,9 +1770,20 @@ type is read off the value, so a payload of another action cannot be attached �
 with its type and payload, available in place and unavailable elsewhere; `Offer::new` → none; pack
 disabled → absent.
 
-- [ ] Implementation (do not rewrite observe.rs:207 or :220 — F-35).
-- [ ] Validation: presence suite; M-C2 → fails, reverted.
-- [ ] Review: perception still decides nothing about what a payload means; INV-10 filter unchanged.
+- [x] Implementation (do not rewrite observe.rs:207 or :220 — F-35). `Offer` gains `payload:
+  Option<Value>`; `Offer::complete<A: Action>(&A, requirement) -> Result<Offer, serde_json::Error>`
+  (struct update over `Offer::new::<A>`, so the type is read off `A`); `Offer::payload()`. `verdict`
+  computes the affordance as before and then attaches the offer's payload whatever the verdict. Tests:
+  a `Bellringer` test pack (complete `test-toll { bell }` low/high at its belfry, plus one `Offer::new`),
+  `a_complete_offer_reaches_the_observation_with_its_own_type_and_payload`,
+  `a_disabled_packs_complete_offers_are_absent`. `Action` already implies `Serialize`, so the bound is
+  `A: Action` (the design's `Action + Serialize` is redundant). E-C3.
+- [x] Validation: E-C3 — presence 15 passed (13 + 2); M-C2 fails the payload test, reverted;
+  conversation, group-activity, movement suites green; clippy `-D warnings` on presence and contracts
+  clean; presence's own vocabulary scan still green.
+- [x] Review: perception attaches the payload and decides nothing about it; the `INV-10` filter (`world
+  .systems().provider(...)`) is the unchanged `continue` before `verdict`, so a disabled pack's complete
+  offer never reaches `verdict` (shown by the disabled test).
 
 ### C-C4 — the paced controller's offer band
 
@@ -1768,10 +1799,21 @@ every draw index (0–6, 8–13, 14, 15; 7 free). `src/offered_tests.rs`:
 _decides_anything`; `src/tests.rs`: `the_reactive_controller_never_attempts_an_offer`.
 `Cargo.toml` of the crate is **not** edited.
 
-- [ ] Implementation (no line naming `shifted`, no `Iterator<Item = …>` — F-35).
-- [ ] Validation: crate tests; M-C3, M-C4, M-C5 each fail by name, reverted; the 300-day social-cafe
-  sha = E-0 at this commit.
-- [ ] Review: `decide(&self, …)` still pure (ARC-27); no pack type imported; draw indices distinct.
+- [x] Implementation (no line naming `shifted`, no `Iterator<Item = …>` — F-35). `offered.rs`:
+  `ATTEMPTS_OFFERED = 20`, `OFFER_DRAW = 14`, `OFFERED_CHOICE_DRAW = 15`, `attempt(observation, &Draw)`
+  as scoped (the rate check and the empty check share one `if`; draw 14 is read only when something
+  complete is available). `paced.rs`: one call after `if social.is_some()`, before the door closure and
+  the walking roll; module doc gains the draw table; `decide`'s doc names the band. `lib.rs`: `mod
+  offered;` and `mod offered_tests;` only — `RuleController` untouched. The five named tests in
+  `offered_tests.rs` (their observation is a hand-built hall offering `ring`, a name no dependency
+  defines) and `tests.rs::the_reactive_controller_never_attempts_an_offer`. `Cargo.toml` not edited.
+  E-C4.
+- [x] Validation: E-C4 — crate 34 passed (28 + 6); M-C3, M-C4, M-C5 each fail by name, reverted; the
+  300-day social-cafe sha at this state (see E-C4).
+- [x] Review: `decide(&self, …)` still pure — the band reads only the observation and the `Draw`
+  (ARC-27); `offered.rs` imports only contracts and serde_json, no pack type; draw indices 0–6, 8–13,
+  14, 15 distinct (the table); the band is placed after the agenda and social bands, so it never
+  pre-empts an answer, an invitation reply, the day's walk or a leave/invite/join.
 
 ### C-C5 — CP-3: `tests/acceptance/tests/complete_affordances.rs`
 
@@ -1783,13 +1825,32 @@ with `belfry` and `hall`, two people in each, presence + chimes, and drives it w
 `PacedRuleController` on the `mineworld run` schedule (pace 900 s, seat k at genesis + k + m·P) for 10
 days. Assertions C-5. A further assertion: `cognition/rule-controller/Cargo.toml` names no `chimes`.
 
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-acceptance`; M-C6 → fails, reverted.
-- [ ] Review: the driver calls only what `run` calls; the synthetic pack is reachable from no library.
+- [x] Implementation. `tests/acceptance/Cargo.toml` `[dev-dependencies]` (the six workspace entries)
+  and its comment; `src/lib.rs` doc names both tests. `tests/complete_affordances.rs`: `chimes`
+  (depends on presence, provides `ring { bell }`, emits its own `rang { ringer, bell }`; `validate`
+  applies the same `at_place(belfry)` requirement its offers declare, against presence's state, and
+  refuses an unknown bell), two complete offers (`low`, `high`) plus one `Offer::new::<Ring>`, a world
+  with `belfry` and `hall` and two people in each placed by genesis through presence's `arrival`, the
+  `mineworld run` schedule (P = 900, seat k at genesis + k + m·P) for 10 days, seed 7. Four tests:
+  `a_headless_person_rings_a_bell_the_controller_never_heard_of` (every belfry person rings every day;
+  hall people request nothing; every `rang` has `Causation::Action` of an accepted `ring` request by
+  the ringer for that bell — AC-9; every request is a ring and every ring is accepted),
+  `two_runs_of_one_seed_are_byte_identical`, `with_chimes_disabled_no_ring_is_ever_requested`,
+  `the_controller_was_never_compiled_against_chimes`. The I-2 scan gains 11c's row (base
+  `da316134…`, no allow-list entry). Bounded deviation (recorded): the belfry is the pack value's
+  configuration rather than an owned `Belfry` component — `chimes` "owns nothing it does not need",
+  and two bells at one place need no state; the observable claims are unchanged. E-C5.
+- [x] Validation: E-C5 — acceptance 4 + 3 passed; M-C6 fails, reverted; the scan's first run caught
+  `item` in a C-C4 comment ("`ARC-35` item 6"), reworded to "point 6" (the scan working as built);
+  planted violations refused by name, removed.
+- [x] Review: the driver calls only what `run` calls — `advance_to`, `observe` with the providers,
+  `decide`, `ActionIntent::allocate`, `dispatch` — in `run`'s order and schedule; `chimes` lives in a
+  test file of a `publish = false` crate with no library code, so no library is compiled against it;
+  `Cargo.lock` gains only acceptance's dependency list (six names, no new package).
 
 ### C-C6 — I-9 measured on a scratch install (evidence, never merged); close
 
-- [ ] Scratch branch `scratch/11c-chimes` (local, deleted after): `systems/chimes/` as a real pack
+- [x] Scratch branch `scratch/11c-chimes` (local, deleted after) — done, PASS at 20, E-C6: `systems/chimes/` as a real pack
   offering `ring { low | high }` complete to everyone, requirement none (worst-case exposure); two lines
   in `systems/installed/`; `worlds/chimes-cafe/` = social-cafe + `chimes`. Criterion, stated before the
   run: over 300 days seed 7, the step-08 I-9 activity precondition holds in every bucket (every seat moved
@@ -1797,15 +1858,37 @@ days. Assertions C-5. A further assertion: `cognition/rule-controller/Cargo.toml
   scratch-only reader). If either fails at 20, lower `ATTEMPTS_OFFERED` on the branch, re-measure, record
   both runs; the value that passes is frozen (C-6). Also: social-cafe's sha on the scratch build = E-0.
   `git ls-remote --heads origin | grep -c scratch` → 0.
-- [ ] Documentation: `docs/MVP_STATUS.md` — one capability row directly after "Conversation", one
-  evidence row appended after the table's last row; `Updated:` line and S9 row not edited (§12); §4.3
+- [x] Documentation: `docs/MVP_STATUS.md` — one capability row directly after "Conversation", one
+  evidence row appended after the table's last row (done; plus ARC-34's measurement note); `Updated:` line and S9 row not edited (§12); §4.3
   checkboxes, §9.3 `E-C*`, `handoff-11c.md`.
-- [ ] Full gates once on the final head (fmt, clippy -D warnings, workspace tests in background), C-1's
-  sha and validate diff, both doc checks.
-- [ ] Review: C-1 … C-7 each with evidence; deviations listed.
+- [x] Full gates once on the final head (fmt, clippy -D warnings, workspace tests in background), C-1's
+  sha and validate diff, both doc checks — E-C-final, all PASS.
+- [x] Review: C-1 … C-7 each with evidence; deviations listed.
+  - C-1 PASS — sha = E-0 and validate identical (E-C0, E-C4, E-C-final); every existing test passes,
+    AC-13 and AC-15 included (`tools/cli/tests/ac15_one_alice.rs`, `server` parity tests, in the 443);
+    existing-test edits are only the F-24 annotations and the trybuild `.stderr` (E-C2).
+  - C-2 PASS — frozen literals captured on the base (E-C0) and asserted; old frame decodes; payload
+    round-trips; `request` exact; disagreement refused; M-C1 fails (E-C2).
+  - C-3 PASS — E-C3; M-C2 fails.
+  - C-4 PASS — E-C4; M-C3, M-C4, M-C5 fail by name.
+  - C-5 PASS — E-C5; M-C6 fails.
+  - C-6 PASS — 20 / 14 / 15 and the position, fixed by E-C6's measurement (passed at 20) and recorded
+    in ARC-34's note.
+  - C-7 PASS — scan green with 11c's row and no allow-list entry; planted violations refused; kernel/
+    empty; contracts/ as scoped (E-C5, E-C-final).
+  - Deviations, all bounded: `#[serde(default)]` placed on `AffordanceFields<P>` (the `try_from`
+    side) rather than on the struct field; `Offer::complete` bound is `A: Action` (it already implies
+    `Serialize`); `chimes` in C-C5 configures its belfry in the pack value instead of owning a `Belfry`
+    component; the C-C2 test bug (`trim_end_matches`) found and fixed; the scan caught `item` in a
+    C-C4 comment, reworded. No material deviation; no stop condition reached.
 
 **PR 11c lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §14 confirmed. See the
-freeze record for 11b and 11c in §12.0.
+freeze record for 11b and 11c in §12.0. **READY FOR OPERATOR REVIEW** — rebased onto main @
+`ae1a315` after 11b merged (E-C-rebase); final executable head `6003e07`, gated there; the PR head is
+the Markdown-only commit after it (the pre-rebase heads `20cf29b` / `c7b33df` are superseded).
+Merge with a **merge commit** only (§12). Implementation context CLOSED / AWAITING OPERATOR ACTION.
+Post-merge: this session owns §4.3 and §9.3; the planning session owns the header, §§1–3, overall
+and MVP_STATUS's `Updated:` / S9 lines.
 
 ### 4.3.2 Test ownership for 11c
 
@@ -2341,7 +2424,130 @@ E-B6 final gate on 8350ba4 (clean tree), 2026-10-07; logs /tmp/s9-11b-final/:
 Written by the 11c implementation session only (`E-C<n>`).
 
 ```text
-(none yet)
+--- PR 11c (branch mvp0/pr-11c-affordances, base main @ da31613) ---
+
+E-C0 Base captures on da31613 before any code edit, 2026-10-07 (debug, opt-level 1):
+     300-day seed-7 social-cafe: 339 lines, faults 0, 365 330 facts, fingerprint 59339a9c281829c9,
+     sha-256 of all but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+     = E-0; wall 12.2 s.
+     `mineworld validate worlds/social-cafe`: exit 0, sha-256 of output
+     ebcd60a0252f0b343b799dc5d7f78575f5eeaec1c7f4c4050dbac9a72ecf56a8.
+     C-2's frozen no-payload literals, printed by a throwaway (uncommitted, deleted) test against the
+     base contracts crate:
+       available  {"action_type":"talk","target":"42","available":true,"unavailable_reason":null,
+                   "requirement":{"place":"any","within_range":null,"requires_line_of_access":false,
+                   "requires_target_available":false}}
+       unavailable {"action_type":"talk","target":"43","available":false,"unavailable_reason":
+                   "too_far_away","requirement":{"place":"same_place_as_actor","within_range":3000,
+                   "requires_line_of_access":false,"requires_target_available":false}}
+       no target  {"action_type":"ring","target":null,"available":true,"unavailable_reason":null,
+                   "requirement":{"place":"any","within_range":null,"requires_line_of_access":false,
+                   "requires_target_available":false}}
+     (each on one line in the test). contracts observation suite on base: 6 passed.
+E-C1 C-C1 specs: check_decision_ids 46 ids, all distinct (ARC-34 added); check_doc_headings 143
+     sections across 22 documents, none duplicated. ARC-34 absent from every origin/* branch after
+     `git fetch`.
+E-C2 C-C2 contracts. `cargo test --no-fail-fast -p mineworld-contracts -p mineworld-presence
+     -p mineworld-conversation -p mineworld-group-activity -p mineworld-server` → exit 0, every binary
+     ok, 0 failed (contracts observation 9 = 6 existing + 3 new; conversation_and_presence 14;
+     group_activity 10; presence 13; server two_clients 9, headless 4).
+     M-C1 (drop `skip_serializing_if`): an_affordance_without_a_payload_is_the_shape_it_always_was
+     FAILED (and an_affordance_cannot_disagree…, whose base literal also gains "payload":null) →
+     reverted (`grep -c skip_serializing_if` = 1).
+     spike/server: `cargo check --offline --manifest-path spike/server/Cargo.toml` exit 0 on da31613;
+     after the change E0308 at world.rs:401 until the one-line annotation at :350, then exit 0.
+E-C3 C-C3 presence. `cargo test -p mineworld-presence` → presence.rs 15 passed (13 + 2 new), 0 failed.
+     M-C2 (verdict keeps the affordance, drops the payload): a_complete_offer_reaches_the_observation
+     _with_its_own_type_and_payload FAILED, 14 passed → reverted. conversation 14, group_activity 10,
+     movement 1 + 3 + 7 + 1 passed. clippy -p presence -p contracts --all-targets -D warnings clean.
+E-C4 C-C4 the offer band. `cargo test -p mineworld-rule-controller` → 34 passed (28 + 6), 0 failed;
+     clippy -p rule-controller --all-targets -D warnings clean.
+     M-C3 (drop `is_available()` from the filter): only_available_complete_affordances_are_attempted
+       and no_complete_affordance_no_new_draw_decides_anything FAILED → reverted.
+     M-C4 (OFFER_DRAW = 0): greetings_still_happen_where_offers_are_made FAILED → reverted.
+     M-C5 (RuleController::decide calls offered::attempt first): the_reactive_controller_never
+       _attempts_an_offer FAILED → reverted.
+     I-4: 300-day seed-7 social-cafe on this working tree (base 7922cb2+C-C3 d2f6c8c + C-C4 diff):
+       exit 0, 339 lines, faults 0, 365 330 facts, sha-256 of all but `wall` = ad49c723…c64b = E-0;
+       wall 23.0 s (machine shared with the parallel 11b session).
+E-C5 C-C5 CP-3. `cargo test -p mineworld-acceptance` → complete_affordances 4 passed (0.03 s),
+     precursor_vocabulary 3 passed, 0 failed.
+     M-C6 (remove the band's call from decide): a_headless_person_rings_a_bell_the_controller_never
+       _heard_of and two_runs_of_one_seed_are_byte_identical FAILED → reverted (`git diff cognition/`
+       empty).
+     I-2 scan with 11c's row: first run FAILED naming `cognition/rule-controller/src/offered.rs:18:
+       item` ("`ARC-35` item 6" in a comment) → reworded; then PASS with no 11c allow-list entry.
+     Planted violations (untracked tests/acceptance/tests/planted_11c.rs `SHOP_PRICE`; tracked edit
+       `// a wage is due` in offered.rs): refused by name — `shop` at planted_11c.rs:1, `wage` at
+       offered.rs:59 → both removed.
+     Cargo.lock: +8 lines, mineworld-acceptance's dependency list only.
+E-C6 C-C6 I-9 measurement, scratch branch `scratch/11c-chimes` from 6486d5b, local only, 2026-10-07.
+     Scratch commit 998a7ad (deleted after; `git ls-remote --heads origin | grep -c scratch` → 0).
+     Changed paths: systems/chimes/{Cargo.toml, src/lib.rs, tests/count.rs}, systems/installed/
+     {Cargo.toml, src/lib.rs} (one line each), worlds/chimes-cafe/** (social-cafe copied, id/name
+     changed, `chimes` appended to `systems`), Cargo.lock. `chimes` offers complete `ring { low |
+     high }` to every observer, target none, requirement NONE (worst-case exposure); emits `rang`.
+     Criterion (QS-25, stated before measuring): over 300 days seed 7, every seat moves and talks in
+     every 30-day bucket, AND every seat's `ring` is accepted in every bucket.
+     Run 1, ATTEMPTS_OFFERED = 20: `mineworld run worlds/chimes-cafe --headless --seed 7 --days 300
+       --save …` exit 0, faults 0, 367 125 facts, wall 43.0 s (with --save).
+       requests: ring accepted 29 907; move accepted 167 348; talk accepted 57 741 (social-cafe:
+       180 665 / 67 752); no rejected or unavailable request lines.
+       activity: no `move 0` or `talk 0` in any of the 10 buckets × 11 seats; minima per bucket move
+       1 346, talk 393.
+       rings from the save (scratch reader systems/chimes/tests/count.rs, `rang` facts by ringer and
+       ⌊at / 30 d⌋): 110 (ringer, bucket) cells = ids 7–15, 17, 18 (the 11 seats; 16 is otto, no seat)
+       × buckets 0–9; minimum 197 per cell; total 29 907 = the accepted ring requests.
+       → PASS at 20. No second run needed. ATTEMPTS_OFFERED = 20, OFFER_DRAW = 14,
+       OFFERED_CHOICE_DRAW = 15, position after the social initiative and before the walking roll:
+       FROZEN for S9 (C-6, I-9). Recorded in ARC-34's note.
+     social-cafe on the scratch build (chimes installed, not enabled): 300-day seed-7 sha-256 of all
+       but `wall` = ad49c723…c64b = E-0 — installing a pack that offers complete affordances changes
+       no world that does not enable it.
+E-C-final on 20cf29b (clean tree; final executable head — later commits are Markdown only), main
+     unchanged at da31613 (11b not merged), 2026-10-07:
+     cargo fmt --all --check                                         PASS
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS (re-run after touching
+                                              contracts/src/lib.rs: all 18 crates re-linted, clean)
+     cargo test --workspace --no-fail-fast    443 passed, 0 failed, 0 ignored across 90 test binaries
+                                              (428 at 11a's final + 15 new: contracts 3, presence 2,
+                                              rule-controller 6, acceptance 4); 159 s wall
+     kill_and_resume                          cafe PASS (0.2 s), clock PASS (0.1 s)
+     check_decision_ids                       46 ids, all distinct
+     check_doc_headings                       143 sections across 22 documents, none duplicated
+     C-1 / I-4                                300-day seed-7 social-cafe: exit 0, faults 0, 365 330 facts,
+                                              sha-256 of all but wall = ad49c723…c64b = E-0; wall 12.2 s;
+                                              `validate worlds/social-cafe` byte-identical to E-C0's
+     I-2 scan                                 green inside the workspace run, 11c row, no allow-list entry
+     I-8                                      `git diff da31613 HEAD -- kernel/` empty; contracts/ diff =
+                                              observation.rs, action.rs (labelled), their tests and the
+                                              trybuild .stderr
+     CI: none configured (S13).
+E-C-rebase 11b merged first (GitHub #39, merge commit ae1a315). Per §12.0, 2026-10-07:
+     `git rebase origin/main` (main @ ae1a3157e85c05279daecf21f82bfea539597dd6); never a merge of main.
+     C-C1 … C-C4 applied cleanly; C-C5 conflicted only in precursor_vocabulary.rs — resolved to 11b's
+     structure (THIS_SCAN, `Words`, 11b's allow-list kept as merged) with rows 11a, 11b, 11c in order;
+     11c's row base moved to ae1a3157… in the same (rebased C-C5) commit. DECISIONS.md (ARC-34 before
+     ARC-35, ARC-36 at the end), MVP_STATUS and this file merged without conflict; this file's diff
+     against main touches only §4.3 and §9.3. Rebased commits: 2f15998, 37f37aa, 5ab5f40, 0985554,
+     d0ed2ca, 0c054b4, 6003e07.
+     Gate on 6003e07 (clean tree; earlier evidence does not carry over):
+     cargo fmt --all --check                                         PASS
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS (18 crates re-linted)
+     cargo test --workspace --no-fail-fast    456 passed, 0 failed, 0 ignored across 92 binaries
+                                              (main's 441 + 11c's 15); 145 s wall
+     kill_and_resume                          cafe PASS (0.2 s), clock PASS (0.1 s)
+     I-2 scan                                 PASS: 11b read as merged (base..M^2), 11c unmerged from
+                                              ae1a315; no 11c allow-list entry
+     planted violations                       untracked planted_11c.rs `SHOP_PRICE` and tracked
+                                              `// a wage is due` in offered.rs → refused by name (`wage`
+                                              offered.rs:59; `shop` and `price` planted_11c.rs:1 — word
+                                              level, 11b's matcher) → removed; scan PASS again
+     I-4                                      300-day seed-7 social-cafe sha-256 of all but wall =
+                                              ad49c723…c64b = E-0; faults 0; 365 330 facts; wall 12.3 s;
+                                              `validate worlds/social-cafe` identical to E-C0's
+     check_decision_ids 47 ids distinct; check_doc_headings 143 sections, none duplicated.
+     Branch force-pushed (permitted by §12.0 for this rebase only).
 ```
 
 ---
