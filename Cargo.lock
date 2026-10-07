@@ -739,6 +739,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-item-transfer"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-presence",
+ "mineworld-rule-controller",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-kernel"
 version = "0.0.0"
 dependencies = [

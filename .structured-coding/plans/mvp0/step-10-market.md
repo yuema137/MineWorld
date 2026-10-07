@@ -2195,11 +2195,18 @@ tests/{give.rs, removable.rs, paced.rs, support/mod.rs}}`. `mineworld-inventory 
 D-6's controller test — a dev-dependency from a market pack to the controller, the direction ARC-35
 check 2 allows).
 
-- [ ] Implementation: SD-20.
-- [ ] Validation: `cargo test -p mineworld-item-transfer`; clippy. D-5 (offer/dispatch half), D-6,
-  D-7; mutations M-D4 (offer half), M-D5, M-D6.
-- [ ] Review: owns no component; emits only inventory's fact, declared and depended on (the kernel
-  refuses it otherwise); offers never include the observer; complete offers only for kinds held.
+- [x] Implementation: SD-20. Files: `systems/item-transfer/{Cargo.toml, README.md,
+  src/{lib,system,action,offer,codec}.rs, tests/{give.rs, removable.rs, paced.rs, support/mod.rs}}`.
+  `GIVE_RANGE = 3 000 mm`, `give_requirement()`; a missing target is `NoSupportedInteraction` (SD-20's
+  "a different living Person target (NoSupportedInteraction otherwise)"). Dev-dependencies: authoring,
+  item (path), serde-saphyr (seed through the section contract), movement, rule-controller.
+- [x] Validation: `cargo test -p mineworld-item-transfer` 10 passed (give 4, removable 3, paced 3);
+  clippy `--all-targets -D warnings`, fmt clean. D-5 (offer/dispatch half), D-6, D-7; M-D4 (offer
+  half), M-D5, M-D6 each fail by name and are reverted (§9.4 E-D4).
+- [x] Review: owns no component (declaration: depends on inventory and presence, provides `give`,
+  emits `items-transferred` only); `resolve` emits only `mineworld_inventory::transfer`'s emission;
+  offers exclude the observer, non-persons and observers with no holdings; complete offers only for
+  kinds held, in item order (Holdings is sorted).
 
 ### D-C5 — Install: three lines each in `systems/installed`
 
@@ -3054,6 +3061,28 @@ E-D3 D-C3 inventory: `cargo test -p mineworld-inventory` → inventory.rs 8 pass
        composed world: state bytes equal the saved ones; alice's holdings located (apple 2, coffee 1,
        tea 1); the remaining 2 passes end in the uninterrupted world's state, and the last facts are
        byte-identical; verify() passes.
+E-D4 D-C4 item-transfer: `cargo test -p mineworld-item-transfer` → give 4, removable 3, paced 3 passed,
+     0 failed; clippy --all-targets -D warnings clean (after two lints in test code: an elidable
+     lifetime, a complex tuple type named `Step`); fmt clean. Cargo.lock: +1 path package.
+     D-6 paced run (10 days, seed 7, pace 900 s, 3 seats in one café): 1 630 requests, 351 gives by all
+       3 people, every give accepted, transfers per day 37, 36, 30, 28, 28, 36, 45, 39, 32, 40; every
+       items-transferred caused by the give that asked for it; holdings conserved, nobody past six.
+       First run FAILED on the test's own constant (expected 4 items; HOLDINGS authors 3) — fixed to
+       3, the claim unchanged.
+     D-7: a world without item-transfer offers no give to anybody, answers a give Unavailable, holds
+       still; the scripted run's facts (genesis + 2 walks) equal the enabled run's minus its 3
+       items-transferred, compared by (instant, type, payload, cause); installing item-transfer
+       without inventory → SystemDependencyMissing { item-transfer, inventory }.
+     M-D4 offer half (can_take always true): give.rs a_give_to_a_full_person… FAILED ("Bob carries six":
+       both offers available) and inventory's a_person_carries_at_most_six… FAILED; two capacity tests,
+       not three: the authored-holdings test sums its own counts at seeding (no state exists then) and
+       survives by design. Reverted.
+     M-D5 (offers built with Offer::new, incomplete): give.rs 2 FAILED ("a complete affordance carries
+       its request"); paced.rs the_unchanged_paced_controller_gives… FAILED ("at least two people give:
+       {} (0 gives)") and two_runs… FAILED ("the comparison is of runs that gave"). Reverted.
+     M-D6 (WITHOUT = true: the "without" world enables item-transfer): removable.rs 2 FAILED ("alice is
+       offered a give in a world without item-transfer"; the fact comparison). Reverted;
+       `git grep MUTATION -- systems` empty; all three packs green again.
 ```
 
 ---
