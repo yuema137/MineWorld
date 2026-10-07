@@ -2564,6 +2564,82 @@ F-35  Existing lines in files 11c edits already contain market-prefixed words, w
       allow-list entry.
 ```
 
+## 8.5 Re-audit for 11d (`main @ c5dc51c`, 2026-10-07)
+
+Made by the planning session after 11b and 11c merged, before detailing §4.4. Where §4.4's medium scope
+and the source disagree, the source wins and the finding says so.
+
+**Inspected.**
+
+```text
+sdk/rust/src/{pack.rs, section.rs} (whole), installed.rs (expansion surface)
+systems/installed/{Cargo.toml, src/lib.rs, tests/installed.rs (manifest parser)}
+systems/naming/src/{lib, section, system, event, component, codec, name}.rs (whole: the section-owner
+  template); systems/schedule/{Cargo.toml, src/section.rs}; systems/movement/src/system.rs (validate,
+  resolve stating presence's Arrived, react refusing, offers); systems/presence/src/{system.rs (whole),
+  event.rs (arrival, admit), interaction.rs (whole: Offer::complete), observe.rs (:60–289)};
+  systems/conversation/src/{action.rs (talk_requirement), system.rs (validate), codec.rs}, Cargo.toml
+authoring/src/{section.rs (:110–201: Reference, Seeding, AuthoredSection), content.rs (whole)}
+worldpack/src/load.rs (:40–100 seeded, :220–300 assemble/load/initial_facts); worldpack/tests/
+  refusals.rs (:169–188, :774–795: assertions over the installed set and the known sections)
+kernel/src/{view.rs (WorldRead/WorldView API), dispatch.rs (:355–400 genesis), system.rs (trait
+  outline)}; contracts/src/{ids.rs (:392–396 EntityKey, :850–905 ItemId), event.rs (:296–310
+  Visibility)}; persistence/src/{lib.rs, format.rs (JSON throughout)}
+cognition/rule-controller/src/offered.rs (whole)
+tools/cli/src/biography.rs (:40–110, reading a save); the run summary format (E-3's output)
+worlds/social-cafe (world.yaml, people/otto.yaml, people/alice.yaml, places/cafe.yaml)
+docs: DECISIONS ARC-26, ARC-28, ARC-31 … ARC-36; MODULE_SPEC §§3, 3.1, 4, 4.1; PACKAGE_FORMAT §§6, 8;
+  CORE_CONCEPTS §§1–3, 6.3, 7, 8, 11–15; MVP §3 (~20 item types)
+git: every origin/* branch for ARC-37 (free)
+runs: E-3 (main), E-4 (the R-S9-1 spike)
+```
+
+**Findings.**
+
+```text
+F-36  The riskiest cross-pack flow needs no framework change (E-4). A complete `give` offered by a new
+      pack, chosen by the unchanged paced controller, validated by item-transfer, stated through
+      inventory's checked constructor (ARC-26) and reduced by inventory alone, seeded from an item
+      file's and a person file's sections, saved and resumed — all ran with edits only under
+      systems/**, worlds/** and Cargo.lock, first build.
+F-37  Sections are seeded against a world with no state. WorldPack::assemble computes every genesis
+      fact from the assembled world's read view before World::genesis reduces any (load.rs
+      initial_facts, then genesis), although authoring's Seeding doc says "no state yet beyond the
+      genesis facts stated before this one". So inventory's seed cannot ask whether item has declared
+      a kind. It checks the reference's entity type at seeding (Seeding::resolve) and the declared kind
+      at reduction, which follows item's in genesis order (ARC-36 point 7). Bounded, inside the packs;
+      the Seeding doc sentence is imprecise and is reported, not changed (authoring/ is outside 11d's
+      range; a later precursor or doc fix may correct it).
+F-38  An ItemId serializes as a struct ({entity, type}), so it cannot be a JSON object key; payloads,
+      observations and snapshots are all JSON (DEP-5). Holdings is therefore a sorted list of
+      {item, count}, not a BTreeMap<ItemId, u32> as §4.4's medium scope wrote.
+F-39  An unseated person is an absorbing sink. Otto (no seat) is given to and never gives. Spike run 1,
+      no bound: by day 30 Otto held 31 of the 33 items, and gives fell from 739 in days 1–15 to 312 in
+      days 16–30. Run 2, a person carries at most 6: 18 349 gives over 300 days, 1 737–1 887 in every
+      30-day bucket, every seat ≥ 118 per bucket, Otto ends holding exactly 6. Without consumption
+      (QS-10) this is how 11d's flow stays alive and bounded (SD-19, QS-27).
+F-40  Perception asks a provider about every target present, the observer included (observe.rs:239
+      `present` holds the observer), so a pack must exclude giving to oneself in its offers.
+F-41  Items are never perceived: an observation lists the observer's place and the people in it. So
+      ItemKind is disclosed to no one, and a client shown `give { item: {entity: 21, …} }` cannot name
+      the item. Recorded as a limitation for S12 (QS-13's client work), not solved in 11d.
+F-42  Cost (R-S9-2): the 300-day market-town run with --save took 32.7 s (chimes, the worst case, 43 s;
+      social-cafe without save 12.2 s). Capacity bounds give offers at 6 per person nearby.
+F-43  Installing the three packs breaks nothing outside the range: on the spike branch the whole
+      workspace suite passed (457 = main's 456 + the scratch reader), social-cafe's 300-day sha = E-0,
+      and refusals.rs asserts only `contains` over the installed set and the known sections.
+F-44  The I-2 scan does not see 11d's lines: all three precursor rows are merged on the first-parent
+      chain, so their ranges are base..M^2 (ARC-35 point 7). 11d needs no allow-list entry and adds
+      no row.
+F-45  `mineworld run`'s per-seat activity line counts move and talk only; per-seat give counts need a
+      save reader. World-level tests live in tools/cli/tests or tests/acceptance, outside the range, so
+      11d's per-seat evidence uses a scratch reader on a scratch branch (as 11c's E-C6), and 11f
+      makes it a test.
+F-46  ItemsTransferred's audience is inventory's choice (the vocabulary owner builds the emission). The
+      spike used Participants (giver and taker). A stating pack cannot widen it; whether a purchase in
+      11e should be place-visible is 11e's question (QS-30).
+```
+
 ---
 
 # 9. Ledger and evidence
@@ -2641,6 +2717,33 @@ E-3  §12.0 "After both merge", confirmed on c5dc51c (debug, opt-level 1), 2026-
      365 330 facts, fingerprint 59339a9c281829c9, sha-256 of all but `wall` =
      ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 12.2 s.
      This is 11d's I-4 baseline.
+E-4  The R-S9-1 spike for 11d. Local scratch branch `scratch/11d-spike` from c5dc51c, scratch commit
+     74bf597, never pushed, deleted after (`git ls-remote --heads origin | grep -c scratch` → 0).
+     Logs in /tmp/s9-11d-plan/. Flow under test: a person gives an item offered as a complete
+     affordance, attempted by the unchanged paced controller.
+     Built: systems/item (ItemKind, `item:` section, item-kind-declared), systems/inventory (Holdings
+     as a sorted list, `holdings:` section, stocked, items-transferred, admit_transfer + transfer),
+     systems/item-transfer (give, complete offers per held kind, validate/resolve through
+     inventory::transfer), three lines each in systems/installed, worlds/market-town (social-cafe
+     copied by `git read-tree`, 5 kinds, holdings on all 12 people, 33 items).
+     Changed paths vs c5dc51c: Cargo.lock, systems/installed/{Cargo.toml, src/lib.rs},
+     systems/{item,inventory,item-transfer}/**, worlds/market-town/** (25 files). Nothing else.
+     Cargo.lock: +3 [[package]] (mineworld-item, -inventory, -item-transfer), no `source`; +3 lines in
+     mineworld-installed-systems' dependencies. Compiled on the first build.
+     validate: valid; ids 1–18 = social-cafe's, kinds 19–23; 74 genesis facts (53 + 5 + 16).
+     Run 1 (no capacity), 30 days, seed 7, --save: exit 0, faults 0, give accepted 1 051, no rejected
+       request line, 36 899 facts, wall 2.8 s. Resumed 15 → 30 on one save: fingerprint
+       0fc3aba2ae64ce4b = the uninterrupted run's. Reader: Otto (16, no seat) holds 31 of 33 items at
+       day 30; gives 739 in days 1–15, 312 in days 16–30 → F-39, the sink.
+     Run 2 (PERSON_CAPACITY = 6 in inventory; give's target available iff it can take one), 300 days,
+       seed 7, --save: exit 0, faults 0, 364 799 facts, wall 32.7 s; give accepted 18 349, move
+       173 049, talk 60 073; activity minimum talk 416 per seat-bucket. Reader: gives per bucket
+       1 861, 1 887, 1 737, 1 850, 1 836, 1 807, 1 822, 1 878, 1 843, 1 828; all 110 (seat, bucket)
+       cells present, minimum 118; final holdings max 6 (Otto, 6).
+     Two 30-day runs: identical but `wall`. social-cafe 300-day on the spike build: sha-256 =
+       ad49c723…c64b = E-0. `cargo test --workspace --no-fail-fast`: exit 0, 457 passed (456 + the
+       reader), 0 failed.
+     Verdict: PASS — no framework gap; F-36 … F-46. No precursor proposed.
 ```
 
 Each implementation PR records its evidence in its own section — §9.2 for 11b, §9.3 for 11c — so that
