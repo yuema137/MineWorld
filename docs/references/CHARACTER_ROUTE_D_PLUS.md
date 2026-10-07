@@ -285,3 +285,12 @@ These are a later decision (coordinator, 2026-10-07): **not faked here.**
 - **Zip-edge fringes**, at the reference's framing (`runtime_d5/p2_zoom`): thin light lines run
   along both edges of the open hoodie, where the reference has its silver zip; at 1:1 they read
   as the zip. Not fixed.
+- **Licence (§4), settled and committed** (`429a21d`, pushed). §2.4's identifier clause: the
+  original download carries no machine-readable identifier (re-inspected), so none is removed.
+  What is kept, and where: the committed `meshy_d.glb` carries
+  `scenes[0].extras.mineworld_provenance` (`"source_type": "generated"`, `"ai_generated": true`,
+  generator, Meshy task id, input, post-processing), verified on the staged file; the unmodified
+  downloads stay in scratch (`out/meshy/apose_v3/`). Records:
+  `presentation/mineworld-default/LICENSES/MESHY_ROUTE_D_CHARACTER.txt` and an `ASSETS.md`
+  entry marking it a candidate under `ARC-9`. The extracted PNG carries no identifier, as the
+  original texture carried none.
