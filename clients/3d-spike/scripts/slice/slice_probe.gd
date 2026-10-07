@@ -752,14 +752,58 @@ func _measure_geometry() -> int:
 		print("  sun at %s: %s" % [pt, "LIT" if hit.is_empty()
 			else "shadowed by %s at %s" % [(hit["collider"] as Node).get_path(), hit["position"]]])
 
-	# the stand-in occupant's stature, from its mesh
-	var occ := player.slot.occupant as Node3D
-	if occ != null:
-		var bb := _world_aabb(occ)
-		print("  slot occupant mesh: %.3f m tall (feet y %.3f, crown y %.3f)"
-			% [bb.size.y, bb.position.y, bb.end.y])
-		fails += _range("occupant stature, from its mesh", bb.size.y, 1.70, 1.80)
+	fails += _measure_occupant()
 	return fails
+
+
+## The occupant's stature, from its own meshes. `VISUAL_SLICE.md` sec.3.1's
+## 1.70-1.80 m is the person's height, sole to crown, so the hair is left out of
+## it: a bun is a hairstyle, not stature (`human.gd` CANONICAL_HEIGHT excludes it
+## for the same reason). Every mesh is listed with its own extent first, so the
+## number is shown to come from the body and not from whatever else is tallest
+## (`ARC-23`, locate before counting); the check fails if no `Body` mesh was read.
+func _measure_occupant() -> int:
+	var occ := player.slot.occupant as Node3D
+	if occ == null:
+		return 0
+	var parts: Array = []
+	_mesh_parts(occ, parts)
+	var person := AABB()
+	var have := false
+	var saw_body := false
+	for p in parts:
+		var nm: String = p[0]
+		var bb: AABB = p[1]
+		var counted := nm != STATURE_EXCLUDED
+		print("  occupant mesh %-10s y %.3f .. %.3f%s"
+			% [nm, bb.position.y, bb.end.y, "" if counted else "   (not stature: excluded)"])
+		if not counted:
+			continue
+		saw_body = saw_body or nm == "Body"
+		person = bb if not have else person.merge(bb)
+		have = true
+	var whole := _world_aabb(occ)
+	print("  slot occupant, every mesh: %.3f m (feet y %.3f, top y %.3f)"
+		% [whole.size.y, whole.position.y, whole.end.y])
+	print("  slot occupant, without %s: %.3f m (feet y %.3f, crown y %.3f); Body mesh read: %s"
+		% [STATURE_EXCLUDED, person.size.y, person.position.y, person.end.y, saw_body])
+	var fails := _range("occupant stature, from its mesh", person.size.y, 1.70, 1.80)
+	if not saw_body:
+		fails += 1
+		print("    OUT OF RANGE: no mesh named Body was measured")
+	return fails
+
+
+## Hair is not stature; see `_measure_occupant`.
+const STATURE_EXCLUDED := "Hair"
+
+
+func _mesh_parts(n: Node, out: Array) -> void:
+	if n is MeshInstance3D and (n as MeshInstance3D).visible:
+		var mi := n as MeshInstance3D
+		out.append([String(mi.name), mi.global_transform * mi.get_aabb()])
+	for ch in n.get_children():
+		_mesh_parts(ch, out)
 
 
 func _range(nm: String, v: float, lo: float, hi: float) -> int:
