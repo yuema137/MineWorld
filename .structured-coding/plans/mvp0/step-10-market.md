@@ -2146,13 +2146,20 @@ codec}.rs, tests/item.rs}`, laid out as `naming`. Dependencies: authoring, contr
 sdk, serde, serde_json, thiserror (`workspace = true`); dev: serde-saphyr (decode a section as the
 loader does), as naming's tests.
 
-- [ ] Implementation: `ItemSystem` (`impl SystemPack { owns_section!(); }`, empty
+- [x] Implementation: `ItemSystem` (`impl SystemPack { owns_section!(); }`, empty
   `PerceptionProvider`), `Category`, `ItemKind` (`owned_component!`, `item-kind`), `ItemKindDeclared`,
-  `AuthoredSection` (`item`, carried by items), `is_declared`.
-- [ ] Validation: `cargo test -p mineworld-item`; clippy `-D warnings`. Tests: the section seeds one
-  fact reduced into ItemKind; bad categories refused with the message; `is_declared` false for an Item
-  entity without the section and for a non-item. M-D2 is run in D-C3 (it needs inventory).
-- [ ] Review: no dependency on any market pack; no disclosure; owns exactly one component.
+  `AuthoredSection` (`item`, carried by items), `is_declared`. Files: `systems/item/{Cargo.toml,
+  README.md, src/{lib,system,section,event,component,category,codec}.rs, tests/item.rs}`. The
+  reduction also refuses a declaration about an entity that is not a living Item
+  (`FactRefusedByOwner`), because an `ItemId`'s type tag is only a label in the payload.
+- [x] Validation: `cargo test -p mineworld-item` 4 passed; clippy `-D warnings` and fmt clean (§9.4
+  E-D2). Tests: the section seeds one public genesis fact reduced into ItemKind; bad categories
+  refused with Category's message, an unknown key by name; `is_declared` false for an Item entity
+  without the section; a seed for a place or person refused; a hand-built declaration about a place
+  refused at reduction, writing nothing. M-D2 is run in D-C3 (it needs inventory).
+- [x] Review: no dependency on any market pack (manifest: authoring, contracts, kernel, presence for
+  the trait, sdk, serde, serde_json, thiserror); no disclosure (empty provider); owns exactly one
+  component (`item-kind`); the only write is in `react`.
 
 ### D-C3 — `systems/inventory`
 
@@ -3000,6 +3007,11 @@ E-D0 Base captures on e3a1106 before any edit, 2026-10-07 (debug, opt-level 1):
      used as a reference only, and nothing is cherry-picked from it.
 E-D1 D-C1 specs: check_decision_ids 48 ids, all distinct (ARC-37 new); check_doc_headings 143 sections
      across 22 documents, none duplicated. ARC-37 absent from every origin/* branch after `git fetch`.
+E-D2 D-C2 item: `cargo test -p mineworld-item` → tests/item.rs 4 passed, 0 failed; clippy -p
+     mineworld-item --all-targets -D warnings clean; fmt clean. Cargo.lock: +1 path package
+     (mineworld-item, no `source`) — a workspace member is locked whether or not it is installed.
+     First run of the reduction-refusal test failed on its own fixture (a hand-written `{entity, type}`
+     JSON that did not decode, EventTypeMismatch); fixed by re-pointing a real ItemId's encoding.
 ```
 
 ---
