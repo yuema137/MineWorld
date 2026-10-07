@@ -198,12 +198,11 @@ func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
 ## HUD line and every conversation line comes from here, and none of them ever
 ## shows a bare entity id.
 ##
-## The world authors no names yet (`worlds/social-cafe/people/*.yaml`), so a
-## person is named by their role: the first tag that says who they are rather
-## than what kind of thing they are, capitalised -- `barista` -> "Barista". When
-## S8 PR 10c's System Pack discloses names, the disclosed name comes first and
-## the role stays the fallback. The observer is "You"; an entity with nothing
-## to go on is "Someone".
+## The name the world disclosed comes first (the `naming` pack, S8 PR 10c). A
+## world without it, or an entity nobody named, falls back to its role: the
+## first tag that says who it is rather than what kind of thing it is,
+## capitalised -- `barista` -> "Barista". The observer is "You"; an entity with
+## nothing to go on is "Someone".
 func display_label(id: String) -> String:
 	if client != null and id == client.observer:
 		return "You"
@@ -218,9 +217,10 @@ func display_label(id: String) -> String:
 
 
 ## The name the world disclosed for a perceived entity, or "" when it disclosed
-## none. Nothing discloses one before S8 PR 10c: this is where it is read.
-func _disclosed_name(_obs: MineWorldObservation, _id: String) -> String:
-	return ""
+## none: the `naming` pack's `display-name`, read by the protocol module's own
+## `display_name` (`ARC-31`) so the payload's shape lives in one place.
+func _disclosed_name(obs: MineWorldObservation, id: String) -> String:
+	return obs.display_name(id).strip_edges()
 
 
 static func _role(tags: Variant) -> String:
