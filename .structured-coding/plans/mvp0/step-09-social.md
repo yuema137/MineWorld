@@ -1915,12 +1915,13 @@ Each commit tracks implementation, validation and review separately (§4 preambl
 
 No code. `CORE_CONCEPTS.md` is untouched.
 **Depends on:** freeze of this section.
-- [ ] Implementation: as scope, in the house form (Problem, Options, Choice, Accepted limitations).
-- [ ] Validation: both doc scripts PASS. Before allocating, every remote branch's highest `ARC` id is
-  read again (on `266daf7`: `ARC-30` on main, none above it on any `origin/*` branch).
-- [ ] Review: no new term outside the vocabulary of `CORE_CONCEPTS`. "Section" is defined in
+- [x] Implementation: as scope, in the house form (Problem, Options, Choice, Accepted limitations).
+  ARC-32 records the §4.3.7 fixture dependency (the quiet window) among its limitations (E-C1).
+- [x] Validation: both doc scripts PASS (42 ids, all distinct; 142 sections). Remote branches were
+  re-read after `git fetch`: no `ARC-3x` on any `origin/*` branch.
+- [x] Review: no new term outside the vocabulary of `CORE_CONCEPTS`. "Section" is defined in
   MODULE_SPEC §4.1 as a part of a World Pack content file, and nowhere else. No document says
-  `identity` for the pack.
+  `identity` for the pack: ARC-31 explains why the pack is `naming`.
 
 **Acceptance.** The two records exist and say what C2–C8 then implement.
 **Failure.** A decision text that needs a kernel or contracts change is a material stop (I-1).

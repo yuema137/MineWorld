@@ -1950,3 +1950,133 @@ a debug build. Stating them means a later change to the level cannot silently tu
 - A slower clean build (above).
 - A debugger sees some values optimized out; a contributor who needs level 0 for one session sets
   `CARGO_PROFILE_DEV_OPT_LEVEL=0`.
+
+---
+
+## ARC-31 — A System Pack owns a section of an authored person or place file
+
+**Date** 2026-10-07 · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 (sections, rule 6),
+[`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §8 · **Relates to** `INV-7`, `INV-13`, `ARC-15`, `ARC-26`,
+`DEP-10`, [`MVP.md`](MVP.md) §9 `AC-2` · **Design** `.structured-coding/plans/mvp0/step-09-social.md`
+§10.1 Q9, §4.3 (S8, PR 10c)
+
+**Problem.** Authored content becomes state only as a genesis fact its owner reduces (`ARC-15`), and
+until now the loader knew each such field by name: a person's `location` is presence's, a place's
+`passages` are movement's. A third and a fourth arrived together — a person's routine (`schedule`)
+and a person's name. Nobody owned a name, so none reached a client: the 3D slice showed only tags,
+and Alice said "Earlier, person 4 said …". Adding each one as another loader field would make every
+new System Pack an edit to the World Pack format and its loader, the change-amplification
+`CLAUDE.md` §4 rule 5 forbids, and the pattern finding F-1 already names. The repeated concept is now
+observed twice over (`CLAUDE.md` §4 rule 11).
+
+**Options considered.**
+
+```text
+(a) one loader field per pack (`routine:`), as `location`    each new pack edits the format, the
+                                                            reader and the loader
+(b) free items per pack (a const, two functions) matched     lighter; the shape is unchecked by the
+    by the catalog, as `biographical` is                    compiler
+(c) a trait a System Pack implements, in a crate of its     chosen
+    own below the packs
+```
+
+**Choice: (c).**
+
+1. **The contract.** `mineworld-authoring` (`authoring/`) defines `AuthoredSection`, implemented by a
+   System Pack:
+   - `SECTION`: the key it owns, one word;
+   - `CARRIED_BY`: the content files that may carry it;
+   - `Authored`: the section's own type. Deserializing it *is* the owner's validation, so an
+     invalid section cannot be constructed;
+   - `references`: the other entities it names by key, each with the entity type it must be;
+   - `seed`: its genesis facts, in its own vocabulary, built with its own codec.
+
+   The crate depends on the kernel's contracts only. It lives below the packs because the kernel and
+   contracts know nothing of authored files, and a pack cannot depend on the World Pack loader,
+   which depends on every pack.
+2. **The loader never learns what a section means.** It decodes a section straight from the YAML
+   stream into the owner's type, so a refusal keeps the line and column `DEP-10` chose `serde-saphyr`
+   for. It checks only what every section shares:
+   - the owner is enabled (otherwise refused, naming the pack, as an unowned `location` is);
+   - the file kind may carry it;
+   - every reference is a declared key of the required type.
+
+   An unknown key is still refused, now listing the sections this build knows beside the fields.
+3. **A seeded fact must be the owner's own.** World genesis attributes a fact to its event type's
+   owner and checks no dependency, so a section that seeded another pack's vocabulary would bypass
+   `ARC-26`'s rule. The loader refuses it.
+4. **Order.** Sections are seeded after passages and locations, whose event ids therefore do not
+   move: places' before people's, each in key order, and within one file in composition order.
+5. **`location` and `passages` stay fields.** Moving them would edit `presence` and `movement` and
+   change refusals authors already see, so it was not the no-op the step required. They are the
+   pre-seam special cases, and their move is a later candidate, made when those packs are next
+   opened.
+6. **Section names are one namespace.** Each pack chooses its word. No two packs may claim one, and
+   none may shadow a field, which a structural test over the build's catalog enforces. This follows
+   the precedent of action types, which are already one namespace across packs.
+
+**The first two users.**
+
+- **`name`, owned by `naming`.** It owns `DisplayName` (component `display-name`, payload
+  `{ "name": … }`), seeded by a genesis `named` fact.
+  - The pack is called `naming`, not `identity`, because identity is the kernel's word for
+    `EntityId` (`CLAUDE.md` §2.1(3)).
+  - Names are **public**: disclosed to whoever perceives the person, oneself included.
+  - A controller reads a name only from its observation. When the person it means is not
+    perceived, it says "someone else" — never an id.
+  - Readers of a save (`mineworld biography`) use naming's published projection of its own facts.
+- **`routine`, owned by `schedule`** (`ARC-32`).
+
+**Accepted limitations.**
+- The catalog is still a closed list compiled into the build (F-1). The seam removes the format
+  edit, not the registration.
+- Places carry no names yet.
+- Names are not gated on acquaintance. That would couple naming to relationships' state, and it is
+  a decision for the step that wants strangers to stay nameless.
+- There is no rename action.
+
+---
+
+## ARC-32 — A schedule is an agenda that controllers follow, never a mover
+
+**Date** 2026-10-07 · **Implements** [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §10 · **Relates to**
+`INV-1`, `INV-3`, `INV-6`, `INV-12`, `INV-13`, `ARC-26`, `ARC-27`, `ARC-31` · **Design**
+`.structured-coding/plans/mvp0/step-09-social.md` SD-13, §10.1 Q8, §4.3 (S8, PR 10c)
+
+**Problem.** People in a living town keep a day: the café in the morning, work, the park, home. Someone
+must own that day, and something must make it happen. If the owner also moved people, it would
+override whoever controls them — a human included — and bypass movement's rules: a person teleported
+to work never crossed a street.
+
+**Options considered.** (a) The schedule states presence's `arrived` at each boundary: a mover,
+rejected for the reasons above. (b) **The schedule owns an agenda, and controllers walk to it.**
+
+**Choice: (b).**
+
+1. `ScheduleSystem` owns, on each person:
+   - `Routine`: the authored segments, each `{ from: time of day, place, label }`;
+   - `Agenda`: the segment in force, with its start and end and the routine's process.
+2. Each person's day is **one `Process` of kind `routine`**, started while schedule reduces the
+   genesis `routine-assigned`. Its expected end is the next boundary. At each wake, schedule emits
+   `agenda-changed` (`Causation::Process`) and reschedules the process. The process never ends.
+3. **It moves no one.** It provides no action, depends on no system, and states no other pack's
+   vocabulary, so the registry would refuse it if it tried. Following an agenda is a controller's
+   choice:
+   - `mineworld run`'s paced controller walks there through `move`, after being addressed and
+     before taking any initiative;
+   - a human may ignore it;
+   - a person nobody drives keeps their place while their agenda changes.
+4. **Time of day is world seconds since the epoch, modulo 86 400.** That is schedule's own
+   convention, and the kernel does not know it (`INV-12`).
+5. The agenda is disclosed to its holder only (`INV-13`). `agenda-changed` is biographical (`ARC-29`),
+   and validation guarantees that every one is a real change.
+
+**Accepted limitations.**
+- A day is the same every day: no weekdays, no exceptions.
+- Routes are found only in a star town.
+- Hosted worlds have no paced controller, so their agendas change and nobody follows them unless a
+  person chooses to.
+- **Fixture dependency (step-09 §4.3.7).** `social-cafe`'s routines keep 00:00–05:00 free of
+  boundaries. A world hosted from genesis or from a day-end save therefore commits nothing for five
+  hours, and the restart tests' "revision unchanged" claims rely on that. Each of those tests checks
+  the assumption first, and fails naming it.

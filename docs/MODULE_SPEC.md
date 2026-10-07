@@ -229,6 +229,10 @@ location:                  # optional. Requires the `presence` system.
     y: 2400
     z: 0
   facing: 180000           # optional: integer millidegrees
+name: Alice Moreau         # a section owned by the `naming` system (below)
+routine:                   # a section owned by the `schedule` system (below)
+  - { from: "05:30", place: cafe, label: work }
+  - { from: "18:00", place: apartments, label: home }
 ```
 
 ```yaml
@@ -253,7 +257,36 @@ may be omitted, for the reason `location.position` may: a world that models no p
 that the café opens onto the street. How far from a doorway a person may pass through it is the
 `movement` system's rule, not the pack's (`DECISIONS.md` `ARC-26`).
 
-Five rules govern this subset, and each one is a decision rather than an implementation detail:
+**Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person
+or place file may carry **sections**. A section is a top-level key of a content file that a System
+Pack declares as its own, and nothing else is a section. The pack that declares it:
+
+- names it (one word, unique among every pack this build provides and distinct from the fields
+  above);
+- says which content files may carry it (people, places, or both);
+- validates it with its own type — the loader decodes the section's YAML straight into that type,
+  so an invalid section is refused with its line and column and the pack's own message;
+- states, at genesis, the facts it becomes, in its own vocabulary.
+
+The loader never learns what a section means. It checks only what is common to every section: that
+its owner is enabled, that the file kind may carry it, and that every other entity it names by key
+is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
+or the pack is refused. MVP-0 has two sections:
+
+```text
+name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
+                              whitespace. Public: disclosed to whoever perceives the person
+routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key>, label: <slug> };
+                              `from` strictly increasing; neighbouring segments differ, the last
+                              against the first included, because the day wraps. An agenda the
+                              person may follow, never a move (`ARC-32`)
+```
+
+`location` and `passages` are fields of the format rather than sections. They predate the seam, and
+moving them onto it would change `presence` and `movement` and the refusals authors already see;
+that move is recorded as a later candidate in `ARC-31`, not made silently.
+
+Six rules govern this subset, and each one is a decision rather than an implementation detail:
 
 1. **A key is stated once.** `population` and `places` name the keys; a content file never repeats
    its own key. Two copies of one fact in a pack are two chances for them to disagree.
@@ -272,11 +305,16 @@ Five rules govern this subset, and each one is a decision rather than an impleme
 5. **There are no floats.** Positions are integer millimetres and orientations integer millidegrees,
    because these values reach the event log and floating-point arithmetic is not reproducible across
    platforms (`MVP.md` §9 `AC-12`).
+6. **A section belongs to the pack that declares it.** A key that is neither a field above nor a
+   section some pack of this build declares is refused as unknown. A section whose pack this build
+   provides but the world does not enable is refused naming that pack, as rule 4 refuses an
+   unowned `location`: a silently ignored section is a world its author believes they authored.
 
-Initial state is **not** written into the world by the loader. Each authored `passage` and each
-authored `location` becomes a recorded event caused by `Causation::WorldGenesis` — passages first,
-because they are facts about places that exist before anybody is in them — which the owning system
-reduces. So a loaded world's state has a causal origin in its own log, and a replay rebuilds it
+Initial state is **not** written into the world by the loader. Each authored `passage`, each
+authored `location` and each section becomes a recorded event caused by `Causation::WorldGenesis`
+— passages first, because they are facts about places that exist before anybody is in them, then
+locations, then sections: places' before people's, each in key order, and within one file in the
+order the world's `systems` lists their owners — which the owning system reduces. So a loaded world's state has a causal origin in its own log, and a replay rebuilds it
 (`DECISIONS.md` `ARC-15`).
 
 ---
@@ -553,6 +591,12 @@ participants and its type is in that set. Output is one line per entry, oldest f
 (`t…`, day and time of day), the event id, the event type, the place's key, and the counterparts'
 keys. With `--json`, each entry is one JSON object per line carrying the same values. Nothing is
 stored; the biography is regenerated from the log on every invocation.
+
+When the save's composition includes `naming`, the Person and every counterpart and place it names
+are also shown by display name, as `key "Name"`. The names come from the save's own `named` facts,
+read through the `naming` pack's published projection, so the command still names no event type of
+its own (`ARC-31`). `--json` adds `name` (the Person's) and `counterpart_names` (aligned with
+`counterparts`, `null` where unnamed) and changes no existing field.
 
 **`create`.** The directory's final component becomes the world's id and must be a valid key (the
 rule `EntityKey` enforces). The pack written has one place, two people who are both seats, and the
