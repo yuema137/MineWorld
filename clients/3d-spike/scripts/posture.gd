@@ -30,7 +30,7 @@ const ARM_OUT_D := -4.0
 ## How much of the locomotion clips' spine motion the reference body drops.
 const SPINE_DAMP_D := 0.6
 ## The reference body's head steadying while moving, and its smoothing time.
-const HEAD_STEADY_D := 0.8
+const HEAD_STEADY_D := 0.9
 const HEAD_TAU_D := 0.18
 
 ## Profile bone name -> local euler correction in degrees, post-multiplied onto
@@ -79,7 +79,6 @@ var head_steady := 0.0
 var head_tau := 0.0
 const HEAD_PITCH_DOWN := 12.0
 var _head_q := Quaternion.IDENTITY
-var _neck_q := Quaternion.IDENTITY
 var _head_t := -1
 
 
@@ -202,32 +201,31 @@ func _steady_head(sk: Skeleton3D) -> void:
 	if h < 0 or n < 0:
 		return
 	var w := head_steady * tweak_weight
+	# Everything happens to the head's orientation in skeleton space (the body
+	# frame), and only then is it turned back into local rotations. The first
+	# version low-passed the *local* rotations: the spine kept swinging at the
+	# jog's cadence under a lagging neck, and the head swung more, not less.
+	var cur := _chain(sk, h).get_rotation_quaternion()
+	var goal := cur
 	if w > 0.0:
-		# where the head would face, level and ahead, in skeleton space
-		var want := Basis(Vector3.RIGHT, deg_to_rad(HEAD_PITCH_DOWN)) * _chain(sk, h, true)
-		var cur := _chain(sk, h)
-		var goal := cur.get_rotation_quaternion().slerp(want.get_rotation_quaternion(), w)
-		# split the correction between neck and head, half each
-		var parent_n := _chain(sk, sk.get_bone_parent(n)).get_rotation_quaternion()
-		var neck_g := _chain(sk, n).get_rotation_quaternion()
-		var delta := goal * cur.get_rotation_quaternion().inverse()
-		var half := Quaternion.IDENTITY.slerp(delta, 0.5)
-		var neck_new_g := half * neck_g
-		sk.set_bone_pose_rotation(n, (parent_n.inverse() * neck_new_g).normalized())
-		sk.set_bone_pose_rotation(h, (neck_new_g.inverse() * goal).normalized())
+		# where the head would face, level and ahead, chin a little down
+		var want := (Basis(Vector3.RIGHT, deg_to_rad(HEAD_PITCH_DOWN)) * _chain(sk, h, true)
+			).get_rotation_quaternion()
+		goal = cur.slerp(want, w)
 	if head_tau > 0.0:
 		var now := Time.get_ticks_usec()
-		var nq := sk.get_bone_pose_rotation(n)
-		var hq := sk.get_bone_pose_rotation(h)
 		if _head_t >= 0:
 			var a := 1.0 - exp(-((now - _head_t) / 1e6) / head_tau)
-			nq = _neck_q.slerp(nq, a)
-			hq = _head_q.slerp(hq, a)
-			sk.set_bone_pose_rotation(n, nq)
-			sk.set_bone_pose_rotation(h, hq)
-		_neck_q = nq
-		_head_q = hq
+			goal = _head_q.slerp(goal, a)
+		_head_q = goal
 		_head_t = now
+	# split the correction between neck and head, half each
+	var parent_n := _chain(sk, sk.get_bone_parent(n)).get_rotation_quaternion()
+	var neck_g := _chain(sk, n).get_rotation_quaternion()
+	var half := Quaternion.IDENTITY.slerp(goal * cur.inverse(), 0.5)
+	var neck_new_g := half * neck_g
+	sk.set_bone_pose_rotation(n, (parent_n.inverse() * neck_new_g).normalized())
+	sk.set_bone_pose_rotation(h, (neck_new_g.inverse() * goal).normalized())
 
 
 func _process_modification() -> void:
