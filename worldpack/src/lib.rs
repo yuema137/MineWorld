@@ -8,7 +8,8 @@
 //! worlds/social-cafe/           format    what a pack may say
 //! ├── world.yaml                read      directory → WorldPack, refusing a bad one by name
 //! ├── people/{alice,bob,…}.yaml load      WorldPack → a running World
-//! └── places/{cafe,…}.yaml      catalog   which System Packs this build provides
+//! └── places/{cafe,…}.yaml      catalog   which System Packs this build provides (the installed
+//!                                         set, systems/installed) and the two the format names
 //! ```
 //!
 //! ```no_run
@@ -39,11 +40,13 @@
 //! # Where this crate sits
 //!
 //! ```text
-//! worldpack  →  systems/{presence,conversation}  →  kernel  →  contracts
+//! worldpack  →  systems/installed  →  every installed System Pack  →  kernel  →  contracts
+//!     └──────→  systems/{presence,movement}  (the packs `location` and `passages` belong to)
 //! ```
 //!
 //! One way, as `ENGINEERING_STANDARDS.md` §4 requires. It depends on System Packs because composing a
-//! world means installing them; **nothing depends on it in the other direction**, and in particular
+//! world means installing them — through the build's installed set, which names them so this crate
+//! does not (`DECISIONS.md` `ARC-33`); **nothing depends on it in the other direction**, and in particular
 //! `mineworld-server` does not — a transport that knew what a conversation was would be the layering
 //! inverted. The binary that puts the two together is `tools/cli`.
 //!

@@ -17,6 +17,8 @@ mineworld-conversation = { workspace = true }
 mineworld-group-activity = { workspace = true }
 # For PerceptionProvider: the seam a pack discloses its own state through.
 mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

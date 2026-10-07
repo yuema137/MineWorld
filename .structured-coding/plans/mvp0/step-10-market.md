@@ -727,11 +727,25 @@ before any code relies on them (`CLAUDE.md` §2.2).
 
 **Depends on:** freeze. **Non-goals:** no code.
 
-- [ ] Implementation: the three records, §3.1, the README section.
-- [ ] Validation: both doc checks; every cross-reference resolves (`git grep` for each cited section).
-- [ ] Review: DEP-12 answers `REUSE_POLICY.md` §11's six questions and §12's rejection reason for
-  each declined crate; ARC-35 is consistent with `overall.md` §1's gloss and `MVP.md` §2 (or the
-  difference is stated); no defined term is redefined (`CLAUDE.md` §2.1(3)).
+- [x] Implementation: the three records, §3.1, the README section. `docs/DECISIONS.md` gains ARC-33,
+  DEP-12 and ARC-35 (ids as proposed: no `origin/*` branch holds ARC-33+ or DEP-12+, re-checked
+  2026-10-07 after `git fetch`). ARC-33 carries freeze condition 2 (the static-linking boundary) in
+  its own paragraph; ARC-35 item 7 carries freeze condition 1 (how the I-2 scan works, including how
+  "the PR's added lines" are determined — §9 E-A1). `docs/MODULE_SPEC.md` §3.1 and a pointer in §8;
+  `systems/README.md` "Adding a pack".
+- [x] Validation: `check_decision_ids` → 45 ids, all distinct; `check_doc_headings` → 143 numbered
+  sections across 22 documents, none duplicated. Cross-references checked by grep: ARCHITECTURE §12
+  ("v0 trusted Rust systems", :431) and §14 (`sdk/`, `tests/`), overall §1 non-goals ("WASM plugin
+  sandbox", :72), ARC-5 (merge commits), ARC-8, ARC-26, ARC-28, ARC-29, ARC-31, DEP-10,
+  `interaction.rs` (`PerceptionProvider`'s defaults return nothing, :85–93, :117–126), kernel
+  `SystemDependencyMissing` (error.rs:210).
+- [x] Review: DEP-12 answers §11's six questions (problem; options; choice; why ours — a
+  `macro_rules!` over existing code; isolating interface; limitations and revisit trigger) and gives
+  a §12 reason per declined option. ARC-35 states its relation to MVP §2 and overall §1's gloss
+  ("What this does not claim"). "Installing" (into the build) and "enabling" (a world's `systems:`)
+  are kept distinct, matching CORE_CONCEPTS' use of "enabled system" (INV-10); no defined term is
+  redefined. Overall §1's gloss citing ARC-35 is a parent-document update left to the planning session
+  (handoff).
 
 **Acceptance.** As validation. **Commit boundary.** Documentation only.
 
@@ -767,17 +781,30 @@ before any code relies on them (`CLAUDE.md` §2.2).
 
 **Depends on:** C1. **Non-goals:** no pack implements the trait yet; `worldpack` unchanged.
 
-- [ ] Implementation:
-  - [ ] the crate and its four modules, as scoped;
-  - [ ] `installed!`'s expansion reproduces `catalog.rs`'s public surface method by method — checked by
-    reading the expansion (`cargo expand` is not installed; the C4 build is the check that matters).
-- [ ] Validation:
-  - [ ] `cargo check -p mineworld-sdk`, `cargo clippy -p mineworld-sdk --all-targets -- -D warnings`.
-  - [ ] Unit (`pack.rs`): a stub pack that declares no section refuses `decode_section` with an error
-    naming its own id — the fail-closed default the catalog's last arm gives today. One test; it owns
-    the "a pack that owns nothing is refused, not silently decoded" failure class.
-- [ ] Review: the SDK names no pack and no perception trait by path; no `unsafe`; `#[macro_export]`
-  macros refer only to `$crate::__private` paths; the trait's defaults are the safe direction.
+- [x] Implementation:
+  - [x] the crate and its four modules, as scoped: `sdk/rust/{Cargo.toml, README.md,
+    src/lib.rs, src/pack.rs, src/section.rs, src/installed.rs}`; root `Cargo.toml` member `sdk/rust`
+    and `mineworld-sdk` workspace dependency; `sdk/.gitkeep` removed (the directory has content).
+  - [x] `installed!`'s expansion reproduces `catalog.rs`'s public surface method by method — read side
+    by side: `resolve`, `id`, `section` (still `const fn`), `owning_section`, `decode_section` (now
+    `pub`), `biographical`, `install`, `provider`, `Display`; plus `type_name` for the guard. Each
+    method's doc comment carried. The C4 build and the existing suites are the check that matters.
+  - Bounded detail: the list's system type is a `ty` fragment (`$System:ty`), not `path`, because it
+    is used as `<$System as Trait>::…`; the perception trait stays a `path` (`dyn $perception`). Variant
+    docs are generated ("The System Pack `…`.") so an install line needs no doc line beside it. `N` in
+    `[Capability; N]` is the length of the stringified variant list, so no counting macro exists.
+- [x] Validation:
+  - [x] `cargo check -p mineworld-sdk`, `cargo clippy -p mineworld-sdk --all-targets -- -D warnings`:
+    clean (E-A2).
+  - [x] Unit (`pack.rs`): `a_pack_that_owns_no_section_refuses_to_decode_one_and_says_which_pack_it_is`
+    — a stub pack refuses with exactly "the 'silent' system owns no section", the message the
+    catalog's last arm gave. Driven through serde's own `MapDeserializer`, so no dependency was added.
+    1 passed.
+- [x] Review: the SDK's manifest names authoring, contracts, kernel and serde only — no pack, and no
+  perception trait (the installed set passes it in by path). `#![forbid(unsafe_code)]`. Both
+  `#[macro_export]` macros refer only to `$crate::…` and `::core`/`::std` paths. Defaults: no
+  biography, no section, and `decode_section` refuses — the safe direction; a pack that sets `SECTION`
+  by hand without `owns_section!` still refuses to decode, never decodes wrongly.
 
 **Acceptance.** The SDK builds and lints clean with no pack depending on it; its one test passes.
 **Failure cases.** A macro that cannot express `decode_section` generically over `MapAccess` would
@@ -807,11 +834,21 @@ obvious; the choice is recorded.
 **Depends on:** C2. **Non-goals:** no behaviour change in any pack; `worldpack` still uses its own
 enum, so nothing reads these impls yet.
 
-- [ ] Implementation: seven impls, seven manifests.
-- [ ] Validation: `cargo test -p` each of the seven packs (unchanged suites, unchanged counts —
-  recorded); clippy on each.
-- [ ] Review: `BIOGRAPHICAL` and the section are each stated once per pack, and agree with today's
-  catalog arms (`catalog.rs:126–176`) — read side by side, the comparison recorded in §9 E-A3.
+- [x] Implementation: seven impls, seven manifests. Every impl sits in `systems/<pack>/src/system.rs`,
+  directly after `impl SystemIdentity` (recorded choice: one place per pack, beside the identity it
+  extends and the `BIOGRAPHICAL` constant it names; the two section owners' `owns_section!()` reads its
+  key from the `AuthoredSection` impl in `section.rs`, so nothing is stated twice). Each struct gains
+  `#[derive(Default)]` (none derived anything before). Each manifest gains `mineworld-sdk`.
+- [x] Validation: clippy `-D warnings` over the seven packs, all targets: clean. `cargo test -p` each:
+  presence 13, movement 11, conversation 14, group-activity 11, relationships 6, naming 5, schedule 8
+  (68 passed, 0 failed). Counts unchanged by construction: the C3 diff adds and removes no `#[test]`
+  (`git diff -U0 -- systems | grep -c '#\[test\]'` → 0). `owns_section!` compiles in naming and
+  schedule, the macro's first real use.
+- [x] Review: side by side with `catalog.rs:120–131` (`section`) and `:169–177` (`biographical`):
+  presence, movement, conversation → `&[]` and no section (trait defaults); group-activity,
+  relationships → their `BIOGRAPHICAL`, no section; naming, schedule → their `BIOGRAPHICAL` and
+  `SectionOwner::of::<Self>()`. Identical to the arms (§9 E-A3). No behaviour changed in any pack:
+  the impls are read by nothing until C4.
 
 ### C4 — The installed set; `worldpack` names no pack it does not read; the root manifest stops registering
 
@@ -853,57 +890,158 @@ enum, so nothing reads these impls yet.
 
 **Depends on:** C3.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation:
-  - [ ] `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`;
-    `cargo test --workspace` (counts and wall time recorded; the counts equal the base's plus the new
-    tests, and no test was removed).
-  - [ ] A-1: `mineworld run worlds/social-cafe --headless --seed 7 --days 300`; the sha-256 of every line
-    but `wall` equals E-0's.
-  - [ ] `mineworld validate worlds/social-cafe` output identical to the base's (diffed).
-  - [ ] Mutations, each reverted and recorded:
-    - remove `Schedule => …` from `installed!` → `installed.rs` fails naming `mineworld-schedule`, and
-      `worldpack/tests/social_cafe.rs` fails with `UnknownSystem { system: schedule }`;
-    - add `use mineworld_naming as _;` to `worldpack/src/catalog.rs` (and the dependency back) →
-      `structure.rs` fails naming it;
-    - give a stub listed pack the id of another (a test-only list in `installed.rs`'s unit test, not
-      the real list) → the duplicate-id assertion fails.
-- [ ] Review:
-  - `worldpack`'s public API is unchanged: `git diff` of `worldpack/src/lib.rs`'s `pub use`s is empty
-    apart from the diagram, and no caller outside `worldpack` changed.
-  - The section decoder still reads from the stream: `refusals.rs`'s line-and-column assertions for a
-    bad section still pass unchanged.
-  - The only existing-test edit is F-10's, listed with its unchanged claim.
-  - `systems/installed/` holds no logic beyond the list and its guard.
+- [x] Implementation: as scoped. `systems/installed/{Cargo.toml, README.md, src/lib.rs,
+  tests/installed.rs}`; `worldpack/{Cargo.toml, src/catalog.rs, src/lib.rs, tests/structure.rs,
+  tests/refusals.rs}`; root `Cargo.toml` (`"systems/*"`, `mineworld-installed-systems`).
+  `content.rs`, `format.rs`, `read.rs`, `load.rs` needed no edit at all (the generated enum has the
+  same name, variants and methods).
+  - **Deviation D-A1 (bounded).** *Design:* `worldpack` loses five pack dependencies. *Source
+    evidence:* `worldpack/tests/social_cafe.rs:23,25,263` reads conversation's, naming's and schedule's
+    types to check the loaded world. *Resolution:* those three become `[dev-dependencies]` with a
+    comment; `[dependencies]` is exactly as designed. *Impact:* none on A-2, which by design checks
+    `[dependencies]` and `src/` only — a test may name the packs whose state it checks. *Validation:*
+    `structure.rs` passes; mutation 2 below.
+  - **Deviation D-A2 (bounded).** *Stale comment outside worldpack:* `tools/cli/src/biography.rs:14–15`
+    said "a new pack adds a constant there [the catalog]", false after this commit. Comment-only edit
+    naming `SystemPack::BIOGRAPHICAL` (`CLAUDE.md` §2.1(4)); no code or API outside `worldpack`
+    changed.
+  - **Detail.** The A-3 negative control is permanent rather than a one-off mutation:
+    `the_id_check_sees_two_packs_that_share_an_id` lists two stub packs under one id with the real
+    `installed!` macro and asserts the check reports it. Its dev-dependencies are contracts and kernel.
+  - `systems/installed/README.md` added (a human orientation, `CLAUDE.md` §2.1).
+- [x] Validation (E-A4):
+  - [x] `cargo fmt --all`; `cargo clippy --workspace --all-targets --all-features -- -D warnings`:
+    clean. `cargo test --workspace --no-fail-fast`: **425 passed, 0 failed, 0 ignored**, 174 s wall —
+    the base's 419 (step-09 E-C-final) plus the six new tests (sdk 1, installed 3, structure 2); none
+    removed.
+  - [x] A-1: 300-day seed-7 run, 339 lines, sha-256 of all but `wall` =
+    `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b` = E-0. wall 12.2 s.
+  - [x] `mineworld validate worlds/social-cafe` byte-identical to the base's output (diff empty).
+  - [x] Mutations, each reverted (`git status` afterwards shows only the intended edits; targeted
+    suites re-run: installed + worldpack 55 passed, validate identical again):
+    - M1 remove `Schedule => …` from `installed!` → `every_pack_depended_on_is_listed_…` FAILS:
+      "linked into the build but missing from the installed! list, so never installable:
+      [\"mineworld_schedule\"]". `social_cafe.rs` does not compile (it names `Capability::Schedule`)
+      rather than failing with `UnknownSystem` as the design predicted — a stronger failure, recorded
+      as observed. The loader's refusal shown through the real CLI instead: `mineworld validate
+      worlds/social-cafe` → "world.yaml enables the system 'schedule', which this build does not
+      provide (it has: 'presence', … 'naming')", exit 1.
+    - M2 `use mineworld_naming as _;` in `catalog.rs` + the dependency back → both `structure.rs` tests
+      FAIL, naming `mineworld_naming` (the manifest one, and the source one with its file).
+    - M3 blind `listed_twice` (`&& false`) → `the_id_check_sees_two_packs_that_share_an_id` FAILS
+      (left `{}`, right `{SystemId("twin")}`). The real-list test would have stayed green under M3,
+      which is why the negative control exists.
+- [x] Review:
+  - `worldpack`'s public API is unchanged: `git diff` of `worldpack/src/lib.rs` touches only the two
+    diagrams (no `pub use` line changed); `catalog` still exports `Capability`, `AVAILABLE`,
+    `SectionOwner`, `LOCATION_OWNER`, `PASSAGE_OWNER`, `opened`, `located`. Callers outside worldpack
+    (`tools/cli/src/biography.rs`, tests) unchanged except D-A2's comment.
+  - The section decoder still reads from the stream: `refusals.rs`'s line-and-column assertions pass
+    unchanged (worldpack 32 + 15 + … all green).
+  - The only existing-test edit is F-10's (`refusals.rs`: `economy` → `no-such-system`, with a comment);
+    claim unchanged — an unknown system is refused by name and the available ones are listed.
+  - `systems/installed/` holds the list, its manifest and its guard; no logic.
 
 **Failure cases.** An existing test that fails for a reason other than F-10 means the expansion is not
 equivalent to the old catalog: fix the macro, never the test. A changed run fingerprint is a stop:
 something reordered installation or reduction (`MODULE_SPEC.md` §4.1 rule 2).
+
+### C4b — The I-2 scan (freeze condition 1; added at freeze, after this plan was drafted)
+
+**Goal.** I-2 is checked mechanically: a test reads every line 11a (and later 11b, 11c) adds and
+refuses a market word, with a reasoned allow-list, shown to fail on a planted violation, fail-closed.
+Specified in `ARC-35` point 7 (C1).
+
+**Placement decision.** `tests/acceptance/` (crate `mineworld-acceptance`, test
+`tests/precursor_vocabulary.rs`), created now rather than in 11f: `ARCHITECTURE.md` §14 gives `tests/`
+to acceptance tests, SD-15 already names this crate as the AC-1 proof's home, and the I-2 scan is part
+of how AC-1 is measured (`ARC-35`). A precursor-owned crate (sdk, worldpack) would be the wrong owner,
+and `systems/installed` is edited by 11d/11e. 11f adds the AC-1 test beside it; 11b and 11c add their
+rows and allow-list entries to this file. Bounded deviation **D-A3**: root `members` gains
+`"tests/acceptance"` in 11a; `tests/.gitkeep` removed.
+
+**How "this PR's added lines" are determined (recorded, deterministic).** One row per precursor: PR,
+base commit, branch. If `HEAD`'s first-parent history holds that branch's GitHub merge commit `M`
+(subject `Merge pull request #N from <owner>/<branch>`), the range is `base..M^2` — the PR's own head,
+so later PRs (11d, 11e) never enter it. Otherwise the range is `base` → working tree: `git diff
+--unified=0 --no-renames <base>` plus every untracked, unignored file (whole content and path). All
+non-Markdown files are scanned, comments included. Fail closed: no git, not a work tree, base missing,
+or `HEAD` not descending from base → failure naming the cause.
+
+- [x] Implementation: `tests/acceptance/{Cargo.toml, src/lib.rs, tests/precursor_vocabulary.rs}`; root
+  `Cargo.toml` member. No dependency (std only; `git` is run as a process). Allow-list for 11a: one
+  entry — the scan's own file ("it names the vocabulary it looks for"). Two permanent unit tests own
+  the tokenizer (`items`, `ShopFront`, `employer`, `JOB_BOARD`, a fixture path match; `iterate`,
+  `workshop`, `priority`, `SystemId` do not) and the diff reader (line numbers, a `+++`-prefixed added
+  line, a new file's path).
+- [x] Validation (E-A4b):
+  - **First real run FAILED, correctly**, on five comment lines this PR had added: "`ARC-31` item 5" (×4)
+    and "ARC-35 item 7" — the word *item* in the sense "list entry". Resolution: reworded to "point 5"
+    / "point 7" rather than allow-listed (an allow-list entry is for what cannot be reworded). The scan
+    was thereby shown to see this PR's own lines before any plant.
+  - Then green: 3 passed.
+  - **Planted violations** (working tree, never committed): a comment
+    `// PLANTED: the ShopKeeper reads a price list.` in `sdk/rust/src/section.rs`, and an untracked
+    `worlds/plant-check/jobs.yaml` holding `wage: 3` → FAILED with exactly three refusals:
+    `sdk/rust/src/section.rs:5: \`shop\``, "the added file worlds/plant-check/jobs.yaml is named
+    \`jobs\`", `worlds/plant-check/jobs.yaml:2: \`wage\``. Reverted (file restored from a copy, the
+    fixture deleted; `git status` clean of both).
+  - **Fail closed:** base set to a sha not in history → FAILED: "11a: its base 0123… is not in this
+    repository's history (a shallow clone?): `git cat-file -e …` failed". Reverted.
+  - The merged-range path is exercised on a local scratch merge (E-A5b, C5), never pushed.
+  - clippy `-D warnings` and fmt clean.
+- [x] Review: the scan never skips; Markdown is the only exclusion and is stated; the allow-list has one
+  entry with its reason, and an unused entry fails; nothing in 11a needed a market word, so no material
+  stop arose.
 
 ### C5 — The canary install (evidence, never merged); documentation and ledger close
 
 **Goal.** A-4: show, before any market pack exists, that installing a pack touches only what ARC-33
 says it does (`ARC-23`: an instrument shown to see before it is trusted).
 
-- [ ] Implementation (on a scratch branch from C4's head, deleted afterwards):
-  - [ ] `systems/canary/`: a pack with one action (`wave`, no target, `SpatialRequirement::NONE`), one
-    fact (`waved`), an offer through `PerceptionProvider`, `impl SystemPack {}` — the smallest real pack.
-  - [ ] Two lines in `systems/installed/`.
-  - [ ] `worlds/canary-cafe/`: a copy of `worlds/social-cafe` with `canary` appended to `systems`.
-- [ ] Validation (recorded in §9 E-A5, then the branch is deleted):
-  - [ ] `git diff --name-only <C4 head>` lists only `systems/canary/**`, `systems/installed/Cargo.toml`,
-    `systems/installed/src/lib.rs`, `worlds/canary-cafe/**`, `Cargo.lock`.
-  - [ ] `git diff <C4 head> -- Cargo.lock`: one new `[[package]]` `mineworld-canary` with no `source`;
-    `mineworld-installed-systems`'s dependency list gains it; nothing else.
-  - [ ] `mineworld validate worlds/canary-cafe` lists `canary`; `mineworld run worlds/canary-cafe
-    --headless --seed 7 --days 1` completes; the installed-set guard passes.
-  - [ ] `cargo test -p mineworld-worldpack` passes unchanged on the scratch branch (installing a pack
-    breaks no loader test — the property F-10 was about).
-- [ ] Documentation: `worldpack/README.md` (the catalog paragraph), `docs/MVP_STATUS.md` (the F-1 row,
-  if it has one, or a new "independently installable packs (MVP-0 form)" row), the handoff.
-- [ ] Full gates once on the final executable head (§6), recorded with counts and wall time.
-- [ ] Review: A-1 … A-4 each hold with recorded evidence; the scratch branch was not pushed, or was
-  deleted from the remote if it was.
+- [x] Implementation (local scratch branch `scratch/11a-canary` from `1f05232` — C4b's head, the
+  executable head after C4 plus the scan; deleted afterwards, never pushed):
+  - [x] `systems/canary/`: `Wave` (no target), `Waved`, an offer through `PerceptionProvider` with
+    `SpatialRequirement::NONE`, `impl SystemPack for CanarySystem {}`; sibling dependency by path
+    (`mineworld-presence = { path = "../presence" }`), infrastructure by `workspace = true` (already in
+    the root, so no root edit). Compiled on the first build.
+  - [x] Two lines in `systems/installed/`.
+  - [x] `worlds/canary-cafe/`: a copy of `worlds/social-cafe`, `id: canary-cafe`, `canary` appended.
+- [x] Validation (§9 E-A5; the branch then deleted):
+  - [x] `git diff --name-only 1f05232 HEAD` → `Cargo.lock`, `systems/canary/{Cargo.toml,src/lib.rs}`,
+    `systems/installed/{Cargo.toml,src/lib.rs}`, `worlds/canary-cafe/**` (25 files, 20 of them the
+    world copy). Nothing else.
+  - [x] `Cargo.lock`: one new `[[package]] mineworld-canary` with no `source`; one line added to
+    `mineworld-installed-systems`'s dependencies; nothing else.
+  - [x] `mineworld validate worlds/canary-cafe` → "systems presence, …, schedule, canary", valid;
+    `mineworld run worlds/canary-cafe --headless --seed 7 --days 1` → exit 0, faults 0, 1 368 facts. No
+    `wave` was attempted: the paced controller knows no action it was not compiled against (F-3, 11c's
+    to resolve) — expected, recorded, not a defect of 11a.
+  - [x] installed + worldpack suites on the scratch branch: 55 passed, 0 failed — the same as without
+    the canary (installing a pack breaks no loader test; F-10's property). social-cafe's 300-day sha on
+    the scratch build = E-0 (installing a pack a world does not enable changes nothing).
+  - [x] The I-2 scan on the scratch branch FAILED, naming 12 lines of `worlds/canary-cafe/` (`shop`,
+    `shopping`, `items`, `job`, `employment` in social-cafe's own comments and tags, copied). Correct:
+    on that branch they are added lines. Recorded because 11b/11c must not copy social-cafe content
+    without allow-list entries for "pre-existing use carried".
+  - [x] **E-A5b, the scan's merged-range path:** scratch `scratch/11a-merged` from `b53e19d`, `git merge
+    --no-ff 1f05232 -m "Merge pull request #999 from yuema137/mvp0/pr-11a-installable"`, then a commit
+    adding `worlds/later/shop.yaml` (`price: 3`) → scan PASSES (range `base..M^2` excludes the later
+    commit). Control `scratch/11a-merged-control`: same, merge subject "Merge branch 'something-else'"
+    → FAILS naming `worlds/later/shop.yaml` (path and `price`). Both branches deleted.
+  - [x] `git ls-remote --heads origin | grep -c scratch` → 0.
+- [x] Documentation: `worldpack/README.md` (third bullet: names no pack but two),
+  `docs/MVP_STATUS.md` (a capability row, an evidence row, S9's stage line), the handoff.
+- [x] Full gates once on the final executable head `70b0857` (§9 E-A-final): all PASS.
+- [x] Review: A-1 (E-A4, E-A-final: sha = E-0; 428 tests pass; the only existing-test edit is F-10's),
+  A-2 (`worldpack/tests/structure.rs`, mutation M2), A-3 (`systems/installed/tests/installed.rs`,
+  mutations M1 and M3), A-4 (E-A5) each hold with recorded evidence; the I-2 scan (C4b, E-A4b, E-A5b)
+  is green on the PR and shown to bite; the scratch branches were never pushed. Deviations D-A1 … D-A3
+  are bounded and recorded; nothing material arose.
+
+**PR 11a lifecycle: READY FOR OPERATOR REVIEW — not merged.** Final executable head `70b0857`; later
+commits are this ledger and the handoff only. Parent synchronization (step §§1–3 status, overall §1's
+AC-1 gloss citing ARC-35, overall §3 S9) is pending and owned by the planning session.
 
 **Commit boundary.** Only documentation and the ledger are committed in C5; the canary lives only in
 the ledger's evidence.
@@ -1300,6 +1438,44 @@ E-0  C0 design, 2026-10-07, on main @ b9e5937 + this file.
      this file only; DECISIONS.md is untouched; no origin/* branch holds ARC-33+ or DEP-12+).
      No cargo gate run (docs only). The baseline command was run once to fix A-1's reference, not as
      a gate.
+
+--- PR 11a (branch mvp0/pr-11a-installable, base main @ b53e19d) ---
+
+E-A0 E-0 reproduced on b53e19d before any edit (debug, opt-level 1): 339 lines, sha-256 of all but
+     `wall` = ad49c723…c64b, faults 0, fingerprint 59339a9c281829c9, wall 12.5 s.
+E-A1 C1 (83850df): check_decision_ids 45 ids distinct; check_doc_headings 143 sections / 22 documents.
+     ARC-33 (static-linking boundary), DEP-12, ARC-35 (point 7: the I-2 scan and how "the PR's added
+     lines" are determined). Ids free on every origin/* branch after `git fetch`.
+E-A2 C2 (816b80c): cargo check/clippy -p mineworld-sdk clean; sdk unit test 1 passed.
+E-A3 C3 (8c82c1e): the seven impls vs catalog.rs arms — biographical: presence/movement/conversation
+     &[], group-activity/relationships/naming/schedule their BIOGRAPHICAL; section: naming and
+     schedule only, via owns_section!. Identical. Pack suites 68 passed (13/11/14/11/6/5/8).
+E-A4 C4 (d9c9394): fmt, clippy --workspace --all-targets --all-features -D warnings clean;
+     cargo test --workspace --no-fail-fast 425 passed 0 failed (419 base + 6 new), 174 s.
+     A-1 sha = E-0 (wall 12.2 s); validate output identical to base. Mutations M1–M3 each fail by
+     name and are reverted (§4.1 C4).
+E-A4b C4b (1f05232): the I-2 scan — first run caught 'item' in five comments this PR added
+     (reworded); planted violations (tracked edit + untracked fixture) fail with three named
+     refusals; a missing base fails closed. Reverted.
+E-A5 C5 canary (scratch, local, deleted): changed paths ⊆ {systems/canary/**,
+     systems/installed/{Cargo.toml,src/lib.rs}, worlds/canary-cafe/**, Cargo.lock}; Cargo.lock +1 path
+     package, +1 dependency line; validate lists canary; 1-day run exit 0, faults 0; installed +
+     worldpack 55 passed. E-A5b: the scan's merged-range path passes with a later market commit and
+     fails without a recognised merge.
+E-A-final on 70b0857 (clean tree), 2026-10-07:
+     cargo fmt --all --check                                         PASS
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS
+     cargo test --workspace --no-fail-fast    428 passed, 0 failed, 0 ignored (425 at C4 + the scan's
+                                              3); 1 926 s wall — the machine was shared with another
+                                              session's Godot renders and three concurrent 300-day
+                                              runs; C4's identical suite took 174 s
+     kill_and_resume                          cafe PASS, clock PASS
+     check_decision_ids                       45 ids, all distinct
+     check_doc_headings                       143 sections, none duplicated
+     A-1                                      300-day seed-7 run, sha-256 (all but wall) =
+                                              ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+                                              = E-0; wall 12.2 s
+     CI: none configured (S13).
 ```
 
 ## 9.1 Risks

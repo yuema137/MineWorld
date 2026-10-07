@@ -11,6 +11,8 @@ authors.workspace = true
 mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
 mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

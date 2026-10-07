@@ -9,6 +9,7 @@ use mineworld_kernel::{
     WorldRead, WorldView,
 };
 use mineworld_presence::{Offer, PerceptionProvider, Presence, PresenceSystem};
+use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
 use crate::action::{Talk, talk_requirement};
@@ -31,11 +32,16 @@ pub const CONVERSATION_GAP: SimDuration = SimDuration::from_seconds(300);
 ///
 /// A unit struct: a system holds no fields, because its mutable state is the components it owns and
 /// those live in the world behind a gated view (`INV-7`).
+#[derive(Default)]
 pub struct ConversationSystem;
 
 impl SystemIdentity for ConversationSystem {
     const ID: SystemId = SystemId::from_static("conversation");
 }
+
+/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): nothing.
+/// It declares no biographical fact (`ARC-29`) and owns no authored section.
+impl SystemPack for ConversationSystem {}
 
 /// This pack's own reason for refusing a request it cannot read.
 ///

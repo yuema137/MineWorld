@@ -8,6 +8,7 @@ use mineworld_kernel::{
     WorldRead, WorldView,
 };
 use mineworld_presence::PerceptionProvider;
+use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
 use crate::codec;
@@ -20,10 +21,19 @@ use crate::name::Name;
 pub const BIOGRAPHICAL: &[EventTypeId] = &[];
 
 /// What people are called.
+#[derive(Default)]
 pub struct NamingSystem;
 
 impl SystemIdentity for NamingSystem {
     const ID: SystemId = SystemId::from_static("naming");
+}
+
+/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): its
+/// biographical facts (none), and the `name:` section of a person's file, which its
+/// `AuthoredSection` impl (`src/section.rs`) describes.
+impl SystemPack for NamingSystem {
+    const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
+    mineworld_sdk::owns_section!();
 }
 
 impl System for NamingSystem {

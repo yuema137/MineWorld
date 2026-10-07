@@ -48,6 +48,25 @@ A pack that would need an edit to `systems/presence/` in order to be playable ha
 correctly. That is the difference between a framework and a hardcoded game, and
 [`presence/src/interaction.rs`](presence/src/interaction.rs) is where it is documented in full.
 
+## Adding a pack
+
+A pack is a crate in its own directory here. It implements `System`, `PerceptionProvider` and
+`mineworld_sdk::SystemPack` — the last says, once, what the build needs to know about it (see
+[`../sdk/rust/README.md`](../sdk/rust/README.md)). It depends on a sibling pack by path:
+`mineworld-presence = { path = "../presence" }`.
+
+Then install it into the build with two lines in [`installed/`](installed/), and rebuild:
+
+```text
+installed/Cargo.toml    mineworld-<name> = { path = "../<name>" }
+installed/src/lib.rs    <Variant> => mineworld_<name>::<System>,
+```
+
+Nothing else is edited — not the root `Cargo.toml`, not the World Pack loader. A world uses the pack
+by naming it in its `systems:` list. Installing always means a rebuild in MVP-0; the full rules are
+[`../docs/MODULE_SPEC.md`](../docs/MODULE_SPEC.md) §3.1 and
+[`DECISIONS.md` `ARC-33`](../docs/DECISIONS.md).
+
 ```sh
 cargo test -p mineworld-presence
 cargo test -p mineworld-movement          # walking, TooFarAway, and AC-2 with its negative control

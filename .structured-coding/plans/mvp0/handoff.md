@@ -1,39 +1,41 @@
-# Handoff — PR 10c implementation context: CLOSED / AWAITING OPERATOR ACTION
+# Handoff — PR 11a implementation context: CLOSED / AWAITING OPERATOR ACTION
 
-**Active PR:** Step 09 / PR 10c — the content seam, names and routines (S8, third of three) —
-READY FOR OPERATOR REVIEW
+**Active PR:** Step 10 / PR 11a — installable System Packs (S9, first of six) — READY FOR OPERATOR
+REVIEW, not merged
 **Effort:** `mvp0`
-**Primary design doc (semantic authority):** `.structured-coding/plans/mvp0/step-09-social.md` §4.3
-(`DESIGN FROZEN` at `805bf4d`, freeze record §4.3.7; ledger §4.3.3, evidence §9 `E-C*`, closeout §12.2)
-**Execution contract:** §11.2
+**Primary design doc (semantic authority):** `.structured-coding/plans/mvp0/step-10-market.md` §4.1
+(`DESIGN FROZEN (2026-10-07)`; ledger §4.1 C1–C5 incl. C4b; evidence §9 `E-A*`)
+**Execution contract:** step-10 §11, as confirmed by the freeze record and the operator-relayed kickoff.
 
 ## Repository identity
 
 ```text
-worktree         /Users/yuema137/mineworld-worktrees/s8-social — this session's only
-branch           mvp0/pr-10c-social (pushed)
-base             main @ 266daf7
-final exec HEAD  8dee781 (all gates, §9 E-C-final); later commits are planning documents only
-PR               GitHub #33 — https://github.com/yuema137/MineWorld/pull/33 (base main), OPEN
+worktree         /Users/yuema137/mineworld-worktrees/s9-11a — this session's only
+branch           mvp0/pr-11a-installable (pushed)
+base             main @ b53e19d
+final exec HEAD  70b0857 (all gates, §9 E-A-final); later commits are ledger/handoff only
+PR               GitHub #36 — https://github.com/yuema137/MineWorld/pull/36 (base main), OPEN
 ```
 
 ## Checkpoint
 
-PR 10c is READY FOR OPERATOR REVIEW and not merged. Gates on 8dee781:
-- fmt, check, clippy -D warnings: PASS;
-- 419 passed, 0 failed (112.8 s wall at opt-level 1), which is 407 tests + 12 doctests;
-- kill_and_resume: PASS;
-- both doc checks: PASS.
+Gates on 70b0857: fmt and clippy -D warnings PASS; 428 passed, 0 failed (1 926 s wall under heavy
+machine contention; 174 s at C4 for the same suite minus 3); kill_and_resume cafe and clock PASS;
+both doc checks PASS; A-1 sha = E-0. Scratch branches `scratch/11a-canary`, `scratch/11a-merged`,
+`scratch/11a-merged-control` were local only and are deleted. No background processes of this session
+remain. `/tmp/s9-11a/` holds scratch transcripts; nothing depends on them.
 
-No background processes. The scratch worktree `s8c-pre-c7` (frozen-binary parity) was removed;
-`/tmp/s8c` holds the parity transcripts, and nothing depends on them.
+Bounded deviations D-A1 … D-A3 (§4.1 C4, C4b). Nothing material.
 
 ## Next actions
 
 - The operator reviews and merges. Only the operator merges.
-- After the merge, the planning session runs §12.2's list.
+- After merge: this session (or its successor) records the merge identity in §4.1; the planning
+  session owns step/overall synchronization — including overall §1's AC-1 gloss citing ARC-35
+  (QS-2) — and details 11b and 11c. 11b/11c extend `tests/acceptance/tests/precursor_vocabulary.rs`
+  with their own rows and allow-list entries; copying social-cafe content trips the scan (E-A5).
 
 ## Stop conditions
 
 - Normal: reached.
-- Material: §11.2.
+- Material: step-10 §11.

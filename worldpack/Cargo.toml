@@ -13,19 +13,25 @@ mineworld-authoring = { workspace = true }
 mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
 # A World Pack enables System Packs, so loading one means installing them. This is the one-way
-# dependency of ENGINEERING_STANDARDS §4 pointing the right way: World Pack → Systems → kernel.
-mineworld-conversation = { workspace = true }
-mineworld-group-activity = { workspace = true }
+# dependency of ENGINEERING_STANDARDS §4 pointing the right way: World Pack → Systems → kernel. The
+# loader reaches every pack through the build's installed set, and names none of them (ARC-33);
+# tests/structure.rs holds this list.
+mineworld-installed-systems = { workspace = true }
+mineworld-sdk = { workspace = true }
+# The two packs the format itself is bound to: a person's `location` field is presence's state, and a
+# place's `passages` field is movement's (ARC-26; ARC-31, point 5).
 mineworld-movement = { workspace = true }
-mineworld-naming = { workspace = true }
 mineworld-presence = { workspace = true }
-mineworld-relationships = { workspace = true }
-mineworld-schedule = { workspace = true }
 serde = { workspace = true }
 serde-saphyr = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+# social_cafe.rs reads the loaded world through the packs that own what it checks: a conversation, a
+# name, an agenda.
+mineworld-conversation = { workspace = true }
+mineworld-naming = { workspace = true }
+mineworld-schedule = { workspace = true }
 # The tests encode an action payload the way a client does — with the contract's own serde, because a
 # System Pack's codec is private to it, which is the point of `DEP-5`'s choice reaching the wire.
 serde_json = { workspace = true }

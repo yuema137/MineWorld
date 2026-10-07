@@ -1,0 +1,26 @@
+[package]
+name = "mineworld-installed-systems"
+description = "The System Packs this build provides, one line each — the build's only list of packs, expanded by mineworld-sdk's installed! into the catalog the World Pack loader reads."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-sdk = { workspace = true }
+# The installed packs, one line each, and each listed once in src/lib.rs (DECISIONS.md ARC-33). A new
+# pack is installed by one line here — mineworld-<name> = { path = "../<name>" } — and one there.
+# presence is also where the perception trait every pack answers through comes from.
+mineworld-presence = { workspace = true }
+mineworld-movement = { workspace = true }
+mineworld-conversation = { workspace = true }
+mineworld-group-activity = { workspace = true }
+mineworld-relationships = { workspace = true }
+mineworld-naming = { workspace = true }
+mineworld-schedule = { workspace = true }
+
+[dev-dependencies]
+# The consistency guard's negative control installs two stub packs, which are systems.
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }

@@ -9,6 +9,7 @@ use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
     WorldView,
 };
+use mineworld_sdk::SystemPack;
 
 use crate::codec;
 use crate::component::Presence;
@@ -21,11 +22,17 @@ use crate::interaction::PerceptionProvider;
 /// components it owns and those live in the world behind a gated view (`INV-7`). That is also why
 /// holding a second value of this type — to hand it to perception after a world has taken the first
 /// one — is safe rather than merely convenient.
+#[derive(Default)]
 pub struct PresenceSystem;
 
 impl SystemIdentity for PresenceSystem {
     const ID: SystemId = SystemId::from_static("presence");
 }
+
+/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): nothing.
+/// It declares no biographical fact and owns no authored section; a person's `location` is a field
+/// of the World Pack format, bound to this pack by the loader (`ARC-31`, point 5).
+impl SystemPack for PresenceSystem {}
 
 /// The name of the edge this pack declares: a person is in a place.
 ///

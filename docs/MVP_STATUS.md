@@ -5,7 +5,7 @@ The point of this file is to stop MVP-0 being declared complete while a real pat
 `✅` means **actually run and inspected**, never inferred from a passing test suite or a
 successful compile. `🚧` means in progress. `❌` means not started.
 
-**Updated:** 2026-10-07 (PR 10c: names, routines, the content seam; PR 10a and 10b's rows stand). Subjective questions are queued in
+**Updated:** 2026-10-07 (PR 11a: installable System Packs; PR 10a, 10b and 10c's rows stand). Subjective questions are queued in
 [`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md); a demo parked there does not block engineering.
 
 ## Capability matrix
@@ -23,6 +23,7 @@ successful compile. `🚧` means in progress. `❌` means not started.
 | Names | ✅ `naming`: each person file's `name:` becomes a `display-name` disclosed to whoever perceives the person; the rule controllers name people by it ("Earlier, Vera Lindgren said …"), never by id; removable (`AC-2`) (PR 10c, `ARC-31`) | 🚧 the protocol demo labels people by name, through `MineWorldObservation.display_name`, against the real server; the 2D client's own adoption is pending | 🚧 the module reads it; the 3D slice's binding is the vis track's |
 | Routines | ✅ `schedule`: each person file's `routine:` becomes a day kept by a `Process` that wakes at every boundary and moves nobody; the headless controller follows it and every seat reaches ≥ 90 % of its day's parts in 30 days; removable (`AC-2`) (PR 10c, `ARC-32`). Known gap: people walk ~8 m/h at the headless pace, so each part of a day lasts ≥ 4 h | 🚧 a seat is disclosed its own `agenda`; no client shows it yet | 🚧 the same |
 | Authored content owned by packs | ✅ a System Pack owns a section of a person or place file, validates it with its own type (refusals keep line and column) and seeds its own facts; the loader never learns what it means (PR 10c, `ARC-31`) | — | — |
+| Independently installable System Packs (MVP-0 form) | 🚧 a pack declares itself (`SystemPack`, `sdk/rust`); installing one is a directory, two lines in `systems/installed` and a rebuild, and edits nothing in the loader, the CLI or the root manifest — shown with a canary pack on a scratch branch, never merged (PR 11a, `ARC-33`). Without a rebuild is `ARC-8`, outside MVP-0 | — | — |
 | Object interaction | ❌ | ❌ | ❌ |
 | Persistence | ✅ `mineworld server --save` killed with SIGKILL and restarted: same instance, revision, people and conversation; `mineworld replay` re-executes the save (PR 07) | — | — |
 | Networking | ✅ two clients and an agent on one server, from the real binary | 🚧 protocol module runs against the real server; adoption pending | 🚧 the same |
@@ -86,7 +87,7 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | S6 first systems: time, places, movement | 🚧 PR 08 ready for review: `movement` decides, `presence` owns (`ARC-26`); `arrive` retired; `passages` in the World Pack format; the street in social-cafe |
 | S7 world pack loading, rule controller, headless run | 🚧 PR 09 ready for review: `run --headless --seed --days`, `inspect`, `create`; a seeded paced rule controller (`ARC-27`); `clap` (`DEP-11`) |
 | S8 Social Café systems | 🚧 three PRs (`step-09-social.md`). 10a merged (`2f24eef`): the MVP town and the café re-authored to the 3D slice. 10b merged (`85451c7`): `group-activity`, `relationships`, `mineworld biography`, the paced controller's social initiative, `[profile.dev] opt-level = 1` (`ARC-30`), and Milestone B. PR 10c ready for review: the content seam (`ARC-31`), `naming`, `schedule` (`ARC-32`), names in replies, biography and the Godot module, the controller following its day |
-| S9 Market Town + AC-1 proof | medium scope |
+| S9 Market Town + AC-1 proof | 🚧 six PRs (`step-10-market.md`); how `AC-1` is measured is `ARC-35`. PR 11a ready for review: installable System Packs (`ARC-33`, `DEP-12`) and the I-2 vocabulary scan over the precursors |
 | S10 cognition | reduced: controllers + perception only; LM half deferred to MVP-1 with AC-4 and AC-10 |
 | S11 server and networking | 🚧 the server, the protocol and multi-client sessions landed with the step-05 slice; the id encoding is in the contracts (PR 04). Authentication, admin frames and deltas remain |
 | S12 Demo A, 2D client | spike running; the protocol layer it adopts is merged (`clients/protocol/`) |
@@ -118,6 +119,7 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | Relationships and group activity are removable (`AC-2`) | without `relationships`, every other system's 33 486 facts in 30 days are identical in order and content to the full run's. Without `group-activity`, relationships stays enabled, the world runs, and acquaintance comes from speech alone. The comparison is shown to see seed 7 against seed 8 (`tools/cli/tests/social_composition.rs`, PR 10b) |
 | A person's day is kept by a Process, and people follow it (CP-4) | in a 30-day run every agenda change after genesis is its person's routine process waking on a boundary of their authored day; every seat reaches 96.7–100 % of its day's parts (≥ 90 % required, fixed before measuring); with the controller's agenda band off, 39–51 %; Otto, whom nobody drives, never moves while his day goes by (`tools/cli/tests/routines.rs`, PR 10c) |
 | People are named, and removing names changes nothing else (`AC-2`) | Alice tells the 3D window "Earlier, Vera Lindgren said …", the name read from the observation, through the real server and the real Godot module (`ac15_one_alice.rs`, `clients/protocol/evidence/`); without `naming`, 33 951 facts in 30 days are the same row for row, and only replies' words differ, naming nobody (`social_composition.rs`, PR 10c) |
+| Installing a System Pack touches only `systems/` and `Cargo.lock` (F-1) | a canary pack (`wave`, `waved`) installed on a scratch branch changed only `systems/canary/**`, two lines of `systems/installed/` and `Cargo.lock` (one new path package, one dependency line), plus the scratch world enabling it; `mineworld validate` listed it and a day ran with no fault; the loader's suite passed unchanged. Removing a line from the installed list, or naming a pack in `worldpack`, fails a named guard (PR 11a, `step-10-market.md` §9 E-A5) |
 | A controller and a client are indistinguishable to the world | the rule controller occupies a seat, is answered by the actor check and is given a server-allocated `ActionId`, exactly as a socket client is (`INV-1`) |
 
 ## Non-blocking follow-ups

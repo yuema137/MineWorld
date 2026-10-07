@@ -1,0 +1,11 @@
+[package]
+name = "mineworld-acceptance"
+description = "MineWorld's acceptance and conformance tests for its frozen criteria: tests that read the repository and its history rather than one crate's API."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+# No dependencies: these tests read files and run `git`, and assert nothing about any crate's types.
