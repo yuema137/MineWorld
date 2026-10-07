@@ -2669,10 +2669,18 @@ movement, rule-controller (`workspace = true`, D-6's direction), serde-saphyr.
 **Scope.** `systems/consumption/{Cargo.toml, README.md, src/{lib,system,action,offer,codec}.rs,
 tests/{eat.rs, removable.rs, paced.rs, support/mod.rs}}`. `mineworld-inventory`, `mineworld-item` by path.
 
-- [ ] Implementation: SD-25.
-- [ ] Validation: `cargo test -p mineworld-consumption`; E-8, the consumption half of E-7 (incl. a 10-day
-  paced run in which people eat and drink); M-E7, M-E8; clippy, fmt.
-- [ ] Review: owns no component; `resolve` emits only `consume`'s emission; goods never offered.
+- [x] Implementation: SD-25 — `Eat`, `Drink`, `EATEN = "food"`, `DRUNK = "drink"`, `read_meal` (the
+  action type picks the payload and the category it needs), `meals` offers (complete, no target,
+  `SpatialRequirement::NONE`, in item order), validate (payload → living Person, no target →
+  category matches → `admit_consumption`), resolve (`consume` only). Files: `systems/consumption/
+  {Cargo.toml, README.md, src/{lib,system,action,offer,codec}.rs, tests/{eat.rs, removable.rs, paced.rs,
+  support/mod.rs}}`.
+- [x] Validation: `cargo test -p mineworld-consumption` → eat 3, paced 2, removable 2 passed, 0 failed;
+  clippy `--all-targets -D warnings`, fmt clean. E-8, the consumption half of E-7, the 10-day paced
+  run; M-E7, M-E8 in §9.5 E-E5.
+- [x] Review: declares no component (`owning` absent); `resolve` returns exactly
+  `mineworld_inventory::consume`'s emission; goods fall through `meals`' match and are refused at
+  validate; the category is read from item's `ItemKind`, never stored here.
 
 ### E-C6 — Install: three lines each in `systems/installed`
 
@@ -3844,6 +3852,26 @@ E-E4 E-C4 economy: `cargo test -p mineworld-economy` → buy.rs 6, paced.rs 3, r
      FAILED (bob's bread passed validate and was refused by the reduction); both paced tests FAILED the
      same way. Reverted; `git grep MUTATION -- systems` and grep of the untracked packs empty; 6 + 3 +
      3 + 1 passed again.
+E-E5 E-C5 consumption: `cargo test -p mineworld-consumption` → eat.rs 3, paced.rs 2, removable.rs 2
+     passed, 0 failed; clippy -p mineworld-consumption --all-targets -D warnings clean; fmt clean.
+     Cargo.lock: +1 path package (mineworld-consumption, no `source`).
+     E-8: alice (coffee, croissant, mug) offered [drink coffee, eat croissant], no target, available;
+     bob [drink tea]; carol nothing; the mug never. alice eats the croissant and drinks the coffee →
+     one items-consumed each (and nothing else), Participants = [alice], Causation::Action; she keeps
+     the mug. Refused at dispatch, writing nothing: eat a drink, drink a food, eat goods, a meal with a
+     target → NoSupportedInteraction; eat what one does not carry → PreconditionFailed. Paced, 10
+     days, seed 7, pace 900 s: 11 meals by 2 people, every one accepted, each exactly one
+     items-consumed caused by it and eaten by the asker; at the end alice holds only the mug and bob
+     nothing; two runs byte-identical. → PASS.
+     E-7 (consumption half): without consumption, no eat/drink offered to anybody, both answered
+     Unavailable, holdings unchanged; consumption without inventory → SystemDependencyMissing {
+     consumption, inventory }. → PASS.
+     M-E7 (`WITHOUT = true`: the "without" world enables consumption) and M-E8 (`// MUTATION M-E8`:
+     validate's category check removed) applied together, each failing in a binary the other cannot
+     touch: removable.rs FAILED "alice is offered a meal in a world without consumption" (offers do not
+     pass through validate); eat.rs the_wrong_meal… FAILED "a drink is not eaten: left Accepted, right
+     Rejected(NoSupportedInteraction)" (eat.rs's world does not read WITHOUT). Reverted; grep MUTATION
+     over systems/ empty; 3 + 2 + 2 passed again.
 ```
 
 ---
