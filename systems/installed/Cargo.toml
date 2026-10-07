@@ -19,6 +19,9 @@ mineworld-group-activity = { workspace = true }
 mineworld-relationships = { workspace = true }
 mineworld-naming = { workspace = true }
 mineworld-schedule = { workspace = true }
+mineworld-item = { path = "../item" }
+mineworld-inventory = { path = "../inventory" }
+mineworld-item-transfer = { path = "../item-transfer" }
 
 [dev-dependencies]
 # The consistency guard's negative control installs two stub packs, which are systems.
