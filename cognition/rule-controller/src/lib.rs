@@ -260,6 +260,7 @@ fn encoded(value: &Talk) -> Vec<u8> {
     serde_json::to_vec(value).expect("a request payload is JSON-representable by construction")
 }
 
+mod agenda;
 mod paced;
 mod social;
 
@@ -273,3 +274,6 @@ mod paced_tests;
 
 #[cfg(test)]
 mod social_tests;
+
+#[cfg(test)]
+mod agenda_tests;

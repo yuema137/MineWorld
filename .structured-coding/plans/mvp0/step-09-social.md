@@ -2266,28 +2266,59 @@ changes that nobody acts on (`ARC-23`).
 
 `RuleController` is untouched (I-9).
 **Depends on:** C6.
-- [ ] Implementation: as §4.3.2. `FOLLOWS_AGENDA` and draw index 13 are literals (`ARC-23` rule 2).
-- [ ] Validation:
-  - [ ] Unit tests (`agenda_tests.rs`, hand-built observations):
-    - away from the agenda in a leaf place: the stride heads for its only door;
-    - on the street: the stride heads for the door whose `to` is the agenda's place, never another;
-    - at the agenda's place: no proposed move crosses a doorway, across 64 seeds × windows;
-    - `move` unavailable: no walk is proposed;
-    - an invitation and a line still come first;
-    - a fresh controller decides identically (restart equivalence).
-  - [ ] **No-agenda parity, unit:** for every existing `paced_tests` / `social_tests` view × 64 seeds,
-    the decision equals the one the controller makes with the agenda module removed. The 20
-    rule-controller tests of 10b pass, unedited since C4. C4 replaced one claim, tests.rs:198–202.
-  - [ ] **No-agenda parity, real world (frozen evidence, captured before the change).** The pre-C7
-    binary is built from the C6 commit in a detached worktree, and the post-C7 binary from the
-    working tree. Each runs 300 days with seed 7 on a copy of social-cafe without `schedule` and
-    `routine:` lines. Every printed line but the header and `wall` must be identical (`diff`
-    empty).
-  - [ ] One 300-day in-memory run of the real pack: wall time, request mix, and no refusal.
-- [ ] Review:
-  - `agenda.rs` reads Agenda through `payload_for::<Agenda>()` with schedule's type, and computes no
-    route beyond "the disclosed door whose `to` is the place".
+- [x] Implementation (§9 E-C7):
+  - `agenda.rs` (new): `own`, `is_there`, `follows`, with `FOLLOWS_AGENDA` = 90 and draw index 13.
+  - `paced.rs`:
+    - `head_for(observation, place)` takes the disclosed door whose `to` is the place, otherwise
+      the seeded door;
+    - the door logic is factored into `through(…)`, behaviour unchanged;
+    - `decide` gains one agenda step after the invitation and the line.
+  - Cargo: mineworld-schedule.
+  - **Bounded refinement D-C2**, found by the first run of `on_the_street…`. The walking scheme's own
+    door band (the 10 % of consults that do not follow the agenda, plus the street's "walk on" band)
+    still took a seeded door, so a person bound for the park sometimes crossed into the store, a
+    detour. Now, with an agenda disclosed, the door band heads only toward the agenda's place, and
+    at the agenda's place it is suppressed. With no agenda, the seeded door is unchanged, which the
+    parity run below shows.
+- [x] Validation:
+  - [x] `agenda_tests.rs`, 6 tests, PASS:
+    - away in the café, 58 of 64 seeds stride toward its only door (≥ 75 % asserted);
+    - on a street of five doors, 12 windows × 64 seeds: every crossing is into the agenda's place.
+      The first run, before D-C2, showed crossings into 10, 11, 13 and 14 as well;
+    - by the café door with the agenda here: no seed leaves, though without an agenda some do, and
+      people still act there;
+    - no `move` offered: no walk;
+    - a line in the window: every seed that replies without an agenda replies with one. The first
+      version counted any `talk` and so also counted greetings; it was corrected to replies;
+    - a rebuilt controller decides identically.
+  - [x] **No-agenda parity, unit:** the 22 rule-controller tests from before C7 pass unedited
+    (28 = 22 + 6). The "agenda module removed" comparison is owned by the real-world run below; a
+    unit test cannot run the old code.
+  - [x] **No-agenda parity, real world (frozen evidence):**
+    - the pre-C7 binary was built from `ac67286` (C6) in a detached worktree,
+      `/Users/yuema137/mineworld-worktrees/s8c-pre-c7`;
+    - the pack copy is that worktree's `worlds/social-cafe`, checked out at `3ddafbf` (C5, so naming
+      without schedule);
+    - each binary ran 300 days with seed 7;
+    - `diff` of every line but `wall` is **empty**: 335 454 facts, fingerprint `37c14eb7b90bc4a5`
+      both. Re-run after D-C2: still empty.
+  - [x] 300-day in-memory run of the real pack: **12.3 s**, faults 0, no request refused.
+    - Requests: move 186 423, talk 65 585, invite 9 817, accept 6 200, decline 2 597, join 3 338,
+      leave 2 691.
+    - Facts: agenda-changed 16 512 = 12 at genesis + 300 × 55 boundaries; 369 931 in all.
+  - [x] Full workspace: 417 passed, 0 failed. Among them:
+    - `run` 3 (AC-11/12, every seat in every bucket, every place entered);
+    - `run_restart` 2;
+    - `social_composition` 3;
+    - `milestone_b` 1, its claims unedited. Located #208/#209 became-acquainted at day 1, #3199
+      relationship-changed at day 3, #1723 group-activity-ended at day 2. Killed after day 4 (3 867
+      of 28 970 revisions on disk). Hosted: alice→bob and bob→alice Close, revision 28 970 before and
+      after the server's SIGKILL; process causes 1 964.
+- [x] Review:
+  - `agenda.rs` reads Agenda through `payload_for::<Agenda>()`.
+  - The only route knowledge is "the disclosed door whose `to` is the place".
   - No float, no HashMap.
+  - fmt and clippy `--workspace -D warnings` are clean.
 
 **Acceptance.** In a 30-day run, people are located entering their agenda's place after an
 `agenda-changed` (§9 E-C7, the numbers that C8 then asserts).
@@ -3022,6 +3053,10 @@ E-C5 systems/schedule. schedule 7 + persisted 1 PASS; two mutations each FAIL th
 E-C6 schedule registered; twelve routines; the §4.3.7 quiet-window assertions (restart ×2, ac15,
      milestone_b), each shown to fail by name on a moved boundary. Full workspace 411 passed, 0
      failed; kill_and_resume PASS ×2; run.sh evidence re-recorded.
+E-C7 the paced controller follows its agenda. Frozen-binary parity (C6 binary against post-C7, pack
+     without schedule, 300 days, seed 7): diff empty, 335 454 facts. Real pack 300 days: 12.3 s, 0
+     faults, 0 refusals, 369 931 facts. Full workspace 417 passed, 0 failed; milestone_b located by
+     day 3 and killed after day 4. Bounded refinement D-C2 (door band toward the agenda).
 ```
 
 ## 9.1 Limitations (expected)

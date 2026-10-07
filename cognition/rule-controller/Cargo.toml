@@ -20,5 +20,7 @@ mineworld-movement = { workspace = true }
 mineworld-group-activity = { workspace = true }
 # For the display name a person is disclosed with: a reply names the other speaker by it (ARC-31).
 mineworld-naming = { workspace = true }
+# For the Agenda a person is disclosed: the paced controller walks where its day says (ARC-32).
+mineworld-schedule = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

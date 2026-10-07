@@ -761,6 +761,7 @@ dependencies = [
  "mineworld-group-activity",
  "mineworld-movement",
  "mineworld-naming",
+ "mineworld-schedule",
  "serde",
  "serde_json",
 ]
