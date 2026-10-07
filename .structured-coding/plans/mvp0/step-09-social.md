@@ -12,8 +12,9 @@ REVIEW`, GitHub #29 (§12); §4.1 ledger, §9 evidence. 10a merged as `2f24eef` 
 **PR 10b:** detailed to the commit in §4.2.1–4.2.6 on `main @ 0592b3e` — `DESIGN FROZEN`
 2026-10-07 (§4.2.6, QB-1…QB-4 answered). Merged as `85451c7`.
 **PR 10c:** detailed to the commit in §4.3.1–4.3.7 on `main @ 266daf7`, with people's names added
-as approved scope. It is a DRAFT awaiting the primary session's review (QC-1…QC-8, §4.3.6), and
-implementation is not authorized until then (§11.2).
+as approved scope. `DESIGN FROZEN` at `805bf4d` (§4.3.7). **PR 10c implementation context:**
+`CLOSED / AWAITING OPERATOR ACTION` — READY FOR OPERATOR REVIEW, GitHub #33 (§12.2); final executable
+head `8dee781`.
 
 ## DESIGN FROZEN
 
@@ -3504,3 +3505,46 @@ implementation ctx    CLOSED / AWAITING OPERATOR ACTION. Do not start 10c until 
 - Carry L-1, the saturation measured in E-B7, to overall §7 as a living-world gap for a later step.
 - Renumber 10c's planned decision to `ARC-31` (`ARC-30` is now the dev profile).
 - Re-audit and detail 10c (routines on the generic content seam) against the merged state.
+
+## 12.2 Closeout, PR 10c — READY FOR OPERATOR REVIEW
+
+```text
+PR                    GitHub #33 — https://github.com/yuema137/MineWorld/pull/33 (base main), OPEN;
+                      NOT merged
+base                  main @ 266daf7
+final executable HEAD 8dee781 — every gate in §9 E-C-final ran on it, clean tree
+final PR HEAD         the commit carrying this section (planning documents only); `git log` on the
+                      branch is authoritative — a commit cannot name its own hash
+semantic commits      d0cbaf1 design · 805bf4d freeze (primary session) · 2891114 execution start ·
+                      923b438 C1 specs (ARC-31, ARC-32) · fc2fdd3 C2 authoring + naming ·
+                      9f1d1c0 C3 the seam in worldpack, twelve names · 5aa7c69 C4 names in replies,
+                      biography, Godot · 3ddafbf C5 schedule · ac67286 C6 schedule registered, routines,
+                      quiet-window assertions · 8e45ea4 C7 controller follows its agenda · 7ab010c C8
+                      CP-4, I-4 clause, AC-2 schedule, routines re-authored · 8dee781 C9 docs ·
+                      00b7760 gates
+CI                    N/A — no workflow in the repository (S13)
+material deviations   none. I-1 held (empty diff over kernel/, contracts/, persistence/, server/ and
+                      the five earlier packs). The seam is the public contract Q9 approved; names are
+                      the approved scope addition; I-9 changed only in wording, as approved.
+bounded deviations    D-C1 the AC-2 naming oracle (nested, cut quotations); D-C2 the door band heads
+                      only toward the agenda; D-C3 routines re-authored to parts of ≥ 4 h after the
+                      90 % literal failed against the proposed content (threshold unchanged; L-12
+                      recorded); the biography set moved from C8 to C6; C5 added `error.rs`; the
+                      foreign-fact variant dropped `subject` and boxed the owner's Rejection (clippy
+                      result_large_err)
+freeze condition      §4.3.7 met: restart.rs (both tests), ac15_one_alice.rs and milestone_b.rs assert
+                      the quiet window first and fail by name; each shown red on a moved boundary;
+                      every routine file carries the comment
+test count            419 = 407 test functions + 12 doctests (10b: 381 = 369 + 12)
+procedural            no forbidden tool used in Phase 2
+working tree          clean after the closeout commit
+merge                 NOT authorized; the operator merges
+implementation ctx    CLOSED / AWAITING OPERATOR ACTION
+```
+
+**Post-merge, owned by the planning session (§11.2):**
+- Mark 10c merged here and in `overall.md` §7, and S8 complete.
+- Carry L-12 (walking speed at the headless pace) to overall §7 as a living-world gap, beside L-1.
+- Hand the vis track the `display-name` record and `MineWorldObservation.display_name(id)` (L-11),
+  so the 3D slice can show names.
+- F-1 and F-3 remain S9's (§10.1).
