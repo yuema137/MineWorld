@@ -582,3 +582,17 @@ transparent margins, at a strand width that survives a mip chain.
 `character_textures.py` now generates one. The remaining hair gap is silhouette,
 not rendering, and it is recorded in
 [`../presentation/mineworld-default/3D/FIDELITY_REVIEW.md`](../presentation/mineworld-default/3D/FIDELITY_REVIEW.md).
+
+**Since preview 3 (2026-10-06) the hair is groomed, not swept**, as
+[`references/CHARACTER_ROUTE_ASSESSMENT.md`](references/CHARACTER_ROUTE_ASSESSMENT.md)
+§5(1) recommends. `clients/3d-spike/tools/hair_groom.py` authors guide strands
+as data and grows them with Blender's bundled Essentials hair node groups;
+`hair_atlas.py` draws the strand atlas. Licence position of each input, for
+`DEP-8`:
+
+| Input | Licence | What enters the repository |
+| --- | --- | --- |
+| Blender Essentials hair node groups (`datafiles/assets/nodes/procedural_hair_node_assets.blend`, Blender 5.2.2) | CC0 under the Blender asset-bundle guidelines ("We will only accept CC-0 licensed assets", quoted in the route assessment §4.7) | **nothing of theirs**: they are appended at build time from the installed Blender and run as tools; only their output -- curves we authored, grown and cut into cards -- is committed, inside `vitruvian.glb` |
+| `hair_strands.png` | our own procedural work (`hair_atlas.py`, seeded) | the PNG |
+| OwlishMedia "Hair Alphas For Days" (OpenGameArt) | CC0, read 2026-10-06 at <https://opengameart.org/content/hair-alphas-for-days> | **nothing yet**: `tools/fetch_hair_alphas.sh` is committed and not run -- a download needs an operator grant. Any map adopted from it gets its row in the pack's `LICENSES/` |
+| MakeHuman `hair01` buns | CC0 per row (route assessment §4.4) | not used |

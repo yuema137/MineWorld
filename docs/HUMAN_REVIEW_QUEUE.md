@@ -53,10 +53,96 @@ identifies one thing.
 | | Milestone | State |
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
-| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 👀 **preview 2, 2026-10-01 — not an acceptance request** (`ARC-24`): the body repaired and an authored standing pose with breathing, gaze drift and blinks; hairstyle category (§5) still open; see below |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 👀 **preview 3, 2026-10-06 — not an acceptance request** (`ARC-24`): the updo groomed from strands and cut into cards, the hoodie draped by cloth simulation with a real hood, the eyes level, the skin matte; the face itself deferred by the operator; see below |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ❌ |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
+
+### `VIS-3D-GODOT-1` — preview 3, 2026-10-06: groomed hair, a draped hoodie with a hood
+
+**A preview, not an acceptance request** (`ARC-24`). It answers the operator's verdict on preview 1,
+*"too stiff, not like the reference"*, along the route
+[`references/CHARACTER_ROUTE_ASSESSMENT.md`](references/CHARACTER_ROUTE_ASSESSMENT.md) §5(1)
+recommends: the CharMorph body and rig are kept, and the two parts that failed are made by the
+method the industry uses for them. The **face is deferred** by the operator's choice; only the gaze
+and the skin material were touched.
+
+**Launch**
+
+```sh
+./mineworld-3d              # walk: WASD, mouse to look, Shift jogs, F5 cycles the camera
+./mineworld-3d --portrait   # P1–P8 review frames (P8 = rear chest-up) into clients/3d-spike/shots/
+godot --path clients/3d-spike --always-on-top -- --bodycheck   # the operator's views + townspeople
+godot --path clients/3d-spike --always-on-top --resolution 1200x1500 -- --motion   # frame sequences
+```
+
+**What changed — methods, not tuning**
+
+1. **Hair** (`tools/hair_groom.py`, `tools/hair_atlas.py`). Guide strands authored as data — the
+   sweep up from the hairline, a twisted knot at the crown, the fringe and the named loose strands —
+   grown, clumped, curled and frizzed by Blender's bundled CC0 Essentials hair node groups, each grown
+   strand then cut into one card (5,400 cards). The atlas is fine strands with transparent gaps, our
+   own procedural work. The procedural ribbons are gone.
+2. **Hoodie** (`tools/drape.py`, `tools/garments.py`). The shell starts with 30 mm of slack and is
+   dropped by Blender's cloth solver onto the body, held only at the collar and the wrists: it lies on
+   the shoulders, the sleeves fall and fold, the front panels hang. The **hood** is a pouch of cloth
+   sewn along the draped collar and dropped onto the body and the rucksack. The front is open to the
+   collar. Seam-weld, inverted-face and `report_boundaries` checks still run (3 open loops, as
+   intended: front-hem-neck, two cuffs).
+3. **Tee neckline.** The jagged edge was three things, each located before it was fixed: a strip of
+   hoodie crossing the upper chest, zip tape folded in off the collar, and the skin trim's serrated
+   edge. Now the hoodie is open to the collar, the crew neck is a separate maroon ribbed band over a
+   trimmed edge, and the skin's cut sits under it.
+4. **Eyes.** Gaze pitch was −3°, which is *up*; the lids were lowered and hooded. Lids relaxed, iris
+   7° down and 15° to her left, pupil shrunk, iris matte warm brown. Values in
+   `CHARACTER_ASSET_AUDIT.md` §12.
+5. **Skin.** No glossy roughness map; roughness 0.66, specular 0.30, stronger subsurface with warm
+   transmittance, her tint warmed.
+
+**Frames**, all from the running client, in
+[`presentation/mineworld-default/3D/candidate/`](../presentation/mineworld-default/3D/candidate/):
+`side_by_side_chest.jpg` (reference | P1 | P2), `side_by_side_head.jpg` (reference | P6 | P2),
+`side_by_side_rear.jpg` (reference | P8, the hood from behind), `full_body_sheet.jpg` (front |
+three-quarter | rear | walking), `operator_views.jpg`, `townspeople_whole.jpg`, `motion_idle.gif`
+(12.6 s standing loop at 2×), `motion_walk_stop.gif`, and `p1`–`p8` individually.
+
+**Reference fact | candidate fact**, each with the frame that shows it
+
+| Category | Reference | Candidate now | Frame | |
+| --- | --- | --- | --- | --- |
+| Hairstyle category (§5) | loose messy updo: gathered up and back into a twist at the crown, silhouette taller and wider than the skull | gathered up and back into a knot on the crown; the silhouette is taller than the skull, and narrower at the temples than the reference's | `p6`, `p1`, `p8` | PASS, weakly — see miss 1 |
+| Loose strands | fringe sweeping across the forehead to her right; wavy strands before and below both ears; nape wisps | a fringe from the crown across the forehead to her right temple; wavy locks before both ears to the jaw; short wisps at the nape | `p6`, `p2` | PASS |
+| Major hair colour | warm mid-brown with caramel; crown 0.42/0.29/0.21 sRGB | warm mid-brown, crown darker (miss 4) | `p6` | PASS |
+| Outer-garment category (§5) | open burgundy cotton zip hoodie | open zip hoodie lying on the body, sleeves folding, panels hanging, open to the collar, zip tape on both edges, ribbed cuffs | `p1`, `p2`, `p4` | PASS |
+| Defining garment structure: hood (§5) | bunched in soft folds behind and around the neck | a cloth hood lying in folds over the rucksack's lid from behind; at the sides of the neck its ends show as small bunches, mostly behind the straps | `p8`, `side_by_side_rear` | PASS from behind; weak from the front — miss 2 |
+| Drawstrings | cream cords down the chest, her right one clear against the tee | two cream cords over the tee inside the zip edges | `p1` | PASS |
+| Tee neckline | ribbed crew in maroon-brown | a maroon ribbed band, edge clean | `p1`, `p6` | PASS |
+| Gaze | off-camera to her left, level | iris level, touching both lids, no white below, toward her left | `p1`, `p2` (4–5× crops in the session) | PASS |
+| Skin | warm, matte, soft glow; lit cheek 0.59/0.38/0.30 sRGB | matte, no sheen on the T-zone; lit cheek 0.51/0.33/0.28 | `p6` | PASS, warmer light in the reference accounts for part of the gap |
+| Gender, age, silhouette, accessories | — | unchanged from preview 2 | `p3`, `p4` | PASS |
+
+**Known misses, largest first**
+
+1. **Hair, from the front, reads as a helmet with a band across the crown.** The swept mass is one
+   continuous surface of cards; the reference's front is soft, separate locks with highlights. The
+   knot reads small from the front.
+2. **Hood from the front.** The reference's hood stands proud of both shoulders around the neck; ours
+   shows only small bunches beside the straps.
+3. **Face** — deferred by the operator: no smile, realistic rather than stylised proportions.
+4. **Hair colour** reads darker and redder at the crown than the reference in this light.
+5. **Jeans** read light grey in the rear frame's sun; the **rucksack** reads khaki and untextured;
+   the **tee graphic** sits mid-chest where the reference's sits high.
+6. **Hoodie back**: a soft fold runs down the middle of the seat.
+7. **Strand atlas** is our own procedural one; the CC0 OwlishMedia alphas need
+   `clients/3d-spike/tools/fetch_hair_alphas.sh` run with a download grant.
+
+**Questions**
+
+1. Does the hair now read as the reference's *category* — a messy updo — and is the helmet-like
+   front the thing to fix next, or the knot's size?
+2. Does the hoodie read as cotton jersey, not a padded jacket?
+3. Is the hood enough as it is from behind, and how much should it stand up at the sides?
+4. May `fetch_hair_alphas.sh` be run (138.5 MB, CC0, into scratch)?
 
 ### `VIS-3D-GODOT-1` — preview 2, 2026-10-01: the body repaired, and she stands like a person
 
