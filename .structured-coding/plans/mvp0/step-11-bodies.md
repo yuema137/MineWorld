@@ -122,6 +122,18 @@ part of the operator's five:
 | **PC-f** | Optimization level does not change the result. | The digests of PC-a are identical when the binary is built with the dev profile at `opt-level = 1` (what `ARC-30` makes the workspace's dev profile) and with the release profile. |
 | **PC-g** | Another architecture gives the same bytes. | The same digests from an `x86_64-apple-darwin` build run under Rosetta. Requires installing that target, which this session is not permitted to do (`rustup` is outside its allowed commands), so PC-g is expected to be `NOT RUN` and is recorded as such. |
 
-## 8.3 Results
+## 8.2a Criteria added after the first runs, before running them
 
-Pending: recorded after the runs, with the exact output.
+The first runs (§8.3) produced two results that the criteria above do not settle, so two criteria
+are added here **before** the runs that answer them. Neither replaces or relaxes a criterion of §8.2;
+the §8.2 verdicts stand as recorded.
+
+- In mode Q, variants c2 and c3 ended with the **same** digest as the baseline. By §8.2's own rule,
+  the Q results are void until the instrument is shown to see a difference.
+- Mode Q costs more than its 100 µs budget. Most of the cost is stepping the world through a whole
+  stride at walking speed, even when nothing dynamic is in the way.
+
+| ID | Claim | Measurement | PASS iff |
+| --- | --- | --- | --- |
+| **PC-c′** | In Q, the comparison sees a perturbation where it takes effect; an equal final digest is then convergence, not blindness. | `q trace <variant>` writes the SHA-256 of the integer state after every request. Compare the trace of base with c2's and c3's: report the first and the last request at which they differ. | c2 differs from request 0 onward (prop 0 starts 1 mm apart) and c3 differs from request 1 000 onward (that request's stride is 1 mm longer), each for at least one request. If the traces never differ, the instrument is broken and every Q result is void. If they differ and later agree, the result is recorded as **convergence**: Q forgets a perturbation once quantized state is pinned against geometry. |
+| **PC-d2** | A leaner Q fits the budget. | Mode `ql`: as Q, except that a move steps the world only when the swept path's planar box meets a dynamic prop's; otherwise the person is placed at the controller's answer with no stepping. Mean time per request over R = 3 000, release; digests from two separate processes. | Mean at most **100 µs per request**, and the two processes print the same digest. Reported beside Q, never as Q's result. |
