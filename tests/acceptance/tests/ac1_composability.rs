@@ -636,3 +636,365 @@ fn the_lock_rule_refuses_any_change_that_is_not_a_path_crate_under_systems() {
         3
     );
 }
+
+// ── Check 2: the structure ───────────────────────────────────────────────────────────────────────
+
+/// The framework crates no normal or build path may lead from to a market pack (`ARC-35` item 3).
+const FRAMEWORK: [&str; 7] = [
+    "mineworld-kernel",
+    "mineworld-contracts",
+    "mineworld-persistence",
+    "mineworld-server",
+    "mineworld-authoring",
+    "mineworld-sdk",
+    "mineworld-rule-controller",
+];
+
+/// Where a code file may name a market crate (`ARC-35` item 3, third bullet).
+const MAY_NAME_THE_MARKET: [&str; 3] = ["systems/", "worlds/", "tests/acceptance/"];
+
+/// A dependency's kind, as `cargo metadata` states it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    Normal,
+    Build,
+    Dev,
+}
+
+/// One workspace member: its directory relative to the root (with a trailing `/`), and what it
+/// declares it depends on.
+#[derive(Debug)]
+struct Member {
+    directory: String,
+    dependencies: Vec<(String, Kind)>,
+}
+
+/// `cargo metadata --no-deps --format-version 1 --offline` for the workspace at `repo`, run through
+/// the `cargo` that built this test. `--no-deps` is enough: only a member can depend on a path crate,
+/// so every path to a market pack runs through members (step-10 F-60).
+fn metadata(repo: &Path) -> Result<serde_json::Value, String> {
+    let output = Command::new(env!("CARGO"))
+        .args([
+            "metadata",
+            "--no-deps",
+            "--format-version",
+            "1",
+            "--offline",
+        ])
+        .current_dir(repo)
+        .output()
+        .map_err(|error| format!("`cargo metadata` could not run: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "`cargo metadata` failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    serde_json::from_slice(&output.stdout)
+        .map_err(|error| format!("`cargo metadata`'s output does not parse: {error}"))
+}
+
+/// The members of a workspace, by crate name, read from a metadata value.
+fn workspace(metadata: &serde_json::Value) -> Result<BTreeMap<String, Member>, String> {
+    let text = |value: &serde_json::Value, what: &str| -> Result<String, String> {
+        value
+            .as_str()
+            .map(str::to_owned)
+            .ok_or_else(|| format!("`cargo metadata`: no {what}"))
+    };
+    let root = text(&metadata["workspace_root"], "workspace_root")?;
+    let packages = metadata["packages"]
+        .as_array()
+        .ok_or("`cargo metadata`: no packages")?;
+    let mut members = BTreeMap::new();
+    for package in packages {
+        let name = text(&package["name"], "package name")?;
+        let manifest = text(&package["manifest_path"], "manifest_path")?;
+        let directory = manifest
+            .strip_prefix(&root)
+            .and_then(|rest| rest.strip_suffix("Cargo.toml"))
+            .map(|rest| rest.trim_start_matches('/').to_owned())
+            .ok_or_else(|| format!("{name}: {manifest} is not under {root}"))?;
+        let mut dependencies = Vec::new();
+        for dependency in package["dependencies"].as_array().into_iter().flatten() {
+            let kind = match dependency["kind"].as_str() {
+                None => Kind::Normal,
+                Some("build") => Kind::Build,
+                Some("dev") => Kind::Dev,
+                Some(other) => return Err(format!("{name}: an unknown dependency kind {other}")),
+            };
+            dependencies.push((text(&dependency["name"], "dependency name")?, kind));
+        }
+        members.insert(
+            name,
+            Member {
+                directory,
+                dependencies,
+            },
+        );
+    }
+    Ok(members)
+}
+
+/// Bullet 1: every member that declares a market pack, as a dependency of any kind, lives under
+/// `systems/`.
+fn dependents_outside_systems(
+    members: &BTreeMap<String, Member>,
+    market: &BTreeSet<String>,
+) -> Vec<String> {
+    let mut found = Vec::new();
+    for (name, member) in members {
+        for (dependency, kind) in &member.dependencies {
+            if market.contains(dependency) && !member.directory.starts_with("systems/") {
+                found.push(format!(
+                    "{name} ({}) depends on {dependency} ({kind:?}): only systems/ may",
+                    member.directory
+                ));
+            }
+        }
+    }
+    found
+}
+
+/// Bullet 2: every path over **normal and build** edges from a framework crate to a market pack
+/// (`ARC-35`'s 11f note, point 3: the operator's QS-54). A framework crate the workspace does not
+/// hold is a failure, so a renamed crate cannot silently drop out.
+fn linked_paths(
+    members: &BTreeMap<String, Member>,
+    framework: &[&str],
+    market: &BTreeSet<String>,
+) -> Vec<String> {
+    let mut found = Vec::new();
+    for start in framework {
+        if !members.contains_key(*start) {
+            found.push(format!(
+                "{start} is not a workspace member: it cannot be checked"
+            ));
+            continue;
+        }
+        let mut came_from: BTreeMap<&str, &str> = BTreeMap::new();
+        let mut queue = std::collections::VecDeque::from([*start]);
+        while let Some(crate_name) = queue.pop_front() {
+            if market.contains(crate_name) {
+                let mut path = vec![crate_name];
+                while let Some(previous) = came_from.get(path[path.len() - 1]) {
+                    path.push(previous);
+                }
+                path.reverse();
+                found.push(format!(
+                    "a linked path to a market pack: {}",
+                    path.join(" → ")
+                ));
+                continue;
+            }
+            let Some(member) = members.get(crate_name) else {
+                continue;
+            };
+            for (dependency, kind) in &member.dependencies {
+                let linked = matches!(kind, Kind::Normal | Kind::Build);
+                if linked
+                    && dependency != start
+                    && members.contains_key(dependency.as_str())
+                    && !came_from.contains_key(dependency.as_str())
+                {
+                    came_from.insert(dependency, crate_name);
+                    queue.push_back(dependency);
+                }
+            }
+        }
+    }
+    found
+}
+
+/// Bullet 3, on one file's text: each line that contains one of `names` as a word — not inside a
+/// longer crate name, so `mineworld-item` does not match in `mineworld-item-transfer`.
+fn names_a_market_crate(text: &str, names: &[String]) -> Vec<(usize, String)> {
+    let part_of_a_name = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '-';
+    let mut found = Vec::new();
+    for (index, line) in text.lines().enumerate() {
+        for name in names {
+            let named = line.match_indices(name.as_str()).any(|(at, _)| {
+                let before = line[..at].chars().next_back();
+                let after = line[at + name.len()..].chars().next();
+                !before.is_some_and(part_of_a_name) && !after.is_some_and(part_of_a_name)
+            });
+            if named {
+                found.push((index + 1, name.clone()));
+            }
+        }
+    }
+    found
+}
+
+/// Bullet 3 over the working tree: tracked files and untracked files Git does not ignore, so an
+/// uncommitted edit is seen.
+fn code_naming_the_market(repo: &Path, names: &[String]) -> Result<Vec<String>, String> {
+    let listed = git(
+        repo,
+        &[
+            "ls-files",
+            "-z",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+        ],
+    )?;
+    let mut found = Vec::new();
+    for path in listed.split('\0').filter(|path| !path.is_empty()) {
+        let code = path.ends_with(".rs") || path == "Cargo.toml" || path.ends_with("/Cargo.toml");
+        if !code
+            || MAY_NAME_THE_MARKET
+                .iter()
+                .any(|directory| path.starts_with(directory))
+        {
+            continue;
+        }
+        let text = match std::fs::read(repo.join(path)) {
+            Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+            // Deleted in the working tree: it names nothing.
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(format!("{path}: could not be read: {error}")),
+        };
+        for (line, name) in names_a_market_crate(&text, names) {
+            found.push(format!("{path}:{line} names {name}"));
+        }
+    }
+    Ok(found)
+}
+
+/// Both spellings of every market crate: `mineworld-economy` and `mineworld_economy`.
+fn market_crate_spellings() -> Vec<String> {
+    MARKET_PACKS
+        .iter()
+        .flat_map(|pack| [crate_name(pack), crate_name(pack).replace('-', "_")])
+        .collect()
+}
+
+#[test]
+fn check_2_the_dependency_structure() {
+    let repo = repository();
+    let members = workspace(&metadata(&repo).unwrap_or_else(|error| panic!("{error}")))
+        .unwrap_or_else(|error| panic!("{error}"));
+    let market: BTreeSet<String> = MARKET_PACKS.iter().map(|pack| crate_name(pack)).collect();
+    for pack in &market {
+        assert!(
+            members.contains_key(pack),
+            "{pack} is not a workspace member"
+        );
+        let dependents: Vec<&str> = members
+            .iter()
+            .filter(|(_, member)| member.dependencies.iter().any(|(name, _)| name == pack))
+            .map(|(name, _)| name.as_str())
+            .collect();
+        eprintln!("{pack}: dependents {dependents:?}");
+    }
+
+    let mut failures = dependents_outside_systems(&members, &market);
+    failures.extend(linked_paths(&members, &FRAMEWORK, &market));
+    failures.extend(
+        code_naming_the_market(&repo, &market_crate_spellings())
+            .unwrap_or_else(|error| panic!("{error}")),
+    );
+    eprintln!(
+        "{} workspace members read; the framework crates checked: {FRAMEWORK:?}",
+        members.len()
+    );
+    assert!(
+        failures.is_empty(),
+        "AC-1 check 2 (ARC-35 item 3) fails:\n{}",
+        failures.join("\n")
+    );
+}
+
+/// QS-54 on F-58's shape: `persistence` dev-depends on `worldpack`, which links the installed set and
+/// so a market pack. Dev edges are no path; the same edge as a normal one is; a dev dependency on a
+/// market pack from outside `systems/` is still refused by bullet 1.
+#[test]
+fn a_dev_edge_is_no_linked_path_but_is_still_a_dependent() {
+    let metadata = |persistence_on_worldpack: Option<&str>, persistence_on_economy: &str| {
+        serde_json::json!({
+            "workspace_root": "/r",
+            "packages": [
+                { "name": "mineworld-persistence", "manifest_path": "/r/persistence/Cargo.toml",
+                  "dependencies": [
+                      { "name": "mineworld-kernel", "kind": null },
+                      { "name": "mineworld-worldpack", "kind": persistence_on_worldpack },
+                      { "name": persistence_on_economy, "kind": "dev" },
+                      { "name": "serde", "kind": null } ] },
+                { "name": "mineworld-kernel", "manifest_path": "/r/kernel/Cargo.toml",
+                  "dependencies": [] },
+                { "name": "mineworld-worldpack", "manifest_path": "/r/worldpack/Cargo.toml",
+                  "dependencies": [ { "name": "mineworld-installed-systems", "kind": null } ] },
+                { "name": "mineworld-installed-systems",
+                  "manifest_path": "/r/systems/installed/Cargo.toml",
+                  "dependencies": [ { "name": "mineworld-economy", "kind": null } ] },
+                { "name": "mineworld-economy", "manifest_path": "/r/systems/economy/Cargo.toml",
+                  "dependencies": [ { "name": "mineworld-kernel", "kind": null } ] },
+            ]
+        })
+    };
+    let market: BTreeSet<String> = ["mineworld-economy".to_owned()].into();
+    let framework = ["mineworld-persistence", "mineworld-kernel"];
+
+    let members = workspace(&metadata(Some("dev"), "serde_json")).expect("reads");
+    assert_eq!(
+        members["mineworld-installed-systems"].directory,
+        "systems/installed/"
+    );
+    assert!(dependents_outside_systems(&members, &market).is_empty());
+    assert!(linked_paths(&members, &framework, &market).is_empty());
+
+    for linked in [None, Some("build")] {
+        let members = workspace(&metadata(linked, "serde_json")).expect("reads");
+        assert_eq!(
+            linked_paths(&members, &framework, &market),
+            [
+                "a linked path to a market pack: mineworld-persistence → mineworld-worldpack → \
+              mineworld-installed-systems → mineworld-economy"
+            ],
+            "{linked:?}"
+        );
+    }
+
+    let members = workspace(&metadata(Some("dev"), "mineworld-economy")).expect("reads");
+    assert_eq!(
+        dependents_outside_systems(&members, &market),
+        [
+            "mineworld-persistence (persistence/) depends on mineworld-economy (Dev): only systems/ may"
+        ]
+    );
+    assert!(linked_paths(&members, &framework, &market).is_empty());
+
+    assert_eq!(
+        linked_paths(&members, &["mineworld-renamed"], &market),
+        ["mineworld-renamed is not a workspace member: it cannot be checked"]
+    );
+}
+
+/// A crate name matches as a word, in either spelling, and never inside a longer crate name.
+#[test]
+fn a_market_crate_is_named_only_as_a_word() {
+    let names = ["mineworld-item".to_owned(), "mineworld_item".to_owned()];
+    for text in [
+        "mineworld-item = { path = \"../item\" }",
+        "use mineworld_item::ItemKind;",
+        "// see mineworld-item.",
+    ] {
+        assert_eq!(
+            names_a_market_crate(text, &names).len(),
+            1,
+            "missed: {text}"
+        );
+    }
+    for text in [
+        "mineworld-item-transfer = { path = \"../item-transfer\" }",
+        "use mineworld_item_transfer::Give;",
+        "\"items-transferred\"",
+        "xmineworld-item",
+    ] {
+        assert!(
+            names_a_market_crate(text, &names).is_empty(),
+            "matched: {text}"
+        );
+    }
+}

@@ -3147,10 +3147,22 @@ market-pack-list guard. `tests/acceptance/src/lib.rs`'s table (a comment).
 (normal + build edges per QS-54's answer), `names_a_market_crate` over the working tree's code files,
 `check_2_the_dependency_structure`; a unit test on a hand-written metadata value (F-58's shape).
 
-- [ ] Implementation: SD-31.
-- [ ] Validation: the test on the head (P-3's positive); M-P5 … M-P7 (§9.6 E-P3).
-- [ ] Review: word-boundary matching of crate names; untracked code files are scanned; the seven
-  framework crates are found by name and a missing one fails (a renamed crate cannot silently drop out).
+- [x] Implementation: SD-31 — `FRAMEWORK`, `MAY_NAME_THE_MARKET`, `Kind`, `Member`, `metadata(repo)`
+  (`env!("CARGO") metadata --no-deps --format-version 1 --offline`), `workspace`,
+  `dependents_outside_systems` (bullet 1), `linked_paths` (bullet 2, normal + build, BFS with the path
+  printed), `names_a_market_crate` + `code_naming_the_market` (bullet 3, `git ls-files --cached
+  --others --exclude-standard`, read from the working tree), `market_crate_spellings`; tests
+  `check_2_the_dependency_structure`, `a_dev_edge_is_no_linked_path_but_is_still_a_dependent` (F-58's
+  shape, QS-54), `a_market_crate_is_named_only_as_a_word`.
+- [x] Validation: 10 passed; M-P5 … M-P7 and an untracked-file probe fail by name (§9.6 E-P3);
+  clippy and fmt clean.
+- [x] Review: a name matches only with no `[A-Za-z0-9_-]` on either side (unit test: `mineworld-item`
+  not in `mineworld-item-transfer` nor `mineworld_item_transfer`); untracked files are listed by
+  `--others --exclude-standard` and shown seen by the probe; a framework crate missing from the
+  workspace is a failure, unit-tested with `mineworld-renamed`; a dev edge is no linked path but a dev
+  dependency on a market pack from outside `systems/` is a bullet-1 failure (unit test). Mutations ran
+  against the already-built test binary so that no build rewrote `Cargo.lock` (`git status` showed
+  only the uncommitted test file after each revert).
 
 ### P-C4 — `tests/acceptance`: check 3 (the world delta)
 
@@ -4609,6 +4621,26 @@ E-P2 P-C2 (c11418c): `cargo test -p mineworld-acceptance --test ac1_composabilit
        list are admitted, as they should be). Working tree restored, both branches deleted (`git branch
        -D`), never pushed: `git ls-remote --heads origin | grep -c scratch` → 0; `git grep MUTATION --
        tests tools kernel systems Cargo.lock` empty; `git status` clean.
+E-P3 P-C3: `cargo test -p mineworld-acceptance --test ac1_composability` → 10 passed, 0.30 s (`cargo
+     metadata --no-deps --offline` runs inside `cargo test`). Positive (P-3): 24 workspace members; the
+     six packs' direct dependents are mineworld-installed-systems and sibling market packs only (item:
+     consumption, economy, employment, installed-systems, inventory, item-transfer; employment:
+     economy, installed-systems; …); no normal/build path from the seven framework crates; no code file
+     outside systems/, worlds/, tests/acceptance/ names a market crate.
+     Mutations, each in the working tree, run against the built test binary, then `git restore`d:
+     M-P5 (`mineworld-economy = { path = "../../systems/economy" }` in cognition/rule-controller's
+       [dependencies]) → FAIL, three named: "mineworld-rule-controller (cognition/rule-controller/)
+       depends on mineworld-economy (Normal): only systems/ may"; "a linked path to a market pack:
+       mineworld-rule-controller → mineworld-economy"; "cognition/rule-controller/Cargo.toml:25 names
+       mineworld-economy".
+     M-P6 (`mineworld-installed-systems = { workspace = true }` in server's [dependencies]) → FAIL,
+       six paths "mineworld-server → mineworld-installed-systems → mineworld-<pack>", one per pack.
+     M-P7 (`// mineworld_economy` appended to tools/cli/src/run.rs) → FAIL "tools/cli/src/run.rs:517
+       names mineworld_economy".
+     Probe: an untracked tools/cli/tests/probe_untracked.rs naming mineworld-item → FAIL
+       "tools/cli/tests/probe_untracked.rs:1 names mineworld-item"; removed.
+     After: `git status` shows only the uncommitted test file; `git grep -n 'MUTATION\|mineworld_economy'
+     -- tools/cli/src server cognition` empty.
 ```
 
 ---
