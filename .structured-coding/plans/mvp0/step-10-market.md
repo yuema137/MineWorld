@@ -115,14 +115,18 @@ PR 11a  installable System Packs (F-1)                   (fully designed in §4.
   worldpack/                   catalog.rs loses every per-pack arm; Cargo.toml loses every pack it
                                does not read for a format field
   Cargo.toml (root)            members: "systems/*" and "sdk/rust"; two workspace dependencies
-  docs                         DECISIONS (DEP-12, ARC-33), MODULE_SPEC §3.1, systems/README, sdk README
+  docs                         DECISIONS (DEP-12, ARC-33, ARC-35 — how AC-1 is measured),
+                               MODULE_SPEC §3.1, systems/README, sdk README
+  tests (existing)             worldpack/tests/refusals.rs: the unknown-system fixture stops being
+                               called `economy` (F-10), claim unchanged
 
 PR 11b  items and organizations in the World Pack format (MODULE_SPEC §4's frozen model, F-4)
   authoring/                   ContentKind gains Item and Organization
   worldpack/                   world.yaml `items:` and `organizations:`; `items/<key>.yaml` and
                                `organizations/<key>.yaml` carrying tags, note and sections; entity ids
                                allocated after people, so every existing id stays put
-  docs                         MODULE_SPEC §4.1, PACKAGE_FORMAT §8
+  docs                         DECISIONS (ARC-36 — an authored Item is a kind), MODULE_SPEC §4.1,
+                               PACKAGE_FORMAT §8
 
 PR 11c  complete affordances: a controller acts on what it is offered (F-3)
   contracts/                   Affordance gains an optional payload: the complete request the
@@ -891,3 +895,198 @@ Yes, and it is raised rather than assumed:
 
 Nothing in 11a changes a frozen invariant of an earlier step, `kernel/`, `contracts/`, or the behaviour
 of any world.
+
+## 4.2 PR 11b — items and organizations in the World Pack format (medium scope; detailed after 11a merges)
+
+**Goal.** A World Pack can declare Item and Organization entities and give them sections, as
+`MODULE_SPEC.md` §4's frozen layout already says it can (SD-7, F-4, F-13).
+
+```text
+authoring/src/section.rs   ContentKind::{Item, Organization}: directory (`items`, `organizations`),
+                           describes, entity_type; Seeding gains typed lookups item(key) and
+                           organization(key) beside place(key) and person(key)
+worldpack/src/format.rs    WorldManifest: `items: Vec<EntityKey>`, `organizations: Vec<EntityKey>`
+                           (both default empty); AuthoredItem, AuthoredOrganization: tags, note, sections
+worldpack/src/content.rs   ITEM_FIELDS, ORGANIZATION_FIELDS = ["tags", "note"]; ContentFile::{item,
+                           organization}
+worldpack/src/read.rs      read items/<key>.yaml and organizations/<key>.yaml; keys stay one namespace
+                           across all four kinds (check_keys_are_declared_once gains two Declared
+                           variants); a section's references may name items and organizations
+worldpack/src/load.rs      ids: places, people (unchanged), items, organizations, each in key order;
+                           genesis: passages, locations, then sections — items', organizations',
+                           places', people's
+worldpack/tests/           refusals (an item file with an unknown key; a `name` section on an item file
+                           refused NotCarriedHere; an item key that is also a place key; a missing
+                           items/<key>.yaml), loading (a tags-only pack with items and organizations:
+                           ids after people, entity types right), social-cafe unchanged
+docs                       MODULE_SPEC §4.1 (the two keys and files, the order rule), PACKAGE_FORMAT §8
+                           row, DECISIONS ARC-36 (an authored Item is a kind — SD-8, if QS-6 is accepted)
+```
+
+**Checkpoint.** A pack with items and organizations validates and loads; every refusal names the file;
+`social-cafe`'s ids, genesis count (53) and 300-day run are unchanged (I-4).
+**Adversarial.** A pack whose people's sections were seeded before an item's would let a holding name an
+undeclared kind: the genesis-order test fails if items' sections are moved after people's (mutation).
+**Non-goals.** No section is carried by items or organizations yet — the first owners arrive in 11d and
+11e; no change to `naming` (names for items and organizations are a later choice).
+**Material?** A public format extension, implementing a frozen model (QS-5). No contract or kernel change.
+
+## 4.3 PR 11c — complete affordances (medium scope; detailed after 11a merges)
+
+**Goal.** A requester can submit an action it does not know, exactly as the offering system offered it
+(SD-9 … SD-12, ARC-34).
+
+```text
+contracts/src/observation.rs   Affordance<P = Vec<u8>> gains `payload: Option<P>` (serde: default,
+                               skip_serializing_if none — so every existing observation serializes
+                               byte-identically); Affordance::with_payload(P); payload(); request(actor)
+                               → Option<ActionRequest<P>> built from the affordance's own action type and
+                               target. Observation<P>'s affordances become Vec<Affordance<P>>.
+                               AffordanceFields gains the field; the availability-agreement check stays
+contracts/tests/               round trip with and without a payload; an old frame (no field) still
+                               decodes; request() carries the affordance's type, target and payload
+systems/presence/src/          Offer gains `payload: Option<Value>`; Offer::with_payload::<A: Action +
+  interaction.rs, observe.rs   Serialize>(self, &A) — refuses (debug-asserts) an A other than the offer's
+                               own type; verdict() carries it into the Affordance
+cognition/rule-controller/     src/offered.rs: attempt(observation, draw) — the available complete
+                               affordances, in observation order; draw 14 < ATTEMPTS_OFFERED (proposed 20)
+                               → pick by draw 15 → Affordance::request; decide() calls it after the social
+                               initiative, before the walking roll. Payload Value → bytes with serde_json,
+                               as the controller already encodes
+cognition/rule-controller/     a synthetic test pack (in the test module, never a real pack): one action
+  tests                        `ring-bell { bell }`, offered complete once per bell; the paced controller,
+                               which has never been compiled against it, rings bells in a hand-built
+                               world through presence's real observe() and the kernel's real dispatch
+server/PROTOCOL.md             the field, its meaning, and that a client may submit it unchanged
+clients/protocol/mineworld/    observation.gd: payload(action_type, target); ADOPTION.md
+docs                           DECISIONS ARC-34; CORE_CONCEPTS §15.2 (the Affordance row and one
+                               paragraph); MODULE_SPEC §5 (a controller may attempt complete affordances;
+                               it still cannot create an interaction, INV-10)
+```
+
+**Checkpoint.** In a hand-built world with presence and the synthetic pack, a seeded paced controller
+attempts the synthetic action and it is Accepted, its fact caused by that request (`AC-9`); with the
+synthetic pack disabled, no such request is ever made (`INV-10`); the 300-day social-cafe run is
+byte-identical to E-0 (I-4); the recorded AC-13/AC-15 transcripts are unchanged (no payload anywhere).
+**Adversarial (decided now).** (1) Mutation: the band ignores `is_available()` → a test that offers an
+unavailable complete affordance fails. (2) Mutation: draw index 14 reused by another band → the
+social-cafe byte comparison fails. (3) A payload attached for the wrong action type cannot be
+constructed (typed `with_payload::<A>`); shown by a test that the affordance's type is the offer's.
+**I-9.** `ATTEMPTS_OFFERED` and the band's position are fixed here, against the synthetic pack, and are
+not changed by any later S9 PR.
+**Material?** Yes: `contracts/` public contract and the controller contract (QS-4).
+
+## 4.4 PR 11d — the transformation, part 1: owning and giving things (medium scope; AC-1 range)
+
+**Allowed paths only** (I-1, §2.5). Detailed after 11b and 11c merge, beginning with a throwaway spike
+of inventory's checked constructor being used by another pack on the post-11c `main` (R-S9-1).
+
+```text
+systems/item/            ItemKind { category: slug } on Item entities, from the `item:` section of
+                         items/*.yaml (Authored: { category }); genesis fact item-kind-declared; no
+                         action; nothing disclosed in S9 (items are not perceived)
+systems/inventory/       depends on item. Holdings { counts: BTreeMap<ItemId, u32> } on Persons and
+                         Organizations, from the `holdings:` section of people and organization files
+                         ({ <item key>: <count> }, references = Items); vocabulary, born final so 11e
+                         need not edit it: stocked (genesis), items-transferred { from, to, item,
+                         count }, items-produced { holder, item, count } — each with a checked public
+                         constructor that refuses what Holdings may not take (a transfer the giver
+                         cannot cover, a kind item has not declared). Discloses Holdings to its holder
+                         only (INV-13). BIOGRAPHICAL: none or items-transferred (decided at detail)
+systems/item-transfer/   depends on inventory. `give { item, count }` targeting a Person in the same
+                         place within 3 000 mm; one complete affordance per kind the giver holds
+                         (count 1); validate → resolve states inventory's items-transferred (ARC-26).
+                         Owns no state. AC-2: disabled → give is Unavailable, the world runs, nothing
+                         else changes (systems/item-transfer/tests)
+systems/installed/       three lines (Cargo.toml + installed!)
+worlds/market-town/      social-cafe's files verbatim (world.yaml: id, name, and `item, inventory,
+                         item-transfer` appended to systems); items/*.yaml (the MVP's ~20 kinds:
+                         coffee, tea, croissant, …), `holdings:` on people; README.md
+```
+
+**Checkpoint (inside the range).** Each pack's own tests over hand-built worlds (the movement/
+group-activity pattern), including a persisted restart for inventory; `mineworld validate
+worlds/market-town`; `mineworld run worlds/market-town --headless --seed 7 --days 30` with `give`
+accepted at least once per seat-bucket — recorded as ledger evidence (the world-level test lands in 11f,
+outside the range). **Adversarial.** A give of more than one holds is refused by inventory's
+constructor even if item-transfer's validate were skipped (owner still decides, ARC-26): a test states
+the fact directly and expects `FactRefusedByOwner`.
+
+## 4.5 PR 11e — the transformation, part 2: work, money and shops (medium scope; AC-1 range)
+
+**Allowed paths only.** Detailed after 11d merges, beginning with a throwaway spike of employment's
+shift Process reading presence and stating inventory's `items-produced` (R-S9-1).
+
+```text
+systems/economy/         depends on inventory; Cargo-depends on employment for `wage-due`'s type only
+                         (ARC-28, no system dependency). Wallet { balance: u64 minor units } on Persons
+                         and Organizations ← `wallet:` (people, organizations); Shop { operator:
+                         OrganizationId, prices: BTreeMap<ItemId, u64> } on Places ← `shop:` (places).
+                         `buy { item }`: no target; SamePlaceAsActor at a shop place; one complete
+                         affordance per priced kind, available when the operator holds one and the buyer
+                         can pay, otherwise unavailable with the reason; resolve states its own
+                         money-transferred and inventory's items-transferred. Reacts to wage-due:
+                         money-transferred (caused by it) or wage-unpaid. Discloses a Wallet to its
+                         holder; a shop's listing (prices, in stock) to everyone perceiving the place
+                         (CP-7). Facts: funded (genesis), money-transferred, wage-unpaid
+systems/employment/      depends on inventory and presence. `job:` section on people: { employer: <org
+                         key>, role: slug, workplace: <place key>, shift: "HH:MM"–"HH:MM", wage per
+                         hour, produces: optional { item, per hour } }. Owns Employment + the
+                         employed-by edge (Person → Organization) + one `shift` Process per job, woken at
+                         the shift's start and end (the time-of-day convention of ARC-32). Attendance:
+                         Presence at a wake, and person-entered-place between wakes. Facts: hired
+                         (genesis), shift-started, shift-ended { worked seconds }, wage-due { employee,
+                         employer, amount }; states inventory's items-produced for the employer.
+                         Never reads or writes a Wallet (CP-5)
+systems/installed/       two lines
+worlds/market-town/      organizations/ (the café's and the store's operators — keys distinct from the
+                         places', F-16), wallets, shops on `cafe` and `store`, two jobs fitted to
+                         existing routines (alice at the café 05:30–14:00; a store clerk inside a routine
+                         that already spends that time at the store, F-17), organization holdings
+```
+
+**Checkpoint.** Per-pack tests including a persisted restart mid-shift (the schedule pattern);
+`economy` with employment disabled installs and still sells (no system dependency); employment with
+economy disabled states `wage-due` that nobody reduces, and nothing breaks (AC-2 direction); a 30-day
+market-town run shows purchases, wages and production — ledger evidence.
+**Adversarial.** A test that states `wage-due` for an employer with an empty Wallet gets `wage-unpaid`,
+never a negative balance (`u64` makes the negative unrepresentable; the test shows the refusal path is
+the one taken). A mutation that lets employment write a Wallet does not compile (`INV-7` by the kernel's
+write tokens) — recorded as a static guarantee, not a test.
+
+## 4.6 PR 11f — the proof (medium scope; detailed after 11e merges)
+
+```text
+tests/acceptance/        new workspace member `mineworld-acceptance` (root Cargo.toml: one member line —
+                         outside the range, by design). tests/ac1_composability.rs:
+                           TRANSFORMATION = [<11d merge sha>, <11e merge sha>]
+                           check 1  the change set (git diff --name-only M^1 M per merge; Cargo.lock rule)
+                           check 2  the structure (cargo metadata; crate-name scan of code files)
+                           check 3  the world delta (both packs read with WorldPack::read, compared
+                                    field by field and section by section, sections compared by their
+                                    authored YAML values)
+                         each check fails closed: missing git history, a missing cargo, an unreadable
+                         pack are failures that say so, never skips
+tools/cli/tests/         market_town.rs: AC-11 300 days with CP-4's precondition per 30-day bucket
+                         (located before counted: purchases, wages paid, items produced, items given),
+                         then AC-12 by bytes; a SIGKILL-and-resume run (the run_restart pattern); AC-2 at
+                         world level: market-town written to a temporary directory without item-transfer
+                         runs 30 days, no give is accepted, purchases and wages still occur;
+                         milestone_c.rs: the server hosts market-town with --save; one client in the
+                         store submits a buy from its complete affordance; a second client in the store
+                         perceives the listing change; the server is killed and restarted, and both the
+                         buyer's Holdings and the listing are as they were
+docs                     MVP_STATUS (AC-1, AC-2 rows), HUMAN_REVIEW_QUEUE (Milestone C, with the launch
+                         commands), worlds/market-town/README, DECISIONS ARC-35 note (the merge ids and
+                         the evidence), overall §7
+```
+
+**Checkpoint.** CP-1, CP-4, CP-6, CP-7 green on the final head. **Adversarial (decided now; each shown
+to bite, then reverted, on a scratch branch):**
+- check 1: a scratch "transformation" commit that also touches `kernel/src/lib.rs` (a comment) → fails
+  naming the path; one that adds an external crate to a market pack → fails on the `Cargo.lock` rule;
+- check 2: `mineworld-economy` added as a dependency of `cognition/rule-controller` → fails naming the
+  path from the controller to the pack;
+- check 3: one tag of one person changed in market-town → fails naming the file and the field;
+- CP-4: market-town with `buy` never offered complete (economy edited on the scratch branch) → the
+  precondition fails before any determinism comparison runs (the instrument sees the absence).
