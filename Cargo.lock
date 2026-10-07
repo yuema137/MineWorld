@@ -627,6 +627,7 @@ dependencies = [
  "mineworld-conversation",
  "mineworld-group-activity",
  "mineworld-kernel",
+ "mineworld-naming",
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-relationships",
@@ -758,6 +759,7 @@ dependencies = [
  "mineworld-conversation",
  "mineworld-group-activity",
  "mineworld-movement",
+ "mineworld-naming",
  "serde",
  "serde_json",
 ]

@@ -173,7 +173,7 @@ impl PacedRuleController {
         if draw.below(100, 1) >= ANSWERS {
             return None;
         }
-        let said = reply_to(heard, &newest, *speaker)?;
+        let said = reply_to(heard, &newest, *speaker, observation)?;
         Some(ActionRequest::new(me, record(&Talk::new(said))).with_target(*speaker))
     }
 

@@ -2,7 +2,7 @@ Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
 [demo] connecting to 127.0.0.1:7878 as seat 'visitor' (3d)
 [demo] seated: seat 'visitor' is observer 17
-[demo] world instance 0000000018dc1d3e5c1318a0c8520000, 18 entities, 2 client(s)
+[demo] world instance 0000000018dc29c4a7a5bb0140b20000, 18 entities, 2 client(s)
 [demo] observation 1: 2, 7, 8, 17, 18
 [demo] the server says talk to 7 is not available (too far away)
 [demo] c1 -> action 1: accepted (1 fact(s))
@@ -13,17 +13,24 @@ Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 [demo] the server now says talk to 7 is available
 [demo] c5 -> action 5: accepted (4 fact(s))
 [demo] --- what this client was told ---
-[demo] world instance      0000000018dc1d3e5c1318a0c8520000
+[demo] world instance      0000000018dc29c4a7a5bb0140b20000
 [demo] observer            17
 [demo] perceived           2, 7, 8, 17, 18
 [demo]   2  tags ["cafe","public"]  at (0.0, 0.0) m
 [demo]       components ["passages"]
 [demo]       doorways   1 (read through MineWorldObservation.component)
 [demo]   7  tags ["barista","staff"]  at (6.0, -8.0) m
+[demo]       components ["display-name"]
+[demo]       name       "Alice Moreau" (read through MineWorldObservation.display_name)
 [demo]   8  tags ["regular"]  at (4.5, -6.1) m
+[demo]       components ["display-name"]
+[demo]       name       "Bob Achterberg" (read through MineWorldObservation.display_name)
 [demo]   17  tags ["visitor"]  at (6.0, -6.0) m
-[demo]       components ["conversation-history","acquaintances"]
+[demo]       components ["conversation-history","acquaintances","display-name"]
+[demo]       name       "Vera Lindgren" (read through MineWorldObservation.display_name)
 [demo]   18  tags ["visitor"]  at (7.11, -3.9) m
+[demo]       components ["display-name"]
+[demo]       name       "Wes Calloway" (read through MineWorldObservation.display_name)
 [demo]   affordance move -> null : available
 [demo]   affordance talk -> "7" : available
 [demo]   affordance invite -> "7" : available

@@ -52,7 +52,8 @@
 
 mod support;
 
-use mineworld_contracts::EntityId;
+use mineworld_contracts::{Component, EntityId, Observation};
+use mineworld_naming::DisplayName;
 use mineworld_server::RefusalCode;
 use serde_json::json;
 use support::{Client, SaveDir, Server, may_talk_to, own_history, run_command, tagged, talk, walk};
@@ -225,12 +226,15 @@ async fn there_is_only_one_alice() {
          said was: {}",
         reply_to_3d.utterance()
     );
+    // The other speaker, named: by the name the 3D window's own observation discloses about the
+    // visitor (naming's `display-name`), which is the pack's authored name — so an empty or invented
+    // name cannot pass, and neither can the key, which differs from it.
+    let visitors_name = disclosed_name(&carried_forward, visitor)
+        .expect("the 3D window perceives the visitor, and is told their name");
+    assert_eq!(visitors_name, "Vera Lindgren", "the name the pack authored");
     assert!(
-        reply_to_3d
-            .utterance()
-            .as_str()
-            .contains(&visitor.raw().to_string()),
-        "and she named the other speaker by identity: {}",
+        reply_to_3d.utterance().as_str().contains(&visitors_name),
+        "and she named the other speaker: {}",
         reply_to_3d.utterance()
     );
 
@@ -614,4 +618,19 @@ async fn what_a_window_reads_is_the_world_s_own_projection() {
             .all(|heard| heard.speaker().entity_id() == alice),
         "and every one of them is from her"
     );
+}
+
+/// The display name an observation discloses about `person`, decoded with `naming`'s own type.
+fn disclosed_name(
+    observation: &Observation<serde_json::Value>,
+    person: EntityId,
+) -> Option<String> {
+    let record = observation
+        .entity(person)?
+        .components()
+        .iter()
+        .find(|record| *record.component_type() == DisplayName::COMPONENT_TYPE)?;
+    let name: DisplayName =
+        serde_json::from_value(record.payload_for::<DisplayName>().ok()?.clone()).ok()?;
+    Some(name.name().as_str().to_owned())
 }

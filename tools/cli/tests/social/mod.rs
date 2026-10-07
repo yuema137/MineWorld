@@ -24,6 +24,31 @@ pub const BIOGRAPHICAL_TYPES: [&str; 6] = [
     "group-activity-ended",
 ];
 
+/// Every person's authored name, as literals from `worlds/social-cafe/people/*.yaml` — the oracle a
+/// name a command or a controller prints is checked against, never read through `naming` itself.
+pub const AUTHORED_NAMES: [(&str, &str); 12] = [
+    ("alice", "Alice Moreau"),
+    ("bob", "Bob Achterberg"),
+    ("carol", "Carol Mensah"),
+    ("dev", "Dev Raman"),
+    ("erin", "Erin Walsh"),
+    ("felix", "Felix Okafor"),
+    ("grace", "Grace Liu"),
+    ("hana", "Hana Sato"),
+    ("ivan", "Ivan Petrov"),
+    ("otto", "Otto Brandt"),
+    ("visitor", "Vera Lindgren"),
+    ("wanderer", "Wes Calloway"),
+];
+
+/// The authored name of the person with this key.
+pub fn authored_name(key: &str) -> Option<&'static str> {
+    AUTHORED_NAMES
+        .iter()
+        .find(|(person, _)| *person == key)
+        .map(|(_, name)| *name)
+}
+
 /// A fact's payload as its owner's type `E`, if it is an `E`.
 pub fn decoded<E: Event>(fact: &EventEnvelope) -> Option<E> {
     serde_json::from_slice(fact.payload().payload_for::<E>().ok()?).ok()

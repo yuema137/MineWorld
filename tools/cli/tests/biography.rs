@@ -165,6 +165,40 @@ fn alices_biography_is_exactly_the_facts_that_name_her() {
             "every line carries its event id"
         );
     }
+
+    // ── Names alongside keys (10c C4): checked against the authored literals. ────────────────
+    assert!(
+        first.starts_with("biography  alice \"Alice Moreau\" (entity "),
+        "the header names her: {}",
+        first.lines().next().unwrap_or_default()
+    );
+    let mut named_counterparts = 0;
+    for entry in &biography {
+        assert_eq!(
+            entry["name"], "Alice Moreau",
+            "her name on every JSON entry"
+        );
+        let keys = entry["counterparts"].as_array().expect("an array");
+        let names = entry["counterpart_names"].as_array().expect("an array");
+        assert_eq!(keys.len(), names.len(), "aligned with the keys: {entry}");
+        for (key, name) in keys.iter().zip(names) {
+            let key = key.as_str().expect("a key");
+            assert_eq!(
+                name.as_str(),
+                social::authored_name(key),
+                "{key}'s name, as authored: {entry}"
+            );
+            named_counterparts += 1;
+        }
+    }
+    assert!(
+        named_counterparts > 0,
+        "located: some entry names somebody else"
+    );
+    assert!(
+        first.contains("bob \"Bob Achterberg\""),
+        "and a text line shows a counterpart as key and name"
+    );
 }
 
 #[test]

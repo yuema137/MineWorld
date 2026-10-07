@@ -2053,47 +2053,66 @@ intermediate value. That is a recorded bounded deviation, not silent.
 - `clients/protocol/{mineworld/observation.gd, demo/demo.gd, ADOPTION.md, evidence/*}`.
 
 **Depends on:** C3.
-- [ ] Implementation: as §4.3.2 "names in what people say and read".
-- [ ] Validation:
-  - [ ] Rule-controller unit tests:
-    - with the other speaker's DisplayName disclosed, the reply names them;
-    - with it undisclosed, the reply says "someone else" and contains no digit sequence equal to any
-      id. This is tests.rs:198–202's case. Its old claim, "names by identity because there is no
-      display name", is replaced by the approved fallback, and the replacement is recorded in §9;
-    - the longest legal name still fits `UTTERANCE_MAX_BYTES` beside two ASCII quotations at the
-      80-character bound;
-    - every other existing rule-controller test passes unedited.
-  - [ ] **AC-15** (`ac15_one_alice.rs:228–235`): the claim "she named the other speaker" is kept.
-    The literal moves from the visitor's raw id to the visitor's name, read from the
-    `display-name` record that the 3D window's own observation discloses about the visitor
-    (decoded with naming's type), and asserted equal to the pack's authored `Vera Lindgren`. That
-    excludes an empty name. Every other assertion is untouched; §9 lists the edit.
-  - [ ] `biography`: the header and lines carry `"Alice Moreau"` and the counterparts' names. JSON
-    keeps every existing field and adds `name` and `counterpart_names`. biography.rs's soundness,
-    completeness and determinism checks pass unchanged.
-  - [ ] **AC-2, naming** (`social_composition.rs`, new case). The pack copy omits `naming` and every
-    `name:` line, since MODULE_SPEC §4.1 rule 4 refuses the sections otherwise. 30 days, seed 7:
-    - no fault;
-    - every non-naming fact equals the full run's in order, by (type, at, subjects, participants,
-      place);
-    - payload bytes are equal for every type but `spoke`;
-    - each `spoke` utterance is equal, or equal after replacing exactly one authored name with
-      "someone else";
-    - at least one such replacement is located;
-    - no utterance in the bare run contains any authored name;
+- [x] Implementation (§9 E-C4):
+  - rule-controller `lib.rs`: `reply_to(…, observation)`, `disclosed_name`, `SOMEONE`; both call
+    sites (`decide`, paced `answer`); Cargo dependency on naming.
+  - cli `biography.rs`: names via `mineworld_naming::names_in` over the save's facts; Cargo
+    dependency on naming.
+  - Godot: `observation.gd` `display_name(id)`; `demo.gd` `_called` (labels and history panel by
+    name, else id) and `name …` lines in `_report`; ADOPTION.md.
+- [x] Validation:
+  - [x] Rule-controller: 22 passed (20 + 2 new).
+    - `she_names_the_other_speaker_by_the_name_she_is_told`: "Earlier, Vera Lindgren said …", and
+      not the addressee's own name.
+    - `the_longest_name_still_fits_a_reply`: 64 bytes beside two 80-character quotations.
+    - `she_tells_the_second_person…` (tests.rs:198–202): **claim replaced**, as approved. It was
+      "named by identity because this world has no display name"; it is now "Earlier, someone else
+      said", and no id appears.
+    - Every other test is unedited.
+  - [x] **AC-15**: `ac15_one_alice` 6 passed. The literal moved from `visitor.raw()` to
+    `disclosed_name(&carried_forward, visitor)`, decoded with naming's type and asserted equal to
+    "Vera Lindgren". The claim ("she named the other speaker") is kept, and every other assertion is
+    untouched.
+  - [x] `biography` 2 passed. Additions, against the authored literals (`social::AUTHORED_NAMES`,
+    never through naming):
+    - the header starts `biography  alice "Alice Moreau" (entity `;
+    - every JSON entry has `name` "Alice Moreau";
+    - `counterpart_names` is aligned with `counterparts`, each equal to the authored name;
+    - a text line shows `bob "Bob Achterberg"`.
+
+    Soundness, completeness and determinism are unchanged and pass.
+  - [x] **AC-2, naming**: `without_naming_every_other_system_is_unchanged_but_for_the_names_people_say`
+    PASS (5.5 s). 33 951 facts compared row for row:
+    - every non-naming fact is equal by (type, at, subjects, participants, place);
+    - payload bytes are equal except `spoke` words;
+    - 1 615 replies differ, each between two replies, and the bare one names nobody;
+    - 1 549 full-world replies say "Earlier, <full name> said" (located);
+    - no bare-world utterance contains any given name;
     - `requests`, `activity` and `consults` are equal.
-  - [ ] **Far side (R-9, S7 Q4):** `clients/protocol/run.sh evidence`, Godot headless, real server.
-    - Every transcript's perceived people show `name "…"`, and the components lists include
-      `display-name`.
-    - The 3D-wanderer transcript's reply from Alice names Vera Lindgren.
-    - `request-{2d,3d}.json` replay unchanged, and `ac13_semantic_parity` and `ac15_one_alice` pass
-      over them.
-- [ ] Review:
-  - `reply_to` reads names only through the observation.
-  - RuleController's decisions (whom, when) are unchanged (I-9): `git diff` touches only the
-    wording path.
-  - No client computes a name.
-  - The demo's fallback is the id, never a key.
+
+    **Bounded deviation D-C1 (oracle corrected):** the plan's "equal after replacing exactly one
+    name with 'someone else'" is false, and the first run showed why. A reply quotes earlier replies,
+    each cut at 80 characters, so names nest and are themselves cut ("Ali…" against "som…"). The
+    text cannot be mapped one onto the other. The asserted property is the one that holds and is
+    the AC-2 point: the controller's decisions are identical, row for row, and only the words of
+    replies differ, the bare world's naming nobody.
+  - [x] **Far side:** `clients/protocol/run.sh evidence` (Godot 4.7.2 headless, real server, 23.5 s):
+    - `server.log`: "18 entities, 6 system(s)";
+    - every transcript lists `name "Alice Moreau"`, "Bob Achterberg", "Vera Lindgren", "Wes
+      Calloway" for the perceived people, read through `MineWorldObservation.display_name`, and
+      `display-name` in the components lists;
+    - `transcript-3d-wanderer.log`: Alice says "… Earlier, Vera Lindgren said \"hello Alice, this is
+      the demonstration scene\" to me.";
+    - `request-{2d,3d}.json` are byte-unchanged (`git diff --stat` lists neither);
+    - `ac13_semantic_parity` and `ac15_one_alice` pass in the full run.
+  - [x] Full workspace: 398 passed, 0 failed, 1 min 50 s.
+- [x] Review:
+  - `reply_to` reads names only through `observation.entity(id).components()`.
+  - RuleController's decisions are unchanged (I-9): the diff adds one argument and the wording
+    branch. `answered`, the speaker choice and `may_talk_to` are untouched, which AC-2's row-for-row
+    equality also shows.
+  - No client computes a name; the demo's fallback is the id.
+  - fmt and clippy `--workspace -D warnings` are clean.
 
 **Acceptance.** As validation (§9 E-C4).
 **Failure.** An AC-15 claim that cannot be kept with a literal update is a material stop.
@@ -2949,6 +2968,10 @@ E-C3 The seam in worldpack; naming registered. `cargo test --workspace --no-fail
      as its own gate.
      clippy --workspace -D warnings clean, after boxing `SectionRefusedByOwner.reason` (a
      result_large_err finding).
+E-C4 Names reach what people say and read. Full workspace 398 passed, 0 failed (1 min 50 s).
+     run.sh evidence 23.5 s; seven evidence files re-recorded, request-*.json unchanged. The AC-2
+     oracle was corrected (D-C1), after two failing runs located the nested, cut quotations at rows
+     249 and 5 156.
 ```
 
 ## 9.1 Limitations (expected)
