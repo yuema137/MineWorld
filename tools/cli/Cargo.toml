@@ -34,3 +34,8 @@ tokio = { workspace = true }
 # half of the stack DEP-3 chose, and `futures-util` because a socket is split to read and write.
 futures-util = { workspace = true }
 tokio-tungstenite = { workspace = true }
+# The biography and Milestone B tests check what the command prints against the facts' own typed
+# payloads, decoded with the owner packs' published types — an oracle independent of the envelope
+# fields the command selects by (step-09 C6, rules §25).
+mineworld-group-activity = { workspace = true }
+mineworld-relationships = { workspace = true }

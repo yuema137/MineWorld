@@ -33,7 +33,20 @@ coordinator's freeze message. Merge: operator only.
 
 ## Checkpoint
 
-C0 done (85d2009 draft, db118c0 freeze). Next: C1, which is ARC-28, ARC-29 and MODULE_SPEC §8.1.
+| Commit | Done in | What |
+| --- | --- | --- |
+| C1 | 83634f1 (+ 1512e86) | specs |
+| C2 | 0eeb7b6 | group-activity |
+| C3 | 5feaf50 | relationships |
+| C4 | 59c247a | registration and evidence |
+| C8 | 4596271 | opt-level 1, ARC-30 — pulled forward, bounded |
+| C5 | ddf7abf | controller |
+
+Next: C6, `mineworld biography` (`tools/cli/src/biography.rs`, `tests/biography.rs`). Then C7
+(`milestone_b.rs`, `social_composition.rs`, the extended precondition in run and run_restart), then
+C9 (docs and gates).
+
+No background processes. Scratch lives in `/tmp/s8b` (logs, the `no-ga` pack copy).
 
 ## Tool rules
 

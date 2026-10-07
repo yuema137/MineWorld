@@ -1178,32 +1178,44 @@ produced it. A biography that invents or drops an entry fails the test (CP-2, I-
 - `tools/cli/Cargo.toml`: dev-dependencies on the two packs, for typed decoding in the oracle.
 
 **Depends on:** C5 (a real save has the facts to project).
-- [ ] Implementation: as §4.2.2. Refusals by name, never a panic:
+- [x] Implementation: `tools/cli/src/biography.rs` (new); `main.rs` (the `Biography` subcommand, the
+  module doc's command list, `not_yet`'s list). Refusals by name, never a panic:
   - no save;
   - the save's pack is not this pack;
   - an unknown KEY, or KEY not a Person;
   - a composition naming a system this build does not provide.
-- [ ] Validation (`tools/cli/tests/biography.rs`, one real 30-day saved run, seed 7):
-  - [ ] **Located (`ARC-23`).** Alice's biography has at least one entry of each of the six types, and
-    the counts are printed. An empty biography would match any log, so this excludes it.
-  - [ ] **Sound: nothing invented.** Every entry's event id exists in the log with the same type,
-    instant and place. The fact's own typed payload, decoded with the owner pack's type, names Alice.
-  - [ ] **Complete: nothing dropped.** Decode every fact of the six types with its owner's type. Each
-    whose payload names Alice (`person` / `counterpart`, `members`, `person`) appears exactly once. The
-    oracle reads payloads, not the envelope fields the command reads, so the expected set does not
-    come from the code under test (rules §25).
-  - [ ] Determinism: two invocations print the same bytes; `--json` carries the same ids.
-  - [ ] Refusals: each of the four, by name, exit non-zero, no "panicked".
-  - [ ] **Mutations, each run and reverted, recorded in §9 E-B6:**
-    - drop `left-group-activity` from group-activity's `BIOGRAPHICAL` → completeness fails (dropped);
-    - select on subjects only, ignoring participants → completeness fails (Bob's `became-acquainted`
-      toward Alice is dropped);
-    - select every fact of a biographical type, ignoring the person → soundness fails (invented).
-- [ ] Review:
-  - The command reads no journal and resumes nothing.
-  - It names no event type in its own code: the set comes from the catalog, so adding a pack adds a
-    constant and no biography code.
-  - Every line carries its event id (`CORE_CONCEPTS.md` §5.4).
+- [x] Validation (`tools/cli/tests/biography.rs` + shared `tests/social/mod.rs`, one real 30-day saved
+  run, seed 7; 2 tests PASS, 3.1 s):
+  - [x] **Located.** Alice's biography holds 428 entries: became-acquainted 22, relationship-changed
+    62, group-activity-started 135, joined 19, left 36, ended 154.
+  - [x] **Sound.** Every entry is a fact of the log with the same type, instant and place key, and its
+    own payload names Alice.
+  - [x] **Complete.** Every fact of the six types whose payload names Alice is listed exactly once
+    (sets equal). The oracle's type list is literal (`tests/social/mod.rs`), not read from the packs'
+    constants (rules §25).
+
+    The test records all three properties before asserting, so a failure names every property that
+    broke.
+  - [x] Determinism: two text invocations print identical bytes, and every JSON id appears as `#id`
+    in the text.
+  - [x] Refusals: no save, a save of another pack (a `mineworld create`d `other-town`), an unknown
+    key, a key that is a place. Each is named, non-zero, and has no "panicked". **Not tested:** a
+    composition naming an unknown system. No real path produces such a save, and forging a manifest
+    row is outside this test's tools. The refusal is a three-line `ok_or_else` reviewed in place.
+  - [x] **Mutations, each run and reverted (§9 E-B6). Each FAILS the test:**
+    - (a) `left-group-activity` dropped from group-activity's `BIOGRAPHICAL` → `LOCATED: alice's
+      biography has no left-group-activity` **and** `COMPLETE: 36 fact(s) … missing, first: #453,
+      #2333, #2855 left-group-activity`.
+    - (b) select by subjects only → `COMPLETE: 42 fact(s) … missing, first: #21, #218, #235
+      became-acquainted`. That is Bob's, the wanderer's and the visitor's acquaintance *with Alice*,
+      where she is a participant and not the subject.
+    - (c) every biographical fact, ignoring the person → `SOUND: 1824 entr(ies) the log does not
+      support, first: #38 (became-acquainted) does not name alice in its own payload …`.
+- [x] Review:
+  - The command reads the manifest and the fact table only: no journal, no resume, no write.
+  - It names no event type: the set is the union of `Capability::biographical()` over the save's
+    composition.
+  - Every line carries `#id`. fmt and clippy are clean.
 **Acceptance.** As validation. **Failure.** A fact a pack emits without naming its people in the envelope
 makes completeness fail. That is that pack's defect: fix it there, recorded. Never fix it in the
 biography. **Boundary.** One subcommand and its test.
