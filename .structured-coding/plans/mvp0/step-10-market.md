@@ -1252,16 +1252,26 @@ scan (freeze condition 1, B-6).
 **Depends on:** B-C1. **Non-goals:** no change to the vocabulary, to what is scanned (every non-Markdown
 added line and added path) or to fail-closed behaviour.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation:
-  - [ ] `cargo test -p mineworld-acceptance`: all pass, including the 11b row over this branch's working
-    tree (at this commit the branch adds no other market word).
-  - [ ] Mutation M-B6 (one entry admits its whole line again, i.e. the word check bypassed) →
-    `an_admitted_word_admits_no_other` fails; reverted.
-  - [ ] `cargo clippy -p mineworld-acceptance --all-targets -- -D warnings`; `cargo fmt --check`.
-- [ ] Review: the change only tightens (a line admitted before is admitted now only if every market word
-  on it is admitted); `Any` cannot leak to another file; the reasons are non-empty; ARC-35's note (B-C1)
-  describes exactly this behaviour.
+- [x] Implementation: as scoped. `Words { Any, Only }` with `admit`; `THIS_SCAN` const; `market_words`
+  (every match) replaces `market_word` (first match); the pure `refused_words(pr, path, text, allowed,
+  used)` decides each word and marks used entries; a guard fails naming any `Any` entry outside
+  `THIS_SCAN`. Row 11b base `da316134e8bf8a82d1f65bbeaab62f3368222a3d`; 11b self-entry `Any`.
+  QS-15 conditional item not implemented (declined, §12.0). **Literal update D-B1:** the existing
+  `the_matcher_sees_every_form_of_a_market_word` called `market_word(text).is_some()` /
+  `.is_none()`; it now calls `!market_words(text).is_empty()` / `.is_empty()`. Claim unchanged (the
+  same six lines match, the same four do not).
+- [x] Validation (E-B2):
+  - [x] `cargo test -p mineworld-acceptance`: 4 passed (3 existing + `an_admitted_word_admits_no_other`),
+    including the 11b row over the working tree.
+  - [x] Mutation M-B6 (`&& (true || entry.words.admit(&word))`, the word check bypassed) →
+    `an_admitted_word_admits_no_other` FAILED: `in: let item_price = 1;` left `[]` right `["price"]`;
+    the other three passed. Reverted (grep finds no `true ||`; `git status` shows only the intended
+    edit). This is QS-16's required mutation: an `item_price` line refused for `price`.
+  - [x] `cargo clippy -p mineworld-acceptance --all-targets -- -D warnings` clean; `cargo fmt --all
+    --check` clean.
+- [x] Review: only tightens — a word is admitted only by an entry that, before, would have admitted its
+  whole line, plus the word condition; `Any` is guarded to `THIS_SCAN`; both `Any` entries have reasons;
+  stale-entry, fail-closed and vocabulary unchanged; matches ARC-35's note (B-C1) item by item.
 
 **Failure cases.** A precursor line that needs a market word other than `item`/`items` is a material stop
 (ARC-35 point 7), never an entry added to pass.
@@ -2205,6 +2215,9 @@ Written by the 11b implementation session only (`E-B<n>`).
 
 E-B1 B-C1 (docs): check_decision_ids 46 ids distinct (ARC-36 new); check_doc_headings 143 sections /
      22 documents, none duplicated. ARC-36 free on every origin/* branch after git fetch.
+E-B2 B-C2: cargo test -p mineworld-acceptance 4 passed; clippy -D warnings and fmt clean. M-B6 (word
+     check bypassed) → an_admitted_word_admits_no_other fails on `let item_price = 1;` (expected
+     ["price"], got []); reverted. Literal update D-B1 (market_word → market_words), claim unchanged.
 ```
 
 ## 9.3 Evidence — PR 11c
