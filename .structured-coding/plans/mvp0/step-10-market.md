@@ -14,7 +14,7 @@ before them merges (`CLAUDE.md` §3, "detail one step ahead").
   scan reads all three as merged on `main`'s first-parent chain (§9 E-3). Every framework capability
   the transformation relies on now exists.
 - **PR 11d** is detailed to the commit in §4.4 by the planning session on `mvp0/s9-11d-plan` from
-  `main @ c5dc51c` — `PROPOSED, NOT FROZEN`, with its R-S9-1 spike done (§9 E-4: no framework gap),
+  `main @ c5dc51c` — `DESIGN FROZEN (2026-10-07)` per §4.4.0, with its R-S9-1 spike done (§9 E-4: no framework gap),
   the audit in §8.5, questions QS-27 … QS-38 (§10; QS-35 operator-material) and a proposed execution
   contract in §15.
 - PRs 11e and 11f stay at medium scope until each is detailed and frozen in turn.
@@ -1929,7 +1929,34 @@ CI          none configured; the full local gate once on the final head
 - No ownership boundary changes; `kernel/` untouched; the controller's dependencies unchanged.
 
 
-## 4.4 PR 11d — the transformation, part 1: owning and giving things (full design; PROPOSED, NOT FROZEN)
+## 4.4 PR 11d — the transformation, part 1: owning and giving things (full design; DESIGN FROZEN 2026-10-07)
+
+### 4.4.0 Freeze record (primary session, 2026-10-07)
+
+The 11d design is frozen and its execution contract (§15) is confirmed. These rulings bind and
+override any other text in §4.4 and §15.
+
+- **QS-27 accepted.** A person may hold at most six items and organizations are unbounded. The cap
+  is a pack rule in `inventory`, not a controller change (I-9). The spike's evidence for it is
+  F-39 (Otto as a sink).
+- **QS-28 to QS-34, QS-36 and QS-37 accepted as recommended.** That includes `items-produced`
+  deferred to 11e, ARC-37, and per-seat give evidence from a scratch reader until 11f.
+- **QS-35 was decided by the operator on 2026-10-07: a consumption pack.** The operator was offered
+  shops buying back, a consumption pack, or relaxing CP-4, and chose the consumption pack. It does
+  not change 11d. It **widens 11e's scope** by one System Pack under `systems/`, so it sits inside
+  the AC-1 change set:
+  - The pack consumes items; for example, eating or drinking at the café uses a food item.
+  - It closes QS-10's MVP gap for `eat`.
+  - `inventory` stays the sole writer of holdings. The consumption pack states the removal through
+    inventory's checked constructor (ARC-26).
+  - CP-4 keeps its "purchase in every bucket" criterion unchanged.
+  - 11e's medium scope in §4.5 is amended to include the pack. Its detailing settles the pack's
+    name, what it consumes, and whether it needs items to be produced.
+- **F-37 (the `Seeding` doc misstates when genesis facts become visible)** is fixed after 11d merges,
+  in a docs-only PR outside the AC-1 range. 11d's in-pack workaround stays.
+- **F-41 (clients cannot name items)** is recorded for S12.
+- **The merge rules are 11a's:** a merge commit, never squash. The AC-1 change-set check (D-1) runs on
+  the actual merge diff before the operator-review handoff, and again by the primary session at merge.
 
 ### 4.4.1 Identity, base, approved scope
 
@@ -2220,6 +2247,10 @@ CI          none configured (S13); the full local gate once on the final head
 - Nothing changes a public contract, `kernel/`, `contracts/`, or a frozen invariant.
 
 ## 4.5 PR 11e — the transformation, part 2: work, money and shops (medium scope; AC-1 range)
+
+**Scope amended 2026-10-07 (QS-35, operator).** 11e also adds a **consumption System Pack** under
+`systems/`, so that items are used up and the market keeps turning. Its removal of items goes through
+inventory's checked constructor. Details are in §4.4.0.
 
 **Allowed paths only.** Detailed after 11d merges, beginning with a throwaway spike of employment's
 shift Process reading presence and stating inventory's `items-produced` (R-S9-1).
