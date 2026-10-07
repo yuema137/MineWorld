@@ -1799,10 +1799,21 @@ every draw index (0–6, 8–13, 14, 15; 7 free). `src/offered_tests.rs`:
 _decides_anything`; `src/tests.rs`: `the_reactive_controller_never_attempts_an_offer`.
 `Cargo.toml` of the crate is **not** edited.
 
-- [ ] Implementation (no line naming `shifted`, no `Iterator<Item = …>` — F-35).
-- [ ] Validation: crate tests; M-C3, M-C4, M-C5 each fail by name, reverted; the 300-day social-cafe
-  sha = E-0 at this commit.
-- [ ] Review: `decide(&self, …)` still pure (ARC-27); no pack type imported; draw indices distinct.
+- [x] Implementation (no line naming `shifted`, no `Iterator<Item = …>` — F-35). `offered.rs`:
+  `ATTEMPTS_OFFERED = 20`, `OFFER_DRAW = 14`, `OFFERED_CHOICE_DRAW = 15`, `attempt(observation, &Draw)`
+  as scoped (the rate check and the empty check share one `if`; draw 14 is read only when something
+  complete is available). `paced.rs`: one call after `if social.is_some()`, before the door closure and
+  the walking roll; module doc gains the draw table; `decide`'s doc names the band. `lib.rs`: `mod
+  offered;` and `mod offered_tests;` only — `RuleController` untouched. The five named tests in
+  `offered_tests.rs` (their observation is a hand-built hall offering `ring`, a name no dependency
+  defines) and `tests.rs::the_reactive_controller_never_attempts_an_offer`. `Cargo.toml` not edited.
+  E-C4.
+- [x] Validation: E-C4 — crate 34 passed (28 + 6); M-C3, M-C4, M-C5 each fail by name, reverted; the
+  300-day social-cafe sha at this state (see E-C4).
+- [x] Review: `decide(&self, …)` still pure — the band reads only the observation and the `Draw`
+  (ARC-27); `offered.rs` imports only contracts and serde_json, no pack type; draw indices 0–6, 8–13,
+  14, 15 distinct (the table); the band is placed after the agenda and social bands, so it never
+  pre-empts an answer, an invitation reply, the day's walk or a leave/invite/join.
 
 ### C-C5 — CP-3: `tests/acceptance/tests/complete_affordances.rs`
 
@@ -2408,6 +2419,16 @@ E-C3 C-C3 presence. `cargo test -p mineworld-presence` → presence.rs 15 passed
      M-C2 (verdict keeps the affordance, drops the payload): a_complete_offer_reaches_the_observation
      _with_its_own_type_and_payload FAILED, 14 passed → reverted. conversation 14, group_activity 10,
      movement 1 + 3 + 7 + 1 passed. clippy -p presence -p contracts --all-targets -D warnings clean.
+E-C4 C-C4 the offer band. `cargo test -p mineworld-rule-controller` → 34 passed (28 + 6), 0 failed;
+     clippy -p rule-controller --all-targets -D warnings clean.
+     M-C3 (drop `is_available()` from the filter): only_available_complete_affordances_are_attempted
+       and no_complete_affordance_no_new_draw_decides_anything FAILED → reverted.
+     M-C4 (OFFER_DRAW = 0): greetings_still_happen_where_offers_are_made FAILED → reverted.
+     M-C5 (RuleController::decide calls offered::attempt first): the_reactive_controller_never
+       _attempts_an_offer FAILED → reverted.
+     I-4: 300-day seed-7 social-cafe on this working tree (base 7922cb2+C-C3 d2f6c8c + C-C4 diff):
+       exit 0, 339 lines, faults 0, 365 330 facts, sha-256 of all but `wall` = ad49c723…c64b = E-0;
+       wall 23.0 s (machine shared with the parallel 11b session).
 ```
 
 ---
