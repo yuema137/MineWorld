@@ -6,8 +6,11 @@ are specified at medium scope and are each re-audited and detailed to the commit
 before them merges (`CLAUDE.md` §3, "detail one step ahead").
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S9, §4 (`AC-1`, `AC-2`), §7 (F-1, F-3)
 **Lifecycle:** step design `DESIGN FROZEN (2026-10-07)` for §§1–3 and the six-PR split; **PR 11a**
-`DESIGN FROZEN (2026-10-07)` with its execution contract (§11) confirmed. PRs 11b–11f stay at medium
-scope until each is detailed and frozen in turn.
+`MERGED` as `c472636` (GitHub #36, 2026-10-07; post-merge docs `7ed1648`). **PRs 11b and 11c**
+detailed to the commit in §4.2 and §4.3 by the planning session on `mvp0/s9-11bc-plan` from
+`main @ 7ed1648` — `PROPOSED, NOT FROZEN`, with proposed execution contracts in §13 and §14 and the
+rules for running them in parallel in §12. PRs 11d–11f stay at medium scope until each is detailed and
+frozen in turn.
 
 **Freeze record (2026-10-07).**
 
@@ -1039,9 +1042,10 @@ says it does (`ARC-23`: an instrument shown to see before it is trusted).
   is green on the PR and shown to bite; the scratch branches were never pushed. Deviations D-A1 … D-A3
   are bounded and recorded; nothing material arose.
 
-**PR 11a lifecycle: READY FOR OPERATOR REVIEW — not merged.** Final executable head `70b0857`; later
-commits are this ledger and the handoff only. Parent synchronization (step §§1–3 status, overall §1's
-AC-1 gloss citing ARC-35, overall §3 S9) is pending and owned by the planning session.
+**PR 11a lifecycle: MERGED** — GitHub #36, merge commit `c472636` (2026-10-07), a merge commit as the
+I-2 scan's merged range requires. Final executable head `70b0857`. Parent synchronization: overall §1's
+AC-1 gloss citing ARC-35 and overall §7 were recorded in `a151c41` (merged as `7ed1648`); this step's
+header and this line were recorded by the planning session that detailed 11b and 11c (§4.2, §4.3).
 
 **Commit boundary.** Only documentation and the ledger are committed in C5; the canary lives only in
 the ledger's evidence.
@@ -1421,6 +1425,113 @@ material: the installation mechanism and the measurement of `AC-1` (QS-2, QS-3),
 change in `contracts/` (QS-4). The ontology reading of `Item` (QS-6) and the format extension (QS-5) are
 material in their own right. Nothing found contradicts a frozen invariant of an earlier step.
 
+## 8.4 Re-audit for 11b and 11c (`main @ 7ed1648`, 2026-10-07)
+
+Made by the planning session after 11a merged, before detailing §4.2 and §4.3. Nothing below was
+inferred from §1.1's medium scope; where that scope and the source disagree, the source wins and the
+finding says so.
+
+**Inspected.**
+
+```text
+authoring/src/{section.rs, content.rs, lib.rs} (whole)
+worldpack/src/{format.rs, content.rs, read.rs, load.rs, lib.rs} (whole); catalog.rs (:60–129, the
+  section-namespace guard); error.rs (:1–60, Declared, ContentKind re-export)
+worldpack/tests/refusals.rs (:1–100 Fixture, :450–520 every_refusal_names_the_file_it_is_about);
+  social_cafe.rs (:193–226 genesis count 53, :337–392 sections do not move earlier facts)
+sdk/rust (Cargo.toml, src/{lib,pack,section,installed}.rs); systems/installed (lib.rs, Cargo.toml)
+tests/acceptance/tests/precursor_vocabulary.rs (whole)
+contracts/src/observation.rs (whole); contracts/src/action.rs (:330–530, ActionRecord, ActionRequest);
+  contracts/tests/observation.rs (:69–96 scene, :202–277 shape tests); contracts/tests/compile_fail/
+  affordance_cannot_claim_both_availability_and_a_reason.{rs,stderr}
+systems/presence/src/{interaction.rs (whole), observe.rs (:1–80, :180–281)}; systems/presence/tests/
+  presence.rs (:690–770, a test system that provides an action)
+cognition/rule-controller/{Cargo.toml, src/paced.rs (whole), src/social.rs (:60–156), src/agenda.rs
+  (draw constant), src/lib.rs (module layout), src/paced_tests.rs (:1–60, test list)}
+tools/cli/src/{main.rs (:240–275 validate), run.rs (:1–200 the run driver)};
+  tools/cli/tests/{commands.rs (:20–60), headless/mod.rs (:1–60, :160–260 Tables), run_restart.rs
+  (:1–60)}
+server/src/protocol.rs (:55–110 WireObservation, WirePayload); server/PROTOCOL.md (§§5–6)
+clients/protocol/mineworld/{observation.gd (:140–202), world_client.gd (:155–172)}; ADOPTION.md (grep)
+spike/server/{Cargo.toml, src/world.rs (:340–401)}
+kernel/src/world.rs (:571–590, create_entity / create_authored_entity)
+docs: DECISIONS ARC-26, ARC-27, ARC-28, ARC-31, ARC-33, DEP-12, ARC-35; MODULE_SPEC §§3, 3.1, 4, 4.1, 5;
+  PACKAGE_FORMAT §8; CORE_CONCEPTS §§7, 8, 15; MVP_STATUS (table anchors)
+git: every origin/* branch for ARC-34+, ARC-36+ and DEP-13+ (none); merge-commit history of origin/main
+  (main-into-branch merges are this project's practice: 11e47f5 into mvp0/pr-05b-server)
+run: the 300-day seed-7 social-cafe baseline on 7ed1648 (§9 E-1)
+```
+
+**Findings.**
+
+```text
+F-20  Seeding needs no typed lookups. §1.1's "Seeding gains item(key) and organization(key)" is stale:
+      Seeding::resolve(key, entity_type) is already generic over EntityType (authoring/src/section.rs).
+      11b adds nothing to Seeding.
+F-21  read.rs check_sections refuses every reference to an Item or an Organization: its type match is
+      `Place => places, Person => people, _ => false`. 11b replaces it with one key → entity-type map
+      built once from all four declared lists, which is also what makes keys one namespace (F-16).
+F-22  No installed pack can carry a section on an item or organization file in 11b, and none should
+      (I-2): worldpack decodes sections only through the generated Capability. So the genesis order of
+      item and organization sections and the typing of references to them cannot be observed through a
+      real pack before 11d. They are observable through worldpack's own unit tests with a probe owner
+      that is not installed, decoded with authoring's Decode and attributed to an installed Capability
+      for ranking only — the pattern load.rs's `a_section_that_seeds_another_packs_fact_is_refused_by_name`
+      already uses (its `Trespasser`).
+F-23  refusals.rs's Fixture creates only people/ and places/, and Fixture::write does not create a
+      parent directory. 11b's fixtures create items/ and organizations/ themselves; no existing helper's
+      behaviour changes for an existing test.
+F-24  Affordance is not generic: Observation<P> holds Vec<Affordance>. Making it Affordance<P> (SD-9)
+      changes the type in four places outside contracts that name it in type position against an
+      Observation<Value>: systems/presence/src/observe.rs (affordances, verdict — production),
+      systems/conversation/tests/conversation_and_presence.rs:234, systems/group-activity/tests/
+      group_activity.rs:306 (tests — a type annotation, claim unchanged), and spike/server/src/world.rs
+      :350 (a separate workspace that consumes contracts by path). Call sites inside `.offering(vec![…])`
+      infer the parameter and need no edit. The trybuild expectation affordance_cannot_claim_both_
+      availability_and_a_reason.stderr may change wording once the struct has a sixth private field.
+F-25  An ActionRecord can be labelled only from a type `A: Action` (action.rs:357). Affordance::request
+      must label a record with the affordance's own ActionTypeId, so contracts needs a pub(crate)
+      labelling constructor in action.rs. No trust is lost: ActionRecord already derives Deserialize, so
+      any label is constructible from JSON today, and dispatch decodes with the owner's type.
+F-26  Observations carry serde_json::Value payloads (presence observe, WireObservation); the paced
+      controller returns ActionRequest<Vec<u8>> of JSON bytes (paced.rs `record`). So a complete
+      affordance's payload must be re-encoded on its way into a request: request() takes the encoder.
+F-27  Draw indices in use by PacedRuleController: 0 (the walking roll), 1 (answer), 2, 3 (greet), 4
+      (approach), 5, 6 (wander) in paced.rs; 8 ANSWER_DRAW, 9 INITIATIVE_DRAW, 10 INVITEE_DRAW, 11
+      KIND_DRAW, 12 JOINED_DRAW in social.rs; 13 AGENDA_DRAW in agenda.rs. The door choice is a separate
+      mix (seed ^ "door", observer, instant ÷ 21 600), not a Draw index. Free: 7, 14, 15 — so 14 and 15
+      are free, as SD-10 assumed.
+F-28  §4.3's adversarial (2) as drafted would not bite. In social-cafe no pack offers a complete
+      affordance, so the band never returns a decision whatever index it draws, and the social-cafe byte
+      comparison stays green under "the band draws index 0". Index reuse shows only where a complete
+      affordance is offered: with index 0, the band fires exactly when the walking roll is below 20,
+      which is the greeting band, so greetings vanish. §4.3 replaces the check with a coexistence test.
+      (The converse — an existing band's index changed — is caught by the social-cafe comparison.)
+F-29  The Godot module's affordance(action_type, target) returns the first match (observation.gd:154).
+      Complete affordances routinely share an action type and a target (one per offered choice, target
+      none), so SD-12's payload(action_type, target) would be ambiguous by construction. affordances()
+      already returns every affordance as the raw dictionary, payload included once it is serialized.
+F-30  The I-2 scan finds a precursor's merge with `git log --first-parent --merges HEAD`. When two
+      precursors run in parallel and the second integrates main by a merge — this project's practice
+      (11e47f5) — the first one's `Merge pull request` commit is reachable from the second's branch only
+      through a second parent, so on that branch the first precursor reads as unmerged: its range becomes
+      base → working tree, which then holds the second PR's lines. Harmless only if the second PR adds no
+      market word at all; fatal if the second is 11b (its `item` lines would be scanned under 11c's row,
+      whose allow-list does not admit them). Once both are merged to main the first-parent chain holds
+      both merges and the problem disappears. §12 and QS-15.
+F-31  An allow-list entry admits a whole line: market_word returns the first match only, and an entry
+      whose substring the line contains admits the line. A line `item_price` admitted for `item` would
+      hide `price`. 11b needs the word `item`, so this must be closed before 11b relies on the allow-list
+      (§4.2 C2, QS-16).
+F-32  `mineworld validate` prints the allocated ids from loaded.ids() (main.rs:262–267), so item and
+      organization keys appear in the id list without a CLI change; the summary lines (`places`,
+      `people`, `seats`) are explicit and would not list them.
+F-33  The rule-controller's tests are in-crate (src/*_tests.rs) and the crate has no dev-dependencies.
+      An end-to-end check through presence's real observe() and the kernel's real dispatch needs the
+      kernel and presence; tests/acceptance already exists as the acceptance home (11a C4b).
+F-34  ARC-34 and ARC-36 (reserved by §§2.3–2.4) are free on every origin/* branch after `git fetch`.
+```
+
 ---
 
 # 9. Ledger and evidence
@@ -1476,7 +1587,18 @@ E-A-final on 70b0857 (clean tree), 2026-10-07:
                                               ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
                                               = E-0; wall 12.2 s
      CI: none configured (S13).
+
+--- planning 11b and 11c (branch mvp0/s9-11bc-plan, base main @ 7ed1648) ---
+
+E-1  I-4 baseline after 11a, on 7ed1648 (debug, opt-level 1), 2026-10-07:
+     `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, 339 lines, faults 0,
+     365 330 facts, sha-256 of all but `wall` =
+     ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 12.6 s.
+     §8.4's audit; no other code run. Doc checks: §9 E-2 (end of this planning branch).
 ```
+
+Each implementation PR records its evidence in its own section — §9.2 for 11b, §9.3 for 11c — so that
+two sessions writing at once never append to the same block (§12).
 
 ## 9.1 Risks
 
@@ -1488,6 +1610,24 @@ E-A-final on 70b0857 (clean tree), 2026-10-07:
 | **R-S9-4** | A declarative macro that generates the catalog is harder to read and to debug than the hand-written enum. | The macro is one file, documented method by method; its expansion is exercised by every existing test (A-1). |
 | **R-S9-5** | New content kinds or genesis order perturb social-cafe. | I-4: byte comparison against E-0 in every PR. |
 | **R-S9-6** | `Cargo.lock` churn unrelated to the market (a `cargo update`) lands inside a transformation PR. | AC-1's `Cargo.lock` rule fails on any changed non-path package; a transformation PR never runs `cargo update`. |
+| **R-S9-7** | 11b and 11c run in parallel and collide: in shared files, or in the I-2 scan's view of what each added (F-30). | §12: an owner and an anchor for every shared file; the second PR to merge integrates main and moves its own scan row's base in the same commit; merge commits only. |
+| **R-S9-8** | Making `Affordance` generic (11c) ripples through every crate that names it (F-24). | The four places are known before implementation; any further one the compiler finds is a type annotation, recorded with its unchanged claim. A change of behaviour anywhere is a stop. |
+
+## 9.2 Evidence — PR 11b
+
+Written by the 11b implementation session only (`E-B<n>`).
+
+```text
+(none yet)
+```
+
+## 9.3 Evidence — PR 11c
+
+Written by the 11c implementation session only (`E-C<n>`).
+
+```text
+(none yet)
+```
 
 ---
 
