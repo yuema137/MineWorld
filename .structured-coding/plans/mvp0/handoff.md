@@ -14,7 +14,7 @@ worktree         /Users/yuema137/mineworld-worktrees/s8-social — this session'
 branch           mvp0/pr-10b-social (pushed)
 base             main @ 0592b3e
 final exec HEAD  0906918 (all gates, §9 E-B-final); later commits are planning documents only
-PR               see `gh pr list --head mvp0/pr-10b-social`
+PR               GitHub #31 — https://github.com/yuema137/MineWorld/pull/31 (base main), OPEN
 ```
 
 ## Checkpoint
