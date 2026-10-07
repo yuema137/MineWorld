@@ -1,0 +1,18 @@
+# The Café Company — the organization that runs the café. Its key is not the café's: an organization and
+# the place it runs are two entities, and keys are one namespace (docs/DECISIONS.md ARC-36).
+tags: [business, cafe]
+note: Runs the café. Alice works its counter.
+
+# What it has on the shelf at genesis (inventory's `holdings`, ARC-37). An organization carries any
+# number. Alice's shift makes more every morning (her `job:` in people/alice.yaml).
+holdings: { coffee: 20, tea: 10, croissant: 10, cake: 6, sandwich: 6, soup: 6 }
+
+# `economy` is a section the `economy` system owns (ARC-38): the opening balance, in integer minor
+# units, and the shop it runs. A pack owns one section, so a shop is authored here, on its operator,
+# and economy places it in the café. It sells food and drink only: goods are given, never sold
+# (step-10 QS-48). Customers pay the company; the company pays Alice's wage.
+economy:
+  wallet: 20000
+  shop:
+    at: cafe
+    prices: { coffee: 300, tea: 250, croissant: 250, cake: 400, sandwich: 600, soup: 500 }

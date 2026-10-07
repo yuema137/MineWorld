@@ -32,3 +32,7 @@ location:
 
 # Market Town: what the visitor carries at the start (inventory's `holdings`, ARC-37; see alice.yaml).
 holdings: { apple: 1, scarf: 1 }
+
+# Market Town: the visitor's money (economy's section, ARC-38; see alice.yaml). No job: an endowment
+# for the measured horizon (ARC-38, L-13).
+economy: { wallet: 200000 }
