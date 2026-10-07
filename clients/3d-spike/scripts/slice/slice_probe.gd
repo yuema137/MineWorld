@@ -408,7 +408,9 @@ func _link_check() -> void:
 		fails += 1
 		print("FAIL: the server's view of the player is not where the player reported")
 
-	# talk to whoever the world tags as the barista, by turning to face them
+	# TALK to whoever the world tags as the barista, by turning to face them:
+	# first from just inside the door, where the world must refuse it, then from
+	# the counter, reached on foot, where it must be accepted and answered.
 	var barista := ""
 	for id in link.client.latest.tagged("barista"):
 		barista = id
@@ -416,24 +418,127 @@ func _link_check() -> void:
 		fails += 1
 		print("FAIL: no barista perceived")
 	else:
-		var to: Vector3 = (link.figures[barista] as Node3D).global_position - player.global_position
-		player.rotation.y = atan2(-to.x, -to.z)
-		player.rig.pitch = 0.0
-		await _hold(0.2)
-		var ttok := link.talk_to_facing("Hello! A coffee, please.")
+		var near_door := await _talk_to(link, barista)
+		print("talk     from the door, %.2f m from %s -> %s" % [near_door[1], barista, near_door[0]])
+		if near_door[0] != "rejected too_far_away" and near_door[0] != "refused too_far_away":
+			fails += 1
+			print("FAIL: talking from the door must be refused too_far_away")
+		# to the counter on foot: east along the room's clear lane, then north to it
+		var moves_before := link.answers.filter(
+			func(a): return a["action"] == SliceLink.MOVE_ACTION).size()
+		await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
+		var bp: Vector3 = (link.figures[barista] as Node3D).global_position
+		await _walk_to(Vector3(bp.x, 0.0, bp.z + 1.85), 6.0)
+		await _hold(0.8)
+		var walked := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
+		var walked_bad := walked.slice(moves_before).filter(func(a): return a["result"] != "accepted")
+		print("counter  body at %s; %d moves on the way, %d not accepted"
+			% [player.global_position, walked.size() - moves_before, walked_bad.size()])
+		var heard_before := link.heard.size()
+		var at_counter := await _talk_to(link, barista)
+		print("talk     from the counter, %.2f m from %s -> %s" % [at_counter[1], barista, at_counter[0]])
+		if not String(at_counter[0]).begins_with("accepted"):
+			fails += 1
+			print("FAIL: talking from the counter must be accepted")
+		# the reply: what the barista said to this observer, as disclosed to it
 		t = 0.0
-		while t < 4.0 and not _answered(link, ttok):
+		var reply := {}
+		while t < 15.0 and reply.is_empty():
+			for e in link.heard.slice(heard_before):
+				if typeof(e.get("speaker")) == TYPE_DICTIONARY \
+						and String(e["speaker"].get("entity", "")) == barista:
+					reply = e
 			await get_tree().process_frame
 			t += get_process_delta_time()
-		var ans := link.answers.filter(func(a): return a["token"] == ttok)
-		print("talk     to %s -> %s" % [barista, ans[0]["result"] if not ans.is_empty() else "NO ANSWER"])
-		if ans.is_empty():
+		if reply.is_empty():
 			fails += 1
+			print("FAIL: no reply from %s within 15 s" % barista)
 		else:
-			print("         %s" % JSON.stringify(ans[0].get("detail", ans[0])))
+			print("reply    %s said %s (after %.1f s)" % [barista, JSON.stringify(reply.get("utterance")), t])
+	await _street_watch(link)
 	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
+
+
+## The town's other people walk the street between places this slice does not
+## draw. Reported, not failed: where each street doorway the world discloses
+## lands in this scene, and where figures appear and are lost while standing on
+## the pavement. `--watch=<s>` sets how long (default 60).
+func _street_watch(link: SliceLink) -> void:
+	var secs := 60.0
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--watch="):
+			secs = float(a.substr(8))
+	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
+	await _walk_to(Vector3(6.0 + SliceCafe.DOOR_X, 0.0, -9.6), 6.0)
+	player.rotation.y = PI
+	await _walk_dist(3.6, 6.0)
+	await _hold(1.0)
+	print("\n-- the street's people, %.0f s on the pavement at %s, server place %s --"
+		% [secs, player.global_position, link.here_key])
+	var obs := link.client.latest
+	var leads: Variant = obs.component(obs.place(), "passages").get("leads_to", [])
+	if typeof(leads) == TYPE_ARRAY:
+		for p in leads:
+			var to := String(p.get("to", {}).get("entity", ""))
+			var at := link.to_scene("street", p.get("here"))
+			var near := ""
+			var best := INF
+			for d in SliceTerrace.doors:
+				var dd := Vector2(at.x - d[0].x, at.z - d[0].z).length()
+				if dd < best:
+					best = dd
+					near = "%s at %s" % [d[2], d[0]]
+			print("doorway  to place %s: street frame %s -> scene %s; nearest drawn door %.2f m: %s"
+				% [to, JSON.stringify(p.get("here")), at, best, near])
+	var first := {}
+	for id in link.figures:
+		first[id] = (link.figures[id] as Node3D).global_position
+	print("start    %d figures on the street: %s" % [first.size(), first])
+	var t := 0.0
+	while t < secs:
+		await _hold(1.0)
+		t += 1.0
+	var last := {}
+	for id in link.figures:
+		last[id] = (link.figures[id] as Node3D).global_position
+	print("end      %d figures on the street: %s" % [last.size(), last])
+
+
+## Face a perceived person and press talk, as a player would. Returns
+## ["<result> <code>", distance in metres] -- the code is the server's.
+func _talk_to(link: SliceLink, id: String) -> Array:
+	var to: Vector3 = (link.figures[id] as Node3D).global_position - player.global_position
+	player.rotation.y = atan2(-to.x, -to.z)
+	player.rig.pitch = 0.0
+	await _hold(0.3)
+	var tok := link.talk_to_facing("Hello! A coffee, please.")
+	var t := 0.0
+	while t < 4.0 and tok != "" and not _answered(link, tok):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	var dist := Vector2(to.x, to.z).length()
+	var ans := link.answers.filter(func(a): return a["token"] == tok)
+	if ans.is_empty():
+		return ["NO ANSWER", dist]
+	var a: Dictionary = ans[0]
+	var code := ""
+	if a.has("code"):
+		code = String(a["code"])
+	elif typeof(a.get("detail")) == TYPE_DICTIONARY:
+		var v: Variant = (a["detail"] as Dictionary).get(a["result"])
+		code = String(v) if typeof(v) == TYPE_STRING else ""
+	print("         %s" % JSON.stringify(a.get("detail", a)))
+	return ["%s %s" % [a["result"], code], dist]
+
+
+## Turn toward a floor point and walk until within 0.15 m of it, or `max_secs`.
+func _walk_to(p: Vector3, max_secs: float) -> void:
+	var d := p - player.global_position
+	d.y = 0.0
+	player.rotation.y = atan2(-d.x, -d.z)
+	await _walk_dist(maxf(d.length() - 0.15, 0.0), max_secs)
 
 
 func _answered(link: SliceLink, tok: String) -> bool:

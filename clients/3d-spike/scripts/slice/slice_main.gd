@@ -373,6 +373,7 @@ func _link() -> void:
 		if _hud_world != null:
 			_hud_world.text = "world: " + text
 		if hud != null and (text.begins_with("seated") or text.begins_with("talk")
-				or text.begins_with("refused") or text.begins_with("disconnected")):
+				or text.begins_with("refused") or text.begins_with("disconnected")
+				or text.contains(" said: ")):
 			hud.toast(text))
 	link.start(address, SliceLink.seat_from_args())

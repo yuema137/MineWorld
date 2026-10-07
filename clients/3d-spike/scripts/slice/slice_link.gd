@@ -52,11 +52,10 @@ const REPORT_HEIGHT := false
 ## lands on this slice's café door: the server decides a crossing by distance to
 ## that doorway, so it is the one point the binding must get right.
 ##
-## The consequence is recorded rather than hidden: `social-cafe` has its café
-## door EAST of everybody in it, and the slice's door is at the café's WEST end,
-## as `03` draws it. With the door aligned, `alice` and `bob` are drawn 0.3-0.5 m
-## west of the café's west wall. Routed to S8, which may re-author the pack's
-## positions to this layout (design sec.7b).
+## Until S8 PR 10a (`main` `2f24eef`) the pack's café was the mirror of this
+## one, and with the door aligned `alice` and `bob` were drawn just west of the
+## café's west wall (design sec.7b). 10a authored the café to this slice's
+## layout, so with the same binding they now stand inside the room.
 ##
 ## The two keys the slice draws. A place's key is learned from its tag (the
 ## world's data), and the street's also from being where the café's door leads.
@@ -130,6 +129,8 @@ var here_key := ""                 ## the pack key of the place the world last p
 var figures := {}                  ## EntityId string -> the figure drawn for it
 var last_sent_local := {}          ## the last position reported, as sent
 var answers: Array[Dictionary] = []
+## Every entry of the observer's own disclosed conversation history, in order.
+var heard: Array = []
 ## Every place change the server's observations showed, in order: [from, to].
 var place_changes: Array = []
 
@@ -206,6 +207,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			place_changes.append([here_key, key])
 		_say("in place %s (%s)" % [place, key if key != "" else "not drawn by this slice"])
 		here_key = key
+	_hear(obs)
 	# Nothing can be drawn in a place whose doorway the world has not disclosed:
 	# the doorway is what binds its frame to this scene.
 	if key == "" or not doorway.has(key):
@@ -240,8 +242,31 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		fig.rotation.y = MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI
 	for id in figures.keys():
 		if not seen.has(id):
+			_say("lose %s at %s (no longer perceived here)"
+				% [id, (figures[id] as Node3D).global_position])
 			(figures[id] as Node).queue_free()
 			figures.erase(id)
+
+
+## What the observer has been told. Protocol revision 1 sends no event bodies;
+## what someone said to you arrives as your own disclosed `conversation-history`
+## (`ADOPTION.md` sec.6). Each new entry is shown once, as the world states it --
+## the speaker by identity (and tags, which are world data), the words verbatim.
+func _hear(obs: MineWorldObservation) -> void:
+	var h: Variant = obs.own_component("conversation-history").get("heard", [])
+	if typeof(h) != TYPE_ARRAY:
+		return
+	for i in range(heard.size(), (h as Array).size()):
+		var e: Variant = h[i]
+		if typeof(e) != TYPE_DICTIONARY:
+			continue
+		heard.append(e)
+		var who := ""
+		if typeof(e.get("speaker")) == TYPE_DICTIONARY:
+			who = String(e["speaker"].get("entity", ""))
+		var tags: Array = obs.entity(who).get("tags", []) if who != "" else []
+		_say("%s%s said: %s" % [who, " (%s)" % ", ".join(tags) if not tags.is_empty() else "",
+			JSON.stringify(e.get("utterance"))])
 
 
 ## A perceived person, drawn from the same stand-in mannequin as the street's
