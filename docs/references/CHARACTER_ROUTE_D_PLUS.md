@@ -253,3 +253,14 @@ These are a later decision (coordinator, 2026-10-07): **not faked here.**
 - **Rear** (`runtime_d5/P8_rear_chest`): the hood lies over the top of the pack, the hair's
   nape strand hangs clear of the hood, the pack sits flat on the spine; no tear. In the low sun
   the hoodie reads orange-red from behind.
+- **Hairline flecks, at portrait framing** (`runtime_d5/p6_hairline`, P6 at 2×): visible —
+  short light-orange dots and dashes along the edges of the locks over the crown and bun.
+  1. `fix_flecks.py` (scratch) replaces, inside the UV area of the faces above the eye line,
+     every baked texel that is clearly lighter than Meshy's own texel where Meshy's is dark:
+     6,956 texels (0.65 % of that area). A baked-vs-original difference map shows the bake
+     agrees with Meshy's texture inside the islands and differs mainly in the gaps.
+  2. Gotcha: Godot extracts the GLB's embedded image to `meshy_d_base_color.png` **once** and
+     does not overwrite it on reimport; the first re-capture still used the old texture. The
+     fixed PNG was copied over the extracted one.
+  3. With the fixed texture (`runtime_d7/p6_hairline`) the flecks are unchanged. So they are
+     not (only) the bake. Next test: the imported material's specular response.

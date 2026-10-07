@@ -236,6 +236,19 @@ static func _printed(file: String, tint: Color, rough: float, tile := 1.0) -> St
 	return m
 
 
+## The generated body's one material: its own texture, our surface response.
+## Diagnostic for the hairline flecks (CHARACTER_ROUTE_D_PLUS.md §8.4): the
+## imported material is glTF's default dielectric at roughness 0.5.
+static func _meshy(src: Material) -> Material:
+	var m := (src as StandardMaterial3D).duplicate() as StandardMaterial3D
+	print("human.gd: MW_Meshy imported roughness %.2f metallic %.2f specular %.2f" % [
+		m.roughness, m.metallic, m.metallic_specular])
+	m.roughness = 0.9
+	m.metallic = 0.0
+	m.metallic_specular = 0.25
+	return m
+
+
 ## Shoes get no weave -- leather is not fabric, and the tiled normal read as
 ## camouflage on a foot-sized surface.
 static func _plain(c: Color, rough: float, spec := 0.5) -> StandardMaterial3D:
@@ -322,8 +335,9 @@ static func build(height_m: float, skin: Color, hair: Color,
 				mi.set_surface_override_material(i, by_name[key])
 			elif key == MESHY_MATERIAL:
 				# The generated body carries its own baked base colour; the
-				# palette arguments do not apply to it.
-				pass
+				# palette arguments do not apply to it. Its surface response is
+				# ours: hair, skin and cotton are all rough and barely specular.
+				mi.set_surface_override_material(i, _meshy(src))
 			else:
 				push_warning("human.gd: no material for surface '%s'" % key)
 		if mi.name == "Body" and mi.find_blend_shape_by_name("Blink") >= 0:
