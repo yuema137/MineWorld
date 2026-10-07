@@ -230,3 +230,15 @@ These are a later decision (coordinator, 2026-10-07): **not faked here.**
   hand's fingers are fused into one surface, so their heat weights blur across the finger
   bones. What reads at 2.5×: the hand on the strap at the chest, the thumb up along the
   webbing, the fingers bunched against it — not the reference's fist closed round it.
+- **Frame time** (`./mineworld-3d`'s scene, `--frametime`, front camera on the player at the
+  portrait spot, 240 frames each, two runs per body, 1200×1500 window):
+
+  | Body | standing median / p95 | walking median / p95 |
+  | --- | --- | --- |
+  | reference (Meshy, 95 k tris, 1 material) | 8.38 / 9.14 ms, 8.39 / 9.04 ms | 8.31 / 9.12 ms, 8.34 / 9.13 ms |
+  | town (CharMorph, 106 k tris, ~15 materials) — `--town-body` | 8.39 / 9.11 ms, 8.39 / 9.15 ms | 8.32 / 9.30 ms, 8.32 / 9.11 ms |
+
+  Both sit on the display's 120 Hz cap: the vsync-off request does not take effect on this Mac's
+  Metal window, and the viewport's GPU timer reads 0 on it. So the result is **no measurable
+  difference at the cap**, not a headroom figure. `INCONCLUSIVE` as a cost comparison; `PASS` as
+  "the candidate does not drop a frame where the old character does not".
