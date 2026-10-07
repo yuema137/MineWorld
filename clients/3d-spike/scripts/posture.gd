@@ -26,7 +26,10 @@ const FINGER_CURL := 38.0
 const FINGER_CURL_D := 62.0
 ## The reference body's upper arms, outward from the clip while moving (Z,
 ## degrees; the town body's stance uses +11 inward on the left).
-const ARM_OUT_D := -4.0
+## Was -4 (4 deg wider than the clip) while the pack's side panels still
+## followed the arm; once they follow the spine (§8.9) that read as arms held
+## out while walking, so it is now 4 deg in -- 7 deg less than the town body.
+const ARM_OUT_D := 4.0
 ## How much of the locomotion clips' spine motion the reference body drops.
 const SPINE_DAMP_D := 0.6
 ## The reference body's head steadying while moving, and its smoothing time.
