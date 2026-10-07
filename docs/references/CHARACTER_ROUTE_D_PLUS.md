@@ -146,3 +146,55 @@ These are a later decision (coordinator, 2026-10-07): **not faked here.**
 ## 8. Results
 
 *(filled in as the experiment runs)*
+
+### 8.1 Game-ready mesh (`gameready_mesh.py`)
+
+- Scale 0.9563, soles at −0.0177, top of the bun at 1.8014 m.
+- Decimated 1,800,586 → **95,000 triangles**, 47,142 vertices, one mesh, 0 non-manifold edges, 2
+  connected parts (44,143 and 2,999 vertices).
+- **Base colour re-baked** from the original surface onto the low mesh (EMIT bake through the low
+  mesh's inherited UVs, 2048²). Without it, decimated triangles too large for Meshy's curved UV
+  islands warped the tee's slogan ("Gd Plces / Brip ter people"); with it, the slogan, the face and
+  the hood read as in the original. Residual: skin-coloured flecks at the hairline and short light
+  fringes along the zip edges, where the bake ray hit the neighbouring surface.
+- **No normal map.** A tangent-space bake from the original produced large flat-shaded patches
+  across the face and the hoodie (mis-hit rays / tangent mismatch on Meshy's fragmented UV
+  islands); at 95 k triangles the modelled folds, lids and lips survive as geometry, so the map was
+  dropped rather than tuned.
+- Texel budget: Meshy's atlas is about 400 islands; the face is roughly a 400 px island of the
+  2048² sheet.
+
+### 8.2 Skeleton fit and bind (`rig_meshy.py`)
+
+- Joints from picks on the frontal orthographic render; the centre line from a height map through
+  sole, ankle, knee, hip, shoulder, chin and eye. Measured: shoulder joints at x ±0.176 (CharMorph
+  ±0.159), elbow 1.186, wrist 0.952 m (CharMorph 1.218 / 1.059). **This body's arms are about 20 %
+  longer from shoulder to wrist than CharMorph's** (0.56 m against 0.48 m). That is a fact of the
+  generation, and it matters for the grip (§8.3).
+- Two fitting errors were found by drawing the bones over the body and corrected:
+  1. The spine landed on the back surface, because the open hoodie stands off the chest and the
+     pack hides the back. It is now kept at CharMorph's spinal curve relative to the measured,
+     pack-free hips.
+  2. The first shoulder picks sat 6 cm inside the torso; re-read on a 2× zoom at the humeral head.
+- Bind: Blender automatic weights, 0 unweighted vertices. Fixes:
+  - everything above the chin within |x| < 0.16 rigid to `Head` (21,189 vertices: the hair is
+    dense);
+  - the pack core rigid to `Spine2` (2,550 vertices). A first, wider pack region (|x| < 0.19) tore
+    the armpit when the arm lifted.
+- All groups are then smoothed (4 passes), limited to 4 influences and normalised.
+
+### 8.3 First runtime result (`runtime_d1`, `runtime_d2`, scratch)
+
+- **The pipeline works unchanged.** She loads in the slot through the committed bone map and
+  import settings. `Idle`, `Walk`, the `Stand`/`StandGrip` clips and the posture modifier all drive
+  her; no import error. The only new warning is `human.gd: no material for surface 'MW_Meshy'`,
+  which leaves Meshy's own textured material in place, as intended.
+- Because every townsperson uses the same GLB, the whole crowd became her during capture. A
+  committed candidate needs its own slot (§9).
+- **Grip:** the committed grip, solved for CharMorph's strap, put her hand on her sternum.
+  Re-solved with `tools/stand_pose.gd -- grip` against this body's strap, which runs down her side
+  at x 0.16 rather than across the chest. With these longer arms a knuckle on that strap at chest
+  height forces the elbow 30 cm behind her. A grip lower on the strap (y 1.15) reads as a hand on
+  the hip with the elbow out, not as the reference's hand at the chest. And with the arm out and
+  back, the fused armpit/pack surface **tore** (`runtime_d2`, P2/P4 at 3×). Re-bound with the
+  narrower pack region and smoothed weights; re-capture in progress.
