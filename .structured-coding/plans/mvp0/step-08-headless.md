@@ -352,15 +352,16 @@ No change to `move`'s rule, to `Passages`, or to any other pack. **Depends on:**
 **Goal.** The command, and the evidence for CP-1 and CP-2 through the real binary.
 **Scope.** `tools/cli/src/{main.rs, run.rs (new)}`, `tools/cli/Cargo.toml` (none expected), `tools/cli/tests/run.rs` (new). **Depends on:** C3.
 
-- [ ] Implementation:
-  - [ ] `main.rs`: parse `run <world> --headless --seed N --days N [--save DIR]` (Q3: `--headless` required); USAGE; `run` removed from the "does not exist" arm.
-  - [ ] `run.rs`: compose (`pack.load` or `persisted`-style create/resume at `ProcessCrash`), resolve seats to observers, build one `PacedRuleController` per seat with `seed`, walk the HD-2 schedule to `epoch + D·86 400`, `advance_to` → `observe` → `decide` → `allocate` → `dispatch`; tally outcomes by action type and result; per-day progress line (`day N  revision R  facts F`); final summary (consults, requests accepted / rejected by reason / unavailable / faulted, facts by event type, per-seat accepted `move` and `talk`, fingerprint) and a separate `wall` line; resume point and allocator per HD-7; refuse `seats ≥ pace`.
-- [ ] Validation (real binary, `CARGO_BIN_EXE_mineworld`):
-  - [ ] **AC-11**: `--seed 7 --days 300` in memory exits 0 with no fault; every seat has accepted `talk` *and* accepted `move` in **every** 30-day bucket (located, not totalled — §5); `PersonEnteredPlace` facts > 0 (the street is reached); entity count unchanged; wall time recorded.
-  - [ ] **AC-12**: the same command twice → identical stdout apart from the `wall` line; `--seed 8` → a different fingerprint *and* a different fact count or log; the in-memory fingerprint equals the `--save` run's (persistence does not change history); two `--save` runs' `facts`, `journal` and `snapshots` byte-identical, manifests differing only in `instance`.
-  - [ ] `mineworld replay` verifies the `--save` run's file from genesis.
-  - [ ] Negative: missing `--seed`/`--days`, `--days 0`, a non-number, missing `--headless`, an unknown option — each refused by name, no panic.
-- [ ] Review: the driver calls only `observe`, `allocate`, `advance_to`, `dispatch`; no tokio in the path; nothing printed before the `wall` line depends on wall time; seat order is the pack's `BTreeSet`.
+- [x] Implementation (§9 E-5):
+  - [x] `main.rs`: `run <world> --headless --seed N --days N [--save DIR]` as a clap subcommand (`--headless` required, `--days` ≥ 1); `run` removed from the "does not exist" list.
+  - [x] `run.rs`: as planned. Bounded deviations: (1) an advance fault stops the run (nothing asked for it, so there is no request to refuse) while a dispatch fault is counted and survived; (2) the fingerprint of a `--save` run is read back from the whole save, so a resumed run's fingerprint covers the world's history, not one invocation; (3) the activity table prints per 30-day bucket so I-9 is checkable off stdout; (4) `last_facts(usize::MAX)` overflowed the backend's signed limit ("does not fit a stored integer", found by the first 300-day save) — "all" is now `i64::MAX`; (5) `tools/cli` gains `mineworld-kernel` as a direct dependency (`Dispatched`, `World`), within the composition root.
+- [x] Validation (real binary, `CARGO_BIN_EXE_mineworld`) — `tools/cli/tests/run.rs`, 3 tests, shared helpers in `tools/cli/tests/headless/mod.rs`:
+  - [x] **AC-11**: seed 7, 300 days, saved twice and in memory once, in parallel: I-9 holds in all ten buckets for all three seats; 300 day lines; `faults 0`; `person-entered-place` > 0; > 100 000 facts.
+  - [x] **AC-12**: the two saves' facts, journal and snapshots equal **row by row as bytes**; manifests equal but for `instance` (asserted to differ); stdout equal but for header and `wall`. Seed 8 vs 7 (30 days, saved): genesis fact equal, fact logs differ. The in-memory run prints the same requests / facts / activity / history / consults / faults lines as the saved run. Q9 condition: no assertion compares fingerprints.
+  - [x] `mineworld replay` verifies a 300-day save from genesis.
+  - [x] Negative: missing `--headless`, `--seed`, `--days`; `--days 0`; `--seed one`; `--fast`; a missing pack — each refused naming the argument, no panic.
+  - [x] Mutation: seeding the controller with `seed ^ process id` → the 300-day test fails at the byte comparison (`headless/mod.rs:160`, "facts differ first at row …"), reverted.
+- [x] Review: the loop calls only `advance_to`, `observe`, `decide`, `ActionIntent::allocate`, `dispatch`; synchronous, no tokio; `Instant::now` used only for the `wall` line; seats in the pack's `BTreeSet` order; per-request tallies in `BTreeMap`s.
 
 **Acceptance.** As validation; the 300-day test's wall time in the debug profile is recorded, and if a single run exceeds ~60 s the pace rises (not the days fall) — Q10.
 **Failure cases.** A system fault during dispatch: counted, reported, the run continues (as the server does); a commit failure with `--save`: the run stops with the cause and a non-zero exit.
@@ -577,6 +578,16 @@ E-3a Coordinator sharpening of Q4 (2026-10-06, from the 3D environment slice, wh
      `the_street_is_not_described_…` (the street's own side). Far side: E-3's Godot transcripts show
      it in the observer's own place (`1 tags ["cafe","public"] … components ["passages"]`). No change
      to C2; the slice's `--places=` stopgap can go once this merges (its owners' call).
+E-5  C4 run. By hand (debug build, this machine): seed 7, 300 days in memory 19.1 s wall — 129 600
+     consults; move accepted 63 286, rejected TooFarAway 2 871; talk accepted 43 141; facts arrived
+     63 290, conversation-started 28 560, person-entered-place 6 051, spoke 43 141, passage-opened 1;
+     141 043 facts; faults 0. The same with --save: 37.9 s, 109 299 revisions; `mineworld replay`:
+     109 299 revisions re-executed, 141 043 facts and 1 708 snapshots reproduced byte for byte.
+     Q10: no single run exceeded 60 s, so the pace stays 600 s. TooFarAway refusals are proposals
+     the server declined (a crossing proposed at an isqrt-rounded 2 000 mm), counted per HD-4.
+     `cargo test -p mineworld-cli --test run`: 3 passed, 55.2 s (three 300-day runs in parallel
+     dominate). clippy -D warnings clean. Mutation (process id in the seed) → FAILED at the byte
+     comparison, reverted (44.6 s).
 ```
 
 ## 9.1 Limitations (expected)

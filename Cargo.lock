@@ -616,6 +616,7 @@ dependencies = [
  "futures-util",
  "mineworld-contracts",
  "mineworld-conversation",
+ "mineworld-kernel",
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-rule-controller",

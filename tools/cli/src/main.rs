@@ -40,6 +40,7 @@
 
 mod agent;
 mod perceive;
+mod run;
 
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -112,11 +113,24 @@ enum Subcommand {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         rest: Vec<String>,
     },
-    /// Not yet: S7.
-    #[command(hide = true)]
+    /// Run a World Pack headless — no renderer, no network, no model — every seat driven by a
+    /// seeded rule, and print what happened.
     Run {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        rest: Vec<String>,
+        /// The World Pack directory.
+        world: PathBuf,
+        /// Required: the only mode `run` has (MODULE_SPEC §8.1).
+        #[arg(long, required = true)]
+        headless: bool,
+        /// The controllers' seed. The same seed reproduces the run exactly.
+        #[arg(long)]
+        seed: u64,
+        /// The age to run the world to, in simulated days since its genesis.
+        #[arg(long, value_parser = clap::value_parser!(u64).range(1..))]
+        days: u64,
+        /// Keep the world in DIR/world.sqlite; an existing save is resumed and run on to the same
+        /// age, so re-running a killed command finishes the same world.
+        #[arg(long, value_name = "DIR")]
+        save: Option<PathBuf>,
     },
 }
 
@@ -138,7 +152,18 @@ async fn main() -> ExitCode {
         } => serve(world, listen, agents, save).await,
         Subcommand::Create { .. } => not_yet("create"),
         Subcommand::Inspect { .. } => not_yet("inspect"),
-        Subcommand::Run { .. } => not_yet("run"),
+        Subcommand::Run {
+            world,
+            headless: _,
+            seed,
+            days,
+            save,
+        } => run::run(&run::RunRequest {
+            world,
+            seed,
+            days,
+            save,
+        }),
     };
 
     match outcome {
@@ -155,7 +180,7 @@ async fn main() -> ExitCode {
 fn not_yet(command: &str) -> Result<(), String> {
     Err(format!(
         "mineworld {command} does not exist yet — it is S7's. What works today: mineworld server, \
-         mineworld validate, mineworld replay (see mineworld --help)."
+         mineworld validate, mineworld replay, mineworld run (see mineworld --help)."
     ))
 }
 

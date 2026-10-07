@@ -521,9 +521,10 @@ exist is created and one that exists is resumed and run on to the same age, so r
 command completes the same world rather than appending a second run (`ARC-27`).
 
 `run` prints, in this order: one line naming the world and its seats; one `day` line per completed
-simulated day (`day D  revision R  facts F`; revision `-` without `--save`); a summary of consults,
-requests by action type and outcome, facts by event type, accepted actions per seat, and the
-history fingerprint; and last, on its own line beginning `wall`, the elapsed real time. Everything
+simulated day (`day D  revision R  facts F`; revision `-` without `--save`; F counts the facts
+this invocation recorded); a summary of consults, requests by action type and outcome, facts by
+event type, accepted `move` and `talk` per seat in each 30-day bucket, faults, and the history
+fingerprint, which always covers the world's whole history; and last, on its own line beginning `wall`, the elapsed real time. Everything
 before the `wall` line is a function of the pack, the seed, the age and the code. The fingerprint
 (`FNV-1a 64` over every fact's stored encoding in `EventId` order, printed with the number of facts
 it covers) is for a person comparing two runs by eye; it is not a proof of equality.
