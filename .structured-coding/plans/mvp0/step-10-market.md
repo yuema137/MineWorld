@@ -13,11 +13,18 @@ before them merges (`CLAUDE.md` §3, "detail one step ahead").
 - **The precursors are complete.** 11a, 11b and 11c are on `main`, each by a merge commit, so the I-2
   scan reads all three as merged on `main`'s first-parent chain (§9 E-3). Every framework capability
   the transformation relies on now exists.
-- **PR 11d** is detailed to the commit in §4.4 by the planning session on `mvp0/s9-11d-plan` from
-  `main @ c5dc51c` — `DESIGN FROZEN (2026-10-07)` per §4.4.0, with its R-S9-1 spike done (§9 E-4: no framework gap),
-  the audit in §8.5, questions QS-27 … QS-38 (§10; QS-35 operator-material) and a proposed execution
-  contract in §15.
-- PRs 11e and 11f stay at medium scope until each is detailed and frozen in turn.
+- **PR 11d** `MERGED` as `70e532f` (GitHub #43, 2026-10-07), with a merge commit — the first half of
+  the measured AC-1 transformation (ARC-35 point 1). Designed in §4.4 (`DESIGN FROZEN` per §4.4.0);
+  evidence §9.4. The primary session's review on the actual merge diff `70e532f^1..70e532f`: 0 paths
+  outside `systems/`, `worlds/`, `Cargo.lock` and Markdown; gates re-run 479/0; its own 300-day seed-7
+  market-town run 0 faults, 15.2 s, every seat moved and talked in every bucket; its own 30-day save
+  holds `items-transferred` facts each caused by an action, 37 090 facts in all (= the implementer's);
+  its own mutation `PERSON_CAPACITY` 6→7 failed two capacity tests (overall §7).
+- **F-37's doc fix** (authoring's `Seeding` doc) is a docs-only PR after 11d's merge, outside the AC-1
+  range (§4.4.0).
+- **PR 11e** is next: work, money, shops — and, by the operator's QS-35 decision (§4.4.0), a
+  consumption pack. Detailed in §4.5 by the planning session on `mvp0/s9-11e-plan` from `main @
+  70e532f`. 11f stays at medium scope until 11e merges.
 
 **Freeze record (2026-10-07).**
 
@@ -2702,7 +2709,9 @@ F-37  Sections are seeded against a world with no state. WorldPack::assemble com
       a kind. It checks the reference's entity type at seeding (Seeding::resolve) and the declared kind
       at reduction, which follows item's in genesis order (ARC-36 point 7). Bounded, inside the packs;
       the Seeding doc sentence is imprecise and is reported, not changed (authoring/ is outside 11d's
-      range; a later precursor or doc fix may correct it).
+      range; a later precursor or doc fix may correct it). Fixed after 11d's merge by a docs-only PR
+      (`docs/s9-11d-merged`): the doc now says every section is seeded before genesis reduces any
+      fact, and that a check needing another fact's state belongs in the owner's reduction.
 F-38  An ItemId serializes as a struct ({entity, type}), so it cannot be a JSON object key; payloads,
       observations and snapshots are all JSON (DEP-5). Holdings is therefore a sorted list of
       {item, count}, not a BTreeMap<ItemId, u32> as §4.4's medium scope wrote.

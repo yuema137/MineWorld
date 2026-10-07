@@ -643,11 +643,28 @@ Next, framework (critical path to Milestone B):
             - the worst-case `chimes` measurement passed at 20.
        The precursors are complete. On c5dc51c the I-2 scan reads all three as merged, and the
        social-cafe 300-day sha is still E-0 (step-10 §9 E-3).
-       Next: 11d (item, inventory, item-transfer and worlds/market-town; the first half of the
-       measured AC-1 transformation), then 11e (economy, employment). Each is detailed and frozen
-       before implementation.
+       11d  owning and giving things                PR 11d (GitHub #43), merged 70e532f
+            The first half of the measured AC-1 transformation. `item` declares kinds, `inventory`
+            alone writes what people and organizations hold and refuses any fact it may not take, a
+            person carries at most six (ARC-37: without it the unseated Otto absorbs every item), and
+            `item-transfer` offers a complete `give` per kind held, which the unchanged paced
+            controller attempts. `worlds/market-town` is Social Café plus the three packs and their
+            content. Reviewed before merge:
+            - the change set, checked on the actual merge diff `70e532f^1..70e532f`: 0 paths outside
+              `systems/`, `worlds/`, `Cargo.lock` and Markdown;
+            - gates re-run (479/0);
+            - my own 300-day market-town run, seed 7: 0 faults, 15.2 s, every seat moved and talked in
+              every bucket;
+            - my own 30-day save holds `items-transferred` facts, each caused by an action, 37,090
+              facts in all — the implementer's count;
+            - my own mutation, `PERSON_CAPACITY` 6→7, failed two capacity tests.
+            F-37 (authoring's `Seeding` doc said sections see earlier genesis facts; none are applied
+            before every section is seeded) is fixed by a docs-only PR outside the AC-1 range.
+       Next: 11e (economy, employment, and a consumption pack — operator, QS-35: items are used up so
+       the market keeps turning, closing MVP §5's `eat` gap), the second half of the measured
+       transformation; then 11f, the proof. Each is detailed and frozen before implementation.
 
-Remaining:  S9 (11d–11f) ... S14, Milestones C-E
+Remaining:  S9 (11e–11f) ... S14, Milestones C-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
