@@ -1861,12 +1861,33 @@ days. Assertions C-5. A further assertion: `cognition/rule-controller/Cargo.toml
 - [x] Documentation: `docs/MVP_STATUS.md` — one capability row directly after "Conversation", one
   evidence row appended after the table's last row (done; plus ARC-34's measurement note); `Updated:` line and S9 row not edited (§12); §4.3
   checkboxes, §9.3 `E-C*`, `handoff-11c.md`.
-- [ ] Full gates once on the final head (fmt, clippy -D warnings, workspace tests in background), C-1's
-  sha and validate diff, both doc checks.
-- [ ] Review: C-1 … C-7 each with evidence; deviations listed.
+- [x] Full gates once on the final head (fmt, clippy -D warnings, workspace tests in background), C-1's
+  sha and validate diff, both doc checks — E-C-final, all PASS.
+- [x] Review: C-1 … C-7 each with evidence; deviations listed.
+  - C-1 PASS — sha = E-0 and validate identical (E-C0, E-C4, E-C-final); every existing test passes,
+    AC-13 and AC-15 included (`tools/cli/tests/ac15_one_alice.rs`, `server` parity tests, in the 443);
+    existing-test edits are only the F-24 annotations and the trybuild `.stderr` (E-C2).
+  - C-2 PASS — frozen literals captured on the base (E-C0) and asserted; old frame decodes; payload
+    round-trips; `request` exact; disagreement refused; M-C1 fails (E-C2).
+  - C-3 PASS — E-C3; M-C2 fails.
+  - C-4 PASS — E-C4; M-C3, M-C4, M-C5 fail by name.
+  - C-5 PASS — E-C5; M-C6 fails.
+  - C-6 PASS — 20 / 14 / 15 and the position, fixed by E-C6's measurement (passed at 20) and recorded
+    in ARC-34's note.
+  - C-7 PASS — scan green with 11c's row and no allow-list entry; planted violations refused; kernel/
+    empty; contracts/ as scoped (E-C5, E-C-final).
+  - Deviations, all bounded: `#[serde(default)]` placed on `AffordanceFields<P>` (the `try_from`
+    side) rather than on the struct field; `Offer::complete` bound is `A: Action` (it already implies
+    `Serialize`); `chimes` in C-C5 configures its belfry in the pack value instead of owning a `Belfry`
+    component; the C-C2 test bug (`trim_end_matches`) found and fixed; the scan caught `item` in a
+    C-C4 comment, reworded. No material deviation; no stop condition reached.
 
 **PR 11c lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §14 confirmed. See the
-freeze record for 11b and 11c in §12.0.
+freeze record for 11b and 11c in §12.0. **READY FOR OPERATOR REVIEW** — final executable head
+`20cf29b`; the PR head is the Markdown-only commit after it (recorded in `handoff-11c.md` and the PR).
+Merge with a **merge commit** only (§12). Implementation context CLOSED / AWAITING OPERATOR ACTION.
+Post-merge: this session owns §4.3 and §9.3; the planning session owns the header, §§1–3, overall
+and MVP_STATUS's `Updated:` / S9 lines.
 
 ### 4.3.2 Test ownership for 11c
 
@@ -2482,6 +2503,25 @@ E-C6 C-C6 I-9 measurement, scratch branch `scratch/11c-chimes` from 6486d5b, loc
      social-cafe on the scratch build (chimes installed, not enabled): 300-day seed-7 sha-256 of all
        but `wall` = ad49c723…c64b = E-0 — installing a pack that offers complete affordances changes
        no world that does not enable it.
+E-C-final on 20cf29b (clean tree; final executable head — later commits are Markdown only), main
+     unchanged at da31613 (11b not merged), 2026-10-07:
+     cargo fmt --all --check                                         PASS
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS (re-run after touching
+                                              contracts/src/lib.rs: all 18 crates re-linted, clean)
+     cargo test --workspace --no-fail-fast    443 passed, 0 failed, 0 ignored across 90 test binaries
+                                              (428 at 11a's final + 15 new: contracts 3, presence 2,
+                                              rule-controller 6, acceptance 4); 159 s wall
+     kill_and_resume                          cafe PASS (0.2 s), clock PASS (0.1 s)
+     check_decision_ids                       46 ids, all distinct
+     check_doc_headings                       143 sections across 22 documents, none duplicated
+     C-1 / I-4                                300-day seed-7 social-cafe: exit 0, faults 0, 365 330 facts,
+                                              sha-256 of all but wall = ad49c723…c64b = E-0; wall 12.2 s;
+                                              `validate worlds/social-cafe` byte-identical to E-C0's
+     I-2 scan                                 green inside the workspace run, 11c row, no allow-list entry
+     I-8                                      `git diff da31613 HEAD -- kernel/` empty; contracts/ diff =
+                                              observation.rs, action.rs (labelled), their tests and the
+                                              trybuild .stderr
+     CI: none configured (S13).
 ```
 
 ---

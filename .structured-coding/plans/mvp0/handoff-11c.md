@@ -35,9 +35,20 @@ STOP CONDITIONS     market word needed; contracts/ beyond the field + constructo
 
 ## Current checkpoint
 
-C-C1 ca2e460, C-C2 7922cb2, C-C3 d2f6c8c, C-C4 fd8c9cb committed and pushed (M-C1 … M-C5 done; C-C4's
-300-day sha = E-0). Next: C-C5 — `tests/acceptance/tests/complete_affordances.rs` with the synthetic
-`chimes` pack; then C-C6 (scratch install measurement, docs, full gates, PR).
+**READY FOR OPERATOR REVIEW — CLOSED / AWAITING OPERATOR ACTION.**
+
+Commits: C-C1 ca2e460, C-C2 7922cb2, C-C3 d2f6c8c, C-C4 fd8c9cb, C-C5 6486d5b, C-C6 20cf29b (final
+executable head), then this Markdown-only close. All six mutations fail as designed and are reverted.
+Band measured on a scratch install: PASS at 20 — frozen (E-C6). Full gates on 20cf29b PASS
+(E-C-final: 443 passed, 0 failed; kill_and_resume PASS; sha = E-0; validate identical). The scratch
+branch was local only and is deleted. The PR head and number are in the PR itself.
+
+If 11b merges first (§12.0): rebase this branch onto the new main (never merge main in), move 11c's
+`PRECURSORS` base to that main in the same change, keep the rows in order 11a, 11b, 11c with 11b's
+structure, re-run the sha, the planted violations and the full gate on the rebased head, record them
+in §9.3, then force-push this branch — only then.
+
+Merge: operator only, with a merge commit.
 
 ## Notes for a resumed session
 
