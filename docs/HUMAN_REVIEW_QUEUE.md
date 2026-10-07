@@ -54,7 +54,7 @@ identifies one thing.
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
 | **VIS-3D-GODOT-1** | Reference-matched character in Godot | ❌ **failed fidelity gate 2026-09-27** — rebuilding |
-| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 👁 **environment PREVIEW 2026-09-30** — not an acceptance request; see below |
+| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 👁 **environment PREVIEW 2026-09-30, updated 2026-10-06** — not an acceptance request; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
@@ -177,6 +177,94 @@ From the operator's first walk. **Still a preview.** Same launch command.
 a second shop enterable. `VISUAL_SLICE.md` §4 lists *a second enterable building* as explicitly out
 of scope, because the Godot and Unreal slices must stay comparable. Should §4 change? Until it
 does, the other doors read as doors and do not open.
+
+#### Preview update, 2026-10-06 — light, setts, planting, a second shop you can enter
+
+**Still a preview, not an acceptance request** (`ARC-24`). It asks: *is this the right direction,
+and what is most wrong now?* The operator judged the café and street "looks good" on 2026-10-01;
+this round works the misses listed above.
+
+**Launch.** Branch `vis/3d-godot-2-environment`, from the repository root, with Godot 4.7 on `PATH`:
+
+```sh
+./mineworld-slice            # walk it: W/S/A/D, mouse, Shift jog, Space jump, V camera
+./mineworld-slice --world    # the same, connected to worlds/social-cafe (needs cargo)
+```
+
+You start on the pavement west of the café. **The second shop you can enter is The Flower Room**,
+the next building east of the café, with the maroon front and the open door at its left end.
+
+**Scope change, recorded.** `VISUAL_SLICE.md` §4 now **requires** one second enterable building
+(new §4.1), on the operator's request that shops be enterable and the standing rule *a smaller
+world with complete interiors over a larger fake town*. The amendment is in the shared target, so a
+resumed Unreal track builds the same second interior and A/B stays like-for-like.
+
+**Frames** — `clients/3d-spike/shots/slice/preview/`, from the running client at 1600×900:
+
+| | Frame |
+| --- | --- |
+| **side by side, reference / before / after** | `sbs_03_cafe_frontage.jpg` (at `03`'s framing), `sbs_05_main_street.jpg` (at `05`'s framing) |
+| through the glass, reference / after | `sbs_03_interior_through_glass.jpg` |
+| the second building | `10_second_building_door.jpg` (from the pavement, the café beside it), `10b_second_building_interior.jpg`, `10c_second_building_looking_out.jpg` |
+| re-captured | `01`–`08` as before |
+
+**What changed, as facts against the references.**
+
+| | Reference | Before (2026-10-01) | Now |
+| --- | --- | --- | --- |
+| sun on the frontage | `03`: low sun raking across the shopfront, hard shadows | even soft light, no cast-shadow pattern | the beam meets the café façade at 39°; the cornice, lamp brackets, hanging sign and baskets cast hard shadows onto the fascia and masonry |
+| the room through the glass | `03`: dim amber, darker than the street, dark timber shelving to the ceiling | pale, evenly lit plaster; brighter than the pavement (0.34 against 0.24) | dark timber shelving floor to ceiling on the west wall, the wall `03`'s framing sees; browner plaster, darker ceiling and floor; at the door the room is darker than the street (0.116 against 0.175) |
+| paving | `03`/`05`: grey-buff setts, dark joints; `05`'s road is setts too | warm beige oblong slabs, joints invisible at `03`'s framing; asphalt road | grey granite setts with soil joints, ~0.18 m courses, on both pavements and the carriageway |
+| planting | `03`: two hanging baskets, ivy on the pier, a flowering planter box | one basket, one climber, one potted plant | two baskets (a large one on the right pier above the slate board), ivy on both piers, window boxes under all three first-floor windows, flowering planter boxes |
+| window lettering | `03`: crisp cream upright serif, centred | thin white script, barely legible | cream serif, centred, opaque; all four words read at 1600×900 |
+| rug | — | one flat colour | a woven flat-weave pattern, generated in-engine |
+| roofs | — | — | **a defect found and fixed:** every pitched roof had its ridge tile turned front-to-back, a dark bar over Maple & Co. at `05`'s framing |
+
+**Measured** (`--threshold`, `--drive`, `--world --link`):
+
+```text
+café threshold    pavement 0.175 -> doorway 0.116 -> 2 m in 0.109 -> deep 0.195; worst step x1.79 (limit x3)
+florist threshold outside 0.188 -> doorway 0.274 -> 2 m in 0.332 -> deep 0.373; worst step x1.46
+                  both: looking out through the glass 0.00 % clipped
+florist walk      in through the door on foot, a loop round the room closing within 0.12 m, out again
+connected         café -> street -> café through the door on foot, with S6's `move`:
+                  50 moves, 50 accepted, 0 refused, through walking, jogging and two jumps
+```
+
+**Known misses, largest first, as facts.**
+
+1. **Through `03`'s glass the pendants glow and a barista stands at a loaded pastry case by the
+   window.** Through the candidate's, the pendants read as grey metal shades with no visible bulb
+   at this distance, nobody stands behind the counter, and the pastry case is at the back, about
+   10 m from the glass. A pale haze band lies across the lower half of the pane.
+2. **Bistro furniture.** `03`: black metal frames with dark, weathered slats. Candidate: bright
+   honey-orange slats, the most saturated object in the frame.
+3. **Sky.** `03` and `05`: saturated blue with white cumulus. Candidate: pale grey-blue, cloudless.
+4. **Fascia contrast.** `03`: cream lettering on a deep green board, high contrast. Candidate: in
+   full sun, the board washes to a light sage and "The Daily Bean" loses contrast.
+5. **Setts size.** `03`'s setts are larger and squarer, about 0.25–0.30 m, with tight light joints.
+   The candidate's are about 0.18 m, rounder, with dark soil joints, a cobbled rather than paved
+   look.
+6. **Shadow on the paving.** `03` has a strong dappled tree shadow across the pavement in front of
+   the café. The candidate's pavement there is in unbroken sun.
+7. **`05`'s massing is not this street's.** `05` has a corner café with a chamfered angle and an
+   awning on a 3–5-storey brick street. The candidate has a straight terrace of 2–3-storey
+   limestone and render. That was the accepted direction; it is stated so it is not mistaken for
+   something this round changed.
+8. **A-board scale** is unchanged: 1.51 m against §3.4's 0.90–1.15 m.
+9. **The florist is brighter than the street** (0.37 deep inside against 0.19 outside). That is by
+   design, a florist's cool daylight, but it is the opposite of the café's relationship.
+10. **Connected only:** the World Pack's café is the mirror of the slice's, with its door east of
+    its people. With the doorway aligned, `alice` and `bob` are drawn just west of the café wall.
+    Recorded for a World Pack decision (`pr-01a-slice.md` §7b).
+
+**Questions for the operator.**
+
+1. Does The Flower Room read as a shop you can walk into from the pavement, and is its interior
+   complete enough to keep?
+2. Is the room through the café glass now dark and warm enough? Should the next round put a
+   barista and a pastry case at the window, as `03` does?
+3. Of the misses above, which comes first: the glass (1), the furniture colour (2), or the sky (3)?
 
 ### What a review package contains (`ARC-20`)
 
