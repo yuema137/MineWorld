@@ -64,3 +64,13 @@ tokio-tungstenite = "0.29.0"
 
 # The `mineworld` command's argument parsing (DEP-11): named only in `tools/cli/src/main.rs`.
 clap = { version = "4.6.6", features = ["derive"] }
+
+# The development profile every `cargo build` and `cargo test` uses (docs/DECISIONS.md ARC-30).
+# Optimized at level 1 because the acceptance tests run real worlds for hundreds of simulated days:
+# a 300-day run measured 50.3 s at level 0 and 8.4 s at level 1, with byte-identical output. The two
+# checks that make a debug build a debug build are stated explicitly rather than inherited, so a later
+# change to the level cannot quietly turn them off.
+[profile.dev]
+opt-level = 1
+debug-assertions = true
+overflow-checks = true

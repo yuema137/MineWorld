@@ -1259,15 +1259,25 @@ commit's crate, as a separate recorded commit.
 **Scope (recommended option A).** Root `Cargo.toml`: `[profile.dev] opt-level = 1`, with a comment
 citing the measurement. Overflow checks and debug assertions stay on (they are separate profile keys).
 A dated note in `DECISIONS.md` `ARC-27`.
-- [ ] Implementation: one profile key and its comment.
-- [ ] Validation:
-  - [ ] Full clean-build time and `cargo test --workspace` wall time measured before and after (the
-    same machine, recorded).
-  - [ ] The 300-day run's output is byte-identical at both levels; already shown once for 10a's code,
-    §9 E-B0, and repeated on 10b's head.
-  - [ ] No test was moved out of the default loop, and none changed.
-- [ ] Review: no `#[ignore]` is added, so AC-11/AC-12 run in every default loop as today. The change is
-  build configuration, not semantics.
+**QB-3 answered (A), with conditions (§4.2.6). Done out of order, right after C4:** a bounded
+reordering, because every later commit runs long worlds, and doing it first saved minutes per
+validation without changing what any test claims. The decision record is `ARC-30`, not a note on
+`ARC-27` as first planned: the freeze asked for a `DECISIONS.md` record of its own.
+- [x] Implementation: root `Cargo.toml` `[profile.dev]` `opt-level = 1`, `debug-assertions = true`,
+  `overflow-checks = true` (both explicit), with a comment citing the measurement. `DECISIONS.md`
+  `ARC-30` (40 decision ids, distinct).
+- [x] Validation (§9 E-B8):
+  - [x] Clean `cargo build --workspace --all-targets` into fresh target dirs: 15.1 s at level 0,
+    39.4 s at level 1. `cargo test --workspace --no-fail-fast` at level 1 on the C4 tree: 90.4 s wall,
+    370 passed (353 + 17 new), 0 failed, 67 binaries. E-B0's level-0 baseline on main was 272.1 s.
+    `run` took 54.3 s (206.0 s before) and `run_restart` 10.5 s (45.6 s before).
+  - [x] Byte identity repeated on 10b's tree (C4, before the controller change): the 300-day seed-7
+    in-memory run is 64.7 s at level 0 and 10.6 s at level 1. Every line but the header and `wall`
+    is identical (`diff` empty; 327 672 facts, fingerprint `bbdfd4041103d54d` both). That is 132
+    facts more than 10a's 327 540, exactly one `became-acquainted` per directed pair of the 12
+    people.
+  - [x] No test moved out of the default loop, and none changed for this commit.
+- [x] Review: no `#[ignore]` added. Build configuration only; release unaffected; no float anywhere.
 **If QB-3 picks option B instead** (a separate long tier), this commit marks only the 300-day test
 `#[ignore = "long gate: cargo test -p mineworld-cli --test run -- --include-ignored"]`. That command is
 added to §6's gate list and to `.structured-coding/standards.md` `checks.tools`, and it is required on
