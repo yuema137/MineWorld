@@ -91,7 +91,8 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::*;
-    use crate::content::{PERSON_FIELDS, PLACE_FIELDS};
+    use crate::content::fields;
+    use crate::error::ContentKind;
 
     /// Section names are one namespace across every pack this build provides, and none may shadow a
     /// field of the format (`ARC-31`). A structural guard over a closed catalog: in this build a
@@ -113,10 +114,12 @@ mod tests {
             "two packs claim one section: {names:?}"
         );
         for name in &names {
-            assert!(
-                !PERSON_FIELDS.contains(name) && !PLACE_FIELDS.contains(name),
-                "the section `{name}` shadows a field of the format"
-            );
+            for kind in ContentKind::ALL {
+                assert!(
+                    !fields(kind).contains(name),
+                    "the section `{name}` shadows a field of the {kind} file"
+                );
+            }
         }
         for section in &sections {
             assert!(

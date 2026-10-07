@@ -60,21 +60,30 @@ impl core::fmt::Display for SectionName {
     }
 }
 
-/// What kind of content file a key names.
+/// What kind of content file a key names: a person, place, item or organization file (`ARC-36`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ContentKind {
     /// `people/<key>.yaml`.
     Person,
     /// `places/<key>.yaml`.
     Place,
+    /// `items/<key>.yaml`: an item kind, not one object (`ARC-36`).
+    Item,
+    /// `organizations/<key>.yaml`.
+    Organization,
 }
 
 impl ContentKind {
+    /// Every kind, for a guard that must cover each one.
+    pub const ALL: [Self; 4] = [Self::Person, Self::Place, Self::Item, Self::Organization];
+
     /// The directory this kind of content lives in.
     pub const fn directory(self) -> &'static str {
         match self {
             Self::Person => "people",
             Self::Place => "places",
+            Self::Item => "items",
+            Self::Organization => "organizations",
         }
     }
 
@@ -83,6 +92,8 @@ impl ContentKind {
         match self {
             Self::Person => "person",
             Self::Place => "place",
+            Self::Item => "item",
+            Self::Organization => "organization",
         }
     }
 
@@ -91,6 +102,8 @@ impl ContentKind {
         match self {
             Self::Person => EntityType::Person,
             Self::Place => EntityType::Place,
+            Self::Item => EntityType::Item,
+            Self::Organization => EntityType::Organization,
         }
     }
 }
@@ -148,7 +161,8 @@ impl<'s, 'w> Seeding<'s, 'w> {
     }
 }
 
-/// A part of an authored person or place file that a System Pack owns (`ARC-31`).
+/// A part of an authored person, place, item or organization file that a System Pack owns
+/// (`ARC-31`, `ARC-36`).
 ///
 /// Implemented by the System Pack that owns the state the section becomes. The pack decides what the
 /// section *is* — its type, its rules, its facts — and the World Pack loader decides only what every

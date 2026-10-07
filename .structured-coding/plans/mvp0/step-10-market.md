@@ -1332,18 +1332,42 @@ makes worldpack's `fields(kind)` match non-exhaustive — one does not compile w
 **Depends on:** B-C2 (the scan must see these lines with word-level admission). **Non-goals:** loading
 (ids, genesis) is B-C4; no CLI change.
 
-- [ ] Implementation: as scoped, plus `ALLOWED` entries for every file above that now holds `item` or
-  `items` (§4.2.2), each with its reason.
-- [ ] Validation:
-  - [ ] `cargo test -p mineworld-worldpack -p mineworld-authoring -p mineworld-acceptance`: all pass;
-    the new refusal tests pass; no existing test edited.
-  - [ ] Mutation M-B2 (items dropped from `check_keys_are_declared_once`) → the cross-kind duplicate
-    test fails; reverted.
-  - [ ] clippy `-D warnings` over the three crates; fmt.
-- [ ] Review: every new refusal reuses an existing `PackError` variant with the new kind or list as a
-  value, so a tool matching on variants keeps working; `fields(kind)` is the only place a kind's legal
-  keys live; the order function is the only statement of per-file order; no pack crate is named
-  (worldpack's structure test still passes).
+- [x] Implementation: as scoped, plus `ALLOWED` entries for the seven files that now hold `item`/`items`
+  (section.rs, format.rs, content.rs, error.rs, read.rs, lib.rs, refusals.rs), each
+  `Words::Only(&["item", "items"])` through one const `ITEM`, each with its reason. Before the entries
+  existed the scan refused exactly 109 hits, all `item`/`items`, all in those seven files. No other
+  market word anywhere.
+  - The order function is `WorldPack::sectioned_files` (pub(crate)). `check_sections` now takes the
+    assembled `&WorldPack`, so `read` builds `Self` before the section check, which is still the last
+    check. The reference rule is `declared_entities().get(key) == Some(&type)`, built once from all
+    four maps (F-21's `_ => false` is gone).
+  - `check_keys_are_declared_once` reads one array of the four lists in the order places, population,
+    items, organizations. `check_nothing_undeclared` runs over the four kinds in one loop.
+  - **Bounded deviation D-B2:** two `PackError` messages wrote "a {kind}", which would read "a item".
+    error.rs gains a private `one(kind)` ("a person", "a place", "an item", "an organization") used in
+    `ContentFileMissing` and `ContentFileNotDeclared`. The person and place text is byte-identical, and
+    no variant, field or meaning changes.
+  - **Bounded deviation D-B3:** `authoring/Cargo.toml`'s and `worldpack/Cargo.toml`'s
+    descriptions/comments still say "person or place file". They are left unedited because they are
+    manifest prose, outside the design's file list, with no reader that depends on them. Recorded as
+    a doc follow-up.
+- [x] Validation (E-B3):
+  - [x] `cargo test --no-fail-fast -p mineworld-worldpack -p mineworld-authoring -p mineworld-acceptance`:
+    all pass. refusals 38 (31 existing + 6 new + `every_refusal…` extended with item and organization
+    cases), social_cafe 15, structure 2, worldpack unit 2 (the section-namespace guard now over
+    `ContentKind::ALL`), acceptance 4. No existing test edited except the design-sanctioned extension of
+    `every_refusal_names_the_file_it_is_about`.
+  - [x] Mutation M-B2 (the `items` row dropped from `check_keys_are_declared_once`) →
+    `a_key_declared_as_a_place_and_an_item_is_refused_naming_both_lists` FAILED (37 passed, 1 failed);
+    reverted, 38 passed.
+  - [x] `cargo clippy -p …worldpack -p …authoring -p …acceptance --all-targets --all-features -D
+    warnings` clean; `cargo fmt --all --check` clean (after `cargo fmt`).
+- [x] Review: every new refusal reuses an existing variant (`ContentFileMissing`,
+  `ContentFileNotDeclared`, `KeyDeclaredTwice`, `Malformed`, `SectionNotCarriedHere`) with the new kind
+  or list as a value; `fields(kind)` is the only statement of legal fields, so `location:` on an item is
+  refused by the existing unknown-key path; `sectioned_files` is the only statement of per-file order;
+  no pack crate named (structure tests pass); social-cafe's check order is unchanged for packs without
+  the new kinds (places then people).
 
 **Failure cases.** A needed new `PackError` variant is a bounded addition, recorded; a needed change to
 an existing variant's meaning is a stop (it changes what authors are told).
@@ -2218,6 +2242,10 @@ E-B1 B-C1 (docs): check_decision_ids 46 ids distinct (ARC-36 new); check_doc_hea
 E-B2 B-C2: cargo test -p mineworld-acceptance 4 passed; clippy -D warnings and fmt clean. M-B6 (word
      check bypassed) → an_admitted_word_admits_no_other fails on `let item_price = 1;` (expected
      ["price"], got []); reverted. Literal update D-B1 (market_word → market_words), claim unchanged.
+E-B3 B-C3: worldpack + authoring + acceptance all pass (refusals 38, social_cafe 15, structure 2,
+     worldpack unit 2, acceptance 4). The scan, without entries, refused 109 hits, only item/items, only
+     in the seven listed files; with them it is green. M-B2 → the place-and-item duplicate test fails;
+     reverted. clippy -D warnings, fmt clean. D-B2 (message article), D-B3 (manifest prose left).
 ```
 
 ## 9.3 Evidence — PR 11c

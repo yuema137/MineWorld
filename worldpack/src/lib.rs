@@ -8,9 +8,13 @@
 //! worlds/social-cafe/           format    what a pack may say
 //! ├── world.yaml                read      directory → WorldPack, refusing a bad one by name
 //! ├── people/{alice,bob,…}.yaml load      WorldPack → a running World
-//! └── places/{cafe,…}.yaml      catalog   which System Packs this build provides (the installed
-//!                                         set, systems/installed) and the two the format names
+//! ├── places/{cafe,…}.yaml      catalog   which System Packs this build provides (the installed
+//! ├── items/*.yaml                        set, systems/installed) and the two the format names
+//! └── organizations/*.yaml
 //! ```
+//!
+//! `items/` and `organizations/` are optional (`DECISIONS.md` `ARC-36`); an item file declares an item
+//! kind, not one object.
 //!
 //! ```no_run
 //! use mineworld_contracts::WorldTime;
@@ -70,8 +74,8 @@ pub mod read;
 pub use catalog::Capability;
 pub use error::{ContentKind, Declared, PackError};
 pub use format::{
-    AuthoredLocation, AuthoredPerson, AuthoredPlace, AuthoredPosition, FoundSection, SectionState,
-    WorldIdentity, WorldManifest,
+    AuthoredItem, AuthoredLocation, AuthoredOrganization, AuthoredPerson, AuthoredPlace,
+    AuthoredPosition, FoundSection, SectionState, WorldIdentity, WorldManifest,
 };
 pub use load::{AssembledWorld, ComposedWorld, LoadedWorld, RunningWorld};
 pub use read::{MANIFEST, WorldPack};

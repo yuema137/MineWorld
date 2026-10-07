@@ -121,7 +121,60 @@ const ALLOWED: &[Allowed] = &[
         words: Words::Any,
         reason: "this scan: its allow-list names the words it admits",
     },
+    Allowed {
+        pr: "11b",
+        path: "authoring/src/section.rs",
+        contains: "",
+        words: ITEM,
+        reason: "ContentKind::Item, its directory `items` and its description `item` (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/format.rs",
+        contains: "",
+        words: ITEM,
+        reason: "world.yaml's `items:` list and AuthoredItem (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/content.rs",
+        contains: "",
+        words: ITEM,
+        reason: "ITEM_FIELDS and ContentFile::item (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/error.rs",
+        contains: "",
+        words: ITEM,
+        reason: "Declared::Items, displayed `items`, and the kind's article `an item` (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/read.rs",
+        contains: "",
+        words: ITEM,
+        reason: "the items map, its accessor, its reading and the per-file order (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/lib.rs",
+        contains: "",
+        words: ITEM,
+        reason: "the layout diagram and the AuthoredItem re-export (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/tests/refusals.rs",
+        contains: "",
+        words: ITEM,
+        reason: "refusal fixtures for items/<key>.yaml (ARC-36)",
+    },
 ];
+
+/// The defined term `Item` (`CORE_CONCEPTS.md` §7, `EntityType::Item`) and its plural, the directory
+/// and list name of `MODULE_SPEC.md` §4's frozen layout: the only words 11b admits (step-10 §4.2.2).
+const ITEM: Words = Words::Only(&["item", "items"]);
 
 /// One added line (or added file path) that names a market word.
 #[derive(Debug)]
