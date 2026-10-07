@@ -1106,11 +1106,21 @@ src/paced.rs (the one call into social, and the door suppression while in an act
 `run`/`run_restart` tests re-located against the new history (thresholds and the straddling day are
 found from the log, never assumed). `RuleController` untouched (I-9).
 **Depends on:** C4.
-- [ ] Implementation: §4.2.2's order; `decide` stays `&self`; every choice a `mix(seed, observer,
-  instant)` draw; the invitation lifetime read from group-activity's published constant, never
-  re-derived.
-- [ ] Validation:
-  - [ ] Unit tests in `social_tests.rs` over hand-built observations (as `paced_tests.rs`):
+- [x] Implementation (§9 E-B5): `cognition/rule-controller/src/social.rs` (new), `paced.rs`:
+  `decide` calls it, `Draw` becomes `pub(crate)`, and the doorway band is suppressed for a member.
+  `Cargo.toml` adds `mineworld-group-activity`. `decide` stays `&self`, and every choice is a `Draw`
+  over `(seed, observer, instant)` with new indices 8–12. The lifetime is group-activity's
+  `INVITATION_LIFETIME`.
+  **Bounded deviation D-B5 (order):** §4.2.2 put "answer an invitation" first and the existing scheme,
+  which begins with answering a line, last. Implemented as: invitation, **then the line reply**, then
+  the member's leave roll or the non-member's invite/join roll, then the walking scheme. Being
+  addressed keeps precedence over taking initiative. The 300-day measurement below shows it costs no
+  activity, and it keeps "answer each line once" unchanged in kind.
+- [x] Validation:
+  - [x] Unit tests in `social_tests.rs` over hand-built observations (as `paced_tests.rs`), 6 tests,
+    all PASS. Each sub-item below has its test. "Nothing outside the observation" is pinned in two
+    ways: the unit test asserts that with no group-activity affordance or disclosure only `move` and
+    `talk` are ever proposed, and the parity run in E-B5 compares bytes on a real world.
     - a pending, available invitation is answered: across 64 seeds both accept and decline occur,
       and accept is the more frequent;
     - an invitation whose accept affordance is unavailable, or that is older than the lifetime, is
@@ -1122,14 +1132,36 @@ found from the log, never assumed). `RuleController` untouched (I-9).
     - **restart equivalence:** a fresh controller decides identically on the same observation;
     - **nothing outside the observation:** an observation without group-activity affordances decides
       exactly as before C5, for every existing `paced_tests` view and 64 seeds × windows.
-  - [ ] All 14 existing rule-controller tests pass unchanged (I-5: no edit).
-  - [ ] Measure one 300-day in-memory debug run (Q4's 60 s rule) and record the request mix
-    (invite / accept / decline / join / leave accepted and refused). If it exceeds about 60 s, QB-3's
-    answer applies first; the pace rises only if QB-3 is declined.
-  - [ ] `run`, `run_restart`: green, with the straddling day re-located.
-- [ ] Review: no `HashMap`, no float. The controller reads `Invitations` and `Participation` through
-  `payload_for::<…>()` with group-activity's types. It never computes a distance to decide a social
-  action, because the affordance verdict is the server's (`ENGINEERING_RULES.md` §8).
+  - [x] All 14 existing rule-controller tests pass unedited: 20 passed = 14 + 6.
+  - [x] **Parity on a real world (frozen evidence, captured before the change):** the pre-C5 binary
+    was built from `4596271` in a detached worktree, `/tmp/s8b/pre-c5`, and the post-C5 binary from
+    the working tree. Both ran a 300-day, seed-7 run on a copy of `social-cafe` without
+    `group-activity`. Every printed line but the header and `wall` is identical (`diff` empty;
+    327 672 facts, fingerprint `bbdfd4041103d54d` both).
+  - [x] One 300-day in-memory run of the real pack: **10.5 s** (QB-3's level 1; Q4's 60 s rule is not
+    approached).
+    - Request mix, all accepted and **none refused**: invite 10 432, accept-invitation 6 309,
+      decline-invitation 2 729, join-group-activity 1 520, leave-group-activity 3 018, move 152 610,
+      talk 79 212.
+    - Facts: group-activity-started 6 308, -ended 6 308, joined 1 521 (1 520 joins + 1 accept that
+      joined an activity under way), left 3 018, became-acquainted 132, relationship-changed 374.
+    - Faults 0; 335 442 facts in all.
+  - [x] `run` 3 PASS (55.3 s, its 300-day precondition unchanged until C7); `run_restart` 2 PASS
+    after a **located test defect**:
+    - `straddling()` located a line by "the listener said anything to the speaker within a pace", and
+      the claim then required that thing to be a quotation of the line;
+    - with C5 the listener's next consult can answer an invitation first, so the located day-1 line
+      (said at 85 509) was followed by a non-quoting exchange, and the claim read 0 answers;
+    - the locator now requires the quotation (`ARC-23` rule 3: the property the claim names). The
+      claim is unchanged ("answered exactly once"), and the located day moved from 1 to 2 (one line).
+- [x] Review:
+  - `social.rs` has no `HashMap` and no float.
+  - It reads `Invitations` and `Participation` through `payload_for::<C>()` with group-activity's
+    types.
+  - It never computes a distance or a membership rule. Invite, join, accept, decline and leave are
+    proposed only through an available affordance, and its one self-judged quantity is an
+    invitation's age against the published lifetime (D-B4).
+  - fmt and clippy `-D warnings` are clean.
 **Acceptance.** In a 30-day run, `requests` lines show invite, accept-invitation, decline-invitation,
 join and leave accepted, and group-activity facts are recorded, located in §9 E-B5.
 **Failure.** Bands that leave a bucket with no group activity are tuned and recorded. The precondition

@@ -15,5 +15,8 @@ mineworld-contracts = { workspace = true }
 mineworld-conversation = { workspace = true }
 # For `move` and the doorways a place discloses: the paced controller walks (step-08 C3).
 mineworld-movement = { workspace = true }
+# For invite / accept / decline / join / leave and the invitations and participation a person is
+# disclosed: the paced controller does things together (step-09 C5).
+mineworld-group-activity = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

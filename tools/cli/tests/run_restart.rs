@@ -135,18 +135,27 @@ fn spoken(fact: &EventEnvelope) -> Option<Spoke> {
     serde_json::from_slice(record.payload_for::<Spoke>().ok()?).ok()
 }
 
-/// Lines said to somebody before `restart` and answered by them after it, within one pace:
-/// `(said at, speaker, listener)`.
+/// Lines said to somebody before `restart` and answered by them — quoted back — after it, within one
+/// pace: `(said at, speaker, listener)`.
+///
+/// Located by the quotation, not by "the listener said anything to the speaker": since S8 (step-09
+/// C5) the listener's next consult may answer an invitation first, and then a later greeting would
+/// be mistaken for the answer (`ARC-23` rule 3: measure the property the claim names).
 fn straddling(facts: &[(i64, Spoke)], restart: i64) -> Vec<(i64, Spoke)> {
     facts
         .iter()
         .filter(|(said_at, line)| {
+            let opening = format!(
+                "I remember you. You said \"{}\"",
+                quoted(line.utterance().as_str())
+            );
             *said_at < restart
                 && facts.iter().any(|(at, reply)| {
                     *at >= restart
                         && *at - *said_at < PACE
                         && reply.speaker() == line.listener()
                         && reply.listener() == line.speaker()
+                        && reply.utterance().as_str().starts_with(&opening)
                 })
         })
         .cloned()
