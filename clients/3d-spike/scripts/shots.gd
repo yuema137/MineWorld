@@ -85,6 +85,8 @@ func _ready() -> void:
 		_mode = "bodycheck"
 	elif "--motion" in args:
 		_mode = "motion"
+	elif "--frametime" in args:
+		_mode = "frametime"
 	DirAccess.make_dir_recursive_absolute(OUT)
 
 
@@ -102,6 +104,8 @@ func _process(_d: float) -> void:
 		await _bodycheck()
 	elif _mode == "motion":
 		await _motion()
+	elif _mode == "frametime":
+		await _frametime()
 	else:
 		await _capture()
 	get_tree().quit(0)
@@ -325,6 +329,43 @@ func _bodycheck() -> void:
 			var name := "B_npc%d_%s" % [n, side[0]]
 			get_viewport().get_texture().get_image().save_png("%s/%s.png" % [OUT, name])
 			print("bodycheck ", name)
+
+
+## Frame time with the player's body in view: the operator's front camera at
+## the portrait spot, standing, then walking, vsync off. CPU frame time from the
+## process delta, GPU time from the viewport's own measurement. Run once as is
+## and once with `--town-body` to compare the two bodies in the same scene.
+func _frametime() -> void:
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	var vp := get_viewport().get_viewport_rid()
+	RenderingServer.viewport_set_measure_render_time(vp, true)
+	player.scripted_look = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+	player.set_camera(CameraRig.Mode.THIRD_FRONT)
+	await _settle(2.0)
+	for phase in ["stand", "walk"]:
+		if phase == "walk":
+			player.scripted_look = true
+			player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+			Input.action_press("move_forward")
+			await _settle(0.5)
+		var cpu := PackedFloat64Array()
+		var gpu := PackedFloat64Array()
+		var last := Time.get_ticks_usec()
+		for i in 240:
+			await RenderingServer.frame_post_draw
+			var now := Time.get_ticks_usec()
+			cpu.append((now - last) / 1000.0)
+			last = now
+			gpu.append(RenderingServer.viewport_get_measured_render_time_gpu(vp))
+		if phase == "walk":
+			Input.action_release("move_forward")
+		cpu.sort()
+		gpu.sort()
+		print("frametime %s body=%s  frame median %.2f ms p95 %.2f ms  gpu median %.2f ms p95 %.2f ms" % [
+			phase, "town" if "--town-body" in OS.get_cmdline_user_args() else "reference",
+			cpu[120], cpu[228], gpu[120], gpu[228]])
 
 
 func _save_portrait(name: String) -> void:

@@ -28,7 +28,8 @@ func _ready() -> void:
 ## True when this run is driven by a script rather than by a human.
 static func _scripted() -> bool:
 	var a := OS.get_cmdline_user_args()
-	return "--shots" in a or "--drive" in a or "--portrait" in a or "--bodycheck" in a or "--motion" in a
+	return ("--shots" in a or "--drive" in a or "--portrait" in a or "--bodycheck" in a
+		or "--motion" in a or "--frametime" in a)
 
 
 func _environment() -> void:

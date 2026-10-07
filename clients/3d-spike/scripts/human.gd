@@ -25,8 +25,20 @@ class_name Human
 extends Node3D
 
 const SRC := "res://assets/characters/vitruvian/vitruvian.glb"
+## The route D+ candidate for the default character: one Meshy generation,
+## made game-ready and rigged on the same 52-joint skeleton, so the bone map,
+## the clips and this file's posing apply unchanged
+## (docs/references/CHARACTER_ROUTE_D_PLUS.md). Only the player is built from
+## it; the townspeople keep `SRC`.
+const SRC_D := "res://assets/characters/meshy_d/meshy_d.glb"
+## Its one material, which keeps its own baked texture.
+const MESHY_MATERIAL := "MW_Meshy"
 const CLIPS := "res://assets/characters/quaternius_ual.glb"
 const TEX := "res://assets/characters/vitruvian/textures/"
+
+## Which body a person is built from. `TOWN` is the CharMorph body every
+## townsperson shares; `REFERENCE` is the default character's own slot.
+enum Body { TOWN, REFERENCE }
 
 ## Measured from the baked GLB, not assumed. `tools/character_model.py` prints it.
 ## It moved from 1.7799 when the body was re-baked through CharMorph's Ultra
@@ -49,8 +61,9 @@ const CANONICAL_HEIGHT := 1.7670
 const WALK_CLIP_MPS := 1.063
 const JOG_CLIP_MPS := 2.660
 
-static var _scene: PackedScene
-static var _lib: AnimationLibrary
+## Body -> PackedScene, and Body -> AnimationLibrary.
+static var _scenes: Dictionary = {}
+static var _libs: Dictionary = {}
 static var _mats: Dictionary = {}
 
 var skeleton: Skeleton3D
@@ -223,6 +236,19 @@ static func _printed(file: String, tint: Color, rough: float, tile := 1.0) -> St
 	return m
 
 
+## The generated body's one material: its own texture, our surface response.
+## Diagnostic for the hairline flecks (CHARACTER_ROUTE_D_PLUS.md §8.4): the
+## imported material is glTF's default dielectric at roughness 0.5.
+static func _meshy(src: Material) -> Material:
+	var m := (src as StandardMaterial3D).duplicate() as StandardMaterial3D
+	print("human.gd: MW_Meshy imported roughness %.2f metallic %.2f specular %.2f" % [
+		m.roughness, m.metallic, m.metallic_specular])
+	m.roughness = 0.9
+	m.metallic = 0.0
+	m.metallic_specular = 0.25
+	return m
+
+
 ## Shoes get no weave -- leather is not fabric, and the tiled normal read as
 ## camouflage on a foot-sized surface.
 static func _plain(c: Color, rough: float, spec := 0.5) -> StandardMaterial3D:
@@ -243,12 +269,12 @@ static func _plain(c: Color, rough: float, spec := 0.5) -> StandardMaterial3D:
 ## is not wearing them. Only the reference character does, for now.
 static func build(height_m: float, skin: Color, hair: Color,
 		top: Color, legs: Color, shoe: Color,
-		hoodie := Color(0, 0, 0, 0), pack := Color(0, 0, 0, 0)) -> Human:
-	if _scene == null:
-		_scene = load(SRC) as PackedScene
+		hoodie := Color(0, 0, 0, 0), pack := Color(0, 0, 0, 0), body := Body.TOWN) -> Human:
+	if not _scenes.has(body):
+		_scenes[body] = load(SRC_D if body == Body.REFERENCE else SRC) as PackedScene
 	var h := Human.new()
 	h.name = "Human"
-	var inst := _scene.instantiate() as Node3D
+	var inst := (_scenes[body] as PackedScene).instantiate() as Node3D
 	h.add_child(inst)
 	h._inst = inst
 	h.scale = Vector3.ONE * (height_m / CANONICAL_HEIGHT)
@@ -307,6 +333,11 @@ static func build(height_m: float, skin: Color, hair: Color,
 			var key := (src.resource_name if src else "").trim_suffix(".001")
 			if by_name.has(key):
 				mi.set_surface_override_material(i, by_name[key])
+			elif key == MESHY_MATERIAL:
+				# The generated body carries its own baked base colour; the
+				# palette arguments do not apply to it. Its surface response is
+				# ours: hair, skin and cotton are all rough and barely specular.
+				mi.set_surface_override_material(i, _meshy(src))
 			else:
 				push_warning("human.gd: no material for surface '%s'" % key)
 		if mi.name == "Body" and mi.find_blend_shape_by_name("Blink") >= 0:
@@ -319,30 +350,33 @@ static func build(height_m: float, skin: Color, hair: Color,
 	# Layered after the AnimationTree; see posture.gd for why it exists. The
 	# reference character also holds her backpack strap, which is a pose and not
 	# a prop: the hand has to be on the webbing, so it is solved and locked.
-	h._posture = Posture.holding_strap() if pack.a > 0.0 else Posture.natural_stance()
+	h._posture = Posture.holding_strap(body) if pack.a > 0.0 else Posture.natural_stance()
 	h.skeleton.add_child(h._posture)
 
-	h._build_tree(inst, pack.a > 0.0)
+	h._build_tree(inst, pack.a > 0.0, body)
 	return h
 
 
-func _build_tree(inst: Node, grip: bool) -> void:
-	if _lib == null:
+func _build_tree(inst: Node, grip: bool, body: Body) -> void:
+	if not _libs.has(body):
 		var clips := (load(CLIPS) as PackedScene).instantiate()
 		var ap := clips.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
 		# duplicated because the imported library is shared and read-only, and
 		# a clip of our own has to go into it
-		_lib = ap.get_animation_library(ap.get_animation_library_list()[0]).duplicate()
-		_lib.add_animation("Sit", _sit_clip())
-		# every body is the same GLB, so the first skeleton's rests serve all
-		_lib.add_animation("Stand", _stand_clip(skeleton, false))
-		_lib.add_animation("StandGrip", _stand_clip(skeleton, true))
+		var lib := ap.get_animation_library(ap.get_animation_library_list()[0]).duplicate()
+		lib.add_animation("Sit", _sit_clip())
+		# One library per body: the standing clips key `rest * delta`, and each
+		# GLB has its own rests. Every instance of one body shares that GLB, so
+		# its first skeleton's rests serve all of them.
+		lib.add_animation("Stand", _stand_clip(skeleton, false, body))
+		lib.add_animation("StandGrip", _stand_clip(skeleton, true, body))
 		clips.queue_free()
+		_libs[body] = lib
 
 	var player := AnimationPlayer.new()
 	player.name = "AnimationPlayer"
 	inst.add_child(player)
-	player.add_animation_library("", _lib)
+	player.add_animation_library("", _libs[body])
 	player.root_node = player.get_path_to(skeleton)
 
 	# Idle -> Walk -> Jog on one axis, driven by measured ground speed. Root
@@ -466,6 +500,26 @@ const HIP_DROP := -0.009
 ## at her side.
 const GRIP_UPPER := Vector3(62.8, 57.2, 39.4)
 const GRIP_LOWER := Vector3(109.0, -16.9, -23.7)
+## The same arm solved on the `REFERENCE` body by `tools/stand_pose.gd -- grip
+## reference`. Its arms are ~20 % longer and its strap rides higher and further
+## out (docs/references/CHARACTER_ROUTE_D_PLUS.md §8), so the town body's angles
+## do not land on its strap.
+## The wrist is solved too: turned up, so the knuckles sit on the webbing above
+## it and the elbow can hang at her side.
+const GRIP_UPPER_D := Vector3(70.6, 49.2, 19.0)
+const GRIP_LOWER_D := Vector3(130.4, -12.2, -18.4)
+const GRIP_HAND_D := Vector3(-72.0, -4.7, 75.0)
+## The reference body's extra head turn (X+ face down, Y+ face to her left).
+const GAZE_NECK_D := Vector3(0, 5.0, 0)
+const GAZE_HEAD_D := Vector3(6.0, 14.0, 0)
+
+
+## The gripping arm's rest-relative eulers for a body: [upper, lower], plus the
+## hand where the grip needs the wrist.
+static func grip_angles(body: Body) -> Array[Vector3]:
+	if body == Body.REFERENCE:
+		return [GRIP_UPPER_D, GRIP_LOWER_D, GRIP_HAND_D]
+	return [GRIP_UPPER, GRIP_LOWER]
 
 
 ## The standing pose at time `t` in its loop.
@@ -489,7 +543,7 @@ const GRIP_LOWER := Vector3(109.0, -16.9, -23.7)
 ## other hand on the strap; the head turned to her left and level, not tipped
 ## back. And the parts that make a still figure a person standing there: she
 ## breathes, and her gaze drifts.
-static func stand_key(t: float, grip: bool) -> Dictionary:
+static func stand_key(t: float, grip: bool, body := Body.TOWN) -> Dictionary:
 	var breath := sin(TAU * t / BREATH)
 	var g := TAU * t / STAND_LOOP
 	var look := 0.55 * sin(g) + 0.25 * sin(2.0 * g + 1.3)
@@ -523,9 +577,20 @@ static func stand_key(t: float, grip: bool) -> Dictionary:
 		"LeftFoot": Vector3(0.5, 0, 0),
 	}
 	if grip:
+		var ga := grip_angles(body)
 		k["LeftShoulder"] = Vector3.ZERO
-		k["LeftUpperArm"] = GRIP_UPPER
-		k["LeftLowerArm"] = GRIP_LOWER
+		k["LeftUpperArm"] = ga[0]
+		k["LeftLowerArm"] = ga[1]
+		if ga.size() > 2:
+			k["LeftHand"] = ga[2]
+	if body == Body.REFERENCE:
+		# Her eyes are painted and look straight out of the face, so the
+		# reference's off-camera look to her left has to come from the head:
+		# turned further left than the town body's, and the chin a little down
+		# (with the head alone at 24 degrees she looked at the three-quarter
+		# camera, chin up).
+		k["Neck"] += GAZE_NECK_D
+		k["Head"] += GAZE_HEAD_D
 	return k
 
 
@@ -533,7 +598,7 @@ static func stand_key(t: float, grip: bool) -> Dictionary:
 ## rather than being forced onto the bones afterwards. Keyed every 0.15 s from
 ## `stand_key`, which keeps breathing and the gaze drift smooth under linear
 ## interpolation; the loop's last key equals its first.
-static func _stand_clip(sk: Skeleton3D, grip: bool) -> Animation:
+static func _stand_clip(sk: Skeleton3D, grip: bool, body: Body) -> Animation:
 	var a := Animation.new()
 	a.length = STAND_LOOP
 	a.loop_mode = Animation.LOOP_LINEAR
@@ -541,7 +606,7 @@ static func _stand_clip(sk: Skeleton3D, grip: bool) -> Animation:
 	var steps := int(round(STAND_LOOP / 0.15))
 	for s in steps + 1:
 		var t := STAND_LOOP * s / steps
-		var k := stand_key(t, grip)
+		var k := stand_key(t, grip, body)
 		for bone: String in k:
 			var name := bone.trim_suffix("@pos")
 			var i := sk.find_bone(name)

@@ -17,19 +17,33 @@ extends SceneTree
 ## against the thigh, and which way the face points.
 ##
 ## Godot frame: +Y up, she faces +Z, her own left is +X.
+##
+## Add `reference` to any mode to measure the default character's own body
+## (`Human.Body.REFERENCE`) instead of the town body; `strap` then prints the
+## front surface across her left chest, which is where `STRAP_D` was read.
 
 ## The strap's centre line at chest height -- `solve_grip.gd`'s target.
 const STRAP := Vector3(0.092, 1.250, 0.152)
+## On the reference body the target is where the knuckle sits, read from its
+## rest mesh by `strap`: the strap's ridge runs at x 0.14-0.16, z 0.015-0.025
+## from y 1.31 up to the shoulder (lower down it turns round her side), and the
+## knuckle sits ~2.5 cm proud of it with the fingers wrapped round.
+const STRAP_D := Vector3(0.150, 1.310, 0.045)
 
 var sk: Skeleton3D
+var body := Human.Body.TOWN
+var mesh: MeshInstance3D
 
 
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
+	if "reference" in args:
+		body = Human.Body.REFERENCE
 	var h := Human.build(Human.CANONICAL_HEIGHT, NPC.REF_SKIN, NPC.REF_HAIR,
-		NPC.REF_TEE, NPC.REF_JEANS, NPC.REF_SHOE, NPC.REF_HOODIE, NPC.REF_PACK)
+		NPC.REF_TEE, NPC.REF_JEANS, NPC.REF_SHOE, NPC.REF_HOODIE, NPC.REF_PACK, body)
 	root.add_child(h)
 	sk = h.skeleton
+	mesh = sk.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
 	for c in sk.get_children():
 		if c is SkeletonModifier3D:
 			sk.remove_child(c)
@@ -38,6 +52,8 @@ func _init() -> void:
 		_sweep()
 	if "legs" in args:
 		_legs()
+	if "strap" in args:
+		_strap_probe()
 	if "grip" in args:
 		_grip()
 	if "eval" in args:
@@ -48,8 +64,59 @@ func _init() -> void:
 			(s * _p("LeftToes")).y, (s * _p("RightToes")).y])
 		for t in [0.0, 3.15, 6.3, 9.45]:
 			print("--- t = %.2f" % t)
-			_eval(Human.stand_key(t, true))
+			_eval(Human.stand_key(t, true, body))
 	quit(0)
+
+
+func _strap_target() -> Vector3:
+	return STRAP_D if body == Human.Body.REFERENCE else STRAP
+
+
+## The rest mesh's front-most surface (largest z) in 1 cm cells across her left
+## chest, in the skeleton's parent frame -- the frame `STRAP` is written in.
+## The strap stands proud of the hoodie, so it shows as a ridge in z.
+func _strap_probe() -> void:
+	_reset()
+	var xf := _skx()
+	# skinned by hand at rest: bone rest * bind pose, weighted -- the mesh
+	# node's own transform is not what places a skinned surface
+	var arr := mesh.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+	var wts: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+	var skin := mesh.skin
+	var bind := []
+	for i in skin.get_bind_count():
+		var bi := skin.get_bind_bone(i)
+		if bi < 0:
+			bi = sk.find_bone(skin.get_bind_name(i))
+		bind.append(_g_rest(bi) * skin.get_bind_pose(i))
+	var pts := PackedVector3Array()
+	for vi in verts.size():
+		var p := Vector3.ZERO
+		for j in 4:
+			var w := wts[vi * 4 + j]
+			if w > 0.0:
+				p += w * ((bind[bones[vi * 4 + j]] as Transform3D) * verts[vi])
+		pts.append(xf * p)
+	var cols := range(6, 25, 2)
+	var line := "  y\\x  "
+	for cx in cols:
+		line += "%6.2f" % (cx / 100.0)
+	print(line)
+	for yi in range(140, 109, -3):
+		var y := yi / 100.0
+		line = "%5.2f  " % y
+		for cx in cols:
+			var best := -9.0
+			for p in pts:
+				if absf(p.x - cx / 100.0) < 0.006 and absf(p.y - y) < 0.006 and p.z > best:
+					best = p.z
+			line += ("%6.3f" % best) if best > -9.0 else "    - "
+		print(line)
+	for b in ["LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand", "UpperChest"]:
+		var p := xf * _p(b)
+		print("rest %-13s (%.3f, %.3f, %.3f)" % [b, p.x, p.y, p.z])
 
 
 ## The skeleton's world transform, composed from its parents' local ones:
@@ -114,42 +181,49 @@ func _g_rest(b: int) -> Transform3D:
 ## The strap, carried by whatever the chest is doing in this pose.
 func _strap_posed() -> Vector3:
 	var c := sk.find_bone("UpperChest")
-	return _skx() * (_g(c) * _g_rest(c).affine_inverse() * (_skx().affine_inverse() * STRAP))
+	return _skx() * (_g(c) * _g_rest(c).affine_inverse() * (_skx().affine_inverse() * _strap_target()))
 
 
 ## Solve the gripping arm inside the stand pose: knuckle on the posed strap,
 ## elbow hanging down and slightly out rather than winged up behind her.
 func _grip() -> void:
-	var pose := Human.stand_key(0.0, true)
+	var pose := Human.stand_key(0.0, true, body)
 	_apply(pose)
 	var target := _strap_posed()
-	var up := "LeftUpperArm"
-	var lo := "LeftLowerArm"
-	var best_a: Vector3 = pose[up]
-	var best_b: Vector3 = pose[lo]
-	var best := _grip_err(best_a, best_b, target)
+	var wrist := body == Human.Body.REFERENCE
+	var best_a: Vector3 = pose["LeftUpperArm"]
+	var best_b: Vector3 = pose["LeftLowerArm"]
+	var best_c: Vector3 = pose.get("LeftHand", Vector3.ZERO) if wrist else Vector3.INF
+	var best := _grip_err(best_a, best_b, target, best_c)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20261001
+	var dims := 9 if wrist else 6
 	for restart in 30:
 		var a := best_a if restart == 0 else Vector3(rng.randf_range(20, 110), rng.randf_range(-60, 60), rng.randf_range(-40, 80))
 		var b := best_b if restart == 0 else Vector3(rng.randf_range(40, 150), rng.randf_range(-60, 60), rng.randf_range(-40, 40))
-		var err := _grip_err(a, b, target)
+		var c := best_c if (restart == 0 or not wrist) else Vector3(rng.randf_range(-50, 50), rng.randf_range(-40, 40), rng.randf_range(-50, 50))
+		var err := _grip_err(a, b, target, c)
 		var step := 16.0
 		while step > 0.2:
 			var improved := false
-			for axis in 6:
+			for axis in dims:
 				for s in [1.0, -1.0]:
 					var a2 := a
 					var b2 := b
+					var c2 := c
 					if axis < 3:
 						a2[axis] += s * step
-					else:
+					elif axis < 6:
 						b2[axis - 3] += s * step
-					var e2 := _grip_err(a2, b2, target)
+					else:
+						# a wrist bends about 70 degrees, not a full turn
+						c2[axis - 6] = clampf(c2[axis - 6] + s * step, -75.0, 75.0)
+					var e2 := _grip_err(a2, b2, target, c2)
 					if e2 < err - 1e-7:
 						err = e2
 						a = a2
 						b = b2
+						c = c2
 						improved = true
 			if not improved:
 				step *= 0.5
@@ -157,7 +231,12 @@ func _grip() -> void:
 			best = err
 			best_a = a
 			best_b = b
-	_grip_err(best_a, best_b, target)
+			best_c = c
+	_grip_err(best_a, best_b, target, best_c)
+	if wrist:
+		var wr := _skx() * _p("LeftHand")
+		print("wrist (%.3f, %.3f, %.3f)" % [wr.x, wr.y, wr.z])
+		print("const GRIP_HAND_D := Vector3(%.1f, %.1f, %.1f)" % [best_c.x, best_c.y, best_c.z])
 	var s := _skx()
 	var k := s * _p("LeftMiddleProximal")
 	var el := s * _p("LeftLowerArm")
@@ -169,13 +248,27 @@ func _grip() -> void:
 	print("const GRIP_LOWER := Vector3(%.1f, %.1f, %.1f)" % [best_b.x, best_b.y, best_b.z])
 
 
-func _grip_err(a: Vector3, b: Vector3, target: Vector3) -> float:
+func _grip_err(a: Vector3, b: Vector3, target: Vector3, c := Vector3.INF) -> float:
 	_pose_bone("LeftUpperArm", a)
 	_pose_bone("LeftLowerArm", b)
 	var s := _skx()
 	var k := s * _p("LeftMiddleProximal")
 	var el := s * _p("LeftLowerArm")
 	var sh := s * _p("LeftUpperArm")
+	if c != Vector3.INF:
+		_pose_bone("LeftHand", c)
+		k = s * _p("LeftMiddleProximal")
+		var wr := s * _p("LeftHand")
+		# The reference body (CHARACTER_ROUTE_D_PLUS.md §8.3): its arms are ~20 %
+		# longer than the town body's, so a straight wrist on the strap at chest
+		# height drives the elbow 30 cm behind her. In the reference the hand is
+		# turned up at the wrist, fingers round the webbing, knuckles forward:
+		# the wrist sits below the knuckle, which shortens the reach and lets the
+		# elbow hang at her side, a little back and clear of the hoodie.
+		var wrist_want := target + Vector3(0.012, -0.075, -0.010)
+		var elbow_want_d := sh + Vector3(0.085, -0.255, -0.11)
+		return (k.distance_to(target) + 0.5 * wr.distance_to(wrist_want)
+			+ 0.4 * el.distance_to(elbow_want_d))
 	# the elbow hangs: well below the shoulder, a little out to the side and
 	# a little forward of the body line -- a person holding a strap, not
 	# saluting it
@@ -273,6 +366,8 @@ const SWEEP := {
 	"RightShoulder": "RightLowerArm", "RightUpperArm": "RightHand",
 	"RightLowerArm": "RightHand", "RightHand": "RightMiddleDistal",
 	"LeftShoulder": "LeftLowerArm", "LeftUpperArm": "LeftHand", "LeftLowerArm": "LeftHand",
+	"LeftHand": "LeftMiddleDistal", "LeftIndexProximal": "LeftIndexDistal",
+	"LeftMiddleProximal": "LeftMiddleDistal", "LeftThumbProximal": "LeftThumbDistal",
 	"LeftUpperLeg": "LeftFoot", "LeftLowerLeg": "LeftFoot", "LeftFoot": "LeftToes",
 	"RightUpperLeg": "RightFoot", "RightLowerLeg": "RightFoot",
 }

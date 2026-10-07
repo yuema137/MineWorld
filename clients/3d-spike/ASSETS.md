@@ -145,6 +145,20 @@ The one gap, stated: the CharMorph-Vitruvian repositories carry no `LICENSE` fil
 so CC0 rests on a machine-readable field in the shipped data plus a documented
 relicensing permission plus a CC0 upstream.
 
+### Meshy route D+ candidate — AI-generated, owned (paid Meshy plan) — `assets/characters/meshy_d/`
+
+The default character's own body slot (`Human.Body.REFERENCE`; only the player uses it).
+One Meshy image-to-3D generation from the canonical reference, decimated to 95,000
+triangles, base colour re-baked, rigged on the CharMorph skeleton above so the same bone
+map and clips apply. **A candidate, not an accepted asset** (`ARC-9`): it is under
+review as `VIS-3D-GODOT-1`. Provenance is kept in the GLB itself
+(`scenes[0].extras.mineworld_provenance`, `"ai_generated": true`) and must survive any
+re-export. Licence and the AI-identifier record:
+[`presentation/mineworld-default/LICENSES/MESHY_ROUTE_D_CHARACTER.txt`](../../presentation/mineworld-default/LICENSES/MESHY_ROUTE_D_CHARACTER.txt);
+method: [`docs/references/CHARACTER_ROUTE_D_PLUS.md`](../../docs/references/CHARACTER_ROUTE_D_PLUS.md).
+`meshy_d_base_color.png` is Godot's extraction of the GLB's embedded image; Godot does not
+overwrite it on reimport, so replace it together with the GLB.
+
 ### Quaternius Universal Animation Library (Standard) — CC0 — `assets/characters/`
 
 `quaternius_ual.glb`, trimmed by `tools/animation_trim.py` to the four clips used

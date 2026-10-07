@@ -78,12 +78,116 @@ identifies one thing.
 | | Milestone | State |
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
-| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 👀 **preview 3, 2026-10-06 — not an acceptance request** (`ARC-24`): the updo groomed from strands and cut into cards, the hoodie draped by cloth simulation with a real hood, the eyes level, the skin matte; the face itself deferred by the operator; see below |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 🔍 **route D+ preview prepared, 2026-10-07**, held for the coordinator (see below). Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟡 **READY FOR HUMAN VISUAL REVIEW** (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
-### `VIS-3D-GODOT-1` — working state after preview 3, 2026-10-06 (not a preview)
+### `VIS-3D-GODOT-1` — route D+ preview, PREPARED 2026-10-07 (not yet shown to the operator)
+
+**This is a preview (`VISUAL_FIDELITY.md` §9.1), not an acceptance request.** It is held for
+the coordinator, who will show it to the operator with the other items. It asks: *is this the
+right direction, and what is most wrong?*
+
+The candidate is one Meshy generation of the reference, made game-ready (95,000 triangles, one
+material) and rigged on our existing skeleton, in its own body slot: only the player uses it,
+the townspeople keep the CharMorph body. Record:
+[`references/CHARACTER_ROUTE_D_PLUS.md`](references/CHARACTER_ROUTE_D_PLUS.md) §8.
+
+**Launch.**
+
+```sh
+./mineworld-3d             # walk around; the player is the candidate (third-person camera)
+./mineworld-3d --portrait  # the review frames, written to clients/3d-spike/shots/
+```
+
+**Frames**, in `presentation/mineworld-default/3D/candidate/route_d/`:
+`d3_side_by_side.jpg` (the reference chest-up beside the runtime three-quarter and front
+portraits), `d4_full_and_rear.jpg`, `d5_walk.jpg`, `d6_grip_armpit_hairline_zoom.jpg`,
+`d7_idle_loop.jpg`.
+
+**Known misses, largest first.**
+
+1. The hair is a darker, cooler brown with no caramel highlights, and its locks read as heavier
+   sculpted ropes than the reference's soft wisps.
+2. The eyes are painted: the look to her left comes from turning the head, and the eyes cannot
+   move. No blink and no expressions either; the face has no lids or mouth that move.
+3. The hand on the strap is a loose fist on the strap's front edge, larger and paler than the
+   reference's; the reference's hand sits further onto the strap.
+4. The backpack is charcoal grey where the reference's is olive.
+5. The tee's slogan has a garbled first word; the tee is greyer-white than oatmeal.
+6. Light flecks along the hair's locks in the head close-up at 2×; not visible at the
+   reference's framing.
+
+(Fixed before preparation, at the coordinator's review: the gripping hand had read as an open,
+splayed hand with one finger pointing up, and she had looked straight at the camera, chin up.
+Record §8.6.)
+
+**Scorecard** (§6, full table in the record §8.5): overall identity `PASS`; face identity, hair
+silhouette, hair colour, hoodie, tee, backpack, material quality and vibe `PARTIAL`; no hard-fail
+category fails. No tear in any pose or in motion.
+
+**Questions for the operator.**
+
+1. Is this the right person at the right quality tier — enough to continue on this candidate
+   rather than return to route C?
+2. Which miss matters most: the hair colour and texture, the painted eyes, or the hand?
+3. Is a character without blink or expression acceptable for now, or is that a blocker?
+
+### `VIS-3D-GODOT-1` — FAILED, 2026-10-06 (operator verdict on the preview 3 state)
+
+The operator compared the candidate with `04_character_closeup.png` side by side and called it
+**far off, not a polish gap**: the reference's surface features were copied onto a low-fidelity
+character, and it is neither the same person nor the same quality tier. The scorecard below is in
+the operator's words (`VISUAL_FIDELITY.md` §6).
+
+| Row | Reference | Candidate | Verdict |
+| --- | --- | --- | --- |
+| Face identity | small, soft, young face; large bright eyes; delicate, balanced features; a natural warm expression; light freckles | a wider, harder face; the eyes are blank, the expression wooden; the nose, mouth and chin are wrong | FAIL |
+| Hair silhouette | a light, fluffy, tied-up updo with natural loose strands at the face | it takes "a high updo" literally: the mass is coarse, the locks messy, the volume is clumped rather than soft, and the face strands are unnatural | FAIL |
+| Hoodie structure | a clear open burgundy zip hoodie: hood, zip, cords, cuffs | a red shell; the hoodie structure is weak and the cut is wrong | FAIL |
+| T-shirt and graphic | an oatmeal tee with a natural mountain print | the print is present but reads as a crude texture | FAIL |
+| Backpack | natural straps, sitting naturally on her | the straps do not relate naturally to the clothes | FAIL |
+| Material quality | soft skin, warm light, clean materials, like a high-quality game promo image | rough skin texture, dry materials, plain lighting, hair like painted blocks: a low-quality real-time character | FAIL |
+| Overall identity | — | not the same character | FAIL |
+| Overall vibe | warm, relaxed, cute, everyday | a low-cost demo character: stiff and rough | FAIL |
+
+**Consequence.**
+
+- Work on this candidate as the default character stops.
+- The parts it proved stay as pipeline validation: the character slot, the import, the rig, the
+  retarget and the animation.
+- `CHARACTER_ROUTE_ASSESSMENT.md` §1 already found that its route B (an agent doing artist methods
+  in Blender) would not close the face. Preview 3 ran that route, and the operator's verdict shows
+  it does not reach the quality tier either.
+
+**What remains is a route decision for the operator.** Either route C (a commissioned artist on
+the existing rig) or route E (an image-to-3D head as a wrap target, which needs a paid generator
+account or a CUDA GPU) has to be chosen.
+
+**Route E, run 2026-10-06/07: `FAILED`. Not a preview.** Full record and frames in
+[`references/CHARACTER_ROUTE_E_EXPERIMENT.md`](references/CHARACTER_ROUTE_E_EXPERIMENT.md) §9;
+evidence in `presentation/mineworld-default/3D/candidate/route_e/` (`e1`–`e11`).
+
+- **TripoSR** and **TripoSG** (both MIT, both run on this Mac without CUDA and without any
+  non-commercial background remover) stopped at the raw-mesh gate: relief-quality or closed-eyed
+  faces, one of four proportions nearer the reference.
+- **Meshy 7.1 (Pro, 60 credits)** passed the gate. Its head and its whole character read as the
+  same person at the reference's quality tier (`e4`, `e6`) — but as one fused, unrigged,
+  million-triangle statue: hair, hood and pack cannot move, the hand is welded to the strap, no face
+  rig. Route D's prediction was wrong about appearance and right about structure.
+- **The wrap** of Meshy's head onto the CharMorph head (three configurations; the last one clean:
+  topology, UVs, eyes, rig and blink kept) moved eye size and face width toward the reference by
+  measurement, and **did not change who she is** (`e8`–`e10`). Face identity `FAIL`; every other row
+  unchanged and `FAIL`. The identity in the generated head lives in its painted layer and its hair,
+  not in a few millimetres of shape.
+
+**Operator decision now:** (1) route C with the Meshy whole character as the artist's likeness
+target; or (2) one more bounded agent test outside route E's own design: bake Meshy's face colour
+onto the wrapped CharMorph face (the surfaces are within ~2 mm) to test whether the painted
+identity transfers. See the experiment doc §9.11.
+
+### `VIS-3D-GODOT-1` — working state after preview 3, 2026-10-06 (superseded by the FAILED verdict above)
 
 The primary session's four items on preview 3, worked at working resolution (620 × 900 per tile)
 against the reference at its own framing. The frames in `candidate/` are regenerated from this
