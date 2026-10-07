@@ -433,6 +433,7 @@ def build_hoodie(body, dom, arm, colliders=()):
     flare(obj, HOODIE_HEM_Z, SPINE2_Z, 0.055)
     moved = keep_outside(obj, body, HOODIE_SLACK * 0.8)
     print(f"  hoodie start: {moved} verts pushed back out to {HOODIE_SLACK * 0.8 * 1000:.0f} mm")
+    print(f"  hoodie start: {_bridge_seat(obj)} verts bridged across the seat")
 
     bm = bmesh.new()
     bm.from_mesh(obj.data)
@@ -458,7 +459,9 @@ def build_hoodie(body, dom, arm, colliders=()):
     # moves the hem, so a height test no longer finds it.
     hem_ids = []
     for v in bm.verts:
-        if any(e.is_boundary for e in v.link_edges) and v.co.z < HOODIE_HEM_Z + 0.025:
+        # 45 mm: the cut, by face centre across the seat, zigzags that far,
+        # and a hem vertex left out of the ring is a thread hanging off it
+        if any(e.is_boundary for e in v.link_edges) and v.co.z < HOODIE_HEM_Z + 0.045:
             v.co.z = HOODIE_HEM_Z
             hem_ids.append(v.index)
     smooth_boundary(bm, lambda co: co.z < HOODIE_HEM_Z + 0.001, iterations=4, factor=0.5)
@@ -490,8 +493,15 @@ def build_hoodie(body, dom, arm, colliders=()):
     drape.add_collider(body, thickness=HOODIE_CLEAR)
     drape.simulate(obj, lambda v: 1.0 if v.index in held else (0.5 if v.index in ring else 0.0),
                    frames=HOODIE_DRAPE_FRAMES)
-    n_out = keep_outside(obj, body, HOODIE_CLEAR + 0.002)
-    n_waist = keep_outside(obj, body, JEANS_LIFT + 0.012, pick=lambda co: co.z < JEANS_WAIST_Z + 0.04)
+    # Not over the cleft of the seat: there the nearest skin's normal points
+    # sideways, and pushing along it pinched the bridged fabric back into a
+    # crease down the middle.
+    def _not_cleft(co):
+        return not (co.y > 0.02 and abs(co.x) < 0.07 and co.z < 1.12)
+
+    n_out = keep_outside(obj, body, HOODIE_CLEAR + 0.002, pick=_not_cleft)
+    n_waist = keep_outside(obj, body, JEANS_LIFT + 0.012,
+                           pick=lambda co: co.z < JEANS_WAIST_Z + 0.04 and _not_cleft(co))
     print(f"  hoodie after drape: {n_out} verts lifted clear of the tee, {n_waist} of the waistband")
     bm = bmesh.new()
     bm.from_mesh(obj.data)
@@ -580,6 +590,69 @@ def build_hoodie(body, dom, arm, colliders=()):
 
 # The hood, down.  The neck axis it wraps, and how far round it goes: 0° is
 # straight behind the neck, ±HOOD_SWEEP are the two free ends beside the throat.
+def hem_to_pelvis(obj) -> int:
+    """Hand the hoodie's thigh weights to the pelvis.
+
+    The nearest body surface to a hem lying over the seat is the top of each
+    thigh, so the weight transfer skins the back of the hem to the two legs,
+    and in the standing pose -- weight on one leg -- they pulled it apart
+    into a crease down the middle.  A hoodie hangs from the shoulders and
+    rides on the hips; it does not follow the thighs.
+    """
+    groups = {g.name: g.index for g in obj.vertex_groups}
+    legs = [groups[n] for n in ("mixamorig:LeftUpLeg", "mixamorig:RightUpLeg") if n in groups]
+    hips = groups.get("mixamorig:Hips")
+    if hips is None or not legs:
+        return 0
+    hip_grp = obj.vertex_groups[hips]
+    n = 0
+    for v in obj.data.vertices:
+        moved = 0.0
+        for g in v.groups:
+            if g.group in legs and g.weight > 0.0:
+                moved += g.weight
+                g.weight = 0.0
+        if moved > 0.0:
+            cur = next((g.weight for g in v.groups if g.group == hips), 0.0)
+            hip_grp.add([v.index], cur + moved, "REPLACE")
+            n += 1
+    return n
+
+
+def _bridge_seat(obj) -> int:
+    """Carry the back of the starting shape straight across the seat.
+
+    Cloth spans a hollow; it does not follow one.  The starting shape is an
+    offset of the body, so below the small of the back it dips into the cleft
+    between the buttocks, and the drape -- which only ever pushes fabric *out*
+    of the body -- kept it there: the first draped hoodie hugged the seat like
+    shorts.  Across the middle of the back, below the waist, every vertex is
+    brought out to the furthest-back point of its own height.
+    """
+    verts = obj.data.vertices
+    peak = {}
+    for v in verts:
+        if v.co.y > 0.02 and v.co.z < 1.12:
+            k = round(v.co.z / 0.01)
+            peak[k] = max(peak.get(k, -1.0), v.co.y)
+    n = 0
+    for v in verts:
+        c = v.co
+        if c.y <= 0.02 or c.z >= 1.12 or abs(c.x) > 0.11:
+            continue
+        target = peak.get(round(c.z / 0.01))
+        if target is None:
+            continue
+        # full bridge in the middle, easing out toward the sides of the hips
+        w = 1.0 - (abs(c.x) / 0.11) ** 2
+        y = c.y + (target - c.y) * w
+        if y > c.y + 1e-4:
+            c.y = y
+            n += 1
+    obj.data.update()
+    return n
+
+
 HOOD_CENTRE = (0.0, 0.070)        # x, y of the neck axis at collar height
 HOOD_SWEEP = 128.0                # degrees each way from straight behind
 

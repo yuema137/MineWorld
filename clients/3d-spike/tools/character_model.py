@@ -215,6 +215,8 @@ def main() -> int:
     # weights of whatever survives next to the hole.
     for o in made:
         transfer_weights(o, body)
+        if o is hoodie:
+            print(f"  hoodie: {garments.hem_to_pelvis(o)} verts moved off the thighs onto the pelvis")
         bind(o, arm)
         clean_layers(o)
     garments.trim_body(body, dom)
