@@ -57,6 +57,16 @@ with a diff that touches only  systems/  and  worlds/
 and no change to  kernel/, contracts/, controllers, or the renderer
 ```
 
+ARC-35 makes this measurable. The operator approved it on 2026-10-07.
+
+- **The transformation** is the merges of PR 11d and PR 11e. Those merges may touch only
+  `systems/**` and `worlds/**`, plus `Cargo.lock` path packages under `systems/` and Markdown
+  documentation.
+- **The precursors** are 11a–11c. They add framework capability before the transformation, and a
+  scan proven to bite holds them to naming no market concept.
+- **Installing a pack is static.** It means a pack directory, two lines in `systems/installed`, and
+  a rebuild (ARC-33). Installing without a rebuild is ARC-8 and is outside MVP-0.
+
 ## Non-goals for this effort
 
 Out of scope, and not to be smuggled in:
@@ -600,7 +610,22 @@ Next, framework (critical path to Milestone B):
        F-1 and F-3 (AC-1: independently installable packs; a controller limited to actions it
        knows by name) are carried to S9 as material findings (step-09 §10.1).
 
-Remaining:  S9 ... S14, Milestones C-E
+  S9   Market Town and AC-1 — six PRs (step-10, frozen 2026-10-07; operator approved ARC-35)
+       11a  installable System Packs                PR 11a (GitHub #36), merged c472636
+            `sdk/rust` (`SystemPack`, `installed!`), `systems/installed` as the build's only list of
+            packs, `worldpack` naming only presence and movement, the members glob `systems/*`
+            (ARC-33, DEP-12). The I-2 vocabulary scan is `tests/acceptance` (ARC-35 point 7).
+            A canary install touched only `systems/**`, `worlds/**` and one `Cargo.lock` path
+            package. Reviewed before merge:
+            - gates re-run (428/0);
+            - my own plant ("wages" in sdk) failed the scan by file and line;
+            - kernel/contracts/persistence/server diff empty.
+            The social-cafe 300-day output is unchanged (E-0 sha reproduced by the
+            implementer). The PR must be merged with a merge commit, which the scan's range uses.
+       Next: 11b (items and organizations as content kinds) and 11c (complete affordances, F-3),
+       in parallel; each detailed and frozen before implementation.
+
+Remaining:  S9 (11b–11f) ... S14, Milestones C-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
