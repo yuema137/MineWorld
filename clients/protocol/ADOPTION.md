@@ -85,6 +85,15 @@ frame        the dictionary exactly as it arrived
 
 `may()` **reports** the server's verdict. It does not compute one, and neither may you.
 
+**Complete affordances.** An affordance dictionary in `affordances()` may carry a `payload` key: the
+complete request the offering system would accept (`PROTOCOL.md` §5, `docs/DECISIONS.md` `ARC-34`).
+Submit it unchanged with `submit(affordance["action_type"], affordance["target"],
+affordance["payload"])` — the module labels it as any other request — without knowing what the action
+is. The server still decides. Several complete affordances routinely share an action type and a
+target, one per choice offered, so `affordance(action_type, target)` returns only the first of them;
+iterate `affordances()` to see every choice. The module gains no accessor for this in S9; the first
+client use is S12's.
+
 `display_name(id)` is what a person is called: the `naming` System Pack's `display-name` record,
 payload `{ "name": "Alice Moreau" }`, disclosed about everybody the observer perceives
 (`docs/DECISIONS.md` `ARC-31`). It answers `""` when the world told this observer no name — show

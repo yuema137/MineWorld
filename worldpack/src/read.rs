@@ -12,8 +12,9 @@
 //! 2  world.yaml parses, with unknown fields refused
 //! 3  the pack's id is its directory's name
 //! 4  every system it enables exists here, and none twice
-//! 5  every authoring key is declared once
-//! 6  every declared key has its file, and every file is declared
+//! 5  every authoring key is declared once, across places, population, items and organizations
+//! 6  every declared key has its file, and every file in people/, places/, items/ and
+//!    organizations/ is declared
 //! 7  every person's place exists, and every seat is one of the people
 //! 8  content that needs a capability has it enabled
 //! 9  every passage joins two distinct declared places, each pair once, with `movement` enabled
@@ -35,12 +36,15 @@ use serde::de::DeserializeOwned;
 use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
 use crate::content::ContentFile;
 use crate::error::{ContentKind, Declared, PackError};
-use crate::format::{AuthoredPerson, AuthoredPlace, FoundSection, SectionState, WorldManifest};
+use crate::format::{
+    AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace, FoundSection, SectionState,
+    WorldManifest,
+};
 
 /// The file every World Pack has.
 pub const MANIFEST: &str = "world.yaml";
 
-/// The extension a content file has. Anything else in `people/` or `places/` is not content and is
+/// The extension a content file has. Anything else in a content directory is not content and is
 /// left alone — a README belongs in a pack as much as it does anywhere else.
 const CONTENT_EXTENSION: &str = "yaml";
 
@@ -57,6 +61,8 @@ pub struct WorldPack {
     systems: Vec<Capability>,
     places: BTreeMap<EntityKey, AuthoredPlace>,
     people: BTreeMap<EntityKey, AuthoredPerson>,
+    items: BTreeMap<EntityKey, AuthoredItem>,
+    organizations: BTreeMap<EntityKey, AuthoredOrganization>,
     seats: BTreeSet<EntityKey>,
 }
 
@@ -85,41 +91,55 @@ impl WorldPack {
                 ContentFile::new(ContentKind::Person, &systems).person(file)
             })
         })?;
-        check_nothing_undeclared(
+        let items = read_content(&root, &manifest.items, ContentKind::Item, |text| {
+            serde_saphyr::with_deserializer_from_str(text, |file| {
+                ContentFile::new(ContentKind::Item, &systems).item(file)
+            })
+        })?;
+        let organizations = read_content(
             &root,
-            ContentKind::Place,
-            &manifest.places,
-            Declared::Places,
+            &manifest.organizations,
+            ContentKind::Organization,
+            |text| {
+                serde_saphyr::with_deserializer_from_str(text, |file| {
+                    ContentFile::new(ContentKind::Organization, &systems).organization(file)
+                })
+            },
         )?;
-        check_nothing_undeclared(
-            &root,
-            ContentKind::Person,
-            &manifest.population,
-            Declared::Population,
-        )?;
+        for (kind, declared, list) in [
+            (ContentKind::Place, &manifest.places, Declared::Places),
+            (
+                ContentKind::Person,
+                &manifest.population,
+                Declared::Population,
+            ),
+            (ContentKind::Item, &manifest.items, Declared::Items),
+            (
+                ContentKind::Organization,
+                &manifest.organizations,
+                Declared::Organizations,
+            ),
+        ] {
+            check_nothing_undeclared(&root, kind, declared, list)?;
+        }
 
         let seats = seats_of(&manifest, &people)?;
         check_locations(&root, &people, &places, &systems)?;
         check_passages(&root, &places, &systems)?;
-        let sections = places
-            .iter()
-            .map(|(key, place)| (ContentKind::Place, key, &place.sections))
-            .chain(
-                people
-                    .iter()
-                    .map(|(key, person)| (ContentKind::Person, key, &person.sections)),
-            );
-        check_sections(&root, sections, &places, &people)?;
 
-        Ok(Self {
+        let pack = Self {
             root,
             id: manifest.world.id,
             name: manifest.world.name,
             systems,
             places,
             people,
+            items,
+            organizations,
             seats,
-        })
+        };
+        check_sections(&pack)?;
+        Ok(pack)
     }
 
     /// The directory this pack was read from.
@@ -153,9 +173,86 @@ impl WorldPack {
         &self.people
     }
 
+    /// The item kinds, in key order (`ARC-36`).
+    pub fn items(&self) -> &BTreeMap<EntityKey, AuthoredItem> {
+        &self.items
+    }
+
+    /// The organizations, in key order.
+    pub fn organizations(&self) -> &BTreeMap<EntityKey, AuthoredOrganization> {
+        &self.organizations
+    }
+
     /// The seats a client may occupy, in key order.
     pub fn seats(&self) -> &BTreeSet<EntityKey> {
         &self.seats
+    }
+
+    /// Every content file's sections, in the one order every per-file pass uses: items', then
+    /// organizations', then places', then people's, each in key order (`ARC-36` item 7).
+    ///
+    /// The loader refuses sections in this order and seeds them in this order, so the first refusal
+    /// and the genesis log are the same statement. What a person's or a place's section may name is
+    /// seeded before it; a pack with no items or organizations yields exactly places then people.
+    pub(crate) fn sectioned_files(
+        &self,
+    ) -> impl Iterator<Item = (ContentKind, &EntityKey, &Vec<FoundSection>)> {
+        let items = self
+            .items
+            .iter()
+            .map(|(key, item)| (ContentKind::Item, key, &item.sections));
+        let organizations = self
+            .organizations
+            .iter()
+            .map(|(key, organization)| (ContentKind::Organization, key, &organization.sections));
+        let places = self
+            .places
+            .iter()
+            .map(|(key, place)| (ContentKind::Place, key, &place.sections));
+        let people = self
+            .people
+            .iter()
+            .map(|(key, person)| (ContentKind::Person, key, &person.sections));
+        items.chain(organizations).chain(places).chain(people)
+    }
+
+    /// A pack built in memory, for this crate's own tests of what no installed pack can show yet: a
+    /// section on an item or organization file (F-22). Never read from disk and never checked.
+    #[cfg(test)]
+    pub(crate) fn in_memory(
+        systems: Vec<Capability>,
+        places: BTreeMap<EntityKey, AuthoredPlace>,
+        people: BTreeMap<EntityKey, AuthoredPerson>,
+        items: BTreeMap<EntityKey, AuthoredItem>,
+        organizations: BTreeMap<EntityKey, AuthoredOrganization>,
+    ) -> Self {
+        Self {
+            root: PathBuf::from("in-memory"),
+            id: "in-memory".to_owned(),
+            name: "In Memory".to_owned(),
+            systems,
+            places,
+            people,
+            items,
+            organizations,
+            seats: BTreeSet::new(),
+        }
+    }
+
+    /// Every declared key and the entity type it will be: one namespace across the four lists.
+    fn declared_entities(&self) -> BTreeMap<&EntityKey, EntityType> {
+        let places = self.places.keys().map(|key| (key, EntityType::Place));
+        let people = self.people.keys().map(|key| (key, EntityType::Person));
+        let items = self.items.keys().map(|key| (key, EntityType::Item));
+        let organizations = self
+            .organizations
+            .keys()
+            .map(|key| (key, EntityType::Organization));
+        places
+            .chain(people)
+            .chain(items)
+            .chain(organizations)
+            .collect()
     }
 }
 
@@ -230,20 +327,19 @@ fn resolve_systems(declared: &[SystemId]) -> Result<Vec<Capability>, PackError> 
     Ok(resolved)
 }
 
-/// One key, one entity. A repeat is refused rather than merged, because a key is how authored content
-/// refers to an entity and the kernel refuses the second entity claiming one.
+/// One key, one entity, across all four lists. A repeat is refused rather than merged, because a key
+/// is how authored content refers to an entity and the kernel refuses the second entity claiming one.
 fn check_keys_are_declared_once(manifest: &WorldManifest) -> Result<(), PackError> {
     let mut seen: BTreeMap<&EntityKey, Declared> = BTreeMap::new();
-    let entities = manifest
-        .places
-        .iter()
-        .map(|key| (key, Declared::Places))
-        .chain(
-            manifest
-                .population
-                .iter()
-                .map(|key| (key, Declared::Population)),
-        );
+    let lists = [
+        (&manifest.places, Declared::Places),
+        (&manifest.population, Declared::Population),
+        (&manifest.items, Declared::Items),
+        (&manifest.organizations, Declared::Organizations),
+    ];
+    let entities = lists
+        .into_iter()
+        .flat_map(|(keys, list)| keys.iter().map(move |key| (key, list)));
     for (key, list) in entities {
         if let Some(first) = seen.insert(key, list) {
             return Err(PackError::KeyDeclaredTwice {
@@ -444,15 +540,13 @@ fn check_passages(
 /// names only entities this pack declares, of the type its owner needs (`ARC-31`).
 ///
 /// What a section *says* was checked as it was read, by its owner's own type; this checks only what
-/// every section shares. Places are checked before people, each in key order, so the first refusal is
-/// the same on every machine.
-fn check_sections<'a>(
-    root: &Path,
-    files: impl Iterator<Item = (ContentKind, &'a EntityKey, &'a Vec<FoundSection>)>,
-    places: &BTreeMap<EntityKey, AuthoredPlace>,
-    people: &BTreeMap<EntityKey, AuthoredPerson>,
-) -> Result<(), PackError> {
-    for (kind, subject, sections) in files {
+/// every section shares. Files are checked in [`WorldPack::sectioned_files`]' order, so the first
+/// refusal is the same on every machine. A reference is accepted iff its key is declared in the list of
+/// the type it requires (`ARC-36` item 5).
+pub(crate) fn check_sections(pack: &WorldPack) -> Result<(), PackError> {
+    let root = &pack.root;
+    let declared_entities = pack.declared_entities();
+    for (kind, subject, sections) in pack.sectioned_files() {
         let path = content_path(root, kind, subject.as_str());
         for section in sections {
             let content = match &section.state {
@@ -488,11 +582,7 @@ fn check_sections<'a>(
                 }
             };
             for reference in content.references() {
-                let declared = match reference.entity_type {
-                    EntityType::Place => places.contains_key(reference.key),
-                    EntityType::Person => people.contains_key(reference.key),
-                    _ => false,
-                };
+                let declared = declared_entities.get(reference.key) == Some(&reference.entity_type);
                 if !declared {
                     return Err(PackError::SectionNamesUnknownEntity {
                         subject: subject.clone(),

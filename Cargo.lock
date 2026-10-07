@@ -609,6 +609,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
+name = "mineworld-acceptance"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "mineworld-rule-controller",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-authoring"
 version = "0.0.0"
 dependencies = [
@@ -641,6 +653,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-consumption"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-presence",
+ "mineworld-rule-controller",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-contracts"
 version = "0.0.0"
 dependencies = [
@@ -658,7 +688,47 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "mineworld-economy"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-employment",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-presence",
+ "mineworld-rule-controller",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
+name = "mineworld-employment"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-schedule",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
  "serde_json",
  "thiserror",
 ]
@@ -672,9 +742,81 @@ dependencies = [
  "mineworld-movement",
  "mineworld-persistence",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "mineworld-installed-systems"
+version = "0.0.0"
+dependencies = [
+ "mineworld-consumption",
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-economy",
+ "mineworld-employment",
+ "mineworld-group-activity",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-item-transfer",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-naming",
+ "mineworld-presence",
+ "mineworld-relationships",
+ "mineworld-schedule",
+ "mineworld-sdk",
+]
+
+[[package]]
+name = "mineworld-inventory"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
+name = "mineworld-item"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "mineworld-item-transfer"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-presence",
+ "mineworld-rule-controller",
+ "mineworld-sdk",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
 ]
 
 [[package]]
@@ -697,6 +839,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-persistence",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde_json",
 ]
@@ -709,6 +852,7 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -734,6 +878,7 @@ version = "0.0.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
+ "mineworld-sdk",
  "serde",
  "serde_json",
 ]
@@ -748,6 +893,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde_json",
 ]
@@ -776,10 +922,21 @@ dependencies = [
  "mineworld-movement",
  "mineworld-persistence",
  "mineworld-presence",
+ "mineworld-sdk",
  "serde",
  "serde-saphyr",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "mineworld-sdk"
+version = "0.0.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "serde",
 ]
 
 [[package]]
@@ -805,13 +962,13 @@ dependencies = [
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-conversation",
- "mineworld-group-activity",
+ "mineworld-installed-systems",
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-naming",
  "mineworld-presence",
- "mineworld-relationships",
  "mineworld-schedule",
+ "mineworld-sdk",
  "serde",
  "serde-saphyr",
  "serde_json",

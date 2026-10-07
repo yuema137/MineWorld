@@ -261,6 +261,7 @@ fn encoded(value: &Talk) -> Vec<u8> {
 }
 
 mod agenda;
+mod offered;
 mod paced;
 mod social;
 
@@ -277,3 +278,6 @@ mod social_tests;
 
 #[cfg(test)]
 mod agenda_tests;
+
+#[cfg(test)]
+mod offered_tests;

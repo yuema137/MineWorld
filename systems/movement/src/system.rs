@@ -8,6 +8,7 @@ use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
     WorldRead, WorldView,
 };
+use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
 use mineworld_presence::{
@@ -26,11 +27,17 @@ use crate::event::PassageOpened;
 /// system states presence's own `arrived` fact, built by presence's `arrival`, for presence to
 /// reduce (`DECISIONS.md` `ARC-26`). That is why it depends on presence and presence knows nothing
 /// of it, and why disabling it takes away `move` and nothing else (`AC-2`).
+#[derive(Default)]
 pub struct MovementSystem;
 
 impl SystemIdentity for MovementSystem {
     const ID: SystemId = SystemId::from_static("movement");
 }
+
+/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): nothing.
+/// It declares no biographical fact and owns no authored section; a place's `passages` are a field
+/// of the World Pack format, bound to this pack by the loader (`ARC-31`, point 5).
+impl SystemPack for MovementSystem {}
 
 /// This pack's own reason for refusing a request it cannot read — the same code, for the same
 /// reason, as the other packs' (a malformed payload is a fact about the request, not the world).

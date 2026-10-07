@@ -1,0 +1,18 @@
+# The street: the town's one thoroughfare, and the place every other place opens onto.
+#
+# Millimetres from the street's own origin; `x` east along the street, `y` north
+# (`docs/CORE_CONCEPTS.md` §6.1). The north side's doorways are at `y` 3 000 — the café's at `x` 0,
+# the apartments' 12 m west, the store's 12 m east — and the south side's at `y` −13 000: the office
+# 6 m west and the park gate 8 m east. Each of those passages is stated once, in the other place's
+# file, and holds both ways (`docs/MODULE_SPEC.md` §4.1).
+#
+# Every place joins the street and nothing else, so any place is at most two doors from any other:
+# out onto the street, and in through the next.
+
+tags:
+  - street
+  - public
+
+note: >-
+  The pavement and road that join the café, the apartments, the store, the park and the office.
+  Somewhere to step out to, and the way from any place to any other.

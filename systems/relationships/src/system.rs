@@ -11,6 +11,7 @@ use mineworld_kernel::{
     WorldRead, WorldView,
 };
 use mineworld_presence::PerceptionProvider;
+use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
 use crate::codec;
@@ -35,10 +36,17 @@ pub const BIOGRAPHICAL: &[EventTypeId] = &[
 ];
 
 /// Who knows whom.
+#[derive(Default)]
 pub struct RelationshipsSystem;
 
 impl SystemIdentity for RelationshipsSystem {
     const ID: SystemId = SystemId::from_static("relationships");
+}
+
+/// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): its
+/// biographical facts. It owns no authored section.
+impl SystemPack for RelationshipsSystem {
+    const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
 }
 
 /// The edge this pack declares.

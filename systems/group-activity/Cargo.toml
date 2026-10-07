@@ -13,6 +13,8 @@ mineworld-kernel = { workspace = true }
 # Where people are is presence's state; an invitation needs reach and an activity a place, and
 # leaving the place is presence's `person-entered-place`, which this pack reacts to.
 mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

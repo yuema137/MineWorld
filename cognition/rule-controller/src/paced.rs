@@ -26,6 +26,27 @@
 //! Like [`RuleController`](crate::RuleController) it reads the server's verdicts and never computes
 //! one (`ENGINEERING_RULES.md` §8): a stride it proposes may be refused `TooFarAway`, and that is the
 //! world's answer, not this controller's mistake to pre-empt. Every distance here is a *proposal*.
+//!
+//! # The draws
+//!
+//! Every independent choice takes its own draw index, so adding a band never moves another band's
+//! draws, and a world in which a band has nothing to do decides exactly as it did before that band
+//! existed:
+//!
+//! ```text
+//! 0        the walking roll: greet, approach, doorway, wander, stand        paced.rs
+//! 1        answer an in-window line                                          paced.rs
+//! 2, 3     greet: whom, and which greeting                                   paced.rs
+//! 4        approach: whom                                                    paced.rs
+//! 5, 6     wander: the offset on each axis                                   paced.rs
+//! 7        free
+//! 8 … 12   answer an invitation, initiative, invitee, kind, joined          social.rs
+//! 13       follow the agenda                                                 agenda.rs
+//! 14, 15   attempt a complete affordance, and which one                      offered.rs
+//! ```
+//!
+//! The doorway choice is not a draw index: it is a separate mix over `(seed, observer, instant ÷ six
+//! hours)`, so that a door is kept long enough to arrive at.
 
 use mineworld_contracts::{
     Action, ActionRecord, ActionRequest, Component, EntityId, EntityType, LocalPosition, Location,
@@ -36,7 +57,7 @@ use mineworld_movement::{MAX_STRIDE, Move, Passage, Passages};
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::{agenda, social};
+use crate::{agenda, offered, social};
 use crate::{disclosed_history, may_talk_to, newest_per_speaker, reply_to};
 
 /// How close an approach stops short of the person approached: near enough to talk, not on top of
@@ -107,9 +128,10 @@ impl PacedRuleController {
     /// What this Person attempts at the instant of `observation`, or nothing.
     ///
     /// In order: answer the newest line somebody said to me since my last consult, if the server
-    /// says I may speak to them; otherwise, by the seeded draw, greet somebody I may speak to,
-    /// walk toward somebody, walk toward or through a doorway, wander a stride, or do nothing. In a
-    /// place with several doorways the draw favours walking on toward one of them.
+    /// says I may speak to them; then the agenda and the social initiative; then, sometimes, a
+    /// complete affordance the world offers; otherwise, by the seeded draw, greet somebody I may
+    /// speak to, walk toward somebody, walk toward or through a doorway, wander a stride, or do
+    /// nothing. In a place with several doorways the draw favours walking on toward one of them.
     pub fn decide(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
         let draw = Draw::new(self.seed, observation);
         // An invitation waiting for an answer first, then a line waiting for a reply: being addressed
@@ -142,6 +164,11 @@ impl PacedRuleController {
         };
         if social.is_some() {
             return social;
+        }
+        // What the world offers complete — an action of a pack this controller was never compiled
+        // against — sometimes (`offered.rs`, `ARC-34`). Nothing complete offered, nothing changes.
+        if let Some(offered) = offered::attempt(observation, &draw) {
+            return Some(offered);
         }
         // Heading for a door: never while part of an activity, never away from the agenda's place, and
         // — with an agenda elsewhere — only ever the door toward it, so a person on their way takes

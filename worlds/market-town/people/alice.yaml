@@ -1,0 +1,66 @@
+# Alice — behind the counter, facing the room.
+#
+# `name` is a section the `naming` system owns (docs/DECISIONS.md ARC-31): it becomes her display
+# name, reduced by that system and shown to whoever can see her. `tags` reach a client too, through
+# the observation; the key `alice` never does.
+#
+# The counter's staff face is 7.35 m in from the front wall; she stands 0.65 m behind it, so a
+# customer at the counter is within `conversation`'s three-metre reach and somebody at the front door
+# is not. That range is the conversation system's policy and is not restated here.
+
+name: Alice Moreau
+
+# `routine` is a section the `schedule` system owns (ARC-32): the day she means to keep. It moves her
+# nowhere — whoever drives her walks there, or does not.
+#
+# FIXTURE DEPENDENCY (step-09 §4.3.7): every routine boundary in this world lies between 05:00 and
+# 23:00. A world hosted from genesis (00:00), or from a save that ends at midnight, then commits
+# nothing for five hours, and the restart tests' "revision unchanged" claims rely on that
+# (tools/cli/tests/restart.rs, milestone_b.rs). Those tests check this first and fail naming it, so
+# moving a boundary into 00:00–05:00 breaks them loudly, not mysteriously.
+#
+# Every part of a day here lasts at least four hours, and five or more where the way there is long (the
+# park and the store from the apartments). A headless run consults each person every fifteen minutes
+# and a stride is at most two metres, so crossing town takes about two and a half hours, nearly four
+# for one journey in ten (step-09 §9 E-C8): a shorter part of the day would be over before anybody
+# arrived.
+routine:
+  - { from: "05:30", place: cafe, label: work }
+  - { from: "14:00", place: park, label: walk }
+  - { from: "18:00", place: apartments, label: home }
+
+tags:
+  - barista
+  - staff
+
+note: Runs the counter. Speaks to whoever comes in.
+
+location:
+  place: cafe
+  # 6.0 m along the counter from the west wall, 8.0 m into the room.
+  position:
+    x: 6000
+    y: 8000
+  # Facing south, across the counter and down the room toward the door, in millidegrees.
+  facing: 180000
+
+# Market Town: what she carries at the start. `holdings` is a section the `inventory` system owns
+# (docs/DECISIONS.md ARC-37): item key → count, each key one of `items`. A person carries at most six
+# items, every kind together — inventory's rule, refused by name if a file asks for more.
+holdings: { coffee: 2, croissant: 1 }
+
+# Market Town: her money, in integer minor units. `economy` is a section the `economy` system owns
+# (ARC-38); only that system moves money.
+economy: { wallet: 20000 }
+
+# Market Town: her job. `job` is a section the `employment` system owns (ARC-38). Work is being at the
+# workplace during the shift — her routine already has her at the café from 05:30 to 14:00, so the job
+# fits the day she keeps. Paid per second present, at `wage` minor units an hour, by the Café Company;
+# a full shift makes `produces` for the company's shelf, less if she leaves early.
+job:
+  employer: cafe-company
+  workplace: cafe
+  from: "05:30"
+  until: "14:00"
+  wage: 120
+  produces: { coffee: 4, tea: 2, croissant: 3, cake: 2, sandwich: 2, soup: 2 }

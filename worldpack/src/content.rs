@@ -1,4 +1,4 @@
-//! Reading one person or place file: the format's own fields, and the sections System Packs own.
+//! Reading one content file (person, place, item kind or organization): the format's own fields, and the sections System Packs own.
 //!
 //! A derived `Deserialize` with `deny_unknown_fields` cannot express this file: which top-level keys
 //! are legal depends on the sections this build's packs declare (`DECISIONS.md` `ARC-31`). So the file
@@ -22,7 +22,8 @@ use serde::de::{self, DeserializeSeed, Deserializer, IgnoredAny, MapAccess, Visi
 
 use crate::catalog::{AVAILABLE, Capability, SectionOwner};
 use crate::format::{
-    AuthoredLocation, AuthoredPassage, AuthoredPerson, AuthoredPlace, FoundSection, SectionState,
+    AuthoredItem, AuthoredLocation, AuthoredOrganization, AuthoredPassage, AuthoredPerson,
+    AuthoredPlace, FoundSection, SectionState,
 };
 
 /// The format's own fields of a person file, in the order a refusal lists them.
@@ -31,11 +32,20 @@ pub const PERSON_FIELDS: &[&str] = &["tags", "note", "location"];
 /// The format's own fields of a place file, in the order a refusal lists them.
 pub const PLACE_FIELDS: &[&str] = &["tags", "note", "passages"];
 
-/// The format's own fields of one kind of file.
+/// The format's own fields of an item file, in the order a refusal lists them (`ARC-36`).
+pub const ITEM_FIELDS: &[&str] = &["tags", "note"];
+
+/// The format's own fields of an organization file, in the order a refusal lists them.
+pub const ORGANIZATION_FIELDS: &[&str] = &["tags", "note"];
+
+/// The format's own fields of one kind of file. The only place a kind's legal fields are stated, so a
+/// `location` on an item is an unknown key, refused at its line like any other.
 pub const fn fields(kind: ContentKind) -> &'static [&'static str] {
     match kind {
         ContentKind::Person => PERSON_FIELDS,
         ContentKind::Place => PLACE_FIELDS,
+        ContentKind::Item => ITEM_FIELDS,
+        ContentKind::Organization => ORGANIZATION_FIELDS,
     }
 }
 
@@ -84,6 +94,32 @@ impl<'a> ContentFile<'a> {
             tags: fields.tags.unwrap_or_default(),
             note: fields.note,
             passages: fields.passages.unwrap_or_default(),
+            sections: fields.sections,
+        })
+    }
+
+    /// The item kind this file states. Only meaningful for [`ContentKind::Item`].
+    pub(crate) fn item<'de, D: Deserializer<'de>>(
+        self,
+        deserializer: D,
+    ) -> Result<AuthoredItem, D::Error> {
+        let fields = self.deserialize(deserializer)?;
+        Ok(AuthoredItem {
+            tags: fields.tags.unwrap_or_default(),
+            note: fields.note,
+            sections: fields.sections,
+        })
+    }
+
+    /// The organization this file states. Only meaningful for [`ContentKind::Organization`].
+    pub(crate) fn organization<'de, D: Deserializer<'de>>(
+        self,
+        deserializer: D,
+    ) -> Result<AuthoredOrganization, D::Error> {
+        let fields = self.deserialize(deserializer)?;
+        Ok(AuthoredOrganization {
+            tags: fields.tags.unwrap_or_default(),
+            note: fields.note,
             sections: fields.sections,
         })
     }

@@ -1,0 +1,28 @@
+# Erin — on a bench in the park, 1.6 m from Dev's path.
+
+name: Erin Walsh
+
+# Her day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
+# the restart tests, explained in alice.yaml and checked by those tests.
+routine:
+  - { from: "08:00", place: park, label: read }
+  - { from: "14:00", place: cafe, label: lunch }
+  - { from: "18:00", place: apartments, label: home }
+
+tags:
+  - resident
+
+note: Reads on the same bench whenever it is dry.
+
+location:
+  place: park
+  position:
+    x: 6500
+    y: 9500
+
+# Market Town: what she carries at the start (inventory's `holdings`, ARC-37; see alice.yaml).
+holdings: { cake: 1, flowers: 2 }
+
+# Market Town: her money (economy's section, ARC-38; see alice.yaml). No job: an endowment for the
+# measured horizon (ARC-38, L-13).
+economy: { wallet: 200000 }

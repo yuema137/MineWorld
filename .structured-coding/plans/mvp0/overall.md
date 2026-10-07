@@ -57,6 +57,16 @@ with a diff that touches only  systems/  and  worlds/
 and no change to  kernel/, contracts/, controllers, or the renderer
 ```
 
+ARC-35 makes this measurable. The operator approved it on 2026-10-07.
+
+- **The transformation** is the merges of PR 11d and PR 11e. Those merges may touch only
+  `systems/**` and `worlds/**`, plus `Cargo.lock` path packages under `systems/` and Markdown
+  documentation.
+- **The precursors** are 11a–11c. They add framework capability before the transformation, and a
+  scan proven to bite holds them to naming no market concept.
+- **Installing a pack is static.** It means a pack directory, two lines in `systems/installed`, and
+  a rebuild (ARC-33). Installing without a rebuild is ARC-8 and is outside MVP-0.
+
 ## Non-goals for this effort
 
 Out of scope, and not to be smuggled in:
@@ -578,22 +588,117 @@ Next, framework (critical path to Milestone B):
             **Known gap:** relationships never decay, so the social graph saturates — level
             crossings are 313 in days 1–30, 39 in 31–60, and 0 in every later bucket, while group
             activities continue at ~640 per bucket. A living-world deficiency for a later step.
-       10c  routines, on a generic content seam (step-09 Q9) — HELD until the operator has tested
-            Milestone B, since it changes the social-cafe behaviour under test. Its decision
-            record will be ARC-31.
+       10c  names and routines, on a generic content seam   PR 10c (GitHub #33), merged 9ab5e62
+            The `authoring/` crate (`AuthoredSection`, ARC-31): a pack owns its section of a
+            person file and seeds its own facts. `naming` owns `display-name`; it is public, and
+            every name differs from its key. Replies say "Earlier, Vera Lindgren said …" or
+            "someone else", and never an id. The biography and the Godot module show names.
+            `schedule` (ARC-32) gives each person an agenda. It never moves anyone itself, and
+            the controller follows it: seats reach 96.7–100 % of agenda time against 39–51 %
+            with following off. I-1 held: kernel, contracts, persistence and server unchanged.
+            Freeze condition met: the restart and AC-15 tests assert the routine-free
+            00:00–05:00 window themselves and fail by name when a boundary moves into it.
+            Reviewed before merge: gates re-run (419/0; 407 tests + 12 doctests, which explains
+            10b's 369 vs 381). Mutation check: with name disclosure turned off, three tests fail
+            (AC-15, naming's AC-2, disclosure).
+            **Known gap (L-12):** people walk ~8 m per in-world hour at the headless pace, so a
+            journey takes a median of 2 h. The routines were authored with parts of the day of
+            at least 4 h so that they can be followed. This is a living-world deficiency for a
+            later step, alongside relationship saturation.
+       S8 COMPLETE. Milestone B is demonstrated and awaits the operator's test (on 266daf7;
+       10c does not change its claims).
        F-1 and F-3 (AC-1: independently installable packs; a controller limited to actions it
        knows by name) are carried to S9 as material findings (step-09 §10.1).
 
-Remaining:  S9 ... S14, Milestones C-E
+  S9   Market Town and AC-1 — six PRs (step-10, frozen 2026-10-07; operator approved ARC-35)
+       11a  installable System Packs                PR 11a (GitHub #36), merged c472636
+            `sdk/rust` (`SystemPack`, `installed!`), `systems/installed` as the build's only list of
+            packs, `worldpack` naming only presence and movement, the members glob `systems/*`
+            (ARC-33, DEP-12). The I-2 vocabulary scan is `tests/acceptance` (ARC-35 point 7).
+            A canary install touched only `systems/**`, `worlds/**` and one `Cargo.lock` path
+            package. Reviewed before merge:
+            - gates re-run (428/0);
+            - my own plant ("wages" in sdk) failed the scan by file and line;
+            - kernel/contracts/persistence/server diff empty.
+            The social-cafe 300-day output is unchanged (E-0 sha reproduced by the
+            implementer). The PR must be merged with a merge commit, which the scan's range uses.
+       11b  items and organizations as content kinds  PR 11b (GitHub #39), merged ae1a315
+            `world.yaml`'s `items:` and `organizations:` name files under `items/` and
+            `organizations/` with tags, a note and sections (ARC-36: an authored Item is a kind,
+            and holdings are counts). Their ids come after people's, so no existing id or genesis
+            fact moves. The I-2 scan admits words, not lines. Reviewed before merge:
+            - gates re-run (441/0);
+            - my own plant (`// an item shop` in `worldpack/src/read.rs`) was refused naming `shop`;
+            - the diff touched no contracts, kernel, persistence, server, clients or systems.
+       11c  complete affordances (F-3)              PR 11c (GitHub #40), merged c5dc51c
+            An affordance may carry the exact request its pack would accept (`Affordance<P>.payload`,
+            `Offer::complete`, ARC-34). The paced controller attempts an available one at a fixed
+            rate of 20 in 100, frozen before the market exists (I-9). CP-3 is shown with a
+            test-only pack the controller was never compiled against. Rebased onto ae1a315 and
+            merged second. Reviewed before merge:
+            - gates re-run on the rebased head (456/0);
+            - my own mutation (`ATTEMPTS_OFFERED = 0`) failed the CP-3 ring test and the
+              byte-identity test;
+            - the contract change is additive;
+            - the worst-case `chimes` measurement passed at 20.
+       The precursors are complete. On c5dc51c the I-2 scan reads all three as merged, and the
+       social-cafe 300-day sha is still E-0 (step-10 §9 E-3).
+       11d  owning and giving things                PR 11d (GitHub #43), merged 70e532f
+            The first half of the measured AC-1 transformation. `item` declares kinds, `inventory`
+            alone writes what people and organizations hold and refuses any fact it may not take, a
+            person carries at most six (ARC-37: without it the unseated Otto absorbs every item), and
+            `item-transfer` offers a complete `give` per kind held, which the unchanged paced
+            controller attempts. `worlds/market-town` is Social Café plus the three packs and their
+            content. Reviewed before merge:
+            - the change set, checked on the actual merge diff `70e532f^1..70e532f`: 0 paths outside
+              `systems/`, `worlds/`, `Cargo.lock` and Markdown;
+            - gates re-run (479/0);
+            - my own 300-day market-town run, seed 7: 0 faults, 15.2 s, every seat moved and talked in
+              every bucket;
+            - my own 30-day save holds `items-transferred` facts, each caused by an action, 37,090
+              facts in all — the implementer's count;
+            - my own mutation, `PERSON_CAPACITY` 6→7, failed two capacity tests.
+            F-37 (authoring's `Seeding` doc said sections see earlier genesis facts; none are applied
+            before every section is seeded) is fixed by a docs-only PR outside the AC-1 range.
+       11e  work, money, shops and consumption      PR 11e (GitHub #46), merged 2dddda8
+            The second and last half of the measured AC-1 transformation; the market is six packs
+            (ARC-35 note, operator QS-35). `economy` owns wallets and shops and is the only mover of
+            money; `employment` turns attendance at a shift into `wage-due` and production, never
+            touching a wallet; `consumption` offers `eat` and `drink`; `inventory` gained
+            `items-produced` and `items-consumed` and is still the only writer of holdings (ARC-38).
+            The unchanged paced controller buys, eats and drinks; two people work by following the
+            routines they already had. Reviewed before merge:
+            - the change set, checked on the actual merge diff `2dddda8^1..2dddda8`: 0 paths outside
+              `systems/`, `worlds/`, `Cargo.lock` and Markdown;
+            - gates re-run (510/0);
+            - my own 300-day market-town run, seed 7, with `--save`: 0 faults, 372,755 facts (the
+              implementer's count), 33.7 s; `inspect` shows 2,717 `items-consumed` and 3,300
+              `money-transferred`, and no `wage-unpaid`;
+            - my own mutation (the payer is not debited, which breaks money conservation) failed two
+              economy tests, the buy test among them.
+            **Known gap (L-13):** a bounded-horizon economy, not a closed one. Ten of twelve people
+            have no income and live on endowments sized for the measured 300 days; past that they run
+            out. Closing it (more jobs, or income without one) is a later step's work.
+            F-47 (a pack owns one section, so a shop is authored on its operator) and F-48 (an offer
+            carries one unavailability reason) are framework limits worked within; both are carried
+            to the S9 closeout.
+            The measured transformation is complete: 11d `70e532f` and 11e `2dddda8`.
+       Next: 11f, the proof, outside the AC-1 range — the mechanical AC-1 test (ARC-35's three
+       checks), market-town's activity check as a committed test, AC-2 at world level for every
+       market pack, and Milestone C through the real server. Detailed and frozen before
+       implementation.
+
+Remaining:  S9 (11f) ... S14, Milestones C-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
-  VIS-3D-GODOT-1   vis/3d-human-pipeline @ 098c371 — PREVIEW 2 shown 2026-10-06. Operator's
-                   verdict on preview 1: "too stiff, not like the reference". Fixed since:
-                   townspeople's missing body parts; a reference-matched standing pose with
-                   breathing, gaze drift and blinks. Next, per CHARACTER_ROUTE_ASSESSMENT:
-                   hair groomed from strands into cards, the hoodie draped by cloth simulation,
-                   a skin pass. The face is deferred by the operator until those land.
+  VIS-3D-GODOT-1   vis/3d-human-pipeline @ 6bfcfb7 — FAILED by the operator 2026-10-06 on
+                   preview 3: not the same person, and not the reference's quality tier. The
+                   candidate is kept only as pipeline validation (VISUAL_FIDELITY §9.2). The
+                   operator chose route E: an image-to-3D head as a wrap target, run locally
+                   where an MIT-class generator works on Apple silicon, and through a paid Meshy
+                   account once the operator provides one. Route C (a commissioned artist)
+                   stays the fallback.
   VIS-3D-GODOT-2   vis/3d-godot-2-environment — operator: "café and street look good".
                    Since then: V/F5 camera key with an on-screen toast, Space to jump, every
                    door rebuilt to read as a door, and the slice connected to a real MineWorld

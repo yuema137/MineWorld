@@ -1,0 +1,39 @@
+# The wanderer — the second Person a client occupies, and the reason `AC-15` needs two seats.
+#
+# Two clients are two observers, and two observers are two people: a 2D client and a 3D client
+# driving one body would look like the criterion passing while proving nothing about identity. So
+# `world.yaml` offers this seat as well, and the demonstration is that a *different* player walks up
+# to the same Alice and is told what the first one said.
+#
+# Standing by the table in the middle of the room, 4.2 m from Alice against a three-metre range, so
+# arriving closer is something a client does and is answered for rather than something the pack
+# pre-arranges.
+
+name: Wes Calloway
+
+# His day (schedule's `routine`, ARC-32) — a plan a player may follow or ignore. Boundaries stay within
+# 05:00–23:00: a fixture dependency of the restart tests, explained in alice.yaml and checked by those
+# tests.
+routine:
+  - { from: "09:00", place: street, label: wander }
+  - { from: "13:00", place: cafe, label: visit }
+  - { from: "17:00", place: park, label: wander }
+  - { from: "21:00", place: apartments, label: stay }
+
+tags:
+  - visitor
+
+note: Passing through. Comes in after the visitor.
+
+location:
+  place: cafe
+  position:
+    x: 7110
+    y: 3900
+
+# Market Town: what the wanderer carries at the start (inventory's `holdings`, ARC-37; see alice.yaml).
+holdings: { book: 1, croissant: 1, juice: 1 }
+
+# Market Town: the wanderer's money (economy's section, ARC-38; see alice.yaml). No job: an endowment
+# for the measured horizon (ARC-38, L-13).
+economy: { wallet: 200000 }

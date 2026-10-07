@@ -11,8 +11,9 @@
 //! entry       { at, event id, event type, place, counterparts } — envelope fields only
 //! ```
 //!
-//! It names no event type of its own: the biographical set is each installed pack's own declaration,
-//! aggregated by the World Pack catalog, so a new pack adds a constant there and no code here.
+//! It names no event type of its own: the biographical set is each installed pack's own declaration
+//! (its `SystemPack::BIOGRAPHICAL`), aggregated by the World Pack catalog, so a new pack adds no code
+//! here.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;

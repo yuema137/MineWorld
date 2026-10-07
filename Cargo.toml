@@ -5,14 +5,12 @@ members = [
     "contracts",
     "kernel",
     "persistence",
+    "sdk/rust",
     "server",
-    "systems/conversation",
-    "systems/group-activity",
-    "systems/movement",
-    "systems/naming",
-    "systems/presence",
-    "systems/relationships",
-    "systems/schedule",
+    # Every System Pack, and the installed set: a pack's directory is a member without an edit here
+    # (DECISIONS.md ARC-33). A new pack names its sibling packs by path, not below.
+    "systems/*",
+    "tests/acceptance",
     "tools/cli",
     "worldpack",
 ]
@@ -40,8 +38,10 @@ mineworld-presence = { path = "systems/presence" }
 mineworld-relationships = { path = "systems/relationships" }
 mineworld-schedule = { path = "systems/schedule" }
 mineworld-rule-controller = { path = "cognition/rule-controller" }
+mineworld-sdk = { path = "sdk/rust" }
 mineworld-conversation = { path = "systems/conversation" }
 mineworld-group-activity = { path = "systems/group-activity" }
+mineworld-installed-systems = { path = "systems/installed" }
 mineworld-server = { path = "server" }
 mineworld-worldpack = { path = "worldpack" }
 serde = { version = "1.0.229", features = ["derive"] }

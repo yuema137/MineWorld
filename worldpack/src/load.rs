@@ -2,7 +2,8 @@
 //!
 //! ```text
 //! install   every capability the pack enables, in the order the pack states
-//! create    every place, then every person — each in key order, each with its provenance
+//! create    every place, then every person, then every item kind, then every organization — each
+//!           in key order, each with its provenance
 //! resolve   every authored key to the identity the runtime uses (DD-1, KD-3)
 //! state     what is true of the world as it begins, as facts its systems reduce
 //! ```
@@ -17,16 +18,19 @@
 //! So creation order is stated here and comes from nowhere else:
 //!
 //! ```text
-//! places in EntityKey order, then people in EntityKey order
+//! places, then people, then items, then organizations, each in EntityKey order
 //! ```
 //!
-//! Not the order the author listed them in — reordering `population` then changes nothing. Not the
+//! Items and organizations come last (`DECISIONS.md` `ARC-36`) so that a world which declares none
+//! allocates exactly the ids it did before those kinds existed. Not the order the author listed them in — reordering `population` then changes nothing. Not the
 //! order the directory was read in — a filesystem's order is not a property of the pack. Not a hash
 //! map's iteration order — which `clippy.toml` bans outright, because this is exactly the failure
 //! that stays invisible until a replay disagrees. [`WorldPack`] holds its content in `BTreeMap`s, so
 //! the order is the key order and there is nothing here to get wrong.
 //!
-//! Genesis facts follow the same order, so the event identities are fixed too.
+//! Genesis facts are fixed too: passages, then locations, then sections — items', organizations',
+//! places', people's, each in key order — so what a person's or a place's section may name is stated
+//! before it, and a world with no items or organizations keeps every event id it had.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -215,6 +219,26 @@ impl WorldPack {
             )?;
             ids.insert(key.clone(), id);
         }
+        // Item kinds and organizations after every person (`ARC-36`), so declaring them moves no id
+        // a world already had.
+        for (key, item) in self.items() {
+            let id = world.create_authored_entity(
+                key.clone(),
+                EntityType::Item,
+                item.tags.clone(),
+                Some(self.provenance(ContentKind::Item, key, item.note.clone())),
+            )?;
+            ids.insert(key.clone(), id);
+        }
+        for (key, organization) in self.organizations() {
+            let id = world.create_authored_entity(
+                key.clone(),
+                EntityType::Organization,
+                organization.tags.clone(),
+                Some(self.provenance(ContentKind::Organization, key, organization.note.clone())),
+            )?;
+            ids.insert(key.clone(), id);
+        }
 
         let facts = self.initial_facts(&world.read(), &ids)?;
         Ok(AssembledWorld {
@@ -297,17 +321,9 @@ impl WorldPack {
             )?);
         }
         // Then sections (ARC-31): after every passage and location, so those keep the event ids they
-        // had before sections existed; places' before people's, each in key order.
-        let files = self
-            .places()
-            .iter()
-            .map(|(key, place)| (ContentKind::Place, key, &place.sections))
-            .chain(
-                self.people()
-                    .iter()
-                    .map(|(key, person)| (ContentKind::Person, key, &person.sections)),
-            );
-        for (kind, key, sections) in files {
+        // had before sections existed; items', organizations', places', people's, each in key order
+        // (ARC-36) — the one order `read` refuses in, so what a section names is seeded before it.
+        for (kind, key, sections) in self.sectioned_files() {
             let path = self.content_file(kind, key);
             for (section, content) in self.in_composition_order(sections) {
                 facts.extend(seeded(world, ids, key, section, content, &path)?);
@@ -484,5 +500,175 @@ mod tests {
         assert_eq!(event_type.as_str(), "arrived");
         assert_eq!(*owner, PresenceSystem::ID);
         assert!(refusal.to_string().contains("people/alice.yaml"));
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Sections on item and organization files (`ARC-36`). No installed pack owns one before the
+    // packs that need them exist (F-22), so a probe owner that exists only here stands in. It is
+    // decoded with authoring's own `Decode` and attributed to an installed capability for ranking
+    // only, as `Trespasser` is above; it is never installed.
+    // -----------------------------------------------------------------------------------------
+
+    /// A section owner carried by every kind of file, naming whatever entities its value lists.
+    struct Probe;
+
+    impl SystemIdentity for Probe {
+        const ID: SystemId = SystemId::from_static("probe");
+    }
+
+    /// The probe's one fact: that it was seeded about `subject`.
+    #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    struct Probed {
+        subject: u64,
+    }
+
+    impl mineworld_contracts::Event for Probed {
+        const EVENT_TYPE: mineworld_contracts::EventTypeId =
+            mineworld_contracts::EventTypeId::from_static("probed");
+        const OWNER: SystemId = Probe::ID;
+        const SCHEMA_VERSION: mineworld_contracts::EventSchemaVersion =
+            mineworld_contracts::EventSchemaVersion::new(1);
+    }
+
+    /// One entity the probe's value names, and the type it names it as.
+    #[derive(Debug, serde::Deserialize)]
+    struct Names {
+        key: EntityKey,
+        entity_type: EntityType,
+    }
+
+    impl AuthoredSection for Probe {
+        const SECTION: SectionName = SectionName::from_static("probe");
+        const CARRIED_BY: &'static [ContentKind] = &ContentKind::ALL;
+        type Authored = Vec<Names>;
+
+        fn references(authored: &Vec<Names>) -> Vec<mineworld_authoring::Reference<'_>> {
+            authored
+                .iter()
+                .map(|names| mineworld_authoring::Reference {
+                    key: &names.key,
+                    entity_type: names.entity_type,
+                })
+                .collect()
+        }
+
+        fn seed(
+            _: &Seeding<'_, '_>,
+            subject: EntityId,
+            _: &Vec<Names>,
+        ) -> Result<Vec<Emission>, Rejection> {
+            Ok(vec![probed(subject)])
+        }
+    }
+
+    fn probed(subject: EntityId) -> Emission {
+        let payload = serde_json::to_vec(&Probed {
+            subject: subject.raw(),
+        })
+        .expect("a probe fact encodes");
+        Emission::new::<Probed>(payload, mineworld_contracts::Visibility::Public)
+    }
+
+    fn key(value: &str) -> EntityKey {
+        EntityKey::new(value).expect("a key")
+    }
+
+    /// One probe section whose value is `value`, as the loader would have found it.
+    fn probe(value: serde_json::Value) -> Vec<FoundSection> {
+        let content = Decode::<Probe>::new()
+            .deserialize(value)
+            .expect("a probe section decodes");
+        vec![FoundSection {
+            owner: Capability::Naming,
+            name: Probe::SECTION,
+            state: SectionState::Decoded(content),
+        }]
+    }
+
+    /// A pack holding a probe section on two item kinds, one organization, one place and one person;
+    /// the item kinds' sections carry `on_lantern` and `on_pebble`.
+    fn probed_pack(on_lantern: serde_json::Value, on_pebble: serde_json::Value) -> WorldPack {
+        use crate::format::{AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace};
+
+        let place = AuthoredPlace {
+            sections: probe(serde_json::json!([])),
+            ..AuthoredPlace::default()
+        };
+        let person = AuthoredPerson {
+            sections: probe(serde_json::json!([])),
+            ..AuthoredPerson::default()
+        };
+        let organization = AuthoredOrganization {
+            sections: probe(serde_json::json!([])),
+            ..AuthoredOrganization::default()
+        };
+        let lantern = AuthoredItem {
+            sections: probe(on_lantern),
+            ..AuthoredItem::default()
+        };
+        let pebble = AuthoredItem {
+            sections: probe(on_pebble),
+            ..AuthoredItem::default()
+        };
+        WorldPack::in_memory(
+            vec![Capability::Presence, Capability::Naming],
+            BTreeMap::from([(key("cafe"), place)]),
+            BTreeMap::from([(key("alice"), person)]),
+            BTreeMap::from([(key("pebble"), pebble), (key("lantern"), lantern)]),
+            BTreeMap::from([(key("chess-club"), organization)]),
+        )
+    }
+
+    #[test]
+    fn sections_on_items_and_organizations_are_seeded_before_places_and_people() {
+        let pack = probed_pack(serde_json::json!([]), serde_json::json!([]));
+
+        let assembled = pack.assemble().expect("assembles");
+
+        let id = |name: &str| assembled.ids[&key(name)];
+        // Entities: places, people, items, organizations, each in key order.
+        let order: Vec<u64> = ["cafe", "alice", "lantern", "pebble", "chess-club"]
+            .into_iter()
+            .map(|name| id(name).raw())
+            .collect();
+        assert!(
+            order.windows(2).all(|pair| pair[0] < pair[1]),
+            "ids are allocated places, people, items, organizations: {order:?}"
+        );
+        // Sections: items', organizations', places', people's, each in key order.
+        let expected: Vec<Emission> = ["lantern", "pebble", "chess-club", "cafe", "alice"]
+            .into_iter()
+            .map(|name| probed(id(name)))
+            .collect();
+        assert_eq!(assembled.facts, expected);
+    }
+
+    #[test]
+    fn a_section_may_name_an_item_as_an_item_and_not_as_a_place() {
+        let as_item = probed_pack(
+            serde_json::json!([]),
+            serde_json::json!([{ "key": "lantern", "entity_type": "item" }]),
+        );
+        crate::read::check_sections(&as_item).expect("lantern is declared as an item");
+
+        let as_place = probed_pack(
+            serde_json::json!([]),
+            serde_json::json!([{ "key": "lantern", "entity_type": "place" }]),
+        );
+        let refusal = crate::read::check_sections(&as_place).expect_err("lantern is no place");
+        let PackError::SectionNamesUnknownEntity {
+            subject,
+            key: named,
+            expected,
+            path,
+            ..
+        } = &refusal
+        else {
+            panic!("got: {refusal}");
+        };
+        assert_eq!(*subject, key("pebble"));
+        assert_eq!(*named, key("lantern"));
+        assert_eq!(*expected, EntityType::Place);
+        assert!(path.ends_with("items/pebble.yaml"));
     }
 }

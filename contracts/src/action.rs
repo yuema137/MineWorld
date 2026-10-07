@@ -361,6 +361,21 @@ impl<P> ActionRecord<P> {
         }
     }
 
+    /// Labels an already-encoded payload with an action type held as a value.
+    ///
+    /// Crate-private: the only caller is
+    /// [`Affordance::request`](crate::observation::Affordance::request), which labels a complete
+    /// affordance's payload with the affordance's **own** action type — the one the owning system
+    /// offered it as — so the label still comes from the offer rather than from whoever submits it
+    /// (`ARC-34`). No trust is lost by having it: a record already deserializes from any label, and
+    /// dispatch decodes the payload with the owning system's type.
+    pub(crate) const fn labelled(action_type: ActionTypeId, payload: P) -> Self {
+        Self {
+            action_type,
+            payload,
+        }
+    }
+
     /// The action type the payload was written from.
     pub const fn action_type(&self) -> &ActionTypeId {
         &self.action_type

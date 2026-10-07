@@ -1,0 +1,27 @@
+# The convenience store: a corner shop at the east end of the street.
+#
+# Millimetres from the shop's own origin, its inner south-west corner; `x` east, `y` north
+# (`docs/CORE_CONCEPTS.md` §6.1). No drawn geometry yet — the 3D slice depicts the café and the street
+# — so these positions are semantic.
+#
+# A place and nothing more in this world. What a shop *does* — stock, prices, the people who run it —
+# is items, an organization and employment, which are System Packs this world does not install
+# (`docs/MVP.md` §2: World B adds them by configuration).
+
+tags:
+  - store
+  - shop
+  - public
+
+note: >-
+  A convenience store on the street's north side, east of the café: shelves, a fridge, a till.
+
+# Its door, onto the street's north side, 12 m east of the café's.
+passages:
+  - to: street
+    here:
+      x: 1500
+      y: 200
+    there:
+      x: 12000
+      y: 3000

@@ -135,11 +135,17 @@ pub trait PerceptionProvider {
 /// The action type is read off `A` rather than passed as a value, so an offer cannot be
 /// mislabelled — the same reason [`Emission::new`](mineworld_kernel::Emission::new) takes its event
 /// type as a parameter.
+///
+/// An offer may also be **complete** ([`Offer::complete`], `DECISIONS.md` `ARC-34`): it carries the
+/// exact request the pack would accept, so a requester that was never compiled against the pack can
+/// still attempt it. Perception carries that payload into the affordance and decides nothing about
+/// what it means.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Offer {
     action_type: ActionTypeId,
     requirement: SpatialRequirement,
     target_available: bool,
+    payload: Option<Value>,
 }
 
 impl Offer {
@@ -154,7 +160,31 @@ impl Offer {
             action_type: A::ACTION_TYPE,
             requirement,
             target_available: true,
+            payload: None,
         }
+    }
+
+    /// Offers exactly this request: a **complete** offer, whose payload a requester may submit
+    /// unchanged without knowing the action.
+    ///
+    /// The action type is read off the value's own type, exactly as [`Offer::new`] reads it, so a
+    /// payload of one action cannot be attached to an offer of another — there is no second
+    /// argument to get wrong. The payload is encoded as the observation carries payloads, a JSON
+    /// value; the only failure is a value JSON cannot represent, which no action in this workspace
+    /// is.
+    ///
+    /// A pack offers one complete offer per choice it would accept — which is why only a pack whose
+    /// choices it can enumerate can make one. Whatever is submitted is still validated by the pack
+    /// at dispatch.
+    pub fn complete<A: Action>(
+        action: &A,
+        requirement: SpatialRequirement,
+    ) -> Result<Self, serde_json::Error> {
+        let payload = serde_json::to_value(action)?;
+        Ok(Self {
+            payload: Some(payload),
+            ..Self::new::<A>(requirement)
+        })
     }
 
     /// States whether the target is available to be acted upon.
@@ -183,5 +213,10 @@ impl Offer {
     /// Whether the owning pack considers the target available.
     pub const fn target_available(&self) -> bool {
         self.target_available
+    }
+
+    /// The complete request, when this is a complete offer.
+    pub const fn payload(&self) -> Option<&Value> {
+        self.payload.as_ref()
     }
 }

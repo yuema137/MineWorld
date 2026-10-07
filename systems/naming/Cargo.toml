@@ -14,6 +14,8 @@ mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
 # For PerceptionProvider: the seam a pack discloses its own state through. No system dependency.
 mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

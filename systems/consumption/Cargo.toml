@@ -1,0 +1,33 @@
+[package]
+name = "mineworld-consumption"
+description = "MineWorld's ConsumptionSystem: eat the food and drink the drinks a person carries, each offered as a complete affordance and used up through inventory's checked constructor. Owns nothing."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# For PerceptionProvider: the seam a pack offers its actions through. No system dependency.
+mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
+# Holdings are inventory's: a meal states inventory's items-consumed through its checked constructor
+# (ARC-26). A sibling pack, named by path (MODULE_SPEC §3.1).
+mineworld-inventory = { path = "../inventory" }
+# ItemKind's category: what is edible or drinkable is this pack's rule about item's attribute.
+mineworld-item = { path = "../item" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The tests seed kinds and holdings through the section contract, as the loader does, and walk people
+# under the paced controller as `mineworld run` does.
+mineworld-authoring = { workspace = true }
+mineworld-movement = { workspace = true }
+serde-saphyr = { workspace = true }
+# The unchanged paced controller eats and drinks without knowing either action (ARC-34). A
+# dependency from a market pack's tests to the controller, the direction ARC-35 check 2 allows.
+mineworld-rule-controller = { workspace = true }

@@ -1,0 +1,33 @@
+# Bob — on a stool at the counter, 2.4 m from Alice.
+#
+# Inside `conversation`'s three-metre interaction range, so Alice and Bob can speak without anybody
+# moving. That range is the conversation system's policy and is not restated here.
+
+name: Bob Achterberg
+
+# His day (schedule's `routine`, ARC-32): mornings at the counter beside Alice, which is where Milestone
+# B finds them together. Boundaries stay within 05:00–23:00: a fixture dependency of the restart
+# tests, explained in alice.yaml and checked by those tests.
+routine:
+  - { from: "07:00", place: cafe, label: coffee }
+  - { from: "11:00", place: park, label: read }
+  - { from: "15:00", place: store, label: errands }
+  - { from: "19:00", place: apartments, label: home }
+
+tags:
+  - regular
+
+note: Comes in most days and sits at the counter.
+
+location:
+  place: cafe
+  position:
+    x: 4500
+    y: 6100
+
+# Market Town: what he carries at the start (inventory's `holdings`, ARC-37; see alice.yaml).
+holdings: { apple: 1, newspaper: 1 }
+
+# Market Town: his money (economy's section, ARC-38; see alice.yaml). No job: an endowment for the
+# measured horizon (ARC-38, L-13).
+economy: { wallet: 200000 }

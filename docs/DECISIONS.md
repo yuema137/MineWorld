@@ -2093,3 +2093,784 @@ rejected for the reasons above. (b) **The schedule owns an agenda, and controlle
   boundaries. A world hosted from genesis or from a day-end save therefore commits nothing for five
   hours, and the restart tests' "revision unchanged" claims rely on that. Each of those tests checks
   the assumption first, and fails naming it.
+
+---
+
+## ARC-33 — A System Pack is installed by declaring it in the build's installed set
+
+**Date** 2026-10-07 · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1 · **Relates to** `ARC-8`,
+`ARC-23`, `ARC-26`, `ARC-29`, `ARC-31`, `DEP-10`, `DEP-12`, `ARC-35`, [`MVP.md`](MVP.md) §9 `AC-1`
+· **Design** `.structured-coding/plans/mvp0/step-10-market.md` §2.2, SD-1 … SD-5 (S9, PR 11a)
+
+**Problem.** The frozen top-level criterion asks for *independently installable* interaction
+systems. Until this decision, installing one System Pack edited about eleven lines in five files,
+three of them outside `systems/` (finding F-1, step-09 §8.2):
+
+```text
+Cargo.toml (root)          a `members` line and a `[workspace.dependencies]` line
+worldpack/Cargo.toml       a dependency line
+worldpack/src/catalog.rs   an enum variant, an AVAILABLE entry, and one arm in each of six matches
+Cargo.lock                 regenerated
+```
+
+`ARC-31`'s accepted limitations already said so: "The catalog is still a closed list compiled into
+the build. The seam removes the format edit, not the registration." Every one of those edits teaches
+the World Pack loader that a pack exists, which is the change amplification `CLAUDE.md` §4 rule 5
+forbids.
+
+**What cannot be removed.** MVP-0's System Packs are trusted, statically linked Rust
+(`ARCHITECTURE.md` §12, `PACKAGE_FORMAT.md` §8). A crate is in a statically linked Rust binary only
+if some crate in the build declares it as a Cargo dependency, and no build script, macro or linker
+trick links a crate nobody declares. So one declarative line naming the pack must exist in some
+manifest. The decision is only *where* that line lives and what else must change with it.
+
+**Choice.**
+
+1. **A System Pack declares itself.** The SDK crate `mineworld-sdk` (`sdk/rust/`) defines
+   `SystemPack: System + Default`. A pack implements it once, in its own crate, and says there
+   everything the build needs to know about it beyond `System`:
+   - `BIOGRAPHICAL`: which of its event types belong in a biography (`ARC-29`; default none);
+   - `SECTION`: the authored section it owns, if any (`ARC-31`; default none);
+   - `decode_section`: how that section is decoded. A section owner writes
+     `mineworld_sdk::owns_section!();` inside its `impl`, which defines `SECTION` and
+     `decode_section` together from its `AuthoredSection` impl, so the two cannot disagree. The
+     default refuses, naming the pack: "the '<id>' system owns no section".
+
+   The SDK depends on `authoring`, `contracts`, `kernel` and `serde`, and never on a pack, so every
+   pack can implement it without a dependency cycle.
+2. **The installed set is a crate whose only content is the list.** `systems/installed/` (crate
+   `mineworld-installed-systems`) depends on the SDK, on `presence` for the perception trait, and on
+   every installed pack. Its `lib.rs` is one invocation of `mineworld_sdk::installed!`, one line per
+   pack. The macro expands to the closed enum `Capability`, the constant `AVAILABLE` in the listed
+   order, and the methods `resolve`, `id`, `section`, `owning_section`, `decode_section`,
+   `biographical`, `install`, `provider` and `Display` — the same closed enum and matches the
+   catalog held, generated. Every code path therefore stays monomorphic, and a section is still
+   decoded straight from the YAML stream with its line and column (`DEP-10`). A listed pack that is
+   not a `PerceptionProvider`, not `Default`, or not a `SystemPack` does not compile into the set. A
+   test holds the list and the crate's manifest equal, and no two listed packs may share an id.
+3. **The root manifest stops registering.** Its `members` names `"systems/*"` instead of one line
+   per pack. A new pack depends on a sibling pack by `path = "../<name>"`, so the root
+   `[workspace.dependencies]` never learns it. Path dependencies between sibling packs add no
+   external dependency, so the root's rule — a crate that needs a dependency not listed there is
+   adding one, which is a reviewable decision — is unchanged.
+4. **`worldpack` names only the packs its format fields belong to.** A person's `location` is
+   `presence`'s and a place's `passages` are `movement`'s (`ARC-31` item 5), so `worldpack` keeps
+   those two dependencies and gains the SDK and the installed set. It drops every other pack, and
+   re-exports `Capability`, `AVAILABLE` and `SectionOwner`, so its public API does not change. A
+   structural test holds its dependency allow-list, which names infrastructure and the two format
+   owners and never another pack.
+
+**What installing a System Pack means in MVP-0 — the static-linking boundary.** This is the whole of
+it, and a reader must not take "independently installable" as more:
+
+```text
+systems/<name>/                        the pack                                   (a new directory)
+systems/installed/Cargo.toml           mineworld-<name> = { path = "../<name>" }  (one line)
+systems/installed/src/lib.rs           <Variant> => mineworld_<name>::<System>,   (one line)
+Cargo.lock                             regenerated by Cargo                       (generated)
+then                                   rebuild the binary
+```
+
+- No other file is edited: not the root manifest, not `worldpack`, not the CLI, not the server, not
+  a controller, not the kernel.
+- **Installing** puts a pack into the build. **Enabling** it is a world's choice: a World Pack's
+  `systems:` list names it. A world that does not enable an installed pack is not affected by it.
+- **Installing without a rebuild is not MVP-0.** Adding a pack to a binary that is already built or
+  to a server that is already running, or installing a pack that is not compiled from this
+  repository's build, is the WASM component model of `ARC-8` (Tier 1). That is outside MVP-0
+  (`overall.md` §1 non-goals). So is Milestone E's publishing sense of "a real world assembled from
+  independently installable packs": `.mwpack`, a registry, and packs from outside this repository.
+- `mineworld install` and `mineworld add-system` (`MODULE_SPEC.md` §8) remain unimplemented. The
+  two lines are written by hand.
+
+**Why `systems/installed` lives under `systems/`.** The installed set is the list of System Packs in
+this build. Placing it beside the packs makes installing one an edit under `systems/` only, which is
+what `ARC-35` measures. The operator approved this placement at S9's freeze (step-10 QS-3).
+
+**Accepted limitations.**
+- A rebuild is required to install or remove a pack, as above.
+- Cargo still needs one dependency line per pack, and `Cargo.lock` changes with every install.
+  `ARC-35` admits `Cargo.lock` only as a generated file under a rule that it gains path packages
+  under `systems/` and nothing else.
+- A declarative macro generates the catalog, which is harder to read than a hand-written enum. The
+  macro is one file, documented method by method, and every existing loader, CLI, persistence and
+  server test runs through its expansion.
+- Revisit this decision together with `DEP-12` when the first build installs packs it does not
+  compile from this repository: that is `ARC-8`'s Tier 1. The question each catalog method answers
+  stays the same; the catalog becomes a registry populated at startup.
+
+---
+
+## DEP-12 — System Pack registration: a declared installed set, not linker-section registration or dynamic loading
+
+**Date** 2026-10-07 · **Status** selected; no dependency added · **Relates to** `ARC-8`, `ARC-33`,
+`DEP-10` · **Design** `.structured-coding/plans/mvp0/step-10-market.md` §2.2 (S9, PR 11a)
+
+**Problem.** Make a statically linked Rust System Pack installable by declaring it in one place,
+with no code elsewhere that has to learn it (`ARC-33`). The build must still be able to do what the
+World Pack loader's catalog does with each pack:
+- resolve it by id;
+- install it;
+- hand it out as a perception provider;
+- list its biographical event types;
+- decode its authored section **generically over the YAML stream**, so that a refusal keeps the line
+  and column `DEP-10` chose `serde-saphyr` for.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17 — both directions):
+
+```text
+(a) the status quo: a closed enum in worldpack, one arm per pack
+(b) linker-section registration: `inventory` (dtolnay, MIT/Apache-2.0) or `linkme`'s distributed_slice
+(c) dynamic loading: `libloading`, `abi_stable`
+(d) a value registry with type-erased section decoding: `erased-serde`
+(e) worldpack generic over a catalog type supplied by the binary
+(f) a build script scanning systems/*/Cargo.toml to generate the list (needs the `toml` crate)
+(g) a SystemPack trait each pack implements, and an installed-set crate whose only content is the
+    list, expanded by a declarative macro into the closed enum (`ARC-33`)
+```
+
+**Choice: (g).** No dependency is added. The "implementation of our own" is a `macro_rules!` over the
+code the catalog already held.
+
+**Why not the others** (`REUSE_POLICY.md` §12's reasons):
+
+- **(a)** is finding F-1 itself: about eleven edits in five files per pack.
+- **(b) `inventory` / `linkme` — dependency larger than the problem, and an architecture mismatch.**
+  - They solve distributed registration of *values*. MineWorld's remaining cost after (g) is not
+    registration code; it is the one Cargo line no crate can remove. Both also need a `use pack as
+    _;` line, or the linker drops a crate nothing references, so they would not save even the list
+    line.
+  - They would add a dependency with life-before-main (`inventory`) or per-platform linker support
+    (`linkme`).
+  - Registering values would force the section decoder from a generic function into a type-erased
+    value, which is (d)'s risk.
+  - This is the case of forcing an existing wheel where it does not fit (`REUSE_POLICY.md` §17), not
+    of reinventing one.
+- **(c) `libloading` / `abi_stable` — architecture mismatch and an unacceptable trust model.** Loading
+  native libraries needs `unsafe` (every crate here is `forbid(unsafe_code)`), relies on an unstable
+  Rust ABI, and runs downloaded native code with full privileges. `ARC-8` already chose the WASM
+  component model for code that is not compiled into the build.
+- **(d) `erased-serde` — missing required semantics, unverified.** Whether `serde-saphyr`'s line and
+  column survive an erased round trip has not been shown, and they are `DEP-10`'s reason for the
+  parser. It would add a dependency to put that at risk.
+- **(e) a generic worldpack — inability to isolate it cleanly.** Every caller of `WorldPack::read` —
+  the CLI, the server's and persistence's tests, worldpack's own tests — would change, and
+  worldpack's tests would need a dev-dependency cycle to name a catalog.
+- **(f) a build script — dependency larger than the problem.** Cargo still needs the dependency
+  line, so the script would save one list line at the price of a TOML parser in the build.
+
+**Isolating interface.** `mineworld-sdk`: the `SystemPack` trait, `SectionOwner`, and the macros
+`owns_section!` and `installed!`. A pack names only `SystemPack`; the World Pack loader names only
+the generated `Capability`. If registration moves to a startup registry, these two surfaces are what
+change.
+
+**Accepted limitations and the revisit trigger.**
+- One Cargo line per pack remains, as it must for static linking (`ARC-33`).
+- Revisit when the first build installs packs it does not compile from this repository, which is
+  `ARC-8`'s Tier 1. A runtime registry is then needed anyway, and the comparison above is reopened
+  rather than assumed.
+
+---
+
+## ARC-34 — Complete affordances: an offer may carry the request it would accept
+
+**Date** 2026-10-07 · **Approved by** the operator at S9's design freeze (step-10 QS-4; refinements
+QS-20 … QS-25 accepted by the primary session, step-10 §12.0) · **Implements**
+[`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §15.2, [`MODULE_SPEC.md`](MODULE_SPEC.md) §5 · **Relates to**
+`INV-10`, `INV-13`, `ARC-23`, `ARC-26`, `ARC-27`, `ARC-35`, [`MVP.md`](MVP.md) §9 `AC-1`, `AC-15`
+· **Design** `.structured-coding/plans/mvp0/step-10-market.md` §2.3, SD-9 … SD-12, §4.3 (S9, PR 11c)
+
+**Problem.** `PacedRuleController` submits only actions it was compiled against: every request it
+builds is typed by a pack crate it depends on, and it reads affordances only to ask whether *an action
+it already knows* is available. A System Pack installed after the controller was written therefore
+appears in every observation as an affordance and is never attempted by any headless person, because an
+`Affordance` names an action and carries no payload: to submit an offered action, a requester must
+already know the action's payload shape. The same is true of a client. `AC-1` forbids teaching the
+controller each new pack, and a world whose new actions nobody headless ever attempts would pass a path
+check and prove nothing (`ARC-23`). `CORE_CONCEPTS.md` §15.2 already states the intent the gap blocks:
+a controller "is told what is possible instead of guessing" — told *that* something is possible, not
+yet *what exactly to send*.
+
+**Options considered.**
+
+```text
+(a) the controller learns each new pack's actions         the edit AC-1 forbids; every future pack
+                                                         repeats it
+(b) a Controller Pack policy as world data ("at this      payloads authored in a World Pack are rules in
+    place, attempt this request")                        content (MODULE_SPEC §4 constraint 3), and the
+                                                         policy still has to know payloads
+(c) a generic `interact` action the server resolves       the server would choose the action for the
+                                                         person (INV-1, INV-6); one resolver must know
+                                                         every pack's precedence — a God object
+(d) payload schemas in affordances (JSON-Schema-like)     a second schema language for an enumerable
+                                                         problem; heavy before any LM controller exists
+(e) declare that headless people need not use new packs   the new pack would be untestable headless: an
+                                                         instrument that cannot see (ARC-23)
+(f) complete affordances: the offering system may attach  chosen
+    the exact payload it would accept; any requester may
+    submit it unchanged
+```
+
+**Choice: (f).**
+
+1. **The contract.** `Affordance<P = Vec<u8>>` gains a last field `payload: Option<P>`, the complete
+   request payload the offering system would accept, in the observation's payload encoding.
+   `Observation<P>` holds `Affordance<P>`. The field is serialized **only when present**
+   (`skip_serializing_if`), and a frame without it decodes, so every existing observation, transcript
+   and frame is byte-identical. An affordance with a payload is a **complete affordance**.
+   - `Affordance::available` and `Affordance::unavailable` are unchanged and carry no payload;
+     `with_payload(P)` adds one; `payload()` reads it.
+   - `Affordance::request(actor, encode) -> Option<ActionRequest<Q>>` turns a complete affordance
+     into the request it names: labelled with the affordance's **own** action type, targeted at its
+     target, its payload re-encoded by the caller's `encode` (an observation carries JSON values,
+     dispatch takes bytes — the encoding is not decided in `contracts`). `None` without a payload.
+     Whether the affordance is available is the caller's judgement, read from `is_available`.
+   - The label is the affordance's own, so `request` needs a crate-private labelling constructor on
+     `ActionRecord`. No trust is lost: `ActionRecord` already deserializes from any label, and
+     dispatch decodes the payload with the owning system's type.
+2. **Who makes an offer complete.** Only the owning System Pack, through presence's
+   `Offer::complete(&action, requirement)`. The action type is read off the action value's own type,
+   exactly as `Offer::new::<A>` reads it, so a payload of another action cannot be attached at all.
+   Perception carries the payload into the affordance whatever the verdict — available or unavailable
+   with its reason — and decides nothing about what it means. An offer of a disabled pack is dropped
+   by the same route map as before (`INV-10`, `AC-2`), payload and all.
+3. **The server still decides.** A complete affordance is an offer, not a permission: whatever is
+   submitted is validated by the owning system at dispatch (`ARCHITECTURE.md` §9). A controller that
+   submits one has not created an interaction; it has attempted one the world offered.
+4. **The paced controller's offer band.** `PacedRuleController::decide` gains exactly one band, after
+   the social initiative and before the walking roll: the available complete affordances of the
+   observation, in observation order; none → the band takes no part; otherwise, if draw index
+   `OFFER_DRAW = 14` is below `ATTEMPTS_OFFERED` (out of 100), the one chosen by draw index
+   `OFFERED_CHOICE_DRAW = 15` is submitted through `Affordance::request`. It imports no pack type for
+   it, and `decide(&self, …)` stays a pure function of seed, pace and observation (`ARC-27`).
+   `ATTEMPTS_OFFERED` is fixed by step-10 C-C6's measurement on a scratch install of a synthetic pack
+   offering a complete affordance to every person everywhere — the worst case — against a criterion
+   stated before measuring: every seat still moves and talks in every 30-day bucket, and every seat's
+   offered request is accepted in every bucket. It passed at **20**, which is frozen (step-10 §9.3
+   E-C6, and the note below). The band's constants and position are then frozen for S9 (`ARC-35` item 6, I-9): if
+   a later world behaves badly, the remedy is in what its packs offer, never in the controller.
+5. **`RuleController` is unchanged.** The reactive controller (`--agent`) answers and takes no
+   initiative; it never attempts a complete affordance (`AC-15`).
+6. **Free-form actions stay known by name.** `talk`'s utterance, `move`'s position and `invite`'s
+   kind cannot be enumerated by the offerer, so the paced controller keeps knowing those actions by
+   name. They are the foundation vocabulary of a walking, talking world. A new pack whose actions are
+   free-form is usable headless only through a language-model controller (S10), or by offering
+   complete affordances for a bounded choice.
+7. **Clients.** `server/PROTOCOL.md` §§5–6 and `clients/protocol/ADOPTION.md` document the field: a
+   client may submit a complete affordance unchanged and decides nothing new. No client code changes
+   in S9 (step-10 QS-20); the first client use is S12's.
+
+**Why this is not an `AC-1` violation although it edits `contracts`, presence and the controller.** It
+is a precursor (PR 11c) that lands before the market, names no market concept (`ARC-35` item 7), is
+proven with a synthetic pack the controller crate has never been compiled against, and leaves every
+existing world byte-identical, because no existing pack offers a complete affordance.
+
+**Accepted limitations.**
+- The offerer must be able to enumerate the choices it would accept. An action whose payload is
+  free-form cannot be offered complete (point 6).
+- Observations grow with the offers: one complete affordance per offered choice, per target. A pack
+  that offers many choices to many people makes every consult larger and slower (step-10 R-S9-2); the
+  remedy is that the pack offers less, never a change to the pace or the controller.
+- The band's rate is one number for every pack: a world with many packs offering complete affordances
+  divides the same rate among them, in observation order.
+
+**Note, 2026-10-07 (S9, step-10 C-C6) — the measurement that fixed the rate.** A scratch install,
+never merged, put a pack offering a complete `ring { low | high }` to every person everywhere, with no
+spatial requirement, into Social Café, and ran it 300 days with seed 7. The criterion, stated before
+measuring (step-10 QS-25): every seat moves and talks in every 30-day bucket, and every seat's `ring` is
+accepted in every bucket. At `ATTEMPTS_OFFERED = 20` both held — every seat moved at least 1 346 and
+talked at least 393 times per bucket, and rang at least 197 times per bucket (29 907 rings in all, no
+fault). The value is therefore **20**, frozen with `OFFER_DRAW = 14`, `OFFERED_CHOICE_DRAW = 15` and
+the band's position. Under that worst case, moves fell from 180 665 to 167 348 and talks from 67 752
+to 57 741 over the 300 days — the share of consults the band takes — which is what a pack offering
+something to everyone everywhere costs, and a reason for a pack to offer less, not for the controller
+to change.
+
+---
+
+## ARC-35 — How AC-1 is measured
+
+**Date** 2026-10-07 · **Approved by** the operator at S9's design freeze (step-10 QS-2) · **Implements**
+[`MVP.md`](MVP.md) §2, §9 `AC-1` · **Relates to** `ARC-23`, `ARC-33`, `DEP-12` · **Design**
+`.structured-coding/plans/mvp0/step-10-market.md` §1.3 (I-1, I-2, I-9), §2.5, SD-6 (S9)
+
+**Problem.** `AC-1` and the frozen top-level criterion say that Market Town is Social Café plus
+installed systems and a configuration change, with no edit to the kernel, `Person`, a renderer or a
+controller. `overall.md` §1 glosses that as a change that touches only `systems/` and `worlds/`. Two
+things make the sentence measurable only if the measurement is decided first:
+- Making packs installable (F-1, `ARC-33`) and letting a controller attempt an action it was never
+  compiled against (F-3) are framework changes. They must land before the market, and outside the
+  measured change.
+- A measurement chosen after seeing the result is not a measurement (`ARC-23`).
+
+**Choice.**
+
+1. **The transformation is two named merges.** The market arrives in PRs 11d (item, inventory,
+   item-transfer, and `worlds/market-town`) and 11e (economy, employment, and their content). Each
+   merge commit `M` is read against its own first parent, so unrelated PRs merging in between do not
+   enter the range.
+2. **Check 1, the change set.** `git diff --name-only M^1 M` ⊆ allowed, where allowed is:
+   - `systems/**`;
+   - `worlds/**`;
+   - `Cargo.lock`, under a rule: every `[[package]]` added between `M^1` and `M` has no `source`
+     (a path package) and lives under `systems/`, and every `[[package]]` whose dependency list
+     changed lives under `systems/`. No external dependency arrives with the market;
+   - Markdown documentation: `**/*.md` under `docs/`, `systems/`, `worlds/` and
+     `.structured-coding/plans/`, because a PR here always updates its ledger.
+3. **Check 2, the structure** — from `cargo metadata` at HEAD, independent of history:
+   - the direct dependents of each market pack are `systems/*` crates only;
+   - no dependency path leads to a market pack from `kernel`, `contracts`, `persistence`, `server`,
+     `authoring`, `sdk` or `rule-controller`;
+   - no code file (`*.rs`, `Cargo.toml`) outside `systems/`, `worlds/` and `tests/acceptance/` names
+     a market pack's crate. Crate names are matched, not action or event slugs: contract tests
+     already use stub ids such as `inventory-stub` that name no pack.
+
+   Check 2 catches what a path diff cannot: a kernel or controller taught the market *before* the
+   transformation range.
+4. **Check 3, the world delta.** Market Town is Social Café plus configuration:
+   - `systems`: Social Café's list, in order, then the five market packs;
+   - places, population and seats: identical keys;
+   - every person and place file: Social Café's fields and sections unchanged, plus sections owned
+     by market packs only;
+   - `items/` and `organizations/`: present only in Market Town.
+5. **Fail closed.** Check 1 needs git history. Without it the test fails, naming the missing
+   history. It never skips.
+6. **The precursors are bounded instead of measured** — by two frozen invariants, each checked:
+   - **I-2: the precursors know no market.** PRs 11a, 11b and 11c add no market concept (item 7).
+   - **I-9: the controller's offer band is decided before the market exists.** Its constants are
+     fixed in 11c against a synthetic pack. If Market Town behaves badly, the remedy is in
+     `systems/` or `worlds/`, never in the controller.
+7. **I-2 is checked mechanically**, by `tests/acceptance/tests/precursor_vocabulary.rs` (crate
+   `mineworld-acceptance`, the home `ARCHITECTURE.md` §14 gives acceptance tests):
+   - **Vocabulary:** `item`, `inventory`, `money`, `price`, `wage`, `job`, `shift`, `shop`,
+     `economy`, `employ`.
+   - **What is scanned:** every line a precursor adds, and the path of every file it adds, in every
+     file except Markdown. Code, comments, manifests, `Cargo.lock` and fixtures are all scanned.
+     Documentation is not, because documentation must be able to discuss the market; this record
+     does.
+   - **How a match is found:** a line is split into words at every character that is not a letter
+     or a digit, and at every lower-to-upper case boundary. A word matches when, lowercased, it
+     begins with a vocabulary word, so `items`, `ShopFront`, `employer` and `wages` all match.
+   - **Which lines are "the PR's added lines", deterministically.** The test holds one row per
+     precursor: the PR, its recorded base commit, and its branch.
+     - If the first-parent history of `HEAD` holds that branch's merge commit `M` (subject
+       `Merge pull request #N from <owner>/<branch>`, the form every merge to the protected `main`
+       takes, `ARC-5`), the range is `base..M^2`: exactly what the PR added, whatever merged later.
+     - Otherwise the PR is not merged, and the range is from `base` to the working tree: tracked
+       changes (`git diff <base>`) plus every untracked file Git does not ignore. A line is
+       therefore scanned before it is committed.
+     - A precursor PR adds its own row and its own allow-list entries; 11b and 11c extend the same
+       test.
+   - **Allow-list:** each entry names a file, a line substring and a reason. It admits only matches
+     that are not a market concept: the scan's own vocabulary list, a word in another sense (Rust's
+     `Iterator::Item`), or a pre-existing use carried into an added line. An entry with an empty
+     reason fails the test, and so does an entry that matches nothing, so the list cannot go stale.
+   - **Fail closed:** the test fails, naming the cause, when `git` cannot run, the directory is not a
+     repository, a recorded base is missing (a shallow clone), or `HEAD` does not descend from it.
+     It never skips.
+   - **A precursor that turns out to need a market word is a material stop**, decided by the
+     operator, never an allow-list entry added to pass.
+   - A squash merge would leave no merge commit. The range would then fall back to `base..HEAD`,
+     which fails once the market exists. The failure is loud, not silent.
+
+**What this does not claim.** That S9 as a whole changed only `systems/` and `worlds/`: it did not,
+and could not for any linked pack (`ARC-33`). The criterion is read as `MVP.md` §2 words it, and
+`overall.md` §1's path gloss is made exact by items 1–7.
+
+**Accepted limitations.**
+- The measurement depends on two merge commits being identified by id, which exist only after they
+  merge. The proof (PR 11f) records them.
+- Documentation inside the range is admitted by path and extension, not by content.
+
+**Note, 2026-10-07 (S9, PR 11b; step-10 QS-16, F-31).** Item 7's allow-list admits **words, not
+lines**. This tightens the check and loosens nothing:
+
+1. Each entry names a file, a line substring, the exact lowercase words it admits, and a reason. Every
+   market word on an added line is found, not only the first. Each one is refused unless an entry for
+   that precursor and that file, whose substring the line contains, admits that exact word. A refusal
+   names the word.
+2. Before this note, an entry admitted every match on the lines it covered. A line such as
+   `item_price`, admitted for the defined term `item`, would then have hidden `price`. Now the same
+   line is refused, naming `price`. A word that merely begins with an admitted one is refused as
+   itself: `itemprice` is not `item`.
+3. An entry may admit **any** word only for the scan's own file, which must name the vocabulary it
+   looks for. The test fails, naming any other entry that admits any word.
+4. The other rules of item 7 are unchanged:
+   - the vocabulary;
+   - what is scanned (every non-Markdown added line and added path);
+   - how a precursor's range is found;
+   - failing closed;
+   - an entry with an empty reason fails, and so does an entry that admits nothing.
+
+Item 7's first-parent detection of a merged precursor is unchanged as well. Step-10 QS-15 proposed
+reading every merge reachable from `HEAD`, and the primary session declined it. PRs 11b and 11c are
+merged one at a time instead. The second to merge rebases onto the new `main` and moves its own row's
+base to that commit (step-10 §12.0).
+
+**Note, 2026-10-07 (S9, PR 11e; step-10 QS-35, QS-52) — six market packs.** The operator added a
+consumption System Pack to the transformation's second merge (step-10 QS-35), so the market is six
+packs, not five: `item`, `inventory`, `item-transfer`, `economy`, `employment` and `consumption`
+(`ARC-37`, `ARC-38`). Item 1's second merge (11e) therefore carries economy, employment and
+consumption, and edits the merged `inventory` pack, which is under `systems/` and inside check 1's
+allowed set (step-10 QS-42). Check 2's "market pack" and check 3's "the five market packs" read **the
+six market packs**. No other item changes. The AC-1 test that reads the list is step-10 PR 11f's.
+
+---
+
+## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack
+
+**Date** 2026-10-07 · **Approved by** the operator at S9's design freeze (step-10 QS-5, QS-6) ·
+**Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1, [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §8 ·
+**Relates to** [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §§7–8, `ARC-15`, `ARC-31`, `ARC-35` · **Design**
+`.structured-coding/plans/mvp0/step-10-market.md` §2.4, SD-7, SD-8, §4.2 (S9, PR 11b)
+
+**Problem.** `CORE_CONCEPTS.md` defines four kinds of entity that a world is authored with: `Person`,
+`Place`, `Item` and `Organization`. `MODULE_SPEC.md` §4's frozen World Pack layout already lists
+`items/` and `organizations/`, and the contracts already have `EntityType::Item` and
+`EntityType::Organization`. But the MVP-0 loader read only `places` and `population`, so no World Pack
+could declare an Item or an Organization. A System Pack therefore could not own state on one the way
+`naming` and `schedule` own state on a person (`ARC-31`).
+
+There are three ways to give a world such entities:
+
+```text
+(a) a System Pack creates them at genesis      no system can create an entity: the view a system is
+                                               handed has no create, and adding one is a kernel change
+(b) no entities: kinds as slugs inside some    a kind would have no identity and no tags, and nothing
+    pack's state, organizations as tags        for several packs to share; an Organization is a core
+    on places                                  primitive (CORE_CONCEPTS §8), not a tag
+(c) complete §4's frozen layout                chosen
+```
+
+**Choice: (c).**
+
+1. **Two content kinds.** `world.yaml` gains `items:` and `organizations:`. Each key names a file,
+   `items/<key>.yaml` or `organizations/<key>.yaml`, which may carry `tags`, `note` and sections. Both
+   lists are optional, and a World Pack that declares neither is read exactly as before.
+2. **An authored Item is a kind.** `CORE_CONCEPTS.md` §7 separates a type from an instance and allows
+   "unique items, stacked items, or abstract resources". MVP-0 implements **stacked items only**. An
+   Item entity declared in `items/lantern.yaml` *is* the kind `lantern`, and a quantity held of it is a
+   count of that kind, kept by whichever System Pack owns holdings. This reads the defined term one
+   of the two ways the ontology permits. It does not redefine it (`CLAUDE.md` §2.1(3)).
+3. **Instances are out of MVP-0.** A unique instance, with its own owner, place or condition, would be
+   an Item entity created while the world runs, by the pack that owns it. No system may create an
+   entity (option (a)), so instances need a kernel decision of their own.
+4. **Identities are allocated after people.** The order is places, then people, then items, then
+   organizations, each in key order. Every identity a world had before it declared items or
+   organizations stays where it was, and so does every event id of its genesis.
+5. **Keys are one namespace across the four lists.** A key declared in two lists is refused, naming
+   both. A section names another entity by key together with the kind it requires, so one key must
+   never mean two entities.
+6. **Item and organization files may carry sections.** This extends `ARC-31`'s person-or-place wording
+   unchanged in every other respect:
+   - the owner declares which kinds may carry its section;
+   - the loader decodes the section with the owner's type;
+   - a reference must name a declared key of the required kind, and that now includes items and
+     organizations.
+7. **Genesis order.** Passages and locations are seeded first, unchanged. Then sections are seeded:
+   items', organizations', places', people's, each in key order, and within one file in composition
+   order. What people's and places' sections are likely to refer to (a kind, an organization) is
+   therefore seeded before them. The worlds that existed before this decision declare neither kind,
+   so their genesis is unchanged.
+
+**Accepted limitations.**
+
+- There are no item instances (item 3).
+- Items and organizations have no display names. `naming` carries people only, and a place has none
+  either (`ARC-31`).
+- No installed System Pack owns a section on an item or organization file yet. The first owners
+  arrive with the packs that need them (step-10 PR 11d). Until then, the order and reference rules of
+  items 5–7 are proven with a section owner that exists only in the loader's own tests.
+- Organization membership, roles and accounts (`CORE_CONCEPTS.md` §8) are not authored fields. They
+  are the state of whichever System Pack owns them, carried as its section.
+
+---
+
+## ARC-37 — Owning and giving: kinds, holdings, give, and what a person can carry
+
+**Date** 2026-10-07 · **Approved by** the primary session at 11d's design freeze (step-10 §4.4.0;
+QS-27 operator-visible, QS-28 … QS-34, QS-36, QS-37 accepted) · **Implements**
+[`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §§6.3, 7, 13.1, [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 ·
+**Relates to** `INV-7`, `INV-10`, `INV-13`, `ARC-23`, `ARC-26`, `ARC-28`, `ARC-31`, `ARC-34`, `ARC-35`,
+`ARC-36`, [`MVP.md`](MVP.md) §9 `AC-1`, `AC-2` · **Design**
+`.structured-coding/plans/mvp0/step-10-market.md` §2.6, SD-13, SD-16 … SD-21, §4.4 (S9, PR 11d)
+
+**Problem.** Market Town begins with people who own things and give them to each other. Three
+questions decide whether that can be done as installed System Packs without breaking single ownership
+(`CLAUDE.md` §4 rule 1):
+1. Who owns what an item kind *is*, and who owns how many of each kind somebody holds.
+2. How a pack that decides a give — and later a purchase or a shift's production — changes holdings
+   it does not own.
+3. How a world whose people only give, and never use anything up, stays alive. Nothing in MVP-0 eats,
+   drinks or sleeps (step-10 QS-10).
+
+The R-S9-1 spike (step-10 §9 E-4) answered the third with a measurement. Social Café has one person
+whom no seat names, Otto, and no controller consults him. He is given to and never gives, so he is an
+**absorbing sink**. With no bound, he held 31 of the town's 33 items by day 30, and gives fell from
+739 in days 1–15 to 312 in days 16–30.
+
+**Options considered, for the sink.**
+
+```text
+(a) a person carries at most N items, all kinds    a pack rule in inventory; the sink becomes finite.
+    together                                       Chosen
+(b) consent: the taker must accept a pending give  a process and a second action; an undriven person
+                                                   never accepts, so it also works, at about twice the
+                                                   code and with offers nobody headless can answer
+(c) give only to people a controller drives        impossible: a world does not know who is driven
+                                                   (INV-1)
+(d) content only                                   nothing in content stops a person receiving
+(e) retune the paced controller                    forbidden: its offer band was frozen before the
+                                                   market existed (ARC-34, ARC-35 item 6, I-9)
+```
+
+**Choice.**
+
+1. **`item` owns what a kind is.** It owns `ItemKind { category }` on Item entities, from the `item:`
+   section of an item file, `{ category: <slug> }`. A category is 1–32 bytes of `a–z`, `0–9` and `-`,
+   neither beginning nor ending with `-`, its own type, refused at its line and column. It states the
+   public genesis fact `item-kind-declared { item, category }` and alone reduces it. It provides no
+   action, runs no process, depends on nothing, discloses nothing and has nothing biographical.
+   `is_declared(world, item)` is the question other packs ask. An item file with no `item:` section is
+   an inert entity that no pack trades (`ARC-36`).
+2. **`inventory` owns holdings, and only it writes them.** It owns `Holdings` on Persons and
+   Organizations: a list of `{ item, count }` sorted by item, with no zero entries. It is a list and not
+   a map keyed by item because an `ItemId` serializes as `{ entity, type }`, which cannot be a JSON
+   object key, and payloads, observations and snapshots are JSON (`DEP-5`). The `holdings:` section of
+   a person or organization file, `{ <item key>: <count ≥ 1> }`, names Items. Its facts are `stocked {
+   holder, item, count }` (genesis, visible to the holder) and `items-transferred { from, to, item,
+   count }` (visible to its two participants). It depends on `item`. It discloses a holder's
+   `Holdings` to that holder only (`INV-13`). Nothing it states is biographical: eighteen thousand
+   gives in 300 days would bury a biography, and owning a coffee is not an event in a life.
+3. **The owner decides, three times, through one function (`ARC-26`).** `admit_transfer(world, from,
+   to, item, count)` is the whole of what `Holdings` refuses about a transfer:
+   - the count is at least one;
+   - `from` and `to` differ;
+   - both are living Persons or Organizations;
+   - `item` is a declared kind;
+   - `from` holds at least `count`;
+   - `to` can take `count` (item 5).
+
+   It is asked by a deciding pack's `validate`, by the checked constructor `transfer(world, from, to,
+   item, count)`, and again by inventory's own reduction. On refusal the reduction writes nothing and
+   fails with `KernelError::FactRefusedByOwner`. A `stocked` fact is checked at reduction the same way
+   (a living holder, a declared kind, a count of at least one, within capacity).
+4. **Seeding is checked in two halves, because the source forces it** (step-10 F-37). Every genesis
+   fact of a World Pack is computed before any is reduced, so a section is seeded against a world with
+   no state yet, and inventory's seed cannot ask whether `item` has declared a kind. The seed checks
+   what it can — each key names an Item, each count is at least one, a person's total is within
+   capacity — and the reduction checks the declared kind. That reduction follows `item-kind-declared`
+   in genesis order, because items' sections are seeded before people's and organizations' (`ARC-36`
+   item 7).
+5. **A person carries at most `PERSON_CAPACITY = 6` items, all kinds together; an organization is not
+   bounded.** This is inventory's rule. A transfer that would take a person past it is refused
+   `TargetUnavailable`, by the constructor and the reduction alike. A person's authored holdings past
+   it are refused at genesis, naming the file. `can_take(world, holder, count)` answers the question
+   for an offer. In the spike, with this bound, every seat gave in every 30-day bucket over 300 days
+   (at least 118 times each), and Otto ended holding exactly six. The bound also limits observation
+   size (step-10 R-S9-2): a person holds at most six kinds, so at most six `give` offers per person
+   nearby.
+6. **`item-transfer` provides `give { item, count }`, targeting a Person, and owns nothing.** The
+   requirement is the same place, within 3 000 mm, and an available target. To an observer who holds
+   something, and for each *other* living Person present, it offers **one complete affordance per kind
+   held, count 1**, in item order (`ARC-34`). The target is available when it can take one more. It
+   never offers a give to the observer itself: perception asks a provider about every person present,
+   the observer included (step-10 F-40). `validate` reads the payload, requires a living Person actor
+   and a different living Person target (`NoSupportedInteraction` otherwise), evaluates the
+   requirement against presence's positions, then asks `admit_transfer`. `resolve` states inventory's
+   `items-transferred` through `transfer` and nothing else. It depends on `inventory` and `presence`.
+   Disabled, `give` is answered `Unavailable`, is offered nowhere, and holdings never change (`INV-10`,
+   `AC-2`).
+
+The resulting dependencies, one way:
+
+```text
+item ◄── inventory ◄── item-transfer ──► presence
+```
+
+**Accepted limitations.**
+- **Nothing is consumed.** Gives conserve items, so 11d's flow stays alive under the bound. Purchases
+  in step-10 PR 11e move items from shops to people, and with a bound of six per person buying would
+  stop once everyone is full. The operator decided on 2026-10-07 (step-10 QS-35) that 11e adds a
+  consumption System Pack, which removes items through inventory's checked constructor. Inventory
+  stays the only writer of holdings.
+- **Item kinds have no names, and items are never perceived.** An observation lists the observer's
+  place and the people in it, so `ItemKind` is disclosed to no one. A client shown `give { item:
+  { entity: 21, type: item } }` cannot name the item (step-10 F-41, recorded for S12).
+- **No item instances** (`ARC-36` item 3).
+- **Organizations are unbounded.** A shop's stock is content; a limit would be a later pack's rule.
+- **`items-produced` does not exist yet.** It arrives in 11e with its first stater, `employment`
+  (step-10 QS-28). Adding a fact before anything states it would design it ahead of its consumer
+  (`CLAUDE.md` §4 rule 11).
+- **The capacity is a published constant**, not world configuration, under the `ARC-26` note's rule.
+
+---
+
+## ARC-38 — Work, money, shops and consumption: who owns each, and how the loop is kept alive
+
+**Date** 2026-10-07 · **Approved by** the primary session at 11e's design freeze (step-10 §4.5.0;
+QS-39, QS-45 and QS-47 operator-material, accepted as designed; QS-40 … QS-44, QS-46, QS-48 … QS-53
+accepted as recommended); the consumption pack itself by the operator (step-10 QS-35, 2026-10-07) ·
+**Implements** [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §§8, 10, 13.1,
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1, [`MVP.md`](MVP.md) §§3, 5 · **Relates to** `INV-7`, `INV-10`,
+`INV-13`, `ARC-23`, `ARC-26`, `ARC-28`, `ARC-29`, `ARC-31`, `ARC-32`, `ARC-34`, `ARC-35`, `ARC-36`,
+`ARC-37`, [`MVP.md`](MVP.md) §9 `AC-1`, `AC-2` · **Design**
+`.structured-coding/plans/mvp0/step-10-market.md` §2.6, SD-13, SD-22 … SD-28, §4.5 (S9, PR 11e)
+
+**Problem.** Market Town's people own and give things (`ARC-37`). The second half of the measured
+transformation (`ARC-35` item 1) adds work, money, shops and the using-up of things, as installed
+System Packs only. Five questions decide whether that keeps single ownership (`CLAUDE.md` §4 rule 1)
+and a living market:
+1. Who moves money, when a shift that one pack decides was worked must pay a person from an
+   organization's funds.
+2. How items come into existence and leave it, when only `inventory` writes holdings.
+3. How work is noticed, when no controller knows that work exists.
+4. How a shop is authored, when a System Pack owns at most one section.
+5. Whether the money and item loops stay alive for the measured 300 days, and what is changed if
+   they do not.
+
+**Options considered.**
+
+```text
+closing the item loop  (a) shops buy goods back            declined by the operator (QS-35)
+                       (b) a consumption pack              chosen by the operator (QS-35)
+                       (c) relax CP-4's purchase criterion declined (QS-35)
+production and use     (a) facts in the stating packs'     inventory would reduce another pack's
+                           vocabularies, reduced by           vocabulary (against ARC-26 item 1)
+                           inventory under ARC-28
+                       (b) inventory's own facts,          chosen (QS-42)
+                           stated through checked
+                           constructors (ARC-26)
+attendance             (a) polling presence at a fixed     wakes the whole town for one fact; worked
+                           interval                         time only as fine as the interval
+                       (b) presence at the shift's start,  chosen: exact, no polling; presence's
+                           then presence's                 person-entered-place carries `from`
+                           person-entered-place between      (step-10 F-49)
+                           wakes (ARC-28: reacting into
+                           employment's own state)
+authoring a shop       (a) a `shop:` section on the place  a second section for economy; a pack owns
+                                                           one (step-10 F-47) — a framework change
+                                                           justified only by the market (I-2)
+                       (b) on its operator organization,   chosen (QS-43); no place file changes
+                           inside economy's one section
+a drained market       (a) retune the paced controller     forbidden (ARC-34, ARC-35 item 6, I-9)
+                       (b) size content against a          chosen
+                           criterion stated before
+                           measuring
+```
+
+**Choice.**
+
+1. **`inventory` gains the two facts that create and remove items** (QS-41, QS-42). `items-produced {
+   holder, item, count }` and `items-consumed { holder, item, count }` are inventory's vocabulary,
+   reduced by inventory alone, visible to the holder. Their checked constructors `produce` and
+   `consume` ask `admit_production` (a living holder, a count of at least one, a declared kind, and
+   `can_take` — production into a person respects the capacity of six) and `admit_consumption` (a
+   living holder, a count of at least one, a declared kind, at least `count` held). The reduction asks
+   the same function again and, on refusal, writes nothing and fails `FactRefusedByOwner` (`ARC-26`,
+   `ARC-37` item 3). The fact names say what happened to holdings, not why; the stater is the cause.
+2. **`employment` owns jobs, the `employed-by` edge and the `shift` Process; work is attendance**
+   (QS-8). Its section `job:` on a person file is `{ employer: <organization key>, workplace: <place
+   key>, from: "HH:MM", until: "HH:MM", wage: <minor units per hour>, produces: { <item key>: <count
+   per full shift ≥ 1> } }`. `from < until`: a shift lies within one day (QS-50). Times are schedule's
+   `TimeOfDay`, a Cargo dependency on its type only, so the town has one time-of-day convention
+   (`ARC-32`).
+   - The genesis fact `hired { employee, job }` gives the person `Employment`, the `employed-by` edge
+     (Person → Organization) and one `shift` Process, woken at each next `from` and `until`.
+   - At `from` the wake states `shift-started { employee, present }`, where `present` is presence's
+     answer: is the employee at the workplace.
+   - Between wakes employment reacts to presence's `person-entered-place` for an employee on shift.
+     Entering the workplace starts a present span; entering anywhere else *from* the workplace closes
+     it into the worked seconds. That is employment writing its own state by reacting (`ARC-28`).
+   - At `until` the wake states `shift-ended { employee, worked }`, then, when `worked > 0`,
+     `wage-due { employee, employer, amount = wage × worked ÷ 3 600 }` and, per produced kind,
+     inventory's `items-produced` for the employer with `count = per_shift × worked ÷ shift length`
+     (integer floor, skipped at 0), through `produce`.
+   - It depends on `inventory` (it states inventory's fact) and `presence` (it reads positions and hears
+     arrivals). It discloses `Employment` to the employee only. `hired` is biographical (QS-49):
+     shifts, wages, purchases and meals are thousands of facts that would bury a biography.
+   - **It never reads or writes a `Wallet`.** It has no write token for one (`INV-7`), and its
+     manifest does not name economy.
+3. **`economy` owns `Wallet` and `Shop`, and is the only mover of money.**
+   - Its one section, `economy:`, on person and organization files: `{ wallet: <minor units> }`, and on
+     an organization optionally `shop: { at: <place key>, prices: { <item key>: <price ≥ 1> } }`
+     (QS-43). The genesis facts `funded { holder, balance }` (visible to the holder) and `shop-opened {
+     place, operator, prices }` (public) become `Wallet { balance: u64 }` on the holder and `Shop {
+     operator, prices }` on the place. `u64` minor units: no floating point and no negative balance
+     can be represented (I-6).
+   - `money-transferred { from, to, amount }` is the one fact that moves money. Its reduction refuses
+     an amount larger than the payer holds, a zero amount, a payer who is the payee, or a party that is
+     not a living Person or Organization — `FactRefusedByOwner`, writing nothing.
+   - **`buy { item }`** has no target. Its requirement is `at_place(shop)` with an available target,
+     because a target-less offer can only say "at that place" (step-10 F-48). It is offered to a
+     living person standing in a shop's place as **one complete affordance per priced kind**
+     (`ARC-34`): available when the operator holds one (`admit_transfer`), the buyer can pay and the
+     buyer can carry it; otherwise unavailable with `TargetUnavailable`, the one reason an offer can
+     carry (QS-44). `validate` asks the same through `SpatialRequirement::evaluate`; a buyer who is not
+     in a shop, or a kind the shop does not price, is `NoSupportedInteraction`. `resolve` states
+     `money-transferred` (buyer → operator, visible in the shop's place, QS-45) and inventory's
+     `items-transferred` (operator → buyer) through `transfer`.
+   - **Wages.** Economy subscribes to employment's `wage-due`, decoding it through employment's
+     published type — a Cargo dependency, **no system dependency** (`ARC-28`). It answers with
+     `money-transferred` (employer → employee) caused by the `wage-due`, or, when the employer cannot
+     pay, `wage-unpaid { employee, employer, amount }`. This is `CORE_CONCEPTS.md` §13.1's example,
+     implemented literally.
+   - It depends on `inventory` (it states `items-transferred`, and reads the operator's stock) and
+     `presence`. It discloses a `Wallet` to its holder, and to everyone perceiving a shop's place the
+     shop's **listing**: the operator, and per priced kind its price and how many the operator holds
+     (QS-45). That count is read from inventory's state, which economy may read because it depends on
+     inventory; it never writes it. Inventory itself still discloses holdings to the holder only. The
+     listing is how a second client perceives a purchase (step-10 CP-7) without anybody's holdings being
+     disclosed. Nothing economy states is biographical.
+4. **`consumption` provides `eat { item }` and `drink { item }`, and owns nothing** (QS-35, QS-39).
+   A held kind whose `ItemKind` category is `food` is eaten and one of category `drink` is drunk
+   (published constants `EATEN` and `DRUNK`); goods are never consumed. There is no spatial
+   requirement: a person eats what they carry, wherever they are (QS-40). It offers a living person one
+   complete affordance per edible or drinkable kind held, without a target, in item order. `validate`:
+   the payload, a living Person actor, no target, the action matching the kind's category
+   (`NoSupportedInteraction` otherwise), then `admit_consumption(actor, item, 1)`. `resolve` states
+   inventory's `items-consumed` through `consume` and nothing else. It depends on `inventory` (system
+   and Cargo) and reads `item`'s `ItemKind` (Cargo). It closes `MVP.md` §5's `eat` as an interaction
+   and adds `drink`, without which drinks would fill hands (step-10 F-50).
+5. **Shops sell consumables only, and their stock is produced by the shift** (QS-48). Goods keep
+   circulating by `give` (`ARC-37`); a bought good would occupy one of a person's six places for
+   good. The item loop is then produce → buy → give → eat or drink.
+6. **The loop is sized in content, against a criterion stated before measuring** (`ARC-23`, I-7, I-9).
+   Endowments, prices, wages, production and opening stock are World Pack content. They are fixed by a
+   300-day seed-7 run of Market Town read from its save, against conditions written down before the
+   first run (step-10 §4.5.3 E-9 b): in every 30-day bucket a purchase, a wage paid to each job holder,
+   an item produced, an item eaten or drunk, and a give; zero `wage-unpaid`; no wallet ever below the
+   cheapest price in the town; money conserved; nobody holding more than six. A run that fails is
+   recorded and the content or the packs are changed, never the controller.
+
+The resulting dependencies, one way:
+
+```text
+item ◄── inventory ◄── item-transfer ──► presence
+            ▲  ▲  ▲
+            │  │  └──── consumption ┄┄► item           (┄┄ Cargo only: ItemKind)
+            │  └─────── economy ──► presence
+            │              ┆
+            │              ┆ subscribes to wage-due: Cargo dependency on employment's type, no system
+            │              ┆ dependency (ARC-28)
+            └────────── employment ──► presence
+```
+
+**Accepted limitations.**
+- **A bounded-horizon economy, not a closed one** (QS-47; living-world gap **L-13**). Two people hold
+  jobs (MVP §3, QS-46). The other people have no income and live on an endowment sized for the
+  measured 300 days; past that horizon they run out. Closing the loop — more jobs, or income without
+  one — is a later step's work, not a retuning of this one. A market that balances itself over years
+  is outside S9 (step-10 §1.2, R-S9-3).
+- **No hunger, appetite or sleep.** Consumption is an interaction, not a need: people eat because they
+  are offered food, at the paced controller's rate. A needs pack is later work (step-10 QS-10).
+- **One reason for an unavailable buy.** Out of stock, cannot pay and cannot carry all read
+  `TargetUnavailable`, in the offer and at dispatch, because an offer carries one pack-supplied verdict
+  (step-10 F-48). Finer reasons wait for a contract that lets an offer carry one.
+- **Shifts lie within one day**: `from < until`, no shift across midnight (QS-50).
+- **No hiring, firing, promotion, business ownership or buying back** (step-10 §1.2, QS-35).
+- **Item kinds and organizations still have no names** (step-10 F-41): a listing names kinds by id.
+- **Prices, wages and endowments are content, not System Pack configuration** — they are values a
+  world states, as `ARC-26`'s note says of constants that are not yet configuration.
+- **A pack owns one section** (F-47): economy's shop is authored on its operator. The limit is worked
+  within, not changed; lifting it would be framework work justified only by the market.

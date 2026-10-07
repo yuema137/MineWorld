@@ -1,0 +1,28 @@
+# Carol — at home in the apartments' hall, by the stairs.
+
+name: Carol Mensah
+
+# Her day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
+# the restart tests, explained in alice.yaml and checked by those tests.
+routine:
+  - { from: "07:00", place: store, label: shopping }
+  - { from: "12:00", place: cafe, label: lunch }
+  - { from: "16:00", place: apartments, label: home }
+
+tags:
+  - resident
+
+note: Lives in the apartments. Knows everybody on the stairs by sight.
+
+location:
+  place: apartments
+  position:
+    x: 3000
+    y: 2500
+
+# Market Town: what she carries at the start (inventory's `holdings`, ARC-37; see alice.yaml).
+holdings: { book: 1, pen: 1, tea: 1 }
+
+# Market Town: her money (economy's section, ARC-38; see alice.yaml). No job: an endowment for the
+# measured horizon (ARC-38, L-13).
+economy: { wallet: 200000 }

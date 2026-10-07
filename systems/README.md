@@ -12,10 +12,17 @@ group-activity/  inviting, answering, joining and leaving something done togethe
 relationships/   who knows whom, and how well — changed only by reacting to the others' facts
 naming/          what people are called, from a person file's `name:` section
 schedule/        a person's day, from their `routine:` section — an agenda kept by a Process
+item/            what kinds of things exist, from an item file's `item:` section
+inventory/       who holds how many of each kind — the only writer of holdings, with a person's capacity
+item-transfer/   `give`: offered complete for each kind held; states inventory's fact, owns nothing
+employment/      jobs from a person's `job:` section; a shift is a Process, work is being there; wage-due
+economy/         wallets and shops from the `economy:` section, `buy`, and wages — the only mover of money
+consumption/     `eat` food and `drink` drinks a person carries; states inventory's fact, owns nothing
 ```
 
-All seven are real packs, not examples: they are what the vertical slice runs on. The first three are
-also the
+All thirteen are real packs, not examples. The first seven are what the vertical slice runs on; the
+last six are Market Town ([`DECISIONS.md` `ARC-37`, `ARC-38`](../docs/DECISIONS.md)). The first
+three are also the
 worked example every later pack copies, so they are written to be read in this order —
 `src/lib.rs` first, then the action, the event, the component, and `src/system.rs` last.
 
@@ -48,6 +55,25 @@ A pack that would need an edit to `systems/presence/` in order to be playable ha
 correctly. That is the difference between a framework and a hardcoded game, and
 [`presence/src/interaction.rs`](presence/src/interaction.rs) is where it is documented in full.
 
+## Adding a pack
+
+A pack is a crate in its own directory here. It implements `System`, `PerceptionProvider` and
+`mineworld_sdk::SystemPack` — the last says, once, what the build needs to know about it (see
+[`../sdk/rust/README.md`](../sdk/rust/README.md)). It depends on a sibling pack by path:
+`mineworld-presence = { path = "../presence" }`.
+
+Then install it into the build with two lines in [`installed/`](installed/), and rebuild:
+
+```text
+installed/Cargo.toml    mineworld-<name> = { path = "../<name>" }
+installed/src/lib.rs    <Variant> => mineworld_<name>::<System>,
+```
+
+Nothing else is edited — not the root `Cargo.toml`, not the World Pack loader. A world uses the pack
+by naming it in its `systems:` list. Installing always means a rebuild in MVP-0; the full rules are
+[`../docs/MODULE_SPEC.md`](../docs/MODULE_SPEC.md) §3.1 and
+[`DECISIONS.md` `ARC-33`](../docs/DECISIONS.md).
+
 ```sh
 cargo test -p mineworld-presence
 cargo test -p mineworld-movement          # walking, TooFarAway, and AC-2 with its negative control
@@ -56,6 +82,12 @@ cargo test -p mineworld-group-activity    # invitations, and an activity that is
 cargo test -p mineworld-relationships     # values changed only by other packs' facts
 cargo test -p mineworld-naming            # a name, seeded from a pack file, disclosed to perceivers
 cargo test -p mineworld-schedule          # a day kept by a Process that moves nobody
+cargo test -p mineworld-item              # a kind declared from an item file's section
+cargo test -p mineworld-inventory         # holdings, refused facts, capacity, a restart
+cargo test -p mineworld-item-transfer     # give through the unchanged controller, and AC-2
+cargo test -p mineworld-employment        # shifts paid for the time present, and a restart mid-shift
+cargo test -p mineworld-economy           # buy through the unchanged controller, wages, AC-2 both ways
+cargo test -p mineworld-consumption       # eat food, drink drinks, never goods, and AC-2
 cargo doc -p mineworld-conversation --open
 ```
 

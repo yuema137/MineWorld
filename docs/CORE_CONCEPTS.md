@@ -405,6 +405,9 @@ Not every world needs individual instances. A system may support unique items, s
 or abstract resources. This is what prevents a world from being forced to instantiate millions
 of forks, plates, and coins.
 
+In MVP-0, an Item authored in a World Pack is an item kind, and what anybody holds of it is a count
+of that kind: stacked items only ([`DECISIONS.md`](DECISIONS.md) `ARC-36`).
+
 ---
 
 # 8. Organization
@@ -773,6 +776,7 @@ Affordance
     available             whether it can be attempted right now
     unavailable_reason    why not, when it cannot
     requirement           the action's SpatialRequirement (§6.2), unevaluated
+    payload               the complete request, when the offering system can state one
 ```
 
 The server computes it; a client renders it. Three consequences follow, and all three are
@@ -788,6 +792,16 @@ contracts rather than conventions:
 3. **The requirement travels unevaluated.** A client can show what an action needs — a reach, a
    place — without checking it. Checking remains the server's, in one implementation shared by
    every client (§6.2).
+
+An Affordance that carries a `payload` is a **complete affordance**: the owning System has stated
+the exact request it would accept, so a requester — a Controller or a client — may submit it
+unchanged, labelled with the Affordance's own action type and target, without knowing the action's
+payload shape. Only the owning System makes an offer complete, and the payload cannot be attached
+to an offer of another action type. The server still validates whatever is submitted, and a
+Controller that submits a complete affordance has not created an interaction: it has attempted one
+the world offered, and a world without the owning System offers none (INV-10). An action whose
+payload is free-form — an utterance, a position — cannot be offered complete and is attempted by a
+requester that knows it by name ([`DECISIONS.md`](DECISIONS.md) `ARC-34`).
 
 ---
 
