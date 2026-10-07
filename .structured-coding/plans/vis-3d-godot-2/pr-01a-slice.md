@@ -284,8 +284,9 @@ crossing   when the body enters the other place's slice volume, report it there 
            movement system decides whether the door may be crossed
 authority  the body is put where the first observation says, and again after any refused move
            (reconcile, never argue or retry)
-places     the observer's place is learned from its tag; the other place from --places, which the
-           launcher reads from `mineworld validate`'s identity table
+places     the observer's place is learned from its tag; the place its door opens onto, and the
+           doorway on both sides, from the `passages` component S7 discloses on that place
+           (superseded the --places= stopgap, 2026-10-06; see the end of this section)
 ```
 
 **Spatial binding — re-decided, because the server now rules on the doorway.** `places/cafe.yaml`
@@ -314,6 +315,22 @@ the CLI's test names that table "what an author checks before writing a client t
 them". That is a stopgap. The proposed fix is in `systems/movement`, not here: disclose the
 observer's place's `Passages` (destination identity and doorway) in its observation, so a client
 learns where a door leads from the world.
+
+**Resolved by S7 (`main` `4f4cb1d`), 2026-10-06; stopgap retired.** Movement now discloses the
+`passages` component on the place the observer is in:
+`{ leads_to: [ { to: { entity, entity_type }, here: {x,y,z}, there: {x,y,z} } ] }`. The slice reads
+it through `MineWorldObservation.component(place, "passages")` and learns from it the identity of
+the place the café's door opens onto, and the doorway in both frames. That replaces **both** the
+`--places=` flag (removed from `mineworld-slice` and `slice_link.gd`) **and** the doorway
+coordinates this section had quoted from `places/cafe.yaml`: the binding is now made from the
+world's disclosure, and nothing about the pack is copied into the client. A place whose doorway the
+world has not disclosed is not drawn and not reported in. The geometry mismatch above is unchanged
+and routed to S8.
+
+Evidence, `./mineworld-slice --world --link` with no `--places=`: places learned
+`{cafe: "1", street: "2"}`; body placed at the world's (4600, 200); café → street → café on foot;
+50 moves, 50 accepted, 0 refused; the two crossings stated two facts each; last report (4986, 1138)
+= the server's view.
 
 **Evidence** — `./mineworld-slice --world --link`, headless, against `mineworld server
 worlds/social-cafe`, the real controller walking and jogging, never placed:

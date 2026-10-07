@@ -12,9 +12,7 @@
 #
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
-#   ./mineworld-slice --server=host:port [--seat=visitor] [--places=1:cafe,2:street]
-#                                     connect to a running world; --places is the
-#                                     id table `mineworld validate <pack>` prints
+#   ./mineworld-slice --server=host:port [--seat=visitor]   connect to a running world
 #
 # Needs Godot 4.7 on PATH (brew install godot). --world also needs cargo.
 #
@@ -76,13 +74,7 @@ if [ "$world" = "1" ]; then
   trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null' EXIT
   sleep 2
   args+=("--server=$address")
-  # Which identity each authoring key became, from the pack's own report. The
-  # client is shown the place it is in, never the one its door opens onto, so
-  # this is how it can name the street when it walks out (slice_link.gd).
-  places="$("$here/target/debug/mineworld" validate "$here/worlds/social-cafe" \
-    | sed -nE 's/^ +([0-9]+)  ([a-z_-]+)$/\1:\2/p' | paste -sd, -)"
-  args+=("--places=$places")
-  echo "world: worlds/social-cafe on $address (log: $log) places $places"
+  echo "world: worlds/social-cafe on $address (log: $log)"
 fi
 
 # The drive test needs physics, not pixels -- and macOS throttles an unfocused

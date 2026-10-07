@@ -39,25 +39,28 @@ const REPORT_HEIGHT := false
 
 ## THE SPATIAL BINDING -- where each of the world's places sits in this scene.
 ##
-## World Packs author no geometry; `worlds/social-cafe` states one doorway, which
-## `places/cafe.yaml` puts at `here` (5.0, 0.2) m in the café's frame and `there`
-## (0.0, 3.0) m in the street's. The world frame is fixed (+x east, +y north,
-## `CORE_CONCEPTS.md` sec.6.1), so a binding may only translate. Each place is
-## bound so that the pack's doorway lands on this slice's café door: the server
-## decides a crossing by distance to that doorway, so it is the one point the
-## binding must get right. Quoted here, from the pack, as data.
+## World Packs author no geometry, but the world states its doorways, and since
+## S7 the movement system DISCLOSES them: the observer's own place carries a
+## `passages` component listing, for each way out, the place it leads to and
+## the doorway's position on both sides. So this client learns from the world,
+## not from a copy of the pack: which place the café's door opens onto (the
+## place the slice draws as the street), and where that door is in each
+## place's frame. Nothing about the pack is quoted here.
 ##
-## The consequence is recorded rather than hidden: the pack's café is authored
-## with its door EAST of everybody in it (x 5.0 against people at x 1.2-4.6),
-## and the slice's door is at the café's WEST end, as `03` draws it. No
-## translation satisfies both, so with the door aligned, `alice` and `bob` are
-## drawn 0.3-0.5 m west of the café's west wall. The resolution is a World Pack
-## decision (author the pack's café from the slice, or the reverse), not this
-## file's -- see the design sec.7b.
-const PACK_DOOR := {
-	"cafe": Vector2(5.0, 0.2),
-	"street": Vector2(0.0, 3.0),
-}
+## The world frame is fixed (+x east, +y north, `CORE_CONCEPTS.md` sec.6.1), so a
+## binding may only translate. Each place is bound so that its disclosed doorway
+## lands on this slice's café door: the server decides a crossing by distance to
+## that doorway, so it is the one point the binding must get right.
+##
+## The consequence is recorded rather than hidden: `social-cafe` has its café
+## door EAST of everybody in it, and the slice's door is at the café's WEST end,
+## as `03` draws it. With the door aligned, `alice` and `bob` are drawn 0.3-0.5 m
+## west of the café's west wall. Routed to S8, which may re-author the pack's
+## positions to this layout (design sec.7b).
+##
+## The two keys the slice draws. A place's key is learned from its tag (the
+## world's data), and the street's also from being where the café's door leads.
+const KEYS := ["cafe", "street"]
 ## The slice's own place volumes (`SliceWorld`) -> the pack's authoring keys,
 ## which the world also carries as each place's tag.
 ## The florist (`VISUAL_SLICE.md` sec.4.1) is a room the world does not model:
@@ -83,11 +86,33 @@ static func door_point(key: String) -> Vector3:
 	return Vector3(x, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE + 0.2)
 
 
-## A place's origin in this scene: the point the pack's (0, 0) lands on.
-static func origin(key: String) -> Vector3:
-	var door: Vector2 = PACK_DOOR[key]
-	var d := MineWorldSpace.to_3d({ "x": int(door.x * 1000.0), "y": int(door.y * 1000.0), "z": 0 })
+## A place's origin in this scene: where its frame's (0, 0) lands, given the
+## doorway the world disclosed for it.
+func origin(key: String) -> Vector3:
+	var d := MineWorldSpace.to_3d(doorway[key])
 	return door_point(key) - Vector3(d.x, 0.0, d.z)
+
+
+## Read the passages the world disclosed on the place the observer is in. The
+## café's one passage names the street and both sides of the door; standing in
+## the street, the street's names the café. Read, never computed: the frame is
+## the world's (`MineWorldObservation.component`).
+func _learn_passages(obs: MineWorldObservation, place: String, key: String) -> void:
+	var leads: Variant = obs.component(place, "passages").get("leads_to", [])
+	if typeof(leads) != TYPE_ARRAY:
+		return
+	for p in leads:
+		if typeof(p) != TYPE_DICTIONARY or typeof(p.get("to")) != TYPE_DICTIONARY:
+			continue
+		var to := String(p["to"].get("entity", ""))
+		var other := "street" if key == "cafe" else "cafe"
+		if to == "" or (place_ids.has(other) and place_ids[other] != to):
+			continue
+		place_ids[other] = to
+		if typeof(p.get("here")) == TYPE_DICTIONARY:
+			doorway[key] = p["here"]
+		if typeof(p.get("there")) == TYPE_DICTIONARY:
+			doorway[other] = p["there"]
 
 
 signal said(text: String)
@@ -96,7 +121,10 @@ var client: MineWorldClient
 var player: SlicePlayer
 var world_root: Node3D
 
-var place_ids := {}                ## pack key -> the place's identity, as the world named it
+var place_ids := {}                ## key -> the place's identity, as the world named it
+## key -> the doorway between café and street in that place's frame, as the
+## world disclosed it (world millimetres, exactly as received)
+var doorway := {}
 var cafe_place := ""               ## the café's identity, once known
 var here_key := ""                 ## the pack key of the place the world last put the body in
 var figures := {}                  ## EntityId string -> the figure drawn for it
@@ -127,26 +155,7 @@ static func seat_from_args() -> String:
 	return "visitor"
 
 
-## `--places=1:cafe,2:street`: which identity each authoring key became. The
-## world's own `mineworld validate` prints exactly this table, and the launcher
-## reads it from there -- "what an author checks before writing a client that
-## refers to them" (`tools/cli/tests/commands.rs`). A place the observer is IN
-## is also learned from its tag; a place it is not in is never disclosed, which
-## is why a door cannot be crossed without this. See the design sec.7b.
-static func places_from_args() -> Dictionary:
-	var out := {}
-	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--places="):
-			for pair in a.substr(9).split(",", false):
-				var kv := pair.split(":")
-				if kv.size() == 2:
-					out[kv[1]] = kv[0]      # identities stay strings (ADOPTION.md sec.3.1)
-	return out
-
-
 func start(address: String, seat: String) -> void:
-	place_ids = places_from_args()
-	cafe_place = place_ids.get("cafe", "")
 	client = MineWorldClient.new()
 	client.name = "MineWorldClient"
 	add_child(client)
@@ -185,17 +194,21 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	# learn the place's key from its tag, which is world data
 	if key_of(place) == "":
 		for tag in obs.entity(place).get("tags", []):
-			if PACK_DOOR.has(String(tag)):
+			if KEYS.has(String(tag)):
 				place_ids[String(tag)] = place
+	var key := key_of(place)
+	if key != "":
+		_learn_passages(obs, place, key)
 	if place_ids.get("cafe", "") != "":
 		cafe_place = place_ids["cafe"]
-	var key := key_of(place)
 	if key != here_key:
 		if here_key != "":
 			place_changes.append([here_key, key])
 		_say("in place %s (%s)" % [place, key if key != "" else "not drawn by this slice"])
 		here_key = key
-	if key == "":
+	# Nothing can be drawn in a place whose doorway the world has not disclosed:
+	# the doorway is what binds its frame to this scene.
+	if key == "" or not doorway.has(key):
 		return
 
 	# The server is the authority on where the body is. On the first view, and
@@ -253,13 +266,13 @@ func _figure(id: String, obs: MineWorldObservation) -> Node3D:
 
 
 ## World millimetres in a place's frame -> a point in this scene.
-static func to_scene(key: String, local: Variant) -> Vector3:
+func to_scene(key: String, local: Variant) -> Vector3:
 	var p := MineWorldSpace.to_3d(local)
 	return origin(key) + Vector3(p.x, 0.0, p.z)
 
 
 ## A point in this scene -> world millimetres in a place's frame.
-static func to_world(key: String, p: Vector3) -> Dictionary:
+func to_world(key: String, p: Vector3) -> Dictionary:
 	var rel := p - origin(key)
 	if not REPORT_HEIGHT:
 		rel.y = 0.0
@@ -268,7 +281,7 @@ static func to_world(key: String, p: Vector3) -> Dictionary:
 
 func _physics_process(delta: float) -> void:
 	if client == null or not client.is_seated() or here_key == "" or player == null \
-			or _reconcile:
+			or _reconcile or not doorway.has(here_key):
 		return
 	_since += delta
 	# Which of the world's places the body is in, by this slice's volumes. In the
@@ -279,11 +292,10 @@ func _physics_process(delta: float) -> void:
 	if key != here_key:
 		# Across the threshold: report the body on the far side, now. Whether the
 		# door may be crossed is the movement system's answer, not this client's.
-		if not place_ids.has(key):
+		if not place_ids.has(key) or not doorway.has(key):
 			if not _unknown_said:
 				_unknown_said = true
-				_say("the world has not said which place this door opens onto (%s);"
-					% key + " start with --places= from `mineworld validate`")
+				_say("the world has disclosed no passage from here to %s; nothing to report" % key)
 			return
 		if _since >= REPORT_GAP:
 			report_position(key)
