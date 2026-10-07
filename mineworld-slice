@@ -9,6 +9,7 @@
 #   ./mineworld-slice --perf          frame cost at four viewpoints
 #   ./mineworld-slice --gi=<mode>     none | ssil | voxel | sdfgi  (default voxel)
 #   ./mineworld-slice --hud | --jumpshots | --doors    capture the controls, a jump, every door
+#   ./mineworld-slice --character     the character animates; every camera mode, as frames
 #
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
@@ -50,7 +51,7 @@ world=0
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
-    --shots|--drive|--measure|--threshold|--perf|--hud|--jumpshots|--doors|--link)
+    --shots|--drive|--measure|--threshold|--perf|--hud|--jumpshots|--doors|--link|--character)
                                            args+=("--slice-${a#--}") ;;
     --gi=*)                                args+=("$a") ;;
     --res=*)                               res="${a#--res=}" ;;

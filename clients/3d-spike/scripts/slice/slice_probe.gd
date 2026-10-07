@@ -8,6 +8,9 @@
 ##   --slice-measure    print measured dimensions against sec.3's ranges
 ##   --slice-threshold  the sec.7.1 indoor/outdoor measurement, at four points
 ##   --slice-perf       frame cost at four viewpoints, with draw calls
+##   --slice-character  the occupant animates (idle and walk, measured on its
+##                      bones) and every camera mode, standing and walking,
+##                      outdoors and in, as frames to inspect
 ##
 ## `--slice-drive` runs headless. The other three need pixels and run windowed.
 class_name SliceProbe
@@ -82,7 +85,8 @@ func _physics_process(delta: float) -> void:
 static func scripted() -> bool:
 	var a := OS.get_cmdline_user_args()
 	for m in ["--slice-shots", "--slice-drive", "--slice-measure", "--slice-threshold",
-			"--slice-perf", "--slice-hud", "--slice-jumpshots", "--slice-doors", "--slice-link"]:
+			"--slice-perf", "--slice-hud", "--slice-jumpshots", "--slice-doors", "--slice-link",
+			"--slice-character"]:
 		if m in a:
 			return true
 	return false
@@ -102,7 +106,7 @@ func _ready() -> void:
 	Engine.max_fps = 0
 	OS.low_processor_usage_mode = false
 	for m in ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors",
-			"link"]:
+			"link", "character"]:
 		if "--slice-" + m in a:
 			_mode = m
 	DirAccess.make_dir_recursive_absolute(OUT)
@@ -125,6 +129,7 @@ func _process(_d: float) -> void:
 		"jumpshots": await _jump_frames()
 		"doors": await _door_frames()
 		"link": await _link_check()
+		"character": await _character_check()
 	get_tree().quit(0)
 
 
@@ -449,6 +454,157 @@ func _jump_frames() -> void:
 		if _phys_t > 0.1 and player.is_on_floor():
 			break
 	Engine.time_scale = 1.0
+
+
+# --- the character in the slice ------------------------------------------------
+
+## Thresholds from the claim, not from the character (`ARC-23` rule 2): an idle
+## that is a held pose moves no bone at all, and a walk swings a foot through
+## a stride of tens of centimetres. 3 mm and 15 cm separate those cleanly.
+const IDLE_MIN_M := 0.003
+const WALK_MIN_M := 0.15
+
+## Where the integration frames are taken: the open pavement west of the café,
+## between the trees at x -20.5 and -12.5 and on the frontage side of the bench,
+## and the café's own floor, on the loop `--drive` walks.
+const CHAR_SPOTS := [
+	["street", Vector3(-19.0, 0.45, -6.40), -90.0],
+	["interior", Vector3(3.54, 0.60, -10.30), -90.0],
+]
+
+
+## Does the occupant animate in the slice, and does every camera mode draw it
+## and the scene without torn or missing geometry? The first is measured on the
+## occupant's bones. This is a probe, so it may look at the skeleton; the
+## environment never does (`character_slot.gd`). The skeleton is found by type
+## and the bone that moved most is named, so the number is shown to come from a
+## limb and not from a root that slid (`ARC-23`).
+func _character_check() -> void:
+	print("== the reference character in the slice ==\n")
+	print("character slot: %s" % player.slot.describe())
+	var fails := 0
+	var skel := _occupant_skeleton()
+	if skel == null:
+		print("FAIL: no Skeleton3D under the slot's occupant")
+		return
+	print("skeleton %s, %d bones" % [skel.get_path(), skel.get_bone_count()])
+	player.place(CHAR_SPOTS[0][1], CHAR_SPOTS[0][2], 0.0)
+	player.set_camera(REAR)
+	await _settle(12)
+	await _hold(0.5)
+	# 4.5 s: longer than one breath of human.gd's standing loop (4.2 s), so a
+	# breath is inside the window whatever phase the sample starts at
+	# Two consecutive windows: a one-off settle after the body was placed moves
+	# bones in the first only; a looping idle moves them in both.
+	for w in ["first", "second"]:
+		var idle := await _bone_excursion(skel, 4.5, false)
+		print("idle   %s 4.5 s standing: largest bone excursion %.4f m (%s)"
+			% [w, idle[0], idle[1]])
+		fails += _range("idle animates, %s window (m)" % w, idle[0], IDLE_MIN_M, 10.0)
+	var walk := await _bone_excursion(skel, 3.0, true)
+	print("walk   3.0 s walking:  largest bone excursion %.4f m (%s)" % [walk[0], walk[1]])
+	fails += _range("walk animates (bone excursion m)", walk[0], WALK_MIN_M, 10.0)
+	await _hold(0.8)
+
+	# every camera mode, standing and walking, outdoors and in
+	for spot in CHAR_SPOTS:
+		for m in [REAR, FRONT, FP]:
+			player.place(spot[1], spot[2], 0.0)
+			player.set_camera(m)
+			await _settle(12)
+			await _hold(0.4)
+			var tag := "char_%s_%s" % [spot[0], _mode_tag(m)]
+			await _save(tag + "_standing")
+			Input.action_press("move_forward")
+			await _hold(1.2)
+			await _save(tag + "_walking")
+			Input.action_release("move_forward")
+			print("frames %s_standing / _walking  [%s]; body visible %s"
+				% [tag, player.rig.mode_name(), player.slot.occupant.visible])
+	await _walk_strip()
+	print("\n%s" % ("all character checks pass" if fails == 0
+		else "%d CHARACTER CHECKS FAILED" % fails))
+
+
+func _occupant_skeleton() -> Skeleton3D:
+	var found := player.slot.occupant.find_children("*", "Skeleton3D", true, false)
+	return found[0] as Skeleton3D if not found.is_empty() else null
+
+
+## Over `secs` of rendered frames, the largest distance any bone travelled in
+## the skeleton's own frame (scaled to metres), and that bone's name. The
+## skeleton's frame moves with the body, so walking across the street does not
+## count; only the limbs do.
+func _bone_excursion(skel: Skeleton3D, secs: float, walking: bool) -> Array:
+	var lo: Array[Vector3] = []
+	var hi: Array[Vector3] = []
+	var s := skel.global_transform.basis.get_scale().x
+	if walking:
+		Input.action_press("move_forward")
+	var t := 0.0
+	while t < secs:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		for i in skel.get_bone_count():
+			var p := skel.get_bone_global_pose(i).origin * s
+			if lo.size() <= i:
+				lo.append(p)
+				hi.append(p)
+			else:
+				lo[i] = lo[i].min(p)
+				hi[i] = hi[i].max(p)
+	if walking:
+		Input.action_release("move_forward")
+	var all: Array = []
+	for i in lo.size():
+		all.append([(hi[i] - lo[i]).length(), skel.get_bone_name(i)])
+	all.sort_custom(func(a, b): return a[0] > b[0])
+	var top: PackedStringArray = []
+	for k in mini(6, all.size()):
+		top.append("%s %.4f" % [all[k][1], all[k][0]])
+	for nm in ["Hips", "Spine", "Chest", "UpperChest", "Neck", "Head"]:
+		var i := skel.find_bone(nm)
+		if i >= 0:
+			top.append("[%s %.4f]" % [nm, (hi[i] - lo[i]).length()])
+	print("       bones that moved most: %s" % ", ".join(top))
+	return [all[0][0], all[0][1]] if not all.is_empty() else [0.0, "-"]
+
+
+## Eight frames of the walk from a camera that stays put beside the pavement,
+## so the gait is seen against the street rather than carried along with it.
+func _walk_strip() -> void:
+	player.place(Vector3(-19.0, 0.45, -6.40), -90.0, 0.0)
+	player.set_camera(REAR)
+	await _settle(12)
+	var fixed := Camera3D.new()
+	fixed.fov = 40.0
+	slice.add_child(fixed)
+	fixed.global_position = player.global_position + Vector3(2.2, 1.0, 4.2)
+	fixed.look_at(player.global_position + Vector3(2.2, 0.9, 0.0), Vector3.UP)
+	fixed.make_current()
+	Engine.time_scale = 0.25
+	Input.action_press("move_forward")
+	await _hold(0.6)
+	for i in range(8):
+		await _hold(0.09)
+		await _save("char_walk_%02d" % i)
+	Input.action_release("move_forward")
+	Engine.time_scale = 1.0
+	fixed.queue_free()
+	print("frames char_walk_00..07, a fixed camera beside the pavement")
+
+
+func _mode_tag(m: CameraRig.Mode) -> String:
+	match m:
+		REAR: return "rear"
+		FRONT: return "front"
+	return "first"
+
+
+## Waits for a drawn frame first, so the image is the scene as it now is.
+func _save(nm: String) -> void:
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("%s/%s.png" % [OUT, nm])
 
 
 # --- performance ---------------------------------------------------------------
