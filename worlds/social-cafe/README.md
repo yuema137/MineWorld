@@ -1,10 +1,16 @@
 # `social-cafe`
 
 A small town around a café, and the world the MVP-0 vertical slice is set in. It has five places
-joined by a street, twelve people, and five systems:
+joined by a street, twelve people, and seven systems:
 - `presence`, `movement` and `conversation` make being there mean anything;
 - `group-activity` lets people do things together;
-- `relationships` lets them come to know each other.
+- `relationships` lets them come to know each other;
+- `naming` gives everybody a name (each person file's `name:`);
+- `schedule` gives everybody a day (each person file's `routine:`) that they may follow.
+
+Every part of a day lasts at least four hours. People walk slowly in a headless run, and a shorter
+part of the day would be over before anybody got there. No part of anybody's day begins between
+00:00 and 05:00, and the restart tests check that (`people/alice.yaml` explains why).
 
 Run it headless, then read Alice's life out of the log:
 
@@ -19,7 +25,8 @@ places/cafe.yaml     the café, laid out as the 3D slice draws it (reference 03)
                      of the shopfront, the counter across the back of the room
 places/street.yaml   the street every other place opens onto
 places/*.yaml        the apartments, the park, the convenience store and the office: one door each
-people/*.yaml        Alice behind the counter, Bob at it, two visitors, and the town's other eight people
+people/*.yaml        Alice behind the counter, Bob at it, two visitors, and the town's other eight people,
+                     each with a name and a day
 ```
 
 Every Person but Otto is a seat, so a client, an agent or a headless rule controller can drive any of

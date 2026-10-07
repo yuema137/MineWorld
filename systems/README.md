@@ -10,9 +10,11 @@ movement/        walking: whether a `move` is allowed, and which places open ont
 conversation/    speaking to somebody, and remembering that they spoke to you
 group-activity/  inviting, answering, joining and leaving something done together (a Process)
 relationships/   who knows whom, and how well — changed only by reacting to the others' facts
+naming/          what people are called, from a person file's `name:` section
+schedule/        a person's day, from their `routine:` section — an agenda kept by a Process
 ```
 
-All five are real packs, not examples: they are what the vertical slice runs on. The first three are
+All seven are real packs, not examples: they are what the vertical slice runs on. The first three are
 also the
 worked example every later pack copies, so they are written to be read in this order —
 `src/lib.rs` first, then the action, the event, the component, and `src/system.rs` last.
@@ -52,6 +54,8 @@ cargo test -p mineworld-movement          # walking, TooFarAway, and AC-2 with i
 cargo test -p mineworld-conversation      # talking where people are, and AC-2
 cargo test -p mineworld-group-activity    # invitations, and an activity that is a Process
 cargo test -p mineworld-relationships     # values changed only by other packs' facts
+cargo test -p mineworld-naming            # a name, seeded from a pack file, disclosed to perceivers
+cargo test -p mineworld-schedule          # a day kept by a Process that moves nobody
 cargo doc -p mineworld-conversation --open
 ```
 
