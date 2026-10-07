@@ -404,9 +404,9 @@ No change to `move`'s rule, to `Passages`, or to any other pack. **Depends on:**
 
 ## C8 — Documentation and ledger close
 
-- [ ] `tools/cli/README.md`, `cognition/rule-controller/README.md`, `systems/movement/README.md`, `docs/MVP_STATUS.md` (CLI row and S7 row), `main.rs` crate doc (the "`create` and `inspect` are S7's" paragraph and the `clap` note per Q12).
-- [ ] Full gates once on the final head (§6); §9 ledger, §12 closeout; `handoff.md` reinitialized at C1 and closed here.
-- [ ] Review: README states no rule that is not in a spec (`CLAUDE.md` §2.1(1)).
+- [x] `tools/cli/README.md`, `cognition/rule-controller/README.md`, `systems/movement/README.md` (in C2), `docs/MVP_STATUS.md` (world boot, CLI, S7 and four evidence rows), `main.rs` crate doc (in C1b and C7). — `e5bba45`.
+- [x] Full gates once on the final executable head (§6) — §9 E-final; §12 closeout; `handoff.md` closed.
+- [x] Review: the READMEs describe and link; the rules they mention live in MODULE_SPEC §8.1, ARC-27 and ARC-26.
 
 ---
 
@@ -602,6 +602,21 @@ E-7  C6 inspect. `cargo test -p mineworld-cli --test inspect --test commands`: 3
      event 53, world genesis 5; "every cause resolves: 991 fact(s) checked". clippy clean.
 E-8  C7 create. `cargo test -p mineworld-cli --test create --test commands`: 2 + 4 passed. clippy
      clean.
+E-final  Gates on e5bba45 (the final executable head; later commits are planning documents only),
+     clean tree, 2026-10-06:
+       cargo fmt --all --check                                         PASS
+       cargo check --workspace --all-targets                           PASS
+       cargo clippy --workspace --all-targets --all-features -D warnings   PASS
+       cargo test --workspace --no-fail-fast                           PASS — 350 tests ok, 0 failed
+                                                                       (330 before + 20 new: disclosure
+                                                                       3, paced 7, run 3, run_restart 2,
+                                                                       inspect 3, create 2); 89 s wall
+       cargo test -p mineworld-persistence --test kill_and_resume      PASS — cafe and clock, every
+                                                                       kill point identical
+       python3 scripts/check_decision_ids.py                           PASS — 37 ids, all distinct
+       python3 scripts/check_doc_headings.py                           PASS — 142 sections
+     Godot far-side evidence (E-3) was recorded on the C2 head; the protocol and server are unchanged
+     since, so it stands. CI: N/A, no workflow in the repository (S13).
 ```
 
 ## 9.1 Limitations (expected)
