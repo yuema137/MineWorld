@@ -1471,15 +1471,32 @@ restart → verify), and F-32's summary gap.
 
 **Depends on:** B-C4.
 
-- [ ] Implementation: as scoped, plus `ALLOWED` entries for the two CLI files (§4.2.2).
-- [ ] Validation:
-  - [ ] `cargo test -p mineworld-cli --test content_kinds --test commands`: all pass; `commands.rs`
-    unedited.
-  - [ ] `mineworld validate worlds/social-cafe` byte-identical to the base's (diff of the two outputs
-    empty).
-  - [ ] Mutation M-B5 (items allocated before places) → the validate test fails on `cafe`'s id; reverted.
-- [ ] Review: the CLI change is presentation of what the pack declared; `run`, `inspect`, `biography`
-  and `server` are untouched; the resume test proves Item and Organization entities survive a snapshot.
+- [x] Implementation: as scoped, plus `ALLOWED` entries for `tools/cli/src/main.rs` and
+  `tools/cli/tests/content_kinds.rs`.
+  - `validate` prints `  items      …` and `  organizations …` only when non-empty (QS-18).
+  - The test copies social-cafe recursively into `CARGO_TARGET_TMPDIR`, rewrites the id to
+    `with-things`, and appends the two lists and three tags-only files.
+  - The fact tables compare row for row, byte for byte. No pack id is in a fact row, so the
+    conditional deviation the design allowed for was not needed.
+  - First-run corrections, both to the test's own expectations, not the CLI:
+    - `listed()` prints names unquoted;
+    - `EntityId`'s `Display` ignores `{:>4}`, so the id lines read `  19  lantern`.
+- [x] Validation (E-B5):
+  - [x] `cargo test --no-fail-fast -p mineworld-acceptance -p mineworld-cli --test precursor_vocabulary
+    --test content_kinds --test commands`: scan 4, commands 4 (unedited), content_kinds 3 — all pass.
+    The inert-run test asserts the social-cafe 10-day fact table has > 1 000 rows before comparing.
+  - [x] `mineworld validate worlds/social-cafe` byte-identical to the **base's**. The base binary was
+    built from `da31613` in a scratch detached worktree (`/Users/yuema137/mineworld-worktrees/s9-11b-base`,
+    removed after the final gate). `diff /tmp/s9-11b-base-validate.txt /tmp/s9-11b-validate-after.txt`
+    is empty.
+  - [x] Mutation M-B5 (items allocated before places) → `validate_lists_items_and_organizations_after_
+    every_existing_id` FAILED with "every existing id stays where it was" (left `1 lantern, 2 pebble,
+    3 apartments, 4 cafe …`, right `1 apartments, 2 cafe …`). Reverted; `git diff worldpack/src/load.rs`
+    is empty.
+  - [x] clippy `-D warnings` (cli, acceptance) clean; fmt clean.
+- [x] Review: the CLI change only presents what the pack declared; `run`, `inspect`, `biography` and
+  `server` are untouched. The resume test compares facts, journal and snapshots of a save holding Item
+  and Organization entities, so they survive a snapshot and a resume.
 
 ### B-C6 — Close: status, planted violations, full gates, ledger
 
@@ -2276,6 +2293,9 @@ E-B4 B-C4: worldpack + acceptance all pass (unit 4, content_kinds 1, refusals 38
      unedited, structure 2, doc 1, acceptance 4). M-B1 → content_kinds fails (lantern 1 … alice 5 vs
      cafe 1 … alice 3); M-B3 → probe order test fails; M-B4 → item-reference test fails; each reverted,
      `git grep MUTATION` empty. clippy (forced) and fmt clean. D-B4 (fixture locations).
+E-B5 B-C5: scan 4, cli commands 4 (unedited), cli content_kinds 3 — pass. validate worlds/social-cafe
+     identical to da31613's (base binary built in a scratch worktree; diff empty). M-B5 → the validate
+     test fails ("every existing id stays where it was"); reverted. clippy, fmt clean.
 ```
 
 ## 9.3 Evidence — PR 11c

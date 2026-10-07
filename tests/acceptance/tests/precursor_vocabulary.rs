@@ -184,6 +184,20 @@ const ALLOWED: &[Allowed] = &[
         words: ITEM,
         reason: "the loading fixture's item kinds (ARC-36)",
     },
+    Allowed {
+        pr: "11b",
+        path: "tools/cli/src/main.rs",
+        contains: "",
+        words: ITEM,
+        reason: "validate's `items` summary line (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "tools/cli/tests/content_kinds.rs",
+        contains: "",
+        words: ITEM,
+        reason: "the CLI fixture's item kinds (ARC-36)",
+    },
 ];
 
 /// The defined term `Item` (`CORE_CONCEPTS.md` §7, `EntityType::Item`) and its plural, the directory
