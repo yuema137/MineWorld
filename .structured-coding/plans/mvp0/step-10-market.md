@@ -2860,7 +2860,10 @@ base          main @ 2dddda8 (11e merged) plus the docs-only merges named at fre
 branch        mvp0/pr-11f-proof, in its own worktree, held by the implementing session only
 audit         §8.7 (2dddda8), including the planning measurement §9 E-8
 scope         §1.1 PR 11f as refined by SD-29 … SD-37; CP-1, CP-4, CP-6 (for every market pack),
-              CP-7; QS-54 … QS-66 as answered
+              CP-7; QS-11 (CP-4's precondition before determinism), QS-12 (Milestone C as a real-server
+              test plus the operator's runnable list) and QS-37 (per-seat evidence leaves the scratch
+              readers for a committed test), all approved earlier and carried out here; QS-54 … QS-66
+              as answered
 depends on    11a … 11e, all merged; the two transformation merges 11d 70e532f (#43) and 11e 2dddda8 (#46)
 ```
 
