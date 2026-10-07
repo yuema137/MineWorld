@@ -5,7 +5,7 @@ The point of this file is to stop MVP-0 being declared complete while a real pat
 `✅` means **actually run and inspected**, never inferred from a passing test suite or a
 successful compile. `🚧` means in progress. `❌` means not started.
 
-**Updated:** 2026-10-07 (PR 11d merged: `worlds/market-town` exists, people own and give things; S9's precursors 11a–11c complete; earlier rows stand). Subjective questions are queued in
+**Updated:** 2026-10-07 (PR 11e merged: Market Town works, earns, buys, eats and drinks; the measured AC-1 transformation, 11d and 11e, is complete; the proof is PR 11f; earlier rows stand). Subjective questions are queued in
 [`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md); a demo parked there does not block engineering.
 
 ## Capability matrix
@@ -51,7 +51,9 @@ What a person can actually run. None of these exists yet.
 Social Café composition:                 ✅ presence + movement + conversation + group-activity +
                                             relationships + naming + schedule (PR 10c, awaiting
                                             review); the economy set is S9's Market Town
-Market Town composition:                 ❌
+Market Town composition:                 🚧 Social Café + item + inventory + item-transfer +
+                                            economy + employment + consumption (PRs 11d, 11e);
+                                            the AC-1 proof that measures it is PR 11f
 Cross-renderer semantic equivalence:     ✅ AC-13 against the real contracts, from frames the real
                                             Godot client submitted, compared by the server's own
                                             definition
@@ -91,7 +93,7 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | S6 first systems: time, places, movement | 🚧 PR 08 ready for review: `movement` decides, `presence` owns (`ARC-26`); `arrive` retired; `passages` in the World Pack format; the street in social-cafe |
 | S7 world pack loading, rule controller, headless run | 🚧 PR 09 ready for review: `run --headless --seed --days`, `inspect`, `create`; a seeded paced rule controller (`ARC-27`); `clap` (`DEP-11`) |
 | S8 Social Café systems | 🚧 three PRs (`step-09-social.md`). 10a merged (`2f24eef`): the MVP town and the café re-authored to the 3D slice. 10b merged (`85451c7`): `group-activity`, `relationships`, `mineworld biography`, the paced controller's social initiative, `[profile.dev] opt-level = 1` (`ARC-30`), and Milestone B. PR 10c ready for review: the content seam (`ARC-31`), `naming`, `schedule` (`ARC-32`), names in replies, biography and the Godot module, the controller following its day |
-| S9 Market Town + AC-1 proof | 🚧 six PRs (`step-10-market.md`); how `AC-1` is measured is `ARC-35`. The three precursors are merged: 11a (`c472636`) installable System Packs (`ARC-33`, `DEP-12`) and the I-2 vocabulary scan; 11b (`ae1a315`) items and organizations as World Pack content (`ARC-36`); 11c (`c5dc51c`) complete affordances (`ARC-34`). The measured transformation's first half is merged: 11d (`70e532f`) `item`, `inventory`, `item-transfer` and `worlds/market-town` (`ARC-37`), its merge diff touching only `systems/`, `worlds/`, `Cargo.lock` and Markdown. Next: 11e (`economy`, `employment` and a consumption pack), then 11f, the proof |
+| S9 Market Town + AC-1 proof | 🚧 six PRs (`step-10-market.md`); how `AC-1` is measured is `ARC-35`. The three precursors are merged: 11a (`c472636`) installable System Packs (`ARC-33`, `DEP-12`) and the I-2 vocabulary scan; 11b (`ae1a315`) items and organizations as World Pack content (`ARC-36`); 11c (`c5dc51c`) complete affordances (`ARC-34`). The measured transformation's first half is merged: 11d (`70e532f`) `item`, `inventory`, `item-transfer` and `worlds/market-town` (`ARC-37`), its merge diff touching only `systems/`, `worlds/`, `Cargo.lock` and Markdown. The second half is merged: 11e (`2dddda8`) `economy`, `employment` and `consumption`, with `inventory`'s production and consumption facts (`ARC-38`), its merge diff likewise touching only `systems/`, `worlds/`, `Cargo.lock` and Markdown. The measured transformation is complete. Next: 11f, the proof (the mechanical AC-1 test, the committed activity check, AC-2 at world level, Milestone C) |
 | S10 cognition | reduced: controllers + perception only; LM half deferred to MVP-1 with AC-4 and AC-10 |
 | S11 server and networking | 🚧 the server, the protocol and multi-client sessions landed with the step-05 slice; the id encoding is in the contracts (PR 04). Authentication, admin frames and deltas remain |
 | S12 Demo A, 2D client | spike running; the protocol layer it adopts is merged (`clients/protocol/`) |

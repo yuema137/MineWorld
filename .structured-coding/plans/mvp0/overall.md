@@ -660,11 +660,35 @@ Next, framework (critical path to Milestone B):
             - my own mutation, `PERSON_CAPACITY` 6→7, failed two capacity tests.
             F-37 (authoring's `Seeding` doc said sections see earlier genesis facts; none are applied
             before every section is seeded) is fixed by a docs-only PR outside the AC-1 range.
-       Next: 11e (economy, employment, and a consumption pack — operator, QS-35: items are used up so
-       the market keeps turning, closing MVP §5's `eat` gap), the second half of the measured
-       transformation; then 11f, the proof. Each is detailed and frozen before implementation.
+       11e  work, money, shops and consumption      PR 11e (GitHub #46), merged 2dddda8
+            The second and last half of the measured AC-1 transformation; the market is six packs
+            (ARC-35 note, operator QS-35). `economy` owns wallets and shops and is the only mover of
+            money; `employment` turns attendance at a shift into `wage-due` and production, never
+            touching a wallet; `consumption` offers `eat` and `drink`; `inventory` gained
+            `items-produced` and `items-consumed` and is still the only writer of holdings (ARC-38).
+            The unchanged paced controller buys, eats and drinks; two people work by following the
+            routines they already had. Reviewed before merge:
+            - the change set, checked on the actual merge diff `2dddda8^1..2dddda8`: 0 paths outside
+              `systems/`, `worlds/`, `Cargo.lock` and Markdown;
+            - gates re-run (510/0);
+            - my own 300-day market-town run, seed 7, with `--save`: 0 faults, 372,755 facts (the
+              implementer's count), 33.7 s; `inspect` shows 2,717 `items-consumed` and 3,300
+              `money-transferred`, and no `wage-unpaid`;
+            - my own mutation (the payer is not debited, which breaks money conservation) failed two
+              economy tests, the buy test among them.
+            **Known gap (L-13):** a bounded-horizon economy, not a closed one. Ten of twelve people
+            have no income and live on endowments sized for the measured 300 days; past that they run
+            out. Closing it (more jobs, or income without one) is a later step's work.
+            F-47 (a pack owns one section, so a shop is authored on its operator) and F-48 (an offer
+            carries one unavailability reason) are framework limits worked within; both are carried
+            to the S9 closeout.
+            The measured transformation is complete: 11d `70e532f` and 11e `2dddda8`.
+       Next: 11f, the proof, outside the AC-1 range — the mechanical AC-1 test (ARC-35's three
+       checks), market-town's activity check as a committed test, AC-2 at world level for every
+       market pack, and Milestone C through the real server. Detailed and frozen before
+       implementation.
 
-Remaining:  S9 (11e–11f) ... S14, Milestones C-E
+Remaining:  S9 (11f) ... S14, Milestones C-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
