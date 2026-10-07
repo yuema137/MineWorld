@@ -290,6 +290,12 @@ population:                # each key names people/<key>.yaml
   - bob
   - visitor
 
+items:                     # optional. Each key names items/<key>.yaml (an item kind, ARC-36)
+  - lantern
+
+organizations:             # optional. Each key names organizations/<key>.yaml
+  - chess-club
+
 seats:                     # the Persons a client may connect as, each one of `population`
   - visitor
 ```
@@ -325,6 +331,17 @@ passages:                  # optional. Requires the `movement` system.
       y: 2000
 ```
 
+```yaml
+# items/<key>.yaml and organizations/<key>.yaml — the same two fields, and sections
+tags: [light]              # optional
+note: Hangs by the door.   # optional
+```
+
+An item file declares an **item kind**, not one object: in MVP-0 what anybody holds of an item is a
+count of its kind, and a world has no item instances (`DECISIONS.md` `ARC-36`). An item or
+organization file has no `location` and no `passages`; either key there is refused as unknown, at its
+line.
+
 A passage is a doorway joining two places, and it holds both ways: it is stated **once**, in either
 of the two places' files, and the `movement` system records it on both. Stating the same pair twice
 — in both files, or twice in one — is refused, because two statements could disagree about where the
@@ -333,13 +350,13 @@ may be omitted, for the reason `location.position` may: a world that models no p
 that the café opens onto the street. How far from a doorway a person may pass through it is the
 `movement` system's rule, not the pack's (`DECISIONS.md` `ARC-26`).
 
-**Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person
-or place file may carry **sections**. A section is a top-level key of a content file that a System
+**Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person,
+place, item or organization file may carry **sections** (`ARC-36` extends `ARC-31` to the last two). A section is a top-level key of a content file that a System
 Pack declares as its own, and nothing else is a section. The pack that declares it:
 
 - names it (one word, unique among every pack this build provides and distinct from the fields
   above);
-- says which content files may carry it (people, places, or both);
+- says which content files may carry it (people, places, items, organizations, or any of them);
 - validates it with its own type — the loader decodes the section's YAML straight into that type,
   so an invalid section is refused with its line and column and the pack's own message;
 - states, at genesis, the facts it becomes, in its own vocabulary.
@@ -364,12 +381,16 @@ that move is recorded as a later candidate in `ARC-31`, not made silently.
 
 Six rules govern this subset, and each one is a decision rather than an implementation detail:
 
-1. **A key is stated once.** `population` and `places` name the keys; a content file never repeats
-   its own key. Two copies of one fact in a pack are two chances for them to disagree.
+1. **A key is stated once.** `places`, `population`, `items` and `organizations` name the keys; a
+   content file never repeats its own key. A key is stated once across all four lists, too: keys are
+   one namespace, because a section names another entity by its key, so one key must never mean two
+   entities. Two copies of one fact in a pack are two chances for them to disagree.
 2. **Order in a list is the pack's statement where it is observable, and nowhere else.** `systems`
-   order is installation order and therefore reduction order, which reaches the event log. `places`
-   and `population` order is *not* observable: entity identities are allocated in key order, so
-   reordering either list changes nothing.
+   order is installation order and therefore reduction order, which reaches the event log. The order
+   of `places`, `population`, `items` and `organizations` is *not* observable: entity identities are
+   allocated places, then people, then items, then organizations, each in key order, so reordering a
+   list changes nothing. Items and organizations come last so that declaring them moves no identity a
+   world already had.
 3. **`seats` is the world's, not the client's.** A client names a seat and the server resolves which
    entity it is, which is why no protocol frame ever names an entity. A seat must be one of
    `population`.
@@ -389,8 +410,10 @@ Six rules govern this subset, and each one is a decision rather than an implemen
 Initial state is **not** written into the world by the loader. Each authored `passage`, each
 authored `location` and each section becomes a recorded event caused by `Causation::WorldGenesis`
 — passages first, because they are facts about places that exist before anybody is in them, then
-locations, then sections: places' before people's, each in key order, and within one file in the
-order the world's `systems` lists their owners — which the owning system reduces. So a loaded world's state has a causal origin in its own log, and a replay rebuilds it
+locations, then sections: items', organizations', places', people's, each in key order, and within one
+file in the order the world's `systems` lists their owners — which the owning system reduces. What a
+person's or a place's section may refer to is seeded before it, and a world that declares no items or
+organizations seeds exactly what it seeded before they existed (`ARC-36`). So a loaded world's state has a causal origin in its own log, and a replay rebuilds it
 (`DECISIONS.md` `ARC-15`).
 
 ---

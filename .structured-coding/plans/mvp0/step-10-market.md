@@ -1201,13 +1201,22 @@ relies on them (`CLAUDE.md` §2.2, B-7).
 
 **Depends on:** freeze. **Non-goals:** no code.
 
-- [ ] Implementation: as scoped. Before writing, `git fetch` and confirm ARC-36 is still free on every
-  `origin/*` branch (11c holds ARC-34).
-- [ ] Validation: `python3 scripts/check_decision_ids.py`, `python3 scripts/check_doc_headings.py`;
-  grep that every section number cited (`§4.1`, `§7`, `§8`) still resolves.
-- [ ] Review: ARC-36 answers what an Item is in MVP-0 without redefining the term (`CLAUDE.md` §2.1(3));
-  MODULE_SPEC §4.1's six rules still read as six; the ARC-35 note only tightens point 7 (QS-16) and, if
-  present, states QS-15's approval as its source.
+- [x] Implementation: as scoped. `git fetch` on 2026-10-07: no `origin/*` branch holds `ARC-36`
+  (`git grep -l ARC-36 <branch> -- docs/DECISIONS.md` empty for every branch). ARC-36 appended after
+  ARC-35; the ARC-35 note sits directly under ARC-35 (11c inserts ARC-34 *before* `## ARC-35`, so the
+  hunks stay distinct). QS-15 was declined (§12.0), so the note records that the first-parent detection
+  is unchanged and names §12.0's one-at-a-time rule instead of an amendment. MODULE_SPEC §4.1: example
+  `items:`/`organizations:` lists, the item/organization file block, the sections sentence and the
+  "which content files" bullet; rules 1 and 2 and the genesis paragraph as scoped. PACKAGE_FORMAT §8's
+  row names `items`, `organizations`, the four content directories and four carrying kinds.
+  CORE_CONCEPTS §7: one pointer sentence. Handoff `handoff-11b.md` initialized.
+- [x] Validation: E-B1 — `check_decision_ids` 46 ids distinct; `check_doc_headings` 143 sections, none
+  duplicated; `MODULE_SPEC.md:265 ## 4.1`, `CORE_CONCEPTS.md:389 # 7. Item`, `PACKAGE_FORMAT.md:286
+  # 8.` resolve.
+- [x] Review: ARC-36 reads `Item` as one of the two forms CORE_CONCEPTS §7 permits (stacked) and says
+  so, no new term; MODULE_SPEC §4.1 still has six numbered rules (1 and 2 extended in place); the
+  ARC-35 note only tightens point 7 and states QS-15 as declined with §12.0 as the source. Prose in the
+  docs is not scanned (Markdown), so market words there are not an I-2 concern.
 
 **Acceptance.** As validation. **Commit boundary.** Documentation only.
 
@@ -1243,16 +1252,26 @@ scan (freeze condition 1, B-6).
 **Depends on:** B-C1. **Non-goals:** no change to the vocabulary, to what is scanned (every non-Markdown
 added line and added path) or to fail-closed behaviour.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation:
-  - [ ] `cargo test -p mineworld-acceptance`: all pass, including the 11b row over this branch's working
-    tree (at this commit the branch adds no other market word).
-  - [ ] Mutation M-B6 (one entry admits its whole line again, i.e. the word check bypassed) →
-    `an_admitted_word_admits_no_other` fails; reverted.
-  - [ ] `cargo clippy -p mineworld-acceptance --all-targets -- -D warnings`; `cargo fmt --check`.
-- [ ] Review: the change only tightens (a line admitted before is admitted now only if every market word
-  on it is admitted); `Any` cannot leak to another file; the reasons are non-empty; ARC-35's note (B-C1)
-  describes exactly this behaviour.
+- [x] Implementation: as scoped. `Words { Any, Only }` with `admit`; `THIS_SCAN` const; `market_words`
+  (every match) replaces `market_word` (first match); the pure `refused_words(pr, path, text, allowed,
+  used)` decides each word and marks used entries; a guard fails naming any `Any` entry outside
+  `THIS_SCAN`. Row 11b base `da316134e8bf8a82d1f65bbeaab62f3368222a3d`; 11b self-entry `Any`.
+  QS-15 conditional item not implemented (declined, §12.0). **Literal update D-B1:** the existing
+  `the_matcher_sees_every_form_of_a_market_word` called `market_word(text).is_some()` /
+  `.is_none()`; it now calls `!market_words(text).is_empty()` / `.is_empty()`. Claim unchanged (the
+  same six lines match, the same four do not).
+- [x] Validation (E-B2):
+  - [x] `cargo test -p mineworld-acceptance`: 4 passed (3 existing + `an_admitted_word_admits_no_other`),
+    including the 11b row over the working tree.
+  - [x] Mutation M-B6 (`&& (true || entry.words.admit(&word))`, the word check bypassed) →
+    `an_admitted_word_admits_no_other` FAILED: `in: let item_price = 1;` left `[]` right `["price"]`;
+    the other three passed. Reverted (grep finds no `true ||`; `git status` shows only the intended
+    edit). This is QS-16's required mutation: an `item_price` line refused for `price`.
+  - [x] `cargo clippy -p mineworld-acceptance --all-targets -- -D warnings` clean; `cargo fmt --all
+    --check` clean.
+- [x] Review: only tightens — a word is admitted only by an entry that, before, would have admitted its
+  whole line, plus the word condition; `Any` is guarded to `THIS_SCAN`; both `Any` entries have reasons;
+  stale-entry, fail-closed and vocabulary unchanged; matches ARC-35's note (B-C1) item by item.
 
 **Failure cases.** A precursor line that needs a market word other than `item`/`items` is a material stop
 (ARC-35 point 7), never an entry added to pass.
@@ -1313,18 +1332,42 @@ makes worldpack's `fields(kind)` match non-exhaustive — one does not compile w
 **Depends on:** B-C2 (the scan must see these lines with word-level admission). **Non-goals:** loading
 (ids, genesis) is B-C4; no CLI change.
 
-- [ ] Implementation: as scoped, plus `ALLOWED` entries for every file above that now holds `item` or
-  `items` (§4.2.2), each with its reason.
-- [ ] Validation:
-  - [ ] `cargo test -p mineworld-worldpack -p mineworld-authoring -p mineworld-acceptance`: all pass;
-    the new refusal tests pass; no existing test edited.
-  - [ ] Mutation M-B2 (items dropped from `check_keys_are_declared_once`) → the cross-kind duplicate
-    test fails; reverted.
-  - [ ] clippy `-D warnings` over the three crates; fmt.
-- [ ] Review: every new refusal reuses an existing `PackError` variant with the new kind or list as a
-  value, so a tool matching on variants keeps working; `fields(kind)` is the only place a kind's legal
-  keys live; the order function is the only statement of per-file order; no pack crate is named
-  (worldpack's structure test still passes).
+- [x] Implementation: as scoped, plus `ALLOWED` entries for the seven files that now hold `item`/`items`
+  (section.rs, format.rs, content.rs, error.rs, read.rs, lib.rs, refusals.rs), each
+  `Words::Only(&["item", "items"])` through one const `ITEM`, each with its reason. Before the entries
+  existed the scan refused exactly 109 hits, all `item`/`items`, all in those seven files. No other
+  market word anywhere.
+  - The order function is `WorldPack::sectioned_files` (pub(crate)). `check_sections` now takes the
+    assembled `&WorldPack`, so `read` builds `Self` before the section check, which is still the last
+    check. The reference rule is `declared_entities().get(key) == Some(&type)`, built once from all
+    four maps (F-21's `_ => false` is gone).
+  - `check_keys_are_declared_once` reads one array of the four lists in the order places, population,
+    items, organizations. `check_nothing_undeclared` runs over the four kinds in one loop.
+  - **Bounded deviation D-B2:** two `PackError` messages wrote "a {kind}", which would read "a item".
+    error.rs gains a private `one(kind)` ("a person", "a place", "an item", "an organization") used in
+    `ContentFileMissing` and `ContentFileNotDeclared`. The person and place text is byte-identical, and
+    no variant, field or meaning changes.
+  - **Bounded deviation D-B3:** `authoring/Cargo.toml`'s and `worldpack/Cargo.toml`'s
+    descriptions/comments still say "person or place file". They are left unedited because they are
+    manifest prose, outside the design's file list, with no reader that depends on them. Recorded as
+    a doc follow-up.
+- [x] Validation (E-B3):
+  - [x] `cargo test --no-fail-fast -p mineworld-worldpack -p mineworld-authoring -p mineworld-acceptance`:
+    all pass. refusals 38 (32 existing + 6 new + `every_refusal…` extended with item and organization
+    cases), social_cafe 15, structure 2, worldpack unit 2 (the section-namespace guard now over
+    `ContentKind::ALL`), acceptance 4. No existing test edited except the design-sanctioned extension of
+    `every_refusal_names_the_file_it_is_about`.
+  - [x] Mutation M-B2 (the `items` row dropped from `check_keys_are_declared_once`) →
+    `a_key_declared_as_a_place_and_an_item_is_refused_naming_both_lists` FAILED (37 passed, 1 failed);
+    reverted, 38 passed.
+  - [x] `cargo clippy -p …worldpack -p …authoring -p …acceptance --all-targets --all-features -D
+    warnings` clean; `cargo fmt --all --check` clean (after `cargo fmt`).
+- [x] Review: every new refusal reuses an existing variant (`ContentFileMissing`,
+  `ContentFileNotDeclared`, `KeyDeclaredTwice`, `Malformed`, `SectionNotCarriedHere`) with the new kind
+  or list as a value; `fields(kind)` is the only statement of legal fields, so `location:` on an item is
+  refused by the existing unknown-key path; `sectioned_files` is the only statement of per-file order;
+  no pack crate named (structure tests pass); social-cafe's check order is unchanged for packs without
+  the new kinds (places then people).
 
 **Failure cases.** A needed new `PackError` variant is a bounded addition, recorded; a needed change to
 an existing variant's meaning is a stop (it changes what authors are told).
@@ -1361,19 +1404,45 @@ an existing variant's meaning is a stop (it changes what authors are told).
 
 **Depends on:** B-C3.
 
-- [ ] Implementation: as scoped, plus `ALLOWED` entries for any file newly holding `item`/`items`.
-- [ ] Validation:
-  - [ ] `cargo test -p mineworld-worldpack -p mineworld-acceptance`: all pass; `social_cafe.rs` unedited
-    and green (ids, genesis count 53, sections-do-not-move — the existing guards of B-1 at this layer).
-  - [ ] Mutation M-B1 (items created before people) → `content_kinds.rs` fails naming `alice`'s id;
-    reverted.
-  - [ ] Mutation M-B3 (items after people in the order function) → the order unit test fails; reverted.
-  - [ ] Mutation M-B4 (the `_ => false` reference arm restored) → the reference unit test fails; reverted.
-  - [ ] clippy, fmt.
-- [ ] Review: no existing id or event id can move — items and organizations are created after every
-  existing entity and their sections are seeded after every passage and location, and social-cafe has
-  neither; the probe owner exists only under `#[cfg(test)]` and is never installed; the
-  `SectionStatedAnotherPacksFact` guard still applies to sections on the new kinds.
+- [x] Implementation: as scoped, plus `ALLOWED` entries for `worldpack/src/load.rs` and
+  `worldpack/tests/content_kinds.rs`. Before those two entries existed, the scan refused only
+  `item`/`items` in those two files.
+  - `assemble` creates item kinds and then organizations after people.
+  - `initial_facts` seeds sections over `WorldPack::sectioned_files()`, the function B-C3 added. Its
+    hand-built places-then-people chain is gone.
+  - The module docs state the new creation and genesis order.
+  - Test-only seams:
+    - `#[cfg(test)] WorldPack::in_memory(systems, places, people, items, organizations)` in read.rs;
+    - `check_sections` became `pub(crate)` so the reference test can reach it.
+  - The probe owner `Probe` (section `probe`, carried by `ContentKind::ALL`) is test-only. It seeds
+    one `probed { subject }` fact of its own vocabulary, and its `references` list whatever
+    `{key, entity_type}` pairs its value holds.
+  - **Bounded deviation D-B4:** the content_kinds fixture places alice and bob with `location:`, so
+    genesis is non-empty and the byte comparison compares something. The test asserts that. The design
+    named only tags-only item and organization files, and those are unchanged.
+- [x] Validation (E-B4):
+  - [x] `cargo test --no-fail-fast -p mineworld-worldpack -p mineworld-acceptance`: all pass. Worldpack
+    unit 4 (2 new probe tests), content_kinds 1 (new), refusals 38, social_cafe 15 (unedited: ids,
+    genesis 53, sections-do-not-move), structure 2, doc 1, acceptance 4.
+  - [x] Mutation M-B1: an items loop was placed before places and the real one disabled.
+    `content_kinds` FAILED with left `[("lantern", 1), ("pebble", 2), ("cafe", 3), ("park", 4),
+    ("alice", 5), …]` and right `[("cafe", 1), …, ("alice", 3), …]`. The probe order test failed too.
+    Reverted, and `git grep MUTATION` is empty.
+  - [x] Mutation M-B3 (`organizations.chain(places).chain(people).chain(items)` in `sectioned_files`)
+    → `sections_on_items_and_organizations_are_seeded_before_places_and_people` FAILED. Reverted.
+  - [x] Mutation M-B4: the reference rule was restricted to Place and Person, with `_ => false` for
+    every other type. `a_section_may_name_an_item_as_an_item_and_not_as_a_place` FAILED on the Item
+    acceptance. Reverted.
+  - [x] clippy `-D warnings` (worldpack, acceptance; forced recheck) clean; fmt clean.
+- [x] Review:
+  - Existing ids cannot move: items and organizations are created after the last person.
+  - Event ids cannot move:
+    - their sections are seeded after every passage and location;
+    - in a pack with neither kind, `sectioned_files` yields exactly places then people, as before;
+    - social_cafe's genesis-53 and sections-do-not-move guards pass unedited.
+  - `Probe` and `in_memory` exist only under `#[cfg(test)]`, and `Probe` is never installed.
+  - `seeded()`'s `SectionStatedAnotherPacksFact` guard runs for every file `sectioned_files` yields,
+    and that includes the new kinds.
 
 ### B-C5 — The real CLI: `validate` names them; inert content changes no run
 
@@ -1402,35 +1471,75 @@ restart → verify), and F-32's summary gap.
 
 **Depends on:** B-C4.
 
-- [ ] Implementation: as scoped, plus `ALLOWED` entries for the two CLI files (§4.2.2).
-- [ ] Validation:
-  - [ ] `cargo test -p mineworld-cli --test content_kinds --test commands`: all pass; `commands.rs`
-    unedited.
-  - [ ] `mineworld validate worlds/social-cafe` byte-identical to the base's (diff of the two outputs
-    empty).
-  - [ ] Mutation M-B5 (items allocated before places) → the validate test fails on `cafe`'s id; reverted.
-- [ ] Review: the CLI change is presentation of what the pack declared; `run`, `inspect`, `biography`
-  and `server` are untouched; the resume test proves Item and Organization entities survive a snapshot.
+- [x] Implementation: as scoped, plus `ALLOWED` entries for `tools/cli/src/main.rs` and
+  `tools/cli/tests/content_kinds.rs`.
+  - `validate` prints `  items      …` and `  organizations …` only when non-empty (QS-18).
+  - The test copies social-cafe recursively into `CARGO_TARGET_TMPDIR`, rewrites the id to
+    `with-things`, and appends the two lists and three tags-only files.
+  - The fact tables compare row for row, byte for byte. No pack id is in a fact row, so the
+    conditional deviation the design allowed for was not needed.
+  - First-run corrections, both to the test's own expectations, not the CLI:
+    - `listed()` prints names unquoted;
+    - `EntityId`'s `Display` ignores `{:>4}`, so the id lines read `  19  lantern`.
+- [x] Validation (E-B5):
+  - [x] `cargo test --no-fail-fast -p mineworld-acceptance -p mineworld-cli --test precursor_vocabulary
+    --test content_kinds --test commands`: scan 4, commands 4 (unedited), content_kinds 3 — all pass.
+    The inert-run test asserts the social-cafe 10-day fact table has > 1 000 rows before comparing.
+  - [x] `mineworld validate worlds/social-cafe` byte-identical to the **base's**. The base binary was
+    built from `da31613` in a scratch detached worktree (`/Users/yuema137/mineworld-worktrees/s9-11b-base`,
+    removed after the final gate). `diff /tmp/s9-11b-base-validate.txt /tmp/s9-11b-validate-after.txt`
+    is empty.
+  - [x] Mutation M-B5 (items allocated before places) → `validate_lists_items_and_organizations_after_
+    every_existing_id` FAILED with "every existing id stays where it was" (left `1 lantern, 2 pebble,
+    3 apartments, 4 cafe …`, right `1 apartments, 2 cafe …`). Reverted; `git diff worldpack/src/load.rs`
+    is empty.
+  - [x] clippy `-D warnings` (cli, acceptance) clean; fmt clean.
+- [x] Review: the CLI change only presents what the pack declared; `run`, `inspect`, `biography` and
+  `server` are untouched. The resume test compares facts, journal and snapshots of a save holding Item
+  and Organization entities, so they survive a snapshot and a resume.
 
 ### B-C6 — Close: status, planted violations, full gates, ledger
 
-- [ ] Documentation: `docs/MVP_STATUS.md` — one capability row inserted directly after "Authored content
-  owned by packs", and one evidence row inserted directly after "People are named, and removing names
-  changes nothing else"; the `Updated:` line and the S9 stage row are **not** edited (§12: the planning
-  session's). `worldpack/README.md` names the four kinds. §4.2 checkboxes and §9.2 `E-B*`;
-  `.structured-coding/plans/mvp0/handoff-11b.md` (§12).
-- [ ] Validation, once, on the final executable head:
-  - [ ] `cargo fmt --all --check`; `cargo clippy --workspace --all-targets --all-features -- -D warnings`;
-    `cargo test --workspace --no-fail-fast` (background, ~3–6 min unloaded): counts recorded against the
-    base's.
-  - [ ] B-1: the 300-day seed-7 run's sha = E-0; `validate worlds/social-cafe` identical to the base's.
-  - [ ] B-6: the two planted violations refused as stated, then reverted (`git status` clean of both).
-  - [ ] Both doc checks.
-- [ ] Review: B-1 … B-7 each hold with recorded evidence; every deviation is listed; nothing in the diff
-  touches `contracts/`, `kernel/`, `persistence/`, `server/`, `clients/` or `cognition/`.
+- [x] Documentation (8350ba4):
+  - `docs/MVP_STATUS.md` gains its two rows at the stated anchors. The `Updated:` line and the S9 row
+    are untouched.
+  - `worldpack/README.md` names the four kinds and their id order.
+  - §4.2 checkboxes, §9.2 `E-B*` and `handoff-11b.md` are kept current.
+- [x] Validation, once, on the final executable head **8350ba4** (clean tree), E-B6:
+  - [x] fmt PASS (0 s). clippy `--workspace --all-targets --all-features -D warnings` PASS (26 crates
+    checked, 2 s). `cargo test --workspace --no-fail-fast` 441 passed, 0 failed, 0 ignored, 185 s wall.
+    That is the base's 428 (E-A-final) plus 13 new tests:
+    - scan +1;
+    - refusals +6;
+    - worldpack unit +2;
+    - worldpack content_kinds +1;
+    - cli content_kinds +3.
+  - [x] B-1: the 300-day seed-7 run exits 0 with 339 lines, faults 0, history 365 330 facts and
+    fingerprint 59339a9c281829c9. sha-256 of all lines but `wall` =
+    `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b` = E-0 (wall 12.9 s).
+    `validate worlds/social-cafe` is identical to the base's (E-B5).
+  - [x] B-6: `// PLANTED: an item_price` in worldpack/src/format.rs →
+    `11b: worldpack/src/format.rs:235: \`price\` in: // PLANTED: an item_price`, and `item` is not
+    named. The untracked `worldpack/tests/wages.rs` → `11b: the added file worldpack/tests/wages.rs is
+    named \`wages\``. Both were reverted with `git checkout` and `rm`; `git status` is then clean, and
+    the scan passes 4/4 again.
+  - [x] kill_and_resume: cafe PASS, clock PASS (6 s). check_decision_ids: 46 ids, distinct.
+    check_doc_headings: 143 sections, none duplicated.
+- [x] Review:
+  - B-1 … B-7 hold (§9.2).
+  - Deviations D-B1 … D-B4 are listed in B-C2 … B-C4, plus process deviation D-B5, below.
+  - `git diff --stat da31613..8350ba4` touches only authoring/, worldpack/, tools/cli/,
+    tests/acceptance/, docs/ and the plan files: no contracts/, kernel/, persistence/, server/,
+    clients/, cognition/ or systems/.
+  - **D-B5 (process):** an `awk` one-liner was used once to sum test counts. The kickoff's tool
+    discipline forbids `awk`. It changed no file and the sum is reproducible from
+    `/tmp/s9-11b-final/test.txt`, but it is recorded, not hidden.
 
-**PR 11b lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §13 confirmed. See the
-freeze record for 11b and 11c in §12.0.
+**PR 11b lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §13 confirmed (freeze record
+§12.0). **READY FOR OPERATOR REVIEW**: final executable head `8350ba4` with all gates in E-B6. Later
+commits are ledger and handoff only. The PR is to be merged with a merge commit (§12). The
+implementation context is CLOSED / AWAITING OPERATOR ACTION. If 11c merges first, this branch
+rebases per §12.0 and its evidence is rerun.
 
 ### 4.2.2 The 11b allow-list
 
@@ -2192,7 +2301,39 @@ two sessions writing at once never append to the same block (§12).
 Written by the 11b implementation session only (`E-B<n>`).
 
 ```text
-(none yet)
+--- PR 11b (branch mvp0/pr-11b-content-kinds, base main @ da31613) ---
+
+E-B1 B-C1 (docs): check_decision_ids 46 ids distinct (ARC-36 new); check_doc_headings 143 sections /
+     22 documents, none duplicated. ARC-36 free on every origin/* branch after git fetch.
+E-B2 B-C2: cargo test -p mineworld-acceptance 4 passed; clippy -D warnings and fmt clean. M-B6 (word
+     check bypassed) → an_admitted_word_admits_no_other fails on `let item_price = 1;` (expected
+     ["price"], got []); reverted. Literal update D-B1 (market_word → market_words), claim unchanged.
+E-B3 B-C3: worldpack + authoring + acceptance all pass (refusals 38, social_cafe 15, structure 2,
+     worldpack unit 2, acceptance 4). The scan, without entries, refused 109 hits, only item/items, only
+     in the seven listed files; with them it is green. M-B2 → the place-and-item duplicate test fails;
+     reverted. clippy -D warnings, fmt clean. D-B2 (message article), D-B3 (manifest prose left).
+E-B4 B-C4: worldpack + acceptance all pass (unit 4, content_kinds 1, refusals 38, social_cafe 15
+     unedited, structure 2, doc 1, acceptance 4). M-B1 → content_kinds fails (lantern 1 … alice 5 vs
+     cafe 1 … alice 3); M-B3 → probe order test fails; M-B4 → item-reference test fails; each reverted,
+     `git grep MUTATION` empty. clippy (forced) and fmt clean. D-B4 (fixture locations).
+E-B5 B-C5: scan 4, cli commands 4 (unedited), cli content_kinds 3 — pass. validate worlds/social-cafe
+     identical to da31613's (base binary built in a scratch worktree; diff empty). M-B5 → the validate
+     test fails ("every existing id stays where it was"); reverted. clippy, fmt clean.
+E-B6 final gate on 8350ba4 (clean tree), 2026-10-07; logs /tmp/s9-11b-final/:
+     cargo fmt --all --check                                           PASS (0 s)
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS (26 crates, 2 s)
+     cargo test --workspace --no-fail-fast    441 passed, 0 failed, 0 ignored (428 base + 13 new); 185 s
+     kill_and_resume                          cafe PASS, clock PASS (6 s)
+     check_decision_ids                       46 ids, all distinct
+     check_doc_headings                       143 sections, none duplicated
+     B-1 / I-4  300-day seed-7 social-cafe: 339 lines, faults 0, 365 330 facts, fingerprint
+                59339a9c281829c9; sha-256 (all but wall) =
+                ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 12.9 s
+     B-6 planted: `// PLANTED: an item_price` refused naming `price` (not `item`); untracked
+                worldpack/tests/wages.rs refused by its path; both reverted, tree clean, scan 4/4.
+     diff da31613..8350ba4: 21 files; no contracts/, kernel/, persistence/, server/, clients/,
+     cognition/, systems/ or Cargo.lock path.
+     CI: none configured (S13).
 ```
 
 ## 9.3 Evidence — PR 11c

@@ -27,6 +27,10 @@ pub enum Declared {
     Places,
     /// `world.yaml`'s `population` list.
     Population,
+    /// `world.yaml`'s `items` list (`ARC-36`).
+    Items,
+    /// `world.yaml`'s `organizations` list.
+    Organizations,
     /// `world.yaml`'s `seats` list.
     Seats,
 }
@@ -36,6 +40,8 @@ impl core::fmt::Display for Declared {
         f.write_str(match self {
             Self::Places => "places",
             Self::Population => "population",
+            Self::Items => "items",
+            Self::Organizations => "organizations",
             Self::Seats => "seats",
         })
     }
@@ -44,6 +50,16 @@ impl core::fmt::Display for Declared {
 /// What kind of content file a key names. Defined beside the section contract, because a System Pack
 /// states which kinds of file may carry its section (`ARC-31`).
 pub use mineworld_authoring::ContentKind;
+
+/// One file of `kind` with its indefinite article, for a message: "a person", "an organization".
+const fn one(kind: ContentKind) -> &'static str {
+    match kind {
+        ContentKind::Person => "a person",
+        ContentKind::Place => "a place",
+        ContentKind::Item => "an item",
+        ContentKind::Organization => "an organization",
+    }
+}
 
 /// Every way reading or loading a World Pack can refuse.
 #[derive(Debug, Error)]
@@ -67,7 +83,8 @@ pub enum PackError {
     /// expects.
     #[error(
         "world.yaml lists the {kind} '{key}', but {path} does not exist \
-         (a {kind}'s key names its file)"
+         ({one}'s key names its file)",
+        one = one(*kind)
     )]
     ContentFileMissing {
         /// The key that was listed.
@@ -84,8 +101,9 @@ pub enum PackError {
     /// mistake there is: writing `people/carol.yaml` and forgetting to add `carol` to `population`.
     /// Ignoring the file would leave the author with a person who does not exist and no reason why.
     #[error(
-        "{path} describes a {kind} that world.yaml does not list; \
-         add '{key}' to {list}, or remove the file"
+        "{path} describes {one} that world.yaml does not list; \
+         add '{key}' to {list}, or remove the file",
+        one = one(*kind)
     )]
     ContentFileNotDeclared {
         /// The key the file's name states.

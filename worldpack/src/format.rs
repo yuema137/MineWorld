@@ -1,4 +1,5 @@
-//! The authored shape: exactly what a `world.yaml`, a person file and a place file may say.
+//! The authored shape: exactly what a `world.yaml` and a person, place, item or organization file may
+//! say.
 //!
 //! These types are the pack format. They are deliberately *not* the contract types they become:
 //! authored YAML is written by a person and read once, while a contract value is passed between
@@ -8,7 +9,7 @@
 //! Three properties are the whole design of this module.
 //!
 //! **Unknown fields are refused, not ignored.** Every struct carries `deny_unknown_fields`, and a
-//! person or place file — whose legal keys also include the sections System Packs own
+//! content file — whose legal keys also include the sections System Packs own
 //! (`DECISIONS.md` `ARC-31`) — is read by [`crate::content`], which refuses any other key the same
 //! way. So `nmae: Alice` is an error at the line that wrote it rather than an entity with no name and
 //! no reason why. `docs/MODULE_SPEC.md` §4's full model is wider than what MVP-0 implements, and §4.1
@@ -53,6 +54,12 @@ pub struct WorldManifest {
     /// The people this world has. Each key names a file in `people/`.
     #[serde(default)]
     pub population: Vec<EntityKey>,
+    /// The item kinds this world has (`ARC-36`). Each key names a file in `items/`.
+    #[serde(default)]
+    pub items: Vec<EntityKey>,
+    /// The organizations this world has. Each key names a file in `organizations/`.
+    #[serde(default)]
+    pub organizations: Vec<EntityKey>,
     /// The seats a client may occupy, each an existing person's key.
     ///
     /// The roster is the world's, never the client's: a client names a seat and the server resolves
@@ -143,6 +150,32 @@ pub struct AuthoredPlace {
     /// files, and holds both ways. It states no rule — how far from a doorway a person may pass is
     /// movement's decision, not this file's.
     pub passages: Vec<AuthoredPassage>,
+    /// The sections this file carries, in the order it states them.
+    pub sections: Vec<FoundSection>,
+}
+
+/// A file in `items/`: one item kind, as authored (`ARC-36`). What anybody holds of it is a count of
+/// this kind, kept by whichever System Pack owns holdings; the file declares no single object.
+///
+/// Its own struct rather than one shared with [`AuthoredOrganization`]: the two are distinct concepts
+/// that happen to have the same fields today.
+#[derive(Debug, Clone, Default)]
+pub struct AuthoredItem {
+    /// The labels this kind carries.
+    pub tags: Tags,
+    /// A note from whoever authored it.
+    pub note: Option<String>,
+    /// The sections this file carries, in the order it states them.
+    pub sections: Vec<FoundSection>,
+}
+
+/// A file in `organizations/`: one Organization, as authored.
+#[derive(Debug, Clone, Default)]
+pub struct AuthoredOrganization {
+    /// The labels this organization carries.
+    pub tags: Tags,
+    /// A note from whoever authored it.
+    pub note: Option<String>,
     /// The sections this file carries, in the order it states them.
     pub sections: Vec<FoundSection>,
 }

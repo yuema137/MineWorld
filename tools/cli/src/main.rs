@@ -256,6 +256,14 @@ fn validate(world: &PathBuf) -> Result<(), String> {
     println!("  systems    {}", listed(pack.systems()));
     println!("  places     {}", listed(pack.places().keys()));
     println!("  people     {}", listed(pack.people().keys()));
+    // Printed only when declared, so a pack without them reports exactly what it did before they
+    // existed (step-10 QS-18).
+    if !pack.items().is_empty() {
+        println!("  items      {}", listed(pack.items().keys()));
+    }
+    if !pack.organizations().is_empty() {
+        println!("  organizations {}", listed(pack.organizations().keys()));
+    }
     println!("  seats      {}", listed(pack.seats().iter()));
     println!();
     // In identity order rather than key order: these are the ids the event log refers to, and the

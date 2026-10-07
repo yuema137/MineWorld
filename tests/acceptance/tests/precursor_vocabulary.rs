@@ -30,7 +30,8 @@
 //!
 //! A precursor adds its row to [`PRECURSORS`] and its entries to [`ALLOWED`]. An allow-list entry
 //! admits only a match that is not a market concept, and carries its reason; an entry with no reason,
-//! or one that matches nothing, fails the test. A precursor that needs a market word is a material
+//! or one that matches nothing, fails the test. An entry admits named **words**, not lines: every
+//! other market word on a line it covers is still refused, and only this file may admit any word. A precursor that needs a market word is a material
 //! stop for the operator, never an entry added to pass.
 
 use std::path::{Path, PathBuf};
@@ -58,30 +59,150 @@ struct Precursor {
     branch: &'static str,
 }
 
-/// Every precursor, in order. 11b and 11c add their rows.
-const PRECURSORS: &[Precursor] = &[Precursor {
-    pr: "11a",
-    base: "b53e19d4182ebd2cc3357dacfe7d7248b29732ff",
-    branch: "mvp0/pr-11a-installable",
-}];
+/// Every precursor, in order. 11c adds its row.
+const PRECURSORS: &[Precursor] = &[
+    Precursor {
+        pr: "11a",
+        base: "b53e19d4182ebd2cc3357dacfe7d7248b29732ff",
+        branch: "mvp0/pr-11a-installable",
+    },
+    Precursor {
+        pr: "11b",
+        base: "da316134e8bf8a82d1f65bbeaab62f3368222a3d",
+        branch: "mvp0/pr-11b-content-kinds",
+    },
+];
+
+/// This file. It alone may admit any word, because it names the vocabulary it looks for.
+const THIS_SCAN: &str = "tests/acceptance/tests/precursor_vocabulary.rs";
+
+/// The words an allow-list entry admits (`ARC-35`'s note of 2026-10-07: words, not lines).
+enum Words {
+    /// Every word. Legal only for [`THIS_SCAN`].
+    Any,
+    /// Exactly these lowercase words, and no word that merely begins with one of them.
+    Only(&'static [&'static str]),
+}
+
+impl Words {
+    fn admit(&self, word: &str) -> bool {
+        match self {
+            Words::Any => true,
+            Words::Only(words) => words.contains(&word),
+        }
+    }
+}
 
 /// A match a precursor may add because it is not a market concept.
 struct Allowed {
     pr: &'static str,
     /// The file, relative to the repository root.
     path: &'static str,
-    /// A substring of the line; empty admits every line of the file.
+    /// A substring of the line; empty covers every line of the file.
     contains: &'static str,
+    /// The market words the entry admits on the lines it covers; every other one is still refused.
+    words: Words,
     reason: &'static str,
 }
 
 /// The allow-list, per precursor, each entry with its reason.
-const ALLOWED: &[Allowed] = &[Allowed {
-    pr: "11a",
-    path: "tests/acceptance/tests/precursor_vocabulary.rs",
-    contains: "",
-    reason: "this scan: it names the vocabulary it looks for, and its own checks use it",
-}];
+const ALLOWED: &[Allowed] = &[
+    Allowed {
+        pr: "11a",
+        path: THIS_SCAN,
+        contains: "",
+        words: Words::Any,
+        reason: "this scan: it names the vocabulary it looks for, and its own checks use it",
+    },
+    Allowed {
+        pr: "11b",
+        path: THIS_SCAN,
+        contains: "",
+        words: Words::Any,
+        reason: "this scan: its allow-list names the words it admits",
+    },
+    Allowed {
+        pr: "11b",
+        path: "authoring/src/section.rs",
+        contains: "",
+        words: ITEM,
+        reason: "ContentKind::Item, its directory `items` and its description `item` (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/format.rs",
+        contains: "",
+        words: ITEM,
+        reason: "world.yaml's `items:` list and AuthoredItem (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/content.rs",
+        contains: "",
+        words: ITEM,
+        reason: "ITEM_FIELDS and ContentFile::item (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/error.rs",
+        contains: "",
+        words: ITEM,
+        reason: "Declared::Items, displayed `items`, and the kind's article `an item` (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/read.rs",
+        contains: "",
+        words: ITEM,
+        reason: "the items map, its accessor, its reading and the per-file order (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/lib.rs",
+        contains: "",
+        words: ITEM,
+        reason: "the layout diagram and the AuthoredItem re-export (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/tests/refusals.rs",
+        contains: "",
+        words: ITEM,
+        reason: "refusal fixtures for items/<key>.yaml (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/src/load.rs",
+        contains: "",
+        words: ITEM,
+        reason: "creating Item entities, their genesis order, and the probe tests (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "worldpack/tests/content_kinds.rs",
+        contains: "",
+        words: ITEM,
+        reason: "the loading fixture's item kinds (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "tools/cli/src/main.rs",
+        contains: "",
+        words: ITEM,
+        reason: "validate's `items` summary line (ARC-36)",
+    },
+    Allowed {
+        pr: "11b",
+        path: "tools/cli/tests/content_kinds.rs",
+        contains: "",
+        words: ITEM,
+        reason: "the CLI fixture's item kinds (ARC-36)",
+    },
+];
+
+/// The defined term `Item` (`CORE_CONCEPTS.md` §7, `EntityType::Item`) and its plural, the directory
+/// and list name of `MODULE_SPEC.md` §4's frozen layout: the only words 11b admits (step-10 §4.2.2).
+const ITEM: Words = Words::Only(&["item", "items"]);
 
 /// One added line (or added file path) that names a market word.
 #[derive(Debug)]
@@ -137,11 +258,38 @@ fn words(line: &str) -> Vec<String> {
     words
 }
 
-/// The first market word in `text`, if any.
-fn market_word(text: &str) -> Option<String> {
+/// Every market word in `text`, in order.
+fn market_words(text: &str) -> Vec<String> {
     words(text)
         .into_iter()
-        .find(|word| VOCABULARY.iter().any(|market| word.starts_with(market)))
+        .filter(|word| VOCABULARY.iter().any(|market| word.starts_with(market)))
+        .collect()
+}
+
+/// The market words of one added line (or added path) that no entry admits. Each word is admitted
+/// only by an entry for this precursor and file, whose substring the line contains, and which admits
+/// that exact word; every entry that admits a word is marked in `used`.
+fn refused_words(
+    pr: &str,
+    path: &str,
+    text: &str,
+    allowed: &[Allowed],
+    used: &mut [bool],
+) -> Vec<String> {
+    let mut refused = Vec::new();
+    for word in market_words(text) {
+        let admitted = allowed.iter().position(|entry| {
+            entry.pr == pr
+                && entry.path == path
+                && text.contains(entry.contains)
+                && entry.words.admit(&word)
+        });
+        match admitted {
+            Some(index) => used[index] = true,
+            None => refused.push(word),
+        }
+    }
+    refused
 }
 
 fn scanned(path: &str) -> bool {
@@ -275,6 +423,12 @@ fn the_precursors_add_no_market_concept() {
             "an allow-list entry for an unknown precursor: {}",
             entry.pr
         );
+        assert!(
+            matches!(entry.words, Words::Only(_)) || entry.path == THIS_SCAN,
+            "an allow-list entry admits any word outside this scan's own file: {} ({})",
+            entry.path,
+            entry.pr
+        );
     }
 
     let mut used = vec![false; ALLOWED.len()];
@@ -282,21 +436,14 @@ fn the_precursors_add_no_market_concept() {
     for precursor in PRECURSORS {
         let added = added_by(precursor).unwrap_or_else(|error| panic!("{error}"));
         for (path, line, text) in added {
-            let Some(word) = market_word(&text) else {
-                continue;
-            };
-            let admitted = ALLOWED.iter().position(|entry| {
-                entry.pr == precursor.pr && entry.path == path && text.contains(entry.contains)
-            });
-            match admitted {
-                Some(index) => used[index] = true,
-                None => refused.push(Hit {
+            for word in refused_words(precursor.pr, &path, &text, ALLOWED, &mut used) {
+                refused.push(Hit {
                     pr: precursor.pr,
-                    path,
+                    path: path.clone(),
                     line,
                     word,
-                    text,
-                }),
+                    text: text.clone(),
+                });
             }
         }
     }
@@ -346,7 +493,7 @@ fn the_matcher_sees_every_form_of_a_market_word() {
         "  - economy",
         "worlds/market-town/places/shop.yaml",
     ] {
-        assert!(market_word(text).is_some(), "missed: {text}");
+        assert!(!market_words(text).is_empty(), "missed: {text}");
     }
     for text in [
         "let iterate = 1;",
@@ -354,9 +501,44 @@ fn the_matcher_sees_every_form_of_a_market_word() {
         "a priority list",
         "SystemId",
     ] {
-        let found = market_word(text);
-        assert!(found.is_none(), "matched {found:?} in: {text}");
+        let found = market_words(text);
+        assert!(found.is_empty(), "matched {found:?} in: {text}");
     }
+}
+
+/// An entry admits the words it names and nothing else on the same line: an admitted `item` does not
+/// hide `price` (`ARC-35`'s note of 2026-10-07, step-10 QS-16).
+#[test]
+fn an_admitted_word_admits_no_other() {
+    let allowed = [Allowed {
+        pr: "11x",
+        path: "a.rs",
+        contains: "",
+        words: Words::Only(&["item", "items"]),
+        reason: "the defined term",
+    }];
+    for (text, expected) in [
+        ("let item_price = 1;", vec!["price"]),
+        ("struct ItemPrice;", vec!["price"]),
+        ("items: [wage]", vec!["wage"]),
+        ("let itemprice = 1;", vec!["itemprice"]),
+        ("let items = 1;", vec![]),
+    ] {
+        let mut used = [false];
+        assert_eq!(
+            refused_words("11x", "a.rs", text, &allowed, &mut used),
+            expected,
+            "in: {text}"
+        );
+    }
+
+    let mut used = [false];
+    assert_eq!(
+        refused_words("11x", "b.rs", "let item = 1;", &allowed, &mut used),
+        vec!["item"],
+        "an entry admits only in its own file"
+    );
+    assert_eq!(used, [false]);
 }
 
 /// The diff reader finds added lines with their numbers, and the paths of added files.

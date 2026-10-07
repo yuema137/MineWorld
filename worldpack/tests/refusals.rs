@@ -476,6 +476,14 @@ fn every_refusal_names_the_file_it_is_about() {
             fixture.write("people/alice.yaml", "location:\n  place: park\n");
             fixture.refusal()
         }),
+        ("items/lantern.yaml", {
+            with_kinds("named-missing-item", false, "items:\n  - lantern\n").refusal()
+        }),
+        ("organizations/chess-club.yaml", {
+            let fixture = with_kinds("named-undeclared-organization", false, "");
+            fixture.write("organizations/chess-club.yaml", "tags: [club]\n");
+            fixture.refusal()
+        }),
     ];
 
     for (expected, refusal) in cases {
@@ -962,4 +970,156 @@ fn an_overlapping_routine_is_refused_by_schedules_own_rule_at_its_line() {
         detail.contains("line 4"),
         "located at the section: {detail}"
     );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Items and organizations (`MODULE_SPEC.md` §4.1, `DECISIONS.md` `ARC-36`): two more content kinds,
+// refused by the same standard. Each fixture creates its own `items/` and `organizations/` (F-23).
+// ---------------------------------------------------------------------------------------------
+
+/// A sound pack whose manifest adds `extra` (with `naming` enabled when asked), with empty `items/`
+/// and `organizations/` directories.
+fn with_kinds(id: &str, naming: bool, extra: &str) -> Fixture {
+    let fixture = Fixture::sound(id);
+    let naming = if naming { "  - naming\n" } else { "" };
+    fixture.manifest(&format!(
+        "
+systems:
+  - presence
+{naming}places:
+  - cafe
+population:
+  - alice
+{extra}"
+    ));
+    for directory in ["items", "organizations"] {
+        std::fs::create_dir_all(fixture.root.join(directory)).expect("a writable directory");
+    }
+    fixture
+}
+
+#[test]
+fn a_declared_item_with_no_file_is_refused_by_name() {
+    let fixture = with_kinds("missing-item-file", false, "items:\n  - lantern\n");
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(
+            refusal,
+            PackError::ContentFileMissing { ref key, kind: ContentKind::Item, ref path }
+                if *key == self::key("lantern") && path.ends_with("items/lantern.yaml")
+        ),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn an_organization_file_no_list_declares_is_refused_by_name() {
+    let fixture = with_kinds("undeclared-organization-file", false, "");
+    fixture.write("organizations/chess-club.yaml", "tags: [club]\n");
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(
+            refusal,
+            PackError::ContentFileNotDeclared {
+                ref key,
+                kind: ContentKind::Organization,
+                list: Declared::Organizations,
+                ref path,
+            } if key == "chess-club" && path.ends_with("organizations/chess-club.yaml")
+        ),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_key_declared_as_a_place_and_an_item_is_refused_naming_both_lists() {
+    let fixture = with_kinds("place-and-item", false, "items:\n  - cafe\n");
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(
+            refusal,
+            PackError::KeyDeclaredTwice {
+                ref key,
+                first: Declared::Places,
+                second: Declared::Items,
+            } if *key == self::key("cafe")
+        ),
+        "keys are one namespace across the four lists: {refusal}",
+    );
+}
+
+#[test]
+fn a_key_declared_as_a_person_and_an_organization_is_refused_naming_both_lists() {
+    let fixture = with_kinds(
+        "person-and-organization",
+        false,
+        "organizations:\n  - alice\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    assert!(
+        matches!(
+            refusal,
+            PackError::KeyDeclaredTwice {
+                ref key,
+                first: Declared::Population,
+                second: Declared::Organizations,
+            } if *key == self::key("alice")
+        ),
+        "got: {refusal}",
+    );
+}
+
+#[test]
+fn a_field_an_item_does_not_have_is_refused_at_its_line() {
+    let fixture = with_kinds("item-with-a-location", false, "items:\n  - lantern\n");
+    fixture.write(
+        "items/lantern.yaml",
+        "tags: [light]\nlocation:\n  place: cafe\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::Malformed { path, detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    println!("{detail}");
+    assert!(path.ends_with("items/lantern.yaml"));
+    assert!(detail.contains("location"), "the key is named: {detail}");
+    assert!(
+        detail.contains("`tags`") && detail.contains("`note`"),
+        "and the fields an item file does have are listed: {detail}"
+    );
+    assert!(detail.contains("line 2 column 1"), "located: {detail}");
+}
+
+#[test]
+fn a_section_an_item_may_not_carry_is_refused_naming_the_kinds_that_may() {
+    let fixture = with_kinds("item-with-a-name", true, "items:\n  - lantern\n");
+    fixture.write("items/lantern.yaml", "tags: [light]\nname: The Lantern\n");
+
+    let refusal = fixture.refusal();
+
+    let PackError::SectionNotCarriedHere {
+        subject,
+        section,
+        kind,
+        carried_by,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*subject, key("lantern"));
+    assert_eq!(section.as_str(), "name");
+    assert_eq!(*kind, ContentKind::Item);
+    assert_eq!(carried_by, "person");
+    assert!(path.ends_with("items/lantern.yaml"));
 }
