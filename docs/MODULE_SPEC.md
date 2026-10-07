@@ -499,6 +499,7 @@ mineworld validate <world>
 mineworld replay <world> --save DIR
 mineworld run <world> --headless --seed N --days N [--save DIR]
 mineworld inspect <save-directory> [--last N]
+mineworld biography <world> --save DIR --person KEY [--json]
 mineworld create <directory>
 ```
 
@@ -509,6 +510,7 @@ mineworld create <directory>
 | `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
 | `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by a seeded paced rule controller (`ARC-27`). Described below. |
 | `inspect` | Reports what a save holds, without resuming or writing it. Described below. |
+| `biography` | Prints a Person's objective biography, derived from a save's fact log without resuming or writing it ([`DECISIONS.md`](DECISIONS.md) `ARC-29`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
 
 **`run`.** `--headless` is required: it states the only mode `run` has in MVP-0, and leaves a
@@ -537,6 +539,20 @@ caused by an action to name an `ActionId` some journaled request carried, every 
 event to name a fact with a smaller `EventId`, and world genesis to cause facts in revision 1
 only; facts caused by a process or a system tick are counted, since the log alone cannot resolve
 them. A failed check names the fact and exits non-zero.
+
+**`biography`.** Reads `DIR/world.sqlite`'s manifest and fact table, and the World Pack `<world>`
+for the authoring keys. It refuses, by name and with a non-zero exit, any of these:
+- a missing save;
+- a save whose manifest names another pack;
+- a KEY the pack does not declare as a Person;
+- a composition naming a system this build does not provide.
+
+The biographical event types are the union of what each system in the save's composition declares
+biographical (`ARC-29`). A fact is an entry for the Person when the Person is among its subjects or
+participants and its type is in that set. Output is one line per entry, oldest first: the instant
+(`t…`, day and time of day), the event id, the event type, the place's key, and the counterparts'
+keys. With `--json`, each entry is one JSON object per line carrying the same values. Nothing is
+stored; the biography is regenerated from the log on every invocation.
 
 **`create`.** The directory's final component becomes the world's id and must be a valid key (the
 rule `EntityKey` enforces). The pack written has one place, two people who are both seats, and the

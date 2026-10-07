@@ -843,13 +843,15 @@ does (`CLAUDE.md` §2.2).
 
 `docs/MODULE_SPEC.md` §8.1: the `biography` row and paragraph. `CORE_CONCEPTS.md` is untouched. No code.
 **Depends on:** freeze of this section.
-- [ ] Implementation: ARC-28 and ARC-29 in the house form (Problem, Options, Choice, Accepted
+- [x] Implementation: ARC-28 and ARC-29 in the house form (Problem, Options, Choice, Accepted
   limitations — L-1 no decay and saturation, B-2; L-4 L0 biography). MODULE_SPEC §8.1 command block and
-  table row. Each records the QB answers that bear on it.
-- [ ] Validation: both doc scripts PASS; `ARC-28`/`ARC-29` resolve as distinct ids.
-- [ ] Review: no new term outside `CORE_CONCEPTS`' vocabulary (`Relation`, `Process`, `Event`,
+  table row. Each records the QB answers that bear on it. (§9 E-B1)
+- [x] Validation: both doc scripts PASS; `ARC-28`/`ARC-29` resolve as distinct ids (39 ids). Before
+  allocating, every remote branch's highest id was read: `ARC-27` on all of them, so 28 and 29 are free.
+- [x] Review: no new term outside `CORE_CONCEPTS`' vocabulary (`Relation`, `Process`, `Event`,
   `System`). ARC-28 cites ARC-26 for "subscribing is not emitting". ARC-29 claims no compression
-  (S10's).
+  (S10's). Bounded note: QB-3's decision record will be `ARC-30` (C8), so 10c's outline moves to
+  `ARC-31`. 10c's outline is not frozen and will be renumbered when 10c is detailed.
 **Acceptance.** The two records exist and say what C2–C6 then implement. **Failure.** A decision text
 that needs a contract or kernel change is a material stop. **Boundary.** Docs only.
 
