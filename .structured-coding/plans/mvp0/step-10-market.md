@@ -2596,12 +2596,21 @@ packs). `docs/MODULE_SPEC.md` §4.1: "four sections" → six (`economy`, `job`).
 **Scope.** `systems/inventory/src/{event.rs, admit.rs, system.rs, lib.rs}`, `tests/inventory.rs` (new
 cases; existing ones unchanged), README. No dependency change.
 
-- [ ] Implementation: SD-22 — `ItemsProduced`, `ItemsConsumed` (accessors, `pub(crate)` constructors),
+- [x] Implementation: SD-22 — `ItemsProduced`, `ItemsConsumed` (accessors, `pub(crate)` constructors),
   `admit_production`, `admit_consumption`, `produce`, `consume`; declaration emits and subscribes to both;
-  two reduction arms, each asking its admit function before writing.
-- [ ] Validation: `cargo test -p mineworld-inventory` (existing 9 + new); E-3; M-E2; clippy, fmt.
-- [ ] Review: one write path per fact; `PERSON_CAPACITY` applies to production into a person; the
-  existing `transfer` path untouched.
+  two reduction arms, each asking its admit function before writing. Files: `systems/inventory/src/
+  {admit,event,lib,system}.rs`, `README.md`, `tests/{inventory.rs, support/mod.rs}`. Both facts are
+  `Visibility::Participants` with the holder as the only participant (a private `held_fact` helper).
+  The tests' stater for the new facts is a second test-only system, `workshop` (action `change`), so
+  `hands` and every existing test's world are unchanged (DE-2).
+- [x] Validation: `cargo test -p mineworld-inventory` → inventory.rs 10 passed (8 existing + 2 new),
+  persisted.rs 1 passed, 0 failed; clippy `--all-targets -D warnings` and fmt clean. E-3 and M-E2 in
+  §9.5 E-E2 (M-E2 caught by the count-zero case, not the undeclared-kind and non-holder cases: DE-3).
+- [x] Review: one write path per fact (`react`: produced → `adding`, consumed → `removing`, each after
+  its admit function); `admit_production` calls `can_take`, so a person's six holds for production
+  (the forged "past six" case and the positive control "up to six exactly" show it); `transfer`,
+  `admit_transfer`, `admit_stock` and `stocked` byte-for-byte unchanged; no existing test edited —
+  the diff of `tests/inventory.rs` adds imports and two functions only.
 
 ### E-C3 — `systems/employment`
 
@@ -2733,6 +2742,16 @@ DE-1  bounded  money-transferred's reduction also refuses a party that is not a 
                a Wallet lives on holders only, as inventory's Holdings do (is_holder); without it a
                forged fact could create a wallet on a place. Stated in ARC-38 item 3. Validation:
                economy's forged-money test.
+DE-2  bounded  inventory's tests state the new facts through a second test-only system, `workshop`
+               (action `change { holder, item, count, way: Make | UseUp, forged }`), not by extending
+               `hands`. Reason: `hands`' declaration is part of every existing test's world; a new
+               system leaves those worlds byte-identical (E-2: existing tests keep their claims).
+DE-3  bounded  M-E2 (items-consumed's reduction skips admit_consumption) is caught by the count-zero
+               case, not by the undeclared-kind and non-holder cases §4.5.3 E-3 named: those are
+               still refused because a holder can only hold declared kinds and a non-holder holds
+               nothing, so Holdings::removing returns None (D-D2's second guard, again). A zero count
+               is the case only the owner's rule refuses — removing 0 is a no-op write. The mutation is
+               caught; no test weakened.
 ```
 
 ## 4.6 PR 11f — the proof (medium scope; detailed after 11e merges)
@@ -3711,6 +3730,20 @@ E-E0 Base captures on 4f2a4cd before any edit, 2026-10-07 (debug, opt-level 1):
      pushed); used as a reference only — the packs are written to §4.5's layout, not cherry-picked.
 E-E1 E-C1 specs: check_decision_ids 49 ids, all distinct (ARC-38 new); check_doc_headings 143 sections
      across 22 documents, none duplicated. ARC-38 absent from every origin/* branch after `git fetch`.
+E-E2 E-C2 inventory: `cargo test -p mineworld-inventory` → inventory.rs 10 passed (8 + 2 new),
+     persisted.rs 1 passed, 0 failed; clippy -p mineworld-inventory --all-targets -D warnings clean;
+     fmt clean. No dependency change (Cargo.lock untouched).
+     E-3: through produce/consume, kiosk coffee 20 → 23 and alice's last tea removed (no zero entry),
+     nobody else changed; each fact Participants = [holder], caused by the request. Past the
+     constructors (forged, workshop): produced undeclared / 0 / into a place / past bob's six, consumed
+     undeclared / 0 / from a place / more than held → each FactRefusedByOwner { inventory,
+     items-produced | items-consumed } with PreconditionFailed (TargetUnavailable for past six), state
+     bytes unchanged, and the constructor refuses each with the same reason; positive controls (forged
+     valid production up to exactly six, forged valid consumption) reduced. → PASS.
+     M-E2 (`// MUTATION M-E2`: the items-consumed arm skips admit_consumption): the refusal test
+     FAILED — "inventory must refuse as the owner, but got Ok(… Accepted … items-consumed …
+     ActionId(6))", the count-zero case (DE-3). Reverted; `git grep MUTATION -- systems` empty;
+     10 + 1 passed again.
 ```
 
 ---

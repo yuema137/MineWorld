@@ -13,10 +13,10 @@ use mineworld_presence::PerceptionProvider;
 use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
-use crate::admit::{admit_stock, admit_transfer};
+use crate::admit::{admit_consumption, admit_production, admit_stock, admit_transfer};
 use crate::codec;
 use crate::component::Holdings;
-use crate::event::{ItemsTransferred, Stocked};
+use crate::event::{ItemsConsumed, ItemsProduced, ItemsTransferred, Stocked};
 
 /// What people and organizations hold.
 #[derive(Default)]
@@ -49,27 +49,33 @@ impl System for InventorySystem {
     const VERSION: SystemVersion = SystemVersion::new(1);
 
     /// Depends on `item`, whose declared kinds are the only things anybody may hold. Provides no
-    /// action: a give is `item-transfer`'s decision, stated in this pack's vocabulary.
+    /// action: a give, a purchase, a shift's production and a meal are other packs' decisions, stated
+    /// in this pack's vocabulary.
     fn declaration(&self) -> SystemDeclaration {
         SystemDeclaration::of::<Self>()
             .depending_on([ItemSystem::ID])
             .owning::<Holdings>()
             .emitting::<Stocked>()
             .emitting::<ItemsTransferred>()
+            .emitting::<ItemsProduced>()
+            .emitting::<ItemsConsumed>()
             .subscribing_to::<Stocked>()
             .subscribing_to::<ItemsTransferred>()
+            .subscribing_to::<ItemsProduced>()
+            .subscribing_to::<ItemsConsumed>()
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
         tables.component::<Holdings>()
     }
 
-    /// Reduces `stocked` and `items-transferred` into [`Holdings`] — the only writes of holdings
-    /// anywhere.
+    /// Reduces `stocked`, `items-transferred`, `items-produced` and `items-consumed` into
+    /// [`Holdings`] — the only writes of holdings anywhere.
     ///
     /// **The owner still decides** (`ARC-26`). Before writing, the fact is put to the same rule its
-    /// constructor asked: [`admit_transfer`] for a transfer, the stock rule for `stocked`. A refusal
-    /// writes nothing and fails with [`KernelError::FactRefusedByOwner`].
+    /// constructor asked: [`admit_transfer`] for a transfer, [`admit_production`] and
+    /// [`admit_consumption`] for the other two, the stock rule for `stocked`. A refusal writes
+    /// nothing and fails with [`KernelError::FactRefusedByOwner`].
     fn react(
         &self,
         world: &mut WorldView<'_, Self>,
@@ -98,6 +104,24 @@ impl System for InventorySystem {
                 .ok_or_else(unchanged)?;
             world.insert(moved.from(), from)?;
             world.insert(moved.to(), to)?;
+        } else if *event.event_type() == ItemsProduced::EVENT_TYPE {
+            let made: ItemsProduced = codec::event_payload(event.payload())?;
+            let read = world.read();
+            admit_production(&read, made.holder(), made.item(), made.count())
+                .map_err(|reason| refused(ItemsProduced::EVENT_TYPE, reason))?;
+            let next = held_by(&read, made.holder())
+                .adding(made.item(), made.count())
+                .ok_or_else(|| refused(ItemsProduced::EVENT_TYPE, Rejection::PreconditionFailed))?;
+            world.insert(made.holder(), next)?;
+        } else if *event.event_type() == ItemsConsumed::EVENT_TYPE {
+            let used: ItemsConsumed = codec::event_payload(event.payload())?;
+            let read = world.read();
+            admit_consumption(&read, used.holder(), used.item(), used.count())
+                .map_err(|reason| refused(ItemsConsumed::EVENT_TYPE, reason))?;
+            let next = held_by(&read, used.holder())
+                .removing(used.item(), used.count())
+                .ok_or_else(|| refused(ItemsConsumed::EVENT_TYPE, Rejection::PreconditionFailed))?;
+            world.insert(used.holder(), next)?;
         }
         Ok(Vec::new())
     }

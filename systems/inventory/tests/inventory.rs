@@ -9,11 +9,11 @@ use mineworld_contracts::{
     ActionResult, Causation, Component, Event, EventEnvelope, Rejection, Visibility,
 };
 use mineworld_inventory::{
-    AuthoredHoldings, Holdings, InventorySystem, ItemsTransferred, PERSON_CAPACITY, Stocked,
-    can_take, transfer,
+    AuthoredHoldings, Holdings, InventorySystem, ItemsConsumed, ItemsProduced, ItemsTransferred,
+    PERSON_CAPACITY, Stocked, can_take, consume, produce, transfer,
 };
 use mineworld_kernel::{Emission, KernelError, SystemIdentity};
-use support::{GENESIS, Pass, Town, pass, state};
+use support::{Change, GENESIS, Pass, Town, Way, begun_with_workshop, change, pass, state};
 
 fn owned(pairs: &[(&str, u32)]) -> Vec<(String, u32)> {
     pairs.iter().map(|(k, n)| ((*k).to_owned(), *n)).collect()
@@ -309,5 +309,202 @@ fn holdings_are_disclosed_to_the_holder_and_to_nobody_else() {
         held(town.id("bob")),
         Some(0),
         "Alice perceives Bob and is not told what he carries"
+    );
+}
+
+/// E-3, the positive half: through the checked constructors, production and consumption change
+/// exactly one holder by exactly the count, as inventory's own facts, visible to that holder and
+/// caused by the request that decided them.
+#[test]
+fn production_and_consumption_through_the_constructors_change_one_holder_by_the_count() {
+    let mut town = begun_with_workshop();
+    let (alice, kiosk) = (town.id("alice"), town.id("kiosk"));
+    let (coffee, tea) = (town.item("coffee"), town.item("tea"));
+    let before = (town.holdings("alice"), town.holdings("bob"));
+
+    let made = change(
+        &mut town.world,
+        alice,
+        &Change {
+            holder: kiosk,
+            item: coffee,
+            count: 3,
+            way: Way::Make,
+            forged: false,
+        },
+        1,
+    )
+    .expect("dispatch answers");
+    assert!(
+        matches!(made.result(), ActionResult::Accepted { .. }),
+        "{:?}",
+        made.result()
+    );
+    assert_eq!(
+        town.holdings("kiosk"),
+        owned(&[("apple", 9), ("coffee", 23)]),
+        "three more coffee, and nothing else changed"
+    );
+    assert_eq!(
+        (town.holdings("alice"), town.holdings("bob")),
+        before,
+        "nobody else's holdings moved"
+    );
+
+    let used = change(
+        &mut town.world,
+        alice,
+        &Change {
+            holder: alice,
+            item: tea,
+            count: 1,
+            way: Way::UseUp,
+            forged: false,
+        },
+        2,
+    )
+    .expect("dispatch answers");
+    assert!(matches!(used.result(), ActionResult::Accepted { .. }));
+    assert_eq!(
+        town.holdings("alice"),
+        owned(&[("coffee", 2)]),
+        "the last tea is gone, and no zero entry is left"
+    );
+
+    for (done, event_type, holder) in [
+        (&made, ItemsProduced::EVENT_TYPE, kiosk),
+        (&used, ItemsConsumed::EVENT_TYPE, alice),
+    ] {
+        let facts: Vec<&EventEnvelope> = done
+            .events()
+            .iter()
+            .filter(|fact| *fact.event_type() == event_type)
+            .collect();
+        assert_eq!(facts.len(), 1, "one {event_type} fact");
+        assert_eq!(*facts[0].visibility(), Visibility::Participants);
+        assert_eq!(facts[0].participants(), &[holder], "the holder alone");
+        assert!(
+            matches!(facts[0].caused_by(), Causation::Action(_)),
+            "caused by the request that decided it"
+        );
+    }
+}
+
+/// E-3: `items-produced` and `items-consumed` stated past the constructors are refused by the owner
+/// at reduction and write nothing — an undeclared kind, a count of zero, a non-holder, production past
+/// a person's six, consumption of more than is held. The constructors refuse the same; and the same
+/// forged path with a valid value is reduced, the positive control that makes the refusal the check.
+#[test]
+fn production_and_consumption_stated_past_the_constructors_are_refused_by_the_owner() {
+    let mut town = begun_with_workshop();
+    let (alice, bob, cafe, kiosk) = (
+        town.id("alice"),
+        town.id("bob"),
+        town.id("cafe"),
+        town.id("kiosk"),
+    );
+    let (apple, coffee, lantern, tea) = (
+        town.item("apple"),
+        town.item("coffee"),
+        town.item("lantern"),
+        town.item("tea"),
+    );
+    let forged = |holder, item, count, way| Change {
+        holder,
+        item,
+        count,
+        way,
+        forged: true,
+    };
+    let cases = [
+        (
+            "produced: an undeclared kind",
+            forged(kiosk, lantern, 1, Way::Make),
+            Rejection::PreconditionFailed,
+        ),
+        (
+            "produced: a count of zero",
+            forged(kiosk, coffee, 0, Way::Make),
+            Rejection::PreconditionFailed,
+        ),
+        (
+            "produced: into a place",
+            forged(cafe, coffee, 1, Way::Make),
+            Rejection::PreconditionFailed,
+        ),
+        (
+            "produced: past a person's six (bob holds one)",
+            forged(bob, apple, 6, Way::Make),
+            Rejection::TargetUnavailable,
+        ),
+        (
+            "consumed: an undeclared kind",
+            forged(alice, lantern, 1, Way::UseUp),
+            Rejection::PreconditionFailed,
+        ),
+        (
+            "consumed: a count of zero",
+            forged(alice, coffee, 0, Way::UseUp),
+            Rejection::PreconditionFailed,
+        ),
+        (
+            "consumed: from a place",
+            forged(cafe, coffee, 1, Way::UseUp),
+            Rejection::PreconditionFailed,
+        ),
+        (
+            "consumed: more than is held (alice holds one tea)",
+            forged(alice, tea, 2, Way::UseUp),
+            Rejection::PreconditionFailed,
+        ),
+    ];
+    for (id, (what, request, expected)) in cases.into_iter().enumerate() {
+        let before = state(&town.world);
+        let (event_type, reason) = refusal(change(
+            &mut town.world,
+            alice,
+            &request,
+            u64::try_from(id).expect("small") + 1,
+        ));
+        let expected_type = match request.way {
+            Way::Make => "items-produced",
+            Way::UseUp => "items-consumed",
+        };
+        assert_eq!(event_type, expected_type, "{what}");
+        assert_eq!(reason, expected, "{what}");
+        assert_eq!(state(&town.world), before, "{what}: nothing written");
+
+        let read = town.world.read();
+        let constructor = match request.way {
+            Way::Make => produce(&read, request.holder, request.item, request.count),
+            Way::UseUp => consume(&read, request.holder, request.item, request.count),
+        };
+        assert_eq!(
+            constructor.expect_err("the constructor refuses it too"),
+            expected,
+            "{what}"
+        );
+    }
+
+    let made = change(
+        &mut town.world,
+        alice,
+        &forged(bob, apple, 5, Way::Make),
+        20,
+    )
+    .expect("a valid forged production reduces");
+    assert!(matches!(made.result(), ActionResult::Accepted { .. }));
+    let used = change(
+        &mut town.world,
+        alice,
+        &forged(alice, coffee, 2, Way::UseUp),
+        21,
+    )
+    .expect("a valid forged consumption reduces");
+    assert!(matches!(used.result(), ActionResult::Accepted { .. }));
+    assert_eq!(
+        (town.holdings("bob"), town.holdings("alice")),
+        (owned(&[("apple", 6)]), owned(&[("tea", 1)])),
+        "positive control: the owner reduced facts another system stated, up to six exactly"
     );
 }
