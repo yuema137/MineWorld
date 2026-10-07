@@ -22,9 +22,22 @@ before them merges (`CLAUDE.md` §3, "detail one step ahead").
   its own mutation `PERSON_CAPACITY` 6→7 failed two capacity tests (overall §7).
 - **F-37's doc fix** (authoring's `Seeding` doc) is a docs-only PR after 11d's merge, outside the AC-1
   range (§4.4.0).
-- **PR 11e** is next: work, money, shops — and, by the operator's QS-35 decision (§4.4.0), a
-  consumption pack. Detailed in §4.5 by the planning session on `mvp0/s9-11e-plan` from `main @
-  70e532f`. 11f stays at medium scope until 11e merges.
+- **PR 11e** `MERGED` as `2dddda8` (GitHub #46, 2026-10-07), with a merge commit — the second and
+  last half of the measured AC-1 transformation (ARC-35 point 1, six market packs by the operator's
+  QS-35). Designed in §4.5 (`DESIGN FROZEN` per §4.5.0); evidence §9.5; deviations §4.5.7. The
+  primary session's review on the actual merge diff `2dddda8^1..2dddda8`: 0 paths outside
+  `systems/`, `worlds/`, `Cargo.lock` and Markdown; gates re-run 510/0; its own 300-day seed-7
+  market-town run with `--save`: 0 faults, 372 755 facts (= the implementer's), 33.7 s, and
+  `inspect` shows 2 717 `items-consumed`, 3 300 `money-transferred` and no `wage-unpaid`; its own
+  mutation (the payer not debited, breaking money conservation) failed two economy tests, the buy
+  test among them (overall §7). L-13 (the bounded-horizon economy) is recorded; F-47 and F-48 are
+  carried to the S9 closeout.
+- **The measured transformation is complete.** Its two merges are 11d `70e532f` and 11e `2dddda8`,
+  each a merge commit read against its own first parent (ARC-35 point 1).
+- **PR 11f** — the proof — is next, outside the AC-1 range: the mechanical AC-1 test, market-town's
+  activity check as a committed test, AC-2 at world level for every market pack, and Milestone C
+  through the real server. Detailed in §4.6 by the planning session on `mvp0/s9-11f-plan` from
+  `main @ 2dddda8`.
 
 **Freeze record (2026-10-07).**
 
