@@ -169,21 +169,30 @@ static func _skin(bc: String, nm: String, rough: String, tint: Color) -> Standar
 ## sample separately -- see shaders/hair_card.gdshader.
 ##
 ## One file feeds both slots. It is the strand atlas built by
-## `tools/hair_atlas.py`: eight columns of fine strands with transparent gaps,
+## `tools/hair_atlas.py --alphas` (since preview 4, cut from OwlishMedia's CC0
+## strand maps; see presentation/mineworld-default/LICENSES/): eight columns of
+## fine strands with transparent gaps,
 ## for the groomed cards of `tools/hair_groom.py`. The previous atlas drew a
 ## dozen thick bars per lock, and a head of them read as stripes.
-static func _hair(tint: Color) -> ShaderMaterial:
+static func _hair(tint: Color, flip_back := true) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/hair_card.gdshader")
 	var atlas := _tex("hair_strands.png", true)
 	m.set_shader_parameter("tex_diffuse", atlas)
 	m.set_shader_parameter("tex_opacity", atlas)
 	m.set_shader_parameter("tint", tint)
-	m.set_shader_parameter("highlight", Color(tint.r * 1.45, tint.g * 1.35, tint.b * 1.20))
+	# lower than preview 3's 1.45/1.35/1.20: with the CC0 strands and lit
+	# back faces, sunlit loose locks read near-blonde
+	m.set_shader_parameter("highlight", Color(tint.r * 1.30, tint.g * 1.20, tint.b * 1.08))
 	m.set_shader_parameter("cutoff", 0.30)
 	m.set_shader_parameter("roughness_v", 0.55)
-	m.set_shader_parameter("diffuse_gain", 1.0)
+	# The CC0 strand sheets carry brighter shading than our procedural atlas
+	# (most strands near 1.0), and at gain 1.0 nearly every pixel took the
+	# highlight colour: the hair read ginger. 0.72 keeps the caramel for the
+	# brightest strands only.
+	m.set_shader_parameter("diffuse_gain", 0.72)
 	m.set_shader_parameter("root_shade", 0.72)
+	m.set_shader_parameter("flip_back", flip_back)
 	return m
 
 
@@ -270,19 +279,21 @@ static func build(height_m: float, skin: Color, hair: Color,
 		# the rucksack: grey-green canvas, grey-green webbing over a dark navy
 		# lower section with a visible adjuster, as the reference shows
 		"MW_Pack": _cloth(pack, 0.92),
-		# the padded straps are lighter than the bag: in the reference the lit
-		# strap reads 0.33/0.27/0.24 sRGB, lighter than the canvas beside it
-		"MW_Webbing": _cloth(pack.lightened(0.12), 0.88),
+		# the padded straps are the bag's own canvas; lightened, they read
+		# slate-blue in the sky light of the chest-up frames
+		"MW_Webbing": _cloth(pack, 0.88),
 		"MW_StrapLow": _plain(Color(0.10, 0.11, 0.14), 0.80),
 		"MW_Buckle": _plain(Color(0.16, 0.16, 0.15), 0.42, 0.35),
 		"MW_Hair": _hair(hair),
 		# darker and cooler than the hair, as the reference's brows are
-		"MW_Brow": _hair(hair.darkened(0.42)),
+		"MW_Brow": _hair(hair.darkened(0.42), false),
 		# The opaque shell under the cards; alpha-scissored hair always leaks and
 		# this is what stops scalp showing between strands. Only slightly darker
 		# than the strands: at 45% darker its edge read as a black headband
 		# across the forehead wherever the cards were thin.
-		"MW_HairCap": _plain(hair.darkened(0.18), 0.68),
+		# 8% darker, not 18%: under the CC0 strands' wider gaps the darker cap
+		# showed through as dark patches on the crown.
+		"MW_HairCap": _plain(hair.darkened(0.08), 0.68),
 	}
 	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
 		if mi.name == "Hoodie" and hoodie.a <= 0.0:

@@ -115,7 +115,8 @@ const REF_SHOE := Color(0.30, 0.27, 0.24)
 ## Greyer and cooler than preview 3's 0.30/0.32/0.26, which the low warm sun
 ## turned khaki: the reference's canvas is a grey-green that reads grey-olive
 ## even in its own warm light (strap, lit: 0.33/0.27/0.24 sRGB).
-const REF_PACK := Color(0.21, 0.23, 0.22, 1.0)
+## (0.21/0.23/0.22, tried next, made the lighter straps read slate-blue.)
+const REF_PACK := Color(0.24, 0.25, 0.21, 1.0)
 
 
 ## `seat_y` is the height of the thing a SIT person sits on; the caller knows

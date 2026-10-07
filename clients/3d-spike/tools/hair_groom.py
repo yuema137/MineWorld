@@ -202,13 +202,16 @@ def bun_centre(head: Head) -> Vector:
     # High on the crown and a little behind it.  The reference's mass rises
     # about 60 mm above the top of the skull and is wider than half the
     # head; this centre and BUN_RADII put its top and sides there.
-    return head.c + Vector((0.002, 0.036, head.r.z + 0.030))
+    return head.c + Vector((0.002, 0.034, head.r.z + 0.038))
 
 
 # The knot, as an ellipsoid.  Narrower than the swept mass it sits on: a knot
 # wider than the head below it left a shelf round the crown, and the head
 # read as a beehive.
-BUN_RADII = Vector((0.045, 0.042, 0.038))
+# Preview 4: a quarter larger.  At 45 x 42 x 38 mm the knot read small from
+# the front; the reference's is a visible messy mass above the crown, about
+# half the head's width.
+BUN_RADII = Vector((0.056, 0.052, 0.046))
 # Lock ends escaping the knot.  Off: at portrait distance each one read as a
 # spike standing off the top of the head; the messiness comes from the bowed
 # loops and the frizz instead.
@@ -227,7 +230,7 @@ def bun_guides(head: Head, rng):
     """
     b = bun_centre(head)
     out = []
-    for i in range(34):
+    for i in range(46):
         axis = Vector((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-0.6, 0.6)))
         if axis.length < 1e-3:
             axis = Vector((0, 0, 1))
@@ -237,7 +240,7 @@ def bun_guides(head: Head, rng):
         th0 = rng.uniform(0, math.tau)
         span = rng.uniform(1.0, 1.7) * math.pi
         layer = rng.uniform(0.0, 0.10)
-        bow = rng.uniform(0.15, 0.35) if i % 4 == 0 else 0.0
+        bow = rng.uniform(0.15, 0.35) if i % 3 == 0 else 0.0
         n = 18
         path = []
         for k in range(n):
@@ -301,7 +304,10 @@ def sweep_guides(head: Head, rng):
             front = max(0.0, math.cos(a))
             back = max(0.0, -math.cos(a))
             sides = abs(math.sin(a))
-            vol = (0.008 + 0.010 * front + 0.008 * sides - 0.004 * back
+            # Preview 4 roughly doubles the front and side lift: at 18 mm the
+            # front sat on the skull as a helmet; the reference's swept front
+            # stands well off the forehead and is wider than the temples.
+            vol = (0.010 + 0.020 * front + 0.016 * sides - 0.004 * back
                    + rng.uniform(0.0, 0.004))
             for k in range(n):
                 t = k / (n - 1)
@@ -466,9 +472,12 @@ def grow(body_centre, radii, scalp, seed):
         # Locks, not a carpet: children pulled hard into clumps leave gaps
         # between the clumps, and the gaps -- the darker cap showing between
         # locks -- are most of what makes a groom read as hair.
+        # Preview 4: more tip spread and more noise, so the swept front
+        # breaks into separate soft locks rather than one shell -- the
+        # "helmet with a band across the crown".
         ("Clump Hair Curves", {"Factor": 0.85, "Shape": 0.35, "Guide Distance": 0.022,
-                               "Tip Spread": 0.002, "Clump Offset": 0.002, "Seed": 7}),
-        ("Hair Curves Noise", {"Distance": 0.0045, "Scale": 30.0, "Shape": 0.7,
+                               "Tip Spread": 0.006, "Clump Offset": 0.004, "Seed": 7}),
+        ("Hair Curves Noise", {"Distance": 0.0080, "Scale": 22.0, "Shape": 0.7,
                                "Offset per Curve": 1.0, "Seed": 11}),
     ])
     bun = new_curves("GroomBun", bun_guides(head, rng))
@@ -509,7 +518,7 @@ def grow(body_centre, radii, scalp, seed):
 
     verts, faces, uvs = [], [], []
     for strands, w0, w1, centre_of, cols in (
-            (s_sweep, 0.014, 0.008, from_head, DENSE_COLS),
+            (s_sweep, 0.012, 0.007, from_head, DENSE_COLS),
             (s_bun, 0.016, 0.009, from_bun, DENSE_COLS),
             (s_loose, 0.015, 0.008, from_head, LOOSE_COLS)):
         v, f, u = cards_from(strands, w0, w1, centre_of, cols, rng)

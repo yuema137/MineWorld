@@ -88,8 +88,57 @@ def draw_column(rgb, alpha, col, rng):
             rgb[r, c] = rgb[r, c] * (1.0 - a_new) + bright * a_new
 
 
+# --alphas mode: the atlas cut from OwlishMedia's CC0 "Hair Alphas For Days"
+# (`fetch_hair_alphas.sh`; licence record in the pack's LICENSES/).  Columns
+# 0-5 are strand *sheets* -- wavy, clumped and fine -- and 6-7 single narrow
+# locks, for the face-framing strands and the flyaways.  Each source is
+# 2048 px square with the roots at the top; the strands fade out by about
+# 83 % of its height, so the crop stops there, and it is the centre 512 px
+# of the width, which keeps a strand a few pixels wide in a 256 px column.
+ALPHA_COLUMNS = ["hair01.png", "hair04.png", "hair05.png", "hair06.png",
+                 "hair09.png", "hair08.png", "hair21.png", "hair27.png"]
+ALPHA_CROP_W, ALPHA_CROP_H = 512, 1700
+
+
+def from_alphas(src_dir: str):
+    import os  # pylint: disable=import-outside-toplevel
+    cw = W // COLS
+    px = np.zeros((H, W, 4), dtype=np.float32)
+    for col, name in enumerate(ALPHA_COLUMNS):
+        img = bpy.data.images.load(os.path.join(src_dir, name))
+        sw, sh = img.size
+        a = np.array(img.pixels[:], dtype=np.float32).reshape(sh, sw, 4)
+        # Blender's rows run bottom-up, so the roots (top of the PNG) are
+        # the last rows; keep the top ALPHA_CROP_H and flip them so the root
+        # is row 0, which is v = 0, the card's root
+        x0 = (sw - ALPHA_CROP_W) // 2
+        crop = a[sh - ALPHA_CROP_H:, x0:x0 + ALPHA_CROP_W][::-1].copy()
+        tmp = bpy.data.images.new(f"col{col}", ALPHA_CROP_W, ALPHA_CROP_H, alpha=True)
+        tmp.pixels.foreach_set(crop.ravel())
+        tmp.scale(cw, H)
+        px[:, col * cw:(col + 1) * cw] = np.array(tmp.pixels[:], dtype=np.float32).reshape(H, cw, 4)
+        bpy.data.images.remove(tmp)
+        bpy.data.images.remove(img)
+    # strand shading into all three channels, as the shader reads .r
+    px[..., 1] = px[..., 0]
+    px[..., 2] = px[..., 0]
+    return px
+
+
 def main() -> int:
-    out = sys.argv[sys.argv.index("--") + 1]
+    args = sys.argv[sys.argv.index("--") + 1:]
+    out = args[0]
+    if len(args) > 2 and args[1] == "--alphas":
+        px = from_alphas(args[2])
+        img = bpy.data.images.new("hair_atlas", W, H, alpha=True)
+        img.pixels.foreach_set(px.ravel())
+        img.filepath_raw = out
+        img.file_format = "PNG"
+        img.save()
+        cover = [float(px[:, c * 256:(c + 1) * 256, 3].mean()) for c in range(COLS)]
+        print("hair atlas (CC0 alphas)", out, "mean coverage per column",
+              " ".join(f"{c:.2f}" for c in cover))
+        return 0
     rng = np.random.default_rng(SEED)
     rgb = np.full((H, W), 0.55, dtype=np.float64)
     alpha = np.zeros((H, W), dtype=np.float64)

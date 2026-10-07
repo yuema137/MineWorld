@@ -28,6 +28,7 @@ uniform float root_shade : hint_range(0.0, 1.0) = 0.6;
 // so a scissored card thins away. Coverage is rescaled by the mip level
 // (Castaño's alpha-test mip fix, applied at sample time).
 uniform float mip_scale : hint_range(0.0, 1.0) = 0.20;
+uniform bool flip_back = true;
 
 float mip_level(vec2 uv, vec2 size) {
 	vec2 dx = dFdx(uv * size);
@@ -40,6 +41,13 @@ void fragment() {
 	float a = op.a * (1.0 + mip_level(UV, vec2(textureSize(tex_opacity, 0))) * mip_scale);
 	if (a < cutoff) {
 		discard;
+	}
+	// A card is seen from both sides; lit with its front normal from behind,
+	// every card turned away from the camera read as a dark stiff strand.
+	// Off for the brows: their cards lie on the skin and are only ever seen
+	// from the side the bake set up, and flipped they caught the sky.
+	if (!FRONT_FACING && flip_back) {
+		NORMAL = -NORMAL;
 	}
 	float strand = clamp(texture(tex_diffuse, UV).r * diffuse_gain, 0.0, 1.0);
 	float root = clamp(1.0 - UV.y, 0.0, 1.0);    // 0 at the root, 1 at the tip
