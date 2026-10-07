@@ -1232,8 +1232,8 @@ biography. **Boundary.** One subcommand and its test.
   comparison.
 
 **Depends on:** C6.
-- [ ] Implementation:
-  - [ ] **Activity precondition, extended (I-4, as amended by QB-2).** Before any byte comparison, in
+- [x] Implementation (evidence in "C7 result" below):
+  - [x] **Activity precondition, extended (I-4, as amended by QB-2).** Before any byte comparison, in
     `run.rs` (300 days), `run_restart.rs`, `milestone_b.rs` and `social_composition.rs`, and in every
     30-day bucket:
     - every seat accepted `move` and `talk` (as today);
@@ -1243,7 +1243,7 @@ biography. **Boundary.** One subcommand and its test.
     Relationship facts are located as QB-2 decides: recommended, `became-acquainted` and
     `relationship-changed` located in the first bucket, and every relationship fact caused by an
     event of one of the four subscribed types. The counts are printed per bucket.
-  - [ ] **`milestone_b.rs`** (`I-8`, SD-16, and the brief's "the server is SIGKILLed and restarted on
+  - [x] **`milestone_b.rs`** (`I-8`, SD-16, and the brief's "the server is SIGKILLed and restarted on
     the same save"):
     1. control: `run worlds/social-cafe --headless --seed 7 --days D --save C`, with D = 30, or the
        smallest multiple of 30 at which step 2 locates everything (measured, recorded);
@@ -1266,7 +1266,7 @@ biography. **Boundary.** One subcommand and its test.
        welcome revision is unchanged, and both biographies read afterwards still equal step 4's;
     6. `mineworld inspect K` succeeds: every cause resolves, and the process causes (the activity
        wakes) are counted.
-  - [ ] **`social_composition.rs`** (`AC-2`), on test-time copies of the pack whose `world.yaml` omits
+  - [x] **`social_composition.rs`** (`AC-2`), on test-time copies of the pack whose `world.yaml` omits
     one system. This is the composition route a World Pack has, with no pack-level disable flag
     (`worldpack/src/read.rs`). 30 days, seed 7, saved:
     - **without relationships:** every fact of every other system equals the full run's, compared by
