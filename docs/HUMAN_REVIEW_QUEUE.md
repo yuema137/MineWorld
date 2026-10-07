@@ -78,15 +78,31 @@ identifies one thing.
 | | Milestone | State |
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
-| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 🔍 **route D+ preview prepared, 2026-10-07**, held for the coordinator (see below). Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
-| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟡 **READY FOR HUMAN VISUAL REVIEW** (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | ✅ **ACCEPTED as the interim default (operator, 2026-10-07)**: route D+, "much better than the previous version; hold this as the standard for now, refine later". Its known misses are deferred refinements, not blockers (see below). Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
+| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟢 **Accepted on screenshots, interactive test pending** (operator, 2026-10-07): judged from the slice's screenshots together with the character; the operator has not yet run the build, so the combined test session below is still to be done. Before that, 🟡 READY FOR HUMAN VISUAL REVIEW (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
-### `VIS-3D-GODOT-1` — route D+ preview, PREPARED 2026-10-07 (not yet shown to the operator)
+### `VIS-3D-GODOT-1` — route D+: ACCEPTED as the interim default (operator, 2026-10-07)
 
-**This is a preview (`VISUAL_FIDELITY.md` §9.1), not an acceptance request.** It is held for
-the coordinator, who will show it to the operator with the other items. It asks: *is this the
+**Operator verdict, 2026-10-07**, given on eight screenshots: reference against game, street front
+and rear, doorway, counter, hand detail, full body and rear, walking.
+
+> 跟上一版本相比好多了，我们可以就先维持这个标准。以后再精雕细琢
+
+*Gloss:* "Much better than the previous version. We can hold this as the standard for now, and
+refine it later."
+
+So route D+ is **accepted as the interim default character** (`ARC-11`: only the operator
+accepts). The known misses below are **deferred refinements, not blockers**: the hair's tone and
+locks, the painted eyes with no blink or expression, the hand, the pack's colour, and the tee's
+first word. They are what "refine later" refers to, and this acceptance neither closes nor
+relaxes them.
+
+The text below is the preview as it was prepared, kept as the record of what was judged.
+
+**As prepared: a preview (`VISUAL_FIDELITY.md` §9.1), not an acceptance request.** It was held for
+the coordinator, who showed it to the operator with the other items. It asked: *is this the
 right direction, and what is most wrong?*
 
 The candidate is one Meshy generation of the reference, made game-ready (95,000 triangles, one
@@ -460,7 +476,19 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
-### `VIS-3D-GODOT-2` — READY FOR HUMAN VISUAL REVIEW, 2026-10-06; with the route D+ character, 2026-10-07
+### `VIS-3D-GODOT-2` — accepted on screenshots, interactive test pending (operator, 2026-10-07)
+
+**Verdict, 2026-10-07.** The operator judged the slice from its screenshots, shown together with
+route D+'s (street front and rear, doorway, counter, walking), in the verdict quoted under
+`VIS-3D-GODOT-1` above: 跟上一版本相比好多了，我们可以就先维持这个标准。以后再精雕细琢 ("much
+better than the previous version; hold this as the standard for now, refine later"). **The
+operator has not yet run the build.** So this is acceptance on screenshots only, and the
+interactive check — the combined session below, walked by the operator — is still pending. Nothing
+here claims more than that.
+
+The entry as it was submitted follows.
+
+#### Submitted: READY FOR HUMAN VISUAL REVIEW, 2026-10-06; with the route D+ character, 2026-10-07
 
 **This is the acceptance request** for the integrated slice: the street, the café you walk into, The
 Flower Room, the light, movement, the three cameras, the connection to the world, and **the
