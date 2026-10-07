@@ -1939,27 +1939,33 @@ disclosure (Q9, the names scope).
 
 No catalog registration yet (C3). No edit to any existing pack (I-1).
 **Depends on:** C1.
-- [ ] Implementation:
-  - [ ] `SectionName`, `ContentKind` (moved from worldpack in C3, defined here), `Reference`,
-    `Seeding`, `AuthoredSection`.
-  - [ ] `Name`, `DisplayName`, `Named`, the `name` section, `discloses`, `names_in`.
-- [ ] Validation (`cargo test -p mineworld-naming`), over a hand-built world (presence + naming, two
-  people in one place, a third elsewhere):
-  - [ ] genesis `named` → DisplayName reduced by naming. A replay from genesis holds the same names.
-  - [ ] Disclosure: a co-present observer receives the other's `display-name` record, and its own.
-    A person in another place is not perceived, so no record is disclosed about them (presence's
-    rule, observed rather than assumed).
-  - [ ] Section decoding through the trait with a YAML literal: `Alice Moreau` accepted. `""`, a
-    65-byte name, `"\tAlice"` and a name containing `\n` are each refused by `Name`'s own
-    deserialization.
-  - [ ] `seed` refuses a subject that is a place (`PreconditionFailed`).
-  - [ ] `names_in` over the facts returns exactly the genesis names, and the later of two `named` for
-    one person.
-- [ ] Review:
-  - Only naming's `react` writes DisplayName.
-  - No float, no HashMap.
-  - `authoring` names no pack.
-  - fmt and clippy are clean.
+- [x] Implementation (§9 E-C2):
+  - [x] `authoring/src/{lib, section, content}.rs`: `SectionName` (const-checked), `ContentKind`
+    (with `entity_type()`), `Reference`, `Seeding` (with `resolve(key, type)`), `AuthoredSection`.
+    Also `AuthoredContent` + `Decode<S>`: a `DeserializeSeed` that decodes an owner's section and
+    erases its type until seeding.
+  - [x] `systems/naming/src/{lib, name, component, event, section, codec, system}.rs`: `Name`,
+    `DisplayName` (`{ "name": … }`), `Named`, the `name` section, `discloses`, `names_in`.
+- [x] Validation (`cargo test -p mineworld-naming`: 5 passed), over a hand-built world (presence +
+  naming; Alice and Bob in the café, Carol on the street):
+  - [x] genesis `named` → DisplayName reduced by naming, caused by `WorldGenesis`. A person with no
+    section has no name. "A replay from genesis holds the same names" is **moved**, not dropped: it
+    is owned by the real-save `replay`/`verify` runs over the pack in C3/C4, which re-execute genesis.
+    A second hand-built world here would compare the code with itself.
+  - [x] Disclosure: Alice receives Bob's `display-name` (a JSON object) and her own. Carol, on the
+    street, is not perceived from the café, and Carol is told nothing about Alice.
+  - [x] Decoding with serde-saphyr through `<NamingSystem as AuthoredSection>::Authored`:
+    `Alice Moreau` and `Zoë Ångström` are accepted, and 64 bytes passes. `""`, 65 bytes, `"\tAlice"`,
+    `"Al\nice"` and `" Alice"` are each refused with Name's own message.
+  - [x] `seed` refuses the café as a subject (`PreconditionFailed`).
+  - [x] `names_in` over the genesis facts gives two names, the later `named` wins, and it agrees with
+    the reduced DisplayName.
+- [x] Review:
+  - `react` is the only writer (no `resolve`, no `wake`).
+  - `rg "f32|f64|HashMap|HashSet" authoring systems/naming` → none.
+  - `authoring` names no pack, only contracts/kernel/serde.
+  - `cargo fmt --all` applied; `cargo clippy -p mineworld-authoring -p mineworld-naming
+    --all-targets --all-features -- -D warnings` is clean.
 
 **Acceptance.** As validation (§9 E-C2).
 **Failure.** A required kernel or contracts change is a material stop.
@@ -2899,6 +2905,10 @@ E-C0 C0 design for 10c, 2026-10-07, on main @ 266daf7 + this file (branch mvp0/p
      file and line in §4.3.1 and were spot-checked here: ac15_one_alice.rs:228–235;
      rule-controller lib.rs:207; worldpack load.rs (genesis order).
      PROCEDURAL: Phase 1 used no forbidden tool.
+E-C1 (923b438) ARC-31, ARC-32, MODULE_SPEC §4.1 sections + rule 6 + genesis order, §8.1 biography
+     names, PACKAGE_FORMAT §8. check_decision_ids 42 distinct; check_doc_headings 142.
+E-C2 authoring + naming. `cargo test -p mineworld-naming`: 5 passed, 0 failed (0.00 s). clippy -D
+     warnings clean on both crates; fmt applied.
 ```
 
 ## 9.1 Limitations (expected)
