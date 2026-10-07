@@ -127,8 +127,9 @@ static func make(rng: RandomNumberGenerator, p_pose: Pose, height := 0.0,
 	n.pose = p_pose
 	var h: float = height if height > 0.0 else rng.randf_range(1.62, 1.83)
 	if reference:
+		# the default character has its own body slot; the town shares the other
 		n.body = Human.build(h, REF_SKIN, REF_HAIR, REF_TEE, REF_JEANS, REF_SHOE,
-			REF_HOODIE, REF_PACK)
+			REF_HOODIE, REF_PACK, Human.Body.REFERENCE)
 	else:
 		n.body = Human.build(
 			h,
