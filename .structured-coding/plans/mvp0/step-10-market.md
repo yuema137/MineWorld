@@ -2221,13 +2221,18 @@ check 2 allows).
 
 ### D-C6 — `worlds/market-town`
 
-- [ ] Implementation: SD-21 — copy with `git read-tree --prefix=worlds/market-town/ -u
-  HEAD:worlds/social-cafe` then edit; items; holdings; README.
-- [ ] Validation: D-9 a–d, D-10, with the scratch reader on a local scratch branch (deleted after;
-  `git ls-remote --heads origin | grep -c scratch` → 0); M-D7 on that branch; a scratch copy with one
-  person authored at seven items → `validate` refuses it naming the file and inventory (D-5).
-- [ ] Review: no social-cafe field or section changed in the copy; Otto present with holdings; every
-  authored person within capacity.
+- [x] Implementation: SD-21 — copied with `git read-tree --prefix=worlds/market-town/ -u
+  HEAD:worlds/social-cafe`, then: world.yaml header (a Market Town paragraph above Social Café's
+  unchanged header), id/name, `item, inventory, item-transfer` appended to `systems` with a comment,
+  an `items:` list of 20 kinds; `items/<key>.yaml` × 20 (tags + `item: { category }`: drink 4, food 6,
+  goods 10); one commented `holdings:` block appended to each of the 12 person files (28 entries, 30
+  items, 2–3 per person, Otto 2); README.md rewritten for Market Town (human orientation).
+- [x] Validation: D-9 a–d, D-10, the scratch reader on local branch `scratch/11d-reader` (deleted;
+  `git ls-remote --heads origin | grep -c scratch` → 0); M-D7 on that branch; the seven-item scratch
+  copy refused by `validate` (§9.4 E-D6).
+- [x] Review: no social-cafe field or section changed in the copy (D-10's diff has removals only in
+  README.md and the id/name lines); Otto present with holdings; every authored person within capacity
+  (max 3).
 
 ### D-C7 — Close: status, change set, full gates, ledger
 
@@ -3092,6 +3097,36 @@ E-D5 D-C5 install: `cargo test --no-fail-fast -p mineworld-installed-systems -p 
      300-day seed-7 social-cafe sha-256 of all but `wall` = ad49c723…c64b = E-0; faults 0; 365 330
      facts; fingerprint 59339a9c281829c9; wall 12.2 s. `validate worlds/social-cafe` byte-identical
      to E-D0's (cmp; sha ebcd60a0…f56a8).
+E-D6 D-C6 market-town, on 069e9e4's build (debug, opt-level 1), 2026-10-07. In the order I-7 binds:
+     a. `mineworld validate worlds/market-town` → valid; ids 1–18 identical to social-cafe's (diff of
+        the id lines empty), kinds 19–38; 101 genesis facts = 53 + 20 kinds + 28 authored holdings.
+     b. ACTIVITY FIRST. `run worlds/market-town --headless --seed 7 --days 300 --save …` → exit 0,
+        faults 0, no rejected/unavailable request line, 365 126 facts; requests: give accepted 17 639,
+        move 173 161, talk 60 520. Every seat moved and talked in every 30-day bucket (minima: move
+        1 370, talk 412 per seat-bucket).
+        Scratch reader (systems/item-transfer/tests/scratch_reader.rs on scratch/11d-reader, decoding
+        with inventory's own Stocked/ItemsTransferred; never pushed): gives per bucket 1 727, 1 749,
+        1 720, 1 803, 1 719, 1 810, 1 725, 1 841, 1 772, 1 773 (total 17 639 = the accepted gives);
+        all 110 (seat, bucket) cells present — seats 7–15, 17, 18 × buckets 0–9 — minimum 114 per
+        cell; the most any person ever held was 6 (all 12, Otto included); final holdings total 30
+        (conserved), Otto 6. → PASS.
+     c. ONLY THEN DETERMINISM. Two 30-day seed-7 runs: identical but `wall` (diff empty; sha-256 of all
+        but wall 6e27e8b0…7d71a19). A save run to day 15 (give accepted 884) then resumed to day 30
+        (843 more) vs the uninterrupted 30-day save: both 37 090 facts, fingerprint 46f09300e34ad1ad
+        = the unsaved run's; every fact dumped from each save (scratch `dump`) byte-identical (cmp;
+        sha-256 6523edd5…3f96). → PASS.
+     d. COST. The 300-day run with --save: wall 32.5 s (≤ 60 s). → PASS.
+     M-D7 (PERSON_CAPACITY = u32::MAX, scratch commit, never pushed): 300 days with --save, exit 0,
+       faults 0, wall 32.8 s; reader FAILED "a seat that did not give in a bucket": gives 993 in
+       bucket 0, 17 in bucket 1, none after; 92 of 110 cells empty; Otto (16) held 30 of 30 items at the
+       end, the most any seat ever held 10. The instrument sees the sink. Scratch branch deleted.
+     D-10: `git diff --no-index --stat worlds/social-cafe worlds/market-town` → 34 files, 167+ 49−; the
+       removals are README.md (rewritten) and world.yaml's id/name only; additions: world.yaml header
+       paragraph, appended systems with comment, items list; 20 items/ files; one holdings: block with
+       its comment per person file. No place file differs. → PASS.
+     D-5 through the real CLI: a /tmp copy with bob authored at 7 items → `validate` exit 1:
+       "[mineworld] …/people/bob.yaml: the 'inventory' system refused 'bob''s 'holdings' section:
+       TargetUnavailable".
 ```
 
 ---
