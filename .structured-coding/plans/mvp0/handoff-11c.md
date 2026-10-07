@@ -43,10 +43,10 @@ Band measured on a scratch install: PASS at 20 — frozen (E-C6). Full gates on 
 (E-C-final: 443 passed, 0 failed; kill_and_resume PASS; sha = E-0; validate identical). The scratch
 branch was local only and is deleted. The PR head and number are in the PR itself.
 
-If 11b merges first (§12.0): rebase this branch onto the new main (never merge main in), move 11c's
-`PRECURSORS` base to that main in the same change, keep the rows in order 11a, 11b, 11c with 11b's
-structure, re-run the sha, the planted violations and the full gate on the rebased head, record them
-in §9.3, then force-push this branch — only then.
+11b merged first (#39, ae1a315). Done per §12.0: rebased onto ae1a315 (no merge of main), 11c's scan
+row base moved to ae1a315, rows 11a/11b/11c with 11b's structure; on the rebased executable head
+6003e07: 456 passed / 0 failed, kill_and_resume PASS, sha = E-0, planted violations refused, scan
+PASS (§9.3 E-C-rebase); branch force-pushed once for this rebase.
 
 Merge: operator only, with a merge commit.
 

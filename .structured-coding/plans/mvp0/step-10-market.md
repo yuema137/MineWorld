@@ -1883,8 +1883,9 @@ days. Assertions C-5. A further assertion: `cognition/rule-controller/Cargo.toml
     C-C4 comment, reworded. No material deviation; no stop condition reached.
 
 **PR 11c lifecycle:** `DESIGN FROZEN (2026-10-07)`, execution contract §14 confirmed. See the
-freeze record for 11b and 11c in §12.0. **READY FOR OPERATOR REVIEW** — final executable head
-`20cf29b`; the PR head is the Markdown-only commit after it (recorded in `handoff-11c.md` and the PR).
+freeze record for 11b and 11c in §12.0. **READY FOR OPERATOR REVIEW** — rebased onto main @
+`ae1a315` after 11b merged (E-C-rebase); final executable head `6003e07`, gated there; the PR head is
+the Markdown-only commit after it (the pre-rebase heads `20cf29b` / `c7b33df` are superseded).
 Merge with a **merge commit** only (§12). Implementation context CLOSED / AWAITING OPERATOR ACTION.
 Post-merge: this session owns §4.3 and §9.3; the planning session owns the header, §§1–3, overall
 and MVP_STATUS's `Updated:` / S9 lines.
@@ -2522,6 +2523,31 @@ E-C-final on 20cf29b (clean tree; final executable head — later commits are Ma
                                               observation.rs, action.rs (labelled), their tests and the
                                               trybuild .stderr
      CI: none configured (S13).
+E-C-rebase 11b merged first (GitHub #39, merge commit ae1a315). Per §12.0, 2026-10-07:
+     `git rebase origin/main` (main @ ae1a3157e85c05279daecf21f82bfea539597dd6); never a merge of main.
+     C-C1 … C-C4 applied cleanly; C-C5 conflicted only in precursor_vocabulary.rs — resolved to 11b's
+     structure (THIS_SCAN, `Words`, 11b's allow-list kept as merged) with rows 11a, 11b, 11c in order;
+     11c's row base moved to ae1a3157… in the same (rebased C-C5) commit. DECISIONS.md (ARC-34 before
+     ARC-35, ARC-36 at the end), MVP_STATUS and this file merged without conflict; this file's diff
+     against main touches only §4.3 and §9.3. Rebased commits: 2f15998, 37f37aa, 5ab5f40, 0985554,
+     d0ed2ca, 0c054b4, 6003e07.
+     Gate on 6003e07 (clean tree; earlier evidence does not carry over):
+     cargo fmt --all --check                                         PASS
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS (18 crates re-linted)
+     cargo test --workspace --no-fail-fast    456 passed, 0 failed, 0 ignored across 92 binaries
+                                              (main's 441 + 11c's 15); 145 s wall
+     kill_and_resume                          cafe PASS (0.2 s), clock PASS (0.1 s)
+     I-2 scan                                 PASS: 11b read as merged (base..M^2), 11c unmerged from
+                                              ae1a315; no 11c allow-list entry
+     planted violations                       untracked planted_11c.rs `SHOP_PRICE` and tracked
+                                              `// a wage is due` in offered.rs → refused by name (`wage`
+                                              offered.rs:59; `shop` and `price` planted_11c.rs:1 — word
+                                              level, 11b's matcher) → removed; scan PASS again
+     I-4                                      300-day seed-7 social-cafe sha-256 of all but wall =
+                                              ad49c723…c64b = E-0; faults 0; 365 330 facts; wall 12.3 s;
+                                              `validate worlds/social-cafe` identical to E-C0's
+     check_decision_ids 47 ids distinct; check_doc_headings 143 sections, none duplicated.
+     Branch force-pushed (permitted by §12.0 for this rebase only).
 ```
 
 ---
