@@ -9,8 +9,8 @@ follow-up)
 commit; 10b and 10c frozen at the step level and detailed after the previous PR merges.
 **PR 10a implementation context:** `CLOSED / AWAITING OPERATOR ACTION` — PR 10a `READY FOR OPERATOR
 REVIEW`, GitHub #29 (§12); §4.1 ledger, §9 evidence. 10a merged as `2f24eef` (overall §7).
-**PR 10b:** detailed to the commit in §4.2.1–4.2.6 on `main @ 0592b3e` — `DRAFT`, awaiting the
-primary session's review and QB-1…QB-3 (§4.2.5). Not frozen; no implementation has started.
+**PR 10b:** detailed to the commit in §4.2.1–4.2.6 on `main @ 0592b3e` — `DESIGN FROZEN`
+2026-10-07 (§4.2.6, QB-1…QB-4 answered).
 
 ## DESIGN FROZEN
 
@@ -1296,12 +1296,57 @@ QB-4 Bounded refinements recorded rather than asked, listed for visibility: B-3 
 ### 4.2.6 Freeze record for 10b
 
 ```text
-Lifecycle              DRAFT — awaiting the primary session's review of §§4.2.1–4.2.5 and QB-1…QB-3
-Design revision        the commit carrying this section
-Approved by / evidence —
+Lifecycle              DESIGN FROZEN (2026-10-07)
+Design revision        the commit carrying this record
+Approved by / evidence primary session, under the operator's autonomous authorization (overall §7);
+                       review recorded below
 Implementation base    main @ 0592b3e; branch mvp0/pr-10b-social
-Execution contract     §11.1 (proposed)
+Execution contract     §11.1, confirmed
 ```
+
+**Review.** §§4.2.1–4.2.4 are approved as written. All three questions were raised correctly. In
+each, a frozen value was checked against a later fact and found not to hold, and the design proposed
+the bounded correction instead of quietly bending the test.
+
+**QB-1 — ACCEPTED: invitation lifetime 1,800 s.** Q7 fixed 600 s while the pace was 600 s. 10a raised
+the pace to 900 s, and invitations to lower-numbered seats then always expire. The frozen *rule* was
+"an invitation lives long enough to be answered at the next consult". The number was derived from
+it, so re-deriving it from the new pace is a bounded correction. Record the derivation.
+
+**QB-2 — ACCEPTED: amend I-4 as proposed.** Per-bucket relationship facts cannot hold without decay.
+Every pair reaches its top level within weeks. The amended precondition is the right one:
+
+- group-activity started, ended, accepted and joined in every bucket;
+- move and talk per seat in every bucket;
+- relationship facts located in the first bucket, plus one downward crossing;
+- every relationship fact caused by a subscribed fact type;
+- per-bucket counts printed, so the saturation is visible rather than hidden.
+
+**Recorded as a known gap, not fixed here:** relationships do not decay, so a long-running world's
+social graph saturates and stops moving. That is a "living world" deficiency, not a test problem.
+Name it in 10b's limitations and in overall §7 as a candidate for a later step.
+
+**QB-3 — ACCEPTED: `[profile.dev] opt-level = 1`.** The measured result decides it:
+
+- byte-identical output;
+- 50.3 s → 8.4 s for a 300-day run;
+- no test leaves the default loop;
+- `AC-11`/`AC-12` unchanged.
+
+`#[ignore]` behind a named gate would make the slowest, most important evidence the easiest to skip.
+
+Conditions:
+
+- **Set `debug-assertions = true` and `overflow-checks = true` explicitly** in `[profile.dev]`, so a later
+  profile change cannot silently turn them off.
+- **Record the decision in `docs/DECISIONS.md`**, since it is repository build policy every contributor
+  inherits. Give the measurement and the byte-identity check as evidence.
+
+**QB-4 — ACCEPTED** as bounded refinements: member list in process state, `join` targeting a member,
+and empty biographical sets for presence, movement and conversation without editing them.
+
+**Procedure.** The `awk` use is recorded. It was the third tool-rule deviation in S8. Use `grep`,
+`sed -n` and `jq`.
 
 ## 4.3 PR 10c — routines (outline; detailed after 10b merges)
 
