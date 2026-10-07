@@ -476,8 +476,8 @@ Applied **between steps 3 and 4**, through `window_manager.charmorphs.prop_<name
 | --- | --- | --- | --- | --- |
 | `Jaw_Width` | −0.90 | | `Cheeks_BuccalFat` | +0.55 |
 | `Jaw_Ramus_Extrusion` | −0.95 | | `Face_Puffy` | +0.30 |
-| `Jaw_Mandible` | −0.90 | | `Eyes_Eyelid_Hooded` | +0.55 |
-| `Jaw_Mandible_GonialAngle` | −0.90 | | `Eyes_UpperLidOpenness` | −0.45 |
+| `Jaw_Mandible` | −0.90 | | `Eyes_Eyelid_Hooded` | +0.15 (was +0.55) |
+| `Jaw_Mandible_GonialAngle` | −0.90 | | `Eyes_UpperLidOpenness` | 0.00 (was −0.45) |
 | `Face_Zygomatic_Bone` | +0.80 | | `Eyes_EyeBagsSize` | +0.30 |
 | `Chin_Width` | +0.90 | | `Eyes_LowerLidOpenness` | −0.30 |
 | `Chin_SecondaryWidth` | +0.55 | | | |
@@ -486,9 +486,25 @@ Applied **after step 7**, on the mesh:
 
 - **Pupil** pushed a further 0.3 mm along −Y past the iris, which it is
   modelled coplanar with.
+- **Pupil** scaled ×0.62 about its own centre in the iris plane (x and z),
+  per eye: modelled dilated, it filled the iris and left a thin rim.
 - **Gaze**: each eye's sclera, iris and pupil vertices rotated about the eye's
-  own centroid, 9° yaw toward her left (+X) and −3° about X (up). Printed iris
-  direction after: `(0.168, −0.984, 0.051)` left, `(0.145, −0.988, 0.051)` right.
+  own centroid, 15° yaw toward her left (+X) and +4° about X. **Positive
+  pitch is down** (rotation about +X takes −Y toward −Z). Printed iris
+  direction after: `(0.269, −0.960, −0.071)` left, `(0.247, −0.966, −0.071)`
+  right.
+
+**Changed 2026-10-06 (preview 3), and why.** Preview 2 used hooded +0.55,
+upper-lid −0.45 and a gaze of 9° yaw, −3° pitch. −3° turned the iris *up*,
+and the lowered, hooded upper lid then covered its top so the eye showed white
+below the iris and read as looking upward. Turning the iris down alone (tried
+at +7°) left a slit under a heavy lid that read as drowsy. With the lid morphs
+relaxed to the values above and the iris turned 4° down, the iris touches
+both lids, with no white below, and sits toward the outer corner of her left
+— judged on the runtime `P1_portrait_front` frame at 5× crop, not on the
+printed direction. The overrides are environment variables in the scratch
+script (`MW_HOODED`, `MW_UPPERLID`, `MW_GAZE_YAW`, `MW_GAZE_PITCH`,
+`MW_PUPIL_SCALE`); the values in this section are the ones baked.
 - **Smile**: every `MW_Face` vertex within 22 mm of a lip corner at
   `(±0.0235, −0.0735, 1.5715)` moves by `lift·w` up, `0.45·lift·w` back and
   `0.30·lift·w` outward, `w = (1 − d/0.022)²`; `lift` is 4.0 mm at her right
