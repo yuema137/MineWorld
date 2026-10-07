@@ -6,9 +6,33 @@ determinism prototype, the proposed ownership, facts and contracts, a PR split, 
 questions. It holds no frozen PR design yet: the first PR is detailed only after the operator decides
 the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 (S11, S12, S14), §7.
-**Lifecycle:** `DRAFT — revision 1`. The operator's decisions of 2026-10-07 (§1.4) are applied; the
-coordinator reviews and freezes the step after S9. Nothing in this document is frozen, and nothing in
-it authorizes implementation.
+**Lifecycle:** step design `DESIGN FROZEN (2026-10-07)`, revision 1.
+
+- The architecture, the ownership and the five-PR split are frozen.
+- No PR design in this document is frozen yet. Each of 12a–12e is detailed to the commit and frozen
+  in turn, and implementation starts only after 11f merges.
+- Nothing here yet authorizes implementation.
+
+**Freeze record (primary session, 2026-10-07).** The operator decided:
+
+- **QB-1:** resolve before recording.
+- **QB-10:** walking nudges people aside.
+- **QB-2:** withdrawn under QB-1.
+- **QB-3, QB-5, QB-12:** as recommended.
+- **QB-15: F1, registration at start-up** (decided 2026-10-07, after revision 1).
+
+Bounds on QB-15, binding:
+
+- The catalog is written once, from the build's installed set, and is immutable afterwards.
+- A host that never registers it must fail loudly, never run silently without resolvers. 12a
+  proves this with a test.
+- Runtime `World::disable` of a resolver pack is not honoured until QB-17 is taken up. ARC-39
+  records that limitation in its own words.
+
+**QB-16 (head-on bias)** is decided and tested in 12b. **QB-17** is deferred, as recommended.
+
+Remaining QBs are accepted as recommended. The proposed `overall.md` amendment (§12.1) is applied by
+the primary session in the S9 closeout PR.
 **Revision history:** revision 0 (commits `f8da73a`…`bb0f3b4`) recommended correcting arrivals after
 they were recorded and blocking walkers at people; both were decided against (§1.4). Sections superseded
 by revision 1 say so where they stand, and the evidence that led to them is kept.
