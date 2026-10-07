@@ -1709,9 +1709,15 @@ C-7  I-2 and I-8. The scan is green with 11c's row and no 11c allow-list entry; 
   with `submit(action_type, target, payload)`; `affordance(type, target)` returns only the first of
   several complete affordances sharing a type and target (F-29).
 
-- [ ] Implementation: as scoped; `git fetch` first and confirm ARC-34 is free everywhere.
-- [ ] Validation: both doc checks; every cited section resolves.
-- [ ] Review: no defined term redefined; PROTOCOL stays revision 1 (an additive, optional field).
+- [x] Implementation: as scoped; `git fetch` first and confirm ARC-34 is free everywhere. ARC-34
+  inserted before `## ARC-35`; CORE_CONCEPTS §15.2 (field + one paragraph); MODULE_SPEC §5 constraint
+  1; PROTOCOL §5 (field, example, "absent not null", entries sharing type and target) and §6
+  (submitting it); ADOPTION.md §2 (`submit(action_type, target, payload)`, `affordance()` returns the
+  first). No `.gd` file touched (QS-20). E-C1.
+- [x] Validation: both doc checks (E-C1); cited sections (`CORE_CONCEPTS` §15.2, `MODULE_SPEC` §5,
+  `PROTOCOL` §§5–6, `ARC-34`) exist; `submit`'s real signature read from `world_client.gd:155`.
+- [x] Review: no defined term redefined ("complete affordance" is a qualified Affordance, defined in
+  §15.2); PROTOCOL stays revision 1 — the field is optional and absent by default.
 
 ### C-C2 — `contracts/`: `Affordance<P>` gains its payload
 
@@ -2341,7 +2347,29 @@ E-B6 final gate on 8350ba4 (clean tree), 2026-10-07; logs /tmp/s9-11b-final/:
 Written by the 11c implementation session only (`E-C<n>`).
 
 ```text
-(none yet)
+--- PR 11c (branch mvp0/pr-11c-affordances, base main @ da31613) ---
+
+E-C0 Base captures on da31613 before any code edit, 2026-10-07 (debug, opt-level 1):
+     300-day seed-7 social-cafe: 339 lines, faults 0, 365 330 facts, fingerprint 59339a9c281829c9,
+     sha-256 of all but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+     = E-0; wall 12.2 s.
+     `mineworld validate worlds/social-cafe`: exit 0, sha-256 of output
+     ebcd60a0252f0b343b799dc5d7f78575f5eeaec1c7f4c4050dbac9a72ecf56a8.
+     C-2's frozen no-payload literals, printed by a throwaway (uncommitted, deleted) test against the
+     base contracts crate:
+       available  {"action_type":"talk","target":"42","available":true,"unavailable_reason":null,
+                   "requirement":{"place":"any","within_range":null,"requires_line_of_access":false,
+                   "requires_target_available":false}}
+       unavailable {"action_type":"talk","target":"43","available":false,"unavailable_reason":
+                   "too_far_away","requirement":{"place":"same_place_as_actor","within_range":3000,
+                   "requires_line_of_access":false,"requires_target_available":false}}
+       no target  {"action_type":"ring","target":null,"available":true,"unavailable_reason":null,
+                   "requirement":{"place":"any","within_range":null,"requires_line_of_access":false,
+                   "requires_target_available":false}}
+     (each on one line in the test). contracts observation suite on base: 6 passed.
+E-C1 C-C1 specs: check_decision_ids 46 ids, all distinct (ARC-34 added); check_doc_headings 143
+     sections across 22 documents, none duplicated. ARC-34 absent from every origin/* branch after
+     `git fetch`.
 ```
 
 ---

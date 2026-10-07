@@ -455,7 +455,11 @@ Emma    → RL policy
 Hard constraints:
 
 1. A Controller Pack **cannot create new interactions**. With `CombatSystem` disabled, "I
-   shoot Bob" returns `ActionUnavailable` (INV-10).
+   shoot Bob" returns `ActionUnavailable` (INV-10). A Controller Pack may attempt a complete
+   affordance it was offered — submit, unchanged, the request an installed System Pack stated it
+   would accept ([`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §15.2, [`DECISIONS.md`](DECISIONS.md)
+   `ARC-34`); that is attempting an interaction the world offered, not creating one, and the server
+   still validates it.
 2. It consumes `Observation`s only; it never reads global world state (INV-13).
 3. It emits `ActionIntent`s only; it never mutates state (INV-6).
 4. Rebinding a Person's controller preserves that Person's biography, relationships,
