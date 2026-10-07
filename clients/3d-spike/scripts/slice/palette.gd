@@ -133,6 +133,63 @@ static func plaster_interior() -> Material:
 	return Mats.pbr("painted_plaster_wall", 2.60, Color(0.66, 0.56, 0.45), 0.92)
 
 
+static var _rug: Material = null
+
+## A flat-woven rug: a field of stepped diamonds in madder red and indigo on a
+## wool-cream ground, inside two border bands, with a per-thread weave noise.
+## Authored here as pixels rather than sourced: no CC0 library carries a rug
+## texture, and a generated one carries no licence question (`DEP-8`). Preview
+## miss #7: the rug was one flat colour.
+static func rug() -> Material:
+	if _rug != null:
+		return _rug
+	var w := 256
+	var h := 512
+	var img := Image.create(w, h, false, Image.FORMAT_RGB8)
+	var ground := Color(0.78, 0.68, 0.54)
+	var red := Color(0.56, 0.20, 0.15)
+	var indigo := Color(0.20, 0.24, 0.36)
+	var ochre := Color(0.74, 0.54, 0.26)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2207
+	for y in range(h):
+		for x in range(w):
+			var bx := mini(x, w - 1 - x)
+			var by := mini(y, h - 1 - y)
+			var edge := mini(bx, by)
+			var c := ground
+			if edge < 14:
+				c = red
+			elif edge < 20:
+				c = ground
+			elif edge < 30:
+				c = indigo if ((x + y) / 8) % 2 == 0 else ochre
+			elif edge < 36:
+				c = ground
+			else:
+				# the field: stepped diamonds on a 64 px lattice, quantised to 8 px
+				# so the edges step as a flat weave's do
+				var cx := float(((x - 36) % 64) / 8 * 8) - 28.0
+				var cy := float(((y - 36) % 64) / 8 * 8) - 28.0
+				var d := absf(cx) + absf(cy)
+				if d < 12.0:
+					c = indigo
+				elif d < 24.0:
+					c = red
+				elif d < 30.0:
+					c = ochre
+			# weave: alternate warp rows a shade apart, and per-thread noise
+			var k := 0.92 + 0.06 * float(y % 2) + rng.randf_range(-0.04, 0.04)
+			img.set_pixel(x, y, Color(c.r * k, c.g * k, c.b * k))
+	img.generate_mipmaps()
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.roughness = 0.97
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_rug = m
+	return m
+
+
 # --- painted joinery ----------------------------------------------------------
 # Painted timber, not enamel: roughness stays high enough that the sun gives a
 # broad soft sheen rather than a hotspot.

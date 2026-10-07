@@ -72,10 +72,16 @@ static func _wall_linings(n: Node3D, x0: float, x1: float, z_back: float,
 
 	# a rug in the seating half: a bare plank floor reads as unfinished, and the
 	# reference's floor is broken up by furniture in exactly this zone
-	Build.box(n, Vector3(x0 + 1.95, fy + 0.008, -4.30), Vector3(2.70, 0.016, 5.20),
-		Mats.paint(Color(0.336, 0.234, 0.196), 0.96))
-	Build.box(n, Vector3(x0 + 1.95, fy + 0.010, -4.30), Vector3(2.44, 0.016, 4.94),
-		Mats.paint(Color(0.404, 0.292, 0.238), 0.96))
+	# one rug, woven (SlicePalette.rug). A plane, not a box: BoxMesh lays its six
+	# faces out in a 3x2 UV atlas, so its top would show a sixth of the pattern;
+	# a plane maps the whole texture, and the border lands on the rug's edge.
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(2.70, 5.20)
+	var rug := MeshInstance3D.new()
+	rug.mesh = pm
+	rug.material_override = SlicePalette.rug()
+	rug.position = Vector3(x0 + 1.95, fy + 0.012, -4.30)
+	n.add_child(rug)
 
 
 ## The back wall: tiling behind the service zone, full-height timber shelving,
