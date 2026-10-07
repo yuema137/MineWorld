@@ -2578,11 +2578,18 @@ no hunger or sleep; one rejection reason for a buy; shifts within a day). An **A
 packs). `docs/MODULE_SPEC.md` §4.1: "four sections" → six (`economy`, `job`). `docs/PACKAGE_FORMAT.md`
 §8: names the six. `systems/README.md`: the three packs.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: both doc checks; ARC-38 absent from every `origin/*` branch.
-- [ ] Review: no defined term redefined (`Organization`, `Item`, `Process` used as CORE_CONCEPTS
-  defines them; "wallet", "shop", "job" are packs' components, not core terms); the section table
-  matches SD-23/SD-24.
+- [x] Implementation: as scoped. ARC-38 appended after ARC-37 (SD-22 … SD-27 as items 1–6, the five
+  option tables, the dependency diagram, limitations incl. L-13); the ARC-35 note "six market packs"
+  appended after its 11b note; MODULE_SPEC §4.1 "four sections" → six (`economy`, `job` rows);
+  PACKAGE_FORMAT §8 names the six; systems/README lists the three packs and their test commands.
+- [x] Validation: both doc checks (49 ids distinct; 143 sections / 22 documents); ARC-38 absent from
+  every `origin/*` branch after `git fetch` (§9.5 E-E1).
+- [x] Review: no defined term redefined — `Organization`, `Item`, `Process` used as CORE_CONCEPTS
+  defines them; "wallet", "shop", "job", "listing" are packs' components or views, not core terms;
+  the section table matches SD-23/SD-24 (`economy` on people and organizations, `job` on people). One
+  bounded refinement recorded as DE-1 (§4.5.7): `money-transferred`'s reduction also refuses a party
+  that is not a living Person or Organization (SD-24 listed amount, zero and self), the same "living
+  holder" rule inventory applies; ARC-38 states it.
 
 ### E-C2 — `systems/inventory`: produced and consumed
 
@@ -2715,6 +2722,18 @@ E-9 replaces them as the current market-town evidence. 11d's per-seat give crite
 carried forward as a criterion: CP-4 is world-level, and gives continue (E-6: ≥ 1 196 per bucket) beside
 purchases and meals; per-seat gives are reported, not required. The social-cafe evidence (E-0) is not
 superseded: E-2 requires it unchanged.
+
+### 4.5.7 Deviations and discoveries during implementation (11e session)
+
+Deviation ids are `DE-<n>` (11d's were `D-D<n>`; `E-D<n>` are 11d's evidence ids).
+
+```text
+DE-1  bounded  money-transferred's reduction also refuses a party that is not a living Person or
+               Organization (SD-24 listed only "more than the payer holds, zero, payer = payee"). Reason:
+               a Wallet lives on holders only, as inventory's Holdings do (is_holder); without it a
+               forged fact could create a wallet on a place. Stated in ARC-38 item 3. Validation:
+               economy's forged-money test.
+```
 
 ## 4.6 PR 11f — the proof (medium scope; detailed after 11e merges)
 
@@ -3674,6 +3693,24 @@ E-D-final on 341f2f2 (clean tree; final executable head — later commits are Ma
      D-8  PASS (E-D3 persisted; F-38 reproduced)
      D-9  PASS a, then b, then c, then d (E-D6; M-D7)
      D-10 PASS (E-D6)             D-11 PASS (D-C1 committed first, 27dfbca; doc checks above)
+```
+
+## 9.5 Evidence — PR 11e
+
+Written by the 11e implementation session only (`E-E<n>`).
+
+```text
+--- PR 11e (branch mvp0/pr-11e-work-money-shops, base main @ 4f2a4cd) ---
+
+E-E0 Base captures on 4f2a4cd before any edit, 2026-10-07 (debug, opt-level 1):
+     300-day seed-7 social-cafe: exit 0, 339 lines, sha-256 of all but `wall` =
+     ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 12.0 s.
+     `mineworld validate worlds/social-cafe` sha-256 ebcd60a0…f56a8 = E-D0's.
+     `git diff 70e532f 4f2a4cd -- systems worlds Cargo.lock` empty: §8.6's audit stands (no re-audit).
+     The R-S9-1 spike commits 22a6b58 and d856f1d are still in the object store (unreachable, never
+     pushed); used as a reference only — the packs are written to §4.5's layout, not cherry-picked.
+E-E1 E-C1 specs: check_decision_ids 49 ids, all distinct (ARC-38 new); check_doc_headings 143 sections
+     across 22 documents, none duplicated. ARC-38 absent from every origin/* branch after `git fetch`.
 ```
 
 ---

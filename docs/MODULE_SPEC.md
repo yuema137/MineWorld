@@ -364,7 +364,7 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has four sections:
+or the pack is refused. MVP-0 has six sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
@@ -380,6 +380,18 @@ holdings  inventory  people,  { <item key>: <count ≥ 1> }: what the person or 
                      organi-  genesis, each key one of `items`. A person's counts together are at most
                      zations  six (inventory's capacity); an organization's are unbounded. Disclosed to
                               the holder only (`ARC-37`)
+economy   economy    people,  { wallet: <minor units ≥ 0> } on a person or organization; an organization
+                     organi-  may add shop: { at: <place key>, prices: { <item key>: <price ≥ 1> } },
+                     zations  which opens a shop in that place, operated by the organization. A pack
+                              owns one section, so a shop is authored on its operator. Integer minor
+                              units only. A wallet is disclosed to its holder; a shop's listing
+                              (operator, prices, how many the operator holds) to whoever perceives its
+                              place (`ARC-38`)
+job       employment people   { employer: <organization key>, workplace: <place key>, from: "HH:MM",
+                              until: "HH:MM", wage: <minor units per hour>, produces: { <item key>:
+                              <count per full shift ≥ 1> } }; from < until (a shift lies within one
+                              day); produces is optional. Work is attendance at the workplace during
+                              the shift. Disclosed to the employee only (`ARC-38`)
 ```
 
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and
