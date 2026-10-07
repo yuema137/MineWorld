@@ -128,9 +128,11 @@ pub struct Reference<'a> {
 
 /// What an owner is handed when it seeds: the assembled world, read-only, and what its keys became.
 ///
-/// The world has every entity and every installed system and no state yet beyond the genesis facts
-/// stated before this one, so an owner may check the entities its section names against it — which is
-/// what makes an authored value pass the same check as any other.
+/// The world has every entity and every installed system, and no state at all: the loader seeds every
+/// section before genesis reduces any fact, so not even a passage, a location or another section's
+/// fact is visible here. An owner may check the entities its section names, and their types, against
+/// it — which is what makes an authored value pass the same check as any other. A check that needs
+/// state another genesis fact creates belongs in the owner's reduction, which runs in genesis order.
 pub struct Seeding<'s, 'w> {
     world: &'s WorldRead<'w>,
     keys: &'s BTreeMap<EntityKey, EntityId>,
