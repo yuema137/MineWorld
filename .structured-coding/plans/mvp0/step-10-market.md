@@ -2167,15 +2167,25 @@ loader does), as naming's tests.
 codec}.rs, tests/{inventory.rs, persisted.rs, support/mod.rs}}`. `mineworld-item = { path = "../item" }`;
 dev: persistence, serde-saphyr.
 
-- [ ] Implementation: SD-17 … SD-19 — `Holdings`/`Held`, `PERSON_CAPACITY`, `can_take`,
+- [x] Implementation: SD-17 … SD-19 — `Holdings`/`Held`, `PERSON_CAPACITY`, `can_take`,
   `admit_transfer`, `transfer`, `Stocked`, `ItemsTransferred` (accessors), `holdings:` section
-  (`references` = Items), reductions, disclosure to the holder.
-- [ ] Validation: `cargo test -p mineworld-inventory`; clippy. Tests: genesis stocking (people and an
-  organization); D-4's four direct-statement refusals; D-5's capacity refusals at genesis and in the
-  constructor; disclosure only to the holder; persisted restart (D-8). Mutations M-D2, M-D3, M-D4
-  (constructor half). F-38's counter-example recorded if it reproduces.
-- [ ] Review: the one write path per fact; `admit_transfer` is the only refusal logic; no `f32`/`f64`;
-  every map a `BTreeMap` or a sorted `Vec`.
+  (`references` = Items), reductions, disclosure to the holder. Files: `systems/inventory/{Cargo.toml,
+  README.md, src/{lib,system,section,event,component,admit,codec}.rs, tests/{inventory.rs,
+  persisted.rs, support/mod.rs}}`. `stocked` is checked at reduction by a crate-private `admit_stock`
+  (living holder, count ≥ 1, declared kind, `can_take`) — the stock half of SD-18's "checked for a
+  declared kind at reduction". The authored count is `NonZeroU32`, so a zero is refused as it is
+  decoded, at its line. `can_take` answers false for anything that is not a living holder.
+  The tests' stater `hands` (support/mod.rs) exists only in the tests: inventory provides no action,
+  so `pass` decides transfers either through the checked constructor or **forged** past it.
+- [x] Validation: `cargo test -p mineworld-inventory` 9 passed (inventory 8, persisted 1); clippy
+  `--all-targets -D warnings`, fmt clean. M-D2, M-D3, M-D4 (constructor half) each fail and are reverted;
+  F-38 reproduced (§9.4 E-D3).
+- [x] Review: one write path per fact (`react`: `stocked` → `adding`; `items-transferred` →
+  `removing` + `adding`); `admit_transfer` is the refusal logic for transfers and `admit_stock` for
+  stock, both calling `can_take`; no `f32`/`f64`; the authored map is a `BTreeMap`, `Holdings` a sorted
+  `Vec` (binary search by `ItemId`). The seed's capacity check sums the authored counts itself
+  (`AuthoredHoldings::total`), because no state exists at seeding (F-37); the reduction's `can_take`
+  is the second check.
 
 ### D-C4 — `systems/item-transfer`
 
@@ -2264,6 +2274,15 @@ CI          none configured (S13); the full local gate once on the final head
 D-D1  bounded  A category may not begin or end with '-' (SD-16 listed only the byte set). Reason: the
                usual slug rule; two spellings of one category cannot differ by a stray dash. Stated in
                ARC-37 and MODULE_SPEC §4.1. Validation: item's category test.
+D-D2  bounded  M-D3's named test case (over-transfer) is not the one that fails: Holdings::removing's
+               checked_sub is a second guard, so with admit_transfer skipped that case is still refused
+               (FactRefusedByOwner, PreconditionFailed). The "to oneself" and capacity cases fail
+               instead (E-D3). The guard is kept: a reduction that cannot underflow is not a weaker
+               owner. No test weakened; the mutation is caught.
+D-D3  bounded  inventory's tests need a stater, because inventory provides no action. A test-only
+               System `hands` (tests/support/mod.rs) provides `pass`, honest (through transfer) or
+               forged (bytes built by hand). It depends on inventory and declares the emission, as
+               ARC-26 requires of any stater. Lives only in the tests.
 ```
 
 ## 4.5 PR 11e — the transformation, part 2: work, money and shops (medium scope; AC-1 range)
@@ -3012,6 +3031,29 @@ E-D2 D-C2 item: `cargo test -p mineworld-item` → tests/item.rs 4 passed, 0 fai
      (mineworld-item, no `source`) — a workspace member is locked whether or not it is installed.
      First run of the reduction-refusal test failed on its own fixture (a hand-written `{entity, type}`
      JSON that did not decode, EventTypeMismatch); fixed by re-pointing a real ItemId's encoding.
+E-D3 D-C3 inventory: `cargo test -p mineworld-inventory` → inventory.rs 8 passed, persisted.rs 1
+     passed, 0 failed; item 4 passed; clippy -p inventory -p item --all-targets -D warnings clean; fmt
+     clean. Cargo.lock: +1 path package (mineworld-inventory).
+     M-D2 (item's react writes nothing): 5 of 8 inventory tests FAILED, each at genesis with
+       `FactRefusedByOwner { system: "inventory", event_type: "stocked", reason: PreconditionFailed }`
+       — the declared-kind check at reduction is real. Reverted.
+     M-D3 (the transfer reduction skips admit_transfer): 2 FAILED —
+       transfers_stated_past_the_constructor… (the "to oneself" case was Accepted, writing both sides
+       from one read) and a_person_carries_at_most_six… (a forged transfer past capacity Accepted).
+       Observed deviation from §4.4.3's expectation: the *over-transfer* case alone survives M-D3,
+       because `Holdings::removing` refuses a count larger than held (checked_sub) and the reduction
+       turns its None into FactRefusedByOwner — a second guard, not the owner's rule. Recorded D-D2;
+       the mutation is still caught by two cases. Reverted.
+     M-D4 constructor half (can_take always true): a_person_carries_at_most_six… FAILED ("bob is
+       full"). The seeding capacity test survives by design (the seed sums authored counts; no state
+       exists at seeding). The offer and dispatch halves run in D-C4. Reverted;
+       `git grep MUTATION -- systems` empty.
+     F-38 reproduced: serde_json::to_vec(&BTreeMap<ItemId, u32>) → Err("key must be a string")
+       (throwaway test file, deleted, never committed).
+     D-8: persisted.rs creates a SQLite save, makes 2 of 4 passes, drops, resumes into a freshly
+       composed world: state bytes equal the saved ones; alice's holdings located (apple 2, coffee 1,
+       tea 1); the remaining 2 passes end in the uninterrupted world's state, and the last facts are
+       byte-identical; verify() passes.
 ```
 
 ---
