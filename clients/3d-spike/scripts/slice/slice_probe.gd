@@ -231,10 +231,13 @@ func _hud_frames() -> void:
 		% player.rig.mode_name())
 
 
-## C8: the slice against a real `mineworld server worlds/social-cafe`.
-## Pass: seated; a position report accepted; the server's next view of the
-## player equals what was reported, millimetre for millimetre; every perceived
-## person drawn inside the room; a `talk` answered by the server.
+## C8, with S6's `move`: the slice against a real `mineworld server
+## worlds/social-cafe`, walked on the real controller, never teleported.
+## Pass: seated; the body placed where the world says; out through the café door
+## onto the street, a jog along the pavement, two jumps, and back in -- with the
+## server's place changing cafe -> street -> cafe, no move refused, and the
+## server's last view of the player equal to the last report, millimetre for
+## millimetre; then a `talk` answered by the server.
 func _link_check() -> void:
 	print("== VISUAL_SLICE.md sec.9 -- the slice as a MineWorld presentation ==\n")
 	var link := slice.link
@@ -243,30 +246,74 @@ func _link_check() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.cafe_place == ""):
+	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	if not link.client.is_seated():
 		print("FAIL: not seated after 10 s")
 		return
-	print("seated   observer %s in place %s" % [link.client.observer, link.cafe_place])
+	print("seated   observer %s in place %s (%s); places known %s" % [link.client.observer,
+		link.client.latest.place(), link.here_key, link.place_ids])
+	print("body     at %s -- placed where the world says" % player.global_position)
 	await _hold(0.5)
 
-	# perceived people, drawn where the world says, inside the room
+	# perceived people, drawn where the world says. Inside the slice's room or
+	# not is reported, not failed: the binding aligns the pack's doorway with the
+	# slice's, and the pack's café is authored with its people west of where the
+	# slice's room begins (slice_link.gd, design sec.7b).
 	for id in link.figures:
 		var fp: Vector3 = (link.figures[id] as Node3D).global_position
 		var inside := _inside_room(fp + Vector3(0, 0.5, 0))
-		print("person   %s at %s  %s" % [id, fp, "inside the room" if inside else "OUTSIDE THE ROOM"])
-		if not inside:
-			fails += 1
+		print("person   %s at %s  %s" % [id, fp, "inside the room" if inside
+			else "outside the slice's room (recorded binding discrepancy)"])
 	if link.figures.size() < 2:
 		fails += 1
 		print("FAIL: expected at least two other people perceived, got %d" % link.figures.size())
 
-	# walk in through the door; the link reports on its own as the body moves
-	player.place(Vector3(3.45, 0.45, -6.20), 0.0, 0.0)
-	await _hold(0.4)
-	await _walk(3.0)
+	# OUT: to the door's centre line, then south through it onto the pavement
+	var door_x := 6.0 + SliceCafe.DOOR_X
+	await _walk_to_x(door_x)
+	player.rotation.y = PI
+	await _walk_dist(3.2, 6.0)
+	await _hold(0.8)
+	print("out      body at %s, slice place %s, server place %s" % [player.global_position,
+		SliceWorld.place_at(slice.world, player.global_position), link.here_key])
+	if link.here_key != "street":
+		fails += 1
+		print("FAIL: the server did not move the player onto the street")
+
+	# JOG east along the pavement, and back; then jump on the spot and running
+	Input.action_press("jog")
+	player.rotation.y = -PI * 0.5
+	await _walk_dist(6.0, 6.0)
+	print("jog      body at %s after jogging east" % player.global_position)
+	player.rotation.y = PI * 0.5
+	await _walk_dist(6.0, 6.0)
+	Input.action_release("jog")
+	var j0 := player.jumps
+	Input.action_press("jump")
+	await _hold(0.05)
+	Input.action_release("jump")
+	await _hold(1.0)
+	player.rotation.y = -PI * 0.5
+	Input.action_press("move_forward")
+	await _hold(0.3)
+	Input.action_press("jump")
+	await _hold(0.05)
+	Input.action_release("jump")
+	await _hold(0.8)
+	Input.action_release("move_forward")
+	await _hold(0.6)
+	print("jump     %d jumps made (one standing, one running)" % (player.jumps - j0))
+	if player.jumps - j0 < 2:
+		fails += 1
+		print("FAIL: the jumps did not happen")
+
+	# IN: back to the door's centre line on the pavement, then north through it
+	await _walk_to_x(door_x)
+	player.rotation.y = 0.0
+	await _walk_dist(4.2, 6.0)
+	await _hold(0.8)
 	var tok := link.report_position()
 	var sent: Dictionary = link.last_sent_local.duplicate()
 	var t := 0.0
@@ -274,12 +321,35 @@ func _link_check() -> void:
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	await _hold(0.6)   # the next observation after the answer
+	print("in       body at %s, server place %s" % [player.global_position, link.here_key])
+	if link.here_key != "cafe":
+		fails += 1
+		print("FAIL: the server did not move the player back into the café")
+
+	print("places   the server's place, as observed: %s" % [link.place_changes])
 	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
 	var accepted := moves.filter(func(a): return a["result"] == "accepted").size()
-	print("move     %d %s reports, %d accepted" % [moves.size(), SliceLink.MOVE_ACTION, accepted])
-	if accepted < 1:
+	var refusals := moves.filter(func(a): return a["result"] != "accepted")
+	print("move     %d reports, %d accepted, %d not" % [moves.size(), accepted, refusals.size()])
+	for r in refusals:
+		print("         NOT ACCEPTED: %s" % JSON.stringify(r))
+	# How many facts the server stated per accepted move, from its own answers.
+	# The answer names facts by EventId only (protocol revision 1 shows no event
+	# bodies), so this counts them: a stride states presence's Arrived; a
+	# crossing also states PersonEnteredPlace (`ARC-26`).
+	var per_move := {}
+	for m in moves:
+		var d: Variant = m.get("detail")
+		if typeof(d) != TYPE_DICTIONARY or not (d as Dictionary).has("accepted"):
+			continue
+		var n: int = (d["accepted"].get("events", []) as Array).size()
+		per_move[n] = int(per_move.get(n, 0)) + 1
+		if n > 1:
+			print("facts    %d facts for the move to %s" % [n, JSON.stringify(m.get("sent"))])
+	print("facts    moves by facts stated: %s" % [per_move])
+	if accepted < 1 or not refusals.is_empty():
 		fails += 1
-		print("FAIL: no position report accepted -- %s" % [moves])
+		print("FAIL: every move during normal walking, jogging and jumping must be accepted")
 	var seen: Variant = link.client.latest.self_location().get("local")
 	print("position sent %s, server now says %s" % [sent, seen])
 	if typeof(seen) != TYPE_DICTIONARY or int(seen.get("x", -1)) != int(sent["x"]) \
@@ -982,6 +1052,15 @@ func _walk_dist(metres: float, max_secs: float) -> void:
 	Input.action_release("move_forward")
 	player.velocity = Vector3.ZERO
 	await _hold(0.25)
+
+
+## Turn east or west and walk until the body is on the line x = `x`.
+func _walk_to_x(x: float) -> void:
+	var dx := x - player.global_position.x
+	if absf(dx) < 0.05:
+		return
+	player.rotation.y = -PI * 0.5 if dx > 0.0 else PI * 0.5
+	await _walk_dist(absf(dx), 6.0)
 
 
 func _walk(secs: float) -> void:

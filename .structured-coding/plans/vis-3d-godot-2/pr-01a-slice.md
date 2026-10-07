@@ -268,6 +268,69 @@ millimetre. Alice and Bob reconciled as figures inside the room. One `talk` reso
 by the server with its code printed. Transcript saved under `shots/slice/` (scratch, not
 committed).
 
+## 7b. C8 after S6 — `move`, the street, and the doorway (2026-10-06)
+
+**Trigger.** S6 merged to `main` (`6f61582`, `ef53484`): `arrive` is retired, `move` is the one
+movement action (`DECISIONS.md` `ARC-26`), and `worlds/social-cafe` gained a `street` place joined to
+the café by one passage. Directed by the primary session. Bounded: no contract, kernel, system,
+server or World Pack change; the slice's adapter (`slice_link.gd`), its probe and its launcher only.
+
+```text
+action     MOVE_ACTION = "move", payload { "to": Location } (server/PROTOCOL.md §6.2)
+reporting  every 0.50 m of travel or 20 deg of turn, at most every 0.08 s -- a quarter of the
+           MAX_STRIDE (2 m) rule; at the 3.10 m/s jog, every ~0.16 s against the rule's ~0.65 s
+height     never reported: a jump straight up sends nothing; a running jump sends ordinary strides
+crossing   when the body enters the other place's slice volume, report it there at once; the
+           movement system decides whether the door may be crossed
+authority  the body is put where the first observation says, and again after any refused move
+           (reconcile, never argue or retry)
+places     the observer's place is learned from its tag; the other place from --places, which the
+           launcher reads from `mineworld validate`'s identity table
+```
+
+**Spatial binding — re-decided, because the server now rules on the doorway.** `places/cafe.yaml`
+puts the doorway at `here` (5.0, 0.2) m in the café frame and `there` (0.0, 3.0) m in the street
+frame. The world frame is fixed (+x east, +y north, `CORE_CONCEPTS.md` §6.1), so a binding may only
+translate. Each place is now bound so that the pack's doorway lands on the slice's door (0.2 m each
+side of the façade): a crossing is accepted only within `MAX_STRIDE` of the doorway on both sides,
+so it is the one point the binding must get right. §7a's binding (origin at the room's inner
+front-west corner) put the pack's doorway 3.36 m east of the slice's door, and every crossing
+would have been refused `too_far_away`.
+
+**Does the slice's geometry match the pack? No, and no translation can make it.** The pack's café
+has its door **east** of everybody in it (door x 5.0; people x 1.2–4.6); the slice's door is at
+the café's **west** end, as `03` draws it. With the doorway aligned, `visitor` (4.6, 0.2) stands
+0.4 m inside the door and `wanderer` is inside the room, but `alice` (1.2, 2.4) and `bob`
+(1.4, 0.6) are drawn 0.3–0.5 m west of the café's west wall. A mirror would fit both and is
+forbidden by the fixed frame. Resolving it is a World Pack decision outside this PR, offered to the
+operator: re-author `social-cafe`'s café from the slice (doorway at x ≈ 1.6 m, or people moved east
+of it), or move the slice's door to the pack's — which contradicts `03`.
+
+**Architectural hole, surfaced rather than patched.** `MovementSystem` discloses no `Passages`
+(`ARC-26`), and an observation lists only the observer's own place. So a client inside the café is
+never told the identity of the place its door opens onto, and cannot name it in `move.to`. The
+slice uses the identity table the pack's own `mineworld validate` prints, passed as `--places=`;
+the CLI's test names that table "what an author checks before writing a client that refers to
+them". That is a stopgap. The proposed fix is in `systems/movement`, not here: disclose the
+observer's place's `Passages` (destination identity and doorway) in its observation, so a client
+learns where a door leads from the world.
+
+**Evidence** — `./mineworld-slice --world --link`, headless, against `mineworld server
+worlds/social-cafe`, the real controller walking and jogging, never placed:
+
+```text
+seated as observer 5 in place 1 (cafe); body placed where the world says (4600, 200)
+out      through the café door onto the pavement -> server place street
+jog      6 m east and 6 m back at 3.10 m/s; one standing jump, one running jump
+in       back through the door                     -> server place cafe
+places   [cafe -> street, street -> cafe]
+move     50 reports, 50 accepted, 0 refused (no too_far_away)
+facts    48 moves stated one fact (Arrived); the two crossings stated two (Arrived and
+         PersonEnteredPlace), counted from the server's answers, which name facts by EventId only
+position last report (4986, 1138) = the server's view (4986, 1138)
+talk     to alice (3) -> rejected too_far_away: she is drawn 5.2 m away, beyond the wall (above)
+```
+
 ## 8. Deviations and discoveries
 
 1. **Shared files edited.** `scripts/props.gd` (bough and bicycle orientation, a bug, which also

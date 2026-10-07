@@ -1,41 +1,88 @@
 ## The slice as a MineWorld presentation: the one place it talks to a world.
 ##
-## Design: `.structured-coding/plans/vis-3d-godot-2/pr-01a-slice.md` sec.7a.
-## Transport, frames, identities and axes are all `clients/protocol/mineworld`
-## (adopted by symlink, `ADOPTION.md` sec.1). This file adds only what is the
-## slice's own: where the world's café frame sits in this scene, which perceived
-## people to draw, and when to report the player's position.
+## Design: `.structured-coding/plans/vis-3d-godot-2/pr-01a-slice.md` sec.7a, and
+## sec.7b for the move to S6's `move`. Transport, frames, identities and axes are
+## all `clients/protocol/mineworld` (adopted by symlink, `ADOPTION.md` sec.1).
+## This file adds only what is the slice's own: where each of the world's places
+## sits in this scene, which perceived people to draw, and when to report the
+## player's body.
 ##
-## It is the ONLY slice file that names an action type. When S6 retires
-## `arrive` for `move`, the change is `MOVE_ACTION` and `_move_payload` below.
+## It is the ONLY slice file that names an action type.
 ##
 ## What it never does (`ADOPTION.md` sec.3.3): decide whether an action is
 ## allowed, compare positions to decide whether to submit, or keep a list of
-## what actions exist. It reports intent; the server answers.
+## what actions exist. It reports intent; the server answers. In particular it
+## does not decide whether the door may be crossed -- it reports the body on the
+## far side, and the movement system answers.
 class_name SliceLink
 extends Node
 
-## The presence pack's action on main @ a594164. S6 replaces it with `move`.
-const MOVE_ACTION := "arrive"
-## Report the body when it has moved this far or turned this much, at most this
-## often. S6's reporting rule (report before travelling MAX_STRIDE) will set the
-## distance; 0.30 m is well inside any stride bound.
-const MOVE_DIST := 0.30
-const MOVE_TURN := deg_to_rad(20.0)
-const MOVE_EVERY := 0.4
-## A jump moves the body in height only (`Player.JUMP_HEIGHT`, 0.4 s). Height
-## is not reported: the world's café frame is a floor, and reporting a body
-## 0.45 m in the air would be reporting a rendered moment as a world fact.
+## S6's one movement action (`DECISIONS.md` `ARC-26`; `server/PROTOCOL.md` sec.6.2).
+const MOVE_ACTION := "move"
+
+## THE REPORTING RULE (`PROTOCOL.md` sec.6.2): report a `move` before the body has
+## travelled MAX_STRIDE (2 m) since the last position the server accepted. The
+## body is reported every REPORT_DIST of travel, a quarter of that bound: at the
+## controller's 3.10 m/s jog that is every ~0.16 s, against the rule's ~0.65 s.
+## It is a request cadence, not a rule this client enforces -- the server decides
+## every stride.
+const REPORT_DIST := 0.50
+const REPORT_TURN := deg_to_rad(20.0)
+## The shortest gap between two reports, so a body standing still and turning
+## does not flood the connection.
+const REPORT_GAP := 0.08
+## A jump moves the body in height only (`Player.JUMP_HEIGHT`). Height is never
+## reported: the world's places are floors, and reporting a body 0.45 m in the
+## air would be reporting a rendered moment as a world fact. So a jump straight
+## up sends nothing, and a running jump sends the same strides a walk does.
 const REPORT_HEIGHT := false
 
-## The world's café frame in this scene: its origin is the room's inner
-## front-west corner, +x east, +y into the room. A stated binding, and a
-## recorded discrepancy -- see the design sec.7a: no single origin puts the World
-## Pack's door on the slice's door while keeping its people inside the room.
-static func cafe_origin() -> Vector3:
-	return Vector3(6.0 - SliceCafe.W * 0.5 + SliceCafe.WALL_T,
-		SliceStreet.WALK_Y + SliceCafe.FLOOR_Y,
-		SliceStreet.NORTH_FACE - SliceCafe.WALL_T)
+## THE SPATIAL BINDING -- where each of the world's places sits in this scene.
+##
+## World Packs author no geometry; `worlds/social-cafe` states one doorway, which
+## `places/cafe.yaml` puts at `here` (5.0, 0.2) m in the café's frame and `there`
+## (0.0, 3.0) m in the street's. The world frame is fixed (+x east, +y north,
+## `CORE_CONCEPTS.md` sec.6.1), so a binding may only translate. Each place is
+## bound so that the pack's doorway lands on this slice's café door: the server
+## decides a crossing by distance to that doorway, so it is the one point the
+## binding must get right. Quoted here, from the pack, as data.
+##
+## The consequence is recorded rather than hidden: the pack's café is authored
+## with its door EAST of everybody in it (x 5.0 against people at x 1.2-4.6),
+## and the slice's door is at the café's WEST end, as `03` draws it. No
+## translation satisfies both, so with the door aligned, `alice` and `bob` are
+## drawn 0.3-0.5 m west of the café's west wall. The resolution is a World Pack
+## decision (author the pack's café from the slice, or the reverse), not this
+## file's -- see the design sec.7b.
+const PACK_DOOR := {
+	"cafe": Vector2(5.0, 0.2),
+	"street": Vector2(0.0, 3.0),
+}
+## The slice's own place volumes (`SliceWorld`) -> the pack's authoring keys,
+## which the world also carries as each place's tag.
+const PLACE_KEY := {
+	SliceWorld.CAFE_PLACE: "cafe",
+	SliceWorld.STREET_PLACE: "street",
+}
+
+
+## The slice's door, as the point each side of it the pack's doorway is bound
+## to: 0.2 m into the room past the façade's inner face, and 0.2 m out onto the
+## pavement past its outer face.
+static func door_point(key: String) -> Vector3:
+	var x := 6.0 + SliceCafe.DOOR_X
+	if key == "cafe":
+		return Vector3(x, SliceStreet.WALK_Y + SliceCafe.FLOOR_Y,
+			SliceStreet.NORTH_FACE - SliceCafe.WALL_T - 0.2)
+	return Vector3(x, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE + 0.2)
+
+
+## A place's origin in this scene: the point the pack's (0, 0) lands on.
+static func origin(key: String) -> Vector3:
+	var door: Vector2 = PACK_DOOR[key]
+	var d := MineWorldSpace.to_3d({ "x": int(door.x * 1000.0), "y": int(door.y * 1000.0), "z": 0 })
+	return door_point(key) - Vector3(d.x, 0.0, d.z)
+
 
 signal said(text: String)
 
@@ -43,15 +90,21 @@ var client: MineWorldClient
 var player: SlicePlayer
 var world_root: Node3D
 
-var cafe_place := ""               ## the café's identity, as the server named it
+var place_ids := {}                ## pack key -> the place's identity, as the world named it
+var cafe_place := ""               ## the café's identity, once known
+var here_key := ""                 ## the pack key of the place the world last put the body in
 var figures := {}                  ## EntityId string -> the figure drawn for it
 var last_sent_local := {}          ## the last position reported, as sent
 var answers: Array[Dictionary] = []
+## Every place change the server's observations showed, in order: [from, to].
+var place_changes: Array = []
 
 var _last_pos := Vector3.INF
 var _last_yaw := 0.0
 var _since := 0.0
 var _tokens := {}                  ## token -> action type, for the transcript
+var _reconcile := true             ## put the body where the next observation says
+var _unknown_said := false
 
 
 static func address_from_args() -> String:
@@ -68,7 +121,26 @@ static func seat_from_args() -> String:
 	return "visitor"
 
 
+## `--places=1:cafe,2:street`: which identity each authoring key became. The
+## world's own `mineworld validate` prints exactly this table, and the launcher
+## reads it from there -- "what an author checks before writing a client that
+## refers to them" (`tools/cli/tests/commands.rs`). A place the observer is IN
+## is also learned from its tag; a place it is not in is never disclosed, which
+## is why a door cannot be crossed without this. See the design sec.7b.
+static func places_from_args() -> Dictionary:
+	var out := {}
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--places="):
+			for pair in a.substr(9).split(",", false):
+				var kv := pair.split(":")
+				if kv.size() == 2:
+					out[kv[1]] = kv[0]      # identities stay strings (ADOPTION.md sec.3.1)
+	return out
+
+
 func start(address: String, seat: String) -> void:
+	place_ids = places_from_args()
+	cafe_place = place_ids.get("cafe", "")
 	client = MineWorldClient.new()
 	client.name = "MineWorldClient"
 	add_child(client)
@@ -90,12 +162,47 @@ func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
 	_say("seated as %s -- observer %s, world %s" % [seat, observer, world.get("instance", "?")])
 
 
-## Reconcile the scene with the newest view: an observation is exhaustive, so
-## a person no longer listed is no longer perceived and their figure goes.
+## The pack key of a place identity, if this client knows it.
+func key_of(place: String) -> String:
+	for k in place_ids:
+		if place_ids[k] == place:
+			return k
+	return ""
+
+
+## Reconcile the scene with the newest view. An observation is exhaustive, so a
+## person no longer listed is no longer perceived and their figure goes.
 func _on_observed(obs: MineWorldObservation) -> void:
-	if cafe_place == "" and obs.place() != "":
-		cafe_place = obs.place()
-		_say("in place %s (drawn as the café)" % cafe_place)
+	var place := obs.place()
+	if place == "":
+		return
+	# learn the place's key from its tag, which is world data
+	if key_of(place) == "":
+		for tag in obs.entity(place).get("tags", []):
+			if PACK_DOOR.has(String(tag)):
+				place_ids[String(tag)] = place
+	if place_ids.get("cafe", "") != "":
+		cafe_place = place_ids["cafe"]
+	var key := key_of(place)
+	if key != here_key:
+		if here_key != "":
+			place_changes.append([here_key, key])
+		_say("in place %s (%s)" % [place, key if key != "" else "not drawn by this slice"])
+		here_key = key
+	if key == "":
+		return
+
+	# The server is the authority on where the body is. On the first view, and
+	# after any refused move, the body goes where the world says it is.
+	if _reconcile:
+		_reconcile = false
+		var me: Variant = obs.self_location().get("local")
+		if typeof(me) == TYPE_DICTIONARY and player != null:
+			player.global_position = to_scene(key, me) + Vector3(0, 0.02, 0)
+			player.velocity = Vector3.ZERO
+			_last_pos = player.global_position
+			_say("body placed where the world says: %s %s" % [key, JSON.stringify(me)])
+
 	var seen := {}
 	for id in obs.ids():
 		if id == obs.observer():
@@ -103,14 +210,14 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		var loc := obs.location_of(id)
 		if loc.is_empty() or typeof(loc.get("place")) != TYPE_DICTIONARY:
 			continue
-		if String(loc["place"].get("entity", "")) != cafe_place:
+		if String(loc["place"].get("entity", "")) != place:
 			continue
 		seen[id] = true
 		var fig: Node3D = figures.get(id)
 		if fig == null:
 			fig = _figure(id, obs)
 			figures[id] = fig
-		fig.global_position = to_scene(loc.get("local"))
+		fig.global_position = to_scene(key, loc.get("local"))
 		fig.rotation.y = MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI
 	for id in figures.keys():
 		if not seen.has(id):
@@ -139,58 +246,71 @@ func _figure(id: String, obs: MineWorldObservation) -> Node3D:
 	return n
 
 
-## World millimetres in the café frame -> a point in this scene.
-static func to_scene(local: Variant) -> Vector3:
+## World millimetres in a place's frame -> a point in this scene.
+static func to_scene(key: String, local: Variant) -> Vector3:
 	var p := MineWorldSpace.to_3d(local)
-	return cafe_origin() + Vector3(p.x, 0.0, p.z)
+	return origin(key) + Vector3(p.x, 0.0, p.z)
 
 
-## A point in this scene -> world millimetres in the café frame.
-static func to_world(p: Vector3) -> Dictionary:
-	var rel := p - cafe_origin()
+## A point in this scene -> world millimetres in a place's frame.
+static func to_world(key: String, p: Vector3) -> Dictionary:
+	var rel := p - origin(key)
 	if not REPORT_HEIGHT:
 		rel.y = 0.0
 	return MineWorldSpace.from_3d(rel)
 
 
 func _physics_process(delta: float) -> void:
-	if client == null or not client.is_seated() or cafe_place == "" or player == null:
+	if client == null or not client.is_seated() or here_key == "" or player == null \
+			or _reconcile:
 		return
 	_since += delta
-	# Only inside the café: social-cafe models no street, so out there there is
-	# no world place to report a position in. This is "nothing to say", not a
-	# rule about what is allowed.
-	if SliceWorld.place_at(world_root, player.global_position) != SliceWorld.CAFE_PLACE:
+	# Which of the world's places the body is in, by this slice's volumes. In the
+	# door's reveal it is in neither, and there is nothing to report.
+	var key: String = PLACE_KEY.get(SliceWorld.place_at(world_root, player.global_position), "")
+	if key == "":
+		return
+	if key != here_key:
+		# Across the threshold: report the body on the far side, now. Whether the
+		# door may be crossed is the movement system's answer, not this client's.
+		if not place_ids.has(key):
+			if not _unknown_said:
+				_unknown_said = true
+				_say("the world has not said which place this door opens onto (%s);"
+					% key + " start with --places= from `mineworld validate`")
+			return
+		if _since >= REPORT_GAP:
+			report_position(key)
 		return
 	var p := player.global_position
 	var flat := Vector2(p.x - _last_pos.x, p.z - _last_pos.z).length() if _last_pos != Vector3.INF \
 		else INF
 	var turned := absf(angle_difference(player.rotation.y, _last_yaw))
-	if _since < MOVE_EVERY or (flat < MOVE_DIST and turned < MOVE_TURN):
+	if _since < REPORT_GAP or (flat < REPORT_DIST and turned < REPORT_TURN):
 		return
-	report_position()
+	report_position(key)
 
 
-## Report where the body is now. Prediction is local; the server is the
-## authority and its next observation is the answer (`ADOPTION.md` sec.4).
-func report_position() -> String:
+## Report where the body is now, in the place the slice draws it in. Prediction
+## is local; the server is the authority and its next observation is the answer
+## (`ADOPTION.md` sec.4).
+func report_position(key := "") -> String:
+	if key == "":
+		key = here_key
 	var p := player.global_position
 	_last_pos = p
 	_last_yaw = player.rotation.y
 	_since = 0.0
-	var local := to_world(p)
+	var local := to_world(key, p)
 	last_sent_local = local
-	var tok := client.submit(MOVE_ACTION, null, _move_payload(local), _location(local))
+	var tok := client.submit(MOVE_ACTION, null, { "to": _location(key, local) },
+		_location(key, local))
 	_tokens[tok] = MOVE_ACTION
 	return tok
 
 
-func _move_payload(local: Dictionary) -> Dictionary:
-	return { "location": _location(local) }
-
-
-func _location(local: Dictionary) -> Dictionary:
-	return MineWorldSpace.location(cafe_place, local,
+func _location(key: String, local: Dictionary) -> Dictionary:
+	return MineWorldSpace.location(place_ids.get(key, ""), local,
 		MineWorldSpace.yaw_from_3d_radians(player.rotation.y))
 
 
@@ -207,7 +327,7 @@ func talk_to_facing(utterance: String) -> String:
 		_say("the world says talk to %s is unavailable: %s"
 			% [target, obs.unavailable_reason("talk", target)])
 	var tok := client.submit("talk", target, { "utterance": utterance },
-		_location(to_world(player.global_position)))
+		_location(here_key, to_world(here_key, player.global_position)))
 	_tokens[tok] = "talk"
 	return tok
 
@@ -229,20 +349,30 @@ func facing_person() -> String:
 	return best
 
 
-func _on_resolved(token: String, action_id: String, result: Dictionary) -> void:
-	var kind: String = result.keys()[0] if not result.is_empty() else "?"
+func _on_resolved(token: String, action_id: String, result: Variant) -> void:
+	var kind := "?"
+	if typeof(result) == TYPE_STRING:
+		kind = String(result)
+	elif typeof(result) == TYPE_DICTIONARY and not (result as Dictionary).is_empty():
+		kind = String((result as Dictionary).keys()[0])
 	var what: String = _tokens.get(token, "?")
 	answers.append({ "token": token, "action": what, "action_id": action_id, "result": kind,
-		"detail": result })
+		"detail": result, "sent": last_sent_local.duplicate() })
+	if what == MOVE_ACTION and kind != "accepted":
+		# Refused for moving: reconcile to where the world says the body is
+		# (`PROTOCOL.md` sec.6.2) -- do not argue, do not retry.
+		_reconcile = true
 	if kind == "accepted" and what == MOVE_ACTION:
 		return  # the steady stream of position reports; not worth a toast
 	_say("%s %s -> %s %s" % [what, token, kind,
-		"" if kind == "accepted" else JSON.stringify(result.get(kind))])
+		"" if kind == "accepted" else JSON.stringify(result)])
 
 
 func _on_refused(code: String, token: String, _detail: String) -> void:
 	answers.append({ "token": token, "action": _tokens.get(token, "?"), "result": "refused",
 		"code": code })
+	if _tokens.get(token, "") == MOVE_ACTION:
+		_reconcile = true
 	_say("refused %s: %s" % [token, code])
 
 
