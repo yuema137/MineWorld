@@ -5,6 +5,7 @@ shots/*
 !shots/slice/
 shots/slice/*
 !shots/slice/preview/
+!shots/slice/review/
 screenshots/*.import
 preview_*.png
 preview_*.png.import
