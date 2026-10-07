@@ -202,13 +202,17 @@ def bun_centre(head: Head) -> Vector:
     # High on the crown and a little behind it.  The reference's mass rises
     # about 60 mm above the top of the skull and is wider than half the
     # head; this centre and BUN_RADII put its top and sides there.
-    return head.c + Vector((0.002, 0.040, head.r.z + 0.022))
+    return head.c + Vector((0.002, 0.036, head.r.z + 0.030))
 
 
 # The knot, as an ellipsoid.  Narrower than the swept mass it sits on: a knot
 # wider than the head below it left a shelf round the crown, and the head
 # read as a beehive.
-BUN_RADII = Vector((0.045, 0.042, 0.035))
+BUN_RADII = Vector((0.045, 0.042, 0.038))
+# Lock ends escaping the knot.  Off: at portrait distance each one read as a
+# spike standing off the top of the head; the messiness comes from the bowed
+# loops and the frizz instead.
+ESCAPES = False
 
 
 def bun_guides(head: Head, rng):
@@ -246,7 +250,7 @@ def bun_guides(head: Head, rng):
             s = 1.0 + layer + bow * math.sin(math.pi * t)
             path.append(b + Vector((d.x * BUN_RADII.x * s, d.y * BUN_RADII.y * s,
                                     d.z * BUN_RADII.z * s)))
-        if i % 6 == 0:
+        if ESCAPES and i % 6 == 0:
             tip, prev = path[-1], path[-2]
             go = (tip - prev).normalized()
             # mostly along the lock and falling a little: an end pointing
@@ -292,9 +296,13 @@ def sweep_guides(head: Head, rng):
             # top.  The front gets more lift, as the reference's soft
             # pompadour has, and so do the sides, where the reference's
             # silhouette is wider than the skull.
+            # The back is pulled close: the mass belongs in the knot, and a
+            # full dome behind the crown buried it.
             front = max(0.0, math.cos(a))
+            back = max(0.0, -math.cos(a))
             sides = abs(math.sin(a))
-            vol = 0.010 + 0.010 * front + 0.008 * sides + rng.uniform(0.0, 0.005)
+            vol = (0.008 + 0.010 * front + 0.008 * sides - 0.004 * back
+                   + rng.uniform(0.0, 0.004))
             for k in range(n):
                 t = k / (n - 1)
                 d0 = head.dir(az, e)
@@ -347,12 +355,12 @@ FALL = [
     (-80, 0.12, 0.140, 2.0, 0.014),
     (78, 0.14, 0.150, 2.1, 0.016),
     (92, -0.02, 0.140, 1.6, 0.010),
-    (-104, -0.10, 0.120, 1.5, 0.008),   # behind the ears
-    (106, -0.10, 0.125, 1.5, 0.008),
-    (150, -0.40, 0.085, 1.2, 0.006),    # the nape
-    (170, -0.46, 0.075, 1.1, 0.005),
-    (-152, -0.40, 0.090, 1.2, 0.006),
-    (-172, -0.46, 0.070, 1.0, 0.005),
+    (-104, -0.10, 0.090, 1.5, 0.008),   # behind the ears
+    (106, -0.10, 0.095, 1.5, 0.008),
+    (150, -0.40, 0.050, 1.0, 0.006),    # the nape: short, "wisps"
+    (170, -0.46, 0.045, 0.9, 0.005),
+    (-152, -0.40, 0.055, 1.0, 0.006),
+    (-172, -0.46, 0.040, 0.8, 0.005),
 ]
 
 
