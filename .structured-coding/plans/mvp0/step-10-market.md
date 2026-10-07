@@ -2236,15 +2236,13 @@ check 2 allows).
 
 ### D-C7 — Close: status, change set, full gates, ledger
 
-- [ ] Documentation: `docs/MVP_STATUS.md` — a capability row ("Owning and giving things") and an
-  evidence row (`Updated:` line and S9 row stay the planning session's); §4.4 checkboxes; §9.4 `E-D*`;
-  the handoff.
-- [ ] Validation, once, on the final executable head: fmt, clippy `--workspace --all-targets
-  --all-features -D warnings`, `cargo test --workspace --no-fail-fast` (background), kill_and_resume,
-  both doc checks, D-2's sha and validate diff; D-1: `git diff --name-only <base>...HEAD`, `git diff
-  <base>...HEAD -- Cargo.lock`, M-D1.
-- [ ] Review: D-1 … D-11 each with evidence; deviations listed; the PR is to be merged **with a merge
-  commit** (ARC-35 point 1 reads `M^1..M`).
+- [x] Documentation: `docs/MVP_STATUS.md` — a capability row ("Owning and giving things", after
+  "Independently installable System Packs") and an evidence row (after CP-3's); the `Updated:` line,
+  the S9 row and the `worlds/market-town` artefact row (still ❌) are left to the planning session;
+  §4.4 checkboxes; §9.4 `E-D*`; the handoff.
+- [x] Validation, once, on the final executable head 341f2f2 (§9.4 E-D-final): all PASS.
+- [x] Review: D-1 … D-11 each with evidence (E-D-final's table); deviations D-D1 … D-D4 (§4.4.6); the
+  PR is to be merged **with a merge commit** (ARC-35 point 1 reads `M^1..M`), said in the PR body.
 
 ### 4.4.4 Test ownership for 11d
 
@@ -2297,6 +2295,12 @@ D-D3  bounded  inventory's tests need a stater, because inventory provides no ac
                System `hands` (tests/support/mod.rs) provides `pass`, honest (through transfer) or
                forged (bytes built by hand). It depends on inventory and declares the emission, as
                ARC-26 requires of any stater. Lives only in the tests.
+D-D4  bounded  M-D4 fails two capacity tests, not "the three": the authored-holdings test sums the
+               authored counts at seeding (no state exists then, F-37) and does not call can_take, so it
+               survives by construction; the constructor/reduction test and the offer/dispatch test
+               both fail (E-D3, E-D4).
+D-D5  process  One read-only `xargs cat` slipped into a wait command (reading a task log), against the
+               kickoff's tool discipline. No file was changed by it. Recorded, not repeated.
 ```
 
 ## 4.5 PR 11e — the transformation, part 2: work, money and shops (medium scope; AC-1 range)
@@ -3127,6 +3131,47 @@ E-D6 D-C6 market-town, on 069e9e4's build (debug, opt-level 1), 2026-10-07. In t
      D-5 through the real CLI: a /tmp copy with bob authored at 7 items → `validate` exit 1:
        "[mineworld] …/people/bob.yaml: the 'inventory' system refused 'bob''s 'holdings' section:
        TargetUnavailable".
+E-D-final on 341f2f2 (clean tree; final executable head — later commits are Markdown only), base
+     e3a1106, 2026-10-07; logs /tmp/s9-11d/final/:
+     cargo fmt --all --check                                           PASS
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS
+     cargo test --workspace --no-fail-fast    479 passed, 0 failed, 0 ignored across 104 test binaries
+                                              (main's 456 + 23 new: item 4, inventory 9, item-transfer
+                                              10); 173 s wall
+     kill_and_resume                          cafe PASS (0.3 s), clock PASS (0.1 s)
+     check_decision_ids                       48 ids, all distinct
+     check_doc_headings                       143 sections across 22 documents, none duplicated
+     I-2 scan                                 the_precursors_add_no_market_concept PASS inside the run
+                                              (rows 11a/11b/11c read as merged; no row or entry added)
+     D-2 / I-4                                300-day seed-7 social-cafe sha-256 of all but wall =
+                                              ad49c723…c64b = E-0; faults 0; 365 330 facts; wall 12.0 s;
+                                              `validate worlds/social-cafe` byte-identical to E-D0's
+     D-1                                      `git diff --name-only e3a1106...HEAD`: 83 paths — docs/
+                                              {DECISIONS,MODULE_SPEC,MVP_STATUS,PACKAGE_FORMAT}.md,
+                                              .structured-coding/plans/mvp0/{handoff,step-10-market}.md,
+                                              Cargo.lock, systems/README.md, systems/installed/
+                                              {Cargo.toml,src/lib.rs}, systems/item/** (10),
+                                              systems/inventory/** (12), systems/item-transfer/** (11),
+                                              worlds/market-town/** (40: README, world.yaml, 20 items,
+                                              12 people, 6 places); paths outside the allowed set: 0.
+                                              `git diff e3a1106...HEAD -- Cargo.lock`: +3 [[package]]
+                                              (mineworld-item, -inventory, -item-transfer), none with a
+                                              `source`; +3 names in mineworld-installed-systems'
+                                              dependency list; nothing else.
+     M-D1                                     `// MUTATION M-D1` added to kernel/src/lib.rs in the working
+                                              tree → the same filter (`git diff --name-only e3a1106`)
+                                              listed `kernel/src/lib.rs`; reverted (git checkout), count
+                                              of outside paths back to 0, tree clean.
+     CI: none configured (S13).
+
+     D-1 … D-11 at a glance:
+     D-1  PASS (above)            D-2  PASS (above; no existing test edited — D-1's list has none)
+     D-3  PASS (E-D2; M-D2 E-D3)  D-4  PASS (E-D3; M-D3, D-D2)
+     D-5  PASS (E-D3, E-D4, E-D6 CLI; M-D4, D-D4)
+     D-6  PASS (E-D4; M-D5)       D-7  PASS (E-D4; M-D6)
+     D-8  PASS (E-D3 persisted; F-38 reproduced)
+     D-9  PASS a, then b, then c, then d (E-D6; M-D7)
+     D-10 PASS (E-D6)             D-11 PASS (D-C1 committed first, 27dfbca; doc checks above)
 ```
 
 ---

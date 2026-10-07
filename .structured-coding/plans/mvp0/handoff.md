@@ -33,12 +33,18 @@ STOP CONDITIONS     normal: PR 11d READY FOR OPERATOR REVIEW — DO NOT MERGE. M
 
 ## Current checkpoint
 
-D-C1 (specs before code) in progress. Base capture E-D0 done (sha = E-0, validate = E-C0's).
+**READY FOR OPERATOR REVIEW. Context CLOSED / AWAITING OPERATOR ACTION.** D-C1 … D-C7 done.
+Final executable head 341f2f2 (gates in step-10 §9.4 E-D-final: 479/0, 173 s); later commits are
+Markdown only. Deviations D-D1 … D-D5 in §4.4.6. Scratch branch deleted; nothing on origin named
+scratch.
 
 ## Next actions
 
-D-C2 `systems/item` → D-C3 `systems/inventory` → D-C4 `systems/item-transfer` → D-C5 install →
-D-C6 `worlds/market-town` + scratch measurements → D-C7 gates, PR.
+- Operator reviews the PR; merge **with a merge commit** (ARC-35 reads `M^1..M`). The primary session
+  re-runs D-1 on the actual merge diff.
+- Post-merge: this session's §4.4/§9.4 are final; the step header, §§1–3, overall, MVP_STATUS's
+  `Updated:` line, S9 row and the `worlds/market-town` artefact row are the planning session's.
+- F-37's doc fix: a later docs-only PR (not 11d's).
 
 ## Background processes
 
