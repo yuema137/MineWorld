@@ -572,10 +572,14 @@ func _street_watch(link: SliceLink) -> void:
 	for id in link.figures:
 		first[id] = (link.figures[id] as Node3D).global_position
 	print("start    %d figures on the street: %s" % [first.size(), first])
+	var wall0 := Time.get_ticks_msec()
 	var t := 0.0
 	while t < secs:
 		await _hold(1.0)
 		t += 1.0
+	# simulated seconds against wall seconds: a slow headless loop shows here,
+	# not as a silent stall
+	print("watch    %.0f s simulated in %.1f s wall" % [secs, (Time.get_ticks_msec() - wall0) / 1000.0])
 	var last := {}
 	for id in link.figures:
 		last[id] = (link.figures[id] as Node3D).global_position
