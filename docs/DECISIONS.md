@@ -1750,6 +1750,23 @@ memory. Its remedy is a perception or cognition change (S10).
 the listener missed the moment. The controller's speech is formulaic, as a rule's is; interpretation
 is cognition's. Places have no extent, so wandering is bounded only by the pull of nearby people.
 
+**Note, 2026-10-07 (S8, `step-09-social.md` C3).** Three changes, none to the decision itself:
+
+1. **P is 900 s**, not 600. S8 made `social-cafe` a town of twelve people with eleven seats, and one
+   300-day debug run took 77 s at 600 s. The step-08 rule is that the pace rises before the days fall,
+   so it rose: 51–55 s. A pack with P seats or more is still refused.
+2. **A door is a seeded choice kept for six simulated hours**, a draw over `(seed, observer, instant ÷
+   21 600)`. That is still a pure function of the observation. Before, *leave* took the first disclosed
+   passage, and on a street of five doors everybody walked into the lowest-numbered place and never
+   came back. In a place with more than one door, which in practice is a street, walking on is the
+   likelier draw.
+3. **A proposed stride never exceeds `MAX_STRIDE`.** The stride arithmetic divided by the *floored*
+   square root, so a stride came out a fraction of a millimetre over 2 000 mm and was refused
+   `TooFarAway`. It now divides by the root rounded up. S7's `TooFarAway` refusals, read at the time as
+   crossings at a rounded 2 000 mm, were this defect, and the S7 test could not see it because it
+   measured strides with the same floored root (`ARC-23`). With the fix, a 300-day run has no refusals
+   at all.
+
 ---
 
 ## DEP-11 — The CLI's argument parsing: `clap`

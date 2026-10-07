@@ -27,15 +27,15 @@ use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use headless::{BINARY, PACK, Tables, every_seat_active_in_every_bucket, fresh, run};
+use headless::{BINARY, PACK, Tables, every_seat_active_in_every_bucket, fresh, run, seats};
 use mineworld_contracts::{EventEnvelope, EventRecord};
 use mineworld_conversation::Spoke;
 use mineworld_persistence::format;
 
-const SEATS: [&str; 3] = ["alice", "visitor", "wanderer"];
 const SEED: u64 = 7;
 const DAYS: u64 = 30;
-const PACE: i64 = 600;
+/// `mineworld run`'s pace (`tools/cli/src/run.rs` `PACE`): the reply window is one pace long.
+const PACE: i64 = 900;
 const DAY: i64 = 86_400;
 
 /// Starts `run --save save` and SIGKILLs it once it has printed the line for `day`.
@@ -102,7 +102,9 @@ fn resumed(printed: &str) -> (u64, u64) {
 fn a_killed_run_re_run_finishes_the_same_world_byte_for_byte() {
     let control = fresh("run-restart-control");
     let printed = run(SEED, DAYS, Some(&control));
-    every_seat_active_in_every_bucket(&printed, &SEATS);
+    let seats = seats();
+    let seats: Vec<&str> = seats.iter().map(String::as_str).collect();
+    every_seat_active_in_every_bucket(&printed, &seats);
     let control = Tables::read(&control);
     let control_head = u64::try_from(control.journal.len()).expect("fits");
 

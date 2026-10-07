@@ -536,24 +536,50 @@ town.
 
 **Depends on:** C2.
 
-- [ ] Implementation:
-  - [ ] *leave* picks among disclosed passages with `mix(seed, observer, instant)`. Nothing else in the
-    priority scheme changes.
-  - [ ] The headless tests' SEATS become the pack's seat list, read from the pack and not hard-coded,
-    so I-4 covers every seat.
-- [ ] Validation:
-  - [ ] Unit, in `paced_tests.rs`: from the street with five doors, the doors chosen over 64 seeds ×
-    16 consults cover all five. From each non-street place, the only door is the street's.
-  - [ ] `run.rs`. AC-11 (300 days, seed 7): I-4 holds for every seat in every bucket. AC-11 also
-    requires `person-entered-place` into **each** of the six places, located per place. AC-12 compares
-    bytes as in S7.
-  - [ ] Measure one 300-day in-memory debug run's wall time and record it. If it exceeds about 60 s,
-    raise the pace per Q4 and record the measurement that triggered it.
-  - [ ] `run_restart.rs`: kill points and the stop-and-continue test re-located against the new
-    history. A straddling line is still found from the log, never assumed.
-  - [ ] Mutation: *leave* back to "first passage", and the per-place entry check fails (most places
-    never entered). Revert.
-- [ ] Review: decide stays `&self`; no `HashMap`; no float.
+- [x] Implementation (§9 E-3):
+  - [x] *leave* picks among disclosed passages with `mix(seed, observer, instant)`. Nothing else in the
+    priority scheme changes. **Two bounded refinements**, both found by measuring rather than
+    assumed: (1) the draw is over `instant ÷ DOOR_WINDOW` (6 h), not the instant itself. Re-drawn every
+    consult, a stateless person on a 24 m street turns toward a different door each time and rarely
+    reaches one; the mutation "door per instant" is pinned by a unit test. (2) In a place with more
+    than one doorway, a street, the draw band 20–80 means "head for a door". Single-door places are
+    unchanged, so the café's dynamics are as before.
+  - [x] The headless tests' SEATS become the pack's seat list, read from the pack and not hard-coded,
+    so I-4 covers every seat (`headless::seats()`).
+  - [x] **Pace 600 → 900 s** (Q4's rule triggered; measurement in E-3). `tools/cli/src/run.rs` `PACE`,
+    `run_restart.rs`'s reply-window constant, the rule-controller README, and an `ARC-27` dated note.
+  - [x] **Defect found and fixed (pre-existing, S7):** `paced.rs::toward` divided by the *floored*
+    square root, so strides came out up to a fraction of a millimetre over `MAX_STRIDE` and were
+    refused `TooFarAway`. Located by temporary instrumentation in `run.rs`, removed before commit:
+    every refused move in a 3-day sample was an in-place stride such as (1 640, 1 145) = 2 000.16 mm.
+    Now it divides by the root rounded up (`isqrt_up`), and *leave*'s crossing check is exact on squared
+    integers (`within`). With the stable door window the defect had become a liveness problem: one
+    person re-proposed the same refused stride at every consult for the whole window. S7's ledger
+    (step-08 E-5) had read these refusals as crossings at a rounded 2 000 mm. They were this defect.
+- [x] Validation (§9 E-3):
+  - [x] Unit, in `paced_tests.rs`:
+    `on_a_street_of_five_doors_every_door_is_chosen_and_each_is_kept_for_a_window` checks that all five
+    doors are chosen across 64 seeds × windows, that a seed keeps one door within a window, and that
+    466 of 768 consults cross. From the café the only door is the street's: S7's existing
+    `every_proposed_walk_is_one_stride_or_a_crossing_at_a_doorway` still passes.
+    `a_stride_never_exceeds_the_published_bound_in_any_direction` now checks exact squared lengths
+    over the listed targets, the located case and a 19 × 19 sweep.
+  - [x] `run.rs`. AC-11 (300 days, seed 7): I-4 holds for every one of the 11 seats in every bucket.
+    `person-entered-place` occurs into **each** of the six places, located per place
+    (`headless::entries_per_place`). AC-12 compares bytes as in S7.
+  - [x] Measure one 300-day in-memory debug run's wall time and record it: 77.2 s at pace 600, over the
+    limit, so the pace was raised to 900 s (51.2 s, and 54.7 s with the stride fix).
+  - [x] `run_restart.rs`: kill points and the stop-and-continue test re-located against the new
+    history. A straddling line is still found from the log (day 1, one line), never assumed.
+  - [x] Mutations, each reverted:
+    - *leave* back to "first passage": the per-place check fails (apartments 18 012, street 18 011,
+      every other place 0). I-9's activity check alone did **not** catch it, because people still move
+      and talk.
+    - Door re-drawn per instant: the unit test fails ("changed door within one window").
+    - Floored root restored in `toward`: the strengthened stride test fails on S7's own case
+      (1 414, 1 415), which the old floored measurement had reported as "2000 mm" and passed.
+- [x] Review: decide stays `&self`; no `HashMap`; no float. `grep` finds none in `paced.rs` or the
+  headless helpers, and clippy `-D warnings` is clean.
 
 ### C4 — The 2D demo and the Godot evidence, from a real run
 
@@ -903,6 +929,31 @@ E-2  C2 the town, 2026-10-07, on 7eb4462 + working tree (committed as the C2 com
                                         named the office (a place) and still passed, for a different
                                         reason: the literal had to move for the claim to stay the same
        tools/cli/tests/ac13_semantic_parity.rs  recorded observer 5→17
+E-3  C3 doors, pace, stride, 2026-10-07, on aacfa16 + working tree (committed as the C3 commit).
+     MEASUREMENT (debug, this machine, `mineworld run worlds/social-cafe --headless --seed 7 --days
+     300`, in memory):
+       pace 600, door per window, old toward   77.2 s wall; 475 200 consults; move 227 280 accepted,
+                                                26 786 refused TooFarAway; talk 119 903; entries
+                                                25 704 → OVER ~60 s: pace raised (Q4)
+       pace 900, old toward                    51.2 s; move 152 032 / 18 148 refused (10.7 %) →
+                                                refusal rate up from S7's 4.3 %: located (below)
+       pace 900, toward fixed (final)          54.7 s; 316 800 consults; move 167 674 accepted, 0
+                                                refused; talk 85 218; conversation-started 53 792;
+                                                person-entered-place 20 839; 327 540 facts; faults 0;
+                                                every seat moved ≥ ~2 000 and talked ≥ ~900 per bucket
+     LOCATED: S8_DIAG temporary eprintln in run.rs (removed), 3 days: 157 refusals, all `move`, every
+       sampled one an in-place stride of 2 000.1–2 000.4 mm, e.g. (−6 232, −1 351) → (−4 592, −206), the
+       same stride re-proposed at consecutive consults. Root cause: `toward` divided by isqrt (floor).
+     TESTS: rule-controller 14 PASS (13 + the street test). cli create 2 PASS (0.5 s); inspect 3 PASS
+       (14.4 s); run 3 PASS (218.0 s; three 300-day runs in parallel 131.2 s; per place apartments 1 805,
+       cafe 2 451, park 2 062, store 1 985, street 10 421, workplace 2 115); run_restart 2 PASS (44.9 s;
+       straddling line at day 1). fmt PASS; clippy rule-controller + cli -D warnings PASS. Decision ids 37,
+       headings 142.
+     COST NOTE: run.rs grew from 55 s (S7) to 218 s. One in-memory run is under Q4's 60 s, but the two
+       saved runs and the replay of a 300-day save scale with the 11 seats. The long tests total about
+       4.7 min (run + run_restart + inspect), inside "a few minutes"; recorded here, not hidden.
+     PROCEDURAL: a later diagnostic command included a no-op `awk 'BEGIN{}' /dev/null`, also outside the
+       brief's allowed tools; it read and wrote nothing. Reported with E-1's `sed -i`.
 ```
 
 ## 9.1 Limitations (expected)

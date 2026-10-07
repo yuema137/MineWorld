@@ -82,6 +82,63 @@ pub fn count_after(line: &str, label: &str) -> u64 {
         .unwrap_or_else(|| panic!("no number after '{label}' in: {line}"))
 }
 
+/// The seats the pack offers, in the order `mineworld run` drives them — read from the pack, so the
+/// activity precondition covers every seat a run drives rather than a list a test once copied.
+pub fn seats() -> Vec<String> {
+    mineworld_worldpack::WorldPack::read(PACK)
+        .expect("the repository's own World Pack reads")
+        .seats()
+        .iter()
+        .map(|seat| seat.as_str().to_owned())
+        .collect()
+}
+
+/// How many times somebody entered each of the pack's places in a save's history, by place key —
+/// every place the pack declares is listed, entered or not, so a place nobody reached shows as 0
+/// rather than being absent (`ARC-23`: the instrument must be able to see a zero).
+///
+/// Read from presence's own `person-entered-place` facts, decoded with presence's published type.
+pub fn entries_per_place(tables: &Tables) -> std::collections::BTreeMap<String, u64> {
+    use mineworld_contracts::{Event, EventEnvelope, WorldTime};
+    use mineworld_presence::PersonEnteredPlace;
+
+    let loaded = mineworld_worldpack::WorldPack::read(PACK)
+        .expect("the repository's own World Pack reads")
+        .load(WorldTime::EPOCH)
+        .expect("it loads");
+    let places: Vec<(String, mineworld_contracts::EntityId)> = loaded
+        .ids()
+        .iter()
+        .filter(|(_, id)| {
+            loaded.world().read().entity(**id).is_some_and(|entity| {
+                entity.entity_type() == mineworld_contracts::EntityType::Place
+            })
+        })
+        .map(|(key, id)| (key.as_str().to_owned(), *id))
+        .collect();
+    let mut entered: std::collections::BTreeMap<String, u64> =
+        places.iter().map(|(key, _)| (key.clone(), 0)).collect();
+    for (_, bytes) in &tables.facts {
+        let fact: EventEnvelope = format::decode(bytes, "fact").expect("a fact");
+        if *fact.event_type() != PersonEnteredPlace::EVENT_TYPE {
+            continue;
+        }
+        let payload = fact
+            .payload()
+            .payload_for::<PersonEnteredPlace>()
+            .expect("presence's own fact");
+        let entry: PersonEnteredPlace = serde_json::from_slice(payload).expect("it decodes");
+        let place = entry.place().entity_id();
+        let key = places
+            .iter()
+            .find(|(_, id)| *id == place)
+            .map(|(key, _)| key.clone())
+            .expect("an entry into a place the pack declares");
+        *entered.entry(key).or_default() += 1;
+    }
+    entered
+}
+
 /// The step-08 I-9 precondition, checked off the printed activity table: every seat accepted a
 /// `move` and a `talk` in every 30-day bucket. Returns the number of buckets, so a caller can see it
 /// read what it meant to (`ARC-23`).
