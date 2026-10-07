@@ -3123,12 +3123,22 @@ committed horizon (QS-59); fail closed without full history (CI needs `fetch-dep
 text; the two fail-closed tests on temporary repositories under `CARGO_TARGET_TMPDIR`; the
 market-pack-list guard. `tests/acceptance/src/lib.rs`'s table (a comment).
 
-- [ ] Implementation: SD-29, SD-30.
-- [ ] Validation: `cargo test -p mineworld-acceptance --test ac1_composability` (P-1's positive, P-2);
-  M-P1 … M-P4 (§9.6 E-P2); clippy `-p mineworld-acceptance --all-targets -D warnings`; fmt.
-- [ ] Review: no path in check 1 can skip (every `git` failure is a test failure with its cause); the
-  subject match is exact (`#43` does not match `#430`); the lock reader handles a package with no
-  `dependencies` and the `version = 4` header; the scan of 11d and 11e reads `M^1..M`, never `base..HEAD`.
+- [x] Implementation: SD-29, SD-30 — `c11418c`. `TRANSFORMATION`, `MARKET_PACKS`, `git(repo, …)`,
+  `is_merge_of`, `transformation_merge`, `allowed`, `changed_paths`, `LockPackage`/`read_lock`/
+  `lock_changes`/`refused_lock_changes`, `systems_crates` (`git grep` at `M`), `file_at`,
+  `change_set_failures`; tests `check_1_the_change_set`, `check_1_fails_closed_without_the_merges`,
+  `check_1_fails_closed_on_a_shallow_clone`, `every_market_pack_is_a_crate_under_systems`,
+  `the_subject_match_is_exact`, `the_allowed_set_is_arc_35_item_2`,
+  `the_lock_rule_refuses_any_change_that_is_not_a_path_crate_under_systems`. `src/lib.rs` table row.
+- [x] Validation: 7 passed; M-P1 … M-P4 each fail by name (§9.6 E-P2); clippy `-p
+  mineworld-acceptance --all-targets -D warnings` clean; fmt clean.
+- [x] Review: every `git` failure becomes a named failure (the work-tree and shallow checks return
+  early; a row whose merge is not found is a failure, not a skip); the subject is matched by its exact
+  prefix `#<n> from ` and the whole branch, unit-tested against `#430`, `#4`, a longer branch and a
+  missing owner; the lock reader skips the `version = 4` header (outside any block) and reads a
+  package without `dependencies` (unit test); each row reads `M^1..M` (`changed_paths`, `file_at
+  M^1`), never a base range. The positive run's print is skipped for a row whose merge is not found,
+  so the failure is always the check's own report (seen first under M-P3, then restructured).
 
 ### P-C3 — `tests/acceptance`: check 2 (the dependency structure)
 
@@ -4567,6 +4577,38 @@ Logs under /tmp/s9-11f/.
 E-P1 P-C1 — the ARC-35 note (11f), committed before any test code (P-10).
      python3 scripts/check_decision_ids.py → 49 decision ids, all distinct (no new id: a note).
      python3 scripts/check_doc_headings.py → 143 numbered sections across 22 documents, none duplicated.
+E-P0 Baselines on the base build (e97a408's code; 690d584 changes Markdown only), before any test code:
+     `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → faults 0, 365 330 facts,
+       sha-256 of all but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0;
+       wall 13.8 s.
+     `mineworld run worlds/market-town --headless --seed 7 --days 300` → faults 0, 372 755 facts
+       (= E-E7), sha-256 of all but `wall` = 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d;
+       wall 16.0 s. Both `validate` outputs kept in /tmp/s9-11f/base/ for P-9.
+E-P2 P-C2 (c11418c): `cargo test -p mineworld-acceptance --test ac1_composability` → 7 passed, 0.27 s.
+     Positive (P-1): 11d 70e532f…: 83 paths, Cargo.lock = mineworld-inventory, -item, -item-transfer
+       added (no source) + mineworld-installed-systems changed (dependencies); 11e 2dddda8…: 74 paths,
+       mineworld-consumption, -economy, -employment added + installed-systems changed (dependencies);
+       0 failures. P-2: the one-commit repository fails "11d: 0 merges of #43 …"; the shallow clone
+       (`git clone --depth 1 file://…` of a two-commit repository) fails with exactly one failure naming
+       "a shallow clone" and "fetch-depth: 0".
+     M-P3 (11d's id → its first parent e3a1106c…): FAIL "11d: the merge of #43 on the first-parent chain
+       is 70e532f383ff…, not the recorded e3a1106c…". First seen as a panic of the test's print loop;
+       the loop now skips an unfound row, and the check itself reports it (re-run, same message).
+     M-P4 (11e's row → #40, mvp0/pr-11c-affordances, c5dc51c0…): FAIL naming 16 paths — clients/
+       protocol/ADOPTION.md, cognition/rule-controller/src/{lib,offered,offered_tests,paced,tests}.rs,
+       contracts/src/{action,observation}.rs, contracts/tests/…, server/PROTOCOL.md,
+       spike/server/src/world.rs, tests/acceptance/… — and "Cargo.lock: mineworld-acceptance 0.0.0
+       changed (dependencies) — not a crate under systems/".
+     M-P1 + M-P2, local scratch branches scratch/ac1-main and scratch/ac1-mutation from c11418c: a side
+       commit adding a comment to kernel/src/lib.rs, a file systems/economy/MUTATION-M-P1.txt, and to
+       Cargo.lock a package `rust-decimal-scratch 1.0.0` with source registry+… listed in
+       mineworld-economy's dependencies; merged --no-ff as "Merge pull request #999 from
+       scratch/ac1-mutation" = 4674c419…; a working-tree scratch row for it. FAIL with exactly two
+       failures: "a path outside the allowed set: kernel/src/lib.rs" and "Cargo.lock:
+       rust-decimal-scratch 1.0.0 added — source = registry+…" (the systems/ file and economy's changed
+       list are admitted, as they should be). Working tree restored, both branches deleted (`git branch
+       -D`), never pushed: `git ls-remote --heads origin | grep -c scratch` → 0; `git grep MUTATION --
+       tests tools kernel systems Cargo.lock` empty; `git status` clean.
 ```
 
 ---
