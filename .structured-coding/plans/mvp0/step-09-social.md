@@ -2128,44 +2128,61 @@ day, and it moves no one (SD-13, Q8, CP-4's mechanism).
 - Root `Cargo.toml`.
 
 **Depends on:** C2 (authoring).
-- [ ] Implementation: as §4.3.2.
-- [ ] Validation (`cargo test -p mineworld-schedule`), over a hand-built world (presence, movement,
-  schedule):
-  - [ ] Genesis `routine-assigned` (from `seed`) produces:
-    - Routine;
-    - one `routine` process whose expected end is the next boundary;
-    - an `agenda-changed` caused by the assignment;
-    - an Agenda equal to the segment the instant falls in, including the wrap: at 00:00 the
-      agenda is the last segment.
-  - [ ] Wakes: nothing at boundary − 1. At the boundary, exactly one `agenda-changed` caused by
-    `Causation::Process(p)`, and the process is rescheduled to the next boundary. Over three
-    simulated days every boundary fires once, in order, and the process id never changes.
-  - [ ] It moves no one: a person whose agenda changes three times stays where presence placed them.
-    The registry refuses a schedule declaration that emits `arrived`. Shown by declaration: schedule
-    states no foreign vocabulary and has no dependency.
-  - [ ] Section refusals by schedule's own types, each by name:
-    - empty;
-    - one segment;
-    - `from` not increasing;
-    - "24:00";
-    - an invalid label;
-    - neighbours equal, including last against first.
+- [x] Implementation (§9 E-C5):
+  - `systems/schedule/src/{lib, error, time, label, segment, component, event, process, codec,
+    section, system}.rs`. The planned file list was `time, label, segment, component, event,
+    process, section, codec, system`; `error.rs` was added for `ScheduleError`.
+  - `Segments<P>` is generic over how a place is named: `EntityKey` as authored, `PlaceId` as
+    recorded. The rules are stated once, in `Segments::new`, and enforced on deserialization.
+  - The routine process is started `uninterruptible`.
+  - Agenda's `since` is the fact's own instant, so the first agenda's `since` is genesis.
+- [x] Validation (`cargo test -p mineworld-schedule`: schedule 7, persisted 1, all PASS), over a
+  hand-built town (presence, movement, schedule; café and park; Alice's day "06:00 cafe work · 18:00
+  park walk"; genesis at 00:00):
+  - [x] Genesis is `[arrived, arrived, routine-assigned, agenda-changed]`. The agenda is caused by
+    `Event(routine-assigned)`. At 00:00 the agenda is the park walk until 06:00 (the wrap). The
+    process has kind `routine`, expected end 06:00, and participants [alice]. Bob, with no section,
+    has no agenda.
+  - [x] Wakes:
+    - nothing at 05:59:59;
+    - over three days, exactly six `agenda-changed`, alternating work and walk, each caused by
+      `Process(p)` with the same `p`;
+    - the process is rescheduled to the next morning.
+  - [x] It moves no one:
+    - four agenda changes produce only `agenda-changed` facts;
+    - Alice's Presence is byte-equal, while her agenda names the park;
+    - `schedule_states_only_its_own_vocabulary`: no action, no dependency, nothing in
+      `emits_owned_by_others`, and emits exactly routine-assigned and agenda-changed.
+  - [x] Section refusals through serde-saphyr, each with its message:
+    - empty `[]` and one segment (count);
+    - 18:00 → 06:00 and 06:00 → 06:00 (strictly increasing);
+    - "24:00" and "6:00" (HH:MM);
+    - "Work" (label);
+    - a repeated middle neighbour, and last-against-first (wrap);
+    - an unknown field `note`.
 
-    `references` lists every place key. `seed` refuses a place key that resolves to a person.
-  - [ ] Disclosure: the holder sees its Agenda, and a co-present observer does not.
-  - [ ] **Real persistence across a boundary** (`tests/persisted.rs`, the group-activity pattern):
-    - a SQLite save at genesis, advanced to boundary − 1, dropped;
-    - resumed (snapshot plus re-execution), advanced past the boundary;
-    - the `agenda-changed` is caused by the same process id;
-    - `verify` from genesis passes.
-  - [ ] Mutations, each run and reverted:
-    - `wake` without `reschedule` → the three-day test FAILS (one wake, then silence);
-    - the wrap removed (00:00 → the first segment) → the genesis-agenda test FAILS.
-- [ ] Review:
-  - Only schedule writes Routine, Agenda and the process.
-  - No float, no HashMap.
-  - No wall clock: every instant is the fact's or the process's.
-  - fmt and clippy are clean.
+    `references` lists cafe and park as Places. `seed` refuses `place: bob`, and refuses a place as
+    subject.
+  - [x] Disclosure: Alice is told her Agenda. Bob perceives Alice and is not told hers.
+  - [x] **Real persistence across a boundary:**
+    - a SQLite save, advanced to 05:59:59 (fires nothing, so per ARC-25 nothing is journaled), then
+      dropped;
+    - resumed from snapshot 1 with 0 replayed;
+    - the process is found with expected end 06:00;
+    - at 06:00, one `agenda-changed` caused by the same `Process(p)`, label "work";
+    - `verify` passes over 2 revisions.
+  - [x] Mutations, each run and reverted (`git diff --stat -- systems/schedule/src` was empty after
+    each):
+    - the reschedule removed → `every_boundary_fires_once…` FAILS ("at t64800, left [] right
+      [agenda-changed]") and `an_agenda_moves_nobody` FAILS (1 change, not 4);
+    - the wrap removed → `a_routine_assigned_at_midnight…` FAILS (cafe, not park).
+  - [x] Full workspace: 405 passed, 0 failed.
+- [x] Review:
+  - Only schedule's `react` writes Routine and Agenda, and only `react` and `wake` touch the
+    process.
+  - `rg "f32|f64|HashMap|HashSet|SystemTime|Instant::now" systems/schedule/src` → none. Every
+    instant is the fact's (`event.at()`) or the view's (`world.at()`).
+  - fmt and clippy `--workspace -D warnings` are clean.
 
 **Acceptance.** As validation (§9 E-C5).
 **Failure.** A required kernel change is a material stop.
@@ -2972,6 +2989,8 @@ E-C4 Names reach what people say and read. Full workspace 398 passed, 0 failed (
      run.sh evidence 23.5 s; seven evidence files re-recorded, request-*.json unchanged. The AC-2
      oracle was corrected (D-C1), after two failing runs located the nested, cut quotations at rows
      249 and 5 156.
+E-C5 systems/schedule. schedule 7 + persisted 1 PASS; two mutations each FAIL the named test and were
+     reverted. Full workspace 405 passed, 0 failed.
 ```
 
 ## 9.1 Limitations (expected)
