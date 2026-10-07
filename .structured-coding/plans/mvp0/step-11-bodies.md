@@ -6,8 +6,12 @@ determinism prototype, the proposed ownership, facts and contracts, a PR split, 
 questions. It holds no frozen PR design yet: the first PR is detailed only after the operator decides
 the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 (S11, S12, S14), §7.
-**Lifecycle:** `DRAFT — awaiting operator review`. Nothing in this document is frozen, and nothing in
+**Lifecycle:** `DRAFT — revision 1`. The operator's decisions of 2026-10-07 (§1.4) are applied; the
+coordinator reviews and freezes the step after S9. Nothing in this document is frozen, and nothing in
 it authorizes implementation.
+**Revision history:** revision 0 (commits `f8da73a`…`bb0f3b4`) recommended correcting arrivals after
+they were recorded and blocking walkers at people; both were decided against (§1.4). Sections superseded
+by revision 1 say so where they stand, and the evidence that led to them is kept.
 **Branch:** `design/physics` from `main @ 7f6960e`. Worktree `/Users/yuema137/mineworld-worktrees/physics`.
 **Prototype:** `/Users/yuema137/mineworld-demos/physics-spike/`, a standalone Cargo project outside the
 repository, never committed to MineWorld (§9).
@@ -48,22 +52,51 @@ D-4  Define the boundary with the existing `movement` System Pack.
 D-5  Build a determinism prototype.
 ```
 
-## 1.3 The answer in brief
+## 1.3 The answer in brief (revision 1)
 
 ```text
-Server   a new System Pack, `bodies`, resolves every arrival of a person against the bodies,
-         walls and loose objects of that place, with Rapier queries and a few fixed sub-steps,
-         rebuilt from integer state for each resolution and quantized back to whole millimetres.
-         It never decides whether a move is allowed: `movement` still does. It decides what a
-         body does when it gets there: stops at a person or a wall, pushes a box aside.
-         It provides `kick`, `throw` and `shove`, each with a declared SpatialRequirement.
-Presence `arrived` gains `from`, filled by presence's own constructor, so that whoever reacts to
-         an arrival can see the whole stride. The one edit to an existing pack.
-Kernel   unchanged. Contracts unchanged.
+Seam     presence resolves an arrival BEFORE it is recorded. Its constructor `arrival()` asks every
+         installed ArrivalResolver (a new presence-owned trait, carried by `installed!` the way
+         PerceptionProvider is) what the stride actually achieves, and records only the true
+         result: the walker's arrived, an arrived for each person nudged aside, and presence's own
+         stride-blocked when the walker stopped short. With no resolver installed, every world
+         records exactly what it records today, byte for byte. A framework precursor (PR 12a).
+Server   a new System Pack, `bodies`, is the first resolver. It rebuilds a Rapier world for the
+         place from integer state, sweeps the walker with the character controller, nudges people
+         in the way (at most 300 mm each, at most 2 generations and 4 people per stride, never
+         through a wall), verifies the result and degrades to blocked, halved or stay-put if any
+         pair would overlap, and quantizes to whole millimetres. It never decides whether a move
+         is allowed: `movement` still does, and still does not know `bodies` exists. bodies
+         pushes loose objects aside in its reactions to the recorded arrivals, and provides
+         `kick`, `throw` and `shove`, each with a declared SpatialRequirement.
+Kernel   unchanged. Contracts unchanged. `arrived` unchanged (no `from`).
 Clients  Godot keeps its local CharacterBody3D, now with Jolt selected explicitly, and gives every
          other person and every loose object a collider at its observed position. It reconciles
-         to the authoritative position whenever the two differ by more than a stated tolerance,
-         not only after a refusal. Kick, throw and shove are intents with a target.
+         to the authoritative position whenever the two differ by more than a stated tolerance —
+         which now also happens when somebody else nudges you. Kick, throw and shove are intents
+         with a target.
+```
+
+## 1.4 Operator decisions on revision 0 (2026-10-07, relayed by the coordinator)
+
+```text
+QB-1   Rejected: correct-after-the-fact. The log contains only true arrivals — no transient
+       `arrived X` followed by a correction. Resolve before recording, through a provider-trait
+       seam like PerceptionProvider, wired by `installed!`; movement still unaware of bodies;
+       byte-identical with no resolver installed. A framework precursor PR (sdk, installed,
+       presence) proven with a synthetic resolver, like 11c's chimes. Not a kernel change; if it
+       needs kernel support, that is operator-material. Re-check whether `from` is still needed;
+       prefer not changing presence's event version.
+QB-10  Walking into a person nudges them aside, as with a box. Presence alone writes positions;
+       the nudged person's new position is a true fact caused by the walker's request (AC-9);
+       the nudge is small and bounded per stride; chains are bounded (or the stride is blocked);
+       nobody is pushed through a wall or out of the place; deterministic under the per-request
+       rebuild and i32 mm quantization. `shove` remains the deliberate, larger displacement.
+       Measure head-on, one stationary person, and a crowd of five, criteria first.
+Accepted as recommended: QB-2 (re-checked under QB-1: §4.4.7, withdrawn), QB-3, QB-4 (rapier3d), QB-5
+       (social-cafe and market-town), QB-12 (cross-architecture run; rustup target permitted).
+       The other questions stay as recommended.
+PR split: the precursor seam PR first; the step still starts after 11f merges.
 ```
 
 ---
@@ -308,7 +341,11 @@ This step adds a fifth thing between the first and the third, and names it so it
 either: **bodily resolution** — what a body does when it gets where it was allowed to go. It is not an
 intent (nobody asks for it), not state (it writes no position of a person), and not rendering.
 
-## 4.2 Options considered
+## 4.2 Options considered (revision 0; kept as evidence)
+
+Revision 0 compared five options and recommended C. The operator rejected C on 2026-10-07 (§1.4), and
+revision 1 adopts a sixth, F, in §4.3. The comparison is kept because it records why A, B, D and E were
+set aside, and those reasons still hold.
 
 ```text
 (A) movement consults bodies       movement → bodies → presence. movement's validate calls a
@@ -338,7 +375,32 @@ intent (nobody asks for it), not state (it writes no position of a person), and 
 | Log contains a transient overlap | no | no | **yes**: `arrived X` then `arrived X′` in the same instant, caused by the first | yes, continuously |
 | Idle cost | none | none | none | stepping every place forever; ruled out by PC-d (§9.4) |
 
-## 4.3 Recommendation: (C), with the transient stated rather than hidden
+## 4.3 Revision 1: (F) resolve before recording, through a presence-owned resolver seam
+
+```text
+(F) presence asks, then records    presence's arrival constructor asks every installed
+                                   ArrivalResolver what the stride achieves, and records only
+                                   the true result. bodies is a resolver. movement is unaware.
+```
+
+| | A | B | C (rejected) | F (adopted) |
+| --- | --- | --- | --- | --- |
+| Kernel or contract change | no | **yes** | no | no (§4.4.4 names the one place it could become one) |
+| Edit to an existing pack | movement (dependency, calls) | movement (calls) | presence (`from`) | presence (the seam); movement: two mechanical lines, still unaware of bodies (§4.4.2) |
+| `bodies` removable (`AC-2`) | no | yes | yes | yes |
+| Uniform for every mover (R-2) | no | only callers | yes | **yes**: every arrival goes through presence's constructors, which consult the resolvers or refuse (§4.4.2) |
+| Log holds only true arrivals | yes | yes | **no** | **yes** |
+| `arrived` schema change | no | no | yes | **no** (§4.4.7) |
+
+F keeps what made C attractive — non-interpenetration as a property of every arrival, whoever states it —
+and removes what the operator rejected: nothing untrue is ever recorded. It is the `PerceptionProvider`
+pattern applied to the one question perception does not ask: not "what may this person attempt" but "what
+does this stride actually achieve".
+
+### Revision 0's recommendation, superseded
+
+The text below is revision 0's case for C. It is superseded by §4.3 above and §4.4, and kept so the
+decision trail is readable.
 
 C is the only option that makes non-interpenetration a property of the **world's state** rather than of
 each mover's validation, which is what R-2 asks for: whatever states an arrival — `move`, a future travel
@@ -386,47 +448,347 @@ in the long run — line of access, which `CORE_CONCEPTS.md` §6.3 has been wait
 for every pack — but it is a kernel change and is not needed for R-1 to R-4. Recommended as a later step
 when line of access is needed (QB-9).
 
-## 4.4 Ownership
+## 4.4 The seam, concretely (revision 1)
+
+### 4.4.1 The trait, owned by presence
+
+In `systems/presence/src/resolve.rs`, next to `PerceptionProvider` in `interaction.rs`:
+
+```rust
+/// One stride a person is about to take, as presence knows it before recording anything.
+pub struct Stride {
+    person: PersonId,
+    from: Option<Location>,   // the person's current Presence, read by presence; None at a first
+                              // placement
+    to: Location,             // where the stating system decided the person goes
+}
+
+/// What a stride achieves: where the person ends, who else moved, and what cut it short.
+pub struct Resolution {
+    reached: Location,                       // == to when nothing intervened
+    displaced: Vec<(PersonId, Location)>,    // other people moved by this stride, in the order
+                                             // they are to be recorded
+    stopped_by: Option<EntityId>,            // what the person stopped at, if `reached != to`
+}
+
+impl Resolution {
+    /// The stride exactly as decided: what presence records when no resolver is installed.
+    pub fn unchanged(stride: &Stride) -> Self;
+}
+
+/// A pack's answer to "what does this stride actually achieve".
+///
+/// Asked by presence while an arrival is being built, before anything is recorded. Handed a
+/// `WorldRead` and nothing else, as `PerceptionProvider` and `System::validate` are (BD-6): it can
+/// consult any state and write none. A pure function of its arguments: it keeps no state, no cache,
+/// no clock. It must return `so_far` unchanged when the world holds none of its own state about the
+/// people involved — which is what keeps a world without its pack byte-identical.
+pub trait ArrivalResolver: Send + Sync {
+    /// The system this resolver belongs to. Resolvers are asked in this id's order.
+    fn resolver_of(&self) -> SystemId;
+
+    /// What the stride achieves, given what earlier resolvers decided.
+    fn resolve(&self, world: &WorldRead<'_>, stride: &Stride, so_far: Resolution) -> Resolution;
+}
+```
+
+A resolver cannot emit a fact. Its pack's own consequences of a stride — bodies pushing a loose object —
+happen in that pack's reactions to the facts presence records (§4.5.4).
+
+### 4.4.2 Where it is asked: presence's constructors
+
+Presence already has the only public way to build an `arrived`: `arrival(world, person, location)`
+(`systems/presence/src/event.rs`), which every stating system calls under `ARC-26`. Revision 1 makes the
+constructors the seam:
+
+```text
+arrivals(world, person, to) -> Result<Vec<Emission>, Rejection>          NEW; for movers
+    1  admit(person, to)                                       as today
+    2  stride = { person, from: current Presence, to }
+    3  resolution = fold over the resolvers in SystemId order, starting from unchanged(stride)
+    4  presence's own checks of the resolution (§4.4.6); a violation → Rejection, which the
+       stating system turns into KernelError::FactRefusedByOwner, as it does today
+    5  emissions, in this order:
+         arrived { person, reached }
+         arrived { other, location }            for each displaced, in the resolution's order
+         stride-blocked { person, wanted: to,   when reached != to
+                          reached, by: stopped_by }
+
+arrival(world, person, to) -> Result<Emission, Rejection>                 KEPT; for placement
+    steps 1–4 as above; if the resolution is not `unchanged` (the stride was cut short or moved
+    anybody else), refuse with PreconditionFailed. Otherwise the one arrived, exactly as today.
+```
+
+Why two constructors, and why `arrival()` refuses rather than resolves. Sixteen files call `arrival()`
+today: thirteen test files that place people (`systems/*/tests/support`, `presence`, `naming`,
+`conversation`, `tests/acceptance`), the World Pack loader's genesis placement (`worldpack/src/load.rs`,
+`catalog.rs`), and movement. Changing its return type would edit all of them.
+Keeping it, and making it refuse whatever it cannot record truthfully, gives the same uniformity with no
+cascade: **a stride is recorded as resolved, or it is refused** — never recorded unresolved. A genesis
+placement that overlaps another body is therefore refused at load, loudly, by the owner.
+
+Movement's edit is two mechanical lines, and it still names nothing of bodies:
+
+```text
+systems/movement/src/system.rs   resolve: `arrival(..)` → `arrivals(..)`, returning the Vec
+                                 declaration: `.emitting::<StrideBlocked>()`  (ARC-26: a stating
+                                 system declares what it may state; the kernel checks it)
+```
+
+### 4.4.3 What presence records, and who owns it
+
+| Fact | Owner (vocabulary, reducer) | Stated by | Caused by |
+| --- | --- | --- | --- |
+| `arrived { person, location }` for the walker, at `reached` | presence (unchanged schema) | the stating system, e.g. movement | the walker's `ActionIntent` |
+| `arrived { other, location }` for each nudged person | presence | the same stating system, in the same emission list | the walker's `ActionIntent` (`AC-9`: a true fact about the nudged person, traceable to the request that nudged them) |
+| `stride-blocked { person, wanted, reached, by }` | **presence** — new event type, schema 1. A stride ending short of where it was asked to go is a fact about where a person is, which is presence's domain; it names no physics | the same stating system | the walker's `ActionIntent` |
+
+Presence reduces each `arrived` exactly as today; nudges never change place, so they never emit
+`person-entered-place`. `stride-blocked` is reduced into nothing (presence keeps no state for it); it
+exists for biographies, controllers and clients.
+
+### 4.4.4 How the resolvers reach presence
+
+This is the one part of the seam that cannot copy `PerceptionProvider` exactly, and the reason is in
+source. Perception is asked **outside** the world: the host calls `observe(world, providers, …)` with the
+provider list `worldpack::compose` built (`ComposedWorld::providers`). An arrival is built **inside**
+`World::dispatch`, where the only things in reach are the stating system's `&self` and a `WorldRead`
+(`kernel/src/view.rs`: entities, components, relations, processes — no composition, no extension). So
+presence's constructor cannot be handed the list per call. Two ways to reach it:
+
+```text
+F1  a resolver catalog in presence, registered once per process      no kernel change
+      installed!      gains a line:   resolution: mineworld_presence::ArrivalResolver => [Bodies];
+                      and expands    Capability::resolvers() -> Vec<Box<dyn ArrivalResolver>>
+                                     for the listed variants only (each must implement the trait;
+                                     the compiler checks it at the list). Today the list is [].
+      worldpack       compose() calls mineworld_presence::register_resolvers(Capability::resolvers())
+                      beside building `providers` — the one assembly path every host uses
+                      (server, run, replay, inspect, biography)
+      presence        a write-once catalog (OnceLock). Registering the same list again (same
+                      SystemIds in the same order) is a no-op; a different list panics, naming
+                      both — one build has one catalog
+F2  a generic extension slot in the kernel                           kernel change (operator-material)
+      World::provide(Box<dyn Any + Send + Sync>) at assembly; WorldRead::provided::<T>()
+      The kernel stores values it does not interpret (INV-12 holds), and resolvers become
+      per-world rather than per-process.
+```
+
+**Recommendation: F1 for MVP-0, with F2 named as the principled alternative (QB-15, operator-material).**
+F1's catalog is not world state: it is the build's compiled-in list of resolver code, identical for every
+world in the process, set before any world runs and never changed — the same kind of thing as the
+`installed!` list itself. Per-world applicability needs no filter, because a resolver is required to be
+inert where its own state is absent (§4.4.1): a world that does not install bodies has no `BodyShape`
+table, so bodies' resolver returns `so_far`. Its one weakness is a host that assembles a world without
+`worldpack::compose` and forgets to register: such a host would record unresolved strides. Two guards:
+every host already composes through `worldpack`; and bodies, reacting to every `arrived` (§4.5.4), checks
+the invariant it exists to keep and fails the dispatch, naming the pair, if a recorded arrival overlaps —
+so the omission is loud at the first contact, and a replay by such a host diverges and is refused
+(`ARC-25`).
+
+Runtime `World::disable` of a resolver pack is **not** honoured by F1: `WorldRead` cannot see whether a
+system is enabled. Disabling exists for `AC-2` tests; `AC-2` for bodies is shown at world level (a world
+that does not list bodies), which F1 handles. Honouring runtime disable needs an additive kernel read,
+`WorldRead::is_enabled(SystemId)`: operator-material, not proposed now (QB-17).
+
+### 4.4.5 Several resolvers: order and composition
+
+Resolvers are asked in **ascending `SystemId` order**, each receiving the previous one's `Resolution` as
+`so_far`. The order is a fixed function of the resolvers' names, so it does not depend on the order of the
+`installed!` list or of a world's `systems:` list, and a save resumed by another build of the same
+packs resolves identically. MVP-0 has one resolver; the order is stated so that the second one does not
+have to invent it. A resolver that disagrees with an earlier one may only narrow its result further,
+because presence checks the final result (§4.4.6).
+
+### 4.4.6 What a resolver may read, and what presence still decides
+
+May read: anything a `WorldRead` exposes. May not: write, emit, keep state, read a clock or a random
+source. Presence checks the final resolution before building any fact — the owner still decides
+(`ARC-26`):
+
+```text
+reached.place == to.place                         a resolver never moves anybody to another place
+|reached − from| ≤ |to − from|  (same place)      it may shorten or bend a stride, never lengthen it,
+                                                  so movement's MAX_STRIDE decision still bounds it
+every displaced person: a living person, not the walker, listed once, currently in the walker's
+                        place, displaced within that place
+admit() on every location                         as today
+```
+
+A violation is a defect in the resolver and is refused, never recorded.
+
+### 4.4.7 QB-2 re-checked: `from` is not needed
+
+Revision 0 needed `from` on `arrived` because bodies resolved *after* recording and could not see where a
+stride began. Under F, presence builds the `Stride` itself, from its own `Presence`, before recording; the
+resolver receives `from` directly. Nothing downstream needs it either: bodies' object pushes are resolved
+from each recorded arrival's end position (§4.5.4). **`arrived` keeps schema 1; presence's event version
+does not change.** QB-2 is withdrawn.
+
+What does change in presence is its declaration (it emits `stride-blocked`) and its version (2 → 3,
+because `arrivals()` and the resolver catalog change what it answers). Saves written before 12a are
+refused by name, as `ARC-25` requires of any composition change.
+
+### 4.4.8 Byte-identity without resolvers
+
+With the catalog empty — the state of every build until bodies is listed — `arrivals()` returns exactly
+the one `arrived` that `arrival()` returns today, and `arrival()` returns what it returns today. So every
+fact and every journal input of social-cafe and market-town is byte-identical. What differs is the
+composition record of a save (presence 3, the new `stride-blocked` declarations), which `ARC-25` puts in
+the save and refuses on mismatch: old saves are refused by name, new runs reproduce the old facts. PR 12a
+proves this on the 300-day seed-7 runs of both worlds before and after (I-7).
+
+### 4.4.9 The synthetic resolver that proves the seam (PR 12a, like 11c's `chimes`)
+
+A test-only pack, `fences`, never in `systems/installed`, with one resolver: a stride that would cross the
+line `x = 5 000 mm` stops 10 mm short of it, and a person standing within 300 mm beyond the line of the
+stopping point is "displaced" 100 mm along +x. It knows nothing of bodies, physics or Rapier. With it the
+precursor shows, through the real `World::dispatch` and the real persistence:
+
+```text
+SC-1  without fences installed: social-cafe's facts byte-identical to main (§4.4.8)
+SC-2  with fences: the recorded arrived is the stopped one; stride-blocked names wanted, reached and
+      the fence; the displaced person's arrived is recorded, caused by the walker's ActionId (AC-9)
+SC-3  presence refuses a resolver that lengthens a stride, changes place, or displaces the walker
+SC-4  two synthetic resolvers compose in SystemId order, whatever the installed order
+SC-5  arrival() refuses a placement the resolver would change; arrivals() records it
+SC-6  SIGKILL mid-run, resume byte-identical (ARC-25); replay by a second process identical
+SC-7  movement's source names no resolver pack (a structural test, like presence's)
+```
+
+## 4.5 Nudging people aside (QB-10)
+
+### 4.5.1 The rule
+
+Bodies' resolver, per stride, on a Rapier world rebuilt for the place from integer state (§6.1). The
+algorithm is the one the prototype measured as R′ (§9.6, §9.7):
+
+```text
+1  walls-only reach W     the character controller sweeps the walker from `from` toward `to`
+                          against fixed geometry only
+2  contact reach B        the same sweep with people solid
+3  candidate              W if |W − from| ≤ |B − from| + NUDGE_MAX, else the point on the
+                          walls-only path NUDGE_MAX beyond contact
+4  nudge pass             generations 1..CHAIN_MAX: every person not yet moved who overlaps a
+                          pusher of the previous generation, in EntityId order, is moved directly
+                          away from that pusher's centre by the overlap + GAP, by the character
+                          controller against fixed geometry. Fails if a nudge needs more than
+                          NUDGE_MAX + GAP, if the walls cut it short, if overlap remains after
+                          CHAIN_MAX generations, or if more than NUDGED_MAX people would move
+5  on failure             blocked: the walker ends at B, nobody else moves
+6  objects                bodies' reactions will push loose objects out of each recorded body
+                          (§4.5.4); the resolver runs that same reaction sequence on the
+                          resolved state and, if an object could not be placed, re-resolves with
+                          objects solid
+7  quantize               whole millimetres
+8  verify, then degrade   on the quantized result, no pair closer than 600 − 5 mm that was not
+                          already that close; otherwise blocked; otherwise the advance along the
+                          blocked path halved up to 8 times; otherwise the walker stays
+```
+
+```text
+NUDGE_MAX   300 mm      the most one stride moves anybody else; `shove` moves 500 mm, deliberately
+GAP          10 mm      the character controller's own offset
+CHAIN_MAX     2         a nudged person may nudge one further generation, no more
+NUDGED_MAX    4         people moved by one stride, at most
+```
+
+These are bodies' policy constants, published like `MAX_STRIDE`, until a pack needs them configurable.
+
+### 4.5.2 What holds, and why
+
+- **Presence alone writes positions.** The resolver returns the nudged people's new locations; presence
+  records them as `arrived` facts caused by the walker's request.
+- **Bounded per stride.** No nudge exceeds `NUDGE_MAX + GAP` (310 mm); the prototype's largest was
+  309–310 mm over 3 000 requests (§9.8).
+- **Bounded chains.** At most two generations and four people; a stride needing more is blocked.
+- **Nobody through a wall, nobody out of the place.** A nudge is a character-controller sweep against
+  the place's fixed geometry, and presence refuses a displacement into another place.
+- **Never an overlap, even when the character controller errs.** Step 8 exists because the prototype
+  caught the controller letting a walker slide onto a person standing against a wall (§9.8, R N-1 FAIL at
+  request 551). The check is on integers, after quantization, and the last fallback — stay where you were
+  — is valid by induction: the state before the request passed the same check.
+- **Deterministic.** The same per-request rebuild, canonical insertion order and quantization as
+  everything else (§6.3); the prototype's scenarios gave the same digests in two processes and on two
+  architectures (§9.8).
+
+### 4.5.3 What it looks like (prototype, §9.8)
+
+```text
+stationary person (n2)   walked into at 0.5 m strides: nudged ≤ 289 mm per stride, 495 mm in
+                         all, the walker passes; with nudging forced off, 0 mm and the walker
+                         stops at contact
+crowd of five (n3)       2 generations, up to 2 people per stride, nudges ≤ 301 mm, 3 of 12
+                         strides blocked, closest pair 600 mm, nobody outside the room
+head-on (n1)             exactly collinear walkers push each other back 300 mm in turn and never
+                         pass: a nudge straight back has no sideways part. QB-16: give a nearly
+                         collinear nudge a fixed sideways bias, decided in 12b
+```
+
+### 4.5.4 Loose objects, under revision 1
+
+Objects are bodies' state, so presence cannot record their moves and the resolver cannot emit them.
+Bodies subscribes to presence's `arrived` and, for each recorded arrival, pushes any loose object the
+person's capsule now overlaps out of it — away from the person's centre, by the character controller
+against fixed geometry and people as they now stand — recording `object-moved { how: pushed }`, caused by
+that arrival and so by the request. Because the resolver runs exactly this reaction sequence on the
+resolved state before answering (step 6), the reactions always find room: the walker never ends inside a
+jammed box. The same reaction checks the non-overlap invariant and fails the dispatch if it is broken
+(§4.4.4's guard).
+
+The prototype measured a simpler object path (the walker carried kinematically over its stride with
+objects dynamic, then a re-resolve with objects solid when that left an overlap — 28 times in 3 000
+requests). The per-arrival form above is the design; PR 12c measures it against the same criteria.
+
+## 4.6 Ownership
 
 | State | Owner | Written only while | Notes |
 | --- | --- | --- | --- |
-| Where a person is (`Presence`, `present-in`) | **presence** | reducing `arrived` | Unchanged. bodies states `arrived` for a blocked stride or a shoved person; presence reduces it and may refuse it. |
+| Where a person is (`Presence`, `present-in`) | **presence** | reducing `arrived` | Unchanged. Every `arrived` — the walker's, a nudged person's, a shoved person's — is built by presence's constructors after the resolvers have answered (§4.4); presence reduces it and may refuse it. |
+| What a stride achieved when cut short (`stride-blocked`) | **presence** | — (a fact, no state) | Revision 1: presence's vocabulary, stated by the stating system (§4.4.3). |
 | A person's body: shape (capsule radius and height) | **bodies** | reducing `body-formed` (genesis) | Every person in a world with bodies has one: an authored `body:` section or the default human capsule, r 300 mm, height 1 720 mm (the 3D client's own, `player.gd`). |
 | A place's fixed geometry: walls, counters, tables as boxes in the place's frame | **bodies** | reducing `place-shaped` (genesis) | Authored as the place's `body:` section (`ARC-31`). A doorway is a gap. Static for MVP; doors that open are a later pack. |
 | A loose object's body and where it lies (place and local position) | **bodies** | reducing `object-placed` (genesis) and `object-moved` | See QB-3: an Item file is a kind (`ARC-36`); a loose object is one Item entity whose `body:` section places exactly one physical instance. |
 | Velocity, contacts, sleep state | **nobody** | — | Never persisted. Everything is at rest between resolutions (§6.1). |
 | Passages | movement | unchanged | bodies does not read them; a doorway must simply be a gap in the place's geometry, which the world validator checks (§10.4). |
 
-**Single ownership holds.** No component has two writers. bodies never writes `Presence`; it states a
-fact presence reduces. Movement never writes anything new.
+**Single ownership holds.** No component has two writers. bodies never writes `Presence`; it answers
+presence's question, and for `shove` it states facts presence builds and reduces. Movement writes
+nothing new.
 
-## 4.5 Facts (`ARC-26` for cross-vocabulary emission)
+## 4.7 Facts (revision 1)
 
 ```text
+presence's vocabulary (owner and only reducer: presence)
+  arrived          unchanged schema. Now also the nudged people's, in the same emission list
+                   as the walker's
+  stride-blocked   NEW. { person, wanted: Location, reached: Location, by: Option<EntityId> }
+                   by = what the walker stopped at; None for fixed geometry
+
 bodies' own vocabulary (owner and only reducer: bodies)
   body-formed      genesis     a person or an object has this shape
   place-shaped     genesis     a place has this fixed geometry
   object-placed    genesis     a loose object lies here
-  stride-blocked   reaction    a body stopped short of where it was going
-                               { person, wanted: Location, reached: Location,
-                                 by: Option<EntityId> }    by = the person or object first hit;
-                                                           None for fixed geometry
   object-moved     reaction    a loose object moved      { object, from, to, how, by: PersonId,
                    or action                               path: Vec<LocalPosition> }
                                how ∈ { pushed, kicked, thrown }
   person-shoved    action      { by, person, from, to }
 
-stated by bodies in presence's vocabulary (owner: presence; ARC-26)
-  arrived          the corrected position after stride-blocked, and the shoved person's new
-                   position after person-shoved. Built by presence's arrival(); presence
-                   may refuse.
+stated by bodies in presence's vocabulary (ARC-26; bodies depends on presence)
+  arrived, stride-blocked      for `shove`: the shoved person's new position, built by
+                               presence's arrivals() — so a shove into a crowd nudges too, under
+                               the same bounds
 ```
+
+Revision 0 had `stride-blocked` in bodies' vocabulary, stated as a correction; it is now presence's,
+stated before recording.
 
 `path` is a short list of quantized keyframes (at most one per 0.1 s of simulated motion, at most 40)
 for a client to animate an object's flight. It is presentation data stated by the owner because only the
 owner knows it; the client may ignore it and draw the end position.
 
-Bodies subscribes to: `arrived` (presence's) and its own genesis facts.
+Bodies subscribes to: `arrived` (presence's: object pushes and the invariant guard, §4.5.4) and its own
+genesis facts.
 
 ---
 
