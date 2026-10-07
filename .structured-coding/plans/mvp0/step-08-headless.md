@@ -398,9 +398,9 @@ No change to `move`'s rule, to `Passages`, or to any other pack. **Depends on:**
 
 **Goal.** CP-5's last command. **Scope.** `tools/cli/src/{main.rs, create.rs (new)}`, `tools/cli/templates/**` (new), `tools/cli/tests/create.rs` (new). **Depends on:** C4 (the created world is run).
 
-- [ ] Implementation: HD-11; the id is the directory's final component, checked with `EntityKey::new` before substitution so no text can be injected into YAML.
-- [ ] Validation: `create T/my-town` → `validate T/my-town` succeeds → `run T/my-town --headless --seed 1 --days 2` succeeds with activity; `create` over an existing directory is refused and leaves it untouched; an invalid name (`My Town!`) is refused by name.
-- [ ] Review: the template carries comments that point at MODULE_SPEC §4.1, not copies of it; no field the loader does not implement.
+- [x] Implementation: HD-11 — `tools/cli/src/create.rs`, template `tools/cli/templates/new-world/` embedded with `include_str!` (world.yaml, places/home.yaml, people/first.yaml, people/second.yaml); the id is checked with `EntityKey::new` before substitution. Bounded addition: with `create` and `inspect` both real, the "not yet" refusal now answers `install` and `add-system` — MODULE_SPEC §8's intended-but-unimplemented commands — and `commands.rs`'s missing-command test is re-pointed to `install employment`, claim and assertions unchanged (I-6). main.rs crate doc updated to the six commands. — §9 E-8.
+- [x] Validation — `tools/cli/tests/create.rs`, 2 tests: create → validate (systems, seats first, second) → run 2 days with both seats moving and talking; an existing directory refused with its contents untouched and nothing written; `My Town!` refused by name and nothing created.
+- [x] Review: the template's comments point at MODULE_SPEC §4.1 and the commands rather than restating rules; it uses only fields the loader implements (the read-back proves it).
 
 ## C8 — Documentation and ledger close
 
@@ -600,6 +600,8 @@ E-7  C6 inspect. `cargo test -p mineworld-cli --test inspect --test commands`: 3
      By hand on a 2-day save: head revision 747 at t172201 (day 2, 23:50:01); journal genesis 1,
      move accepted 425, move rejected TooFarAway 13, talk accepted 308; 991 facts; causes action 933,
      event 53, world genesis 5; "every cause resolves: 991 fact(s) checked". clippy clean.
+E-8  C7 create. `cargo test -p mineworld-cli --test create --test commands`: 2 + 4 passed. clippy
+     clean.
 ```
 
 ## 9.1 Limitations (expected)

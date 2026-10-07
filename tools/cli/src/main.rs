@@ -5,7 +5,13 @@
 //!                                       load the pack and host it; with --save, persisted
 //! mineworld validate <world>            load it, say what it is, and stop
 //! mineworld replay <world> --save DIR   re-execute a save's whole history and check it
+//! mineworld run <world> --headless --seed N --days N [--save DIR]
+//!                                       run it headless, every seat a seeded rule (ARC-27)
+//! mineworld inspect <save> [--last N]   what a save holds; every fact's cause checked (AC-9)
+//! mineworld create <directory>          a new, minimal World Pack
 //! ```
+//!
+//! `docs/MODULE_SPEC.md` §8.1 specifies the command surface.
 //!
 //! `ARC-6` makes the artefacts the deliverable: MineWorld is *an installable world runtime plus
 //! developer tools plus reference clients*, and this is the tool a person actually types. One binary
@@ -13,9 +19,10 @@
 //! `--listen 0.0.0.0:7878` is how friends on a LAN reach it. There is no separate single-player mode
 //! to choose, because there is no separate single-player path to choose it with.
 //!
-//! `create` and `inspect` are S7's and are absent rather than stubbed: a command that exists and
-//! does nothing is worse than one that does not exist, because a person builds a habit on it.
-//! `validate` is here because it is [`WorldPack::read`] plus [`WorldPack::load`] with no new code.
+//! `install` and `add-system` (`MODULE_SPEC.md` §8's intended shape) are refused rather than
+//! stubbed: a command that exists and does nothing is worse than one that does not exist, because a
+//! person builds a habit on it. `validate` is [`WorldPack::read`] plus [`WorldPack::load`] with no
+//! new code.
 //!
 //! # This is the composition root, and it is the only one
 //!
@@ -39,6 +46,7 @@
 //! is specified in `docs/MODULE_SPEC.md` §8.1.
 
 mod agent;
+mod create;
 mod inspect;
 mod perceive;
 mod run;
@@ -102,9 +110,21 @@ enum Subcommand {
         #[arg(long, value_name = "DIR")]
         save: PathBuf,
     },
-    /// Not yet: S7.
-    #[command(hide = true)]
+    /// Write a new, minimal World Pack into a directory that does not exist yet; its name becomes
+    /// the world's id.
     Create {
+        /// The directory to create, such as worlds/my-town.
+        directory: PathBuf,
+    },
+    /// Not in MVP-0 (MODULE_SPEC §8: the intended shape, not implemented).
+    #[command(hide = true)]
+    Install {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        rest: Vec<String>,
+    },
+    /// Not in MVP-0 (MODULE_SPEC §8: the intended shape, not implemented).
+    #[command(hide = true, name = "add-system")]
+    AddSystem {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         rest: Vec<String>,
     },
@@ -154,7 +174,9 @@ async fn main() -> ExitCode {
             agents,
             save,
         } => serve(world, listen, agents, save).await,
-        Subcommand::Create { .. } => not_yet("create"),
+        Subcommand::Create { directory } => create::create(&directory),
+        Subcommand::Install { .. } => not_yet("install"),
+        Subcommand::AddSystem { .. } => not_yet("add-system"),
         Subcommand::Inspect { save, last } => inspect::inspect(&save, last),
         Subcommand::Run {
             world,
@@ -179,12 +201,14 @@ async fn main() -> ExitCode {
     }
 }
 
-/// A command S7 adds, refused until it exists rather than stubbed: a command that exists and does
-/// nothing is worse than one that does not, because a person builds a habit on it.
+/// A command `MODULE_SPEC.md` §8 describes as intended and MVP-0 does not implement, refused rather
+/// than stubbed: a command that exists and does nothing is worse than one that does not, because a
+/// person builds a habit on it.
 fn not_yet(command: &str) -> Result<(), String> {
     Err(format!(
-        "mineworld {command} does not exist yet — it is S7's. What works today: mineworld server, \
-         mineworld validate, mineworld replay, mineworld run, mineworld inspect (see mineworld --help)."
+        "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
+         and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
+         mineworld replay, mineworld run, mineworld inspect, mineworld create (see mineworld --help)."
     ))
 }
 
