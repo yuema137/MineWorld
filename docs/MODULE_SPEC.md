@@ -364,7 +364,7 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has two sections:
+or the pack is refused. MVP-0 has four sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
@@ -373,6 +373,13 @@ routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key
                               `from` strictly increasing; neighbouring segments differ, the last
                               against the first included, because the day wraps. An agenda the
                               person may follow, never a move (`ARC-32`)
+item      item       items    { category: <slug> }: 1–32 bytes of a–z, 0–9 and '-', neither first nor
+                              last '-'. Declares the file's Item a kind the market packs trade; an
+                              item file without it is an inert entity. Disclosed to nobody (`ARC-37`)
+holdings  inventory  people,  { <item key>: <count ≥ 1> }: what the person or organization holds at
+                     organi-  genesis, each key one of `items`. A person's counts together are at most
+                     zations  six (inventory's capacity); an organization's are unbounded. Disclosed to
+                              the holder only (`ARC-37`)
 ```
 
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and

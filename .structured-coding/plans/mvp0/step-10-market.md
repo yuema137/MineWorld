@@ -2129,10 +2129,15 @@ consumption are reviewable before code (`CLAUDE.md` §2.2). All Markdown: inside
 - `docs/PACKAGE_FORMAT.md` §8 — the sections parenthesis names the four.
 - `systems/README.md` — the three packs in its list.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: both doc checks; ARC-37 absent from every `origin/*` branch.
-- [ ] Review: no defined term redefined (`Item` stays `ARC-36`'s kind; "holdings" is inventory's
-  component, not a core term); the section table matches SD-16/SD-17 exactly.
+- [x] Implementation: as scoped. ARC-37 appended after ARC-36; MODULE_SPEC §4.1 "two sections" →
+  four (`item`, `holdings`); PACKAGE_FORMAT §8 names the four; systems/README lists the three packs and
+  their test commands.
+- [x] Validation: both doc checks; ARC-37 absent from every `origin/*` branch (§9.4 E-D1).
+- [x] Review: no defined term redefined (`Item` stays `ARC-36`'s kind; "holdings" is inventory's
+  component, not a core term); the section table matches SD-16/SD-17. One bounded refinement,
+  recorded as D-D1: a category also may not begin or end with `-` (SD-16 said only "1–32 bytes of
+  `a–z`, `0–9`, `-`"), the usual slug rule, so `-drink` and `drink-` cannot name two categories that
+  read alike. ARC-37 and MODULE_SPEC state it.
 
 ### D-C2 — `systems/item`
 
@@ -2245,6 +2250,14 @@ CI          none configured (S13); the full local gate once on the final head
 - **Forward, operator-material (QS-35):** without consumption, 11e's purchases will fill people to
   capacity and stop. 11e's design must answer it; deciding how is the operator's.
 - Nothing changes a public contract, `kernel/`, `contracts/`, or a frozen invariant.
+
+### 4.4.6 Deviations and discoveries during implementation (11d session)
+
+```text
+D-D1  bounded  A category may not begin or end with '-' (SD-16 listed only the byte set). Reason: the
+               usual slug rule; two spellings of one category cannot differ by a stray dash. Stated in
+               ARC-37 and MODULE_SPEC §4.1. Validation: item's category test.
+```
 
 ## 4.5 PR 11e — the transformation, part 2: work, money and shops (medium scope; AC-1 range)
 
@@ -2970,6 +2983,23 @@ E-C-rebase 11b merged first (GitHub #39, merge commit ae1a315). Per §12.0, 2026
                                               `validate worlds/social-cafe` identical to E-C0's
      check_decision_ids 47 ids distinct; check_doc_headings 143 sections, none duplicated.
      Branch force-pushed (permitted by §12.0 for this rebase only).
+```
+
+## 9.4 Evidence — PR 11d
+
+Written by the 11d implementation session only (`E-D<n>`).
+
+```text
+--- PR 11d (branch mvp0/pr-11d-owning-things, base main @ e3a1106) ---
+
+E-D0 Base captures on e3a1106 before any edit, 2026-10-07 (debug, opt-level 1):
+     300-day seed-7 social-cafe: 339 lines, sha-256 of all but `wall` =
+     ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 13.2 s.
+     `mineworld validate worlds/social-cafe` sha-256 ebcd60a0…f56a8 = E-C0's.
+     The R-S9-1 spike commit 74bf597 is still in the object store (unreachable, never pushed); it is
+     used as a reference only, and nothing is cherry-picked from it.
+E-D1 D-C1 specs: check_decision_ids 48 ids, all distinct (ARC-37 new); check_doc_headings 143 sections
+     across 22 documents, none duplicated. ARC-37 absent from every origin/* branch after `git fetch`.
 ```
 
 ---
