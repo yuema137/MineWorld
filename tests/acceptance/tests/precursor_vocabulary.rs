@@ -59,7 +59,7 @@ struct Precursor {
     branch: &'static str,
 }
 
-/// Every precursor, in order. 11c adds its row.
+/// Every precursor, in order.
 const PRECURSORS: &[Precursor] = &[
     Precursor {
         pr: "11a",
@@ -70,6 +70,13 @@ const PRECURSORS: &[Precursor] = &[
         pr: "11b",
         base: "da316134e8bf8a82d1f65bbeaab62f3368222a3d",
         branch: "mvp0/pr-11b-content-kinds",
+    },
+    // 11c merges second: rebased onto the main that merged 11b, so its base is that main and its
+    // unmerged range holds only its own lines (step-10 §12.0).
+    Precursor {
+        pr: "11c",
+        base: "ae1a3157e85c05279daecf21f82bfea539597dd6",
+        branch: "mvp0/pr-11c-affordances",
     },
 ];
 

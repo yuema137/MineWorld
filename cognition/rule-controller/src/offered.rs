@@ -15,7 +15,7 @@
 //! available is the server's verdict, read and never computed, and the request is the affordance's
 //! own — this module names no action type and imports no pack's type.
 //!
-//! The constants are frozen for S9 (step-10 I-9, `ARC-35` item 6). They were fixed against a synthetic
+//! The constants are frozen for S9 (step-10 I-9; `ARC-35`, point 6). They were fixed against a synthetic
 //! pack offering a complete affordance to every person everywhere (step-10 C-C6, §9.3) and are never
 //! retuned for a world that behaves badly: the remedy for that is in what its packs offer.
 

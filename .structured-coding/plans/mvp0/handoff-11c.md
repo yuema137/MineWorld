@@ -35,7 +35,9 @@ STOP CONDITIONS     market word needed; contracts/ beyond the field + constructo
 
 ## Current checkpoint
 
-C-C1 (specs) committed. Next: C-C2 — `contracts/src/observation.rs` `Affordance<P>`.
+C-C1 ca2e460, C-C2 7922cb2, C-C3 d2f6c8c, C-C4 fd8c9cb committed and pushed (M-C1 … M-C5 done; C-C4's
+300-day sha = E-0). Next: C-C5 — `tests/acceptance/tests/complete_affordances.rs` with the synthetic
+`chimes` pack; then C-C6 (scratch install measurement, docs, full gates, PR).
 
 ## Notes for a resumed session
 

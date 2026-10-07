@@ -1825,9 +1825,28 @@ with `belfry` and `hall`, two people in each, presence + chimes, and drives it w
 `PacedRuleController` on the `mineworld run` schedule (pace 900 s, seat k at genesis + k + m·P) for 10
 days. Assertions C-5. A further assertion: `cognition/rule-controller/Cargo.toml` names no `chimes`.
 
-- [ ] Implementation.
-- [ ] Validation: `cargo test -p mineworld-acceptance`; M-C6 → fails, reverted.
-- [ ] Review: the driver calls only what `run` calls; the synthetic pack is reachable from no library.
+- [x] Implementation. `tests/acceptance/Cargo.toml` `[dev-dependencies]` (the six workspace entries)
+  and its comment; `src/lib.rs` doc names both tests. `tests/complete_affordances.rs`: `chimes`
+  (depends on presence, provides `ring { bell }`, emits its own `rang { ringer, bell }`; `validate`
+  applies the same `at_place(belfry)` requirement its offers declare, against presence's state, and
+  refuses an unknown bell), two complete offers (`low`, `high`) plus one `Offer::new::<Ring>`, a world
+  with `belfry` and `hall` and two people in each placed by genesis through presence's `arrival`, the
+  `mineworld run` schedule (P = 900, seat k at genesis + k + m·P) for 10 days, seed 7. Four tests:
+  `a_headless_person_rings_a_bell_the_controller_never_heard_of` (every belfry person rings every day;
+  hall people request nothing; every `rang` has `Causation::Action` of an accepted `ring` request by
+  the ringer for that bell — AC-9; every request is a ring and every ring is accepted),
+  `two_runs_of_one_seed_are_byte_identical`, `with_chimes_disabled_no_ring_is_ever_requested`,
+  `the_controller_was_never_compiled_against_chimes`. The I-2 scan gains 11c's row (base
+  `da316134…`, no allow-list entry). Bounded deviation (recorded): the belfry is the pack value's
+  configuration rather than an owned `Belfry` component — `chimes` "owns nothing it does not need",
+  and two bells at one place need no state; the observable claims are unchanged. E-C5.
+- [x] Validation: E-C5 — acceptance 4 + 3 passed; M-C6 fails, reverted; the scan's first run caught
+  `item` in a C-C4 comment ("`ARC-35` item 6"), reworded to "point 6" (the scan working as built);
+  planted violations refused by name, removed.
+- [x] Review: the driver calls only what `run` calls — `advance_to`, `observe` with the providers,
+  `decide`, `ActionIntent::allocate`, `dispatch` — in `run`'s order and schedule; `chimes` lives in a
+  test file of a `publish = false` crate with no library code, so no library is compiled against it;
+  `Cargo.lock` gains only acceptance's dependency list (six names, no new package).
 
 ### C-C6 — I-9 measured on a scratch install (evidence, never merged); close
 
@@ -2429,6 +2448,17 @@ E-C4 C-C4 the offer band. `cargo test -p mineworld-rule-controller` → 34 passe
      I-4: 300-day seed-7 social-cafe on this working tree (base 7922cb2+C-C3 d2f6c8c + C-C4 diff):
        exit 0, 339 lines, faults 0, 365 330 facts, sha-256 of all but `wall` = ad49c723…c64b = E-0;
        wall 23.0 s (machine shared with the parallel 11b session).
+E-C5 C-C5 CP-3. `cargo test -p mineworld-acceptance` → complete_affordances 4 passed (0.03 s),
+     precursor_vocabulary 3 passed, 0 failed.
+     M-C6 (remove the band's call from decide): a_headless_person_rings_a_bell_the_controller_never
+       _heard_of and two_runs_of_one_seed_are_byte_identical FAILED → reverted (`git diff cognition/`
+       empty).
+     I-2 scan with 11c's row: first run FAILED naming `cognition/rule-controller/src/offered.rs:18:
+       item` ("`ARC-35` item 6" in a comment) → reworded; then PASS with no 11c allow-list entry.
+     Planted violations (untracked tests/acceptance/tests/planted_11c.rs `SHOP_PRICE`; tracked edit
+       `// a wage is due` in offered.rs): refused by name — `shop` at planted_11c.rs:1, `wage` at
+       offered.rs:59 → both removed.
+     Cargo.lock: +8 lines, mineworld-acceptance's dependency list only.
 ```
 
 ---
