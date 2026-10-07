@@ -10,6 +10,7 @@ members = [
     # Every System Pack, and the installed set: a pack's directory is a member without an edit here
     # (DECISIONS.md ARC-33). A new pack names its sibling packs by path, not below.
     "systems/*",
+    "tests/acceptance",
     "tools/cli",
     "worldpack",
 ]

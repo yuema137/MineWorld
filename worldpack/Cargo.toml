@@ -19,7 +19,7 @@ mineworld-kernel = { workspace = true }
 mineworld-installed-systems = { workspace = true }
 mineworld-sdk = { workspace = true }
 # The two packs the format itself is bound to: a person's `location` field is presence's state, and a
-# place's `passages` field is movement's (ARC-26, ARC-31 item 5).
+# place's `passages` field is movement's (ARC-26; ARC-31, point 5).
 mineworld-movement = { workspace = true }
 mineworld-presence = { workspace = true }
 serde = { workspace = true }

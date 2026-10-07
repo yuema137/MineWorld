@@ -36,7 +36,7 @@ impl SystemIdentity for MovementSystem {
 
 /// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): nothing.
 /// It declares no biographical fact and owns no authored section; a place's `passages` are a field
-/// of the World Pack format, bound to this pack by the loader (`ARC-31` item 5).
+/// of the World Pack format, bound to this pack by the loader (`ARC-31`, point 5).
 impl SystemPack for MovementSystem {}
 
 /// This pack's own reason for refusing a request it cannot read — the same code, for the same

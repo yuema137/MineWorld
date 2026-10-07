@@ -946,6 +946,54 @@ enum, so nothing reads these impls yet.
 equivalent to the old catalog: fix the macro, never the test. A changed run fingerprint is a stop:
 something reordered installation or reduction (`MODULE_SPEC.md` §4.1 rule 2).
 
+### C4b — The I-2 scan (freeze condition 1; added at freeze, after this plan was drafted)
+
+**Goal.** I-2 is checked mechanically: a test reads every line 11a (and later 11b, 11c) adds and
+refuses a market word, with a reasoned allow-list, shown to fail on a planted violation, fail-closed.
+Specified in `ARC-35` point 7 (C1).
+
+**Placement decision.** `tests/acceptance/` (crate `mineworld-acceptance`, test
+`tests/precursor_vocabulary.rs`), created now rather than in 11f: `ARCHITECTURE.md` §14 gives `tests/`
+to acceptance tests, SD-15 already names this crate as the AC-1 proof's home, and the I-2 scan is part
+of how AC-1 is measured (`ARC-35`). A precursor-owned crate (sdk, worldpack) would be the wrong owner,
+and `systems/installed` is edited by 11d/11e. 11f adds the AC-1 test beside it; 11b and 11c add their
+rows and allow-list entries to this file. Bounded deviation **D-A3**: root `members` gains
+`"tests/acceptance"` in 11a; `tests/.gitkeep` removed.
+
+**How "this PR's added lines" are determined (recorded, deterministic).** One row per precursor: PR,
+base commit, branch. If `HEAD`'s first-parent history holds that branch's GitHub merge commit `M`
+(subject `Merge pull request #N from <owner>/<branch>`), the range is `base..M^2` — the PR's own head,
+so later PRs (11d, 11e) never enter it. Otherwise the range is `base` → working tree: `git diff
+--unified=0 --no-renames <base>` plus every untracked, unignored file (whole content and path). All
+non-Markdown files are scanned, comments included. Fail closed: no git, not a work tree, base missing,
+or `HEAD` not descending from base → failure naming the cause.
+
+- [x] Implementation: `tests/acceptance/{Cargo.toml, src/lib.rs, tests/precursor_vocabulary.rs}`; root
+  `Cargo.toml` member. No dependency (std only; `git` is run as a process). Allow-list for 11a: one
+  entry — the scan's own file ("it names the vocabulary it looks for"). Two permanent unit tests own
+  the tokenizer (`items`, `ShopFront`, `employer`, `JOB_BOARD`, a fixture path match; `iterate`,
+  `workshop`, `priority`, `SystemId` do not) and the diff reader (line numbers, a `+++`-prefixed added
+  line, a new file's path).
+- [x] Validation (E-A4b):
+  - **First real run FAILED, correctly**, on five comment lines this PR had added: "`ARC-31` item 5" (×4)
+    and "ARC-35 item 7" — the word *item* in the sense "list entry". Resolution: reworded to "point 5"
+    / "point 7" rather than allow-listed (an allow-list entry is for what cannot be reworded). The scan
+    was thereby shown to see this PR's own lines before any plant.
+  - Then green: 3 passed.
+  - **Planted violations** (working tree, never committed): a comment
+    `// PLANTED: the ShopKeeper reads a price list.` in `sdk/rust/src/section.rs`, and an untracked
+    `worlds/plant-check/jobs.yaml` holding `wage: 3` → FAILED with exactly three refusals:
+    `sdk/rust/src/section.rs:5: \`shop\``, "the added file worlds/plant-check/jobs.yaml is named
+    \`jobs\`", `worlds/plant-check/jobs.yaml:2: \`wage\``. Reverted (file restored from a copy, the
+    fixture deleted; `git status` clean of both).
+  - **Fail closed:** base set to a sha not in history → FAILED: "11a: its base 0123… is not in this
+    repository's history (a shallow clone?): `git cat-file -e …` failed". Reverted.
+  - The merged-range path is exercised on a local scratch merge (E-A5b, C5), never pushed.
+  - clippy `-D warnings` and fmt clean.
+- [x] Review: the scan never skips; Markdown is the only exclusion and is stated; the allow-list has one
+  entry with its reason, and an unused entry fails; nothing in 11a needed a market word, so no material
+  stop arose.
+
 ### C5 — The canary install (evidence, never merged); documentation and ledger close
 
 **Goal.** A-4: show, before any market pack exists, that installing a pack touches only what ARC-33

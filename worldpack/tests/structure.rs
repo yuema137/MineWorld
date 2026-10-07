@@ -5,7 +5,7 @@
 //! directly — a dependency line, an import — would be a pack whose installation edits this crate,
 //! which is finding F-1 coming back. `presence` and `movement` are the exceptions, because a person's
 //! `location` and a place's `passages` are fields of the format whose state those two packs own
-//! (`ARC-31` item 5).
+//! (`ARC-31`, point 5).
 //!
 //! The allow-list names infrastructure and those two, never another pack, so installing a pack never
 //! edits it.
