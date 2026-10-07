@@ -54,7 +54,7 @@ identifies one thing.
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
 | **VIS-3D-GODOT-1** | Reference-matched character in Godot | 👀 **preview 3, 2026-10-06 — not an acceptance request** (`ARC-24`): the updo groomed from strands and cut into cards, the hoodie draped by cloth simulation with a real hood, the eyes level, the skin matte; the face itself deferred by the operator; see below |
-| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 👁 **environment PREVIEW 2026-09-30, updated 2026-10-06** — not an acceptance request; see below |
+| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟡 **READY FOR HUMAN VISUAL REVIEW — pending S8 PR 10a for the talk step** (2026-10-06): the reference character in the slice; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
@@ -330,6 +330,128 @@ that.
 
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
+
+### `VIS-3D-GODOT-2` — READY FOR HUMAN VISUAL REVIEW, 2026-10-06 (pending S8 PR 10a for the talk step)
+
+**This is the acceptance request** for the integrated slice: the street, the café you walk into, The
+Flower Room, the light, movement, the three cameras, the connection to the world, and now **the
+reference character in the slot** (`VIS-3D-GODOT-1`'s preview-3 build, merged in, not copied). It
+asks *is this acceptable as the integrated Godot slice?* Only you can answer it (`ARC-11`).
+Accepting it does not accept the character itself: that is still `VIS-3D-GODOT-1`'s question, above.
+
+One step of the checklist cannot pass yet and is marked: talking to Alice is refused until S8's
+PR 10a re-authors the World Pack's café to this layout.
+
+**Launch.** Branch `vis/3d-godot-2-environment`, from the repository root, Godot 4.7 on `PATH`:
+
+```sh
+./mineworld-slice            # walk it
+./mineworld-slice --world    # the same, connected to worlds/social-cafe (needs cargo)
+```
+
+Controls: **W A S D** move · mouse look · **Shift** jog · **Space** jump · **V** camera (first
+person → third person rear → third person front) · **E** talk (connected only) · **Esc** release
+the mouse.
+
+#### Test checklist — run this, you should see that
+
+1. **`./mineworld-slice`.** A window opens on the pavement west of the café, in low warm sun, a
+   controls line along the bottom. You are in first person, so no body is drawn.
+2. **Press V once.** A toast says *Third person — rear*. She stands ahead of the camera: bun,
+   open burgundy hoodie with its hood at the neck, cream tee, grey-green rucksack, one hand on its strap. Wait a few
+   seconds: she breathes and her gaze drifts; she is not a statue.
+3. **Hold W, then Shift+W, then Space.** She walks, then jogs, feet planted without sliding; Space
+   is a person's hop (about 0.5 m), not a block-climb. Press V again for *Third person — front*
+   and walk toward the camera.
+4. **Walk east to The Daily Bean** (green front, door at its left end) **and through the open door
+   on foot.** No fade, no loading. The room is warm and a little darker than the street. Cycle V
+   through all three cameras inside: none goes through a wall, none loses her.
+5. **Walk round the tables and back out of the door** onto the pavement.
+6. **Walk on east to The Flower Room** (maroon front, next door, the open door at its left end) and
+   go in. A florist's interior, lighter and cooler than the café.
+7. **Quit, then `./mineworld-slice --world`.** You start just inside the café door, where the
+   world puts the visitor. Walk out onto the pavement and back in: no snapping back, no refusals
+   on screen (each crossing is the server's decision).
+8. **PENDING S8 PR 10a — talk.** Connected, inside the café, face Alice and press **E**. *When 10a
+   has merged* you should see `talk … -> resolved`. **Today it is refused, `too_far_away`**: the
+   World Pack's people stand where its older café put them, which is west of this room's wall, so
+   Alice is drawn outside it. This is expected until 10a; it is not a slice defect to judge.
+
+The objective checks behind this, if you want them: `./mineworld-slice --drive` (walk-in, loop,
+walls, cameras, jumps, The Flower Room), `--measure` (scale), `--threshold` (light at the door),
+`--character` (she animates; every camera mode), `--world --link` (the connected round trip).
+Each ends with *all … checks pass*.
+
+#### Frames — `clients/3d-spike/shots/slice/review/`
+
+From the running client, 1600×900, its normal lighting, the character in the slot:
+
+| `VISUAL_SLICE.md` §12 | Frame |
+| --- | --- |
+| 1 street wide | `01_street_wide.jpg` |
+| 2 approach to the café | `02_cafe_approach.jpg` |
+| 3 café exterior | `03_cafe_exterior.jpg` |
+| 4 doorway transition | `04_doorway_from_pavement.jpg`, `04b_doorway_from_inside.jpg`, `04c_doorway_with_character.jpg` |
+| 5 interior wide | `05_interior_wide.jpg` |
+| 6 interior with the character | `06_interior_with_character.jpg` |
+| 7 third person rear | `07_third_person_rear.jpg` |
+| 8 third person front | `08_third_person_front.jpg` |
+| 9 character in environment, closer | `09_character_close.jpg` (1.9 m, the counter behind her); `09b_character_in_cafe.jpg` |
+| 10 The Flower Room | `10_flower_room_door.jpg`, `10b_flower_room_interior.jpg` |
+| **side by side** | `sbs_03_cafe_frontage.jpg` (`03` / runtime at `03`'s framing, her on the pavement where `03` has its walker), `sbs_05_main_street.jpg` (`05` / runtime at `05`'s framing) |
+| motion and cameras | `walk_cycle_strip.jpg` (eight frames of the walk, fixed camera), `camera_modes_standing_walking.jpg` (rear, front, first person; standing and walking; street then café) |
+
+Views 1–5 and 10 are first person, at the framings §12 names, so the body is not drawn in them;
+`04c`, `06`–`09` and the side-by-side of `03` have her in frame. The runtime half of
+`sbs_03_cafe_frontage.jpg` and `09_character_close.jpg` are taken by a fixed camera in the running
+scene, because the player's boom cannot reach those framings.
+
+#### Measured on this build
+
+```text
+stature       1.748 m sole to crown, from her Body mesh (ok, 1.70-1.80); the bun reaches 1.882 m
+              and is not counted as stature
+animates      idle: bones move in two consecutive 4.5 s windows (chest 2 mm, strap hand 12 mm);
+              walk: a toe travels 0.84 m in 3 s
+drive         walk-in, 13.3 m loop closing within 0.10 m, back wall / counter / glazing stop the
+              body, three cameras indoors with 0.0000 m body movement on each switch, jumps 0.49 m,
+              The Flower Room loop within 0.12 m -- all pass
+threshold     café 0.184 -> 0.136 -> 0.125 -> 0.195, worst step x1.57 (limit x3), 0.00 % clipped
+              looking out; Flower Room worst step x1.42 -- all pass
+connected     café -> street -> café on foot: 50 moves, 50 accepted, 0 refused; last position
+              (4986, 1138) = the server's; talk to Alice refused too_far_away (step 8)
+launch        plain launch and every mode exit 0; no script or resource errors
+```
+
+#### Known limitations, as facts
+
+1. **Talking to Alice is refused (`too_far_away`)** until S8 PR 10a. Connected, Alice and Bob are
+   drawn about 0.3–0.5 m west of the café's west wall, outside the room (`pr-01a-slice.md` §7b).
+2. **She is 1.748 m, not the 1.750 m asked for.** `human.gd`'s `CANONICAL_HEIGHT` is 1.7670 m and
+   the baked figure measures 1.7646 m, a 0.14 % gap. Recorded for the character's track.
+3. **The idle is subtle by design**: a breath and the hand on the strap; the hips do not sway.
+4. **She is never seated in the slice**, so sitting with the hood and rucksack is untested here.
+   The one seated figure on the street is a townsperson without either.
+5. **First person draws no body**, on purpose (`player.gd`).
+6. **On exit, Godot prints `7 RIDs of type "Texture" were leaked`.** No resource or object is named,
+   it is present with GI off, and it has no effect while running. Not attributed.
+7. **In `09_character_close.jpg` a pendant lamp hangs just above her bun** in the frame.
+8. **The environment misses of the 2026-10-06 preview stand**, unchanged by this step: through
+   `03`'s glass a barista and glowing pendants, ours an empty counter at the back; honey-orange
+   bistro slats against `03`'s dark weathered ones; a pale, cloudless sky; the fascia washes to
+   sage in full sun; setts smaller and rounder than `03`'s; no tree shadow on the café's pavement;
+   `05`'s corner massing is not this street's; the A-board is 1.51 m tall against 0.90–1.15 m;
+   The Flower Room is brighter inside than the street.
+9. **The character's own open items** are `VIS-3D-GODOT-1`'s (above): the face, deferred by you;
+   card edges in the hair from behind.
+
+#### Questions for you
+
+1. Is this acceptable as the integrated Godot slice — street, café, second shop, light, movement,
+   cameras, connection, with her in it?
+2. Does she belong in it: does she read at the same scale and in the same light as the street and
+   the room (`07`, `08`, `09`, `sbs_03`)?
+3. If not yet: which single thing is most wrong?
 
 ### `VIS-3D-GODOT-2` environment — PREVIEW, 2026-09-30
 

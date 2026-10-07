@@ -348,6 +348,43 @@ position last report (4986, 1138) = the server's view (4986, 1138)
 talk     to alice (3) -> rejected too_far_away: she is drawn 5.2 m away, beyond the wall (above)
 ```
 
+## 7c. The reference character lands (2026-10-06)
+
+**Directed by the primary session.** `origin/vis/3d-human-pipeline` @ `77cf6a8` merged into this
+branch (`b2d5f68`), not copied, so both histories are kept. Character files (`vitruvian.glb` and its
+textures and imports, `human.gd`, `npc.gd`, `posture.gd`, `hair_card.gdshader`,
+`presentation/mineworld-default/LICENSES/`) are byte-identical to the character branch
+(`git diff origin/vis/3d-human-pipeline HEAD -- <those paths>` empty). One conflict,
+`docs/HUMAN_REVIEW_QUEUE.md`: `VIS-3D-GODOT-1` row from the character branch, `VIS-3D-GODOT-2` row
+from this one. `character_slot.gd` unchanged: `NPC.make(rng, PUPPET, height, true)` and `step()`
+have the same signature on both sides of the merge (sec.10's contract held: no scene change).
+
+```text
+stature   the probe read 1.882 m: the bun is the tallest mesh. Located per mesh (ARC-23):
+          Body 0.215..1.867, Shoes 0.119..0.245, Hair 1.583..2.001. Hair excluded from stature
+          (as CANONICAL_HEIGHT excludes it); the check now fails if no Body mesh was read.
+          1.748 m, ok. 1.748 = 1.750 x 1.7646/1.7670: CANONICAL_HEIGHT vs bake, 0.14 %, recorded
+          for the character track. Instrument note: mesh AABBs are bind-pose bounds.
+animates  new --character mode. Bone excursion in the skeleton's frame; fixed thresholds 3 mm /
+          15 cm. Idle 0.0120 m (RightRingDistal; UpperChest 0.0021) in BOTH of two consecutive
+          4.5 s windows -- a loop, not a settle. Walk 0.843 m (LeftToes). PASS.
+cameras   rear / front / first, standing and walking, pavement and café floor: 12 frames inspected,
+          the character at 2x; no torn or missing geometry, no texture missing. First sample spot
+          stood 0.5 m from a tree, whose trunk filled the rear frame -- spot moved, not a defect.
+drive     all drive checks pass (walk-in, loop 0.10 m, walls, cameras 0.0000 m, jumps, florist)
+threshold all PASS; café worst step x1.57, florist x1.42, 0.00 % clipped looking out
+link      50 moves, 50 accepted, 0 refused; café -> street -> café; talk -> too_far_away
+launch    plain windowed launch exit 0, no script/resource error. Exit prints "7 RIDs of type
+          Texture were leaked" in every windowed mode; names no resource; present with --gi=none.
+          Unattributed; recorded as a limitation.
+sitting   N/A in the slice: the occupant is PUPPET and never seated; the only seated figure is a
+          townsperson built without hood or pack (streetscape.gd).
+```
+
+Review package: `clients/3d-spike/shots/slice/review/`, entry in `docs/HUMAN_REVIEW_QUEUE.md`,
+state `READY FOR HUMAN VISUAL REVIEW — pending S8 PR 10a for the talk step`. Per `ARC-20` §4,
+subjective polishing on this branch stops here.
+
 ## 8. Deviations and discoveries
 
 1. **Shared files edited.** `scripts/props.gd` (bough and bicycle orientation, a bug, which also
