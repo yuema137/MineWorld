@@ -13,8 +13,10 @@ before them merges (`CLAUDE.md` §3, "detail one step ahead").
 - **The precursors are complete.** 11a, 11b and 11c are on `main`, each by a merge commit, so the I-2
   scan reads all three as merged on `main`'s first-parent chain (§9 E-3). Every framework capability
   the transformation relies on now exists.
-- **PR 11d** is next. The planning session details it to the commit in §4.4, on `mvp0/s9-11d-plan`
-  from `main @ c5dc51c`.
+- **PR 11d** is detailed to the commit in §4.4 by the planning session on `mvp0/s9-11d-plan` from
+  `main @ c5dc51c` — `DESIGN FROZEN (2026-10-07)` per §4.4.0, with its R-S9-1 spike done (§9 E-4: no framework gap),
+  the audit in §8.5, questions QS-27 … QS-38 (§10; QS-35 operator-material) and a proposed execution
+  contract in §15.
 - PRs 11e and 11f stay at medium scope until each is detailed and frozen in turn.
 
 **Freeze record (2026-10-07).**
@@ -1927,43 +1929,328 @@ CI          none configured; the full local gate once on the final head
 - No ownership boundary changes; `kernel/` untouched; the controller's dependencies unchanged.
 
 
-## 4.4 PR 11d — the transformation, part 1: owning and giving things (medium scope; AC-1 range)
+## 4.4 PR 11d — the transformation, part 1: owning and giving things (full design; DESIGN FROZEN 2026-10-07)
 
-**Allowed paths only** (I-1, §2.5). Detailed after 11b and 11c merge, beginning with a throwaway spike
-of inventory's checked constructor being used by another pack on the post-11c `main` (R-S9-1).
+### 4.4.0 Freeze record (primary session, 2026-10-07)
+
+The 11d design is frozen and its execution contract (§15) is confirmed. These rulings bind and
+override any other text in §4.4 and §15.
+
+- **QS-27 accepted.** A person may hold at most six items and organizations are unbounded. The cap
+  is a pack rule in `inventory`, not a controller change (I-9). The spike's evidence for it is
+  F-39 (Otto as a sink).
+- **QS-28 to QS-34, QS-36 and QS-37 accepted as recommended.** That includes `items-produced`
+  deferred to 11e, ARC-37, and per-seat give evidence from a scratch reader until 11f.
+- **QS-35 was decided by the operator on 2026-10-07: a consumption pack.** The operator was offered
+  shops buying back, a consumption pack, or relaxing CP-4, and chose the consumption pack. It does
+  not change 11d. It **widens 11e's scope** by one System Pack under `systems/`, so it sits inside
+  the AC-1 change set:
+  - The pack consumes items; for example, eating or drinking at the café uses a food item.
+  - It closes QS-10's MVP gap for `eat`.
+  - `inventory` stays the sole writer of holdings. The consumption pack states the removal through
+    inventory's checked constructor (ARC-26).
+  - CP-4 keeps its "purchase in every bucket" criterion unchanged.
+  - 11e's medium scope in §4.5 is amended to include the pack. Its detailing settles the pack's
+    name, what it consumes, and whether it needs items to be produced.
+- **F-37 (the `Seeding` doc misstates when genesis facts become visible)** is fixed after 11d merges,
+  in a docs-only PR outside the AC-1 range. 11d's in-pack workaround stays.
+- **F-41 (clients cannot name items)** is recorded for S12.
+- **The merge rules are 11a's:** a merge commit, never squash. The AC-1 change-set check (D-1) runs on
+  the actual merge diff before the operator-review handoff, and again by the primary session at merge.
+
+### 4.4.1 Identity, base, approved scope
 
 ```text
-systems/item/            ItemKind { category: slug } on Item entities, from the `item:` section of
-                         items/*.yaml (Authored: { category }); genesis fact item-kind-declared; no
-                         action; nothing disclosed in S9 (items are not perceived)
-systems/inventory/       depends on item. Holdings { counts: BTreeMap<ItemId, u32> } on Persons and
-                         Organizations, from the `holdings:` section of people and organization files
-                         ({ <item key>: <count> }, references = Items); vocabulary, born final so 11e
-                         need not edit it: stocked (genesis), items-transferred { from, to, item,
-                         count }, items-produced { holder, item, count } — each with a checked public
-                         constructor that refuses what Holdings may not take (a transfer the giver
-                         cannot cover, a kind item has not declared). Discloses Holdings to its holder
-                         only (INV-13). BIOGRAPHICAL: none or items-transferred (decided at detail)
-systems/item-transfer/   depends on inventory. `give { item, count }` targeting a Person in the same
-                         place within 3 000 mm; one complete affordance per kind the giver holds
-                         (count 1); validate → resolve states inventory's items-transferred (ARC-26).
-                         Owns no state. AC-2: disabled → give is Unavailable, the world runs, nothing
-                         else changes (systems/item-transfer/tests)
-systems/installed/       three lines (Cargo.toml + installed!)
-worlds/market-town/      social-cafe's files verbatim (world.yaml: id, name, and `item, inventory,
-                         item-transfer` appended to systems); items/*.yaml (the MVP's ~20 kinds:
-                         coffee, tea, croissant, …), `holdings:` on people; README.md
+PR            11d — owning and giving things (S9, fourth of six; the first half of the measured AC-1
+              transformation, ARC-35 point 1)
+base          main @ c5dc51c plus the docs-only planning merges (#41, and this branch once merged), or
+              the main the primary session names at freeze. Re-audit §8.5 if anything under
+              systems/, worlds/, authoring/, sdk/, worldpack/src/load.rs or
+              cognition/rule-controller/src/offered.rs moved
+branch        mvp0/pr-11d-owning-things, in its own worktree, held by the implementing session only
+audit         §8.5 (c5dc51c), including the R-S9-1 spike (§9 E-4)
+scope         §1.1 PR 11d; SD-13 as refined by SD-16 … SD-21; QS-7 (approved); QS-27 … QS-38 as
+              answered
+depends on    11a (installed set), 11b (items as content), 11c (complete affordances): all merged
 ```
 
-**Checkpoint (inside the range).** Each pack's own tests over hand-built worlds (the movement/
-group-activity pattern), including a persisted restart for inventory; `mineworld validate
-worlds/market-town`; `mineworld run worlds/market-town --headless --seed 7 --days 30` with `give`
-accepted at least once per seat-bucket — recorded as ledger evidence (the world-level test lands in 11f,
-outside the range). **Adversarial.** A transfer of more than the giver holds is refused by inventory's
-constructor even if item-transfer's validate were skipped (owner still decides, ARC-26): a test states
-the fact directly and expects `FactRefusedByOwner`.
+**Goal.** People in a town own things and give them to each other. Three new System Packs —
+`item` (what kinds of things exist), `inventory` (who holds how many of each, the only writer of
+holdings) and `item-transfer` (`give`, which owns nothing and states inventory's fact) — are installed by
+three lines each in `systems/installed`, and `worlds/market-town` is created as Social Café plus those
+three packs and their content. Every headless person gives, through the unchanged paced controller's
+offer band, because `give` is offered as complete affordances (`ARC-34`).
+
+**The change set is inside AC-1 by construction (I-1).** Every path this PR may touch:
+
+```text
+systems/item/**                         new pack
+systems/inventory/**                    new pack
+systems/item-transfer/**                new pack
+systems/installed/Cargo.toml            three dependency lines, by path
+systems/installed/src/lib.rs            three installed! lines
+systems/README.md                       the pack list (Markdown)
+worlds/market-town/**                   new world
+Cargo.lock                              three new path packages under systems/, and
+                                        mineworld-installed-systems' dependency list; nothing else
+docs/*.md                               DECISIONS (ARC-37), MODULE_SPEC §4.1, PACKAGE_FORMAT §8, MVP_STATUS
+.structured-coding/plans/mvp0/*.md      this ledger, handoff
+```
+
+Why nothing else can be needed, from source and from the spike (§8.5, §9 E-4): the root manifest lists
+`"systems/*"` (no member line); new packs name their new siblings by `path` and existing crates by
+`workspace = true` entries that already exist (no root dependency line); `worldpack` reads the generated
+`Capability` (no catalog arm); the controller attempts complete affordances it was never compiled
+against (no controller edit); every test outside `systems/` that names installed systems asserts
+`contains`, never an exact list (F-10, `refusals.rs:184`, `:790`). The spike made the same change on a
+scratch branch and touched exactly `Cargo.lock`, `systems/{item,inventory,item-transfer,installed}/**`
+and `worlds/market-town/**`, and the whole workspace suite passed unchanged. **A needed edit to any other
+path is a material stop**, reported with evidence, and answered by a precursor PR justified without the
+market (I-2), never by a quiet edit inside the range.
+
+**Non-goals.** No `items-produced` (QS-28: 11e adds it with its first stater); no organization content
+in market-town (11e's); no `buy`, money, jobs or shops; no consumption — nothing eats or drinks (QS-10,
+QS-35); no item instances (`ARC-36`); no names or disclosure for item kinds (F-41); no client change
+(QS-13); no world-level test in `tools/cli/tests` or `tests/acceptance` (11f's, outside the range); no
+change to any existing pack, to `kernel/`, `contracts/`, `authoring/`, `sdk/`, `worldpack/`,
+`cognition/`, `tools/`, `server/` or `persistence/`.
+
+### 4.4.2 Design (SD-16 … SD-21)
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **SD-16** | **`item` owns `ItemKind { category }` on Item entities**, from the `item:` section of an item file, `{ category: <slug> }` (1–32 bytes of `a–z`, `0–9`, `-`, its own `Category` type, refused at its line and column). Genesis fact `item-kind-declared { item, category }`, public, reduced by `item` alone. No action, no process, no dependency, no disclosure, nothing biographical. `pub fn is_declared(world, ItemId) -> bool` is the question other packs ask. | QS-7 keeps `item` as the vocabulary inventory, economy and employment share. A kind exists for the market only once `item` has declared it, so a file under `items/` with no `item:` section is an inert entity no pack trades (11b's B-5 property, kept). Items are never perceived (presence perceives places and people), so `ItemKind` is disclosed to nobody (F-41). |
+| **SD-17** | **`inventory` owns `Holdings` on Persons and Organizations, and only it writes them.** `Holdings` is a list of `{ item: ItemId, count: u32 }` sorted by item, no zero entries (F-38: an `ItemId` is not a JSON map key, and snapshots and payloads are JSON). Section `holdings:` on people and organization files, `{ <item key>: <count ≥ 1> }`, references Items. Facts: `stocked { holder, item, count }` (genesis, visible to the holder) and `items-transferred { from, to, item, count }` (visible to its participants). Depends on `item` (system and Cargo). Discloses a holder's `Holdings` to that holder only (`INV-13`). Nothing biographical (QS-29). | `CLAUDE.md` §4 rule 1 and I-3. One writer; both facts are its vocabulary and its reductions. |
+| **SD-18** | **The owner decides, three times, through one function (`ARC-26`).** `pub fn admit_transfer(world, from, to, item, count) -> Result<(), Rejection>` is the whole of what `Holdings` refuses about a transfer: count ≥ 1; `from ≠ to`; both living Persons or Organizations; `item` declared (`is_declared`); `from` holds at least `count`; `to` can take `count` (SD-19). It is asked by a deciding pack's `validate`, by the checked constructor `pub fn transfer(world, from, to, item, count) -> Result<Emission, Rejection>`, and again by inventory's own reduction, which on refusal writes nothing and fails with `KernelError::FactRefusedByOwner`. Seeding is the exception the source forces (F-37): a section is seeded against a world with no state yet, so `holdings:` is checked for kind (an Item) and count (≥ 1, within capacity) at seeding, and for a declared kind at reduction, which follows `item-kind-declared` in genesis order (`ARC-36` point 7). | Presence's `admit`/`arrival`/`react` pattern, unchanged. Holdings change only in inventory's reductions, whoever decided. |
+| **SD-19** | **A person carries at most `PERSON_CAPACITY = 6` items, all kinds together; an organization is not bounded.** Inventory's rule, in `admit_transfer` and in seeding: a transfer that would take a person past it is refused `TargetUnavailable`; a person's authored holdings past it are refused at genesis naming the file. `pub fn can_take(world, holder, count) -> bool` answers it for an offer. | The spike found an **absorbing sink** (F-39): Otto, the one person no seat names, receives and never gives, and held 31 of 33 items by day 30, so gives fell from 739 in days 1–15 to 312 in days 16–30. A bound on what one person carries makes the sink finite: with 6, over 300 days every seat gave in every 30-day bucket (min 118) and Otto ends holding exactly 6. It is the remedy I-9 requires — in a pack, never in the controller — and it also bounds R-S9-2 (at most 6 kinds held, so at most 6 `give` offers per person nearby). Primary-session decision, operator-visible (QS-27). |
+| **SD-20** | **`item-transfer` provides `give { item: ItemId, count: u32 }`, targeting a Person, and owns nothing.** Requirement: same place, within 3 000 mm, target available. It offers, to an observer who holds something and for each other living Person present, **one complete affordance per kind held, count 1**, in item order; target availability is `inventory::can_take(target, 1)`. Never offered to oneself (perception lists the observer among the present, F-40). `validate`: payload, a living Person actor and a different living Person target (`NoSupportedInteraction` otherwise), the requirement through `SpatialRequirement::evaluate` against presence's positions, then `admit_transfer`. `resolve`: `inventory::transfer`, nothing else. Depends on `inventory` and `presence` (system and Cargo). | `ARC-34`: the offerer can enumerate the choices, so the paced controller gives without knowing `give`. `CORE_CONCEPTS.md` §6.3 already names "give item" as an action with a spatial requirement. AC-2 for this pack: disabled, `give` is answered `Unavailable` and offered nowhere, and holdings never change (INV-10). |
+| **SD-21** | **`market-town` is Social Café plus the three packs and their content.** Every file of `worlds/social-cafe` copied byte for byte, then: `world.yaml`'s `id`/`name` and header comment, `item, inventory, item-transfer` appended to `systems`, an `items:` list; `items/<key>.yaml` for ~20 kinds (MVP §3), each with `tags` and `item: { category }`; a `holdings:` block appended to each person file (Otto included), 1–4 items each, ~30 in all; `README.md` (human orientation). No place file and no existing field or section changes (`ARC-35` check 3). | CP-1's world delta is configuration only. Otto is kept because the sink is a property of real worlds — a person nobody drives — and the pack must hold under it, not the content around it. |
+
+### 4.4.3 Acceptance (decided before measuring, `ARC-23`)
+
+Each guard names the mutation shown to break it. A mutation is applied to the working tree, observed to
+fail by name, and reverted; `git status` is recorded afterwards.
+
+```text
+D-1  The change set is inside AC-1 (I-1). `git diff --name-only <base>...HEAD` lists only the paths of
+     §4.4.1's table; Cargo.lock gains exactly three [[package]] entries, none with a `source`, all under
+     systems/, and changes otherwise only mineworld-installed-systems' dependency list; no root
+     Cargo.toml, worldpack, cognition, tools, kernel or contracts path appears.
+     Guard: the recorded commands of D-C7 (the instrument that enforces this permanently is 11f's AC-1
+     test). Mutation M-D1: a comment added to kernel/src/lib.rs in the working tree → the recorded
+     command lists `kernel/src/lib.rs` (the instrument sees an outside path), reverted.
+D-2  Nothing existing moves (I-4). 300-day seed-7 social-cafe sha (all but `wall`) = E-0
+     (ad49c723…c64b); `validate worlds/social-cafe` identical to the base's; every existing test passes
+     and no existing test is edited.
+D-3  Item kinds are declared by their owner. An item file's `item:` section becomes one public
+     `item-kind-declared` that `item` alone reduces into ItemKind; a bad category is refused at its line
+     and column with item's message; `item:` is carried by item files only (CARRIED_BY; the loader's
+     NotCarriedHere refusal itself is 11b's, already guarded in worldpack — a pack test cannot reach
+     the loader, which depends on the installed set and so on the pack). Guards: systems/item/tests.
+     Mutation M-D2 (run in D-C3, it needs inventory): item's reducer writes nothing → inventory's
+     genesis `stocked` is refused by its owner (genesis fails with FactRefusedByOwner naming
+     inventory) — the declared-kind check is real.
+D-4  Only inventory writes Holdings, and it still decides (I-3, ARC-26, CP-5). A `stocked` or
+     `items-transferred` stated past the checked constructor — more than the giver holds, an undeclared
+     kind, a count of 0, to oneself — is refused with FactRefusedByOwner and writes nothing.
+     Guards: systems/inventory/tests. Mutation M-D3: the reduction skips `admit_transfer` → the
+     over-transfer test fails (holdings go wrong instead of the refusal).
+D-5  A person carries at most six (SD-19). The constructor refuses a transfer past it
+     TargetUnavailable; `give` to a full person is offered unavailable with TargetUnavailable and is
+     refused the same at dispatch; authored holdings past six are refused by inventory's seed (which
+     the loader reports as SectionRefusedByOwner naming the file — shown once through the real CLI on
+     a scratch copy in D-C6); an organization holding more is accepted.
+     Guards: inventory and item-transfer tests. Mutation M-D4: `can_take` always true → the three
+     capacity tests fail.
+D-6  Giving works through the unchanged controller (CP-3 for a real pack). In a hand-built world
+     (presence, movement, item, inventory, item-transfer; two people within reach, one out of reach),
+     an observer holding two kinds is offered exactly two complete `give`s per other person present —
+     available within 3 m, TooFarAway beyond — and none to itself; an accepted give moves one item and
+     the fact is caused by the request (AC-9); driven by PacedRuleController on `mineworld run`'s
+     schedule for 10 days, people give; two runs of one seed are byte-identical; the rule-controller's
+     manifest names no market pack. Guards: systems/item-transfer/tests. Mutation M-D5: offers built
+     with Offer::new (incomplete) → the controller-gives test fails.
+D-7  AC-2 for item-transfer, at pack level (CP-6's pack half). The same world without item-transfer
+     loads and runs: no `give` affordance in any observation, a `give` request is answered Unavailable,
+     holdings never change, and every other pack's facts are those of the run with it minus the gives'.
+     A world enabling item-transfer without inventory is refused by the registry naming inventory.
+     Guards: systems/item-transfer/tests. Mutation M-D6 (negative control): the test's world enables
+     item-transfer → the "no give affordance" assertion fails.
+D-8  Holdings survive a restart. A saved world with holdings and transfers, resumed, has the same
+     Holdings and continues identically (the schedule/persisted.rs pattern). Guard:
+     systems/inventory/tests/persisted.rs. Mutation: N/A — the property is persistence's (ARC-25) and
+     already guarded there; this test is a regression that inventory's state is JSON-snapshottable
+     (F-38), which the compiler cannot show. Shown red instead by the F-38 counter-example recorded in
+     D-C3 (a BTreeMap<ItemId, u32> component fails to snapshot), if it reproduces.
+D-9  market-town is valid and lives, bounded, without consumption (QS-10, I-7, I-9, R-S9-2) — ledger
+     evidence, never a test inside the range (world-level tests are 11f's). In order:
+       a. `mineworld validate worlds/market-town` → valid; ids 1–18 exactly social-cafe's; the item
+          kinds after them; genesis = social-cafe's 53 + one per kind + one per authored holding.
+       b. Activity first (I-7): `run --seed 7 --days 300 --save` → faults 0; every seat moved and
+          talked in every 30-day bucket; and, from the save by a scratch reader (never committed),
+          every seat gave at least once in every bucket and no person ever holds more than six.
+       c. Only then determinism: two 30-day seed-7 runs print identical lines but `wall`; the run
+          stopped at day 15 and resumed to 30 equals the uninterrupted 30-day run's history and
+          fingerprint.
+       d. Cost: the 300-day run's wall ≤ 60 s with --save (R-S9-2).
+     Mutation M-D7 (on a scratch branch, never pushed): PERSON_CAPACITY = u32::MAX → b fails: gives
+     collapse into the unseated person (the instrument sees the sink, as the spike's first run did).
+D-10 The world delta is configuration only (ARC-35 check 3, by hand until 11f automates it):
+     `git diff --no-index worlds/social-cafe worlds/market-town` shows only world.yaml's id, name,
+     header, appended systems and items list; added items/ files and README; and one appended
+     `holdings:` block (with its comment) per person file.
+D-11 The documents say it first (CLAUDE.md §2.2): ARC-37, MODULE_SPEC §4.1's section table,
+     PACKAGE_FORMAT §8 and systems/README exist before the code; both doc checks pass.
+```
+
+### D-C0 — Design (this section) — docs only
+
+- [x] Implementation: §4.4, §8.5, §9 E-3/E-4, QS-27 … QS-38, §15, by the planning session on
+  `mvp0/s9-11d-plan`.
+- [x] Validation: both doc checks (§9 E-5).
+- [x] Review: every file and symbol named here was read on `c5dc51c` (§8.5); the riskiest cross-pack
+  flow was run end to end on a scratch branch before this design was finalized (E-4); the change set
+  is shown inside AC-1 by that run; operator-material points are marked (§10). Self-review by the
+  planning session only; the primary session's review is pending.
+
+### D-C1 — Specs before code: ARC-37, MODULE_SPEC §4.1, PACKAGE_FORMAT §8, systems/README
+
+**Goal.** The three packs' ownership, the capacity rule and how the market stays alive without
+consumption are reviewable before code (`CLAUDE.md` §2.2). All Markdown: inside the range.
+
+**Scope.**
+- `docs/DECISIONS.md` — **ARC-37** *Owning and giving: kinds, holdings, give, and a person's
+  capacity*, appended at the end (after ARC-36; `git fetch` and confirm ARC-37 is free first). SD-16 …
+  SD-20; options for the sink (capacity; consent to receive; giving only to the controlled — impossible,
+  `INV-1`; content only — cannot stop receiving); limitations: no consumption, no item names, no
+  instances, organizations unbounded; the forward implication for 11e (QS-35).
+- `docs/MODULE_SPEC.md` §4.1 — "MVP-0 has two sections" becomes four: `item` (item, items),
+  `holdings` (inventory, people and organizations).
+- `docs/PACKAGE_FORMAT.md` §8 — the sections parenthesis names the four.
+- `systems/README.md` — the three packs in its list.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: both doc checks; ARC-37 absent from every `origin/*` branch.
+- [ ] Review: no defined term redefined (`Item` stays `ARC-36`'s kind; "holdings" is inventory's
+  component, not a core term); the section table matches SD-16/SD-17 exactly.
+
+### D-C2 — `systems/item`
+
+**Scope.** `systems/item/{Cargo.toml, README.md, src/{lib,system,section,event,component,category,
+codec}.rs, tests/item.rs}`, laid out as `naming`. Dependencies: authoring, contracts, kernel, presence,
+sdk, serde, serde_json, thiserror (`workspace = true`); dev: serde-saphyr (decode a section as the
+loader does), as naming's tests.
+
+- [ ] Implementation: `ItemSystem` (`impl SystemPack { owns_section!(); }`, empty
+  `PerceptionProvider`), `Category`, `ItemKind` (`owned_component!`, `item-kind`), `ItemKindDeclared`,
+  `AuthoredSection` (`item`, carried by items), `is_declared`.
+- [ ] Validation: `cargo test -p mineworld-item`; clippy `-D warnings`. Tests: the section seeds one
+  fact reduced into ItemKind; bad categories refused with the message; `is_declared` false for an Item
+  entity without the section and for a non-item. M-D2 is run in D-C3 (it needs inventory).
+- [ ] Review: no dependency on any market pack; no disclosure; owns exactly one component.
+
+### D-C3 — `systems/inventory`
+
+**Scope.** `systems/inventory/{Cargo.toml, README.md, src/{lib,system,section,event,component,admit,
+codec}.rs, tests/{inventory.rs, persisted.rs, support/mod.rs}}`. `mineworld-item = { path = "../item" }`;
+dev: persistence, serde-saphyr.
+
+- [ ] Implementation: SD-17 … SD-19 — `Holdings`/`Held`, `PERSON_CAPACITY`, `can_take`,
+  `admit_transfer`, `transfer`, `Stocked`, `ItemsTransferred` (accessors), `holdings:` section
+  (`references` = Items), reductions, disclosure to the holder.
+- [ ] Validation: `cargo test -p mineworld-inventory`; clippy. Tests: genesis stocking (people and an
+  organization); D-4's four direct-statement refusals; D-5's capacity refusals at genesis and in the
+  constructor; disclosure only to the holder; persisted restart (D-8). Mutations M-D2, M-D3, M-D4
+  (constructor half). F-38's counter-example recorded if it reproduces.
+- [ ] Review: the one write path per fact; `admit_transfer` is the only refusal logic; no `f32`/`f64`;
+  every map a `BTreeMap` or a sorted `Vec`.
+
+### D-C4 — `systems/item-transfer`
+
+**Scope.** `systems/item-transfer/{Cargo.toml, README.md, src/{lib,system,action,offer,codec}.rs,
+tests/{give.rs, removable.rs, paced.rs, support/mod.rs}}`. `mineworld-inventory = { path =
+"../inventory" }`; dev: `mineworld-item` by path, movement, rule-controller (`workspace = true`, for
+D-6's controller test — a dev-dependency from a market pack to the controller, the direction ARC-35
+check 2 allows).
+
+- [ ] Implementation: SD-20.
+- [ ] Validation: `cargo test -p mineworld-item-transfer`; clippy. D-5 (offer/dispatch half), D-6,
+  D-7; mutations M-D4 (offer half), M-D5, M-D6.
+- [ ] Review: owns no component; emits only inventory's fact, declared and depended on (the kernel
+  refuses it otherwise); offers never include the observer; complete offers only for kinds held.
+
+### D-C5 — Install: three lines each in `systems/installed`
+
+- [ ] Implementation: `systems/installed/Cargo.toml` three `path` lines; `src/lib.rs` `Item`,
+  `Inventory`, `ItemTransfer` after `Schedule`; `Cargo.lock` regenerated by the build.
+- [ ] Validation: `cargo test -p mineworld-installed-systems -p mineworld-worldpack` (the consistency
+  guard and the section-namespace guard now cover `item` and `holdings`); D-2's sha and validate;
+  `git diff -- Cargo.lock` matches D-1's rule.
+- [ ] Review: the two files gain exactly those lines; no root manifest edit was needed.
+
+### D-C6 — `worlds/market-town`
+
+- [ ] Implementation: SD-21 — copy with `git read-tree --prefix=worlds/market-town/ -u
+  HEAD:worlds/social-cafe` then edit; items; holdings; README.
+- [ ] Validation: D-9 a–d, D-10, with the scratch reader on a local scratch branch (deleted after;
+  `git ls-remote --heads origin | grep -c scratch` → 0); M-D7 on that branch; a scratch copy with one
+  person authored at seven items → `validate` refuses it naming the file and inventory (D-5).
+- [ ] Review: no social-cafe field or section changed in the copy; Otto present with holdings; every
+  authored person within capacity.
+
+### D-C7 — Close: status, change set, full gates, ledger
+
+- [ ] Documentation: `docs/MVP_STATUS.md` — a capability row ("Owning and giving things") and an
+  evidence row (`Updated:` line and S9 row stay the planning session's); §4.4 checkboxes; §9.4 `E-D*`;
+  the handoff.
+- [ ] Validation, once, on the final executable head: fmt, clippy `--workspace --all-targets
+  --all-features -D warnings`, `cargo test --workspace --no-fail-fast` (background), kill_and_resume,
+  both doc checks, D-2's sha and validate diff; D-1: `git diff --name-only <base>...HEAD`, `git diff
+  <base>...HEAD -- Cargo.lock`, M-D1.
+- [ ] Review: D-1 … D-11 each with evidence; deviations listed; the PR is to be merged **with a merge
+  commit** (ARC-35 point 1 reads `M^1..M`).
+
+### 4.4.4 Test ownership for 11d
+
+```text
+STATIC      fmt, clippy -D warnings; the installed! bounds (a listed pack that is not SystemPack,
+            Default and PerceptionProvider does not compile); INV-7 write tokens (item-transfer cannot
+            write Holdings — it has no token)
+UNIT        item: category and section; inventory: admit_transfer's refusals, capacity, the sorted
+            Holdings (D-3 … D-5)
+INTEGRATION hand-built worlds through the kernel's real dispatch and presence's real observe(): the
+            owner's refusals of facts stated directly (D-4); give offered, validated, resolved,
+            reduced (D-6); the unchanged PacedRuleController giving (D-6); AC-2 (D-7); a persisted
+            restart (D-8); the loader over the real market-town (D-9a); every existing test (D-2)
+REAL RUN    validate, the 300-day seed-7 market-town run with its scratch reader, two 30-day runs, a
+            15+15 resume, the 300-day social-cafe comparison (D-2, D-9)
+GATE 1      NOT REQUIRED — no model
+GATE 2      the real runs above
+CI          none configured (S13); the full local gate once on the final head
+```
+
+### 4.4.5 Is any of this material?
+
+- **No framework change is needed.** The spike (E-4) ran the riskiest flow — a person giving an item
+  offered as a complete affordance, attempted by the unchanged paced controller, validated by
+  item-transfer, stated through inventory's checked constructor and reduced by inventory alone, seeded
+  from an item file's section and a person file's section, saved and resumed — with no edit outside
+  `systems/**`, `worlds/**` and `Cargo.lock`. No precursor PR is proposed.
+- **New ownership, already approved.** `ItemKind` (item) and `Holdings` (inventory) are the boundaries
+  QS-7 approved; no existing ownership changes.
+- **A new rule, the capacity (SD-19, QS-27)** — a pack decision under I-9, raised because it is part of
+  how QS-10 is answered.
+- **Two refinements of the medium scope** — `items-produced` deferred to 11e (QS-28), holdings as a
+  sorted list (F-38) — are bounded, and raised so the primary session sees them.
+- **Forward, operator-material (QS-35):** without consumption, 11e's purchases will fill people to
+  capacity and stop. 11e's design must answer it; deciding how is the operator's.
+- Nothing changes a public contract, `kernel/`, `contracts/`, or a frozen invariant.
 
 ## 4.5 PR 11e — the transformation, part 2: work, money and shops (medium scope; AC-1 range)
+
+**Scope amended 2026-10-07 (QS-35, operator).** 11e also adds a **consumption System Pack** under
+`systems/`, so that items are used up and the market keeps turning. Its removal of items goes through
+inventory's checked constructor. Details are in §4.4.0.
 
 **Allowed paths only.** Detailed after 11d merges, beginning with a throwaway spike of employment's
 shift Process reading presence and stating inventory's `items-produced` (R-S9-1).
@@ -2051,7 +2338,7 @@ to bite, then reverted, on a scratch branch):**
 | 11a | social-cafe's 300-day run byte-identical to E-0; a canary pack installed by two lines in `systems/installed/` (A-1 … A-4) | removing a list line, or re-adding a pack import to `worldpack`, fails a named guard |
 | 11b | a pack with items and organizations loads; social-cafe's ids, genesis count and run unchanged | items' sections seeded after people's fails the genesis-order test |
 | 11c | a synthetic pack's action, unknown to the controller, is attempted and accepted headless; social-cafe byte-identical | the band taking an unavailable affordance fails a named test; the band reusing the walking roll's draw fails the greeting-coexistence test (F-28 — the social-cafe comparison cannot see it) |
-| 11d | market-town (owning, giving) validates and runs 30 days with gives accepted; per-pack tests incl. restart; AC-2 for item-transfer at pack level | a transfer beyond what the giver holds is refused by inventory itself |
+| 11d | market-town (owning, giving) validates; over 300 days every seat gives in every bucket and nobody holds more than six; the unchanged paced controller gives in a pack test; per-pack tests incl. restart; AC-2 for item-transfer at pack level (§4.4.3, D-1 … D-11) | a transfer beyond what the giver holds, stated directly, is refused by inventory itself (M-D3); without the capacity the gives collapse into the unseated person (M-D7) |
 | 11e | wages, purchases and production in a 30-day run; restart mid-shift; economy and employment each install without the other | wage-due against an empty wallet yields wage-unpaid, never a negative |
 | 11f | the AC-1 test (three checks), CP-4 over 300 days, AC-2 at world level, Milestone C through the real server | each of the four scratch mutations in §4.6 fails its check by name |
 
@@ -2115,6 +2402,9 @@ FLAGGED  QS-2, QS-3, QS-4, QS-5, QS-6 — operator-material (§10)
 FLAGGED  MVP §5's eat and sleep are not in S9 (QS-10)
 FLAGGED  QS-15 — operator-material (amends ARC-35 point 7's merged-range detection); QS-20 amends
          frozen SD-12 (primary session)
+FLAGGED  QS-35 — operator-material: without consumption, 11e's purchases stop once people are full;
+         11e must close the item loop (QS-10 can no longer be deferred past 11e's design). QS-27 (the
+         capacity) is part of how 11d answers QS-10, and is operator-visible
 ```
 
 ---
@@ -2310,6 +2600,82 @@ F-35  Existing lines in files 11c edits already contain market-prefixed words, w
       allow-list entry.
 ```
 
+## 8.5 Re-audit for 11d (`main @ c5dc51c`, 2026-10-07)
+
+Made by the planning session after 11b and 11c merged, before detailing §4.4. Where §4.4's medium scope
+and the source disagree, the source wins and the finding says so.
+
+**Inspected.**
+
+```text
+sdk/rust/src/{pack.rs, section.rs} (whole), installed.rs (expansion surface)
+systems/installed/{Cargo.toml, src/lib.rs, tests/installed.rs (manifest parser)}
+systems/naming/src/{lib, section, system, event, component, codec, name}.rs (whole: the section-owner
+  template); systems/schedule/{Cargo.toml, src/section.rs}; systems/movement/src/system.rs (validate,
+  resolve stating presence's Arrived, react refusing, offers); systems/presence/src/{system.rs (whole),
+  event.rs (arrival, admit), interaction.rs (whole: Offer::complete), observe.rs (:60–289)};
+  systems/conversation/src/{action.rs (talk_requirement), system.rs (validate), codec.rs}, Cargo.toml
+authoring/src/{section.rs (:110–201: Reference, Seeding, AuthoredSection), content.rs (whole)}
+worldpack/src/load.rs (:40–100 seeded, :220–300 assemble/load/initial_facts); worldpack/tests/
+  refusals.rs (:169–188, :774–795: assertions over the installed set and the known sections)
+kernel/src/{view.rs (WorldRead/WorldView API), dispatch.rs (:355–400 genesis), system.rs (trait
+  outline)}; contracts/src/{ids.rs (:392–396 EntityKey, :850–905 ItemId), event.rs (:296–310
+  Visibility)}; persistence/src/{lib.rs, format.rs (JSON throughout)}
+cognition/rule-controller/src/offered.rs (whole)
+tools/cli/src/biography.rs (:40–110, reading a save); the run summary format (E-3's output)
+worlds/social-cafe (world.yaml, people/otto.yaml, people/alice.yaml, places/cafe.yaml)
+docs: DECISIONS ARC-26, ARC-28, ARC-31 … ARC-36; MODULE_SPEC §§3, 3.1, 4, 4.1; PACKAGE_FORMAT §§6, 8;
+  CORE_CONCEPTS §§1–3, 6.3, 7, 8, 11–15; MVP §3 (~20 item types)
+git: every origin/* branch for ARC-37 (free)
+runs: E-3 (main), E-4 (the R-S9-1 spike)
+```
+
+**Findings.**
+
+```text
+F-36  The riskiest cross-pack flow needs no framework change (E-4). A complete `give` offered by a new
+      pack, chosen by the unchanged paced controller, validated by item-transfer, stated through
+      inventory's checked constructor (ARC-26) and reduced by inventory alone, seeded from an item
+      file's and a person file's sections, saved and resumed — all ran with edits only under
+      systems/**, worlds/** and Cargo.lock, first build.
+F-37  Sections are seeded against a world with no state. WorldPack::assemble computes every genesis
+      fact from the assembled world's read view before World::genesis reduces any (load.rs
+      initial_facts, then genesis), although authoring's Seeding doc says "no state yet beyond the
+      genesis facts stated before this one". So inventory's seed cannot ask whether item has declared
+      a kind. It checks the reference's entity type at seeding (Seeding::resolve) and the declared kind
+      at reduction, which follows item's in genesis order (ARC-36 point 7). Bounded, inside the packs;
+      the Seeding doc sentence is imprecise and is reported, not changed (authoring/ is outside 11d's
+      range; a later precursor or doc fix may correct it).
+F-38  An ItemId serializes as a struct ({entity, type}), so it cannot be a JSON object key; payloads,
+      observations and snapshots are all JSON (DEP-5). Holdings is therefore a sorted list of
+      {item, count}, not a BTreeMap<ItemId, u32> as §4.4's medium scope wrote.
+F-39  An unseated person is an absorbing sink. Otto (no seat) is given to and never gives. Spike run 1,
+      no bound: by day 30 Otto held 31 of the 33 items, and gives fell from 739 in days 1–15 to 312 in
+      days 16–30. Run 2, a person carries at most 6: 18 349 gives over 300 days, 1 737–1 887 in every
+      30-day bucket, every seat ≥ 118 per bucket, Otto ends holding exactly 6. Without consumption
+      (QS-10) this is how 11d's flow stays alive and bounded (SD-19, QS-27).
+F-40  Perception asks a provider about every target present, the observer included (observe.rs:239
+      `present` holds the observer), so a pack must exclude giving to oneself in its offers.
+F-41  Items are never perceived: an observation lists the observer's place and the people in it. So
+      ItemKind is disclosed to no one, and a client shown `give { item: {entity: 21, …} }` cannot name
+      the item. Recorded as a limitation for S12 (QS-13's client work), not solved in 11d.
+F-42  Cost (R-S9-2): the 300-day market-town run with --save took 32.7 s (chimes, the worst case, 43 s;
+      social-cafe without save 12.2 s). Capacity bounds give offers at 6 per person nearby.
+F-43  Installing the three packs breaks nothing outside the range: on the spike branch the whole
+      workspace suite passed (457 = main's 456 + the scratch reader), social-cafe's 300-day sha = E-0,
+      and refusals.rs asserts only `contains` over the installed set and the known sections.
+F-44  The I-2 scan does not see 11d's lines: all three precursor rows are merged on the first-parent
+      chain, so their ranges are base..M^2 (ARC-35 point 7). 11d needs no allow-list entry and adds
+      no row.
+F-45  `mineworld run`'s per-seat activity line counts move and talk only; per-seat give counts need a
+      save reader. World-level tests live in tools/cli/tests or tests/acceptance, outside the range, so
+      11d's per-seat evidence uses a scratch reader on a scratch branch (as 11c's E-C6), and 11f
+      makes it a test.
+F-46  ItemsTransferred's audience is inventory's choice (the vocabulary owner builds the emission). The
+      spike used Participants (giver and taker). A stating pack cannot widen it; whether a purchase in
+      11e should be place-visible is 11e's question (QS-30).
+```
+
 ---
 
 # 9. Ledger and evidence
@@ -2387,6 +2753,36 @@ E-3  §12.0 "After both merge", confirmed on c5dc51c (debug, opt-level 1), 2026-
      365 330 facts, fingerprint 59339a9c281829c9, sha-256 of all but `wall` =
      ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0; wall 12.2 s.
      This is 11d's I-4 baseline.
+E-4  The R-S9-1 spike for 11d. Local scratch branch `scratch/11d-spike` from c5dc51c, scratch commit
+     74bf597, never pushed, deleted after (`git ls-remote --heads origin | grep -c scratch` → 0).
+     Logs in /tmp/s9-11d-plan/. Flow under test: a person gives an item offered as a complete
+     affordance, attempted by the unchanged paced controller.
+     Built: systems/item (ItemKind, `item:` section, item-kind-declared), systems/inventory (Holdings
+     as a sorted list, `holdings:` section, stocked, items-transferred, admit_transfer + transfer),
+     systems/item-transfer (give, complete offers per held kind, validate/resolve through
+     inventory::transfer), three lines each in systems/installed, worlds/market-town (social-cafe
+     copied by `git read-tree`, 5 kinds, holdings on all 12 people, 33 items).
+     Changed paths vs c5dc51c: Cargo.lock, systems/installed/{Cargo.toml, src/lib.rs},
+     systems/{item,inventory,item-transfer}/**, worlds/market-town/** (25 files). Nothing else.
+     Cargo.lock: +3 [[package]] (mineworld-item, -inventory, -item-transfer), no `source`; +3 lines in
+     mineworld-installed-systems' dependencies. Compiled on the first build.
+     validate: valid; ids 1–18 = social-cafe's, kinds 19–23; 74 genesis facts (53 + 5 + 16).
+     Run 1 (no capacity), 30 days, seed 7, --save: exit 0, faults 0, give accepted 1 051, no rejected
+       request line, 36 899 facts, wall 2.8 s. Resumed 15 → 30 on one save: fingerprint
+       0fc3aba2ae64ce4b = the uninterrupted run's. Reader: Otto (16, no seat) holds 31 of 33 items at
+       day 30; gives 739 in days 1–15, 312 in days 16–30 → F-39, the sink.
+     Run 2 (PERSON_CAPACITY = 6 in inventory; give's target available iff it can take one), 300 days,
+       seed 7, --save: exit 0, faults 0, 364 799 facts, wall 32.7 s; give accepted 18 349, move
+       173 049, talk 60 073; activity minimum talk 416 per seat-bucket. Reader: gives per bucket
+       1 861, 1 887, 1 737, 1 850, 1 836, 1 807, 1 822, 1 878, 1 843, 1 828; all 110 (seat, bucket)
+       cells present, minimum 118; final holdings max 6 (Otto, 6).
+     Two 30-day runs: identical but `wall`. social-cafe 300-day on the spike build: sha-256 =
+       ad49c723…c64b = E-0. `cargo test --workspace --no-fail-fast`: exit 0, 457 passed (456 + the
+       reader), 0 failed.
+     Verdict: PASS — no framework gap; F-36 … F-46. No precursor proposed.
+E-5  End of this planning branch: check_doc_headings → 143 numbered sections across 22 documents, none
+     duplicated; check_decision_ids → 47 ids, all distinct (ARC-37 a proposal in this file only).
+     Docs-only branch; no cargo gate run beyond E-3 and the spike.
 ```
 
 Each implementation PR records its evidence in its own section — §9.2 for 11b, §9.3 for 11c — so that
@@ -2751,6 +3147,74 @@ QS-26  Parallel coordination (§12): one handoff per PR (handoff-11b.md, handoff
        merge commits only. Recommended: accept.
 ```
 
+**Raised while detailing 11d (2026-10-07, on `c5dc51c`).**
+
+```text
+QS-27  [primary session; operator-visible — part of QS-10's answer] A person carries at most six items,
+       all kinds together; organizations are unbounded (SD-19). The spike found that a person no seat
+       names absorbs every item given to him (F-39), and without consumption nothing else drains it.
+       Alternatives: (a) consent — the taker must accept, as a pending offer (a process, a second action;
+       an unseated person never accepts, so it also works, at about twice the code); (b) give only to
+       people a controller drives — impossible, a world does not know who is driven (INV-1); (c) content
+       only — nothing in content stops a person receiving; (d) retune the controller — forbidden (I-9).
+       Recommended: capacity 6 (measured, E-4 run 2), as inventory's rule.
+
+QS-28  `items-produced` is not added in 11d (amends §4.4's medium scope, "born final"). It has no stater
+       until employment exists, and a fact tested only by hand-built statements would be designed
+       ahead of its consumer (CLAUDE.md §4 rule 11). 11e adds it to inventory; that edit is under
+       systems/**, inside ARC-35's allowed set. Recommended: defer to 11e.
+
+QS-29  None of the three packs is biographical. 18 000 gives in 300 days would bury a biography (the
+       reasoning of ARC-28 point 4 for relationships), and owning a coffee is not an event in a life.
+       Alternative: items-transferred biographical. Recommended: none.
+
+QS-30  items-transferred is visible to its participants (giver and taker) only (F-46). A bystander
+       learns of a give only by seeing it in a later observation of holdings, which strangers are not
+       shown (INV-13). 11e decides separately whether a purchase is place-visible. Recommended: accept.
+
+QS-31  Holdings is a sorted list of {item, count}, not a map keyed by ItemId (F-38). A representation
+       detail forced by JSON; raised because the component's shape reaches clients. Recommended: accept.
+
+QS-32  The `item:` section is `{ category: <slug> }`. Alternatives: an empty marker (`item: {}`), or a
+       kind declared by the file's presence alone (impossible: a pack seeds only from its section).
+       Category is the smallest real attribute (drink, food, goods) and costs nothing to ignore.
+       Recommended: category.
+
+QS-33  market-town's 11d content: social-cafe copied byte for byte; ~20 item kinds (MVP §3), each with
+       tags and a category; 1–4 items on every person, Otto included (~30 in all); no organizations
+       (11e). Recommended: accept.
+
+QS-34  D-6's controller test lives in systems/item-transfer/tests with dev-dependencies on movement and
+       rule-controller. tests/acceptance would be the usual home but is outside the range; the
+       dependency points from the market pack to the controller, which ARC-35 check 2 allows.
+       Recommended: accept.
+
+QS-35  [OPERATOR-MATERIAL — S9 scope or CP-4, forward to 11e] Nothing consumes items in S9 (QS-10). In
+       11d, gives conserve items, so the flow stays alive. In 11e, purchases move items from shops to
+       people, and with a bound of six per person, buying stops once everyone is full; without the
+       bound, people hoard. Either way, CP-4's "a purchase in every 30-day bucket" would fail by month
+       N. 11e's design must close the loop, and the choice is the operator's:
+       (a) economy also lets a shop buy items back (`sell`), so items and money both circulate — no
+           new pack, the smallest change;
+       (b) a small consumption pack (eat, drink) joins S9 — MVP §5's verbs, a sixth market pack, a
+           scope change;
+       (c) CP-4 relaxed for purchases — weakens the milestone.
+       Recommended: (a), decided at 11e's detail, with (b) kept for the needs pack QS-10 already
+       anticipates.
+
+QS-36  ARC-37 records 11d's decisions (SD-16 … SD-20, the capacity and why), in DECISIONS.md, inside
+       the range as Markdown under docs/. Recommended: accept.
+
+QS-37  11d's per-seat give evidence is ledger evidence from a scratch reader on a scratch branch, never
+       committed (F-45), exactly as 11c's E-C6; 11f turns it into market-town's world-level test.
+       Recommended: accept.
+
+QS-38  The execution contract for 11d (§15): fresh session, its own worktree on
+       mvp0/pr-11d-owning-things, commits and push and PR authorized as for 11a–11c, a scratch branch
+       for D-C6's measurements, merge the operator's with a merge commit. Recommended: confirm at
+       freeze.
+```
+
 ---
 
 # 11. Execution contract for PR 11a (proposed; confirmed at 11a's freeze)
@@ -2953,4 +3417,47 @@ MATERIAL STOP       a market word needed; a contracts/ change beyond the payload
                     change to RuleController, decide's purity or the rule-controller manifest; a change of
                     behaviour (not a type annotation) in any existing pack or test; the social-cafe run
                     or an AC-13/AC-15 transcript changing; C-C6's criterion failing at every rate ≥ 5
+```
+
+# 15. Execution contract for PR 11d (proposed; confirmed at 11d's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 10 / PR 11d — owning and giving things (S9, fourth of six; the first
+                    half of the measured AC-1 transformation)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-10-market.md §4.4 (4.4.1–4.4.5); evidence in a
+                    new §9.4 (E-D<n>)
+RELATED / BINDING   overall.md §§1, 7; this file §§1.3 (I-1, I-3, I-4, I-6, I-7, I-9), 2.5, 2.6, 3
+                    (SD-13), 8.5, 9 E-3/E-4, 10 (QS-7, QS-10, QS-27 … QS-38, as answered);
+                    DECISIONS ARC-26, ARC-28, ARC-31, ARC-33, ARC-34, ARC-35, ARC-36; MODULE_SPEC §§3.1,
+                    4.1; CORE_CONCEPTS §§6.3, 7, 8, 13.1, 15.2
+IMPLEMENTATION BASE the main named at freeze (main @ c5dc51c + the docs-only planning merges); branch
+                    mvp0/pr-11d-owning-things; worktree /Users/yuema137/mineworld-worktrees/s9-11d
+                    (proposed), held by the implementing session only
+APPROVED SCOPE      §4.4: D-C1 … D-C7; only the paths of §4.4.1's table
+FROZEN INVARIANTS   I-1 (any path outside §4.4.1's table is a material stop), I-3, I-4 (sha
+                    ad49c723…c64b), I-6, I-7 (D-9 b before c), I-8, I-9 (no controller change; a quiet
+                    market is fixed in packs or content); I-2's scan unchanged (no row, no entry)
+SEQUENCE            D-C1 → D-C2 → D-C3 → D-C4 → D-C5 → D-C6 → D-C7, each committed and pushed when
+                    coherent
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: 300-day social-cafe (~15 s) twice,
+                    300-day market-town with save (~35 s) at most three times (D-9, M-D7), 30-day runs;
+                    one full workspace gate on the final head (background); about one hour in total;
+                    real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §4.4 checkboxes; §9.4 E-D ledger
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 11d at D-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the primary session's freeze message
+  semantic commits, branch push       recommended authorized, as for 11a–11c
+  PR creation / update                recommended authorized, as for 11a–11c
+  scratch branch (D-C6, M-D7)         recommended authorized, local only, deleted after evidence
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     the planning session owns the step header, §§1–3, §5, §10, overall and MVP_STATUS's
+                    Updated/S9 lines; the implementing session owns §4.4 and §9.4
+NORMAL STOP         PR 11d READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a needed edit outside §4.4.1's paths (a framework gap: report it and propose a
+                    precursor justified without the market, I-2); a changed social-cafe run or an
+                    edited existing test; a Cargo.lock change other than three path packages and the
+                    installed set's list; a need to change the controller or its constants (I-9); D-9 b
+                    failing with the capacity (the market cannot be kept alive by packs or content)
 ```
