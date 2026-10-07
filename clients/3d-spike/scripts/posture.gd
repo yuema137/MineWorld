@@ -21,6 +21,9 @@
 class_name Posture
 extends SkeletonModifier3D
 
+## How far the gripping hand's fingers close, in degrees at the proximal joint.
+const FINGER_CURL := 38.0
+
 ## Profile bone name -> local euler correction in degrees, post-multiplied onto
 ## whatever the animation produced.
 var tweaks := {}
@@ -30,6 +33,17 @@ var tweaks := {}
 ## clip keeps driving the spine, arms and head, so a person on a bench still
 ## breathes and shifts instead of freezing into a mannequin.
 var absolute := {}
+
+## Profile bone name -> euler in degrees that replaces the animated pose as
+## `rest * delta` -- the convention the `Stand` clip keys in, so the grip held
+## here while walking is the same grip the clip holds standing.
+var rest_relative := {}
+
+## How much of `tweaks` applies, 0..1. Standing, the `Stand` clip is authored
+## whole and the action-game corrections below only distort it; walking, the
+## imported clip still holds the arms out and they are wanted. `human.gd` sets
+## this from the gait. Finger curls are a grip, not a stance, and are exempt.
+var tweak_weight := 1.0
 
 
 static func natural_stance() -> Posture:
@@ -52,6 +66,42 @@ static func natural_stance() -> Posture:
 		"Neck": Vector3(0, 7.0, 0),
 		"Head": Vector3(0, 9.0, 0),
 	}
+	return p
+
+
+## The reference character, who is holding her backpack strap.
+##
+## `CHARACTER_IDENTITY.md` §5 puts her **left** hand on the left strap at chest
+## height, fingers over the webbing, and §6 lists that grip among the five
+## things a viewer matches her by: "it fixes the pose and reads at any
+## distance."
+##
+## The two arm angles are **solved, not authored** — `tools/solve_grip.gd`
+## searches the real skeleton until the hand lands on the strap, with a second
+## term that keeps the elbow hanging down and forward instead of behind the
+## shoulder, which is where an unconstrained two-bone solution puts it. Re-run
+## it if the strap moves; the hand lands within a millimetre of the webbing.
+##
+## They are `absolute`, not `tweaks`: a corrective offset would still let the
+## walk cycle swing the arm, and a hand that swings through the strap it is
+## supposed to be holding is worse than no grip at all. The right arm, the legs
+## and the spine keep animating.
+static func holding_strap() -> Posture:
+	var p := natural_stance()
+	p.tweaks.erase("LeftUpperArm")
+	p.tweaks.erase("LeftLowerArm")
+	# solved inside the standing pose by tools/stand_pose.gd -- grip
+	p.rest_relative["LeftUpperArm"] = Human.GRIP_UPPER
+	p.rest_relative["LeftLowerArm"] = Human.GRIP_LOWER
+	# Fingers curled over the webbing, thumb behind it -- the contract is
+	# specific about that and an open flat hand beside a strap reads as a hand
+	# that happens to be there. Relative, because the clips barely move fingers.
+	for f in ["Index", "Middle", "Ring", "Little"]:
+		p.tweaks["Left%sProximal" % f] = Vector3(0, 0, FINGER_CURL)
+		p.tweaks["Left%sIntermediate" % f] = Vector3(0, 0, FINGER_CURL * 1.25)
+		p.tweaks["Left%sDistal" % f] = Vector3(0, 0, FINGER_CURL * 0.7)
+	p.tweaks["LeftThumbProximal"] = Vector3(0, 0, -FINGER_CURL * 0.5)
+	p.tweaks["LeftThumbDistal"] = Vector3(0, 0, -FINGER_CURL * 0.4)
 	return p
 
 
@@ -84,11 +134,16 @@ func _process_modification() -> void:
 		var i := sk.find_bone(bone)
 		if i >= 0:
 			sk.set_bone_pose_rotation(i, _quat(absolute[bone]))
+	for bone: String in rest_relative:
+		var i := sk.find_bone(bone)
+		if i >= 0:
+			sk.set_bone_pose_rotation(i,
+				sk.get_bone_rest(i).basis.get_rotation_quaternion() * _quat(rest_relative[bone]))
 	for bone: String in tweaks:
 		var i := sk.find_bone(bone)
 		if i < 0:
 			continue
-		var e: Vector3 = tweaks[bone]
-		var q := Quaternion(Basis.from_euler(Vector3(
-			deg_to_rad(e.x), deg_to_rad(e.y), deg_to_rad(e.z))))
+		var q := _quat(tweaks[bone])
+		if not ("Proximal" in bone or "Intermediate" in bone or "Distal" in bone):
+			q = Quaternion.IDENTITY.slerp(q, tweak_weight)
 		sk.set_bone_pose_rotation(i, sk.get_bone_pose_rotation(i) * q)

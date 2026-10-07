@@ -1,8 +1,10 @@
 # MineWorld humanoid profile
 
 **Date** 2026-09-27 · **Status** describes a working implementation, not a plan
-· **Implemented by** `clients/3d-spike/` — `scripts/human.gd`, `tools/character_bake.py`,
-`tools/make_bonemaps.gd`, `tools/measure_stride.gd`
+· **Implemented by** `clients/3d-spike/` — `scripts/human.gd`,
+`tools/character_model.py`, `tools/garments.py`, `tools/hair.py`,
+`tools/model_lib.py`, `tools/character_textures.py`, `tools/patch_imports.py`,
+`tools/make_bonemaps.gd`, `tools/measure_stride.gd`, `tools/material_probe.gd`
 
 Every number here was measured from the running thing, by a tool in this repository
 that you can re-run. Where something is asserted without a measurement behind it, it
@@ -62,22 +64,22 @@ that both maps make the same choice, and they do.
 
 | Property | Value | How it was established |
 | --- | --- | --- |
-| Units | metres, 1 glTF unit = 1 m | glTF 2.0; the baked character measures 1.7687 m |
+| Units | metres, 1 glTF unit = 1 m | glTF 2.0; the baked character measures 1.7670 m |
 | Up axis | **+Y** | glTF 2.0 / Godot |
 | Model forward, node space | **−Z** | Godot `Node3D` convention |
 | **Reference-pose forward** | **+Z** | the profile's own convention, and it is what the character does — `--drive` prints `mesh face . player forward = +1.0000` |
 | Bone axis | **+Y from parent to child** | enforced by the importer's *Overwrite Axis* |
 | Node transform on the skeleton | none | enforced by *Apply Node Transform* |
 | Rest pose | T-pose | see §3 |
-| **Canonical authored height** | **1.7795 m** | printed by `tools/character_bake.py` from the baked GLB's own bounding box (y −0.0208 … 1.7586). It grew from 1.7687 when generated shoes put a sole below the bare foot. |
-| Skeleton `motion_scale` | 0.9956 | Godot sets it from hip height under *Normalize Position Tracks* |
+| **Canonical authored height** | **1.7670 m** | printed by `tools/character_model.py`: sole to crown, z −0.0201 … 1.7469. **Hair is excluded on purpose** — the gathered updo reaches 1.8026, and `height_mm` in the world means how tall the person is, not how tall her hair is. |
+| Skeleton `motion_scale` | 1.0048 | Godot sets it from hip height under *Normalize Position Tracks*; it moved from 0.9956 when the body was re-baked through the Ultra Feminine morph |
 
 ### Height rule
 
 Author once, scale the instance:
 
 ```
-instance.scale = height_m / 1.7795
+instance.scale = height_m / 1.7670
 ```
 
 `spike/server/src/world.rs` already declares `height_mm` per person (1800 / 1680 / 1750),
@@ -135,11 +137,12 @@ peak-to-peak travel as one stride, and counts two strides per cycle.
 
 | clip | cycle | stride | ground speed |
 | --- | --- | --- | --- |
-| `Walk` | 1.333 s | 0.705 m | **1.058 m/s** |
-| `Jog_Fwd` | 0.933 s | 1.235 m | **2.647 m/s** |
+| `Walk` | 1.333 s | 0.708 m | **1.063 m/s** |
+| `Jog_Fwd` | 0.933 s | 1.241 m | **2.660 m/s** |
 
 **These must be measured on the character, not on the animation rig** — on Quaternius's
-own skeleton the same clips give 1.021 and 2.503 m/s. Stride is leg *rotation* applied to
+own skeleton the same clips give 1.021 and 2.503 m/s, and on the previous
+occlusion-deleted body they gave 1.058 and 2.647. Stride is leg *rotation* applied to
 *our* limb lengths, which is also exactly why `Normalize Position Tracks` does not fix
 foot sliding: it rescales position tracks, and stride is not in them.
 
@@ -160,9 +163,9 @@ foot sliding: it rescales position tracks, and stride is not in them.
 
 ```
 standing still:   0.00 m travelled, 0.00 gait cycles
-walk 4.0 s:       4.00 cycles over 5.19 m, 0.771 cycles/m, planted foot drifts 24% of body speed
-walk 2.2 s:       1.50 cycles over 2.18 m, 0.687 cycles/m
-jog  4.0 s:       5.50 cycles over 11.84 m, 0.465 cycles/m, planted foot drifts 82% of body speed
+walk 4.0 s:       4.00 cycles over 5.24 m, 0.763 cycles/m, planted foot drifts 21% of body speed
+walk 2.2 s:       1.50 cycles over 2.19 m, 0.684 cycles/m
+jog  4.0 s:       5.00 cycles over 10.91 m, 0.458 cycles/m, planted foot drifts 82% of body speed
 ```
 
 Cycles are counted from the foot's own swing, between interpolated first and last
@@ -177,18 +180,18 @@ planted: a body hovering with its legs cycling below it would pass. So
 still, where the sole is on the ground by construction:
 
 ```
-lower foot vs its standing height: min -0.008 m, max +0.045 m
-in contact (within 15 mm of the ground) on 57% of sampled frames
+lower foot vs its standing height: min -0.006 m, max +0.045 m
+in contact (within 15 mm of the ground) on 61% of sampled frames
 ```
 
-There is a support phase. 8 mm of sole clipping at the low point is the
+There is a support phase. 6 mm of sole clipping at the low point is the
 remaining artefact. This measurement exists because a screenshot appeared to
 show both feet off the ground, and the measurement showed the screenshot was
 taken mid-deceleration rather than the gait being wrong.
 
 **Reading the numbers honestly.** Walk and jog legitimately differ in cycles/m — a jog
 has a longer stride. The jog drift figure is *not* comparable to the walk's, because a
-run has a flight phase where neither foot is planted. The 24% walk residual is ankle roll
+run has a flight phase where neither foot is planted. The 21% walk residual is ankle roll
 through stance plus sampling noise; it is not gross skating, but it is not zero either
 and a foot-lock IK pass is where it would go next.
 
@@ -196,12 +199,12 @@ and a foot-lock IK pass is where it would go next.
 
 ## 5. What a second character costs
 
-The pipeline is `tools/character_bake.py` plus a `BoneMap`. For a new character that is
+The pipeline is `tools/character_model.py` plus a `BoneMap`. For a new character that is
 already a rigged glTF humanoid:
 
 | step | cost |
 | --- | --- |
-| bake (strip animation, merge head/hair, decimate, retarget attributes) | minutes, scripted |
+| model (cut the garments out of the body, build hair and shoes, trim, export) | minutes, scripted, needs Blender |
 | BoneMap: add a column to the table in `make_bonemaps.gd`, regenerate, validate | ~30 min if the rig is a known family |
 | `.import` settings | copy, change two paths |
 | materials | ~1 h, and only if its texture set differs |
@@ -219,19 +222,28 @@ possible.
 
 ## 6. Limitations, stated
 
-- **One face, one body texture.** See above. The largest gap.
-- **The head is rigid.** Upstream ships it as a separate unskinned mesh; the bake
-  rigid-binds it to the `Head` joint, so the neck does not deform with it. Invisible at
-  conversation distance, visible if a character ever looks sharply sideways.
-- **FACS blendshapes are stripped.** 26 of them exist in the source. `ARC-4` scopes
-  facial fidelity down, and they cost ~8 MB. Re-bake without the strip if expressions are
-  ever wanted.
-- **Hair is decimated card geometry**, cropped by height to a short cut. It has no
-  physics; upstream's spring-bone rig was dropped with its skin.
-- **The hoodie is a shell**, offset from the t-shirt and the bare arms. No hood, no zip,
-  no pockets, no slack.
-- **The shoes are generated, not modelled.** The CC0 asset is barefoot -- its `VitShoes`
-  material is painted on bare toes -- so `--shoes` sweeps a cross-section along the foot's
-  measured bounding box and skins it across `Foot` and `ToeBase`. 204 verts for the pair.
-  It reads as a shoe at conversation distance and has no laces, tongue or sole tread.
+- **One face, one body texture.** See above. The largest gap for a *crowd*; the
+  default character now carries generated freckles on top of the CC0 face map,
+  which is per-character appearance rather than a second set.
+- **The head is no longer rigid.** It was, when the head arrived as a separate
+  unskinned mesh rigid-bound to the `Head` joint. The body is now exported whole
+  from CharMorph, so head, neck and torso are one skinned surface and the neck
+  deforms with it.
+- **FACS blendshapes are stripped.** 26 of them exist in the source; the export
+  does not carry them. That is what makes the character's expression fixed: she
+  cannot smile, and `CHARACTER_IDENTITY.md` §3 names a slight closed-mouth smile
+  as an identity feature. Re-exporting with `export_morph` on is the route.
+- **Hair is modelled card geometry** (`tools/hair.py`): an opaque cap, a swept
+  mass in clumps, a twist at the crown, a hairline layer and named loose
+  strands. It has no physics.
+- **The garments are cut out of the body surface** and offset, which is what
+  makes them fit and inherit skin weights. Real tailoring — panels with seam
+  allowance, a lining, cloth simulation — is not what this is.
+- **The shoes are cut from the feet**, inflated and given a flattened sole. No
+  laces, tongue or tread.
+- **Texture import flags are owned by `tools/patch_imports.py`.** They have to
+  be: every character map was imported with `mipmaps/generate=false`, and at
+  portrait distance a 2048 face albedo without a mip chain aliases into a
+  featureless smear while the hair opacity mask speckles. It looked like an art
+  problem for one review round and was a checkbox.
 - **Godot 4.7.2** is what this was built and measured on.

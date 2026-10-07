@@ -406,3 +406,193 @@ are the categories that carry recognition.
 
 None of it is committed. The add-on is AGPL and the data is CC0; only CC0
 output crosses into the repository, which is the boundary §10 states.
+
+---
+
+## 12. Re-baking the body, and the boundary the export sits on
+
+§11 proved the morph. This section records the export that followed, because
+`clients/3d-spike/tools/character_model.py` names it as its input and a reader
+has to be able to reproduce it without guessing.
+
+### Why the body had to be re-exported at all
+
+The committed character was baked from upstream's `godot_project/*.glb`, in
+which the body mesh is 12,221 vertices: neck-down, and **occlusion-deleted under
+its clothing**. That is a sensible thing for upstream to ship and it is the
+reason the character could not be re-dressed. There was no torso under the
+t-shirt to cut a new garment from, so every garment had to be a shell offset off
+the existing t-shirt, and a shell offset off a t-shirt cannot have a drawstring,
+a knitted cuff or a panel edge.
+
+The CharMorph mesh before any deletion is **39,168 vertices**, head included.
+
+### The export, step by step
+
+Run inside Blender with `BLENDER_USER_SCRIPTS` pointing at the scratch add-on
+tree. The script is **not committed**; it imports CharMorph, and §10's boundary
+holds. What it does is the specification:
+
+1. `addon_utils.enable("CharMorph")`; `ui.base_model = "Vitruvian"`;
+   `bpy.ops.charmorph.import_char()`.
+2. `mm.create_charmorphs(obj)` — the preset enum is empty until this runs.
+3. `mm.morpher.apply_morph_data(mm.morpher.core.char.presets["Ultra Feminine"],
+   False)` — a preset is applied through the morpher, not through an operator.
+4. `ui.rig = "mixamo"`, `ui.fin_rig = True`, `fin_morph = "NO"`,
+   `fin_subdivision = "NO"`, `fin_expressions = "NO"`, then
+   `bpy.ops.charmorph.finalize()`. This yields `mixamo_vitruvian`, **52 bones**,
+   53 vertex groups.
+5. Split the single mesh into materials **by UDIM tile**, which is what the
+   committed textures are baked for: tile 1001 above z = 1.52 is `MW_Face`;
+   tiles 1001–1004 elsewhere are `MW_Body`, remapped into the 2×2 body atlas
+   (`u' = (frac u + col)/2`, `v' = (frac v + row)/2`); 1005 `MW_Sclera`, 1006
+   `MW_Mouth`, 1007 `MW_Iris`. Source material `Pupil` becomes `MW_Pupil` — it
+   shares the sclera's UV island, so textured with the sclera map it renders as
+   a second white spot.
+6. **Delete the `AqueosLayer` faces** (512 of them). It is the wet shell in
+   front of the cornea; upstream's look-dev shader handles it and a
+   `StandardMaterial3D` cannot, so it renders as an opaque white cap and the eye
+   reads as a blank ball.
+7. **Push the iris and pupil forward** until they are proud of the cornea. They
+   are modelled ~5 mm inside it; measured here, the sclera's front sits at
+   y = −0.0632 and the iris at −0.0588, so they move 5.09 mm along −Y.
+   Upstream's own Godot export does the same thing for the same reason.
+8. Export GLB, `export_yup=True`, no animation, no morph targets.
+
+Result: **38,652 vertices**, 52 joints, one skinned mesh from crown to toe.
+
+### The values the export applies, so they cannot be lost again
+
+Steps 1–8 above were the specification, and they were not enough: the script
+also applies a face, a gaze and a smile whose values lived only in the scratch
+copy. When that scratchpad was wiped, the only record left was the transcript
+of the session that wrote it. These are the values, and with them the export is
+reproducible from this document alone.
+
+Applied **between steps 3 and 4**, through `window_manager.charmorphs.prop_<name>`
+(`FIDELITY_REVIEW.md` §6 is the measurement behind each):
+
+| Morph | Value | | Morph | Value |
+| --- | --- | --- | --- | --- |
+| `Jaw_Width` | −0.90 | | `Cheeks_BuccalFat` | +0.55 |
+| `Jaw_Ramus_Extrusion` | −0.95 | | `Face_Puffy` | +0.30 |
+| `Jaw_Mandible` | −0.90 | | `Eyes_Eyelid_Hooded` | +0.15 (was +0.55) |
+| `Jaw_Mandible_GonialAngle` | −0.90 | | `Eyes_UpperLidOpenness` | 0.00 (was −0.45) |
+| `Face_Zygomatic_Bone` | +0.80 | | `Eyes_EyeBagsSize` | +0.30 |
+| `Chin_Width` | +0.90 | | `Eyes_LowerLidOpenness` | −0.30 |
+| `Chin_SecondaryWidth` | +0.55 | | | |
+
+Applied **after step 7**, on the mesh:
+
+- **Pupil** pushed a further 0.3 mm along −Y past the iris, which it is
+  modelled coplanar with.
+- **Pupil** scaled ×0.62 about its own centre in the iris plane (x and z),
+  per eye: modelled dilated, it filled the iris and left a thin rim.
+- **Gaze**: each eye's sclera, iris and pupil vertices rotated about the eye's
+  own centroid, 15° yaw toward her left (+X) and +7° about X. **Positive
+  pitch is down** (rotation about +X takes −Y toward −Z). Printed iris
+  direction after, left eye: `(0.268, −0.955, −0.123)`.
+
+**Changed 2026-10-06 (preview 3), and why.** Preview 2 used hooded +0.55,
+upper-lid −0.45 and a gaze of 9° yaw, −3° pitch. −3° turned the iris *up*,
+and the lowered, hooded upper lid then covered its top so the eye showed white
+below the iris and read as looking upward. Turning the iris down alone (tried
+at +7°) left a slit under a heavy lid that read as drowsy. With the lid morphs
+relaxed to the values above and the iris turned 4° down, `P1_portrait_front`
+was right, but `P2_portrait_tq` -- whose camera is 0.12 m below her eyes --
+still showed white below the iris; at 7° both frames show the iris touching
+both lids, no white below, toward the outer corner of her left. Judged on
+the runtime frames at 4–5× crop, not on the printed direction. The overrides are environment variables in the scratch
+script (`MW_HOODED`, `MW_UPPERLID`, `MW_GAZE_YAW`, `MW_GAZE_PITCH`,
+`MW_PUPIL_SCALE`); the values in this section are the ones baked.
+- **Smile**: every `MW_Face` vertex within 22 mm of a lip corner at
+  `(±0.0235, −0.0735, 1.5715)` moves by `lift·w` up, `0.45·lift·w` back and
+  `0.30·lift·w` outward, `w = (1 − d/0.022)²`; `lift` is 4.0 mm at her right
+  corner (−X) and 2.5 mm (×0.62) at her left.
+
+The `AqueosLayer` delete (step 6) runs last, after everything that indexes
+`me.polygons`.
+
+**Blink (added 2026-10-01).** Just before that delete, while the vertex order
+is still the base mesh's, the export loads CharMorph's L3
+`Eyes_Closed_Left.npz` and `Eyes_Closed_Right.npz` (CC0; arrays `idx` uint16
+and `delta` float64 ×3) and writes `<out>_blink.json`: for each listed vertex,
+its current position and its delta, 1,099 vertices in all. Positions rather
+than indices, because the trim in `character_model.py` renumbers the body;
+`add_blink` there finds every one again (1,099 of 1,099, worst 0.001 mm) and
+adds the `Blink` shape key.
+
+**Reproduced 2026-09-30.** CharMorph (`Upliner/CharMorph`, `master`) and
+`character.zip` (`v1.6.1`, 1,122,993,038 bytes) were re-fetched into
+`/Users/yuema137/mineworld-worktrees/scratch-character/`, outside the
+repository, and the script was recovered from that session transcript. The zip
+holds two pairs of names that differ only in case
+(`Eyes_Eyelid_hooded.npz`/`Eyes_Eyelid_Hooded.npz`, and one under `L3/`), so on
+a case-insensitive filesystem one overwrites the other; the original bake ran
+on the same filesystem. The recovered export, run through the unchanged
+`character_model.py`, reproduced the committed bake's counts exactly —
+50,970 vertices, 88,686 triangles, 1.7672 m — which is the check that the
+recovery is faithful.
+
+### What the export also emits, and why
+
+A small JSON of the face's `(x, y, z, u, v)` per vertex. `character_model.py`
+uses the geometry it has to place the freckles — a blob on the nose bridge, one
+on each upper cheek, with the eyelids and lips excluded — and writes out their
+UV positions for `character_textures.py` to stipple. Freckles placed by eye on a
+UV sheet land somewhere arbitrary on the face; `CHARACTER_IDENTITY.md` §3 calls
+them an identity feature, so they are placed against the geometry.
+
+### The boundary, once more
+
+CharMorph is AGPL-3.0 **authoring tooling** and stays in the scratchpad with its
+1.2 GB of character data. What crosses into this repository is its CC0 output —
+one GLB and one landmark file — and everything under
+`clients/3d-spike/tools/` works on that output and never imports CharMorph.
+Blender itself is used as a modelling library by the committed tools, which is
+an ordinary build-time dependency and not a distribution of Blender.
+
+## 13. Hair: the licence search, and why it is modelled
+
+`CHARACTER_IDENTITY.md` §4 makes hairstyle **category** a hard-fail item, so
+substituting a style that happens to ship was not open to us.
+
+CharMorph ships six grooms with Vitruvian — `Eve`, `Back1`, `Bob`,
+`Combover_zoro_d`, `SceneHair_1_O4saken`, `SlickedBack` — and **none of them is
+an updo**. They are also Blender particle grooms, which need a converter to
+become game-ready cards; upstream used the commercial *Hair Tool* add-on, whose
+output we could ship but whose tool we do not have and would not commit.
+
+Per-asset CC0 sources were checked for a redistributable tied-up hairstyle in
+card form and none was found that clears `DEP-8`'s test — free to
+**redistribute**, not merely free to use. Recorded here so the search is not
+repeated and so nobody concludes they searched badly.
+
+So the hair is modelled: `clients/3d-spike/tools/hair.py` builds an opaque cap,
+a swept mass in clumps, a twist at the crown, a hairline layer and the named
+loose strands, all as cards on the character's own fitted head ellipsoid.
+
+**One finding is worth more than the geometry.** The cards were first mapped
+onto upstream's CC0 *groom* texture, which is a dense continuous carpet of
+strands. Every card cut from such a map is an opaque rectangle with hard edges,
+so a head of them renders as a smooth brown cap **whatever the geometry does**
+— four rounds of tuning the sweep, the volume and the gather point all produced
+the same cap. A card atlas has to be *cards*: isolated tapered locks with
+transparent margins, at a strand width that survives a mip chain.
+`character_textures.py` now generates one. The remaining hair gap is silhouette,
+not rendering, and it is recorded in
+[`../presentation/mineworld-default/3D/FIDELITY_REVIEW.md`](../presentation/mineworld-default/3D/FIDELITY_REVIEW.md).
+
+**Since preview 3 (2026-10-06) the hair is groomed, not swept**, as
+[`references/CHARACTER_ROUTE_ASSESSMENT.md`](references/CHARACTER_ROUTE_ASSESSMENT.md)
+§5(1) recommends. `clients/3d-spike/tools/hair_groom.py` authors guide strands
+as data and grows them with Blender's bundled Essentials hair node groups;
+`hair_atlas.py` draws the strand atlas. Licence position of each input, for
+`DEP-8`:
+
+| Input | Licence | What enters the repository |
+| --- | --- | --- |
+| Blender Essentials hair node groups (`datafiles/assets/nodes/procedural_hair_node_assets.blend`, Blender 5.2.2) | CC0 under the Blender asset-bundle guidelines ("We will only accept CC-0 licensed assets", quoted in the route assessment §4.7) | **nothing of theirs**: they are appended at build time from the installed Blender and run as tools; only their output -- curves we authored, grown and cut into cards -- is committed, inside `vitruvian.glb` |
+| `hair_strands.png` | **since preview 4**: cut from the eight OwlishMedia maps in the next row (`hair_atlas.py --alphas`); before that, our own procedural work (`hair_atlas.py`, seeded, still the fallback) | the PNG, 2048 x 1024 |
+| OwlishMedia "Hair Alphas For Days" (OpenGameArt) | CC0, read 2026-10-06 at <https://opengameart.org/content/hair-alphas-for-days> | fetched 2026-10-06 by `tools/fetch_hair_alphas.sh` into scratch under the operator's grant; the archive is not committed. Eight maps -- `hair01`, `hair04`, `hair05`, `hair06`, `hair08`, `hair09`, `hair21`, `hair27` -- enter only as cropped, downscaled columns of `hair_strands.png`. Recorded in [`../presentation/mineworld-default/LICENSES/OWLISHMEDIA_HAIR_ALPHAS.txt`](../presentation/mineworld-default/LICENSES/OWLISHMEDIA_HAIR_ALPHAS.txt) |
+| MakeHuman `hair01` buns | CC0 per row (route assessment §4.4) | not used |

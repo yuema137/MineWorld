@@ -12,7 +12,8 @@
 ## to change for the swap, and `--drive` still prints world-space facing so a
 ## regression here is one line of output rather than a squint at a screenshot.
 ##
-## SCALE: the authored figure measures 1.7688 m. An instance is scaled by
+## SCALE: the authored figure measures 1.7670 m (sole to crown; the gathered
+## hair reaches 1.8026 and is deliberately not counted -- see character_model.py). An instance is scaled by
 ## `height / 1.7688`, which is the rule `docs/HUMANOID_PROFILE.md` states and
 ## the reason `height_mm` in the server means something visible here.
 ##
@@ -27,9 +28,10 @@ const SRC := "res://assets/characters/vitruvian/vitruvian.glb"
 const CLIPS := "res://assets/characters/quaternius_ual.glb"
 const TEX := "res://assets/characters/vitruvian/textures/"
 
-## Measured from the baked GLB, not assumed. `tools/character_bake.py` prints it.
-## It grew from 1.7688 when the generated shoes added a sole below the bare foot.
-const CANONICAL_HEIGHT := 1.7799
+## Measured from the baked GLB, not assumed. `tools/character_model.py` prints it.
+## It moved from 1.7799 when the body was re-baked through CharMorph's Ultra
+## Feminine morph and the shoes stopped being a swept tube.
+const CANONICAL_HEIGHT := 1.7670
 
 ## Ground speed each clip is authored at, **measured on this character** by
 ## `tools/measure_stride.gd`: it samples a foot relative to the hips across one
@@ -39,13 +41,13 @@ const CANONICAL_HEIGHT := 1.7799
 ## animation rig. `Normalize Position Tracks` rescales *position* tracks; stride
 ## lives in the leg *rotations* applied to our limb lengths, so it survives
 ## normalisation untouched and differs from the Quaternius mannequin's
-## (1.021 / 2.503 m/s on its own skeleton, 1.058 / 2.647 on ours).
+## (1.021 / 2.503 m/s on its own skeleton, 1.063 / 2.660 on ours).
 ##
 ## The first version of this file guessed 1.35 and 3.10. At the controller's
 ## real 1.45 m/s that guess ran the clip ~30% too slow, which is precisely the
 ## skating this constant exists to prevent.
-const WALK_CLIP_MPS := 1.058
-const JOG_CLIP_MPS := 2.647
+const WALK_CLIP_MPS := 1.063
+const JOG_CLIP_MPS := 2.660
 
 static var _scene: PackedScene
 static var _lib: AnimationLibrary
@@ -62,6 +64,24 @@ var _seat_y := 0.45
 ## failed compilation and degraded the whole scene.
 var _inst: Node3D
 
+## Blinking. The rig has no lid bones, so the lids close through the body
+## mesh's `Blink` shape key (CharMorph's L3 Eyes_Closed, baked by
+## `character_model.py`). Driven here rather than keyed in `Stand`, so a person
+## blinks while walking as well as standing; each person's rhythm is their own.
+var _face: MeshInstance3D
+var _blink_idx := -1
+var _blink_t := 0.0
+var _blink_next := 3.0
+var _blink_double := false
+var _blink_rng := RandomNumberGenerator.new()
+## Diagnostic: hold the lids at this weight (>= 0) instead of blinking.
+var blink_hold := -1.0
+## The shape key's weight at the bottom of a blink. Past 1.0 because the
+## export pushes the iris 5 mm proud of the cornea (it rendered as a blank
+## ball otherwise), and at 1.0 CharMorph's lids stopped just short of it:
+## a closed eye with a slit of iris showing.
+const BLINK_PEAK := 1.3
+
 
 static func _tex(file: String, srgb: bool) -> Texture2D:
 	var t := load(TEX + file) as Texture2D
@@ -76,12 +96,31 @@ static func _shared() -> Dictionary:
 		return _mats
 	var sclera := StandardMaterial3D.new()
 	sclera.albedo_texture = _tex("sclera.jpg", true)
-	sclera.roughness = 0.25
+	sclera.roughness = 0.46
 	_mats["sclera"] = sclera
 	var iris := StandardMaterial3D.new()
 	iris.albedo_texture = _tex("iris.jpg", true)
-	iris.roughness = 0.12
+	# Not glossy: the iris sits *behind* the cornea, and the cornea's highlight
+	# is not the iris's to carry.  At 0.12 a brown iris mirrored the sky and
+	# rendered silver-grey at every portrait framing.
+	# Matte and barely specular: in shade at 0.5 the sky's reflection turned
+	# the iris grey-blue in the three-quarter portrait.
+	iris.roughness = 0.85
+	iris.metallic_specular = 0.15
+	# The CC0 iris map is amber; the reference's eyes are warm brown, and at
+	# chest-up framing the amber read as yellow-gold.
+	iris.albedo_color = Color(0.58, 0.40, 0.28)
 	_mats["iris"] = iris
+	# The pupil is its own 64-face disc in the CC0 mesh, sharing the sclera's UV
+	# island; textured with the sclera map it reads as a second white spot.
+	# And it is matte.  At roughness 0.10 the near-black disc was a mirror and
+	# reflected the sky, so every portrait showed silver-grey eyes over a brown
+	# iris.  It cannot simply be hidden: the iris mesh is a ring, and without
+	# the disc the white sclera shows through its centre.
+	var pupil := StandardMaterial3D.new()
+	pupil.albedo_color = Color(0.03, 0.025, 0.02)
+	pupil.roughness = 0.7
+	_mats["pupil"] = pupil
 	var mouth := StandardMaterial3D.new()
 	mouth.albedo_texture = _tex("mouth.jpg", true)
 	mouth.roughness = 0.35
@@ -102,28 +141,58 @@ static func _skin(bc: String, nm: String, rough: String, tint: Color) -> Standar
 	m.normal_enabled = true
 	m.normal_texture = _tex(nm, false)
 	m.normal_scale = 0.8
-	m.roughness_texture = _tex(rough, false)
-	m.roughness = 1.0
+	# Matte, not wet. The CC0 roughness map runs glossy across the T-zone, and
+	# with the default specular every preview showed a wet sheen on the
+	# forehead, nose and chin where the reference's skin is matte with a soft
+	# glow. A constant, fairly rough surface and a low specular level give
+	# skin's broad, dim highlight instead of a lacquer's. (`rough` is kept in
+	# the signature: the map is still the right input once a material model
+	# with a separate sheen lobe is used.)
+	m.roughness = 0.66
 	m.metallic = 0.0
+	m.metallic_specular = 0.30
 	# MakeHuman-family skins are diffuse-dominant and read waxy in Forward+
-	# without this; it is the cheapest large step toward the reference's
-	# material feel and costs nothing in the lighting rig.
+	# without subsurface scattering. Stronger than before, and with warm
+	# transmittance, for the reference's "visible subsurface warmth at the ear,
+	# the nose and the jaw edge where light passes through".
 	m.subsurf_scatter_enabled = true
-	m.subsurf_scatter_strength = 0.28
+	m.subsurf_scatter_strength = 0.45
 	m.subsurf_scatter_skin_mode = true
+	m.subsurf_scatter_transmittance_enabled = true
+	m.subsurf_scatter_transmittance_color = Color(0.95, 0.42, 0.28)
+	m.subsurf_scatter_transmittance_depth = 0.12
+	m.subsurf_scatter_transmittance_boost = 0.25
 	return m
 
 
-## The groom's coverage lives in its own map, which StandardMaterial3D cannot
-## sample -- see shaders/hair_card.gdshader.
-static func _hair(tint: Color) -> ShaderMaterial:
+## The card atlas carries coverage in its alpha, which StandardMaterial3D cannot
+## sample separately -- see shaders/hair_card.gdshader.
+##
+## One file feeds both slots. It is the strand atlas built by
+## `tools/hair_atlas.py --alphas` (since preview 4, cut from OwlishMedia's CC0
+## strand maps; see presentation/mineworld-default/LICENSES/): eight columns of
+## fine strands with transparent gaps,
+## for the groomed cards of `tools/hair_groom.py`. The previous atlas drew a
+## dozen thick bars per lock, and a head of them read as stripes.
+static func _hair(tint: Color, flip_back := true) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/hair_card.gdshader")
-	m.set_shader_parameter("tex_diffuse", _tex("hair_bc.jpg", true))
-	m.set_shader_parameter("tex_opacity", _tex("hair_opacity.png", false))
+	var atlas := _tex("hair_strands.png", true)
+	m.set_shader_parameter("tex_diffuse", atlas)
+	m.set_shader_parameter("tex_opacity", atlas)
 	m.set_shader_parameter("tint", tint)
-	m.set_shader_parameter("cutoff", 0.42)
+	# lower than preview 3's 1.45/1.35/1.20: with the CC0 strands and lit
+	# back faces, sunlit loose locks read near-blonde
+	m.set_shader_parameter("highlight", Color(tint.r * 1.30, tint.g * 1.20, tint.b * 1.08))
+	m.set_shader_parameter("cutoff", 0.30)
 	m.set_shader_parameter("roughness_v", 0.55)
+	# The CC0 strand sheets carry brighter shading than our procedural atlas
+	# (most strands near 1.0), and at gain 1.0 nearly every pixel took the
+	# highlight colour: the hair read ginger. 0.72 keeps the caramel for the
+	# brightest strands only.
+	m.set_shader_parameter("diffuse_gain", 0.72)
+	m.set_shader_parameter("root_shade", 0.72)
+	m.set_shader_parameter("flip_back", flip_back)
 	return m
 
 
@@ -141,13 +210,30 @@ static func _cloth(c: Color, rough: float) -> StandardMaterial3D:
 	return m
 
 
+## A printed garment: the albedo carries the artwork, so the tiling weave normal
+## that `_cloth` applies would fight it and the UV scale must stay at 1:1.
+## `tile` repeats a seamless material (denim) across a planar UV in metres.
+static func _printed(file: String, tint: Color, rough: float, tile := 1.0) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _tex(file, true)
+	m.albedo_color = tint
+	m.roughness = rough
+	m.metallic = 0.0
+	m.uv1_scale = Vector3(tile, tile, 1)
+	return m
+
+
 ## Shoes get no weave -- leather is not fabric, and the tiled normal read as
 ## camouflage on a foot-sized surface.
-static func _plain(c: Color, rough: float) -> StandardMaterial3D:
+static func _plain(c: Color, rough: float, spec := 0.5) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = c
 	m.roughness = rough
 	m.metallic = 0.0
+	m.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+	m.roughness = rough
+	m.albedo_color = c
+	m.metallic_specular = spec
 	return m
 
 
@@ -173,17 +259,47 @@ static func build(height_m: float, skin: Color, hair: Color,
 	# re-running the bake with a different surface order cannot silently paint
 	# the shirt with skin. `tools/character_bake.py` carries the names through.
 	var by_name := {
-		"VitBody": _skin("body_bc.jpg", "body_n.jpg", "body_rough.jpg", skin),
-		"VitShoes": _plain(shoe, 0.45),
-		"VitShoeL": _plain(shoe, 0.55), "VitShoeR": _plain(shoe, 0.55),
-		"VitPants": _cloth(legs, 0.85), "VitShirt": _cloth(top, 0.80),
-		"VitSkin": _skin("face_bc.jpg", "face_n.jpg", "face_rough.jpg", skin),
-		"VitMouth": m["mouth"],
-		"VitSclera": m["sclera"], "VitIris": m["iris"], "VitHair": _hair(hair),
-		"VitHoodie": _cloth(hoodie, 0.86),
+		"MW_Body": _skin("body_bc.jpg", "body_n.jpg", "body_rough.jpg", skin),
+		"MW_Face": _skin("face_bc.jpg", "face_n.jpg", "face_rough.jpg", skin),
+		"MW_Mouth": m["mouth"],
+		"MW_Sclera": m["sclera"], "MW_Iris": m["iris"], "MW_Pupil": m["pupil"],
+		# the mountain-and-slogan print is the one unique object on the
+		# character, so the tee's albedo is artwork rather than a flat colour
+		"MW_Tee": _printed("tee_bc.jpg", top, 0.82),
+		# the ribbed crew neck, a darker maroon-brown band than the tee body
+		"MW_TeeRib": _cloth(Color(top.r * 0.46, top.g * 0.30, top.b * 0.27), 0.9),
+		"MW_Jeans": _printed("denim_bc.jpg", legs, 0.86, 2.0),
+		"MW_Denim_Trim": _printed("denim_bc.jpg", legs.darkened(0.10), 0.84, 2.0),
+		"MW_Hoodie": _cloth(hoodie, 0.86),
+		# the zip tape is a lighter woven strip, not metal: the teeth are below
+		# the resolution this character is ever seen at
+		"MW_Zip": _plain(Color(0.66, 0.64, 0.60), 0.55),
+		"MW_Cord": _plain(Color(0.88, 0.84, 0.74), 0.72),
+		"MW_Shoe": _plain(shoe, 0.55), "MW_Sole": _plain(shoe.darkened(0.35), 0.72),
+		# the rucksack: grey-green canvas, grey-green webbing over a dark navy
+		# lower section with a visible adjuster, as the reference shows
+		"MW_Pack": _cloth(pack, 0.92),
+		# the padded straps are the bag's own canvas; lightened, they read
+		# slate-blue in the sky light of the chest-up frames
+		"MW_Webbing": _cloth(pack, 0.88),
+		"MW_StrapLow": _plain(Color(0.10, 0.11, 0.14), 0.80),
+		"MW_Buckle": _plain(Color(0.16, 0.16, 0.15), 0.42, 0.35),
+		"MW_Hair": _hair(hair),
+		# darker and cooler than the hair, as the reference's brows are
+		"MW_Brow": _hair(hair.darkened(0.42), false),
+		# The opaque shell under the cards; alpha-scissored hair always leaks and
+		# this is what stops scalp showing between strands. Only slightly darker
+		# than the strands: at 45% darker its edge read as a black headband
+		# across the forehead wherever the cards were thin.
+		# 8% darker, not 18%: under the CC0 strands' wider gaps the darker cap
+		# showed through as dark patches on the crown.
+		"MW_HairCap": _plain(hair.darkened(0.08), 0.68),
 	}
 	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
 		if mi.name == "Hoodie" and hoodie.a <= 0.0:
+			mi.visible = false
+			continue
+		if mi.name == "Pack" and pack.a <= 0.0:
 			mi.visible = false
 			continue
 		for i in mi.mesh.get_surface_count():
@@ -193,61 +309,24 @@ static func build(height_m: float, skin: Color, hair: Color,
 				mi.set_surface_override_material(i, by_name[key])
 			else:
 				push_warning("human.gd: no material for surface '%s'" % key)
+		if mi.name == "Body" and mi.find_blend_shape_by_name("Blink") >= 0:
+			h._face = mi
+			h._blink_idx = mi.find_blend_shape_by_name("Blink")
 		# The hair is alpha-scissored and self-shadows badly at grazing angles.
 		if mi.name == "Hair":
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 
-	if pack.a > 0.0:
-		h._backpack(pack)
-
-	# Layered after the AnimationTree; see posture.gd for why it exists.
-	h._posture = Posture.natural_stance()
+	# Layered after the AnimationTree; see posture.gd for why it exists. The
+	# reference character also holds her backpack strap, which is a pose and not
+	# a prop: the hand has to be on the webbing, so it is solved and locked.
+	h._posture = Posture.holding_strap() if pack.a > 0.0 else Posture.natural_stance()
 	h.skeleton.add_child(h._posture)
 
-	h._build_tree(inst)
+	h._build_tree(inst, pack.a > 0.0)
 	return h
 
 
-## A backpack on one shoulder. Built from primitives and hung off the profile's
-## UpperChest bone with a BoneAttachment3D, so it rides the spine and needs no
-## skinning -- a rucksack is rigid anyway. The strap across the chest is most of
-## what makes the reference silhouette recognisable, more than the bag itself.
-## A backpack on the shoulders, built from primitives.
-##
-## Parented to the character rather than to a bone. A `BoneAttachment3D` on
-## UpperChest is the textbook answer and it is what the first version did, but
-## the bone's frame after retargeting is not character space and undoing it put
-## the bag through the chest at an angle. A rucksack on a walking person barely
-## moves relative to the torso, so the honest trade is fixed placement that is
-## visibly right over rig-following that is visibly wrong. If the character ever
-## needs to bend, this is the thing to revisit.
-func _backpack(c: Color) -> void:
-	var hold := Node3D.new()
-	hold.name = "Pack"
-	add_child(hold)
-
-	var canvas := Mats.paint(c, 0.92)
-	var webbing := Mats.paint(c.darkened(0.30), 0.88)
-	var buckle := Mats.paint(Color(0.18, 0.18, 0.17), 0.45, 0.4)
-	# the bag on the upper back, with a lid flap and a lower pocket so the
-	# silhouette is not one plain box
-	Build.box(hold, Vector3(0, 1.235, -0.185), Vector3(0.265, 0.34, 0.145), canvas)
-	Build.box(hold, Vector3(0, 1.385, -0.185), Vector3(0.245, 0.10, 0.155),
-		Mats.paint(c.lightened(0.05), 0.92))
-	Build.box(hold, Vector3(0, 1.115, -0.205), Vector3(0.20, 0.11, 0.12),
-		Mats.paint(c.darkened(0.14), 0.92))
-	# straps over both shoulders and down the chest. The right-hand one is what
-	# the reference character grips, and it carries a lot of the silhouette.
-	for sx in [-1.0, 1.0]:
-		Build.box(hold, Vector3(sx * 0.105, 1.445, -0.02), Vector3(0.065, 0.075, 0.28),
-			webbing)
-		Build.box(hold, Vector3(sx * 0.115, 1.29, 0.105), Vector3(0.06, 0.34, 0.05),
-			webbing)
-		Build.box(hold, Vector3(sx * 0.115, 1.135, 0.120), Vector3(0.055, 0.055, 0.035),
-			buckle)
-
-
-func _build_tree(inst: Node) -> void:
+func _build_tree(inst: Node, grip: bool) -> void:
 	if _lib == null:
 		var clips := (load(CLIPS) as PackedScene).instantiate()
 		var ap := clips.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
@@ -255,6 +334,9 @@ func _build_tree(inst: Node) -> void:
 		# a clip of our own has to go into it
 		_lib = ap.get_animation_library(ap.get_animation_library_list()[0]).duplicate()
 		_lib.add_animation("Sit", _sit_clip())
+		# every body is the same GLB, so the first skeleton's rests serve all
+		_lib.add_animation("Stand", _stand_clip(skeleton, false))
+		_lib.add_animation("StandGrip", _stand_clip(skeleton, true))
 		clips.queue_free()
 
 	var player := AnimationPlayer.new()
@@ -279,7 +361,11 @@ func _build_tree(inst: Node) -> void:
 	# the blended stride interpolates exactly as the blend position does, so
 	# playing at rate 1.0 covers exactly the ground the body is covering. Put a
 	# clip at the wrong position and the whole band skates.
-	for pair in [["Idle", 0.0], ["Walk", WALK_CLIP_MPS], ["Jog_Fwd", JOG_CLIP_MPS]]:
+	# Standing is our own clip, not the library's `Idle`: that one is authored
+	# for an action game -- feet wide, arms held clear, head back -- and it is
+	# what the operator called stiff. See `stand_key`.
+	var stand := "StandGrip" if grip else "Stand"
+	for pair in [[stand, 0.0], ["Walk", WALK_CLIP_MPS], ["Jog_Fwd", JOG_CLIP_MPS]]:
 		var n := AnimationNodeAnimation.new()
 		n.animation = pair[0]
 		n.resource_name = pair[0]
@@ -360,6 +446,121 @@ static func _sit_clip() -> Animation:
 	return a
 
 
+static func euler_q(e: Vector3) -> Quaternion:
+	return Quaternion(Basis.from_euler(Vector3(
+		deg_to_rad(e.x), deg_to_rad(e.y), deg_to_rad(e.z))))
+
+
+## The standing loop's length: three breaths, and one slow drift of the gaze.
+const STAND_LOOP := 12.6
+const BREATH := 4.2
+## Hips lowered so the straight standing leg's sole stays on the floor once the
+## pelvis tilts. Measured by `tools/stand_pose.gd -- eval`.
+const HIP_DROP := -0.009
+## The gripping arm, as rest-relative eulers, solved inside this pose by
+## `tools/stand_pose.gd -- grip`: the strap rides the chest, so a grip solved
+## against the old spine does not land on it here.
+## Knuckle 0.3 mm from the strap; the elbow hangs 216 mm below the shoulder and
+## 87 mm out, a little behind the side -- with this forearm a hand on the strap
+## at chest height cannot have its elbow in front, and the reference's is down
+## at her side.
+const GRIP_UPPER := Vector3(62.8, 57.2, 39.4)
+const GRIP_LOWER := Vector3(109.0, -16.9, -23.7)
+
+
+## The standing pose at time `t` in its loop.
+##
+## Profile bone name -> euler in degrees **relative to the rest pose** (the
+## clip keys `rest * delta`; limb rests are not identity on this skeleton),
+## plus `"Hips@pos"`, an offset from the hips' rest position. Every axis below
+## was measured by `tools/stand_pose.gd -- sweep`, not assumed:
+##
+##   Hips/Spine/Chest  X+ bends forward   Z+ leans to her right   Y twists
+##   Head              X+ face down       Y+ face to her left
+##   Right upper arm   X+ lowers from T   Z- swings the hand forward
+##   Left upper arm    X+ lowers from T   Z+ swings the hand forward
+##   Forearms          X+ bends the elbow forward
+##   Upper legs        X+ flexes the hip  Z+ moves the foot toward her left
+##   Lower legs        X+ bends the knee
+##
+## What the reference shows and this reproduces: weight on her right leg with
+## the left knee relaxed and the pelvis dropping to that side, the shoulders
+## countering it; the free arm hanging at her side with the elbow soft; the
+## other hand on the strap; the head turned to her left and level, not tipped
+## back. And the parts that make a still figure a person standing there: she
+## breathes, and her gaze drifts.
+static func stand_key(t: float, grip: bool) -> Dictionary:
+	var breath := sin(TAU * t / BREATH)
+	var g := TAU * t / STAND_LOOP
+	var look := 0.55 * sin(g) + 0.25 * sin(2.0 * g + 1.3)
+	var k := {
+		"Hips": Vector3(0, 0, -5.0),
+		"Hips@pos": Vector3(0, HIP_DROP, 0),
+		"Spine": Vector3(1.0, 0, 2.5),
+		"Chest": Vector3(0.5 + 0.5 * breath, 0, 2.0),
+		"UpperChest": Vector3(-0.7 * breath, 0, 1.0),
+		# Turned well to her left, as the reference's head is -- 29 degrees still
+		# read near-frontal at portrait framing -- and level, not tipped back.
+		# "Level" is judged on the frame, not on the probe: the head bone's +Z
+		# is not where the face points, and at a probe pitch of -4 degrees she
+		# was visibly looking up, chin raised.
+		"Neck": Vector3(3.0, 12.0 + 3.0 * look, 0),
+		"Head": Vector3(9.0 + 1.5 * sin(2.0 * g + 0.4), 24.0 + 7.0 * look, -3.0),
+		"RightShoulder": Vector3(0.5 * breath, 0, 0),
+		"RightUpperArm": Vector3(87.0, 0, -6.0),
+		"RightLowerArm": Vector3(14.0, 0, 0),
+		"LeftShoulder": Vector3(0.5 * breath, 0, 0),
+		"LeftUpperArm": Vector3(83.0, 0, 6.0),
+		"LeftLowerArm": Vector3(14.0, 0, 0),
+		# Standing leg: straight, foot flat under the hip. The pelvis roll
+		# swings both legs out to her right, so both thighs bring them back.
+		"RightUpperLeg": Vector3(1.5, 6.0, 10.9),
+		"RightLowerLeg": Vector3(0, 0, 0),
+		"RightFoot": Vector3(-1.0, 0, 0),
+		# Free leg: hip forward, knee soft, foot a little forward and out.
+		"LeftUpperLeg": Vector3(18.0, -6.6, 2.6),
+		"LeftLowerLeg": Vector3(22.0, 0, 0),
+		"LeftFoot": Vector3(0.5, 0, 0),
+	}
+	if grip:
+		k["LeftShoulder"] = Vector3.ZERO
+		k["LeftUpperArm"] = GRIP_UPPER
+		k["LeftLowerArm"] = GRIP_LOWER
+	return k
+
+
+## The standing loop as a clip, so it goes through the tree like `Sit` does
+## rather than being forced onto the bones afterwards. Keyed every 0.15 s from
+## `stand_key`, which keeps breathing and the gaze drift smooth under linear
+## interpolation; the loop's last key equals its first.
+static func _stand_clip(sk: Skeleton3D, grip: bool) -> Animation:
+	var a := Animation.new()
+	a.length = STAND_LOOP
+	a.loop_mode = Animation.LOOP_LINEAR
+	var tracks := {}
+	var steps := int(round(STAND_LOOP / 0.15))
+	for s in steps + 1:
+		var t := STAND_LOOP * s / steps
+		var k := stand_key(t, grip)
+		for bone: String in k:
+			var name := bone.trim_suffix("@pos")
+			var i := sk.find_bone(name)
+			if i < 0:
+				continue
+			if not tracks.has(bone):
+				var ti := a.add_track(Animation.TYPE_POSITION_3D if bone.ends_with("@pos")
+					else Animation.TYPE_ROTATION_3D)
+				a.track_set_path(ti, "%%GeneralSkeleton:%s" % name)
+				tracks[bone] = ti
+			var rest := sk.get_bone_rest(i)
+			if bone.ends_with("@pos"):
+				a.position_track_insert_key(tracks[bone], t, rest.origin + (k[bone] as Vector3))
+			else:
+				a.rotation_track_insert_key(tracks[bone], t,
+					rest.basis.get_rotation_quaternion() * euler_q(k[bone]))
+	return a
+
+
 ## Drive the body from a ground speed measured elsewhere -- the same contract the
 ## capsule mannequin had, so `npc.gd` and `player.gd` did not have to change.
 ## The cadence rule, stated so it is testable: **animation phase advances with
@@ -392,6 +593,8 @@ func set_gait(speed_mps: float) -> void:
 		rate = want / blend
 	_tree.set("parameters/Locomotion/blend_position", blend)
 	_tree.set("parameters/Rate/scale", rate)
+	if _posture:
+		_posture.tweak_weight = clampf(blend / WALK_CLIP_MPS, 0.0, 1.0)
 
 
 ## World position of a foot. Used by `--drive` to measure foot sliding directly
@@ -440,6 +643,37 @@ func sit(seat_y := 0.45) -> void:
 func _ready() -> void:
 	if _sitting:
 		_settle_seat()
+	_blink_rng.seed = get_instance_id()
+	_blink_next = _blink_rng.randf_range(0.5, 4.0)
+
+
+## One blink: 70 ms closing, 30 ms shut, 120 ms opening -- the lid comes down
+## faster than it goes up. Every 2.4-5.5 s, and one time in six a double.
+func _process(delta: float) -> void:
+	if _blink_idx < 0:
+		return
+	if blink_hold >= 0.0:
+		_face.set_blend_shape_value(_blink_idx, blink_hold)
+		return
+	_blink_t += delta
+	var w := 0.0
+	var t := _blink_t - _blink_next
+	if t >= 0.0:
+		if t < 0.07:
+			w = t / 0.07
+		elif t < 0.10:
+			w = 1.0
+		elif t < 0.22:
+			w = 1.0 - (t - 0.10) / 0.12
+		else:
+			_blink_t = 0.0
+			if _blink_double:
+				_blink_double = false
+				_blink_next = 0.12
+			else:
+				_blink_double = _blink_rng.randf() < 0.16
+				_blink_next = _blink_rng.randf_range(2.4, 5.5)
+	_face.set_blend_shape_value(_blink_idx, w * BLINK_PEAK)
 
 
 ## The hips can only be measured once the tree has actually written the seated

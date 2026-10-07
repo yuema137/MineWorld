@@ -87,12 +87,22 @@ const MAP := {
 const ALSO_REQUIRED := ["Chest", "UpperChest", "Neck", "LeftToes", "RightToes"]
 
 
+## The GLB is parsed directly rather than through `load()`, because the importer
+## now applies this very BoneMap: an imported skeleton answers with profile bone
+## names, so validating the map against it would check the map against itself.
+## `GLTFDocument` gives the source names, Godot-sanitised the same way the
+## importer sanitises them (`mixamorig:Hips` becomes `mixamorig_Hips`).
 func _bones_of(path: String) -> PackedStringArray:
-	var ps := load(path) as PackedScene
-	if ps == null:
-		push_error("cannot load " + path)
+	var doc := GLTFDocument.new()
+	var state := GLTFState.new()
+	var err := doc.append_from_file(ProjectSettings.globalize_path(path), state)
+	if err != OK:
+		push_error("cannot parse %s: %d" % [path, err])
 		return PackedStringArray()
-	var root := ps.instantiate()
+	var root := doc.generate_scene(state)
+	if root == null:
+		push_error("cannot build scene from " + path)
+		return PackedStringArray()
 	var out := PackedStringArray()
 	for n in root.find_children("*", "Skeleton3D", true, false):
 		var s := n as Skeleton3D

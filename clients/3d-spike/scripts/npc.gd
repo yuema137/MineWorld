@@ -36,16 +36,33 @@ extends Node3D
 ## real controller instead of along a path.
 enum Pose { WALK, STAND, SIT, LEAN, PUPPET }
 
-## Skin is a *tint over one photographic albedo*, so these stay close to neutral:
-## pushed further they read as paint rather than as people. The honest limit is
-## that the CC0 asset ships one body texture set; see `human.gd`.
+## Skin is a *tint over one photographic albedo* (`ARC-22`), and a tint changes
+## colour and nothing else: the facial structure, the hair geometry and the way
+## light behaves in the skin all stay whatever the CC0 asset was. So a tint far
+## from the source does not make a person of a different ethnicity — it makes
+## the *same* person painted a different colour, and it reads as that.
+##
+## The palette therefore stays inside the range this one albedo carries,
+## broadly fair European through East Asian. The previous entry at
+## `Color(0.63, 0.49, 0.39)` was well outside it, against the comment sitting
+## directly above it.
+##
+## **This is not a finding that a wider cast is expensive.** The cost is asset
+## production — a second albedo, a second head, matching grooms — and once a
+## second texture set exists, widening this is a palette change needing no new
+## decision. Do not widen it before then, and do not cite `ARC-22` as a reason
+## a wider cast is hard.
 const SKINS := [
-	Color(1.00, 0.96, 0.92), Color(0.82, 0.68, 0.56), Color(1.00, 0.90, 0.82),
-	Color(0.63, 0.49, 0.39), Color(0.93, 0.84, 0.75), Color(0.74, 0.58, 0.45),
+	Color(1.00, 0.96, 0.92), Color(0.94, 0.86, 0.78), Color(1.00, 0.90, 0.82),
+	Color(0.88, 0.78, 0.69), Color(0.93, 0.84, 0.75), Color(0.85, 0.73, 0.62),
 ]
+## Matched to the skins above, and to the same limit: one hair card atlas and
+## one groom, tinted. The pale blond at `Color(0.58, 0.46, 0.28)` and the grey
+## are kept — those are within what a warm-brown strand map carries — but the
+## range narrows with the skins so a head and its hair do not disagree.
 const HAIRS := [
-	Color(0.12, 0.09, 0.07), Color(0.26, 0.16, 0.09), Color(0.42, 0.29, 0.15),
-	Color(0.58, 0.46, 0.28), Color(0.20, 0.13, 0.10), Color(0.66, 0.64, 0.61),
+	Color(0.14, 0.10, 0.08), Color(0.26, 0.16, 0.09), Color(0.38, 0.25, 0.14),
+	Color(0.52, 0.41, 0.25), Color(0.20, 0.13, 0.10), Color(0.62, 0.60, 0.57),
 ]
 const TOPS := [
 	Color(0.46, 0.20, 0.19), Color(0.30, 0.35, 0.29), Color(0.85, 0.83, 0.77),
@@ -67,24 +84,39 @@ var body: Human
 var _t := 0.0
 
 
-## The person in `3D/references/04_character_closeup.png`, read off the plate:
-## a dark red / brick open zip hoodie, a cream tee with a mountain graphic, mid
-## blue jeans, a grey-green backpack, short tousled warm brown hair. `ARC-4`
-## scopes facial *fidelity* below the reference; it does not scope identity
-## down, so wardrobe and hair are matched rather than approximated.
-const REF_SKIN := Color(1.0, 0.95, 0.90)
-const REF_HAIR := Color(0.26, 0.16, 0.10)
-const REF_TEE := Color(0.84, 0.81, 0.73)
+## The person in `3D/references/04_character_closeup.png`, read fact by fact in
+## `presentation/mineworld-default/3D/CHARACTER_IDENTITY.md`: an open burgundy
+## zip hoodie with a hood, cream drawstrings and ribbed cuffs, a cream tee
+## carrying a mountain-and-slogan print, worn mid-blue denim, and a warm
+## mid-brown messy updo. `ARC-19` supersedes `ARC-4`'s facial-fidelity
+## exclusion for this one character: identity is in scope, not approximated.
+##
+## The albedo *textures* carry the print, the denim weave and the freckles;
+## these colours tint them, so changing one shifts the tone without losing the
+## artwork (`Human._printed`).
+## Warmer than the albedo as shipped: measured on a lit cheek in `P6_head`,
+## preview 2 read 0.41/0.30/0.29 sRGB against the reference's 0.59/0.38/0.30 --
+## darker, and cool where the reference is warm. Within the one albedo's range
+## (`ARC-22`): a warmer tint of the same person, not a different skin.
+const REF_SKIN := Color(1.10, 0.97, 0.84)
+## Warm mid-brown, not near-black. Raised for the groomed cards (preview 3):
+## the crown's mean colour measured 0.21/0.14/0.12 sRGB in `P6_head` against
+## the reference's 0.42/0.29/0.21 at the same region.
+const REF_HAIR := Color(0.40, 0.27, 0.18)
+const REF_TEE := Color(1.0, 0.99, 0.97)     # the tee albedo is already cream
 const REF_HOODIE := Color(0.44, 0.15, 0.14)
-const REF_JEANS := Color(0.36, 0.45, 0.58)
+const REF_JEANS := Color(0.92, 0.95, 1.0)   # the denim albedo is already blue
 const REF_SHOE := Color(0.30, 0.27, 0.24)
-## The backpack is DISABLED (alpha 0). `Human._backpack` builds one and it is
-## the last unmatched element of the reference silhouette, but every placement
-## attempt so far -- bone attachment, bone-space undo, plain character space --
-## has put it floating off the back rather than sitting on it, and a prop that
-## is visibly wrong is worse than a prop that is absent. Set the alpha to 1 to
-## see the current state. Tracked as unresolved in the hand-off.
-const REF_PACK := Color(0.36, 0.38, 0.32, 0.0)
+## Grey-green canvas. The bag is now part of the character mesh, skinned to
+## Spine1/Spine2 like the clothes, rather than primitives hung off the node or
+## off a `BoneAttachment3D` -- both of those floated it off her back, because a
+## bone's frame after retargeting is not character space. Alpha 0 hides it for
+## everyone else in town.
+## Greyer and cooler than preview 3's 0.30/0.32/0.26, which the low warm sun
+## turned khaki: the reference's canvas is a grey-green that reads grey-olive
+## even in its own warm light (strap, lit: 0.33/0.27/0.24 sRGB).
+## (0.21/0.23/0.22, tried next, made the lighter straps read slate-blue.)
+const REF_PACK := Color(0.24, 0.25, 0.21, 1.0)
 
 
 ## `seat_y` is the height of the thing a SIT person sits on; the caller knows
