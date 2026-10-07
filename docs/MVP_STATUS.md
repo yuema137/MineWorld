@@ -5,7 +5,7 @@ The point of this file is to stop MVP-0 being declared complete while a real pat
 `✅` means **actually run and inspected**, never inferred from a passing test suite or a
 successful compile. `🚧` means in progress. `❌` means not started.
 
-**Updated:** 2026-10-07 (PR 11a: installable System Packs; PR 10a, 10b and 10c's rows stand). Subjective questions are queued in
+**Updated:** 2026-10-07 (PRs 11a, 11b and 11c merged: S9's precursors are complete; earlier rows stand). Subjective questions are queued in
 [`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md); a demo parked there does not block engineering.
 
 ## Capability matrix
@@ -89,7 +89,7 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | S6 first systems: time, places, movement | 🚧 PR 08 ready for review: `movement` decides, `presence` owns (`ARC-26`); `arrive` retired; `passages` in the World Pack format; the street in social-cafe |
 | S7 world pack loading, rule controller, headless run | 🚧 PR 09 ready for review: `run --headless --seed --days`, `inspect`, `create`; a seeded paced rule controller (`ARC-27`); `clap` (`DEP-11`) |
 | S8 Social Café systems | 🚧 three PRs (`step-09-social.md`). 10a merged (`2f24eef`): the MVP town and the café re-authored to the 3D slice. 10b merged (`85451c7`): `group-activity`, `relationships`, `mineworld biography`, the paced controller's social initiative, `[profile.dev] opt-level = 1` (`ARC-30`), and Milestone B. PR 10c ready for review: the content seam (`ARC-31`), `naming`, `schedule` (`ARC-32`), names in replies, biography and the Godot module, the controller following its day |
-| S9 Market Town + AC-1 proof | 🚧 six PRs (`step-10-market.md`); how `AC-1` is measured is `ARC-35`. PR 11a ready for review: installable System Packs (`ARC-33`, `DEP-12`) and the I-2 vocabulary scan over the precursors |
+| S9 Market Town + AC-1 proof | 🚧 six PRs (`step-10-market.md`); how `AC-1` is measured is `ARC-35`. The three precursors are merged: 11a (`c472636`) installable System Packs (`ARC-33`, `DEP-12`) and the I-2 vocabulary scan; 11b (`ae1a315`) items and organizations as World Pack content (`ARC-36`); 11c (`c5dc51c`) complete affordances (`ARC-34`). Next: 11d (`item`, `inventory`, `item-transfer`, `worlds/market-town`), then 11e (`economy`, `employment`) — the measured transformation |
 | S10 cognition | reduced: controllers + perception only; LM half deferred to MVP-1 with AC-4 and AC-10 |
 | S11 server and networking | 🚧 the server, the protocol and multi-client sessions landed with the step-05 slice; the id encoding is in the contracts (PR 04). Authentication, admin frames and deltas remain |
 | S12 Demo A, 2D client | spike running; the protocol layer it adopts is merged (`clients/protocol/`) |

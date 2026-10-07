@@ -622,10 +622,32 @@ Next, framework (critical path to Milestone B):
             - kernel/contracts/persistence/server diff empty.
             The social-cafe 300-day output is unchanged (E-0 sha reproduced by the
             implementer). The PR must be merged with a merge commit, which the scan's range uses.
-       Next: 11b (items and organizations as content kinds) and 11c (complete affordances, F-3),
-       in parallel; each detailed and frozen before implementation.
+       11b  items and organizations as content kinds  PR 11b (GitHub #39), merged ae1a315
+            `world.yaml`'s `items:` and `organizations:` name files under `items/` and
+            `organizations/` with tags, a note and sections (ARC-36: an authored Item is a kind,
+            and holdings are counts). Their ids come after people's, so no existing id or genesis
+            fact moves. The I-2 scan admits words, not lines. Reviewed before merge:
+            - gates re-run (441/0);
+            - my own plant (`// an item shop` in `worldpack/src/read.rs`) was refused naming `shop`;
+            - the diff touched no contracts, kernel, persistence, server, clients or systems.
+       11c  complete affordances (F-3)              PR 11c (GitHub #40), merged c5dc51c
+            An affordance may carry the exact request its pack would accept (`Affordance<P>.payload`,
+            `Offer::complete`, ARC-34). The paced controller attempts an available one at a fixed
+            rate of 20 in 100, frozen before the market exists (I-9). CP-3 is shown with a
+            test-only pack the controller was never compiled against. Rebased onto ae1a315 and
+            merged second. Reviewed before merge:
+            - gates re-run on the rebased head (456/0);
+            - my own mutation (`ATTEMPTS_OFFERED = 0`) failed the CP-3 ring test and the
+              byte-identity test;
+            - the contract change is additive;
+            - the worst-case `chimes` measurement passed at 20.
+       The precursors are complete. On c5dc51c the I-2 scan reads all three as merged, and the
+       social-cafe 300-day sha is still E-0 (step-10 §9 E-3).
+       Next: 11d (item, inventory, item-transfer and worlds/market-town; the first half of the
+       measured AC-1 transformation), then 11e (economy, employment). Each is detailed and frozen
+       before implementation.
 
-Remaining:  S9 (11b–11f) ... S14, Milestones C-E
+Remaining:  S9 (11d–11f) ... S14, Milestones C-E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
