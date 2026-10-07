@@ -508,9 +508,13 @@ const GRIP_LOWER := Vector3(109.0, -16.9, -23.7)
 ## do not land on its strap.
 ## The wrist is solved too: turned up, so the knuckles sit on the webbing above
 ## it and the elbow can hang at her side.
-const GRIP_UPPER_D := Vector3(70.6, 49.2, 19.0)
-const GRIP_LOWER_D := Vector3(130.4, -12.2, -18.4)
-const GRIP_HAND_D := Vector3(-72.0, -4.7, 75.0)
+## Re-solved 2026-10-07 for the strap point at y 1.36, on the padded strap where
+## it lies on top of the hoodie's shoulder (§8.7): knuckle 0.1 mm from the
+## target, wrist below it and in front of the cloth, elbow 255 mm below the
+## shoulder, 87 mm out.
+const GRIP_UPPER_D := Vector3(73.0, 31.6, 8.0)
+const GRIP_LOWER_D := Vector3(139.2, 41.3, 19.1)
+const GRIP_HAND_D := Vector3(63.5, 3.8, 71.0)
 ## The reference body's extra head turn (X+ face down, Y+ face to her left).
 const GAZE_NECK_D := Vector3(0, 5.0, 0)
 const GAZE_HEAD_D := Vector3(6.0, 14.0, 0)

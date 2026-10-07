@@ -27,6 +27,8 @@ const FINGER_CURL_D := 62.0
 ## The reference body's upper arms, outward from the clip while moving (Z,
 ## degrees; the town body's stance uses +11 inward on the left).
 const ARM_OUT_D := -4.0
+## How much of the locomotion clips' spine motion the reference body drops.
+const SPINE_DAMP_D := 0.6
 
 ## Profile bone name -> local euler correction in degrees, post-multiplied onto
 ## whatever the animation produced.
@@ -55,6 +57,13 @@ var tweak_weight := 1.0
 ## and a fist held to it through the stride reads as floating in front of the
 ## cloth (CHARACTER_ROUTE_D_PLUS.md §8.7).
 var grip_weight := 1.0
+
+## Profile bone name -> 0..1, how far the animated rotation is pulled back
+## toward the rest pose, scaled by `tweak_weight` (so standing is untouched).
+## The reference body's pack is one surface with her back and rigid to the
+## upper spine; the jog clip's torso twist stretched the hoodie below it into
+## ridges and swung the pack off her back (CHARACTER_ROUTE_D_PLUS.md §8.7).
+var damp := {}
 
 
 static func natural_stance() -> Posture:
@@ -105,6 +114,8 @@ static func holding_strap(body := Human.Body.TOWN) -> Posture:
 		# Here the arms hang a little wider than the clip's instead.
 		p.tweaks["LeftUpperArm"] = Vector3(0, 0, ARM_OUT_D)
 		p.tweaks["RightUpperArm"] = Vector3(0, 0, -ARM_OUT_D)
+		for b in ["Spine", "Chest", "UpperChest"]:
+			p.damp[b] = SPINE_DAMP_D
 	else:
 		p.tweaks.erase("LeftUpperArm")
 		p.tweaks.erase("LeftLowerArm")
@@ -158,6 +169,11 @@ func _process_modification() -> void:
 		var i := sk.find_bone(bone)
 		if i >= 0:
 			sk.set_bone_pose_rotation(i, _quat(absolute[bone]))
+	for bone: String in damp:
+		var i := sk.find_bone(bone)
+		if i >= 0:
+			sk.set_bone_pose_rotation(i, sk.get_bone_pose_rotation(i).slerp(
+				sk.get_bone_rest(i).basis.get_rotation_quaternion(), damp[bone] * tweak_weight))
 	for bone: String in rest_relative:
 		var i := sk.find_bone(bone)
 		if i >= 0:
