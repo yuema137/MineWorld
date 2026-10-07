@@ -680,6 +680,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-installed-systems"
+version = "0.0.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-group-activity",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-naming",
+ "mineworld-presence",
+ "mineworld-relationships",
+ "mineworld-schedule",
+ "mineworld-sdk",
+]
+
+[[package]]
 name = "mineworld-kernel"
 version = "0.0.0"
 dependencies = [
@@ -822,13 +838,13 @@ dependencies = [
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-conversation",
- "mineworld-group-activity",
+ "mineworld-installed-systems",
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-naming",
  "mineworld-presence",
- "mineworld-relationships",
  "mineworld-schedule",
+ "mineworld-sdk",
  "serde",
  "serde-saphyr",
  "serde_json",

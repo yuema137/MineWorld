@@ -890,28 +890,57 @@ enum, so nothing reads these impls yet.
 
 **Depends on:** C3.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation:
-  - [ ] `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`;
-    `cargo test --workspace` (counts and wall time recorded; the counts equal the base's plus the new
-    tests, and no test was removed).
-  - [ ] A-1: `mineworld run worlds/social-cafe --headless --seed 7 --days 300`; the sha-256 of every line
-    but `wall` equals E-0's.
-  - [ ] `mineworld validate worlds/social-cafe` output identical to the base's (diffed).
-  - [ ] Mutations, each reverted and recorded:
-    - remove `Schedule => …` from `installed!` → `installed.rs` fails naming `mineworld-schedule`, and
-      `worldpack/tests/social_cafe.rs` fails with `UnknownSystem { system: schedule }`;
-    - add `use mineworld_naming as _;` to `worldpack/src/catalog.rs` (and the dependency back) →
-      `structure.rs` fails naming it;
-    - give a stub listed pack the id of another (a test-only list in `installed.rs`'s unit test, not
-      the real list) → the duplicate-id assertion fails.
-- [ ] Review:
-  - `worldpack`'s public API is unchanged: `git diff` of `worldpack/src/lib.rs`'s `pub use`s is empty
-    apart from the diagram, and no caller outside `worldpack` changed.
-  - The section decoder still reads from the stream: `refusals.rs`'s line-and-column assertions for a
-    bad section still pass unchanged.
-  - The only existing-test edit is F-10's, listed with its unchanged claim.
-  - `systems/installed/` holds no logic beyond the list and its guard.
+- [x] Implementation: as scoped. `systems/installed/{Cargo.toml, README.md, src/lib.rs,
+  tests/installed.rs}`; `worldpack/{Cargo.toml, src/catalog.rs, src/lib.rs, tests/structure.rs,
+  tests/refusals.rs}`; root `Cargo.toml` (`"systems/*"`, `mineworld-installed-systems`).
+  `content.rs`, `format.rs`, `read.rs`, `load.rs` needed no edit at all (the generated enum has the
+  same name, variants and methods).
+  - **Deviation D-A1 (bounded).** *Design:* `worldpack` loses five pack dependencies. *Source
+    evidence:* `worldpack/tests/social_cafe.rs:23,25,263` reads conversation's, naming's and schedule's
+    types to check the loaded world. *Resolution:* those three become `[dev-dependencies]` with a
+    comment; `[dependencies]` is exactly as designed. *Impact:* none on A-2, which by design checks
+    `[dependencies]` and `src/` only — a test may name the packs whose state it checks. *Validation:*
+    `structure.rs` passes; mutation 2 below.
+  - **Deviation D-A2 (bounded).** *Stale comment outside worldpack:* `tools/cli/src/biography.rs:14–15`
+    said "a new pack adds a constant there [the catalog]", false after this commit. Comment-only edit
+    naming `SystemPack::BIOGRAPHICAL` (`CLAUDE.md` §2.1(4)); no code or API outside `worldpack`
+    changed.
+  - **Detail.** The A-3 negative control is permanent rather than a one-off mutation:
+    `the_id_check_sees_two_packs_that_share_an_id` lists two stub packs under one id with the real
+    `installed!` macro and asserts the check reports it. Its dev-dependencies are contracts and kernel.
+  - `systems/installed/README.md` added (a human orientation, `CLAUDE.md` §2.1).
+- [x] Validation (E-A4):
+  - [x] `cargo fmt --all`; `cargo clippy --workspace --all-targets --all-features -- -D warnings`:
+    clean. `cargo test --workspace --no-fail-fast`: **425 passed, 0 failed, 0 ignored**, 174 s wall —
+    the base's 419 (step-09 E-C-final) plus the six new tests (sdk 1, installed 3, structure 2); none
+    removed.
+  - [x] A-1: 300-day seed-7 run, 339 lines, sha-256 of all but `wall` =
+    `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b` = E-0. wall 12.2 s.
+  - [x] `mineworld validate worlds/social-cafe` byte-identical to the base's output (diff empty).
+  - [x] Mutations, each reverted (`git status` afterwards shows only the intended edits; targeted
+    suites re-run: installed + worldpack 55 passed, validate identical again):
+    - M1 remove `Schedule => …` from `installed!` → `every_pack_depended_on_is_listed_…` FAILS:
+      "linked into the build but missing from the installed! list, so never installable:
+      [\"mineworld_schedule\"]". `social_cafe.rs` does not compile (it names `Capability::Schedule`)
+      rather than failing with `UnknownSystem` as the design predicted — a stronger failure, recorded
+      as observed. The loader's refusal shown through the real CLI instead: `mineworld validate
+      worlds/social-cafe` → "world.yaml enables the system 'schedule', which this build does not
+      provide (it has: 'presence', … 'naming')", exit 1.
+    - M2 `use mineworld_naming as _;` in `catalog.rs` + the dependency back → both `structure.rs` tests
+      FAIL, naming `mineworld_naming` (the manifest one, and the source one with its file).
+    - M3 blind `listed_twice` (`&& false`) → `the_id_check_sees_two_packs_that_share_an_id` FAILS
+      (left `{}`, right `{SystemId("twin")}`). The real-list test would have stayed green under M3,
+      which is why the negative control exists.
+- [x] Review:
+  - `worldpack`'s public API is unchanged: `git diff` of `worldpack/src/lib.rs` touches only the two
+    diagrams (no `pub use` line changed); `catalog` still exports `Capability`, `AVAILABLE`,
+    `SectionOwner`, `LOCATION_OWNER`, `PASSAGE_OWNER`, `opened`, `located`. Callers outside worldpack
+    (`tools/cli/src/biography.rs`, tests) unchanged except D-A2's comment.
+  - The section decoder still reads from the stream: `refusals.rs`'s line-and-column assertions pass
+    unchanged (worldpack 32 + 15 + … all green).
+  - The only existing-test edit is F-10's (`refusals.rs`: `economy` → `no-such-system`, with a comment);
+    claim unchanged — an unknown system is refused by name and the available ones are listed.
+  - `systems/installed/` holds the list, its manifest and its guard; no logic.
 
 **Failure cases.** An existing test that fails for a reason other than F-10 means the expansion is not
 equivalent to the old catalog: fix the macro, never the test. A changed run fingerprint is a stop:

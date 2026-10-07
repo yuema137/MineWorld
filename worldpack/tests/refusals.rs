@@ -169,14 +169,18 @@ fn a_person_file_the_manifest_does_not_list_is_refused_by_name() {
 #[test]
 fn an_unknown_system_is_refused_by_name_and_lists_the_ones_that_exist() {
     let fixture = Fixture::new("unknown-system");
-    fixture.manifest("systems:\n  - presence\n  - economy\n");
+    // A name no pack will ever take, so installing a real pack can never break this test (F-10).
+    fixture.manifest("systems:\n  - presence\n  - no-such-system\n");
 
     let refusal = fixture.refusal();
 
     let PackError::UnknownSystem { system, available } = &refusal else {
         panic!("got: {refusal}");
     };
-    assert_eq!(*system, SystemId::new("economy").expect("a legal name"));
+    assert_eq!(
+        *system,
+        SystemId::new("no-such-system").expect("a legal name")
+    );
     assert!(
         available.contains("presence") && available.contains("conversation"),
         "an author who typed a system that does not exist is shown the ones that do: {available}",
