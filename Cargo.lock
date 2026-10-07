@@ -752,8 +752,11 @@ dependencies = [
 name = "mineworld-installed-systems"
 version = "0.0.0"
 dependencies = [
+ "mineworld-consumption",
  "mineworld-contracts",
  "mineworld-conversation",
+ "mineworld-economy",
+ "mineworld-employment",
  "mineworld-group-activity",
  "mineworld-inventory",
  "mineworld-item",

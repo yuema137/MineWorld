@@ -34,4 +34,7 @@ mineworld_sdk::installed! {
     Item => mineworld_item::ItemSystem,
     Inventory => mineworld_inventory::InventorySystem,
     ItemTransfer => mineworld_item_transfer::ItemTransferSystem,
+    Economy => mineworld_economy::EconomySystem,
+    Employment => mineworld_employment::EmploymentSystem,
+    Consumption => mineworld_consumption::ConsumptionSystem,
 }
