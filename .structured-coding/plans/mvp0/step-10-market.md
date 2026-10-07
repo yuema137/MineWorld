@@ -2620,15 +2620,25 @@ Dependencies: authoring, contracts, kernel, presence, sdk, schedule (TimeOfDay o
 (`workspace = true`); `mineworld-inventory = { path = "../inventory" }`; dev: item (path), movement,
 persistence, serde-saphyr.
 
-- [ ] Implementation: SD-23 — `Job`, `Employment` (`owned_component!`), `employed-by` relation
-  declaration, `ShiftProcess`, `Hired`, `ShiftStarted`, `ShiftEnded`, `WageDue` (public accessors — economy
-  decodes it), the `job:` section (`references`: Organization, Place, Items; refuses `until ≤ from` at its
-  line), react (hired, shift-started, shift-ended, person-entered-place), wake, disclosure, `BIOGRAPHICAL
-  = [hired]`.
-- [ ] Validation: `cargo test -p mineworld-employment`; E-6 (incl. the persisted mid-shift restart), the
-  employment half of E-7; M-E6; clippy, fmt.
-- [ ] Review: never names a Wallet or economy (manifest: no economy); wage arithmetic `u64`, no float;
-  a wake reschedules exactly once; `items-produced` only through `produce`.
+- [x] Implementation: SD-23 — `Job`, `Produces`, `Employment` + `OnShift` (`owned_component!`
+  `employment`; the shift in progress is `Option<OnShift>`, so "on shift" and its spans cannot
+  disagree), `employed_by()` / `employed_by_declaration()` (Person → Organization), `ShiftProcess` /
+  `ShiftState`, `Hired`, `ShiftStarted`, `ShiftEnded`, `WageDue` (public accessors — economy decodes
+  it), the `job:` section (`references`: Organization, Place, Items; `#[serde(try_from)]` refuses
+  `until ≤ from` as it is decoded, `EmploymentError::ShiftOutOfOrder`), react (hired, shift-started,
+  shift-ended, person-entered-place), wake, disclosure to the employee, `BIOGRAPHICAL = [hired]`.
+  Files: `systems/employment/{Cargo.toml, README.md, src/{lib,system,section,event,component,error,
+  process,codec}.rs, tests/{employment.rs, persisted.rs, removable.rs, support/mod.rs}}` — `error.rs`
+  added beside §4.5's list, as schedule has one (DE-4). Wage `wage × worked ÷ 3 600` and production
+  `per_shift × worked ÷ shift` computed in `u128`, floored, no float.
+- [x] Validation: `cargo test -p mineworld-employment` → employment 5, persisted 1, removable 3 passed, 0
+  failed; clippy `--all-targets -D warnings`, fmt clean. E-6, the employment half of E-7, M-E6 in §9.5
+  E-E3.
+- [x] Review: names no Wallet and no economy in code or manifest (grep: comments only, saying it does
+  not); wage arithmetic integer; a wake reschedules exactly once per branch (start → `until`, end →
+  `from`), shown by the second day's shifts at the same times; `items-produced` only through
+  `mineworld_inventory::produce`; production refused by inventory (an undeclared kind) is skipped,
+  the wage still due — the only refusal possible for an organization (DE-5).
 
 ### E-C4 — `systems/economy`
 
@@ -2752,6 +2762,14 @@ DE-3  bounded  M-E2 (items-consumed's reduction skips admit_consumption) is caug
                nothing, so Holdings::removing returns None (D-D2's second guard, again). A zero count
                is the case only the owner's rule refuses — removing 0 is a no-op write. The mutation is
                caught; no test weakened.
+DE-4  bounded  employment has an `error.rs` (EmploymentError::ShiftOutOfOrder) beside §4.5 E-C3's file
+               list, so `until ≤ from` is refused with the pack's own message as the section is
+               decoded (schedule's pattern, ScheduleError). No behaviour beyond SD-23.
+DE-5  bounded  At a shift's end, a production line inventory's `produce` refuses is skipped, not a
+               failed wake. An organization is unbounded, so the only refusal is an undeclared kind (an
+               item file without `item:`); failing the wake would stop the world for content no pack
+               trades. The wage is still due. Validation: by construction (no test world authors an
+               undeclared produced kind; market-town's `validate` names every kind).
 ```
 
 ## 4.6 PR 11f — the proof (medium scope; detailed after 11e merges)
@@ -3744,6 +3762,32 @@ E-E2 E-C2 inventory: `cargo test -p mineworld-inventory` → inventory.rs 10 pas
      FAILED — "inventory must refuse as the owner, but got Ok(… Accepted … items-consumed …
      ActionId(6))", the count-zero case (DE-3). Reverted; `git grep MUTATION -- systems` empty;
      10 + 1 passed again.
+E-E3 E-C3 employment: `cargo test -p mineworld-employment` → employment.rs 5, persisted.rs 1,
+     removable.rs 3 passed, 0 failed; clippy -p mineworld-employment --all-targets -D warnings clean;
+     fmt clean. Cargo.lock: +1 path package (mineworld-employment, no `source`).
+     E-6 (job 08:00–12:00, 120/h, coffee 4 + croissant 2 per full shift; numbers worked by hand in the
+     test's doc): shift-started present alice true, bob true, carol false, dave false; shift-ended
+     worked 14 400 / 7 200 / 3 600 / 0; wage-due 480 / 240 / 120 and none for dave; items-produced for
+     the employer coffee 4, croissant 2 (alice), coffee 2, croissant 1 (bob), coffee 1 (carol: the
+     croissant's 0.5 floored and skipped); employer's stock 1 → coffee 8, croissant 3; every shift
+     fact caused by its Process; wage-due Participants = [employee, employer]; no money-transferred.
+     Day 1: one start per employee at 08:00 and one end at 12:00, nothing between shifts. hired:
+     genesis, visible to the employee, Employment written, employed-by edge to the organization.
+     Disclosure: to the employee only. Section: until ≤ from, an empty shift, an unknown key, a zero
+     production and a negative wage refused at decode. → PASS.
+     Persisted (E-6 restart): saved at 10:30 (alice's open span since 08:00, bob's closed 7 200 s —
+     located in the saved state), resumed into a freshly composed world: both Employments equal; the
+     shift ends worked [14 400, 7 200, 3 600, 0]; the facts after the stop byte-identical to the
+     uninterrupted world's; verify() passes. → PASS.
+     E-7 (employment half): without economy, three days state 7 wage-dues and 12 shift-ends with no
+     money fact and no fault; a world without employment runs the same walks and its facts equal the
+     world-with's minus hired/shift-*/wage-due/items-produced (causes compared by the causing fact's
+     instant, type and payload, since the hired facts shift event ids); employment without inventory →
+     SystemDependencyMissing { employment, inventory }. → PASS.
+     M-E6 (`// MUTATION M-E6`: the reaction ignores a departure, `&& false`): employment.rs
+     a_shift_is_paid… FAILED "seconds at the workplace during the shift: left [… ("bob", 14400) …]
+     right [… ("bob", 7200) …]" (paid for the whole shift), and persisted.rs FAILED too. Reverted;
+     `git grep MUTATION -- systems` empty; 5 + 1 + 3 passed again.
 ```
 
 ---
