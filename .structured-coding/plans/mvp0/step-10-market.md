@@ -1032,9 +1032,16 @@ says it does (`ARC-23`: an instrument shown to see before it is trusted).
   - [x] `git ls-remote --heads origin | grep -c scratch` → 0.
 - [x] Documentation: `worldpack/README.md` (third bullet: names no pack but two),
   `docs/MVP_STATUS.md` (a capability row, an evidence row, S9's stage line), the handoff.
-- [ ] Full gates once on the final executable head (§6), recorded with counts and wall time (§9
-  E-A-final).
-- [ ] Review: A-1 … A-4 each hold with recorded evidence (§9); the scratch branches were never pushed.
+- [x] Full gates once on the final executable head `70b0857` (§9 E-A-final): all PASS.
+- [x] Review: A-1 (E-A4, E-A-final: sha = E-0; 428 tests pass; the only existing-test edit is F-10's),
+  A-2 (`worldpack/tests/structure.rs`, mutation M2), A-3 (`systems/installed/tests/installed.rs`,
+  mutations M1 and M3), A-4 (E-A5) each hold with recorded evidence; the I-2 scan (C4b, E-A4b, E-A5b)
+  is green on the PR and shown to bite; the scratch branches were never pushed. Deviations D-A1 … D-A3
+  are bounded and recorded; nothing material arose.
+
+**PR 11a lifecycle: READY FOR OPERATOR REVIEW — not merged.** Final executable head `70b0857`; later
+commits are this ledger and the handoff only. Parent synchronization (step §§1–3 status, overall §1's
+AC-1 gloss citing ARC-35, overall §3 S9) is pending and owned by the planning session.
 
 **Commit boundary.** Only documentation and the ledger are committed in C5; the canary lives only in
 the ledger's evidence.
@@ -1455,6 +1462,20 @@ E-A5 C5 canary (scratch, local, deleted): changed paths ⊆ {systems/canary/**,
      package, +1 dependency line; validate lists canary; 1-day run exit 0, faults 0; installed +
      worldpack 55 passed. E-A5b: the scan's merged-range path passes with a later market commit and
      fails without a recognised merge.
+E-A-final on 70b0857 (clean tree), 2026-10-07:
+     cargo fmt --all --check                                         PASS
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS
+     cargo test --workspace --no-fail-fast    428 passed, 0 failed, 0 ignored (425 at C4 + the scan's
+                                              3); 1 926 s wall — the machine was shared with another
+                                              session's Godot renders and three concurrent 300-day
+                                              runs; C4's identical suite took 174 s
+     kill_and_resume                          cafe PASS, clock PASS
+     check_decision_ids                       45 ids, all distinct
+     check_doc_headings                       143 sections, none duplicated
+     A-1                                      300-day seed-7 run, sha-256 (all but wall) =
+                                              ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+                                              = E-0; wall 12.2 s
+     CI: none configured (S13).
 ```
 
 ## 9.1 Risks
