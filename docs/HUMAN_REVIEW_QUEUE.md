@@ -78,12 +78,12 @@ identifies one thing.
 | | Milestone | State |
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
-| **VIS-3D-GODOT-1** | Reference-matched character in Godot | ✅ **ACCEPTED as the interim default (operator, 2026-10-07), with one open defect: the hand and the pack clip ("人的手和背包好像还是有点穿模"), being fixed** on `vis/3d-human-pipeline`. Route D+: "much better than the previous version; hold this as the standard for now, refine later". Its other known misses are deferred refinements, not blockers (see below). Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | ✅ **route D+ accepted by the operator as the interim standard, 2026-10-07**; the clipping and head-sway defects flagged after it are fixed (see below). Not a final acceptance: refinement continues later. Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟢 **Accepted on screenshots, interactive test pending** (operator, 2026-10-07): judged from the slice's screenshots together with the character; the operator has not yet run the build, so the combined test session below is still to be done. Before that, 🟡 READY FOR HUMAN VISUAL REVIEW (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
-### `VIS-3D-GODOT-1` — route D+: ACCEPTED as the interim default (operator, 2026-10-07)
+### `VIS-3D-GODOT-1` — route D+, accepted as the interim standard 2026-10-07 (prepared as a preview the same day)
 
 **Operator verdict, 2026-10-07**, given on eight screenshots: reference against game, street front
 and rear, doorway, counter, hand detail, full body and rear, walking.
@@ -94,15 +94,16 @@ and rear, doorway, counter, hand detail, full body and rear, walking.
 refine it later."
 
 So route D+ is **accepted as the interim default character** (`ARC-11`: only the operator
-accepts), **with one open defect**. After accepting, the operator added:
+accepts). After accepting, the operator added:
 
 > 人的手和背包好像还是有点穿模
 
 *Gloss:* "The person's hand and the backpack still seem to clip a little."
 
-**Open defect, being fixed: the hand and the pack clip.** The character is not clean. The fix is
-being made on `vis/3d-human-pipeline` by the character's session, not in the slice's branch, and
-this entry is updated when it lands.
+**Fixed on `vis/3d-human-pipeline` at `330f1fd`, by the character's session** (record §§8.7–8.9,
+summarised at the end of this entry). Standing, the hand grips the strap above the hoodie's edge,
+and it lets go while she moves. The pack's side panels follow the spine. The torso twists less
+while she moves, and her head is steadied in the walk and the jog.
 
 The other known misses below are **deferred refinements, not blockers**: the hair's tone and
 locks, the painted eyes with no blink or expression, the hand, the pack's colour, and the tee's
@@ -138,16 +139,27 @@ portraits), `d4_full_and_rear.jpg`, `d5_walk.jpg`, `d6_grip_armpit_hairline_zoom
    sculpted ropes than the reference's soft wisps.
 2. The eyes are painted: the look to her left comes from turning the head, and the eyes cannot
    move. No blink and no expressions either; the face has no lids or mouth that move.
-3. The hand on the strap is a loose fist on the strap's front edge, larger and paler than the
-   reference's; the reference's hand sits further onto the strap.
+3. She holds the strap only while standing. When she walks or jogs she lets go and both arms
+   swing; the reference pose is a standing pose. Standing, the fist sits on the strap's lower
+   padded end, a little higher on the chest than the reference's hand; at 3× the fingertips show
+   dark creases and the thumb stands out.
 4. The backpack is charcoal grey where the reference's is olive.
 5. The tee's slogan has a garbled first word; the tee is greyer-white than oatmeal.
 6. Light flecks along the hair's locks in the head close-up at 2×; not visible at the
    reference's framing.
+7. While moving, the head faces the direction of travel and holds steady (within 4.2° in the
+   jog); the look to her left is a standing pose only.
 
 (Fixed before preparation, at the coordinator's review: the gripping hand had read as an open,
 splayed hand with one finger pointing up, and she had looked straight at the camera, chin up.
 Record §8.6.)
+
+**Accepted by the operator as the interim standard, 2026-10-07** (*"跟上一版本相比好多了，我们可以就先维持这个
+标准。以后再精雕细琢"*). Two defects the operator flagged afterwards are fixed (record §§8.7–8.9):
+the hand and the pack clipped (*"人的手和背包好像还是有点穿模"*), and the head bobbed and swayed when
+she ran (*"人物跑步的时候不要摇头晃脑的"*). Evidence: `d8_head_trace.png` (before, after, and the town
+body as control), `d9_sweep_pack.jpg` (rear three-quarter walk and rear jog, eight phases each),
+`d10_sweep_front.jpg` (front three-quarter walk and jog, eight phases each).
 
 **Scorecard** (§6, full table in the record §8.5): overall identity `PASS`; face identity, hair
 silhouette, hair colour, hoodie, tee, backpack, material quality and vibe `PARTIAL`; no hard-fail
@@ -496,12 +508,11 @@ operator has not yet run the build.** So this is acceptance on screenshots only,
 interactive check — the combined session below, walked by the operator — is still pending. Nothing
 here claims more than that.
 
-The character in it carries `VIS-3D-GODOT-1`'s open defect: **the hand and the pack clip**, and that
-is being fixed on `vis/3d-human-pipeline`. When the fix lands it is merged here, and the street and
-doorway frames are re-captured. The slice's own claim of "no clipping" (below) is about the
-character against the scene — jambs, counter, case, bench — and was made before this was
-reported. It does not cover the hand against the pack, and it is not a claim that the character
-is clean.
+The character's hand-and-pack clipping, reported after the acceptance, is fixed on
+`vis/3d-human-pipeline` at `330f1fd`, and that fix is merged here. The street, doorway and counter
+frames are re-captured on it (the `v2` frames, below). The slice's original claim of "no clipping"
+(further below) was about the character against the scene — jambs, counter, case, bench. It never
+covered the hand against the pack.
 
 The entry as it was submitted follows.
 

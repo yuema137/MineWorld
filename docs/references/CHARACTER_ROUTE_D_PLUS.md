@@ -366,3 +366,122 @@ fingers per finger, (2) hide the open fingers behind the strap, (3) a relaxed ar
   up-gaze and the open hand are gone and the head turn matches, while the heavy sculpted locks
   and the flatter light remain. §9 answer unchanged: yes. Evidence `d3`–`d7`
   regenerated from `runtime_d11`.
+
+### 8.7 Clipping fixed after the operator's acceptance (2026-10-07)
+
+The operator accepted route D+ as the interim standard (*"跟上一版本相比好多了，我们可以就先维持这个
+标准。以后再精雕细琢"* — much better than the previous version; keep this as the standard for now,
+refine later) and flagged one defect: *"人的手和背包好像还是有点穿模"* — the hand and the backpack
+still clip. The coordinator located it: the fist at the chest read as pushed into the hoodie (the
+strap runs under the hoodie's open edge there) and floated in front of the cloth in the street
+frames; from behind, the strap-side sleeve cut into the pack's side panel while walking.
+
+Measured, not chosen: `--sweep` (new, `shots.gd`) films the walk and the jog, eight frames
+0.125 s apart each (one walk cycle, more than one jog cycle), from behind, rear three-quarter and
+front three-quarter on her strap side, with a camera riding along at chest height.
+
+1. **The grip while moving.** `Posture.grip_weight` blends the solved grip and the finger curl;
+   the reference body lets go as it sets off (1 standing, smoothstep to 0 at half walking pace),
+   so in the walk and the jog both arms swing with the clip and nothing is held in front of the
+   cloth. The town body holds its grip at every speed, as before.
+2. **The grip standing.** Re-solved one strap point higher, y 1.36 instead of 1.31, where the
+   padded strap lies on top of the hoodie's shoulder rather than passing under its open edge
+   (`STRAP_D`, `GRIP_*_D`; knuckle 0.1 mm from the target, wrist in front of the cloth, elbow
+   255 mm below the shoulder). At 3× (`runtime_d12/p1_grip3x`, `p2_grip3x`) the fist is on the
+   strap's lower padded end, fingers round it, in front of the hoodie; nothing passes into the
+   cloth. Residual: the fingertips show dark creases and the thumb stands out at 3×.
+3. **Pack side panels** (`reweight_pack.py`, scratch, on top of §8.6's finger weights): pack
+   vertices out to |x| 0.21 that are not sleeve (arm share < 0.5) are blended toward `Spine2`,
+   1 at the rigid core's edge (0.12) falling to 0 at 0.21, so there is no hard seam at the
+   armpit; 2,114 vertices, 276 sleeve vertices left alone. In the walk sweep the side panels
+   no longer stretch with the arm swing (`sweep_a` → `sweep_b`, `walk_rear_1` at 1.5×).
+4. **Arms clear of the pack.** The town body's stance pulls the upper arms 11° in; on this body
+   that swung the sleeves into the pack's side panels. The reference body's arms hang 4° wider
+   than the clip instead (`ARM_OUT_D`).
+5. **The jog was worse than the walk, before any of this** (`sweep_a`, `jog_rear`): the jog
+   clip's torso twist swung the rigid pack off her back and stretched the hoodie below it into
+   ridges. `Posture.damp` pulls `Spine`, `Chest` and `UpperChest` 60 % back toward rest on the
+   reference body, scaled by gait, so standing is untouched. After it (`sweep_c`, `jog_rear`) the
+   pack stays on her back and the hoodie below it is smooth, but at 2× (`jog_rear_2`) dark slits
+   opened in the pack's side panel on the side whose arm swings forward: the side-panel vertices
+   kept a residual upper-arm share.
+6. **Pack side panels, second pass** (`ARMZERO=1 reweight_pack.py`): on the same 2,114
+   vertices the upper-arm and forearm shares are moved to `Spine2` outright; the shoulder
+   share keeps its gradient. Result in §8.9.
+
+### 8.8 The head while walking and jogging (operator, 2026-10-07)
+
+The operator's second finding: *"人物跑步的时候不要摇头晃脑的，看起来很不自然"* — when she runs
+her head bobs and sways, and it looks unnatural.
+
+**Bound, set before measuring:** in steady walking and jogging the head's yaw, pitch and roll in
+the body frame (+Z = direction of travel) each stay within **6° peak-to-peak**; starting and
+stopping turn the head over a visible fraction of a second, not in a frame or two.
+
+**Instrument.** `--headtrace` (`shots.gd`): the player stands 1 s, walks 2.5 s, stops 1 s, is
+re-placed, jogs 2 s and halts, while a camera rides at her front three-quarter; every rendered
+frame records the head's facing in the body frame and the third-person rear camera's offset.
+Two instrument errors were found and fixed before any number was used (`ARC-23`, locate before
+counting): `get_bone_global_pose` returned a frozen cache through the whole jog, and even the
+local poses read from the script were the AnimationTree's alone, before any `SkeletonModifier3D`
+— the first "after" trace showed no effect of the fix at all. The pose is now read in
+`skeleton_updated`, after the modifiers. `--no-head-steady` and `--town-body` give the before
+state and the control.
+
+**Measured** (steady phases, peak-to-peak, degrees; trace `d8_head_trace.png`):
+
+| | walk yaw / pitch / roll | jog yaw / pitch / roll |
+| --- | --- | --- |
+| reference body, before | 2.4 / 2.8 / 3.1 (mean yaw 16: the stance glance) | **52.3 / 7.3 / 11.3** |
+| town body (control) | 4.1 / 3.8 / 1.2 | 0.2 / 0.9 / 0.8 |
+| reference body, after | 3.8 / 0.4 / 0.2 | 4.2 / 1.1 / 0.4 |
+
+**Cause.** The town body, on the same clips, holds its head in the jog; the reference body
+swung it ±26° with step jumps. The difference is this body's §8.7 spine damping: the jog clip
+counter-rotates the head against its own torso twist, and with the twist reduced to 40 % that
+counter-rotation was left uncancelled. Not the camera: the third-person cameras pivot on the
+player's capsule, not on a bone (`camera_rig.gd`; the only bob is first-person); the rear
+camera's measured offset changes only when its boom is pulled in by collision.
+
+**Fix** (`posture.gd`, reference body only): `head_steady` pulls the head's body-frame
+orientation 90 % toward facing the direction of travel with the chin 12° down, scaled by gait
+(none standing), split half to the neck and half to the head, so 10 % of the clip's motion
+stays as a natural counter-motion; `head_tau` low-passes that body-frame orientation with a
+0.18 s time constant, so starting and stopping turn the head over about half a second instead
+of whipping it 60° in 0.2 s with the gait blend. The stance glance (`Neck`/`Head` tweaks) is
+dropped on this body while moving. A first version low-passed the *local* rotations; with the
+spine still swinging under a lagging neck it made the jog worse (39.5° yaw, 14.6° roll) and was
+replaced. **Within the bound in both gaits.**
+
+### 8.9 Final state after §§8.7–8.8
+
+Asset `rig7` (scratch): §8.6's finger weights, then `ARMZERO=1 SMOOTH=1 reweight_pack.py`:
+the side panels' arm shares moved to `Spine2`, then all weights smoothed over the pack volume
+(7,034 vertices, 8 passes), limited to 4 influences and normalised — the slits of §8.7 step 5
+came from the seam between the re-weighted panels and the pack's side wall nearest the body,
+which had kept its heat weights.
+
+Checked, every phase, not chosen frames (`--sweep`, eight phases 0.125 s apart per view):
+
+- **Pack, walking** (rear three-quarter on the strap side, `d9_sweep_pack.jpg` top row): the
+  sleeves pass beside the pack's side panels; the panels stay flat and on her back. No clipping.
+- **Pack, jogging** (rear, `d9` bottom row): the pack stays on her back; no slits, no ridges in
+  the hoodie below it. A dark band under the pack's bottom edge is its contact shading in the
+  baked texture, present standing too.
+- **Pack, standing** (`runtime_d13/p8_pack`, P8 at 1:1): sleeve and side panel meet without
+  either passing into the other.
+- **Hand, standing** (`runtime_d13/p2_grip3x`): as §8.7 step 2; the armpit holds (no tear).
+- **Hand, walking and jogging** (`d10_sweep_front.jpg`): the grip is released; both arms swing
+  and no hand is held against the cloth. The last jog frame is a bench across the camera.
+- **Head** (`d10`, §8.8): faces ahead in every walk and jog phase. Residual: in the walk the
+  face reads very slightly chin-up at the front three-quarter.
+- **Arms while moving, last change** (`ARM_OUT_D`, commit `7ea8ad1`): with the side panels on
+  the spine, §8.7 step 4's outward setting read as arms held out in the walk; it is now 4° in
+  (7° less than the town body's 11°). The final sweep (`sweep_g`, all 48 frames, the sheets
+  `d9`, `d10` regenerated from it) shows sleeve and pack side panel meeting cleanly in every
+  walk phase (rear three-quarter at 2.5×, `walk_rear_tq_2`) and no slits or ridges in any jog
+  phase.
+- Evidence `d3`, `d4`, `d6`, `d7` regenerated from `runtime_d13`; `d5` from the final sweep's
+  walk frames (front three-quarter and rear three-quarter).
+- Capture note: one sweep stalled at 25 frames while another worktree's Godot window was open
+  (macOS stops drawing an occluded window); the rerun completed.

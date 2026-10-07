@@ -28,7 +28,10 @@ const STRAP := Vector3(0.092, 1.250, 0.152)
 ## rest mesh by `strap`: the strap's ridge runs at x 0.14-0.16, z 0.015-0.025
 ## from y 1.31 up to the shoulder (lower down it turns round her side), and the
 ## knuckle sits ~2.5 cm proud of it with the fingers wrapped round.
-const STRAP_D := Vector3(0.150, 1.310, 0.045)
+## Raised from y 1.31 to 1.36 (§8.7): at 1.31 the fist sat at the hoodie's open
+## edge, where the strap runs under the cloth, and read as pushed into it; at
+## 1.36 the padded strap lies on top of the hoodie's shoulder.
+const STRAP_D := Vector3(0.150, 1.360, 0.045)
 
 var sk: Skeleton3D
 var body := Human.Body.TOWN

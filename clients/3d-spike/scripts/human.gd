@@ -76,6 +76,7 @@ var _seat_y := 0.45
 ## reaching through it for `.position` silently loses the type, which once
 ## failed compilation and degraded the whole scene.
 var _inst: Node3D
+var _body := Body.TOWN
 
 ## Blinking. The rig has no lid bones, so the lids close through the body
 ## mesh's `Blink` shape key (CharMorph's L3 Eyes_Closed, baked by
@@ -277,6 +278,7 @@ static func build(height_m: float, skin: Color, hair: Color,
 	var inst := (_scenes[body] as PackedScene).instantiate() as Node3D
 	h.add_child(inst)
 	h._inst = inst
+	h._body = body
 	h.scale = Vector3.ONE * (height_m / CANONICAL_HEIGHT)
 
 	h.skeleton = inst.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
@@ -506,9 +508,13 @@ const GRIP_LOWER := Vector3(109.0, -16.9, -23.7)
 ## do not land on its strap.
 ## The wrist is solved too: turned up, so the knuckles sit on the webbing above
 ## it and the elbow can hang at her side.
-const GRIP_UPPER_D := Vector3(70.6, 49.2, 19.0)
-const GRIP_LOWER_D := Vector3(130.4, -12.2, -18.4)
-const GRIP_HAND_D := Vector3(-72.0, -4.7, 75.0)
+## Re-solved 2026-10-07 for the strap point at y 1.36, on the padded strap where
+## it lies on top of the hoodie's shoulder (§8.7): knuckle 0.1 mm from the
+## target, wrist below it and in front of the cloth, elbow 255 mm below the
+## shoulder, 87 mm out.
+const GRIP_UPPER_D := Vector3(73.0, 31.6, 8.0)
+const GRIP_LOWER_D := Vector3(139.2, 41.3, 19.1)
+const GRIP_HAND_D := Vector3(63.5, 3.8, 71.0)
 ## The reference body's extra head turn (X+ face down, Y+ face to her left).
 const GAZE_NECK_D := Vector3(0, 5.0, 0)
 const GAZE_HEAD_D := Vector3(6.0, 14.0, 0)
@@ -660,6 +666,9 @@ func set_gait(speed_mps: float) -> void:
 	_tree.set("parameters/Rate/scale", rate)
 	if _posture:
 		_posture.tweak_weight = clampf(blend / WALK_CLIP_MPS, 0.0, 1.0)
+		if _body == Body.REFERENCE:
+			# lets go of the strap as she sets off; see Posture.grip_weight
+			_posture.grip_weight = 1.0 - smoothstep(0.0, 0.5 * WALK_CLIP_MPS, blend)
 
 
 ## World position of a foot. Used by `--drive` to measure foot sliding directly
