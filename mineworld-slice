@@ -13,6 +13,7 @@
 #
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
+#   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
 #   ./mineworld-slice --server=host:port [--seat=visitor]   connect to a running world
 #
 # Needs Godot 4.7 on PATH (brew install godot). --world also needs cargo.
@@ -51,7 +52,7 @@ world=0
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
-    --shots|--drive|--measure|--threshold|--perf|--hud|--jumpshots|--doors|--link|--character)
+    --shots|--drive|--measure|--threshold|--perf|--hud|--jumpshots|--doors|--link|--character|--conversation)
                                            args+=("--slice-${a#--}") ;;
     --gi=*)                                args+=("$a") ;;
     --res=*)                               res="${a#--res=}" ;;

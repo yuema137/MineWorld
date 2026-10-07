@@ -68,6 +68,63 @@ func add_line(text: String) -> Label:
 	return l
 
 
+## Lines of conversation, as subtitles: bottom centre, wrapped, the newest
+## CAPTION_LINES stacked, each held long enough to read -- CAPTION_BASE plus one
+## second per CAPTION_CPS characters, within CAPTION_MIN..CAPTION_MAX. A toast's
+## 1.6 s is for "Third person"; a sentence needs longer, and a reply must not
+## wipe the line it answers.
+const CAPTION_LINES := 3
+const CAPTION_BASE := 2.5
+const CAPTION_CPS := 14.0
+const CAPTION_MIN := 4.0
+const CAPTION_MAX := 14.0
+
+var _caption: Label = null
+var _captions: Array = []          ## [text, seconds left]
+
+
+func caption(text: String) -> void:
+	if _caption == null:
+		_caption = Label.new()
+		_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_caption.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+		_caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_caption.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+		_caption.grow_vertical = Control.GROW_DIRECTION_BEGIN
+		_caption.offset_left = -560
+		_caption.offset_right = 560
+		_caption.offset_bottom = -24
+		_caption.offset_top = -24
+		_style(_caption, 24)
+		var bg := StyleBoxFlat.new()
+		bg.bg_color = Color(0, 0, 0, 0.45)
+		bg.set_content_margin_all(10)
+		bg.set_corner_radius_all(6)
+		_caption.add_theme_stylebox_override("normal", bg)
+		add_child(_caption)
+	_captions.append([text, clampf(CAPTION_BASE + text.length() / CAPTION_CPS,
+		CAPTION_MIN, CAPTION_MAX)])
+	while _captions.size() > CAPTION_LINES:
+		_captions.pop_front()
+	_show_captions()
+
+
+func _process(delta: float) -> void:
+	if _captions.is_empty():
+		return
+	var before := _captions.size()
+	for c in _captions:
+		c[1] -= delta
+	_captions = _captions.filter(func(c): return c[1] > 0.0)
+	if _captions.size() != before:
+		_show_captions()
+
+
+func _show_captions() -> void:
+	_caption.text = "\n".join(_captions.map(func(c): return c[0]))
+	_caption.visible = not _captions.is_empty()
+
+
 ## Free-form messages from the scene (a connection state, a server answer),
 ## shown the same way as the camera toast.
 func toast(text: String) -> void:

@@ -114,7 +114,15 @@ func _learn_passages(obs: MineWorldObservation, place: String, key: String) -> v
 			doorway[other] = p["there"]
 
 
-signal said(text: String)
+## A status line for the player, already in display labels: never an entity id
+## (the ids go to the log only). `notice` marks the ones worth a toast.
+signal said(text: String, notice: bool)
+## One line of conversation, as a player reads it: `Barista: words`.
+signal spoke(line: String)
+
+## Tags that say what kind of thing an entity is in general rather than who it
+## is: skipped when a role is read from the tags (`display_label`).
+const GENERIC_TAGS := ["public", "staff", "outdoor", "residential"]
 
 var client: MineWorldClient
 var player: SlicePlayer
@@ -140,6 +148,10 @@ var _since := 0.0
 var _tokens := {}                  ## token -> action type, for the transcript
 var _reconcile := true             ## put the body where the next observation says
 var _unknown_said := false
+## EntityId string -> the label last shown for it, so someone heard after they
+## have left view is still named as they were seen
+var _labels := {}
+var _talk_pending := {}            ## talk token -> [target id, what the player said]
 
 
 static func address_from_args() -> String:
@@ -164,18 +176,61 @@ func start(address: String, seat: String) -> void:
 	client.observed.connect(_on_observed)
 	client.resolved.connect(_on_resolved)
 	client.refused.connect(_on_refused)
-	client.disconnected.connect(func(reason: String) -> void: _say("disconnected: %s" % reason))
+	client.disconnected.connect(func(reason: String) -> void:
+		_say("disconnected: %s" % reason, "", true))
 	client.connect_to_world(address, seat)
 	_say("connecting to %s as %s" % [address, seat])
 
 
-func _say(text: String) -> void:
-	print("[link] " + text)
-	said.emit(text)
+## `shown` is what the player reads, in display labels; `log_detail` adds the
+## identities and raw values for the log, and is never put on screen.
+func _say(shown: String, log_detail := "", notice := false) -> void:
+	print("[link] " + shown + ("  [%s]" % log_detail if log_detail != "" else ""))
+	said.emit(shown, notice)
 
 
 func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
-	_say("seated as %s -- observer %s, world %s" % [seat, observer, world.get("instance", "?")])
+	_say("seated as %s" % seat,
+		"observer %s, world %s" % [observer, world.get("instance", "?")], true)
+
+
+## THE ONE PLACE an entity is named for the player: every figure label, every
+## HUD line and every conversation line comes from here, and none of them ever
+## shows a bare entity id.
+##
+## The world authors no names yet (`worlds/social-cafe/people/*.yaml`), so a
+## person is named by their role: the first tag that says who they are rather
+## than what kind of thing they are, capitalised -- `barista` -> "Barista". When
+## S8 PR 10c's System Pack discloses names, the disclosed name comes first and
+## the role stays the fallback. The observer is "You"; an entity with nothing
+## to go on is "Someone".
+func display_label(id: String) -> String:
+	if client != null and id == client.observer:
+		return "You"
+	var obs := client.latest if client != null else null
+	if obs != null and not obs.entity(id).is_empty():
+		var shown := _disclosed_name(obs, id)
+		if shown == "":
+			shown = _role(obs.entity(id).get("tags", []))
+		if shown != "":
+			_labels[id] = shown
+	return _labels.get(id, "Someone")
+
+
+## The name the world disclosed for a perceived entity, or "" when it disclosed
+## none. Nothing discloses one before S8 PR 10c: this is where it is read.
+func _disclosed_name(_obs: MineWorldObservation, _id: String) -> String:
+	return ""
+
+
+static func _role(tags: Variant) -> String:
+	if typeof(tags) != TYPE_ARRAY:
+		return ""
+	for t in tags:
+		var tag := String(t).strip_edges()
+		if tag != "" and not GENERIC_TAGS.has(tag):
+			return tag.capitalize()
+	return ""
 
 
 ## The pack key of a place identity, if this client knows it.
@@ -205,7 +260,8 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	if key != here_key:
 		if here_key != "":
 			place_changes.append([here_key, key])
-		_say("in place %s (%s)" % [place, key if key != "" else "not drawn by this slice"])
+		_say("in the %s%s" % [display_label(place),
+			"" if key != "" else " (not drawn by this slice)"], "place %s" % place)
 		here_key = key
 	_hear(obs)
 	# Nothing can be drawn in a place whose doorway the world has not disclosed:
@@ -222,7 +278,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			player.global_position = to_scene(key, me) + Vector3(0, 0.02, 0)
 			player.velocity = Vector3.ZERO
 			_last_pos = player.global_position
-			_say("body placed where the world says: %s %s" % [key, JSON.stringify(me)])
+			_say("placed where the world says you are", "%s %s" % [key, JSON.stringify(me)])
 
 	var seen := {}
 	for id in obs.ids():
@@ -236,22 +292,27 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		seen[id] = true
 		var fig: Node3D = figures.get(id)
 		if fig == null:
-			fig = _figure(id, obs)
+			fig = _figure(id)
 			figures[id] = fig
+		# a name disclosed later replaces the role on the label
+		var label := fig.get_node_or_null("Label") as Label3D
+		if label != null:
+			label.text = display_label(id)
 		fig.global_position = to_scene(key, loc.get("local"))
 		fig.rotation.y = MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI
 	for id in figures.keys():
 		if not seen.has(id):
-			_say("lose %s at %s (no longer perceived here)"
-				% [id, (figures[id] as Node3D).global_position])
+			_say("%s is no longer in view" % display_label(id),
+				"lose %s at %s" % [id, (figures[id] as Node3D).global_position])
 			(figures[id] as Node).queue_free()
 			figures.erase(id)
 
 
 ## What the observer has been told. Protocol revision 1 sends no event bodies;
 ## what someone said to you arrives as your own disclosed `conversation-history`
-## (`ADOPTION.md` sec.6). Each new entry is shown once, as the world states it --
-## the speaker by identity (and tags, which are world data), the words verbatim.
+## (`ADOPTION.md` sec.6). Each new entry is shown once, as a line of
+## conversation: the speaker by `display_label`, the words as plain text,
+## exactly as the world states them. The speaker's identity goes to the log.
 func _hear(obs: MineWorldObservation) -> void:
 	var h: Variant = obs.own_component("conversation-history").get("heard", [])
 	if typeof(h) != TYPE_ARRAY:
@@ -264,29 +325,39 @@ func _hear(obs: MineWorldObservation) -> void:
 		var who := ""
 		if typeof(e.get("speaker")) == TYPE_DICTIONARY:
 			who = String(e["speaker"].get("entity", ""))
-		var tags: Array = obs.entity(who).get("tags", []) if who != "" else []
-		_say("%s%s said: %s" % [who, " (%s)" % ", ".join(tags) if not tags.is_empty() else "",
-			JSON.stringify(e.get("utterance"))])
+		_speak(display_label(who) if who != "" else "Someone", e.get("utterance"),
+			"heard from %s" % who)
+
+
+## Put one line of conversation on screen and in the log. The words are shown
+## as text, never as an encoded value: an utterance is a string, and quoting or
+## escaping it is a transport's business, not the player's.
+func _speak(speaker: String, utterance: Variant, log_detail: String) -> void:
+	var words := (String(utterance) if typeof(utterance) == TYPE_STRING
+		else str(utterance)).strip_edges()
+	var line := "%s: %s" % [speaker, words]
+	print("[link] %s  [%s]" % [line, log_detail])
+	spoke.emit(line)
 
 
 ## A perceived person, drawn from the same stand-in mannequin as the street's
 ## figures. Appearance is chosen here from tags, which are world data.
-func _figure(id: String, obs: MineWorldObservation) -> Node3D:
+func _figure(id: String) -> Node3D:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(id)
 	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, false)
 	n.name = "Person_" + id
 	n.set_meta("entity_id", id)       # a string, never a number (ADOPTION.md sec.3.1)
 	world_root.add_child(n)
-	var tags: Array = obs.entity(id).get("tags", [])
 	var label := Label3D.new()
-	label.text = ", ".join(tags) if not tags.is_empty() else id
+	label.name = "Label"
+	label.text = display_label(id)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position = Vector3(0, 2.05, 0)
 	label.font_size = 48
 	label.pixel_size = 0.004
 	n.add_child(label)
-	_say("perceive %s (%s)" % [id, label.text])
+	_say("%s is here" % label.text, "perceive %s" % id)
 	return n
 
 
@@ -363,16 +434,25 @@ func _location(key: String, local: Dictionary) -> Dictionary:
 func talk_to_facing(utterance: String) -> String:
 	var target := facing_person()
 	if target == "":
-		_say("nobody in view to talk to")
+		_say("nobody in view to talk to", "", true)
 		return ""
 	var obs := client.latest
 	if obs != null and not obs.may("talk", target):
-		_say("the world says talk to %s is unavailable: %s"
-			% [target, obs.unavailable_reason("talk", target)])
+		_say("the world says talking to %s is unavailable: %s"
+			% [display_label(target), _readable(obs.unavailable_reason("talk", target))],
+			"target %s" % target)
 	var tok := client.submit("talk", target, { "utterance": utterance },
 		_location(here_key, to_world(here_key, player.global_position)))
 	_tokens[tok] = "talk"
+	_talk_pending[tok] = [target, utterance]
 	return tok
+
+
+## A server's reason code, as words: `too_far_away` -> "too far away".
+static func _readable(code: Variant) -> String:
+	if typeof(code) == TYPE_DICTIONARY and not (code as Dictionary).is_empty():
+		code = (code as Dictionary).keys()[0]
+	return String(code).replace("_", " ") if typeof(code) == TYPE_STRING else str(code)
 
 
 func facing_person() -> String:
@@ -407,8 +487,23 @@ func _on_resolved(token: String, action_id: String, result: Variant) -> void:
 		_reconcile = true
 	if kind == "accepted" and what == MOVE_ACTION:
 		return  # the steady stream of position reports; not worth a toast
-	_say("%s %s -> %s %s" % [what, token, kind,
-		"" if kind == "accepted" else JSON.stringify(result)])
+	var log_detail := "%s %s -> %s %s" % [what, token, kind, JSON.stringify(result)]
+	if what == "talk" and _talk_pending.has(token):
+		var p: Array = _talk_pending[token]
+		_talk_pending.erase(token)
+		if kind == "accepted":
+			# what the player said, echoed as a line of the conversation
+			_say("talking to %s" % display_label(p[0]))
+			_speak(display_label(client.observer), p[1], log_detail)
+			return
+		var reason: Variant = (result as Dictionary).get(kind) \
+			if typeof(result) == TYPE_DICTIONARY else result
+		_say("can't talk to %s: %s" % [display_label(p[0]), _readable(reason)],
+			log_detail, true)
+		return
+	_say("%s: %s" % [what, kind if kind == "accepted" else "%s, %s" % [kind, _readable(
+		(result as Dictionary).get(kind) if typeof(result) == TYPE_DICTIONARY else result)]],
+		log_detail, kind != "accepted")
 
 
 func _on_refused(code: String, token: String, _detail: String) -> void:
@@ -416,7 +511,12 @@ func _on_refused(code: String, token: String, _detail: String) -> void:
 		"code": code })
 	if _tokens.get(token, "") == MOVE_ACTION:
 		_reconcile = true
-	_say("refused %s: %s" % [token, code])
+	var target := ""
+	if _talk_pending.has(token):
+		target = String(_talk_pending[token][0])
+		_talk_pending.erase(token)
+	_say("refused%s: %s" % [" talking to " + display_label(target) if target != "" else "",
+		_readable(code)], "token %s" % token, true)
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -107,10 +107,17 @@ static func scripted() -> bool:
 	var a := OS.get_cmdline_user_args()
 	for m in ["--slice-shots", "--slice-drive", "--slice-measure", "--slice-threshold",
 			"--slice-perf", "--slice-hud", "--slice-jumpshots", "--slice-doors", "--slice-link",
-			"--slice-character"]:
+			"--slice-character", "--slice-conversation"]:
 		if m in a:
 			return true
 	return false
+
+
+## A scripted mode whose evidence is the player's own HUD, so the slice attaches
+## it exactly as for a player (`SliceMain._hud`) rather than the probe making a
+## copy of its wiring.
+static func with_hud() -> bool:
+	return "--slice-conversation" in OS.get_cmdline_user_args()
 
 
 func _ready() -> void:
@@ -127,7 +134,7 @@ func _ready() -> void:
 	Engine.max_fps = 0
 	OS.low_processor_usage_mode = false
 	for m in ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors",
-			"link", "character"]:
+			"link", "character", "conversation"]:
 		if "--slice-" + m in a:
 			_mode = m
 	DirAccess.make_dir_recursive_absolute(OUT)
@@ -151,6 +158,7 @@ func _process(_d: float) -> void:
 		"doors": await _door_frames()
 		"link": await _link_check()
 		"character": await _character_check()
+		"conversation": await _conversation_frames()
 	get_tree().quit(0)
 
 
@@ -457,6 +465,59 @@ func _link_check() -> void:
 			print("reply    %s said %s (after %.1f s)" % [barista, JSON.stringify(reply.get("utterance")), t])
 	await _street_watch(link)
 	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+## What the player reads when they talk, captured from the player's own HUD in a
+## window: from the door (the world says too far away), then at the counter on
+## foot (her answer, as a line of conversation). The probe's `--link` check saw
+## the reply in data; this is the screen the operator reads it on.
+func _conversation_frames() -> void:
+	print("== the conversation, on screen ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	await _hold(0.8)
+	var barista := ""
+	for id in link.client.latest.tagged("barista"):
+		barista = id
+	if barista == "" or not link.figures.has(barista):
+		print("FAIL: no barista perceived")
+		return
+	player.set_camera(FP)
+	var near_door := await _talk_to(link, barista)
+	await _settle(4)
+	await _save("conversation_1_from_door")
+	print("door     %.2f m -> %s; on screen: %s" % [near_door[1], near_door[0],
+		slice.hud._toast.text])
+	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
+	var bp: Vector3 = (link.figures[barista] as Node3D).global_position
+	await _walk_to(Vector3(bp.x, 0.0, bp.z + 1.85), 6.0)
+	await _hold(0.8)
+	var heard_before := link.heard.size()
+	var at_counter := await _talk_to(link, barista)
+	var t := 0.0
+	while t < 15.0 and link.heard.size() == heard_before:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.5)
+	await _settle(4)
+	await _save("conversation_2_at_counter")
+	var shown := slice.hud._caption.text if slice.hud._caption != null else ""
+	print("counter  %.2f m -> %s; on screen:\n%s" % [at_counter[1], at_counter[0], shown])
+	# no entity id on screen: the barista's id must not appear as a word
+	var leaked := false
+	for w in shown.split(" "):
+		if w.strip_edges().trim_suffix(":") == barista or w.strip_edges() == link.client.observer:
+			leaked = true
+	print("\n%s" % ("conversation on screen, no ids" if not shown.is_empty() and not leaked
+		else "CONVERSATION CHECK FAILED (empty caption or an id on screen)"))
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
 

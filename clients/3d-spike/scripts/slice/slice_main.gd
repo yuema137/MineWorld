@@ -347,7 +347,7 @@ func _process(_d: float) -> void:
 
 
 func _hud() -> void:
-	if SliceProbe.scripted():
+	if SliceProbe.scripted() and not SliceProbe.with_hud():
 		return
 	hud = ControlsHud.attach(self, player)
 	_hud_place = hud.add_line("place: -")
@@ -369,11 +369,14 @@ func _link() -> void:
 	link.player = player
 	link.world_root = world
 	add_child(link)
-	link.said.connect(func(text: String) -> void:
+	# Both arrive in display labels (`SliceLink.display_label`); the link keeps
+	# entity ids to its log.
+	link.said.connect(func(text: String, notice: bool) -> void:
 		if _hud_world != null:
 			_hud_world.text = "world: " + text
-		if hud != null and (text.begins_with("seated") or text.begins_with("talk")
-				or text.begins_with("refused") or text.begins_with("disconnected")
-				or text.contains(" said: ")):
+		if hud != null and notice:
 			hud.toast(text))
+	link.spoke.connect(func(line: String) -> void:
+		if hud != null:
+			hud.caption(line))
 	link.start(address, SliceLink.seat_from_args())
