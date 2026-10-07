@@ -7,7 +7,8 @@ re-audited and detailed only after the PR before it merges (`CLAUDE.md` §3, "de
 follow-up)
 **Lifecycle:** `DESIGN FROZEN` (2026-10-07, primary session; answers in §10.1). 10a frozen to the
 commit; 10b and 10c frozen at the step level and detailed after the previous PR merges.
-**PR 10a implementation context:** `ACTIVE` since 2026-10-07 (this session; §4.1 ledger, §9 evidence).
+**PR 10a implementation context:** `CLOSED / AWAITING OPERATOR ACTION` — PR 10a `READY FOR OPERATOR
+REVIEW`, GitHub #29 (§12); §4.1 ledger, §9 evidence.
 
 ## DESIGN FROZEN
 
@@ -1142,4 +1143,44 @@ POST-MERGE SYNC     the planning session owns step/overall updates; this session
 NORMAL STOP         PR 10a READY FOR OPERATOR REVIEW — DO NOT MERGE
 MATERIAL STOP       any change to §1.3, to a public contract beyond §1.1, to ownership, or to scope;
                     any existing test whose claim cannot be kept under I-5 — stop and report
+```
+
+---
+
+# 12. Closeout, PR 10a — READY FOR OPERATOR REVIEW
+
+```text
+PR                    GitHub #29 — https://github.com/yuema137/MineWorld/pull/29 (base main), OPEN,
+                      mergeable
+base                  main @ f4301c1
+final executable HEAD 03a4df3 — every gate in §9 E-final ran on it, clean tree
+final PR HEAD         the commit carrying this section (planning documents only); `git log` on the
+                      branch is authoritative — a commit cannot name its own hash
+semantic commits      f19e84c design · 700f0e0 freeze (primary session) · 87b9444 execution start ·
+                      7eb4462 C1 café · aacfa16 C2 town · d61fb29 C3 doors, stride fix, pace ·
+                      03a4df3 C5 docs · 155b274 gates
+CI                    N/A — no workflow in the repository (S13)
+material deviations   none: no frozen invariant (§1.3), public contract, ownership or scope changed.
+                      The edits to code outside 10a's file list are cognition/rule-controller (in
+                      scope) and the S7 `toward` defect fix inside it.
+bounded deviations    C4's work folded into C1 and C2 (ac13 replays recorded frames); door choice per
+                      6-hour window and a street favouring "walk on" (found by measuring); the `toward`
+                      overshoot fix; pace 600 → 900 s under Q4's rule; the plan's "commands.rs checks
+                      against the pack's lists" not applied (rules §25); the visitor's seat at the start
+                      of the door-to-counter lane
+procedural            `sed -i` (one rename) and a no-op `awk` were used against the brief; both are
+                      recorded in E-1 and E-3 and reported
+working tree          clean after the closeout commit
+merge                 NOT authorized; the operator merges
+implementation ctx    CLOSED / AWAITING OPERATOR ACTION. Do not start 10b until told 10a is merged.
+```
+
+**Post-merge, owned by the planning session (§11):**
+- Mark 10a merged here and in `overall.md` §7, noting that the world-data follow-up is done for the
+  café.
+- Route the 3D far-side check (`./mineworld-slice --world --link`, talking from the counter) to the
+  environment session. Its `--places=` binding must now read the six-place id table, which `mineworld
+  validate` prints with café = 2 and street = 5.
+- Re-audit and detail 10b against the merged state. Note for 10b: `run.rs` costs about 218 s, and 10b
+  adds two systems and new facts to every run.
 ```
