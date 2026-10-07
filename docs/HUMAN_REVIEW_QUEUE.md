@@ -53,10 +53,59 @@ identifies one thing.
 | | Milestone | State |
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
-| **VIS-3D-GODOT-1** | Reference-matched character in Godot | ❌ **FAILED by the operator, 2026-10-06**: not the same person and not the reference's quality tier. The candidate is kept as pipeline validation only (`VISUAL_FIDELITY.md` §9.2); the route decision is with the operator, see below |
+| **VIS-3D-GODOT-1** | Reference-matched character in Godot | 🔍 **route D+ preview prepared, 2026-10-07**, held for the coordinator (see below). Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ❌ |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
+
+### `VIS-3D-GODOT-1` — route D+ preview, PREPARED 2026-10-07 (not yet shown to the operator)
+
+**This is a preview (`VISUAL_FIDELITY.md` §9.1), not an acceptance request.** It is held for
+the coordinator, who will show it to the operator with the other items. It asks: *is this the
+right direction, and what is most wrong?*
+
+The candidate is one Meshy generation of the reference, made game-ready (95,000 triangles, one
+material) and rigged on our existing skeleton, in its own body slot: only the player uses it,
+the townspeople keep the CharMorph body. Record:
+[`references/CHARACTER_ROUTE_D_PLUS.md`](references/CHARACTER_ROUTE_D_PLUS.md) §8.
+
+**Launch.**
+
+```sh
+./mineworld-3d             # walk around; the player is the candidate (third-person camera)
+./mineworld-3d --portrait  # the review frames, written to clients/3d-spike/shots/
+```
+
+**Frames**, in `presentation/mineworld-default/3D/candidate/route_d/`:
+`d3_side_by_side.jpg` (the reference chest-up beside the runtime three-quarter and front
+portraits), `d4_full_and_rear.jpg`, `d5_walk.jpg`, `d6_grip_armpit_hairline_zoom.jpg`,
+`d7_idle_loop.jpg`.
+
+**Known misses, largest first.**
+
+1. The hand on the strap is open, fingers splayed, one finger pointing up, with a dark mark
+   across it; the reference's is a relaxed fist. The generated hand's fingers are one fused
+   surface, so they barely curl.
+2. She looks straight ahead and a little up; the reference looks off to her left. The eyes are
+   painted and cannot turn; only the head turns.
+3. The hair is a darker, cooler brown with no caramel highlights, and its locks read as heavier
+   sculpted ropes than the reference's soft wisps.
+4. The backpack is charcoal grey where the reference's is olive.
+5. The tee's slogan has a garbled first word; the tee is greyer-white than oatmeal.
+6. No blink and no expressions: the face has no lids or mouth that move.
+7. Light flecks along the hair's locks in the head close-up at 2×; not visible at the
+   reference's framing.
+
+**Scorecard** (§6, full table in the record §8.5): overall identity `PASS`; face identity, hair
+silhouette, hair colour, hoodie, tee, backpack, material quality and vibe `PARTIAL`; no hard-fail
+category fails. No tear in any pose or in motion.
+
+**Questions for the operator.**
+
+1. Is this the right person at the right quality tier — enough to continue on this candidate
+   rather than return to route C?
+2. Which miss matters most: the hand, the fixed gaze, or the hair colour and texture?
+3. Is a character without blink or expression acceptable for now, or is that a blocker?
 
 ### `VIS-3D-GODOT-1` — FAILED, 2026-10-06 (operator verdict on the preview 3 state)
 
