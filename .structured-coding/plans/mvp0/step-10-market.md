@@ -1090,3 +1090,184 @@ to bite, then reverted, on a scratch branch):**
 - check 3: one tag of one person changed in market-town → fails naming the file and the field;
 - CP-4: market-town with `buy` never offered complete (economy edited on the scratch branch) → the
   precondition fails before any determinism comparison runs (the instrument sees the absence).
+
+---
+
+# 5. Integration checkpoints
+
+| PR | Integration checkpoint | Adversarial criterion (decided before measuring, `ARC-23`) |
+| --- | --- | --- |
+| 11a | social-cafe's 300-day run byte-identical to E-0; a canary pack installed by two lines in `systems/installed/` (A-1 … A-4) | removing a list line, or re-adding a pack import to `worldpack`, fails a named guard |
+| 11b | a pack with items and organizations loads; social-cafe's ids, genesis count and run unchanged | items' sections seeded after people's fails the genesis-order test |
+| 11c | a synthetic pack's action, unknown to the controller, is attempted and accepted headless; social-cafe byte-identical | the band taking an unavailable affordance, or sharing a draw index, fails a named test or the byte comparison |
+| 11d | market-town (owning, giving) validates and runs 30 days with gives accepted; per-pack tests incl. restart; AC-2 for item-transfer at pack level | a transfer beyond what the giver holds is refused by inventory itself |
+| 11e | wages, purchases and production in a 30-day run; restart mid-shift; economy and employment each install without the other | wage-due against an empty wallet yields wage-unpaid, never a negative |
+| 11f | the AC-1 test (three checks), CP-4 over 300 days, AC-2 at world level, Milestone C through the real server | each of the four scratch mutations in §4.6 fails its check by name |
+
+# 6. Test ownership and verification
+
+```text
+STATIC        cargo fmt --all --check; cargo clippy --workspace --all-targets -- -D warnings: formatting,
+              lints, trait bounds of the installed set, INV-7 write tokens (a pack writing another's
+              component does not compile)
+UNIT          fail-closed registry and guard logic (11a); format refusals (11b); the offer band's
+              choice and its availability filter (11c); each market pack's validate/resolve/reduce over
+              hand-built worlds (11d, 11e)
+INTEGRATION   every existing test, unchanged except F-10 (11a–11c); loader over real packs (11b);
+              presence's real observe() + kernel dispatch + paced controller (11c); per-pack persisted
+              restarts (11d, 11e)
+REAL RUNS     mineworld run over social-cafe (every PR, I-4) and market-town (11d, 11e evidence; 11f
+              tests); the real server and real sockets for Milestone C (11f)
+GATE 1        NOT REQUIRED — no language model in S9
+GATE 2        the real runs above; the canary install (11a); the scratch mutations (11f)
+CI            none configured (S13). Each PR runs the full local gate once on its final head:
+              cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings &&
+              cargo test --workspace; plus python3 scripts/check_doc_headings.py and
+              python3 scripts/check_decision_ids.py
+```
+
+The 300-day run takes ~13 s at `opt-level = 1` (E-0); the full gate on `b9e5937` is ~4–6 minutes
+(step-09 E-final). No PR in S9 needs a run longer than a few minutes.
+
+# 7. Self-review against the frozen specifications
+
+```text
+CHECKED  frozen top-level criterion / AC-1: measured by three independent checks over a named change
+         set (§2.5); F-1 and F-3 resolved by precursors bounded by I-2 and I-9 rather than by
+         reinterpreting the criterion; the reinterpretation that remains (measurement, Cargo.lock,
+         docs, systems/installed) is raised as operator-material, not assumed
+CHECKED  INV-12: no S9 PR teaches the kernel anything; kernel/ untouched (I-8); money, jobs, shops,
+         items live in packs; time of day stays schedule's and employment's convention
+CHECKED  INV-7 / CLAUDE.md §4 rule 1: one writer per state (§2.6); money moves only in economy;
+         employment emits wage-due; holdings change only in inventory's reductions
+CHECKED  ARC-26: item-transfer, economy and employment state inventory's facts only through inventory's
+         checked constructors and only with a system dependency on it
+CHECKED  ARC-28: economy reacts to wage-due by Cargo dependency on employment's types, no system
+         dependency; neither depends on the other at the registry
+CHECKED  INV-1 / INV-6 / ARC-32: no pack decides for a person; work is being where your job is; buying is
+         a request a controller or a human makes
+CHECKED  INV-10: a complete affordance is offered only for an action an enabled system provides, and
+         dispatch revalidates (ARCHITECTURE §9); a controller still cannot create an interaction
+CHECKED  INV-13: holdings and wallets disclosed to their holder only; a shop's listing to those who
+         perceive the shop
+CHECKED  ARC-27 / I-5: the paced controller stays a pure function; RuleController unchanged
+CHECKED  CLAUDE.md §4 rule 5: after 11a–11c, adding the market is modules + registration + tests (§2.7)
+CHECKED  CLAUDE.md §4 rule 11: SystemPack is defined after seven packs repeat the same five facts in the
+         catalog; complete affordances after a concrete second consumer (controller and clients) exists
+CHECKED  CLAUDE.md §4 rule 16 / REUSE_POLICY §§11–12, 17: inventory/linkme/libloading/erased-serde/a
+         TOML build script considered and declined with reasons (DEP-12); no dependency added in S9
+CHECKED  ENGINEERING_RULES §§9, 11–12 (the two gate questions): complete affordances are a server
+         answer both clients can carry and neither evaluates; a shop is a place a 3D player walks into
+         and a 2D player clicks into; nothing engine-specific enters a contract
+CHECKED  determinism (AC-12): every new map is a BTreeMap; every choice is a seeded draw; no float
+FLAGGED  QS-2, QS-3, QS-4, QS-5, QS-6 — operator-material (§10)
+FLAGGED  MVP §5's eat and sleep are not in S9 (QS-10)
+```
+
+---
+
+# 8. Source audit (`main @ b9e5937`, 2026-10-07)
+
+## 8.1 What was inspected
+
+```text
+Cargo.toml (root: members, [workspace.dependencies], profile); every crate manifest naming a pack
+worldpack/src/{catalog.rs (whole), content.rs (whole), format.rs (:1–140), load.rs (:230–330,
+  :440–488), read.rs (:205–240, LOCATION_OWNER/PASSAGE_OWNER uses), lib.rs}; worldpack/Cargo.toml;
+  worldpack/tests/refusals.rs (:1–40, :165–200, :779), social_cafe.rs (composition list)
+authoring/src/{lib.rs, section.rs}
+cognition/rule-controller/{Cargo.toml, src/lib.rs, paced.rs, social.rs, agenda.rs} (whole)
+contracts/src/observation.rs (whole: Affordance, Observation); contracts/src/action.rs (ActionRecord,
+  ActionRequest, Rejection); contracts/src/ids.rs (EntityType::Item/Organization, ItemId,
+  OrganizationId); contracts/Cargo.toml
+kernel/src/view.rs (public API: no entity creation by a system); kernel/src/world.rs:571
+  (create_entity); kernel/src/system.rs (public API outline)
+systems/presence/src/{interaction.rs (:1–260), observe.rs (:150–290)}; systems/*/src/system.rs (the
+  seven system types; BIOGRAPHICAL constants); systems/naming/src/section.rs; systems/README.md
+tools/cli/{Cargo.toml, src/run.rs (:1–80), src/biography.rs (:160–185), tests/commands.rs (:20–40)}
+server/Cargo.toml, persistence/Cargo.toml
+clients/protocol/demo/demo.gd (:255–300, :480–520); clients/protocol/mineworld/{observation.gd,
+  world_client.gd} (affordance and submit surfaces)
+docs: MVP (whole), ACCEPTANCE (whole), MODULE_SPEC (whole), PACKAGE_FORMAT (whole), CORE_CONCEPTS
+  (whole), REUSE_POLICY (whole), ENGINEERING_RULES (whole), ARCHITECTURE §§1–2, 9, 12–14,
+  ENGINEERING_STANDARDS §§5–9, 16, 28–30, DECISIONS ARC-26 … ARC-32, HUMAN_REVIEW_QUEUE
+  (milestones); overall.md (whole); step-09-social.md §§1–2.7, 4.3.1–4.3.2, 7, 8, 10, 10.1, 11
+git grep for market words in code outside systems/ and worlds/ (F-10, F-14); every origin/* branch for
+  ARC-33+ / DEP-12+ (none)
+experiments (reverted): root members as "systems/*" with cargo metadata (F-9); the 300-day seed-7
+  social-cafe baseline run (E-0)
+```
+
+## 8.2 Findings
+
+```text
+F-1   (carried, step-09) Installing a pack edits ~11 lines in 5 files, 3 outside systems/ (§2.2 list).
+      Resolved by 11a's design (SD-1 … SD-5); what remains (one Cargo line, a rebuild) is inherent to
+      statically linked Rust and recorded in ARC-33.
+F-3   (carried) The paced controller acts only on actions it is compiled against, because an
+      Affordance carries no payload (contracts/src/observation.rs:172). Resolved by 11c's design.
+F-4   (carried) A per-pack World Pack field was the old pattern; ARC-31's sections replaced it for
+      people and places. Items and organizations still have no content kind (11b).
+F-9   A glob member "systems/*" resolves all workspace members on b9e5937 with systems/README.md
+      present (`cargo metadata --no-deps`, 15 packages); the root manifest was restored byte for byte.
+F-10  worldpack/tests/refusals.rs:171,178 uses `economy` as the system the build does not provide.
+      Installing economy would break it, and its fix lies outside AC-1's allowed set. 11a renames it.
+F-11  demo.gd lists every affordance generically (:483–505) but can submit only `talk` (:278); the Godot
+      module's submit takes a payload the caller must build (world_client.gd:155–172).
+F-12  WorldView has no way for a system to create an entity (kernel/src/view.rs public API); entities
+      come from the loader (World::create_entity, kernel/src/world.rs:571). So item *instances* cannot
+      be created by a pack without a kernel change: S9 ships stacked kinds (SD-8, QS-6).
+F-13  MODULE_SPEC §4's frozen layout lists items/ and organizations/; §4.1's implemented subset omits
+      them, and world.yaml refuses the keys as unknown. 11b closes the gap rather than inventing format.
+F-14  Market words appear outside systems/ only in contract-layer stubs (`inventory-stub`,
+      `item-transferred` in contracts/tests/event.rs; `Employment` in contracts/tests/identity.rs) and in
+      the 3D spike's GDScript (`shop` geometry). None names a pack, so AC-1's check 2 matches crate
+      names, not slugs.
+F-15  tests/ and sdk/ exist only as .gitkeep. ARCHITECTURE §14 gives them to acceptance tests and the
+      SDK; S9 uses both for their stated purpose.
+F-16  Entity keys are one namespace across kinds (read.rs check_keys_are_declared_once; the kernel
+      refuses a second entity claiming a key). An Organization operating the café cannot be keyed
+      `cafe`.
+F-17  §2.5 check 3 keeps social-cafe's sections verbatim, routines included. Jobs must therefore fit
+      routines people already have; this is a content constraint on 11e, chosen over relaxing check 3.
+F-18  catalog.rs's own documentation anticipates the change: "ARC-8 makes system extension a WASM
+      component later, at which point this becomes a registry populated at startup … The shape of the
+      question does not change." SD-2 keeps that shape.
+F-19  `mineworld run`'s pace is a CLI constant (tools/cli/src/run.rs:42). If market-town's run were too
+      slow, raising it would edit tools/ (outside the range) and change social-cafe's runs (I-4). Run
+      cost must be held by what the packs offer (R-S9-2).
+```
+
+## 8.3 Material findings
+
+F-1 and F-3, carried from S8, are resolved here only by framework changes that are themselves
+material: the installation mechanism and the measurement of `AC-1` (QS-2, QS-3), and a public contract
+change in `contracts/` (QS-4). The ontology reading of `Item` (QS-6) and the format extension (QS-5) are
+material in their own right. Nothing found contradicts a frozen invariant of an earlier step.
+
+---
+
+# 9. Ledger and evidence
+
+```text
+E-0  C0 design, 2026-10-07, on main @ b9e5937 + this file.
+     Baseline for I-4 / A-1: `mineworld run worlds/social-cafe --headless --seed 7 --days 300` (debug,
+     opt-level 1): 339 lines; history 365 330 facts, fingerprint 59339a9c281829c9; faults 0;
+     wall 13.1 s; sha-256 of every line but `wall` =
+     ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b.
+     F-9 experiment: cargo metadata --no-deps with members "systems/*" → 15 workspace packages; root
+     Cargo.toml restored (cmp identical), Cargo.lock untouched (git status clean).
+     check_doc_headings / check_decision_ids: recorded at the commit that adds §10 (below).
+     No cargo gate run (docs only).
+```
+
+## 9.1 Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| **R-S9-1** | A transformation PR finds it needs a framework change (a kernel API, a presence hook, a contract field). Inside 11d/11e that fails AC-1 by construction. | Each transformation design begins with a throwaway spike of its riskiest cross-pack flow on the post-precursor `main`. A gap found there becomes a precursor PR, justified without the market (I-2), or a material stop. Never a quiet edit inside the range. |
+| **R-S9-2** | Complete affordances multiply offers per consult (one per kind held, per person nearby, per priced kind); run time grows, and the pace cannot be raised (F-19). | Measured in 11d and 11e on 30-day runs before 11f. If one 300-day market-town run exceeds ~60 s, the packs offer less (e.g. give only kinds held, to people within reach — already scoped), never a CLI change. |
+| **R-S9-3** | The closed money loop drains: customers spend endowments, employers cannot pay wages, CP-4's buckets go empty by month N. | Content in 11e (endowments, prices, wages, production rates) is sized from a 300-day measurement before 11f; I-9 forbids retuning the controller. If no content makes the market live, that is a finding about the packs' design, reported, not hidden. |
+| **R-S9-4** | A declarative macro that generates the catalog is harder to read and to debug than the hand-written enum. | The macro is one file, documented method by method; its expansion is exercised by every existing test (A-1). |
+| **R-S9-5** | New content kinds or genesis order perturb social-cafe. | I-4: byte comparison against E-0 in every PR. |
+| **R-S9-6** | `Cargo.lock` churn unrelated to the market (a `cargo update`) lands inside a transformation PR. | AC-1's `Cargo.lock` rule fails on any changed non-path package; a transformation PR never runs `cargo update`. |
