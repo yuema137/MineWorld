@@ -30,7 +30,7 @@ func _ready() -> void:
 static func _scripted() -> bool:
 	var a := OS.get_cmdline_user_args()
 	return ("--shots" in a or "--drive" in a or "--portrait" in a or "--bodycheck" in a
-		or "--motion" in a or "--frametime" in a or "--sweep" in a)
+		or "--motion" in a or "--frametime" in a or "--sweep" in a or "--headtrace" in a)
 
 
 func _environment() -> void:

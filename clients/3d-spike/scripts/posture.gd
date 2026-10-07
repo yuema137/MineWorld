@@ -29,6 +29,9 @@ const FINGER_CURL_D := 62.0
 const ARM_OUT_D := -4.0
 ## How much of the locomotion clips' spine motion the reference body drops.
 const SPINE_DAMP_D := 0.6
+## The reference body's head steadying while moving, and its smoothing time.
+const HEAD_STEADY_D := 0.8
+const HEAD_TAU_D := 0.18
 
 ## Profile bone name -> local euler correction in degrees, post-multiplied onto
 ## whatever the animation produced.
@@ -64,6 +67,20 @@ var grip_weight := 1.0
 ## upper spine; the jog clip's torso twist stretched the hoodie below it into
 ## ridges and swung the pack off her back (CHARACTER_ROUTE_D_PLUS.md §8.7).
 var damp := {}
+
+## Head steadying while moving, 0..1 (scaled by `tweak_weight`): how far the
+## head's orientation in the body frame is pulled from the animated one toward
+## facing the direction of travel, level, chin `HEAD_PITCH_DOWN` down. The rest
+## of the clip's motion stays, so the head still counter-moves a little. And the
+## head's local rotation is low-passed with time constant `head_tau` seconds,
+## so starting and stopping turn the head over a natural fraction of a second
+## instead of whipping it with the gait blend (CHARACTER_ROUTE_D_PLUS.md §8.8).
+var head_steady := 0.0
+var head_tau := 0.0
+const HEAD_PITCH_DOWN := 12.0
+var _head_q := Quaternion.IDENTITY
+var _neck_q := Quaternion.IDENTITY
+var _head_t := -1
 
 
 static func natural_stance() -> Posture:
@@ -116,6 +133,14 @@ static func holding_strap(body := Human.Body.TOWN) -> Posture:
 		p.tweaks["RightUpperArm"] = Vector3(0, 0, -ARM_OUT_D)
 		for b in ["Spine", "Chest", "UpperChest"]:
 			p.damp[b] = SPINE_DAMP_D
+		# `--no-head-steady` is a diagnostic: the head as the clips and the
+		# stance glance leave it, for before/after traces (`--headtrace`)
+		if not "--no-head-steady" in OS.get_cmdline_user_args():
+			p.head_steady = HEAD_STEADY_D
+			p.head_tau = HEAD_TAU_D
+			# no stance glance while moving: the steadied head faces her way
+			p.tweaks.erase("Neck")
+			p.tweaks.erase("Head")
 	else:
 		p.tweaks.erase("LeftUpperArm")
 		p.tweaks.erase("LeftLowerArm")
@@ -161,6 +186,50 @@ static func _quat(e: Vector3) -> Quaternion:
 		deg_to_rad(e.x), deg_to_rad(e.y), deg_to_rad(e.z))))
 
 
+## Skeleton-space basis of a bone from the local poses (the cached global
+## pose is not refreshed for every pose source, see shots.gd --headtrace).
+static func _chain(sk: Skeleton3D, b: int, rest := false) -> Basis:
+	var out := Basis.IDENTITY
+	while b != -1:
+		out = (sk.get_bone_rest(b).basis if rest else sk.get_bone_pose(b).basis) * out
+		b = sk.get_bone_parent(b)
+	return out
+
+
+func _steady_head(sk: Skeleton3D) -> void:
+	var h := sk.find_bone("Head")
+	var n := sk.find_bone("Neck")
+	if h < 0 or n < 0:
+		return
+	var w := head_steady * tweak_weight
+	if w > 0.0:
+		# where the head would face, level and ahead, in skeleton space
+		var want := Basis(Vector3.RIGHT, deg_to_rad(HEAD_PITCH_DOWN)) * _chain(sk, h, true)
+		var cur := _chain(sk, h)
+		var goal := cur.get_rotation_quaternion().slerp(want.get_rotation_quaternion(), w)
+		# split the correction between neck and head, half each
+		var parent_n := _chain(sk, sk.get_bone_parent(n)).get_rotation_quaternion()
+		var neck_g := _chain(sk, n).get_rotation_quaternion()
+		var delta := goal * cur.get_rotation_quaternion().inverse()
+		var half := Quaternion.IDENTITY.slerp(delta, 0.5)
+		var neck_new_g := half * neck_g
+		sk.set_bone_pose_rotation(n, (parent_n.inverse() * neck_new_g).normalized())
+		sk.set_bone_pose_rotation(h, (neck_new_g.inverse() * goal).normalized())
+	if head_tau > 0.0:
+		var now := Time.get_ticks_usec()
+		var nq := sk.get_bone_pose_rotation(n)
+		var hq := sk.get_bone_pose_rotation(h)
+		if _head_t >= 0:
+			var a := 1.0 - exp(-((now - _head_t) / 1e6) / head_tau)
+			nq = _neck_q.slerp(nq, a)
+			hq = _head_q.slerp(hq, a)
+			sk.set_bone_pose_rotation(n, nq)
+			sk.set_bone_pose_rotation(h, hq)
+		_neck_q = nq
+		_head_q = hq
+		_head_t = now
+
+
 func _process_modification() -> void:
 	var sk := get_skeleton()
 	if sk == null:
@@ -174,6 +243,8 @@ func _process_modification() -> void:
 		if i >= 0:
 			sk.set_bone_pose_rotation(i, sk.get_bone_pose_rotation(i).slerp(
 				sk.get_bone_rest(i).basis.get_rotation_quaternion(), damp[bone] * tweak_weight))
+	if head_steady > 0.0 or head_tau > 0.0:
+		_steady_head(sk)
 	for bone: String in rest_relative:
 		var i := sk.find_bone(bone)
 		if i >= 0:

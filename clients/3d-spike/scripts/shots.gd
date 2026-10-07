@@ -89,6 +89,8 @@ func _ready() -> void:
 		_mode = "frametime"
 	elif "--sweep" in args:
 		_mode = "sweep"
+	elif "--headtrace" in args:
+		_mode = "headtrace"
 	DirAccess.make_dir_recursive_absolute(OUT)
 
 
@@ -110,6 +112,8 @@ func _process(_d: float) -> void:
 		await _frametime()
 	elif _mode == "sweep":
 		await _sweep()
+	elif _mode == "headtrace":
+		await _headtrace()
 	else:
 		await _capture()
 	get_tree().quit(0)
@@ -411,6 +415,121 @@ func _sweep() -> void:
 			Input.action_release("jog")
 			cam.current = false
 			print("sweep %s %s: 8 frames" % [gait, v[0]])
+	player.scripted_look = false
+
+
+## Head stability while moving: the player stands, walks, jogs and stops, and
+## every rendered frame records where her face points in her own body frame
+## (+Z is the direction of travel): yaw (+ to her left), pitch (+ up) and roll,
+## from the head bone's posed basis applied to the directions that point
+## forward and up out of the face at rest. Also the third-person rear camera's
+## offset from the player, to show whether the camera adds bob of its own.
+## Writes shots/headtrace_<body>.csv and prints peak-to-peak per phase.
+func _headtrace() -> void:
+	var town := "--town-body" in OS.get_cmdline_user_args()
+	var human := player.body.body as Human
+	var sk := human.skeleton
+	var hb := sk.find_bone("Head")
+	var rest := sk.get_bone_global_rest(hb).basis
+	# the skeleton's orientation in the body frame when standing at rest, so the
+	# travel-frame reading equals the skeleton-space one when nothing moves it
+	var sk0 := player.body.global_transform.basis.inverse() * sk.global_transform.basis
+	var final := [rest]
+	sk.skeleton_updated.connect(func() -> void:
+		var c := Basis.IDENTITY
+		var bi := hb
+		while bi != -1:
+			c = sk.get_bone_pose(bi).basis * c
+			bi = sk.get_bone_parent(bi)
+		final[0] = c)
+	var fwd_l := rest.inverse() * Vector3(0, 0, 1)
+	var up_l := rest.inverse() * Vector3(0, 1, 0)
+	var f := FileAccess.open("%s/headtrace_%s.csv" % [OUT, "town" if town else "reference"],
+		FileAccess.WRITE)
+	f.store_line("t,phase,yaw,pitch,roll,cam_dy,cam_dx,speed")
+	player.scripted_look = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+	player.set_camera(CameraRig.Mode.THIRD_REAR)
+	await _settle(0.8)
+	# the player's own rear camera is kept for the camera-bob column; the
+	# frames are drawn by a camera riding at her front three-quarter, as in
+	# --sweep, so her skeleton is on screen and updated in every gait
+	var rig_cam := get_viewport().get_camera_3d()
+	var ride := Camera3D.new()
+	add_child(ride)
+	ride.fov = 40.0
+	var t := 0.0
+	var stats := {}
+	# Each gait starts from the same spot: walking straight into jogging ran her
+	# into the railing 6 m on, where she stood still for the rest of the "jog".
+	for ph in [["stand", 1.0, false, false], ["walk", 2.5, true, false],
+			["stop", 1.0, false, false], ["jog", 2.0, true, true], ["halt", 1.5, false, false]]:
+		if ph[0] == "jog":
+			player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+		if ph[2]:
+			Input.action_press("move_forward")
+		else:
+			Input.action_release("move_forward")
+		if ph[3]:
+			Input.action_press("jog")
+		else:
+			Input.action_release("jog")
+		var s := {"yaw": [], "pitch": [], "roll": [], "cdy": []}
+		var el := 0.0
+		while el < ph[1]:
+			var fb := player.body.global_transform.basis * Vector3(0, 0, 1)
+			var ry := atan2(fb.x, fb.z) + deg_to_rad(40.0)
+			ride.position = player.body.global_position + Vector3(sin(ry) * 2.2, 1.4, cos(ry) * 2.2)
+			ride.look_at(player.body.global_position + Vector3(0, 1.1, 0), Vector3.UP)
+			ride.current = true
+			await get_tree().process_frame
+			var dt := get_process_delta_time()
+			el += dt
+			t += dt
+			# The final pose, captured in `skeleton_updated` after the modifiers
+			# ran: read from here, the pose is the AnimationTree's alone, before
+			# Posture -- the first traces read the jog as a frozen head and showed
+			# no effect of any modifier at all.
+			var b: Basis = final[0]
+			# in the body's travel frame, through the skeleton's world transform
+			b = (player.body.global_transform.basis.inverse() * sk.global_transform.basis
+				* sk0.inverse()) * b
+			var fw := (b * fwd_l).normalized()
+			var up := (b * up_l).normalized()
+			var yaw := rad_to_deg(atan2(fw.x, fw.z))
+			var pitch := rad_to_deg(asin(clampf(fw.y, -1.0, 1.0)))
+			var right := Vector3.UP.cross(fw).normalized()
+			var roll := rad_to_deg(asin(clampf(-up.dot(right), -1.0, 1.0)))
+			var rel := player.global_transform.affine_inverse() * rig_cam.global_position
+			f.store_line("%.4f,%s,%.2f,%.2f,%.2f,%.4f,%.4f,%.3f" % [t, ph[0], yaw, pitch, roll,
+				rel.y, rel.x, human._speed])
+			# a few frames to set beside the numbers
+			var k := int(el / 0.25)
+			if ph[0] in ["walk", "jog"] and el > 1.0 and k <= 7 and not s.has("f%d" % k):
+				s["f%d" % k] = true
+				get_viewport().get_texture().get_image().save_png(
+					"%s/headtrace_%s_%d_y%.0f_p%.0f.png" % [OUT, ph[0], k, yaw, pitch])
+			# the first 0.6 s of a phase is the transition, not the gait
+			if el > 0.6:
+				s["yaw"].append(yaw)
+				s["pitch"].append(pitch)
+				s["roll"].append(roll)
+				s["cdy"].append(rel.y)
+		stats[ph[0]] = s
+	Input.action_release("move_forward")
+	Input.action_release("jog")
+	f.close()
+	for ph: String in stats:
+		var line := "headtrace %s body=%s" % [ph, "town" if town else "reference"]
+		for k in ["yaw", "pitch", "roll", "cdy"]:
+			var a: Array = stats[ph][k]
+			if a.is_empty():
+				continue
+			var mean: float = a.reduce(func(x: float, y: float) -> float: return x + y, 0.0) / a.size()
+			var unit := " m" if k == "cdy" else " deg"
+			line += "  %s mean %.2f p2p %.3f%s" % [k, mean, a.max() - a.min(), unit]
+		print(line)
 	player.scripted_look = false
 
 
