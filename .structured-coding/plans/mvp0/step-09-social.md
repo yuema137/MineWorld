@@ -3134,8 +3134,10 @@ VALIDATION BUDGET   unit/integration/static: unrestricted; real-model: NOT REQUI
 LIVE DOCUMENTATION  this file (§4.3.3 checkboxes, §9 E-C ledger)
 HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for PR 10c at C1
 ENDPOINT AUTHORITY
-  implementation + local validation   NOT YET — source: the 10c brief ("Phase 2: only after you are
-                                      told 10c's detail is approved")
+  implementation + local validation   authorized — source: the coordinator's freeze message,
+                                      2026-10-07 ("PR 10c is DESIGN FROZEN as of commit 805bf4d …
+                                      begin Phase 2"); this replaces the earlier "NOT YET" line.
+                                      Binding condition: §4.3.7's quiet-window assertions
   semantic commits, branch push       authorized — source: the brief ("Commit and push after every
                                       small step")
   PR creation / update                authorized in Phase 2 — source: the brief ("Open a PR with gh pr
