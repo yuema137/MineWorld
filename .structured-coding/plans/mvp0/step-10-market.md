@@ -13,8 +13,10 @@ before them merges (`CLAUDE.md` §3, "detail one step ahead").
 - **The precursors are complete.** 11a, 11b and 11c are on `main`, each by a merge commit, so the I-2
   scan reads all three as merged on `main`'s first-parent chain (§9 E-3). Every framework capability
   the transformation relies on now exists.
-- **PR 11d** is next. The planning session details it to the commit in §4.4, on `mvp0/s9-11d-plan`
-  from `main @ c5dc51c`.
+- **PR 11d** is detailed to the commit in §4.4 by the planning session on `mvp0/s9-11d-plan` from
+  `main @ c5dc51c` — `PROPOSED, NOT FROZEN`, with its R-S9-1 spike done (§9 E-4: no framework gap),
+  the audit in §8.5, questions QS-27 … QS-38 (§10; QS-35 operator-material) and a proposed execution
+  contract in §15.
 - PRs 11e and 11f stay at medium scope until each is detailed and frozen in turn.
 
 **Freeze record (2026-10-07).**
@@ -2305,7 +2307,7 @@ to bite, then reverted, on a scratch branch):**
 | 11a | social-cafe's 300-day run byte-identical to E-0; a canary pack installed by two lines in `systems/installed/` (A-1 … A-4) | removing a list line, or re-adding a pack import to `worldpack`, fails a named guard |
 | 11b | a pack with items and organizations loads; social-cafe's ids, genesis count and run unchanged | items' sections seeded after people's fails the genesis-order test |
 | 11c | a synthetic pack's action, unknown to the controller, is attempted and accepted headless; social-cafe byte-identical | the band taking an unavailable affordance fails a named test; the band reusing the walking roll's draw fails the greeting-coexistence test (F-28 — the social-cafe comparison cannot see it) |
-| 11d | market-town (owning, giving) validates and runs 30 days with gives accepted; per-pack tests incl. restart; AC-2 for item-transfer at pack level | a transfer beyond what the giver holds is refused by inventory itself |
+| 11d | market-town (owning, giving) validates; over 300 days every seat gives in every bucket and nobody holds more than six; the unchanged paced controller gives in a pack test; per-pack tests incl. restart; AC-2 for item-transfer at pack level (§4.4.3, D-1 … D-11) | a transfer beyond what the giver holds, stated directly, is refused by inventory itself (M-D3); without the capacity the gives collapse into the unseated person (M-D7) |
 | 11e | wages, purchases and production in a 30-day run; restart mid-shift; economy and employment each install without the other | wage-due against an empty wallet yields wage-unpaid, never a negative |
 | 11f | the AC-1 test (three checks), CP-4 over 300 days, AC-2 at world level, Milestone C through the real server | each of the four scratch mutations in §4.6 fails its check by name |
 
@@ -2369,6 +2371,9 @@ FLAGGED  QS-2, QS-3, QS-4, QS-5, QS-6 — operator-material (§10)
 FLAGGED  MVP §5's eat and sleep are not in S9 (QS-10)
 FLAGGED  QS-15 — operator-material (amends ARC-35 point 7's merged-range detection); QS-20 amends
          frozen SD-12 (primary session)
+FLAGGED  QS-35 — operator-material: without consumption, 11e's purchases stop once people are full;
+         11e must close the item loop (QS-10 can no longer be deferred past 11e's design). QS-27 (the
+         capacity) is part of how 11d answers QS-10, and is operator-visible
 ```
 
 ---
@@ -2744,6 +2749,9 @@ E-4  The R-S9-1 spike for 11d. Local scratch branch `scratch/11d-spike` from c5d
        ad49c723…c64b = E-0. `cargo test --workspace --no-fail-fast`: exit 0, 457 passed (456 + the
        reader), 0 failed.
      Verdict: PASS — no framework gap; F-36 … F-46. No precursor proposed.
+E-5  End of this planning branch: check_doc_headings → 143 numbered sections across 22 documents, none
+     duplicated; check_decision_ids → 47 ids, all distinct (ARC-37 a proposal in this file only).
+     Docs-only branch; no cargo gate run beyond E-3 and the spike.
 ```
 
 Each implementation PR records its evidence in its own section — §9.2 for 11b, §9.3 for 11c — so that
@@ -3108,6 +3116,74 @@ QS-26  Parallel coordination (§12): one handoff per PR (handoff-11b.md, handoff
        merge commits only. Recommended: accept.
 ```
 
+**Raised while detailing 11d (2026-10-07, on `c5dc51c`).**
+
+```text
+QS-27  [primary session; operator-visible — part of QS-10's answer] A person carries at most six items,
+       all kinds together; organizations are unbounded (SD-19). The spike found that a person no seat
+       names absorbs every item given to him (F-39), and without consumption nothing else drains it.
+       Alternatives: (a) consent — the taker must accept, as a pending offer (a process, a second action;
+       an unseated person never accepts, so it also works, at about twice the code); (b) give only to
+       people a controller drives — impossible, a world does not know who is driven (INV-1); (c) content
+       only — nothing in content stops a person receiving; (d) retune the controller — forbidden (I-9).
+       Recommended: capacity 6 (measured, E-4 run 2), as inventory's rule.
+
+QS-28  `items-produced` is not added in 11d (amends §4.4's medium scope, "born final"). It has no stater
+       until employment exists, and a fact tested only by hand-built statements would be designed
+       ahead of its consumer (CLAUDE.md §4 rule 11). 11e adds it to inventory; that edit is under
+       systems/**, inside ARC-35's allowed set. Recommended: defer to 11e.
+
+QS-29  None of the three packs is biographical. 18 000 gives in 300 days would bury a biography (the
+       reasoning of ARC-28 point 4 for relationships), and owning a coffee is not an event in a life.
+       Alternative: items-transferred biographical. Recommended: none.
+
+QS-30  items-transferred is visible to its participants (giver and taker) only (F-46). A bystander
+       learns of a give only by seeing it in a later observation of holdings, which strangers are not
+       shown (INV-13). 11e decides separately whether a purchase is place-visible. Recommended: accept.
+
+QS-31  Holdings is a sorted list of {item, count}, not a map keyed by ItemId (F-38). A representation
+       detail forced by JSON; raised because the component's shape reaches clients. Recommended: accept.
+
+QS-32  The `item:` section is `{ category: <slug> }`. Alternatives: an empty marker (`item: {}`), or a
+       kind declared by the file's presence alone (impossible: a pack seeds only from its section).
+       Category is the smallest real attribute (drink, food, goods) and costs nothing to ignore.
+       Recommended: category.
+
+QS-33  market-town's 11d content: social-cafe copied byte for byte; ~20 item kinds (MVP §3), each with
+       tags and a category; 1–4 items on every person, Otto included (~30 in all); no organizations
+       (11e). Recommended: accept.
+
+QS-34  D-6's controller test lives in systems/item-transfer/tests with dev-dependencies on movement and
+       rule-controller. tests/acceptance would be the usual home but is outside the range; the
+       dependency points from the market pack to the controller, which ARC-35 check 2 allows.
+       Recommended: accept.
+
+QS-35  [OPERATOR-MATERIAL — S9 scope or CP-4, forward to 11e] Nothing consumes items in S9 (QS-10). In
+       11d, gives conserve items, so the flow stays alive. In 11e, purchases move items from shops to
+       people, and with a bound of six per person, buying stops once everyone is full; without the
+       bound, people hoard. Either way, CP-4's "a purchase in every 30-day bucket" would fail by month
+       N. 11e's design must close the loop, and the choice is the operator's:
+       (a) economy also lets a shop buy items back (`sell`), so items and money both circulate — no
+           new pack, the smallest change;
+       (b) a small consumption pack (eat, drink) joins S9 — MVP §5's verbs, a sixth market pack, a
+           scope change;
+       (c) CP-4 relaxed for purchases — weakens the milestone.
+       Recommended: (a), decided at 11e's detail, with (b) kept for the needs pack QS-10 already
+       anticipates.
+
+QS-36  ARC-37 records 11d's decisions (SD-16 … SD-20, the capacity and why), in DECISIONS.md, inside
+       the range as Markdown under docs/. Recommended: accept.
+
+QS-37  11d's per-seat give evidence is ledger evidence from a scratch reader on a scratch branch, never
+       committed (F-45), exactly as 11c's E-C6; 11f turns it into market-town's world-level test.
+       Recommended: accept.
+
+QS-38  The execution contract for 11d (§15): fresh session, its own worktree on
+       mvp0/pr-11d-owning-things, commits and push and PR authorized as for 11a–11c, a scratch branch
+       for D-C6's measurements, merge the operator's with a merge commit. Recommended: confirm at
+       freeze.
+```
+
 ---
 
 # 11. Execution contract for PR 11a (proposed; confirmed at 11a's freeze)
@@ -3310,4 +3386,47 @@ MATERIAL STOP       a market word needed; a contracts/ change beyond the payload
                     change to RuleController, decide's purity or the rule-controller manifest; a change of
                     behaviour (not a type annotation) in any existing pack or test; the social-cafe run
                     or an AC-13/AC-15 transcript changing; C-C6's criterion failing at every rate ≥ 5
+```
+
+# 15. Execution contract for PR 11d (proposed; confirmed at 11d's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 10 / PR 11d — owning and giving things (S9, fourth of six; the first
+                    half of the measured AC-1 transformation)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-10-market.md §4.4 (4.4.1–4.4.5); evidence in a
+                    new §9.4 (E-D<n>)
+RELATED / BINDING   overall.md §§1, 7; this file §§1.3 (I-1, I-3, I-4, I-6, I-7, I-9), 2.5, 2.6, 3
+                    (SD-13), 8.5, 9 E-3/E-4, 10 (QS-7, QS-10, QS-27 … QS-38, as answered);
+                    DECISIONS ARC-26, ARC-28, ARC-31, ARC-33, ARC-34, ARC-35, ARC-36; MODULE_SPEC §§3.1,
+                    4.1; CORE_CONCEPTS §§6.3, 7, 8, 13.1, 15.2
+IMPLEMENTATION BASE the main named at freeze (main @ c5dc51c + the docs-only planning merges); branch
+                    mvp0/pr-11d-owning-things; worktree /Users/yuema137/mineworld-worktrees/s9-11d
+                    (proposed), held by the implementing session only
+APPROVED SCOPE      §4.4: D-C1 … D-C7; only the paths of §4.4.1's table
+FROZEN INVARIANTS   I-1 (any path outside §4.4.1's table is a material stop), I-3, I-4 (sha
+                    ad49c723…c64b), I-6, I-7 (D-9 b before c), I-8, I-9 (no controller change; a quiet
+                    market is fixed in packs or content); I-2's scan unchanged (no row, no entry)
+SEQUENCE            D-C1 → D-C2 → D-C3 → D-C4 → D-C5 → D-C6 → D-C7, each committed and pushed when
+                    coherent
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: 300-day social-cafe (~15 s) twice,
+                    300-day market-town with save (~35 s) at most three times (D-9, M-D7), 30-day runs;
+                    one full workspace gate on the final head (background); about one hour in total;
+                    real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §4.4 checkboxes; §9.4 E-D ledger
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 11d at D-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the primary session's freeze message
+  semantic commits, branch push       recommended authorized, as for 11a–11c
+  PR creation / update                recommended authorized, as for 11a–11c
+  scratch branch (D-C6, M-D7)         recommended authorized, local only, deleted after evidence
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     the planning session owns the step header, §§1–3, §5, §10, overall and MVP_STATUS's
+                    Updated/S9 lines; the implementing session owns §4.4 and §9.4
+NORMAL STOP         PR 11d READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a needed edit outside §4.4.1's paths (a framework gap: report it and propose a
+                    precursor justified without the market, I-2); a changed social-cafe run or an
+                    edited existing test; a Cargo.lock change other than three path packages and the
+                    installed set's list; a need to change the controller or its constants (I-9); D-9 b
+                    failing with the capacity (the market cannot be kept alive by packs or content)
 ```
