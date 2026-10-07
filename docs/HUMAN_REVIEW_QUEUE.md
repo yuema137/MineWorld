@@ -79,7 +79,7 @@ identifies one thing.
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
 | **VIS-3D-GODOT-1** | Reference-matched character in Godot | 🔍 **route D+ preview prepared, 2026-10-07**, held for the coordinator (see below). Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
-| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟡 **READY FOR HUMAN VISUAL REVIEW** (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; see below |
+| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟡 **READY FOR HUMAN VISUAL REVIEW** (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
@@ -460,13 +460,60 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
-### `VIS-3D-GODOT-2` — READY FOR HUMAN VISUAL REVIEW, 2026-10-06
+### `VIS-3D-GODOT-2` — READY FOR HUMAN VISUAL REVIEW, 2026-10-06; with the route D+ character, 2026-10-07
 
 **This is the acceptance request** for the integrated slice: the street, the café you walk into, The
-Flower Room, the light, movement, the three cameras, the connection to the world, and now **the
-reference character in the slot** (`VIS-3D-GODOT-1`'s preview-3 build, merged in, not copied). It
-asks *is this acceptable as the integrated Godot slice?* Only you can answer it (`ARC-11`).
+Flower Room, the light, movement, the three cameras, the connection to the world, and **the
+reference character in the slot**. Since 2026-10-07 that character is **route D+**, the new default
+character (`vis/3d-human-pipeline` at `28710b1`, merged, not copied; ledger
+`docs/references/CHARACTER_ROUTE_D_PLUS.md`, entry *route D+ preview, PREPARED* above). The entry
+asks *is this acceptable as the integrated Godot slice?* Only you can answer that (`ARC-11`).
 Accepting it does not accept the character itself: that is still `VIS-3D-GODOT-1`'s question, above.
+
+#### One session: the slice and the character together
+
+Branch `vis/3d-godot-2-environment`, from the repository root, Godot 4.7 on `PATH`.
+
+1. **`./mineworld-slice`** (standalone). Press **V** to cycle the cameras: first person shows no
+   body and no hair; third person rear and front show her. Look at her **scale** against the doors
+   and the people on the street, and at the **hand on the rucksack strap**. Walk into The Daily Bean
+   and **through the door** in third person: the pack and hood should stay clear of the jambs and
+   the chairs. Then look at the **seated woman on the café terrace**: she sits on a chair, not
+   inside the table.
+2. **`./mineworld-slice --world`** (connected; needs cargo). Every person is labelled by their
+   name. Walk out onto the pavement and back in: no snapping back. From the door, face Alice
+   Moreau and press **E**: *can't talk to Alice Moreau: too far away*. Walk to the counter. She
+   stands in plain view behind it, with the espresso machine on the back bar. Press **E** again:
+   two subtitle lines, *You: …* and *Alice Moreau: …*, readable for several seconds.
+3. **The character itself** (`VIS-3D-GODOT-1`). Judge her face, hair and clothes against the
+   reference with the route D+ entry's own frames and checklist, above. The slice frames below show
+   her at street and café distance only.
+
+Frames of her in the slice, in `clients/3d-spike/shots/slice/review/`: `char_street_rear.jpg`,
+`char_street_front.jpg`, `char_cafe_rear.jpg`, `char_cafe_first_person.jpg` (no body, as
+intended), `char_walking_pavement.jpg`, `04c_doorway_with_character.jpg` with
+`char_doorway_detail.jpg`, `07_third_person_rear.jpg`, `08_third_person_front.jpg`,
+`char_counter_talking_to_alice.jpg` (beside the counter, both caption lines up) and
+`char_strap_hand_detail.jpg`.
+
+What I saw in them, as facts. No clipping against the door jambs, the counter, the pastry case or
+the window bench. Her stature reads correctly against the 2.1 m doors and the townspeople. In first
+person nothing of her is drawn: `Player` hides the whole body there, so the head and hair cannot
+reach the near plane. Feet are planted mid-stride. **The hand on the strap is a closed fist at chest
+height, in line with the strap.** But the strap runs under the hoodie's open edge, so at street
+distance it reads as a fist held near the strap rather than a hand clearly gripping it
+(`char_strap_hand_detail.jpg`, ×4). That is the character's track to judge.
+
+Checks on this build: `--character` all pass (the slot reports body `meshy_d.glb`; idle and walk
+animate); `--drive` all pass; `--world --link` all pass (50 moves, 50 accepted, 0 refused; door
+rejected too far away; counter accepted, reply heard; 60 s street watch in 60.0 s of wall time);
+`--world --conversation` passes, with no id on screen.
+
+One `--world --link` run stalled in its 60 s street watch for more than 17 minutes before being
+stopped. It did not recur: two 10 s runs ran in real time on both the route D+ body and the town
+body (`--town-body`), and a full 60 s run took 60.0 s of wall time. That run fell in the window when
+other sessions also stalled, but the cause was not found. The watch now prints simulated against
+wall seconds, so a recurrence will show.
 
 The world it connects to is the MVP town merged from `main` (`9ab5e62`, through S8 PR 10c), whose
 café is authored to this slice's layout (10a) and whose people carry names (10c): Alice Moreau
@@ -567,10 +614,10 @@ scene, because the player's boom cannot reach those framings.
 #### Measured on this build
 
 ```text
-stature       1.748 m sole to crown, from her Body mesh (ok, 1.70-1.80); the bun reaches 1.882 m
-              and is not counted as stature
-animates      idle: bones move in two consecutive 4.5 s windows (chest 2 mm, strap hand 12 mm);
-              walk: a toe travels 0.84 m in 3 s
+stature       (preview-3 body, superseded) 1.748 m sole to crown; the route D+ body's
+              measurements are its own entry's (VIS-3D-GODOT-1, route D+)
+animates      route D+ body, 2026-10-07: idle bones move in two consecutive 4.5 s windows
+              (largest 13.5 mm, the strap hand's fingers); walk: a toe travels 0.80 m in 3 s
 drive         walk-in, 13.3 m loop closing within 0.10 m, back wall / counter / glazing stop the
               body, three cameras indoors with 0.0000 m body movement on each switch, jumps 0.49 m,
               The Flower Room loop within 0.12 m -- all pass
@@ -606,9 +653,10 @@ launch        plain launch and every mode exit 0; no script or resource errors
    florist.
 3. **Figures move in steps**: a perceived person is redrawn where each observation puts them,
    with no walking animation between.
-4. **She is 1.748 m, not the 1.750 m asked for.** `human.gd`'s `CANONICAL_HEIGHT` is 1.7670 m and
-   the baked figure measures 1.7646 m, a 0.14 % gap. Recorded for the character's track.
-5. **The idle is subtle by design**: a breath and the hand on the strap; the hips do not sway.
+4. **(Preview-3 body, superseded by route D+ on 2026-10-07.)** That body was 1.748 m, not the
+   1.750 m asked for. The route D+ body's stature is recorded in its own entry.
+5. **The idle is subtle by design**: on the route D+ body the largest idle movement is the strap
+   hand's fingers (13.5 mm); the hips do not sway (0.0 mm).
 6. **She is never seated in the slice**, so sitting with the hood and rucksack is untested here.
    The one seated figure on the street is a townsperson without either.
 7. **First person draws no body**, on purpose (`player.gd`).
