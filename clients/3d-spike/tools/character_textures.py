@@ -69,9 +69,15 @@ FACE_PX = 2048          # the face albedo is one UDIM tile at this size
 # into a box that is *taller* than it is wide to come out square on the chest.
 TEE_W, TEE_H = 1024, 1024
 TEE_CIRCUM, TEE_SPAN = 0.90, 0.472
-PRINT_M = 0.165          # how wide the print is on the actual shirt
+# How wide the print is on the actual shirt, and where its top sits.  Preview 4
+# moved it up and in: in P1 the print ran from 88 px below the crew band to
+# over the bust, 170 px tall; the reference's sits 82 px under the band and is
+# 123 px tall at a comparable framing, entirely on the upper chest.
+PRINT_M = 0.150
+PRINT_MOUNT_H, PRINT_GAP, PRINT_TEXT_H = 0.45, 0.05, 0.31   # x PRINT_M
+ART_RANGE_CROP = "720x330+22+96"   # the mountain range within tee_mountains.jpg
 PRINT_TOP_Z, PRINT_HEM_Z = 1.482, 1.010    # must match garments.cylindrical_uv
-PRINT_TOP_OF_PRINT = 1.365   # high on the chest, as the reference shows
+PRINT_TOP_OF_PRINT = 1.390   # high on the chest, as the reference shows
 
 MOUNTAIN_PROMPT = (
     "A flat two-colour screen-printed graphic for a t-shirt: a simple range of "
@@ -91,7 +97,10 @@ DENIM_PROMPT = (
 SLOGAN = ("Good Places", "Brighter People")
 SLOGAN_FONT = "/System/Library/Fonts/Supplemental/Trebuchet MS Bold.ttf"
 PRINT_INK = "#4A3226"
-TEE_CLOTH = "#D9D2C4"      # cream / oatmeal, lightly mottled and worn
+# Oatmeal, lightly mottled and worn.  Preview 3's #D9D2C4 rendered as a cool
+# white in the client (upper chest in P1: 0.70/0.71/0.72 sRGB) against the
+# reference's warm 0.75/0.62/0.54 at the same place: too light and no warmth.
+TEE_CLOTH = "#CBB9A0"
 
 
 def run(cmd: list[str]) -> None:
@@ -173,9 +182,16 @@ def tee(out: str) -> None:
     cy = int(v_top * TEE_H)
 
     graphic = os.path.join(out, "_print.png")
-    # the mountains occupy the upper ~55 % of the print; the slogan the rest
-    mount_h = int(box_h * 0.62)
-    run(["magick", art, "-colorspace", "gray", "-level", "8%,86%",
+    # Proportions read off the reference, in units of the print's width: the
+    # range is as wide as the slogan and 0.45 as tall; the two lines of text
+    # are 0.31 tall, 0.05 below it.  The art is cropped to the range first --
+    # it sits in the top half of a square sheet, and squashing the whole sheet
+    # into the box made the range a third the height of the text under it.
+    px_per_m_v = TEE_H / TEE_SPAN
+    mount_h = int(PRINT_M * PRINT_MOUNT_H * px_per_m_v)
+    gap = int(PRINT_M * PRINT_GAP * px_per_m_v)
+    run(["magick", art, "-crop", ART_RANGE_CROP, "+repage",
+         "-colorspace", "gray", "-level", "8%,86%",
          "-negate", "-resize", f"{box_w}x{mount_h}!",
          "-background", "none", "-alpha", "copy",
          "-fill", PRINT_INK, "-colorize", "100", graphic])
@@ -185,7 +201,7 @@ def tee(out: str) -> None:
     # lines are rendered large, trimmed, stacked left-aligned, and the stack is
     # then scaled into the box -- which is also what keeps the two lines the
     # same weight as each other.
-    text_h = box_h - mount_h
+    text_h = int(PRINT_M * PRINT_TEXT_H * px_per_m_v)
     lines = []
     for i, line in enumerate(SLOGAN):
         lp = os.path.join(out, f"_line{i}.png")
@@ -216,7 +232,7 @@ def tee(out: str) -> None:
          "-attenuate", "0.09", "+noise", "Gaussian", "-blur", "0x1.6",
          graphic, "-geometry", f"+{cx - box_w // 2}+{cy}",
          "-compose", "over", "-composite",
-         text, "-geometry", f"+{cx - box_w // 2}+{cy + mount_h}",
+         text, "-geometry", f"+{cx - box_w // 2}+{cy + mount_h + gap}",
          "-compose", "over", "-composite",
          "-quality", "88", base])
     for f in (graphic, text):

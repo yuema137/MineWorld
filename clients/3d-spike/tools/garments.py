@@ -573,7 +573,7 @@ def build_hoodie(body, dom, arm, colliders=()):
     solidify(obj, 0.0032)
 
     # --- hood and drawstrings ----------------------------------------------
-    hood = build_hood(collar, body)
+    hood = build_hood(collar, body, obj)
     cords = build_cords(body)
     for o in (hood, cords):
         bpy.context.view_layer.objects.active = obj
@@ -654,89 +654,226 @@ def _bridge_seat(obj) -> int:
 
 
 HOOD_CENTRE = (0.0, 0.070)        # x, y of the neck axis at collar height
-HOOD_SWEEP = 128.0                # degrees each way from straight behind
+HOOD_SWEEP = 132.0                # degrees each way from straight behind
+
+# The hood, down, as a *modelled form* laid onto what supports it.  Two parts
+# of one surface, per column round the collar (0° straight behind, +a toward
+# her left, ±SWEEP the two front ends at the zip):
+#
+#   the rim    -- the hood's face opening, which with the hood down folds over
+#                 into a thick soft roll round the neck.  It stands up off the
+#                 shoulders at both sides, which is what the reference shows
+#                 from the front ("standing proud of the shoulders").
+#   the panel  -- the hood's crown and back, lying back from the roll over the
+#                 rucksack's lid and down its face: a rounded flap, deepest
+#                 behind the neck, with a centre seam and a few large folds.
+#                 This is what reads as a hood from behind.
+#
+# Preview 3 dropped a pouch of cloth onto a pack proxy.  With the lid at the
+# collar's height there was nowhere for it to fall, and it came out as a
+# crumpled mass that read as a scarf -- a missing defining garment structure.
+# Cloth simulation decides drape well; it does not decide *shape*, and a hood
+# down is a shape.  So the shape is authored and only its contact is solved:
+# every point is pushed clear of the body, the hoodie and the pack.
+HOOD_COLS = 61
+HOOD_RIM_ROWS = 14
+HOOD_PANEL_ROWS = 16
+HOOD_ROLL_R = 0.029       # radius of the rolled rim, behind the neck
+HOOD_ROLL_STAND = 0.026   # extra stand of the roll at the sides of the neck
+# how far the flap reaches from the roll, behind the neck: over the lid's top
+# and partway down its face, so the lid itself still shows below the hood
+HOOD_PANEL_LEN = 0.135
+HOOD_PANEL_HALF = 88.0    # degrees each way the flap spans
+HOOD_FOLDS = 3.5          # large soft folds across the flap
+HOOD_FOLD_AMP = 0.014
+# How far the hood rests off what it lies on.  More than the drape's 6 mm:
+# the bag and the hood are skinned from different body surfaces, and in the
+# standing pose the lid came 6 mm through the flap.
+HOOD_CLEAR = 0.012
 
 
-# The hood, as cloth.  Columns run round the collar from one front end (-SWEEP)
-# through straight behind the neck (0) to the other; rows run from the seam
-# down into the pouch and back up to the face opening.
-HOOD_COLS = 30
-HOOD_ROWS = 16
-HOOD_DEPTH = 0.150        # how far the pouch reaches from the seam, at the back
-# Stiffer in bending than the body of the garment: a hood is two layers of
-# fleece and a lined, seamed edge, and with the jersey's own bending it
-# crumpled into many small creases, like paper, rather than a few soft folds.
-HOOD_CLOTH = {"bending_stiffness": 2.5, "bending_damping": 1.0}
-HOOD_RIM_OUT = 0.040      # how far outside the seam the opening starts
-HOOD_DRAPE_FRAMES = 40
+def pack_shapes():
+    """The rucksack's soft volumes, as `rounded_box` arguments.
+
+    One list, used by the pack itself and by the hood that rests on it, so the
+    two cannot disagree about where the lid is.
+    """
+    return [
+        (BAG_CENTRE, BAG_SIZE, 0.055, 5, 6),
+        (PACK_LID_CENTRE, PACK_LID_SIZE, 0.040, 4, 3),
+        (PACK_POCKET_CENTRE, PACK_POCKET_SIZE, 0.034, 4, 3),
+    ]
 
 
 def _collar_at(collar, a):
-    """The collar point at azimuth `a` round the neck axis (0 straight behind)."""
+    """The collar point at azimuth `a` round the neck axis (0 straight behind).
+
+    Interpolated between the two ring points that bracket `a`: the nearest
+    single point made the seam a staircase at 61 columns.
+    """
     cx, cy = HOOD_CENTRE
-    best = min(collar, key=lambda p: abs(math.remainder(
-        math.atan2(p.x - cx, p.y - cy) - a, math.tau)))
-    return best
+    pts = sorted(((math.atan2(p.x - cx, p.y - cy), p) for p in collar),
+                 key=lambda e: e[0])
+    lo = max((e for e in pts if e[0] <= a), default=pts[0], key=lambda e: e[0])
+    hi = min((e for e in pts if e[0] >= a), default=pts[-1], key=lambda e: e[0])
+    if hi[0] - lo[0] < 1e-6:
+        return lo[1].copy()
+    t = (a - lo[0]) / (hi[0] - lo[0])
+    return lo[1].lerp(hi[1], t)
 
 
-def build_hood(collar, body):
-    """The hood, down: a pouch of cloth sewn to the collar and draped.
+class _Support:
+    """What the hood lies on: the body, the hoodie shell, the rucksack."""
+
+    def __init__(self, objs, boxes):
+        from mathutils.bvhtree import BVHTree  # pylint: disable=import-error,import-outside-toplevel
+        dg = bpy.context.evaluated_depsgraph_get()
+        self.trees = [BVHTree.FromObject(o, dg) for o in objs]
+        for args in boxes:
+            v, f = rounded_box(*args)
+            self.trees.append(BVHTree.FromPolygons([Vector(p) for p in v], f))
+
+    def push_out(self, p, clear):
+        """`p` moved to at least `clear` outside every support it is near."""
+        for _ in range(3):
+            moved = False
+            for tree in self.trees:
+                q, n, _i, d = tree.find_nearest(p, clear + 0.05)
+                if q is None:
+                    continue
+                n = n.normalized()
+                side = n.dot(p - q)
+                if side < clear:
+                    # inside, or too close: out along the surface normal
+                    p = q + n * clear
+                    moved = True
+            if not moved:
+                break
+        return p
+
+    def outermost(self, origin, out, far=0.32):
+        """Distance along `out` from `origin` to the outermost support surface
+        at that height, or None where nothing is there."""
+        best = None
+        for tree in self.trees:
+            hit = tree.ray_cast(origin + out * far, -out, far)
+            if hit[0] is not None:
+                r = far - hit[3]
+                best = r if best is None else max(best, r)
+        return best
+
+    def drape_profile(self, start, out, length, clear, step=0.002):
+        """The flap's path from `start`, hanging over whatever is below it.
+
+        Worked in the vertical plane through `start` along `out`: a cloth
+        lying over an obstacle follows the obstacle's outer envelope and hangs
+        straight down past it.  So, going down from `start` in millimetre
+        steps, the flap's distance out is the furthest-out support surface met
+        so far, plus the clearance -- a horizontal run where it crosses the top
+        of the bag's lid, then down the bag's face.  Resampled to `length` of
+        arc.  Marching the flap point by point and pushing each out of the
+        nearest surface was tried first; the nearest surface of a lid is as
+        often its front as its top, and the flap tangled behind the bag.
+        """
+        r_env = 0.0
+        pts = [start.copy()]
+        z = start.z
+        arc = 0.0
+        while arc < length:
+            z -= step
+            origin = Vector((start.x, start.y, z))
+            # looked up `clear` below: the run across the top of the lid then
+            # rides `clear` above it, and not one step above it -- the lid's
+            # dome came through the flap there in the standing pose
+            r = self.outermost(origin - Vector((0.0, 0.0, clear)), out)
+            if r is not None:
+                r_env = max(r_env, r + clear)
+            q = origin + out * r_env
+            arc += (q - pts[-1]).length
+            pts.append(q)
+            if z < start.z - 0.6:
+                break
+        return pts
+
+
+def _hood_column(seam, a, sweep, support):
+    """One column of the hood: the rim roll, then the flap laid over support."""
+    t = a / sweep                          # -1 .. 1, 0 straight behind
+    out = Vector((math.sin(a), math.cos(a), 0.0))
+    up = Vector((0.0, 0.0, 1.0))
+    # The roll thins to nothing at the zip, where the hood's two ends meet the
+    # front edges, and stands highest at the sides of the neck.
+    taper = 1.0 - abs(t) ** 4
+    rr = HOOD_ROLL_R * (0.30 + 0.70 * taper)
+    side = math.sin(min(1.0, abs(a) / math.radians(100.0)) * math.pi / 2) ** 2
+    stand = HOOD_ROLL_STAND * side * taper
+    centre = seam + out * (rr * 0.85) + up * (rr * 0.85 + stand)
+    rim = []
+    for j in range(HOOD_RIM_ROWS):
+        # from inside-low (at the seam) over the top to outside-low
+        th = math.radians(215.0 - 265.0 * j / (HOOD_RIM_ROWS - 1))
+        # a little wider than tall: folded fleece, not a tube
+        p = centre + out * (math.cos(th) * rr * 1.15) + up * (math.sin(th) * rr)
+        rim.append(p)
+    rim[0] = seam + out * 0.002 + up * 0.003
+    # The flap: rounded outline, deepest behind the neck with a soft point
+    # where the hood's crown seam ends.
+    half = math.radians(HOOD_PANEL_HALF)
+    u = min(1.0, abs(a) / half)
+    length = (HOOD_PANEL_LEN * max(0.0, 1.0 - u ** 2.2) ** 0.55
+              + 0.022 * math.exp(-(a / math.radians(14.0)) ** 2) + 0.010)
+    fold_phase = a * HOOD_FOLDS / math.radians(90.0) * math.pi
+    path = support.drape_profile(rim[-1], out, length, HOOD_CLEAR)
+    # resample by arc length, then soften: fleece rounds a corner, it does
+    # not fold over it at a right angle
+    cum = [0.0]
+    for k in range(1, len(path)):
+        cum.append(cum[-1] + (path[k] - path[k - 1]).length)
+    total = max(cum[-1], 1e-6)
+    panel, k = [], 0
+    for j in range(HOOD_PANEL_ROWS):
+        want = total * (j + 1) / HOOD_PANEL_ROWS
+        while k < len(cum) - 2 and cum[k + 1] < want:
+            k += 1
+        seg = max(cum[k + 1] - cum[k], 1e-9)
+        panel.append(path[k].lerp(path[k + 1], min(1.0, (want - cum[k]) / seg)))
+    for _ in range(3):
+        panel = [panel[0]] + [(panel[i - 1] + panel[i] * 2 + panel[i + 1]) / 4
+                              for i in range(1, len(panel) - 1)] + [panel[-1]]
+    # folds radiate from the roll and deepen toward the flap's edge; the
+    # centre seam is a shallow ridge down the middle
+    for j, p in enumerate(panel):
+        s = (j + 1) / HOOD_PANEL_ROWS
+        fold = HOOD_FOLD_AMP * s * (0.5 + 0.5 * math.cos(fold_phase)) * (1.0 - u * 0.5)
+        ridge = 0.0035 * math.exp(-(a / math.radians(3.0)) ** 2)
+        panel[j] = p + out * (fold + ridge)
+    return rim + panel
+
+
+def build_hood(collar, body, shell):
+    """The hood, down: a rolled rim round the neck and a flap over the pack lid.
 
     A zip hoodie without a hood is a zip jacket, and the contract calls the hood
     the feature that names the garment: "bunched in soft folds behind and around
-    the neck, standing proud of the shoulders".  A hood pushed off the head is a
-    two-layer pouch -- the outer layer hangs from the neck seam down the back,
-    the inner layer comes back up to the face opening, which ends up lying
-    round the neck -- and its folds come from it having far more cloth than the
-    space it lies in.  So it is built as that pouch, sewn (pinned) along the
-    hoodie's own collar, and dropped under gravity onto the body and the
-    backpack, which a proxy stands in for.  Until preview 3 it was a modelled
-    roll with a sine wobble for folds, and from behind nothing read as a hood.
+    the neck, standing proud of the shoulders".  See the constants above for
+    why it is modelled rather than simulated.
     """
-    import drape  # pylint: disable=import-outside-toplevel
     if not collar:
         print("  hood: no collar ring found -- no hood")
         return new_object("Hood", [], [], "MW_Hoodie")
-    cx, cy = HOOD_CENTRE
+    support = _Support([body, shell], pack_shapes())
     sweep = math.radians(HOOD_SWEEP)
+    rows = HOOD_RIM_ROWS + HOOD_PANEL_ROWS
     verts, faces = [], []
     for i in range(HOOD_COLS):
-        t = i / (HOOD_COLS - 1)
-        a = (t * 2 - 1) * sweep
-        seam = _collar_at(collar, a)
-        out = Vector((math.sin(a), math.cos(a), 0.0))
-        # The pouch starts folded flat and lying back over the top of the
-        # rucksack, deepest behind the neck and closing at the two front ends
-        # where the hood meets the zip; gravity then drapes it over the lid.
-        # Started hanging straight down, it fell between her back and the
-        # bag, and from behind there was no hood to see.
-        depth = HOOD_DEPTH * math.cos((t * 2 - 1) * math.pi / 2) ** 0.7 + 0.012
-        for j in range(HOOD_ROWS):
-            s = j / (HOOD_ROWS - 1)
-            reach = depth * math.sin(math.pi * s)
-            p = (seam + out * (0.006 + HOOD_RIM_OUT * s * 0.5 + reach)
-                 + Vector((0.0, 0.0, 0.004 + 0.030 * s + 0.012 * math.sin(math.pi * s))))
-            verts.append(p)
+        a = (i / (HOOD_COLS - 1) * 2 - 1) * sweep
+        verts.extend(_hood_column(_collar_at(collar, a), a, sweep, support))
     for i in range(HOOD_COLS - 1):
-        for j in range(HOOD_ROWS - 1):
-            a = i * HOOD_ROWS + j
-            faces.append((a, a + HOOD_ROWS, a + HOOD_ROWS + 1, a + 1))
+        for j in range(rows - 1):
+            k = i * rows + j
+            faces.append((k, k + 1, k + rows + 1, k + rows))
     hood = new_object("Hood", verts, faces, "MW_Hoodie")
-
-    # the rucksack, which the hood comes down onto
-    pv, pf = rounded_box(BAG_CENTRE, BAG_SIZE, 0.055)
-    lv, lf = rounded_box((0.0, 0.238, 1.408), (0.248, 0.140, 0.088), 0.040, segs=4, slices=3)
-    n = len(pv)
-    proxy = new_object("PackProxy", pv + lv, pf + [tuple(n + k for k in f) for f in lf],
-                       "MW_Pack")
-    drape.add_collider(proxy, thickness=0.004)
-    drape.add_collider(body, thickness=HOODIE_CLEAR + 0.006)
-    drape.simulate(hood, lambda v: 1.0 if v.index % HOOD_ROWS == 0
-                   else (0.35 if v.index % HOOD_ROWS == 1 else 0.0),
-                   frames=HOOD_DRAPE_FRAMES, settings=HOOD_CLOTH)
-    drape.add_collider(body, thickness=HOODIE_CLEAR)
-    bpy.data.objects.remove(proxy, do_unlink=True)
-    solidify(hood, 0.0030)
+    solidify(hood, 0.0035)
     zs = [v.co.z for v in hood.data.vertices]
     print(f"  hood: {len(hood.data.vertices)} verts, z {min(zs):.3f}..{max(zs):.3f}")
     return hood
@@ -849,8 +986,17 @@ STRAP_PATH = [
 ]
 STRAP_W = 0.044           # padded webbing, flat against the chest
 STRAP_T = 0.013
-BAG_CENTRE = (0.0, 0.232, 1.262)
+# The bag hangs with its lid below the collar seam, as a worn daypack does.
+# Until preview 4 the lid stood level with the collar, and the hood -- which
+# with the hood down has to lie *somewhere* behind the neck -- had nowhere to
+# go but into a crumpled mass on top of it.
+PACK_DROP = 0.045
+BAG_CENTRE = (0.0, 0.232, 1.262 - PACK_DROP)
 BAG_SIZE = (0.268, 0.152, 0.350)
+PACK_LID_CENTRE = (0.0, 0.238, 1.408 - PACK_DROP)
+PACK_LID_SIZE = (0.248, 0.140, 0.088)
+PACK_POCKET_CENTRE = (0.0, 0.272, 1.148 - PACK_DROP)
+PACK_POCKET_SIZE = (0.196, 0.086, 0.118)
 
 
 STRAP_GAP = 0.009         # strap centreline above the hoodie surface it lies on
@@ -882,6 +1028,109 @@ def _strap_onto(path, over, hold=None):
         out.append(q + n * STRAP_GAP)
         moved += 1
     return out, moved
+
+
+PIPING_R = 0.0042         # a bound seam stands about this far proud of the canvas
+CSTRAP_X = 0.066          # the two compression straps down the bag's face
+CSTRAP_W = 0.022
+
+
+def _pack_details(add, webbing, buckle) -> int:
+    """Seams, two compression straps with buckles: what makes a bag a rucksack.
+
+    Preview 3's pack was three smooth soft boxes, and from behind it read as a
+    khaki lump.  A canvas daypack is recognised by its construction: bound
+    seams round the lid and the pocket and down the sides, and webbing straps
+    over the lid with side-release buckles.  Each is laid onto the bag's own
+    surface by ray cast, so none floats and none sinks in.
+    """
+    from mathutils.bvhtree import BVHTree  # pylint: disable=import-error,import-outside-toplevel
+    shapes = pack_shapes()
+
+    def tree_of(args):
+        v, f = rounded_box(*args)
+        return BVHTree.FromPolygons([Vector(p) for p in v], f)
+
+    bag, lid, pocket = (tree_of(a) for a in shapes)
+    whole = [bag, lid, pocket]
+
+    def hit(trees, origin, direction, lift):
+        best = None
+        for t in trees:
+            h = t.ray_cast(origin, direction, 1.0)
+            if h[0] is not None and (best is None or h[3] < best[3]):
+                best = h
+        if best is None:
+            return None
+        n = best[1].normalized()
+        if n.dot(direction) > 0:
+            n = -n
+        return best[0] + n * lift
+
+    def ring(tree, centre, z, lift, count=40):
+        pts = []
+        for k in range(count + 1):
+            th = math.tau * k / count
+            d = Vector((math.cos(th), math.sin(th), 0.0))
+            o = Vector((centre[0], centre[1], z)) + d * 0.5
+            p = hit([tree], o, -d, lift)
+            if p is not None:
+                pts.append(p)
+        return pts
+
+    count = [0]
+
+    def emit(v, f, bucket):
+        add(v, f, bucket)
+        count[0] += len(f)
+
+    # bound seam round the lid at its widest, and round the pocket
+    for tree, args in ((lid, shapes[1]), (pocket, shapes[2])):
+        (cx, cy, cz), _size, *_rest = args
+        pts = ring(tree, (cx, cy), cz, PIPING_R * 0.5)
+        if len(pts) > 4:
+            v, f = tube(pts, [PIPING_R] * len(pts), segments=6, cap=False)
+            emit(v, f, webbing)
+    # side seams, down both sides of the bag body
+    (bx, by, bz), (sx_, _sy, sz), *_rest = shapes[0]
+    for side in (-1.0, 1.0):
+        pts = []
+        for k in range(14):
+            z = bz - sz * 0.42 + sz * 0.80 * k / 13
+            d = Vector((side, 0.0, 0.0))
+            p = hit([bag], Vector((bx, by, z)) + d * 0.5, -d, PIPING_R * 0.5)
+            if p is not None:
+                pts.append(p)
+        if len(pts) > 3:
+            v, f = tube(pts, [PIPING_R] * len(pts), segments=6)
+            emit(v, f, webbing)
+    # compression straps: from the top of the lid, over its back edge and down
+    # the face of the bag to the pocket, each with a buckle where lid meets bag
+    (lx, ly, lz), (_lsx, lsy, lsz), *_rest = shapes[1]
+    for side in (-1.0, 1.0):
+        x = side * CSTRAP_X
+        path = []
+        for k in range(5):
+            y = ly - lsy * 0.15 + lsy * 0.45 * k / 4
+            p = hit(whole, Vector((x, y, lz + 0.4)), Vector((0, 0, -1)), 0.003)
+            if p is not None:
+                path.append(p)
+        z = lz + lsz * 0.20
+        while z > bz - sz * 0.10:
+            p = hit(whole, Vector((x, 0.8, z)), Vector((0, -1, 0)), 0.003)
+            if p is not None:
+                path.append(p)
+            z -= 0.018
+        if len(path) > 3:
+            v, f = tube(path, [CSTRAP_W / 2] * len(path), segments=6, flatten=0.16)
+            emit(v, f, webbing)
+            bz_ = lz - lsz * 0.55
+            p = hit(whole, Vector((x, 0.8, bz_)), Vector((0, -1, 0)), 0.006)
+            if p is not None:
+                v, f = rounded_box((p.x, p.y, p.z), (0.034, 0.010, 0.030), 0.004,
+                                   segs=2, slices=2)
+                emit(v, f, buckle)
+    return count[0]
 
 
 def build_pack(body, dom, arm, over=None):
@@ -937,27 +1186,27 @@ def build_pack(body, dom, arm, over=None):
         add(v, f, buckle)
 
     n_strap = len(faces)
-    v, f = rounded_box(BAG_CENTRE, BAG_SIZE, 0.055)
-    add(v, f)
-    # a lid flap and a lower pocket, so the silhouette is not one plain box
-    v, f = rounded_box((0.0, 0.238, 1.408), (0.248, 0.140, 0.088), 0.040,
-                       segs=4, slices=3)
-    add(v, f)
-    v, f = rounded_box((0.0, 0.272, 1.148), (0.196, 0.086, 0.118), 0.034,
-                       segs=4, slices=3)
-    add(v, f)
+    # the bag, a lid flap and a lower pocket, so the silhouette is not one box
+    for args in pack_shapes():
+        v, f = rounded_box(*args)
+        add(v, f)
+    webbing = []
+    n_detail = _pack_details(add, webbing, buckle)
+    print(f"  pack: {n_detail} detail faces (piping, compression straps, buckles, handle)")
 
     obj = new_object("Pack", verts, faces, "MW_Pack")
     assign_material(obj, "MW_Webbing", lambda c, _n: False)
     assign_material(obj, "MW_StrapLow", lambda c, _n: False)
     assign_material(obj, "MW_Buckle", lambda c, _n: False)
     slots = {m.name: i for i, m in enumerate(obj.data.materials)}
+    webbing_set = set(webbing)
+    buckle = set(buckle)
     for i, poly in enumerate(obj.data.polygons):
         if i in buckle:
             poly.material_index = slots["MW_Buckle"]
         elif i in lower:
             poly.material_index = slots["MW_StrapLow"]
-        elif i < n_strap:
+        elif i < n_strap or i in webbing_set:
             poly.material_index = slots["MW_Webbing"]
     planar_uv(obj, 0.30)
     shade_smooth(obj)

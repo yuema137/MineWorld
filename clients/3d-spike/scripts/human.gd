@@ -270,7 +270,9 @@ static func build(height_m: float, skin: Color, hair: Color,
 		# the rucksack: grey-green canvas, grey-green webbing over a dark navy
 		# lower section with a visible adjuster, as the reference shows
 		"MW_Pack": _cloth(pack, 0.92),
-		"MW_Webbing": _cloth(pack.darkened(0.16), 0.88),
+		# the padded straps are lighter than the bag: in the reference the lit
+		# strap reads 0.33/0.27/0.24 sRGB, lighter than the canvas beside it
+		"MW_Webbing": _cloth(pack.lightened(0.12), 0.88),
 		"MW_StrapLow": _plain(Color(0.10, 0.11, 0.14), 0.80),
 		"MW_Buckle": _plain(Color(0.16, 0.16, 0.15), 0.42, 0.35),
 		"MW_Hair": _hair(hair),
