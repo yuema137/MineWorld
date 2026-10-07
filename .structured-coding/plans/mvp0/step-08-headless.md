@@ -293,13 +293,13 @@ I-9 (frozen)    The activity precondition: before any determinism comparison, ev
 **Goal.** The CLI and the meaning of a deterministic controller-driven run are specified before they
 exist (`CLAUDE.md` §2.2). **Scope.** `docs/MODULE_SPEC.md` §8, `docs/DECISIONS.md`. **Depends on:** the freeze.
 
-- [ ] Implementation:
-  - [ ] `MODULE_SPEC.md` §8: add the implemented command surface — `server`, `validate`, `replay`, `run`, `inspect`, `create`, with their options and the meaning of `--days` (HD-5) and `--seed` — keeping §8's install/add-system lines marked as intended, not implemented.
-  - [ ] `DECISIONS.md` **ARC-27** — *a headless run is a pace schedule over stateless seeded controllers*: problem (§2.2, §2.3), options (reuse the server path; scripted inputs; a stateful controller with persisted memory; the paced stateless controller), choice HD-2/HD-3/I-3, what `AC-12` covers and excludes (instance id, wall time), `F-13` resolved for `run` and kept for `--agent` (§2.5).
-  - [ ] `DECISIONS.md` `ARC-26`: dated note that `MAX_STRIDE` stays a constant past S7 (Q5).
-  - [ ] `DECISIONS.md` **DEP-11** — the CLI's argument parsing: `clap` with derive; the trigger that was met (six subcommands, `run` with four options), alternatives (hand parsing, `argh`, `pico-args`, `lexopt`), isolating interface (`main.rs` only), accepted limitation (build time).
-- [ ] Validation: both check scripts pass; `ARC-27` is unique on every remote branch (`git grep` over `refs/remotes/origin`).
-- [ ] Review: the CLI text in §8 matches §3 exactly; no synonym for a defined term (`Controller`, `Observation`, `World Pack`); `ARC-27` says what it excludes.
+- [x] Implementation (§9 E-1):
+  - [x] `MODULE_SPEC.md` §8 (new §8.1): add the implemented command surface — `server`, `validate`, `replay`, `run`, `inspect`, `create`, with their options and the meaning of `--days` (HD-5) and `--seed` — keeping §8's install/add-system lines marked as intended, not implemented.
+  - [x] `DECISIONS.md` **ARC-27** — *a headless run is a pace schedule over stateless seeded controllers*: problem (§2.2, §2.3), options (reuse the server path; scripted inputs; a stateful controller with persisted memory; the paced stateless controller), choice HD-2/HD-3/I-3, what `AC-12` covers and excludes (instance id, wall time), `F-13` resolved for `run` and kept for `--agent` (§2.5).
+  - [x] `DECISIONS.md` `ARC-26`: dated note that `MAX_STRIDE` stays a constant past S7 (Q5).
+  - [x] `DECISIONS.md` **DEP-11** — the CLI's argument parsing: `clap` with derive; the trigger that was met (six subcommands, `run` with four options), alternatives (hand parsing, `argh`, `pico-args`, `lexopt`), isolating interface (`main.rs` only), accepted limitation (build time).
+- [x] Validation: both check scripts pass; `ARC-27` is unique on every remote branch (`git grep` over `refs/remotes/origin`). — §9 E-1.
+- [x] Review: the CLI text in §8 matches §3 exactly; no synonym for a defined term (`Controller`, `Observation`, `World Pack`); `ARC-27` says what it excludes.
 
 **Acceptance.** A reader of MODULE_SPEC §8 and ARC-27 alone can implement `run` and predict its output's determinism.
 **Failure cases.** None executable. **Commit boundary.** Docs only.
@@ -538,6 +538,11 @@ C2 adds observable output to a System Pack (Q4) and is raised rather than assume
 E-0  C0 design, 2026-10-06, on main @ ef53484 + this file. check_decision_ids: 35 ids, all distinct;
      check_doc_headings: 141 numbered sections across 22 documents, none duplicated. No cargo gate run
      (docs only). Test count 330 taken from overall §7, not re-counted in Phase 1.
+E-1  C1 specs. MODULE_SPEC §8.1 (the implemented CLI), DECISIONS ARC-26 dated note, ARC-27, DEP-11.
+     check_decision_ids: 37 ids, all distinct; check_doc_headings: 142 sections, none duplicated.
+     `git grep "## ARC-27" / "## DEP-11"` over every origin branch except this one: no match.
+     Review: §8.1 matches HD-5, HD-8, HD-9, HD-10, HD-11 and Q3; ARC-27 names its exclusions
+     (instance id, wall time) and states the fingerprint is never evidence (Q9 condition).
 ```
 
 ## 9.1 Limitations (expected)
