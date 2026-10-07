@@ -2708,11 +2708,11 @@ tests/{eat.rs, removable.rs, paced.rs, support/mod.rs}}`. `mineworld-inventory`,
 
 ### E-C8 — Close: status, change set, full gates, ledger
 
-- [ ] Documentation: `docs/MVP_STATUS.md` rows of E-12; §4.5 checkboxes; a new §9.5 `E-E*`; the handoff.
-- [ ] Validation, once, on the final executable head: fmt, clippy `-D warnings`, `cargo test --workspace`,
-  kill_and_resume, both doc checks, E-1 (with M-E1), E-2.
-- [ ] Review: E-1 … E-12 each with evidence; deviations in a §4.5.7; the PR is merged **with a merge
-  commit** (ARC-35 reads `M^1..M`), said in the PR body.
+- [x] Documentation: `docs/MVP_STATUS.md` rows of E-12 (DE-8); §4.5 checkboxes; §9.5 `E-E0` … `E-E7`,
+  `E-E-final`; §4.5.7 DE-1 … DE-10; the handoff; worlds/market-town/README.md.
+- [x] Validation, once, on the final executable head 15c4651: all PASS (§9.5 E-E-final).
+- [x] Review: E-1 … E-12 each with evidence (E-E-final's table); deviations DE-1 … DE-10 (§4.5.7); the
+  PR is to be merged **with a merge commit** (ARC-35 reads `M^1..M`), said in the PR body.
 
 ### 4.5.4 Test ownership for 11e
 
@@ -2801,7 +2801,28 @@ DE-7  bounded  economy's reduction also refuses a second `funded` for a holder t
                living Person or Organization. SD-24 did not say. Reason: both facts are genesis facts
                from a pack's own section, so a repeat is a defect; two shops in one place would make
                "the shop here" ambiguous. Validation: by construction; no test world repeats either.
+DE-8  bounded  MVP_STATUS's `worlds/market-town` artefact row is updated here, because E-12 requires it;
+               §16's POST-MERGE SYNC line gives the artefact line to the planning session. The
+               `Updated:` line and the S9 row are left to the planning session. The 11d capability row's
+               "No money, work or shops yet" became a pointer to the new row; its 11d evidence row is
+               kept and marked superseded as current evidence (QS-51, §4.5.6).
+DE-9  process  The handoff edit made on the scratch branch was swept into a local scratch commit by
+               `git commit -a` and deleted with the branch; the handoff was rewritten at E-C8. Nothing
+               scratch reached origin (`git ls-remote --heads origin | grep -c scratch` → 0). No
+               `python3 -c`, `sed -i`, `awk`, `xargs` or `curl` was used in this session.
+DE-10 observ.  E-9 b passed on the first sizing run, with the spike's run-3 sizes unchanged; the numbers
+               equal §9 E-6 run 3 exactly (372 755 facts, buy 2 710, eat 1 710, drink 1 007, give
+               13 032). The store's shelf is empty at day 300 (it sells each morning's production the
+               same day); purchases there continue every bucket. Recorded, not a criterion.
 ```
+
+QS-51 (what 11e supersedes): §4.5.6 stands as written. 11d's market-town measurements (§9.4 E-D6) and its
+MVP_STATUS evidence row describe 11d's merge and stay true of it; §9.5 E-E7 replaces them as the current
+market-town evidence. Social Café's E-0 is not superseded (E-2 re-measured it unchanged).
+
+QS-47 (L-13, the bounded-horizon economy): recorded in ARC-38's accepted limitations and in market-town's
+world.yaml header: ten of twelve people have no income; their lowest wallets over 300 days are 95 150 …
+200 000 of 200 000 (E-E7), so the measured horizon holds with margin; past it they run out.
 
 ## 4.6 PR 11f — the proof (medium scope; detailed after 11e merges)
 
@@ -3931,6 +3952,53 @@ E-E7 E-C7 market-town, content commit 1611c1a (the spike's run-3 sizing, unchang
        `organizations:` list; organizations/cafe-company.yaml and corner-store.yaml; per person file an
        appended commented `economy:` block, and `job:` for alice and felix. No place file differs. →
        PASS.
+E-E-final on 15c4651 (clean tree; final executable head — the last non-Markdown commit is 1611c1a, and
+     every later commit is Markdown only), base 4f2a4cd, 2026-10-07; logs /tmp/s9-11e/final/:
+     cargo fmt --all --check                                           PASS
+     cargo clippy --workspace --all-targets --all-features -D warnings PASS
+     cargo test --workspace --no-fail-fast    510 passed, 0 failed, 0 ignored across 121 test binaries
+                                              and doc-test runs (11d's 479 + 31 new: inventory 2,
+                                              employment 9, economy 13, consumption 7); 176 s wall
+     kill_and_resume                          cafe PASS (0.2 s), clock PASS (0.1 s)
+     check_decision_ids                       49 ids, all distinct
+     check_doc_headings                       143 sections across 22 documents, none duplicated
+     I-2 scan                                 the_precursors_add_no_market_concept PASS inside the run
+                                              (no row or entry added)
+     E-2 / I-4                                300-day seed-7 social-cafe sha-256 of all but wall =
+                                              ad49c723…c64b = E-0; faults 0; 365 330 facts; wall 12.1 s;
+                                              `validate worlds/social-cafe` byte-identical (E-E6)
+     E-1                                      `git diff --name-only 4f2a4cd...HEAD`: 74 paths —
+                                              .structured-coding/plans/mvp0/{handoff,step-10-market}.md,
+                                              Cargo.lock, docs/{DECISIONS,MODULE_SPEC,MVP_STATUS,
+                                              PACKAGE_FORMAT}.md, systems/README.md,
+                                              systems/consumption/** (11), systems/economy/** (16),
+                                              systems/employment/** (14), systems/installed/{Cargo.toml,
+                                              src/lib.rs}, systems/inventory/{README.md, src/{admit,event,
+                                              lib,system}.rs, tests/{inventory.rs,support/mod.rs}},
+                                              worlds/market-town/{README.md, world.yaml,
+                                              organizations/{cafe-company,corner-store}.yaml, people/*.yaml
+                                              (12)}; non-Markdown paths outside systems/, worlds/ and
+                                              Cargo.lock: 0. `git diff 4f2a4cd...HEAD -- Cargo.lock`: +3
+                                              [[package]] (mineworld-consumption, -economy, -employment),
+                                              none with a `source`; +3 names in
+                                              mineworld-installed-systems' dependency list; nothing else.
+     M-E1                                     `// MUTATION M-E1` added to kernel/src/lib.rs in the working
+                                              tree → the same filter (`git diff --name-only 4f2a4cd`)
+                                              listed `kernel/src/lib.rs`; reverted (git checkout), count
+                                              of outside paths back to 0, tree clean.
+     CI: none configured (S13).
+
+     E-1 … E-12 at a glance:
+     E-1  PASS (above; M-E1)               E-2  PASS (above; no existing test outside
+                                                inventory's edited; inventory's 8 existing cases
+                                                unchanged, two added)
+     E-3  PASS (E-E2; M-E2, DE-3)          E-4  PASS (E-E4; M-E3)
+     E-5  PASS (E-E4; M-E4, M-E5)          E-6  PASS (E-E3; M-E6)
+     E-7  PASS (E-E3, E-E4, E-E5; M-E7)    E-8  PASS (E-E5; M-E8)
+     E-9  PASS a, then b, then c, then d (E-E7; M-E9)
+     E-10 PASS (E-E7)                      E-11 PASS (E-C1 committed first, 75d3dc1; doc checks above)
+     E-12 PASS (MVP_STATUS: the 11d rows kept and marked superseded as current market-town evidence;
+          a new capability row and evidence row; the artefact row updated — DE-8)
 ```
 
 ---

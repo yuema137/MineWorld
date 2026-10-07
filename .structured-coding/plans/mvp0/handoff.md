@@ -38,13 +38,18 @@ STOP CONDITIONS     normal: PR 11e READY FOR OPERATOR REVIEW — DO NOT MERGE. M
 
 ## Current checkpoint
 
-E-C1 in progress (specs before code). The R-S9-1 spike commits `22a6b58`/`d856f1d` are still in the
-object store (unreachable, never pushed); they are a reference only.
+**READY FOR OPERATOR REVIEW. Context CLOSED / AWAITING OPERATOR ACTION.** E-C1 … E-C8 done.
+Final executable head 15c4651 (gates in step-10 §9.5 E-E-final: 510/0, 176 s); later commits are
+Markdown only. Deviations DE-1 … DE-10 in §4.5.7. Scratch branch deleted; nothing on origin named
+scratch.
 
 ## Next actions
 
-E-C1 → E-C2 → E-C3 → E-C4 → E-C5 → E-C6 → E-C7 → E-C8, each committed and pushed when coherent.
+- Operator reviews the PR; merge **with a merge commit** (ARC-35 reads `M^1..M`). The primary session
+  re-runs E-1 on the actual merge diff.
+- Post-merge: this session's §4.5/§9.5 are final; the step header, §§1–3, overall, MVP_STATUS's
+  `Updated:` line and S9 row are the planning session's. 11f (the proof) is next.
 
 ## Background processes
 
-None recorded yet. Logs under /tmp/s9-11e/.
+None. Logs under /tmp/s9-11e/ (final gates in /tmp/s9-11e/final/).
