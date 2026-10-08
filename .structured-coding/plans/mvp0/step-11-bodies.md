@@ -3382,3 +3382,67 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
   touches neither file.
 
 **PR 12b lifecycle:** NOT FROZEN.
+
+## 17.6 Test ownership
+
+```text
+STATIC      cargo fmt; cargo clippy -D warnings (HashMap banned); the compiler at the installed set (a
+            listed resolver type that is not an ArrivalResolver does not compile); the section type
+            (an invalid `body:` cannot be constructed); Resolution's private fields (12a)
+UNIT        rapier.rs: F-P1 canary and fix (PB-3); resolve.rs: verify-then-degrade on R's request-551
+            geometry with the bias off (PB-8); geometry.rs: none beyond what the scenarios drive —
+            the integer helpers are owned by the scenarios that exercise them
+INTEGRATION through the real World::dispatch, hand-built worlds with presence, movement and bodies:
+            walls, nudges, chains, wall-backed nudges, entry placement, inertness, the guard, the
+            head-on bias, disclosure, genesis refusals (PB-5 … PB-7, PB-13, PB-16 … PB-19); the
+            3 000-request long run's invariants and digest (PB-14 a, committed half)
+STRUCTURAL  the pin and resolved features (PB-2); Rapier isolation, no persisted float, bodies names
+            only presence (PB-15); seam_vocabulary, ac1_composability, precursor_vocabulary, presence's
+            and movement's scans (PB-15); scope (PB-20)
+REAL RUN    (Gate 2's role) the real binary: bodies-yard validate refusals (PB-4), the 30-day run and
+            its scan (PB-9), the counterfactual (PB-10), two processes and SIGKILL (PB-11) — committed
+            tests; the two 300-day digests (PB-1), the Rosetta runs (PB-12) and the cost runs (PB-14)
+            — recorded evidence on the final head
+GATE 1      NOT REQUIRED: no model is involved, and no LM-facing semantics change
+CI          none configured (S13); the full local gate runs once on the final executable head
+```
+
+Owned elsewhere and not repeated:
+- 12a owns the seam's refusals (RS-4), registration (RS-8 … RS-10) and the catalog's order (RS-5).
+- persistence owns version refusals.
+- worldpack owns the section-namespace rule and the line-and-column refusals of malformed sections.
+
+PB-4 shows only that bodies' type is the one decoding. Each failure class above has one owner.
+
+## 17.7 Is any of this material?
+
+Yes, in five places. Each is raised, not assumed:
+
+- **QP-1: the guard.** ARC-39 item 7, bullet 3 promises a reaction guard that F-B1 shows cannot be
+  built. The proposal is a guard on the starting state, which panics. It amends an operator-approved
+  decision record.
+- **QP-2: two existing tests are edited.** Their claims are unchanged, as QR-2's were.
+- **QP-3: the root manifest gains `rapier3d`.** This follows the root rule and ARC-33 item 3.
+  Installing this pack therefore touches one file outside `systems/`. ARC-33's "no other file is
+  edited" holds for packs that bring no external dependency.
+- **QP-7: entry placement.** The step design's "blocked; the person stays on their side of the door"
+  (§5) cannot be expressed by the seam (F-B3). A crossing into a jammed doorway places the person at
+  the nearest free point instead, guaranteed by a capacity check at load.
+- **QP-9: a contingent cost remedy.** If PB-14(b) fails, it is a dev-profile optimization override
+  for Rapier in the root manifest.
+
+Not material, and recorded:
+- the test world (QP-4), which the operator suggested;
+- the `body:` format (QP-5) and the default capsule for everyone (QP-6);
+- the bias design (QP-8), which the operator delegated to 12b;
+- `parallel` off (QP-10) and the F-P1 canary (QP-11);
+- disclosure in 12b (QP-12), the single clearance number (QP-13), bodiless semantic presences
+  (QP-14), an earlier resolver (QP-15) and the cross-architecture fallback (QP-16).
+
+The following are not needed:
+- any kernel, contract, persistence, server, cognition, presence or movement change;
+- 12a's F2 kernel slot, or a kernel read of enabled state (QB-17);
+- a change to the I-2 scan or to AC-1's checks.
+
+AC-1's check 2 reads only market crates. Check 1 reads only the 11d and 11e merges. The I-2 scan reads
+only 11a … 11c. `bodies` is none of these, so it trips none of them (PB-15 runs all three).
