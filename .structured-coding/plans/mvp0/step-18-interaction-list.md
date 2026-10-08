@@ -1452,6 +1452,26 @@ E-IA-10 2026-10-08, after main moved (coordinator's instruction): S16 E-b (#78, 
           check_decision_ids 61 distinct; check_scratch.py scan 0; `left` 0 entries under target/ (only
           the 4 pre-existing $TMPDIR entries). PASS. (An interim gate on be30002, before 16a merged, also
           passed: 733 passed, 0 failed.)
+E-IA-11 2026-10-08, review finding R-IA-1 (primary session, on 383c1ac): replacing
+        `WorldPack::check_configuration`'s body with `return Ok(())` survived every test. The comparator
+        was tested directly, the hosts only structurally, and the real-save drift and the canary did not
+        drive this function. Fix (D-16): the new in-crate test
+        `configure::tests::check_configuration_refuses_a_changed_and_an_added_configuration_naming_the_owner`
+        calls `WorldPack::check_configuration` on a save's genesis. The genesis is the assembled pack's
+        facts, recorded as genesis records them. The same configuration is Ok; a changed step (5 → 6)
+        and an added configuration are each `PackError::ConfigurationDrift` naming the probe, with
+        both sides shown. For a test to drive the function, its filter now also takes each found
+        configuration's own `facts()` under its owner, besides the enabled capabilities'
+        `configuration_facts()`.
+        - M-IA4d (the reviewer's mutation: body = `return Ok(())`) → the new test FAILS "expected
+          ConfigurationDrift, got Ok(())".
+        - M-IA4e (control: the filter from capabilities only, as before the fix) → the same test FAILS
+          the same way. So the test is not vacuous, and the filter change is what lets it see drift.
+        Both were reverted; `git grep MUTATION -- '*.rs'` is empty. `cargo test -p mineworld-worldpack
+        --lib configure` 7 passed; `cargo test -p mineworld-worldpack -p mineworld-acceptance` 0, 125
+        passed, 0 failed (configuration_seam 4, configuration_vocabulary 2, ac1_composability 13,
+        precursor_vocabulary, seam_vocabulary unedited); `cargo clippy --workspace --all-targets -D
+        warnings` 0; fmt 0. CI on the pushed head: E-IA-12.
 ```
 
 ## 11.12 Deviations
@@ -1512,4 +1532,21 @@ D-15 (coordination; session resumed after an API rate-limit cut-off) The interru
      DECISIONS.md (ARC-61/62 vs DEP-29, both appended; resolved by keeping both), and Cargo.lock
      regenerated from main's plus A-1's two lines. #77 touched no file IL-a's IA-C6 calls live in
      (tools/cli/src/{main,run}.rs unchanged by the merge).
+D-16 (bounded; review finding R-IA-1) The fix is in-crate, not in tests/acceptance as the finding asked. It
+     includes one production change in worldpack/src/configure.rs (§11.1), so it is put to the reviewer:
+     - Why not acceptance: `check_configuration` filters by `Capability::configuration_facts()`, and
+       test-tuning is not an installed Capability. Installing it is the installed set's change (ARC-33),
+       outside §11.1, and §11.10 says no library is compiled against a test pack. So an acceptance
+       WorldPack cannot contain test-tuning.
+     - Why the filter change: the in-crate probe is labelled with a real capability (F-IA-5), whose
+       configuration_facts() is empty. A test there was vacuous too (M-IA4e).
+     - The change: the filter is now the union of the capabilities' configuration_facts() and each found
+       configuration's own facts() under its owner, the same source seeding checks against (D-9). In a
+       build both are one `PackConfiguration::FACTS` through `configures!()`, so production behaviour is
+       unchanged; IA-1 does not move, because no installed pack configures.
+     - What stays manual: a configuration removed from the pack is seen only through the capability half.
+       It remains held by the comparator test (M-IA4a) and the canary (E-IA-8), not by a test of
+       check_configuration.
+     The alternative, if the reviewer prefers it, is a material change: install a test-only configurable
+     pack in the build.
 ```

@@ -477,3 +477,51 @@ fn the_comparator_refuses_changed_removed_and_added_configuration() {
     assert_eq!(added.system, Probe::ID);
     assert_eq!(added.saved, "nothing");
 }
+
+/// IA-4 (a) through the hosts' own entry point (R-IA-1, M-IA4d): `WorldPack::check_configuration`
+/// builds its filter, assembles the pack and maps the drift. An unchanged configuration is accepted; a
+/// changed and an added one are each `ConfigurationDrift` naming the probe. (A configuration removed
+/// from the pack is seen through the capability's declared facts, which a probe label has none of: it
+/// is held by the comparator test above and by the canary, E-IA-8.)
+#[test]
+fn check_configuration_refuses_a_changed_and_an_added_configuration_naming_the_owner() {
+    let step = |step: u32| {
+        vec![found(
+            Capability::Presence,
+            serde_json::json!({ "step": step }),
+        )]
+    };
+    let save = |configuration| {
+        saved(
+            &seeded_pack(configuration)
+                .assemble()
+                .expect("assembles")
+                .facts,
+        )
+    };
+    let drift = |refusal: Result<(), PackError>| match refusal {
+        Err(PackError::ConfigurationDrift {
+            system,
+            saved,
+            here,
+        }) => (system, saved, here),
+        other => panic!("expected ConfigurationDrift, got {other:?}"),
+    };
+
+    let configured = save(step(5));
+    assert!(
+        seeded_pack(step(5))
+            .check_configuration(&configured)
+            .is_ok(),
+        "the save's own configuration is accepted"
+    );
+
+    let (system, saved_side, here) = drift(seeded_pack(step(6)).check_configuration(&configured));
+    assert_eq!(system, Probe::ID);
+    assert!(saved_side.contains(r#"{"step":5}"#), "{saved_side}");
+    assert!(here.contains(r#"{"step":6}"#), "{here}");
+
+    let (system, saved_side, _) =
+        drift(seeded_pack(step(5)).check_configuration(&save(Vec::new())));
+    assert_eq!((system, saved_side.as_str()), (Probe::ID, "nothing"));
+}

@@ -335,16 +335,25 @@ impl WorldPack {
     /// [`PackError::ConfigurationDrift`] naming the first differing system and both sides, or whatever
     /// assembling the world refuses.
     pub fn check_configuration(&self, saved_genesis: &[EventEnvelope]) -> Result<(), PackError> {
-        let owners: BTreeMap<EventTypeId, SystemId> = self
-            .systems()
-            .iter()
-            .flat_map(|capability| {
-                capability
-                    .configuration_facts()
-                    .iter()
-                    .map(move |fact| (fact.clone(), capability.id()))
-            })
-            .collect();
+        // What every enabled pack declares, and what each configuration in this pack declares, under
+        // its owner: in a build the two are one `PackConfiguration::FACTS` (`configures!()`), and the
+        // second is also what seeding checks a fact against (D-9). The first alone sees a configuration
+        // removed from the pack; the second lets a probe-labelled test drive this function.
+        let declared = self.systems().iter().flat_map(|capability| {
+            capability
+                .configuration_facts()
+                .iter()
+                .map(move |fact| (fact.clone(), capability.id()))
+        });
+        let configured = self.configuration().iter().flat_map(|found| {
+            let owner = found.configuration.owner();
+            found
+                .configuration
+                .facts()
+                .iter()
+                .map(move |fact| (fact.clone(), owner.clone()))
+        });
+        let owners: BTreeMap<EventTypeId, SystemId> = declared.chain(configured).collect();
         let assembled = self.assemble()?;
         compare(saved_genesis, &assembled.facts, &owners).map_err(|drift| {
             PackError::ConfigurationDrift {
