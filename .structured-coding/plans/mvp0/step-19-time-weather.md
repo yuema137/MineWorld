@@ -511,7 +511,7 @@ code.
 | Optional hourly layer (TW-f, QTW-6) | **GHCNh** for the same station and years, reduced to two integers per day: morning (06–11) and afternoon (12–18) mean sky cover in oktas, and fog hours. ISD-Lite rejected (superseded, no fog field). |
 | Committed form | `worlds/market-town/data/weather/san-diego-usw00023188-2015-2024.csv`, one wide row per day: `date,tmax_dc,tmin_dc,prcp_tenth_mm,awnd_dms,fog,thunder,drizzle,rain` (+ `sky_am,sky_pm,fog_hours` after TW-f). *Estimate:* **~130 KB** (≈ 3,653 rows × ~36 B); the encoded configured fact ~40 KB (≈ 11 B/day). |
 | Licence and provenance | CC0 / US public domain. A `NOTICE` beside the file: source URL, station, retrieval date, the fetch tool's version and command, "modified (reshaped and gap-reported) from NOAA GHCN-Daily; not endorsed by NOAA", and the requested citations: Menne, M.J., et al. (2012), *J. Atmos. Oceanic Technol.* 29, 897–910, doi:10.1175/JTECH-D-11-00103.1; and Menne et al. (2012), GHCN-Daily Version 3, NOAA NCDC, doi:10.7289/V5D21VHZ. DEP-8's table gains a row (DEP-TW-b). |
-| Fetch tool | `tools/weather-fetch` (Rust, offline, never run by `run`, CI or the server): downloads the station CSV from NCEI, reshapes, reports gaps and flag population, writes the CSV and NOTICE, and fits `rules/<name>.yaml` from it. Re-running it with the same arguments against the same upstream file is byte-identical. It is a developer tool; its HTTP dependency (`ureq`, already approved or recorded in DEP-TW-b) stays out of every runtime crate. |
+| Fetch tool | `tools/weather-fetch` (Rust, offline, never run by `run`, CI or the server): downloads the station CSV from NCEI, reshapes, reports gaps and flag population, writes the CSV and NOTICE, and fits `rules/<name>.yaml` from it. Re-running it with the same arguments against the same upstream file is byte-identical. It is a developer tool. No HTTP client exists in the workspace today (audited: no `ureq`/`reqwest`); the tool's `--input FILE` mode reshapes a file the developer downloaded, and its fetch mode adds `ureq` to this tool crate only (DEP-TW-b), never to a runtime crate (QTW-14). |
 | Size limit | A station file over 1 MB is a `mineworld check` warning (keeps World Packs small; R-TW-4). |
 
 ## 6.5 How the attachment reaches the world (needs IL-a's seam to grow, QTW-7)
@@ -612,4 +612,139 @@ owned by TW-c (ARC-41: specified whole, landed incrementally). Refusal code `pau
   `world.yaml hosting.time_scale` > 1. The S12 and S14 launchers pass nothing and get 12 from the World
   Pack; `--time-scale` stays for tests and operators.
 
-<!-- §8 onward follows -->
+---
+
+# 8. Design — the clients (2D `clients/2d`, 3D `clients/3d-spike`; both Godot 4)
+
+## 8.1 Settings menu (joins the shared client settings module of `overall.md` "Framework, not demo" item 4)
+
+| Section | Item | Kind | Reaches the server? |
+| --- | --- | --- | --- |
+| Display → Clock | 12-hour / 24-hour (default: 12-hour for `en`, 24-hour for `zh-Hans`, until the user chooses; QTW-16) | presentation preference, persisted per user | **no** |
+| World (shown only with a host token) | Pause / Resume; Day length: 4 h · 2 h · 1 h (6×, 12×, 24×) | **host commands** through `/admin/clock` (§7.3), not settings | yes, as a host command; never stored in the client's settings file |
+| Launcher (single-player only) | Keep the town running when I close the game | launcher preference | no (it changes what the launcher does on close) |
+
+Item 4 says settings "never reach the server". The World section is therefore specified as *host
+commands surfaced in the same menu*, not settings, and the amendment in §15 says so explicitly. Without a
+token the section shows the current day length and pause state read-only.
+
+## 8.2 The HUD date and time
+
+- **Source.** The last `calendar.day` record and the last anchor `(at, time_scale, paused, wall_received)`
+  from the latest observation or `clock` frame. Never the client's OS clock for the *date*; the wall clock is
+  used only to advance the estimate between frames.
+- **Estimate.** `at_est = at_anchor + (paused ? 0 : floor((wall_now − wall_received) × time_scale))`, shown at
+  minute resolution. A newer frame re-anchors; if the estimate is ahead of the new `at`, the displayed minute
+  holds until the world catches up (the HUD never runs backwards). The time of day is `at_est − day_start`;
+  past 24:00 without a new `day-began` the client rolls the date itself with the same civil algorithm (shared
+  GDScript, one function) until the record arrives.
+- **Without `calendar`** the HUD shows `Day N, HH:MM` from `at` as `step-13-client-2d.md` item 8 already
+  specifies (unchanged behaviour).
+- **Formats are translation content** (the settings planning lane chooses `.po` or CSV; these are the
+  entries, not code):
+
+| Key | `en` | `zh-Hans` |
+| --- | --- | --- |
+| `hud.date` | `{weekday_short} {day} {month_short} {year}` | `{year}年{month}月{day}日 {weekday_long}` |
+| `hud.time.24h` | `{hour24}:{minute2}` | `{hour24}:{minute2}` |
+| `hud.time.12h` | `{hour12}:{minute2} {ampm}` | `{ampm} {hour12}:{minute2}` |
+| `hud.ampm.am` / `.pm` | `AM` / `PM` | `上午` / `下午` |
+| `hud.datetime` | `{date}, {time}` | `{date} {time}` |
+| `hud.paused` | `Paused` | `已暂停` |
+
+  Examples: `Tue 8 Oct 2026, 7:42 PM`; `2026年10月8日 星期二 19:42`; `2026年10月8日 星期二 下午 7:42`.
+  Weekday and month names are translation entries too (`hud.weekday.short.0` …).
+- **Live.** The HUD updates every frame from the estimate, shows `Paused` while paused, and changes rate the
+  moment a `clock` frame reports a new scale.
+
+## 8.3 Day and night
+
+- **Shared** (one GDScript module beside the settings module, e.g. `clients/shared/world_time/`; not the
+  protocol module, which S11 owns): the clock estimate, sun-track interpolation (linear between the 97
+  samples, azimuth unwrapped across 360°), the light phase, and the weather intent mapping (§3.4).
+- **3D** (`clients/3d-spike`): the slice's key light `rotation_degrees = (−elevation, azimuth_to_godot)` from
+  the interpolated sun; light energy and colour from an elevation-indexed presentation table whose
+  golden-hour band reproduces ARC-13's constants (`SUN_ELEVATION −19.3`, `SUN_AZIMUTH −48`, `SUN_ENERGY 4.4`,
+  `SUN_WARM`), so the approved look is what golden hour looks like, not a lost look; night uses a moon/sky fill
+  only. Sky3D in TW-e (§11), driven with its own clock and astronomy off; the first renderer PR keeps the
+  existing `ProceduralSkyMaterial`/`PhysicalSkyMaterial`. **GI:** `VoxelGI` is baked and does not follow a
+  moving sun; TW-e measures VOXEL against SDFGI under the moving sun and records the choice (R-TW-6).
+- **2D** (`clients/2d`): a `CanvasModulate` tint from an elevation-indexed table; lit windows at night are a
+  later art item.
+- **Without `calendar`** both clients keep today's fixed lighting (INV-TW-6).
+
+## 8.4 Weather visuals (Presentation Pack content)
+
+- Shared mapping: `Condition` and the hour's numbers → `{ rain_intensity, fog_density, cloud_cover, wetness,
+  wind }` (0..1 floats in the client only), a table in the Presentation Pack.
+- 3D: camera-following `GPUParticles3D` rain with a height-field collider; fog through the environment's
+  depth fog / volumetric fog density; cloud cover dims the sun's energy and, with Sky3D, sets its cloud
+  coverage; wet surfaces lower roughness. Rain only outside interior volumes.
+- 2D: a screen-space rain overlay, a fog overlay, and the tint.
+- No weather visual feeds back to the server.
+
+## 8.5 Parity
+
+Extends the "One world, two views" parity test: both clients, run headless against one recorded observation
+stream with the same settings, print the same HUD string at the same frames (both languages, both clock
+modes), the same light phase, and the same weather intent. Because both use the shared module, a failure
+means one client bypassed it.
+
+---
+
+# 9. Feasibility at 24× (acceptance criterion fixed before measuring)
+
+## 9.1 Analysis from L-12
+
+L-12 measured, headlessly at pace 900 s: ~8 m per world hour, i.e. ~2 m per consult (4 consults/hour),
+median journey 2 world hours (~8 consults), one journey in ten nearly 4 hours (~16 consults). The paced
+controller's choice per consult does not depend on its pace except for its answering window, so **a journey
+costs a number of consults, not a number of seconds.** Under §4.4 a hosted consult happens every `c` wall
+seconds, so a journey takes `k × c` wall seconds and `k × c × s` world seconds.
+
+| Scale | Shortest routine part (4 world h) | P90 journey at `c = 5 s` (S11-B's default pace, read as wall s) | P90 / part |
+| --- | --- | --- | --- |
+| 6× | 40 wall min | 16 × 5 = 80 wall s = 8 world min | 3 % |
+| 12× | 20 wall min | 80 wall s = 16 world min | 7 % |
+| 24× | 10 wall min | 80 wall s = 32 world min | 13 % |
+
+And for a 1-world-hour shift at 24× (150 wall s): a median employee (8 consults, 40 s = 16 world min) is
+present at `shift-started` only if they set off ≥ 16 world minutes early. Routines in `market-town` start
+travel at the routine part's start, so they arrive *during* the part. Hence the operator's concern is real
+for parts or shifts shorter than ~2 world hours, not for today's ≥ 4 h parts.
+
+## 9.2 The criterion (fixed now, measured in TW-c's checkpoint)
+
+**FX-24.** In `market-town`, hosted at 24× with the default cadence, measured headlessly by the equivalent
+`run` pace `c × s` (= 120 world s for `c = 5`, exact under §4.4) over 7 world days, seed 1:
+
+1. ≥ 90 % of agenda journeys end at the agenda place within **25 %** of the agenda part they serve, and every
+   journey within 50 %;
+2. every scheduled shift's `shift-started` records the employee present for ≥ 80 % of shifts;
+3. the same holds at 12× and 6× (it must, if it holds at 24×; checked to catch a cadence bug).
+
+If FX-24 fails, the remedy is **content** (longer parts, earlier departure entries in routines, a shorter
+town) or an **operator decision** (drop the 1 h option, or accept late arrivals at 24×) — never a controller
+change that reads the scale (INV-TW-2). QTW-1 asks the operator now, before measuring.
+
+A note for S10's lane, not a remedy: a `run --pace` flag (the measurement needs one) is added in TW-c as a
+test-only knob on the CLI; `run`'s default pace stays 900.
+
+---
+
+# 10. Invariants (proposed; frozen only by the primary session or the operator)
+
+| Id | Invariant |
+| --- | --- |
+| INV-TW-1 | **Byte identity.** A world that enables neither `calendar` nor `weather` produces byte-identical `run` output, saves and fact logs before and after every S19 PR (checked on `social-cafe`, `market-town` as it is today, `bodies-yard`). |
+| INV-TW-2 | **No world rule reads pacing.** No System Pack, controller decision or fact depends on the time scale or pause. Only the host and clients see them. |
+| INV-TW-3 | **Kernel and contracts unchanged.** `WorldTime`, `WorldClock`, `advance`, `Process`, `WorldRead`, `Observation` and presence's `PerceptionProvider` are not edited by S19. |
+| INV-TW-4 | **One midnight.** `calendar`'s local midnight is every multiple of 86 400 s from instant 0, the same as `schedule`'s `TimeOfDay`. |
+| INV-TW-5 | **Integers on the wire and in facts.** Sun angles in millidegrees, times in world seconds, weather in fixed-point integers; no float in a fact, a component, a disclosure or the protocol. |
+| INV-TW-6 | **Clients only render.** Neither client computes the sun, the date or the weather; both read disclosure through the shared module. A client without `calendar` disclosure shows today's fixed lighting and `Day N` clock. |
+| INV-TW-7 | **No runtime fetch.** No crate reachable from `run`, the server or a client opens a network connection for weather or sun data; the fetch tool is the only one. |
+| INV-TW-8 | **Monotonic host clock.** Pause, resume and scale changes never move `now` backwards or jump it forwards; a resumed world starts at its saved `now`. |
+| INV-TW-9 | **Pacing is recorded, not fact.** Every pacing change is in the host journal; none is in the fact log or the revision count. |
+| INV-TW-10 | **Weather depends on calendar, never the reverse;** removing `weather` leaves calendar facts byte-identical. |
+
+<!-- §11 onward follows -->
