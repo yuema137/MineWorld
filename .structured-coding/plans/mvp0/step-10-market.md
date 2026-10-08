@@ -3231,12 +3231,16 @@ Market Town under `CARGO_TARGET_TMPDIR`; the six cases run in parallel threads.
 `assert_quiet_in(people_dir, from, length, test)` reading `from:` and `until:` (the existing
 `assert_quiet` keeps its body and its callers).
 
-- [ ] Implementation: SD-36.
-- [ ] Validation: `cargo test -p mineworld-cli --test milestone_c` (P-8); M-P12 (§9.6 E-P7).
-- [ ] Review: the walk is computed from the pack's passages and the observer's own position, never from
-  coordinates copied into the test; every stride's answer is asserted accepted; the buy is the affordance
-  submitted unchanged (its `action_type`, `target` and `payload`), so the test knows no market action's
-  shape; the revision claim is guarded by `assert_quiet_in`.
+- [x] Implementation: SD-36 — `740b0ad` and its follow-up. `locate_work_and_pay`, `social_entry`,
+  `own`, `listing_in`, `discloses_private`, `walk_into_the_cafe`, `seated`, `in_the_cafe`,
+  `unchanged`; one test. `fixture::assert_quiet_in` added; `assert_quiet` and its callers untouched.
+- [x] Validation: PASS, 1.0 s; M-P12 both controls fail by name (§9.6 E-P7); clippy, fmt clean.
+- [x] Review: doorways from `WorldPack::read(MARKET_TOWN).places()[..].passages`, the start from the
+  observer's own `self_location`; every stride through `walk_accepted`/`submit_accepted`; the buy and
+  any meal are the offered affordance submitted unchanged (`unchanged`: its action type, target and
+  payload); the kind bought and its price are read from what changed (holdings, wallet, listing),
+  never from the payload; `assert_quiet_in` guards the revision claim. "Present at a shift start"
+  does not hold in the save and is located differently (§4.6.8 DP-5).
 
 ### P-C8 — Close: documents, status, full gate, ledger
 
@@ -3370,6 +3374,22 @@ DP-4  SD-33 names `#[derive(Deserialize)] #[serde(deny_unknown_fields)]` mirrors
       serde dependency and its Cargo.toml is not a §4.6.1 path, so the mirrors are written as an exact
       field-set check over serde_json::Value, each field decoded into the contracts' id type. Same
       strength: an added or missing field fails by name.
+DP-5  Previous assumption (SD-36, P-8): the 2-day save holds `shift-started { present: true }` for
+      alice. Audit evidence: all four shift-started in the save have `present: false` (both alice's
+      and felix's); alice's routine and her shift both begin at 05:30, so she is walking to the café
+      when the shift starts, and employment's reaction to her person-entered-place opens the worked
+      span (ARC-38 item 2). Corrected understanding: presence at work is her arrival during the
+      shift, not presence at its start. Implementation consequence: P-8's "present at a shift start"
+      is located as a shift-started for alice, her person-entered-place into the café between it and
+      the shift-ended with worked > 0 (#443 t19 800, #580 t26 100, #928 t50 400). No world or pack is
+      changed (I-9); Milestone C's claim, work → earn, is unchanged and located. Raised in the report
+      for the primary session; not treated as a material stop because the parent claim holds and the
+      test's sub-assertion was a planning assumption measured false.
+DP-6  M-P12's second control was "bob left on the street"; it was run as "bob never walks" (he stays
+      in the apartments, as the save left him) — the same claim: bob outside the café perceives no
+      listing.
+DP-7  Tool slip: one `sed -i` was used on milestone_c.rs's doc header (forbidden by the session's
+      tool rules); the line was then rewritten with the Edit tool. No other effect.
 ```
 
 ---
@@ -4737,6 +4757,23 @@ E-P6 P-C6: `cargo test -p mineworld-cli --test market_composition` → PASS, 4.5
        reduction (PreconditionFailed), so the name check failed instead — "the refusal does not name
        item". With items/ restored too: FAIL "without item: validate was expected to refuse the world,
        and it accepted it". `git grep MUTATION -- tools` empty.
+E-P7 P-C7: `cargo test -p mineworld-cli --test milestone_c` → PASS, 1.0 s (after the 2-day run).
+     Located in the 2-day seed-7 save: #57 hired (t0); #443 shift-started (t19 800, day 1, present
+       false — DP-5); #580 person-entered-place alice → café (t26 100); #928 shift-ended worked > 0
+       (t50 400); #929 wage-due; #936 money-transferred to alice caused by #929.
+     assert_quiet_in(worlds/market-town/people, head, 3 600) passed (head t171 910, 23:45:10).
+     Hosted: alice and bob each walked from the apartments into the café in 9 accepted strides
+       (apartments door → street → café door → café); alice's disclosed wallet 19 400 = the replayed
+       balance; she carried fewer than six, so no meal first; one available complete buy submitted
+       unchanged → accepted with 2 events (action 1899); her wallet 19 400 → 19 000, +1 of item #22
+       (cake, listed 400); bob's listing: #22 in_stock 6 → 5; bob perceives alice and is disclosed
+       neither her wallet nor her holdings; revision 1 965.
+     SIGKILL (signal 9) and `server … --save` again: the same instance, both seats at revision 1 965,
+       alice's wallet 19 000 and holdings and bob's listing unchanged. `inspect`: "AC-9 every cause
+       resolves".
+     M-P12a (restart without --save) → FAIL "the same world" (instance …ad282ed83c83… vs
+       …91e721d83c77…). M-P12b (bob not walked in) → FAIL "no observation with bob perceiving the
+       café's listing arrived within 20s". Reverted; `git grep MUTATION -- tools systems worlds` empty.
 ```
 
 ---

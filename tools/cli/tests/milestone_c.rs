@@ -70,12 +70,12 @@ fn locate_work_and_pay(town: &Town, facts: &[EventEnvelope], alice: PersonId) {
         .expect("alice worked a shift");
     let started = facts
         .iter()
-        .filter(|fact| {
+        .rev()
+        .find(|fact| {
             fact.event_type().as_str() == "shift-started"
                 && is_alice(&payload(fact))
                 && fact.at() < worked.at()
         })
-        .last()
         .expect("the shift she worked began");
     // Work is attendance (ARC-38 item 2). Her routine and her shift both begin at 05:30, so she is
     // still on her way when the shift starts (`present: false`, step-10 §4.6.8 DP-5): her presence
@@ -190,6 +190,7 @@ async fn walk_into_the_cafe(client: &mut Client, town: &Town, seen: &WireObserva
     let place = town.key(location.place().entity_id());
     let local = location.local().expect("a position");
     let mut at = (local.x().value(), local.y().value());
+    let start = at;
     let mut strides = 0;
     if place != SHOP {
         if place != STREET {
@@ -215,7 +216,7 @@ async fn walk_into_the_cafe(client: &mut Client, town: &Town, seen: &WireObserva
         strides += 1;
     }
     eprintln!(
-        "{} walked from {place} {at:?} into the café in {strides} accepted strides",
+        "{} walked from {place} {start:?} into the café in {strides} accepted strides",
         town.key(me)
     );
 }
