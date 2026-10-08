@@ -2748,16 +2748,54 @@ build. It stays inert in every world that does not install `bodies`.
 
 ---
 
-# 17. PR 12b — people: walls and nudging (full design; NOT FROZEN)
+# 17. PR 12b — people: walls and nudging (full design; DESIGN FROZEN 2026-10-07)
 
-**Lifecycle:** drafted by the planning session on `mvp0/s15-12b-plan`, 2026-10-07. It is not frozen
-and authorizes nothing. It becomes binding only when the operator or the primary session records a
-freeze in §17.0. Its open questions are QP-1 … QP-16 (§17.8); the operator-material ones are marked
-**[OM]**.
+**Lifecycle:** the planning session drafted this on `mvp0/s15-12b-plan` on 2026-10-07. The primary
+session froze it the same day; the freeze record is §17.0.
 
 ## 17.0 Freeze record
 
-*Empty until the design is frozen.*
+**DESIGN FROZEN (2026-10-07), primary session.** The §17.9 execution contract is confirmed. This
+record binds and overrides any other text in §17.
+
+The planning session marked five questions [OM]. None of them contradicts a decision the operator
+made: QB-1, QB-10, QB-15, QB-2, QB-3, QB-5 and QB-12 are untouched. Each refines text written by the
+planning session or the primary session, so the primary session decides them here:
+
+- **QP-1 — accepted.** ARC-39's promised reaction guard is replaced by a check at the start of each
+  resolution. It panics if the place already holds an overlap, naming the pair. The replacement is
+  recorded as a dated note on ARC-39.
+  - An overlap there is an invariant violation, not a state the world may continue in.
+  - The 30-day and 300-day runs must show it never fires, and a mutation must show that it does
+    fire.
+- **QP-2 — accepted.** The two named tests are edited with their claims unchanged, under the same
+  rule as step-09 I-5 and 12a's QR-2.
+- **QP-3 — overruled.** `rapier3d =0.36.0` is declared in `systems/bodies/Cargo.toml` itself, not in
+  root `[workspace.dependencies]`.
+  - Installing `bodies` must touch only `systems/**` and `Cargo.lock`, as ARC-33 states for every
+    pack. The convenience of a workspace dependency is not worth an exception to that.
+  - DEP-13 records the pin's location. PB-2's pin test reads the pack's manifest.
+- **QP-7 — accepted.** A crossing into a jammed doorway places the person at the nearest free point,
+  never inside another body or a solid. A room-capacity check at load guarantees such a point exists.
+  §5's sentence is amended to match.
+- **QP-9 — accepted conditionally.** If, and only if, PB-14's ≤ 1.5× dev-profile bound fails, 12b may
+  add per-package dev `opt-level` overrides for `rapier3d` and `parry3d` in the root manifest. If it
+  does:
+  - it records an ARC-30 note;
+  - it shows the bound passing afterwards;
+  - it shows that no output changed.
+
+  If the bound passes without the overrides, the root manifest is not touched.
+- **QP-4 … QP-6, QP-8, QP-10 … QP-16 — accepted as recommended.** These include:
+  - the committed `worlds/bodies-yard`;
+  - the `body:` place section;
+  - the head-on bias design and its fallback ladder. If no rung passes, it comes back to the
+    primary session before it goes to the operator.
+- **FU-12a-1 stays open.** 12b does not edit movement's `action.rs` or worldpack's `read.rs`.
+- **The 12d finding is recorded for 12d:** the café's doorway point lies 200 mm from its wall, which is
+  less than a person's radius.
+- **Merge:** with a merge commit.
+- **Implementation:** in a fresh session on `mvp0/pr-12b-people`, in its own worktree.
 
 ## 17.1 Identity, base, approved scope
 
