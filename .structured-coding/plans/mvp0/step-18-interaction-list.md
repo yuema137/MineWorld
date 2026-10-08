@@ -772,10 +772,9 @@ becomes configurable. After IL-h the operator plays `worlds/manor` and, after IL
 
 ---
 
-# 11. PR IL-a — the configuration seam and the extension catalogs (full design; DRAFT, awaiting freeze)
+# 11. PR IL-a — the configuration seam and the extension catalogs (full design; DESIGN FROZEN 2026-10-08)
 
-**Lifecycle:** drafted by the planning session on `mvp0/pr-il-a-seam` (2026-10-08). `DRAFT — awaiting
-the primary session's freeze`. Nothing in §11 authorizes implementation.
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — the primary session's freeze of 2026-10-08: "IL-a is DESIGN FROZEN (2026-10-08), primary session. §11 is accepted as written. QIA-1 to QIA-6 are accepted as recommended." The execution contract (§11.10) is confirmed; the scratch canary (QIA-5) is authorized on condition that it is never pushed and is deleted afterwards. Drafted by the planning session; implemented in a fresh session in its own worktree.
 
 **Binding rulings this section implements** (`overall.md` "The World Interaction List"):
 - QIL-2 is overruled. The carrier is `configure:` (ARC-61), the files are `configure/<pack>.yaml`, and
@@ -1139,6 +1138,8 @@ Neither pack names a physics word or an interaction word.
 | **QIA-4** | Configuration facts are `SystemInternal`, with no subjects, by guidance in ARC-61 (not enforced by the loader). | **Guidance, not enforcement**: a loader rule over Visibility would be the loader judging a pack's vocabulary. |
 | **QIA-5** | The canary install (IA-10) on a scratch branch, never pushed: authorized? | **Yes**, as 11a C5. |
 | **QIA-6** | `sdk/rust/tests/extensions.rs` added to the change set for IA-5's test-local catalog. | **Yes.** |
+
+**Freeze rulings (primary session, 2026-10-08).** QIA-1 to QIA-6 accepted as recommended. QIA-1: `packages` and `classes` are reserved in IL-a and both are wired in IL-b — consistent with the E-b freeze (FQ-b2), under which E-b ships the default licence policy and its evaluator, and a later `configure/packages.yaml` override is a recorded hook. QIA-4: guidance only, stated in ARC-61. QIA-5: authorized, never pushed, deleted afterwards.
 
 ## 11.10 Proposed execution contract for PR IL-a
 
