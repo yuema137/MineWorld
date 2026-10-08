@@ -856,7 +856,10 @@ through its owner's constructor and reduced by its owner (ARC-26).
   re-baselined by any PL PR.
 - **PL-I2 Explicit default is behaviourally identical.** The same world with `configure/bodies.yaml`
   naming `default` (or a list that `extends: default` and overrides nothing) records exactly one more
-  genesis fact (`physics-configured`), and every fact after genesis is byte-identical to PL-I1's run.
+  genesis fact (`physics-configured`), and every fact after genesis is identical to PL-I1's run in
+  type, payload, subjects, place, causation and order — its event id, and every event id that refers to
+  one, offset by exactly that one fact. The test compares the two logs with ids renumbered, and fails on
+  any other difference.
 - **PL-I3 Removability.** A world without `bodies` is a valid world and unchanged; a world that
   configures bodies, names a class or a region, or names a provided kind without enabling its pack is
   refused at load by name — never run differently (`AC-2`, S16 §6.1 rule 4).
