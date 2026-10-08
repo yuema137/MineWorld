@@ -190,6 +190,50 @@ ZIP on purpose: cross-platform, openable by a human, trivial to attach to a GitH
 bound to no engine. Semver and an SPDX licence identifier are required, not optional — a pack
 whose licence cannot be resolved cannot be redistributed, and MineWorld redistributes.
 
+**The package manifest's name is `pack.yaml`** ([`DECISIONS.md`](DECISIONS.md) `ARC-53`).
+`manifest.yaml` is already a Presentation Pack's **style** manifest
+([`ART_DIRECTION.md`](ART_DIRECTION.md) §12, [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1), and one file
+name must not carry two schemas; the archive above carries `pack.yaml`.
+
+## 5.0 Package identity in MVP-0
+
+MVP-0 implements the identity part of the manifest, without an archive, for every pack, and states
+it where the pack already states who it is (`ARC-53`):
+
+```text
+field       meaning                                         code pack          World Pack        pack.yaml
+id          1–64 of a–z, 0–9, '-'; a letter first;          Cargo package      world.id (= its   id
+            no '--', no trailing '-'                        name               directory)
+version     semver                                          Cargo version      world.version     version
+type        system-pack · controller-pack · world-pack ·    by its trait /     world-pack        type
+            presentation-pack · entity-pack                 its crate
+mineworld   framework range, semver                         (Cargo)            mineworld:        mineworld
+license     SPDX expression                                 Cargo license      world.license     license
+provenance  authors; repository where stated                Cargo authors,     (its directory)   authors,
+                                                            repository                           repository
+```
+
+- A **code pack** records its Cargo fields at compile time with `package!()`
+  (`SystemPack::PACKAGE`, required; [`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1).
+- A **World Pack**'s three fields are optional to the loader in MVP-0 and checked when present;
+  `mineworld packs validate` requires them ([`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1).
+- A **`pack.yaml`** is read for a Presentation Pack (and an Entity Pack from S16's PR E-d). Its fields:
+
+  ```yaml
+  id: mineworld-default-3d            # required. Stated here; the directory's name is free
+  type: presentation-pack             # required
+  version: 0.1.0                      # required, semver
+  mineworld: "^0.1"                   # required, the framework versions it works with
+  license: MIT                        # required, an SPDX expression
+  authors: [Yue Ma]                   # required, at least one
+  repository: https://github.com/yuema137/MineWorld   # optional
+  ```
+
+  Any other field is refused by name, `dependencies` included until a world's requirements are
+  resolved. A `type` that `pack.yaml` does not carry is refused naming its carrier: `system-pack` and
+  `controller-pack` (`Cargo.toml`), `world-pack` (`world.yaml`); `asset-pack` is refused in MVP-0.
+- The framework's own version is **0.1.0**, shared by every framework crate and every bundled pack.
+
 ## 5.1 Source pack versus runtime pack
 
 ```text
@@ -291,6 +335,7 @@ Frozen as a design; implemented only as far as MVP-0 needs.
 | --- | --- |
 | Asset Pack as a type, glTF canonical, asset contract | specified; the 3D spike is its first real test |
 | `.mwpack`, `mineworld validate asset`, dependency resolution | after the vertical slice |
+| Package identity (§5.0) | every pack: code packs by `Cargo.toml` and `package!()`, World Packs by `world.yaml`, Presentation Packs by `pack.yaml`; `mineworld packs list \| show \| validate`; framework 0.1.0 (`DECISIONS.md` `ARC-53`, S16 PR E-a) |
 | Tier 0 | what the sample worlds already are |
 | World Pack fields | the subset [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 specifies: identity, `systems`, `places`, `population`, `items`, `organizations`, `seats`, one content file per declared key (`places/`, `people/`, `items/`, `organizations/`; an authored Item is a kind, `DECISIONS.md` `ARC-36`), a person's `location`, and a place's `passages` (doorways between places, owned by the `movement` system, `DECISIONS.md` `ARC-26`), and **sections**: a top-level key of a person, place, item or organization file that a System Pack declares as its own, validates with its own type and turns into its own genesis facts (`ARC-31`; in MVP-0 `name`, owned by `naming`, `routine`, owned by `schedule`, `item`, owned by `item`, and `holdings`, owned by `inventory`, `ARC-37`; `economy`, owned by `economy`, and `job`, owned by `employment`, `ARC-38`); every other field of §4's model is refused by name |
 | Tier 1 WASM/WIT | specified; MVP-0 ships trusted in-process Rust systems ([`ARCHITECTURE.md`](ARCHITECTURE.md) §12) |

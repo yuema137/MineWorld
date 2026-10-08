@@ -319,6 +319,19 @@ at issue, and it needs its own decision at that point rather than being discover
 - **Vecteezy, Freepik** — require attribution *and* forbid redistributing the file. Not open.
 - **MB-Lab** — licence of generated characters unconfirmed from a primary source. Marked unconfirmed rather than assumed; prefer MPFB2.
 - **CC-BY-SA and GPL assets** — copyleft incompatible with MIT redistribution, whatever their quality.
+- **The Tencent Hunyuan family under Tencent's community licences: code, weights and outputs.**
+  This covers Hunyuan3D, HunyuanWorld 1.0, HunyuanWorld-Mirror, HY-World 2.0 (including the
+  WorldStereo 2.0 weights) and HunyuanImage. Operator decision, 2026-10-08. The licences fail the
+  relicensing test on three counts:
+  - they exclude the EU, the UK and South Korea, including use of Output there (§5(c));
+  - every downstream licence must carry Tencent's use restrictions as enforceable terms, which
+    MIT cannot (§5(a));
+  - outputs may not be used to improve other AI models (§5(b)).
+
+  The operator also chose **no private look-development use**, so that no output or derivative can
+  leak into the repository. Re-evaluate only if Tencent relicenses a component under a permissive
+  licence. Evidence, read at source on 2026-10-08:
+  [`docs/references/HY_WORLD_2_COMPARISON.md`](references/HY_WORLD_2_COMPARISON.md).
 
 **Generated meshes, recorded 2026-10-06 (route E experiment, read at source).** Meshy's paid
 plan passes the relicensing test: *"such customers on a paid Meshy plan own their Customer
@@ -2786,6 +2799,23 @@ There are three ways to give a world such entities:
 - Organization membership, roles and accounts (`CORE_CONCEPTS.md` §8) are not authored fields. They
   are the state of whichever System Pack owns them, carried as its section.
 
+**Note, 2026-10-08 (S15, PR 12c; step-11 QB-3, decided by the operator; §18.0, SD-O3) — an item file
+with a `body:` section is one physical object.** Item 2 reads `Item` as a kind. The `bodies` System
+Pack adds the second reading `CORE_CONCEPTS.md` §7 already allows, "unique items", for exactly one
+case, and nothing else changes:
+
+1. **An item file that carries the `bodies` pack's `body:` section declares one physical object**, not
+   a kind: the Item entity *is* that object, lying in one place at one position, with one shape. It is
+   created at genesis like every other authored Item (item 4); no entity is created while a world runs.
+2. **It is never a declared kind, so it is never held.** It carries no `item:` section: `bodies`
+   refuses, at genesis, an Item that is both a declared kind and an object (`bodies-held-kind`). What
+   a person or an organization may hold is a declared kind (`ARC-37`), so the pack that owns holdings
+   refuses every holding of an object by its own rule, at genesis and while the world runs. Lying in a
+   place and being held are disjoint by construction.
+3. **Instances in general stay out of MVP-0** (item 3). An object is authored, not created; a kind
+   still has no instances; and how a unique object could one day be held — what carrying needs — is
+   the first decision of the step that adds carrying, not this note's.
+
 ---
 
 ## ARC-37 — Owning and giving: kinds, holdings, give, and what a person can carry
@@ -3296,6 +3326,42 @@ decision; items 1–8 are unchanged except where item 7 is refined below.
    does not bound such an arrival (the limitation above), so the point may be farther from the doorway
    than `to` is.
 
+**Note 2, 2026-10-08 (S15, PR 12c; step-11 §18.0, SD-O8 … SD-O10, SD-O15, QO-4, QO-9, QO-18) —
+loose objects, and a pack that is also a mover.** Items 1–8 and the first note are unchanged except
+where this note refines item 7 for objects.
+
+1. **The resolver predicts object pushes.** Loose objects are `bodies`' own state (an Item with a
+   `body:` section, `ARC-36` note), so presence cannot record their moves and a resolver cannot emit
+   them: they move in `bodies`' reaction to each recorded `arrived`. That reaction pushes every loose
+   object lying on the floor whose footprint the person's disc overlaps, straight away from the
+   person's centre, by a shape cast against the fixed geometry and the other objects — computed
+   **against the objects as they lay before the request**, with people not as obstacles. Reduction is
+   breadth-first: every reaction of one emission list sees the objects as they lay, and the people
+   not yet where the list leaves them (step-11 F-O2, F-B1). Before answering, the resolver runs the
+   same function on the same three inputs — the person's end point, the room, the objects as they lay
+   — for the walker and for every person it displaces, in emission order, and accepts the result only
+   if no object is pushed twice, no push is cut short (a jam), and in the final state no person
+   overlaps an object and no two objects overlap. Otherwise it resolves the arrival again with the
+   objects solid, and nothing is pushed. So what the reactions push is exactly what the resolver
+   checked, and a walker never ends inside a jammed box.
+2. **The guard covers objects.** The starting-state guard (the first note, point 2) also checks that
+   every object lies within its floor, rests on the floor or on one solid's top, keeps clear of every
+   other solid and object, and is overlapped by no person's disc. And because a push is computed from
+   the arrival and the objects alone, item 7's third bullet can be built for objects at the reaction
+   itself: a push that jams there means an arrival escaped resolution, and the reaction fails the
+   dispatch with `bodies-object-jammed`.
+3. **`bodies` is also a mover.** Its `shove` action states presence's `arrived` and `stopped-short`
+   through `arrivals()`, exactly as `movement` does (`ARC-26`): the shoved person's arrival is resolved
+   by the registered resolvers like any other — walls stop them, the people behind them are nudged
+   within the first note's bounds, objects are pushed or block, and the head-on bias applies to it as
+   to every arrival within a place. A pack may subscribe to a fact type it also states (step-11 F-R7).
+4. **One crate dependency outside presence, used for one read.** `bodies` refuses, at genesis, an
+   Item that is both an object and a declared kind (`ARC-36` note, point 2). It asks the `item` pack's
+   read-only `mineworld_item::is_declared`, and nothing else from that crate; a structural test holds
+   that. This is a crate dependency, not a system dependency: `bodies` declares a system dependency on
+   presence alone, a world may install `bodies` without `item`, and in such a world the answer is "not
+   declared".
+
 ---
 
 ## DEP-13 — Server physics: Rapier (`rapier3d`, `enhanced-determinism`) inside the `bodies` pack
@@ -3382,6 +3448,25 @@ determinism  cross-platform needs `enhanced-determinism` and IEEE 754-2008 targe
 - **The licence tree is permissive**: every package Rapier brings, with these features, is Apache-2.0,
   MIT, Zlib, Unlicense or Unicode-3.0, each alone or as one of a permissive choice (recorded in step-11
   §17.10).
+
+**Note, 2026-10-08 (S15, PR 12c; step-11 §18.0, SD-O14, SD-O16) — dynamics are now used.** `kick` and
+`throw` simulate one object's flight at the instant of the request (step-11 QB-6): the first stepped
+simulation in MineWorld. The isolating interface is unchanged — integers in, integers out, nothing
+kept, every float converted by the same two functions — and what the flight adds is bounded:
+- **One dynamic body per flight.** A flight scene holds the place's fixed geometry, the people as
+  kinematic capsules in `EntityId` order, the other objects as fixed colliders in `ItemId` order, and
+  the flying object last: dynamic, rotations locked (no rotation is ever persisted), with continuous
+  collision detection so a fast object cannot pass a thin solid. Friction 0.5, restitution 0.1.
+- **Bounded steps and a rest rule.** Sub-steps of 1/60 s, at most 180 for a kick and 240 for a throw;
+  the object has come to rest once it has been slower than 50 mm/s for 10 consecutive sub-steps. Both
+  are pure functions of the state.
+- **F-P1's re-mark is exercised.** The adapter's `refresh` runs after the scene is built and before the
+  first step; without it the flying object would never move (the canary above).
+- **The engine's answer is never the last word.** The landing is quantized and verified on integers
+  against the stored-state invariant of objects; if it fails, the nearest verified point of a 50 mm
+  lattice is taken, and if none verifies, the object stays where it was.
+- **Launch velocities are integers** (millimetres per second, computed with + − × ÷ only), converted
+  into Rapier's metres by the adapter's one conversion.
 
 ---
 
@@ -3530,3 +3615,263 @@ file beside the client. Revisit when a pack author needs full YAML.
 Sources checked 2026-10-08: [fimbul-works/godot-yaml](https://github.com/fimbul-works/godot-yaml) ·
 [KoBeWi/Godot-YAML](https://github.com/KoBeWi/Godot-YAML) ·
 [YAML.gd](https://godotengine.org/asset-library/asset/4120), plus step-13 §5's list.
+
+---
+
+## ARC-41 — Client protocol revision 2: specified whole, landed incrementally, and still JSON
+
+**Date** 2026-10-08 · **Status** accepted; revision 2 begins on the wire in S11 PR S11-A · **Approved by**
+the operator (QS11-1, QS11-15 as recommended, `overall.md` "Parallel build-out, 2026-10-08") and the
+primary session at S11-A's design freeze · **Relates to** `DEP-3`, `ARC-25`, `ARC-34`, effort decision
+`D-4` · **Design** `.structured-coding/plans/mvp0/step-12-server.md` §§5, 15 · **Specification**
+[`server/PROTOCOL.md`](../server/PROTOCOL.md)
+
+**Problem.** Step S11 changes the client protocol in five pull requests — authentication, seats and
+hold, facts and deltas, admin, proof — while the 2D client (S12), the 3D client (S14) and the Python
+cognition SDK (S10) are built against it at the same time. One revision number per pull request would
+make three clients chase four revisions; one revision delivered at the end would block all three until
+S11 finishes. Separately, effort decision `D-4` said Protobuf would be introduced "at the first real
+cross-language boundary", and that boundary — the Godot client — has run on JSON since S5V.
+
+**Choice, the revision rule.** Revision 2 is **specified whole** (step-12 §5, then `PROTOCOL.md`) and
+**implemented incrementally**: `protocol` becomes `2` in the first pull request that changes the wire
+(S11-A), and until the step completes a server may *omit* a frame or a field the specification marks as
+arriving later, and never gives a frame or a field it sends a different meaning. `PROTOCOL.md` §10 is
+the landing table. A client written against the whole specification is correct against every
+intermediate `main`. Fields other steps asked for (the explicit takeover flag and time scale, S11-B;
+`acted_through` and the cursor-resumable perceived stream, S11-C) are specified in `PROTOCOL.md` by the
+pull request that lands them; until then a `join` carrying them is refused as malformed, because every
+client frame denies unknown fields.
+
+**Choice, the encoding.** **JSON text frames stay the wire encoding for MVP-0.** This supersedes
+`D-4`'s *timing*, not its direction: the Rust types in `mineworld-contracts` remain the single source of
+truth, and other languages mirror them — checked against golden frames the Rust tests keep in
+`server/tests/frames/` — rather than through a parallel schema. Protobuf (`prost` with `godobuf`) was
+declined for now because a mirror `.proto` of every contract type is the drift risk `R-3` names, the
+GDScript generator has a single maintainer, and payloads owned by System Packs would be JSON inside
+bytes anyway. MessagePack (`rmp-serde`) is the natural first step if a binary encoding is ever measured
+to be needed, because it keeps `serde` as the one source; CBOR has no maintained GDScript decoder;
+transport compression (`permessage-deflate`) cannot be negotiated by Godot's `WebSocketPeer`
+(godot#103230). Bandwidth is answered by S11-C's measured deltas, not by the encoding.
+
+**Disagreement recorded.** [`ARCHITECTURE.md`](ARCHITECTURE.md) §13.1 still states `D-4`'s timing. It is
+stale; the edit belongs to S10's P3 (step-17 G-1), which introduces the second cross-language consumer,
+and is recorded here so the contradiction is not silent (`CLAUDE.md` §2.1 rule 4).
+
+**Limitation accepted.** Between S11's pull requests, two `main` commits that both say `protocol: 2`
+differ in what they send. The landing table is the only place a client learns which; a client for a
+deployed server built from an intermediate `main` reads that commit's `PROTOCOL.md`.
+
+---
+
+## DEP-14 — Join secrets: `getrandom` to make them, `subtle` to compare them
+
+**Date** 2026-10-08 · **Status** selected; dependencies added in S11 PR S11-A · **Approved by** the
+primary session at S11-A's design freeze (step-12 §7.2, DEP-S11-a) · **Relates to** `DEP-3`, `ARC-41`,
+[`NETWORKING.md`](NETWORKING.md) §9 · **Design** `.structured-coding/plans/mvp0/step-12-server.md`
+§§4.1, 7.2, 7.7, 15
+
+**Problem.** MVP authentication is a server invite token plus a player nickname (`NETWORKING.md` §9).
+The server must make an unguessable invite when its operator gives none (and, from S11-B, a resume
+secret per seat binding), and must compare an offered invite with the real one without the comparison's
+timing telling an attacker how many leading characters were right.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17 — both directions).
+
+```text
+credential carriage
+(a) invite + nickname in the protocol's join frame, checked by
+    server/src/admission.rs                                    chosen: transport-independent, works for
+                                                               a browser client, never in a URL
+(b) tower-http bearer validation on the /ws upgrade           a browser cannot set the header; it
+                                                               authenticates the transport, not the
+                                                               protocol
+(c) JWT / PASETO session tokens (jsonwebtoken)                accounts and expiry nobody has yet
+(d) axum-login / tower-sessions                               cookie sessions and a user model
+                                                               MineWorld does not have
+constant-time comparison
+(e) subtle 2.6 (ConstantTimeEq)                               chosen
+(f) constant_time_eq 0.6                                      acceptable; subtle preferred for its
+                                                               review history
+(g) hash both sides (sha2) and compare                         an indirect argument for no gain
+(h) our own fold-and-or loop                                   the classic way to be undone by an
+                                                               optimizer
+secret generation
+(i) getrandom 0.3 (the OS random source)                      chosen: already compiled
+(j) rand 0.9                                                  a full RNG API for 16 bytes
+(k) uuid v4                                                   an identifier, not a secret format
+(l) WorldInstanceId::allocate's clock ⊕ pid ⊕ ordinal         guessable
+join rate limiting
+(m) one guess per connection + a fixed 500 ms delay (ours)    chosen for MVP-0, a LAN or a tunnel
+(n) governor / tower_governor (GCRA per IP)                   deferred: the adopt route for public
+                                                               hosting
+```
+
+**Choice.** `subtle = "2.6"` and `getrandom = "0.3"`, both in the root `[workspace.dependencies]` and
+used by `mineworld-server` only.
+
+**Facts, verified 2026-10-08** (`cargo info`, `cargo tree`):
+
+```text
+subtle            2.6.1, BSD-3-Clause, dalek-cryptography/subtle; no dependencies; default features
+                  std, i128. New to Cargo.lock.
+getrandom         0.3.4, MIT OR Apache-2.0, rust-random/getrandom. Already in Cargo.lock as a normal
+                  dependency of mineworld-server (rand_core ← rand ← tungstenite ← tokio-tungstenite
+                  ← axum), so this adds an edge, not a package. 0.4.3 exists; 0.3 avoids a second copy.
+constant_time_eq  0.6.1, CC0-1.0 OR MIT-0 OR Apache-2.0 — the recorded alternative.
+```
+
+**Why not ourselves.** Both are commodity primitives (`REUSE_POLICY.md` §4); an own constant-time loop is
+exactly what an optimizer can turn back into an early exit. **Why ours for the rate limit.** One guess
+per connection and a fixed delay are a few lines and suffice for a 128-bit invite on a LAN; `governor`
+needs per-IP keying that is wrong behind a proxy, and is the adopt route the day public hosting is in
+scope.
+
+**Isolating interface.** `server/src/admission.rs` is the only file that names either crate. It exposes
+`InviteToken` (generated or operator-given; `Debug` redacted; no `Serialize`), `OfferedInvite`,
+`Nickname`, `Admission::admit` and `UNAUTHORIZED_DELAY`. No secret type implements `Serialize`, so none
+can reach a frame, a fact or a save by accident.
+
+**Limitations accepted.** `subtle`'s slice comparison returns early on unequal lengths: an invite's
+length is not secret (a generated one is always 32 characters). Secrets cross a LAN in clear over
+`ws://`; TLS comes from a gateway or a tunnel (`NETWORKING.md` §7, QS11-14). An operator-given invite on
+the command line is visible to other local users through the process list; `MINEWORLD_INVITE` avoids
+that.
+
+---
+
+## ARC-53 — A pack's identity is stated once, where the pack already states who it is
+
+**Date** 2026-10-08 · **Approved by** the primary session at PR E-a's design freeze (step-16 §14.0;
+QSE-4, QSE-5, QSE-6 and FQ-1 … FQ-5 as ruled) · **Implements** [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md)
+§5 (MVP-0 subset), [`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1, §4.1, §6.1, §8.1, §9 · **Relates to**
+`ARC-3`, `ARC-33`, `ARC-35`, `DEP-12`, `DEP-21` · **Design**
+`.structured-coding/plans/mvp0/step-16-packages.md` §4.1, §14 (S16, PR E-a)
+
+**Problem.** Milestone E needs packs that can be told apart, versioned and checked: "independently
+installable" means nothing for a pack that has no identity. Until this decision no pack had one. Every
+crate was version `0.0.0` (`[workspace.package]`); a World Pack had an id and a name; a Presentation
+Pack had only its style's id; nothing stated a licence per pack. `PACKAGE_FORMAT.md` §5 specified a
+manifest, but three carriers already state who a pack is, and a second manifest beside each would
+state every fact twice.
+
+**Choice.**
+
+1. **One vocabulary.** Every pack has these package fields, the MVP-0 subset of `PACKAGE_FORMAT.md`
+   §5 and `MODULE_SPEC.md` §9:
+
+   ```text
+   id          the pack's id: 1–64 characters of a–z, 0–9 and '-', beginning with a letter, no '--',
+               not ending in '-'. A code pack's id is its Cargo package name
+   version     semver, MAJOR.MINOR.PATCH
+   type        system-pack | controller-pack | world-pack | presentation-pack | entity-pack
+               (asset-pack refused by name in MVP-0)
+   mineworld   the framework versions the pack works with, a semver range (data packs)
+   license     an SPDX licence expression
+   provenance  authors, and the repository the pack comes from where stated
+   ```
+
+2. **Three carriers, so no fact is stated twice.**
+   - **A code pack** (System Pack, Controller Pack) is identified by its `Cargo.toml` `[package]`.
+     The crate `mineworld-packages` (`packages/`) defines `Package`, a record of `&'static str`, and
+     the expression macro `package!()`, which expands to `Package::declared(env!("CARGO_PKG_NAME"),
+     env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_LICENSE"), env!("CARGO_PKG_AUTHORS"),
+     env!("CARGO_PKG_REPOSITORY"))`. `env!` is expanded where the macro is invoked, so each pack
+     records its own crate's fields at compile time; the binary never runs Cargo and never reads a
+     source tree. `mineworld-sdk` re-exports both. **`SystemPack::PACKAGE` is a required constant**:
+     a System Pack writes, as the first line of its `impl SystemPack`,
+
+     ```rust
+     const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+     ```
+
+     and a pack without it does not compile. The installed set's `Capability` gains `package()` and
+     `version()`. The rule controller writes `pub const PACKAGE: mineworld_packages::Package =
+     mineworld_packages::package!();` and depends on `mineworld-packages` directly, not on the SDK:
+     the SDK is how a *System* Pack declares itself, a controller is not one, and its manifest names
+     no kernel, transport or server directly (it reaches the kernel only through the packs whose
+     vocabulary it uses).
+   - **A World Pack** is identified by its `world.yaml`: `world.id` (unchanged: its directory's name),
+     `world.version`, `world.license`, and the top-level `mineworld:` range.
+   - **A Presentation Pack** is identified by a `pack.yaml` at its root, beside the unchanged style
+     manifest (`manifest.yaml`, `ART_DIRECTION.md` §12, whose own `id` stays the style's id). Its `id`
+     is stated in `pack.yaml` and its directory name is free: `ARC-3`'s family layout puts dimension
+     packs in `2D/` and `3D/`, which are not ids. Entity Packs use the same file from S16's PR E-d.
+
+3. **The framework has a release version: 0.1.0.** Every framework crate and every bundled pack share
+   it (`[workspace.package] version`), with pre-1.0 semantics: a MINOR bump may break. A `mineworld:`
+   range is checked against `mineworld_packages::FRAMEWORK_VERSION`, the version the running binary
+   was built with.
+4. **`SystemVersion` and the release version stay two things.** `SystemVersion` is the contract
+   counter a save is checked against (`ARC-25`); the semver version is what a range is checked against.
+   Raising a pack's `SystemVersion`, which makes existing saves refuse, is a breaking release: a MINOR
+   bump before 1.0 and a MAJOR bump from 1.0, so a range like `^0.1` never admits a pack whose saves
+   are incompatible.
+5. **Validated once, at run time, by one crate.** `Package` is a plain record. `mineworld-packages`
+   turns it, a `pack.yaml` and a world's fields into one validated `Identity` through the same types:
+   `Version` and `Compatibility` (the `semver` crate) and `License` (the `spdx` crate, `DEP-21`). A code
+   pack with an empty or unparseable licence compiles, and `mineworld packs list` refuses it, naming
+   the pack and the text.
+6. **Refused by name, never accepted unchecked.** A World Pack's three fields are optional to the
+   loader in MVP-0, so existing test worlds and `mineworld create`'s template read unchanged, but when
+   present each is typed and checked: a malformed version or licence is refused at its line and
+   column, and a `mineworld:` range the framework does not satisfy is refused naming the range and the
+   framework version. `mineworld packs validate` requires all three. A `pack.yaml` refuses an unknown
+   field (`dependencies:` included, until requirements are resolved), a missing field, a malformed
+   value, and a `type` it does not carry, naming the file where that type is identified instead.
+7. **Identity never enters a fact or a save** (step-16 QSE-14). The `PACKAGE` constants are read by
+   `mineworld packs` only. A save's composition is still checked by `SystemVersion` alone.
+8. **`mineworld packs list | show | validate`** (`MODULE_SPEC.md` §8.1) prints identities: the build's
+   code packs, and the data packs in each directory named by `--packs DIR`, which is given explicitly
+   and never implied.
+
+`ARC-33` point 1's list of the SDK's dependencies gains `mineworld-packages`, a leaf that depends on no
+MineWorld crate; the SDK still never depends on a pack.
+
+**Not in this decision.** A world's `requires:` and its resolution, pack roots on other commands, the
+licence allow-list, bundled-versus-third-party classification, Entity Packs and packs from outside
+this repository: later PRs of S16, each recorded when it lands.
+
+**Accepted limitations.**
+- A World Pack's fields are optional to the loader until requirements are resolved; only `packs
+  validate` requires them.
+- A World Pack has no authors field, so its provenance is its directory.
+- The framework repository is not stated in the workspace's `[package]` fields, so a bundled code
+  pack shows no repository.
+
+---
+
+## DEP-21 — Versions and licence expressions: `semver` and `spdx`
+
+**Date** 2026-10-08 · **Status** selected; dependencies added in S16 PR E-a · **Approved by** the
+operator's reuse table (step-16 §5 rows 12–13) and the primary session at PR E-a's freeze ·
+**Relates to** `ARC-53`, `DEP-10` · **Design** `.structured-coding/plans/mvp0/step-16-packages.md` §5,
+§14 (S16, PR E-a)
+
+**Problem.** `ARC-53` checks semver versions, semver ranges and SPDX licence expressions, and a data
+pack's range must mean what a code pack's Cargo range means.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17 — both directions):
+
+```text
+versions   (a) `semver` (dtolnay; Cargo's own semantics)  (b) `node-semver` (npm's)  (c) our own parser
+licences   (d) `spdx` (Embark; the parser cargo-deny uses)  (e) a closed list of exact identifier
+           strings  (f) our own expression parser
+```
+
+**Choice: (a) and (d).**
+- **(a)** gives Cargo's meaning of `^0.1`, so a range in a `pack.yaml` admits exactly the versions the
+  same range admits in a `Cargo.toml`. **(b)** differs from Cargo for pre-1.0 carets, a semantic
+  mismatch. **(c)** would be a third dialect of a solved problem.
+- **(d)** parses expressions (`MIT OR Apache-2.0`) against the SPDX licence list. **(e)** cannot read
+  an expression, which is what Cargo's `license` field holds. **(f)** is the wheel (d) already is.
+
+**Isolating interface.** `mineworld-packages`' `Version`, `Compatibility` and `License`. No other
+crate names `semver` or `spdx`.
+
+**Weight, measured** (step-16 §14.8 E-Ea2). `semver` 1.0.28 (MIT OR Apache-2.0) has no dependency;
+`spdx` 0.13.6 (Apache-2.0), with its default features (none), depends only on `smallvec`, already in
+the build. `Cargo.lock` gains three packages: the two and `mineworld-packages`. No build script.
+
+**Accepted limitations and the revisit trigger.** A registry (the publishing sense of Milestone E,
+non-goal) brings version selection, which is a solver's problem and is not solved here; revisit then.

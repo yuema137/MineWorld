@@ -1,8 +1,10 @@
 //! `mineworld` — the command that runs a world.
 //!
 //! ```text
-//! mineworld server <world> [--listen ADDRESS] [--agent SEAT]... [--save DIR]
-//!                                       load the pack and host it; with --save, persisted
+//! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--save DIR]
+//!                                       load the pack and host it; with --save, persisted;
+//!                                       clients join with the invite (generated and printed
+//!                                       when neither --invite nor MINEWORLD_INVITE gives one)
 //! mineworld validate <world>            load it, say what it is, and stop
 //! mineworld replay <world> --save DIR   re-execute a save's whole history and check it
 //! mineworld run <world> --headless --seed N --days N [--save DIR]
@@ -11,6 +13,8 @@
 //! mineworld biography <world> --save DIR --person KEY [--json]
 //!                                       a Person's objective biography, from the fact log (ARC-29)
 //! mineworld create <directory>          a new, minimal World Pack
+//! mineworld packs list|show|validate    package identities: this build's packs and the data packs
+//!                                       in each --packs DIR (ARC-53)
 //! ```
 //!
 //! `docs/MODULE_SPEC.md` §8.1 specifies the command surface.
@@ -51,6 +55,8 @@ mod agent;
 mod biography;
 mod create;
 mod inspect;
+mod invite;
+mod packs;
 mod perceive;
 mod run;
 
@@ -63,7 +69,7 @@ use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_persistence::{Creation, Durability, PersistentWorld, SqliteBackend, verify};
 use mineworld_presence::PerceptionProvider;
 use mineworld_server::{
-    HostConfig, HostError, HostedWorld, SeatRoster, WorldHost, WorldInstanceId, app,
+    Admission, HostConfig, HostError, HostedWorld, SeatRoster, WorldHost, WorldInstanceId, app,
 };
 use mineworld_worldpack::{PackError, WorldPack};
 
@@ -90,6 +96,15 @@ enum Subcommand {
         /// Where to listen; 0.0.0.0:7878 lets friends on a LAN reach it.
         #[arg(long, default_value = DEFAULT_LISTEN)]
         listen: SocketAddr,
+        /// The invite every client must present to join. Without it (and without
+        /// MINEWORLD_INVITE) one is generated and printed once.
+        #[arg(
+            long,
+            value_name = "TOKEN",
+            env = "MINEWORLD_INVITE",
+            hide_env_values = true
+        )]
+        invite: Option<String>,
         /// Drive that seat with a rule controller, in this process, over the same path a client's
         /// connection uses. Repeat it for more than one.
         #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
@@ -174,6 +189,35 @@ enum Subcommand {
         #[arg(long)]
         json: bool,
     },
+    /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
+    Packs {
+        #[command(subcommand)]
+        command: PacksCommand,
+    },
+}
+
+/// What `mineworld packs` was asked to do.
+#[derive(Debug, clap::Subcommand)]
+enum PacksCommand {
+    /// Every pack this build provides, then the data packs in each --packs DIR.
+    List {
+        /// A directory whose immediate subdirectories are data packs. Repeat it for more.
+        #[arg(long = "packs", value_name = "DIR")]
+        roots: Vec<PathBuf>,
+    },
+    /// Every package field of one pack.
+    Show {
+        /// The pack's id, such as mineworld-presence.
+        id: String,
+        /// A directory whose immediate subdirectories are data packs. Repeat it for more.
+        #[arg(long = "packs", value_name = "DIR")]
+        roots: Vec<PathBuf>,
+    },
+    /// Check one data pack: its package fields, all required, then its content.
+    Validate {
+        /// The pack's directory.
+        directory: PathBuf,
+    },
 }
 
 /// A seat name on the command line, checked as the key it must be.
@@ -189,9 +233,10 @@ async fn main() -> ExitCode {
         Subcommand::Server {
             world,
             listen,
+            invite,
             agents,
             save,
-        } => serve(world, listen, agents, save).await,
+        } => serve(world, listen, invite, agents, save).await,
         Subcommand::Create { directory } => create::create(&directory),
         Subcommand::Install { .. } => not_yet("install"),
         Subcommand::AddSystem { .. } => not_yet("add-system"),
@@ -219,6 +264,11 @@ async fn main() -> ExitCode {
             person: &person,
             json,
         }),
+        Subcommand::Packs { command } => match command {
+            PacksCommand::List { roots } => packs::list(&roots),
+            PacksCommand::Show { id, roots } => packs::show(&id, &roots),
+            PacksCommand::Validate { directory } => packs::validate(&directory),
+        },
     };
 
     match outcome {
@@ -237,8 +287,8 @@ fn not_yet(command: &str) -> Result<(), String> {
     Err(format!(
         "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
          and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
-         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld create \
-         (see mineworld --help)."
+         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld create, \
+         mineworld packs (see mineworld --help)."
     ))
 }
 
@@ -286,12 +336,14 @@ fn validate(world: &PathBuf) -> Result<(), String> {
 async fn serve(
     world: PathBuf,
     listen: SocketAddr,
+    invite: Option<String>,
     agents: Vec<EntityKey>,
     save: Option<PathBuf>,
 ) -> Result<(), String> {
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
     let pack = WorldPack::read(&world).map_err(described)?;
+    let invite = invite::Invite::resolve(invite)?;
     let config = HostConfig::default();
     let epoch = config.epoch;
     println!(
@@ -354,13 +406,18 @@ async fn serve(
         listed(status.seats.iter()),
     );
     println!("[mineworld] world instance {}", status.instance);
+    if let Some(seat) = invite::suggested_seat(&status.seats, &agents) {
+        println!("{}", invite.join_line(address, seat));
+    }
+    let admission = Admission::new(invite.token().clone());
 
     // Each controller is a task of its own, occupying a seat exactly as a client's connection does.
+    // In-process, so it presents no invite: admission gates the socket, not the composition root.
     for seat in agents {
         tokio::spawn(agent::drive(host.clone(), seat));
     }
 
-    app::serve_with_shutdown(listener, host.clone(), async {
+    app::serve_with_shutdown(listener, host.clone(), admission, async {
         let _ = tokio::signal::ctrl_c().await;
         println!("\n[mineworld] stopping");
     })

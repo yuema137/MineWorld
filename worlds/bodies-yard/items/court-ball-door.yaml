@@ -1,0 +1,10 @@
+# A ball beside the court's door to the hall, 750 mm east of the doorway point: within reach of
+# everybody who comes through. 220 mm across.
+
+tags:
+  - ball
+
+# Owned by the `bodies` system: the object's shape (a radius, millimetres) and where it lies.
+body:
+  shape: { ball: 110 }
+  at: { place: court, x: 1150, y: 5000 }

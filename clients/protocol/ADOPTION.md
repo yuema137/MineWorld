@@ -41,14 +41,18 @@ build its own (`docs/ACCEPTANCE.md` §4.1).
 ### `MineWorldClient` — a `Node`; add it to your scene
 
 ```text
-connect_to_world(address: String, seat_name: String)     open a connection and ask for a seat
+connect_to_world(address: String, seat_name: String,      open a connection and ask for a seat,
+                 invite: String, nickname: String)        presenting the server's invite and this
+                                                          player's nickname (PROTOCOL.md §4.1)
 submit(action_type, target, payload, actor_location)      ask the world for something; returns a token.
                                                           `payload` is any JSON value, normally a
                                                           Dictionary
 submit_affordance(affordance, actor_location := null)     submit a complete affordance exactly as
                                                           offered; returns a token, or "" and sends
                                                           nothing when it is not complete
-disconnect_from_world(reason := "…")                      close it
+leave_world()                                             give the seat up and end the connection;
+                                                          the server answers `closing` "left"
+disconnect_from_world(reason := "…")                      drop the socket
 is_seated() -> bool                                       whether requests may be submitted
 world_instance() -> String                                which running world this is
 ```
@@ -63,13 +67,27 @@ sequence   its per-connection frame number, from 1
 revision   the persisted revision `latest` was computed from: an int, or null for a world that is not
            persisted. Set from the welcome, then from every observation frame that is not stale
 stale_observations  how many arrived out of order and were dropped. Normally 0.
+nickname   this player's nickname as the server accepted it (trimmed). Nobody else is shown it.
+session    which connection this is, an identity string, for the operator. Not a credential.
+took_over  "none" | "hosted" | "held": whether control of the Person changed hands ("none" until S11-B)
+hold_seconds, resume   the seat's hold after a dropped socket: 0 and null until S11-B
+close_reason  the reason of the server's last `closing`, or ""
 ```
+
+The invite is required by every server, loopback included. A server started without `--invite` (or
+`MINEWORLD_INVITE`) prints `[mineworld] invite <token> — join with: <address> seat=<seat>
+invite=<token>`; a launcher reads the token after `invite ` on that line. The module never prints,
+logs or emits the invite.
 
 ```text
 welcomed(seat, observer, world)             the connection has a seat
 observed(observation)                        a fresh view, for this observer only
 resolved(token, action_id, result)           the world's answer to one request
-refused(code, token, detail)                 the frame was not accepted; nothing happened
+refused(code, token, detail)                 the frame was not accepted; nothing happened. A wrong
+                                             invite is `unauthorized`, another revision is
+                                             `protocol_mismatch` — each followed by `closing`
+closing(reason, detail)                      the server is about to close the connection, and why:
+                                             left, unauthorized, protocol_mismatch, world_stopped, …
 disconnected(reason)                         the connection ended or could not be made
 submitted_request(token, request)            what this client just sent, for a log or a transcript
 ```
@@ -250,7 +268,8 @@ position the next observation shows.
 ## 5. The shape of a client, as this module expects it
 
 ```text
-_ready        add a MineWorldClient, connect the signals, connect_to_world(address, seat)
+_ready        add a MineWorldClient, connect the signals,
+              connect_to_world(address, seat, invite, nickname)
 welcomed      you now have `observer`; build whatever needs to exist once
 observed      reconcile your scene with the frame: add what is new, update what moved, remove what
               is no longer listed — an observation is exhaustive, so "not listed" means "not
@@ -268,10 +287,11 @@ that invented an `ActionId` would collide with the other client on its first act
 ## 6. What this module does not do yet
 
 ```text
-reconnecting          a dropped connection ends; retrying is the client's own policy (§6.1)
-events                revision 1 leaves `events` empty in an observation; what an NPC said to you
+reconnecting          a dropped connection ends; retrying is the client's own policy (§6.1; an
+                      opt-in reconnect with `resume` arrives with S11-B)
+events                `events` is empty in an observation until S11-C; what an NPC said to you
                       arrives as your own disclosed conversation history instead
-authentication        the seat name, and no token (PROTOCOL.md §9)
+deltas                every observation is whole; S11-C may add `delta` frames, applied here
 prediction, smoothing, interpolation    yours, and deliberately not here
 a scene graph          yours entirely: this module has no opinion about how a world looks
 ```
@@ -285,7 +305,7 @@ policy must get right, as the 2D reference client does it (`clients/2d/scripts/l
 ```text
 1  on disconnected    keep showing the last observation, marked stale; retry with capped back-off
                       (0.5 s doubling to 8 s), indefinitely while the player waits
-2  re-join            the SAME seat (and the same credentials, once the join carries them)
+2  re-join            the SAME seat, with the same invite and nickname
 3  on welcomed        compare world.instance with the previous one:
                         same       the world went on; keep what you learned about its layout; the
                                    revision may be higher

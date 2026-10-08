@@ -1,0 +1,18 @@
+[package]
+name = "mineworld-packages"
+description = "What a MineWorld package is: a pack's identity — id, semver version, type, framework range, SPDX licence, provenance — the package!() record a code pack makes of its Cargo fields, and the pack.yaml a data pack states them in."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# A leaf: no MineWorld crate (DECISIONS.md ARC-53), so the SDK, the World Pack loader, the CLI and the
+# rule controller can all name a pack's identity without a new path into the kernel or a pack.
+# tests/structure.rs holds that.
+semver = { workspace = true }
+spdx = { workspace = true }
+serde = { workspace = true }
+serde-saphyr = { workspace = true }
+thiserror = { workspace = true }

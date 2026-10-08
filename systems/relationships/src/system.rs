@@ -46,6 +46,7 @@ impl SystemIdentity for RelationshipsSystem {
 /// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): its
 /// biographical facts. It owns no authored section.
 impl SystemPack for RelationshipsSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
 }
 

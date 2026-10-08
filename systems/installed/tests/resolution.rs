@@ -69,7 +69,9 @@ mod stray {
 
     impl PerceptionProvider for Lone {}
 
-    impl SystemPack for Lone {}
+    impl SystemPack for Lone {
+        const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+    }
 
     /// A resolver whose pack this set does not install.
     #[derive(Default)]

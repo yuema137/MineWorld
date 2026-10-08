@@ -4,6 +4,7 @@ members = [
     "cognition/rule-controller",
     "contracts",
     "kernel",
+    "packages",
     "persistence",
     "sdk/rust",
     "server",
@@ -19,7 +20,7 @@ resolver = "2"
 # Shared metadata: every crate in this workspace is part of one release unit, so the
 # version, edition and license live here rather than being restated per crate.
 [workspace.package]
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.97.1"
 license = "MIT"
@@ -33,6 +34,7 @@ mineworld-contracts = { path = "contracts" }
 mineworld-naming = { path = "systems/naming" }
 mineworld-kernel = { path = "kernel" }
 mineworld-movement = { path = "systems/movement" }
+mineworld-packages = { path = "packages" }
 mineworld-persistence = { path = "persistence" }
 mineworld-presence = { path = "systems/presence" }
 mineworld-relationships = { path = "systems/relationships" }
@@ -59,6 +61,12 @@ rusqlite = { version = "0.40.2", features = ["bundled"] }
 # Only the deserializer is enabled: nothing in MineWorld writes YAML.
 serde-saphyr = { version = "1.3.0", default-features = false, features = ["deserialize"] }
 
+# A pack's package identity (DEP-21), named only inside `packages/`: `semver` gives a range Cargo's own
+# meaning, so `^0.1` in a pack.yaml admits what it admits in a Cargo.toml; `spdx` parses a licence
+# expression against the SPDX list, which a list of exact strings cannot do.
+semver = "1.0.28"
+spdx = "0.13.6"
+
 # The transport, frozen by DEP-3 / DEP-9: axum on tokio, HTTP and WebSocket. `futures-util`
 # comes with the WebSocket: a socket is split into its two halves to read and write at once.
 # `tokio-tungstenite` is the client half of the same stack and is a dev-dependency only —
@@ -68,8 +76,15 @@ tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net", "t
 futures-util = { version = "0.3.34", default-features = false, features = ["sink", "std"] }
 tokio-tungstenite = "0.29.0"
 
-# The `mineworld` command's argument parsing (DEP-11): named only in `tools/cli/src/main.rs`.
-clap = { version = "4.6.6", features = ["derive"] }
+# Join secrets (DEP-14): the OS random source makes an invite, and `subtle` compares an offered one in
+# constant time. Named only inside `server/src/admission.rs`. `getrandom` 0.3 is already compiled
+# through tungstenite's `rand`, so this adds an edge, not a second copy.
+getrandom = "0.3.4"
+subtle = "2.6.1"
+
+# The `mineworld` command's argument parsing (DEP-11): named only in `tools/cli/src/main.rs`. `env`
+# lets `--invite` come from MINEWORLD_INVITE (no new crate), with its value hidden from `--help`.
+clap = { version = "4.6.6", features = ["derive", "env"] }
 
 # The development profile every `cargo build` and `cargo test` uses (docs/DECISIONS.md ARC-30).
 # Optimized at level 1 because the acceptance tests run real worlds for hundreds of simulated days:

@@ -18,6 +18,9 @@ mineworld-kernel = { workspace = true }
 # tests/structure.rs holds this list.
 mineworld-installed-systems = { workspace = true }
 mineworld-sdk = { workspace = true }
+# A world's package fields — world.version, world.license, mineworld: — typed and checked by the one
+# crate that says what a package is (DECISIONS.md ARC-53). A leaf; tests/structure.rs lists it.
+mineworld-packages = { workspace = true }
 # The two packs the format itself is bound to: a person's `location` field is presence's state, and a
 # place's `passages` field is movement's (ARC-26; ARC-31, point 5).
 mineworld-movement = { workspace = true }

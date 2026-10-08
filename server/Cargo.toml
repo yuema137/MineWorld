@@ -19,6 +19,10 @@ futures-util = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+# The invite: made from the OS random source, compared in constant time (DEP-14). Both are named only
+# in src/admission.rs.
+getrandom = { workspace = true }
+subtle = { workspace = true }
 
 [dev-dependencies]
 # The acceptance tests connect real WebSocket clients over a real TCP socket, so they need a
