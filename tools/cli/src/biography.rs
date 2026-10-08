@@ -22,7 +22,7 @@ use mineworld_contracts::{EntityId, EntityKey, EntityType, EventEnvelope, EventT
 use mineworld_persistence::{
     Durability, Manifest, PersistError, PersistenceBackend, SqliteBackend, format,
 };
-use mineworld_worldpack::{Capability, WorldPack};
+use mineworld_worldpack::{Capability, PackRoots, WorldPack};
 use serde_json::json;
 
 use crate::described;
@@ -39,11 +39,13 @@ pub struct BiographyRequest<'a> {
     pub save: &'a Path,
     pub person: &'a EntityKey,
     pub json: bool,
+    /// Where the world's requirements are resolved (`ARC-54`).
+    pub roots: &'a PackRoots,
 }
 
 /// Prints `person`'s biography from the save.
 pub fn biography(request: &BiographyRequest<'_>) -> Result<(), String> {
-    let pack = WorldPack::read(request.world).map_err(described)?;
+    let pack = WorldPack::read_with(request.world, request.roots).map_err(described)?;
     if !SqliteBackend::exists(request.save) {
         return Err(format!(
             "[mineworld] {} holds no save (no {})",
