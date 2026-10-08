@@ -1145,9 +1145,33 @@ two-line follow-up if the primary session prefers.
   F-IA-5; the comparator's four cases (IA-4 a, M-IA4a); another pack's fact refused; a fact type
   outside `FACTS` refused.
 
-- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-worldpack`; M-IA1 measured here on
-  social-cafe's fingerprint (one 300-day run) · [ ] Review: a world without `configure:` takes no new
-  branch that could change a fact.
+- [x] Implementation: `configure.rs` — `seed` (in `configure:` order; owner's refusal →
+  `ConfigurationRefusedByOwner`; another vocabulary → `ConfigurationStatedAnotherPacksFact`; a type
+  outside the owner's FACTS → `ConfigurationStatedUndeclaredFact`), `Drift`, the pure `compare(saved,
+  here, owners: &BTreeMap<EventTypeId, SystemId>)` (a map rather than SD-IA-10's set, so a drift names
+  its system — D-10), and `WorldPack::check_configuration(saved_genesis)` (assembles, then compares over
+  the enabled capabilities' `configuration_facts`). `load.rs` — one call in `initial_facts` after
+  locations, before sections, and the module doc's order. `authoring` — `AuthoredConfiguration::facts()`
+  (D-9). In-crate tests (`configure/tests.rs`, probe labelled with real capabilities): the order
+  (`arrived`, `probe-configured` ×2 in `configure:` order, `probe-sectioned`; and without configuration
+  exactly `arrived`, `probe-sectioned`), the three seeding refusals, the comparator's four cases.
+- [x] Validation (E-IA-5): `cargo test -p mineworld-worldpack -p mineworld-authoring` all ok (worldpack
+  lib 10 — 4 pre-existing + 6 configure; the "38" in E-IA-4 is the `content_kinds` target, not lib);
+  clippy `-D warnings` workspace clean; fmt clean. Mutations, each observed then reverted:
+  - M-IA2 (configuration seeded after sections) → `configuration_is_seeded_after_locations_and_before_sections_in_configure_order`
+    FAILS: left `[arrived, probe-sectioned, probe-configured, probe-configured]`.
+  - M-IA4a (`compare` returns `Ok` first) → `the_comparator_refuses_changed_removed_and_added_configuration`
+    FAILS at "a changed step".
+  - M-IA1, realized as "initial_facts seeds one extra genesis emission at the configuration position"
+    (a copy of the last location fact — no installed capability has a configuration fact type to seed
+    "empty", D-11): `run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, faults 0,
+    365 331 facts (E-IA-0: 365 330), fingerprint f2fad0b519f4e894 (E-IA-0: 59339a9c281829c9), sha
+    022b3ace…95c0 ≠ ad49c723…c64b; wall 18.4 s. The instrument sees genesis. Town run 3 of 5.
+  `git grep MUTATION -- '*.rs'` empty after.
+- [x] Review: a world without `configure:` reaches `configure::seed` with an empty slice, which
+  returns an empty vector — no new fact, no new id; `check_configuration` is read-only (it assembles a
+  throwaway world). `load.rs` grows to 688 lines (683 at IA-C4; 682 on base): pre-existing size,
+  growth of 6 lines, recorded.
 
 ### IA-C6 — Hosts: the drift check at every resume
 
@@ -1319,4 +1343,13 @@ D-8  (scope finding) Of SD-IA-7's refusals, only unknown system, reserved, not e
      missing, owner decode, requires, references and the seeding refusals are proven in-crate with a probe
      and through the real binary only on the canary (IA-10). IA-3's "file missing through the real
      `mineworld validate`" is therefore canary evidence, not a merged test.
+D-9  (bounded) AuthoredConfiguration gains facts() -> &'static [EventTypeId] (its owner's FACTS). The loader
+     checks a seeded fact against the decoded value's own owner and FACTS, as sections check against
+     content.owner(), rather than against the capability label — the same values in production, and the
+     only form a probe-labelled in-crate test can exercise.
+D-10 (bounded) compare's filter is a BTreeMap<EventTypeId, SystemId> (the union of configuration_facts with
+     each type's system), not a BTreeSet, so the Drift names the system on either side.
+D-11 (bounded) M-IA1's literal form ("one empty configuration emission per enabled capability") cannot be
+     built: no installed pack declares a configuration fact type. Realized as one extra genesis emission
+     at the configuration position, which is what the mutation is for (does the instrument see genesis).
 ```

@@ -17,11 +17,15 @@
 //! The loader never learns what a configuration means: it checks only what every configuration
 //! shares, as `ARC-31` has it check only what every section shares.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use mineworld_authoring::AuthoredConfiguration;
+use mineworld_authoring::{AuthoredConfiguration, Seeding};
+use mineworld_contracts::{
+    EntityId, EntityKey, EventEnvelope, EventRecord, EventTypeId, SystemId, Visibility,
+};
+use mineworld_kernel::{Emission, WorldRead};
 
 use crate::catalog::{AVAILABLE, Capability};
 use crate::error::PackError;
@@ -214,6 +218,142 @@ pub(crate) fn check_references(pack: &WorldPack) -> Result<(), PackError> {
         }
     }
     Ok(())
+}
+
+/// The genesis facts every configuration becomes, in `configure:` order (`ARC-61` item 6): each
+/// refused if its owner refuses the value, if a fact is another pack's vocabulary, or if a fact's type
+/// is not one its owner declared as a configuration fact.
+pub(crate) fn seed(
+    world: &WorldRead<'_>,
+    ids: &BTreeMap<EntityKey, EntityId>,
+    configured: &[FoundConfiguration],
+) -> Result<Vec<Emission>, PackError> {
+    let mut facts = Vec::new();
+    for found in configured {
+        let configuration = &found.configuration;
+        let system = configuration.owner();
+        let emissions = configuration
+            .seed(&Seeding::new(world, ids))
+            .map_err(|reason| PackError::ConfigurationRefusedByOwner {
+                system: system.clone(),
+                reason: Box::new(reason),
+                path: found.path.clone(),
+            })?;
+        for emission in &emissions {
+            if *emission.owner() != system {
+                return Err(PackError::ConfigurationStatedAnotherPacksFact {
+                    system,
+                    event_type: emission.event_type().clone(),
+                    owner: emission.owner().clone(),
+                    path: found.path.clone(),
+                });
+            }
+            if !configuration.facts().contains(emission.event_type()) {
+                return Err(PackError::ConfigurationStatedUndeclaredFact {
+                    system,
+                    event_type: emission.event_type().clone(),
+                    path: found.path.clone(),
+                });
+            }
+        }
+        facts.extend(emissions);
+    }
+    Ok(facts)
+}
+
+/// The first difference between a save's configuration and a pack's (`ARC-61` item 7).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Drift {
+    /// The system whose configuration fact differs, or is on one side only.
+    pub system: SystemId,
+    /// The save's fact at that position, or "nothing".
+    pub saved: String,
+    /// The pack's fact at that position, or "nothing".
+    pub here: String,
+}
+
+/// One configuration fact, as compared: its event type, its record and its visibility.
+fn describe(record: &EventRecord, visibility: &Visibility) -> String {
+    format!(
+        "{} {} {visibility:?}",
+        record.event_type(),
+        String::from_utf8_lossy(record.payload())
+    )
+}
+
+/// Compares, in order, the configuration facts of a save's genesis with the ones a pack seeds: every
+/// fact whose type `owners` names, by event type, record and visibility. Configuration added and
+/// configuration removed are both drift. Pure.
+///
+/// # Errors
+///
+/// The first difference, naming the system the differing fact belongs to.
+pub fn compare(
+    saved: &[EventEnvelope],
+    here: &[Emission],
+    owners: &BTreeMap<EventTypeId, SystemId>,
+) -> Result<(), Drift> {
+    let mut saved = saved
+        .iter()
+        .filter(|fact| owners.contains_key(fact.event_type()))
+        .map(|fact| (fact.payload(), fact.visibility()));
+    let mut here = here
+        .iter()
+        .filter(|fact| owners.contains_key(fact.event_type()))
+        .map(|fact| (fact.record(), fact.visibility()));
+    loop {
+        let (system, saved, here) = match (saved.next(), here.next()) {
+            (None, None) => return Ok(()),
+            (Some(a), Some(b)) if a == b => continue,
+            (Some(a), b) => (owners[a.0.event_type()].clone(), Some(a), b),
+            (None, Some(b)) => (owners[b.0.event_type()].clone(), None, Some(b)),
+        };
+        let shown = |fact: Option<(&EventRecord, &Visibility)>| {
+            fact.map_or_else(
+                || "nothing".to_owned(),
+                |(record, visibility)| describe(record, visibility),
+            )
+        };
+        return Err(Drift {
+            system,
+            saved: shown(saved),
+            here: shown(here),
+        });
+    }
+}
+
+impl WorldPack {
+    /// Refuses to resume or replay a save against this pack when its configuration differs from the
+    /// save's (`ARC-61` item 7, QPL-12). Every resuming host calls this before it resumes or verifies.
+    ///
+    /// Assembles the world as genesis would — which seeds the configuration — and compares the
+    /// configuration facts, in order, with the save's genesis facts (`saved_genesis`), over the event
+    /// types every enabled pack declares as configuration facts.
+    ///
+    /// # Errors
+    ///
+    /// [`PackError::ConfigurationDrift`] naming the first differing system and both sides, or whatever
+    /// assembling the world refuses.
+    pub fn check_configuration(&self, saved_genesis: &[EventEnvelope]) -> Result<(), PackError> {
+        let owners: BTreeMap<EventTypeId, SystemId> = self
+            .systems()
+            .iter()
+            .flat_map(|capability| {
+                capability
+                    .configuration_facts()
+                    .iter()
+                    .map(move |fact| (fact.clone(), capability.id()))
+            })
+            .collect();
+        let assembled = self.assemble()?;
+        compare(saved_genesis, &assembled.facts, &owners).map_err(|drift| {
+            PackError::ConfigurationDrift {
+                system: drift.system,
+                saved: drift.saved,
+                here: drift.here,
+            }
+        })
+    }
 }
 
 #[cfg(test)]

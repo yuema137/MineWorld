@@ -28,9 +28,11 @@
 //! that stays invisible until a replay disagrees. [`WorldPack`] holds its content in `BTreeMap`s, so
 //! the order is the key order and there is nothing here to get wrong.
 //!
-//! Genesis facts are fixed too: passages, then locations, then sections — items', organizations',
-//! places', people's, each in key order — so what a person's or a place's section may name is stated
-//! before it, and a world with no items or organizations keeps every event id it had.
+//! Genesis facts are fixed too: passages, then locations, then configuration in `configure:` order
+//! (`ARC-61`), then sections — items', organizations', places', people's, each in key order — so what
+//! a person's or a place's section may name, and the configuration it may be checked against, is
+//! stated before it, and a world with no items, organizations or configuration keeps every event id it
+//! had.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -45,6 +47,7 @@ use mineworld_kernel::{Emission, World, WorldRead};
 use mineworld_presence::PerceptionProvider;
 
 use crate::catalog::{self, Capability};
+use crate::configure;
 use crate::error::{ContentKind, PackError};
 use crate::format::{AuthoredLocation, AuthoredPosition, FoundSection, SectionState};
 
@@ -329,6 +332,10 @@ impl WorldPack {
                 self.location(key, authored, ids, &path)?,
             )?);
         }
+        // Then configuration (ARC-61), in `configure:` order: after passages and locations, so a world
+        // without `configure:` keeps every event id it had, and before sections, so a section's
+        // reduction may check its value against the configured state.
+        facts.extend(configure::seed(world, ids, self.configuration())?);
         // Then sections (ARC-31): after every passage and location, so those keep the event ids they
         // had before sections existed; items', organizations', places', people's, each in key order
         // (ARC-36) — the one order `read` refuses in, so what a section names is seeded before it.

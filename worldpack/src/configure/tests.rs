@@ -9,17 +9,23 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use mineworld_authoring::{
-    AuthoredConfiguration, DecodeConfiguration, PackConfiguration, Reference, Seeding,
+    AuthoredConfiguration, AuthoredSection, ContentKind, Decode, DecodeConfiguration,
+    PackConfiguration, Reference, SectionName, Seeding,
 };
-use mineworld_contracts::{EntityKey, EntityType, EventTypeId, Rejection, SystemId};
+use mineworld_contracts::{
+    Causation, EntityId, EntityKey, EntityType, EventEnvelope, EventId, EventSchemaVersion,
+    EventTypeId, Provenance, Rejection, SystemId, Visibility, WorldTime,
+};
 use mineworld_kernel::{Emission, SystemIdentity};
 use serde::Deserialize;
 use serde::de::DeserializeSeed;
 
-use super::{check_references, check_requires, read_files};
+use super::{Drift, check_references, check_requires, compare, read_files};
 use crate::catalog::Capability;
 use crate::error::PackError;
-use crate::format::{AuthoredPerson, AuthoredPlace, FoundConfiguration};
+use crate::format::{
+    AuthoredLocation, AuthoredPerson, AuthoredPlace, FoundConfiguration, FoundSection, SectionState,
+};
 use crate::read::WorldPack;
 
 /// The probe's configuration: a step, bounded by its own type, and optionally a place it names and
@@ -32,6 +38,58 @@ pub(super) struct Settings {
     at: Option<EntityKey>,
     #[serde(default)]
     needs: Option<SystemId>,
+    /// What the probe states besides its one configuration fact, to be refused.
+    #[serde(default)]
+    stray: Option<Stray>,
+}
+
+/// A fact a configuration must not seed.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum Stray {
+    /// A fact of another pack's vocabulary.
+    Foreign,
+    /// A fact of the probe's own vocabulary that it did not declare as a configuration fact.
+    Undeclared,
+}
+
+/// The probe's configuration fact.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct Configured {
+    step: u32,
+}
+
+impl mineworld_contracts::Event for Configured {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("probe-configured");
+    const OWNER: SystemId = Probe::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+/// A probe fact that is not a configuration fact: also what the probe's section states.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct Sectioned {
+    subject: u64,
+}
+
+impl mineworld_contracts::Event for Sectioned {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("probe-sectioned");
+    const OWNER: SystemId = Probe::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+/// A fact of another vocabulary.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct Elsewhere {}
+
+impl mineworld_contracts::Event for Elsewhere {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("elsewhere-stated");
+    const OWNER: SystemId = SystemId::from_static("elsewhere");
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+fn emission<E: mineworld_contracts::Event + serde::Serialize>(fact: &E) -> Emission {
+    let payload = serde_json::to_vec(fact).expect("a probe fact encodes");
+    Emission::new::<E>(payload, Visibility::SystemInternal)
 }
 
 /// 1 … 100: the owner's bound, enforced by decoding.
@@ -60,7 +118,7 @@ impl SystemIdentity for Probe {
 
 impl PackConfiguration for Probe {
     type Configuration = Settings;
-    const FACTS: &'static [EventTypeId] = &[];
+    const FACTS: &'static [EventTypeId] = &[<Configured as mineworld_contracts::Event>::EVENT_TYPE];
 
     fn references(settings: &Settings) -> Vec<Reference<'_>> {
         settings
@@ -77,7 +135,8 @@ impl PackConfiguration for Probe {
         settings.needs.iter().cloned().collect()
     }
 
-    /// Refuses a step of 100 at genesis: a refusal only the assembled world's owner gives.
+    /// States `probe-configured { step }`, `SystemInternal`; refuses a step of 100 — a refusal only the
+    /// owner gives, at genesis.
     fn seed(_: &Seeding<'_, '_>, settings: &Settings) -> Result<Vec<Emission>, Rejection> {
         if settings.step.0 == 100 {
             return Err(Rejection::System {
@@ -85,7 +144,33 @@ impl PackConfiguration for Probe {
                 detail: None,
             });
         }
-        Ok(Vec::new())
+        let mut facts = vec![emission(&Configured {
+            step: settings.step.0,
+        })];
+        match settings.stray {
+            Some(Stray::Foreign) => facts.push(emission(&Elsewhere {})),
+            Some(Stray::Undeclared) => facts.push(emission(&Sectioned { subject: 0 })),
+            None => {}
+        }
+        Ok(facts)
+    }
+}
+
+/// The probe also owns a person section, `{}`, stating `probe-sectioned` about its subject: what a
+/// section's reduction would check against the configured state.
+impl AuthoredSection for Probe {
+    const SECTION: SectionName = SectionName::from_static("probe");
+    const CARRIED_BY: &'static [ContentKind] = &[ContentKind::Person];
+    type Authored = serde_json::Value;
+
+    fn seed(
+        _: &Seeding<'_, '_>,
+        subject: EntityId,
+        _: &serde_json::Value,
+    ) -> Result<Vec<Emission>, Rejection> {
+        Ok(vec![emission(&Sectioned {
+            subject: subject.raw(),
+        })])
     }
 }
 
@@ -219,4 +304,176 @@ fn a_configuration_that_names_an_undeclared_or_mistyped_entity_is_refused() {
             other => panic!("{why}: expected ConfigurationNamesUnknownEntity, got {other:?}"),
         }
     }
+}
+
+// ---- Seeding (SD-IA-9) and drift (SD-IA-10) -------------------------------------------------
+
+/// A pack with one place, one located person carrying the probe's section, and `configuration`.
+fn seeded_pack(configuration: Vec<FoundConfiguration>) -> WorldPack {
+    let section = Decode::<Probe>::new()
+        .deserialize(serde_json::json!({}))
+        .expect("the probe section decodes");
+    let person = AuthoredPerson {
+        location: Some(AuthoredLocation {
+            place: key("square"),
+            position: None,
+            facing: None,
+        }),
+        sections: vec![FoundSection {
+            owner: Capability::Naming,
+            name: <Probe as AuthoredSection>::SECTION,
+            state: SectionState::Decoded(section),
+        }],
+        ..AuthoredPerson::default()
+    };
+    WorldPack::in_memory(
+        vec![Capability::Presence, Capability::Naming],
+        BTreeMap::from([(key("square"), AuthoredPlace::default())]),
+        BTreeMap::from([(key("ada"), person)]),
+        BTreeMap::new(),
+        BTreeMap::new(),
+    )
+    .with_configuration(configuration)
+}
+
+fn event_types(facts: &[Emission]) -> Vec<&str> {
+    facts
+        .iter()
+        .map(|fact| fact.event_type().as_str())
+        .collect()
+}
+
+/// IA-2: configuration facts follow every location and precede every section, in `configure:` order;
+/// a world with no configuration seeds exactly locations and sections.
+#[test]
+fn configuration_is_seeded_after_locations_and_before_sections_in_configure_order() {
+    let unconfigured = seeded_pack(Vec::new()).assemble().expect("assembles");
+    assert_eq!(
+        event_types(&unconfigured.facts),
+        ["arrived", "probe-sectioned"]
+    );
+
+    let configured = seeded_pack(vec![
+        found(Capability::Presence, serde_json::json!({ "step": 9 })),
+        found(Capability::Naming, serde_json::json!({ "step": 4 })),
+    ])
+    .assemble()
+    .expect("assembles");
+    assert_eq!(
+        event_types(&configured.facts),
+        [
+            "arrived",
+            "probe-configured",
+            "probe-configured",
+            "probe-sectioned"
+        ]
+    );
+    assert_eq!(configured.facts[1], emission(&Configured { step: 9 }));
+    assert_eq!(configured.facts[2], emission(&Configured { step: 4 }));
+    assert_eq!(configured.facts[0], unconfigured.facts[0]);
+    assert_eq!(configured.facts[3], unconfigured.facts[1]);
+}
+
+/// The owner's refusal, a fact of another vocabulary, and a fact the owner did not declare as a
+/// configuration fact are each refused at genesis, naming the system and the file.
+#[test]
+fn seeding_refuses_the_owners_refusal_another_vocabulary_and_an_undeclared_fact() {
+    let refusal = |value| {
+        seeded_pack(vec![found(Capability::Presence, value)])
+            .assemble()
+            .err()
+            .expect("refused")
+    };
+    match refusal(serde_json::json!({ "step": 100 })) {
+        PackError::ConfigurationRefusedByOwner { system, path, .. } => {
+            assert_eq!(system, Probe::ID);
+            assert!(path.ends_with("configure/presence.yaml"));
+        }
+        other => panic!("expected ConfigurationRefusedByOwner, got {other:?}"),
+    }
+    match refusal(serde_json::json!({ "step": 5, "stray": "foreign" })) {
+        PackError::ConfigurationStatedAnotherPacksFact {
+            system,
+            event_type,
+            owner,
+            ..
+        } => {
+            assert_eq!(system, Probe::ID);
+            assert_eq!(event_type.as_str(), "elsewhere-stated");
+            assert_eq!(owner, SystemId::from_static("elsewhere"));
+        }
+        other => panic!("expected ConfigurationStatedAnotherPacksFact, got {other:?}"),
+    }
+    match refusal(serde_json::json!({ "step": 5, "stray": "undeclared" })) {
+        PackError::ConfigurationStatedUndeclaredFact {
+            system, event_type, ..
+        } => {
+            assert_eq!(system, Probe::ID);
+            assert_eq!(event_type.as_str(), "probe-sectioned");
+        }
+        other => panic!("expected ConfigurationStatedUndeclaredFact, got {other:?}"),
+    }
+}
+
+/// A save's genesis as a host reads it back: each emission as the envelope genesis recorded.
+fn saved(facts: &[Emission]) -> Vec<EventEnvelope> {
+    facts
+        .iter()
+        .zip(1..)
+        .map(|(fact, id)| {
+            EventEnvelope::new(
+                EventId::from_raw(id),
+                WorldTime::EPOCH,
+                fact.record().clone(),
+                Causation::WorldGenesis,
+                fact.visibility().clone(),
+                Provenance::new(fact.owner().clone()),
+            )
+        })
+        .collect()
+}
+
+/// IA-4 (a): the comparator accepts an unchanged configuration and refuses a changed, a removed and an
+/// added one, each naming the probe.
+#[test]
+fn the_comparator_refuses_changed_removed_and_added_configuration() {
+    let genesis = |configuration| {
+        seeded_pack(configuration)
+            .assemble()
+            .expect("assembles")
+            .facts
+    };
+    let owners = BTreeMap::from([(
+        <Configured as mineworld_contracts::Event>::EVENT_TYPE,
+        Probe::ID,
+    )]);
+    let step = |step: u32| {
+        vec![found(
+            Capability::Presence,
+            serde_json::json!({ "step": step }),
+        )]
+    };
+
+    let save = saved(&genesis(step(5)));
+    assert_eq!(compare(&save, &genesis(step(5)), &owners), Ok(()));
+
+    let changed = compare(&save, &genesis(step(6)), &owners).expect_err("a changed step");
+    assert_eq!(changed.system, Probe::ID);
+    assert!(changed.saved.contains(r#"{"step":5}"#), "{changed:?}");
+    assert!(changed.here.contains(r#"{"step":6}"#), "{changed:?}");
+
+    let removed = compare(&save, &genesis(Vec::new()), &owners).expect_err("removed");
+    assert_eq!(
+        removed,
+        Drift {
+            system: Probe::ID,
+            saved: removed.saved.clone(),
+            here: "nothing".to_owned(),
+        }
+    );
+
+    let added =
+        compare(&saved(&genesis(Vec::new())), &genesis(step(5)), &owners).expect_err("added");
+    assert_eq!(added.system, Probe::ID);
+    assert_eq!(added.saved, "nothing");
 }

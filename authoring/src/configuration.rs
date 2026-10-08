@@ -66,6 +66,10 @@ pub trait AuthoredConfiguration: core::fmt::Debug + Send + Sync {
     /// The systems it needs enabled (see [`PackConfiguration::requires`]).
     fn requires(&self) -> Vec<SystemId>;
 
+    /// The event types its owner declared it may seed (see [`PackConfiguration::FACTS`]): what the
+    /// loader admits from [`seed`](Self::seed).
+    fn facts(&self) -> &'static [EventTypeId];
+
     /// The genesis facts it becomes (see [`PackConfiguration::seed`]).
     ///
     /// # Errors
@@ -94,6 +98,10 @@ impl<P: PackConfiguration + 'static> AuthoredConfiguration for Held<P> {
 
     fn requires(&self) -> Vec<SystemId> {
         P::requires(&self.0)
+    }
+
+    fn facts(&self) -> &'static [EventTypeId] {
+        P::FACTS
     }
 
     fn seed(&self, seeding: &Seeding<'_, '_>) -> Result<Vec<Emission>, Rejection> {
