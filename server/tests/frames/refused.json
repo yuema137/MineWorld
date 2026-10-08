@@ -1,0 +1,2 @@
+{ "t": "refused", "token": "c1", "code": "actor_not_observer",
+  "detail": "a connection acts only as its own observer" }

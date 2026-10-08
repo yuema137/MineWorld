@@ -1,30 +1,44 @@
 //! One client's whole conversation with the world.
 //!
-//! A session does three things and nothing else: it seats the connection, it forwards that
-//! observer's observations, and it carries submitted requests to the world and the answers back. It
-//! holds no world state, evaluates no rule, and computes no perception.
+//! A session does four things and nothing else: it admits the connection, it seats it, it forwards
+//! that observer's observations, and it carries submitted requests to the world and the answers
+//! back. It holds no world state, evaluates no rule, and computes no perception.
 //!
 //! # The two phases, and why joining is a phase
 //!
 //! ```text
-//! handshake   nothing streams yet; the only frame that gets anywhere is a join
+//! handshake   nothing streams yet; the only frame that gets anywhere is a join that passes
+//!             PROTOCOL.md §4.1's checks, in order: protocol, invite, nickname, resume, seat
 //! seated      observations flow, and requests are dispatched as this connection's observer
 //! ```
 //!
 //! A connection acquires its observer exactly once, from the world's seat roster, and there is no
 //! frame that changes it afterwards — a second join is refused. That is what makes `INV-13`
 //! structural here: perception cannot be widened by asking, because nothing in the protocol asks
-//! for perception at all. What a client can say is a seat it wants and a request it would like
-//! resolved.
+//! for perception at all. What a client can say is a seat it wants, a request it would like
+//! resolved, and that it is leaving.
+//!
+//! # Where the invite and the nickname stop
+//!
+//! Both are checked here, in the connection's own task, before the world is asked for anything. The
+//! world thread never receives either (`WorldHost::join` takes a seat only), so neither can reach a
+//! journal, a fact or a save. The fixed delay before an `unauthorized` answer is slept here too: it
+//! holds up this connection and nothing else.
 
 use axum::extract::ws::{Message, WebSocket};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
+use tokio::time::Instant;
 
+use crate::admission::{Admission, Nickname, OfferedInvite, UNAUTHORIZED_DELAY};
 use crate::host::{Seated, WorldHost};
 use crate::protocol::{
-    ClientFrame, PROTOCOL_VERSION, Refusal, RefusalCode, ServerFrame, into_kernel_request,
+    ClientFrame, ClosingReason, PROTOCOL_VERSION, Refusal, RefusalCode, ServerFrame, SessionId,
+    TookOver, into_kernel_request,
 };
+
+type Outgoing = SplitSink<WebSocket, Message>;
+type Incoming = SplitStream<WebSocket>;
 
 /// What arrived on the socket.
 enum Received {
@@ -36,10 +50,41 @@ enum Received {
     Gone,
 }
 
+/// How the seated phase ended.
+enum Ending {
+    /// The socket closed or failed; there is nobody to tell.
+    Gone,
+    /// The client sent `leave`.
+    Left,
+    /// The world stopped streaming.
+    WorldStopped,
+}
+
+/// What one `join` came to.
+enum Joining {
+    /// The connection has its seat.
+    Seated(Seated, Nickname),
+    /// Refused; the connection stays in the handshake and may join again.
+    Refused(Refusal),
+    /// Refused, and the connection ends: a mismatched protocol, or a wrong invite.
+    Closed(Refusal, ClosingReason),
+}
+
+/// What a session is given besides its socket: the world, who may join it, and its own identity.
+pub(crate) struct Connection {
+    /// The hosted world.
+    pub(crate) host: WorldHost,
+    /// The invite check.
+    pub(crate) admission: std::sync::Arc<Admission>,
+    /// Which connection this is.
+    pub(crate) session: SessionId,
+}
+
 /// Runs one connection to completion, then releases its subscription.
-pub(crate) async fn run(socket: WebSocket, host: WorldHost) {
+pub(crate) async fn run(socket: WebSocket, connection: Connection) {
     let (mut outgoing, mut incoming) = socket.split();
-    let Some(mut seated) = handshake(&mut outgoing, &mut incoming, &host).await else {
+    let Some((mut seated, nickname)) = handshake(&mut outgoing, &mut incoming, &connection).await
+    else {
         return;
     };
 
@@ -47,38 +92,128 @@ pub(crate) async fn run(socket: WebSocket, host: WorldHost) {
         protocol: PROTOCOL_VERSION,
         seat: seated.seat().clone(),
         observer: seated.observer(),
+        nickname,
+        session: connection.session,
+        // No hold and no takeover exist before S11-B (`PROTOCOL.md` §10).
+        resume: None,
+        hold_seconds: 0,
+        took_over: TookOver::None,
         world: seated.world().clone(),
     };
-    if send(&mut outgoing, &welcome).await.is_ok() {
-        stream(&mut outgoing, &mut incoming, &host, &mut seated).await;
-    }
+    let ending = if send(&mut outgoing, &welcome).await.is_ok() {
+        stream(&mut outgoing, &mut incoming, &connection.host, &mut seated).await
+    } else {
+        Ending::Gone
+    };
     // Explicit rather than left to the sweep that would reap a closed channel anyway: a client that
-    // disconnects should stop counting as a connected client immediately.
-    host.leave(seated.subscription());
+    // leaves or disconnects should stop counting as a connected client immediately.
+    connection.host.leave(seated.subscription());
+    match ending {
+        Ending::Gone => {}
+        Ending::Left => close(&mut outgoing, ClosingReason::Left, None).await,
+        Ending::WorldStopped => close(&mut outgoing, ClosingReason::WorldStopped, None).await,
+    }
 }
 
 /// Reads frames until the connection has a seat, refusing everything else.
 async fn handshake(
-    outgoing: &mut SplitSink<WebSocket, Message>,
-    incoming: &mut SplitStream<WebSocket>,
-    host: &WorldHost,
-) -> Option<Seated> {
+    outgoing: &mut Outgoing,
+    incoming: &mut Incoming,
+    connection: &Connection,
+) -> Option<(Seated, Nickname)> {
     loop {
-        let refusal = match receive(incoming).await {
+        let received = receive(incoming).await;
+        let arrived = Instant::now();
+        let refusal = match received {
             Received::Gone => return None,
             Received::NotText => not_text(),
             Received::Text(text) => match ClientFrame::decode(&text) {
                 Err(refusal) => refusal,
-                Ok(ClientFrame::Join { seat }) => match host.join(seat).await {
-                    Ok(seated) => return Some(seated),
-                    Err(refusal) => refusal,
-                },
+                Ok(ClientFrame::Join {
+                    protocol,
+                    invite,
+                    nickname,
+                    seat,
+                    resume,
+                }) => {
+                    let offered = Offered {
+                        protocol,
+                        invite,
+                        nickname,
+                        resume,
+                    };
+                    match join(connection, offered, seat, arrived).await {
+                        Joining::Seated(seated, nickname) => return Some((seated, nickname)),
+                        Joining::Refused(refusal) => refusal,
+                        Joining::Closed(refusal, reason) => {
+                            if send(outgoing, &refusal.into_frame()).await.is_ok() {
+                                close(outgoing, reason, None).await;
+                            }
+                            return None;
+                        }
+                    }
+                }
                 Ok(ClientFrame::Submit { token, .. }) => Refusal::new(RefusalCode::NotJoined)
                     .about(Some(token))
                     .detail("join a seat before submitting a request"),
+                Ok(ClientFrame::Leave {}) => {
+                    // Nothing to release; a client that asks to go is let go.
+                    close(outgoing, ClosingReason::Left, None).await;
+                    return None;
+                }
             },
         };
         send(outgoing, &refusal.into_frame()).await.ok()?;
+    }
+}
+
+/// A join's credentials and options, before any of them is trusted.
+struct Offered {
+    protocol: u32,
+    invite: OfferedInvite,
+    nickname: String,
+    resume: Option<String>,
+}
+
+/// `PROTOCOL.md` §4.1's checks, in its order. The first that fails decides the answer.
+async fn join(
+    connection: &Connection,
+    offered: Offered,
+    seat: mineworld_contracts::EntityKey,
+    arrived: Instant,
+) -> Joining {
+    if offered.protocol != PROTOCOL_VERSION {
+        return Joining::Closed(
+            Refusal::new(RefusalCode::ProtocolMismatch).detail(format!(
+                "this server speaks protocol {PROTOCOL_VERSION}, and the join speaks {}",
+                offered.protocol
+            )),
+            ClosingReason::ProtocolMismatch,
+        );
+    }
+    if connection.admission.admit(&offered.invite).is_err() {
+        // Measured from the frame's arrival, so the answer's timing says nothing about the check.
+        tokio::time::sleep_until(arrived + UNAUTHORIZED_DELAY).await;
+        return Joining::Closed(
+            Refusal::new(RefusalCode::Unauthorized).detail("that is not this server's invite"),
+            ClosingReason::Unauthorized,
+        );
+    }
+    let nickname = match Nickname::new(&offered.nickname) {
+        Ok(nickname) => nickname,
+        Err(error) => {
+            return Joining::Refused(Refusal::new(RefusalCode::InvalidNickname).detailed(error));
+        }
+    };
+    if offered.resume.is_some() {
+        return Joining::Refused(
+            Refusal::new(RefusalCode::InvalidResume)
+                .detail("no seat is held for this resume; join again without one"),
+        );
+    }
+    match connection.host.join(seat).await {
+        Ok(seated) => Joining::Seated(seated, nickname),
+        Err(refusal) => Joining::Refused(refusal),
     }
 }
 
@@ -89,48 +224,44 @@ async fn handshake(
 /// message to the world thread, and the *world* never waits for any of it — it delivers
 /// observations with `try_send` and answers requests without touching a client.
 async fn stream(
-    outgoing: &mut SplitSink<WebSocket, Message>,
-    incoming: &mut SplitStream<WebSocket>,
+    outgoing: &mut Outgoing,
+    incoming: &mut Incoming,
     host: &WorldHost,
     seated: &mut Seated,
-) {
+) -> Ending {
     let observer = seated.observer();
     let mut seq: u64 = 0;
 
     loop {
-        tokio::select! {
+        let frame = tokio::select! {
             observation = seated.observations().recv() => {
                 // `None` means the world has stopped. The connection ends with it: there is nothing
                 // left to observe.
-                let Some(perceived) = observation else { return };
+                let Some(perceived) = observation else { return Ending::WorldStopped };
                 seq += 1;
-                let frame = ServerFrame::Observation {
+                ServerFrame::Observation {
                     seq,
                     revision: perceived.revision,
                     observation: perceived.observation,
-                };
-                if send(outgoing, &frame).await.is_err() {
-                    return;
                 }
             }
-            received = receive(incoming) => {
-                let frame = match received {
-                    Received::Gone => return,
-                    Received::NotText => not_text().into_frame(),
-                    Received::Text(text) => match ClientFrame::decode(&text) {
-                        Err(refusal) => refusal.into_frame(),
-                        Ok(ClientFrame::Join { .. }) => Refusal::new(RefusalCode::AlreadyJoined)
-                            .detail("a connection holds one seat for its whole life")
-                            .into_frame(),
-                        Ok(ClientFrame::Submit { token, request }) => {
-                            submit(host, observer, token, &request).await
-                        }
-                    },
-                };
-                if send(outgoing, &frame).await.is_err() {
-                    return;
-                }
-            }
+            received = receive(incoming) => match received {
+                Received::Gone => return Ending::Gone,
+                Received::NotText => not_text().into_frame(),
+                Received::Text(text) => match ClientFrame::decode(&text) {
+                    Err(refusal) => refusal.into_frame(),
+                    Ok(ClientFrame::Join { .. }) => Refusal::new(RefusalCode::AlreadyJoined)
+                        .detail("a connection holds one seat for its whole life")
+                        .into_frame(),
+                    Ok(ClientFrame::Submit { token, request }) => {
+                        submit(host, observer, token, &request).await
+                    }
+                    Ok(ClientFrame::Leave {}) => return Ending::Left,
+                },
+            },
+        };
+        if send(outgoing, &frame).await.is_err() {
+            return Ending::Gone;
         }
     }
 }
@@ -167,7 +298,7 @@ async fn submit(
 }
 
 /// Reads the next frame that means anything, letting axum answer the control frames.
-async fn receive(incoming: &mut SplitStream<WebSocket>) -> Received {
+async fn receive(incoming: &mut Incoming) -> Received {
     loop {
         return match incoming.next().await {
             None | Some(Err(_)) | Some(Ok(Message::Close(_))) => Received::Gone,
@@ -183,15 +314,24 @@ fn not_text() -> Refusal {
         .detail("this protocol carries JSON text frames; a binary frame is not one")
 }
 
+/// Says why, then closes the socket (`PROTOCOL.md` §5.6). A client that is already gone simply does
+/// not hear it.
+async fn close(outgoing: &mut Outgoing, reason: ClosingReason, detail: Option<String>) {
+    if send(outgoing, &ServerFrame::Closing { reason, detail })
+        .await
+        .is_ok()
+    {
+        let _ = outgoing.send(Message::Close(None)).await;
+    }
+    let _ = outgoing.close().await;
+}
+
 /// Sends one frame, or reports that the connection is gone.
 ///
 /// A frame that cannot be serialized is a defect in the server rather than in the client, so it is
 /// reported and the connection continues: the alternative is a silent disconnect whose cause is
 /// invisible at both ends.
-async fn send(
-    outgoing: &mut SplitSink<WebSocket, Message>,
-    frame: &ServerFrame,
-) -> Result<(), ConnectionGone> {
+async fn send(outgoing: &mut Outgoing, frame: &ServerFrame) -> Result<(), ConnectionGone> {
     let text = match serde_json::to_string(frame) {
         Ok(text) => text,
         Err(error) => {

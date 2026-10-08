@@ -1747,6 +1747,32 @@ E-SA2 A-C2 (995c30d). protocol.rs 513 → 288 lines; request.rs 122, summary.rs 
 E-SA3 A-C3. admission.rs (with 5 unit tests): `cargo test -p mineworld-server --lib admission` 5
       passed; clippy clean. `cargo tree -i subtle -e normal` → mineworld-server (→ mineworld-cli) only.
       Cargo.lock: +1 package (subtle 2.6.1) and the server's two dependency lines; nothing else.
+E-SA4 A-C4 … A-C6 (one commit, D-SA3), working tree on b6075e2 + the commit's diff.
+      cargo fmt --check clean; clippy --workspace --all-targets --all-features -D warnings clean.
+      `cargo test -p mineworld-server -p mineworld-cli --no-fail-fast`: every binary passes —
+      server: unit 26, frames 8, handshake 7, headless 4, two_clients 9, doc 1; cli: ac13 2, ac15 6,
+      biography 2, bodies_yard 3, bodies_yard_restart 1, commands 4, content_kinds 3, create 2,
+      inspect 3, market_composition 1, market_town 1, milestone_b 1, milestone_c 1, restart 2,
+      routines 1, run 3, run_restart 2, server_command 7, social_composition 4. ~4 min wall. The CLI
+      acceptance files (ac13, ac15, milestone_b/c, restart, …) have no diff: only support/mod.rs's
+      join and Server::start changed (SA-10 first half).
+      Flake observed once before D-SA5: "cannot listen on 127.0.0.1:50918: Address already in use";
+      server_command then 3/3 runs green after D-SA5.
+      Mutations (each planted on the working tree, seen red, reverted; final `git diff` free of them):
+        M-SA1  protocol check disabled            → handshake a_join_of_another_revision… FAILED
+        M-SA2a admit() always Ok                  → handshake a_wrong_or_missing_invite… FAILED,
+                                                    server_command a_given_invite…flag_beats… FAILED
+        M-SA2b delay removed                      → handshake a_wrong_or_missing_invite… FAILED
+        M-SA3  join line printed twice            → server_command a_generated_invite… FAILED
+        M-SA4  deny_unknown_fields removed        → server_command state_assertions… FAILED
+        M-SA5  nickname length in bytes           → handshake an_invalid_nickname… FAILED
+        M-SA6  no host.leave on leave             → handshake leave_gives_the_seat_up… FAILED
+        M-SA7  as designed (states ← subscribes()) stayed GREEN: conversation subscribes to its own
+               `spoke`, so the mutation does not change the observable. Replaced by states ← empty
+               → server_command status_names… FAILED. Recorded rather than hidden (rules §24).
+        M-SA8  hold_seconds renamed "hold"        → frames welcome FAILED, naming welcome.json
+      Sizes (SA-12): protocol.rs 353, session.rs 349, runtime.rs 441, host.rs 498 (unchanged),
+      tools/cli/src/main.rs 486 — all under 500.
 ```
 
 ## 15.11 Deviations and discoveries
@@ -1758,5 +1784,23 @@ D-SA1 (bounded) Handoff file. Six lanes run in parallel and the effort's single 
 D-SA2 (bounded) PROTOCOL.md layout. §15.3 SD-A14 lists the content; the numbering keeps revision 1's
       section numbers for the same subjects (E-SA1) so no reference elsewhere goes stale: joining's
       checks are §4.1, WorldSummary is §5.7, the landing table and the revision rule are §10.
+D-SA3 (bounded) Commit mapping. A-C4, A-C5 and A-C6 land as one commit: the new frames cannot compile
+      without the session's handshake, and the router's new signature cannot compile without the CLI
+      passing an admission, so any split leaves the workspace or the CLI suites red in between.
+D-SA4 (bounded) The socket tests of SA-1, SA-2, SA-5 and SA-6 live in a new
+      server/tests/handshake.rs (with its own small client that sees the server close) rather than in
+      two_clients.rs, which is 640 lines; two_clients.rs changes only as §15.2 says. support/mod.rs
+      gains INVITE, admission() and join_frame().
+D-SA5 (bounded) Test harness ports. tools/cli/tests/support's free_port() releases the port before the
+      binary binds it; with more servers per run, and other worktrees' suites on the same machine, a
+      run failed once with "Address already in use" (E-SA4). Server::start now restarts the binary on a
+      new port, at most three times, when it exits before answering /health; a server that runs but
+      stays silent still fails the test. Server::start_captured shares the same launch.
+D-SA6 (bounded) The join line's seat. "The first roster seat no --agent drives" is the roster's order,
+      which is key order (SeatRoster is a BTreeSet): social-cafe's line suggests `alice` with no
+      --agent. SA-3's test takes the expected seat from /status rather than assuming `visitor`.
+D-SA7 (bounded) ClientFrame no longer derives Serialize: nothing serialized a client frame, and an
+      OfferedInvite (a possible near miss of the secret) should not be serializable. `Leave` is an
+      empty struct variant (`Leave {}`) so that deny_unknown_fields applies to it.
 ```
 

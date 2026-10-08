@@ -162,10 +162,298 @@ async fn a_seat_the_pack_does_not_offer_is_refused() {
 
     // `otto` exists in this world and is not a seat: `world.yaml` offers every other Person and not
     // him, so nothing can connect *as* him. The roster is the world's, not the client's.
-    client.send(json!({ "t": "join", "seat": "otto" })).await;
+    client.send(support::join_frame("otto")).await;
     let frame = client.frame().await;
     assert!(
         matches!(frame, ServerFrame::Refused { .. }),
         "got: {frame:?}",
     );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Protocol revision 2 through the real binary (step-12 §15.4 SA-3, SA-4, SA-5, SA-7).
+// ---------------------------------------------------------------------------------------------
+
+/// A join with this invite and nickname, on a fresh connection; the server's first answer.
+async fn join_with(address: std::net::SocketAddr, invite: &str, nickname: &str) -> ServerFrame {
+    let mut client = Client::connect(address).await;
+    client
+        .send(
+            json!({ "t": "join", "protocol": 2, "invite": invite, "nickname": nickname,
+                      "seat": "visitor" }),
+        )
+        .await;
+    client.frame().await
+}
+
+/// The next frame that is not an observation.
+async fn answer(client: &mut Client) -> ServerFrame {
+    loop {
+        let frame = client.frame().await;
+        if !matches!(frame, ServerFrame::Observation { .. }) {
+            return frame;
+        }
+    }
+}
+
+/// Every byte of every file under a directory, for the claim that a secret is in none of them.
+fn bytes_under(directory: &std::path::Path) -> Vec<(std::path::PathBuf, Vec<u8>)> {
+    let mut found = Vec::new();
+    for entry in std::fs::read_dir(directory).expect("the directory exists") {
+        let path = entry.expect("an entry").path();
+        if path.is_dir() {
+            found.extend(bytes_under(&path));
+        } else {
+            found.push((path.clone(), std::fs::read(&path).expect("readable")));
+        }
+    }
+    found
+}
+
+/// SA-3 and SA-5's output half. With no invite given, the server makes one and prints it on exactly
+/// one line — §11.4's join line — and nowhere else: not on stderr, not in any byte of the save. A
+/// client joining with it is admitted, and the nickname it gives appears in nothing the server writes.
+#[tokio::test]
+async fn a_generated_invite_is_printed_on_one_line_and_kept_out_of_everything_else() {
+    const NICKNAME: &str = "Zephyrine-7";
+    let save = support::SaveDir::new("generated-invite");
+    let (mut server, output) =
+        Server::start_captured(&["server", support::PACK, "--save", save.path()], None).await;
+
+    let line = output.line_starting("[mineworld] invite ").await;
+    let token = line["[mineworld] invite ".len()..]
+        .split_whitespace()
+        .next()
+        .expect("a token after the prefix")
+        .to_owned();
+    assert_eq!(
+        token.len(),
+        32,
+        "a generated invite is 128 bits in hex: {line}"
+    );
+    // With no `--agent`, the suggested seat is the roster's first, as `/status` lists it.
+    let first_seat = server.status().await["seats"][0]
+        .as_str()
+        .expect("a seat")
+        .to_owned();
+    assert_eq!(
+        line,
+        format!(
+            "[mineworld] invite {token} — join with: {} seat={first_seat} invite={token}",
+            server.address
+        ),
+        "the join line is the frozen form of step-12 §11.4"
+    );
+
+    let joined = join_with(server.address, &token, NICKNAME).await;
+    assert!(
+        matches!(&joined, ServerFrame::Welcome { nickname, .. } if nickname.as_str() == NICKNAME),
+        "the printed invite admits a client: {joined:?}"
+    );
+
+    let status = server.kill();
+    assert!(!status.success(), "SIGKILL ended the server");
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let (stdout, stderr) = (output.stdout(), output.stderr());
+    assert_eq!(
+        stdout.iter().filter(|line| line.contains(&token)).count(),
+        1,
+        "the invite is on exactly one stdout line: {stdout:?}"
+    );
+    for line in stdout.iter().chain(&stderr) {
+        assert!(!line.contains(NICKNAME), "a nickname was printed: {line}");
+    }
+    assert!(
+        stderr.iter().all(|line| !line.contains(&token)),
+        "the invite reached stderr: {stderr:?}"
+    );
+    for (path, bytes) in bytes_under(std::path::Path::new(save.path())) {
+        assert!(
+            !bytes
+                .windows(token.len())
+                .any(|window| window == token.as_bytes()),
+            "the invite is in {}",
+            path.display()
+        );
+    }
+}
+
+/// SA-3. An invite the operator gives through `MINEWORLD_INVITE` admits, and is printed nowhere; a
+/// flag beats the variable; an illegal one stops the server without repeating it.
+#[tokio::test]
+async fn a_given_invite_admits_is_never_printed_and_the_flag_beats_the_environment() {
+    const FROM_ENV: &str = "env-invite-55aa66bb";
+    const FROM_FLAG: &str = "flag-invite-77cc88dd";
+
+    let (mut server, output) =
+        Server::start_captured(&["server", support::PACK], Some(FROM_ENV)).await;
+    let line = output.line_starting("[mineworld] join with: ").await;
+    assert!(line.ends_with("invite=<the invite you gave>"), "{line}");
+    assert!(matches!(
+        join_with(server.address, FROM_ENV, "env").await,
+        ServerFrame::Welcome { .. }
+    ));
+    server.kill();
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    for written in output.stdout().iter().chain(&output.stderr()) {
+        assert!(
+            !written.contains(FROM_ENV),
+            "a given invite was printed: {written}"
+        );
+    }
+
+    let (server, _output) = Server::start_captured(
+        &["server", support::PACK, "--invite", FROM_FLAG],
+        Some(FROM_ENV),
+    )
+    .await;
+    assert!(matches!(
+        join_with(server.address, FROM_FLAG, "flag").await,
+        ServerFrame::Welcome { .. }
+    ));
+    assert!(
+        matches!(
+            join_with(server.address, FROM_ENV, "env").await,
+            ServerFrame::Refused {
+                code: mineworld_server::RefusalCode::Unauthorized,
+                ..
+            }
+        ),
+        "with both given, the flag's invite is the server's"
+    );
+
+    let refused = std::process::Command::new(env!("CARGO_BIN_EXE_mineworld"))
+        .args(["server", support::PACK, "--invite", "abc12"])
+        .env_remove("MINEWORLD_INVITE")
+        .output()
+        .expect("the binary runs");
+    assert!(
+        !refused.status.success(),
+        "an illegal invite stops the server"
+    );
+    let said = String::from_utf8_lossy(&refused.stderr).into_owned()
+        + &String::from_utf8_lossy(&refused.stdout);
+    assert!(said.contains("not usable"), "{said}");
+    assert!(
+        !said.contains("abc12"),
+        "the refusal repeated the invite: {said}"
+    );
+}
+
+/// SA-4, `INV-9` over revision 2 against a persisted world. Every state-asserting message is refused,
+/// and the save does not move: the revision `/status` reports is unchanged, and after the process dies
+/// the save holds exactly the genesis facts `validate` counts — an oracle that never asks the server.
+/// Inside the hosted world's first minutes (from 00:00, before any routine) nothing else is due.
+#[tokio::test]
+async fn state_assertions_are_refused_and_the_save_does_not_move() {
+    let save = support::SaveDir::new("inv9-revision-2");
+    let mut server = Server::start(&["server", support::PACK, "--save", save.path()]).await;
+    let mut client = Client::connect(server.address).await;
+    let (visitor, _) = client.join("visitor").await;
+    let before = server.status().await["revision"].clone();
+
+    for asserted in [
+        json!({ "t": "set_state", "entity": visitor, "money": 5000 }),
+        json!({ "t": "move_to", "position": { "x": 1000, "y": 2000, "z": 0 } }),
+        json!({ "t": "give", "item": "1", "to": visitor }),
+    ] {
+        client.send(asserted.clone()).await;
+        assert!(
+            matches!(
+                answer(&mut client).await,
+                ServerFrame::Refused {
+                    code: mineworld_server::RefusalCode::UnknownFrame,
+                    ..
+                }
+            ),
+            "{asserted}"
+        );
+    }
+    let somebody_else = mineworld_contracts::EntityId::from_raw(visitor.raw() + 1);
+    assert_eq!(
+        client
+            .submit_refused(support::talk(somebody_else, visitor, "I am somebody else"))
+            .await,
+        mineworld_server::RefusalCode::ActorNotObserver
+    );
+
+    let mut naming_itself = Client::connect(server.address).await;
+    let mut join = support::join_frame("wanderer");
+    join["observer"] = json!(visitor);
+    naming_itself.send(join).await;
+    assert!(
+        matches!(
+            naming_itself.frame().await,
+            ServerFrame::Refused {
+                code: mineworld_server::RefusalCode::MalformedFrame,
+                ..
+            }
+        ),
+        "a join that names an observer is malformed, and no welcome follows"
+    );
+
+    assert_eq!(
+        server.status().await["revision"],
+        before,
+        "nothing was committed"
+    );
+    server.kill();
+
+    let (_, validated) = support::run_command(&["validate", support::PACK]);
+    let genesis = validated
+        .lines()
+        .find_map(|line| line.trim().strip_suffix(" genesis fact(s): the world's initial state, each one caused by the world coming into existence"))
+        .expect("validate counts the genesis facts")
+        .trim()
+        .to_owned();
+    let (_, inspected) = support::run_command(&["inspect", save.path()]);
+    let facts = inspected
+        .lines()
+        .find_map(|line| line.strip_prefix("facts"))
+        .expect("inspect counts the facts")
+        .trim()
+        .to_owned();
+    assert_eq!(
+        facts, genesis,
+        "the save holds the genesis facts and nothing else"
+    );
+}
+
+/// SA-7: `/status` and `/health` of revision 2, from the real pack. The world's vocabulary is
+/// public composition: what each system provides and what it states.
+#[tokio::test]
+async fn status_names_each_systems_actions_and_facts() {
+    let server = Server::start(&["server", support::PACK]).await;
+    let status = server.status().await;
+
+    assert_eq!(status["protocol"], json!(2));
+    assert!(status.get("deferrals_unscheduled").is_none(), "{status}");
+    assert_eq!(status["events_dropped"], json!(0));
+    let conversation = status["systems"]
+        .as_array()
+        .expect("a list")
+        .iter()
+        .find(|system| system["system"] == json!("conversation"))
+        .expect("social-cafe enables conversation");
+    assert!(
+        conversation["provides"]
+            .as_array()
+            .expect("a list")
+            .contains(&json!("talk")),
+        "{conversation}"
+    );
+    assert!(
+        conversation["states"]
+            .as_array()
+            .expect("a list")
+            .contains(&json!("spoke")),
+        "{conversation}"
+    );
+
+    let health = support::body(
+        &support::get(server.address, "/health")
+            .await
+            .expect("health"),
+    );
+    assert_eq!(health["protocol"], json!(2));
 }

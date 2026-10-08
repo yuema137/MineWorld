@@ -4,7 +4,7 @@
 use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use mineworld_contracts::{EntityKey, SystemId, WorldTime};
+use mineworld_contracts::{ActionTypeId, EntityKey, EventTypeId, SystemId, WorldTime};
 use mineworld_persistence::WorldRevision;
 use serde::{Deserialize, Serialize};
 
@@ -102,7 +102,8 @@ pub struct WorldSummary {
     pub systems: Vec<SystemSummary>,
     /// The seats a client may ask for.
     pub seats: Vec<EntityKey>,
-    /// How many clients are connected and seated.
+    /// How many connections hold a seat. Until S11-B an in-server `--agent` controller occupies its
+    /// seat through the same path and is counted.
     pub clients: usize,
     /// How many observations have been dropped because a client was not reading them.
     ///
@@ -110,12 +111,12 @@ pub struct WorldSummary {
     /// a slow client loses frames, and a number that only ever appeared in a comment would make
     /// that policy invisible to whoever is running the server.
     pub observations_dropped: u64,
-    /// How many deferrals had no scheduler to queue them.
+    /// How many facts were lost to a full per-connection queue.
     ///
-    /// Always zero since S4: the world's own schedule holds every deferral and fires it at its
-    /// instant. Kept on the wire until the next protocol revision removes it, because removing a
-    /// field is a protocol change (step-04 §8 F-4).
-    pub deferrals_unscheduled: u64,
+    /// From S11-C, which delivers facts to observers. Zero before it, truthfully: no fact is
+    /// delivered, so none can be dropped. (Revision 2 removed revision 1's `deferrals_unscheduled`,
+    /// always zero since S4.)
+    pub events_dropped: u64,
     /// How many dispatches ended in a system breaking its own contract.
     ///
     /// `kernel/src/dispatch.rs`: an error out of dispatch is a bug in a system, not a rejected
@@ -133,4 +134,9 @@ pub struct SystemSummary {
     pub system: SystemId,
     /// Whether it is currently in the pipeline. A disabled system's actions are `Unavailable`.
     pub enabled: bool,
+    /// The action types it provides: whether a client should offer a verb at all.
+    pub provides: Vec<ActionTypeId>,
+    /// The event types it declares it may state, including another system's vocabulary it is
+    /// declared to state: how a client names an `event_type` it receives.
+    pub states: Vec<EventTypeId>,
 }

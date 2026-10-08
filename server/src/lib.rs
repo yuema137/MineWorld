@@ -40,7 +40,7 @@
 //! # Hosting a world
 //!
 //! ```no_run
-//! use mineworld_server::{HostConfig, HostedWorld, SeatRoster, WorldHost, app};
+//! use mineworld_server::{Admission, HostConfig, HostedWorld, InviteToken, SeatRoster, WorldHost, app};
 //! use mineworld_kernel::World;
 //! use mineworld_contracts::EntityKey;
 //!
@@ -53,9 +53,11 @@
 //! })
 //! .await?;
 //!
+//! // Every client presents this invite in its join (PROTOCOL.md §4.1); there is no open mode.
+//! let invite = InviteToken::generate()?;
 //! let (listener, address) = app::bind("127.0.0.1:7878".parse()?).await?;
 //! println!("listening on ws://{address}/ws");
-//! app::serve(listener, host).await?;
+//! app::serve(listener, host, Admission::new(invite)).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -84,6 +86,7 @@ pub use mineworld_persistence::WorldRevision;
 pub use parity::{RequestField, SemanticCore, differing_fields, semantic_core};
 pub use perception::{PerceivesNothing, Perception, PerceptionContext};
 pub use protocol::{
-    ClientFrame, CorrelationToken, PROTOCOL_VERSION, ProtocolError, Refusal, RefusalCode,
-    ServerFrame, SystemSummary, WireObservation, WirePayload, WorldInstanceId, WorldSummary,
+    ClientFrame, ClosingReason, CorrelationToken, PROTOCOL_VERSION, ProtocolError, Refusal,
+    RefusalCode, ServerFrame, SessionId, SystemSummary, TookOver, WireObservation, WirePayload,
+    WorldInstanceId, WorldSummary,
 };

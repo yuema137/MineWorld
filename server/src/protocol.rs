@@ -2,14 +2,15 @@
 //!
 //! `docs/NETWORKING.md` §5 lists the message classes; this module is that list as closed Rust
 //! enums, which is what makes the authority model structural rather than remembered. A client can
-//! say exactly two things:
+//! say exactly three things (`PROTOCOL.md` §2, revision 2):
 //!
 //! ```text
-//! join     name a seat, and be told which observer it is
+//! join     present the invite and a nickname, name a seat, and be told which observer it is
 //! submit   an ActionRequest, and the client's own correlation token
+//! leave    give the seat up and end the connection
 //! ```
 //!
-//! and there is no third — no frame that sets a value, names another observer, widens a scope or
+//! and there is no fourth — no frame that sets a value, names another observer, widens a scope or
 //! asserts a fact. *"My money is now 5000"* is not a frame this protocol has, so it is refused as
 //! a protocol violation (`NETWORKING.md` §2) rather than being checked and rejected somewhere
 //! deeper.
@@ -34,16 +35,17 @@
 //! the client's own [`CorrelationToken`] so an answer can be paired with its request, and it names
 //! the [`ActionId`] the *server* allocated so a client can recognize a later event whose
 //! `Causation` points at its own request.
-
 //!
 //! # Layout
 //!
 //! ```text
-//! protocol           the frames, the refusal codes, and what can be wrong with a protocol value
-//! protocol/request   a submitted request's payload and the client's correlation token
-//! protocol/summary   what a world is: its instance identity and its composition
+//! protocol              the frames, the refusal codes, and what can be wrong with a protocol value
+//! protocol/request      a submitted request's payload and the client's correlation token
+//! protocol/summary      what a world is: its instance identity and its composition
+//! protocol/connection   what a frame says about the connection: its session, a takeover, a closing
 //! ```
 
+mod connection;
 mod request;
 mod summary;
 #[cfg(test)]
@@ -58,12 +60,21 @@ use mineworld_persistence::WorldRevision;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::admission::{Nickname, OfferedInvite};
+
+pub use connection::{ClosingReason, SessionId, TookOver};
 pub use request::{CorrelationToken, MAX_TOKEN_LENGTH, WirePayload, into_kernel_request};
 pub use summary::{SystemSummary, WorldInstanceId, WorldSummary};
 
 /// Which revision of this protocol a server speaks. A client that does not recognize the number
 /// should refuse to connect rather than guess.
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
+
+/// The revision a `join` without a `protocol` field speaks: revision 1's join had none, so such a
+/// client is told `protocol_mismatch` rather than `malformed_frame`.
+const fn revision_one() -> u32 {
+    1
+}
 
 /// An `Observation` as this transport carries it.
 ///
@@ -73,16 +84,34 @@ pub const PROTOCOL_VERSION: u32 = 1;
 /// so a transport can choose, and this is the choice F8.2 asked the server to state.
 pub type WireObservation = Observation<Value>;
 
-/// What a client may say. Two variants, and the closed set is the point.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "t", rename_all = "snake_case")]
+/// What a client may say. Three variants, and the closed set is the point.
+///
+/// Every variant denies unknown fields (`PROTOCOL.md` §2): a typo is loud, and a `join` that tries
+/// to name an `observer` is refused rather than silently ignored. Decoding is structural only —
+/// which of a join's fields are *acceptable* is the handshake's question, asked in the order
+/// `PROTOCOL.md` §4.1 fixes, so a missing invite and a missing nickname decode as empty and are
+/// answered there.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(tag = "t", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ClientFrame {
     /// Ask to occupy a seat. The server answers with the observer that seat is, and a client
     /// never names an observer itself — which is why there is no request that widens perception
     /// (`INV-13`).
     Join {
+        /// The revision the client speaks; `1` when absent.
+        #[serde(default = "revision_one")]
+        protocol: u32,
+        /// The server's invite, as the client offers it. Empty when absent.
+        #[serde(default)]
+        invite: OfferedInvite,
+        /// The player's nickname, unchecked. Empty when absent.
+        #[serde(default)]
+        nickname: String,
         /// The seat, named by the authoring key of the entity it belongs to.
         seat: EntityKey,
+        /// A secret from an earlier `welcome`, to re-take a held seat (meaningful from S11-B).
+        #[serde(default)]
+        resume: Option<String>,
     },
     /// Submit a request. No identity and no instant: the server allocates both (`INV-6`).
     Submit {
@@ -91,10 +120,12 @@ pub enum ClientFrame {
         /// What is being asked of the world.
         request: ActionRequest<WirePayload>,
     },
+    /// Give the seat up at once and end the connection.
+    Leave {},
 }
 
 /// The tags a client frame may carry, which is also the whole of what a client may say.
-const CLIENT_FRAME_TAGS: [&str; 2] = ["join", "submit"];
+const CLIENT_FRAME_TAGS: [&str; 3] = ["join", "submit", "leave"];
 
 impl ClientFrame {
     /// Reads one text frame, or the refusal to send back.
@@ -121,7 +152,8 @@ impl ClientFrame {
             return Err(Refusal::new(RefusalCode::UnknownFrame)
                 .about(token)
                 .detail(format!(
-                    "this protocol has no frame of kind \"{tag}\"; a client may only join or submit"
+                    "this protocol has no frame of kind \"{tag}\"; a client may only join, submit \
+                     or leave"
                 )));
         }
         serde_json::from_value(value).map_err(|error| {
@@ -144,6 +176,16 @@ pub enum ServerFrame {
         seat: EntityKey,
         /// The observer every observation on this connection belongs to.
         observer: EntityId,
+        /// The player's nickname, as accepted (trimmed). Shown to this connection only.
+        nickname: Nickname,
+        /// Which connection this is, for the admin surface. Not a credential.
+        session: SessionId,
+        /// The secret that re-takes this seat after a dropped socket; `None` until S11-B.
+        resume: Option<String>,
+        /// How long a dropped connection's seat is held, in wall seconds; `0` until S11-B.
+        hold_seconds: u32,
+        /// Whether control of the Person changed hands; always [`TookOver::None`] until S11-B.
+        took_over: TookOver,
         /// What the world is, at the moment of joining.
         world: WorldSummary,
     },
@@ -179,6 +221,15 @@ pub enum ServerFrame {
         #[serde(skip_serializing_if = "Option::is_none")]
         detail: Option<String>,
     },
+    /// The server is about to close this connection, and says why. Never a refusal: being closed
+    /// is not an answer to a frame.
+    Closing {
+        /// Why. A client branches on this.
+        reason: ClosingReason,
+        /// A note for a developer.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        detail: Option<String>,
+    },
 }
 
 /// Why a frame was refused at the protocol layer.
@@ -210,6 +261,17 @@ pub enum RefusalCode {
     DispatchFailed,
     /// The world is no longer running, so there is nothing to submit to.
     WorldStopped,
+    /// The `join` speaks a revision of this protocol the server does not. Followed by `closing`.
+    ProtocolMismatch,
+    /// The `join`'s invite was wrong or missing, answered after a fixed delay. Followed by
+    /// `closing`: a connection gets one guess.
+    Unauthorized,
+    /// The `join`'s nickname is empty once trimmed, too long, or holds a control character.
+    InvalidNickname,
+    /// Another connection holds the seat (from S11-B; never sent before it).
+    SeatOccupied,
+    /// The `join`'s `resume` matches no hold. Until S11-B every non-null `resume` is answered so.
+    InvalidResume,
 }
 
 /// One refusal, before it becomes a frame.
@@ -282,6 +344,9 @@ pub enum ProtocolError {
     /// A world instance identity that is not the hexadecimal string one is written as.
     #[error("a world instance is 128 bits of lowercase hexadecimal, and this is {0:?}")]
     InstanceId(String),
+    /// A session identity that is not the decimal string one is written as.
+    #[error("a session is a decimal integer written as a string, and this is {0:?}")]
+    SessionId(String),
     /// A seat name that is not a legal entity key.
     #[error("a seat is named by an entity key: {0}")]
     Seat(#[from] ContractError),
