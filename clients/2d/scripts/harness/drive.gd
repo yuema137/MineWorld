@@ -193,7 +193,7 @@ func _walk() -> void:
 		app.walker.walk_to(street, door_plan + outward * 4.5 + Vector2(outward.y, -outward.x) * 1.5)
 		await _until(func() -> bool: return not app.walker.is_walking(), TIMEOUT_S)
 		await _seconds(1.0)
-		await _capture.shoot("02_cafe_front", 1.9, door_plan - outward * 1.5)
+		await _capture.shoot("02_cafe_door", 1.9, door_plan - outward * 1.5)
 
 
 ## `n` strides east in the current place, one after another (the stub scenarios, AC-W5 … AC-W7).
@@ -279,6 +279,7 @@ func _check_seated() -> void:
 			var px: float = app.people.drawn_height_px(id)
 			var want: float = float(height_m) * app.projection.ppm
 			_check(absf(px - want) <= HEIGHT_BOUND_PX, "drawn at its height", "%s %.1f px, want %.1f ± %.0f" % [id, px, want, HEIGHT_BOUND_PX])
+	_check_painters_order(listed.keys())
 	var missing := PackedStringArray()
 	for role in app.presentation.bound_roles():
 		var loaded: bool = not app.presentation.sprite(role).is_empty() or not app.presentation.directional(role).is_empty()
@@ -287,6 +288,26 @@ func _check_seated() -> void:
 	_check(missing.is_empty() and app.presentation.errors.is_empty(), "every bound role resolves",
 		"%d roles, missing %s, errors %s" % [app.presentation.bound_roles().size(), missing, app.presentation.errors])
 	_report_self()
+
+
+## AC-W12's painter's order: of the two drawn people furthest apart down the screen, the nearer one
+## (further south, lower on the screen) is drawn in front of the other.
+func _check_painters_order(ids: Array) -> void:
+	var near := ""
+	var far := ""
+	for id in ids:
+		var plan: Variant = app.people.drawn_plan(id)
+		if plan == null:
+			continue
+		var depth: float = app.projection.to_screen(plan).y
+		if near == "" or depth > app.projection.to_screen(app.people.drawn_plan(near)).y:
+			near = id
+		if far == "" or depth < app.projection.to_screen(app.people.drawn_plan(far)).y:
+			far = id
+	if near == far:
+		return  # one person in view (the apartments): nothing to order
+	_check(app.people.drawn_behind(far, near) and not app.people.drawn_behind(near, far),
+		"painter's order", "%s drawn in front of %s" % [near, far])
 
 
 func _check_facades() -> void:

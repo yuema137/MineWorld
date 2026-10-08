@@ -41,5 +41,5 @@ func shoot(name: String, zoom := 0.0, focus: Variant = null) -> void:
 ## The café sequence: the room from inside, and a framing at the reference plate's scale.
 func shoot_interior() -> void:
 	var body: Vector2 = app.walker.body_plan
-	await shoot("03_interior", 1.6, body + Vector2(1.5, -2.0))
+	await shoot("03_cafe_interior", 1.6, body + Vector2(1.5, -2.0))
 	await shoot("04_ref_framing", 2.3, body + Vector2(0.5, -1.0))
