@@ -4545,10 +4545,16 @@ move them.
 
 **Depends on:** freeze. **Non-goals:** no code.
 
-- [ ] Implementation: the three notes, MODULE_SPEC §4.1, the handoff; E-PO-base captured.
-- [ ] Validation: both doc checks pass; the decision-id count is unchanged (notes add no id); every
-  captured file exists, with its sha-256 recorded in E-PO1.
-- [ ] Review: the ARC-36 note says exactly what QB-3 decided and nothing more (instances in general
+- [x] Implementation: the three notes, MODULE_SPEC §4.1, the handoff; E-PO-base captured (E-PO-base;
+  ARC-36 note, ARC-39 note 2 with the `is_declared` crate dependency named — §18.0 condition (a) —,
+  DEP-13 note; MODULE_SPEC §4.1's body row, item example and item-file paragraph).
+- [x] Validation: both doc checks pass; the decision-id count is unchanged (notes add no id); every
+  captured file exists, with its sha-256 recorded (E-PO-base, E-PO1).
+- [x] Review (self, 12c session): the ARC-36 note states QB-3 — one physical object, never a declared
+  kind, never held — and keeps instances out (its point 3); `Item` keeps CORE_CONCEPTS §7's meaning
+  ("unique items" is a reading it allows); ARC-39 note 2 states SD-O8 … SD-O10 (point 1), the guard
+  for objects (point 2, item 7 refined for objects only), shove through `arrivals()` with QO-18
+  (point 3), and QO-4's one read (point 4). Original review item: the ARC-36 note says exactly what QB-3 decided and nothing more (instances in general
   stay out); no defined term is redefined (`Item` keeps `CORE_CONCEPTS.md` §7's meaning: "unique
   items" is one of the readings it already allows); the ARC-39 note states SD-O8 … SD-O10 and refines
   item 7 for objects only.
@@ -4886,6 +4892,29 @@ E-PO0 PO-C0, 2026-10-08, planning session, on main @ 9c617ed (12b merged) + the 
       `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
         duplicated. `python3 scripts/check_decision_ids.py` → 51 decision ids, all distinct.
       No cargo build or test: this design is documentation only.
+
+E-PO-base 12c implementation session, 2026-10-08, on mvp0/pr-12c-objects @ 0fd0be3 (= main: 9c617ed +
+      Markdown only), before any 12c code or document edit.
+      `cargo build -p mineworld-cli` 36.2 s; target/debug/mineworld copied to /tmp/s15-12c/base-mineworld
+        (sha-256 08a2affdb6fb0c0edf3c03a51a1af0aef4a6b52162f4bf02334ec397edb48363).
+      With it: `validate worlds/social-cafe` → exit 0, 27 lines, kept as
+        /tmp/s15-12c/base-validate-social-cafe.txt (sha-256 ebcd60a0…f56a8); `validate
+        worlds/market-town` → exit 0, 51 lines, base-validate-market-town.txt (sha-256 64f41086…73502).
+        PO-1's references.
+      `BODIES_LONG_RUN_SECOND_PROCESS=1 cargo test -p mineworld-bodies --test long_run -- --nocapture`
+        → exit 0; its one `LONG-RUN` line kept as /tmp/s15-12c/base-longrun-line.txt, 4 091 748 bytes
+        (9 + E-PB7's 4 091 738 + newline), sha-256
+        d7025dbcdb63c0aa5162c10552f43e2650d24e510dc67f4662ac30d1b2479eaf. PO-13 b's reference.
+      For information: `run worlds/bodies-yard --headless --seed 7 --days 30` → exit 0, faults 0,
+        59 619 facts, summary sha-256 (every line but `wall`)
+        3a2c3322bcebc39e8d50e2969cfe25bd73da36e743a64f728b567337fb5eaa9d = E-PB8's. Kept as
+        /tmp/s15-12c/base-yard30.txt.
+
+E-PO1 PO-C1, 2026-10-08, working tree on 0fd0be3 + docs/DECISIONS.md, docs/MODULE_SPEC.md, the handoff
+      and this ledger.
+      `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
+        duplicated. `python3 scripts/check_decision_ids.py` → 51 decision ids, all distinct (unchanged:
+        the three notes add no id). PASS. Documentation only; no cargo run beyond E-PO-base.
 ```
 
 ## 18.11 Deviations and discoveries during implementation

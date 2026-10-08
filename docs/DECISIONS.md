@@ -2656,6 +2656,23 @@ There are three ways to give a world such entities:
 - Organization membership, roles and accounts (`CORE_CONCEPTS.md` §8) are not authored fields. They
   are the state of whichever System Pack owns them, carried as its section.
 
+**Note, 2026-10-08 (S15, PR 12c; step-11 QB-3, decided by the operator; §18.0, SD-O3) — an item file
+with a `body:` section is one physical object.** Item 2 reads `Item` as a kind. The `bodies` System
+Pack adds the second reading `CORE_CONCEPTS.md` §7 already allows, "unique items", for exactly one
+case, and nothing else changes:
+
+1. **An item file that carries the `bodies` pack's `body:` section declares one physical object**, not
+   a kind: the Item entity *is* that object, lying in one place at one position, with one shape. It is
+   created at genesis like every other authored Item (item 4); no entity is created while a world runs.
+2. **It is never a declared kind, so it is never held.** It carries no `item:` section: `bodies`
+   refuses, at genesis, an Item that is both a declared kind and an object (`bodies-held-kind`). What
+   a person or an organization may hold is a declared kind (`ARC-37`), so the pack that owns holdings
+   refuses every holding of an object by its own rule, at genesis and while the world runs. Lying in a
+   place and being held are disjoint by construction.
+3. **Instances in general stay out of MVP-0** (item 3). An object is authored, not created; a kind
+   still has no instances; and how a unique object could one day be held — what carrying needs — is
+   the first decision of the step that adds carrying, not this note's.
+
 ---
 
 ## ARC-37 — Owning and giving: kinds, holdings, give, and what a person can carry
@@ -3166,6 +3183,42 @@ decision; items 1–8 are unchanged except where item 7 is refined below.
    does not bound such an arrival (the limitation above), so the point may be farther from the doorway
    than `to` is.
 
+**Note 2, 2026-10-08 (S15, PR 12c; step-11 §18.0, SD-O8 … SD-O10, SD-O15, QO-4, QO-9, QO-18) —
+loose objects, and a pack that is also a mover.** Items 1–8 and the first note are unchanged except
+where this note refines item 7 for objects.
+
+1. **The resolver predicts object pushes.** Loose objects are `bodies`' own state (an Item with a
+   `body:` section, `ARC-36` note), so presence cannot record their moves and a resolver cannot emit
+   them: they move in `bodies`' reaction to each recorded `arrived`. That reaction pushes every loose
+   object lying on the floor whose footprint the person's disc overlaps, straight away from the
+   person's centre, by a shape cast against the fixed geometry and the other objects — computed
+   **against the objects as they lay before the request**, with people not as obstacles. Reduction is
+   breadth-first: every reaction of one emission list sees the objects as they lay, and the people
+   not yet where the list leaves them (step-11 F-O2, F-B1). Before answering, the resolver runs the
+   same function on the same three inputs — the person's end point, the room, the objects as they lay
+   — for the walker and for every person it displaces, in emission order, and accepts the result only
+   if no object is pushed twice, no push is cut short (a jam), and in the final state no person
+   overlaps an object and no two objects overlap. Otherwise it resolves the arrival again with the
+   objects solid, and nothing is pushed. So what the reactions push is exactly what the resolver
+   checked, and a walker never ends inside a jammed box.
+2. **The guard covers objects.** The starting-state guard (the first note, point 2) also checks that
+   every object lies within its floor, rests on the floor or on one solid's top, keeps clear of every
+   other solid and object, and is overlapped by no person's disc. And because a push is computed from
+   the arrival and the objects alone, item 7's third bullet can be built for objects at the reaction
+   itself: a push that jams there means an arrival escaped resolution, and the reaction fails the
+   dispatch with `bodies-object-jammed`.
+3. **`bodies` is also a mover.** Its `shove` action states presence's `arrived` and `stopped-short`
+   through `arrivals()`, exactly as `movement` does (`ARC-26`): the shoved person's arrival is resolved
+   by the registered resolvers like any other — walls stop them, the people behind them are nudged
+   within the first note's bounds, objects are pushed or block, and the head-on bias applies to it as
+   to every arrival within a place. A pack may subscribe to a fact type it also states (step-11 F-R7).
+4. **One crate dependency outside presence, used for one read.** `bodies` refuses, at genesis, an
+   Item that is both an object and a declared kind (`ARC-36` note, point 2). It asks the `item` pack's
+   read-only `mineworld_item::is_declared`, and nothing else from that crate; a structural test holds
+   that. This is a crate dependency, not a system dependency: `bodies` declares a system dependency on
+   presence alone, a world may install `bodies` without `item`, and in such a world the answer is "not
+   declared".
+
 ---
 
 ## DEP-13 — Server physics: Rapier (`rapier3d`, `enhanced-determinism`) inside the `bodies` pack
@@ -3252,3 +3305,22 @@ determinism  cross-platform needs `enhanced-determinism` and IEEE 754-2008 targe
 - **The licence tree is permissive**: every package Rapier brings, with these features, is Apache-2.0,
   MIT, Zlib, Unlicense or Unicode-3.0, each alone or as one of a permissive choice (recorded in step-11
   §17.10).
+
+**Note, 2026-10-08 (S15, PR 12c; step-11 §18.0, SD-O14, SD-O16) — dynamics are now used.** `kick` and
+`throw` simulate one object's flight at the instant of the request (step-11 QB-6): the first stepped
+simulation in MineWorld. The isolating interface is unchanged — integers in, integers out, nothing
+kept, every float converted by the same two functions — and what the flight adds is bounded:
+- **One dynamic body per flight.** A flight scene holds the place's fixed geometry, the people as
+  kinematic capsules in `EntityId` order, the other objects as fixed colliders in `ItemId` order, and
+  the flying object last: dynamic, rotations locked (no rotation is ever persisted), with continuous
+  collision detection so a fast object cannot pass a thin solid. Friction 0.5, restitution 0.1.
+- **Bounded steps and a rest rule.** Sub-steps of 1/60 s, at most 180 for a kick and 240 for a throw;
+  the object has come to rest once it has been slower than 50 mm/s for 10 consecutive sub-steps. Both
+  are pure functions of the state.
+- **F-P1's re-mark is exercised.** The adapter's `refresh` runs after the scene is built and before the
+  first step; without it the flying object would never move (the canary above).
+- **The engine's answer is never the last word.** The landing is quantized and verified on integers
+  against the stored-state invariant of objects; if it fails, the nearest verified point of a 50 mm
+  lattice is taken, and if none verifies, the object stays where it was.
+- **Launch velocities are integers** (millimetres per second, computed with + − × ÷ only), converted
+  into Rapier's metres by the adapter's one conversion.
