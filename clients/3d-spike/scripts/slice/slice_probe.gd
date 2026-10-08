@@ -764,9 +764,18 @@ func _character_check() -> void:
 			await _hold(1.2)
 			await _save(tag + "_walking")
 			Input.action_release("move_forward")
-			print("frames %s_standing / _walking  [%s]; body visible %s"
+			player.place(spot[1], spot[2], 0.0)
+			await _settle(6)
+			Input.action_press("move_forward")
+			Input.action_press("jog")
+			await _hold(1.0)
+			await _save(tag + "_jogging")
+			Input.action_release("jog")
+			Input.action_release("move_forward")
+			print("frames %s_standing / _walking / _jogging  [%s]; body visible %s"
 				% [tag, player.rig.mode_name(), player.slot.occupant.visible])
 	await _walk_strip()
+	await _crowd_contact()
 	print("\n%s" % ("all character checks pass" if fails == 0
 		else "%d CHARACTER CHECKS FAILED" % fails))
 
@@ -837,6 +846,45 @@ func _walk_strip() -> void:
 	Engine.time_scale = 1.0
 	fixed.queue_free()
 	print("frames char_walk_00..07, a fixed camera beside the pavement")
+
+
+## She jogs west along the pavement into the standing townsperson at
+## (-8.5, -5.95) (`SliceStreetscape._people`), seen from a fixed camera across
+## the pavement. Nothing makes bodies collide yet: the figures are drawn, not
+## simulated, so she passes through him. This frame records that known gap for
+## the physics step. It is evidence, not a check.
+func _crowd_contact() -> void:
+	var other := Vector3(-8.5, 0.14, -5.95)
+	player.place(Vector3(-5.6, 0.45, -5.95), 90.0, 0.0)
+	player.set_camera(REAR)
+	await _settle(8)
+	var fixed := Camera3D.new()
+	fixed.fov = 45.0
+	slice.add_child(fixed)
+	fixed.global_position = other + Vector3(0.3, 1.45, 3.4)
+	fixed.look_at(other + Vector3(0.3, 1.0, 0.0), Vector3.UP)
+	fixed.make_current()
+	# a new camera needs frames before its image is trusted: captured at once,
+	# this frame came out black
+	await _settle(12)
+	await _hold(0.6)
+	Input.action_press("move_forward")
+	Input.action_press("jog")
+	var nearest := INF
+	var t := 0.0
+	while t < 2.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		var d := Vector2(player.global_position.x - other.x, player.global_position.z - other.z).length()
+		nearest = minf(nearest, d)
+		if d < 0.12:
+			break
+	await _save("char_run_into_townsperson")
+	Input.action_release("jog")
+	Input.action_release("move_forward")
+	fixed.queue_free()
+	print("frames char_run_into_townsperson: closest approach %.2f m between body centres "
+		% nearest + "(bodies interpenetrate below ~0.5 m; nothing collides yet -- the physics step)")
 
 
 func _mode_tag(m: CameraRig.Mode) -> String:
