@@ -3214,10 +3214,16 @@ unchanged.
 **Scope.** `tools/cli/tests/market_composition.rs` (new, SD-35): `without(pack, section)` copies of
 Market Town under `CARGO_TARGET_TMPDIR`; the six cases run in parallel threads.
 
-- [ ] Implementation: SD-35.
-- [ ] Validation: `cargo test -p mineworld-cli --test market_composition` (P-7); M-P11 (§9.6 E-P6).
-- [ ] Review: each copy differs from Market Town by exactly the pack's line and its section (asserted on
-  the copy before it is run); a refusal is read from `validate`'s exit status and its message, by name.
+- [x] Implementation: SD-35 — `PACKS` (pack, section, number of carrying files), `strip_section`,
+  `copy_dir`, `files`, `without` (copy, strip, then assert the copy equals Market Town but for the
+  pack's line and its section), `refused`, `Ran` (requests and facts of a 30-day run), one test with
+  six cases in scoped threads.
+- [x] Validation: PASS, 4.5 s; M-P11 both controls fail by name (§9.6 E-P6); clippy, fmt clean.
+- [x] Review: `without` asserts per file that the copy is the original minus the pack's line or its
+  section, and the number of carriers (item 20, holdings 14, economy 14, job 2); a refusal is read
+  from `validate`'s non-zero exit and its stderr, by name; "requested" sums every outcome line of a
+  request type (first draft read only "accepted", corrected before commit). "No give offered" is
+  read as "no give requested by a controller that attempts what it is offered" (module doc).
 
 ### P-C7 — `tools/cli/tests`: Milestone C
 
@@ -4713,6 +4719,24 @@ E-P5 P-C5 (42c22ea): `cargo test -p mineworld-cli --test market_town` → PASS, 
        1-30): no purchase".
      Each reverted (`git restore`); `git grep MUTATION -- systems worlds tools tests` empty. market_town
      runs used: 5 of 6 (positive, M-P8 twice, M-P9, M-P10); the sixth is the final gate.
+E-P6 P-C6: `cargo test -p mineworld-cli --test market_composition` → PASS, 4.5–5.3 s. 30 days, seed 7:
+       without item           refused: "system 'inventory' depends on 'item', which is not installed"
+       without inventory      refused: "system 'item-transfer' depends on 'inventory', which is not
+                              installed"
+       without item-transfer  faults 0, every seat active; give requested 0, gives 0; purchases 382,
+                              wages paid 58, items-produced 197, eat+drink 397
+       without economy        buy requested 0; funded, shop-opened, money-transferred, wage-unpaid 0;
+                              wage-due 60 (nobody pays); items-produced 203; gives 1 120; meals 14
+       without employment     hired, shift-*, wage-due, items-produced 0; purchases 108; gives 1 256;
+                              meals 121
+       without consumption    eat+drink 0, items-consumed 0; purchases 42; wages paid 57; produced
+                              201; gives 253
+     M-P11 (test code, reverted): the item-transfer copy and the item copy given back Market Town's
+       world.yaml → FAIL "without item-transfer: a give requested occurred 1382 time(s)". The item
+       copy first kept item but not the `item:` sections: still refused, by inventory's stocked
+       reduction (PreconditionFailed), so the name check failed instead — "the refusal does not name
+       item". With items/ restored too: FAIL "without item: validate was expected to refuse the world,
+       and it accepted it". `git grep MUTATION -- tools` empty.
 ```
 
 ---
