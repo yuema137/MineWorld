@@ -69,12 +69,18 @@ licence.
      never overrides it, and every comparison in §6 is made against the reference, never against a
      derived view.
    - **`DEP-8`.** OpenAI's terms, as returned by search (the terms pages returned HTTP 403 to the
-     fetcher, so this is **not read first-hand**): *"As between you and OpenAI, and to the extent
-     permitted by applicable law, you (a) retain all ownership rights in Input and (b) own all
-     Output. We hereby assign to you all our right, title, and interest, if any, in and to Output."*
-     An assignment passes the relicensing test. Because the clause was not read first-hand, a
-     derived view is **never committed**; it may feed a generation, and the generation's
-     provenance records that it did.
+     fetcher, so this was **not read first-hand** when this experiment ran): *"As between you and
+     OpenAI, and to the extent permitted by applicable law, you (a) retain all ownership rights in
+     Input and (b) own all Output. We hereby assign to you all our right, title, and interest, if
+     any, in and to Output."* An assignment passes the relicensing test. Because the clause was
+     not read first-hand, a derived view is **never committed**; it may feed a generation, and the
+     generation's provenance records that it did.
+   - **Superseded 2026-10-08.** The clause has since been read first-hand, in both the Terms of
+     Use (ChatGPT) and the Services Agreement (API), with URLs, effective dates and the attached
+     obligations: `DEP-8`, "Generated images (OpenAI), recorded 2026-10-08", in
+     [`../DECISIONS.md`](../DECISIONS.md). OpenAI output passes the relicensing test. The
+     never-commit rule above was a consequence of the missing read, not a finding against the
+     terms; this experiment committed no derived view, and none needs to be added retroactively.
    - Credentials: `source ~/.config/mineworld/secrets.env`; presence checked with `test -n`; no key
      is printed, logged, or written anywhere tracked.
 

@@ -333,6 +333,58 @@ TripoSG (MIT code and weights) pass, provided their bundled background removers 
 defaults, and `briaai/RMBG-1.4`, non-commercial) are not run; BiRefNet (MIT) is the substitute.
 Details and quotes: [`references/CHARACTER_ROUTE_E_EXPERIMENT.md`](references/CHARACTER_ROUTE_E_EXPERIMENT.md) §§2, 9.4.
 
+**Generated images (OpenAI), recorded 2026-10-08 (pre-publication audit, read at source).**
+OpenAI image output passes the relicensing test under both agreements that can apply. Read
+first-hand on 2026-10-08 in a browser (an automated fetcher receives HTTP 403 from these pages,
+which is why the route E experiment could only quote a search result):
+
+- **ChatGPT** (consumer) — Terms of Use, effective 2026-01-01,
+  <https://openai.com/policies/terms-of-use/>: *"Ownership of content. As between you and OpenAI,
+  and to the extent permitted by applicable law, you (a) retain your ownership rights in Input
+  and (b) own the Output. We hereby assign to you all our right, title, and interest, if any, in
+  and to Output."*
+- **The API (`gpt-image-1`, the `tools/asset_generation` models) and ChatGPT Business /
+  Enterprise** — OpenAI Services Agreement, effective 2026-01-01 (page updated 2025-12-01),
+  <https://openai.com/policies/services-agreement/>, §4.1: *"As between Customer and OpenAI, to
+  the extent permitted by applicable law, Customer: (a) retains all ownership rights in Input;
+  and (b) owns all Output. OpenAI hereby assigns to Customer all OpenAI's right, title, and
+  interest, if any, in and to Output."* The Agreement *"only applies to use of OpenAI's APIs,
+  ChatGPT Enterprise, ChatGPT Business, ChatGPT for Clinicians, and other services for customers
+  who are businesses and developers"*.
+
+Both versions were in force from 2026-01-01 through the read date, so they are the terms that
+governed every OpenAI image in this repository (generated 2026-09-26 onwards). The ChatGPT
+account tier is not recorded in the images' metadata; the conclusion does not depend on it,
+because both agreements assign Output to the user. As the owner, MineWorld distributes these
+images under the repository's licence. Neither agreement restricts redistribution or publication
+of Output. What they do require, and how MineWorld meets it:
+
+- *"Represent that Output was human-generated when it was not"* is prohibited (Terms of Use,
+  "What you cannot do"). Every OpenAI-derived asset is recorded as AI-generated in its
+  provenance record (`ARC-9`), and the top-level `NOTICE` says so.
+- *"Use Output to develop models that compete with OpenAI"* (Terms of Use) and *"use Output to
+  develop artificial intelligence models that compete with OpenAI's products and services"*
+  (Services Agreement §3.3(e)) are prohibited. The restriction binds the account holder;
+  MineWorld trains no model on these images.
+- The Sharing & Publication Policy (updated 2022-11-14,
+  <https://openai.com/policies/sharing-publication-policy/>; binding under the Terms of Use's
+  "What you can do" and an "OpenAI Policy" under the Services Agreement) asks that shared content be attributed to the publisher and that one
+  *"Indicate that the content is AI-generated in a way no user could reasonably miss or
+  misunderstand."* The provenance records and `NOTICE` do both.
+- *"Output may not be unique and other users may receive similar output"* (Terms of Use;
+  Services Agreement §4.4). Ownership is of our Output only; MineWorld claims nothing in anyone
+  else's similar image.
+- No clause in either agreement, nor in the Usage Policies (effective 2025-10-29) or the Service
+  Terms (updated 2026-09-29), requires an identifier to be kept. The ChatGPT images carry a
+  signed C2PA manifest (`claim_generator` "OpenAI Media Service API", software agent "ChatGPT" /
+  "gpt-image", source type `trainedAlgorithmicMedia`); MineWorld keeps it in every committed
+  original anyway, matching the Meshy rule. Re-encoded derivatives (JPEG crops, the 768 px texture
+  sources) lose it, and their provenance is carried by the written record instead.
+
+The records this entry backs: `presentation/mineworld-default/{2D,3D}/references/PROVENANCE.md`
+(the ten ChatGPT reference images and their crops), `clients/3d-spike/ASSETS.md` (the two
+`gpt-image-1` texture sources) and the `.provenance.yaml` sidecars of the generated 2D candidates.
+
 Per-asset sources — Sketchfab's CC0 filter, OpenGameArt, BlenderKit's free tier — mix licences
 within one site, so they are usable only with a per-asset check recorded in that pack's
 `LICENSES/`.
