@@ -2203,6 +2203,15 @@ inside `market_town` and is not counted): exit 0, 154 result lines all `ok`, 685
 1 ignored (pre-existing), `market_town_lives_three_hundred_days…` ok, `client_rules` ok
 (`shots/16a/final/gates3.log`). **G-1 PASS.**
 
+**Main moved again before the PR opened** (#77, test-hygiene: a scratch helper and
+`check_scratch.py`; no client file). Merged as `6a2eafb`; the one conflict, `DECISIONS.md`, was
+resolved by keeping both records (DEP-20, then main's DEP-29). G-1 re-run on `6a2eafb`: fmt clean;
+clippy `-D warnings` exit 0; `cargo test --workspace` exit 0, 157 result lines all `ok`, 692 passed,
+0 failed, 1 ignored (bodies-yard's AO-2 evidence, by design); `check_decision_ids` "57 … all distinct";
+`check_doc_headings` "191 … none duplicated"; `check_scratch.py scan` "143 test sources, none makes
+scratch outside mineworld-test-support"; the path check is still empty (`shots/16a/final/gates4.log`).
+No client script changed in that merge, so the Godot runs above stand. **G-1 PASS on the PR head.**
+
 ## 19.8 Execution contract (proposed; confirmed at freeze)
 
 ```text
