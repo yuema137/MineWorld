@@ -2230,3 +2230,145 @@ written again here (about twenty lines) rather than moved, so the I-2 scan's fil
 - [ ] Review: RS-1 … RS-16 each with evidence; deviations listed in §16.11.
 
 **PR 12a lifecycle:** not started.
+
+## 16.6 Test ownership
+
+```text
+STATIC      cargo fmt; cargo clippy -D warnings; the compiler at the installed set (a listed resolver
+            type that does not implement ArrivalResolver does not compile); Resolution's private fields
+            (a resolver cannot fabricate one); Arriving's crate-private constructor
+UNIT        presence: the registration rules (RS-8, one process); installed: resolvers ⊆ installed packs,
+            with a stub negative control (SD-R8); worldpack: compose registers (RS-10, one process)
+INTEGRATION through the real World::dispatch with synthetic resolvers: SC-2 … SC-5, inertness, SC-8, the
+            QB-17 limitation (RS-3 … RS-7, RS-12, RS-14); a host that never registers (RS-9); every
+            existing test, presence's and movement's structural scans included (RS-1)
+STRUCTURAL  the seam's names (RS-13); scope (RS-16); the AC-1 test and the I-2 scan, unchanged (RS-15)
+REAL RUN    (Gate 2's role) the two 300-day seed-7 runs against E-RS0 (RS-1); the cross-build save
+            refusal (RS-2); SIGKILL and resume in real processes with a resolver installed (RS-11)
+GATE 1      NOT REQUIRED: no model is involved, and no LM-facing semantics change
+CI          none configured (S13); the full local gate runs once on the final executable head
+```
+
+Owned elsewhere and not repeated: a version difference refused by name (`persistence/tests/save.rs`,
+`PersistedSystemOutdated` / `TooNew`); a foreign vocabulary needing a declared dependency
+(`ARC-26`'s kernel tests). Each failure class above has one owner.
+
+## 16.7 Is any of this material?
+
+Yes, in two places, and both are raised rather than assumed:
+
+- **QR-2.** The version bump the operator's "old saves refused by name" requires breaks three existing
+  test literals. Either three literals change (recommended) or the version stays and old saves are refused
+  less precisely. It conflicts with the stated binding "every existing test passes unchanged".
+- **QR-4.** How "a host that never registers it must fail loudly" is delivered: never registered is read as
+  "no resolver", and the loud failure is attached to installing a resolver pack without registering.
+  The literal alternative breaks about twenty existing test files.
+
+Not material, and recorded: the renames of QR-1 (forced by two merged structural tests; semantics
+unchanged); QR-3's narrower declaration; QR-5 … QR-12, each bounded by §4.4 and the step's freeze.
+
+No kernel, contract, persistence, server or cognition change is needed. F-R7 confirms the one
+kernel-adjacent fact 12b depends on (a system may subscribe to a fact type it states) from source, so no
+kernel question arises. F2 (QB-15) is not needed. No frozen invariant of an earlier step changes; I-7 is
+met as SD-R13 states it.
+
+## 16.8 Questions (QR-1 …)
+
+Operator-material questions are marked **[OM]**. Each has a recommendation; the others are the primary
+session's to decide at freeze.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QR-1** | Presence's sources cannot contain `stride` (F-R1). Rename §4.4's `Stride` to `Arriving` and `stride-blocked` / `StrideBlocked` to `stopped-short` / `StoppedShort`, or edit the two structural tests that forbid the word? | **Rename.** The tests hold `ARC-26` (presence never names who moves a person), and "stride" is movement's word (`MAX_STRIDE`). The meaning is unchanged. §§4.4, 4.7, 10.3 and the 12b–12e rows read the new names from here on; the planning session updates their wording at freeze. |
+| **QR-2 [OM]** | Presence's `VERSION` 2 → 3 fails three existing test literals, `presence v2` in `tools/cli/tests/inspect.rs:36` and `social_composition.rs:380, 420` (F-R2). (a) Bump, and change the three literals; (b) do not bump: a save from before 12a is then refused at movement's position as `CompositionDiffers` (movement's declaration changed), not by presence's version, and a save of a world without movement resumes — correctly, since nothing changed for it. | **(a).** It is what "old saves are refused by name, because presence's VERSION changes" asks, and the literals' claim — `inspect` reports the save's composition — is unchanged. Listed as the only existing-test edits (RS-1), in the commit that bumps the version (RS-C2). |
+| **QR-3** | §4.4.7 has presence's declaration emit `stride-blocked`. Presence never states one (F-R12), and a declaration must be true. | **Presence's declaration does not change.** Only stating systems declare `stopped-short` (movement now; bodies' `shove` in 12c). Presence's record in a save then differs only in its version (SD-R13). |
+| **QR-4 [OM]** | QB-15 bound 2, "a host that never registers it must fail loudly". Literally failing in presence's constructors when nothing registered would fail about twenty existing test files that compose worlds by hand (F-R9). | **SD-R5 and SD-R6:** never registered means no resolver; every host registers by composing; a resolver's pack refuses, loudly, to be installed while its resolver is not registered (a panic at assembly naming the pack, `register_resolvers` and ARC-39), shown by RS-9 with its mutation; bodies' guard (12b) catches anything else. A host that installs no resolver pack and never registers runs exactly as before, because there is nothing to resolve. |
+| **QR-5** | A second, different registration and the install guard: panic, or an error value? | **Panic.** One build has one catalog: a second, different one, or a resolver pack in a world whose host never registered, is a defect of the host found at assembly. An error value would need a new `KernelError` variant (a kernel change) or a new `PackError` variant threaded through every `compose` caller for a condition no caller can recover from. |
+| **QR-6** | `installed!`'s `resolution:` line lists **types** (`[T,]`, each followed by a comma), not §4.4.4's variants, and is optional (F-R10). | **Accept.** The compiler checks a listed type implements the trait; a guard test checks it is an installed pack (SD-R8). Variants would need a generated helper macro. Optional, so the `twins` test compiles unchanged. In 12b, installing bodies is then three lines in `systems/installed`, not two: MODULE_SPEC §3.1 says so. |
+| **QR-7** | At genesis a resolver sees nobody (F-R4), so `arrival()` cannot refuse two authored people who overlap, as §4.4.2 says it does. | **Amend §4.4.2's sentence; 12b's validator owns it** (§10.4 already lists "two authored people … overlapping at genesis"). Not a defect of the seam: genesis facts are built before any is applied, by design (`ARC-15`, `load.rs`). |
+| **QR-8** | Presence's checks go beyond §4.4.6: facing and position-ness kept, `stopped_by` validated, a check after each resolver naming it, one refusal code `resolution-refused` (SD-R10). | **Accept** — each narrows what a resolver may do and none widens it; per-step checks localize a defect (`ARC-23`). |
+| **QR-9** | Prove the refusal of a save from before 12a by real cross-build evidence (RS-2) rather than a committed test? | **Yes.** The generic refusal is owned by `persistence/tests/save.rs`; what 12a adds is a one-time fact — this version changed — best shown on a real old save, written by the real base binary. A committed test would forge the old save by editing a row. |
+| **QR-10** | §10.1 I-1 names "presence, the sdk's `installed!`, `systems/installed`, `worldpack`'s compose, and movement's two lines" as 12a's only edits. Are `tests/acceptance` (new files, two dev-dependencies, one `[[test]]`), `docs/`, the new test files in presence, installed and worldpack, and QR-2's literals within it? | **Yes**: I-1 bounds what code may change behaviour; tests and documents are how the change is shown, with 11c's and 11f's precedent. §16.1 lists every path, and RS-16 checks the diff against it. |
+| **QR-11** | §15.3's ARC-39 draft states bodies' nudge bounds. In 12a, before bodies exists? | **No.** ARC-39 in 12a states the seam and names the S15 step it serves; the bounds land with bodies in 12b, as DEP-13 and a note on ARC-39. The seam then names no physics in code, and its record names none it does not need (RS-13's spirit). |
+| **QR-12** | SD-R10 (c) bounds a resolver's result only when the walker was already in the destination place. An arrival from another place, or a placement from nowhere, is bounded only by "same place". Add a bound? | **Not in 12a.** No seam-level number exists without geometry; bodies' bounds (§5, 12b) apply to its own resolutions, and ARC-39 states the limitation. |
+
+## 16.9 Proposed execution contract for PR 12a (confirmed at freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 11 / PR 12a — the arrival-resolver seam (S15, first of five; a framework
+                    precursor that names no physics)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §16; evidence in §16.10 (E-RS<n>);
+                    deviations in §16.11
+RELATED / BINDING   this file: the header's freeze record (QB-1, QB-10, QB-15 and its three bounds),
+                    §§4.3–4.4, 4.6–4.7, 8.2, 10.1 (I-1, I-2, I-6, I-7, I-13), 11.1, 15.3; overall.md §3
+                    (S15), §7; DECISIONS ARC-15, ARC-23, ARC-25, ARC-26, ARC-33, ARC-35 and its notes,
+                    DEP-12; MODULE_SPEC §3.1; ENGINEERING_RULES §15; CLAUDE.md §§2–4
+IMPLEMENTATION BASE the main named at freeze (main @ b8afd4f + this planning branch once merged); branch
+                    mvp0/pr-12a-resolver-seam; worktree /Users/yuema137/mineworld-worktrees/s15-12a
+                    (proposed), held by the implementing session only
+APPROVED SCOPE      §16.1's change set; RS-C1 … RS-C8; SD-R1 … SD-R14 as answered by QR-1 … QR-12
+FROZEN INVARIANTS   I-1 as QR-10 reads it: no edit under kernel/, contracts/, persistence/, server/,
+                    cognition/, clients/, worlds/, authoring/, tools/cli/src/, nor the root Cargo.toml;
+                    no System Pack but presence and movement; movement: exactly SD-R9.
+                    I-7 / RS-1: social-cafe sha ad49c723…c64b and market-town sha 365b50e0…1d1d over the
+                    300-day seed-7 runs (365 330 and 372 755 facts), faults 0; no digest re-baselined.
+                    Existing tests unchanged except QR-2's three literals. Presence's declaration
+                    unchanged (QR-3); VERSION 3 (QR-2).
+                    QB-15: the catalog written once, from the build's installed set by compose; never
+                    registered = no resolver; a resolver pack refuses to install unregistered; a
+                    different second registration panics; runtime disable not honoured, said in ARC-39.
+                    The seam names no physics (RS-13); the synthetic packs live in test files only.
+                    No market word or crate added (F-R13).
+SEQUENCE            RS-C1 → RS-C2 → RS-C3 → RS-C4 → RS-C5 → RS-C6 → RS-C7 → RS-C8, each committed and
+                    pushed when coherent; RS-C3 and RS-C4 may swap; the base binary for RS-2 is built
+                    before RS-C2
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: each 300-day run (~13–15 s) at most
+                    four times (RS-C4, RS-C8, M-RS1, one re-run); the RS-2 cross-build runs (two 2-day
+                    runs, one refused resume, one refused server start, one positive resume); the
+                    SIGKILL harness (expected under two minutes) at most four times; one full workspace
+                    gate on the final head (background, ~5 min); about one hour in total;
+                    real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §16 checkboxes; §16.10 E-RS ledger; §16.11 deviations
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 12a at RS-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the primary session's freeze message
+  semantic commits, branch push       recommended authorized, as for 11a–11f
+  PR creation / update                recommended authorized, as for 11a–11f
+  scratch base build (RS-2)           recommended authorized: a build of the base in the implementing
+                                      worktree before RS-C2, the binary copied to /tmp; no branch
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     the planning session owns the step header, §§1–15, overall and MVP_STATUS's Updated
+                    and S15 lines; the implementing session owns §16 and the evidence rows of RS-C8
+NORMAL STOP         PR 12a READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a needed edit outside §16.1's change set — above all in kernel/ or contracts/ (F2, or a
+                    kernel error variant); either 300-day digest differing from E-RS0; an existing test
+                    failing for a reason other than QR-2's literals; presence's or movement's structural
+                    scan needing an edit; a physics or market word the seam cannot do without; an answer
+                    to QR-2 or QR-4 other than the design's
+```
+
+## 16.10 Evidence ledger
+
+```text
+E-RS0 RS-C0, 2026-10-07, planning session, on main @ fea2516's code (b8afd4f changes Markdown only).
+      Debug profile, opt-level 1 (ARC-30); `cargo build -p mineworld-cli` 23.1 s. Logs under
+      /tmp/s15-12a-plan/.
+      `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, 339 lines, faults 0,
+        history 365 330 facts (arrived 180 677, person-entered-place 20 720), sha-256 of every line but
+        `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = step-10 E-0; wall 12.3 s.
+      `mineworld run worlds/market-town --headless --seed 7 --days 300` → exit 0, 355 lines, faults 0,
+        history 372 755 facts (arrived 173 125, person-entered-place 20 812), sha-256 of every line but
+        `wall` = 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d = step-10 E-P0; wall 14.7 s.
+      ARC-39 and DEP-13 are free on every origin/* branch (git fetch; git grep over each ref's
+        docs/DECISIONS.md for ARC-39+ and DEP-13+: no match).
+      No .github/workflows: no CI.
+      `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
+        duplicated. `python3 scripts/check_decision_ids.py` → 49 decision ids, all distinct.
+      No cargo test run: this commit is documentation only. The two runs fix RS-1's references, not a
+        gate.
+```
+
+## 16.11 Deviations and discoveries during implementation (12a session)
+
+None yet.
