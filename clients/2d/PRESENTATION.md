@@ -57,7 +57,9 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
   (`none` for art that carries its own line). `door`, optional and only meaningful on a façade, is the
   pixel at the foot of the drawn door: a façade is placed so that this pixel, not the anchor, lands on
   the disclosed doorway. A sprite without one is placed by its anchor. A file with only `file` is a
-  texture (`texture:*` roles).
+  texture (`texture:*` roles). `height_m`, optional, is the real height the image was normalized to;
+  the scripted checks use it to confirm a sprite is drawn at its intended size (step-13 AC-W12), and
+  nothing else reads it.
 - **Directional sprites** are four ids sharing a base: `<base>_front`, `<base>_front_b`, `<base>_back`,
   `<base>_back_b` (two stride poses per view). A role bound to a base resolves to whichever exist; a
   sprite with no `_back` is shown from the front only, and with no `_b` pose the gait is a bob only.

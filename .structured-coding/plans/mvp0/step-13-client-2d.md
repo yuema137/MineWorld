@@ -954,19 +954,40 @@ status; reconnect in C6), `scripts/presentation.gd` (loader, roles, fallback), `
 (iso 2:1 at 32 px/m over `MineWorldSpace.to_2d`; plan for no pack; inverse for picking),
 `scripts/scene/{people,places,plain}.gd` (current place only), `scripts/hud/status.gd`,
 `scripts/harness/drive.gd`; the `mineworld-2d` launcher.
-- [ ] Implementation: as scoped; files kept under ~400 lines each.
-- [ ] Validation: drive `seated` against market-town: welcomed, observer drawn at its server position
-  (AC-W2's bound), every role resolves (AC-W12 bullet 2) for four variants; `--presentation=none` runs.
-- [ ] Review: no asset path in `scripts/` (grep); ids handled as strings; nothing submitted yet.
+- [x] Implementation: as scoped (landed with C4 and C5's client code in one commit, D-6). Every file
+  under 330 lines (largest `scene/places.gd` 324, `harness/drive.gd` 307). The plain shapes live in
+  `scene/plain_shape.gd`; sprite mechanics (anchor, door, scale, ink) in `scene/sprites.gd`; the grade
+  pass in `scene/grade.gd`; stills in `harness/capture.gd`. The launcher starts the server with
+  `--listen 127.0.0.1:0` and reads the bound address from its first line, and kills only the PID it
+  started (the coordinator's 16b finding 1: no fixed port, no `pkill` by name).
+- [x] Validation (E-3, on the working tree at `38dfe93` + this commit's files): `./mineworld-2d
+  --drive=seated` → PASS (carol and Otto drawn at 0.0000 m, labelled "Carol Mensah"/"Otto Brandt",
+  heights 58.0 / 57.0 px against 58.2 / 57.0 intended, 48 roles resolve, no load error); the same with
+  `--variant=full|people|procedural` → PASS (44, 44, 40 roles); `--presentation=none` walks → PASS.
+- [x] Review: `grep -rn "art/\|\.png\|\.svg" clients/2d/scripts` → none (the core names no asset). Ids are
+  kept as strings throughout (`town`, `people`, `walker`); every number sent comes from
+  `town.local_in` (int) or `MineWorldSpace` (int) — the 16b D-2 float trap cannot arise for `move`.
 
 #### C4 — One town: frames glued at passages, façades, interiors, people
 **Scope.** `scripts/town.gd` (ARC-45; layout cache per instance), `scripts/scene/places.gd` (ground by
 tag, façades at doorways, generic unknown façade, cut-away and dimming), `scripts/scene/people.gd`
 (sprites by tag and id hash, labels, smoothing, distance-driven gait, painter's order).
-- [ ] Implementation: as scoped.
-- [ ] Validation: AC-W2 and AC-W12 (façade anchors, scale, cut-away, order) in drive `look`; projection
-  round trip of AC-W10.
-- [ ] Review: no place is drawn by key or by an absolute coordinate; nobody unperceived is drawn.
+- [x] Implementation: as scoped, plus `scene/ground.gd` (paving, lawns, cut-away rooms — the spike's
+  `Ground.gd`/`Interior.gd` generalized to any rectangle and orientation). A doorway's "in" direction
+  is the dominant axis from the hub extent's centre to the doorway; a far-side place is a façade that
+  lifts, a near-side place a cut-away room (so nothing tall hides the street), an `outdoor` tag a lawn.
+  The drive scenario is `walk` (the design's `look` merged into it). `SHOWN` lines report what is drawn
+  as data (the coordinator's "one world, two views" rule, for 13f).
+- [x] Validation (E-4): `./mineworld-2d --drive=walk` → PASS: façades on their doorways 0.00 px (2
+  checked from the street: the apartments' and the unknown neighbour's); façade gone 0.28 s after the
+  place changed (bound 1.0 s); in the café all five people drawn at 0.0000 m, labelled by name, heights
+  within 0.2 px of intended; only perceived people drawn. Click path (`--drive=click`, both
+  projections): miss 0.0000 m.
+- [x] Review: no place is drawn by key or by an absolute coordinate (`places.gd` positions everything
+  from `town.to_plan` of a disclosed doorway or the hub extent); nobody unperceived is drawn (the drive
+  checks drawn ⊆ listed). Under the 2026-10-08 "one world, two views" rule: every façade, room and
+  lawn stands at a disclosed doorway of a real place; dressing props carry no simulation meaning;
+  nothing invents a place or a door.
 
 #### C5 — Walking: intents, walker, the scan, the stub
 **Scope.** `scripts/intents.gd` (the `move` composer; the only `submit`), `scripts/walker.gd` (click
@@ -1081,4 +1102,19 @@ NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
 - **D-4 (bounded) — façade door pixels.** A building sprite's anchor is its lowest base corner, not its
   door; aligning anchors would put doors up to 22 screen px off their doorways. The four shared-set
   buildings carry a measured `door` pixel and are placed by it; sprites without one are placed by the
-  anchor (as the spike did). `PRESENTATION.md` §3 gains the optional field.
+  anchor (as the spike did). `PRESENTATION.md` §3 gains the optional field, and `height_m` (read only by
+  the drive's size check).
+- **D-5 (bounded) — the child sprite is not in the cast.** `gen_i` is 1.28 m tall. Assigned by id hash
+  it drew Alice, an adult barista, as a child (seen in the first interior still): an age the world
+  never stated. The cast is the other nine; `gen_i`'s images and sidecars are not carried.
+- **D-6 (bounded) — C3, C4 and C5's client code land as one commit.** The composition root wires every
+  part, so no subset runs; the evidence is recorded per acceptance item, and the scan, the Rust tests
+  and reconnect remain separate commits.
+- **D-7 (bounded) — 16b merged mid-PR (`e1ec5ff`, merged into this branch as `38dfe93`).** As §14.1
+  anticipated, the status line now reads `MineWorldClient.revision`; `link.gd` keeps the welcome's
+  revision for the AC-3 evidence. `ADOPTION.md` merged cleanly (16b's §2, this PR's §6.1).
+- **F-1 (found by the click check, fixed) — a room with one door was taken for the hub.** `town.hub()`
+  returned the only place with passages, the apartments, so its single passage was drawn as a "doorway
+  out of the hub" with a footprint north of the door, and a click inside the apartments was routed out
+  into the street (miss 1.63 m in both projections). A hub now needs at least two doorways; before one
+  is known the observer's room is drawn from inside. Click miss after the fix: 0.0000 m.

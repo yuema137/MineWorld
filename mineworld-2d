@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+# Launch the MineWorld 2D reference client (clients/2d, step-13 S12).
+#
+#   ./mineworld-2d                              host worlds/market-town locally and play it as carol
+#   ./mineworld-2d --seat visitor               the same world, as somebody else
+#   ./mineworld-2d --world worlds/social-cafe   another world
+#   ./mineworld-2d --fresh                      start that world over (deletes its local save)
+#   ./mineworld-2d --server 127.0.0.1:7878      join a world someone else is hosting (starts no server)
+#   ./mineworld-2d --variant=full               another ARC-14 binding set: town (default), full,
+#                                               people, procedural
+#   ./mineworld-2d --presentation=<dir>|none    another Presentation Pack, or plain drawing
+#   ./mineworld-2d --drive[=scenario]           the scripted checks, headless, on a fresh world;
+#                                               exits non-zero on failure
+#   ./mineworld-2d --drive=walk --capture       the same, windowed, writing stills
+#
+# A hosted world is saved under clients/2d/.save/<world> and resumes on the next launch: the same
+# world, the same people where they were. Its server is started on a free port, with Alice driven by
+# the rule controller (--agent alice; --agent=none for nobody), and stopped when the client exits —
+# only that process, never anything found by name.
+#
+# Needs Godot 4.7 on PATH (brew install godot) or GODOT=/path/to/godot, and cargo for the server.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+proj="$here/clients/2d"
+godot_bin="${GODOT:-godot}"
+export PATH="$HOME/.cargo/bin:$PATH"
+
+if ! command -v "$godot_bin" >/dev/null 2>&1; then
+  echo "error: '$godot_bin' not found on PATH. Install Godot 4.7 (brew install godot)," >&2
+  echo "       or set GODOT=/path/to/godot." >&2
+  exit 1
+fi
+
+world="worlds/market-town"
+seat="carol"
+server=""
+fresh=0
+agent="alice"
+drive=0
+capture=0
+res="1600x900"
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --world)         world="$2"; shift ;;
+    --world=*)       world="${1#--world=}" ;;
+    --seat)          seat="$2"; shift ;;
+    --seat=*)        seat="${1#--seat=}" ;;
+    --server)        server="$2"; shift ;;
+    --server=*)      server="${1#--server=}" ;;
+    --agent=*)       agent="${1#--agent=}" ;;
+    --fresh)         fresh=1 ;;
+    --res=*)         res="${1#--res=}" ;;
+    --drive|--drive=*) drive=1; args+=("$1") ;;
+    --capture)       capture=1; args+=("$1") ;;
+    *)               args+=("$1") ;;
+  esac
+  shift
+done
+
+# Godot resolves global class names outside the editor only from its resource cache. Build it on the
+# first run and whenever a script is newer than it (docs/ACCEPTANCE.md §4.1: a clean checkout works).
+cache="$proj/.godot/global_script_class_cache.cfg"
+if [ ! -f "$cache" ] || [ -n "$(find -L "$proj/scripts" "$proj/mineworld" -name '*.gd' -newer "$cache" -print -quit)" ]; then
+  echo "building the Godot resource cache..."
+  "$godot_bin" --headless --path "$proj" --import >/dev/null 2>&1 || true
+fi
+
+server_pid=""
+scratch=""
+cleanup() {
+  [ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null || true
+  [ -n "$server_pid" ] && wait "$server_pid" 2>/dev/null || true
+  [ -n "$scratch" ] && rm -rf "$scratch"
+}
+trap cleanup EXIT
+
+if [ -z "$server" ]; then
+  (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
+  name="$(basename "$world")"
+  if [ "$drive" = "1" ]; then
+    # Scripted checks always start from the world as authored, so a run can be compared with the next.
+    scratch="$(mktemp -d "${TMPDIR:-/tmp}/mineworld-2d.XXXXXX")"
+    save="$scratch/save"
+  else
+    save="$proj/.save/$name"
+    [ "$fresh" = "1" ] && rm -rf "$save"
+  fi
+  mkdir -p "$(dirname "$save")"
+  log="${scratch:-$proj/.save}/server-$name.log"
+  agents=()
+  [ "$agent" != "none" ] && agents=(--agent "$agent")
+  "$here/target/debug/mineworld" server "$here/$world" --listen 127.0.0.1:0 --save "$save" \
+    ${agents[@]+"${agents[@]}"} > "$log" 2>&1 &
+  server_pid=$!
+  # Port 0: the system picks a free port and the server prints the one it bound.
+  for _ in $(seq 1 300); do
+    server="$(sed -n 's|^\[mineworld\] listening on http://\([0-9.:]*\) .*|\1|p' "$log" | head -n 1)"
+    [ -n "$server" ] && break
+    if ! kill -0 "$server_pid" 2>/dev/null; then
+      echo "error: the server stopped; its log:" >&2
+      cat "$log" >&2
+      exit 1
+    fi
+    sleep 0.2
+  done
+  if [ -z "$server" ]; then
+    echo "error: the server did not start listening; log: $log" >&2
+    exit 1
+  fi
+  echo "world: $world on $server (save: $save, log: $log)"
+fi
+
+mode=()
+if [ "$drive" = "1" ] && [ "$capture" = "0" ]; then
+  mode=(--headless)
+else
+  mode=(--resolution "$res")
+fi
+set +e
+"$godot_bin" "${mode[@]}" --path "$proj" -- --server="$server" --seat="$seat" ${args[@]+"${args[@]}"}
+code=$?
+set -e
+exit "$code"
