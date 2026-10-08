@@ -1,5 +1,10 @@
 # Step 18 — The physics list: interaction rules between kinds of body as content and pluggable code
 
+> **Superseded (2026-10-08) by [`step-18-interaction-list.md`](step-18-interaction-list.md)**, after the
+> operator broadened the requirement to interactions between any entities. That file is the one
+> authority for the merged step. Its header names the parts of this file it incorporates by reference as
+> the design of the `bodies` section; the rest of this file is kept as the record of the frozen S17 design.
+
 **Role:** step document for a new requirement of the operator (2026-10-08). It records the
 requirement, an audit of the real source, a reuse comparison, the design of MineWorld's physics list,
 a framework pluggability audit with its gaps, a PR split with checkpoints and adversarial criteria,

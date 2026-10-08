@@ -626,3 +626,146 @@ What changes from `step-18-physics-list.md`:
   cannot ask "what is forbidden"; it can only see what it is offered. I-8 and I-S14-1 hold, and S14's
   rule-constant scan needs no new entry, because the list is not a constant in a client.
 - 2D and 3D use one semantic path, as before (`AC-13`).
+
+---
+
+# 5. Invariants (proposed; frozen only by the primary session or the operator)
+
+- **IL-I1 Unconfigured is byte-identical, pack by pack.** A world with no `interactions:` produces facts
+  and journal inputs byte-identical to `main` before each conversion PR. The references are:
+  - both towns' 300-day seed-7 digests (after 12d);
+  - bodies-yard's 30-day sha;
+  - 12b's `long_run` bytes.
+
+  A converted pack's declaration grows (its configuration fact and component), so its `SystemVersion`
+  rises and older saves are refused by name (ARC-25). No fact digest is re-baselined.
+- **IL-I2 Explicit default is behaviourally identical.** Naming every pack's `default` explicitly adds
+  only the genesis configuration facts. Every later fact is identical, with event ids offset by exactly
+  their number (S17's PL-I2, generalized).
+- **IL-I3 A list cannot grant.** An unknown action or fact, a parameter outside its bound, a widened
+  audience, biography on a non-configurable fact, and a section for a pack the world does not enable are
+  each refused at load, by name. A `permit` never bypasses a pack's own refusal.
+- **IL-I4 Kernel ignorance.** `kernel/`, `contracts/`, `persistence/` have no diff in any IL PR.
+- **IL-I5 Single ownership.** A section's state is its pack's component, written only by its pack's
+  reduction. Classes are not state. Consequences are chosen by a fact's owner, never by its stater.
+- **IL-I6 Memory only through audience.** S11-C's audience function and S10's ingestion are unchanged.
+  No list writes a mind. The fact log records every fact in every world.
+- **IL-I7 Deterministic and total.** Integers, sorted data, pure lookups. Equal-specificity ambiguity is
+  refused at load, so no tie is broken at run time except `forbid` over `permit`.
+- **IL-I8 Drift is refused** at resume for the list and the classes, by name.
+- **IL-I9 No list in a client.** Clients see affordances, requirements, tags and perceived facts only.
+- **IL-I10 The precursors name no domain.** IL-a's and IL-b's diffs name no pack's vocabulary (talk,
+  give, buy, physics …), proven by synthetic test packs and a vocabulary scan.
+- **IL-I11 Bodies' engine invariants hold for every list** (S17's PL-I6).
+
+---
+
+# 6. PR split (replaces PL-a … PL-d and S18)
+
+## 6.1 Order
+
+```text
+IL-a seam (∥ 12d, after S16 E-a) ─► IL-b SDK schema ─┬─► IL-c bodies refactor (after 12d) ─► IL-d bodies authored ─► IL-i ice/fragile
+                                                     ├─► IL-e social: conversation, relationships, group-activity ─┐
+                                                     ├─► IL-f ownership: inventory, item-transfer, economy, consumption ─┼─► IL-h the demonstration world
+                                                     └─► IL-g movement, employment, schedule ──────────────────────┘
+```
+
+IL-e, IL-f and IL-g touch disjoint packs and run in parallel worktrees. Each PR is frozen alone, in a
+fresh session, and writes its specification first (`CLAUDE.md` §2.2, §3). Criteria are fixed now,
+before measuring (`ARC-23`). Each guarded criterion names the mutation that must break it.
+
+## 6.2 The PRs
+
+| PR | Scope | Integration checkpoint | Adversarial criteria |
+| --- | --- | --- | --- |
+| **IL-a** Configuration seam and extension catalogs (= PL-a; carrier `interactions:`) | ARC-61, ARC-62 into `DECISIONS.md`; `authoring::PackConfiguration`; `sdk` `extension` lines and `register_extensions`; presence's `resolution:` line migrated (QPL-10); `worldpack`: `interactions:`, `interactions/<id>.yaml`, seeding order, the drift check; one drift-check call per resuming host; test-only `tuning` and `relays` packs | The three worlds' 300-day facts byte-identical; a scratch world configuring `tuning` runs 30 days and states what it says; SIGKILL and resume byte-identical; resume after editing the file refused by name | As PL-a: (1) refusals by name with line and column; (2) mutation removing the drift check → the edited resume is accepted and the test fails; (3) mutation seeding after sections → `tuning`'s section check fails; (4) vocabulary scan (IL-I10); (5) no kernel/contracts/persistence diff |
+| **IL-b** The SDK interaction schema (ARC-63, ARC-64, ARC-65, DEP-28) | `mineworld_sdk::interactions`: `InteractionSection`, `parameters!`, `interactions!()`, `classes.yaml` (sdk-decoded), selectors from tags, levels, specificity, forbid-overrides, load-time ambiguity refusal, `permits`/`parameters`/`consequence`, per-Place storage; `mineworld interactions`; the biography projection reading configured sections (ARC-29 amended); `tuning` gains a section (one action, one parameter, one fact) | On a scratch world: a forbidden `tuning` action is `PermissionDenied` and its offer unavailable for that reason; a scoped parameter applies only to its class; a narrowed fact is not perceived by a bystander (through the unchanged S11-C function and `mineworld perceived`); `biography: off` removes it from `mineworld biography` while the fact log still holds it; drift refused | (1) Property test: every lookup on every generated list is total and order-independent of authoring order. (2) Equal-specificity conflicting parameters refused at load, naming both. (3) A widening audience, biography on a non-configurable fact, an unknown action — each refused. (4) Mutation: make `permit` win ties → the forbid-overrides test fails. (5) Mutation: let the biography projection ignore sections → the biography test fails. (6) IL-I10 scan |
+| **IL-c** Bodies reads its section; `default` reproduces 12c (= PL-b) | DEP-28's bodies half; bodies' `Parameters`/`Knobs`, `default` compiled in, every §4.4 constant read through the SDK; no authoring yet | IL-I1 on 12b's long run, bodies-yard, both towns after 12d; arm64 = x86_64 (Rosetta); cost ≤ +5 % per swept move and per kick | As PL-b: nudge 300 → 299 in `default` changes `long_run` (the list is read); no §4.4 value survives as a literal; float bit patterns pinned; `(VERSION, default)` pinned |
+| **IL-d** Bodies authored: classes, pairs, regions (= PL-c, revised) | bodies' section authored; entity classes from tags in the pair table; `regions:`; materials; `extends` | Test-time copies of bodies-yard: explicit default (IL-I2); `warehouse` (a `heavy`-tagged box blocks, a `light` box flies to a hand-computed landing ± 1 mm, `kick` forbidden for `fixed` is `PermissionDenied`); a region with nudge 150 holds I-11 at 160 mm there; resume after editing refused | As PL-c: totality; refusals; mutation ignoring regions; mutation ignoring classes; PL-I6's 30-day scan under every list in the set |
+| **IL-e** Social: conversation, relationships, group-activity | Sections for the three packs: `talk`, `invite`, `join`, `acquaint` rules; their parameters (§2.2); consequences for `spoke`, `conversation-started`, relationships' and group-activity's facts; conversation's `remember` knob; biography configurable where §2.2 says | IL-I1 on both towns (300 days, seed 7); IL-I2; on a test-time copy of social-cafe with two classes forbidden to talk: no `spoke` between them in 30 days, every attempt `PermissionDenied`, and AO-style activity of everyone else holds (fixed before measuring: every seat still talks in every 10-day bucket); a `spoke` with `biography: off` absent from biographies, present in the log | (1) Mutation: `permits` skipped in `talk`'s offers only → the paced controller attempts forbidden talks and the "every attempt refused" count rises: the test reads offers, not just validate. (2) `spoke` narrowed below `Participants` refused at load. (3) relationships never form between a pair whose `acquaint` is forbidden, over 30 days |
+| **IL-f** Ownership: inventory, item-transfer, economy, consumption | `hold`, `give`, `buy`, `eat`, `drink` rules with the `object` role; `PERSON_CAPACITY` per holder class; `GIVE_RANGE`; consumption's categories as parameters; inventory's facts' consequences (narrowing only) | IL-I1 on market-town (300 days); on a copy with `heirloom`-tagged kinds: no `items-transferred` of an heirloom by give or buy in 30 days, each attempt `PermissionDenied`; the food loop still closes (every seat eats in every bucket) | (1) A give stated through inventory's constructor cannot choose inventory's audience: a structural test. (2) Mutation: drop the `object` role from `give`'s lookup → heirlooms move and the test fails. (3) capacity per class bounded 1 … 64; 0 refused |
+| **IL-g** Movement, employment, schedule | `move` into a place class (`staff-only`) checked where movement decides a crossing; `MAX_STRIDE`; biography configurable for `hired` and `agenda-changed` | IL-I1 on both towns; on a copy with a `staff-only` back room: only `staff`-class people ever arrive there in 30 days; every other attempt `PermissionDenied` at the doorway | Mutation: check the rule after the stride instead of at the crossing → a non-staff arrival is recorded and the test fails by name |
+| **IL-h** The demonstration: the operator's examples by configuration alone | `worlds/manor`: nobles, servants, villagers, a shop, heirlooms; `interactions/` exactly as §4.8; README with the operator's checklist; a test comparing `worlds/manor` with its unconfigured twin (built at test time by deleting `interactions/` and the key) | 30 days, seed 7: no talk noble ↔ villager (each attempt `PermissionDenied`); servants' `spoke` absent from every biography and present in the log; no heirloom changes holder; the twin shows all three happening; SIGKILL and resume byte-identical | (1) **No code edit:** the PR's diff is `worlds/manor/**`, its test and Markdown only — mechanically checked like ARC-35. (2) Each of the three examples is shown to need its own list entry: removing one entry makes exactly that example happen in the twin comparison. (3) The operator plays it (milestone hand-off) |
+| **IL-i** Ice and fragile (= PL-d) | bodies' `InteractionKind` catalog, `object-removed`, `class_of` (now: a class from tags); packs `ice` and `fragile`; `worlds/rink` | As PL-d | As PL-d, including: the commit installing `ice` and `fragile` leaves `systems/bodies` unedited |
+
+**Checkpoints between PRs.** After IL-b the primary session reviews the schema on its synthetic pack
+before any pack converts. After IL-c the byte-identity evidence is reviewed before any bodies behaviour
+becomes configurable. After IL-h the operator plays `worlds/manor` and, after IL-i, `worlds/rink`.
+
+---
+
+# 7. Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| R-IL-1 | The schema is too generic for one pack and too narrow for another (bodies' pair table versus a single `talk` rule). | Roles, rules and consequences are uniform; `Parameters` and `Knobs` are the pack's own types. IL-b proves it on a synthetic pack, and IL-c (the richest section) comes before the simple ones. |
+| R-IL-2 | A conversion changes an unconfigured result. | IL-I1 against three references per PR; the lookup returns the compiled default without reading state when unconfigured. |
+| R-IL-3 | A list starves the paced controller (nobody may talk). | Offers follow the list. Each demonstration fixes an activity criterion before measuring; the remedy is content, never the controller (ARC-34). |
+| R-IL-4 | Consequence routing is mistaken for memory control. | §4.7's four layers; IL-I6; the README of `worlds/manor` says what `biography: off` does and does not do. |
+| R-IL-5 | Performance: a lookup on every offer for every target. | Sorted vectors, one per place; measured in IL-b and IL-e with a bound fixed in each PR's freeze (≤ +5 % on a 300-day town run). |
+| R-IL-6 | Parallel conversions collide in the SDK. | The SDK is complete in IL-b; IL-e/f/g edit only their packs and worlds' test copies. |
+| R-IL-7 | Tags are used as classes, and an author adds a tag for display and changes behaviour unknowingly. | A class names its tag explicitly in `classes.yaml`; `mineworld interactions` prints each entity's class; a tag no class names has no effect. |
+
+---
+
+# 8. Questions (QIL-1 …)
+
+**[OM]** marks operator-material questions. Each has a recommendation.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QIL-1 [OM]** | Merge S17 and S18 into one step, **S17 — The World's Interaction List**, retiring S18's number, with this file as the one authority and `step-18-physics-list.md` superseded (its bodies parts incorporated by reference)? | **Yes.** |
+| **QIL-2 [OM]** | Rename ARC-61's carrier from `configure:` / `configure/` to `interactions:` / `interactions/` (mechanism unchanged; amends a frozen decision's wording). | **Yes.** Everything a pack lets a world configure is now part of its section. |
+| **QIL-3 [OM]** | Entity classes are named tag selectors (no new state, immutable, one class per entity by priority). Alternative: a `classes` pack owning a mutable `Class` component and facts. | **Tags.** Byte-identical, no owner needed, already disclosed, already "a taxonomy, not state". |
+| **QIL-4** | A section's default effect is `permit` (today); a section may say `default: forbid`. | **Yes.** |
+| **QIL-5** | Precedence: level replaces by selector, then specificity, then forbid-overrides-permit; equal-specificity parameter conflicts refused at load. | **Yes** (Cedar's rule; no run-time tie-breaking). |
+| **QIL-6** | Several classes per entity, or class inheritance (`IsA`)? | **Not now.** |
+| **QIL-7 [OM]** | Mutable classes (a promotion changes what a person may do). Needs an owning pack and facts. | **Not in MVP-0.** |
+| **QIL-8 [OM]** | Consequence routing as §4.7: audience narrows only, within owner bounds; biography on/off where the owner allows; memory only through audience; recording never suppressed. | **Yes.** It is the only form that keeps INV-4, INV-11 and INV-13 and leaves S10 and S11-C unchanged. |
+| **QIL-9** | presence, naming and item get no section in MVP-0. | **Yes.** presence owns the audience function itself; naming's gating is ARC-31's later decision. |
+| **QIL-10 [OM]** | May a world tell minds what to forget (a "do not remember" hint for cognition)? | **No.** Memory is cognition's and the operator's (`cognition.toml`); a world governs only what is perceived. |
+| **QIL-11** | Attribute conditions (`when regard > 50`)? | **Out.** QPL-1 holds; Cedar is the named upgrade path if ever required. |
+| **QIL-12** | A forbidden offer is shown unavailable with `PermissionDenied`, not omitted. | **Shown**, consistent with ARC-34 and the existing unavailable reasons. |
+| **QIL-13** | In `validate`, `PermissionDenied` comes after existence checks and before the spatial requirement. | **Yes.** |
+| **QIL-14** | A configured section is stored as a component on every Place (base + region). | **Yes**, measured in IL-b. |
+| **QIL-15** | ARC-29 amended: `mineworld biography` also reads the save's genesis configuration and entity tags. | **Yes.** |
+| **QIL-16** | The PR order of §6.1, with IL-e/f/g in parallel. | **Yes.** |
+| **QIL-17 [OM]** | `worlds/manor` as the demonstration of the three examples, played by the operator. | **Yes.** |
+| **QIL-18** | Converting a pack raises its `SystemVersion` (declaration grows); old saves refused; no digest moves. | **Accept.** |
+| **QIL-19** | Movement's place-class rule is checked where movement decides a crossing. | **Yes.** |
+| **QIL-20** | Consumption's food/drink categories become its parameters, per actor class. | **Yes.** |
+
+---
+
+# 9. Decision records (numbers reused from S17/S18; drafts, not in `DECISIONS.md`)
+
+| Number | Was | Now |
+| --- | --- | --- |
+| ARC-61 | ARC-PL-a, configuration seam | unchanged mechanism; carrier `interactions:` (QIL-2) |
+| ARC-62 | ARC-PL-b, extension catalogs | unchanged |
+| ARC-63 | ARC-PL-c, bodies' physics list | **the World's Interaction List**: sections, the SDK schema, precedence, enforcement in the owning pack; bodies is one section |
+| ARC-64 | S18 (configurable rules) | **entity classes from tags** (§4.2) |
+| ARC-65 | S18 (configurable rules) | **consequence routing** (§4.7) and the ARC-29 amendment |
+| DEP-28 | DEP-PL-a, our own physics format | **our own interaction schema, on Cedar's semantics**; flecs, OPA/Rego and Casbin compared and declined (§3) |
+
+---
+
+# 10. Proposed amendments (text only; applied by the primary session)
+
+- **`overall.md`**:
+  - "Physics list and configurable rules": a dated note that S17 and S18 merge into **S17 — The
+    World's Interaction List**, pointing here.
+  - QIL-1 … QIL-20, once decided.
+  - The lanes of §6.1.
+  - Operator decision 1's "PL-a to PL-d" reads "IL-a to IL-i".
+  - Decision 2's S18 scope is IL-e … IL-g.
+- **`step-18-physics-list.md`**: header "Superseded by `step-18-interaction-list.md` (2026-10-08); its
+  bodies parts are incorporated there by reference" — applied in this branch, because it only records
+  supersession (§0 of this file).
+- **Specifications, in the PRs that implement them:**
+  - `MODULE_SPEC.md` §4, §4.1: `interactions:` and `interactions/`;
+  - `MODULE_SPEC.md` §9: the configuration schema, implemented as ARC-61/63;
+  - a new `MODULE_SPEC.md` section: the World's Interaction List and its vocabulary (§4.1);
+  - `DECISIONS.md` ARC-29: a dated amendment;
+  - each converted pack's README: its section.
