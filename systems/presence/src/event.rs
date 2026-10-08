@@ -8,6 +8,7 @@ use mineworld_kernel::{Emission, SystemIdentity, WorldRead};
 use serde::{Deserialize, Serialize};
 
 use crate::codec;
+use crate::resolve;
 use crate::system::PresenceSystem;
 
 /// Somebody is now at a location.
@@ -73,9 +74,8 @@ impl Arrived {
 /// would be a second implementation of this pack's codec, and the first change to the codec would
 /// silently make a loaded world unreadable.
 ///
-/// Used by any system that decides where somebody goes and states it in this pack's vocabulary
-/// (`DECISIONS.md` `ARC-26`), so a decided arrival and a genesis arrival cannot describe the same
-/// arrival differently.
+/// **For placement**: genesis, and any system that puts a person somewhere exactly or not at all. A
+/// system that moves people uses [`arrivals`], which records what the arrival actually achieves.
 ///
 /// **Checked, because this pack still decides what its state may hold.** Another system may decide
 /// that a person *goes* somewhere; only this pack decides whether [`Presence`](crate::Presence) may
@@ -84,22 +84,93 @@ impl Arrived {
 /// follows the contract cannot record one presence would refuse. [`PresenceSystem`] re-asks at
 /// reduction, for the system that did not follow it.
 ///
+/// **Resolved, and refused rather than recorded unresolved** (`DECISIONS.md` `ARC-39`). It asks every
+/// registered [`ArrivalResolver`](crate::ArrivalResolver) as [`arrivals`] does. When their answer is
+/// anything but the placement exactly as asked, it refuses — a placement that would end short or move
+/// somebody else cannot be one fact. With no resolver registered, or none that changes it, the fact is
+/// exactly the one this function built before resolvers existed.
+///
 /// # Errors
 ///
-/// [`Rejection::PreconditionFailed`] when [`admit`] refuses.
+/// [`Rejection::PreconditionFailed`] when [`admit`] refuses; [`Rejection::System`] with code
+/// `resolution-refused`, naming the resolver, when a resolver's answer is refused or would change the
+/// placement.
 pub fn arrival(
     world: &WorldRead<'_>,
     person: PersonId,
     location: Location,
 ) -> Result<Emission, Rejection> {
-    admit(world, person, location)?;
-    Ok(Emission::new::<Arrived>(
+    let resolved = resolve::resolve(world, person, location)?;
+    if let Some(resolver) = resolved.changed_by {
+        return Err(resolve::refused(
+            &resolver,
+            "would change a placement; a system that moves people states it through arrivals",
+        ));
+    }
+    Ok(arrived(person, location))
+}
+
+/// The facts one arrival becomes, **for systems that move people**: what the arrival actually
+/// achieves, after every registered [`ArrivalResolver`](crate::ArrivalResolver) has answered
+/// (`DECISIONS.md` `ARC-39`).
+///
+/// ```text
+/// 1  admit(person, to)                                   as arrival
+/// 2  Arriving { person, from: their Presence, to }
+/// 3  fold the registered resolvers in ascending SystemId from Resolution::unchanged, checking
+///    the answer after each one; a refused answer names its resolver
+/// 4  the facts, in this order:
+///      arrived { person, reached }
+///      arrived { other, location }               for each person moved, in the resolution's order
+///      stopped-short { person, wanted: to, reached, by }        when reached ≠ to
+/// ```
+///
+/// Every fact is stated by the calling system in one list, so each is caused by the same request
+/// (`AC-9`). With no resolver registered, or none that changes the arrival, the list is exactly the
+/// one fact [`arrival`] builds.
+///
+/// # Errors
+///
+/// As [`arrival`], except that an answer which changes the arrival is recorded rather than refused.
+pub fn arrivals(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    to: Location,
+) -> Result<Vec<Emission>, Rejection> {
+    let resolve::Resolved {
+        arriving,
+        resolution,
+        ..
+    } = resolve::resolve(world, person, to)?;
+    let reached = resolution.reached();
+    let mut facts = vec![arrived(arriving.person(), reached)];
+    facts.extend(
+        resolution
+            .displaced()
+            .iter()
+            .map(|(other, location)| arrived(*other, *location)),
+    );
+    if reached != to {
+        facts.push(stopped_short(StoppedShort {
+            person,
+            wanted: to,
+            reached,
+            by: resolution.stopped_by(),
+        }));
+    }
+    Ok(facts)
+}
+
+/// The [`Arrived`] fact: heard in the place arrived in, about the person, at that place. The one
+/// builder of every `arrived` this pack's constructors return.
+fn arrived(person: PersonId, location: Location) -> Emission {
+    Emission::new::<Arrived>(
         codec::encode(&Arrived::new(person, location)),
         Visibility::Place(location.place()),
     )
     .about(vec![person.entity_id()])
     .with_participants(vec![person.entity_id()])
-    .at_place(location.place()))
+    .at_place(location.place())
 }
 
 /// Whether [`Presence`](crate::Presence) may take this value: the person is in this world and not
@@ -170,6 +241,60 @@ impl PersonEnteredPlace {
     pub const fn from(&self) -> PlaceId {
         self.from
     }
+}
+
+/// Somebody's arrival ended short of where it was asked to go (`DECISIONS.md` `ARC-39`).
+///
+/// This pack's fact, because where a person ends up is this pack's domain, and it says what is true
+/// of the person without naming who moved them or why. It is stated by the system that states the
+/// arrival, in the same list, through [`arrivals`] — never by this pack, which therefore does not
+/// declare it — and this pack reduces it into nothing: the position is the [`Arrived`] beside it.
+/// It exists for biographies, controllers and clients.
+///
+/// `by` is what the person stopped at, when the resolver that stopped them could name it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoppedShort {
+    person: PersonId,
+    wanted: Location,
+    reached: Location,
+    by: Option<EntityId>,
+}
+
+impl Event for StoppedShort {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("stopped-short");
+    const OWNER: SystemId = PresenceSystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl StoppedShort {
+    /// Who stopped short.
+    pub const fn person(&self) -> PersonId {
+        self.person
+    }
+
+    /// Where they were asked to go.
+    pub const fn wanted(&self) -> Location {
+        self.wanted
+    }
+
+    /// Where they ended.
+    pub const fn reached(&self) -> Location {
+        self.reached
+    }
+
+    /// What they stopped at, when it could be named.
+    pub const fn by(&self) -> Option<EntityId> {
+        self.by
+    }
+}
+
+/// The [`StoppedShort`] fact: heard in the place reached, about the person, at that place.
+fn stopped_short(fact: StoppedShort) -> Emission {
+    let place = fact.reached.place();
+    Emission::new::<StoppedShort>(codec::encode(&fact), Visibility::Place(place))
+        .about(vec![fact.person.entity_id()])
+        .with_participants(vec![fact.person.entity_id()])
+        .at_place(place)
 }
 
 /// The [`PersonEnteredPlace`] fact: heard in the place entered, about the person, at that place.

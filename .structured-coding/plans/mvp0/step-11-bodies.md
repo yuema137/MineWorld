@@ -2144,15 +2144,30 @@ on every `origin/*` branch (it was on 2026-10-07, §16.10).
 
 **Depends on:** RS-C1. **Non-goals:** no caller changes yet; nothing registers.
 
-- [ ] Implementation: as scoped. Presence's prose avoids F-R1's substrings.
-- [ ] Validation: `cargo test -p mineworld-presence` (the existing 15 + the new one), `cargo clippy -p
-  mineworld-presence --all-targets -- -D warnings`; `cargo test -p mineworld-movement` (its structural
-  test scans presence); `cargo test -p mineworld-cli --test inspect --test social_composition`; M-RS7
-  applied and reverted.
-- [ ] Review: no float, no `stride`, no other pack's word in presence's src; `arrival()`'s emission for
-  an unregistered or empty catalog is byte-for-byte today's (same builder); the fold sorts nothing at
-  call time (the catalog is sorted once); every check of SD-R10 is reachable; the catalog has exactly
-  three entry points.
+- [x] Implementation: as scoped. `resolve.rs`: `Arriving` (crate-private `new`), `Resolution`
+  (private fields; `unchanged`, `stopped_at`, `displacing`, three accessors), `ArrivalResolver`,
+  `CATALOG: OnceLock`, `register_resolvers` / `registered_resolvers` / `require_registered`, and the
+  crate-private fold `resolve()` with `check()` / `check_displaced()` (SD-R10, after each resolver,
+  returning the first resolver that changed the arrival). `event.rs`: `StoppedShort` + `Event` impl +
+  accessors + crate-private `stopped_short` builder; `arrivals()`; `arrival()` through the same fold,
+  refusing `resolution-refused` naming the first resolver that changed a placement; one private
+  `arrived()` builder used by both. `system.rs`: VERSION 3 and its doc; declaration unchanged.
+  `lib.rs` and README: the table row `stopped-short`, the "Asking before recording" paragraph. The
+  three QR-2 literals. Presence's prose avoids F-R1's substrings (its own scan passes). Deviations
+  DR-1, DR-2 (§16.11).
+- [x] Validation (E-RS2): `cargo test -p mineworld-presence -p mineworld-movement` → presence 15 + 1,
+  movement 3 + 7 + 1, all pass (both structural scans unchanged and green); `cargo clippy -p
+  mineworld-presence --all-targets -- -D warnings` clean; `cargo fmt --all --check` clean after `cargo
+  fmt`; `cargo test -p mineworld-cli --test inspect --test social_composition` → 3 + 4 pass; M-RS7
+  applied, failed by name, reverted.
+- [x] Review: no float, no `stride`, no other pack's word in presence's src (the scan says so, and so
+  does movement's); `arrival()` builds its emission with the same private `arrived()` builder
+  `arrivals()` uses, after a fold that with no catalog runs no resolver — so its bytes are today's, and
+  the RS-8 test asserts `arrivals == vec![arrival]` unregistered; the fold iterates the catalog as
+  stored (sorted once in `register_resolvers`); every SD-R10 rule is a distinct early return with its
+  own message, each driven by RS-4's table in RS-C5; the static `CATALOG` is written only by
+  `register_resolvers` and read by `registered_resolvers`, `require_registered` and the crate-private
+  fold that the two constructors share.
 
 ### RS-C3 — the installed set carries resolvers; compose registers them
 
@@ -2415,8 +2430,43 @@ E-RS1 RS-C1, 2026-10-07. `git fetch origin`; `git show <ref>:docs/DECISIONS.md |
       `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
         duplicated. `python3 scripts/check_decision_ids.py` → 50 decision ids, all distinct (49 + ARC-39).
       PASS. Documentation only; no cargo run.
+
+E-RS2 RS-C2, 2026-10-07, working tree on 0d1f4c7 + RS-C2's paths.
+      `cargo test -p mineworld-presence -p mineworld-movement` (5.6 s): presence tests/presence.rs 15
+        passed (incl. no_other_packs_vocabulary_and_no_floating_point_appear_in_this_crate),
+        tests/resolver_catalog.rs 1 passed; movement disclosure 3, movement 7 (incl.
+        this_pack_has_no_float_and_presence_and_conversation_know_nothing_of_it), persisted 1. PASS.
+      `cargo test -p mineworld-cli --test inspect --test social_composition` (22.3 s): 3 + 4 passed.
+        PASS. Attribution: this run's build started while RS-C3's sdk/installed edits were being
+        written in the same tree, so it is re-run at RS-C3 (E-RS3), where it is attributed exactly.
+      clippy -p mineworld-presence --all-targets -D warnings: clean. fmt --all --check: clean after
+        `cargo fmt --all` (it re-wrapped lib.rs's use order, resolve.rs's trait signature, and one
+        `let` in resolver_catalog.rs).
+      M-RS7 (`true || current == offered` in register_resolvers): resolver_catalog FAILED —
+        "panicked at systems/presence/tests/resolver_catalog.rs:46:10: this registration must panic:
+        ()" (the [a] step). Reverted; `git grep -n MUTATION -- systems sdk worldpack tests tools` empty.
 ```
 
 ## 16.11 Deviations and discoveries during implementation (12a session)
 
-None yet.
+**DR-1 (bounded) — what "keeps the local-position rule of (b)" means for a displaced person.**
+- Previous assumption: SD-R10 (e) says a displaced person's new location "keeps the local-position
+  rule of (b)". Rule (b) compares `reached` with `to`, the walker's destination.
+- Audit evidence: a displaced person has no `to` of their own; their own "as asked" is where they are
+  now. SD-R10's rationale reads "never invent or drop a position, turn a person".
+- Corrected understanding: for a displaced person the comparison is with their current `Presence`:
+  the new location has a local position exactly when their current one does, **and the same facing**.
+  Facing is not named in (e)'s text, but "turn a person" is in the rationale; keeping it narrows what a
+  resolver may do and widens nothing (QR-8's direction).
+- Implementation: `check_displaced` in `resolve.rs` ("invented or dropped a displaced person's local
+  position", "turned a displaced person").
+- Validation: RS-4's table gains one row, "turns a displaced person", beside the eleven named.
+
+**DR-2 (bounded) — RS-10's guard names the resolver's id, not its type.**
+- Previous assumption: RS-10 says the installed set's guard "fails, naming the type".
+- Audit evidence: `Capability::resolvers()` returns `Box<dyn ArrivalResolver>` (SD-R8);
+  `type_name_of_val` on it gives the trait object's name, not the listed type. What the value can
+  answer is `resolver_of()`.
+- Implementation: the guard names the resolver's `SystemId`, which is the name the catalog, the
+  panics and every refusal use. The negative control's stub resolver has a distinct id.
+- Impact: none on what is caught; only the word in the message.

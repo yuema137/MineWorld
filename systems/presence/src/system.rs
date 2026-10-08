@@ -77,10 +77,13 @@ fn refused(reason: Rejection) -> KernelError {
 }
 
 impl System for PresenceSystem {
-    /// Version 2: no longer provides `arrive`, and states [`PersonEnteredPlace`] (`ARC-26`). A save
-    /// written by version 1 is refused by name rather than resumed into a world that answers
-    /// differently (S5).
-    const VERSION: SystemVersion = SystemVersion::new(2);
+    /// Version 3: its constructors answer through the registered
+    /// [`ArrivalResolver`](crate::ArrivalResolver)s, and its vocabulary gained
+    /// [`StoppedShort`](crate::StoppedShort) (`ARC-39`). Version 2 no longer provided `arrive` and
+    /// stated [`PersonEnteredPlace`] (`ARC-26`). A save written by an older version is refused by name
+    /// rather than resumed into a world that answers differently (`ARC-25`). The declaration below is
+    /// unchanged by version 3: this pack never states `stopped-short` itself.
+    const VERSION: SystemVersion = SystemVersion::new(3);
 
     /// Owns where people are, and provides **no action**: who may move a person is another system's
     /// decision (`DECISIONS.md` `ARC-26`). A world places its people by genesis (`ARC-15`) and lets
