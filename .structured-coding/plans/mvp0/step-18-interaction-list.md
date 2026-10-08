@@ -1042,8 +1042,16 @@ two-line follow-up if the primary session prefers.
   - owner and requires reported;
   - seed refusal propagated.
 
-- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-authoring`; clippy · [ ] Review: the
-  crate still depends on contracts and kernel only; no word of IA-8's lists.
+- [x] Implementation: `authoring/src/configuration.rs` (`PackConfiguration` with `Configuration`,
+  `FACTS`, defaulted `references`/`requires`, `seed`; type-erased `AuthoredConfiguration` over a private
+  `Held<P>`; `DecodeConfiguration<P>` `DeserializeSeed`); `lib.rs` module line, re-exports and a doc
+  paragraph. Unit tests decode through `serde::de::value::MapDeserializer` (D-1): the owner's bound
+  refuses with its own message; owner, references and requires are reported; a seed refusal propagates.
+- [x] Validation: `cargo test -p mineworld-authoring` → 2 passed (lib), 0 failed; `cargo clippy -p
+  mineworld-authoring --all-targets -D warnings` clean; `cargo fmt --all --check` clean (E-IA-2).
+- [x] Review: `authoring/Cargo.toml` unchanged (contracts, kernel, serde only); the file's words checked
+  against IA-8's lists by grep (one doc word "biography" reworded before commit); the erased trait
+  mirrors `AuthoredContent` exactly, minus the section name and subject a configuration does not have.
 
 ### IA-C3 — `sdk` and the installed set: configuration in `SystemPack`; the generic extension line (atomic: the macro and its one invocation change together)
 
