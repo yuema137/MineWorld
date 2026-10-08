@@ -412,7 +412,7 @@ output crosses into the repository, which is the boundary §10 states.
 ## 12. Re-baking the body, and the boundary the export sits on
 
 §11 proved the morph. This section records the export that followed, because
-`clients/3d-spike/tools/character_model.py` names it as its input and a reader
+`clients/3d-spike/tools/blender/character_model.py` names it as its input and a reader
 has to be able to reproduce it without guessing.
 
 ### Why the body had to be re-exported at all
@@ -568,7 +568,7 @@ card form and none was found that clears `DEP-8`'s test — free to
 **redistribute**, not merely free to use. Recorded here so the search is not
 repeated and so nobody concludes they searched badly.
 
-So the hair is modelled: `clients/3d-spike/tools/hair.py` builds an opaque cap,
+So the hair is modelled: `clients/3d-spike/tools/blender/hair.py` builds an opaque cap,
 a swept mass in clumps, a twist at the crown, a hairline layer and the named
 loose strands, all as cards on the character's own fitted head ellipsoid.
 
@@ -585,7 +585,7 @@ not rendering, and it is recorded in
 
 **Since preview 3 (2026-10-06) the hair is groomed, not swept**, as
 [`references/CHARACTER_ROUTE_ASSESSMENT.md`](references/CHARACTER_ROUTE_ASSESSMENT.md)
-§5(1) recommends. `clients/3d-spike/tools/hair_groom.py` authors guide strands
+§5(1) recommends. `clients/3d-spike/tools/blender/hair_groom.py` authors guide strands
 as data and grows them with Blender's bundled Essentials hair node groups;
 `hair_atlas.py` draws the strand atlas. Licence position of each input, for
 `DEP-8`:

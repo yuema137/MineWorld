@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Blender/bmesh helpers shared by the garment and hair modellers.
 
 Imported by `garments.py`, `hair.py` and `character_model.py`, both of which run inside

@@ -42,7 +42,12 @@ build its own (`docs/ACCEPTANCE.md` §4.1).
 
 ```text
 connect_to_world(address: String, seat_name: String)     open a connection and ask for a seat
-submit(action_type, target, payload, actor_location)      ask the world for something; returns a token
+submit(action_type, target, payload, actor_location)      ask the world for something; returns a token.
+                                                          `payload` is any JSON value, normally a
+                                                          Dictionary
+submit_affordance(affordance, actor_location := null)     submit a complete affordance exactly as
+                                                          offered; returns a token, or "" and sends
+                                                          nothing when it is not complete
 disconnect_from_world(reason := "…")                      close it
 is_seated() -> bool                                       whether requests may be submitted
 world_instance() -> String                                which running world this is
@@ -55,6 +60,8 @@ observer   the identity the SERVER resolved it to. A string. Empty until the wel
 world      the welcome's world summary: instance, at, entities, systems, seats, clients, counters
 latest     the newest MineWorldObservation, or null
 sequence   its per-connection frame number, from 1
+revision   the persisted revision `latest` was computed from: an int, or null for a world that is not
+           persisted. Set from the welcome, then from every observation frame that is not stale
 stale_observations  how many arrived out of order and were dropped. Normally 0.
 ```
 
@@ -75,8 +82,11 @@ route.
 ```text
 observer() at() self_location() place()
 entities() ids() entity(id) tagged(tag) location_of(id)
-component(id, component_type) own_component(component_type) display_name(id)
-relations() events() affordances()
+component(id, component_type) component_value(id, component_type)
+own_component(component_type) display_name(id)
+relations() events()
+affordances(action_type := "", target = null) complete_affordances(action_type := "", target = null)
+affordances_about(id) is_complete(affordance)   (static)
 affordance(action_type, target := "") may(action_type, target := "")
 unavailable_reason(action_type, target := "") requirement(action_type, target := "")
 offered_against(target := "")
@@ -85,14 +95,48 @@ frame        the dictionary exactly as it arrived
 
 `may()` **reports** the server's verdict. It does not compute one, and neither may you.
 
-**Complete affordances.** An affordance dictionary in `affordances()` may carry a `payload` key: the
-complete request the offering system would accept (`PROTOCOL.md` §5, `docs/DECISIONS.md` `ARC-34`).
-Submit it unchanged with `submit(affordance["action_type"], affordance["target"],
-affordance["payload"])` — the module labels it as any other request — without knowing what the action
-is. The server still decides. Several complete affordances routinely share an action type and a
-target, one per choice offered, so `affordance(action_type, target)` returns only the first of them;
-iterate `affordances()` to see every choice. The module gains no accessor for this in S9; the first
-client use is S12's.
+**Listing affordances.** `affordances()` with no argument is the whole list, in the server's order.
+`action_type` narrows it to one type (`""` matches any); `target` narrows it to one target — `null`
+matches any target, `""` matches the affordances directed at nobody, and an identity string matches
+exactly that target, as every other method here spells it. `affordances_about(id)` is every affordance
+that concerns one entity: its `target` is `id`, or its `payload` is an object with a top-level value
+that refers to `id` — the identity string itself, or the contract's typed reference
+`{ "entity": id, "entity_type": … }`, which is how a typed identity such as an item's travels
+(`buy`'s payload is `{ "item": { "entity": "22", "entity_type": "item" } }`). That is how a
+target-less `buy { item }` or `kick { object }` is found from the thing it is about, without the
+module or the client knowing either action. Nothing deeper is searched.
+
+**Complete affordances.** An affordance may carry a `payload` key: the complete request the offering
+system would accept (`PROTOCOL.md` §5, `docs/DECISIONS.md` `ARC-34`). `is_complete(affordance)` says
+whether the key is present — a present `null` is a complete affordance whose payload is `null`;
+absent means incomplete. `complete_affordances(…)` is the complete subset of `affordances(…)`.
+
+Several complete affordances routinely share an action type and a target, one per choice offered, and
+differ only in `payload`: keep them apart by their position in the list, never by looking one up.
+`affordance(action_type, target)` returns only the **first** match, so it is for incomplete
+affordances, where type and target name one entry.
+
+Submit a complete affordance with `submit_affordance(affordance)`: it sends the affordance's
+`action_type`, `target` and `payload` exactly as offered, labelled like any other request, without
+anybody knowing what the action is. It does this **whether or not the affordance is available** — the
+server answers, and an unavailable one comes back rejected with its reason. "Unchanged" means the JSON
+the server sent: Godot parses every number as a double, so an offered `"count": 1` arrives as `1.0`,
+and `submit_affordance` sends every whole number in the payload as the integer it was on the wire —
+re-sending `1.0` is refused (§3.2). Never rebuild a complete affordance's request with `submit` for
+that reason. It refuses, returning `""`
+and sending nothing, only an affordance that is not complete: there is no payload to send unchanged,
+and inventing one would be the client knowing the action.
+
+So a client shows two kinds of entry. A complete affordance it shows and submits unchanged, knowing
+nothing about the action. An incomplete one — `talk`'s utterance, `move`'s position — it submits only
+by composing the payload from the player's input, which means knowing how to *ask* for that action
+type, never whether it is allowed. An offered incomplete affordance the client has no composer for is
+shown as one it cannot perform, never guessed at.
+
+**Disclosed components.** `component()` returns a payload only when it is a JSON object, and `{}`
+otherwise. `component_value()` returns the payload exactly as it arrived — an object, an array, a
+number — or `null` when that component was not disclosed about that entity; read a listing that is
+not an object through it.
 
 `display_name(id)` is what a person is called: the `naming` System Pack's `display-name` record,
 payload `{ "name": "Alice Moreau" }`, disclosed about everybody the observer perceives
@@ -148,6 +192,7 @@ So:
 allowed      show a prompt when may("talk", alice) is true, and grey it out when it is false
 allowed      show "too far away" from unavailable_reason(), in your own wording and language
 allowed      show "needs 3 m" from requirement().within_range, unevaluated
+allowed      submit a complete affordance unchanged, available or not
 NOT allowed  compare two positions and decide whether to submit
 NOT allowed  keep a list of which actions exist in this world
 NOT allowed  refuse to submit because you concluded it would fail

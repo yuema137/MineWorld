@@ -137,13 +137,42 @@ and six Mixamo source FBX beside it. None of them are here: the bake drops the
 animation array and the clone stays outside the repository. What is here is the
 CharMorph character — mesh, skeleton and skin weights — which `config.yaml` in
 CharMorph-Vitruvian declares `license: CC0`, credits Sean Buckley and Olaf
-Delgado-Friedrichs for, and which derives from the CC0 *Antonia Polygon*. The
+Delgado-Friedrichs for, and which derives from the CC0 *Antonia Polygon*. Two of the
+textures beside it, `tee_bc.jpg` and `denim_bc.jpg`, are not CC0 but generated; see the
+next section. The
 `mixamorig:` bone names it carries are CharMorph's own "Mixamo (Game-Ready)"
 compatibility preset, not Mixamo output; the audit shows the evidence.
 
 The one gap, stated: the CharMorph-Vitruvian repositories carry no `LICENSE` file,
 so CC0 rests on a machine-readable field in the shipped data plus a documented
 relicensing permission plus a CC0 upstream.
+
+### Generated garment source art — AI-generated (OpenAI `gpt-image-1`), owned — `tools/texture_art/`
+
+The tee print's mountains and the denim albedo of the default character. Recorded 2026-10-08
+from the repository: the files carry no embedded metadata (the script re-encodes the model's
+PNG to JPEG), so the record below is the provenance.
+
+| File | Origin |
+| --- | --- |
+| `tools/texture_art/tee_mountains.jpg` | `gpt-image-1` via the OpenAI Images API (`POST /v1/images/generations`, `size` 1024x1024, `n` 1), prompt `MOUNTAIN_PROMPT` in `tools/character_textures.py`; resized to 768 px, JPEG quality 92; accepted by a person (`ARC-9`). First committed in `78d5c86`, 2026-09-27; bytes unchanged since (blob `aff506a`) |
+| `tools/texture_art/denim.jpg` | the same call with prompt `DENIM_PROMPT` in the same script; first committed in `78d5c86`, 2026-09-27; bytes unchanged since (blob `b0230d2`) |
+
+The prompts are the constants in `character_textures.py`, identical in `78d5c86` and today;
+`character_textures.py --generate` is the call that produced them. Without `--generate` the
+committed art is reused and no model is called.
+
+Derived, under `assets/characters/vitruvian/textures/`, by `character_textures.py`:
+
+- `tee_bc.jpg` — a crop of the mountain range in `tee_mountains.jpg`, turned into an alpha mask
+  in the print-ink colour and composited onto a noise-mottled cloth colour, with the slogan
+  "Good Places / Brighter People" **drawn** from a system font, not generated.
+- `denim_bc.jpg` — `denim.jpg` resized to 512 x 512, desaturated and levelled into the albedo
+  band.
+
+Terms: OpenAI Services Agreement §4.1 assigns Output to the customer, read first-hand 2026-10-08
+— [`docs/DECISIONS.md`](../../docs/DECISIONS.md) `DEP-8`, "Generated images (OpenAI)". Owned
+output, distributed under the repository's MIT licence; disclosed as AI-generated here.
 
 ### Meshy route D+ candidate — AI-generated, owned (paid Meshy plan) — `assets/characters/meshy_d/`
 
