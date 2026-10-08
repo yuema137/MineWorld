@@ -406,3 +406,440 @@ asymmetric masks as the model for one-directional relations and for the 3D clien
 Both failure modes of `REUSE_POLICY.md` §17 are checked: nothing commodity is rebuilt (no collision
 detection, no contact filtering, no solver, no YAML parser); nothing is forced (no engine type in content,
 no engine as the authority, no scripting runtime where a typed table suffices).
+
+---
+
+# 4. Design — MineWorld's physics list
+
+## 4.1 Vocabulary
+
+Every term below is new and is checked against `CORE_CONCEPTS.md` and `MODULE_SPEC.md` so that no
+defined term is reused for another concept (`CLAUDE.md` §2.1(3)). They are bodies' vocabulary, proposed
+for `MODULE_SPEC.md` §4.1's `body` row and a new bodies subsection (§12), not for the core ontology.
+
+| Term | Meaning | Why not another word |
+| --- | --- | --- |
+| **body class** | A named category of body that a physics list gives rules to: `person` (every person) and the classes a list declares for loose objects (`object`, `light`, `heavy`, `fixed`, `fragile`, …). Content, not code. | Not *kind*: `ItemKind` is ARC-36's. Not *tag*: entity tags are free text with no owner. Not *layer*: an engine word (`ENGINEERING_RULES.md` §12). Not *type*: `EntityType`. |
+| **physics list** | A named, versioned document of body classes, materials, a pairwise interaction table and parameters, interpreted by `bodies`. | The operator's word, and Geant4's. |
+| **reference list** | A physics list compiled into a System Pack: `default` in bodies, and any list a pack providing new behaviour ships. | Geant4's term for the lists that ship with the toolkit. |
+| **interaction kind** | A named behaviour a list may select — `nudge`, `push`, `block`, `launch` built into bodies; `slide` or any other provided by an installed pack as code. | Not *process*: `Process` is a defined term (`CORE_CONCEPTS.md`), and Geant4's "process" is exactly what must not be imported. Not *system*. |
+| **region** | A place that selects a list other than its world's. | Geant4's regions carry per-region settings the same way; a place is already the unit of a resolution (step-11 §5). |
+
+## 4.2 What a physics list is, and what it is not
+
+A physics list **selects and parameterizes** behaviour that code provides. It never adds behaviour:
+`MODULE_SPEC.md` §4 constraint 3 (A-11) binds, and a list is the "configuration schema" `MODULE_SPEC.md`
+§9 already assigns to a pack. Five rules follow:
+
+1. **Owned by bodies.** Bodies defines the document's type; deserializing it is validating it (the
+   ARC-31 pattern). The loader never learns what a list means.
+2. **Integers only.** Millimetres, millimetres per second, sub-steps, grams, per-mille. No float is
+   authored, stored or disclosed (I-3 of step-11 holds). Floats exist only inside `rapier.rs`, converted
+   by one function per unit.
+3. **Total.** Every pair of classes the world can produce has exactly one answer, fixed at load: an
+   explicit pair entry, else what the two classes' defaults give, else the engine's default (refuse the
+   interaction). Lookup never fails at run time.
+4. **Bounded.** Every parameter has an engine ceiling and floor published by bodies; a list outside them
+   is refused at load, naming the parameter, the value and the bound. The invariants that hold for every
+   list (no two people closer than `CLEARANCE`, nothing inside a wall, nothing tunnelling, verify then
+   degrade) are engine properties no list can switch off (§5).
+5. **Self-contained in a save.** What a world runs is the resolved list — every `extends` applied,
+   every default filled in — stored as state. A save never refers to a list by name only.
+
+## 4.3 The document
+
+The `default` reference list, written out. It is the exact content of 12c's constants and rules (§4.4
+maps each value to its source):
+
+```yaml
+# bodies' reference list `default` — compiled into the pack (include_str!), decoded by the same type
+# as any authored list. A world that configures nothing runs this list and stores nothing.
+id: default
+version: 1                         # bumped with bodies' VERSION whenever this file changes (§4.9)
+
+classes:
+  person:                          # reserved; every person is of this class; the shape is the engine's
+    material: none                 # people are kinematic: no material is applied (12c)
+  object:                          # the class of every loose object whose body: names none
+    material: { friction: 500, restitution: 100 }      # per mille
+
+surfaces:                          # floor, walls and solids of a shaped place
+  material: none                   # 12c sets no material on fixed geometry
+
+combine: average                   # how two materials meet (Unity's rule; Rapier's default)
+
+people:                            # person meets person — the only pair whose answer is built in
+  contact: nudge
+  nudge: { max: 300, generations: 2, people: 4 }
+  head_on_bias: on                 # QB-16
+  shove: { reach: 1000, offer_reach: 800, distance: 500 }
+
+pairs:                             # actor class → body class; every pair not listed is `block`, no actions
+  - actor: person
+    body: object
+    contact: push                  # walking into it pushes it out of the way (SD-O8)
+    push: { from: floor }          # an object resting on a solid is never pushed
+    kick:  { reach: 800, from: floor, speed: 5000, steps: 180 }
+    throw: { reach: 800, from: any, steps: 240, flight: 48, unaimed: 3000, range: 6000 }
+
+launch:                            # every kicked or thrown body
+  unaimed: free_centre             # rung p3 (DO-16), never into the kicker (DO-18)
+  others: fixed                    # no chain reactions (QO-10); engine-fixed in this step
+  rest: { speed: 50, steps: 10, clearance: 300, pull_back: 10 }        # DC-4, rule p4 (DO-17)
+  gravity: 9810
+```
+
+What a world might author instead (illustrative; not part of any PR's content):
+
+```yaml
+# configure/bodies.yaml of a world (§4.6)
+physics: warehouse                 # the list every place runs unless it names another
+lists:
+  - id: warehouse
+    version: 1
+    extends: default               # one level; every override is validated as if written in full
+    classes:
+      light:   { material: { friction: 300, restitution: 400 } }
+      heavy:   { mass: 80000 }     # grams; used only by kinds that read it
+      fixed:   {}
+      fragile: { material: { friction: 500, restitution: 0 } }
+    pairs:
+      - { actor: person, body: light,   contact: push, kick: { speed: 7000 }, throw: {} }
+      - { actor: person, body: heavy,   contact: block, kick: none, throw: none }
+      - { actor: person, body: fixed,   contact: block }
+      - { actor: person, body: fragile, contact: push, kick: {}, throw: {} }
+    people:
+      nudge: { max: 150 }          # a calmer crowd
+  - id: rink
+    version: 1
+    extends: warehouse
+    interactions: [slide]          # a kind an enabled pack provides (§4.7); refused if none does
+    surfaces: { kind: slide, slide: { extra: 1500 } }
+```
+
+and in an item file, the class beside the shape (12c's `body:` object form gains one optional key):
+
+```yaml
+body:
+  shape: { box: { x: 300, y: 300, z: 300 } }
+  at: { place: hall, x: 4000, y: 6000 }
+  class: heavy                     # optional; `object` when absent — which is every 12c object
+```
+
+and in a place file, a region (12c's `body:` place form gains one optional key):
+
+```yaml
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 20000, y: 12000 } }
+  physics: rink                    # optional; the world's list when absent
+```
+
+**Pair entries.** `actor` is the class that moves or acts (in this step always `person`: only people
+walk, kick, throw and shove); `body` is the class met or acted on. `contact` is the interaction kind
+that answers a stride meeting a body of that class: `push`, `block`, or a provided kind. `kick`,
+`throw` are `none` (not offered, refused `NoSupportedInteraction`) or a parameter block; an empty
+block takes every value from the pair's defaults, which are the `default` list's. Person meets person
+is the separate `people` block because its answer is built in (`nudge` or `block`) and must keep
+I-11's bound shape; a list cannot make people pass through one another (§5, PL-I6).
+
+**Materials** combine like Unity's (§3.3 row 2): each class and the surfaces carry an optional material;
+`combine` chooses how two meet. `none` means "the adapter sets nothing on that collider", which is what
+12c does for people and fixed geometry and is what keeps the default byte-identical (§4.4). Rapier's own
+combine rules (`CoefficientCombineRule`) are what `rapier.rs` uses to realize it; MineWorld names the
+rule, Rapier applies it.
+
+**Mass** is an optional integer per class, in grams. No built-in kind reads it in this step; a ratio
+rule ("a person pushes a body only if it is at most this heavy") is expressed by choosing `block` for
+that class, and a kind that derives speed from mass is a provided kind (§4.7). A built-in mass-ratio rule
+is QPL-7.
+
+## 4.4 Which constants become parameters, and which stay engine constants
+
+**Parameters** (in the list; default = today's value, so the default list reproduces 12c):
+
+| 12c constant or rule | List parameter | Default | Bound proposed (engine floor … ceiling) |
+| --- | --- | --- | --- |
+| `NUDGE_MAX` | `people.nudge.max` | 300 mm | 0 … 300 (I-11's 310 is the ceiling; 0 means `block`) |
+| `CHAIN_MAX` | `people.nudge.generations` | 2 | 1 … 2 |
+| `NUDGED_MAX` | `people.nudge.people` | 4 | 1 … 4 |
+| QB-10's choice "nudge" | `people.contact` | `nudge` | `nudge` \| `block` |
+| QB-16's bias on/off (`Policy::bias`) | `people.head_on_bias` | `on` | `on` \| `off` |
+| `SHOVE_REACH` | `people.shove.reach` | 1 000 mm | 610 … 2 000 |
+| `SHOVE_OFFER_REACH` (p1) | `people.shove.offer_reach` | 800 mm | 610 … `reach` |
+| `SHOVE_DISTANCE` | `people.shove.distance` | 500 mm | 0 (`none`) … 1 000 |
+| "walking pushes objects" (SD-O8) | `pairs[].contact` | `push` | `push` \| `block` \| provided kind |
+| "an object on a solid is never pushed" | `pairs[].push.from` | `floor` | `floor` (only value in this step) |
+| `KICK_REACH` | `pairs[].kick.reach` | 800 mm | ≥ R + GAP + the class's largest half-extent … 2 000 |
+| "only objects on the floor are kicked" | `pairs[].kick.from` | `floor` | `floor` (only value in this step) |
+| `KICK_SPEED` | `pairs[].kick.speed` | 5 000 mm/s | 500 … 15 000 |
+| `KICK_STEPS` | `pairs[].kick.steps` | 180 | 1 … 600 |
+| `THROW_REACH` | `pairs[].throw.reach` | 800 mm | as kick |
+| "any object within reach is thrown" | `pairs[].throw.from` | `any` | `floor` \| `any` |
+| `THROW_STEPS`, `THROW_FLIGHT` | `pairs[].throw.steps`, `.flight` | 240, 48 | 1 … 600; 1 … `steps` |
+| `THROW_DEFAULT`, `THROW_RANGE_MAX` | `pairs[].throw.unaimed`, `.range` | 3 000, 6 000 mm | 0 … `range`; 0 … 20 000 |
+| `kick: none` / `throw: none` | eligibility | allowed for `object` | allowed \| `none` |
+| rung p3, DO-18 | `launch.unaimed` | `free_centre` | `free_centre` \| `away` (SD-O11's original rule) |
+| `REST_SPEED`, `REST_STEPS` | `launch.rest.speed`, `.steps` | 50 mm/s, 10 | 1 … 500; 1 … 60 |
+| `REST_CLEARANCE`, `PULL_BACK_STEP` (p4) | `launch.rest.clearance`, `.pull_back` | 300 mm, 10 mm | 0 … 1 000; 1 … 100 |
+| `GRAVITY`, `rapier.rs GRAVITY_Z` | `launch.gravity` | 9 810 mm/s² | 0 … 30 000 |
+| `rapier.rs FRICTION`, `RESTITUTION` | `classes.object.material` | 500, 100 ‰ | 0 … 2 000; 0 … 1 000 |
+| — (none in 12c) | `classes.*.mass`, `surfaces.material`, `combine` | absent, `none`, `average` | — |
+
+Every "only value in this step" is a field that exists so the type does not change when a later PR
+adds the value; a list naming another value is refused by name, not ignored (`MODULE_SPEC.md` §4.1's
+rule).
+
+**Engine constants** (stay in code; changing one is a bodies `VERSION` bump, as today):
+
+| Constant | Why it stays |
+| --- | --- |
+| `PERSON_RADIUS`, `PERSON_HEIGHT` | Every derived bound — `CLEARANCE`, `CAPACITY_GRID` (chosen so that 13 × `LATTICE` ≥ 2R + GAP), SD-B4's capacity proof, the push search's upper bound, the 3D client's capsule (`player.gd`) — is derived from R. A per-list person shape is a separate design (QPL-6). |
+| `GAP`, `TOLERANCE`, `SNAP`, `HALVINGS`, `LATTICE`, `CAPACITY_GRID`, `PUSH_SEARCH`, `COORDINATE_BOUND`, `STEPS_PER_SECOND`, `PATH_EVERY`, `PATH_MAX`, `DT`, wall and slab dimensions | Numerical method. They make the integer checks exact and the floats bounded (DC-4, DC-6, SD-B5); a list that changed them could break the proofs I-11 and I-12 rest on. |
+| `CLEARANCE` | The non-interpenetration invariant; derived. |
+| `BIAS_BAND`, `BIAS_TURN` | QB-16's geometry; a list may turn the bias off, not reshape it (its 310 mm proof depends on it, SD-B10). |
+| `OBJECT_HALF_MIN`, `OBJECT_HALF_MAX`, `OBJECT_HALF_HEIGHT_MAX`, `OBJECTS_MAX` | Validity bounds of a loose object; they keep `PUSH_SEARCH` and capacity sound. A list may narrow them per class (QPL-8), never widen. |
+| "objects are fixed during a flight", "people are kinematic during a flight", "people never interpenetrate", verify-then-degrade | Engine properties, PL-I6 (§5). `launch.others: fixed` is written in the list so that a later PR can add chain reactions as a value, but `fixed` is its only value now. |
+
+**Byte-identity of the default, argued value by value.** The integer parameters replace constants of the
+same value, read in the same places. The two float materials and gravity are converted from integers by
+one function each: `500 as f32 / 1000.0` is exactly 0.5; `100 as f32 / 1000.0` and `9810 as f32 / 1000.0`
+are IEEE-correctly-rounded divisions, which yield the same nearest `f32` as the literals `0.1` and
+`9.81` — a unit test pins the three bit patterns, so the argument is checked rather than trusted.
+`material: none` sets nothing, as today. The canonical insertion order does not change. PL-b's acceptance
+measures it (§7).
+
+## 4.5 Resolution, lookup and validation
+
+**Resolving a list** (at load, in bodies' configuration type):
+
+```text
+1  decode every authored list (deny unknown fields; integers; bounds per field)
+2  resolve extends: one parent, which is `default`, a list an enabled pack ships, or another list of
+   this world; no cycle; depth ≤ 4. A child's entry replaces the parent's entry with the same key
+   (class, pair actor+body, block name); entries are never merged field by field across levels, except
+   that an empty parameter block means "the parent's values" (Box2D's precedence: the explicit pair wins)
+3  fill defaults: a pair entry's missing parameters take the default list's; a class without a pair
+   entry for (person, it) gets contact `block`, kick `none`, throw `none`
+4  cross-checks, each refused by name:
+     every class an item names exists in the list its place runs
+     kick.reach and throw.reach ≥ R + GAP + the largest half-extent any object of that class has
+     every interaction kind named is built in or provided by an enabled pack (§4.7)
+     at most 24 classes (the adapter's 32 Rapier groups, less the bits it reserves: slab, walls, solids,
+     people, the flying body — QPL-9)
+5  canonicalize: classes and pairs sorted by name; the result is the resolved list, encoded once
+```
+
+**Looking up** at run time is a function of (the place's resolved list, actor class, body class): a
+sorted-vector binary search or a dense table indexed by class number, built when the list is reduced into
+state (§4.9). Bodies' pipeline reads it where it reads a constant today: the stride's contact rule, the
+push trigger, the offers, `validate`, the launch, the landing. No other pack reads it.
+
+## 4.6 Where a list lives, and how a world selects one
+
+**Three sources, one format, one owner.**
+
+| Source | How it ships | Example |
+| --- | --- | --- |
+| A reference list of bodies | compiled into bodies (`include_str!` of a YAML file decoded by the same type) | `default` |
+| A reference list of a pack that provides behaviour | compiled into that pack, handed to bodies with its interaction kinds (§4.7) | an `ice` pack ships `winter` |
+| A world's own list | authored in the World Pack's `configure/bodies.yaml` | `warehouse`, `rink` above |
+
+A **data-only list shared between worlds** (a physics list pack) is not in this step: S16's data packs
+are Entity and Presentation Packs, and a new pack type is a framework change (`step-16-packages.md` §6.3).
+Until then a shared list ships in a code pack or is copied. QPL-5 asks whether a later step adds one.
+
+**Selecting.** A world names the list all its places run in `configure/bodies.yaml` `physics:`; absent,
+`default`. A place's `body:` may name another (`physics:`), a region. Absent everything, the world runs
+`default` and stores nothing.
+
+**The world configuration seam (ARC-PL-a; a framework precursor, no kernel change).** `world.yaml` has
+nowhere to carry a pack's configuration (A-9). The seam generalizes ARC-31's sections from content files
+to the world:
+
+```text
+authoring   trait PackConfiguration: SystemIdentity            beside AuthoredSection
+              type Configuration: DeserializeOwned              deserializing is validating
+              fn references(&Configuration) -> Vec<Reference>   keys it names (places, items)
+              fn requires(&Configuration) -> Vec<SystemId>      systems that must be enabled
+              fn seed(&Seeding, &Configuration) -> Result<Vec<Emission>, Rejection>
+                                                                its own vocabulary only
+sdk         SystemPack gains `configures!()` (like owns_section!); Capability gains
+            decode_configuration / configuration_of; a pack without one refuses, naming itself
+worldpack   world.yaml gains optional `configure: [<system id>, …]`; each names
+            configure/<system id>.yaml, decoded straight from the YAML stream into the owner's type
+            (line and column, DEP-10). Refused by name: an owner not enabled; a system that configures
+            nothing; a missing or undeclared file; a `requires` system not enabled; any refusal of the
+            owner's type
+order       configuration is seeded after passages and locations and before every section, in the
+            order of `configure:`. A world without `configure:` seeds exactly what it seeds today, in
+            the same order, so its ids, facts and digests do not move
+```
+
+It is generic: the first user is bodies; `economy`, `inventory` (`PERSON_CAPACITY`), `conversation`
+(`INTERACTION_RANGE`), `relationships` (regard values), `movement` (`MAX_STRIDE`) can each adopt it later
+with the same three-line change, which is what closes the "rules" gap of §8 (G-8 of S16).
+
+**Why a separate file, not inline in `world.yaml`.** `ac1_composability` check 3 compares the two towns'
+`world.yaml` key by key (S16 F-E5); a world that configures a pack differently would show as a world
+delta in `world.yaml`. A file named by a list entry keeps `world.yaml` a manifest and puts configuration
+where its owner's type governs it, as `places:` names `places/<key>.yaml`.
+
+## 4.7 New interaction kinds as code, and consequences as packs
+
+Two plug-in shapes, chosen by one question: **does the new behaviour change where a body ends up within
+bodies' resolution, or does it change something else as a consequence?**
+
+**(A) It changes where a loose object ends up → an interaction kind, a provider bodies asks.**
+
+```rust
+/// A behaviour a physics list may select by name. Implemented by the pack that provides it; asked by
+/// bodies while it resolves a push or a launch, before anything is recorded. Pure: reads only what it
+/// is handed and its WorldRead, keeps nothing, reads no clock, writes and emits nothing (the
+/// ArrivalResolver contract, ARC-39 item 1, and Box2D's callback rule).
+pub trait InteractionKind: Send + Sync {
+    /// The name a list uses, e.g. "slide". One namespace with bodies' built-in kinds.
+    fn id(&self) -> InteractionId;
+
+    /// The System Pack that provides it; must be enabled for a list to name it.
+    fn provided_by(&self) -> SystemId;
+
+    /// Its parameters: named integers, each with a floor, a ceiling and a default. A list's block for
+    /// this kind is decoded against this schema and refused by name outside it.
+    fn parameters(&self) -> &'static [ParameterSpec];
+
+    /// The reference lists this pack ships, as YAML decoded by bodies' list type.
+    fn reference_lists(&self) -> &'static [&'static str] { &[] }
+
+    /// Where a displaced loose object should end, given the straight displacement bodies proposes.
+    /// Returns a displacement no longer than `proposed.length + params["extra"]` (bodies clips it).
+    fn displace(&self, world: &WorldRead<'_>, at: &DisplacementContext, params: &Parameters,
+                proposed: Displacement) -> Displacement;
+}
+```
+
+- `DisplacementContext`: the place, the object, its class, the actor and its class, the cause (`pushed`,
+  `kicked`, `thrown`), and whether the surface or the class selected this kind. Integers and ids only;
+  no Rapier type (`DEP-13`'s isolating interface).
+- **Bodies still decides.** Whatever `displace` returns is clipped to its bound, swept by Rapier's
+  shape cast (so it cannot tunnel), and verified on integers (SD-O2's invariant, V-O); a failure degrades
+  as today (the proposal, then the lattice, then stay). A provider can never move a person: people's
+  positions go through presence's `arrivals()` and its rules (a)–(f), which already refuse a lengthened
+  stride (step-11 §4.4.6), so "people slide on ice" is impossible by construction, not by convention.
+- **Reaching bodies.** By ARC-PL-b's extension catalog (below), exactly as resolvers reach presence:
+  process-wide, write-once, compiled-in code; per-world applicability comes from the world's list, and a
+  kind no list names is never asked.
+- **Worked example — `ice` (a third-party System Pack).** Depends on bodies. Provides `slide` with
+  parameter `extra` (0 … 3 000 mm, default 1 000) and ships a `winter` reference list. `displace`
+  extends a push or a landing along its direction by `extra` scaled by the material's friction (integer
+  arithmetic). A world selects `winter`, or extends it. Removing `ice` from `systems:` makes any list
+  naming `slide` refuse at load, by name; a world that never named it is unchanged.
+
+**(B) It changes another pack's state as a consequence → a System Pack that reacts and states facts
+through the owners' constructors (ARC-26). No provider.**
+
+- **Worked example — `fragile`.** A System Pack depending on bodies. It subscribes to bodies' public
+  `object-moved`; for an object whose class is one its own configuration names fragile (read through a
+  published read-only `mineworld_bodies::class_of(world, object)`), moved `how: kicked | thrown`, it
+  states, in one emission list: its own `broke { object, by }`, and bodies' **new**
+  `object-removed { object, place }`, built by a bodies-owned checked constructor
+  `bodies::remove(world, object)` which bodies reduces (the `Lying` row goes; the Item stays as a
+  record, `INV-11`). Bodies, as owner, refuses anything its invariants refuse.
+- **"Breaks into items" — the honest limit.** Shards that appear on the floor would be new Item entities
+  created during a dispatch; the kernel creates entities only through `World::create_entity(&mut self)`
+  (`kernel/src/world.rs:571`), at assembly, not from a System. So in this step `fragile` can (a) remove
+  the object and (b) if `item` and `inventory` are enabled, produce shard *kinds* into the breaker's
+  holdings through inventory's production constructor. Shards as new loose objects need runtime entity
+  creation by a System: a kernel question, operator-material, QPL-11.
+
+**The generalized extension catalog (ARC-PL-b; a framework precursor).** Today `installed!` has one
+hard-wired `resolution:` line and `worldpack` one hard-wired `register_resolvers` call (A-7). The second
+catalog makes the abstraction earned (`CLAUDE.md` §4 rule 11):
+
+```text
+installed! {
+    perception: mineworld_presence::PerceptionProvider;
+    extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers:
+        [mineworld_bodies::BodiesSystem,];
+    extension mineworld_bodies::InteractionKind => mineworld_bodies::register_interactions:
+        [];                                                   // `ice` would join here
+    Presence => mineworld_presence::PresenceSystem,
+    …
+}
+```
+
+- The macro expands `Capability::register_extensions()`, calling each named function with its list;
+  `worldpack::compose` calls that one function. Neither the sdk nor `worldpack` names a pack or a trait
+  again; a third catalog is a line in `systems/installed`.
+- The `resolution:` line becomes the first `extension` line in the same PR; nothing about presence's
+  catalog changes (write-once; a different list panics naming both; `require_registered`), and every
+  fact is byte-identical.
+- Installing a pack that provides a kind is ARC-33's two lines plus one entry in an `extension` list —
+  the "three for an arrival resolver" S16 §6.1 already counts.
+
+## 4.8 Ownership
+
+| State or fact | Owner | Written only while | Change |
+| --- | --- | --- | --- |
+| Where a person is (`Presence`) | presence | reducing `arrived` | none; providers cannot reach it |
+| Where a loose object lies (`LooseObjects`), its shape (`BodyShape`) | bodies | reducing `object-placed`, `object-moved`, **`object-removed`** (new, for consequence packs) | `BodyShape` gains `class` (schema 2; QPL-3) |
+| The resolved physics list of each place (**`PlacePhysics`**, new) | bodies | reducing **`physics-configured`** (genesis, only when a world configures bodies) and `place-shaped` (a region's override) | new component; absent → `default` |
+| A provider's code | its pack | — (no state) | registered by `installed!` |
+| A consequence (`broke`) | the consequence pack | its own reductions | its own vocabulary |
+| Shard holdings | inventory | reducing its production fact | stated by the consequence pack through inventory's constructor |
+
+Single ownership holds: no component gains a second writer; every cross-pack effect is a fact stated
+through its owner's constructor and reduced by its owner (ARC-26).
+
+## 4.9 Determinism and persistence
+
+1. **The list is state, reduced from a genesis fact.** `configure/bodies.yaml` seeds one
+   `physics-configured { lists: [ResolvedList], world: ListId }` (bodies' vocabulary, public,
+   subjectless). Bodies reduces it into `PlacePhysics { list: ResolvedList }` on every Place, and a
+   region's `place-shaped` overrides its own place's. Snapshots carry it; replay re-executes genesis from
+   the journal, so a resumed world runs the list it was created with, byte for byte (ARC-25).
+2. **Nothing is stored when nothing is configured.** A world with no `configure: [bodies]` and no
+   `physics:` on any place seeds no new fact and writes no `PlacePhysics`; the resolver, the reactions and
+   the actions read "absent" as the compiled-in `default`. This is what makes PL-I1 (byte-identity) hold
+   without re-baselining any digest.
+3. **Changing the compiled-in `default` is a bodies `VERSION` bump.** A test pins `(VERSION, default
+   list digest)` together, as `rapier_pin` pins `(VERSION, Rapier)` (DC-5). An old save is then refused by
+   name.
+4. **Changing a provider's code is its pack's `VERSION` bump.** The provider's pack must be enabled for a
+   list to name its kind (§4.5), so its declaration is in the composition record and a resume against
+   another version is refused by name (A-12) — no kernel change.
+5. **Changing a world's list is detected on resume (the drift check, part of ARC-PL-a).** Resume does not
+   re-read content today (A-13). The configuration seam adds one host-side check, in `worldpack`, used by
+   every host that resumes from a World Pack (`run`, `server`; `replay` and `biography` read the save
+   only): re-seed the configuration from the World Pack, compare it with the save's genesis
+   configuration facts byte for byte, and refuse on a difference — "the world's configuration for
+   'bodies' differs from the save's (list 'warehouse' v2 here, v1 in the save)". The same moment and the
+   same refusal style as the composition check; no kernel type changes. Whether drift in *other* content
+   (people, places, items) should also be refused is a separate, wider question (QPL-12).
+6. **Floats.** Unchanged: inside `rapier.rs` only, converted from the list's integers by one function
+   per unit; I-3, I-4, I-5 and DC-1 … DC-9 of step-11 hold for every list.
+7. **Order.** Lookups are pure functions of sorted data; providers are asked in `InteractionId` order when
+   more than one applies to one displacement (a surface's kind, then the class's); the canonical Rapier
+   insertion order does not change.
+
+## 4.10 Relation to S16 (`requires:`, versions)
+
+- A world-authored list is versioned by its `version` counter and travels with the World Pack's semver
+  (S16 §4.2).
+- A list shipped by a third-party pack is reached by enabling the pack in `systems:` and, being
+  third-party, naming it in `requires:` with a range (S16 §4.2 rule 1). Nothing new is needed in
+  `requires:`.
+- Raising `default`'s content is a bodies `SystemVersion` bump, so under S16's QSE-7 a breaking release.
+- `packs show bodies` (S16 §4.8) could list a pack's reference lists and kinds; proposed, not required.
+
+## 4.11 Clients and presentation
+
+- **No rule in a client** (I-8, I-S14-1). A client never reads a list's parameters to decide anything.
+- **Disclosure.** The `loose-objects` listing gains each object's `class` (bodies' disclosure; a client
+  may choose a mesh or sprite by class through its Presentation Pack's bindings — R-S15-2's wish, now
+  with a source). The list itself is not disclosed. A wire addition is S11's to carry (coordination
+  ruling 1); proposed as R-S11-PL-1, additive.
+- **3D prediction.** The 3D client may map classes to Jolt collision layers for its local prediction
+  (12e's player does not mask loose objects; a later client may mask the classes whose contact is
+  `block`, from disclosure only); it remains prediction, corrected by the 150 mm rule.
+- **2D and 3D still share one semantic path** (`AC-13`): kick, throw and shove are the same requests;
+  which are offered follows from the list, server-side.
