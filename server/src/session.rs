@@ -25,7 +25,9 @@
 //! journal, a fact or a save. The fixed delay before an `unauthorized` answer is slept here too: it
 //! holds up this connection and nothing else.
 
-use axum::extract::ws::{Message, WebSocket};
+use std::time::Duration;
+
+use axum::extract::ws::{CloseFrame, Message, WebSocket, close_code};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use tokio::time::Instant;
@@ -110,8 +112,10 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
     connection.host.leave(seated.subscription());
     match ending {
         Ending::Gone => {}
-        Ending::Left => close(&mut outgoing, ClosingReason::Left, None).await,
-        Ending::WorldStopped => close(&mut outgoing, ClosingReason::WorldStopped, None).await,
+        Ending::Left => close(&mut outgoing, &mut incoming, ClosingReason::Left).await,
+        Ending::WorldStopped => {
+            close(&mut outgoing, &mut incoming, ClosingReason::WorldStopped).await;
+        }
     }
 }
 
@@ -147,7 +151,7 @@ async fn handshake(
                         Joining::Refused(refusal) => refusal,
                         Joining::Closed(refusal, reason) => {
                             if send(outgoing, &refusal.into_frame()).await.is_ok() {
-                                close(outgoing, reason, None).await;
+                                close(outgoing, incoming, reason).await;
                             }
                             return None;
                         }
@@ -158,7 +162,7 @@ async fn handshake(
                     .detail("join a seat before submitting a request"),
                 Ok(ClientFrame::Leave {}) => {
                     // Nothing to release; a client that asks to go is let go.
-                    close(outgoing, ClosingReason::Left, None).await;
+                    close(outgoing, incoming, ClosingReason::Left).await;
                     return None;
                 }
             },
@@ -314,14 +318,36 @@ fn not_text() -> Refusal {
         .detail("this protocol carries JSON text frames; a binary frame is not one")
 }
 
-/// Says why, then closes the socket (`PROTOCOL.md` §5.6). A client that is already gone simply does
-/// not hear it.
-async fn close(outgoing: &mut Outgoing, reason: ClosingReason, detail: Option<String>) {
-    if send(outgoing, &ServerFrame::Closing { reason, detail })
-        .await
-        .is_ok()
-    {
-        let _ = outgoing.send(Message::Close(None)).await;
+/// How long the server waits for a client to answer its close before dropping the connection.
+const CLOSE_GRACE: Duration = Duration::from_secs(2);
+
+/// Says why, then closes the connection (`PROTOCOL.md` §5.6).
+///
+/// The client is given the chance to close first: after `closing`, whatever it still sends is read
+/// and ignored until it closes the connection itself or [`CLOSE_GRACE`] passes, and only then does
+/// the server send its own close frame. Closing at once instead loses the frames just sent to a
+/// client whose WebSocket discards what it has not yet read when a close arrives in the same read —
+/// measured with Godot's `WebSocketPeer`, which reported a bare closed connection and never the
+/// refusal and `closing` before it. A client that is already gone simply does not hear it.
+async fn close(outgoing: &mut Outgoing, incoming: &mut Incoming, reason: ClosingReason) {
+    let said = send(
+        outgoing,
+        &ServerFrame::Closing {
+            reason,
+            detail: None,
+        },
+    )
+    .await;
+    if said.is_ok() {
+        let _ = tokio::time::timeout(CLOSE_GRACE, async {
+            while !matches!(receive(incoming).await, Received::Gone) {}
+        })
+        .await;
+        let goodbye = CloseFrame {
+            code: close_code::NORMAL,
+            reason: "".into(),
+        };
+        let _ = outgoing.send(Message::Close(Some(goodbye))).await;
     }
     let _ = outgoing.close().await;
 }

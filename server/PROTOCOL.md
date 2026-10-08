@@ -325,8 +325,12 @@ closed is `closing`, never a refusal.
 { "t": "closing", "reason": "left", "detail": "…" }
 ```
 
-Sent immediately before the server closes the socket. A client branches on `reason`; `detail`, when
-present, is for a developer.
+Sent immediately before the server closes the connection. A client branches on `reason`; `detail`,
+when present, is for a developer. Nothing the client sends after it is acted on. **The client closes
+the socket on receiving it**; the server waits up to 2 seconds for that, then sends its own close
+frame (status 1000) and drops the connection. The client closes first because some WebSocket
+implementations — Godot's `WebSocketPeer` among them — discard frames not yet read when a close frame
+arrives with them, which would lose this frame and the refusal before it.
 
 | `reason` | Meaning | Sent from |
 | --- | --- | --- |

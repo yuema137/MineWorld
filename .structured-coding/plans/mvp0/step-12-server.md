@@ -1773,6 +1773,41 @@ E-SA4 A-C4 … A-C6 (one commit, D-SA3), working tree on b6075e2 + the commit's 
         M-SA8  hold_seconds renamed "hold"        → frames welcome FAILED, naming welcome.json
       Sizes (SA-12): protocol.rs 353, session.rs 349, runtime.rs 441, host.rs 498 (unchanged),
       tools/cli/src/main.rs 486 — all under 500.
+E-SA5 Rebase: merged origin/main @ 889d217 (16b #66, 12c #67, docs #64/#65/#68/#69) as 9cdf1b0. One
+      conflict, docs/DECISIONS.md (both appended at the end): 12c's DEP-13 note kept before ARC-41 and
+      DEP-14; check_decision_ids 53 distinct, check_doc_headings clean. clients/2d is not on main yet
+      (S12 13a unmerged), so the call sites on main are the module, demo.gd, 16b's
+      checks/affordances_check.gd and the 3D slice.
+E-SA6 A-C7, Godot 4.7.2.stable.official.ed1daf0bf, one window at a time.
+      - First negative run (wrong invite, headless demo): the client logged only "disconnected: the
+        connection closed (0 )" — neither the refusal nor `closing` (FAIL of SA-9's negative half).
+        Second, with a 1000 close frame and a grace for the client's reply: same, code 1000. Cause:
+        Godot's WebSocketPeer discards frames it has not handed out when a close frame arrives in the
+        same read. Fix (D-SA8): the server sends `closing`, waits up to 2 s for the client to close,
+        then closes; the module closes on `closing`, and drains frames in CLOSING/CLOSED too. Third
+        run: "refused: unauthorized — that is not this server's invite", "the server is closing the
+        connection: unauthorized", "disconnected: the server closed the connection: unauthorized" —
+        PASS. Neither invite appears in either log (grep count 0 and 0). Transcripts under /tmp/s11a,
+        not committed (§15.6 A-C7).
+      - `run.sh evidence` (final module): exit 0; every transcript logs "seated: … protocol 2, as
+        'demo-<flavour>-<seat>', took over: none"; the AC-13 talk is answered by Alice (agent);
+        request-2d.json and request-3d.json byte-identical to the base (no diff);
+        `cargo test --test ac13_semantic_parity` 2 passed on them. Servers ran on OS-chosen ports
+        (55869 …), started without --invite; the script read address and invite from the join line.
+        `grep -rln '^\[mineworld\] invite ' clients/protocol/evidence` → nothing.
+      - `run.sh affordances` (16b's live check, now joining with the invite): "PASS — 0 failure(s)".
+      - `run.sh` windowed: screenshot evidence/demo-scene.png, inspected — seat 'wanderer' = observer
+        18, Alice, Bob, Wes, Vera drawn, talk answered ("accepted (4 fact(s))").
+      - `./mineworld-slice --world --link` (headless, server on 127.0.0.1:0, invite from its line):
+        "[link] seated as visitor [observer 17 …]", "all link checks pass", exit 0, 2 min 10 s.
+      - `git grep -n "connect_to_world("` over *.gd and *.sh: only the four-argument definition and
+        its three callers (slice_link.gd, checks/affordances_check.gd, demo/demo.gd).
+      - Integers (16b's D-2): the join's one number, `protocol`, is the module's int constant
+        `PROTOCOL`, never a parsed value, so JSON.stringify writes `2`; `ClientFrame::Join.protocol`
+        is a u32 and serde_json refuses `2.0` for it, so every welcome above is evidence it went out
+        as an integer. `leave` carries no number. Read side: `hold_seconds` through int().
+      - After the closing change: server suites green again (handshake 7 passed, 7.5 s with the
+        grace), server_command 7 passed; clippy clean.
 ```
 
 ## 15.11 Deviations and discoveries
@@ -1799,6 +1834,18 @@ D-SA5 (bounded) Test harness ports. tools/cli/tests/support's free_port() releas
 D-SA6 (bounded) The join line's seat. "The first roster seat no --agent drives" is the roster's order,
       which is key order (SeatRoster is a BTreeSet): social-cafe's line suggests `alice` with no
       --agent. SA-3's test takes the expected seat from /status rather than assuming `visitor`.
+D-SA8 (bounded, a discovery from the far side — flagged to the primary session) The closing
+      handshake. SD-A4 said the server sends `closing` "immediately before the server closes the
+      socket". Against Godot that loses `closing` and the refusal before it (E-SA6). PROTOCOL.md §5.6
+      now states: the client closes the socket on receiving `closing`; the server waits up to 2 s for
+      that, then sends its own close (1000) and drops the connection. No frame or field changes; the
+      module closes on `closing`; Rust test clients that do not close simply see the server close
+      after the grace. Also: the module drains queued frames in CLOSING/CLOSED states, and demo.gd no
+      longer treats a token-less refusal as its stride's (it matched the empty token).
+D-SA9 (bounded) Launchers bind 127.0.0.1:0 and read the address as well as the invite from the join
+      line (coordinator's port-collision finding): run.sh no longer pkills by name and stops only its
+      own PID; mineworld-slice --world no longer uses 7979. The committed server logs therefore name
+      ephemeral ports.
 D-SA7 (bounded) ClientFrame no longer derives Serialize: nothing serialized a client frame, and an
       OfferedInvite (a possible near miss of the secret) should not be serializable. `Leave` is an
       empty struct variant (`Leave {}`) so that deny_unknown_fields applies to it.
