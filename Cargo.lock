@@ -794,6 +794,7 @@ dependencies = [
  "mineworld-group-activity",
  "mineworld-kernel",
  "mineworld-naming",
+ "mineworld-packages",
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-relationships",

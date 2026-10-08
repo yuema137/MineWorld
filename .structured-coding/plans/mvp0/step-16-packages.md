@@ -1374,10 +1374,32 @@ identity to E-b, this commit moves whole.
 
 **Depends on:** C4, C5.
 
-- [ ] Implementation: as scoped; `packs.rs` names no market crate (check 2 bullet 3).
-- [ ] Validation: `cargo test -p mineworld-cli --test packs`; mutations M-A1, M-A2, M-A4; `cargo test -p
-  mineworld-cli --test commands` (the `not_yet` text).
-- [ ] Review: `main.rs` diff is one variant, one arm, the module line and doc text (parallel-safety with
+- [x] Implementation: as scoped; `packs.rs` names no market crate (check 2 bullet 3). Bounded
+  refinements: (1) `main.rs` gains a nested `PacksCommand` enum beside the one `Packs` variant (clap's
+  shape for `packs list|show|validate`), still one arm in the dispatch; (2) `tests/packs.rs` carries its
+  own small drop-removed scratch and a stderr-capturing runner rather than `support/`, which pulls in
+  tokio and the server for nothing this test needs; (3) `validate` reads a world once (identity from the
+  read, then `load`). Two output defects found by running the real binary and fixed before the test was
+  written: `PackId`'s `Display` ignores a width, so ids did not pad (now `as_str()`); `SystemVersion`
+  displays as `v3`, so `show` prints `presence (SystemVersion 3)` from `get()`.
+- [x] Validation (E-Ea6): `cargo clippy --workspace --all-targets -- -D warnings` → 0. `tests/packs.rs`
+  5 passed, 0 failed, 0 ignored, 0 filtered; `tests/commands.rs` 4 passed (the `not_yet` text);
+  `mineworld-acceptance`: ac1_composability 13, arrival_resolvers 7, arrival_resolvers_unregistered 2,
+  complete_affordances 4, precursor_vocabulary 4, seam_vocabulary 3 passed, 0 failed/ignored/filtered;
+  arrival_resolvers_resume PASS. The real binary: `packs list --packs worlds --packs
+  presentation/mineworld-default` → 14 system-pack lines in the installed order, 1 controller-pack,
+  3 world-pack, 2 presentation-pack, "20 packs", exit 0; `packs show mineworld-presence` → system
+  presence, SystemVersion 3; `packs validate` of the 3D pack and market-town → valid, exit 0.
+  Mutations, each reverted (`git diff` of the mutated file empty afterwards):
+  - M-A1 `CONTROLLERS` emptied → `every_code_pack_…` FAILS (left `[]`, right
+    `["mineworld-rule-controller"]`).
+  - M-A2 presence's `license = "NOT A LICENCE"` → `mineworld packs list` exits 1: "the code pack
+    mineworld-presence: 'NOT A LICENCE' is not an SPDX licence expression: unknown term".
+  - M-A4 presence's `version = "0.1.1"` → `every_code_pack_…` FAILS "mineworld-presence is not at the
+    framework's version". (The first attempt's edit matched two lines and did not apply; that run
+    passed and is void — the mutation was re-applied by unique context, observed in `git diff`, and
+    re-run.)
+- [x] Review: `main.rs` diff is one variant, one arm, the module line and doc text (parallel-safety with
   S11, §9.7); refusals reach stderr with exit 1, never a panic; output order deterministic.
 
 ### Ea-C7 — Close: status, full gate, ledger, PR
