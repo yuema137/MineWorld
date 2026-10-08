@@ -339,8 +339,7 @@ fn sections_do_not_move_the_facts_stated_before_them() {
     // The same pack without `naming` and `schedule` and without their sections (a world that does not
     // enable a section's owner refuses the section): the first seventeen genesis facts must be the same
     // bytes with or without sections — passages and arrivals keep their event ids (ARC-31).
-    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("unnamed/social-cafe");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = mineworld_test_support::scratch!("unnamed").within("social-cafe");
     for directory in ["people", "places"] {
         std::fs::create_dir_all(root.join(directory)).expect("writable");
         for entry in std::fs::read_dir(Path::new(PACK).join(directory)).expect("readable") {

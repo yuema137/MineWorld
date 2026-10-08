@@ -45,6 +45,7 @@ use mineworld_persistence::{
     Creation, Durability, PersistenceBackend, PersistentWorld, SqliteBackend, WorldRevision, verify,
 };
 use mineworld_presence::{ArrivalResolver, register_resolvers};
+use mineworld_test_support::Scratch;
 use resolvers::{Fences, Pack, Plan, Where, at};
 
 const ROLE: &str = "MINEWORLD_RESOLVER_KILL_ROLE";
@@ -287,14 +288,9 @@ fn head(directory: &Path) -> u64 {
         .raw()
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "mineworld-resolver-kill-{}-{name}",
-        std::process::id()
-    ));
-    let _ = std::fs::remove_dir_all(&path);
-    std::fs::create_dir_all(&path).expect("a scratch directory");
-    path
+/// The parent's scratch: only the parent owns it; a child is handed its path (DEP-29).
+fn scratch(name: &str) -> Scratch {
+    mineworld_test_support::scratch!(empty format!("resolver-kill-{name}"))
 }
 
 /// The resume line: (head, snapshot, replayed, facts).
@@ -422,13 +418,11 @@ fn main() {
         )
         .expect("the survivor's whole history reproduces");
         assert_eq!(verified.revisions, total);
-        let _ = std::fs::remove_dir_all(&dir);
     }
     assert!(
         tails.iter().any(|tail| *tail > 0),
         "at least one resume re-executed a tail: {tails:?}"
     );
-    let _ = std::fs::remove_dir_all(&control_dir);
     println!(
         "[resolver-yard] PASS in {:.1} s",
         started.elapsed().as_secs_f64()

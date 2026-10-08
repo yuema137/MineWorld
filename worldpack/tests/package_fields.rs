@@ -2,18 +2,15 @@
 //! loader and checked whenever they are present (`DECISIONS.md` `ARC-53`; step-16 §14.4 EA-5, PD-7).
 //! None of them is world state: a world reads the same with or without them.
 
-use std::path::{Path, PathBuf};
-
 use mineworld_worldpack::{PackError, WorldPack};
 
-/// A one-place, one-person pack under Cargo's per-target scratch directory, named after its id (a
-/// pack's id is its directory's name), removed when dropped.
-struct Scratch(PathBuf);
+/// A one-place, one-person pack in a scratch named after its id (a pack's id is its directory's
+/// name), removed when the test ends (DEP-29).
+struct Scratch(mineworld_test_support::Scratch);
 
 impl Scratch {
     fn world(id: &str, identity: &str, top: &str) -> Self {
-        let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(id);
-        let _ = std::fs::remove_dir_all(&root);
+        let root = mineworld_test_support::scratch!(id);
         for directory in ["people", "places"] {
             std::fs::create_dir_all(root.join(directory)).expect("scratch directory");
         }
@@ -33,12 +30,6 @@ impl Scratch {
 
     fn read(&self) -> Result<WorldPack, PackError> {
         WorldPack::read(&self.0)
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 

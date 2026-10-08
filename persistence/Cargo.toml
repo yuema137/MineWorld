@@ -27,3 +27,5 @@ harness = false
 mineworld-worldpack = { workspace = true }
 # The tamper tests alter a stored row directly, as damage or an editor would, to show replay sees it.
 rusqlite = { workspace = true }
+# Every test's save is scratch removed when the test ends (DEP-29).
+mineworld-test-support = { workspace = true }
