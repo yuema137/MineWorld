@@ -10,7 +10,7 @@ integration checkpoints and adversarial criteria, risks, and open questions.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 (S14, S15), §4, §7.
 **Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`. Nothing here is frozen and nothing here
 authorizes implementation. Each PR is detailed to the commit and frozen in turn (`CLAUDE.md` §3.1).
-**PR 16a:** detailed to the commit in §18, `DESIGN FROZEN (2026-10-08), primary session`.
+**PR 16a:** detailed to the commit in §19, `DESIGN FROZEN (2026-10-08), primary session`.
 **Branch:** `plan/s14-3d`, from `main @ 0fd0be3`, worktree `/Users/yuema137/mineworld-worktrees/plan-s14-3d`,
 held by this planning session only.
 **Written in parallel** with the S11, S12, S13 and Milestone E planning sessions, while 12c is being
@@ -987,23 +987,553 @@ The others are the primary session's to decide at freeze. Each has a recommendat
 
 ---
 
-# 18. PR 16a — the client, ready for bodies (full design; DESIGN FROZEN 2026-10-08)
-
-**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — record in §18.0. Implementation is
-authorized by that freeze (`CLAUDE.md` §3.1; overall "Parallel build-out, 2026-10-08", ruling 9).
-
-## 18.0 Freeze record
+# 18. PR 16b — the shared module: affordance readers, raw components, revision (full design)
 
 ## DESIGN FROZEN
 
 ```text
-Design revision     §§18.1–18.6 as committed in fe3e814
+Design revision     §18 as committed in 5682784 (§§18.1–18.8, 18.11 frozen; §§18.5 checkboxes,
+                    18.9, 18.10 live)
+Approved by         the primary session, 2026-10-08 — freeze message: "FREEZE: 16b is DESIGN FROZEN
+                    (2026-10-08), primary session. §18 is accepted as written, and QSB-1 through QSB-7
+                    are accepted as recommended", plus: demo.gd stays untouched; checks go in
+                    clients/protocol/checks/; the primary session tells S11-A and S12 the final names
+Implementation base main @ 47c81d1, branch mvp0/pr-16b-shared-module
+Execution contract  §18.11
+Lifecycle           FROZEN — DESIGN FROZEN (2026-10-08), primary session
+                    → READY FOR OPERATOR REVIEW (2026-10-08). Final executable head 5c10e06; the PR
+                    head is the ledger commit after it (Markdown only). Implementation context CLOSED /
+                    AWAITING OPERATOR ACTION. DO NOT MERGE without the operator; lands before S11-A.
+```
+
+**Post-merge synchronization (pending, owners per §18.11):** this session records the merge identity
+in this section; the primary session updates the step header, §§12–13 (16b delivered; the `bodies-yard`
+kick check now 12e's, QSB-4), `step-13-client-2d.md` §7 (S12's M-1 … M-3 delivered under SB-1 … SB-7's
+names, and D-1/D-2), `overall.md` §7, and tells S11-A to rebase.
+
+The first commit of the PR is this section, Markdown only (coordination ruling 9).
+**Coordination:** `overall.md` "Parallel build-out, 2026-10-08", ruling 4 — this is **the** shared-module
+PR. It unifies S12's M-1 … M-3 (`step-13-client-2d.md` §7) with this step's M-1 … M-3 (§12), is owned by
+16b, and lands **before S11-A**, which rebases over it. No other PR edits `clients/protocol/mineworld/`
+except S11-A (join credentials) and S11-C (`events`, `perceived`, `acted_through` readers).
+
+## 18.1 Identity, base, approved scope
+
+```text
+PR            16b — shared module: affordance readers, raw components, revision (S14, run in parallel
+              with 16a; PR number assigned at freeze, ruling 7)
+base          main @ 47c81d1 (the parallel-steps freeze merge, #62)
+branch        mvp0/pr-16b-shared-module, worktree /Users/yuema137/mineworld-worktrees/impl-shared-module,
+              held by the implementing session only
+audit         §18.2 (files and symbols read on 47c81d1)
+scope         S12 M-1, M-2, M-3 and M-7 (as far as it documents those three); S14 M-1, M-2, M-3 and M-7
+              (as far as it documents those three); unified in §18.3
+depends on    nothing unmerged
+```
+
+**Goal.** Both reference clients can list every affordance the server sent — including several complete
+affordances that share an action type and a target — find the affordances that concern one entity,
+submit a complete affordance exactly as offered, read a disclosed component whatever its JSON type, and
+know which persisted revision an observation describes. The module stays a reader and a sender: it
+decides nothing (`ADOPTION.md` §3.3), and names no 2D or 3D engine type (I-S14-10).
+
+**The change set.** Every path this PR may touch:
+
+```text
+clients/protocol/mineworld/observation.gd        readers (B-C2)
+clients/protocol/mineworld/world_client.gd       submit_affordance, submit's payload type, revision (B-C3)
+clients/protocol/checks/**                       new: the reader check and the live check (B-C2, B-C3)
+clients/protocol/run.sh                          one new mode, `affordances`; existing modes unchanged (B-C3)
+clients/protocol/evidence/affordances-*.log      new: the live check's transcript and server log (B-C3)
+clients/protocol/evidence/README.md              the new evidence files listed (B-C3)
+clients/protocol/ADOPTION.md                     §2, §3.3 (B-C1)
+clients/protocol/README.md                       one line for `checks/` and the new mode (B-C1)
+docs/DECISIONS.md                                a dated note on ARC-34 (B-C1); no new record
+.structured-coding/plans/mvp0/step-15-demo-3d.md this section (live ledger)
+.structured-coding/plans/mvp0/handoff-16b.md     this PR's handoff (QSB-3)
+```
+
+**Non-goals.** No change to `demo/demo.gd`, `space.gd`, any file under `clients/3d-spike/`, any committed
+file under `clients/protocol/evidence/` other than the new ones, `server/PROTOCOL.md` (the wire is
+unchanged), any Rust crate, any world or pack. No join credentials (S11-A, M-5), no `events` reader
+(S11-C, M-6), no `acted_through` (S11-C, M-4 of §12), no reconnect guidance (S12's M-4, which stays with
+13a — QSB-6). No client consumes the new API in this PR: 13b (2D) and 12e/16d (3D) do.
+
+## 18.2 Audit (main @ 47c81d1)
+
+| ID | Finding | Evidence | Consequence |
+| --- | --- | --- | --- |
+| **F-16b-1** | `affordance(action_type, target := "")` returns the **first** match; `may`, `unavailable_reason` and `requirement` all go through it. `affordances()` returns the whole list and takes no argument. `offered_against(target)` lists action types against one target. | `observation.gd:146–202` | A filter on the existing list accessor is the smallest addition; `affordance()` and its three users keep their first-match meaning for incomplete affordances, where type and target identify one entry. |
+| **F-16b-2** | `component()` returns the payload only when it is a Dictionary, else `{}`. Every payload disclosed in today's worlds is a JSON object (`Holdings` is `{ held: [...] }`, `Listing` `{ operator, listed }`, `PlaceShape` `{ floor, solids }`), so no array payload exists before 12c's `loose-objects`. | `observation.gd:102–111`; `systems/inventory/src/component.rs:36`; `systems/economy/src/component.rs:135`; `systems/bodies/src/component.rs` | `component_value` cannot be exercised on an array from a live server today; the reader check (B-C2) owns that shape with a synthetic frame, labelled as such. |
+| **F-16b-3** | `submit(action_type, target, payload: Dictionary, actor_location)` builds the request and emits `submitted_request`. A complete affordance's `payload` is whatever JSON the owning system encoded; a payload-less Rust struct (`struct Shove;`) serializes as `null`, which a `Dictionary` parameter cannot carry. | `world_client.gd:155–175`; `PROTOCOL.md` §5 ("in the same JSON shape a client would send") | `submit`'s `payload` widens to `Variant` (S12's M-2); every existing caller passes a Dictionary and is source-compatible. |
+| **F-16b-4** | `is_complete` must test **presence** of the key, not non-null: `PROTOCOL.md` §5 says the field is *absent* on an incomplete affordance (`skip_serializing_if`), so a present `null` is a complete affordance whose payload is `null`. | `PROTOCOL.md:149–157`; ARC-34 point 1 | Fixed in the reader and checked by a synthetic frame. |
+| **F-16b-5** | `_observation` keeps `seq` and the inner observation and drops the frame's `revision`; `world["revision"]` (the welcome's) is the only revision a client can read. | `world_client.gd:256–288`; `PROTOCOL.md:115–142` | `MineWorldClient.revision` (S12's M-3), set from the welcome and every accepted observation frame. |
+| **F-16b-6** | Callers of the module outside it: `demo/demo.gd` (`submit` ×2, `may`, `unavailable_reason`, `component`, `affordances`, `display_name`, `own_component`, `tagged`, …); `clients/3d-spike/scripts/slice/slice_link.gd:100, 420, 440–444` (`component`, `submit`, `may`, `unavailable_reason`); `slice_probe.gd:575` (`component`). The 3D project links the module by symlink (`clients/3d-spike/mineworld -> ../protocol/mineworld`). | `grep` over `clients/`; `ls -la clients/3d-spike/mineworld` | "Existing callers unchanged" is shown by running them: `run.sh evidence` (demo, both flavours) and the slice's `--drive` and `--world --link` (§18.4 A-5, A-6). |
+| **F-16b-7** | Market Town at genesis gives the live check every case it needs **without 12c**: `visitor` stands at the café door (1 610, 600) holding `apple` and `scarf`, with a wallet of 200 000; the café is a shop (`cafe-company`, six priced kinds), so six complete `buy` affordances, target `null`, are offered there; `give` is offered complete per kind held per present person (SD-20), so `visitor` sees **two** complete `give` affordances against each person present — one action type, one target, two choices; Alice stands at (6 000, 8 000), ~8.6 m away, beyond `give`'s 3 000 mm, so her two `give` affordances are complete **and unavailable**; `talk` is offered incomplete (F-S14-20). | `worlds/market-town/people/{visitor,alice}.yaml`; `organizations/cafe-company.yaml`; step-10 SD-20; `systems/economy/src/action.rs:45` | A-2 … A-4 run against a real server with no fixture. |
+| **F-16b-8** | 12c (kick, throw, shove, `loose-objects`) is **not merged** on 47c81d1: no pack declares `kick`; `bodies-yard` installs `presence, movement, conversation, bodies` only. §13's 16b checkpoint names `bodies-yard` "once 12c merges". | `grep -rn kick systems/*/src` (none); `worlds/bodies-yard/world.yaml` | The `bodies-yard` half of §13's checkpoint cannot run before 16b lands (it must precede S11-A). `affordances_about(object)` is proven here on `buy`'s `payload.item`, the same rule; the `kick` case moves to 12e's `--world --bodies`, which consumes it (bounded scoping, recorded; not a change to the result). |
+| **F-16b-9** | `run.sh`'s `start_server` hard-codes `worlds/social-cafe` in both the launch and the `pkill` pattern; the server takes `--save DIR` (`tools/cli/src/main.rs:97–100`). | `run.sh:29–36` | The new mode passes its world and a save directory; the three existing modes call it exactly as before. |
+| **F-16b-10** | The two "naming" questions: S12 named its list accessor `choices`, S14 `complete_affordances`, and S14's lookup `offers_about`. `CORE_CONCEPTS.md` §15.2 defines **Affordance** and **complete affordance**; "offer" is presence's server-side verb (`Offer::new`, `Offer::complete`), and "choice" is not a defined term. | `docs/CORE_CONCEPTS.md:764–801`; `CLAUDE.md` §2.1 rule 3 | Client API names use the defined terms (SB-1, SB-3). |
+| **F-16b-11** | No CI workflow exists (`.github/workflows` absent; S13 builds it). Nothing in Rust reads the module; `tools/cli/tests/ac13_semantic_parity.rs` reads `evidence/request-{2d,3d}.json`. | `ls .github`; `clients/protocol/evidence/README.md` | CI repair is N/A; A-5 re-runs the parity test. |
+
+## 18.3 The unified API (SB-1 … SB-7)
+
+Every addition is a reader of a frame the server already sends, or a convenience over `submit`. None
+compares a position, reads `available` to decide anything, or knows an action type.
+
+```text
+MineWorldObservation
+  affordances(action_type := "", target: Variant = null) -> Array     widened; no arguments = today's
+  complete_affordances(action_type := "", target: Variant = null) -> Array               new
+  affordances_about(id: String) -> Array                                                 new
+  static is_complete(affordance: Dictionary) -> bool                                     new
+  component_value(id: String, component_type: String) -> Variant                         new
+  component(id, component_type) -> Dictionary                                unchanged meaning
+
+MineWorldClient
+  submit(action_type, target, payload: Variant = {}, actor_location)        payload widened
+  submit_affordance(affordance: Dictionary, actor_location: Variant = null) -> String    new
+  revision: Variant                                                                      new
+```
+
+| ID | Decision | Unifies | Rationale |
+| --- | --- | --- | --- |
+| **SB-1** | **`affordances(action_type := "", target: Variant = null) -> Array`** — every affordance, complete or not, in the server's order; `action_type` `""` matches any type; `target` `null` matches any target, a String matches exactly, and `""` matches the target-less (as every existing method spells it). Called with no argument it is today's `affordances()`. | S12 `choices(type, target)`; S14 `complete_affordances` (its list half) | One list accessor instead of two names for one list; "choice" would be a synonym for Affordance (`CLAUDE.md` §2.1 rule 3). The only order is the server's: `PROTOCOL.md` §5 says several complete affordances "differ only in `payload`; a client keeps them apart by their position in the list". |
+| **SB-2** | **`complete_affordances(action_type := "", target: Variant = null) -> Array`** — the subset of SB-1 that is complete; **`static is_complete(affordance) -> bool`** — `affordance.has("payload")`. | S14 M-1; S12 `is_complete` | The defined term, ARC-34's. Presence of the key, not non-null (F-16b-4). A 3D buy menu and a 2D "complete" menu row are each one call. |
+| **SB-3** | **`affordances_about(id: String) -> Array`** — every affordance whose `target` is `id`, or whose `payload` is a Dictionary with a **top-level** String value equal to `id`; in list order, complete or not. | S14 `offers_about` | Finds `kick { object }`, `throw { object, toward }` and `buy { item }` by the entity they concern without the module knowing those actions; finds `talk`/`give`/`shove` by target. Identities are decimal strings (§3.1), so a top-level string equal to one is a reference. Nested values are not searched: `toward: { x, y }` holds numbers, and a deeper search would start guessing at a pack's shapes. Named with the defined term (F-16b-10). Accepted limitation: a free-text payload string that happened to equal an id would match; complete payloads are enumerated choices, never free text (ARC-34 point 6). |
+| **SB-4** | **`component_value(id, component_type) -> Variant`** — the disclosed payload exactly as it arrived, any JSON type; `null` when that component was not disclosed about that entity. `component()` keeps its Dictionary contract and is re-expressed through it. | S14 M-3 | F-16b-2. One lookup loop, two typings. |
+| **SB-5** | **`submit_affordance(affordance, actor_location := null) -> String`** — submits `action_type`, `target` and `payload` exactly as offered, through `submit` (so `submitted_request` and the token behave identically); returns `""`, warns, and sends **nothing** when the affordance is not complete or carries no String `action_type`. It **never reads `available`**: an unavailable complete affordance is submitted, and the server answers. | S12 M-2 = S14 M-2 | ARC-34 point 3, `ADOPTION.md` §3.3 "NOT allowed: refuse to submit because you concluded it would fail". Refusing an incomplete affordance is not a world rule: there is no payload to send unchanged, and inventing one is the client knowing the action. |
+| **SB-6** | **`submit`'s `payload` becomes `Variant`** (default `{}`). | S12 M-2 | F-16b-3. Source-compatible: every caller passes a Dictionary. |
+| **SB-7** | **`MineWorldClient.revision: Variant`** — `null` or an `int`; reset to `null` by `connect_to_world`, set from the welcome's `world.revision`, then from each observation frame that is accepted (a stale frame changes neither `latest` nor `revision`). Documented as the persisted revision `latest` was computed from. Not on `MineWorldObservation`: the field is the frame's, not the contract `Observation`'s, and `latest` and `revision` change together. The module does not police monotonicity (the server guarantees it). | S12 M-3 | F-16b-5; `AC-15`'s fourth evidence line seen from inside a client. |
+
+**Engine neutrality and policy freedom (I-S14-10).** The diff adds no type from Godot's 2D or 3D node
+families (`Vector2/3`, `Node2D/3D`, `CollisionObject*`, …) to the module, no action-type literal, no
+constant naming a distance, and no comparison of a position. A–7 checks it.
+
+## 18.4 Acceptance (decided before measuring, `ARC-23`)
+
+```text
+A-1  READER. A headless check (clients/protocol/checks/reader_check.gd, no server) over synthetic
+     frames — each shape one the contract allows and no installed pack sends yet — shows:
+       a. affordances("x") returns both of two affordances of type x against one target, in order,
+          and affordance("x", t) still returns the first;
+       b. target null = any, "" = target-less, an id = exactly that target;
+       c. a complete affordance whose payload is null is complete; one without the key is not;
+       d. component_value returns an Array payload as an Array, a Dictionary as itself, null when
+          undisclosed; component() returns {} for the Array, as today;
+       e. affordances_about(id) finds an affordance by target and by a top-level payload string, and
+          not by a nested one.
+     Expected values are written in the check by hand, never computed by the code under test.
+A-2  LIVE: LISTING. Against `mineworld server worlds/market-town --agent alice --save <tmp>`, the live
+     check (clients/protocol/checks/affordances_check.gd, run by `run.sh affordances`) seated as
+     `visitor` reads its first observation and prints: six complete `buy` affordances (one per kind
+     cafe-company prices), target null; for Alice, exactly two complete `give` affordances, both
+     returned by affordances("give", alice) in the server's order, with payload items differing;
+     `talk` against Alice incomplete; affordances_about(<a buy's payload.item>) contains that `buy`.
+A-3  LIVE: SUBMITTED UNCHANGED. submit_affordance(one available `buy`) produces a submitted_request
+     whose action_type, target and payload.payload equal the affordance's, byte for byte after
+     JSON.stringify; the server answers `accepted`; a later observation shows the observer's
+     `wallet` lower by that kind's price and its `holdings` one higher, read with component_value.
+A-4  LIVE: POLICY-FREE. submit_affordance(Alice's first `give`, available false) IS sent and answered
+     rejected `too_far_away` by the server; submit_affordance(the incomplete `talk`) returns "" and no
+     submitted_request is emitted; revision is an int, never decreases across the run, and is
+     higher after the accepted buy than before it.
+A-5  EXISTING CALLERS, 2D side. `bash clients/protocol/run.sh evidence` on the PR head: every
+     transcript shows the same steps as the base run (walk, talk accepted, Alice's reply heard, the
+     wanderer told, the simultaneous run with one instance); evidence/request-2d.json and
+     request-3d.json are byte-identical to the committed files (git diff --exit-code); `cargo test
+     -p mineworld-cli --test ac13_semantic_parity` passes. The base run (E-B0) is made first, on
+     47c81d1, to show the requests reproduce byte for byte before any change.
+A-6  EXISTING CALLERS, 3D side (the symlink). `./mineworld-slice --drive` and `./mineworld-slice
+     --world --link` on the PR head report the same verdicts as on the base (E-B0), with no
+     GDScript parse or runtime error in either log.
+A-7  NO RULE IN THE MODULE. In the PR's diff of clients/protocol/mineworld/: no string literal equal
+     to an action type any pack declares (collected from ActionTypeId::from_static under
+     systems/*/src), no `distance`/`length`/comparison of a position, no read of `available` outside
+     the pre-existing may(), no Godot 2D/3D node or vector type. Shown by a recorded grep over the
+     diff and by review; 16a's I-S14-1.1 scan (tests/acceptance) becomes the durable owner.
+A-8  MUTATIONS BITE (each made in the working tree, run, recorded, reverted):
+       M-B1  affordances() filter returns only the first match       → A-1a and A-2 fail
+       M-B2  submit_affordance skips when available is false          → A-4 fails (no too_far_away)
+       M-B3  submit_affordance sends an incomplete affordance          → A-4 fails (talk sent)
+       M-B4  is_complete tests payload != null                         → A-1c fails
+       M-B5  component_value coerces to Dictionary                     → A-1d fails
+       M-B6  revision set only from the welcome                        → A-4 fails (no rise)
+       M-B7  affordances_about ignores the payload                     → A-1e and A-2 fail
+```
+
+## 18.5 Commit plan
+
+Each commit tracks implementation, validation and review separately. Evidence goes into §18.9 as
+`E-B<n>`. A planned commit may become several coherent commits; the mapping is recorded.
+
+### B-C0 — Design (this section) — docs only
+
+- [x] Implementation: §18, from the audit in §18.2.
+- [x] Validation: `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents,
+  none duplicated; `python3 scripts/check_decision_ids.py` → 51 ids, all distinct (2026-10-08).
+- [x] Review: every finding cites a file, a line, or a command; the two step lists are unified with
+  each item placed (SB-1 … SB-7, non-goals); the scope-reducing finding F-16b-8 is stated, not hidden;
+  questions are marked for the freeze (§18.8). Self-review by the drafting session; the primary
+  session's review is pending.
+
+### B-C1 — Specs before code: `ADOPTION.md`, protocol `README.md`, the ARC-34 note
+
+**Goal.** The module's specification states the new API and its obligations before code relies on it
+(`CLAUDE.md` §2.2).
+
+**Scope.**
+- `clients/protocol/ADOPTION.md`:
+  - §2 `MineWorldClient`: `submit`'s payload as Variant; `submit_affordance`; the `revision` member.
+  - §2 `MineWorldObservation`: the list of SB-1 … SB-4.
+  - §2 "Complete affordances" paragraph rewritten: list with `affordances`/`complete_affordances`,
+    find with `affordances_about`, submit with `submit_affordance`, whether available or not; keep
+    them apart by position; an affordance a client cannot compose (incomplete, and no composer for
+    its type) is shown, never guessed at (S12's M-7). The sentence "The module gains no accessor for
+    this in S9; the first client use is S12's" is replaced.
+  - §2 a `component_value` sentence: a payload that is not an object (12c's listings) is read here.
+  - §3.3 `allowed`: "submit a complete affordance unchanged, available or not".
+- `clients/protocol/README.md`: `checks/` in the layout block; the `affordances` mode in "Run it".
+- `docs/DECISIONS.md`: under ARC-34, a dated note — the module's readers and `submit_affordance`
+  landed in 16b; point 7's "no client code in S9" stands as history.
+
+**Depends on:** freeze. **Non-goals:** no code; `PROTOCOL.md` unchanged (the wire is unchanged).
+
+- [x] Implementation: the edits above. ADOPTION §2 gained the API lines, three paragraphs ("Listing
+  affordances", "Complete affordances" rewritten, "Disclosed components") and the two-kinds paragraph
+  (S12's M-7); §3.3 one `allowed` line. README: `checks/` and a "module's own checks" block. ARC-34:
+  "Note, 2026-10-08 (S14, PR 16b)".
+- [x] Validation: `check_doc_headings` → 176 sections, none duplicated; `check_decision_ids` → 51 ids,
+  all distinct (no new id). The §2 ↔ `func` cross-check is B-C4's.
+- [x] Review: no new term; "affordance" and "complete affordance" as `CORE_CONCEPTS.md` §15.2 defines
+  them; §3.3's four rules unchanged in substance; nothing in ADOPTION contradicts `PROTOCOL.md` §§5–6.
+  Done: the only terms used are Affordance, complete affordance, payload, target; "choice" appears
+    only in ARC-34/PROTOCOL's own sense ("one per choice offered"); §3.3 gains one allowed line and
+    loses nothing; PROTOCOL §5's "keep them apart by their position" and §6's "submit unchanged" are
+    restated, not altered.
+
+### B-C2 — `MineWorldObservation`: SB-1 … SB-4, and the reader check
+
+**Goal.** A-1.
+
+**Scope.**
+- `clients/protocol/mineworld/observation.gd`:
+  - `affordances(action_type := "", target: Variant = null)` filtering in list order; a private
+    `_target_of(affordance) -> String` (`null` → `""`), reused by `affordance()` and `offered_against()`
+    in place of their two copies of that conversion.
+  - `complete_affordances(...)`, `static is_complete(...)`, `affordances_about(id)`.
+  - `component_value(id, component_type) -> Variant`; `component()` re-expressed as
+    `component_value` typed to Dictionary.
+  - Doc comments on each, in the file's voice: reads, never decides.
+- `clients/protocol/checks/reader_check.gd` (new): `extends SceneTree`, run as
+  `godot --headless --path clients/protocol --script res://checks/reader_check.gd`; builds the
+  synthetic frames of A-1 inline, prints one `PASS`/`FAIL` line per claim with the observed value,
+  and quits with exit code 1 on any failure.
+
+**Depends on:** B-C1. **Non-goals:** `affordance`, `may`, `unavailable_reason`, `requirement`,
+`offered_against` keep their meaning.
+
+- [x] Implementation: as scoped. `affordance()` is now `affordances(type, target)[0]` and
+  `offered_against()` is `affordances("", target)` mapped to types, so the target conversion exists once
+  (`_target_of`); `_payload_names` is the top-level search. `component_value` also skips a component
+  record that is not an object (the old loop would have errored on one).
+- [x] Validation: E-B1 (reader check 17/17 PASS); E-B2 (M-B1, M-B4, M-B5, M-B7 each FAIL naming their
+  claims, reverted, 0 `MUTATION` markers left); `--drive` on this tree: E-B3.
+- [x] Review: `affordance(type, target)` returns the same first entry as before for every input (same
+  filter, same order, `{}` when none); `affordances()` with no argument returns the frame's own array as
+  before; `""` still means target-less in `affordance`, `may`, `unavailable_reason`, `requirement`,
+  `offered_against`; the added code compares no position, reads no `available`, holds no action-type
+  literal, and names no engine type (A-7, checked again at B-C4).
+
+### B-C3 — `MineWorldClient`: SB-5 … SB-7, the live check, `run.sh affordances`
+
+**Goal.** A-2, A-3, A-4.
+
+**Scope.**
+- `clients/protocol/mineworld/world_client.gd`: `submit`'s `payload: Variant = {}`;
+  `submit_affordance(affordance, actor_location := null) -> String` through `submit`; `var revision:
+  Variant = null`, reset in `connect_to_world`, set in `_welcome` from `world.revision` and in
+  `_observation` after the stale check; doc comments, and the class comment's "it knows" block gains
+  "the revision a frame names".
+- `clients/protocol/checks/affordances_check.gd` (+ a `.tscn` if a scene proves simpler than a
+  SceneTree script — chosen at implementation and recorded): seated as `visitor`, performs A-2 → A-3 →
+  A-4 in that order, driven by observations and results (never by sleeps), prints a `[check]`
+  transcript with one PASS/FAIL per claim, and quits non-zero on any FAIL or on a 60 s budget.
+- `clients/protocol/run.sh`: `start_server` gains optional world and save-directory arguments,
+  defaulting to today's values so the three existing modes run the identical command; mode
+  `affordances` starts `worlds/market-town --agent alice --save "$(mktemp -d)"`, runs the check,
+  stops the server, **removes the save directory** (ruling 10), and prints the `[check]` lines.
+- `clients/protocol/evidence/affordances-market-town.log`, `server-affordances.log` (new), and
+  `evidence/README.md`'s table.
+
+**Depends on:** B-C2. **Non-goals:** no change to `demo.gd`, nor to the commands the existing modes run.
+
+- [x] Implementation: as scoped, plus D-1 and D-2 (§18.10), found by the first live run. The live
+  check is a `SceneTree` script (no `.tscn` needed); it prints every complete affordance it was offered,
+  so the transcript shows the real payload shapes. Godot's `.uid` sidecars for the two new scripts are
+  committed, as the module's own are.
+- [x] Validation: E-B4 (live check 22 claims PASS on the final B-C3 tree); E-B5 (M-B1, M-B2, M-B3,
+  M-B6, M-B7, M-B8 against it, each FAIL, reverted); the reader check re-run with D-1's typed-reference
+  case, 18/18 PASS; no `world.sqlite` left in `$TMPDIR` after the runs (`find … -newer` → 0).
+- [x] Review: `submit_affordance` never reads `available` (M-B2 shows the check would see it); it
+  emits `submitted_request` only through `submit`, i.e. only when it sends; `revision` is assigned after
+  the stale return, so a stale frame moves neither `latest` nor `revision`; the existing modes call
+  `start_server "$log"`, which now runs `mineworld server "worlds/social-cafe" --listen … --agent
+  alice` — the same argv as before (the quoted `worlds/$world` expands to the same word, the empty
+  `save` array to nothing) and the same `pkill` pattern. `_as_sent` touches numbers only: identities
+  are strings and pass through.
+
+### B-C4 — Final gates on the PR head, ledger, PR
+
+**Goal.** A-5 … A-8 on the exact head; the PR opened READY FOR OPERATOR REVIEW.
+
+- [x] Implementation: §18.9 evidence and §18.10 deviations completed; handoff closed.
+- [x] Validation, on the final executable head `5c10e06` (E-B6 … E-B9):
+  - [x] `bash clients/protocol/run.sh evidence` → A-5 PASS; logs inspected, committed evidence restored;
+  - [x] `cargo test -p mineworld-cli --test ac13_semantic_parity` → 2 passed;
+  - [x] `./mineworld-slice --drive` and `./mineworld-slice --world --link` → A-6 PASS (the link run
+    once INCONCLUSIVE from a port collision, re-run);
+  - [x] reader check and `run.sh affordances`: last run on content identical to the head's code;
+  - [x] the A-7 grep over `git diff 47c81d1 -- clients/protocol/mineworld` → clean;
+  - [x] `check_doc_headings`, `check_decision_ids`.
+- [x] Review: the whole diff against §18.1's path list — every changed path is on it
+  (`git diff --stat 47c81d1`, E-B9); ADOPTION §2 against the code's `func` list (E-B8); every A-8
+  mutation recorded with its failing line (E-B2, E-B5).
+
+## 18.6 Test ownership
+
+```text
+STATIC      Godot's parser on import/run (a parse error in the symlinked module breaks both projects);
+            the doc-heading and decision-id scripts
+UNIT        reader_check.gd: JSON shapes the contract allows and no installed pack sends yet (array
+            component payloads, a null complete payload, nested payload ids) — A-1
+INTEGRATION affordances_check.gd against a real market-town server: listing, unchanged submission,
+            policy freedom, revision — A-2 … A-4
+REGRESSION  run.sh evidence + ac13_semantic_parity (demo, both flavours); the slice's --drive and
+            --world --link (3D through the symlink) — A-5, A-6
+GATE 1      NOT REQUIRED — no language model anywhere
+GATE 2      the live check and the regression runs above are this PR's real-lifecycle evidence
+CI          none configured (S13); N/A
+```
+
+The reader check owns only what the live run cannot produce today; everything a real server sends is
+owned by the live check, not duplicated in fixtures.
+
+## 18.7 Is any of this material?
+
+No frozen invariant, contract, ownership boundary or dependency changes. The module's public API grows
+additively; `submit`'s widening is source-compatible. Two points are surfaced for the freeze rather than
+assumed: the renaming in SB-1/SB-3 (QSB-1) and the deferral of §13's `bodies-yard` half to 12e (QSB-4).
+A needed edit to any path outside §18.1's list, or any change to the committed `request-*.json`, is a
+material stop.
+
+## 18.8 Questions for the freeze (QSB-1 …)
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QSB-1** | The operator's list names `choices`, `complete_affordances` and `offers_about`. Use those names, or fold `choices` into `affordances(action_type, target)` and call the lookup `affordances_about`? | **Fold and rename** (SB-1, SB-3): `CLAUDE.md` §2.1 rule 3 forbids a synonym for a defined term, and "choice"/"offer" would be two. The behaviour is exactly the requested one. 13b and 12e consume these names; S12's step text keeps its working names until its own PR (the primary session's sync). |
+| **QSB-2** | Keep `complete_affordances` beside `is_complete`, or only `is_complete`? | **Keep both**: the complete subset is the one list both menus show, and filtering by a static Callable is awkward in GDScript. |
+| **QSB-3** | Handoff file. `handoff.md` is shared by every lane and currently holds 12b's text. | **`handoff-16b.md`** for this PR, so parallel lanes never overwrite each other's handoff. |
+| **QSB-4** | §13's checkpoint also names `bodies-yard` `kick` "once 12c merges"; 12c is not merged and 16b must land before S11-A. | **Defer that half to 12e** (`--world --bodies` uses `affordances_about(object)` for kick); A-2 proves the same payload rule on `buy`. |
+| **QSB-5** | `run.sh evidence` rewrites the committed AC-13 evidence. Commit the regenerated files? | **No.** Compare the two `request-*.json` byte for byte, record the transcripts' verdicts in §18.9, and restore the committed files: they are frozen evidence of the run that produced them (`evidence/README.md`). |
+| **QSB-6** | Ruling 4 says no other PR edits the module. S12's M-4 (reconnect guidance) edits only `ADOPTION.md` §6, outside `mineworld/`. | **Leave it with 13a**; 16b does not touch §6. |
+| **QSB-7** | Decision record. S14's range is ARC-50 … 52, DEP-20. | **No new record**: the API follows ARC-34 and is specified in `ADOPTION.md`; a dated ARC-34 note records the first client accessors. ARC-50 … 52 stay for 12e (the correction rule, `ARC-S14-a`) and later S14 PRs; DEP-20 is 16a's Jolt. |
+
+## 18.9 Evidence ledger (E-B<n>)
+
+E-B0 is the base run of A-5 and A-6 on 47c81d1 (module and demo untouched), made before any code edit.
+
+**E-B0a — `bash clients/protocol/run.sh evidence` on the base (2026-10-08). PASS.** 58.6 s wall, exit 0.
+All five transcripts end as committed: both flavours walk, `talk` to "7" accepted, Alice's reply heard
+("…You are the first person to speak to me here."), `wrote 5 submitted request(s)`; the wanderer is
+told what Vera said; the simultaneous pair shares one instance. `git diff` after the run:
+`request-2d.json` and `request-3d.json` **unchanged** (the requests reproduce byte for byte, so A-5's
+comparison is meaningful); seven `.log` files differ only in the world instance, and in
+`simultaneous-3d.log` the client count (3 vs 2) and the ActionIds (+1) — the two simultaneous clients'
+join order, a race the base already has. Logs kept in `/tmp/16b/base-evidence/`; the committed
+evidence restored with `git checkout -- clients/protocol/evidence` (QSB-5).
+
+**E-B0b — `./mineworld-slice --drive` on the base. PASS.** 77.3 s wall, exit 0, "all drive checks
+pass" (walk-in, loop closes within 0.10 m, three wall pushes, exit to `street.main`, three cameras with
+the body still, jumps 0.488/0.491 m, the Flower Room loop within 0.12 m). Verdict lines kept in
+`/tmp/16b/e-b0-drive.verdicts` for comparison.
+
+**E-B0c — `./mineworld-slice --world --link` on the base. PASS.** 111.4 s wall, exit 0, "all link
+checks pass": out to the street and back, jog, two jumps, `talk` from the counter 1.99 m from Alice
+accepted and her reply heard, five street doorways mapped, the 60 s street watch. Verdict lines kept in
+`/tmp/16b/e-b0-link.verdicts`.
+
+**E-B1 — reader check on the B-C2 tree. PASS.** `godot --headless --path clients/protocol --script
+res://checks/reader_check.gd`: 17 claims, 17 PASS, exit 0 (a: both `hand` items `8001, 8002` in order,
+`affordance()` still `8001`, 6 entries; b: null → all six, `""` → `nudge, point`, Bob → `shrug`; c:
+`[false, true, true]`, the five complete; d: `[TYPE_ARRAY, 2]`, `{floor: 1}`, `null`, `{}`; e: Alice →
+`wave, hand, hand`, box → `nudge`, coffee → `8001`, Bob → `shrug` only).
+
+**E-B2 — mutations against the reader check.** Each made in `observation.gd`, run, and reverted by
+restoring the saved file (`grep -c MUTATION` → 0 afterwards; the clean re-run PASS):
+
+```text
+M-B1  affordances() returns after the first match   FAIL a "returns both, in order" ["8001"];
+                                                     FAIL b "\"\" matches the target-less" ["nudge"]
+M-B4  is_complete = payload != null                  FAIL c "is_complete per entry" [false,true,false];
+                                                     FAIL c "complete subset" (shrug missing)
+M-B5  component_value coerces to Dictionary          FAIL d "array payload as an array" [27,-1]
+M-B7  affordances_about ignores the payload          FAIL e "box" []; FAIL e "coffee" []
+```
+
+**E-B3 — `./mineworld-slice --drive` on the B-C2 tree. PASS.** 77.8 s, exit 0, "all drive checks
+pass"; its 18 verdict lines are identical to E-B0b's (`diff` empty).
+
+**E-B4 — `bash clients/protocol/run.sh affordances` on the B-C3 tree. PASS** (after D-1 and D-2; the
+first run is E-B4a below). ~65 s including the build, exit 0, 22 claims PASS. Observer `17`, Alice
+`7`, revision 1 at the first view. Offered complete: six `buy`, target null, payload
+`{ item: { entity, entity_type: "item" } }` for items 22, 24, 25, 33, 36, 37; one `eat` (item 19);
+`give { count: 1, item }` for items 19 and 34 against each of `7`, `8`, `18`, all `available: false`,
+`too_far_away`. A-2: 6 buys, all target-less; 2 gives against Alice, both complete, in the server's
+order, items differing; `talk` offered and incomplete; `affordances_about("22")` contains the buy.
+A-4: `submit_affordance(talk)` → `""`, 0 requests emitted; Alice's first give sent as `c1`, answered
+`{"rejected":"too_far_away"}`. A-3: the buy request equals the affordance on all five fields; `c2`
+answered `accepted` (events 130, 131); wallet 200 000 → 199 600 (price 400 from the café's `shop`
+listing), item 22 held 0 → 1; revision 1 at the buy → 3 after it, never decreasing. Transcript:
+`clients/protocol/evidence/affordances-market-town.log`.
+
+**E-B4a — the first live run, before D-1 and D-2. FAIL**, which is what found them: `SCRIPT ERROR:
+Invalid call 'String' constructor` at the check's item comparison — `payload.item` is an object
+`{ "entity": "22", "entity_type": "item" }`, not a string; the run then timed out at 60 s.
+
+**E-B5 — mutations against the live check** (each in the working tree, run, reverted by restoring the
+saved file; `grep -c MUTATION` → 0 in all three module files afterwards; the clean re-run PASS):
+
+```text
+M-B1  affordances() returns after the first match     FAIL A-2 buys 1 (6); gives 1 (2); complete 1 (2)
+M-B2  submit_affordance skips available = false       FAIL A-4 "unavailable give is sent" (token "")
+M-B3  submit_affordance sends an incomplete one       FAIL A-4 "talk returns \"\" and sends nothing"
+      with an invented {} payload                          ["c1",1]
+M-B6  revision not updated by observation frames      FAIL A-4 "revision rose after the buy" false
+M-B7  affordances_about without the typed reference   FAIL A-2 "affordances_about(item) contains the
+      (the frozen string-only rule)                        buy" false; reader FAIL e "tea … typed
+                                                           reference" ["hand"]
+M-B8  submit_affordance without _as_sent (D-2)        FAIL A-4: the give is answered
+                                                           {"rejected":"precondition_failed"} — the
+                                                           server could not read count 1.0
+```
+
+**E-B6 — `bash clients/protocol/run.sh evidence` on the head `5c10e06`. PASS (A-5).** Exit 0.
+`git diff --exit-code` on `request-2d.json` and `request-3d.json` → 0: byte-identical to the committed
+files. Against E-B0a's logs, with world-instance lines removed: `transcript-2d`, `transcript-3d` and
+`transcript-3d-wanderer` identical; `simultaneous-2d` and `simultaneous-3d` differ only in the
+interleaved ActionIds of the two concurrent clients (2d `c2` action 3 → 6; 3d `c2` 4 → 3, `c3` 5 → 4),
+the race E-B0a already showed. Committed evidence restored (QSB-5).
+
+**E-B7 — `cargo test -p mineworld-cli --test ac13_semantic_parity` on the head. PASS.** 2 passed,
+0 failed. (The first attempt inside the gate chain never ran: `cargo` was not on that shell's PATH.
+Recorded as not run, then run.)
+
+**E-B8 — the 3D slice on the head (A-6).** `--drive`: PASS, 66.0 s, its 18 verdict lines identical to
+E-B0b's. `--world --link`: first run **INCONCLUSIVE** — `shots/slice/server.log`: "cannot listen on
+127.0.0.1:7979: Address already in use", so the slice joined another lane's server (different place ids,
+4 link checks failed against a world it was not meant to see). Re-run with the port free: PASS, 107.2 s,
+"all link checks pass", our server listening, its verdict lines identical to E-B0c's. A-7 scan:
+the 194 added lines of `git diff 47c81d1 -- clients/protocol/mineworld` contain none of the 11 action
+types the packs declare (`accept-invitation buy decline-invitation drink eat give invite
+join-group-activity leave-group-activity move talk`), no `distance`/`length(`/`Vector2|3`/`Node2D|3D`/
+`CollisionObject`/rule-constant name; "available" appears once, in `submit_affordance`'s doc comment
+saying it is not read. ADOPTION §2 ↔ code: each of the six new functions is defined once and named in
+ADOPTION, and `revision` is in both.
+
+**E-B9 — scope.** `git diff --stat 47c81d1 HEAD`: 15 files, every one on §18.1's list (`checks/**`
+includes the two `.uid` sidecars). No file under `demo/`, `clients/3d-spike/`, `server/`, any crate,
+world or pack; no committed evidence file changed. Reader check 18/18 and the live check 22/22 last
+ran on code identical to the head's (only Markdown changed after them).
+
+M-B3's first form (skipping the completeness guard) crashed on the missing `payload` key instead of
+sending; a crash is not the failure the claim is about, so it was replaced by the faithful form above
+and both are recorded. M-B8 is beyond A-8's list: it is D-2's own evidence.
+
+## 18.10 Deviations and discoveries during implementation
+
+Both found by the first live run (E-B4a). Both are **bounded**: they change how SB-3 and SB-5 reach
+their frozen result, not the result. A-2 ("affordances_about(item) contains the buy") and A-3/A-4
+("submitted unchanged", "the server answers") are unchanged, and both would have failed in a real
+world without these corrections. The audit's error is recorded as such: F-16b-7 read the `give`/`buy`
+payload shapes from step-10's SD-20 text (`give { item: ItemId, count }`), not from a live frame.
+
+| ID | Discovery | Decision | Evidence |
+| --- | --- | --- | --- |
+| **D-1** | **Every typed identity in a payload travels as the contract's `TypedEntityRef`**, `{ "entity": "22", "entity_type": "item" }` (`contracts/src/ids.rs:855`, `#[serde(into = "TypedEntityRef")]` on `ItemId`), not as a bare string. SB-3's "top-level String value" would match no `buy`, `give` or `eat` offered in any world today. | `affordances_about(id)` also matches a top-level value that is an object whose `entity` is the string `id`. That is the contract's own reference shape — the module already reads it in `place()` (`self_location.place.entity`) — so no pack shape is learned. Still top level only. ADOPTION §2 and the doc comment say so; the reader check gained the `pick` case. | E-B4a, E-B4; M-B7 (live and reader) |
+| **D-2** | **Godot parses every JSON number as a double**, so an offered `"count": 1` is `1.0` in the affordance, and `JSON.stringify` writes it back as `1.0`. Submitted that way, the server cannot decode `give`'s `u32` count and answers `precondition_failed`. "Unchanged" as SB-5 states it is therefore impossible without restoring integers. | `submit_affordance` sends `_as_sent(payload)`: every finite whole-number double within ±2^53 becomes an `int`, recursively; strings (identities) and everything else pass through. That is the JSON the server sent. A system field declared as a float accepts an integer, so nothing is lost. `submit` itself is unchanged: a caller composing its own payload keeps `ADOPTION.md` §3.2's obligation. | E-B4; M-B8 |
+
+## 18.11 Execution contract for PR 16b (proposed; confirmed at the freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 15 (S14) / PR 16b — the shared module: affordance readers, raw
+                    components, revision
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-15-demo-3d.md §18; evidence §18.9 (E-B<n>);
+                    deviations §18.10
+RELATED / BINDING   overall.md "Parallel build-out, 2026-10-08" (rulings 4, 6, 7, 9, 10); this file
+                    §§10 (I-S14-1, I-S14-3, I-S14-7, I-S14-10), 12, 13; step-13-client-2d.md §7;
+                    DECISIONS ARC-31, ARC-34; server/PROTOCOL.md §§5–6; clients/protocol/ADOPTION.md;
+                    CORE_CONCEPTS §15.2; CLAUDE.md §§2–4
+IMPLEMENTATION BASE main @ 47c81d1; branch mvp0/pr-16b-shared-module; worktree
+                    /Users/yuema137/mineworld-worktrees/impl-shared-module, held by this session only
+APPROVED SCOPE      §18.1's path list; B-C1 … B-C4; SB-1 … SB-7 as answered by QSB-1 … QSB-7
+FROZEN INVARIANTS   no edit outside §18.1's paths; demo.gd, space.gd, clients/3d-spike/**, the
+                    committed evidence files, server/PROTOCOL.md, every Rust crate, world and pack
+                    unchanged; evidence/request-{2d,3d}.json byte-identical after `run.sh evidence`;
+                    the existing run.sh modes run identical server commands; no rule, no action-type
+                    literal and no 2D/3D engine type in mineworld/ (I-S14-10, A-7);
+                    submit_affordance never reads `available`; every test removes its own scratch data
+SEQUENCE            B-C0 (this section, committed before the freeze) → B-C1 → B-C2 → B-C3 → B-C4, each
+                    committed and pushed when coherent
+VALIDATION BUDGET   static/unit/integration unrestricted; real runs: run.sh evidence (~2–3 min,
+                    background) at most three times (E-B0, final, one re-run); run.sh affordances and
+                    the slice's --drive / --world --link freely (each under ~2 min); no full Rust
+                    workspace gate (no Rust change; ac13_semantic_parity only); about one hour in
+                    total; real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §18.5 checkboxes; §18.9; §18.10
+HANDOFF             .structured-coding/plans/mvp0/handoff-16b.md (QSB-3), initialized at B-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   authorized at the primary session's freeze message — source: the
+                                      primary session's kickoff for 16b, 2026-10-08 ("Phase 2 — after
+                                      my freeze message: implement, run the gates")
+  semantic commits, branch push       authorized after the freeze — same source
+  PR creation / update                authorized after the freeze: open the PR READY FOR OPERATOR
+                                      REVIEW — same source
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only; never inherited, never widened. The PR must land
+                                      before S11-A (ruling 4)
+POST-MERGE SYNC     this session owns §18 and its evidence; the primary/planning session owns the step
+                    header, §§12–13 status, step-13-client-2d.md (S12 consumes SB-1 … SB-7 by these
+                    names), overall.md §7, and telling S11-A to rebase
+NORMAL STOP         PR 16b READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a needed edit outside §18.1's paths; a byte change in request-{2d,3d}.json or a
+                    changed verdict in any existing run.sh mode or slice check that this PR's diff
+                    explains; a need for a world rule, an action-type literal or an engine type in the
+                    module; a wire change (PROTOCOL.md)
+```
+
+---
+
+# 19. PR 16a — the client, ready for bodies (full design; DESIGN FROZEN 2026-10-08)
+
+**Numbering.** This section was written and frozen as §18 (commits `fe3e814`, `04ce18c`); 16b, written in
+parallel, also took §18 and merged first, so on merging `main` this one became §19, every "§18" in it
+became "§19", and nothing else changed. Commit messages before the merge say §18.
+
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — record in §19.0. Implementation is
+authorized by that freeze (`CLAUDE.md` §3.1; overall "Parallel build-out, 2026-10-08", ruling 9).
+
+## 19.0 Freeze record
+
+## DESIGN FROZEN
+
+```text
+Design revision     §§19.1–19.6 as committed in fe3e814
 Approved by         the primary session, 2026-10-08 ("FREEZE: PR 16a is DESIGN FROZEN (2026-10-08),
                     primary session"), relayed to this implementation session
 Implementation base main @ 47c81d1; branch mvp0/pr-16a-jolt-targeting
-Execution contract  §18.8
+Execution contract  §19.8
 Lifecycle           FROZEN
-Rulings             §18 accepted as written, including the two departures (only LAYER_BODIES; the
+Rulings             §19 accepted as written, including the two departures (only LAYER_BODIES; the
                     tools-only commit). Q-16a-1 accepted: a small centre dot and a "looking at: …"
                     HUD line, connected only — a 3D visual default delegated to the primary session,
                     judged by the operator in play; the HUMAN_REVIEW_QUEUE checklist wording gains it.
@@ -1012,7 +1542,7 @@ Rulings             §18 accepted as written, including the two departures (only
                     stalled capture is re-run
 ```
 
-## 18.1 Identity, base, approved scope
+## 19.1 Identity, base, approved scope
 
 ```text
 PR            16a — the 3D client, ready for bodies (S14, first of 16a … 16e; GitHub number assigned
@@ -1020,7 +1550,7 @@ PR            16a — the 3D client, ready for bodies (S14, first of 16a … 16e
 base          main @ 47c81d1 (Merge #62, the six parallel step designs frozen)
 branch        mvp0/pr-16a-jolt-targeting, worktree /Users/yuema137/mineworld-worktrees/impl-s14-16a,
               held by this session only
-audit         §18.2 (files and symbols read on 47c81d1, 2026-10-08) on top of §2
+audit         §19.2 (files and symbols read on 47c81d1, 2026-10-08) on top of §2
 scope         §13's 16a row: Jolt selected and every accepted check re-run on it; ray targeting
               replacing the cone, people given pick colliders on LAYER_BODIES (not masked by the
               player); intents.gd taking talk; the I-S14-1 static scan; slice_probe_world.gd split
@@ -1044,7 +1574,7 @@ standard) and `VIS-3D-GODOT-2` (the slice, accepted after the operator played it
 in play (overall, 2026-10-08); 16a therefore *proposes* the one visual element it needs (Q-16a-1) and
 does not decide it.
 
-## 18.2 Re-audit for 16a (`main @ 47c81d1`, 2026-10-08)
+## 19.2 Re-audit for 16a (`main @ 47c81d1`, 2026-10-08)
 
 Every row was read in this session from the file named. §2's findings stand; these add what 16a's
 file-level plan needs.
@@ -1053,20 +1583,20 @@ file-level plan needs.
 | --- | --- | --- | --- |
 | **A16-1** | One Godot project holds both scenes. `project.godot` has no `[physics]` section; `main.tscn` (`./mineworld-3d`, the promenade with the character's `--sweep`, `--headtrace`, `--frametime`, `--drive`) and `slice.tscn` (`./mineworld-slice`) both run on whatever engine it selects. Godot is `4.7.2.stable.official.ed1daf0bf` on this host | `clients/3d-spike/project.godot`; `godot --version` | The one-line switch changes **both** accepted artefacts: the route D+ evidence (`--sweep`, `--headtrace`, `--frametime`, all in `shots.gd`) is re-run as well as the slice's checks |
 | **A16-2** | The slice's checks: `--drive`, `--measure`, `--threshold`, `--perf` (frame cost at four viewpoints), `--character`, `--shots`, `--link`, `--conversation`, dispatched by `SliceProbe._process`; `scripted()` and `with_hud()` list the flags. The launcher maps `--x` to `--slice-x` and runs `--drive` and `--link` headless | `scripts/slice/slice_probe.gd:102–165`; `mineworld-slice:53–64` | A new mode needs a flag in the launcher, in `scripted()`, and a dispatch arm |
-| **A16-3** | The connected modes are one contiguous block: `_link_check` (303–472), `_conversation_frames` (479–555), `_street_watch` (562–604), `_talk_to` (609–631), `_walk_to` (635–639), `_answered` (642–646). `_walk_to` and `_answered` are used only by them. The standalone helpers they also call (`_hold`, `_settle`, `_save`, `_walk_dist`, `_walk_to_x`, `_inside_room`) are used by standalone modes too | `slice_probe.gd` (grep of every call site) | The block moves to the sibling unchanged; the shared helpers stay where they are and are reached by inheritance (§18.4, D-16a-3) |
+| **A16-3** | The connected modes are one contiguous block: `_link_check` (303–472), `_conversation_frames` (479–555), `_street_watch` (562–604), `_talk_to` (609–631), `_walk_to` (635–639), `_answered` (642–646). `_walk_to` and `_answered` are used only by them. The standalone helpers they also call (`_hold`, `_settle`, `_save`, `_walk_dist`, `_walk_to_x`, `_inside_room`) are used by standalone modes too | `slice_probe.gd` (grep of every call site) | The block moves to the sibling unchanged; the shared helpers stay where they are and are reached by inheritance (§19.4, D-16a-3) |
 | **A16-4** | Collision layers: `Build.LAYER_WORLD = 1` is the only layer; every scene collider is a `StaticBody3D` on it; the player is `collision_layer = 0`, mask `LAYER_WORLD`; the third-person boom's ray masks `LAYER_WORLD`. The probe's own measurement ray (`_ray`, `:1264`) and sun ray (`:1198`) use the default mask (all layers) | `build.gd:6, 28–157`; `player.gd:71–82`; `camera_rig.gd:172–173`; `slice_probe.gd:1198, 1265` | A person collider on layer 2 is invisible to the player and the camera. The probe's two rays would see it: they run only in standalone modes, where no perceived figure exists, but they are given `LAYER_WORLD` explicitly so a later connected measurement cannot be silently changed (bounded) |
 | **A16-5** | The player's capsule is r 0.30, h 1.72, centre 0.86 m up, written as literals in `Player._ready`. The first-person eye is `CameraRig.EYE_HEIGHT = 1.66` | `player.gd:77–81`; `camera_rig.gd:32` | The pick collider uses the same capsule; the numbers become one named constant pair in `Player`, cited to bodies' `PERSON_RADIUS`/`PERSON_HEIGHT` (§4.2, QS14-3) |
 | **A16-6** | The cone, `facing_person()`, is called only by `talk_to_facing`; `talk_to_facing` is called by the E handler and by the probe's `_talk_to`. The literal `"talk"` appears in `slice_link.gd` five times (`may`, `unavailable_reason`, `submit`, two token bookkeeping lines) | `slice_link.gd:431–472, 491, 522–525`; `slice_probe.gd:614` | All five move to `intents.gd`; afterwards `slice_link.gd` names `move` only |
 | **A16-7** | Which world people stand where (social-cafe, hosted): visitor (the seat) at café (1610, 600); Alice (barista) at café (6000, 8000); Bob at café (4500, 6100); Wes (`wanderer`) at café (7110, 3900); Ivan on the **street** at (−4000, 1000). The café door is at café (1610, 200) ↔ street (0, 3000); in the scene the café door is x = 3.45, the pavement point z = −7.90, The Flower Room's door x = 11.84 | `worlds/social-cafe/people/*.yaml`; `places/cafe.yaml`; `cafe.gd:36`; `street.gd:35`; `slice_probe.gd:1428` | From the door, the line to Alice passes Bob's axis at **320 mm**. A capsule's horizontal section at the eye height of 1.66 m is 0.18 m in radius, so a ray aimed at Alice's head clears Bob by about 140 mm: the accepted "face Alice from the door, E → too far away" survives a ray, by measurement still to be taken (R-16a-2) |
-| **A16-8** | **A non-vacuous wall test needs a person perceived behind a wall.** The observer perceives only its own place (F-S14-17), so "from the street, facing Alice through the back of the building" (§5) targets nobody **because Alice is not perceived**, not because of the wall: it cannot tell a ray from a cone. But the slice reports a body inside The Flower Room as being on the **street** (`PLACE_KEY[FLORIST_PLACE] = "street"`, F-S14-9), so from the back of the florist the street's people — Ivan — are perceived, and the florist's west party wall stands between | `slice_link.gd:70–74`; A16-7 | `--world --target`'s wall case is taken there (§18.3 T-2). It is valid until 16c binds the florist to `store`; 16c re-designs it then (recorded so it is not forgotten) |
+| **A16-8** | **A non-vacuous wall test needs a person perceived behind a wall.** The observer perceives only its own place (F-S14-17), so "from the street, facing Alice through the back of the building" (§5) targets nobody **because Alice is not perceived**, not because of the wall: it cannot tell a ray from a cone. But the slice reports a body inside The Flower Room as being on the **street** (`PLACE_KEY[FLORIST_PLACE] = "street"`, F-S14-9), so from the back of the florist the street's people — Ivan — are perceived, and the florist's west party wall stands between | `slice_link.gd:70–74`; A16-7 | `--world --target`'s wall case is taken there (§19.3 T-2). It is valid until 16c binds the florist to `store`; 16c re-designs it then (recorded so it is not forgotten) |
 | **A16-9** | **Action-type literals in client code today** (comments excluded): `slice_link.gd` (`"move"`, `"talk"` ×5); `human.gd:422` `mode.set_input_name(0, "move")` — an `AnimationNodeBlendTree` input name, not a request; `clients/protocol/demo/demo.gd` (excluded by I-S14-1.1); `clients/protocol/mineworld/world_client.gd` names `"talk"` only in `##` comments and `"join"` as a wire frame type (not an action type). Action types declared under `systems/*/src`: `buy eat drink invite accept-invitation decline-invitation join-group-activity leave-group-activity give move talk` (11; `bodies` declares none until 12c) | `grep` over `clients/**/*.gd`; `grep 'ActionTypeId::from_static' systems/*/src` | The scan must strip comments, and needs one entry-level allow-list line for `human.gd`'s `"move"` (Q-16a-5) |
 | **A16-10** | **Rule-named constants in client code today:** none outside `clients/protocol/demo` (`STRIDE`, `reach`). `REPORT_DIST` and the capsule do not match I-S14-1.1's pattern | `grep` of `const`/`var` declarations over `clients/**/*.gd` | The rule-constant allow-list starts **empty**; the justifications §10 anticipated are not needed |
 | **A16-11** | **Pack paths in client code today:** only in comments (`slice_world.gd:17`, `cafe_interior.gd:311`, `slice_probe.gd:297`) | `grep '(worlds\|systems)/'` | I-S14-6's scan, over string literals, starts clean |
-| **A16-12** | **The leak's candidates.** `SliceMain._exit_tree` frees `Props._scenes`. Other script-static caches hold engine resources until script teardown, which may come after the rendering server's: `Mats._tex_cache`, `_mat_cache`; `Procgen._cache`; `Props._card_mats`; `Human._scenes`, `_libs`, `_mats`; `SlicePalette._rug`, `_serif`, `_script_font` (font atlases are textures) | `grep '^static var' scripts/**/*.gd`; `slice_main.gd:67–77` | Bisection over these is the investigation's first step (§18.3 C6) |
-| **A16-13** | **No CI workflow** exists (`.github/workflows` absent; S13's 13a is in flight). The full Rust gate is local | `ls .github` | CI repair is `N/A`; the local gate runs once on the final head (§18.6) |
+| **A16-12** | **The leak's candidates.** `SliceMain._exit_tree` frees `Props._scenes`. Other script-static caches hold engine resources until script teardown, which may come after the rendering server's: `Mats._tex_cache`, `_mat_cache`; `Procgen._cache`; `Props._card_mats`; `Human._scenes`, `_libs`, `_mats`; `SlicePalette._rug`, `_serif`, `_script_font` (font atlases are textures) | `grep '^static var' scripts/**/*.gd`; `slice_main.gd:67–77` | Bisection over these is the investigation's first step (§19.3 C6) |
+| **A16-13** | **No CI workflow** exists (`.github/workflows` absent; S13's 13a is in flight). The full Rust gate is local | `ls .github` | CI repair is `N/A`; the local gate runs once on the final head (§19.6) |
 | **A16-14** | `./mineworld-slice --world` hosts on the fixed address `127.0.0.1:7979`. Parallel sessions may hold that port | `mineworld-slice:69–79` | Before each connected run the port is checked; if held, the same server command is started on a free port and the slice joined with `--server=` — the path `--world` itself takes (R-16a-3) |
 
-## 18.3 Acceptance (decided before measuring, `ARC-23`)
+## 19.3 Acceptance (decided before measuring, `ARC-23`)
 
 Every check is run by the real client, against the real server where connected, exactly as the
 operator runs it (`ENGINEERING_RULES.md` §19). "Before" is `main @ 47c81d1` on Godot Physics, measured in
@@ -1178,7 +1708,7 @@ G-1  GATES on the final executable head: cargo fmt --check, clippy -D warnings, 
      persistence/, server/src, systems/, cognition/, worlds/, clients/protocol/ in the PR diff
 ```
 
-## 18.4 Design decisions (D-16a-*)
+## 19.4 Design decisions (D-16a-*)
 
 | ID | Decision | Alternatives considered | Why |
 | --- | --- | --- | --- |
@@ -1188,34 +1718,34 @@ G-1  GATES on the final executable head: cargo fmt --check, clippy -D warnings, 
 | **D-16a-4** | **`intents.gd`** (`SliceIntents`, `RefCounted`, owned by the link): `TALK`, the request's name; `talk(client, target, utterance, actor_location) -> String` submits **regardless of the affordance** and remembers the request by token; `take(token) -> Dictionary` hands back `{ action, target, words }` for the answer's wording; `server_note(obs, target) -> String` returns the world's stated reason when it says talking is unavailable, for display only. The link keeps `move`, the E key, display labels and toasts, and asks intents what an answered token was | keep `talk` in the link (two files naming actions, no seam for 12e's three); a Node with signals | §4.4: one file builds every interaction request. 12e adds kick, throw and shove there and nowhere else |
 | **D-16a-5** | **The probe split by inheritance**: `slice_probe_world.gd`, `class_name SliceProbeWorld extends SliceProbe`, holds the connected modes (`link`, `conversation`, the new `target`) and their helpers; `SliceProbe._process` calls an overridable `_run(mode)`; `SliceMain` instantiates `SliceProbeWorld` when a connected mode is requested. `scripted()` asks both | a third helper file both use (moves the shared walking helpers: more of the accepted probe edited); composition with a reference to the base probe (makes its private helpers public) | The connected modes *are* probe modes that need the same walking and capture helpers; inheritance moves only the connected block and edits the base in two places (dispatch, `scripted()`), which is what §5 asks ("not edited beyond what their claims need") |
 | **D-16a-6** | **The scan strips comments.** A GDScript lexer in the test: `#` to end of line outside a string; `"…"`, `'…'`, `"""…"""` with backslash escapes; `&"…"`/`^"…"` (StringName/NodePath) read as strings | read comments too, as `precursor_vocabulary.rs` and `seam_vocabulary.rs` do | Those scans hold the *absence of vocabulary*; this one holds *where requests are built*, and a word in a comment builds nothing. The protocol module's documentation (`world_client.gd`'s `submit("talk", …)` example) may not be edited by 16a and is right to stay |
-| **D-16a-7** | **Evidence**: before/after numbers and every decisive line go into this section's ledger (§18.7); side-by-side frames for any view J-4 flags, and the sweep sheets before/after, go to `clients/3d-spike/evidence/16a/` (with `.gdignore`), the directory 16e will use; raw captures stay in the ignored `shots/` | commit every frame | Small, reviewable, and the operator can open what matters |
+| **D-16a-7** | **Evidence**: before/after numbers and every decisive line go into this section's ledger (§19.7); side-by-side frames for any view J-4 flags, and the sweep sheets before/after, go to `clients/3d-spike/evidence/16a/` (with `.gdignore`), the directory 16e will use; raw captures stay in the ignored `shots/` | commit every frame | Small, reviewable, and the operator can open what matters |
 | **D-16a-8** | **Tools**: `clients/3d-spike/tools/physics_engine.gd` (headless `--script`: prints the configured setting and the running server's class) and `tools/frame_diff.gd` (headless `--script`: two PNGs → mean absolute difference, share of pixels over a threshold, the bounding box of the differing region; optional side-by-side through the existing `compare.gd`) | ad-hoc scripts in `/tmp` (F-S14-2's probe was one, and is lost) | J-0 and J-4 become re-runnable by anyone; tools are excluded from the scan by I-S14-1.1 |
 
-## 18.5 Questions for the freeze (primary session; **[OM]** = the operator's)
+## 19.5 Questions for the freeze (primary session; **[OM]** = the operator's)
 
 | ID | Question | Recommendation |
 | --- | --- | --- |
 | **Q-16a-1 [OM: visual default, judged in play]** | **A ray needs a reticle.** The cone accepted anything within ~37° of the view's centre; a 0.30 m capsule at 8 m is ~2°. Without a mark at the screen's centre the accepted checklist step 8 ("from the door, face Alice and press E") becomes hard to do by hand. (a) A small centre dot, and the targeted person's name on the HUD's world line ("looking at: Alice Moreau"), **only when connected**; (b) a dot only; (c) nothing until 12e's offer prompts | **(a).** Standalone frames and `--shots` are unchanged (no link, no reticle), so J-4 still isolates Jolt. The dot is 4 px, the slice's HUD colour; the operator judges it in play |
 | **Q-16a-2** | T-2's wall case at the back of The Flower Room, which holds only until 16c binds the florist to `store` (A16-8) | **Yes**, with 16c re-designing it; the counter is kept as a second occluder in T-1's report (aiming at Alice's knees from the customer side meets the counter first) |
 | **Q-16a-3** | J-3's frame-time bound of 15 % median, confirmed by a re-run | **Yes**; Jolt is not expected to move render cost, and 15 % sits above run-to-run noise measured on this machine (10.9–17.6 ms across viewpoints in the 2026-09-30 preview) |
-| **Q-16a-4** | 16a's handoff: a separate file collides between parallel lanes (`handoff.md` is shared); keep 16a's continuation state in §18.8 of this section instead | **Yes**: one authority, no collision |
+| **Q-16a-4** | 16a's handoff: a separate file collides between parallel lanes (`handoff.md` is shared); keep 16a's continuation state in §19.8 of this section instead | **Yes**: one authority, no collision |
 | **Q-16a-5** | `human.gd`'s `"move"` (an `AnimationTree` input name): an allow-list entry with its reason, or rename the input | **Allow-list.** Renaming touches the accepted character's animation graph for no behavioural gain |
 | **Q-16a-6** | `HUMAN_REVIEW_QUEUE.md` `VIS-3D-GODOT-2` known limitation 8 ("Not attributed") becomes false once L-1 holds: append the attribution to that line | **Yes**, one line, appended, nothing else in the accepted entry edited |
 
-## 18.6 Commit plan
+## 19.6 Commit plan
 
 Each commit tracks implementation, validation and review separately; a planned commit may become
-several coherent ones (mapping recorded). Evidence goes into §18.7 as `E16a-<n>`. Every Godot run is in
+several coherent ones (mapping recorded). Evidence goes into §19.7 as `E16a-<n>`. Every Godot run is in
 the background when it may exceed two minutes, one Godot window at a time, with stdout to a log under
 `clients/3d-spike/shots/16a/` (ignored).
 
 ### 16a-C0 — Design (this section) — docs only
 
-- [x] Implementation: §§18.0–18.8, from the audit in §2 and §18.2.
+- [x] Implementation: §§19.0–19.8, from the audit in §2 and §19.2.
 - [x] Validation: `python3 scripts/check_doc_headings.py` (docs only; this plan is under
   `.structured-coding/`, which the script does not read — run to show nothing else moved): "176
   numbered sections across 25 documents, none duplicated"; `check_decision_ids.py`: "51 decision ids, all
-  distinct". Headings §18.0–§18.9 are unique within this file.
+  distinct". Headings §19.0–§19.9 are unique within this file.
 - [x] Review: every finding cites a file and line or a command; every acceptance line names its pass
   condition before anything is run; every guard has a mutation; the non-goals match §13's 16a row and
   the shared-module ruling. Self-review by the drafting session; the primary session's freeze pending.
@@ -1372,7 +1902,7 @@ CI          N/A — no workflow exists (A16-13); the full local gate runs once o
 | **R-16a-4** | A windowed capture stalls while another window covers it (recorded twice before) | one Godot window at a time; `--always-on-top` where the launcher offers it; background runs watched; a stall is INCONCLUSIVE and re-run once |
 | **R-16a-5** | The sweep's frames are time-driven, so physics differences can shift animation phase and make pixel diffs meaningless | the sweep is judged by inspection against the operator's defects, the headtrace by its numeric bound; pixel diffs are reported for it only as information |
 
-## 18.7 Ledger (live)
+## 19.7 Ledger (live)
 
 Raw logs and frames live in `clients/3d-spike/shots/16a/{before,after,…}/` (ignored, this machine:
 Apple M5, macOS 25.2, Godot 4.7.2.stable.official.ed1daf0bf, Metal 4.0 Forward+). Every windowed run
@@ -1502,18 +2032,18 @@ No mean rises 15 %; the largest, `--frametime` standing (+10 %), is inside its o
 Physics (… 16 …)", "FAIL: the slice is selected to run on Jolt Physics (DEP-20)", "1 DRIVE CHECKS
 FAILED". Line restored.
 
-## 18.8 Execution contract (proposed; confirmed at freeze)
+## 19.8 Execution contract (proposed; confirmed at freeze)
 
 ```text
 PROJECT / PR        MVP-0 · S14 / PR 16a — the 3D client, ready for bodies
-PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-15-demo-3d.md §18 (this section)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-15-demo-3d.md §19 (this section)
 RELATED / BINDING   overall.md §3 (S14, S15), "Parallel build-out, 2026-10-08" (rulings 4, 6, 7, 9, 10);
                     this file §§1–17 as frozen at step level; step-11-bodies.md §§3.2, 15.2;
                     ENGINEERING_RULES §§3–12, 19; VISUAL_SLICE; HUMAN_REVIEW_QUEUE (VIS-3D-GODOT-1/-2);
                     docs/references/CHARACTER_ROUTE_D_PLUS.md §§8.7–8.9; REUSE_POLICY
 IMPLEMENTATION BASE main @ 47c81d1; branch mvp0/pr-16a-jolt-targeting; worktree
                     /Users/yuema137/mineworld-worktrees/impl-s14-16a (this session only)
-APPROVED SCOPE      §18.1
+APPROVED SCOPE      §19.1
 FROZEN INVARIANTS   I-S14-1 (16a's part: .1 and the talk half of .2's behaviour), I-S14-2, I-S14-3,
                     I-S14-6, I-S14-7, I-S14-10; no edit to clients/protocol/**; no regression of
                     VIS-3D-GODOT-1 or -2
@@ -1522,8 +2052,8 @@ SEQUENCE            C0 → (freeze) → C1 → C2 → C3 → C4 → C5 → C6 �
 VALIDATION BUDGET   static/unit/scan: unrestricted; real client runs: each ≤ ~10 min, background when
                     > 2 min, one Godot window at a time, total ≤ ~3 h of wall time including retries;
                     full cargo test: once, on the final head; real-model: NOT REQUIRED
-LIVE DOCUMENTATION  this section (§18.6 checkboxes, §18.7 ledger)
-HANDOFF             §18.9 of this section (Q-16a-4), refreshed at each commit
+LIVE DOCUMENTATION  this section (§19.6 checkboxes, §19.7 ledger)
+HANDOFF             §19.9 of this section (Q-16a-4), refreshed at each commit
 ENDPOINT AUTHORITY
   implementation + local validation   after the freeze message only — source: the brief ("Do not write
                                       code until I freeze it")
@@ -1534,18 +2064,24 @@ ENDPOINT AUTHORITY
   CI repair                           N/A — no workflow exists (A16-13)
   merge                               explicit operator authorization only — source: the brief ("Do not
                                       merge it")
-POST-MERGE SYNC     the primary session owns step §13 and overall; this session owns §18 (merge identity,
+POST-MERGE SYNC     the primary session owns step §13 and overall; this session owns §19 (merge identity,
                     evidence, deviations, remaining issues)
 NORMAL STOP         PR 16a READY FOR OPERATOR REVIEW — DO NOT MERGE
 MATERIAL STOP       a regression of an accepted visual or a confirmed J-3 rise; any server, kernel,
                     contract or shared-module change; Jolt unavailable or unfit (reported, no silent
-                    fallback); a change to §18.1's scope or to a frozen invariant
+                    fallback); a change to §19.1's scope or to a frozen invariant
 ```
 
-## 18.9 Handoff (live; replaces a separate file for this lane, Q-16a-4)
+## 19.9 Handoff (live; replaces a separate file for this lane, Q-16a-4)
 
 ```text
-checkpoint     C0 written, awaiting the primary session's freeze
-next action    on freeze: C1 (tools, then the baseline runs in the order of §18.6 C1)
+checkpoint     C2 committed (ec7aadd); origin/main merged (16b #66, 12c #67, client-parity rule #69,
+               physics list #71); this section renumbered §18 → §19
+next action    C3: move the connected probe modes to slice_probe_world.gd
 background     none
+notes          12c merged: kick, throw and shove are now declared action types; the scan sees them.
+               Coordinator 2026-10-08: check port 7979 before each connected run, kill only own
+               PIDs, a run on a foreign world is INCONCLUSIVE; decorative townspeople hidden when
+               connected (QS14-9) is outside 16a's frozen files (streetscape.gd) -> recorded as
+               16c's first item; the geometry probe is 12e's (§5), not 16a's
 ```

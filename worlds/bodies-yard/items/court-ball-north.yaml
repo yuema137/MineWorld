@@ -1,0 +1,9 @@
+# A ball by the pillar's north side: 220 mm across.
+
+tags:
+  - ball
+
+# Owned by the `bodies` system: the object's shape (a radius, millimetres) and where it lies.
+body:
+  shape: { ball: 110 }
+  at: { place: court, x: 5000, y: 5900 }

@@ -1,6 +1,6 @@
 class_name PhysicsEngineProbe
 extends SceneTree
-## Which 3D physics engine this project runs (step-15 §18.3 J-0, DEP-20).
+## Which 3D physics engine this project runs (step-15 §19.3 J-0, DEP-20).
 ##
 ##   godot --headless --path clients/3d-spike --script res://tools/physics_engine.gd
 ##
@@ -22,7 +22,7 @@ static func setting() -> String:
 ## The discriminator is a new space's solver iterations. Godot Physics answers
 ## with `physics/3d/solver/solver_iterations` (16 by default); Jolt does not use
 ## that setting and answers 8. Measured on Godot 4.7.2 with each engine selected,
-## 2026-10-08 (step-15 §18.7 E16a-1). Jolt is named only when the behaviour and
+## 2026-10-08 (step-15 §19.7 E16a-1). Jolt is named only when the behaviour and
 ## the setting agree, so neither alone can claim it.
 static func running() -> String:
 	var s := PhysicsServer3D.space_create()

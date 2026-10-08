@@ -3,6 +3,8 @@
 These define the 3D look. Prose and the manifest summarise them; when they disagree, the images
 win ([`../../../../docs/ART_DIRECTION.md`](../../../../docs/ART_DIRECTION.md) §16).
 
+All six are AI-generated (ChatGPT); origin, terms and derived crops: [`PROVENANCE.md`](PROVENANCE.md).
+
 | File | Covers |
 | --- | --- |
 | `01_lakeside_promenade.png` | the original "Style C": promenade, café and convenience-store frontage, mountains and sailboats, pedestrians, a dog, benches, planters, late afternoon |

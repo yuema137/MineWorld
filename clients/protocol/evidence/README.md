@@ -21,6 +21,12 @@ server-simultaneous.log    what the other had said
 demo-scene.png             the windowed scene
 transcript-window.log      the run that produced it
 server-window.log          the server it was made against
+affordances-market-town.log  `../run.sh affordances`: the module's live check (`checks/affordances_check.gd`)
+                           against `worlds/market-town`, seated as `visitor` — every complete
+                           affordance offered, a `buy` submitted unchanged and accepted, an
+                           unavailable `give` sent and answered `too_far_away`, an incomplete `talk`
+                           not sent, the revision rising
+server-affordances.log     the server it was made against (saved to a scratch directory, since removed)
 ```
 
 Each AC-13 flavour runs against a world of its own because a client walks from where the world seated

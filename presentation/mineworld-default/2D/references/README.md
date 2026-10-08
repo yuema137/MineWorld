@@ -3,6 +3,8 @@
 These define the 2D look. Prose and the manifest summarise them; when they disagree, the images
 win ([`../../../../docs/ART_DIRECTION.md`](../../../../docs/ART_DIRECTION.md) §16).
 
+All four are AI-generated (ChatGPT); origin and terms: [`PROVENANCE.md`](PROVENANCE.md).
+
 | File | Covers |
 | --- | --- |
 | `01_town_square.png` | square with fountain, café with outdoor seating, bakery, bookshop, lake edge and jetty, a pedestrian with a dog |

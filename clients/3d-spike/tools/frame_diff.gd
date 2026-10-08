@@ -1,5 +1,5 @@
 extends SceneTree
-## How different two captured frames are (step-15 §18.3 J-4).
+## How different two captured frames are (step-15 §19.3 J-4).
 ##
 ##   godot --headless --path clients/3d-spike --script res://tools/frame_diff.gd -- <a> <b> [threshold]
 ##
