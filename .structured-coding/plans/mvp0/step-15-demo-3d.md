@@ -10,6 +10,7 @@ integration checkpoints and adversarial criteria, risks, and open questions.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 (S14, S15), §4, §7.
 **Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`. Nothing here is frozen and nothing here
 authorizes implementation. Each PR is detailed to the commit and frozen in turn (`CLAUDE.md` §3.1).
+**PR 16a:** detailed to the commit in §19, `DESIGN FROZEN (2026-10-08), primary session`.
 **Branch:** `plan/s14-3d`, from `main @ 0fd0be3`, worktree `/Users/yuema137/mineworld-worktrees/plan-s14-3d`,
 held by this planning session only.
 **Written in parallel** with the S11, S12, S13 and Milestone E planning sessions, while 12c is being
@@ -1508,4 +1509,769 @@ MATERIAL STOP       a needed edit outside §18.1's paths; a byte change in reque
                     changed verdict in any existing run.sh mode or slice check that this PR's diff
                     explains; a need for a world rule, an action-type literal or an engine type in the
                     module; a wire change (PROTOCOL.md)
+```
+
+---
+
+# 19. PR 16a — the client, ready for bodies (full design; DESIGN FROZEN 2026-10-08)
+
+**Numbering.** This section was written and frozen as §18 (commits `fe3e814`, `04ce18c`); 16b, written in
+parallel, also took §18 and merged first, so on merging `main` this one became §19, every "§18" in it
+became "§19", and nothing else changed. Commit messages before the merge say §18.
+
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — record in §19.0. Implementation is
+authorized by that freeze (`CLAUDE.md` §3.1; overall "Parallel build-out, 2026-10-08", ruling 9).
+
+## 19.0 Freeze record
+
+## DESIGN FROZEN
+
+```text
+Design revision     §§19.1–19.6 as committed in fe3e814
+Approved by         the primary session, 2026-10-08 ("FREEZE: PR 16a is DESIGN FROZEN (2026-10-08),
+                    primary session"), relayed to this implementation session
+Implementation base main @ 47c81d1; branch mvp0/pr-16a-jolt-targeting
+Execution contract  §19.8
+Lifecycle           FROZEN
+Rulings             §19 accepted as written, including the two departures (only LAYER_BODIES; the
+                    tools-only commit). Q-16a-1 accepted: a small centre dot and a "looking at: …"
+                    HUD line, connected only — a 3D visual default delegated to the primary session,
+                    judged by the operator in play; the HUMAN_REVIEW_QUEUE checklist wording gains it.
+                    Q-16a-2 … Q-16a-6 accepted as recommended. Report Bob's occlusion of the door talk
+                    as measured. One Godot window at a time; 16b and S12 13a also run Godot, so a
+                    stalled capture is re-run
+```
+
+## 19.1 Identity, base, approved scope
+
+```text
+PR            16a — the 3D client, ready for bodies (S14, first of 16a … 16e; GitHub number assigned
+              at freeze, ruling 7)
+base          main @ 47c81d1 (Merge #62, the six parallel step designs frozen)
+branch        mvp0/pr-16a-jolt-targeting, worktree /Users/yuema137/mineworld-worktrees/impl-s14-16a,
+              held by this session only
+audit         §19.2 (files and symbols read on 47c81d1, 2026-10-08) on top of §2
+scope         §13's 16a row: Jolt selected and every accepted check re-run on it; ray targeting
+              replacing the cone, people given pick colliders on LAYER_BODIES (not masked by the
+              player); intents.gd taking talk; the I-S14-1 static scan; slice_probe_world.gd split
+              out; the texture RID leak attributed and fixed, or recorded as engine-side with evidence;
+              docs/MVP_STATUS.md's 3D rows corrected
+decisions     DEP-20 (Jolt; the record step-11 and §§4.3, 8.1, 14, 16 of this file call "DEP-14",
+              renumbered by overall ruling 6). 16a takes no ARC number: ARC-50 … 52 stay for 12e and
+              later S14 PRs
+```
+
+**Non-goals (each belongs to a later PR, and 16a must not start it):** the player masking people,
+objects or disclosed walls; disclosed geometry; the correction rule and press-through (12e); kick,
+throw, shove, buy, offer-driven HUD prompts (12e, 16d); any change to `clients/protocol/mineworld/**` or
+`clients/protocol/ADOPTION.md` (the shared module is 16b's and S11's only, ruling 4); figure motion and
+decorative people (16c); any server, kernel, contract, persistence, System Pack or `worlds/**` change
+(I-S14-2).
+
+**Binding constraints carried in.** The accepted visuals `VIS-3D-GODOT-1` (route D+, the interim
+standard) and `VIS-3D-GODOT-2` (the slice, accepted after the operator played it) must not regress
+(I-S14-7). The 3D visual defaults (QS14-*) are chosen by the primary session and judged by the operator
+in play (overall, 2026-10-08); 16a therefore *proposes* the one visual element it needs (Q-16a-1) and
+does not decide it.
+
+## 19.2 Re-audit for 16a (`main @ 47c81d1`, 2026-10-08)
+
+Every row was read in this session from the file named. §2's findings stand; these add what 16a's
+file-level plan needs.
+
+| ID | Finding | Evidence | Consequence for 16a |
+| --- | --- | --- | --- |
+| **A16-1** | One Godot project holds both scenes. `project.godot` has no `[physics]` section; `main.tscn` (`./mineworld-3d`, the promenade with the character's `--sweep`, `--headtrace`, `--frametime`, `--drive`) and `slice.tscn` (`./mineworld-slice`) both run on whatever engine it selects. Godot is `4.7.2.stable.official.ed1daf0bf` on this host | `clients/3d-spike/project.godot`; `godot --version` | The one-line switch changes **both** accepted artefacts: the route D+ evidence (`--sweep`, `--headtrace`, `--frametime`, all in `shots.gd`) is re-run as well as the slice's checks |
+| **A16-2** | The slice's checks: `--drive`, `--measure`, `--threshold`, `--perf` (frame cost at four viewpoints), `--character`, `--shots`, `--link`, `--conversation`, dispatched by `SliceProbe._process`; `scripted()` and `with_hud()` list the flags. The launcher maps `--x` to `--slice-x` and runs `--drive` and `--link` headless | `scripts/slice/slice_probe.gd:102–165`; `mineworld-slice:53–64` | A new mode needs a flag in the launcher, in `scripted()`, and a dispatch arm |
+| **A16-3** | The connected modes are one contiguous block: `_link_check` (303–472), `_conversation_frames` (479–555), `_street_watch` (562–604), `_talk_to` (609–631), `_walk_to` (635–639), `_answered` (642–646). `_walk_to` and `_answered` are used only by them. The standalone helpers they also call (`_hold`, `_settle`, `_save`, `_walk_dist`, `_walk_to_x`, `_inside_room`) are used by standalone modes too | `slice_probe.gd` (grep of every call site) | The block moves to the sibling unchanged; the shared helpers stay where they are and are reached by inheritance (§19.4, D-16a-3) |
+| **A16-4** | Collision layers: `Build.LAYER_WORLD = 1` is the only layer; every scene collider is a `StaticBody3D` on it; the player is `collision_layer = 0`, mask `LAYER_WORLD`; the third-person boom's ray masks `LAYER_WORLD`. The probe's own measurement ray (`_ray`, `:1264`) and sun ray (`:1198`) use the default mask (all layers) | `build.gd:6, 28–157`; `player.gd:71–82`; `camera_rig.gd:172–173`; `slice_probe.gd:1198, 1265` | A person collider on layer 2 is invisible to the player and the camera. The probe's two rays would see it: they run only in standalone modes, where no perceived figure exists, but they are given `LAYER_WORLD` explicitly so a later connected measurement cannot be silently changed (bounded) |
+| **A16-5** | The player's capsule is r 0.30, h 1.72, centre 0.86 m up, written as literals in `Player._ready`. The first-person eye is `CameraRig.EYE_HEIGHT = 1.66` | `player.gd:77–81`; `camera_rig.gd:32` | The pick collider uses the same capsule; the numbers become one named constant pair in `Player`, cited to bodies' `PERSON_RADIUS`/`PERSON_HEIGHT` (§4.2, QS14-3) |
+| **A16-6** | The cone, `facing_person()`, is called only by `talk_to_facing`; `talk_to_facing` is called by the E handler and by the probe's `_talk_to`. The literal `"talk"` appears in `slice_link.gd` five times (`may`, `unavailable_reason`, `submit`, two token bookkeeping lines) | `slice_link.gd:431–472, 491, 522–525`; `slice_probe.gd:614` | All five move to `intents.gd`; afterwards `slice_link.gd` names `move` only |
+| **A16-7** | Which world people stand where (social-cafe, hosted): visitor (the seat) at café (1610, 600); Alice (barista) at café (6000, 8000); Bob at café (4500, 6100); Wes (`wanderer`) at café (7110, 3900); Ivan on the **street** at (−4000, 1000). The café door is at café (1610, 200) ↔ street (0, 3000); in the scene the café door is x = 3.45, the pavement point z = −7.90, The Flower Room's door x = 11.84 | `worlds/social-cafe/people/*.yaml`; `places/cafe.yaml`; `cafe.gd:36`; `street.gd:35`; `slice_probe.gd:1428` | From the door, the line to Alice passes Bob's axis at **320 mm**. A capsule's horizontal section at the eye height of 1.66 m is 0.18 m in radius, so a ray aimed at Alice's head clears Bob by about 140 mm: the accepted "face Alice from the door, E → too far away" survives a ray, by measurement still to be taken (R-16a-2) |
+| **A16-8** | **A non-vacuous wall test needs a person perceived behind a wall.** The observer perceives only its own place (F-S14-17), so "from the street, facing Alice through the back of the building" (§5) targets nobody **because Alice is not perceived**, not because of the wall: it cannot tell a ray from a cone. But the slice reports a body inside The Flower Room as being on the **street** (`PLACE_KEY[FLORIST_PLACE] = "street"`, F-S14-9), so from the back of the florist the street's people — Ivan — are perceived, and the florist's west party wall stands between | `slice_link.gd:70–74`; A16-7 | `--world --target`'s wall case is taken there (§19.3 T-2). It is valid until 16c binds the florist to `store`; 16c re-designs it then (recorded so it is not forgotten) |
+| **A16-9** | **Action-type literals in client code today** (comments excluded): `slice_link.gd` (`"move"`, `"talk"` ×5); `human.gd:422` `mode.set_input_name(0, "move")` — an `AnimationNodeBlendTree` input name, not a request; `clients/protocol/demo/demo.gd` (excluded by I-S14-1.1); `clients/protocol/mineworld/world_client.gd` names `"talk"` only in `##` comments and `"join"` as a wire frame type (not an action type). Action types declared under `systems/*/src`: `buy eat drink invite accept-invitation decline-invitation join-group-activity leave-group-activity give move talk` (11; `bodies` declares none until 12c) | `grep` over `clients/**/*.gd`; `grep 'ActionTypeId::from_static' systems/*/src` | The scan must strip comments, and needs one entry-level allow-list line for `human.gd`'s `"move"` (Q-16a-5) |
+| **A16-10** | **Rule-named constants in client code today:** none outside `clients/protocol/demo` (`STRIDE`, `reach`). `REPORT_DIST` and the capsule do not match I-S14-1.1's pattern | `grep` of `const`/`var` declarations over `clients/**/*.gd` | The rule-constant allow-list starts **empty**; the justifications §10 anticipated are not needed |
+| **A16-11** | **Pack paths in client code today:** only in comments (`slice_world.gd:17`, `cafe_interior.gd:311`, `slice_probe.gd:297`) | `grep '(worlds\|systems)/'` | I-S14-6's scan, over string literals, starts clean |
+| **A16-12** | **The leak's candidates.** `SliceMain._exit_tree` frees `Props._scenes`. Other script-static caches hold engine resources until script teardown, which may come after the rendering server's: `Mats._tex_cache`, `_mat_cache`; `Procgen._cache`; `Props._card_mats`; `Human._scenes`, `_libs`, `_mats`; `SlicePalette._rug`, `_serif`, `_script_font` (font atlases are textures) | `grep '^static var' scripts/**/*.gd`; `slice_main.gd:67–77` | Bisection over these is the investigation's first step (§19.3 C6) |
+| **A16-13** | **No CI workflow** exists (`.github/workflows` absent; S13's 13a is in flight). The full Rust gate is local | `ls .github` | CI repair is `N/A`; the local gate runs once on the final head (§19.6) |
+| **A16-14** | `./mineworld-slice --world` hosts on the fixed address `127.0.0.1:7979`. Parallel sessions may hold that port | `mineworld-slice:69–79` | Before each connected run the port is checked; if held, the same server command is started on a free port and the slice joined with `--server=` — the path `--world` itself takes (R-16a-3) |
+
+## 19.3 Acceptance (decided before measuring, `ARC-23`)
+
+Every check is run by the real client, against the real server where connected, exactly as the
+operator runs it (`ENGINEERING_RULES.md` §19). "Before" is `main @ 47c81d1` on Godot Physics, measured in
+this session immediately before the switch; "after" is the same command on the PR's head. Every number
+that moves is reported with both values, whether or not it passes.
+
+```text
+J-0  WHICH ENGINE RUNS. Before: the running 3D physics server is Godot Physics; after: Jolt. Shown by
+     the server's class as the engine reports it, and by --drive printing it (J-1 guard); if the class
+     name does not name the engine, a behavioural discriminator is found and recorded first (F-S14-2)
+
+J-1  THE SLICE, standalone, on Jolt — each check's own verdict line, unchanged from before:
+     --drive       "all drive checks pass": walk-in, the 13.3 m loop closing within 0.10 m, back wall /
+                   counter / glazing stop the body, three cameras with 0.0000 m body movement on each
+                   switch, jumps 0.40-0.50 m (0.49 accepted), the Flower Room loop within 0.60 m (0.12
+                   accepted). It also prints the running engine and fails if it is not Jolt
+     --measure     every range it checks still in range
+     --threshold   café and florist: worst step < x3, interior luma above the floor, ≤ 4.5 % clipped
+     --character   all character checks pass (the slot's body animates; every camera mode)
+     --perf        frame cost at the four viewpoints (frame time, slice)
+J-2  THE CHARACTER (VIS-3D-GODOT-1's evidence), promenade scene, on Jolt:
+     --headtrace   reference body, steady walk and jog: yaw, pitch and roll each within 6° peak-to-peak
+                   (accepted: walk 3.8/0.4/0.2, jog 4.2/1.1/0.4)
+     --sweep       48 frames (walk and jog × rear, rear three-quarter, front three-quarter × 8 phases):
+                   inspected one sheet at a time for the defects the operator flagged — no hand or
+                   sleeve into the pack or hoodie, pack on her back, no slits, head facing ahead
+     --frametime   stand and walk, frame and GPU medians and p95 (frame time, character)
+     ./mineworld-3d --drive   every printed number reported before/after; every "-> ok" still ok
+J-3  FRAME TIME. No viewpoint's median frame time (--perf, --frametime) rises by more than 15 %, confirmed
+     by one re-run; a confirmed rise above that is a material stop (an accepted artefact's measured
+     property), reported with both runs
+J-4  FRAMES at working resolution (1600x900, the slice's normal): --shots before and after, every view
+     compared by a pixel-difference tool (mean absolute difference per view, and the share of pixels
+     differing by more than 8/255). Static views are expected to match within noise; every view over
+     1 % differing pixels is looked at side by side (one image at a time) and its cause named. A
+     visible change to the accepted look that is not explained by the body settling a few millimetres
+     differently is a regression and a material stop
+J-5  CONNECTED, on Jolt (./mineworld-slice --world, or the same server on a free port, A16-14):
+     --link          "all link checks pass": seated; placed where the world says; café -> street ->
+                     café on foot with every move accepted and none refused; two jumps; the server's
+                     last position equal to the last report; talk from the door answered too_far_away;
+                     on foot to the counter, every move accepted; talk accepted and the reply heard;
+                     the street watch's simulated seconds equal its wall seconds within 10 %
+     --conversation  "conversation on screen, no ids", the door toast "can't talk to Alice Moreau: too
+                     far away", both caption lines at the counter
+     (both re-run again after C4, when targeting is a ray: the door talk must still go to Alice)
+```
+
+```text
+T-1  RAY, positive (--world --target, connected, headless): from the visitor's seat just inside the
+     door, the camera aimed at Alice's head: the target is Alice's entity id; E submits talk and the
+     answer is too_far_away (rejected or refused) — the client sent it although the world says no.
+     At the counter in first person and in third person rear: the target is Alice
+T-2  RAY, through a wall: walked on foot out of the café, east along the pavement and into The Flower
+     Room, to the back of its west lane (about (11.84, -13.2)); the camera aimed at the head of the
+     person the world shows standing on the street (Ivan, A16-8): the target is nobody, and the
+     probe prints the first collider the ray met, which is an opaque wall of the florist, not glass.
+     Counterfactual in the same run: the cone rule of 47c81d1, computed by the probe from the same
+     camera and figures, would have chosen that person — so the case discriminates
+T-3  RAY, the positive control for T-2: from the pavement with a clear line, the same person is
+     targeted
+T-4  RAY, nothing: aimed at an empty wall or the sky, the target is nobody and E says "nobody in view
+     to talk to" and sends nothing
+```
+
+```text
+S-1  THE SCAN (tests/acceptance/tests/client_rules.rs, I-S14-1.1 with I-S14-6), green on the PR:
+     every *.gd under clients/ (symlinked directories not followed; clients/*/tools/ and
+     clients/protocol/demo/ excluded), comments stripped, string literals read:
+     a) a literal equal to an action type declared under systems/*/src (collected from
+        ActionTypeId::from_static("…"); fewer than one collected fails closed) appears only where an
+        allow-list entry (file, literal, reason) admits it: slice_link.gd "move"; intents.gd "talk";
+        human.gd "move" (an animation input, Q-16a-5)
+     b) no const or var declares a name containing REACH, RANGE, CLEARANCE, NUDGE, CAPACITY or
+        MAX_STRIDE (word-split as the I-2 scan splits), unless an allow-list entry admits it (none in
+        16a)
+     c) no literal names a path under worlds/ or systems/
+     every finding names file:line and the literal or name; an allow-list entry that admits nothing
+     fails, so the list cannot go stale; a listed root that is missing fails
+```
+
+**Mutations, one per guard, each planted in the working tree, run, recorded, reverted** (`git status`
+clean of it afterwards):
+
+| # | Guard | Mutation | Expected red |
+| --- | --- | --- | --- |
+| M-1 | J-0 / `--drive`'s engine line | remove the `[physics]` line | `--drive` fails naming the running engine |
+| M-2 | T-2 (walls occlude) | targeting by the cone again (the 47c81d1 rule restored inside `targeting.gd`) | T-2 fails naming the person targeted through the wall |
+| M-3 | T-2 (walls occlude) | the ray's mask without `LAYER_WORLD` | T-2 fails as M-2 |
+| M-4 | T-1 (the client sends regardless) | `intents.gd` returns without submitting when `may("talk", target)` is false | T-1's door talk reports `NO ANSWER` instead of `too_far_away` |
+| M-5 | S-1 a | a `"kick"` literal planted in `targeting.gd` (12c's name, absent from the build) **and** a `"talk"` literal planted in `targeting.gd` | the scan fails on `"talk"` naming `targeting.gd:<line>`; `"kick"` is **not** reported, because no pack declares it yet — recorded as the scan following the build, not a miss |
+| M-6 | S-1 b | `const TALK_REACH := 2.0` planted in `intents.gd` | fails naming the file, line and name |
+| M-7 | S-1 c | `load("res://../../worlds/social-cafe/people/alice.yaml")` planted in `slice_link.gd` | fails naming the line |
+| M-8 | S-1 staleness | an allow-list entry for a literal that occurs nowhere | fails naming the entry |
+| M-9 | S-1 fail-closed | the action-type root pointed at a directory with no declarations | fails naming the cause |
+| M-10 | the comment stripper | a `"talk"` inside a `#` comment **and** a `"#"` inside a string literal followed by `"talk"` on the same line | the first is not reported, the second is (unit test of the lexer, kept) |
+| M-11 | the leak fix (if it is ours) | the fix removed | the exit line `RIDs of type "Texture" were leaked` returns |
+
+```text
+L-1  THE LEAK. Either: (a) attributed to named resources, fixed, and every slice mode and the plain
+     launch exit with no "were leaked" line (M-11 shows the fix is the cause); or (b) shown to remain
+     with every script-static cache released and in a minimal scene, recorded as engine-side with
+     that evidence and the engine version — in MVP_STATUS and HUMAN_REVIEW_QUEUE's limitation 8
+P-1  THE SPLIT. slice_probe_world.gd holds every connected mode; slice_probe.gd holds none; --link and
+     --conversation print the same lines as before the split, apart from timing and run-dependent ids
+D-1  STATUS. docs/MVP_STATUS.md's 3D rows say what is true on the PR head (§17.4, A16-* where newer)
+G-1  GATES on the final executable head: cargo fmt --check, clippy -D warnings, cargo test --workspace
+     (one run), check_decision_ids, check_doc_headings — all pass; no file under kernel/, contracts/,
+     persistence/, server/src, systems/, cognition/, worlds/, clients/protocol/ in the PR diff
+```
+
+## 19.4 Design decisions (D-16a-*)
+
+| ID | Decision | Alternatives considered | Why |
+| --- | --- | --- | --- |
+| **D-16a-1** | **Jolt by the project setting alone**, `[physics] 3d/physics_engine="Jolt Physics"`, every other Jolt setting at its default; the values in force are printed by the engine probe and recorded | tune Jolt's settings up front; keep Godot Physics (§8.1) | §8.1's verdict (adopt). Defaults are what the engine's maintainers chose for new projects; a setting is changed only if a J-check fails and the change is bounded (then recorded) |
+| **D-16a-2** | **Targeting is a stateless helper**, `scripts/slice/targeting.gd` (`SliceTargeting`, `RefCounted`, static functions): `aim(camera) -> Dictionary` casts one ray from the active camera through the viewport centre, `RAY_LENGTH = 30.0` m, mask `LAYER_WORLD \| LAYER_BODIES`, `collide_with_areas = false`; it returns the hit's entity id (read from the `entity_id` metadata of the collider's figure), the hit point and the collider's name; `person_collider() -> AnimatableBody3D` builds the pick capsule | a `RayCast3D` node on each camera (three cameras, mode switching); an `Area3D` per figure (§8.4: a radius is a reach rule — rejected) | §8.4 adopts the engine ray. A query from the *active* camera needs no node per camera and works across the three modes. The player is on no layer (A16-4), so a third-person ray never meets her own capsule and needs no start offset |
+| **D-16a-3** | **Pick colliders.** Each perceived figure (`SliceLink._figure`) gets one `AnimatableBody3D` child, capsule `Player.CAPSULE_RADIUS` × `Player.CAPSULE_HEIGHT` (0.30 × 1.72, centred 0.86 m up), `collision_layer = LAYER_BODIES`, `collision_mask = 0`. `Build` gains `LAYER_BODIES = 2` only; `LAYER_OBJECTS` and `LAYER_DISCLOSED` (§4.2) are added by 12e with their first use | `StaticBody3D` (moved by teleport: Jolt and Godot discourage moving static bodies); declaring all three layers now as §14 lists | 12e masks the same body (§4.2), so its type is the one 12e needs. An unused constant is premature (`CLAUDE.md` §4 rule 11): a bounded deviation from §14's list, recorded |
+| **D-16a-4** | **`intents.gd`** (`SliceIntents`, `RefCounted`, owned by the link): `TALK`, the request's name; `talk(client, target, utterance, actor_location) -> String` submits **regardless of the affordance** and remembers the request by token; `take(token) -> Dictionary` hands back `{ action, target, words }` for the answer's wording; `server_note(obs, target) -> String` returns the world's stated reason when it says talking is unavailable, for display only. The link keeps `move`, the E key, display labels and toasts, and asks intents what an answered token was | keep `talk` in the link (two files naming actions, no seam for 12e's three); a Node with signals | §4.4: one file builds every interaction request. 12e adds kick, throw and shove there and nowhere else |
+| **D-16a-5** | **The probe split by inheritance**: `slice_probe_world.gd`, `class_name SliceProbeWorld extends SliceProbe`, holds the connected modes (`link`, `conversation`, the new `target`) and their helpers; `SliceProbe._process` calls an overridable `_run(mode)`; `SliceMain` instantiates `SliceProbeWorld` when a connected mode is requested. `scripted()` asks both | a third helper file both use (moves the shared walking helpers: more of the accepted probe edited); composition with a reference to the base probe (makes its private helpers public) | The connected modes *are* probe modes that need the same walking and capture helpers; inheritance moves only the connected block and edits the base in two places (dispatch, `scripted()`), which is what §5 asks ("not edited beyond what their claims need") |
+| **D-16a-6** | **The scan strips comments.** A GDScript lexer in the test: `#` to end of line outside a string; `"…"`, `'…'`, `"""…"""` with backslash escapes; `&"…"`/`^"…"` (StringName/NodePath) read as strings | read comments too, as `precursor_vocabulary.rs` and `seam_vocabulary.rs` do | Those scans hold the *absence of vocabulary*; this one holds *where requests are built*, and a word in a comment builds nothing. The protocol module's documentation (`world_client.gd`'s `submit("talk", …)` example) may not be edited by 16a and is right to stay |
+| **D-16a-7** | **Evidence**: before/after numbers and every decisive line go into this section's ledger (§19.7); side-by-side frames for any view J-4 flags, and the sweep sheets before/after, go to `clients/3d-spike/evidence/16a/` (with `.gdignore`), the directory 16e will use; raw captures stay in the ignored `shots/` | commit every frame | Small, reviewable, and the operator can open what matters |
+| **D-16a-8** | **Tools**: `clients/3d-spike/tools/physics_engine.gd` (headless `--script`: prints the configured setting and the running server's class) and `tools/frame_diff.gd` (headless `--script`: two PNGs → mean absolute difference, share of pixels over a threshold, the bounding box of the differing region; optional side-by-side through the existing `compare.gd`) | ad-hoc scripts in `/tmp` (F-S14-2's probe was one, and is lost) | J-0 and J-4 become re-runnable by anyone; tools are excluded from the scan by I-S14-1.1 |
+
+## 19.5 Questions for the freeze (primary session; **[OM]** = the operator's)
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **Q-16a-1 [OM: visual default, judged in play]** | **A ray needs a reticle.** The cone accepted anything within ~37° of the view's centre; a 0.30 m capsule at 8 m is ~2°. Without a mark at the screen's centre the accepted checklist step 8 ("from the door, face Alice and press E") becomes hard to do by hand. (a) A small centre dot, and the targeted person's name on the HUD's world line ("looking at: Alice Moreau"), **only when connected**; (b) a dot only; (c) nothing until 12e's offer prompts | **(a).** Standalone frames and `--shots` are unchanged (no link, no reticle), so J-4 still isolates Jolt. The dot is 4 px, the slice's HUD colour; the operator judges it in play |
+| **Q-16a-2** | T-2's wall case at the back of The Flower Room, which holds only until 16c binds the florist to `store` (A16-8) | **Yes**, with 16c re-designing it; the counter is kept as a second occluder in T-1's report (aiming at Alice's knees from the customer side meets the counter first) |
+| **Q-16a-3** | J-3's frame-time bound of 15 % median, confirmed by a re-run | **Yes**; Jolt is not expected to move render cost, and 15 % sits above run-to-run noise measured on this machine (10.9–17.6 ms across viewpoints in the 2026-09-30 preview) |
+| **Q-16a-4** | 16a's handoff: a separate file collides between parallel lanes (`handoff.md` is shared); keep 16a's continuation state in §19.8 of this section instead | **Yes**: one authority, no collision |
+| **Q-16a-5** | `human.gd`'s `"move"` (an `AnimationTree` input name): an allow-list entry with its reason, or rename the input | **Allow-list.** Renaming touches the accepted character's animation graph for no behavioural gain |
+| **Q-16a-6** | `HUMAN_REVIEW_QUEUE.md` `VIS-3D-GODOT-2` known limitation 8 ("Not attributed") becomes false once L-1 holds: append the attribution to that line | **Yes**, one line, appended, nothing else in the accepted entry edited |
+
+## 19.6 Commit plan
+
+Each commit tracks implementation, validation and review separately; a planned commit may become
+several coherent ones (mapping recorded). Evidence goes into §19.7 as `E16a-<n>`. Every Godot run is in
+the background when it may exceed two minutes, one Godot window at a time, with stdout to a log under
+`clients/3d-spike/shots/16a/` (ignored).
+
+### 16a-C0 — Design (this section) — docs only
+
+- [x] Implementation: §§19.0–19.8, from the audit in §2 and §19.2.
+- [x] Validation: `python3 scripts/check_doc_headings.py` (docs only; this plan is under
+  `.structured-coding/`, which the script does not read — run to show nothing else moved): "176
+  numbered sections across 25 documents, none duplicated"; `check_decision_ids.py`: "51 decision ids, all
+  distinct". Headings §19.0–§19.9 are unique within this file.
+- [x] Review: every finding cites a file and line or a command; every acceptance line names its pass
+  condition before anything is run; every guard has a mutation; the non-goals match §13's 16a row and
+  the shared-module ruling. Self-review by the drafting session; the primary session's freeze pending.
+
+### 16a-C1 — The baseline on Godot Physics, and the two tools
+
+**Goal.** "Before" is measured, on the base, by the same commands "after" will use (`ARC-23`).
+**Scope.** New `clients/3d-spike/tools/physics_engine.gd`, `tools/frame_diff.gd`; this section's ledger.
+No change to any script the scenes run. **Depends on** freeze.
+
+- [x] Implementation: the two tools (D-16a-8). `physics_engine.gd` tells the engine by behaviour, not
+  by class (E16a-1's finding); `frame_diff.gd` compares two PNGs or two directories of them.
+- [x] Validation (E16a-1, all on the base's scenes, unmodified):
+  - [x] J-0 before: Godot Physics (solver iterations 16, setting `DEFAULT`)
+  - [x] slice: `--drive`, `--measure`, `--threshold`, `--character`, `--perf`, `--shots` (1600×900)
+  - [x] promenade: `--headtrace` (reference body), `--sweep`, `--frametime`, `./mineworld-3d --drive`
+  - [x] connected: `--world --link`, `--world --conversation`
+  - [x] the leak: windowed slice modes, 7 Texture RIDs; not headless
+  - [x] `frame_diff.gd`: self → 0; a different frame → non-zero (a different frame stands in for the
+    shifted copy: it shows the instrument sees a difference, which is the claim)
+- [x] Review: every baseline matches the accepted figures except two, recorded before anything changes:
+  `--measure`'s stature 1.802 m out of its 1.70–1.80 range (pre-existing, the route D+ body), and the
+  headtrace's jog yaw 5.07° against the accepted record's 4.2° (inside the 6° bound).
+
+**Failure cases.** A baseline that fails its own check on the untouched base is a pre-existing defect:
+recorded, not fixed here, and reported (it changes what J-* can claim).
+**Commit boundary.** Tools and ledger only.
+
+### 16a-C2 — Jolt (DEP-20)
+
+**Goal.** J-0 … J-5. **Scope.** `clients/3d-spike/project.godot` (`[physics]`); `docs/DECISIONS.md`
+**DEP-20** (step-11 §15.2's draft, with §8.1's table as its options, the 2026-10-08 facts, the isolating
+interface — the project setting, the only place that names Jolt, §9.4 — and the revisit trigger: a
+J-check that cannot be fixed in the client, QS14-12); `slice_probe.gd`'s `--drive` prints the running
+engine and fails unless it is Jolt (one line in its report, J-1). **Non-goals:** any other script.
+
+- [x] Implementation: the setting; DEP-20; the engine line in `--drive` (through `PhysicsEngineProbe`,
+  the tool's `class_name`, so the discriminator lives once).
+- [x] Validation (E16a-2): J-0 PASS; J-1 PASS; J-2 sweep PASS by inspection, headtrace jog bound **not
+  met on either engine** (pre-existing, Jolt's distribution equals Godot Physics'); J-3 PASS; J-4 PASS,
+  no visible change; J-5 PASS; M-1 PASS. Sweeps judged by inspection, not pixel difference (R-16a-5).
+- [x] Review: every moved number is explained above (settle of a few mm; time-driven frames; the
+  threshold probe's landing race; contention); `check_decision_ids` → "52 decision ids, all distinct".
+
+**Failure cases.** A J-check that fails on Jolt: diagnose; a bounded client-side fix inside the slice's
+own code (not a Jolt setting tuned to hide it) is made and recorded; otherwise **stop** and report both
+measurements (QS14-12, the brief's material stop) — never fall back to Godot Physics silently.
+**Commit boundary.** Setting, decision record, engine line, ledger.
+
+### 16a-C3 — The connected probe modes move to `slice_probe_world.gd`
+
+**Goal.** P-1, so that C4's new mode and 12e's go into a file under the size warnings (R-S14-7).
+**Scope.** New `scripts/slice/slice_probe_world.gd` (`SliceProbeWorld extends SliceProbe`: `_link_check`,
+`_conversation_frames`, `_street_watch`, `_talk_to`, `_walk_to`, `_answered`, moved verbatim);
+`slice_probe.gd` (the block removed; `_process` calls `_run(_mode)`; `scripted()`/`with_hud()` ask the
+sibling for its flags); `slice_main.gd` (which probe to instantiate). **Non-goals:** any behaviour change.
+
+- [x] Implementation: as scoped (D-16a-5). `SliceProbe` gains `MODES`, `requested_of(modes)`,
+  `_modes()` and `_run(mode)`; `with_hud()` moved to `SliceProbeWorld` (it names a connected mode);
+  `SliceMain._scripted()` asks both. Done on the merged head `05f5cb3` (16b's shared module in).
+- [x] Validation (E16a-3, 13:35–13:41, Jolt): `--drive` "all drive checks pass"; `--world --link` "all
+  link checks pass" with the same lines as C2 (50/50 moves, sent (1596, 1139) = server's, door
+  too_far_away, counter accepted and reply heard, watch 60 s in 60.0 s); `--world --conversation`
+  "conversation on screen, no ids", the same door toast. Port 7979 free before each run; the server was
+  the launcher's own (its PID, this worktree's path). Lines: `slice_probe.gd` 1 649 → 1 311,
+  `slice_probe_world.gd` 395.
+- [x] Review: the moved block compared by content with its original (from "## C8, with S6" to the line
+  before "## Every street door"): identical apart from the trailing blank lines. Every former call site
+  of `scripted()`/`with_hud()` (`slice_main.gd` ×3) updated; no other caller exists.
+
+**Commit boundary.** A pure move plus the two dispatch edits.
+
+### 16a-C4 — Ray targeting, pick colliders, `intents.gd`, `--world --target`
+
+**Goal.** T-1 … T-4; J-5 again on the ray. **Scope.** `scripts/build.gd` (`LAYER_BODIES`);
+`scripts/player.gd` (`CAPSULE_RADIUS`, `CAPSULE_HEIGHT` named and used by its own capsule; no other
+change); new `scripts/slice/targeting.gd` (D-16a-2/3); new `scripts/slice/intents.gd` (D-16a-4);
+`scripts/slice/slice_link.gd` (`_figure` adds the pick collider; `facing_person()` → `SliceTargeting.aim`;
+`talk_to_facing` through intents; `_on_resolved`/`_on_refused` ask intents; the five `"talk"` literals
+gone; the module comment updated: it names `move` only); the reticle and "looking at" line if Q-16a-1 is
+(a) (`slice_main.gd`/`controls_hud.gd`, connected only); `slice_probe_world.gd` (`target` mode; `_talk_to`
+aims the camera at the figure's head, as a player would, instead of trusting the cone); `slice_probe.gd`
+(the two measurement rays get `LAYER_WORLD`, A16-4); `mineworld-slice` (`--target`, headless).
+**Non-goals:** masking people; any other action; offer prompts.
+
+- [x] Implementation: as scoped, plus three bounded additions recorded in E16a-4: a wording table
+  (`SliceIntents.VERBS`, "talk to") so the link's answer lines name no action; the launcher's
+  `--port=` and a refusal to join when the hosted server could not listen (the coordinator's 16b
+  finding, inside this PR's launcher edit); `ControlsHud.add_reticle()` (Q-16a-1).
+- [x] Validation (E16a-4): T-1 … T-4 PASS; `--link`, `--conversation`, `--drive`, `--character` PASS;
+  M-3, M-4 PASS (bite); M-2 replaced by the in-run counterfactual (below).
+- [x] Review: the request is sent whatever `may` says (M-4 proves the probe would see otherwise); the
+  ray mask is `LAYER_WORLD | LAYER_BODIES`, both defined; `slice_link.gd` has no action literal but
+  `"move"` (the scan, C5); the reticle and "looking at" line are added only in `SliceMain._link()`, so
+  standalone runs and `--shots` have neither.
+
+**Failure cases.** T-1's door ray meeting Bob (R-16a-2): reported with the measured clearance, not
+hidden by aiming elsewhere; the probe then aims where a player would see Alice, and the case is raised
+in the ledger. **Commit boundary.** Targeting and intents, with their probe mode.
+
+### 16a-C5 — The no-rule scan (I-S14-1.1, I-S14-6)
+
+**Goal.** S-1. **Scope.** New `tests/acceptance/tests/client_rules.rs` (std only, no dependency; the
+lexer, the three rules, the allow-lists with reasons, fail-closed roots); `tests/acceptance/src/lib.rs`
+(the crate's list gains `client_rules`). **Non-goals:** S12's files (it adds its allow-list lines).
+
+- [x] Implementation: as scoped (D-16a-6). Bounded deviation: `clients/protocol/checks/` (added by 16b
+  after this design, the shared module's own live checks of named affordances) is excluded beside
+  `demo/`, for the same reason — it exercises the protocol as a test does and builds no client's
+  requests; recorded in the file's documentation.
+- [x] Validation (E16a-5): green (3 passed); clippy `-D warnings` and fmt clean; M-5 … M-10 PASS.
+- [x] Review: three action admissions (A16-9: `slice_link.gd` "move", `intents.gd` "talk", `human.gd`
+  "move"), no rule-name admission, each with a reason; the scan reads the working tree; directories are
+  only skipped by the three named exclusions, symlinks and hidden directories, and a missing root
+  panics.
+
+**Commit boundary.** The test file and the crate's doc list.
+
+### 16a-C6 — The texture RID leak
+
+**Goal.** L-1. **Scope.** Found by bisection over A16-12's caches (release each in `SliceMain._exit_tree`,
+count the leaked RIDs per release), then a minimal scene if none is ours. If ours: each cache's owner gains
+a `release()` static, called from `SliceMain._exit_tree` beside the existing `Props._scenes` release (the
+promenade, `main.gd`, is left as it is, F-S14-1, and its exit is reported). If not ours: no code change.
+
+- [x] Implementation: as the evidence decided — **engine-side (L-1 b)**; no fix in the client. The
+  reproduction is kept as `clients/3d-spike/tools/reflection_probe_leak.gd`.
+- [x] Validation (E16a-6): every script-static cache released → still 7; one `ReflectionProbe` in an
+  empty scene → the same 7, `none` → none. M-11 is N/A: there is no fix of ours to remove.
+- [x] Review: the bisection's cache releases were a scratch edit, reverted (`slice_main.gd` as C4 left
+  it); nothing in the client changed for the leak.
+
+**Commit boundary.** The fix (or nothing) and the ledger.
+
+### 16a-C7 — Status, documents, gates, close
+
+**Scope.** `docs/MVP_STATUS.md`: the 3D column of Movement, Place, Conversation and Names, the 3D client
+artefact row and the S14 stage row (§17.4, made true on the head); `docs/HUMAN_REVIEW_QUEUE.md`
+limitation 8 (Q-16a-6); this section's ledger and closeout.
+
+- [x] Implementation: as scoped; plus one bounded fix found by the gate — the scan's admission of the
+  join frame's `"invite"` key (E16a-7, `841fc9d`).
+- [x] Validation (E16a-7, on the final executable head): the slice's checks once more (`--drive`,
+  `--measure`, `--threshold`, `--character`, `--world --link`, `--world --conversation`,
+  `--world --target`) — I-S14-7; G-1, including the path check of the diff.
+- [x] Review: every acceptance line has its evidence; deviations recorded; the PR body carries the
+  operator's short runnable list (overall memory: milestone handoff), including what the reticle looks
+  like and how to aim. Decorative townspeople hidden when connected and the strict 150 mm geometry
+  probe stay outside 16a's frozen files: 16c's first item and 12e's (§19.9).
+
+Then push, open the PR **READY FOR OPERATOR REVIEW**, and stop. Do not merge.
+
+### 16a test ownership
+
+```text
+STATIC      cargo fmt / clippy -D warnings on tests/acceptance; Godot's parser on every launch (a
+            script error fails the mode)
+UNIT        the GDScript lexer of client_rules.rs (M-10), kept
+SCAN        client_rules.rs: action literals, rule constants, pack paths (S-1)
+REAL RUN    (the project's Gate 2) every J-, T- and P- check: the real client, on the real engine,
+            against the real server for J-5/T-*; the operator's play is the final judge of the
+            reticle and the feel
+GATE 1      NOT REQUIRED — no language model in 16a
+CI          N/A — no workflow exists (A16-13); the full local gate runs once on the final head
+```
+
+### 16a risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| **R-16a-1** | Jolt changes a measured number of an accepted check (step-11 §3.2: position-only stabilization, kinematic contacts) | J-1 … J-5 before/after; a bounded client fix or a material stop, never a silent fallback |
+| **R-16a-2** | From the door, Bob occludes Alice for the ray (A16-7: 140 mm clearance at eye height) | measured in C4; reported as it is |
+| **R-16a-3** | Another session holds port 7979; a run joins someone else's world | port checked before each connected run; a free port otherwise (A16-14); a run on a foreign server is INCONCLUSIVE, never counted |
+| **R-16a-4** | A windowed capture stalls while another window covers it (recorded twice before) | one Godot window at a time; `--always-on-top` where the launcher offers it; background runs watched; a stall is INCONCLUSIVE and re-run once |
+| **R-16a-5** | The sweep's frames are time-driven, so physics differences can shift animation phase and make pixel diffs meaningless | the sweep is judged by inspection against the operator's defects, the headtrace by its numeric bound; pixel diffs are reported for it only as information |
+
+## 19.7 Ledger (live)
+
+Raw logs and frames live in `clients/3d-spike/shots/16a/{before,after,…}/` (ignored, this machine:
+Apple M5, macOS 25.2, Godot 4.7.2.stable.official.ed1daf0bf, Metal 4.0 Forward+). Every windowed run
+logs Metal "timeout waiting for fence" errors while its window is unfocused; they occur before and
+after alike and no run stalled.
+
+### E16a-1 — the baseline on Godot Physics (base `04ce18c` = 47c81d1 + plan docs; scripts untouched; 2026-10-08 12:50–13:03)
+
+**J-0 instrument.** `godot --headless --path clients/3d-spike --script res://tools/physics_engine.gd`.
+Finding (bounded, recorded): `PhysicsServer3D.get_class()` answers the abstract `PhysicsServer3D` under
+either engine, and no method names Jolt, so the class cannot tell them apart. The discriminator is a new
+space's `SPACE_PARAM_SOLVER_ITERATIONS`: **16** (= `physics/3d/solver/solver_iterations`) with the
+setting `DEFAULT`, **8** with the setting `"Jolt Physics"` (tried by a temporary, reverted edit of
+`project.godot`). Jolt also logs `Unhandled space parameter: '8'` from
+`modules/jolt_physics/spaces/jolt_space_3d.cpp` when asked for that parameter — direct evidence the
+module is running. Base: `setting 'DEFAULT'` → **Godot Physics** (16). So `DEFAULT` is Godot Physics in
+this project, confirming step-11 §3.2's reading of the 4.6 note.
+
+**`frame_diff.gd` shown to see:** a frame against itself → mean |d| 0.000, 0.000 % over 8/255; two
+different frames → 61.597, 98.747 %, box the whole frame.
+
+| Check | Wall | Base result (decisive lines) |
+| --- | --- | --- |
+| slice `--drive` (headless) | 79 s | all drive checks pass; Flower Room loop within 0.12 m |
+| slice `--measure` | 18 s | **1 SCALE CHECK OUT OF RANGE, pre-existing**: "occupant stature, from its mesh 1.802 [1.70 .. 1.80]" — the route D+ body (`meshy_d.glb`); every other range in range. Recorded, not 16a's to fix; J-1's measure criterion becomes "the same lines as before" |
+| slice `--threshold` | 22 s | café worst step ×1.65, florist ×1.42, 0.00 % clipped, all four claims PASS for each |
+| slice `--perf` | 18 s | mean / p50 ms: street wide 13.59 / 13.52; café frontage 18.50 / 18.60; interior 15.14 / 15.14; doorway 18.53 / 18.43 |
+| slice `--character` | 104 s | all character checks pass (idle 0.014 m ×2, walk 0.805 m) |
+| slice `--shots` | 26 s | 67 PNGs (with `--character`'s), 1600×900, archived to `before/frames/`; no "body standing" warning |
+| promenade `--headtrace` | 12 s | reference body, p2p yaw / pitch / roll: walk 3.81 / 0.45 / 0.23; jog **5.07** / 1.18 / 0.40 (accepted record: 4.2 / 1.1 / 0.4 — within the 6° bound both times; recorded as the base's own figure) |
+| promenade `--sweep` | 16 s | 48 frames, archived to `before/promenade/sweep/` |
+| promenade `--frametime` | 23 s | frame median / p95: stand 7.16 / 8.72 ms, walk 8.35 / 8.95 ms (GPU timer reports 0.00 on this host) |
+| `./mineworld-3d --drive` | 123 s | forward 1.45 m/s; café walk-in z −14.60 → −9.92 inside; jog 3.04 m/s; three camera switches diff ≤ 0.00002 m; booms 3.44 / 0.61 / 1.02 m; shopfront end z −12.30 STOPPED; fountain −19.25 STOPPED; quay rail −25.57 STOPPED |
+| `--world --link` | 245 s | all link checks pass: 50 moves 50 accepted 0 not; places cafe→street→cafe; position sent = server's (1596, 1140); door talk 8.15 m → rejected too_far_away; counter 19 moves 0 not; counter talk 1.99 m accepted, reply heard; street person 15 at (−0.55, 0.14, −5.90) (Ivan, A16-8 as computed); watch 60 s in 60.0 s |
+| `--world --conversation` | 33 s | conversation on screen, no ids; door 8.60 m "can't talk to Alice Moreau: too far away"; counter 1.88 m accepted, reply on screen 0.3 s |
+
+**The leak, starting fact (L-1).** `WARNING: 7 RIDs of type "Texture" were leaked.` on exit of every
+windowed slice mode (`--measure`, `--threshold`, `--perf`); **not** on the headless `--drive`. The
+promenade (`main.tscn`) leaks far more on exit (40 Texture RIDs, meshes, materials, 55 ObjectDB
+instances, "Leaked instance dependency") — the promenade is outside 16a's scope (F-S14-1) and is
+recorded only.
+
+### E16a-2 — on Jolt (working tree = `97c1035` + the `[physics]` line, the `--drive` engine line and DEP-20; 13:04–13:33)
+
+**Contention, recorded.** Lane S12 13a ran headless Godot clients and imports at the same time (seen
+with `pgrep`, logged per run). The first after-run's `--shots` and `--sweep` took ~2 min instead of
+~20 s, and a second Godot Physics `--shots` (`before2`) wrote **black frames** from view 15 onwards: those
+frames are INCONCLUSIVE and are not used. Every timing claim below therefore rests on repeated runs of
+both engines, interleaved, not on one run each.
+
+**J-0: PASS.** `physics_engine.gd` → `setting 'Jolt Physics'`, "Jolt Physics (a new space's solver
+iterations 8; Godot Physics' setting 16)"; `--drive` prints the same line.
+
+| Check | Godot Physics | Jolt | Verdict |
+| --- | --- | --- | --- |
+| slice `--drive` | all pass; loop 13.27 m ending 0.10 m off; jumps 0.488 / 0.491 m; florist loop 0.12 m | all pass; loop 13.25 m ending 0.10 m off; jumps 0.488 / 0.488 m; florist loop 0.13 m; cameras 0.0000 m | **PASS** — every printed position within 31 mm, every verdict line identical |
+| slice `--measure` | 1 out of range (stature 1.802, pre-existing) | the same line; occupant feet y 0.119 → 0.123 | **PASS** (same lines; 4 mm settle) |
+| slice `--threshold` | café worst ×1.65 (run 1), ×1.57 (run 2); florist ×1.42 | café ×1.08; florist ×1.42; all claims PASS | **PASS** — see the finding below |
+| slice `--character` | all pass, walk 0.805 m | all pass, walk 0.804 m | **PASS** |
+| promenade `./mineworld-3d --drive` | (E16a-1) | every "STOPPED"/"clear"/"PULLED IN" verdict identical | **PASS** |
+| `--world --link` | all pass (E16a-1) | **all link checks pass**: 50 moves 50 accepted 0 not; cafe→street→cafe; sent (1596, 1139) = server's; door 8.15 m → rejected too_far_away; counter 19 moves, 0 not; counter 1.99 m accepted, reply heard; watch 60 s in 60.0 s | **PASS** |
+| `--world --conversation` | (E16a-1) | conversation on screen, no ids; door 8.60 m toast "can't talk to Alice Moreau: too far away"; counter 1.88 m, reply 0.4 s | **PASS** |
+
+**J-2 headtrace — the 6° jog bound is not met on either engine today; Jolt does not move it.** Reference
+body, steady-phase peak-to-peak yaw / pitch / roll, every run of the day:
+
+```text
+                 walk                          jog
+Godot Physics    3.81/0.45/0.23  3.72/0.49/0.23  5.07/1.18/0.40  7.85/0.79/0.43
+                 3.86/0.52/0.25  4.03/0.56/0.25  6.71/0.76/0.49  6.26/0.79/0.51
+                 4.04/0.56/0.25  3.86/0.52/0.25  5.97/0.81/0.51  6.74/0.72/0.49
+Jolt             3.91/0.54/0.25  3.69/0.52/0.26  6.56/0.73/0.48  6.05/0.77/0.51
+                 3.85/0.53/0.25  4.03/0.52/0.26  6.25/0.76/0.49  6.76/0.75/0.51
+```
+
+Walk is within 6° on every run of both engines. Jog yaw: Godot Physics 5.07–7.85 (mean 6.43, 6 runs),
+Jolt 6.05–6.76 (mean 6.41, 4 runs) — the same distribution. The accepted record's 4.2° (CHARACTER_ROUTE_D_PLUS
+§8.8) was one run; on this base, with Godot Physics, 5 of 6 runs exceed 6°. **Classification: a
+pre-existing instability of the instrument or the head-steady filter, not a regression by Jolt**; the
+switch is not the cause and 16a does not hide it. It is raised to the primary session in the PR (the
+character track's item), not fixed here (scope).
+
+**J-2 sweep: PASS by inspection.** Pixel differences are meaningless for the sweep, as R-16a-5
+predicted: two Godot Physics runs differ by 23–97 % of pixels per frame, as much as Godot Physics
+against Jolt. The Jolt frames were inspected one at a time at the operator's three defects —
+`jog_rear_2` (the pack on her back, side panels flat, no slits or ridges), `walk_rear_tq_5` (the sleeve
+passes beside the pack's side panel), `walk_front_tq_3` (both hands free and swinging, nothing held
+into the hoodie; head facing ahead) — and show none of them.
+
+**J-3 frame time: PASS** (medians, ms; every run):
+
+```text
+--frametime stand   Godot Physics 7.16 7.83 7.04 6.66 6.79 6.60  (mean 7.01)
+                    Jolt          8.48 6.99 7.31 8.14            (mean 7.73, +10 %)
+--frametime walk    Godot Physics 8.35 7.41 7.75 7.00 7.05 6.94  (mean 7.42)
+                    Jolt          8.73 7.16 7.73 6.55            (mean 7.54, +2 %)
+--perf p50          Godot Physics street 13.52 12.03 12.00 12.11 · frontage 18.60 17.43 17.38 17.92
+                                  interior 15.14 14.99 14.73 15.17 · doorway 18.43 18.77 18.25 18.97
+                    Jolt          street 14.28 12.45 11.98 12.11 · frontage 18.29 17.51 17.76 17.37
+                                  interior 15.41 14.81 14.54 14.51 · doorway 18.98 18.32 18.52 18.05
+```
+
+No mean rises 15 %; the largest, `--frametime` standing (+10 %), is inside its own run-to-run range
+(6.60–7.83 on Godot Physics).
+
+**J-4 frames: PASS — no visible change.** `frame_diff.gd` over the 67 frames of `--shots` and
+`--character`, Godot Physics run 1 against Jolt, with Godot Physics run 2 as the noise control
+(`shots/16a/diff_*.txt`):
+- The time-driven frames (`char_*_walking`, `_jogging`, `char_walk_*`, `char_run_into_townsperson`)
+  and `th_outside_pavement` differ as much between two Godot Physics runs as against Jolt.
+  `th_outside_pavement` is a **probe timing finding**: `_threshold_run` places the body 0.31 m above the
+  pavement and captures after 18 render frames, which can be before it lands (vsync off, frames faster
+  than physics ticks), so the first sample's camera height — and its luma, 0.2246 / 0.1475 / 0.1478,
+  and so the doorway step ×1.65 / ×1.57 / ×1.08 — varies by run. Pre-existing and not 16a's; recorded.
+- The static views that Godot Physics reproduces exactly but Jolt changes: `01r` 19.0 %, `04c` 11.6 %,
+  `07` 4.4 %, `08` 3.8 %, `02` 3.3 %, `03` 2.8 %, the threshold samples 1–5 %, the rest under 2 %. A
+  diagnostic run (a scratch, uncommitted 1 s settle in `_capture`, both engines) put the body at the same
+  height on both engines (y 0.1398 vs 0.1401; camera 1.7998 vs 1.8001) and left the differences
+  unchanged, so they are the body coming to rest a few millimetres differently on Jolt, which shifts the
+  high-frequency setts and shadow edges by sub-pixel amounts. Inspected one at a time at 1600×900:
+  `01r` (the largest) and `04c` (the character in the doorway) read identical — the same street, the
+  same light, the character inside both jambs with nothing clipped.
+- Deviation from D-16a-7, bounded: no side-by-side images are committed, because no view changed
+  visibly; the frames are kept in the ignored `shots/16a/` and every number is here.
+
+**M-1: PASS (the guard bites).** With the `[physics]` line removed, `--drive` printed "engine Godot
+Physics (… 16 …)", "FAIL: the slice is selected to run on Jolt Physics (DEP-20)", "1 DRIVE CHECKS
+FAILED". Line restored.
+
+### E16a-3 — the probe split (recorded with C3, §19.6)
+
+### E16a-4 — ray targeting, intents, the reticle (working tree on `1f898c8`, Jolt, 13:42–14:05)
+
+**A failed first run, diagnosed.** The first `--world --target` failed 5 checks: the ray met the back
+wall behind every figure. Cause: the pick collider is an `AnimatableBody3D`, whose `sync_to_physics`
+defaults to on; the figure is placed by setting `global_position` from an observation, outside any
+physics-frame motion, so the body stayed where it was created. Fix: `sync_to_physics = false` in
+`SliceTargeting.person_collider()`, commented. (12e, which moves figures every frame, re-examines it.)
+
+**`./mineworld-slice --world --target` — all target checks pass:**
+
+```text
+clear    Bob Achterberg (8) beside the line to Alice Moreau: axis 0.321 m from it, capsule half-width
+         0.253 m at y 1.58 -> clearance +0.067 m
+aim      from the door, at her head         -> Alice Moreau (7)  [first hit .../Person_7/PickBody]
+talk     from the door, 8.60 m -> rejected too_far_away
+aim      from the door, at her knees        -> nobody  [first hit .../DailyBean/Interior/@StaticBody3D@4343
+         at (6.99, 1.01, -15.01)]  (the counter's front)
+aim      at the counter, first person       -> Alice Moreau (7)
+aim      at the counter, third person rear  -> Alice Moreau (7)
+aim      at the ceiling                     -> nobody; talk -> token '', 0 answers arrived
+street   body at (3.59, 0.14, -6.01), server place street, 1 people perceived
+aim      from the pavement                  -> Ivan Petrov (15)
+florist  body at (11.88, 0.26, -13.06), slice place florist.main, server place street, 15 perceived
+aim      from the florist, through its wall -> nobody  [first hit .../Unit_10/FlowerRoom/@StaticBody3D@1520
+         at (10.80, 1.90, -12.44)]  (the florist's west wall, 4.3 m behind the frontage)
+cone     the pre-16a rule would have chosen: 15
+all target checks pass
+```
+
+**Bob and the door talk (R-16a-2), as measured:** aimed at Alice's head from the visitor's seat, the line
+passes Bob's axis at **0.321 m**; his capsule is **0.253 m** wide at the height the line crosses him
+(y 1.58), so the ray clears him by **67 mm** and meets Alice. The audit's 140 mm assumed a horizontal ray
+at eye height; aiming at the head, slightly down, crosses Bob's capsule where it is wider. In the
+captured frame (`conversation_1_from_door`) Alice stands almost directly behind Bob from the door —
+labels overlapping, as `VIS-3D-GODOT-2` limitation 13 records — and the reticle sits just right of Bob's
+head. So the accepted checklist step still works, but **by a few centimetres of aim**: a player pressing
+E on Bob's head from the door targets Bob, and the answer (too far away) is about him. Reported for the
+operator's play; nothing in the client widens a target to compensate.
+
+**Regression runs on the ray** (all PASS): `--drive` all pass; `--character` all pass; `--world --link`
+all link checks pass, identical lines to C2 (door talk to Alice, rejected too_far_away; counter accepted,
+reply heard); `--world --conversation` "conversation on screen, no ids". A first conversation run showed
+the toast "can't talk Alice Moreau" — the action name had replaced the old hand-written "talk to"; the
+wording table (`SliceIntents.VERBS`) restored "can't talk to Alice Moreau: too far away", re-run
+confirmed. The frame now carries the reticle at the centre and the HUD line "looking at: Alice Moreau".
+
+**Mutations.** M-3 (ray mask `LAYER_BODIES` only): **3 TARGET CHECKS FAILED** — Alice targeted through
+the counter at her knees, Ivan targeted through the florist's wall, the first hit not a wall. M-4
+(`intents.talk` returns without sending unless `may`): **1 TARGET CHECK FAILED** — "talk from the door,
+8.60 m -> NO ANSWER". Both reverted (no `MUTATION` marker left; `git status` shows only intended files).
+M-2 (the cone restored inside `targeting.gd`) is replaced, bounded deviation: `targeting.gd` knows no
+figures, so a cone there would be a different function, and the claim M-2 was to show — that the wall
+case discriminates a cone from a ray — is shown in every run by the probe's own cone computation ("the
+pre-16a rule would have chosen: 15", a FAIL condition if it did not).
+
+**Port, recorded.** 7979 was free before every connected run (`lsof`), and each server was the launcher's
+own child (killed by PID on exit, never by name).
+
+### E16a-5 — the no-rule scan (`tests/acceptance/tests/client_rules.rs`, on `acbebbf` + the test)
+
+First run on the base (before C4) failed as it should, naming `slice_link.gd`'s `"talk"` literals; after
+C4 it is green: `cargo test -p mineworld-acceptance --test client_rules` → 3 passed (the scan, the
+lexer, the rule-name and pack-path recognisers). It reads 36 scripts (33 of the 3D client, 3 of the
+shared module) and collects the build's action types from `ActionTypeId::from_static` — since 12c merged
+these include `kick`, `throw` and `shove`, so the design's M-5 expectation ("kick not reported") no
+longer applies and both plants are reported.
+
+| Mutation | Plant | Result |
+| --- | --- | --- |
+| M-5 | `const _PLANT_M5 := ["talk", "kick"]` in `targeting.gd` | FAILED: `targeting.gd:20: the action "talk" …`, `targeting.gd:20: the action "kick" …` |
+| M-6 | `const TALK_REACH := 2.0` in `intents.gd` | FAILED: `intents.gd:15: \`TALK_REACH\` names a rule` |
+| M-7 | `load("res://../../worlds/social-cafe/people/alice.yaml")` in `slice_link.gd` | FAILED: `slice_link.gd:25: "res://../../worlds/…" names a pack's file` |
+| M-8 | an admission of `"shove"` in `targeting.gd` | FAILED: `the admission of "shove" admits nothing; remove it` |
+| M-9 | the action-type root pointed at `clients/` | FAILED: `the build's action types were not found …: []` |
+| M-10 | (kept unit test) a `"shove"` in a comment, a `"#"` in a string before `"move"`, an escaped quote, a triple-quoted string over two lines | the lexer test passes: comment not read, the rest read with the right line numbers |
+
+All plants reverted; the scan green again; `git status` shows only the test and the crate's doc list.
+
+### E16a-6 — the texture RID leak: engine-side (on `e50e3b0`, Jolt, 14:10–14:25)
+
+1. **Not the project's caches.** A scratch edit released every script-static cache A16-12 lists in
+   `SliceMain._exit_tree` (`Mats._tex_cache`, `_mat_cache`, `ProcGen._cache`, `Props._card_mats`,
+   `Human._scenes`, `_libs`, `_mats`, `SlicePalette._rug`, `_serif`, `_script_font`, besides the
+   existing `Props._scenes`): `--measure` still ended `WARNING: 7 RIDs of type "Texture" were leaked.`
+   Reverted. (A first attempt named the class `Procgen` instead of `ProcGen`; the slice failed to parse
+   and the windowed launcher waited on it until killed — a launcher behaviour, recorded only.)
+2. **A minimal scene, part by part** (a SceneTree script, 30 frames at 320×180, one camera plus one
+   part): nothing, a panorama sky with the slice's HDRI, a procedural sky, SSAO + SSIL + glow, a
+   shadowed sun, a `VoxelGI` baked at load, a `Label3D`, a HUD label — **no leak**. One
+   `ReflectionProbe` — **7 Texture RIDs leaked**, the slice's exact line. The same with
+   `UPDATE_ALWAYS`, and the same when the probe is **freed at frame 20**, before the quit. Headless: no
+   leak (nothing is rendered). The slice has two probes and leaks 7, so the textures are the renderer's
+   per-viewport reflection storage, not per probe.
+3. **Classification: engine-side**, Godot `4.7.2.stable.official.ed1daf0bf`, Metal 4.0 Forward+, Apple
+   M5. Removing the slice's probes would drop `VISUAL_SLICE.md` §7.1's "sane reflections" (an accepted
+   visual), so no workaround is taken. The reproduction is committed as
+   `clients/3d-spike/tools/reflection_probe_leak.gd` (`-- probe` leaks 7, `-- none` leaks none; run
+   again to confirm), so an upstream report or an engine upgrade can be checked in one command.
+   The promenade's much larger exit report (E16a-1) is a separate matter, out of 16a's scope.
+
+### E16a-7 — the final executable head `9ef9c61` (merged with S11-A's protocol 2; 14:07–14:40)
+
+**The merge.** `origin/main` brought S11-A (#76): `slice_link.gd` connects with an invite and a nickname,
+and `--world` hosts on port 0 and reads the server's join line. Conflicts resolved in S11-A's favour as
+the coordinator directed: the launcher keeps S11-A's flow, and 16a's `--port=` and "port in use"
+refusal (added in C4 on the coordinator's 16b finding) are **dropped as superseded** — a port the OS
+chooses cannot collide, and the join line names the server this run started. `slice_main.gd` starts
+the link with S11-A's arguments and keeps 16a's reticle. `DECISIONS.md`: main's records, then DEP-20.
+
+**Every check, on that head** (Jolt: "a new space's solver iterations 8"):
+
+| Check | Result |
+| --- | --- |
+| `--drive` | PASS — engine Jolt; all drive checks pass |
+| `--measure` | the base's lines (the pre-existing stature line, E16a-1) |
+| `--threshold` | first run **stalled** (INCONCLUSIVE) — a windowed Godot of lane S12 13a covered ours, as R-16a-4 foresaw; killed and re-run alone: PASS, café worst ×1.57, florist ×1.42, 0.00 % clipped |
+| `--character` | PASS — all character checks pass |
+| `--world --link` | PASS — on `127.0.0.1:62292` (port 0); 50 moves accepted, sent = server's; door too_far_away; counter accepted, reply heard; watch 60 s in 60.0 s |
+| `--world --conversation` | PASS — "can't talk to Alice Moreau: too far away"; both lines at the counter; no ids |
+| `--world --target` | PASS — T-1 … T-4 as E16a-4, Bob cleared by 67 mm again |
+| `./mineworld-3d --drive` | PASS — the three STOPPED verdicts, drive test done |
+| leak | the same 7 Texture RIDs on windowed exits (engine-side, E16a-6) |
+
+**Resumed session (the first was ended by an API rate limit during the gate run).** Found: three
+uncommitted files — `MVP_STATUS.md` and `HUMAN_REVIEW_QUEUE.md` (C7's scoped edits, kept and committed
+after review) and this ledger's E16a-7 (kept) — plus the untracked `reflection_probe_leak.gd.uid`
+(Godot's uid for C6's tool; every other tool's uid is tracked, so kept). No Godot, server or cargo
+process of this worktree was still running. The interrupted `cargo test --workspace` on `9ef9c61`
+(`shots/16a/final/gates.log`) had already **failed one test**: `client_rules`, on
+`clients/protocol/mineworld/world_client.gd:345: the action "invite" is named outside the files that
+build requests`.
+
+**A bounded discovery, fixed in the test (`841fc9d`).** S11-A's protocol 2 put an `"invite"` key (the
+join credential, `PROTOCOL.md` §§2, 4.1) in the shared module's join frame. group-activity declares an
+action type spelled `invite`, so the scan, which reads every literal, reported it. It is a wire key, not
+a request — the same kind of collision as `human.gd`'s animation input (Q-16a-5). Resolution: one
+admission `(world_client.gd, "invite", reason)` in `ACTION_LITERALS`; the shared module is not edited
+(16a's non-goal). The admission is checked like the others: if the key goes, the entry fails as stale.
+The commit touches no script a scene runs, so the Godot runs above stand for the PR head.
+
+**Gates (G-1), on `841fc9d`:** `cargo fmt --all --check` clean; `check_decision_ids` "56 decision ids,
+all distinct"; `check_doc_headings` "191 numbered sections across 26 documents, none duplicated"; the
+diff against `origin/main` names no file under `kernel/`, `contracts/`, `persistence/`, `server/src`,
+`systems/`, `cognition/`, `worlds/` or `clients/protocol/`; `client_rules` 3 passed. `cargo clippy --workspace --all-targets -- -D warnings` exit 0.
+`cargo test --workspace` (one complete run; an earlier one on the same head was killed by a host restart
+inside `market_town` and is not counted): exit 0, 154 result lines all `ok`, 685 passed, 0 failed,
+1 ignored (pre-existing), `market_town_lives_three_hundred_days…` ok, `client_rules` ok
+(`shots/16a/final/gates3.log`). **G-1 PASS.**
+
+**Main moved again before the PR opened** (#77, test-hygiene: a scratch helper and
+`check_scratch.py`; no client file). Merged as `6a2eafb`; the one conflict, `DECISIONS.md`, was
+resolved by keeping both records (DEP-20, then main's DEP-29). G-1 re-run on `6a2eafb`: fmt clean;
+clippy `-D warnings` exit 0; `cargo test --workspace` exit 0, 157 result lines all `ok`, 692 passed,
+0 failed, 1 ignored (bodies-yard's AO-2 evidence, by design); `check_decision_ids` "57 … all distinct";
+`check_doc_headings` "191 … none duplicated"; `check_scratch.py scan` "143 test sources, none makes
+scratch outside mineworld-test-support"; the path check is still empty (`shots/16a/final/gates4.log`).
+No client script changed in that merge, so the Godot runs above stand. **G-1 PASS on the PR head.**
+
+**After the PR opened, main took E-b (#78, `4bdbca1`)**, and `DECISIONS.md` conflicted again. Merged as
+`13a4a72` on the coordinator's instruction. The resolution keeps both sides' records unchanged: DEP-20,
+then main's ARC-54, ARC-55 and the ARC-53 note. Against main the file only gains lines. No client file
+changed, so the Godot checks were not re-run. G-1 on `13a4a72`: fmt clean; clippy `-D warnings` exit 0;
+`cargo test --workspace` exit 0, with 162 result lines all `ok`, 710 passed, 0 failed and 1 ignored (AO-2's
+evidence); `check_decision_ids` "59 … all distinct"; `check_doc_headings` "191 … none duplicated";
+`check_scratch.py scan` "148 test sources … (2 exempt)" (`shots/16a/final/gates5.log`). **G-1 PASS.**
+
+## 19.8 Execution contract (proposed; confirmed at freeze)
+
+```text
+PROJECT / PR        MVP-0 · S14 / PR 16a — the 3D client, ready for bodies
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-15-demo-3d.md §19 (this section)
+RELATED / BINDING   overall.md §3 (S14, S15), "Parallel build-out, 2026-10-08" (rulings 4, 6, 7, 9, 10);
+                    this file §§1–17 as frozen at step level; step-11-bodies.md §§3.2, 15.2;
+                    ENGINEERING_RULES §§3–12, 19; VISUAL_SLICE; HUMAN_REVIEW_QUEUE (VIS-3D-GODOT-1/-2);
+                    docs/references/CHARACTER_ROUTE_D_PLUS.md §§8.7–8.9; REUSE_POLICY
+IMPLEMENTATION BASE main @ 47c81d1; branch mvp0/pr-16a-jolt-targeting; worktree
+                    /Users/yuema137/mineworld-worktrees/impl-s14-16a (this session only)
+APPROVED SCOPE      §19.1
+FROZEN INVARIANTS   I-S14-1 (16a's part: .1 and the talk half of .2's behaviour), I-S14-2, I-S14-3,
+                    I-S14-6, I-S14-7, I-S14-10; no edit to clients/protocol/**; no regression of
+                    VIS-3D-GODOT-1 or -2
+SEQUENCE            C0 → (freeze) → C1 → C2 → C3 → C4 → C5 → C6 → C7, each committed and pushed when
+                    coherent
+VALIDATION BUDGET   static/unit/scan: unrestricted; real client runs: each ≤ ~10 min, background when
+                    > 2 min, one Godot window at a time, total ≤ ~3 h of wall time including retries;
+                    full cargo test: once, on the final head; real-model: NOT REQUIRED
+LIVE DOCUMENTATION  this section (§19.6 checkboxes, §19.7 ledger)
+HANDOFF             §19.9 of this section (Q-16a-4), refreshed at each commit
+ENDPOINT AUTHORITY
+  implementation + local validation   after the freeze message only — source: the brief ("Do not write
+                                      code until I freeze it")
+  semantic commits                    authorized — source: the brief (phase 2 "Implement it")
+  branch push                         authorized — source: the brief ("push it"); D-12
+  PR creation / update                authorized — source: the brief ("open a PR marked READY FOR
+                                      OPERATOR REVIEW")
+  CI repair                           N/A — no workflow exists (A16-13)
+  merge                               explicit operator authorization only — source: the brief ("Do not
+                                      merge it")
+POST-MERGE SYNC     the primary session owns step §13 and overall; this session owns §19 (merge identity,
+                    evidence, deviations, remaining issues)
+NORMAL STOP         PR 16a READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a regression of an accepted visual or a confirmed J-3 rise; any server, kernel,
+                    contract or shared-module change; Jolt unavailable or unfit (reported, no silent
+                    fallback); a change to §19.1's scope or to a frozen invariant
+```
+
+## 19.9 Handoff (live; replaces a separate file for this lane, Q-16a-4)
+
+```text
+checkpoint     C0–C7 committed; origin/main merged at 9ef9c61 (S11-A protocol 2); the scan's
+               "invite" admission 841fc9d; main (#77) merged 6a2eafb; G-1 green there (E16a-7);
+               PR #79 open READY FOR OPERATOR REVIEW
+next action    none — wait for the operator's review; do not merge
+background     none
+notes          Bob/door (R-16a-2): the ray clears Bob by 67 mm aiming at Alice's head from the door
+               (E16a-4, again on 9ef9c61). 12c merged: kick, throw and shove are now declared action types; the scan sees them.
+               Coordinator 2026-10-08: check port 7979 before each connected run, kill only own
+               PIDs, a run on a foreign world is INCONCLUSIVE; decorative townspeople hidden when
+               connected (QS14-9) is outside 16a's frozen files (streetscape.gd) -> recorded as
+               16c's first item; the geometry probe is 12e's (§5), not 16a's
 ```

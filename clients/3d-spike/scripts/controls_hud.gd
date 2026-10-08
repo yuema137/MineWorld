@@ -68,6 +68,34 @@ func add_line(text: String) -> Label:
 	return l
 
 
+## A small dot at the centre of the screen: where the camera's targeting ray
+## points (`SliceTargeting`). A scene that targets by ray adds it; appearance
+## only, it decides nothing. A dark ring keeps it legible on a bright wall.
+const RETICLE_PX := 4
+const RETICLE_RING_PX := 2
+
+
+func add_reticle() -> Control:
+	var ring := ColorRect.new()
+	ring.name = "Reticle"
+	ring.color = Color(0, 0, 0, 0.55)
+	var size := RETICLE_PX + 2 * RETICLE_RING_PX
+	ring.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	ring.offset_left = -size / 2.0
+	ring.offset_right = size / 2.0
+	ring.offset_top = -size / 2.0
+	ring.offset_bottom = size / 2.0
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var dot := ColorRect.new()
+	dot.color = Color(1, 1, 1, 0.9)
+	dot.position = Vector2(RETICLE_RING_PX, RETICLE_RING_PX)
+	dot.size = Vector2(RETICLE_PX, RETICLE_PX)
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ring.add_child(dot)
+	add_child(ring)
+	return ring
+
+
 ## Lines of conversation, as subtitles: bottom centre, wrapped, the newest
 ## CAPTION_LINES stacked, each held long enough to read -- CAPTION_BASE plus one
 ## second per CAPTION_CPS characters, within CAPTION_MIN..CAPTION_MAX (so a short
