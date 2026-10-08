@@ -2310,18 +2310,23 @@ written again here (about twenty lines) rather than moved, so the I-2 scan's fil
 
 ### RS-C8 — Close: real runs, the refusal, status, full gate, ledger
 
-- [ ] RS-1: the two 300-day runs on the final executable head; both `validate` diffs; M-RS1 applied to
-  one run and reverted.
-- [ ] RS-2: the cross-build evidence, with the base binary built from the base before RS-C2 and kept at
-  `/tmp/s15-12a/base-mineworld`.
-- [ ] RS-15, RS-16: the AC-1 test and the I-2 scan; the diff-scope check; fmt and clippy.
-- [ ] Full gate once on the final executable head: `cargo test --workspace --no-fail-fast` in the
-  background; counts and wall time recorded.
-- [ ] Documentation: `docs/MVP_STATUS.md` (a capability row for the seam, an evidence row); §16
-  checkboxes; §16.10; the handoff.
-- [ ] Review: RS-1 … RS-16 each with evidence; deviations listed in §16.11.
+- [x] RS-1: the two 300-day runs on the final executable head; both `validate` diffs; M-RS1 applied to
+  one run and reverted (E-RS8).
+- [x] RS-2: the cross-build evidence, with the base binary built from the base before RS-C2 and kept at
+  `/tmp/s15-12a/base-mineworld` (E-RS-base, E-RS8).
+- [x] RS-15, RS-16: the AC-1 test (13) and the I-2 scan (4) pass unedited inside the gate; the
+  diff-scope check; fmt and clippy (E-RS8).
+- [x] Full gate once on the final executable head `dc2b6b4`, in the background: 542 passed, 0 failed,
+  130 harness binaries plus 2 `harness = false` programs, 249 s (E-RS8).
+- [x] Documentation: `docs/MVP_STATUS.md` (the "Arrival resolution" capability row, one evidence row);
+  §16 checkboxes; §16.10; the handoff.
+- [x] Review: RS-1 … RS-16 each with evidence (the table below E-RS8); deviations DR-1 … DR-4 in
+  §16.11.
 
-**PR 12a lifecycle:** IN PROGRESS (12a session, branch `mvp0/pr-12a-resolver-seam` from main @ 6d48e03).
+**PR 12a lifecycle:** READY FOR OPERATOR REVIEW — DO NOT MERGE (merge commit only, operator's
+authorization). Final executable head `dc2b6b4`; later commits are Markdown only. Implementation
+context CLOSED / AWAITING OPERATOR ACTION. POST-MERGE SYNC: the planning session owns the step header,
+§§1–15, overall and MVP_STATUS's Updated and S15 lines; this session's §16 is current.
 
 ## 16.6 Test ownership
 
@@ -2571,6 +2576,75 @@ E-RS7 RS-C7, 2026-10-07, working tree on 0d21436 + seam_vocabulary.rs.
         "…/systems/movement/src/system.rs:20: ArrivalResolver". Removed; `git diff --stat systems`
         empty; presence 15 + 1 and movement 3 + 7 + 1 pass again (their own structural scans unedited
         and green); seam_vocabulary 3 pass. clippy and fmt clean.
+
+E-RS8 RS-C8, 2026-10-07, on the final executable head dc2b6b4 (`cargo build -p mineworld-cli`, binary
+      copied to /tmp/s15-12a/pr-mineworld).
+      RS-1 (300-day runs 2 and 3 of 4):
+        `run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, faults 0, 365 330 facts, no
+          `stopped-short` line, sha-256 of every line but `wall` =
+          ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-RS0. Wall 12.5 s. PASS.
+        `run worlds/market-town --headless --seed 7 --days 300` → exit 0, faults 0, 372 755 facts,
+          sha-256 = 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d = E-RS0. Wall
+          14.7 s. PASS.
+        `validate worlds/social-cafe` and `validate worlds/market-town` with the PR binary: exit 0 each,
+          `cmp` against the base binary's outputs (E-RS-base): identical. PASS.
+        M-RS1 (run 4 of 4; `if reached != to || true` in arrivals) → social-cafe sha
+          ded1ffd256d3651b5de33d9320815eb8641e745553bbb41b49cbd17cf19d2fcb ≠ E-RS0, and the summary
+          gains "facts      stopped-short 180665" (history 545 995 facts): the instrument sees a seam that
+          records one extra fact per move. Reverted; `git grep -n MUTATION -- systems sdk worldpack
+          tests tools` empty; `git diff dc2b6b4` outside docs/ and .structured-coding/ empty.
+      RS-2 (cross-build, real binaries; no committed test, QR-9):
+        PR binary `run worlds/social-cafe --headless --seed 7 --days 2 --save /tmp/s15-12a/N.mwsave` →
+          exit 0, faults 0, 2 647 facts, fingerprint ce6b20e9f416f9b3 — the base run's (E-RS-base).
+        `inspect B` and `inspect N` (PR binary): `diff` shows only the save path, the instance id
+          (excluded by ARC-27) and "systems    presence v2, …" / "systems    presence v3, …"; the same
+          head (revision 1933 at t171910), journal kinds and fact counts. PASS.
+        PR binary `run worlds/social-cafe --headless --seed 7 --days 3 --save B` → exit 1:
+          "[mineworld] system 'presence' is v3 here, but the save was written by the older v2".
+        PR binary `server worlds/social-cafe --save B` → exit 1: "[mineworld] Social Café
+          (social-cafe) — 7 system(s), 11 seat(s)" / "[mineworld] the world could not be built: system
+          'presence' is v3 here, but the save was written by the older v2".
+        `cmp B.mwsave/world.sqlite B.orig.mwsave/world.sqlite`: identical (sha-256 ebe3a0c9…135b
+          before and after). PASS.
+        Positive control: PR binary `run … --days 3 --save N` → exit 0, "resumed
+          /tmp/s15-12a/N.mwsave/world.sqlite at revision 1933 (snapshot 1920 + 13 re-executed)", faults
+          0, 3 851 facts; `inspect N` head revision 2868 at day 3. PASS.
+      RS-16: `git diff --name-only 6d48e03...HEAD` = 28 paths, every one in §16.1's change set (plus
+        docs/MVP_STATUS.md in the closing commit); kernel/, contracts/, persistence/, server/,
+        cognition/, clients/, worlds/, authoring/, tools/cli/src/, root Cargo.toml: empty diff;
+        Cargo.lock: two added lines in mineworld-acceptance's dependency list. PASS.
+      Full gate (once, background, started 21:57:04, total 255 s):
+        `cargo fmt --all --check` exit 0; `cargo clippy --workspace --all-targets --all-features -- -D
+        warnings` exit 0; `cargo test --workspace --no-fail-fast` exit 0, wall 249 s: 130 harness
+        binaries, 542 passed, 0 failed, 0 ignored; the two `harness = false` programs passed —
+        persistence's kill_and_resume ("[cafe] PASS", "[clock] PASS") and arrival_resolvers_resume
+        ("[resolver-yard] PASS"); ac1_composability 13 and precursor_vocabulary 4 passed unedited
+        (RS-15); `python3 scripts/check_doc_headings.py` → 176 sections, none duplicated;
+        `python3 scripts/check_decision_ids.py` → 50 ids, all distinct. PASS.
+        Logs: /tmp/s15-12a/gate.log, test.log, clippy.log.
+
+RS-1 … RS-16, with where each is shown:
+  RS-1   PASS  E-RS8 (both digests, validate identical, every existing test in the gate; the only
+               existing-test edits are QR-2's three literals, df23827); M-RS1 seen (E-RS8)
+  RS-2   PASS  E-RS8 (cross-build, refusal by name, B unchanged, positive control)
+  RS-3   PASS  arrival_resolvers::an_arrival_is_resolved_before_it_is_recorded; M-RS2, M-RS3 (E-RS5)
+  RS-4   PASS  …::presence_refuses_a_resolution_that_breaks_its_rules_and_names_the_resolver (14 rows +
+               positive control; DR-1); M-RS4 (E-RS5)
+  RS-5   PASS  …::resolvers_are_asked_in_ascending_system_id; M-RS5 (E-RS5)
+  RS-6   PASS  …::arrival_refuses_a_placement_a_resolver_would_change_and_arrivals_records_it; M-RS6
+  RS-7   PASS  …::a_registered_resolver_is_inert_where_its_state_is_absent and
+               arrival_resolvers_unregistered::a_world_without_a_resolver_pack_runs_unchanged_…
+  RS-8   PASS  presence tests/resolver_catalog.rs; M-RS7 (E-RS2)
+  RS-9   PASS  arrival_resolvers_unregistered::installing_a_resolver_pack_…_panics_naming_why; M-RS8
+  RS-10  PASS  worldpack tests/registration.rs; installed tests/resolution.rs (DR-2); M-RS9 (E-RS3)
+  RS-11  PASS  arrival_resolvers_resume (E-RS6, and inside the gate); M-RS10 (E-RS6)
+  RS-12  PASS  arrival_resolvers::a_system_may_state_arrived_and_hear_it
+  RS-13  PASS  seam_vocabulary (3 tests; DR-4); both planted violations failed by name (E-RS7)
+  RS-14  PASS  arrival_resolvers::runtime_disable_of_a_resolver_pack_is_not_honoured; ARC-39's own
+               paragraph
+  RS-15  PASS  ARC-39 and MODULE_SPEC §3.1 in RS-C1 (0d1f4c7) before any code; both doc checks; the
+               AC-1 test and the I-2 scan in the gate, unedited
+  RS-16  PASS  E-RS8 scope; fmt and clippy in the gate
 ```
 
 ## 16.11 Deviations and discoveries during implementation (12a session)

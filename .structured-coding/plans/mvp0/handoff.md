@@ -43,14 +43,15 @@ STOP CONDITIONS     normal: PR 12a READY FOR OPERATOR REVIEW — DO NOT MERGE. M
 
 ## Current checkpoint
 
-RS-C1 … RS-C6 committed and pushed (0d1f4c7, df23827, afda4e6, b1d4038, 9acbe04, and RS-C6's
-commit). Evidence E-RS-base, E-RS1 … E-RS6 in §16.10; deviations DR-1 … DR-3 in §16.11. The base
-binary for RS-2 is `/tmp/s15-12a/base-mineworld` (built from 6d48e03 before any edit); base save `B`
-is `/tmp/s15-12a/B.mwsave` (pristine copy `B.orig.mwsave`); base `validate` outputs are
-`/tmp/s15-12a/base-validate-*.txt`. Budget used: 300-day runs 1 of 4; SIGKILL harness 3 of 4.
+**READY FOR OPERATOR REVIEW — DO NOT MERGE. Context CLOSED / AWAITING OPERATOR ACTION.**
+RS-C1 … RS-C8 done: 0d1f4c7, df23827, afda4e6, b1d4038, 9acbe04, 0d21436, dc2b6b4 (final executable
+head), then the Markdown-only close. Gates on dc2b6b4 (§16.10 E-RS8): fmt, clippy, 542/0 in 249 s,
+both doc checks. RS-1 … RS-16 PASS. Deviations DR-1 … DR-4 (§16.11); DR-3 (support file size) and
+DR-4 (three pre-existing words admitted by the RS-13 scan) are flagged for the operator. Budget used:
+300-day runs 4 of 4; SIGKILL harness 3 of 4 standalone, plus once inside the gate.
 
 ## Next actions
 
-1. RS-C7: `tests/acceptance/tests/seam_vocabulary.rs` (RS-13), the two planted violations.
-2. RS-C8: RS-1 (two 300-day runs, validate diffs, M-RS1), RS-2 (cross-build), RS-15, RS-16, the full
-   gate in the background, MVP_STATUS rows, ledger, PR.
+- Operator reviews the PR; merge **with a merge commit** (not a squash).
+- Post-merge (planning session): step header, §§1–15, overall, MVP_STATUS's Updated and S15 lines;
+  then detail 12b. This session records the merge identity in §16 if asked.
