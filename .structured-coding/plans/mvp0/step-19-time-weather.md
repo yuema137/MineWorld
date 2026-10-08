@@ -1,7 +1,7 @@
 # Step 19 — S19: World time, two time domains, pause, day and night, weather
 
 **Lifecycle:** `DRAFT — awaiting the primary session's review`. Nothing here is frozen, and nothing in it
-authorizes implementation. The first PR's design (§16) is likewise a draft.
+authorizes implementation. The first PR's design (§16) is ready for freeze review, and is not frozen. The questions are ruled (§14.1, 2026-10-08).
 **Author:** the S19 planning session, 2026-10-08. Worktree `/Users/yuema137/mineworld-worktrees/plan-s19`,
 branch `plan/s19-time-weather`, from `main @ f842c52`.
 **Binding parents:** `CLAUDE.md` §§2–4; `overall.md` "Parallel build-out", "Framework, not demo", "One world,
@@ -61,8 +61,8 @@ settings. The coordinator's brief adds:
    its own clock.
 2. The 12h/24h choice is a client-side presentation preference in the shared client settings module. It
    never reaches the server.
-3. Formats follow the language setting (`en` default, `zh-Hans`), for example `Tue 8 Oct 2026, 7:42 PM`
-   and `2026年10月8日 星期二 19:42`, with a 12-hour Chinese variant such as `下午 7:42`. Format strings are
+3. Formats follow the language setting (`en` default, `zh-Hans`), for example `Thu 8 Oct 2026, 7:42 PM`
+   and `2026年10月8日 星期四 19:42` (8 October 2026 is a Thursday; the brief wrote `Tue`), with a 12-hour Chinese variant such as `下午 7:42`. Format strings are
    Presentation or translation content, not code.
 4. The HUD clock updates live, reflects pause and scale changes, and is shown in both 2D and 3D.
 5. Acceptance covers parity of the two clients' date and time (part of "One world, two views"), the
@@ -626,9 +626,10 @@ owned by TW-c (ARC-41: specified whole, landed incrementally). Refusal code `pau
 | World (shown only with a host token) | Pause / Resume; Day length: 4 h · 2 h · 1 h (6×, 12×, 24×) | **host commands** through `/admin/clock` (§7.3), not settings | yes, as a host command; never stored in the client's settings file |
 | Launcher (single-player only) | Keep the town running when I close the game | launcher preference | no (it changes what the launcher does on close) |
 
-Item 4 says settings "never reach the server". The World section is therefore specified as *host
-commands surfaced in the same menu*, not settings, and the amendment in §15 says so explicitly. Without a
-token the section shows the current day length and pause state read-only.
+Item 4 says settings "never reach the server". Pause and day length are therefore *host commands that the
+operator wants reachable from the in-game settings menu* (2026-10-08), not settings; the amendment in §15.2
+says so explicitly. The host (a client holding the host's or an admin token) sees them enabled. Every other
+client sees the current day length and paused state read-only, or does not see the section at all.
 
 ## 8.2 The HUD date and time
 
@@ -654,7 +655,7 @@ token the section shows the current day length and pause state read-only.
 | `hud.datetime` | `{date}, {time}` | `{date} {time}` |
 | `hud.paused` | `Paused` | `已暂停` |
 
-  Examples (8 October 2026 is a **Thursday**; the brief's `Tue` was illustrative): `Thu 8 Oct 2026, 7:42 PM`;
+  Examples (8 October 2026 is a **Thursday**): `Thu 8 Oct 2026, 7:42 PM`;
   `2026年10月8日 星期四 19:42`; `2026年10月8日 星期四 下午 7:42`.
   Weekday and month names are translation entries too (`hud.weekday.short.0` …).
 - **Live.** The HUD updates every frame from the estimate, shows `Paused` while paused, and changes rate the
@@ -840,6 +841,23 @@ fixes scope, checkpoints and adversarial criteria only.
 | QTW-16 | Default clock mode before the user chooses: per language (12 h for `en`, 24 h for `zh-Hans`) or one global default? | Per language, as above. |
 | QTW-17 | Epoch date for `market-town`: a fixed date (2026-10-08, the day of the requirement) or "today" at world creation (`mineworld create` writes it)? | Fixed in the shipped World Pack (determinism); `create` writes the creation date for new worlds. |
 
+## 14.1 Rulings, 2026-10-08 (binding; relayed by the coordinator)
+
+**By the operator:**
+
+| Id | Ruling |
+| --- | --- |
+| QTW-1 | Content first: longer routine parts and earlier departures. Accepting late arrivals for short shifts is the fallback. Never a controller change that reads the scale. |
+| QTW-2 | Full pause (§7.2): nothing moves, and client requests are refused `paused`. |
+| QTW-5 | 10 record years (2015–2024). |
+| QTW-9 | A fixed UTC offset, with no DST in v1. |
+| QTW-13 | Hosted consult cadence is in **wall seconds**. This reverses QS11B-4 for consult cadence. **The S11-B lane must take this ruling**: `--pace` becomes a wall-second cadence (renaming it `--cadence` is part of the ruling as recommended), and the S11-B design is amended accordingly. |
+
+**By the primary session, each as recommended above:** QTW-3, QTW-4, QTW-6, QTW-7, QTW-8, QTW-10, QTW-11,
+QTW-12, QTW-14, QTW-15, QTW-16 and QTW-17.
+
+No question in §14 remains open.
+
 ---
 
 # 15. Proposed decision records and amendments (text for the primary session to apply)
@@ -871,11 +889,16 @@ fixes scope, checkpoints and adversarial criteria only.
 
 - Add **S19** to "Parallel build-out" with §11's PR table and dependencies (IL-a, S11-B, S11-D, S12 13a,
   S14 16a, the settings-menu PR).
-- "Framework, not demo" item 4 (settings): add — "The settings menu also surfaces **host commands** (pause,
-  day length) when the client holds a host token; these are commands to the host's admin surface, not
-  settings, and are never stored in the settings file. The 12h/24h clock is a presentation setting."
+- "Framework, not demo" item 4 (settings): add — "**Pause and day length are host commands, reachable from
+  the in-game settings menu** (operator, 2026-10-08). They are not settings. The menu sends them to the
+  host's admin surface (`/admin/clock`), and they are never stored in the client's settings file, so the
+  rule that settings never reach the server is unchanged. The menu shows them **enabled to the host**, that
+  is, a client holding the host's or an admin token. To every other client it shows them **read-only**
+  (current day length and paused state), or hides them; which of the two is a presentation choice of the
+  settings-menu PR. The 12h/24h clock is an ordinary presentation setting."
 - "One world, two views": add the HUD date and time, light phase and weather intent to the parity test.
-- S11: note that `--pace` becomes wall-second cadence (QTW-13) and that S11-D gains `/admin/clock` (QTW-3).
+- S11: note that `--pace` becomes a wall-second cadence (QTW-13, ruled by the operator 2026-10-08; it
+  reverses QS11B-4, and the S11-B lane takes it), and that S11-D gains `/admin/clock` (QTW-3).
 - §7 living-world gaps: add FX-24's result once measured; L-12 gains "hosted cadence is wall-time (S19)".
 
 ## 15.3 `step-12-server.md`
@@ -891,9 +914,10 @@ fixes scope, checkpoints and adversarial criteria only.
 
 ---
 
-# 16. TW-a — the `calendar` System Pack (full PR design, DRAFT)
+# 16. TW-a — the `calendar` System Pack (PR design — ready for freeze review)
 
-**Lifecycle:** `DRAFT`. Not frozen; becomes `pr-TW-a-calendar.md` with an execution contract on the
+**Lifecycle:** `PR design — ready for freeze review`. It is not frozen and does not authorize
+implementation; the questions it depends on are ruled (§14.1). It becomes `pr-TW-a-calendar.md` with an execution contract on the
 primary session's approval. Branch `mvp0/pr-tw-a-calendar` from `main` after IL-a merges.
 
 ## 16.1 Goal and non-goals
