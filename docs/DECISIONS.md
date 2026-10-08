@@ -319,6 +319,19 @@ at issue, and it needs its own decision at that point rather than being discover
 - **Vecteezy, Freepik** — require attribution *and* forbid redistributing the file. Not open.
 - **MB-Lab** — licence of generated characters unconfirmed from a primary source. Marked unconfirmed rather than assumed; prefer MPFB2.
 - **CC-BY-SA and GPL assets** — copyleft incompatible with MIT redistribution, whatever their quality.
+- **The Tencent Hunyuan family under Tencent's community licences: code, weights and outputs.**
+  This covers Hunyuan3D, HunyuanWorld 1.0, HunyuanWorld-Mirror, HY-World 2.0 (including the
+  WorldStereo 2.0 weights) and HunyuanImage. Operator decision, 2026-10-08. The licences fail the
+  relicensing test on three counts:
+  - they exclude the EU, the UK and South Korea, including use of Output there (§5(c));
+  - every downstream licence must carry Tencent's use restrictions as enforceable terms, which
+    MIT cannot (§5(a));
+  - outputs may not be used to improve other AI models (§5(b)).
+
+  The operator also chose **no private look-development use**, so that no output or derivative can
+  leak into the repository. Re-evaluate only if Tencent relicenses a component under a permissive
+  licence. Evidence, read at source on 2026-10-08:
+  [`docs/references/HY_WORLD_2_COMPARISON.md`](references/HY_WORLD_2_COMPARISON.md).
 
 **Generated meshes, recorded 2026-10-06 (route E experiment, read at source).** Meshy's paid
 plan passes the relicensing test: *"such customers on a paid Meshy plan own their Customer
@@ -3397,6 +3410,128 @@ kept, every float converted by the same two functions — and what the flight ad
   lattice is taken, and if none verifies, the object stays where it was.
 - **Launch velocities are integers** (millimetres per second, computed with + − × ÷ only), converted
   into Rapier's metres by the adapter's one conversion.
+
+---
+
+## ARC-41 — Client protocol revision 2: specified whole, landed incrementally, and still JSON
+
+**Date** 2026-10-08 · **Status** accepted; revision 2 begins on the wire in S11 PR S11-A · **Approved by**
+the operator (QS11-1, QS11-15 as recommended, `overall.md` "Parallel build-out, 2026-10-08") and the
+primary session at S11-A's design freeze · **Relates to** `DEP-3`, `ARC-25`, `ARC-34`, effort decision
+`D-4` · **Design** `.structured-coding/plans/mvp0/step-12-server.md` §§5, 15 · **Specification**
+[`server/PROTOCOL.md`](../server/PROTOCOL.md)
+
+**Problem.** Step S11 changes the client protocol in five pull requests — authentication, seats and
+hold, facts and deltas, admin, proof — while the 2D client (S12), the 3D client (S14) and the Python
+cognition SDK (S10) are built against it at the same time. One revision number per pull request would
+make three clients chase four revisions; one revision delivered at the end would block all three until
+S11 finishes. Separately, effort decision `D-4` said Protobuf would be introduced "at the first real
+cross-language boundary", and that boundary — the Godot client — has run on JSON since S5V.
+
+**Choice, the revision rule.** Revision 2 is **specified whole** (step-12 §5, then `PROTOCOL.md`) and
+**implemented incrementally**: `protocol` becomes `2` in the first pull request that changes the wire
+(S11-A), and until the step completes a server may *omit* a frame or a field the specification marks as
+arriving later, and never gives a frame or a field it sends a different meaning. `PROTOCOL.md` §10 is
+the landing table. A client written against the whole specification is correct against every
+intermediate `main`. Fields other steps asked for (the explicit takeover flag and time scale, S11-B;
+`acted_through` and the cursor-resumable perceived stream, S11-C) are specified in `PROTOCOL.md` by the
+pull request that lands them; until then a `join` carrying them is refused as malformed, because every
+client frame denies unknown fields.
+
+**Choice, the encoding.** **JSON text frames stay the wire encoding for MVP-0.** This supersedes
+`D-4`'s *timing*, not its direction: the Rust types in `mineworld-contracts` remain the single source of
+truth, and other languages mirror them — checked against golden frames the Rust tests keep in
+`server/tests/frames/` — rather than through a parallel schema. Protobuf (`prost` with `godobuf`) was
+declined for now because a mirror `.proto` of every contract type is the drift risk `R-3` names, the
+GDScript generator has a single maintainer, and payloads owned by System Packs would be JSON inside
+bytes anyway. MessagePack (`rmp-serde`) is the natural first step if a binary encoding is ever measured
+to be needed, because it keeps `serde` as the one source; CBOR has no maintained GDScript decoder;
+transport compression (`permessage-deflate`) cannot be negotiated by Godot's `WebSocketPeer`
+(godot#103230). Bandwidth is answered by S11-C's measured deltas, not by the encoding.
+
+**Disagreement recorded.** [`ARCHITECTURE.md`](ARCHITECTURE.md) §13.1 still states `D-4`'s timing. It is
+stale; the edit belongs to S10's P3 (step-17 G-1), which introduces the second cross-language consumer,
+and is recorded here so the contradiction is not silent (`CLAUDE.md` §2.1 rule 4).
+
+**Limitation accepted.** Between S11's pull requests, two `main` commits that both say `protocol: 2`
+differ in what they send. The landing table is the only place a client learns which; a client for a
+deployed server built from an intermediate `main` reads that commit's `PROTOCOL.md`.
+
+---
+
+## DEP-14 — Join secrets: `getrandom` to make them, `subtle` to compare them
+
+**Date** 2026-10-08 · **Status** selected; dependencies added in S11 PR S11-A · **Approved by** the
+primary session at S11-A's design freeze (step-12 §7.2, DEP-S11-a) · **Relates to** `DEP-3`, `ARC-41`,
+[`NETWORKING.md`](NETWORKING.md) §9 · **Design** `.structured-coding/plans/mvp0/step-12-server.md`
+§§4.1, 7.2, 7.7, 15
+
+**Problem.** MVP authentication is a server invite token plus a player nickname (`NETWORKING.md` §9).
+The server must make an unguessable invite when its operator gives none (and, from S11-B, a resume
+secret per seat binding), and must compare an offered invite with the real one without the comparison's
+timing telling an attacker how many leading characters were right.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17 — both directions).
+
+```text
+credential carriage
+(a) invite + nickname in the protocol's join frame, checked by
+    server/src/admission.rs                                    chosen: transport-independent, works for
+                                                               a browser client, never in a URL
+(b) tower-http bearer validation on the /ws upgrade           a browser cannot set the header; it
+                                                               authenticates the transport, not the
+                                                               protocol
+(c) JWT / PASETO session tokens (jsonwebtoken)                accounts and expiry nobody has yet
+(d) axum-login / tower-sessions                               cookie sessions and a user model
+                                                               MineWorld does not have
+constant-time comparison
+(e) subtle 2.6 (ConstantTimeEq)                               chosen
+(f) constant_time_eq 0.6                                      acceptable; subtle preferred for its
+                                                               review history
+(g) hash both sides (sha2) and compare                         an indirect argument for no gain
+(h) our own fold-and-or loop                                   the classic way to be undone by an
+                                                               optimizer
+secret generation
+(i) getrandom 0.3 (the OS random source)                      chosen: already compiled
+(j) rand 0.9                                                  a full RNG API for 16 bytes
+(k) uuid v4                                                   an identifier, not a secret format
+(l) WorldInstanceId::allocate's clock ⊕ pid ⊕ ordinal         guessable
+join rate limiting
+(m) one guess per connection + a fixed 500 ms delay (ours)    chosen for MVP-0, a LAN or a tunnel
+(n) governor / tower_governor (GCRA per IP)                   deferred: the adopt route for public
+                                                               hosting
+```
+
+**Choice.** `subtle = "2.6"` and `getrandom = "0.3"`, both in the root `[workspace.dependencies]` and
+used by `mineworld-server` only.
+
+**Facts, verified 2026-10-08** (`cargo info`, `cargo tree`):
+
+```text
+subtle            2.6.1, BSD-3-Clause, dalek-cryptography/subtle; no dependencies; default features
+                  std, i128. New to Cargo.lock.
+getrandom         0.3.4, MIT OR Apache-2.0, rust-random/getrandom. Already in Cargo.lock as a normal
+                  dependency of mineworld-server (rand_core ← rand ← tungstenite ← tokio-tungstenite
+                  ← axum), so this adds an edge, not a package. 0.4.3 exists; 0.3 avoids a second copy.
+constant_time_eq  0.6.1, CC0-1.0 OR MIT-0 OR Apache-2.0 — the recorded alternative.
+```
+
+**Why not ourselves.** Both are commodity primitives (`REUSE_POLICY.md` §4); an own constant-time loop is
+exactly what an optimizer can turn back into an early exit. **Why ours for the rate limit.** One guess
+per connection and a fixed delay are a few lines and suffice for a 128-bit invite on a LAN; `governor`
+needs per-IP keying that is wrong behind a proxy, and is the adopt route the day public hosting is in
+scope.
+
+**Isolating interface.** `server/src/admission.rs` is the only file that names either crate. It exposes
+`InviteToken` (generated or operator-given; `Debug` redacted; no `Serialize`), `OfferedInvite`,
+`Nickname`, `Admission::admit` and `UNAUTHORIZED_DELAY`. No secret type implements `Serialize`, so none
+can reach a frame, a fact or a save by accident.
+
+**Limitations accepted.** `subtle`'s slice comparison returns early on unequal lengths: an invite's
+length is not secret (a generated one is always 32 characters). Secrets cross a LAN in clear over
+`ws://`; TLS comes from a gateway or a tunnel (`NETWORKING.md` §7, QS11-14). An operator-given invite on
+the command line is visible to other local users through the process list; `MINEWORLD_INVITE` avoids
+that.
 
 ---
 

@@ -9,7 +9,7 @@ extends SceneTree
 # runs, headless:
 #
 #   godot --headless --path clients/protocol --script res://checks/affordances_check.gd -- \
-#       --address 127.0.0.1:7878 --seat visitor
+#       --address 127.0.0.1:7878 --seat visitor --invite <the server's invite>
 #
 # Seated as `visitor` at the café door, it reads what the world offers, then:
 #   1. submits the incomplete `talk` through submit_affordance — nothing may be sent;
@@ -39,6 +39,7 @@ const VISITOR_KINDS := 2
 var _world: Node
 var _address := "127.0.0.1:7878"
 var _seat := "visitor"
+var _invite := ""
 var _elapsed := 0.0
 var _failures := 0
 var _done := false
@@ -66,7 +67,7 @@ func _initialize() -> void:
 	_world.disconnected.connect(_on_disconnected)
 	_world.submitted_request.connect(func(token, request): _submitted.append([token, request]))
 	_note("connecting to %s as seat '%s'" % [_address, _seat])
-	_world.connect_to_world(_address, _seat)
+	_world.connect_to_world(_address, _seat, _invite, "affordances-check")
 
 
 func _process(delta: float) -> bool:
@@ -85,6 +86,8 @@ func _read_arguments() -> void:
 				_address = String(arguments[index + 1])
 			"--seat":
 				_seat = String(arguments[index + 1])
+			"--invite":
+				_invite = String(arguments[index + 1])
 
 
 # ------------------------------------------------------------------------------------------------

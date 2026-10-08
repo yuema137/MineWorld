@@ -4,7 +4,8 @@
 exists to prove it works.
 
 ```text
-mineworld/world_client.gd   the connection: join a seat, receive observations, submit requests
+mineworld/world_client.gd   the connection: join a seat with the server's invite, receive
+                            observations, submit requests, leave
 mineworld/observation.gd    reading a frame without deciding anything
 mineworld/space.gd          the one conversion between the world's axes and Godot's
 demo/                       a demonstration scene of its own
@@ -17,16 +18,18 @@ evidence/                   what the real engine produced, against the real serv
 
 ```sh
 cargo run -p mineworld-cli --bin mineworld -- server worlds/social-cafe --agent alice
+# it prints:  [mineworld] invite <token> — join with: 127.0.0.1:7878 seat=… invite=<token>
 godot --headless --path clients/protocol --import      # once, to build the script class cache
-godot --path clients/protocol                          # windowed: [1] walk closer  [E] talk  [Esc] leave
+godot --path clients/protocol -- --invite <token>      # windowed: [1] walk closer  [E] talk  [Esc] leave
 ```
 
-Scripted, which is what `evidence/` was made with:
+Every server needs its invite, loopback included. Scripted, which is what `evidence/` was made with
+(`run.sh evidence` does all of this, reading the invite from the server's line):
 
 ```sh
-godot --headless --path clients/protocol -- \
+godot --headless --path clients/protocol -- --invite <token> \
     --autopilot --flavour 2d --seat visitor --requests evidence/request-2d.json
-godot --headless --path clients/protocol -- \
+godot --headless --path clients/protocol -- --invite <token> \
     --autopilot --flavour 3d --seat visitor --requests evidence/request-3d.json
 ```
 
