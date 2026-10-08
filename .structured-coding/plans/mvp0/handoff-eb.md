@@ -19,9 +19,10 @@ STOPS               editing load.rs; kernel/contract/persistence change; any dig
 
 ## Current checkpoint
 
-**READY FOR OPERATOR REVIEW — CLOSED / AWAITING OPERATOR ACTION.** Final executable head `0fdced8`
-(main with S11-A merged in): fmt, clippy and `cargo test --workspace` (700 passed, 0 failed, 1 ignored —
-12c's — 0 filtered) green; the towns' digests and the three `validate` outputs unchanged; no forbidden
+**READY FOR OPERATOR REVIEW — CLOSED / AWAITING OPERATOR ACTION.** Final executable head `a383e32`
+(main with S11-A and test-hygiene #77 merged in; E-b's test scratch through `scratch!`, §15.5 Eb-C6):
+fmt, clippy and `cargo test --workspace` (707 passed, 0 failed, 1 ignored — 12c's — 0 filtered) green;
+`check_scratch.py scan` and `left` clean; the towns' digests and the three `validate` outputs unchanged; no forbidden
 path changed. The evidence commit after it is Markdown only. If main moves again: merge it (§15.8),
 re-run the gate, record. Do not merge the PR without the operator's explicit approval. After merge:
 record the merge identity in §15; the primary session owns §9.3's status, the step header and

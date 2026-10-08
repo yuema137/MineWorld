@@ -1603,7 +1603,8 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 # 15. PR E-b — requirements and resolution (PR design)
 
 **Lifecycle:** `READY FOR OPERATOR REVIEW` — DESIGN FROZEN (2026-10-08), primary session;
-implemented, final executable head `0fdced8`, evidence in §15.5 Eb-C5. Not merged.
+implemented, final executable head `a383e32` (main with #77 merged in), evidence in §15.5 Eb-C5 and
+Eb-C6. Not merged.
 
 ## 15.0 Freeze record
 
@@ -1970,6 +1971,45 @@ WITH, `+`, each refusal naming the identifier), a unit test of the prefix functi
   checks: 191 sections / 26 documents, none duplicated; 57 decision ids, distinct.
 - [x] PR opened, READY FOR OPERATOR REVIEW. Not merged.
 
+### Eb-C6 — Merge of test hygiene (#77) and E-b's test scratch
+
+After the primary session's review of E-b (gate re-run, 700 passed; scope clean; an unmet requirement
+refused by name), PR test-hygiene merged as #77 (`e98321a`) and GitHub reported a conflict. #77 adds
+`mineworld-test-support`'s `scratch!` (DEP-29), `scripts/check_scratch.py` (`scan`, `left`) and the
+rule that test scratch goes through the helper (`ENGINEERING_STANDARDS.md` §22), with
+`packages/tests/manifest.rs` exempt because `packages` is a leaf.
+
+- [x] Implementation: `origin/main` merged as **`b4d4ebf`**: one conflict, `docs/DECISIONS.md`, a
+  union at the file's end (E-b's ARC-54, ARC-55 and the ARC-53 note, then #77's DEP-29, separated by
+  `---`); `Cargo.lock` merged by Git (adds `mineworld-test-support` only). Then **`a383e32`**:
+  `worldpack/tests/requirements.rs` and `tools/cli/tests/requirements.rs` wrap
+  `mineworld_test_support::scratch!` (names `requirements-<case>` and `cli-requirements-<case>`
+  unchanged) and lose their own `Drop`; `packages/tests/roots.rs` joins `manifest.rs` in
+  `check_scratch.py`'s `EXEMPT` with its reason (the same leaf rule, `packages/tests/structure.rs`).
+  **Finding F-Eb2 (bounded, fixed):** `roots.rs`'s two tests shared one scratch, `packages-roots`, so
+  under the parallel harness one test's drop could remove the other's directories; each now names its
+  own (`packages-roots-order`, `packages-roots-not-a-directory`), which is the exemption's substance
+  ("a name of its own, removed on drop"). No assertion changed; no production source changed (the
+  merge brought tests, manifests' dev-dependencies, docs and the script only).
+- [x] Validation (E-Eb-final3, on **`a383e32`**, the final executable head): `check_scratch.py scan` →
+  147 test sources, none outside the helper, 2 exempt. `cargo fmt --all --check` 0; `cargo clippy
+  --workspace --all-targets --all-features -- -D warnings` 0; `cargo test --workspace --no-fail-fast`
+  (`MINEWORLD_PACKS`, `MINEWORLD_INVITE`, `MINEWORLD_KEEP_SCRATCH` unset; `TMPDIR` a fresh
+  `target/eb-run-tmp`, so leftovers of other runs in the system temp directory could not be counted)
+  exit 0, 319 s, **707 passed, 0 failed, 1 ignored, 0 filtered** over 161 harness summaries (700 + #77's
+  7 helper tests; 158 + its 3 targets); `resolver-yard`, `cafe`, `clock` PASS. Then
+  `check_scratch.py left --target-dir target --tmp-dir target/eb-run-tmp` → nothing left (`target/tmp`
+  had been emptied before the run: 135 entries, 16 GB, left by pre-#77 runs). Doc checks: 191 sections /
+  26 documents, none duplicated; 58 decision ids, distinct (57 + DEP-29). EB-6: `validate` of the three
+  worlds byte-identical (`cmp`) to the base binary's (`target/eb-evidence/base-validate-*`); towns'
+  300-day seed-7 sha (all but `wall`) social-cafe `ad49c723…c64b`, market-town `365b50e0…1d1d`, equal
+to the base and to Eb-C5's. EB-7: `git diff --stat origin/main HEAD -- kernel contracts persistence
+  server clients systems cognition tests/acceptance worldpack/src/load.rs` → empty.
+- [x] Review: the merge resolution is a union, no decision text edited; the conversions change where
+  scratch lives (`<CARGO_TARGET_TMPDIR>/mineworld-scratch-<pid>/<name>`), not what any test asserts —
+  EB-3's world-parent case still holds, the world's parent being the test's own scratch. No frozen
+  decision's meaning changed; no material stop reached.
+
 **Acceptance, as measured:**
 
 ```text
@@ -1990,15 +2030,16 @@ EB-9  PASS  ARC-54, ARC-55, the specs in Eb-C1 (86be6df), before code
 ```
 
 **Commit map.** C0 `e9d4ae9` · freeze `15b5907` · C1 `86be6df` · C2 `d50b4f7` · merge `586280c` · C3
-`11ca8a0` · C4 `66bc9f2` · merge (12c record) and C5 docs `beb9c0f` · merge (S11-A) `0fdced8` (final
-executable head) · this Markdown-only evidence commit.
+`11ca8a0` · C4 `66bc9f2` · merge (12c record) and C5 docs `beb9c0f` · merge (S11-A) `0fdced8` · C5
+evidence `5908215` · merge (#77) `b4d4ebf` · C6 scratch `a383e32` (final executable head) · the
+Markdown-only evidence commit after it.
 
 **Deviations, all bounded:** `Installed` groups resolve's non-world inputs; a controller id in
 `requires:` is absent from the loader's view (controllers are the host's); `PackError`'s package
 refusals boxed (size), fixed at the source; F-Eb1 (a test's premise); the `main.rs` diff is larger than
 "one struct and one arm" but mechanical. None touches a frozen invariant.
 
-**PR E-b lifecycle: READY FOR OPERATOR REVIEW** — final executable head `0fdced8`; PR head is the
+**PR E-b lifecycle: READY FOR OPERATOR REVIEW** — final executable head `a383e32`; PR head is the
 Markdown-only commit after it. Not merged. Coordination notes for the primary session: (1) the
 licence-policy hook is `configure/packages.yaml` decoding into `LicencePolicy`; its owner is the
 framework's `packages` crate, not a System Pack, which S17's `configure:` seam (owner-typed by system
