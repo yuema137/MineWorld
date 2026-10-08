@@ -959,7 +959,7 @@ that must break it.
 
 | PR | Scope | Integration checkpoint | Adversarial criteria (fixed before measuring) |
 | --- | --- | --- | --- |
-| **PL-a** World configuration and extension catalogs (framework precursor; names no physics) | ARC-PL-a, ARC-PL-b. `authoring`: `PackConfiguration`. `sdk`: `configures!()`, `extension` lines, `Capability::register_extensions()`. `systems/installed`: the resolution line rewritten. `worldpack`: `configure:`, `configure/<id>.yaml`, seeding order, the drift check. Hosts: one drift-check call at resume. Test-only packs: `tuning` (configures one integer that changes what it states) and `relays` (a pack-owned trait with a second extension catalog). `MODULE_SPEC.md` §4.1 and §9. | Through the real binary: the three worlds' 300-day seed-7 facts byte-identical to `main` (no `configure:` anywhere); a scratch world with `configure: [tuning]` runs 30 days and states what its configuration says; SIGKILL and resume byte-identical; resume after editing `configure/tuning.yaml` refused by name; resume after editing nothing accepted; both extension catalogs registered by `compose`, in the listed order. | (1) `configure:` naming a system the world does not enable, one that configures nothing, a missing file, an unknown key — each refused by name, with line and column for the YAML. (2) Mutation: remove the drift check → the edited-configuration resume is accepted and the test fails by name. (3) Mutation: seed configuration after sections → an existing world's genesis ids move and I-7-style byte-identity fails. (4) The vocabulary scan finds no physics word (PL-I10). (5) `kernel/`, `contracts/`, `persistence/` have no diff (PL-I4). |
+| **PL-a** World configuration and extension catalogs (framework precursor; names no physics) | ARC-PL-a, ARC-PL-b. `authoring`: `PackConfiguration`. `sdk`: `configures!()`, `extension` lines, `Capability::register_extensions()`. `systems/installed`: the resolution line rewritten. `worldpack`: `configure:`, `configure/<id>.yaml`, seeding order, the drift check. Hosts: one drift-check call at resume. Test-only packs: `tuning` (configures one integer that changes what it states) and `relays` (a pack-owned trait with a second extension catalog). `MODULE_SPEC.md` §4.1 and §9. | Through the real binary: the three worlds' 300-day seed-7 facts byte-identical to `main` (no `configure:` anywhere); a scratch world with `configure: [tuning]` runs 30 days and states what its configuration says; SIGKILL and resume byte-identical; resume after editing `configure/tuning.yaml` refused by name; resume after editing nothing accepted; both extension catalogs registered by `compose`, in the listed order. | (1) `configure:` naming a system the world does not enable, one that configures nothing, a missing file, an unknown key — each refused by name, with line and column for the YAML. (2) Mutation: remove the drift check → the edited-configuration resume is accepted and the test fails by name. (3) Mutation: seed configuration after sections → `tuning`'s own section, whose reduction checks it against the configuration, is reduced without it, and the scratch world is refused at load by name. (4) The vocabulary scan finds no physics word (PL-I10). (5) `kernel/`, `contracts/`, `persistence/` have no diff (PL-I4). |
 | **PL-b** bodies reads its rules from a list; `default` reproduces 12c (refactor) | DEP-PL-a. bodies: the list type and its validation, `default.yaml` compiled in, the resolved-list lookup replacing every parameter constant of §4.4 at every read site, the material and gravity conversions; engine constants stay. No authoring surface, no new component, no new fact: `VERSION` unchanged. | bodies-yard's 30-day sha, 12b's `long_run` bytes, and both towns' 300-day seed-7 digests byte-identical to `main` after 12d; arm64 and x86_64 (Rosetta) identical; cost per swept move and per kick within +5 % of `main`, measured in release. | (1) Mutation: `default.yaml`'s `nudge.max` 300 → 299 → `long_run` bytes differ, by name (the list is read, not the constant). (2) A structural test: no §4.4 parameter value survives as a literal outside `default.yaml` and the engine-constant module. (3) The three float bit patterns (0.5, 0.1, 9.81) pinned. (4) `(VERSION, default digest)` pinned like `rapier_pin`; editing `default.yaml` without a `VERSION` bump fails. (5) A list widening an engine bound (`nudge.max` 400) is refused at decode, naming the bound. |
 | **PL-c** Authored lists, classes and regions | ARC-PL-c. bodies `configures!()`: `configure/bodies.yaml` (`physics:`, `lists:`), `extends`, the cross-checks; `physics-configured`, `PlacePhysics`; `class:` on item `body:`, `object-classed`, `BodyClass`; `physics:` on place `body:`; materials and `combine`; class in the `loose-objects` disclosure (additive; S11 carries the wire note). bodies `VERSION` 3. `MODULE_SPEC.md` §4.1's `body` row; the bodies subsection. | Test-time copies of bodies-yard (the established `market_composition.rs` pattern): (a) `default` named explicitly — PL-I2; (b) a `warehouse` list — a heavy box blocks the walker at contact, a light box kicked flies to a hand-computed landing ± 1 mm, `kick: none` is not offered and is refused `NoSupportedInteraction` when requested; (c) a region with `nudge.max` 150 — the 30-day scan holds I-11 at 160 mm in that place and 310 mm elsewhere; SIGKILL and resume byte-identical; resume after editing the list refused by name. | (1) Totality: every class pair of every accepted list resolves (a property test over generated lists). (2) Refused by name: a cycle in `extends`; an unknown class on an item; a reach below R + GAP + half-extent; more than 24 classes; a region naming an unknown list. (3) Mutation: ignore the region override → (c) fails. (4) Mutation: drop `BodyClass` from the lookup → (b)'s heavy box is pushed and the test fails. (5) PL-I6's 30-day scan passes under every list in the test set, and fails on a world with bodies disabled (I-10). |
 | **PL-d** A provided kind and a consequence pack, from outside bodies | The `InteractionKind` trait and bodies' catalog (`register_interactions`), bodies' `object-removed` and its constructor, `class_of`. A test-only kind (`skid`) proving the seam. Two packs under `systems/`: `ice` (kind `slide`, reference list `winter`) and `fragile` (a consequence pack). A small world for the operator, `worlds/rink`. | In `worlds/rink`: a box pushed on the ice region ends `extra` further, hand-computed ± 1 mm; a kicked fragile vase is removed, `broke` is caused by the kick's `ActionId` (`AC-9`); with `item`/`inventory` enabled, shard kinds appear in the kicker's holdings; 30 days, PL-I6 scan, SIGKILL and resume byte-identical; cross-architecture. | (1) **The physics change-amplification proof:** the commit that installs `ice` touches only `systems/ice/**`, `systems/installed/**` and `Cargo.lock`; bodies is unedited (a diff check, like `ARC-35`). (2) A kind returning an over-long displacement is clipped; one aiming through a wall is stopped by the cast; one aiming into a person degrades (V-O); each by a test. (3) Removing `ice` from `systems:` refuses a world naming `slide`, by name; a world not naming it is unchanged. (4) `fragile` never writes a bodies component (a structural test) — only bodies' constructor. |
@@ -968,3 +968,184 @@ that must break it.
 adopts it. After PL-b: byte-identity evidence on all three worlds is reviewed before any behaviour
 becomes configurable. After PL-c: the operator plays a configured world (QPL-13) before third-party
 kinds are designed in detail.
+
+---
+
+# 8. Part 2 — framework pluggability audit
+
+The operator's test (R-PL-2): a user picks an art style and a setting and enables the features they
+want, without forking. For each area: what is already pluggable, what is hard-coded (files named), and
+what would make it pluggable. "Planned" means a step document already designs it.
+
+## 8.1 Art style and presentation (2D and 3D)
+
+- **Already pluggable.** Presentation is a removable layer: removing the 3D client changes no system, no
+  world and no test (`step-15-demo-3d.md` §9.1); clients decide nothing (I-8, I-S14-1), so a different
+  renderer cannot change outcomes. The 2D client's design reads a Presentation Pack (`--presentation
+  <dir>`) whose `asset_bindings.yaml` maps semantic roles to sprites, with `ARC-14`'s four style
+  variants as binding sets (`step-13-client-2d.md` A-5, QS12-4) — planned, in flight on
+  `mvp0/pr-s12-13a-walkable-2d`, not on `main`. S16 E-a/E-b give Presentation Packs identity, a version
+  and a `requires:` entry — planned.
+- **Hard-coded.**
+  - Nothing reads a Presentation Pack (S16 F-E6): `presentation/mineworld-default/{2D,3D}/` are
+    references for humans.
+  - The 3D client's style is transcribed into code: `clients/3d-spike/scripts/slice/palette.gd`
+    (colours "Read from presentation/mineworld-default/3D/references/"), `mats.gd`, `props.gd`.
+  - The 3D client's places are built per world in GDScript, bound to `worlds/social-cafe`:
+    `scripts/slice/slice_world.gd:17` ("matching `worlds/social-cafe`"), `cafe.gd`, `cafe_interior.gd`,
+    `shop_interior.gd`, `street.gd`, `streetscape.gd`, `terrace.gd`. A new world gets no 3D scene.
+  - Assets live inside the client (`clients/3d-spike/assets/`, `ASSETS.md`); no Asset Pack exists
+    (S16 QSE-11).
+  - A world cannot say which presentation it is authored for (`presentation_profile` refused;
+    S16 replaces it with `requires:`), and the server does not tell a client (S16 QSE-9).
+- **What would make it pluggable.**
+  1. The server discloses the world's required Presentation Packs in the welcome frame (S11; S16's
+     recorded hook).
+  2. The 3D client builds a place's architecture from disclosure — bodies' `PlaceShape` (floor,
+     solids), movement's passages — dressed by the Presentation Pack's bindings (place role → kit,
+     body class → mesh, person → character profile), and keeps hand-built scenes only as one pack's
+     content. 12e already builds colliders from disclosure; the visual half is the gap.
+  3. The 2D client lands as designed (S12).
+  4. Asset Packs become packs with licences and semantic bindings (`PACKAGE_FORMAT.md` §4; a later step).
+
+## 8.2 Setting and content (worlds, people, items, places)
+
+- **Already pluggable.** A World Pack is a directory anywhere, read with no rebuild (`mineworld
+  run|server|validate <path>`); people, places, items and organizations are YAML files; each pack owns
+  its section of them (ARC-31); `mineworld create` writes a new world. Item kinds are content (ARC-36).
+  S16 adds versions, licences and shared Entity Packs (E-d) — planned.
+- **Hard-coded.**
+  - The entity types are a closed set (`contracts`: Person, Place, Item, Organization) — by design; a new
+    type is a contract change (`MODULE_SPEC.md` §1).
+  - Setting metadata (`era`, `calendar`, `geography`) is refused (`MODULE_SPEC.md` §4.1).
+  - `consumption`'s tag words are constants: `EATEN = "food"`, `DRUNK = "drink"`
+    (`systems/consumption/src/action.rs:10, :13`); a setting with other food words must use those tags.
+  - A day is the same every day, and time of day is schedule's convention (ARC-32 limitations).
+  - Places have geometry only where bodies is enabled; the 3D client's layout is per world (§8.1).
+- **What would make it pluggable.** Entity Packs (S16 E-d); `consumption`'s words as configuration
+  (ARC-PL-a's seam); setting metadata when a system first reads it (not before: `CLAUDE.md` §4 rule 11).
+
+## 8.3 Feature enablement (systems on or off)
+
+- **Already pluggable.** A world enables a pack by naming it in `systems:`; an absent pack's actions are
+  `Unavailable` and the world otherwise runs (`INV-10`, `AC-2`); `AC-1` proved two different games from
+  the same entities by composition alone (S9). Installing a bundled pack is a directory and two lines
+  (ARC-33); one from another repository is S16 E-c — planned.
+- **Hard-coded.**
+  - Installing needs a rebuild (ARC-33; installing without one is `ARC-8`'s Tier 1, a non-goal).
+  - `worldpack` depends on presence and movement for the `location` and `passages` fields (ARC-31 item
+    5, ARC-33 item 4).
+  - Runtime `World::disable` of a resolver pack is not honoured (QB-17).
+  - `systems/installed`'s `resolution:` line is presence-specific in the sdk and `worldpack` (A-7).
+- **What would make it pluggable.** ARC-PL-b's generic extension line (PL-a); the rest is planned or a
+  deliberate non-goal.
+
+## 8.4 Rules (economy numbers, capacity, schedules, physics)
+
+- **Already content.** Prices, wallets and shops (`economy:`), jobs and wages (`job:`), holdings
+  (`holdings:`), routines (`routine:`), item kinds (`item:`), place geometry and loose objects (`body:`).
+- **Hard-coded** (A-10): `inventory::PERSON_CAPACITY` 6 (`systems/inventory/src/admit.rs:18`);
+  `conversation::INTERACTION_RANGE` 3 000 mm and `CONVERSATION_GAP` 300 s
+  (`systems/conversation/src/action.rs:16`, `system.rs:29`); `group_activity::INVITE_RANGE`,
+  `ACTIVITY_LENGTH`, `INVITATION_LIFETIME` (`systems/group-activity/src/{action,process,component}.rs`);
+  `relationships`' regard and familiarity values (`systems/relationships/src/system.rs:22–30`);
+  `movement::MAX_STRIDE` (`systems/movement/src/action.rs:23`); every bodies constant and rule (A-1, A-2).
+- **What would make it pluggable.** ARC-PL-a's per-pack configuration (the `MODULE_SPEC.md` §9
+  "configuration schema" nobody implemented, S16 G-8), adopted pack by pack with declared bounds: bodies
+  first (this step), then each pack when a world first needs a different value. A different *rule* stays
+  a System Pack (`MODULE_SPEC.md` §4 constraint 3).
+
+## 8.5 Controllers and AI
+
+- **Already pluggable.** A controller only reads `Observation`s and submits `ActionIntent`s
+  (`MODULE_SPEC.md` §5); any process speaking the protocol can drive a seat (S11), so an external
+  controller in any language needs no fork; complete affordances let a controller use packs it was never
+  compiled against (ARC-34); the model backend is the operator's, never the world's (`AC-4`, S10
+  planned).
+- **Hard-coded.** `mineworld run` always uses `PacedRuleController` (`tools/cli/src/run.rs:107`);
+  `server --agent` always `RuleController` (`tools/cli/src/agent.rs:56`); the rule controller is compiled
+  into `tools/cli` and names five packs (S16 §2.1); its offer band is frozen (ARC-34); no per-world or
+  per-seat selection (`cognition_profile` refused).
+- **What would make it pluggable.** Per-seat controller selection by the operator (S10/MVP-1, S16
+  QSE-10); hosted seats driven by an external controller process over the protocol (S11) — mostly
+  planned.
+
+## 8.6 The checklist: what a user can change without touching MineWorld's code
+
+`yes` = today on `main`; `planned` = designed in a named step; `S-PL` = this step; `gap` = §8.7.
+
+| A user wants to … | Status | How |
+| --- | --- | --- |
+| write a new world: people, places, items, organizations, seats | **yes** | a World Pack directory |
+| give people names, routines, jobs, money, belongings | **yes** | sections in content files |
+| set prices, wages, opening balances | **yes** | `economy:`, `job:` sections |
+| turn talking, relationships, shops, work, bodies on or off | **yes** | `systems:` |
+| add a feature written by someone else | **planned** (S16 E-c) | two lines in `systems/installed`, rebuild |
+| share item kinds between worlds | **planned** (S16 E-d) | an Entity Pack, `requires:` |
+| version a world and state its licence | **planned** (S16 E-a) | `world.yaml` fields |
+| lay out walls, furniture and loose objects | **yes** (bodies) | `body:` sections |
+| choose how people and objects interact (pushing, kicking, throwing, nudging, materials) | **S-PL** | a physics list in `configure/bodies.yaml` |
+| add a new kind of physical behaviour (ice, sticky, bouncy) | **S-PL** | a pack implementing `InteractionKind` (code, but not *our* code) |
+| change rule numbers in other packs (carrying capacity, talking range) | **gap** G-PL-4 | ARC-PL-a's seam, per pack |
+| play in a 2D style of their choosing | **planned** (S12) | a Presentation Pack's bindings, `--presentation`, `--variant` |
+| play in a 3D style of their choosing, or a new world in 3D | **gap** G-PL-1 | the 3D client must read a Presentation Pack and build from disclosure |
+| bring their own assets as a package | **gap** G-PL-2 | Asset Packs |
+| drive a character with their own AI | **yes** over the protocol (S11); per-seat selection **planned** (S10) | |
+| install a feature without rebuilding | **no** (non-goal) | `ARC-8` Tier 1, after MVP |
+
+## 8.7 Gaps, mapped to steps
+
+| ID | Gap | Owning step |
+| --- | --- | --- |
+| G-PL-1 | The 3D client hard-codes the default style (`palette.gd`, `mats.gd`, `props.gd`) and social-cafe's layout (`slice_world.gd`, `cafe*.gd`, `street*.gd`); a new world or style gets no 3D scene | **S14**: a new PR "3D reads a Presentation Pack and builds places from disclosure", after 12e; **S11** carries the welcome-frame field; **S16** declares the pack |
+| G-PL-2 | No Asset Packs; assets live in the client | **new step** after MVP-0 (S16 QSE-11 keeps it out of Milestone E) |
+| G-PL-3 | No program reads a Presentation Pack; a world cannot select one | **S16** (declare) + **S11** (disclose) + **S12**, **S14** (apply) — QSE-9's hook, to be scheduled explicitly |
+| G-PL-4 | Rule constants of every pack are compile-time (A-10); no per-pack configuration (S16 G-8) | **S-PL** PL-a (the seam) + **new step S-CFG** (adoption by conversation, inventory, group-activity, relationships, movement, consumption, as worlds need them) |
+| G-PL-5 | Physics behaviour is compile-time (A-1, A-2) | **S-PL** (this step) |
+| G-PL-6 | A second extension catalog would edit the sdk and `worldpack` again (A-7) | **S-PL** PL-a (ARC-PL-b) |
+| G-PL-7 | Controllers are fixed by the host command; no per-seat selection | **S10** (per-seat selection), **S11** (external controllers over the protocol) |
+| G-PL-8 | Shared, data-only physics lists | later (QPL-5) |
+| G-PL-9 | A System cannot create an entity during a dispatch (shards, crafting, spawning) | **kernel question**, operator-material (QPL-11); outside MVP-0 unless decided |
+| G-PL-10 | Resume does not detect drift in a World Pack's content | configuration: **S-PL** PL-a; all content: QPL-12 |
+| G-PL-11 | `README.md` still says systems, scheduling, persistence and the clients "do not yet" exist, and does not say that the demo is one default composition | a docs PR, proposed wording §8.8 |
+| G-PL-12 | Runtime disable of a resolver or interaction pack | **QB-17** (deferred, unchanged) |
+
+## 8.8 Proposed wording for `README.md` (for humans; short, links onward)
+
+Replaces the opening paragraph and the "Status" section; the rest of the README stays. Proposed, not
+applied (the primary session decides, QPL-15):
+
+```markdown
+# MineWorld
+
+> **An open-source framework for building persistent, modular, playable worlds.**
+
+MineWorld is not a game. It is the layer underneath one: people, places, items and organizations,
+the time they live in, and the rules of what can happen between them — each rule an independently
+installable module. What you see when you run it today is the **default demo**, one composition of
+those modules. Yours can look different, be set somewhere else, and play differently, without
+forking MineWorld:
+
+- **Setting** — write your own world: its people, places, items and organizations, as files.
+- **Features** — switch systems on or off per world (talking, relationships, shops, work, bodies),
+  or install systems other people wrote.
+- **Rules** — tune the numbers a system exposes. Physical interaction is a **physics list**: you
+  decide which kinds of object push, block, fly or break, and a new kind of behaviour is a module,
+  not a patch.
+- **Look** — choose a presentation: the bundled 2D and 3D styles are defaults, not requirements.
+- **Minds** — drive any character as a human, with rules, or with your own AI.
+
+```text
+install modules  →  compose a world  →  configure  →  run
+```
+
+## Status
+
+MVP-0 is being built in the open. The kernel, persistence, the server and the System Packs for
+movement, conversation, relationships, group activity, items, money, work and bodies exist and are
+tested; the 2D and 3D reference clients and package versioning are in progress. See
+[`docs/MVP_STATUS.md`](docs/MVP_STATUS.md).
+```
+
+The statement "LM-native" in today's README is kept or dropped by the operator's choice (QPL-15); the
+wording above does not depend on it.
