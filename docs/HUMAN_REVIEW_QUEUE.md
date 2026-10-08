@@ -7,7 +7,7 @@ a place here when a coherent capability can be *experienced* as a whole.
 Engineering progress is tracked separately in [`MVP_STATUS.md`](MVP_STATUS.md). A milestone parked
 here does not block anything else.
 
-**Updated:** 2026-10-07 (Milestone C demonstrated, awaiting the operator's review)
+**Updated:** 2026-10-07 (Milestones B and C accepted by the operator)
 
 ---
 
@@ -16,8 +16,8 @@ here does not block anything else.
 | | Milestone | Demonstrates | State |
 | --- | --- | --- | --- |
 | **A** | Runnable world runtime | load Social Café → server → two clients + an agent → cause a change → all observe it | ✅ **complete 2026-09-27** — `AC-15` holds, 259 tests · restart/persistence is S5 and moves to **B** |
-| **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **demonstrated 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`; awaiting the operator's review (below) |
-| **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **demonstrated 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs`; awaiting the operator's review (below) |
+| **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **accepted by the operator 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`, run by the operator on `main` and passing |
+| **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **accepted by the operator 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs` (with `ac1_composability`, `market_town` and a 30-day `run`), run by the operator on `main` and passing |
 | **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | ❌ |
 | **E** | Package composition | a real world assembled from independently installable packs | ❌ |
 

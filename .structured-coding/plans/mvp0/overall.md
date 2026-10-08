@@ -729,8 +729,8 @@ Next, framework (critical path to Milestone B):
        S9 COMPLETE (2026-10-07).
             AC-1       demonstrated as ARC-35 measures it, within ARC-33's static-linking boundary
                        (installing = a directory, two lines in systems/installed, a rebuild; without
-                       a rebuild is ARC-8, outside MVP-0) — operator acceptance pending (QS-65; the
-                       runnable checklist is HUMAN_REVIEW_QUEUE's Milestone C entry)
+                       a rebuild is ARC-8, outside MVP-0) — ACCEPTED by the operator 2026-10-07 (QS-65),
+                       who ran the checklist on main: all passing
             AC-2       confirmed for the six market packs at world level, beside S6's movement and
                        S8's social packs
             CP-4       the market lives 300 days, as a committed test (market_town.rs)
@@ -768,11 +768,12 @@ Next, framework (critical path to Milestone B):
 Next, framework:  S15 12a, the arrival-resolver seam — detailed to the commit and frozen, then
                   implemented in a fresh session, after this closeout merges. S15 precedes S14
                   (step-11 §12).
-Next, operator:   accept or reject AC-1 and Milestone C (QS-65) with HUMAN_REVIEW_QUEUE's
-                  Milestone C checklist; Milestone B's test is still pending too.
+Next, operator:   AC-1, Milestone B and Milestone C ACCEPTED 2026-10-07 (the operator ran
+                  milestone_b, ac1_composability, milestone_c, market_town and a 30-day run on
+                  main, all passing). Pending: the 3D slice played interactively (VIS-3D-GODOT-2).
 
 Remaining:  S15 (12a–12e), S10 (reduced), S11 (authentication, admin frames, deltas), S12, S13,
-            S14; Milestones D and E; the operator's reviews of Milestones B and C
+            S14; Milestones D and E
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
