@@ -61,7 +61,7 @@ fn a_code_pack_without_a_usable_licence_or_author_is_refused_by_name() {
 #[test]
 fn the_id_rule_admits_what_ships_and_refuses_the_rest() {
     for id in [
-        "mineworld-item-transfer",
+        "mineworld-group-activity",
         "mineworld-rule-controller",
         "social-cafe",
         "bodies-yard",
