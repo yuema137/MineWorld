@@ -5768,3 +5768,134 @@ implementation worktrees, read-only, at the states named in F-D12.
 | **F-D14** | **The paced controller's walking is bounded by nothing in the world.** `wander` draws ±1 400 mm per axis; `approach` stops 1 000 mm short; `through` aims for the exact doorway point. In bodies-yard, 63 % of moves end stopped short. | `cognition/rule-controller/src/paced.rs:66–105, 266–362`; DB-10 | With walls the towns' moves will often be swept, not fast-pathed: the cost risk of TD-12, and the activity risk of TD-5 (R-B8). |
 | **F-D15** | **Baselines reproduce on this base.** Both 300-day seed-7 runs give E-RS0's digests and counts (E-TD0). | E-TD0 | The "before" of the re-baseline (TD-1). |
 
+## 19.3 Design (SD-D1 … SD-D16)
+
+### 19.3.1 The geometry, place by place (SD-D2)
+
+Every coordinate is integer millimetres in the place's own frame, which does not move: each place's
+origin stays where its file's header comment puts it, so every authored person keeps their position.
+`h` is a solid's height above the floor. A slice cylinder of radius r becomes a box (QD-3):
+
+```text
+r ≤ 500 mm   one square of half-side ⌊r · 0.7071⌋ (inscribed): a face lies at most 0.293·r inside the
+             cylinder and never outside it — at most 147 mm for r = 500
+r > 500 mm   two crossed boxes of half-extents (r, ⌊0.65·r⌋) and (⌊0.65·r⌋, r): for r = 620, (620, 403);
+             the worst point is 38 mm off the cylinder
+a diagonal   the open door leaves: their axis-aligned box, clipped to the floor. Its faces lie up to the
+board        board's diagonal from the board; the 150 mm probe cannot hold a diagonal against an
+             axis-aligned box, so 12e's probe exempts the leaves by name (QD-3)
+put_solid    the asset's glTF bounds (the POSITION accessor's min/max of the mesh the scene loads) × 0.92,
+             centred where the scene places it, as `dressing.gd:135–140` sizes the collider. Read in
+             TD-C1 and recorded per prop (E-TD1); the planning sizes below are placeholders, marked ≈
+```
+
+**The café** (`places/cafe.yaml`; frame unchanged — the inner south-west corner, F-D5):
+
+```text
+floor          (0, 0) – (8 320, 10 320)                       the inner faces (cafe_interior.gd:35–37)
+solids         counter         (3 860, 6 570) – (8 320, 7 350)   h 1 060
+               back worktop    (3 860, 9 290) – (8 320, 9 910)   h   880
+               window bench    (2 360,   460) – (8 020,   900)   h   470   the seat slab; the stools
+                                                                           and front board are visual
+               dresser         (    0, 2 110) – (  340, 4 510)   h   840
+               table east      ≈ (4 860, 3 160) ± 300            h   750   put_solid
+               table north     ≈ (7 110, 4 560) ± 300            h   750   put_solid
+               table back      ≈ (2 260, 8 560) ± 300            h   750   put_solid
+               door leaf       (  785,     0) – (1 120,   734)   h 2 070   clipped at y 0 (QD-3)
+               back-room board (  195, 10 230) – (1 245, 10 320) h 2 000   clipped at the floor
+doorway        here (1 610, 400) — was (1 610, 200)              F-B7: 400 from the front wall,
+                                                                  490 from the leaf's box, centred on
+                                                                  the door's clear opening x 1 120 … 2 100
+```
+
+**The street** (`places/street.yaml`; frame unchanged — the café's door at x 0, the north façade's
+doorways at y 3 000 before 12d):
+
+```text
+floor          (−37 450, −13 000) – (30 550, 3 200)    the façade lines and the street's volume
+solids         about 60 (≤ 64, SOLIDS_MAX), each from streetscape.gd / street.gd / slice_world.gd:
+               retaining wall (15 050, 1 000) – (26 050, 3 200) h 1 900; lamps (squares, half 91),
+               bollards (half 113), bins (half 169), trees (half 156 … 186), stone planters (their
+               boxes), terrace tables (crossed pairs, (620, 403)), planter boxes, clay pots and A-boards
+               (put_solid), benches (their boxes), the fingerpost (half 98), the bicycle (half 353)
+               — the full list, with each source line, is TD-C1's table (E-TD1)
+doorways       café         there (     0,   2 800)   was (0, 3 000): 400 inside the north façade
+               store        there (  8 390,   2 800)   was (12 000, 3 000): The Flower Room's door
+               apartments   there (−19 700,   2 800)   was (−12 000, 3 000): the Flats' house door
+               workplace    there ( −5 700, −12 600)   was (−6 000, −13 000): the house door 300 mm east
+               park         there ( 15 300, −12 600)   was (8 000, −13 000): the unit's house door (QD-7)
+```
+
+**The store** (`places/store.yaml`; frame: the inner south-west corner of The Flower Room — the store's
+header already defines its origin as its inner south-west corner, so the frame's meaning is kept and
+only its extent is now authored):
+
+```text
+floor          (0, 0) – (7 900, 7 350)                 shop_interior.gd:39–42
+solids         window staging  (2 100,   110) – (7 200,   950)   h 1 200
+               work counter    (4 500, 5 750) – (7 650, 6 450)   h   950
+               bucket step     (7 230, 1 150) – (7 850, 4 550)   h   220
+               display shelves ≈ (220, 2 550) and (220, 3 800)   put_solid
+               shelves         ≈ (5 350, 7 190) and (6 650, 7 190) put_solid
+               display table   ≈ (4 050, 3 350)                 put_solid
+               crate           ≈ (7 400,   600)                 put_solid
+               door leaf       (  230,     0) – (  560,   850)   h 2 080   clipped (QD-3)
+doorway        here (1 040, 400) — was (1 500, 200): the door's centre, fx 1 040 (opening 530 … 1 550)
+person         felix (3 000, 3 000), unchanged: 600 mm from the display table's placeholder box
+```
+
+**The apartments, the workplace, the park** (no slice interior; rooms sized to their headers'
+descriptions and to their people, and nothing else — `VISUAL_SLICE.md` §4 keeps them unenterable in 3D,
+so there is nothing to match):
+
+```text
+apartments  floor (0, 0) – (8 000, 6 000)           "an entrance hall … and the stairs up"
+            solids  stairs (0, 4 200) – (2 400, 6 000) h 3 000
+            here (2 000, 400) — was (2 000, 200);   carol (3 000, 2 500), otto (6 000, 4 000) unchanged
+workplace   floor (0, −7 000) – (9 000, 0)           the origin is the inner north-west corner
+            solids  meeting table (4 000, −5 800) – (6 400, −4 800) h 750
+                    desks (6 500, −2 000) – (8 400, −1 200) h 750
+                    kitchenette (0, −7 000) – (2 400, −6 400) h 900
+            here (1 500, −400) — was (1 500, −200); grace (3 000, −3 000), hana (5 000, −3 500)
+park        floor (0, 0) – (20 000, 15 000)          "about 20 m by 15 m"
+            solids  bench (3 000, 12 000) – (4 900, 12 700) h 840; bench (12 000, 5 000) – (13 900,
+                    5 700) h 840; a fountain (9 000, 6 000) – (11 000, 8 000) h 600
+            here (1 000, 14 600) — was (1 000, 14 800); dev (5 000, 9 000), erin (6 500, 9 500)
+```
+
+**The objects** (`items/<key>.yaml`, the object form of `body:`, tags only — no `item:`, so never a
+declared kind, QB-3):
+
+```text
+cafe-box      box half (200, 200, 200)   café   (7 300, 2 200)   by the window, east of the lane
+cafe-ball     ball 110                    café   (2 600, 5 600)   west of the lane to the counter
+street-box    box half (250, 250, 250)   street (−3 000, 1 200)  on the pavement west of the door
+street-ball   ball 110                    street ( 2 200,   600)  on the pavement, between the terrace
+                                                                   tables and the kerb
+```
+
+Each lies at least 700 mm from every doorway point and every authored person, and at least 420 mm
+(R + GAP + its half-size) from the straight lines F-D10's tests walk, so those strides still meet
+nothing (TD-9).
+
+### 19.3.2 Decisions
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **SD-D1** | **Install.** `bodies` is appended to Social Café's `systems:` after `schedule`, and inserted at the same position in Market Town's, before its six market packs. Every earlier reduction order stays as it was. | F-D2: check 3 requires Social Café's list as Market Town's prefix. Bodies depends on presence only. |
+| **SD-D2** | **Geometry as §19.3.1.** Every slice collider standing on a walkable floor of the café, the street or The Flower Room is a solid; nothing the slice does not collide with is a solid. The apartments, workplace and park get rooms from their own descriptions. A solid's height is the collider's top above the floor. | The server is the single source of layout ("One world, two views"); the 150 mm probe is two-directional (step-15 §4.2), so a collider missing on either side is a defect. Decoration is the client's. |
+| **SD-D3** | **Doorway points, inside.** Every `here` and every street-side `there` lies 400 mm inside its floor's edge, at least 310 mm (R + GAP) from every solid. 400 rather than 310: the binding constant a client moves (F-D5) is then a round 0.4 m, and 90 mm of margin absorbs a solid's rounding. | F-B7 (R-12d-1). E1 then places a crossing exactly on the point (SD-B8). |
+| **SD-D4** | **The street's doors onto the slice's** (R-12d-2): the store onto The Flower Room's door; the apartments onto the Flats' house door; the workplace onto the house door 300 mm east; the park onto the unit house door at x 15 300 (QD-7). Each `there` keeps its side (north y 2 800, south y −12 600). The store's and the street's header comments, which state the old distances, are rewritten with the new ones. | F-D7. Every door a person walks through in 3D is a door the scene draws. |
+| **SD-D5** | **A doorway inside a wall is refused at load** (§11.1). Bodies' reduction of `place-shaped` also checks every doorway point of the place, from movement's `Passages` (`here` of each passage out of it, and `there` of each passage into it): inside the floor shrunk by R + GAP, and at least R + GAP from every solid. Refusal `bodies-doorway`, naming the place, the passage's other place and the point, and the distance. A crate dependency on `mineworld-movement` for the read-only `Passages` type, as 12c's on `mineworld-item` (QD-5); no system dependency — a world without movement has no passages to check. Bodies `VERSION` 3 (QD-6). | F-D4. A doorway inside a wall would otherwise be a silent E3 shift on every crossing — exactly F-B7 — rather than a load error. Genesis orders passages before sections (F-B4), so `Passages` is reduced when `place-shaped` is. |
+| **SD-D6** | **Objects** as §19.3.1, identical files in both towns. Their keys sort after the people's, so Social Café's ids 1–18 do not move (F-D9). | R-12d-3, R-12d-4; S14 §3.1's "interacts with one object" happens in the town. |
+| **SD-D7** | **People are not moved.** Every authored position stays; each is checked by bodies' genesis (outside, in a solid, overlap, capacity) through `mineworld validate`. | The towns' people files stay byte-identical, so check 3's person comparison is untouched and no test that names a person's position changes. |
+| **SD-D8** | **The 3D binding is not 12d's.** 12d moves the doorway points; the slice's `door_point` constants (0.2 m, `slice_link.gd:80–86`) move to 0.4 m in 12e (or 16c, whichever first connects to a 12d world), with the florist bound to `store` (F-S14-9). Until then a connected slice draws the café 200 mm off and the street 200 mm off, and the florist hack fails against the street's floor. | I-S14-2: no S14 PR touches `worlds/`; no 12d path touches `clients/`. Stated in §19.10 so neither lane is surprised. |
+| **SD-D9** | **Check 3 admits Social Café's own items** (QD-1 **[OM]**). Amended rule, in `ac1_composability.rs` and as a dated note on `ARC-35` item 4: Social Café may have `items:` and `items/`; Market Town's `items:` contains Social Café's (as a set); every Social Café item file exists in Market Town with an equal value (`compare_content`, as places and people); every item file only Market Town has carries only the format's fields and market sections (`market_only_content`, unchanged); `organizations/` stays Market Town's only. The claim is unchanged: **Market Town is Social Café plus configuration.** Its unit test gains the cases (a social item missing in Market Town; differing; a market-only item with `body:`). | F-D1. A loose object is Social Café's content, so it belongs to both towns, exactly as a place's `body:` does. Without the amendment, no town can carry an object. The operator approved `ARC-35` and accepted AC-1 on this test; amending its letter is theirs. |
+| **SD-D10** | **R-PK-2, item names, in `item`.** `item: { category, name }`, `name` an `ItemName` (1–64 bytes, no control characters, no surrounding whitespace — naming's display-name rule, restated in `item`, which depends on no pack), **required**. `item-kind-declared` and `ItemKind` carry it (schema 2 each); `VERSION` 2. `item` discloses, to whoever perceives a place, an `item-catalogue` record on the place: `[{ item, category, name }]` for every declared kind, in `ItemId` order, built from `ItemKind` at disclosure (economy's `Listing` precedent, F-O5). The twenty Market Town kinds get names (QD-4). `ARC-37` gains a dated note: kinds are now disclosed as a catalogue; items are still never perceived as entities. | Coordination ruling 5: the names change Market Town's genesis facts, so they land in the one re-baseline (QS12-3, RK-5). Required, because a kind without a name is what F-41 is. A disclosed-only record type is audited first in TD-C2 (QD-12). |
+| **SD-D11** | **Activity before determinism, decided now** (`ARC-23`; §19.4 TD-5 … TD-8). With bodies, both towns must still live as they did — every existing activity assertion of `run.rs`, `run_restart.rs`, `routines.rs`, `market_town.rs`, `milestone_b.rs`, `milestone_c.rs` and `market_composition.rs` passes unedited in its claim — and the physical actions must happen and stay rare. A remedy, if one is needed, is in content (object and doorway placement) or in bodies' offer policy, never in the controller (`ARC-34` item 4, SD-O18), and never by changing a criterion. | 12c's AO-2 was decided after failed measurements (§18.12); 12d fixes its criteria before any town run, and states them per run, not per 10-day bucket, for the rare actions — the lesson of AO-2′ (a). |
+| **SD-D12** | **The scan, for any world.** `tools/cli/tests/bodies/mod.rs` today asserts bodies-yard's room literals. It gains a reader of a world's place files (`body:` floors and solids, by the YAML, never by bodies' code) and runs unchanged on bodies-yard and both towns. | One instrument for the invariant on every world with bodies; read from the save and the authored files only (DO-12). |
+| **SD-D13** | **The counterfactual and the cost copy.** A test-time copy of each town without `bodies` in `systems` and without every `body:` (places' and items' — an item file left with tags only is an inert entity, F-O10). It loads, runs 300 days with faults 0, and is QB-11's denominator. | DB-10 (b2): "with versus without bodies", on the towns. The same copy shows the instrument sees (I-10). |
+| **SD-D14** | **Determinism evidence on the towns.** The existing `run_restart.rs` (social-cafe, SIGKILL) and `market_town.rs` (SIGKILL at four days) now exercise bodies; a new two-process test is not added. Rosetta: the 30-day social-cafe and market-town summaries on arm64 and x86_64, and an arm64 save resumed on x86_64 (recorded evidence, as PO-12). | The towns' existing restart tests already are the strongest committed check; they become bodies tests by content alone. |
+| **SD-D15** | **Re-baseline once.** After TD-5 … TD-11 hold on the final executable head, the new 300-day seed-7 digests of both towns are recorded in E-TD (with their fact counts and the old ones), in `MVP_STATUS.md`'s evidence row, and in `overall.md` §7. No code holds a town digest (F-D10's audit: none does), so nothing else is edited for them. | Coordination ruling 5. S13 13b records `ac8.ref` after 12d (QS13-12); S11, S16 and S10 compare against main (§19.10). |
+| **SD-D16** | **Documents first** (TD-C1): the `ARC-35` note (SD-D9, after the operator's QD-1), the `ARC-37` note (SD-D10), an `ARC-39` note 3 (the towns install bodies; the doorway refusal, SD-D5), `MODULE_SPEC.md` §4.1 (`item`'s `name` and catalogue; `body`'s doorway refusal), both towns' READMEs. | `CLAUDE.md` §2.2. |
+
