@@ -1,3 +1,4 @@
+class_name PhysicsEngineProbe
 extends SceneTree
 ## Which 3D physics engine this project runs (step-15 §18.3 J-0, DEP-20).
 ##

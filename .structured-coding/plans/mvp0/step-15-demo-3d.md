@@ -1252,10 +1252,13 @@ interface — the project setting, the only place that names Jolt, §9.4 — and
 J-check that cannot be fixed in the client, QS14-12); `slice_probe.gd`'s `--drive` prints the running
 engine and fails unless it is Jolt (one line in its report, J-1). **Non-goals:** any other script.
 
-- [ ] Implementation: the setting; DEP-20; the engine line in `--drive`.
-- [ ] Validation (E16a-2): J-0 after; every command of C1 again; J-3 and J-4 computed against C1;
-  sweeps compared sheet by sheet, one image at a time; M-1.
-- [ ] Review: every moved number explained or listed; `check_decision_ids` (DEP-20 distinct).
+- [x] Implementation: the setting; DEP-20; the engine line in `--drive` (through `PhysicsEngineProbe`,
+  the tool's `class_name`, so the discriminator lives once).
+- [x] Validation (E16a-2): J-0 PASS; J-1 PASS; J-2 sweep PASS by inspection, headtrace jog bound **not
+  met on either engine** (pre-existing, Jolt's distribution equals Godot Physics'); J-3 PASS; J-4 PASS,
+  no visible change; J-5 PASS; M-1 PASS. Sweeps judged by inspection, not pixel difference (R-16a-5).
+- [x] Review: every moved number is explained above (settle of a few mm; time-driven frames; the
+  threshold probe's landing race; contention); `check_decision_ids` → "52 decision ids, all distinct".
 
 **Failure cases.** A J-check that fails on Jolt: diagnose; a bounded client-side fix inside the slice's
 own code (not a Jolt setting tuned to hide it) is made and recorded; otherwise **stop** and report both
@@ -1411,6 +1414,93 @@ windowed slice mode (`--measure`, `--threshold`, `--perf`); **not** on the headl
 promenade (`main.tscn`) leaks far more on exit (40 Texture RIDs, meshes, materials, 55 ObjectDB
 instances, "Leaked instance dependency") — the promenade is outside 16a's scope (F-S14-1) and is
 recorded only.
+
+### E16a-2 — on Jolt (working tree = `97c1035` + the `[physics]` line, the `--drive` engine line and DEP-20; 13:04–13:33)
+
+**Contention, recorded.** Lane S12 13a ran headless Godot clients and imports at the same time (seen
+with `pgrep`, logged per run). The first after-run's `--shots` and `--sweep` took ~2 min instead of
+~20 s, and a second Godot Physics `--shots` (`before2`) wrote **black frames** from view 15 onwards: those
+frames are INCONCLUSIVE and are not used. Every timing claim below therefore rests on repeated runs of
+both engines, interleaved, not on one run each.
+
+**J-0: PASS.** `physics_engine.gd` → `setting 'Jolt Physics'`, "Jolt Physics (a new space's solver
+iterations 8; Godot Physics' setting 16)"; `--drive` prints the same line.
+
+| Check | Godot Physics | Jolt | Verdict |
+| --- | --- | --- | --- |
+| slice `--drive` | all pass; loop 13.27 m ending 0.10 m off; jumps 0.488 / 0.491 m; florist loop 0.12 m | all pass; loop 13.25 m ending 0.10 m off; jumps 0.488 / 0.488 m; florist loop 0.13 m; cameras 0.0000 m | **PASS** — every printed position within 31 mm, every verdict line identical |
+| slice `--measure` | 1 out of range (stature 1.802, pre-existing) | the same line; occupant feet y 0.119 → 0.123 | **PASS** (same lines; 4 mm settle) |
+| slice `--threshold` | café worst ×1.65 (run 1), ×1.57 (run 2); florist ×1.42 | café ×1.08; florist ×1.42; all claims PASS | **PASS** — see the finding below |
+| slice `--character` | all pass, walk 0.805 m | all pass, walk 0.804 m | **PASS** |
+| promenade `./mineworld-3d --drive` | (E16a-1) | every "STOPPED"/"clear"/"PULLED IN" verdict identical | **PASS** |
+| `--world --link` | all pass (E16a-1) | **all link checks pass**: 50 moves 50 accepted 0 not; cafe→street→cafe; sent (1596, 1139) = server's; door 8.15 m → rejected too_far_away; counter 19 moves, 0 not; counter 1.99 m accepted, reply heard; watch 60 s in 60.0 s | **PASS** |
+| `--world --conversation` | (E16a-1) | conversation on screen, no ids; door 8.60 m toast "can't talk to Alice Moreau: too far away"; counter 1.88 m, reply 0.4 s | **PASS** |
+
+**J-2 headtrace — the 6° jog bound is not met on either engine today; Jolt does not move it.** Reference
+body, steady-phase peak-to-peak yaw / pitch / roll, every run of the day:
+
+```text
+                 walk                          jog
+Godot Physics    3.81/0.45/0.23  3.72/0.49/0.23  5.07/1.18/0.40  7.85/0.79/0.43
+                 3.86/0.52/0.25  4.03/0.56/0.25  6.71/0.76/0.49  6.26/0.79/0.51
+                 4.04/0.56/0.25  3.86/0.52/0.25  5.97/0.81/0.51  6.74/0.72/0.49
+Jolt             3.91/0.54/0.25  3.69/0.52/0.26  6.56/0.73/0.48  6.05/0.77/0.51
+                 3.85/0.53/0.25  4.03/0.52/0.26  6.25/0.76/0.49  6.76/0.75/0.51
+```
+
+Walk is within 6° on every run of both engines. Jog yaw: Godot Physics 5.07–7.85 (mean 6.43, 6 runs),
+Jolt 6.05–6.76 (mean 6.41, 4 runs) — the same distribution. The accepted record's 4.2° (CHARACTER_ROUTE_D_PLUS
+§8.8) was one run; on this base, with Godot Physics, 5 of 6 runs exceed 6°. **Classification: a
+pre-existing instability of the instrument or the head-steady filter, not a regression by Jolt**; the
+switch is not the cause and 16a does not hide it. It is raised to the primary session in the PR (the
+character track's item), not fixed here (scope).
+
+**J-2 sweep: PASS by inspection.** Pixel differences are meaningless for the sweep, as R-16a-5
+predicted: two Godot Physics runs differ by 23–97 % of pixels per frame, as much as Godot Physics
+against Jolt. The Jolt frames were inspected one at a time at the operator's three defects —
+`jog_rear_2` (the pack on her back, side panels flat, no slits or ridges), `walk_rear_tq_5` (the sleeve
+passes beside the pack's side panel), `walk_front_tq_3` (both hands free and swinging, nothing held
+into the hoodie; head facing ahead) — and show none of them.
+
+**J-3 frame time: PASS** (medians, ms; every run):
+
+```text
+--frametime stand   Godot Physics 7.16 7.83 7.04 6.66 6.79 6.60  (mean 7.01)
+                    Jolt          8.48 6.99 7.31 8.14            (mean 7.73, +10 %)
+--frametime walk    Godot Physics 8.35 7.41 7.75 7.00 7.05 6.94  (mean 7.42)
+                    Jolt          8.73 7.16 7.73 6.55            (mean 7.54, +2 %)
+--perf p50          Godot Physics street 13.52 12.03 12.00 12.11 · frontage 18.60 17.43 17.38 17.92
+                                  interior 15.14 14.99 14.73 15.17 · doorway 18.43 18.77 18.25 18.97
+                    Jolt          street 14.28 12.45 11.98 12.11 · frontage 18.29 17.51 17.76 17.37
+                                  interior 15.41 14.81 14.54 14.51 · doorway 18.98 18.32 18.52 18.05
+```
+
+No mean rises 15 %; the largest, `--frametime` standing (+10 %), is inside its own run-to-run range
+(6.60–7.83 on Godot Physics).
+
+**J-4 frames: PASS — no visible change.** `frame_diff.gd` over the 67 frames of `--shots` and
+`--character`, Godot Physics run 1 against Jolt, with Godot Physics run 2 as the noise control
+(`shots/16a/diff_*.txt`):
+- The time-driven frames (`char_*_walking`, `_jogging`, `char_walk_*`, `char_run_into_townsperson`)
+  and `th_outside_pavement` differ as much between two Godot Physics runs as against Jolt.
+  `th_outside_pavement` is a **probe timing finding**: `_threshold_run` places the body 0.31 m above the
+  pavement and captures after 18 render frames, which can be before it lands (vsync off, frames faster
+  than physics ticks), so the first sample's camera height — and its luma, 0.2246 / 0.1475 / 0.1478,
+  and so the doorway step ×1.65 / ×1.57 / ×1.08 — varies by run. Pre-existing and not 16a's; recorded.
+- The static views that Godot Physics reproduces exactly but Jolt changes: `01r` 19.0 %, `04c` 11.6 %,
+  `07` 4.4 %, `08` 3.8 %, `02` 3.3 %, `03` 2.8 %, the threshold samples 1–5 %, the rest under 2 %. A
+  diagnostic run (a scratch, uncommitted 1 s settle in `_capture`, both engines) put the body at the same
+  height on both engines (y 0.1398 vs 0.1401; camera 1.7998 vs 1.8001) and left the differences
+  unchanged, so they are the body coming to rest a few millimetres differently on Jolt, which shifts the
+  high-frequency setts and shadow edges by sub-pixel amounts. Inspected one at a time at 1600×900:
+  `01r` (the largest) and `04c` (the character in the doorway) read identical — the same street, the
+  same light, the character inside both jambs with nothing clipped.
+- Deviation from D-16a-7, bounded: no side-by-side images are committed, because no view changed
+  visibly; the frames are kept in the ignored `shots/16a/` and every number is here.
+
+**M-1: PASS (the guard bites).** With the `[physics]` line removed, `--drive` printed "engine Godot
+Physics (… 16 …)", "FAIL: the slice is selected to run on Jolt Physics (DEP-20)", "1 DRIVE CHECKS
+FAILED". Line restored.
 
 ## 18.8 Execution contract (proposed; confirmed at freeze)
 

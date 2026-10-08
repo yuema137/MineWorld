@@ -1301,6 +1301,13 @@ func _drive() -> void:
 	print("== VISUAL_SLICE.md sec.6.3 -- the walk-in, measured ==\n")
 	var fails := 0
 
+	# The engine every number below is measured on (`DECISIONS.md` DEP-20).
+	var engine: String = PhysicsEngineProbe.running()
+	print("engine %s" % engine)
+	if not engine.begins_with("Jolt Physics"):
+		fails += 1
+		print("  FAIL: the slice is selected to run on Jolt Physics (DEP-20)")
+
 	# 1. the kerb. Start in the carriageway and walk onto the pavement.
 	player.place(Vector3(3.45, 0.30, -2.00), 0.0, 0.0)
 	await _hold(0.4)
