@@ -6667,6 +6667,16 @@ STOP  TZ-9a or TZ-9b failing after SD-Z6, SD-Z3, SD-Z4 and §20.7's ladder → s
       numbers. No further re-scope.
 ```
 
+**Amendment (2026-10-08, the operator's ruling on §20.13 Z-D9: "accept 3.60 × on social-cafe and open
+the PR").** The bound text above is unchanged. TZ-9a is recorded as **accepted, not passed**:
+market-town 2.999 × passes it; social-cafe 3.60 × (E-Z7, a clean re-run) exceeds it and is accepted by
+the operator, on the absolute numbers — ≈ 45 s of CPU with bodies per 300 prototype days (≈ 110 s
+before 12d-0), and TZ-9b's per-resolution time p99 0.33 ms, max 10.5 ms against 50 ms. §20.7's ladder was
+not tried. **The next candidate if bodies' cost ever becomes a bottleneck is L1, as Class R** (skipping
+the contact sweep when nobody is near; E-Z7's addendum sizes it at the ≈ 37 % of Rapier strides' cost
+that 3.0 × would need; it cannot be Class I, E-Z2). Z-D8 is accepted by the same ruling: TZ-6's 600 mm
+shove is pinned at its measured point (4 499, 4 999).
+
 ## 20.6 Commit plan
 
 Rules as §19.5 (separate implementation, validation and review items; `E-Z<n>` evidence; Edit and Write
@@ -6768,8 +6778,8 @@ renamed and flipped (TZ-6, M-Z5).
 - [x] `VERSION` 3; `rapier_pin`; ARC-39 note 3 (the next free number), DEP-13 note; README; MVP_STATUS
   (df94e46).
 - [x] ZR-1, ZR-2, ZR-4, ZR-5: the new bases recorded (E-Z6, E-Z7). ZR-3 withdrawn (§20.4 amendment).
-- [ ] **TZ-9a FAILS on social-cafe (3.60 ×), passes on market-town (2.999 ×); TZ-9b PASSES (max
-  10.5 ms)** — E-Z7; §20.13 Z-D9, MATERIAL STOP. Not READY.
+- [x] **TZ-9a: market-town 2.999 × passes; social-cafe 3.60 × exceeds and is ACCEPTED by the operator
+  (§20.5 amendment, Z-D9 ruling); TZ-9b PASSES (max 10.5 ms)** — E-Z7.
 - [x] TZ-1, TZ-8, TZ-10; the full gate once (E-Z7); the ledger; the handoff.
 - [ ] Review: every TZ with evidence; deviations named; §19's TD-14 references updated in the ledger
   only (the planning session updates §19 after merge).
@@ -7382,6 +7392,10 @@ Validation consequence:
   cost. L1 (skipping the contact sweep, one of each attempt's two sweeps, when nobody is near) is the
   size of cut that could reach it, but would have to be Class R (E-Z2's non-locality).
 ```
+
+**Ruling on Z-D9 and Z-D8 (operator, 2026-10-08, relayed by the coordinator): accept 3.60 × on
+social-cafe and open the PR; Z-D8 accepted.** Recorded in §20.5's amendment: TZ-9a accepted, not passed;
+L1 (Class R) the next candidate for cost. The branch takes main (2690c1b, CI) before the PR opens.
 
 **Z-D5 — The resumed session (bounded).** The previous implementation session ended (API rate limit)
 with an uncommitted tree: the two §20 amendments, §20.6.1 and the Z-D2 ruling (kept, committed with

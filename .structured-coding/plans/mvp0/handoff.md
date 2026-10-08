@@ -39,7 +39,11 @@ STOP CONDITIONS     NORMAL: PR 12d-0 READY FOR OPERATOR REVIEW — DO NOT MERGE.
 POST-MERGE SYNC     planning session: header, §19 (its base and TD-14 references), overall, MVP_STATUS
 ```
 
-## Current checkpoint — STOPPED (material): TZ-9a fails on social-cafe (§20.13 Z-D9, E-Z7)
+## Current checkpoint — READY FOR OPERATOR REVIEW (Z-D9 ruled: 3.60 × accepted; Z-D8 accepted)
+
+- origin/main (CI) merged into the branch; PR opened READY FOR OPERATOR REVIEW — DO NOT MERGE.
+
+### Earlier checkpoint — TZ-9a fails on social-cafe (§20.13 Z-D9, E-Z7)
 
 - Z-D7 ruled (c): SD-Z3, SD-Z4 dropped. SD-Z5 done (31e3779, VERSION 3, E-Z6); docs (df94e46).
 - New bases: ZI-1 23f7fa76…, ZI-2 c8358f8b…, ZI-3 bd6a1002… (E-Z6); Rosetta equal (E-Z7).
