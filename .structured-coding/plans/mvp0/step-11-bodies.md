@@ -6177,3 +6177,75 @@ in order, each rung recorded with its counts; no rung passing → stop.
 - [ ] Documentation: `docs/MVP_STATUS.md`; both READMEs; §19's checkboxes, §19.12, §19.13; the handoff.
 - [ ] Review: TD-1 … TD-16 each with evidence; deviations named; FU-12c-1 and QD-10 untouched.
 
+**The cost bound is predicted to fail (E-TD0b), so QD-2 [OM] is answered before the freeze.** The
+planning prototype — this design's geometry in a scratch copy of social-cafe, run by the merged binary —
+took 191.4 and 155.2 s against 13.7 and 13.5 s without bodies: **11.5 × – 14 ×** against QB-11's
+1.5 ×. With the street's props removed (floors, walls and the retaining wall only) it took 46.5 s:
+**3.4 ×**. The commit plan above is the plan *if* QD-2 is answered by a precursor that makes the bound
+reachable; it is not executable as it stands, because TD-12 would stop it at TD-C8 after everything else
+was built.
+
+## 19.6 Test ownership, and the existing tests 12d edits
+
+```text
+STATIC      cargo fmt; clippy -D warnings; ItemName's type (an invalid name cannot be built); the body:
+            section's type (12b, 12c), unchanged
+UNIT        systems/item: ItemName, the section's refusals, the catalogue order; bodies: the doorway
+            check against hand-computed points (doorways_genesis.rs)
+INTEGRATION hand-built worlds through World::dispatch: item's catalogue disclosure (item.rs); bodies'
+            doorway refusals (doorways_genesis.rs)
+STRUCTURAL  ac1_composability with check 3 amended (TD-4); precursor_vocabulary, seam_vocabulary
+            (FU-12a-1), bodies' isolation and rapier_pin (TD-14); no diff in the no-diff paths (TD-16)
+REAL RUN    (Gate 2's role) the real binary on both towns: validate and its refusals (TD-2), the 300-day
+            runs with activity, the scan and the counterfactual (TD-5 … TD-8) — committed in
+            town_bodies.rs and the existing CLI tests; the cost (TD-12), Rosetta (TD-11), the
+            re-baseline (TD-1) — recorded evidence on the final head
+GATE 1      NOT REQUIRED: no model; the paced controller is a rule and is not edited
+CI          S13 13a's CI if merged by then (its layer 2 runs the workspace tests); otherwise the full
+            local gate once on the final executable head
+```
+
+Owned elsewhere and not repeated: 12a–12c own the seam, people, objects and the three actions on
+bodies-yard; 12e owns the 150 mm probe (`--world --geometry`) that executes TD-3; S12 13c owns the
+client's reading of the catalogue.
+
+**Existing tests 12d edits (QD-8)** — each a literal or a route, each claim unchanged; F-D10's audit:
+
+| File | What changes | The claim, unchanged |
+| --- | --- | --- |
+| `tools/cli/tests/commands.rs:34, 40` | the systems line gains `bodies`; "53 genesis fact(s)" → the new count | `validate` prints the world's systems and its genesis |
+| `tools/cli/tests/inspect.rs:36–37`; `social_composition.rs:380, 420` | `inspect`'s systems line gains `, bodies v3` | `inspect` reports the save's composition |
+| `tools/cli/tests/server_command.rs:34, 43–53, 85` | entities 18 → 22; the systems array gains `bodies` | the server reports the world it hosts |
+| `worldpack/tests/social_cafe.rs:67–77, 109, 219` | the systems list, entities 22, genesis count | the pack loads as authored |
+| `worldpack/tests/social_cafe.rs:338–391` | the bare copy also copies `items/` and drops `bodies` with the `body:` sections; its "17 facts" and byte-equal prefix restated for the copy | removing naming and schedule changes nothing else |
+| `worldpack/tests/social_cafe.rs:647, 803, 832, 843` | the doorway (1 610, 200) → (1 610, 400); the street point (500, 3 000) → (500, 2 800); the crossing's fact kinds as recorded | a person walks out of the café through its door |
+| `tools/cli/tests/content_kinds.rs:39–40, 114–136` | the copy appends its two kinds to Social Café's `items:` instead of adding the key; ids and genesis counts restated | tags-only items and an organization change nothing a run decides |
+| `tools/cli/tests/routines.rs:225` | "otto arrived once" → "every `arrived` of otto after genesis is caused by another person's request" | schedule moves nobody |
+| `tools/cli/tests/{ac15_one_alice,restart}.rs`, `worldpack/tests/social_cafe.rs:709–717` | a straight walk that meets a table gains one waypoint around it (only where TD-C5 shows it is needed) | the walker reaches the counter and talks to Alice |
+| `tools/cli/tests/market_composition.rs:38–45` | none expected: the object files carry no `item:`, so the carrier counts stay 20 / 14 / 14 / 2 | the six packs are removable |
+| `clients/protocol/evidence/request-{2d,3d}.json` (`ac13_semantic_parity.rs`) | none expected: the frozen strides pass ≥ 900 mm from every café solid by SD-D2's numbers; if TD-C5 shows otherwise, it is a stop (frozen evidence is not re-recorded by 12d) | AC-13 on the protocol flavours |
+| `systems/bodies/tests/{rapier_pin,isolation}.rs` | (3, "0.36.0"); the crate claim gains movement (QD-5, QD-6) | the pack's version moves with Rapier's; bodies reads two packs' crates for one item each |
+| `tests/acceptance/tests/{ac1_composability,seam_vocabulary}.rs` | TD-C4 (QD-1); TD-C6 (FU-12a-1) | AC-1; the seam names no physics |
+
+## 19.7 Is any of this material?
+
+**Yes — three things, each marked [OM] in §19.8:**
+
+1. **Objects in the towns need `ARC-35` item 4 and AC-1's check 3 amended** (F-D1, QD-1). The operator
+   approved `ARC-35` and accepted AC-1 on this test. No design puts a loose object in either town
+   without it.
+2. **QB-11's ≤ 1.5 × is predicted to fail by an order of magnitude** (E-TD0b, QD-2). DB-10 (b2) makes
+   the bound unchangeable and names options 2 and 3 as the design change; the evidence says that change
+   must come **before** 12d, as its own reviewed PR, not as a stop discovered at TD-C8.
+3. **R-12d-2 moves three of the town's doors far from where the world put them** (QD-7): the apartments
+   7.7 m west, the park 7.3 m east. That is content the operator may want to see, because it lengthens
+   walks in a world whose people already walk slowly (L-12), and the prototype halved entries and talks
+   (E-TD0b).
+
+Bounded, for the primary session: the bodies → movement crate read (QD-5, 12c's precedent), bodies
+`VERSION` 3 (QD-6), R-PK-2 inside 12d (QD-4), the test edits (QD-8), FU-12a-1 inside 12d (QD-9), the
+approximation rules (QD-3), the disclosed-only catalogue type (QD-12).
+
+Not needed: any kernel, contract, persistence, server, cognition, presence or client change.
+
+
