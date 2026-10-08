@@ -1,0 +1,16 @@
+# The image build needs the Cargo workspace and worlds/ only (Dockerfile, `build` and `runtime`).
+# The `toolchain` stage copies nothing; CI mounts the checkout instead.
+.git
+target
+.ci
+clients/
+presentation/
+spike/
+docs/
+.structured-coding/
+.claude/
+mineworld-3d
+mineworld-slice
+**/*.sqlite
+**/*.sqlite-journal
+**/node_modules/

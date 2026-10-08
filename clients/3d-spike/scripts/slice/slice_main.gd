@@ -57,11 +57,16 @@ func _ready() -> void:
 	_hud()
 	_link()
 
-	if SliceProbe.scripted():
-		probe = SliceProbe.new()
+	if _scripted():
+		probe = SliceProbeWorld.new() if SliceProbeWorld.requested() else SliceProbe.new()
 		probe.player = player
 		probe.slice = self
 		add_child(probe)
+
+
+## Whether a scripted probe mode, standalone or connected, runs this session.
+static func _scripted() -> bool:
+	return SliceProbe.scripted() or SliceProbeWorld.requested()
 
 
 ## `Props.gltf` keeps one generated scene per slug as a template it duplicates
@@ -335,7 +340,7 @@ func _reflections() -> void:
 func _spawn_player() -> void:
 	player = SlicePlayer.new()
 	player.name = "Player"
-	player.look_enabled = not SliceProbe.scripted()
+	player.look_enabled = not _scripted()
 	add_child(player)
 	player.place(SliceWorld.SPAWN, SliceWorld.SPAWN_YAW, -2.0)
 
@@ -344,10 +349,13 @@ func _process(_d: float) -> void:
 	if _hud_place != null and player != null:
 		var p := SliceWorld.place_at(world, player.global_position)
 		_hud_place.text = "place: %s" % (p if p != "" else "-")
+	if _hud_looking != null and link != null:
+		var who := link.looking_at()
+		_hud_looking.text = "looking at: %s" % (who if who != "" else "-")
 
 
 func _hud() -> void:
-	if SliceProbe.scripted() and not SliceProbe.with_hud():
+	if _scripted() and not SliceProbeWorld.with_hud():
 		return
 	hud = ControlsHud.attach(self, player)
 	_hud_place = hud.add_line("place: -")
@@ -358,6 +366,7 @@ func _hud() -> void:
 ## `--server=` is given. Without it the slice runs offline and says so.
 var link: SliceLink = null
 var _hud_world: Label = null
+var _hud_looking: Label = null
 
 
 func _link() -> void:
@@ -381,3 +390,9 @@ func _link() -> void:
 			hud.caption(line))
 	link.start(address, SliceLink.seat_from_args(), SliceLink.invite_from_args(),
 		SliceLink.nickname_from_args())
+	# Connected only: the player targets by aiming (`SliceTargeting`), so the
+	# screen shows where the aim is and whom it meets (step-15 Q-16a-1, a 3D
+	# visual default the operator judges in play). Offline nothing is targeted.
+	if hud != null:
+		hud.add_reticle()
+		_hud_looking = hud.add_line("looking at: -")

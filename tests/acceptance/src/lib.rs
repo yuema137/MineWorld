@@ -26,6 +26,9 @@
 //!                        SC-6: SIGKILL and resume with a resolver installed, byte for byte (a
 //!                        program, harness = false)
 //! seam_vocabulary        SC-7: the seam's sources name no physics, and movement names no resolver
+//! client_rules           I-S14-1 and I-S14-6: no reference client names an action outside the
+//!                        files that build requests, copies a rule as a constant, or reads a pack
+//!                        (step-15 §19, PR 16a) — reads every client script
 //! ```
 //!
 //! A test-only System Pack defined here is compiled into no library, which is what lets such a test
