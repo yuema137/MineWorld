@@ -173,3 +173,143 @@ fact's audience and biography. "—" means the pack has none of that kind. Files
   3. **memory**, which is subjective and cognition's. It derives only from perceived facts (S10 §3.8),
      so it is governed through audience, never written by the world. Conversation's `Remembered` log
      (32 lines) is world state, conversation's own, and so a pack-specific consequence.
+
+---
+
+# 3. Reuse comparison for the generalized idea (`REUSE_POLICY.md` §§2, 11–12, 17)
+
+## 3.1 The question
+
+The generalized list must decide three things for a request or a fact, deterministically, inside a
+pack's `validate`, its offers or its emission, many thousands of times per simulated day:
+
+```text
+(r) rule          is (actor class, action, target class, object class, place) allowed?
+(p) parameter     which value of a pack's typed parameter applies to that tuple?
+(c) consequence   which audience and which biographical flag does this fact get?
+```
+
+The physics-specific comparison (Geant4, Unity, Godot, Rapier, Box2D) stands, incorporated from
+`step-18-physics-list.md` §3. Below are the candidates for the general idea. Facts were fetched from
+primary pages by a web agent in this session. Points it could not confirm word for word are marked.
+
+## 3.2 The candidates
+
+**1. ECS relationships — flecs** (flecs.dev `Relationships.html`, `ComponentTraits.html`, v4.1;
+github.com/SanderMertens/flecs; github.com/Indra-db/Flecs-Rust).
+- *What it is.* A relationship is a pair `(Relationship, Target)` on an entity, for example
+  `(Likes, Alice)`. Queries use wildcards (`(Eats, *)`). Traits exist: `Exclusive` ("an entity can have
+  only a single instance of a relationship"), `Acyclic`, and `IsA` ("Used to express inheritance
+  relationships"). The `Symmetric`/`Transitive` wording and IsA's override semantics came through a
+  summary only (unconfirmed).
+- *Licence and maturity.* flecs is C/C++ under MIT and mature. The Rust binding `flecs_ecs` is MIT but
+  "Status: Alpha release": an experimental API with "potential bugs and breaking changes", and `World`
+  is `!Send`/`!Sync`.
+- *Fit.*
+  - (r)–(c): none. flecs is a storage and query model, not a rule language.
+  - Adopting an ECS is what `DEP-1` rejected, for unstable handles across save/load, an iteration
+    profile MineWorld does not have, and `&mut World` access that would weaken INV-7.
+  - Its pair-plus-wildcard query is a good model for our selectors, and IsA is the model for class
+    inheritance if one is ever wanted.
+- **Verdict: REFERENCE** (wildcard selectors; IsA as the shape of a later class hierarchy, QIL-6). No
+  dependency.
+
+**2. RimWorld defs and Factorio prototypes, as interaction tables** (rimworldwiki.com `ThingComp`,
+`PatchOperations`; lua-api.factorio.com prototype and data-lifecycle pages; already verified for S17).
+- *Fit.*
+  - (p) and (c) by analogy: data names behaviour implemented in code, and classes are data mods add.
+  - Factorio's staged composition is ordered and recorded.
+  - Both formats are bound to their games, and RimWorld's XPath patches and Factorio's Lua stages are
+    untyped.
+- **Verdict: REFERENCE; ADAPT** "data names code by id" and "ordered, recorded composition". This is
+  unchanged from S17.
+
+**3. Cedar** (docs.cedarpolicy.com 4.5: `policies/syntax-policy.html`, `auth/authorization.html`,
+`policies/validation.html`, `other/security.html`; github.com/cedar-policy/cedar).
+- *What it is.*
+  - A policy is `permit` or `forbid` over a mandatory scope (principal, action, resource) with optional
+    `when`/`unless` conditions.
+  - Hierarchy is expressed with `in` (`principal in Group::"…"`).
+  - The decision rule, verbatim: "If any `forbid` policy evaluates to `true`, then the final result is
+    `Deny`", else any satisfied permit gives `Allow`, else `Deny`. Its named properties are "default
+    deny", "forbid overrides permit" and "skip on error".
+  - Schema validation is separate from evaluation, and its soundness is "formally proved".
+  - "Cedar policies of a bounded size are guaranteed to terminate, and are effect free"; "Cedar has no
+    facilities for I/O".
+- *Licence and maturity.* Apache-2.0; written in Rust (`cedar-policy`), "only the safe subset of
+  Rust"; production use at AWS.
+- *Fit.* The closest semantic fit for (r):
+  - principal, action and resource map to actor, action and target;
+  - `in` maps to class membership;
+  - forbid-overrides-permit is exactly the tie rule this design needs;
+  - validating against a schema is what each pack's section type does.
+- *Over-fit and determinism, said plainly.*
+  - Cedar decides (r) only. Parameters (p) and consequences (c) — two of the three columns — have no
+    home in it, so we would build those anyway, beside a second language.
+  - `when` conditions over attributes are a small expression language. QPL-1 decided "data only, no
+    scripts", and conditions are the first step toward one.
+  - Default deny is the opposite of what byte-identity needs, though a single `permit` would emulate
+    today.
+  - Every evaluation needs an entities set built from world state per request, which is a cost on the
+    hottest path (`validate`, offers).
+  - Decisions are effect-free and terminating, so not a determinism risk in themselves. "Skip on error"
+    silently drops a policy that errors, which a deterministic, refuse-by-name world would rather
+    reject at load.
+- **Verdict: ADOPT THE SEMANTICS, NOT THE ENGINE** (DEP-28).
+  - Our rule grammar is Cedar's scope triple without `when`.
+  - Our tie rule is forbid-overrides-permit, and our sections are schema-validated.
+  - Revisit the engine itself if attribute conditions ever become a requirement (for example "may
+    enter only if regard > 50"). Cedar is then the candidate, not a language of our own (QIL-11).
+
+**4. OPA / Rego** (openpolicyagent.org docs; github.com/open-policy-agent/opa; github.com/microsoft/regorus).
+- *What it is.* A Datalog-inspired policy language; OPA itself is written in Go (Apache-2.0). Its
+  builtins include `http.send`, `time.now_ns` and `rand.intn`, each fixed within one query and free to
+  vary across queries (that last point is our inference; the docs do not word it as a warning). The Rust
+  interpreter `regorus` (MIT) is "mostly compliant" with OPA v1.2.0 and does not support every builtin.
+- *Fit.* A general-purpose policy language. Over-fit for a class-pair table. Its standard library
+  exposes wall-clock time, randomness and network calls, which a replayed world must never reach, so
+  every policy would need a builtin allow-list to stay deterministic. In Rust it is a partial
+  re-implementation.
+- **Verdict: REJECT.** Over-fit, and a determinism hazard unless fenced off builtin by builtin.
+
+**5. Casbin** (casbin.apache.org `supported-models`, `syntax-for-models`; github.com/apache/casbin-rs).
+- *What it is.* The PERM metamodel: a model file with `[request_definition]`, `[policy_definition]`,
+  `[policy_effect]` and `[matchers]`, covering ACL, RBAC, ABAC, deny-override and priority models. The
+  Rust crate `casbin` (Apache-2.0, 2.18.1) evaluates matchers with `rhai`, a scripting engine, defaults
+  to Tokio (`runtime-tokio`), and its enforcer "is not thread-safe".
+- *Fit.* Its effects (`!some(where (p.eft == deny))`) express our tie rule. But matchers are scripts
+  (QPL-1), an async runtime would sit on a pure `validate` path, and model and policy are untyped CSV
+  and conf files.
+- **Verdict: REJECT.**
+
+**6. Game "interaction matrices"** (Unity's layer collision matrix, Godot's layers and masks; verified
+for S17).
+- *Fit.* The mental model players and designers already have is a grid of class × class with a cell
+  per interaction. Ours is that grid made sparse, with wildcards and typed cells.
+- **Verdict: REFERENCE** for how the list is presented: `mineworld interactions <world>` can print the
+  resolved matrix (§4.10).
+
+**7. Build our own, narrowly** — an SDK schema (selectors, rules, typed parameters, consequences,
+precedence) with pack-supplied meaning.
+- *Fit.* The only option that covers (r), (p) and (c) with MineWorld's types: integers only, sorted
+  data, pure lookups and a typed section per pack. It adds no dependency.
+- *Cost.* Moderate: one SDK module, one lookup per action per pack, and the conversions.
+- **Verdict: BUILD, narrowly, with Cedar's semantics** (DEP-28 revised).
+
+## 3.3 Summary
+
+| # | Candidate | (r) rule | (p) parameter | (c) consequence | Determinism | Licence | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | flecs relationships | — | — | — | — | MIT (Rust binding alpha) | reference |
+| 2 | RimWorld / Factorio | by analogy | by analogy | — | n/a | proprietary | reference; adapt |
+| 3 | **Cedar** | **exact** | — | — | effect-free, terminates; "skip on error" | Apache-2.0, Rust | **adopt semantics, not engine** |
+| 4 | OPA / Rego | yes | yes | yes | time, rand, http builtins | Apache-2.0 / MIT | **reject** (over-fit, hazard) |
+| 5 | Casbin | yes | — | — | scripted matchers, async | Apache-2.0 | **reject** |
+| 6 | interaction matrices | presentation | — | — | n/a | various | reference |
+| 7 | our own SDK schema | yes | yes | yes | by construction | — | **build, narrowly** (DEP-28) |
+
+**Recommendation.** Build the SDK schema; take Cedar's scope triple, its forbid-overrides-permit rule
+and its schema validation as our semantics; keep conditions out (QPL-1); keep Cedar as the named
+upgrade path if attribute conditions are ever required. Both failure modes of `REUSE_POLICY.md` §17 are
+checked. Nothing commodity is rebuilt (no policy language, no parser beyond `serde-saphyr`). Nothing is
+forced: no general policy engine on a hot path, no scripting, no async runtime and no wall clock.
