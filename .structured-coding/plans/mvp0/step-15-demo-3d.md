@@ -1226,17 +1226,19 @@ the background when it may exceed two minutes, one Godot window at a time, with 
 **Scope.** New `clients/3d-spike/tools/physics_engine.gd`, `tools/frame_diff.gd`; this section's ledger.
 No change to any script the scenes run. **Depends on** freeze.
 
-- [ ] Implementation: the two tools (D-16a-8).
-- [ ] Validation (E16a-1, all on the base's scenes, unmodified):
-  - [ ] J-0 before: `godot --headless --path clients/3d-spike --script res://tools/physics_engine.gd`
-  - [ ] slice: `--drive`, `--measure`, `--threshold`, `--character`, `--perf`, `--shots` (1600×900)
-  - [ ] promenade: `--headtrace` (reference body), `--sweep`, `--frametime`, `./mineworld-3d --drive`
-  - [ ] connected: `--world --link`, `--world --conversation`
-  - [ ] the leak: which modes print it, and its exact line (L-1's starting fact)
-  - [ ] `frame_diff.gd` on a frame against itself → 0; against a deliberately shifted copy → non-zero
-    (the instrument is shown to see before it is trusted)
-- [ ] Review: each baseline matches the accepted figures in `HUMAN_REVIEW_QUEUE.md` and
-  `CHARACTER_ROUTE_D_PLUS.md` §§8.8–8.9, or the difference is recorded before anything changes.
+- [x] Implementation: the two tools (D-16a-8). `physics_engine.gd` tells the engine by behaviour, not
+  by class (E16a-1's finding); `frame_diff.gd` compares two PNGs or two directories of them.
+- [x] Validation (E16a-1, all on the base's scenes, unmodified):
+  - [x] J-0 before: Godot Physics (solver iterations 16, setting `DEFAULT`)
+  - [x] slice: `--drive`, `--measure`, `--threshold`, `--character`, `--perf`, `--shots` (1600×900)
+  - [x] promenade: `--headtrace` (reference body), `--sweep`, `--frametime`, `./mineworld-3d --drive`
+  - [x] connected: `--world --link`, `--world --conversation`
+  - [x] the leak: windowed slice modes, 7 Texture RIDs; not headless
+  - [x] `frame_diff.gd`: self → 0; a different frame → non-zero (a different frame stands in for the
+    shifted copy: it shows the instrument sees a difference, which is the claim)
+- [x] Review: every baseline matches the accepted figures except two, recorded before anything changes:
+  `--measure`'s stature 1.802 m out of its 1.70–1.80 range (pre-existing, the route D+ body), and the
+  headtrace's jog yaw 5.07° against the accepted record's 4.2° (inside the 6° bound).
 
 **Failure cases.** A baseline that fails its own check on the untouched base is a pre-existing defect:
 recorded, not fixed here, and reported (it changes what J-* can claim).
@@ -1369,8 +1371,46 @@ CI          N/A — no workflow exists (A16-13); the full local gate runs once o
 
 ## 18.7 Ledger (live)
 
-*(empty until implementation; E16a-1 … E16a-7 recorded here as each check runs: command, head and
-working-tree fingerprint, wall time, decisive lines, PASS / FAIL / INCONCLUSIVE)*
+Raw logs and frames live in `clients/3d-spike/shots/16a/{before,after,…}/` (ignored, this machine:
+Apple M5, macOS 25.2, Godot 4.7.2.stable.official.ed1daf0bf, Metal 4.0 Forward+). Every windowed run
+logs Metal "timeout waiting for fence" errors while its window is unfocused; they occur before and
+after alike and no run stalled.
+
+### E16a-1 — the baseline on Godot Physics (base `04ce18c` = 47c81d1 + plan docs; scripts untouched; 2026-10-08 12:50–13:03)
+
+**J-0 instrument.** `godot --headless --path clients/3d-spike --script res://tools/physics_engine.gd`.
+Finding (bounded, recorded): `PhysicsServer3D.get_class()` answers the abstract `PhysicsServer3D` under
+either engine, and no method names Jolt, so the class cannot tell them apart. The discriminator is a new
+space's `SPACE_PARAM_SOLVER_ITERATIONS`: **16** (= `physics/3d/solver/solver_iterations`) with the
+setting `DEFAULT`, **8** with the setting `"Jolt Physics"` (tried by a temporary, reverted edit of
+`project.godot`). Jolt also logs `Unhandled space parameter: '8'` from
+`modules/jolt_physics/spaces/jolt_space_3d.cpp` when asked for that parameter — direct evidence the
+module is running. Base: `setting 'DEFAULT'` → **Godot Physics** (16). So `DEFAULT` is Godot Physics in
+this project, confirming step-11 §3.2's reading of the 4.6 note.
+
+**`frame_diff.gd` shown to see:** a frame against itself → mean |d| 0.000, 0.000 % over 8/255; two
+different frames → 61.597, 98.747 %, box the whole frame.
+
+| Check | Wall | Base result (decisive lines) |
+| --- | --- | --- |
+| slice `--drive` (headless) | 79 s | all drive checks pass; Flower Room loop within 0.12 m |
+| slice `--measure` | 18 s | **1 SCALE CHECK OUT OF RANGE, pre-existing**: "occupant stature, from its mesh 1.802 [1.70 .. 1.80]" — the route D+ body (`meshy_d.glb`); every other range in range. Recorded, not 16a's to fix; J-1's measure criterion becomes "the same lines as before" |
+| slice `--threshold` | 22 s | café worst step ×1.65, florist ×1.42, 0.00 % clipped, all four claims PASS for each |
+| slice `--perf` | 18 s | mean / p50 ms: street wide 13.59 / 13.52; café frontage 18.50 / 18.60; interior 15.14 / 15.14; doorway 18.53 / 18.43 |
+| slice `--character` | 104 s | all character checks pass (idle 0.014 m ×2, walk 0.805 m) |
+| slice `--shots` | 26 s | 67 PNGs (with `--character`'s), 1600×900, archived to `before/frames/`; no "body standing" warning |
+| promenade `--headtrace` | 12 s | reference body, p2p yaw / pitch / roll: walk 3.81 / 0.45 / 0.23; jog **5.07** / 1.18 / 0.40 (accepted record: 4.2 / 1.1 / 0.4 — within the 6° bound both times; recorded as the base's own figure) |
+| promenade `--sweep` | 16 s | 48 frames, archived to `before/promenade/sweep/` |
+| promenade `--frametime` | 23 s | frame median / p95: stand 7.16 / 8.72 ms, walk 8.35 / 8.95 ms (GPU timer reports 0.00 on this host) |
+| `./mineworld-3d --drive` | 123 s | forward 1.45 m/s; café walk-in z −14.60 → −9.92 inside; jog 3.04 m/s; three camera switches diff ≤ 0.00002 m; booms 3.44 / 0.61 / 1.02 m; shopfront end z −12.30 STOPPED; fountain −19.25 STOPPED; quay rail −25.57 STOPPED |
+| `--world --link` | 245 s | all link checks pass: 50 moves 50 accepted 0 not; places cafe→street→cafe; position sent = server's (1596, 1140); door talk 8.15 m → rejected too_far_away; counter 19 moves 0 not; counter talk 1.99 m accepted, reply heard; street person 15 at (−0.55, 0.14, −5.90) (Ivan, A16-8 as computed); watch 60 s in 60.0 s |
+| `--world --conversation` | 33 s | conversation on screen, no ids; door 8.60 m "can't talk to Alice Moreau: too far away"; counter 1.88 m accepted, reply on screen 0.3 s |
+
+**The leak, starting fact (L-1).** `WARNING: 7 RIDs of type "Texture" were leaked.` on exit of every
+windowed slice mode (`--measure`, `--threshold`, `--perf`); **not** on the headless `--drive`. The
+promenade (`main.tscn`) leaks far more on exit (40 Texture RIDs, meshes, materials, 55 ObjectDB
+instances, "Leaked instance dependency") — the promenade is outside 16a's scope (F-S14-1) and is
+recorded only.
 
 ## 18.8 Execution contract (proposed; confirmed at freeze)
 
