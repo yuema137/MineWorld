@@ -614,6 +614,58 @@ Six step designs were drafted at once:
 10. **Test hygiene.** The full suite leaves about 16 GB of scratch saves in `target/` (S13 audit).
     Every test must remove its own scratch data. One bounded PR fixes this after 12c merges.
 
+## Framework, not demo: operator requirements, 2026-10-08
+
+1. **What ships is a framework.** The operator's words:
+
+   > "我们ship的需要是一个框架，大家可以按自己喜欢的画风，设定，enable不同的功能…大家可以加入自己的'physics list'，决定不同object之间的相互作用"
+
+   That is: users choose their own art style and setting, enable the features they want, and supply
+   their own "physics list" for how kinds of object interact. The design of interaction rules as
+   content or pluggable code, together with a framework-wide pluggability audit, is being drafted as
+   [`step-18-physics-list.md`](step-18-physics-list.md).
+2. **The README presents the framework.** It states what MineWorld provides and what a user
+   implements. It gives a playable demo first, then shows how to make your own world.
+3. **The default demo covers every basic feature.**
+
+   > "我们要保证提供一个已经可以玩的demo，然后其他的user也可以轻松方便做自己的。我们的demo里面应该把所有基本功能都cover"
+
+   That is: ship an already-playable demo, make it easy for other users to build their own, and
+   have the demo cover every basic function.
+
+   **Acceptance, to be made executable before MVP-0 closes:**
+   - One default demo world enables every System Pack the framework ships with basic features.
+   - A coverage test lists every interaction those packs offer and shows that each one occurs in a
+     scripted or headless run of the demo world.
+   - The playable clients expose every one of those interactions through affordances.
+   - Gaps known today:
+     - the towns get bodies only in S15 12d;
+     - `sleep` and needs do not exist (MVP §5);
+     - `persona` arrives with S10;
+     - a third-party pack arrives with S16.
+4. **In-game settings.** The operator's words:
+
+   > "增加设置功能，在游戏里可以修改设置。设置要包括基本的语言选择（目前支持英文和简体中文就行，英文是default），然后刷新率 分辨率之类的"
+
+   That is: settings changeable in game, including language (English as default, plus Simplified
+   Chinese), refresh rate, resolution and the like.
+
+   **Requirement, binding on both reference clients (S12 and S14):**
+   - An in-game settings menu with:
+     - language: `en` by default, plus `zh-Hans`, covering all client UI text;
+     - display: resolution, window or fullscreen, VSync, frame-rate cap (refresh rate);
+     - basic input options.
+   - Settings persist per user on the local machine.
+   - Settings are presentation-only and never reach the server.
+   - Settings are shared between the 2D and 3D clients through one client-side settings module.
+     This is not the protocol module.
+   - Translations live in the Presentation layer as standard translation files, so a user can add a
+     language without code.
+   - World content (names, dialogue) is not translated by this requirement.
+   - A planning agent is to compare options (Godot `TranslationServer` with gettext `.po` versus
+     CSV, Godot's `DisplayServer`/project settings, existing settings-menu addons) and propose the
+     PR. It runs after S12 13a and S14 16a land, so it does not collide with them.
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
