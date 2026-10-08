@@ -1,40 +1,31 @@
 //! This pack's answer to presence's question: what an arrival into a shaped place actually achieves
-//! (`DECISIONS.md` `ARC-39` and its note; step-11 §4.5, SD-B6 … SD-B9, SD-B15).
+//! (`DECISIONS.md` `ARC-39` and its notes; step-11 §4.5, SD-B6 … SD-B9, SD-B15, SD-O9).
 //!
 //! ```text
 //! inert       `to` has no position, or its place has no shape          → so_far, untouched
 //! earlier     another resolver already changed the arrival              → so_far, untouched
-//! guard       the place as it stands breaks the invariant               → panic, naming the pair
-//! stride      within the place, from a position:
-//!               clear corridor (integers)                               → exactly `to`
-//!               walls-only reach W, contact reach B (two sweeps)
-//!               candidate: W, or W cut NUDGE_MAX beyond contact
-//!               nudge pass from the candidate; on failure, blocked at B
-//!               verify on integers; degrade: blocked → halved ×8 → stay
-//! entry       from another place, from nowhere, or from no position:
-//!               `to` if a person fits there
-//!               else nudge from `to`, if only people are in the way and the result verifies
-//!               else the nearest free point of the 50 mm lattice
+//! guard       the place as it stands breaks the invariant               → panic, naming what it found
+//! stride      within the place, from a position                         `stride.rs`
+//! entry       from another place, from nowhere, or from no position     `entry.rs`
 //! ```
 //!
-//! Every position is whole millimetres; the two sweeps and the nudges are Rapier's (`rapier.rs`),
-//! everything else is integer geometry. The resolver keeps nothing: no static, no cache, no clock —
-//! a replayed world asks it again and is told the same thing (`ARC-25`).
+//! Every position is whole millimetres; the sweeps, the nudges and the pushes' casts are Rapier's
+//! (`rapier.rs`), everything else is integer geometry. The resolver keeps nothing: no static, no
+//! cache, no clock — a replayed world asks it again and is told the same thing (`ARC-25`).
 
 use mineworld_contracts::SystemId;
 use mineworld_contracts::{
-    EntityId, EntityType, LocalPosition, Location, Millimetres, PersonId, PlaceId,
+    EntityId, EntityType, ItemId, LocalPosition, Location, Millimetres, PersonId, PlaceId,
 };
 use mineworld_kernel::{SystemIdentity, WorldRead};
 use mineworld_presence::{ArrivalResolver, Arriving, Presence, Resolution};
 
 use crate::component::PlaceShape;
-use crate::geometry::{
-    CHAIN_MAX, CLEARANCE, GAP, HALVINGS, NUDGE_MAX, NUDGED_MAX, PERSON_RADIUS, Point, Room, SNAP,
-    TOLERANCE, at_least, closest_pair, distance2, first_met, head_on, no_longer_than, scaled_down,
-    turned_right,
-};
-use crate::rapier::{Against, Scene};
+use crate::entry::entry;
+use crate::footprint::{Footprint, Placed, flaw};
+use crate::geometry::{CLEARANCE, PERSON_RADIUS, Point, Room, TOLERANCE, closest_pair};
+use crate::objects::lying_in;
+use crate::stride::stride;
 use crate::system::{BodiesSystem, name, standing_in};
 
 /// Which steps a resolution runs. Production runs every step; a unit test may turn one off to show
@@ -81,6 +72,17 @@ pub enum Degraded {
     Stayed,
 }
 
+/// How a stride treated the loose objects of its place (step-11 SD-O9 step 6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Objects {
+    /// Nothing was pushed: there were none in the way, or verification degraded the stride.
+    Untouched,
+    /// The prediction was accepted: this many objects will be pushed by the reactions.
+    Pushed(usize),
+    /// The pushes could not all be made, so the stride was resolved with the objects solid.
+    Solid,
+}
+
 /// How an arrival into a shaped place was resolved — reported for tests and tools; the facts presence
 /// records are what the world holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,14 +99,51 @@ pub struct Outcome {
     pub degraded: Degraded,
     /// Whether the head-on bias turned the stride.
     pub biased: bool,
+    /// How the objects were treated.
+    pub objects: Objects,
+}
+
+impl Outcome {
+    /// A route that moved nobody, pushed nothing and degraded nothing.
+    pub(crate) const fn plain(route: Route) -> Self {
+        Self {
+            route,
+            generations: 0,
+            nudged: 0,
+            nudge_failed: false,
+            degraded: Degraded::No,
+            biased: false,
+            objects: Objects::Untouched,
+        }
+    }
 }
 
 /// A resolution in this pack's terms: points, not locations.
-struct Answer {
-    reached: Point,
-    displaced: Vec<(EntityId, Point)>,
-    stopped_by: Option<EntityId>,
-    outcome: Outcome,
+pub(crate) struct Answer {
+    pub(crate) reached: Point,
+    pub(crate) displaced: Vec<(EntityId, Point)>,
+    pub(crate) stopped_by: Option<EntityId>,
+    pub(crate) outcome: Outcome,
+}
+
+impl Answer {
+    /// Exactly `reached`, nobody moved, nothing pushed.
+    pub(crate) const fn plain(reached: Point, route: Route) -> Self {
+        Self {
+            reached,
+            displaced: Vec::new(),
+            stopped_by: None,
+            outcome: Outcome::plain(route),
+        }
+    }
+}
+
+/// One place as a resolution reads it: its room, the people standing in it (`EntityId` order) and
+/// the loose objects lying in it (`ItemId` order).
+pub(crate) struct Here {
+    pub(crate) room: Room,
+    pub(crate) standing: Vec<(EntityId, Point)>,
+    pub(crate) objects: Vec<(ItemId, Placed)>,
 }
 
 impl ArrivalResolver for BodiesSystem {
@@ -173,25 +212,31 @@ fn answer(
     let local = to.local()?;
     let place = to.place();
     let shape = world.component::<PlaceShape>(place.entity_id())?;
-    let room = shape.room();
-    let standing = standing_in(world, place);
-    guard(world, place, &room, &standing);
+    let here = Here {
+        room: shape.room(),
+        standing: standing_in(world, place),
+        objects: lying_in(world, place),
+    };
+    guard(world, place, &here);
     let target = Point::new(local.x().value(), local.y().value());
     let start = from
         .filter(|from| from.place() == place)
         .and_then(|from| from.local())
         .map(|local| Point::new(local.x().value(), local.y().value()));
     Some(match start {
-        Some(start) => stride(&room, &standing, person.entity_id(), start, target, policy),
-        None => entry(&room, &standing, target),
+        Some(start) => stride(&here, person.entity_id(), start, target, policy),
+        None => entry(&here, target),
     })
 }
 
-/// The guard on the place's current state (step-11 SD-B9; `ARC-39` note, point 2): every resolved
-/// arrival keeps the invariant and genesis checked it, so a place that breaks it holds an arrival that
-/// escaped resolution. A resolver has no error path; like `require_registered`, it panics, naming
-/// what it found.
-fn guard(world: &WorldRead<'_>, place: PlaceId, room: &Room, standing: &[(EntityId, Point)]) {
+/// The guard on the place's current state (step-11 SD-B9, SD-O9 step 1; `ARC-39` notes): every
+/// resolved arrival keeps the invariant and genesis checked it, so a place that breaks it holds an
+/// arrival that escaped resolution. A resolver has no error path; like `require_registered`, it
+/// panics, naming what it found.
+fn guard(world: &WorldRead<'_>, place: PlaceId, here: &Here) {
+    let escaped = "an arrival escaped resolution: a stating system bypassed presence's \
+                   arrivals(), or a host never registered the build's resolvers (DECISIONS.md ARC-39)";
+    let (room, standing) = (&here.room, &here.standing);
     let points: Vec<Point> = standing.iter().map(|(_, at)| *at).collect();
     let clearance = i64::from(CLEARANCE.value());
     if let Some((a, b, distance2)) = closest_pair(&points)
@@ -199,8 +244,7 @@ fn guard(world: &WorldRead<'_>, place: PlaceId, room: &Room, standing: &[(Entity
     {
         panic!(
             "bodies: {} and {} stand {} mm apart in {}, closer than {} mm, before an arrival into it \
-             was resolved — an arrival escaped resolution: a stating system bypassed presence's \
-             arrivals(), or a host never registered the build's resolvers (DECISIONS.md ARC-39)",
+             was resolved — {escaped}",
             name(world, standing[a].0),
             name(world, standing[b].0),
             distance2.isqrt(),
@@ -212,401 +256,35 @@ fn guard(world: &WorldRead<'_>, place: PlaceId, room: &Room, standing: &[(Entity
     if let Some((person, at)) = standing.iter().find(|(_, at)| !room.admits(*at, margin)) {
         panic!(
             "bodies: {} stands at ({}, {}) in {}, outside its floor or inside a solid, before an \
-             arrival into it was resolved — an arrival escaped resolution: a stating system \
-             bypassed presence's arrivals(), or a host never registered the build's resolvers \
-             (DECISIONS.md ARC-39)",
+             arrival into it was resolved — {escaped}",
             name(world, *person),
             at.x,
             at.y,
             name(world, place.entity_id()),
         );
     }
-}
-
-/// Everybody's position in one candidate result: the walker's and each displaced person's.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct Candidate {
-    walker: Point,
-    /// Indexes into the others, with their new positions, in the order they were moved.
-    displaced: Vec<(usize, Point)>,
-}
-
-/// A stride within the place (step-11 SD-B6; the prototype's mode R′, §9.7).
-fn stride(
-    room: &Room,
-    standing: &[(EntityId, Point)],
-    walker: EntityId,
-    start: Point,
-    target: Point,
-    policy: Policy,
-) -> Answer {
-    let me = standing
+    let footprints: Vec<Footprint> = here
+        .objects
         .iter()
-        .position(|(person, _)| *person == walker)
-        .expect("a walker with a position in the place stands in it");
-    let others: Vec<(EntityId, Point)> = standing
-        .iter()
-        .copied()
-        .filter(|(person, _)| *person != walker)
+        .map(|(_, placed)| placed.footprint())
         .collect();
-    let other_points: Vec<Point> = others.iter().map(|(_, at)| *at).collect();
-    if room.corridor_clear(start, target, &other_points) {
-        return Answer {
-            reached: target,
-            displaced: Vec::new(),
-            stopped_by: None,
-            outcome: Outcome::plain(Route::Clear),
-        };
-    }
-
-    // The head-on bias (step-11 SD-B10): a walker whose first person met stands within the band of
-    // their line aims to their right instead — "keep right" — so that two walkers meeting head-on
-    // pass rather than pushing each other straight back. Only the walker's own aim turns; nudges stay
-    // straight away from their pusher.
-    let asked = target.minus(start);
-    let met = first_met(start, asked, &other_points)
-        .filter(|(_, cross2)| policy.bias && head_on(asked, *cross2))
-        .map(|(index, _)| others[index].0);
-    let aim = match met {
-        Some(_) => start.plus(turned_right(asked)),
-        None => target,
-    };
-
-    let points: Vec<Point> = standing.iter().map(|(_, at)| *at).collect();
-    let scene = Scene::build(room, &points);
-    let reach = reach(&scene, me, start, aim);
-
-    // The scene index of each other person: they keep their place in `standing`.
-    let in_scene: Vec<usize> = (0..standing.len()).filter(|index| *index != me).collect();
-    let desired = aim.minus(start);
-    let fallback = if desired == Point::new(0, 0) {
-        Point::new(1, 0)
-    } else {
-        desired
-    };
-    let pass = nudge(&scene, &others, &in_scene, reach.candidate, fallback);
-    let nudge_failed = pass.is_err();
-    let (primary, generations) = match pass {
-        Ok(nudged) => (
-            Candidate {
-                walker: reach.candidate,
-                displaced: nudged.moved,
-            },
-            nudged.generations,
-        ),
-        Err(()) => (
-            Candidate {
-                walker: reach.blocked,
-                displaced: Vec::new(),
-            },
-            0,
-        ),
-    };
-
-    let (result, degraded) = if !policy.verify || verifies(room, &others, &primary) {
-        (primary, Degraded::No)
-    } else {
-        degrade(room, &others, start, reach.blocked)
-    };
-    let generations = if result.displaced.is_empty() {
-        0
-    } else {
-        generations
-    };
-    let stopped_by = if result.walker == target {
-        None
-    } else if result.walker == aim {
-        // The bias turned a walker who then reached the turned aim: what turned them is the person
-        // they met head-on.
-        met
-    } else if degraded == Degraded::No && !nudge_failed && reach.walls_stopped {
-        None
-    } else {
-        reach.touched.map(|index| standing[index].0)
-    };
-    Answer {
-        reached: result.walker,
-        displaced: result
-            .displaced
+    for (index, (object, placed)) in here.objects.iter().enumerate() {
+        let others: Vec<Footprint> = footprints
             .iter()
-            .map(|(index, at)| (others[*index].0, *at))
-            .collect(),
-        stopped_by,
-        outcome: Outcome {
-            route: Route::Swept,
-            generations,
-            nudged: result.displaced.len(),
-            nudge_failed,
-            degraded,
-            biased: met.is_some(),
-        },
-    }
-}
-
-impl Outcome {
-    /// A route that moved nobody and degraded nothing.
-    const fn plain(route: Route) -> Self {
-        Self {
-            route,
-            generations: 0,
-            nudged: 0,
-            nudge_failed: false,
-            degraded: Degraded::No,
-            biased: false,
+            .enumerate()
+            .filter(|(other, _)| *other != index)
+            .map(|(_, footprint)| *footprint)
+            .collect();
+        if let Some(found) = flaw(room, placed, &others, &points, TOLERANCE.value()) {
+            panic!(
+                "bodies: {} at ({}, {}) in {} breaks the invariant of a lying object ({found:?}) \
+                 before an arrival into it was resolved — {escaped}",
+                name(world, object.entity_id()),
+                placed.centre.x,
+                placed.centre.y,
+                name(world, place.entity_id()),
+            );
         }
-    }
-}
-
-/// What the two sweeps of a stride say: where the walker would end before anybody is nudged, where it
-/// stops if blocked, and who it touched.
-struct Reach {
-    /// R′ step 3's candidate: the walls-only reach W, or W cut `NUDGE_MAX` beyond contact.
-    candidate: Point,
-    /// Where a blocked walker stands: the contact reach B's first touch of a person.
-    blocked: Point,
-    /// Whether the candidate is W itself — the walls, not a person, ended the stride.
-    walls_stopped: bool,
-    /// The first person the contact sweep touched, by scene index.
-    touched: Option<usize>,
-}
-
-/// R′ steps 1–3 (step-11 §4.5.1): the walls-only reach W and the contact reach B, each quantized,
-/// snapped to `target` within [`SNAP`], and never longer than asked; then the candidate.
-///
-/// How far the walker gets with people solid is the contact sweep's end, sliding included — the
-/// prototype's B, which the candidate rule measures. Where a blocked walker stops is where that sweep
-/// first touched a person, not where the controller's slide along their curve carried it on to: a
-/// blocked walker ends at contact (step-11 §17.11, DB-4).
-fn reach(scene: &Scene, me: usize, start: Point, target: Point) -> Reach {
-    let desired = target.minus(start);
-    let settle = |end: Point| {
-        let snapped = if distance2(end, target) <= i64::from(SNAP.value()).pow(2) {
-            target
-        } else {
-            end
-        };
-        no_longer_than(start, snapped, target)
-    };
-    let walls = settle(scene.sweep(Some(me), start, desired, Against::Fixed).end);
-    let contact = scene.sweep(Some(me), start, desired, Against::FixedAndPeople);
-    let swept = settle(contact.end);
-    let (reach_walls, reach_contact) = (walls.minus(start).length(), swept.minus(start).length());
-    let beyond = reach_contact + i64::from(NUDGE_MAX.value());
-    let walls_stopped = reach_walls <= beyond;
-    Reach {
-        candidate: if walls_stopped {
-            walls
-        } else {
-            start.plus(scaled_down(walls.minus(start), beyond, reach_walls))
-        },
-        blocked: contact.contact.map_or(swept, settle),
-        walls_stopped,
-        touched: contact.touched,
-    }
-}
-
-/// Verify-then-degrade's fallbacks, after the resolved result failed verification (step-11 DC-8):
-/// blocked at contact; then the advance along the blocked path halved, up to [`HALVINGS`] times;
-/// then stay. Staying is valid by induction: the place as it stood passed the guard.
-fn degrade(
-    room: &Room,
-    others: &[(EntityId, Point)],
-    start: Point,
-    blocked: Point,
-) -> (Candidate, Degraded) {
-    let only = |walker: Point| Candidate {
-        walker,
-        displaced: Vec::new(),
-    };
-    if verifies(room, others, &only(blocked)) {
-        return (only(blocked), Degraded::Blocked);
-    }
-    let advance = blocked.minus(start);
-    for k in 1..=HALVINGS {
-        let walker = start.plus(Point::new(advance.x / (1 << k), advance.y / (1 << k)));
-        if verifies(room, others, &only(walker)) {
-            return (only(walker), Degraded::Halved(k));
-        }
-    }
-    (only(start), Degraded::Stayed)
-}
-
-/// V1–V3 on integers (step-11 SD-B6 step 6): every pair in the place at least [`CLEARANCE`] apart,
-/// and every moved centre inside the floor and out of every solid, to within [`TOLERANCE`].
-fn verifies(room: &Room, others: &[(EntityId, Point)], candidate: &Candidate) -> bool {
-    let mut points: Vec<Point> = others.iter().map(|(_, at)| *at).collect();
-    for (index, at) in &candidate.displaced {
-        points[*index] = *at;
-    }
-    points.push(candidate.walker);
-    let clearance = i64::from(CLEARANCE.value());
-    let apart =
-        closest_pair(&points).is_none_or(|(_, _, distance2)| distance2 >= clearance * clearance);
-    let margin = PERSON_RADIUS.value() - TOLERANCE.value();
-    apart
-        && room.admits(candidate.walker, margin)
-        && candidate
-            .displaced
-            .iter()
-            .all(|(_, at)| room.admits(*at, margin))
-}
-
-/// The people a nudge pass moved, in the order it moved them, and how many generations it took.
-struct Nudged {
-    moved: Vec<(usize, Point)>,
-    generations: usize,
-}
-
-/// The nudge pass (step-11 SD-B7; QB-10, I-11). Generation 1's pusher is the arriving person at
-/// `pusher`; generation g's pushers are the people moved in generation g − 1. In each generation, for
-/// each pusher, every person not yet moved, in `EntityId` order, who is closer than two radii to it is
-/// swept straight away from its centre — against the fixed geometry only — just far enough to stand
-/// two radii and a gap from it. When two centres coincide, `fallback` gives the direction.
-///
-/// The pass fails if a nudge would exceed `NUDGE_MAX + GAP`, if the walls cut one more than [`SNAP`]
-/// short, if more than [`NUDGED_MAX`] people would move, or if any pair is still closer than
-/// [`CLEARANCE`] after [`CHAIN_MAX`] generations.
-fn nudge(
-    scene: &Scene,
-    others: &[(EntityId, Point)],
-    in_scene: &[usize],
-    pusher: Point,
-    fallback: Point,
-) -> Result<Nudged, ()> {
-    let touching = i64::from(2 * PERSON_RADIUS.value());
-    let spacing = i64::from(2 * PERSON_RADIUS.value() + GAP.value());
-    let longest = i64::from(NUDGE_MAX.value() + GAP.value());
-    let mut now: Vec<Point> = others.iter().map(|(_, at)| *at).collect();
-    let mut moved: Vec<(usize, Point)> = Vec::new();
-    let mut frontier = vec![pusher];
-    let mut generations = 0;
-    for _ in 0..CHAIN_MAX {
-        let mut next = Vec::new();
-        for pushing in &frontier {
-            for index in 0..others.len() {
-                if moved.iter().any(|(done, _)| *done == index) {
-                    continue;
-                }
-                let at = now[index];
-                let between = distance2(at, *pushing);
-                if between >= touching * touching {
-                    continue;
-                }
-                let needed = spacing - between.isqrt();
-                if needed > longest {
-                    return Err(());
-                }
-                let away = if between == 0 {
-                    fallback
-                } else {
-                    at.minus(*pushing)
-                };
-                let by = at_least(away, needed);
-                if distance2(by, Point::new(0, 0)) > longest * longest {
-                    return Err(());
-                }
-                let swept = scene
-                    .sweep(Some(in_scene[index]), at, by, Against::Fixed)
-                    .end;
-                let end = if distance2(swept, at.plus(by)) <= i64::from(SNAP.value()).pow(2) {
-                    at.plus(by)
-                } else {
-                    swept
-                };
-                let travelled = end.minus(at).length();
-                if travelled + i64::from(SNAP.value()) < by.length()
-                    || distance2(end, at) > longest * longest
-                {
-                    return Err(());
-                }
-                now[index] = end;
-                moved.push((index, end));
-                next.push(end);
-                if moved.len() > NUDGED_MAX {
-                    return Err(());
-                }
-            }
-        }
-        if next.is_empty() {
-            break;
-        }
-        generations += 1;
-        frontier = next;
-    }
-    let mut everyone = now;
-    everyone.push(pusher);
-    let clearance = i64::from(CLEARANCE.value());
-    if closest_pair(&everyone).is_some_and(|(_, _, distance2)| distance2 < clearance * clearance) {
-        return Err(());
-    }
-    Ok(Nudged { moved, generations })
-}
-
-/// An arrival from another place, from nowhere, or from a position-less presence in this place
-/// (step-11 SD-B8, QP-7). It always ends in this place: a resolver can neither refuse an arrival nor
-/// end it elsewhere (rule (a)), and the capacity checked at genesis guarantees a free point.
-fn entry(room: &Room, standing: &[(EntityId, Point)], target: Point) -> Answer {
-    let points: Vec<Point> = standing.iter().map(|(_, at)| *at).collect();
-    let outcome = |route, generations, nudged| Outcome {
-        generations,
-        nudged,
-        ..Outcome::plain(route)
-    };
-    // E1: a person fits at `to`.
-    if room.free_at(target, &points) {
-        return Answer {
-            reached: target,
-            displaced: Vec::new(),
-            stopped_by: None,
-            outcome: outcome(Route::Entered, 0, 0),
-        };
-    }
-    // E2: only people are in the way; nudge them from `to`, under the same bounds.
-    if room.admits(target, PERSON_RADIUS.value()) {
-        let scene = Scene::build(room, &points);
-        let in_scene: Vec<usize> = (0..standing.len()).collect();
-        if let Ok(nudged) = nudge(&scene, standing, &in_scene, target, Point::new(1, 0)) {
-            let candidate = Candidate {
-                walker: target,
-                displaced: nudged.moved,
-            };
-            if verifies(room, standing, &candidate) {
-                return Answer {
-                    reached: target,
-                    displaced: candidate
-                        .displaced
-                        .iter()
-                        .map(|(index, at)| (standing[*index].0, *at))
-                        .collect(),
-                    stopped_by: None,
-                    outcome: outcome(
-                        Route::EnteredNudging,
-                        nudged.generations,
-                        candidate.displaced.len(),
-                    ),
-                };
-            }
-        }
-    }
-    // E3: the nearest free point of the lattice; nobody moves.
-    let reached = room.nearest_free(target, &points).unwrap_or_else(|| {
-        panic!(
-            "bodies: no free point for an arrival at ({}, {}): the place's capacity, checked at \
-             genesis, is exhausted — which only a world grown after genesis can do (DECISIONS.md \
-             ARC-39 note, point 3)",
-            target.x, target.y
-        )
-    });
-    let spacing = i64::from(2 * PERSON_RADIUS.value() + GAP.value());
-    let stopped_by = standing
-        .iter()
-        .find(|(_, at)| distance2(*at, target) < spacing * spacing)
-        .map(|(person, _)| *person);
-    Answer {
-        reached,
-        displaced: Vec::new(),
-        stopped_by,
-        outcome: outcome(Route::Placed, 0, 0),
     }
 }
 

@@ -93,11 +93,18 @@ fn bodies_yard_is_the_same_world_in_two_processes_and_after_sigkill() {
     run(Path::new(YARD), SEED, DAYS, Some(&a));
     let control = Tables::read(&a);
     let report = scan(&control, &keys_of(Path::new(YARD)));
-    let stopped: u64 = report.buckets.iter().map(|bucket| bucket.stopped).sum();
-    let displaced: u64 = report.buckets.iter().map(|bucket| bucket.displaced).sum();
+    let total = |count: fn(&bodies::Bucket) -> u64| report.buckets.iter().map(count).sum::<u64>();
+    let stopped = total(|bucket| bucket.stopped);
+    let displaced = total(|bucket| bucket.displaced);
+    let (kicks, throws, shoves, pushes) = (
+        total(|bucket| bucket.kicks),
+        total(|bucket| bucket.throws),
+        total(|bucket| bucket.shoves),
+        total(|bucket| bucket.pushes),
+    );
     println!(
         "control: {} facts, {} journal rows, {} snapshots; {stopped} stopped-short, {displaced} \
-         displaced arrivals",
+         displaced arrivals; {kicks} kicks, {throws} throws, {shoves} shoves, {pushes} pushes",
         control.facts.len(),
         control.journal.len(),
         control.snapshots.len()
@@ -105,6 +112,12 @@ fn bodies_yard_is_the_same_world_in_two_processes_and_after_sigkill() {
     assert!(
         stopped > 0 && displaced > 0,
         "bodies resolved arrivals in the control"
+    );
+    // PO-11 (QO-16): the control holds every physical interaction, so determinism is shown with
+    // flights, pushes and shoves in it, not only people walking.
+    assert!(
+        kicks > 0 && throws > 0 && shoves > 0 && pushes > 0,
+        "the control kicks, throws, shoves and pushes"
     );
 
     let b = fresh("bodies-yard-restart-b");

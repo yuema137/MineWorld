@@ -7,13 +7,21 @@
 //!                  manifest (step-11 §17.0, QP-3 overruled)
 //! floats           no source file but rapier.rs names f32 or f64: positions, shapes and facts are
 //!                  integers, and only the sweep is float
-//! dependencies     the [dependencies] of this pack name no System Pack but presence
+//! dependencies     the pack's system dependency is presence alone; the [dependencies] of its crate
+//!                  name no System Pack crate but presence and item (step-11 QO-4, QO-16)
+//! item             the item crate is used for one read only: every `mineworld_item` in this pack's
+//!                  sources is `mineworld_item::is_declared(` (step-11 §18.0's bound on the crate
+//!                  dependency; DECISIONS.md ARC-39 note 2, point 4)
 //! ```
 //!
 //! The module that wraps the crate is itself called `rapier`, so `mod rapier;` and `crate::rapier`
 //! appear elsewhere: what is held is the crate's name, `rapier3d`, which no wrapper can avoid naming.
 
 use std::path::{Path, PathBuf};
+
+use mineworld_bodies::BodiesSystem;
+use mineworld_kernel::{System, SystemIdentity};
+use mineworld_presence::PresenceSystem;
 
 fn pack() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf()
@@ -131,7 +139,12 @@ fn no_float_outside_the_adapter() {
 }
 
 #[test]
-fn this_pack_depends_on_no_system_pack_but_presence() {
+fn this_packs_system_dependency_is_presence_and_its_pack_crates_are_presence_and_item() {
+    assert_eq!(
+        BodiesSystem.declaration().depends_on(),
+        [PresenceSystem::ID],
+        "the system dependency: presence alone — a world installs bodies without item"
+    );
     let manifest = std::fs::read_to_string(pack().join("Cargo.toml")).expect("the manifest reads");
     let dependencies: Vec<&str> = manifest
         .split("[dependencies]")
@@ -157,7 +170,46 @@ fn this_pack_depends_on_no_system_pack_but_presence() {
         })
         .collect();
     println!("dependencies {dependencies:?}; packs named {named:?}");
-    assert_eq!(named, ["mineworld-presence"], "presence, and no other pack");
+    assert_eq!(
+        named,
+        ["mineworld-item", "mineworld-presence"],
+        "presence and item, and no other pack crate"
+    );
+}
+
+/// The one read: every use of the item crate in this pack's sources is a call of
+/// `mineworld_item::is_declared` — no `use` of it, no other item, type or function.
+#[test]
+fn this_pack_uses_nothing_of_the_item_crate_but_is_declared() {
+    const READ: &str = "mineworld_item::is_declared(";
+    let mut reads = Vec::new();
+    let mut other = Vec::new();
+    for file in sources() {
+        let text = std::fs::read_to_string(&file).expect("a source reads");
+        for (number, line) in text.lines().enumerate() {
+            let place = format!("{}:{}", file.display(), number + 1);
+            let mut rest = line;
+            while let Some(at) = rest.find("mineworld_item") {
+                if rest[at..].starts_with(READ) {
+                    reads.push(place.clone());
+                } else {
+                    other.push(format!("{place}: {}", line.trim()));
+                }
+                rest = &rest[at + "mineworld_item".len()..];
+            }
+        }
+    }
+    println!("reads of is_declared: {reads:?}");
+    assert!(
+        other.is_empty(),
+        "bodies names nothing of mineworld_item but is_declared (step-11 §18.0):\n{}",
+        other.join("\n")
+    );
+    assert_eq!(
+        reads.len(),
+        1,
+        "exactly one call, in the genesis check: {reads:?}"
+    );
 }
 
 /// The directory names under systems/ that hold a crate.

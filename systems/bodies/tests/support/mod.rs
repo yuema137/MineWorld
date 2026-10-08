@@ -18,12 +18,16 @@
 
 use std::collections::BTreeMap;
 
-use mineworld_bodies::{BodiesSystem, PlaceShape, place_shaped};
-use mineworld_contracts::{
-    Action, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId, Causation, EntityId,
-    EntityKey, EntityType, EventEnvelope, LocalPosition, Location, Millimetres, Observation,
-    PersonId, PlaceId, SystemId, Visibility, WorldTime,
+use mineworld_bodies::{
+    BodiesSystem, BodyShape, LooseObjects, ObjectMoved, PersonShoved, PlaceShape, body_formed,
+    place_shaped,
 };
+use mineworld_contracts::{
+    Action, ActionId, ActionIntent, ActionRecord, ActionRequest, ActionResult, ActionTypeId,
+    Causation, EntityId, EntityKey, EntityType, EventEnvelope, ItemId, LocalPosition, Location,
+    Millimetres, Observation, PersonId, PlaceId, SystemId, Visibility, WorldTime,
+};
+use mineworld_item::{Category, ItemKindDeclared, ItemSystem};
 use mineworld_kernel::{
     Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
     WorldView,
@@ -89,6 +93,26 @@ pub struct Plan {
     pub without_bodies: bool,
     /// Whether the test-only bypassing pack is installed (PB-17).
     pub with_bypass: bool,
+    /// Loose objects (12c), in identity order, created after the people: each an Item whose
+    /// `body-formed` genesis states, as an item file's `body:` section would.
+    pub objects: Vec<Thing>,
+    /// Items that are declared kinds (the `item` pack is then installed, before bodies): each one of
+    /// `objects`' keys, or a plain kind of its own, created after the objects.
+    pub kinds: Vec<&'static str>,
+}
+
+/// A loose object in a plan: its key, its shape, the place's key and the floor point it lies on.
+pub type Thing = (&'static str, BodyShape, &'static str, Xy);
+
+/// A ball of radius `r` mm.
+pub fn ball(r: i32) -> BodyShape {
+    serde_json::from_value(serde_json::json!({ "ball": r })).expect("a ball")
+}
+
+/// A box of half-extents `half` mm on every axis.
+pub fn cube(half: i32) -> BodyShape {
+    serde_json::from_value(serde_json::json!({ "box": { "x": half, "y": half, "z": half } }))
+        .expect("a box")
 }
 
 impl Plan {
@@ -110,6 +134,8 @@ pub struct Yard {
     pub providers: Vec<Box<dyn PerceptionProvider>>,
     pub places: BTreeMap<&'static str, PlaceId>,
     pub people: BTreeMap<&'static str, EntityId>,
+    /// The plan's items — its objects and its plain kinds — by key.
+    pub items: BTreeMap<&'static str, ItemId>,
     pub genesis: Vec<EventEnvelope>,
     next_action: u64,
 }
@@ -123,6 +149,9 @@ impl Yard {
         world.install(PresenceSystem).expect("presence installs");
         world.install(MovementSystem).expect("movement installs");
         providers.push(Box::new(MovementSystem));
+        if !plan.kinds.is_empty() {
+            world.install(ItemSystem).expect("item installs");
+        }
         if !plan.without_bodies {
             world.install(BodiesSystem).expect("bodies installs");
             providers.push(Box::new(BodiesSystem));
@@ -145,6 +174,17 @@ impl Yard {
                 .expect("created");
             people.insert(*key, id);
         }
+        let mut items = BTreeMap::new();
+        let plain = plan
+            .kinds
+            .iter()
+            .filter(|kind| !plan.objects.iter().any(|(key, ..)| key == *kind));
+        for key in plan.objects.iter().map(|(key, ..)| key).chain(plain) {
+            let id = world
+                .create_entity(EntityKey::new(*key).expect("a key"), EntityType::Item)
+                .expect("created");
+            items.insert(*key, ItemId::new(id, EntityType::Item).expect("an item"));
+        }
 
         let mut facts: Vec<Emission> = Vec::new();
         for ((a, a_at), (b, b_at)) in &plan.passages {
@@ -163,6 +203,19 @@ impl Yard {
             let person = PersonId::new(people[key], EntityType::Person).expect("a person");
             facts.push(arrival(&world.read(), person, location).expect("presence admits it"));
         }
+        // Items' sections before places', each item's in composition order (item, then bodies), as
+        // the loader seeds them (ARC-36 item 7).
+        for (key, item) in &items {
+            if plan.kinds.contains(key) {
+                let category = Category::new("toy").expect("a category");
+                facts.push(ItemKindDeclared::new(*item, category).emission());
+            }
+            if let Some((_, shape, place, at)) = plan.objects.iter().find(|(k, ..)| k == key)
+                && !plan.without_bodies
+            {
+                facts.push(body_formed(*item, *shape, at_in(places[place], *at)));
+            }
+        }
         if !plan.without_bodies {
             for (key, shape) in &plan.places {
                 if let Some(shape) = shape {
@@ -176,9 +229,50 @@ impl Yard {
             providers,
             places,
             people,
+            items,
             genesis,
             next_action: 1,
         })
+    }
+
+    /// Where each object lying in `place` is, by key, in identity order: `(x, y, z)`.
+    pub fn objects(&self, place: &str) -> Vec<(&'static str, (i32, i32, i32))> {
+        let Some(row) = self
+            .world
+            .components()
+            .get::<LooseObjects>(self.places[place].entity_id())
+        else {
+            return Vec::new();
+        };
+        row.objects()
+            .iter()
+            .map(|lying| {
+                let key = self
+                    .items
+                    .iter()
+                    .find(|(_, id)| **id == lying.object())
+                    .map(|(key, _)| *key)
+                    .expect("one of the yard's items");
+                let at = lying.at();
+                (key, (at.x().value(), at.y().value(), at.z().value()))
+            })
+            .collect()
+    }
+
+    /// Where the object `key` lies, `(x, y, z)`.
+    pub fn object(&self, key: &str) -> (i32, i32, i32) {
+        self.objects_everywhere()
+            .into_iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, at)| at)
+            .expect("the object lies somewhere")
+    }
+
+    fn objects_everywhere(&self) -> Vec<(&'static str, (i32, i32, i32))> {
+        self.places
+            .keys()
+            .flat_map(|place| self.objects(place))
+            .collect()
     }
 
     pub fn new(plan: &Plan) -> Self {
@@ -206,6 +300,37 @@ impl Yard {
     pub fn walk(&mut self, person: &str, to: Location) -> Moved {
         let record = ActionRecord::new::<Move>(encode(&Move::new(to)));
         self.submit(person, record)
+    }
+
+    /// Submits a request built elsewhere — from a complete affordance (`ARC-34`).
+    pub fn submit_request(&mut self, request: ActionRequest<Vec<u8>>) -> Moved {
+        let id = self.next_id();
+        let intent = ActionIntent::allocate(request, id, NOW);
+        let dispatched = self
+            .world
+            .dispatch(&intent, NOW)
+            .expect("dispatch answers rather than failing");
+        Moved {
+            id,
+            result: dispatched.result().clone(),
+            events: dispatched.events().to_vec(),
+        }
+    }
+
+    /// Submits `record` as `person`'s request, aimed at `target`.
+    pub fn submit_at(&mut self, person: &str, record: ActionRecord, target: EntityId) -> Moved {
+        let id = self.next_id();
+        let actor = self.people[person];
+        let intent = ActionIntent::new(id, actor, record, NOW).with_target(target);
+        let dispatched = self
+            .world
+            .dispatch(&intent, NOW)
+            .expect("dispatch answers rather than failing");
+        Moved {
+            id,
+            result: dispatched.result().clone(),
+            events: dispatched.events().to_vec(),
+        }
     }
 
     /// Submits `record` as `person`'s request.
@@ -446,6 +571,118 @@ pub fn at_in(place: PlaceId, at: (i32, i32)) -> Location {
 
 pub fn encode<T: Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).expect("a payload encodes")
+}
+
+/// A recorded `person-shoved`, decoded with its owner's published type.
+pub fn person_shoved(event: &EventEnvelope) -> Option<PersonShoved> {
+    let payload = event.payload().payload_for::<PersonShoved>().ok()?;
+    Some(serde_json::from_slice(payload).expect("bodies' encoding"))
+}
+
+/// A recorded `object-moved`, decoded with its owner's published type.
+pub fn object_moved(event: &EventEnvelope) -> Option<ObjectMoved> {
+    let payload = event.payload().payload_for::<ObjectMoved>().ok()?;
+    Some(serde_json::from_slice(payload).expect("bodies' encoding"))
+}
+
+/// The squared distance from `p` to the rectangle `rect`: zero inside it.
+fn to_rect2(p: Xy, (x0, y0, x1, y1): Rect) -> i64 {
+    let dx = i64::from((x0 - p.0).max(p.0 - x1).max(0));
+    let dy = i64::from((y0 - p.1).max(p.1 - y1).max(0));
+    dx * dx + dy * dy
+}
+
+/// Every invariant the pack keeps in `place`, checked from the test's own literals for the room —
+/// `floor` and `solids` — and from the shapes and positions the world holds (step-11 V1–V4, SD-O2):
+/// people 595 mm apart, inside the floor shrunk by 295 mm, 295 mm from every solid; every object
+/// within the floor, resting on it or on a solid's top (± 5 mm), clear of the other solids, of the
+/// other objects (by more than 5 mm) and of every person's disc (295 mm from its footprint).
+pub fn assert_holds(yard: &Yard, place: &str, floor: Rect, solids: &[(Rect, i32)]) {
+    let people = yard.standing(place);
+    for (i, (a, at_a)) in people.iter().enumerate() {
+        for (b, at_b) in &people[i + 1..] {
+            let d = distance2(*at_a, *at_b);
+            assert!(d >= 595 * 595, "{a} and {b} {} mm apart", d.isqrt());
+        }
+        let (x0, y0, x1, y1) = floor;
+        assert!(
+            (x0 + 295..=x1 - 295).contains(&at_a.0) && (y0 + 295..=y1 - 295).contains(&at_a.1),
+            "{a} at {at_a:?} is inside the floor"
+        );
+        for (rect, _) in solids {
+            assert!(
+                to_rect2(*at_a, *rect) >= 295 * 295,
+                "{a} at {at_a:?} clear of {rect:?}"
+            );
+        }
+    }
+    let objects = yard.objects(place);
+    let outline = |key: &str| -> (bool, i32, i32, i32) {
+        let shape = *yard
+            .world
+            .components()
+            .get::<BodyShape>(yard.items[key].entity_id())
+            .expect("a shape");
+        match shape {
+            BodyShape::Box(half) => (true, half.x().value(), half.y().value(), half.z().value()),
+            BodyShape::Ball(r) => (false, r.value(), r.value(), r.value()),
+        }
+    };
+    for (i, (key, (x, y, z))) in objects.iter().enumerate() {
+        let (boxy, hx, hy, hz) = outline(key);
+        let (x0, y0, x1, y1) = floor;
+        assert!(
+            x - hx >= x0 && x + hx <= x1 && y - hy >= y0 && y + hy <= y1,
+            "{key} at ({x}, {y}) within the floor"
+        );
+        let rests_on_floor = (z - hz).abs() <= 5;
+        let rests_on = solids.iter().position(|((a, b, c, d), height)| {
+            (z - (height + hz)).abs() <= 5
+                && x - hx >= *a
+                && x + hx <= *c
+                && y - hy >= *b
+                && y + hy <= *d
+        });
+        assert!(rests_on_floor || rests_on.is_some(), "{key} at z {z} rests");
+        for (index, ((a, b, c, d), _)) in solids.iter().enumerate() {
+            if Some(index) == rests_on {
+                continue;
+            }
+            let meets = if boxy {
+                x - hx < *c && x + hx > *a && y - hy < *d && y + hy > *b
+            } else {
+                to_rect2((*x, *y), (*a, *b, *c, *d)) < i64::from(hx).pow(2)
+            };
+            assert!(!meets, "{key} at ({x}, {y}) clear of solid {index}");
+        }
+        for (person, at) in &people {
+            let reach = if boxy {
+                to_rect2(*at, (x - hx, y - hy, x + hx, y + hy)) >= 295 * 295
+            } else {
+                distance2(*at, (*x, *y)) >= i64::from(295 + hx).pow(2)
+            };
+            assert!(
+                reach,
+                "{person} at {at:?} keeps 295 mm from {key} at ({x}, {y})"
+            );
+        }
+        for (other, (ox, oy, _)) in &objects[i + 1..] {
+            let (other_boxy, ohx, ohy, _) = outline(other);
+            let apart = match (boxy, other_boxy) {
+                (true, true) => hx + ohx - (x - ox).abs() <= 5 || hy + ohy - (y - oy).abs() <= 5,
+                (false, false) => distance2((*x, *y), (*ox, *oy)) >= i64::from(hx + ohx - 5).pow(2),
+                (false, true) => {
+                    to_rect2((*x, *y), (ox - ohx, oy - ohy, ox + ohx, oy + ohy))
+                        >= i64::from(hx - 5).pow(2)
+                }
+                (true, false) => {
+                    to_rect2((*ox, *oy), (x - hx, y - hy, x + hx, y + hy))
+                        >= i64::from(ohx - 5).pow(2)
+                }
+            };
+            assert!(apart, "{key} and {other} do not overlap");
+        }
+    }
 }
 
 /// The squared distance between two points, exactly.
