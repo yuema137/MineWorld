@@ -5,6 +5,8 @@
 #   ./run.sh evidence     headless: both flavours, each against a fresh world, the other seat, and
 #                         two clients at once                      (what AC-13 and AC-15 read)
 #   ./run.sh play         windowed, driven by the keyboard        (what a player does)
+#   ./run.sh affordances  headless: the module's live check against worlds/market-town, saved to a
+#                         temporary directory that is removed afterwards   (checks/affordances_check.gd)
 #
 # It starts `mineworld server worlds/social-cafe --agent alice` itself, on 127.0.0.1:7878, and stops
 # it afterwards. A clean checkout works: the project's script class cache is built here, not
@@ -25,12 +27,18 @@ server=""
 cd "$root" || exit 1
 cargo build --quiet -p mineworld-cli || exit 1
 
-# Starts a fresh world, appending what the server prints to `$1`.
+# Starts a fresh world, appending what the server prints to `$1`. `$2` is the world (social-cafe
+# unless given); `$3`, when given, a directory to save it in.
 start_server() {
-	pkill -f 'mineworld server worlds/social-cafe' >/dev/null 2>&1
+	local world="${2:-social-cafe}"
+	local save=()
+	if [ -n "${3:-}" ]; then
+		save=(--save "$3")
+	fi
+	pkill -f "mineworld server worlds/$world" >/dev/null 2>&1
 	sleep 1
-	"$root/target/debug/mineworld" server worlds/social-cafe --listen "$address" --agent alice \
-		>> "$1" 2>&1 &
+	"$root/target/debug/mineworld" server "worlds/$world" --listen "$address" --agent alice \
+		${save[@]+"${save[@]}"} >> "$1" 2>&1 &
 	server=$!
 	sleep 2
 }
@@ -79,6 +87,21 @@ evidence)
 		echo "--- $transcript ---"
 		grep '^\[demo\]' "$here/evidence/$transcript.log" | tail -12
 	done
+	;;
+affordances)
+	# Market Town, because it offers complete affordances (buy, give) at genesis; saved, so that
+	# frames carry a revision. The save is scratch and is removed whatever the outcome.
+	scratch="$(mktemp -d)"
+	: > "$here/evidence/server-affordances.log"
+	start_server "$here/evidence/server-affordances.log" market-town "$scratch/save"
+	godot --headless --path "$here" --script res://checks/affordances_check.gd -- \
+		--address "$address" --seat visitor > "$here/evidence/affordances-market-town.log" 2>&1
+	outcome=$?
+	stop_server
+	rm -rf "$scratch"
+	grep '^\[check\]' "$here/evidence/affordances-market-town.log"
+	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/affordances-market-town.log" && outcome=1
+	exit "$outcome"
 	;;
 play)
 	start_server "$here/evidence/server.log"

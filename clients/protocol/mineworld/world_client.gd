@@ -20,10 +20,11 @@ extends Node
 ## [b]What this module knows, and what it must never learn.[/b]
 ##
 ## [codeblock]
-## it knows    the frames, the handshake, the seat, the sequence number, the correlation token,
-##             that an identity is a string, that every other number is an integer, that
-##             `action_type` appears twice and must agree, and that the actor is this
-##             connection's observer
+## it knows    the frames, the handshake, the seat, the sequence number, the persisted revision a
+##             frame names, the correlation token, that an identity is a string, that every other
+##             number is an integer, that `action_type` appears twice and must agree, that the
+##             actor is this connection's observer, and how to send a complete affordance as it
+##             was offered
 ## you know    which action you are submitting and what its payload means, how the world looks,
 ##             and what a key press or a click means
 ## NEITHER     whether an action is allowed. That answer is in the observation, computed by the
@@ -100,6 +101,14 @@ var latest: MineWorldObservation = null
 ## The sequence number of [member latest]. Frames are numbered from 1 on each connection.
 var sequence: int = 0
 
+## The persisted revision of the world that [member latest] was computed from: an `int`, or `null`
+## for a world that is not persisted (`PROTOCOL.md` §5).
+##
+## Set from the welcome's `world.revision`, then from every observation frame that is not stale, so it
+## always belongs with [member latest]. Two clients told the same instance and the same revision are
+## looking at one committed state of one world — `AC-15`'s fourth line of evidence.
+var revision: Variant = null
+
 ## How many observations arrived out of order and were dropped. Normally zero.
 var stale_observations: int = 0
 
@@ -122,6 +131,7 @@ func connect_to_world(address: String, seat_name: String) -> void:
 	world = {}
 	latest = null
 	sequence = 0
+	revision = null
 	_url = _websocket_url(address)
 	var opened := _socket.connect_to_url(_url)
 	if opened != OK:
@@ -146,7 +156,8 @@ func connect_to_world(address: String, seat_name: String) -> void:
 ##                  first action (FINDINGS.md F4)
 ## [/codeblock]
 ##
-## `payload` is the owning system's own shape, and its numbers are yours to make integers — use
+## `payload` is the owning system's own shape — normally a Dictionary, but any JSON value the system
+## accepts — and its numbers are yours to make integers — use
 ## [method MineWorldSpace.millimetres] and friends. `actor_location` is a *report* and may be `null`:
 ## a 3D client sends the position it walked to, a 2D client that models no position sends nothing,
 ## and the server evaluates its own authoritative state either way.
@@ -155,7 +166,7 @@ func connect_to_world(address: String, seat_name: String) -> void:
 func submit(
 	action_type: String,
 	target: Variant = null,
-	payload: Dictionary = {},
+	payload: Variant = {},
 	actor_location: Variant = null,
 ) -> String:
 	if state != State.SEATED:
@@ -173,6 +184,66 @@ func submit(
 	_send({ "t": "submit", "token": token, "request": request })
 	submitted_request.emit(token, request)
 	return token
+
+
+## Submits a complete affordance exactly as the world offered it, and returns the token.
+##
+## [codeblock]
+## for offered in world.latest.complete_affordances():
+##     ...show it; when chosen:
+##     world.submit_affordance(offered)
+## [/codeblock]
+##
+## The request is the affordance's own `action_type`, `target` and `payload`, labelled and sent by
+## [method submit], so a client submits it without knowing what the action is
+## (`docs/DECISIONS.md` `ARC-34`). It is sent **whether or not the affordance is available**: an
+## offer is not a permission, the world may have changed since the observation, and the server
+## answers either way. Deciding not to ask is the client implementing the rule.
+##
+## "Unchanged" means the JSON the server sent, which includes its integers. Godot parses every JSON
+## number as a double, so an offered `"count": 1` arrives as `1.0`, would go back out as `1.0`, and
+## would be refused by a contract that declares an integer (`ADOPTION.md` §3.2). Every whole number
+## in the payload is therefore sent as an integer again — which is what it was on the wire; a field
+## the system declares as a float accepts an integer just as well.
+##
+## Returns `""` and sends nothing when the affordance is not complete — it carries no `payload`, so
+## there is nothing to send unchanged — or names no action type, or when the connection has no seat.
+func submit_affordance(affordance: Dictionary, actor_location: Variant = null) -> String:
+	var action_type: Variant = affordance.get("action_type")
+	if typeof(action_type) != TYPE_STRING or String(action_type).is_empty():
+		push_warning("[mineworld] submit_affordance: not an affordance (no action_type)")
+		return ""
+	if not MineWorldObservation.is_complete(affordance):
+		push_warning("[mineworld] submit_affordance: '%s' is not complete; compose and submit()" % [
+			action_type,
+		])
+		return ""
+	return submit(
+		action_type, affordance.get("target"), _as_sent(affordance["payload"]), actor_location
+	)
+
+
+## A parsed JSON value with every whole-number double turned back into the integer it was on the
+## wire. Identities are strings and pass through untouched (`PROTOCOL.md` §7).
+static func _as_sent(value: Variant) -> Variant:
+	match typeof(value):
+		TYPE_FLOAT:
+			var number: float = value
+			if is_finite(number) and number == floorf(number) and absf(number) <= 9007199254740992.0:
+				return int(number)
+			return number
+		TYPE_DICTIONARY:
+			var copied := {}
+			for key in value:
+				copied[key] = _as_sent(value[key])
+			return copied
+		TYPE_ARRAY:
+			var listed := []
+			for entry in value:
+				listed.append(_as_sent(entry))
+			return listed
+		_:
+			return value
 
 
 ## Closes the connection. The world keeps running: a client is a spectator with a request channel,
@@ -268,6 +339,7 @@ func _welcome(frame: Dictionary) -> void:
 	# — measured, not theoretical (`spike/FINDINGS.md` F1, F2, `PROTOCOL.md` §7).
 	observer = String(frame.get("observer", ""))
 	world = frame.get("world", {})
+	revision = _revision_of(world)
 	state = State.SEATED
 	welcomed.emit(seat, observer, world)
 
@@ -285,6 +357,7 @@ func _observation(frame: Dictionary) -> void:
 		push_error("[mineworld] an observation frame carried no observation")
 		return
 	latest = MineWorldObservation.new(observation)
+	revision = _revision_of(frame)
 	observed.emit(latest)
 
 
@@ -297,6 +370,15 @@ func _send(frame: Dictionary) -> void:
 func _close(reason: String) -> void:
 	state = State.CLOSED
 	disconnected.emit(reason)
+
+
+## A frame's `revision`, as an `int`, or `null` when the world is not persisted.
+##
+## A revision is a counter, not an identity, so reading it through JSON's double is exact far beyond
+## any revision a world reaches (`PROTOCOL.md` §7 keeps only identities as strings).
+static func _revision_of(holder: Dictionary) -> Variant:
+	var named: Variant = holder.get("revision")
+	return null if named == null else int(named)
 
 
 ## `host:port`, `ws://host:port` or a full `ws://host:port/ws`, as the one route the server upgrades
