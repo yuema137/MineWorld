@@ -1241,11 +1241,25 @@ before code (`CLAUDE.md` §2.2). Markdown only.
 **Scope.** Root `Cargo.toml` `[workspace.package] version = "0.1.0"`; `Cargo.lock` regenerated (every
 workspace package's version line, nothing else).
 
-- [ ] Implementation: the one line; `cargo check --workspace` regenerates the lock.
-- [ ] Validation: `git diff --stat` shows `Cargo.toml` and `Cargo.lock` only, the lock's hunks all
-  `version = "0.0.0"` → `"0.1.0"` of `mineworld-*` packages; EA-6 base-versus-this-commit (both towns,
-  300 days, seed 7; seed-8 control); `cargo test -p mineworld-acceptance` (AC-1, both scans).
-- [ ] Review: no crate states its own `version`; `spike/server` keeps its own `0.0.0` (outside the
+- [x] Implementation: the one line; `cargo build -p mineworld-cli` regenerated the lock (2 m 20 s).
+  `mineworld --version` → `mineworld 0.1.0`.
+- [x] Validation (E-Ea3): `git diff --stat` → `Cargo.toml` 1 line, `Cargo.lock` 26 lines changed:
+  26 × `version = "0.0.0"` → `"0.1.0"`, one per workspace member (26 members), nothing else. EA-6 base
+  (47c81d1, built into `target/ea-base`) versus this commit, sha-256 of every line but `wall`:
+  social-cafe seed 7 `ad49c7235f672153…16c64b` = base = E-0 of step-10; market-town seed 7
+  `365b50e066387959…5391d1d` = base; the seed-8 control `7b630b4b459c5538…690602a` ≠ seed 7, so the
+  comparison sees a change. `validate` of the three worlds: byte-identical (`cmp`). EA-7: the version
+  moved and no digest did. `cargo test -p mineworld-acceptance`: ac1_composability 13 passed (the
+  file's 15 `#[test]` lines include two inside fixtures/comments; the harness runs 13), 0 failed,
+  0 ignored, 0 filtered; arrival_resolvers 7; arrival_resolvers_unregistered 2; complete_affordances 4;
+  precursor_vocabulary 4; seam_vocabulary 3; arrival_resolvers_resume (harness = false) PASS.
+  - **Finding F-Ea1 (the guard worked).** The first acceptance run FAILED check 2: "packages/tests/
+    identity.rs:64 names mineworld-item-transfer" — Ea-C2's id-rule test listed a market crate's name
+    outside `systems/`, `worlds/`, `tests/acceptance/`, the bullet-3 hazard §14.3 predicted. Not a
+    defect of AC-1 and not material: fixed in the test (another shipped name, same claim) as its own
+    commit before this one; re-run 13 passed. Ea-C2's ledger did not run AC-1 — a gap: every later
+    commit runs `-p mineworld-acceptance`.
+- [x] Review: no crate states its own `version`; `spike/server` keeps its own `0.0.0` (outside the
   workspace, not a pack).
 
 ### Ea-C4 — Every pack declares its identity

@@ -20,7 +20,7 @@ resolver = "2"
 # Shared metadata: every crate in this workspace is part of one release unit, so the
 # version, edition and license live here rather than being restated per crate.
 [workspace.package]
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.97.1"
 license = "MIT"
