@@ -6568,6 +6568,16 @@ most 1 % of them differ from Rapier's by more than 50 mm on an axis, each such o
 re-capture rule (ZR-1 … ZR-5) applies once, for SD-Z3, SD-Z4 and SD-Z5 together. TZ-4 and M-Z3 stand
 as tests of SD-Z3's rule (Class R's ZR-1 net), not of byte-identity.
 
+**Amendment (2026-10-08, primary session's ruling on §20.13 Z-D4): SD-Z1 is dropped.** Evidence E-Z2:
+SD-Z1 is not result-preserving at any provable margin (Rapier's controller depends on colliders far
+from what a stride touches), and it buys no measurable CPU on the prototype (30 days: 8.95 s base, 9.17 s
+with SD-Z1). As Class R it would be a change of results without a benefit. Class I is now SD-Z2 alone;
+Class R is SD-Z3, SD-Z4 and SD-Z5. ZC-3, `REACH_MARGIN`, TZ-3, M-Z1 and M-Z2 are withdrawn. The kept
+patch (`/tmp/s15-12d0/sd-z1-reverted.patch`) is reference only. Per `ARC-23` ("locate before counting"),
+the ZC-1 profile (Z-D3) is taken before ZC-4, and ZC-4 starts only if the profile's estimate says SD-Z3
+and SD-Z4 (with §20.7's ladder) can plausibly reach TZ-9's 1.5 ×; otherwise stop and report. TZ-9's
+bound is unchanged.
+
 Towns: neither installs bodies before 12d, so social-cafe's and market-town's 300-day digests are
 unchanged by 12d-0 in every class (TZ-1).
 
