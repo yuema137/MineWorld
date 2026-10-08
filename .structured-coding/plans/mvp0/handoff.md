@@ -38,14 +38,31 @@ STOP CONDITIONS     normal: PR 11f READY FOR OPERATOR REVIEW — DO NOT MERGE. M
 
 ## Current checkpoint
 
-P-C1 … P-C7 done and pushed (head a7ea13f); evidence §9.6 E-P0 … E-P7; deviations §4.6.8 DP-1 …
-DP-7. market_town runs used 5 of 6. Next: P-C8 — MVP_STATUS, HUMAN_REVIEW_QUEUE, market-town README,
-then the full gate once (background), P-9 comparisons, PR.
+**READY FOR OPERATOR REVIEW. Context CLOSED / AWAITING OPERATOR ACTION.** P-C1 … P-C8 done.
+Final executable head e9f88dc (main @ 690c9d0 merged in, as instructed); gates on it in step-10
+§9.6 E-P-final: 526/0, 166 s. Later commits are Markdown only. Deviations §4.6.8 DP-1 … DP-9 —
+DP-5 (alice is never `present: true` at a shift start; work located by her arrival during the shift)
+is the one to read. Scratch branches deleted; nothing on origin named scratch.
 
 ## Next actions
 
-P-C8: documents (SD-37, QS-65 wording), full gate, P-9, PR READY FOR OPERATOR REVIEW (merge commit).
+- Operator reviews the PR; merge **with a merge commit**. The primary session runs
+  `cargo test -p mineworld-acceptance --test ac1_composability` on `main` itself after the merge.
+- Post-merge (planning session, §4.6.6 and §17 POST-MERGE SYNC): the step header, overall §7,
+  MVP_STATUS's Updated line and S9 row (DP-8), and the S9 closeout record:
+  - AC-1 demonstrated as ARC-35 measures it, within ARC-33's static-linking boundary, once
+    ac1_composability passes on main with full history (operator acceptance: QS-65, with a short
+    runnable checklist);
+  - AC-2 confirmed for the six market packs at world level (P-7);
+  - CP-4 a committed 300-day test (P-5);
+  - Milestone C demonstrated, awaiting the operator's review;
+  - F-47 (one section per pack), F-48 (one unavailability reason per offer), F-41 (no names for item
+    kinds/organizations), L-12 (walking pace vs routine length), L-13 (bounded-horizon economy),
+    relationship saturation, QS-10 (`sleep`, needs), F-58 (check 2 reads normal + build edges,
+    QS-54), S13 (CI must fetch full history, fetch-depth 0);
+  - new from 11f: DP-5 — `shift-started.present` is false whenever routine and shift begin at the
+    same minute; a fact about Market Town's content, not changed here (I-9).
 
 ## Background processes
 
-None recorded yet.
+None. Logs under /tmp/s9-11f/ (final gates in final/ and final2/).

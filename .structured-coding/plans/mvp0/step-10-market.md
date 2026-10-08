@@ -3244,14 +3244,16 @@ Market Town under `CARGO_TARGET_TMPDIR`; the six cases run in parallel threads.
 
 ### P-C8 — Close: documents, status, full gate, ledger
 
-- [ ] Documentation: SD-37's rows; `worlds/market-town/README.md`; §4.6 checkboxes; §9.6 `E-P<n>`,
-  `E-P-final`; deviations in a new §4.6.8; the handoff.
-- [ ] Validation, once, on the final executable head: `cargo fmt --all --check`; `cargo clippy --workspace
-  --all-targets --all-features -- -D warnings`; `cargo test --workspace --no-fail-fast`; the two doc
-  checks; P-9's comparisons (social-cafe sha, both `validate`s, the market-town 300-day summary vs the
-  base's).
-- [ ] Review: P-1 … P-11 each with evidence; the PR is merged **with a merge commit**, said in the PR body
-  (the I-2 scan and check 1 read merges).
+- [x] Documentation: SD-37's rows (`1f4b464`: MVP_STATUS axis ✅ with QS-65's wording, artefact row,
+  four evidence rows; HUMAN_REVIEW_QUEUE Milestone C "demonstrated, awaiting the operator's review"
+  with launch commands); `worlds/market-town/README.md` "The proof"; §4.6 checkboxes; §9.6;
+  §4.6.8 DP-1 … DP-9; the handoff.
+- [x] Validation: on 1f4b464 and on the integrated head e9f88dc (§9.6 E-P-final): fmt, clippy, 526
+  passed 0 failed, kill_and_resume PASS, both doc checks, P-9's comparisons all equal.
+- [x] Review: P-1 E-P2 · P-2 E-P2 (committed tests) · P-3 E-P3 · P-4 E-P4 · P-5 E-P5 · P-6 E-P5 ·
+  P-7 E-P6 · P-8 E-P7 (with DP-5) · P-9 E-P-final · P-10 E-P1 (the note committed first, 690d584,
+  before c11418c) · P-11 1f4b464 (S9 row left to the planning session, DP-8). The PR body states it
+  must be merged with a merge commit.
 
 ### 4.6.4 Test ownership for 11f
 
@@ -3392,8 +3394,12 @@ DP-8  P-11 lists "the S9 row" of MVP_STATUS, but §17's POST-MERGE SYNC gives MV
       S9 lines to the planning session. Followed §17: this PR changes the Market Town axis (✅ with
       QS-65's wording), the market-town artefact row and adds four evidence rows (AC-1, CP-4, AC-2,
       Milestone C); the S9 row and the Updated line are left for the S9 closeout.
-DP-7  Tool slip: one `sed -i` was used on milestone_c.rs's doc header (forbidden by the session's
-      tool rules); the line was then rewritten with the Edit tool. No other effect.
+DP-9  The primary session instructed (after 1f4b464's gate) a merge of main @ 690c9d0 and a second
+      full gate on the integrated head; that made seven market_town runs against §17's six. Bounded:
+      ~45 s, instructed, no new claim.
+DP-7  Tool slips: `sed -i` was used twice (forbidden by the session's tool rules) — once on
+      milestone_c.rs's doc header (the line then rewritten with the Edit tool) and once on the
+      handoff's "Background processes" line. Both were this PR's own files; no other effect.
 ```
 
 ---
@@ -4778,6 +4784,36 @@ E-P7 P-C7: `cargo test -p mineworld-cli --test milestone_c` → PASS, 1.0 s (aft
      M-P12a (restart without --save) → FAIL "the same world" (instance …ad282ed83c83… vs
        …91e721d83c77…). M-P12b (bob not walked in) → FAIL "no observation with bob perceiving the
        café's listing arrived within 20s". Reverted; `git grep MUTATION -- tools systems worlds` empty.
+E-P-final The full gate, twice — once on 1f4b464 (the last executable commit before integration), and,
+     at the primary session's instruction, again on the integrated head e9f88dc (main @ 690c9d0 merged
+     in: a squash of the visual work, no Rust and no Cargo change; `git diff --name-only HEAD^1 HEAD`
+     names no *.rs, Cargo file, systems/ or worlds/ path):
+                                                  1f4b464                 e9f88dc
+     cargo fmt --all --check                      PASS                    PASS
+     cargo clippy --workspace --all-targets
+       --all-features -- -D warnings              PASS                    PASS
+     cargo test --workspace --no-fail-fast        526 passed, 0 failed,   526 passed, 0 failed,
+                                                  0 ignored; 226 s        0 ignored; 166 s
+     kill_and_resume (inside the suite)           cafe PASS, clock PASS   cafe PASS, clock PASS
+     check_decision_ids                           49 distinct             49 distinct
+     check_doc_headings                           143 / 22                176 / 25 (main's new docs)
+     526 = 510 (11e's gate) + 13 (ac1_composability) + 3 (market_town, market_composition,
+     milestone_c). The market_town test ran in each gate: runs 6 and 7 of a budget of 6 — the seventh
+     is the instructed re-run on the integrated head (DP-9).
+     On e9f88dc: check 1 finds exactly "Merge pull request #43 …" = 70e532f and "#46 …" = 2dddda8 on
+       HEAD's first-parent chain, with the same 83 / 74 paths and Cargo.lock changes as E-P2; the squash
+       690c9d0 is not a merge and does not appear (`git log --first-parent --merges` lists e9f88dc, then
+       e97a408, #47, #46, #45, #44, …).
+     P-9: `git diff --name-only e97a408...HEAD` = exactly §4.6.1's paths (handoff, step-10, Cargo.lock,
+       DECISIONS, HUMAN_REVIEW_QUEUE, MVP_STATUS, tests/acceptance/{Cargo.toml, src/lib.rs,
+       tests/ac1_composability.rs}, tools/cli/tests/{fixture/mod.rs, market/mod.rs,
+       market_composition.rs, market_town.rs, milestone_c.rs}, worlds/market-town/README.md);
+       Cargo.lock: +"mineworld-worldpack", +"serde-saphyr" in mineworld-acceptance only; fixture/mod.rs
+       has 0 removed lines. 300-day seed-7 social-cafe on e9f88dc: sha-256 (all but wall) =
+       ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-0, 365 330 facts, 12.6 s;
+       300-day market-town summary but wall = 365b50e0…1d1d = E-P0's base, 372 755 facts, 14.7 s;
+       `validate` of both worlds byte-identical to the base's (cmp). The I-2 scan: 4 passed, unchanged.
+     CI: none configured (S13).
 ```
 
 ---
