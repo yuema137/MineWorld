@@ -33,7 +33,7 @@ use mineworld_rule_controller::PacedRuleController;
 use mineworld_server::WorldInstanceId;
 use mineworld_worldpack::WorldPack;
 
-use crate::described;
+use crate::{described, saved_genesis};
 
 /// How often each seat is consulted: every fifteen simulated minutes. Ten in S7 (step-08 HD-2); raised
 /// when the twelve-person town made one 300-day debug run take 77 s, under the rule that the pace
@@ -236,6 +236,8 @@ impl Begun {
         let genesis = genesis_instant(&backend)?;
         let head = backend.head().map_err(stopped)?;
         let head_was_a_request = head_input(&backend, head)?;
+        pack.check_configuration(&saved_genesis(&backend).map_err(stopped)?)
+            .map_err(described)?;
         let composed = pack.compose().map_err(described)?;
         let (world, resumed) =
             PersistentWorld::resume(Box::new(backend), composed.world).map_err(stopped)?;

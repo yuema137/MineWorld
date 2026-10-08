@@ -1185,9 +1185,23 @@ two-line follow-up if the primary session prefers.
   - the binary-level refusals of IA-3;
   - the three worlds' `validate` output byte-identical (IA-1, last line).
 
-- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-cli`; the existing restart tests
-  (`restart.rs`, `run_restart.rs`, `bodies_yard_restart.rs`) unedited and passing · [ ] Review: `server/`
-  untouched; each call precedes resume or verify.
+- [x] Implementation: `main.rs` — `saved_genesis(&SqliteBackend) -> Result<Vec<EventEnvelope>,
+  PersistError>` (decodes `facts_of(GENESIS)` with `persistence::format::decode`, as `genesis_instant`
+  does; each caller maps the error its own way, D-12); one `check_configuration` call in `persisted`
+  after opening the save and before `PersistentWorld::resume`; one in `replay` before `compose` and
+  `verify`. `run.rs` — one call before `compose`/`PersistentWorld::resume` in `Begun::new`'s resume
+  branch. Done on the merged base (main @ f842c52, S11-A's `main.rs`, D-13). New
+  `tools/cli/tests/configure.rs`: the structural test (IA-4 b) over the three functions' bodies, and
+  `validate` refusing six reachable mistakes by name, naming the file, exit non-zero.
+- [x] Validation (E-IA-6): `cargo test -p mineworld-cli --test configure` 2 passed; `restart` 1,
+  `run_restart` 2, `server_command`-independent `bodies_yard_restart` 2 (and `run_restart` 2) — the
+  restart tests, unedited, pass (57.6 s, 33.0 s wall). M-IA4b (run.rs's call removed) → FAILS "run.rs
+  `fn new(..)` never checks the configuration"; reverted, `git grep MUTATION` empty. Clippy `-D warnings`
+  workspace and fmt clean. The three worlds' `validate` byte identity is E-IA evidence (C4, C8), not a
+  test, because a test holding it would need a frozen copy of today's output (D-12).
+- [x] Review: no file under `server/` differs from `origin/main` (the server diff against 0d35d6b is
+  S11-A's, merged); each call precedes resume or verify; the check reads the save through the backend's
+  existing `facts_of`, nothing in `persistence/` changes.
 
 ### IA-C7 — The proof with test-only packs; the vocabulary scan
 
@@ -1352,4 +1366,10 @@ D-10 (bounded) compare's filter is a BTreeMap<EventTypeId, SystemId> (the union 
 D-11 (bounded) M-IA1's literal form ("one empty configuration emission per enabled capability") cannot be
      built: no installed pack declares a configuration fact type. Realized as one extra genesis emission
      at the configuration position, which is what the mutation is for (does the instrument see genesis).
+D-12 (bounded) saved_genesis returns PersistError, not String, so the server path can wrap it in HostError
+     and the others format it; tools/cli/tests/configure.rs does not hold the three worlds' validate bytes
+     (that would freeze a copy of today's output in a test); IA-1's cmp against E-IA-0 holds it.
+D-13 (coordination) origin/main (S11-A, #76, f842c52) was merged into the branch before IA-C4 (6ed1eea),
+     clean; S11-A touches server/, clients/ and tools/cli/src/main.rs, none of the simulation paths, so
+     E-IA-0 (captured on 0d35d6b) remains the IA-1 reference.
 ```
