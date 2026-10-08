@@ -464,3 +464,218 @@ Sources checked 2026-10-08:
 [gdext](https://github.com/godot-rust/gdext) ·
 [YATI](https://github.com/Kiamo2/YATI) ·
 [LDtk importer](https://github.com/heygleeson/godot-ldtk-importer).
+
+---
+
+## 6. Requirements S12 places on other steps
+
+S11 owns the wire protocol (`PROTOCOL.md`); S12 consumes it and designs none of it. Each requirement
+below states the **need** and the **minimal shape the 2D client can consume**; the frame design is
+S11's, and the primary session reconciles. "Blocks" names the S12 PR that waits on it.
+
+### 6.1 On S11 (protocol and server)
+
+| ID | Need | Minimal shape S12 can consume | Blocks |
+| --- | --- | --- | --- |
+| **R-S11-1** | **Authentication** (`NETWORKING.md` §9: invite token + nickname). The client's join screen must collect and send both. | The join frame carries the token and a nickname alongside `seat`; a wrong or missing token is a `refused` with a **distinct code** (e.g. `bad_token`) the client can branch on; the welcome echoes the nickname. The client must be able to list a world's seats **with the same credentials it joins with** (today `GET /status`), so the seat picker works on a protected server. A server started without a token keeps accepting a join without one (localhost play stays one command). | 13e |
+| **R-S11-2** | **Seat occupancy**, so two players cannot drive one Person by accident, and a reconnecting player is not locked out by their own dead connection (A-17). | A join to a seat another live connection holds is `refused` with a distinct code (e.g. `seat_occupied`). A join presenting the **same credentials** as the holder replaces the holder (the old connection is closed with a reason the client can show). The seat listing says which seats are free. | 13e |
+| **R-S11-3** | **Human takeover of an agent-driven Person** (`AC-5`), seen from the client. | Joining a seat an agent drives succeeds, and the agent stops acting for it while the human holds it; whether it resumes on leave is S11's. The client needs no new frame; an optional welcome field saying a controller was replaced lets it show "you have taken over Alice". | 13e (shown), 13f (asserted) |
+| **R-S11-4** | **Events in observations**, so a player sees what happens around them: NPCs talking to each other, an activity starting, an object flying along its `path` (A-27), a shove. Rev 1 leaves `events` empty (A-20). | `observation.events` lists facts public at the observer's place (`Visibility`) that the observer has not yet been sent, each with its `EventId` **as a string**, its event type id, `at`, the place, the `ActionId` that caused it when there is one, and the owning pack's payload as JSON. At-least-once within a bounded window is enough: the client de-duplicates by id. A bound per frame is fine; a dropped event must not be silently presented as complete (a count of omitted events suffices). | 13d (animation), 13e (bubbles) |
+| **R-S11-5** | **Revision discipline.** The shared module refuses an unknown `protocol` (A-10). | Additive fields stay within revision 1 (as `revision` and `payload` did); anything a rev-1 client would misread raises `protocol`, and the PR that raises it updates `clients/protocol/mineworld/` in the same change (M-5). | all |
+| **R-S11-6** | **A time scale for hosted worlds**, so a demo shows a working day in minutes (A-19). | A server option setting world seconds per real second (default 1, so nothing changes unless asked), reported in the welcome/status summary so the client can tick its clock display smoothly between frames. | 13e, 13f |
+| **R-S11-7** | **Deltas: none needed.** Whole observations at 10 Hz carry a dozen people comfortably. | If S11 introduces deltas, they are either opt-in at join or reassembled inside the shared module, so `MineWorldObservation` stays whole and `ADOPTION.md` §3.4 ("render the newest observation, an observation is exhaustive") stays true. | — |
+| **R-S11-8** | **Admin frames: none needed.** The reference client is played from inside a Person; it is not a dashboard (`ENGINEERING_RULES.md` §1). | — | — |
+| **R-S11-9** | **Stable refusal codes and the frame `revision`** stay as rev 1 has them. | — (already true; recorded so a redesign keeps them). | — |
+
+### 6.2 On S10 (controllers), or S11 — the primary session assigns
+
+| ID | Need | Minimal shape | Blocks |
+| --- | --- | --- | --- |
+| **R-S10-1** | **Hosted agents that take initiative** (A-18). Demo A's "agent controllers" and a living town. | `mineworld server <world>` can drive its unoccupied seats with the paced rule controller in real (scaled) time, through the same seat path (`INV-1`), and yields a seat a human joins (with R-S11-3). | 13e, 13f |
+
+### 6.3 On System Packs — framework PRs, outside the client PRs
+
+These are world semantics, not renderer accommodations: what a person standing in the street can see
+on a sign, and what a thing is called. Neither touches `contracts/` or `kernel/` (`INV-14` holds).
+PR 13c carries them (§9), unless the primary session places them elsewhere.
+
+| ID | Need | Proposed route | Constraint |
+| --- | --- | --- | --- |
+| **R-PK-1** | **A doorway says where it leads** (A-23): the destination's tags. | `movement`'s `passages` disclosure joins each destination's tags into its `leads_to` entry, from current state at disclosure (F-O5's precedent). Additive to the disclosed JSON; no fact changes, so no digest changes. | The paced controller reads `passages` (`cognition/rule-controller/src/{agenda,paced}.rs`): its decoder must tolerate the added field, and the 300-day digests must be shown unchanged. |
+| **R-PK-2** | **Item kinds have names** (F-41, A-24). | `item`'s own `item:` section gains a `name`; `item` discloses, on every perceived place, a catalogue of declared kinds `{item, category, name}`. A client resolves any item id it meets — in holdings, a listing, a payload, a loose object — through it. | Keeps AC-1 check 3 (A-25: `item:` is owned by one of the six). **Changes genesis facts, hence both towns' digests** — see QS12-3. Organization names are not needed by any Demo A interaction and stay out. |
+
+---
+
+## 7. Changes to the shared GDScript module `clients/protocol/mineworld`
+
+Live in the 3D client the moment they merge (symlink, A-10). Every change below is **additive**; none
+changes the meaning of an existing method. Each lands with the 3D slice's `--drive` and the protocol
+demo's `run.sh evidence` re-run on the PR head, and is coordinated with S14 and S15's 12e, which also
+edit `ADOPTION.md`.
+
+| ID | Change | Why | PR | Coordination |
+| --- | --- | --- | --- | --- |
+| **M-1** | `MineWorldObservation.choices(action_type := "", target: Variant = null) -> Array` — every affordance matching, in list order, both kinds; `""` matches any type. `MineWorldObservation.is_complete(affordance) -> bool` (has `payload`). | A-11 / QS-20: `affordance()` returns only the first match. | 13b | S14 may use it; 12e unaffected. |
+| **M-2** | `MineWorldClient.submit_affordance(affordance: Dictionary, actor_location: Variant = null) -> String` — submits `action_type`, `target` and `payload` exactly as offered. `submit`'s `payload` parameter widens from `Dictionary` to `Variant` (source-compatible for every existing caller). | ARC-34's "submit it unchanged" as one call that cannot be got wrong; A-12. | 13b | 12e's kick/shove can use it. |
+| **M-3** | `MineWorldClient.revision: Variant` (an `int` or `null`), set from every observation frame's `revision`; `ADOPTION.md` §2 documents it. | A-13: persistence and `AC-15`'s fourth line made visible to a client. | 13a | S14's `AC-15` evidence. |
+| **M-4** | `ADOPTION.md` §6 gains the reconnect pattern of §4.6 (re-join the seat, compare `instance`, never replay an unanswered request) as guidance; the module stays policy-free. | A-14. | 13a | S14 adopts the same pattern. |
+| **M-5** | Join credentials: `connect_to_world(address, seat, credentials: Dictionary = {})`, with the fields S11 decides (R-S11-1), and any protocol-number change (R-S11-5). | R-S11-1. | 13e, or S11's own PR | **Shape owned by S11.** Whichever PR changes the join frame changes the module. |
+| **M-6** | `MineWorldObservation.events()` already exists; if S11's events (R-S11-4) are not a plain array in `observation.events`, the reader follows S11's shape. De-duplication by id stays in the client. | R-S11-4. | S11's PR or 13d | Owned by S11's shape. |
+| **M-7** | `ADOPTION.md` §2–§4: document M-1–M-3, the composed/complete distinction of §4.4, and that an offered action a client cannot compose is shown, not guessed. | Keep the specification of the module current. | 13b | 12e adds the 150 mm reconciliation rule to §4 in the same file — sequence the two edits. |
+
+**Not changed:** `space.gd` (the isometric projection is the 2D client's, §4.2), `demo.gd` and
+`run.sh` (they stay the minimal reference and the `AC-13` evidence source until S14 switches it to the
+real clients, QS12-14).
+
+---
+
+## 8. Invariants and the adversarial checks
+
+### 8.1 Invariants of this step
+
+| ID | Invariant |
+| --- | --- |
+| **I-1** | **No world rule in the client.** It never decides whether an action exists, is available, is near enough, is permitted or would succeed; it never refuses to submit what the player chose. Distances it computes are request sizes (stride splitting), route planning and drawing — each named in one file. |
+| **I-2** | **A client acts and never asserts** (`INV-5`, `INV-9`). It sends `join` and `submit` only, through the shared module; nothing it holds is world state, and its layout cache (§4.3) is presentation memory dropped with the instance. |
+| **I-3** | **Packs it was never written against work.** A complete affordance from any pack is shown and submitted unchanged; an unknown own component is shown raw; an unknown composed action is shown greyed as unsupported, never guessed. |
+| **I-4** | **The client is removable.** Client PRs (13a, 13b, 13d, 13e, 13f) change nothing under `kernel/`, `contracts/`, `systems/`, `server/`, `worldpack/`, `persistence/`, `authoring/`, `sdk/`, `cognition/`, `worlds/`. Framework needs go through §6, in their own PRs. |
+| **I-5** | **Presentation independence.** The same scripted drive against the same world submits the same requests (by semantic core, `server/src/parity.rs`) with the default pack, with each `ARC-14` variant and with no pack. |
+| **I-6** | **Identity is a string; every other number is an integer** (`ADOPTION.md` §§3.1–3.2). |
+| **I-7** | **Only the perceived is drawn.** No person, object or state appears that the newest observation did not list; what it does not list is removed. |
+| **I-8** | **Existing behaviour is unchanged by client PRs.** Both towns' 300-day digests, `ac1_composability`, the protocol demo evidence and the 3D slice's drive all still pass on each client PR's head. |
+| **I-9** | **Headless-runnable.** The client's scripted drive runs with `--headless` and exits non-zero on failure; stills are behind `--capture` (A-7). |
+
+### 8.2 The adversarial "no rule in the client" check, runnable
+
+Five parts. Each is shown to **bite** on a planted violation before it is trusted (`ARC-23`).
+
+1. **Static scan — `scripts/check_client_rules.py`** (new, standard library only, reports by file and
+   line, exits non-zero):
+   - only `clients/2d/scripts/intents.gd` calls `submit(` or `submit_affordance(`;
+   - `intents.gd` and `menu.gd` never read `may(`, `"available"`, `unavailable_reason`,
+     `requirement(`, `distance_to`, `length(`, `within` in the same function that submits;
+   - only `walker.gd`, `projection.gd`, `town.gd` and `scene/` may compute distances, and none of them
+     calls `submit`;
+   - no `.gd` file outside `intents.gd` contains a string literal equal to an action type id the client
+     composes.
+   Planted violation: `if not obs.may("talk", target): return` before a submit → named failure.
+2. **The lying server.** A test-only WebSocket stub (Rust, test code in a client-scoped test file,
+   speaking rev 1) seats the scripted client and offers `talk` to a person as `available: false,
+   too_far_away`; the scripted player chooses it; the stub asserts the `submit` arrived. Inverse: it
+   offers `available: true` and answers `rejected too_far_away`; the client shows the rejection and its
+   drawn state changes only with the next observation. Planted violation as above → the first case
+   fails because no submit arrives.
+3. **The teleport.** The stub's next observation moves the observer 5 m; the client snaps to it within
+   one frame and does not submit a correcting `move` (reconciliation, not argument).
+4. **A pack the client never heard of.** Against a world composed with `tests/acceptance`'s synthetic
+   complete-affordance pack (the `ring` bell of `PROTOCOL.md` §5), the scripted player opens the menu,
+   finds `ring` with each offered payload, submits one, and the server accepts — with no client edit.
+5. **A pack removed.** Against market-town with `item-transfer` removed, the menu offers no `give` and
+   nothing else changes (`AC-2` through the client).
+
+Plus the path-scope check of I-4 on each client PR's actual merge diff, as `ac1_composability`'s check 1
+reads merge diffs.
+
+---
+
+## 9. The PR split
+
+Six PRs. Each is detailed to the commit and frozen in turn. "Now" means it can be designed and built
+against `main` and protocol revision 1 today; "waits" names the merge it needs.
+
+| PR | Scope | Starts | Integration checkpoint | Adversarial criteria |
+| --- | --- | --- | --- | --- |
+| **13a — A world you can walk** | `clients/2d/` project adopting the module by symlink; composition root; `link.gd` with the reconnect policy (§4.6); `town.gd` (place frames glued at passages, layout cache); `projection.gd` (the spike's `Iso.gd` over `MineWorldSpace`); people, places and labels; `walker.gd` (click-to-move strides, WASD reporting, doorway crossing, reconciliation on difference); the `town` art moved into `presentation/mineworld-default/2D/` with provenance and `asset_bindings.yaml` (QS12-4, QS12-10); plain fallback; `--drive`/`--capture`; the `mineworld-2d` launcher; M-3, M-4. | **Now.** | Against `mineworld server worlds/market-town --agent alice --save DIR`: the scripted client walks out of the apartments, along the street and into the café through two doorways, every stride server-accepted, and its observer's place changes twice; Alice is drawn at her server position, labelled by name. **`AC-3` end to end:** the client is SIGKILLed mid-walk; the server's revision and Alice's facts advance; the client is relaunched, re-joins, is told the same instance and a higher revision, and is drawn where the server last put it. Stills captured and inspected. | No-pack and `town` drives submit identical requests (I-5). A stride the server refuses ends the walk; the client never walks through it. Static scan parts (1) live and shown to bite. Path scope (I-4). 3D slice drive and protocol evidence unchanged (I-8). |
+| **13b — Interaction through affordances** | `intents.gd` (composers for `move`, `talk`, `invite`, accept/decline/join/leave), `menu.gd` (both kinds, greyed with reasons, submit regardless), complete affordances generic (`give`, `buy`, `eat`, `drink`), results as toasts, talk input and history, HUD readers (wallet, holdings, shop listing, acquaintances, invitations, participation, agenda, employment, raw "other"); `AC-13` request transcript; M-1, M-2, M-7. | **Now.** | Market-town through the real server with `--agent alice` and `--agent bob`: the scripted player talks to Alice and shows her reply from its own history; buys a coffee (wallet falls by the price, holdings gain one); gives it to Bob; invites Bob for coffee and a second scripted 2D client seated as Bob accepts, after which both are drawn with the participation marker (the hosted `RuleController` answers talk only, so an agent cannot accept until R-S10-1); acquaintances panel shows Alice. | §8.2 parts 1–5 all pass and each bites. The `AC-13` transcript is in demo.gd's format and `ac13_semantic_parity`'s comparison accepts it against `request-3d.json`. |
+| **13c — Names for things** (framework, packs only) | R-PK-1 in `systems/movement`; R-PK-2 in `systems/item` and `worlds/market-town/items/*.yaml`; the client reads both (a few lines in `town.gd` and `hud/readers.gd`, or in 13b/13d if they land later). | R-PK-1 **now**; R-PK-2 **waits** on QS12-3's decision about the digest re-baseline (S15 12d). | From the street, the client draws the café's façade before ever entering it; every buy, give, eat and drink entry and every holdings line shows the kind's name. | `ac1_composability` 13/13 (check 3 still holds); the paced controller's digest unchanged by R-PK-1; R-PK-2's re-baseline only as QS12-3 decides; removing `item` removes the catalogue and the client falls back to ids. |
+| **13d — Bodies in 2D** | Walls and solids drawn from `place-shape`; NavigationServer2D routes around solids; loose objects drawn from `loose-objects`; `kick`, default `throw` and `shove` through the generic complete path; aimed `throw` composed from a floor click; object animation along `path` when events exist (R-S11-4), otherwise a move to rest. | **Waits** on S15 12c (bodies-yard) and 12d (towns). | In `worlds/bodies-yard`: the scripted player walks into a box and the drawn box moves where the server says; kicks a ball; throws it at a clicked point; is shoved by an `--agent` seat and is drawn where the server put it; is stopped by a wall the server resolved. | With the client's route planning disabled, the server still stops the player at the wall and the client reconciles. No collision rule in the client: the static scan finds none. |
+| **13e — Many players, a living town** | Join screen (address, seat picker, token, nickname), occupancy and takeover messages, speech bubbles and activity notices from events, the clock at the server's time scale, M-5, M-6. | **Waits** on S11 (R-S11-1–4, R-S11-6) and R-S10-1. | Two 2D clients as two seats plus hosted agents on one persisted server: each sees the other walk; one speaks to Alice and the other sees the bubble; Alice, agent-driven, crosses the street on her own; one client takes over Bob and Bob's biography, relationships and holdings are as before (`AC-5` as seen). | A wrong token is refused by code and nothing is drawn; a second client asking for an occupied seat is refused; a reconnect with the same credentials replaces its own dead connection. |
+| **13f — Demo A proof and VIS-2D-1 package** | The Demo A acceptance run (every item of `MVP.md` §7.1, scripted, two clients and agents, SIGKILL of a client and of the server, resume); the operator's runnable checklist; the VIS-2D-1 review package (`ACCEPTANCE.md` §6) for the primary session to queue. | **Waits** on 13a–13e. | The checklist of §4.9 run end to end by the harness and by hand; persisted revision identical before and after a server restart; `AC-15`'s evidence lines read from the 2D side. | The I-4 path scan over the whole step's client merges; §8.2 re-run on the final head. |
+
+**Ordering.** 13a → 13b are the critical path and need nothing from S11; they make Demo A playable
+against today's server for one or more players (non-exclusive seats). 13c is independent of the
+client PRs. 13d follows S15. 13e follows S11. 13f closes the step.
+
+---
+
+## 10. Files touched
+
+| Path | PRs | Kind |
+| --- | --- | --- |
+| `clients/2d/**` (new: `project.godot`, `scenes/`, `scripts/`, `scripts/harness/`, `run.sh`, `evidence/`, `README.md`, `.gitignore`, symlink `mineworld -> ../protocol/mineworld`) | 13a, 13b, 13d, 13e, 13f | new |
+| `mineworld-2d` (repository root launcher) | 13a | new (adapted from the spike's) |
+| `presentation/mineworld-default/2D/` — `assets/asset_bindings.yaml`, `renderer/godot.yaml`, `art/` (the `town` subset), `LICENSES/` or provenance files, `README` updates | 13a | new files in an existing pack |
+| `clients/protocol/mineworld/world_client.gd`, `observation.gd` | 13a (M-3), 13b (M-1, M-2), 13e (M-5, M-6) | shared, additive |
+| `clients/protocol/ADOPTION.md` | 13a (M-4), 13b (M-7) | shared spec |
+| `scripts/check_client_rules.py` | 13a (introduced), 13b (extended) | new |
+| Client-scoped Rust tests (e.g. `tools/cli/tests/client_2d_*.rs`, stub server, Godot-gated runs) | 13a, 13b, 13d, 13e, 13f | new |
+| `systems/movement/src/*` (R-PK-1), `systems/item/src/*` and `worlds/market-town/items/*.yaml` (R-PK-2) | 13c | framework |
+| Markdown: this step, its PR documents, `clients/2d/README.md`; proposals in §13 applied by the primary session | all | docs |
+
+Not touched by any S12 PR: `kernel/`, `contracts/`, `server/`, `persistence/`, `worldpack/`,
+`authoring/`, `sdk/`, `cognition/`, `clients/3d-spike/` (other than through the symlinked module),
+`clients/protocol/demo/`, `space.gd`.
+
+---
+
+## 11. Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| **RK-1** | The spike's art is 101 MB (A-6); landing it bloats every clone. | Land only the `town` subset the bindings reference (≈ 17 MB: `generated`, `ground`, `interior`, `svg`), with provenance; candidates and screenshots stay on `vis/2d-generated-assets` (QS12-10). |
+| **RK-2** | A module edit breaks the 3D client live (symlink). | Additive only (§7); 3D slice `--drive` and the protocol evidence re-run on every PR head that edits the module. |
+| **RK-3** | No Godot in CI, so the client's evidence is not re-run automatically; a test not run is not a pass. | Godot-executing tests are marked and reported `NOT RUN` when Godot is absent, never green; S13 is asked to install headless Godot in a CI layer (QS12-8). |
+| **RK-4** | S11's join, events and occupancy shapes differ from §6's assumptions, forcing rework in 13e. | 13a/13b depend on nothing new; 13e is designed only after S11 freezes; §6 states needs, not frames. |
+| **RK-5** | R-PK-2 changes genesis facts, re-baselining both towns' digests, which S15 froze to happen "in 12d, and only there". | QS12-3: carry the names in 12d's re-baseline, or amend that invariant explicitly. |
+| **RK-6** | The world-driven layout (market-town's street) looks less like the references than the spike's invented square, and VIS-2D-1 regresses in taste. | QS12-1 puts the choice to the operator; the pack may dress places by tag; the street's art is decoration bound to the disclosed doorways. |
+| **RK-7** | Isometric picking is ambiguous near façades and doorways (a click may land in a building's sprite). | Pick against drawn footprints, not sprite rectangles; the drive asserts doorway crossings. |
+| **RK-8** | The client drifts into a dashboard (north star). | The camera follows the player; nothing is drawn that the player's Person does not perceive (I-7); no map of the whole town's people. |
+| **RK-9** | Without R-S10-1 the town looks dead and Demo A's "agent controllers" is hollow. | Stated as a dependency; 13a/13b use `--agent` seats and say so. |
+| **RK-10** | Concurrent edits to `ADOPTION.md` by S12, S14 and S15's 12e conflict. | §7 lists each section touched; the primary session sequences them. |
+
+---
+
+## 12. Questions
+
+Marked **[OPERATOR-MATERIAL]** where they are taste, scope, or a change to an operator decision; the
+rest are for the primary session.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QS12-1** | **[OPERATOR-MATERIAL — visual taste]** Is VIS-2D-1 judged on the connected client, laid out from the world (market-town's street, A-30), in the `town` style — replacing the spike's invented quayside square as the candidate? | **Yes.** A playable 2D scene must be a world you can play in; the invented square has no people to meet and no café to buy in. Keep the spike branch as the visual reference, unmerged. |
+| **QS12-2** | **[OPERATOR-MATERIAL — taste, and a spec wording change]** The accepted look is 2:1 isometric (`ARC-14`, A-4), while `MVP.md` §7.1 says "top-down". Keep isometric as the default, with a plain north-up plan as the no-pack mode? | **Yes**, and amend `MVP.md` §7.1's wording to "a simple Godot 2D client (isometric or top-down)". Nothing semantic depends on it. |
+| **QS12-3** | **[OPERATOR-MATERIAL — changes a frozen S15 invariant]** F-41's route (R-PK-2: a name in `item:`, a kind catalogue disclosed by `item`) changes genesis facts. Either 12d carries it inside its one re-baseline, or 13c re-baselines again and S15's "only in 12d" is amended. | **Carry R-PK-2 in 12d's re-baseline** (12d is not yet frozen); if 12d's design cannot absorb it, amend the rule with evidence. |
+| **QS12-4** | `ARC-14`'s variants: binding sets inside one Presentation Pack, or four sibling packs? | **Binding sets inside `mineworld-default/2D`** (`asset_bindings.yaml` `variants:`), `town` default, `--variant=` kept as the interface `ARC-14` names. A sibling pack remains possible for a truly different style. |
+| **QS12-5** | Names: client at `clients/2d/`, launcher `./mineworld-2d`; the spike branch is not merged. | **Accept.** `clients/3d-spike` keeps its name until S14 decides its own. |
+| **QS12-6** | `invite`'s `kind` is a free slug and the only list of kinds is the rule controller's (`coffee`, `chat`, `walk`). The human chooses how? | **Free player input with suggestions from the Presentation Pack's wording table**, like an utterance. Not a pack change: making invites complete would change the paced controller's behaviour and both digests. |
+| **QS12-7** | R-PK-1: the destination's tags joined into `passages`, an additive disclosure in `movement`. | **Accept**, in 13c, with the paced controller's digests shown unchanged. Fallback if refused: learn tags by entering (§4.3 point 3). |
+| **QS12-8** | Godot-executed tests: run how, and where? | Rust tests that spawn `godot --headless` are marked ignored-unless-Godot and documented with their exact command; evidence is committed; results are reported `NOT RUN` when Godot is absent. **Ask S13** for a CI layer with headless Godot 4.7.2. |
+| **QS12-9** | Should place-frame gluing (§4.3) live in the shared module now, for S14? | **Not yet.** 2D-only in 13a; it moves into the module by a listed change when S14 needs it with the same meaning. |
+| **QS12-10** | Art on `main`: only the `town` subset, plain Git, no LFS? | **Yes** (≈ 17 MB, RK-1), with per-asset provenance carried from the branch (`DEP-8`). |
+| **QS12-11** | **[OPERATOR-MATERIAL — scope]** Hosted agents that take initiative (R-S10-1) are not named in S10's reduced scope or in S11's output. Are they in MVP-0, and whose step? | **In MVP-0, in S10 (reduced)** — "the controller abstraction with `HumanController` and `RuleController`" hosted for real; without it Demo A's agents only answer. |
+| **QS12-12** | R-S11-6, a server time scale (default 1:1). | **Accept**; the demo needs a day in minutes, and world semantics are unchanged by how fast real time maps to world time. |
+| **QS12-13** | Where the `AC-3` end-to-end test lives. | A client-scoped Godot-gated test under `tools/cli/tests/` beside `milestone_c.rs`, driving the real binary and the real client (13a). |
+| **QS12-14** | `demo.gd` and `run.sh`: keep them as the minimal protocol reference and `AC-13`'s current evidence source? | **Keep, unchanged.** S14 decides when `AC-13` compares the two real clients. |
+| **QS12-15** | Is 13d (bodies in 2D) required for S12 to complete, given S15 says it "feeds S12 (the same three actions)"? | **Yes for bodies-yard after 12c**; for the towns, after 12d. S12 does not wait on 12e. |
+
+---
+
+## 13. Proposed edits to other documents (applied by the primary session)
+
+- **`overall.md` §3 S12:** "Depends on: S11" → "13a–13b on `main` today; 13d on S15 12c/12d; 13e on
+  S11 and R-S10-1"; link this document; list PRs 13a–13f. **§4:** `AC-3` row unchanged; add "F-41 names
+  for item kinds — S12 (13c)". **§7:** S12 entry pointing here.
+- **`docs/MVP_STATUS.md`:** the "2D client" row and the S12 row point to this step.
+- **`docs/DECISIONS.md`** (placeholders):
+  - `ARC-S12-a` — *A 2D client draws one town by gluing place frames at their disclosed passages,
+    translation only; the layout is learned presentation memory, never world state.*
+  - `ARC-S12-b` — *A Presentation Pack binds roles to art (`assets/asset_bindings.yaml`); a client core
+    names no asset; an unbound role is drawn plainly.* (First concrete content for `MODULE_SPEC.md`
+    §6.1's named file.)
+  - `ARC-S12-c` — *A client composes only the actions it knows how to ask for, submits complete
+    affordances unchanged, and decides nothing; the adversarial check of §8.2 is the test.*
+  - `DEP-S12-a` — §5's comparison and verdicts.
+- **`docs/MVP.md` §7.1:** "top-down" wording, if QS12-2 is accepted.
+- **`server/PROTOCOL.md`:** S11's, for R-S11-1 … R-S11-6.
+- **`docs/HUMAN_REVIEW_QUEUE.md`:** the VIS-2D-1 package when 13f is ready (QS12-1).
+- **`step-11-bodies.md`:** 12d's scope gains R-PK-2's re-baseline, if QS12-3 is accepted.
