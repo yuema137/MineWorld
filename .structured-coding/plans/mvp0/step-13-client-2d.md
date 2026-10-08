@@ -1266,3 +1266,55 @@ NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
   `target/tmp/mineworld-scratch-50121/2d-i5-variantprocedural`, which `check_scratch.py left` reported
   (rc 1) and which was then removed by hand. Nothing in the test can clean up after its own SIGKILL;
   the helper's `left` check is what makes such a leftover visible. Not a test defect; no code change.
+- **F-9 (found by the operator, fixed) — the room grew as the player walked to its edge.** The
+  operator, seated at carol's home by the default `./mineworld-2d`, walked toward the apartments'
+  edge and saw the room extend with them. *Root cause, two parts.* (1) Client: F-7's fix grew the
+  observer's room to hold every perceived person, the player included, so the floor followed the
+  player. (2) Server gap, not patched here: the world discloses no extent for a place (market-town's
+  `apartments.yaml` has a doorway and nothing else: "no drawn geometry yet"), and `move` bounds only
+  the stride (`MAX_STRIDE` 2 m, `systems/movement/src/action.rs`: "Nor does it see walls"). Evidence
+  (`--drive=home`): 7 strides past the drawn far wall, all accepted, carol at apartments-local
+  (2000, 14302) — 14.3 m into a room drawn 6.5 m deep. *Fix (client):* the room is drawn once, from the
+  pack's footprint at its disclosed doorway, and never resized; a room seen only from inside chooses
+  its direction once. F-7 is withdrawn: a person drawn outside a room's drawn floor now shows exactly
+  where the world put them. *Where the gap belongs:* walls and a place's walkable extent — 12d's walls,
+  or an extent `movement` can refuse against (`TooFarAway`/a new reason) — never the renderer
+  (`ENGINEERING_RULES.md` §§4, 7–9). Reported to the coordinator.
+- **F-10 (found by the operator, fixed) — no visible way out.** *Root cause:* the apartments' one
+  doorway is disclosed (`passages`: here (2000, 200) → street (-12000, 3000)), but a room drawn from
+  inside drew no door, and a click on the doorway only walked to it (`town.place_at` falls back to the
+  current place while no hub is known); the keys crossed only into a drawn footprint, of which there
+  was none outside. Every earlier drive left home through `walker.walk_to`, never through a click or the
+  keys, which is how it was missed. *Fix:* every disclosed doorway of a room is drawn (an opening, a
+  mat outside, and a "door to <place>" label); a click within 0.8 m of a doorway, or walking onto it
+  with the keys (0.6 m), asks for the crossing to its `there`. A key crossing re-arms 1 m from where
+  the body crossed, and the existing footprint crossing is gated the same way: the first fix bounced
+  the player straight back in (seen in the drive: the street accepts a position inside the
+  apartments' drawn footprint — the same server gap). *Tests:* `--drive=home` (`--exit=click|keys`) and
+  `leaves_home_by_its_door_and_the_room_stays_put`; on `b6624ad` (before the fix) all three checks
+  FAIL — no door drawn, floor 6.5 → 14.9 m deep, still at home after the click — and PASS after
+  `9e433cb`, with the save's `person-entered-place` as the independent oracle.
+- **D-14 (bounded, recorded for the operator) — S14's structural scan admits the 2D client's literals.**
+  `tests/acceptance/tests/client_rules.rs` (16a, merged to `main` after 13a froze, CI's `test` job)
+  reads every client script and admits an action-named literal only by entry; it failed on
+  `clients/2d/scripts/intents.gd` ("move", the composer — ARC-47's one submitter) and `app.gd`
+  ("invite", the join-credential option). Two entries were added, as 16a added its own; nothing else
+  in the file changed. This is outside §14.7's file list, so `--scope` now allows that one file.
+- **F-11 (found in the retaken `08_home_door`, fixed) — the player was hidden behind the building
+  just left.** A façade was y-sorted at its door's own depth, the depth of a person on its doorstep, so
+  carol, just out of the apartments, was drawn behind it. A façade is now sorted 0.6 m behind its
+  door and drawn exactly where it was (the façade-on-doorway check still measures 0.00 px). A first
+  attempt (`z_index -1`) drew the trees behind the building over its roof and was not kept.
+- **Stills after F-9 … F-11** (`2add1f3`, all retaken, every capture drive PASS): `07_home_interior`
+  (the apartments drawn 9 × 6.5 m and unchanged after carol walked 14 m north — she stands on the
+  grass beyond the far wall, which is the server gap of F-9 made visible; the door on the near wall
+  with its mat and "door to outside"), `08_home_door` (carol on the street at the apartments' door, in
+  front of the façade). With F-7 withdrawn, `05_plain` shows the café at the generic 9 × 8 m with
+  Alice on its far wall and Wes outside its east wall: where the world put them, in a room whose size
+  the world does not state.
+- **Gate on `2add1f3`** (after merging `main` @ CI, `13e37b4`): `fmt`, `clippy -D warnings` clean;
+  `cargo test --workspace` 164 result lines, all ok (includes `client_rules`); `client_2d --
+  --ignored` 8 passed (the 7 of AC-W1 … W10 and `leaves_home_by_its_door_and_the_room_stays_put`);
+  `check_scratch.py scan` PASS, `left` nothing under `target/` (the four 2026-10-05 `mineworld-kill-*`
+  as before); `--scope origin/main` and `--check-pack` PASS; capture and headless drives for town,
+  none, full, people, procedural and home all PASS, 0 error lines, roles 48/0/44/44/40.

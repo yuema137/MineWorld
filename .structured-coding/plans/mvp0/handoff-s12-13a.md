@@ -24,6 +24,11 @@ STOPS               any edit to clients/protocol/mineworld/**; any server/kernel
 - D-12 test worlds on port 0 `20061a3`; painter's order check `2426c5e`; preview stills `51afae6`;
   C7 ledger with the final gates (this commit).
 
+- Operator test failed (F-9 room grows, F-10 no way out): red drive `b6624ad`; fix `9e433cb`;
+  main (CI) merged `13e37b4`; D-14 `f83d7c3`; F-11 and retaken stills `2add1f3`.
+- Server gap reported, not patched: no place extent; movement bounds only the stride (12d walls or
+  movement's place extent).
+
 ## Next actions
 
 1. The PR is open, READY FOR OPERATOR REVIEW (preview). Await the operator; do not merge.
