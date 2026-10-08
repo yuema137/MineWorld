@@ -1185,6 +1185,15 @@ NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
   out through the starting place's doorway and 1.5 m toward the middle of the street, to the nearest
   other doorway of the street, 2.5 m in. AC-W1 now also checks that the place entered is tagged
   `cafe`, read from the observation.
+- **F-6 (found in the `SHOWN` report, fixed) — the corner store was drawn as a near-side room.** A
+  doorway's "in" direction was the dominant axis from the hub extent's centre; the store's doorway, at
+  the extent's north-east corner, came out "east" (|dx| 12 m against |dy| 8 m) and was drawn as a
+  cut-away room instead of a façade. Doorways line the long sides of a street, so the direction is now
+  across the extent's long axis: all three north-side doorways open north, both south-side ones
+  south. Still derived only from disclosed doorways (`ARC-45`).
+- **D-11 (bounded) — `--always-on-top` for capture runs.** One capture stalled for ten minutes after its
+  first still: a window the OS treats as hidden is not drawn, and `frame_post_draw` never arrives. The
+  launcher keeps the capture window on top; stalled runs were killed by PID and re-run.
 - **F-5 (found by AC-W10, fixed) — a request's facing depended on frame timing.** Transcripts differed
   in `yaw` by 1–8 millidegrees between runs: the facing was taken from the drawn body (which is within
   2 cm of its goal, at a frame-dependent point) and, at a crossing, from a near-zero vector (`here` and

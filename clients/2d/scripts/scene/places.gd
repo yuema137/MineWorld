@@ -117,7 +117,7 @@ func _rebuild() -> void:
 	var paved := extent.grow(margin) if hub != "" else Rect2()
 	if hub != "":
 		for p in town.passages[hub]:
-			_draw_doorway(hub, p, extent.get_center())
+			_draw_doorway(hub, p, extent)
 	# A place the observer stands in that the hub's doorways did not reach (the first place before
 	# the street is known): drawn as a room around its own doorway.
 	for place in town.passages:
@@ -133,10 +133,10 @@ func _rebuild() -> void:
 
 
 ## One doorway out of the hub: its place drawn as a façade (far side), a room (near side) or a lawn.
-func _draw_doorway(hub: String, p: Dictionary, centre: Vector2) -> void:
+func _draw_doorway(hub: String, p: Dictionary, extent: Rect2) -> void:
 	var place: String = p["to"]
 	var door: Vector2 = town.to_plan(hub, {"x": p["here"].x, "y": p["here"].y})
-	var in_dir := _axis(door - centre)
+	var in_dir := _inward(door, extent)
 	var right := Vector2(-in_dir.y, in_dir.x)
 	var place_tags: PackedStringArray = town.tags.get(place, PackedStringArray())
 	var outdoor := _by_tag("outdoor", place_tags)
@@ -315,6 +315,16 @@ func _by_tag(section: String, place_tags: PackedStringArray) -> Dictionary:
 		if table.has(tag):
 			return table[tag]
 	return table.get("*", {}) if section == "interiors" else {}
+
+
+## Which way a place runs from its doorway on the hub: away from the hub, across the hub's long axis.
+## Doorways line the long sides of a street, so a doorway at a corner of the extent still faces
+## across it (the convenience store at the street's north-east corner opens north, not east).
+static func _inward(door: Vector2, extent: Rect2) -> Vector2:
+	var d := door - extent.get_center()
+	if extent.size.x >= extent.size.y:
+		return Vector2(0.0, signf(d.y) if d.y != 0.0 else -1.0)
+	return Vector2(signf(d.x) if d.x != 0.0 else 1.0, 0.0)
 
 
 ## The axis direction (east, west, north or south, as a plan unit vector) a vector mostly points.
