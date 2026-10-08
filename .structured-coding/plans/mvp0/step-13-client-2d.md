@@ -927,12 +927,25 @@ fallback. `clients/protocol/ADOPTION.md` §6: the reconnect pattern (M-4) as gui
 #### C2 — The pack's art, bindings and renderer parameters
 **Scope.** §14.5's files; `assets/asset_bindings.yaml` (four variants); `renderer/godot.yaml`;
 `art/PROVENANCE.md`; LICENSES file. **Non-goals:** no client code.
-- [ ] Implementation: copy by `git show af5e236:<path>` (no merge, no cherry-pick of the branch);
-  write the two pack files.
-- [ ] Validation: added size ≤ 19 MB (`git diff --stat`); no `.import` file; every file named in either
-  pack file exists (a `--check-pack` mode of `check_client_rules.py`, shown to fail on a renamed file).
-- [ ] Review: each binding set reproduces the spike's `ROLE_*` maps role for role; provenance covers
-  every carried image.
+- [x] Implementation: files extracted with `git archive af5e236 -- <paths> ':(exclude,glob)**/*.import'`
+  (no merge, no cherry-pick). Sprite metrics converted by a one-off GDScript (`/tmp`, not committed)
+  from the spike's `props.json`, `generated.json` and `Main.gd`'s `SCALE`/`VEG_M`/ink classes into
+  `assets/asset_bindings.yaml` (120 sprites + 2 textures; four sets). `renderer/godot.yaml` (palette from
+  the spike's `Ground.gd`/`Interior.gd`, effects, dressing, outdoor `park`, interiors `*`/`cafe`/
+  `apartments`, edges). `art/PROVENANCE.md`; 54 sidecars in `art/provenance/`;
+  `LICENSES/PUZZLEANDY_WATERCOLOR_TEXTURES.txt`. Door pixels of the four shared-set buildings read off
+  the images (each viewed) into `door`.
+- [x] Validation: `python3 scripts/check_client_rules.py --check-pack presentation/mineworld-default/2D`
+  → PASS; mutation: `gen_a_front.png` renamed → FAIL, 2 findings (the missing file, the unbound one),
+  restored → PASS. Size: `art/` 7.4 MB, `renderer/` 20 KB, `assets/` 24 KB (D-2). No `.import` file
+  (the check refuses one).
+- [x] Review: `town` = spike `ROLE_PEOPLE` + `ROLE_SHARED`, `full` = `ROLE_PEOPLE` + `ROLE_WORLD`, `people`
+  = `ROLE_PEOPLE`, `procedural` = svg with `ROLE_PROC`'s five-person cast, compared role by role;
+  `barrel` is the role `prop:bin`. New roles with no spike equivalent (the spike had no apartments):
+  `facade:apartments`, `facade:residential`, `facade:unknown:0/1`, bound in `town` only; the other sets
+  draw those plainly. Shopfronts with painted signs (bakery, books, bloom) are deliberately not bound:
+  drawing a convenience store as "Bakery" would state a falsehood. Every carried `gen_*` image has its
+  sidecar; `sib_*` map to `candidates/*.provenance.yaml` on `main`.
 
 #### C3 — Client skeleton: connect, see, draw plainly and with the pack
 **Scope.** `clients/2d/{project.godot, .gitignore, README.md, scenes/app.tscn}`, symlink
@@ -1046,3 +1059,26 @@ POST-MERGE SYNC OWNER:   this session: §14's lifecycle and evidence; the primar
                          overall §7, MVP_STATUS, HUMAN_REVIEW_QUEUE VIS-2D-1
 NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
+
+### 14.10 Deviations and discoveries during implementation (13a session)
+
+- **D-1 (bounded) — the handoff is its own file.** *Design:* a 13a block in `handoff.md`. *Reason:* six
+  lanes run in parallel and each would append to that file, guaranteeing merge conflicts.
+  *Resolution:* `handoff-s12-13a.md`. *Impact:* none on scope.
+- **D-2 (bounded) — less art carried than §14.5 listed (7.4 MB, not ≈ 18.4 MB).** *Previous
+  assumption:* `art/ground/` (8.07 MB) and all of `generated/` and `svg/` are part of the accepted look.
+  *Audit evidence:* `grep -rn "ground_\|art/ground" clients/2d-spike/scripts/` at `af5e236` finds
+  nothing — the spike draws its ground procedurally (`Ground.gd`) and no variant loads those textures
+  (their sources are already on `main` as `2D/candidates/ground_*`). The dog, cat, seated people,
+  `char_test_walk_e`, the signed shopfronts (bakery, books, bloom), the quay set (rail, jetty, boat,
+  bird, fountain) and three planted props bind to nothing the connected client draws. *Corrected
+  understanding:* RK-1's rule — carry only what the bindings reference — is the binding one, and
+  §14.5's list over-counted. *Consequence:* 120 sprites + 2 textures; `--check-pack` refuses a carried
+  file that no sprite names, so the rule is held mechanically. Ground is drawn procedurally from the
+  palette, as in the spike.
+- **D-3 (bounded) — `check_client_rules.py` lands in C2, not C5,** because its `--check-pack` mode is
+  C2's validation. R1–R5 and `--scope` are exercised with their plants in C5.
+- **D-4 (bounded) — façade door pixels.** A building sprite's anchor is its lowest base corner, not its
+  door; aligning anchors would put doors up to 22 screen px off their doorways. The four shared-set
+  buildings carry a measured `door` pixel and are placed by it; sprites without one are placed by the
+  anchor (as the spike did). `PRESENTATION.md` §3 gains the optional field.

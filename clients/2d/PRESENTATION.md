@@ -41,7 +41,8 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
   "format": 1,
   "default_set": "town",
   "sprites": {
-    "<sprite id>": { "file": "art/…", "anchor": [ax, ay], "scale": k, "ink": "none|veg|shop|prop" }
+    "<sprite id>": { "file": "art/…", "anchor": [ax, ay], "scale": k, "ink": "none|veg|shop|prop",
+                     "door": [dx, dy] }
   },
   "sets": {
     "<set>": { "extends": "<set>", "roles": { "<role>": "<sprite id>" } }
@@ -53,7 +54,10 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
   on the ground: the painter's sort and the position both use it. `scale` is the draw scale; the
   default pack's generated sprites are cut so that pixel height = height in metres × 64, hence `0.5`
   at 32 px per metre. `ink` selects the contour strength of `renderer/godot.yaml`'s `ink` effect
-  (`none` for art that carries its own line).
+  (`none` for art that carries its own line). `door`, optional and only meaningful on a façade, is the
+  pixel at the foot of the drawn door: a façade is placed so that this pixel, not the anchor, lands on
+  the disclosed doorway. A sprite without one is placed by its anchor. A file with only `file` is a
+  texture (`texture:*` roles).
 - **Directional sprites** are four ids sharing a base: `<base>_front`, `<base>_front_b`, `<base>_back`,
   `<base>_back_b` (two stride poses per view). A role bound to a base resolves to whichever exist; a
   sprite with no `_back` is shown from the front only, and with no `_b` pose the gait is a bob only.
@@ -67,7 +71,7 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 | `player` | the Person this client controls | always |
 | `person:<n>`, n = 0, 1, … | the cast; the client uses as many as the set binds contiguously from 0 | a stable hash of the person's id **string**, modulo the cast size |
 | `facade:<tag>` | the outside of a place whose tags include `<tag>` | the place's tags, in the order the world lists them; the first bound one wins |
-| `facade:unknown:<n>` | a place not yet visited in this instance (`ARC-45` point 3) | the stable hash of the place's id string |
+| `facade:unknown:<n>` | a place not yet visited in this instance (`ARC-45` point 3), or a visited place none of whose tags is bound | the stable hash of the place's id string |
 | `prop:<name>` | anything `renderer/godot.yaml` places: dressing, fittings, edge planting | named by that file |
 | `texture:floor`, `texture:paper` | the interior floor tile; the paper tooth of the `grade` effect | named by that file |
 

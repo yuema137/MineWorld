@@ -1,0 +1,88 @@
+{
+  "format": 1,
+  "projection": { "kind": "isometric", "px_per_metre": 32 },
+  "camera": { "zoom": 1.55 },
+  "clear_color": "#e0ecee",
+  "palette": {
+    "stone": "#c7bfb3", "stone_hi": "#ddd6cb", "stone_lo": "#aaa297", "joint": "#948c82",
+    "grass": "#8ab251", "grass_hi": "#aecc63", "grass_lo": "#668c3f",
+    "wall": "#efe4d0", "wall_lo": "#dccbb0", "wall_side": "#cfbc9e", "wall_side_lo": "#b2a083",
+    "cut": "#d9cdb6", "cut_edge": "#9c8c72", "plinth": "#b3aa9c", "skirt": "#8a6a46",
+    "floor": "#c8a97e", "light": "#ffdb8c", "player_ring": "#ffc963"
+  },
+  "effects": {
+    "grade": { "shader": "renderer/grade.gdshader", "paper": "texture:paper" },
+    "ink": { "shader": "renderer/ink.gdshader", "px": 1.35,
+             "bite": { "veg": 0.08, "shop": 0.13, "prop": 0.24 } }
+  },
+  "ground": { "root_margin_m": 5.0, "land_margin_m": 60.0 },
+  "facades": {
+    "*": { "dressing": [
+      { "role": "prop:lamppost", "along_m": -3.2, "out_m": 1.1 },
+      { "role": "prop:pot", "along_m": -1.2, "out_m": 0.4 },
+      { "role": "prop:pot_b", "along_m": 1.2, "out_m": 0.4 }
+    ] },
+    "cafe": { "dressing": [
+      { "role": "prop:cafeset", "along_m": -3.4, "out_m": 2.4 },
+      { "role": "prop:cafeset", "along_m": 3.2, "out_m": 2.6 },
+      { "role": "prop:chalkboard", "along_m": 1.9, "out_m": 0.9 },
+      { "role": "prop:bicycle", "along_m": 5.6, "out_m": 1.3 }
+    ] },
+    "apartments": { "dressing": [
+      { "role": "prop:planter", "along_m": -2.2, "out_m": 0.7 },
+      { "role": "prop:planter_b", "along_m": 2.4, "out_m": 0.7 },
+      { "role": "prop:bench", "along_m": 4.6, "out_m": 2.2 }
+    ] }
+  },
+  "outdoor": {
+    "park": { "width_m": 20.0, "depth_m": 15.0, "door_from_left_m": 19.0, "dressing": [
+      { "role": "prop:tree_a", "along_m": -4.0, "in_m": 4.0 },
+      { "role": "prop:tree_c", "along_m": 3.0, "in_m": 6.5 },
+      { "role": "prop:tree_e", "along_m": -10.0, "in_m": 10.0 },
+      { "role": "prop:tree_b", "along_m": -14.0, "in_m": 5.0 },
+      { "role": "prop:bush_a", "along_m": -2.0, "in_m": 1.2 },
+      { "role": "prop:bush_c", "along_m": 0.8, "in_m": 1.4 },
+      { "role": "prop:bench", "along_m": -7.0, "in_m": 3.0 },
+      { "role": "prop:bench", "along_m": -12.0, "in_m": 8.0 },
+      { "role": "prop:pot", "along_m": -6.0, "in_m": 7.0 }
+    ] }
+  },
+  "interiors": {
+    "*": { "width_m": 9.0, "depth_m": 8.0, "door_from_left_m": 4.5,
+      "fittings": [
+        { "role": "prop:int_plant", "along_m": -3.8, "in_m": 7.2 },
+        { "role": "prop:int_table", "along_m": 2.0, "in_m": 4.0 },
+        { "role": "prop:int_shelf", "along_m": 3.0, "in_m": 7.6 }
+      ],
+      "lights": [ { "along_m": 0.0, "in_m": 4.0 } ] },
+    "cafe": { "width_m": 8.32, "depth_m": 10.32, "door_from_left_m": 1.61,
+      "fittings": [
+        { "role": "prop:int_counter", "along_m": 2.9, "in_m": 7.0 },
+        { "role": "prop:int_counter", "along_m": 4.7, "in_m": 7.0 },
+        { "role": "prop:int_shelf", "along_m": 3.4, "in_m": 10.0 },
+        { "role": "prop:int_shelf", "along_m": 5.6, "in_m": 10.0 },
+        { "role": "prop:int_table", "along_m": 0.4, "in_m": 3.2 },
+        { "role": "prop:int_table", "along_m": 2.4, "in_m": 4.6 },
+        { "role": "prop:int_table", "along_m": -0.6, "in_m": 6.2 },
+        { "role": "prop:int_banquette", "along_m": -1.2, "in_m": 8.2 },
+        { "role": "prop:int_plant", "along_m": -1.3, "in_m": 9.8 },
+        { "role": "prop:int_plant", "along_m": 6.4, "in_m": 1.2 },
+        { "role": "prop:int_pendant", "along_m": 1.0, "in_m": 4.0, "lift_m": 2.05 },
+        { "role": "prop:int_pendant", "along_m": 3.8, "in_m": 6.2, "lift_m": 2.05 }
+      ],
+      "lights": [ { "along_m": 1.0, "in_m": 4.0 }, { "along_m": 3.8, "in_m": 6.2 },
+                  { "along_m": 1.8, "in_m": 8.6 } ] },
+    "apartments": { "width_m": 9.0, "depth_m": 6.5, "door_from_left_m": 3.0,
+      "fittings": [
+        { "role": "prop:int_plant", "along_m": -2.4, "in_m": 5.8 },
+        { "role": "prop:int_banquette", "along_m": 1.8, "in_m": 5.8 },
+        { "role": "prop:int_shelf", "along_m": 5.4, "in_m": 6.2 }
+      ],
+      "lights": [ { "along_m": 1.0, "in_m": 3.0 }, { "along_m": 4.0, "in_m": 4.0 } ] }
+  },
+  "edges": {
+    "roles": [ "prop:tree_a", "prop:tree_d", "prop:tree_b", "prop:tree_g", "prop:tree_c",
+               "prop:tree_e", "prop:tree_h", "prop:tree_f", "prop:tree_i" ],
+    "rows": 2, "spacing_m": 4.2, "row_gap_m": 3.0, "offset_m": 3.0
+  }
+}

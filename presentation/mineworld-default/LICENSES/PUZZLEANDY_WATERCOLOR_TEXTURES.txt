@@ -1,0 +1,15 @@
+PuzzleAndy, "CC0 Watercolor Textures"
+
+Source:   https://opengameart.org/content/cc0-watercolor-textures
+Licence:  CC0 1.0 Universal (public domain dedication), as stated on the source page:
+          http://creativecommons.org/publicdomain/zero/1.0/
+Files:    watercolor_3, watercolor_6, watercolor_8, watercolor_11 (not committed)
+
+Used in:  presentation/mineworld-default/2D/art/paper_grain.png, 512 x 512, neutral grey: a square
+          centre crop of each scan, colour discarded, a slightly blurred copy of its own luminance
+          subtracted to leave only high-frequency detail, clamped, the four averaged and normalised
+          around mid grey. Only the tooth of the cold-press paper survives. Made by
+          clients/2d-spike/tools/make_grain.gd on vis/2d-generated-assets @ af5e236, whose
+          ASSETS.md records the procedure; carried unchanged by S12 PR 13a.
+
+No attribution is required. It is recorded because DEP-8 asks for provenance regardless.
