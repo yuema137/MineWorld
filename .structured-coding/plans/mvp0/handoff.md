@@ -51,7 +51,14 @@ STOP CONDITIONS     normal: PR 12b READY FOR OPERATOR REVIEW — DO NOT MERGE. M
                     reason other than QP-2
 ```
 
-## MATERIAL STOP (2026-10-07)
+## READY FOR OPERATOR REVIEW — DO NOT MERGE (context CLOSED / AWAITING OPERATOR ACTION)
+
+The primary session ruled DB-10 option 1. After the ruling: M-PB1's 300-day half, PB-1 on the final
+head, PB-20, the full gate (582 passed, 0 failed, 279 s), and b1 (19.3 s ≤ 25 s) — E-PB9. Final
+executable head 0733c77. The PR is opened against main; merge with a merge commit, by the operator
+only. Post-merge sync: the planning session, with 12d's carried items.
+
+## MATERIAL STOP (2026-10-07, resolved by the ruling)
 
 PB-14(b) fails, 2.06× against 1.5×, also with QP-9's override (reverted). Evidence E-PB8, options
 DB-10 (§17.11). Reported to the primary session; no PR opened. PB-C1 … PB-C7 committed and pushed

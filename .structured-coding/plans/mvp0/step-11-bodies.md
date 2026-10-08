@@ -3471,22 +3471,50 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 ### PB-C8 — Close: cross-architecture, cost, status, the gate, the ledger
 
-- [ ] PB-12, in the background:
-  - `cargo build -p mineworld-cli --target x86_64-apple-darwin`, the binary copied to `/tmp/s15-12b/`;
-  - the three Rosetta runs, compared with arm64's;
-  - the fallback if the build fails.
-- [ ] PB-14(a): release `long_run`, with its printed mean.
-- [ ] PB-14(b): four 300-day bodies-yard runs, in the background, two at a time.
-- [ ] PB-1 on the final executable head: both 300-day digests, and both `validate` comparisons.
-  M-PB1's 300-day half, applied once and reverted.
-- [ ] PB-15, PB-20: the structural tests and the scope check; fmt and clippy; the full gate once, in
-  the background (expect about 6 minutes, now that Rapier compiles).
-- [ ] Documentation: `docs/MVP_STATUS.md` (a "Bodies" capability row and one evidence row); §17's
-  checkboxes; §17.10; the handoff.
-- [ ] Review: PB-1 … PB-20 each with evidence; deviations in §17.11; FU-12a-1 still open, since 12b
-  touches neither file.
+- [x] PB-12: the x86_64 build (34 s, needed the network once), three Rosetta comparisons — PASS
+  (E-PB8). The fallback was not needed.
+- [x] PB-14(a): release `long_run`, 45.9 µs per swept move — PASS (E-PB8).
+- [x] PB-14(b): FAILED as frozen (2.06×), QP-9 tried and reverted, material stop; re-scoped by the
+  primary session to (b1) ≤ 25 s — PASS at 19.3 s — and (b2) carried to 12d (DB-10, E-PB8, E-PB9).
+- [x] PB-1 on the final executable head: both digests and both `validate` comparisons — PASS. M-PB1's
+  300-day half applied once and reverted — the digest differs, stopped-short appears (E-PB9).
+- [x] PB-15, PB-20: structural tests in the gate, the scope check; fmt, clippy, the full gate once —
+  582 passed, 0 failed, 279 s (E-PB9).
+- [x] Documentation: `docs/MVP_STATUS.md` (the "Bodies: walls and nudging" capability row and one
+  evidence row); §17's checkboxes; §17.10; §17.11; the handoff.
+- [x] Review: PB-1 … PB-20 each with evidence (the table below); deviations DB-1 … DB-10 in §17.11;
+  FU-12a-1 still open (12b touches neither file).
 
-**PR 12b lifecycle:** NOT FROZEN.
+```text
+PB-1   PASS  E-PB6, E-PB9 (both digests twice, validate identical, every existing test in the gate;
+             existing-test edits: QP-2's two files only); M-PB1 seen in both halves (E-PB4, E-PB9)
+PB-2   PASS  rapier_pin (E-PB2); M-PB2
+PB-3   PASS  rapier.rs canary and fix; M-PB3 (second form; DB-2)
+PB-4   PASS  bodies_yard (E-PB7); M-PB4 at pack and binary level
+PB-5   PASS  scenarios: east wall, counter, slide, fast path
+PB-6   PASS  scenarios: n2, n3, the chain (DB-4, DB-5, DB-6); M-PB5, M-PB6
+PB-7   PASS  scenarios: pinned against the east wall and the counter
+PB-8   PASS  resolve.rs unit tests (F-P6 reproduced with two people); M-PB7
+PB-9   PASS  bodies_yard (activity first; 30 803 requests, 0 violations, closest 595 mm)
+PB-10  PASS  bodies_yard (without bodies: closest 0 mm, 269 202 violations)
+PB-11  PASS  bodies_yard_restart; M-PB8
+PB-12  PASS  E-PB8 (Rosetta, both directions)
+PB-13  PASS  scenarios n1, HB-1 … HB-4 with the frozen constants; M-PB9
+PB-14  (a) PASS 45.9 µs; (b) FAILED as frozen 2.06×, re-scoped by ruling: (b1) PASS 19.3 s ≤ 25 s,
+             (b2) carried to 12d (DB-10)
+PB-15  PASS  isolation 4; planted import; seam_vocabulary, ac1 13, precursor 4, presence's and
+             movement's scans in the gate
+PB-16  PASS  genesis.rs disclosure
+PB-17  PASS  scenarios guard; M-PB10
+PB-18  PASS  scenarios entries a–d; M-PB11
+PB-19  PASS  scenarios inert; M-PB1 (pack half)
+PB-20  PASS  E-PB9 (scope, gate)
+```
+
+**PR 12b lifecycle:** READY FOR OPERATOR REVIEW — DO NOT MERGE. Implementation context CLOSED /
+AWAITING OPERATOR ACTION. Final executable head `0733c77`; the PR head is the commit that carries this
+line. Merge with a merge commit. POST-MERGE SYNC: the planning session (step header, §§1–15, overall,
+MVP_STATUS's Updated and S15 lines), with 12d's carried items (DB-10 ruling, F-B7, FU-12a-1).
 
 ## 17.6 Test ownership
 
@@ -3853,6 +3881,40 @@ E-PB8 PB-C8 (partial — stopped at PB-14(b), a material stop), 2026-10-07, on d
           40 µs (dev) and a fast-path move far below it, and each extra fact is recorded, reduced and
           fingerprinted. ≈ 9.9 s over ≈ 158 000 moves is ≈ 62 µs per move.
       Not run, pending the decision: PB-1 on the final head and M-PB1's 300-day half; the full gate.
+
+E-PB9 PB-C8 close, 2026-10-07, after the DB-10 ruling. Final executable head 0733c77 (code identical
+      to db64471: every later commit changes Markdown only).
+      M-PB1, 300-day half (the inert rule dropped: a place without a shape read as a ±100 m floor; built
+        once into /tmp/s15-12b/mpb1-mineworld, then the source reverted — `git grep MUTATION` empty):
+        `run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, faults 0, 439 775 facts,
+        "facts      stopped-short 37737", sha-256 of every line but `wall` = f0cc1c47bfdbd5b4…0e98f9 ≠
+        PB-1's ad49c723…c64b. Wall 664.9 s (every entry searches a 200 m lattice; a first attempt was
+        killed after 5 min of silence and the run restarted in the background). PASS (it fails PB-1).
+      Full gate (once, background, 23:39:59 – 23:44:43; the M-PB1 run shared the CPU):
+        `cargo fmt --all --check` exit 0; `cargo clippy --workspace --all-targets --all-features -- -D
+        warnings` exit 0; `cargo test --workspace --no-fail-fast` exit 0, wall 279 s: 139 harness
+        binaries, 582 passed, 0 failed; the `harness = false` programs "[resolver-yard] PASS",
+        "[cafe] PASS", "[clock] PASS"; ac1_composability 13, precursor_vocabulary 4, seam_vocabulary 3,
+        bodies_yard 3, bodies_yard_restart 1, scenarios 17, long_run 1, rapier_pin 1;
+        `check_doc_headings.py` → 176 sections, none duplicated; `check_decision_ids.py` → 51 ids, all
+        distinct. Logs /tmp/s15-12b/gate.log, test.log, clippy.log. PASS.
+      PB-1 on the final head (binary from the gate's build, /tmp/s15-12b/final-mineworld): social-cafe
+        exit 0, faults 0, 365 330 facts, sha ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b;
+        market-town exit 0, faults 0, 372 755 facts, sha
+        365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d; both `validate` outputs `cmp`
+        identical to the base binary's. PASS.
+      PB-14 (b1) (the ruling's guard, fixed before this measurement: ≤ 25 s): `run worlds/bodies-yard
+        --headless --seed 7 --days 300`, dev, quiet machine → exit 0, faults 0, 599 401 facts, wall
+        19.3 s; every other line identical to E-PB8's runs. PASS. Ratio to the world without bodies:
+        2.06× (E-PB8), recorded as information.
+      PB-20: `git diff --name-only 918c869...HEAD` = 45 paths, every one in §17.1's change set (with
+        §17.0's override: no root manifest); `git diff --stat` over kernel/, contracts/,
+        persistence/, server/, cognition/, clients/, authoring/, sdk/, systems/presence/,
+        systems/movement/, worldpack/src/, tools/cli/src/, worlds/social-cafe/, worlds/market-town/ and
+        the root Cargo.toml: empty; Cargo.lock: no line removed (packages added only). PASS.
+      300-day runs in all: 13 (PB-1 ×4, PB-14(b) ×4, QP-9's re-measurement ×4, b1 ×1) plus M-PB1 ×1
+        and its killed first attempt — over the budget of 8; the QP-9 overrun accepted by the ruling,
+        b1 required by it.
 ```
 
 ## 17.11 Deviations and discoveries during implementation
