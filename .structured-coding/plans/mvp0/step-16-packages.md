@@ -1602,7 +1602,8 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 
 # 15. PR E-b — requirements and resolution (PR design)
 
-**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — implementation in progress.
+**Lifecycle:** `READY FOR OPERATOR REVIEW` — DESIGN FROZEN (2026-10-08), primary session;
+implemented, final executable head `0fdced8`, evidence in §15.5 Eb-C5. Not merged.
 
 ## 15.0 Freeze record
 
@@ -1946,11 +1947,62 @@ WITH, `+`, each refusal naming the identifier), a unit test of the prefix functi
 
 ### Eb-C5 — Close
 
-- [ ] `docs/MVP_STATUS.md` rows; this ledger; the handoff.
-- [ ] Full gate once on the final executable head (fmt, clippy `--all-features -D warnings`, `cargo test
-  --workspace --no-fail-fast` reported as passed/failed/ignored/filtered), EB-6's digests and
-  `validate` byte-identity against main's binary, EB-7's diff, both doc checks.
-- [ ] PR opened, READY FOR OPERATOR REVIEW. Not merged.
+- [x] `docs/MVP_STATUS.md`: a capability row "Requirements and the licence policy" and an evidence row
+  (`beb9c0f`); this ledger; `handoff-eb.md`.
+- [x] Full gate (E-Eb-final). A first full gate ran on `beb9c0f` and passed (fmt 0, clippy 0, 674
+  passed, 0 failed, 1 ignored, 0 filtered; towns' sha equal; `validate` identical) — then S11-A merged
+  as #76 (`f842c52`), touching `tools/cli/src/main.rs`, and that evidence no longer described the PR.
+  `origin/main` merged as **`0fdced8`**: two conflicts, both unions — `main.rs` (`Server` keeps S11-A's
+  `invite` and gains `packs`; `serve` takes both, `read_with` then `Invite::resolve`) and
+  `MODULE_SPEC.md` §8.1's synopsis (S11-A's `[--invite TOKEN]` and E-b's `[--packs DIR]...`). The gate
+  re-run on **`0fdced8`, the final executable head** (628 s in all): `cargo fmt --all --check` 0;
+  `cargo clippy --workspace --all-targets --all-features -- -D warnings` 0; `cargo test --workspace
+  --no-fail-fast` (with `MINEWORLD_PACKS` and `MINEWORLD_INVITE` unset) exit 0, 533 s, **700 passed,
+  0 failed, 1 ignored, 0 filtered** over 158 harness summaries; `resolver-yard`, `cafe`, `clock` PASS.
+  700 = S11-A's recorded final count 682 (step-12, its full gate on `76be4d2`) + this PR's 18 (packages
+  8, worldpack 4, cli 6). The one ignored test is 12c's `thirty_days_of_bodies_yard_at_seeds_7_8_and_9`.
+  (One log line reads `test result ... ok`: S11-A's frame test named `result`, not a summary.)
+  EB-6: social-cafe `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b` and
+  market-town `365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d`, equal to the base
+  (`1a1d08e`, `target/eb-base`) and to every recorded main since; `validate` of the three worlds
+  byte-identical to the base binary's. EB-7: `git diff --stat origin/main HEAD -- kernel contracts
+  persistence server clients systems cognition tests/acceptance worldpack/src/load.rs` → empty. Doc
+  checks: 191 sections / 26 documents, none duplicated; 57 decision ids, distinct.
+- [x] PR opened, READY FOR OPERATOR REVIEW. Not merged.
+
+**Acceptance, as measured:**
+
+```text
+EB-1  PASS  requirements.rs: met through packs resolve, validate, run --save, replay, biography;
+            mineworld-default-3d required through --packs presentation/mineworld-default
+EB-2  PASS  seven refusals through the real binary, exit 1, named; every rule in resolve.rs incl. the
+            third-party rule (unit only until E-c, as frozen); M-B1, M-B2, M-B3 observed failing
+EB-3  PASS  a pack beside the world is not found; MINEWORLD_PACKS alone finds it; missing roots named
+            with their source; M-B4 observed failing
+EB-4  PASS  a world in a root refused as world-pack; an entity pack "read from E-d" (unit row)
+EB-5  PASS  every installed system bundled in packs resolve of social-cafe; the prefix test's cases;
+            M-B5 observed failing (unit and end to end)
+EB-6  PASS  towns' digests and the three validate outputs unchanged
+EB-7  PASS  no forbidden path changed; AC-1 13, precursor 4, seam 3 in the gate, tests/acceptance
+            unedited
+EB-8  PASS  composition read only by tools/cli; a save replayed without its root refused by name
+EB-9  PASS  ARC-54, ARC-55, the specs in Eb-C1 (86be6df), before code
+```
+
+**Commit map.** C0 `e9d4ae9` · freeze `15b5907` · C1 `86be6df` · C2 `d50b4f7` · merge `586280c` · C3
+`11ca8a0` · C4 `66bc9f2` · merge (12c record) and C5 docs `beb9c0f` · merge (S11-A) `0fdced8` (final
+executable head) · this Markdown-only evidence commit.
+
+**Deviations, all bounded:** `Installed` groups resolve's non-world inputs; a controller id in
+`requires:` is absent from the loader's view (controllers are the host's); `PackError`'s package
+refusals boxed (size), fixed at the source; F-Eb1 (a test's premise); the `main.rs` diff is larger than
+"one struct and one arm" but mechanical. None touches a frozen invariant.
+
+**PR E-b lifecycle: READY FOR OPERATOR REVIEW** — final executable head `0fdced8`; PR head is the
+Markdown-only commit after it. Not merged. Coordination notes for the primary session: (1) the
+licence-policy hook is `configure/packages.yaml` decoding into `LicencePolicy`; its owner is the
+framework's `packages` crate, not a System Pack, which S17's `configure:` seam (owner-typed by system
+id) must accommodate when it lands; (2) S11 and E-b now share `Subcommand::Server`'s field list.
 
 ## 15.6 Test ownership
 

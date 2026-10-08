@@ -19,8 +19,13 @@ STOPS               editing load.rs; kernel/contract/persistence change; any dig
 
 ## Current checkpoint
 
-Freeze recorded (`15b5907`). Base binary for EB-6 building into `target/eb-base`, evidence in
-`target/eb-evidence/base.txt`. Next: Eb-C1 (specs).
+**READY FOR OPERATOR REVIEW — CLOSED / AWAITING OPERATOR ACTION.** Final executable head `0fdced8`
+(main with S11-A merged in): fmt, clippy and `cargo test --workspace` (700 passed, 0 failed, 1 ignored —
+12c's — 0 filtered) green; the towns' digests and the three `validate` outputs unchanged; no forbidden
+path changed. The evidence commit after it is Markdown only. If main moves again: merge it (§15.8),
+re-run the gate, record. Do not merge the PR without the operator's explicit approval. After merge:
+record the merge identity in §15; the primary session owns §9.3's status, the step header and
+`overall.md`.
 
 ## Environment note
 
