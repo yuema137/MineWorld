@@ -3,20 +3,18 @@
 //! `mineworld_packages::resolve`'s and are tested there; this file owns that the loader gathers the
 //! right inputs and refuses with the world's file named.
 
-use std::path::{Path, PathBuf};
-
 use mineworld_worldpack::{PackError, PackRoots, WorldPack};
 
-/// A scratch directory holding a world `the-world` and a pack root `root/`, removed when dropped.
-struct Scratch(PathBuf);
+/// A scratch directory holding a world `the-world` and a pack root `root/`, removed when the test ends
+/// (DEP-29).
+struct Scratch(mineworld_test_support::Scratch);
 
 const STYLE: &str = "type: presentation-pack\nversion: 0.1.0\nmineworld: \"^0.1\"\nlicense: MIT\n\
                      authors: [Someone]\n";
 
 impl Scratch {
     fn new(name: &str, identity: &str, top: &str) -> Self {
-        let base = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("requirements-{name}"));
-        let _ = std::fs::remove_dir_all(&base);
+        let base = mineworld_test_support::scratch!(format!("requirements-{name}"));
         let world = base.join("the-world");
         for directory in ["people", "places"] {
             std::fs::create_dir_all(world.join(directory)).expect("scratch directory");
@@ -50,12 +48,6 @@ impl Scratch {
 
     fn read_with(&self, roots: &PackRoots) -> Result<WorldPack, Box<PackError>> {
         WorldPack::read_with(self.0.join("the-world"), roots).map_err(Box::new)
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 

@@ -6,12 +6,15 @@ use std::path::{Path, PathBuf};
 
 use mineworld_packages::PackRoots;
 
-/// Three empty directories under Cargo's per-test scratch root, removed when dropped.
+/// Three empty directories under Cargo's per-test scratch root, named after the test and removed when
+/// dropped. This crate is a leaf and cannot use `mineworld-test-support` (`scripts/check_scratch.py`'s
+/// exemption, as for `manifest.rs`), so it keeps the rule's substance by hand: a name of its own per
+/// test, removed on drop.
 struct Scratch(PathBuf);
 
 impl Scratch {
-    fn new() -> Self {
-        let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join("packages-roots");
+    fn new(name: &str) -> Self {
+        let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("packages-roots-{name}"));
         let _ = std::fs::remove_dir_all(&path);
         for name in ["a", "b", "c"] {
             std::fs::create_dir_all(path.join(name)).expect("scratch directory");
@@ -32,7 +35,7 @@ impl Drop for Scratch {
 
 #[test]
 fn roots_are_the_command_lines_then_the_environments_in_order() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::new("order");
     let environment =
         std::env::join_paths([scratch.dir("c"), PathBuf::new(), scratch.dir("b")]).expect("joins");
     let roots =
@@ -48,7 +51,7 @@ fn roots_are_the_command_lines_then_the_environments_in_order() {
 
 #[test]
 fn a_root_that_is_not_a_directory_is_refused_naming_its_source() {
-    let scratch = Scratch::new();
+    let scratch = Scratch::new("not-a-directory");
     let missing = scratch.dir("missing");
     let refusal = PackRoots::new(vec![missing.clone()], None)
         .expect_err("missing")

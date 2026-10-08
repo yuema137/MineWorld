@@ -4,7 +4,6 @@
 //! EB-3, EB-5, EB-8). The rule that an enabled third-party system must be required has no third-party
 //! code pack in this build to exercise it until S16's E-c; it is held by `packages/tests/resolve.rs`.
 
-use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use mineworld_worldpack::catalog::AVAILABLE;
@@ -31,8 +30,9 @@ fn mineworld(arguments: &[&str]) -> (bool, String, String) {
     mineworld_with(arguments, None)
 }
 
-/// A scratch directory: a world `the-world` beside a pack root `root/`, removed when dropped.
-struct Scratch(PathBuf);
+/// A scratch directory: a world `the-world` beside a pack root `root/`, removed when the test ends
+/// (DEP-29).
+struct Scratch(mineworld_test_support::Scratch);
 
 const STYLE: &str = "type: presentation-pack\nversion: 0.1.0\nmineworld: \"^0.1\"\nlicense: MIT\n\
                      authors: [Someone]\n";
@@ -41,9 +41,9 @@ impl Scratch {
     /// A one-place, two-seat world stating `identity` (lines under `world:`) and `top` (top-level
     /// lines), with an empty `root/` beside it.
     fn new(name: &str, identity: &str, top: &str) -> Self {
-        let base = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("cli-requirements-{name}"));
-        let _ = std::fs::remove_dir_all(&base);
-        let scratch = Self(base);
+        let scratch = Self(mineworld_test_support::scratch!(format!(
+            "cli-requirements-{name}"
+        )));
         scratch.write(
             "the-world/world.yaml",
             &format!(
@@ -84,12 +84,6 @@ impl Scratch {
             .to_str()
             .expect("a UTF-8 path")
             .to_owned()
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 
