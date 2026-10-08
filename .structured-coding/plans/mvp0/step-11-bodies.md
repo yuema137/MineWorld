@@ -1926,3 +1926,307 @@ Every finding below was read in this session from the file named, or measured.
 | **SD-R12** | **Which test runs where.** The catalog is per process, and Cargo runs each `tests/*.rs` file as its own process. So: `systems/presence/tests/resolver_catalog.rs` — one `#[test]` that walks the registration rules in sequence (RS-8); `tests/acceptance/tests/arrival_resolvers.rs` — every test first registers `[grid, rogue, fences]` (a no-op after the first), and worlds install only what each test needs; `arrival_resolvers_unregistered.rs` — never registers (RS-9); `arrival_resolvers_resume.rs` — `harness = false`, every child registers `[fences]` before composing (RS-11); `worldpack/tests/registration.rs` — composes, then tries a different list (RS-10). No file that registers a synthetic list calls `worldpack`. | A test that registers its own list and then composes through `worldpack` would hit SD-R4's panic by design. Separating them is what lets one rule hold for hosts and tests alike. |
 | **SD-R13** | **What changes in a save** (F-R5). For the same world, seed and inputs, a save written after 12a differs from one written before only here: in the manifest's `composition`, in every snapshot row's `composition`, and in revision 1's journal row (`before.composition`) — presence's `version` 2 → 3, and movement's `emits` and `emits_owned_by_others` gaining `stopped-short` (owner presence). Facts, every other journal row, every component row, relation, schedule and counter are byte-identical. A save written before 12a is refused at the first differing record: presence, by version — `PersistedSystemOutdated`, "system 'presence' is v3 here, but the save was written by the older v2" — before any snapshot is restored. A save written after 12a resumed by an older build is refused as `PersistedSystemTooNew`. | `ARC-25`: versions are refused, never guessed. Presence's version rises because its constructors now answer through resolvers and its vocabulary gained a fact (§4.4.7); its declaration does not change (F-R12). |
 | **SD-R14** | **Documents.** ARC-39 (§15.3's draft, made exact by SD-R1 … SD-R13): the seam; the catalog as the one named process-wide value (F-R14); the three guards of SD-R6; **"Runtime `World::disable` of a resolver pack is not honoured: a disabled pack's resolver is still asked, and its state still answers, until a kernel read of enabled state is decided (step-11 QB-17)"**; how tests that compose by hand behave (SD-R5, SD-R12); accepted limitations: the constructor bypass (F-R11), genesis (F-R4), no length bound on an arrival from another place or from nowhere beyond the place rule (**QR-12**). The bodies bounds of §15.3 move to 12b with DEP-13 (**QR-11**). MODULE_SPEC §3.1: the `resolution:` line and a resolver pack's install duty. `systems/README.md`: one paragraph. Presence's `lib.rs` table and README: `stopped-short`, `arrivals`, the seam. | `CLAUDE.md` §2.2: the documents first (RS-C1). |
+
+## 16.4 Acceptance (decided before measuring, `ARC-23`)
+
+Each guarded criterion names the mutation shown to break it. A mutation is applied in the working tree,
+observed to fail by name, and reverted; `git status` and `git grep MUTATION` are recorded afterwards.
+Every number in a test is a literal from the test's own layout, never computed by the code under test
+(test rules §25).
+
+```text
+RS-1  Nothing existing moves (I-7, SC-1). On the PR head, with the real installed set (no resolver):
+        - `mineworld run worlds/social-cafe --headless --seed 7 --days 300`: faults 0, 365 330 facts,
+          sha-256 of every line but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+          (E-RS0);
+        - `mineworld run worlds/market-town --headless --seed 7 --days 300`: faults 0, 372 755 facts,
+          sha-256 of every line but `wall` = 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d
+          (E-RS0);
+        - `mineworld validate` of both worlds byte-identical to the base's output;
+        - every existing test passes; the only edits to existing tests are QR-2's three literals,
+          `presence v2` → `presence v3`, each claim unchanged (inspect reports the save's composition).
+      M-RS1  arrivals() states `stopped-short` even when reached = to → the social-cafe sha differs
+             from E-RS0, and `facts      stopped-short` appears in the summary (the instrument sees a
+             seam that records one extra fact per move).
+RS-2  What a save holds, and the refusal (SD-R13). Real evidence across two builds, recorded, not a
+      committed test (QR-9): the base binary (built from the PR's base before any edit) writes
+      `run worlds/social-cafe --headless --seed 7 --days 2 --save B`; the PR binary writes the same into
+      `--save N`.
+        - `inspect B` and `inspect N`: the same head revision, journal kinds and fact counts; the
+          `systems` lines differ only in `presence v2` / `presence v3`;
+        - the PR binary on B: `run … --days 3 --save B` and `server worlds/social-cafe --save B` each exit
+          non-zero, naming "system 'presence' is v3 here, but the save was written by the older v2";
+          B is byte-identical before and after (`cmp`);
+        - positive control: the PR binary resumes N to day 3 and reports resuming at N's head.
+RS-3  Resolve before record (SC-2). World: presence, movement, fences; a fenced place `yard`
+      (Fence x = 5 000); alice at (4 000, 2 000), bob at (5 100, 2 100), carol at (5 400, 2 000). alice
+      moves to (5 500, 2 000). The request is Accepted with exactly these facts, in order:
+        arrived alice (4 990, 2 000) · arrived bob (5 200, 2 100) ·
+        stopped-short { alice, wanted (5 500, 2 000), reached (4 990, 2 000), by None }
+      each `Causation::Action(alice's ActionId)`, provenance emitted_by `movement`, controller decision
+      alice's ActionId (AC-9); carol, 410 mm from the stop, is not displaced. Presence afterwards: alice
+      (4 990, 2 000), bob (5 200, 2 100), carol unchanged. No `arrived` in the whole log names alice at
+      (5 500, 2 000): the log holds only true arrivals.
+      M-RS2  arrivals() folds over no resolver → fails: alice recorded at (5 500, 2 000).
+      M-RS3  arrivals() drops the displaced emissions → fails, naming bob's missing arrival.
+RS-4  Presence still decides (SC-3). In a place whose Rogue mode makes one violation each — lengthens
+      the arrival, ends it in another place, turns the walker, drops the local position, displaces the
+      walker, displaces one person twice, displaces a person who is in another place, displaces a place
+      entity, displaces a destroyed person, names a `stopped_by` that does not exist, names a
+      `stopped_by` while reaching `to` — the dispatch returns `Err(FactRefusedByOwner { system: presence,
+      event_type: arrived, reason: System { code: resolution-refused, detail } })` whose detail names
+      `test-rogue` and the rule; no fact is recorded and presence's owned state is byte-identical before
+      and after (presence's `owned_state` pattern). A rogue resolution that obeys every rule is recorded
+      (positive control).
+      M-RS4  remove check (c) → the "lengthens" row fails.
+RS-5  Order (SC-4). fences and grid both installed, registered as [grid, rogue, fences]; `yard` has
+      Fence 5 000 and Grid 1 000; alice at (3 600, 2 000) moves to (5 500, 2 000). Ascending SystemId
+      asks fences, then grid: recorded at (4 000, 2 000), with stopped-short { wanted (5 500, 2 000),
+      reached (4 000, 2 000) }. (Grid then fences would give (4 990, 2 000).) registered_resolvers() is
+      [test-fences, test-grid, test-rogue].
+      M-RS5  the catalog keeps registration order → fails: (4 990, 2 000).
+RS-6  Placement (SC-5). In `yard` (Fence 5 000), for dan who has no Presence:
+        - arrival(dan, (5 500, 1 000)) → Err(System { code: resolution-refused }) naming test-fences;
+        - test-placer stating arrivals() for the same → Accepted: arrived dan (4 990, 1 000),
+          stopped-short { dan, wanted (5 500, 1 000), reached (4 990, 1 000), by None };
+        - arrival(dan, (4 000, 1 000)) → Ok, its payload bytes equal `Arrived::new(dan, (4 000, 1 000))`'s
+          encoding (positive control).
+      M-RS6  arrival() skips the "would change" refusal → the first bullet fails.
+RS-7  Inert where absent (I-13). In the registered process: a world with presence and movement only,
+      and a world with fences installed whose places have no Fence, each run the same 12-move script:
+      every accepted move records exactly `arrived` at the requested location (payload bytes equal to
+      `Arrived::new`'s encoding), plus `person-entered-place` on a crossing — never `stopped-short`.
+      The same script in the never-registered process (RS-9's file) gives the same per-move facts.
+RS-8  Registration rules (QB-15 bounds 1, 3; one process, one #[test], in sequence):
+      registered_resolvers() is None, and arrivals() returns arrival()'s one emission; register [b, a] →
+      Some([a, b]); register [a, b] → no-op; register [a] → panics naming both lists; register [c, c] →
+      panics naming `c` twice; afterwards still Some([a, b]).
+      M-RS7  a different list is silently ignored → the [a] step fails (no panic).
+RS-9  A host that never registers fails loudly (QB-15 bound 2; never-registered process): installing
+      test-fences into a world panics with a message naming `test-fences`, `register_resolvers` and
+      ARC-39; a world without any resolver pack runs RS-7's script unchanged.
+      M-RS8  remove fences' require_registered call → the panic test fails (fences installs, and a
+             crossing would be recorded unresolved).
+RS-10 compose registers the installed set (QB-15 bound 1): in a fresh process,
+      `WorldPack::read(worlds/social-cafe)` then `compose()` → registered_resolvers() = Some([]); a
+      second compose → no-op; then register_resolvers([a stub]) → panics naming both lists (a double
+      registration with a different set fails). installed's guard (SD-R8) passes on the real set and
+      fails, naming the type, on a stub set listing a resolver that is not installed.
+      M-RS9  remove compose's registration call → fails: None.
+RS-11 SIGKILL and resume, with a resolver installed (SC-6; harness = false). World: presence, movement,
+      fences, four people, `yard` with Fence 5 000; a deterministic script of moves (a fixed mix of
+      request index and seat, as persistence's kill_and_resume). Activity first: the control run's
+      counts of stopped-short and of displaced arrivals are located and each > 0, before any comparison.
+      Then for kill points early, middle and late: the killed child exited by SIGKILL short of the end;
+      a new child resumed from the head on disk with a tail > 0 at least once; facts, journal and
+      snapshots byte-identical to the control's; verify() from genesis passes.
+      M-RS10 fences adds a process-global counter's parity to its stop distance (an impure resolver) →
+      fails: the resumed save diverges (ReplayDiverged or differing rows).
+RS-12 Subscribe-and-emit (SC-8, §8.2's kernel-adjacent fact). test-echo installs (it depends on
+      presence, emits presence's `arrived`, subscribes to `arrived`); alice's move records, in order:
+      arrived alice (Action) · heard alice and arrived bob (Event: alice's arrived) · heard bob (Event:
+      bob's arrived — echo heard the arrival it stated) — and nothing more (the cascade ends at depth 3).
+RS-13 Names (SC-7, the seam names no physics). `tests/acceptance/tests/seam_vocabulary.rs`, over the
+      current text of systems/presence/src, systems/movement/src, sdk/rust/src, systems/installed/src,
+      worldpack/src and every file this PR adds under */tests/ — all non-Markdown, comments included,
+      split into words as the I-2 scan splits them: no word beginning `body`, `bodies`, `bodily`,
+      `physic`, `rapier`, `nudg`, `collision`, `collid`, `capsule`, `jolt`; and movement's src names none
+      of `ArrivalResolver`, `Resolution`, `register_resolvers`, `require_registered`, `test-fences`,
+      `test-grid`, `test-rogue`. A listed directory that is missing fails the test. Presence's and
+      movement's existing structural tests pass unchanged (F-R1).
+      Planted: `// a capsule nudges` in presence's resolve.rs → fails naming the file, line and both
+      words; `use mineworld_presence::ArrivalResolver as _;` in movement → fails naming it. Removed.
+RS-14 Runtime disable is not honoured (QB-15 bound 3, QB-17), shown rather than assumed: in RS-3's
+      world, `world.disable(test-fences)` and the same move → still recorded at (4 990, 2 000). ARC-39
+      states this limitation in its own words.
+RS-15 The documents say it first, and nothing else bites: ARC-39 and MODULE_SPEC §3.1 committed
+      before any code (RS-C1); both doc checks pass; `cargo test -p mineworld-acceptance --test
+      ac1_composability` and `--test precursor_vocabulary` pass unchanged (F-R13).
+RS-16 Scope (I-1). `git diff --name-only <base>...HEAD` ⊆ §16.1's change set; kernel/, contracts/,
+      persistence/, server/, cognition/, clients/, worlds/, authoring/, tools/cli/src/ and the root
+      Cargo.toml have an empty diff; Cargo.lock changes only mineworld-acceptance's dependency list;
+      `cargo fmt --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean.
+```
+
+## 16.5 Commit plan
+
+Each commit tracks implementation, validation and review separately. Evidence goes into §16.10 as
+`E-RS<n>`; deviations into §16.11. A planned commit may become several coherent commits; the mapping is
+recorded. Each commit leaves the workspace's tests green.
+
+### RS-C0 — Design (this section) — docs only
+
+- [x] Implementation: §16 and the header line, by the planning session on `mvp0/s15-12a-plan`, from the
+  audit in §16.2.
+- [x] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py`
+  (E-RS0); the two 300-day baselines re-measured on this base (E-RS0).
+- [x] Review: every claim in §16.2 cites a file and line, a command, or a measurement; each departure
+  from §4.4 is named with its finding and question; the operator-material questions are marked (§16.8).
+  Self-review by the planning session only; the primary session's review is pending.
+
+### RS-C1 — Specs before code: ARC-39, MODULE_SPEC §3.1, systems/README
+
+**Goal.** The seam exists as a reviewable decision before any code relies on it (`CLAUDE.md` §2.2).
+
+**Scope.** `docs/DECISIONS.md`: **ARC-39** appended after ARC-38 — *An arrival is resolved before it is
+recorded* — from §15.3 made exact by SD-R1 … SD-R14 (header: Date, Approved by (the operator's QB-1,
+QB-15; this PR's freeze), Implements `ARCHITECTURE.md` §§7–8, Relates to `INV-7`, `INV-15`, `AC-2`,
+`AC-9`, `ARC-15`, `ARC-23`, `ARC-25`, `ARC-26`, `ARC-33`, Design step-11 §§4.4, 16). `docs/MODULE_SPEC.md`
+§3.1: after the installed-set block, one paragraph and the line form of SD-R8, and a resolver pack's two
+duties (inert where its state is absent; `require_registered` in `install`). `systems/README.md` "Adding a
+pack": one paragraph pointing at §3.1 and ARC-39. Before writing: `git fetch` and confirm ARC-39 is free
+on every `origin/*` branch (it was on 2026-10-07, §16.10).
+
+**Depends on:** freeze. **Non-goals:** no code; no DEP-13 (12b); no bodies bound in ARC-39 (QR-11).
+
+- [ ] Implementation: ARC-39; MODULE_SPEC §3.1; systems/README.
+- [ ] Validation: both doc checks (ids distinct, headings unduplicated); cited sections exist.
+- [ ] Review: ARC-39 answers problem / options / choice / why / accepted limitations; it states the
+  runtime-disable limitation in its own words (QB-15 bound 3), the tests-without-compose behaviour, the
+  process-wide catalog as a named exception (F-R14), and uses `stopped-short`, `Arriving` — never a word
+  of RS-13's vocabulary except where it names the S15 step it serves. No defined term is redefined.
+
+**Commit boundary.** Documentation only.
+
+### RS-C2 — presence: the seam
+
+**Goal.** RS-3 … RS-8's mechanism, inside presence, inert until something registers.
+
+**Scope.**
+- `systems/presence/src/resolve.rs` (new): `ArrivalResolver`, `Arriving`, `Resolution` (SD-R1 … SD-R3);
+  the catalog, `register_resolvers`, `registered_resolvers`, `require_registered` (SD-R4, SD-R6); the
+  per-step checks (SD-R10) as one function the two constructors share.
+- `systems/presence/src/event.rs`: `StoppedShort` (+ `Event` impl, accessors, a crate-private emission
+  builder like `entered_place`); `arrivals()`; `arrival()` routed through the same fold and refusing a
+  changed resolution (SD-R7). Docs say what each constructor is for.
+- `systems/presence/src/system.rs`: `VERSION` 3, its doc (why 3: the constructors answer through
+  resolvers; a new fact type; old saves refused by name). Declaration unchanged (F-R12).
+- `systems/presence/src/lib.rs`: `pub mod resolve;`; re-exports; the doc table gains `stopped-short`
+  (stated by a stating system through `arrivals`, never reduced) and the seam paragraph.
+- `systems/presence/README.md`: the table; one paragraph on the seam.
+- `systems/presence/tests/resolver_catalog.rs` (new): RS-8 as one `#[test]`, with two stub resolvers
+  `a`, `b` and `c` (identity resolvers) defined in the file.
+- `tools/cli/tests/inspect.rs:36`, `tools/cli/tests/social_composition.rs:380, 420`: `presence v2` →
+  `presence v3` (QR-2), in this commit because the version bump is what breaks them.
+
+**Depends on:** RS-C1. **Non-goals:** no caller changes yet; nothing registers.
+
+- [ ] Implementation: as scoped. Presence's prose avoids F-R1's substrings.
+- [ ] Validation: `cargo test -p mineworld-presence` (the existing 15 + the new one), `cargo clippy -p
+  mineworld-presence --all-targets -- -D warnings`; `cargo test -p mineworld-movement` (its structural
+  test scans presence); `cargo test -p mineworld-cli --test inspect --test social_composition`; M-RS7
+  applied and reverted.
+- [ ] Review: no float, no `stride`, no other pack's word in presence's src; `arrival()`'s emission for
+  an unregistered or empty catalog is byte-for-byte today's (same builder); the fold sorts nothing at
+  call time (the catalog is sorted once); every check of SD-R10 is reachable; the catalog has exactly
+  three entry points.
+
+### RS-C3 — the installed set carries resolvers; compose registers them
+
+**Goal.** RS-10: every host registers the build's resolvers by composing.
+
+**Scope.**
+- `sdk/rust/src/installed.rs`: the optional `resolution:` line and `Capability::resolvers()` (SD-R8);
+  the macro's doc block shows it. `sdk/rust/src/lib.rs`: one line of the doc table.
+- `systems/installed/src/lib.rs`: `resolution: mineworld_presence::ArrivalResolver => [];` and a doc
+  sentence. `systems/installed/tests/resolution.rs` (new): the guard and its stub negative control.
+- `worldpack/src/load.rs`: `compose()` calls `mineworld_presence::register_resolvers(Capability::
+  resolvers())` before installing; its doc says why (ARC-39). `worldpack/tests/registration.rs` (new):
+  RS-10.
+
+**Depends on:** RS-C2.
+
+- [ ] Implementation: as scoped. The `twins` test is not edited.
+- [ ] Validation: `cargo test -p mineworld-sdk -p mineworld-installed-systems -p mineworld-worldpack`
+  (worldpack's structure test still passes: presence is on its allow-list); M-RS9 applied and reverted;
+  the stub negative control fails as intended inside its own test.
+- [ ] Review: the sdk still names no pack; the macro's two arms expand identically except
+  `resolvers()`; compose registers before the first install, so `assemble` and `load` inherit it.
+
+### RS-C4 — movement states through `arrivals`
+
+**Goal.** Movement's arrivals are resolved (SD-R9).
+
+**Scope.** `systems/movement/src/system.rs`: the `use` line, the `resolve` call, the declaration line.
+Nothing else in movement.
+
+**Depends on:** RS-C2.
+
+- [ ] Implementation: as scoped; `git diff --stat systems/movement` shows one file.
+- [ ] Validation: `cargo test -p mineworld-movement` (all existing tests, unchanged); the 300-day
+  social-cafe run at this commit = E-RS0 (RS-1's first bullet, early).
+- [ ] Review: movement names no resolver, no catalog, no resolver pack; it maps presence's refusal as
+  before; its VERSION stays 1 (SD-R9).
+
+### RS-C5 — the synthetic resolvers and SC-2 … SC-5, SC-8
+
+**Goal.** RS-3 … RS-7, RS-9, RS-12, RS-14 through the real `World::dispatch`.
+
+**Scope.**
+- `tests/acceptance/Cargo.toml`: dev-dependencies `mineworld-movement`, `mineworld-persistence`
+  (`workspace = true`; persistence is used by RS-C6).
+- `tests/acceptance/tests/resolvers/mod.rs` (new): fences, grid, rogue, echo, placer (SD-R11); a world
+  builder (`yard` and `lane`, the people of RS-3, placed by genesis through `arrival()`), a dispatcher
+  that allocates ids and instants, and `owned_state`. Genesis builds every placement before it applies
+  any fact, the fence's own included, so bob and carol can be placed east of the line (F-R4); RS-6's
+  refusal is asked after genesis, when the fence exists.
+- `tests/acceptance/tests/arrival_resolvers.rs` (new): RS-3, RS-4 (table-driven), RS-5, RS-6, RS-7 (the
+  registered half), RS-12, RS-14.
+- `tests/acceptance/tests/arrival_resolvers_unregistered.rs` (new): RS-9 and RS-7's never-registered
+  half.
+- `tests/acceptance/src/lib.rs`: the doc table.
+
+**Depends on:** RS-C3, RS-C4.
+
+- [ ] Implementation: as scoped; every test of `arrival_resolvers.rs` registers first (SD-R12).
+- [ ] Validation: `cargo test -p mineworld-acceptance --test arrival_resolvers --test
+  arrival_resolvers_unregistered`; M-RS2, M-RS3, M-RS4, M-RS5, M-RS6, M-RS8 each applied, failing by
+  name, reverted.
+- [ ] Review: every expected position is a literal from the layout; the synthetic packs are in no
+  library and in no installed set; `Cargo.lock` gains only acceptance's two names.
+
+### RS-C6 — SIGKILL and resume with a resolver installed
+
+**Goal.** RS-11.
+
+**Scope.** `tests/acceptance/tests/arrival_resolvers_resume.rs` (new, `harness = false`, persistence's
+`kill_and_resume` pattern: the same binary is the parent that kills and the child that is killed,
+selected by an environment variable); `tests/acceptance/Cargo.toml`: its `[[test]]` entry, with the
+reason in a comment.
+
+**Depends on:** RS-C5.
+
+- [ ] Implementation: as scoped; every child registers `[fences]` before composing.
+- [ ] Validation: `cargo test -p mineworld-acceptance --test arrival_resolvers_resume`; M-RS10 applied,
+  failing, reverted.
+- [ ] Review: the four exclusions of `kill_and_resume`'s header hold (killed, survivor read the file,
+  tail > 0 at least once, counts located first).
+
+### RS-C7 — the seam names no physics
+
+**Goal.** RS-13.
+
+**Scope.** `tests/acceptance/tests/seam_vocabulary.rs` (new). The word splitter is the I-2 scan's rule,
+written again here (about twenty lines) rather than moved, so the I-2 scan's file stays unedited.
+
+**Depends on:** RS-C5 (the files it lists exist).
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: the test passes; the two planted violations fail by name, removed.
+- [ ] Review: the list of scanned paths is every code path §16.1 changes; Markdown is the only exclusion
+  and is stated.
+
+### RS-C8 — Close: real runs, the refusal, status, full gate, ledger
+
+- [ ] RS-1: the two 300-day runs on the final executable head; both `validate` diffs; M-RS1 applied to
+  one run and reverted.
+- [ ] RS-2: the cross-build evidence, with the base binary built from the base before RS-C2 and kept at
+  `/tmp/s15-12a/base-mineworld`.
+- [ ] RS-15, RS-16: the AC-1 test and the I-2 scan; the diff-scope check; fmt and clippy.
+- [ ] Full gate once on the final executable head: `cargo test --workspace --no-fail-fast` in the
+  background; counts and wall time recorded.
+- [ ] Documentation: `docs/MVP_STATUS.md` (a capability row for the seam, an evidence row); §16
+  checkboxes; §16.10; the handoff.
+- [ ] Review: RS-1 … RS-16 each with evidence; deviations listed in §16.11.
+
+**PR 12a lifecycle:** not started.
