@@ -12,8 +12,12 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
 - Each of 12a–12e is detailed to the commit and frozen in turn.
 - **PR 12a — MERGED** as GitHub #56, merge commit `03f1d7c` (2026-10-07), PR head `dcaeae3`, final
   executable head `dc2b6b4`. Design, evidence and the operator's review in §16; review record §16.12.
-- **PR 12b** is next: detailed to the commit in §17 by the planning session, not frozen. Nothing in §17
-  authorizes implementation.
+- **PR 12b — MERGED** as GitHub #59, merge commit `9c617ed` (2026-10-07), PR head `ce986fe`, final
+  executable head `0733c77`. Design, evidence, deviations DB-1 … DB-10 and the DB-10 ruling in §17;
+  the operator's review in §17.12. Carried to 12d: QB-11's ≤ 1.5× bound on the towns (DB-10 (b2)),
+  F-B7 and FU-12a-1.
+- **PR 12c** is next: being detailed to the commit as §18 by the planning session, on
+  `mvp0/s15-12c-plan`; not frozen. Nothing in §18 authorizes implementation.
 
 **Freeze record (primary session, 2026-10-07).** The operator decided:
 
@@ -2748,10 +2752,11 @@ build. It stays inert in every world that does not install `bodies`.
 
 ---
 
-# 17. PR 12b — people: walls and nudging (full design; DESIGN FROZEN 2026-10-07)
+# 17. PR 12b — people: walls and nudging (full design; DESIGN FROZEN 2026-10-07; MERGED #59, `9c617ed`)
 
 **Lifecycle:** the planning session drafted this on `mvp0/s15-12b-plan` on 2026-10-07. The primary
-session froze it the same day; the freeze record is §17.0.
+session froze it the same day; the freeze record is §17.0. **MERGED** as GitHub #59, merge commit
+`9c617ed` (2026-10-07); the review and merge record is §17.12.
 
 ## 17.0 Freeze record
 
@@ -4048,3 +4053,46 @@ measurement, recorded as such.**
   re-measurement). Each stands as recorded above.
 - **Tool discipline:** the two slips recorded in E-PB2 (`awk`) and E-PB4 (`cat >>` heredoc) are not
   repeated; every file change is made with the Edit and Write tools.
+
+## 17.12 Operator review and merge (post-merge record, planning session)
+
+**Merged:** GitHub #59, merge commit `9c617ed` (2026-10-07), with a merge commit as frozen. PR head
+`ce986fe`; final executable head `0733c77`, unchanged in code by the Markdown-only commit after it
+(E-PB9).
+
+**The operator's review evidence, on the PR head, before the merge:**
+
+- **Gates re-run:** 582 passed, 0 failed. This matches E-PB9.
+- **Scope:** the root `Cargo.toml` has no diff (§17.0's overruling of QP-3 held; QP-9's contingent
+  override was tried and reverted, DB-10). No path under `kernel/`, `contracts/`, `server/`,
+  `persistence/` or `cognition/` is touched (I-1).
+- **Rapier isolation:** no use of `rapier3d` or `parry3d` outside `systems/bodies/src/rapier.rs`. The
+  other mentions are comments and the `mod rapier;` declaration (DEP-13's isolating interface; PB-15).
+- **The operator's own mutation:** `CLEARANCE` set to 300 mm. It failed
+  `resolve::tests::verify_then_degrade_keeps_the_pair_apart` (PB-8). The mutation was reverted. It is
+  independent of the implementing session's M-PB1 … M-PB11: none of those changed the clearance
+  constant itself.
+- **After the merge, on main:** `ac1_composability` passes 13/13 and `precursor_vocabulary` (the I-2
+  scan) 4/4 (PB-15 holds on the merged tree).
+
+**PB-14(b), recorded as it happened.** The criterion failed as frozen: 2.06× in all four runs, with
+QP-9's remedy tried and reverted (E-PB8). The primary session's DB-10 ruling re-scoped it after the
+failure, and says so:
+
+- **(b1)**, the absolute guard fixed before its measurement, ≤ 25 s for a dev-profile 300-day seed-7
+  run of bodies-yard: **PASS at 19.3 s** (E-PB9);
+- **(b2)**, QB-11's ≤ 1.5× bound on social-cafe and market-town with geometry: **carried to 12d
+  unchanged**, never re-scoped.
+
+**Deviations:** DB-1 … DB-9 stand as bounded, as the DB-10 ruling accepted them. DB-10 is closed by its
+ruling.
+
+**What 12b leaves.**
+
+- **For 12c:** `bodies` is the build's first and only registered resolver, inert wherever a place has
+  no `body:` section. The adapter already carries the F-P1 re-mark and its canary (PB-3) for the
+  dynamic bodies 12c introduces. `worlds/bodies-yard` is the pack's fixture (SD-B13). 12c is detailed
+  as §18.
+- **For 12d, carried:** QB-11's ≤ 1.5× bound on both towns' 300-day seed-7 dev runs, with versus
+  without bodies, and on failure DB-10's options 2 and 3 as a design change (DB-10 (b2)); F-B7, the
+  café's doorway point 200 mm from its wall; FU-12a-1, the three allow-listed comments.
