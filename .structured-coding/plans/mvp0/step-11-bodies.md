@@ -21,7 +21,8 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
   the operator's review in §18.12. Carried to 12d: FU-12c-1, with QB-11's ≤ 1.5× bound on the towns
   (DB-10 (b2)), F-B7 and FU-12a-1 still open.
 - **PR 12d-0 — bodies' cost** is next: a precursor inserted by the primary session's QD-2 ruling
-  (2026-10-08), detailed to the commit in §20 on `mvp0/s15-12d0-plan`; not frozen.
+  (2026-10-08), detailed to the commit in §20 on `mvp0/s15-12d0-plan`; **DESIGN FROZEN (2026-10-08),
+  primary session**, to be implemented in a fresh session.
 - **PR 12d** — the town gets bodies: detailed in §19, **awaiting 12d-0**; not frozen. The operator
   decided QD-1 (amend check 3) and the primary session ruled QD-2 … QD-13 (§19's header).
 
@@ -6429,11 +6430,17 @@ None yet.
 
 ---
 
-# 20. PR 12d-0 — bodies' cost (full design; DRAFT, not frozen)
+# 20. PR 12d-0 — bodies' cost (full design; DESIGN FROZEN 2026-10-08)
 
 **Lifecycle:** inserted by the primary session's QD-2 ruling (2026-10-08, §19's header) and drafted by
 the planning session on `mvp0/s15-12d0-plan`, from `main @ f842c52` (#72 and S11-A #76 merged; S11-A
-touches nothing of bodies). **Not frozen.** Nothing in §20 authorizes implementation.
+touches nothing of bodies). **DESIGN FROZEN (2026-10-08), primary session** — the freeze message relayed
+by the coordinator: "§20 is accepted as written", QZ-1 … QZ-5 accepted as recommended (QZ-1: SD-Z4 keeps
+the whole wall slide as a deliberate definition change, governed by ZR-3's shadow rule — at most 1 % of
+requests differing by more than 50 mm; QZ-2: the 2 200 mm margin guarded by its unit test; QZ-3: the gate
+on both towns; QZ-4: the L1/L2 ladder fixed, anything beyond it the operator's; QZ-5: the prototype
+rebuilt from §20.12's recipe). The byte-identity classes (§20.4) and the TZ-9 gate stand exactly as
+written. Implementation in a fresh session (§20.11). §19 stays AWAITING 12d-0 until 12d-0 passes TZ-9.
 
 The ruling, as relayed: implement DB-10's options 2 and 3 — integer wall-only strides that never touch
 Rapier, and only the people who can be reached in the scene; decide **before measuring** which results
