@@ -22,5 +22,5 @@ a `body:` section is untouched.
 
 The rules are in [`docs/DECISIONS.md`](../../docs/DECISIONS.md) (`ARC-39` and its notes, `ARC-36`'s
 note, `DEP-13`); the section in [`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §4.1; the design in
-`.structured-coding/plans/mvp0/step-11-bodies.md` §§17–18. Try it on
+`.structured-coding/plans/mvp0/step-11-bodies.md` §§17–18, and its cost in §20. Try it on
 [`worlds/bodies-yard`](../../worlds/bodies-yard).
