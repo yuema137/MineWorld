@@ -1874,9 +1874,30 @@ WITH, `+`, each refusal naming the identifier), a unit test of the prefix functi
 `read_with`: resolves; absent; out of range; wrong type; the world's licence; `read` of a world with
 `requires:` refused absent with "no pack directory was given").
 
-- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-worldpack -p mineworld-acceptance`;
-  `validate` byte-identity of the three worlds; M-B1 · [ ] Review: `load.rs` untouched; nothing seeds
-  from the composition; the seam vocabulary absent from `worldpack/src` additions.
+- [x] Implementation (E-Eb3): as scoped. `origin/main` merged first (`586280c`: #73 the S17 World
+  Interaction List step design, #74/#75 docs — Markdown only, no conflict; S17's frozen step keeps
+  `configure:` as the carrier, QIL-2 overruled, and reaches third-party packs "by naming it in
+  `requires:`, with nothing new" — PD-11 holds). Bounded refinements: (1) a World Pack found in a root
+  is identified from its `world.yaml` alone (`parse` made `pub(crate)`), never read as a world, so
+  resolution cannot recurse; (2) `PackError::FrameworkNotSupported` (E-a's) and the new
+  `PackError::Requirements` carry `Box<PackageError>`: the licence refusal's four strings pushed
+  `PackError` past clippy's `result_large_err` bound, which fired in *existing* test files
+  (`worldpack/tests/refusals.rs`) — fixed at the source rather than in those tests; (3) the
+  `WorldPack::in_memory` test constructor gains an empty `Composition`. `Composition` and `PackRoots`
+  are re-exported by `worldpack`.
+- [x] Validation (E-Eb3): clippy `--workspace --all-targets -D warnings` → 0. `cargo test -p
+  mineworld-worldpack -p mineworld-packages -p mineworld-acceptance --no-fail-fast` → 25 result lines,
+  **121 passed, 0 failed, 0 ignored, 0 filtered**; new `worldpack/tests/requirements.rs` 4 passed
+  (met in a root, with presence bundled; absent / out of range / bundled / the world's GPL licence,
+  each naming `the-world/world.yaml`; `read` with no root says "no pack directory was given" while the
+  pack sits beside the world; a world in a root refused as `world-pack`). `mineworld validate` of the
+  three worlds after the change: byte-identical to the base binary's (`cmp`). **M-B1** (range check
+  `if false && …`) → `an_unmet_requirement_…` FAILS at "out-of-range" (the world read, `style-a` 0.1.0
+  accepted for `^0.2`); reverted, `git diff` holds no `false &&`.
+- [x] Review: `git diff --stat HEAD -- worldpack/src/load.rs` empty; nothing seeds from the
+  composition (`composition()`'s only callers will be in `tools/cli`); no word of the seam scan's
+  vocabulary in the `worldpack/src` additions; `read`'s signature unchanged, so the nine test callers and
+  persistence's are untouched.
 
 ### Eb-C4 — the CLI: roots everywhere, `packs resolve`, `validate`'s lines
 
