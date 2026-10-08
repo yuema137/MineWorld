@@ -628,8 +628,13 @@ CI          S13 is the CI; each PR's canonical evidence is its own workflow run 
 
 ## 9.0 Freeze-ready revision (2026-10-08, implementing session)
 
-**Status:** `PROPOSED FOR FREEZE`. Nothing below is frozen until the primary session records approval.
-Written by the 13a implementing session (worktree `/Users/yuema137/mineworld-worktrees/impl-s13a`, branch
+**Status:** `DESIGN FROZEN (2026-10-08), primary session`. Evidence: the primary session's freeze
+message to the 13a session, 2026-10-08: "FREEZE: 13a is DESIGN FROZEN (2026-10-08), primary session. Your
+§9.0 revision R-1 to R-6 is accepted as written", covering the full triggers, the `scratch/*-image` route,
+no settings changes, job names `fast` and `test`, ARC-48 / DEP-17 / DEP-18 for 13a (ARC-49, DEP-19
+reserved for 13b), `scratch/13a-*` branches deleted after use, and the contract amendments. Material
+stops: any spending, any settings or protection change, any Rust or test edit, exceeding the 12-run
+budget. Written by the 13a implementing session (worktree `/Users/yuema137/mineworld-worktrees/impl-s13a`, branch
 `mvp0/pr-13a-ci`, from `main @ 47c81d1`). It applies the operator's 2026-10-08 decision to make the
 repository public and the coordination rulings in `overall.md` "Parallel build-out, 2026-10-08" to §§3–9.
 Where this subsection and older text in this file disagree, this subsection governs 13a.
