@@ -119,6 +119,28 @@ func _lawn(r: Rect2) -> void:
 
 ## A room opened up: floor, the two far walls standing, the near walls cut to stubs (the spike's
 ## roof-lift cut-away, any rectangle and any orientation).
+## A disclosed doorway of a room (F-10): a mat on the ground just outside it, and the opening in the
+## wall — standing, as tall as a door, in a far wall; a dark gap across a cut-away near wall.
+func _door(door: Dictionary, wall_h: float, alpha: float) -> void:
+	const HALF_WIDTH_M := 0.55
+	var at: Vector2 = door["at"]
+	var out: Vector2 = door["out"]
+	var along := Vector2(-out.y, out.x)
+	var a := at - along * HALF_WIDTH_M
+	var b := at + along * HALF_WIDTH_M
+	draw_colored_polygon(_poly([a, b, b + out * 0.9, a + out * 0.9]), Color(_c("door_mat", Color("b5523b")), alpha))
+	var pa: Vector2 = projection.to_screen(a)
+	var pb: Vector2 = projection.to_screen(b)
+	var dark := Color(_c("door", Color("3a2a1c")), alpha)
+	var far: bool = projection.plan_dir_to_screen(out).y < 0.0
+	if far and wall_h > 0.0:
+		var h := minf(wall_h, projection.height_px(2.1))
+		draw_colored_polygon(PackedVector2Array([pa + Vector2(0, -h), pb + Vector2(0, -h), pb, pa]), dark)
+	else:
+		draw_colored_polygon(_poly([a, b, b - out * 0.2, a - out * 0.2]), dark)
+		draw_line(pa, pb, dark, 5.0, true)
+
+
 func _room(area: Dictionary) -> void:
 	var r: Rect2 = area["rect"]
 	var alpha := float(area.get("alpha", 1.0))
@@ -153,6 +175,8 @@ func _room(area: Dictionary) -> void:
 			draw_line(pa, pb, Color(_c("skirt", Color("8a6a46")), alpha), 4.0, true)
 		else:
 			draw_line(pa, pb, Color(_c("cut_edge", Color("9c8c72")), alpha), 2.0, true)
+	for door in area.get("doors", []):
+		_door(door, wall_h, alpha)
 	for light in area.get("lights", []):
 		var c: Vector2 = projection.to_screen(light) + Vector2(0, 6)
 		for k in [[132.0, 52.0, 0.07], [96.0, 38.0, 0.09], [58.0, 23.0, 0.11]]:

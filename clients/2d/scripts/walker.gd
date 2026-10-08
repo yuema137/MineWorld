@@ -29,6 +29,12 @@ const ARRIVED_M := 0.02
 ## A frame computed before an accepted move: the old position to the millimetre, within this window.
 const STALE_M := 0.002
 const STALE_WINDOW_MS := 600
+## A click this close to a disclosed doorway is a click on the door (it is drawn 1.1 m wide).
+const DOOR_PICK_M := 0.8
+## Walking with the keys this close to a doorway steps through it; doorways arm again once the body
+## is DOOR_REARM_M from where it last crossed, so arriving through one does not bounce back.
+const DOOR_STEP_M := 0.6
+const DOOR_REARM_M := 1.0
 
 var town
 var intents: Node
@@ -60,6 +66,9 @@ var stale_ignored := 0
 var _stale_place := ""
 var _stale_plan := Vector2.ZERO
 var _stale_until_ms := 0
+## Whether walking onto a doorway with the keys steps through it (see DOOR_REARM_M).
+var _doors_armed := true
+var _crossed_at := Vector2.ZERO
 
 
 ## The world's word on where the observer is: placed on first sight, followed when it differs.
@@ -92,8 +101,24 @@ func observe(observation: MineWorldObservation) -> void:
 			reconciled.emit(place, plan)
 
 ## Walks to a point the player clicked (plan metres), through doorways when it lies in another place.
+## A click on a disclosed doorway of the place the body is in means "go through it" (F-10): the
+## route ends at the doorway's `there`, in the place it leads to.
 func walk_to_plan(plan: Vector2) -> void:
+	var door := _doorway_near(plan, DOOR_PICK_M)
+	if not door.is_empty():
+		walk_to(door["to"], town.to_plan(door["to"], {"x": door["there"].x, "y": door["there"].y}))
+		return
 	walk_to(town.place_at(plan, body_place), plan)
+
+
+## The disclosed doorway of the body's place whose `here` lies within `radius` of `plan`, or {}.
+func _doorway_near(plan: Vector2, radius: float) -> Dictionary:
+	for p in town.passages.get(body_place, []):
+		var here: Variant = town.to_plan(body_place, {"x": p["here"].x, "y": p["here"].y})
+		if here != null and town.to_plan(p["to"], {"x": p["there"].x, "y": p["there"].y}) != null \
+				and (here as Vector2).distance_to(plan) <= radius:
+			return p
+	return {}
 
 
 ## Walks to `plan` in `place`. Ends any walk in progress after its request in flight is answered.
@@ -145,6 +170,9 @@ func resolved(token: String, result: Dictionary) -> void:
 		accepted_plan = _step["plan"]
 		accepted_place = _step["place"]
 		body_place = accepted_place
+		if _step.get("crossing", false):
+			_doors_armed = false
+			_crossed_at = accepted_plan
 		_step = {}
 		if _route.is_empty():
 			walk_ended.emit(true)
@@ -207,10 +235,18 @@ func _walk_keys(screen_dir: Vector2, dt: float) -> void:
 	facing = direction
 	_asked_facing = direction
 	var next := body_plan + direction * WALK_SPEED * dt
+	if not _doors_armed and body_plan.distance_to(_crossed_at) > DOOR_REARM_M:
+		_doors_armed = true
+	if _doors_armed and _token == "":
+		# Walking onto a disclosed doorway: ask for the crossing to its `there` (F-10).
+		var door := _doorway_near(next, DOOR_STEP_M)
+		if not door.is_empty():
+			_send({"place": door["to"], "plan": town.to_plan(door["to"], {"x": door["there"].x, "y": door["there"].y}), "crossing": true})
+			return
 	if next.distance_to(accepted_plan) <= STRIDE_M:
 		var into: String = town.place_at(next, body_place)
 		var through: Dictionary = town.passage(body_place, into) if into != body_place else {}
-		if not through.is_empty() and _token == "":
+		if not through.is_empty() and _token == "" and _doors_armed:
 			# Stepping into another place: ask for the crossing through its disclosed doorway.
 			var door: Vector2 = town.to_plan(body_place, {"x": through["here"].x, "y": through["here"].y})
 			if body_plan.distance_to(door) <= STRIDE_M:

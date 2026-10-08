@@ -276,6 +276,9 @@ func _home(exit: String) -> void:
 		await _press_at(door)
 	var out := await _until(func() -> bool: return app.latest.place() == p["to"] and not app.walker.is_walking(), 20.0)
 	_check(out, "out through the door (%s)" % exit, "now in %s, the doorway leads to %s" % [app.latest.place(), p["to"]])
+	await _seconds(SETTLE_S)
+	_check(app.latest.place() == p["to"] and _place_changes == 1, "stays out (no bounce back)",
+		"in %s after %d place change(s)" % [app.latest.place(), _place_changes])
 	if _capture != null and out:
 		await _seconds(SETTLE_S)
 		await _capture.shoot("08_home_door", 1.6, door)

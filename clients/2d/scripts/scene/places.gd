@@ -16,8 +16,6 @@ const Sprites := preload("res://scripts/scene/sprites.gd")
 const FADE_RATE := 3.4
 ## How far the hub's paving reaches past its outermost doorways when the pack does not say.
 const DEFAULT_MARGIN_M := 5.0
-## How far inside its walls a room keeps the people it holds.
-const ROOM_MARGIN_M := 0.8
 
 var projection
 var presentation
@@ -36,6 +34,12 @@ var drawn: Dictionary = {}
 
 var _version := -1
 var _dressing: Array[Node2D] = []
+## One label per drawn doorway of a room, naming where it leads (meta `to`).
+var _door_labels: Array[Label] = []
+## Which way a room seen only from inside runs from its door, fixed when it is first drawn: the
+## world discloses no extent, so the guess is made once and never follows the player (F-9).
+var _inside_dir: Dictionary = {}
+var _observation: MineWorldObservation = null
 
 
 func setup(the_projection, the_presentation, the_town, the_world: Node2D, parent: Node2D) -> void:
@@ -61,28 +65,30 @@ func reconcile(observation: MineWorldObservation) -> void:
 	if town.version != _version:
 		_version = town.version
 		_rebuild()
-	_fit_room_to_people(observation)
+	_observation = observation
+	for label in _door_labels:
+		label.text = _door_text(label.get_meta("to"))
 
 
-## A room is drawn at least big enough for everyone the observer sees in it: the pack's footprint is
-## decoration, and a person drawn standing outside the walls of the room they are in would show
-## something the world never said. Grown only from perceived positions, never shrunk.
-func _fit_room_to_people(observation: MineWorldObservation) -> void:
-	var entry: Dictionary = drawn.get(here, {})
-	if entry.is_empty() or entry["kind"] == "lawn":
-		return
-	var rect: Rect2 = entry["rect"]
-	var grown := rect
-	for entity in observation.entities():
-		if String(entity.get("entity_type", "")) != "person" or typeof(entity.get("location")) != TYPE_DICTIONARY:
+## "door to <where it leads>": the place's display name if the world gives one, else its last known
+## tag, else "outside".
+func _door_text(to: String) -> String:
+	var name := _observation.display_name(to) if _observation != null else ""
+	if name == "":
+		var to_tags: PackedStringArray = town.tags.get(to, PackedStringArray())
+		name = to_tags[to_tags.size() - 1] if not to_tags.is_empty() else "outside"
+	return "door to %s" % name
+
+
+## Whether a doorway of `place` is drawn at `at` (plan metres), on a floor that is showing (F-10).
+func door_drawn(place: String, at: Vector2) -> bool:
+	for area in ground.areas:
+		if area.get("place") != place or float(area.get("alpha", 1.0)) <= 0.002:
 			continue
-		var at: Variant = town.to_plan(here, entity["location"].get("local"))
-		if at != null and not rect.grow(-ROOM_MARGIN_M).has_point(at):
-			grown = grown.expand(at + Vector2(ROOM_MARGIN_M, ROOM_MARGIN_M)).expand(at - Vector2(ROOM_MARGIN_M, ROOM_MARGIN_M))
-	if grown != rect:
-		entry["rect"] = grown
-		town.footprints[here] = grown
-		_update_areas()
+		for door in area.get("doors", []):
+			if (door["at"] as Vector2).distance_to(at) < 0.01:
+				return true
+	return false
 
 
 func _process(delta: float) -> void:
@@ -132,8 +138,11 @@ func _rebuild() -> void:
 			node.queue_free()
 	for node in _dressing:
 		node.queue_free()
+	for label in _door_labels:
+		label.queue_free()
 	drawn.clear()
 	_dressing.clear()
+	_door_labels.clear()
 	town.footprints.clear()
 	var hub: String = town.hub()
 	var extent: Rect2 = town.hub_extent()
@@ -197,8 +206,11 @@ func _draw_doorway(hub: String, p: Dictionary, extent: Rect2) -> void:
 func _draw_room_from_inside(place: String, p: Dictionary) -> void:
 	var door: Vector2 = town.to_plan(place, {"x": p["here"].x, "y": p["here"].y})
 	# Which way the room runs from its door is not disclosed; the observer stands inside it, so the
-	# room is drawn toward them. Presentation only, and replaced once the hub is known.
-	var in_dir := _axis(self_plan - door) if self_plan.distance_to(door) > 0.01 else Vector2(0, -1)
+	# room is drawn toward where they first stood. Presentation only, chosen once (F-9), and replaced
+	# once the hub is known.
+	if not _inside_dir.has(place):
+		_inside_dir[place] = _axis(self_plan - door) if self_plan.distance_to(door) > 0.01 else Vector2(0, -1)
+	var in_dir: Vector2 = _inside_dir[place]
 	var right := Vector2(-in_dir.y, in_dir.x)
 	var spec := _by_tag("interiors", town.tags.get(place, PackedStringArray()))
 	var rect := _footprint(door, in_dir, right, spec)
@@ -321,14 +333,56 @@ func _update_areas() -> void:
 		var entry: Dictionary = drawn[place]
 		match entry["kind"]:
 			"lawn":
-				areas.append({"kind": "lawn", "rect": entry["rect"]})
+				areas.append({"kind": "lawn", "rect": entry["rect"], "place": place})
 			"room":
-				areas.append({"kind": "room", "rect": entry["rect"], "lights": entry["lights"], "alpha": 1.0})
+				areas.append({"kind": "room", "rect": entry["rect"], "lights": entry["lights"], "alpha": 1.0,
+					"place": place, "doors": _doors(place, entry)})
 			"facade":
 				if entry["fade"] > 0.002:
-					areas.append({"kind": "room", "rect": entry["rect"], "lights": entry["lights"], "alpha": entry["fade"]})
+					areas.append({"kind": "room", "rect": entry["rect"], "lights": entry["lights"],
+						"alpha": entry["fade"], "place": place, "doors": _doors(place, entry)})
 	ground.areas = areas
 	ground.queue_redraw()
+	_place_door_labels(areas)
+
+
+## Every disclosed doorway of a room, where it is drawn: `{at, out, to}` in plan metres. The doorway
+## the room was drawn from opens against `in_dir`; any other opens through the nearest wall.
+func _doors(place: String, entry: Dictionary) -> Array:
+	var out: Array = []
+	var rect: Rect2 = entry["rect"]
+	for p in town.passages.get(place, []):
+		var at: Variant = town.to_plan(place, {"x": p["here"].x, "y": p["here"].y})
+		if at == null:
+			continue
+		var outward: Vector2 = -entry["in_dir"] if (at as Vector2).distance_to(entry["door"]) < 0.01 \
+			else _axis(at - rect.get_center())
+		out.append({"at": at, "out": outward, "to": p["to"]})
+	return out
+
+
+## A label just outside each drawn doorway of the room the observer stands in, naming where it leads.
+func _place_door_labels(areas: Array) -> void:
+	for label in _door_labels:
+		label.queue_free()
+	_door_labels.clear()
+	for area in areas:
+		if area.get("place") != here:
+			continue
+		for door in area.get("doors", []):
+			var label := Label.new()
+			label.set_meta("to", door["to"])
+			label.text = _door_text(door["to"])
+			label.add_theme_font_size_override("font_size", 13)
+			label.add_theme_color_override("font_color", Color("2e2418"))
+			label.add_theme_color_override("font_outline_color", Color(1, 0.96, 0.82, 0.95))
+			label.add_theme_constant_override("outline_size", 6)
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			label.size = Vector2(160, 18)
+			label.position = projection.to_screen(door["at"] + door["out"] * 1.0) - Vector2(80, 9)
+			label.z_index = 50
+			world.add_child(label)
+			_door_labels.append(label)
 
 
 ## A tag-keyed block of the renderer parameters (`interiors`, `outdoor`): the first of the place's
