@@ -9,6 +9,7 @@
 //!                   owns (owns_section!), and how that section is decoded — each defaulting to none
 //! the installed set systems/installed: one installed! invocation, one line per pack — the build's
 //!                   only list of System Packs, expanded into the catalog the loader reads
+//! resolution:       installed!'s optional line listing the build's arrival resolvers (ARC-39)
 //! ```
 //!
 //! Installing a pack in MVP-0 is a new directory under `systems/`, two lines in `systems/installed/`

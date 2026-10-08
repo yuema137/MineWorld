@@ -12,7 +12,7 @@ use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
 use mineworld_presence::{
-    Arrived, Offer, PerceptionProvider, Presence, PresenceSystem, admit, arrival,
+    Arrived, Offer, PerceptionProvider, Presence, PresenceSystem, StoppedShort, admit, arrivals,
 };
 
 use crate::action::{Move, move_offer_requirement, stride_requirement};
@@ -52,6 +52,7 @@ impl System for MovementSystem {
             .owning::<Passages>()
             .providing::<Move>()
             .emitting::<Arrived>()
+            .emitting::<StoppedShort>()
             .emitting::<PassageOpened>()
             .subscribing_to::<PassageOpened>()
     }
@@ -96,8 +97,8 @@ impl System for MovementSystem {
         reachable(world, &from, &to)
     }
 
-    /// States the arrival, in presence's vocabulary and through presence's constructor, and writes
-    /// nothing.
+    /// States the arrival, in presence's vocabulary and through presence's constructor for people who
+    /// move — whatever facts presence says the move becomes — and writes nothing.
     fn resolve(
         &self,
         world: &mut WorldView<'_, Self>,
@@ -107,14 +108,11 @@ impl System for MovementSystem {
         let read = world.read();
         let actor = read.require_entity(intent.actor())?;
         let person = PersonId::new(actor.id(), actor.entity_type())?;
-        let fact = arrival(&read, person, requested.to()).map_err(|reason| {
-            KernelError::FactRefusedByOwner {
-                system: PresenceSystem::ID,
-                event_type: Arrived::EVENT_TYPE,
-                reason,
-            }
-        })?;
-        Ok(vec![fact])
+        arrivals(&read, person, requested.to()).map_err(|reason| KernelError::FactRefusedByOwner {
+            system: PresenceSystem::ID,
+            event_type: Arrived::EVENT_TYPE,
+            reason,
+        })
     }
 
     /// Reduces an opened passage into the [`Passages`] of both places.

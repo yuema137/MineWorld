@@ -22,6 +22,21 @@
 /// [`SystemPack`](crate::SystemPack) and the perception trait; a type that does not is refused by
 /// the compiler here, at the list.
 ///
+/// An optional `resolution` line, after `perception`, lists the build's arrival resolvers
+/// (`DECISIONS.md` `ARC-39`): the trait they implement, and their types, each followed by a comma.
+///
+/// ```text
+/// mineworld_sdk::installed! {
+///     perception: mineworld_presence::PerceptionProvider;
+///     resolution: mineworld_presence::ArrivalResolver => [];
+///     Presence => mineworld_presence::PresenceSystem,
+/// }
+/// ```
+///
+/// A listed type must implement that trait and `Default`; one that does not is refused by the
+/// compiler, at the list. Whether each listed type is also an installed pack is the installed set's
+/// own test, because the compiler cannot see it.
+///
 /// The expansion, in the invoking crate:
 ///
 /// ```text
@@ -30,14 +45,53 @@
 /// impl Capability {
 ///     resolve, id, section, owning_section, decode_section, biographical, install, provider,
 ///     type_name
+///     resolvers                             only with a `resolution` line: one value of each
+///                                           listed resolver type, in the listed order
 /// }
 /// impl Display for Capability               its id
 /// ```
+///
+/// The two forms expand identically except for `resolvers`.
 #[macro_export]
 macro_rules! installed {
     (
         perception: $perception:path;
+        resolution: $resolution:path => [ $( $Resolver:ty , )* ];
         $( $Variant:ident => $System:ty ),+ $(,)?
+    ) => {
+        $crate::installed! {
+            @catalog
+            perception: $perception;
+            $( $Variant => $System ),+
+        }
+
+        impl Capability {
+            /// The build's arrival resolvers, one value of each listed type, in the listed order:
+            /// what a host registers before it composes any world (`ARC-39`).
+            pub fn resolvers() -> ::std::vec::Vec<::std::boxed::Box<dyn $resolution>> {
+                ::std::vec![
+                    $(
+                        ::std::boxed::Box::new(<$Resolver as ::core::default::Default>::default())
+                            as ::std::boxed::Box<dyn $resolution>,
+                    )*
+                ]
+            }
+        }
+    };
+    (
+        perception: $perception:path;
+        $( $Variant:ident => $System:ty ),+ $(,)?
+    ) => {
+        $crate::installed! {
+            @catalog
+            perception: $perception;
+            $( $Variant => $System ),+
+        }
+    };
+    (
+        @catalog
+        perception: $perception:path;
+        $( $Variant:ident => $System:ty ),+
     ) => {
         /// One System Pack this build can install.
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

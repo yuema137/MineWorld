@@ -2946,3 +2946,184 @@ item ◄── inventory ◄── item-transfer ──► presence
   world states, as `ARC-26`'s note says of constants that are not yet configuration.
 - **A pack owns one section** (F-47): economy's shop is authored on its operator. The limit is worked
   within, not changed; lifting it would be framework work justified only by the market.
+
+---
+
+## ARC-39 — An arrival is resolved before it is recorded
+
+**Date** 2026-10-07 · **Approved by** the operator (step-11 QB-1, resolve before recording; QB-15, a
+catalog registered at start-up, with its three bounds) and the primary session at PR 12a's design
+freeze (step-11 §16.0: QR-2 and QR-4 decided, QR-1, QR-3, QR-5 … QR-12 accepted as recommended) ·
+**Implements** [`ARCHITECTURE.md`](ARCHITECTURE.md) §§7–8 · **Relates to** `INV-7`, `INV-15`,
+[`MVP.md`](MVP.md) §9 `AC-2`, `AC-9`, `ARC-15`, `ARC-23`, `ARC-25`, `ARC-26`, `ARC-33` · **Design**
+`.structured-coding/plans/mvp0/step-11-bodies.md` §§4.4, 16 (S15, PR 12a)
+
+**Problem.** Step S15 (bodies and physical interaction) needs a person's arrival to be able to end
+short of where it was asked to go, and to move other people standing in the way. Three constraints
+bound the answer:
+- **The log holds only true arrivals** (the operator's QB-1). An `arrived` that is recorded and then
+  corrected by a later fact is refused as a design, even though each fact would be true in sequence.
+- **Movement still alone decides whether a move is allowed, and names no resolver.** A mover that had
+  to call the S15 pack would make that pack impossible to remove (`AC-2`) and every future mover would
+  have to remember it.
+- **No kernel change and no contract change.** Presence owns where people are (`ARC-26`); the question
+  "what does this arrival actually achieve" is presence's to ask, not the kernel's.
+
+Presence already has the only public way to build an `arrived`: its constructor `arrival(world,
+person, location)`, which every stating system calls under `ARC-26`. An arrival is built **inside**
+`World::dispatch`, where the only things in reach are the stating system's `&self` and a `WorldRead`
+(`kernel/src/view.rs`: entities, components, relations, processes — no composition, no registry, no
+enabled state). So whatever answers the question must reach presence's constructor without being
+handed to it per call.
+
+**Options considered.**
+
+```text
+(a) correct after recording: the resolving pack     transient facts in the log (QB-1, refused by the
+    reacts to each arrived and states a second one   operator)
+(b) movement calls the resolving pack               the pack is no longer removable; every future
+                                                     mover must remember it
+(c) a kernel geometry seam                          a kernel change; the likely route for line of
+                                                     access later, not needed here
+(d) F2: a kernel extension slot, World::provide /   per-world rather than per-process, but a kernel
+    WorldRead::provided                             change (QB-15)
+(e) F1: presence asks every registered              chosen
+    ArrivalResolver before it records, through a
+    write-once catalog registered at start-up
+```
+
+**Choice: (e).**
+
+1. **The seam is presence's** (`systems/presence/src/resolve.rs`).
+   - `Arriving { person, from: Option<Location>, to }`: one arrival as presence knows it before it
+     records anything. `from` is the person's current `Presence`, read by presence, `None` at a first
+     placement. Only presence builds one.
+   - `Resolution { reached, displaced: Vec<(PersonId, Location)>, stopped_by: Option<EntityId> }`,
+     with private fields. A resolver starts from what it is handed and changes it only through
+     `Resolution::stopped_at` and `Resolution::displacing`; `Resolution::unchanged` is the arrival
+     exactly as decided.
+   - `ArrivalResolver: Send + Sync`, with `resolver_of() -> SystemId` and `resolve(world, arriving,
+     so_far) -> Resolution`. Its contract: read only the `WorldRead`; keep nothing; read no clock, no
+     random source and no process-wide state; return `so_far` unchanged when the world holds none of
+     the pack's own state about the people and the place involved — which is what keeps a world
+     without the pack byte-identical; and the pack's `System::install` calls `require_registered`
+     first (item 5).
+   - A resolver cannot emit a fact. Its pack's own consequences of an arrival happen in that pack's
+     reactions to the facts presence records.
+2. **Two constructors.**
+   - **`arrivals(world, person, to) -> Result<Vec<Emission>, Rejection>`, for movers.** It asks
+     `admit`; builds the `Arriving`; folds the registered resolvers in ascending `SystemId`, starting
+     from `Resolution::unchanged` and **checking the result after each resolver** (item 3); and
+     returns, in this order: `arrived { person, reached }`; one `arrived` for each displaced person, in
+     the resolution's order; and `stopped-short { person, wanted: to, reached, by }` when `reached ≠
+     to`. Every `arrived` is built exactly as `arrival` builds it.
+   - **`arrival(world, person, to) -> Result<Emission, Rejection>`, for placement.** Its signature is
+     unchanged. It runs the same fold and refuses with item 3's code when the result is not unchanged;
+     otherwise it returns exactly the one emission it returned before this decision. An arrival is
+     therefore recorded as resolved or refused — never recorded unresolved.
+   - Resolvers are asked in ascending `SystemId` order, so the order is a function of the resolvers'
+     names alone: not of the `installed!` list, not of a world's `systems:` list.
+3. **Presence still decides** (`ARC-26`). After each resolver, a resolution is refused with
+   `Rejection::System { code: "resolution-refused", detail: "<resolver id>: <rule>" }`, which the
+   stating system turns into `KernelError::FactRefusedByOwner` as it does any refusal of presence's:
+   - (a) `reached` is in `to`'s place;
+   - (b) `reached` has `to`'s facing, and a local position exactly when `to` has one;
+   - (c) when `from` is in `to`'s place and both have local positions, `reached` is no farther from
+     `from` than `to` is, compared as squared millimetres in `i128`: a resolver may shorten or bend an
+     arrival, never lengthen it, so the stating system's own bound still bounds it;
+   - (d) `admit(person, reached)`;
+   - (e) every displaced entry names a living `Person`, not the walker, listed once, whose current
+     `Presence` is in `to`'s place, displaced to a location in that place that keeps rule (b)'s local
+     position rule and passes `admit`;
+   - (f) `stopped_by`, when present, names an entity of this world, and is present only when `reached
+     ≠ to`.
+   Checking after each resolver names the resolver at fault (`ARC-23`); a check of the final result
+   alone could not.
+4. **`stopped-short` is presence's fact, stated by the stating system.** `StoppedShort { person,
+   wanted, reached, by }`, owner presence, schema 1. An arrival that ends short of where it was asked
+   to go is a fact about where a person is, which is presence's domain, and it names nobody who moved
+   them. Presence reduces it into nothing. **Presence's declaration does not list it**: presence never
+   states one — not at genesis, where `arrival` refuses a changed placement, and not in its reaction
+   — and a declaration must be true. Only a stating system declares it (movement, with this decision).
+   Every fact of one arrival — the walker's `arrived`, each displaced person's, the `stopped-short` — is
+   stated in one emission list and caused by the request (`AC-9`).
+5. **The catalog: the one named process-wide value.** `ENGINEERING_RULES.md` §15 forbids hidden global
+   state; this is a stated exception, not a hidden one.
+   - It is a `static OnceLock<Vec<Box<dyn ArrivalResolver>>>` in presence, with exactly three entry
+     points: `register_resolvers(list)`, `registered_resolvers() -> Option<Vec<SystemId>>`, and
+     `require_registered(&SystemId)`. Nothing else reads or writes it.
+   - **It is not world state.** It is the build's compiled-in list of resolver code, identical for
+     every world in the process, set before any world runs and never changed — the same kind of thing
+     as the `installed!` list itself. Per-world applicability needs no filter, because a resolver is
+     inert where its own state is absent: a world that does not install a resolver's pack has no table
+     for that pack's components, and a read of a missing table answers `None` rather than failing.
+   - `register_resolvers` sorts the list by `resolver_of()`. A list naming one id twice panics, naming
+     it. If the catalog is unset, it is set. If it is set to the same ids, the call does nothing. If it
+     is set to different ids, the call panics, naming both lists: one build has one catalog, and a
+     second, different one is a defect of the host, not a condition to recover from.
+   - **Never registered means no resolver.** `arrivals` and `arrival` consult the registered list, or
+     none when nothing was registered. A process that composes worlds by hand and never registers —
+     the kernel's, persistence's, the server's and every pack's own tests — therefore records exactly
+     what it recorded before this decision.
+6. **How the catalog is written.** `installed!` gains an optional line after `perception:`,
+   `resolution: <trait path> => [ <type>, … ];`, each type followed by a comma, and expands it into
+   `Capability::resolvers()`: one `Default` value of each listed type. A listed type that does not
+   implement the trait does not compile; a test of the installed set holds that every listed resolver
+   belongs to an installed pack. `systems/installed` writes `resolution:
+   mineworld_presence::ArrivalResolver => [];` — empty until the first resolver pack is listed.
+   `worldpack::compose`, the one assembly path of every host (server, `run`, `create`, `biography`,
+   `inspect`, and `load` and `assemble` through it), registers `Capability::resolvers()` before it
+   installs anything.
+7. **A host that never registers fails loudly** (QB-15's second bound). Three guards, none in the
+   kernel:
+   - `compose` always registers, so a host cannot compose a world without registering;
+   - **a resolver's pack refuses to join a world while its resolver is not registered**: its `install`
+     calls `require_registered`, which panics — naming the pack, `register_resolvers` and this
+     decision — when the catalog is unset or does not list it. A host that installs a resolver pack and
+     never registered dies at assembly, before any arrival;
+   - the first resolver pack checks, in its reactions to the recorded arrivals, the invariant it
+     exists to keep, so an arrival that escaped resolution fails the dispatch (S15's next PR).
+   A host that never registers and installs no resolver pack runs exactly as before: there is nothing
+   to resolve, so nothing runs silently without resolvers. A panic rather than an error value, because
+   the kernel's `install` hook refuses only with a `KernelError`, and a variant for this would be a
+   kernel change.
+8. **Versions.** Presence's `VERSION` is 3: its constructors now answer through the resolvers and its
+   vocabulary gained a fact. `arrived` keeps schema 1. Movement's `VERSION` stays 1. A save written
+   before this decision is refused by name at presence's record — "system 'presence' is v3 here, but
+   the save was written by the older v2" — before any snapshot is restored (`ARC-25`: versions are
+   refused, never guessed). For the same world, seed and inputs, the only bytes that differ between a
+   save written before and one written after are the composition records: presence's version, and
+   movement's declared emissions gaining `stopped-short`. Every fact is byte-identical while no
+   resolver is listed.
+
+**Runtime `World::disable` of a resolver pack is not honoured.** A world that disables a resolver's
+pack at runtime still asks that pack's resolver, and the pack's state still answers it, because a
+`WorldRead` cannot see whether a system is enabled and the catalog is per process, not per world.
+Disabling exists for `AC-2` tests; `AC-2` for a resolver pack is shown at world level — a world that
+does not list the pack, which this decision handles. Honouring runtime disable needs a kernel read of
+enabled state, which is not decided (step-11 QB-17) and is not part of this decision.
+
+**Tests that compose worlds by hand.** They never register, so they run with no resolver (item 5). A
+test that needs resolvers registers its own list first and does not compose through `worldpack` in the
+same process, because `compose` would register the build's list and a different list panics (item 5).
+Cargo runs each integration-test file as its own process, which is what keeps one rule true for hosts
+and tests alike.
+
+**Accepted limitations.**
+- **One catalog per process.** Two worlds in one process share it; a resolver's inertness where its
+  state is absent is what keeps that harmless.
+- **Runtime disable is not honoured** (above).
+- **The constructor can be bypassed.** `Arrived::new` is public, and presence's reduction re-asks only
+  `admit`, not the resolvers: re-resolving at reduction would run the resolvers on a displaced person's
+  arrival against a state the walker's arrival has already changed. The contract's way is the
+  constructor (`ARC-26`), and S15's first resolver pack catches the consequence of a bypass in its
+  reactions (item 7).
+- **Genesis is not resolved against other people.** A world's genesis facts are built against the
+  assembled world before any of them is applied (`ARC-15`), so at genesis every `arrival` sees nobody
+  placed. Two authored people placed on top of each other are refused by the resolving pack's own world
+  validation, not by `arrival`.
+- **No length bound on an arrival from another place, or from nowhere,** beyond "the same place": rule
+  (c) applies only when the person is already in the destination place. A resolving pack's own bounds
+  apply to its own resolutions; there is no seam-level number without geometry.
+- **A resolver cannot emit**; its pack's consequences happen in its reactions to the recorded facts,
+  which its resolver must predict.

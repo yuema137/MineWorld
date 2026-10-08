@@ -2101,12 +2101,23 @@ on every `origin/*` branch (it was on 2026-10-07, §16.10).
 
 **Depends on:** freeze. **Non-goals:** no code; no DEP-13 (12b); no bodies bound in ARC-39 (QR-11).
 
-- [ ] Implementation: ARC-39; MODULE_SPEC §3.1; systems/README.
-- [ ] Validation: both doc checks (ids distinct, headings unduplicated); cited sections exist.
-- [ ] Review: ARC-39 answers problem / options / choice / why / accepted limitations; it states the
-  runtime-disable limitation in its own words (QB-15 bound 3), the tests-without-compose behaviour, the
-  process-wide catalog as a named exception (F-R14), and uses `stopped-short`, `Arriving` — never a word
-  of RS-13's vocabulary except where it names the S15 step it serves. No defined term is redefined.
+- [x] Implementation: ARC-39 appended after ARC-38 (`docs/DECISIONS.md`); MODULE_SPEC §3.1 "A pack
+  that resolves arrivals" (the `resolution:` line, three lines to install a resolver pack, its two
+  duties); `systems/README.md` "Adding a pack": one paragraph. ARC-39 confirmed free on every
+  `origin/*` ref after `git fetch` (E-RS1).
+- [x] Validation: both doc checks pass (E-RS1); cited sections exist: ARCHITECTURE §7 (event
+  sourcing) and §8 (persistence), ENGINEERING_RULES §15 ("Do not introduce hidden global state"),
+  MODULE_SPEC §3.1.
+- [x] Review: ARC-39 has problem / options (a)–(e) / choice items 1–8 / accepted limitations; the
+  runtime-disable limitation has its own paragraph in its own words; "Tests that compose worlds by
+  hand" is its own paragraph; item 5 names the catalog as the one process-wide value, its three entry
+  points and why it is not world state (F-R14). The diff, scanned for RS-13's vocabulary
+  (`git diff -U0 docs/ systems/README.md | grep -i 'bod|physic|rapier|nudg|collision|collid|capsule|jolt'`),
+  matches only the step's name and file name ("Step S15 (bodies and physical interaction)",
+  `step-11-bodies.md`) and the word `nobody`; one "physical consequence" in the limitations was
+  reworded before commit. No defined term redefined: `Person`, `Place`, `Event`, `System`, `World
+  Pack` are used in their CORE_CONCEPTS sense; `Arriving`, `Resolution`, `stopped-short` are new
+  names of presence's, not synonyms of a defined term.
 
 **Commit boundary.** Documentation only.
 
@@ -2133,15 +2144,30 @@ on every `origin/*` branch (it was on 2026-10-07, §16.10).
 
 **Depends on:** RS-C1. **Non-goals:** no caller changes yet; nothing registers.
 
-- [ ] Implementation: as scoped. Presence's prose avoids F-R1's substrings.
-- [ ] Validation: `cargo test -p mineworld-presence` (the existing 15 + the new one), `cargo clippy -p
-  mineworld-presence --all-targets -- -D warnings`; `cargo test -p mineworld-movement` (its structural
-  test scans presence); `cargo test -p mineworld-cli --test inspect --test social_composition`; M-RS7
-  applied and reverted.
-- [ ] Review: no float, no `stride`, no other pack's word in presence's src; `arrival()`'s emission for
-  an unregistered or empty catalog is byte-for-byte today's (same builder); the fold sorts nothing at
-  call time (the catalog is sorted once); every check of SD-R10 is reachable; the catalog has exactly
-  three entry points.
+- [x] Implementation: as scoped. `resolve.rs`: `Arriving` (crate-private `new`), `Resolution`
+  (private fields; `unchanged`, `stopped_at`, `displacing`, three accessors), `ArrivalResolver`,
+  `CATALOG: OnceLock`, `register_resolvers` / `registered_resolvers` / `require_registered`, and the
+  crate-private fold `resolve()` with `check()` / `check_displaced()` (SD-R10, after each resolver,
+  returning the first resolver that changed the arrival). `event.rs`: `StoppedShort` + `Event` impl +
+  accessors + crate-private `stopped_short` builder; `arrivals()`; `arrival()` through the same fold,
+  refusing `resolution-refused` naming the first resolver that changed a placement; one private
+  `arrived()` builder used by both. `system.rs`: VERSION 3 and its doc; declaration unchanged.
+  `lib.rs` and README: the table row `stopped-short`, the "Asking before recording" paragraph. The
+  three QR-2 literals. Presence's prose avoids F-R1's substrings (its own scan passes). Deviations
+  DR-1, DR-2 (§16.11).
+- [x] Validation (E-RS2): `cargo test -p mineworld-presence -p mineworld-movement` → presence 15 + 1,
+  movement 3 + 7 + 1, all pass (both structural scans unchanged and green); `cargo clippy -p
+  mineworld-presence --all-targets -- -D warnings` clean; `cargo fmt --all --check` clean after `cargo
+  fmt`; `cargo test -p mineworld-cli --test inspect --test social_composition` → 3 + 4 pass; M-RS7
+  applied, failed by name, reverted.
+- [x] Review: no float, no `stride`, no other pack's word in presence's src (the scan says so, and so
+  does movement's); `arrival()` builds its emission with the same private `arrived()` builder
+  `arrivals()` uses, after a fold that with no catalog runs no resolver — so its bytes are today's, and
+  the RS-8 test asserts `arrivals == vec![arrival]` unregistered; the fold iterates the catalog as
+  stored (sorted once in `register_resolvers`); every SD-R10 rule is a distinct early return with its
+  own message, each driven by RS-4's table in RS-C5; the static `CATALOG` is written only by
+  `register_resolvers` and read by `registered_resolvers`, `require_registered` and the crate-private
+  fold that the two constructors share.
 
 ### RS-C3 — the installed set carries resolvers; compose registers them
 
@@ -2158,12 +2184,23 @@ on every `origin/*` branch (it was on 2026-10-07, §16.10).
 
 **Depends on:** RS-C2.
 
-- [ ] Implementation: as scoped. The `twins` test is not edited.
-- [ ] Validation: `cargo test -p mineworld-sdk -p mineworld-installed-systems -p mineworld-worldpack`
-  (worldpack's structure test still passes: presence is on its allow-list); M-RS9 applied and reverted;
-  the stub negative control fails as intended inside its own test.
-- [ ] Review: the sdk still names no pack; the macro's two arms expand identically except
-  `resolvers()`; compose registers before the first install, so `assemble` and `load` inherit it.
+- [x] Implementation: as scoped. `installed!` now has two public arms — with and without
+  `resolution: $trait => [ $( $Resolver:ty , )* ];` — both forwarding to one internal `@catalog` arm
+  holding the former body; the resolution arm adds one `impl Capability { pub fn resolvers() }`.
+  `systems/installed`: `resolution: mineworld_presence::ArrivalResolver => [];` and a doc paragraph.
+  `systems/installed/tests/resolution.rs`: the guard (`faults`) on the real set, and the `stray` stub
+  set (one pack `lone`, resolution line `[Stray, Stray,]`) as its negative control. `worldpack`
+  `compose()`: `mineworld_presence::register_resolvers(Capability::resolvers())` first, and its doc.
+  `worldpack/tests/registration.rs`: RS-10. The `twins` test is not edited.
+- [x] Validation (E-RS3): `cargo test -p mineworld-sdk -p mineworld-installed-systems -p
+  mineworld-worldpack` all pass, worldpack's structure test included; the CLI's inspect and
+  social_composition re-run at this state, 3 + 4 pass; M-RS9 applied, failed by name, reverted; the
+  stub negative control yields its three expected faults inside its own test.
+- [x] Review: the sdk names no pack and no trait (the trait path comes from the invocation); both
+  public arms call the same `@catalog` arm, so they cannot drift, and differ only by `resolvers()`;
+  `register_resolvers` is the first statement of `compose`, before `World::new()` and every install,
+  and `assemble` → `compose`, `load` → `assemble`, so both inherit it. Worldpack names
+  `mineworld_presence` already (allow-listed for `location`), so no new crate name appears there.
 
 ### RS-C4 — movement states through `arrivals`
 
@@ -2174,11 +2211,16 @@ Nothing else in movement.
 
 **Depends on:** RS-C2.
 
-- [ ] Implementation: as scoped; `git diff --stat systems/movement` shows one file.
-- [ ] Validation: `cargo test -p mineworld-movement` (all existing tests, unchanged); the 300-day
-  social-cafe run at this commit = E-RS0 (RS-1's first bullet, early).
-- [ ] Review: movement names no resolver, no catalog, no resolver pack; it maps presence's refusal as
-  before; its VERSION stays 1 (SD-R9).
+- [x] Implementation: as scoped; `git diff --stat systems/movement` → `systems/movement/src/system.rs
+  | 20 +++++++++-----------`, one file: the `use` line (`StoppedShort`, `arrivals` instead of
+  `arrival`), `.emitting::<StoppedShort>()`, and `resolve` returning `arrivals(..)` mapped to
+  `FactRefusedByOwner` as before, with its doc line.
+- [x] Validation (E-RS4): `cargo test -p mineworld-movement` 3 + 7 + 1 pass, unedited; clippy clean;
+  the 300-day social-cafe run at this state = E-RS0's sha.
+- [x] Review: movement names `arrivals` and `StoppedShort` — presence's constructor and fact — and no
+  `ArrivalResolver`, `Resolution`, catalog function or resolver pack (RS-13 checks it mechanically in
+  RS-C7); the refusal is mapped exactly as before (same system, same event type, presence's reason
+  passed through); `VERSION` stays 1.
 
 ### RS-C5 — the synthetic resolvers and SC-2 … SC-5, SC-8
 
@@ -2200,12 +2242,26 @@ Nothing else in movement.
 
 **Depends on:** RS-C3, RS-C4.
 
-- [ ] Implementation: as scoped; every test of `arrival_resolvers.rs` registers first (SD-R12).
-- [ ] Validation: `cargo test -p mineworld-acceptance --test arrival_resolvers --test
-  arrival_resolvers_unregistered`; M-RS2, M-RS3, M-RS4, M-RS5, M-RS6, M-RS8 each applied, failing by
-  name, reverted.
-- [ ] Review: every expected position is a literal from the layout; the synthetic packs are in no
-  library and in no installed set; `Cargo.lock` gains only acceptance's two names.
+- [x] Implementation: as scoped; every test of `arrival_resolvers.rs` calls `register_all()` first
+  (SD-R12). `resolvers/mod.rs`: `Fences` (+ `Fence`, `test-fence-raised`), `Grid` (+ `GridStep`,
+  `test-grid-laid`), `Rogue` (+ `RogueMode { Violation }`, `test-rogue-set`; fourteen breaching modes
+  and `Obey`), `Echo` (+ `test-heard`), `Placer` (+ `test-place`); `Plan` / `Cast` / `Town` (yard and
+  lane, a doorway yard (9 000, 2 000) ↔ lane (0, 2 000), genesis placements through `arrival`);
+  `owned_state`; `Fact` / `fact` / `facts`; RS-7's twelve-move `SCRIPT` and `run_inert_script`.
+  The acceptance crate's doc table names the four new files (the RS-C6 and RS-C7 rows written ahead).
+  DR-3 (the support file's size) in §16.11.
+- [x] Validation (E-RS5): 7 + 2 pass; clippy and fmt clean; M-RS2, M-RS3, M-RS4, M-RS5, M-RS6, M-RS8
+  each applied, failed by name, reverted.
+- [x] Review: every expected position in an assertion is a literal from the test's layout (4 990,
+  5 200, 4 000, 4 500, 5 500, 5 600, …), never read from the code under test; the synthetic packs are
+  defined only under `tests/acceptance/tests/`, which no library compiles, and `systems/installed`'s
+  `resolution:` line is still `[]`; `git diff Cargo.lock` is exactly two added lines in
+  `mineworld-acceptance`'s dependency list (`mineworld-movement`, `mineworld-persistence`). RS-4 drives
+  every reachable rule of SD-R10 by its own message. Not separately reachable, by construction:
+  (d) `admit(person, reached)` — `admit(person, to)` passed and rule (a) puts `reached` in `to`'s
+  place, so the same person and place are asked again; and (e)'s `admit` of a displaced person, after
+  the living-person and same-place checks. Both are kept as SD-R10 states them: they are the owner's
+  own check, and cost nothing.
 
 ### RS-C6 — SIGKILL and resume with a resolver installed
 
@@ -2218,11 +2274,18 @@ reason in a comment.
 
 **Depends on:** RS-C5.
 
-- [ ] Implementation: as scoped; every child registers `[fences]` before composing.
-- [ ] Validation: `cargo test -p mineworld-acceptance --test arrival_resolvers_resume`; M-RS10 applied,
-  failing, reverted.
-- [ ] Review: the four exclusions of `kill_and_resume`'s header hold (killed, survivor read the file,
-  tail > 0 at least once, counts located first).
+- [x] Implementation: as scoped; every child — and the parent, before `verify` composes — registers
+  `[fences]` before composing. World: presence, movement, fences; alice (3 800, 1 500), bob (4 200,
+  2 500), carol (5 300, 1 800), dan (6 000, 2 200); Fence 5 000. 400 steps: seat `index % 4` asks to
+  move to a point of the 3 m × 2 m box x 3 500 … 6 499, y 1 000 … 2 999 from `mix(index, 13)`.
+  PowerLoss durability, a snapshot every 32 revisions. Rows are compared through the public
+  `PersistenceBackend` (journal_after, facts_of, snapshot_revisions / snapshot_at), so acceptance gains
+  no `rusqlite`. `[[test]] harness = false` with its reason in `tests/acceptance/Cargo.toml`.
+- [x] Validation (E-RS6): the harness passes; M-RS10 applied, failed (ReplayDiverged), reverted.
+- [x] Review: the four exclusions hold — victim status is SIGKILL, no "done", head short of the
+  control's; the survivor reports the head it resumed from (= the file's) and replayed = head −
+  snapshot; tails 16, 11, 7 (> 0 every time); the control's 123 stopped-short facts and 41 displaced
+  arrivals are counted, and asserted > 0, before any comparison.
 
 ### RS-C7 — the seam names no physics
 
@@ -2233,25 +2296,37 @@ written again here (about twenty lines) rather than moved, so the I-2 scan's fil
 
 **Depends on:** RS-C5 (the files it lists exist).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: the test passes; the two planted violations fail by name, removed.
-- [ ] Review: the list of scanned paths is every code path §16.1 changes; Markdown is the only exclusion
-  and is stated.
+- [x] Implementation: as scoped. Three tests: `the_seam_names_no_physics` (the five directories,
+  recursively, and the seven added test files; a missing one fails; ≥ 33 files),
+  `movement_names_no_resolver`, and a splitter check (`RigidBody`, `body_shape`, `Bodies`, `collide`
+  found; `nobody`, `somebody`, `embody` not). Three pre-existing lines in files 12a does not touch are
+  admitted by a self-checking exemption list (DR-4).
+- [x] Validation (E-RS7): 3 pass; both planted violations fail by name, removed.
+- [x] Review: the scanned code paths are every non-Markdown path §16.1 changes or adds outside `docs/`,
+  `tools/cli/tests` (QR-2's two literals), `Cargo.lock`, `tests/acceptance/Cargo.toml` and
+  `tests/acceptance/src/lib.rs` — those last are manifests and a doc table that RS-13 does not list,
+  and none names a word of the vocabulary (checked by eye on the diff); Markdown is the only file-type
+  exclusion, and the scan's own file the only file exclusion, both stated in its header.
 
 ### RS-C8 — Close: real runs, the refusal, status, full gate, ledger
 
-- [ ] RS-1: the two 300-day runs on the final executable head; both `validate` diffs; M-RS1 applied to
-  one run and reverted.
-- [ ] RS-2: the cross-build evidence, with the base binary built from the base before RS-C2 and kept at
-  `/tmp/s15-12a/base-mineworld`.
-- [ ] RS-15, RS-16: the AC-1 test and the I-2 scan; the diff-scope check; fmt and clippy.
-- [ ] Full gate once on the final executable head: `cargo test --workspace --no-fail-fast` in the
-  background; counts and wall time recorded.
-- [ ] Documentation: `docs/MVP_STATUS.md` (a capability row for the seam, an evidence row); §16
-  checkboxes; §16.10; the handoff.
-- [ ] Review: RS-1 … RS-16 each with evidence; deviations listed in §16.11.
+- [x] RS-1: the two 300-day runs on the final executable head; both `validate` diffs; M-RS1 applied to
+  one run and reverted (E-RS8).
+- [x] RS-2: the cross-build evidence, with the base binary built from the base before RS-C2 and kept at
+  `/tmp/s15-12a/base-mineworld` (E-RS-base, E-RS8).
+- [x] RS-15, RS-16: the AC-1 test (13) and the I-2 scan (4) pass unedited inside the gate; the
+  diff-scope check; fmt and clippy (E-RS8).
+- [x] Full gate once on the final executable head `dc2b6b4`, in the background: 542 passed, 0 failed,
+  130 harness binaries plus 2 `harness = false` programs, 249 s (E-RS8).
+- [x] Documentation: `docs/MVP_STATUS.md` (the "Arrival resolution" capability row, one evidence row);
+  §16 checkboxes; §16.10; the handoff.
+- [x] Review: RS-1 … RS-16 each with evidence (the table below E-RS8); deviations DR-1 … DR-4 in
+  §16.11.
 
-**PR 12a lifecycle:** not started.
+**PR 12a lifecycle:** READY FOR OPERATOR REVIEW — DO NOT MERGE (merge commit only, operator's
+authorization). Final executable head `dc2b6b4`; later commits are Markdown only. Implementation
+context CLOSED / AWAITING OPERATOR ACTION. POST-MERGE SYNC: the planning session owns the step header,
+§§1–15, overall and MVP_STATUS's Updated and S15 lines; this session's §16 is current.
 
 ## 16.6 Test ownership
 
@@ -2389,8 +2464,239 @@ E-RS0 RS-C0, 2026-10-07, planning session, on main @ fea2516's code (b8afd4f cha
         duplicated. `python3 scripts/check_decision_ids.py` → 49 decision ids, all distinct.
       No cargo test run: this commit is documentation only. The two runs fix RS-1's references, not a
         gate.
+
+E-RS-base  12a session, 2026-10-07, before any edit, on main @ 6d48e03 (b8afd4f + #53, Markdown only).
+      `cargo build -p mineworld-cli` 30.6 s; target/debug/mineworld copied to
+      /tmp/s15-12a/base-mineworld (sha-256 1f9ade07…993b). With it:
+      `validate worlds/social-cafe` and `validate worlds/market-town` → exit 0, outputs kept as
+        /tmp/s15-12a/base-validate-{social-cafe,market-town}.txt (RS-1's validate reference);
+      `run worlds/social-cafe --headless --seed 7 --days 2 --save /tmp/s15-12a/B.mwsave` → exit 0,
+        faults 0, 2 647 facts; `inspect B` → "systems presence v2, movement v1, …", head revision
+        1933; B's world.sqlite sha-256 ebe3a0c9…135b, a pristine copy kept as B.orig.mwsave (RS-2).
+
+E-RS1 RS-C1, 2026-10-07. `git fetch origin`; `git show <ref>:docs/DECISIONS.md | grep 'ARC-39\|ARC-4[0-9]'`
+      over every refs/remotes/origin/* → no match: ARC-39 free.
+      `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
+        duplicated. `python3 scripts/check_decision_ids.py` → 50 decision ids, all distinct (49 + ARC-39).
+      PASS. Documentation only; no cargo run.
+
+E-RS2 RS-C2, 2026-10-07, working tree on 0d1f4c7 + RS-C2's paths.
+      `cargo test -p mineworld-presence -p mineworld-movement` (5.6 s): presence tests/presence.rs 15
+        passed (incl. no_other_packs_vocabulary_and_no_floating_point_appear_in_this_crate),
+        tests/resolver_catalog.rs 1 passed; movement disclosure 3, movement 7 (incl.
+        this_pack_has_no_float_and_presence_and_conversation_know_nothing_of_it), persisted 1. PASS.
+      `cargo test -p mineworld-cli --test inspect --test social_composition` (22.3 s): 3 + 4 passed.
+        PASS. Attribution: this run's build started while RS-C3's sdk/installed edits were being
+        written in the same tree, so it is re-run at RS-C3 (E-RS3), where it is attributed exactly.
+      clippy -p mineworld-presence --all-targets -D warnings: clean. fmt --all --check: clean after
+        `cargo fmt --all` (it re-wrapped lib.rs's use order, resolve.rs's trait signature, and one
+        `let` in resolver_catalog.rs).
+      M-RS7 (`true || current == offered` in register_resolvers): resolver_catalog FAILED —
+        "panicked at systems/presence/tests/resolver_catalog.rs:46:10: this registration must panic:
+        ()" (the [a] step). Reverted; `git grep -n MUTATION -- systems sdk worldpack tests tools` empty.
+
+E-RS3 RS-C3, 2026-10-07, working tree on df23827 + RS-C3's paths.
+      `cargo test -p mineworld-sdk -p mineworld-installed-systems -p mineworld-worldpack` (8.2 s):
+        installed: installed.rs 3 (twins unedited), resolution.rs 2; sdk unit 1; worldpack unit 4,
+        content_kinds 1, refusals 38, registration 1, social_cafe 15, structure 2; doc-tests 1. PASS.
+      `cargo test -p mineworld-cli --test inspect --test social_composition` (19.9 s): 3 + 4. PASS
+        (the exact-state re-run E-RS2 deferred here).
+      clippy -p mineworld-sdk -p mineworld-installed-systems -p mineworld-worldpack --all-targets
+        -D warnings: clean. fmt --all --check: clean after `cargo fmt --all` (two test files re-wrapped).
+      M-RS9 (compose's register_resolvers line commented out): registration FAILED — "assertion
+        `left == right` failed: composing registered the installed set's resolution: list, which is
+        empty in this build / left: None / right: Some([])". Reverted; `git grep -n MUTATION --
+        systems sdk worldpack tests tools` empty.
+      Tool-discipline note: one read-only `awk` was used to reformat this run's test-count lines; it
+        touched no file. Not repeated.
+
+E-RS4 RS-C4, 2026-10-07, working tree on afda4e6 + movement's one file.
+      `cargo test -p mineworld-movement`: disclosure 3, movement 7, persisted 1. PASS.
+      clippy -p mineworld-movement --all-targets -D warnings: clean.
+      `cargo build -p mineworld-cli`; `mineworld run worlds/social-cafe --headless --seed 7 --days 300`
+        → exit 0, 339 lines, faults 0, history 365 330 facts (arrived 180 677, person-entered-place
+        20 720), no `stopped-short` line; sha-256 of every line but `wall` =
+        ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-RS0. Wall 13.4 s.
+        PASS (RS-1's first bullet, early; 300-day run 1 of 4). Log /tmp/s15-12a/rsc4-cafe300.txt.
+
+E-RS5 RS-C5, 2026-10-07, working tree on b1d4038 + RS-C5's paths.
+      `cargo test -p mineworld-acceptance --test arrival_resolvers --test
+        arrival_resolvers_unregistered` → 7 passed (RS-3, RS-4, RS-5, RS-6, RS-7 registered, RS-12,
+        RS-14) + 2 passed (RS-9, RS-7 unregistered). PASS. The first run passed as written; the
+        mutations below are what show each assertion bites.
+      clippy -p mineworld-acceptance -p mineworld-presence --all-targets -D warnings: clean after two
+        type aliases (`Spot`, `Resident`) and `type Row` for `type_complexity`. fmt clean.
+      `git diff Cargo.lock`: + "mineworld-movement", + "mineworld-persistence" in mineworld-acceptance's
+        dependencies; nothing else.
+      Mutations (each applied in the working tree, run, reverted; `git grep -n MUTATION -- systems sdk
+      worldpack tests tools` empty afterwards; 7 + 2 green again):
+        M-RS2  the fold asks no resolver (`.iter().take(0)` on the catalog) → RS-3 FAILED: "left:
+               [Arrived(PersonId(EntityId(3)), … x: Millimetres(5500) …)]" — alice recorded at
+               (5 500, 2 000); RS-4, RS-5, RS-6, RS-14 failed with it.
+        M-RS3  arrivals drops the displaced emissions (`.take(0)`) → RS-3 FAILED: the right side holds
+               "Arrived(PersonId(EntityId(4)), … x: 5200, y: 2100 …)", bob's, missing on the left.
+        M-RS4  check (c) disabled (`&& false`) → RS-4 FAILED: "lengthened the arrival: recorded
+               [Arrived(… x: Millimetres(6500) …), StoppedShort { … }]".
+        M-RS5  `register_resolvers` does not sort → RS-5 FAILED with alice at x 4990 instead of 4000.
+               The first run of this mutation failed earlier, at the registered_resolvers() assertion
+               ([test-grid, test-rogue, test-fences]); the position assertion was moved first, so the
+               behavioural claim is what fails, and the id-order assertion stays after it.
+        M-RS6  arrival() never refuses a changed placement (`.filter(|_| false)`) → RS-6 FAILED: "left:
+               Ok(Emission { … arrived …}) right: Err(System { code: resolution-refused, detail:
+               test-fences: would change a placement; … })".
+        M-RS8  fences' `require_registered` commented out → RS-9 FAILED: "installing test-fences must
+               panic: Ok(())"; RS-7's unregistered half still passed (it installs no resolver pack).
+
+E-RS6 RS-C6, 2026-10-07, working tree on 9acbe04 + RS-C6's paths.
+      `cargo test -p mineworld-acceptance --test arrival_resolvers_resume` (harness run 1 of ≤ 4):
+        "[resolver-yard] control: 401 revisions, 516 facts, 14 snapshots; 346 moves accepted, 54
+        refused; 123 stopped-short, 41 displaced arrivals"; early: kill at 80, 80 committed, survivor
+        restored snapshot 64, re-executed 16 revisions (24 facts); middle: kill at 203, 203 committed,
+        snapshot 192, re-executed 11 (12 facts); late: kill at 327, 327 committed, snapshot 320,
+        re-executed 7 (9 facts); each byte-identical to the control and verify() = 401 revisions;
+        "PASS in 0.3 s". PASS.
+      M-RS10 (run 2): fences' stop distance minus a process-global AtomicI32 counter's parity →
+        FAILED: the early survivor happened to agree, the middle survivor was refused — "resumes:
+        ReplayDiverged { revision: WorldRevision(194), detail: \"fact 248 differs from the logged fact
+        248\" }"; "resume failed: exit status: 101". Reverted; `git grep -n MUTATION -- systems sdk
+        worldpack tests tools` empty; the failed run's scratch saves under $TMPDIR removed.
+      Run 3, after the revert and `cargo fmt`: identical numbers, "PASS in 0.2 s". clippy -p
+        mineworld-acceptance --all-targets -D warnings clean.
+
+E-RS7 RS-C7, 2026-10-07, working tree on 0d21436 + seam_vocabulary.rs.
+      First run: FAILED on its own file-count floor (33 files, floor guessed at > 40); the floor was set
+        to the counted 33 (presence 8, movement 6, sdk 4, installed 1, worldpack 7, added tests 7).
+      Second run: FAILED — systems/movement/src/action.rs:14 `body`; after the first exemption, third
+        run FAILED — action.rs:21 `physical`, worldpack/src/read.rs:354 `collision`. All three are
+        pre-existing prose in files PR 12a does not touch (`git diff 6d48e03 -- <file>` empty) → DR-4.
+      Fourth run: 3 passed. PASS.
+      Planted (both at once): `// a capsule nudges` at systems/presence/src/resolve.rs:38 and
+        `use mineworld_presence::ArrivalResolver as _;` at systems/movement/src/system.rs:20 → FAILED:
+        "…/systems/presence/src/resolve.rs:38: capsule", "…/resolve.rs:38: nudges";
+        "…/systems/movement/src/system.rs:20: ArrivalResolver". Removed; `git diff --stat systems`
+        empty; presence 15 + 1 and movement 3 + 7 + 1 pass again (their own structural scans unedited
+        and green); seam_vocabulary 3 pass. clippy and fmt clean.
+
+E-RS8 RS-C8, 2026-10-07, on the final executable head dc2b6b4 (`cargo build -p mineworld-cli`, binary
+      copied to /tmp/s15-12a/pr-mineworld).
+      RS-1 (300-day runs 2 and 3 of 4):
+        `run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, faults 0, 365 330 facts, no
+          `stopped-short` line, sha-256 of every line but `wall` =
+          ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-RS0. Wall 12.5 s. PASS.
+        `run worlds/market-town --headless --seed 7 --days 300` → exit 0, faults 0, 372 755 facts,
+          sha-256 = 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d = E-RS0. Wall
+          14.7 s. PASS.
+        `validate worlds/social-cafe` and `validate worlds/market-town` with the PR binary: exit 0 each,
+          `cmp` against the base binary's outputs (E-RS-base): identical. PASS.
+        M-RS1 (run 4 of 4; `if reached != to || true` in arrivals) → social-cafe sha
+          ded1ffd256d3651b5de33d9320815eb8641e745553bbb41b49cbd17cf19d2fcb ≠ E-RS0, and the summary
+          gains "facts      stopped-short 180665" (history 545 995 facts): the instrument sees a seam that
+          records one extra fact per move. Reverted; `git grep -n MUTATION -- systems sdk worldpack
+          tests tools` empty; `git diff dc2b6b4` outside docs/ and .structured-coding/ empty.
+      RS-2 (cross-build, real binaries; no committed test, QR-9):
+        PR binary `run worlds/social-cafe --headless --seed 7 --days 2 --save /tmp/s15-12a/N.mwsave` →
+          exit 0, faults 0, 2 647 facts, fingerprint ce6b20e9f416f9b3 — the base run's (E-RS-base).
+        `inspect B` and `inspect N` (PR binary): `diff` shows only the save path, the instance id
+          (excluded by ARC-27) and "systems    presence v2, …" / "systems    presence v3, …"; the same
+          head (revision 1933 at t171910), journal kinds and fact counts. PASS.
+        PR binary `run worlds/social-cafe --headless --seed 7 --days 3 --save B` → exit 1:
+          "[mineworld] system 'presence' is v3 here, but the save was written by the older v2".
+        PR binary `server worlds/social-cafe --save B` → exit 1: "[mineworld] Social Café
+          (social-cafe) — 7 system(s), 11 seat(s)" / "[mineworld] the world could not be built: system
+          'presence' is v3 here, but the save was written by the older v2".
+        `cmp B.mwsave/world.sqlite B.orig.mwsave/world.sqlite`: identical (sha-256 ebe3a0c9…135b
+          before and after). PASS.
+        Positive control: PR binary `run … --days 3 --save N` → exit 0, "resumed
+          /tmp/s15-12a/N.mwsave/world.sqlite at revision 1933 (snapshot 1920 + 13 re-executed)", faults
+          0, 3 851 facts; `inspect N` head revision 2868 at day 3. PASS.
+      RS-16: `git diff --name-only 6d48e03...HEAD` = 28 paths, every one in §16.1's change set (plus
+        docs/MVP_STATUS.md in the closing commit); kernel/, contracts/, persistence/, server/,
+        cognition/, clients/, worlds/, authoring/, tools/cli/src/, root Cargo.toml: empty diff;
+        Cargo.lock: two added lines in mineworld-acceptance's dependency list. PASS.
+      Full gate (once, background, started 21:57:04, total 255 s):
+        `cargo fmt --all --check` exit 0; `cargo clippy --workspace --all-targets --all-features -- -D
+        warnings` exit 0; `cargo test --workspace --no-fail-fast` exit 0, wall 249 s: 130 harness
+        binaries, 542 passed, 0 failed, 0 ignored; the two `harness = false` programs passed —
+        persistence's kill_and_resume ("[cafe] PASS", "[clock] PASS") and arrival_resolvers_resume
+        ("[resolver-yard] PASS"); ac1_composability 13 and precursor_vocabulary 4 passed unedited
+        (RS-15); `python3 scripts/check_doc_headings.py` → 176 sections, none duplicated;
+        `python3 scripts/check_decision_ids.py` → 50 ids, all distinct. PASS.
+        Logs: /tmp/s15-12a/gate.log, test.log, clippy.log.
+
+RS-1 … RS-16, with where each is shown:
+  RS-1   PASS  E-RS8 (both digests, validate identical, every existing test in the gate; the only
+               existing-test edits are QR-2's three literals, df23827); M-RS1 seen (E-RS8)
+  RS-2   PASS  E-RS8 (cross-build, refusal by name, B unchanged, positive control)
+  RS-3   PASS  arrival_resolvers::an_arrival_is_resolved_before_it_is_recorded; M-RS2, M-RS3 (E-RS5)
+  RS-4   PASS  …::presence_refuses_a_resolution_that_breaks_its_rules_and_names_the_resolver (14 rows +
+               positive control; DR-1); M-RS4 (E-RS5)
+  RS-5   PASS  …::resolvers_are_asked_in_ascending_system_id; M-RS5 (E-RS5)
+  RS-6   PASS  …::arrival_refuses_a_placement_a_resolver_would_change_and_arrivals_records_it; M-RS6
+  RS-7   PASS  …::a_registered_resolver_is_inert_where_its_state_is_absent and
+               arrival_resolvers_unregistered::a_world_without_a_resolver_pack_runs_unchanged_…
+  RS-8   PASS  presence tests/resolver_catalog.rs; M-RS7 (E-RS2)
+  RS-9   PASS  arrival_resolvers_unregistered::installing_a_resolver_pack_…_panics_naming_why; M-RS8
+  RS-10  PASS  worldpack tests/registration.rs; installed tests/resolution.rs (DR-2); M-RS9 (E-RS3)
+  RS-11  PASS  arrival_resolvers_resume (E-RS6, and inside the gate); M-RS10 (E-RS6)
+  RS-12  PASS  arrival_resolvers::a_system_may_state_arrived_and_hear_it
+  RS-13  PASS  seam_vocabulary (3 tests; DR-4); both planted violations failed by name (E-RS7)
+  RS-14  PASS  arrival_resolvers::runtime_disable_of_a_resolver_pack_is_not_honoured; ARC-39's own
+               paragraph
+  RS-15  PASS  ARC-39 and MODULE_SPEC §3.1 in RS-C1 (0d1f4c7) before any code; both doc checks; the
+               AC-1 test and the I-2 scan in the gate, unedited
+  RS-16  PASS  E-RS8 scope; fmt and clippy in the gate
 ```
 
 ## 16.11 Deviations and discoveries during implementation (12a session)
 
-None yet.
+**DR-1 (bounded) — what "keeps the local-position rule of (b)" means for a displaced person.**
+- Previous assumption: SD-R10 (e) says a displaced person's new location "keeps the local-position
+  rule of (b)". Rule (b) compares `reached` with `to`, the walker's destination.
+- Audit evidence: a displaced person has no `to` of their own; their own "as asked" is where they are
+  now. SD-R10's rationale reads "never invent or drop a position, turn a person".
+- Corrected understanding: for a displaced person the comparison is with their current `Presence`:
+  the new location has a local position exactly when their current one does, **and the same facing**.
+  Facing is not named in (e)'s text, but "turn a person" is in the rationale; keeping it narrows what a
+  resolver may do and widens nothing (QR-8's direction).
+- Implementation: `check_displaced` in `resolve.rs` ("invented or dropped a displaced person's local
+  position", "turned a displaced person").
+- Validation: RS-4's table gains one row, "turns a displaced person", beside the eleven named.
+
+**DR-2 (bounded) — RS-10's guard names the resolver's id, not its type.**
+- Previous assumption: RS-10 says the installed set's guard "fails, naming the type".
+- Audit evidence: `Capability::resolvers()` returns `Box<dyn ArrivalResolver>` (SD-R8);
+  `type_name_of_val` on it gives the trait object's name, not the listed type. What the value can
+  answer is `resolver_of()`.
+- Implementation: the guard names the resolver's `SystemId`, which is the name the catalog, the
+  panics and every refusal use. The negative control's stub resolver has a distinct id.
+- Impact: none on what is caught; only the word in the message.
+
+**DR-3 (bounded, reviewed) — `tests/acceptance/tests/resolvers/mod.rs` is 988 lines.**
+- The file holds the five synthetic packs SD-R11 names (three resolvers, each a component, a genesis
+  fact, a system and a resolver), the world builder and the RS-7 script. `ENGINEERING_STANDARDS.md`
+  and `CLAUDE.md` §4 make ~800 lines a strong warning, a review trigger rather than a rule.
+- Options: split into `resolvers/{fences,grid,rogue,echo,town}.rs` — each a path outside §16.1's
+  change set, which names one support file, and the kickoff makes any path outside §16's change set a
+  material stop; or compress the three resolver packs with a local macro — the "clever
+  metaprogramming" the standards warn against.
+- Decision: keep one file, with one section per pack in SD-R11's order. It is test support compiled
+  into no library. Flagged for the operator's review; a split is a mechanical follow-up if wanted.
+
+**DR-4 (bounded; flagged for the operator) — RS-13 "over the current text" meets three pre-existing
+words.**
+- Previous assumption: RS-13 scans the current text of five source directories for the physics
+  vocabulary and expects none. §16.2 audited the vocabulary only against the lines 12a adds.
+- Audit evidence: on the base, three lines already match, none of them the seam:
+  `systems/movement/src/action.rs:14` "A body walking or jogging that reports…" and `:21` "this pack's
+  policy rather than a physical constant" (MAX_STRIDE's documentation, `41bb073`);
+  `worldpack/src/read.rs:354` "…the normal case rather than a collision" (seat keys, `ff49368`). 12a
+  may not edit either file (I-1: movement exactly SD-R9; `read.rs` is outside §16.1).
+- Options: (a) edit the three comments — two frozen-scope breaches; (b) scan only the lines 12a adds
+  — weaker than RS-13, which deliberately reads the current text so that a later PR cannot add the
+  vocabulary to the seam either; (c) keep the whole-text scan and admit exactly those three words on
+  exactly those lines, with a reason each, through a list that fails if an entry admits nothing
+  (ARC-35 item 7's allow-list discipline).
+- Decision: (c), in `seam_vocabulary.rs`'s `PRE_EXISTING`. Every other word on every line of the
+  five directories is still refused, and any new use is refused. The operator may prefer (a) as a
+  two-file comment edit in a later PR, after which the entries fail as unused and are removed.
+- Validation: E-RS7 (the three failures, then green; the planted violations still fail by name).

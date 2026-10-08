@@ -11,6 +11,9 @@
 //! provides    nothing                who may move a person is another system's decision (ARC-26)
 //! emits       arrived                somebody is now somewhere — at genesis, through `arrival`
 //!             person-entered-place   somebody is now in another place: an occupancy change
+//! vocabulary  stopped-short          somebody's arrival ended short of where it was asked to go —
+//!                                    stated by a system that moves people, through `arrivals`;
+//!                                    never stated or reduced here
 //! subscribes  arrived                whoever stated it, which is how the state above is a
 //!                                    projection of the log
 //! ```
@@ -18,10 +21,19 @@
 //! # Owning where people are, and not deciding it
 //!
 //! A world places its people by genesis and lets another system decide where they go. That system
-//! depends on this one, states this pack's `arrived` through [`arrival`] — the checked constructor —
-//! and this pack reduces it, exactly as it reduces a genesis placement. This pack still decides what
-//! its state may hold: [`admit`] refuses a value it may not take, before the fact is built and again
-//! when it is reduced (`DECISIONS.md` `ARC-26`).
+//! depends on this one, states this pack's `arrived` through [`arrivals`] or [`arrival`] — the
+//! checked constructors — and this pack reduces it, exactly as it reduces a genesis placement. This
+//! pack still decides what its state may hold: [`admit`] refuses a value it may not take, before the
+//! fact is built and again when it is reduced (`DECISIONS.md` `ARC-26`).
+//!
+//! # Asking before recording
+//!
+//! Whether a person actually gets where they were sent is asked of every registered
+//! [`ArrivalResolver`] before anything is recorded ([`resolve`], `DECISIONS.md` `ARC-39`): a pack
+//! that knows something this pack does not may end the arrival short or move other people out of the
+//! way, and this pack checks each answer as the owner and records only the result. With no resolver
+//! registered — every world until a resolver's pack is installed — the constructors build exactly
+//! the facts they built before the seam existed.
 //!
 //! # The two halves of this crate
 //!
@@ -64,10 +76,15 @@ pub mod component;
 pub mod event;
 pub mod interaction;
 pub mod observe;
+pub mod resolve;
 pub mod system;
 
 pub use component::Presence;
-pub use event::{Arrived, PersonEnteredPlace, admit, arrival};
+pub use event::{Arrived, PersonEnteredPlace, StoppedShort, admit, arrival, arrivals};
 pub use interaction::{Offer, PerceptionProvider};
 pub use observe::observe;
+pub use resolve::{
+    ArrivalResolver, Arriving, Resolution, register_resolvers, registered_resolvers,
+    require_registered,
+};
 pub use system::{PresenceSystem, present_in, present_in_declaration};

@@ -175,6 +175,33 @@ and then a rebuild. No other file is edited. In particular:
   and names no pack except `presence` and `movement`, whose state the format's `location` and
   `passages` fields become (§4.1).
 
+**A pack that resolves arrivals** ([`DECISIONS.md`](DECISIONS.md) `ARC-39`). Presence asks every
+registered `mineworld_presence::ArrivalResolver` what an arrival actually achieves before it records
+it. The installed set lists the build's resolvers on an optional line after `perception:`, each type
+followed by a comma:
+
+```text
+mineworld_sdk::installed! {
+    perception: mineworld_presence::PerceptionProvider;
+    resolution: mineworld_presence::ArrivalResolver => [ mineworld_<name>::<System>, ];
+    <Variant> => mineworld_<name>::<System>,
+    …
+}
+```
+
+The line expands to `Capability::resolvers()`, and `worldpack::compose` registers that list before it
+installs anything. A listed type that does not implement the trait does not compile, and the installed
+set's resolution test refuses a listed resolver that is not also an installed pack. Installing a
+resolver pack is therefore three lines in `systems/installed/`, not two: its Cargo dependency, its
+`installed!` line, and its entry on the `resolution:` line. With the list empty — `[]` — no world
+records anything differently. A resolver pack has two duties beyond `System`:
+- **inert where its state is absent:** its resolver returns the resolution it was handed unchanged
+  when the world holds none of the pack's own state about the people and the place involved, so a world
+  that does not enable the pack is not affected by it;
+- **refuse to join an unregistered world:** its `System::install` calls
+  `mineworld_presence::require_registered(&Self::ID)` first, which panics, naming the pack, when the
+  host never registered the build's resolvers or registered a list without it.
+
 **Dependencies between packs.** A pack that depends on another pack — to state its facts under
 `ARC-26`, or to decode them as a subscriber under `ARC-28` — names it by path:
 `mineworld-<other> = { path = "../<other>" }`. The root manifest's `[workspace.dependencies]` is not

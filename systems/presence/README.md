@@ -9,6 +9,8 @@ owns        Presence               where a person is: a place, and optionally wh
 provides    nothing                who may move a person is another system's decision
 emits       arrived                somebody is now somewhere (genesis, or through `arrival`)
             person-entered-place   somebody is now in another place: an occupancy change
+vocabulary  stopped-short          an arrival ended short of where it was asked to go; stated by
+                                   a system that moves people, through `arrivals`, never here
 subscribes  arrived                so the state above is a projection of the event log
 ```
 
@@ -46,6 +48,14 @@ the worlds this repository ships — depends on this pack and states its `arrive
 ([`DECISIONS.md` `ARC-26`](../../docs/DECISIONS.md)). When a person's place changes, this pack states
 `person-entered-place`, because occupancy is its state. The `arrive` action this pack once provided
 is retired: a distance rule beside an unrestricted relocation is not a rule.
+
+Before it records an arrival, this pack asks every registered `ArrivalResolver` what the arrival
+actually achieves — a pack that knows something this one does not may end it short or move other
+people out of the way — checks each answer as the owner, and records only the result: the walker's
+`arrived`, one for each person moved, and `stopped-short` when the walker ended short. Systems that
+move people use `arrivals`; `arrival` is for placement and refuses what a resolver would change.
+With no resolver registered, both build exactly the facts they always did
+([`DECISIONS.md` `ARC-39`](../../docs/DECISIONS.md), [`src/resolve.rs`](src/resolve.rs)).
 
 ```sh
 cargo test -p mineworld-presence

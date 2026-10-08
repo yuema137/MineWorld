@@ -1,72 +1,57 @@
-# Handoff — S9: PR 11f implementation (the proof)
+# Handoff — S15: PR 12a implementation (the arrival-resolver seam)
 
 A continuation aid, never a design authority. The authority is
-[`step-10-market.md`](step-10-market.md) §4.6 (the first §4.6.0, the freeze record, binds and
-overrides), §9.6 (evidence, `E-P<n>`), §4.6.8 (deviations) and §17 (execution contract). Earlier
-contexts (11a … 11e, 11f planning) are CLOSED; their handoff text is in git history at `e97a408`.
+[`step-11-bodies.md`](step-11-bodies.md) §16 (§16.0's freeze record binds and overrides the rest of
+§16), with evidence in §16.10 (`E-RS<n>`) and deviations in §16.11. The S9 contexts (11a … 11f) are
+CLOSED; their handoff text is in git history at `b8afd4f`.
 
 ```text
-PROJECT / PR        MVP-0 · Step 10 / PR 11f — the proof (S9, sixth and last; outside the AC-1 range)
-PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-10-market.md §4.6; evidence §9.6; deviations §4.6.8
-RELATED / BINDING   overall.md §§1, 4, 7; step-10 §§1, 1.3, 2.5, 2.6, 4.4.3, 4.5.3, 4.5.7, 8.7, 9 E-8, 10
-                    (QS-54 … QS-66 as answered), 17; DECISIONS ARC-23, ARC-25, ARC-33 … ARC-38;
-                    MVP §§2, 9; HUMAN_REVIEW_QUEUE (B, C); server/PROTOCOL.md §§5, 6
-BRANCH / WORKTREE   mvp0/pr-11f-proof in /Users/yuema137/mineworld-worktrees/s9-11f (sole writer)
-BASE                main @ e97a408 (2dddda8 + docs-only merges #47, #48)
-APPROVED SCOPE      §4.6 P-C1 … P-C8; only the paths of §4.6.1's table
-FROZEN INVARIANTS   no behaviour change: no edit under systems/, worlds/ (but market-town/README.md),
-                    kernel/, contracts/, persistence/, server/, cognition/, sdk/, authoring/, worldpack/,
-                    tools/cli/src/, clients/, root Cargo.toml; I-4 (social-cafe sha ad49c723…c64b;
-                    market-town 300-day summary but wall = base's, 372 755 facts); I-7; I-9; no existing
-                    test edited (fixture/mod.rs gains one function); no market crate named outside
-                    systems/, worlds/, tests/acceptance/; the I-2 scan unchanged
-ENDPOINT AUTHORITY  source: the primary session's kickoff message for 11f (2026-10-07) and §17
-  implementation + local validation   authorized
-  semantic commits, branch push       authorized ("commit and push after every small step")
+PROJECT / PR        MVP-0 · Step 11 / PR 12a — the arrival-resolver seam (S15, first of five; a framework
+                    precursor that names no physics)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §16; evidence §16.10; deviations §16.11
+RELATED / BINDING   step-11 header freeze record (QB-1, QB-10, QB-15 and its three bounds), §§4.3–4.4,
+                    4.6–4.7, 8.2, 10.1 (I-1, I-2, I-6, I-7, I-13), 11.1, 15.3; overall.md §3 (S15), §7;
+                    DECISIONS ARC-15, ARC-23, ARC-25, ARC-26, ARC-33, ARC-35 and its notes, DEP-12, and
+                    ARC-39 (this PR); MODULE_SPEC §3.1; ENGINEERING_RULES §15; CLAUDE.md §§2–4
+BRANCH / WORKTREE   mvp0/pr-12a-resolver-seam in /Users/yuema137/mineworld-worktrees/s15-12a (sole writer)
+BASE                main @ 6d48e03 (b8afd4f + the 12a planning merge #53, Markdown only)
+APPROVED SCOPE      §16.1's change set; RS-C1 … RS-C8; SD-R1 … SD-R14 as answered by QR-1 … QR-12
+FROZEN INVARIANTS   no edit under kernel/, contracts/, persistence/, server/, cognition/, clients/,
+                    worlds/, authoring/, tools/cli/src/, root Cargo.toml; no System Pack but presence and
+                    movement; movement exactly SD-R9. RS-1: social-cafe sha ad49c723…c64b (365 330
+                    facts) and market-town sha 365b50e0…1d1d (372 755 facts), faults 0, no digest
+                    re-baselined. Existing tests unchanged except QR-2's three `presence v2` literals.
+                    Presence's declaration unchanged (QR-3); VERSION 3 (QR-2). QB-15 bounds as §16.9.
+                    The seam names no physics (RS-13); synthetic packs in test files only; no market word.
+ENDPOINT AUTHORITY  source: the primary session's kickoff message for 12a (2026-10-07) and §16.9
+  implementation + local validation   authorized (kickoff: "You may implement RS-C1…RS-C8")
+  semantic commits, branch push       authorized (kickoff: "commit, push"; "Commit and push after every
+                                      small step")
   PR creation / update                authorized; marked READY FOR OPERATOR REVIEW
-  scratch branch (M-P1, M-P2)         authorized, local only, never pushed, deleted after evidence
+  scratch base build (RS-2)           authorized (§16.9); done: /tmp/s15-12a/base-mineworld from 6d48e03
   CI repair                           N/A — no CI workflow (S13)
   merge                               operator only, with a merge commit — NOT this session
-VALIDATION BUDGET   unit/integration/static unrestricted; market_town test ≤ 6 runs; market_composition
-                    and milestone_c freely; 300-day social-cafe ×2; one full workspace gate on the final
-                    head (background); about one hour; real model NOT REQUIRED
-STOP CONDITIONS     normal: PR 11f READY FOR OPERATOR REVIEW — DO NOT MERGE. Material: a needed edit to a
-                    pack, a world (beyond its README) or a framework crate; a check failing on the merged
-                    history that is not a test defect; CP-4, AC-2 or Milestone C failing for a reason no
-                    test defect explains; a need to name a market crate outside the three directories
+VALIDATION BUDGET   unit/integration/static unrestricted; 300-day runs ≤ 4 (RS-C4, RS-C8, M-RS1, one
+                    re-run); RS-2's cross-build runs; SIGKILL harness ≤ 4 runs; one full workspace gate on
+                    the final head (background); about one hour; real model NOT REQUIRED
+STOP CONDITIONS     normal: PR 12a READY FOR OPERATOR REVIEW — DO NOT MERGE. Material: any kernel or
+                    contract change; a path outside §16.1; naming physics in the seam; movement naming a
+                    resolver; a change to an existing world's facts (either 300-day digest ≠ E-RS0); an
+                    existing test failing for a reason other than QR-2's literals; presence's or
+                    movement's structural scan needing an edit; an answer to QR-2/QR-4 other than §16.0's
 ```
 
 ## Current checkpoint
 
-**MERGED 2026-10-07 as `fea2516` (#51). S9 COMPLETE.** The post-merge sync below is done by the
-S9 closeout PR (`docs/s9-closeout`): step-10 header, overall §7 (and §§3–4 for S15), MVP_STATUS.
-This handoff is closed; the next context is S15 PR 12a's (`step-11-bodies.md`).
-
-**READY FOR OPERATOR REVIEW. Context CLOSED / AWAITING OPERATOR ACTION.** P-C1 … P-C8 done.
-Final executable head e9f88dc (main @ 690c9d0 merged in, as instructed); gates on it in step-10
-§9.6 E-P-final: 526/0, 166 s. Later commits are Markdown only. Deviations §4.6.8 DP-1 … DP-9 —
-DP-5 (alice is never `present: true` at a shift start; work located by her arrival during the shift)
-is the one to read. Scratch branches deleted; nothing on origin named scratch.
+**READY FOR OPERATOR REVIEW — DO NOT MERGE. Context CLOSED / AWAITING OPERATOR ACTION.**
+RS-C1 … RS-C8 done: 0d1f4c7, df23827, afda4e6, b1d4038, 9acbe04, 0d21436, dc2b6b4 (final executable
+head), then the Markdown-only close. Gates on dc2b6b4 (§16.10 E-RS8): fmt, clippy, 542/0 in 249 s,
+both doc checks. RS-1 … RS-16 PASS. Deviations DR-1 … DR-4 (§16.11); DR-3 (support file size) and
+DR-4 (three pre-existing words admitted by the RS-13 scan) are flagged for the operator. Budget used:
+300-day runs 4 of 4; SIGKILL harness 3 of 4 standalone, plus once inside the gate.
 
 ## Next actions
 
-- Operator reviews the PR; merge **with a merge commit**. The primary session runs
-  `cargo test -p mineworld-acceptance --test ac1_composability` on `main` itself after the merge.
-- Post-merge (planning session, §4.6.6 and §17 POST-MERGE SYNC): the step header, overall §7,
-  MVP_STATUS's Updated line and S9 row (DP-8), and the S9 closeout record:
-  - AC-1 demonstrated as ARC-35 measures it, within ARC-33's static-linking boundary, once
-    ac1_composability passes on main with full history (operator acceptance: QS-65, with a short
-    runnable checklist);
-  - AC-2 confirmed for the six market packs at world level (P-7);
-  - CP-4 a committed 300-day test (P-5);
-  - Milestone C demonstrated, awaiting the operator's review;
-  - F-47 (one section per pack), F-48 (one unavailability reason per offer), F-41 (no names for item
-    kinds/organizations), L-12 (walking pace vs routine length), L-13 (bounded-horizon economy),
-    relationship saturation, QS-10 (`sleep`, needs), F-58 (check 2 reads normal + build edges,
-    QS-54), S13 (CI must fetch full history, fetch-depth 0);
-  - new from 11f: DP-5 — `shift-started.present` is false whenever routine and shift begin at the
-    same minute; a fact about Market Town's content, not changed here (I-9).
-
-## Background processes
-
-None. Logs under /tmp/s9-11f/ (final gates in final/ and final2/).
+- Operator reviews the PR; merge **with a merge commit** (not a squash).
+- Post-merge (planning session): step header, §§1–15, overall, MVP_STATUS's Updated and S15 lines;
+  then detail 12b. This session records the merge identity in §16 if asked.

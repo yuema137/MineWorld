@@ -377,7 +377,7 @@ fn without_schedule_the_world_runs_and_nobody_keeps_a_day() {
     assert_eq!(
         lines(&stdout(&inspected), "systems "),
         [
-            "systems    presence v2, movement v1, conversation v1, group-activity v1, \
+            "systems    presence v3, movement v1, conversation v1, group-activity v1, \
              relationships v1, naming v1"
         ],
     );
@@ -417,7 +417,7 @@ fn without_group_activity_relationships_stays_and_the_world_runs() {
     assert_eq!(
         systems,
         [
-            "systems    presence v2, movement v1, conversation v1, relationships v1, naming v1, \
+            "systems    presence v3, movement v1, conversation v1, relationships v1, naming v1, \
              schedule v1"
         ],
         "relationships is installed and enabled, group-activity is not there"
