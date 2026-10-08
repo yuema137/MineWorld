@@ -940,9 +940,12 @@ fields, `mineworld:`, `requires:`), §8.1 (`packs`), §9 (MVP-0 subset, SystemVe
 
 # 14. PR E-a — pack identity (PR design)
 
-**Lifecycle:** `READY FOR OPERATOR REVIEW` — DESIGN FROZEN (2026-10-08), primary session; implemented,
-final executable head `e118935` (main with S15's 12c merged in), evidence in §14.5 Ea-C7 and §14.8. PR
-#70. Not merged.
+**Lifecycle:** `MERGED` — PR #70, merge commit `1a1d08e` (2026-10-08), merged by the primary session
+after its own review (gates re-run: 656 passed, 0 failed; no forbidden paths; social-cafe 300-day sha
+`ad49c723…c64b` exact; `license: Banana-Licence-9` refused at line 19 col 12, `mineworld: "^9.0"`
+refused naming 0.1.0; AC-1 13/13 and I-2 4/4 on main afterwards). Final executable head `e118935`,
+evidence in §14.5 Ea-C7 and §14.8. Parent synchronization (§9.2 status, step header, `overall.md`):
+the primary session's.
 
 ## 14.0 Freeze record
 
@@ -1483,8 +1486,8 @@ legitimately changed with 12c's objects and is not this PR's invariant). `packs 
 --packs presentation/mineworld-default` → 20 packs, exit 0. `git diff --stat origin/main HEAD -- kernel
 contracts persistence server clients tests/acceptance` → empty.
 
-**PR E-a lifecycle: READY FOR OPERATOR REVIEW** — final executable head `e118935` (it supersedes
-`331b670`); the PR head is the Markdown-only commit that records this. Implementation context CLOSED / AWAITING OPERATOR ACTION.
+**PR E-a lifecycle: MERGED** — GitHub #70, merge commit `1a1d08e`. Final executable head `e118935`
+(it supersedes `331b670`); PR head `b3fc196`, Markdown only after `e118935`. Implementation context CLOSED / AWAITING OPERATOR ACTION.
 Post-merge: this session records the merge identity here; the primary session updates §9.2's status,
 the step header and `overall.md`.
 
@@ -1592,6 +1595,530 @@ MATERIAL STOPS:            any kernel, contract or persistence change; any chang
                            AC-1 failing; spdx/semver weight disproportionate (Ea-C2); a needed edit to an
                            existing test beyond EA-11's four; a pack needing more than its one line
 NORMAL STOP CONDITION:     PR E-a READY FOR OPERATOR REVIEW — DO NOT MERGE
+MERGE AUTHORITY:           never without the operator's explicit approval
+```
+
+---
+
+# 15. PR E-b — requirements and resolution (PR design)
+
+**Lifecycle:** `READY FOR OPERATOR REVIEW` — DESIGN FROZEN (2026-10-08), primary session;
+implemented, final executable head `a383e32` (main with #77 merged in), evidence in §15.5 Eb-C5 and
+Eb-C6. Not merged.
+
+## 15.0 Freeze record
+
+```text
+DESIGN FROZEN (2026-10-08), primary session
+Design revision:     §15 as committed in e9d4ae9, with the rulings below
+Approved by:         the primary session's freeze message to the E-b session, 2026-10-08: "E-b is DESIGN
+                     FROZEN (2026-10-08), primary session. §15 is accepted as written, with these rulings"
+Rulings:
+  FQ-b1  accepted — framework defaults decided by the primary session: create's template gains
+         `version: 0.1.0`, `license: MIT  # set your own`, `mineworld: "^0.1"`
+  FQ-b2  CHANGED — (1) the default allow-list is MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib,
+         CC0-1.0, Unlicense; (2) CC-BY-4.0 stays out of the default (attribution handling), recorded as a
+         candidate for asset packs; (3) the policy is world-configurable, through no bespoke key: E-b
+         ships the default and the evaluator, with the policy as a typed value that a later
+         `configure/packages.yaml` under S17's generic `configure:` seam (ARC-61, PL-a) can override —
+         the hook is recorded; (4) judged with spdx's evaluator as designed
+  FQ-b3  accepted — classification moves into E-b
+  FQ-b4  accepted — validate prints only `requires` lines; packs resolve prints the composition; §9.3's
+         departure recorded
+  FQ-b5  accepted — E-b uses ARC-54, ARC-55, no DEP; E-c's ARC-33 revision is ARC-66; DEP-22 and DEP-23
+         stay reserved for E-c
+  Limits accepted as stated: third-party end to end is proven in E-c; vendored packs count as bundled
+Endpoint authority:  implementation, commits, pushes and opening the PR marked READY FOR OPERATOR REVIEW
+                     authorized by that message; merge NOT authorized
+Material stops:      editing load.rs; any kernel, contract or persistence change; any digest change; any
+                     change to the three worlds' validate output
+Implementation base: main @ 1a1d08e, branch mvp0/pr-eb-requirements
+Execution contract:  §15.9, with ENDPOINT AUTHORITY as above
+Lifecycle:           FROZEN
+```
+
+**How FQ-b2's ruling changes the design (bounded, recorded before code).** PD-17 now reads: the
+policy is a typed value, `mineworld_packages::LicencePolicy { allowed: BTreeSet<LicenseId> }` —
+deserializable, with `LicencePolicy::default()` the eight identifiers above — and `resolve` takes it as
+an argument rather than reading a constant. `worldpack` passes `LicencePolicy::default()` in E-b. The
+override hook: when S17's PL-a lands `configure:`, a world's `configure/packages.yaml` decodes into the
+same type and replaces the default for that world; E-b adds no key and no file for it. ARC-55 records the
+default, the evaluator, the CC-BY-4.0 candidacy and this hook.
+
+## 15.1 Identity, base, approved scope
+
+```text
+PR            E-b — requirements and resolution (S16, second of five; framework). PR number at freeze
+base          main @ 1a1d08e (E-a merged as PR #70). Re-audit §15.3 if worldpack/src/{format,read,error,
+              lib}.rs, tools/cli/src/{main,packs,run,biography}.rs or packages/ moved before Eb-C3
+branch        mvp0/pr-eb-requirements, worktree /Users/yuema137/mineworld-worktrees/impl-s16-ea (the
+              E-a worktree, reused after #70 merged; held by this session only)
+audit         §15.3 (read on 1a1d08e)
+scope         §9.3 as bounded by PD-10 … PD-19 below; QSE-8 and QSE-13 as accepted
+decisions     ARC-54 (a world's requirements, resolved against the build and named pack roots) and ARC-55
+              (the licence policy). DEP-22 and DEP-23 are not needed: E-b adds no dependency (spdx's own
+              evaluator is used, DEP-21). **Consequence for E-c:** the ARC-33 revision (step placeholder
+              ARC-SE-a), which E-a's §14.1 had pencilled as ARC-54, needs a number from the primary
+              session (FQ-b5)
+depends on    E-a (merged): Package, package!(), Identity, PackId, Compatibility, License, packs_in
+```
+
+**Goal.** A world says which packs it needs and at which versions; the build and the directories named
+on the command line are searched; the world runs only if every requirement is met, and otherwise is
+refused by name. In one line each:
+
+```text
+requires:          a top-level map in world.yaml, pack id → semver range
+pack roots         --packs DIR (repeatable) on validate, run, server, replay, biography, packs; then
+                   MINEWORLD_PACKS (a path list); nothing implicit
+resolution         one installed version per pack, checked, never chosen (no solver, §5 row 14)
+refused by name    absent · out of range · wrong type · bundled listed · third-party system enabled but
+                   not required · licence outside policy · framework out of range (E-a) · duplicate id
+mineworld packs    resolve <world>: the whole composition, or the first refusal
+validate           prints the requirements it resolved, only for a world that states requires:
+```
+
+**Non-goals.** A third-party code pack in the build (E-c, the first one to exist); `[patch.crates-io]`,
+the lock guard, `cargo-deny` (E-c / S13); Entity Packs (E-d: requiring one is refused as "read from
+E-d"); Lakeside (E-e); disclosing a world's Presentation Packs to a client (QSE-9); version
+*selection*, a registry, `.mwpack` (E-C); recording resolved versions in a save (QSE-14: never in S16);
+`configure:` and `configure/<id>.yaml` (S17 PL-a, ARC-61); any change to `kernel/`, `contracts/`,
+`persistence/`, `server/`, `clients/`, `systems/*` sources, `cognition/` (I-E1, I-E8).
+
+## 15.2 Design decisions (PD-10 … PD-19)
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **PD-10** | **`requires:` is a top-level map in `world.yaml`: `<pack id>: "<semver range>"`**, deserialized as `BTreeMap<PackId, Compatibility>` (sorted, so resolution order is the id order and never the file's). Optional; absent = empty. A duplicate key is refused by `serde-saphyr`'s duplicate-key policy (`DEP-10`), at its line. It names **packs**, never systems, and never configures anything. | QSE-8 (accepted). §4.2 rules 1–4. |
+| **PD-11** | **`requires:` and `configure:` are orthogonal** (coordination with S17 PL-a, ARC-61). `requires:` states *which pack, at which version*; `systems:` states *enabled, in which order*; `configure:` states *with which configuration*. E-b's resolver reads `requires:`, `mineworld:`, the enabled `systems` and the pack roots, and never `configure:` or any `configure/<id>.yaml`; PL-a's seam reads neither `requires:` nor a pack's identity. The only meeting point is indirect and already a rule: a world that configures a third-party system must enable it (PL-a), and a third-party system it enables must be required (PD-15). | Neither PR needs the other's data; the two can land in either order with a one-field rebase of `WorldManifest` (§15.8). |
+| **PD-12** | **Pack roots** are `mineworld_packages::PackRoots`: the `--packs DIR` values in the order given, then the entries of `MINEWORLD_PACKS` (split with `std::env::split_paths`, empty entries skipped) in their order. Built by the pure `PackRoots::new(cli: Vec<PathBuf>, env: Option<OsString>)`; the CLI passes `std::env::var_os("MINEWORLD_PACKS")`, so no library reads the environment. A root that does not exist or is not a directory is refused, naming it and where it came from (`--packs` or `MINEWORLD_PACKS`). `PackRoots::none()` is the empty set. | QSE-13 (accepted): explicit only. Keeping the environment read in the composition root keeps every library deterministic and testable. |
+| **PD-13** | **`WorldPack::read_with(root, &PackRoots)`** is the reader; `WorldPack::read(root)` stays, unchanged in signature, as `read_with(root, &PackRoots::none())` — so no existing caller (the CLI's other paths, server and persistence tests, AC-1) changes, and a world without `requires:` reads exactly as today (`DEP-12` option (e)'s cost avoided, §4.2). Resolution runs **after `resolve_systems`, before content is read** (read order step 4b), in a new module `worldpack/src/requirements.rs` that gathers the inputs and calls `packages`; the result is held as `WorldPack::composition() -> &Composition`. Never world state: nothing in `load.rs` reads it. | One crate owns the world format (worldpack), one owns what a package is and how it resolves (packages). |
+| **PD-14** | **Resolution is a pure function in `packages`**: `resolve(&WorldRequirements, &[CodePack], &[FoundPack]) -> Result<Composition, PackageError>`. Inputs: the world's id, licence, `mineworld:` and `requires:`; each enabled system's pack (`Capability::package()` → `Identity` + `bundled` + system id); every data pack found under the roots (its identity and directory). Rules, in this order, the first failure refused: (1) every pack in the inputs has a valid identity and no id appears twice (E-a's `distinct`); (2) per requirement, in id order: found in the build or a root, else **absent** — naming the id and every place searched (the build; each root; or "no pack directory was given"); its type must be `system-pack` (third-party), `presentation-pack` — `world-pack` and `controller-pack` are **wrong type**, naming the type and why; `entity-pack` is refused "read from E-d"; a **bundled** code pack listed is refused ("versioned with the framework; remove it from requires"); its version must be admitted by the range, else **out of range**, naming the id, the range and the version found; (3) every enabled system whose pack is **third-party** must be required, else refused naming the system, its pack and the missing requirement; (4) the **licence policy** (PD-17) over the world's own licence (when stated), every required pack and every enabled system's pack. | Pure and table-testable without files; worldpack only gathers. Order fixed so the first refusal is deterministic. |
+| **PD-15** | **Bundled or third-party is decided at compile time, by where the pack was compiled from.** `Package` gains `bundled: bool`; `package!()` computes it with a `const fn` prefix test: the pack's `CARGO_MANIFEST_DIR` begins with the framework workspace root, taken as `mineworld-packages`' own manifest directory minus its last component. No path is stored in the binary — only the boolean. A bundled pack's version is the framework's (E-a); third-party is everything else (a git checkout under `~/.cargo/git`, a path outside the repository — spike S-1/S-4). **Pulled forward from E-c**, where E-a's §14.1 had put the classification: E-b's rules (2) and (3) need it. The macro's expansion changes; no pack's source line changes. Limitation recorded: a third-party pack *vendored inside* the repository would count as bundled (`cargo vendor` into the tree is not a supported install in MVP-0). | A structural fact, not a claim a pack makes about itself (a `repository` string could be copied). |
+| **PD-16** | **Pack roots are honoured by every command that reads a world**: `validate`, `run`, `server`, `replay`, `biography` gain `--packs DIR` (one clap `#[command(flatten)]` struct, `PackDirs`, so each subcommand gains one line); `packs list` and `packs show` keep theirs and gain the environment; `packs validate <dir>` resolves a world with the same roots. `create` does not: it writes and reads its own new world, which requires nothing. A save stores no root and no resolved version (QSE-14): a resume resolves again against the roots given now, and its composition is still checked by `SystemVersion` alone. | A world that requires a pack must be runnable by every command, or `run` and `validate` disagree. |
+| **PD-17** | **The licence policy (ARC-55)** is one allow-list in `packages/src/policy.rs`: `MIT`, `Apache-2.0`, `CC0-1.0` — `DEP-8`'s approved licence for assets (CC0) and the permissive code licences the workspace and its approved sources use (MIT, Apache-2.0). An expression is allowed when `spdx`'s `evaluate_with_failures` finds it satisfiable with only those identifiers, no `WITH` addition and no `+`; `MIT OR GPL-3.0-only` is therefore allowed (one branch suffices) and `MIT AND GPL-3.0-only` is not. A refusal names the pack, its expression, the identifiers that failed and the allow-list. Applied at resolution (PD-14 rule 4) and by `packs validate`; `packs list` and `show` print, they do not judge. `cargo-deny` (CI, the whole Cargo graph) stays E-c/S13's. | §4.7. One list, in one file; widening it is a reviewed edit. **Operator-visible (FQ-b2):** the list's contents. |
+| **PD-18** | **What prints the composition.** `mineworld packs resolve <world> [--packs DIR]...` prints the whole composition: the framework and the world's range; each requirement with the version and source that satisfied it; each enabled system with its pack, version and `bundled`/`third-party`. `mineworld validate` prints one `requires` line per requirement **only when the world states `requires:`**, after `seats` — so the three existing worlds' `validate` output stays byte-identical (the step-10 QS-18 rule for optional lines). **Deviation from §9.3's wording** ("validate prints the composition"). | `validate`'s output is pinned by tests and compared byte for byte in EA-6/EB-6; `packs resolve` is where the composition belongs. |
+| **PD-19** | **A world's own package fields stay optional to the loader** in E-b, as E-a left them (PD-7); `packs validate` and `packs resolve` require them. `mineworld create`'s template gains `version: 0.1.0`, `license: MIT` (with a comment telling the author to set their own) and `mineworld: "^0.1"`, so a created world is a valid pack. | Making them required edits six inline test fixtures in three crates for no claim of E-b's. **Operator-visible (FQ-b1):** the template's licence. |
+
+**Existing worlds are not edited.** None states `requires:`: their packs are bundled, and naming the
+default Presentation Packs would make every existing command and test need `--packs`. The first world
+to require one is Lakeside (E-e).
+
+**Keys and loader functions this PR touches** (for sequencing with S17 PL-a):
+
+```text
+world.yaml           requires:                       new, top-level, optional (PD-10)
+                     mineworld:                      unchanged semantics (E-a); now also printed by
+                                                     packs resolve
+                     world.version, world.license    unchanged: optional to the loader (PD-19)
+worldpack/src/format.rs     WorldManifest: one field appended after `mineworld`:
+                            `#[serde(default)] pub requires: BTreeMap<PackId, Compatibility>`
+worldpack/src/read.rs       `WorldPack::read` → body moves into new `WorldPack::read_with(root, &PackRoots)`;
+                            one call `requirements::resolve(&manifest, &systems, roots)` after
+                            `resolve_systems`; one field `composition`; accessor `composition()`;
+                            the module doc's check list gains step 4b
+worldpack/src/requirements.rs  new: gathers CodePack inputs from `Capability::package()` and FoundPack
+                            inputs from `packages::packs_in` over the roots, calls `packages::resolve`
+worldpack/src/error.rs      one variant: `PackError::Requirements { path, refusal: PackageError }`
+worldpack/src/lib.rs        exports `read_with`'s types (`Composition` re-exported from packages)
+worldpack/src/load.rs       NOT touched (nothing is seeded from requirements)
+```
+
+PL-a's planned edits (step-18 §4.6): `format.rs` gains `configure:`; the reader decodes
+`configure/<id>.yaml`; `load.rs` seeds configuration. The overlap is two adjacent field additions in
+`WorldManifest` and two adjacent calls in `read_with`/`read` — a mechanical rebase in either order.
+
+## 15.3 Audit (main @ 1a1d08e)
+
+| What | Where | Finding |
+| --- | --- | --- |
+| World manifest | `worldpack/src/format.rs` `WorldManifest` | `deny_unknown_fields`; E-a's `mineworld: Option<Compatibility>` is its last field; `requires:` today is refused as unknown. |
+| Reader | `worldpack/src/read.rs` `WorldPack::read` | Order: manifest parse → `check_pack_id` → range check (E-a) → `resolve_systems` → keys → content. Resolution fits after `resolve_systems` (it needs the enabled capabilities). |
+| Read callers | `git grep "WorldPack::read("` | CLI: `main.rs` validate, serve, replay; `run.rs`; `biography.rs`; `create.rs`; `packs.rs` (2). Tests: `persistence/tests/kill_and_resume.rs`, `tests/acceptance/tests/ac1_composability.rs`, nine `tools/cli/tests/*`. With `read` kept, only the six CLI production sites that take roots change. |
+| `validate`'s output | `tools/cli/src/main.rs` `validate` | Prints optional lines only when declared (QS-18 comment); `tools/cli/tests/commands.rs:28` asserts by `contains`. |
+| Server flags | `tools/cli/src/main.rs` `Subcommand::Server` | `--listen`, `--agent`, `--save`; S11 has not changed them on `1a1d08e`. §9.7: `--packs` on `server` lands in whichever PR is second. |
+| Identity | `packages/src/declared.rs`, `identity.rs` | `Package` has five `&'static str`; `package!()` is an expression; `Identity::of_code_pack`, `distinct`, `packs_in`, `read_pack_file` exist. |
+| Licence evaluation | `spdx` 0.13.6 `Expression::evaluate_with_failures(FnMut(&LicenseReq) -> bool) -> Result<(), Vec<&ExpressionReq>>`; `LicenseReq { license: LicenseItem, addition: Option<AdditionItem> }` | Gives the failing identifiers, so a refusal can name them. No new dependency. |
+| DEP-8 | `docs/DECISIONS.md` DEP-8 | Approved asset sources are CC0 (Poly Haven, ambientCG, MPFB2 meshes, Blender Studio, Kenney) and MIT (two Godot addons); excluded: CC-BY-SA and GPL ("copyleft incompatible with MIT redistribution"). |
+| Template | `tools/cli/templates/new-world/world.yaml` | No package fields; `tools/cli/tests/create.rs` validates the created world. |
+| Toolchain | `rust-toolchain.toml` 1.97.1 | `const fn` byte loops over `&str::as_bytes()` are stable; PD-15's prefix test needs nothing newer. |
+| S17 PL-a | `step-18-physics-list.md` §4.6, §7.1 | `configure:` in `WorldManifest`, `configure/<id>.yaml`, seeding in `load.rs`; R-PL-4 already expects "one-key rebase with E-b". |
+
+## 15.4 Acceptance (decided before measuring, `ARC-23`)
+
+Each guard names the mutation shown to break it; applied in the working tree, observed failing by
+name, reverted, `git status` recorded.
+
+```text
+EB-1  Requirements resolve. A scratch world requiring a scratch presentation pack (range ^0.1, pack
+      0.1.0) in a scratch root: `packs resolve --packs <root>` exits 0 printing the framework, the
+      requirement → 0.1.0 and its directory, and every enabled system's pack as bundled; `validate`,
+      `run --days 1` and `replay` succeed with the same `--packs`. The repository's own
+      `mineworld-default-3d` satisfies a requirement through `--packs presentation/mineworld-default`.
+      Guard: tools/cli/tests/requirements.rs.
+EB-2  Each refusal, by name, exit 1 — through the real binary for (a) absent, naming the id and every
+      root searched (and "no pack directory was given" with none); (b) out of range: ^0.2 against
+      0.1.0, naming both; (c) wrong type: a world found in a root; (d) a bundled pack listed
+      (mineworld-presence); (e) the world's licence GPL-3.0-only, naming the identifier and the
+      allow-list; (f) a required presentation pack licensed CC-BY-SA-4.0; (g) a duplicate id across two
+      roots. The third-party-system rule (PD-14 rule 3) has no third-party code pack in the build
+      until E-c, so it is owned by packages' unit table here and by E-c's real binary later (recorded,
+      not claimed). Guard: tests/requirements.rs and packages/tests/resolve.rs (every rule, including
+      rule 3 with a constructed third-party CodePack).
+      Mutation M-B1: the range check skipped → (b) fails. Mutation M-B2: rule 3 skipped → its unit row
+      fails. Mutation M-B3: the policy returns allowed → (e) and (f) fail.
+EB-3  Nothing implicit (QSE-13, the step's adversarial criterion). The pack that would satisfy a
+      requirement sits beside the world on disk, but no --packs names its directory → refused absent.
+      MINEWORLD_PACKS alone satisfies it; a root that does not exist is refused naming it and its
+      source. Mutation M-B4: `PackRoots::new` adds the world's parent directory → the first case
+      passes and the test fails.
+EB-4  A requirement is met only by the right type: a world requiring the id of a world in a root is
+      refused wrong-type, never resolved (part of EB-2 (c)); an entity-pack id is refused "read from
+      E-d". Unit rows in resolve.rs.
+EB-5  Bundled is structural (PD-15): every installed System Pack and the controller are bundled
+      (`packs resolve` of social-cafe prints "bundled" for each enabled system, located from
+      `AVAILABLE`); the const prefix test answers false for a path outside the root and for a root
+      that is only a string prefix (`/a/repo2` under `/a/repo`). Mutation M-B5: `bundled` forced false
+      → (d)'s refusal turns into rule 3's for every system and the test fails.
+EB-6  Nothing existing moves (I-E2). The two towns' 300-day seed-7 sha (all but `wall`) equal to main's
+      (ad49c723…c64b, 365b50e0…1d1d); `validate` of the three worlds byte-identical to main's binary;
+      every existing test passes, and none is edited except `create`'s expectations if FQ-b1 changes
+      the template (listed with unchanged claim). A world without requires: resolves with no roots.
+EB-7  AC-1 and the scans unedited and passing (I-E4); `git diff main -- kernel contracts persistence
+      server clients systems cognition tests/acceptance` empty (I-E1, I-E8; `systems/` because no pack
+      source changes — PD-15 changes only the macro's expansion).
+EB-8  Never world state (QSE-14): `Composition` is read by tools/cli only (`git grep`); a save run with
+      --packs and resumed without the requirement's root is refused at read by name (resolution, not
+      the save, refuses), and resumed with it is byte-identical to the uninterrupted run.
+EB-9  The documents say it first: ARC-54, ARC-55, MODULE_SPEC §4 model and §4.1, §8.1, PACKAGE_FORMAT
+      §5.0 and §8 in Eb-C1, before code; both doc checks pass.
+```
+
+## 15.5 Commit plan
+
+### Eb-C0 — Design (this section) — docs only
+
+- [x] Implementation: §15, from §15.3's audit on `1a1d08e`; E-a's merge identity recorded in §14.
+- [x] Validation: `check_doc_headings` 177 sections / 25 documents, none duplicated;
+  `check_decision_ids` 53 ids, distinct; ARC-54, ARC-55, DEP-22, DEP-23 absent from every `origin/*`
+  branch (1a1d08e).
+- [x] Review: self-review; every key and function named for PL-a sequencing (§15.2); operator-visible
+  points raised as FQ-b1 … FQ-b5. The primary session's review pending.
+
+### Eb-C1 — Specs before code
+
+**Scope.** `docs/DECISIONS.md`: **ARC-54** *A world's requirements are resolved against the build and
+the named pack roots* (PD-10 … PD-16, PD-18, PD-19; the orthogonality with `configure:`; limitations: a
+vendored third-party pack counts as bundled; rule 3 proven through a real binary only from E-c);
+**ARC-55** *Which licences a pack may carry* (PD-17, the list, how an expression is judged, where it
+applies, how it is widened); an ARC-53 note (the `bundled` field moved from E-c to E-b).
+`docs/MODULE_SPEC.md` §4 (the frozen model: `entity_packs:` and `presentation_profile:` replaced by
+`requires:` — QSE-8, accepted), §4.1 (`requires:`, its rules and refusals), §8.1 (`--packs`,
+`MINEWORLD_PACKS`, `packs resolve`, `validate`'s `requires` lines). `docs/PACKAGE_FORMAT.md` §5.0
+(dependencies and the policy) and §8 (status row).
+
+- [x] Implementation: ARC-54 (eight points, limitations incl. vendored-as-bundled), ARC-55 (default
+  list as ruled, the evaluator, the typed policy and its `configure/packages.yaml` hook, options (a)–(c),
+  CC-BY-4.0 recorded as the asset-pack candidate), an "ARC-53 note" (classification moved to E-b).
+  `MODULE_SPEC.md` §4: the model's `entity_packs:`/`presentation_profile:` replaced by `requires:`, with
+  a dated amendment paragraph citing QSE-8; constraint 2 "names" → "requires" a Presentation Pack; §4.1
+  intro, the sample's `requires:`, a "Requirements" paragraph (order of refusals, the policy); §8.1
+  synopsis (`--packs` on every world-reading command, `packs resolve`), a "Pack roots" paragraph, the
+  `packs` paragraph (`validate` judges the policy; `resolve`). `PACKAGE_FORMAT.md` §5.0 (bundled,
+  requirements, licence policy; `dependencies` wording) and §8's row.
+- [x] Validation: `check_decision_ids` → 55 ids, distinct (+2); `check_doc_headings` → 177 sections,
+  none duplicated. ARC-54/55 free on every `origin/*` branch (re-checked at C0, `git fetch` since: main
+  unchanged at `1a1d08e`).
+- [x] Review: no defined term redefined ("pack root", "bundled", "third-party", "composition",
+  "licence policy" are introduced as descriptive terms in ARC-54/55, not core concepts); the frozen
+  model's edit is exactly QSE-8's replacement, marked as an amendment.
+
+### Eb-C2 — `packages`: roots, policy, bundled, resolve
+
+**Scope.** `packages/src/declared.rs` (`bundled`, the const prefix test, `package!()` passes
+`CARGO_MANIFEST_DIR`); `packages/src/roots.rs` (`PackRoots`); `packages/src/policy.rs` (ARC-55);
+`packages/src/resolve.rs` (`WorldRequirements`, `CodePack`, `FoundPack`, `Composition`, `resolve`);
+`packages/src/error.rs` (variants: `Absent`, `OutOfRange`, `WrongType`, `BundledRequired`,
+`ThirdPartyNotRequired`, `LicenceNotAllowed`, `NoSuchRoot`); `packages/src/lib.rs`. Tests:
+`packages/tests/resolve.rs` (every rule, table-driven, plus rule order), `packages/tests/roots.rs`
+(argument and environment order, empty entries, a missing root), `packages/tests/policy.rs` (OR, AND,
+WITH, `+`, each refusal naming the identifier), a unit test of the prefix function.
+
+- [x] Implementation (E-Eb2): as scoped, with the §15.0 ruling applied — `LicencePolicy` is a typed
+  value (`allowed: BTreeSet<&'static str>`, deserializable through a checked `Stated { allowed }` with
+  unknown fields refused, `Default` = the eight identifiers) and `resolve` takes it as an argument.
+  `resolve(world, enabled, &Installed { build, found, searched }, &policy)`: the inputs that are not the
+  world's own grouped in `Installed` (clippy's argument count; and they are one thing — what is
+  installed). `Package::declared` gains a sixth argument, the pack's `CARGO_MANIFEST_DIR`, consumed by
+  the `const fn compiled_under` and not stored; `compiled_under` is exported `#[doc(hidden)]` for its
+  test. E-a's two direct `Package::declared` calls in `packages/tests/identity.rs` gain that argument
+  (this crate's own test; claim unchanged). A Controller Pack in `requires:` is refused as wrong type
+  when found; from the World Pack loader's view the build holds System Packs only, so a controller id
+  is reported absent there (controllers are composed by hosts, S10) — bounded, recorded.
+- [x] Validation (E-Eb2): `cargo clippy --workspace --all-targets -- -D warnings` → 0 (first run:
+  `type_complexity` on the refusal table, answered with a named `Case` type). `cargo test -p
+  mineworld-packages`: identity 7, manifest 4, policy 2, resolve 3, roots 2, structure 2 — 20 passed,
+  0 failed, 0 ignored, 0 filtered. With sdk, installed-systems and acceptance alongside: every result
+  `ok`; ac1_composability 13, precursor 4, seam 3, `resolver-yard` PASS. Mutations, each reverted
+  (`git diff` of `packages/src` holds no `false &&` / `true ||` afterwards):
+  - M-B2 rule 3 disabled (`if false && …`) → `every_failed_rule_is_refused_by_name` FAILS at "third-party
+    not required" (a composition came back), and the rule-order test fails too.
+  - M-B3 the policy allows everything (`true || …`) → both policy tests FAIL.
+  - M-B5 (unit side) `bundled` forced false → `package_records_the_crate_it_is_written_in` FAILS "this
+    crate is compiled from the framework's workspace".
+- [x] Review: still a leaf (`structure.rs` 2 passed); no environment read in the library
+  (`PackRoots::new` takes the variable's value; `split_paths` parses it); `Package` stores a boolean,
+  no path.
+
+### Eb-C3 — `worldpack`: `requires:`, `read_with`, the composition
+
+**Scope.** §15.2's worldpack list; `worldpack/tests/requirements.rs` (scratch worlds and roots through
+`read_with`: resolves; absent; out of range; wrong type; the world's licence; `read` of a world with
+`requires:` refused absent with "no pack directory was given").
+
+- [x] Implementation (E-Eb3): as scoped. `origin/main` merged first (`586280c`: #73 the S17 World
+  Interaction List step design, #74/#75 docs — Markdown only, no conflict; S17's frozen step keeps
+  `configure:` as the carrier, QIL-2 overruled, and reaches third-party packs "by naming it in
+  `requires:`, with nothing new" — PD-11 holds). Bounded refinements: (1) a World Pack found in a root
+  is identified from its `world.yaml` alone (`parse` made `pub(crate)`), never read as a world, so
+  resolution cannot recurse; (2) `PackError::FrameworkNotSupported` (E-a's) and the new
+  `PackError::Requirements` carry `Box<PackageError>`: the licence refusal's four strings pushed
+  `PackError` past clippy's `result_large_err` bound, which fired in *existing* test files
+  (`worldpack/tests/refusals.rs`) — fixed at the source rather than in those tests; (3) the
+  `WorldPack::in_memory` test constructor gains an empty `Composition`. `Composition` and `PackRoots`
+  are re-exported by `worldpack`.
+- [x] Validation (E-Eb3): clippy `--workspace --all-targets -D warnings` → 0. `cargo test -p
+  mineworld-worldpack -p mineworld-packages -p mineworld-acceptance --no-fail-fast` → 25 result lines,
+  **121 passed, 0 failed, 0 ignored, 0 filtered**; new `worldpack/tests/requirements.rs` 4 passed
+  (met in a root, with presence bundled; absent / out of range / bundled / the world's GPL licence,
+  each naming `the-world/world.yaml`; `read` with no root says "no pack directory was given" while the
+  pack sits beside the world; a world in a root refused as `world-pack`). `mineworld validate` of the
+  three worlds after the change: byte-identical to the base binary's (`cmp`). **M-B1** (range check
+  `if false && …`) → `an_unmet_requirement_…` FAILS at "out-of-range" (the world read, `style-a` 0.1.0
+  accepted for `^0.2`); reverted, `git diff` holds no `false &&`.
+- [x] Review: `git diff --stat HEAD -- worldpack/src/load.rs` empty; nothing seeds from the
+  composition (`composition()`'s only callers will be in `tools/cli`); no word of the seam scan's
+  vocabulary in the `worldpack/src` additions; `read`'s signature unchanged, so the nine test callers and
+  persistence's are untouched.
+
+### Eb-C4 — the CLI: roots everywhere, `packs resolve`, `validate`'s lines
+
+**Scope.** `tools/cli/src/main.rs` (`PackDirs`, flattened into `validate`, `run`, `server`, `replay`,
+`biography`; `PacksCommand::Resolve`; `validate` prints `requires` lines when declared);
+`tools/cli/src/{run,biography,packs}.rs` (pass roots); `tools/cli/src/packs.rs` (`resolve`; `list` and
+`show` take the environment; `validate` resolves); `tools/cli/templates/new-world/world.yaml` (PD-19);
+`tools/cli/tests/requirements.rs` (EB-1, EB-2, EB-3, EB-5, EB-8).
+
+- [x] Implementation (E-Eb4): as scoped. `PackDirs` (clap `Args`) is flattened into `server`,
+  `validate`, `replay`, `run`, `biography` and the four `packs` subcommands; `PackDirs::roots()` is the
+  one place the environment is read. `RunRequest` and `BiographyRequest` gain `roots`; `serve` and
+  `replay` take them. `packs.rs`: `gather` reads every root through `PackRoots::packs`, a world in a
+  root is read with the same roots; `packs validate` judges the pack's licence with
+  `LicencePolicy::default()`; `packs resolve` prints framework, requirements and systems; a shared
+  `packs::source` prints where a requirement was met (also used by `validate`'s `requires` lines). The
+  template states `version: 0.1.0`, `license: MIT  # set your own`, `mineworld: "^0.1"` (FQ-b1). The
+  module doc lists `packs … resolve` and the pack roots.
+- [x] Validation (E-Eb4): clippy `--workspace --all-targets -D warnings` → 0; fmt clean. New
+  `tools/cli/tests/requirements.rs` 6 passed (EB-1 through every command — `packs resolve`,
+  `validate`, `run --save`, `replay`, `biography` — and the save replayed *without* the root refused
+  "no pack directory was given" (EB-8); EB-1 with the repository's `mineworld-default-3d`; EB-2's seven
+  refusals through the real binary, exit 1, each named; EB-3; EB-5 located from presence; FQ-b1: a
+  created world passes `packs validate`). `packs` 5, `commands` 4, `create` 2 — unchanged, unedited.
+  `validate` of the three worlds byte-identical to the base binary's. Every test controls
+  `MINEWORLD_PACKS` (`env_remove` unless the case sets it), so a developer's own setting cannot leak in.
+  - **Finding F-Eb1 (a test's premise, corrected).** EB-3's first draft named the world's own parent
+    directory in `MINEWORLD_PACKS`; that root then holds the world itself, which is a pack of the root
+    and lacks package fields, so resolution refused it (rule 1) — correct behaviour, wrong test. The
+    test now names a sibling directory holding a copy of the pack; the parent-as-root behaviour is
+    documented on the test.
+  Mutations end to end, each reverted (`git diff -U0 | grep "false &&|true |||MUTATION"` → 0):
+  - M-B1 range check off → `every_unmet_…` FAILS "out-of-range: accepted".
+  - M-B3 policy allows all → `every_unmet_…` FAILS "world-licence: accepted".
+  - M-B4 the world's parent added as an implicit root (in `worldpack/src/requirements.rs`) →
+    `only_the_named_roots_are_searched` FAILS at its first assertion: the planted root was searched
+    (it found the world itself there and refused it for its missing fields, instead of "no pack
+    directory was given").
+  - M-B5 `bundled` forced false → all six `requirements.rs` tests FAIL, each with rule 3's refusal
+    ("enables presence, whose pack mineworld-presence is third-party").
+- [x] Review: refusals reach stderr with exit 1 (every negative case asserts `!ok` and the message);
+  no market crate named in `tools/cli` (AC-1 check 2 at C5's gate). The `main.rs` diff is 106+/32−,
+  more than "one struct and one arm": six flattened fields, `PackDirs` with its doc, the `Resolve`
+  variant, and the dispatch arms rewritten to resolve roots first — every line mechanical; recorded as
+  bounded (S11's server-flag overlap is one `#[command(flatten)]` line).
+
+### Eb-C5 — Close
+
+- [x] `docs/MVP_STATUS.md`: a capability row "Requirements and the licence policy" and an evidence row
+  (`beb9c0f`); this ledger; `handoff-eb.md`.
+- [x] Full gate (E-Eb-final). A first full gate ran on `beb9c0f` and passed (fmt 0, clippy 0, 674
+  passed, 0 failed, 1 ignored, 0 filtered; towns' sha equal; `validate` identical) — then S11-A merged
+  as #76 (`f842c52`), touching `tools/cli/src/main.rs`, and that evidence no longer described the PR.
+  `origin/main` merged as **`0fdced8`**: two conflicts, both unions — `main.rs` (`Server` keeps S11-A's
+  `invite` and gains `packs`; `serve` takes both, `read_with` then `Invite::resolve`) and
+  `MODULE_SPEC.md` §8.1's synopsis (S11-A's `[--invite TOKEN]` and E-b's `[--packs DIR]...`). The gate
+  re-run on **`0fdced8`, the final executable head** (628 s in all): `cargo fmt --all --check` 0;
+  `cargo clippy --workspace --all-targets --all-features -- -D warnings` 0; `cargo test --workspace
+  --no-fail-fast` (with `MINEWORLD_PACKS` and `MINEWORLD_INVITE` unset) exit 0, 533 s, **700 passed,
+  0 failed, 1 ignored, 0 filtered** over 158 harness summaries; `resolver-yard`, `cafe`, `clock` PASS.
+  700 = S11-A's recorded final count 682 (step-12, its full gate on `76be4d2`) + this PR's 18 (packages
+  8, worldpack 4, cli 6). The one ignored test is 12c's `thirty_days_of_bodies_yard_at_seeds_7_8_and_9`.
+  (One log line reads `test result ... ok`: S11-A's frame test named `result`, not a summary.)
+  EB-6: social-cafe `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b` and
+  market-town `365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d`, equal to the base
+  (`1a1d08e`, `target/eb-base`) and to every recorded main since; `validate` of the three worlds
+  byte-identical to the base binary's. EB-7: `git diff --stat origin/main HEAD -- kernel contracts
+  persistence server clients systems cognition tests/acceptance worldpack/src/load.rs` → empty. Doc
+  checks: 191 sections / 26 documents, none duplicated; 57 decision ids, distinct.
+- [x] PR opened, READY FOR OPERATOR REVIEW. Not merged.
+
+### Eb-C6 — Merge of test hygiene (#77) and E-b's test scratch
+
+After the primary session's review of E-b (gate re-run, 700 passed; scope clean; an unmet requirement
+refused by name), PR test-hygiene merged as #77 (`e98321a`) and GitHub reported a conflict. #77 adds
+`mineworld-test-support`'s `scratch!` (DEP-29), `scripts/check_scratch.py` (`scan`, `left`) and the
+rule that test scratch goes through the helper (`ENGINEERING_STANDARDS.md` §22), with
+`packages/tests/manifest.rs` exempt because `packages` is a leaf.
+
+- [x] Implementation: `origin/main` merged as **`b4d4ebf`**: one conflict, `docs/DECISIONS.md`, a
+  union at the file's end (E-b's ARC-54, ARC-55 and the ARC-53 note, then #77's DEP-29, separated by
+  `---`); `Cargo.lock` merged by Git (adds `mineworld-test-support` only). Then **`a383e32`**:
+  `worldpack/tests/requirements.rs` and `tools/cli/tests/requirements.rs` wrap
+  `mineworld_test_support::scratch!` (names `requirements-<case>` and `cli-requirements-<case>`
+  unchanged) and lose their own `Drop`; `packages/tests/roots.rs` joins `manifest.rs` in
+  `check_scratch.py`'s `EXEMPT` with its reason (the same leaf rule, `packages/tests/structure.rs`).
+  **Finding F-Eb2 (bounded, fixed):** `roots.rs`'s two tests shared one scratch, `packages-roots`, so
+  under the parallel harness one test's drop could remove the other's directories; each now names its
+  own (`packages-roots-order`, `packages-roots-not-a-directory`), which is the exemption's substance
+  ("a name of its own, removed on drop"). No assertion changed; no production source changed (the
+  merge brought tests, manifests' dev-dependencies, docs and the script only).
+- [x] Validation (E-Eb-final3, on **`a383e32`**, the final executable head): `check_scratch.py scan` →
+  147 test sources, none outside the helper, 2 exempt. `cargo fmt --all --check` 0; `cargo clippy
+  --workspace --all-targets --all-features -- -D warnings` 0; `cargo test --workspace --no-fail-fast`
+  (`MINEWORLD_PACKS`, `MINEWORLD_INVITE`, `MINEWORLD_KEEP_SCRATCH` unset; `TMPDIR` a fresh
+  `target/eb-run-tmp`, so leftovers of other runs in the system temp directory could not be counted)
+  exit 0, 319 s, **707 passed, 0 failed, 1 ignored, 0 filtered** over 161 harness summaries (700 + #77's
+  7 helper tests; 158 + its 3 targets); `resolver-yard`, `cafe`, `clock` PASS. Then
+  `check_scratch.py left --target-dir target --tmp-dir target/eb-run-tmp` → nothing left (`target/tmp`
+  had been emptied before the run: 135 entries, 16 GB, left by pre-#77 runs). Doc checks: 191 sections /
+  26 documents, none duplicated; 58 decision ids, distinct (57 + DEP-29). EB-6: `validate` of the three
+  worlds byte-identical (`cmp`) to the base binary's (`target/eb-evidence/base-validate-*`); towns'
+  300-day seed-7 sha (all but `wall`) social-cafe `ad49c723…c64b`, market-town `365b50e0…1d1d`, equal
+to the base and to Eb-C5's. EB-7: `git diff --stat origin/main HEAD -- kernel contracts persistence
+  server clients systems cognition tests/acceptance worldpack/src/load.rs` → empty.
+- [x] Review: the merge resolution is a union, no decision text edited; the conversions change where
+  scratch lives (`<CARGO_TARGET_TMPDIR>/mineworld-scratch-<pid>/<name>`), not what any test asserts —
+  EB-3's world-parent case still holds, the world's parent being the test's own scratch. No frozen
+  decision's meaning changed; no material stop reached.
+
+**Acceptance, as measured:**
+
+```text
+EB-1  PASS  requirements.rs: met through packs resolve, validate, run --save, replay, biography;
+            mineworld-default-3d required through --packs presentation/mineworld-default
+EB-2  PASS  seven refusals through the real binary, exit 1, named; every rule in resolve.rs incl. the
+            third-party rule (unit only until E-c, as frozen); M-B1, M-B2, M-B3 observed failing
+EB-3  PASS  a pack beside the world is not found; MINEWORLD_PACKS alone finds it; missing roots named
+            with their source; M-B4 observed failing
+EB-4  PASS  a world in a root refused as world-pack; an entity pack "read from E-d" (unit row)
+EB-5  PASS  every installed system bundled in packs resolve of social-cafe; the prefix test's cases;
+            M-B5 observed failing (unit and end to end)
+EB-6  PASS  towns' digests and the three validate outputs unchanged
+EB-7  PASS  no forbidden path changed; AC-1 13, precursor 4, seam 3 in the gate, tests/acceptance
+            unedited
+EB-8  PASS  composition read only by tools/cli; a save replayed without its root refused by name
+EB-9  PASS  ARC-54, ARC-55, the specs in Eb-C1 (86be6df), before code
+```
+
+**Commit map.** C0 `e9d4ae9` · freeze `15b5907` · C1 `86be6df` · C2 `d50b4f7` · merge `586280c` · C3
+`11ca8a0` · C4 `66bc9f2` · merge (12c record) and C5 docs `beb9c0f` · merge (S11-A) `0fdced8` · C5
+evidence `5908215` · merge (#77) `b4d4ebf` · C6 scratch `a383e32` (final executable head) · the
+Markdown-only evidence commit after it.
+
+**Deviations, all bounded:** `Installed` groups resolve's non-world inputs; a controller id in
+`requires:` is absent from the loader's view (controllers are the host's); `PackError`'s package
+refusals boxed (size), fixed at the source; F-Eb1 (a test's premise); the `main.rs` diff is larger than
+"one struct and one arm" but mechanical. None touches a frozen invariant.
+
+**PR E-b lifecycle: READY FOR OPERATOR REVIEW** — final executable head `a383e32`; PR head is the
+Markdown-only commit after it. Not merged. Coordination notes for the primary session: (1) the
+licence-policy hook is `configure/packages.yaml` decoding into `LicencePolicy`; its owner is the
+framework's `packages` crate, not a System Pack, which S17's `configure:` seam (owner-typed by system
+id) must accommodate when it lands; (2) S11 and E-b now share `Subcommand::Server`'s field list.
+
+## 15.6 Test ownership
+
+```text
+UNIT        packages: resolve's every rule and their order; roots from arguments and environment; the
+            policy over expressions; the bundled prefix test
+INTEGRATION worldpack: read_with over scratch worlds and roots; tools/cli/tests/requirements.rs through
+            the real binary: --packs on each command, MINEWORLD_PACKS, packs resolve, refusals, exit 1
+REAL RUN    EB-6: the towns' 300-day runs against main; EB-8: run --save, kill-free resume with and
+            without the root
+REGRESSION  AC-1, I-2, seam scans, every existing test
+GATE 1      NOT REQUIRED (nothing LM-facing)     CI  none configured (S13): local full gate, once
+```
+
+## 15.7 Material points for the freeze
+
+```text
+FQ-b1  [OPERATOR] PD-19: world fields stay optional to the loader; `create`'s template gains version
+       0.1.0, `license: MIT` (commented "set your own") and mineworld "^0.1". Alternatives: template
+       unchanged; or a different default licence (CC0-1.0). Recommended: as stated.
+FQ-b2  [OPERATOR] PD-17 / ARC-55: the allow-list is MIT, Apache-2.0, CC0-1.0. Candidates left out on
+       purpose: CC-BY-4.0 (attribution duties MineWorld does not yet track), BSD-2/3-Clause, Zlib,
+       Unlicense (permissive, but no pack needs them yet). Recommended: as stated; widening is one
+       reviewed line.
+FQ-b3  PD-15 pulls bundled/third-party classification from E-c into E-b, computed at compile time from
+       the build path, storing only a boolean. Recommended: accept.
+FQ-b4  PD-18: `validate` prints `requires` lines only when the world declares requires:, and `packs
+       resolve` carries the whole composition (deviation from §9.3's "validate prints the
+       composition"). Recommended: accept.
+FQ-b5  Numbers: E-b uses ARC-54 and ARC-55 and no DEP. E-c then needs one ARC number for the ARC-33
+       revision (ARC-SE-a), and DEP-22 can remain cargo-deny's (DEP-SE-b). Recommended: the primary
+       session assigns E-c's ARC; DEP-22/23 stay reserved for E-c.
+```
+
+## 15.8 Parallel lanes and the merge plan
+
+As §14.7: `origin/main` is merged into the branch (never rebased, never force-pushed), before Eb-C3
+(worldpack) and before the PR; `Cargo.lock` regenerated, never hand-merged. Specific to E-b:
+
+| Lane | Overlap | Resolution |
+| --- | --- | --- |
+| S17 PL-a (`configure:`) | `WorldManifest` field list; `read`'s body; `MODULE_SPEC.md` §4.1 | each PR appends its own field and its own call; whichever lands second keeps both, `requires` resolution before configuration decoding (resolution needs only `systems`); §4.1 subsections are separate |
+| S11 (server) | `Subcommand::Server`'s flags | `--packs` is one flattened line; whichever lands second keeps both |
+| S15 12d | towns' digests re-baselined | EB-6 compares against `main` at each merge, not a fixed sha |
+
+## 15.9 Execution contract (proposed; filled at freeze)
+
+```text
+PROJECT / PR:              MVP-0 · S16 / PR E-b — requirements and resolution
+PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/step-16-packages.md §15
+RELATED / BINDING DOCS:    this file §§4–9, §14 (E-a as merged); overall.md "Parallel build-out,
+                           2026-10-08"; step-18-physics-list.md §4.6, §7.1 (PL-a's seam); CLAUDE.md;
+                           docs/ENGINEERING_STANDARDS.md, REUSE_POLICY.md, PACKAGE_FORMAT.md,
+                           MODULE_SPEC.md, DECISIONS.md ARC-31, ARC-33, ARC-53, DEP-8, DEP-21
+IMPLEMENTATION BASE:       main @ 1a1d08e, branch mvp0/pr-eb-requirements
+APPROVED SCOPE:            §15.1–15.5 as frozen, with FQ-b1 … FQ-b5 as answered
+FROZEN INVARIANTS:         I-E1 (no kernel/contracts/persistence/server/clients diff); I-E2 (towns'
+                           digests and validate output equal to main's); I-E4 (AC-1 and the scans
+                           unedited and passing); I-E5; I-E6; I-E8 (no controller change); QSE-14 (no
+                           version, root or composition in a fact or a save); no pack source edit;
+                           requires: never reads or writes configure:
+APPROVED SEQUENCE:         Eb-C1 → C2 → C3 → C4 → C5; merges of origin/main per §15.8
+VALIDATION BUDGET:         targeted per commit; the towns' 300-day runs (≈4 per main merge); one full
+                           workspace gate on the final head; ≈1 hour; >2 minutes in the background
+REQUIRED LIVE DOCS:        §15 (ledger in §15.5's items)
+CONTEXT HANDOFF:           .structured-coding/plans/mvp0/handoff-ea.md, replaced for E-b (renamed
+                           handoff-eb.md at Eb-C1)
+ENDPOINT AUTHORITY:        to be filled from the primary session's freeze message (E-a's kickoff
+                           pattern: implement, commit, push, open PR READY FOR OPERATOR REVIEW; merge
+                           NOT authorized) — unresolved until then
+POST-MERGE SYNC OWNER:     this session: §15's ledger and merge identity; the primary session: §9.3's
+                           status, the step header, overall.md
+MATERIAL STOPS:            any kernel, contract, persistence or pack-source change; any digest change
+                           from the merged main; AC-1 failing; a need to touch load.rs or configure:
+NORMAL STOP CONDITION:     PR E-b READY FOR OPERATOR REVIEW — DO NOT MERGE
 MERGE AUTHORITY:           never without the operator's explicit approval
 ```
 

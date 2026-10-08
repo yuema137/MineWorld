@@ -3819,6 +3819,121 @@ per-world applicability comes from the world enabling the implementing pack, or 
 
 ---
 
+## ARC-54 — A world's requirements are resolved against the build and the named pack roots
+
+**Date** 2026-10-08 · **Approved by** the operator (S16 QSE-8, QSE-13) and the primary session at PR
+E-b's design freeze (step-16 §15.0; FQ-b1, FQ-b3, FQ-b4) · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §4 (the model's `requires:`), §4.1, §8.1;
+[`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §5.0 · **Relates to** `ARC-33`, `ARC-53`, `ARC-55`, `DEP-21`,
+`ARC-61` · **Design** `.structured-coding/plans/mvp0/step-16-packages.md` §4.2, §15 (S16, PR E-b)
+
+**Problem.** `ARC-53` gave every pack an identity, but a world could not yet say which packs it needs or
+at which versions, and nothing refused a world whose packs were missing or wrong. "Install modules →
+compose world" needs the composition to be stated by the world and checked before the world runs.
+
+**Choice.**
+
+1. **`requires:`**, a top-level map in `world.yaml`, pack id → semver range (Cargo's meaning,
+   `DEP-21`). It replaces the frozen model's `entity_packs:` and `presentation_profile:` (QSE-8). It names
+   packs and versions only: `systems:` still says which systems are enabled and in which order, and how a
+   pack is configured belongs to the generic configuration seam (`ARC-61`, S17). Neither of the two reads
+   the other.
+2. **Only packs that are not bundled are named.** A code pack is *bundled* when it was compiled from the
+   framework's own workspace; its version is the framework's, so the world's `mineworld:` range covers it.
+   `package!()` decides this at compile time — the crate's manifest directory begins with the framework
+   workspace's root, taken as `mineworld-packages`' own manifest directory without its last component —
+   and records only a boolean, never a path. Every other code pack is third-party.
+3. **Pack roots, explicit only.** Packs are searched in the build and in the directories named by
+   `--packs DIR` (in order), then by the `MINEWORLD_PACKS` path list. Nothing else is searched — not the
+   world's own directory, not the working directory. Only the composition root reads the environment;
+   `mineworld_packages::PackRoots::new(cli, env)` is a pure function of both.
+4. **Resolution is checked, never chosen.** One installed version per pack; no solver. A pure function,
+   `mineworld_packages::resolve`, takes the world's stated facts, each enabled system's pack and every
+   data pack found under the roots, and refuses the first failure by name, in a fixed order: a duplicate
+   id; per requirement in id order — absent (naming every place searched), a type a world cannot require
+   (a World or Controller Pack; an Entity Pack until S16's E-d), bundled, outside the range; an enabled
+   third-party system that is not required; a licence outside the policy (`ARC-55`).
+5. **Where.** `WorldPack::read_with(root, &PackRoots)` resolves after `systems` and before content.
+   `WorldPack::read(root)` is `read_with` with no roots, so a world without `requires:` reads exactly as
+   before and no existing caller changes. The loader that builds a world (`load.rs`) is not involved:
+   nothing is seeded from a composition.
+6. **Never world state.** No fact, `Metadata` or save carries a version, a root or a composition (S16
+   QSE-14). A resume resolves again against the roots given then, and its composition is still checked by
+   `SystemVersion` alone.
+7. **What prints it.** `mineworld packs resolve <world>` prints the whole composition. `mineworld
+   validate` prints one `requires` line per requirement, only when the world states `requires:`, so a
+   world without one reports exactly what it did before (a departure from step-16 §9.3's "validate
+   prints the composition", recorded at freeze, FQ-b4).
+8. **Every command that reads a world takes `--packs`**: `validate`, `run`, `server`, `replay`,
+   `biography`, and `packs list | show | validate | resolve`. `create` does not: it writes a world that
+   requires nothing. Its template states `version: 0.1.0`, `license: MIT` (to be replaced by the author)
+   and `mineworld: "^0.1"` (FQ-b1).
+
+A World Pack's own `world.version` and `world.license` stay optional to the loader (`ARC-53` point 6);
+`packs validate` and `packs resolve` require them.
+
+**Accepted limitations.**
+- A third-party code pack *vendored inside* the repository counts as bundled, because its manifest lies
+  under the workspace root. Vendoring a third-party pack into the tree is not a supported installation in
+  MVP-0.
+- The rule that an enabled third-party system must be required is proven through the real binary only
+  once a third-party code pack exists in the build (S16's E-c); in E-b it is held by the resolver's own
+  tests.
+- A data pack's own `dependencies` on other data packs are not resolved; `pack.yaml` refuses the field.
+
+---
+
+## ARC-55 — Which licences a pack may carry: a default policy, typed, overridable per world
+
+**Date** 2026-10-08 · **Approved by** the primary session at PR E-b's design freeze (step-16 §15.0,
+FQ-b2 as changed) · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1,
+[`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §5.0 · **Relates to** `DEP-8`, `DEP-21`, `ARC-53`, `ARC-54`,
+`ARC-61` · **Design** `.structured-coding/plans/mvp0/step-16-packages.md` §4.7, §15 (S16, PR E-b)
+
+**Problem.** MineWorld redistributes what a world is composed of, and "a pack whose licence cannot be
+resolved cannot be redistributed" (`PACKAGE_FORMAT.md` §5). `ARC-53` checks that a licence *is* an SPDX
+expression; nothing yet judged whether it is one MineWorld may redistribute under MIT. MineWorld is a
+framework, so the judgement is a default a world may change, not a rule fixed in code.
+
+**Choice.**
+
+1. **The default allow-list** is the common permissive set compatible with MIT redistribution: `MIT`,
+   `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC`, `Zlib`, `CC0-1.0`, `Unlicense`.
+2. **An expression is judged by `spdx`'s own evaluator** (`DEP-21`): allowed when it can be satisfied
+   with listed identifiers alone, a requirement carrying a `WITH` addition or `+` counting as not
+   listed. `MIT OR GPL-3.0-only` is allowed (one branch suffices); `MIT AND GPL-3.0-only` is not. A
+   refusal names the pack, its expression, the identifiers that failed and the allowed ones.
+3. **The policy is a typed value**, `mineworld_packages::LicencePolicy`, passed to the resolver rather
+   than read from a constant; `LicencePolicy::default()` is the list above.
+4. **It applies at resolution** (`ARC-54` point 4) — to the world's own licence when stated, every
+   required pack, and every enabled system's pack — and in `mineworld packs validate`. `packs list` and
+   `packs show` print licences and do not judge them. `cargo-deny` over the whole Cargo graph in CI
+   remains S16 E-c's and S13's.
+5. **Overridable per world, through no key of its own.** When the generic configuration seam lands
+   (`ARC-61`, S17's PL-a), a world's `configure/packages.yaml` decodes into `LicencePolicy` and replaces
+   the default for that world, narrowing or extending it. Until then every world uses the default. No
+   `world.yaml` key is added for it.
+
+**Options considered.** (a) A closed list hard-coded in the resolver — rejected: a framework must let a
+world decide. (b) A dedicated `license_policy:` key in `world.yaml` — rejected at freeze: one generic
+seam for configuration, not a bespoke key per concern. (c) A typed default overridable through the
+generic seam — chosen.
+
+**Candidates left out of the default, on purpose.** `CC-BY-4.0` requires attribution, which MineWorld
+does not yet track; it is the first candidate for asset packs once it does. Copyleft licences
+(`CC-BY-SA-*`, `GPL-*`) stay out, for `DEP-8`'s reason.
+
+---
+
+## ARC-53 note — classification moved to E-b (2026-10-08)
+
+Point 2's identity record gains one field in S16's PR E-b: `Package::bundled`, computed by `package!()`
+at compile time (`ARC-54` point 2). Step-16 §14.1 had placed bundled-versus-third-party classification in
+E-c; E-b needs it for two of its rules, and the primary session moved it at E-b's freeze (FQ-b3). No pack's
+source changes: only the macro's expansion does.
+
+---
+
 ## DEP-29 — Test scratch: a `std`-only helper of our own, not the `tempfile` crate
 
 **Date** 2026-10-08 · **Status** selected; no dependency added · **Approved by** the primary session at

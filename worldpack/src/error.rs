@@ -165,8 +165,20 @@ pub enum PackError {
     FrameworkNotSupported {
         /// The `world.yaml` that states the range.
         path: PathBuf,
-        /// The refusal, naming the range and the framework's version.
-        refusal: mineworld_packages::PackageError,
+        /// The refusal, naming the range and the framework's version. Boxed, as is
+        /// [`PackError::Requirements`]'s, so a package refusal does not size every refusal.
+        refusal: Box<mineworld_packages::PackageError>,
+    },
+
+    /// The world's requirements do not resolve, or a pack in its composition carries a licence the
+    /// policy does not allow (`DECISIONS.md` `ARC-54`, `ARC-55`). The refusal names the pack, the
+    /// range, the version or the licence, and where packs were searched.
+    #[error("{path}: {refusal}")]
+    Requirements {
+        /// The `world.yaml` whose composition is refused.
+        path: PathBuf,
+        /// What was refused.
+        refusal: Box<mineworld_packages::PackageError>,
     },
 
     /// `world.yaml` enables a system this build does not provide.

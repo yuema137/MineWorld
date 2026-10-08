@@ -71,6 +71,7 @@ pub mod error;
 pub mod format;
 pub mod load;
 pub mod read;
+mod requirements;
 
 pub use catalog::Capability;
 pub use error::{ContentKind, Declared, PackError};
@@ -80,4 +81,5 @@ pub use format::{
     WorldIdentity, WorldManifest,
 };
 pub use load::{AssembledWorld, ComposedWorld, LoadedWorld, RunningWorld};
+pub use mineworld_packages::{Composition, PackRoots};
 pub use read::{MANIFEST, PackageFields, WorldPack};
