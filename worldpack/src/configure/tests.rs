@@ -136,7 +136,7 @@ impl PackConfiguration for Probe {
     }
 
     /// States `probe-configured { step }`, `SystemInternal`; refuses a step of 100 — a refusal only the
-    /// owner gives, at genesis.
+    /// owner can state, at genesis.
     fn seed(_: &Seeding<'_, '_>, settings: &Settings) -> Result<Vec<Emission>, Rejection> {
         if settings.step.0 == 100 {
             return Err(Rejection::System {

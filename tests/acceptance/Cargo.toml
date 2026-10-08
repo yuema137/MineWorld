@@ -21,6 +21,10 @@ harness = false
 # here, rather than in any of them, a test-only System Pack can be defined that no library is ever
 # compiled against (step-10 QS-24).
 [dev-dependencies]
+# The configuration seam (S17 PR IL-a, ARC-61): test-tuning, a test-only System Pack, implements
+# authoring's PackConfiguration and AuthoredSection and the sdk's SystemPack with configures!(), so the
+# seam is driven through the contracts a real pack writes (step-18 §11.1, amendment A-1).
+mineworld-authoring = { workspace = true }
 mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
 # The arrival-resolver seam (step-11 §16, ARC-39): its synthetic resolvers are driven through the real
@@ -29,6 +33,7 @@ mineworld-movement = { workspace = true }
 mineworld-persistence = { workspace = true }
 mineworld-presence = { workspace = true }
 mineworld-rule-controller = { workspace = true }
+mineworld-sdk = { workspace = true }
 # AC-1 check 3 (ARC-35 item 4): both World Packs are read by the real loader, their YAML compared as
 # structural values, and a section's owner answered by the build's own catalog (step-10 SD-32).
 mineworld-worldpack = { workspace = true }

@@ -1218,9 +1218,30 @@ Neither pack names a physics word or an interaction word.
 `configuration_seam.rs` covers IA-2, IA-4 a, IA-5 and IA-7 through `World::dispatch` and
 `PersistentWorld`. `configuration_vocabulary.rs` covers IA-8, with M-IA8.
 
-- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-acceptance` (all, including
-  `ac1_composability`, `precursor_vocabulary`, `seam_vocabulary` unedited) · [ ] Review: the test packs
-  exist only in test files; no library is compiled against them.
+- [x] Implementation: `tests/acceptance/tests/configuration/mod.rs` — `test-tuning` (configuration
+  `{ step: 1 … 100 }` by its own `TryFrom` bound, seeded `tuning-configured { step }` `SystemInternal`,
+  reduced into `Stride` on every Place; section `tuned:` `{ start }` refused off-step or unconfigured;
+  action `advance` stating `advanced { person, by }`), `composed()` (what a save resumes into),
+  `world()`, and `genesis_facts()`, which decodes through `SystemPack::decode_configuration` (from
+  `configures!()`) and authoring's `Decode` exactly as the loader does. `configuration_seam.rs`: IA-2
+  (a multiple taken, an off-step start refused by name, sections-before-configuration refused as
+  unconfigured, the pack's bound refused at "line 1 column 7"), IA-4 a (a save's genesis read back from
+  SQLite: unchanged and reformatted Ok; changed, removed, added each `Drift` naming test-tuning), IA-7
+  (240 `advance` requests through `World::dispatch` in a `PersistentWorld`, SIGKILL at mid-run, resumed
+  by a new process, journal/facts/snapshots byte-identical to an uninterrupted control, whole history
+  `verify`d). `configuration_vocabulary.rs`: IA-8 over `authoring/src/configuration.rs`,
+  `worldpack/src/configure.rs`, `configure/tests.rs` and every test file IL-a adds, with three
+  admissions for the reserved key `classes` (D-14). test-relay's catalog is `sdk/rust/tests/extensions.rs`
+  (IA-C3, D-2): it was not duplicated here. Rewordings for IA-8 in IL-a's own tests: `conversation` →
+  `schedule` as the not-enabled system, a helper `body` → `function`, one doc word. After merging main
+  (#77, D-15), IL-a's scratch in `worldpack/tests/configuration.rs`, `tools/cli/tests/configure.rs` and
+  `configuration_seam.rs` moved onto `mineworld_test_support::scratch!`. Amendment A-1 applied
+  (`tests/acceptance/Cargo.toml`, `Cargo.lock` +2 lines).
+- [x] Validation (E-IA-7): see the ledger.
+- [x] Review: the test packs exist only in `tests/acceptance/tests/`; no library depends on the acceptance
+  crate (it has no `[lib]` dependents); the lock diff is the two lines; AC-1 check 2 passes (no normal or
+  build path from the framework crates to a market pack; `authoring` and `sdk` depend on contracts,
+  kernel, packages and serde only).
 
 ### IA-C8 — Close: byte-identity, the canary, the full gate, the ledger
 
@@ -1334,6 +1355,18 @@ E-IA-0  2026-10-08, captured on f6489fd (code = main @ 0d35d6b; the branch's dif
         validate: social-cafe 27 lines sha ebcd60a0…f56a8, market-town 51 lines sha 64f41086…73502,
           bodies-yard 40 lines sha 7356b8f8787f4e24e23120acfddc278bb4815d12f93a3eea60534bd73a12063f
         PASS (captured; the towns' values equal the recorded references, so no 12d re-baseline applies).
+E-IA-7  2026-10-08, IA-C7 on c6ca232 + the IA-C7 tree: `cargo test -p mineworld-acceptance` → every
+        target ok: ac1_composability 13 (unedited; check 2 passes with the two A-1 dev-dependencies),
+        arrival_resolvers 7, arrival_resolvers_resume PASS, arrival_resolvers_unregistered 2,
+        complete_affordances 4, configuration_seam 4 (control 241 revisions; killed at 123, 123 on disk;
+        resumed and verified), configuration_vocabulary 2, precursor_vocabulary 4 (unedited),
+        seam_vocabulary 3 (unedited). `-p mineworld-worldpack --test configuration` 8, `-p mineworld-cli
+        --test configure` 2. Clippy `--workspace --all-targets -D warnings` clean; fmt clean.
+        `check_scratch.py scan`: 148 test sources, none outside the helper (1 pre-existing exemption).
+        M-IA8 (`// talk MUTATION M-IA8` appended to worldpack/src/configure.rs) → the scan FAILS naming
+        "worldpack/src/configure.rs:361: talk"; reverted (file restored), `git grep MUTATION -- '*.rs'`
+        empty. Lock diff: exactly `+ "mineworld-authoring"` and `+ "mineworld-sdk"` in
+        mineworld-acceptance's list. PASS.
 ```
 
 ## 11.12 Deviations
@@ -1380,4 +1413,18 @@ D-12 (bounded) saved_genesis returns PersistError, not String, so the server pat
 D-13 (coordination) origin/main (S11-A, #76, f842c52) was merged into the branch before IA-C4 (6ed1eea),
      clean; S11-A touches server/, clients/ and tools/cli/src/main.rs, none of the simulation paths, so
      E-IA-0 (captured on 0d35d6b) remains the IA-1 reference.
+D-14 (bounded) IA-8's scan admits `classes` on exactly three lines — the RESERVED entry in configure.rs, the
+     reserved-key test in worldpack/tests/configuration.rs, and the validate case in tools/cli/tests/
+     configure.rs — because SD-IA-6 requires the seam to name the reserved key in order to refuse it. Each
+     admission is (file, line substring, word, reason) and fails if it admits nothing (seam_vocabulary's
+     rule). Every other listed word was reworded out of IL-a's own files.
+D-15 (coordination; session resumed after an API rate-limit cut-off) The interrupted session left
+     tests/acceptance/Cargo.toml, Cargo.lock (A-1, exactly as ruled) and the uncommitted IA-C7 files
+     (configuration/mod.rs, configuration_seam.rs). All were kept and finished, not discarded: the
+     resume/create path was corrected (a save resumes into composed(), not a populated world), the
+     SIGKILL child's first report now starts its own line, and an advance is counted by decoding the
+     stored fact. origin/main (#77 test-hygiene, e98321a) was merged (c6ca232): one conflict in
+     DECISIONS.md (ARC-61/62 vs DEP-29, both appended; resolved by keeping both), and Cargo.lock
+     regenerated from main's plus A-1's two lines. #77 touched no file IL-a's IA-C6 calls live in
+     (tools/cli/src/{main,run}.rs unchanged by the merge).
 ```

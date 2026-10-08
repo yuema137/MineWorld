@@ -10,24 +10,29 @@
 //! Each scratch world lives under cargo's temporary directory for this target and is removed when its
 //! test ends.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use mineworld_contracts::SystemId;
 use mineworld_worldpack::{PackError, WorldPack};
 
-/// A scratch World Pack: one place, one person, presence and movement enabled. Removed on drop.
+/// A scratch World Pack: one place, one person, presence and movement enabled. Its directory is
+/// `mineworld-test-support`'s scratch, named as the pack and removed when the test ends (`DEP-29`).
 struct Scratch {
     root: PathBuf,
+    _guard: mineworld_test_support::Scratch,
 }
 
 impl Scratch {
     fn new(id: &str, configure: &str) -> Self {
-        let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(id);
-        let _ = std::fs::remove_dir_all(&root);
+        let guard = mineworld_test_support::scratch!(empty id);
+        let root = guard.path().to_path_buf();
         for directory in ["people", "places", "configure"] {
             std::fs::create_dir_all(root.join(directory)).expect("a writable temporary directory");
         }
-        let scratch = Self { root };
+        let scratch = Self {
+            root,
+            _guard: guard,
+        };
         scratch.write(
             "world.yaml",
             &format!(
@@ -53,12 +58,6 @@ impl Scratch {
 
     fn manifest(&self) -> PathBuf {
         self.root.join("world.yaml")
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.root);
     }
 }
 
@@ -114,10 +113,10 @@ fn the_reserved_keys_are_refused_naming_what_they_are_reserved_for() {
 /// A system the build has but the world does not enable is refused, naming it.
 #[test]
 fn a_system_the_world_does_not_enable_is_refused() {
-    let scratch = Scratch::new("configure-not-enabled", "configure:\n  - conversation\n");
+    let scratch = Scratch::new("configure-not-enabled", "configure:\n  - schedule\n");
     match scratch.read() {
         Err(PackError::ConfigurationOwnerNotEnabled { system, path }) => {
-            assert_eq!(system, SystemId::from_static("conversation"));
+            assert_eq!(system, SystemId::from_static("schedule"));
             assert_eq!(path, scratch.manifest());
         }
         other => panic!("expected ConfigurationOwnerNotEnabled, got {other:?}"),

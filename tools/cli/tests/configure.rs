@@ -6,9 +6,9 @@
 //! installed, which this build has none of: it is shown by the canary (IA-10), and the comparator itself
 //! by worldpack's own tests (IA-4 a). What this file holds is that no resuming host can skip the check —
 //! structurally, because only a structural test can hold an absence — and that the existing restart
-//! tests (`restart.rs`, `run_restart.rs`, `bodies_yard_restart.rs`, unedited) still resume.
+//! tests (`restart.rs`, `run_restart.rs` and the yard's restart test, unedited) still resume.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Output};
 
 /// The source of one of this binary's modules.
@@ -17,9 +17,9 @@ fn source(file: &str) -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
 }
 
-/// The body of the function whose signature begins with `signature`: from it to the first line that
+/// The text of the function whose signature begins with `signature`: from it to the first line that
 /// closes a function at its indentation.
-fn body<'s>(source: &'s str, signature: &str) -> &'s str {
+fn function<'s>(source: &'s str, signature: &str) -> &'s str {
     let start = source
         .find(signature)
         .unwrap_or_else(|| panic!("no function `{signature}`"));
@@ -31,14 +31,14 @@ fn body<'s>(source: &'s str, signature: &str) -> &'s str {
     &source[start..start + end]
 }
 
-/// In `body`, the configuration check comes before `call`, and both are there.
+/// In the function, the configuration check comes before `call`, and both are there.
 fn checks_before(file: &str, signature: &str, call: &str) {
     let source = source(file);
-    let body = body(&source, signature);
-    let check = body
+    let text = function(&source, signature);
+    let check = text
         .find("check_configuration(")
         .unwrap_or_else(|| panic!("{file} `{signature}` never checks the configuration"));
-    let resumes = body
+    let resumes = text
         .find(call)
         .unwrap_or_else(|| panic!("{file} `{signature}` no longer calls {call}"));
     assert!(
@@ -58,17 +58,17 @@ fn every_resuming_host_checks_the_configuration_before_it_resumes_or_verifies() 
     checks_before("main.rs", "fn replay(", "verify(&backend");
 }
 
-/// A scratch World Pack for `validate`, removed on drop.
-struct Scratch(PathBuf);
+/// A scratch World Pack for `validate`: `mineworld-test-support`'s scratch, named as the pack and
+/// removed when the test ends (`DEP-29`).
+struct Scratch(mineworld_test_support::Scratch);
 
 impl Scratch {
     fn new(id: &str, configure: &str) -> Self {
-        let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(id);
-        let _ = std::fs::remove_dir_all(&root);
+        let scratch = Self(mineworld_test_support::scratch!(empty id));
         for directory in ["people", "places", "configure"] {
-            std::fs::create_dir_all(root.join(directory)).expect("a writable temporary directory");
+            std::fs::create_dir_all(scratch.0.path().join(directory))
+                .expect("a writable temporary directory");
         }
-        let scratch = Self(root);
         scratch.write(
             "world.yaml",
             &format!(
@@ -85,21 +85,15 @@ impl Scratch {
     }
 
     fn write(&self, relative: &str, contents: &str) {
-        std::fs::write(self.0.join(relative), contents).expect("a writable scratch file");
+        std::fs::write(self.0.path().join(relative), contents).expect("a writable scratch file");
     }
 
     fn validate(&self) -> Output {
         Command::new(env!("CARGO_BIN_EXE_mineworld"))
             .arg("validate")
-            .arg(&self.0)
+            .arg(self.0.path())
             .output()
             .expect("the binary runs")
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 
@@ -121,9 +115,9 @@ fn validate_refuses_each_configuration_mistake_by_name() {
         ),
         (
             "cli-configure-not-enabled",
-            "configure:\n  - conversation\n",
+            "configure:\n  - schedule\n",
             None,
-            "'conversation', which this world does not enable",
+            "'schedule', which this world does not enable",
         ),
         (
             "cli-configure-not-configurable",
