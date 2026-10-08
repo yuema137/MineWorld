@@ -2211,11 +2211,16 @@ Nothing else in movement.
 
 **Depends on:** RS-C2.
 
-- [ ] Implementation: as scoped; `git diff --stat systems/movement` shows one file.
-- [ ] Validation: `cargo test -p mineworld-movement` (all existing tests, unchanged); the 300-day
-  social-cafe run at this commit = E-RS0 (RS-1's first bullet, early).
-- [ ] Review: movement names no resolver, no catalog, no resolver pack; it maps presence's refusal as
-  before; its VERSION stays 1 (SD-R9).
+- [x] Implementation: as scoped; `git diff --stat systems/movement` → `systems/movement/src/system.rs
+  | 20 +++++++++-----------`, one file: the `use` line (`StoppedShort`, `arrivals` instead of
+  `arrival`), `.emitting::<StoppedShort>()`, and `resolve` returning `arrivals(..)` mapped to
+  `FactRefusedByOwner` as before, with its doc line.
+- [x] Validation (E-RS4): `cargo test -p mineworld-movement` 3 + 7 + 1 pass, unedited; clippy clean;
+  the 300-day social-cafe run at this state = E-RS0's sha.
+- [x] Review: movement names `arrivals` and `StoppedShort` — presence's constructor and fact — and no
+  `ArrivalResolver`, `Resolution`, catalog function or resolver pack (RS-13 checks it mechanically in
+  RS-C7); the refusal is mapped exactly as before (same system, same event type, presence's reason
+  passed through); `VERSION` stays 1.
 
 ### RS-C5 — the synthetic resolvers and SC-2 … SC-5, SC-8
 
@@ -2471,6 +2476,15 @@ E-RS3 RS-C3, 2026-10-07, working tree on df23827 + RS-C3's paths.
         systems sdk worldpack tests tools` empty.
       Tool-discipline note: one read-only `awk` was used to reformat this run's test-count lines; it
         touched no file. Not repeated.
+
+E-RS4 RS-C4, 2026-10-07, working tree on afda4e6 + movement's one file.
+      `cargo test -p mineworld-movement`: disclosure 3, movement 7, persisted 1. PASS.
+      clippy -p mineworld-movement --all-targets -D warnings: clean.
+      `cargo build -p mineworld-cli`; `mineworld run worlds/social-cafe --headless --seed 7 --days 300`
+        → exit 0, 339 lines, faults 0, history 365 330 facts (arrived 180 677, person-entered-place
+        20 720), no `stopped-short` line; sha-256 of every line but `wall` =
+        ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-RS0. Wall 13.4 s.
+        PASS (RS-1's first bullet, early; 300-day run 1 of 4). Log /tmp/s15-12a/rsc4-cafe300.txt.
 ```
 
 ## 16.11 Deviations and discoveries during implementation (12a session)
