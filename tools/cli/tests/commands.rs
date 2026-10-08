@@ -73,8 +73,7 @@ fn a_pack_that_is_not_there_is_refused_by_name_rather_than_panicking() {
 
 #[test]
 fn a_malformed_pack_is_refused_by_the_command_with_its_position_in_the_file() {
-    let root = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("cli-malformed");
-    let _ = std::fs::remove_dir_all(&root);
+    let root = mineworld_test_support::scratch!("cli-malformed");
     std::fs::create_dir_all(root.join("people")).expect("a writable temporary directory");
     std::fs::create_dir_all(root.join("places")).expect("a writable temporary directory");
     std::fs::write(

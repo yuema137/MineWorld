@@ -14,6 +14,8 @@
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
+#   ./mineworld-slice --world --target         headless: what the targeting ray picks, and
+#                                              that it picks nobody through a wall
 #   ./mineworld-slice --server=host:port --invite=TOKEN [--seat=visitor] [--nickname=NAME]
 #                                     connect to a running world, with the invite its server printed
 #
@@ -53,13 +55,13 @@ world=0
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
-    --shots|--drive|--measure|--threshold|--perf|--hud|--jumpshots|--doors|--link|--character|--conversation)
+    --shots|--drive|--measure|--threshold|--perf|--hud|--jumpshots|--doors|--link|--character|--conversation|--target)
                                            args+=("--slice-${a#--}") ;;
     --gi=*)                                args+=("$a") ;;
     --res=*)                               res="${a#--res=}" ;;
     *)                                     args+=("$a") ;;
   esac
-  { [ "$a" = "--drive" ] || [ "$a" = "--link" ]; } && headless=1
+  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ]; } && headless=1
 done
 
 # --world: host worlds/social-cafe locally, exactly as clients/protocol/run.sh

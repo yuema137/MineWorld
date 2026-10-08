@@ -12,8 +12,6 @@
 
 mod support;
 
-use std::path::PathBuf;
-
 use mineworld_contracts::{ActionIntent, ActionRecord, ActionResult, Rejection, WorldTime};
 use mineworld_kernel::World;
 use mineworld_movement::{Move, Passages};
@@ -24,22 +22,12 @@ use support::{Layout, Movement, NOW, Town, at, compose, encode};
 
 const INSTANCE: u128 = 0x5eed_0000_0000_0000_0000_0000_0000_0608;
 
-/// A directory of this test's own, emptied when made and removed when dropped.
-struct Scratch(PathBuf);
+/// A directory of this test's own, empty when made and removed when the test ends (scratch, DEP-29).
+struct Scratch(mineworld_test_support::Scratch);
 
 impl Scratch {
     fn new(name: &str) -> Self {
-        let path =
-            std::env::temp_dir().join(format!("mineworld-movement-{}-{name}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&path);
-        std::fs::create_dir_all(&path).expect("a scratch directory");
-        Self(path)
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        Self(mineworld_test_support::scratch!(empty name))
     }
 }
 

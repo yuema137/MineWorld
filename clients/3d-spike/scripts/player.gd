@@ -20,6 +20,14 @@ const JOG_SPEED := 3.10
 const ACCEL := 9.0
 const DECEL := 12.0
 const EYE_HEIGHT := CameraRig.EYE_HEIGHT
+## A person's collision capsule: the server's default person, bodies'
+## `PERSON_RADIUS` 300 mm and `PERSON_HEIGHT` 1 720 mm (step-11 SD-B2), which
+## no observation discloses yet because every person is that capsule (QP-6).
+## The player's own body and every perceived person's collider use it
+## (step-15 §4.2, QS14-3); once per-person shapes are disclosed, the client
+## reads them instead.
+const CAPSULE_RADIUS := 0.30
+const CAPSULE_HEIGHT := 1.72
 const MOUSE_SENS := 0.0016
 const PITCH_LIMIT := deg_to_rad(84.0)
 
@@ -75,10 +83,10 @@ func _ready() -> void:
 
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
-	cap.radius = 0.30
-	cap.height = 1.72
+	cap.radius = CAPSULE_RADIUS
+	cap.height = CAPSULE_HEIGHT
 	cs.shape = cap
-	cs.position = Vector3(0, 0.86, 0)
+	cs.position = Vector3(0, CAPSULE_HEIGHT * 0.5, 0)
 	add_child(cs)
 
 	rig = CameraRig.new()

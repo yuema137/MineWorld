@@ -13,6 +13,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use mineworld_test_support::Scratch;
+
 use mineworld_contracts::{
     ActionId, Causation, EntityId, EntityType, EventEnvelope, EventId, LocalPosition, PlaceId,
     WorldTime,
@@ -106,10 +108,9 @@ pub fn copy_dir(from: &Path, to: &Path) {
     }
 }
 
-/// A copy of the pack under `directory`, named as the pack (a pack's id is its directory).
-pub fn copy_of(directory: &Path) -> PathBuf {
-    let _ = std::fs::remove_dir_all(directory);
-    let copy = directory.join("bodies-yard");
+/// A copy of the pack in the scratch `directory`, named as the pack (a pack's id is its directory).
+pub fn copy_of(directory: Scratch) -> Scratch {
+    let copy = directory.within("bodies-yard");
     copy_dir(Path::new(YARD), &copy);
     copy
 }
@@ -147,7 +148,7 @@ pub fn item_files(pack: &Path) -> Vec<PathBuf> {
 /// `systems:` list drops `bodies` and whose place and item files drop their `body:` sections — the
 /// market-composition pattern. Asserted to differ from the pack by exactly those. The items stay, as
 /// inert entities.
-pub fn without_bodies(directory: &Path) -> PathBuf {
+pub fn without_bodies(directory: Scratch) -> Scratch {
     let copy = copy_of(directory);
     let manifest = copy.join("world.yaml");
     let text = std::fs::read_to_string(&manifest).expect("world.yaml reads");

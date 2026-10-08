@@ -3694,3 +3694,490 @@ the build. `Cargo.lock` gains three packages: the two and `mineworld-packages`. 
 
 **Accepted limitations and the revisit trigger.** A registry (the publishing sense of Milestone E,
 non-goal) brings version selection, which is a solver's problem and is not solved here; revisit then.
+
+---
+
+## DEP-17 — CI runs on GitHub Actions hosted Linux runners, inside the repository's own toolchain container
+
+**Date** 2026-10-08 · **Status** selected; integrated in S13 PR 13a · **Approved by** the primary session
+at 13a's design freeze (step-14 §9.0) under the operator's 2026-10-08 decision to make the repository
+public · **Relates to** `ARC-48`, `DEP-18`, `ARC-30`, `ARC-35`, overall `D-12` · **Design**
+`.structured-coding/plans/mvp0/step-14-ci.md` §§5.1–5.4, 6, 9
+
+**Problem.** `ENGINEERING_STANDARDS.md` §15 says quality gates "must remain automatic", and §16 asks for
+four CI layers. Until S13 the repository had no CI at all: every gate was a session running commands on
+the operator's Mac. CI also has to be the other side of `AC-8`, which is native Linux x86_64.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17, both directions).
+
+```text
+CI service
+(a) GitHub Actions, hosted ubuntu-24.04           chosen
+(b) GitLab CI through a push mirror               review on one platform, checks on another
+(c) self-hosted Woodpecker or Forgejo Actions     a server MineWorld would have to operate
+(d) CircleCI / Buildkite                          no fit advantage; a second account
+(e) Actions on a self-hosted runner, the          arm64 macOS, so it cannot be AC-8's Linux x86_64
+    operator's Mac                                side, and it would run PR code on the operator's
+                                                  machine; kept only as a layer-4 fallback
+(f) our own scripts and cron                      no PR integration
+
+How a job gets the toolchain
+(A) build the Dockerfile's `toolchain` stage, then `docker run` each layer      chosen
+    with the checkout mounted
+(B) `jobs.<id>.container:` on the official image, plus inline apt installs      the environment
+    defined twice; actions/checkout silently falls back to a tarball with no .git when git is missing,
+    which breaks AC-1's history scans
+(C) the toolchain on the bare runner                                           the tests would not run
+                                                                               in the container AC-8 names
+(D) a prebuilt toolchain image on GHCR                                         needs packages: write,
+                                                                               which the read-only workflow
+                                                                               refuses
+
+Test runner
+plain `cargo test --workspace`      chosen: the project's canonical command, so CI and laptop agree
+cargo-nextest                       declined for now (below)
+
+Cache
+actions/cache with an explicit key  chosen
+Swatinem/rust-cache                 keys on the runner's rustc, not the container's, under (A)
+sccache (GHA backend)               no gain on a link-heavy test build of ~117 binaries; revisit
+```
+
+**Choice.** GitHub Actions on hosted `ubuntu-24.04`. Each job builds the `toolchain` stage of the
+repository's `Dockerfile` (`DEP-18`) with the BuildKit GitHub Actions cache, and runs one command inside
+it: `python3 scripts/ci_layer.py <layer>`. The registry, git dependencies and compiled dependencies are
+cached with `actions/cache` under a key of `Cargo.lock`, `rust-toolchain.toml` and the `Dockerfile`.
+Third-party actions are pinned to full commit SHAs.
+
+**Why not ourselves.** CI is commodity infrastructure (`REUSE_POLICY.md` §4). The repository, its PRs and
+its review flow are already on GitHub (`D-12`). Checks reported there are the ones the operator sees
+when reviewing.
+
+**Why not the others.**
+- (b), (d): no fit advantage, and a second platform or account to keep.
+- (c): operational burden (`REUSE_POLICY.md` §2).
+- (e): the wrong platform for AC-8, and an execution risk.
+- (B): two definitions of the environment, and a checkout path that fails open.
+- (C): would test outside the container that AC-8 names.
+- (D): permission and storage cost. Public packages are free, so the storage reason lapses once the
+  repository is public. The permission reason stands. Revisit if building the image per job is measured
+  above about 2 minutes.
+- **cargo-nextest.** It lists custom-harness targets by invoking them with libtest's
+  `--list --format terse`. The project's two `harness = false` programs (`persistence/tests/kill_and_resume.rs`,
+  `tests/acceptance/tests/arrival_resolvers_resume.rs`) do not implement that interface. Its retries would
+  hide nondeterminism, which this project treats as a defect. Its gain is small, because six long tests
+  dominate the suite. Revisit if `test` passes about 15 minutes cached, or needs sharding.
+
+**Isolating interface.** `.github/workflows/ci.yml` only checks out, restores caches, builds the toolchain
+image and calls `scripts/ci_layer.py`, the last three through the local composite action
+`.github/actions/layer`. No check command appears in YAML (`ARC-48`, I-S13-9). Moving to another CI
+service rewrites those two files. Changing what a layer runs edits one list in `scripts/ci_layer.py`, and
+the same entry point runs locally.
+
+**Accepted limitations.**
+- **Cost.** As a private repository on GitHub Free, CI would draw on 2 000 included Linux minutes a month,
+  while the project's PR rate needs several times that (step-14 §10.1). The repository became public on
+  2026-10-08, so standard hosted runners are free. Runs are still kept purposeful.
+- **Runner disk.** The default suite once wrote about 16 GB of scratch saves (step-14 F-3); since the
+  test-hygiene PR (#77, `DEP-29`) each test removes its own, and `test` checks that nothing is left. The
+  `test` layer prints free disk before and after. The public runner measured about 107 GB free before
+  the tests, so no clean-up step is needed. A future shortfall is remedied in the workflow, never by changing tests in
+  CI.
+- **Building the image per job.** About 30–90 seconds per job. This is the price of one definition of the
+  environment.
+
+---
+
+## DEP-18 — Container images: the official `rust` slim image to build, Debian slim to run, both pinned by digest
+
+**Date** 2026-10-08 · **Status** selected; integrated in S13 PR 13a · **Approved by** the primary session
+at 13a's design freeze (step-14 §9.0) · **Relates to** `DEP-17`, `ARC-48`,
+[`ARCHITECTURE.md`](ARCHITECTURE.md) §§11, 13, [`NETWORKING.md`](NETWORKING.md) §§7–8,
+[`MVP.md`](MVP.md) §9 `AC-8` · **Design** `.structured-coding/plans/mvp0/step-14-ci.md` §§3.1–3.2, 5.5
+
+**Problem.** `NETWORKING.md` §7 deploys a world as a Docker container on a VPS, with a persistent volume.
+`AC-8` requires the container to run the laptop's World Pack with no semantic difference. CI needs the
+same environment for its layers (`DEP-17`). One `Dockerfile` serves all three.
+
+**Options considered.**
+
+```text
+build base
+(a) rust:1.97.1-slim-trixie (Docker Official Image)        chosen: the exact toolchain as a tag, rustup
+                                                           inside, glibc, gcc for libsqlite3-sys
+(b) rust:1.97.1-trixie (full)                              the same, with ~0.5 GB of unused packages
+(c) musl static (rust:alpine, cargo-zigbuild) to scratch   a third target nobody else runs; musl's
+                                                           allocator and libm untested against Rapier
+runtime base
+(d) debian:trixie-slim                                     chosen: the build stage's glibc; a shell, so
+                                                           an operator can `docker exec … mineworld inspect`
+(e) gcr.io/distroless/cc-debian13                          smaller, no shell; the planned hardening swap
+                                                           once a hosted deployment exists (QS13-10)
+(f) cgr.dev/chainguard/glibc-dynamic                       the free tier offers only `latest`, so a
+                                                           pinned digest may be garbage-collected
+(g) our own base image                                     nothing to gain
+```
+
+**Choice.** One `Dockerfile` at the repository root, with three stages.
+- **`toolchain`** is `rust:1.97.1-slim-trixie` plus `git`, `python3`, `ca-certificates`, `rustfmt` and
+  `clippy`. It copies no source; CI mounts the checkout into it.
+- **`build`** copies the Cargo workspace and runs `cargo build --release --locked -p mineworld-cli`.
+- **`runtime`** is `debian:trixie-slim` with the `mineworld` binary and `worlds/`.
+  - It runs as the non-root user `mineworld`, keeps worlds on a volume at `/var/lib/mineworld`, and
+    exposes 7878.
+  - Its default command hosts `worlds/social-cafe` with a save on that volume.
+  - It stops with `SIGINT`: the server's own stop signal (`tools/cli/src/main.rs`, `serve`), so `docker
+    stop` shuts the world down the way an operator's Ctrl-C does.
+
+Every `FROM` names its tag **and** its `@sha256:` digest. `scripts/check_ci_pins.py`, in CI's `fast`
+layer, fails unless:
+- the `rust:` tag equals `rust-toolchain.toml`'s channel and the root manifest's `rust-version`;
+- every `FROM` carries a digest;
+- the build and runtime stages name the same Debian release.
+
+**Why not ourselves.** Base images are commodity infrastructure, maintained upstream with security
+updates.
+
+**Why not the others.**
+- (b): size.
+- (c): it would test a different target from the one deployed.
+- (e): deferred, not declined. It is a one-line `FROM` swap.
+- (f): reproducibility.
+
+**Isolating interface.** The runtime image's interface is `mineworld` plus its ordinary arguments, a
+volume at `/var/lib/mineworld`, and port 7878. MineWorld has no container-only flag, environment switch,
+`cfg` or code path (I-S13-5). A compose file, a VPS unit or a Kubernetes manifest consumes the image
+without changing it. The toolchain version has one source, `rust-toolchain.toml`; the image tag follows it
+under `check_ci_pins.py`.
+
+**Accepted limitations.**
+- **Digests age.** A digest pins an image that stops receiving Debian security updates. Re-pinning is a
+  deliberate, reviewed change. The pinned digests and their dates are in step-14's 13a ledger.
+- **The runtime image's default command predates S11's invite token.** S11 adds the argument (QS13-15).
+- **No published image.** 13a builds the image in CI and locally. A registry is a later decision.
+
+---
+
+## ARC-48 — CI layers, triggers, and what blocks a merge
+
+**Date** 2026-10-08 · **Status** decided; layers 1–2 live from S13 PR 13a · **Approved by** the primary
+session at 13a's design freeze (step-14 §9.0), under the operator's 2026-10-08 decision to make the
+repository public · **Relates to** `DEP-17`, `DEP-18`, `ARC-30`, `ARC-35`, overall `D-12`,
+[`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §§15–16 · **Design**
+`.structured-coding/plans/mvp0/step-14-ci.md` §§3.4–3.7, 9.0
+
+**Problem.** `ENGINEERING_STANDARDS.md` §16 names four CI layers: fast structural checks on every change;
+core integration tests on every pull request; scenario tests; long-running stability tests that "can run
+separately from the fastest PR loop". The project needs to know which layer runs when, what a red layer
+stops, and what is mechanism rather than promise.
+
+**Decision.** One workflow, `.github/workflows/ci.yml`. Its jobs name layers, never commands. The
+layer → command table exists once, in `scripts/ci_layer.py`.
+
+```text
+job        layer (§16)            trigger                                         merge
+fast       1 fast structural      push to every branch; pull_request               blocks
+test       2 core integration     non-draft pull_request; push to main;           blocks
+                                  push to scratch/**
+image      (the runtime image)    workflow_dispatch; push to scratch/*-image      evidence only
+scenario   3 scenario             push to main; nightly; workflow_dispatch (13b)  blocks main's health
+stability  4 long-running         nightly; workflow_dispatch (13c)                reports
+clients    Godot headless probes  nightly; workflow_dispatch (13c)                reports
+```
+
+- **`fast`** runs, in order:
+  - `cargo fmt --all --check`;
+  - `scripts/check_doc_headings.py`, `scripts/check_decision_ids.py`, `scripts/check_ci_pins.py` and
+    `scripts/check_scratch.py scan`;
+  - `cargo check --workspace --all-targets`;
+  - `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+- **`test`** runs `cargo test --workspace`: the whole default suite. After it passes,
+  `scripts/check_scratch.py left --target-dir target` fails the layer if any test left scratch behind
+  (`ENGINEERING_STANDARDS.md` §22, `DEP-29`).
+  - It builds first with `--no-run`, which runs no test and only separates build time from test time in
+    the log.
+  - That includes the two `harness = false` programs and the history-reading scans of `ARC-35`.
+  - The default suite already holds the Social Café and Market Town scenarios and the long runs, by
+    decision (step-10 QS-59).
+  - `cargo test` cannot exclude a target without a hand-kept list, and such a list fails open. So layer 2
+    is the whole suite until a fail-closed selector exists.
+- **Full history.** Every job that runs a layer checks out with `fetch-depth: 0`, as a partial clone
+  (`filter: blob:none`), of the whole tree. Tests read `presentation/` and `clients/protocol/`, so a
+  sparse checkout that omitted them was tried and dropped (step-14 A-C3). A shallow clone makes
+  `ac1_composability` fail by name, never skip.
+- **Economy.**
+  - `concurrency` is per ref, and cancels a stale run except on `main`.
+  - A draft PR runs `fast` only.
+  - Branch pushes run `fast` even when a PR also runs it, because minutes are free on a public
+    repository.
+  - `CARGO_INCREMENTAL=0` and `CARGO_PROFILE_DEV_DEBUG=line-tables-only` are CI-only settings. They change
+    no codegen semantics: `ARC-30`'s `opt-level`, debug assertions and overflow checks are untouched.
+- **Never weaker than local.**
+  - A blocking job has no `continue-on-error`, no retry and no `|| true`.
+  - No test reads a CI variable to relax itself.
+  - The workflow runs with `permissions: contents: read`, uses `pull_request` and never
+    `pull_request_target`, and needs no secret.
+- **Check names are an interface.** The jobs are named exactly `fast` and `test`, with no matrix, because
+  a required check matches by name.
+
+**What "blocks" means, and what enforces it, as of this record.**
+1. **Policy, in force now.** An execution contract's `READY FOR OPERATOR REVIEW` requires green `fast` and
+   `test` on the exact final PR head. That run is the PR's one canonical full-suite evidence, replacing a
+   local full gate. The operator merges only with both green.
+2. **Mechanism, not yet in force.** While this record was being written, the repository was private on
+   GitHub Free, where branch protection and rulesets are unavailable (step-14 F-1: the API answers 403).
+   `D-12`'s "protection makes that a mechanism" was therefore not yet true.
+   - The repository became public on 2026-10-08, which makes protection available.
+   - Protection follows this record's PR (S13 13a) **after it merges**. Requiring checks that do not yet
+     exist on `main` would block every merge. The primary session then enables protection, or a ruleset,
+     on `main`.
+   - It requires `fast` and `test` and "require branches to be up to date", because AC-1's scan reads
+     merge structure.
+   - That settings change is outside every PR, and is recorded where it is made.
+3. **A known property of required checks.** A job skipped by its `if:` reports success to a required
+   check, as `test` does on a draft PR. A draft cannot be merged, and `ready_for_review` re-runs `test` on
+   the same head, so this opens no gap in practice.
+
+**Why.** §16's layers become triggers without re-tiering any existing test. Each red layer has one
+meaning. And no claim about enforcement is stronger than the repository's settings.
+
+**Accepted limitations.**
+- Layer 2 is the whole suite, about 70 % of it six long runs, so the PR loop's `test` is not fast.
+- The canonical evidence arrives when CI finishes, not when the session stops typing.
+- Until protection is enabled, a merge without green checks is prevented by discipline only.
+
+---
+
+## DEP-20 — Client collision: Godot's built-in Jolt Physics, never authoritative
+
+**Date** 2026-10-08 · **Status** selected; in force from S14 PR 16a · **Approved by** the operator
+(step-11 §1.2 D-2, Jolt as the direction) and the primary session at PR 16a's design freeze (step-15
+§19.0) · **Relates to** `DEP-4`, `DEP-13`, [`NETWORKING.md`](NETWORKING.md) §4,
+[`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §12 · **Design** `.structured-coding/plans/mvp0/step-11-bodies.md`
+§§3.2, 15.2 (drafted there as "DEP-14", renumbered by `overall.md` "Parallel build-out, 2026-10-08",
+ruling 6); `step-15-demo-3d.md` §§8.1, 19
+
+**Problem.** The 3D client must stop the player at walls and, from S15 PR 12e, at people and objects,
+predicting locally what the server decides (`NETWORKING.md` §4). It needs a collision engine for its own
+body; nothing it simulates is authoritative.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17 — both directions).
+
+```text
+(a) Jolt Physics, built into Godot 4.7.2, MIT          chosen
+(b) Godot Physics (what ran before; the setting's      kept as the one-line fallback
+    DEFAULT in this project)
+(c) appsinacup/godot-rapier-physics (GDExtension)      symmetry with the server buys nothing when the
+                                                       server always wins; a binary per platform
+(d) godot-jolt/godot-jolt (the former extension)       maintenance mode; supports Godot 4.3-4.6 only
+(e) our own collision                                  a physics engine is commodity infrastructure
+```
+
+**Choice: Jolt Physics, selected explicitly** — `[physics] 3d/physics_engine="Jolt Physics"` in
+`clients/3d-spike/project.godot`, every other Jolt setting at its default. `CharacterBody3D.move_and_slide`
+is the only physics the player uses, unchanged. Jolt has been built into Godot since 4.4 and is the
+default for new projects since 4.6; existing projects keep Godot Physics unless they select it.
+
+**Why not ourselves.** Collision is commodity infrastructure (`REUSE_POLICY.md` §4), and the engine
+already ships two.
+
+**Isolating interface.** The project setting is the only place that names Jolt. Every script uses the
+generic `PhysicsServer3D` nodes and queries, so the fallback to Godot Physics is that one line
+(step-15 §9.4). No physics concept reaches the wire protocol: colliders are built from disclosed shapes,
+and the client's only rule is to adopt the server's answer (12e).
+
+**Facts, measured 2026-10-08** (step-15 §19.7 E16a-1, E16a-2; Godot `4.7.2.stable.official.ed1daf0bf`,
+Apple M5):
+
+```text
+which engine   the server singleton reports the abstract PhysicsServer3D under either engine; the
+               running engine is told by a new space's solver iterations: 16 with Godot Physics
+               (its own setting), 8 with Jolt (clients/3d-spike/tools/physics_engine.gd). With the
+               setting DEFAULT this project ran Godot Physics
+the slice      every accepted check passes unchanged on Jolt: --drive (the loop closes within
+               0.10 m, jumps 0.488 m, 0.0000 m camera switches), --threshold, --character,
+               --world --link (50 moves accepted, none refused), --world --conversation; the body
+               settles within 2 mm of where it settled on Godot Physics
+frame time     within run-to-run noise on both scenes (step-15 §19.7 E16a-2)
+```
+
+**Accepted limitations.** Godot states its physics, on either engine, is not deterministic; acceptable,
+because nothing the client simulates is authoritative. Jolt's documented differences from Godot Physics
+(position-only stabilization, kinematic bodies not reporting contacts with static or kinematic bodies
+unless `generate_all_kinematic_contacts` is set) are re-checked by 12e, which first gives the player
+bodies to meet.
+
+**Revisit** if a client check fails on Jolt in a way the client cannot fix (step-15 QS14-12): fall back
+to Godot Physics only with the operator, and amend this record.
+
+---
+
+## ARC-54 — A world's requirements are resolved against the build and the named pack roots
+
+**Date** 2026-10-08 · **Approved by** the operator (S16 QSE-8, QSE-13) and the primary session at PR
+E-b's design freeze (step-16 §15.0; FQ-b1, FQ-b3, FQ-b4) · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §4 (the model's `requires:`), §4.1, §8.1;
+[`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §5.0 · **Relates to** `ARC-33`, `ARC-53`, `ARC-55`, `DEP-21`,
+`ARC-61` · **Design** `.structured-coding/plans/mvp0/step-16-packages.md` §4.2, §15 (S16, PR E-b)
+
+**Problem.** `ARC-53` gave every pack an identity, but a world could not yet say which packs it needs or
+at which versions, and nothing refused a world whose packs were missing or wrong. "Install modules →
+compose world" needs the composition to be stated by the world and checked before the world runs.
+
+**Choice.**
+
+1. **`requires:`**, a top-level map in `world.yaml`, pack id → semver range (Cargo's meaning,
+   `DEP-21`). It replaces the frozen model's `entity_packs:` and `presentation_profile:` (QSE-8). It names
+   packs and versions only: `systems:` still says which systems are enabled and in which order, and how a
+   pack is configured belongs to the generic configuration seam (`ARC-61`, S17). Neither of the two reads
+   the other.
+2. **Only packs that are not bundled are named.** A code pack is *bundled* when it was compiled from the
+   framework's own workspace; its version is the framework's, so the world's `mineworld:` range covers it.
+   `package!()` decides this at compile time — the crate's manifest directory begins with the framework
+   workspace's root, taken as `mineworld-packages`' own manifest directory without its last component —
+   and records only a boolean, never a path. Every other code pack is third-party.
+3. **Pack roots, explicit only.** Packs are searched in the build and in the directories named by
+   `--packs DIR` (in order), then by the `MINEWORLD_PACKS` path list. Nothing else is searched — not the
+   world's own directory, not the working directory. Only the composition root reads the environment;
+   `mineworld_packages::PackRoots::new(cli, env)` is a pure function of both.
+4. **Resolution is checked, never chosen.** One installed version per pack; no solver. A pure function,
+   `mineworld_packages::resolve`, takes the world's stated facts, each enabled system's pack and every
+   data pack found under the roots, and refuses the first failure by name, in a fixed order: a duplicate
+   id; per requirement in id order — absent (naming every place searched), a type a world cannot require
+   (a World or Controller Pack; an Entity Pack until S16's E-d), bundled, outside the range; an enabled
+   third-party system that is not required; a licence outside the policy (`ARC-55`).
+5. **Where.** `WorldPack::read_with(root, &PackRoots)` resolves after `systems` and before content.
+   `WorldPack::read(root)` is `read_with` with no roots, so a world without `requires:` reads exactly as
+   before and no existing caller changes. The loader that builds a world (`load.rs`) is not involved:
+   nothing is seeded from a composition.
+6. **Never world state.** No fact, `Metadata` or save carries a version, a root or a composition (S16
+   QSE-14). A resume resolves again against the roots given then, and its composition is still checked by
+   `SystemVersion` alone.
+7. **What prints it.** `mineworld packs resolve <world>` prints the whole composition. `mineworld
+   validate` prints one `requires` line per requirement, only when the world states `requires:`, so a
+   world without one reports exactly what it did before (a departure from step-16 §9.3's "validate
+   prints the composition", recorded at freeze, FQ-b4).
+8. **Every command that reads a world takes `--packs`**: `validate`, `run`, `server`, `replay`,
+   `biography`, and `packs list | show | validate | resolve`. `create` does not: it writes a world that
+   requires nothing. Its template states `version: 0.1.0`, `license: MIT` (to be replaced by the author)
+   and `mineworld: "^0.1"` (FQ-b1).
+
+A World Pack's own `world.version` and `world.license` stay optional to the loader (`ARC-53` point 6);
+`packs validate` and `packs resolve` require them.
+
+**Accepted limitations.**
+- A third-party code pack *vendored inside* the repository counts as bundled, because its manifest lies
+  under the workspace root. Vendoring a third-party pack into the tree is not a supported installation in
+  MVP-0.
+- The rule that an enabled third-party system must be required is proven through the real binary only
+  once a third-party code pack exists in the build (S16's E-c); in E-b it is held by the resolver's own
+  tests.
+- A data pack's own `dependencies` on other data packs are not resolved; `pack.yaml` refuses the field.
+
+---
+
+## ARC-55 — Which licences a pack may carry: a default policy, typed, overridable per world
+
+**Date** 2026-10-08 · **Approved by** the primary session at PR E-b's design freeze (step-16 §15.0,
+FQ-b2 as changed) · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1,
+[`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §5.0 · **Relates to** `DEP-8`, `DEP-21`, `ARC-53`, `ARC-54`,
+`ARC-61` · **Design** `.structured-coding/plans/mvp0/step-16-packages.md` §4.7, §15 (S16, PR E-b)
+
+**Problem.** MineWorld redistributes what a world is composed of, and "a pack whose licence cannot be
+resolved cannot be redistributed" (`PACKAGE_FORMAT.md` §5). `ARC-53` checks that a licence *is* an SPDX
+expression; nothing yet judged whether it is one MineWorld may redistribute under MIT. MineWorld is a
+framework, so the judgement is a default a world may change, not a rule fixed in code.
+
+**Choice.**
+
+1. **The default allow-list** is the common permissive set compatible with MIT redistribution: `MIT`,
+   `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC`, `Zlib`, `CC0-1.0`, `Unlicense`.
+2. **An expression is judged by `spdx`'s own evaluator** (`DEP-21`): allowed when it can be satisfied
+   with listed identifiers alone, a requirement carrying a `WITH` addition or `+` counting as not
+   listed. `MIT OR GPL-3.0-only` is allowed (one branch suffices); `MIT AND GPL-3.0-only` is not. A
+   refusal names the pack, its expression, the identifiers that failed and the allowed ones.
+3. **The policy is a typed value**, `mineworld_packages::LicencePolicy`, passed to the resolver rather
+   than read from a constant; `LicencePolicy::default()` is the list above.
+4. **It applies at resolution** (`ARC-54` point 4) — to the world's own licence when stated, every
+   required pack, and every enabled system's pack — and in `mineworld packs validate`. `packs list` and
+   `packs show` print licences and do not judge them. `cargo-deny` over the whole Cargo graph in CI
+   remains S16 E-c's and S13's.
+5. **Overridable per world, through no key of its own.** When the generic configuration seam lands
+   (`ARC-61`, S17's PL-a), a world's `configure/packages.yaml` decodes into `LicencePolicy` and replaces
+   the default for that world, narrowing or extending it. Until then every world uses the default. No
+   `world.yaml` key is added for it.
+
+**Options considered.** (a) A closed list hard-coded in the resolver — rejected: a framework must let a
+world decide. (b) A dedicated `license_policy:` key in `world.yaml` — rejected at freeze: one generic
+seam for configuration, not a bespoke key per concern. (c) A typed default overridable through the
+generic seam — chosen.
+
+**Candidates left out of the default, on purpose.** `CC-BY-4.0` requires attribution, which MineWorld
+does not yet track; it is the first candidate for asset packs once it does. Copyleft licences
+(`CC-BY-SA-*`, `GPL-*`) stay out, for `DEP-8`'s reason.
+
+---
+
+## ARC-53 note — classification moved to E-b (2026-10-08)
+
+Point 2's identity record gains one field in S16's PR E-b: `Package::bundled`, computed by `package!()`
+at compile time (`ARC-54` point 2). Step-16 §14.1 had placed bundled-versus-third-party classification in
+E-c; E-b needs it for two of its rules, and the primary session moved it at E-b's freeze (FQ-b3). No pack's
+source changes: only the macro's expansion does.
+
+---
+
+## DEP-29 — Test scratch: a `std`-only helper of our own, not the `tempfile` crate
+
+**Date** 2026-10-08 · **Status** selected; no dependency added · **Approved by** the primary session at
+the freeze of PR test-hygiene (its QTH-3, which asked for this record) · **Relates to**
+`ENGINEERING_STANDARDS.md` §22 "Test scratch" · **Design**
+`.structured-coding/plans/mvp0/pr-test-hygiene.md` §§2–4
+
+**Problem.** A passing `cargo test --workspace` left 135 entries, about 16 GB, under `target/tmp`:
+helpers removed a test's directory *before* the test and never after. Every test must remove its own
+scratch. The audit fixed what the mechanism must do:
+- the scratch path's last component is exactly the name the test gives, because a World Pack's id is
+  its directory's name and refusal messages name it;
+- some tests need a path that does **not** exist yet (the CLI creates the save), others an existing
+  empty directory;
+- two tests of one process must never share a scratch (12c's "database is locked"), and two processes
+  on one `target/` must not collide;
+- saves an operator wants to keep (`BODIES_YARD_SAVES`) must be keepable, side by side in one
+  directory.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17 — both directions):
+
+```text
+(a) `tempfile` 3.27 (`TempDir`, removed on drop; MIT OR Apache-2.0; mature). Not in Cargo.lock: it
+    would add tempfile, fastrand and rustix (+ linux-raw-sys on Linux)
+(b) a std-only test-support crate of our own (`mineworld-test-support`, publish = false)
+(c) a remove_dir_all at the end of every test
+```
+
+**Choice: (b).** No dependency is added.
+
+**Why not the others** (`REUSE_POLICY.md` §12's reasons):
+
+- **(a) `tempfile` — missing required semantics, so a wrapper of the whole helper's size anyway.**
+  - Its names carry a random suffix. The leaf name must be exact, so the test's directory would be a
+    child of the `TempDir`, which already is (b)'s layout.
+  - Random containers scatter kept saves, so `BODIES_YARD_SAVES` could no longer point at one
+    directory.
+  - A same-name clash between two tests is hidden by random names rather than reported; (b) panics
+    and names it, which turns a locked database into a clear failure.
+  - Keeping a scratch on failure needs `std::thread::panicking()` in our own `Drop` anyway.
+  - What it does well — secure, race-free creation in a shared world-writable directory — is not
+    needed for a test's scratch under the build's own `target/`.
+- **(c) cleanup in each test — the failure mode that caused the problem.** It does not run on an early
+  `return` or a panic, nothing checks it, and about sixty sites would each have to remember it.
+
+**Isolating interface.** `mineworld-test-support`: `Scratch` and the `scratch!` macro. Tests name
+only those; if the helper is ever replaced (by `tempfile` or otherwise), only that crate changes.
+
+**Accepted limitations and the revisit trigger.**
+- A process killed with `SIGKILL` (or a test with an infinite loop that is killed) leaves its
+  `mineworld-scratch-<pid>` directory; it is under `target/`, so `cargo clean` removes it, and
+  `check_scratch.py left` reports it.
+- Revisit if test scratch must live outside `target/` in a shared, world-writable directory, where
+  `tempfile`'s secure creation matters.

@@ -23,3 +23,4 @@ thiserror = { workspace = true }
 # The tests walk a member out through a doorway with `move`, the way a client does.
 mineworld-movement = { workspace = true }
 mineworld-persistence = { workspace = true }
+mineworld-test-support = { workspace = true }

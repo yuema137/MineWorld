@@ -3,8 +3,10 @@
 
 #![allow(dead_code)]
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Output};
+
+pub use mineworld_test_support::Scratch;
 
 use mineworld_persistence::{
     Durability, Manifest, PersistenceBackend, SqliteBackend, WorldRevision, format,
@@ -13,11 +15,9 @@ use mineworld_persistence::{
 pub const PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/social-cafe");
 pub const BINARY: &str = env!("CARGO_BIN_EXE_mineworld");
 
-/// A fresh directory under the test target directory, removed first.
-pub fn fresh(name: &str) -> PathBuf {
-    let directory = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
-    let _ = std::fs::remove_dir_all(&directory);
-    directory
+/// A path called `name` that does not exist yet, removed when the guard is dropped (DEP-29).
+pub fn fresh(name: &str) -> Scratch {
+    mineworld_test_support::scratch!(name)
 }
 
 pub fn mineworld(arguments: &[&str]) -> Output {

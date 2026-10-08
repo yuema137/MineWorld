@@ -27,11 +27,12 @@
 //! them to disagree, which is the reason `EntityRegistry` derives its key index rather than storing
 //! it.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use mineworld_authoring::{AuthoredContent, SectionName};
 use mineworld_contracts::{EntityKey, Millimetres, SystemId, Tags};
-use mineworld_packages::{Compatibility, License, Version};
+use mineworld_packages::{Compatibility, License, PackId, Version};
 use serde::Deserialize;
 
 use crate::catalog::Capability;
@@ -72,6 +73,12 @@ pub struct WorldManifest {
     /// loader; when stated, a framework outside it is refused by name. Never world state.
     #[serde(default)]
     pub mineworld: Option<Compatibility>,
+    /// Every pack this world uses that is not bundled, with the versions it accepts
+    /// (`DECISIONS.md` `ARC-54`). Packs and versions only: which systems are enabled is `systems`, and
+    /// how a pack is configured is not this key's. Resolved in the build and the pack roots; never
+    /// world state.
+    #[serde(default)]
+    pub requires: BTreeMap<PackId, Compatibility>,
 }
 
 /// A world's identity: the name a person reads, and the id everything else uses.

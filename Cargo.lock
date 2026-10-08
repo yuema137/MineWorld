@@ -752,6 +752,7 @@ dependencies = [
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-rule-controller",
+ "mineworld-test-support",
  "mineworld-worldpack",
  "serde",
  "serde-saphyr",
@@ -802,6 +803,7 @@ dependencies = [
  "mineworld-rule-controller",
  "mineworld-schedule",
  "mineworld-server",
+ "mineworld-test-support",
  "mineworld-worldpack",
  "serde_json",
  "tokio",
@@ -883,6 +885,7 @@ dependencies = [
  "mineworld-presence",
  "mineworld-schedule",
  "mineworld-sdk",
+ "mineworld-test-support",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -899,6 +902,7 @@ dependencies = [
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-sdk",
+ "mineworld-test-support",
  "serde",
  "serde_json",
  "thiserror",
@@ -938,6 +942,7 @@ dependencies = [
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-sdk",
+ "mineworld-test-support",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -997,6 +1002,7 @@ dependencies = [
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-sdk",
+ "mineworld-test-support",
  "serde",
  "serde_json",
 ]
@@ -1033,6 +1039,7 @@ version = "0.1.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
+ "mineworld-test-support",
  "mineworld-worldpack",
  "rusqlite",
  "serde",
@@ -1092,6 +1099,7 @@ dependencies = [
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-sdk",
+ "mineworld-test-support",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1129,6 +1137,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-test-support"
+version = "0.1.0"
+
+[[package]]
 name = "mineworld-worldpack"
 version = "0.1.0"
 dependencies = [
@@ -1143,6 +1155,7 @@ dependencies = [
  "mineworld-presence",
  "mineworld-schedule",
  "mineworld-sdk",
+ "mineworld-test-support",
  "serde",
  "serde-saphyr",
  "serde_json",

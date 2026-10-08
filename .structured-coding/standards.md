@@ -32,6 +32,18 @@ python3 .claude/skills/structured-coding/scripts/standards.py run --project . --
 Nothing in this mechanism blocks a commit or a merge. It reports. The gates that must
 actually block are CI's job.
 
+CI runs the same declared checks through one entry point, `scripts/ci_layer.py`, inside the
+repository's toolchain container (`docs/DECISIONS.md` `DEP-17`, `ARC-48`):
+
+- the `fast` layer runs `cargo-fmt`, `doc-headings`, `decision-ids`, the container pin check
+  `scripts/check_ci_pins.py`, `scratch-scan`, `cargo-check` and `cargo-clippy`;
+- the `test` layer runs `cargo-test`, then `scripts/check_scratch.py left --target-dir target`, which
+  fails if the passing suite left any scratch behind (`docs/ENGINEERING_STANDARDS.md` §22).
+
+`python3 scripts/ci_layer.py --list <layer>` prints a layer's commands, and the same command runs
+a layer locally. A command added to the declaration below that must also block is added to the
+matching layer in `ci_layer.py`.
+
 ## Declaration
 
 ```json
@@ -59,6 +71,7 @@ actually block are CI's job.
       "Integration, contract, and scenario tests carry the validation weight; unit tests exist where they carry real information, not to raise a count",
       "No test exists whose only assertion is that a getter returns a field, a constructor assigns its arguments, an enum lists its variants, or a third-party library works as documented",
       "Core tests do not require a live external LM API; they use deterministic controllers or recorded cognition results",
+      "A test that writes files makes them through mineworld-test-support's scratch! and holds the guard while it uses the path, so the scratch is removed when the test ends, pass or fail",
       "Randomness used in scenarios is seedable, and a fixed seed with fixed inputs and system versions reproduces the run",
       "The authoritative simulation runs and is testable headless, with no renderer present",
       "Every meaningful bug fix lands with a test that failed before the fix, at integration level when the defect spanned components",
@@ -139,6 +152,15 @@ actually block are CI's job.
         "command": [
           "python3",
           "scripts/check_doc_headings.py"
+        ],
+        "scope": "repository"
+      },
+      {
+        "name": "scratch-scan",
+        "command": [
+          "python3",
+          "scripts/check_scratch.py",
+          "scan"
         ],
         "scope": "repository"
       },
