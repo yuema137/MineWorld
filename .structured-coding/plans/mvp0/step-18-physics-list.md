@@ -781,7 +781,8 @@ installed! {
 | State or fact | Owner | Written only while | Change |
 | --- | --- | --- | --- |
 | Where a person is (`Presence`) | presence | reducing `arrived` | none; providers cannot reach it |
-| Where a loose object lies (`LooseObjects`), its shape (`BodyShape`) | bodies | reducing `object-placed`, `object-moved`, **`object-removed`** (new, for consequence packs) | `BodyShape` gains `class` (schema 2; QPL-3) |
+| Where a loose object lies (`LooseObjects`), its shape (`BodyShape`) | bodies | reducing `object-placed`, `object-moved`, **`object-removed`** (new, for consequence packs) | unchanged schemas |
+| A loose object's class (**`BodyClass`**, new) | bodies | reducing **`object-classed { object, class }`** (genesis, seeded only when the item's `body:` names a class) | a separate fact and component, so `body-formed` and `BodyShape` keep schema 1 and unclassed worlds stay byte-identical (QPL-3) |
 | The resolved physics list of each place (**`PlacePhysics`**, new) | bodies | reducing **`physics-configured`** (genesis, only when a world configures bodies) and `place-shaped` (a region's override) | new component; absent → `default` |
 | A provider's code | its pack | — (no state) | registered by `installed!` |
 | A consequence (`broke`) | the consequence pack | its own reductions | its own vocabulary |
@@ -843,3 +844,127 @@ through its owner's constructor and reduced by its owner (ARC-26).
   `block`, from disclosure only); it remains prediction, corrected by the 150 mm rule.
 - **2D and 3D still share one semantic path** (`AC-13`): kick, throw and shove are the same requests;
   which are offered follows from the list, server-side.
+
+---
+
+# 5. Invariants (proposed; frozen only by the primary session or the operator)
+
+- **PL-I1 Default is byte-identical.** A world that configures nothing — no `configure:` entry for
+  bodies, no `physics:` and no `class:` in any `body:` — produces facts, journal inputs and snapshots
+  byte-identical to the merged pack before the refactor: 12b's `long_run` bytes (F-O13), 12c's
+  bodies-yard 30-day sha, and both towns' 300-day seed-7 digests as 12d re-baselines them. No digest is
+  re-baselined by any PL PR.
+- **PL-I2 Explicit default is behaviourally identical.** The same world with `configure/bodies.yaml`
+  naming `default` (or a list that `extends: default` and overrides nothing) records exactly one more
+  genesis fact (`physics-configured`), and every fact after genesis is byte-identical to PL-I1's run.
+- **PL-I3 Removability.** A world without `bodies` is a valid world and unchanged; a world that
+  configures bodies, names a class or a region, or names a provided kind without enabling its pack is
+  refused at load by name — never run differently (`AC-2`, S16 §6.1 rule 4).
+- **PL-I4 No kernel, contract or persistence change.** `kernel/`, `contracts/`, `persistence/` have no
+  diff in any PL PR. The configuration seam and the drift check live in `authoring`, `sdk`,
+  `systems/installed`, `worldpack` and the hosts' resume call. A need beyond that is a material stop.
+- **PL-I5 Single ownership.** Bodies alone writes `LooseObjects`, `BodyShape`, `BodyClass`,
+  `PlacePhysics`; presence alone writes `Presence`. Providers write and emit nothing. A consequence pack
+  changes bodies' state only through a bodies-owned constructor, reduced by bodies (ARC-26).
+- **PL-I6 Engine invariants hold for every list.** For any accepted list: no two people in a place
+  closer than `CLEARANCE` after any request (I-12); a nudge at most the list's `nudge.max` + `GAP`, at
+  most its generations and people (I-11, now per list, never above 310 mm / 2 / 4); nothing inside a wall
+  or a solid; no tunnelling; verify-then-degrade on integers after every resolution, every push, every
+  landing, every provider's displacement. No list value or provider can switch these off.
+- **PL-I7 Integers only, total, bounded.** Every authored and stored value is an integer within its
+  published bounds; every class pair resolves at load; nothing is looked up at run time that can fail.
+- **PL-I8 A save carries its list.** A configured world's resolved lists are state; a resume runs the
+  saved list, and a resume against a World Pack whose configuration differs is refused by name. The
+  compiled-in `default` is pinned to bodies' `VERSION`.
+- **PL-I9 No rule in a client.** No client reads a list parameter to decide anything (I-8, I-S14-1).
+- **PL-I10 The precursor names no physics.** PL-a's diff names no body, physics, Rapier, nudge, push,
+  kick or collision (a scan in the style of 12a's `seam_vocabulary`), and is proven with synthetic
+  test-only packs.
+
+---
+
+# 6. Change amplification (`CLAUDE.md` §4 rule 5)
+
+**What adding a physics behaviour costs, before and after.**
+
+| Wanted | Today (12c) | After S-PL |
+| --- | --- | --- |
+| Calmer crowds (smaller nudges) | edit `geometry.rs`, bump bodies `VERSION`, every world changes | one line in a world's `configure/bodies.yaml` |
+| Heavy crates nobody can kick | a new code path in `offer.rs`, `launch.rs`, `push.rs`; a fork for one world | a class and one pair entry in that world |
+| A different rest rule (AO-2's p4) | DO-17: a code change after measurement | a list parameter, per world |
+| Ice that makes things slide | edit bodies (fork) | a new pack implementing `InteractionKind`; three lines in `systems/installed`; bodies unedited |
+| Fragile things break | edit bodies and item and inventory (fork) | a new pack reacting to `object-moved`; bodies gains one constructor once (PL-d) |
+
+**What S-PL itself edits that already exists**, and only this:
+
+```text
+authoring            PackConfiguration trait (PL-a)
+sdk/rust             configures!(); installed!'s `extension` lines replace `resolution:` (PL-a)
+systems/installed    the resolution line rewritten as an extension line (PL-a); later one entry per
+                     provided kind (PL-d)
+worldpack            world.yaml `configure:`, configure/<system>.yaml, seeding order, the drift check (PL-a)
+tools/cli, server    one call to the drift check at each resume (PL-a)
+systems/bodies       the list type, lookups, PlacePhysics, BodyClass, object-removed, the
+                     InteractionKind trait and catalog (PL-b … PL-d)
+docs                 ARC-PL-a, ARC-PL-b, ARC-PL-c, DEP-PL-a; MODULE_SPEC §4.1 (configure, body: class
+                     and physics), §9 (configuration schema implemented); a bodies subsection
+```
+
+Not edited: `kernel/`, `contracts/`, `persistence/`, `cognition/`, `clients/` (until S11/S12/S14 take the
+additive class disclosure), every System Pack other than bodies (presence untouched — its catalog only
+moves to the generic line).
+
+---
+
+# 7. Timing and PR split
+
+## 7.1 Where the step sits against 12c and 12d
+
+```text
+12c   READY FOR OPERATOR REVIEW (mvp0/pr-12c-objects). Nothing of S-PL enters it. Its constants and
+      rules are exactly what PL-b's `default` must reproduce, so 12c's merged tree is PL-b's reference.
+12d   the towns get bodies; the one re-baseline of both towns' digests (coordination ruling 5).
+      PL-a may run beside it (it touches no bodies and no world). PL-b waits for 12d's merge.
+12e   the 3D client; independent of PL-b and PL-c (no wire change until PL-c's additive class
+      disclosure, which S11 carries).
+S16   E-a edits sdk's SystemPack and installed! (`package!()`); E-b adds world.yaml keys. PL-a lands
+      after E-a (same macro and trait), and rebases with E-b on worldpack/src/format.rs — whichever lands
+      second takes a one-key conflict.
+```
+
+**Recommendation: a refactor after 12d, with the framework precursor in parallel.**
+
+- *Not inside 12c or 12d.* 12c is finishing and must not be destabilized. 12d is the one PR allowed to
+  re-baseline the towns; a refactor inside it could not prove byte-identity, because the digests move
+  there anyway.
+- *Not before 12d.* It would put a refactor between two frozen PRs on S14's critical path (12d → 12e →
+  S14), and 12d's content needs no class: social-cafe's loose objects are the same boxes and balls.
+- *After 12d* PL-b's byte-identity is checked against the strongest evidence available: 12b's long run,
+  12c's sandbox and both towns' freshly re-baselined 300-day digests.
+- *PL-a now-ish*, in parallel: it names no physics, touches no pack's behaviour, and is proven by
+  synthetic packs, like 12a and 11c.
+
+```text
+PL-a  (∥ 12d, after S16 E-a) ─┐
+                              ├─► PL-c ─► PL-d
+12c ─► 12d ─► PL-b  (∥ 12e) ──┘
+```
+
+## 7.2 The PRs
+
+Each PR starts in a fresh session on its own branch and worktree, is detailed to the commit and frozen
+before code (`CLAUDE.md` §3), and writes its specifications in its first commit (§2.2). The criteria
+below are fixed now, before anything is measured (`ARC-23`); each guarded criterion names the mutation
+that must break it.
+
+| PR | Scope | Integration checkpoint | Adversarial criteria (fixed before measuring) |
+| --- | --- | --- | --- |
+| **PL-a** World configuration and extension catalogs (framework precursor; names no physics) | ARC-PL-a, ARC-PL-b. `authoring`: `PackConfiguration`. `sdk`: `configures!()`, `extension` lines, `Capability::register_extensions()`. `systems/installed`: the resolution line rewritten. `worldpack`: `configure:`, `configure/<id>.yaml`, seeding order, the drift check. Hosts: one drift-check call at resume. Test-only packs: `tuning` (configures one integer that changes what it states) and `relays` (a pack-owned trait with a second extension catalog). `MODULE_SPEC.md` §4.1 and §9. | Through the real binary: the three worlds' 300-day seed-7 facts byte-identical to `main` (no `configure:` anywhere); a scratch world with `configure: [tuning]` runs 30 days and states what its configuration says; SIGKILL and resume byte-identical; resume after editing `configure/tuning.yaml` refused by name; resume after editing nothing accepted; both extension catalogs registered by `compose`, in the listed order. | (1) `configure:` naming a system the world does not enable, one that configures nothing, a missing file, an unknown key — each refused by name, with line and column for the YAML. (2) Mutation: remove the drift check → the edited-configuration resume is accepted and the test fails by name. (3) Mutation: seed configuration after sections → an existing world's genesis ids move and I-7-style byte-identity fails. (4) The vocabulary scan finds no physics word (PL-I10). (5) `kernel/`, `contracts/`, `persistence/` have no diff (PL-I4). |
+| **PL-b** bodies reads its rules from a list; `default` reproduces 12c (refactor) | DEP-PL-a. bodies: the list type and its validation, `default.yaml` compiled in, the resolved-list lookup replacing every parameter constant of §4.4 at every read site, the material and gravity conversions; engine constants stay. No authoring surface, no new component, no new fact: `VERSION` unchanged. | bodies-yard's 30-day sha, 12b's `long_run` bytes, and both towns' 300-day seed-7 digests byte-identical to `main` after 12d; arm64 and x86_64 (Rosetta) identical; cost per swept move and per kick within +5 % of `main`, measured in release. | (1) Mutation: `default.yaml`'s `nudge.max` 300 → 299 → `long_run` bytes differ, by name (the list is read, not the constant). (2) A structural test: no §4.4 parameter value survives as a literal outside `default.yaml` and the engine-constant module. (3) The three float bit patterns (0.5, 0.1, 9.81) pinned. (4) `(VERSION, default digest)` pinned like `rapier_pin`; editing `default.yaml` without a `VERSION` bump fails. (5) A list widening an engine bound (`nudge.max` 400) is refused at decode, naming the bound. |
+| **PL-c** Authored lists, classes and regions | ARC-PL-c. bodies `configures!()`: `configure/bodies.yaml` (`physics:`, `lists:`), `extends`, the cross-checks; `physics-configured`, `PlacePhysics`; `class:` on item `body:`, `object-classed`, `BodyClass`; `physics:` on place `body:`; materials and `combine`; class in the `loose-objects` disclosure (additive; S11 carries the wire note). bodies `VERSION` 3. `MODULE_SPEC.md` §4.1's `body` row; the bodies subsection. | Test-time copies of bodies-yard (the established `market_composition.rs` pattern): (a) `default` named explicitly — PL-I2; (b) a `warehouse` list — a heavy box blocks the walker at contact, a light box kicked flies to a hand-computed landing ± 1 mm, `kick: none` is not offered and is refused `NoSupportedInteraction` when requested; (c) a region with `nudge.max` 150 — the 30-day scan holds I-11 at 160 mm in that place and 310 mm elsewhere; SIGKILL and resume byte-identical; resume after editing the list refused by name. | (1) Totality: every class pair of every accepted list resolves (a property test over generated lists). (2) Refused by name: a cycle in `extends`; an unknown class on an item; a reach below R + GAP + half-extent; more than 24 classes; a region naming an unknown list. (3) Mutation: ignore the region override → (c) fails. (4) Mutation: drop `BodyClass` from the lookup → (b)'s heavy box is pushed and the test fails. (5) PL-I6's 30-day scan passes under every list in the test set, and fails on a world with bodies disabled (I-10). |
+| **PL-d** A provided kind and a consequence pack, from outside bodies | The `InteractionKind` trait and bodies' catalog (`register_interactions`), bodies' `object-removed` and its constructor, `class_of`. A test-only kind (`skid`) proving the seam. Two packs under `systems/`: `ice` (kind `slide`, reference list `winter`) and `fragile` (a consequence pack). A small world for the operator, `worlds/rink`. | In `worlds/rink`: a box pushed on the ice region ends `extra` further, hand-computed ± 1 mm; a kicked fragile vase is removed, `broke` is caused by the kick's `ActionId` (`AC-9`); with `item`/`inventory` enabled, shard kinds appear in the kicker's holdings; 30 days, PL-I6 scan, SIGKILL and resume byte-identical; cross-architecture. | (1) **The physics change-amplification proof:** the commit that installs `ice` touches only `systems/ice/**`, `systems/installed/**` and `Cargo.lock`; bodies is unedited (a diff check, like `ARC-35`). (2) A kind returning an over-long displacement is clipped; one aiming through a wall is stopped by the cast; one aiming into a person degrades (V-O); each by a test. (3) Removing `ice` from `systems:` refuses a world naming `slide`, by name; a world not naming it is unchanged. (4) `fragile` never writes a bodies component (a structural test) — only bodies' constructor. |
+
+**Checkpoints between PRs.** After PL-a: the primary session confirms the seam's shape before bodies
+adopts it. After PL-b: byte-identity evidence on all three worlds is reviewed before any behaviour
+becomes configurable. After PL-c: the operator plays a configured world (QPL-13) before third-party
+kinds are designed in detail.
