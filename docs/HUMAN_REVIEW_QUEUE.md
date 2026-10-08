@@ -514,6 +514,21 @@ frames are re-captured on it (the `v2` frames, below). The slice's original clai
 (further below) was about the character against the scene — jambs, counter, case, bench. It never
 covered the hand against the pack.
 
+#### `v2` frames, on the fix (`330f1fd` merged), 2026-10-07
+
+At 1600×900, in `clients/3d-spike/shots/slice/review/` (copies of the first six in
+`mineworld-demos/character-preview/`):
+
+| Frame | What it shows, looked at |
+| --- | --- |
+| `v2_street_walk.jpg` | Walking toward the camera: she lets go of the strap, both arms swing, the head is level; nothing of the hand passes into the pack or the hoodie |
+| `v2_street_jog.jpg` | Jogging toward the camera: the arms swing wide and clear of the body, the head upright |
+| `v2_rear_jog.jpg` | Jogging away: the pack sits on her back; at 3× its side panels lie on the hoodie with no hoodie showing through them, and both arms pass outside it |
+| `v2_doorway.jpg` | On the café threshold: shoulders, pack and hood inside both jambs |
+| `v2_counter.jpg` | Beside the counter: she and Alice Moreau in one frame, both caption lines up |
+| `v2_hand_standing.jpg` | Standing, ×4: the hand at chest height on the strap's line, fingers curled; nothing passes into the hoodie. The strap itself runs just outboard under the hoodie's edge, so the hand reads as raised to the strap rather than wrapped round it — a refinement, not clipping |
+| `v2_run_into_townsperson.jpg` | **The known gap.** Jogging west into the standing townsperson at (−8.5, −5.95), she passes **through** her: the body centres came within 0.10 m and the bodies interpenetrate. Nothing makes bodies collide yet — the street's figures are drawn, not simulated, and the player's capsule meets only world geometry. **That is the physics step's to address, and it is not fixed here** |
+
 The entry as it was submitted follows.
 
 #### Submitted: READY FOR HUMAN VISUAL REVIEW, 2026-10-06; with the route D+ character, 2026-10-07
