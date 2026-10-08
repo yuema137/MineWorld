@@ -3819,6 +3819,257 @@ per-world applicability comes from the world enabling the implementing pack, or 
 
 ---
 
+## DEP-17 — CI runs on GitHub Actions hosted Linux runners, inside the repository's own toolchain container
+
+**Date** 2026-10-08 · **Status** selected; integrated in S13 PR 13a · **Approved by** the primary session
+at 13a's design freeze (step-14 §9.0) under the operator's 2026-10-08 decision to make the repository
+public · **Relates to** `ARC-48`, `DEP-18`, `ARC-30`, `ARC-35`, overall `D-12` · **Design**
+`.structured-coding/plans/mvp0/step-14-ci.md` §§5.1–5.4, 6, 9
+
+**Problem.** `ENGINEERING_STANDARDS.md` §15 says quality gates "must remain automatic", and §16 asks for
+four CI layers. Until S13 the repository had no CI at all: every gate was a session running commands on
+the operator's Mac. CI also has to be the other side of `AC-8`, which is native Linux x86_64.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17, both directions).
+
+```text
+CI service
+(a) GitHub Actions, hosted ubuntu-24.04           chosen
+(b) GitLab CI through a push mirror               review on one platform, checks on another
+(c) self-hosted Woodpecker or Forgejo Actions     a server MineWorld would have to operate
+(d) CircleCI / Buildkite                          no fit advantage; a second account
+(e) Actions on a self-hosted runner, the          arm64 macOS, so it cannot be AC-8's Linux x86_64
+    operator's Mac                                side, and it would run PR code on the operator's
+                                                  machine; kept only as a layer-4 fallback
+(f) our own scripts and cron                      no PR integration
+
+How a job gets the toolchain
+(A) build the Dockerfile's `toolchain` stage, then `docker run` each layer      chosen
+    with the checkout mounted
+(B) `jobs.<id>.container:` on the official image, plus inline apt installs      the environment
+    defined twice; actions/checkout silently falls back to a tarball with no .git when git is missing,
+    which breaks AC-1's history scans
+(C) the toolchain on the bare runner                                           the tests would not run
+                                                                               in the container AC-8 names
+(D) a prebuilt toolchain image on GHCR                                         needs packages: write,
+                                                                               which the read-only workflow
+                                                                               refuses
+
+Test runner
+plain `cargo test --workspace`      chosen: the project's canonical command, so CI and laptop agree
+cargo-nextest                       declined for now (below)
+
+Cache
+actions/cache with an explicit key  chosen
+Swatinem/rust-cache                 keys on the runner's rustc, not the container's, under (A)
+sccache (GHA backend)               no gain on a link-heavy test build of ~117 binaries; revisit
+```
+
+**Choice.** GitHub Actions on hosted `ubuntu-24.04`. Each job builds the `toolchain` stage of the
+repository's `Dockerfile` (`DEP-18`) with the BuildKit GitHub Actions cache, and runs one command inside
+it: `python3 scripts/ci_layer.py <layer>`. The registry, git dependencies and compiled dependencies are
+cached with `actions/cache` under a key of `Cargo.lock`, `rust-toolchain.toml` and the `Dockerfile`.
+Third-party actions are pinned to full commit SHAs.
+
+**Why not ourselves.** CI is commodity infrastructure (`REUSE_POLICY.md` §4). The repository, its PRs and
+its review flow are already on GitHub (`D-12`). Checks reported there are the ones the operator sees
+when reviewing.
+
+**Why not the others.**
+- (b), (d): no fit advantage, and a second platform or account to keep.
+- (c): operational burden (`REUSE_POLICY.md` §2).
+- (e): the wrong platform for AC-8, and an execution risk.
+- (B): two definitions of the environment, and a checkout path that fails open.
+- (C): would test outside the container that AC-8 names.
+- (D): permission and storage cost. Public packages are free, so the storage reason lapses once the
+  repository is public. The permission reason stands. Revisit if building the image per job is measured
+  above about 2 minutes.
+- **cargo-nextest.** It lists custom-harness targets by invoking them with libtest's
+  `--list --format terse`. The project's two `harness = false` programs (`persistence/tests/kill_and_resume.rs`,
+  `tests/acceptance/tests/arrival_resolvers_resume.rs`) do not implement that interface. Its retries would
+  hide nondeterminism, which this project treats as a defect. Its gain is small, because six long tests
+  dominate the suite. Revisit if `test` passes about 15 minutes cached, or needs sharding.
+
+**Isolating interface.** `.github/workflows/ci.yml` only checks out, restores caches, builds the toolchain
+image and calls `scripts/ci_layer.py`, the last three through the local composite action
+`.github/actions/layer`. No check command appears in YAML (`ARC-48`, I-S13-9). Moving to another CI
+service rewrites those two files. Changing what a layer runs edits one list in `scripts/ci_layer.py`, and
+the same entry point runs locally.
+
+**Accepted limitations.**
+- **Cost.** As a private repository on GitHub Free, CI would draw on 2 000 included Linux minutes a month,
+  while the project's PR rate needs several times that (step-14 §10.1). The repository became public on
+  2026-10-08, so standard hosted runners are free. Runs are still kept purposeful.
+- **Runner disk.** The default suite once wrote about 16 GB of scratch saves (step-14 F-3); since the
+  test-hygiene PR (#77, `DEP-29`) each test removes its own, and `test` checks that nothing is left. The
+  `test` layer prints free disk before and after. The public runner measured about 107 GB free before
+  the tests, so no clean-up step is needed. A future shortfall is remedied in the workflow, never by changing tests in
+  CI.
+- **Building the image per job.** About 30–90 seconds per job. This is the price of one definition of the
+  environment.
+
+---
+
+## DEP-18 — Container images: the official `rust` slim image to build, Debian slim to run, both pinned by digest
+
+**Date** 2026-10-08 · **Status** selected; integrated in S13 PR 13a · **Approved by** the primary session
+at 13a's design freeze (step-14 §9.0) · **Relates to** `DEP-17`, `ARC-48`,
+[`ARCHITECTURE.md`](ARCHITECTURE.md) §§11, 13, [`NETWORKING.md`](NETWORKING.md) §§7–8,
+[`MVP.md`](MVP.md) §9 `AC-8` · **Design** `.structured-coding/plans/mvp0/step-14-ci.md` §§3.1–3.2, 5.5
+
+**Problem.** `NETWORKING.md` §7 deploys a world as a Docker container on a VPS, with a persistent volume.
+`AC-8` requires the container to run the laptop's World Pack with no semantic difference. CI needs the
+same environment for its layers (`DEP-17`). One `Dockerfile` serves all three.
+
+**Options considered.**
+
+```text
+build base
+(a) rust:1.97.1-slim-trixie (Docker Official Image)        chosen: the exact toolchain as a tag, rustup
+                                                           inside, glibc, gcc for libsqlite3-sys
+(b) rust:1.97.1-trixie (full)                              the same, with ~0.5 GB of unused packages
+(c) musl static (rust:alpine, cargo-zigbuild) to scratch   a third target nobody else runs; musl's
+                                                           allocator and libm untested against Rapier
+runtime base
+(d) debian:trixie-slim                                     chosen: the build stage's glibc; a shell, so
+                                                           an operator can `docker exec … mineworld inspect`
+(e) gcr.io/distroless/cc-debian13                          smaller, no shell; the planned hardening swap
+                                                           once a hosted deployment exists (QS13-10)
+(f) cgr.dev/chainguard/glibc-dynamic                       the free tier offers only `latest`, so a
+                                                           pinned digest may be garbage-collected
+(g) our own base image                                     nothing to gain
+```
+
+**Choice.** One `Dockerfile` at the repository root, with three stages.
+- **`toolchain`** is `rust:1.97.1-slim-trixie` plus `git`, `python3`, `ca-certificates`, `rustfmt` and
+  `clippy`. It copies no source; CI mounts the checkout into it.
+- **`build`** copies the Cargo workspace and runs `cargo build --release --locked -p mineworld-cli`.
+- **`runtime`** is `debian:trixie-slim` with the `mineworld` binary and `worlds/`.
+  - It runs as the non-root user `mineworld`, keeps worlds on a volume at `/var/lib/mineworld`, and
+    exposes 7878.
+  - Its default command hosts `worlds/social-cafe` with a save on that volume.
+  - It stops with `SIGINT`: the server's own stop signal (`tools/cli/src/main.rs`, `serve`), so `docker
+    stop` shuts the world down the way an operator's Ctrl-C does.
+
+Every `FROM` names its tag **and** its `@sha256:` digest. `scripts/check_ci_pins.py`, in CI's `fast`
+layer, fails unless:
+- the `rust:` tag equals `rust-toolchain.toml`'s channel and the root manifest's `rust-version`;
+- every `FROM` carries a digest;
+- the build and runtime stages name the same Debian release.
+
+**Why not ourselves.** Base images are commodity infrastructure, maintained upstream with security
+updates.
+
+**Why not the others.**
+- (b): size.
+- (c): it would test a different target from the one deployed.
+- (e): deferred, not declined. It is a one-line `FROM` swap.
+- (f): reproducibility.
+
+**Isolating interface.** The runtime image's interface is `mineworld` plus its ordinary arguments, a
+volume at `/var/lib/mineworld`, and port 7878. MineWorld has no container-only flag, environment switch,
+`cfg` or code path (I-S13-5). A compose file, a VPS unit or a Kubernetes manifest consumes the image
+without changing it. The toolchain version has one source, `rust-toolchain.toml`; the image tag follows it
+under `check_ci_pins.py`.
+
+**Accepted limitations.**
+- **Digests age.** A digest pins an image that stops receiving Debian security updates. Re-pinning is a
+  deliberate, reviewed change. The pinned digests and their dates are in step-14's 13a ledger.
+- **The runtime image's default command predates S11's invite token.** S11 adds the argument (QS13-15).
+- **No published image.** 13a builds the image in CI and locally. A registry is a later decision.
+
+---
+
+## ARC-48 — CI layers, triggers, and what blocks a merge
+
+**Date** 2026-10-08 · **Status** decided; layers 1–2 live from S13 PR 13a · **Approved by** the primary
+session at 13a's design freeze (step-14 §9.0), under the operator's 2026-10-08 decision to make the
+repository public · **Relates to** `DEP-17`, `DEP-18`, `ARC-30`, `ARC-35`, overall `D-12`,
+[`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §§15–16 · **Design**
+`.structured-coding/plans/mvp0/step-14-ci.md` §§3.4–3.7, 9.0
+
+**Problem.** `ENGINEERING_STANDARDS.md` §16 names four CI layers: fast structural checks on every change;
+core integration tests on every pull request; scenario tests; long-running stability tests that "can run
+separately from the fastest PR loop". The project needs to know which layer runs when, what a red layer
+stops, and what is mechanism rather than promise.
+
+**Decision.** One workflow, `.github/workflows/ci.yml`. Its jobs name layers, never commands. The
+layer → command table exists once, in `scripts/ci_layer.py`.
+
+```text
+job        layer (§16)            trigger                                         merge
+fast       1 fast structural      push to every branch; pull_request               blocks
+test       2 core integration     non-draft pull_request; push to main;           blocks
+                                  push to scratch/**
+image      (the runtime image)    workflow_dispatch; push to scratch/*-image      evidence only
+scenario   3 scenario             push to main; nightly; workflow_dispatch (13b)  blocks main's health
+stability  4 long-running         nightly; workflow_dispatch (13c)                reports
+clients    Godot headless probes  nightly; workflow_dispatch (13c)                reports
+```
+
+- **`fast`** runs, in order:
+  - `cargo fmt --all --check`;
+  - `scripts/check_doc_headings.py`, `scripts/check_decision_ids.py`, `scripts/check_ci_pins.py` and
+    `scripts/check_scratch.py scan`;
+  - `cargo check --workspace --all-targets`;
+  - `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+- **`test`** runs `cargo test --workspace`: the whole default suite. After it passes,
+  `scripts/check_scratch.py left --target-dir target` fails the layer if any test left scratch behind
+  (`ENGINEERING_STANDARDS.md` §22, `DEP-29`).
+  - It builds first with `--no-run`, which runs no test and only separates build time from test time in
+    the log.
+  - That includes the two `harness = false` programs and the history-reading scans of `ARC-35`.
+  - The default suite already holds the Social Café and Market Town scenarios and the long runs, by
+    decision (step-10 QS-59).
+  - `cargo test` cannot exclude a target without a hand-kept list, and such a list fails open. So layer 2
+    is the whole suite until a fail-closed selector exists.
+- **Full history.** Every job that runs a layer checks out with `fetch-depth: 0`, as a partial clone
+  (`filter: blob:none`), of the whole tree. Tests read `presentation/` and `clients/protocol/`, so a
+  sparse checkout that omitted them was tried and dropped (step-14 A-C3). A shallow clone makes
+  `ac1_composability` fail by name, never skip.
+- **Economy.**
+  - `concurrency` is per ref, and cancels a stale run except on `main`.
+  - A draft PR runs `fast` only.
+  - Branch pushes run `fast` even when a PR also runs it, because minutes are free on a public
+    repository.
+  - `CARGO_INCREMENTAL=0` and `CARGO_PROFILE_DEV_DEBUG=line-tables-only` are CI-only settings. They change
+    no codegen semantics: `ARC-30`'s `opt-level`, debug assertions and overflow checks are untouched.
+- **Never weaker than local.**
+  - A blocking job has no `continue-on-error`, no retry and no `|| true`.
+  - No test reads a CI variable to relax itself.
+  - The workflow runs with `permissions: contents: read`, uses `pull_request` and never
+    `pull_request_target`, and needs no secret.
+- **Check names are an interface.** The jobs are named exactly `fast` and `test`, with no matrix, because
+  a required check matches by name.
+
+**What "blocks" means, and what enforces it, as of this record.**
+1. **Policy, in force now.** An execution contract's `READY FOR OPERATOR REVIEW` requires green `fast` and
+   `test` on the exact final PR head. That run is the PR's one canonical full-suite evidence, replacing a
+   local full gate. The operator merges only with both green.
+2. **Mechanism, not yet in force.** While this record was being written, the repository was private on
+   GitHub Free, where branch protection and rulesets are unavailable (step-14 F-1: the API answers 403).
+   `D-12`'s "protection makes that a mechanism" was therefore not yet true.
+   - The repository became public on 2026-10-08, which makes protection available.
+   - Protection follows this record's PR (S13 13a) **after it merges**. Requiring checks that do not yet
+     exist on `main` would block every merge. The primary session then enables protection, or a ruleset,
+     on `main`.
+   - It requires `fast` and `test` and "require branches to be up to date", because AC-1's scan reads
+     merge structure.
+   - That settings change is outside every PR, and is recorded where it is made.
+3. **A known property of required checks.** A job skipped by its `if:` reports success to a required
+   check, as `test` does on a draft PR. A draft cannot be merged, and `ready_for_review` re-runs `test` on
+   the same head, so this opens no gap in practice.
+
+**Why.** §16's layers become triggers without re-tiering any existing test. Each red layer has one
+meaning. And no claim about enforcement is stronger than the repository's settings.
+
+**Accepted limitations.**
+- Layer 2 is the whole suite, about 70 % of it six long runs, so the PR loop's `test` is not fast.
+- The canonical evidence arrives when CI finishes, not when the session stops typing.
+- Until protection is enabled, a merge without green checks is prevented by discipline only.
+
+---
+
 ## DEP-20 — Client collision: Godot's built-in Jolt Physics, never authoritative
 
 **Date** 2026-10-08 · **Status** selected; in force from S14 PR 16a · **Approved by** the operator
