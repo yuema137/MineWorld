@@ -11,7 +11,7 @@ Fetched:  2026-10-06, by clients/3d-spike/tools/fetch_hair_alphas.sh, into a
           committed.
 
 Used in:  clients/3d-spike/assets/characters/vitruvian/textures/hair_strands.png
-          (built by clients/3d-spike/tools/hair_atlas.py --alphas), one
+          (built by clients/3d-spike/tools/blender/hair_atlas.py --alphas), one
           256 x 1024 column per map, each the centre 512 px of the map's width
           and the top 1700 px of its height, downscaled:
 

@@ -90,7 +90,7 @@ The generated head is used **as a shape target only**. Nothing of its triangles 
 the character.
 
 1. **Where it is applied.** On the whole-body CharMorph export (the input of
-   `clients/3d-spike/tools/character_model.py`, currently `scratch-character/s3/body_g5.glb`,
+   `clients/3d-spike/tools/blender/character_model.py`, currently `scratch-character/s3/body_g5.glb`,
    43,101 vertices), *before* `character_model.py` runs, so the garments, freckles, trim and export
    are the unchanged pipeline. The export's companion files are moved with it: `<body>_blink.json`
    holds lid positions that `add_blink` matches within 0.2 mm, and `_landmarks.json` holds face

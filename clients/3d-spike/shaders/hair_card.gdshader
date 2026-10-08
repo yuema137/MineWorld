@@ -1,6 +1,6 @@
 // Hair cards: the strand atlas's alpha is coverage, its RGB strand shading.
 //
-// The atlas is `tools/hair_atlas.py`'s: eight columns of fine strands with
+// The atlas is `tools/blender/hair_atlas.py`'s: eight columns of fine strands with
 // transparent gaps, root at the bottom of the image. Blender writes the cards
 // with v = 0 at the root and glTF flips v, so here the ROOT IS AT UV.y = 1
 // and the tip at UV.y = 0. (The previous atlas and this shader's previous
