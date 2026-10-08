@@ -679,3 +679,356 @@ rest are for the primary session.
 - **`server/PROTOCOL.md`:** S11's, for R-S11-1 … R-S11-6.
 - **`docs/HUMAN_REVIEW_QUEUE.md`:** the VIS-2D-1 package when 13f is ready (QS12-1).
 - **`step-11-bodies.md`:** 12d's scope gains R-PK-2's re-baseline, if QS12-3 is accepted.
+
+---
+
+## 14. PR 13a — A world you can walk (full design)
+
+**Lifecycle:** `DRAFT — awaiting freeze by the primary session`. Nothing below authorizes code until a
+`DESIGN FROZEN` header is added here by the primary session on the operator's behalf.
+
+### 14.0 Identity, base, scope
+
+```text
+PR            13a — a world you can walk (S12, first of six; PR number assigned at freeze)
+base          main @ 47c81d1 (re-audited: 0fd0be3..47c81d1 changes only Markdown, so §2's A-1 … A-30 hold)
+branch        mvp0/pr-s12-13a-walkable-2d, worktree /Users/yuema137/mineworld-worktrees/impl-s12-13a,
+              held by the 13a implementation session only
+parents       overall.md "Parallel build-out, 2026-10-08" (binds); this step §§1–13; ARC-14 (spike branch)
+scope         §9's 13a row, as amended by §14.1
+```
+
+### 14.1 What the 2026-10-08 rulings change in §9's 13a row
+
+| §9 says | Ruling | 13a does |
+| --- | --- | --- |
+| "M-3" (frame `revision` in the module) | Ruling 4: only 16b and S11 edit `clients/protocol/mineworld/`. The coordinator, 2026-10-08: 16b is frozen and adds `MineWorldClient.revision`. | **Does not edit the module.** 13a reads the welcome's `world.revision` (`PROTOCOL.md` §5), which carries the revision at join — enough for `AC-3` ("same instance, a higher revision"). The status line shows the welcome's revision until 16b lands; if 16b is on `main` when 13a rebases, the status line reads `MineWorldClient.revision` instead (bounded; recorded). |
+| "M-4" (`ADOPTION.md` §6 reconnect guidance) | The coordinator, 2026-10-08: "S12's M-4 (reconnect guidance in `ADOPTION.md` §6) stays with your 13a." | Edits **`clients/protocol/ADOPTION.md` §6 only** (the document, not the module). 16b edits §2 of the same file: whichever merges second rebases; neither touches the other's section. |
+| Module names in this step (`choices`, M-1, M-2) | 16b's final names: `affordances(action_type, target)` (`null` target = any, `""` = target-less), `complete_affordances(...)`, `is_complete(aff)`, `affordances_about(id)`, `component_value(id, type)`, `submit_affordance(aff, actor_location)`, `revision`. | 13a calls **none** of them: it reads only `self_location`, `place`, `entities`, `entity`, `location_of`, `component`, `display_name`, and submits only `move`, all existing on `main`. 13b's design uses 16b's names (`choices` in §4.4/§7 is superseded). |
+| "top-down" (`MVP.md` §7.1, `ART_DIRECTION.md` §20) | Operator: isometric, in the `town` style, laid out from market-town's real street (QS12-1, QS12-2). | C1 rewords both sentences; the no-pack mode is a north-up plan. |
+| Decision placeholders | Ruling 6: S12 holds `ARC-45 … ARC-47`, `DEP-16`. | `ARC-45`, `ARC-46`, `ARC-47`, `DEP-16` (§14.4). Also ports `ARC-14` (already reserved for the spike's decision, `ARC-16` "identifier gap") verbatim onto `main`. |
+| — (new since the step) | S11-A (in flight, `impl-s11a`) makes the join carry `invite` and `nickname` and requires an invite even on loopback (QS11-6), and updates "every in-repo caller". | 13a has exactly **one** `connect_to_world` call (in `link.gd`) and one place that starts a server (the launcher). If S11-A merges first, 13a rebases and passes the launcher-captured invite through that call — a consumer change, no module edit (bounded, recorded). If 13a merges first, S11-A's "every in-repo caller" includes it. |
+
+### 14.2 Acceptance — decided before measuring (`ARC-23`)
+
+Every bound below is a fixed literal from a requirement, never derived from the quantity under test.
+"Godot-gated" tests are `#[ignore = "needs Godot 4.7 on PATH"]` in `tools/cli/tests/client_2d.rs`, run
+with `cargo test -p mineworld-cli --test client_2d -- --ignored`; reported `NOT RUN` where Godot is
+absent, never green (RK-3, QS12-8).
+
+```text
+AC-W1  WALK (integration checkpoint). Against `mineworld server worlds/market-town --agent alice --save DIR`
+       (fresh DIR), the scripted 2D client seated as `carol` (genesis: apartments (3000, 2500)) walks out
+       of the apartments, along the street, and into the café through two doorways.
+       PASS iff: every `move` it submitted has an `accepted` result (transcript); the observation's
+       `place()` changes exactly twice (apartments → street → café); and, independently of the client,
+       the save's fact log (read by the Rust test after the server is stopped) holds exactly two
+       `person-entered-place` facts for carol's id, to the street then to the café, and as many accepted
+       move facts as the transcript has accepted moves.
+       MUTATION: the walker submits a doorway crossing to the destination's `here` instead of its
+       `there` → the crossing is rejected too_far_away → FAIL.
+AC-W2  DRAWN WHERE THE SERVER SAYS. In the café, for every person the observation lists, the drawn node's
+       ground point, inverse-projected, equals the observation's `location.local` within 1 mm after the
+       smoothing settles (≤ 1 s); Alice's label equals `display_name(alice)`, which is non-empty and is
+       not her id. No drawn person is absent from the newest observation (I-7).
+       MUTATION: the label falls back to the id first → FAIL; a person dropped from the observation
+       keeps its node → FAIL.
+AC-W3  AC-3 END TO END (relaunch). During AC-W1's walk, after the first accepted street stride, the test
+       SIGKILLs the Godot process. While it is dead: a Rust client seated as `wanderer` says something to
+       Alice (the `--agent` answers), and a Rust client seated as `carol` (seats are not exclusive
+       today, A-17) moves carol one stride and then leaves; `/status` shows `at` and `revision` higher
+       than before the kill. The client is relaunched. PASS iff its welcome names the same `instance`,
+       a `revision` ≥ the post-kill `/status` revision, and > the pre-kill one; and carol is drawn at
+       the position the Rust client moved her to (1 mm), not where the dead client left her.
+       MUTATION: the client restores a remembered position at startup → FAIL.
+AC-W4  RECONNECT POLICY (§4.6), in-process. (a) The server is SIGKILLed while the client is seated and
+       restarted on the same `--save` and port: the client shows "reconnecting", re-joins the same seat
+       within 10 s, is told the same instance, keeps its learned layout, and abandons the walk in
+       progress (no `move` is submitted between disconnect and the first new observation). (b) A server
+       on a fresh save on the same port: a different instance; the layout cache is cleared (the harness
+       reports the cache's passage count = the new observation's passage count).
+       MUTATION: replay the unanswered stride after re-joining → (a) FAIL.
+AC-W5  A REFUSED STRIDE ENDS THE WALK (stub). A test-only rev-1 WebSocket stub (Rust, test code) seats
+       the client and answers its third stride `rejected too_far_away`. PASS iff no fourth stride is
+       submitted and the body is drawn at the stub's next observed position within one frame.
+       MUTATION: the walker ignores rejections → FAIL.
+AC-W6  THE TELEPORT (stub, §8.2 part 3). The stub's next observation moves the observer 5 m. PASS iff the
+       drawn body snaps there within one rendered frame and no `move` is submitted in response.
+       MUTATION: the walker "corrects" back to its predicted position → FAIL.
+AC-W7  SUBMITTED REGARDLESS (stub, §8.2 part 2 for `move`). The stub offers `move` as
+       `available: false, too_far_away`. PASS iff the scripted click still submits the stride.
+       MUTATION: `if not obs.may("move"): return` in the move composer → FAIL (and AC-W8 names it).
+AC-W8  STATIC "NO RULE IN THE CLIENT" SCAN, `python3 scripts/check_client_rules.py` (stdlib only, file:line
+       reports, non-zero on any finding), over `clients/2d/**/*.gd`, comments excluded:
+         R1 only scripts/intents.gd calls `submit(` or `submit_affordance(`;
+         R2 no .gd file but intents.gd contains a string literal equal to an action type intents.gd
+            composes (the composer table's keys, read from intents.gd);
+         R3 in intents.gd, no function that submits reads `may(`, `"available"`, `unavailable_reason`,
+            `requirement(`;
+         R4 `distance_to`, `.length()`, `within` appear only in walker.gd, projection.gd, town.gd and
+            scripts/scene/**;
+         R5 only scripts/link.gd constructs `MineWorldClient` or calls `connect_to_world`.
+       PASS iff clean on the PR head AND each of five plants (one per rule) is reported by file and line.
+AC-W9  PATH SCOPE (I-4), `python3 scripts/check_client_rules.py --scope <base>`: every path changed
+       between the merge base and HEAD (plus untracked, unignored files) is under clients/2d/**,
+       presentation/mineworld-default/2D/**, mineworld-2d, scripts/check_client_rules.py,
+       tools/cli/tests/client_2d.rs, tools/cli/tests/client_2d/**, or is Markdown (which includes
+       docs/DECISIONS.md, docs/MVP.md, docs/ART_DIRECTION.md, clients/protocol/ADOPTION.md).
+       In particular nothing under clients/protocol/mineworld/. PASS on the head; a planted touch of
+       server/src/lib.rs and of clients/protocol/mineworld/space.gd each FAIL by name. Fail-closed: no
+       git or an unknown base is a failure.
+AC-W10 PRESENTATION INDEPENDENCE (I-5). AC-W1's walk is driven five times, each on a fresh world: pack
+       `town` (default), `--variant=full`, `--variant=people`, `--variant=procedural`,
+       `--presentation=none`. PASS iff the five request transcripts have identical semantic cores, in
+       order (`mineworld_server::semantic_core`). The drive scripts targets in world coordinates; the
+       click path is covered separately: for each projection, picking the screen point where a world
+       point is drawn returns that point within 1 mm.
+       MUTATION: the route's doorway approach uses the pack's `doorstep_m` → transcripts differ → FAIL.
+AC-W11 EXISTING BEHAVIOUR UNCHANGED (I-8), once on the final head: `cargo fmt --check`, `cargo clippy
+       --workspace --all-targets -- -D warnings`, `cargo test --workspace` (13a adds no non-ignored Rust
+       test, so the count equals main's); `clients/protocol/run.sh evidence` (AC-13/AC-15 evidence
+       regenerates identically apart from instances and timestamps); `./mineworld-slice --drive` PASS.
+AC-W12 STABLE PREVIEW (ARC-24, VISUAL_FIDELITY §9.1) — the objective half, all asserted by the drive
+       or a capture run, on a clean checkout (`git clean -xfd clients/2d` first):
+         - launches and imports with zero lines matching `ERROR|SCRIPT ERROR|Failed loading` on stderr;
+         - every role the active binding set references resolves to a loaded texture (0 missing), for
+           each of the four variants;
+         - a 1.75 m person draws 56 px tall ± 2 px at zoom 1 (32 px/m, the ARC-14 scale);
+         - every drawn façade's door anchor lies within 2 px of its disclosed doorway's projected point;
+         - on entering the café the façade's alpha reaches 0 within 1.0 s, and the street's people are
+           not drawn (I-7: they are not perceived);
+         - painter's order: of two people, the one further south is drawn in front.
+       Then stills (below) are captured windowed and inspected one at a time by the session.
+```
+
+**Stills captured from the connected client** (`./mineworld-2d --drive --capture`, windowed, in the
+background), written to `clients/2d/shots/preview/` and committed:
+`01_street_wide` (carol leaving the apartments, Ivan on the street), `02_cafe_door`,
+`03_cafe_interior` (Alice labelled, Bob, the visitor and the wanderer), `04_ref_framing` (framed as
+`presentation/mineworld-default/2D/references/02_cafe_street.png`), `05_plain` (no pack, same moment),
+`06_variant_full`.
+
+**What counts as a stable preview, and what the preview asks.** Stable = AC-W12 passes and no still
+shows torn sprites, a missing texture, a person drawn outside the observation, or a façade detached
+from its doorway — i.e. the next change is refinement, not repair. The preview package (`ARC-20`
+item 3: launch command, stills, the reference beside `04_ref_framing`, known misses as facts largest
+first, the questions) goes in the PR body. It is labelled **preview**; it can never end in
+`ACCEPTED` (`ARC-24`). It asks the operator: *is the connected market-town street, in the `town`
+style, the right direction for VIS-2D-1, and what is most wrong?* Known misses stated in advance: from
+the street, a neighbouring place's façade is generic until visited (A-23, R-PK-1 is 13c); interiors
+other than the café are dressed generically; nobody but the player moves (A-18, R-S10-1); the
+interior's footprint is pack decoration, not enforced (§4.3 point 4). `VISUAL_FIDELITY.md` §5's
+character categories do not apply (no character reference is claimed); the place category "massing of
+a referenced building" does not apply either, because the references are style plates, not this town.
+The reference-framed still is reported per §6 with the measured luminance distribution beside the
+plate's (mean 0.517, p50 0.512, >0.7 24.2%, <0.2 4.4%) as facts, not as a gate.
+
+### 14.3 How the operator plays it
+
+```text
+./mineworld-2d                              build `mineworld` if needed, host worlds/market-town locally
+                                            (--agent alice, saved under clients/2d/.save/market-town),
+                                            join seat `carol`, play: click to walk, WASD, Esc quits
+./mineworld-2d --seat visitor               the same world, as somebody else
+./mineworld-2d --world worlds/social-cafe   another world
+./mineworld-2d --fresh                      start that world over (deletes its save)
+./mineworld-2d --server 127.0.0.1:7878 [--seat carol]   join a world someone else is hosting
+./mineworld-2d --variant=full|people|procedural          another ARC-14 binding set
+./mineworld-2d --presentation=<dir>|none                 another Presentation Pack, or plain drawing
+./mineworld-2d --drive [--capture]                       the scripted checks, headless (stills need a window)
+```
+
+`AC-3` by hand: `mineworld server worlds/market-town --agent alice --save /tmp/town` in one terminal,
+`./mineworld-2d --server 127.0.0.1:7878` in another; close the window mid-walk; reopen; you stand where
+the world left you. The launcher builds the Godot class cache on first run (`ACCEPTANCE.md` §4.1). The
+operator's checklist for this PR is the one above plus "walk from the apartments into the café".
+
+### 14.4 Design decisions (recorded in C1)
+
+- **ARC-45 — One drawn town from disclosed passages.** §4.3 points 1–3, 5–6 as written, plus: dressing
+  (terraces, planters, lamps, trees) anchors only to disclosed doorways or to the extent they span,
+  never to a world key or an absolute coordinate; the layout cache is per instance, in memory, dropped
+  on an instance change (a cross-launch cache on disk was considered and not chosen: it adds state for
+  a convenience R-PK-1 provides properly). An unknown neighbouring place is drawn with a generic façade
+  chosen by a stable hash of its id string.
+- **ARC-46 — A Presentation Pack binds roles; the client names no asset.** The pack directory is loaded
+  at runtime from any path (`--presentation`), never imported into the Godot project:
+  `Image.load_from_file`, `Image.load_svg_from_buffer`, shaders from source text. Files:
+  `assets/asset_bindings.yaml` (variants → role → file; `town` default; `full`, `people`, `procedural`)
+  and `renderer/godot.yaml` (projection kind, px per metre, sprite scale rule, shader files, façade
+  dressing offsets, interior footprints per tag). Both are written in **YAML's JSON-compatible subset**
+  so Godot's built-in `JSON` reads them and any YAML tool reads them too; their schema is specified in
+  `clients/2d/PRESENTATION.md`, and `MODULE_SPEC.md` §6.1 gains one pointer line. No GDScript lives in
+  the pack. Role vocabulary: `person:<n>`, `player`, `facade:<tag>`, `facade:unknown:<n>`,
+  `ground:<tag>`, `interior:<tag>:<fitting>`, `prop:<name>`, `effect:<name>`. An unbound role draws
+  plainly.
+- **ARC-47 — No rule in the client, executable.** §8.1 I-1 and §4.4's rules, with AC-W5 … AC-W8 as the
+  test. 13b extends the same scan and stub; it adds no new principle.
+- **DEP-16 — Godot built-ins and the shared module; no addon.** §5's verdicts, re-checked 2026-10-08,
+  plus the pack-file reading decision: YAML addons exist — the GDExtensions
+  [fimbul-works/godot-yaml](https://github.com/fimbul-works/godot-yaml) and
+  [KoBeWi/Godot-YAML](https://github.com/KoBeWi/Godot-YAML) (both RapidYAML) and the pure-GDScript
+  [YAML.gd](https://godotengine.org/asset-library/asset/4120) — but a GDExtension is native per platform
+  (§5.3's objection to gdext), and a GDScript YAML parser is an unvetted dependency for two small files
+  we author. The JSON subset costs only comments, which the spec file carries instead. Revisit if a
+  pack author needs full YAML.
+
+### 14.5 The art (QS12-10)
+
+From `origin/vis/2d-generated-assets` @ `af5e236`, read only, never merged: `art/generated/` (5.96 MB,
+the `gen_*` cast and `sib_*` normalized shared set), `art/ground/` (8.07 MB), `art/interior/` (1.17 MB),
+`art/svg/` (2.53 MB), `art/paper_grain.png` (0.64 MB), `art/props.json`, `art/generated/generated.json`,
+`art/grade.gdshader`, `art/ink.gdshader` → `presentation/mineworld-default/2D/art/` and `renderer/`.
+About 18.4 MB; together they cover all four `ARC-14` variants. **Not carried:** `art/candidates/*.png`
+(81.7 MB), `art/style_refs/`, `screenshots/`, Godot `.import` sidecars, the spike's scripts and tools.
+Provenance (DEP-8, ARC-9): the 66 `art/candidates/*.json` sidecars (≈ 130 KB) are carried as
+`art/provenance/`; `sib_*` derive from `2D/candidates/*.provenance.yaml` already on `main`; the paper
+grain's CC0 terms go to `presentation/mineworld-default/LICENSES/`; `art/PROVENANCE.md` states each
+group's origin, the tools that produced it, and the spike commit. ARC-22's cast range is unaffected
+(no regeneration).
+
+### 14.6 Commit plan
+
+#### C0 — Design (this section) — Markdown only
+- [x] Implementation: §14, from the audit in §2 re-verified at `47c81d1`, the spike at `af5e236`, the
+  rulings and the coordinator's 16b names.
+- [x] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py`.
+- [x] Review: every module reference uses 16b's names or none; no edit to `clients/protocol/mineworld/`
+  is planned; decision ids in ARC-45…47 / DEP-16 only.
+
+#### C1 — Specs before code
+**Goal.** The decisions and the pack format exist before code relies on them (`CLAUDE.md` §2.2).
+**Scope.** `docs/DECISIONS.md`: `ARC-14` ported verbatim from `af5e236` with a dated note (2026-10-08:
+laid out from market-town's street, QS12-1), `ARC-45`, `ARC-46`, `ARC-47`, `DEP-16`.
+`docs/MVP.md` §7.1 and `docs/ART_DIRECTION.md` §20: "top-down" → "isometric (the default pack) or
+top-down". `docs/MODULE_SPEC.md` §6.1: one pointer to `clients/2d/PRESENTATION.md`.
+`clients/2d/PRESENTATION.md` (new spec): the two files' schema, the role vocabulary, runtime loading,
+fallback. `clients/protocol/ADOPTION.md` §6: the reconnect pattern (M-4) as guidance.
+- [ ] Implementation: as scoped.
+- [ ] Validation: `check_decision_ids` (all distinct; ARC-14, 45–47, DEP-16 present once);
+  `check_doc_headings`.
+- [ ] Review: ARC-14 text byte-equal to the branch's apart from the note; no defined term redefined;
+  ADOPTION.md changes in §6 only.
+
+#### C2 — The pack's art, bindings and renderer parameters
+**Scope.** §14.5's files; `assets/asset_bindings.yaml` (four variants); `renderer/godot.yaml`;
+`art/PROVENANCE.md`; LICENSES file. **Non-goals:** no client code.
+- [ ] Implementation: copy by `git show af5e236:<path>` (no merge, no cherry-pick of the branch);
+  write the two pack files.
+- [ ] Validation: added size ≤ 19 MB (`git diff --stat`); no `.import` file; every file named in either
+  pack file exists (a `--check-pack` mode of `check_client_rules.py`, shown to fail on a renamed file).
+- [ ] Review: each binding set reproduces the spike's `ROLE_*` maps role for role; provenance covers
+  every carried image.
+
+#### C3 — Client skeleton: connect, see, draw plainly and with the pack
+**Scope.** `clients/2d/{project.godot, .gitignore, README.md, scenes/app.tscn}`, symlink
+`mineworld -> ../protocol/mineworld`; `scripts/app.gd` (arguments, wiring), `scripts/link.gd` (join,
+status; reconnect in C6), `scripts/presentation.gd` (loader, roles, fallback), `scripts/projection.gd`
+(iso 2:1 at 32 px/m over `MineWorldSpace.to_2d`; plan for no pack; inverse for picking),
+`scripts/scene/{people,places,plain}.gd` (current place only), `scripts/hud/status.gd`,
+`scripts/harness/drive.gd`; the `mineworld-2d` launcher.
+- [ ] Implementation: as scoped; files kept under ~400 lines each.
+- [ ] Validation: drive `seated` against market-town: welcomed, observer drawn at its server position
+  (AC-W2's bound), every role resolves (AC-W12 bullet 2) for four variants; `--presentation=none` runs.
+- [ ] Review: no asset path in `scripts/` (grep); ids handled as strings; nothing submitted yet.
+
+#### C4 — One town: frames glued at passages, façades, interiors, people
+**Scope.** `scripts/town.gd` (ARC-45; layout cache per instance), `scripts/scene/places.gd` (ground by
+tag, façades at doorways, generic unknown façade, cut-away and dimming), `scripts/scene/people.gd`
+(sprites by tag and id hash, labels, smoothing, distance-driven gait, painter's order).
+- [ ] Implementation: as scoped.
+- [ ] Validation: AC-W2 and AC-W12 (façade anchors, scale, cut-away, order) in drive `look`; projection
+  round trip of AC-W10.
+- [ ] Review: no place is drawn by key or by an absolute coordinate; nobody unperceived is drawn.
+
+#### C5 — Walking: intents, walker, the scan, the stub
+**Scope.** `scripts/intents.gd` (the `move` composer; the only `submit`), `scripts/walker.gd` (click
+route in ≤ 1.9 m strides, one in flight; doorway routing `here` → `there`; WASD reporting every 0.5 m
+or 20°; reconciliation at > 150 mm; a rejection ends the walk); `scripts/check_client_rules.py`
+(R1–R5, `--scope`, `--check-pack`); `tools/cli/tests/client_2d.rs` + `tools/cli/tests/client_2d/`
+(Godot spawn helper, rev-1 stub).
+- [ ] Implementation: as scoped.
+- [ ] Validation: AC-W1, AC-W5, AC-W6, AC-W7, AC-W8 (with plants), AC-W10 (five transcripts), each
+  mutation run and reverted with `git status` clean afterwards.
+- [ ] Review: every distance computed is a request size, a route or a drawing; a rejected or unknown
+  result is never retried.
+
+#### C6 — Reconnect and AC-3 end to end
+**Scope.** `link.gd`: §4.6 points 1–5 (back-off 0.5 s doubling to 8 s; same seat; instance compare;
+`refused` final except `world_stopped`; abandon the walk; unanswered request reported "unknown").
+Tests AC-W3, AC-W4 in `client_2d.rs`.
+- [ ] Implementation: as scoped.
+- [ ] Validation: AC-W3 and AC-W4 with their mutations.
+- [ ] Review: nothing is replayed; the cache is dropped only on an instance change.
+
+#### C7 — Stills, preview package, final gates
+- [ ] Implementation: capture mode; stills committed under `clients/2d/shots/preview/`; README;
+  ledger and handoff.
+- [ ] Validation: AC-W9, AC-W11 and AC-W12 on the final head; stills viewed one at a time and the
+  findings recorded as facts.
+- [ ] Review: the preview package complete per `ARC-20`; known misses stated largest first; no
+  comparative without a fact (`ARC-17`).
+
+### 14.7 Files touched
+
+```text
+new      clients/2d/** (project.godot, .gitignore, README.md, PRESENTATION.md, scenes/, scripts/,
+         scripts/scene/, scripts/hud/, scripts/harness/, shots/preview/, symlink mineworld)
+new      mineworld-2d
+new      presentation/mineworld-default/2D/{assets/asset_bindings.yaml, renderer/, art/}
+new      presentation/mineworld-default/LICENSES/<paper grain CC0>
+new      scripts/check_client_rules.py
+new      tools/cli/tests/client_2d.rs, tools/cli/tests/client_2d/
+docs     docs/DECISIONS.md, docs/MVP.md §7.1, docs/ART_DIRECTION.md §20, docs/MODULE_SPEC.md §6.1 (one
+         line), clients/protocol/ADOPTION.md §6, this file
+NOT      clients/protocol/mineworld/**, server/, kernel/, contracts/, systems/, worldpack/, persistence/,
+         cognition/, worlds/, sdk/, authoring/, clients/3d-spike/, clients/protocol/demo/, Cargo files
+```
+
+### 14.8 Test ownership
+
+```text
+STATIC      cargo fmt/clippy (the Rust test code); check_client_rules.py R1–R5, scope, pack files
+UNIT        none new: the client's checks are against a real or stub server, not helpers
+INTEGRATION Godot-gated: AC-W1 … AC-W7, AC-W10 (real server, real save, or the rev-1 stub)
+REAL RUN    the windowed capture (stills inspected); AC-W11's protocol evidence and slice drive
+GATE 1      NOT REQUIRED — no model
+GATE 2      AC-W1, AC-W3, AC-W4 are the real-lifecycle evidence (real processes, SIGKILL, real save)
+CI          none on main today; if S13's 13a lands first, its CI runs on the PR. Godot-gated tests are
+            not run by CI (no Godot layer yet, QS12-8) and are reported NOT RUN there
+```
+
+### 14.9 Execution contract
+
+```text
+PROJECT / PR:            S12 PR 13a — a world you can walk
+PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/step-13-client-2d.md §14 (live ledger)
+RELATED / BINDING DOCS:  overall.md "Parallel build-out, 2026-10-08"; this step §§1–13; CLAUDE.md;
+                         ENGINEERING_RULES, ENGINEERING_STANDARDS, ART_DIRECTION, VISUAL_FIDELITY,
+                         ACCEPTANCE; server/PROTOCOL.md; clients/protocol/ADOPTION.md; ARC-14 (af5e236)
+IMPLEMENTATION BASE:     main @ 47c81d1; rebase onto main before the PR if S11-A or 16b merged
+APPROVED SCOPE:          §14.0–§14.7
+FROZEN INVARIANTS:       I-1 … I-9 (§8.1); no edit to clients/protocol/mineworld/**; no server, kernel,
+                         contract, System Pack or World Pack change; only ARC-45…47 / DEP-16 (+ ARC-14
+                         port); the art carried is §14.5's set only; the spike branch is not merged
+APPROVED SEQUENCE:       C0 → C7 (§14.6)
+VALIDATION BUDGET:       cargo and Godot runs unrestricted when bounded; each Godot run ≤ 10 min, anything
+                         > ~2 min in the background; full cargo gate once on the final head; total
+                         ≈ 1 h of validation wall time; no paid API, no model
+LIVE DOCUMENTATION:      this section; CONTEXT HANDOFF: .structured-coding/plans/mvp0/handoff.md, 13a
+                         block only (other efforts' blocks preserved)
+ENDPOINT AUTHORITY:
+  implementation + local validation   authorized after freeze — source: primary session's kickoff
+                                      ("Phase 2 — after my freeze message")
+  semantic commits                    authorized — source: same, and working rules §14
+  branch push                         authorized — source: D-12; kickoff
+  PR creation / update                authorized, marked READY FOR OPERATOR REVIEW — source: kickoff
+  CI repair to review readiness       authorized — source: D-12
+  merge                               explicit operator authorization only. Not by this session.
+MATERIAL STOPS:          any edit to the shared module; any server, kernel, contract or pack (System or
+                         World) change; a falsified AC above; S11-A's join shape needing more than a
+                         consumer change
+POST-MERGE SYNC OWNER:   this session: §14's lifecycle and evidence; the primary session: step header,
+                         overall §7, MVP_STATUS, HUMAN_REVIEW_QUEUE VIS-2D-1
+NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
+```
