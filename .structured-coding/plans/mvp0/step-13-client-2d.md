@@ -1084,6 +1084,10 @@ Tests AC-W3, AC-W4 in `client_2d.rs`.
     plate's recorded figures exactly): `04_ref_framing` mean 0.656, p50 0.689, >0.7 48.6%, <0.2 0.6%;
     the plate `02_cafe_street.png` mean 0.517, p50 0.512, >0.7 24.2%, <0.2 4.4%. Reported as facts,
     not a gate: the connected still is brighter and has almost no deep shadow.
+  - Re-run after merging `main` @ `b97cb4a` (E-b requirements, S19 plans; `tools/cli/src/main.rs`
+    changed): `fmt` clean, `clippy -D warnings` clean, `cargo test --workspace` 163 result lines, all
+    `ok`, 0 failed; `client_2d -- --ignored` 7 passed (128.0 s); `check_scratch.py scan` PASS, `left`
+    nothing under `target/`; `--scope origin/main` PASS.
 - [x] Review: the preview package (launch command, stills, the reference beside `04_ref_framing`,
   known misses as facts, the question) is in the PR body; labelled preview (`ARC-24`); no
   comparative without a fact.
