@@ -1,7 +1,7 @@
 # Step S12 — Demo A: the 2D reference client
 
 **Effort:** `mvp0` · **Parent:** [`overall.md`](overall.md) §3 S12, §4, §7
-**Lifecycle:** `DRAFT — awaiting the primary session's review`
+**Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`
 **Planning base:** `main` @ `0fd0be3`, branch `plan/s12-2d`, worktree
 `/Users/yuema137/mineworld-worktrees/plan-s12-2d`
 **Planned in parallel with:** S11 (server and protocol), S13, S14, Milestone E. This document writes

@@ -8,7 +8,7 @@ step places on S11 (the wire protocol) and on S15 12d (the town's geometry), the
 GDScript protocol module, invariants with an executable "no rule in the client" check, a PR split with
 integration checkpoints and adversarial criteria, risks, and open questions.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 (S14, S15), §4, §7.
-**Lifecycle:** `DRAFT — awaiting the primary session's review`. Nothing here is frozen and nothing here
+**Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`. Nothing here is frozen and nothing here
 authorizes implementation. Each PR is detailed to the commit and frozen in turn (`CLAUDE.md` §3.1).
 **Branch:** `plan/s14-3d`, from `main @ 0fd0be3`, worktree `/Users/yuema137/mineworld-worktrees/plan-s14-3d`,
 held by this planning session only.

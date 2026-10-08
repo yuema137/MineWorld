@@ -1,7 +1,7 @@
 # Step 12 — S11: Server and networking
 
 **Effort:** `mvp0` · **Parent:** [`overall.md`](overall.md) §3 S11, §4, §7
-**Lifecycle:** `DRAFT — awaiting the primary session's review`
+**Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`
 **Author:** the S11 planning agent, 2026-10-08, in worktree `plan-s11-server`, branch `plan/s11-server`
 **Base audited:** `main @ 0fd0be3` (S15's 12b merged as `9c617ed`, 12c design frozen)
 **Role of this document:** step plan. PR scopes, dependencies, integration checkpoints and adversarial

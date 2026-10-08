@@ -7,7 +7,7 @@ the risks, the requirements this step places on S11, and the open questions. It 
 design and authorizes no implementation (`CLAUDE.md` §3.1).
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 (S10, and the "Original scope, retained
 for MVP-1" list), §4 (`AC-4`, `AC-10`), §7.
-**Lifecycle:** `DRAFT — awaiting the primary session's review`.
+**Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`.
 **Base:** `main @ 0fd0be3`, branch `plan/s10-cognition`.
 **Schedule (operator, 2026-10-08):** designed now, in parallel with S11 (server and protocol), S12
 (2D), S13 (CI), S14 (3D) and Milestone E; **implemented after the clients**. §9 marks which PRs could

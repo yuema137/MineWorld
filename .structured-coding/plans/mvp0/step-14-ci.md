@@ -5,7 +5,7 @@ to the commit in §9 so that it can be frozen and implemented quickly. Later PRs
 scope (`CLAUDE.md` §3, "detail one step ahead").
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 (S13), §4 (`AC-8`, layered CI), §7 (the carried
 `fetch-depth: 0` requirement).
-**Lifecycle:** `DRAFT — awaiting the primary session's review`. Nothing in this document authorizes
+**Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`. Nothing in this document authorizes
 implementation. Decision records proposed here carry placeholder ids (`DEP-S13-a`, `ARC-S13-a`, …); the
 primary session numbers them at freeze.
 **Planning session:** worktree `/Users/yuema137/mineworld-worktrees/plan-s13-ci`, branch `plan/s13-ci`,

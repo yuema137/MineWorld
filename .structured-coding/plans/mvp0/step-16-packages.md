@@ -9,7 +9,7 @@ reading, a reuse comparison in both directions, a modularity statement, invarian
 criteria and the milestone test, a PR split, risks, the open questions, and a proposed amendment to
 `overall.md`.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §1 (non-goals), §3, §7.
-**Lifecycle:** `DRAFT — awaiting operator agreement`. A new step needs the operator's agreement on its
+**Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting operator agreement`. A new step needs the operator's agreement on its
 requirement before any PR is detailed. Nothing in this document authorizes implementation.
 **Base audited:** `main @ 0fd0be3` (branch `plan/mE-packages`).
 
