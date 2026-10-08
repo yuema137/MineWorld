@@ -111,7 +111,7 @@ identifies one thing.
 | --- | --- | --- |
 | **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
 | **VIS-3D-GODOT-1** | Reference-matched character in Godot | ✅ **route D+ accepted by the operator as the interim standard, 2026-10-07**; the clipping and head-sway defects flagged after it are fixed (see below). Not a final acceptance: refinement continues later. Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
-| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | 🟢 **Accepted on screenshots, interactive test pending** (operator, 2026-10-07): judged from the slice's screenshots together with the character; the operator has not yet run the build, so the combined test session below is still to be done. Before that, 🟡 READY FOR HUMAN VISUAL REVIEW (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
+| **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ✅ **ACCEPTED by the operator, 2026-10-07, after playing it**: the operator ran the combined session on `main` (standalone `./mineworld-slice` and connected `--world`) and reported every checklist point as passing — the character, hand and pack without clipping, a steady head when running, the doorway, the terrace, real names, the too-far refusal, the counter conversation and Alice in view. Earlier the same day it was accepted on screenshots. Before that, 🟡 READY FOR HUMAN VISUAL REVIEW (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 
@@ -530,7 +530,7 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
-### `VIS-3D-GODOT-2` — accepted on screenshots, interactive test pending (operator, 2026-10-07)
+### `VIS-3D-GODOT-2` — ACCEPTED by the operator after the interactive test (2026-10-07)
 
 **Verdict, 2026-10-07.** The operator judged the slice from its screenshots, shown together with
 route D+'s (street front and rear, doorway, counter, walking), in the verdict quoted under

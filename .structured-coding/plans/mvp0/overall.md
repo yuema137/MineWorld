@@ -770,7 +770,7 @@ Next, framework:  S15 12a, the arrival-resolver seam — detailed to the commit 
                   (step-11 §12).
 Next, operator:   AC-1, Milestone B and Milestone C ACCEPTED 2026-10-07 (the operator ran
                   milestone_b, ac1_composability, milestone_c, market_town and a 30-day run on
-                  main, all passing). Pending: the 3D slice played interactively (VIS-3D-GODOT-2).
+                  main, all passing). VIS-3D-GODOT-2 accepted after the operator played it. Nothing pending with the operator.
 
 Remaining:  S15 (12a–12e), S10 (reduced), S11 (authentication, admin frames, deltas), S12, S13,
             S14; Milestones D and E
@@ -782,8 +782,8 @@ Visual track (parallel, never blocking the above; ARC-20):
                    hand and pack clipping, and the head sway while running. Before it, the
                    CharMorph candidate FAILED (2026-10-06) and is kept as pipeline validation
                    only (VISUAL_FIDELITY §9.2).
-  VIS-3D-GODOT-2   ACCEPTED ON SCREENSHOTS by the operator, 2026-10-07; the interactive test
-                   (one combined session with the character) is pending (HUMAN_REVIEW_QUEUE).
+  VIS-3D-GODOT-2   ACCEPTED by the operator, 2026-10-07, after playing the combined session
+                   (standalone and connected, with the character): every point passed.
                    Both are on main as of #50 (squash, 690c9d0).
   VIS-3D-UE5-1     parked (ARC-21)
 
