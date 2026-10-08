@@ -1871,9 +1871,12 @@ count the leaked RIDs per release), then a minimal scene if none is ours. If our
 a `release()` static, called from `SliceMain._exit_tree` beside the existing `Props._scenes` release (the
 promenade, `main.gd`, is left as it is, F-S14-1, and its exit is reported). If not ours: no code change.
 
-- [ ] Implementation: as the evidence decides.
-- [ ] Validation (E16a-6): the plain launch and every slice mode's exit lines; M-11 if a fix exists.
-- [ ] Review: a release never runs while the scene still draws (exit only); nothing freed twice.
+- [x] Implementation: as the evidence decided — **engine-side (L-1 b)**; no fix in the client. The
+  reproduction is kept as `clients/3d-spike/tools/reflection_probe_leak.gd`.
+- [x] Validation (E16a-6): every script-static cache released → still 7; one `ReflectionProbe` in an
+  empty scene → the same 7, `none` → none. M-11 is N/A: there is no fix of ours to remove.
+- [x] Review: the bisection's cache releases were a scratch edit, reverted (`slice_main.gd` as C4 left
+  it); nothing in the client changed for the leak.
 
 **Commit boundary.** The fix (or nothing) and the ledger.
 
@@ -2126,6 +2129,28 @@ longer applies and both plants are reported.
 | M-10 | (kept unit test) a `"shove"` in a comment, a `"#"` in a string before `"move"`, an escaped quote, a triple-quoted string over two lines | the lexer test passes: comment not read, the rest read with the right line numbers |
 
 All plants reverted; the scan green again; `git status` shows only the test and the crate's doc list.
+
+### E16a-6 — the texture RID leak: engine-side (on `e50e3b0`, Jolt, 14:10–14:25)
+
+1. **Not the project's caches.** A scratch edit released every script-static cache A16-12 lists in
+   `SliceMain._exit_tree` (`Mats._tex_cache`, `_mat_cache`, `ProcGen._cache`, `Props._card_mats`,
+   `Human._scenes`, `_libs`, `_mats`, `SlicePalette._rug`, `_serif`, `_script_font`, besides the
+   existing `Props._scenes`): `--measure` still ended `WARNING: 7 RIDs of type "Texture" were leaked.`
+   Reverted. (A first attempt named the class `Procgen` instead of `ProcGen`; the slice failed to parse
+   and the windowed launcher waited on it until killed — a launcher behaviour, recorded only.)
+2. **A minimal scene, part by part** (a SceneTree script, 30 frames at 320×180, one camera plus one
+   part): nothing, a panorama sky with the slice's HDRI, a procedural sky, SSAO + SSIL + glow, a
+   shadowed sun, a `VoxelGI` baked at load, a `Label3D`, a HUD label — **no leak**. One
+   `ReflectionProbe` — **7 Texture RIDs leaked**, the slice's exact line. The same with
+   `UPDATE_ALWAYS`, and the same when the probe is **freed at frame 20**, before the quit. Headless: no
+   leak (nothing is rendered). The slice has two probes and leaks 7, so the textures are the renderer's
+   per-viewport reflection storage, not per probe.
+3. **Classification: engine-side**, Godot `4.7.2.stable.official.ed1daf0bf`, Metal 4.0 Forward+, Apple
+   M5. Removing the slice's probes would drop `VISUAL_SLICE.md` §7.1's "sane reflections" (an accepted
+   visual), so no workaround is taken. The reproduction is committed as
+   `clients/3d-spike/tools/reflection_probe_leak.gd` (`-- probe` leaks 7, `-- none` leaks none; run
+   again to confirm), so an upstream report or an engine upgrade can be checked in one command.
+   The promenade's much larger exit report (E16a-1) is a separate matter, out of 16a's scope.
 
 ## 19.8 Execution contract (proposed; confirmed at freeze)
 
