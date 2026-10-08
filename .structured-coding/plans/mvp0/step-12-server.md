@@ -1479,10 +1479,10 @@ recorded here so the disagreement is not silent); `docs/MODULE_SPEC.md` §8.1's 
 `[--invite TOKEN]` and its table row the environment variable and the join line. **Depends on:** freeze.
 **Non-goals:** no code; no edit to `NETWORKING.md` (§13 leaves its §5 note to S11-E).
 
-- [ ] Implementation: the three documents.
-- [ ] Validation: `python3 scripts/check_decision_ids.py`; `python3 scripts/check_doc_headings.py`;
-  ARC-41 and DEP-14 are the only new ids.
-- [ ] Review: `PROTOCOL.md` against §5 line by line (every field of §5.2–§5.6 present, every "from S11-x"
+- [x] Implementation: the three documents (layout: D-SA2).
+- [x] Validation: `python3 scripts/check_decision_ids.py`; `python3 scripts/check_doc_headings.py`;
+  ARC-41 and DEP-14 are the only new ids (E-SA1).
+- [x] Review: `PROTOCOL.md` against §5 line by line (every field of §5.2–§5.6 present, every "from S11-x"
   absence stated as an omission, never a different meaning); §6 and §6.2 byte-identical to the base;
   terminology per `CORE_CONCEPTS.md` (seat, observer, Person; a nickname labels a player, not a Person).
 
@@ -1724,12 +1724,33 @@ MATERIAL STOP       §15.8's list
 ## 15.10 Evidence ledger
 
 ```text
-(empty until the freeze)
+E-SA0 2026-10-08, base main @ 47c81d1 (worktree impl-s11a, before any code change). Debug build
+      (`cargo build -p mineworld-cli`), binary copied to /tmp/s11a/mineworld-base.
+      `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, 339 lines,
+        sha-256 of every line but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+        (= step-10 E-0 and step-11 E-RS0); wall 22.0 s.
+      `mineworld run worlds/market-town --headless --seed 7 --days 300` → exit 0, 355 lines,
+        sha-256 = 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d (= step-10 E-P0).
+      Filter: `grep -v '^wall\|wall '` then `shasum -a 256`. Outputs under /tmp/s11a/base-*.out.
+E-SA1 A-C1. check_decision_ids → 53 ids, all distinct (ARC-41, DEP-14 new). check_doc_headings → 176
+      numbered sections across 25 documents, none duplicated. PROTOCOL.md: §6 and §6.2 carried —
+      `diff` against the base shows §6.2 identical and one cross-reference in §6 ("§5" → "§5.2");
+      §7 gains SessionId and the integer fields; section numbers 1–8 keep their revision-1 meaning
+      (routes, client frames, identity, sequence, server frames, submitting, numbers, rates), so every
+      existing "PROTOCOL.md §n" reference in the repository still points at the right section (audited
+      with git grep: §1, §5, §6, §6.2, §7, §8 in code, tests and docs); §9 is now "what revision 2
+      does not have" (references to "§9" in spike/unreal/probe.py and UNREAL_ADAPTER_SPIKE.md meant
+      revision 1's "not in revision 1" — frozen spike evidence, left).
 ```
 
 ## 15.11 Deviations and discoveries
 
 ```text
-(none yet)
+D-SA1 (bounded) Handoff file. Six lanes run in parallel and the effort's single handoff.md would be
+      rewritten by each; S11-A keeps its continuation aid in handoff-s11a.md and leaves handoff.md
+      untouched.
+D-SA2 (bounded) PROTOCOL.md layout. §15.3 SD-A14 lists the content; the numbering keeps revision 1's
+      section numbers for the same subjects (E-SA1) so no reference elsewhere goes stale: joining's
+      checks are §4.1, WorldSummary is §5.7, the landing table and the revision rule are §10.
 ```
 

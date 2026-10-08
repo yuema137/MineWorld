@@ -696,7 +696,7 @@ One binary, `mineworld`, built from `tools/cli`. Its arguments are parsed by `cl
 wrong and a non-zero exit status, never a panic.
 
 ```text
-mineworld server <world> [--listen ADDRESS] [--agent SEAT]... [--save DIR]
+mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--save DIR]
 mineworld validate <world>
 mineworld replay <world> --save DIR
 mineworld run <world> --headless --seed N --days N [--save DIR]
@@ -707,7 +707,7 @@ mineworld create <directory>
 
 | Command | What it does |
 | --- | --- |
-| `server` | Hosts a World Pack for clients (`NETWORKING.md`). `--agent SEAT` drives that seat with the reactive rule controller in-process; `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. |
+| `server` | Hosts a World Pack for clients (`NETWORKING.md`). `--agent SEAT` drives that seat with the reactive rule controller in-process; `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). |
 | `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. |
 | `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
 | `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by a seeded paced rule controller (`ARC-27`). Described below. |
