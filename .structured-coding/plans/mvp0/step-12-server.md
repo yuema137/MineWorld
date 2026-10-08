@@ -2114,8 +2114,9 @@ bounded synchronous seam; asynchronous controllers connect as sessions; the comp
 `MODULE_SPEC.md` §8.1: the `server` line and row gain `--town`, `--seed`, `--pace`, `--hold`,
 `--time-scale`.
 
-- [ ] Implementation · [ ] Validation: `check_decision_ids`, `check_doc_headings` · [ ] Review: §6 and §6.2
-  of `PROTOCOL.md` untouched (12e's surface); every new value appears in the landing table.
+- [x] Implementation · [x] Validation: `check_decision_ids`, `check_doc_headings` (E-SB1) · [x] Review: §6
+  and §6.2 of `PROTOCOL.md` untouched (12e's surface); every new value appears in the landing table
+  (E-SB1). `PROTOCOL.md` gains §4.2 for the seat rules rather than growing §4.1's table (D-SB1).
 
 ### B-C2 — Pure moves: `host/handles.rs`, `runtime/world.rs`, `tools/cli/src/serve.rs`
 
@@ -2262,12 +2263,29 @@ MATERIAL STOP       §16.8's list
 ## 16.10 Evidence ledger
 
 ```text
-(empty until the freeze)
+E-SB0 2026-10-08, base main @ f842c52 + design commit 1a46de6 (no code change), worktree impl-s11b.
+      Debug build (`cargo build -p mineworld-cli`), binary copied to /tmp/s11b/mineworld-base.
+      `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → 339 lines, sha-256 of every
+        line but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b (= E-SA0).
+      `mineworld run worlds/market-town --headless --seed 7 --days 300` → 355 lines, sha-256 =
+        365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d (= E-SA0).
+      Filter: `grep -v '^wall'` then `shasum -a 256`. Outputs /tmp/s11b/base-{cafe,market}.out.
+E-SB1 B-C1. check_decision_ids → 57 ids, all distinct (ARC-40, ARC-42 new; ARC-40 placed before
+      ARC-41 and ARC-42 after DEP-14, inside S11's region, so lanes appending at the file's end do not
+      collide). check_doc_headings → 191 numbered sections across 26 documents, none duplicated.
+      PROTOCOL.md: hunks only in the header, §§2, 3, 4.1, 4.2 (new), 5.1, 5.5, 5.6, 5.7, 8, 10 —
+      none in §6 or §6.2 (12e's surface). New values each in the landing table: join.take_over,
+      took_over "connection", closing.taken_over, WorldSummary.time_scale, clients without hosted
+      controllers. ARC-40 records QS11B-3 (one trust level) and QS11B-4 (hold in wall seconds) as
+      MVP-0 limitations.
 ```
 
 ## 16.11 Deviations and discoveries
 
 ```text
-(none yet)
+D-SB1 (bounded) PROTOCOL.md layout. SD-B2's join rules are §4.2 (new), with §4.1's check table gaining
+      "4 seat" and "5 control" in place of S11-A's "4 resume, 5 seat": the resume is now judged on the
+      world thread with the seat, after the roster check, as SD-B2 orders. Section numbers 1–10 keep
+      their meaning (D-SA2).
 ```
 
