@@ -2892,7 +2892,7 @@ COORDINATE_BOUND 100 000 mm   no authored body coordinate beyond ±100 m: f32's 
 | **SD-B3** | **The `body:` section, on place files** (`ARC-31`; QP-5). `CARRIED_BY = [Place]` in 12b. Its type is its validation, and it denies unknown fields:<br>`floor: { min: {x, y}, max: {x, y} }` is the walkable rectangle in the place's frame. Each side is at least 620 mm (2R + 2·GAP).<br>`solids: [ { min: {x, y}, max: {x, y}, height } ]` is optional, at most 64. Each box is non-empty, and `height` is in 1 … 10 000.<br>Every coordinate is within `COORDINATE_BOUND`. No references. `seed` states one `place-shaped { place, shape }`. | The place's walls are the floor's edge. A doorway needs no gap, because crossing between places is a placement (SD-B8), not a sweep across frames (§5). For 12e the mapping is direct: `MineWorldSpace.to_3d` maps (x, y, z) mm → Godot (x, z, −y) m, from the place's origin. An axis-aligned floor and box stay axis-aligned. 12e builds the perimeter walls with gaps at the disclosed passages, and the solids as static boxes. |
 | **SD-B4** | **Genesis checks, in bodies' reduction of `place-shaped`** (QR-7, F-B4). Each check refuses with `FactRefusedByOwner { system: bodies, event_type: place-shaped, reason: System { code, detail } }`, and the detail names the people, the place and the numbers:<br>- `bodies-overlap`: two people located in the place are closer than `CLEARANCE`;<br>- `bodies-outside`: a person's centre is outside the floor shrunk by R;<br>- `bodies-in-solid`: a person's centre is closer than R to a solid;<br>- `bodies-capacity`: the place cannot hold the world's population. Count the capacity-grid points, anchored at `floor.min + (R, R)`, that lie inside the floor shrunk by R and at least R from every solid. The count must be ≥ 4 · (people in the world − 1) + 1.<br>The checks use integers only. A `PlaceShape` is written only if every check passes. | Each other person blocks at most four capacity points: a disc of radius 610 spans less than two 650 mm steps. So entry placement always finds a free point (SD-B8). That turns "a resolver cannot refuse" (F-B3) into a guarantee rather than a hope. Genesis checks surface through `mineworld validate`. |
 | **SD-B5** | **Integer geometry** (DC-3, F-B10). Everything outside `rapier.rs` uses `i32` positions, with `i64`/`i128` products and `i64::isqrt`:<br>- distances, compared squared;<br>- a point against the floor and the solids;<br>- a point against a segment, for the corridor;<br>- nudge directions and lengths, with the length rounded up so the separation is reached;<br>- the bias turn, the lattice and the verification.<br>Rapier is given metres converted from integers by one function, and returns metres quantized by one function, `(m × 1000).round() as i32` (DC-6). No `sin`, `cos` or `sqrt` from std anywhere in the pack. | DC-3, DC-6. The integer side is exactly reproducible, and only the sweep is float. |
-| **SD-B6** | **A stride within the place** (the walker's `from` is in `to`'s place, both with local positions), in this order:<br>1. **Guard** (SD-B9).<br>2. **Fast path.** If the corridor is clear, the resolution is unchanged and Rapier is not used. Clear means: the walker's capsule swept from `from` to `to` stays inside the floor shrunk by R + GAP; its box, grown by R + GAP, meets no solid's box; and every other person is at least 2R + GAP from the segment (exact, `i128`).<br>3. **Head-on bias** (SD-B10) may turn the target.<br>4. **R′ steps 1–5** (§4.5.1, as §9.6 states them):<br>&nbsp;&nbsp;- walls-only reach W;<br>&nbsp;&nbsp;- contact reach B, people solid;<br>&nbsp;&nbsp;- candidate: W if \|W\| ≤ \|B\| + NUDGE_MAX, else the walls-only path cut at \|B\| + NUDGE_MAX;<br>&nbsp;&nbsp;- the nudge pass (SD-B7);<br>&nbsp;&nbsp;- on failure, blocked at B with nobody displaced.<br>5. **Quantize, then snap.** A walker within SNAP of its target is at the target exactly. A nudged person within SNAP of their nudge's end is at that end.<br>6. **Verify, then degrade** (DC-8, I-12), on integers:<br>&nbsp;&nbsp;- V1: every pair in the place is at least CLEARANCE apart;<br>&nbsp;&nbsp;- V2: every moved centre is inside the floor shrunk by R − TOLERANCE;<br>&nbsp;&nbsp;- V3: every moved centre is at least R − TOLERANCE from every solid.<br>&nbsp;&nbsp;If any check fails, try blocked; then the advance along `from → B` halved, `from + (B − from) / 2^k` for k = 1 … HALVINGS; then stay, with `reached` = `from`'s position and `to`'s facing.<br>7. **`stopped_by`**: the first person the walker touched, by contact order, then `EntityId`. `None` when walls or a solid stopped them, as §4.7 says. | §4.5 as the prototype measured it, plus four things the seam makes necessary. The snap is F-B9: without it, rounding can "lengthen" a clean stride by 1 mm and presence would refuse it. The integer fast path is designed in §6.4 and is what makes the cost bound reachable. It is the definition of the clear case, not an approximation of Rapier's answer. Stay is valid by induction: the starting state passed V1–V3 (SD-B4, SD-B9). |
+| **SD-B6** | **A stride within the place** (the walker's `from` is in `to`'s place, both with local positions), in this order:<br>1. **Guard** (SD-B9).<br>2. **Fast path.** If the corridor is clear, the resolution is unchanged and Rapier is not used. Clear means: the centre's segment from `from` to `to` stays inside the floor shrunk by R + GAP; the segment's box, grown by R + GAP, meets no solid's box; and every other person is at least 2R + GAP from the segment (exact, `i128`).<br>3. **Head-on bias** (SD-B10) may turn the target.<br>4. **R′ steps 1–5** (§4.5.1, as §9.6 states them):<br>&nbsp;&nbsp;- walls-only reach W;<br>&nbsp;&nbsp;- contact reach B, people solid;<br>&nbsp;&nbsp;- candidate: W if \|W\| ≤ \|B\| + NUDGE_MAX, else the walls-only path cut at \|B\| + NUDGE_MAX;<br>&nbsp;&nbsp;- the nudge pass (SD-B7);<br>&nbsp;&nbsp;- on failure, blocked at B with nobody displaced.<br>5. **Quantize, then snap.** A walker within SNAP of its target is at the target exactly. A nudged person within SNAP of their nudge's end is at that end.<br>6. **Verify, then degrade** (DC-8, I-12), on integers:<br>&nbsp;&nbsp;- V1: every pair in the place is at least CLEARANCE apart;<br>&nbsp;&nbsp;- V2: every moved centre is inside the floor shrunk by R − TOLERANCE;<br>&nbsp;&nbsp;- V3: every moved centre is at least R − TOLERANCE from every solid.<br>&nbsp;&nbsp;If any check fails, try blocked; then the advance along `from → B` halved, `from + (B − from) / 2^k` for k = 1 … HALVINGS; then stay, with `reached` = `from`'s position and `to`'s facing.<br>7. **`stopped_by`**: the first person the walker touched, by contact order, then `EntityId`. `None` when walls or a solid stopped them, as §4.7 says. | §4.5 as the prototype measured it, plus four things the seam makes necessary. The snap is F-B9: without it, rounding can "lengthen" a clean stride by 1 mm and presence would refuse it. The integer fast path is designed in §6.4 and is what makes the cost bound reachable. It is the definition of the clear case, not an approximation of Rapier's answer. Stay is valid by induction: the starting state passed V1–V3 (SD-B4, SD-B9). |
 | **SD-B7** | **The nudge pass** (QB-10, I-11).<br>- Generation 1's pushers are the walker at the candidate. Generation g's pushers are the people nudged in g − 1.<br>- In each generation, every person not yet moved, in `EntityId` order, who is closer than 2R to a pusher is moved straight away from that pusher's centre. The distance is just enough to reach 2R + GAP, computed in integers. When two centres coincide, the walker's stride direction is used.<br>- Each nudge is a Rapier sweep against fixed geometry only.<br>- The pass fails if a needed nudge exceeds NUDGE_MAX + GAP, if the walls cut a nudge more than SNAP short, if more than NUDGED_MAX people would move, or if any pair is still closer than 2R − TOLERANCE after CHAIN_MAX generations.<br>- `displaced` lists the nudged people in the order they were moved. Each keeps their z and their facing. | §4.5.1 step 4 and the prototype's `resolve_people`, with integer directions. A nudge never changes place (the resolution names only `to`'s place, and presence's rule (e) re-checks it). A nudge never passes through fixed geometry: it is a shape cast against it, and V2/V3 check the end. |
 | **SD-B8** | **Entry placement**, for an arrival that comes from another place, from nowhere, or from a position-less presence in this place. This is the case F-B3 forces, and §5's crossing rule restated (QP-7). In order:<br>- **E1:** if a capsule at `to` is free, the resolution is unchanged. Free means inside the floor shrunk by R, at least R from every solid, and at least 2R + GAP from everyone.<br>- **E2:** if only people make `to` unfree, run the nudge pass (SD-B7) with the arriving person as generation 1's pusher at `to`, under the same bounds. A coincident centre is pushed +x. If the result passes V1–V3, the person ends at `to` and the nudged people are displaced.<br>- **E3:** otherwise, the free point (E1's test) nearest `to` on the place's LATTICE, anchored at `floor.min + (R, R)`, ordered by (distance² to `to`, y, x). No one is displaced. `stopped_by` is the lowest-`EntityId` person whose disc covers `to`; `None` when a solid or the floor's edge does. | A crossing must end in the destination place (rule (a)). E3 always finds a point, because the capacity grid is a sub-lattice of LATTICE and SD-B4 leaves at least one capacity point free. E3's search is bounded by the floor's area over 2 500 mm², and runs only when E1 and E2 both fail. Rule (c) does not bound a crossing (ARC-39's limitation): E3 may place someone farther from the doorway point than `to`. QP-7 asks whether that is acceptable. |
 | **SD-B9** | **The guard, replacing the per-arrival reaction guard** (F-B1, QP-1 **[OM]**). At the start of every resolution that is not inert, the resolver checks the place's *current* state: every pair of positioned people at least CLEARANCE apart, and each inside the floor and out of solids (V2, V3). Every resolved arrival keeps that state, and genesis checked it. So a violation means an arrival escaped resolution: a constructor bypass (ARC-39 limitation, F-R11), or a host that registered nothing. The resolver then **panics**, naming the pair (or the person), the place, the distance and `ARC-39`. | ARC-39 item 7 bullet 3, made buildable. A reaction cannot see a whole emission list (F-B1). The state a resolution starts from is complete. It panics because a resolver returns a `Resolution` and has no error path, and `require_registered` already set that precedent for host defects (ARC-39 item 7). The check is O(n²) for the n people in one place. |
@@ -2940,4 +2940,199 @@ the tree     a superset of 12b's): Apache-2.0; MIT; MIT OR Apache-2.0; Zlib; Zli
 cross-arch   PC-g (§9.8): arm64 and x86_64-under-Rosetta give identical digests, and snapshots resume
              across them. The x86_64-apple-darwin target is installed on this machine (rustup target
              list --installed, 2026-10-07). PB-12 repeats the check with the real pack.
+```
+
+## 17.4 Acceptance (decided before measuring, `ARC-23`)
+
+Rules for every criterion below:
+- Each guarded criterion names the mutation shown to break it. A mutation is applied in the working
+  tree, observed to fail by name, and reverted. `git status` and `git grep MUTATION` are recorded
+  afterwards.
+- Every expected position is a literal from the test's own layout, never computed by the code under
+  test (test rules §25).
+- Positions that pass through Rapier are asserted to within ±1 mm of a hand-computed literal. An
+  example: a centre stopped by the east wall at x = 8 320 − 300 − 10 = 8 010.
+- The scenario room is the prototype's café: floor (0, 0)–(8 320, 10 320), with the counter (3 860,
+  6 570)–(8 320, 7 170) at height 1 100. The prototype's numbers are therefore comparable.
+
+```text
+PB-1  Nothing existing moves. On the PR head, with bodies installed and [bodies] registered by every
+      composing host:
+        - `mineworld run worlds/social-cafe --headless --seed 7 --days 300`: faults 0, 365 330 facts,
+          sha-256 of every line but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b;
+        - `mineworld run worlds/market-town --headless --seed 7 --days 300`: faults 0, 372 755 facts,
+          sha-256 = 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d;
+        - `mineworld validate` of both worlds byte-identical to the base binary's output;
+        - every existing test passes; the only edits to existing tests are QP-2's two files.
+      M-PB1  the inert rule dropped (a place without PlaceShape treated as an unbounded floor, so
+             people are nudged anywhere) → PB-21 fails, and the 300-day social-cafe sha differs from
+             the above, with `stopped-short` appearing in its summary.
+PB-2  DEP-13 and the pin. DEP-13 is committed before any code (PB-C1), and both doc checks pass.
+      `systems/bodies/tests/rapier_pin.rs`:
+        - Cargo.lock holds exactly one rapier3d, at 0.36.0, and one parry3d, at 0.31.1;
+        - `cargo metadata`'s resolved features for rapier3d include `enhanced-determinism` and exclude
+          `simd8`, `parallel` and `serde-serialize`;
+        - (BodiesSystem::VERSION, the locked rapier3d version) = (1, "0.36.0"), so an upgrade must move
+          both together (DC-5).
+      Recorded, not a test: `cargo tree -p rapier3d -e normal -f "{p} {l}"` on 12b's lock, with each
+      licence in §17.3.3's permissive set.
+      M-PB2  `parallel` added to the root line → rapier_pin fails, naming `parallel`.
+PB-3  F-P1, as unit tests in rapier.rs:
+        - (canary) a fresh world with a 0.4 m dynamic cube at z 0.800 m above the floor;
+          `detect_collisions` without the re-mark; 20 steps of 1/60 s → z is still 0.800 ± 0.001.
+          The defect is present in the pin. If this ever fails, upstream changed it, and the workaround
+          is removed deliberately;
+        - (fix) the adapter's refresh, then 20 steps → z ≤ 0.300 m (the prototype measured 0.291).
+      M-PB3  the re-mark removed from the refresh → (fix) fails.
+PB-4  Authored people are checked at load (QR-7, SD-B4), through the real `mineworld validate` on
+      test-time copies of worlds/bodies-yard (tools/cli/tests/bodies_yard.rs). Each refusal exits
+      non-zero and names its subject:
+        - two hall people 420 mm apart → "bodies-overlap", both people, "hall", "420 mm";
+        - a person whose centre is 100 mm inside the table → "bodies-in-solid";
+        - a person 200 mm from the floor's edge → "bodies-outside";
+        - a 1 300 × 1 300 mm hall in the 12-person world → "bodies-capacity", with the counts;
+        - `floor` with min.x ≥ max.x, an unknown key `wall:`, and a solid of height 0 → each refused
+          by the loader at its line and column, with bodies' own message.
+      Positive control: worlds/bodies-yard itself validates.
+      M-PB4  the pair check removed → the overlap copy validates.
+PB-5  Walls (systems/bodies/tests/scenarios.rs: a hand-built world with presence, movement and bodies,
+      through the real World::dispatch, [bodies] registered). Each case states the facts in order,
+      each caused by the walker's ActionId and emitted_by movement:
+        a  east from (7 000, 3 000) to (8 500, 3 000) → arrived (8 010 ± 1, 3 000);
+           stopped-short { wanted (8 500, 3 000), reached, by None }
+        b  north from (5 000, 5 500) to (5 000, 7 000) → arrived (5 000, 6 260 ± 1), against the
+           counter (6 570 − 310); stopped-short, by None
+        c  diagonal from (7 000, 3 000) to (8 400, 4 400) → x = 8 010 ± 1 and y > 4 010 (it slid);
+           |reached − from|² ≤ |to − from|²
+        d  a stride meeting nothing → exactly `to`, one fact, payload bytes equal to
+           Arrived::new(person, to)'s encoding (the fast path)
+PB-6  Nudging (QB-10, I-11), same file:
+        - n2: the walker goes from (2 000, 5 000) in 12 strides of +500 mm in x; B stands at (4 000,
+          5 100). B moves at least 100 mm in all. Every nudge is at most 310 mm, recorded as
+          `arrived { B }` in the walker's emission list and caused by the walker's ActionId. After
+          every request the pair is at least 595 mm apart.
+        - n3: the crowd of §9.6. At most 4 displaced per request. At least one stride is blocked. The
+          closest pair is at least 595 mm. Nobody is outside the floor.
+        - a chain that needs a third generation is blocked: the walker ends at contact (± 1 mm) with
+          the first person; nobody else moves; stopped-short names the first person.
+        - Each case's layout keeps the first person met outside BIAS_BAND, so the bias (PB-C5) does
+          not change it.
+      Generations are read from the resolver core's outcome in the same tests.
+      M-PB5  CHAIN_MAX 2 → 3 → the chain case fails: the third person moved.
+      M-PB6  NUDGE_MAX 300 → 400 → n2's bound fails, naming the nudge's length.
+PB-7  Never through a wall, never out of the place:
+        - B stands with its centre 320 mm from the east wall, and the walker comes from the west. B
+          can move only 10 mm, so the stride is blocked: the walker is at contact, B is unchanged, and
+          stopped-short names B.
+        - The same holds against the counter.
+        - Every displaced `arrived` names the walker's place.
+PB-8  Verify-then-degrade reproduces F-P6 (unit test in resolve.rs, under a test policy with the bias
+      off). The setup is R's request 551: the walker at (2 536, 782) asks for (+1 412, −1 412), and a
+      person stands at (2 970, 314) against the south wall. With verification on, the closest pair is
+      at least 595 mm and the degradation level is recorded. With the production policy (bias on),
+      the same start also passes V1–V3.
+      M-PB7  verification off → the overlap reappears (the prototype: 33 mm), naming the pair.
+      If two people alone do not reproduce the slide in the pack, the session first rebuilds the
+      prototype's full state before request 551 (15 people, its request sequence). If that still
+      cannot reproduce it, M-PB7 is INCONCLUSIVE and is replaced by a unit test of verification on a
+      fabricated overlapping candidate, recorded as a deviation.
+PB-9  The 30-day real run (tools/cli/tests/bodies_yard.rs): `mineworld run worlds/bodies-yard --headless
+      --seed 7 --days 30 --save S` → exit 0, faults 0.
+      Activity first (ARC-23), per 10-day bucket: every seat moved; at least one stopped-short; at
+      least one displaced arrival; at least one crossing in each direction. The counts are printed.
+      Then the scan. It replays positions from S's facts in EventId order and checks after each
+      request's facts:
+        - no pair in one place is closer than 595 mm;
+        - no centre is outside the floor shrunk by 295 mm, or within 295 mm of a solid (the geometry
+          is the world file's literals);
+        - every displaced arrival (an `arrived` after the first in one request's list) stays in its
+          place and moves at most 310 mm, with at most 4 per request;
+        - every stopped-short and displaced arrival is caused by the request's ActionId, with
+          emitted_by movement.
+      It prints the closest pair, its place and its revision (located, not counted).
+PB-10 The instrument sees, and bodies can be removed (I-10, AC-2 at world level). A test-time copy of
+      worlds/bodies-yard drops `bodies` from `systems` and every `body:` section (the
+      market_composition pattern). It runs 30 days with faults 0, and every seat moves. The same scan
+      reports a violation, naming the closest pair (< 595 mm), the place and the revision.
+PB-11 Determinism (tools/cli/tests/bodies_yard_restart.rs, the run_restart pattern):
+        - two processes, `--save A` and `--save B`, for 30 days: facts, journal and snapshots
+          byte-identical;
+        - SIGKILL at days 5, 15 and 25, then the same command: each survivor reports the head it
+          resumed from, with a re-executed tail > 0 at least once, and is byte-identical to A;
+        - verify from genesis passes.
+      Exclusions, as in run_restart: the victim's status is a signal, it printed no summary, and its
+      head is short of A's.
+      M-PB8  an impure resolver (a process-global counter's parity added to GAP) → a survivor is
+             refused (ReplayDiverged), or its rows differ.
+PB-12 Cross-architecture (recorded real evidence, Gate 2's role; no committed test). An
+      x86_64-apple-darwin build of `mineworld`, run under Rosetta (`arch -x86_64`):
+        - the 30-day bodies-yard run's summary sha-256 (every line but `wall`) equals arm64's;
+        - an arm64 save written to day 15, resumed by the x86_64 binary to day 30 → the same sha as
+          arm64's uninterrupted 30-day run, and it reports resuming at the save's head;
+        - the reverse: an x86_64 save at day 15, resumed by arm64.
+      If the CLI cannot be cross-built (rusqlite's bundled C), the fallback is the pack's
+      scenarios and long_run test binaries built for x86_64 and run under Rosetta, with their
+      printed digests compared. That is recorded as PARTIAL, never as PASS.
+PB-13 QB-16, the head-on bias (decided now, measured in PB-C5). Scenario n1, in the café room: A at
+      (2 000, 5 000), B at (6 320, 5 000). They alternate requests: A asks +500 mm in x from where
+      presence says A stands, B asks −500 mm. Twelve requests each.
+        HB-1  after the 24 requests, A.x > B.x: they have passed each other;
+        HB-2  after every request: the pair is at least 595 mm apart, every nudge is at most 310 mm,
+              and both centres are inside the floor shrunk by 295 mm;
+        HB-3  n2 and n3 still meet PB-6, and in n2 the walker ends east of B;
+        HB-4  n1–n3's final states and fact digests are byte-identical in two processes.
+      M-PB9  BIAS_BAND = 0 → HB-1 fails: A.x < B.x at the end (F-P7 reappears).
+      If HB-1 fails with the frozen constants, a ladder is fixed now. It is recorded as a bounded
+      deviation, and the criterion does not change:
+        BIAS_TURN (2, 1), i.e. 26.6°; then BIAS_BAND 300 mm; then both.
+      If none passes, that is a material stop: QB-16 returns to the operator with the traces.
+PB-14 Cost (QB-11; recorded real evidence).
+        a  systems/bodies/tests/long_run.rs: the prototype's 3 000-request sequence without props (the
+           café room, 15 people), through World::dispatch. A committed test: N-1 … N-4 hold after
+           every request, the closest pair is located, and the final digest is the same in two
+           processes. Its release run (`cargo test --release -p mineworld-bodies --test long_run --
+           --nocapture`) prints the mean time per move that reaches Rapier, and the fast-path share.
+           Target ≤ 61 µs. PASS ≤ 100 µs (PC-d's budget). FAIL above it.
+        b  300 days of bodies-yard, seed 7, in the dev profile, as `mineworld run` is measured
+           (ARC-30): with bodies, and as PB-10's copy without, two runs each, consecutive, on one
+           machine. PASS iff max(with) ≤ 1.5 × min(without), and faults are 0 in all four.
+           If it fails: QP-9's remedy if the operator approved it at freeze, otherwise a material stop
+           with the numbers.
+PB-15 Structural (systems/bodies/tests/isolation.rs; and the existing scans):
+        - in systems/bodies/src, only rapier.rs names `rapier`;
+        - no code file (*.rs, Cargo.toml) outside systems/bodies names `rapier3d`, except the root
+          Cargo.toml's one dependency line;
+        - component.rs, event.rs and section.rs hold no f32 or f64 (I-3);
+        - bodies' dependencies name no System Pack other than presence;
+        - seam_vocabulary passes with QP-2's admission, and that admission fails if unused;
+        - ac1_composability 13/13 and precursor_vocabulary 4/4 pass unedited;
+        - presence's and movement's own structural scans pass unedited.
+      Planted: `use rapier3d as _;` in resolve.rs → the first bullet fails, naming the file. Removed.
+PB-16 Disclosure (pack test): an observer in the hall is told the hall's `place-shape`, i.e. the
+      floor and solids as authored literals. The court's shape is not in that observation.
+PB-17 The guard (SD-B9, QP-1). A test-only stating pack in bodies' tests states `Arrived::new` directly,
+      bypassing `arrivals` (F-R11), and so puts bob 200 mm from alice in a shaped place. The next
+      `move` into that place panics, and the message names alice, bob, the place, "200 mm" and ARC-39.
+      M-PB10 the guard removed → no panic.
+PB-18 Entry placement (SD-B8), each case through movement's crossing in a hand-built two-place world:
+        a  onto a free doorway point → exactly there; no stopped-short;
+        b  onto a point occupied by one person → that person is nudged ≤ 310 mm, and the crosser is
+           at the point;
+        c  onto a point where the nudge fails (the occupant is backed against the floor's edge) →
+           the crosser is at the nearest free lattice point (a literal from the layout), with
+           stopped-short { wanted, reached, by: the occupant };
+        d  onto a `to` inside a solid → the nearest free point, by None.
+      After each, every pair is at least 595 mm apart.
+      M-PB12 E3 returns `to` → case c fails, naming the pair.
+PB-19 Inert where absent (I-13). In a world with bodies installed:
+        - every `move` into a place without `body:` records exactly Arrived::new's bytes;
+        - so does a `move` whose `to` has no local position.
+      This is checked across the 12-move script of 12a's RS-7, so the two seams agree.
+PB-20 Scope and the gate:
+        - `git diff --name-only <base>...HEAD` ⊆ §17.1's change set;
+        - the no-diff paths are empty;
+        - Cargo.lock adds packages and changes no existing package's version;
+        - `cargo fmt --check` and `cargo clippy --workspace --all-targets --all-features -D warnings`
+          are clean;
+        - the full workspace gate runs once, on the final executable head.
 ```
