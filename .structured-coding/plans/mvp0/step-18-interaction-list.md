@@ -841,7 +841,23 @@ tests/acceptance/tests/configuration/mod.rs   NEW: test-only packs test-tuning a
 tests/acceptance/tests/configuration_seam.rs  NEW: genesis, dispatch, persistence, SIGKILL, drift
 tests/acceptance/tests/configuration_vocabulary.rs  NEW: the scan of §11.4 IA-8
 .structured-coding/plans/mvp0/{step-18-interaction-list,handoff-il-a}.md
+sdk/rust/tests/extensions.rs         NEW (QIA-6): the test-local two-catalog installed! of IA-5
+tests/acceptance/Cargo.toml          AMENDMENT A-1 (below): two dev-dependencies
+Cargo.lock                           AMENDMENT A-1: exactly two lines in mineworld-acceptance's list
 ```
+
+**Amendment A-1 (primary session ruling, 2026-10-08, during implementation) — a design gap the planning
+session missed.** IA-C7's test-only packs live in `tests/acceptance`, but that crate depended on neither
+`mineworld-authoring` (`PackConfiguration`, `AuthoredSection`) nor `mineworld-sdk` (`SystemPack`,
+`installed!`, `configures!`), and no crate it depends on re-exports them (`git grep "pub use
+mineworld_authoring\|pub use mineworld_sdk"`: only `SectionOwner` and `ContentKind`). §11.1 listed only
+test files there. Reported as a material stop (Cargo.lock); the ruling, verbatim in substance: "your
+smallest revision is approved, as a bounded amendment to IL-a's change set": add both, `{ workspace =
+true }`, to `tests/acceptance/Cargo.toml` `[dev-dependencies]` with a comment; `Cargo.lock` changes by
+exactly those two dependency-list lines in `mineworld-acceptance` — no new package, no version change,
+nothing else — shown with the lock diff; IA-7's PersistentWorld/SIGKILL proof stays in acceptance.
+Checks required by the ruling: `ac1_composability` and the I-2 scan pass unedited; AC-1 check 2 sees no
+path from tests/acceptance to a market pack through the two new dev-dependencies.
 
 **Paths with no diff:**
 - `kernel/`, `contracts/`, `persistence/`, `server/`, `clients/`, `cognition/`;
@@ -999,10 +1015,21 @@ two-line follow-up if the primary session prefers.
   - §9 (configuration schema → ARC-61).
 - `systems/README.md` (`:80`); `docs/MVP_STATUS.md` (row `:31`'s wording, one row).
 
-- [ ] Implementation
-- [ ] Validation: both doc scripts; cross-references by grep.
-- [ ] Review: no defined term redefined; ARC-61 states its limitations (content drift unchecked;
-  configuration is not a rule, `MODULE_SPEC.md` §4 constraint 3).
+- [x] Implementation: ARC-61, ARC-62 appended to `DECISIONS.md`; ARC-39 "Note 3" (the line's new
+  spelling, no rule changed); `MODULE_SPEC.md` §3.1 (trait table row, presence's line respelled, new
+  "Extension catalogs" and "A configurable pack" paragraphs), §4 model (`configure/`), §4.1
+  (`configure:` in the manifest, a "Configuration" paragraph with every refusal and drift, the genesis
+  order), §9 (configuration schema → ARC-61); `systems/README.md`; `MVP_STATUS.md` (row wording, one
+  new row); `handoff-il-a.md` created.
+- [x] Validation: `check_doc_headings` → 177 sections / 25 documents, none duplicated;
+  `check_decision_ids` → 55 ids distinct (53 + ARC-61, ARC-62). ARC-61/62 free on every `origin/*`
+  branch (`git show <b>:docs/DECISIONS.md` over `git branch -r`, after `git fetch`, 2026-10-08: none).
+  `git grep "resolution:"` in docs: only ARC-39's historical items (covered by Note 3) and ARC-62's own
+  account of what it replaces.
+- [x] Review: no defined term redefined — "configuration", "extension catalog", "reserved key" are new
+  words in `MODULE_SPEC.md` §3.1/§4.1, not ontology terms; ARC-61's limitations state that content
+  drift is unchecked and that configuration is not a rule (§4 constraint 3); the reserved keys and
+  QIA-4 guidance are recorded as ruled.
 
 ### IA-C2 — `authoring`: the configuration contract
 
@@ -1186,6 +1213,33 @@ MATERIAL STOP       an edit outside §11.1's change set, above all in kernel/con
 
 ```text
 E-IA-d  2026-10-08, design commit: check_doc_headings and check_decision_ids, recorded at commit.
-E-IA-0  (implementation) base captures, before IA-C2: the towns' 300-day fingerprints, bodies-yard's sha,
-        long_run's bytes, the three validate outputs
+E-IA-0  2026-10-08, captured on f6489fd (code = main @ 0d35d6b; the branch's diff from 0d35d6b outside
+        .structured-coding/ is empty), dev profile, before IA-C2, by target/il-a/capture.sh base
+        (artifacts target/il-a/base-*; "sha" = sha-256 of every output line but `wall`):
+        social-cafe `run --headless --seed 7 --days 300`: exit 0, 339 lines, faults 0, 365 330 facts,
+          fingerprint 59339a9c281829c9, sha ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+          (= the S9 E-0), wall 16.6 s
+        market-town, same: exit 0, 355 lines, faults 0, 372 755 facts, fingerprint 085ed9c55cae7947,
+          sha 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d, wall 24.5 s
+        bodies-yard `--days 30`: exit 0, 52 lines, faults 0, 62 855 facts, fingerprint e9398cf4e97ecaf2,
+          sha 6e4c4015077924b6747184dd0107164654cefc11532375aff3a9d94a4d7c8395
+        long_run (BODIES_LONG_RUN_SECOND_PROCESS=1 cargo test -p mineworld-bodies --test long_run --
+          --nocapture): exit 0, LONG-RUN line 4 091 748 bytes, sha
+          d7025dbcdb63c0aa5162c10552f43e2650d24e510dc67f4662ac30d1b2479eaf (= 12c's PO-13 b reference)
+        validate: social-cafe 27 lines sha ebcd60a0…f56a8, market-town 51 lines sha 64f41086…73502,
+          bodies-yard 40 lines sha 7356b8f8787f4e24e23120acfddc278bb4815d12f93a3eea60534bd73a12063f
+        PASS (captured; the towns' values equal the recorded references, so no 12d re-baseline applies).
+```
+
+## 11.12 Deviations
+
+```text
+D-1  (bounded, accepted by the primary session 2026-10-08) authoring's unit tests decode through
+     serde::de::value deserializers, not serde_json and serde_saphyr: either would be a new dev-dependency
+     of mineworld-authoring and so a Cargo.lock change. Decoding through serde_saphyr with line and column
+     is proven in worldpack (which already depends on it), IA-3.
+D-2  (bounded, accepted) sdk/rust/tests/extensions.rs's second catalog is a test-local trait, not
+     presence's: the sdk cannot depend on presence (it sits below every pack, ARC-33). IA-5's presence
+     half is held by worldpack/tests/registration.rs and arrival_resolvers*.rs, unedited.
+D-3  (material, ruled) Amendment A-1, §11.1.
 ```

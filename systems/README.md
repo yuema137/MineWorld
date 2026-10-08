@@ -76,10 +76,12 @@ by naming it in its `systems:` list. Installing always means a rebuild in MVP-0;
 [`DECISIONS.md` `ARC-33`](../docs/DECISIONS.md).
 
 A pack that changes what an arrival achieves — where a person ends up, or who else is moved — does
-not edit `movement` or `presence`. It implements presence's `ArrivalResolver`, is listed on the
-installed set's `resolution:` line as well as its own, and calls `require_registered` in `install`
-([`../docs/MODULE_SPEC.md`](../docs/MODULE_SPEC.md) §3.1,
-[`DECISIONS.md` `ARC-39`](../docs/DECISIONS.md)).
+not edit `movement` or `presence`. It implements presence's `ArrivalResolver`, is listed on
+presence's `extension` line in the installed set as well as on its own line, and calls
+`require_registered` in `install` ([`../docs/MODULE_SPEC.md`](../docs/MODULE_SPEC.md) §3.1,
+[`DECISIONS.md` `ARC-39`, `ARC-62`](../docs/DECISIONS.md)). Any pack can open such a catalog for a
+trait it owns with one more `extension` line; a pack can also take a world-level configuration file
+(`configure/<id>.yaml`, `ARC-61`).
 
 ```sh
 cargo test -p mineworld-presence

@@ -3284,6 +3284,14 @@ where this note refines item 7 for objects.
    presence alone, a world may install `bodies` without `item`, and in such a world the answer is "not
    declared".
 
+**Note 3, 2026-10-08 (S17, PR IL-a; `ARC-62`, QPL-10) — the installed set's line has a new spelling.**
+The `resolution:` line of `installed!` and `Capability::resolvers()` are replaced by `ARC-62`'s generic
+extension line, `extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers:
+[mineworld_bodies::BodiesSystem,];`, and `worldpack::compose` registers it through
+`Capability::register_extensions()`. No rule of this decision changes: the catalog, its write-once
+storage, `require_registered`, the order resolvers are asked in and every fact are as items 1–8 state.
+Where items above say "the `resolution:` line", read "presence's extension line".
+
 ---
 
 ## DEP-13 — Server physics: Rapier (`rapier3d`, `enhanced-determinism`) inside the `bodies` pack
@@ -3527,3 +3535,147 @@ the build. `Cargo.lock` gains three packages: the two and `mineworld-packages`. 
 
 **Accepted limitations and the revisit trigger.** A registry (the publishing sense of Milestone E,
 non-goal) brings version selection, which is a solver's problem and is not solved here; revisit then.
+
+---
+
+## ARC-61 — A System Pack may be configured per world, by a file its owner types
+
+**Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List": the
+carrier stays `configure:`; QPL-2, QPL-12) and the primary session at PR IL-a's design freeze
+(step-18-interaction-list §11; QIA-1 … QIA-6 accepted as recommended) · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1, §9 (configuration schema) · **Relates to** `ARC-15`,
+`ARC-25`, `ARC-26`, `ARC-31`, `ARC-33`, `ARC-62`, `DEP-10`, `INV-13` · **Design**
+`.structured-coding/plans/mvp0/step-18-interaction-list.md` §4.3, §4.10, §11 (S17, PR IL-a)
+
+**Problem.** A System Pack's numbers and policies (a range, a capacity, a step) are compiled
+constants. A world that wants another value has nowhere to say so: `world.yaml` names packs but carries
+nothing for them, and a section (`ARC-31`) belongs to one person, place, item or organization, not to
+the world. The S17 Interaction List (`ARC-63` onward) needs each pack to accept a world-level document
+it types and enforces itself. Three constraints bound the answer: the loader must not learn what a
+configuration means (`ARC-31`'s rule, one level up); a world that configures nothing must load exactly
+as before, fact for fact; and a save must never resume against a configuration other than the one it
+was created with, because resume does not re-read content (`ARC-25`).
+
+**Choice.**
+
+1. **The contract is `mineworld_authoring::PackConfiguration`**, beside `AuthoredSection`:
+
+   ```text
+   trait PackConfiguration: SystemIdentity
+     type Configuration: DeserializeOwned + Debug + Send + Sync + 'static   deserializing is validating
+     const FACTS: &'static [EventTypeId]       the event types its configuration may seed
+     fn references(&Configuration) -> Vec<Reference>    entity keys it names (default none)
+     fn requires(&Configuration) -> Vec<SystemId>        systems that must also be enabled (default none)
+     fn seed(&Seeding, &Configuration) -> Result<Vec<Emission>, Rejection>
+   ```
+
+   A configuration has no subject, so `seed` takes none. The loader holds a decoded configuration type
+   erased, as `AuthoredConfiguration` (owner, references, requires, seed), produced by the
+   `DecodeConfiguration<T>` `DeserializeSeed` — exactly as `AuthoredContent` and `Decode` hold a
+   section.
+2. **A pack says it is configurable in its `impl SystemPack`**, with `mineworld_sdk::configures!();`,
+   which defines `CONFIGURATION` (`Some(<its own id>)`), `CONFIGURATION_FACTS` (its `FACTS`) and
+   `decode_configuration` together from the `PackConfiguration` impl. The defaults are the safe
+   direction: `None`, no facts, and a decode that refuses "the '<id>' system takes no configuration".
+   The installed set's `Capability` aggregates them: `configuration`, `decode_configuration`,
+   `configuration_facts`.
+3. **The carrier is `world.yaml` `configure:`**, an optional list of keys. Each key is a system id and
+   names `configure/<key>.yaml`, decoded straight from the YAML stream into the owner's type, so a
+   refusal keeps its line and column (`DEP-10`). The list's order is the author's and is the seeding
+   order. Absent means empty.
+4. **Reserved keys.** `classes` (the Interaction List's entity classes, `ARC-64`, IL-b) and `packages`
+   (the licence-policy override hook of S16 E-b, FQ-b2) are reserved: listing either is refused,
+   "reserved for <what>; not configurable in this build". Both are wired in IL-b. A test holds that no
+   installed pack's id is a reserved key.
+5. **Refused by name**, each naming the key and the file, with line and column where a YAML value is
+   involved: a key that is no system of this build; a system the world does not enable; a system that
+   takes no configuration; a reserved key; a key listed twice; a listed file missing; a `.yaml` file in
+   `configure/` that is not listed; a `requires` system not enabled; a reference to an undeclared
+   entity or one of another type; a configuration the owner's `seed` refuses; a seeded fact in another
+   pack's vocabulary or of an event type outside the owner's `FACTS`; and configuration drift (item 7).
+   Malformed YAML is the loader's existing `Malformed`.
+6. **Seeding order.** Genesis states passages, then locations, then **configuration, in `configure:`
+   order**, then sections. A section's reduction may therefore check its value against the configured
+   state (the step a value must be a multiple of, the range it must lie within); it is reduced after it.
+   A world without `configure:` takes no new branch and seeds exactly what it seeded before this
+   decision: its ids, facts and digests do not move.
+7. **Drift is refused at resume** (QPL-12). Every host that resumes or verifies a save from a World Pack
+   — `mineworld run` resuming, `mineworld server --save`, `mineworld replay` — first calls
+   `WorldPack::check_configuration(saved genesis facts)`. It assembles the world, seeds the configuration
+   as genesis would, and compares, in order, the event type, the record and the visibility of every
+   genesis fact whose type is in the union of the enabled packs' `configuration_facts`, on both sides.
+   The first difference is `PackError::ConfigurationDrift { system, saved, here }`. Configuration added
+   and configuration removed are both drift. Nothing in `persistence/` or the kernel changes: the
+   comparator reads the save's genesis facts through the existing backend.
+8. **The configuration facts' audience is guidance, not a loader rule** (QIA-4). An owner states its
+   configuration facts `Visibility::SystemInternal` with no subjects: a world's configuration is
+   nobody's perception and nobody's biography (`INV-13`). The loader does not enforce it, because a
+   loader rule over visibility would be the loader judging a pack's vocabulary.
+
+**Not in this decision.** What any pack's configuration says: the Interaction List's schema, classes
+and sections (`ARC-63` … `ARC-65`, IL-b onward). Wiring `configure/packages.yaml` into the licence
+policy (IL-b). Drift in content other than configuration — a renamed person, a moved table — which is
+not checked (QPL-12's scope).
+
+**Accepted limitations.**
+- Configuration is not a rule. `MODULE_SPEC.md` §4 constraint 3 holds: a configuration parameterizes and
+  restricts what its owning pack implements; it never adds behaviour no installed pack has.
+- Resume still does not re-read content, so content drift outside configuration is still accepted
+  silently, as before this decision.
+- A configured pack's declaration does not change, so configuring a pack does not change its
+  `SystemVersion`; a pack whose configuration *schema* changes raises it, as for any owned type.
+
+---
+
+## ARC-62 — Extension catalogs: a pack-owned trait, implemented by other packs, listed in the installed set
+
+**Date** 2026-10-08 · **Approved by** the operator (QPL-10: presence's `resolution:` line migrates to the
+generic form, with no shim) and the primary session at PR IL-a's design freeze (step-18-interaction-list
+§11) · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1 · **Relates to** `ARC-33`, `ARC-39`,
+`DEP-12`, `ARC-61` · **Design** `.structured-coding/plans/mvp0/step-18-interaction-list.md` §11;
+`step-18-physics-list.md` §4.7 (S17, PR IL-a)
+
+**Problem.** `ARC-39` let other packs plug code into presence through `ArrivalResolver`, and spelled the
+build's list as a hard-wired `resolution:` line of `installed!`, expanded into `Capability::resolvers()`
+and registered by a call to `mineworld_presence::register_resolvers` that `worldpack::compose` makes by
+name. The S17 Interaction List needs a second such catalog (`bodies`' interaction kinds, IL-i), and any
+pack may need one later. A second hard-wired line would edit the SDK and the loader again for every
+catalog — the change amplification `CLAUDE.md` §4 rule 5 forbids. Two real catalogs earn the
+abstraction (rule 11).
+
+**Choice.**
+
+1. **One generic line per catalog.** `installed!`'s grammar is `perception: <path>;`, then zero or
+   more lines
+
+   ```text
+   extension <trait path> => <register fn path>: [ <type>, … ];
+   ```
+
+   then the pack lines. Each listed type must implement the trait and `Default`; one that does not is
+   refused by the compiler, at the list.
+2. **What it expands to.** `Capability::register_extensions()` calls each line's register function once,
+   with one value of each listed type, `Box<dyn Trait>`, lines in listed order and types in listed
+   order. `Capability::extension_types()` returns each line's trait path and its types' Rust paths, for
+   the installed set's own guard. The `resolution:` arm and `Capability::resolvers()` are deleted, with
+   no shim (`CLAUDE.md` §4 rule 12).
+3. **The loader calls one function.** `worldpack::compose` calls `Capability::register_extensions()`;
+   neither the SDK nor the loader names a trait or a pack again. A third catalog is a line in
+   `systems/installed` and nothing else.
+4. **The catalog stays its owner's.** The register function, its storage and its rules belong to the
+   pack that owns the trait. `ARC-39` item 5's rules carry over to every catalog: write-once and
+   process-wide, registered before any world is assembled, a different list for one trait refused
+   naming both; an implementation is pure (reads only what it is handed), keeps nothing, and is inert
+   where its pack's state is absent, so a world that does not enable the implementing pack is
+   unaffected.
+5. **The installed set guards its lines.** A test refuses a type on an extension line that is not an
+   installed pack, and a type listed twice on one line, naming each.
+6. **Presence's catalog is the first line**, byte-identical in behaviour:
+   `extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers:
+   [mineworld_bodies::BodiesSystem,];`. Installing a pack that implements a catalog's trait is `ARC-33`'s
+   two lines plus one entry on that catalog's line.
+
+**Accepted limitations.** A catalog is per process, not per world (`ARC-39`'s limitation, unchanged):
+per-world applicability comes from the world enabling the implementing pack, or from its configuration
+(`ARC-61`). Disabling a pack at run time while its implementation is registered is not supported
+(QB-17).
