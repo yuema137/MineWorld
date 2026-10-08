@@ -74,6 +74,12 @@ by naming it in its `systems:` list. Installing always means a rebuild in MVP-0;
 [`../docs/MODULE_SPEC.md`](../docs/MODULE_SPEC.md) §3.1 and
 [`DECISIONS.md` `ARC-33`](../docs/DECISIONS.md).
 
+A pack that changes what an arrival achieves — where a person ends up, or who else is moved — does
+not edit `movement` or `presence`. It implements presence's `ArrivalResolver`, is listed on the
+installed set's `resolution:` line as well as its own, and calls `require_registered` in `install`
+([`../docs/MODULE_SPEC.md`](../docs/MODULE_SPEC.md) §3.1,
+[`DECISIONS.md` `ARC-39`](../docs/DECISIONS.md)).
+
 ```sh
 cargo test -p mineworld-presence
 cargo test -p mineworld-movement          # walking, TooFarAway, and AC-2 with its negative control

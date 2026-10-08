@@ -2101,12 +2101,23 @@ on every `origin/*` branch (it was on 2026-10-07, §16.10).
 
 **Depends on:** freeze. **Non-goals:** no code; no DEP-13 (12b); no bodies bound in ARC-39 (QR-11).
 
-- [ ] Implementation: ARC-39; MODULE_SPEC §3.1; systems/README.
-- [ ] Validation: both doc checks (ids distinct, headings unduplicated); cited sections exist.
-- [ ] Review: ARC-39 answers problem / options / choice / why / accepted limitations; it states the
-  runtime-disable limitation in its own words (QB-15 bound 3), the tests-without-compose behaviour, the
-  process-wide catalog as a named exception (F-R14), and uses `stopped-short`, `Arriving` — never a word
-  of RS-13's vocabulary except where it names the S15 step it serves. No defined term is redefined.
+- [x] Implementation: ARC-39 appended after ARC-38 (`docs/DECISIONS.md`); MODULE_SPEC §3.1 "A pack
+  that resolves arrivals" (the `resolution:` line, three lines to install a resolver pack, its two
+  duties); `systems/README.md` "Adding a pack": one paragraph. ARC-39 confirmed free on every
+  `origin/*` ref after `git fetch` (E-RS1).
+- [x] Validation: both doc checks pass (E-RS1); cited sections exist: ARCHITECTURE §7 (event
+  sourcing) and §8 (persistence), ENGINEERING_RULES §15 ("Do not introduce hidden global state"),
+  MODULE_SPEC §3.1.
+- [x] Review: ARC-39 has problem / options (a)–(e) / choice items 1–8 / accepted limitations; the
+  runtime-disable limitation has its own paragraph in its own words; "Tests that compose worlds by
+  hand" is its own paragraph; item 5 names the catalog as the one process-wide value, its three entry
+  points and why it is not world state (F-R14). The diff, scanned for RS-13's vocabulary
+  (`git diff -U0 docs/ systems/README.md | grep -i 'bod|physic|rapier|nudg|collision|collid|capsule|jolt'`),
+  matches only the step's name and file name ("Step S15 (bodies and physical interaction)",
+  `step-11-bodies.md`) and the word `nobody`; one "physical consequence" in the limitations was
+  reworded before commit. No defined term redefined: `Person`, `Place`, `Event`, `System`, `World
+  Pack` are used in their CORE_CONCEPTS sense; `Arriving`, `Resolution`, `stopped-short` are new
+  names of presence's, not synonyms of a defined term.
 
 **Commit boundary.** Documentation only.
 
@@ -2251,7 +2262,7 @@ written again here (about twenty lines) rather than moved, so the I-2 scan's fil
   checkboxes; §16.10; the handoff.
 - [ ] Review: RS-1 … RS-16 each with evidence; deviations listed in §16.11.
 
-**PR 12a lifecycle:** not started.
+**PR 12a lifecycle:** IN PROGRESS (12a session, branch `mvp0/pr-12a-resolver-seam` from main @ 6d48e03).
 
 ## 16.6 Test ownership
 
@@ -2389,6 +2400,21 @@ E-RS0 RS-C0, 2026-10-07, planning session, on main @ fea2516's code (b8afd4f cha
         duplicated. `python3 scripts/check_decision_ids.py` → 49 decision ids, all distinct.
       No cargo test run: this commit is documentation only. The two runs fix RS-1's references, not a
         gate.
+
+E-RS-base  12a session, 2026-10-07, before any edit, on main @ 6d48e03 (b8afd4f + #53, Markdown only).
+      `cargo build -p mineworld-cli` 30.6 s; target/debug/mineworld copied to
+      /tmp/s15-12a/base-mineworld (sha-256 1f9ade07…993b). With it:
+      `validate worlds/social-cafe` and `validate worlds/market-town` → exit 0, outputs kept as
+        /tmp/s15-12a/base-validate-{social-cafe,market-town}.txt (RS-1's validate reference);
+      `run worlds/social-cafe --headless --seed 7 --days 2 --save /tmp/s15-12a/B.mwsave` → exit 0,
+        faults 0, 2 647 facts; `inspect B` → "systems presence v2, movement v1, …", head revision
+        1933; B's world.sqlite sha-256 ebe3a0c9…135b, a pristine copy kept as B.orig.mwsave (RS-2).
+
+E-RS1 RS-C1, 2026-10-07. `git fetch origin`; `git show <ref>:docs/DECISIONS.md | grep 'ARC-39\|ARC-4[0-9]'`
+      over every refs/remotes/origin/* → no match: ARC-39 free.
+      `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
+        duplicated. `python3 scripts/check_decision_ids.py` → 50 decision ids, all distinct (49 + ARC-39).
+      PASS. Documentation only; no cargo run.
 ```
 
 ## 16.11 Deviations and discoveries during implementation (12a session)
