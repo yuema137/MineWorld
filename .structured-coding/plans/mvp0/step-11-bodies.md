@@ -1804,13 +1804,34 @@ recorded facts, which the resolver must predict (bodies' object pushes, §4.5.4)
 
 ---
 
-# 16. PR 12a — the arrival-resolver seam (full design; not frozen)
+# 16. PR 12a — the arrival-resolver seam (full design; DESIGN FROZEN 2026-10-07)
 
 ## 16.0 Freeze record
 
-Not frozen. Detailed by the planning session on `mvp0/s15-12a-plan`, from `main @ b8afd4f` (11f merged as
-`fea2516`; the S9 closeout #52 merged after it and changed Markdown only). A freeze record written here by
-the primary session binds and overrides any other text in §16.
+**DESIGN FROZEN (2026-10-07), primary session.** The execution contract (§16.9) is confirmed. This
+record binds and overrides any other text in §16.
+
+The design was detailed by the planning session on `mvp0/s15-12a-plan`, from `main @ b8afd4f`. That
+base has 11f merged as `fea2516`; the S9 closeout #52 merged after it and changed Markdown only.
+
+- **QR-2 — accepted. This is the primary session's call, not the operator's.**
+  - The VERSION 3 bump updates the three "presence v2" test literals. Their claim is unchanged,
+    under the same rule as step-09 I-5. RS-1 reads "every existing test passes, the three named
+    literals updated with unchanged claims".
+  - The operator's QB-15 decision chose start-up registration. The test literals are mechanics
+    below that decision.
+- **QR-4 — accepted as recommended. This is the primary session's call.** The "fails loudly" bound
+  in the step freeze record was written by the primary session, not by the operator. Its intent is
+  that a resolver must never be silently skipped, and it is met as follows:
+  - `compose` always registers the catalog.
+  - A resolver pack panics at install if the catalog is missing or does not list it.
+  - A host with no resolver pack runs as it does today.
+  - RS-9 and its mutation prove the panic.
+- **QR-1, QR-3, QR-5 … QR-12 — accepted as recommended.** This includes the renames to `Arriving`
+  and `stopped-short`, the amendment that makes 12b own overlapping-at-genesis, and real cross-build
+  evidence for the save refusal.
+- **Merge:** a merge commit. **Implementation:** in a fresh session on `mvp0/pr-12a-resolver-seam`,
+  in its own worktree.
 
 This section refines §4.4, §4.4.9, §8.2, §10.1 and §11.1's 12a row from source. Where they and §16
 disagree, §16 governs, and each difference is named with the finding that caused it (§16.2) and the
