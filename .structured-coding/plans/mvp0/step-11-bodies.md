@@ -3814,6 +3814,45 @@ E-PB7 PB-C7, 2026-10-07, working tree on 1b86701 + PB-C7's paths.
         FAILED: the day-5 survivor "replay diverged at revision r5121: fact 9859 differs from the
         logged fact 9859". Reverted; `git grep -n MUTATION` empty.
       clippy (-p mineworld-cli -p mineworld-bodies, two type aliases in the scan) and fmt clean.
+
+E-PB8 PB-C8 (partial — stopped at PB-14(b), a material stop), 2026-10-07, on db64471's code.
+      PB-12 (cross-architecture; recorded real evidence). `cargo build -p mineworld-cli --target
+        x86_64-apple-darwin` (online once: `--offline` lacked an x86-only crate; Cargo.lock unchanged)
+        34.1 s → Mach-O x86_64. arm64 binary rebuilt at the same code. Logs /tmp/s15-12b/pb12/.
+        (a) `run worlds/bodies-yard --headless --seed 7 --days 30`: arm64 and `arch -x86_64` x86_64
+            each exit 0, faults 0, 59 619 facts; sha-256 of every line but `wall` =
+            3a2c3322bcebc39e8d50e2969cfe25bd73da36e743a64f728b567337fb5eaa9d for both. Wall 2.0 s and
+            3.3 s.
+        (b) arm64 save to day 15, resumed by x86_64 to day 30: "resumed … at revision 15434 (snapshot
+            15424 + 10 re-executed)", history 59 619 facts, fingerprint 8dd003dddc41858d = the arm64
+            uninterrupted run's; then arm64 `replay` of that save: "30804 revision(s) re-executed from
+            genesis, 59619 fact(s) and 482 snapshot(s) reproduced byte for byte".
+        (c) the reverse: x86_64 save to day 15, resumed by arm64 — the same resume line and history;
+            x86_64 `replay` of it reproduces byte for byte. And x86_64 `replay` of the arm64
+            uninterrupted save: byte for byte.
+        PASS (under Rosetta; a native x86_64 host remains S13's).
+      PB-14 (a) (release): `cargo test --release -p mineworld-bodies --test long_run -- --nocapture`
+        (19.6 s with the build): 2 548 moves; 1 302 reached Rapier, mean 45.9 µs per such move (target
+        about 61, PASS ≤ 100); the fast path answered 1 246 (48.9 %); closest pair 600 mm; 4 091 738
+        bytes identical in a second process. PASS. (Dev, E-PB7: 38.9 µs.)
+      PB-14 (b) (dev profile, 300 days, seed 7, one machine, consecutive; 300-day runs 3–6 and 7–10 of
+        the budget — the second four are QP-9's re-measurement):
+        with bodies (worlds/bodies-yard)          19.4 s, 19.3 s   faults 0, 0
+        without (PB-10's copy, target/tmp/…)       9.4 s,  9.4 s   faults 0, 0
+        max(with) / min(without) = 2.06 > 1.5. FAIL.
+        QP-9's remedy, applied as permitted: `[profile.dev.package.rapier3d]` and `.parry3d`
+          `opt-level = 3` in the root manifest; rebuilt (16.5 s); with 19.1 s, 19.2 s; without 9.3 s,
+          9.3 s — still 2.06×. Every printed line but `wall` identical with and without the override
+          (`diff`), for both worlds. The remedy does not move the bound, so the root-manifest edit was
+          reverted rather than kept without its justification. FAIL with QP-9 → material stop (§17.9).
+        Where the time goes (from the runs' own summaries): both worlds ask the same — 345 600
+          consults, ≈ 158 000 moves and ≈ 150 600 talks accepted. With bodies, 99 499 moves end
+          stopped short (63 %) and 70 262 displaced arrivals are recorded: 599 401 facts against
+          429 606. The paced controller's wander (±1 400 mm a stride) knows no walls, so in two
+          walled rooms most moves reach a wall and are swept; the long run puts a swept move at about
+          40 µs (dev) and a fast-path move far below it, and each extra fact is recorded, reduced and
+          fingerprinted. ≈ 9.9 s over ≈ 158 000 moves is ≈ 62 µs per move.
+      Not run, pending the decision: PB-1 on the final head and M-PB1's 300-day half; the full gate.
 ```
 
 ## 17.11 Deviations and discoveries during implementation
@@ -3898,3 +3937,25 @@ fails-if-unused rule.
 print "the closest pair, its place and its revision". A stored fact carries its `EventId`, its
 instant and its cause, not the journal revision that produced it. The scan names the request
 (`ActionId`) and the instant, which locate the same moment in the save without reading the journal.
+
+**DB-10 — MATERIAL STOP: PB-14(b) fails, with QP-9's remedy applied (E-PB8).**
+- Criterion (fixed before measuring): 300 days of bodies-yard in the dev profile, max(with bodies) ≤
+  1.5 × min(without). Measured 19.4 / 19.3 s against 9.4 / 9.4 s: 2.06×. With QP-9's opt-level 3 for
+  rapier3d and parry3d: 19.1 / 19.2 s against 9.3 / 9.3 s, still 2.06×, outputs identical. §17.9 makes
+  this a material stop; the override is reverted, the root manifest is untouched.
+- What the evidence says: the cost is the world, not a defect. Both runs ask the same requests; with
+  bodies, 63 % of moves end stopped short at a wall or a person and 70 262 people are nudged, so
+  nearly every move is swept and 170 000 more facts are recorded. Release cost per swept move is
+  45.9 µs (PB-14 a, PASS). Every other criterion that ran passed.
+- Options for the decision (none taken):
+  1. Read QB-11's bound as it was meant (step-11 §13: "measured in 12c and 12d", against the town),
+     and for bodies-yard — a world built to make contacts happen — record the measured ratio rather
+     than gate on it; PB-14(a)'s per-move cost stays the gate here.
+  2. Make swept moves cheaper inside the frozen design, then re-measure: build the scene's broad
+     phase without the narrow phase (`detect_collisions` computes contacts no query uses), and put in
+     the scene only the people a stride can reach. Both change the adapter, not the rules; the first
+     needs F-P1's re-check, the second a recorded change to SD-B11's canonical order.
+  3. Answer more walls-only strides by integers (the floor's edge is axis-aligned). A change to
+     SD-B6's fast path, so to Rapier's slide results: a design change.
+  4. A layout change to bodies-yard that makes its people walk into walls less. The bound would then
+     measure the world's layout more than the pack.

@@ -51,7 +51,14 @@ STOP CONDITIONS     normal: PR 12b READY FOR OPERATOR REVIEW — DO NOT MERGE. M
                     reason other than QP-2
 ```
 
-## Current checkpoint
+## MATERIAL STOP (2026-10-07)
+
+PB-14(b) fails, 2.06× against 1.5×, also with QP-9's override (reverted). Evidence E-PB8, options
+DB-10 (§17.11). Reported to the primary session; no PR opened. PB-C1 … PB-C7 committed and pushed
+(through db64471); PB-12 PASS, PB-14(a) PASS. Pending the decision: PB-1 and M-PB1's 300-day half on
+the final head, the full gate, PB-C8's commit of the close, the PR.
+
+## Checkpoint before the stop
 
 PB-C1 … PB-C5 committed and pushed: 5a5bbd0, 3074db9, b48cecc, c16ab2a, 539ebbf. The pack exists,
 is not yet installed. Evidence E-PB1 … E-PB5; deviations DB-1 … DB-7 (§17.11; DB-4, the blocked
