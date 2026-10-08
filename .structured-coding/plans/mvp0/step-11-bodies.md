@@ -4671,10 +4671,20 @@ an arrival into a shaped place with no objects (inert, byte-identical to 12b); a
 object in the air (rung 2); a crowded room where no lattice point verifies (rung 3, `to` = `from`); an
 aimed point on a solid; a kick of an object touching a wall; CCD against the counter's thin edge.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-bodies --test actions` and the rest of the pack; the flight's
-  bytes identical in a second process of the same test binary; M-PO5 and M-PO11 fail by name, reverted.
-- [ ] Review: only + − × ÷ on values that reach Rapier (DC-3); one dynamic body per scene, inserted
+- [x] Implementation: as scoped (E-PO4): `action.rs` (Kick, Throw, Toward, Shove and the three
+  requirements), `launch.rs` (validate and resolve for both, the payload codec), `flight.rs`,
+  `rapier.rs` (`Launch`, `fly`), `offer.rs`, `system.rs` (providing, validate, resolve, offers),
+  `tests/actions.rs`; DO-8 … DO-10.
+- [x] Validation: `cargo test -p mineworld-bodies --test actions` and the rest of the pack; the flight's
+  bytes identical in a second process of the same test binary; M-PO5 and M-PO11 fail by name, reverted
+  (E-PO4).
+- [x] Review (self): velocities are integers (`flight.rs`: `at_least`, `d · 60 / 48`, `9 810 · 48 /
+  120`) and reach Rapier only through `metres`; the flying object is inserted last, after the people
+  (EntityId order) and the other objects (ItemId order), with rotations locked and CCD; `refresh` runs
+  before the velocity is set and before the first step; the rest test (speed² < 50² mm²/s² for 10
+  sub-steps) and the step bound are pure functions of the state; the offer's requirement is
+  `at_place(place).requiring_target_available()`, `validate` evaluates the declared `same_place().within`
+  against the ground point (F-O6). Original review item: only + − × ÷ on values that reach Rapier (DC-3); one dynamic body per scene, inserted
   last; `refresh` runs before the first step (F-P1); the rest test and the step bound are pure functions
   of the state; the offer's requirement is at_place and `validate`'s is the declared one (F-O6).
 
@@ -4999,8 +5009,41 @@ E-PO3 PO-C3, 2026-10-08, working tree on 7cb6d0e + PO-C3's paths (systems/bodies
       DO-4's experiment (objects inserted as their real shapes in people's sweeps, reverted) → (c)
         FAILED "walker at (3933, 5000)": 53 mm past the footprint's contact point.
       `cargo fmt --all`; `cargo clippy -p mineworld-bodies --all-targets --all-features -- -D warnings`
-        clean. Source sizes: rapier.rs 526, component.rs 451, geometry.rs 476, resolve.rs 436 (was
+        clean. Source sizes (at PO-C3): rapier.rs 526, component.rs 451, geometry.rs 476, resolve.rs 436 (was
         758: split into resolve.rs, stride.rs 406, entry.rs 120, push.rs 147 — DO-2).
+
+E-PO4 PO-C4, 2026-10-08, working tree on f6243db + PO-C4's paths (systems/bodies/** only).
+      `cargo test -p mineworld-bodies --offline`: lib 13 (+ flight.rs's 3), actions 15 (new; PO-4 a … e
+        and g, PO-5 a … e, PO-7's kick and throw rows, a second-process flight check), objects 7,
+        objects_genesis 10, genesis 6, isolation 5, long_run 1, rapier_pin 1, scenarios 17. PASS.
+      Flight ends as printed, each inside the bounds §18.4 fixed before measuring:
+        PO-4 c  kicked from (2 700, 5 000, 110) to (5 238, 5 000, 110): Δx 2 538 ∈ 1 500 … 3 500,
+                Δy 0, z 110; 12 keyframes, the first = from; the kicker unmoved.
+        PO-4 d  against the wall: (8 206, 5 000, 110) ≤ 8 215.
+        PO-4 e  toward c at (4 000, 5 000): (3 560, 5 010, 110) — a lattice point (rung 2): the ball
+                rebounded off c's capsule and came to rest overlapping c's disc, so V-O refused the
+                simulated end; 450 mm from c's centre ≥ 405; c has no fact.
+        PO-4 f  (flight.rs unit) after 2 sub-steps (2 725, 5 000, 235), in the air; landed at
+                (2 710, 5 010, 110): on the 50 mm lattice for r 110 (x, y ≡ 110 mod 50), nearest.
+        PO-5 a  unaimed: (2 600, 5 000, 110) → (5 945, 5 000, 110): x ∈ 4 600 … 7 600, Δy 0.
+        PO-5 b  aimed at (2 600, 8 600): (2 600, 9 287, 110), 687 mm on (≤ 1 500).
+        PO-5 c  outside the floor and 6 001 mm → PreconditionFailed; 6 000 mm → Accepted; the ball
+                801 mm away → TooFarAway.
+        PO-5 d  a box half 100 thrown at the counter's top: (4 950, 6 870, 1 199) — on its top
+                (1 100 + 100 ± 5), recorded; then its kick → TargetUnavailable (PO-4 b's last row).
+        PO-5 e  among p1, p2, p3: (3 860, 5 010, 110), ≥ 405 mm from each; nobody moved.
+        PO-4 a, b, g; PO-7 a (kick { ball }, throw { ball, toward: null }, at_place(room), available;
+          nothing for the box 900 mm away), b (each submitted through Affordance::request: Accepted),
+          c (unshaped place, positionless observer: no bodies affordance). PASS.
+      Second process: `flights_are_byte_identical_in_a_second_process` — 5 725 bytes, equal. PASS.
+      Mutations (applied, run, reverted; `git grep -n MUTATION -- systems` empty afterwards):
+        M-PO5 (V-O off in `land`) → flight.rs FAILED a_flight_cut_short_lands… "at rest height left:
+          235" (the object recorded in the air); actions also FAILED PO-4 e and PO-5 e at dispatch
+          (object-moved's own reduction refused the overlapping end).
+        M-PO11 (objects beyond reach offered) → actions FAILED the_kicks_and_throws_offered… "kick and
+          throw of the ball, nothing for the box", and each_offered_… (the box's throw TooFarAway).
+      `cargo fmt --all`; `cargo clippy -p mineworld-bodies --all-targets --all-features -- -D warnings`
+        clean.
 ```
 
 ## 18.11 Deviations and discoveries during implementation
@@ -5076,4 +5119,21 @@ the layout was changed.
 lowest-`EntityId` person whose disc covers `to`, else `None`. With objects, `to` can be unfree because of
 an object alone (E1 now requires a radius of clearance from every footprint): E3 then names the first such
 object in `ItemId` order — "the first person or object touched", as SD-O9 step 8 says for strides.
+
+**DO-8 (bounded; a layout defect in §18.4) — PO-7's Q.** PO-7 places P at (2 900, 5 400) and Q at
+(3 200, 5 000): 500 mm apart, which genesis refuses (`bodies-overlap`, CLEARANCE 595). Q stands at
+(3 200, 4 600) instead: 1 265 mm from the observer (still beyond SHOVE_REACH, so its shove is still
+`TooFarAway`), 854 mm from P, 640 mm from the ball's centre. Every claim of PO-7 is unchanged.
+
+**DO-9 (bounded) — PO-5 d uses a box of half 100 and lays out the thrower beside the counter.** §18.4
+does not fix PO-5 d's layout. A thrower must keep 295 mm from the counter and 405 mm (for a 110 mm
+footprint) from the object, and the object must fit the counter's 600 mm depth: thrower (4 500, 5 800),
+box half 100 at (4 950, 5 800), aimed at (4 950, 6 870), the middle of the counter's top. It landed on
+the top, which also gives PO-4 b's last refusal (a box lying on the counter cannot be kicked) a real
+object to refuse, instead of one placed there by hand.
+
+**DO-10 (bounded) — PO-4 f and M-PO5 are a unit test of `flight.rs`.** PO-4 f needs "a test policy that
+cuts a throw's flight after 2 sub-steps". The step bound is a parameter of `rapier::fly`, so the unit test
+flies the throw with 2 sub-steps and lands it through the production `land`; no policy switch exists in
+production code. M-PO5 is a real mutation of `land`.
 

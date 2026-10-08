@@ -280,7 +280,6 @@ pub(crate) fn push_offset(footprint: Footprint, p: Point) -> Option<Point> {
 
 /// The points of the [`LATTICE`] on the floor where an object of `shape` could rest, anchored at the
 /// floor's south-west corner plus its half-footprint, south to north and west to east.
-#[expect(dead_code, reason = "the landing ladder arrives in PO-C4")]
 pub(crate) fn object_lattice(room: &Room, shape: BodyShape) -> impl Iterator<Item = Point> {
     let (hx, hy) = shape.half_footprint();
     let step = LATTICE.value();

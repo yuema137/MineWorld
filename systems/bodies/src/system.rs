@@ -2,8 +2,8 @@
 //! under, and what it discloses.
 
 use mineworld_contracts::{
-    ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventTypeId, LocalPosition,
-    Millimetres, PlaceId, Rejection, RejectionCode, SystemId,
+    Action, ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventTypeId,
+    LocalPosition, Millimetres, PlaceId, Rejection, RejectionCode, SystemId,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
@@ -15,6 +15,7 @@ use mineworld_presence::{
 use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
+use crate::action::{Kick, Throw};
 use crate::codec;
 use crate::component::{BodyShape, LooseObjects, PlaceShape};
 use crate::event::{
@@ -22,7 +23,7 @@ use crate::event::{
 };
 use crate::geometry::Point;
 use crate::push::Lay;
-use crate::{genesis, objects};
+use crate::{genesis, launch, objects, offer};
 
 /// Bodies: places with walls and furniture, loose objects lying in them, and people who neither pass
 /// through them nor through each other.
@@ -69,6 +70,8 @@ impl System for BodiesSystem {
             .owning::<PlaceShape>()
             .owning::<BodyShape>()
             .owning::<LooseObjects>()
+            .providing::<Kick>()
+            .providing::<Throw>()
             .emitting::<PlaceShaped>()
             .emitting::<BodyFormed>()
             .emitting::<ObjectPlaced>()
@@ -134,6 +137,38 @@ impl System for BodiesSystem {
             return pushed_by(&world.read(), &arrived);
         }
         Ok(Vec::new())
+    }
+
+    /// Whether this `kick` or `throw` may happen (step-11 SD-O11, SD-O13; `launch.rs`).
+    fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
+        let action = intent.action_type();
+        if *action == Kick::ACTION_TYPE {
+            launch::validate_kick(world, intent)
+        } else if *action == Throw::ACTION_TYPE {
+            launch::validate_throw(world, intent)
+        } else {
+            Err(Rejection::NoSupportedInteraction)
+        }
+    }
+
+    /// A `kick` or `throw`, resolved at the instant (QB-6): one `object-moved`.
+    fn resolve(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        intent: &ActionIntent,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let action = intent.action_type();
+        let read = world.read();
+        if *action == Kick::ACTION_TYPE {
+            launch::resolve_kick(&read, intent)
+        } else if *action == Throw::ACTION_TYPE {
+            launch::resolve_throw(&read, intent)
+        } else {
+            Err(refused(
+                ObjectMoved::EVENT_TYPE,
+                Rejection::NoSupportedInteraction,
+            ))
+        }
     }
 }
 
@@ -230,6 +265,16 @@ pub(crate) fn name(world: &WorldRead<'_>, entity: EntityId) -> String {
 }
 
 impl PerceptionProvider for BodiesSystem {
+    /// This pack's complete affordances (step-11 SD-O12; `offer.rs`).
+    fn offers(
+        &self,
+        world: &WorldRead<'_>,
+        observer: EntityId,
+        target: Option<EntityId>,
+    ) -> Vec<mineworld_presence::Offer> {
+        offer::offers(world, observer, target)
+    }
+
     /// Discloses a place's [`PlaceShape`] — its floor and solids — and a listing of the loose objects
     /// lying in it — each one's shape and position — to whoever perceives the place.
     ///

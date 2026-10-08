@@ -22,9 +22,9 @@ use mineworld_bodies::{
     BodiesSystem, BodyShape, LooseObjects, ObjectMoved, PlaceShape, body_formed, place_shaped,
 };
 use mineworld_contracts::{
-    Action, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId, Causation, EntityId,
-    EntityKey, EntityType, EventEnvelope, ItemId, LocalPosition, Location, Millimetres,
-    Observation, PersonId, PlaceId, SystemId, Visibility, WorldTime,
+    Action, ActionId, ActionIntent, ActionRecord, ActionRequest, ActionResult, ActionTypeId,
+    Causation, EntityId, EntityKey, EntityType, EventEnvelope, ItemId, LocalPosition, Location,
+    Millimetres, Observation, PersonId, PlaceId, SystemId, Visibility, WorldTime,
 };
 use mineworld_item::{Category, ItemKindDeclared, ItemSystem};
 use mineworld_kernel::{
@@ -299,6 +299,37 @@ impl Yard {
     pub fn walk(&mut self, person: &str, to: Location) -> Moved {
         let record = ActionRecord::new::<Move>(encode(&Move::new(to)));
         self.submit(person, record)
+    }
+
+    /// Submits a request built elsewhere — from a complete affordance (`ARC-34`).
+    pub fn submit_request(&mut self, request: ActionRequest<Vec<u8>>) -> Moved {
+        let id = self.next_id();
+        let intent = ActionIntent::allocate(request, id, NOW);
+        let dispatched = self
+            .world
+            .dispatch(&intent, NOW)
+            .expect("dispatch answers rather than failing");
+        Moved {
+            id,
+            result: dispatched.result().clone(),
+            events: dispatched.events().to_vec(),
+        }
+    }
+
+    /// Submits `record` as `person`'s request, aimed at `target`.
+    pub fn submit_at(&mut self, person: &str, record: ActionRecord, target: EntityId) -> Moved {
+        let id = self.next_id();
+        let actor = self.people[person];
+        let intent = ActionIntent::new(id, actor, record, NOW).with_target(target);
+        let dispatched = self
+            .world
+            .dispatch(&intent, NOW)
+            .expect("dispatch answers rather than failing");
+        Moved {
+            id,
+            result: dispatched.result().clone(),
+            events: dispatched.events().to_vec(),
+        }
     }
 
     /// Submits `record` as `person`'s request.

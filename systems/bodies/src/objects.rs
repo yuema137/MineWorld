@@ -32,7 +32,6 @@ pub(crate) fn lying_in(world: &WorldRead<'_>, place: PlaceId) -> Vec<(ItemId, Pl
 }
 
 /// The place an object lies in, and how it lies: the one place whose row lists it.
-#[expect(dead_code, reason = "kick and throw arrive in PO-C4")]
 pub(crate) fn where_lies(world: &WorldRead<'_>, object: ItemId) -> Option<(PlaceId, Placed)> {
     let shape = *world.component::<BodyShape>(object.entity_id())?;
     world.components::<LooseObjects>().find_map(|(place, row)| {

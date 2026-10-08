@@ -38,7 +38,9 @@ use rapier3d::prelude::*;
 
 use crate::component::BodyShape;
 use crate::footprint::Placed;
-use crate::geometry::{GAP, PERSON_HEIGHT, PERSON_RADIUS, Point, Room};
+use crate::geometry::{
+    GAP, PATH_EVERY, PATH_MAX, PERSON_HEIGHT, PERSON_RADIUS, Point, REST_SPEED, REST_STEPS, Room,
+};
 
 /// The character controller's fixed time step: one sixtieth of a second (step-11 DC-4).
 const DT: f32 = 1.0 / 60.0;
@@ -275,6 +277,89 @@ impl Pile {
             millimetres(start.x + travel.x * fraction),
             millimetres(start.y + travel.y * fraction),
         )
+    }
+}
+
+/// A position in a place's frame, in whole millimetres: `(x, y)` on the floor and `z` up.
+pub(crate) type At = (Point, i32);
+
+/// One object's flight (step-11 SD-O14), simulated at the instant of a kick or a throw: where it came
+/// to rest, quantized, and its keyframes for a client to animate.
+pub(crate) struct Flown {
+    pub(crate) end: At,
+    pub(crate) path: Vec<At>,
+}
+
+/// What a flight is launched into: the place, the people standing in it, the other objects as they
+/// lie, and the flying object with its launch velocity (millimetres per second) and its step bound.
+pub(crate) struct Launch<'a> {
+    pub(crate) room: &'a Room,
+    pub(crate) people: &'a [Point],
+    pub(crate) others: &'a [Placed],
+    pub(crate) flying: Placed,
+    pub(crate) velocity: (i32, i32, i32),
+    pub(crate) steps: u32,
+}
+
+/// Simulates one flight (step-11 SD-O14; `DEP-13` note): a scene of the fixed geometry, the people as
+/// kinematic capsules, the other objects fixed as their real shapes, and the flying object last —
+/// dynamic, rotations locked, with continuous collision detection. After [`refresh`] (F-P1's re-mark)
+/// the launch velocity is set, and the world steps at 1/60 s until the object has been slower than
+/// `REST_SPEED` for `REST_STEPS` consecutive sub-steps, or the step bound. A keyframe every
+/// `PATH_EVERY` sub-steps, at most `PATH_MAX`, the first being where it started. Nothing else moves.
+pub(crate) fn fly(launch: &Launch<'_>) -> Flown {
+    let mut world = empty_world();
+    insert_fixed(&mut world, launch.room);
+    for at in launch.people {
+        world.insert(
+            RigidBodyBuilder::kinematic_position_based().translation(centre(*at)),
+            ColliderBuilder::capsule_z(metres(HALF_SEGMENT), metres(PERSON_RADIUS.value())),
+        );
+    }
+    for other in launch.others {
+        let (body, collider) = real(other, 0);
+        world.insert(body, collider);
+    }
+    let flying = launch.flying;
+    let (handle, _) = world.insert(
+        RigidBodyBuilder::dynamic()
+            .translation(lifted(&flying, 0))
+            .lock_rotations()
+            .ccd_enabled(true),
+        shape_of(flying.shape),
+    );
+    refresh(&mut world);
+    let (vx, vy, vz) = launch.velocity;
+    world.bodies[handle].set_linvel(Vector::new(metres(vx), metres(vy), metres(vz)), true);
+
+    let at = |world: &PhysicsWorld| {
+        let t = world.bodies[handle].translation();
+        (
+            Point::new(millimetres(t.x), millimetres(t.y)),
+            millimetres(t.z),
+        )
+    };
+    let rest = metres(REST_SPEED);
+    let mut path = vec![(flying.centre, flying.z)];
+    let mut slow = 0;
+    for step in 1..=launch.steps {
+        world.step();
+        if step % PATH_EVERY == 0 && path.len() < PATH_MAX {
+            path.push(at(&world));
+        }
+        let speed = world.bodies[handle].linvel();
+        if speed.x * speed.x + speed.y * speed.y + speed.z * speed.z < rest * rest {
+            slow += 1;
+            if slow >= REST_STEPS {
+                break;
+            }
+        } else {
+            slow = 0;
+        }
+    }
+    Flown {
+        end: at(&world),
+        path,
     }
 }
 

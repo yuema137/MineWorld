@@ -28,20 +28,27 @@
 
 mod codec;
 mod entry;
+mod flight;
 mod footprint;
 mod genesis;
+mod launch;
 mod objects;
+mod offer;
 mod push;
 mod rapier;
 mod section;
 mod stride;
 
+pub mod action;
 pub mod component;
 pub mod event;
 pub mod geometry;
 pub mod resolve;
 pub mod system;
 
+pub use action::{
+    Kick, Shove, Throw, Toward, kick_requirement, shove_requirement, throw_requirement,
+};
 pub use component::{
     BodyShape, Corner, Floor, HalfExtents, LooseObjects, Lying, PlaceShape, SOLID_HEIGHT_MAX,
     SOLIDS_MAX, Solid,
