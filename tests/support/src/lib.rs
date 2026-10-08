@@ -18,6 +18,7 @@
 #![warn(missing_docs)]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsStr;
 use std::ops::Deref;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
@@ -106,6 +107,9 @@ fn live() -> MutexGuard<'static, BTreeMap<PathBuf, BTreeSet<String>>> {
 pub struct Scratch {
     container: PathBuf,
     name: String,
+    /// `<container>/<name>`: what is removed.
+    owned: PathBuf,
+    /// What the test is handed: `owned`, or a path inside it ([`Scratch::within`]).
     path: PathBuf,
     keep: Keep,
 }
@@ -157,9 +161,18 @@ impl Scratch {
         Self {
             container,
             name: name.to_owned(),
+            owned: path.clone(),
             path,
             keep,
         }
+    }
+
+    /// The same scratch, handing out `<path>/<child>` instead: for a World Pack copy that must be
+    /// named as its pack (its id is its directory's name) while its scratch is named after the test.
+    /// Nothing is created; the whole scratch is still what is removed.
+    pub fn within(mut self, child: impl AsRef<str>) -> Self {
+        self.path = self.path.join(child.as_ref());
+        self
     }
 
     /// The scratch's path.
@@ -182,18 +195,25 @@ impl AsRef<Path> for Scratch {
     }
 }
 
+/// So that a scratch goes wherever a path does, including `impl Into<PathBuf>` parameters.
+impl AsRef<OsStr> for Scratch {
+    fn as_ref(&self) -> &OsStr {
+        self.path.as_os_str()
+    }
+}
+
 impl Drop for Scratch {
     fn drop(&mut self) {
         let kept = self.keep.keeps(std::thread::panicking());
         let mut live = live();
         if kept {
-            eprintln!("[scratch] kept {}", self.path.display());
-        } else if let Err(error) = std::fs::remove_dir_all(&self.path)
+            eprintln!("[scratch] kept {}", self.owned.display());
+        } else if let Err(error) = std::fs::remove_dir_all(&self.owned)
             && error.kind() != std::io::ErrorKind::NotFound
         {
             eprintln!(
                 "[scratch] could not remove {}: {error}",
-                self.path.display()
+                self.owned.display()
             );
         }
         let last = live.get_mut(&self.container).is_some_and(|names| {

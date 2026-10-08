@@ -45,6 +45,19 @@ fn a_scratch_is_named_as_asked_under_the_target_tmpdir_and_gone_when_dropped() {
 }
 
 #[test]
+fn a_pack_copy_is_named_as_its_pack_and_its_whole_scratch_goes_with_it() {
+    let copy = scratch!("helper-within").within("market-town");
+    let owned = container_in(Path::new(env!("CARGO_TARGET_TMPDIR"))).join("helper-within");
+    assert_eq!(copy.path(), owned.join("market-town"));
+    std::fs::create_dir_all(copy.join("places")).expect("the copy is written");
+    drop(copy);
+    assert!(
+        !owned.exists(),
+        "the scratch is removed, not only the copy in it"
+    );
+}
+
+#[test]
 fn a_failing_test_loses_its_scratch_unless_failures_are_kept() {
     let outer = scratch!(empty "helper-keep-on-failure");
     let root = root_of(&outer);
