@@ -167,11 +167,28 @@ impl Scene {
         by: Point,
         against: Against,
     ) -> Swept {
+        self.sweep_past(mover, from, by, against, &[])
+    }
+
+    /// [`Scene::sweep`], with the people at the scene indexes `aside` left out of a contact sweep
+    /// (step-11 SD-Z5: people the mover stands within the offset of and moves away from). A walls
+    /// sweep never meets people, so `aside` matters only for [`Against::Contact`].
+    pub(crate) fn sweep_past(
+        &self,
+        mover: Option<usize>,
+        from: Point,
+        by: Point,
+        against: Against,
+        aside: &[usize],
+    ) -> Swept {
         let not_an_object = |handle: ColliderHandle, _: &Collider| !self.objects.contains(&handle);
+        let passed: Vec<ColliderHandle> = aside.iter().map(|index| self.people[*index].1).collect();
+        let not_passed = |handle: ColliderHandle, _: &Collider| !passed.contains(&handle);
         let filter = match against {
             Against::Walls => QueryFilter::only_fixed().predicate(&not_an_object),
             Against::WallsAndObjects => QueryFilter::only_fixed(),
-            Against::Contact => QueryFilter::exclude_dynamic(),
+            Against::Contact if passed.is_empty() => QueryFilter::exclude_dynamic(),
+            Against::Contact => QueryFilter::exclude_dynamic().predicate(&not_passed),
         };
         let filter = match mover {
             Some(index) => filter.exclude_rigid_body(self.people[index].0),
