@@ -9,7 +9,7 @@ questions (QIL-1 …). It holds no frozen PR design.
 (S15), [`step-16-packages.md`](step-16-packages.md) (S16), [`step-17-cognition.md`](step-17-cognition.md)
 (S10), [`step-12-server.md`](step-12-server.md) (S11-C perception).
 **Lifecycle:** `DRAFT — awaiting the primary session's review`. Nothing here authorizes implementation.
-Edits to `overall.md`, `docs/DECISIONS.md` and the specifications are proposed in §12 and not applied.
+Edits to `overall.md`, `docs/DECISIONS.md` and the specifications are proposed in §9 and §10 and not applied.
 **Authority.** This document is the one authority for the merged step.
 [`step-18-physics-list.md`](step-18-physics-list.md) (S17, frozen at step level) is **superseded** by it.
 Its header says so. The following parts are incorporated by reference **as the design of the `bodies`
@@ -24,7 +24,7 @@ Every other part of that file is replaced here.
 **Branch:** `plan/interaction-list` from `main @ 21f96ff`, worktree
 `/Users/yuema137/mineworld-worktrees/plan-physics-list`, one writer.
 **Source audited:** `main @ 21f96ff` (12c merged: `systems/bodies` VERSION 2).
-**Decision ids:** the numbers already assigned to S17 and S18 are reused (§12): ARC-61 (configuration
+**Decision ids:** the numbers already assigned to S17 and S18 are reused (§9): ARC-61 (configuration
 seam), ARC-62 (extension catalogs), ARC-63 (the Interaction List), ARC-64 (entity classes), ARC-65
 (consequence routing), DEP-28 (build our own, on Cedar's semantics). The primary session confirms them.
 
@@ -321,7 +321,7 @@ forced: no general policy engine on a hot path, no scripting, no async runtime a
 ## 4.1 Vocabulary
 
 None of these terms reuses a defined term (`CORE_CONCEPTS.md`, `MODULE_SPEC.md`). They are proposed for
-`MODULE_SPEC.md` (a new section, §12), not for the core ontology.
+`MODULE_SPEC.md` (a new section, §10), not for the core ontology.
 
 | Term | Meaning |
 | --- | --- |
@@ -548,7 +548,7 @@ memory      cognition's, derived only from perceived facts (S10 §3.8.1). The li
   - the genesis journal row's assembled entities, for tags.
 
   It then asks each owner's `consequence` for the fact's roles. With no configured section it is
-  ARC-29 exactly. An amendment to ARC-29's "reads a save's fact table and nothing else" (§12).
+  ARC-29 exactly. An amendment to ARC-29's "reads a save's fact table and nothing else" (§10).
 - **Cognition's own policy stays the operator's** (`cognition.toml`, S10 §3.7.4). A world cannot tell a
   mind what to forget (QIL-10).
 
@@ -762,7 +762,7 @@ becomes configurable. After IL-h the operator plays `worlds/manor` and, after IL
   - Decision 2's S18 scope is IL-e … IL-g.
 - **`step-18-physics-list.md`**: header "Superseded by `step-18-interaction-list.md` (2026-10-08); its
   bodies parts are incorporated there by reference" — applied in this branch, because it only records
-  supersession (§0 of this file).
+  supersession (see this file's header).
 - **Specifications, in the PRs that implement them:**
   - `MODULE_SPEC.md` §4, §4.1: `interactions:` and `interactions/`;
   - `MODULE_SPEC.md` §9: the configuration schema, implemented as ARC-61/63;
