@@ -1896,7 +1896,17 @@ D-SA7 (bounded) ClientFrame no longer derives Serialize: nothing serialized a cl
 
 # 16. PR S11-B — seats, hold and resume, takeover, hosted controllers, `F-13` (full design)
 
-**Lifecycle:** `PR DESIGN — DRAFT, awaiting the primary session's freeze`. Nothing below authorizes code.
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session`. Superseded: `PR DESIGN — DRAFT`.
+
+**Freeze record.** The primary session's freeze message (2026-10-08) accepts §16 as written and rules
+QS11B-1 … QS11B-6 as recommended: (1) a hosted seat is taken over without a flag; (2) `took_over:
+"connection"` and `closing.reason: "taken_over"` are added; (3) any invite holder may take over any seat,
+held seats included — recorded in ARC-40 as an **MVP-0 limitation** (one shared invite means LAN-friends
+trust; per-player identity and accounts are an explicit non-goal, "matchmaking, global accounts"; the
+primary session informs the operator); (4) hold in wall seconds, pace in world seconds; (5) the shutdown
+statistics line is CP-B4's probe; (6) no merge order with E-b or IL-a. Implementation is done by a fresh
+session in its own worktree on `mvp0/pr-s11b-seats` (§16.9's endpoint "implementation + local
+validation" is authorized by this message).
 **Author:** the S11 implementing session, 2026-10-08, worktree
 `/Users/yuema137/mineworld-worktrees/impl-s11a`, branch `mvp0/pr-s11b-seats` (from `main @ f842c52`).
 **Binding parents:** this file §§4.2–4.6, 5 (as `server/PROTOCOL.md` revision 2 now states it), 6, 7.4,
