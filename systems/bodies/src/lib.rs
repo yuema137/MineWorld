@@ -27,6 +27,9 @@
 #![warn(missing_docs)]
 
 mod codec;
+mod footprint;
+mod genesis;
+mod objects;
 mod rapier;
 mod section;
 
@@ -36,11 +39,21 @@ pub mod geometry;
 pub mod resolve;
 pub mod system;
 
-pub use component::{Corner, Floor, PlaceShape, SOLID_HEIGHT_MAX, SOLIDS_MAX, Solid};
-pub use event::{PlaceShaped, place_shaped};
+pub use component::{
+    BodyShape, Corner, Floor, HalfExtents, LooseObjects, Lying, PlaceShape, SOLID_HEIGHT_MAX,
+    SOLIDS_MAX, Solid,
+};
+pub use event::{
+    BodyFormed, How, ObjectMoved, ObjectPlaced, PersonShoved, PlaceShaped, body_formed,
+    place_shaped,
+};
 pub use geometry::{
-    CAPACITY_GRID, CHAIN_MAX, CLEARANCE, COORDINATE_BOUND, GAP, HALVINGS, LATTICE, NUDGE_MAX,
-    NUDGED_MAX, PERSON_HEIGHT, PERSON_RADIUS, SNAP, TOLERANCE,
+    CAPACITY_GRID, CHAIN_MAX, CLEARANCE, COORDINATE_BOUND, GAP, HALVINGS, KICK_REACH, KICK_SPEED,
+    KICK_STEPS, LATTICE, NUDGE_MAX, NUDGED_MAX, OBJECT_HALF_HEIGHT_MAX, OBJECT_HALF_MAX,
+    OBJECT_HALF_MIN, OBJECTS_MAX, PATH_EVERY, PATH_MAX, PERSON_HEIGHT, PERSON_RADIUS, REST_SPEED,
+    REST_STEPS, SHOVE_DISTANCE, SHOVE_REACH, SNAP, THROW_DEFAULT, THROW_FLIGHT, THROW_RANGE_MAX,
+    THROW_REACH, THROW_STEPS, TOLERANCE,
 };
 pub use resolve::{Degraded, Outcome, Route, explain};
+pub use section::{Body, Lies};
 pub use system::BodiesSystem;

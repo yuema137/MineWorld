@@ -18,12 +18,15 @@
 
 use std::collections::BTreeMap;
 
-use mineworld_bodies::{BodiesSystem, PlaceShape, place_shaped};
+use mineworld_bodies::{
+    BodiesSystem, BodyShape, LooseObjects, PlaceShape, body_formed, place_shaped,
+};
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId, Causation, EntityId,
-    EntityKey, EntityType, EventEnvelope, LocalPosition, Location, Millimetres, Observation,
-    PersonId, PlaceId, SystemId, Visibility, WorldTime,
+    EntityKey, EntityType, EventEnvelope, ItemId, LocalPosition, Location, Millimetres,
+    Observation, PersonId, PlaceId, SystemId, Visibility, WorldTime,
 };
+use mineworld_item::{Category, ItemKindDeclared, ItemSystem};
 use mineworld_kernel::{
     Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
     WorldView,
@@ -89,6 +92,26 @@ pub struct Plan {
     pub without_bodies: bool,
     /// Whether the test-only bypassing pack is installed (PB-17).
     pub with_bypass: bool,
+    /// Loose objects (12c), in identity order, created after the people: each an Item whose
+    /// `body-formed` genesis states, as an item file's `body:` section would.
+    pub objects: Vec<Thing>,
+    /// Items that are declared kinds (the `item` pack is then installed, before bodies): each one of
+    /// `objects`' keys, or a plain kind of its own, created after the objects.
+    pub kinds: Vec<&'static str>,
+}
+
+/// A loose object in a plan: its key, its shape, the place's key and the floor point it lies on.
+pub type Thing = (&'static str, BodyShape, &'static str, Xy);
+
+/// A ball of radius `r` mm.
+pub fn ball(r: i32) -> BodyShape {
+    serde_json::from_value(serde_json::json!({ "ball": r })).expect("a ball")
+}
+
+/// A box of half-extents `half` mm on every axis.
+pub fn cube(half: i32) -> BodyShape {
+    serde_json::from_value(serde_json::json!({ "box": { "x": half, "y": half, "z": half } }))
+        .expect("a box")
 }
 
 impl Plan {
@@ -110,6 +133,8 @@ pub struct Yard {
     pub providers: Vec<Box<dyn PerceptionProvider>>,
     pub places: BTreeMap<&'static str, PlaceId>,
     pub people: BTreeMap<&'static str, EntityId>,
+    /// The plan's items — its objects and its plain kinds — by key.
+    pub items: BTreeMap<&'static str, ItemId>,
     pub genesis: Vec<EventEnvelope>,
     next_action: u64,
 }
@@ -123,6 +148,9 @@ impl Yard {
         world.install(PresenceSystem).expect("presence installs");
         world.install(MovementSystem).expect("movement installs");
         providers.push(Box::new(MovementSystem));
+        if !plan.kinds.is_empty() {
+            world.install(ItemSystem).expect("item installs");
+        }
         if !plan.without_bodies {
             world.install(BodiesSystem).expect("bodies installs");
             providers.push(Box::new(BodiesSystem));
@@ -145,6 +173,17 @@ impl Yard {
                 .expect("created");
             people.insert(*key, id);
         }
+        let mut items = BTreeMap::new();
+        let plain = plan
+            .kinds
+            .iter()
+            .filter(|kind| !plan.objects.iter().any(|(key, ..)| key == *kind));
+        for key in plan.objects.iter().map(|(key, ..)| key).chain(plain) {
+            let id = world
+                .create_entity(EntityKey::new(*key).expect("a key"), EntityType::Item)
+                .expect("created");
+            items.insert(*key, ItemId::new(id, EntityType::Item).expect("an item"));
+        }
 
         let mut facts: Vec<Emission> = Vec::new();
         for ((a, a_at), (b, b_at)) in &plan.passages {
@@ -163,6 +202,19 @@ impl Yard {
             let person = PersonId::new(people[key], EntityType::Person).expect("a person");
             facts.push(arrival(&world.read(), person, location).expect("presence admits it"));
         }
+        // Items' sections before places', each item's in composition order (item, then bodies), as
+        // the loader seeds them (ARC-36 item 7).
+        for (key, item) in &items {
+            if plan.kinds.contains(key) {
+                let category = Category::new("toy").expect("a category");
+                facts.push(ItemKindDeclared::new(*item, category).emission());
+            }
+            if let Some((_, shape, place, at)) = plan.objects.iter().find(|(k, ..)| k == key)
+                && !plan.without_bodies
+            {
+                facts.push(body_formed(*item, *shape, at_in(places[place], *at)));
+            }
+        }
         if !plan.without_bodies {
             for (key, shape) in &plan.places {
                 if let Some(shape) = shape {
@@ -176,9 +228,50 @@ impl Yard {
             providers,
             places,
             people,
+            items,
             genesis,
             next_action: 1,
         })
+    }
+
+    /// Where each object lying in `place` is, by key, in identity order: `(x, y, z)`.
+    pub fn objects(&self, place: &str) -> Vec<(&'static str, (i32, i32, i32))> {
+        let Some(row) = self
+            .world
+            .components()
+            .get::<LooseObjects>(self.places[place].entity_id())
+        else {
+            return Vec::new();
+        };
+        row.objects()
+            .iter()
+            .map(|lying| {
+                let key = self
+                    .items
+                    .iter()
+                    .find(|(_, id)| **id == lying.object())
+                    .map(|(key, _)| *key)
+                    .expect("one of the yard's items");
+                let at = lying.at();
+                (key, (at.x().value(), at.y().value(), at.z().value()))
+            })
+            .collect()
+    }
+
+    /// Where the object `key` lies, `(x, y, z)`.
+    pub fn object(&self, key: &str) -> (i32, i32, i32) {
+        self.objects_everywhere()
+            .into_iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, at)| at)
+            .expect("the object lies somewhere")
+    }
+
+    fn objects_everywhere(&self) -> Vec<(&'static str, (i32, i32, i32))> {
+        self.places
+            .keys()
+            .flat_map(|place| self.objects(place))
+            .collect()
     }
 
     pub fn new(plan: &Plan) -> Self {

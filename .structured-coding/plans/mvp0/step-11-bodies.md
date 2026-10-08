@@ -4592,11 +4592,19 @@ pack half, PO-8, PO-16's first bullet).
 items naming the same place (both placed, in key order); an Item with a `body:` in a world without
 `item` (not declared: placed); a place with 32 objects (placed) and 33 (refused).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-bodies` (every 12b test still green, `rapier_pin` and
-  `isolation` with QO-16's edits); M-PO2's pack half (the person-overlap check removed) fails a genesis
-  test by name, reverted; clippy and fmt clean.
-- [ ] Review: no write outside the two reductions; generation 2's checks run in SD-O5's order; each
+- [x] Implementation: as scoped, with DO-1 and DO-2's file layout (E-PO2): `section.rs` (`Body`, two
+  forms), `component.rs` (`BodyShape`, `LooseObjects`, `Lying`), `event.rs` (`BodyFormed`,
+  `ObjectPlaced`, and `ObjectMoved`/`PersonShoved` types), `genesis.rs`, `objects.rs`, `footprint.rs`,
+  `system.rs` (VERSION 2, three tables, reductions, the listing), Cargo.toml (`mineworld-item`).
+- [x] Validation: `cargo test -p mineworld-bodies` (every 12b test still green, `rapier_pin` and
+  `isolation` with QO-16's edits); M-PO2's pack half fails a genesis test by name, reverted; M-ITEM
+  (§18.0 (b)) bites; clippy and fmt clean (E-PO2).
+- [x] Review (self): writes only in `react` — `PlaceShape` (place-shaped), `BodyShape` (body-formed),
+  `LooseObjects` (object-placed, object-moved); generation 2's checks run in SD-O5's order (genesis.rs
+  `placed`: unshaped, held-kind, objects-max, outside, in-solid, overlap, on-person, capacity); each
+  refusal names the object's and the place's keys and the numbers; the listing is built at disclosure
+  (`objects::listing`), never stored; the place form goes through `PlaceShape::checked`, the same check
+  and messages as 12b's decode (12b's genesis tests unedited and green). Original review item: no write outside the two reductions; generation 2's checks run in SD-O5's order; each
   refusal names a key a world author recognizes; the listing is built at disclosure, not stored; the
   place form decodes and refuses exactly as in 12b (12b's genesis tests unedited).
 
@@ -4915,9 +4923,65 @@ E-PO1 PO-C1, 2026-10-08, working tree on 0fd0be3 + docs/DECISIONS.md, docs/MODUL
       `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
         duplicated. `python3 scripts/check_decision_ids.py` → 51 decision ids, all distinct (unchanged:
         the three notes add no id). PASS. Documentation only; no cargo run beyond E-PO-base.
+
+E-PO2 PO-C2, 2026-10-08, working tree on 2fb6d6a + PO-C2's paths (systems/bodies/**, Cargo.lock).
+      `cargo test -p mineworld-bodies --offline`: lib 10 (12b's 4 + footprint's 3 + … all PASS),
+        genesis 6 (12b's, unedited), isolation 5 (QO-16's claim + the new item guard), long_run 1,
+        objects_genesis 10 (new), rapier_pin 1 (pair (2, "0.36.0")), scenarios 17 (unedited). PASS.
+      The refusals as printed (objects_genesis --nocapture):
+        "bodies-unshaped: ball lies in street, which has no `body:` section: no floor to lie on";
+        "bodies-held-kind: ball carries both `body:` and `item:`: an object is one physical thing and
+          never a kind anybody holds (ARC-36 note)";
+        "bodies-objects-max: room already holds 32 loose objects; b32 would be one more";
+        "bodies-object-outside: ball at (50, 3000) in room reaches beyond its floor";
+        "bodies-object-in-solid: crate at (5000, 6500) in room meets solid 0";
+        "bodies-object-overlap: b-ball at (4100, 3000) overlaps a-ball at (4000, 3000) in room";
+        "bodies-object-on-person: ball at (2200, 3000) lies under alice, who stands at (2000, 3000) in
+          room; a person keeps 300 mm from an object";
+        "bodies-capacity: room's floor has room for a person at 4 points of the 650 mm grid; a world
+          of 1 people with 1 objects there needs 5".
+        PO-8: alice (room) is told exactly the room's listing — [{object ball, shape {ball:110}, at
+          (4000, 3000, 110)}, {object crate, shape {box:{200,200,200}}, at (2000, 5000, 200)}] — and
+          nothing of the yard's object. An object beside a declared kind (item installed) is placed;
+          32 objects are placed and a 33rd refused.
+      Mutations (applied, run, reverted; `git grep -n MUTATION -- systems` empty afterwards):
+        M-PO2 (pack half: the person-overlap check `&& false`) → objects_genesis FAILED
+          an_object_under_a_person_is_refused ("this genesis must be refused").
+        M-ITEM (§18.0 (b): `use mineworld_item::ItemKind as _;` planted in objects.rs) → isolation
+          FAILED this_pack_uses_nothing_of_the_item_crate_but_is_declared, naming
+          "systems/bodies/src/objects.rs:13: use mineworld_item::ItemKind as _;".
+      `git diff Cargo.lock`: one line, mineworld-bodies' dependency list gains "mineworld-item".
+      `cargo fmt --all`; `cargo clippy -p mineworld-bodies --all-targets --all-features -- -D warnings`
+        clean.
 ```
 
 ## 18.11 Deviations and discoveries during implementation
 
-None yet.
+**DO-1 (bounded) — new test files instead of edits to 12b's.** PO-C2's scope adds SD-O5's refusals to
+`tests/genesis.rs` and PO-C5's adds offers to `tests/scenarios.rs`'s inert case, while PO-C2's review and
+§18.1 keep "the other 12b tests unedited". Both new claims go into new files (`tests/objects_genesis.rs`
+here; PO-17 in `tests/actions.rs`), so 12b's genesis and scenario tests stay byte-unedited. The shared
+`tests/support/mod.rs` gains fields and helpers only additively (`Plan::objects`, `Plan::kinds`,
+`Yard::items`, `Yard::objects`, `ball`, `cube`): with both lists empty, genesis states exactly what it
+stated before, and `long_run`'s bytes are the regression check (PO-13 b).
+
+**DO-2 (bounded; the operator's modularity directive, relayed 2026-10-08) — where the new code lives.**
+SD-O17 puts object geometry in `geometry.rs` and PO-C2 puts the reductions in `system.rs`. To keep each
+module one responsibility and under the 500-line review threshold: object geometry is `footprint.rs`
+(footprints, the stored-state invariant, `blocks`, the push bisection, the object lattice); the
+genesis checks — 12b's `fits` moved out of `system.rs` unchanged, plus SD-O5's — are `genesis.rs`; the
+place's objects as read, the owner's check on a move and the disclosed listing are `objects.rs`.
+`system.rs` keeps the declaration, install, the reduction dispatch and perception. The constants stay in
+`geometry.rs` as SD-O17 says. Code that later commits use is marked `#[expect(dead_code, reason = …)]`, so
+each commit is clippy-clean and the compiler forces the marks' removal once the code is used.
+
+**DO-3 (recorded per the operator's directive: reuse before reinvention) — integer predicates beside
+Rapier.** The directive asks that Rapier's own facilities be used wherever they fit, and that any
+deliberate exception be recorded. Rapier does every motion: the character controller sweeps people (12b),
+a shape cast moves a pushed object (SD-O8, PO-C3), and the dynamics solver with CCD flies a kicked or
+thrown object (SD-O14, PO-C4). What stays integer is the *verification* — footprint containment, overlap
+by more than 5 mm, resting height, capacity — because the frozen design requires it (DC-3, DC-6, DC-8,
+SD-O17: the stored state is checked on integers so that the check is exactly reproducible on every
+machine and the engine's answer is never the last word). Parry's distance queries are `f32` and would put
+a float comparison into the invariant every save is replayed against; they were not used for that.
 
