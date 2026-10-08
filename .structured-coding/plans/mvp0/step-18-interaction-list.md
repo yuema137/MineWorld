@@ -1405,6 +1405,17 @@ E-IA-8  2026-10-08, IA-C8 on a83b103 (origin/main e98321a merged), by target/il-
               file-missing case). Wall 12.5 s. Then the tree restored, the branch deleted
               (`git branch -D`), `git ls-remote origin 'refs/heads/canary*'` empty, `git status` clean.
               PASS.
+E-IA-9  2026-10-08, IA-11 full gate on c86ffb3 (the final code head; later commits are this ledger
+        only), one background run (target/il-a/gate.log, gate-test.log): `cargo fmt --all --check` 0;
+        `cargo check --workspace --all-targets` 0; `cargo clippy --workspace --all-targets -- -D
+        warnings` 0; `cargo test --workspace` 0 — 161 result lines, 715 passed, 0 failed;
+        `check_doc_headings` 191 sections / 26 documents, none duplicated; `check_decision_ids` 58
+        distinct. `check_scratch.py scan` 0 (148 sources, none outside the helper, 1 pre-existing
+        exemption). `check_scratch.py left` exit 1 with 64 entries (2.6 GiB) — identical, by `diff`, to
+        the listing taken before the gate (left-before-gate.txt): every entry predates #77's helper
+        (target/tmp/<name> and $TMPDIR/mineworld-kill-*, from this worktree's pre-merge runs); none is
+        a mineworld-scratch-<pid> container and none is IL-a's (no `configure-*`, `configuration-*` or
+        canary name). The gate left nothing new. PASS.
 ```
 
 ## 11.12 Deviations
