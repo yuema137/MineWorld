@@ -1,0 +1,28 @@
+MineWorld
+Copyright (c) 2026 Yue Ma
+
+The source code in this repository is licensed under the MIT License (see LICENSE).
+
+Bundled assets keep the status recorded for each of them. None is under a licence
+that forbids redistribution. Third-party assets are CC0 1.0. AI-generated assets
+are owned output under their generator's terms, and they are distributed under
+this repository's licence. The records:
+
+- clients/3d-spike/ASSETS.md
+    the 3D client's third-party files (Poly Haven, CharMorph, Quaternius; all CC0),
+    the Meshy character and the gpt-image-1 garment source art
+- presentation/mineworld-default/LICENSES/
+    per-asset licence records (Meshy route D+ character, OwlishMedia hair alphas)
+- presentation/mineworld-default/2D/references/PROVENANCE.md
+  presentation/mineworld-default/3D/references/PROVENANCE.md
+    the reference images, generated with ChatGPT, and the crops derived from them
+- presentation/mineworld-default/2D/candidates/*.provenance.yaml
+    one record per generated 2D candidate
+- docs/DECISIONS.md, DEP-8
+    the asset-sourcing rules, and the vendor terms that AI-generated assets rest on
+    (OpenAI and Meshy), quoted with URLs and the dates they were read
+
+AI-generated content: the reference images, the generated 2D candidates, the
+garment source art and the Meshy character were produced with generative models
+(OpenAI image models, Meshy image-to-3D) and curated by a person. They are not
+human-made artwork, and they should not be presented as such.
