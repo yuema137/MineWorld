@@ -209,3 +209,200 @@ two lines and a rebuild (ARC-33); from outside the repository, S16 E-c.
 PACE)` (`tools/cli/src/run.rs:107`); `--agent` uses `RuleController` (`tools/cli/src/agent.rs:56`).
 The rule controller is compiled into `tools/cli`. `cognition_profile` is refused; selection per world
 or seat is S10/MVP-1 (S16 QSE-10; `step-17-cognition.md`).
+
+---
+
+# 3. Reuse comparison — both directions (`REUSE_POLICY.md` §§2, 4, 11–12, 17)
+
+## 3.1 The question, split
+
+The physics list is three separable things, and each is asked separately:
+
+```text
+(a) the concept and vocabulary   how a world names kinds of body and says which interact, and how
+(b) the evaluation               how a pair's rule is applied to motion, contact and rest
+(c) the format and its loading   where the document lives, how lists compose, how a mod adds one
+```
+
+Commodity infrastructure (`REUSE_POLICY.md` §4: "physics engines") is (b)'s motion, and it is already
+reused: Rapier (`DEP-13`). (a) and (c) are "modular world semantics" and "world-pack composition",
+which §4 lists as MineWorld's own differentiated work. The comparison below therefore asks, for each
+candidate, what it can give to (a), (b) and (c), and does not stop at the first answer.
+
+## 3.2 Sources, read on 2026-10-08
+
+Facts below were fetched from the primary pages by two web agents in this session, or read from the
+GitHub API. Where a fact is an inference or was not stated word for word, it is marked.
+
+| # | Candidate | Primary sources |
+| --- | --- | --- |
+| 1 | Geant4 physics lists | geant4-userdoc.web.cern.ch `UsersGuides/ForApplicationDeveloper/html/UserActions/mandatoryActions.html` (Book For Application Developers 11.4); `UsersGuides/PhysicsListGuide/html/index.html`; geant4.web.cern.ch `download/license` |
+| 2 | Unity layer collision matrix, Physics Material | docs.unity3d.com `Manual/LayerBasedCollision.html`, `Manual/create-layers.html`, `Manual/class-PhysicsMaterial.html`, `Manual/collider-surfaces-combine.html` (Unity 6.6) |
+| 3 | Godot collision layers and masks, `PhysicsMaterial` | docs.godotengine.org `en/stable/tutorials/physics/physics_introduction.html`, `en/stable/classes/class_physicsmaterial.html` (4.7); licence from `gh api repos/godotengine/godot/license` |
+| 4 | Rapier collision groups, solver groups, `PhysicsHooks` | rapier.rs `docs/user_guides/rust/colliders`, `…/advanced_collision_detection`, `…/determinism` (0.36); github.com/dimforge/rapier; `gh api repos/dimforge/rapier/license` |
+| 5 | Box2D v3 filtering and pre-solve | box2d.org `documentation/md_simulation.html` (3.1.0); github.com/erincatto/box2d |
+| 6 | Factorio prototypes | lua-api.factorio.com `latest/prototypes/CollisionLayerPrototype.html`, `latest/types/CollisionMaskConnector.html`, `latest/auxiliary/mod-structure.html`, `latest/auxiliary/data-lifecycle.html` (2.1.21) |
+| 7 | RimWorld defs, comps and patches | rimworldwiki.com `Modding_Tutorials/ThingComp`, `…/PatchOperations`, `…/Mod_Folder_Structure` |
+
+## 3.3 Each candidate
+
+**1. Geant4 physics lists** — where the term comes from.
+- *What it is.* "Physics Model = final state generator", "Physics Process = cross section + model",
+  "Physics List = list of processes for each particle". `G4VUserPhysicsList` constructs particles and
+  processes; `G4VModularPhysicsList` organizes them into modules registered with
+  `RegisterPhysics(G4VPhysicsConstructor*)`, which can be removed or replaced. Reference lists
+  (`FTFP_BERT`, `QBBC`, `QGSP_BERT`, `Shielding`, …) ship with the toolkit and are supported by its team;
+  `G4PhysListFactory::GetReferencePhysList("FTFP_BERT_EMV")` selects one by name, a suffix swapping the
+  electromagnetic constructor; `ReferencePhysList()` reads the name from the environment variable
+  `PHYSLIST`.
+- *Fit.* (a): exact in shape. Kinds of particle ↔ body classes; processes ↔ interaction behaviours
+  implemented in code; modular constructors ↔ packs that provide behaviour; reference lists chosen by
+  name ↔ `default` and lists shipped by packs; a suffix swapping one module ↔ a list that `extends`
+  another and replaces one entry. (b), (c): none — Geant4 is particle transport in C++, the language
+  of its listings (the page does not say "C++"; the code is), not a library MineWorld could call.
+- *Licence.* The Geant4 Software License 1.0 (2006): permissive, with an attribution clause, a
+  licence-back of published modifications "including any patents you own", a no-patent-filing clause,
+  and termination on suit. Irrelevant to a pattern; it would matter only if code were taken, and none is.
+- *Maturity.* Decades, the reference toolkit of high-energy physics.
+- *Cost.* Zero: a pattern and a vocabulary.
+- **Verdict: ADOPT THE PATTERN AND THE NAME; reuse no code.** It is the model the operator named, and it
+  separates the three things this design needs separated: what kinds exist (data), what behaviour exists
+  (code, modular), and which behaviour applies to which kind (a named, swappable list).
+
+**2. Unity's layer collision matrix and Physics Material.**
+- *What it is.* Each GameObject is on one layer; the matrix (Edit › Project Settings › Physics) is a
+  checkbox per pair of layers saying whether they collide. A layer mask is an integer bitmask. Layer 31
+  is reserved by the editor and "You can't add more Layers" — consistent with 32 layers, though no page
+  read states the number (inference). A Physics Material has dynamic friction (0–1, default 0.6), static
+  friction (0.6), bounciness (0), and a friction combine and a bounce combine; when two materials'
+  combine modes differ, the higher-priority one wins: Maximum > Multiply > Minimum > Average.
+- *Fit.* (a): the matrix is the simplest pairwise table — symmetric, boolean, one class per object — and
+  shows that a project-wide table of pairs is something game authors already understand. The combine
+  rule answers a real question the design must answer: two bodies with two materials meet; which
+  friction applies? (b), (c): engine-bound; nothing callable from a Rust server.
+- *Licence.* Proprietary (the pages are "Copyright ©2005-2026 Unity Technologies. All rights reserved";
+  no licence page was fetched).
+- **Verdict: REFERENCE.** Adapt the combine rule for materials (§4.3) and the idea of a project-wide
+  table of class pairs. Its symmetry is too weak for MineWorld: "a person pushes a box" is not "a box
+  pushes a person".
+
+**3. Godot's collision layers and masks and `PhysicsMaterial`.**
+- *What it is.* 32 layers. `collision_layer` is "the layers that the object appears in";
+  `collision_mask` is "what layers the body will scan for collisions". One object's mask is tested
+  against the other's layer, so a relation can be one-directional (an inference from the definitions,
+  not the page's wording). `PhysicsMaterial` has `friction` (0–1), `rough`, `bounce` (0–1) and
+  `absorbent`: if one body is rough its friction is used, otherwise the lower; absorbent subtracts
+  bounce instead of adding it.
+- *Fit.* (a): the one-directional mask is the right shape for asymmetric relations ("person nudges
+  person" is symmetric; "person pushes box" is not). (b): it is the 3D client's engine (`DEP-4`, Jolt
+  in Godot, `DEP-14`); the client may map body classes to layers for its local, non-authoritative
+  prediction (§4.11). Never authoritative, so never the evaluator.
+- *Licence.* MIT (GitHub API). Maturity: mature, already a dependency of the clients.
+- **Verdict: REFERENCE for the table's asymmetry; ADOPT on the client only**, as presentation-side
+  prediction derived from disclosed classes, never as a rule (`ENGINEERING_RULES.md` §§7–9, I-8).
+
+**4. Rapier's collision groups, solver groups and `PhysicsHooks`.**
+- *What it is.* An `InteractionGroups` value is a membership mask and a filter mask (`u32`: 32 groups);
+  two colliders interact iff `(A.memberships & B.filter) != 0 && (B.memberships & A.filter) != 0`.
+  Failing collision groups computes no contact; failing solver groups computes contacts but applies no
+  force. `PhysicsHooks` (passed to `step`): `filter_contact_pair` (no contact, contact without forces, or
+  with), `filter_intersection_pair` for sensors, and `modify_solver_contacts`, which may change normals,
+  points, depth, tangent velocity, and friction and restitution for a manifold, may remove contacts, and
+  cannot add them. Queries take a `QueryFilter` with a predicate (12c uses `only_fixed().predicate(..)`).
+  Cross-platform determinism needs `enhanced-determinism`, IEEE 754-2008 targets, canonical insertion
+  order, and nalgebra's `ComplexField`/`RealField` for transcendental inputs (verified for 12b, §17.3.3
+  of step-11). The colliders page's groups section was read through the fetching agent's summary; its
+  quoted formula matches.
+- *Fit.* (b): exact, inside `systems/bodies/src/rapier.rs`. The table's contact column compiles into
+  query-filter predicates per class for sweeps, and into collision or solver groups (or a
+  `filter_contact_pair` hook) for flights; per-pair materials compile into each collider's friction and
+  restitution or `modify_solver_contacts`. (a), (c): wrong level. A bitmask is an engine concept; if a
+  World Pack named Rapier groups, a physics-engine concept would enter authored content, against
+  `ENGINEERING_RULES.md` §12 and `DEP-13`'s isolating interface ("No Rapier type appears in a component,
+  a fact, a contract or another crate"). And groups say only whether two shapes touch; nudge-or-push,
+  kick eligibility and rest rules are above collision.
+- *Licence.* Apache-2.0. Maturity: as `DEP-13`. Cost: low; already pinned (`=0.36.0`).
+- **Verdict: ADAPT, behind bodies' adapter only.** The list is evaluated in integers by bodies; where it
+  changes motion, `rapier.rs` expresses it with Rapier's own groups, filters, hooks and materials, so no
+  contact filtering is re-implemented (`REUSE_POLICY.md` §5, thin adapters). The 32-group limit becomes
+  a stated bound on classes per list (§4.5).
+
+**5. Box2D v3's contact filtering and pre-solve callback.**
+- *What it is.* `categoryBits` and `maskBits` with the same two-sided test as Rapier's; a `groupIndex`
+  whose shared non-zero value overrides category and mask (positive: always collide; negative: never);
+  `b2World_SetCustomFilterCallback` and `b2World_SetPreSolveCallback` (e.g. one-sided platforms), which
+  "must be thread-safe and must not read from or write to the Box2D world". The page claims determinism
+  across thread counts and platforms; that sentence came through the fetching agent's summary and was
+  not confirmed word for word (marked unverified).
+- *Fit.* (a): the group-index override is a precedent for this design's precedence rule — an explicit
+  pair entry overrides what the two classes' defaults would give (§4.5). Its callbacks' contract — pure,
+  no world access — is the contract this design gives providers (§4.7). (b): 2D, C17, `float`; MineWorld
+  already has a 3D engine.
+- *Licence.* MIT. Maturity: mature.
+- **Verdict: REFERENCE** (precedence rule; callback purity). Nothing to adopt.
+
+**6. Factorio's prototypes** — a data-driven interaction table in a moddable game.
+- *What it is.* A `collision-layer` is a data prototype ("Prototype limited to 256 total instances"),
+  so a mod adds layers in its data stage (an inference from the prototype mechanism; the page does not
+  say it). Each entity's `collision_mask` is a dictionary of the layers it collides with, plus flags
+  (`not_colliding_with_itself`, …). Data loads in three rounds — every mod's `data.lua`, then every
+  `data-updates.lua`, then every `data-final-fixes.lua` — ordered by dependency depth and then by name,
+  so a mod may change another mod's prototypes; "the game records which mod changed which prototype".
+  `info.json` carries dependencies with version operators and prefixes (`!` incompatible, `?` optional).
+- *Fit.* (a), (c): classes as data that mods add; a deterministic, recorded order of modification;
+  versioned dependencies (S16 already adapts that vocabulary, its §5 row 9). The Lua stages are
+  unconstrained code over a global table — exactly the untyped mutable blob `CLAUDE.md` §4 rule 7
+  forbids at a boundary.
+- *Licence.* Proprietary game; the API is documentation.
+- **Verdict: REFERENCE; ADAPT two ideas** — classes are content that a list may add, and composition of
+  lists is a fixed, recorded order (`extends`, one level of override, refused on conflict). Reject the
+  free-form stages.
+
+**7. RimWorld's defs, comps and patch operations.**
+- *What it is.* XML Defs are content; a Def's `comps` list names C# classes (`compClass`, or
+  `CompProperties` with a `Class` attribute), instantiated per thing at creation with the Def's
+  properties. `Patches/` holds XPath `PatchOperation`s (`Add`, `Replace`, `Remove`, …, custom subclasses),
+  applied after all Defs load, in mod-list order, before inheritance.
+- *Fit.* (a), (c): **data names behaviour that code implements, by name** — the exact split between a
+  list (data) and an interaction kind (code) this design needs (§4.7). XPath patching of another mod's
+  data is the opposite of strong typing: a patch can change any node of any def, unchecked until it is
+  read.
+- *Licence.* Proprietary game; the wiki is documentation.
+- **Verdict: REFERENCE; ADAPT "data names code by id".** Reject XPath patching; a list `extends` one
+  other list and overrides typed entries, and every override is validated by the owner.
+
+**8. Building our own** — the format and its interpreter, inside bodies.
+- *What it is.* A typed YAML document decoded into bodies' own Rust types (the `AuthoredSection`
+  pattern of ARC-31: deserializing is validating), evaluated by integer lookups in bodies' existing
+  pipeline, with Rapier still doing every motion (row 4).
+- *Fit.* The only option that gives (a) and (c) in MineWorld's types — `PersonId`, `ItemId`,
+  `Millimetres`, integers only, deterministic, server-authoritative, versioned in a save. No library
+  offers a semantic interaction table for a persistent world; physics engines offer collision masks,
+  and games offer formats bound to their loaders.
+- *Cost.* Moderate: a format, validation, a table lookup in perhaps a dozen places in bodies, and a
+  refactor that must be byte-identical (§7).
+- **Verdict: BUILD, narrowly** — the format and the lookup only. Motion stays Rapier's; YAML decoding
+  stays `serde-saphyr` (`DEP-10`). Recorded as `DEP-PL-a` (§11), because declining every library in
+  favour of our own code needs a record too (`REUSE_POLICY.md` §12).
+
+## 3.4 Summary and recommendation
+
+| # | Candidate | (a) concept | (b) evaluation | (c) format | Licence | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Geant4 physics lists | exact shape | — | — | Geant4 SL 1.0 | **adopt the pattern and the name** |
+| 2 | Unity matrix, Physics Material | pair table; combine rule | engine-bound | — | proprietary | reference; adapt the combine rule |
+| 3 | Godot layers/masks, `PhysicsMaterial` | asymmetry | client prediction only | — | MIT | reference; adopt on the client only |
+| 4 | Rapier groups, hooks, materials | wrong level | **exact, in `rapier.rs`** | — | Apache-2.0 | **adapt behind the adapter** |
+| 5 | Box2D filtering, pre-solve | precedence; pure callbacks | — | — | MIT | reference |
+| 6 | Factorio prototypes | classes as data | — | ordered, recorded composition | proprietary | reference; adapt two ideas |
+| 7 | RimWorld defs, comps | data names code | — | typed, not XPath | proprietary | reference; adapt "data names code" |
+| 8 | Build our own | MineWorld's types | Rapier underneath | YAML via `DEP-10` | — | **build, narrowly** (`DEP-PL-a`) |
+
+**Recommendation.** Take Geant4's architecture and name; express the table in MineWorld's own typed,
+integer format (8), with classes as content (6) and behaviour named by id and implemented in code (7);
+evaluate it in bodies and let `rapier.rs` realize it with Rapier's groups, filters, hooks and materials
+(4); adopt Unity's combine rule for materials (2), Box2D's precedence for overrides (5), and Godot's
+asymmetric masks as the model for one-directional relations and for the 3D client's prediction (3).
+Both failure modes of `REUSE_POLICY.md` §17 are checked: nothing commodity is rebuilt (no collision
+detection, no contact filtering, no solver, no YAML parser); nothing is forced (no engine type in content,
+no engine as the authority, no scripting runtime where a typed table suffices).
