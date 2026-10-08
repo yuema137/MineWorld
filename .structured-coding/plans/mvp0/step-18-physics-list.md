@@ -1115,7 +1115,7 @@ what would make it pluggable. "Planned" means a step document already designs it
 Replaces the opening paragraph and the "Status" section; the rest of the README stays. Proposed, not
 applied (the primary session decides, QPL-15):
 
-```markdown
+~~~markdown
 # MineWorld
 
 > **An open-source framework for building persistent, modular, playable worlds.**
@@ -1145,7 +1145,134 @@ MVP-0 is being built in the open. The kernel, persistence, the server and the Sy
 movement, conversation, relationships, group activity, items, money, work and bodies exist and are
 tested; the 2D and 3D reference clients and package versioning are in progress. See
 [`docs/MVP_STATUS.md`](docs/MVP_STATUS.md).
-```
+~~~
 
 The statement "LM-native" in today's README is kept or dropped by the operator's choice (QPL-15); the
 wording above does not depend on it.
+
+---
+
+# 9. Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| R-PL-1 | PL-b's refactor changes a result subtly — a float conversion, an insertion order, a bound read one step late — and the default stops being 12c. | PL-I1 on three independent references (12b's long run, 12c's sandbox, both towns after 12d); the float bit patterns pinned; a mutation proving the list is what is read; cross-architecture. |
+| R-PL-2 | The invariants were proven for one set of numbers; an accepted list breaks one (a reach too short to touch, a nudge chain that cannot clear). | Engine bounds on every parameter (§4.4); cross-checks at load (§4.5); PL-I6's 30-day scan under every list in PL-c's test set; verify-then-degrade unchanged. |
+| R-PL-3 | The configuration seam becomes a grab-bag — untyped maps, values nobody owns. | Owner-typed, one file per pack, unknown keys refused, bounds in the owner's type; no generic "settings" bag (`CLAUDE.md` §4 rule 7). |
+| R-PL-4 | PL-a collides with S16 E-a/E-b in `sdk` and `worldpack/src/format.rs`. | Ordered after E-a; one-key rebase with E-b (§7.1). |
+| R-PL-5 | A provided kind breaks determinism (a float, a `std` transcendental, a hash order). | Its interface is integers and ids only; no Rapier type crosses it; DC-3 applies to providers; PL-d runs cross-architecture with a provider active. |
+| R-PL-6 | A list makes the paced controller's world degenerate (kicks everywhere, nothing reachable) — the AO-2 story again. | Offers follow the list, so a list that offers less is the remedy (ARC-34); each world that ships a list carries its own activity check; the controller is never the remedy. |
+| R-PL-7 | Users read "physics list" as realistic physics. | R-3 of step-11 stands; the bodies README says what a list can and cannot do (no momentum between requests, no chain reactions, no rotation). |
+| R-PL-8 | Per-place copies of the list grow snapshots. | A resolved list is under ~2 KB; places per world are tens; measured in PL-c and reported. A shared store is a later optimization, not a contract. |
+
+---
+
+# 10. Questions (QPL-1 …)
+
+**[OM]** marks an operator-material question: it changes scope, a frozen specification or model, a
+milestone, or the kernel. Each has a recommendation.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QPL-1 [OM]** | Is a physics list *data that selects and parameterizes behaviour code provides*, with new behaviour always a System Pack (`MODULE_SPEC.md` §4 constraint 3 kept as written)? Or may a list define behaviour (a scripting language)? | **Data only.** It keeps determinism, typing and ownership where they are, and it is Geant4's own split. |
+| **QPL-2 [OM]** | ARC-PL-a: a generic world configuration seam — `world.yaml` `configure: [<system>]`, `configure/<system>.yaml` typed by its owner, seeded before sections, with a drift check at resume. It changes the World Pack model (`MODULE_SPEC.md` §4, §4.1) and implements §9's "configuration schema". Alternatives: (b) lists only inside bodies' place sections (no world-level list, repeated per place); (c) inline in `world.yaml` (touches `ac1_composability` check 3's comparison). | **(a).** One seam closes G-PL-4 for every pack, and no pack-specific field enters the loader. |
+| **QPL-3** | Classes as a separate genesis fact and component (`object-classed`, `BodyClass`) rather than a field of `body-formed` / `BodyShape`. | **Separate.** Unclassed worlds stay byte-identical (PL-I1). |
+| **QPL-4 [OM]** | Timing: nothing in 12c or 12d; PL-a beside 12d, after S16 E-a; PL-b after 12d's merge, beside 12e; then PL-c, PL-d. | **As stated (§7.1).** |
+| **QPL-5** | A data-only "physics list pack" shared between worlds (a new S16 pack type, or carried by Entity Packs)? | **Later.** Lists ship in code packs (with their kinds) or in worlds; add a data pack when a shared list without code first exists. |
+| **QPL-6** | The person's shape (R 300 mm, 1 720 mm) stays an engine constant, not a list parameter. | **Yes.** Capacity, clearance, the push search and the 3D capsule derive from it; a per-world person shape is its own design. |
+| **QPL-7** | A built-in mass-ratio rule (push only if the body is light enough; kick speed scaled by mass)? | **Not now.** Mass is recorded per class; a ratio is expressed by `block` per class or by a provided kind. |
+| **QPL-8** | May a list narrow object limits (half-extents, count) per class? | **Yes, narrow only**, in PL-c. |
+| **QPL-9** | At most 24 classes per list (Rapier's 32 groups, less reserved bits). | **Accept**; raise only with a measured need. |
+| **QPL-10** | ARC-PL-b: generalize `installed!`'s `resolution:` line into `extension <trait> => <register fn>: [...]` and migrate presence's catalog in PL-a. | **Yes.** No compatibility shim (`CLAUDE.md` §4 rule 12); byte-identical. |
+| **QPL-11 [OM]** | "Fragile breaks into items" as new loose objects needs a System to create entities during a dispatch — a kernel change. Take it up? | **Not in S-PL.** `fragile` removes the object and may produce shard *kinds* into holdings. Runtime entity creation is its own kernel design, if wanted. |
+| **QPL-12 [OM]** | Refuse a resume when the World Pack's *configuration* differs from the save's (recommended), or when *any* content differs (all genesis facts re-seeded and compared)? | **Configuration only, now.** Content drift changes every host's behaviour on existing saves and deserves its own decision. |
+| **QPL-13 [OM]** | Are PL-a … PL-c MVP-0 scope, and is PL-d (a third-party kind `ice`, a consequence pack `fragile`, `worlds/rink`) an MVP-0 gate? | **PL-a … PL-c in MVP-0**: they are what makes "a framework" true for physics. **PL-d recommended in MVP-0** as the physics counterpart of `AC-1` (bodies unedited when a behaviour is added), the operator's choice. The operator plays a configured world after PL-c. |
+| **QPL-14** | S-number for this step, and decision numbers for ARC-PL-a, ARC-PL-b, ARC-PL-c, DEP-PL-a. | **The primary session assigns them** (coordination ruling 6). |
+| **QPL-15 [OM]** | The README's "what MineWorld is" wording (§8.8); keep "LM-native" in the tagline? | **Adopt §8.8**; the tagline is the operator's call. |
+| **QPL-16** | Disclose each loose object's class in the `loose-objects` listing (additive; S11 owns the wire, R-S11-PL-1). | **Yes, in PL-c**, coordinated with S11. |
+| **QPL-17 [OM]** | G-PL-1: add an S14 PR in which the 3D client reads a Presentation Pack and builds places from disclosure, so a new world or style gets a 3D scene. | **Yes, after 12e**, not gating `AC-14`. It is the 3D half of R-PL-2. |
+| **QPL-18** | A new step S-CFG: other packs adopt ARC-PL-a's configuration (capacity, ranges, regard values, consumption words), one PR per pack when a world needs it. | **Create it, not an MVP-0 gate**, unless the operator wants a second configured pack as evidence. |
+| **QPL-19** | A world-authored list's version: an integer counter (like `SystemVersion`) rather than semver. | **Integer counter.** The world's own semver (S16) versions the pack that carries it. |
+| **QPL-20** | PL-b's cost bound: at most +5 % per swept move and per kick, release build, against `main`. | **Accept**, fixed before measuring. |
+
+---
+
+# 11. Proposed decision records (drafts; not in `docs/DECISIONS.md`)
+
+## 11.1 ARC-PL-a — A System Pack may be configured per world, by a file its owner types
+
+**Problem.** `MODULE_SPEC.md` §9 gives every pack a configuration schema; nothing implements it (S16
+G-8), so every rule number is compile-time (A-10) and a world that needs another value forks the pack.
+**Choice.** `authoring::PackConfiguration` (sibling of `AuthoredSection`); `world.yaml` `configure:`
+lists owners; `configure/<system>.yaml` is decoded straight into the owner's type; its facts are the
+owner's vocabulary, seeded after passages and locations and before sections; the owner reduces them into
+its own state. A host resuming from a World Pack re-seeds the configuration and refuses a difference
+from the save's, by name. A world without `configure:` seeds exactly what it did. **Rejected.** Fields in
+`world.yaml` per pack (the loader learns packs, F-1 again); configuration in the kernel's composition
+record (a kernel change); an untyped settings map. **Limitations.** A different *rule* is still a System
+Pack (`MODULE_SPEC.md` §4 constraint 3); content drift other than configuration is not detected.
+
+## 11.2 ARC-PL-b — Extension catalogs: a pack-owned trait, implemented by other packs, listed in the installed set
+
+**Problem.** ARC-39's resolver catalog is wired by name in the sdk and `worldpack` (A-7); a second
+catalog would wire again. **Choice.** `installed!` takes any number of `extension <trait> => <register
+fn>: [<types>]` lines; `Capability::register_extensions()` calls each; `worldpack::compose` calls that.
+Each catalog keeps ARC-39's rules: write-once, process-wide, compiled-in, pure members, inert where the
+world does not use them. Presence's catalog becomes the first line. **Rejected.** A kernel extension slot
+(QB-15's F2: a kernel change); linker-section registration (DEP-12). **Limitations.** As ARC-39: one
+catalog per build; runtime disable not honoured (QB-17).
+
+## 11.3 ARC-PL-c — Bodies' physics list
+
+**Problem.** Bodies' rules are 39 constants and a dozen code paths (A-1, A-2); the operator asks that a
+user decide how kinds of object interact (R-PL-4). **Choice.** §4: body classes; a typed, integer,
+bounded, total list owned by bodies; the compiled-in `default` equal to 12c; three sources (bodies,
+provider packs, worlds); selection per world and per place; resolved lists stored as bodies' state;
+interaction kinds as code through an ARC-PL-b catalog; consequences as packs through owners'
+constructors. Engine invariants hold for every list. **Rejected.** Rapier groups or materials in
+content (an engine concept in content, §3 row 4); a scripting language (QPL-1); constants per world by
+fork. **Limitations.** No person shape per list; no chain reactions, no momentum, no rotation; no
+runtime entity creation (QPL-11).
+
+## 11.4 DEP-PL-a — The physics list's format and interpreter are our own, on Rapier and `serde-saphyr`
+
+**Options.** §3: Geant4, Unity, Godot, Rapier, Box2D, Factorio, RimWorld, our own. **Choice.** Build the
+format and the lookup only; adopt Geant4's pattern and name; realize motion through Rapier (`DEP-13`)
+with its groups, filters, hooks and materials; decode with `serde-saphyr` (`DEP-10`). No new dependency.
+**Why not the others.** No library offers a deterministic, integer, server-authoritative semantic
+interaction table in MineWorld's types; engines' masks are collision-level and engine-bound; games'
+formats are bound to their loaders and, for Factorio and RimWorld, untyped where it matters.
+
+---
+
+# 12. Proposed amendments (text only; applied by the primary session)
+
+**`overall.md` §3, after S16:**
+
+```markdown
+### S-PL — The physics list *(proposed 2026-10-08, operator requirement)*
+
+**Design:** [`step-18-physics-list.md`](step-18-physics-list.md). What bodies does between people and
+objects becomes a physics list — content a world chooses — and new physical behaviour becomes a pack,
+not an edit to bodies. A generic per-world configuration seam (ARC-PL-a) and generic extension catalogs
+(ARC-PL-b) are the framework precursor. No kernel or contract change.
+
+- **Depends on:** 12d merged (PL-b), S16 E-a merged (PL-a). **Feeds:** S12, S14 (class disclosure),
+  S-CFG.
+- **Acceptance checkpoint:** a world that configures nothing is byte-identical (12b's long run, 12c's
+  sandbox, both towns after 12d); an explicitly configured default changes only genesis; a configured
+  world blocks, pushes, kicks and lands as its list says, with every engine invariant held; a resume
+  against a changed configuration is refused by name; installing a new behaviour leaves bodies unedited.
+```
+
+**`overall.md` "Parallel build-out" lanes:** `S-PL: PL-a after S16 E-a (∥ 12d); PL-b after 12d (∥ 12e);
+PL-c; PL-d.`
+
+**`overall.md` §4:** a row `Operator requirement 2026-10-08: a framework, not a demo; users add their own
+physics list | S-PL; G-PL-1 → S14, G-PL-3 → S11/S12/S14/S16, G-PL-4 → S-CFG`.
+
+**Specifications, in the PRs that implement them (`CLAUDE.md` §2.2):** `MODULE_SPEC.md` §4 (model:
+`configure:`), §4.1 (the field, `configure/`, the `body` row's `class:` and `physics:`), §9
+(configuration schema: implemented as ARC-PL-a); `CORE_CONCEPTS.md` unchanged (the new terms are bodies'
+vocabulary, §4.1); `systems/bodies/README.md` (what a list can and cannot do); `README.md` per §8.8 if
+QPL-15 is accepted.
