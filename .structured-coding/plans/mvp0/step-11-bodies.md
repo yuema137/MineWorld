@@ -9,11 +9,11 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
 **Lifecycle:** step design `DESIGN FROZEN (2026-10-07)`, revision 1.
 
 - The architecture, the ownership and the five-PR split are frozen.
-- No PR design in this document is frozen yet. Each of 12a–12e is detailed to the commit and frozen
-  in turn, and implementation starts only after 11f merges.
-- **PR 12a is detailed to the commit in §16** (planning session, branch `mvp0/s15-12a-plan`, from
-  `main @ b8afd4f`, 2026-10-07). It is not frozen. Its open questions are QR-1 … QR-12 (§16.8).
-- Nothing here yet authorizes implementation.
+- Each of 12a–12e is detailed to the commit and frozen in turn.
+- **PR 12a — MERGED** as GitHub #56, merge commit `03f1d7c` (2026-10-07), PR head `dcaeae3`, final
+  executable head `dc2b6b4`. Design, evidence and the operator's review in §16; review record §16.12.
+- **PR 12b** is next: detailed to the commit in §17 by the planning session, not frozen. Nothing in §17
+  authorizes implementation.
 
 **Freeze record (primary session, 2026-10-07).** The operator decided:
 
@@ -1804,7 +1804,7 @@ recorded facts, which the resolver must predict (bodies' object pushes, §4.5.4)
 
 ---
 
-# 16. PR 12a — the arrival-resolver seam (full design; DESIGN FROZEN 2026-10-07)
+# 16. PR 12a — the arrival-resolver seam (full design; DESIGN FROZEN 2026-10-07; MERGED #56, `03f1d7c`)
 
 ## 16.0 Freeze record
 
@@ -2323,10 +2323,11 @@ written again here (about twenty lines) rather than moved, so the I-2 scan's fil
 - [x] Review: RS-1 … RS-16 each with evidence (the table below E-RS8); deviations DR-1 … DR-4 in
   §16.11.
 
-**PR 12a lifecycle:** READY FOR OPERATOR REVIEW — DO NOT MERGE (merge commit only, operator's
-authorization). Final executable head `dc2b6b4`; later commits are Markdown only. Implementation
-context CLOSED / AWAITING OPERATOR ACTION. POST-MERGE SYNC: the planning session owns the step header,
-§§1–15, overall and MVP_STATUS's Updated and S15 lines; this session's §16 is current.
+**PR 12a lifecycle:** **MERGED** — GitHub #56, merge commit `03f1d7c` (a merge commit, as frozen), on
+the operator's authorization, after the operator's own review (§16.12). PR head `dcaeae3`; final
+executable head `dc2b6b4`; later commits Markdown only. Implementation context CLOSED. POST-MERGE SYNC:
+done by the planning session on `docs/s15-12a-merged` — the step header, §16.12, `overall.md` §7 and
+MVP_STATUS's Updated and S15 lines.
 
 ## 16.6 Test ownership
 
@@ -2700,3 +2701,47 @@ words.**
   five directories is still refused, and any new use is refused. The operator may prefer (a) as a
   two-file comment edit in a later PR, after which the entries fail as unused and are removed.
 - Validation: E-RS7 (the three failures, then green; the planted violations still fail by name).
+
+## 16.12 Operator review and merge (post-merge record, planning session)
+
+**Merged:** GitHub #56, merge commit `03f1d7c` (2026-10-07), with a merge commit as frozen. PR head
+`dcaeae3`; final executable head `dc2b6b4`, unchanged by the Markdown-only commit after it.
+
+**The operator's review evidence, on the PR head, before the merge:**
+
+- **Gates re-run:** 542 passed, 0 failed. The `harness = false` programs passed: `resolver-yard`
+  (`arrival_resolvers_resume`), `cafe` and `clock` (persistence's `kill_and_resume`). This matches
+  E-RS8.
+- **Scope:** the diff has no path under `kernel/`, `contracts/`, `server/`, `persistence/`,
+  `cognition/` or `worlds/` (I-1).
+- **The operator's own mutation:** `arrivals()` suppressed the `stopped-short` fact but kept the
+  shortened arrival. Four acceptance tests failed:
+  - `an_arrival_is_resolved_before_it_is_recorded` (RS-3);
+  - `resolvers_are_asked_in_ascending_system_id` (RS-5);
+  - `arrival_refuses_a_placement_a_resolver_would_change_and_arrivals_records_it` (RS-6);
+  - `presence_refuses_a_resolution_that_breaks_its_rules_and_names_the_resolver` (RS-4).
+
+  The mutation was reverted. It is independent of the implementing session's M-RS1 … M-RS10: none of
+  those removed `stopped-short` alone.
+- **After the merge, on main:** `ac1_composability` passes 13/13 and `precursor_vocabulary` passes
+  4/4 (RS-15 holds on the merged tree).
+
+**Deviations ruled on:**
+
+- **DR-1, DR-2:** bounded, as recorded in §16.11; no ruling needed.
+- **DR-3: accepted.** `tests/acceptance/tests/resolvers/mod.rs` stays one 988-line file, because §16.1
+  names a single support file. A split is not scheduled.
+- **DR-4: accepted, with a follow-up.** The self-checking allow-list `PRE_EXISTING` in
+  `tests/acceptance/tests/seam_vocabulary.rs` admits three pre-existing words:
+  - `systems/movement/src/action.rs:14` (`body`);
+  - `systems/movement/src/action.rs:21` (`physical`);
+  - `worldpack/src/read.rs:354` (`collision`).
+
+  **Follow-up FU-12a-1:** the next PR whose frozen scope may edit movement's `action.rs` and
+  worldpack's `read.rs` rewords those three comments. The three entries then fail as unused, as
+  designed, and are removed in the same PR. 12b's change set does not include either file (§17.1), so
+  the follow-up stays open after 12b.
+
+**What 12a leaves for 12b.** The `resolution:` line in `systems/installed` reads `[]`. 12b adds
+`mineworld_bodies::BodiesSystem,` to it. With that, bodies is the first registered resolver in every
+build. It stays inert in every world that does not install `bodies`.

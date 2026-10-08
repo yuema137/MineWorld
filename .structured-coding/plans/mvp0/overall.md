@@ -529,7 +529,8 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 
 # 7. Current position
 
-**Last updated 2026-10-07** (S9 closeout: 11f merged as `fea2516`, S9 complete, S15 placed).
+**Last updated 2026-10-07** (S15: 12a merged as `03f1d7c`; next is 12b. Before that: the S9
+closeout, 11f merged as `fea2516`, S9 complete, S15 placed).
 **Restated 2026-09-29.** This section had not been updated since PR 01 — it still read
 "In flight: PR 01" with seventeen PRs merged — because the post-merge obligation to update
 PR → step → overall was skipped after nearly every merge. A plan that cannot answer "where are
@@ -758,21 +759,38 @@ Next, framework (critical path to Milestone B):
        operator decisions QB-1 resolve before recording, QB-10 nudging, QB-2 withdrawn, QB-15 F1
        registration at start-up; QB-16 decided and tested in 12b; QB-17 deferred; the remaining
        QBs as recommended). Placed in §3 by step-11-bodies §12.1:
-       12a  the arrival-resolver seam (framework precursor; names no physics; ARC-39)
-       12b  people: walls and nudging (DEP-13, `systems/bodies` on Rapier)
+       12a  the arrival-resolver seam               PR 12a (GitHub #56), merged 03f1d7c
+            A framework precursor that names no physics (ARC-39). presence asks every registered
+            `ArrivalResolver` what an arrival achieves before it records it, and records only that:
+            the walker's `arrived`, one `arrived` per person displaced, and `stopped-short`. movement
+            states through `arrivals()` and names no resolver. The installed set gained an optional
+            `resolution:` line, still `[]`, which `worldpack::compose` registers once per process.
+            presence is now v3, so a save from before 12a is refused by name. Proven with synthetic
+            resolvers in `tests/acceptance` only. Reviewed before merge:
+            - gates re-run on the PR head (542/0), `resolver-yard`, `cafe` and `clock` PASS;
+            - the diff touched no kernel, contracts, server, persistence, cognition or worlds path;
+            - my own mutation, `stopped-short` suppressed while the shortened arrival was kept,
+              failed four acceptance tests (RS-3, RS-4, RS-5, RS-6); reverted;
+            - after the merge, `ac1_composability` 13/13 and `precursor_vocabulary` 4/4 on main.
+            Both 300-day seed-7 digests are unchanged (I-7). DR-3 accepted: one 988-line test support
+            file. DR-4 accepted: three pre-existing words are allow-listed in `seam_vocabulary.rs`.
+            Follow-up FU-12a-1: the next PR allowed to edit movement's `action.rs` and worldpack's
+            `read.rs` rewords those comments and removes the entries.
+       12b  people: walls and nudging (DEP-13, `systems/bodies` on Rapier) — being detailed
+            (step-11 §17)
        12c  objects: push, kick, throw; shove
        12d  the town gets bodies (digests re-baselined here, and only here)
        12e  the 3D client (Jolt, DEP-14), after the visual slice (now on main as #50)
-       Each PR is detailed to the commit and frozen in turn; none is frozen yet.
+       Each PR is detailed to the commit and frozen in turn. 12a merged; 12b–12e not frozen.
 
-Next, framework:  S15 12a, the arrival-resolver seam — detailed to the commit and frozen, then
-                  implemented in a fresh session, after this closeout merges. S15 precedes S14
+Next, framework:  S15 12b, people: walls and nudging — detailed to the commit in step-11 §17, then
+                  frozen by the operator and implemented in a fresh session. S15 precedes S14
                   (step-11 §12).
 Next, operator:   AC-1, Milestone B and Milestone C ACCEPTED 2026-10-07 (the operator ran
                   milestone_b, ac1_composability, milestone_c, market_town and a 30-day run on
                   main, all passing). VIS-3D-GODOT-2 accepted after the operator played it. Nothing pending with the operator.
 
-Remaining:  S15 (12a–12e), S10 (reduced), S11 (authentication, admin frames, deltas), S12, S13,
+Remaining:  S15 (12b–12e), S10 (reduced), S11 (authentication, admin frames, deltas), S12, S13,
             S14; Milestones D and E
 
 Visual track (parallel, never blocking the above; ARC-20):
