@@ -3,8 +3,6 @@
 
 mod support;
 
-use std::path::PathBuf;
-
 use mineworld_contracts::Causation;
 use mineworld_persistence::{
     Creation, Durability, PersistenceBackend, PersistentWorld, SqliteBackend, verify,
@@ -15,21 +13,12 @@ use support::{GENESIS, Town, compose, t, types};
 const INSTANCE: u128 = 0x5eed_0000_0000_0000_0000_0000_0010_0c05;
 const SIX_AM: i64 = 6 * 3_600;
 
-struct Scratch(PathBuf);
+/// A save directory of this test's own, removed when the test ends (scratch, DEP-29).
+struct Scratch(mineworld_test_support::Scratch);
 
 impl Scratch {
     fn new(name: &str) -> Self {
-        let path =
-            std::env::temp_dir().join(format!("mineworld-schedule-{}-{name}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&path);
-        std::fs::create_dir_all(&path).expect("a scratch directory");
-        Self(path)
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
+        Self(mineworld_test_support::scratch!(empty name))
     }
 }
 

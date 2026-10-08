@@ -366,10 +366,27 @@ and the callers §4.2 names; `tools/cli/Cargo.toml` dev-dependency. **Depends on
 **Scope.** §4.2's remaining sites; QTH-2 decides whether the (T) population is included (if not, this
 commit is only `worldpack` + `ac1_composability` and the two `harness = false` programs).
 
-- [ ] Implementation: as §4.2; the harness programs' guards in the parent only.
-- [ ] Validation: per-crate tests pass; the two `harness = false` programs print their PASS lines;
-  `scan` → 0 hits.
-- [ ] Review: children never construct a `Scratch` (C-f); `BODIES_YARD_SAVES` comment (C-e).
+- [x] Implementation: as §4.2, with QTH-2 accepted (the (T) population included).
+  - `worldpack`: `Fixture.root` is a `Scratch`; `write_pack` returns one; `social_cafe.rs` uses
+    `scratch!("unnamed").within("social-cafe")`.
+  - `ac1_composability.rs`: `scratch_repository` returns `scratch!(empty name)`; the clone is
+    `scratch!("ac1-shallow-clone")`.
+  - The two `harness = false` programs: `scratch(name)` returns `scratch!(empty "kill-<name>")` /
+    `"resolver-kill-<name>"`, constructed in the parent only; their end-of-scenario
+    `remove_dir_all` lines are deleted (the guard removes the save at the same point).
+  - `persistence/tests/support` `Scratch` and the five `systems/*/tests/persisted.rs` newtypes keep
+    their names and constructors and wrap the helper's `Scratch`; their `Drop` impls are deleted.
+  - Unused `PathBuf` imports removed where the change left them unused.
+  - Not done (C-e's doc sentence): `bodies_yard.rs`'s doc comment is unchanged; `scanned` gained a
+    two-line comment instead, and the keep workflow is in `ENGINEERING_STANDARDS.md` §22. Bounded.
+- [x] Validation (E-TH3): `cargo test -p` test-support, worldpack, acceptance, persistence, schedule,
+  group-activity, employment, movement, inventory → 162 passed, 0 failed, exit 0; `[resolver-yard]
+  PASS`, `[cafe] PASS`, `[clock] PASS` printed by the two `harness = false` programs;
+  `/tmp/th-dev/tmp` empty afterwards. `check_scratch.py scan` → "133 test sources, none makes scratch
+  outside mineworld-test-support". `cargo clippy --workspace --all-targets --all-features -D
+  warnings` clean; `cargo fmt --check` clean.
+- [x] Review: children read `MINEWORLD_KILL_TEST_DIR` / `MINEWORLD_RESOLVER_KILL_DIR` and construct
+  no `Scratch` (C-f); `BODIES_YARD_SAVES` is joined, never owned (C-e).
 
 ### C4 — Close: full gate, mutations, A-2…A-8 evidence, ledger
 

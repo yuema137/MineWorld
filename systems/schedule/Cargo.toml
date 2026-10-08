@@ -26,3 +26,4 @@ thiserror = { workspace = true }
 mineworld-movement = { workspace = true }
 mineworld-persistence = { workspace = true }
 serde-saphyr = { workspace = true }
+mineworld-test-support = { workspace = true }

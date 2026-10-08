@@ -10,7 +10,7 @@
 //! *must* contain is checked once, in [`every_refusal_names_the_file_it_is_about`], because "and
 //! where" is half the requirement.
 
-use std::path::{Path, PathBuf};
+use mineworld_test_support::Scratch;
 
 use mineworld_contracts::{EntityKey, SystemId};
 use mineworld_kernel::KernelError;
@@ -21,14 +21,13 @@ use mineworld_worldpack::{ContentKind, Declared, PackError, WorldPack};
 /// Named after the test, and named after the pack's own id: a pack's id must be its directory's name,
 /// so a fixture that got that wrong would be refused for the wrong reason.
 struct Fixture {
-    root: PathBuf,
+    root: Scratch,
 }
 
 impl Fixture {
     /// An empty directory called `id`, with `people/` and `places/` in it.
     fn new(id: &str) -> Self {
-        let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(id);
-        let _ = std::fs::remove_dir_all(&root);
+        let root = mineworld_test_support::scratch!(id);
         std::fs::create_dir_all(root.join("people")).expect("a writable temporary directory");
         std::fs::create_dir_all(root.join("places")).expect("a writable temporary directory");
         Self { root }

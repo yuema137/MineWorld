@@ -52,6 +52,7 @@ use mineworld_kernel::{
 use mineworld_persistence::{
     Creation, Durability, PersistenceBackend, PersistentWorld, SqliteBackend, verify,
 };
+use mineworld_test_support::Scratch;
 use mineworld_worldpack::WorldPack;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -589,11 +590,9 @@ fn head(directory: &Path, scenario: Scenario) -> u64 {
         .raw()
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!("mineworld-kill-{}-{name}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&path);
-    std::fs::create_dir_all(&path).expect("a scratch directory");
-    path
+/// The parent's scratch: only the parent owns it; a child is handed its path (DEP-29).
+fn scratch(name: &str) -> Scratch {
+    mineworld_test_support::scratch!(empty format!("kill-{name}"))
 }
 
 /// The resume line: (head, snapshot, replayed, facts).
@@ -730,14 +729,12 @@ fn scenario(scenario: Scenario) {
         )
         .expect("the survivor's whole history reproduces");
         assert_eq!(verified.revisions, total);
-        let _ = std::fs::remove_dir_all(&dir);
     }
     assert!(
         tails.iter().any(|tail| *tail > 0),
         "{}: at least one resume re-executed a tail: {tails:?}",
         scenario.name()
     );
-    let _ = std::fs::remove_dir_all(&control_dir);
     println!(
         "[{}] PASS in {:.1} s",
         scenario.name(),
