@@ -1831,13 +1831,16 @@ aims the camera at the figure's head, as a player would, instead of trusting the
 (the two measurement rays get `LAYER_WORLD`, A16-4); `mineworld-slice` (`--target`, headless).
 **Non-goals:** masking people; any other action; offer prompts.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation (E16a-4): T-1 … T-4; `--world --link` and `--world --conversation` again (the door talk
-  still goes to Alice, A16-7; the counter talk still accepted with the reply); `--drive`, `--character`
-  (standalone unaffected); M-2, M-3, M-4.
-- [ ] Review: no code path decides validity (the request is sent whatever `may` says); the ray mask names
-  no layer that does not exist; `slice_link.gd` names no action but `move`; the reticle is absent
-  standalone.
+- [x] Implementation: as scoped, plus three bounded additions recorded in E16a-4: a wording table
+  (`SliceIntents.VERBS`, "talk to") so the link's answer lines name no action; the launcher's
+  `--port=` and a refusal to join when the hosted server could not listen (the coordinator's 16b
+  finding, inside this PR's launcher edit); `ControlsHud.add_reticle()` (Q-16a-1).
+- [x] Validation (E16a-4): T-1 … T-4 PASS; `--link`, `--conversation`, `--drive`, `--character` PASS;
+  M-3, M-4 PASS (bite); M-2 replaced by the in-run counterfactual (below).
+- [x] Review: the request is sent whatever `may` says (M-4 proves the probe would see otherwise); the
+  ray mask is `LAYER_WORLD | LAYER_BODIES`, both defined; `slice_link.gd` has no action literal but
+  `"move"` (the scan, C5); the reticle and "looking at" line are added only in `SliceMain._link()`, so
+  standalone runs and `--shots` have neither.
 
 **Failure cases.** T-1's door ray meeting Bob (R-16a-2): reported with the measured clearance, not
 hidden by aiming elsewhere; the probe then aims where a player would see Alice, and the case is raised
@@ -2039,6 +2042,66 @@ No mean rises 15 %; the largest, `--frametime` standing (+10 %), is inside its o
 **M-1: PASS (the guard bites).** With the `[physics]` line removed, `--drive` printed "engine Godot
 Physics (… 16 …)", "FAIL: the slice is selected to run on Jolt Physics (DEP-20)", "1 DRIVE CHECKS
 FAILED". Line restored.
+
+### E16a-3 — the probe split (recorded with C3, §19.6)
+
+### E16a-4 — ray targeting, intents, the reticle (working tree on `1f898c8`, Jolt, 13:42–14:05)
+
+**A failed first run, diagnosed.** The first `--world --target` failed 5 checks: the ray met the back
+wall behind every figure. Cause: the pick collider is an `AnimatableBody3D`, whose `sync_to_physics`
+defaults to on; the figure is placed by setting `global_position` from an observation, outside any
+physics-frame motion, so the body stayed where it was created. Fix: `sync_to_physics = false` in
+`SliceTargeting.person_collider()`, commented. (12e, which moves figures every frame, re-examines it.)
+
+**`./mineworld-slice --world --target` — all target checks pass:**
+
+```text
+clear    Bob Achterberg (8) beside the line to Alice Moreau: axis 0.321 m from it, capsule half-width
+         0.253 m at y 1.58 -> clearance +0.067 m
+aim      from the door, at her head         -> Alice Moreau (7)  [first hit .../Person_7/PickBody]
+talk     from the door, 8.60 m -> rejected too_far_away
+aim      from the door, at her knees        -> nobody  [first hit .../DailyBean/Interior/@StaticBody3D@4343
+         at (6.99, 1.01, -15.01)]  (the counter's front)
+aim      at the counter, first person       -> Alice Moreau (7)
+aim      at the counter, third person rear  -> Alice Moreau (7)
+aim      at the ceiling                     -> nobody; talk -> token '', 0 answers arrived
+street   body at (3.59, 0.14, -6.01), server place street, 1 people perceived
+aim      from the pavement                  -> Ivan Petrov (15)
+florist  body at (11.88, 0.26, -13.06), slice place florist.main, server place street, 15 perceived
+aim      from the florist, through its wall -> nobody  [first hit .../Unit_10/FlowerRoom/@StaticBody3D@1520
+         at (10.80, 1.90, -12.44)]  (the florist's west wall, 4.3 m behind the frontage)
+cone     the pre-16a rule would have chosen: 15
+all target checks pass
+```
+
+**Bob and the door talk (R-16a-2), as measured:** aimed at Alice's head from the visitor's seat, the line
+passes Bob's axis at **0.321 m**; his capsule is **0.253 m** wide at the height the line crosses him
+(y 1.58), so the ray clears him by **67 mm** and meets Alice. The audit's 140 mm assumed a horizontal ray
+at eye height; aiming at the head, slightly down, crosses Bob's capsule where it is wider. In the
+captured frame (`conversation_1_from_door`) Alice stands almost directly behind Bob from the door —
+labels overlapping, as `VIS-3D-GODOT-2` limitation 13 records — and the reticle sits just right of Bob's
+head. So the accepted checklist step still works, but **by a few centimetres of aim**: a player pressing
+E on Bob's head from the door targets Bob, and the answer (too far away) is about him. Reported for the
+operator's play; nothing in the client widens a target to compensate.
+
+**Regression runs on the ray** (all PASS): `--drive` all pass; `--character` all pass; `--world --link`
+all link checks pass, identical lines to C2 (door talk to Alice, rejected too_far_away; counter accepted,
+reply heard); `--world --conversation` "conversation on screen, no ids". A first conversation run showed
+the toast "can't talk Alice Moreau" — the action name had replaced the old hand-written "talk to"; the
+wording table (`SliceIntents.VERBS`) restored "can't talk to Alice Moreau: too far away", re-run
+confirmed. The frame now carries the reticle at the centre and the HUD line "looking at: Alice Moreau".
+
+**Mutations.** M-3 (ray mask `LAYER_BODIES` only): **3 TARGET CHECKS FAILED** — Alice targeted through
+the counter at her knees, Ivan targeted through the florist's wall, the first hit not a wall. M-4
+(`intents.talk` returns without sending unless `may`): **1 TARGET CHECK FAILED** — "talk from the door,
+8.60 m -> NO ANSWER". Both reverted (no `MUTATION` marker left; `git status` shows only intended files).
+M-2 (the cone restored inside `targeting.gd`) is replaced, bounded deviation: `targeting.gd` knows no
+figures, so a cone there would be a different function, and the claim M-2 was to show — that the wall
+case discriminates a cone from a ray — is shown in every run by the probe's own cone computation ("the
+pre-16a rule would have chosen: 15", a FAIL condition if it did not).
+
+**Port, recorded.** 7979 was free before every connected run (`lsof`), and each server was the launcher's
+own child (killed by PID on exit, never by name).
 
 ## 19.8 Execution contract (proposed; confirmed at freeze)
 

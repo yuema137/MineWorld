@@ -5,6 +5,8 @@
 ##   --slice-link          the round trip: walk out, jog, jump, walk in, talk from
 ##                         the door and at the counter, watch the street
 ##   --slice-conversation  the same talk, captured from the player's own HUD
+##   --slice-target        what the targeting ray picks, and what it must not:
+##                         nobody through a wall (step-15 §19.3 T-1 ... T-4)
 ##
 ## It extends `SliceProbe` for its walking, capture and timing helpers, and adds
 ## nothing to it: the standalone modes stay there and these stay here, so S14's
@@ -14,7 +16,13 @@ class_name SliceProbeWorld
 extends SliceProbe
 
 ## The connected modes.
-const WORLD_MODES := ["link", "conversation"]
+const WORLD_MODES := ["link", "conversation", "target"]
+## Where on a perceived figure the probe aims, as a player aims at a face.
+const HEAD_Y := 1.55
+## The targeting rule before PR 16a (`slice_link.gd` at 47c81d1): the figure
+## whose head lies within this cosine of the view's centre. Computed here only
+## to show that the wall case would have gone the other way under it.
+const CONE_COS := 0.80
 
 
 static func requested() -> bool:
@@ -36,7 +44,202 @@ func _run(mode: String) -> void:
 	match mode:
 		"link": await _link_check()
 		"conversation": await _conversation_frames()
+		"target": await _target_check()
 		_: await super(mode)
+
+
+# --- targeting (PR 16a) ---------------------------------------------------------
+
+## Turn the body and pitch the view so the active camera's centre ray passes
+## through `point`. The third-person cameras sit off the body, so the aim is
+## refined over a few frames from where the camera actually is.
+func _aim_at(point: Vector3) -> void:
+	for i in range(4):
+		var cam := player.get_viewport().get_camera_3d()
+		var from := cam.global_position if cam != null else player.global_position
+		var d := point - from
+		player.rotation.y = atan2(-d.x, -d.z)
+		player.rig.pitch = atan2(d.y, Vector2(d.x, d.z).length())
+		await _hold(0.1)
+	await _hold(0.2)
+
+
+## What the ray says now, printed; returns the aim.
+func _report_aim(link: SliceLink, what: String) -> Dictionary:
+	var aim := SliceTargeting.aim(player.get_viewport())
+	var who := String(aim["entity"])
+	print("aim      %-34s -> %s  [first hit %s at %s]" % [what,
+		("%s (%s)" % [link.display_label(who), who]) if who != "" else "nobody",
+		aim["collider"] if aim["collider"] != "" else "-", aim["point"]])
+	return aim
+
+
+## The pre-16a cone's choice from the active camera (CONE_COS): the counterfactual.
+func _cone_choice(link: SliceLink) -> String:
+	var cam := player.get_viewport().get_camera_3d()
+	var fwd := -cam.global_transform.basis.z
+	var best := ""
+	var best_dot := CONE_COS
+	for id in link.figures:
+		var to: Vector3 = (link.figures[id] as Node3D).global_position + Vector3(0, 1.4, 0) \
+			- cam.global_position
+		var d := fwd.dot(to.normalized())
+		if d > best_dot:
+			best_dot = d
+			best = id
+	return best
+
+
+## How far each other figure's axis passes from the line of sight to `target`'s
+## head, horizontally, and the capsule's half-width at the height the line
+## crosses it: under that half-width the figure is in the way (R-16a-2).
+func _clearances(link: SliceLink, target: String) -> void:
+	var cam := player.get_viewport().get_camera_3d().global_position
+	var head: Vector3 = (link.figures[target] as Node3D).global_position + Vector3.UP * HEAD_Y
+	var dir := head - cam
+	var flat := Vector2(dir.x, dir.z)
+	for id in link.figures:
+		if id == target:
+			continue
+		var p: Vector3 = (link.figures[id] as Node3D).global_position
+		var rel := Vector2(p.x - cam.x, p.z - cam.z)
+		var along := rel.dot(flat.normalized())
+		if along <= 0.0 or along >= flat.length():
+			continue
+		var off := absf(rel.x * flat.normalized().y - rel.y * flat.normalized().x)
+		var y := cam.y + dir.y * along / flat.length() - p.y
+		var r := Player.CAPSULE_RADIUS
+		var half := r
+		var top := Player.CAPSULE_HEIGHT - r
+		if y > top:
+			half = sqrt(maxf(r * r - (y - top) * (y - top), 0.0))
+		print("clear    %s (%s) beside the line to %s: axis %.3f m from it, capsule half-width %.3f m at y %.2f -> clearance %+.3f m"
+			% [link.display_label(id), id, link.display_label(target), off, half, y, off - half])
+
+
+## T-1 ... T-4 (step-15 §19.3): the ray targets what is visible and only that.
+## Walked on the real controller against the real server, never teleported.
+func _target_check() -> void:
+	print("== step-15 §19.3 -- targeting is a ray ==\n")
+	var link := slice.link
+	var fails := 0
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	await _hold(0.8)
+	var barista := ""
+	for id in link.client.latest.tagged("barista"):
+		barista = id
+	if barista == "" or not link.figures.has(barista):
+		print("FAIL: no barista perceived")
+		return
+	player.set_camera(FP)
+	var alice: Vector3 = (link.figures[barista] as Node3D).global_position
+
+	# T-1: from the seat by the door, aimed at her head
+	await _aim_at(alice + Vector3.UP * HEAD_Y)
+	_clearances(link, barista)
+	var a := _report_aim(link, "from the door, at her head")
+	if a["entity"] != barista:
+		fails += 1
+		print("FAIL T-1: from the door the ray must meet the barista")
+	var door := await _talk_to(link, barista)
+	print("talk     from the door, %.2f m -> %s" % [door[1], door[0]])
+	if door[0] != "rejected too_far_away" and door[0] != "refused too_far_away":
+		fails += 1
+		print("FAIL T-1: the talk is sent and the world answers too_far_away")
+	# the counter as an occluder: aimed at her knees, the counter is in the way
+	await _aim_at(alice + Vector3.UP * 0.5)
+	a = _report_aim(link, "from the door, at her knees")
+	if a["entity"] == barista:
+		fails += 1
+		print("FAIL T-1: the counter stands between the door and her knees")
+	# at the counter, first person and third person rear
+	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
+	await _walk_to(Vector3(alice.x, 0.0, alice.z + 1.85), 6.0)
+	await _hold(0.6)
+	for m in [FP, REAR]:
+		player.set_camera(m)
+		await _aim_at(alice + Vector3.UP * HEAD_Y)
+		a = _report_aim(link, "at the counter, %s" % player.rig.mode_name())
+		if a["entity"] != barista:
+			fails += 1
+			print("FAIL T-1: at the counter the ray must meet the barista")
+	player.set_camera(FP)
+
+	# T-4: nothing -- aimed at the ceiling, E sends nothing
+	await _aim_at(player.global_position + Vector3(0, 6.0, -0.5))
+	a = _report_aim(link, "at the ceiling")
+	var sent_before := link.answers.size()
+	var tok := link.talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+	await _hold(1.0)
+	print("talk     aimed at nothing -> token '%s', %d answers arrived" % [tok,
+		link.answers.size() - sent_before])
+	if a["entity"] != "" or tok != "" or link.answers.size() != sent_before:
+		fails += 1
+		print("FAIL T-4: aimed at nothing, nobody is targeted and nothing is sent")
+
+	# out onto the street
+	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
+	await _walk_to(Vector3(6.0 + SliceCafe.DOOR_X, 0.0, -9.6), 6.0)
+	player.rotation.y = PI
+	await _walk_dist(3.6, 6.0)
+	await _hold(1.0)
+	print("street   body at %s, server place %s, %d people perceived" % [player.global_position,
+		link.here_key, link.figures.size()])
+	var passer := ""
+	for id in link.figures:
+		passer = id
+	if link.here_key != "street" or passer == "":
+		print("FAIL: no person perceived on the street")
+		print("\n%d TARGET CHECKS FAILED" % (fails + 1))
+		return
+	var pp: Vector3 = (link.figures[passer] as Node3D).global_position
+
+	# T-3: the positive control, from the pavement with a clear line
+	await _aim_at(pp + Vector3.UP * HEAD_Y)
+	a = _report_aim(link, "from the pavement")
+	if a["entity"] != passer:
+		fails += 1
+		print("FAIL T-3: from the pavement the ray must meet %s" % passer)
+
+	# T-2: into The Flower Room (reported to the world as the street, F-S14-9),
+	# to the back of its west lane, and aimed at the same person through its wall
+	await _walk_to(Vector3(11.84, 0.0, -5.40), 8.0)
+	await _walk_to(Vector3(11.84, 0.0, -9.50), 6.0)
+	await _walk_to(Vector3(11.84, 0.0, -13.20), 6.0)
+	await _hold(1.0)
+	print("florist  body at %s, slice place %s, server place %s, %s perceived: %s"
+		% [player.global_position, SliceWorld.place_at(slice.world, player.global_position),
+		link.here_key, passer, link.figures.has(passer)])
+	if not link.figures.has(passer):
+		fails += 1
+		print("FAIL T-2: %s is no longer perceived, so the case would be vacuous" % passer)
+	else:
+		pp = (link.figures[passer] as Node3D).global_position
+		await _aim_at(pp + Vector3.UP * HEAD_Y)
+		a = _report_aim(link, "from the florist, through its wall")
+		var cone := _cone_choice(link)
+		print("cone     the pre-16a rule would have chosen: %s" % (cone if cone != "" else "nobody"))
+		var p: Variant = a["point"]
+		var inside := typeof(p) == TYPE_VECTOR3 and (p as Vector3).z < SliceStreet.NORTH_FACE - 0.5
+		if a["entity"] != "":
+			fails += 1
+			print("FAIL T-2: the ray targeted someone through the florist's wall")
+		if not inside:
+			fails += 1
+			print("FAIL T-2: the first hit must be a wall inside the building, not the frontage")
+		if cone != passer:
+			fails += 1
+			print("FAIL T-2: the case does not discriminate -- the cone would not have chosen %s"
+				% passer)
+	print("\n%s" % ("all target checks pass" if fails == 0 else "%d TARGET CHECKS FAILED" % fails))
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
 
 
 # --- the connected modes, moved unchanged from slice_probe.gd -----------------
@@ -358,10 +561,9 @@ func _street_watch(link: SliceLink) -> void:
 ## ["<result> <code>", distance in metres] -- the code is the server's.
 func _talk_to(link: SliceLink, id: String) -> Array:
 	var to: Vector3 = (link.figures[id] as Node3D).global_position - player.global_position
-	player.rotation.y = atan2(-to.x, -to.z)
-	player.rig.pitch = 0.0
-	await _hold(0.3)
-	var tok := link.talk_to_facing("Hello! A coffee, please.")
+	# aim at the head, as a player would: targeting is a ray (step-15 §19)
+	await _aim_at((link.figures[id] as Node3D).global_position + Vector3.UP * HEAD_Y)
+	var tok := link.talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
 	var t := 0.0
 	while t < 4.0 and tok != "" and not _answered(link, tok):
 		await get_tree().process_frame

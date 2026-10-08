@@ -349,6 +349,9 @@ func _process(_d: float) -> void:
 	if _hud_place != null and player != null:
 		var p := SliceWorld.place_at(world, player.global_position)
 		_hud_place.text = "place: %s" % (p if p != "" else "-")
+	if _hud_looking != null and link != null:
+		var who := link.looking_at()
+		_hud_looking.text = "looking at: %s" % (who if who != "" else "-")
 
 
 func _hud() -> void:
@@ -363,6 +366,7 @@ func _hud() -> void:
 ## `--server=` is given. Without it the slice runs offline and says so.
 var link: SliceLink = null
 var _hud_world: Label = null
+var _hud_looking: Label = null
 
 
 func _link() -> void:
@@ -385,3 +389,9 @@ func _link() -> void:
 		if hud != null:
 			hud.caption(line))
 	link.start(address, SliceLink.seat_from_args())
+	# Connected only: the player targets by aiming (`SliceTargeting`), so the
+	# screen shows where the aim is and whom it meets (step-15 Q-16a-1, a 3D
+	# visual default the operator judges in play). Offline nothing is targeted.
+	if hud != null:
+		hud.add_reticle()
+		_hud_looking = hud.add_line("looking at: -")

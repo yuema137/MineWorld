@@ -14,6 +14,10 @@
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
+#   ./mineworld-slice --world --target         headless: what the targeting ray picks, and
+#                                              that it picks nobody through a wall
+#   ./mineworld-slice --world --port=7980      host on another port (default 7979), so that
+#                                              several checkouts can run --world at once
 #   ./mineworld-slice --server=host:port [--seat=visitor]   connect to a running world
 #
 # Needs Godot 4.7 on PATH (brew install godot). --world also needs cargo.
@@ -49,16 +53,18 @@ fi
 args=()
 headless=0
 world=0
+port=7979
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
-    --shots|--drive|--measure|--threshold|--perf|--hud|--jumpshots|--doors|--link|--character|--conversation)
+    --port=*)                              port="${a#--port=}"; continue ;;
+    --shots|--drive|--measure|--threshold|--perf|--hud|--jumpshots|--doors|--link|--character|--conversation|--target)
                                            args+=("--slice-${a#--}") ;;
     --gi=*)                                args+=("$a") ;;
     --res=*)                               res="${a#--res=}" ;;
     *)                                     args+=("$a") ;;
   esac
-  { [ "$a" = "--drive" ] || [ "$a" = "--link" ]; } && headless=1
+  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ]; } && headless=1
 done
 
 # --world: host worlds/social-cafe locally, exactly as clients/protocol/run.sh
@@ -66,7 +72,7 @@ done
 server_pid=""
 if [ "$world" = "1" ]; then
   export PATH="$HOME/.cargo/bin:$PATH"
-  address="127.0.0.1:7979"
+  address="127.0.0.1:$port"
   (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
   log="$proj/shots/slice/server.log"
   mkdir -p "$(dirname "$log")"
@@ -75,6 +81,13 @@ if [ "$world" = "1" ]; then
   server_pid=$!
   trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null' EXIT
   sleep 2
+  # A server that already exited could not listen -- usually another checkout's
+  # world holds the port. Joining that world would test someone else's build.
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    echo "error: the world could not be hosted on $address (see $log); is the port in use?" >&2
+    echo "       try --port=<another>" >&2
+    exit 1
+  fi
   args+=("--server=$address")
   echo "world: worlds/social-cafe on $address (log: $log)"
 fi
