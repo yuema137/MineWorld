@@ -1018,6 +1018,34 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
     not on this shell's PATH. That is an environment difference, but a traceback is not a verdict. Now a
     missing tool in the environment report prints "(not found on PATH)", and a missing tool in a layer
     command fails the layer with exit 127, naming the tool.
+- CI evidence log. Runs are counted against the 12-run budget. Runs that hold `test`-sized work are
+  marked ●.
+  - **Run 1 ●, `pull_request` 37834779943** (head `dc1686b`, merge ref `d6f66ca`; PR #63), on a 2-vCPU
+    private runner. The repository became public while it ran.
+    - `fast` **PASS** in 3 min 19 s (19:49:09 → 19:52:28 UTC), cold:
+      - toolchain image built in ≈ 92 s (checkout done 19:49:12; cache lookup 19:50:44);
+      - inside the container: rustc 1.97.1, rustfmt 1.9.0, clippy 0.1.97, git 2.47.3;
+      - `--is-shallow-repository` → `false`, `partialclonefilter` → `blob:none` (A13-2 and A13-4 hold for
+        `fast`);
+      - `cargo check` 72.3 s, `clippy` 18.0 s; the layer itself took 91.1 s;
+      - cache saved as `cargo-fast-c44d1b0f…`.
+    - `test` **INCONCLUSIVE**: cancelled at its 45-minute `timeout-minutes`. The only annotation reads "The
+      job has exceeded the maximum execution time of 45m0s".
+      - The job's log is **missing**: `actions/jobs/<id>/logs` → `BlobNotFound`, and `gh run view --log`
+        → "log not found". So the stage reached and the disk use are both unknown.
+      - Diagnosis (test rules §18). Two causes fit:
+        - (a) a runner whose disk filled: F-3, about 20 GB needed. A full disk also stops the runner
+          writing its own log, which fits the missing log.
+        - (b) a cold build plus the full suite simply exceeding 45 min on 2 vCPUs. E-S13-0 measured 921 s
+          user CPU on the Mac.
+      - Fix, bounded and within §10 R-2, recorded as **D-13a-4**:
+        - R-2 remedy (2): the composite action gains a `free-disk` input, which `test` sets, and which
+          deletes the runner's .NET, Android, GHC and CodeQL trees before the build;
+        - `test`'s `timeout-minutes` goes from 45 to 75;
+        - the `core` layer builds with `cargo test --workspace --no-run` before running
+          `cargo test --workspace`. The tests run are the same; the log now separates build time from
+          test time, which A13-6 needs.
+  - Push run 37834772746 (`fast` only) **PASS**; not test-sized.
 - [ ] Validation (the PR's own runs are the evidence; each recorded with run id, head SHA, wall time):
   - `python3 scripts/ci_layer.py --list fast` and `core` locally: the commands equal §3.4 and
     `standards.md`'s declared checks (a review diff, recorded).

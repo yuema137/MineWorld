@@ -42,7 +42,10 @@ LAYERS: dict[str, list[list[str]]] = {
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
     ],
+    # Building first and running second runs the same tests; it only makes the log say how long the
+    # build took and how long the tests did, which is what CI's budget is judged by.
     "core": [
+        ["cargo", "test", "--workspace", "--no-run"],
         ["cargo", "test", "--workspace"],
     ],
 }
