@@ -16,8 +16,8 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
   executable head `0733c77`. Design, evidence, deviations DB-1 … DB-10 and the DB-10 ruling in §17;
   the operator's review in §17.12. Carried to 12d: QB-11's ≤ 1.5× bound on the towns (DB-10 (b2)),
   F-B7 and FU-12a-1.
-- **PR 12c** is next: being detailed to the commit as §18 by the planning session, on
-  `mvp0/s15-12c-plan`; not frozen. Nothing in §18 authorizes implementation.
+- **PR 12c** is next: detailed to the commit in §18 by the planning session, on `mvp0/s15-12c-plan`;
+  not frozen. Nothing in §18 authorizes implementation. Its questions are §18.8 (QO-1 … QO-20).
 
 **Freeze record (primary session, 2026-10-07).** The operator decided:
 
@@ -4678,4 +4678,183 @@ session.
 - [ ] Documentation: `docs/MVP_STATUS.md` (a capability row "Bodies: objects, kick, throw, shove" and
   one evidence row), `systems/bodies/README.md`, §18's checkboxes, §18.10, §18.11, the handoff.
 - [ ] Review: PO-1 … PO-18 each with evidence; deviations named; FU-12a-1 and F-B7 untouched (12d's).
+
+## 18.6 Test ownership
+
+```text
+STATIC      cargo fmt; cargo clippy -D warnings; the section's type (an invalid `body:` of either form
+            cannot be constructed); Resolution's private fields (12a); no Rapier type in a signature
+            outside rapier.rs (the compiler, with PB-15's scan)
+UNIT        rapier.rs: F-P1's canary and fix, unchanged; resolve.rs: PB-8, unchanged; flight.rs: the
+            integer launch velocities against hand-computed literals; push.rs: the bisection against
+            hand-computed literals (a ball, a box head-on and corner-on)
+INTEGRATION through the real World::dispatch in hand-built worlds with presence, movement and bodies:
+            objects at genesis and their refusals, disclosure (PO-2 pack half, PO-8); pushes, jams,
+            tunnelling, nudged pushers, conflicts (PO-3); kick (PO-4); throw (PO-5); shove (PO-6); the
+            offers through presence's observe (PO-7); inertness (PO-17); the 3 000-request long run
+            with props (PO-13 a, committed half) and 12b's long run against the base (PO-13 b)
+STRUCTURAL  the pin and VERSION pair, isolation, the pack's dependencies (PO-15); ac1_composability,
+            precursor_vocabulary, seam_vocabulary, presence's and movement's scans, unedited; no diff
+            under cognition/ (PO-15); scope (PO-18)
+REAL RUN    (Gate 2's role) the real binary on worlds/bodies-yard: validate refusals (PO-2, PO-16), the
+            30-day run with its activity criteria and its scan (PO-9), the counterfactual (PO-10), two
+            processes and SIGKILL (PO-11) — committed tests; the town digests (PO-1), Rosetta (PO-12),
+            the release costs (PO-13 a) and the 300-day cost (PO-14) — recorded evidence on the final
+            head
+GATE 1      NOT REQUIRED: no model is involved, and no LM-facing semantics change. The paced controller
+            is a rule and is not edited
+CI          none configured (S13); the full local gate runs once on the final executable head
+```
+
+Owned elsewhere and not repeated:
+- 12a owns the seam's refusals; 12b owns walls, nudges, the bias, entry placement, the guard for people,
+  and the F-P1 canary — their tests run unedited (except QO-16's two literals) and are the regression
+  net for the people path, with PO-13 b.
+- `ARC-34`'s band (rate, choice, position) is owned by the controller's tests; 12c only shows that the
+  unchanged band attempts what bodies offers (PO-9's AO-2).
+- Inventory owns its refusal of an undeclared kind; PO-16 shows only that the composition reaches it.
+
+Each failure class above has one owner.
+
+## 18.7 Is any of this material?
+
+**As recommended, no.** No answer below changes 12c's scope beyond §8.1 and §11.1, contradicts an
+operator decision, touches a public contract beyond `bodies`' own vocabulary, or touches the kernel.
+Each departure from the step text is bounded and named:
+
+- **Kick and throw are target-less** (F-O1, QO-6). §7.2 wrote `target: <object>`. The unchanged
+  perception cannot offer or price such a target, and `buy` is the precedent (F-O6). The action's
+  payload is bodies' own vocabulary.
+- **Where an object lies is a row on its place**, not `Lying` on the Item (F-O5, QO-2). The owner is
+  still bodies (§4.6).
+- **The push reaction** computes against the objects as they lay before the request, with people
+  checked rather than swept against (F-O2, QO-9). §4.5.4's binding — the resolver runs the same
+  reaction sequence first, so the walker never ends inside a jammed box — holds exactly.
+- **Genesis in two generations** (F-O3, SD-O5). The kernel's own ordering.
+- **`throw` is a complete affordance** (QO-8), where §7.2 said it would not be. The operator's
+  instruction for this design asks that all three be complete.
+- **Throw launches from where the object lies** (QO-11), not "at chest height in front of the
+  thrower" (§8.1).
+- **bodies reads `item`** (QO-4): a crate dependency, not a system dependency, to deliver QB-3's
+  refusal.
+
+**Two questions become operator-material if the alternative is chosen** (QO-3, QO-5): authoring
+objects in the place's file instead of the item's (it would revise QB-3's letter), and adding pick-up
+and put-down to 12c (a scope change).
+
+Not needed: any kernel, contract, persistence, server, cognition, presence, movement, item, inventory or
+worldpack change; a change to the I-2 scan or to AC-1's checks (F-O11).
+
+## 18.8 Questions (QO-1 …)
+
+None is operator-material as recommended. **[OM if changed]** marks the two that become so if the
+alternative is chosen. The others are the primary session's to decide at freeze.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QO-1** | **Who owns a loose object's position:** bodies, or a new `objects` pack? | **bodies** (SD-O1), as §4.6 froze it. An `objects` pack would own a position only bodies can decide, so bodies would state its facts for every push, kick and throw, and could not be installed without it. |
+| **QO-2** | **Where the state lives:** `LooseObjects` on the Place plus `BodyShape` on the Item (SD-O2), or §10.2's `Lying` on the Item? | **`LooseObjects` on the Place.** `Lying` on an Item can never be disclosed (F-O1), so a client could not draw objects (R-B4); a place-row is what a resolution reads anyway, already in canonical order; `Shop` is the precedent (F-O5). |
+| **QO-3 [OM if changed]** | **Where an object is authored:** (a) in its own item file's `body:` section, as QB-3 decided, which needs genesis in two generations (F-O3, SD-O5); or (b) as a list in the place file's `body:`, naming items by key, checked in one reduction. | **(a)**, as decided. (b) is simpler — one fact, one reduction, no object in an unshaped place by construction — but it revises the letter of QB-3 ("an Item file with a `body:` section"), so it is the operator's to choose. |
+| **QO-4** | **QB-3's refusal of an object that is also held.** Bodies refuses an Item with both `body:` and `item:` by asking `mineworld_item::is_declared` (a crate dependency on `item`, no system dependency); inventory's own declared-kind rule then refuses every holding of an object (F-O10). Alternatives: no check (QB-3 unmet); bodies depending on inventory (heavier, and inventory's section is not needed). | **The crate dependency on `item`.** `item` depends on no pack; in a world without `item` the answer is "not declared"; AC-1's checks are unaffected (F-O11). `isolation.rs`'s claim is edited to say so (QO-16). |
+| **QO-5 [OM if changed]** | **Pick-up and put-down in 12c?** | **No.** §8.1 keeps carrying out; the operator's requirement is push, kick and throw (R-4). The crossing is settled now (SD-O3: each owner states its half through its own checked constructor, in one emission list), and its prerequisite — how a unique object is held (`ARC-36` item 3) — is named for the step that adds it. Adding it here changes scope. |
+| **QO-6** | **Kick's and throw's target:** in the payload, with the request target-less (F-O1, F-O6), or the request's target (§7.2)? | **In the payload.** The request target would need presence's perception to list and locate items: an edit to presence (I-1), and to the observation's meaning. `buy` already works this way. |
+| **QO-7** | **Which objects are offered:** only those within reach (available), or every object in the place with `TargetUnavailable` beyond reach? | **Only those within reach.** A target-less offer cannot say `TooFarAway` (F-O6, F-48); omitting is honest where `TargetUnavailable` would misreport distance, and keeps observations small. A direct request beyond reach is answered `TooFarAway` by `validate`. |
+| **QO-8** | **Direction parameters.** Kick: none (away from the kicker, §8.1). Throw: `toward: Option<{x, y}>`, the complete form `null` meaning the default aim (SD-O13). Alternatives: eight compass headings (eight offers per object); a target person (objects × people offers); the thrower's facing (nobody headless sets one, F-O8). | **As recommended.** One complete offer per action per object; a client that aims sends the point. Kick needs no aim: a player aims a kick by where they stand. |
+| **QO-9** | **The push reaction under breadth-first reduction** (F-O2): against the objects as they lay before the request, people not swept against but checked in the final state by the resolver, with objects solid as the fallback (SD-O8 … SD-O10). | **Accept.** It is the only form in which the reaction can compute exactly what the resolver predicted. §4.5.4's binding holds. |
+| **QO-10** | **Simplifications of the flight:** one dynamic body per flight (other objects fixed; no chain reactions); rotations locked and never persisted; no stacking (an object rests on the floor or a solid). | **Accept** (R-3). Each removes a state a later push could leave invalid (an object hanging in the air) or a cost nobody asked for. |
+| **QO-11** | **Where a throw starts:** where the object lies, or at chest height in front of the thrower (§8.1)? | **Where it lies.** A start in front of the thrower may lie in a wall, a solid or a person when the thrower faces one; where the object lies is valid by induction. "Picks up and throws in one action" is kept as a single fact. |
+| **QO-12** | **The landing ladder:** the simulated end; else the nearest verified lattice point on the floor; else the object stays (`object-moved` with `to = from`). | **Accept.** DC-8 for objects. The last rung records a kick that moved nothing — true, and counted in the runs. |
+| **QO-13** | **Activity criteria and the remedy ladder** (SD-O18, PO-9): AO-1 every seat moves and talks; AO-2 every action and a push happen in every bucket; AO-3 at most 144 physical actions per seat per 10 days. Remedies: c1 content, p1 shove offered within 800 mm only, p2 one nearest object offered; never the controller. | **Accept, fixed before measuring.** AO-3 is what makes "kick everything constantly" a failure rather than a tuning. |
+| **QO-14** | **Cost guards:** release ≤ 100 µs per swept move and ≤ 2 000 µs per kick in the long run with props (PO-13 a); 300 days of the extended bodies-yard ≤ 40 s in the dev profile (PO-14). QB-11's ratio bound stays 12d's, on the towns. | **Accept.** b1-style absolute bounds, fixed now. A failure is a material stop with the numbers, not a re-scope. |
+| **QO-15** | **Test world:** extend `worlds/bodies-yard`, or add a sibling world? | **Extend** (SD-O19). Shove changes bodies-yard in any case (F-O12); a sibling would duplicate the harness. "No objects, no change" is held by PO-13 b instead. |
+| **QO-16** | **Existing tests edited**, each claim stated: `rapier_pin.rs` — (1, "0.36.0") → (2, "0.36.0"), the claim "the pack's version moves with Rapier's" unchanged; `isolation.rs` — "presence the only pack dependency" → "presence the only system dependency; presence and item the only pack crates"; `tools/cli/tests/bodies/mod.rs` — displaced arrivals and stopped-short "stated by movement" → "by movement or bodies", a shoved person's own arrival ≤ 500 mm, objects checked; `bodies_yard.rs` and `bodies_yard_restart.rs` — the activity lines gain the new facts. 12b's 30-day bodies-yard sha (E-PB8) is not a frozen value and changes. | **Accept.** Each edit follows from a behaviour 12c adds (shove, objects) or from SD-O20's version; none weakens what 12b proved about people, which `scenarios.rs`, `genesis.rs`, `long_run.rs` (PO-13 b) and the scan keep holding. |
+| **QO-17** | **Is a shove, a kick or a throw biographical?** | **Not in 12c.** `BIOGRAPHICAL` stays empty; which physical events belong in a life is a content question for when biographies are read in the clients (S12). |
+| **QO-18** | **Does the head-on bias apply to a shoved person's arrival?** | **Yes.** It is the resolver's rule for every arrival within a place; a shove into somebody standing on the line turns, exactly as a walker's stride would. Stated in ARC-39's note 2. |
+| **QO-19** | **Version.** bodies `VERSION` 1 → 2 (SD-O20). | **Yes.** Results and vocabulary change; a 12b save is refused by name (`ARC-25`). |
+| **QO-20** | **Entries and objects:** an arrival from another place never pushes an object (E1 and E3 avoid them; E2 must pass V4). | **Accept.** A crossing lands on a free point; pushing objects on entry would add a second push path for no requirement. |
+
+## 18.9 Proposed execution contract for PR 12c
+
+```text
+PROJECT / PR        MVP-0 · Step 11 / PR 12c — objects: walking pushes them; kick, throw and shove (S15,
+                    third of five)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §18; evidence in §18.10 (E-PO<n>);
+                    deviations in §18.11
+RELATED / BINDING   this file: the header's freeze record (QB-1, QB-3, QB-6, QB-8, QB-10, QB-15), §§4.4–4.7,
+                    5, 6.3, 7.2, 8.1, 9.5, 10.1 (I-1 … I-13), 11.1, §17 (12b as merged, §17.12), §18;
+                    overall.md §3 (S15), §7; DECISIONS ARC-23, ARC-25, ARC-26, ARC-27, ARC-31, ARC-33,
+                    ARC-34, ARC-36, ARC-37, ARC-38 (the Shop precedent), ARC-39 and its note, DEP-13;
+                    MODULE_SPEC §4.1; CLAUDE.md §§2–4
+IMPLEMENTATION BASE main after #60 and this design's PR merge (9c617ed + Markdown only); branch
+                    mvp0/pr-12c-objects; worktree /Users/yuema137/mineworld-worktrees/s15-12c (proposed),
+                    held by the implementing session only
+APPROVED SCOPE      §18.1's change set; PO-C1 … PO-C7; SD-O1 … SD-O21 as answered by QO-1 … QO-20
+FROZEN INVARIANTS   No edit under kernel/, contracts/, persistence/, server/, cognition/, clients/,
+                    authoring/, sdk/, systems/presence/, systems/movement/, systems/item/,
+                    systems/inventory/, systems/installed/, worldpack/src/, tools/cli/src/,
+                    tests/acceptance/, worlds/social-cafe/, worlds/market-town/, nor the root Cargo.toml;
+                    no other existing System Pack.
+                    PO-1: social-cafe sha ad49c723…c64b and market-town sha 365b50e0…1d1d over the 300-day
+                    seed-7 runs (365 330 and 372 755 facts), faults 0 — no digest re-baselined.
+                    PO-13 b: 12b's long run byte-identical to E-PO-base.
+                    Existing tests unchanged except QO-16's.
+                    The paced controller unchanged (I-9-like): a bad activity profile is fixed in content
+                    or in bodies' offers only (SD-O18), with AO-1 … AO-3 fixed before measuring.
+                    I-2: bodies alone writes BodyShape, LooseObjects and PlaceShape; presence alone
+                    writes positions of people (shove states through arrivals()); inventory never holds
+                    an object with a body.
+                    I-3, I-4, I-5: no float persisted or outside rapier.rs; rapier3d =0.36.0 as DEP-13
+                    states; nothing of Rapier survives a call; one dynamic body per flight, bounded steps.
+                    I-11, I-12 unchanged for people; V4 and V-O for objects.
+                    QB-6: kick and throw resolved at the instant. QB-8: no Busy.
+SEQUENCE            PO-C1 → PO-C2 → PO-C3 → PO-C4 → PO-C5 → PO-C6 → PO-C7, each committed and pushed
+                    when coherent; E-PO-base captured in PO-C1 before any code
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: each 300-day run (~13–40 s) at most
+                    six times (PO-1 ×2, PO-14 ×2, one re-run each of PO-1 and PO-14); 30-day bodies-yard
+                    runs inside their committed tests, re-run at most three times for SD-O18's ladder; the
+                    x86_64 build once (background) and its three Rosetta runs; one full workspace gate on
+                    the final head (background, ~6 min); about 90 minutes in total; real-model: NOT
+                    REQUIRED
+LIVE DOCUMENTATION  §18 checkboxes; §18.10 E-PO ledger; §18.11 deviations
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 12c at PO-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the freeze message
+  semantic commits, branch push       recommended authorized, as for 12a and 12b
+  PR creation / update                recommended authorized, as for 12a and 12b
+  scratch builds                      recommended authorized: the base binary (PO-C1) and the
+                                      x86_64-apple-darwin build (PO-12), copied to /tmp/s15-12c; no branch
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     the planning session owns the step header, §§1–15, overall and MVP_STATUS's Updated
+                    and S15 lines; the implementing session owns §18 and the evidence rows of PO-C7
+NORMAL STOP         PR 12c READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a needed edit outside §18.1's change set — above all in presence, movement, item,
+                    inventory, the controller, the kernel or contracts; either town digest differing from
+                    PO-1's; PO-13 b's bytes differing from E-PO-base; an existing test failing for a reason
+                    other than QO-16; AO-1 … AO-3 failing on every rung of SD-O18's ladder; PO-13 a above
+                    its bounds, or PO-14 above 40 s; cross-architecture digests differing (PO-12 FAIL, not
+                    PARTIAL); an answer to QO-3 or QO-5 other than the design's
+```
+
+## 18.10 Evidence ledger
+
+```text
+E-PO0 PO-C0, 2026-10-08, planning session, on main @ 9c617ed (12b merged) + the 12b post-merge docs
+      (#60, docs/s15-12b-merged @ 8be5fb8).
+      Source read for §18.2, each at the file and lines it cites: systems/presence/src/{observe,
+        interaction,resolve}.rs; systems/bodies/src/{lib,system,section,event,codec,resolve,rapier,
+        geometry,component}.rs and tests/{long_run,isolation,rapier_pin}.rs; systems/item/src/system.rs;
+        systems/inventory/src/admit.rs; systems/item-transfer/src/{action,offer,system}.rs;
+        systems/economy/src/{action,offer,component,system}.rs; systems/consumption/src/offer.rs;
+        cognition/rule-controller/src/{paced,offered}.rs; kernel/src/dispatch.rs; worldpack/src/load.rs;
+        authoring/src/section.rs; contracts/src/{spatial,action}.rs; tests/acceptance/tests/
+        ac1_composability.rs; worlds/{social-cafe,market-town,bodies-yard}; tools/cli/tests/bodies*.
+      `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
+        duplicated. `python3 scripts/check_decision_ids.py` → 51 decision ids, all distinct.
+      No cargo build or test: this design is documentation only.
+```
+
+## 18.11 Deviations and discoveries during implementation
+
+None yet.
 
