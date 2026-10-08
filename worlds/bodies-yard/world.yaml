@@ -46,6 +46,29 @@ population:
   - kai
   - lea
 
+# Loose objects (step-11 SD-O19): each item file carries a `body:` section in its object form — its
+# shape and where it lies — so each is one physical object, never a kind anybody holds (ARC-36 note).
+# Walking into one pushes it aside; a person within 800 mm may kick or throw it. The `item` pack is
+# not installed: nothing here is a kind. Eight lie in each room, several beside the doorway and the
+# furniture, where people pass (step-11 §18.11 DO-13: SD-O18's rung c1).
+items:
+  - court-ball
+  - court-ball-door
+  - court-ball-north
+  - court-ball-pillar
+  - court-ball-west
+  - court-box
+  - court-box-door
+  - court-box-east
+  - hall-ball
+  - hall-ball-2
+  - hall-ball-door
+  - hall-ball-table
+  - hall-box-door
+  - hall-box-east
+  - hall-box-west
+  - hall-crate
+
 # Everybody is a seat: `mineworld run` drives each with a seeded rule controller.
 seats:
   - ada
