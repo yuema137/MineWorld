@@ -39,7 +39,14 @@ STOP CONDITIONS     NORMAL: PR 12d-0 READY FOR OPERATOR REVIEW — DO NOT MERGE.
 POST-MERGE SYNC     planning session: header, §19 (its base and TD-14 references), overall, MVP_STATUS
 ```
 
-## Current checkpoint — STOPPED (material): SD-Z1 is not result-preserving (§20.13 Z-D4)
+## Current checkpoint — STOPPED (material): TZ-9 cannot pass within §20 (§20.13 Z-D6, E-Z3)
+
+- Z-D4 ruled: SD-Z1 dropped (§20.4 amendment). The ZC-1 profile (E-Z3, `/usr/bin/sample`, 30 and 300
+  days): 49 % of the with-bodies run is entry E3's `nearest_free` lattice scan, 24 % stride/Rapier,
+  25 % the rest. Removing all Rapier work leaves ≈ 5.8 × (bound 1.5 ×); removing E3's scan too ≈ 2.0 ×.
+  ZC-4 … ZC-6 not started, as ruled. Awaiting the operator.
+
+### Earlier checkpoint — SD-Z1 not result-preserving (§20.13 Z-D4)
 
 - Z-D2 ruled (option (b): SD-Z3 → Class R); TZ-9's instrument fixed (§20.6.1). Both recorded.
 - ZC-1: E-Z-base captured (ZI-1 d7025dbc…, ZI-2 53d017d0…, ZI-3 6e4c4015…, TZ-1 both towns, the

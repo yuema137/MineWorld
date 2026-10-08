@@ -6648,7 +6648,8 @@ the scene's mean collider count (a crate-private counter read by an ignored test
   23 … 61 throughout, other lanes building and running) and the profile (to be taken with a scratch
   instrumented build outside the repository — a crate-private counter cannot be read by an ignored
   test from the CLI's run; §20.13 Z-D3). The "before" taken under §20.6.1's instrument: 7 of 8 runs,
-  the eighth cut by the previous session's end (E-Z-before); the profile still pending.
+  the eighth cut by the previous session's end (E-Z-before); the profile taken by sampling, 30 and
+  300 days (E-Z3), in place of route counters (Z-D3).
 - [ ] Validation: each capture's sha recorded (E-Z-base); the prototypes validate (E-Z-base). The
   "before" reproduces E-TD0b's order of magnitude (E-Z-before: 7.4 … 8.0 × on social-cafe).
 - [x] Review: the recipe in §20.12 is what was run, file by file — each place and item file
@@ -6943,6 +6944,40 @@ E-Z2 ZC-3, 2026-10-08, working tree on e179132 + SD-Z1 (`reach.rs`, `stride.rs`,
        (margin 1 000 000): their expected values were never run. Reverted with the rest.
      SD-Z1 reverted: the tree is e179132's code again (`cargo test -p mineworld-bodies --lib`: 14 passed).
 
+E-Z3 ZC-1's profile (Z-D3, by the primary session's ruling before ZC-4), 2026-10-08, the head's code
+     (SD-Z2 only; /tmp/s15-12d0/c2b-mineworld, sha-256 23ccb53f…7bdd0, dev profile, optimized + debuginfo).
+     Instrument: macOS `/usr/bin/sample <pid> <s> 1` (1 ms interval) on a social-cafe prototype run with
+     bodies, seed 7 (/tmp/s15-12d0/profile.sh, profile300.sh; outputs in /tmp/s15-12d0/profile/). Nothing
+     installed. Counts are inclusive samples on the main thread (the tokio workers idle throughout).
+       30 days   faults 0, 52 595 facts (= the base's); main thread 16 531 samples
+       300 days  faults 0, 525 890 facts (= E-Z-before's); main thread 117 604 samples
+                                                        30 days            300 days
+       bodies' ArrivalResolver::resolve                 12 453  75.3 %     87 926  74.8 %
+         entry → E3 `nearest_free` (integers only)       8 235  49.8 %     57 838  49.2 %
+           of it, the lattice filter (`Room::admits`, `free_at`) — self time 7 179 of 8 235
+         stride (all routes)                             4 109  24.9 %     28 308  24.1 %
+           Rapier inside it: `Scene::sweep`              3 145             ≈ 19 700 (10 571 + 9 115)
+                             `Scene::build`, drop         ≈ 900             ≈ 5 100
+         the rest of resolve (guard, answer)               ≈ 95             ≈ 1 800
+       everything else (kernel, presence, the store,     4 078  24.7 %     29 678  25.2 %
+         serialization, the controller …)
+     Reading: half of the with-bodies run is E3's nearest-free search: `nearest_free` scans the whole
+       floor's lattice (LATTICE 50 mm) and filters every point through `Room::admits` against every
+       solid before taking the minimum — on the street (68 000 × 16 200 mm, 59 solids) ≈ 440 000 points ×
+       59 boxes per placed entry. Rapier (every swept stride: sweeps, scene build and drop) is a quarter.
+     The estimate the ruling asks for (300 days; CPU from E-Z-before: with ≈ 109 s, the mean of 104.66 and
+       113.62; without 14.27 s, the mean of 14.24 and 14.29; QB-11's bound 1.5 × 14.24 = 21.4 s):
+         E3 nearest_free     49.2 % ≈ 53.6 s
+         stride (≈ Rapier)   24.1 % ≈ 26.2 s
+         the rest            26.7 % ≈ 29.1 s, of which ≈ 14.3 s is the world without bodies and ≈ 15 s
+                             bodies' other cost (≈ 164 000 more facts stored and disclosed: 525 890 vs
+                             361 979)
+       SD-Z3 + SD-Z4, and L1 + L2, remove only stride's Rapier work. Their best case — every swept stride
+       answered by integers at zero cost — leaves 109 − 26.2 ≈ 82.8 s ≈ **5.8 ×** min(without). TZ-9
+       needs ≤ 21.4 s. **They cannot reach 1.5 ×, with or without the ladder.** Even removing E3's search
+       entirely as well leaves ≈ 29 s ≈ 2.0 ×. (30 days, the same arithmetic on 8.95 s with, 1.73 s
+       without: best case for SD-Z3 + SD-Z4 + L1 + L2 ≈ 6.7 s ≈ 3.9 ×.)
+
 The prototype (E-TD0b), stated so it can be rebuilt:
   1  GIT_INDEX_FILE=/tmp/s15-12d0/proto.idx git --work-tree=/tmp/s15-12d0/proto checkout 21f96ff -- \
        worlds/social-cafe worlds/market-town
@@ -7070,6 +7105,31 @@ Validation consequence:
   question the cost reading raises for the operator: with the scene's size ruled out, TZ-9 rests on
   SD-Z3 and SD-Z4 (taking strides away from Rapier altogether) and on §20.7's ladder; the ZC-1 profile
   (Z-D3), still pending, is what would show where the ≈ 7 s per 30 days goes before more is built.
+```
+
+**Z-D6 — MATERIAL STOP: the profile says TZ-9 cannot pass with §20's pieces and ladder (E-Z3).**
+
+```text
+Previous assumption:
+  §20.2 F-Z1 … F-Z5, DB-10: bodies' cost is Rapier's — scenes too large (SD-Z1), Rapier consulted where
+  integers answer (SD-Z3, SD-Z4) — so taking strides away from Rapier brings the towns within 1.5 ×.
+Audit evidence:
+  E-Z3, sampling profiles of 30 and 300 prototype days. Of the with-bodies run's main thread, 49 % is
+  entry's E3 `nearest_free` (an integer scan of the whole floor's 50 mm lattice, every point checked
+  against every solid), 24 % is stride (Rapier), 25 % everything else, of which about half is the
+  world without bodies. Rapier, removed entirely, leaves ≈ 5.8 × (bound 1.5 ×).
+Corrected understanding:
+  Rapier is not where most of the cost lies: E3's placement search is, and then the per-fact cost of
+  ≈ 45 % more facts. SD-Z3, SD-Z4, L1 and L2 cannot reach the bound however well they work.
+Implementation consequence:
+  ZC-4 … ZC-6 not started, as ruled ("do not implement into a known failure"). No code changed.
+Validation consequence:
+  TZ-9 cannot pass within §20. For the operator: a candidate outside §20's scope is an exact E3 — the
+  same nearest free lattice point, found by searching outward from `target` instead of scanning the
+  floor (Class I by construction: the same minimum under the same (distance², y, x) order). By E-Z3
+  even that plus every Rapier stride at zero cost leaves ≈ 2.0 ×, so the remaining ≈ 15 s of bodies'
+  other cost (more facts) is also in question — whether QB-11's 1.5 × is reachable at all on this
+  prototype is the operator's question, with these numbers.
 ```
 
 **Z-D5 — The resumed session (bounded).** The previous implementation session ended (API rate limit)
