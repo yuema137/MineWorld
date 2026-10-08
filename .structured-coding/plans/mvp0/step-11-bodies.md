@@ -20,8 +20,10 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
   executable head `145c7f7`. Design, evidence, deviations DO-1 … DO-18 and the AO-2 rulings in §18;
   the operator's review in §18.12. Carried to 12d: FU-12c-1, with QB-11's ≤ 1.5× bound on the towns
   (DB-10 (b2)), F-B7 and FU-12a-1 still open.
-- **PR 12d** is next: the town gets bodies, being detailed to the commit by the planning session on
-  `mvp0/s15-12d-plan`; not frozen.
+- **PR 12d-0 — bodies' cost** is next: a precursor inserted by the primary session's QD-2 ruling
+  (2026-10-08), detailed to the commit in §20 on `mvp0/s15-12d0-plan`; not frozen.
+- **PR 12d** — the town gets bodies: detailed in §19, **awaiting 12d-0**; not frozen. The operator
+  decided QD-1 (amend check 3) and the primary session ruled QD-2 … QD-13 (§19's header).
 
 **Freeze record (primary session, 2026-10-07).** The operator decided:
 
@@ -5643,11 +5645,29 @@ DO-17 are the material stops the AO-2 rulings closed. DO-18 is a defect fix.
 
 ---
 
-# 19. PR 12d — the town gets bodies (full design; DRAFT, not frozen)
+# 19. PR 12d — the town gets bodies (full design; AWAITING 12d-0, not frozen)
 
 **Lifecycle:** drafted by the planning session on `mvp0/s15-12d-plan` on 2026-10-08, stacked on the 12c
-post-merge docs PR (#72). **Not frozen.** Nothing in §19 authorizes implementation. The questions the
-freeze must answer are §19.8 (QD-1 …); those marked **[OM]** are the operator's.
+post-merge docs PR (#72). **Not frozen; awaiting 12d-0 (§20).** Nothing in §19 authorizes
+implementation. The questions are §19.8 (QD-1 …).
+
+**Rulings received (2026-10-08, relayed by the coordinator; §19 is otherwise kept as drafted):**
+
+- **QD-1 — operator decision: amend.** In the operator's terms: Social Café may own `items/` (loose
+  objects as Item files with `body:`); Market Town carries them unchanged; the claim "Market Town =
+  Social Café + installed packs + configuration" stays word for word; market-owned item sections stay
+  Market Town's only. Check 3 and `ARC-35` are amended as a dated note quoting the operator, and a
+  mutation shows the amended check still bites: **a market-owned section in a Social Café item file is
+  refused** (added to TD-4 at freeze, beside M-TD2 … M-TD4).
+- **QD-2 — primary-session ruling: precursor 12d-0, "bodies' cost"** (§20). QB-11's 1.5 × is not
+  re-scoped. 12d-0's own acceptance measures E-TD0b's prototype against 1.5 × before 12d is frozen; if it
+  cannot reach it, the work stops and goes back to the operator.
+- **QD-7 — accepted as recommended;** the operator judges the doors in play.
+- **QD-3 … QD-6, QD-8 … QD-13 — accepted as recommended;** QD-11: S12 has been told that 13a reads the
+  passage. QD-10 places FU-12c-1 in 12d-0 (§20).
+- **Consequence for §19 at its freeze:** 12d-0 moves bodies to `VERSION` 3 (§20), so QD-6's doorway
+  refusal takes bodies to **4**, and TD-14's bodies-yard and `long_run` references are 12d-0's
+  re-captured bases, not 12c's. §19's base becomes main after 12d-0.
 
 This section refines §5, §10.4, §11.1's 12d row, QB-5 and QB-11 from merged source. Where they and §19
 disagree, §19 governs, and each difference is named with the finding that caused it (§19.2) and the
