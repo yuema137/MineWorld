@@ -12,6 +12,12 @@ world:
   # Must match this pack's directory name.
   id: {id}
   name: {id}
+  # The pack's own version and licence (docs/DECISIONS.md ARC-53).
+  version: 0.1.0
+  license: MIT  # set your own
+
+# The framework versions this world is authored for.
+mineworld: "^0.1"
 
 # The capabilities this world asks for, in the order they are installed. `movement` and
 # `conversation` depend on `presence`, so they come after it.

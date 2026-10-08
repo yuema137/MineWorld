@@ -11,9 +11,12 @@
 //! mineworld biography <world> --save DIR --person KEY [--json]
 //!                                       a Person's objective biography, from the fact log (ARC-29)
 //! mineworld create <directory>          a new, minimal World Pack
-//! mineworld packs list|show|validate    package identities: this build's packs and the data packs
-//!                                       in each --packs DIR (ARC-53)
+//! mineworld packs list|show|validate|resolve
+//!                                       package identities, and a world's composition (ARC-53, 54)
 //! ```
+//!
+//! Every command that reads a world takes `--packs DIR` (repeatable), then `MINEWORLD_PACKS`: the
+//! directories its `requires:` is resolved in, and nothing else (`ARC-54`).
 //!
 //! `docs/MODULE_SPEC.md` §8.1 specifies the command surface.
 //!
@@ -63,12 +66,13 @@ use std::process::ExitCode;
 
 use clap::Parser;
 use mineworld_contracts::{EntityKey, WorldTime};
+use mineworld_packages::PACKS_VARIABLE;
 use mineworld_persistence::{Creation, Durability, PersistentWorld, SqliteBackend, verify};
 use mineworld_presence::PerceptionProvider;
 use mineworld_server::{
     HostConfig, HostError, HostedWorld, SeatRoster, WorldHost, WorldInstanceId, app,
 };
-use mineworld_worldpack::{PackError, WorldPack};
+use mineworld_worldpack::{PackError, PackRoots, WorldPack};
 
 use crate::perceive::PackPerception;
 
@@ -101,11 +105,15 @@ enum Subcommand {
         /// same world, where it stopped — every time after.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
+        #[command(flatten)]
+        packs: PackDirs,
     },
     /// Check a World Pack and say what it is.
     Validate {
         /// The World Pack directory.
         world: PathBuf,
+        #[command(flatten)]
+        packs: PackDirs,
     },
     /// Re-execute a saved world's whole history from its beginning and check that every fact and
     /// every snapshot reproduces, byte for byte.
@@ -115,6 +123,8 @@ enum Subcommand {
         /// The save to check.
         #[arg(long, value_name = "DIR")]
         save: PathBuf,
+        #[command(flatten)]
+        packs: PackDirs,
     },
     /// Write a new, minimal World Pack into a directory that does not exist yet; its name becomes
     /// the world's id.
@@ -161,6 +171,8 @@ enum Subcommand {
         /// age, so re-running a killed command finishes the same world.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
+        #[command(flatten)]
+        packs: PackDirs,
     },
     /// Print a Person's objective biography, derived from a save's fact log without resuming or
     /// writing it.
@@ -176,6 +188,8 @@ enum Subcommand {
         /// One JSON object per entry instead of lines for reading.
         #[arg(long)]
         json: bool,
+        #[command(flatten)]
+        packs: PackDirs,
     },
     /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
     Packs {
@@ -187,25 +201,51 @@ enum Subcommand {
 /// What `mineworld packs` was asked to do.
 #[derive(Debug, clap::Subcommand)]
 enum PacksCommand {
-    /// Every pack this build provides, then the data packs in each --packs DIR.
+    /// Every pack this build provides, then the data packs in each pack directory.
     List {
-        /// A directory whose immediate subdirectories are data packs. Repeat it for more.
-        #[arg(long = "packs", value_name = "DIR")]
-        roots: Vec<PathBuf>,
+        #[command(flatten)]
+        packs: PackDirs,
     },
     /// Every package field of one pack.
     Show {
         /// The pack's id, such as mineworld-presence.
         id: String,
-        /// A directory whose immediate subdirectories are data packs. Repeat it for more.
-        #[arg(long = "packs", value_name = "DIR")]
-        roots: Vec<PathBuf>,
+        #[command(flatten)]
+        packs: PackDirs,
     },
-    /// Check one data pack: its package fields, all required, then its content.
+    /// Check one data pack: its package fields, all required, its licence, then its content.
     Validate {
         /// The pack's directory.
         directory: PathBuf,
+        #[command(flatten)]
+        packs: PackDirs,
     },
+    /// A world's composition: every requirement and the pack that met it, every enabled system's
+    /// pack (ARC-54).
+    Resolve {
+        /// The World Pack directory.
+        world: PathBuf,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+}
+
+/// The pack roots a command resolves a world's requirements in (`docs/DECISIONS.md` `ARC-54`): each
+/// `--packs DIR` in order, then `MINEWORLD_PACKS`. The environment is read here, in the composition
+/// root, and nowhere else.
+#[derive(Debug, clap::Args)]
+struct PackDirs {
+    /// A directory whose immediate subdirectories are packs, searched for the world's requires:.
+    /// Repeat it for more; MINEWORLD_PACKS adds more after these.
+    #[arg(long = "packs", value_name = "DIR")]
+    dirs: Vec<PathBuf>,
+}
+
+impl PackDirs {
+    fn roots(self) -> Result<PackRoots, String> {
+        PackRoots::new(self.dirs, std::env::var_os(PACKS_VARIABLE).as_deref())
+            .map_err(|refusal| format!("[mineworld] {refusal}"))
+    }
 }
 
 /// A seat name on the command line, checked as the key it must be.
@@ -216,14 +256,22 @@ fn seat(text: &str) -> Result<EntityKey, String> {
 #[tokio::main]
 async fn main() -> ExitCode {
     let outcome = match Cli::parse().command {
-        Subcommand::Validate { world } => validate(&world),
-        Subcommand::Replay { world, save } => replay(&world, &save),
+        Subcommand::Validate { world, packs } => {
+            packs.roots().and_then(|roots| validate(&world, &roots))
+        }
+        Subcommand::Replay { world, save, packs } => packs
+            .roots()
+            .and_then(|roots| replay(&world, &save, &roots)),
         Subcommand::Server {
             world,
             listen,
             agents,
             save,
-        } => serve(world, listen, agents, save).await,
+            packs,
+        } => match packs.roots() {
+            Ok(roots) => serve(world, listen, agents, save, roots).await,
+            Err(refusal) => Err(refusal),
+        },
         Subcommand::Create { directory } => create::create(&directory),
         Subcommand::Install { .. } => not_yet("install"),
         Subcommand::AddSystem { .. } => not_yet("add-system"),
@@ -234,27 +282,42 @@ async fn main() -> ExitCode {
             seed,
             days,
             save,
-        } => run::run(&run::RunRequest {
-            world,
-            seed,
-            days,
-            save,
+            packs,
+        } => packs.roots().and_then(|roots| {
+            run::run(&run::RunRequest {
+                world,
+                seed,
+                days,
+                save,
+                roots,
+            })
         }),
         Subcommand::Biography {
             world,
             save,
             person,
             json,
-        } => biography::biography(&biography::BiographyRequest {
-            world: &world,
-            save: &save,
-            person: &person,
-            json,
+            packs,
+        } => packs.roots().and_then(|roots| {
+            biography::biography(&biography::BiographyRequest {
+                world: &world,
+                save: &save,
+                person: &person,
+                json,
+                roots: &roots,
+            })
         }),
         Subcommand::Packs { command } => match command {
-            PacksCommand::List { roots } => packs::list(&roots),
-            PacksCommand::Show { id, roots } => packs::show(&id, &roots),
-            PacksCommand::Validate { directory } => packs::validate(&directory),
+            PacksCommand::List { packs } => packs.roots().and_then(|roots| packs::list(&roots)),
+            PacksCommand::Show { id, packs } => {
+                packs.roots().and_then(|roots| packs::show(&id, &roots))
+            }
+            PacksCommand::Validate { directory, packs } => packs
+                .roots()
+                .and_then(|roots| packs::validate(&directory, &roots)),
+            PacksCommand::Resolve { world, packs } => packs
+                .roots()
+                .and_then(|roots| packs::resolve(&world, &roots)),
         },
     };
 
@@ -285,8 +348,8 @@ fn not_yet(command: &str) -> Result<(), String> {
 /// consistent*, and loading answers *can the world it describes be composed at all* — a dependency
 /// between systems is the kernel's judgement, and a `validate` that skipped it would pass a pack the
 /// server then refused to host.
-fn validate(world: &PathBuf) -> Result<(), String> {
-    let pack = WorldPack::read(world).map_err(described)?;
+fn validate(world: &PathBuf, roots: &PackRoots) -> Result<(), String> {
+    let pack = WorldPack::read_with(world, roots).map_err(described)?;
     let loaded = pack.load(WorldTime::EPOCH).map_err(described)?;
 
     println!("{} ({})", pack.name(), pack.id());
@@ -302,6 +365,16 @@ fn validate(world: &PathBuf) -> Result<(), String> {
         println!("  organizations {}", listed(pack.organizations().keys()));
     }
     println!("  seats      {}", listed(pack.seats().iter()));
+    // Only for a world that states requires:, by the same rule (ARC-54 point 7).
+    for required in &pack.composition().required {
+        println!(
+            "  requires   {} \"{}\" → {} ({})",
+            required.identity.id,
+            required.range,
+            required.identity.version,
+            packs::source(&required.source),
+        );
+    }
     println!();
     // In identity order rather than key order: these are the ids the event log refers to, and the
     // order they were allocated in is the fact an author is checking.
@@ -325,10 +398,11 @@ async fn serve(
     listen: SocketAddr,
     agents: Vec<EntityKey>,
     save: Option<PathBuf>,
+    roots: PackRoots,
 ) -> Result<(), String> {
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
-    let pack = WorldPack::read(&world).map_err(described)?;
+    let pack = WorldPack::read_with(&world, &roots).map_err(described)?;
     let config = HostConfig::default();
     let epoch = config.epoch;
     println!(
@@ -458,8 +532,8 @@ fn persisted(
 }
 
 /// Re-executes a save's whole history from genesis and reports what it compared.
-fn replay(world: &Path, save: &Path) -> Result<(), String> {
-    let pack = WorldPack::read(world).map_err(described)?;
+fn replay(world: &Path, save: &Path, roots: &PackRoots) -> Result<(), String> {
+    let pack = WorldPack::read_with(world, roots).map_err(described)?;
     let composed = pack.compose().map_err(described)?;
     let backend = SqliteBackend::open(save, Durability::PowerLoss)
         .map_err(|error| format!("[mineworld] {error}"))?;

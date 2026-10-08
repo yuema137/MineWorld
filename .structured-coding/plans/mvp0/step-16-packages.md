@@ -1907,9 +1907,42 @@ WITH, `+`, each refusal naming the identifier), a unit test of the prefix functi
 `show` take the environment; `validate` resolves); `tools/cli/templates/new-world/world.yaml` (PD-19);
 `tools/cli/tests/requirements.rs` (EB-1, EB-2, EB-3, EB-5, EB-8).
 
-- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-cli --test requirements --test packs
-  --test commands --test create`; M-B1, M-B3, M-B4, M-B5 end to end · [ ] Review: `main.rs` diff limited
-  to the flattened struct and one arm; refusals reach stderr with exit 1; no market crate named.
+- [x] Implementation (E-Eb4): as scoped. `PackDirs` (clap `Args`) is flattened into `server`,
+  `validate`, `replay`, `run`, `biography` and the four `packs` subcommands; `PackDirs::roots()` is the
+  one place the environment is read. `RunRequest` and `BiographyRequest` gain `roots`; `serve` and
+  `replay` take them. `packs.rs`: `gather` reads every root through `PackRoots::packs`, a world in a
+  root is read with the same roots; `packs validate` judges the pack's licence with
+  `LicencePolicy::default()`; `packs resolve` prints framework, requirements and systems; a shared
+  `packs::source` prints where a requirement was met (also used by `validate`'s `requires` lines). The
+  template states `version: 0.1.0`, `license: MIT  # set your own`, `mineworld: "^0.1"` (FQ-b1). The
+  module doc lists `packs … resolve` and the pack roots.
+- [x] Validation (E-Eb4): clippy `--workspace --all-targets -D warnings` → 0; fmt clean. New
+  `tools/cli/tests/requirements.rs` 6 passed (EB-1 through every command — `packs resolve`,
+  `validate`, `run --save`, `replay`, `biography` — and the save replayed *without* the root refused
+  "no pack directory was given" (EB-8); EB-1 with the repository's `mineworld-default-3d`; EB-2's seven
+  refusals through the real binary, exit 1, each named; EB-3; EB-5 located from presence; FQ-b1: a
+  created world passes `packs validate`). `packs` 5, `commands` 4, `create` 2 — unchanged, unedited.
+  `validate` of the three worlds byte-identical to the base binary's. Every test controls
+  `MINEWORLD_PACKS` (`env_remove` unless the case sets it), so a developer's own setting cannot leak in.
+  - **Finding F-Eb1 (a test's premise, corrected).** EB-3's first draft named the world's own parent
+    directory in `MINEWORLD_PACKS`; that root then holds the world itself, which is a pack of the root
+    and lacks package fields, so resolution refused it (rule 1) — correct behaviour, wrong test. The
+    test now names a sibling directory holding a copy of the pack; the parent-as-root behaviour is
+    documented on the test.
+  Mutations end to end, each reverted (`git diff -U0 | grep "false &&|true |||MUTATION"` → 0):
+  - M-B1 range check off → `every_unmet_…` FAILS "out-of-range: accepted".
+  - M-B3 policy allows all → `every_unmet_…` FAILS "world-licence: accepted".
+  - M-B4 the world's parent added as an implicit root (in `worldpack/src/requirements.rs`) →
+    `only_the_named_roots_are_searched` FAILS at its first assertion: the planted root was searched
+    (it found the world itself there and refused it for its missing fields, instead of "no pack
+    directory was given").
+  - M-B5 `bundled` forced false → all six `requirements.rs` tests FAIL, each with rule 3's refusal
+    ("enables presence, whose pack mineworld-presence is third-party").
+- [x] Review: refusals reach stderr with exit 1 (every negative case asserts `!ok` and the message);
+  no market crate named in `tools/cli` (AC-1 check 2 at C5's gate). The `main.rs` diff is 106+/32−,
+  more than "one struct and one arm": six flattened fields, `PackDirs` with its doc, the `Resolve`
+  variant, and the dispatch arms rewritten to resolve roots first — every line mechanical; recorded as
+  bounded (S11's server-flag overlap is one `#[command(flatten)]` line).
 
 ### Eb-C5 — Close
 

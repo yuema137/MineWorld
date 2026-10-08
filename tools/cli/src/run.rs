@@ -31,7 +31,7 @@ use mineworld_persistence::{
 use mineworld_presence::{PerceptionProvider, observe};
 use mineworld_rule_controller::PacedRuleController;
 use mineworld_server::WorldInstanceId;
-use mineworld_worldpack::WorldPack;
+use mineworld_worldpack::{PackRoots, WorldPack};
 
 use crate::described;
 
@@ -52,12 +52,14 @@ pub struct RunRequest {
     pub seed: u64,
     pub days: u64,
     pub save: Option<PathBuf>,
+    /// Where the world's requirements are resolved (`ARC-54`). Never saved: a resume resolves again.
+    pub roots: PackRoots,
 }
 
 /// Runs the world and prints what happened.
 pub fn run(request: &RunRequest) -> Result<(), String> {
     let started = Instant::now();
-    let pack = WorldPack::read(&request.world).map_err(described)?;
+    let pack = WorldPack::read_with(&request.world, &request.roots).map_err(described)?;
     let seats: Vec<EntityKey> = pack.seats().iter().cloned().collect();
     if seats.is_empty() {
         return Err(format!(
