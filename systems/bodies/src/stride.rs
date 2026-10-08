@@ -21,6 +21,7 @@ use crate::geometry::{
 use crate::push::Lay;
 use crate::rapier::{Against, Scene, Touch};
 use crate::resolve::{Answer, Degraded, Here, Objects, Outcome, Policy, Route};
+use crate::walls::walled;
 
 /// Everybody's position in one candidate result: the walker's and each displaced person's.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -87,12 +88,20 @@ pub(crate) fn stride(
     let lay = Lay::new(room, &here.objects);
     let laid = lay.footprints();
     let margin = PERSON_RADIUS.value() + GAP.value();
-    if room.corridor_clear(start, target, &other_points)
+    if room.corridor_clear(start, target, &other_points, policy.exact_corridor)
         && laid
             .iter()
             .all(|footprint| footprint.clear_of_segment(start, target, margin))
     {
         return Answer::plain(target, Route::Clear);
+    }
+    // Only the floor's edge can stop it: integers answer, no scene is built (step-11 SD-Z4). V1–V4
+    // still hold the answer; one that failed them would go on to Rapier.
+    if policy.integer_walls
+        && let Some(end) = walled(room, &other_points, &laid, start, target)
+        && (!policy.verify || verifies(room, &others, &Candidate::only(end), &laid))
+    {
+        return Answer::plain(end, Route::Walled);
     }
 
     // The head-on bias (step-11 SD-B10): a walker whose first person met stands within the band of

@@ -48,6 +48,7 @@ mod rapier;
 mod section;
 mod shove;
 mod stride;
+mod walls;
 
 pub mod action;
 pub mod component;
@@ -74,6 +75,6 @@ pub use geometry::{
     REST_STEPS, SHOVE_DISTANCE, SHOVE_REACH, SNAP, THROW_DEFAULT, THROW_FLIGHT, THROW_RANGE_MAX,
     THROW_REACH, THROW_STEPS, TOLERANCE,
 };
-pub use resolve::{Degraded, Objects, Outcome, Route, explain};
+pub use resolve::{Degraded, Objects, Outcome, Route, Shadow, explain, shadow};
 pub use section::{Body, Lies};
 pub use system::BodiesSystem;

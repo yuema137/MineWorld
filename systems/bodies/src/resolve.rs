@@ -36,12 +36,27 @@ pub(crate) struct Policy {
     pub(crate) bias: bool,
     /// Verify, then degrade (step-11 DC-8, I-12).
     pub(crate) verify: bool,
+    /// The corridor's exact distance to solids (step-11 SD-Z3); off, a solid meeting the segment's
+    /// box grown by R + GAP sends the stride on, as before 12d-0.
+    pub(crate) exact_corridor: bool,
+    /// Integer wall strides (step-11 SD-Z4).
+    pub(crate) integer_walls: bool,
 }
 
 /// What every world runs.
 pub(crate) const PRODUCTION: Policy = Policy {
     bias: true,
     verify: true,
+    exact_corridor: true,
+    integer_walls: true,
+};
+
+/// Production with SD-Z3 and SD-Z4 off: every stride the old corridor does not clear goes to Rapier —
+/// the path ZR-3's shadow comparison measures the integer answers against (step-11 §20.4).
+const RAPIER_PATH: Policy = Policy {
+    exact_corridor: false,
+    integer_walls: false,
+    ..PRODUCTION
 };
 
 /// The way an arrival into a shaped place was resolved.
@@ -51,6 +66,9 @@ pub enum Route {
     Clear,
     /// A stride that was swept.
     Swept,
+    /// A stride only the floor's edge could stop, answered by integers: no scene was built (step-11
+    /// SD-Z4).
+    Walled,
     /// An entry onto a free point.
     Entered,
     /// An entry onto a point people stood on, who were nudged aside.
@@ -199,6 +217,44 @@ pub fn explain(world: &WorldRead<'_>, person: PersonId, to: Location) -> Option<
         .component::<Presence>(person.entity_id())
         .map(Presence::location);
     answer(world, person, from, to, PRODUCTION).map(|answer| answer.outcome)
+}
+
+/// One request of ZR-3's shadow comparison (step-11 §20.4): a stride production answers by integers
+/// where the Rapier path would not — Walled (SD-Z4), or Clear where the old corridor was not (SD-Z3) —
+/// with both answers' ends.
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Shadow {
+    /// Production's route: `Walled` or `Clear`.
+    pub route: Route,
+    /// Production's end.
+    pub integer: (i32, i32),
+    /// The Rapier path's end on the same state.
+    pub rapier: (i32, i32),
+}
+
+/// ZR-3's comparison for `person` arriving at `to` in the world as it stands: [`None`] unless
+/// production answers it by SD-Z3 or SD-Z4. For the shadow tests and the recorded prototype run only;
+/// nothing in a world calls it.
+#[doc(hidden)]
+pub fn shadow(world: &WorldRead<'_>, person: PersonId, to: Location) -> Option<Shadow> {
+    let from = world
+        .component::<Presence>(person.entity_id())
+        .map(Presence::location);
+    let integer = answer(world, person, from, to, PRODUCTION)?;
+    let route = integer.outcome.route;
+    if route != Route::Walled && route != Route::Clear {
+        return None;
+    }
+    let rapier = answer(world, person, from, to, RAPIER_PATH)?;
+    if route == Route::Clear && rapier.outcome.route == Route::Clear {
+        return None;
+    }
+    Some(Shadow {
+        route,
+        integer: (integer.reached.x, integer.reached.y),
+        rapier: (rapier.reached.x, rapier.reached.y),
+    })
 }
 
 /// The resolution of one arrival, or [`None`] when it is inert (step-11 SD-B2).
@@ -392,6 +448,7 @@ mod tests {
         let (walker, other, apart, outcome) = resolved(Policy {
             bias: false,
             verify: false,
+            ..PRODUCTION
         });
         println!(
             "verification off: walker {walker:?}, against {other:?}, {} mm apart; {outcome:?}",

@@ -193,6 +193,74 @@ impl Area {
         );
         dx * dx + dy * dy
     }
+
+    /// The bounding rectangle of `a` and `b`.
+    pub(crate) fn spanning(a: Point, b: Point) -> Self {
+        Self {
+            min: Point::new(a.x.min(b.x), a.y.min(b.y)),
+            max: Point::new(a.x.max(b.x), a.y.max(b.y)),
+        }
+    }
+
+    /// This rectangle grown by `margin` on every side.
+    pub(crate) const fn grown(self, margin: i32) -> Self {
+        Self {
+            min: Point::new(self.min.x - margin, self.min.y - margin),
+            max: Point::new(self.max.x + margin, self.max.y + margin),
+        }
+    }
+
+    /// Whether this rectangle and `other` share a point, edges included.
+    pub(crate) const fn meets(&self, other: &Self) -> bool {
+        self.min.x <= other.max.x
+            && self.max.x >= other.min.x
+            && self.min.y <= other.max.y
+            && self.max.y >= other.min.y
+    }
+
+    /// `p` clamped into this rectangle, coordinate by coordinate: its nearest point (step-11 SD-Z4).
+    pub(crate) fn clamp(&self, p: Point) -> Point {
+        Point::new(
+            p.x.clamp(self.min.x, self.max.x),
+            p.y.clamp(self.min.y, self.max.y),
+        )
+    }
+
+    /// Whether every point of the segment `a`–`b` is at least `margin` from this rectangle, exactly
+    /// (step-11 SD-Z3). Two disjoint convex shapes are nearest at a vertex of one of them, so the
+    /// segment keeps `margin` iff both its ends keep `margin` from the rectangle, each of the
+    /// rectangle's four corners keeps `margin` from the segment, and the segment does not cross the
+    /// rectangle. `margin` is positive.
+    pub(crate) fn clear_of_segment(&self, a: Point, b: Point, margin: i32) -> bool {
+        let reach = i64::from(margin) * i64::from(margin);
+        let corners = [
+            self.min,
+            Point::new(self.max.x, self.min.y),
+            self.max,
+            Point::new(self.min.x, self.max.y),
+        ];
+        self.distance2(a) >= reach
+            && self.distance2(b) >= reach
+            && corners
+                .iter()
+                .all(|corner| segment_clear_of(a, b, *corner, margin))
+            && !self.crossed_by(a, b, &corners)
+    }
+
+    /// Whether the segment `a`–`b`, both of whose ends lie outside this rectangle, meets it: by the
+    /// separating axes of a segment and a rectangle — x, y and the segment's normal — it does iff
+    /// their bounding boxes overlap and the rectangle's `corners` do not all lie strictly on one side
+    /// of the segment's line. Exact, in `i128`.
+    fn crossed_by(&self, a: Point, b: Point, corners: &[Point; 4]) -> bool {
+        let wide = |v: i32| i128::from(v);
+        let side = |p: &Point| {
+            ((wide(b.x) - wide(a.x)) * (wide(p.y) - wide(a.y))
+                - (wide(b.y) - wide(a.y)) * (wide(p.x) - wide(a.x)))
+            .signum()
+        };
+        self.meets(&Self::spanning(a, b))
+            && !(corners.iter().all(|c| side(c) > 0) || corners.iter().all(|c| side(c) < 0))
+    }
 }
 
 /// One place's fixed geometry, as the resolver and the adapter read it: the walkable floor, whose
@@ -232,26 +300,31 @@ impl Room {
 
     /// Whether a stride from `from` to `to` meets nothing, by integers alone — the fast path, on which
     /// no scene is built (step-11 SD-B6 step 2). Clear means: the centre's whole segment keeps a radius
-    /// and a gap from the floor's edge (both ends do, and the shrunk floor is convex); the segment's
-    /// box, grown by a radius and a gap, meets no solid's footprint; and every other person keeps two
-    /// radii and a gap from the segment. This is the definition of the clear case, not an
-    /// approximation of the sweep: a stride that is not clear is swept.
-    pub(crate) fn corridor_clear(&self, from: Point, to: Point, others: &[Point]) -> bool {
+    /// and a gap from the floor's edge (both ends do, and the shrunk floor is convex); the segment keeps
+    /// a radius and a gap from every solid's footprint — exactly when `exact` (step-11 SD-Z3), else when
+    /// the segment's box, grown by a radius and a gap, meets no solid, as before 12d-0; and every other
+    /// person keeps two radii and a gap from the segment. This is the definition of the clear case, not
+    /// an approximation of the sweep: a stride that is not clear is resolved otherwise.
+    pub(crate) fn corridor_clear(
+        &self,
+        from: Point,
+        to: Point,
+        others: &[Point],
+        exact: bool,
+    ) -> bool {
         let margin = PERSON_RADIUS.value() + GAP.value();
         if !self.floor.holds(from, margin) || !self.floor.holds(to, margin) {
             return false;
         }
-        let grown = Area {
-            min: Point::new(from.x.min(to.x) - margin, from.y.min(to.y) - margin),
-            max: Point::new(from.x.max(to.x) + margin, from.y.max(to.y) + margin),
+        let grown = Area::spanning(from, to).grown(margin);
+        let clear = |area: &Area| {
+            if exact {
+                area.clear_of_segment(from, to, margin)
+            } else {
+                !area.meets(&grown)
+            }
         };
-        let meets = |area: &Area| {
-            area.min.x <= grown.max.x
-                && area.max.x >= grown.min.x
-                && area.min.y <= grown.max.y
-                && area.max.y >= grown.min.y
-        };
-        if self.solids.iter().any(|(area, _)| meets(area)) {
+        if !self.solids.iter().all(|(area, _)| clear(area)) {
             return false;
         }
         let apart = 2 * PERSON_RADIUS.value() + GAP.value();
@@ -487,5 +560,61 @@ mod tests {
             }
         }
         assert!(checked > 9_000, "strides checked: {checked}");
+    }
+
+    /// A 10 m room with one lamp post, 180 mm square, its south-west corner at (5 000, 5 000).
+    fn lamp_post() -> Room {
+        Room {
+            floor: Area {
+                min: Point::new(0, 0),
+                max: Point::new(10_000, 10_000),
+            },
+            solids: vec![(
+                Area {
+                    min: Point::new(5_000, 5_000),
+                    max: Point::new(5_180, 5_180),
+                },
+                2_400,
+            )],
+        }
+    }
+
+    /// TZ-4 (SD-Z3): the diagonal x + y = 9 547 passes the post's nearest corner (5 000, 5 000) at
+    /// 453 / √2 = 320.3 mm — clear by R + GAP (310), though its box grown by 310 overlaps the post: the
+    /// exact corridor clears it, the box test (as before 12d-0) does not. M-Z3 (the exact test replaced
+    /// by the box overlap) fails the first assertion.
+    #[test]
+    fn a_diagonal_320_mm_from_a_post_is_clear() {
+        let (from, to) = (Point::new(4_000, 5_547), Point::new(5_547, 4_000));
+        assert!(lamp_post().corridor_clear(from, to, &[], true), "exact");
+        assert!(!lamp_post().corridor_clear(from, to, &[], false), "box");
+    }
+
+    /// TZ-4: x + y = 9 576 passes the corner at 424 / √2 = 299.8 mm, inside R + GAP: not clear.
+    #[test]
+    fn a_diagonal_300_mm_from_a_post_is_not_clear() {
+        let (from, to) = (Point::new(4_000, 5_576), Point::new(5_576, 4_000));
+        assert!(!lamp_post().corridor_clear(from, to, &[], true));
+    }
+
+    /// The exact test against a segment crossing the post, ends far outside: not clear.
+    #[test]
+    fn a_stride_through_a_post_is_not_clear() {
+        let (from, to) = (Point::new(4_000, 5_090), Point::new(6_000, 5_090));
+        assert!(!lamp_post().corridor_clear(from, to, &[], true));
+    }
+
+    /// The crossing test: a stride straight through the middle of a 4 460 × 600 counter keeps every
+    /// corner more than 2 m away and both ends 1 m away — only `crossed_by` refuses it.
+    #[test]
+    fn a_stride_across_a_long_counter_is_not_clear() {
+        let counter = Area {
+            min: Point::new(3_860, 6_570),
+            max: Point::new(8_320, 7_170),
+        };
+        let (from, to) = (Point::new(6_000, 5_570), Point::new(6_000, 8_170));
+        assert!(counter.distance2(from) >= 310 * 310 && counter.distance2(to) >= 310 * 310);
+        assert!(!counter.clear_of_segment(from, to, 310));
+        assert!(counter.clear_of_segment(Point::new(2_000, 5_570), Point::new(2_000, 8_170), 310));
     }
 }
