@@ -118,7 +118,9 @@ mod twins {
 
             impl PerceptionProvider for $name {}
 
-            impl SystemPack for $name {}
+            impl SystemPack for $name {
+                const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+            }
         };
     }
 

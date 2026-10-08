@@ -5,8 +5,9 @@
 //! beyond `System`, said once by the pack itself (`docs/DECISIONS.md` `ARC-33`).
 //!
 //! ```text
-//! a System Pack     implements SystemPack: its biographical event types, the authored section it
-//!                   owns (owns_section!), and how that section is decoded — each defaulting to none
+//! a System Pack     implements SystemPack: its package identity (PACKAGE = package!(), required),
+//!                   its biographical event types, the authored section it owns (owns_section!), and
+//!                   how that section is decoded — each but the first defaulting to none
 //! the installed set systems/installed: one installed! invocation, one line per pack — the build's
 //!                   only list of System Packs, expanded into the catalog the loader reads
 //! resolution:       installed!'s optional line listing the build's arrival resolvers (ARC-39)
@@ -31,6 +32,7 @@ mod installed;
 mod pack;
 mod section;
 
+pub use mineworld_packages::{Package, package};
 pub use pack::SystemPack;
 pub use section::SectionOwner;
 
@@ -42,6 +44,6 @@ pub mod __private {
 
     pub use mineworld_authoring::{AuthoredContent, Decode};
     pub use mineworld_contracts::{EventTypeId, SystemId};
-    pub use mineworld_kernel::{KernelError, SystemIdentity, World};
+    pub use mineworld_kernel::{KernelError, System, SystemIdentity, SystemVersion, World};
     pub use serde::de::MapAccess;
 }

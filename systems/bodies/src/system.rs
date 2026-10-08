@@ -34,6 +34,7 @@ impl SystemIdentity for BodiesSystem {
 /// `body:` section of a place file, which its `AuthoredSection` impl (`src/section.rs`) describes. No
 /// biographical fact: a place's shape is not an event in anybody's life.
 impl SystemPack for BodiesSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     mineworld_sdk::owns_section!();
 }
 

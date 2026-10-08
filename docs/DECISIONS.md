@@ -3354,8 +3354,10 @@ state every fact twice.
 
      and a pack without it does not compile. The installed set's `Capability` gains `package()` and
      `version()`. The rule controller writes `pub const PACKAGE: mineworld_packages::Package =
-     mineworld_packages::package!();` and depends on `mineworld-packages` directly, not on the SDK,
-     because the SDK would put the kernel into a crate that promises it reaches none.
+     mineworld_packages::package!();` and depends on `mineworld-packages` directly, not on the SDK:
+     the SDK is how a *System* Pack declares itself, a controller is not one, and its manifest names
+     no kernel, transport or server directly (it reaches the kernel only through the packs whose
+     vocabulary it uses).
    - **A World Pack** is identified by its `world.yaml`: `world.id` (unchanged: its directory's name),
      `world.version`, `world.license`, and the top-level `mineworld:` range.
    - **A Presentation Pack** is identified by a `pack.yaml` at its root, beside the unchanged style

@@ -1073,6 +1073,7 @@ dependencies = [
  "mineworld-group-activity",
  "mineworld-movement",
  "mineworld-naming",
+ "mineworld-packages",
  "mineworld-schedule",
  "serde",
  "serde_json",
@@ -1102,7 +1103,9 @@ dependencies = [
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-kernel",
+ "mineworld-packages",
  "serde",
+ "trybuild",
 ]
 
 [[package]]

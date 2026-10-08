@@ -32,7 +32,9 @@ impl SystemIdentity for PresenceSystem {
 /// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): nothing.
 /// It declares no biographical fact and owns no authored section; a person's `location` is a field
 /// of the World Pack format, bound to this pack by the loader (`ARC-31`, point 5).
-impl SystemPack for PresenceSystem {}
+impl SystemPack for PresenceSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+}
 
 /// The name of the edge this pack declares: a person is in a place.
 ///

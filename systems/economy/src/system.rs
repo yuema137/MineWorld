@@ -35,6 +35,7 @@ impl SystemIdentity for EconomySystem {
 /// QS-49) — and the `economy:` section, which its `AuthoredSection` impl (`src/section.rs`)
 /// describes.
 impl SystemPack for EconomySystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     mineworld_sdk::owns_section!();
 }
 

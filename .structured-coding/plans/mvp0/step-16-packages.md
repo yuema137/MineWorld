@@ -1285,15 +1285,36 @@ controller likewise. One commit, because a required constant without its answers
 
 **Depends on:** C2, C3.
 
-- [ ] Implementation: as scoped. Merge `origin/main` into the branch **before** this commit if it moved
-  (§14.7), and add the line to any pack that arrived.
-- [ ] Validation: `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test -p mineworld-sdk
-  -p mineworld-installed-systems` and each pack's tests (counts recorded, equal to base — the commit
-  adds no `#[test]` outside sdk); trybuild EA-2 and mutation M-A3; `git diff -U0 <C3> -- 'systems/*/src'`
-  shows exactly one added `PACKAGE` line per pack (plus the `{}` reshaping in five).
-- [ ] Review: seam scan words absent from every added line (§14.3); the controller's manifest gains no
-  kernel path (`cargo tree -p mineworld-rule-controller -e normal | grep kernel` → none); no pack reads
-  its own `PACKAGE` (`git grep`).
+- [x] Implementation: as scoped. `origin/main` merged first (`f66b42d`: #64, #65 — documentation,
+  licence records, Blender scripts moved under `clients/3d-spike/tools/blender/`; no code, no pack, no
+  conflict; `presentation/mineworld-default/{2D,3D}/references/PROVENANCE.md` record the reference
+  images as owned output under the repository's MIT, which FQ-3's `license: MIT` agrees with). No pack
+  arrived. The SDK re-exports `Package` and `package!` from `mineworld-packages`; `__private` gains
+  `System` and `SystemVersion` for `Capability::version()`; `Capability::package()` is a `const fn`.
+  The controller's line carries a one-line doc comment (`#![warn(missing_docs)]`).
+- [x] Validation (E-Ea4): `cargo clippy --workspace --all-targets -- -D warnings` → exit 0. `cargo test`
+  over sdk, installed-systems, packages, the 14 packs, rule-controller and acceptance, `--no-fail-fast`:
+  83 test binaries, **247 passed, 0 failed, 0 ignored, 0 filtered**, plus `arrival_resolvers_resume`
+  (harness = false) PASS. The commit adds exactly one `#[test]` (sdk's compile_fail driver), so every
+  other count is unchanged by construction. trybuild: the case fails to compile with E0046 "not all
+  trait items implemented, missing: `PACKAGE`" (pinned in the `.stderr`). **M-A3** (`PACKAGE` given a
+  default in the trait) → "Expected test case to fail to compile, but it succeeded", FAILED; reverted.
+  The pack diff, `git diff -U0 HEAD -- ':(glob)systems/*/src/**'`: 14 added `const PACKAGE` lines, and
+  otherwise only the five `{}` impls reshaped into blocks (5 × `-impl … {}`, `+impl … {`, `+}`).
+  - Process slip, recorded: the first revert of M-A3 failed (the replaced string matched twice) after a
+    background clippy/test run had already started on the mutated tree; that run was stopped before it
+    reported, the revert redone by its unique context, `git diff` checked (the trait line has no
+    default), and the run restarted. The evidence above is from the restarted run only.
+- [x] Review: seam scan words absent from every added line (`git diff HEAD | grep -iE` over the ten
+  prefixes → none). No pack reads its `PACKAGE`: `git grep "PACKAGE\b|\.package()"` outside
+  `packages/` and `sdk/` finds only the 14 declaration lines and the controller's.
+  - **Finding F-Ea2 (PD-3's reason, corrected).** PD-3 said depending on the SDK would put the kernel
+    into a controller that "reaches none". `cargo tree -p mineworld-rule-controller -e normal` shows
+    the kernel already reachable **transitively**, through the five packs whose vocabulary it uses; the
+    manifest's promise is about **direct** dependencies (`--depth 1`: contracts, five packs, packages,
+    serde, serde_json — no kernel). The choice stands for the reason that remains true — the SDK is the
+    *System* Pack surface and the controller is not one, and its direct dependencies stay minimal —
+    and ARC-53's sentence is corrected accordingly. Bounded: wording, not design.
 
 ### Ea-C5 — Worlds and presentation packs state their identity
 
