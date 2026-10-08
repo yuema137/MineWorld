@@ -15,6 +15,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use mineworld_bodies::BodiesSystem;
+use mineworld_kernel::{System, SystemVersion};
+
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -94,4 +97,13 @@ fn rapier_is_pinned_with_exactly_the_chosen_features_and_moves_with_this_packs_v
             "{forbidden} must be off (DEP-13): {features:?}"
         );
     }
+
+    // A Rapier upgrade is a change of results: it must arrive with a new version of this pack, so an
+    // old save is refused by name rather than diverging on replay (ARC-25, step-11 DC-5). Change both
+    // literals together, never one.
+    assert_eq!(
+        (BodiesSystem::VERSION, rapier[0].as_str()),
+        (SystemVersion::new(1), "0.36.0"),
+        "bodies' version and the locked Rapier move together"
+    );
 }

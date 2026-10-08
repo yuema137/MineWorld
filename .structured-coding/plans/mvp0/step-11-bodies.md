@@ -3310,12 +3310,24 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C2.
 
-- [ ] Implementation: as scoped. The reduction writes `PlaceShape` only after all four checks pass.
-- [ ] Validation: `cargo test -p mineworld-bodies` passes, with a refusal per check and a positive
-  control. M-PB4 is shown here at pack level; PB-4's real-binary half is in PB-C7.
-- [ ] Review: refusal codes and details name keys rather than raw ids wherever the world can resolve
-  them; the capacity count's anchor and spacing are SD-B4's; the disclosure is the component exactly
-  as reduced.
+- [x] Implementation: as scoped. `component.rs`: `PlaceShape { floor: Floor, solids: Vec<Solid> }`
+  with `Corner`/`Floor`/`Solid` in `Millimetres`, `deny_unknown_fields`, and `try_from` an `Authored`
+  form that holds SD-B3's rules (coordinate bound, sides ≥ 620, ≤ 64 solids, non-empty, height
+  1 … 10 000) — the section's type is the component's. `event.rs`: `PlaceShaped`, `place_shaped()`
+  (public, as movement's `passage`). `section.rs`: `body`, `CARRIED_BY = [Place]`. `system.rs`:
+  `BodiesSystem` (VERSION 1), declaration and install (`require_registered` first), the reduction
+  with SD-B4's checks in the order capacity → outside → in-solid → overlap (capacity first so a
+  too-small room is named as such even when its people are also outside it), `discloses`.
+  `geometry.rs`: `Area::holds`/`distance2`, `Room::admits`/`clear_of_solids`/`solid_within`/
+  `capacity`, `lattice`, `distance2`, `closest_pair`. `resolve.rs`: `impl ArrivalResolver` returning
+  `so_far` (inert until PB-C4), so the pack can be registered. `tests/support/mod.rs`, 
+  `tests/genesis.rs`; `rapier_pin.rs` gains the VERSION pair.
+- [x] Validation (E-PB3): `cargo test -p mineworld-bodies` → lib 3, genesis 6, isolation 4,
+  rapier_pin 1. M-PB4 (pack level) fails by name, reverted. clippy and fmt clean.
+- [x] Review: details name keys (`alice and bob stand 420 mm apart in room`); the capacity lattice is
+  anchored at `floor.min + (300, 300)`, spacing 650, admitted at margin 300 — SD-B4's; disclosure is
+  `codec::to_value` of the component as reduced, asserted against the authored literals; nothing is
+  written unless `fits` returns `Ok`.
 
 ### PB-C4 — The resolver: walls, nudging, verify-then-degrade, entry placement, the guard
 
@@ -3650,6 +3662,20 @@ E-PB2 PB-C2, 2026-10-07, working tree on 5a5bbd0 + systems/bodies/** + Cargo.loc
         isolation FAILED: "only systems/bodies/src/rapier.rs may name rapier3d (DEP-13):
         …/systems/bodies/src/geometry.rs:87". Removed; `git grep -n MUTATION -- systems` empty; all
         green again.
+
+E-PB3 PB-C3, 2026-10-07, working tree on 3074db9 + PB-C3's paths.
+      `cargo test -p mineworld-bodies`: lib 3, genesis 6, isolation 4, rapier_pin 1 (with the VERSION
+        pair), all PASS on the first run. The refusals as printed:
+        "bodies-overlap: alice and bob stand 420 mm apart in room; people stand at least 595 mm apart";
+        "bodies-outside: carol stands at (200, 3000) in room, outside its floor shrunk by 300 mm";
+        "bodies-in-solid: dan stands 0 mm from a solid in room; …";
+        "bodies-capacity: room's floor has room for a person at 4 points of the 650 mm grid; a world of
+        12 people needs 45". Disclosure: alice (hall) is told exactly the hall's shape; no court record.
+      M-PB4 (pack level: `&& false` on the pair check) → genesis FAILED:
+        two_people_closer_than_595_mm_… "this genesis must be refused". Reverted; `git grep -n
+        MUTATION -- systems` empty.
+      clippy -p mineworld-bodies --all-targets -D warnings: clean after four type aliases in the test
+        support (`Rect`, `Xy`, `Resident`, `Side`). fmt clean.
 ```
 
 ## 17.11 Deviations and discoveries during implementation

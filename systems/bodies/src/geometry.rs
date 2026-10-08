@@ -74,6 +74,34 @@ pub(crate) struct Area {
     pub(crate) max: Point,
 }
 
+impl Area {
+    /// Whether `p` lies inside this rectangle shrunk by `margin` on every side, edges included.
+    pub(crate) fn holds(&self, p: Point, margin: i32) -> bool {
+        p.x >= self.min.x + margin
+            && p.x <= self.max.x - margin
+            && p.y >= self.min.y + margin
+            && p.y <= self.max.y - margin
+    }
+
+    /// The squared distance from `p` to the nearest point of this rectangle: zero inside it.
+    pub(crate) fn distance2(&self, p: Point) -> i64 {
+        let gap = |v: i32, low: i32, high: i32| -> i64 {
+            if v < low {
+                i64::from(low) - i64::from(v)
+            } else if v > high {
+                i64::from(v) - i64::from(high)
+            } else {
+                0
+            }
+        };
+        let (dx, dy) = (
+            gap(p.x, self.min.x, self.max.x),
+            gap(p.y, self.min.y, self.max.y),
+        );
+        dx * dx + dy * dy
+    }
+}
+
 /// One place's fixed geometry, as the resolver and the adapter read it: the walkable floor, whose
 /// edge is the place's walls, and the solid boxes standing on it, in authored order.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,4 +109,74 @@ pub(crate) struct Room {
     pub(crate) floor: Area,
     /// Each solid's footprint and its height above the floor.
     pub(crate) solids: Vec<(Area, i32)>,
+}
+
+impl Room {
+    /// Whether a centre at `p` keeps `margin` from the floor's edge and from every solid: the one test
+    /// behind "inside the floor" and "out of the solids", at whatever margin the caller is held to.
+    pub(crate) fn admits(&self, p: Point, margin: i32) -> bool {
+        self.floor.holds(p, margin) && self.clear_of_solids(p, margin)
+    }
+
+    /// Whether a centre at `p` is at least `radius` from every solid.
+    pub(crate) fn clear_of_solids(&self, p: Point, radius: i32) -> bool {
+        let reach = i64::from(radius) * i64::from(radius);
+        self.solids
+            .iter()
+            .all(|(area, _)| area.distance2(p) >= reach)
+    }
+
+    /// The nearest solid's distance from `p`, rounded down, when one is closer than `radius`.
+    pub(crate) fn solid_within(&self, p: Point, radius: i32) -> Option<i64> {
+        let reach = i64::from(radius) * i64::from(radius);
+        self.solids
+            .iter()
+            .map(|(area, _)| area.distance2(p))
+            .filter(|distance2| *distance2 < reach)
+            .min()
+            .map(i64::isqrt)
+    }
+
+    /// The points of the [`CAPACITY_GRID`], anchored at the floor's south-west corner plus a radius
+    /// on each axis, where a person fits: inside the floor shrunk by a radius and at least a radius
+    /// from every solid (step-11 SD-B4).
+    pub(crate) fn capacity(&self) -> usize {
+        let r = PERSON_RADIUS.value();
+        lattice(self.floor, r, CAPACITY_GRID.value())
+            .filter(|p| self.admits(*p, r))
+            .count()
+    }
+}
+
+/// The points of a lattice of spacing `step` anchored at `floor.min + (margin, margin)` that lie
+/// inside `floor` shrunk by `margin`, south to north and, within a row, west to east.
+pub(crate) fn lattice(floor: Area, margin: i32, step: i32) -> impl Iterator<Item = Point> {
+    let (x0, y0) = (floor.min.x + margin, floor.min.y + margin);
+    let (x1, y1) = (floor.max.x - margin, floor.max.y - margin);
+    let columns = if x1 < x0 { 0 } else { (x1 - x0) / step + 1 };
+    let rows = if y1 < y0 { 0 } else { (y1 - y0) / step + 1 };
+    (0..rows).flat_map(move |row| {
+        (0..columns).map(move |column| Point::new(x0 + column * step, y0 + row * step))
+    })
+}
+
+/// The squared distance between two points, exactly.
+pub(crate) fn distance2(a: Point, b: Point) -> i64 {
+    let dx = i64::from(a.x) - i64::from(b.x);
+    let dy = i64::from(a.y) - i64::from(b.y);
+    dx * dx + dy * dy
+}
+
+/// The closest pair among `people`, by index, with its squared distance; [`None`] for fewer than two.
+pub(crate) fn closest_pair(people: &[Point]) -> Option<(usize, usize, i64)> {
+    let mut best: Option<(usize, usize, i64)> = None;
+    for a in 0..people.len() {
+        for b in (a + 1)..people.len() {
+            let d = distance2(people[a], people[b]);
+            if best.is_none_or(|(_, _, closest)| d < closest) {
+                best = Some((a, b, d));
+            }
+        }
+    }
+    best
 }

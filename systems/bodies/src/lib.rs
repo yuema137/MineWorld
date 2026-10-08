@@ -26,15 +26,22 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-// Used by the system's facts and disclosure (S15 PR 12b, PB-C3).
-#[allow(dead_code)]
 mod codec;
+mod resolve;
+mod section;
+
+pub mod component;
+pub mod event;
 pub mod geometry;
 // The adapter is reached by the resolver (S15 PR 12b, PB-C4); until then only its tests use it.
 #[allow(dead_code)]
 mod rapier;
+pub mod system;
 
+pub use component::{Corner, Floor, PlaceShape, SOLID_HEIGHT_MAX, SOLIDS_MAX, Solid};
+pub use event::{PlaceShaped, place_shaped};
 pub use geometry::{
     CAPACITY_GRID, CHAIN_MAX, CLEARANCE, COORDINATE_BOUND, GAP, HALVINGS, LATTICE, NUDGE_MAX,
     NUDGED_MAX, PERSON_HEIGHT, PERSON_RADIUS, SNAP, TOLERANCE,
 };
+pub use system::BodiesSystem;
