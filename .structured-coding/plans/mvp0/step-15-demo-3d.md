@@ -988,9 +988,21 @@ The others are the primary session's to decide at freeze. Each has a recommendat
 
 # 18. PR 16b — the shared module: affordance readers, raw components, revision (full design)
 
-**Lifecycle:** `DRAFT — PR design, awaiting the primary session's freeze`. Nothing in this section
-authorizes implementation (`CLAUDE.md` §3.1). The first commit of the PR is this section, Markdown only
-(coordination ruling 9).
+## DESIGN FROZEN
+
+```text
+Design revision     §18 as committed in 5682784 (§§18.1–18.8, 18.11 frozen; §§18.5 checkboxes,
+                    18.9, 18.10 live)
+Approved by         the primary session, 2026-10-08 — freeze message: "FREEZE: 16b is DESIGN FROZEN
+                    (2026-10-08), primary session. §18 is accepted as written, and QSB-1 through QSB-7
+                    are accepted as recommended", plus: demo.gd stays untouched; checks go in
+                    clients/protocol/checks/; the primary session tells S11-A and S12 the final names
+Implementation base main @ 47c81d1, branch mvp0/pr-16b-shared-module
+Execution contract  §18.11
+Lifecycle           FROZEN — DESIGN FROZEN (2026-10-08), primary session
+```
+
+The first commit of the PR is this section, Markdown only (coordination ruling 9).
 **Coordination:** `overall.md` "Parallel build-out, 2026-10-08", ruling 4 — this is **the** shared-module
 PR. It unifies S12's M-1 … M-3 (`step-13-client-2d.md` §7) with this step's M-1 … M-3 (§12), is owned by
 16b, and lands **before S11-A**, which rebases over it. No other PR edits `clients/protocol/mineworld/`
