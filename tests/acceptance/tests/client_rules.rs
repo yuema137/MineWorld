@@ -32,7 +32,7 @@
 use std::path::{Path, PathBuf};
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 3] = [
+const ACTION_LITERALS: [(&str, &str, &str); 4] = [
     (
         "clients/3d-spike/scripts/slice/slice_link.gd",
         "move",
@@ -48,6 +48,12 @@ const ACTION_LITERALS: [(&str, &str, &str); 3] = [
         "move",
         "the name of an AnimationNodeBlendTree input of the character's locomotion graph, not a request \
          (step-15 Q-16a-5)",
+    ),
+    (
+        "clients/protocol/mineworld/world_client.gd",
+        "invite",
+        "the join frame's credential field (PROTOCOL.md §§2, 4.1; S11-A), a wire key that shares its spelling \
+         with group-activity's action type; no request is built from it",
     ),
 ];
 
