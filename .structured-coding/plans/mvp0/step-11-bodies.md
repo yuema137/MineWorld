@@ -2745,3 +2745,852 @@ words.**
 **What 12a leaves for 12b.** The `resolution:` line in `systems/installed` reads `[]`. 12b adds
 `mineworld_bodies::BodiesSystem,` to it. With that, bodies is the first registered resolver in every
 build. It stays inert in every world that does not install `bodies`.
+
+---
+
+# 17. PR 12b — people: walls and nudging (full design; DESIGN FROZEN 2026-10-07)
+
+**Lifecycle:** the planning session drafted this on `mvp0/s15-12b-plan` on 2026-10-07. The primary
+session froze it the same day; the freeze record is §17.0.
+
+## 17.0 Freeze record
+
+**DESIGN FROZEN (2026-10-07), primary session.** The §17.9 execution contract is confirmed. This
+record binds and overrides any other text in §17.
+
+The planning session marked five questions [OM]. None of them contradicts a decision the operator
+made: QB-1, QB-10, QB-15, QB-2, QB-3, QB-5 and QB-12 are untouched. Each refines text written by the
+planning session or the primary session, so the primary session decides them here:
+
+- **QP-1 — accepted.** ARC-39's promised reaction guard is replaced by a check at the start of each
+  resolution. It panics if the place already holds an overlap, naming the pair. The replacement is
+  recorded as a dated note on ARC-39.
+  - An overlap there is an invariant violation, not a state the world may continue in.
+  - The 30-day and 300-day runs must show it never fires, and a mutation must show that it does
+    fire.
+- **QP-2 — accepted.** The two named tests are edited with their claims unchanged, under the same
+  rule as step-09 I-5 and 12a's QR-2.
+- **QP-3 — overruled.** `rapier3d =0.36.0` is declared in `systems/bodies/Cargo.toml` itself, not in
+  root `[workspace.dependencies]`.
+  - Installing `bodies` must touch only `systems/**` and `Cargo.lock`, as ARC-33 states for every
+    pack. The convenience of a workspace dependency is not worth an exception to that.
+  - DEP-13 records the pin's location. PB-2's pin test reads the pack's manifest.
+- **QP-7 — accepted.** A crossing into a jammed doorway places the person at the nearest free point,
+  never inside another body or a solid. A room-capacity check at load guarantees such a point exists.
+  §5's sentence is amended to match.
+- **QP-9 — accepted conditionally.** If, and only if, PB-14's ≤ 1.5× dev-profile bound fails, 12b may
+  add per-package dev `opt-level` overrides for `rapier3d` and `parry3d` in the root manifest. If it
+  does:
+  - it records an ARC-30 note;
+  - it shows the bound passing afterwards;
+  - it shows that no output changed.
+
+  If the bound passes without the overrides, the root manifest is not touched.
+- **QP-4 … QP-6, QP-8, QP-10 … QP-16 — accepted as recommended.** These include:
+  - the committed `worlds/bodies-yard`;
+  - the `body:` place section;
+  - the head-on bias design and its fallback ladder. If no rung passes, it comes back to the
+    primary session before it goes to the operator.
+- **FU-12a-1 stays open.** 12b does not edit movement's `action.rs` or worldpack's `read.rs`.
+- **The 12d finding is recorded for 12d:** the café's doorway point lies 200 mm from its wall, which is
+  less than a person's radius.
+- **Merge:** with a merge commit.
+- **Implementation:** in a fresh session on `mvp0/pr-12b-people`, in its own worktree.
+
+## 17.1 Identity, base, approved scope
+
+```text
+PR            12b — people: walls and nudging (S15, second of five; the first resolver pack)
+base          main after #57 (the 12a post-merge docs PR) merges — 03f1d7c + Markdown only. Re-audit
+              §17.2 if anything under systems/presence, systems/movement, systems/installed, sdk/rust,
+              worldpack, authoring, kernel/src, tests/acceptance or tools/cli/tests moved
+branch        mvp0/pr-12b-people, in its own worktree, held by the implementing session only
+audit         §17.2 (main @ 03f1d7c, 2026-10-07)
+scope         §4.5 (the nudge rule), §6.3 (DC-1 … DC-9), §9.7–§9.8 (R′, verify-then-degrade), §10.1
+              (I-2 … I-5, I-8, I-10 … I-13), §11.1's 12b row, QB-10, QB-16 — as refined by SD-B1 …
+              SD-B16 and answered by QP-1 … QP-16
+depends on    12a merged (03f1d7c). The ArrivalResolver seam is used as merged, unchanged.
+merge         a merge commit, never a squash
+```
+
+**Goal.** People have bodies wherever a world gives a place geometry. A new System Pack, `bodies`, is
+the build's first registered `ArrivalResolver`. Before presence records an arrival into a place that
+has geometry, it does three things:
+- it stops the walker at walls and furniture;
+- it nudges the people in the way aside, within the bounds the operator set (QB-10);
+- it verifies the integer result, and degrades it when a pair would overlap.
+
+So the log holds only arrivals in which no two people overlap and nobody stands in a wall. Rapier
+(`DEP-13`) does the sweeping, behind one module. Nothing of Rapier outlives one resolution. Every
+world without geometry records exactly what it records today, byte for byte. That includes
+social-cafe and market-town, which gain geometry only in 12d.
+
+**Change set.** Every path this PR may touch:
+
+```text
+docs/DECISIONS.md                     DEP-13 (new, after ARC-39); a dated note on ARC-39 (QP-1, the
+                                      bounds QR-11 moved here)
+docs/MODULE_SPEC.md                   §4.1: the `body` section (place files), its row in the section
+                                      table, "six sections" → seven
+docs/MVP_STATUS.md                    one capability row, one evidence row
+Cargo.toml (root)                     [workspace.dependencies] rapier3d, exact pin (QP-3). Contingent,
+                                      only if PB-14(b) fails and the operator approved QP-9:
+                                      [profile.dev.package.rapier3d] and .parry3d opt-level
+Cargo.lock                            rapier3d =0.36.0 and its transitive packages; mineworld-bodies;
+                                      no existing package changes version
+systems/bodies/**                     new: the pack (crate mineworld-bodies, SystemId "bodies")
+systems/installed/Cargo.toml          mineworld-bodies = { path = "../bodies" }
+systems/installed/src/lib.rs          Bodies => mineworld_bodies::BodiesSystem, and the resolution line
+                                      [mineworld_bodies::BodiesSystem,]; one doc sentence
+worlds/bodies-yard/**                 new: the integration world (SD-B13, QP-4)
+worldpack/tests/registration.rs       the installed set's list is now [bodies] (QP-2)
+tests/acceptance/tests/seam_vocabulary.rs   a self-checking admission for the installed set's two
+                                      lines that name the pack (QP-2)
+tools/cli/tests/bodies_yard.rs        new: the 30-day real run, its scan and its counterfactual
+tools/cli/tests/bodies_yard_restart.rs     new: two processes, SIGKILL and resume
+tools/cli/tests/bodies/mod.rs         new: the scan, shared by the two files above
+.structured-coding/plans/mvp0/{step-11-bodies,handoff}.md   this ledger, the handoff
+```
+
+Paths with no diff:
+- `kernel/`, `contracts/`, `persistence/`, `server/`, `cognition/`, `clients/`, `authoring/`,
+  `sdk/`;
+- `systems/presence/`, `systems/movement/`, and every other existing System Pack;
+- `worldpack/src/`, `tools/cli/src/`;
+- `worlds/social-cafe/`, `worlds/market-town/`.
+
+No existing test is edited except QP-2's two files.
+
+**Non-goals.**
+- Loose objects, `kick`, `throw` and `shove` belong to 12c. The `Lying` component, `object-moved` and
+  `person-shoved` come with them, and so does any `BodyShape` on an Item.
+- Geometry for social-cafe and market-town, and their digest re-baselines, belong to 12d.
+- Godot, Jolt (`DEP-14`), colliders and reconciliation belong to 12e.
+- Per-person body shapes are deferred: every person is the default capsule (QP-6).
+- No line of access (QB-9), no speed limit (QB-14), and no runtime disable of a resolver (QB-17).
+- No change to presence, movement, the seam or the kernel.
+
+## 17.2 Source audit (`main @ 03f1d7c`, 2026-10-07)
+
+Each finding below was read in this session from the file named, or measured.
+
+| ID | Finding | Evidence | Consequence for 12b |
+| --- | --- | --- | --- |
+| **F-B1** | **A guard that checks each recorded `arrived` sees half-applied states.** Reduction walks a generation one fact at a time, and lets every subscriber react to a fact before it moves on to the next. `arrivals()` returns the walker's `arrived` first and then the displaced people's. So when bodies hears the walker's arrival, the people it displaced have not moved yet, and the walker overlaps them for that moment. Genesis is the same: one generation, reduced in order. | `kernel/src/dispatch.rs:603–647` (`reduce`), `:509–527` (`genesis`); `systems/presence/src/event.rs:135–162` (`arrivals` order) | ARC-39 item 7, bullet 3 says bodies checks the invariant "in its reactions to the recorded arrivals". If built that way, every nudge would fail the dispatch. That check cannot be built. QP-1 **[OM]** proposes a check on the state a resolution starts from instead (SD-B9). |
+| **F-B2** | **Two merged tests assume an empty resolver list, or a seam that names no physics.**<br>- `worldpack/tests/registration.rs` asserts `registered_resolvers() == Some(Vec::new())` three times, and that the panic message holds `already registered []`.<br>- `tests/acceptance/tests/seam_vocabulary.rs` scans `systems/installed/src`, where 12b's two installed lines carry the word `bodies` (`mineworld_bodies`, `BodiesSystem`). | `worldpack/tests/registration.rs:34–64`; `seam_vocabulary.rs:41–87` (`PHYSICS`, `PRE_EXISTING`, `SEAM_DIRECTORIES`) | Installing bodies fails both tests, although the claim each holds is unchanged. Both are edited, and each edit is named (QP-2 **[OM]**). |
+| **F-B3** | **A resolver can neither refuse nor leave the place.** `Resolution` offers only `stopped_at` and `displacing`. Presence refuses any `reached` that is not in `to`'s place (rule (a)). | `systems/presence/src/resolve.rs:93–133, 295–326` | §5 says a crossing into a crowded doorway "is blocked (the person stays on their side of the door)". The seam cannot express that. A crossing must end somewhere in the destination place, so SD-B8 finds a free spot there, guaranteed by a capacity check at genesis (QP-7 **[OM]**). |
+| **F-B4** | **Genesis order lets bodies check authored positions only when it reduces its own fact.**<br>- Genesis states passages, then locations, then sections: items', organizations', places', people's.<br>- A section's `seed` sees the assembled world with no state, by design.<br>- The whole list is one generation, reduced in order.<br>So bodies' `place-shaped` is reduced after every authored `arrived`. | `worldpack/src/load.rs:31–33, 295–341`; `authoring/src/section.rs` (`Seeding` doc); `kernel/src/dispatch.rs:509–527` | The overlap check for authored people (QR-7) lives in bodies' reduction of `place-shaped`, and so do the inside-the-floor, out-of-solids and capacity checks. Each refuses with `FactRefusedByOwner`. The refusal surfaces as a load error, which is what `mineworld validate` runs (`tools/cli/src/main.rs:251`). |
+| **F-B5** | **No place carries geometry, and no pack owns a place section yet.** Every section today is carried by people, items or organizations. The loader already reads, refuses and seeds sections on place files. | `git grep CARRIED_BY systems/*/src`; `worldpack/src/read.rs:191–215`; `cafe.yaml` ("A World Pack authors no geometry beyond these positions") | `body:` on a place file is the first place section (`ARC-31`). The loader needs no edit. |
+| **F-B6** | **The paced controller crosses a doorway onto the exact `there` point.**<br>- `through` asks for `passage.there()` once the walker is within a stride of `here`.<br>- `wander` draws up to ±1 400 mm per axis.<br>- `approach` stops 1 000 mm short of its target. | `cognition/rule-controller/src/paced.rs:66–73, 265–281, 333–363` | With bodies, nearly every crossing lands on an occupied or recently occupied point. Entry placement (SD-B8) is exercised constantly, not rarely. Contacts within a place come mostly from wandering and from the doorways, not from approaches. |
+| **F-B7** | **The café's doorway point is 200 mm from its front wall, closer than a person's radius.** The street side is the same kind of point. | `worlds/social-cafe/places/cafe.yaml` (`here: {x: 1610, y: 200}`) | Not 12b's (the world is untouched). Recorded for 12d: either move the doorway points at least 310 mm inside, or accept that entry placement shifts a crossing person off the point. |
+| **F-B8** | **A new external dependency is declared in the root manifest.** The root says: "One authoritative version per dependency across the workspace. A crate that needs a dependency not listed here is adding a dependency, which is a reviewable decision". `ARC-33` item 3 keeps that rule. No pack declares an external dependency outside `[workspace.dependencies]`. | `Cargo.toml` (`[workspace.dependencies]` comment); `DECISIONS.md` ARC-33 item 3; `systems/*/Cargo.toml` | `rapier3d` goes in the root (QP-3 **[OM]**). Installing *this* pack therefore edits the root manifest once, on top of `ARC-33`'s three lines. `DEP-13` says so. |
+| **F-B9** | **Rule (c) compares squared 3D distances, and a quantized float can lengthen an arrival by a millimetre.**<br>- Presence checks `|reached − from|² ≤ |to − from|²` in `i128`, z included.<br>- It requires `reached` to keep `to`'s facing, and to have a local position exactly when `to` does.<br>- Rapier's answer is `f32` metres. Rounding to millimetres can land 1 mm past `to`. | `systems/presence/src/resolve.rs:295–326` | Bodies keeps `to`'s z and facing, and treats a sweep that ends within 1 mm of its target as reaching it exactly (SD-B6). Without that, presence would refuse a clean stride as "lengthened", and movement would fail the dispatch. |
+| **F-B10** | **The prototype calls `f32::sqrt` from std** (`dist`, `len` in `src/resolve.rs:35–38, 97–99`). DC-3 forbids that on values that reach Rapier. | `/Users/yuema137/mineworld-demos/physics-spike/src/resolve.rs` | All geometry outside Rapier is integer millimetres. Lengths and directions use `i64::isqrt` and `i128` products (SD-B5). Rapier is handed only literals and values converted from integers. |
+| **F-B11** | **The cause of F-P1 is upstream behaviour, not a regression.**<br>- Rapier's v0.35.0 changelog says: "`CollisionPipeline::step` now clears the rigid-bodies' modified flags, so a collision-only pipeline no longer accumulates stale change tracking".<br>- 0.36.0 is the newest version on crates.io (2026-09-25). The changelog's `v0.36.1` heading (2026-10-04, Python bindings only) is not published. | crates.io API and the dimforge `CHANGELOG.md`, read 2026-10-07 (§17.3 DEP facts) | The workaround stays. 12b has no dynamic body, but it does carry the workaround and its regression test (PB-3), so 12c starts from a guarded adapter. |
+| **F-B12** | **The dev profile is `opt-level = 1` for every crate, Rapier included.** The prototype measured R′ in release at 61.0 µs per request. It measured the dev profile only for `ql`: 72.0 µs against 58.6 µs in release. | root `Cargo.toml` `[profile.dev]` (ARC-30); §9.4 PC-f | `mineworld run` and every test run in the dev profile. So the 300-day cost bound (PB-14(b)) is measured there. Expect about 1.2× the release cost. QP-9 **[OM]** names the contingent remedy. |
+| **F-B13** | **Who stands in a place can be read without a new relation.**<br>- `WorldRead::components::<Presence>()` iterates every person's location in `EntityId` order.<br>- `relations_touching(place)` gives the `present-in` edges.<br>- `WorldRead::component::<C>` answers `None` for a type no installed system declared. | `kernel/src/view.rs:118–160`; `systems/presence/src/system.rs:41–57` | Bodies builds its people list from `Presence`, in `EntityId` order, which is the canonical Rapier insertion order (DC-2). In a world without bodies, `component::<PlaceShape>` is `None`, which is the inert rule (SD-B2). |
+| **F-B14** | **After 12b, every host process registers `[bodies]`.** That includes `mineworld run`, the server, the CLI tests and persistence's `kill_and_resume` (it links the installed set, F-58). Nothing installs every `AVAILABLE` capability by hand. Each test that registers a synthetic list (12a's three files) never composes through `worldpack`. | `git grep AVAILABLE`; `worldpack/src/load.rs:192–202`; the 12a files of SD-R12 | Every existing world is inert to bodies. A test that installs `BodiesSystem` into a hand-built world must register `[bodies]` first, or `require_registered` panics (by design, ARC-39 item 7). Bodies' own test files each register once. |
+
+## 17.3 Design (SD-B1 … SD-B16)
+
+### 17.3.1 Constants (bodies' policy, published like `MAX_STRIDE`)
+
+```text
+PERSON_RADIUS     300 mm      the 3D client's capsule (player.gd); every person in 12b (QP-6)
+PERSON_HEIGHT   1 720 mm      ditto; Rapier capsule_z(half-segment 560 mm, radius 300 mm), its centre
+                              870 mm above the floor (feet 10 mm up, as the prototype)
+GAP                10 mm      the character controller's offset; a stopped walker ends 2R + GAP =
+                              610 mm from what stopped it
+CLEARANCE         595 mm      the integer invariant: no two people in one place closer (2R − 5 mm);
+                              also the genesis bound (SD-B4)
+TOLERANCE           5 mm      a centre may come this close to the floor's edge shrunk by R, or to a
+                              solid grown by R, and no closer
+NUDGE_MAX         300 mm      per stride, on top of the overlap the stride creates; a nudge is at most
+                              NUDGE_MAX + GAP = 310 mm
+CHAIN_MAX           2         generations of nudges per stride
+NUDGED_MAX          4         people moved by one stride
+HALVINGS            8         verify-then-degrade: the blocked advance is halved at most this often
+BIAS_BAND         200 mm      QB-16: a person met within this distance of the walker's line counts as
+                              head-on
+BIAS_TURN       (4, 1)        QB-16: the walker's stride is turned right by atan(1/4) ≈ 14.04°,
+                              computed as (4·d + right(d)) / √17 in integers (SD-B10)
+SNAP                1 mm      a sweep ending within this of its target reached the target exactly
+LATTICE            50 mm      entry placement's search lattice (SD-B8)
+CAPACITY_GRID     650 mm      = 13 × LATTICE; the sub-lattice the capacity check counts (SD-B4)
+COORDINATE_BOUND 100 000 mm   no authored body coordinate beyond ±100 m: f32's step there is
+                              under 0.01 mm
+```
+
+### 17.3.2 Decisions
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **SD-B1** | **The pack, and where Rapier lives.** Crate `mineworld-bodies` at `systems/bodies`, `SystemId "bodies"`, `VERSION 1`. Modules:<br>- `section.rs`: the `body:` section;<br>- `component.rs`: `PlaceShape`;<br>- `event.rs`: `PlaceShaped`;<br>- `system.rs`: the declaration, install, the reduction with its genesis checks, perception, `SystemPack`;<br>- `geometry.rs`: integer geometry, free-point tests, the lattice, capacity, verification;<br>- `resolve.rs`: the `ArrivalResolver`, i.e. the order of SD-B6 … SD-B10;<br>- `rapier.rs`: **the only file that names `rapier3d`**;<br>- `codec.rs`;<br>- `lib.rs`: the doc table.<br>`rapier.rs` takes integers in and gives integers out: a place's shape, the people in it, and one sweep or nudge request. It returns quantized millimetres. | `DEP-13`'s isolating interface (§15.1). I-5: nothing of Rapier survives a call. A structural test holds the boundary (PB-16). |
+| **SD-B2** | **State, and the inert rule.** Bodies owns one component, `PlaceShape` (on a Place). A person's body is not stored: in 12b every person standing in a shaped place, with a local position, is the default capsule at that position (QP-6). The resolver returns `so_far` unchanged unless both hold: `to` has a local position, and `to`'s place has a `PlaceShape`. A person whose `Presence` has no local position has no body, and other people's resolutions ignore them. People do have heights, but every person stands on the floor: z is kept and never used for collision. | I-13, ARC-39 item 1: inert where its own state is absent. In a world without bodies the table does not exist and the lookup is `None` (F-B13). The 3D slice reports no height (`REPORT_HEIGHT = false`). |
+| **SD-B3** | **The `body:` section, on place files** (`ARC-31`; QP-5). `CARRIED_BY = [Place]` in 12b. Its type is its validation, and it denies unknown fields:<br>`floor: { min: {x, y}, max: {x, y} }` is the walkable rectangle in the place's frame. Each side is at least 620 mm (2R + 2·GAP).<br>`solids: [ { min: {x, y}, max: {x, y}, height } ]` is optional, at most 64. Each box is non-empty, and `height` is in 1 … 10 000.<br>Every coordinate is within `COORDINATE_BOUND`. No references. `seed` states one `place-shaped { place, shape }`. | The place's walls are the floor's edge. A doorway needs no gap, because crossing between places is a placement (SD-B8), not a sweep across frames (§5). For 12e the mapping is direct: `MineWorldSpace.to_3d` maps (x, y, z) mm → Godot (x, z, −y) m, from the place's origin. An axis-aligned floor and box stay axis-aligned. 12e builds the perimeter walls with gaps at the disclosed passages, and the solids as static boxes. |
+| **SD-B4** | **Genesis checks, in bodies' reduction of `place-shaped`** (QR-7, F-B4). Each check refuses with `FactRefusedByOwner { system: bodies, event_type: place-shaped, reason: System { code, detail } }`, and the detail names the people, the place and the numbers:<br>- `bodies-overlap`: two people located in the place are closer than `CLEARANCE`;<br>- `bodies-outside`: a person's centre is outside the floor shrunk by R;<br>- `bodies-in-solid`: a person's centre is closer than R to a solid;<br>- `bodies-capacity`: the place cannot hold the world's population. Count the capacity-grid points, anchored at `floor.min + (R, R)`, that lie inside the floor shrunk by R and at least R from every solid. The count must be ≥ 4 · (people in the world − 1) + 1.<br>The checks use integers only. A `PlaceShape` is written only if every check passes. | Each other person blocks at most four capacity points: a disc of radius 610 spans less than two 650 mm steps. So entry placement always finds a free point (SD-B8). That turns "a resolver cannot refuse" (F-B3) into a guarantee rather than a hope. Genesis checks surface through `mineworld validate`. |
+| **SD-B5** | **Integer geometry** (DC-3, F-B10). Everything outside `rapier.rs` uses `i32` positions, with `i64`/`i128` products and `i64::isqrt`:<br>- distances, compared squared;<br>- a point against the floor and the solids;<br>- a point against a segment, for the corridor;<br>- nudge directions and lengths, with the length rounded up so the separation is reached;<br>- the bias turn, the lattice and the verification.<br>Rapier is given metres converted from integers by one function, and returns metres quantized by one function, `(m × 1000).round() as i32` (DC-6). No `sin`, `cos` or `sqrt` from std anywhere in the pack. | DC-3, DC-6. The integer side is exactly reproducible, and only the sweep is float. |
+| **SD-B6** | **A stride within the place** (the walker's `from` is in `to`'s place, both with local positions), in this order:<br>1. **Guard** (SD-B9).<br>2. **Fast path.** If the corridor is clear, the resolution is unchanged and Rapier is not used. Clear means: the centre's segment from `from` to `to` stays inside the floor shrunk by R + GAP; the segment's box, grown by R + GAP, meets no solid's box; and every other person is at least 2R + GAP from the segment (exact, `i128`).<br>3. **Head-on bias** (SD-B10) may turn the target.<br>4. **R′ steps 1–5** (§4.5.1, as §9.6 states them):<br>&nbsp;&nbsp;- walls-only reach W;<br>&nbsp;&nbsp;- contact reach B, people solid;<br>&nbsp;&nbsp;- candidate: W if \|W\| ≤ \|B\| + NUDGE_MAX, else the walls-only path cut at \|B\| + NUDGE_MAX;<br>&nbsp;&nbsp;- the nudge pass (SD-B7);<br>&nbsp;&nbsp;- on failure, blocked at B with nobody displaced.<br>5. **Quantize, then snap.** A walker within SNAP of its target is at the target exactly. A nudged person within SNAP of their nudge's end is at that end.<br>6. **Verify, then degrade** (DC-8, I-12), on integers:<br>&nbsp;&nbsp;- V1: every pair in the place is at least CLEARANCE apart;<br>&nbsp;&nbsp;- V2: every moved centre is inside the floor shrunk by R − TOLERANCE;<br>&nbsp;&nbsp;- V3: every moved centre is at least R − TOLERANCE from every solid.<br>&nbsp;&nbsp;If any check fails, try blocked; then the advance along `from → B` halved, `from + (B − from) / 2^k` for k = 1 … HALVINGS; then stay, with `reached` = `from`'s position and `to`'s facing.<br>7. **`stopped_by`**: the first person the walker touched, by contact order, then `EntityId`. `None` when walls or a solid stopped them, as §4.7 says. | §4.5 as the prototype measured it, plus four things the seam makes necessary. The snap is F-B9: without it, rounding can "lengthen" a clean stride by 1 mm and presence would refuse it. The integer fast path is designed in §6.4 and is what makes the cost bound reachable. It is the definition of the clear case, not an approximation of Rapier's answer. Stay is valid by induction: the starting state passed V1–V3 (SD-B4, SD-B9). |
+| **SD-B7** | **The nudge pass** (QB-10, I-11).<br>- Generation 1's pushers are the walker at the candidate. Generation g's pushers are the people nudged in g − 1.<br>- In each generation, every person not yet moved, in `EntityId` order, who is closer than 2R to a pusher is moved straight away from that pusher's centre. The distance is just enough to reach 2R + GAP, computed in integers. When two centres coincide, the walker's stride direction is used.<br>- Each nudge is a Rapier sweep against fixed geometry only.<br>- The pass fails if a needed nudge exceeds NUDGE_MAX + GAP, if the walls cut a nudge more than SNAP short, if more than NUDGED_MAX people would move, or if any pair is still closer than 2R − TOLERANCE after CHAIN_MAX generations.<br>- `displaced` lists the nudged people in the order they were moved. Each keeps their z and their facing. | §4.5.1 step 4 and the prototype's `resolve_people`, with integer directions. A nudge never changes place (the resolution names only `to`'s place, and presence's rule (e) re-checks it). A nudge never passes through fixed geometry: it is a shape cast against it, and V2/V3 check the end. |
+| **SD-B8** | **Entry placement**, for an arrival that comes from another place, from nowhere, or from a position-less presence in this place. This is the case F-B3 forces, and §5's crossing rule restated (QP-7). In order:<br>- **E1:** if a capsule at `to` is free, the resolution is unchanged. Free means inside the floor shrunk by R, at least R from every solid, and at least 2R + GAP from everyone.<br>- **E2:** if only people make `to` unfree, run the nudge pass (SD-B7) with the arriving person as generation 1's pusher at `to`, under the same bounds. A coincident centre is pushed +x. If the result passes V1–V3, the person ends at `to` and the nudged people are displaced.<br>- **E3:** otherwise, the free point (E1's test) nearest `to` on the place's LATTICE, anchored at `floor.min + (R, R)`, ordered by (distance² to `to`, y, x). No one is displaced. `stopped_by` is the lowest-`EntityId` person whose disc covers `to`; `None` when a solid or the floor's edge does. | A crossing must end in the destination place (rule (a)). E3 always finds a point, because the capacity grid is a sub-lattice of LATTICE and SD-B4 leaves at least one capacity point free. E3's search is bounded by the floor's area over 2 500 mm², and runs only when E1 and E2 both fail. Rule (c) does not bound a crossing (ARC-39's limitation): E3 may place someone farther from the doorway point than `to`. QP-7 asks whether that is acceptable. |
+| **SD-B9** | **The guard, replacing the per-arrival reaction guard** (F-B1, QP-1 **[OM]**). At the start of every resolution that is not inert, the resolver checks the place's *current* state: every pair of positioned people at least CLEARANCE apart, and each inside the floor and out of solids (V2, V3). Every resolved arrival keeps that state, and genesis checked it. So a violation means an arrival escaped resolution: a constructor bypass (ARC-39 limitation, F-R11), or a host that registered nothing. The resolver then **panics**, naming the pair (or the person), the place, the distance and `ARC-39`. | ARC-39 item 7 bullet 3, made buildable. A reaction cannot see a whole emission list (F-B1). The state a resolution starts from is complete. It panics because a resolver returns a `Resolution` and has no error path, and `require_registered` already set that precedent for host defects (ARC-39 item 7). The check is O(n²) for the n people in one place. |
+| **SD-B10** | **QB-16 — the head-on bias.**<br>- Let d = to − from in the plane, and right(d) = (d.y, −d.x), the walker's right with z up.<br>- The *first person met* is, among the other positioned people p in the place, the one with the smallest `along = d·(p − from) > 0` whose `cross = d × (p − from)` satisfies cross² < (2R + GAP)² · \|d\|², and with `along ≤ |d|² + (2R + GAP)·|d|`. Ties go to `EntityId`.<br>- If such a person exists and cross² < BIAS_BAND² · \|d\|², the target becomes `from + trunc((4·d + right(d)) · 1 000 / 4 124)` per axis, with z = to.z. 4 124 = ⌈√17 · 1 000⌉, so the turned stride is never longer than d (rule (c)).<br>- The turned target then goes through SD-B6 step 4 like any other.<br>- If it is reached, `reached ≠ to`, and presence records `stopped-short { wanted: to, reached, by: that person }`. | F-P7: walkers meeting exactly head-on push each other straight back forever. Turning right lets them clear each other at an angle: the met person is then hit off-centre, so their nudge has a sideways part too. Turning both walkers to their own right is the "keep right" rule, so their sideways moves add up instead of cancelling. The turn changes only the walker's own path. Nudges stay "straight away", so I-11's 310 mm bound holds unchanged, which was not true of a biased nudge: computed for a 300 mm overlap, a 26.6° biased nudge needs 327 mm. The criterion is fixed before measuring (PB-13), with a pre-declared fallback ladder. |
+| **SD-B11** | **The Rapier adapter** (`rapier.rs`). Each call builds a fresh `PhysicsWorld` for one place, inserting in canonical order (DC-2): the floor slab, the four perimeter cuboids (west, east, south, north; 200 mm thick, 3 000 mm high), the solids in authored order, then the people by `EntityId` as kinematic position-based capsules.<br>It then calls `detect_collisions`, followed by the F-P1 re-mark of every dynamic body (none in 12b; kept for 12c, PB-3).<br>The character controller is the prototype's: up Z, offset 10 mm, slide on, no autostep, no snap to ground, `dt` 1/60 s. The filters are `only_fixed` for walls-only sweeps and nudges, and `exclude_dynamic` for people-solid sweeps; the moving body is always excluded. There is no `step` in 12b. Nothing is cached. | The prototype's `build`, `refresh_queries`, `controller` and `sweep`, which measured R′ (§9.5, §9.8). |
+| **SD-B12** | **Declaration, install, perception.**<br>- `depending_on([presence])`, `owning::<PlaceShape>()`, `emitting::<PlaceShaped>()`, `subscribing_to::<PlaceShaped>()`. No action, and no foreign vocabulary: bodies states no `arrived`, because only movers do.<br>- `install`: `require_registered(&Self::ID)` first, then the table.<br>- `impl SystemPack` with `owns_section!()`, and `BIOGRAPHICAL` empty.<br>- `PerceptionProvider::discloses`: a place's `PlaceShape`, to whoever perceives the place, as movement discloses `Passages`.<br>- `impl ArrivalResolver for BodiesSystem`, so the installed set lists the system type itself. | ARC-39 items 1 and 7; ARC-33; R-B4 (the client builds the server's geometry from one source). A pack that only resolves states nothing in presence's vocabulary, so it needs no `emitting::<Arrived>`. |
+| **SD-B13** | **The integration world, `worlds/bodies-yard`** (QP-4). It is a real World Pack: systems `presence, movement, conversation, bodies`; twelve people, all seats.<br>- `hall`: floor (0, 0)–(12 000, 9 000), a table solid (5 000, 4 000)–(7 000, 5 000) of height 750.<br>- `court`: floor (0, 0)–(10 000, 10 000), a pillar (4 700, 4 700)–(5 300, 5 300) of height 3 000.<br>- One passage, hall (11 600, 4 500) ↔ court (400, 5 000). Both points are free for a capsule.<br>- Six people in each room, at least 1 m apart. People files carry `location` and tags only.<br>- A short `README.md`. | It runs through the real loader and `body:` sections, `mineworld validate`, `mineworld run` with the unchanged paced controller, `--save`, SIGKILL and resume, and the established test-time copy for removing a pack (`market_composition.rs`). A hand-built world exercises none of these. It stays the pack's fixture for 12c, and it is a world the operator can run. Conversation is included because the controller's social behaviour is what moves people toward each other. A crossing through a doorway onto an occupied point (F-B6) is exercised constantly. |
+| **SD-B14** | **`DEP-13`, and how Rapier is declared.** In the root `[workspace.dependencies]`: `rapier3d = { version = "=0.36.0", features = ["enhanced-determinism"] }`. That means the default features (`dim3`, `f32`, `std`) plus enhanced determinism, without `simd8`, `parallel` or `serde-serialize`. Bodies declares `rapier3d = { workspace = true }`. The facts the record states are in §17.3.3. | QP-3 **[OM]**, F-B8. `serde-serialize` is off because nothing of Rapier is persisted (I-5). `parallel` is off: the documentation says it is bitwise equal to sequential, but 12b runs no solver, only queries, and rayon threads in a single-threaded host buy nothing (QP-10). |
+| **SD-B15** | **An earlier resolver.** Bodies is asked in `SystemId` order, and in this build it is the only resolver. If `so_far` is not the unchanged resolution — another resolver has already moved the arrival or someone else — bodies returns `so_far` unchanged. Any overlap that results is caught by the next resolution's guard (SD-B9). | R-B11. Composing two geometric resolvers is out of MVP-0. Saying so beats guessing a composition rule. |
+| **SD-B16** | **Documents.**<br>- `DEP-13`: §15.1's draft made exact by §17.3.3.<br>- A dated **note on ARC-39**: the first resolver's bounds (QR-11), the guard as SD-B9 (QP-1), and entry placement as SD-B8 (QP-7).<br>- `MODULE_SPEC.md` §4.1: the `body` section row, the place example, "seven sections".<br>- `systems/bodies/README.md`, for humans, and `lib.rs`'s table.<br>- `MVP_STATUS.md`. | `CLAUDE.md` §2.2: the documents come first (PB-C1). |
+
+### 17.3.3 `DEP-13` facts, re-verified 2026-10-07
+
+Two sources, read on the day: the crate source in the local Cargo registry (`rapier3d-0.36.0/Cargo.toml`,
+`parry3d-0.31.1`), and the primary pages, fetched by a web agent.
+
+```text
+rapier3d     newest non-yanked on crates.io: 0.36.0, published 2026-09-25 (sebcrozet); 71 versions.
+             The dimforge CHANGELOG's top heading is v0.36.1 (2026-10-04, Python bindings only),
+             which is NOT on crates.io. Pin: =0.36.0.
+licence      Apache-2.0 (crates.io field and the crate's Cargo.toml; LICENSE: "Apache License
+             Version 2.0", "Copyright 2020 Sébastien Crozet"). Compatible with MineWorld's MIT.
+MSRV         rust-version 1.86, edition 2024 (crate Cargo.toml and crates.io). Ours: 1.97.1.
+features     default = [dim3, f32, std]
+             enhanced-determinism = [simba/libm_force, parry3d/enhanced-determinism]
+             parallel = [dep:rayon, std, parry3d/parallel]
+             simd8 = [parry3d/simd8]  — the only SIMD feature in 0.36.0
+             serde-serialize = [arrayvec/serde, nalgebra/serde-serialize, parry3d/serde-serialize,
+                               dep:serde, std]
+parry3d      ^0.31.1 required; 0.31.1 newest (2026-09-18), Apache-2.0, no MSRV declared; 0.31.0 yanked
+determinism  (rapier.rs, Rust guide 0.36) cross-platform needs `enhanced-determinism` and IEEE 754-2008
+             targets; "`enhanced-determinism` feature cannot be enabled at the same time as the
+             `simd8` feature"; "The `parallel` feature, on the other hand, can be combined with it",
+             "the results of the parallel solver are identical to the results of the sequential
+             one"; inputs computed with functions beyond + − × ÷ must use nalgebra's
+             ComplexField/RealField
+F-P1 cause   CHANGELOG v0.35.0: "CollisionPipeline::step now clears the rigid-bodies' modified
+             flags, so a collision-only pipeline no longer accumulates stale change tracking"
+             (issue #662); v0.36.0 added PhysicsWorld::detect_collisions. Nothing since mentions
+             the interaction. Workaround kept (PB-3).
+licences of  cargo tree on the prototype (rapier3d's normal dependencies, with serde-serialize on,
+the tree     a superset of 12b's): Apache-2.0; MIT; MIT OR Apache-2.0; Zlib; Zlib OR Apache-2.0 OR
+             MIT; Unlicense OR MIT; (MIT OR Apache-2.0) AND Unicode-3.0. All permissive. Re-run on
+             12b's own lock, with 12b's features, in PB-C2 (PB-2).
+cross-arch   PC-g (§9.8): arm64 and x86_64-under-Rosetta give identical digests, and snapshots resume
+             across them. The x86_64-apple-darwin target is installed on this machine (rustup target
+             list --installed, 2026-10-07). PB-12 repeats the check with the real pack.
+```
+
+## 17.4 Acceptance (decided before measuring, `ARC-23`)
+
+Rules for every criterion below:
+- Each guarded criterion names the mutation shown to break it. A mutation is applied in the working
+  tree, observed to fail by name, and reverted. `git status` and `git grep MUTATION` are recorded
+  afterwards.
+- Every expected position is a literal from the test's own layout, never computed by the code under
+  test (test rules §25).
+- Positions that pass through Rapier are asserted to within ±1 mm of a hand-computed literal. An
+  example: a centre stopped by the east wall at x = 8 320 − 300 − 10 = 8 010.
+- The scenario room is the prototype's café: floor (0, 0)–(8 320, 10 320), with the counter (3 860,
+  6 570)–(8 320, 7 170) at height 1 100. The prototype's numbers are therefore comparable.
+
+```text
+PB-1  Nothing existing moves. On the PR head, with bodies installed and [bodies] registered by every
+      composing host:
+        - `mineworld run worlds/social-cafe --headless --seed 7 --days 300`: faults 0, 365 330 facts,
+          sha-256 of every line but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b;
+        - `mineworld run worlds/market-town --headless --seed 7 --days 300`: faults 0, 372 755 facts,
+          sha-256 = 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d;
+        - `mineworld validate` of both worlds byte-identical to the base binary's output;
+        - every existing test passes; the only edits to existing tests are QP-2's two files.
+      M-PB1  the inert rule dropped (a place without PlaceShape treated as an unbounded floor, so
+             people are nudged anywhere) → PB-19 fails, and the 300-day social-cafe sha differs from
+             the above, with `stopped-short` appearing in its summary.
+PB-2  DEP-13 and the pin. DEP-13 is committed before any code (PB-C1), and both doc checks pass.
+      `systems/bodies/tests/rapier_pin.rs`:
+        - Cargo.lock holds exactly one rapier3d, at 0.36.0, and one parry3d, at 0.31.1;
+        - `cargo metadata`'s resolved features for rapier3d include `enhanced-determinism` and exclude
+          `simd8`, `parallel` and `serde-serialize`;
+        - (BodiesSystem::VERSION, the locked rapier3d version) = (1, "0.36.0"), so an upgrade must move
+          both together (DC-5).
+      Recorded, not a test: `cargo tree -p rapier3d -e normal -f "{p} {l}"` on 12b's lock, with each
+      licence in §17.3.3's permissive set.
+      M-PB2  `parallel` added to the root line → rapier_pin fails, naming `parallel`.
+PB-3  F-P1, as unit tests in rapier.rs:
+        - (canary) a fresh world with a 0.4 m dynamic cube at z 0.800 m above the floor;
+          `detect_collisions` without the re-mark; 20 steps of 1/60 s → z is still 0.800 ± 0.001.
+          The defect is present in the pin. If this ever fails, upstream changed it, and the workaround
+          is removed deliberately;
+        - (fix) the adapter's refresh, then 20 steps → z ≤ 0.300 m (the prototype measured 0.291).
+      M-PB3  the re-mark removed from the refresh → (fix) fails.
+PB-4  Authored people are checked at load (QR-7, SD-B4), through the real `mineworld validate` on
+      test-time copies of worlds/bodies-yard (tools/cli/tests/bodies_yard.rs). Each refusal exits
+      non-zero and names its subject:
+        - two hall people 420 mm apart → "bodies-overlap", both people, "hall", "420 mm";
+        - a person whose centre is 100 mm inside the table → "bodies-in-solid";
+        - a person 200 mm from the floor's edge → "bodies-outside";
+        - a 1 300 × 1 300 mm hall in the 12-person world → "bodies-capacity", with the counts;
+        - `floor` with min.x ≥ max.x, an unknown key `wall:`, and a solid of height 0 → each refused
+          by the loader at its line and column, with bodies' own message.
+      Positive control: worlds/bodies-yard itself validates.
+      M-PB4  the pair check removed → the overlap copy validates.
+PB-5  Walls (systems/bodies/tests/scenarios.rs: a hand-built world with presence, movement and bodies,
+      through the real World::dispatch, [bodies] registered). Each case states the facts in order,
+      each caused by the walker's ActionId and emitted_by movement:
+        a  east from (7 000, 3 000) to (8 500, 3 000) → arrived (8 010 ± 1, 3 000);
+           stopped-short { wanted (8 500, 3 000), reached, by None }
+        b  north from (5 000, 5 500) to (5 000, 7 000) → arrived (5 000, 6 260 ± 1), against the
+           counter (6 570 − 310); stopped-short, by None
+        c  diagonal from (7 000, 3 000) to (8 400, 4 400) → x = 8 010 ± 1 and y > 4 010 (it slid);
+           |reached − from|² ≤ |to − from|²
+        d  a stride meeting nothing → exactly `to`, one fact, payload bytes equal to
+           Arrived::new(person, to)'s encoding (the fast path)
+PB-6  Nudging (QB-10, I-11), same file:
+        - n2: the walker goes from (2 000, 5 000) in 12 strides of +500 mm in x; B stands at (4 000,
+          5 100). B moves at least 100 mm in all. Every nudge is at most 310 mm, recorded as
+          `arrived { B }` in the walker's emission list and caused by the walker's ActionId. After
+          every request the pair is at least 595 mm apart.
+        - n3: the crowd of §9.6. At most 4 displaced per request. At least one stride is blocked. The
+          closest pair is at least 595 mm. Nobody is outside the floor.
+        - a chain that needs a third generation is blocked: the walker ends at contact (± 1 mm) with
+          the first person; nobody else moves; stopped-short names the first person.
+        - Each case's layout keeps the first person met outside BIAS_BAND, so the bias (PB-C5) does
+          not change it.
+      Generations are read from the resolver core's outcome in the same tests.
+      M-PB5  CHAIN_MAX 2 → 3 → the chain case fails: the third person moved.
+      M-PB6  NUDGE_MAX 300 → 400 → n2's bound fails, naming the nudge's length.
+PB-7  Never through a wall, never out of the place:
+        - B stands with its centre 320 mm from the east wall, and the walker comes from the west. B
+          can move only 10 mm, so the stride is blocked: the walker is at contact, B is unchanged, and
+          stopped-short names B.
+        - The same holds against the counter.
+        - Every displaced `arrived` names the walker's place.
+PB-8  Verify-then-degrade reproduces F-P6 (unit test in resolve.rs, under a test policy with the bias
+      off). The setup is R's request 551: the walker at (2 536, 782) asks for (+1 412, −1 412), and a
+      person stands at (2 970, 314) against the south wall. With verification on, the closest pair is
+      at least 595 mm and the degradation level is recorded. With the production policy (bias on),
+      the same start also passes V1–V3.
+      M-PB7  verification off → the overlap reappears (the prototype: 33 mm), naming the pair.
+      If two people alone do not reproduce the slide in the pack, the session first rebuilds the
+      prototype's full state before request 551 (15 people, its request sequence). If that still
+      cannot reproduce it, M-PB7 is INCONCLUSIVE and is replaced by a unit test of verification on a
+      fabricated overlapping candidate, recorded as a deviation.
+PB-9  The 30-day real run (tools/cli/tests/bodies_yard.rs): `mineworld run worlds/bodies-yard --headless
+      --seed 7 --days 30 --save S` → exit 0, faults 0.
+      Activity first (ARC-23), per 10-day bucket: every seat moved; at least one stopped-short; at
+      least one displaced arrival; at least one crossing in each direction. The counts are printed.
+      Then the scan. It replays positions from S's facts in EventId order and checks after each
+      request's facts:
+        - no pair in one place is closer than 595 mm;
+        - no centre is outside the floor shrunk by 295 mm, or within 295 mm of a solid (the geometry
+          is the world file's literals);
+        - every displaced arrival (an `arrived` after the first in one request's list) stays in its
+          place and moves at most 310 mm, with at most 4 per request;
+        - every stopped-short and displaced arrival is caused by the request's ActionId, with
+          emitted_by movement.
+      It prints the closest pair, its place and its revision (located, not counted).
+PB-10 The instrument sees, and bodies can be removed (I-10, AC-2 at world level). A test-time copy of
+      worlds/bodies-yard drops `bodies` from `systems` and every `body:` section (the
+      market_composition pattern). It runs 30 days with faults 0, and every seat moves. The same scan
+      reports a violation, naming the closest pair (< 595 mm), the place and the revision.
+PB-11 Determinism (tools/cli/tests/bodies_yard_restart.rs, the run_restart pattern):
+        - two processes, `--save A` and `--save B`, for 30 days: facts, journal and snapshots
+          byte-identical;
+        - SIGKILL at days 5, 15 and 25, then the same command: each survivor reports the head it
+          resumed from, with a re-executed tail > 0 at least once, and is byte-identical to A;
+        - verify from genesis passes.
+      Exclusions, as in run_restart: the victim's status is a signal, it printed no summary, and its
+      head is short of A's.
+      M-PB8  an impure resolver (a process-global counter's parity added to GAP) → a survivor is
+             refused (ReplayDiverged), or its rows differ.
+PB-12 Cross-architecture (recorded real evidence, Gate 2's role; no committed test). An
+      x86_64-apple-darwin build of `mineworld`, run under Rosetta (`arch -x86_64`):
+        - the 30-day bodies-yard run's summary sha-256 (every line but `wall`) equals arm64's;
+        - an arm64 save written to day 15, resumed by the x86_64 binary to day 30 → the same sha as
+          arm64's uninterrupted 30-day run, and it reports resuming at the save's head;
+        - the reverse: an x86_64 save at day 15, resumed by arm64.
+      If the CLI cannot be cross-built (rusqlite's bundled C), the fallback is the pack's
+      scenarios and long_run test binaries built for x86_64 and run under Rosetta, with their
+      printed digests compared. That is recorded as PARTIAL, never as PASS.
+PB-13 QB-16, the head-on bias (decided now, measured in PB-C5). Scenario n1, in the café room: A at
+      (2 000, 5 000), B at (6 320, 5 000). They alternate requests: A asks +500 mm in x from where
+      presence says A stands, B asks −500 mm. Twelve requests each.
+        HB-1  after the 24 requests, A.x > B.x: they have passed each other;
+        HB-2  after every request: the pair is at least 595 mm apart, every nudge is at most 310 mm,
+              and both centres are inside the floor shrunk by 295 mm;
+        HB-3  n2 and n3 still meet PB-6, and in n2 the walker ends east of B;
+        HB-4  n1–n3's final states and fact digests are byte-identical in two processes.
+      M-PB9  BIAS_BAND = 0 → HB-1 fails: A.x < B.x at the end (F-P7 reappears).
+      If HB-1 fails with the frozen constants, a ladder is fixed now. It is recorded as a bounded
+      deviation, and the criterion does not change:
+        BIAS_TURN (2, 1), i.e. 26.6°; then BIAS_BAND 300 mm; then both.
+      If none passes, that is a material stop: QB-16 returns to the operator with the traces.
+PB-14 Cost (QB-11; recorded real evidence).
+        a  systems/bodies/tests/long_run.rs: the prototype's 3 000-request sequence without props (the
+           café room, 15 people), through World::dispatch. A committed test: N-1 … N-4 hold after
+           every request, the closest pair is located, and the final digest is the same in two
+           processes. Its release run (`cargo test --release -p mineworld-bodies --test long_run --
+           --nocapture`) prints the mean time per move that reaches Rapier, and the fast-path share.
+           Target ≤ 61 µs. PASS ≤ 100 µs (PC-d's budget). FAIL above it.
+        b  300 days of bodies-yard, seed 7, in the dev profile, as `mineworld run` is measured
+           (ARC-30): with bodies, and as PB-10's copy without, two runs each, consecutive, on one
+           machine. PASS iff max(with) ≤ 1.5 × min(without), and faults are 0 in all four.
+           If it fails: QP-9's remedy if the operator approved it at freeze, otherwise a material stop
+           with the numbers.
+PB-15 Structural (systems/bodies/tests/isolation.rs; and the existing scans):
+        - in systems/bodies/src, only rapier.rs names `rapier`;
+        - no code file (*.rs, Cargo.toml) outside systems/bodies names `rapier3d`, except the root
+          Cargo.toml's one dependency line;
+        - component.rs, event.rs and section.rs hold no f32 or f64 (I-3);
+        - bodies' dependencies name no System Pack other than presence;
+        - seam_vocabulary passes with QP-2's admission, and that admission fails if unused;
+        - ac1_composability 13/13 and precursor_vocabulary 4/4 pass unedited;
+        - presence's and movement's own structural scans pass unedited.
+      Planted: `use rapier3d as _;` in resolve.rs → the first bullet fails, naming the file. Removed.
+PB-16 Disclosure (pack test): an observer in the hall is told the hall's `place-shape`, i.e. the
+      floor and solids as authored literals. The court's shape is not in that observation.
+PB-17 The guard (SD-B9, QP-1). A test-only stating pack in bodies' tests states `Arrived::new` directly,
+      bypassing `arrivals` (F-R11), and so puts bob 200 mm from alice in a shaped place. The next
+      `move` into that place panics, and the message names alice, bob, the place, "200 mm" and ARC-39.
+      M-PB10 the guard removed → no panic.
+PB-18 Entry placement (SD-B8), each case through movement's crossing in a hand-built two-place world:
+        a  onto a free doorway point → exactly there; no stopped-short;
+        b  onto a point occupied by one person → that person is nudged ≤ 310 mm, and the crosser is
+           at the point;
+        c  onto a point where the nudge fails (the occupant is backed against the floor's edge) →
+           the crosser is at the nearest free lattice point (a literal from the layout), with
+           stopped-short { wanted, reached, by: the occupant };
+        d  onto a `to` inside a solid → the nearest free point, by None.
+      After each, every pair is at least 595 mm apart.
+      M-PB11 E3 returns `to` → case c fails, naming the pair.
+PB-19 Inert where absent (I-13). In a world with bodies installed:
+        - every `move` into a place without `body:` records exactly Arrived::new's bytes;
+        - so does a `move` whose `to` has no local position.
+      This is checked across the 12-move script of 12a's RS-7, so the two seams agree.
+PB-20 Scope and the gate:
+        - `git diff --name-only <base>...HEAD` ⊆ §17.1's change set;
+        - the no-diff paths are empty;
+        - Cargo.lock adds packages and changes no existing package's version;
+        - `cargo fmt --check` and `cargo clippy --workspace --all-targets --all-features -D warnings`
+          are clean;
+        - the full workspace gate runs once, on the final executable head.
+```
+
+## 17.5 Commit plan
+
+Rules for every commit:
+- Each commit tracks implementation, validation and review separately.
+- Evidence goes into §17.10 as `E-PB<n>`, deviations into §17.11.
+- A planned commit may become several coherent commits; the mapping is recorded.
+- Each commit leaves the workspace's tests green.
+- Commands run from the worktree root, with `$HOME/.cargo/bin/cargo` if `cargo` is not on PATH.
+- Anything longer than about two minutes runs in the background: the x86_64 build, 300-day runs in
+  pairs, and the full gate.
+
+### PB-C0 — Design (this section) — docs only
+
+- [x] Implementation: §17 and the header line, by the planning session on `mvp0/s15-12b-plan`, from
+  the audit in §17.2.
+- [x] Validation: `python3 scripts/check_doc_headings.py` and `python3 scripts/check_decision_ids.py`
+  (E-PB0). The DEP-13 facts were re-verified at source on the day (§17.3.3). DEP-13 and ARC-40 are
+  free on every `origin/*` branch.
+- [x] Review: every claim in §17.2 cites a file and a line, a command, or a measurement. Each
+  departure from §§4.5, 5, 10 is named with its finding and its question. The operator-material
+  questions are marked. This is the planning session's self-review only; the operator's review is
+  pending.
+
+### PB-C1 — Specs before code: DEP-13, the ARC-39 note, MODULE_SPEC §4.1
+
+**Goal.** The dependency and the first resolver's rule are reviewable decisions before any code
+relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, before any code").
+
+**Scope.**
+- `docs/DECISIONS.md`: append **DEP-13** after ARC-39. It is §15.1's draft made exact by §17.3.3:
+  - problem; options (Rapier, `parry` alone, our own, Jolt bindings, Avian);
+  - choice: `=0.36.0`, `enhanced-determinism`, no `simd8`, `parallel` or `serde-serialize`, declared
+    in the root workspace (QP-3);
+  - why not ourselves, and why not the others;
+  - the isolating interface: `systems/bodies/src/rapier.rs`, integers in and out;
+  - accepted limitations: monthly breaking releases, so an upgrade bumps bodies' VERSION (DC-5);
+    F-P1 and its canary; F-P6 and verify-then-degrade; cross-architecture identity evidenced under
+    Rosetta only; no momentum between resolutions;
+  - the licence and MSRV facts, with their date.
+- `docs/DECISIONS.md`: a dated **note on ARC-39**, without rewriting it:
+  - the first resolver's bounds (QR-11): NUDGE_MAX + GAP, CHAIN_MAX, NUDGED_MAX, CLEARANCE;
+  - item 7 bullet 3 is realized as SD-B9's guard on the starting state, with the reason (F-B1);
+  - a crossing that cannot land on its point is placed at the nearest free point (SD-B8, F-B3).
+- `docs/MODULE_SPEC.md` §4.1:
+  - `# places/<key>.yaml` gains a commented `body:` example;
+  - the section table gains the `body` row (bodies, places: floor, solids, the bounds of SD-B3,
+    disclosed to whoever perceives the place);
+  - "six sections" becomes "seven".
+- Before writing, run `git fetch` and confirm DEP-13 is free on every `origin/*` ref.
+
+**Depends on:** freeze, including QP-1, QP-3 and QP-7. **Non-goals:** no code.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: both doc checks pass (the decision ids grow by one: 50 → 51). Every cited section
+  exists. DEP-13's version, licence and MSRV match §17.3.3 character for character.
+- [ ] Review: DEP-13 answers REUSE_POLICY §11's six questions and §12's rejection reasons. The ARC-39
+  note amends without rewriting, and says which item it refines. No defined term is redefined:
+  `Place`, `Person`, `System Pack`, `World Pack` keep their CORE_CONCEPTS sense. `body`, `floor` and
+  `solid` are a section's words, not ontology.
+
+**Commit boundary.** Documentation only.
+
+### PB-C2 — The pack's skeleton and the Rapier adapter
+
+**Goal.** Rapier is in the build, pinned and isolated. PB-2 and PB-3 hold before any rule exists.
+
+**Scope.**
+- Root `Cargo.toml`: one `[workspace.dependencies]` line, `rapier3d = { version = "=0.36.0",
+  features = ["enhanced-determinism"] }`, with a comment naming DEP-13.
+- `systems/bodies/Cargo.toml`, with each dependency's reason as a comment: authoring, contracts,
+  kernel, presence, sdk, serde, serde_json, rapier3d. Dev-dependencies: movement, and whatever the
+  tests need.
+- `systems/bodies/src/{lib.rs, rapier.rs, codec.rs}`:
+  - `rapier.rs` holds the canonical world build, `refresh` (detect_collisions plus the F-P1
+    re-mark), the controller, the two sweep filters, metres from and to millimetres (one function
+    each), and the PB-3 unit tests.
+- `systems/bodies/tests/rapier_pin.rs` (PB-2).
+- `systems/bodies/tests/isolation.rs`: PB-15's first four bullets.
+- `Cargo.lock`, regenerated.
+- The pack is not yet installed.
+
+**Depends on:** PB-C1.
+
+- [ ] Implementation: as scoped. `#![forbid(unsafe_code)]`, `#![warn(missing_docs)]`; no
+  `HashMap` (clippy).
+- [ ] Validation: `cargo test -p mineworld-bodies`; clippy and fmt clean. `git diff Cargo.lock` lists
+  only added packages. The licence tree is recorded (PB-2). M-PB2 and M-PB3 are each applied, fail
+  by name, and are reverted. The planted `use rapier3d as _;` fails isolation, and is removed.
+- [ ] Review: no Rapier type in a `pub` signature outside `rapier.rs`; the conversion functions are
+  the only float↔integer crossings; the insertion order matches SD-B11 exactly; the canary asserts
+  the defect as it is, not as it should be.
+
+### PB-C3 — Place geometry: the `body:` section, PlaceShape, genesis checks, disclosure
+
+**Goal.** A place can be given a body, and a world whose authored people violate it does not load.
+
+**Scope.**
+- `systems/bodies/src/{section.rs, component.rs, event.rs, system.rs, geometry.rs}`:
+  - the section type and its validation (SD-B3);
+  - `PlaceShape` (component `place-shape`, schema 1);
+  - `PlaceShaped` (event `place-shaped`, schema 1);
+  - the declaration, install (`require_registered` first) and the reduction with SD-B4's four
+    checks;
+  - `discloses` (SD-B12);
+  - in `geometry.rs`, the integer half SD-B4 needs: the free-point test, the capacity count, and
+    pair distances.
+- `systems/bodies/tests/support/mod.rs`: a hand-built world (presence, movement, bodies) that
+  registers `[bodies]` first, places people through genesis, and has a dispatcher.
+- `systems/bodies/tests/genesis.rs`:
+  - each SD-B4 refusal in a hand-built genesis, naming its subject;
+  - PB-16's disclosure through presence's `observe`.
+
+**Depends on:** PB-C2.
+
+- [ ] Implementation: as scoped. The reduction writes `PlaceShape` only after all four checks pass.
+- [ ] Validation: `cargo test -p mineworld-bodies` passes, with a refusal per check and a positive
+  control. M-PB4 is shown here at pack level; PB-4's real-binary half is in PB-C7.
+- [ ] Review: refusal codes and details name keys rather than raw ids wherever the world can resolve
+  them; the capacity count's anchor and spacing are SD-B4's; the disclosure is the component exactly
+  as reduced.
+
+### PB-C4 — The resolver: walls, nudging, verify-then-degrade, entry placement, the guard
+
+**Goal.** PB-5 … PB-8, PB-17 … PB-19 through the real dispatch.
+
+**Scope.**
+- `systems/bodies/src/resolve.rs`:
+  - `impl ArrivalResolver for BodiesSystem`, in this order: inert rule (SD-B2) → SD-B15 → guard
+    (SD-B9) → same-place (SD-B6, without the bias) or entry placement (SD-B8);
+  - a crate-private core returning the resolution and an `Outcome { generations, nudged, degraded }`
+    for tests;
+  - a crate-private `Policy { bias, verify }`. Production uses one constant; unit tests may turn a
+    flag off (PB-8).
+- `geometry.rs`: the rest of SD-B5. That is the corridor and fast path, nudge vectors, the lattice
+  search, and V1–V3.
+- `rapier.rs`: the people sweeps and the nudge sweeps.
+- `systems/bodies/tests/scenarios.rs`: PB-5, PB-6 (n2, n3, the chain), PB-7, PB-18, PB-19.
+- A test-only bypassing pack for PB-17.
+- PB-8 as a unit test in `resolve.rs`.
+
+**Depends on:** PB-C3.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-bodies` passes. M-PB5, M-PB6, M-PB7, M-PB10, M-PB11 and the
+  PB-19 half of M-PB1 are each applied, fail by name, and are reverted. Each scenario's facts are
+  checked for order, causation and `emitted_by`.
+- [ ] Review: every degrade path ends in a state V1–V3 accepts, including stay. The snap cannot
+  lengthen (rule (c)). Displaced order is generation, then `EntityId`. No float outside `rapier.rs`.
+  The resolver keeps nothing between calls: no static, no cache, no clock.
+
+### PB-C5 — QB-16: the head-on bias
+
+**Goal.** PB-13. Walkers who meet head-on pass each other.
+
+**Scope.**
+- `resolve.rs` and `geometry.rs`: SD-B10 (first person met, the band, the integer turn).
+- `scenarios.rs`: n1, and HB-1 … HB-4. The second process for HB-4 is the same test binary run
+  twice, with its digests printed and compared.
+
+**Depends on:** PB-C4.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: HB-1 … HB-4 pass. M-PB9 fails HB-1, and is reverted. If HB-1 fails, the ladder of
+  PB-13 is walked, and each rung's trace is recorded (§17.11).
+- [ ] Review: the turned stride is never longer than `d` (an assertion in the code, and a case in the
+  test); the bias changes only the walker's own target; PB-6's layouts still keep their first person
+  outside the band.
+
+### PB-C6 — Install: the build's first resolver
+
+**Goal.** Every host registers `[bodies]`, and every existing world is unchanged (PB-1).
+
+**Scope.**
+- `systems/installed/Cargo.toml`: one line.
+- `systems/installed/src/lib.rs`: `Bodies => mineworld_bodies::BodiesSystem,`, the resolution line
+  `[mineworld_bodies::BodiesSystem,]`, and one doc sentence.
+- `worldpack/tests/registration.rs`:
+  - the three `Some(Vec::new())` become `Some(vec![SystemId::from_static("bodies")])`;
+  - the panic message's `already registered []` becomes `[SystemId("bodies")]`;
+  - the doc comment drops "empty in this build" (QP-2).
+- `tests/acceptance/tests/seam_vocabulary.rs`: a second self-checking list, `INSTALLED_PACK_LINES`.
+  It admits the word `bodies` only on lines of `systems/installed/src/lib.rs` that contain
+  `mineworld_bodies::BodiesSystem`, with its reason (ARC-33: the installed set names its packs). It
+  fails if unused, like `PRE_EXISTING` (QP-2).
+
+**Depends on:** PB-C5.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation:
+  - `cargo test -p mineworld-installed-systems -p mineworld-worldpack -p mineworld-acceptance`
+    passes;
+  - `cargo test -p mineworld-cli` passes, which exercises every CLI path that composes;
+  - the base binary is built from the base before this commit and kept in `/tmp/s15-12b/`;
+  - the PR binary's two 300-day runs equal PB-1's digests;
+  - both `validate` outputs `cmp` equal to the base binary's.
+- [ ] Review: the installed set's `resolution:` test (12a SD-R8) passes unedited. QP-2's two edits keep
+  each test's claim. No other existing test needed an edit; any that did would be a material stop.
+
+### PB-C7 — The world: worlds/bodies-yard, the real run, the counterfactual, restart
+
+**Goal.** PB-4, PB-9, PB-10, PB-11, and PB-14(a)'s committed half.
+
+**Scope.**
+- `worlds/bodies-yard/{world.yaml, README.md, places/{hall,court}.yaml, people/*.yaml}` (SD-B13).
+- `tools/cli/tests/bodies/mod.rs`: the scan, the world's geometry as literals, and the test-time copy
+  without bodies.
+- `tools/cli/tests/bodies_yard.rs`: PB-4 (validate refusals on copies), PB-9, PB-10.
+- `tools/cli/tests/bodies_yard_restart.rs`: PB-11.
+- `systems/bodies/tests/long_run.rs`: PB-14(a). The prototype's request sequence is re-derived from
+  its `mix` and `draw`, as recorded in §9.5, without its kicks.
+
+**Depends on:** PB-C6.
+
+- [ ] Implementation: as scoped. The activity precondition is checked before any scan or comparison.
+- [ ] Validation:
+  - `cargo test -p mineworld-cli --test bodies_yard --test bodies_yard_restart`;
+  - `cargo test -p mineworld-bodies --test long_run`;
+  - `mineworld validate worlds/bodies-yard` → exit 0;
+  - M-PB4 at binary level;
+  - M-PB8, each applied, failing by name, and reverted.
+  If the activity precondition fails (too few contacts in a bucket), the remedy is in world data: a
+  smaller room or closer starting positions. It is never in the controller (ARC-27, I-9's spirit),
+  and it is recorded as a bounded deviation.
+- [ ] Review: the scan reads the save, not the code under test. The geometry literals are copied from
+  the world file once, with a test that the file still says them. Every survivor exclusion is
+  asserted.
+
+### PB-C8 — Close: cross-architecture, cost, status, the gate, the ledger
+
+- [ ] PB-12, in the background:
+  - `cargo build -p mineworld-cli --target x86_64-apple-darwin`, the binary copied to `/tmp/s15-12b/`;
+  - the three Rosetta runs, compared with arm64's;
+  - the fallback if the build fails.
+- [ ] PB-14(a): release `long_run`, with its printed mean.
+- [ ] PB-14(b): four 300-day bodies-yard runs, in the background, two at a time.
+- [ ] PB-1 on the final executable head: both 300-day digests, and both `validate` comparisons.
+  M-PB1's 300-day half, applied once and reverted.
+- [ ] PB-15, PB-20: the structural tests and the scope check; fmt and clippy; the full gate once, in
+  the background (expect about 6 minutes, now that Rapier compiles).
+- [ ] Documentation: `docs/MVP_STATUS.md` (a "Bodies" capability row and one evidence row); §17's
+  checkboxes; §17.10; the handoff.
+- [ ] Review: PB-1 … PB-20 each with evidence; deviations in §17.11; FU-12a-1 still open, since 12b
+  touches neither file.
+
+**PR 12b lifecycle:** NOT FROZEN.
+
+## 17.6 Test ownership
+
+```text
+STATIC      cargo fmt; cargo clippy -D warnings (HashMap banned); the compiler at the installed set (a
+            listed resolver type that is not an ArrivalResolver does not compile); the section type
+            (an invalid `body:` cannot be constructed); Resolution's private fields (12a)
+UNIT        rapier.rs: F-P1 canary and fix (PB-3); resolve.rs: verify-then-degrade on R's request-551
+            geometry with the bias off (PB-8); geometry.rs: none beyond what the scenarios drive —
+            the integer helpers are owned by the scenarios that exercise them
+INTEGRATION through the real World::dispatch, hand-built worlds with presence, movement and bodies:
+            walls, nudges, chains, wall-backed nudges, entry placement, inertness, the guard, the
+            head-on bias, disclosure, genesis refusals (PB-5 … PB-7, PB-13, PB-16 … PB-19); the
+            3 000-request long run's invariants and digest (PB-14 a, committed half)
+STRUCTURAL  the pin and resolved features (PB-2); Rapier isolation, no persisted float, bodies names
+            only presence (PB-15); seam_vocabulary, ac1_composability, precursor_vocabulary, presence's
+            and movement's scans (PB-15); scope (PB-20)
+REAL RUN    (Gate 2's role) the real binary: bodies-yard validate refusals (PB-4), the 30-day run and
+            its scan (PB-9), the counterfactual (PB-10), two processes and SIGKILL (PB-11) — committed
+            tests; the two 300-day digests (PB-1), the Rosetta runs (PB-12) and the cost runs (PB-14)
+            — recorded evidence on the final head
+GATE 1      NOT REQUIRED: no model is involved, and no LM-facing semantics change
+CI          none configured (S13); the full local gate runs once on the final executable head
+```
+
+Owned elsewhere and not repeated:
+- 12a owns the seam's refusals (RS-4), registration (RS-8 … RS-10) and the catalog's order (RS-5).
+- persistence owns version refusals.
+- worldpack owns the section-namespace rule and the line-and-column refusals of malformed sections.
+
+PB-4 shows only that bodies' type is the one decoding. Each failure class above has one owner.
+
+## 17.7 Is any of this material?
+
+Yes, in five places. Each is raised, not assumed:
+
+- **QP-1: the guard.** ARC-39 item 7, bullet 3 promises a reaction guard that F-B1 shows cannot be
+  built. The proposal is a guard on the starting state, which panics. It amends an operator-approved
+  decision record.
+- **QP-2: two existing tests are edited.** Their claims are unchanged, as QR-2's were.
+- **QP-3: the root manifest gains `rapier3d`.** This follows the root rule and ARC-33 item 3.
+  Installing this pack therefore touches one file outside `systems/`. ARC-33's "no other file is
+  edited" holds for packs that bring no external dependency.
+- **QP-7: entry placement.** The step design's "blocked; the person stays on their side of the door"
+  (§5) cannot be expressed by the seam (F-B3). A crossing into a jammed doorway places the person at
+  the nearest free point instead, guaranteed by a capacity check at load.
+- **QP-9: a contingent cost remedy.** If PB-14(b) fails, it is a dev-profile optimization override
+  for Rapier in the root manifest.
+
+Not material, and recorded:
+- the test world (QP-4), which the operator suggested;
+- the `body:` format (QP-5) and the default capsule for everyone (QP-6);
+- the bias design (QP-8), which the operator delegated to 12b;
+- `parallel` off (QP-10) and the F-P1 canary (QP-11);
+- disclosure in 12b (QP-12), the single clearance number (QP-13), bodiless semantic presences
+  (QP-14), an earlier resolver (QP-15) and the cross-architecture fallback (QP-16).
+
+The following are not needed:
+- any kernel, contract, persistence, server, cognition, presence or movement change;
+- 12a's F2 kernel slot, or a kernel read of enabled state (QB-17);
+- a change to the I-2 scan or to AC-1's checks.
+
+AC-1's check 2 reads only market crates. Check 1 reads only the 11d and 11e merges. The I-2 scan reads
+only 11a … 11c. `bodies` is none of these, so it trips none of them (PB-15 runs all three).
+
+## 17.8 Questions (QP-1 …)
+
+Operator-material questions are marked **[OM]**. Each has a recommendation; the others are the primary
+session's to decide at freeze.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QP-1 [OM]** | **The guard.** ARC-39 item 7, bullet 3 says the first resolver pack checks the invariant "in its reactions to the recorded arrivals". F-B1 shows such a reaction sees each arrival before the rest of its list is reduced, and would fail every nudge. Options:<br>(a) a guard on the **starting state** of every non-inert resolution, which panics naming the pair, the place and ARC-39 (SD-B9);<br>(b) no guard; rely on the tests;<br>(c) a kernel hook at the end of a generation (a kernel change). | **(a)**, recorded as a dated note on ARC-39 (PB-C1). It catches exactly what bullet 3 was for — a bypass (F-R11) or an unregistered host — at the next arrival into that place. Its failure mode is the one ARC-39 already chose for host defects (a panic, like `require_registered`). PB-17 and M-PB10 show it. |
+| **QP-2 [OM]** | **Two existing tests are edited** (F-B2).<br>- `worldpack/tests/registration.rs` pins the installed set's empty resolver list.<br>- `seam_vocabulary.rs` scans `systems/installed/src`, where the installed set must now name `mineworld_bodies::BodiesSystem`.<br>Edit them, or leave bodies out of the installed set? | **Edit both, keeping their claims.** In registration.rs, the expected list becomes `[bodies]`. In seam_vocabulary.rs, a second self-checking admission list admits `bodies` on the installed set's two lines only, with ARC-33 as its reason. Every other directory and word is still refused. Precedent: QR-2's three literals. Leaving bodies uninstalled would make it unusable by any host. |
+| **QP-3 [OM]** | **Where `rapier3d` is declared** (F-B8). (a) In the root `[workspace.dependencies]`, by the root's own rule. (b) In `systems/bodies/Cargo.toml` only, so installing bodies touches nothing outside `systems/`. | **(a).** The root rule — one version per dependency, and a new one is a reviewable decision — is what ARC-33 item 3 kept. DEP-13 is that decision. DEP-13 also states plainly that installing a pack which brings a new external dependency adds one root line. (b) would start a second place where external versions live. |
+| **QP-4** | **Test world:** a committed `worlds/bodies-yard`, or a world built inside tests? | **Committed** (SD-B13). Only a real World Pack exercises the real `body:` path through the loader, `validate`, `mineworld run` with the unchanged controller, `--save`, SIGKILL, and world-level removal by the established copy pattern. It also stays 12c's fixture. |
+| **QP-5** | **The geometry format:** §10.4's `walls:` as boxes, or `floor` plus `solids` (SD-B3)? Section name `body` (§10.2) or `bodies`? | **`body:` with `floor` and `solids`.** The floor's edge is the walls. A doorway needs no gap, because a crossing is a placement. Boxes stay axis-aligned under the 3D client's frame mapping. `body` keeps §10.2's name and the singular style of `name`, `routine`, `item` and `job`. |
+| **QP-6** | **Per-person shapes:** §10.2 lists `BodyShape` and `body-formed`. Needed in 12b? | **No.** Every person is the default capsule. No requirement asks for others, and `CLAUDE.md` rule 11 says no premature abstraction. 12c adds `BodyShape` for objects. Person overrides come when a world needs them. |
+| **QP-7 [OM]** | **A crossing into a jammed doorway** (F-B3). §5 says the person stays on their side of the door. The seam cannot express that: a resolution must end in `to`'s place. | **Entry placement** (SD-B8):<br>- `to` if free;<br>- else nudge from `to` within I-11;<br>- else the nearest free 50 mm lattice point. This is guaranteed by SD-B4's capacity check at load.<br>The alternative — a way for a resolver to refuse — is a presence and movement change (movement would have to ask in `validate`), against I-1 and 12a's frozen seam. |
+| **QP-8** | **QB-16, the bias** (SD-B10): turn the walker 14° right when the first person met is within 200 mm of its line, against criteria HB-1 … HB-4 fixed now, with a ladder if needed. | **Accept.** It is the operator's delegated decision (QB-16), made before measuring. It keeps I-11's bound, because the nudges are unchanged. |
+| **QP-9 [OM]** | **If PB-14(b) fails** (bodies-yard with bodies over 1.5× without, in the dev profile): may 12b add `[profile.dev.package.rapier3d]` and `[profile.dev.package.parry3d]` with `opt-level = 3` to the root manifest? | **Yes, as a contingent permission granted at freeze.** It applies only if (b) fails. It needs re-showing that results are identical across optimization levels: PC-f did this for the prototype, and here PB-11's digests are compared with and without the override. Otherwise (b) failing is a material stop. |
+| **QP-10** | `parallel`? | **Off.** The documentation says it is bitwise equal to the sequential solver, but 12b runs queries, not the solver. Threads in a single-threaded host buy nothing. Revisit only with evidence in 12c. |
+| **QP-11** | F-P1's regression test, when 12b has no dynamic body? | **Keep it** (operator's binding). It is a canary that turns red when upstream changes the behaviour, and a fix test for the adapter 12c will use. |
+| **QP-12** | Disclose `PlaceShape` in 12b, or leave it to 12e? | **In 12b.** It is the owner's own state, it costs one function and one test, and 12e then changes no server code (R-B4). |
+| **QP-13** | One number for "too close": CLEARANCE 595 mm, at genesis and at run time? | **Yes.** One number, so a world that loads is a world the resolver accepts. |
+| **QP-14** | A person with no local position in a shaped place? | **Bodiless:** ignored by others' resolutions. Their move to a position is an entry placement. Positionless arrivals are inert. |
+| **QP-15** | Another resolver before bodies changed the arrival? | **Bodies passes it through** (SD-B15). The guard catches any resulting overlap at the next arrival. Two geometric resolvers are out of MVP-0 (R-B11). |
+| **QP-16** | PB-12 if the CLI cannot be cross-built for x86_64? | **Fall back** to the pack's test binaries under Rosetta, recorded as PARTIAL. A native x86_64 host remains S13's. |
+
+## 17.9 Proposed execution contract for PR 12b
+
+```text
+PROJECT / PR        MVP-0 · Step 11 / PR 12b — people: walls and nudging (S15, second of five; the first
+                    resolver pack, `bodies`, on Rapier)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §17; evidence in §17.10 (E-PB<n>);
+                    deviations in §17.11
+RELATED / BINDING   this file: the header's freeze record (QB-1, QB-10, QB-15), §§4.4–4.7, 5, 6.3, 9.6–9.8,
+                    10.1 (I-1 … I-5, I-8, I-10 … I-13), 11.1, 15.1, §16 (12a as merged, §16.12);
+                    overall.md §3 (S15), §7; DECISIONS ARC-15, ARC-23, ARC-25, ARC-26, ARC-27, ARC-31,
+                    ARC-33, ARC-35, ARC-39, DEP-12; REUSE_POLICY §§11–12, 15, 17; MODULE_SPEC §§3.1, 4.1;
+                    CLAUDE.md §§2–4
+IMPLEMENTATION BASE main after #57 merges (03f1d7c + Markdown only); branch mvp0/pr-12b-people;
+                    worktree /Users/yuema137/mineworld-worktrees/s15-12b (proposed), held by the
+                    implementing session only
+APPROVED SCOPE      §17.1's change set; PB-C1 … PB-C8; SD-B1 … SD-B16 as answered by QP-1 … QP-16
+FROZEN INVARIANTS   No edit under kernel/, contracts/, persistence/, server/, cognition/, clients/,
+                    authoring/, sdk/, systems/presence/, systems/movement/, worldpack/src/, tools/cli/src/,
+                    worlds/social-cafe/, worlds/market-town/; no other existing System Pack.
+                    PB-1: social-cafe sha ad49c723…c64b and market-town sha 365b50e0…1d1d over the
+                    300-day seed-7 runs (365 330 and 372 755 facts), faults 0 — no digest re-baselined.
+                    Existing tests unchanged except QP-2's two files.
+                    rapier3d =0.36.0, enhanced-determinism, no simd8 / parallel / serde-serialize; Rapier
+                    named only in systems/bodies/src/rapier.rs and the root manifest's one line;
+                    nothing of Rapier survives a resolution (I-5); no float persisted (I-3).
+                    I-11: ≤ 310 mm per nudge, ≤ 2 generations, ≤ 4 people; never another place, never
+                    through fixed geometry. I-12: CLEARANCE 595 mm checked on integers after every
+                    resolution, fallbacks blocked → halved → stay. I-13: inert where PlaceShape is
+                    absent.
+                    DEP-13 committed before any code.
+SEQUENCE            PB-C1 → PB-C2 → PB-C3 → PB-C4 → PB-C5 → PB-C6 → PB-C7 → PB-C8, each committed and
+                    pushed when coherent; the base binary for PB-1's validate comparison is built
+                    before PB-C6
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: each 300-day run (~13–25 s) at most
+                    eight times in all (PB-1 ×2 at PB-C6 and ×2 at PB-C8, M-PB1 ×1, PB-14(b) ×4, one
+                    re-run each); 30-day bodies-yard runs inside their committed tests; the x86_64
+                    build once (background, ~5 min) and its three Rosetta runs; one full workspace gate
+                    on the final head (background, ~6 min); about 90 minutes in total;
+                    real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §17 checkboxes; §17.10 E-PB ledger; §17.11 deviations
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 12b at PB-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the operator's freeze message
+  semantic commits, branch push       recommended authorized, as for 12a
+  PR creation / update                recommended authorized, as for 12a
+  scratch builds                      recommended authorized: the base binary (PB-C6) and the
+                                      x86_64-apple-darwin build (PB-12), copied to /tmp/s15-12b; no
+                                      branch; the target is already installed
+  root-manifest profile override      only if QP-9 is approved and PB-14(b) fails
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     the planning session owns the step header, §§1–15, overall and MVP_STATUS's Updated
+                    and S15 lines; the implementing session owns §17 and the evidence rows of PB-C8
+NORMAL STOP         PR 12b READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a needed edit outside §17.1's change set — above all in presence, movement, the
+                    kernel or contracts; either 300-day digest differing from PB-1's; an existing test
+                    failing for a reason other than QP-2; HB-1 failing on every rung of PB-13's ladder;
+                    PB-14(a) above 100 µs, or (b) above 1.5× without QP-9; cross-architecture
+                    digests differing (PB-12 FAIL, not PARTIAL); an answer to QP-1, QP-2, QP-3, QP-7 or
+                    QP-9 other than the design's
+```
+
+## 17.10 Evidence ledger
+
+```text
+E-PB0 PB-C0, 2026-10-07, planning session, on main @ 03f1d7c (12a merged) + the 12a post-merge docs.
+      Rapier facts re-verified at source (§17.3.3): the crate's own Cargo.toml in the local registry
+        (rapier3d-0.36.0: license Apache-2.0, rust-version 1.86, edition 2024, the features map) and
+        the primary pages (crates.io API, LICENSE, rapier.rs determinism guide, CHANGELOG) fetched by a
+        web agent the same day.
+      `cargo tree -e normal -p rapier3d -f "{p} | {l}"` on the prototype (offline): licences as in
+        §17.3.3.
+      `rustup target list --installed` → aarch64-apple-darwin, x86_64-apple-darwin.
+      The prototype's R request 551, re-shown (`physics-spike r show 551`): "move person 8 by (1412,
+        -1412) mm from [2536, 782] … closest after: 33 mm, persons 2 [2970, 314] and 8 [2969, 347]"
+        — PB-8's geometry.
+      DEP-13, DEP-14 and ARC-40: no match in docs/DECISIONS.md on any of the 53 origin/* refs.
+      `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
+        duplicated. `python3 scripts/check_decision_ids.py` → 50 decision ids, all distinct.
+      No cargo build or test: this commit is documentation only.
+```
+
+## 17.11 Deviations and discoveries during implementation
+
+*None yet.*
