@@ -1472,6 +1472,14 @@ E-IA-11 2026-10-08, review finding R-IA-1 (primary session, on 383c1ac): replaci
         passed, 0 failed (configuration_seam 4, configuration_vocabulary 2, ac1_composability 13,
         precursor_vocabulary, seam_vocabulary unedited); `cargo clippy --workspace --all-targets -D
         warnings` 0; fmt 0. CI on the pushed head: E-IA-12.
+E-IA-12 2026-10-08, CI (#63, ARC-48) on PR #80. origin/main 2690c1b (#63: CI workflow, Dockerfile,
+        scripts, docs; no code path) was merged in as 46e949c. One DECISIONS.md conflict (DEP-17,
+        DEP-18 and ARC-48 beside ARC-61/62), resolved by keeping both. The branch differs from main
+        in the same 32 files. `check_scratch.py scan` (main's updated version) is clean: 154 sources,
+        2 exempt.
+        On 46e949c, pull_request run 37853902260: `fast` pass (1m28s), `test` pass (15m13s), `image`
+        skipped. The push run 37853894080: `fast` pass, `test` skipped. PASS.
+        The commit after 46e949c is this ledger only; its own checks are reported with the head.
 ```
 
 ## 11.12 Deviations
