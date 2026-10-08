@@ -119,8 +119,25 @@ pub(crate) fn stride(
     } else {
         desired
     };
+    // SD-Z5 (FU-12c-1): a person the walker stands within the controller's offset of (2R + GAP) and
+    // moves away from (d · (p − start) ≤ 0) is left out of the contact sweep, which would otherwise
+    // stick on them. Verification still counts them, so the result never overlaps anybody.
+    let behind: Vec<usize> = if policy.away_free {
+        let offset = i64::from(2 * PERSON_RADIUS.value() + GAP.value());
+        (0..standing.len())
+            .filter(|index| *index != me)
+            .filter(|index| {
+                let p = points[*index].minus(start);
+                distance2(points[*index], start) <= offset * offset
+                    && i64::from(desired.x) * i64::from(p.x) + i64::from(desired.y) * i64::from(p.y)
+                        <= 0
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
     let attempt = |walls: Against| {
-        let reach = reach(&scene, me, start, aim, walls);
+        let reach = reach(&scene, me, &behind, start, aim, walls);
         match nudge(&scene, &others, &in_scene, reach.candidate, fallback, walls) {
             Ok(nudged) => Tried {
                 candidate: Candidate {
@@ -235,8 +252,16 @@ struct Reach {
 /// How far the walker gets with people solid is the contact sweep's end, sliding included — the
 /// prototype's B, which the candidate rule measures. Where a blocked walker stops is where that sweep
 /// first touched a person or an object, not where the controller's slide along its curve carried it
-/// on to: a blocked walker ends at contact (step-11 §17.11, DB-4).
-fn reach(scene: &Scene, me: usize, start: Point, target: Point, walls: Against) -> Reach {
+/// on to: a blocked walker ends at contact (step-11 §17.11, DB-4). The people at the scene indexes
+/// `behind` are left out of the contact sweep (SD-Z5).
+fn reach(
+    scene: &Scene,
+    me: usize,
+    behind: &[usize],
+    start: Point,
+    target: Point,
+    walls: Against,
+) -> Reach {
     let desired = target.minus(start);
     let settle = |end: Point| {
         let snapped = if distance2(end, target) <= i64::from(SNAP.value()).pow(2) {
@@ -248,7 +273,7 @@ fn reach(scene: &Scene, me: usize, start: Point, target: Point, walls: Against) 
     };
     let walled = scene.sweep(Some(me), start, desired, walls);
     let reached = settle(walled.end);
-    let contact = scene.sweep(Some(me), start, desired, Against::Contact);
+    let contact = scene.sweep_past(Some(me), start, desired, Against::Contact, behind);
     let swept = settle(contact.end);
     let (reach_walls, reach_contact) = (reached.minus(start).length(), swept.minus(start).length());
     let beyond = reach_contact + i64::from(NUDGE_MAX.value());

@@ -21,8 +21,10 @@
 //!    capsules: radius 300 mm, half-segment 560 mm, centre 870 mm up (feet 10 mm above the floor)
 //! ```
 //!
-//! then detects collisions once, so that queries see every collider, and re-marks every dynamic body
-//! (see [`refresh`] for the Rapier 0.36.0 defect that makes this necessary, step-11 F-P1).
+//! then builds the broad phase once, so that queries see every collider. A [`Scene`] of people builds
+//! the broad phase and nothing else ([`index`], step-11 SD-Z2): no query reads the narrow phase. A
+//! [`Pile`] and a flight also detect collisions and re-mark every dynamic body (see [`refresh`] for
+//! the Rapier 0.36.0 defect that makes this necessary, step-11 F-P1).
 //!
 //! # A sweep
 //!
@@ -146,7 +148,7 @@ impl Scene {
                 world.insert(body, collider).1
             })
             .collect();
-        refresh(&mut world);
+        index(&mut world);
         Self {
             world,
             people,
@@ -165,11 +167,28 @@ impl Scene {
         by: Point,
         against: Against,
     ) -> Swept {
+        self.sweep_past(mover, from, by, against, &[])
+    }
+
+    /// [`Scene::sweep`], with the people at the scene indexes `aside` left out of a contact sweep
+    /// (step-11 SD-Z5: people the mover stands within the offset of and moves away from). A walls
+    /// sweep never meets people, so `aside` matters only for [`Against::Contact`].
+    pub(crate) fn sweep_past(
+        &self,
+        mover: Option<usize>,
+        from: Point,
+        by: Point,
+        against: Against,
+        aside: &[usize],
+    ) -> Swept {
         let not_an_object = |handle: ColliderHandle, _: &Collider| !self.objects.contains(&handle);
+        let passed: Vec<ColliderHandle> = aside.iter().map(|index| self.people[*index].1).collect();
+        let not_passed = |handle: ColliderHandle, _: &Collider| !passed.contains(&handle);
         let filter = match against {
             Against::Walls => QueryFilter::only_fixed().predicate(&not_an_object),
             Against::WallsAndObjects => QueryFilter::only_fixed(),
-            Against::Contact => QueryFilter::exclude_dynamic(),
+            Against::Contact if passed.is_empty() => QueryFilter::exclude_dynamic(),
+            Against::Contact => QueryFilter::exclude_dynamic().predicate(&not_passed),
         };
         let filter = match mover {
             Some(index) => filter.exclude_rigid_body(self.people[index].0),
@@ -487,6 +506,35 @@ fn insert_fixed(world: &mut PhysicsWorld, room: &Room) {
             ),
         );
     }
+}
+
+/// Builds the broad phase from every collider inserted so far, and nothing else: what a scene's sweeps
+/// read (step-11 SD-Z2, F-Z2).
+///
+/// A query pipeline is the broad phase's tree read through the narrow phase's query dispatcher
+/// (`PhysicsWorld::query_pipeline_with_filter` in 0.36.0); no sweep reads a contact the narrow phase
+/// computes. So this is `CollisionPipeline::step` without its narrow phase: the same broad-phase
+/// update, with the same parameters (the world's prediction distance, `dt` 0) and the same modified
+/// colliders in insertion order, builds the same tree. The rigid bodies' user changes it skips carry
+/// nothing for a freshly built scene: a collider's pose is set from its parent's when it is inserted.
+/// Nothing dynamic is ever in a scene, so F-P1's re-mark does not apply.
+fn index(world: &mut PhysicsWorld) {
+    let parameters = IntegrationParameters {
+        normalized_prediction_distance: world.integration_parameters.prediction_distance(),
+        dt: 0.0,
+        ..IntegrationParameters::default()
+    };
+    let inserted = world.colliders.take_modified();
+    let removed = world.colliders.take_removed();
+    let mut pairs = Vec::new();
+    world.broad_phase.update(
+        &parameters,
+        &world.colliders,
+        &world.bodies,
+        &inserted,
+        &removed,
+        &mut pairs,
+    );
 }
 
 /// Builds the broad phase so that queries see every collider, then works around a Rapier 0.36.0
