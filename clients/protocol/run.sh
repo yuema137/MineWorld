@@ -8,9 +8,13 @@
 #   ./run.sh affordances  headless: the module's live check against worlds/market-town, saved to a
 #                         temporary directory that is removed afterwards   (checks/affordances_check.gd)
 #
-# It starts `mineworld server worlds/social-cafe --agent alice` itself, on 127.0.0.1:7878, and stops
-# it afterwards. A clean checkout works: the project's script class cache is built here, not
-# committed (`docs/ACCEPTANCE.md` §4.1).
+# It starts `mineworld server worlds/social-cafe --agent alice` itself, on a port of 127.0.0.1 the
+# operating system chooses, and stops it afterwards — only the server it started, by its own PID, so
+# runs in other worktrees on the same machine are never touched. The server is given no invite, so it
+# generates one and prints its join line (`server/PROTOCOL.md` §4.1); this script reads the address
+# and the invite from that line and passes both to every client. The line is kept out of the
+# committed server logs, so no invite — not even a dead one — enters the repository. A clean checkout
+# works: the project's script class cache is built here, not committed (`docs/ACCEPTANCE.md` §4.1).
 #
 # Each flavour's AC-13 run gets a world of its own, because a client now walks from where the world
 # seated it, in `move` strides the server accepts one at a time: a second run on the same world would
@@ -21,31 +25,52 @@ export PATH="$HOME/.cargo/bin:$PATH"
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$here/../.."
 mode="${1:-window}"
-address="127.0.0.1:7878"
+address=""
+invite=""
 server=""
+server_log=""
+scratch=""
 
 cd "$root" || exit 1
 cargo build --quiet -p mineworld-cli || exit 1
 
-# Starts a fresh world, appending what the server prints to `$1`. `$2` is the world (social-cafe
-# unless given); `$3`, when given, a directory to save it in.
+# Starts a fresh world, whose output goes to `$1` once it stops. `$2` is the world (social-cafe unless
+# given); `$3`, when given, a directory to save it in. Sets `address` and `invite` from the join line.
 start_server() {
 	local world="${2:-social-cafe}"
 	local save=()
 	if [ -n "${3:-}" ]; then
 		save=(--save "$3")
 	fi
-	pkill -f "mineworld server worlds/$world" >/dev/null 2>&1
-	sleep 1
-	"$root/target/debug/mineworld" server "worlds/$world" --listen "$address" --agent alice \
-		${save[@]+"${save[@]}"} >> "$1" 2>&1 &
+	server_log="$1"
+	scratch="$(mktemp)"
+	"$root/target/debug/mineworld" server "worlds/$world" --listen 127.0.0.1:0 --agent alice \
+		${save[@]+"${save[@]}"} > "$scratch" 2>&1 &
 	server=$!
-	sleep 2
+	local line=""
+	for _ in $(seq 1 150); do
+		line="$(grep -m1 '^\[mineworld\] invite ' "$scratch")"
+		[ -n "$line" ] && break
+		kill -0 "$server" 2>/dev/null || break
+		sleep 0.2
+	done
+	if [ -z "$line" ]; then
+		echo "the server printed no join line:" >&2
+		cat "$scratch" >&2
+		stop_server
+		exit 1
+	fi
+	invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
+	address="$(printf '%s\n' "$line" | sed -n 's/.* join with: \([^ ]*\) .*/\1/p')"
 }
 
+# Stops the server this script started, and appends what it printed — minus the invite line — to
+# its log.
 stop_server() {
 	kill "$server" >/dev/null 2>&1
 	wait "$server" 2>/dev/null
+	grep -v '^\[mineworld\] invite ' "$scratch" >> "$server_log"
+	rm -f "$scratch"
 }
 
 # One headless scripted client: flavour, seat, transcript, and optionally where to write its requests.
@@ -55,8 +80,8 @@ client() {
 		requests=(--requests "$4")
 	fi
 	godot --headless --path "$here" --quit-after 1200 -- \
-		--autopilot --flavour "$1" --seat "$2" --address "$address" ${requests[@]+"${requests[@]}"} \
-		> "$here/evidence/$3" 2>&1
+		--autopilot --flavour "$1" --seat "$2" --address "$address" --invite "$invite" \
+		--nickname "demo-$1-$2" ${requests[@]+"${requests[@]}"} > "$here/evidence/$3" 2>&1
 }
 
 # Godot registers `class_name` in a cache it builds when it imports a project, so a first headless
@@ -91,28 +116,29 @@ evidence)
 affordances)
 	# Market Town, because it offers complete affordances (buy, give) at genesis; saved, so that
 	# frames carry a revision. The save is scratch and is removed whatever the outcome.
-	scratch="$(mktemp -d)"
+	save_dir="$(mktemp -d)"
 	: > "$here/evidence/server-affordances.log"
-	start_server "$here/evidence/server-affordances.log" market-town "$scratch/save"
+	start_server "$here/evidence/server-affordances.log" market-town "$save_dir/save"
 	godot --headless --path "$here" --script res://checks/affordances_check.gd -- \
-		--address "$address" --seat visitor > "$here/evidence/affordances-market-town.log" 2>&1
+		--address "$address" --seat visitor --invite "$invite" \
+		> "$here/evidence/affordances-market-town.log" 2>&1
 	outcome=$?
 	stop_server
-	rm -rf "$scratch"
+	rm -rf "$save_dir"
 	grep '^\[check\]' "$here/evidence/affordances-market-town.log"
 	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/affordances-market-town.log" && outcome=1
 	exit "$outcome"
 	;;
 play)
 	start_server "$here/evidence/server.log"
-	godot --path "$here" -- --seat visitor --address "$address"
+	godot --path "$here" -- --seat visitor --address "$address" --invite "$invite"
 	stop_server
 	;;
 *)
 	: > "$here/evidence/server-window.log"
 	start_server "$here/evidence/server-window.log"
 	godot --path "$here" --quit-after 1500 -- \
-		--autopilot --flavour 3d --seat wanderer --address "$address" \
+		--autopilot --flavour 3d --seat wanderer --address "$address" --invite "$invite" \
 		--screenshot "evidence/demo-scene.png" \
 		> "$here/evidence/transcript-window.log" 2>&1
 	stop_server

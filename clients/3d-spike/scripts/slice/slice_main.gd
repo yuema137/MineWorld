@@ -388,7 +388,8 @@ func _link() -> void:
 	link.spoke.connect(func(line: String) -> void:
 		if hud != null:
 			hud.caption(line))
-	link.start(address, SliceLink.seat_from_args())
+	link.start(address, SliceLink.seat_from_args(), SliceLink.invite_from_args(),
+		SliceLink.nickname_from_args())
 	# Connected only: the player targets by aiming (`SliceTargeting`), so the
 	# screen shows where the aim is and whom it meets (step-15 Q-16a-1, a 3D
 	# visual default the operator judges in play). Offline nothing is targeted.

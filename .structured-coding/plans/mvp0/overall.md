@@ -757,6 +757,72 @@ numbered **S17 — Physics list**.
 - **PRs are frozen one at a time,** as with every other step. 12d is unaffected by S17 and proceeds
   now. PL-b re-checks 12d's re-baselined digests.
 
+## The World Interaction List (operator, 2026-10-08)
+
+The operator clarified that the "physics list" means interactions between **any** virtual objects,
+not only physical law:
+
+> "我们这里说的physics list，并非只是物理规律，而是不同的object之间的相互作用，比如，人物是否可以对话，对话内容是否进入npc的biography和history，物品是否可以交易（改变人物归属）等等，是广义的虚拟object之间的相互作用"
+
+The examples given are whether people may talk, whether what is said enters an NPC's biography and
+history, and whether an item may be traded (its ownership changed).
+
+The design [`step-18-interaction-list.md`](step-18-interaction-list.md) supersedes
+`step-18-physics-list.md`. Its bodies parts are incorporated by reference. It is frozen at step
+level.
+
+**Operator decisions:**
+
+1. **S17 and S18 merge into one step:** **S17 — The World's Interaction List.** S18's number is
+   retired (QIL-1).
+2. **Classes come from tags (QIL-3) and are fixed for MVP-0 (QIL-7).**
+   - Classes are declared as tag selectors.
+   - An entity's class does not change during play.
+   - Promotion and demotion are left for a later dedicated pack.
+3. **Consequence routing (QIL-8).**
+   - The world's objective fact log always records everything. Saves, replay and causality depend
+     on it (INV-11).
+   - The list may narrow a fact's audience, within the owning pack's declared bounds.
+   - The list may switch the biography flag where the owning pack allows it.
+   - An NPC remembers only what it perceived, so memory follows audience.
+4. **A world cannot order minds to forget (QIL-10).** That belongs to cognition.
+5. **Demonstrations in MVP-0, which the operator plays (QIL-17):**
+   - **`worlds/manor` (IL-h)**, configured with no code edit:
+     - nobles and villagers cannot talk;
+     - servants' lines enter no biography;
+     - heirlooms cannot be given or bought.
+   - **`worlds/rink` (IL-i)**: ice and fragile.
+
+**Primary-session rulings:**
+
+- **QIL-2: overruled.** The operator approved the generic `configure:` seam (QPL-2) for any pack's
+  configuration, and S16 E-b's licence policy already relies on it.
+  - The carrier stays `configure:` (ARC-61), with files at `configure/<pack>.yaml`.
+  - The Interaction List is the set of interaction sections under that seam, following ARC-63's
+    schema.
+  - Classes live in `configure/classes.yaml`.
+- **QIL-4 to QIL-6, QIL-9, QIL-11 to QIL-16 and QIL-18 to QIL-20: accepted as recommended.**
+  - Default effect is permit.
+  - Precedence: level, then specificity, then forbid-wins. Conflicts at equal specificity are
+    refused at load.
+  - A forbidden offer is shown as unavailable with `PermissionDenied`.
+  - ARC-29 is amended.
+  - PR order: IL-a, IL-b, then (IL-c, IL-d, IL-i) and (IL-e, IL-f, IL-g, IL-h).
+- **Decision numbers:**
+
+  | Number | Subject |
+  | --- | --- |
+  | ARC-61 | configuration seam |
+  | ARC-62 | extension catalogs |
+  | ARC-63 | the Interaction List schema |
+  | ARC-64 | classes |
+  | ARC-65 | consequence routing |
+  | DEP-28 | our own schema on Cedar's semantics; the Cedar engine declined |
+
+- **IL-a starts next, in parallel with 12d.** S16 E-a has landed. E-b is in implementation and touches
+  `worldpack/src/{format,read}.rs` adjacently, so whichever PR merges second performs the mechanical
+  merge.
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
@@ -781,8 +847,8 @@ numbered **S17 — Physics list**.
 
 # 7. Current position
 
-**Last updated 2026-10-07** (S15: 12b merged as `9c617ed`; next is 12c. Before that: 12a merged as
-`03f1d7c`; the S9 closeout, 11f merged as `fea2516`, S9 complete, S15 placed).
+**Last updated 2026-10-08** (S15: 12c merged as `889d217`; next is 12d. Before that: 12b merged as
+`9c617ed`, 12a as `03f1d7c`; the S9 closeout, 11f merged as `fea2516`, S9 complete, S15 placed).
 **Restated 2026-09-29.** This section had not been updated since PR 01 — it still read
 "In flight: PR 01" with seventeen PRs merged — because the post-merge obligation to update
 PR → step → overall was skipped after nearly every merge. A plan that cannot answer "where are
@@ -1052,18 +1118,53 @@ Next, framework (critical path to Milestone B):
             (b1) ≤ 25 s on bodies-yard PASSES at 19.3 s; (b2), QB-11's ≤ 1.5× on the towns, is
             carried to 12d unchanged. Also carried to 12d: F-B7 (the café's doorway point 200 mm from
             its wall) and FU-12a-1.
-       12c  objects: push, kick, throw; shove — being detailed (step-11 §18)
-       12d  the town gets bodies (digests re-baselined here, and only here; QB-11's bound on the towns)
+       12c  objects: push, kick, throw; shove        PR 12c (GitHub #67), merged 889d217
+            An item file's `body:` section is one loose object (ARC-36 note), placed at genesis in a
+            second generation under eight checks. Walking into one pushes it; the resolver predicts
+            every push and resolves the stride with objects solid when a push would jam, so nobody
+            ends inside a box. `kick`, `throw` (target-less, the object in the payload) and `shove`
+            (through presence's `arrivals()`) are complete affordances the unchanged paced controller
+            attempts. Flights are Rapier's, resolved at the instant and verified on integers. bodies is
+            v2; it reads `mineworld_item::is_declared` and nothing else from `item`. Proven on
+            `worlds/bodies-yard` with 16 objects. Reviewed before merge:
+            - gates re-run on the PR head (636 passed, 0 failed, 1 ignored), `resolver-yard`, `cafe`
+              and `clock` PASS;
+            - no forbidden path touched: the merge diff lies under `systems/bodies/`,
+              `worlds/bodies-yard/`, `tools/cli/tests/`, `Cargo.lock` and Markdown;
+            - my own mutation, `KICK_REACH` 800 → 1 000 mm, failed
+              `a_kick_reaches_800_mm_and_no_farther`; reverted;
+            - after the merge, `ac1_composability` 13/13 and the I-2 scan 4/4 on main.
+            Both towns' 300-day seed-7 digests are unchanged (neither installs bodies yet).
+            **AO-2, recorded honestly: it failed as frozen.** The activity criterion "every rare
+            action in every 10-day bucket" failed on every rung of the frozen ladder (c1, p1, p2). The
+            primary session then added two rules after measuring — p3 (unaimed kicks and throws head
+            for the room's free centre) and p4 (launched objects rest 300 mm clear of solids unless
+            blocked) — and it failed with each. DO-18 is a defect fix to p3 (a kick could drive the
+            object into its kicker), not a new rule. AO-2 was replaced by AO-2′ after those failures,
+            and AO-2′'s clause (b), "every moved object rests 300 mm clear of solids", was replaced by
+            (b′) reachability after measuring that (b) failed on every seed: (b) forbade ordinary
+            pushes against a pillar, which are legitimate, and its intent was that every object stays
+            interactable, which (b′) states. AO-2′ with (b′) holds on seeds 7, 8 and 9. Every
+            correctness claim (literals to ± 1 mm, the full scan, determinism, Rosetta) passed as
+            frozen. Cost: bodies-yard's 300-day run is 30.7 s with objects (≤ 40 s, PASS), 3.1× its
+            copy without bodies, recorded as information.
+            Carried to 12d: QB-11's ≤ 1.5× on the towns (DB-10 (b2), never re-scoped), F-B7,
+            FU-12a-1 and FU-12c-1 (a stride away from somebody within the controller's offset is
+            swept with them, DO-11).
+       12d  the town gets bodies (digests re-baselined here, and only here; QB-11's bound on the towns;
+            S12's item names, R-PK-2)
        12e  the 3D client (Jolt, DEP-14), after the visual slice (now on main as #50)
-       Each PR is detailed to the commit and frozen in turn. 12a and 12b merged; 12c–12e not frozen.
+       Each PR is detailed to the commit and frozen in turn. 12a, 12b and 12c merged; 12d and 12e not
+       frozen.
 
-Next, framework:  S15 12c, objects: push, kick, throw; shove — detailed to the commit in step-11 §18,
-                  then frozen and implemented in a fresh session. S15 precedes S14 (step-11 §12).
+Next, framework:  S15 12d, the town gets bodies — detailed to the commit in step-11 by the planning
+                  session on `mvp0/s15-12d-plan`, then frozen and implemented in a fresh session. S15
+                  precedes S14 (step-11 §12); S13 13b's AC-8 reference values wait for 12d.
 Next, operator:   AC-1, Milestone B and Milestone C ACCEPTED 2026-10-07 (the operator ran
                   milestone_b, ac1_composability, milestone_c, market_town and a 30-day run on
                   main, all passing). VIS-3D-GODOT-2 accepted after the operator played it. Nothing pending with the operator.
 
-Remaining:  S15 (12c–12e), S10 (reduced), S11 (authentication, admin frames, deltas), S12, S13,
+Remaining:  S15 (12d–12e), S10 (reduced), S11 (authentication, admin frames, deltas), S12, S13,
             S14; Milestones D and E
 
 Visual track (parallel, never blocking the above; ARC-20):

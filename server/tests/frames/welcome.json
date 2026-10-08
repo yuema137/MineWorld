@@ -1,0 +1,8 @@
+{ "t": "welcome", "protocol": 2, "seat": "visitor", "observer": "101", "nickname": "Yue",
+  "session": "7", "resume": null, "hold_seconds": 0, "took_over": "none",
+  "world": { "protocol": 2, "instance": "1a2b3c4d5e6f70819293a4b5c6d7e8f9", "at": 4112,
+             "entities": 41,
+             "systems": [ { "system": "conversation", "enabled": true, "provides": [ "talk" ],
+                            "states": [ "spoke", "conversation-started" ] } ],
+             "seats": [ "visitor", "wanderer", "alice" ], "clients": 2,
+             "observations_dropped": 0, "events_dropped": 0, "faults": 0, "revision": 7 } }

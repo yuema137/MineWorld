@@ -22,5 +22,6 @@ mineworld-group-activity = { workspace = true }
 mineworld-naming = { workspace = true }
 # For the Agenda a person is disclosed: the paced controller walks where its day says (ARC-32).
 mineworld-schedule = { workspace = true }
+mineworld-packages = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

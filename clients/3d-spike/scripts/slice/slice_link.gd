@@ -171,7 +171,24 @@ static func seat_from_args() -> String:
 	return "visitor"
 
 
-func start(address: String, seat: String) -> void:
+## The server's invite (`--invite=`), required on every server (`server/PROTOCOL.md` §4.1). Passed to
+## the protocol module and never shown or logged.
+static func invite_from_args() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--invite="):
+			return a.substr(9)
+	return ""
+
+
+## The player's nickname (`--nickname=`), shown to this connection only.
+static func nickname_from_args() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--nickname="):
+			return a.substr(11)
+	return "player"
+
+
+func start(address: String, seat: String, invite: String, nickname: String) -> void:
 	client = MineWorldClient.new()
 	client.name = "MineWorldClient"
 	add_child(client)
@@ -181,7 +198,9 @@ func start(address: String, seat: String) -> void:
 	client.refused.connect(_on_refused)
 	client.disconnected.connect(func(reason: String) -> void:
 		_say("disconnected: %s" % reason, "", true))
-	client.connect_to_world(address, seat)
+	client.closing.connect(func(reason: String, _detail: String) -> void:
+		_say("the server closed the connection: %s" % reason, "", true))
+	client.connect_to_world(address, seat, invite, nickname)
 	_say("connecting to %s as %s" % [address, seat])
 
 

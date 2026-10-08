@@ -16,6 +16,7 @@ use super::{
     ClientFrame, CorrelationToken, MAX_TOKEN_LENGTH, PROTOCOL_VERSION, RefusalCode, ServerFrame,
     WirePayload, WorldInstanceId, into_kernel_request,
 };
+use crate::admission::{Nickname, OfferedInvite};
 
 /// An action belonging to no real system: the tests need a payload the contract will label, and
 /// this crate must not invent domain vocabulary (`INV-12`).
@@ -69,15 +70,27 @@ fn text_that_is_not_json_is_malformed() {
     assert_eq!(refusal.code(), RefusalCode::MalformedFrame);
 }
 
-/// The two frames that do exist, decoded from exactly what a client sends.
+/// The three frames that do exist, decoded from exactly what a client sends.
 #[test]
-fn the_two_client_frames_decode() {
-    let joined = ClientFrame::decode(r#"{"t":"join","seat":"player"}"#).expect("a join frame");
+fn the_three_client_frames_decode() {
+    let joined = ClientFrame::decode(
+        r#"{"t":"join","protocol":2,"invite":"3f9c0a1b","nickname":"Yue","seat":"player",
+            "resume":null}"#,
+    )
+    .expect("a join frame");
     assert_eq!(
         joined,
         ClientFrame::Join {
+            protocol: 2,
+            invite: OfferedInvite::new("3f9c0a1b"),
+            nickname: "Yue".to_owned(),
             seat: EntityKey::new("player").expect("a legal key"),
+            resume: None,
         }
+    );
+    assert_eq!(
+        ClientFrame::decode(r#"{"t":"leave"}"#).expect("a leave frame"),
+        ClientFrame::Leave {}
     );
 
     let submitted = ClientFrame::decode(
@@ -104,6 +117,52 @@ fn the_two_client_frames_decode() {
         Some(EntityId::from_raw(BIG)),
         "the 64-bit target survived the client's decimal string"
     );
+}
+
+/// Revision 1's join still decodes — as revision 1 — so the handshake can answer it
+/// `protocol_mismatch` rather than leave a revision-1 client reading `malformed_frame`; an absent
+/// invite and nickname decode as empty and are answered by the handshake's own checks.
+#[test]
+fn a_revision_one_join_decodes_as_revision_one_with_empty_credentials() {
+    let ClientFrame::Join {
+        protocol,
+        invite,
+        nickname,
+        resume,
+        ..
+    } = ClientFrame::decode(r#"{"t":"join","seat":"player"}"#).expect("a join frame")
+    else {
+        panic!("a join decodes as a join");
+    };
+    assert_eq!(protocol, 1);
+    assert_eq!(invite, OfferedInvite::default());
+    assert_eq!(nickname, "");
+    assert_eq!(resume, None);
+}
+
+/// A known frame carrying a field this revision does not define is malformed, never ignored: a
+/// join that tries to name its observer is refused, and so is a field that only a later pull
+/// request defines (`PROTOCOL.md` §10).
+#[test]
+fn an_unknown_field_in_a_known_frame_is_malformed() {
+    for frame in [
+        r#"{"t":"join","protocol":2,"invite":"x","nickname":"n","seat":"player","observer":"101"}"#,
+        r#"{"t":"join","protocol":2,"invite":"x","nickname":"n","seat":"player","take_over":true}"#,
+        r#"{"t":"leave","seat":"player"}"#,
+        r#"{"t":"submit","token":"c1","extra":1,"request":{"actor":"101",
+            "action_type":"example-action","target":null,"actor_location":null,
+            "payload":{"action_type":"example-action","payload":{"topic":"x"}}}}"#,
+    ] {
+        let refusal = ClientFrame::decode(frame).expect_err("an unknown field is refused");
+        assert_eq!(refusal.code(), RefusalCode::MalformedFrame, "{frame}");
+    }
+    for frame in [
+        r#"{"t":"move_to","position":{"x":1,"y":2}}"#,
+        r#"{"t":"give","item":"9","to":"101"}"#,
+    ] {
+        let refusal = ClientFrame::decode(frame).expect_err("not a frame kind");
+        assert_eq!(refusal.code(), RefusalCode::UnknownFrame, "{frame}");
+    }
 }
 
 /// A frame whose envelope and payload disagree about the action type is refused by the contract, not
@@ -179,6 +238,11 @@ fn a_welcome_names_the_observer_as_a_decimal_string() {
         protocol: PROTOCOL_VERSION,
         seat: EntityKey::new("player").expect("a legal key"),
         observer: EntityId::from_raw(BIG),
+        nickname: Nickname::new("Yue").expect("a legal nickname"),
+        session: super::SessionId::new(BIG),
+        resume: None,
+        hold_seconds: 0,
+        took_over: super::TookOver::None,
         world: super::WorldSummary {
             protocol: PROTOCOL_VERSION,
             instance: super::WorldInstanceId::from_raw(0x0123_4567_89ab_cdef),
@@ -188,7 +252,7 @@ fn a_welcome_names_the_observer_as_a_decimal_string() {
             seats: vec![EntityKey::new("player").expect("a legal key")],
             clients: 1,
             observations_dropped: 0,
-            deferrals_unscheduled: 0,
+            events_dropped: 0,
             faults: 0,
             revision: Some(mineworld_persistence::WorldRevision::from_raw(7)),
         },
@@ -197,6 +261,12 @@ fn a_welcome_names_the_observer_as_a_decimal_string() {
     let encoded = serde_json::to_value(&welcome).expect("a welcome serializes");
 
     assert_eq!(encoded["observer"], json!("9007199254740995"));
+    assert_eq!(
+        encoded["session"],
+        json!("9007199254740995"),
+        "a session is an identity, so a string"
+    );
+    assert_eq!(encoded["took_over"], json!("none"));
     assert_eq!(encoded["world"]["at"], json!(32_400));
     assert_eq!(
         encoded["world"]["instance"],

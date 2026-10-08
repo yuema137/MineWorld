@@ -417,17 +417,23 @@ impl WorldRuntime {
             systems: systems
                 .order()
                 .iter()
-                .map(|system| SystemSummary {
-                    system: system.clone(),
-                    enabled: systems.is_enabled(system),
+                .map(|system| {
+                    // The declaration a system made when it was installed: its vocabulary, which is
+                    // composition rather than state, so it is public (`PROTOCOL.md` §5.7).
+                    let declaration = systems.declaration(system);
+                    SystemSummary {
+                        system: system.clone(),
+                        enabled: systems.is_enabled(system),
+                        provides: declaration.map_or_else(Vec::new, |d| d.provides().to_vec()),
+                        states: declaration.map_or_else(Vec::new, |d| d.emits().to_vec()),
+                    }
                 })
                 .collect(),
             seats: self.seats.iter().cloned().collect(),
             clients: self.subscribers.len(),
             observations_dropped: self.dropped,
-            // Always zero since S4: the world's own schedule holds every deferral. The field stays
-            // until the next protocol revision removes it (step-04 §8 F-4).
-            deferrals_unscheduled: 0,
+            // No fact is delivered to an observer before S11-C, so none is dropped.
+            events_dropped: 0,
             faults: self.faults,
             revision: self.world.revision(),
         }

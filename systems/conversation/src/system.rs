@@ -41,7 +41,9 @@ impl SystemIdentity for ConversationSystem {
 
 /// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): nothing.
 /// It declares no biographical fact (`ARC-29`) and owns no authored section.
-impl SystemPack for ConversationSystem {}
+impl SystemPack for ConversationSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+}
 
 /// This pack's own reason for refusing a request it cannot read.
 ///

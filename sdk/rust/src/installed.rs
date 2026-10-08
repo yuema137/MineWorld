@@ -43,8 +43,8 @@
 /// pub enum Capability { … }                 one variant per line, in the listed order
 /// pub const AVAILABLE: [Capability; N]      every capability, in the listed order
 /// impl Capability {
-///     resolve, id, section, owning_section, decode_section, biographical, install, provider,
-///     type_name
+///     resolve, id, section, owning_section, decode_section, biographical, package, version,
+///     install, provider, type_name
 ///     resolvers                             only with a `resolution` line: one value of each
 ///                                           listed resolver type, in the listed order
 /// }
@@ -167,6 +167,22 @@ macro_rules! installed {
             pub fn biographical(self) -> &'static [$crate::__private::EventTypeId] {
                 match self {
                     $( Self::$Variant => <$System as $crate::SystemPack>::BIOGRAPHICAL, )+
+                }
+            }
+
+            /// The package identity its pack states (`ARC-53`), for `mineworld packs` — never for a
+            /// system: a version is not world state.
+            pub const fn package(self) -> $crate::Package {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::PACKAGE, )+
+                }
+            }
+
+            /// Its system's contract version: what a save is checked against, a different thing
+            /// from its package's release version (`ARC-53`).
+            pub fn version(self) -> $crate::__private::SystemVersion {
+                match self {
+                    $( Self::$Variant => <$System as $crate::__private::System>::VERSION, )+
                 }
             }
 

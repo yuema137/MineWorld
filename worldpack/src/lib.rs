@@ -78,4 +78,4 @@ pub use format::{
     AuthoredPosition, FoundSection, SectionState, WorldIdentity, WorldManifest,
 };
 pub use load::{AssembledWorld, ComposedWorld, LoadedWorld, RunningWorld};
-pub use read::{MANIFEST, WorldPack};
+pub use read::{MANIFEST, PackageFields, WorldPack};
