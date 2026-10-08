@@ -2256,7 +2256,8 @@ MATERIAL STOP       a regression of an accepted visual or a confirmed J-3 rise; 
 
 ```text
 checkpoint     C0–C7 committed; origin/main merged at 9ef9c61 (S11-A protocol 2); the scan's
-               "invite" admission 841fc9d; G-1 green (E16a-7); PR open READY FOR OPERATOR REVIEW
+               "invite" admission 841fc9d; main (#77) merged 6a2eafb; G-1 green there (E16a-7);
+               PR #79 open READY FOR OPERATOR REVIEW
 next action    none — wait for the operator's review; do not merge
 background     none
 notes          Bob/door (R-16a-2): the ray clears Bob by 67 mm aiming at Alice's head from the door
