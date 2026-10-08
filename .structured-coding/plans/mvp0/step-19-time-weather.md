@@ -747,4 +747,70 @@ test-only knob on the CLI; `run`'s default pace stays 900.
 | INV-TW-9 | **Pacing is recorded, not fact.** Every pacing change is in the host journal; none is in the fact log or the revision count. |
 | INV-TW-10 | **Weather depends on calendar, never the reverse;** removing `weather` leaves calendar facts byte-identical. |
 
-<!-- §11 onward follows -->
+---
+
+# 11. PR split
+
+## 11.1 Order and parallelism
+
+```text
+IL-a (configure seam, in implementation) ──▶ TW-a calendar pack ──▶ TW-b weather pack (rules) ──▶ TW-d record data + fetch tool
+S11-B (in implementation) ─────────────────▶ TW-c host clock: pause, scale, journal, admin routes, clock frame, FX-24
+S12 13a + S14 16a + settings-menu PR + TW-a + TW-c ──▶ TW-e clients: HUD date/time, 12h/24h, sun, World controls
+TW-b + TW-e ──▶ TW-f weather visuals, Sky3D, GI under a moving sun      (TW-g optional: GHCNh hourly layer, after TW-d)
+```
+
+TW-a and TW-c touch disjoint crates (`systems/calendar`, `worlds/*` vs `server`, `persistence`) and run in
+parallel in separate worktrees. TW-e and TW-f are client PRs in the S12/S14 lanes' files and are scheduled with
+those lanes, never in parallel with another PR editing the same client.
+
+## 11.2 The PRs
+
+| PR | Scope | Integration checkpoint | Adversarial criteria (fixed before measuring) |
+| --- | --- | --- | --- |
+| **TW-a** | `systems/calendar` (new System Pack): configuration through IL-a's seam, civil date, sun via `solar-positioning` (`libm`), `day-began` / `daylight-changed` facts, `calendar` Process, disclosure on the place; DEP-TW-a; `market-town` opts in (own commit, new goldens). Full design §16. | CP-TW-a: `mineworld run worlds/market-town --headless --seed 1 --days 7 --save D` → facts show 7 `day-began` with dates 2026-10-08…14 and weekday Thu…Wed; San Diego sunrise on 2026-10-08 within ±2 min of NOAA's published value (06:52 PDT = 05:52 at the fixed −08:00 offset); restart from `D` continues on day 8 identically to an uninterrupted 8-day run. | (1) INV-TW-1 on `social-cafe` and `bodies-yard` (and `market-town` before its opt-in commit). (2) Golden sun values at San Diego and at 78° N (polar night: `sunrise = None`) across a `libm` build on macOS and Linux CI — equal integers. (3) Mutation: drop the `libm` feature — the golden test must still pass on the CI host *or* fail loudly; recorded either way (it establishes the guard). (4) Mutation: shift midnight by one second — INV-TW-4's test must fail. (5) An invalid `configure/calendar.yaml` (lat 91) is refused at assembly naming file and key. |
+| **TW-b** | `systems/weather` (new System Pack), `source: rules` only: WGEN-lite generator (integer, SplitMix64), daily → hourly derivation, `weather-day` / `weather-changed` facts, `climate` Process, disclosure; dependency on `calendar`; `rules/san-diego.yaml` hand-authored provisional table; `market-town` opts in. | CP-TW-b: `run market-town --days 30 --seed 1` twice → identical bytes; the 30 days contain wet and dry spells; a resumed run equals an uninterrupted one. | (1) INV-TW-1 and INV-TW-10 (calendar facts byte-identical with and without `weather`). (2) Over 3,650 rule days the wet-day frequency per month is within ±3 percentage points of the table's stationary probability `p_wd / (1 − p_ww + p_wd)` — fixed before running. (3) Mutation: make the chain ignore yesterday — criterion 2's spell-length check (mean wet spell ≥ 1/(1 − p_ww) − 0.2) must fail. (4) Enabling `weather` without `calendar` is refused at assembly. |
+| **TW-c** | `server`: `HostClock` segments; pause/resume/scale; `paused` refusal; host journal (`persistence` additive table); `/admin/clock` routes (or on S11-D); `clock` frame and `WorldSummary.paused`; cadence in wall seconds with live rescheduling; `world.yaml hosting.time_scale`; `run --pace` test knob; FX-24 measurement. | CP-TW-c: through the binary, `market-town --town --save D --admin-token T`: pause → `/status` `at` frozen for 10 wall s and a client move refused `paused`; resume at 24× → `at` advances 240 ± 24 s in 10 wall s; scale 6× → 60 ± 6; graceful stop and restart → `at` resumes from the saved instant, scale from the journal. FX-24 (§9.2) measured and recorded. | (1) INV-TW-8: a property test over random pause/resume/scale sequences — `now` never decreases and never jumps. (2) INV-TW-9: the clock routes leave the save's revision and fact count unchanged (S11-D criterion 1 extended). (3) Replay: re-running the hosted paced controllers from the journal and the recorded facts reproduces the same requests in a scripted hosted session with two scale changes and a pause. (4) Mutation: compute `next_consult` with the old scale after a change — criterion 3 must fail. (5) Without a token the clock routes answer 404; wrong token 401 no sooner than 500 ms. (6) INV-TW-1 for `run` (no scale reaches it). |
+| **TW-d** | `tools/weather-fetch` (`--input` and fetch modes, rules fitting); `worlds/market-town/data/weather/` CSV + NOTICE (2015–2024, GHCN-Daily USW00023188); the seam's `data:` attachment (QTW-7, reviewed by the IL lane); `source: record` in `weather`; DEP-TW-b and the DEP-8 row; `market-town` switches its default to the record. | CP-TW-d: `run market-town --days 365` shows San Diego's seasonality: winter months wetter than summer; ≥ 1 fog day in May–July if WT flags are populated; the world's 2026-10-08 is the record's 2016-10-08 (epoch year → `first_year + 0`… per §6.3 with `first_year` set so) — exact values asserted from the CSV row. | (1) Re-running the tool on the same input is byte-identical. (2) Leap mapping: a world 2027-02-29 does not exist; a world 2028-02-29 against a non-leap record year uses that year's 02-28 — asserted. (3) Mutation: edit one CSV value after assembly — IL-a's drift check reports `weather` changed. (4) INV-TW-7: no runtime crate depends on the tool or on an HTTP client (`cargo tree` check). (5) The fitted rules reproduce the record's monthly wet-day frequency within ±3 points. |
+| **TW-e** | Shared client module `world_time` (estimate, interpolation, formatting, condition → intent); HUD date/time in 2D and 3D; 12h/24h preference in the settings module; translation entries (`en`, `zh-Hans`); 3D key light from the sun, 2D tint; the World section of the settings menu (pause, day length) via `/admin/clock`; launcher "keep running" and graceful close. | CP-TW-e: a single-player session from each launcher: HUD shows `Thu 8 Oct 2026, 12:00 AM`… advancing ~12 world minutes per wall minute; pause freezes it and shows `Paused`; 1 h day length makes it advance 24 per minute; closing the window stops the host and reopening resumes the same minute; zh-Hans shows `2026年10月8日 星期四 上午 12:00`. | (1) Parity (§8.5): both clients' HUD strings and light phase identical over a recorded stream, both languages, both clock modes. (2) The HUD never runs backwards across a re-anchor where the estimate was ahead. (3) A client given no `calendar` disclosure renders today's fixed light and `Day N` (INV-TW-6). (4) The 12h/24h preference appears in no frame sent to the server (frame capture). (5) Mutation: compute the date from the OS clock — criterion 1 with an epoch ≠ today must fail. |
+| **TW-f** | 3D: Sky3D driven externally (clock and astronomy off), night fill, rain particles with height-field collider, fog and cloud dimming, wet surfaces; GI measured VOXEL vs SDFGI under a moving sun; 2D: rain and fog overlays. Presentation Pack content only. | CP-TW-f: the 3D slice at 24× through one world day with a scripted rain hour: dawn, noon, golden hour (matching ARC-13's reference capture within the visual-fidelity tolerance), night, rain visible outdoors and absent indoors. | (1) No GDScript in TW-f reads lat/long or computes the sun (grep + review). (2) Frame time at the reference scene stays within VISUAL_FIDELITY's budget with rain on. (3) Golden-hour capture compared with ARC-13's reference — a regression is a FAIL, not a note. |
+| TW-g (optional) | GHCNh hourly layer → `sky_am`, `sky_pm`, `fog_hours` columns. | — | the same as TW-d's 1, 3, 4. |
+
+Each PR, when designed, gets its own `pr-TW-x-*.md` with a commit plan and execution contract; this table
+fixes scope, checkpoints and adversarial criteria only.
+
+---
+
+# 12. Cross-lane impacts
+
+| Lane | Impact | What S19 needs from it / gives it |
+| --- | --- | --- |
+| **S11-B** (in implementation) | `--time-scale` lands as a constant; `--pace` in world seconds. | TW-c builds on it: segments, live change, `--pace` → wall cadence (QTW-13). No change requested inside S11-B; its launchers' default comes from `world.yaml` later (TW-c). |
+| **S11-D** (planned) | Admin surface. | Two `/admin/clock` routes and the I-4 clarification (§7.3, §15). Either S11-D includes them or TW-c lands them first (QTW-3). |
+| **S11-C** | Delta stream. | Calendar and weather records change only at facts, so deltas stay small; the `clock` frame joins the landing table. |
+| **IL-a** (in implementation) | `configure:` seam. | TW-a/TW-b are its first non-interaction users (configured facts, `Rejection`). No change requested in IL-a. |
+| **IL-b** | The next IL PR. | The `data:` attachment (QTW-7) and making `CONVERSATION_GAP` / `INVITATION_LIFETIME` configurable (QTW-15). |
+| **S12** (2D client) | HUD item 8, settings. | TW-e refines item 8 (date and time), adds the tint, uses the shared `world_time` module; scheduled after 13a. |
+| **S14** (3D) | Slice lighting rig (ARC-13). | TW-e replaces fixed sun constants by a function whose golden-hour band reproduces them; TW-f adds Sky3D and re-checks GI. After 16a. |
+| **Settings-menu PR** (after S12 13a and S14 16a) | One shared client settings module, translations. | 12h/24h preference and the HUD translation entries; the World section is host commands, an explicit amendment (§15). |
+| **S16** (packages) | `mineworld create`, pack catalog. | `calendar` and `weather` are System Packs in the catalog; `create` asks for location and weather source (template prompts, later). |
+| **S10** (NPC behaviour) | Paced controller, routines. | FX-24 (§9) — if it fails, a content change in routines; the paced controller is not changed. Later (not S19): controllers may read `weather.now` / `calendar.light` (e.g. go home at dusk) — the facts and records are there for it. |
+
+---
+
+# 13. Risks
+
+| Id | Risk | Mitigation |
+| --- | --- | --- |
+| R-TW-1 | FX-24 fails: NPCs are late at 24×. | Criterion and remedies fixed before measuring (§9.2); QTW-1 asks the operator now. |
+| R-TW-2 | Float drift across platforms in the sun model moves a quantization boundary. | `libm` only, integers out, golden values on two OSes in CI; a moved boundary is a FAIL to investigate, not a re-golden. |
+| R-TW-3 | `solar-positioning` is pre-1.0 and its API churns. | One private seam (§3.1); NOAA fallback ~100 lines; pin the exact version. |
+| R-TW-4 | Station data bloats World Packs or the genesis fact. | 10 years ≈ 130 KB CSV / ~40 KB fact; a > 1 MB warning; 30 years only if QTW-5 says so. |
+| R-TW-5 | GHCN-Daily fog/weather-type flags sparsely populated for USW00023188. | The tool reports population; fog falls back to the fitted rule frequency; GHCNh layer (TW-g). |
+| R-TW-6 | `VoxelGI` (baked) looks wrong under a moving sun; SDFGI costs frame time. | TW-f measures both against VISUAL_FIDELITY's budget and records the choice; golden-hour reference capture guards ARC-13's look. |
+| R-TW-7 | Humans at 12×–24× find conversation and invitation windows (world-time constants) too short. | QTW-15: configurable content in IL-b; headless defaults unchanged. |
+| R-TW-8 | The settings-menu rule "never reaches the server" is read as forbidding the World section. | Explicit amendment (§15): host commands, not settings. |
+| R-TW-9 | Fixed UTC offset (no DST) shows summer sunrise an hour off from a real San Diego clock. | QTW-9; DST rules are an additive calendar option later. |
+| R-TW-10 | ISD/NCEI service changes move URLs again. | The data is committed; the tool records the URL and date; nothing at run time depends on NCEI. |
+
+<!-- §14 onward follows -->
