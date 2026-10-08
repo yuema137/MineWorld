@@ -401,3 +401,890 @@ From `server/PROTOCOL.md` revision 1 and `server/src/runtime.rs`:
 | G-5 | people files | `note` is "authoring provenance, never gameplay state". No source of a person's character exists for a prompt. | A `persona` System Pack owning a `persona:` section (§3.8.5). QS10-7. |
 | G-6 | `ARCHITECTURE.md` §8 | `save/cognition_cache/` is listed as "later (S10 / MVP-1)". | The cognition store lives under the operator's cognition directory, not in the world's save, because it is not world state (§3.8.4). Proposed edit in §12. |
 | G-7 | `server` `join` | No seat exclusivity: an LM controller and a human could both drive Alice. | A requirement on S11 (§11, R-S11-4). |
+
+---
+
+# 3. Design
+
+## 3.1 Module map and ownership
+
+Every piece has one owner. Nothing in this table changes the kernel or `mineworld-contracts`
+(invariant I-1, §5).
+
+| Piece | Language | Location (proposed) | Owner | Depends on |
+| --- | --- | --- | --- | --- |
+| Audience rule and `Whereabouts` fold: who perceived which fact | Rust | `systems/presence/src/audience.rs` | presence, which owns where people are | contracts, presence's own facts |
+| `EventPerception` seam: perceived events per observer | Rust | `server/src/perception.rs`, beside `Perception` | server, as a seam | contracts |
+| Perceived-event stream, cursor resume, seat exclusivity, tokens | Rust | `server/` | **S11** (requirements in §11) | the seam above |
+| `mineworld perceived` (offline export of one Person's perceived facts) | Rust | `tools/cli/src/perceived.rs` | CLI, like `biography` | presence's audience, persistence |
+| F-13 fix: the reactive rule controller answers statelessly | Rust | `cognition/rule-controller/src/lib.rs` | rule-controller | perceived events |
+| `persona` System Pack: a Person's authored character, disclosed to self | Rust | `systems/persona/` | persona | sdk/rust, presence (disclosure) |
+| Python protocol SDK: typed frames, seat session, `Controller` protocol | Python | `sdk/python/` (`mineworld-sdk`) | sdk | the client protocol only |
+| LM cognition: memory, compression, context, `LMController`, backends, recorder, budgets | Python | `cognition/lm-controller/` (`mineworld-cognition`) | cognition | `mineworld-sdk` only |
+| Operator configuration: which seats, which backend, budgets, secrets by env-var name | TOML | outside every World Pack; path given on the command line | the server operator | — |
+
+The dependency direction is one way: `mineworld-cognition → mineworld-sdk → the wire protocol`. The
+server depends on neither, and no Rust crate depends on Python. Removing `cognition/lm-controller`
+deletes nothing any other module needs (§3.16).
+
+## 3.2 The process boundary (`ARC-S10-a`)
+
+**Problem.** The cognition layer is Python (`ENGINEERING_STANDARDS.md` §3), the world is Rust, and the
+server must never block on a model (`ARCHITECTURE.md` §9). Something has to carry observations and
+perceived events out, and requests back.
+
+**Options considered.** The full comparison, with licences and maturity, is §4.6.
+
+```text
+(a) LMController in Rust, inside the server     Rust's model-client ecosystem is thinner; a model stall
+                                                shares the world's process; against §3's Python rule
+(b) Python embedded in the server (PyO3)        the world process hosts a Python runtime; a cognition
+                                                crash or GIL stall is a world crash or stall; the server
+                                                crate would depend on a controller (agent.rs forbids it)
+(c) Python sidecar behind the Rust --agent      a second protocol (gRPC or stdio JSON-RPC) beside the
+    driver (the driver keeps the seat, asks     client protocol; two boundaries to keep in step; the
+    Python what to say)                         "controller" is split across two processes
+(d) Python process as a client of the public    chosen
+    protocol, one WebSocket per seat
+```
+
+**Choice: (d).** An LM-driven Person is a client. It joins a seat, receives the observations and
+perceived events that seat is entitled to, and submits `ActionRequest`s in the same `submit` frame a
+2D or 3D client sends.
+
+- **`INV-9` and `INV-1` by construction.** The server cannot tell a model from a person, and has no
+  extra path a model could use. `AC-5` takeover is symmetric: a human joining Alice's seat and an LM
+  joining it are the same operation (R-S11-4).
+- **One boundary, already verified from the far side.** The JSON protocol is proven against Godot
+  (`overall.md` R-9). Python becomes its third consumer, checked by the same golden frames (§3.4.2).
+- **The server never waits.** Observations already go out with `try_send`, and a model call is
+  something that happens in another process.
+- **Placement is free.** Cognition can run on the machine with the GPU, or not at all.
+
+**What (d) costs, and where it is paid.**
+
+1. The client protocol must carry perceived events reliably, and must let a seat resume from a cursor
+   (§3.3, R-S11-1 … R-S11-3).
+2. A seat needs exclusivity and a credential (R-S11-4, R-S11-5).
+3. A model's latency is wall time, and a hosted world's clock runs one simulated second per wall
+   second (§2.3). A two-second decision is a two-second-late reply. That is realistic, and §3.6
+   handles what the world did meanwhile.
+
+`agent.rs` predicted (d): *"A controller in another process, speaking the wire protocol, is a driver
+swap and no architectural change."* This design takes it at its word.
+
+## 3.3 Event perception: what a Person perceived (`ARC-S10-b`)
+
+### 3.3.1 The rule
+
+A fact is perceived by an observer when the fact's declared `Visibility` admits them at the moment
+it happened:
+
+```text
+SystemInternal   never
+Public           always
+Participants     observer ∈ envelope.participants
+Entities(S)      observer ∈ S
+Place(p)         observer ∈ envelope.participants ∪ envelope.subjects
+                 or the observer's whereabouts, after this fact, is p
+```
+
+"Whereabouts after this fact" is read from the `Whereabouts` fold (§3.3.2) once it has applied this
+fact. So a person who arrives perceives their own arrival, and the people already in the place
+perceive it too. A person who has just left `p` does not perceive what happens in `p` afterwards.
+
+Approximations, recorded so they are not mistaken for intent:
+
+- **Place-level, not distance-level.** Anyone in the café overhears a `spoke` in the café, as
+  `Visibility::Place` says. A hearing range is a later perception system's refinement, behind the same
+  seam.
+- **One request, one instant.** A request's facts share one instant, and the fold applies them in log
+  order.
+
+### 3.3.2 Where it lives
+
+- **`mineworld_presence::audience`** holds the rule and `Whereabouts`, a `BTreeMap<EntityId, PlaceId>`
+  folded over presence's own facts: genesis placement, `arrived`, displaced arrivals.
+  - `apply(&EventEnvelope)` updates the fold.
+  - `admits(&EventEnvelope, observer) -> bool` applies the rule.
+  - It decodes only presence's own published event types. It names no other pack's vocabulary
+    (`ARC-28` point 3).
+- **`server::perception::EventPerception`** is the seam:
+  - shape: `fn perceived(&self, fact: &EventEnvelope, observer: EntityId) -> bool` plus
+    `fn record(&mut self, fact: &EventEnvelope)`;
+  - default: `PerceivesNoEvents`, so a world with no perception system leaks nothing;
+  - the presence implementation is wired by `PackPerception` in the CLI, exactly as `Perception` is
+    today;
+  - a future `HearingSystem` replaces or refines it with no server change.
+
+### 3.3.3 Live, resumed and offline: one function
+
+- **Live.** The world thread folds every newly recorded fact, then queues each admitted fact on every
+  subscriber that asked for perceived events (R-S11-1).
+- **Resumed.** A seat that joins with a cursor gets every admitted fact after the cursor. For a
+  persisted world, the server reads the facts after the cursor from the save and folds `Whereabouts`
+  from genesis. Cost: one pass over the fact table, about 373 000 rows after 300 days of Market Town
+  (`overall.md` §7, 11e). Seeding the fold from the newest snapshot's `Presence` components is an
+  optimization, deferred until measured. A world without a save can resume only within its recent
+  window. Otherwise it refuses with `cursor_unavailable` (R-S11-2).
+- **Offline.** `mineworld perceived <world> --save DIR --person KEY [--since ID] [--json]` runs the
+  same fold over a save and prints the facts the person perceived. It reads the save and nothing else,
+  as `biography` does (`ARC-29`).
+
+**Invariant I-4 (§5):** for any save, the facts a subscriber received live, followed by those it
+received on resume, equal `mineworld perceived` over that save. Checkpoint IC-1 (§10) tests it.
+
+### 3.3.4 What does not change
+
+- `Observation.events` in the 10 Hz `observation` frame **stays empty**. Perceived events travel in
+  their own frame (R-S11-1), so every existing observation frame, transcript and 300-day digest is
+  byte-identical (I-7).
+- `PerceivedEvent` and `Visibility` are used as they are. No contract changes.
+- A human client may opt in to perceived events, for example to show a conversation log. Nothing
+  requires it.
+
+### 3.3.5 Why presence, and not a new pack
+
+`Visibility::Place` is a question about where people were, and presence owns where people are. A new
+"perception" pack would have to reduce presence's facts into a second copy of presence's state. That
+is a second account of one truth, which `ARC-26` and `CORE_CONCEPTS.md` §13.1 exist to prevent.
+Presence already does observation (`observe.rs`). Event audience is the other half of the same job,
+and `observe.rs` names it as missing.
+
+## 3.4 The Python runtime
+
+### 3.4.1 Two packages, split on the line a non-LM controller would need
+
+```text
+sdk/python/                    mineworld-sdk          any Python controller: scripted, RL, LM
+  src/mineworld_sdk/
+    wire.py        the protocol's frames as typed models (Pydantic), ids as distinct string types
+    session.py     one seat: join, observations (newest wins), perceived events (reliable), submit
+    controller.py  the Controller protocol and the Decision types (§3.4.4)
+    requests.py    Decision → ActionRequest, only from what the observation offers
+cognition/lm-controller/       mineworld-cognition    the language-model Controller Pack
+  src/mineworld_cognition/
+    memory/        subjective memory store, ingestion, retrieval (§3.8)
+    compress/      L0–L3, structural summarizer, model summarizer (§3.9)
+    context.py     assembles one decision's context, deterministically (§3.5)
+    controller.py  LMController: triggers, routine policy, social decisions (§3.4.5, §3.5)
+    backend/       ModelBackend, the OpenAI-compatible adapter, ScriptedBackend (§3.7)
+    record.py      cassettes: record, replay, strict misses (§3.11)
+    budget.py      the budget gate and its ledger (§3.10)
+    config.py      operator configuration (TOML), secrets by env-var name (§3.7.4)
+    __main__.py    `python -m mineworld_cognition --config FILE`
+```
+
+`overall.md` §3's cross-cutting list already places "sdk/python with S10". Python tooling:
+
+- `uv` for environments and locking (`DEP-S10-e`);
+- `ruff` and `pyright` in strict mode, enabled in `.structured-coding/standards.md` in the same PR
+  that adds the first module (`standards.md` says so);
+- `pytest`;
+- Python ≥ 3.12. The toolchain line in `overall.md` §7 reads 3.14.7.
+
+### 3.4.2 Typed wire models, held to the Rust types by golden frames
+
+- `mineworld_sdk.wire` mirrors `server/PROTOCOL.md` as Pydantic models.
+- Identities are distinct `NewType`s over `str` (`EntityId`, `EventId`, `ActionId`), never ints
+  (`PROTOCOL.md` §7).
+- Every other number is a strict int, so a float is refused, as the Rust contract refuses one.
+- **The Rust types stay authoritative** (D-4). Drift is caught by golden frames:
+  - S11's server tests write every frame kind they produce to `server/tests/frames/*.json`
+    (R-S11-7);
+  - the SDK's tests parse each one, re-serialize it, and compare it semantically;
+  - a field added in Rust and missing in Python fails the Python suite in CI.
+- No code generator is adopted (§4.6). One alternative stays open: `schemars` emitting JSON Schema,
+  with `datamodel-code-generator` emitting the Pydantic models. It becomes worth its build step if
+  the frame vocabulary grows past what golden frames review comfortably (QS10-12).
+
+### 3.4.3 The seat session
+
+One asyncio task per seat, and one WebSocket per seat (the protocol's one-seat-per-connection rule
+stands):
+
+```text
+connect → join { seat, token, perceived_since: cursor | null }   (R-S11-1, R-S11-5)
+  welcome                  → the observer id; the world instance
+  observation              → replaces the session's newest observation (older ones are worthless)
+  perceived { events, through }
+                           → memory.ingest(events), and only then the cursor advances to `through`
+  result { token, … }      → completes the pending submit with that token
+  refused / closed         → seat_taken: stop and leave the seat (R-S11-4);
+                             lagged or disconnected: reconnect with the cursor, with backoff
+```
+
+The cursor is the id of the last perceived event that **memory has durably ingested**. A crash
+between receipt and ingestion re-delivers rather than loses. Ingestion is idempotent by `EventId`.
+
+### 3.4.4 The Controller protocol, and the only decisions there are
+
+```python
+class Controller(Protocol):
+    def perceive(self, events: Sequence[PerceivedEvent]) -> None: ...
+    def observe(self, observation: Observation) -> None: ...
+    async def decide(self, trigger: Trigger) -> Decision | None: ...
+    def outcome(self, decision: Decision, result: ActionResult) -> None: ...
+
+Decision = Say(to: EntityId, words: str)          # `talk`, known by name (ARC-34 point 6)
+         | Attempt(offer: OfferRef)               # a complete affordance, submitted unchanged
+         | Step(to: Location)                     # `move`, known by name; the routine policy's only
+```
+
+- `requests.py` turns a `Decision` into an `ActionRequest` **only** from what the newest observation
+  offers:
+  - `Say` needs an available `talk` affordance targeting `to`;
+  - `Attempt` needs that affordance still offered, and resubmits its `payload` unchanged
+    (`ARC-34`);
+  - `Step` needs an available `move`.
+- Anything else has no representation. A model that "decides" to shoot Bob produces nothing a
+  request can be built from. Had a request been built, the world would answer `Unavailable`
+  (`INV-10`).
+- `OfferRef` is the affordance's position in the observation it came from, plus its action type and
+  target, re-located in the newest observation by all three. A complete affordance is identified by
+  position (`PROTOCOL.md` §5), so a moved offer that no longer matches is dropped, not guessed.
+
+### 3.4.5 Triggers and asynchronous workers
+
+Cognition is "event triggered, asynchronous" (`NETWORKING.md` §4). A seat decides when one of these
+arrives, not on every 10 Hz observation:
+
+| Trigger | From | Default handling |
+| --- | --- | --- |
+| T1 somebody spoke to me | perceived `spoke` with me as listener (`subjects`) | social decision (model, within budget) |
+| T2 an invitation to me | perceived group-activity fact naming me | routine policy (deterministic) |
+| T3 somebody I remember entered my place | perceived `arrived` and memory | social decision, rate-limited per counterpart |
+| T4 my agenda changed or I am away from it | observation (`Agenda`) | routine policy |
+| T5 heartbeat | every `H` simulated minutes (default 15, the headless pace) | routine policy |
+
+- **At most one decision in flight per seat.** A trigger that arrives meanwhile marks the seat
+  dirty, and the seat decides again once, on the newest state.
+- **A world-wide limit on in-flight model calls** (§3.10) queues seats fairly by trigger time.
+- **The server never waits.** The world's only interaction with a slow seat is a request arriving
+  late (§3.6).
+
+### 3.4.6 The routine policy is deterministic and model-free
+
+`ARCHITECTURE.md` §9.1: `routine: policy: deterministic`. In an LM seat, walking to the agenda's place,
+answering invitations and idling are decided by a small deterministic policy, and never by a model.
+*"LM-native does not mean an LM produces every frame"* (`DECISIONS.md`, Microverse note).
+
+The policy reads the server's verdicts and never computes one. It proposes strides toward the
+disclosed passage that leads to the agenda's place, never longer than `MAX_STRIDE`, and the movement
+system decides. It repeats a behaviour the Rust `PacedRuleController` already has, in another language.
+That is a duplicated **policy**, not a duplicated world rule. `ENGINEERING_RULES.md` §9's prohibition
+is on rules a renderer or controller evaluates instead of the server, and the policy evaluates none.
+The alternative is a Rust routine controller sharing the seat, which would put two controllers on one
+Person. QS10-8 asks whether the Python port should stay this minimal.
+
+## 3.5 The LMController's social decision
+
+One social decision is a pure function of four inputs:
+
+```text
+(the newest observation, the memory store, the persona, the trigger)
+  → context (deterministic text and structure)
+  → CompletionRequest (provider-neutral, §3.7.1)
+  → budget gate (§3.10) → recorder (§3.11) → ModelBackend
+  → Completion → parsed SocialChoice → Decision → request (§3.4.4) → pre-submit check (§3.6)
+```
+
+**Context, assembled deterministically.** Sorted, bounded, with no wall clock and no randomness, so
+one state always yields the same `CompletionRequest`, and a cassette key is stable (§3.11):
+
+1. **Who I am.** The disclosed display name, the `persona` section (§3.8.5), and today's `Agenda`.
+2. **Where I am and who is here.** The place, and each perceived person by display name, with my
+   relationship values for each, disclosed to me alone (`ARC-28` point 6).
+3. **What I remember.** The memory sections chosen by retrieval (§3.8.6), each line carrying its Event
+   IDs.
+4. **What just happened.** The trigger and the newest perceived lines, quoted as data.
+5. **What I can do.** The offered affordances: `talk` to whom, and the complete affordances numbered
+   by position.
+
+The model sees **names, never entity ids**. Names are mapped back to ids from the same observation.
+
+**Structured output, one schema.** `SocialChoice` is a Pydantic model whose JSON Schema goes into the
+request as `output_schema`:
+
+```text
+SocialChoice
+  act      "say" | "attempt" | "nothing"
+  to       a display name from the context's "who is here", when act = say
+  words    ≤ 480 bytes, when act = say   (UTTERANCE_MAX_BYTES; the conversation pack refuses longer)
+  offer    a number from "what I can do", when act = attempt
+  recalls  the Event IDs from "what I remember" this choice draws on (may be empty)
+```
+
+- **`recalls` is how "reacts consistently" becomes checkable.** Every cited id must be one the context
+  actually contained, or the choice is invalid. The Milestone D test asserts that the 2D lines are
+  cited (§3.14).
+- **One repair attempt.** An invalid completion gets one re-ask that carries the validation error.
+  This is the useful idea from Instructor (§4.2). If the repair fails too, the result is `nothing`
+  plus a recorded failure. Every raw attempt is recorded.
+
+## 3.6 Mandatory revalidation
+
+`ARCHITECTURE.md` §9: *"An intent validated against a stale observation must fail, not succeed on the
+strength of having been requested."* Three layers, and only the first is authoritative:
+
+1. **The world, structurally.** `runtime.submit` advances the world to *now* and dispatches against
+   the current state. The owning system validates against what is true when the request arrives, not
+   what was true when the model was asked. Cognition has no way to bypass this, because there is no
+   other path into the world.
+2. **The seat, before submitting.** A decision records `based_on = (observation.at, observation seq,
+   perceived cursor)`. The request is dropped, unsent, if any of these holds:
+   - the newest observation no longer offers the needed affordance as available. This reads the
+     server's verdict and computes nothing;
+   - a newer line from the same speaker arrived after `based_on`. The seat re-decides once, on the
+     newest state;
+   - the decision is older than `max_decision_age` (wall seconds; default 15).
+3. **The record.** Each decision's `based_on`, its request, the server's `action_id` and its result
+   go to the decision log (§3.11.4). A rejection is perceived and remembered like any other outcome:
+   "I tried to answer Bob; he had gone".
+
+**Adversarial checkpoint IC-3 (§10):** a scripted backend that answers after three wall seconds. During
+the delay the test client walks out of `talk`'s range. Expected: either the seat drops the request
+before sending it, or the world rejects it `TooFarAway`. **No `spoke` fact from Alice appears after
+the departure.** Both outcomes are asserted from the save, not from the seat's log.
+
+## 3.7 The provider-neutral model interface
+
+### 3.7.1 `ModelBackend`
+
+```python
+class ModelBackend(Protocol):
+    async def complete(self, request: CompletionRequest) -> Completion: ...
+
+CompletionRequest
+  purpose          "decide" | "summarize"
+  messages         [(role: "system" | "user" | "assistant", text: str)]
+  output_schema    JSON Schema | None          from a Pydantic model
+  sampling         temperature, max_output_tokens, seed | None
+Completion
+  text             str
+  finish           "complete" | "length" | "refused" | "error"
+  usage            input_tokens, output_tokens   (as the backend reports them; estimated if absent)
+```
+
+Deliberately absent: model names, provider names, URLs, keys, provider-specific parameters, tool-call
+formats and streaming. Those are adapter configuration. The request carries no `tier` either: the
+router binds a purpose and tier to a backend **before** the request is built, so the request, and
+therefore the cassette key, does not change when the operator changes provider (§3.11.1).
+
+### 3.7.2 Adapters
+
+| Adapter | Covers | Built on |
+| --- | --- | --- |
+| `OpenAICompatibleBackend(base_url, model, api_key_env, extra)` | Ollama's `/v1` endpoint; any OpenAI-compatible server (vLLM, llama.cpp server, LM Studio, a hosted endpoint) | the `openai` Python SDK (`DEP-S10-a`), its `base_url`, and `response_format` with a JSON Schema |
+| `ScriptedBackend(script)` | tests; no model at all | a pure function of the request, written in Python |
+| `ReplayBackend(cassette)` | tests and regression replays | the recorder (§3.11) |
+
+- **One adapter covers both backends `MVP.md` §6 names.** Ollama documents its OpenAI-compatible
+  endpoint with `response_format`, `seed` and `temperature` among its supported fields. Its
+  structured-outputs announcement demonstrates JSON-Schema parsing through that endpoint.
+- **What the endpoint cannot do.** It cannot set the context size; Ollama needs a Modelfile
+  `num_ctx` for that. Its `json_schema` support is demonstrated rather than specified.
+- **The fallback** is an `OllamaNativeBackend` over `ollama-python`'s `format=<schema>`, an adapter of
+  under a hundred lines. It is added only if the compatible endpoint proves insufficient in the
+  P5 spike (QS10-3). Either way, it is an adapter file, and no other module changes.
+
+### 3.7.3 Routing by purpose and tier
+
+`ARCHITECTURE.md` §9.1's tiers are kept as named slots that the operator binds to backends:
+
+```text
+routine            deterministic policy, never a model (§3.4.6)
+ordinary_decision  e.g. "local-small"
+social             e.g. "local-medium"     ← Milestone D's dialogue
+major_decision     e.g. "frontier"         (unused until a pack offers a major decision)
+summarize          e.g. "local-small"      (only when model summaries are enabled, §3.9.4)
+```
+
+A slot bound to nothing means "no model for this purpose". Social decisions then fall back to the
+deterministic speech of §3.10.3. A world with every slot unbound is a valid world with a polite,
+formulaic Alice.
+
+### 3.7.4 `AC-4`, credentials and what a World Pack never says
+
+- A World Pack names no backend, model, endpoint, tier binding or key. `cognition_profile` stays
+  refused (`MODULE_SPEC.md` §4.1; QS10-6).
+- Which seats are LM-driven, and by which backend, is the **operator's** cognition configuration:
+
+```toml
+# cognition.toml — the operator's, never inside worlds/
+server   = "ws://127.0.0.1:7878/ws"
+seats    = ["alice"]
+store    = "~/.local/share/mineworld/cognition/social-cafe"   # §3.8.4
+mode     = "live"                                             # live | record | replay | scripted
+
+[tiers]
+social    = "local"
+summarize = "none"
+
+[backends.local]
+kind     = "openai-compatible"
+base_url = "http://127.0.0.1:11434/v1"
+model    = "qwen3:8b"        # an example, not a decision (QS10-2)
+key_env  = ""                # Ollama needs none
+
+[backends.hosted]
+kind     = "openai-compatible"
+base_url = "https://api.example.com/v1"
+model    = "…"
+key_env  = "OPENAI_API_KEY"  # the NAME of a variable; the value never appears in any file we write
+```
+
+- **Keys are read from the process environment by the variable name configured.** The runtime never
+  reads `~/.config/mineworld/secrets.env` itself. An operator may `source` it before starting
+  cognition. A key is never logged, never recorded in a cassette (§3.11 records at our interface,
+  below HTTP headers) and never echoed in errors. When the configured variable is unset, the
+  failure names the variable and never prints a value.
+- **`AC-4` test (IC-6, §10).** The Milestone D scenario is run twice from one cassette, under two
+  backend bindings: the cassette was recorded through `local`, and is replayed with the binding
+  renamed and repointed. The test asserts that:
+  - `worlds/` is byte-identical;
+  - the cassette keys are identical;
+  - the submitted requests are identical.
+
+  The keys are provider-neutral by construction, so this test is meaningful rather than trivial. A
+  live variant with two real endpoints is optional and operator-run (QS10-4).
+
+## 3.8 Subjective memory
+
+### 3.8.1 What it is
+
+`CORE_CONCEPTS.md` §5.3: *"What a character saw, heard, believes, remembers, forgot, or
+misunderstood. Memory belongs to cognition, not to the world."* Here that means:
+
+- **Inputs:** only what the seat was given. Its perceived events (§3.3), its own observations, and the
+  outcomes of its own requests.
+- **Never:** the fact log, a save, the objective biography, another seat's memory, or any server
+  endpoint that is not this seat's stream.
+- **Not world state.** The world never reads it. Deleting it changes nothing in the world (I-6, §5).
+
+### 3.8.2 Ingestion
+
+Each perceived event is rendered into one **L0 record**:
+
+```text
+L0 record
+  event_id          the fact's id                          (provenance, always)
+  at                the fact's world time
+  kind              the fact's event type, as a string      (no interpretation)
+  place             the fact's place, by display name if known
+  who               counterparts by display name; ids kept alongside, never shown to a model
+  gist              a deterministic one-line rendering of the payload, by a per-event-type renderer
+  mine              whether I was the actor (provenance.controller_decision is one of my action ids)
+```
+
+**Renderers** are small pure functions keyed by event type: `spoke` → `Bob said to me: "…"`, or
+`I said to Bob: "…"`, or `Bob said to Carol: "…"` when overheard. An unknown event type renders
+generically from envelope fields, so a new System Pack needs **no** cognition code to be remembered,
+only less eloquently (I-9). A renderer for a pack's events is an optional plug-in, registered by event
+type (§3.16).
+
+### 3.8.3 Beyond L0
+
+The store also holds the compression levels (§3.9) and **impressions**: per counterpart, the latest
+relationship values disclosed to me and the Event IDs of the facts that changed them. An impression is
+a cache of what observations said, never a judgement the world reads.
+
+### 3.8.4 The store and how it is rebuilt
+
+- **Store.** One SQLite file per seat (Python's `sqlite3`, `DEP-S10-d`). It lives under the operator's
+  cognition directory (`store` in §3.7.4), keyed by world instance and seat. It is **not** placed in
+  the world's save directory: the save holds the world's truth, and putting a controller's memory
+  beside it would invite the coupling `INV-4` forbids. `ARCHITECTURE.md` §8's `cognition_cache/` line
+  is amended accordingly (§12).
+- **Rebuild.** Memory is a derivation. With the store deleted, re-joining with `perceived_since: null`
+  re-delivers the seat's whole perceived history; ingestion and structural compression reproduce it
+  exactly (I-5).
+  - Model-written prose summaries are reproduced from the recorder, or omitted when no recording
+    exists. They are an embellishment, never the index (§3.9.4).
+  - A store whose world instance differs from the server's `welcome.world.instance` is refused by
+    name, never merged.
+- **Restart.** Nothing in memory is lost on a restart, because memory is durable before the cursor
+  advances (§3.4.3).
+
+### 3.8.5 Who I am: the `persona` System Pack
+
+`CORE_CONCEPTS.md` §4.2 lists traits among a Person's state: *"personality, preferences, … They may
+change, but only through an explicit system."* No pack provides them, and `note` is explicitly not
+gameplay state (G-5). Proposed:
+
+```yaml
+# people/alice.yaml — a section owned by the `persona` System Pack (ARC-31)
+persona:
+  summary: Runs the café counter. Warm with regulars, dry with strangers. Remembers orders.
+  traits: [warm, observant, dry-humoured]
+  speech: Short sentences. Never more than two at a time.
+```
+
+- **Shape.** `persona` owns a `Persona` component of bounded strings (summary ≤ 280 bytes, ≤ 8
+  traits, speech ≤ 160 bytes).
+- **Disclosure.** It discloses the component **to its holder only**, the same rule as relationship
+  values (`ARC-28` point 6). It provides no action and runs no process.
+- **What reads it.** A rule controller ignores it. The LM controller puts it in "who I am". It is a
+  Person trait any controller may use, not a prompt and not a provider concept.
+- **Composition.** Installing `persona` and authoring sections is the `AC-1` path: `systems/**` and
+  `worlds/**` only.
+- **Scope.** It ships in P6 with content for social-cafe's NPCs. Whether Market Town gets it too is
+  QS10-7.
+
+### 3.8.6 Retrieval
+
+Retrieval is deterministic and structured, with no embeddings in the first cut. The model is shown:
+
+1. **L3**, whole (bounded by construction, §3.9).
+2. Every **L1/L2** entry that names a counterpart present now or named in the trigger, newest first,
+   up to its section's bound.
+3. **L0**, newest first, up to its bound.
+4. When the trigger quotes words, the top `k` L1 entries by SQLite FTS5 lexical match on the trigger's
+   words, ties broken by recency then by Event ID.
+
+The generative-agents scoring of recency + importance + relevance (Park et al. 2023) is the reference
+design for a later retrieval upgrade. Its *importance* is a model-assigned score, and its *relevance*
+needs embeddings. Both would put a model or an embedding service on the memory path, so both are
+deferred (§4.3, QS10-10).
+
+## 3.9 Hierarchical compression L0–L3 with retained Event IDs (`ARC-S10-c`)
+
+### 3.9.1 The levels
+
+| Level | Unit | Rule (deterministic) | Event IDs kept | Context bound |
+| --- | --- | --- | --- | --- |
+| L0 | one perceived fact | the newest records, within the last 24 simulated hours | its own id | ≤ 48 records |
+| L1 | an **episode** | consecutive L0 records sharing a place and a counterpart set, with gaps ≤ 30 simulated minutes; an episode closes on a gap, a place change or a day boundary | every member id, as sorted ranges | ≤ 8 episodes, chosen by §3.8.6 |
+| L2 | a **chapter** | one simulated week of episodes | the episode ids it covers, and the ranges they span | ≤ 4 chapters, newest first |
+| L3 | **stable facts** | per counterpart: first met, last seen, current level, times met; my places by time of day; my work, if any | for each line, the ids of the facts that establish it (first meeting, latest level change) | ≤ 16 lines, top counterparts by times met |
+
+- Every summary line is length-bounded, so each level's contribution to context is bounded by its
+  count and its line bound. The whole memory section therefore has a fixed ceiling that does not depend
+  on the world's age: 6 000 bytes by default (QS10-11).
+- The *store* grows, because it keeps every level. The *context* does not. `AC-10` asks for exactly
+  that distinction: *"does not require feeding all historical events to a model"*.
+
+### 3.9.2 Two summarizers behind one interface
+
+```python
+class Summarizer(Protocol):
+    def episode(self, records: Sequence[L0Record]) -> Summary: ...
+    def chapter(self, episodes: Sequence[Summary]) -> Summary: ...
+```
+
+- **`StructuralSummarizer`** is the default and is model-free. It produces templated text from counts
+  and quotes, for example: *"Day 12, 09:10–09:40, café: talked with Bob Achterberg (6 lines; he
+  mentioned rain); joined a coffee with Bob."* It is a pure function of its inputs. `AC-10`'s test
+  uses it, so `AC-10` holds with no model.
+- **`ModelSummarizer`** rewrites a structural summary into prose through the `summarize` tier and the
+  recorder. It keeps the **structural summary's id list unchanged**: the model may never add or drop
+  provenance. It is off by default.
+
+### 3.9.3 Provenance, and why compression never loses truth
+
+- Every Event ID in any summary resolves to a fact in the save, and that fact is one this seat
+  perceived, as `mineworld perceived` confirms.
+- Every perceived Event ID is covered by exactly one L0 record or one L1 episode. Nothing is silently
+  dropped from the index.
+- *"Compression therefore reduces context, never historical truth"* (`CORE_CONCEPTS.md` §5.4): the
+  facts stay in the log, and the ids lead back to them.
+
+### 3.9.4 Model prose is an embellishment, never the index
+
+A summary's ids, bounds and coverage come from the structural layer. Prose may replace the *text* of a
+line in the context, never its ids. With prose absent, because there is no model, no recording, or it
+is disabled, the context is the structural text and is still complete. This is what keeps `AC-10`
+model-independent.
+
+### 3.9.5 `AC-10`, as a test decided before measuring (IC-4, §10)
+
+1. `mineworld run worlds/social-cafe --headless --seed 7 --days 100 --save DIR`, with the paced rule
+   controllers. No model is involved, and the history is long, about 1 400 talks per seat per 30 days
+   (`overall.md` §7, S7).
+2. `mineworld perceived … --person alice --json` exports Alice's perceived facts.
+3. The cognition package ingests them and compresses with `StructuralSummarizer`, then assembles the
+   context for a T1 trigger at days 10, 30, 60 and 100.
+
+Assertions, all fixed before the first run:
+
+- **(a) Bounded.** Every assembled memory section is ≤ 6 000 bytes. Day 100's is no more than 10 %
+  larger than day 30's.
+- **(b) Provenance resolves.** Every Event ID in every summary resolves in the save's fact table, and
+  is in Alice's perceived set.
+- **(c) Coverage.** The ids covered by L0 ∪ L1 equal Alice's perceived set exactly.
+- **(d) No omniscience.** Five facts Alice did not perceive appear in no record and no summary. They
+  are located, not counted (`ARC-23`): `spoke` facts in the park while Alice's whereabouts were the
+  café.
+- **(e) Determinism.** Two runs of steps 2–3 give byte-identical stores.
+
+**Mutations the test must catch.** Feeding the objective log instead of the perceived set fails (b)
+and (d). Disabling the roll-up from L0 into L1 fails (a). Dropping one episode's ids fails (c).
+
+## 3.10 Cognition budgets (`ARC-S10-d`)
+
+### 3.10.1 What is limited
+
+Defaults are taken from `ARCHITECTURE.md` §9.1:
+
+```text
+per seat     calls_per_sim_hour          20
+             tokens_per_sim_day          30 000   (input + output, as reported or estimated)
+per process  max_in_flight               2        model calls at once
+             call_timeout                20 s wall
+             max_decision_age            15 s wall (§3.6)
+per backend  requests_per_minute         unset    (an operator ceiling for hosted endpoints)
+```
+
+### 3.10.2 Where it is enforced
+
+The gate is enforced in `budget.py`, **before** a request reaches the recorder or a backend. The
+ledger is keyed by **simulated** time, read from the observation's `at`, and kept in the seat's store,
+so a restart neither resets nor double-counts it. A replay uses the same ledger rules, so a budget
+refusal replays identically.
+
+### 3.10.3 Exhaustion, timeouts and unreachable models
+
+These all fall back to the same place: the routine policy for movement, and **deterministic speech**
+for a social decision.
+
+- Deterministic speech is a short fixed phrase set, chosen by a seeded draw over `(seat, trigger
+  event id)`. Examples: "One moment.", "Sorry — busy right now.", "Good to see you again."
+- It never claims a memory it does not have.
+- Each fallback is logged with its cause. Whether a fallback should instead be silence is QS10-9.
+
+### 3.10.4 Cost
+
+- The framework requires no paid API (`ARCHITECTURE.md` §9.1). The defaults bind `social` to a local
+  Ollama.
+- A hosted endpoint is the operator's choice, and so is its cost. The runtime reports tokens per seat
+  per simulated day at shutdown and in its status line, so an operator can price it. It never
+  computes money, because prices are provider concepts.
+
+## 3.11 Recorded and replayable model outputs (`ARC-S10-e`)
+
+### 3.11.1 The key is provider-neutral
+
+```text
+key = sha256( canonical_json( CompletionRequest ) )     sorted keys, no floats except sampling
+                                                        temperature written as a decimal string
+```
+
+- No model name, no URL and no tier is in the key (§3.7.1). A cassette recorded through Ollama
+  therefore replays when the operator's configuration names a hosted endpoint. That is half of
+  `AC-4`'s test (IC-6).
+- The backend and model that produced an entry are kept as **metadata** in the entry, for audit, and
+  are never matched on.
+
+### 3.11.2 The cassette
+
+- A JSON Lines file per scenario, under `cognition/lm-controller/tests/cassettes/`. One entry per call:
+  `{ key, request, completion, meta: { backend, model, recorded_at, latency_ms } }`.
+- Recorded at **our** interface, not at HTTP. It therefore never contains headers, keys or provider
+  wire formats, and it survives an SDK upgrade. §4.5 compares this with VCR-style HTTP cassettes.
+- The request is stored in full beside its key. A miss can then show the nearest recorded request and
+  the first differing field, so a prompt change is diagnosable rather than a bare hash mismatch.
+
+### 3.11.3 Modes
+
+```text
+live       call the backend; record nothing
+record     call the backend; append every call to the cassette     (operator-run; may need a key)
+replay     never call a backend; a missing key is a CassetteMiss    (core tests; CI)
+scripted   ScriptedBackend; no cassette                             (most core tests)
+```
+
+- `replay` is strict. There is no "fall through to live", because a test that can silently reach a
+  model is a test that can depend on one (§24).
+- `scripted` is a deterministic function of the request. For example, it answers with a sentence that
+  quotes the newest remembered line and cites its Event ID. It is what most cognition tests use,
+  because it needs no re-recording when a prompt changes.
+
+### 3.11.4 The decision log, and how it meets the world's log
+
+Each decision appends `{ seat, trigger, based_on, key, choice, request, action_id, result }` to the
+seat's store. The world's facts caused by that request carry `provenance.controller_decision ==
+action_id`, which the kernel already sets (`kernel/src/dispatch.rs`). So, from a fact in the save, a
+reviewer finds the decision, the completion and the exact context that produced it. This is the
+"reviewable after the fact" property `Provenance` was designed for (§2.4).
+
+### 3.11.5 Two replays, never confused
+
+- **World replay** (`ARC-25`) re-executes the journal. The journal holds each `talk` request with its
+  utterance bytes, so a world replay **never** needs a model or a cassette, and is byte-identical by
+  the existing tests.
+- **Cognition replay** re-runs a seat against a recorded scenario, using the cassette. It checks
+  cognition, not the world.
+
+## 3.12 Natural dialogue without breaking the world's determinism
+
+What a model writes enters the world in exactly one way: as the utterance of a `talk` request, which
+the conversation system validates and records as a `spoke` fact.
+
+```text
+model completion ──► SocialChoice.words ──► talk { utterance } ──► journal (the request, verbatim)
+                                                               └─► spoke fact (the event log)
+```
+
+- **The world records what was said.** The `spoke` fact holds the words, and the journal holds the
+  request that produced them. `AC-12` already scopes determinism to the inputs: *"excluding explicitly
+  non-deterministic external controller calls"*. The model's choice of words is such an input; once
+  journaled it is fixed, and every replay reproduces it (I-8).
+- **The world never interprets the words.** No system reads meaning from an utterance. `relationships`
+  counts exchanges and does not judge them (`ARC-28`). A model cannot change world state by phrasing.
+- **The template is retired only for LM seats.** `RuleController` keeps its template, since it is the
+  `AC-15` evidence and the model-free fallback. `PacedRuleController` keeps its greetings. Natural
+  speech is what an LM seat adds, not a change to any rule controller.
+- **Bounds.** `UTTERANCE_MAX_BYTES = 480` is the conversation pack's, and is enforced by it. The
+  schema states it to the model, and an over-long completion is repaired once, then dropped. It is
+  never truncated mid-character.
+
+## 3.13 Safety and limits
+
+| Risk | Control | Where |
+| --- | --- | --- |
+| The model invents an action | Only `Say`, `Attempt` and `Step` exist, each built from an offered affordance; anything else is unrepresentable, and the world answers `Unavailable` regardless (`INV-10`) | `requests.py`, the server |
+| The model acts as someone else | The seat's session can only submit as its observer; the server refuses `actor_not_observer` | the server (existing) |
+| The model learns what it should not | The context is built only from this seat's observation, perceived events and memory; no other input exists (`INV-13`) | `context.py`; I-3 |
+| Prompt injection through what players say | Heard words are quoted as data inside delimiters and never concatenated into instructions; the choice is schema-validated; a choice can only pick among offered affordances, so injected text cannot widen what is possible; `recalls` must cite ids that were in the context | `context.py`, validation |
+| Leaking ids or internals in speech | Names only; a reply matching an id pattern or the delimiter tokens is repaired once, then replaced by deterministic speech | validation |
+| Over-long or empty speech | Schema bound plus the pack's own refusal | schema, conversation |
+| Secrets | Key by env-var name; never logged, recorded or echoed; cassettes recorded above HTTP | `config.py`, `record.py` |
+| Runaway cost or load | Budgets per seat and per process; timeouts; no retry loop beyond one repair | `budget.py` |
+| A wedged model blocks a seat | Call timeout; the seat falls back and stays responsive; the world is never waiting | `controller.py` |
+| Offensive output | Out of scope for MVP-0's private worlds. A moderation hook (a `Filter` protocol before submit) is reserved and empty; whether to fill it is QS10-13 | `controller.py` |
+| Cognition writes world state | Impossible: it holds a WebSocket that accepts only `join` and `submit` | protocol |
+
+## 3.14 Milestone D, demonstrated
+
+### 3.14.1 The claim
+
+*Speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened.* The phrase
+"the same Person and the same memory, through both clients" is made checkable as four statements:
+
+```text
+same world        one world instance id, across both clients and a restart
+same Alice        one Alice EntityId, found by tag, never by a literal
+same memory       the context Alice's 3D reply was decided from contains the Event IDs of the 2D lines
+consistent        her 3D reply's SocialChoice.recalls cites at least one of those Event IDs, and the
+                  words it produced are a spoke fact in the save, caused by her seat's action
+```
+
+### 3.14.2 The automated test (`tools/cli/tests/milestone_d.rs`, P7)
+
+Run as Milestones B and C are, against the real binaries:
+
+1. Start `mineworld server worlds/social-cafe --save DIR` and `python -m mineworld_cognition
+   --config TEST.toml`, with `seats = ["alice"]` and `mode = "replay"` against
+   `milestone_d.jsonl`. **No model is reachable.** The test sets an unroutable `base_url` and asserts
+   that no connection is attempted.
+2. **"2D".** A protocol client tagged `2d` joins `visitor`, walks to the counter, and says: "Hi, I'm
+   new in town. I left a red umbrella here yesterday."
+3. Alice's seat triggers (T1), decides, and replies. Assert a `spoke` from Alice to the visitor,
+   caused by an action of her seat.
+4. **SIGKILL both** the server and the cognition process. Restart both. Assert the same world instance.
+   Assert that Alice's memory was not re-ingested from scratch: the store's cursor resumed.
+5. **"3D".** A protocol client tagged `3d` joins `visitor`, approaches from the door, faces Alice, and
+   says: "Hello again."
+6. Alice decides. Assert:
+   - the decision's context holds the Event IDs of step 2's and step 3's `spoke` facts;
+   - `recalls` cites at least one of them;
+   - the resulting `spoke` fact is in the save;
+   - with the recorded completion, her words mention the umbrella.
+7. `inspect` resolves every cause in the save.
+8. **The same run with Alice's seat unplugged** (no cognition process). The world runs, the visitor's
+   lines are recorded, and Alice says nothing. This is the "world without models" line.
+
+The protocol-level clients are tagged as `AC-13`'s harness is (`overall.md` §3). The real 2D and 3D
+clients are the operator's demo (§3.14.3). The automated test never needs a GPU, a key or a model.
+
+### 3.14.3 The operator's run (live, optional)
+
+```sh
+ollama serve &                                 # a local model; no key
+mineworld server worlds/social-cafe --save /tmp/d
+python -m mineworld_cognition --config cognition/lm-controller/examples/local.toml   # proposed in P6
+mineworld-2d   # as visitor: walk to the counter, talk to Alice about the umbrella
+# Ctrl-C both processes; start both again
+mineworld-3d   # as visitor: walk in, look at Alice, press E, say hello
+```
+
+What to look at: her 3D reply refers to the 2D conversation, and `mineworld biography` together with
+the cognition decision log show which Event IDs her reply cited.
+
+### 3.14.4 What would be a false success
+
+- **Alice "remembers" because the model was given the whole log.** Excluded by I-3 and IC-4 (d): the
+  context's ids must be a subset of her perceived set.
+- **Two Alices, one per client.** Excluded by `AC-15`'s identity evidence, carried into step 6.
+- **The reply only *looks* consistent.** Excluded by `recalls`: the cited ids must be the 2D lines' ids,
+  not merely a plausible sentence.
+
+## 3.15 F-13, closed for `--agent`
+
+With perceived events, the reactive controller can know what it said. Its own `spoke` facts are
+perceived, since a speaker is a participant. So "have I answered X's newest line?" becomes a question
+about perceived facts, not about controller memory:
+
+```text
+answer X  ⇔  newest line heard from X  is later than  newest spoke from me to X
+```
+
+- `RuleController` reads this from a bounded window of perceived events, which `agent.rs` passes in
+  beside the observation. Its `answered` map is deleted.
+- A controller restarted against a resumed world reads the same facts, so it does not re-answer.
+- The headless `run` path and `PacedRuleController` are unchanged (`ARC-27`): their digests stay
+  byte-identical (I-7).
+- Test (P2): restart the server mid-conversation with `--agent alice`. Assert that Alice's `spoke`
+  count after the restart equals the count of lines heard after the restart, not one more. This is
+  the regression test F-13 never had.
+
+## 3.16 Modularity and pluggability
+
+The operator's directive, as structure (§1.5).
+
+### 3.16.1 `LMController` is one Controller Pack among others
+
+```text
+Controller Packs a seat may be driven by        lives in                     needs a model?
+  HumanController     a 2D or 3D client          clients/                     no
+  RuleController      reactive, --agent          cognition/rule-controller    no
+  PacedRuleController headless run               cognition/rule-controller    no
+  LMController        python -m mineworld_cognition   cognition/lm-controller no — degrades to
+                                                                              deterministic speech
+  (any)               anything speaking the protocol, e.g. an RL policy on mineworld-sdk
+```
+
+- **Binding is configuration.** Which pack drives which seat is a command-line or `cognition.toml`
+  fact. The World Pack says only which Persons are seats (`world.yaml` `seats`).
+- **Removal is deletion.** Delete `cognition/lm-controller/` and every Rust crate, World Pack, System
+  Pack, client and test outside that directory still builds and passes. IC-7 (§10) checks this
+  mechanically: the Rust workspace and the SDK's tests run with the directory absent.
+- **A world without it is valid.** Milestone D's step 8 runs Alice's seat unplugged. `AC-11`'s 300-day
+  runs never involve it. The `--agent` rule controller still drives Alice for `AC-15`.
+
+### 3.16.2 Providers are swappable without touching a contract (`AC-4`)
+
+- `ModelBackend` is the only interface the controller calls. Adapters are files in `backend/`, chosen
+  by `kind` in operator configuration.
+- Adding a provider means adding one adapter file, plus one line in the adapter registry. Nothing in
+  `controller.py`, `context.py`, `memory/`, `compress/`, `record.py`, `mineworld-sdk`, the server, any
+  World Pack or any contract changes.
+- IC-6 is the test: the same scenario, a different backend binding, identical world, keys and
+  requests.
+
+### 3.16.3 Every inner piece is a seam with a default
+
+| Seam | Protocol | Default | Alternatives that plug in without other edits |
+| --- | --- | --- | --- |
+| Event audience (Rust) | `EventPerception` | presence's place-level rule | a hearing-range system |
+| Model | `ModelBackend` | OpenAI-compatible adapter | Ollama native, llama.cpp, a hosted API, scripted, replay |
+| Summaries | `Summarizer` | `StructuralSummarizer` | `ModelSummarizer` |
+| Memory store | `MemoryStore` | SQLite per seat | in-memory (tests); another engine |
+| Retrieval | `Retriever` | structured + FTS5 | embedding-based (§4.3, later) |
+| Event rendering | renderer per event type | generic envelope renderer | a pack's own renderer, registered by event type |
+| Speech filter | `Filter` | none | a moderation hook (QS10-13) |
+| Routine | `RoutinePolicy` | agenda + invitations | anything deterministic |
+
+Each protocol has exactly the implementations listed when it lands. None is introduced for a single
+hypothetical implementation (`CLAUDE.md` §4 rule 11). `MemoryStore`'s in-memory implementation exists
+because the tests need it, and `Summarizer` has two from the start.
