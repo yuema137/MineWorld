@@ -40,7 +40,8 @@ EXEMPT = {
         "(pr-test-hygiene.md §7 C4)"
     ),
 }
-SKIPPED_DIRECTORIES = {"target", ".git", "node_modules", ".godot"}
+# `.ci` is CI's `CARGO_HOME` inside the checkout (ARC-48): its registry sources are other crates' tests.
+SKIPPED_DIRECTORIES = {"target", ".git", ".ci", "node_modules", ".godot"}
 
 
 def test_sources() -> list[Path]:
