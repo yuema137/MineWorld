@@ -59,8 +59,9 @@ correctly. That is the difference between a framework and a hardcoded game, and
 
 A pack is a crate in its own directory here. It implements `System`, `PerceptionProvider` and
 `mineworld_sdk::SystemPack` — the last says, once, what the build needs to know about it (see
-[`../sdk/rust/README.md`](../sdk/rust/README.md)). It depends on a sibling pack by path:
-`mineworld-presence = { path = "../presence" }`.
+[`../sdk/rust/README.md`](../sdk/rust/README.md)), and its first line is always its package identity,
+`const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();` (`ARC-53`). It depends on a
+sibling pack by path: `mineworld-presence = { path = "../presence" }`.
 
 Then install it into the build with two lines in [`installed/`](installed/), and rebuild:
 

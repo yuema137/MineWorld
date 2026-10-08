@@ -14,4 +14,11 @@ authors.workspace = true
 mineworld-authoring = { workspace = true }
 mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
+# A pack's package identity — Package and package!(), re-exported (DECISIONS.md ARC-53). A leaf: it
+# names no MineWorld crate, so the SDK still depends on no pack.
+mineworld-packages = { workspace = true }
 serde = { workspace = true }
+
+[dev-dependencies]
+# A pack that does not state its PACKAGE does not compile; tests/compile_fail.rs shows it.
+trybuild = { workspace = true }

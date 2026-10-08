@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Cloth simulation, so a garment hangs and folds instead of standing off the body.
 
 Called by `garments.py`.  Frame: +Z up, +X the character's own left, -Y the way

@@ -23,7 +23,9 @@ impl SystemIdentity for ItemTransferSystem {
 
 /// Nothing biographical and no section: what the build needs to know about this pack beyond
 /// [`System`] is nothing (`DECISIONS.md` `ARC-33`).
-impl SystemPack for ItemTransferSystem {}
+impl SystemPack for ItemTransferSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+}
 
 fn located(world: &WorldRead<'_>, entity: EntityId) -> Option<Location> {
     world.component::<Presence>(entity).map(Presence::location)

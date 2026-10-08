@@ -1,69 +1,102 @@
 # MineWorld
 
-> **An open-source, LM-native framework for building persistent, modular, playable game worlds.**
+> **An open-source framework for persistent, modular, playable game worlds.**
 
-Worlds are composed from independent entities, simulation systems, controllers, and
-presentation layers — not implemented as monolithic games.
-
-```text
-Simulation creates reality.
-Controllers propose actions.
-Presentation observes reality.
-```
-
-## The idea
-
-You install modules and compose a world, instead of forking a game and editing it.
+You build a world by composing people, places and objects with **installable systems**, then
+choosing your own rules, art style and AI. You don't fork a game and edit it. The café town in
+this repository is **one default composition** of the framework, playable out of the box. It is
+not the product.
 
 ```text
-Entity Pack        what exists
-System Pack        what is allowed to happen between the things that exist
-World Pack         a specific world: people, places, organizations, initial state
-Controller Pack    who decides what a character does — human, rules, LM, RL
-Presentation Pack  how it is rendered — pixel 2D, 3D, photorealistic, text
+Simulation creates reality.      the server owns every rule and every fact
+Controllers propose actions.     humans, scripted rules, or language models
+Presentation observes reality.   2D, 3D, or anything else that can read a frame
 ```
 
-`Person` never changes. Enabling `Conversation` makes talking possible; adding `Inventory` and
-`Economy` turns the same town into a market; adding `Crafting` and `Survival` turns it into a
-survival game. The kernel never learns what a job or a coffee is.
+## What MineWorld gives you, and what you bring
 
-LM-native means **authored, not dependent**. Generated content is a first-class input — worlds,
-characters, assets, styles, even systems — and the goal is that anyone can build a game with LMs
-without a studio pipeline. But a *running* world never requires a model: unplug every one and it
-still runs on rules and human players. Creation and execution are different questions.
+| MineWorld provides (the framework) | You provide (your game) |
+| --- | --- |
+| A kernel that knows only entities, components, time, places, actions, events and persistence. It does not know what money or a job is. | **Your world:** people, places, items and organizations as plain YAML, a *World Pack* |
+| Deterministic, event-sourced simulation: every change traces to a cause, and a world survives a crash and replays byte for byte | **Which systems are on:** list them in your world's `systems:` |
+| A server that owns all state; clients only send *intents* and render what they observe | **New systems:** a Rust crate in `systems/`, added with two lines in `systems/installed` |
+| A library of ready-made **System Packs**: presence and movement, conversation, relationships, group activities, names, daily schedules, items, inventory, giving, money and shops, jobs, eating and drinking, bodies and physical interaction | **Your art style:** a *Presentation Pack* of assets and bindings. The 2D and 3D reference clients read it. |
+| *Affordances*: the server tells each client what is possible right now, so clients and AI can use systems they have never seen | **Your interaction rules:** the "physics list" deciding how kinds of object interact. Its design is in progress, see below. |
+| Reference 2D and 3D clients (Godot), plus a protocol module any client can use | **Your characters' minds:** rule-based controllers today; language-model controllers are in progress |
 
-MineWorld does not build a rendering engine either. Godot supplies the pixels, physics, camera
-and input; MineWorld supplies the world above them.
+The rule that holds it together: **installing a system never edits the kernel, the other systems,
+or the clients.** It is a tested property, not a promise. `tests/acceptance/tests/ac1_composability.rs`
+proves that `worlds/market-town` is `worlds/social-cafe` plus six installed packs and configuration,
+with no other change.
 
-## Worlds you walk around in
+## Play the default demo
 
-The point is a world you are *inside*: you move through space, explore, enter places, meet
-people, interact, and travel — and it keeps living after you log out. Two reference clients are
-maintained side by side, a lightweight 2D one for fast validation and an embodied first-person 3D
-one for the real experience. Clicking an NPC in 2D and walking up to them in 3D produce the same
-action; neither client decides whether it is allowed.
+You need [Rust](https://rustup.rs) (the pinned toolchain installs itself) and
+[Godot 4.7](https://godotengine.org) on your `PATH`.
+
+```sh
+git clone https://github.com/yuema137/MineWorld && cd MineWorld
+
+# 3D: walk the town in first or third person (V switches camera, Shift runs, Space jumps)
+./mineworld-slice
+
+# 3D, connected to a live world: enter the café, walk to the counter, press E to talk to Alice
+./mineworld-slice --world
+
+# No graphics: run the market town for 30 simulated days and watch people live, work, buy and eat
+cargo run -p mineworld-cli -- run worlds/market-town --headless --seed 7 --days 30
+```
+
+The connected 2D client, multiplayer with invites, and full collision in 3D are being built now.
+[`docs/MVP_STATUS.md`](docs/MVP_STATUS.md) says exactly what works today.
+
+## Make your own world
+
+```sh
+cargo run -p mineworld-cli -- create my-world      # a minimal World Pack to start from
+cargo run -p mineworld-cli -- validate my-world    # what it contains, and anything wrong with it
+cargo run -p mineworld-cli -- run my-world --headless --seed 1 --days 7
+```
+
+Then grow it:
+
+- **Content.** Add people, places and items as YAML files, and turn systems on in `world.yaml`.
+  `worlds/social-cafe` and `worlds/market-town` are worked examples.
+- **A new system.** Read [`systems/README.md`](systems/README.md), section "Adding a pack". A pack
+  owns its state, declares the actions it offers and the facts it records, and never writes
+  another pack's state.
+- **The formats.** See [`docs/MODULE_SPEC.md`](docs/MODULE_SPEC.md) and
+  [`docs/PACKAGE_FORMAT.md`](docs/PACKAGE_FORMAT.md).
 
 ## Status
 
-Early implementation. The typed contracts and the kernel's world state exist and are tested;
-systems, scheduling, persistence and the clients do not yet.
+MVP-0 is in progress. Its main claim, that different games come from composing the same core with
+different installable systems, is demonstrated and tested. Persistent social life and an everyday
+economy are working and accepted. Work in progress:
 
-The one criterion the first milestone must meet:
+- the 2D and 3D clients' full interaction;
+- multiplayer with invites and reconnects;
+- physical interaction in the towns;
+- versioned third-party packs;
+- language-model characters.
 
-> Materially different games can be built by composing independently installable systems,
-> without modifying the kernel.
+Details: [`docs/MVP_STATUS.md`](docs/MVP_STATUS.md) and [`docs/MVP.md`](docs/MVP.md).
 
 ## Where to look
 
-- [`docs/`](docs/) — the specifications, starting with [`docs/VISION.md`](docs/VISION.md)
-- [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) — read before touching production code
-- [`docs/MVP.md`](docs/MVP.md) — what the first milestone must prove
-- [`CLAUDE.md`](CLAUDE.md) — how development runs here, and the rules code must follow
-- CI — every push and pull request runs the `fast` and `test` layers
-  ([`docs/DECISIONS.md`](docs/DECISIONS.md) `ARC-48`); `python3 scripts/ci_layer.py fast` runs a layer locally
-- Run in Docker — `docker build --target runtime -t mineworld .` then
-  `docker run -p 7878:7878 -v mineworld:/var/lib/mineworld mineworld` hosts Social Café ([`Dockerfile`](Dockerfile))
+- [`docs/VISION.md`](docs/VISION.md): why this exists
+- [`docs/CORE_CONCEPTS.md`](docs/CORE_CONCEPTS.md): the vocabulary (Person, Place, System, Affordance…)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): how the pieces fit
+- [`CLAUDE.md`](CLAUDE.md) and [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md): the rules
+  code here must follow
+- CI: every push and pull request runs the `fast` and `test` layers
+  ([`docs/DECISIONS.md`](docs/DECISIONS.md) `ARC-48`); `python3 scripts/ci_layer.py fast` runs one locally
+- Run in Docker: `docker build --target runtime -t mineworld .`, then
+  `docker run -p 7878:7878 -v mineworld:/var/lib/mineworld mineworld` hosts Social Café
+  ([`Dockerfile`](Dockerfile))
 
 ## License
 
-MIT
+MIT, except the Blender scripts in `clients/3d-spike/tools/blender/`, which use Blender's GPL API
+and are GPL-2.0-or-later. Asset provenance and AI-generated content are listed in
+[`NOTICE`](NOTICE).

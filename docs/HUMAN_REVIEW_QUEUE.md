@@ -291,12 +291,12 @@ godot --path clients/3d-spike --always-on-top --resolution 1200x1500 -- --motion
 
 **What changed — methods, not tuning**
 
-1. **Hair** (`tools/hair_groom.py`, `tools/hair_atlas.py`). Guide strands authored as data — the
+1. **Hair** (`tools/blender/hair_groom.py`, `tools/blender/hair_atlas.py`). Guide strands authored as data — the
    sweep up from the hairline, a twisted knot at the crown, the fringe and the named loose strands —
    grown, clumped, curled and frizzed by Blender's bundled CC0 Essentials hair node groups, each grown
    strand then cut into one card (5,400 cards). The atlas is fine strands with transparent gaps, our
    own procedural work. The procedural ribbons are gone.
-2. **Hoodie** (`tools/drape.py`, `tools/garments.py`). The shell starts with 30 mm of slack and is
+2. **Hoodie** (`tools/blender/drape.py`, `tools/blender/garments.py`). The shell starts with 30 mm of slack and is
    dropped by Blender's cloth solver onto the body, held only at the collar and the wrists: it lies on
    the shoulders, the sleeves fall and fold, the front panels hang. The **hood** is a pouch of cloth
    sewn along the draped collar and dropped onto the body and the rucksack. The front is open to the
@@ -1021,10 +1021,14 @@ decision, and none of it may be tied to whichever style happens to be default.
 
 ## Open questions for the operator, not blocking anything
 
-- **The project's name.** Microsoft published an unrelated "MineWorld" in 2025 — a video-generative
-  world model — with a paper, a repository and a Hugging Face presence. Purely a discoverability
-  and package-naming collision (`ARC-12`), and it blocks no engineering. Worth a deliberate
-  decision before public launch rather than discovering it in a search result.
+- **The project's name — DECIDED by the operator, 2026-10-08.** Microsoft published an unrelated
+  "MineWorld" in 2025: a video-generative world model with a paper, a repository and a Hugging Face
+  presence. It is a discoverability and package-naming collision (`ARC-12`) and blocks no
+  engineering.
+
+  Asked about it before publication, the operator chose: **publish as MineWorld for now** ("先用
+  MineWorld 公开"). A rename remains possible later, at a higher cost once the repository is
+  public.
 
 ## Accepted, not to be re-litigated
 

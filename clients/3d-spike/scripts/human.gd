@@ -40,7 +40,7 @@ const TEX := "res://assets/characters/vitruvian/textures/"
 ## townsperson shares; `REFERENCE` is the default character's own slot.
 enum Body { TOWN, REFERENCE }
 
-## Measured from the baked GLB, not assumed. `tools/character_model.py` prints it.
+## Measured from the baked GLB, not assumed. `tools/blender/character_model.py` prints it.
 ## It moved from 1.7799 when the body was re-baked through CharMorph's Ultra
 ## Feminine morph and the shoes stopped being a swept tube.
 const CANONICAL_HEIGHT := 1.7670
@@ -183,10 +183,10 @@ static func _skin(bc: String, nm: String, rough: String, tint: Color) -> Standar
 ## sample separately -- see shaders/hair_card.gdshader.
 ##
 ## One file feeds both slots. It is the strand atlas built by
-## `tools/hair_atlas.py --alphas` (since preview 4, cut from OwlishMedia's CC0
+## `tools/blender/hair_atlas.py --alphas` (since preview 4, cut from OwlishMedia's CC0
 ## strand maps; see presentation/mineworld-default/LICENSES/): eight columns of
 ## fine strands with transparent gaps,
-## for the groomed cards of `tools/hair_groom.py`. The previous atlas drew a
+## for the groomed cards of `tools/blender/hair_groom.py`. The previous atlas drew a
 ## dozen thick bars per lock, and a head of them read as stripes.
 static func _hair(tint: Color, flip_back := true) -> ShaderMaterial:
 	var m := ShaderMaterial.new()

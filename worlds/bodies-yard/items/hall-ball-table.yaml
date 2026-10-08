@@ -1,0 +1,9 @@
+# A ball by the table's north side, where people meet across it: 220 mm across.
+
+tags:
+  - ball
+
+# Owned by the `bodies` system: the object's shape (a radius, millimetres) and where it lies.
+body:
+  shape: { ball: 110 }
+  at: { place: hall, x: 6000, y: 5600 }

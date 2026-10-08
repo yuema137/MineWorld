@@ -267,6 +267,9 @@ mod social;
 
 pub use paced::PacedRuleController;
 
+/// This Controller Pack's package identity, from its `Cargo.toml` (`docs/DECISIONS.md` `ARC-53`).
+pub const PACKAGE: mineworld_packages::Package = mineworld_packages::package!();
+
 #[cfg(test)]
 mod tests;
 

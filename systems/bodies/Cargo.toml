@@ -11,6 +11,11 @@ authors.workspace = true
 # The seam a pack owns a section of an authored file through: a place file's `body:` (ARC-31).
 mineworld-authoring = { workspace = true }
 mineworld-contracts = { workspace = true }
+# A crate dependency, not a system dependency (step-11 §18.0, QO-4; DECISIONS.md ARC-39 note 2, point
+# 4): the one read `mineworld_item::is_declared`, so that an Item cannot be both a loose object and a
+# declared kind (QB-3). Nothing else is used; `tests/isolation.rs` holds that. A world may install
+# bodies without item, and there the answer is "not declared".
+mineworld-item = { path = "../item" }
 mineworld-kernel = { workspace = true }
 # The one System Pack this pack depends on: where people are, the ArrivalResolver seam it answers
 # through (ARC-39), and PerceptionProvider, the seam it discloses a place's shape through.

@@ -33,12 +33,21 @@
 //! No step of the simulation ever runs here.
 
 use rapier3d::control::{CharacterLength, KinematicCharacterController};
+use rapier3d::parry::query::ShapeCastOptions;
 use rapier3d::prelude::*;
 
-use crate::geometry::{GAP, PERSON_HEIGHT, PERSON_RADIUS, Point, Room};
+use crate::component::BodyShape;
+use crate::footprint::Placed;
+use crate::geometry::{
+    GAP, PATH_EVERY, PATH_MAX, PERSON_HEIGHT, PERSON_RADIUS, Point, REST_SPEED, REST_STEPS, Room,
+};
 
 /// The character controller's fixed time step: one sixtieth of a second (step-11 DC-4).
 const DT: f32 = 1.0 / 60.0;
+
+/// Every object's material (step-11 §18.3.1): what a flight slides and bounces with.
+const FRICTION: f32 = 0.5;
+const RESTITUTION: f32 = 0.1;
 
 /// Gravity, down the world's z axis. Nothing steps in a resolution of people; it is set so that the
 /// one place that does step — the F-P1 tests — falls the way the world does.
@@ -74,19 +83,30 @@ fn millimetres(metres: f32) -> i32 {
 /// What a sweep may run into.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Against {
-    /// The floor, the walls and the solids only: a walls-only reach, and every nudge.
-    Fixed,
-    /// The fixed geometry and every person in the scene but the one moving: a contact reach.
-    FixedAndPeople,
+    /// The floor, the walls and the solids only: a walls-only reach, and a nudge while objects are
+    /// pushed.
+    Walls,
+    /// The fixed geometry and the loose objects: a walls-only reach, and a nudge, while objects are
+    /// solid (step-11 SD-O9 step 6).
+    WallsAndObjects,
+    /// The fixed geometry, the loose objects and every person in the scene but the one moving: a
+    /// contact reach.
+    Contact,
 }
 
-/// Where a sweep ended, quantized; the first person it touched, by the index the scene was built
-/// with; and where the capsule stood, quantized, when it first touched them — before the controller
-/// slid it on along their curve.
+/// What a sweep touched first: a person or a loose object, by the index the scene was built with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Touch {
+    Person(usize),
+    Object(usize),
+}
+
+/// Where a sweep ended, quantized; the first person or object it touched; and where the capsule
+/// stood, quantized, when it first touched it — before the controller slid it on along its curve.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Swept {
     pub(crate) end: Point,
-    pub(crate) touched: Option<usize>,
+    pub(crate) touched: Option<Touch>,
     pub(crate) contact: Option<Point>,
 }
 
@@ -94,11 +114,20 @@ pub(crate) struct Swept {
 pub(crate) struct Scene {
     world: PhysicsWorld,
     people: Vec<(RigidBodyHandle, ColliderHandle)>,
+    objects: Vec<ColliderHandle>,
 }
 
 impl Scene {
-    /// The place `room`, with a person standing at each of `people`, inserted in canonical order.
-    pub(crate) fn build(room: &Room, people: &[Point]) -> Self {
+    /// The place `room`, with a person standing at each of `people` and the loose `objects` lying in
+    /// it, inserted in canonical order (people, then objects, each in the order given).
+    ///
+    /// For a person's sweep an object is its **footprint, extruded** from the floor to the walls'
+    /// height: a box's rectangle as a tall box, a ball's disc as a tall capsule. The integer checks
+    /// all read footprints (step-11 SD-O2), and a sweep must see the same outline: against a low
+    /// ball's real shape the capsule's rounded bottom meets the ball below its equator, 53 mm later
+    /// than the footprint says, and the walker ends inside the footprint the checks then refuse
+    /// (§18.11 DO-4).
+    pub(crate) fn build(room: &Room, people: &[Point], objects: &[Placed]) -> Self {
         let mut world = empty_world();
         insert_fixed(&mut world, room);
         let people = people
@@ -110,8 +139,19 @@ impl Scene {
                 )
             })
             .collect();
+        let objects = objects
+            .iter()
+            .map(|object| {
+                let (body, collider) = post(object);
+                world.insert(body, collider).1
+            })
+            .collect();
         refresh(&mut world);
-        Self { world, people }
+        Self {
+            world,
+            people,
+            objects,
+        }
     }
 
     /// Sweeps a person's capsule from `from` by the planar offset `by`.
@@ -125,9 +165,11 @@ impl Scene {
         by: Point,
         against: Against,
     ) -> Swept {
+        let not_an_object = |handle: ColliderHandle, _: &Collider| !self.objects.contains(&handle);
         let filter = match against {
-            Against::Fixed => QueryFilter::only_fixed(),
-            Against::FixedAndPeople => QueryFilter::exclude_dynamic(),
+            Against::Walls => QueryFilter::only_fixed().predicate(&not_an_object),
+            Against::WallsAndObjects => QueryFilter::only_fixed(),
+            Against::Contact => QueryFilter::exclude_dynamic(),
         };
         let filter = match mover {
             Some(index) => filter.exclude_rigid_body(self.people[index].0),
@@ -144,10 +186,8 @@ impl Scene {
             |collision| {
                 if touched.is_none() {
                     touched = self
-                        .people
-                        .iter()
-                        .position(|(_, collider)| *collider == collision.handle)
-                        .map(|index| (index, collision.translation_applied));
+                        .touch(collision.handle)
+                        .map(|touch| (touch, collision.translation_applied));
                 }
             },
         );
@@ -159,10 +199,213 @@ impl Scene {
         };
         Swept {
             end: at(moved.translation),
-            touched: touched.map(|(index, _)| index),
+            touched: touched.map(|(touch, _)| touch),
             contact: touched.map(|(_, applied)| at(applied)),
         }
     }
+
+    /// The person or object a collider belongs to; [`None`] for the fixed geometry.
+    fn touch(&self, handle: ColliderHandle) -> Option<Touch> {
+        self.people
+            .iter()
+            .position(|(_, collider)| *collider == handle)
+            .map(Touch::Person)
+            .or_else(|| {
+                self.objects
+                    .iter()
+                    .position(|collider| *collider == handle)
+                    .map(Touch::Object)
+            })
+    }
+}
+
+/// The loose objects of one place as they lay before a request, for the push's shape cast (step-11
+/// SD-O8): the fixed geometry, then each object as its real shape, in the order given. No people:
+/// in a reaction they are not yet where the request leaves them (step-11 F-O2), so the resolver
+/// checks them instead. Built once per prediction or per reaction, and dropped with it.
+pub(crate) struct Pile {
+    world: PhysicsWorld,
+    objects: Vec<ColliderHandle>,
+    placed: Vec<Placed>,
+}
+
+impl Pile {
+    pub(crate) fn build(room: &Room, objects: &[Placed]) -> Self {
+        let mut world = empty_world();
+        insert_fixed(&mut world, room);
+        let handles = objects
+            .iter()
+            .map(|object| {
+                let (body, collider) = real(object, 0);
+                world.insert(body, collider).1
+            })
+            .collect();
+        refresh(&mut world);
+        Self {
+            world,
+            objects: handles,
+            placed: objects.to_vec(),
+        }
+    }
+
+    /// Casts object `index`'s shape along the planar `offset` against the fixed geometry and every
+    /// other object, and answers where its centre would stop, quantized. The shape is cast one
+    /// millimetre above where it rests, so the floor or the solid under it is never its first hit.
+    pub(crate) fn cast(&self, index: usize, offset: Point) -> Point {
+        let object = self.placed[index];
+        let filter = QueryFilter::only_fixed().exclude_collider(self.objects[index]);
+        let queries = self.world.query_pipeline_with_filter(filter);
+        let start = lifted(&object, 1);
+        let collider = shape_of(object.shape);
+        let travel = Vector::new(metres(offset.x), metres(offset.y), 0.0);
+        let options = ShapeCastOptions {
+            max_time_of_impact: 1.0,
+            target_distance: 0.0,
+            stop_at_penetration: false,
+            compute_impact_geometry_on_penetration: false,
+        };
+        let shape = collider.build();
+        let fraction = queries
+            .cast_shape(
+                &Pose::from_translation(start),
+                travel,
+                shape.shape(),
+                options,
+            )
+            .map_or(1.0, |(_, hit)| hit.time_of_impact);
+        Point::new(
+            millimetres(start.x + travel.x * fraction),
+            millimetres(start.y + travel.y * fraction),
+        )
+    }
+}
+
+/// A position in a place's frame, in whole millimetres: `(x, y)` on the floor and `z` up.
+pub(crate) type At = (Point, i32);
+
+/// One object's flight (step-11 SD-O14), simulated at the instant of a kick or a throw: where it came
+/// to rest, quantized, and its keyframes for a client to animate.
+pub(crate) struct Flown {
+    pub(crate) end: At,
+    pub(crate) path: Vec<At>,
+}
+
+/// What a flight is launched into: the place, the people standing in it, the other objects as they
+/// lie, and the flying object with its launch velocity (millimetres per second) and its step bound.
+pub(crate) struct Launch<'a> {
+    pub(crate) room: &'a Room,
+    pub(crate) people: &'a [Point],
+    pub(crate) others: &'a [Placed],
+    pub(crate) flying: Placed,
+    pub(crate) velocity: (i32, i32, i32),
+    pub(crate) steps: u32,
+}
+
+/// Simulates one flight (step-11 SD-O14; `DEP-13` note): a scene of the fixed geometry, the people as
+/// kinematic capsules, the other objects fixed as their real shapes, and the flying object last —
+/// dynamic, rotations locked, with continuous collision detection. After [`refresh`] (F-P1's re-mark)
+/// the launch velocity is set, and the world steps at 1/60 s until the object has been slower than
+/// `REST_SPEED` for `REST_STEPS` consecutive sub-steps, or the step bound. A keyframe every
+/// `PATH_EVERY` sub-steps, at most `PATH_MAX`, the first being where it started. Nothing else moves.
+pub(crate) fn fly(launch: &Launch<'_>) -> Flown {
+    let mut world = empty_world();
+    insert_fixed(&mut world, launch.room);
+    for at in launch.people {
+        world.insert(
+            RigidBodyBuilder::kinematic_position_based().translation(centre(*at)),
+            ColliderBuilder::capsule_z(metres(HALF_SEGMENT), metres(PERSON_RADIUS.value())),
+        );
+    }
+    for other in launch.others {
+        let (body, collider) = real(other, 0);
+        world.insert(body, collider);
+    }
+    let flying = launch.flying;
+    let (handle, _) = world.insert(
+        RigidBodyBuilder::dynamic()
+            .translation(lifted(&flying, 0))
+            .lock_rotations()
+            .ccd_enabled(true),
+        shape_of(flying.shape),
+    );
+    refresh(&mut world);
+    let (vx, vy, vz) = launch.velocity;
+    world.bodies[handle].set_linvel(Vector::new(metres(vx), metres(vy), metres(vz)), true);
+
+    let at = |world: &PhysicsWorld| {
+        let t = world.bodies[handle].translation();
+        (
+            Point::new(millimetres(t.x), millimetres(t.y)),
+            millimetres(t.z),
+        )
+    };
+    let rest = metres(REST_SPEED);
+    let mut path = vec![(flying.centre, flying.z)];
+    let mut slow = 0;
+    for step in 1..=launch.steps {
+        world.step();
+        if step % PATH_EVERY == 0 && path.len() < PATH_MAX {
+            path.push(at(&world));
+        }
+        let speed = world.bodies[handle].linvel();
+        if speed.x * speed.x + speed.y * speed.y + speed.z * speed.z < rest * rest {
+            slow += 1;
+            if slow >= REST_STEPS {
+                break;
+            }
+        } else {
+            slow = 0;
+        }
+    }
+    Flown {
+        end: at(&world),
+        path,
+    }
+}
+
+/// An object's footprint extruded from below the floor to above the walls, for people's sweeps.
+fn post(object: &Placed) -> (RigidBodyBuilder, ColliderBuilder) {
+    let half = metres(WALL_HEIGHT) / 2.0;
+    let at = Vector::new(metres(object.centre.x), metres(object.centre.y), half);
+    let collider = match object.shape {
+        BodyShape::Box(extents) => ColliderBuilder::cuboid(
+            metres(extents.x().value()),
+            metres(extents.y().value()),
+            half,
+        ),
+        BodyShape::Ball(radius) => ColliderBuilder::capsule_z(half, metres(radius.value())),
+    };
+    (RigidBodyBuilder::fixed().translation(at), collider)
+}
+
+/// An object's real shape at its centre, `lift` millimetres up.
+fn real(object: &Placed, lift: i32) -> (RigidBodyBuilder, ColliderBuilder) {
+    (
+        RigidBodyBuilder::fixed().translation(lifted(object, lift)),
+        shape_of(object.shape),
+    )
+}
+
+/// An object's centre, `lift` millimetres above where it rests.
+fn lifted(object: &Placed, lift: i32) -> Vector {
+    Vector::new(
+        metres(object.centre.x),
+        metres(object.centre.y),
+        metres(object.z + lift),
+    )
+}
+
+/// A collider of an object's shape, with the material every object has.
+fn shape_of(shape: BodyShape) -> ColliderBuilder {
+    let collider = match shape {
+        BodyShape::Box(half) => ColliderBuilder::cuboid(
+            metres(half.x().value()),
+            metres(half.y().value()),
+            metres(half.z().value()),
+        ),
+        BodyShape::Ball(radius) => ColliderBuilder::ball(metres(radius.value())),
+    };
+    collider.friction(FRICTION).restitution(RESTITUTION)
 }
 
 /// A world with nothing in it yet: gravity down z, the fixed time step.

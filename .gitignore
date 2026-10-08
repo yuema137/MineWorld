@@ -43,3 +43,9 @@ spike/server/target/
 # grant it. `.claude/settings.json` is for shared project rules and is tracked when
 # it has any.
 .claude/settings.local.json
+
+# Credentials. Keys live outside the tree (`~/.config/mineworld/secrets.env`); these
+# patterns are a guard against a copy landing inside it.
+.env
+*.env
+secrets*

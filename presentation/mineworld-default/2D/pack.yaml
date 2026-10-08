@@ -1,0 +1,11 @@
+# The package identity of the default 2D Presentation Pack (docs/DECISIONS.md ARC-53,
+# docs/PACKAGE_FORMAT.md §5.0). Not the style manifest: manifest.yaml beside it describes the style and
+# keeps its own id; this file says which pack this is.
+id: mineworld-default-2d
+type: presentation-pack
+version: 0.1.0
+mineworld: "^0.1"
+# The references are owned output under the repository's MIT (references/PROVENANCE.md).
+license: MIT
+authors: [Yue Ma]
+repository: https://github.com/yuema137/MineWorld

@@ -36,6 +36,7 @@ impl SystemIdentity for EmploymentSystem {
 /// biographical facts, and the `job:` section of a person's file, which its `AuthoredSection` impl
 /// (`src/section.rs`) describes.
 impl SystemPack for EmploymentSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
     mineworld_sdk::owns_section!();
 }

@@ -8,6 +8,8 @@ mineworld/world_client.gd   the connection: join a seat, receive observations, s
 mineworld/observation.gd    reading a frame without deciding anything
 mineworld/space.gd          the one conversion between the world's axes and Godot's
 demo/                       a demonstration scene of its own
+checks/                     headless checks of the module: a reader check, and a live check against
+                            a real market-town server
 evidence/                   what the real engine produced, against the real server
 ```
 
@@ -26,6 +28,13 @@ godot --headless --path clients/protocol -- \
     --autopilot --flavour 2d --seat visitor --requests evidence/request-2d.json
 godot --headless --path clients/protocol -- \
     --autopilot --flavour 3d --seat visitor --requests evidence/request-3d.json
+```
+
+The module's own checks, headless:
+
+```sh
+godot --headless --path clients/protocol --script res://checks/reader_check.gd   # no server
+bash clients/protocol/run.sh affordances     # against worlds/market-town, saved to a temporary directory
 ```
 
 `--flavour 2d` reports no position when it acts; `--flavour 3d` reports the one it walked to. That is
