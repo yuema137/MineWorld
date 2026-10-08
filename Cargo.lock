@@ -616,7 +616,9 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-presence",
  "mineworld-rule-controller",
+ "mineworld-worldpack",
  "serde",
+ "serde-saphyr",
  "serde_json",
 ]
 

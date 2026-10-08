@@ -31,3 +31,18 @@ mineworld run worlds/market-town --headless --seed 7 --days 30
 The headless controller buys, eats and gives because each is offered as a complete request it can
 submit unchanged; it was never taught what they are ([`ARC-34`](../../docs/DECISIONS.md)). People
 without a job live on what they start with, sized for a 300-day run.
+
+## The proof
+
+That this world is Social Café plus installed packs and configuration is checked, not claimed:
+
+```sh
+cargo test -p mineworld-acceptance --test ac1_composability   # AC-1, three checks (needs full git history)
+cargo test -p mineworld-cli --test market_town                # the market lives 300 days, then determinism
+cargo test -p mineworld-cli --test market_composition         # each market pack can be removed
+cargo test -p mineworld-cli --test milestone_c                # work, earn, buy, seen by another client, restart
+```
+
+"Installed" means a directory, two lines in `systems/installed` and a rebuild
+([`ARC-33`](../../docs/DECISIONS.md)). To see Milestone C yourself, follow
+[`HUMAN_REVIEW_QUEUE.md`](../../docs/HUMAN_REVIEW_QUEUE.md).

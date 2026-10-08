@@ -2515,6 +2515,78 @@ consumption, and edits the merged `inventory` pack, which is under `systems/` an
 allowed set (step-10 QS-42). Check 2's "market pack" and check 3's "the five market packs" read **the
 six market packs**. No other item changes. The AC-1 test that reads the list is step-10 PR 11f's.
 
+**Note, 2026-10-07 (S9, PR 11f; step-10 QS-54 … QS-59, F-58 … F-63) — how the proof measures.** The
+AC-1 test is `tests/acceptance/tests/ac1_composability.rs`, one `#[test]` per check, so a failing
+check never hides another. PR 11f is not part of the measured transformation (item 1): it adds tests
+and documentation and changes no pack, no world configuration and no framework behaviour. It settles
+how each item is read, and tightens where it can; no item is relaxed except by the operator's answer
+to QS-54 below.
+
+1. **The two merges, by subject and by id** (item 1, the accepted limitation; QS-55). The test records
+   both merges: 11d is `70e532f383ff81464d00066ff85e1b7fdc2296b0`, GitHub #43 from
+   `mvp0/pr-11d-owning-things`; 11e is `2dddda86a4347d54de7bd2303d5268a421870b5f`, #46 from
+   `mvp0/pr-11e-work-money-shops`. Each must be found on `git log --first-parent --merges HEAD` by its
+   subject, `Merge pull request #<n> from <owner>/<branch>`, exactly once. The match must equal the
+   recorded id and have exactly two parents. The subject proves that the id is that PR's merge on
+   `main`'s first-parent chain; the id pins it, so a later merge with a recycled branch name cannot
+   take its place. A squash merge has one parent and is refused.
+2. **Check 1's `Cargo.lock` rule, as risk R-S9-6 words it** (item 2; QS-56). Both versions of
+   `Cargo.lock` are read with `git show`. Every `[[package]]` added, removed or changed in **any**
+   field between `M^1` and `M` must have no `source` and must be a crate under `systems/` at `M`. This
+   tightens item 2, which names only "added" and "dependency list changed": a version or checksum
+   change of an external package inside the range, a `cargo update`, is refused too. Both merges
+   pass it.
+3. **Check 2's "dependency path" counts normal and build edges** (item 3, second bullet; QS-54,
+   F-58). `persistence`'s test `kill_and_resume` dev-depends on `worldpack`, which links the installed
+   set (`ARC-33`) and so every market pack. Read over every edge kind, the check would fail AC-1 for a
+   test that loads a World Pack, though nothing in `persistence` knows the market. The operator
+   decided (2026-10-07, step-10 §4.6.0):
+
+   > "QS-54: accepted by the operator (2026-10-07). ARC-35 check 2's "no dependency path" rule counts
+   > normal and build edges only. Dev edges stay bound by check 2's other two rules: every dependent
+   > of a market pack lives under `systems/`, and no code outside `systems/`, `worlds/` and
+   > `tests/acceptance/` names a market crate."
+
+   So the path rule follows what a library or a binary links. A dev edge is still seen by the first
+   bullet (any declared dependency on a market pack, of any kind, must come from `systems/`) and by
+   the third (no code file outside the three directories names a market crate). The alternative of
+   admitting every edge through `mineworld-installed-systems` was declined: it would let a kernel that
+   linked `worldpack` in production pass.
+4. **How check 2 reads the structure** (item 3; F-60). It runs `cargo metadata --no-deps
+   --format-version 1 --offline` through the `cargo` that built the test. `--no-deps` is enough, and
+   needs no network: only a workspace member can depend on a path crate, so every path to a market pack
+   runs through members, whose declared dependencies the output lists with their kind and path. A
+   `cargo` that cannot run, or output that does not parse, fails the check by name. The crate-name
+   scan reads the working tree — tracked files and untracked files Git does not ignore — so an
+   uncommitted edit is seen. A name matches as a word: `mineworld-item` does not match inside
+   `mineworld-item-transfer` by accident.
+5. **Check 3 compares configuration structurally** (item 4; QS-57, F-62). Both packs must first be
+   read by `WorldPack::read`. Each YAML file is then parsed into a structural value and compared.
+   `world.id` and `world.name` may differ. `systems` is Social Café's list, in order, followed by
+   exactly the six market packs (as a set). `places`, `population` and `seats` are equal. `items` and
+   `organizations` are present in Market Town only. In every place and person file, each of Social
+   Café's keys has an equal value, and every key Market Town adds is a section whose owner, by the
+   build's own `Capability::owning_section`, is one of the six market packs. `items/` and
+   `organizations/` exist in Market Town only. `README.md` is not configuration. Every difference is
+   named by file and key.
+6. **World-level tests read the market by type slugs, never through a market crate** (QS-58, F-61).
+   A test that runs the `mineworld` binary lives in `tools/cli`, and the third bullet of check 2
+   forbids naming a market crate there. Those tests therefore decode market facts and components by
+   their literal slugs into test-local mirrors: unknown fields refused, schema version 1 asserted.
+   That is also the oracle independence the test rules ask for.
+7. **CP-4 is committed at the full 300 days, in the default suite** (QS-59). The bounded-horizon
+   economy (`ARC-38`, L-13) is a 300-day claim, so a shorter committed horizon would let content that
+   drains after its end pass. Activity is checked before any comparison of runs (I-7). Money
+   conservation and the capacity of six are checked against the state in the save's newest snapshot,
+   as well as the replayed facts, because the facts alone conserve money by construction (F-63).
+8. **Check 1 fails closed without full history** (item 5). A shallow clone fails, naming the missing
+   history and the remedy, `fetch-depth: 0`; it never skips. A CI that runs the test must check out
+   the full history (S13).
+
+**What the proof does not claim.** Installation without a rebuild: installing a pack is a directory,
+two lines in `systems/installed` and a rebuild (`ARC-33`); without a rebuild is `ARC-8`'s Tier 1,
+outside MVP-0. The evidence is recorded in step-10 §9.6.
+
 ---
 
 ## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack
