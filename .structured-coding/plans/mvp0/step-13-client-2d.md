@@ -684,8 +684,19 @@ rest are for the primary session.
 
 ## 14. PR 13a — A world you can walk (full design)
 
-**Lifecycle:** `DRAFT — awaiting freeze by the primary session`. Nothing below authorizes code until a
-`DESIGN FROZEN` header is added here by the primary session on the operator's behalf.
+### DESIGN FROZEN
+
+```text
+Lifecycle:            DESIGN FROZEN (2026-10-08), primary session
+Design revision:      §14 as committed in 26c451d
+Approved by:          the primary session's message of 2026-10-08, "FREEZE: S12 PR 13a is DESIGN FROZEN
+                      (2026-10-08), primary session. §14 is accepted as written", covering AC-W1 … AC-W12
+                      with their mutations, the preview gates and play commands, the ≈ 18.4 MB art subset
+                      with sidecars loaded at runtime, the JSON-compatible YAML subset, C0–C7, ARC-45 …
+                      ARC-47 and DEP-16, the verbatim ARC-14 port, and the S11-A coordination
+Implementation base:  main @ 47c81d1
+Execution contract:   §14.9
+```
 
 ### 14.0 Identity, base, scope
 
