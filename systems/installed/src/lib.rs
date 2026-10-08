@@ -20,17 +20,18 @@
 //! two packs with one id.
 //!
 //! The `resolution:` line lists the packs that answer what an arrival actually achieves
-//! (`docs/DECISIONS.md` `ARC-39`); every host registers them by composing a world. It is empty until
-//! the first such pack is installed, and with it empty every world records what it always recorded.
-//! A resolver's pack is listed there as well as below, and a test (`tests/resolution.rs`) refuses one
-//! that is not.
+//! (`docs/DECISIONS.md` `ARC-39`); every host registers them by composing a world. A resolver's pack
+//! is listed there as well as below, and a test (`tests/resolution.rs`) refuses one that is not. A
+//! world that does not enable a listed resolver's pack is untouched by it, because a resolver answers
+//! "unchanged" where its own state is absent; the first one listed (`DEP-13`) resolves only arrivals
+//! into places that carry its section.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 mineworld_sdk::installed! {
     perception: mineworld_presence::PerceptionProvider;
-    resolution: mineworld_presence::ArrivalResolver => [];
+    resolution: mineworld_presence::ArrivalResolver => [mineworld_bodies::BodiesSystem,];
     Presence => mineworld_presence::PresenceSystem,
     Movement => mineworld_movement::MovementSystem,
     Conversation => mineworld_conversation::ConversationSystem,
@@ -44,4 +45,5 @@ mineworld_sdk::installed! {
     Economy => mineworld_economy::EconomySystem,
     Employment => mineworld_employment::EmploymentSystem,
     Consumption => mineworld_consumption::ConsumptionSystem,
+    Bodies => mineworld_bodies::BodiesSystem,
 }

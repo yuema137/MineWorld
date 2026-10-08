@@ -3421,16 +3421,21 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C5.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation:
-  - `cargo test -p mineworld-installed-systems -p mineworld-worldpack -p mineworld-acceptance`
-    passes;
-  - `cargo test -p mineworld-cli` passes, which exercises every CLI path that composes;
-  - the base binary is built from the base before this commit and kept in `/tmp/s15-12b/`;
-  - the PR binary's two 300-day runs equal PB-1's digests;
-  - both `validate` outputs `cmp` equal to the base binary's.
-- [ ] Review: the installed set's `resolution:` test (12a SD-R8) passes unedited. QP-2's two edits keep
-  each test's claim. No other existing test needed an edit; any that did would be a material stop.
+- [x] Implementation: as scoped. `systems/installed`: the manifest line, `Bodies =>
+  mineworld_bodies::BodiesSystem,`, `resolution: … => [mineworld_bodies::BodiesSystem,]`, and the doc
+  paragraph reworded (it said the line was empty). `worldpack/tests/registration.rs`: the expected
+  list is `[bodies]`, written once as `const LISTED`, the panic text follows it, the doc drops "empty
+  in this build". `seam_vocabulary.rs`: `INSTALLED_PACK_LINES` with two self-checking entries — the
+  installed set's lines naming `mineworld_bodies::BodiesSystem`, and registration.rs's `LISTED` line
+  (DB-8) — joined to `PRE_EXISTING` through `admissions()`.
+- [x] Validation (E-PB6): the three crates' tests pass (AC-1 13/13, the I-2 scan 4/4, seam_vocabulary
+  3, registration 1, resolution 2, `[resolver-yard] PASS`); `cargo test -p mineworld-cli` 41 passed in
+  18 binaries, 195 s; base binary built before any code (E-PB-base); the PR binary's two 300-day runs
+  equal PB-1's digests; both `validate` outputs `cmp`-identical.
+- [x] Review: `tests/resolution.rs` passes unedited (bodies is an installed pack, listed once). The two
+  QP-2 edits keep their claims: registration still holds "compose registers the installed list, a
+  second compose is a no-op, a different list panics naming both"; the seam scan still refuses every
+  physics word on every other line. No other existing test needed an edit.
 
 ### PB-C7 — The world: worlds/bodies-yard, the real run, the counterfactual, restart
 
@@ -3755,6 +3760,20 @@ E-PB5 PB-C5, 2026-10-07, working tree on c16ab2a + PB-C5's paths. Criteria HB-1 
         (4320, 5000)" — F-P7 reappears. Reverted; `git grep -n MUTATION -- systems` empty.
       geometry unit test: the turn over 9 000+ strides on a 37 mm grid — never longer, right, ~14°.
       clippy (one type alias `Keyed`) and fmt clean.
+
+E-PB6 PB-C6, 2026-10-07, working tree on 539ebbf + PB-C6's four paths + Cargo.lock.
+      `cargo test --offline -p mineworld-installed-systems -p mineworld-worldpack -p
+        mineworld-acceptance`: every binary ok — ac1_composability 13, precursor_vocabulary 4,
+        seam_vocabulary 3, arrival_resolvers 7, arrival_resolvers_unregistered 2,
+        arrival_resolvers_resume "[resolver-yard] PASS in 0.2 s", installed 3, resolution 2,
+        registration 1, refusals 38, social_cafe 15, … PASS.
+      `cargo test --offline -p mineworld-cli`: 18 test binaries, 41 passed, 0 failed, 3 min 15 s. PASS.
+      PR binary (target/debug/mineworld → /tmp/s15-12b/pr-mineworld), 300-day runs 1 and 2 of 8:
+        social-cafe → exit 0, faults 0, 365 330 facts, no stopped-short line, sha-256 of every line
+          but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b. Wall 12.7 s.
+        market-town → exit 0, faults 0, 372 755 facts, sha-256 =
+          365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d. Wall 15.1 s. PASS.
+        `validate` of both, `cmp` against the base binary's outputs: identical. PASS.
 ```
 
 ## 17.11 Deviations and discoveries during implementation
@@ -3827,3 +3846,10 @@ resolver core's outcome in the same tests", and `scenarios.rs` is an integration
 the crate's public API. `mineworld_bodies::explain(world, person, to) -> Option<Outcome>` runs the
 same core as the resolver, reading `from` from presence as presence does. It writes nothing and
 names no Rapier type; it is the pack's own surface, not a seam change.
+
+**DB-8 (bounded; within QP-2) — the seam scan's admission covers registration.rs too.** QP-2 admits
+`bodies` "on the installed set's two lines only". But `worldpack/tests/registration.rs` is itself one
+of the seam scan's files (12a's `ADDED_TEST_FILES`), and QP-2's own edit makes it name the pack. Both
+files are QP-2's; the test names the pack on exactly one line (`const LISTED: &str = "bodies";`), and
+`INSTALLED_PACK_LINES` admits the word there and nowhere else in that file, with the same
+fails-if-unused rule.

@@ -906,6 +906,7 @@ dependencies = [
 name = "mineworld-installed-systems"
 version = "0.0.0"
 dependencies = [
+ "mineworld-bodies",
  "mineworld-consumption",
  "mineworld-contracts",
  "mineworld-conversation",

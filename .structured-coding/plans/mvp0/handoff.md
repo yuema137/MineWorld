@@ -53,9 +53,15 @@ STOP CONDITIONS     normal: PR 12b READY FOR OPERATOR REVIEW — DO NOT MERGE. M
 
 ## Current checkpoint
 
-PB-C1 (documents) in progress on `mvp0/pr-12b-people` @ 918c869.
+PB-C1 … PB-C5 committed and pushed: 5a5bbd0, 3074db9, b48cecc, c16ab2a, 539ebbf. The pack exists,
+is not yet installed. Evidence E-PB1 … E-PB5; deviations DB-1 … DB-7 (§17.11; DB-4, the blocked
+walker's stop at first contact, is flagged for the operator). Base binary and its validate outputs:
+/tmp/s15-12b/base-mineworld, /tmp/s15-12b/base-validate-*.txt. Budget used: 300-day runs 0 of 8.
 
 ## Next actions
 
-- PB-C1: DEP-13, the ARC-39 note, MODULE_SPEC §4.1; both doc checks; commit, push.
-- PB-C2: the pack's skeleton and the Rapier adapter (first Rapier compile in the background).
+- PB-C6: install (systems/installed two lines + manifest), QP-2's two test edits (registration.rs,
+  seam_vocabulary.rs — the admission must also cover registration.rs's lines, which name `bodies`),
+  `cargo test -p mineworld-cli` (background), PB-1's two 300-day digests and validate cmp.
+- PB-C7: worlds/bodies-yard, tools/cli/tests/bodies{,_yard,_yard_restart}.rs, long_run.rs.
+- PB-C8: Rosetta (x86_64 build in background), cost, MVP_STATUS, full gate once, PR.
