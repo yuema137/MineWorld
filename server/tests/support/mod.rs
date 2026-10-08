@@ -41,7 +41,8 @@ use mineworld_kernel::{
     World, WorldRead, WorldView, owned_component,
 };
 use mineworld_server::{
-    HostConfig, HostError, HostedWorld, Perception, PerceptionContext, SeatRoster, WireObservation,
+    Admission, HostConfig, HostError, HostedWorld, InviteToken, Perception, PerceptionContext,
+    SeatRoster, WireObservation,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -55,6 +56,19 @@ pub const DAVE: &str = "dave";
 /// The two rooms. Alice and Carol are in one; Bob and Dave are in the other.
 pub const CAFE: &str = "cafe";
 pub const STREET: &str = "street";
+
+/// The invite every socket test's server admits (`PROTOCOL.md` §4.1).
+pub const INVITE: &str = "test-invite-3f9c0a1b2c3d4e5f";
+
+/// The admission a socket test's server is started with.
+pub fn admission() -> Admission {
+    Admission::new(InviteToken::given(INVITE).expect("a legal invite"))
+}
+
+/// A revision-2 join for a seat, with the test invite and a nickname.
+pub fn join_frame(seat: &str, nickname: &str) -> Value {
+    json!({ "t": "join", "protocol": 2, "invite": INVITE, "nickname": nickname, "seat": seat })
+}
 
 pub fn key(value: &str) -> EntityKey {
     EntityKey::new(value).expect("a legal authoring key")

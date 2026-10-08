@@ -1,0 +1,3 @@
+{ "t": "observation", "seq": 1, "revision": 7,
+  "observation": { "observer": "101", "at": 4112, "self_location": null, "entities": [],
+                   "relations": [], "affordances": [], "events": [] } }

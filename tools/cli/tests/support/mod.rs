@@ -9,8 +9,10 @@
 // Two test binaries share this module and each uses a part of it.
 #![allow(dead_code)]
 
+use std::io::{BufRead, BufReader, Read};
 use std::net::SocketAddr;
 use std::process::{Child, Command, Stdio};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
@@ -24,6 +26,15 @@ use tokio_tungstenite::tungstenite::Message;
 
 /// How long a test waits for the server to come up, and for a frame to arrive.
 pub const PATIENCE: Duration = Duration::from_secs(20);
+
+/// The invite every test server is started with, and every test client joins with.
+pub const INVITE: &str = "cli-test-invite-3f9c0a1b";
+
+/// A revision-2 join frame (`PROTOCOL.md` §2) for a seat, with the test invite.
+pub fn join_frame(seat: &str) -> Value {
+    json!({ "t": "join", "protocol": 2, "invite": INVITE, "nickname": format!("{seat}-player"),
+            "seat": seat })
+}
 
 /// The pack every test is pointed at: the repository's own.
 pub const PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/social-cafe");
@@ -46,28 +57,64 @@ impl Server {
     ///
     /// A port is chosen by binding one and letting it go, rather than by hard-coding: two test
     /// binaries may run at once, and a fixed port makes that a flake nobody can reproduce.
+    ///
+    /// Every server is started with [`INVITE`] unless the arguments name an invite themselves, so a
+    /// test's [`Client::join`] is admitted (`PROTOCOL.md` §4.1).
     pub async fn start(arguments: &[&str]) -> Self {
-        let address = free_port().await;
-        let listen = address.to_string();
-        let process = Command::new(env!("CARGO_BIN_EXE_mineworld"))
-            .args(arguments)
-            .args(["--listen", &listen])
-            .stdout(Stdio::null())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .expect("the mineworld binary runs");
-
-        let server = Self { process, address };
-        server.wait_until_healthy().await;
-        server
+        let invite: &[&str] = if arguments.contains(&"--invite") {
+            &[]
+        } else {
+            &["--invite", INVITE]
+        };
+        let configure = |command: &mut Command| {
+            command
+                .args(arguments)
+                .args(invite)
+                .env_remove("MINEWORLD_INVITE");
+        };
+        Self::launch(configure, false).await.0
     }
 
-    /// Polls `GET /health` until the server answers, or fails the test with what it knows.
-    async fn wait_until_healthy(&self) {
+    /// Starts the binary on a free port and waits until it answers.
+    ///
+    /// A port chosen by binding and releasing it can be taken by another process before the server
+    /// binds it — another test binary, or another worktree's tests on the same machine. A server that
+    /// exits before it answers is therefore started again on another port, a bounded number of times;
+    /// one that is running but silent fails the test.
+    async fn launch(configure: impl Fn(&mut Command), capture: bool) -> (Self, Option<Captured>) {
+        const ATTEMPTS: usize = 3;
+        for _ in 0..ATTEMPTS {
+            let address = free_port().await;
+            let mut command = Command::new(env!("CARGO_BIN_EXE_mineworld"));
+            configure(&mut command);
+            command.args(["--listen", &address.to_string()]);
+            if capture {
+                command.stdout(Stdio::piped()).stderr(Stdio::piped());
+            } else {
+                command.stdout(Stdio::null()).stderr(Stdio::inherit());
+            }
+            let mut process = command.spawn().expect("the mineworld binary runs");
+            let captured = capture.then(|| Captured {
+                stdout: drain(process.stdout.take().expect("piped stdout")),
+                stderr: drain(process.stderr.take().expect("piped stderr")),
+            });
+            let mut server = Self { process, address };
+            if server.answers().await {
+                return (server, captured);
+            }
+        }
+        panic!("the server exited before answering /health, {ATTEMPTS} times");
+    }
+
+    /// Polls `GET /health` until the server answers (`true`) or exits (`false`), or fails the test.
+    async fn answers(&mut self) -> bool {
         let deadline = Instant::now() + PATIENCE;
         while Instant::now() < deadline {
             if get(self.address, "/health").await.is_some() {
-                return;
+                return true;
+            }
+            if self.process.try_wait().ok().flatten().is_some() {
+                return false;
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
@@ -83,12 +130,82 @@ impl Server {
         )
     }
 
+    /// Starts `mineworld <arguments> --listen 127.0.0.1:<port>` with exactly these environment
+    /// variables for the invite (`MINEWORLD_INVITE` is otherwise removed) and **no** invite of the
+    /// harness's own, keeping everything it writes to stdout and stderr in memory — for the tests
+    /// that read what the server prints (step-12 §15.4 SA-3, SA-5). Nothing is written to disk.
+    pub async fn start_captured(arguments: &[&str], invite_env: Option<&str>) -> (Self, Captured) {
+        let configure = |command: &mut Command| {
+            command.args(arguments).env_remove("MINEWORLD_INVITE");
+            if let Some(invite) = invite_env {
+                command.env("MINEWORLD_INVITE", invite);
+            }
+        };
+        let (server, captured) = Self::launch(configure, true).await;
+        (server, captured.expect("captured output"))
+    }
+
     /// Kills the process with `SIGKILL` — no shutdown, no checkpoint, no flush — and returns how it
     /// ended, so that a test can show the death was real.
     pub fn kill(&mut self) -> std::process::ExitStatus {
         self.process.kill().expect("SIGKILL is delivered");
         self.process.wait().expect("the process is reaped")
     }
+}
+
+/// What a captured server has written so far, one string per line, kept in memory.
+pub struct Captured {
+    stdout: Arc<Mutex<Vec<String>>>,
+    stderr: Arc<Mutex<Vec<String>>>,
+}
+
+impl Captured {
+    /// Every stdout line so far.
+    pub fn stdout(&self) -> Vec<String> {
+        self.stdout
+            .lock()
+            .expect("the reader thread is sound")
+            .clone()
+    }
+
+    /// Every stderr line so far.
+    pub fn stderr(&self) -> Vec<String> {
+        self.stderr
+            .lock()
+            .expect("the reader thread is sound")
+            .clone()
+    }
+
+    /// Waits until a stdout line begins with `prefix`, and returns it.
+    pub async fn line_starting(&self, prefix: &str) -> String {
+        let deadline = Instant::now() + PATIENCE;
+        while Instant::now() < deadline {
+            if let Some(line) = self
+                .stdout()
+                .into_iter()
+                .find(|line| line.starts_with(prefix))
+            {
+                return line;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        panic!(
+            "no stdout line began with {prefix:?} within {PATIENCE:?}: {:?}",
+            self.stdout()
+        );
+    }
+}
+
+/// Reads a pipe on a thread of its own until it closes, so the child never blocks on a full pipe.
+fn drain(pipe: impl Read + Send + 'static) -> Arc<Mutex<Vec<String>>> {
+    let lines = Arc::new(Mutex::new(Vec::new()));
+    let sink = Arc::clone(&lines);
+    std::thread::spawn(move || {
+        for line in BufReader::new(pipe).lines().map_while(Result::ok) {
+            sink.lock().expect("the test is sound").push(line);
+        }
+    });
+    lines
 }
 
 /// A save directory of its own under the system temporary directory, empty when made and removed
@@ -192,7 +309,7 @@ impl Client {
     /// Occupies a seat and returns the observer the server resolved it to, with what it said about
     /// the world.
     pub async fn join(&mut self, seat: &str) -> (EntityId, WorldSummary) {
-        self.send(json!({ "t": "join", "seat": seat })).await;
+        self.send(join_frame(seat)).await;
         match self.frame().await {
             ServerFrame::Welcome {
                 observer, world, ..
