@@ -1102,7 +1102,66 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
     @sha256: digest". Cancelled the same way.
   - The scratch branches for M1, M4, M5 and image were deleted after their runs. `git ls-remote --heads
     origin 'scratch/*'` → empty.
-- [ ] Validation (the PR's own runs are the evidence; each recorded with run id, head SHA, wall time):
+  - **Run 3 ●, `pull_request` 37844861446** (head `e498a94`, D-13a-5 applied): `fast` and `test` **PASS**,
+    15 min 5 s for the run. It was the first green `test`, and it proves D-13a-5.
+  - **A13-M3 ●, run 37846804875** on `scratch/13a-m3` (`12aa7e5`: the `test` job's checkout at
+    `fetch-depth: 1`). `fast` was green. `test` was **red**:
+    - the environment report printed `--is-shallow-repository: true`;
+    - `check_1_the_change_set` FAILED at `tests/acceptance/tests/ac1_composability.rs:422` with "… is a
+      shallow clone: check 1 reads the transformation merges from the full history, which a shallow clone
+      does not have. Fetch it all (`git fetch --unshallow`, or `fetch-depth: 0` in CI) — the check fails
+      rather than skips";
+    - "[ci] layer core FAILED at: cargo test --workspace".
+  - **A13-M2 ●, run 37846785240** on `scratch/13a-m2` (`61792da`: `assert_eq!` → `assert_ne!` at
+    `contracts/tests/action.rs:76`). `fast` was **green**. `test` was **red**:
+    `a_request_survives_erasure_and_is_readable_only_as_its_own_action_type ... FAILED`, panicked at
+    `contracts/tests/action.rs:76:5`, then "[ci] layer core FAILED at: cargo test --workspace".
+  - The M2 and M3 branches were deleted after their runs, so every `scratch/13a-*` branch is gone.
+    `git ls-remote --heads origin 'scratch/*'` → empty (2026-10-08 ≈ 21:52 UTC).
+  - **Resumed session, 2026-10-08.** The previous session was cut off by an API rate limit. On resume:
+    - The one uncommitted file was A-C2's ledger update, which closes its validation and review with
+      the CI image evidence. It was checked against the recorded runs, found accurate, and committed
+      (`bc9f430`), not discarded.
+    - `origin/main` was merged at `dd8926b`. It brought S11-A (#76), E-a (#70), 12c (#67) and
+      test-hygiene (#77). `docs/DECISIONS.md` conflicted: DEP-17, DEP-18 and ARC-48 against main's new
+      DEP-29. Both were kept, in that order. `check_decision_ids` → 59 ids, all distinct.
+  - **QTH-4, wired (`9779b06`).** `ci_layer.py`'s `fast` layer gains `check_scratch.py scan`, the declared
+    `scratch-scan` check, after `check_ci_pins.py`. `core` gains `check_scratch.py left --target-dir
+    target`, which runs after `cargo test --workspace` passes. ARC-48, DEP-17's runner-disk limitation
+    and the standards paragraph say so.
+  - Push run 37847797628 (`9779b06`): `fast` **FAIL**, a genuine integration finding.
+    - `check_scratch.py scan` reported five lines, all from other crates' tests in
+      `.ci/cargo/registry/src/` (autocfg, httparse, pkg-config).
+    - Cause: `.ci/` is CI's `CARGO_HOME` inside the checkout (D-13a-3), and the scan walked it.
+    - Fix, recorded as **D-13a-6** (`5509426`): `check_scratch.py` skips `.ci`, as it already skips
+      `target` and `.git`. That is a one-line edit to a script; no Rust and no test changes. `.ci/` is
+      gitignored and holds no MineWorld test.
+    - Checked locally: a probe `.rs` under `.ci/cargo/registry/src/x/tests/` that calls `temp_dir()`
+      leaves the scan at "142 test sources, … (1 exempt)", exit 0.
+    - The PR run on the same head (37847803235) was cancelled once its `fast` was red. Its `test` job
+      had not started, so it ran no tests.
+  - **Run 4 ●, `pull_request` 37848072922** (head `5509426`, merge ref `2c1c658`): `fast` and `test`
+    **PASS**.
+    - `fast`: 1 min 42 s for the job; the layer ran 7 commands in 22.0 s. The cache was restored
+      (`cargo-fast-7ad3db3d…`). `check_scratch.py scan` → "142 test sources, none makes scratch outside
+      mineworld-test-support (1 exempt)".
+    - `test`: 11 min 59 s for the job (21:37:57 → 21:49:56 UTC); the layer ran 3 commands in 646.9 s.
+      The cache was restored from `cargo-core-7ad3db3d…`, saved before main's merge changed
+      `Cargo.lock`, so dependencies were partly rebuilt.
+      - `cargo test --workspace --no-run` took 152.1 s, against 282.5 s cold in run 2.
+      - `cargo test --workspace` took 494.8 s. Summed over 156 `test result:` lines: **689 passed, 0
+        failed, 1 ignored**. `ac1_composability` passed 13/13. `precursor_vocabulary` and
+        `seam_vocabulary` passed. `kill_and_resume` printed `[cafe] PASS` and `[clock] PASS`, and
+        `arrival_resolvers_resume` printed `[resolver-yard] PASS`.
+      - `check_scratch.py left --target-dir target` → "no scratch left under target/tmp or as
+        /tmp/mineworld-*" (QTH-4, live).
+      - Disk (`/dev/root`, 145 G): 83 G free before the tests, 80 G after, 83 G after pruning. `target/`
+        was 789 M (restored) before, **3.9 G at its peak** after the tests (no `target/tmp` was left),
+        and 340 M after the prune. That compares with 11 G at run 2's failure, before #77.
+      - A13-2 and A13-4: rustc 1.97.1, rustfmt 1.9.0, clippy 0.1.97, git 2.47.3; `false` for shallow,
+        and `blob:none`.
+- [x] Validation (the PR's own runs are the evidence; each recorded with run id, head SHA, wall time).
+  The final head's runs are recorded in A-C4. These were the planned items:
   - `python3 scripts/ci_layer.py --list fast` and `core` locally: the commands equal §3.4 and
     `standards.md`'s declared checks (a review diff, recorded).
   - PR run 1 (cold): A13-1, A13-2, A13-3, A13-4.
@@ -1113,27 +1172,72 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
   - nextest's harness question (§5.3): `cargo nextest list -p mineworld-persistence` run once locally if
     nextest is already installed. Otherwise recorded NOT RUN, and the §5.3 verdict rests on nextest's
     documented custom-harness requirements, cited.
-- [ ] Review:
-  - Every third-party action is pinned to a full SHA, with its version in a comment.
-  - No `continue-on-error`, `|| true` or retry in a blocking job (I-S13-4).
-  - The workflow contains no check command (I-S13-9).
-  - Root-owned files cannot break the cache step (`--user`).
-  - Partial clone plus sparse checkout leaves every history-reading test's verdict unchanged (A13-1),
-    or the fallback in §3.5 was taken and recorded.
+  - Outcome of those items:
+    - `--list`: PASS. `fast` has 7 commands and `core` has 3, equal to `standards.md`'s declared checks
+      plus `check_ci_pins.py` and the QTH-4 `left` check.
+    - The PR's runs: run 4 and the final head's runs (A-C4).
+    - `image`: from `scratch/13a-image` (R-1).
+    - M1…M5: all red at the named job.
+    - nextest: **NOT RUN**, because `cargo-nextest` is not installed (`~/.cargo/bin` has none). The §5.3
+      decline rests on nextest's documented custom-harness requirement, as DEP-17 cites.
+- [x] Review (on `5509426`):
+  - Every third-party action is pinned to a full SHA, with its version in a comment: checkout, cache,
+    setup-buildx and build-push (`grep uses:`).
+  - No `continue-on-error`, `|| true` or retry appears anywhere in the workflow or the composite action.
+  - The workflow contains no check command. Its only `run:` lines are the composite action's `docker run
+    … ci_layer.py` and prune, and `image`'s `ci_image.py`.
+  - Both `docker run`s pass `--user "$(id -u):$(id -g)"`.
+  - The fallback in §3.5 was taken (D-13a-5): no sparse checkout. History-reading tests pass with the
+    partial clone (`ac1_composability` 13/13), and M3 shows they fail closed when it is shallow.
 
 **Commit boundary.** Workflow, layer script and ignore line. Scratch mutations are never committed to
 the PR branch.
 
 ## A-C4 — Close: status, ledger, handoff
 
-- [ ] `docs/MVP_STATUS.md` S13 row: 13a merged state, the layer table's first two rows live.
-- [ ] `README.md`: two lines, "CI" and "Run in Docker", linking to ARC-S13-a and the Dockerfile.
-- [ ] Ledger: the measured cold and cached wall times and minutes per PR (§10.1, replacing estimates); disk
-  peak; the mutation evidence; deviations.
-- [ ] A13-7 (`git diff --stat main...HEAD` lists only §9's files) and A13-8 (two 300-day digests,
-  locally, on the final head).
-- [ ] Review: every A13 item has evidence on the exact final head; the four §7.1 adversarial results are
-  recorded; nothing material arose, or it went to the operator.
+- [x] `docs/MVP_STATUS.md` S13 row: 13a is described as awaiting review, and the "merged" wording waits
+  for the merge. The row now says the repository is public, and that blocking stays policy until
+  protection requiring `fast` and `test` is enabled after 13a merges.
+- [x] `README.md`: the "CI" and "Run in Docker" lines link to ARC-48 and the `Dockerfile`.
+- [x] Ledger. These are measured figures; they replace §10.1's estimates for the public runner:
+  - Cold `test` (run 2, empty `core` cache): `cargo test --no-run` took 282.5 s. No cold run went green
+    end to end; run 2 failed on D-13a-5's finding.
+  - Warm `test` (run 4, cache restored before a `Cargo.lock` change): 11 min 59 s for the job, with
+    152.1 s of build and 494.8 s of tests.
+  - `fast`: 1 min 31 s to 1 min 42 s when warm, and 3 min 19 s cold on the private runner (run 1).
+  - A PR therefore costs about 14 job-minutes per pushed head: `fast` twice (push and PR), plus `test`
+    once. That is free on a public repository.
+  - Disk: `target/` peaks at 3.9 G and nothing is left in `target/tmp`; free space never fell below
+    80 G. R-2 is closed: no clean-up step is needed.
+  - Mutations: M1…M5, all red at the named job (A-C3).
+  - Deviations: D-13a-0 … D-13a-6 (A-C3, §9.5).
+  - Runs of `test`-sized work, counted ●: runs 1, 2, 3 and 4, `image`, M1…M5, and the final head's
+    run make **11 of 12**. Run 37847803235 was cancelled before its `test` started and is not counted.
+- [x] A13-7. `git diff --stat origin/main…HEAD` (after the `dd8926b` merge) lists only `.dockerignore`,
+  `.github/actions/layer/action.yml`, `.github/workflows/ci.yml`, `.gitignore`, this file,
+  `.structured-coding/standards.md`, `Dockerfile`, `README.md`, `docs/DECISIONS.md`, `docs/MVP_STATUS.md`
+  and `scripts/{check_ci_pins,ci_image,ci_layer,check_scratch}.py`. No `.rs` file, no `Cargo.*` and no
+  test file appears.
+- [x] A13-8, locally, on `9779b06`'s Rust sources, which equal the final head's and main's (A13-7). Debug
+  `target/debug/mineworld run worlds/<w> --headless --seed 7 --days 300`, sha-256 of every line but
+  `wall`:
+  - social-cafe: exit 0, 339 lines, faults 0, `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b`,
+    17.2 s;
+  - market-town: exit 0, 355 lines, faults 0, `365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d`,
+    18.1 s.
+
+  Both equal E-RS0 and step-16's records for main, so I-S13-8 holds.
+- [x] Review:
+  - A13-1 … A13-4 rest on run 4 and the final head's run. A13-5 rests on the `image` run, and A13-6 on
+    the final head's run, recorded below. A13-7 and A13-8 are recorded above.
+  - The §7.1 adversarial results are M1…M5.
+  - The nothing-material check:
+    - D-13a-6 is a one-line skip in a script, inside QTH-4's wiring.
+    - No setting, protection or spending was touched.
+    - No Rust or test file changed.
+  - Final-head evidence (the ledger commit pushed after run 4; a docs-only change, so it is also A13-6's
+    cached run): recorded in the PR description and in the session report, because a run on a commit
+    cannot be written into that same commit.
 
 ## 9.2 Test ownership for 13a
 
@@ -1215,7 +1319,8 @@ untouched.
 PROJECT / PR       MineWorld mvp0 — S13 PR 13a, the container and the per-PR CI
 PRIMARY DESIGN     this file §9 (§9.0 binds); contract §9.4 as amended by §9.0 R-6
 BRANCH / WORKTREE  mvp0/pr-13a-ci · /Users/yuema137/mineworld-worktrees/impl-s13a (sole writer)
-BASE               main @ 47c81d1
+BASE               main @ 47c81d1; origin/main @ e98321a merged at dd8926b (2026-10-08)
+STATE              READY FOR OPERATOR REVIEW (PR #63) — DO NOT MERGE; branch protection follows the merge
 FROZEN             2026-10-08, primary session (§9.0 status line)
 ENDPOINTS          commits, push, PR create/update, CI repair: authorized (D-12); scratch/13a-*
                    push+delete: authorized (QS13-14, §9.0 R-4); settings, spending, Rust/test edits:
