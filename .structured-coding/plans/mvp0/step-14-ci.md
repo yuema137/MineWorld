@@ -862,12 +862,25 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
 
 **Depends on:** freeze. **Non-goals:** no code.
 
-- [ ] Implementation: the three records; the standards paragraph.
-- [ ] Validation: `check_decision_ids` (all distinct); `check_doc_headings`; every cross-reference
-  (ARC-30, ARC-35, D-12, QS-59, Q9, R-B7) checked by grep.
-- [ ] Review: each DEP answers `REUSE_POLICY.md` §11's questions and gives a §12 reason per declined
-  option. ARC-S13-a states F-1 truthfully: it claims no mechanism that the repository's settings do not
-  have. No defined term is redefined.
+- [x] Implementation: `DEP-17`, `DEP-18`, `ARC-48` appended to `docs/DECISIONS.md` (numbers per §9.0 R-3,
+  re-checked unused on every `origin/*` branch just before writing); the standards paragraph ("CI runs the
+  same declared checks through one entry point"). The JSON block is unchanged.
+- [x] Validation (2026-10-08, working tree on `e07b3ea`): `check_decision_ids` → 54 decision ids, all
+  distinct (51 + 3); `check_doc_headings` → 176 sections across 25 documents, none duplicated. The
+  cross-references ARC-30, ARC-35, D-12, QS-59 and R-B7 resolve by `git grep` (to `DECISIONS.md`,
+  `overall.md`, `step-10-market.md` and `step-11-bodies.md`). Q9 is step-08's, cited as in §3.3.
+- [x] Review:
+  - Each record states its problem, its options, the choice, why not ourselves, why not the others (a
+    `REUSE_POLICY.md` §12 reason for each), the isolating interface, and the accepted limitations.
+  - ARC-48 states F-1 truthfully. Enforcement is policy now; protection is a named follow-up after the
+    flip; and no claim is made of a mechanism the settings lack.
+  - No defined term (`World Pack`, `System Pack`, …) is redefined.
+  - Bounded additions, recorded here:
+    - DEP-18 adds `STOPSIGNAL SIGINT`. The audit of `tools/cli/src/main.rs::serve` shows the server stops
+      only on `ctrl_c()`. As PID 1 with no `SIGTERM` handler, `docker stop` would otherwise wait 10 s and
+      `SIGKILL` it. No code change is involved.
+    - The `nextest` decline cites nextest's documented custom-harness requirement, because nextest is
+      not installed here (§A-C3).
 
 **Commit boundary.** Documentation only.
 
