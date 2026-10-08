@@ -66,6 +66,87 @@ pub const CAPACITY_GRID: Millimetres = Millimetres::new(650);
 /// round trip through Rapier never moves a whole millimetre by itself.
 pub const COORDINATE_BOUND: Millimetres = Millimetres::new(100_000);
 
+/// A box's smallest half-extent, and a ball's smallest radius (step-11 §18.3.1).
+pub const OBJECT_HALF_MIN: Millimetres = Millimetres::new(50);
+
+/// A box's largest half-extent in x and y, and a ball's largest radius: an object touching a person is
+/// then within reach (300 + 10 + 400 = 710 mm < 800 mm).
+pub const OBJECT_HALF_MAX: Millimetres = Millimetres::new(400);
+
+/// A box's largest half-extent in z.
+pub const OBJECT_HALF_HEIGHT_MAX: Millimetres = Millimetres::new(500);
+
+/// Loose objects lying in one place, at most: every one is built into each scene of that place.
+pub const OBJECTS_MAX: usize = 32;
+
+/// How far a kicker's centre may be from the object's ground point (step-11 §8.1).
+pub const KICK_REACH: Millimetres = Millimetres::new(800);
+
+/// How far a thrower's centre may be from the object's ground point (step-11 §8.1).
+pub const THROW_REACH: Millimetres = Millimetres::new(800);
+
+/// How far a shover's centre may be from the target's (step-11 §8.1).
+pub const SHOVE_REACH: Millimetres = Millimetres::new(1_000);
+
+/// Within this distance a shove is offered **complete** — with the request a requester may submit
+/// unchanged; beyond it, up to `SHOVE_REACH`, it is offered without one (step-11 SD-O18's rung p1,
+/// §18.11 DO-13). The paced controller attempts only complete offers (`ARC-34` item 4), so this is
+/// the pack's offer policy deciding how often headless people shove; the request's own requirement
+/// stays `SHOVE_REACH`.
+pub const SHOVE_OFFER_REACH: Millimetres = Millimetres::new(800);
+
+/// How far a shove asks to move its target (step-11 §8.1, QB-10): the deliberate, larger displacement.
+pub const SHOVE_DISTANCE: Millimetres = Millimetres::new(500);
+
+/// A kicked object's initial speed, in millimetres per second: horizontal, away from the kicker.
+pub const KICK_SPEED: i32 = 5_000;
+
+/// Sub-steps of 1/60 s a kick's flight may take, at most: 3 s.
+pub const KICK_STEPS: u32 = 180;
+
+/// Sub-steps of 1/60 s a throw's flight may take, at most: 4 s.
+pub const THROW_STEPS: u32 = 240;
+
+/// Sub-steps a throw's arc is aimed to take to its point: 0.8 s.
+pub const THROW_FLIGHT: i32 = 48;
+
+/// How far beyond the object an unaimed throw is aimed.
+pub const THROW_DEFAULT: Millimetres = Millimetres::new(3_000);
+
+/// An aimed throw's point lies at most this far from the object's ground point (step-11 §8.1).
+pub const THROW_RANGE_MAX: Millimetres = Millimetres::new(6_000);
+
+/// How far a launched object's footprint comes to rest from every solid, unless its flight was
+/// blocked (step-11 SD-O13's p4 note, the primary session's rule): a person's radius, so a resting
+/// object always leaves a body's width of approach to the furniture.
+pub const REST_CLEARANCE: Millimetres = Millimetres::new(300);
+
+/// The step, in millimetres, by which a flight's end is pulled back along its line (p4).
+pub const PULL_BACK_STEP: i32 = 10;
+
+/// An object slower than this, in millimetres per second, …
+pub const REST_SPEED: i32 = 50;
+
+/// … for this many consecutive sub-steps has come to rest.
+pub const REST_STEPS: u32 = 10;
+
+/// A path keyframe every this many sub-steps: 0.1 s (step-11 §4.7).
+pub const PATH_EVERY: u32 = 6;
+
+/// Keyframes in a path, at most (step-11 §4.7).
+pub const PATH_MAX: usize = 40;
+
+/// The push bisection's upper bound: above `PERSON_RADIUS + GAP + √2 · OBJECT_HALF_MAX` (≈ 876 mm),
+/// and a power of two, so the bisection takes exactly ten halvings.
+pub const PUSH_SEARCH: i32 = 1_024;
+
+/// Gravity in millimetres per second squared: the value the adapter gives Rapier (9.81 m/s²), here as
+/// an integer so that a launch velocity is computed in integers.
+pub const GRAVITY: i32 = 9_810;
+
+/// Sub-steps per second (the fixed step is 1/60 s, step-11 DC-4).
+pub const STEPS_PER_SECOND: i32 = 60;
+
 /// A point on a place's floor, in whole millimetres.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Point {
@@ -187,14 +268,6 @@ impl Room {
             && others
                 .iter()
                 .all(|other| distance2(p, *other) >= apart * apart)
-    }
-
-    /// The free point (as [`Room::free_at`]) of the [`LATTICE`] nearest `target`, ties broken by `y`
-    /// then `x`; [`None`] only when the floor has none.
-    pub(crate) fn nearest_free(&self, target: Point, others: &[Point]) -> Option<Point> {
-        lattice(self.floor, PERSON_RADIUS.value(), LATTICE.value())
-            .filter(|p| self.free_at(*p, others))
-            .min_by_key(|p| (distance2(*p, target), p.y, p.x))
     }
 
     /// The points of the [`CAPACITY_GRID`], anchored at the floor's south-west corner plus a radius

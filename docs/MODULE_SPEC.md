@@ -368,8 +368,19 @@ tags: [light]              # optional
 note: Hangs by the door.   # optional
 ```
 
-An item file declares an **item kind**, not one object: in MVP-0 what anybody holds of an item is a
-count of its kind, and a world has no item instances (`DECISIONS.md` `ARC-36`). An item or
+```yaml
+# items/<key>.yaml carrying `body:` — one loose object, not a kind (ARC-36 note)
+tags: [toy]
+# body:                    # a section owned by the `bodies` system (below)
+#   shape: { ball: 110 }   # or { box: { x: 200, y: 200, z: 200 } }: half-extents, millimetres
+#   at: { place: hall, x: 3000, y: 2000 }
+```
+
+An item file declares an **item kind**, not one object, **unless it carries `body:`**: in MVP-0 what
+anybody holds of an item is a count of its kind, and a world has no item instances (`DECISIONS.md`
+`ARC-36`). An item file with a `body:` section declares exactly one physical object lying on a place's
+floor; it is never a declared kind (it carries no `item:` section), so nobody ever holds it (`ARC-36`
+note). An item or
 organization file has no `location` and no `passages`; either key there is refused as unknown, at its
 line.
 
@@ -423,16 +434,32 @@ job       employment people   { employer: <organization key>, workplace: <place 
                               <count per full shift ≥ 1> } }; from < until (a shift lies within one
                               day); produces is optional. Work is attendance at the workplace during
                               the shift. Disclosed to the employee only (`ARC-38`)
-body      bodies     places   { floor: { min: {x, y}, max: {x, y} }, solids: [ { min: {x, y}, max: {x,
-                              y}, height } ] }: the place's walkable rectangle — its edge is the
-                              place's walls — and up to 64 solid boxes standing on it, integer
-                              millimetres in the place's frame. Each floor side ≥ 620 mm; each solid
-                              non-empty, height 1–10 000; every coordinate within ±100 000. `solids` is
-                              optional. Unknown keys refused. A place without it has no geometry, and
-                              nobody in it is resolved. At genesis the pack refuses two people closer
-                              than 595 mm, a centre outside the floor shrunk by 300 mm or within 300 mm
-                              of a solid, and a floor that cannot hold the world's population. Disclosed
-                              to whoever perceives the place (`ARC-39` note, `DEP-13`)
+body      bodies     places,  Two forms, one per kind of file; mixing them, or neither, is refused,
+                     items    naming the keys, and a form on the other kind of file is refused
+                              (`bodies-section-kind`). Unknown keys refused.
+                              Place form — { floor: { min: {x, y}, max: {x, y} }, solids: [ { min:
+                              {x, y}, max: {x, y}, height } ] }: the place's walkable rectangle — its
+                              edge is the place's walls — and up to 64 solid boxes standing on it,
+                              integer millimetres in the place's frame. Each floor side ≥ 620 mm; each
+                              solid non-empty, height 1–10 000; every coordinate within ±100 000.
+                              `solids` is optional. A place without it has no geometry, and nobody in
+                              it is resolved. At genesis the pack refuses two people closer than
+                              595 mm, a centre outside the floor shrunk by 300 mm or within 300 mm of a
+                              solid, and a floor that cannot hold the world's population.
+                              Object form — { shape: { box: { x, y, z } } | { ball: <radius> }, at:
+                              { place: <place key>, x, y } }: one loose object lying on that place's
+                              floor (`ARC-36` note). A box's half-extents are 50–400 mm in x and y and
+                              50–500 in z; a ball's radius 50–400. At genesis the pack refuses an
+                              object in a place without `body:` (`bodies-unshaped`), on an item that is
+                              also a declared kind (`bodies-held-kind`), a 33rd object in one place
+                              (`bodies-objects-max`), a footprint leaving the floor
+                              (`bodies-object-outside`), meeting a solid (`bodies-object-in-solid`),
+                              overlapping another object (`bodies-object-overlap`) or a person's disc
+                              (`bodies-object-on-person`), and a place whose capacity no longer holds
+                              the population with its objects (`bodies-capacity`).
+                              A place's shape, and a listing of the objects lying in it (each one's
+                              shape and position), are disclosed to whoever perceives the place
+                              (`ARC-39` notes, `DEP-13`)
 ```
 
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and
