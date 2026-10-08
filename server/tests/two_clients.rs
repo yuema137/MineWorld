@@ -53,7 +53,7 @@ async fn start() -> SocketAddr {
         .await
         .expect("an ephemeral port");
     tokio::spawn(async move {
-        let _ = app::serve(listener, host).await;
+        let _ = app::serve(listener, host, support::admission()).await;
     });
     address
 }
@@ -93,7 +93,7 @@ impl Client {
 
     /// Joins a seat and returns the observer the *server* chose for it.
     async fn join(&mut self, seat: &str) -> (EntityId, WorldSummary) {
-        self.send(json!({ "t": "join", "seat": seat }).to_string())
+        self.send(support::join_frame(seat, "tester").to_string())
             .await;
         match self.frame().await {
             ServerFrame::Welcome {
@@ -529,7 +529,7 @@ async fn nothing_streams_until_a_seat_is_granted_and_a_seat_is_held_for_the_conn
     );
 
     client
-        .send(json!({ "t": "join", "seat": CAROL }).to_string())
+        .send(support::join_frame(CAROL, "tester").to_string())
         .await;
     match client.answer().await {
         ServerFrame::Refused { code, .. } => assert_eq!(
@@ -542,7 +542,7 @@ async fn nothing_streams_until_a_seat_is_granted_and_a_seat_is_held_for_the_conn
 
     let (alice, _) = client.join(ALICE).await;
     client
-        .send(json!({ "t": "join", "seat": BOB }).to_string())
+        .send(support::join_frame(BOB, "tester").to_string())
         .await;
     match client.answer().await {
         ServerFrame::Refused { code, .. } => assert_eq!(
@@ -566,7 +566,8 @@ async fn nothing_streams_until_a_seat_is_granted_and_a_seat_is_held_for_the_conn
 /// A request whose system defers a fact is answered with nothing *now*; the fact is held in the
 /// world's own schedule, fired when the host's clock reaches its instant, and reaches every client
 /// entitled to it — carrying the request as its cause. Until S4 this server could only count such a
-/// deferral as `deferrals_unscheduled`; the counter now stays at zero because nothing is dropped.
+/// deferral as `deferrals_unscheduled`; protocol revision 2 removed that always-zero counter, and the
+/// fact arriving later with its cause is the evidence that nothing is dropped.
 #[tokio::test]
 async fn a_fact_a_system_defers_reaches_the_clients_at_its_instant() {
     let address = start().await;
@@ -632,9 +633,5 @@ async fn a_fact_a_system_defers_reaches_the_clients_at_its_instant() {
 
     let after: WorldSummary =
         serde_json::from_value(get(address, "/status").await).expect("a status answer");
-    assert_eq!(
-        after.deferrals_unscheduled, 0,
-        "nothing was left unscheduled"
-    );
     assert_eq!(after.faults, 0);
 }

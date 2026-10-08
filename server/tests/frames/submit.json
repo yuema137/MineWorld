@@ -1,0 +1,6 @@
+{ "t": "submit", "token": "c1", "request": {
+    "actor": "101",
+    "action_type": "talk",
+    "target": "9007199254740995",
+    "payload": { "action_type": "talk", "payload": { "utterance": "hello" } },
+    "actor_location": null } }

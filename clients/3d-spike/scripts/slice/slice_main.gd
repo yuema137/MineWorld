@@ -379,4 +379,5 @@ func _link() -> void:
 	link.spoke.connect(func(line: String) -> void:
 		if hud != null:
 			hud.caption(line))
-	link.start(address, SliceLink.seat_from_args())
+	link.start(address, SliceLink.seat_from_args(), SliceLink.invite_from_args(),
+		SliceLink.nickname_from_args())

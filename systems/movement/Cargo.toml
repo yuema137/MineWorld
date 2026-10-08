@@ -19,3 +19,4 @@ serde_json = { workspace = true }
 [dev-dependencies]
 mineworld-conversation = { workspace = true }
 mineworld-persistence = { workspace = true }
+mineworld-test-support = { workspace = true }

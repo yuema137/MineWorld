@@ -70,6 +70,7 @@ matching layer in `ci_layer.py`.
       "Integration, contract, and scenario tests carry the validation weight; unit tests exist where they carry real information, not to raise a count",
       "No test exists whose only assertion is that a getter returns a field, a constructor assigns its arguments, an enum lists its variants, or a third-party library works as documented",
       "Core tests do not require a live external LM API; they use deterministic controllers or recorded cognition results",
+      "A test that writes files makes them through mineworld-test-support's scratch! and holds the guard while it uses the path, so the scratch is removed when the test ends, pass or fail",
       "Randomness used in scenarios is seedable, and a fixed seed with fixed inputs and system versions reproduces the run",
       "The authoritative simulation runs and is testable headless, with no renderer present",
       "Every meaningful bug fix lands with a test that failed before the fix, at integration level when the defect spanned components",
@@ -150,6 +151,15 @@ matching layer in `ci_layer.py`.
         "command": [
           "python3",
           "scripts/check_doc_headings.py"
+        ],
+        "scope": "repository"
+      },
+      {
+        "name": "scratch-scan",
+        "command": [
+          "python3",
+          "scripts/check_scratch.py",
+          "scan"
         ],
         "scope": "repository"
       },

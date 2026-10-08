@@ -12,6 +12,7 @@ members = [
     # (DECISIONS.md ARC-33). A new pack names its sibling packs by path, not below.
     "systems/*",
     "tests/acceptance",
+    "tests/support",
     "tools/cli",
     "worldpack",
 ]
@@ -46,7 +47,10 @@ mineworld-group-activity = { path = "systems/group-activity" }
 mineworld-installed-systems = { path = "systems/installed" }
 mineworld-server = { path = "server" }
 mineworld-worldpack = { path = "worldpack" }
-serde = { version = "1.0.229", features = ["derive"] }
+# Test support only (DEP-29): a test's scratch directory, removed when the test ends. Never a
+# [dependencies] entry of any crate.
+mineworld-test-support = { path = "tests/support" }
+serde ={ version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
 serde_json = "1.0.151"
 trybuild = "1.0.121"
@@ -76,8 +80,15 @@ tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net", "t
 futures-util = { version = "0.3.34", default-features = false, features = ["sink", "std"] }
 tokio-tungstenite = "0.29.0"
 
-# The `mineworld` command's argument parsing (DEP-11): named only in `tools/cli/src/main.rs`.
-clap = { version = "4.6.6", features = ["derive"] }
+# Join secrets (DEP-14): the OS random source makes an invite, and `subtle` compares an offered one in
+# constant time. Named only inside `server/src/admission.rs`. `getrandom` 0.3 is already compiled
+# through tungstenite's `rand`, so this adds an edge, not a second copy.
+getrandom = "0.3.4"
+subtle = "2.6.1"
+
+# The `mineworld` command's argument parsing (DEP-11): named only in `tools/cli/src/main.rs`. `env`
+# lets `--invite` come from MINEWORLD_INVITE (no new crate), with its value hidden from `--help`.
+clap = { version = "4.6.6", features = ["derive", "env"] }
 
 # The development profile every `cargo build` and `cargo test` uses (docs/DECISIONS.md ARC-30).
 # Optimized at level 1 because the acceptance tests run real worlds for hundreds of simulated days:
