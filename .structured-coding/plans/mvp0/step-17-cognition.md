@@ -1402,3 +1402,316 @@ Proposed `DECISIONS.md` entries, drafted in §12:
 - **Decline**, in one record, `DEP-S10-f`, each with the reason above and a re-evaluation trigger:
   LiteLLM, Instructor, Outlines, guidance, Letta, mem0, LangChain/LangGraph, Graphiti, vcrpy as the
   cognition recorder, gRPC.
+
+---
+
+# 5. Invariants
+
+Each one is checked by a named test (§10), not by review alone.
+
+| ID | Invariant | Checked by |
+| --- | --- | --- |
+| I-1 | No change to `kernel/` or `contracts/` anywhere in this step. | diff check in every PR's review |
+| I-2 | The server depends on no controller and no Python. No Rust crate depends on `cognition/lm-controller` or `sdk/python`. | `cargo tree`, IC-7 |
+| I-3 | A seat's cognition reads only its own frames (observations, perceived events, results), its own store and the operator's configuration. It never reads a save, the fact log, the objective biography or another seat's store. | IC-4 (d), IC-8; a test that runs cognition with the save directory unreadable |
+| I-4 | Perception is one function: the facts a subscriber receives live, followed by those it receives on resume, equal `mineworld perceived` over the same save. | IC-1 |
+| I-5 | Memory is a derivation: with the store deleted and the seat re-joined from a null cursor, the structural store is byte-identical. | IC-4 (e), P6 test |
+| I-6 | The world never reads cognition state. Deleting every cognition store changes no byte of any save. | P6 test |
+| I-7 | Byte-identity: social-cafe's and market-town's 300-day digests, and every existing observation frame and transcript, are unchanged by every PR of this step. The reference digest is the one current on `main` when the PR merges, since S15's 12d re-baselines them. | IC-9 |
+| I-8 | A world replay never calls a model: the journal holds every utterance. | the existing restart and replay tests, run with cognition absent |
+| I-9 | A new System Pack needs no cognition code to be perceived and remembered (generic renderer). To be *attempted* by an LM seat it needs complete affordances (`ARC-34`), or an action known by name. | P4 test with a synthetic event type |
+| I-10 | No provider concept appears in a World Pack, a contract, `mineworld-sdk`, a cassette key, the memory store or the decision context. A provider concept is a provider name, a model name, an endpoint or a key. | IC-10 |
+| I-11 | The full core suite, Rust and Python, passes with no model reachable. Cognition tests run with outbound network blocked except to the test's own server. | IC-5 |
+| I-12 | Every summary carries Event IDs, and every one resolves to a fact the seat perceived. | IC-4 (b) |
+| I-13 | The context a model sees is bounded independently of the world's age. | IC-4 (a) |
+| I-14 | At most one controller drives a Person at a time. | R-S11-4's test; P6 |
+| I-15 | A model decides only social choices. Movement and routine are deterministic. | P6 test: `Step` decisions never pass through a backend |
+| I-16 | No secret is written anywhere: log, cassette, store or error message. | IC-10 includes a planted fake key that must not appear in any artefact |
+
+---
+
+# 6. Assumptions to verify in implementation, not in planning
+
+| ID | Assumption | Verified in | If false |
+| --- | --- | --- | --- |
+| A-1 | Every person's place can be folded from presence's own facts: genesis placement, `arrived` and displaced arrivals. | P1, first commit: fold the 300-day save; compare with the `Presence` components at every snapshot | Seed the fold from the newest snapshot's `Presence` components, and fold forward from there |
+| A-2 | Every fact caused by a request carries `provenance.controller_decision`, including facts caused by reactions. `kernel/src/dispatch.rs:696` sets it on one path. | P6 | The decision log links by `caused_by` instead, which `inspect` already resolves |
+| A-3 | Ollama's `/v1` honours `response_format` with a JSON Schema for the chosen model. | P5 spike | Add `OllamaNativeBackend` (`format=`), as QS10-3 provides |
+| A-4 | A local model answers a social decision within 15 s at the 95th percentile on the operator's machine. | P5 spike, on the operator's hardware | Raise `max_decision_age` within the spike's evidence, or choose a smaller model (QS10-2) |
+| A-5 | Facts per seat per simulated day stay small enough that SQLite ingestion keeps pace with a hosted world, which runs one simulated second per wall second. | P4: measure ingestion over the 100-day export | Batch ingestion per `perceived` frame; it is already per frame |
+| A-6 | `spoke` lists the speaker among `participants`, so a speaker perceives their own words. **Verified:** `conversation/src/system.rs` `.with_participants(both)`. | — | — |
+
+---
+
+# 7. Change amplification and the two gate questions
+
+**Change amplification** (`ENGINEERING_STANDARDS.md` §8). Adding LM control adds two modules,
+`sdk/python` and `cognition/lm-controller`, plus one System Pack (`persona`) and contracts that are
+seams rather than edits. It edits:
+
+- **presence**: one new file. The job `observe.rs` already names as missing.
+- **server**: one new seam beside `Perception`.
+- **the CLI**: one new command; `agent.rs` passes perceived events.
+- **the rule controller**: F-13.
+
+It edits no `Person` code, no unrelated system, no renderer, no scheduler and no kernel. The routine
+policy in Python repeats a policy, not a rule (§3.4.6). If a later PR finds it must edit an unrelated
+system to make an LM seat work, that is a stop and an architecture question, not a patch.
+
+**Gate 1: a Minecraft-like 3D client without redesigning the kernel?** Yes. Cognition never sees
+geometry beyond the observation's `Location`. The 3D client's `talk` is the same request, and Alice's
+reply is a `spoke` fact that any client renders.
+
+**Gate 2: 2D and 3D without duplicating game logic?** Yes. Neither client knows a controller is a
+model. Both show `spoke` lines as they do today. Milestone D's test has the two clients do identical
+things after acquisition, as `AC-13` requires.
+
+**`AC-1` and the I-2 vocabulary scan.** P1's presence and server changes are framework changes. They
+must name no market concept, and `precursor_vocabulary` checks that. `persona` is a pack under
+`systems/` with content under `worlds/`, the path `AC-1` measures, and it touches no transformation
+range.
+
+---
+
+# 8. Files touched, by PR (proposed; each PR's design confirms against source)
+
+| PR | Adds | Edits |
+| --- | --- | --- |
+| P1 | `systems/presence/src/audience.rs`; `tools/cli/src/perceived.rs`; `tools/cli/tests/perceived.rs` | `systems/presence/src/lib.rs`; `server/src/perception.rs` (the `EventPerception` seam, default `PerceivesNoEvents`); `server/src/lib.rs` (re-export); `tools/cli/src/main.rs`, `tools/cli/src/perceive.rs`; `persistence/src/world.rs` (`facts_after`, if `biography`'s direct read is not reusable); `docs/MODULE_SPEC.md` §8.1 (`perceived`) |
+| P2 | — | `cognition/rule-controller/src/lib.rs` and its tests; `tools/cli/src/agent.rs`; `tools/cli/tests/` (F-13 regression) |
+| P3 | `sdk/python/**` (`pyproject.toml`, `uv.lock`, `src/mineworld_sdk/**`, `tests/**`, `README.md`) | `.structured-coding/standards.md` (enable `ruff`, `pyright`; add `pytest`); `.gitignore` (Python caches) |
+| P4 | `cognition/lm-controller/**` skeleton; `memory/`, `compress/`; `tests/test_ac10.py`; a fixture generator that runs `mineworld run` and `mineworld perceived` | — |
+| P5 | `backend/`, `record.py`, `budget.py`, `config.py`; `tests/cassettes/`; the provider-concept scan | — |
+| P6 | `context.py`, `controller.py`, `__main__.py`, `examples/local.toml`; `systems/persona/**`; `persona:` sections in `worlds/social-cafe/people/*.yaml` | `systems/installed` (one line per manifest); `worlds/social-cafe/world.yaml` (`systems:` gains `persona`); `docs/MODULE_SPEC.md` §4.1 (`persona:` section) |
+| P7 | `tools/cli/tests/milestone_d.rs`; `cognition/lm-controller/tests/cassettes/milestone_d.jsonl`; the removal check (IC-7) | `docs/HUMAN_REVIEW_QUEUE.md` (Milestone D's review package) |
+
+---
+
+# 9. PR split, dependencies and parallelism
+
+PR labels are placeholders (P1 … P7). The primary session numbers them.
+
+```text
+            S11 protocol revision (R-S11-1 … R-S11-7)
+                         │
+P1 perception (Rust) ────┼──► P2 F-13 (Rust)
+   │                     │
+   │                     ▼
+   │                P3 Python SDK ──► P5 backends · recorder · budgets
+   │                     │                         │
+   └──► P4 memory · compression · AC-10 ◄──────────┘ (P4 needs P3's package skeleton only)
+                         │
+                         ▼
+                    P6 LMController · persona ◄── P5
+                         │
+                         ▼
+                    P7 Milestone D ◄── S12 (2D) and S14 (3D) for the operator's run
+```
+
+| PR | Scope | Depends on | Can start before the clients? | Integration checkpoint |
+| --- | --- | --- | --- | --- |
+| **P1** Event perception | presence's audience rule and `Whereabouts`; the `EventPerception` seam; `mineworld perceived` | nothing new | **Yes**, now. No S11 or client dependency | IC-1 (offline half), IC-9 |
+| **P2** F-13 closed | `RuleController` answers from perceived facts; `agent.rs` passes them | P1; the in-process host's perceived channel (R-S11-1, host API half) | Yes, after S11's host-API change | IC-2, IC-9 |
+| **P3** Python SDK | `uv`, `ruff`, `pyright`, `pytest`; wire models with golden frames; the seat session; the `Controller` protocol; an echo controller against a spawned server | S11's protocol revision (tokens, perceived frames, golden frames). Revision 1 frames may be done first | Yes, after S11's protocol PR | IC-1 (live and resumed halves), IC-5 |
+| **P4** Memory and compression | store, renderers, L0–L3, structural summarizer, retrieval; `AC-10` | P1 (offline export); P3's skeleton | **Yes.** It needs no server and no client: it runs on a `run` save | IC-4 |
+| **P5** Backends, recorder, budgets | `ModelBackend`, the OpenAI-compatible adapter, scripted and replay backends, cassettes, budget gate, the provider-concept scan; a live spike on the operator's machine (optional, QS10-2) | P3 | Yes | IC-5, IC-10; the P5 spike's A-3 and A-4 |
+| **P6** `LMController` and `persona` | triggers, routine policy, context, `SocialChoice`, revalidation, decision log; the `persona` pack and social-cafe content | P3, P4, P5; S11 (seat exclusivity, tokens) | Yes. Tested through protocol-level clients | IC-3, I-5, I-6, I-14, I-15 |
+| **P7** Milestone D | `milestone_d.rs` (protocol-level `2d`- and `3d`-tagged clients, SIGKILL, restart), the `AC-4` swap, the removal check; Milestone D's review package | P6; **S12 and S14** for the operator's run with the real clients; S13 for the Python CI job | **The automated test can. The operator's demonstration must wait** for both clients | IC-6, IC-7, IC-8 |
+
+**Under the operator's 2026-10-08 schedule** (implementation after the clients), every PR waits.
+What the table adds is that P1 and P4 depend on nothing in flight, so if the operator wants risk
+retired early, they are the ones to bring forward (QS10-1).
+
+**Parallelism with the other steps.**
+
+| Step | What it means for S10 | What S10 needs from it |
+| --- | --- | --- |
+| S11 server/protocol | owns every server and protocol change S10 needs | R-S11-1 … R-S11-8 (§11), ideally in its protocol revision, so the protocol is revised once |
+| S12 2D client | renders `spoke` lines as today; may opt in to perceived events for a conversation log | nothing new; a runnable client for P7's operator demo |
+| S13 CI | a Python job: `uv sync`, `ruff`, `pyright`, `pytest` with network blocked; the Rust `milestone_d` test needs Python on the runner | R-S13-1: the Python job (§11.2) |
+| S14 3D client | nothing new | a runnable client for P7's operator demo |
+| S15 bodies | 12d re-baselines the 300-day digests; I-7 compares against `main` at merge time | nothing |
+| Milestone E (package composition) | `persona` (a System Pack) and `LMController` (a Controller Pack) are natural examples of independently installable packs | coordination only: if E introduces a Controller Pack manifest, `LMController` adopts it then |
+
+---
+
+# 10. Integration checkpoints and adversarial criteria (decided before measuring)
+
+Each checkpoint states its pass criterion and the mutation that must make it fail. A checkpoint
+whose mutation does not fail it has not tested anything (`ARC-23`).
+
+| ID | Checkpoint | Pass criterion | Mutation that must fail it |
+| --- | --- | --- | --- |
+| IC-1 | Perception is one function | **P1:** `mineworld perceived` over a 30-day social-cafe save includes five **located** overheard `spoke` facts in the café (Alice not a participant) and excludes five located `spoke` facts in the park while Alice was in the café. **P3:** a protocol client's live stream, killed at a random revision and resumed with its cursor, concatenates to exactly the offline export | `Place(p)` admits everyone: the park facts appear. The cursor is resumed one id late: a fact is missing |
+| IC-2 | F-13 regression | `--agent alice`, the server SIGKILLed after a player's line and Alice's answer, then restarted. Alice's `spoke` facts after the restart equal the player's lines after the restart: zero re-answers | restore the `answered` map in place of the perceived check: one extra `spoke` |
+| IC-3 | Revalidation under delay | the scripted backend answers after 3 s; the client leaves `talk`'s range during the delay; no `spoke` from Alice after the departure, in the save; the seat's log shows a pre-submit drop or a `TooFarAway` | the pre-submit check is removed **and** the server is made to skip validation in a scratch build: the test fails. The first alone must still pass, which proves the world's check is the one that holds |
+| IC-4 | `AC-10` | §3.9.5 (a)–(e) | feed the objective log (fails b, d); disable the L1 roll-up (fails a); drop one episode's ids (fails c) |
+| IC-5 | No model reachable | the full `cargo test` and the full `pytest` pass with outbound network blocked, except to the test's own server on localhost | a test that constructs `OpenAICompatibleBackend` against a public URL fails loudly with a network-guard error, not with a timeout |
+| IC-6 | `AC-4` | the Milestone D scenario replayed from one cassette under two backend bindings: `worlds/` byte-identical, keys identical, submitted requests identical | put the backend's model name into the key: the replay under the second binding misses |
+| IC-7 | Removability | with `cognition/lm-controller/` deleted in a scratch tree: `cargo test` passes, the SDK's tests pass, and `milestone_d.rs`'s step 8 (Alice unplugged) passes | make any Rust crate or the SDK import from `mineworld_cognition`: the build fails |
+| IC-8 | Milestone D | §3.14.2 steps 1–8 | the store is deleted between steps 4 and 5 **and** re-ingestion disabled: the 2D ids are absent from the context, and the test fails naming them |
+| IC-9 | Byte-identity | social-cafe and market-town 300-day digests equal `main`'s at merge time; every recorded observation transcript is unchanged | put perceived events into `Observation.events`: the transcripts differ |
+| IC-10 | No provider concept, no secret | a scan of `mineworld-sdk`, `cognition/lm-controller` outside `backend/` and `config.py`, every cassette key, the store schema and `worlds/` finds no provider or model name. A fake key planted in the environment appears in no artefact of a full P7 run | plant `"ollama"` in `context.py`: the scan fails at that file and line |
+
+---
+
+# 11. Requirements on other steps
+
+## 11.1 On S11 (server and protocol), with exact shapes
+
+Proposed for S11's protocol revision. S11 owns the server and the protocol, so S10 implements none of
+these itself, which keeps the protocol to one revision (QS10-15). Shapes are JSON as `PROTOCOL.md`
+writes them, and S11 may rename fields while preserving the semantics.
+
+**R-S11-1 — Perceived events: an opt-in, reliable, ordered stream.**
+
+```json
+{ "t": "join", "seat": "alice", "token": "…", "perceived": { "since": "1873" } }
+{ "t": "join", "seat": "alice", "token": "…", "perceived": { "since": null } }
+```
+
+- Without `perceived`, no `perceived` frame is ever sent. Every existing client is unchanged.
+- The server frame:
+
+```json
+{ "t": "perceived", "through": "1907",
+  "events": [ { …an EventEnvelope, as PerceivedEvent<serde_json::Value>… } ] }
+```
+
+- `events` holds facts admitted by the `EventPerception` seam for this observer, in ascending
+  `EventId`, never reordered, never dropped, never duplicated within a connection.
+- `through` is the highest `EventId` the server has *considered* for this subscriber, whether
+  admitted or not. A client uses it as its cursor, so the cursor advances through facts it was not
+  shown.
+- **Ordering guarantee:** every `perceived` frame covering the facts of revision R is sent before any
+  `observation` frame carrying revision R. A controller then never sees a world newer than its memory.
+- **Flow control:** a separate bounded queue. On overflow the server sends
+  `{ "t": "refused", "code": "lagged" }` and closes. It never drops silently, and the client resumes
+  with its cursor.
+- Ids are decimal strings and payloads JSON values, as `PROTOCOL.md` §7 and §5 already state.
+- **The host API half.** The in-process `Seated` handle gains the same stream, so the `--agent`
+  driver (P2) receives what a WebSocket client receives.
+
+**R-S11-2 — Resume.** `since: "<id>"` delivers every admitted fact with an id greater than `<id>`,
+then continues live. `since: null` delivers from the beginning of what the world holds.
+
+- A persisted world serves from genesis (its fact table). A world without a save serves from its
+  recent window.
+- A cursor older than what can be served is refused `{ "code": "cursor_unavailable" }`. The server
+  never sends a partial history.
+- Needs a streaming fact read after an id from the save. P1 adds it to `persistence` if `biography`'s
+  read is not reusable (§8); S11 uses it.
+
+**R-S11-3 — The audience is decided by the seam, never by the server.** The server calls
+`EventPerception` (P1) and decides nothing itself. Default `PerceivesNoEvents`. `PackPerception`
+wires presence's.
+
+**R-S11-4 — Seat exclusivity and takeover (`AC-5`).**
+
+- At most one live connection holds a seat. A second `join` is refused `seat_taken`, unless it asks
+  to take over: `{ "t": "join", "seat": "alice", "token": "…", "take_over": true }`.
+- The evicted holder receives `{ "t": "released", "reason": "taken_over" }` and is closed.
+- Who may take over is S11's authentication policy. S10 needs only that the evicted seat is told
+  distinctly, and that a re-join by the evicted cognition is refused `seat_taken` while the human
+  holds the seat. The LM seat then backs off and retries at a slow interval, so the NPC resumes when
+  the human leaves (`AC-5`'s spirit: the Person persists across controllers).
+
+**R-S11-5 — Authentication without privilege.** Cognition authenticates exactly as a player does
+(`NETWORKING.md` §9: an invite token, plus a nickname, e.g. `cognition`). No controller-only
+credential and no controller-only frame exist. The token is read from an environment variable the
+operator names.
+
+**R-S11-6 — No change to pacing or cadence is required.** One simulated second per wall second, and
+10 Hz observations, are fine. Cognition reads `at` and never assumes a rate (`PROTOCOL.md` §8).
+
+**R-S11-7 — Golden frames.** S11's tests write one example of every frame kind, client and server, to
+`server/tests/frames/<kind>.json`, and fail if a frame type changes without its example. The Python
+SDK's conformance tests read them (§3.4.2). This is `overall.md` R-9's rule, applied to Python: every
+cross-language boundary is verified from the far side.
+
+**R-S11-8 — The `--agent` driver keeps working.** `mineworld server --agent SEAT` stays, now passing
+perceived events to `RuleController` (P2). Under R-S11-4 it holds the seat exclusively, like any
+client.
+
+## 11.2 On S13 (CI)
+
+**R-S13-1.** A Python job: `uv sync --locked`, `ruff check`, `ruff format --check`, `pyright`,
+`pytest`, with outbound network blocked except localhost. The Rust job that runs
+`tools/cli/tests/milestone_d.rs` needs the same Python environment on the runner. Neither job may need
+a model or a key (I-11).
+
+## 11.3 On S12 and S14 (the clients)
+
+Nothing new. They render `spoke` lines as today, and the 2D client may opt in to perceived events.
+Milestone D's operator demo (§3.14.3) needs both clients runnable against a persisted world.
+
+---
+
+# 12. Proposed edits to documents this session may not edit
+
+Applied by the primary session at freeze, or by the PR named.
+
+| Document | Edit | When |
+| --- | --- | --- |
+| `overall.md` §3 S10 | Add: "**2026-10-08 (operator):** the LM half is designed in `step-17-cognition.md` and implemented after the clients, as PRs P1–P7", with QS10-1's outcome; link the step | at this step's freeze |
+| `overall.md` §4 | `AC-4` → "S10 (step-17), P7"; `AC-10` → "S10 (step-17), P4"; a row for Milestone D → "S10 (step-17), P7, with S12 and S14" | at freeze |
+| `overall.md` §7 | The S10 line, under "Remaining"; F-13 "closed by P2" once merged | at freeze, then at P2's merge |
+| `MVP_STATUS.md` | An S10 row: designed, and implementation scheduled after the clients | at freeze |
+| `DECISIONS.md` | `ARC-S10-a` process boundary (§3.2) · `ARC-S10-b` event perception (§3.3) · `ARC-S10-c` compression with retained ids (§3.9) · `ARC-S10-d` budgets (§3.10) · `ARC-S10-e` recorded model outputs (§3.11) · `DEP-S10-a` … `DEP-S10-f` (§4.8) | each with the PR that implements it; `ARC-S10-a` at freeze |
+| `ARCHITECTURE.md` §13.1 | G-1: the first cross-language boundary is the JSON client protocol; Python mirrors it as typed models held by golden frames; Protobuf/gRPC declined until an encoding need is measured | P3 |
+| `ARCHITECTURE.md` §8 | G-6: `cognition_cache/` leaves the save layout; the cognition store lives in the operator's cognition directory, because it is not world state | P4 |
+| `ARCHITECTURE.md` §6 | Name the `EventPerception` seam and presence's audience rule as the mechanism for event `Visibility` | P1 |
+| `CORE_CONCEPTS.md` §5.4 | G-2: "A controller normally reads the summary" → "A controller normally reads the compression of **its own perceived history**; the objective biography's compression is a tool's view" | P4 |
+| `MODULE_SPEC.md` §5 | `LMController` is a Controller Pack running as a protocol client; operator configuration binds seats and backends; a World Pack binds none | P6 |
+| `MODULE_SPEC.md` §8.1 | the `mineworld perceived` command | P1 |
+| `MODULE_SPEC.md` §4.1 | the `persona:` section, owned by `persona` | P6 |
+| `server/PROTOCOL.md` | revision 2 (S11's document) | S11 |
+| `.structured-coding/standards.md` | enable `ruff`, `pyright`; add `pytest` | P3, as that file instructs |
+| `docs/HUMAN_REVIEW_QUEUE.md` | Milestone D's review package (`ACCEPTANCE.md` §6 shape) | P7 |
+
+---
+
+# 13. Questions
+
+Operator-material questions are marked **[operator]**: provider and cost choices, anything needing a
+paid API, scope, and changes to the 2026-09-25 decision. The rest the primary session may decide, and
+each carries a recommendation.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QS10-1 [operator — scope, changes the 09-25 decision]** | Where does this land? (a) Inside MVP-0, as its last step after S14, with `AC-4`, `AC-10` and Milestone D re-entering MVP-0's gates. (b) As MVP-1's first step, leaving the 09-25 decision as it stands. Also: bring P1 and P4 forward, since they depend on nothing in flight? | **(a)**, with P1 and P4 brought forward. Milestone D is already in the framework milestone list beside A–C and E. P1 and P4 are headless and retire the two largest unknowns (perception's correctness; whether `AC-10`'s bound holds over 100 days) without touching the clients' critical path. |
+| **QS10-2 [operator — provider and cost]** | Which local model, and on what hardware, is the default `social` binding? | Decided by the P5 spike on the operator's machine. Criteria fixed now: schema-valid ≥ 95 % of decisions on the scenario set; 95th-percentile latency ≤ 15 s; Ollama; no key. The model name lives in `examples/local.toml` only. |
+| QS10-3 | Ollama through `/v1` only, or also a native adapter? | `/v1` only, through the `openai` SDK; add `OllamaNativeBackend` only if A-3 fails in the spike. |
+| **QS10-4 [operator — paid API]** | Is a hosted OpenAI-compatible endpoint ever exercised live: to record cassettes, or for a live `AC-4` variant? It needs the operator's key and spend. | Optional and operator-run only, never in CI. At most one recording session per cassette change, with the spend reported in tokens. The default demonstration needs no paid API. |
+| **QS10-5 [operator — provider]** | `MVP.md` §6 says "Ollama plus one generic OpenAI-compatible endpoint". Does Ollama's own `/v1` count as the second? | No. Demonstrate the generic adapter against a second, free, local OpenAI-compatible server (for example llama.cpp's server; its compatibility is *not verified* here), so `AC-4` is shown across two real servers without a paid API. A hosted endpoint is QS10-4's optional extra. |
+| QS10-6 | Admit `cognition_profile` or `requires:` capabilities in `world.yaml`? | No. Keep them refused until a world needs to declare a capability. A World Pack binds no cognition (`AC-4`). |
+| **QS10-7 [operator — scope]** | Add a `persona` System Pack, and author personas for social-cafe's NPCs (and Market Town's)? | Yes for social-cafe in P6. Market Town only if Milestone D's demo uses it. Character is world content (`CORE_CONCEPTS.md` §4.2), not controller configuration. |
+| QS10-8 | How much routine policy does an LM seat get in Python? | Minimal: agenda following, invitation answers, idling. Never a model. No port of the paced bands, and no second controller on the seat. |
+| QS10-9 | With no model (unbound, exhausted, unreachable), should an LM seat speak deterministic phrases or stay silent? | Deterministic short phrases that never claim a memory. Silence reads as a broken NPC. The Rust template is `AC-15`'s evidence and stays in the rule controller. |
+| QS10-10 | Embedding retrieval and beliefs (Graphiti- or generative-agents-style), now or later? | Later, after Milestone D, behind `Retriever`. Both put a model or an embedding service on the memory path. |
+| QS10-11 | The context ceilings (memory ≤ 6 000 bytes; L0 ≤ 48, L1 ≤ 8, L2 ≤ 4, L3 ≤ 16) | Accept as stated. P4 may tune them on the 100-day export **before** IC-4 is run, then freeze them; never after measuring. |
+| QS10-12 | Wire models hand-mirrored with golden frames, or generated (`schemars` → JSON Schema → Pydantic)? | Hand-mirrored with golden frames now; generation when the frame vocabulary outgrows review. |
+| QS10-13 | A moderation filter before submit? | An empty `Filter` seam now; private worlds only in MVP-0. Fill it before any public world (Phase 4). |
+| **QS10-14 [operator — scope]** | Should `mineworld run` (headless) ever drive seats with an LM, for example from a cassette? | No. `AC-10` is shown on a rule-driven history, and an LM in headless runs adds cost, not acceptance evidence. |
+| QS10-15 | Who implements R-S11-1 … R-S11-8: S11 in its protocol revision, or S10 later? | S11. It owns the server and the protocol, and doing it once avoids a second protocol revision. If S11 declines, P3 inherits them, and the protocol revises twice. |
+| QS10-16 | A Python job in CI (R-S13-1)? | Yes, in S13. Without it, I-11 and IC-5 are review promises rather than gates. |
+| QS10-17 | Where does the cognition store live? | In the operator's cognition directory, keyed by world instance and seat, never inside the world's save (§3.8.4). |
+
+---
+
+# 14. Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| R-S10-1 | A local model's dialogue is poor or slow, and Milestone D reads worse than the template. | P5's spike measures quality and latency against fixed criteria (QS10-2) **before** P6 builds on them. The fallback is deterministic speech. The demo's acceptance is `recalls` plus the operator's judgement, never a score the model gives itself. |
+| R-S10-2 | Small models produce invalid structured output often. | Endpoint JSON-Schema mode, one repair, then fallback. The spike's validity rate is a criterion. |
+| R-S10-3 | Prompt changes invalidate cassettes, and tests fail with misses. | Most tests use `ScriptedBackend`. Cassettes are few. A miss shows the first differing field. Re-recording is an operator task, since it needs a model. |
+| R-S10-4 | Perceived-event volume: every stride in the café is an `arrived` fact visible to everyone there, so Alice perceives tens of thousands over 100 days. | Ingestion collapses within-place strides into episodes cheaply. SQLite holds them. Context stays bounded by I-13. A hearing-range or salience perception system is the later refinement, behind the seam. |
+| R-S10-5 | Two controllers drive Alice before R-S11-4 lands. | P6 refuses to run without seat exclusivity: it checks the server's protocol revision at `welcome`. |
+| R-S10-6 | A hosted world runs one simulated second per wall second, so 100 simulated days cannot be shown hosted. | `AC-10` is shown on a `run` save through the offline export, the same audience function (I-4). |
+| R-S10-7 | An observation newer than memory makes a seat answer from a stale past. | R-S11-1's ordering guarantee, and the pre-submit check (§3.6). |
+| R-S10-8 | The project drifts toward the "AI NPC demo" its vision rejects (`VISION.md` §1.1; `MVP.md` §11: *"a demonstration of clever NPC dialogue"* is a non-goal). | `LMController` is one Controller Pack. Milestone D's test includes the unplugged run. No world rule, contract or client depends on a model (§3.16, I-1, I-2, IC-7). |
+| R-S10-9 | Persona text is used to smuggle rules ("always gives free coffee"). | It can only shape speech: an LM seat can attempt only what systems offer (`INV-10`). `MODULE_SPEC.md` §4.1's `persona` entry says so. |
+| R-S10-10 | The model's words claim memories it was not given, even when `recalls` is valid. | A known limit of free text. The context carries ids and the prompt asks for no invention. Evaluation is by the operator's run; the test checks citation, not truth of every clause. |
+| R-S10-11 | S15's 12d re-baselines the 300-day digests while S10 PRs are open. | I-7 compares against `main` at merge time, never against a digest frozen in this document. |
+| R-S10-12 | Python enters a Rust repository and its tooling rots. | `uv` lock; `ruff` and `pyright` strict and enabled the day the first module lands; a CI job (R-S13-1); two small packages with one-way dependencies. |
