@@ -6615,17 +6615,30 @@ towns and both copies without bodies; `validate` of each; **the gate's "before"*
 the base binary, recorded (they reproduce E-TD0b's order of magnitude or the recipe is wrong). A
 profile, information only: with the base binary, 30 prototype days, the share of strides by Route and
 the scene's mean collider count (a crate-private counter read by an ignored test).
-- [ ] Implementation: the captures, the prototypes, the profile.
-- [ ] Validation: each capture's sha recorded; the prototypes validate.
-- [ ] Review: the recipe in §20.12 is what was run, file by file.
+- [ ] Implementation: the captures, the prototypes, the profile. Captures and prototypes done
+  (E-Z-base). **Pending:** the gate's "before" (eight runs need a quiet machine; the load average was
+  23 … 61 throughout, other lanes building and running) and the profile (to be taken with a scratch
+  instrumented build outside the repository — a crate-private counter cannot be read by an ignored
+  test from the CLI's run; §20.13 Z-D3).
+- [ ] Validation: each capture's sha recorded (E-Z-base); the prototypes validate (E-Z-base). The
+  "before" runs pending.
+- [x] Review: the recipe in §20.12 is what was run, file by file — each place and item file
+  transcribed from §19.3.1 and the listing, and checked line for line against E-TD0b's own copy
+  (E-Z-base).
 
 ### ZC-2 — SD-Z2 and SD-Z3 (Class I)
 
 **Scope.** `rapier.rs` (`Scene::build` without the narrow phase, if 0.36.0 allows; audited first),
 `geometry.rs` (`corridor_clear` exact against solids); geometry unit tests (TZ-4).
-- [ ] Implementation.
-- [ ] Validation: TZ-2's ZI-1 … ZI-4 identical; M-Z3; `cargo test -p mineworld-bodies`.
-- [ ] Review: `Pile` and `fly` untouched; F-P1's canary and fix unchanged; integer `i128` only.
+- [x] Implementation, SD-Z2: `rapier.rs` `index` — the broad-phase update `CollisionPipeline::step`
+  makes, without the narrow phase (audit E-Z1); `Scene::build` calls it; `Pile`, `fly` and `refresh`
+  unchanged.
+- [ ] Implementation, SD-Z3: written (`Area::clear_of_segment`, `crossed_by`; `corridor_clear`; TZ-4's
+  unit tests), **moved ZI-1 and ZI-2, reverted** (E-Z1; §20.13 Z-D2, MATERIAL STOP).
+- [x] Validation, SD-Z2: ZI-1 … ZI-4 identical with SD-Z2 alone (E-Z1).
+- [ ] Validation, SD-Z3: FAILED TZ-2 — not result-preserving (E-Z1). M-Z3 not run (nothing to mutate).
+- [x] Review, SD-Z2: `Pile` and `fly` keep `refresh`; F-P1's canary and fix unchanged (unit tests
+  pass); the update's parameters and inputs are `CollisionPipeline::step`'s, read in 0.36.0's source.
 
 ### ZC-3 — SD-Z1, the reachable scene (Class I)
 
@@ -6736,6 +6749,89 @@ E-Z0 ZC-0, 2026-10-08, planning session, on mvp0/s15-12d0-plan (main f842c52 + �
      Doc checks: 191 numbered sections across 26 documents, none duplicated; 55 decision ids, all
      distinct. No cargo run: the prototype measurements are E-TD0b's.
 
+E-Z-base ZC-1, 2026-10-08, implementation session, on mvp0/s15-12d0-plan @ 953ff10 (= main f842c52 +
+     §§19–20, Markdown only), before any code. Machine: Apple silicon, 10 cores, rustc 1.97.1; other
+     lanes building and running in parallel (load average 23 … 61) — none of these captures is a time.
+     `cargo build -p mineworld-cli` (dev) 1 min 41 s; target/debug/mineworld copied to
+       /tmp/s15-12d0/base-mineworld, sha-256 7ba96db5fa9b3a41e20db4d3365ce5bfc0f5f52a1a41d506da05931aa25040b0.
+     /tmp/s15-12d0/capture.sh base (cap-base.log):
+       ZI-1  `BODIES_LONG_RUN_SECOND_PROCESS=1 cargo test -p mineworld-bodies --test long_run --
+             --nocapture` → exit 0; the `LONG-RUN` line 4 091 748 bytes, sha-256
+             d7025dbcdb63c0aa5162c10552f43e2650d24e510dc67f4662ac30d1b2479eaf (= E-PO-base: 12c kept it)
+       ZI-2  `BODIES_LONG_RUN_OBJECTS_SECOND_PROCESS=1 … --test long_run_objects` → exit 0; the
+             `LONG-RUN-OBJECTS` line 569 950 bytes, sha-256
+             53d017d0b8dbf5c3c7e8d6bc7830e2bedcac28eb72bd4fd66f3c4a6cc8595411
+       ZI-3  `base-mineworld run worlds/bodies-yard --headless --seed 7 --days 30` → exit 0, faults 0,
+             62 855 facts, summary sha-256 (every line but `wall`)
+             6e4c4015077924b6747184dd0107164654cefc11532375aff3a9d94a4d7c8395 (= PO-12's 6e4c4015…c8395)
+     /tmp/s15-12d0/towns.sh base (towns-base.log), TZ-1's references:
+       validate bodies-yard 7356b8f8…12063f, market-town 64f41086…73502 (= E-PO-base), social-cafe
+         ebcd60a0…f56a8 (= E-PO-base), each exit 0 (sha-256 of the output)
+       social-cafe 300 days: faults 0, 365 330 facts, ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+       market-town 300 days: faults 0, 372 755 facts, 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d
+       Both = E-TD0. PASS (the references reproduce).
+     The prototype, rebuilt from the recipe below into /tmp/s15-12d0/proto/worlds/{social-cafe,
+       market-town} (step 1 by `GIT_INDEX_FILE=/tmp/s15-12d0/proto.idx git --work-tree=/tmp/s15-12d0/proto
+       checkout 21f96ff -- worlds/social-cafe worlds/market-town`; steps 2–3 by the Write and Edit
+       tools, each place file's passages and `body:` and each item file transcribed from §19.3.1 and the
+       listing below; market-town's items inserted in key order — cafe-ball and cafe-box after bread,
+       street-ball and street-box after soup), and the copies without bodies (step 4) into
+       /tmp/s15-12d0/nobodies/worlds/{social-cafe,market-town}: `- bodies` removed, every `body:`
+       removed, the item files left with their tags. Header comments replaced by one line naming the
+       recipe; every `note:` kept as authored. `validate` (step 5): proto social-cafe 22 entities,
+       67 genesis facts (= the recipe's); proto market-town 44 entities, 143; nobodies social-cafe
+       22, 53; nobodies market-town 44, 129 — all valid. Cross-check against E-TD0b's own copy
+       (/tmp/s15-12d/proto, still on disk): every place and item file of social-cafe equal line for
+       line once comments and `note:` text are set aside.
+
+E-Z1 ZC-2, 2026-10-08, working tree on 953ff10 + rapier.rs (SD-Z2) and geometry.rs (SD-Z3).
+     SD-Z2's audit (rapier3d 0.36.0 source, ~/.cargo/registry): `PhysicsWorld::detect_collisions`
+       (src/pipeline/physics_world.rs:175–186) is `CollisionPipeline::step`
+       (src/pipeline/collision_pipeline.rs:162–219): `bodies.take_modified()`,
+       `colliders.take_modified()` / `take_removed()` (public, collider_set.rs:87, 103), the user
+       changes, then `detect_collisions` (:60–127) = `BroadPhaseBvh::update` (public,
+       src/geometry/broad_phase_bvh/update.rs:35) with `IntegrationParameters {
+       normalized_prediction_distance: prediction_distance, dt: 0, .. }`, then the narrow phase's
+       `register_pairs`, `compute_contacts`, `compute_intersections`. The user changes recompute a
+       collider's pose from its parent only on PARENT changes, and attaching a collider already set it
+       (rigid_body_components.rs:1242). So 0.36.0 exposes a broad-phase-only update: SD-Z2 is kept,
+       as `rapier.rs` `index`.
+     `cargo test -p mineworld-bodies --lib`: 16 passed (TZ-4's two new unit tests among them).
+     /tmp/s15-12d0/capture.sh c2 (both pieces; cap-c2.log): ZI-1 4 115 336 bytes, sha-256
+       b3a570410064e2b81b1004a6e7ac98d50faf842a9ffb0acfa4da5bd948d9b90b ≠ E-Z-base; ZI-2 596 917
+       bytes, 03d627deed533e7ea75d2bbe8fdc1d8fcd8432ce311a46f15a302753650e2b94 ≠ E-Z-base; ZI-3
+       6e4c4015…c8395 = E-Z-base. `cargo test -p mineworld-bodies`: every test passes (ZI-4).
+     Bisected, each by the second-process line of long_run and long_run_objects:
+       SD-Z3 alone (`refresh` restored)   ZI-1 b3a57041…, ZI-2 03d627de…   — both moved
+       SD-Z2 alone (old corridor)         ZI-1 d7025dbc…, ZI-2 53d017d0…   — both = E-Z-base
+     So SD-Z3 is the Class-I piece that is not result-preserving. The first differing request, located
+       by a temporary probe in long_run.rs (each move's walker, from, to, explain's Outcome and its
+       facts, printed; not committed), comparing the base corridor with SD-Z3's:
+       request 307 (action 266), p09 (EntityId 11), from (5 986, 6 260) to (4 164, 6 260): due west
+       along the counter's south face at exactly R + GAP (6 570 − 310 = 6 260); not biased.
+         base   Swept: Rapier ends at (4 165, 6 211) — 49 mm off the face, 1 mm short — stopped-short
+                { by: None }
+         SD-Z3  Clear: exactly (4 164, 6 260); no stopped-short
+       (request 111 also changed route, Swept → Clear, with the same facts: Rapier reached `to` there.)
+     Evidence for the decision, not adopted: SD-Z3 with a strict margin (the segment at least
+       R + GAP + 1 = 311 mm from every solid): ZI-2 = E-Z-base, ZI-1
+       852c88e14c287d1520ddb0add69c1b0de34e2234997edca67573d5170c630545 ≠. First differing request
+       518, p06 from (3 636, 7 480) to (3 636, 9 098), due north, its segment 382 mm from the counter
+       at the nearest: base Swept → (3 638, 9 097), stopped-short { by: None } (Rapier drifted 2 mm
+       east, 1 mm short, beyond SNAP); strict SD-Z3 Clear → exactly (3 636, 9 098).
+     Reading: SD-Z3's rationale (§20.3: "a corridor that is exactly clear by R + GAP is one Rapier
+       sweeps to `to` and the snap returns `to`") is false. Rapier's controller does not return `to`
+       on every stride whose corridor keeps R + GAP from everything: it ends up to 49 mm off where it
+       glides at the offset (request 307), and drifts 2 mm in open floor where it starts at the offset
+       (request 518). Any widening of the clear set therefore changes results on the strides it moves
+       from Rapier to the integers, whatever the margin. SD-Z3 reverted, with its TZ-4 unit tests
+       (§20.13 Z-D2).
+     SD-Z2 alone, fresh build (/tmp/s15-12d0/c2b-mineworld; capture.sh c2b, cap-c2b.log): ZI-1
+       d7025dbc…79eaf, ZI-2 53d017d0…95411, ZI-3 6e4c4015…c8395 — all three = E-Z-base. ZI-4
+       `cargo test -p mineworld-bodies`: lib 14, actions 27, genesis 6, isolation 5, long_run 1,
+       long_run_objects 1, objects 7, objects_genesis 10, rapier_pin 1, scenarios 17 — every test
+       passes, none edited. TZ-2 for SD-Z2: PASS.
+
 The prototype (E-TD0b), stated so it can be rebuilt:
   1  GIT_INDEX_FILE=/tmp/s15-12d0/proto.idx git --work-tree=/tmp/s15-12d0/proto checkout 21f96ff -- \
        worlds/social-cafe worlds/market-town
@@ -6786,6 +6882,46 @@ h 1 800, (4 900, 6 990)–(5 800, 7 350) and (6 200, 6 990)–(7 100, 7 350) h 1
 
 ## 20.13 Deviations and discoveries during implementation
 
-None yet.
+**Z-D1 — Branch and worktree (bounded).** §20.11 proposed `mvp0/pr-12d0-cost` in
+`/Users/yuema137/mineworld-worktrees/s15-12d0`, based on main after the design PR merged. The
+coordinator's kickoff (2026-10-08) names `mvp0/s15-12d0-plan` in `/Users/yuema137/mineworld-worktrees/
+impl-12d0`, which already holds the frozen design (953ff10) on main @ f842c52. The kickoff governs: the
+PR opened from this branch carries the design commits and the implementation together. Code base
+identical (953ff10 differs from f842c52 in Markdown only); no evidence affected.
+
+**Z-D2 — MATERIAL STOP: SD-Z3 (Class I) is not result-preserving (E-Z1).**
+
+```text
+Previous assumption:
+  §20.3 SD-Z3: a corridor exactly clear by R + GAP is one Rapier sweeps to `to`, the snap returning
+  `to` — the fast path's answer — so an exact corridor test changes no result (Class I).
+Audit evidence:
+  E-Z1. With SD-Z3, ZI-1 and ZI-2 move (ZI-3 does not); SD-Z2 alone keeps all three. First differing
+  request: long_run's 307 — a stride along the counter at exactly 310 mm, which Rapier ends 49 mm off
+  the face. With a strict 311 mm margin ZI-2 holds but ZI-1 still moves, at request 518: a stride in
+  open floor, 382 mm from the counter, that Rapier ends 2 mm east and 1 mm short.
+Corrected understanding:
+  Rapier's character controller is not exact on clear strides that start at, or glide along, its
+  offset from a face; the existing clear path already answers such strides differently from what
+  Rapier would. Every stride SD-Z3 moves from Rapier to the integers is one whose answer may change.
+  No margin makes SD-Z3 byte-identical.
+Implementation consequence:
+  SD-Z3 reverted (geometry.rs and its TZ-4 unit tests). SD-Z2 kept: byte-identical (E-Z1).
+Validation consequence:
+  TZ-4 and M-Z3 cannot be met as Class I. Per §20.4 the primary session decides: drop SD-Z3, or move
+  it to Class R under ZR (its newly clear strides then join ZR-3's shadow comparison, compared with
+  Rapier's answer on the same state).
+```
+
+Stop reported to the coordinator with this record. Work on SD-Z1, SD-Z4 and SD-Z5 not started:
+the kickoff makes this a material stop and says not to work around it.
+
+**Z-D3 — The ZC-1 profile's instrument (bounded).** §20.6 ZC-1 asks for the share of strides by Route
+and the scene's mean collider count over 30 prototype days, "a crate-private counter read by an
+ignored test". The prototype runs through the CLI binary; a test of this crate cannot run a World Pack
+from disk, and a counter in the production code would be a static the resolver keeps (I-5's spirit).
+Instead: a scratch copy of the source exported outside the repository (as the prototype is), with
+counters printed at exit, built into its own target directory; nothing of it is committed. Information
+only, as the design states.
 
 
