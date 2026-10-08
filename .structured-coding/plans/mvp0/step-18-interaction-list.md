@@ -769,3 +769,422 @@ becomes configurable. After IL-h the operator plays `worlds/manor` and, after IL
   - a new `MODULE_SPEC.md` section: the World's Interaction List and its vocabulary (§4.1);
   - `DECISIONS.md` ARC-29: a dated amendment;
   - each converted pack's README: its section.
+
+---
+
+# 11. PR IL-a — the configuration seam and the extension catalogs (full design; DRAFT, awaiting freeze)
+
+**Lifecycle:** drafted by the planning session on `mvp0/pr-il-a-seam` (2026-10-08). `DRAFT — awaiting
+the primary session's freeze`. Nothing in §11 authorizes implementation.
+
+**Binding rulings this section implements** (`overall.md` "The World Interaction List"):
+- QIL-2 is overruled. The carrier is `configure:` (ARC-61), the files are `configure/<pack>.yaml`, and
+  classes live in `configure/classes.yaml`. So §4.3's `interactions:` reads `configure:` throughout,
+  and §4.5's `<pack>-interactions-configured` is that pack's configuration fact.
+- QPL-10: presence's `resolution:` line migrates to the generic extension form here, with no shim.
+- QPL-12: resume is refused on configuration drift.
+
+## 11.1 Identity, base, approved scope
+
+```text
+PR            IL-a — the configuration seam (ARC-61) and the extension catalogs (ARC-62); S17, first PR
+base          main @ 0d35d6b (#73 merged; E-a merged as 1a1d08e; 12c merged). Re-audit §11.2 if
+              authoring/src, sdk/rust/src, systems/installed, worldpack/src, systems/presence/src/resolve.rs,
+              tools/cli/src/{main,run}.rs or tests/acceptance/tests moved — above all if E-b or 12d merged
+branch        mvp0/pr-il-a-seam, worktree /Users/yuema137/mineworld-worktrees/plan-physics-list (or a
+              fresh one named at freeze), held by the implementing session only
+scope         §4.3 (with the carrier `configure:`), §4.10 item 2 (drift), step-18-physics-list.md §4.7's
+              catalog paragraph (ARC-62); nothing of §4.4–§4.9 (that is IL-b onward)
+merge         a merge commit, never a squash (ARC-5)
+```
+
+**Goal.** A World Pack can hand any enabled System Pack a configuration that the pack types, validates
+and seeds as its own genesis facts. A resume against changed configuration is refused by name. A
+pack-owned trait can be implemented by other packs and listed in the installed set through one generic
+line, of which presence's resolvers are the first. No pack in the build configures anything yet, and
+every existing world runs byte for byte as before.
+
+**Change set** (every path this PR may touch):
+
+```text
+docs/DECISIONS.md                    ARC-61, ARC-62 (new); a dated note on ARC-39 (the line's new form)
+docs/MODULE_SPEC.md                  §3.1 (the extension line), §4 model and §4.1 (configure:, configure/),
+                                     §9 (configuration schema: implemented by ARC-61)
+docs/MVP_STATUS.md                   the arrival-resolution row's wording; one capability row
+systems/README.md                    "Adding a pack": the extension line (line 80's paragraph)
+authoring/src/configuration.rs       NEW: PackConfiguration, AuthoredConfiguration, DecodeConfiguration
+authoring/src/lib.rs                 one module line, re-exports
+sdk/rust/src/pack.rs                 SystemPack: CONFIGURATION, CONFIGURATION_FACTS, decode_configuration;
+                                     configures!()
+sdk/rust/src/installed.rs            `extension` lines replace `resolution:`; register_extensions,
+                                     extension_types, configuration, decode_configuration,
+                                     configuration_facts
+sdk/rust/src/{lib,section}.rs        re-exports, __private additions, the crate doc's line 13
+systems/installed/src/lib.rs         the resolution line rewritten as an extension line; its doc paragraph
+systems/installed/tests/resolution.rs   rewritten over Capability::extension_types (file name kept: the
+                                     seam scan lists it)
+systems/presence/src/resolve.rs      one panic message's wording ("resolution: line" → "extension line");
+                                     no behaviour, no VERSION change (QIA-3)
+worldpack/src/format.rs              WorldManifest.configure; FoundConfiguration
+worldpack/src/configure.rs           NEW: reading configure/, ordering, references, the drift comparator
+worldpack/src/read.rs                one call, one field, one accessor, step 4c in the module doc
+worldpack/src/load.rs                compose() calls register_extensions; initial_facts seeds configuration
+                                     after locations and before sections; the module doc's order
+worldpack/src/error.rs               the configuration refusals (§11.3 SD-IA-7)
+worldpack/src/lib.rs                 `pub mod configure;` and re-exports
+worldpack/tests/configuration.rs     NEW: refusals through WorldPack::read on scratch worlds
+worldpack/tests/registration.rs      its doc comment's "resolution: line" only (LISTED unchanged)
+tools/cli/src/run.rs                 one drift-check call before resume
+tools/cli/src/main.rs                one drift-check call before resume (server) and before verify (replay);
+                                     the helper saved_genesis
+tools/cli/tests/configure.rs         NEW: binary-level refusals; the three worlds' validate unchanged
+tests/acceptance/tests/configuration/mod.rs   NEW: test-only packs test-tuning and test-relay(-a,-b)
+tests/acceptance/tests/configuration_seam.rs  NEW: genesis, dispatch, persistence, SIGKILL, drift
+tests/acceptance/tests/configuration_vocabulary.rs  NEW: the scan of §11.4 IA-8
+.structured-coding/plans/mvp0/{step-18-interaction-list,handoff-il-a}.md
+```
+
+**Paths with no diff:**
+- `kernel/`, `contracts/`, `persistence/`, `server/`, `clients/`, `cognition/`;
+- every System Pack other than presence's one message and the installed set;
+- `worlds/**`; the root `Cargo.toml` (no new dependency);
+- `tests/acceptance/tests/{ac1_composability,precursor_vocabulary,seam_vocabulary}.rs`.
+
+**Non-goals.**
+- The interaction schema, classes, `configure/classes.yaml`'s meaning, and any pack's section: IL-b
+  onward.
+- Overriding E-b's licence policy through `configure/packages.yaml`: QIA-1.
+- Runtime `World::disable` of a catalog's pack (QB-17).
+- Drift in content other than configuration (QPL-12's scope).
+
+## 11.2 Source audit (`main @ 0d35d6b`, 2026-10-08)
+
+| ID | Finding | Evidence | Consequence |
+| --- | --- | --- | --- |
+| **F-IA-1** | `installed!` has two arms, one with a hard-wired `resolution: <trait> => [<types>,]` line that expands only `Capability::resolvers()`; `@catalog` generates the rest. | `sdk/rust/src/installed.rs:56–90`, `:68–79` | The generic form replaces the first arm; the catalog arm is extended, not duplicated. |
+| **F-IA-2** | `worldpack::compose` calls `mineworld_presence::register_resolvers(Capability::resolvers())` by name; `worldpack/tests/registration.rs` asserts compose registers the listed resolvers once and refuses a different list. | `worldpack/src/load.rs:192–193`; `worldpack/tests/registration.rs` | compose calls `Capability::register_extensions()` instead; registration.rs must pass **unedited in its code** (it reads presence's catalog, not the macro). |
+| **F-IA-3** | `Capability::resolvers()` is used only by `systems/installed/tests/resolution.rs` (and its `stray` test set). | `git grep "resolvers()"` | No shim: that test is rewritten over `extension_types()`. |
+| **F-IA-4** | The seam scan (`seam_vocabulary.rs`) scans `sdk/rust/src`, `systems/installed/src`, `worldpack/src`, presence and movement for physics words. It admits `bodies` only on lines containing `mineworld_bodies::BodiesSystem` in `systems/installed/src/lib.rs`, and `const LISTED: &str = "bodies";` in `worldpack/tests/registration.rs`. It lists `systems/installed/tests/resolution.rs` among the files it scans, and fails if a listed file is missing. | `tests/acceptance/tests/seam_vocabulary.rs:69–120` | The extension line keeps `mineworld_bodies::BodiesSystem` on one physical line; `resolution.rs` keeps its name; neither admitted line is edited. The scan stays unedited (IA-9). |
+| **F-IA-5** | Sections are decoded with `Capability::decode_section(MapAccess)` into `Arc<dyn AuthoredContent>`; genesis seeds them in `initial_facts` after passages and locations, refusing another pack's vocabulary (`seeded`). In-crate tests seed probe sections through `WorldPack::in_memory` labelled with a real capability (F-22's precedent). | `worldpack/src/load.rs:58–90, :295–340, :585–630`; `read.rs:256–276` | Configuration uses the same pattern: a whole-file deserializer, a type-erased value, a probe-labelled in-crate test. |
+| **F-IA-6** | `WorldManifest` is `deny_unknown_fields`; its last field is E-a's `mineworld: Option<Compatibility>` (`format.rs:71–74`). `configure:` is refused as unknown today. | `worldpack/src/format.rs:39–75` | One appended field. |
+| **F-IA-7** | `WorldPack::read`: manifest → `check_pack_id` → `mineworld:` → `resolve_systems` → keys → content → `check_locations` → `check_passages` → `Self { … }` → `check_sections`. | `worldpack/src/read.rs:86–171` | Configuration is read after `resolve_systems` (it needs the enabled set) and its references are checked with `check_sections` (they need declared keys). |
+| **F-IA-8** | Resume does not read content. The hosts that resume or verify from a World Pack are three: `run` (`tools/cli/src/run.rs:239–241`), `server --save` (`tools/cli/src/main.rs:424–426`, `persisted`), `replay` (`main.rs:462–466`, `verify`). Each composes from the pack first. A save's genesis facts are `backend.facts_of(WorldRevision::GENESIS)`, encoded `EventEnvelope`s (`run.rs:267–275` already decodes one). `inspect`, `biography`, `perceived` read the save only. | as cited | Three call sites, one helper; nothing in `persistence/` changes. |
+| **F-IA-9** | `Emission` exposes `event_type()`, `record()`, `owner()`, `visibility()` (`kernel/src/system.rs:335–374`); an envelope carries the record it was built from. | as cited | The comparator compares (event type, record, visibility), in order, over the configuration event types. |
+| **F-IA-10** | E-b (frozen, in implementation on `mvp0/pr-eb-requirements`) appends `requires` after `mineworld` in `WorldManifest`, moves `read`'s body into `read_with(root, &PackRoots)` with one call after `resolve_systems`, adds `worldpack/src/requirements.rs`, one `PackError::Requirements` variant and `lib.rs` exports, and does **not** touch `load.rs`. Its licence policy is a typed value "a later `configure/packages.yaml` … can override" (FQ-b2). | `step-16-packages.md` (E-b branch) §15.0, §15.2 | §11.5's shared lines; `packages` is reserved here (QIA-1). |
+| **F-IA-11** | No `ARC-61`/`ARC-62` heading exists on any `origin/*` branch. | `git show <branch>:docs/DECISIONS.md` over every remote branch, 2026-10-08 | The ids are free. |
+
+## 11.3 Design (SD-IA-1 … SD-IA-11)
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **SD-IA-1** | **`authoring::PackConfiguration`**, beside `AuthoredSection`: `trait PackConfiguration: SystemIdentity { type Configuration: DeserializeOwned + Debug + Send + Sync + 'static; const FACTS: &'static [EventTypeId]; fn references(&Self::Configuration) -> Vec<Reference<'_>> { vec![] } fn requires(&Self::Configuration) -> Vec<SystemId> { vec![] } fn seed(&Seeding<'_, '_>, &Self::Configuration) -> Result<Vec<Emission>, Rejection>; }`. `FACTS` are the event types its configuration may seed: the drift comparator's filter. Type-erased as `AuthoredConfiguration` (`owner`, `references`, `requires`, `seed`, `Debug`) with a `DecodeConfiguration<T>` `DeserializeSeed`, as `AuthoredContent`/`Decode` are. | ARC-31's shape, one level up; deserializing is validating. A configuration has no subject, so `seed` takes none. |
+| **SD-IA-2** | **`SystemPack` gains** `const CONFIGURATION: Option<SystemId>` (its own id when it configures, else `None`), `const CONFIGURATION_FACTS: &'static [EventTypeId] = &[]`, and `fn decode_configuration<'de, D: Deserializer<'de>>(d: D) -> Result<Arc<dyn AuthoredConfiguration>, D::Error>` whose default refuses "the '<id>' system takes no configuration". `configures!()` defines all three from the pack's `PackConfiguration` impl. | The safe default: a pack that declares nothing is never silently configured. |
+| **SD-IA-3** | **`installed!`'s grammar**: `perception: <path>;` then zero or more `extension <trait path> => <register fn path>: [ <type>, … ];` then the pack lines. It expands `Capability::register_extensions()` (each register fn called once, with `vec![Box::new(T::default()) as Box<dyn Trait>, …]`, lines in listed order, types in listed order), `Capability::extension_types() -> &'static [(&'static str, &'static [&'static str])]` (trait path, type names), and in `@catalog`: `configuration(self) -> Option<SystemId>`, `decode_configuration(self, d)`, `configuration_facts(self)`. The `resolution:` arm and `resolvers()` are deleted. | One generic line per catalog; neither the sdk nor `worldpack` names a trait or a pack again. |
+| **SD-IA-4** | **The installed set's line** becomes `extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers: [mineworld_bodies::BodiesSystem,];` on one physical line (F-IA-4). Presence's `register_resolvers`, its write-once catalog, `require_registered` and its panics are unchanged except one message's wording. | Byte-identical; the seam scan's admission still matches. |
+| **SD-IA-5** | **`world.yaml` `configure:`** is a list of keys, `Vec<ConfigurationKey>` where `ConfigurationKey` is a `SystemId`-validated name. Each names `configure/<key>.yaml`. Order is the author's and is the seeding order. Absent = empty. | As `places:` names `places/<key>.yaml` (§4.3). |
+| **SD-IA-6** | **Reserved keys**: `classes` (IL-b) and `packages` (E-b's licence-policy hook). Listing either in IL-a is refused, "reserved for <what>; not configurable in this build". A test holds that no installed pack's id is a reserved key. | No world can give these names another meaning before their owners land (QIA-1). |
+| **SD-IA-7** | **Refusals**, each a `PackError` variant naming the key and the file (line and column where a YAML value is involved): `ConfigurationOfUnknownSystem`, `ConfigurationOwnerNotEnabled`, `NotConfigurable`, `ConfigurationReserved`, `ConfigurationListedTwice`, `ConfigurationFileMissing`, `ConfigurationFileNotDeclared` (a `.yaml` in `configure/` not listed), `ConfigurationRequiresSystem { requires, by }`, `ConfigurationNamesUnknownEntity`, `ConfigurationRefusedByOwner`, `ConfigurationStatedAnotherPacksFact`, `ConfigurationDrift { system, saved, here }`. Malformed YAML uses the existing `Malformed`. | Refused by name, never ignored (`MODULE_SPEC.md` §4.1). |
+| **SD-IA-8** | **Reading** (`configure.rs`, called from `read` after `resolve_systems`): each key resolved (unknown, reserved, not enabled, not configurable, twice), each file parsed with `serde_saphyr::with_deserializer_from_str` into the owner's type, every `.yaml` under `configure/` declared, every `requires` enabled. References are checked after content, beside `check_sections`, against the declared keys and types. | The order of F-IA-7; each check assumes the previous. |
+| **SD-IA-9** | **Seeding** (`load.rs::initial_facts`): passages, locations, **configuration in `configure:` order**, then sections. Each configuration's facts must be its owner's vocabulary and of an event type in its `FACTS`; otherwise refused. A world with no `configure:` seeds exactly what it seeds today. | §4.3: what a section's reduction may check against is reduced before it; byte-identity. |
+| **SD-IA-10** | **The drift comparator**: `configure::compare(saved_genesis: &[EventEnvelope], here: &[Emission], facts: &BTreeSet<EventTypeId>) -> Result<(), Drift>` — pure, comparing in order the (event type, record, visibility) of every element whose type is in `facts` (the union of `configuration_facts` over the enabled capabilities). `WorldPack::check_configuration(&self, saved_genesis)` assembles, seeds, filters and compares, returning `PackError::ConfigurationDrift` naming the first differing system and both sides. Each host calls it before `PersistentWorld::resume` / `verify`, through one helper `saved_genesis(&backend)`. | QPL-12, at the moment and in the style of the composition check, with no kernel or persistence type changed. Both directions are drift: configuration added or removed. |
+| **SD-IA-11** | **Configuration facts' audience**: owners are told (ARC-61's text and the `configures!` doc) to state them `Visibility::SystemInternal` with no subjects — a world's configuration is nobody's perception and nobody's biography. The test packs do so. | INV-13 by default; IL-b's sections follow it. |
+
+## 11.4 Acceptance (decided before measuring, `ARC-23`)
+
+Rules: every guarded criterion names its mutation. A mutation is applied in the working tree, observed
+to fail by name, then reverted; `git status` and `git grep MUTATION` are recorded afterwards. Expected
+values are literals from the test's own layout.
+
+```text
+IA-1  Byte-identity. With E-IA-0 captured on the base before any code:
+        social-cafe and market-town, `mineworld run <w> --headless --seed 7 --days 300`: the printed
+        history fingerprint, the fact count and faults 0 equal E-IA-0 (today ad49c723…c64b and
+        365b50e0…1d1d; if 12d merges first, 12d's re-baselined values, re-captured);
+        bodies-yard, 30 days seed 7: its sha equals E-IA-0;
+        12b's long_run second-process bytes: equal E-IA-0;
+        the three worlds' `mineworld validate` output: byte-identical.
+      M-IA1: make initial_facts seed one empty configuration emission for every enabled capability →
+      the social-cafe fingerprint differs (the instrument sees genesis).
+IA-2  Configured genesis, in order. In worldpack's in-crate tests (probe-labelled, F-IA-5) and in
+      tests/acceptance with test-tuning: configuration facts follow passages and locations and precede
+      every section, in configure: order; test-tuning's section reduction refuses a `start` that is not a
+      multiple of the configured `step`, and accepts one that is.
+      M-IA2: seed configuration after sections → test-tuning's section is refused at load by name.
+IA-3  Refusals by name: each SD-IA-7 variant through WorldPack::read on a scratch world (and, for
+      unknown system, not enabled, not configurable, reserved, file missing, undeclared file, through
+      the real `mineworld validate`), with the file, and line and column for YAML values.
+      M-IA3: remove the undeclared-file check → its test fails by name.
+IA-4  Drift refused, both directions, both by the comparator and by the hosts:
+      (a) configure::compare over test-tuning: changed step, configuration removed, configuration
+          added — each Drift naming test-tuning; unchanged — Ok;
+      (b) a structural test in tools/cli/tests/configure.rs: each of run, server's `persisted`, and
+          `replay` calls check_configuration before PersistentWorld::resume or verify;
+      (c) the canary (IA-10): an edited configure/test-tuning.yaml refuses `run` resume and `replay`.
+      M-IA4a: compare returns Ok → (a) fails. M-IA4b: remove run.rs's call → (b) fails.
+IA-5  Extension catalogs. A test-local installed! with two extension lines (test-relay's trait, listing
+      test-relay-a then test-relay-b; and presence's, listing nothing) registers both, each list in
+      order, once; registering a different list for one trait refuses, naming both.
+      worldpack/tests/registration.rs and tests/acceptance/tests/arrival_resolvers*.rs pass unedited
+      (code). No `resolution:` arm or `resolvers()` remains (git grep over *.rs, recorded).
+      M-IA5a: register_extensions skips its second line → test-relay is unregistered and the test fails.
+      M-IA5b: reverse each list → the order assertion fails.
+IA-6  The installed set's guard (resolution.rs, rewritten): every type on an extension line is an
+      installed pack, listed once per line; the `stray` set is refused with both messages.
+      M-IA6: list a type twice in the stray set's line and drop the duplicate check → the test fails.
+IA-7  Persistence: a test-tuning world in tests/acceptance runs requests through World::dispatch and
+      PersistentWorld, is killed (SIGKILL, the arrival_resolvers_resume pattern) and resumes byte for
+      byte; a second process's replay is identical.
+IA-8  Vocabulary. seam_vocabulary.rs passes unedited. configuration_vocabulary.rs: no word of the seam
+      scan's physics list, and none beginning talk, spoke, convers, give, buy, sell, trade, eat, drink,
+      kick, throw, shove, permit, forbid, biograph, class — in authoring/src/configuration.rs,
+      worldpack/src/configure.rs and every test file this PR adds (that scan file excepted).
+      M-IA8: plant `// talk` in configure.rs → the scan fails naming file and line.
+IA-9  Unchanged guards: tests/acceptance ac1_composability.rs and precursor_vocabulary.rs pass,
+      unedited; no diff under kernel/, contracts/, persistence/, server/, worlds/; the root Cargo.toml
+      and Cargo.lock unchanged (recorded with git diff --stat).
+IA-10 The canary (evidence, never merged; 11a C5's precedent): on a scratch branch, test-tuning is
+      installed with its two ARC-33 lines; a scratch world `configure: [test-tuning]` is validated, run
+      30 days with --save, killed and resumed byte-identical; then configure/test-tuning.yaml is edited
+      and `run` and `replay` are refused with ConfigurationDrift naming test-tuning; `git status` clean
+      after the branch is deleted.
+IA-11 Full gate on the final head: cargo fmt --check, check, clippy -D warnings, test (workspace),
+      both doc scripts.
+```
+
+## 11.5 Coordination with S16 E-b — every shared line
+
+Whichever PR merges second performs the merge (`overall.md`). The shared regions, and the rule for each:
+
+| File | E-b's edit | IL-a's edit | Rule |
+| --- | --- | --- | --- |
+| `worldpack/src/format.rs` `WorldManifest` (after `:74`, `pub mineworld: Option<Compatibility>,`) | appends `pub requires: BTreeMap<PackId, Compatibility>` with its doc | appends `pub configure: Vec<ConfigurationKey>` with its doc | both fields kept; IL-a's after E-b's if E-b merged first, else E-b appends after IL-a's. `FoundConfiguration` is added after `SectionState` (`:126`), away from E-b's lines |
+| `worldpack/src/read.rs` `WorldPack::read` body (after `resolve_systems`, `:105`) | body moves into `read_with`; one line `requirements::resolve(&manifest, &systems, roots)?` | one line `let configuration = configure::read(&root, &manifest.configure, &systems)?;` | IL-a's line directly after E-b's, in whichever body holds them (`read_with`) |
+| `read.rs` struct `WorldPack` and `Self { … }` (`:71–82`, `:150–163`), `in_memory` (`:256–276`) | one field `composition` | one field `configuration: Vec<FoundConfiguration>` | both fields at the struct's end; `in_memory` gains IL-a's `Vec::new()` (cfg(test) only) |
+| `read.rs` accessors (after `seats`, `:221`) | `composition()` | `configuration()` | adjacent |
+| `read.rs` module doc's step list (`:8–24`) | "4b requirements" | "4c configuration" | adjacent |
+| `read.rs` `check_sections` call (`:170`) | — | followed by `configure::check_references(&pack)?;` | IL-a only |
+| `worldpack/src/error.rs` `PackError` (after the last variant, `Composition`, `:397`) | `Requirements { path, refusal }` | SD-IA-7's variants | appended in blocks; no shared line beyond the enum's end |
+| `worldpack/src/lib.rs` | exports for `read_with`'s types | `pub mod configure;` (between `content` and `error`) and its re-exports | adjacent `pub use` lines |
+| `worldpack/src/load.rs` | not touched (E-b's material stop) | compose and initial_facts | IL-a only |
+| `worldpack/src/requirements.rs`, `configure.rs` | new | new | disjoint files |
+| `tools/cli/src/main.rs` | `--packs` plumbing at `read`/`read_with` call sites (`:252, :294, :425` per S16 §4.2) | drift calls in `persisted` (`:424`) and `replay` (`:463`) | different lines of the same functions; mechanical |
+
+**The `packages` hook (QIA-1).** IL-a reserves the key. Wiring `configure/packages.yaml` into E-b's
+`LicencePolicy` is a framework configuration, not world state: not seeded, not drift-checked. It needs
+both PRs, and it lands in IL-b, which already introduces the second framework key (`classes`), or in a
+two-line follow-up if the primary session prefers.
+
+## 11.6 Commit plan
+
+### IA-C0 — Design (this section) — docs only
+
+- [x] Implementation: §11, from the audit in §11.2.
+- [x] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py` (E-IA-d).
+- [x] Review: every finding cites a file and line; each guard has a mutation; the E-b shared lines are
+  named. Self-review only; the primary session's freeze is pending.
+
+### IA-C1 — Specs before code
+
+**Scope.**
+- `docs/DECISIONS.md`:
+  - **ARC-61** — *A System Pack may be configured per world, by a file its owner types.*
+    SD-IA-1/2/5–11; the reserved keys; the drift rule; the configuration facts' audience.
+  - **ARC-62** — *Extension catalogs: a pack-owned trait, implemented by other packs, listed in the
+    installed set.* SD-IA-3/4; the rules carried from ARC-39 (write-once, process-wide, pure, inert);
+    no shim.
+  - A dated note on **ARC-39** (the line's new form).
+  - The ids are re-checked on every remote branch before writing.
+- `docs/MODULE_SPEC.md`:
+  - §3.1 (the extension line replaces `resolution:` at `:195`, `:205`);
+  - §4's model and §4.1 (`configure:`, `configure/<key>.yaml`, refusals, reserved keys);
+  - §9 (configuration schema → ARC-61).
+- `systems/README.md` (`:80`); `docs/MVP_STATUS.md` (row `:31`'s wording, one row).
+
+- [ ] Implementation
+- [ ] Validation: both doc scripts; cross-references by grep.
+- [ ] Review: no defined term redefined; ARC-61 states its limitations (content drift unchecked;
+  configuration is not a rule, `MODULE_SPEC.md` §4 constraint 3).
+
+### IA-C2 — `authoring`: the configuration contract
+
+**Scope.**
+- `authoring/src/configuration.rs`: `PackConfiguration`, `AuthoredConfiguration`,
+  `DecodeConfiguration`, and the blanket impl from `PackConfiguration` to `AuthoredConfiguration`.
+- `authoring/src/lib.rs` (module and re-exports).
+- Unit tests:
+  - decoding through `serde_json` and through `serde_saphyr`, the latter keeping line and column;
+  - owner and requires reported;
+  - seed refusal propagated.
+
+- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-authoring`; clippy · [ ] Review: the
+  crate still depends on contracts and kernel only; no word of IA-8's lists.
+
+### IA-C3 — `sdk` and the installed set: configuration in `SystemPack`; the generic extension line (atomic: the macro and its one invocation change together)
+
+**Scope.**
+- SD-IA-2 in `pack.rs` and `configures!()`; SD-IA-3 in `installed.rs`, with the `resolution:` arm and
+  `resolvers()` deleted; `lib.rs` docs and `__private`.
+- `systems/installed/src/lib.rs` per SD-IA-4.
+- `systems/installed/tests/resolution.rs` rewritten generically. File name kept; messages "is listed on
+  an extension line but is not an installed pack" and "is listed twice on one extension line".
+- presence's one message (QIA-3).
+- `worldpack/src/load.rs` `compose` → `Capability::register_extensions()` (a one-line edit needed for
+  the workspace to compile).
+- The test-local two-catalog `installed!` of IA-5, in `sdk/rust/tests/extensions.rs` (NEW; add it to
+  the change set).
+
+- [ ] Implementation · [ ] Validation: workspace `cargo check`; `cargo test -p mineworld-sdk -p
+  mineworld-installed-systems -p mineworld-presence -p mineworld-worldpack`; `seam_vocabulary`,
+  `arrival_resolvers*`, `registration` unedited and passing; M-IA5a, M-IA5b, M-IA6 · [ ] Review: no
+  shim, no remaining `resolution:` grammar; presence's diff is one string.
+
+### IA-C4 — `worldpack`: reading `configure:`
+
+**Scope.**
+- SD-IA-5–8: `format.rs` (field, `FoundConfiguration`), `configure.rs` (read, check_references),
+  `read.rs` (one call, one field, one accessor, the doc step), `error.rs` (variants), `lib.rs`.
+- `worldpack/tests/configuration.rs`: every refusal reachable with this build's packs, on scratch worlds
+  under `CARGO_TARGET_TMPDIR`, removed by each test (test hygiene, coordination ruling 10).
+- In-crate probe tests: the positive decode, references, requires.
+
+- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-worldpack`; M-IA3; the three worlds read
+  as before · [ ] Review: §11.5's shared lines placed exactly as stated; `load.rs` untouched in this
+  commit except IA-C3's line.
+
+### IA-C5 — `worldpack`: seeding and the drift comparator
+
+**Scope.**
+- SD-IA-9 in `initial_facts`, and the module doc's order.
+- SD-IA-10: `configure::compare`, `WorldPack::check_configuration`.
+- In-crate tests: the order (IA-2, M-IA2) with a probe configuration and a probe section labelled as
+  F-IA-5; the comparator's four cases (IA-4 a, M-IA4a); another pack's fact refused; a fact type
+  outside `FACTS` refused.
+
+- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-worldpack`; M-IA1 measured here on
+  social-cafe's fingerprint (one 300-day run) · [ ] Review: a world without `configure:` takes no new
+  branch that could change a fact.
+
+### IA-C6 — Hosts: the drift check at every resume
+
+**Scope.**
+- `tools/cli/src/main.rs`: the helper `saved_genesis(&SqliteBackend) -> Result<Vec<EventEnvelope>,
+  String>` (decoding `facts_of(GENESIS)`, as `genesis_instant` does); one call in `persisted` and one
+  in `replay`.
+- `tools/cli/src/run.rs`: one call before `PersistentWorld::resume`.
+- `tools/cli/tests/configure.rs`:
+  - the structural test of IA-4 b, with M-IA4b;
+  - the binary-level refusals of IA-3;
+  - the three worlds' `validate` output byte-identical (IA-1, last line).
+
+- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-cli`; the existing restart tests
+  (`restart.rs`, `run_restart.rs`, `bodies_yard_restart.rs`) unedited and passing · [ ] Review: `server/`
+  untouched; each call precedes resume or verify.
+
+### IA-C7 — The proof with test-only packs; the vocabulary scan
+
+**Scope.** `tests/acceptance/tests/configuration/mod.rs`:
+- **`test-tuning`**: configuration `{ step: 1 … 100 }`, seeded as `tuning-configured { step }`
+  (`SystemInternal`), reduced into a `Step` component on each Place. It owns a section `tuned:` on
+  person files, `{ start }`, whose reduction refuses a start that is not a multiple of the step. It
+  provides one action, `advance`, stating `advanced { by: step }`.
+- **`test-relay`**: owns a trait `Relay` and a catalog `register_relays`.
+- **`test-relay-a`** and **`test-relay-b`**: each implements `Relay`.
+
+Neither pack names a physics word or an interaction word.
+
+`configuration_seam.rs` covers IA-2, IA-4 a, IA-5 and IA-7 through `World::dispatch` and
+`PersistentWorld`. `configuration_vocabulary.rs` covers IA-8, with M-IA8.
+
+- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-acceptance` (all, including
+  `ac1_composability`, `precursor_vocabulary`, `seam_vocabulary` unedited) · [ ] Review: the test packs
+  exist only in test files; no library is compiled against them.
+
+### IA-C8 — Close: byte-identity, the canary, the full gate, the ledger
+
+**Scope.**
+- IA-1 against E-IA-0 (two 300-day runs, one bodies-yard run, `long_run`).
+- IA-10's canary, on a scratch branch never pushed, deleted after.
+- IA-9's `git diff --stat`.
+- IA-11's full gate on the final head, in the background.
+- `MVP_STATUS.md`; the §11.8 ledger; the handoff.
+
+- [ ] Implementation · [ ] Validation: as listed, each result PASS/FAIL/INCONCLUSIVE from evidence ·
+  [ ] Review: IA-1 … IA-11 each with evidence; deviations recorded in §11.9.
+
+## 11.7 Test ownership
+
+| Test | Owner | Edited by IL-a |
+| --- | --- | --- |
+| `systems/installed/tests/resolution.rs` | the installed set | rewritten (generic), same file |
+| `worldpack/tests/registration.rs` | worldpack | doc comment only |
+| `tests/acceptance/tests/{ac1_composability,precursor_vocabulary,seam_vocabulary,arrival_resolvers*}.rs` | acceptance | **no** |
+| `tools/cli/tests/{restart,run_restart,bodies_yard_restart,run,market_town}.rs` | cli | **no** |
+| new: `authoring` unit tests, `sdk/rust/tests/extensions.rs`, `worldpack/tests/configuration.rs`, `tools/cli/tests/configure.rs`, `tests/acceptance/tests/configuration*` | IL-a | new |
+
+## 11.8 Is any of this material?
+
+- **No kernel, contract, persistence or server change** — a need for one is a material stop.
+- Editing presence is limited to one message (QIA-3).
+- No digest moves; a moved digest is a material stop.
+- The ARC-39 note changes no rule, only the line's spelling (QPL-10, decided).
+- The reserved `packages` key touches E-b's frozen design only as recorded in its FQ-b2 hook (QIA-1).
+
+## 11.9 Questions (QIA-1 …)
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QIA-1** | `packages` and `classes`: reserve both in IL-a, wiring `packages` → `LicencePolicy` in IL-b (with `classes`), or have IL-a wire `packages` if E-b merges before IL-a's freeze? | **Reserve both here; wire both in IL-b.** IL-a stays domain-free and independent of E-b's merge order. |
+| **QIA-2** | Drift compares only each pack's declared configuration fact types (`FACTS`), in order. | **Yes.** |
+| **QIA-3** | Edit presence's one panic message ("resolution: line" → "extension line"), no VERSION change. | **Yes**: otherwise it names a line that no longer exists. |
+| **QIA-4** | Configuration facts are `SystemInternal`, with no subjects, by guidance in ARC-61 (not enforced by the loader). | **Guidance, not enforcement**: a loader rule over Visibility would be the loader judging a pack's vocabulary. |
+| **QIA-5** | The canary install (IA-10) on a scratch branch, never pushed: authorized? | **Yes**, as 11a C5. |
+| **QIA-6** | `sdk/rust/tests/extensions.rs` added to the change set for IA-5's test-local catalog. | **Yes.** |
+
+## 11.10 Proposed execution contract for PR IL-a
+
+```text
+PROJECT / PR        MVP-0 · S17 / PR IL-a — the configuration seam and the extension catalogs (framework
+                    precursor; names no physics and no interaction)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-18-interaction-list.md §11; evidence §11.8 ledger
+                    (E-IA<n>); deviations §11.9's successor section, added at the first deviation
+RELATED / BINDING   this file §§4.3, 4.10, 5 (IL-I1, IL-I4, IL-I8, IL-I10), 6; overall.md "The World
+                    Interaction List"; step-18-physics-list.md §4.6–§4.7 (ARC-61/62 drafts);
+                    step-16-packages.md §15 (E-b, frozen); DECISIONS ARC-5, ARC-23, ARC-25, ARC-26, ARC-31,
+                    ARC-33, ARC-35, ARC-39, DEP-10, DEP-12; MODULE_SPEC §§3.1, 4, 4.1, 9; CLAUDE.md §§2–4
+IMPLEMENTATION BASE main @ 0d35d6b, or the main named at freeze (re-audit §11.2); branch mvp0/pr-il-a-seam;
+                    one worktree, one session
+APPROVED SCOPE      §11.1's change set; IA-C1 … IA-C8; SD-IA-1 … SD-IA-11 as answered by QIA-1 … QIA-6
+FROZEN INVARIANTS   No diff under kernel/, contracts/, persistence/, server/, clients/, cognition/, worlds/;
+                    no System Pack other than presence's one message and systems/installed; root Cargo.toml
+                    and Cargo.lock unchanged. IA-1: the towns' 300-day seed-7 fingerprints, bodies-yard's
+                    30-day sha and 12b's long_run bytes equal E-IA-0. ac1_composability.rs,
+                    precursor_vocabulary.rs, seam_vocabulary.rs unedited and passing. No shim for
+                    `resolution:`. A world without configure: seeds exactly what it seeded.
+SEQUENCE            IA-C1 → IA-C8, each committed and pushed when coherent; E-IA-0 captured before IA-C2
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: each 300-day town run at most five times
+                    in all (E-IA-0 ×2, M-IA1 ×1, IA-1 ×2), bodies-yard 30-day and long_run twice each, the
+                    canary once; one full workspace gate on the final head (background); real-model NOT
+                    REQUIRED
+LIVE DOCUMENTATION  §11 checkboxes; the E-IA ledger; deviations
+HANDOFF             .structured-coding/plans/mvp0/handoff-il-a.md, created at IA-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   at the primary session's freeze message
+  semantic commits, branch push       recommended authorized
+  PR creation / update                recommended authorized, marked READY FOR OPERATOR REVIEW
+  scratch canary branch               recommended authorized (QIA-5), never pushed, deleted after
+  merge                               operator only, with a merge commit
+COORDINATION        E-b: §11.5; whichever merges second performs the merge and re-runs IA-1 and IA-9
+NORMAL STOP         PR IL-a READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       an edit outside §11.1's change set, above all in kernel/contracts/persistence/server or a
+                    System Pack's behaviour; any IA-1 difference; an unedited guard failing; a need to edit
+                    load.rs in a way E-b's design forbids it to merge over; an answer to QIA-1 … QIA-6 other
+                    than the design's
+```
+
+## 11.11 Evidence ledger (E-IA)
+
+```text
+E-IA-d  2026-10-08, design commit: check_doc_headings and check_decision_ids, recorded at commit.
+E-IA-0  (implementation) base captures, before IA-C2: the towns' 300-day fingerprints, bodies-yard's sha,
+        long_run's bytes, the three validate outputs
+```
