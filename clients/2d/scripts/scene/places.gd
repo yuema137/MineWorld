@@ -16,6 +16,8 @@ const Sprites := preload("res://scripts/scene/sprites.gd")
 const FADE_RATE := 3.4
 ## How far the hub's paving reaches past its outermost doorways when the pack does not say.
 const DEFAULT_MARGIN_M := 5.0
+## How far inside its walls a room keeps the people it holds.
+const ROOM_MARGIN_M := 0.8
 
 var projection
 var presentation
@@ -59,6 +61,28 @@ func reconcile(observation: MineWorldObservation) -> void:
 	if town.version != _version:
 		_version = town.version
 		_rebuild()
+	_fit_room_to_people(observation)
+
+
+## A room is drawn at least big enough for everyone the observer sees in it: the pack's footprint is
+## decoration, and a person drawn standing outside the walls of the room they are in would show
+## something the world never said. Grown only from perceived positions, never shrunk.
+func _fit_room_to_people(observation: MineWorldObservation) -> void:
+	var entry: Dictionary = drawn.get(here, {})
+	if entry.is_empty() or entry["kind"] == "lawn":
+		return
+	var rect: Rect2 = entry["rect"]
+	var grown := rect
+	for entity in observation.entities():
+		if String(entity.get("entity_type", "")) != "person" or typeof(entity.get("location")) != TYPE_DICTIONARY:
+			continue
+		var at: Variant = town.to_plan(here, entity["location"].get("local"))
+		if at != null and not rect.grow(-ROOM_MARGIN_M).has_point(at):
+			grown = grown.expand(at + Vector2(ROOM_MARGIN_M, ROOM_MARGIN_M)).expand(at - Vector2(ROOM_MARGIN_M, ROOM_MARGIN_M))
+	if grown != rect:
+		entry["rect"] = grown
+		town.footprints[here] = grown
+		_update_areas()
 
 
 func _process(delta: float) -> void:

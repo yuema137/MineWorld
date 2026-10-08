@@ -1191,6 +1191,10 @@ NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
   cut-away room instead of a façade. Doorways line the long sides of a street, so the direction is now
   across the extent's long axis: all three north-side doorways open north, both south-side ones
   south. Still derived only from disclosed doorways (`ARC-45`).
+- **F-7 (found in the plain still, fixed) — people drawn outside the walls of their own room.** With
+  no pack, the café used the generic 9 × 8 m footprint; Alice (8.0 m in) and the wanderer (5.5 m along)
+  stood outside its drawn walls — a picture of something the world never said. The room the observer
+  stands in now grows to hold everyone perceived in it, with 0.8 m to spare; it never shrinks.
 - **D-11 (bounded) — `--always-on-top` for capture runs.** One capture stalled for ten minutes after its
   first still: a window the OS treats as hidden is not drawn, and `frame_post_draw` never arrives. The
   launcher keeps the capture window on top; stalled runs were killed by PID and re-run.
