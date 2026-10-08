@@ -14,6 +14,8 @@ const Sprites := preload("res://scripts/scene/sprites.gd")
 
 ## How fast a façade lifts away and a room fades in, per second (the spike's 3.4: 1 → 0 in 0.3 s).
 const FADE_RATE := 3.4
+## How far behind its door a façade is sorted (drawing only; see `_facade`).
+const SORT_BEHIND_M := 0.6
 ## How far the hub's paving reaches past its outermost doorways when the pack does not say.
 const DEFAULT_MARGIN_M := 5.0
 
@@ -126,7 +128,9 @@ func facade_anchor(place: String) -> Dictionary:
 	var entry: Dictionary = drawn.get(place, {})
 	if entry.get("node") == null:
 		return {}
-	return {"drawn": entry["node"].position, "doorway": projection.to_screen(entry["door"])}
+	var holder: Node2D = entry["node"]
+	return {"drawn": holder.position + holder.get_meta("door_offset", Vector2.ZERO),
+		"doorway": projection.to_screen(entry["door"])}
 
 
 func _rebuild() -> void:
@@ -185,7 +189,7 @@ func _draw_doorway(hub: String, p: Dictionary, extent: Rect2) -> void:
 			_dressing.append(_prop(item, door, in_dir, right))
 	elif far:
 		entry["kind"] = "facade"
-		entry["node"] = _facade(place, place_tags, door)
+		entry["node"] = _facade(place, place_tags, door, in_dir)
 	else:
 		entry["kind"] = "room"
 	if entry["kind"] != "lawn":
@@ -238,10 +242,16 @@ func _footprint(door: Vector2, in_dir: Vector2, right: Vector2, spec: Dictionary
 	return rect
 
 
-func _facade(place: String, place_tags: PackedStringArray, door: Vector2) -> Node2D:
+func _facade(place: String, place_tags: PackedStringArray, door: Vector2, in_dir: Vector2) -> Node2D:
 	var holder := Node2D.new()
 	holder.name = "facade_%s" % place
-	holder.position = projection.to_screen(door)
+	# A façade is sorted as if it stood SORT_BEHIND_M behind its door, and drawn exactly where it was:
+	# anyone on its doorstep is drawn in front of it (sorted at the door's own depth, a player who had
+	# just come out was hidden behind the building), while what stands behind it stays behind.
+	var sort_at: Vector2 = projection.to_screen(door + in_dir * SORT_BEHIND_M)
+	var offset: Vector2 = projection.to_screen(door) - sort_at
+	holder.position = sort_at
+	holder.set_meta("door_offset", offset)
 	var sprite := {}
 	for tag in place_tags:
 		sprite = presentation.sprite("facade:%s" % tag)
@@ -256,6 +266,7 @@ func _facade(place: String, place_tags: PackedStringArray, door: Vector2) -> Nod
 	var node: Node2D = sprites.make(sprite, true)
 	if node == null:
 		node = Sprites.plain("block", Vector2(projection.ppm * 4.0, projection.ppm * 3.0), Color("c9b9a3"))
+	node.position += offset
 	holder.add_child(node)
 	world.add_child(holder)
 	return holder
