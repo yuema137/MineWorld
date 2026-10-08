@@ -2965,7 +2965,7 @@ PB-1  Nothing existing moves. On the PR head, with bodies installed and [bodies]
         - `mineworld validate` of both worlds byte-identical to the base binary's output;
         - every existing test passes; the only edits to existing tests are QP-2's two files.
       M-PB1  the inert rule dropped (a place without PlaceShape treated as an unbounded floor, so
-             people are nudged anywhere) → PB-21 fails, and the 300-day social-cafe sha differs from
+             people are nudged anywhere) → PB-19 fails, and the 300-day social-cafe sha differs from
              the above, with `stopped-short` appearing in its summary.
 PB-2  DEP-13 and the pin. DEP-13 is committed before any code (PB-C1), and both doc checks pass.
       `systems/bodies/tests/rapier_pin.rs`:
@@ -3123,7 +3123,7 @@ PB-18 Entry placement (SD-B8), each case through movement's crossing in a hand-b
            stopped-short { wanted, reached, by: the occupant };
         d  onto a `to` inside a solid → the nearest free point, by None.
       After each, every pair is at least 595 mm apart.
-      M-PB12 E3 returns `to` → case c fails, naming the pair.
+      M-PB11 E3 returns `to` → case c fails, naming the pair.
 PB-19 Inert where absent (I-13). In a world with bodies installed:
         - every `move` into a place without `body:` records exactly Arrived::new's bytes;
         - so does a `move` whose `to` has no local position.
@@ -3136,3 +3136,249 @@ PB-20 Scope and the gate:
           are clean;
         - the full workspace gate runs once, on the final executable head.
 ```
+
+## 17.5 Commit plan
+
+Rules for every commit:
+- Each commit tracks implementation, validation and review separately.
+- Evidence goes into §17.10 as `E-PB<n>`, deviations into §17.11.
+- A planned commit may become several coherent commits; the mapping is recorded.
+- Each commit leaves the workspace's tests green.
+- Commands run from the worktree root, with `$HOME/.cargo/bin/cargo` if `cargo` is not on PATH.
+- Anything longer than about two minutes runs in the background: the x86_64 build, 300-day runs in
+  pairs, and the full gate.
+
+### PB-C0 — Design (this section) — docs only
+
+- [x] Implementation: §17 and the header line, by the planning session on `mvp0/s15-12b-plan`, from
+  the audit in §17.2.
+- [x] Validation: `python3 scripts/check_doc_headings.py` and `python3 scripts/check_decision_ids.py`
+  (E-PB0). The DEP-13 facts were re-verified at source on the day (§17.3.3). DEP-13 and ARC-40 are
+  free on every `origin/*` branch.
+- [x] Review: every claim in §17.2 cites a file and a line, a command, or a measurement. Each
+  departure from §§4.5, 5, 10 is named with its finding and its question. The operator-material
+  questions are marked. This is the planning session's self-review only; the operator's review is
+  pending.
+
+### PB-C1 — Specs before code: DEP-13, the ARC-39 note, MODULE_SPEC §4.1
+
+**Goal.** The dependency and the first resolver's rule are reviewable decisions before any code
+relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, before any code").
+
+**Scope.**
+- `docs/DECISIONS.md`: append **DEP-13** after ARC-39. It is §15.1's draft made exact by §17.3.3:
+  - problem; options (Rapier, `parry` alone, our own, Jolt bindings, Avian);
+  - choice: `=0.36.0`, `enhanced-determinism`, no `simd8`, `parallel` or `serde-serialize`, declared
+    in the root workspace (QP-3);
+  - why not ourselves, and why not the others;
+  - the isolating interface: `systems/bodies/src/rapier.rs`, integers in and out;
+  - accepted limitations: monthly breaking releases, so an upgrade bumps bodies' VERSION (DC-5);
+    F-P1 and its canary; F-P6 and verify-then-degrade; cross-architecture identity evidenced under
+    Rosetta only; no momentum between resolutions;
+  - the licence and MSRV facts, with their date.
+- `docs/DECISIONS.md`: a dated **note on ARC-39**, without rewriting it:
+  - the first resolver's bounds (QR-11): NUDGE_MAX + GAP, CHAIN_MAX, NUDGED_MAX, CLEARANCE;
+  - item 7 bullet 3 is realized as SD-B9's guard on the starting state, with the reason (F-B1);
+  - a crossing that cannot land on its point is placed at the nearest free point (SD-B8, F-B3).
+- `docs/MODULE_SPEC.md` §4.1:
+  - `# places/<key>.yaml` gains a commented `body:` example;
+  - the section table gains the `body` row (bodies, places: floor, solids, the bounds of SD-B3,
+    disclosed to whoever perceives the place);
+  - "six sections" becomes "seven".
+- Before writing, run `git fetch` and confirm DEP-13 is free on every `origin/*` ref.
+
+**Depends on:** freeze, including QP-1, QP-3 and QP-7. **Non-goals:** no code.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: both doc checks pass (the decision ids grow by one: 50 → 51). Every cited section
+  exists. DEP-13's version, licence and MSRV match §17.3.3 character for character.
+- [ ] Review: DEP-13 answers REUSE_POLICY §11's six questions and §12's rejection reasons. The ARC-39
+  note amends without rewriting, and says which item it refines. No defined term is redefined:
+  `Place`, `Person`, `System Pack`, `World Pack` keep their CORE_CONCEPTS sense. `body`, `floor` and
+  `solid` are a section's words, not ontology.
+
+**Commit boundary.** Documentation only.
+
+### PB-C2 — The pack's skeleton and the Rapier adapter
+
+**Goal.** Rapier is in the build, pinned and isolated. PB-2 and PB-3 hold before any rule exists.
+
+**Scope.**
+- Root `Cargo.toml`: one `[workspace.dependencies]` line, `rapier3d = { version = "=0.36.0",
+  features = ["enhanced-determinism"] }`, with a comment naming DEP-13.
+- `systems/bodies/Cargo.toml`, with each dependency's reason as a comment: authoring, contracts,
+  kernel, presence, sdk, serde, serde_json, rapier3d. Dev-dependencies: movement, and whatever the
+  tests need.
+- `systems/bodies/src/{lib.rs, rapier.rs, codec.rs}`:
+  - `rapier.rs` holds the canonical world build, `refresh` (detect_collisions plus the F-P1
+    re-mark), the controller, the two sweep filters, metres from and to millimetres (one function
+    each), and the PB-3 unit tests.
+- `systems/bodies/tests/rapier_pin.rs` (PB-2).
+- `systems/bodies/tests/isolation.rs`: PB-15's first four bullets.
+- `Cargo.lock`, regenerated.
+- The pack is not yet installed.
+
+**Depends on:** PB-C1.
+
+- [ ] Implementation: as scoped. `#![forbid(unsafe_code)]`, `#![warn(missing_docs)]`; no
+  `HashMap` (clippy).
+- [ ] Validation: `cargo test -p mineworld-bodies`; clippy and fmt clean. `git diff Cargo.lock` lists
+  only added packages. The licence tree is recorded (PB-2). M-PB2 and M-PB3 are each applied, fail
+  by name, and are reverted. The planted `use rapier3d as _;` fails isolation, and is removed.
+- [ ] Review: no Rapier type in a `pub` signature outside `rapier.rs`; the conversion functions are
+  the only float↔integer crossings; the insertion order matches SD-B11 exactly; the canary asserts
+  the defect as it is, not as it should be.
+
+### PB-C3 — Place geometry: the `body:` section, PlaceShape, genesis checks, disclosure
+
+**Goal.** A place can be given a body, and a world whose authored people violate it does not load.
+
+**Scope.**
+- `systems/bodies/src/{section.rs, component.rs, event.rs, system.rs, geometry.rs}`:
+  - the section type and its validation (SD-B3);
+  - `PlaceShape` (component `place-shape`, schema 1);
+  - `PlaceShaped` (event `place-shaped`, schema 1);
+  - the declaration, install (`require_registered` first) and the reduction with SD-B4's four
+    checks;
+  - `discloses` (SD-B12);
+  - in `geometry.rs`, the integer half SD-B4 needs: the free-point test, the capacity count, and
+    pair distances.
+- `systems/bodies/tests/support/mod.rs`: a hand-built world (presence, movement, bodies) that
+  registers `[bodies]` first, places people through genesis, and has a dispatcher.
+- `systems/bodies/tests/genesis.rs`:
+  - each SD-B4 refusal in a hand-built genesis, naming its subject;
+  - PB-16's disclosure through presence's `observe`.
+
+**Depends on:** PB-C2.
+
+- [ ] Implementation: as scoped. The reduction writes `PlaceShape` only after all four checks pass.
+- [ ] Validation: `cargo test -p mineworld-bodies` passes, with a refusal per check and a positive
+  control. M-PB4 is shown here at pack level; PB-4's real-binary half is in PB-C7.
+- [ ] Review: refusal codes and details name keys rather than raw ids wherever the world can resolve
+  them; the capacity count's anchor and spacing are SD-B4's; the disclosure is the component exactly
+  as reduced.
+
+### PB-C4 — The resolver: walls, nudging, verify-then-degrade, entry placement, the guard
+
+**Goal.** PB-5 … PB-8, PB-17 … PB-19 through the real dispatch.
+
+**Scope.**
+- `systems/bodies/src/resolve.rs`:
+  - `impl ArrivalResolver for BodiesSystem`, in this order: inert rule (SD-B2) → SD-B15 → guard
+    (SD-B9) → same-place (SD-B6, without the bias) or entry placement (SD-B8);
+  - a crate-private core returning the resolution and an `Outcome { generations, nudged, degraded }`
+    for tests;
+  - a crate-private `Policy { bias, verify }`. Production uses one constant; unit tests may turn a
+    flag off (PB-8).
+- `geometry.rs`: the rest of SD-B5. That is the corridor and fast path, nudge vectors, the lattice
+  search, and V1–V3.
+- `rapier.rs`: the people sweeps and the nudge sweeps.
+- `systems/bodies/tests/scenarios.rs`: PB-5, PB-6 (n2, n3, the chain), PB-7, PB-18, PB-19.
+- A test-only bypassing pack for PB-17.
+- PB-8 as a unit test in `resolve.rs`.
+
+**Depends on:** PB-C3.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-bodies` passes. M-PB5, M-PB6, M-PB7, M-PB10, M-PB11 and the
+  PB-19 half of M-PB1 are each applied, fail by name, and are reverted. Each scenario's facts are
+  checked for order, causation and `emitted_by`.
+- [ ] Review: every degrade path ends in a state V1–V3 accepts, including stay. The snap cannot
+  lengthen (rule (c)). Displaced order is generation, then `EntityId`. No float outside `rapier.rs`.
+  The resolver keeps nothing between calls: no static, no cache, no clock.
+
+### PB-C5 — QB-16: the head-on bias
+
+**Goal.** PB-13. Walkers who meet head-on pass each other.
+
+**Scope.**
+- `resolve.rs` and `geometry.rs`: SD-B10 (first person met, the band, the integer turn).
+- `scenarios.rs`: n1, and HB-1 … HB-4. The second process for HB-4 is the same test binary run
+  twice, with its digests printed and compared.
+
+**Depends on:** PB-C4.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: HB-1 … HB-4 pass. M-PB9 fails HB-1, and is reverted. If HB-1 fails, the ladder of
+  PB-13 is walked, and each rung's trace is recorded (§17.11).
+- [ ] Review: the turned stride is never longer than `d` (an assertion in the code, and a case in the
+  test); the bias changes only the walker's own target; PB-6's layouts still keep their first person
+  outside the band.
+
+### PB-C6 — Install: the build's first resolver
+
+**Goal.** Every host registers `[bodies]`, and every existing world is unchanged (PB-1).
+
+**Scope.**
+- `systems/installed/Cargo.toml`: one line.
+- `systems/installed/src/lib.rs`: `Bodies => mineworld_bodies::BodiesSystem,`, the resolution line
+  `[mineworld_bodies::BodiesSystem,]`, and one doc sentence.
+- `worldpack/tests/registration.rs`:
+  - the three `Some(Vec::new())` become `Some(vec![SystemId::from_static("bodies")])`;
+  - the panic message's `already registered []` becomes `[SystemId("bodies")]`;
+  - the doc comment drops "empty in this build" (QP-2).
+- `tests/acceptance/tests/seam_vocabulary.rs`: a second self-checking list, `INSTALLED_PACK_LINES`.
+  It admits the word `bodies` only on lines of `systems/installed/src/lib.rs` that contain
+  `mineworld_bodies::BodiesSystem`, with its reason (ARC-33: the installed set names its packs). It
+  fails if unused, like `PRE_EXISTING` (QP-2).
+
+**Depends on:** PB-C5.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation:
+  - `cargo test -p mineworld-installed-systems -p mineworld-worldpack -p mineworld-acceptance`
+    passes;
+  - `cargo test -p mineworld-cli` passes, which exercises every CLI path that composes;
+  - the base binary is built from the base before this commit and kept in `/tmp/s15-12b/`;
+  - the PR binary's two 300-day runs equal PB-1's digests;
+  - both `validate` outputs `cmp` equal to the base binary's.
+- [ ] Review: the installed set's `resolution:` test (12a SD-R8) passes unedited. QP-2's two edits keep
+  each test's claim. No other existing test needed an edit; any that did would be a material stop.
+
+### PB-C7 — The world: worlds/bodies-yard, the real run, the counterfactual, restart
+
+**Goal.** PB-4, PB-9, PB-10, PB-11, and PB-14(a)'s committed half.
+
+**Scope.**
+- `worlds/bodies-yard/{world.yaml, README.md, places/{hall,court}.yaml, people/*.yaml}` (SD-B13).
+- `tools/cli/tests/bodies/mod.rs`: the scan, the world's geometry as literals, and the test-time copy
+  without bodies.
+- `tools/cli/tests/bodies_yard.rs`: PB-4 (validate refusals on copies), PB-9, PB-10.
+- `tools/cli/tests/bodies_yard_restart.rs`: PB-11.
+- `systems/bodies/tests/long_run.rs`: PB-14(a). The prototype's request sequence is re-derived from
+  its `mix` and `draw`, as recorded in §9.5, without its kicks.
+
+**Depends on:** PB-C6.
+
+- [ ] Implementation: as scoped. The activity precondition is checked before any scan or comparison.
+- [ ] Validation:
+  - `cargo test -p mineworld-cli --test bodies_yard --test bodies_yard_restart`;
+  - `cargo test -p mineworld-bodies --test long_run`;
+  - `mineworld validate worlds/bodies-yard` → exit 0;
+  - M-PB4 at binary level;
+  - M-PB8, each applied, failing by name, and reverted.
+  If the activity precondition fails (too few contacts in a bucket), the remedy is in world data: a
+  smaller room or closer starting positions. It is never in the controller (ARC-27, I-9's spirit),
+  and it is recorded as a bounded deviation.
+- [ ] Review: the scan reads the save, not the code under test. The geometry literals are copied from
+  the world file once, with a test that the file still says them. Every survivor exclusion is
+  asserted.
+
+### PB-C8 — Close: cross-architecture, cost, status, the gate, the ledger
+
+- [ ] PB-12, in the background:
+  - `cargo build -p mineworld-cli --target x86_64-apple-darwin`, the binary copied to `/tmp/s15-12b/`;
+  - the three Rosetta runs, compared with arm64's;
+  - the fallback if the build fails.
+- [ ] PB-14(a): release `long_run`, with its printed mean.
+- [ ] PB-14(b): four 300-day bodies-yard runs, in the background, two at a time.
+- [ ] PB-1 on the final executable head: both 300-day digests, and both `validate` comparisons.
+  M-PB1's 300-day half, applied once and reverted.
+- [ ] PB-15, PB-20: the structural tests and the scope check; fmt and clippy; the full gate once, in
+  the background (expect about 6 minutes, now that Rapier compiles).
+- [ ] Documentation: `docs/MVP_STATUS.md` (a "Bodies" capability row and one evidence row); §17's
+  checkboxes; §17.10; the handoff.
+- [ ] Review: PB-1 … PB-20 each with evidence; deviations in §17.11; FU-12a-1 still open, since 12b
+  touches neither file.
+
+**PR 12b lifecycle:** NOT FROZEN.
