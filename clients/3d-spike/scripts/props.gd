@@ -128,8 +128,10 @@ static func broadleaf(parent: Node3D, pos: Vector3, h := 7.5, seed_v := 0) -> No
 		var dir := Vector3(cos(a) * lean, 1.0, sin(a) * lean).normalized()
 		var to := from + dir * blen
 		var mi := Build.cyl(t, Vector3.ZERO, h * 0.006, h * 0.012, blen, bark, 7)
-		mi.transform = Transform3D(Basis(), (from + to) * 0.5)
-		mi.look_at_from_position((from + to) * 0.5, to, Vector3.UP)
+		# In the tree's LOCAL frame. look_at_from_position takes global
+		# positions, and these are local: it put every tree's boughs around the
+		# world origin, where they drew as one splayed fan of sticks.
+		mi.transform = Transform3D(Basis.looking_at(to - from, Vector3.UP), (from + to) * 0.5)
 		mi.rotate_object_local(Vector3.RIGHT, PI * 0.5)
 		tops.append(to)
 
@@ -376,8 +378,8 @@ static func bicycle(parent: Node3D, pos: Vector3, yaw: float, frame_c := Color(0
 		var b3: Vector3 = seg[1]
 		var mid := (a3 + b3) * 0.5
 		var mi2 := Build.cyl(g, Vector3.ZERO, 0.022, 0.022, a3.distance_to(b3), frame, 6)
-		mi2.transform = Transform3D(Basis(), mid)
-		mi2.look_at_from_position(mid, b3, Vector3.UP)
+		# local frame -- see broadleaf(): look_at_from_position is global
+		mi2.transform = Transform3D(Basis.looking_at(b3 - a3, Vector3.UP), mid)
 		mi2.rotate_object_local(Vector3.RIGHT, PI * 0.5)
 	Build.box(g, Vector3(0, 1.02, 0.12), Vector3(0.46, 0.035, 0.035), metal)
 	Build.box(g, Vector3(0, 0.94, -0.16), Vector3(0.09, 0.05, 0.26),

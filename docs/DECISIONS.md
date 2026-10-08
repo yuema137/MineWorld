@@ -320,6 +320,19 @@ at issue, and it needs its own decision at that point rather than being discover
 - **MB-Lab** — licence of generated characters unconfirmed from a primary source. Marked unconfirmed rather than assumed; prefer MPFB2.
 - **CC-BY-SA and GPL assets** — copyleft incompatible with MIT redistribution, whatever their quality.
 
+**Generated meshes, recorded 2026-10-06 (route E experiment, read at source).** Meshy's paid
+plan passes the relicensing test: *"such customers on a paid Meshy plan own their Customer
+Output"* (Terms of Use, last updated 2026-09-19, <https://www.meshy.ai/terms-of-use>); ownership
+survives cancellation per the help centre (*"You'll retain the rights to the models you created
+while you were a subscriber, and they will remain private indefinitely"*,
+<https://help.meshy.ai/en/articles/9992023-if-i-cancel-my-subscription-will-all-my-models-revert-to-a-cc-by-4-0-license>;
+the Terms themselves are silent on cancellation); output is private by option and becomes CC0 if
+posted to the Meshy Community. A committed Meshy-derived asset keeps Meshy's AI identifiers (the
+Terms forbid removing them) and carries `ARC-9` provenance. The free plan fails. TripoSR and
+TripoSG (MIT code and weights) pass, provided their bundled background removers (`rembg`/u2net
+defaults, and `briaai/RMBG-1.4`, non-commercial) are not run; BiRefNet (MIT) is the substitute.
+Details and quotes: [`references/CHARACTER_ROUTE_E_EXPERIMENT.md`](references/CHARACTER_ROUTE_E_EXPERIMENT.md) §§2, 9.4.
+
 Per-asset sources — Sketchfab's CC0 filter, OpenGameArt, BlenderKit's free tier — mix licences
 within one site, so they are usable only with a per-asset check recorded in that pack's
 `LICENSES/`.

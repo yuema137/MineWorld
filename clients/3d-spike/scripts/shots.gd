@@ -76,7 +76,21 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if player != null:
 		player.scripted_look = true
-	_mode = "drive" if "--drive" in args else "shots"
+	_mode = "shots"
+	if "--drive" in args:
+		_mode = "drive"
+	elif "--portrait" in args:
+		_mode = "portrait"
+	elif "--bodycheck" in args:
+		_mode = "bodycheck"
+	elif "--motion" in args:
+		_mode = "motion"
+	elif "--frametime" in args:
+		_mode = "frametime"
+	elif "--sweep" in args:
+		_mode = "sweep"
+	elif "--headtrace" in args:
+		_mode = "headtrace"
 	DirAccess.make_dir_recursive_absolute(OUT)
 
 
@@ -88,6 +102,18 @@ func _process(_d: float) -> void:
 	set_process(false)
 	if _mode == "drive":
 		await _drive()
+	elif _mode == "portrait":
+		await _portrait()
+	elif _mode == "bodycheck":
+		await _bodycheck()
+	elif _mode == "motion":
+		await _motion()
+	elif _mode == "frametime":
+		await _frametime()
+	elif _mode == "sweep":
+		await _sweep()
+	elif _mode == "headtrace":
+		await _headtrace()
 	else:
 		await _capture()
 	get_tree().quit(0)
@@ -110,6 +136,407 @@ func _capture() -> void:
 			head.save_png("%s/%s.png" % [OUT, HEAD_CROP[v[0]]])
 		print("shot %s at %s yaw %.0f  [%s]" % [v[0], v[1], v[2], player.rig.mode_name()])
 	await _stride_frames()
+
+
+## Where the character stands for her own portrait session, and the five views
+## `docs/VISUAL_FIDELITY.md` §10 asks a review submission to contain.
+##
+## The framing is the *reference's* framing, which is the rule §8 states: the
+## canonical plate is a chest-up portrait, so the comparison frame is chest-up.
+## Judging a face in a 60 px head inside a street screenshot is the mistake this
+## project has already made three times.
+## The window is 1600x900 and neither `--resolution` nor a runtime resize moves
+## it, so the portrait frame is cut out of the centre of the captured image.
+## `Camera3D.fov` is vertical, so cropping the width changes the aspect and not
+## the framing: what these files show is exactly what the client rendered.
+const PORTRAIT_CROP := Rect2i(490, 0, 620, 900)
+## Clear of the street trees' canopy. The first spot put her directly beneath
+## one, and its alpha-scissored leaves rendered as dark shards across her crown
+## -- which was read, reasonably, as an artefact of her hair. The promenade is
+## lined with them, so this is far enough along it to have sky overhead.
+## x = 30 was not: the street trees stand at z -22.6 every 11.3 m with gaps
+## at |x| < 6 and |x - 17| < 7, so x = 30 sat between the x = 22.8 and 34.1
+## trees and the camera, looking along +x, framed the 34.1 canopy over her
+## crown in every portrait.  x = 4 is in the promontory gap, 15 m from either.
+const PORTRAIT_SPOT := Vector3(4.0, 0.2, -16.6)
+const PORTRAIT_YAW := 104.0
+## name, camera distance, camera height, look-at height, yaw offset from her
+## front in degrees, field of view
+const PORTRAIT_VIEWS := [
+	["P1_portrait_front", 1.15, 1.50, 1.46, 8.0, 40.0],
+	["P2_portrait_tq", 1.15, 1.50, 1.46, 34.0, 40.0],
+	["P3_full_front", 3.10, 1.05, 0.95, 6.0, 42.0],
+	["P4_full_tq", 3.10, 1.05, 0.95, 38.0, 42.0],
+	["P5_full_rear", 3.10, 1.05, 0.95, 180.0, 42.0],  # the only one from behind
+	["P6_head", 0.68, 1.58, 1.56, 12.0, 46.0],
+	# from behind, chest-up and a little above: the hood, which names the
+	# garment, has to be visible from the back as well as at the sides
+	["P8_rear_chest", 1.25, 1.62, 1.40, 165.0, 40.0],
+]
+
+
+## The five review frames, from the running client, in its own lighting.
+func _portrait() -> void:
+	# No look input at all for the stills.  `scripted_look` lets the drive
+	# test's synthetic mouse turn the player -- and with it, any real mouse
+	# moving over the window turned her between shots, so the "rear" frame
+	# once came back showing her front and two runs never agreed on a pose.
+	player.scripted_look = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, 0.0)
+	player.set_camera(CameraRig.Mode.THIRD_FRONT)
+	await _settle(0.6)
+	var cam := Camera3D.new()
+	add_child(cam)
+	var base := player.global_position
+	# her own facing, in world space: `place` sets the body yaw from PORTRAIT_YAW
+	var face := deg_to_rad(PORTRAIT_YAW)
+	for v in PORTRAIT_VIEWS:
+		player.place(PORTRAIT_SPOT, PORTRAIT_YAW, 0.0)
+		var a: float = face + deg_to_rad(v[4])
+		cam.fov = v[5]
+		# Godot yaw θ puts forward at (-sin θ, 0, -cos θ); standing in front of
+		# her means stepping along that, not against it.  The first pass had the
+		# sign the other way and photographed the back of her head six times.
+		cam.position = base + Vector3(-sin(a) * v[1], v[2], -cos(a) * v[1])
+		cam.look_at(base + Vector3(0, v[3], 0), Vector3.UP)
+		cam.current = true
+		await _settle(0.25)
+		await RenderingServer.frame_post_draw
+		_save_portrait(v[0])
+		print("portrait %s  dist %.2f m  fov %.0f" % [v[0], v[1], v[5]])
+		if v[0] == "P6_head":
+			# the same head with the lids held shut: the evidence that the blink
+			# closes the eye rather than merely moving the lid
+			var bodies := player.find_children("*", "Human", true, false)
+			if not bodies.is_empty():
+				(bodies[0] as Human).blink_hold = Human.BLINK_PEAK
+				await RenderingServer.frame_post_draw
+				await RenderingServer.frame_post_draw
+				_save_portrait("P6b_blink")
+				(bodies[0] as Human).blink_hold = -1.0
+				print("portrait P6b_blink")
+	# and one mid-stride, because a still figure hides everything about a walk
+	await _portrait_walk(cam, base, face)
+
+
+func _portrait_walk(cam: Camera3D, base: Vector3, face: float) -> void:
+	# walking needs the scripted controls back; she is re-placed first
+	player.scripted_look = true
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, 0.0)
+	var a := face + deg_to_rad(52.0)
+	cam.fov = 42.0
+	cam.position = base + Vector3(-sin(a) * 3.2, 1.05, -cos(a) * 3.2)
+	cam.look_at(base + Vector3(0, 0.95, 0), Vector3.UP)
+	cam.current = true
+	Input.action_press("move_forward")
+	await _settle(0.85)
+	# frame her where she has walked to, from the same side and distance
+	var now := player.global_position
+	cam.position = now + Vector3(-sin(a) * 3.2, 1.05, -cos(a) * 3.2)
+	cam.look_at(now + Vector3(0, 0.95, 0), Vector3.UP)
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	_save_portrait("P7_walk")
+	Input.action_release("move_forward")
+	print("portrait P7_walk")
+
+
+## Frame sequences, because stiffness is about motion and stills under-show
+## it. `idle`: one whole standing loop at the reference's three-quarter
+## chest-up framing, every 0.5 s. `walk`: from the operator's third-person
+## front camera, two seconds walking, then stopping, then standing, every
+## 0.1 s. Written to shots/motion/; the launcher's caller assembles them.
+func _motion() -> void:
+	DirAccess.make_dir_recursive_absolute(OUT + "/motion")
+	player.scripted_look = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, 0.0)
+	player.set_camera(CameraRig.Mode.THIRD_FRONT)
+	await _settle(0.6)
+	var cam := Camera3D.new()
+	add_child(cam)
+	var base := player.global_position
+	var a := deg_to_rad(PORTRAIT_YAW + 34.0)
+	cam.fov = 40.0
+	cam.position = base + Vector3(-sin(a) * 1.15, 1.50, -cos(a) * 1.15)
+	cam.look_at(base + Vector3(0, 1.46, 0), Vector3.UP)
+	cam.current = true
+	for i in 26:
+		await _settle(0.5)
+		await RenderingServer.frame_post_draw
+		_save_portrait("motion/idle_%02d" % i)
+	print("motion idle: 26 frames")
+	cam.current = false
+	cam.queue_free()
+	player.scripted_look = true
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+	player.set_camera(CameraRig.Mode.THIRD_FRONT)
+	await _settle(0.3)
+	for i in 45:
+		if i == 0:
+			Input.action_press("move_forward")
+		if i == 20:
+			Input.action_release("move_forward")
+		await _settle(0.1)
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("%s/motion/walk_%02d.png" % [OUT, i])
+	print("motion walk: 45 frames")
+	player.scripted_look = false
+
+
+## The operator's own views of the player character, full window: the two
+## third-person cameras, standing and mid-stride, and each with her turned
+## both ways so every camera sees her front and her back.
+##
+## The portrait frames are composed for comparison with the reference; these
+## are what a player actually sees, and a body that is incomplete from some
+## angle in some pose shows up here and not there.
+func _bodycheck() -> void:
+	var modes := [["rear", CameraRig.Mode.THIRD_REAR], ["front", CameraRig.Mode.THIRD_FRONT]]
+	for m in modes:
+		for turn in [0.0, 180.0]:
+			for walking in [false, true]:
+				player.scripted_look = walking
+				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+				player.place(PORTRAIT_SPOT, PORTRAIT_YAW + turn, -8.0)
+				player.set_camera(m[1])
+				if walking:
+					Input.action_press("move_forward")
+				await _settle(0.9 if walking else 0.5)
+				await RenderingServer.frame_post_draw
+				var name := "B_%s_%s_%s" % [m[0], "turned" if turn > 0.0 else "facing",
+					"walk" if walking else "stand"]
+				get_viewport().get_texture().get_image().save_png("%s/%s.png" % [OUT, name])
+				print("bodycheck ", name)
+				if walking:
+					Input.action_release("move_forward")
+	player.scripted_look = false
+	# and the townspeople, who share the body but not the wardrobe: the nearest
+	# standing one and the nearest walking one, front and back, close up
+	var cam := Camera3D.new()
+	add_child(cam)
+	cam.fov = 40.0
+	var people := get_tree().root.find_children("*", "NPC", true, false)
+	people.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return a.global_position.distance_to(PORTRAIT_SPOT) < b.global_position.distance_to(PORTRAIT_SPOT))
+	var n := 0
+	for p: Node3D in people:
+		if n >= 3:
+			break
+		n += 1
+		for side in [["front", 0.0], ["back", PI]]:
+			var body := p.global_transform.basis
+			var fwd := (body * Vector3(0, 0, 1)).normalized()
+			fwd = fwd.rotated(Vector3.UP, side[1])
+			cam.global_position = p.global_position + fwd * 2.4 + Vector3(0, 1.2, 0)
+			cam.look_at(p.global_position + Vector3(0, 1.0, 0), Vector3.UP)
+			cam.current = true
+			await RenderingServer.frame_post_draw
+			await RenderingServer.frame_post_draw
+			var name := "B_npc%d_%s" % [n, side[0]]
+			get_viewport().get_texture().get_image().save_png("%s/%s.png" % [OUT, name])
+			print("bodycheck ", name)
+
+
+## Frame time with the player's body in view: the operator's front camera at
+## the portrait spot, standing, then walking, vsync off. CPU frame time from the
+## process delta, GPU time from the viewport's own measurement. Run once as is
+## and once with `--town-body` to compare the two bodies in the same scene.
+func _frametime() -> void:
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	var vp := get_viewport().get_viewport_rid()
+	RenderingServer.viewport_set_measure_render_time(vp, true)
+	player.scripted_look = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+	player.set_camera(CameraRig.Mode.THIRD_FRONT)
+	await _settle(2.0)
+	for phase in ["stand", "walk"]:
+		if phase == "walk":
+			player.scripted_look = true
+			player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+			Input.action_press("move_forward")
+			await _settle(0.5)
+		var cpu := PackedFloat64Array()
+		var gpu := PackedFloat64Array()
+		var last := Time.get_ticks_usec()
+		for i in 240:
+			await RenderingServer.frame_post_draw
+			var now := Time.get_ticks_usec()
+			cpu.append((now - last) / 1000.0)
+			last = now
+			gpu.append(RenderingServer.viewport_get_measured_render_time_gpu(vp))
+		if phase == "walk":
+			Input.action_release("move_forward")
+		cpu.sort()
+		gpu.sort()
+		print("frametime %s body=%s  frame median %.2f ms p95 %.2f ms  gpu median %.2f ms p95 %.2f ms" % [
+			phase, "town" if "--town-body" in OS.get_cmdline_user_args() else "reference",
+			cpu[120], cpu[228], gpu[120], gpu[228]])
+
+
+## Interpenetration sweep: the player walking and jogging, filmed by a camera
+## that rides along with her at chest height, from behind, from behind on her
+## strap side, and from the front on her strap side. Eight frames 0.125 s
+## apart cover one walk cycle (about 1 s at 1.45 m/s) and more than one jog
+## cycle, so every phase of the arm swing is seen, not one chosen frame.
+## Written to shots/sweep/, cropped to the middle of the window.
+const SWEEP_VIEWS := [["rear", 180.0], ["rear_tq", 140.0], ["front_tq", 40.0]]
+
+
+func _sweep() -> void:
+	DirAccess.make_dir_recursive_absolute(OUT + "/sweep")
+	var cam := Camera3D.new()
+	add_child(cam)
+	cam.fov = 40.0
+	for gait in ["walk", "jog"]:
+		for v in SWEEP_VIEWS:
+			player.scripted_look = true
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+			# a third-person mode, or the body is hidden (first person shows none)
+			player.set_camera(CameraRig.Mode.THIRD_REAR)
+			if gait == "jog":
+				Input.action_press("jog")
+			Input.action_press("move_forward")
+			await _settle(1.2)
+			cam.current = true
+			for i in 8:
+				var face := player.body.global_transform.basis * Vector3(0, 0, 1)
+				var yaw := atan2(face.x, face.z) + deg_to_rad(v[1])
+				var at := player.body.global_position
+				cam.position = at + Vector3(sin(yaw) * 1.7, 1.35, cos(yaw) * 1.7)
+				cam.look_at(at + Vector3(0, 1.15, 0), Vector3.UP)
+				await RenderingServer.frame_post_draw
+				_save_portrait("sweep/%s_%s_%d" % [gait, v[0], i])
+				await _settle(0.125)
+			Input.action_release("move_forward")
+			Input.action_release("jog")
+			cam.current = false
+			print("sweep %s %s: 8 frames" % [gait, v[0]])
+	player.scripted_look = false
+
+
+## Head stability while moving: the player stands, walks, jogs and stops, and
+## every rendered frame records where her face points in her own body frame
+## (+Z is the direction of travel): yaw (+ to her left), pitch (+ up) and roll,
+## from the head bone's posed basis applied to the directions that point
+## forward and up out of the face at rest. Also the third-person rear camera's
+## offset from the player, to show whether the camera adds bob of its own.
+## Writes shots/headtrace_<body>.csv and prints peak-to-peak per phase.
+func _headtrace() -> void:
+	var town := "--town-body" in OS.get_cmdline_user_args()
+	var human := player.body.body as Human
+	var sk := human.skeleton
+	var hb := sk.find_bone("Head")
+	var rest := sk.get_bone_global_rest(hb).basis
+	# the skeleton's orientation in the body frame when standing at rest, so the
+	# travel-frame reading equals the skeleton-space one when nothing moves it
+	var sk0 := player.body.global_transform.basis.inverse() * sk.global_transform.basis
+	var final := [rest]
+	sk.skeleton_updated.connect(func() -> void:
+		var c := Basis.IDENTITY
+		var bi := hb
+		while bi != -1:
+			c = sk.get_bone_pose(bi).basis * c
+			bi = sk.get_bone_parent(bi)
+		final[0] = c)
+	var fwd_l := rest.inverse() * Vector3(0, 0, 1)
+	var up_l := rest.inverse() * Vector3(0, 1, 0)
+	var f := FileAccess.open("%s/headtrace_%s.csv" % [OUT, "town" if town else "reference"],
+		FileAccess.WRITE)
+	f.store_line("t,phase,yaw,pitch,roll,cam_dy,cam_dx,speed")
+	player.scripted_look = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+	player.set_camera(CameraRig.Mode.THIRD_REAR)
+	await _settle(0.8)
+	# the player's own rear camera is kept for the camera-bob column; the
+	# frames are drawn by a camera riding at her front three-quarter, as in
+	# --sweep, so her skeleton is on screen and updated in every gait
+	var rig_cam := get_viewport().get_camera_3d()
+	var ride := Camera3D.new()
+	add_child(ride)
+	ride.fov = 40.0
+	var t := 0.0
+	var stats := {}
+	# Each gait starts from the same spot: walking straight into jogging ran her
+	# into the railing 6 m on, where she stood still for the rest of the "jog".
+	for ph in [["stand", 1.0, false, false], ["walk", 2.5, true, false],
+			["stop", 1.0, false, false], ["jog", 2.0, true, true], ["halt", 1.5, false, false]]:
+		if ph[0] == "jog":
+			player.place(PORTRAIT_SPOT, PORTRAIT_YAW, -8.0)
+		if ph[2]:
+			Input.action_press("move_forward")
+		else:
+			Input.action_release("move_forward")
+		if ph[3]:
+			Input.action_press("jog")
+		else:
+			Input.action_release("jog")
+		var s := {"yaw": [], "pitch": [], "roll": [], "cdy": []}
+		var el := 0.0
+		while el < ph[1]:
+			var fb := player.body.global_transform.basis * Vector3(0, 0, 1)
+			var ry := atan2(fb.x, fb.z) + deg_to_rad(40.0)
+			ride.position = player.body.global_position + Vector3(sin(ry) * 2.2, 1.4, cos(ry) * 2.2)
+			ride.look_at(player.body.global_position + Vector3(0, 1.1, 0), Vector3.UP)
+			ride.current = true
+			await get_tree().process_frame
+			var dt := get_process_delta_time()
+			el += dt
+			t += dt
+			# The final pose, captured in `skeleton_updated` after the modifiers
+			# ran: read from here, the pose is the AnimationTree's alone, before
+			# Posture -- the first traces read the jog as a frozen head and showed
+			# no effect of any modifier at all.
+			var b: Basis = final[0]
+			# in the body's travel frame, through the skeleton's world transform
+			b = (player.body.global_transform.basis.inverse() * sk.global_transform.basis
+				* sk0.inverse()) * b
+			var fw := (b * fwd_l).normalized()
+			var up := (b * up_l).normalized()
+			var yaw := rad_to_deg(atan2(fw.x, fw.z))
+			var pitch := rad_to_deg(asin(clampf(fw.y, -1.0, 1.0)))
+			var right := Vector3.UP.cross(fw).normalized()
+			var roll := rad_to_deg(asin(clampf(-up.dot(right), -1.0, 1.0)))
+			var rel := player.global_transform.affine_inverse() * rig_cam.global_position
+			f.store_line("%.4f,%s,%.2f,%.2f,%.2f,%.4f,%.4f,%.3f" % [t, ph[0], yaw, pitch, roll,
+				rel.y, rel.x, human._speed])
+			# a few frames to set beside the numbers
+			var k := int(el / 0.25)
+			if ph[0] in ["walk", "jog"] and el > 1.0 and k <= 7 and not s.has("f%d" % k):
+				s["f%d" % k] = true
+				get_viewport().get_texture().get_image().save_png(
+					"%s/headtrace_%s_%d_y%.0f_p%.0f.png" % [OUT, ph[0], k, yaw, pitch])
+			# the first 0.6 s of a phase is the transition, not the gait
+			if el > 0.6:
+				s["yaw"].append(yaw)
+				s["pitch"].append(pitch)
+				s["roll"].append(roll)
+				s["cdy"].append(rel.y)
+		stats[ph[0]] = s
+	Input.action_release("move_forward")
+	Input.action_release("jog")
+	f.close()
+	for ph: String in stats:
+		var line := "headtrace %s body=%s" % [ph, "town" if town else "reference"]
+		for k in ["yaw", "pitch", "roll", "cdy"]:
+			var a: Array = stats[ph][k]
+			if a.is_empty():
+				continue
+			var mean: float = a.reduce(func(x: float, y: float) -> float: return x + y, 0.0) / a.size()
+			var unit := " m" if k == "cdy" else " deg"
+			line += "  %s mean %.2f p2p %.3f%s" % [k, mean, a.max() - a.min(), unit]
+		print(line)
+	player.scripted_look = false
+
+
+func _save_portrait(name: String) -> void:
+	var img := get_viewport().get_texture().get_image()
+	var rect := PORTRAIT_CROP.intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	img.get_region(rect).save_png("%s/%s.png" % [OUT, name])
 
 
 ## Two frames a known distance apart, while walking, from a fixed camera.

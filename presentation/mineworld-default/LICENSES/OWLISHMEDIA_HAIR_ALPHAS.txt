@@ -1,0 +1,25 @@
+OwlishMedia, "Hair Alphas For Days" (archive OwlishMedia_HairGalore.zip)
+
+Source:   https://opengameart.org/content/hair-alphas-for-days
+Archive:  https://opengameart.org/sites/default/files/OwlishMedia_HairGalore.zip
+Licence:  CC0 1.0 Universal (public domain dedication), as stated on the
+          source page; the author adds in the comments "Everything on this
+          site is public domain so go wild."
+Read:     2026-10-06
+Fetched:  2026-10-06, by clients/3d-spike/tools/fetch_hair_alphas.sh, into a
+          scratch directory outside the repository. The archive is not
+          committed.
+
+Used in:  clients/3d-spike/assets/characters/vitruvian/textures/hair_strands.png
+          (built by clients/3d-spike/tools/hair_atlas.py --alphas), one
+          256 x 1024 column per map, each the centre 512 px of the map's width
+          and the top 1700 px of its height, downscaled:
+
+          column 0  hair01.png    column 4  hair09.png
+          column 1  hair04.png    column 5  hair08.png
+          column 2  hair05.png    column 6  hair21.png
+          column 3  hair06.png    column 7  hair27.png
+
+CC0 places no conditions on redistribution or relicensing; the derived atlas
+is distributed with the rest of this pack. Attribution is given here as a
+courtesy.
