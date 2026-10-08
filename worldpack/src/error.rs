@@ -399,6 +399,171 @@ pub enum PackError {
         #[source]
         source: KernelError,
     },
+
+    // ---- Configuration (`DECISIONS.md` `ARC-61`): world.yaml's `configure:` and `configure/`. ----
+    /// A `configure:` key names no system this build provides.
+    #[error(
+        "{path}: configure: names '{key}', which is not a system this build provides (available: \
+         {available})"
+    )]
+    ConfigurationOfUnknownSystem {
+        /// The key.
+        key: String,
+        /// The systems this build provides, for the author to pick from.
+        available: String,
+        /// `world.yaml`.
+        path: PathBuf,
+    },
+
+    /// A `configure:` key names a system the world does not enable.
+    #[error(
+        "{path}: configure: names '{system}', which this world does not enable: add it to systems:"
+    )]
+    ConfigurationOwnerNotEnabled {
+        /// The system.
+        system: SystemId,
+        /// `world.yaml`.
+        path: PathBuf,
+    },
+
+    /// A `configure:` key names an enabled system that takes no configuration.
+    #[error("{path}: configure: names '{system}', which takes no configuration")]
+    NotConfigurable {
+        /// The system.
+        system: SystemId,
+        /// `world.yaml`.
+        path: PathBuf,
+    },
+
+    /// A `configure:` key is reserved for something a later build configures.
+    #[error(
+        "{path}: configure: names '{key}', which is reserved for {reserved_for}; not configurable in this build"
+    )]
+    ConfigurationReserved {
+        /// The key.
+        key: String,
+        /// What it is reserved for.
+        reserved_for: &'static str,
+        /// `world.yaml`.
+        path: PathBuf,
+    },
+
+    /// A `configure:` key is listed twice.
+    #[error("{path}: configure: lists '{key}' twice")]
+    ConfigurationListedTwice {
+        /// The key.
+        key: String,
+        /// `world.yaml`.
+        path: PathBuf,
+    },
+
+    /// A `configure:` key's file is absent.
+    #[error("configure: names '{system}', but {path} does not exist")]
+    ConfigurationFileMissing {
+        /// The system.
+        system: SystemId,
+        /// The file that is not there.
+        path: PathBuf,
+    },
+
+    /// A file in `configure/` that `configure:` does not list — the configuration an author believes
+    /// they wrote and the world would never see.
+    #[error(
+        "{path} is not listed in world.yaml's configure: — list '{key}' there, or remove the file"
+    )]
+    ConfigurationFileNotDeclared {
+        /// The file's stem.
+        key: String,
+        /// The file.
+        path: PathBuf,
+    },
+
+    /// A configuration needs a system the world does not enable.
+    #[error(
+        "{path}: the '{by}' system's configuration needs '{requires}', which this world does not enable"
+    )]
+    ConfigurationRequiresSystem {
+        /// The system it needs.
+        requires: SystemId,
+        /// The configured system.
+        by: SystemId,
+        /// The configuration's file.
+        path: PathBuf,
+    },
+
+    /// A configuration names an entity this pack does not declare, or one of the wrong type.
+    #[error(
+        "{path}: the '{system}' system's configuration names '{key}', which is not a declared \
+         {expected:?}"
+    )]
+    ConfigurationNamesUnknownEntity {
+        /// The configured system.
+        system: SystemId,
+        /// The key it names.
+        key: EntityKey,
+        /// What its owner needs that key to be.
+        expected: EntityType,
+        /// The configuration's file.
+        path: PathBuf,
+    },
+
+    /// The configured System Pack refused its configuration as the assembled world stands. The owner's
+    /// own refusal, unaltered.
+    #[error("{path}: the '{system}' system refused its configuration: {reason:?}")]
+    ConfigurationRefusedByOwner {
+        /// The configured system.
+        system: SystemId,
+        /// What it said. Boxed, as for a section.
+        reason: Box<Rejection>,
+        /// The configuration's file.
+        path: PathBuf,
+    },
+
+    /// A configuration seeded a fact in another System Pack's vocabulary.
+    #[error(
+        "{path}: the '{system}' system's configuration stated a '{event_type}' fact, which is the \
+         '{owner}' system's vocabulary"
+    )]
+    ConfigurationStatedAnotherPacksFact {
+        /// The configured system.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
+        /// Whose vocabulary that fact is.
+        owner: SystemId,
+        /// The configuration's file.
+        path: PathBuf,
+    },
+
+    /// A configuration seeded a fact of its owner's that the owner did not declare among its
+    /// configuration facts — which the drift check at resume would never compare.
+    #[error(
+        "{path}: the '{system}' system's configuration stated a '{event_type}' fact, which it does \
+         not declare as a configuration fact"
+    )]
+    ConfigurationStatedUndeclaredFact {
+        /// The configured system.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
+        /// The configuration's file.
+        path: PathBuf,
+    },
+
+    /// A save is being resumed or replayed against a World Pack whose configuration differs from the
+    /// one the save was created with (`ARC-61` item 7, QPL-12).
+    #[error(
+        "the world's configuration differs from the save's: system '{system}' (save: {saved}; this \
+         pack: {here}) — a save resumes only against the configuration it was created with"
+    )]
+    ConfigurationDrift {
+        /// The first system whose configuration differs.
+        system: SystemId,
+        /// What the save holds at the first difference.
+        saved: String,
+        /// What this pack seeds there.
+        here: String,
+    },
 }
 
 impl PackError {

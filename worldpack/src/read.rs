@@ -12,6 +12,9 @@
 //! 2  world.yaml parses, with unknown fields refused
 //! 3  the pack's id is its directory's name, and a stated `mineworld:` range admits this framework
 //! 4  every system it enables exists here, and none twice
+//! 4c every configure: key is an enabled, configurable system of this build, listed once and not
+//!    reserved; its file exists and its owner's type decodes it; every file in configure/ is listed;
+//!    every system a configuration requires is enabled (ARC-61)
 //! 5  every authoring key is declared once, across places, population, items and organizations
 //! 6  every declared key has its file, and every file in people/, places/, items/ and
 //!    organizations/ is declared
@@ -20,7 +23,7 @@
 //! 9  every passage joins two distinct declared places, each pair once, with `movement` enabled
 //! 10 every section's owner is enabled, its file may carry it, and every entity it names is
 //!    declared, of the type its owner needs (ARC-31) — what a section says was already checked as it
-//!    was read, by its owner's own type
+//!    was read, by its owner's own type; then every entity a configuration names, the same way
 //! ```
 //!
 //! The order is deliberate: each check assumes the previous one passed, so an author fixes one thing
@@ -35,11 +38,12 @@ use mineworld_packages::{Compatibility, License, Version};
 use serde::de::DeserializeOwned;
 
 use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
+use crate::configure;
 use crate::content::ContentFile;
 use crate::error::{ContentKind, Declared, PackError};
 use crate::format::{
-    AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace, FoundSection, SectionState,
-    WorldManifest,
+    AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace, FoundConfiguration,
+    FoundSection, SectionState, WorldManifest,
 };
 
 /// The file every World Pack has.
@@ -79,6 +83,7 @@ pub struct WorldPack {
     items: BTreeMap<EntityKey, AuthoredItem>,
     organizations: BTreeMap<EntityKey, AuthoredOrganization>,
     seats: BTreeSet<EntityKey>,
+    configuration: Vec<FoundConfiguration>,
 }
 
 impl WorldPack {
@@ -102,6 +107,7 @@ impl WorldPack {
                 })?;
         }
         let systems = resolve_systems(&manifest.systems)?;
+        let configuration = configure::read(&root, &manifest.configure, &systems)?;
         check_keys_are_declared_once(&manifest)?;
 
         let places = read_content(&root, &manifest.places, ContentKind::Place, |text| {
@@ -165,8 +171,10 @@ impl WorldPack {
             items,
             organizations,
             seats,
+            configuration,
         };
         check_sections(&pack)?;
+        configure::check_references(&pack)?;
         Ok(pack)
     }
 
@@ -222,6 +230,12 @@ impl WorldPack {
         &self.seats
     }
 
+    /// The System Packs this world configures, each decoded by its owner, in `configure:` order —
+    /// which is seeding order (`DECISIONS.md` `ARC-61`).
+    pub fn configuration(&self) -> &[FoundConfiguration] {
+        &self.configuration
+    }
+
     /// Every content file's sections, in the one order every per-file pass uses: items', then
     /// organizations', then places', then people's, each in key order (`ARC-36` item 7).
     ///
@@ -271,11 +285,19 @@ impl WorldPack {
             items,
             organizations,
             seats: BTreeSet::new(),
+            configuration: Vec::new(),
         }
     }
 
+    /// The same in-memory pack, configured with probe configurations (`crate::configure`'s tests).
+    #[cfg(test)]
+    pub(crate) fn with_configuration(mut self, configuration: Vec<FoundConfiguration>) -> Self {
+        self.configuration = configuration;
+        self
+    }
+
     /// Every declared key and the entity type it will be: one namespace across the four lists.
-    fn declared_entities(&self) -> BTreeMap<&EntityKey, EntityType> {
+    pub(crate) fn declared_entities(&self) -> BTreeMap<&EntityKey, EntityType> {
         let places = self.places.keys().map(|key| (key, EntityType::Place));
         let people = self.people.keys().map(|key| (key, EntityType::Person));
         let items = self.items.keys().map(|key| (key, EntityType::Item));
@@ -300,9 +322,9 @@ fn parse<T: DeserializeOwned>(path: &Path, kind: &'static str) -> Result<T, Pack
 }
 
 /// [`parse`], with the decoding supplied: a content file is decoded through a seed that knows which
-/// sections this build's packs own ([`ContentFile`]). The one place `serde-saphyr` is called from
-/// stays this module (`DEP-10`).
-fn parse_with<T>(
+/// sections this build's packs own ([`ContentFile`]), and a configuration file by its owner's type
+/// (`crate::configure`). `serde-saphyr` is called from this module and that one only (`DEP-10`).
+pub(crate) fn parse_with<T>(
     path: &Path,
     kind: &'static str,
     decode: impl FnOnce(&str) -> Result<T, serde_saphyr::Error>,

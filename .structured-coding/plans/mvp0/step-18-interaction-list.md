@@ -1107,9 +1107,34 @@ two-line follow-up if the primary session prefers.
   under `CARGO_TARGET_TMPDIR`, removed by each test (test hygiene, coordination ruling 10).
 - In-crate probe tests: the positive decode, references, requires.
 
-- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-worldpack`; M-IA3; the three worlds read
-  as before · [ ] Review: §11.5's shared lines placed exactly as stated; `load.rs` untouched in this
-  commit except IA-C3's line.
+- [x] Implementation: `format.rs` — `WorldManifest.configure: Vec<ConfigurationKey>` (appended after
+  `mineworld`), `ConfigurationKey` (transparent over `SystemId`, so it validates at its line),
+  `FoundConfiguration` after `SectionState`; `error.rs` — the SD-IA-7 variants appended after
+  `Composition`, plus `ConfigurationStatedUndeclaredFact` (D-5); `configure.rs` — `read` composed of
+  `resolve_keys` (listed twice first — D-6 — then reserved, unknown, not enabled, not configurable),
+  `read_files` (missing, then decoded by the owner through `serde_saphyr::with_deserializer_from_str`),
+  `check_nothing_undeclared`, `check_requires`; `check_references`; `RESERVED`; `DIRECTORY`. `read.rs`
+  — one call after `resolve_systems`, one field, `configuration()` after `seats()`, step 4c in the doc,
+  `configure::check_references(&pack)?` after `check_sections`; plus `parse_with` and
+  `declared_entities` made `pub(crate)` and a `#[cfg(test)] with_configuration` (D-7). `lib.rs` — `pub
+  mod configure;` and the two re-exports. Tests: `worldpack/tests/configuration.rs` (8: unknown,
+  reserved ×2, not enabled, not configurable, twice, undeclared file with a README control, a malformed
+  key at line 12 column 5, no installed id reserved) on scratch worlds removed on drop;
+  `worldpack/src/configure/tests.rs` (3, probe labelled `Presence`: file missing; the owner's bound
+  refused at "line 2 column 7" with its own message; a valid decode; requires; references undeclared
+  and mistyped).
+- [x] Validation (E-IA-4): `cargo test -p mineworld-worldpack` → every target ok (lib 38 incl. the 3
+  new, configuration 8, registration 1, refusals 15, …); clippy `-D warnings` and fmt clean. M-IA3
+  (`check_nothing_undeclared` not called) → `a_configuration_file_that_is_not_listed_is_refused_naming_the_file`
+  FAILS "expected ConfigurationFileNotDeclared, got Ok(..)"; reverted, `git grep MUTATION` empty. The
+  three worlds' `mineworld validate` output `cmp`-identical to E-IA-0's. No scratch directory left
+  behind (`target/tmp`, `$TMPDIR` checked).
+- [x] Review: §11.5's shared lines placed as stated (field after `mineworld`; call directly after
+  `resolve_systems`; field and accessor at the ends; `FoundConfiguration` after `SectionState`; error
+  variants appended in one block). `load.rs` untouched in this commit. Sizes: `read.rs` 675 (653 on
+  base), `error.rs` 583 (418): both past ~500 — `error.rs` is one enum of refusals, each a few lines,
+  which is its one responsibility; `read.rs`'s growth is 22 lines, and the new logic lives in
+  `configure.rs` (220) by design. Recorded, not split.
 
 ### IA-C5 — `worldpack`: seeding and the drift comparator
 
@@ -1279,4 +1304,19 @@ D-3  (material, ruled) Amendment A-1, §11.1.
 D-4  (bounded) Capability::extension_types() returns Vec<(&'static str, Vec<&'static str>)>, not a
      &'static slice (SD-IA-3): the types' Rust paths come from core::any::type_name, which is not const,
      and the installed set's guard compares them with Capability::type_name. No caller beyond the guard.
+D-5  (bounded) One more refusal than SD-IA-7 lists: ConfigurationStatedUndeclaredFact, for a seeded fact of
+     the owner's own vocabulary whose type is outside its FACTS (SD-IA-9 requires the refusal; a separate
+     variant names it honestly instead of overloading "another pack's fact").
+D-6  (bounded) `configure:` duplicates are checked before each key is resolved, not after: it assumes
+     nothing, and it makes the refusal reachable with this build's packs (`[movement, movement]`) through
+     the real loader instead of only through a probe.
+D-7  (bounded) read.rs: parse_with and declared_entities become pub(crate) (configure.rs uses them; one
+     saphyr call site per decoding module, DEP-10's comment updated), and a #[cfg(test)]
+     with_configuration beside in_memory. In-crate tests live in worldpack/src/configure/tests.rs (a
+     child module file) to keep configure.rs small.
+D-8  (scope finding) Of SD-IA-7's refusals, only unknown system, reserved, not enabled, not configurable,
+     listed twice and undeclared file are reachable with this build's packs (none is configurable). File
+     missing, owner decode, requires, references and the seeding refusals are proven in-crate with a probe
+     and through the real binary only on the canary (IA-10). IA-3's "file missing through the real
+     `mineworld validate`" is therefore canary evidence, not a merged test.
 ```
