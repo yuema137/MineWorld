@@ -3446,3 +3446,113 @@ The following are not needed:
 
 AC-1's check 2 reads only market crates. Check 1 reads only the 11d and 11e merges. The I-2 scan reads
 only 11a … 11c. `bodies` is none of these, so it trips none of them (PB-15 runs all three).
+
+## 17.8 Questions (QP-1 …)
+
+Operator-material questions are marked **[OM]**. Each has a recommendation; the others are the primary
+session's to decide at freeze.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QP-1 [OM]** | **The guard.** ARC-39 item 7, bullet 3 says the first resolver pack checks the invariant "in its reactions to the recorded arrivals". F-B1 shows such a reaction sees each arrival before the rest of its list is reduced, and would fail every nudge. Options:<br>(a) a guard on the **starting state** of every non-inert resolution, which panics naming the pair, the place and ARC-39 (SD-B9);<br>(b) no guard; rely on the tests;<br>(c) a kernel hook at the end of a generation (a kernel change). | **(a)**, recorded as a dated note on ARC-39 (PB-C1). It catches exactly what bullet 3 was for — a bypass (F-R11) or an unregistered host — at the next arrival into that place. Its failure mode is the one ARC-39 already chose for host defects (a panic, like `require_registered`). PB-17 and M-PB10 show it. |
+| **QP-2 [OM]** | **Two existing tests are edited** (F-B2).<br>- `worldpack/tests/registration.rs` pins the installed set's empty resolver list.<br>- `seam_vocabulary.rs` scans `systems/installed/src`, where the installed set must now name `mineworld_bodies::BodiesSystem`.<br>Edit them, or leave bodies out of the installed set? | **Edit both, keeping their claims.** In registration.rs, the expected list becomes `[bodies]`. In seam_vocabulary.rs, a second self-checking admission list admits `bodies` on the installed set's two lines only, with ARC-33 as its reason. Every other directory and word is still refused. Precedent: QR-2's three literals. Leaving bodies uninstalled would make it unusable by any host. |
+| **QP-3 [OM]** | **Where `rapier3d` is declared** (F-B8). (a) In the root `[workspace.dependencies]`, by the root's own rule. (b) In `systems/bodies/Cargo.toml` only, so installing bodies touches nothing outside `systems/`. | **(a).** The root rule — one version per dependency, and a new one is a reviewable decision — is what ARC-33 item 3 kept. DEP-13 is that decision. DEP-13 also states plainly that installing a pack which brings a new external dependency adds one root line. (b) would start a second place where external versions live. |
+| **QP-4** | **Test world:** a committed `worlds/bodies-yard`, or a world built inside tests? | **Committed** (SD-B13). Only a real World Pack exercises the real `body:` path through the loader, `validate`, `mineworld run` with the unchanged controller, `--save`, SIGKILL, and world-level removal by the established copy pattern. It also stays 12c's fixture. |
+| **QP-5** | **The geometry format:** §10.4's `walls:` as boxes, or `floor` plus `solids` (SD-B3)? Section name `body` (§10.2) or `bodies`? | **`body:` with `floor` and `solids`.** The floor's edge is the walls. A doorway needs no gap, because a crossing is a placement. Boxes stay axis-aligned under the 3D client's frame mapping. `body` keeps §10.2's name and the singular style of `name`, `routine`, `item` and `job`. |
+| **QP-6** | **Per-person shapes:** §10.2 lists `BodyShape` and `body-formed`. Needed in 12b? | **No.** Every person is the default capsule. No requirement asks for others, and `CLAUDE.md` rule 11 says no premature abstraction. 12c adds `BodyShape` for objects. Person overrides come when a world needs them. |
+| **QP-7 [OM]** | **A crossing into a jammed doorway** (F-B3). §5 says the person stays on their side of the door. The seam cannot express that: a resolution must end in `to`'s place. | **Entry placement** (SD-B8):<br>- `to` if free;<br>- else nudge from `to` within I-11;<br>- else the nearest free 50 mm lattice point. This is guaranteed by SD-B4's capacity check at load.<br>The alternative — a way for a resolver to refuse — is a presence and movement change (movement would have to ask in `validate`), against I-1 and 12a's frozen seam. |
+| **QP-8** | **QB-16, the bias** (SD-B10): turn the walker 14° right when the first person met is within 200 mm of its line, against criteria HB-1 … HB-4 fixed now, with a ladder if needed. | **Accept.** It is the operator's delegated decision (QB-16), made before measuring. It keeps I-11's bound, because the nudges are unchanged. |
+| **QP-9 [OM]** | **If PB-14(b) fails** (bodies-yard with bodies over 1.5× without, in the dev profile): may 12b add `[profile.dev.package.rapier3d]` and `[profile.dev.package.parry3d]` with `opt-level = 3` to the root manifest? | **Yes, as a contingent permission granted at freeze.** It applies only if (b) fails. It needs re-showing that results are identical across optimization levels: PC-f did this for the prototype, and here PB-11's digests are compared with and without the override. Otherwise (b) failing is a material stop. |
+| **QP-10** | `parallel`? | **Off.** The documentation says it is bitwise equal to the sequential solver, but 12b runs queries, not the solver. Threads in a single-threaded host buy nothing. Revisit only with evidence in 12c. |
+| **QP-11** | F-P1's regression test, when 12b has no dynamic body? | **Keep it** (operator's binding). It is a canary that turns red when upstream changes the behaviour, and a fix test for the adapter 12c will use. |
+| **QP-12** | Disclose `PlaceShape` in 12b, or leave it to 12e? | **In 12b.** It is the owner's own state, it costs one function and one test, and 12e then changes no server code (R-B4). |
+| **QP-13** | One number for "too close": CLEARANCE 595 mm, at genesis and at run time? | **Yes.** One number, so a world that loads is a world the resolver accepts. |
+| **QP-14** | A person with no local position in a shaped place? | **Bodiless:** ignored by others' resolutions. Their move to a position is an entry placement. Positionless arrivals are inert. |
+| **QP-15** | Another resolver before bodies changed the arrival? | **Bodies passes it through** (SD-B15). The guard catches any resulting overlap at the next arrival. Two geometric resolvers are out of MVP-0 (R-B11). |
+| **QP-16** | PB-12 if the CLI cannot be cross-built for x86_64? | **Fall back** to the pack's test binaries under Rosetta, recorded as PARTIAL. A native x86_64 host remains S13's. |
+
+## 17.9 Proposed execution contract for PR 12b
+
+```text
+PROJECT / PR        MVP-0 · Step 11 / PR 12b — people: walls and nudging (S15, second of five; the first
+                    resolver pack, `bodies`, on Rapier)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §17; evidence in §17.10 (E-PB<n>);
+                    deviations in §17.11
+RELATED / BINDING   this file: the header's freeze record (QB-1, QB-10, QB-15), §§4.4–4.7, 5, 6.3, 9.6–9.8,
+                    10.1 (I-1 … I-5, I-8, I-10 … I-13), 11.1, 15.1, §16 (12a as merged, §16.12);
+                    overall.md §3 (S15), §7; DECISIONS ARC-15, ARC-23, ARC-25, ARC-26, ARC-27, ARC-31,
+                    ARC-33, ARC-35, ARC-39, DEP-12; REUSE_POLICY §§11–12, 15, 17; MODULE_SPEC §§3.1, 4.1;
+                    CLAUDE.md §§2–4
+IMPLEMENTATION BASE main after #57 merges (03f1d7c + Markdown only); branch mvp0/pr-12b-people;
+                    worktree /Users/yuema137/mineworld-worktrees/s15-12b (proposed), held by the
+                    implementing session only
+APPROVED SCOPE      §17.1's change set; PB-C1 … PB-C8; SD-B1 … SD-B16 as answered by QP-1 … QP-16
+FROZEN INVARIANTS   No edit under kernel/, contracts/, persistence/, server/, cognition/, clients/,
+                    authoring/, sdk/, systems/presence/, systems/movement/, worldpack/src/, tools/cli/src/,
+                    worlds/social-cafe/, worlds/market-town/; no other existing System Pack.
+                    PB-1: social-cafe sha ad49c723…c64b and market-town sha 365b50e0…1d1d over the
+                    300-day seed-7 runs (365 330 and 372 755 facts), faults 0 — no digest re-baselined.
+                    Existing tests unchanged except QP-2's two files.
+                    rapier3d =0.36.0, enhanced-determinism, no simd8 / parallel / serde-serialize; Rapier
+                    named only in systems/bodies/src/rapier.rs and the root manifest's one line;
+                    nothing of Rapier survives a resolution (I-5); no float persisted (I-3).
+                    I-11: ≤ 310 mm per nudge, ≤ 2 generations, ≤ 4 people; never another place, never
+                    through fixed geometry. I-12: CLEARANCE 595 mm checked on integers after every
+                    resolution, fallbacks blocked → halved → stay. I-13: inert where PlaceShape is
+                    absent.
+                    DEP-13 committed before any code.
+SEQUENCE            PB-C1 → PB-C2 → PB-C3 → PB-C4 → PB-C5 → PB-C6 → PB-C7 → PB-C8, each committed and
+                    pushed when coherent; the base binary for PB-1's validate comparison is built
+                    before PB-C6
+VALIDATION BUDGET   unit/integration/static unrestricted; real runs: each 300-day run (~13–25 s) at most
+                    eight times in all (PB-1 ×2 at PB-C6 and ×2 at PB-C8, M-PB1 ×1, PB-14(b) ×4, one
+                    re-run each); 30-day bodies-yard runs inside their committed tests; the x86_64
+                    build once (background, ~5 min) and its three Rosetta runs; one full workspace gate
+                    on the final head (background, ~6 min); about 90 minutes in total;
+                    real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §17 checkboxes; §17.10 E-PB ledger; §17.11 deviations
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 12b at PB-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the operator's freeze message
+  semantic commits, branch push       recommended authorized, as for 12a
+  PR creation / update                recommended authorized, as for 12a
+  scratch builds                      recommended authorized: the base binary (PB-C6) and the
+                                      x86_64-apple-darwin build (PB-12), copied to /tmp/s15-12b; no
+                                      branch; the target is already installed
+  root-manifest profile override      only if QP-9 is approved and PB-14(b) fails
+  CI repair                           N/A — no CI workflow (S13)
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     the planning session owns the step header, §§1–15, overall and MVP_STATUS's Updated
+                    and S15 lines; the implementing session owns §17 and the evidence rows of PB-C8
+NORMAL STOP         PR 12b READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       a needed edit outside §17.1's change set — above all in presence, movement, the
+                    kernel or contracts; either 300-day digest differing from PB-1's; an existing test
+                    failing for a reason other than QP-2; HB-1 failing on every rung of PB-13's ladder;
+                    PB-14(a) above 100 µs, or (b) above 1.5× without QP-9; cross-architecture
+                    digests differing (PB-12 FAIL, not PARTIAL); an answer to QP-1, QP-2, QP-3, QP-7 or
+                    QP-9 other than the design's
+```
+
+## 17.10 Evidence ledger
+
+```text
+E-PB0 PB-C0, 2026-10-07, planning session, on main @ 03f1d7c (12a merged) + the 12a post-merge docs.
+      Rapier facts re-verified at source (§17.3.3): the crate's own Cargo.toml in the local registry
+        (rapier3d-0.36.0: license Apache-2.0, rust-version 1.86, edition 2024, the features map) and
+        the primary pages (crates.io API, LICENSE, rapier.rs determinism guide, CHANGELOG) fetched by a
+        web agent the same day.
+      `cargo tree -e normal -p rapier3d -f "{p} | {l}"` on the prototype (offline): licences as in
+        §17.3.3.
+      `rustup target list --installed` → aarch64-apple-darwin, x86_64-apple-darwin.
+      The prototype's R request 551, re-shown (`physics-spike r show 551`): "move person 8 by (1412,
+        -1412) mm from [2536, 782] … closest after: 33 mm, persons 2 [2970, 314] and 8 [2969, 347]"
+        — PB-8's geometry.
+      DEP-13, DEP-14 and ARC-40: no match in docs/DECISIONS.md on any of the 53 origin/* refs.
+      `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
+        duplicated. `python3 scripts/check_decision_ids.py` → 50 decision ids, all distinct.
+      No cargo build or test: this commit is documentation only.
+```
+
+## 17.11 Deviations and discoveries during implementation
+
+*None yet.*
