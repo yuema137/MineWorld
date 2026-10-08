@@ -123,7 +123,10 @@ def left(target: Path, temporary: Path) -> int:
     entries = []
     scratch_root = target / "tmp"
     if scratch_root.is_dir():
-        entries += sorted(scratch_root.iterdir())
+        for entry in sorted(scratch_root.iterdir()):
+            # A helper container is listed by the scratches in it, which carry the tests' names.
+            inside = sorted(entry.iterdir()) if entry.name.startswith("mineworld-scratch-") else []
+            entries += inside or [entry]
     if temporary.is_dir():
         entries += sorted(temporary.glob("mineworld-*"))
     if entries:
