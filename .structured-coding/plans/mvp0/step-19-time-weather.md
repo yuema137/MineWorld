@@ -443,4 +443,173 @@ declared by `calendar`, so presence keeps them (`owned_by_an_enabled_system`).
 A world that enables `calendar` without `configure/calendar.yaml` seeds nothing and discloses nothing
 (IL-a's "a pack that declares nothing is never configured"); `mineworld check` warns (QTW-8).
 
-<!-- §6 onward follows -->
+---
+
+# 6. Design — the `weather` System Pack
+
+## 6.1 What it owns, and what it depends on
+
+The world's weather: condition, cloud, temperature, precipitation and wind, hour by hour, for the whole
+world (one climate per world in v1; regional weather is a later, additive change, QTW-12). It **depends on
+`calendar`** (declared pack dependency): it reacts to `day-began` to roll its day and to the day's sunrise
+for the temperature curve, so it never re-derives dates or the sun. Enabling `weather` without `calendar` is
+an assembly refusal. Other packs may react to its Public facts (an umbrella seller, a sleepy rainy-day
+routine, a slippery surface in bodies) without `weather` knowing them (ARC-26, ARC-28).
+
+## 6.2 Configuration (`configure/weather.yaml`)
+
+```yaml
+# record-driven (the market-town default)
+source: record
+record:
+  station: USW00023188                     # provenance only; the data is the attachment below
+  data: data/weather/san-diego-usw00023188-2015-2024.csv
+  first_year: 2015                         # the record year world year `calendar.epoch.year` maps to
+fill: rules                                # gaps longer than 3 days are filled by the fitted rules below
+rules: rules/san-diego.yaml                # also usable alone with `source: rules`
+seed: 19                                   # for rule days and for hour placement; content, not --seed
+```
+
+```yaml
+# rules/san-diego.yaml — WGEN-lite, fitted by tools/weather-fetch or authored by hand; all integers
+months:                                    # 12 entries, January first
+  - { p_wet_after_dry: 120, p_wet_after_wet: 380,          # per mille
+      rain_tenth_mm: [10, 30, 80, 160, 400],               # quintile table of wet-day amounts
+      tmax_dc: 196, tmin_dc: 98, t_noise_dc: 25, t_ar_permille: 600,
+      fog_permille: 90, overcast_morning_permille: 150, wind_dms: 30 }
+  # … eleven more
+```
+
+A plain rule table is the same file with `p_wet_after_dry == p_wet_after_wet`. The player's freedom
+(requirement 1) is: choose `source: record` with any committed station file, or `source: rules` with any rules
+file, per World Pack, through the settings of the world being created (S16 `mineworld create`), not by editing
+code.
+
+## 6.3 Determinism
+
+- **Record days** are a pure function of `(data, first_year, world date)`; **rule days** of `(rules, seed,
+  day index, previous day's wet state)`; **hour placement** (which hours of a wet day are wet, when fog lifts)
+  of `(seed, day index)`. The generator is counter-based SplitMix64 keyed by `(seed, day index, draw index)`,
+  the tree's existing idiom (§2.7). All arithmetic is integer; no float reaches weather.
+- The Markov chain's state (yesterday wet or dry) lives in the `climate` Process state, folded from the
+  `weather-day` fact; so a resumed world continues the same chain without replaying from day 0.
+- **Mapping world dates to record dates.** `record_year = first_year + (world_year − epoch_year) mod N` where
+  `N` is the number of whole years in the file; the record loops. **Leap days:** a world 29 February in a
+  non-leap record year uses that record's 28 February; a record 29 February is used only by a world
+  29 February. Month and day are always kept, so seasons stay aligned.
+- **Missing values** (`-9999`, absent rows): a gap of ≤ 3 days copies the previous day's values; a longer gap
+  takes rule days for its duration (`fill: rules`) or, with `fill: none`, is a refusal at assembly naming the
+  dates. The fetch tool reports gaps when it writes the file, so the refusal is never a surprise.
+
+## 6.4 The San Diego default data plan
+
+| Item | Decision |
+| --- | --- |
+| Source | NOAA **GHCN-Daily**, station **USW00023188** (San Diego International Airport / Lindbergh Field), period of record 1939-07-01 → present (read 2026-10-08). |
+| Years | **2015-01-01 → 2024-12-31** (10 whole years; includes the 2015–16 El Niño winter and two leap years, 2016 and 2020). QTW-5 offers 30 years. |
+| Fields | TMAX, TMIN (0.1 °C), PRCP (0.1 mm), AWND (0.1 m/s), and the weather-type flags WT01, WT02 (fog), WT03 (thunder), WT13 (mist), WT14 (drizzle), WT16 (rain). The fetch tool reports per-flag population; an unpopulated flag is dropped and the fitted rules supply fog frequency instead. |
+| Optional hourly layer (TW-f, QTW-6) | **GHCNh** for the same station and years, reduced to two integers per day: morning (06–11) and afternoon (12–18) mean sky cover in oktas, and fog hours. ISD-Lite rejected (superseded, no fog field). |
+| Committed form | `worlds/market-town/data/weather/san-diego-usw00023188-2015-2024.csv`, one wide row per day: `date,tmax_dc,tmin_dc,prcp_tenth_mm,awnd_dms,fog,thunder,drizzle,rain` (+ `sky_am,sky_pm,fog_hours` after TW-f). *Estimate:* **~130 KB** (≈ 3,653 rows × ~36 B); the encoded configured fact ~40 KB (≈ 11 B/day). |
+| Licence and provenance | CC0 / US public domain. A `NOTICE` beside the file: source URL, station, retrieval date, the fetch tool's version and command, "modified (reshaped and gap-reported) from NOAA GHCN-Daily; not endorsed by NOAA", and the requested citations: Menne, M.J., et al. (2012), *J. Atmos. Oceanic Technol.* 29, 897–910, doi:10.1175/JTECH-D-11-00103.1; and Menne et al. (2012), GHCN-Daily Version 3, NOAA NCDC, doi:10.7289/V5D21VHZ. DEP-8's table gains a row (DEP-TW-b). |
+| Fetch tool | `tools/weather-fetch` (Rust, offline, never run by `run`, CI or the server): downloads the station CSV from NCEI, reshapes, reports gaps and flag population, writes the CSV and NOTICE, and fits `rules/<name>.yaml` from it. Re-running it with the same arguments against the same upstream file is byte-identical. It is a developer tool; its HTTP dependency (`ureq`, already approved or recorded in DEP-TW-b) stays out of every runtime crate. |
+| Size limit | A station file over 1 MB is a `mineworld check` warning (keeps World Packs small; R-TW-4). |
+
+## 6.5 How the attachment reaches the world (needs IL-a's seam to grow, QTW-7)
+
+IL-a's SD-IA-5 is "one YAML file per key; no data attachments". Options:
+
+| Option | Verdict |
+| --- | --- |
+| (a) Inline the 3,653 rows as a YAML list in `configure/weather.yaml` | Works with IL-a as frozen; a 200 KB YAML file is awkward to read and diff. Acceptable fallback. |
+| **(b) A typed `data:` attachment**: a configuration key may name a file under the World Pack; the seam reads it, the pack's decoder parses it, and the **decoded, compact series is carried inside `weather-configured`** (so the world remains a fold of its facts and a changed CSV is caught by IL-a's drift check like any configuration change) | **Recommended.** A small, generic addition to the seam (IL-b or a TW PR touching `authoring`), reviewed by the IL lane. |
+| (c) The pack reads the CSV at run time from disk | **Reject.** World behaviour would depend on a file outside the facts; a resumed world with a changed file would silently diverge. |
+
+## 6.6 Facts, state and disclosure
+
+| Event | Visibility | When | Payload |
+| --- | --- | --- | --- |
+| `weather-configured` | SystemInternal | genesis | source, decoded series or rules, seed, first_year |
+| `weather-day` | SystemInternal | reacting to `day-began` | `WeatherDay { record_date: Option<date>, rule_day: bool, hours: [WeatherHour; 24] }` |
+| `weather-changed` | Public | at each hour whose `condition` differs from the previous hour's | `condition`, `cloud_oktas`, `precipitation_tenth_mm_per_h` |
+
+```text
+WeatherHour { condition: Condition, cloud_oktas: u8, temperature_dc: i16, precipitation_tenth_mm: u16,
+              wind_dms: u16, wind_from_deg: u16 }
+Condition = clear | partly-cloudy | overcast | fog | drizzle | rain | heavy-rain | thunderstorm
+```
+
+- **Daily to hourly** (record and rule days alike, integer tables in the rules file): temperature follows a
+  fixed 24-entry per-mille diurnal curve between TMIN at sunrise and TMAX at 15:00; a wet day's hours are
+  placed as one or two seeded runs whose total length grows with PRCP (table); fog days fog from civil dawn to
+  10:00; cloud from the hourly layer when present, else from the month's `overcast_morning_permille`.
+- The `climate` Process wakes at each condition change hour and at midnight. A 30-day headless run adds ~30
+  `weather-day` facts and typically a few `weather-changed` per day.
+- **Disclosure** (presence `discloses`, on the observer's place): `weather.day` (the 24 hours) and
+  `weather.now` (the current condition since the last change). Clients take temperature, wind and visual
+  intensity from `weather.day` by their clock estimate. The record is the same in every place; clients draw
+  precipitation only outdoors (a presentation decision, as indoors/outdoors is geometry).
+- The Pack also declares `weather` for observing Persons' controllers: the paced controller may read it
+  later (S10's lane); S19 changes no controller.
+
+---
+
+# 7. Design — the host clock: pause, scale, close, background, multiplayer
+
+## 7.1 States
+
+```text
+running(scale)  ──pause──▶  paused  ──resume──▶  running(scale)
+running(s₀)     ──scale s₁──▶ running(s₁)        paused ──scale s₁──▶ paused (applies on resume)
+any             ──graceful stop──▶ (checkpoint, journal `Stopped`; the world does not age while down)
+```
+
+Every arrow is a host-journal record (§4.3) and closes a `HostClock` segment (§4.2).
+
+## 7.2 What pause means (QTW-2, operator-material)
+
+**Recommended: a full pause.** While paused: the clock does not move; no Process wakes; hosted controllers
+are not consulted; client action requests are refused with a new refusal `paused` (nothing is half-done);
+observers stay connected and keep receiving frames (nothing changes). Alternative: a "time stop" in which
+players can still walk and talk at a frozen instant — rejected as the default because it lets many facts pile
+up at one instant and contradicts "pause the town", but noted as a possible later host option.
+
+## 7.3 Who may pause or change the scale
+
+- **Control surface: S11-D's admin HTTP surface**, two routes added:
+  `GET /admin/clock` → `{ at, time_scale, paused }`; `POST /admin/clock` with `{ "paused": bool }` and/or
+  `{ "time_scale": 6 | 12 | 24 | n }` (integer 1…3600; the UI offers 6/12/24). Bearer token, constant-time,
+  as the other admin routes.
+- **I-4 is kept and clarified** (amendment text in §15): pausing and scaling change the host's *pacing* of the
+  clock; they never set a component, emit a fact or move the clock to an instant. The adversarial check
+  (S11-D criterion 1) extends: calling the clock routes leaves the save's revision and fact count unchanged
+  (the journal is not a fact).
+- **Single-player**: the local launcher starts the host with a freshly generated admin token and hands it to
+  its own client (process argument or environment, never written to the save, I-5). The client's settings
+  menu shows the time controls only when it holds a token.
+- **Multiplayer**: only the host's operator or an admin-token holder sees enabled controls; every client sees
+  the pause overlay and the current day length from the `clock` frame (below).
+- **Earliest delivery.** If S11-D is not merged when TW-c is ready, TW-c lands the two routes with the bearer
+  check as its own small PR in S11's lane, rebased by S11-D (QTW-3).
+
+## 7.4 Telling clients: a `clock` server frame
+
+`WorldSummary` gains `paused: bool` beside S11-B's `time_scale`. A new server frame `clock { at, time_scale,
+paused }` is sent after `welcome` and on every pause, resume or scale change, so clients' HUD estimates (§8.2)
+re-anchor at once rather than at the next observation. Added to `PROTOCOL.md` revision 2's landing table,
+owned by TW-c (ARC-41: specified whole, landed incrementally). Refusal code `paused` likewise.
+
+## 7.5 Close, background, defaults
+
+- **Closing the game (single-player)**: the client asks the launcher to stop the host gracefully (the
+  existing `Command::Shutdown` → checkpoint). Time does not pass while no host runs, so the town is saved
+  and paused by construction (§2.3). A killed host loses at most the time since the last checkpoint
+  (S11's existing guarantee).
+- **"Keep the town running when I close the game"**: a launcher setting (default **off**). When on, closing
+  the window disconnects the client and leaves the host serving with its hosted controllers — today's server
+  mode. Re-opening the game reconnects (S11-B resume). This is a launcher preference, not a world setting.
+- **Default scale** is content: `world.yaml` gains `hosting: { time_scale: 12 }` (read by the server, not by
+  any pack; QTW-4). Precedence at start: `--time-scale` flag > the journal's last scale for a resumed world >
+  `world.yaml hosting.time_scale` > 1. The S12 and S14 launchers pass nothing and get 12 from the World
+  Pack; `--time-scale` stays for tests and operators.
+
+<!-- §8 onward follows -->
