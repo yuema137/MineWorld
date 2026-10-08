@@ -51,6 +51,9 @@ SCOPE_FILES = (
     "mineworld-2d",
     "scripts/check_client_rules.py",
     "tools/cli/tests/client_2d.rs",
+    # S14's structural scan (merged after 13a froze) admits each client's action literals by entry;
+    # 13a adds its two (step-13 §14.10 D-14). No other line of that file is 13a's.
+    "tests/acceptance/tests/client_rules.rs",
 )
 
 
