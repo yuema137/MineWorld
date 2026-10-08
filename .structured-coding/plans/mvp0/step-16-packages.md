@@ -458,7 +458,7 @@ mineworld packs resolve  <world> [--packs DIR]... the world's composition: every
 
 `mineworld validate <world>` additionally prints the resolved composition. Every refusal is a message on
 stderr naming what was wrong and a non-zero exit (`MODULE_SPEC.md` §8.1). The subcommand is a new module
-`tools/cli/src/packs.rs`; `main.rs` gains one variant and one arm (§8.4, parallel-safety with S11).
+`tools/cli/src/packs.rs`; `main.rs` gains one variant and one arm (§9.7, parallel-safety with S11).
 `mineworld install` stays unimplemented (QSE-11): installing a code pack is two reviewed lines, and a
 command that edits Rust sources is a code generator nobody asked for.
 
@@ -563,4 +563,376 @@ A pack is **independently installable** when all four hold:
   does not compile; a framework crate from a registry fails the lock guard; a range that excludes the
   installed version, a missing pack, a disallowed licence, a key collision between a world and an Entity
   Pack — each refused, by name, in a test.
+
+---
+
+# 7. Invariants (proposed; frozen only by the primary session)
+
+- **I-E1 — No kernel, contract, persistence, server or client change.** `kernel/`, `contracts/`,
+  `persistence/`, `server/`, `clients/` have an empty diff across every S16 PR. A need to change one is a
+  material stop, raised with evidence (QSE-17).
+- **I-E2 — Existing worlds are unchanged.** `social-cafe`, `market-town` and `bodies-yard`: genesis facts
+  and identities unchanged, and the 300-day seed-7 history digests equal to the baseline on the base
+  commit (S15's 12d may re-baseline the towns first; S16 compares against whatever `main` holds when each
+  PR starts). The only edits to their files are the new `world:` package fields and `mineworld:`.
+- **I-E3 — `ARC-33`'s install shape is unchanged.** Installing any System Pack, bundled or third-party,
+  is its source, two lines in `systems/installed` (three for a resolver), `Cargo.lock`, and a rebuild.
+- **I-E4 — `AC-1`'s proof stands unedited.** `tests/acceptance/tests/ac1_composability.rs` is not
+  modified and passes 13/13 after every S16 merge (F-E5).
+- **I-E5 — One statement per fact.** A code pack's identity is stated only in its `Cargo.toml`; a World
+  Pack's only in its `world.yaml`; a data pack's only in its `pack.yaml`. No test or tool keeps a copy.
+- **I-E6 — Refused by name, never ignored.** Every unmet, unknown or out-of-range package fact is a named
+  refusal with a non-zero exit, as the World Pack format already behaves.
+- **I-E7 — The third-party pack is genuinely outside.** It is not a workspace member, its manifest has no
+  path into this repository and no `workspace = true` key, and it depends only on the published surface
+  and its declared packs. Checked by a test on `cargo metadata`, not by review.
+- **I-E8 — Controllers are not taught the new pack.** `cognition/rule-controller` has an empty diff
+  beyond its `PACKAGE` line; `ARC-34`'s band, rate and draws stay frozen. The paced controller fishes
+  only because `fish` is offered complete.
+- **I-E9 — Data packs need no rebuild.** A test builds nothing between creating a new Entity Pack
+  directory and resolving a world against it.
+- **I-E10 — Headless, deterministic, model-free.** The milestone world runs with no renderer and no
+  model; the same seed reproduces its history byte for byte, including after SIGKILL and resume.
+
+---
+
+# 8. Acceptance criteria and the milestone test (decided before measuring)
+
+## 8.1 Acceptance criteria
+
+| ID | Criterion | Evidence |
+| --- | --- | --- |
+| AE-1 | Every pack this build or a pack root provides has id, semver version, type, SPDX licence and provenance, and `mineworld packs list` prints them | E-a test over the real binary; a pack without `package!()` fails to compile (trybuild) |
+| AE-2 | A world's requirements are resolved; each kind of failure (absent, out of range, wrong type, bundled-listed, framework out of range, licence outside policy) is refused by name | E-b table-driven CLI tests, one per refusal, each asserting the message names the pack and both versions where relevant |
+| AE-3 | A System Pack from a separate repository, pinned by revision, is compiled into the build by `ARC-33`'s two lines and used by a world | E-c: the merge diff touches only `systems/installed/**`, `Cargo.lock`, the root `[patch]` precursor's own PR excluded; I-E7's metadata test |
+| AE-4 | An Entity Pack's item kinds are used by a world without being copied into it, and installing the pack needs no rebuild | E-d tests; I-E9 |
+| AE-5 | The milestone world lives: 300 headless days, every seat moves and talks in every 30-day bucket, and the third-party action is accepted for every seat that can reach water in every bucket | E-e committed 300-day test |
+| AE-6 | Determinism and persistence hold for the composed world | E-e: same seed same digest; SIGKILL mid-run and resume byte-identical |
+| AE-7 | Removing the third-party pack from the world (disable) makes `fish` unavailable and changes nothing else; removing it from the build refuses the world by name | E-e AC-2-style test; the refusal message test from E-b |
+| AE-8 | No kernel/contracts/persistence/server/client diff; `ac1_composability` 13/13; existing digests unchanged | each PR's gates |
+
+## 8.2 The milestone test
+
+`tools/cli/tests/milestone_e.rs`, driving the real `mineworld` binary (as `milestone_b.rs` and
+`milestone_c.rs` do). Located before counted (`ARC-23`): each step first finds the thing it then counts.
+
+```text
+M-1  packs list, with the repository's pack roots
+       → finds acme-fishing (third-party, git rev = the rev in systems/installed/Cargo.toml),
+         modern-goods (entity-pack), mineworld-default-2d/-3d (presentation-pack), lakeside (world-pack),
+         and every bundled System Pack at the framework version; each with a licence
+M-2  packs resolve worlds/lakeside
+       → prints the composition: framework range satisfied; each requirement with the version that
+         satisfies it; every enabled system's pack
+M-3  negative controls, on scratch copies of the world in a temp directory, same binary:
+       a  requires acme-fishing "^0.2"            → refused, naming acme-fishing, ^0.2 and the installed 0.1.x
+       b  requires modern-goods, pack root absent  → refused, naming modern-goods and the roots searched
+       c  a world key equal to a modern-goods key  → refused, naming both sources
+       d  license: GPL-3.0-only on the world       → refused, naming the identifier and the policy
+       e  mineworld: "^9"                           → refused, naming the framework version
+       f  enables fishing, no requires entry        → refused, naming fishing and acme-fishing
+M-4  a new Entity Pack directory written by the test into a temp pack root, then resolved — no cargo
+       invocation between (I-E9)
+M-5  run worlds/lakeside --headless --seed 7 --days 300 --save <tmp>
+       → 0 faults; every seat moved and talked in every 30-day bucket; locate one `items-produced`
+         fact whose cause chain reaches an accepted `fish` request of a seat, then count: every seat
+         that can reach water has ≥ 1 accepted `fish` per bucket; locate one `items-consumed` of a
+         modern-goods kind
+M-6  run again with the same seed → identical history digest; a third run SIGKILLed mid-way and
+       resumed → byte-identical to the uninterrupted save (`replay --save` passes)
+M-7  inspect <tmp>: the causation check passes; the save's composition lists `fishing`
+M-8  server worlds/lakeside --save <tmp2>, one protocol client joins a seat and receives an
+       observation carrying a `fish` affordance — the third-party pack reaches a player through the
+       unchanged server
+M-9  the world with `fishing` removed from systems (and its sections) → `fish` Unavailable, offered
+       nowhere; every other fact type's count within the run's own bounds (AC-2 at world level)
+M-10 the structural checks: I-E7 on `cargo metadata`; the lock guard; kernel/contracts/persistence/
+       server/clients diff empty across the S16 merges
+```
+
+**Pass rule.** Every M-n PASS from actual evidence. M-8 needs a socket and is marked `INCONCLUSIVE`,
+never PASS, where sockets are unavailable. **Fail-closed:** if the third-party pack's git source cannot
+be fetched, the build fails and M-1 cannot run — the test never skips (as `AC-1` check 1 fails on a
+shallow clone).
+
+## 8.3 The operator's runnable checklist (at the milestone)
+
+```sh
+mineworld packs list --packs entities --packs presentation/mineworld-default
+mineworld packs resolve worlds/lakeside --packs entities --packs presentation/mineworld-default
+mineworld run worlds/lakeside --headless --seed 7 --days 30 --save /tmp/lake \
+    --packs entities --packs presentation/mineworld-default
+mineworld inspect /tmp/lake
+cp -R worlds/lakeside /tmp/elsewhere/lakeside && mineworld validate /tmp/elsewhere/lakeside --packs …
+cargo test -p mineworld-cli --test milestone_e
+```
+
+What to look at: the third-party pack listed with its git revision; a person fishing in the run summary
+and in `inspect`; the world moved outside the repository still validating; the six M-3 refusals' wording.
+
+---
+
+# 9. PR split
+
+## 9.1 Overview
+
+```text
+E-a  pack identity                       framework precursor   sdk, packages (new), tools/cli, root, 1 line/pack,
+                                                               worlds' world.yaml fields, presentation pack.yaml
+E-b  requirements and resolution         framework             packages, worldpack, tools/cli; specs §4.1/§4 model
+E-c  a System Pack from outside          precursor + install   root [patch], lock guard, MODULE_SPEC §3.2, sdk README;
+                                                               the external repository; 2 lines in systems/installed
+E-d  Entity Packs                        framework             worldpack (item allocation across packs), packages
+E-e  Lakeside and Milestone E            content + proof       worlds/lakeside, entities/modern-goods,
+                                                               tools/cli/tests/milestone_e.rs, 300-day test
+```
+
+Order: **E-a → E-b → (E-c ∥ E-d) → E-e.** E-c's external repository can be authored in parallel with
+E-a/E-b against the current SDK and pinned once E-a's version lands.
+
+Every PR is detailed to the commit and frozen in turn (`CLAUDE.md` §3), in a fresh execution session.
+Specs are written before code in each PR's first commit (`CLAUDE.md` §2.2).
+
+## 9.2 E-a — pack identity
+
+- **Scope.** ARC-SE-b (package identity: one vocabulary, three carriers, bundled vs third-party, the
+  framework version, SystemVersion vs semver); `PACKAGE_FORMAT.md` §5/§8 and `MODULE_SPEC.md` §9 amended;
+  workspace version `0.1.0`; `mineworld-packages` crate with `Package`, `PackType`, `pack.yaml` format;
+  `SystemPack::PACKAGE` + `package!()`; one line in each of the 14 bundled packs and the rule controller;
+  `Capability::package()`; `pack.yaml` for the two presentation packs; `world:` package fields and
+  `mineworld:` in the three worlds; `mineworld packs list|show|validate`.
+- **Integration checkpoint.** The real binary lists all 14 System Packs, the controller, three worlds and
+  two presentation packs with versions and licences; `packs validate` refuses a planted bad semver, an
+  unknown licence, a missing field, an id that is not the directory — by name.
+- **Adversarial.** A pack without `package!()` does not compile (trybuild); a pack's version stated in two
+  places is impossible by construction (I-E5); `ac1_composability` 13/13 unedited (I-E4); digests
+  unchanged (I-E2).
+- **Files.** `Cargo.toml` (version, member), `packages/**` (new), `sdk/rust/**`, `systems/*/src/system.rs`
+  (one line each), `systems/installed/**` (macro gains `package`), `cognition/rule-controller/src/lib.rs`
+  (one line), `tools/cli/src/{main.rs,packs.rs}`, `worlds/*/world.yaml`, `presentation/mineworld-default/
+  {2D,3D}/pack.yaml`, `worldpack/src/format.rs` (accept the fields), docs.
+- **Dependencies.** `DEP-SE-a` (`semver`, `spdx`) recorded in this PR.
+
+## 9.3 E-b — requirements and resolution
+
+- **Scope.** `requires:` and `mineworld:` checked at `WorldPack::read_with`; pack roots (`--packs`,
+  `MINEWORLD_PACKS`); every refusal of §4.2 rule 3; `packs resolve`; `validate` prints the composition;
+  `MODULE_SPEC.md` §4 model and §4.1 amended (QSE-8).
+- **Integration checkpoint.** On scratch worlds and a scratch Entity/Presentation pack root, every
+  refusal of M-3 (a, b, d, e, f) through the real binary; a world requiring `mineworld-default-3d`
+  resolves.
+- **Adversarial.** A requirement silently satisfied by the wrong type, or by a pack found in an
+  undeclared directory, is shown impossible by a test; existing worlds resolve with no `--packs` at all.
+- **Files.** `packages/**`, `worldpack/src/{read.rs,error.rs,format.rs,lib.rs}`, `tools/cli/src/**`
+  (pass roots at the three call sites), docs.
+
+## 9.4 E-c — a System Pack from outside the repository
+
+- **Scope.** ARC-SE-a (amends `ARC-33`'s sentence; QSE-2); the published surface and `MODULE_SPEC.md`
+  §3.2 authoring guide; root `[patch.crates-io]`; the lock guard; `deny.toml` (`DEP-SE-b`) if S13's CI
+  has not landed it; the external repository with `acme-fishing` (QSE-3, QSE-12), its own tests; its
+  installation by two lines.
+- **Integration checkpoint.** A world in `tests/` enabling `fishing` runs 30 days with `fish` accepted;
+  I-E7's metadata test passes; the lock guard bites when the `[patch]` line is removed (planted, then
+  reverted); the install commit's diff is exactly `systems/installed/**` + `Cargo.lock`.
+- **Adversarial.** The external pack is edited only in its own repository; nothing in this repository
+  names `acme_fishing` except `systems/installed` and worlds' content (a scan, like `ARC-35` check 2).
+- **Split inside the PR.** The precursor commits (patch, guard, spec) land before the install commit, so
+  the install commit alone shows `ARC-33`'s shape.
+
+## 9.5 E-d — Entity Packs
+
+- **Scope.** An Entity Pack's `items/` read with the World Pack item-file format; kinds composed into a
+  requiring world; one key namespace across sources; allocation in key order across sources;
+  `source_pack` names the Entity Pack.
+- **Integration checkpoint.** A scratch world requiring a scratch Entity Pack loads, its people hold and
+  give those kinds; existing worlds' identities unchanged (I-E2).
+- **Adversarial.** A key collision is refused naming both sources; an Entity Pack item section whose
+  owner the world does not enable is refused (existing rule 6); M-4 (no rebuild).
+- **Files.** `worldpack/src/{read.rs,load.rs,content.rs,error.rs}`, `packages/**`, docs.
+
+## 9.6 E-e — Lakeside and Milestone E
+
+- **Scope.** `entities/modern-goods` (bundled Entity Pack: food, drink and everyday kinds, with
+  `item:` sections), `worlds/lakeside` (a lakeside town: shore and pier where fishing is possible,
+  homes, a square, a bakery; 8–12 people with names and routines; bundled presence, movement,
+  conversation, group-activity, relationships, naming, schedule, item, inventory, item-transfer,
+  consumption; third-party fishing; requires modern-goods and the default presentation packs);
+  `milestone_e.rs` (§8.2); a committed 300-day test; README with the §8.3 checklist; `MVP_STATUS.md` and
+  `HUMAN_REVIEW_QUEUE.md` row E proposed text.
+- **Integration checkpoint.** M-1 … M-10.
+- **Adversarial.** The paced controller is unchanged (I-E8): if seats do not fish, the remedy is what
+  the pack offers, never the controller (`ARC-34` note). A 300-day digest is recorded as Lakeside's
+  baseline.
+- **Content risk** carried from S9: the food loop must close — fish caught and eaten — or the world is
+  bounded-horizon like L-13; the content is sized and measured against a criterion stated before the
+  run (every seat eats at least once per bucket).
+
+## 9.7 Parallelism with S11–S15
+
+| Step | Overlap with S16 | Rule |
+| --- | --- | --- |
+| S15 (12c–12e, in flight) | E-a adds one line to every pack's `system.rs`, including `bodies`, `presence`, `movement`; 12d re-baselines the towns' digests | E-a rebases after whichever 12x is merged; its line is placed after `impl SystemPack` so conflicts are trivial; I-E2 compares against `main` at PR start |
+| S11 (server) | `tools/cli/src/main.rs` (S11 may change `server`'s flags); the welcome-frame presentation hook (QSE-9) | S16's CLI code is in a new `packs.rs`; `main.rs` gains one variant; `--packs` on `server` is added in whichever PR lands second; the protocol field is S11's, proposed not written |
+| S12, S14 (clients) | presentation consumption | none in S16; the hook is recorded for them |
+| S13 (CI, container) | `cargo-deny` and network for the git source in CI | `DEP-SE-b` lands with S13's layer 1 if S13 is first, else in E-c and S13 adopts it; CI keeps `fetch-depth: 0` and needs read access to the pack repository (public, QSE-3) |
+| S10 (reduced) | controller selection | out of S16 (QSE-10) |
+
+S16 does not depend on S11–S14; it depends only on S9 (merged) and coordinates with S15 by rebasing.
+
+---
+
+# 10. Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| RE-1 | The reference build depends on a network fetch of the third-party repository; offline or unauthorized CI cannot build | Public repository (QSE-3); pinned `rev`; `Cargo.lock`; `cargo vendor` documented as the offline route; the test fails closed, never skips |
+| RE-2 | Name squatting: without the `[patch]`, `mineworld-sdk = "0.1"` resolves from crates.io | Lock guard test; `cargo-deny` sources ban; optional name reservation (QSE-16) |
+| RE-3 | Scope creep toward E-C: `install`, `.mwpack`, a registry, asset validation | §1.3 and QSE-11 fix the boundary; each is a later step's |
+| RE-4 | Two version notions drift: `SystemVersion` raised without a breaking semver bump | QSE-7's rule in `MODULE_SPEC.md` §9; `packs show` prints both; reviewed at every `SystemVersion` change |
+| RE-5 | The published surface leaks internals: a third-party pack depends on `presence` details that change | The surface is named (§4.4); a pre-1.0 MINOR bump signals breaks; E-c's design audits exactly which `presence` items the pack uses |
+| RE-6 | Entity Pack composition moves identities | No existing world requires one (I-E2); allocation rule stated before code; digests compared |
+| RE-7 | Editing every pack's `system.rs` collides with S15's in-flight PRs | One line, rebased (§9.7) |
+| RE-8 | The third-party pack's offers dilute the paced controller's band so seats stop moving or talking | `ARC-34`'s worst case (`chimes`) already passed at 20; Lakeside's activity precondition is in M-5; remedy is offering less |
+| RE-9 | `world.yaml` gaining fields breaks `ac1_composability` check 3 | F-E5: equal values in both towns pass; verified on source; I-E4 makes any edit to that test a stop |
+| RE-10 | "Real world" judged too small to be real | Lakeside lives 300 days with a closed food loop, is hosted and joined (M-8), and is copyable outside the repository; the operator decides QSE-1 knowing the size |
+
+---
+
+# 11. Questions (QSE)
+
+`[OPERATOR-MATERIAL]` marks a question that sets the milestone's reading, changes scope, touches the
+non-goals, revises an accepted decision or a frozen specification, or changes the kernel.
+
+```text
+QSE-1   [OPERATOR-MATERIAL] The reading of Milestone E. E-A (relabel S9), E-B1 (data packs from
+        outside), E-B2 (also a System Pack from outside), E-C (publishing: .mwpack, registry, WASM).
+        Recommended: E-B2 (§1.3–1.4).
+
+QSE-2   [OPERATOR-MATERIAL] Revise ARC-33's sentence that puts "packs from outside this repository"
+        outside MVP-0 (ARC-SE-a): an out-of-repository System Pack compiled into the build from a pinned
+        revision is in MVP-0; without a rebuild, or unreviewed, stays ARC-8.
+        Recommended: revise (needed only for E-B2).
+
+QSE-3   [OPERATOR-MATERIAL] Where the third-party pack lives. (a) A new public repository
+        yuema137/mineworld-pack-fishing, MIT, pinned by rev — the operator creates it; (b) a directory in
+        this repository excluded from the workspace (weaker: "outside" by convention); (c) a private
+        repository (CI needs credentials, RE-1).
+        Recommended: (a).
+
+QSE-4   [OPERATOR-MATERIAL] The package-manifest file name collides with the style manifest (F-E1).
+        (a) `pack.yaml` for the package manifest, PACKAGE_FORMAT §5 amended (.mwpack carries pack.yaml);
+        (b) rename the style manifest to `style.yaml` (moves visual-track files and ART_DIRECTION refs).
+        Recommended: (a).
+
+QSE-5   Code packs' identity carried by Cargo.toml + compile-time env (§4.1), not by a pack.yaml beside
+        it. Recommended: yes (I-E5; §5 rows 1, 15).
+
+QSE-6   [OPERATOR-MATERIAL] The framework gets a release version: workspace 0.0.0 → 0.1.0, bundled packs
+        versioned with it, and `mineworld:` ranges checked against it. A public versioning commitment.
+        Recommended: yes, 0.1.0, pre-1.0 semantics.
+
+QSE-7   SystemVersion vs semver: raising SystemVersion is a breaking release (MINOR before 1.0, MAJOR
+        after). Recommended: yes, in MODULE_SPEC §9.
+
+QSE-8   [OPERATOR-MATERIAL] World Pack model change: one `requires:` map replaces the frozen model's
+        `entity_packs:` and `presentation_profile:`; `world:` gains `version`, `license`; top-level
+        `mineworld:`. Changes MODULE_SPEC §4 (frozen model) and §4.1.
+        Recommended: yes.
+
+QSE-9   [OPERATOR-MATERIAL] Presentation Packs in S16: declared and validated only; disclosure to clients
+        (protocol) and client consumption belong to S11/S12/S14, recorded as their hook.
+        Recommended: yes. Alternative: S16 also adds the welcome-frame field (touches server/, breaks
+        I-E1, collides with S11's planning).
+
+QSE-10  Controller Packs in S16: identity only; selection per world/seat is S10/MVP-1.
+        Recommended: yes.
+
+QSE-11  [OPERATOR-MATERIAL] Out of S16: Asset Packs as packs, `.mwpack`, `mineworld install`,
+        `validate asset`, a registry, Tier 1. They are non-goals or later steps.
+        Recommended: out; §12 records what S16 leaves ready.
+
+QSE-12  The third-party pack's law: `fishing` (one place section, one action, one process, one
+        dependency) vs a smaller `notice-board`, or a larger `garden`.
+        Recommended: fishing — smallest pack that exercises a section, a complete affordance, a process,
+        and another pack's vocabulary through its published constructor.
+
+QSE-13  Pack roots: explicit `--packs` / `MINEWORLD_PACKS`, no implicit search.
+        Recommended: yes. Alternative: a default root beside the world (implicit, rejected).
+
+QSE-14  Saves record resolved pack versions (persistence manifest, SAVE_FORMAT 3)?
+        Recommended: no in S16 (I-E1); SystemVersion already refuses incompatible saves. Later step.
+
+QSE-15  Where bundled Entity Packs live: a new top-level `entities/` (ARCHITECTURE §14 amended) vs
+        inside the third-party repository.
+        Recommended: `entities/`, bundled, so the Entity Pack mechanism is tested without the network.
+
+QSE-16  Reserve the `mineworld-*` crate names on crates.io (RE-2).
+        Recommended: operator's choice; the lock guard holds either way.
+
+QSE-17  [OPERATOR-MATERIAL] Kernel changes. None are planned (I-E1); any discovered need is a stop with
+        evidence, never absorbed into an S16 PR.
+
+QSE-18  Step numbering: this is S16 in overall §3 and `step-16-packages.md`; PRs E-a … E-e get numbers at
+        freeze. Recommended: the primary session assigns them.
+```
+
+---
+
+# 12. What E-B2 leaves ready for E-C, and what it does not
+
+- **Ready:** every pack has the identity a `.mwpack` manifest needs (§4.1 is `PACKAGE_FORMAT.md` §5's
+  subset); resolution over ranges exists and needs only a source of candidates; `[patch.crates-io]` turns
+  into a registry by deletion; pack roots are where an unpacked `.mwpack` would land; the licence policy
+  is the one a registry enforces.
+- **Not ready, by design:** fetching, unpacking and verifying archives; a version solver; Tier 1 (WASM +
+  WIT), which `ARC-8` reserves for installing code without a rebuild — the Zed model (§5 row 6) is the
+  reference to audit first.
+
+---
+
+# 13. Proposed `overall.md` amendment (text only; applied by the primary session)
+
+**§3, new entry after S15:**
+
+```markdown
+### S16 — Package composition *(proposed 2026-10-08; Milestone E)*
+
+**Design:** [`step-16-packages.md`](step-16-packages.md). Milestone E read as E-B2: a new world, Lakeside,
+assembled from bundled System Packs, a third-party System Pack kept in its own repository and installed by
+ARC-33's two lines with a pinned git revision, a bundled Entity Pack of item kinds, and the default
+Presentation Packs, each with id, semver version, type, SPDX licence and provenance; a world's
+requirements resolved and refused by name; `mineworld packs list|show|validate|resolve`. Code packs are
+packaged by Cargo; data packs by `pack.yaml`; World Packs by `world.yaml`. Data packs install without a
+rebuild; code packs with one (ARC-33). No kernel, contract, persistence, server or client change.
+
+- **Depends on:** S9 complete. Coordinates with S15 by rebasing (one line per pack). **Feeds:** S11 (the
+  presentation hook in the welcome frame), S12 and S14 (applying a declared Presentation Pack), S13
+  (`cargo-deny`, CI access to the pack repository).
+- **Acceptance checkpoint:** `tools/cli/tests/milestone_e.rs` (step-16 §8.2, M-1 … M-10): the
+  third-party pack listed with its revision; the composition resolved; six refusals by name; an Entity
+  Pack resolved with no rebuild; Lakeside lives 300 headless days with every seat moving, talking and
+  fishing in every bucket; same seed same digest, SIGKILL and resume byte-identical; the pack reaches a
+  client through the unchanged server; disabling it changes nothing else; `ac1_composability` 13/13
+  unedited.
+- **Adversarial criterion:** the third-party pack is not a workspace member and has no path into this
+  repository; its installation diff is `systems/installed/**` and `Cargo.lock` only; the controller is
+  not taught it.
+```
+
+**§1 non-goals:** unchanged. A sentence is added under the list: "Packs from outside this repository,
+compiled into the build from a pinned revision, are in MVP-0 (S16, ARC-SE-a); installing without a
+rebuild, `.mwpack` and a registry are not."
+
+**§4 coverage table, new row:** `Milestone E — package composition | S16`.
+
+**§7 current position, under "Remaining":** `S16 (Milestone E), proposed, awaiting the operator's
+agreement on QSE-1 … QSE-4, QSE-6, QSE-8, QSE-9, QSE-11`.
+
+**Specification edits S16 will propose in its PRs** (not applied here): `docs/PACKAGE_FORMAT.md` §5
+(file name, MVP-0 subset, carriers) and §8 (status rows); `docs/MODULE_SPEC.md` §3.1 (third-party
+install), new §3.2 (published surface, authoring outside the repository), §4 model and §4.1 (`world:`
+fields, `mineworld:`, `requires:`), §8.1 (`packs`), §9 (MVP-0 subset, SystemVersion rule);
+`docs/DECISIONS.md` ARC-SE-a, ARC-SE-b, DEP-SE-a, DEP-SE-b; `docs/ARCHITECTURE.md` §14 (`packages/`,
+`entities/`); `docs/HUMAN_REVIEW_QUEUE.md` row E and `docs/MVP_STATUS.md` at the milestone.
 
