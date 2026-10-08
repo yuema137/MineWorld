@@ -6524,6 +6524,15 @@ its result. SD-Z3 stays as designed (the exact integer segment-to-box distance �
 is its class: it changes results by design, together with SD-Z4 and SD-Z5, and `VERSION` 3 covers it.
 SD-Z2 stays Class I (E-Z1: PASS).
 
+**Amendment (2026-10-08, the operator's ruling on §20.13 Z-D6: "fix the scan, and switch to an absolute
+budget").** A new Class I piece, evidence E-Z3 (E3's scan is 49 % of the with-bodies run):
+
+| ID | Decision | Class | Rationale |
+| --- | --- | --- | --- |
+| **SD-Z6** | **E3's nearest free point, searched outward** (`entry.rs` `nearest_free`). In place of scanning the floor's whole 50 mm lattice and taking the minimum of (distance², y, x) over the free points, the search visits the lattice in square rings of index distance k = 0, 1, 2 … about the lattice point nearest `to` (its indexes clamped into the lattice), keeps the minimum of the same key over the free points it visits, and stops once a ring's lower bound on distance² — (k · LATTICE − m)², m the larger axis offset of `to` from the ring's centre — exceeds the best distance² found, or the rings have left the lattice. Integers only. | **I** | Every lattice point with a smaller key than the best found lies in a ring not yet past the bound, so the minimum over the visited points is the minimum over all: the same point, under the same total order (points are distinct, so (distance², y, x) has no ties). Unit-tested against the old scan, kept as the test's reference; held by ZI-1 … ZI-3 and TZ-1. |
+
+SD-Z6 is implemented first (ZC-3, which SD-Z1's drop vacated), then SD-Z3 and SD-Z4 (ZC-4) as frozen.
+
 ## 20.4 Which results must not move, and the re-capture rule (decided before measuring)
 
 **Class I (SD-Z1, SD-Z2, SD-Z3) must be byte-identical.** With SD-Z4 and SD-Z5 off — a crate-private
@@ -6617,9 +6626,33 @@ TZ-9  THE GATE — QB-11 on E-TD0b's prototype (§20.12), never re-scoped: dev p
       stride (long_run), the share of strides by Route, and each town's activity lines.
       FAIL → STOP. The numbers go back to the operator, as the ruling requires. No further optimization
       is added inside 12d-0 after a failed measurement except §20.7's pre-declared ladder.
+      SUPERSEDED (2026-10-08, the operator's ruling on Z-D6, see the amendment below): the 1.5 ×
+      bound is kept here as the record of what was frozen; TZ-9a and TZ-9b replace it.
 TZ-10 Structural: Rapier only in rapier.rs, no float outside it (isolation); rapier_pin (3, "0.36.0");
       ac1_composability, precursor_vocabulary, seam_vocabulary unedited; scope ⊆ §20.1; fmt, clippy;
       the full gate once on the final executable head.
+```
+
+**Amendment (2026-10-08, the operator's ruling on §20.13 Z-D6: "fix the scan, and switch to an absolute
+budget"). TZ-9 is re-scoped openly, fixed here before any measurement (`ARC-23`).** Evidence: E-Z3 —
+with every Rapier stride at zero cost and E3's scan removed, the prototype still costs ≈ 2.0 × (bodies'
+≈ 45 % more facts), so QB-11's relative 1.5 × (TZ-9 as frozen above, now SUPERSEDED, not deleted) is
+not reachable by any piece of §20. Its replacement:
+
+```text
+TZ-9a THE GATE, relative, re-scoped: for each of the social-cafe and market-town prototypes (§20.12),
+      300 days, seed 7, dev profile: max(CPU, with bodies) ≤ 3.0 × min(CPU, without), faults 0 in
+      every run. Instrument §20.6.1 unchanged: user + sys CPU from `/usr/bin/time -l`; per town two
+      runs per side interleaved (without, with, without, with); wall and load recorded as information;
+      the two pairs' ratios more than 10 % apart → contaminated, re-run once, then stop and report.
+TZ-9b THE GATE, absolute: CP-B4's live-mode bound (step-12-server.md §9: the world thread's longest tick
+      ≤ 50 ms) holds with bodies on market-town. S11-B's probe (tools/cli/tests/hosted_town.rs) is not
+      on main (e98321a), so the measure is the per-request resolve time of bodies' ArrivalResolver over
+      the market-town prototype's 300-day run: every call timed by a scratch instrumented build outside
+      the repository (Z-D3's method; nothing of it committed), reported as count, p50, p99 and max.
+      PASS iff max ≤ 50 ms (a request resolves within one tick); p99 reported.
+STOP  TZ-9a or TZ-9b failing after SD-Z6, SD-Z3, SD-Z4 and §20.7's ladder → stop and report with the
+      numbers. No further re-scope.
 ```
 
 ## 20.6 Commit plan
@@ -6678,6 +6711,16 @@ the scene's mean collider count (a crate-private counter read by an ignored test
   `tests/cull.rs`), **moved ZI-1, ZI-2 and ZI-3, reverted** (E-Z2; §20.13 Z-D4, MATERIAL STOP). The
   patch is kept at `/tmp/s15-12d0/sd-z1-reverted.patch` (sha-256 13dad5e1…f0e31), not committed.
 - [ ] Validation: FAILED TZ-2 — not result-preserving (E-Z2). M-Z1, M-Z2 not run.
+- SD-Z1 DROPPED (§20.4 amendment). ZC-3 now carries SD-Z6 (§20.3 amendment):
+
+### ZC-3 (amended 2026-10-08) — SD-Z6, E3 searched outward (Class I)
+
+**Scope.** `entry.rs` (`nearest_free`), its unit tests (the outward search equal to the full scan on
+generated rooms, targets and occupancies; the old scan kept as the tests' reference).
+- [ ] Implementation.
+- [ ] Validation: ZI-1 … ZI-4 identical (E-Z-base); the unit tests; M-Z6: the stop bound loosened by
+  one ring too few (`>=` for `>`) → a unit test names the differing point.
+- [ ] Review: integers only; the bound's proof in the doc comment; no cache.
 - [ ] Review: canonical order kept among those inserted; every `Touch` maps back to the right entity;
   nothing cached.
 
