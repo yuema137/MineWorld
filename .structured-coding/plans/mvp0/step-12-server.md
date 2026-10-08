@@ -668,3 +668,189 @@ Each is checked by a test or a diff gate in the PR that could break it (§9).
 | **I-12** | `AC-13` and `AC-15` stay green: `ac13_semantic_parity.rs` and `ac15_one_alice.rs` pass on every S11 PR head, updated only for the rev 2 handshake. | Per-PR gate. |
 
 ---
+
+# 7. Reuse: every infrastructure piece, both directions (`REUSE_POLICY.md` §§1–4, 11, 12, 15, 17)
+
+Each table lists real candidates and "build our own", compared on fit with MineWorld's model (single
+ownership, determinism, server authority, the pack model), licence, maturity and maintenance, and cost.
+**Evidence status** is stated per row: *verified* means read in this session (local Cargo registry,
+`Cargo.lock`, or a primary source linked in §7.9); *to verify* means the PR that adopts or rejects it must
+confirm it before freeze, and the verdict is conditional on that.
+
+The transport itself — `axum` on `tokio` — is not reopened: `DEP-3` selected it after a spike, and nothing
+in S11 strains it. Every new route and frame lives inside it.
+
+## 7.1 Wire encoding of revision 2
+
+| Option | Fit | Licence | Maturity | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **JSON text over WebSocket (keep, `DEP-3`)** | Contract types serialize through their own `serde`; ids already decimal strings (PR 04); Godot parses it natively; human-readable evidence logs. | n/a (serde_json MIT/Apache, in use) | in use, proven by `AC-13`/`AC-15` | none | **Recommended.** |
+| Protocol Buffers: `prost` (Rust) + `godobuf` (GDScript) | `D-4` named this route for the first cross-language boundary. A parallel `.proto` schema mirrors every contract type, including opaque pack payloads that would stay JSON-in-bytes anyway. | prost Apache-2.0; godobuf BSD-3-Clause *(verified, §7.9)* | prost mature; godobuf a single-maintainer GDScript generator *(to verify: maintenance)* | a second schema for every contract type, a code generator in both builds, and the far-side proof redone | Rejected for MVP-0: the schema duplication is the drift `R-3` warns about, and bandwidth is answered by §7.3, not by encoding. Operator-material because it departs from `D-4`'s timing (QS11-1). |
+| MessagePack: `rmp-serde` + a GDScript msgpack addon | Works through `serde` with no schema; binary frames. | MIT *(to verify)* | rmp-serde mature; Godot side an addon *(to verify)* | a binary path in the Godot module; unreadable evidence logs | Rejected now; the natural first step if a measured need for binary arises, since it keeps `serde` as the single source of truth. |
+| CBOR: `ciborium` | As MessagePack. | Apache-2.0 *(to verify)* | mature in Rust | no maintained GDScript decoder found | Rejected: no far-side implementation. |
+| Build our own binary encoding | Total control. | — | — | the most code, both sides | Rejected: commodity infrastructure (`REUSE_POLICY.md` §4). |
+
+## 7.2 Authentication: credential carriage, comparison and secret generation
+
+| Option | Fit | Licence | Maturity | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Invite and nickname in the `join` frame, checked by a small `Admission` type in the server (own, ~60 lines)** | Transport-independent (`INV-14`), works for a browser client later, never in a URL; the check sits where the frame is decoded. | — | — | small | **Recommended** for players. |
+| `tower-http` `ValidateRequestHeaderLayer` (bearer) on the `/ws` upgrade | A header on the HTTP upgrade. Browsers cannot set it on a WebSocket; it authenticates the transport rather than the protocol. | MIT | mature (tower-rs) — but its bearer helper's deprecation status *(to verify)*; `tower-http` is not yet in `Cargo.lock` *(verified)* | one new crate | Rejected for players; considered again for `/admin` below. |
+| `axum-extra` `TypedHeader<Authorization<Bearer>>` | A typed header extractor; fits HTTP admin routes. | MIT | mature (tokio-rs) | one new crate (`axum-extra`, `headers`) | **Considered for `/admin`**; the PR compares it with a ten-line extractor over `axum`'s own `HeaderMap` and adopts it if it removes code rather than adds a dependency for one header. |
+| JWT (`jsonwebtoken`) / PASETO session tokens | Stateless signed tokens; designed for accounts and expiry across services. | MIT | mature | key management, expiry policy, clock skew | Rejected: MVP has one shared invite and no accounts (`NETWORKING.md` §9); a signed token answers a question nobody asked yet. Revisit with durable player identity. |
+| `axum-login` / `tower-sessions` | User/session frameworks around cookies and a user store. | MIT | maintained | adopts a session store and a user model | Rejected: architecture mismatch — cookie sessions over HTTP, and a user model MineWorld does not have (`REUSE_POLICY.md` §3, framework lock-in). |
+
+| Constant-time comparison | Fit | Licence | Maturity | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **`subtle` (`ConstantTimeEq`)** | Exactly the operation needed; no allocation. | BSD-3-Clause *(to verify)* | the dalek-cryptography crate, very widely depended on | one small crate | **Recommended** (DEP-S11-a). |
+| `constant_time_eq` | Same operation, smaller API. | CC0 / MIT-0 / Apache-2.0 *(to verify)* | widely used | one tiny crate | Acceptable alternative; `subtle` preferred for its review history. |
+| Hash both sides (`sha2`) and compare digests | Equality of digests leaks nothing useful about the secret. | MIT/Apache | mature; `sha2` is cached locally but not in `Cargo.lock` *(verified)* | one crate, and an indirect argument a reviewer must re-derive | Rejected: more cleverness than the problem. |
+| Own loop with `fold`/`|` | Possible, and easy for an optimizer to undo. | — | — | — | Rejected: the classic way to get it wrong. |
+
+| Secret generation (invite, resume) | Fit | Licence | Maturity | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **`getrandom` 0.3 (OS CSPRNG)** | 16 bytes from the OS; nothing else. | MIT / Apache-2.0 | rust-random; **already in `Cargo.lock` at 0.3.4 through `tungstenite` → `rand`** *(verified)* | a direct edge to a crate already compiled | **Recommended** (DEP-S11-a). |
+| `rand` 0.9 (`rand::rng()`) | A full RNG API for 16 bytes. | MIT / Apache-2.0 | already in the lock at 0.9.5 *(verified)* | larger surface than needed | Acceptable; not preferred. |
+| `uuid` v4 | A UUID is an identifier, not a secret format; 122 random bits. | MIT / Apache-2.0 | mature; not in the lock | one crate | Rejected: wrong concept. |
+| `WorldInstanceId::allocate` style (clock ⊕ pid ⊕ ordinal) | Guessable. | — | — | — | Rejected: an identity, not a secret (`protocol.rs` says so itself). |
+
+## 7.3 Observation deltas
+
+| Option | Fit | Licence | Maturity | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Typed delta keyed by contract identity (own, §5.4)** | Diffs the four list-shaped fields by `EntityId` / whole-list replacement; the reconstruction rule is one table; the GDScript applier is a dictionary merge. | — | — | ~150 lines Rust, ~80 GDScript, plus tests | **Recommended, conditional on S11-C's measurement.** |
+| RFC 6902 JSON Patch, `json-patch` crate (`diff` + `patch`) | Generic. On `entities`, a list ordered by id, one entity appearing shifts every later index, so patches are index operations that are long and order-fragile; the client needs an RFC 6902 applier in GDScript (none adopted). | MIT OR Apache-2.0, v4.2.0 *(verified, §7.9)* | maintained (idubrov) | one crate server-side; an applier client-side | **Measured, not adopted by default**: S11-C records patch sizes on real frames as a dev-dependency of the measurement only. Adopted if it is within 10 % of the typed delta, because then a standard beats our own. |
+| RFC 7396 JSON Merge Patch (same crate) | Cannot address an array element: any changed entity replaces the whole `entities` array — no saving on the field that dominates. | as above | as above | as above | Rejected on the shape of the data; the measurement shows it. |
+| WebSocket `permessage-deflate` (transport compression) | Zero protocol change and the largest likely saving on repetitive JSON. | — | **`tungstenite` 0.29 declares no deflate feature** *(verified, local registry manifest)*; **Godot's `WebSocketPeer` drops compressed frames and cannot negotiate the extension** (godot#103230, godot-proposals#13179, *verified §7.9*) | would need a different server WebSocket stack and an engine change | Rejected now: the far side cannot speak it. Recorded as the preferred route the day Godot supports it, since it would let deltas be deleted. |
+| Snapshot-delta replication from game networking (Quake/Valve snapshot deltas; Colyseus `@colyseus/schema`) | Designed for authoritative state replication; Colyseus's schema is a binary per-field delta with its own type system. | Colyseus MIT | mature (TypeScript) | adopting a schema system and a TypeScript-native encoder | **Reference only**: confirms the shape (keyframe + per-entity deltas against the last acknowledged state); adopting it would put a second type system beside the contracts. |
+
+## 7.4 Sessions, seat holding and reconnect
+
+| Option | Fit | Licence | Maturity | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Own `SeatTable` state machine on the world thread (§4.2)** | Seats are MineWorld's concept (a Person, `INV-1`); the binding must be on the thread that owns the world (A-9). | — | — | one module, ~250 lines with tests | **Recommended.** |
+| Colyseus reconnection (`allowReconnection` + `reconnectionToken`) | The same pattern — hold the seat on drop for a window, rejoin with a token refreshed on every connection. | MIT | mature, widely used | TypeScript; a room model | **Reference only (ADAPT the pattern)**: §4.3's hold, refreshed `resume` and supersede-the-stale-connection follow it, including its known pitfall that a token must be validated before the grace timer is torn down (colyseus#962, §7.9). |
+| Nakama sessions | Session tokens, presence, matchmaking, a Go server with its own runtime. | Apache-2.0 | mature | adopting a server framework | Rejected: framework lock-in; MineWorld's server is the world runtime (`REUSE_POLICY.md` §§3, 8). |
+| `tower-sessions` | HTTP cookie sessions with a store. | MIT | maintained | a store | Rejected: a seat binding is not a cookie session. |
+
+## 7.5 Hosted controller scheduling
+
+| Option | Fit | Licence | Maturity | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Own consult lattice on the world thread (§4.5), the formula `ARC-27` already uses** | Consults at exact world instants; no channel drops; no new concept. | — | proven by `run` since S7 | ~120 lines | **Recommended.** |
+| One tokio task per controller (today's `agent.rs`) | Decides on whichever observation arrived; cannot name its instants. | — | in use | none | Kept only as the pattern for future asynchronous controllers (sessions); rejected for rule controllers. |
+| The kernel's scheduler (`DEP-6`) via a `Process` | A controller would become world state — rejected by `INV-1` and `ARC-27` option (c). | — | — | — | Rejected. |
+| Job schedulers (`tokio-cron-scheduler`, `apalis`) | Wall-clock cron and job queues. | MIT | maintained | a runtime beside the world's | Rejected: wrong clock (wall, not world) and wrong concept. |
+
+## 7.6 Admin surface
+
+| Option | Fit | Licence | Maturity | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **`axum` routes under `/admin`, JSON, bearer token** | `NETWORKING.md` §3 puts admin on HTTP; same stack (`DEP-3`); curl-able. | (in use) | (in use) | one module | **Recommended.** |
+| WebSocket admin frames | Widens the client vocabulary `INV-9` is the absence of. | — | — | — | Rejected. |
+| gRPC (`tonic`) admin service | Typed RPC, a second protocol stack and codegen. | MIT | mature | large | Rejected: dependency larger than the problem. |
+| An off-the-shelf admin panel | Nothing found models seats and controllers; any would be a UI over the same four routes. | — | — | — | Rejected for MVP-0; a GUI is Phase 2 (`MVP.md` §7.4). |
+
+## 7.7 Abuse limits on joining
+
+| Option | Fit | Licence | Maturity | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **One guess per connection + fixed 500 ms delay (own, a few lines)** | Enough for a 128-bit invite on a LAN or a tunnel. | — | — | trivial | **Recommended for MVP-0.** |
+| `governor` / `tower_governor` (GCRA rate limiting per IP) | Correct tool for a public server. | MIT / Apache-2.0 *(to verify)* | maintained | one or two crates; IP keying behind proxies needs care | Deferred: the adopt route when public hosting is in scope; recorded so it is not rebuilt (QS11-13). |
+
+## 7.8 Event visibility
+
+| Option | Fit | Verdict |
+| --- | --- | --- |
+| **Perception's `learns`, implemented in `presence` from the contract's `Visibility` (§4.7)** | The judgement is perception's (`ARCHITECTURE.md` §6); the inputs are MineWorld's own types. | **Recommended.** Nothing external models MineWorld's `Visibility`. |
+| A generic pub/sub broker (NATS, Redis pub/sub, `tokio::sync::broadcast`) | Moves facts, but cannot decide who may learn them; a broadcast channel would be a world frame filtered per client — the shape `INV-13` forbids. | Rejected on architecture; in-process delivery already exists (the per-subscriber channel). |
+
+## 7.9 Sources consulted in this session
+
+- `json-patch`: [crates.io](https://crates.io/crates/json-patch), [idubrov/json-patch](https://github.com/idubrov/json-patch) — RFC 6902 + RFC 7396, MIT OR Apache-2.0, 4.2.0.
+- Godot WebSocket compression: [godotengine/godot#103230](https://github.com/godotengine/godot/issues/103230), [godot-proposals#13179](https://github.com/godotengine/godot-proposals/issues/13179) — no `permessage-deflate`; compressed frames are dropped.
+- godobuf: [oniksan/godobuf](https://github.com/oniksan/godobuf) — BSD-3-Clause, GDScript protobuf generator.
+- Colyseus reconnection: [docs.colyseus.io/room/reconnection](https://docs.colyseus.io/room/reconnection), [colyseus#962](https://github.com/colyseus/colyseus/issues/962).
+- Local: `~/.cargo/registry/.../tungstenite-0.29.0/Cargo.toml` (no `deflate` feature); `Cargo.lock` (`getrandom` 0.3.4, `rand` 0.9.5 present; `tower-http`, `subtle`, `sha2` absent).
+
+## 7.10 Decision records this step proposes (placeholders)
+
+```text
+DEP-S11-a  secrets and their comparison: getrandom (already in the build graph) for invite and resume
+           secrets; subtle for constant-time comparison. Rejected alternatives above.
+DEP-S11-b  observation deltas: typed delta vs json-patch, decided by S11-C's measurement; records the
+           permessage-deflate dead end (Godot) so nobody retries it blind.
+ARC-S11-a  control is host state: seat bindings, sessions, holds and nicknames are never journaled, and a
+           binding change moves no revision (I-2). AC-5 is measured on that.
+ARC-S11-b  protocol revision 2 is specified whole and implemented incrementally under the "may omit,
+           never redefine" rule (§5.1).
+ARC-S11-c  hosted controllers run on the world thread behind a synchronous, bounded seam; asynchronous
+           controllers connect as sessions.
+ARC-S11-d  facts reach observers through perception's `learns`, judged at record time, delivered as a
+           since-last-frame stream; JSON stays the wire encoding for MVP-0 (supersedes D-4's timing if
+           the operator agrees, QS11-1).
+```
+
+---
+
+# 8. Modularity and pluggability
+
+## 8.1 Boundaries, and what each can be swapped for without touching the others
+
+```text
+module                     owns                                   may be replaced by           touches nothing in
+server/src/protocol.rs     frames, codes, WorldSummary            a binary encoding (§7.1)     runtime, seats, packs
+server/src/protocol/delta  ObservationDelta: diff + apply,        keyframes only (rev 2        runtime, perception
+   (new, S11-C)            pure functions                         permits it), or json-patch
+server/src/admission.rs    invite + nickname check; secrets       an account system later      runtime, seats
+   (new, S11-A)
+server/src/seats.rs        SeatTable: the binding state machine   —  (it is the concept)       transport, packs
+   (new, S11-B)
+server/src/hosted.rs       the HostedController seam; the         any synchronous controller   cognition (never named)
+   (new, S11-B)            consult schedule
+server/src/perception.rs   observe + learns (seam)                any perception system        transport
+server/src/admin.rs        /admin routes, bearer check            removed entirely if no token runtime internals
+   (new, S11-D)                                                   (routes not mounted)
+server/src/session.rs      one socket: handshake, delta encoding  another transport (QUIC…)    world thread
+server/src/runtime.rs      world thread: clock, allocator,        —                            sockets, HTTP
+                           journal, sweep, dispatch to the above
+tools/cli/src/hosted.rs    adapters RuleController/Paced →        another controller crate     server internals
+   (replaces agent.rs)     HostedController
+systems/presence           learns() from Visibility               any perception pack          server, cognition
+clients/protocol/mineworld handshake, reconnect policy, delta     another client language      game code of S12/S14
+                           application, MineWorldObservation
+```
+
+What can be removed with no edit elsewhere:
+
+- `--town` and `--agent`: the server runs with no hosted controller and every seat `Free`; nothing in
+  `server/src` names a controller (I-9).
+- The admin surface: without `--admin-token` the routes are not mounted; deleting `admin.rs` deletes one
+  `merge` call in `app.rs`.
+- Deltas: the session sends only keyframes; rev 2 permits it and every client already handles it (§5.1).
+- Event learning: a perception without `learns` uses the default and observers learn nothing — the
+  revision-1 behaviour, and the safe one.
+- The Godot module's reconnect policy: opt-in; a client that does not enable it gets revision 1's "a
+  dropped connection ends".
+
+## 8.2 No God object, and where growth goes instead
+
+`runtime.rs` (435 lines) and `host.rs` (498) are at the review trigger (A-10). S11 does not grow either
+into a manager: bindings go to `seats.rs`, the controller seam to `hosted.rs`, admission to
+`admission.rs`, admin to `admin.rs`, the delta to `protocol/delta.rs`. `runtime.rs` gains only the calls
+into them (join → `SeatTable`, tick → hosted consults, record → `learns`). Each PR's review checks the two
+files' line counts and refuses to land one past 500 without the split recorded. `session.rs` keeps socket
+work only; it never reads world state.
+
+## 8.3 Nothing leaks across layers
+
+| Leak that must not happen | Why it cannot |
+| --- | --- |
+| A System Pack or controller crate named by the server | `ac1_composability` check 2 and the I-2 scan fail by file and line (proven to bite in 11f); `server/Cargo.toml` gains no `mineworld-*` pack dependency (diff gate). |
+| A nickname, token or binding in world state | I-2 and I-5 tests read the save. `Nickname` has no `Serialize` into any contract type. |
+| A world rule in a client | Unchanged: clients render affordances; the delta applier is structural and decides nothing. |
+| Transport concepts in the kernel | I-1: no kernel diff. |
+| Wall-clock time in the world | The hold timer and admin timestamps are wall-clock host state; nothing on them reaches `dispatch` or a fact. |
+| A rule controller blocking the world | `HostedController::decide` is documented bounded; CP-B4 measures the world thread's tick time with `--town` on `market-town`. |
+
+---
