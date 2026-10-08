@@ -84,6 +84,23 @@ impl Footprint {
             && bounds.max.y <= floor.max.y
     }
 
+    /// Whether every point of the footprint is at least `margin` from `area` (step-11 SD-O13's p4
+    /// note): a disc's centre at least `margin + r` from it; a rectangle's gap to it at least `margin`.
+    pub(crate) fn keeps(&self, area: Area, margin: i32) -> bool {
+        match self.outline {
+            Outline::Disc { r } => area.distance2(self.centre) >= i64::from(margin + r).pow(2),
+            Outline::Rect { .. } => {
+                let bounds = self.bounds();
+                let gap = |low: i32, high: i32, other_low: i32, other_high: i32| {
+                    i64::from((other_low - high).max(low - other_high).max(0))
+                };
+                let dx = gap(bounds.min.x, bounds.max.x, area.min.x, area.max.x);
+                let dy = gap(bounds.min.y, bounds.max.y, area.min.y, area.max.y);
+                dx * dx + dy * dy >= i64::from(margin).pow(2)
+            }
+        }
+    }
+
     /// Whether the footprint meets `area` over more than its edge.
     pub(crate) fn meets(&self, area: Area) -> bool {
         match self.outline {

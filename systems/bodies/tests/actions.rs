@@ -133,8 +133,22 @@ fn a_kick_is_refused_for_what_cannot_be_kicked() {
     );
 }
 
+/// How far `to` lies along the line from `from` toward `toward`, and how far off it, in mm.
+fn along_and_across(from: Xyz, toward: Xy, to: Xyz) -> (i64, i64) {
+    let (lx, ly) = (i64::from(toward.0 - from.0), i64::from(toward.1 - from.1));
+    let (dx, dy) = (i64::from(to.0 - from.0), i64::from(to.1 - from.1));
+    let length = (lx * lx + ly * ly).isqrt().max(1);
+    (
+        (dx * lx + dy * ly) / length,
+        (dx * ly - dy * lx).abs() / length,
+    )
+}
+
+/// The café's free centre: the floor's centre, clear of the counter (SD-O13's p3 note).
+const CAFE_CENTRE: Xy = (4_160, 5_160);
+
 #[test]
-fn a_kick_on_open_floor_sends_the_ball_away_from_the_kicker() {
+fn a_kick_on_open_floor_sends_the_ball_toward_the_rooms_centre() {
     let mut yard = yard(
         &[("kicker", (2_000, 5_000))],
         vec![("ball", ball(110), "room", (2_700, 5_000))],
@@ -144,12 +158,14 @@ fn a_kick_on_open_floor_sends_the_ball_away_from_the_kicker() {
     println!("kicked: from {from:?} to {to:?}, {} keyframes", path.len());
     assert_eq!(how, How::Kicked);
     assert_eq!(from, (2_700, 5_000, 110));
-    // Bounds fixed in §18.4 before measuring.
+    // §18.4's bounds, restated along the kick's new line (§18.11 DO-16): 1 500 … 3 500 mm along it,
+    // at most 50 mm off it.
+    let (along, across) = along_and_across(from, CAFE_CENTRE, to);
     assert!(
-        (1_500..=3_500).contains(&(to.0 - from.0)),
-        "x grows by 1 500 … 3 500: {to:?}"
+        (1_500..=3_500).contains(&along),
+        "1 500 … 3 500 along: {along}, {to:?}"
     );
-    assert!((to.1 - from.1).abs() <= 50, "|Δy| ≤ 50: {to:?}");
+    assert!(across <= 50, "≤ 50 off the line: {across}, {to:?}");
     assert!((to.2 - 110).abs() <= 5, "z = 110 ± 5: {to:?}");
     assert!((1..=40).contains(&path.len()), "1 … 40 keyframes");
     assert_eq!(path[0], from, "the first keyframe is where it lay");
@@ -259,6 +275,19 @@ fn a_shove_moves_its_target_half_a_metre_through_presence() {
 /// b moves 301 mm (the contact sweep advances 1 mm from inside its offset of a, and the candidate rule
 /// allows 300 mm more), with `stopped-short { by: None }`. Recorded, not changed: it is 12b's people
 /// path, which PO-13 b holds byte-identical (DO-11).
+/// A shove asks for at most 500 mm, whatever its direction: (600, 3) is 600.0075 mm long, and scaling
+/// it by 500 over its length rounded down would ask for (500, 2) — 500.004 mm. Found by the 30-day
+/// scan ("moved 500 mm (at most 500)", §18.11 DO-14); this failed before the fix.
+#[test]
+fn a_shove_never_asks_for_more_than_half_a_metre() {
+    let mut yard = yard(&[("a", (3_000, 5_000)), ("b", (3_600, 5_003))], vec![]);
+    assert!(shove(&mut yard, "a", "b").accepted());
+    let (x, y) = yard.point("b").expect("placed");
+    let moved2 = i64::from(x - 3_600).pow(2) + i64::from(y - 5_003).pow(2);
+    println!("shoved along (600, 3): b to ({x}, {y})");
+    assert!(moved2 <= 500 * 500, "b moved {moved2} mm², more than 500²");
+}
+
 #[test]
 fn a_shove_from_600_mm_is_cut_short_by_the_shover() {
     let mut yard = yard(&[("a", (3_400, 5_000)), ("b", (4_000, 5_000))], vec![]);
@@ -456,7 +485,7 @@ fn a_place_without_a_shape_offers_nothing_and_records_moves_exactly() {
 // ---------------------------------------------------------------------------------------------
 
 #[test]
-fn an_unaimed_throw_lands_about_three_metres_on() {
+fn an_unaimed_throw_lands_toward_the_rooms_centre() {
     let mut yard = yard(
         &[("thrower", (2_000, 5_000))],
         vec![("ball", ball(110), "room", (2_600, 5_000))],
@@ -465,13 +494,80 @@ fn an_unaimed_throw_lands_about_three_metres_on() {
     let (how, from, to, _) = flight(&yard, &moved);
     println!("thrown, unaimed: {from:?} → {to:?}");
     assert_eq!(how, How::Thrown);
-    // The default aim is (5 600, 5 000); bounds fixed in §18.4.
+    // The default aim is now the free centre (4 160, 5 160), 1 568 mm on (p3). §18.4's bounds,
+    // restated along the new line (DO-16): from 1 000 mm short of the aim to 2 000 mm past it, at most
+    // 100 mm off the line.
+    let (along, across) = along_and_across(from, CAFE_CENTRE, to);
     assert!(
-        (4_600..=7_600).contains(&to.0),
-        "x in 4 600 … 7 600: {to:?}"
+        (1_568 - 1_000..=1_568 + 2_000).contains(&along),
+        "568 … 3 568 along: {along}, {to:?}"
     );
-    assert!((to.1 - 5_000).abs() <= 100, "|Δy| ≤ 100: {to:?}");
+    assert!(across <= 100, "≤ 100 off the line: {across}, {to:?}");
     assert!((to.2 - 110).abs() <= 5, "at rest on the floor: {to:?}");
+}
+
+/// DO-18: a kicker standing between the ball and the room's free centre kicks it away from
+/// themselves, not into their own body. The ball at (2 700, 5 000), the kicker at (3 400, 5 080) on the
+/// line to the café's centre (4 160, 5 160): the ball goes west, away from the kicker.
+#[test]
+fn a_kicker_between_the_ball_and_the_centre_kicks_it_away_from_themselves() {
+    let mut yard = yard(
+        &[("kicker", (3_400, 5_080))],
+        vec![("ball", ball(110), "room", (2_700, 5_000))],
+    );
+    let moved = kick(&mut yard, "kicker", "ball");
+    let (_, from, to, _) = flight(&yard, &moved);
+    println!("kicked away from the kicker: {from:?} → {to:?}");
+    assert!(to.0 <= from.0 - 1_000, "at least a metre west: {to:?}");
+    assert_eq!(
+        yard.point("kicker"),
+        Some((3_400, 5_080)),
+        "the kicker unmoved"
+    );
+}
+
+/// p4 (SD-O13's p4 note, DO-17): a ball thrown to come down 60 mm short of the counter's south face
+/// (aimed at (5 000, 6 400); its edge at 6 510, the counter at 6 570) does not come to rest against it:
+/// its end is pulled back along its line to the first point 300 mm clear — y ≤ 6 570 − 300 − 110 =
+/// 6 160 — on the floor.
+#[test]
+fn a_thrown_ball_does_not_come_to_rest_against_the_counter() {
+    let mut yard = yard(
+        &[("thrower", (5_000, 3_300))],
+        vec![("ball", ball(110), "room", (5_000, 4_000))],
+    );
+    let moved = throw(&mut yard, "thrower", "ball", Some((5_000, 6_400)));
+    let (_, from, to, _) = flight(&yard, &moved);
+    println!("thrown at the counter's face: {from:?} → {to:?}");
+    assert!(
+        (6_160 - 10..=6_160).contains(&to.1),
+        "pulled back to the first 300 mm-clear point of its line: {to:?}"
+    );
+    assert!((to.0 - 5_000).abs() <= 50, "on its line: {to:?}");
+    assert!((to.2 - 110).abs() <= 5, "on the floor: {to:?}");
+}
+
+/// The p3 scenario the ruling asks for: a ball against the east wall, kicked by somebody beside it,
+/// travels toward the room's centre — not along the wall, where the kicker → ball line points.
+#[test]
+fn a_ball_kicked_near_a_wall_travels_toward_the_centre() {
+    let mut yard = yard(
+        &[("kicker", (8_000, 4_300))],
+        vec![("ball", ball(110), "room", (8_100, 5_000))],
+    );
+    let moved = kick(&mut yard, "kicker", "ball");
+    let (_, from, to, _) = flight(&yard, &moved);
+    println!("kicked off the wall: {from:?} → {to:?}");
+    let before =
+        i64::from(from.0 - CAFE_CENTRE.0).pow(2) + i64::from(from.1 - CAFE_CENTRE.1).pow(2);
+    let after = i64::from(to.0 - CAFE_CENTRE.0).pow(2) + i64::from(to.1 - CAFE_CENTRE.1).pow(2);
+    assert!(
+        after.isqrt() + 1_500 <= before.isqrt(),
+        "at least 1 500 mm nearer the centre: {} → {} mm",
+        before.isqrt(),
+        after.isqrt()
+    );
+    assert!(to.0 <= 8_100 - 1_500, "away from the east wall: {to:?}");
 }
 
 #[test]
@@ -627,6 +723,7 @@ fn offered() -> Yard {
             ("observer", (2_000, 5_000)),
             ("p", (2_900, 5_400)),
             ("q", (3_200, 4_600)),
+            ("r", (2_000, 4_300)),
         ],
         vec![
             ("ball", ball(110), "room", (2_700, 5_000)),
@@ -723,18 +820,15 @@ fn a_shove_is_offered_to_each_other_person_and_priced_by_distance() {
         .collect();
     println!("shoves: {shoves:?}");
     let requirement = mineworld_bodies::shove_requirement();
+    // Complete only within 800 mm (SD-O18's rung p1, §18.11 DO-13): r, at 700 mm.
     assert_eq!(
         shoves,
         [
-            (Some("p"), Some("{}".to_owned()), None, requirement),
-            (
-                Some("q"),
-                Some("{}".to_owned()),
-                Some(Rejection::TooFarAway),
-                requirement
-            ),
+            (Some("p"), None, None, requirement),
+            (Some("q"), None, Some(Rejection::TooFarAway), requirement),
+            (Some("r"), Some("{}".to_owned()), None, requirement),
         ],
-        "p at 985 mm available, q at 1 265 mm TooFarAway, none to oneself"
+        "p at 985 mm available, q at 1 265 mm TooFarAway, r at 700 mm complete, none to oneself"
     );
 }
 
@@ -744,6 +838,7 @@ fn each_offered_kick_and_throw_is_accepted_as_offered() {
     for affordance in observation.affordances().iter().filter(|affordance| {
         ["kick", "throw", "shove"].contains(&affordance.action_type().as_str())
             && affordance.is_available()
+            && affordance.payload().is_some()
     }) {
         let mut fresh = offered();
         let request = affordance

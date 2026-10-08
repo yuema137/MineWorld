@@ -9,19 +9,28 @@
 //! nobody stands in a wall. A place without a shape — every place of a world that does not enable
 //! this pack — is untouched, byte for byte.
 //!
+//! Loose objects (step-11 §18): an item file's `body:` section is one physical object (`ARC-36` note).
+//! Walking into one pushes it aside — predicted by the resolver, made by this pack's reaction to each
+//! `arrived` — and a person may `kick` or `throw` it, or `shove` another person.
+//!
 //! ```text
-//! section     body           a place file's floor and solids (ARC-31)
-//! emits       place-shaped   at genesis, from the section
-//! owns        PlaceShape     `place-shape`, reduced from `place-shaped` by this pack alone, after
-//!                            checking the people authored into the place
-//! discloses   PlaceShape     to whoever perceives the place, so a client builds the server's walls
+//! section     body           a place file's floor and solids, or an item file's object (ARC-31)
+//! emits       place-shaped   at genesis, from a place's section
+//!             body-formed    at genesis, from an item's section; object-placed in the next generation
+//!             object-moved   pushed (a reaction to arrived), kicked or thrown (an action)
+//!             person-shoved  an action; and presence's arrived, stopped-short through arrivals()
+//! owns        PlaceShape     `place-shape`, after checking the people authored into the place
+//!             BodyShape      `body-shape`, on the object's Item
+//!             LooseObjects   `loose-objects`, on the Place, after SD-O5's checks
+//! provides    kick, throw    target-less, the object in the payload; shove, a person
+//! discloses   PlaceShape     and a listing of the place's objects, to whoever perceives the place
 //! resolves    arrivals       into a shaped place (presence's ArrivalResolver)
-//! depends on  presence
+//! depends on  presence       (the crate reads the item pack's is_declared, nothing else: ARC-39 note 2)
 //! ```
 //!
-//! Rapier sweeps the walker and the nudged people, behind one module (`rapier.rs`), integers in and
-//! integers out. Everything else — what is clear, who is nudged and how far, whether the result is
-//! acceptable — is integer geometry (`geometry.rs`).
+//! Rapier sweeps people, casts pushed objects and flies kicked and thrown ones, behind one module
+//! (`rapier.rs`), integers in and integers out. Everything else — what is clear, who is nudged and how
+//! far, whether a result keeps the invariants — is integer geometry (`geometry.rs`, `footprint.rs`).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

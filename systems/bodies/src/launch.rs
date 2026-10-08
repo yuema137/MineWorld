@@ -23,7 +23,7 @@ use serde::de::DeserializeOwned;
 use crate::action::{Kick, Throw, kick_requirement, throw_requirement};
 use crate::component::PlaceShape;
 use crate::event::{How, Movement, ObjectMoved, object_moved};
-use crate::flight::{default_aim, kick_velocity, land, rest_height, throw_velocity};
+use crate::flight::{default_aim, free_centre, kick_velocity, land, rest_height, throw_velocity};
 use crate::footprint::{Footprint, Placed, Resting};
 use crate::geometry::{KICK_STEPS, Point, THROW_RANGE_MAX, THROW_STEPS, TOLERANCE, distance2};
 use crate::objects::{lying_in, where_lies};
@@ -141,8 +141,10 @@ pub(crate) fn resolve_kick(
     let kick: Kick = read(intent).map_err(refuse)?;
     let here = standing(world, intent.actor()).map_err(refuse)?;
     let found = found(world, kick.object()).map_err(refuse)?;
-    let kicker = ground(&here);
-    let velocity = kick_velocity(kicker, found.placed.centre);
+    let room = shaped(world, found.place).map_err(refuse)?;
+    let centre = free_centre(&room, found.placed.shape);
+    let (hx, hy) = found.placed.shape.half_footprint();
+    let velocity = kick_velocity(ground(&here), found.placed.centre, centre, hx.max(hy));
     flown(
         world,
         intent,
@@ -163,12 +165,11 @@ pub(crate) fn resolve_throw(
     let refuse = |reason| refused(ObjectMoved::EVENT_TYPE, reason);
     validate_throw(world, intent).map_err(refuse)?;
     let throw: Throw = read(intent).map_err(refuse)?;
-    let here = standing(world, intent.actor()).map_err(refuse)?;
     let found = found(world, throw.object()).map_err(refuse)?;
     let room = shaped(world, found.place).map_err(refuse)?;
     let point = match throw.toward() {
         Some(toward) => Point::new(toward.x().value(), toward.y().value()),
-        None => default_aim(&room, &found.placed, ground(&here)),
+        None => default_aim(&room, &found.placed),
     };
     let z_rest = rest_height(&room, &found.placed, point);
     let velocity = throw_velocity(&found.placed, point, z_rest);

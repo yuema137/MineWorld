@@ -88,6 +88,13 @@ pub const THROW_REACH: Millimetres = Millimetres::new(800);
 /// How far a shover's centre may be from the target's (step-11 §8.1).
 pub const SHOVE_REACH: Millimetres = Millimetres::new(1_000);
 
+/// Within this distance a shove is offered **complete** — with the request a requester may submit
+/// unchanged; beyond it, up to `SHOVE_REACH`, it is offered without one (step-11 SD-O18's rung p1,
+/// §18.11 DO-13). The paced controller attempts only complete offers (`ARC-34` item 4), so this is
+/// the pack's offer policy deciding how often headless people shove; the request's own requirement
+/// stays `SHOVE_REACH`.
+pub const SHOVE_OFFER_REACH: Millimetres = Millimetres::new(800);
+
 /// How far a shove asks to move its target (step-11 §8.1, QB-10): the deliberate, larger displacement.
 pub const SHOVE_DISTANCE: Millimetres = Millimetres::new(500);
 
@@ -108,6 +115,14 @@ pub const THROW_DEFAULT: Millimetres = Millimetres::new(3_000);
 
 /// An aimed throw's point lies at most this far from the object's ground point (step-11 §8.1).
 pub const THROW_RANGE_MAX: Millimetres = Millimetres::new(6_000);
+
+/// How far a launched object's footprint comes to rest from every solid, unless its flight was
+/// blocked (step-11 SD-O13's p4 note, the primary session's rule): a person's radius, so a resting
+/// object always leaves a body's width of approach to the furniture.
+pub const REST_CLEARANCE: Millimetres = Millimetres::new(300);
+
+/// The step, in millimetres, by which a flight's end is pulled back along its line (p4).
+pub const PULL_BACK_STEP: i32 = 10;
 
 /// An object slower than this, in millimetres per second, …
 pub const REST_SPEED: i32 = 50;

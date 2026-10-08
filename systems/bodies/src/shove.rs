@@ -24,7 +24,7 @@ use mineworld_presence::{Arrived, Presence, PresenceSystem, arrivals};
 use crate::action::{Shove, shove_requirement};
 use crate::component::PlaceShape;
 use crate::event::{PersonShoved, person_shoved};
-use crate::geometry::{Point, SHOVE_DISTANCE, scaled_down};
+use crate::geometry::{Point, SHOVE_DISTANCE, distance2, scaled_down};
 use crate::launch::{read, standing};
 use crate::system::refused;
 
@@ -75,8 +75,17 @@ pub(crate) fn resolve(
         .map(Presence::location)
         .expect("the target stands somewhere, checked by validate");
     let (from, at) = (ground(&here), ground(&there));
+    // Scaled by 500 / ⌈|d|⌉, each component truncated toward zero, so the shove asks for at most
+    // SHOVE_DISTANCE (a floor of |d| could make it a fraction of a millimetre longer).
     let d = at.minus(from);
-    let length = d.length().max(1);
+    let squared = distance2(d, Point::new(0, 0));
+    let floor = squared.isqrt();
+    let length = if floor * floor == squared {
+        floor
+    } else {
+        floor + 1
+    }
+    .max(1);
     let on = at.plus(scaled_down(d, i64::from(SHOVE_DISTANCE.value()), length));
     let local = there.local().expect("a position, checked by validate");
     let to = Location::in_place(there.place()).with_local(LocalPosition::new(

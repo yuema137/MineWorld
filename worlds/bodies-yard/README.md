@@ -1,8 +1,10 @@
 # Bodies Yard
 
-Two walled rooms — a hall with a table and a court with a pillar — joined by one door, and twelve
-people who walk, talk and get in each other's way. Nobody walks through a wall, the table, the pillar
-or anybody else: people stop at furniture and nudge each other aside a little.
+Two walled rooms — a hall with a table and a court with a pillar — joined by one door, twelve people
+who walk, talk and get in each other's way, and sixteen loose boxes and balls. Nobody walks through a
+wall, the table, the pillar, an object or anybody else: people stop at furniture, nudge each other
+aside a little, and push objects out of their way. Within reach, a person may `kick` or `throw` an
+object, or `shove` somebody half a metre.
 
 ```sh
 mineworld validate worlds/bodies-yard
