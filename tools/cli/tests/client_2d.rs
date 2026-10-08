@@ -74,6 +74,13 @@ async fn walks_from_the_apartments_into_the_cafe() {
         "every move accepted: {accepted} of {}",
         results.len()
     );
+    let entered = &evidence(&lines, "entered")[0];
+    assert!(
+        entered["tags"]
+            .as_array()
+            .is_some_and(|tags| tags.iter().any(|t| t == "cafe")),
+        "the doorway the drive chose from the disclosure led into the café: {entered}"
+    );
     let visited = places(&lines);
     assert_eq!(visited.len(), 3, "apartments, street, café: {visited:?}");
     let observer = evidence(&lines, "welcome")[0]["observer"]

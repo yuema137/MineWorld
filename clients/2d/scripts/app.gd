@@ -9,7 +9,8 @@ extends Node2D
 ## presentation the pack, read at runtime (ARC-46)        projection  plan metres ↔ pixels
 ## ```
 ##
-## Arguments (after `--`): `--server=host:port`, `--seat=key`, `--presentation=<dir>|none`,
+## Arguments (after `--`): `--server=host:port`, `--seat=key`, `--invite=TOKEN` (the server's, from
+## its join line), `--nickname=NAME`, `--presentation=<dir>|none`,
 ## `--variant=<set>`, `--drive[=scenario]`, `--capture`, `--shots=<dir>`. The launcher
 ## `./mineworld-2d` passes them; see `clients/2d/README.md`.
 
@@ -99,7 +100,8 @@ func _ready() -> void:
 		var drive: Node = Drive.new()
 		drive.app = self
 		add_child(drive)
-	link.open(String(options.get("server", "127.0.0.1:7878")), String(options.get("seat", "carol")))
+	link.open(String(options.get("server", "127.0.0.1:7878")), String(options.get("seat", "carol")),
+		String(options.get("invite", "")), String(options.get("nickname", "2d-player")))
 
 
 func _process(_delta: float) -> void:

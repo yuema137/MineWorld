@@ -5,7 +5,9 @@
 #   ./mineworld-2d --seat visitor               the same world, as somebody else
 #   ./mineworld-2d --world worlds/social-cafe   another world
 #   ./mineworld-2d --fresh                      start that world over (deletes its local save)
-#   ./mineworld-2d --server 127.0.0.1:7878      join a world someone else is hosting (starts no server)
+#   ./mineworld-2d --server ADDRESS --invite TOKEN
+#                                               join a world someone else is hosting (starts no
+#                                               server), with the invite its join line printed
 #   ./mineworld-2d --variant=full               another ARC-14 binding set: town (default), full,
 #                                               people, procedural
 #   ./mineworld-2d --presentation=<dir>|none    another Presentation Pack, or plain drawing
@@ -35,6 +37,7 @@ fi
 world="worlds/market-town"
 seat="carol"
 server=""
+invite="${MINEWORLD_INVITE:-}"
 fresh=0
 agent="alice"
 drive=0
@@ -49,6 +52,8 @@ while [ $# -gt 0 ]; do
     --seat=*)        seat="${1#--seat=}" ;;
     --server)        server="$2"; shift ;;
     --server=*)      server="${1#--server=}" ;;
+    --invite)        invite="$2"; shift ;;
+    --invite=*)      invite="${1#--invite=}" ;;
     --agent=*)       agent="${1#--agent=}" ;;
     --fresh)         fresh=1 ;;
     --res=*)         res="${1#--res=}" ;;
@@ -94,22 +99,26 @@ if [ -z "$server" ]; then
   "$here/target/debug/mineworld" server "$here/$world" --listen 127.0.0.1:0 --save "$save" \
     ${agents[@]+"${agents[@]}"} > "$log" 2>&1 &
   server_pid=$!
-  # Port 0: the system picks a free port and the server prints the one it bound.
+  # Port 0: the system picks a free port. With no --invite the server generates one and prints a
+  # single join line, `[mineworld] invite <token> — join with: <address> seat=… invite=<token>`,
+  # read here the way mineworld-slice reads it. The invite goes to the client and is never echoed.
+  line=""
   for _ in $(seq 1 300); do
-    server="$(sed -n 's|^\[mineworld\] listening on http://\([0-9.:]*\) .*|\1|p' "$log" | head -n 1)"
-    [ -n "$server" ] && break
+    line="$(grep -m1 '^\[mineworld\] invite ' "$log" || true)"
+    [ -n "$line" ] && break
     if ! kill -0 "$server_pid" 2>/dev/null; then
-      echo "error: the server stopped; its log:" >&2
-      cat "$log" >&2
+      echo "error: the server stopped; its log: $log" >&2
       exit 1
     fi
     sleep 0.2
   done
-  if [ -z "$server" ]; then
-    echo "error: the server did not start listening; log: $log" >&2
+  if [ -z "$line" ]; then
+    echo "error: the server printed no join line; log: $log" >&2
     exit 1
   fi
-  echo "world: $world on $server (save: $save, log: $log)"
+  invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
+  server="$(printf '%s\n' "$line" | sed -n 's/.* join with: \([^ ]*\) .*/\1/p')"
+  echo "world: $world on $server (save: $save)"
 fi
 
 mode=()
@@ -118,8 +127,13 @@ if [ "$drive" = "1" ] && [ "$capture" = "0" ]; then
 else
   mode=(--resolution "$res")
 fi
+if [ -z "$invite" ]; then
+  echo "error: joining $server needs the invite its server printed: --invite TOKEN" >&2
+  exit 1
+fi
 set +e
-"$godot_bin" "${mode[@]}" --path "$proj" -- --server="$server" --seat="$seat" ${args[@]+"${args[@]}"}
+"$godot_bin" "${mode[@]}" --path "$proj" -- --server="$server" --seat="$seat" --invite="$invite" \
+  ${args[@]+"${args[@]}"}
 code=$?
 set -e
 exit "$code"

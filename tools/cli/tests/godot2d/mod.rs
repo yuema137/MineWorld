@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use tokio::net::TcpListener;
 use tokio_tungstenite::tungstenite::Message;
 
-use crate::support::{body, get};
+use crate::support::{INVITE, body, get};
 
 /// The client's Godot project.
 pub const PROJECT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../clients/2d");
@@ -92,6 +92,8 @@ impl Drive {
             .args(["--headless", "--path", PROJECT, "--"])
             .arg(format!("--server={server}"))
             .arg(format!("--seat={seat}"))
+            .arg(format!("--invite={INVITE}"))
+            .arg("--nickname=client-2d-test")
             .args(arguments)
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -219,7 +221,8 @@ impl World {
     pub async fn restart(&mut self) {
         let child = Command::new(env!("CARGO_BIN_EXE_mineworld"))
             .args(&self.arguments)
-            .args(["--listen", &self.address.to_string()])
+            .args(["--listen", &self.address.to_string(), "--invite", INVITE])
+            .env_remove("MINEWORLD_INVITE")
             .stdout(Stdio::null())
             .stderr(Stdio::inherit())
             .spawn()
@@ -313,11 +316,17 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
                     let frame: Value = serde_json::from_str(&text).expect("JSON");
                     match frame["t"].as_str() {
                         Some("join") => {
+                            // Revision 2 (`PROTOCOL.md` §§2, 5): the client must present the
+                            // invite and say which revision it speaks.
+                            assert_eq!(frame["protocol"], 2, "the client speaks revision 2");
+                            assert_eq!(frame["invite"], INVITE, "the client presents the invite");
                             seated = true;
-                            let welcome = json!({ "t": "welcome", "protocol": 1, "seat": frame["seat"], "observer": "9",
-                                "world": { "protocol": 1, "instance": "5705b0000000000000000000000057ab", "at": 0,
+                            let welcome = json!({ "t": "welcome", "protocol": 2, "seat": frame["seat"], "observer": "9",
+                                "nickname": frame["nickname"], "session": "1", "resume": null, "hold_seconds": 0,
+                                "took_over": "none",
+                                "world": { "protocol": 2, "instance": "5705b0000000000000000000000057ab", "at": 0,
                                     "entities": 2, "systems": [], "seats": [frame["seat"]], "clients": 1,
-                                    "observations_dropped": 0, "deferrals_unscheduled": 0, "faults": 0, "revision": null } });
+                                    "observations_dropped": 0, "faults": 0, "revision": null } });
                             let _ = socket.send(Message::Text(welcome.to_string().into())).await;
                         }
                         Some("submit") => {

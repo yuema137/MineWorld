@@ -843,14 +843,16 @@ plate's (mean 0.517, p50 0.512, >0.7 24.2%, <0.2 4.4%) as facts, not as a gate.
 ./mineworld-2d --seat visitor               the same world, as somebody else
 ./mineworld-2d --world worlds/social-cafe   another world
 ./mineworld-2d --fresh                      start that world over (deletes its save)
-./mineworld-2d --server 127.0.0.1:7878 [--seat carol]   join a world someone else is hosting
+./mineworld-2d --server ADDRESS --invite TOKEN [--seat carol]
+                                            join a world someone else is hosting (revision 2, D-9)
 ./mineworld-2d --variant=full|people|procedural          another ARC-14 binding set
 ./mineworld-2d --presentation=<dir>|none                 another Presentation Pack, or plain drawing
 ./mineworld-2d --drive [--capture]                       the scripted checks, headless (stills need a window)
 ```
 
 `AC-3` by hand: `mineworld server worlds/market-town --agent alice --save /tmp/town` in one terminal,
-`./mineworld-2d --server 127.0.0.1:7878` in another; close the window mid-walk; reopen; you stand where
+`./mineworld-2d --server <address> --invite <token>` in another, both copied from the server's
+`[mineworld] invite …` line (D-9); close the window mid-walk; reopen; you stand where
 the world left you. The launcher builds the Godot class cache on first run (`ACCEPTANCE.md` §4.1). The
 operator's checklist for this PR is the one above plus "walk from the apartments into the café".
 
@@ -1167,6 +1169,22 @@ NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
   mutation made `walker.gd` unparseable; Godot then ran an empty scene until the 150 s run limit,
   printing nothing. The test support now parses `app.gd` (and through its preloads every script) with
   `--check-only` before the first run and fails at once, naming the error.
+- **D-9 (bounded, anticipated by §14.1) — S11-A merged first (`f842c52`, merged here as `d6bd41d`).**
+  The one `connect_to_world` call (`link.gd`) passes `invite` and `nickname` (revision 2); `link.gd`
+  also treats `unauthorized`, `protocol_mismatch`, `invalid_nickname` and a `closing` of `left` as
+  final. The launcher starts the server on port 0 with no `--invite`, reads its one join line
+  (`[mineworld] invite <token> — join with: <address> …`) as `mineworld-slice` does, passes the invite
+  to the client and never echoes it; `--server ADDRESS` needs `--invite TOKEN` (or `MINEWORLD_INVITE`).
+  The Rust tests start every world with `support::INVITE` and the stub checks the client's revision-2
+  join (protocol 2, the invite). No committed file holds an invite: the drive prints none and the
+  server log stays in a scratch or git-ignored directory. `git grep connect_to_world` shows only the
+  four-argument form. Merge conflicts: `DECISIONS.md` (both sides' records kept; the 12c note stays
+  with DEP-13) and `ADOPTION.md` §6 (S11-A's wording plus this PR's §6.1 pointer).
+- **D-10 (bounded) — the drive derives every waypoint from the disclosure (12d's QD-11).** 12d moves
+  the café's doorway from (0, 3000) to (0, 2800). The drive no longer holds market-town coordinates:
+  out through the starting place's doorway and 1.5 m toward the middle of the street, to the nearest
+  other doorway of the street, 2.5 m in. AC-W1 now also checks that the place entered is tagged
+  `cafe`, read from the observation.
 - **F-5 (found by AC-W10, fixed) — a request's facing depended on frame timing.** Transcripts differed
   in `yaw` by 1–8 millidegrees between runs: the facing was taken from the drawn body (which is within
   2 cm of its goal, at a frame-dependent point) and, at a crossing, from a near-zero vector (`here` and

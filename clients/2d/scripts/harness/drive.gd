@@ -15,9 +15,9 @@ extends Node
 ## drive complete: PASS|FAIL
 ## ```
 ##
-## Scenarios: `seated` (default), `walk`, `strides`, `idle`, `click`. Arguments: `--walk-out=x,y`,
-## `--walk-door=x,y`, `--walk-inside=x,y` (millimetres; market-town's street and café by default),
-## `--strides=n`, `--hold=seconds`.
+## Scenarios: `seated` (default), `walk`, `street`, `strides`, `idle`, `click`. Arguments:
+## `--strides=n`, `--hold=seconds`. No scenario names a world's coordinates: every waypoint is derived
+## from the disclosed passages.
 
 const Capture := preload("res://scripts/harness/capture.gd")
 
@@ -129,33 +129,48 @@ func _run() -> void:
 
 
 ## AC-W1's walk, with AC-W2 and AC-W12 checked on the way.
+## Every waypoint is derived from the disclosed passages (12d moves the café's doorway, QD-11): out
+## through the starting place's doorway and 1.5 m toward the middle of the street; to the nearest other
+## doorway of the street (in market-town, the café's); and 2.5 m into the place behind it.
 func _walk() -> void:
-	var out := _point("walk-out", Vector2i(-12000, 1500))
-	var door := _point("walk-door", Vector2i(0, 3000))
-	var inside := _point("walk-inside", Vector2i(2400, 3000))
 	var start: String = app.walker.body_place
 	var exits: Array = app.town.passages.get(start, [])
 	if exits.is_empty():
 		_check(false, "walk", "the starting place discloses no doorway")
 		return
 	var street: String = exits[0]["to"]
-	app.walker.walk_to(street, app.town.to_plan(street, {"x": out.x, "y": out.y}))
+	var exit_there: Vector2 = app.town.to_plan(street, {"x": exits[0]["there"].x, "y": exits[0]["there"].y})
+	app.walker.walk_to(street, exit_there)
 	if not await _walk_done("out onto the street"):
+		return
+	var centre: Vector2 = app.town.hub_extent().get_center()
+	app.walker.walk_to(street, exit_there + (centre - exit_there).normalized() * 1.5)
+	if not await _walk_done("into the street"):
 		return
 	await _seconds(SETTLE_S)
 	_check_facades()
+	var door := Vector2i.ZERO
 	var target := ""
+	var nearest := INF
 	for p in app.town.passages.get(street, []):
-		if p["here"] == door:
+		var at: Vector2 = app.town.to_plan(street, {"x": p["here"].x, "y": p["here"].y})
+		if p["to"] != start and at.distance_to(exit_there) < nearest:
+			nearest = at.distance_to(exit_there)
 			target = p["to"]
+			door = p["here"]
 	if target == "":
-		_check(false, "walk", "no doorway at %s in the street" % door)
+		_check(false, "walk", "the street discloses no other doorway")
 		return
 	if _capture != null:
 		await _capture.shoot("01_street_wide")
-	app.walker.walk_to(target, app.town.to_plan(target, {"x": inside.x, "y": inside.y}))
+	var entry: Dictionary = app.town.passage(street, target)
+	var inside: Vector2 = app.town.to_plan(target, {"x": entry["there"].x, "y": entry["there"].y}) \
+		+ app.places.drawn[target]["in_dir"] * 2.5
+	app.walker.walk_to(target, inside)
 	if not await _walk_done("into the place behind %s" % door):
 		return
+	var tags: Array = app.latest.entity(app.latest.place()).get("tags", [])
+	print("EVIDENCE ", JSON.stringify({"entered": {"place": target, "tags": tags}}))
 	# Timed from the observation that changed the place to the first frame the façade is gone,
 	# measured every frame by `_process`, not after the walk inside ends.
 	_check(_lift_s >= 0.0 and _lift_s <= CUTAWAY_BOUND_S, "façade lifts on entering",
@@ -173,11 +188,12 @@ func _walk() -> void:
 	if _capture != null:
 		await _capture.shoot_interior()
 		# Back out to the street, now that the café's tags are known, for its façade and terrace.
-		var front: Vector2i = door + Vector2i(1500, -4500)
-		app.walker.walk_to(street, app.town.to_plan(street, {"x": front.x, "y": front.y}))
+		var door_plan: Vector2 = app.town.to_plan(street, {"x": door.x, "y": door.y})
+		var outward: Vector2 = (centre - door_plan).normalized()
+		app.walker.walk_to(street, door_plan + outward * 4.5 + Vector2(outward.y, -outward.x) * 1.5)
 		await _until(func() -> bool: return not app.walker.is_walking(), TIMEOUT_S)
 		await _seconds(1.0)
-		await _capture.shoot("02_cafe_front", 1.9, app.town.to_plan(street, {"x": door.x, "y": door.y + 1500}))
+		await _capture.shoot("02_cafe_front", 1.9, door_plan - outward * 1.5)
 
 
 ## `n` strides east in the current place, one after another (the stub scenarios, AC-W5 … AC-W7).
@@ -198,8 +214,11 @@ func _street(n: int) -> void:
 		_check(false, "street", "the starting place discloses no doorway")
 		return
 	var street: String = exits[0]["to"]
-	var out := _point("walk-out", Vector2i(-12000, 1500))
-	app.walker.walk_to(street, app.town.to_plan(street, {"x": out.x, "y": out.y}))
+	var exit_there: Vector2 = app.town.to_plan(street, {"x": exits[0]["there"].x, "y": exits[0]["there"].y})
+	app.walker.walk_to(street, exit_there)
+	await _until(func() -> bool: return not app.walker.is_walking(), TIMEOUT_S)
+	var centre: Vector2 = app.town.hub_extent().get_center()
+	app.walker.walk_to(street, exit_there + (centre - exit_there).normalized() * 1.5)
 	await _until(func() -> bool: return not app.walker.is_walking(), TIMEOUT_S)
 	await _seconds(0.4)
 	_report_self()
@@ -331,10 +350,6 @@ func _walk_done(what: String) -> bool:
 	return true
 
 
-func _point(name: String, fallback: Vector2i) -> Vector2i:
-	var text := String(app.options.get(name, ""))
-	var parts := text.split(",")
-	return Vector2i(int(parts[0]), int(parts[1])) if parts.size() == 2 else fallback
 
 
 func _check(ok: bool, what: String, detail: String) -> void:

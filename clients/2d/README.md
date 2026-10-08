@@ -6,7 +6,8 @@ draws the town that Person can see, in the default isometric `town` style.
 ```sh
 ./mineworld-2d                  # host worlds/market-town locally and play it as Carol
 ./mineworld-2d --seat visitor   # the same world, as somebody else
-./mineworld-2d --server 127.0.0.1:7878   # join a world someone else is hosting
+./mineworld-2d --server 127.0.0.1:7878 --invite TOKEN   # join a world someone else is hosting,
+                                                         # with the invite its server printed
 ./mineworld-2d --drive=walk     # the scripted checks, headless
 ```
 
