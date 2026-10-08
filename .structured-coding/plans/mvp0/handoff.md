@@ -1,90 +1,95 @@
-# Handoff — S15: PR 12c implementation (objects: walking pushes them; kick, throw and shove)
+# Handoff — S15: PR 12d-0 implementation (bodies' cost)
 
 A continuation aid, never a design authority. The authority is
-[`step-11-bodies.md`](step-11-bodies.md) §18 (§18.0's freeze record binds and overrides the rest of
-§18), with evidence in §18.10 (`E-PO<n>`) and deviations in §18.11. The 12b context is CLOSED; its
-handoff text is in git history at `0fd0be3`.
+[`step-11-bodies.md`](step-11-bodies.md) §20 (DESIGN FROZEN 2026-10-08), with evidence in §20.12
+(`E-Z<n>`) and deviations in §20.13. The 12c context is CLOSED; its handoff text is in git history at
+`5ef5bff`.
 
 ```text
-PROJECT / PR        MVP-0 · Step 11 / PR 12c — objects: walking pushes them; kick, throw and shove (S15,
-                    third of five)
-PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §18; evidence §18.10; deviations §18.11
-RELATED / BINDING   step-11 header freeze record (QB-1, QB-3, QB-6, QB-8, QB-10, QB-15), §§4.4–4.7, 5,
-                    6.3, 7.2, 8.1, 9.5, 10.1, 11.1, §17 (12b as merged, §17.12), §18; overall.md §3
-                    (S15), §7; DECISIONS ARC-23, ARC-25, ARC-26, ARC-27, ARC-31, ARC-33, ARC-34, ARC-36,
-                    ARC-37, ARC-38, ARC-39 and its notes, DEP-13; MODULE_SPEC §4.1; CLAUDE.md §§2–4
-BRANCH / WORKTREE   mvp0/pr-12c-objects in /Users/yuema137/mineworld-worktrees/s15-12c (sole writer)
-BASE                main @ 0fd0be3 (9c617ed + the 12b post-merge docs #60 and the 12c design #61,
-                    Markdown only)
-APPROVED SCOPE      §18.1's change set; PO-C1 … PO-C7; SD-O1 … SD-O21 as answered by QO-1 … QO-20
-FROZEN INVARIANTS   no edit under kernel/, contracts/, persistence/, server/, cognition/, clients/,
-                    authoring/, sdk/, systems/{presence,movement,item,inventory,installed}/,
-                    worldpack/src/, tools/cli/src/, tests/acceptance/, worlds/{social-cafe,market-town}/,
-                    nor the root Cargo.toml; no other existing System Pack. PO-1: social-cafe sha
-                    ad49c723…c64b (365 330 facts), market-town sha 365b50e0…1d1d (372 755 facts),
-                    faults 0. PO-13 b: 12b's long run byte-identical to E-PO-base (sha d7025dbc…79eaf).
-                    Existing tests unchanged except QO-16's. Controller unchanged; activity fixed in
-                    content or bodies' offers only (AO-1 … AO-3 fixed). bodies → mineworld-item is a
-                    crate dependency used ONLY for `is_declared` (ARC-39 note, guard test with a
-                    mutation, no system dependency; a world with bodies and without item validates and
-                    runs). Rapier named only in rapier.rs; no float outside it; no float persisted.
-                    Cost bounds fixed: release ≤ 100 µs per swept move, ≤ 2 ms per kick/throw;
-                    300-day dev run ≤ 40 s. Gates unedited and passing: AC-1 13/13, I-2 scan 4/4,
-                    seam_vocabulary; no diff under cognition/.
-ENDPOINT AUTHORITY  source: the primary session's kickoff message for 12c (2026-10-08) and §18.9
-  implementation + local validation   authorized (kickoff: "You may implement PO-C1 to PO-C7")
-  semantic commits, branch push       authorized (kickoff: "commit, push"; "Commit and push after
-                                      every small step")
-  PR creation / update                authorized; open against main marked READY FOR OPERATOR REVIEW
-  scratch builds                      authorized: base binary, x86_64-apple-darwin build, under
-                                      /tmp/s15-12c; `rustup target list --installed`, `arch -x86_64`
-  CI repair                           N/A — no CI workflow (S13)
-  merge                               operator only, with a merge commit; never inherited
-TOOL DISCIPLINE     Read/Edit/Write for file changes; never python3 -c, sed -i, awk, xargs, curl,
-                    cat >> / heredoc writes. Long runs (> ~2 min) in the background.
-VALIDATION BUDGET   §18.9: 300-day runs ≤ 6; 30-day yard runs inside tests, ≤ 3 re-runs for SD-O18's
-                    ladder; x86_64 build once + 3 Rosetta runs; one full gate on the final head.
-STOP CONDITIONS     NORMAL: PR 12c READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL: §18.9's list, and
-                    the kickoff's (kernel/contract/controller change; town digests or 12b long-run base
-                    changing; a path outside §18.1; anything from mineworld_item beyond is_declared; a
-                    cost or activity bound failing; Rapier outside rapier.rs; a persisted float).
+PROJECT / PR        MVP-0 · Step 11 / PR 12d-0 — bodies' cost (S15, precursor to 12d)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §20; evidence §20.12; deviations §20.13
+RELATED / BINDING   §19's header (the QD-2 ruling), §17.11 DB-10 and its ruling, §17, §18 (12b, 12c as
+                    merged), §19 (12d, AWAITING 12d-0), E-TD0b; DECISIONS ARC-39, DEP-13; CLAUDE.md §§2–4
+BRANCH / WORKTREE   mvp0/s15-12d0-plan in /Users/yuema137/mineworld-worktrees/impl-12d0 (sole writer;
+                    the coordinator's kickoff names this branch and worktree, replacing §20.11's
+                    proposed mvp0/pr-12d0-cost / s15-12d0 — §20.13 Z-D1)
+BASE                main @ f842c52 + the frozen design (953ff10, Markdown only)
+APPROVED SCOPE      §20.1's change set; ZC-1 … ZC-6; SD-Z1 … SD-Z5; §20.7's ladder only on a failed gate
+FROZEN INVARIANTS   no diff outside systems/bodies/ and the named documents; bodies' rules unchanged but
+                    SD-Z4 and SD-Z5; Class I byte-identical (ZI-1 … ZI-4); Class R only under ZR; towns'
+                    digests unchanged (TZ-1: ad49c723…c64b, 365b50e0…1d1d); QB-11 1.5 × on the
+                    prototype, never re-scoped; nothing of Rapier survives a resolution (I-5); no float
+                    outside rapier.rs
+ENDPOINT AUTHORITY  source: the coordinator's kickoff for 12d-0 (2026-10-08) and §20.11
+  implementation + local validation   authorized ("Implement ZC-1…ZC-6")
+  semantic commits, branch push       authorized ("commit, push"; "commit and push after each step")
+  PR creation / update                authorized; against main, marked READY FOR OPERATOR REVIEW
+  scratch builds                      /tmp/s15-12d0; `rustup target list --installed`, `arch -x86_64`
+  CI repair                           N/A — no CI workflow
+  merge                               operator only, merge commit; never inherited
+TOOL DISCIPLINE     Read/Edit/Write for files; allowed cargo, git, gh, python3 scripts/*, mkdir -p,
+                    sed -n; never python3 -c, sed -i, awk, xargs, curl, cat >> / heredoc writes. Long
+                    runs in the background. No edit of .claude/settings*.json or other worktrees.
+VALIDATION BUDGET   §20.11: 300-day prototype runs 8 before (ZC-1), 8 for the gate, ≤ 8 per ladder
+                    rung; ZR-3's shadow once; x86_64 build once; one full gate; real-model NOT REQUIRED
+STOP CONDITIONS     NORMAL: PR 12d-0 READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL: TZ-9 failing
+                    after the L1/L2 ladder; a Class-I piece moving a Class-I reference (revert, locate
+                    the first differing request, report); ZR failing for a Class-R piece; a town digest
+                    moving; a path outside systems/bodies/ and the documents; Rosetta differing
+POST-MERGE SYNC     planning session: header, §19 (its base and TD-14 references), overall, MVP_STATUS
 ```
 
-## Current checkpoint — STOPPED (material): AO-2 fails on every rung of SD-O18's ladder
+## Current checkpoint — READY FOR OPERATOR REVIEW (Z-D9 ruled: 3.60 × accepted; Z-D8 accepted)
 
-- E-PO-base captured on the base (0fd0be3), before any code: `/tmp/s15-12c/base-mineworld`
-  (sha-256 08a2affd…48363), `base-validate-{social-cafe,market-town}.txt`, `base-longrun-line.txt`
-  (d7025dbc…79eaf), `base-yard30.txt` (summary sha 3a2c3322…aa9d, = E-PB8).
-- PO-C1 … PO-C5 committed and pushed (2fb6d6a, 7cb6d0e, 6849ae8 + f6243db, 92dd1be, b18b465), each
-  green with its mutations (E-PO1 … E-PO5).
-- PO-C6 partial, committed as a WIP commit: the extended world (c1: 16 objects), the scan's QO-16 edits
-  (DO-12), rung p1 (SHOVE_OFFER_REACH), the shove-length fix with its regression (DO-14),
-  long_run_objects (PO-13 a: PASS, release 52.8 µs / 109.7 µs). `bodies_yard`'s 30-day test is RED by
-  design of the stop: AO-2 fails in a later bucket on every rung (E-PO6, DO-13).
-- Not run, pending the decision: PO-9's verdict, PO-10, PO-11, PO-12, PO-14, PO-2/PO-16 binary
-  refusals, PO-C7 (PO-1, the gate, the PR).
+- origin/main (CI) merged into the branch; PR opened READY FOR OPERATOR REVIEW — DO NOT MERGE.
 
-## Update — rung p3 applied by ruling; STOPPED again (E-PO7, DO-16)
+### Earlier checkpoint — TZ-9a fails on social-cafe (§20.13 Z-D9, E-Z7)
 
-- p3 (unaimed kick/throw toward the room's free centre) implemented, tested (hand literals, the
-  wall scenario, M-P3). AO-2 fails on seeds 7, 8 and 9 for want of a push in a later bucket (objects
-  gather at the centre and jam against the pillar, the table and each other). Per the ruling: no rung
-  added; reported with counts. 3 of the 6 granted 30-day runs used.
+- Z-D7 ruled (c): SD-Z3, SD-Z4 dropped. SD-Z5 done (31e3779, VERSION 3, E-Z6); docs (df94e46).
+- New bases: ZI-1 23f7fa76…, ZI-2 c8358f8b…, ZI-3 bd6a1002… (E-Z6); Rosetta equal (E-Z7).
+- TZ-1, TZ-8, TZ-10, full gate PASS. TZ-9b PASS (max 10.5 ms, p99 0.33 ms). TZ-9a: market-town
+  2.999 × PASS; social-cafe 3.60 × FAIL (re-run clean). The ladder not tried. No PR opened.
 
-## Final — READY FOR OPERATOR REVIEW; context CLOSED / AWAITING OPERATOR ACTION
+### Earlier checkpoint — ZR-3 fails for SD-Z3 + SD-Z4 (§20.13 Z-D7, E-Z5)
 
-- The AO-2 question closed by the primary session's final ruling: DO-18 and AO-2′ with (b′); the one
-  measurement passed on seeds 7, 8, 9 (E-PO10). The finish list done (E-PO11): PO-2/PO-16 binary,
-  PO-10, PO-11 + M-PO9, PO-12 Rosetta, PO-13, PO-14 30.7 s, PO-1, the full gate on 145c7f7 (636
-  passed, 0 failed, 1 ignored). WIP commits squashed into PO-C6 and PO-C7 (force-with-lease). The PR
-  is open, marked READY FOR OPERATOR REVIEW, merge commit only. Do not merge.
-- Post-merge: this session owns §18 (merge identity); the planning session owns the step header,
-  §§1–15, overall and MVP_STATUS's Updated/S15 lines; FU-12c-1 carried to planning.
+- Z-D6 ruled: SD-Z6 added (Class I) and done on the PR branch (18d8e48, E-Z4: ZI-1 … ZI-4 identical);
+  TZ-9 re-scoped to TZ-9a (3.0 ×) and TZ-9b (50 ms).
+- ZC-4 (SD-Z3 + SD-Z4) written and tested, ZR-3 fails on long_run (9 of 418 > 50 mm = 2.15 %); parked
+  on `mvp0/s15-12d0-zc4-wip` @ c1b5749. Options (a)/(b)/(c) in Z-D7. ZC-5, ZC-6, TZ-9a/b not run.
+- Binaries: `/tmp/s15-12d0/z6-mineworld` (PR head's code), `/tmp/s15-12d0/z34-mineworld` (the WIP).
 
-## Next actions (historical — before the final AO-2 ruling)
+### Earlier checkpoint — TZ-9 cannot pass within §20 (§20.13 Z-D6, E-Z3)
 
-1. Apply the decision (criteria, content or policy), re-run `bodies_yard thirty_days`.
-2. Finish PO-C6: PO-2 and PO-16 refusals in bodies_yard.rs, PO-10 (the copy now strips items' body:),
-   bodies_yard_restart.rs's activity line (kicks, throws, shoves, pushes > 0), M-PO2 binary, M-PO9.
-3. PO-C7: Rosetta (PO-12), PO-14 (≤ 40 s), PO-1 towns, the full gate once, MVP_STATUS, bodies README
-   (systems/bodies/README.md does not exist; SD-O21 lists it), the PR marked READY FOR OPERATOR REVIEW.
+- Z-D4 ruled: SD-Z1 dropped (§20.4 amendment). The ZC-1 profile (E-Z3, `/usr/bin/sample`, 30 and 300
+  days): 49 % of the with-bodies run is entry E3's `nearest_free` lattice scan, 24 % stride/Rapier,
+  25 % the rest. Removing all Rapier work leaves ≈ 5.8 × (bound 1.5 ×); removing E3's scan too ≈ 2.0 ×.
+  ZC-4 … ZC-6 not started, as ruled. Awaiting the operator.
+
+### Earlier checkpoint — SD-Z1 not result-preserving (§20.13 Z-D4)
+
+- Z-D2 ruled (option (b): SD-Z3 → Class R); TZ-9's instrument fixed (§20.6.1). Both recorded.
+- ZC-1: E-Z-base captured (ZI-1 d7025dbc…, ZI-2 53d017d0…, ZI-3 6e4c4015…, TZ-1 both towns, the
+  validate outputs). The gate's "before" under §20.6.1: 7 of 8 runs (E-Z-before; social-cafe 7.98 ×,
+  market-town ≥ 6.02 ×). The profile pending (Z-D3).
+- ZC-2: SD-Z2 (`rapier.rs` `index`) committed, byte-identical (E-Z1). SD-Z3 reverted (Z-D2), to be
+  re-applied as Class R in ZC-4.
+- ZC-3: SD-Z1 written, moved ZI-1, ZI-2 and ZI-3 (E-Z2; first differing stride long_run's 419th, 14 mm),
+  reverted; patch at `/tmp/s15-12d0/sd-z1-reverted.patch`. Also: SD-Z1 buys no measurable CPU on 30
+  prototype days. Awaiting the primary session: drop SD-Z1, or move it to Class R under ZR.
+- Not started: ZC-4 (SD-Z3 + SD-Z4), ZC-5 (SD-Z5), ZC-6. No PR opened.
+- Base binary: `/tmp/s15-12d0/base-mineworld` (built on 953ff10).
+- Prototype rebuilt from §20.12's recipe: `/tmp/s15-12d0/proto/worlds/{social-cafe,market-town}`;
+  the copies without bodies: `/tmp/s15-12d0/nobodies/worlds/{social-cafe,market-town}`. All four
+  validate (22 entities / 67 genesis facts; 44 / 143; 22 / 53; 44 / 129).
+- Scripts (inputs, not evidence): `/tmp/s15-12d0/capture.sh <label> <binary>` (ZI-1 … ZI-3),
+  `/tmp/s15-12d0/towns.sh <label> <binary>` (TZ-1).
+
+## Next actions
+
+1. On the primary session's ruling on Z-D4: drop SD-Z1, or re-apply the kept patch as Class R
+   (`git apply /tmp/s15-12d0/sd-z1-reverted.patch`; its two wrong cull scenarios rewritten from
+   measured values).
+2. ZC-4 (SD-Z3 behind `Policy.exact_corridor`, SD-Z4, ZR-3's shadow), ZC-5, ZC-6; TZ-9 with
+   `bash /tmp/s15-12d0/gate.sh after <binary>` (CPU instrument, interleaved).
+3. Worth taking first (Z-D3, information): the ZC-1 profile — where ≈ 7 s of CPU per 30 prototype
+   days goes, since scene size is ruled out.

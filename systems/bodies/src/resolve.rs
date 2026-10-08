@@ -36,12 +36,16 @@ pub(crate) struct Policy {
     pub(crate) bias: bool,
     /// Verify, then degrade (step-11 DC-8, I-12).
     pub(crate) verify: bool,
+    /// A stride away from a person within the controller's offset is not stopped by them (step-11
+    /// SD-Z5, FU-12c-1).
+    pub(crate) away_free: bool,
 }
 
 /// What every world runs.
 pub(crate) const PRODUCTION: Policy = Policy {
     bias: true,
     verify: true,
+    away_free: true,
 };
 
 /// The way an arrival into a shaped place was resolved.
@@ -392,6 +396,7 @@ mod tests {
         let (walker, other, apart, outcome) = resolved(Policy {
             bias: false,
             verify: false,
+            ..PRODUCTION
         });
         println!(
             "verification off: walker {walker:?}, against {other:?}, {} mm apart; {outcome:?}",
