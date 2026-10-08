@@ -11,6 +11,12 @@
 world:
   id: bodies-yard
   name: Bodies Yard
+  # The pack's package identity (docs/DECISIONS.md ARC-53), never world state.
+  version: 0.1.0
+  license: MIT
+
+# The framework versions this world is authored for (ARC-53).
+mineworld: "^0.1"
 
 # `bodies` depends on `presence`, so it comes after it. `conversation` is here because talking is what
 # draws people toward each other, and a yard nobody walks across tells nothing about bodies. Leave

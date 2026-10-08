@@ -31,6 +31,7 @@ impl SystemIdentity for InventorySystem {
 /// biography (step-10 QS-29) — and the `holdings:` section, which its `AuthoredSection` impl
 /// (`src/section.rs`) describes.
 impl SystemPack for InventorySystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     mineworld_sdk::owns_section!();
 }
 

@@ -936,3 +936,662 @@ fields, `mineworld:`, `requires:`), §8.1 (`packs`), §9 (MVP-0 subset, SystemVe
 `docs/DECISIONS.md` ARC-SE-a, ARC-SE-b, DEP-SE-a, DEP-SE-b; `docs/ARCHITECTURE.md` §14 (`packages/`,
 `entities/`); `docs/HUMAN_REVIEW_QUEUE.md` row E and `docs/MVP_STATUS.md` at the milestone.
 
+---
+
+# 14. PR E-a — pack identity (PR design)
+
+**Lifecycle:** `READY FOR OPERATOR REVIEW` — DESIGN FROZEN (2026-10-08), primary session; implemented,
+final executable head `e118935` (main with S15's 12c merged in), evidence in §14.5 Ea-C7 and §14.8. PR
+#70. Not merged.
+
+## 14.0 Freeze record
+
+```text
+DESIGN FROZEN (2026-10-08), primary session
+Design revision:     §14 as committed in ae2bd5b (PD-1 … PD-9, EA-1 … EA-11 with their mutations,
+                     Ea-C1 … Ea-C7, §14.7's merge plan)
+Approved by:         the primary session's freeze message to the E-a session, 2026-10-08: "S16 PR E-a is
+                     DESIGN FROZEN (2026-10-08), primary session. §14 is accepted as written"
+Rulings:             FQ-1 accepted (world and presentation identity in E-a as Ea-C5, separable; loader
+                     optional but checked when present; packs validate requires; mineworld: check pulled
+                     forward). FQ-2 accepted (pack.yaml states its id; directory free; nothing renamed).
+                     FQ-3 accepted (license: MIT for both presentation packs and the three worlds,
+                     consistent with D-1; the GPL Blender scripts do not affect packs). FQ-4, FQ-5
+                     accepted (const PACKAGE expression form; handoff-ea.md)
+Evidence rule:       report exactly what the harness reports — passed, ignored, filtered
+Merge plan:          merging origin/main, never a force-push; Cargo.lock regenerated, never hand-merged
+Implementation base: main @ 47c81d1, branch mvp0/pr-ea-pack-identity
+Execution contract:  §14.10
+Material stops:      any kernel, contract or persistence change; any digest change from the merged main;
+                     AC-1 failing
+Lifecycle:           FROZEN
+```
+
+## 14.1 Identity, base, approved scope
+
+```text
+PR            E-a — pack identity (S16, first of five; a framework precursor). PR number assigned at
+              freeze (overall "Parallel build-out" ruling 7)
+base          main @ 47c81d1 (PR #62, the six frozen step designs). Re-audit §14.3 if anything under
+              sdk/, systems/*/src/system.rs, worldpack/src/{format,read,error}.rs, tools/cli/src/main.rs
+              or the root Cargo.toml moved before C4
+branch        mvp0/pr-ea-pack-identity, worktree /Users/yuema137/mineworld-worktrees/impl-s16-ea, held
+              by the E-a session only
+audit         §14.3 (files and symbols read on 47c81d1)
+scope         §9.2 as bounded by §14.2's decisions PD-1 … PD-9; QSE-4, QSE-5, QSE-6, QSE-7 (rule only),
+              QSE-10, QSE-14 as ruled or recommended
+decisions     ARC-53 (package identity; step placeholder ARC-SE-b) and DEP-21 (`semver`, `spdx`;
+              placeholder DEP-SE-a) are written by this PR. ARC-54 (ARC-SE-a, the ARC-33 revision) is
+              E-c's; DEP-22 (cargo-deny, DEP-SE-b) is E-c's or S13's. ARC-55 and DEP-23 stay unused here
+depends on    S9 (merged). Nothing in S11–S15 is a prerequisite
+```
+
+**Goal.** Every pack MineWorld ships has a package identity — id, semver version, type, SPDX licence,
+provenance — stated once, where the pack already states who it is, and a person can see it:
+
+```text
+code packs          Cargo.toml [package]; read into the binary at compile time by package!(), one line
+                    per pack; SystemPack::PACKAGE is required, so an anonymous pack does not compile
+World Packs         world.yaml: world.version, world.license, top-level mineworld:
+Presentation Packs  pack.yaml beside the unchanged style manifest
+the framework       workspace version 0.1.0 (QSE-6)
+the command         mineworld packs list | show | validate
+```
+
+**Non-goals (each another PR's).** Resolution of `requires:` and pack roots on `validate`, `run`,
+`server`, `biography`, `replay`, and `MINEWORLD_PACKS` (E-b); the licence allow-list policy of §4.7
+(E-b, where it refuses); bundled-versus-third-party classification and the git source column of
+`packs list` (E-c, where a third-party pack first exists to test it); the root `[patch.crates-io]`,
+the lock guard, `deny.toml` (E-c); Entity Packs (E-d); `packs resolve` (E-b); Lakeside (E-e); a
+framework-version line in saves or facts (QSE-14: never in S16); any change to `kernel/`,
+`contracts/`, `persistence/`, `server/`, `clients/` (I-E1); any behaviour of
+`cognition/rule-controller` (I-E8); `mineworld create`'s template (§14.2 PD-7).
+
+## 14.2 Design decisions (PD-1 … PD-9)
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **PD-1** | **`mineworld-packages` (`packages/`) is a leaf framework crate.** It depends on `semver` (with `serde`), `spdx`, `serde`, `serde-saphyr` and `thiserror`, and on **no** MineWorld crate. It owns: `Package` (the compile-time record), `package!()`, `FRAMEWORK_VERSION`, `PackId`, `PackType`, `Version`, `Compatibility` (a semver range), `License` (a parsed SPDX expression with its text), `Identity` (the validated whole), the `pack.yaml` reader, and finding data packs under a directory given on the command line. | §6.4: one crate owns "what a package is". A leaf crate lets `sdk`, `worldpack`, `tools/cli` **and** `rule-controller` use it without new paths into the kernel (PD-3). §6.4 allowed `contracts` "if needed"; it is not needed (PD-5 defines `PackId`'s own rule). |
+| **PD-2** | **`package!()` is an expression macro**, defined in `packages` and re-exported by `mineworld-sdk` together with `Package`. A System Pack writes, as the first line inside its `impl SystemPack`: `const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();` It expands to `$crate::Package::declared(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_LICENSE"), env!("CARGO_PKG_AUTHORS"), env!("CARGO_PKG_REPOSITORY"))`, a `const fn` storing the five `&'static str`. `env!` is expanded where the macro is invoked, so each pack records its own crate's fields. **Deviation from §4.1's wording** (`mineworld_sdk::package!();` as an item): one expression form serves the trait, the controller (which has no trait) and any later carrier, defines nothing hidden, and is fully qualified so the per-pack edit needs no `use` line. | One mechanical line per pack with no import change keeps rebase conflicts trivial (§14.7). An item-generating macro would need a second form for the controller. |
+| **PD-3** | **`SystemPack::PACKAGE` is required** (no default). `installed!` gains `Capability::package()` and `Capability::version()` (the `SystemVersion`, for `packs show`). The controller writes `pub const PACKAGE: mineworld_packages::Package = mineworld_packages::package!();` in `cognition/rule-controller/src/lib.rs`, and gains one `mineworld-packages` dependency line — **not** `mineworld-sdk`, which would put `kernel` in a crate whose manifest promises "no kernel". | The safe direction (§4.1): a pack that forgets its identity does not compile. I-E8 holds: two lines, no behaviour. |
+| **PD-4** | **Validation is at run time, in one place.** `Package` is a plain record; `Identity::of_code_pack(&Package, PackType)` parses the version (`semver`; Cargo already guarantees it), the licence (`spdx`; Cargo does not validate it) and requires non-empty authors. `pack.yaml` and `world.yaml` fields go through the same `Version`, `License`, `Compatibility` and `PackId` types. A code pack with an empty or invalid licence still compiles, and `packs list` refuses, naming the pack and the text. | One validation path for every carrier. A `const` assertion in `declared` would be a second, and cannot parse SPDX. |
+| **PD-5** | **`PackId`'s rule**: 1–64 characters, lowercase ASCII letters, digits and `-`, beginning with a letter, no `--`, not ending in `-`. Every Cargo package name in this workspace and every existing world id satisfies it. | A data pack's id is free text today (`WorldIdentity::id`); a package identity needs a checked one. Defined here so `packages` needs no `contracts`. |
+| **PD-6** | **A `pack.yaml` pack's id is stated in `pack.yaml`; its directory name is free.** A World Pack keeps `world.id` = its directory (`check_pack_id`, unchanged). **Reconciles a contradiction inside §4:** §4.1 says a data pack's id is its directory name, while §4.5 gives `presentation/mineworld-default/2D/` the id `mineworld-default-2d`, and `ARC-3`'s family layout puts dimension packs in `2D/` and `3D/`. Renaming those directories would move files S12 and S14 cite in flight. Two data packs with one id under the directories `packs list` reads are refused, naming both directories. | Keeps the visual track's paths, and is what §4.5 already wrote. **Operator-visible (freeze question FQ-2).** |
+| **PD-7** | **World package fields are optional to the loader and required by `packs validate`.** `world.version` (`Version`) and `world.license` (`License`) and top-level `mineworld:` (`Compatibility`) are parsed, typed, when present: a malformed value is refused at its line and column; a `mineworld:` range that `FRAMEWORK_VERSION` does not satisfy is refused by name (`PackError::FrameworkNotSupported`), so no field is ever accepted and left unchecked. `packs validate <world>` refuses a world missing any of the three, naming the field. The three shipped worlds gain all three. The six inline test worlds and `create`'s template are **not** edited. **Pull-forward from E-b, bounded:** the `mineworld:` check moves into E-a (E-b keeps `requires:`). E-b decides whether the loader makes the fields required, with the template. | §4.2 said "required once E-a lands"; doing so here edits six existing test fixtures in three crates other lanes touch (`worldpack/tests`, `tools/cli/tests`) for no claim of E-a's. A field the loader accepts without checking would break I-E6. **Operator-visible (FQ-1).** |
+| **PD-8** | **What `packs` reads.** `packs list [--packs DIR]...` and `packs show <id> [--packs DIR]...`: the build's code packs (`AVAILABLE` in order, then the controllers the CLI composes), then, per `--packs DIR` in the order given, each **immediate subdirectory** holding `world.yaml` or `pack.yaml`, by name. A subdirectory holding neither is not a pack and is not listed (`presentation/mineworld-default/LICENSES/`); one holding both is refused; a `DIR` that is itself a pack is refused ("a pack, not a directory of packs; use packs validate"). No implicit directory, no environment variable (QSE-13; E-b adds `MINEWORLD_PACKS` and the other commands). `packs validate <dir>`: one data pack — package fields required, then its content (a world: `WorldPack::read` and `load`, as `validate`; a presentation pack: its `manifest.yaml` parses with a string `id` and a non-empty `dimension` list). | The checkpoint (§9.2) lists worlds and presentation packs through the real binary, which needs a directory to read them from. Scoped to `packs` so E-b owns pack roots as a mechanism. |
+| **PD-9** | **`pack.yaml` in E-a.** Fields: `id`, `type`, `version`, `mineworld`, `license`, `authors` (non-empty list), `repository` (optional URL text). Unknown fields refused (`deny_unknown_fields`). `type`: `presentation-pack` is read; `entity-pack` is refused by name until E-d ("entity packs are read from E-d"); `system-pack`, `controller-pack`, `world-pack` are refused naming their carrier (`Cargo.toml` / `world.yaml`); `asset-pack` refused (QSE-11). `dependencies:` is refused as an unknown field until E-b resolves it. The two presentation packs: version `0.1.0`, `mineworld: "^0.1"`, `license: MIT`, `authors: [Yue Ma]`, `repository: https://github.com/yuema137/MineWorld`. | Nothing is accepted that nothing checks (I-E6). `MIT` because their files are this repository's own, under D-1; the third-party material `LICENSES/` describes lives in `clients/3d-spike`, not in the packs. **Operator-visible (FQ-3): a licence declaration.** |
+
+**World identity values** (all three worlds, equal so `ac1_composability` check 3 passes unedited, F-E5):
+`version: 0.1.0`, `license: MIT`, `mineworld: "^0.1"`.
+
+**`packs list` output** (one line per pack, then a count; deterministic order, PD-8):
+
+```text
+system-pack        mineworld-presence         0.1.0  MIT  Yue Ma  system presence
+…                                                                  (one per AVAILABLE entry)
+controller-pack    mineworld-rule-controller  0.1.0  MIT  Yue Ma
+world-pack         social-cafe                0.1.0  MIT  —       worlds/social-cafe
+presentation-pack  mineworld-default-2d       0.1.0  MIT  Yue Ma  presentation/mineworld-default/2D
+20 packs
+```
+
+A world has no authors field (QSE-8 accepted exactly `version`, `license`, `mineworld`), so its
+provenance is its directory; recorded as a limitation, not invented. `packs show` prints every field,
+`repository` or `—`, the `mineworld:` range for data packs, and for a System Pack its system id and
+`SystemVersion`. Every refusal: a message on stderr naming what was wrong, exit 1 (`MODULE_SPEC.md`
+§8.1).
+
+## 14.3 Audit (main @ 47c81d1)
+
+| What | Where | Finding |
+| --- | --- | --- |
+| The trait | `sdk/rust/src/pack.rs:24–53` | `SystemPack: System + Default`, constants `BIOGRAPHICAL`, `SECTION`, fn `decode_section`; one stub `Silent` (`:108`). |
+| The macro | `sdk/rust/src/installed.rs:56–226` | `@catalog` arm generates `Capability` and its methods; `package()` and `version()` are two more `match` methods there. `__private` (`sdk/rust/src/lib.rs:39–47`) needs `System`. |
+| The packs | `systems/*/src/system.rs` | 14 packs, each one `impl SystemPack`: block form in bodies, economy, employment, group-activity, inventory, item, naming, relationships, schedule (+1 line each); empty `{}` form in consumption, conversation, item-transfer, movement, presence (`{}` → a 3-line block). |
+| Other impls | `systems/installed/tests/installed.rs:121` (macro stub), `systems/installed/tests/resolution.rs:72` (`Lone`), `sdk/rust/src/pack.rs:108` (`Silent`) | The only other implementors (`git grep "SystemPack for"`); each needs the line. |
+| The installed set | `systems/installed/src/lib.rs` | **Not edited**: `package()` comes from the trait. |
+| Controller | `cognition/rule-controller/Cargo.toml` | Depends on contracts and five packs; its comment promises no kernel → PD-3. |
+| Versions | root `Cargo.toml:21–26` | `version = "0.0.0"`, `license = "MIT"`, `authors = ["Yue Ma"]`, no `repository`. No code reads `CARGO_PKG_VERSION` (`git grep CARGO_PKG`: none), so the bump cannot reach a fact, a save or the wire. |
+| World format | `worldpack/src/format.rs:39–86` | `WorldManifest`, `WorldIdentity` (`id`, `name`), all `deny_unknown_fields`; `check_pack_id` `read.rs:292`. |
+| Loader allow-list | `worldpack/tests/structure.rs:17–38` | Names infrastructure; `mineworld_packages` becomes one more infrastructure entry (an edit of the list's data, claim unchanged). |
+| Inline worlds | `worldpack/tests/{refusals,content_kinds}.rs`, `tools/cli/tests/commands.rs`, `tools/cli/templates/new-world/world.yaml` | Six fixtures and the template; PD-7 leaves them unedited. `tools/cli/tests/content_kinds.rs:39` rewrites `"  id: social-cafe\n"` — the new fields go after `name:`, so that line is unchanged. |
+| CLI | `tools/cli/src/main.rs` (466 lines) | `Subcommand` enum and one `match`; `not_yet`'s list is pinned only by `contains("mineworld server")` (`tests/commands.rs:116`), so adding `mineworld packs` to it is safe. |
+| AC-1 check 2 | `tests/acceptance/tests/ac1_composability.rs:640–907` | Bullet 1: any member outside `systems/` depending on a market pack fails. Bullet 2: no normal/build path from `FRAMEWORK` (kernel, contracts, persistence, server, authoring, sdk, rule-controller). Bullet 3: no `*.rs`/`Cargo.toml` outside `systems/`, `worlds/`, `tests/acceptance/` names a market crate in either spelling. |
+| AC-1 check 3 | same, `:1058–1090` | Inside `world:` every field but `id`, `name` equal; every other top-level key equal → equal values pass. |
+| I-2 scan | `tests/acceptance/tests/precursor_vocabulary.rs:57–80` | Rows 11a/11b/11c are merged, so their ranges are `base..M^2`, fixed: E-a's lines are never scanned. |
+| Seam scan | `tests/acceptance/tests/seam_vocabulary.rs:28–129` | Scans `systems/{presence,movement}/src`, `sdk/rust/src`, `systems/installed/src`, `worldpack/src` and seven test files (incl. `systems/installed/tests/resolution.rs`) for words beginning `body`, `bodies`, `bodily`, `physic`, `rapier`, `nudg`, `collision`, `collid`, `capsule`, `jolt`. E-a edits files in all of them: no new line may hold such a word (review item in C4, C5). |
+| Doc ids | `scripts/check_decision_ids.py` | 51 ids, distinct; ARC-53…55, DEP-21…23 absent from every `origin/*` branch (checked on 47c81d1). |
+| CI | `.github/workflows` | Absent (S13 pending): the canonical evidence is the local full gate on the final head. |
+| Scratch | `tools/cli/tests/support/mod.rs:100–116` | A scratch directory removed on drop; E-a's tests use it (overall ruling 10). |
+
+**Check 2 and the new crate, worked through.** `mineworld-packages` is a member at `packages/`, outside
+`systems/`, depending on no MineWorld crate. Bullet 1: it depends on no market pack → nothing.
+Bullet 2: it is not in `FRAMEWORK`, and the framework crates that gain an edge to it (`sdk`,
+`rule-controller`) reach only a leaf → no new path. Bullet 3: no file of E-a outside `systems/`,
+`worlds/`, `tests/acceptance/` may spell a market crate — so `tools/cli/tests/packs.rs` and
+`packages/` never write `mineworld-economy` & co.; they locate packs from `AVAILABLE`. The guard is
+EA-8 below, with a mutation that makes check 2 see the new crate.
+
+## 14.4 Acceptance (decided before measuring, `ARC-23`)
+
+Each guard names the mutation shown to break it: applied to the working tree, observed to fail by name,
+reverted; `git status` recorded afterwards.
+
+```text
+EA-1  Every code pack has an identity, printed by the real binary. `mineworld packs list` exits 0; its
+      system-pack lines' system ids equal, as a set and in order, the ids of mineworld_worldpack::AVAILABLE
+      (located first: the line for `presence` is found, then all are counted); each line has version, an
+      SPDX-valid licence and non-empty authors; exactly one controller-pack line,
+      mineworld-rule-controller. Guard: tools/cli/tests/packs.rs.
+      Mutation M-A1: the CLI's controller list emptied → the controller assertion fails.
+      Mutation M-A2: one pack's Cargo.toml `license.workspace = true` → `license = "NOT A LICENCE"` →
+      `packs list` exits 1 naming that pack and the text.
+EA-2  An anonymous pack does not compile. A trybuild compile-fail case: a System Pack with no PACKAGE →
+      E0046 naming `PACKAGE`. Guard: sdk/rust/tests/compile_fail.rs.
+      Mutation M-A3: give PACKAGE a default in the trait → the case compiles and trybuild fails.
+EA-3  The framework version is 0.1.0, one release unit. Every bundled code pack's version, as printed,
+      equals the CLI crate's own CARGO_PKG_VERSION; `mineworld --version` and `packs list` show 0.1.0
+      (recorded evidence). Guard: packs.rs.
+      Mutation M-A4: one pack's `version.workspace = true` → `version = "0.1.1"` → the test fails naming it.
+EA-4  pack.yaml is read, and refused by name. `packs validate presentation/mineworld-default/2D` and `3D`
+      exit 0 printing id, version, type, licence; `packs list --packs presentation/mineworld-default`
+      lists exactly the two (LICENSES/ is not a pack). Refusals, each naming the file and the field or
+      value: malformed semver; an unknown licence identifier; a missing field; an unknown field
+      (incl. `dependencies`); `type: world-pack` (names world.yaml), `system-pack` (names Cargo.toml),
+      `entity-pack` (E-d), `asset-pack`; a style manifest without `id` or `dimension`; a directory with
+      both manifests; two packs with one id (names both directories). Guards: packages/tests/manifest.rs
+      (the table) and packs.rs (three of them end to end through the binary: bad semver, unknown
+      licence, duplicate id).
+      Mutation M-A5: `deny_unknown_fields` removed from the pack.yaml struct → the unknown-field and
+      `dependencies` rows fail. Mutation M-A6: License deserializes without parsing → the licence row
+      fails.
+EA-5  World identity. The three worlds carry version, license, mineworld; `packs validate worlds/<w>`
+      exits 0 for each; a scratch world without `version` is refused by `packs validate` naming
+      `world.version`, and still accepted by `mineworld validate` (PD-7); `version: 1.0` and
+      `license: NOPE` are refused by `mineworld validate` at their line; `mineworld: "^9"` is refused
+      naming the range and 0.1.0. Guards: worldpack/tests/package_fields.rs (new file) and packs.rs.
+      Mutation M-A7: the loader skips the range check → the "^9" case fails.
+EA-6  Nothing else moves (I-E2). For social-cafe and market-town, `mineworld run <w> --headless --seed 7
+      --days 300` prints, apart from `wall`, exactly the base binary's lines (sha-256 of those lines
+      recorded for base and head); `mineworld validate` of all three worlds is byte-identical to base.
+      The instrument is shown to see: seed 8 gives a different sha. Measured after C3 (the version alone)
+      and on the final head; re-measured against the new base after every merge of origin/main.
+EA-7  Package facts never enter facts or saves (QSE-14). The 0.0.0 → 0.1.0 bump is itself the
+      counterfactual: any version in a fact would move EA-6's sha, and it does not. `git diff <base> --
+      kernel contracts persistence server clients` is empty. Review: PACKAGE / package() are read only by
+      tools/cli/src/packs.rs (`git grep` recorded).
+EA-8  AC-1 and the two vocabulary scans pass unedited (I-E4). `git diff <base> -- tests/acceptance` is
+      empty; ac1_composability, precursor_vocabulary, seam_vocabulary all pass on the final head.
+      Check 2 reads one more member and reports nothing. Mutation M-A8 (shows check 2 sees the new
+      crate): `mineworld-economy = { path = "../systems/economy" }` added to packages/Cargo.toml →
+      check 2 fails naming mineworld-packages (bullet 1) and packages/Cargo.toml (bullet 3).
+EA-9  packages is a leaf. packages/tests/structure.rs: its [dependencies] name no `mineworld-*` crate,
+      and its sources name no `mineworld_*` crate but itself.
+      Mutation M-A9: `mineworld-contracts = { workspace = true }` added → the test fails naming it.
+EA-10 The documents say it first (CLAUDE.md §2.2): ARC-53, DEP-21, PACKAGE_FORMAT §5/§8, MODULE_SPEC
+      §3.1/§4.1/§6.1/§8.1/§9, ARCHITECTURE §14 exist in C1, before code; both doc checks pass.
+EA-11 Every existing test passes, and none is edited except: the three stub impls gaining their line
+      (sdk/src/pack.rs, installed/tests/installed.rs, installed/tests/resolution.rs) and worldpack's
+      allow-list gaining `mineworld_packages`; each recorded with its unchanged claim.
+```
+
+## 14.5 Commit plan
+
+Evidence goes into §14.8 as `E-Ea<n>`. A planned commit may become several; the mapping is recorded.
+
+### Ea-C0 — Design (this section) — docs only
+
+- [x] Implementation: §14 of this file, from the audit in §14.3.
+- [x] Validation: `python3 scripts/check_doc_headings.py` (176 sections / 25 documents, none
+  duplicated), `python3 scripts/check_decision_ids.py` (51 ids, distinct) on 47c81d1.
+- [x] Review: each file and symbol cited was read on 47c81d1; the three places this design departs
+  from §4/§9.2's wording (PD-2, PD-6, PD-7) are marked and raised as FQ-1 … FQ-3; check 2's interaction
+  with the new crate is worked through (§14.3). Self-review only; the primary session's is pending.
+
+### Ea-C1 — Specs before code
+
+**Goal.** The package vocabulary, its carriers and the command exist as reviewable specification
+before code (`CLAUDE.md` §2.2). Markdown only.
+
+**Scope.**
+- `docs/DECISIONS.md`: **ARC-53** *A pack's identity is stated once, where the pack already states who
+  it is* — §4.1's vocabulary, the three carriers, `package!()` and the required `PACKAGE`, framework
+  version 0.1.0 and pre-1.0 semantics (QSE-6), `SystemVersion` versus semver (QSE-7's rule), PD-6,
+  PD-7, what is not in E-a; a note that `ARC-33` point 1's dependency list gains `packages` (a leaf,
+  still never a pack). **DEP-21** *Versions and licence expressions: `semver` and `spdx`* — §5 rows
+  12–13 (both directions), the isolating interface (`packages`' `Version`, `Compatibility`,
+  `License`), the measured weight (from Ea-C2), the revisit trigger (a registry, E-C).
+- `docs/PACKAGE_FORMAT.md` §5: the package manifest of a data pack is `pack.yaml` (QSE-4); the MVP-0
+  subset and its three carriers; §8: a row for package identity.
+- `docs/MODULE_SPEC.md` §3.1: the `PACKAGE` line in the pack's declaration and in the example; §4.1:
+  `world.version`, `world.license`, `mineworld:` (optional to the loader, checked when present,
+  required by `packs validate`); §6.1: `pack.yaml` beside the style manifest; §8.1: `packs list | show
+  | validate`; §9: the MVP-0 subset and the rule that raising `SystemVersion` is a breaking release.
+- `docs/ARCHITECTURE.md` §14: `packages/`.
+
+- [x] Implementation: as scoped; ARC-53 / DEP-21 re-checked free on every `origin/*` branch after
+  `git fetch` (none holds either). `PACKAGE_FORMAT.md` gains §5.0 *Package identity in MVP-0* (the
+  carrier table and `pack.yaml`'s fields) and an §8 row; `MODULE_SPEC.md` §3.1 (`PACKAGE` in the table
+  and both examples), §4.1 (the three world fields in the sample and a "Package fields" paragraph),
+  §6.1 (`pack.yaml`), §8.1 (`packs` in the synopsis, the table and its own paragraph), §9 (rule 4 and
+  the MVP-0 subset); `ARCHITECTURE.md` §14 (`packages/`). DEP-21's weight line is filled in Ea-C2.
+  Bounded fix on the way: `MODULE_SPEC.md` §6.1 had a code fence closed mid-line ("``` The reference
+  images…"), which ran the following prose into the block; the new `pack.yaml` paragraph sits there and
+  the fence is now closed on its own line.
+- [x] Validation: `check_doc_headings` → 177 sections / 25 documents, none duplicated (+1: §5.0);
+  `check_decision_ids` → 53 ids, distinct (+2). `git grep -n "pack identity\|package identity" docs`
+  → only ARC-53, PACKAGE_FORMAT §5.0/§8, MODULE_SPEC — one definition (E-Ea1).
+- [x] Review: no defined term redefined (`World Pack`, `System Pack`, `Controller Pack`, `Presentation
+  Pack` used as `MODULE_SPEC.md` defines them; "package identity", "carrier" are new descriptive terms
+  defined in ARC-53); `MODULE_SPEC.md` §4's frozen model is not edited (its `requires:` amendment is
+  E-b's); every PD-n appears in ARC-53.
+
+**Commit boundary.** Documentation only.
+
+### Ea-C2 — `packages/`: what a package is
+
+**Goal.** The leaf crate of PD-1, with its own deterministic tests, before anything uses it.
+
+**Scope.**
+- Root `Cargo.toml`: member `"packages"`; `[workspace.dependencies]` `mineworld-packages = { path =
+  "packages" }`, `semver = { version = "<current 1.x>", features = ["serde"] }`, `spdx = "<current>"`
+  with a comment citing DEP-21.
+- `packages/Cargo.toml`, `packages/README.md` (human orientation).
+- `packages/src/lib.rs` — crate docs, `#![forbid(unsafe_code)]`, `#![warn(missing_docs)]`,
+  `FRAMEWORK_VERSION` (`env!("CARGO_PKG_VERSION")`: this crate is versioned with the framework).
+- `packages/src/declared.rs` — `Package` (`const fn declared`, accessors), `macro_rules! package`.
+- `packages/src/identity.rs` — `PackId`, `PackType`, `Version`, `Compatibility`, `License`
+  (Deserialize, each refusing with a message naming the text), `Identity`, `Identity::of_code_pack`.
+- `packages/src/manifest.rs` — `pack.yaml` (PD-9) and the style-manifest check (PD-8).
+- `packages/src/found.rs` — the immediate subdirectories of a directory that hold a manifest (PD-8).
+- `packages/src/error.rs` — `PackageError` (thiserror), one variant per refusal.
+- `packages/tests/manifest.rs` — EA-4's table; `packages/tests/structure.rs` — EA-9.
+
+**Depends on:** C1.
+
+- [x] Implementation: as scoped, with two bounded refinements. (1) `validate_pack_directory` became
+  `check_style_manifest` (the World Pack half of `validate` belongs to the CLI, which owns `worldpack`);
+  (2) `Identity::of_world` added, so a world's required fields are checked here like every other
+  carrier's (PD-4: one validation path). `semver` needs no `serde` feature: every type deserializes
+  through `try_from = "String"` into its own named refusal. **Prototype (E-Ea2):** `semver` 1.0.28 has
+  no dependency; `spdx` 0.13.6 (default features: none) depends only on `smallvec`, already locked; no
+  build script in either (registry sources listed). `Cargo.lock` +3 packages. Proportionate; DEP-21
+  records it. Cold `cargo clippy -p mineworld-packages`: 18.3 s including serde and serde-saphyr.
+- [x] Validation (E-Ea2): clippy `-D warnings` clean; `cargo test -p mineworld-packages`: identity 6
+  passed, manifest 4 passed, structure 2 passed (0 failed, 0 ignored, 0 filtered; lib and doctests 0).
+  First run FAILED one case, correctly: `a_well_formed_pack_file_is_one_identity` asserted
+  `require_framework()` while the framework is still 0.0.0 (the bump is Ea-C3) — the test was asking
+  the wrong question; it now asserts the range's text, and the framework check lives in
+  `a_framework_range_admits_what_cargo_admits`. The structure test's first run FAILED on a doc
+  comment's example (`mineworld_sdk::package!()`): it now reads code lines only, documented.
+  Mutations, each reverted and the suite re-run green:
+  - M-A5 `deny_unknown_fields` removed → `every_bad_pack_file_is_refused…` FAILS at "unknown field".
+  - M-A6 `License::new` parses `"MIT"` instead of its text → `a_code_pack_without_a_usable_licence…`
+    FAILS at the empty licence.
+  - M-A9 `mineworld-contracts` added to `[dependencies]` → `the_manifest_names_no_mineworld_dependency`
+    FAILS naming it. `Cargo.lock`'s `mineworld-packages` entry afterwards: semver, serde, serde-saphyr,
+    spdx, thiserror only.
+- [x] Review: no MineWorld dependency; every refusal names the file and the field or value; no test
+  asserts a library's own behaviour (e.g. that `semver` parses `1.2.3`) — only MineWorld's mapping of
+  a bad value to a named refusal; `PackId`'s rule accepts every current crate name and world id
+  (checked by listing them).
+
+### Ea-C3 — The framework version is 0.1.0
+
+**Goal.** QSE-6 alone, so EA-6 / EA-7 measure the bump in isolation.
+
+**Scope.** Root `Cargo.toml` `[workspace.package] version = "0.1.0"`; `Cargo.lock` regenerated (every
+workspace package's version line, nothing else).
+
+- [x] Implementation: the one line; `cargo build -p mineworld-cli` regenerated the lock (2 m 20 s).
+  `mineworld --version` → `mineworld 0.1.0`.
+- [x] Validation (E-Ea3): `git diff --stat` → `Cargo.toml` 1 line, `Cargo.lock` 26 lines changed:
+  26 × `version = "0.0.0"` → `"0.1.0"`, one per workspace member (26 members), nothing else. EA-6 base
+  (47c81d1, built into `target/ea-base`) versus this commit, sha-256 of every line but `wall`:
+  social-cafe seed 7 `ad49c7235f672153…16c64b` = base = E-0 of step-10; market-town seed 7
+  `365b50e066387959…5391d1d` = base; the seed-8 control `7b630b4b459c5538…690602a` ≠ seed 7, so the
+  comparison sees a change. `validate` of the three worlds: byte-identical (`cmp`). EA-7: the version
+  moved and no digest did. `cargo test -p mineworld-acceptance`: ac1_composability 13 passed (the
+  file's 15 `#[test]` lines include two inside fixtures/comments; the harness runs 13), 0 failed,
+  0 ignored, 0 filtered; arrival_resolvers 7; arrival_resolvers_unregistered 2; complete_affordances 4;
+  precursor_vocabulary 4; seam_vocabulary 3; arrival_resolvers_resume (harness = false) PASS.
+  - **Finding F-Ea1 (the guard worked).** The first acceptance run FAILED check 2: "packages/tests/
+    identity.rs:64 names mineworld-item-transfer" — Ea-C2's id-rule test listed a market crate's name
+    outside `systems/`, `worlds/`, `tests/acceptance/`, the bullet-3 hazard §14.3 predicted. Not a
+    defect of AC-1 and not material: fixed in the test (another shipped name, same claim) as its own
+    commit before this one; re-run 13 passed. Ea-C2's ledger did not run AC-1 — a gap: every later
+    commit runs `-p mineworld-acceptance`.
+- [x] Review: no crate states its own `version`; `spike/server` keeps its own `0.0.0` (outside the
+  workspace, not a pack).
+
+### Ea-C4 — Every pack declares its identity
+
+**Goal.** `SystemPack::PACKAGE` required, re-exported by the SDK, answered by every pack; the
+controller likewise. One commit, because a required constant without its answers does not compile.
+
+**Scope.**
+- `sdk/rust/Cargo.toml`: `mineworld-packages`; `[dev-dependencies] trybuild`.
+- `sdk/rust/src/lib.rs`: `pub use mineworld_packages::{Package, package};`; docs; `__private` gains
+  `System`, `SystemVersion`.
+- `sdk/rust/src/pack.rs`: `const PACKAGE: Package;` with its documentation; `Silent` gains the line.
+- `sdk/rust/src/installed.rs`: `Capability::package()` and `Capability::version()`, documented.
+- `sdk/rust/tests/compile_fail.rs` + `sdk/rust/tests/compile_fail/a_pack_without_its_package_does_not_compile.{rs,stderr}`
+  (EA-2; the kernel's trybuild layout).
+- The 14 `systems/*/src/system.rs`: the line `const PACKAGE: mineworld_sdk::Package =
+  mineworld_sdk::package!();` as the first line inside `impl SystemPack`, nothing else.
+- `systems/installed/tests/installed.rs` (macro stub) and `systems/installed/tests/resolution.rs`
+  (`Lone`): the same line.
+- `cognition/rule-controller/Cargo.toml` (`mineworld-packages`), `cognition/rule-controller/src/lib.rs`
+  (`pub const PACKAGE`), PD-3.
+- `systems/README.md` "Adding a pack" and `sdk/rust/README.md`: the line.
+
+**Depends on:** C2, C3.
+
+- [x] Implementation: as scoped. `origin/main` merged first (`f66b42d`: #64, #65 — documentation,
+  licence records, Blender scripts moved under `clients/3d-spike/tools/blender/`; no code, no pack, no
+  conflict; `presentation/mineworld-default/{2D,3D}/references/PROVENANCE.md` record the reference
+  images as owned output under the repository's MIT, which FQ-3's `license: MIT` agrees with). No pack
+  arrived. The SDK re-exports `Package` and `package!` from `mineworld-packages`; `__private` gains
+  `System` and `SystemVersion` for `Capability::version()`; `Capability::package()` is a `const fn`.
+  The controller's line carries a one-line doc comment (`#![warn(missing_docs)]`).
+- [x] Validation (E-Ea4): `cargo clippy --workspace --all-targets -- -D warnings` → exit 0. `cargo test`
+  over sdk, installed-systems, packages, the 14 packs, rule-controller and acceptance, `--no-fail-fast`:
+  83 test binaries, **247 passed, 0 failed, 0 ignored, 0 filtered**, plus `arrival_resolvers_resume`
+  (harness = false) PASS. The commit adds exactly one `#[test]` (sdk's compile_fail driver), so every
+  other count is unchanged by construction. trybuild: the case fails to compile with E0046 "not all
+  trait items implemented, missing: `PACKAGE`" (pinned in the `.stderr`). **M-A3** (`PACKAGE` given a
+  default in the trait) → "Expected test case to fail to compile, but it succeeded", FAILED; reverted.
+  The pack diff, `git diff -U0 HEAD -- ':(glob)systems/*/src/**'`: 14 added `const PACKAGE` lines, and
+  otherwise only the five `{}` impls reshaped into blocks (5 × `-impl … {}`, `+impl … {`, `+}`).
+  - Process slip, recorded: the first revert of M-A3 failed (the replaced string matched twice) after a
+    background clippy/test run had already started on the mutated tree; that run was stopped before it
+    reported, the revert redone by its unique context, `git diff` checked (the trait line has no
+    default), and the run restarted. The evidence above is from the restarted run only.
+- [x] Review: seam scan words absent from every added line (`git diff HEAD | grep -iE` over the ten
+  prefixes → none). No pack reads its `PACKAGE`: `git grep "PACKAGE\b|\.package()"` outside
+  `packages/` and `sdk/` finds only the 14 declaration lines and the controller's.
+  - **Finding F-Ea2 (PD-3's reason, corrected).** PD-3 said depending on the SDK would put the kernel
+    into a controller that "reaches none". `cargo tree -p mineworld-rule-controller -e normal` shows
+    the kernel already reachable **transitively**, through the five packs whose vocabulary it uses; the
+    manifest's promise is about **direct** dependencies (`--depth 1`: contracts, five packs, packages,
+    serde, serde_json — no kernel). The choice stands for the reason that remains true — the SDK is the
+    *System* Pack surface and the controller is not one, and its direct dependencies stay minimal —
+    and ARC-53's sentence is corrected accordingly. Bounded: wording, not design.
+
+### Ea-C5 — Worlds and presentation packs state their identity
+
+**Goal.** PD-7 and PD-9. Separable at freeze (FQ-1): if the operator moves world and presentation
+identity to E-b, this commit moves whole.
+
+**Scope.**
+- `worldpack/Cargo.toml` (`mineworld-packages`); `worldpack/src/format.rs` (`WorldIdentity.version`,
+  `.license`, `WorldManifest.mineworld`, all `Option`, typed); `worldpack/src/read.rs` (the range check
+  after `check_pack_id`); `worldpack/src/error.rs` (`FrameworkNotSupported { range, framework }`);
+  `worldpack/src/lib.rs` (a `WorldPack::package()` accessor returning the three, for `packs`).
+- `worldpack/tests/structure.rs`: allow-list entry `("mineworld_packages", "package identity (ARC-53)")`.
+- `worldpack/tests/package_fields.rs` (new): EA-5's loader cases.
+- `worlds/{social-cafe,market-town,bodies-yard}/world.yaml`: `version` and `license` after `name:`,
+  `mineworld:` after the `world:` block, each with a one-line comment.
+- `presentation/mineworld-default/{2D,3D}/pack.yaml` (new).
+
+**Depends on:** C2.
+
+- [x] Implementation: as scoped. `PackError` audit: no `match` on its variants outside `worldpack/src`
+  (`git grep "PackError::" | grep "=>"` → none), so `FrameworkNotSupported { path, refusal }` breaks
+  nothing. Bounded refinement: the accessor is `WorldPack::package_fields() -> &PackageFields` (a named
+  struct in `read.rs`, exported), not `package()`, so it cannot be mistaken for a code pack's
+  `Package`; the range check runs right after `check_pack_id` (read order step 3, documented in the
+  module's list). `WorldPack::in_memory` (a `#[cfg(test)]` constructor) needed the new field too —
+  found by the first clippy run (E0063), fixed with `PackageFields::default()`.
+- [x] Validation (E-Ea5): `cargo clippy --workspace --all-targets -- -D warnings` → 0. `cargo test -p
+  mineworld-worldpack -p mineworld-packages -p mineworld-acceptance --no-fail-fast`: 21 binaries,
+  **109 passed, 0 failed, 0 ignored, 0 filtered** (ac1_composability among them, check 3 reading the
+  new equal fields), `arrival_resolvers_resume` PASS. New: `package_fields.rs` 2 passed — a bad
+  `version: 1.0` refused naming `world.yaml` at "line 4", `license: NOPE` refused as not an SPDX
+  expression, `mineworld: "not a range"` refused, `mineworld: "^9"` refused as `FrameworkNotSupported`
+  naming `^9` and `0.1.0`; a world without the fields reads. `structure.rs` 2 passed with
+  `mineworld_packages` on the allow-list. **M-A7** (the range check filtered out) →
+  `a_stated_field_that_is_wrong_is_refused_by_name` FAILS ("^9 excludes 0.1": the world read);
+  reverted, `git diff` shows the check as written. `mineworld validate` of the three worlds after
+  the fields were added: byte-identical to base (`cmp`).
+- [x] Review: the fields reach no genesis fact, no `Metadata` and no save (`git grep` the accessor's
+  callers: `tools/cli/src/packs.rs` only); seam words absent from `worldpack/src` additions; check 3's
+  `world:` comparison sees equal values in both towns.
+
+### Ea-C6 — `mineworld packs list | show | validate`
+
+**Goal.** The real binary prints every identity and refuses by name (EA-1, EA-3, EA-4, EA-5 end to end).
+
+**Scope.**
+- `tools/cli/Cargo.toml`: `mineworld-packages`.
+- `tools/cli/src/packs.rs` (new): the three subcommands over `AVAILABLE` + `Capability::package()`,
+  the controllers the CLI composes (`[mineworld_rule_controller::PACKAGE]`), `packages`' directory
+  finding, `WorldPack::read` for worlds; output per §14.2.
+- `tools/cli/src/main.rs`: `mod packs;`, one `Packs` variant with a nested clap subcommand, one arm,
+  the module doc's command list, `not_yet`'s list gains `mineworld packs`.
+- `tools/cli/tests/packs.rs` (new): EA-1, EA-3, EA-4 (three refusals), EA-5 (`packs validate` of the
+  worlds and of a scratch world without `version`), `packs show` (presence's system id and
+  `SystemVersion`, located via `AVAILABLE`; an unknown id refused listing the known), scratch
+  directories through `support`'s drop-removed scratch.
+
+**Depends on:** C4, C5.
+
+- [x] Implementation: as scoped; `packs.rs` names no market crate (check 2 bullet 3). Bounded
+  refinements: (1) `main.rs` gains a nested `PacksCommand` enum beside the one `Packs` variant (clap's
+  shape for `packs list|show|validate`), still one arm in the dispatch; (2) `tests/packs.rs` carries its
+  own small drop-removed scratch and a stderr-capturing runner rather than `support/`, which pulls in
+  tokio and the server for nothing this test needs; (3) `validate` reads a world once (identity from the
+  read, then `load`). Two output defects found by running the real binary and fixed before the test was
+  written: `PackId`'s `Display` ignores a width, so ids did not pad (now `as_str()`); `SystemVersion`
+  displays as `v3`, so `show` prints `presence (SystemVersion 3)` from `get()`.
+- [x] Validation (E-Ea6): `cargo clippy --workspace --all-targets -- -D warnings` → 0. `tests/packs.rs`
+  5 passed, 0 failed, 0 ignored, 0 filtered; `tests/commands.rs` 4 passed (the `not_yet` text);
+  `mineworld-acceptance`: ac1_composability 13, arrival_resolvers 7, arrival_resolvers_unregistered 2,
+  complete_affordances 4, precursor_vocabulary 4, seam_vocabulary 3 passed, 0 failed/ignored/filtered;
+  arrival_resolvers_resume PASS. The real binary: `packs list --packs worlds --packs
+  presentation/mineworld-default` → 14 system-pack lines in the installed order, 1 controller-pack,
+  3 world-pack, 2 presentation-pack, "20 packs", exit 0; `packs show mineworld-presence` → system
+  presence, SystemVersion 3; `packs validate` of the 3D pack and market-town → valid, exit 0.
+  Mutations, each reverted (`git diff` of the mutated file empty afterwards):
+  - M-A1 `CONTROLLERS` emptied → `every_code_pack_…` FAILS (left `[]`, right
+    `["mineworld-rule-controller"]`).
+  - M-A2 presence's `license = "NOT A LICENCE"` → `mineworld packs list` exits 1: "the code pack
+    mineworld-presence: 'NOT A LICENCE' is not an SPDX licence expression: unknown term".
+  - M-A4 presence's `version = "0.1.1"` → `every_code_pack_…` FAILS "mineworld-presence is not at the
+    framework's version". (The first attempt's edit matched two lines and did not apply; that run
+    passed and is void — the mutation was re-applied by unique context, observed in `git diff`, and
+    re-run.)
+- [x] Review: `main.rs` diff is one variant, one arm, the module line and doc text (parallel-safety with
+  S11, §9.7); refusals reach stderr with exit 1, never a panic; output order deterministic.
+
+### Ea-C7 — Close: status, full gate, ledger, PR
+
+- [x] Documentation: `docs/MVP_STATUS.md` (a capability row "Pack identity" and an evidence row);
+  `packages/README.md`; this ledger; the handoff. `origin/main` merged a second time (`22d4391`: #66
+  16b's GDScript protocol module, #68 README, #69 client-parity rule — no Rust, no world, no manifest,
+  no conflict), so the base digests measured on 47c81d1 still describe the merged main.
+- **M-A8, as run (E-Ea7).** The planned mutation — `mineworld-economy` added to
+  `packages/Cargo.toml` — cannot exercise check 2: it makes a dependency cycle (economy → sdk →
+  packages → economy) and Cargo refuses to resolve the workspace at all, a stronger refusal than
+  check 2's (recorded; the planned form is an *invalid* mutation for this test). Bullet 1 cannot be
+  planted against a crate every pack depends on. Bullet 3 was planted instead: the line `// PLANTED
+  M-A8: use mineworld_economy::Wallet;` in `packages/src/found.rs` → check 2 FAILS: "26 workspace
+  members read … packages/src/found.rs:2 names mineworld_economy". So check 2 reads the new member and
+  scans its sources. Reverted; `git grep PLANTED -- packages` empty, `git status` clean.
+- [x] Validation on the final executable head **`331b670`** (E-Ea-final, background, 456 s in all):
+  `cargo fmt --all --check` → 0; `cargo clippy --workspace --all-targets --all-features -- -D
+  warnings` → 0; `cargo test --workspace --no-fail-fast` → exit 0, 367 s, **602 passed, 0 failed,
+  0 ignored, 0 filtered** over 147 harness result lines, and the three `harness = false` runs
+  (`resolver-yard`, `cafe`, `clock`) PASS. 602 = the last recorded workspace count, 582 (PR 12b, the
+  base's code), + the 20 tests this PR adds (packages 12, sdk 1, worldpack 2, cli 5); none removed.
+  EA-6 against the base (47c81d1; both merges of main since touched no Rust or world): social-cafe
+  `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b`, market-town
+  `365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d` — both equal to base; `validate`
+  of the three worlds byte-identical. M-A8 as run above. Doc checks: 177 sections / 25 documents,
+  none duplicated; 53 decision ids, distinct. `git diff --stat c198938 HEAD -- kernel contracts
+  persistence server clients tests/acceptance` (c198938 = the merged main) → empty.
+- [x] Review: EA-1 … EA-11 below, each with its evidence; deviations recorded; not merged.
+
+**Acceptance, as measured (E-Ea-final):**
+
+```text
+EA-1  PASS  every_code_pack_… (14 system-pack lines = AVAILABLE in order, located from presence; one
+            controller-pack); M-A1 and M-A2 observed failing (E-Ea6)
+EA-2  PASS  trybuild E0046 "missing `PACKAGE`"; M-A3 observed failing (E-Ea4)
+EA-3  PASS  every code pack at 0.1.0 = CARGO_PKG_VERSION; `mineworld --version` → 0.1.0; M-A4 (E-Ea6)
+EA-4  PASS  packages/tests/manifest.rs (11 refusal rows), tests/packs.rs (3 end to end); M-A5, M-A6
+EA-5  PASS  worldpack/tests/package_fields.rs, tests/packs.rs (bare world validates, refused as a pack
+            naming world.version); M-A7
+EA-6  PASS  both towns' 300-day seed-7 sha equal to base after C3 and on 331b670; seed-8 control differs;
+            validate byte-identical for all three worlds
+EA-7  PASS  the 0.0.0 → 0.1.0 bump moved no digest; kernel/contracts/persistence/server/clients diff
+            against the merged main empty; PACKAGE/package() read only by tools/cli/src/packs.rs
+EA-8  PASS  ac1_composability 13 passed, precursor_vocabulary 4, seam_vocabulary 3; tests/acceptance
+            unedited; check 2 reads 26 members and sees the new crate (M-A8 as run, bullet 3);
+            F-Ea1: it caught a market crate's name in this PR's own test, fixed in a4732f1
+EA-9  PASS  packages/tests/structure.rs; M-A9
+EA-10 PASS  ARC-53, DEP-21 and every spec amendment landed in Ea-C1 (9485af3), before code
+EA-11 PASS  existing tests edited only as planned: three stub impls gained the line (sdk pack.rs,
+            installed/tests/installed.rs, installed/tests/resolution.rs) and worldpack's allow-list
+            gained `mineworld_packages`; each claim unchanged
+```
+
+**Commit map.** C0 `ae2bd5b` · freeze `be2eb6f` · C1 `9485af3` · C2 `258d081` (+ `a4732f1`, F-Ea1) ·
+C3 `66f2d07` · merge `f66b42d` · C4 `e7dcfac` · C5 `63d0c33` · C6 `5ab5f5f` · merge `22d4391` · C7
+`331b670` (final executable head) and the Markdown-only evidence commit after it.
+
+**Deviations, all bounded:** PD-3's rationale corrected (F-Ea2); `package_fields()` instead of
+`package()` (C5); `validate_pack_directory` → `check_style_manifest` and `Identity::of_world` added
+(C2); `tests/packs.rs` self-contained rather than through `support/` (C6); M-A8 run as a bullet-3 plant
+because the planned dependency is a cycle Cargo refuses (C7). None touches a frozen invariant.
+
+**Main moved after the PR opened (E-Ea-final-2).** PR #70 showed CONFLICTING once S15's 12c merged
+(#67, `889d217`): `systems/bodies/**`, `tools/cli/tests/bodies*`, `worlds/bodies-yard/**`, docs. Merged
+per §14.7 as `e118935`. Two conflicts, both documentation, resolved as a union: `docs/DECISIONS.md` (12c's
+DEP-13 note placed at the end of DEP-13, before ARC-53) and `docs/MVP_STATUS.md` (both evidence rows
+kept). `systems/bodies/src/system.rs` merged cleanly with its `PACKAGE` line; `worlds/bodies-yard/
+world.yaml` merged cleanly with both the package fields and 12c's `items:`; 12c added no `SystemPack`
+impl. The base for EA-6 stays valid: 12c's frozen PO-1 holds the towns at the same two digests
+(step-11, its final-head record). Full gate re-run on the new executable head **`e118935`**: fmt 0;
+clippy `--all-features -D warnings` 0; `cargo test --workspace --no-fail-fast` exit 0, 321 s, **656
+passed, 0 failed, 1 ignored, 0 filtered** over 151 harness result lines, `resolver-yard`, `cafe`,
+`clock` PASS. 656 = 12c's recorded final count 636 + this PR's 20. The one ignored test is 12c's own
+`thirty_days_of_bodies_yard_at_seeds_7_8_and_9` (`#[ignore]`, "evidence for the AO-2 ruling … run with
+--ignored"), not this PR's. EA-6 on `e118935`: social-cafe `ad49c723…16c64b`, market-town
+`365b50e0…5391d1d` — unchanged; `validate` of both towns byte-identical (bodies-yard's output
+legitimately changed with 12c's objects and is not this PR's invariant). `packs list --packs worlds
+--packs presentation/mineworld-default` → 20 packs, exit 0. `git diff --stat origin/main HEAD -- kernel
+contracts persistence server clients tests/acceptance` → empty.
+
+**PR E-a lifecycle: READY FOR OPERATOR REVIEW** — final executable head `e118935` (it supersedes
+`331b670`); the PR head is the Markdown-only commit that records this. Implementation context CLOSED / AWAITING OPERATOR ACTION.
+Post-merge: this session records the merge identity here; the primary session updates §9.2's status,
+the step header and `overall.md`.
+
+## 14.6 Test ownership
+
+```text
+STATIC      fmt, clippy -D warnings; the compiler refuses a pack without PACKAGE (owned by trybuild,
+            EA-2) and a listed pack whose type lacks it
+UNIT        packages: pack.yaml refusals, PackId rule, code-pack identity validation, leaf structure
+            worldpack: the three world fields at line/column and the framework range
+INTEGRATION tools/cli/tests/packs.rs over the real binary: every source read, every identity printed,
+            refusals by name with exit 1
+REAL RUN    EA-6: 300-day seed-7 runs of both towns, base vs head, sha of every line but `wall`
+REGRESSION  AC-1 (the file holds 15 #[test] on 47c81d1; I-E4's "13/13" predates two), precursor_vocabulary, seam_vocabulary, every existing test — unedited
+GATE 1      NOT REQUIRED: nothing LM-facing
+GATE 2      EA-6's real runs are the lifecycle evidence; no save format change to exercise
+CI          none configured (S13); the local full gate runs once on the final head
+```
+
+## 14.7 Parallel lanes: merging main into this branch
+
+Other lanes edit what E-a edits: S15 12c in `systems/bodies` (and 12d's digest re-baseline), S11 in
+`tools/cli/src/main.rs` and later `presence`, and any lane in `Cargo.lock`. The branch takes their
+work by **merging `origin/main` into it** (as 11f did), never by rebasing published commits, so no
+force-push is needed. When: before Ea-C4 (the pack lines), and before opening the PR; again whenever
+main moves during review.
+
+| Conflict | Resolution |
+| --- | --- |
+| a pack's `system.rs` | take main's file, re-insert the one `PACKAGE` line as the first line of `impl SystemPack` |
+| a pack added on main | it does not compile without the line: add the line, the same mechanical edit, recorded |
+| `Cargo.lock` | take main's, then `cargo check --workspace` regenerates; never hand-merged |
+| root `Cargo.toml` | union of both edits |
+| `tools/cli/src/main.rs` | take main's, re-add the variant, the arm, the module line |
+| a test edited on main | take main's; E-a edits no existing test except §14.4 EA-11's four |
+
+After each merge: the targeted tests of every commit whose files conflicted, and EA-6 re-measured
+against the merged main (if 12d re-baselined the towns, E-a's claim is "unchanged from that main").
+
+## 14.8 Live ledger and evidence
+
+*(Filled during execution: E-Ea0 … E-Ea7, deviations, findings.)*
+
+- **E-Ea0** (design, 47c81d1): doc checks 176 sections / 25 documents, 51 decision ids distinct;
+  ARC-53…55 and DEP-21…23 free on every `origin/*` branch.
+- **E-Ea-base** (47c81d1, built into `target/ea-base`): 300-day seed-7 runs — social-cafe 339 lines,
+  365 330 facts, sha (all but `wall`) `ad49c723…16c64b` (= step-10's E-0), market-town 355 lines,
+  372 755 facts, `365b50e0…5391d1d`; seed-8 social-cafe control `7b630b4b…690602a`. `validate` of the
+  three worlds saved for `cmp`.
+- **E-Ea1 … E-Ea7, E-Ea-final**: recorded in each commit's items in §14.5.
+- **Environment:** `cargo` is not on this host's non-interactive PATH; every command was run with
+  `$HOME/.cargo/bin` prepended. The first two background runs failed with "command not found" before
+  doing anything (no result was taken from them).
+
+## 14.9 Freeze questions
+
+```text
+FQ-1  [OPERATOR] World and presentation identity in E-a (step §9.2) or in E-b (the operator's E-a list
+      omits them)? Recommended: in E-a, as Ea-C5 — AE-1 "every pack has identity" is E-a's checkpoint,
+      and the commit is separable. With PD-7: the loader keeps the fields optional until E-b.
+FQ-2  [OPERATOR] PD-6: a pack.yaml pack's id is stated in pack.yaml and its directory is free (keeps
+      2D/ and 3D/), against §4.1's "a data pack's id is its directory name". Recommended: accept.
+FQ-3  [OPERATOR] PD-9: the presentation packs and the three worlds declare `license: MIT`.
+      Recommended: accept (repository files, D-1).
+FQ-4  PD-2: the line is `const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();` rather than
+      §4.1's `mineworld_sdk::package!();`. Recommended: accept.
+FQ-5  Handoff file: overall ruling 8 runs six lanes at once, and `handoff.md` holds S15's. This PR keeps
+      its continuation state in `handoff-ea.md` beside it. Recommended: accept.
+```
+
+## 14.10 Execution contract
+
+```text
+PROJECT / PR:              MVP-0 · S16 / PR E-a — pack identity
+PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/step-16-packages.md §14
+RELATED / BINDING DOCS:    this file §§4–9 (step design, frozen 2026-10-08); overall.md "Parallel
+                           build-out, 2026-10-08" (binding); CLAUDE.md; docs/ENGINEERING_STANDARDS.md,
+                           ENGINEERING_RULES.md, REUSE_POLICY.md, PACKAGE_FORMAT.md, MODULE_SPEC.md,
+                           DECISIONS.md ARC-31, ARC-33, ARC-35, DEP-12
+IMPLEMENTATION BASE:       main @ 47c81d1, branch mvp0/pr-ea-pack-identity; S9 merged
+APPROVED SCOPE:            §14.1–14.5 as frozen, with FQ-1 … FQ-5 as answered
+FROZEN INVARIANTS:         I-E1 (no kernel/contracts/persistence/server/clients diff); I-E2 (both towns'
+                           digests and all worlds' validate output unchanged); I-E4 (AC-1 unedited and
+                           passing; the I-2 and seam scans unedited and passing); I-E5 (one statement
+                           per fact); I-E6 (refused by name, never ignored); I-E8 (controller: two lines,
+                           no behaviour); QSE-14 (no version in a fact or a save); one PACKAGE line per
+                           pack and nothing else in a pack
+APPROVED SEQUENCE:         Ea-C1 → C2 → C3 → C4 → C5 → C6 → C7 (§14.5); merges of origin/main per §14.7
+VALIDATION BUDGET:         unit/integration/static: unrestricted, targeted per commit; real runs: EA-6's
+                           300-day runs (≈4–8 per main merge); one full workspace gate on the final head;
+                           total ≈1 hour; anything over ≈2 minutes runs in the background
+REQUIRED LIVE DOCS:        this section (§14.8 ledger)
+CONTEXT HANDOFF:           .structured-coding/plans/mvp0/handoff-ea.md (FQ-5)
+ENDPOINT AUTHORITY:
+  implementation + local validation   authorized after freeze — operator, kickoff 2026-10-08:
+                                      "Phase 2 — after my freeze message: Implement, run the full gate"
+  semantic commits                    authorized (same instruction; working rules §14)
+  branch push                         authorized (same: "open a PR")
+  PR creation / update                authorized: "open a PR marked READY FOR OPERATOR REVIEW"
+  CI repair                           N/A — no CI configured (S13); the local full gate is canonical
+  merge                               NOT authorized: "Do not merge it." Explicit operator approval only
+POST-MERGE SYNC OWNER:     this session: §14's ledger and merge identity; the primary session: §9.2's
+                           status, the step header and overall.md
+MATERIAL STOPS:            any kernel, contract or persistence change; any change to EA-6's digests;
+                           AC-1 failing; spdx/semver weight disproportionate (Ea-C2); a needed edit to an
+                           existing test beyond EA-11's four; a pack needing more than its one line
+NORMAL STOP CONDITION:     PR E-a READY FOR OPERATOR REVIEW — DO NOT MERGE
+MERGE AUTHORITY:           never without the operator's explicit approval
+```
+

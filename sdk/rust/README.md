@@ -6,8 +6,14 @@ trait, and the `installed!` macro the build's list of packs is written in.
 A pack implements it beside its `System`:
 
 ```rust
-impl SystemPack for ConversationSystem {}
+impl SystemPack for ConversationSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+}
 ```
+
+The `PACKAGE` line is required and always the same: it records the pack's identity — name, version,
+licence, authors — from its own `Cargo.toml` ([`docs/DECISIONS.md`](../../docs/DECISIONS.md) `ARC-53`).
+`mineworld packs list` shows it.
 
 and is installed with two lines in [`../../systems/installed/`](../../systems/installed/), then a
 rebuild:

@@ -31,6 +31,7 @@ use std::sync::Arc;
 
 use mineworld_authoring::{AuthoredContent, SectionName};
 use mineworld_contracts::{EntityKey, Millimetres, SystemId, Tags};
+use mineworld_packages::{Compatibility, License, Version};
 use serde::Deserialize;
 
 use crate::catalog::Capability;
@@ -67,6 +68,10 @@ pub struct WorldManifest {
     /// (`server/src/host.rs`).
     #[serde(default)]
     pub seats: Vec<EntityKey>,
+    /// The framework versions this world is authored for (`DECISIONS.md` `ARC-53`). Optional to the
+    /// loader; when stated, a framework outside it is refused by name. Never world state.
+    #[serde(default)]
+    pub mineworld: Option<Compatibility>,
 }
 
 /// A world's identity: the name a person reads, and the id everything else uses.
@@ -83,6 +88,14 @@ pub struct WorldIdentity {
     /// What the world is called, for a person. Not world state: no system reads it, and nothing in a
     /// simulation may branch on it.
     pub name: String,
+    /// The pack's release version, semver (`DECISIONS.md` `ARC-53`). Optional to the loader, checked
+    /// when stated; required by `mineworld packs validate`. Never world state.
+    #[serde(default)]
+    pub version: Option<Version>,
+    /// The pack's licence, an SPDX expression (`ARC-53`). Optional to the loader, checked when
+    /// stated; required by `mineworld packs validate`. Never world state.
+    #[serde(default)]
+    pub license: Option<License>,
 }
 
 /// One section a content file carries: a top-level key a System Pack owns (`DECISIONS.md` `ARC-31`).

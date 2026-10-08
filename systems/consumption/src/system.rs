@@ -24,7 +24,9 @@ impl SystemIdentity for ConsumptionSystem {
 /// Nothing biographical and no section: what the build needs to know about this pack beyond
 /// [`System`] is nothing (`DECISIONS.md` `ARC-33`). Meals are thousands of facts that would bury a
 /// biography (step-10 QS-49).
-impl SystemPack for ConsumptionSystem {}
+impl SystemPack for ConsumptionSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+}
 
 /// A refusal of inventory's, reached at resolve. Validation asked the same rule a moment earlier, so
 /// reaching it is a defect, reported as the owner's refusal rather than recorded.

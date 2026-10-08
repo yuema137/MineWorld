@@ -11,6 +11,8 @@
 //! mineworld biography <world> --save DIR --person KEY [--json]
 //!                                       a Person's objective biography, from the fact log (ARC-29)
 //! mineworld create <directory>          a new, minimal World Pack
+//! mineworld packs list|show|validate    package identities: this build's packs and the data packs
+//!                                       in each --packs DIR (ARC-53)
 //! ```
 //!
 //! `docs/MODULE_SPEC.md` §8.1 specifies the command surface.
@@ -51,6 +53,7 @@ mod agent;
 mod biography;
 mod create;
 mod inspect;
+mod packs;
 mod perceive;
 mod run;
 
@@ -174,6 +177,35 @@ enum Subcommand {
         #[arg(long)]
         json: bool,
     },
+    /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
+    Packs {
+        #[command(subcommand)]
+        command: PacksCommand,
+    },
+}
+
+/// What `mineworld packs` was asked to do.
+#[derive(Debug, clap::Subcommand)]
+enum PacksCommand {
+    /// Every pack this build provides, then the data packs in each --packs DIR.
+    List {
+        /// A directory whose immediate subdirectories are data packs. Repeat it for more.
+        #[arg(long = "packs", value_name = "DIR")]
+        roots: Vec<PathBuf>,
+    },
+    /// Every package field of one pack.
+    Show {
+        /// The pack's id, such as mineworld-presence.
+        id: String,
+        /// A directory whose immediate subdirectories are data packs. Repeat it for more.
+        #[arg(long = "packs", value_name = "DIR")]
+        roots: Vec<PathBuf>,
+    },
+    /// Check one data pack: its package fields, all required, then its content.
+    Validate {
+        /// The pack's directory.
+        directory: PathBuf,
+    },
 }
 
 /// A seat name on the command line, checked as the key it must be.
@@ -219,6 +251,11 @@ async fn main() -> ExitCode {
             person: &person,
             json,
         }),
+        Subcommand::Packs { command } => match command {
+            PacksCommand::List { roots } => packs::list(&roots),
+            PacksCommand::Show { id, roots } => packs::show(&id, &roots),
+            PacksCommand::Validate { directory } => packs::validate(&directory),
+        },
     };
 
     match outcome {
@@ -237,8 +274,8 @@ fn not_yet(command: &str) -> Result<(), String> {
     Err(format!(
         "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
          and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
-         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld create \
-         (see mineworld --help)."
+         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld create, \
+         mineworld packs (see mineworld --help)."
     ))
 }
 

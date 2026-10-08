@@ -20,6 +20,10 @@ const ALLOWED: &[(&str, &str)] = &[
     ("mineworld_authoring", "the section seam (ARC-31)"),
     ("mineworld_sdk", "SectionOwner, re-exported"),
     (
+        "mineworld_packages",
+        "a world's package fields, typed and checked (ARC-53)",
+    ),
+    (
         "mineworld_installed_systems",
         "the installed set: every pack, reached without naming it",
     ),
