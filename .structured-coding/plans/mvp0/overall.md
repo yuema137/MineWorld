@@ -505,6 +505,115 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 | **D-11** | How the reference clients are built and how their demos are verified, given that "actually run the renderer" must be mechanically possible. | **Godot 4.7.2 for both clients, as the frozen spec already names.** Installed and verified on 2026-09-25 to run headless and execute GDScript with stdout. Demo evidence comes from a scripted run that drives input and writes PNG frames, which are then inspected — not from compilation or from server tests. No deviation from `ARCHITECTURE.md` §13 is needed, and therefore no engine concept needs to enter a contract to make verification possible. **Proven end to end on 2026-09-25**, not assumed: a windowed run rendered through Metal on the host GPU, `get_viewport().get_texture().get_image().save_png()` returned `0`, and the resulting 640×360 PNG was read back and visually confirmed. The recipe is `godot --path <project>`, a `_process` counter that captures after a few frames and calls `get_tree().quit(0)`; `--headless` runs scripts and prints but renders nothing, so it is for logic checks only. |
 | **D-10** | Whether an embodied 3D client belongs in this effort or a later phase. | **In this effort, as S14.** Operator instruction 2026-09-25 adding `docs/ENGINEERING_RULES.md` §§2–3, §10: 3D is a required architecture target, not a cosmetic renderer added later. This materially expands the effort; `AC-1` is unaffected. |
 
+## Parallel build-out, 2026-10-08 (operator direction and decisions)
+
+**Direction.** The operator asked for the rest of the framework to be built in parallel. In their
+words: "多派一些subagent并行，早点把我们的整体计划框架都搭好…分别验收，然后整合" (send out more
+subagents in parallel and get the overall framework in place early; accept each part separately,
+then integrate).
+
+They also gave a standing rule: "保持代码干净整洁，模块化，可插拔…对比多种实现方案" (keep the code
+clean, modular and pluggable; compare several implementation options). Every design below carries a
+reuse comparison of at least 2–3 real candidates plus "build our own", and a modularity section.
+
+Six step designs were drafted at once:
+
+| Step | Document |
+| --- | --- |
+| S11 | [`step-12-server.md`](step-12-server.md) |
+| S12 | [`step-13-client-2d.md`](step-13-client-2d.md) |
+| S13 | [`step-14-ci.md`](step-14-ci.md) |
+| S14 + S15's 12e | [`step-15-demo-3d.md`](step-15-demo-3d.md) |
+| S16 (new, Milestone E) | [`step-16-packages.md`](step-16-packages.md) |
+| S10 (full) | [`step-17-cognition.md`](step-17-cognition.md) |
+
+**Operator decisions, 2026-10-08:**
+
+- **Repository: make it public now.** This replaces QS13-1's "private and free" path. It happens only
+  after a pre-publication audit (secrets in all history, asset licences, D-1 MIT) reports clear.
+  Once public, CI minutes are free and branch protection becomes possible, so D-12's "protection
+  makes it a mechanism" becomes true at that point.
+- **Milestone E: reading E-B2.** A new world, Lakeside, is composed from versioned packs. One of them
+  is a third-party System Pack in its own public repository (`yuema137/mineworld-pack-fishing`),
+  pinned by git revision. The framework version becomes 0.1.0. A registry, `.mwpack` and WASM
+  stay out of scope. Accepting E-B2 accepts QSE-1 to QSE-4, QSE-6, QSE-8, QSE-9, QSE-11 and QSE-17
+  as recommended, including the revision of ARC-33's sentence on out-of-repository packs.
+- **2D client: isometric, as the accepted `town` style.** `MVP.md` §7.1's "top-down" is reworded
+  accordingly. The map follows market-town's real street layout, not the spike's invented square
+  (QS12-1, QS12-2).
+- **Accepted as recommended:**
+  - JSON stays the wire encoding for MVP-0; this supersedes D-4's timing, not its direction (QS11-1).
+  - An invite is required even on loopback, and the server prints a ready join line (QS11-6).
+  - Nicknames are not shown to other players (QS11-7).
+  - Plain `ws://` is used on a LAN, with TLS at a gateway documented by S13 (QS11-14).
+  - Hosted unoccupied seats are driven by the server and take initiative (QS12-11, R-S10-1).
+  - The 3D visual defaults (QS14-4, -7, -8, -9, -11, -13, -15) are chosen by the primary session
+    and judged by the operator when playing.
+- **S10, the language-model half, is MVP-0's last step.** This reverses the 2026-09-25 deferral.
+  AC-4, AC-10 and Milestone D are MVP-0 gates again. The parts that need no client start early; the
+  operator demo waits for S12 and S14.
+- **Also accepted as recommended:**
+  - a local Ollama model, chosen by a spike against fixed criteria;
+  - hosted paid endpoints are optional and operator-run only, never in CI;
+  - a `persona` System Pack;
+  - headless `run` never uses a model;
+  - tests use recorded outputs and pass with no network (QS10-1, -2, -4, -5, -7, -14).
+
+**Primary-session coordination rulings (binding on every step document above):**
+
+1. **One owner per shared interface.**
+   - S11 owns wire protocol revision 2. It must carry every requirement the other steps stated:
+     - S12's R-S11-1 to R-S11-9, adding a `--time-scale` server option to S11-B, reported in
+       `welcome`;
+     - S14's R-S11-1 to R-S11-9, adding `acted_through` to the observation frame in S11-C;
+     - S10's R-S11-1 to R-S11-8.
+   - Where names differ, S11's names win: for example `seat_occupied`, with an explicit
+     `take_over: true` join flag in S11-B.
+2. **Event perception has one owner: S11-C.** S10's P1 is folded into S11-C. That covers the
+   presence-owned audience function, the reliable cursor-resumable `perceived` stream with
+   `cursor_unavailable` and `lagged`, and `mineworld perceived`. S11-C delivers both the
+   per-observation `events` and that stream from the one function. S10 starts at P3.
+3. **F-13 is fixed in S11-B,** by `RuleController::since(bind instant)`. S10's P2 is dropped unless
+   S11-B's fix proves insufficient.
+4. **The shared GDScript module `clients/protocol/mineworld` changes in this order:**
+   - first, one shared-module PR carrying the read-only additions both clients asked for (S12's
+     M-1 to M-3 and S14's M-1 to M-3, unified), owned by S14's 16b and landing before S11-A;
+   - then S11-A, which adds the join credentials;
+   - the readers for `events`, `perceived` and `acted_through` land with S11-C.
+
+   No other PR edits the module.
+5. **Digests.** Both towns' replay digests are re-baselined once, in S15's 12d. That re-baseline also
+   includes S12's item names (R-PK-2, QS12-3) and any other content change queued for it.
+6. **Decision-record numbers are assigned now,** replacing every placeholder:
+
+   | Step | ARC | DEP |
+   | --- | --- | --- |
+   | S11 | ARC-40 to ARC-44 | DEP-14 to DEP-15 |
+   | S12 | ARC-45 to ARC-47 | DEP-16 |
+   | S13 | ARC-48 to ARC-49 | DEP-17 to DEP-19 |
+   | S14 | ARC-50 to ARC-52 | DEP-20 |
+   | S16 | ARC-53 to ARC-55 | DEP-21 to DEP-23 |
+   | S10 | ARC-56 to ARC-60 | DEP-24 to DEP-27 |
+
+   - S14's DEP-20 is Jolt, the record step-11 called "DEP-14".
+   - S15 continues with ARC-39 notes and DEP-13.
+   - A step that needs more numbers asks the primary session.
+7. **PR numbering.** PR numbers are assigned at each PR's freeze. Step-local names (S11-A, 13a, 16a,
+   E-a, P3) stay as working names.
+8. **Lanes that may run at once, each in its own worktree:**
+   - S15: 12c → 12d → 12e.
+   - S11: A → B → (C ∥ D) → E.
+   - S13: 13a now → 13b after 12d → 13c.
+   - S12: 13a now; R-PK-1 now; 13b after the shared-module PR; the rest after S11 and S15.
+   - S14: the shared-module PR and 16a now; the rest as `step-15-demo-3d.md` §13 orders it.
+   - S16: E-a now, rebasing over S15 and S11 as they land.
+   - S10: P3 after S11-A; P4 and P5 after P3; the rest later.
+9. **Freezes happen per PR.** Each step design below is frozen at step level. Each PR is detailed to
+   the commit by its implementing session as its first, Markdown-only commit, and the primary
+   session freezes it before code begins.
+10. **Test hygiene.** The full suite leaves about 16 GB of scratch saves in `target/` (S13 audit).
+    Every test must remove its own scratch data. One bounded PR fixes this after 12c merges.
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
