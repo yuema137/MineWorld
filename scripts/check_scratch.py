@@ -39,6 +39,11 @@ EXEMPT = {
         "included; a dev-dependency on mineworld-test-support would fail that test's assertion "
         "(pr-test-hygiene.md §7 C4)"
     ),
+    "packages/tests/roots.rs": (
+        "the same leaf rule as packages/tests/manifest.rs: mineworld-packages may not name "
+        "mineworld-test-support, even as a dev-dependency (packages/tests/structure.rs); its guard "
+        "names each test's scratch after the test and removes it on drop (step-16 §15.5 Eb-C6)"
+    ),
 }
 SKIPPED_DIRECTORIES = {"target", ".git", "node_modules", ".godot"}
 
