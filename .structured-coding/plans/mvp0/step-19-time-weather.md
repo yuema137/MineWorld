@@ -1,7 +1,7 @@
 # Step 19 — S19: World time, two time domains, pause, day and night, weather
 
 **Lifecycle:** `DRAFT — awaiting the primary session's review`. Nothing here is frozen, and nothing in it
-authorizes implementation. The first PR's design (§19) is likewise a draft.
+authorizes implementation. The first PR's design (§16) is likewise a draft.
 **Author:** the S19 planning session, 2026-10-08. Worktree `/Users/yuema137/mineworld-worktrees/plan-s19`,
 branch `plan/s19-time-weather`, from `main @ f842c52`.
 **Binding parents:** `CLAUDE.md` §§2–4; `overall.md` "Parallel build-out", "Framework, not demo", "One world,
@@ -10,7 +10,7 @@ two views", "The World Interaction List", and S11, S12, S14; `docs/CORE_CONCEPTS
 ARC-28, ARC-61 to ARC-65; `step-12-server.md` §16 (S11-B, as frozen on its branch); `step-18-interaction-list.md`
 §11 (IL-a, as frozen on its branch); `step-13-client-2d.md`; `step-15-demo-3d.md`.
 **Scope of this file.** It is the only file this session writes. Edits to `overall.md` and
-`docs/DECISIONS.md` are proposed in §18 and applied by the primary session. Decision numbers are placeholders
+`docs/DECISIONS.md` are proposed in §15 and applied by the primary session. Decision numbers are placeholders
 (`ARC-TW-a`, `DEP-TW-a`, …) until the primary session assigns them.
 
 ---
@@ -93,20 +93,22 @@ two time domains   WorldTime stays the one kernel clock and IS calendar time. Em
                    world quantity: it is the wall-clock cadence at which embodied inputs arrive (a human's
                    client; the host's consults of hosted controllers). No world rule reads the scale.
                    Scale and pause are host pacing; their changes are recorded as host records in the save.
-calendar pack      `calendar` (System Pack): epoch date, UTC offset, latitude/longitude from configure/;
-                   date and sun state computed in integers (sun via a float model pinned to `libm`, then
-                   quantized) and disclosed on the observer's place; daylight-phase facts.
-weather pack       `weather` (System Pack): a world-level `climate` Process; source = a station record
-                   (default San Diego, NOAA ISD-Lite, public domain) or seeded rules (WGEN-lite Markov
-                   chain); `weather-changed` Public facts at condition change-points; a `Weather`
-                   component on every place; temperature disclosed from daily extremes.
-host clock         pause / resume / live scale (6×, 12×, 24×) through an admin route owned by S11;
-                   single-player close = graceful shutdown (checkpoint), background = keep serving.
-clients            light, sky, rain, fog and the HUD date/time rendered from disclosure only; shared
-                   presentation-side interpretation, formats as translation content, 12h/24h a client
-                   preference.
-kernel             unchanged. Contracts unchanged. One additive, defaulted method on presence's
-                   PerceptionProvider; one additive table in persistence for host records.
+calendar pack      `calendar` (System Pack, §5): epoch date, UTC offset, latitude/longitude from configure/;
+                   `day-began` (with the date and a 15-minute integer sun track) and `daylight-changed`
+                   Public facts; sun from `solar-positioning` built with `libm`, quantized to integers;
+                   state folded into one `calendar` Process and disclosed on the observer's place.
+weather pack       `weather` (System Pack, §6, depends on calendar): a world-level `climate` Process;
+                   source = a station record (default San Diego, NOAA GHCN-Daily USW00023188, CC0,
+                   2015–2024, ~130 KB) or seeded integer rules (WGEN-lite Markov chain); `weather-day`
+                   and Public `weather-changed` facts; hourly state disclosed on the observer's place.
+host clock         (§7) pause / resume / live scale (6×, 12×, 24×) via `/admin/clock` on S11-D's surface;
+                   a `clock` frame; single-player close = graceful shutdown (checkpoint); background =
+                   keep serving; hosted consult cadence in wall seconds; changes in a host journal.
+clients            (§8) light, sky, rain, fog and the HUD date/time rendered from disclosure only through
+                   one shared `world_time` client module; formats are translation content; 12h/24h a
+                   client preference; pause and day length are host commands in the same menu.
+kernel             unchanged. Contracts and presence unchanged. One additive table in persistence for
+                   the host journal; one additive frame and refusal in the protocol.
 ```
 
 ---
@@ -120,8 +122,8 @@ kernel             unchanged. Contracts unchanged. One additive, defaulted metho
 | `contracts/src/time.rs` `WorldTime(i64)`, `SimDuration(i64)` | Signed whole simulated seconds from the world's epoch. The module doc states "No calendar here": nothing in contracts knows a date, a weekday, a month or a season; there is deliberately no `chrono` in the contract layer. | The calendar is a System Pack's interpretation of seconds. No contract change is needed or wanted. |
 | `kernel/src/clock.rs` `WorldClock` | Holds `now` and `started`. Never reads an OS clock; moves only by dispatch, advance or assembly. One rule: a started clock never moves backwards. "How fast a hosted world's seconds pass in real time is the host's decision, not this type's." | Scale and pause belong to the host, exactly as the kernel already says. |
 | `kernel/src/advance.rs` | `advance_to(until)` fires every due instant in `(WorldTime, sequence)` order and skips idle time (`Advanced::instants` counts instants that ran). DEP-6's purpose-built queue. | The event queue needs no knowledge of scale: the host decides `until`; the queue fires what is due on the way. |
-| `kernel/src/process.rs` `Process` | A record with owner-encoded state bytes, optional place, participants, start and expected end; persisted in snapshots; only the owner changes it. | A world-level `climate` Process can carry the weather source and cursor without inventing a world entity (§9.2). |
-| `kernel/src/view.rs` `WorldRead` | Exposes entities, components, relations and processes; **no `now()`**. | A `discloses` implementation cannot see the instant it is answering for (§6.4). |
+| `kernel/src/process.rs` `Process` | A record with owner-encoded state bytes, optional place, participants, start and expected end; persisted in snapshots; only the owner changes it. | A world-level `climate` Process can carry the weather source and cursor without inventing a world entity (§6.6); likewise a `calendar` Process (§5.3). |
+| `kernel/src/view.rs` `WorldRead` | Exposes entities, components, relations and processes; **no `now()`**. | A `discloses` implementation cannot see the instant it is answering for; S19 therefore discloses state folded from its own facts (§5.3). |
 | Genesis instant | `tools/cli/src/run.rs` `Begun::new` begins every world at `WorldTime::EPOCH` (0); `server/src/host.rs` `HostConfig::default().epoch` is `EPOCH` for an ephemeral hosted world; a persisted world resumes at its saved `now`. | Every world today begins at instant 0. A calendar maps instant 0 to local midnight of its epoch date (§5). |
 
 **Conclusion.** A world has no calendar and no epoch date today. Instant 0 is "midnight" only by
@@ -143,42 +145,42 @@ kernel             unchanged. Contracts unchanged. One additive, defaulted metho
 
 | File / symbol | Finding | Consequence |
 | --- | --- | --- |
-| `server/src/runtime.rs` `HostClock` (main) | `now = epoch + started.elapsed().as_secs()`: 1 world second per wall second, whole seconds. | S11-B adds a scale (below). Pause and live changes need a rebase-able clock (§11.2). |
-| S11-B SD-B4, SD-B9 (frozen on its branch) | `--time-scale N` (world seconds per wall second, integer ≥ 1, default 1), reported as `WorldSummary.time_scale` in `welcome.world` and `/status`. `--pace SECONDS` is in **world** seconds (default 5); `--hold` in wall seconds. QS11B-4 ruled "a hold is about a network, a pace about a life". | The second operator statement reverses QS11B-4 for consult cadence: walking is embodied, so cadence must be wall seconds (§4.5, QTW-13). |
-| S11-B SD-B5/SD-B6 | `HostedController::next_consult(after: WorldTime) -> WorldTime`; consults run in `tick` before the sweep; a hosted request goes through `submit_at`. | The trait can stay; the adapter computes the next instant from a wall cadence and the current scale (§4.5). |
-| `runtime.rs` `WorldRuntime::new` | A persisted world's host clock starts from the saved `now`. | Time does not pass while a server is down: "closing saves and pauses" already holds for a stopped host (§11.4). |
-| `runtime.rs` `Command::Shutdown` → `checkpoint()` | A graceful stop writes a snapshot at the head. | Window close in single-player maps to a graceful stop (§11.4). |
+| `server/src/runtime.rs` `HostClock` (main) | `now = epoch + started.elapsed().as_secs()`: 1 world second per wall second, whole seconds. | S11-B adds a scale (below). Pause and live changes need a rebase-able clock (§4.2). |
+| S11-B SD-B4, SD-B9 (frozen on its branch) | `--time-scale N` (world seconds per wall second, integer ≥ 1, default 1), reported as `WorldSummary.time_scale` in `welcome.world` and `/status`. `--pace SECONDS` is in **world** seconds (default 5); `--hold` in wall seconds. QS11B-4 ruled "a hold is about a network, a pace about a life". | The second operator statement reverses QS11B-4 for consult cadence: walking is embodied, so cadence must be wall seconds (§4.4, QTW-13). |
+| S11-B SD-B5/SD-B6 | `HostedController::next_consult(after: WorldTime) -> WorldTime`; consults run in `tick` before the sweep; a hosted request goes through `submit_at`. | The trait can stay; the adapter computes the next instant from a wall cadence and the current scale (§4.4). |
+| `runtime.rs` `WorldRuntime::new` | A persisted world's host clock starts from the saved `now`. | Time does not pass while a server is down: "closing saves and pauses" already holds for a stopped host (§7.5). |
+| `runtime.rs` `Command::Shutdown` → `checkpoint()` | A graceful stop writes a snapshot at the head. | Window close in single-player maps to a graceful stop (§7.5). |
 | `server/src/protocol/summary.rs` `WorldSummary.at` | The world's clock as of a status answer. | Clients get time from `Observation.at` and `WorldSummary`; no date, no scale before S11-B, no pause. |
 | `contracts/src/observation.rs` `Observation.at` | Every observation carries the instant. | The HUD clock and every interpolation start from it. |
-| `step-12-server.md` §4.9 (S11-D) | Admin HTTP routes under `/admin`, bearer token; "No admin command touches world state … no route that … advances the clock" (I-4). | Pause and scale are host pacing, not world state, so a clock-control route is compatible with I-4 (§11.3). |
+| `step-12-server.md` §4.9 (S11-D) | Admin HTTP routes under `/admin`, bearer token; "No admin command touches world state … no route that … advances the clock" (I-4). | Pause and scale are host pacing, not world state, so a clock-control route is compatible with I-4, with a clarifying amendment (§7.3, §15.3). |
 
 ## 2.4 Perception: how a pack discloses state
 
 | File / symbol | Finding | Consequence |
 | --- | --- | --- |
-| `systems/presence/src/interaction.rs` `PerceptionProvider::discloses(world, observer, subject)` | Defaulted to nothing; called for each perceived entity, **the observer's place included**; a record about another entity is dropped. | Calendar and weather disclose world-level state as records about the place the observer is in (§6.4, §9.5). |
-| `systems/presence/src/observe.rs` `observe(world, observer, at, providers)`, `disclosed(…)` | `observe` has `at`; `disclosed` does not pass it on. A disclosed record survives only if its component type is declared by an enabled system (`owned_by_an_enabled_system`). | An additive, defaulted `discloses_at` carries `at` without changing any existing implementor (§6.4). A derived record's type must be declared by its pack. |
+| `systems/presence/src/interaction.rs` `PerceptionProvider::discloses(world, observer, subject)` | Defaulted to nothing; called for each perceived entity, **the observer's place included**; a record about another entity is dropped. | Calendar and weather disclose world-level state as records about the place the observer is in (§5.5, §6.6). |
+| `systems/presence/src/observe.rs` `observe(world, observer, at, providers)`, `disclosed(…)` | `observe` has `at`; `disclosed` does not pass it on. A disclosed record survives only if its component type is declared by an enabled system (`owned_by_an_enabled_system`). | S19 does not need `at` at disclosure: calendar and weather disclose state folded from their own facts; an additive `discloses_at` was considered and rejected (§5.3). A derived record's type must be declared by its pack. |
 | `contracts/src/event.rs` `Visibility::Public` | "Anyone in the world could have learned of it — a public announcement, a change of season." | Weather changes and daylight changes are Public facts. |
 
 ## 2.5 The configuration seam (IL-a, in implementation)
 
 | File / symbol (IL-a branch) | Finding | Consequence |
 | --- | --- | --- |
-| `authoring/src/configuration.rs` `PackConfiguration` | Owner-typed configuration from `configure/<id>.yaml`, listed in `world.yaml` `configure:`; `seed(&Seeding, &Configuration) -> Vec<Emission>`; `FACTS` filter the drift check; facts should be `SystemInternal`, no subjects. | `calendar` and `weather` are configured this way. Their configured fact is reduced into components on every place, the precedent IL's §4.5 sets for interaction sections. |
+| `authoring/src/configuration.rs` `PackConfiguration` | Owner-typed configuration from `configure/<id>.yaml`, listed in `world.yaml` `configure:`; `seed(&Seeding, &Configuration) -> Vec<Emission>`; `FACTS` filter the drift check; facts should be `SystemInternal`, no subjects. | `calendar` and `weather` are configured this way. Their configured fact is reduced into the pack's own world-level Process state (§5.3, §6.6), not into components on every place. |
 | `sdk/rust/src/pack.rs` `configures!()` | Defines `CONFIGURATION`, `CONFIGURATION_FACTS`, `decode_configuration`. A pack that declares nothing is never configured. | There is no "configuration required" flag: a pack enabled without its file seeds nothing (§5.5, QTW-8). |
 | `authoring/src/section.rs` `Seeding` | Read access to the assembled world and the resolved keys. | `seed` can enumerate places. |
-| IL-a SD-IA-5 | One YAML file per key; no data attachments. | A station record (tens to hundreds of KB) needs either an inline block or an attachment mechanism (§7.6, QTW-7). |
+| IL-a SD-IA-5 | One YAML file per key; no data attachments. | A station record (tens to hundreds of KB) needs either an inline block or an attachment mechanism (§6.5, QTW-7). |
 
 ## 2.6 The clients
 
 | File / symbol | Finding | Consequence |
 | --- | --- | --- |
-| `clients/3d-spike/scripts/slice/slice_main.gd` | One sky, one sun, one tonemap, one exposure (ARC-13's rig). The sun is **fixed golden hour**: `SUN_ELEVATION := -19.3`, `SUN_AZIMUTH := -48.0`, `SUN_ENERGY := 4.4`; constants chosen so the north pavement stays in sun and the beam reaches 4.8 m into the café. GI mode chosen by `--gi` (`NONE`, `SSIL`, `VOXEL`, `SDFGI`; default `VOXEL`). | A moving sun replaces constants with a function of disclosed sun state; ARC-13's art intent ("warm, low sun") becomes the *look at golden hour*, not the only hour (§10.2). Baked or semi-static GI must be re-checked under a moving sun (R-TW-6). |
+| `clients/3d-spike/scripts/slice/slice_main.gd` | One sky, one sun, one tonemap, one exposure (ARC-13's rig). The sun is **fixed golden hour**: `SUN_ELEVATION := -19.3`, `SUN_AZIMUTH := -48.0`, `SUN_ENERGY := 4.4`; constants chosen so the north pavement stays in sun and the beam reaches 4.8 m into the café. GI mode chosen by `--gi` (`NONE`, `SSIL`, `VOXEL`, `SDFGI`; default `VOXEL`). | A moving sun replaces constants with a function of disclosed sun state; ARC-13's art intent ("warm, low sun") becomes the *look at golden hour*, not the only hour (§8.3). Baked or semi-static GI must be re-checked under a moving sun (R-TW-6). |
 | `clients/3d-spike/scripts/main.gd` | The promenade scene: `ProceduralSkyMaterial` or `PanoramaSkyMaterial` (HDR), `DirectionalLight3D` key at `(-17, 124, 0)`, a blue fill light, depth fog. | Built-in sky materials are already in use; the night sky has none. |
-| DEP-8 table | **Sky3D (MIT) is already approved** as a source ("sky and daylight. Credit is required only if the bundled star map ships"). | Adopting it is a code-dependency decision, not a licence question (§10.3). |
-| `clients/protocol/mineworld/{observation,space,world_client}.gd` | The shared protocol module; S11 owns it ("No other PR edits the module", ruling 4). | Presentation-side interpretation of sky and weather lives in a separate shared client module (§10.1). |
-| `step-13-client-2d.md` A-19, item 8, R-S11-6 | The 2D HUD shows `Observation.at` formatted as day and time; R-S11-6 asked for the time scale "so the client can tick its clock display smoothly between frames". The 2D client (S12 13a) is isometric and not yet merged. | The HUD date and time (§10.5) refines item 8; day/night in 2D is a canvas tint (§10.4). |
-| `overall.md` "Framework, not demo" item 4 | The in-game settings menu (language `en`/`zh-Hans`, display, input) is binding on S12 and S14, presentation-only, in one shared client settings module; to be planned after S12 13a and S14 16a. | 12h/24h joins that module. Pause, scale and "keep running in background" are **not** presentation settings: they go to the host (§11.5). |
+| DEP-8 table | **Sky3D (MIT) is already approved** as a source ("sky and daylight. Credit is required only if the bundled star map ships"). | Adopting it is a code-dependency decision, not a licence question (§3.4). |
+| `clients/protocol/mineworld/{observation,space,world_client}.gd` | The shared protocol module; S11 owns it ("No other PR edits the module", ruling 4). | Presentation-side interpretation of sky and weather lives in a separate shared client module (§8.3). |
+| `step-13-client-2d.md` A-19, item 8, R-S11-6 | The 2D HUD shows `Observation.at` formatted as day and time; R-S11-6 asked for the time scale "so the client can tick its clock display smoothly between frames". The 2D client (S12 13a) is isometric and not yet merged. | The HUD date and time (§8.2) refines item 8; day/night in 2D is a canvas tint (§8.3). |
+| `overall.md` "Framework, not demo" item 4 | The in-game settings menu (language `en`/`zh-Hans`, display, input) is binding on S12 and S14, presentation-only, in one shared client settings module; to be planned after S12 13a and S14 16a. | 12h/24h joins that module. Pause, scale and "keep running in background" are **not** presentation settings: they go to the host (§7.3, §8.1). |
 
 ## 2.7 Randomness and floating point already in the tree
 
