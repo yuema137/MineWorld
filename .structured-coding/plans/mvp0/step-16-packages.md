@@ -1207,13 +1207,29 @@ before code (`CLAUDE.md` §2.2). Markdown only.
 
 **Depends on:** C1.
 
-- [ ] Implementation: as scoped. **Prototype first (§5 row 12):** add `semver` and `spdx`, then record
-  `cargo tree -p mineworld-packages -e normal`, the `Cargo.lock` packages added, and the cold
-  `cargo build -p mineworld-packages` wall time in E-Ea2 and DEP-21. If `spdx` pulls more than a
-  handful of crates or a build script, stop and report before continuing (a material dependency).
-- [ ] Validation: `cargo clippy -p mineworld-packages --all-targets -- -D warnings`; `cargo test -p
-  mineworld-packages` (counts recorded); mutations M-A5, M-A6, M-A9.
-- [ ] Review: no MineWorld dependency; every refusal names the file and the field or value; no test
+- [x] Implementation: as scoped, with two bounded refinements. (1) `validate_pack_directory` became
+  `check_style_manifest` (the World Pack half of `validate` belongs to the CLI, which owns `worldpack`);
+  (2) `Identity::of_world` added, so a world's required fields are checked here like every other
+  carrier's (PD-4: one validation path). `semver` needs no `serde` feature: every type deserializes
+  through `try_from = "String"` into its own named refusal. **Prototype (E-Ea2):** `semver` 1.0.28 has
+  no dependency; `spdx` 0.13.6 (default features: none) depends only on `smallvec`, already locked; no
+  build script in either (registry sources listed). `Cargo.lock` +3 packages. Proportionate; DEP-21
+  records it. Cold `cargo clippy -p mineworld-packages`: 18.3 s including serde and serde-saphyr.
+- [x] Validation (E-Ea2): clippy `-D warnings` clean; `cargo test -p mineworld-packages`: identity 6
+  passed, manifest 4 passed, structure 2 passed (0 failed, 0 ignored, 0 filtered; lib and doctests 0).
+  First run FAILED one case, correctly: `a_well_formed_pack_file_is_one_identity` asserted
+  `require_framework()` while the framework is still 0.0.0 (the bump is Ea-C3) — the test was asking
+  the wrong question; it now asserts the range's text, and the framework check lives in
+  `a_framework_range_admits_what_cargo_admits`. The structure test's first run FAILED on a doc
+  comment's example (`mineworld_sdk::package!()`): it now reads code lines only, documented.
+  Mutations, each reverted and the suite re-run green:
+  - M-A5 `deny_unknown_fields` removed → `every_bad_pack_file_is_refused…` FAILS at "unknown field".
+  - M-A6 `License::new` parses `"MIT"` instead of its text → `a_code_pack_without_a_usable_licence…`
+    FAILS at the empty licence.
+  - M-A9 `mineworld-contracts` added to `[dependencies]` → `the_manifest_names_no_mineworld_dependency`
+    FAILS naming it. `Cargo.lock`'s `mineworld-packages` entry afterwards: semver, serde, serde-saphyr,
+    spdx, thiserror only.
+- [x] Review: no MineWorld dependency; every refusal names the file and the field or value; no test
   asserts a library's own behaviour (e.g. that `semver` parses `1.2.3`) — only MineWorld's mapping of
   a bad value to a named refusal; `PackId`'s rule accepts every current crate name and world id
   (checked by listing them).

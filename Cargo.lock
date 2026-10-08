@@ -1015,6 +1015,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-packages"
+version = "0.0.0"
+dependencies = [
+ "semver",
+ "serde",
+ "serde-saphyr",
+ "spdx",
+ "thiserror",
+]
+
+[[package]]
 name = "mineworld-persistence"
 version = "0.0.0"
 dependencies = [
@@ -1485,6 +1496,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "semver"
+version = "1.0.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
+
+[[package]]
 name = "serde"
 version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1650,6 +1667,15 @@ dependencies = [
  "hashbrown 0.16.1",
  "num-traits",
  "robust",
+ "smallvec",
+]
+
+[[package]]
+name = "spdx"
+version = "0.13.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "646c5a367da914e3babcb9cd8e91c37ccaac42325b8f86f036513ad103f2a716"
+dependencies = [
  "smallvec",
 ]
 

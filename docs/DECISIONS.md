@@ -3382,7 +3382,9 @@ licences   (d) `spdx` (Embark; the parser cargo-deny uses)  (e) a closed list of
 **Isolating interface.** `mineworld-packages`' `Version`, `Compatibility` and `License`. No other
 crate names `semver` or `spdx`.
 
-**Weight, measured** (step-16 §14.8 E-Ea2): recorded when the crates were added.
+**Weight, measured** (step-16 §14.8 E-Ea2). `semver` 1.0.28 (MIT OR Apache-2.0) has no dependency;
+`spdx` 0.13.6 (Apache-2.0), with its default features (none), depends only on `smallvec`, already in
+the build. `Cargo.lock` gains three packages: the two and `mineworld-packages`. No build script.
 
 **Accepted limitations and the revisit trigger.** A registry (the publishing sense of Milestone E,
 non-goal) brings version selection, which is a solver's problem and is not solved here; revisit then.
