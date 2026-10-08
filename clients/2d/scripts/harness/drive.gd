@@ -39,9 +39,27 @@ var _requests: Array = []
 var _capture: Node = null
 ## Seconds from the latest place change to the first frame its façade was fully lifted, or -1.
 var _lift_s := -1.0
+var _disconnects := 0
+var _observed_since_seated := false
+
+
+## A reconciliation being timed: where the world put the body, and frames drawn since.
+var _reconcile: Dictionary = {}
+
+
+func _on_reconciled(place: String, plan: Vector2) -> void:
+	_reconcile = {"place": place, "plan": plan, "frames": 0}
 
 
 func _process(_delta: float) -> void:
+	if not _reconcile.is_empty():
+		var drawn: Variant = app.people.drawn_plan(app.people.observer)
+		if drawn != null and (drawn as Vector2).distance_to(_reconcile["plan"]) <= POSITION_BOUND_M:
+			print("EVIDENCE ", JSON.stringify({"reconciled": {"frames": _reconcile["frames"],
+				"local": app.town.local_in(_reconcile["place"], _reconcile["plan"])}}))
+			_reconcile = {}
+		else:
+			_reconcile["frames"] += 1
 	if _lift_s < 0.0 and _place_changes > 0 and app.places.facade_alpha(_place) <= 0.01 \
 			and app.places.facade_anchor(_place).size() > 0:
 		_lift_s = _now() - _place_changed_at
@@ -55,6 +73,12 @@ func _ready() -> void:
 		_results.append(result)
 		print("RESULT ", JSON.stringify({"token": token, "result": result})))
 	app.link.observed.connect(_on_observed)
+	app.walker.reconciled.connect(_on_reconciled)
+	app.link.state_changed.connect(func(state: String, reason: String) -> void:
+		if state == "reconnecting":
+			_disconnects += 1
+		_observed_since_seated = false
+		print("STATE %s %s" % [state, reason]))
 	app.link.welcomed.connect(func(observer: String, world: Dictionary) -> void:
 		print("EVIDENCE ", JSON.stringify({"welcome": {"observer": observer,
 			"instance": world.get("instance", ""), "revision": world.get("revision")}})))
@@ -66,6 +90,7 @@ func _ready() -> void:
 
 
 func _on_observed(observation: MineWorldObservation) -> void:
+	_observed_since_seated = true
 	var place := observation.place()
 	if place != _place:
 		if _place != "":
@@ -90,6 +115,8 @@ func _run() -> void:
 			await _walk()
 		"strides":
 			await _strides(int(app.options.get("strides", "5")))
+		"street":
+			await _street(int(app.options.get("strides", "12")))
 		"idle":
 			await _seconds(float(app.options.get("hold", "6")))
 			_report_self()
@@ -145,6 +172,12 @@ func _walk() -> void:
 	_check_seated()
 	if _capture != null:
 		await _capture.shoot_interior()
+		# Back out to the street, now that the café's tags are known, for its façade and terrace.
+		var front: Vector2i = door + Vector2i(1500, -4500)
+		app.walker.walk_to(street, app.town.to_plan(street, {"x": front.x, "y": front.y}))
+		await _until(func() -> bool: return not app.walker.is_walking(), TIMEOUT_S)
+		await _seconds(1.0)
+		await _capture.shoot("02_cafe_front", 1.9, app.town.to_plan(street, {"x": door.x, "y": door.y + 1500}))
 
 
 ## `n` strides east in the current place, one after another (the stub scenarios, AC-W5 … AC-W7).
@@ -152,6 +185,30 @@ func _strides(n: int) -> void:
 	var from: Vector2 = app.walker.body_plan
 	app.walker.walk_to(app.walker.body_place, from + Vector2(1.9 * n, 0.0))
 	await _until(func() -> bool: return not app.walker.is_walking(), TIMEOUT_S)
+	await _seconds(SETTLE_S)
+	_report_self()
+
+
+## Out onto the street and along it (AC-W4: a test restarts the server under this walk). If the
+## connection dropped, waits for the client's own reconnect before reporting.
+func _street(n: int) -> void:
+	var start: String = app.walker.body_place
+	var exits: Array = app.town.passages.get(start, [])
+	if exits.is_empty():
+		_check(false, "street", "the starting place discloses no doorway")
+		return
+	var street: String = exits[0]["to"]
+	var out := _point("walk-out", Vector2i(-12000, 1500))
+	app.walker.walk_to(street, app.town.to_plan(street, {"x": out.x, "y": out.y}))
+	await _until(func() -> bool: return not app.walker.is_walking(), TIMEOUT_S)
+	await _seconds(0.4)
+	_report_self()
+	var from: Vector2 = app.walker.body_plan
+	app.walker.walk_to(app.walker.body_place, from + Vector2(1.9 * n, 0.0))
+	await _until(func() -> bool: return not app.walker.is_walking(), TIMEOUT_S)
+	if _disconnects > 0:
+		var back := await _until(func() -> bool: return app.link.state == "seated" and _observed_since_seated, float(app.options.get("hold", "30")))
+		_check(back, "reconnected", "%d disconnect(s), state %s" % [_disconnects, app.link.state])
 	await _seconds(SETTLE_S)
 	_report_self()
 
@@ -257,7 +314,8 @@ func _report_self() -> void:
 		"local": observation.self_location().get("local"),
 		"drawn_local": null if drawn == null else app.town.local_in(observation.place(), drawn),
 		"body_local": app.town.local_in(app.walker.body_place, app.walker.body_plan),
-		"passages": app.town.passage_count(), "instance": app.link.instance}}))
+		"passages": app.town.passage_count(), "instance": app.link.instance,
+		"stale_frames_ignored": app.walker.stale_ignored}}))
 
 
 func _walk_done(what: String) -> bool:

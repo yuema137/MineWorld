@@ -995,19 +995,52 @@ route in ≤ 1.9 m strides, one in flight; doorway routing `here` → `there`; W
 or 20°; reconciliation at > 150 mm; a rejection ends the walk); `scripts/check_client_rules.py`
 (R1–R5, `--scope`, `--check-pack`); `tools/cli/tests/client_2d.rs` + `tools/cli/tests/client_2d/`
 (Godot spawn helper, rev-1 stub).
-- [ ] Implementation: as scoped.
-- [ ] Validation: AC-W1, AC-W5, AC-W6, AC-W7, AC-W8 (with plants), AC-W10 (five transcripts), each
-  mutation run and reverted with `git status` clean afterwards.
-- [ ] Review: every distance computed is a request size, a route or a drawing; a rejected or unknown
-  result is never retried.
+- [x] Implementation: client side in `74b7c2c` (D-6); the scan in C2 (D-3); `tools/cli/tests/client_2d.rs`
+  (seven `#[ignore]`d tests) and `tools/cli/tests/godot2d/mod.rs` (Godot run, parse guard F-4, a world
+  restartable on one address, the revision-1 stub) in the C5/C6 commit. Two walker fixes found by these
+  tests: F-2 (stride count) and F-5 (request facing must not depend on frame timing, below).
+- [x] Validation (E-5, `cargo test -p mineworld-cli --test client_2d -- --ignored --test-threads=1`,
+  7 passed, 132.7 s, Godot 4.7.2, macOS arm64):
+  - AC-W1 `walks_from_the_apartments_into_the_cafe`: 14 moves, all accepted; the save holds two
+    `person-entered-place` for carol (street, then café) and 14 action-caused `arrived` facts.
+  - AC-W5/W6/W7 against the stub: 3 submits then none after the refusal, drawn at the stub's position,
+    reconciled within ≤ 1 frame; the teleport followed with no request after it; an unavailable `move`
+    submitted.
+  - AC-W8 (rules): clean; five plants (R1 submit and R2 `"move"` in `walker.gd`, R3 `may(` in
+    `intents.gd`, R4 `distance_to` and R5 `MineWorldClient.new()` in `app.gd`) → FAIL, 5 findings, each
+    by file and line; reverted → PASS.
+  - AC-W10: five transcripts (town, full, people, procedural, none) identical by
+    `mineworld_server::differing_fields`; the click path in both projections, miss 0.0000 m.
+  - Mutations, each run then reverted (grep for the markers finds none): W1 crossing to `here` → the
+    drive fails "the world refused a stride" (red); W5 rejection treated as accepted → 6 submits, not 3
+    (red); W6 a correcting move after reconciling → "no move answered the teleport" (red); W7
+    `may("move")` guard → 0 submits (red; R3 also names it); W10 route offset by the projection's px/m
+    → "--presentation=none request 0 differs" (red).
+- [x] Review: every distance in `walker.gd` is a stride size (≤ 1.9 m), a route through a disclosed
+  doorway, the 150 mm reconciliation, the 2 mm stale-frame match or drawing; `resolved()` never
+  resubmits; a refusal or rejection ends the walk; `abandon()` drops the route and the step.
 
 #### C6 — Reconnect and AC-3 end to end
 **Scope.** `link.gd`: §4.6 points 1–5 (back-off 0.5 s doubling to 8 s; same seat; instance compare;
 `refused` final except `world_stopped`; abandon the walk; unanswered request reported "unknown").
 Tests AC-W3, AC-W4 in `client_2d.rs`.
-- [ ] Implementation: as scoped.
-- [ ] Validation: AC-W3 and AC-W4 with their mutations.
-- [ ] Review: nothing is replayed; the cache is dropped only on an instance change.
+- [x] Implementation: `link.gd` retries with back-off 0.5 s doubling to 8 s, the same seat;
+  `unknown_seat`, `seat_not_in_world` and `already_joined` end it, `world_stopped` does not; `app.gd`
+  abandons the walk, dims the world while disconnected, says when a request went unanswered, and
+  resets the town only when the welcome names another instance. Drive scenarios `street` and `idle`.
+- [x] Validation (E-5): AC-W3 `killed_mid_walk_and_relaunched` — SIGKILL after the first accepted street
+  stride; meanwhile the wanderer walks up to Alice and talks (her agent answers) and a second
+  connection moves carol one stride; `/status` revision rose; the relaunched client is told the same
+  instance and a revision ≥ the post-kill one, draws carol exactly at the moved-to millimetres, and never
+  reconciles. AC-W4 `reconnects_to_a_restarted_world_and_to_a_replaced_one` — server SIGKILLed mid-walk
+  and restarted on its save and address: STATE reconnecting → seated, same instance, 6 learned
+  doorways kept, no request after the drop; then a fresh world on that address: 1 doorway known.
+  Mutations: W3 remembered position at startup → red only after the test was strengthened (F-3); W4
+  replay of the unanswered stride, held until seated → "nothing was submitted after the drop" (red);
+  without the hold the plant was neutralized because the module refuses to submit when not seated
+  (two defences; recorded, not a weakness of the test).
+- [x] Review: nothing is replayed (`abandon()`); the layout cache is cleared only in `_on_welcomed` on a
+  different instance; a final refusal stops retrying; the module stays policy-free (`ADOPTION.md` §6.1).
 
 #### C7 — Stills, preview package, final gates
 - [ ] Implementation: capture mode; stills committed under `clients/2d/shots/preview/`; README;
@@ -1118,3 +1151,28 @@ NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
   out of the hub" with a footprint north of the door, and a click inside the apartments was routed out
   into the street (miss 1.63 m in both projections). A hub now needs at least two doorways; before one
   is known the observer's room is drawn from inside. Click miss after the fix: 0.0000 m.
+- **D-8 (bounded) — the Rust support directory is `tools/cli/tests/godot2d/`, not `client_2d/`.** Rust
+  refuses a module that has both `client_2d.rs` and `client_2d/mod.rs`. `--scope` allows the new path.
+- **F-2 (found by the stub, fixed) — float noise added a stride.** `ceil(3.8 / 1.9)` is 3 in floats
+  (3.8 / 1.9 = 2.0000000002), so a two-stride walk sent three requests; with a teleport after the
+  second, the extra stride overwrote it and AC-W6 failed for the wrong reason. `_strides` subtracts
+  1e-6 before `ceil`.
+- **F-3 (found by mutation, test strengthened) — AC-W3's planted "remembered position" survived.** The
+  plant restored the dead client's last accepted position at startup; the reconciliation rule then
+  corrected it within one observation, so the final drawn position was right and the test passed. The
+  property was held by a second mechanism, which is good architecture and a weak instrument
+  (`ARC-23`). The test now also requires that the relaunched client never reconciles (a client placed
+  from its first observation has nothing to correct); with the plant it fails on exactly that line.
+- **F-4 (found, guarded) — a script that does not parse hangs a run.** A stray tab left by a reverted
+  mutation made `walker.gd` unparseable; Godot then ran an empty scene until the 150 s run limit,
+  printing nothing. The test support now parses `app.gd` (and through its preloads every script) with
+  `--check-only` before the first run and fails at once, naming the error.
+- **F-5 (found by AC-W10, fixed) — a request's facing depended on frame timing.** Transcripts differed
+  in `yaw` by 1–8 millidegrees between runs: the facing was taken from the drawn body (which is within
+  2 cm of its goal, at a frame-dependent point) and, at a crossing, from a near-zero vector (`here` and
+  `there` are one point). The facing asked for is now the direction from the last position asked for,
+  kept unchanged across a crossing. A second, unconfirmed cause was guarded too: a frame the server
+  computed before applying an accepted move, arriving after its result, would snap the body back and
+  bend the next stride's direction. Frames showing exactly the pre-move position are ignored for
+  600 ms after an accepted result and counted (`stale_frames_ignored`); in the five AC-W10 runs after
+  the fix the count was 0, so the race was not observed — the guard is recorded as defensive.

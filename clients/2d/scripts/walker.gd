@@ -12,6 +12,8 @@ extends Node
 ## `town.local_in` and sent by `intents.gd`, the only script that submits.
 
 signal walk_ended(completed: bool)
+## The world put the body somewhere the walk did not take it, and the body followed (rule 4).
+signal reconciled(place: String, plan: Vector2)
 
 ## The longest stride asked for, in metres: under the server's MAX_STRIDE of 2 m (`PROTOCOL.md` §6.2).
 const STRIDE_M := 1.9
@@ -24,6 +26,9 @@ const REPORT_TURN_DEG := 20.0
 const RECONCILE_M := 0.15
 ## The body has reached the stride it asked for (drawing only).
 const ARRIVED_M := 0.02
+## A frame computed before an accepted move: the old position to the millimetre, within this window.
+const STALE_M := 0.002
+const STALE_WINDOW_MS := 600
 
 var town
 var intents: Node
@@ -46,6 +51,15 @@ var _step: Dictionary = {}
 var _goal := Vector2.ZERO
 var _reconcile_next := false
 var _reported_facing := Vector2(0, 1)
+## The facing last asked for: a crossing (where `here` and `there` are one point) keeps it.
+var _asked_facing := Vector2(0, 1)
+## Where the body stood before the last accepted move, and until when a frame showing exactly that
+## is taken as computed before the move (see [method observe]).
+## How many such frames were ignored (reported by the drive, so the race is seen when it happens).
+var stale_ignored := 0
+var _stale_place := ""
+var _stale_plan := Vector2.ZERO
+var _stale_until_ms := 0
 
 
 ## The world's word on where the observer is: placed on first sight, followed when it differs.
@@ -54,10 +68,19 @@ func observe(observation: MineWorldObservation) -> void:
 	var plan: Variant = town.to_plan(place, observation.self_location().get("local"))
 	if plan == null:
 		return
+	# An observation the server computed before applying the move it then accepted can arrive after
+	# the result. It shows exactly the position the move started from; following it would snap the
+	# body back. Such a frame is ignored for a short while after an accepted result — a real
+	# displacement shows somewhere else, and is followed.
+	if Time.get_ticks_msec() < _stale_until_ms and place == _stale_place \
+			and (plan as Vector2).distance_to(_stale_plan) < STALE_M:
+		stale_ignored += 1
+		return
 	if not placed or _reconcile_next or (_token == "" and (place != accepted_place
 			or (plan as Vector2).distance_to(accepted_plan) > RECONCILE_M)):
 		# Reconciliation on difference: one rule for a stride stopped short, a refusal, a nudge
 		# and a teleport. The body goes where the world says; no request answers it.
+		var was_placed := placed
 		body_plan = plan
 		_goal = plan
 		body_place = place
@@ -65,7 +88,8 @@ func observe(observation: MineWorldObservation) -> void:
 		accepted_place = place
 		placed = true
 		_reconcile_next = false
-
+		if was_placed:
+			reconciled.emit(place, plan)
 
 ## Walks to a point the player clicked (plan metres), through doorways when it lies in another place.
 func walk_to_plan(plan: Vector2) -> void:
@@ -115,6 +139,9 @@ func resolved(token: String, result: Dictionary) -> void:
 		return
 	_token = ""
 	if result.has("accepted"):
+		_stale_place = accepted_place
+		_stale_plan = accepted_plan
+		_stale_until_ms = Time.get_ticks_msec() + STALE_WINDOW_MS
 		accepted_plan = _step["plan"]
 		accepted_place = _step["place"]
 		body_place = accepted_place
@@ -159,11 +186,13 @@ func _process(delta: float) -> void:
 
 
 func _send(step: Dictionary) -> void:
-	var direction: Vector2 = (step["plan"] - body_plan)
+	# Facing is the direction from the last position asked for, never from where the drawn body
+	# happens to be this frame: a request must not depend on frame timing (step-13 I-5).
+	var direction: Vector2 = (step["plan"] - _goal)
 	if direction.length() > 0.001:
-		facing = direction.normalized()
+		_asked_facing = direction.normalized()
 	var local: Dictionary = town.local_in(step["place"], step["plan"])
-	_token = intents.move(step["place"], local, MineWorldSpace.yaw_from_2d_radians(facing.angle()))
+	_token = intents.move(step["place"], local, MineWorldSpace.yaw_from_2d_radians(_asked_facing.angle()))
 	_step = step if _token != "" else {}
 	if _token == "":
 		_route.clear()
@@ -176,6 +205,7 @@ func _send(step: Dictionary) -> void:
 func _walk_keys(screen_dir: Vector2, dt: float) -> void:
 	var direction: Vector2 = projection.screen_dir_to_plan(screen_dir)
 	facing = direction
+	_asked_facing = direction
 	var next := body_plan + direction * WALK_SPEED * dt
 	if next.distance_to(accepted_plan) <= STRIDE_M:
 		var into: String = town.place_at(next, body_place)
@@ -218,7 +248,8 @@ func _places_between(from: String, to: String) -> Array:
 ## Equal strides of at most STRIDE_M from `a` to `b` in `place`.
 func _strides(place: String, a: Vector2, b: Vector2) -> Array:
 	var out: Array = []
-	var n := int(ceil(a.distance_to(b) / STRIDE_M))
+	# The tolerance keeps float noise from adding a stride: 3.8 m / 1.9 m is 2.0000000002 in floats.
+	var n := int(ceil(a.distance_to(b) / STRIDE_M - 1e-6))
 	for i in range(1, n + 1):
 		out.append({"place": place, "plan": a.lerp(b, float(i) / n), "crossing": false})
 	return out

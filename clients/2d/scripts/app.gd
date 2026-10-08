@@ -94,7 +94,7 @@ func _ready() -> void:
 	link.observed.connect(_on_observed)
 	link.resolved.connect(_on_resolved)
 	link.refused.connect(_on_refused)
-	link.state_changed.connect(func(_s: String, _r: String) -> void: status.show_state(latest, link, link.client.revision))
+	link.state_changed.connect(_on_state_changed)
 	if options.has("drive"):
 		var drive: Node = Drive.new()
 		drive.app = self
@@ -117,6 +117,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		# scripted click and a real one take the same path.
 		var at: InputEventMouseButton = make_input_local(event)
 		walker.walk_to_plan(projection.to_plan(at.position))
+
+
+## While the connection is down the last observation stays drawn, dimmed: it is what was true, not
+## what is (`ADOPTION.md` §6.1). A walk in progress is abandoned and nothing is replayed; a request
+## whose answer never came is reported as unknown.
+func _on_state_changed(state: String, _reason: String) -> void:
+	if state == "reconnecting" or state == "closed":
+		var unanswered: String = walker.abandon()
+		if unanswered != "":
+			status.note("A request went unanswered — check the world (nothing was resent).")
+		world.modulate = Color(0.75, 0.75, 0.75)
+	elif state == "seated":
+		world.modulate = Color.WHITE
+	status.show_state(latest, link, link.client.revision)
 
 
 func _on_welcomed(observer: String, world_summary: Dictionary) -> void:

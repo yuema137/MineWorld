@@ -45,7 +45,7 @@ SCOPE_PREFIXES = (
     "clients/2d/",
     "presentation/mineworld-default/2D/",
     "presentation/mineworld-default/LICENSES/",
-    "tools/cli/tests/client_2d/",
+    "tools/cli/tests/godot2d/",
 )
 SCOPE_FILES = (
     "mineworld-2d",

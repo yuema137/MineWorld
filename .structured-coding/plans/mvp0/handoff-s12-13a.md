@@ -19,15 +19,18 @@ STOPS               any edit to clients/protocol/mineworld/**; any server/kernel
 
 ## Checkpoint
 
-- C0 design `26c451d`; freeze header `610b50f`.
-- Current: C1 (specs before code).
+- C0 design `26c451d`; freeze header `610b50f`; C1 `318c0b9`; C2 `4f6f6b2`; merge of main (16b)
+  `38dfe93`; client code C3–C5 `74b7c2c`.
+- Current: C5 tests (`tools/cli/tests/client_2d.rs`, `godot2d/`) and C6 reconnect, in the working tree;
+  then C7 (stills, preview, final gates, PR).
 
 ## Next actions
 
-1. C1: DECISIONS (ARC-14 port, ARC-45…47, DEP-16), MVP §7.1, ART_DIRECTION §20, MODULE_SPEC §6.1 pointer,
-   clients/2d/PRESENTATION.md, ADOPTION §6.
-2. C2 … C7 per §14.6.
+1. Commit tests + reconnect once `cargo test -p mineworld-cli --test client_2d -- --ignored
+   --test-threads=1` is green; record mutations (W1, W3, W5, W6, W7 done; W4, W10 pending).
+2. C7: capture runs (town, none, full), stills into `clients/2d/shots/preview/`, final gates, PR.
 
 ## Background processes
 
-None.
+Only processes this session started (by PID), never by name. Godot user dir may hold
+`mutation_w3.txt` only during the W3 mutation; it was removed.
