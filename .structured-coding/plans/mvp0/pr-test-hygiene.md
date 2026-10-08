@@ -5,8 +5,13 @@
 (S13 audit). Every test must remove its own scratch data. One bounded PR fixes this after 12c merges."*
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) ruling 10; related:
 [`step-14-ci.md`](step-14-ci.md) F-3 and risk R-2 (runner disk).
-**Lifecycle:** `DRAFT — awaiting freeze by the primary session`. Not frozen. No code is written before a
-`DESIGN FROZEN` header is added here by the operator or the primary session.
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session.` Source: the primary session's freeze
+message of 2026-10-08 ("FREEZE: the test-hygiene PR is DESIGN FROZEN … The design is accepted as
+written"). Rulings: QTH-1, QTH-2, QTH-4, QTH-5 accepted as recommended; **QTH-3 overruled** — add
+**DEP-29** to `docs/DECISIONS.md` (`tempfile` declined for a `std`-based helper, citing §3), per
+`CLAUDE.md` §4 rule 16. Coordination: merge `origin/main` before the final gate and convert S16 E-a's
+(#70) three raw `CARGO_TARGET_TMPDIR` uses. Material stops: any assertion change, any production-code
+change, any digest change.
 **PR number:** assigned at freeze (ruling 7). Working name: *test-hygiene*.
 
 ---
@@ -363,9 +368,8 @@ Every hunk in an existing test file is listed with one of: `scratch-construct`, 
 - **QTH-2** Migrate the already-clean (T) population (persistence, five system packs, `SaveDir`, the
   harness programs) too. *Recommend yes:* one convention, `scan` without exceptions, scratch removed by
   `cargo clean` if a process is killed. Cost: ≈ 7 small struct deletions in files no other lane edits.
-- **QTH-3** Record the build-our-own choice over `tempfile` in `docs/DECISIONS.md`? *Recommend no:*
-  ≈ 120 lines of test support is not a "substantial" capability (`REUSE_POLICY.md` §1); §3 here is the
-  record. If yes, the primary session assigns the number (ruling 6).
+- **QTH-3** Record the build-our-own choice over `tempfile` in `docs/DECISIONS.md`? *Recommended no;*
+  **overruled at freeze:** DEP-29 is added in C1 (`CLAUDE.md` §4 rule 16).
 - **QTH-4** CI wiring of `check_scratch.py left`: in this PR if 13a has merged first, otherwise in 13b.
   *Recommend accept.* `scan` goes into `standards.md` now either way.
 - **QTH-5** New workspace crate `tests/support` (`mineworld-test-support`, dev-dependency only). *Recommend
