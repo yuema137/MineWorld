@@ -940,7 +940,8 @@ fields, `mineworld:`, `requires:`), §8.1 (`packs`), §9 (MVP-0 subset, SystemVe
 
 # 14. PR E-a — pack identity (PR design)
 
-**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — implementation in progress.
+**Lifecycle:** `READY FOR OPERATOR REVIEW` — DESIGN FROZEN (2026-10-08), primary session; implemented,
+final executable head `331b670`, evidence in §14.5 Ea-C7 and §14.8. Not merged.
 
 ## 14.0 Freeze record
 
@@ -1416,13 +1417,57 @@ identity to E-b, this commit moves whole.
   M-A8: use mineworld_economy::Wallet;` in `packages/src/found.rs` → check 2 FAILS: "26 workspace
   members read … packages/src/found.rs:2 names mineworld_economy". So check 2 reads the new member and
   scans its sources. Reverted; `git grep PLANTED -- packages` empty, `git status` clean.
-- [ ] Validation on the final executable head (background, Monitor): `cargo fmt --all --check`; `cargo
-  clippy --workspace --all-targets --all-features -- -D warnings`; `cargo test --workspace
-  --no-fail-fast` (counts, wall, compared with base: base + new tests, none removed); EA-6 both towns
-  against the base in force; M-A8; both doc checks; `git diff <base> --stat -- kernel contracts
-  persistence server clients tests/acceptance` empty.
-- [ ] Review: EA-1 … EA-11 each PASS with evidence or reported FAIL; deviations recorded; the PR body
-  lists the evidence and is marked READY FOR OPERATOR REVIEW. Not merged.
+- [x] Validation on the final executable head **`331b670`** (E-Ea-final, background, 456 s in all):
+  `cargo fmt --all --check` → 0; `cargo clippy --workspace --all-targets --all-features -- -D
+  warnings` → 0; `cargo test --workspace --no-fail-fast` → exit 0, 367 s, **602 passed, 0 failed,
+  0 ignored, 0 filtered** over 147 harness result lines, and the three `harness = false` runs
+  (`resolver-yard`, `cafe`, `clock`) PASS. 602 = the last recorded workspace count, 582 (PR 12b, the
+  base's code), + the 20 tests this PR adds (packages 12, sdk 1, worldpack 2, cli 5); none removed.
+  EA-6 against the base (47c81d1; both merges of main since touched no Rust or world): social-cafe
+  `ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b`, market-town
+  `365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d` — both equal to base; `validate`
+  of the three worlds byte-identical. M-A8 as run above. Doc checks: 177 sections / 25 documents,
+  none duplicated; 53 decision ids, distinct. `git diff --stat c198938 HEAD -- kernel contracts
+  persistence server clients tests/acceptance` (c198938 = the merged main) → empty.
+- [x] Review: EA-1 … EA-11 below, each with its evidence; deviations recorded; not merged.
+
+**Acceptance, as measured (E-Ea-final):**
+
+```text
+EA-1  PASS  every_code_pack_… (14 system-pack lines = AVAILABLE in order, located from presence; one
+            controller-pack); M-A1 and M-A2 observed failing (E-Ea6)
+EA-2  PASS  trybuild E0046 "missing `PACKAGE`"; M-A3 observed failing (E-Ea4)
+EA-3  PASS  every code pack at 0.1.0 = CARGO_PKG_VERSION; `mineworld --version` → 0.1.0; M-A4 (E-Ea6)
+EA-4  PASS  packages/tests/manifest.rs (11 refusal rows), tests/packs.rs (3 end to end); M-A5, M-A6
+EA-5  PASS  worldpack/tests/package_fields.rs, tests/packs.rs (bare world validates, refused as a pack
+            naming world.version); M-A7
+EA-6  PASS  both towns' 300-day seed-7 sha equal to base after C3 and on 331b670; seed-8 control differs;
+            validate byte-identical for all three worlds
+EA-7  PASS  the 0.0.0 → 0.1.0 bump moved no digest; kernel/contracts/persistence/server/clients diff
+            against the merged main empty; PACKAGE/package() read only by tools/cli/src/packs.rs
+EA-8  PASS  ac1_composability 13 passed, precursor_vocabulary 4, seam_vocabulary 3; tests/acceptance
+            unedited; check 2 reads 26 members and sees the new crate (M-A8 as run, bullet 3);
+            F-Ea1: it caught a market crate's name in this PR's own test, fixed in a4732f1
+EA-9  PASS  packages/tests/structure.rs; M-A9
+EA-10 PASS  ARC-53, DEP-21 and every spec amendment landed in Ea-C1 (9485af3), before code
+EA-11 PASS  existing tests edited only as planned: three stub impls gained the line (sdk pack.rs,
+            installed/tests/installed.rs, installed/tests/resolution.rs) and worldpack's allow-list
+            gained `mineworld_packages`; each claim unchanged
+```
+
+**Commit map.** C0 `ae2bd5b` · freeze `be2eb6f` · C1 `9485af3` · C2 `258d081` (+ `a4732f1`, F-Ea1) ·
+C3 `66f2d07` · merge `f66b42d` · C4 `e7dcfac` · C5 `63d0c33` · C6 `5ab5f5f` · merge `22d4391` · C7
+`331b670` (final executable head) and the Markdown-only evidence commit after it.
+
+**Deviations, all bounded:** PD-3's rationale corrected (F-Ea2); `package_fields()` instead of
+`package()` (C5); `validate_pack_directory` → `check_style_manifest` and `Identity::of_world` added
+(C2); `tests/packs.rs` self-contained rather than through `support/` (C6); M-A8 run as a bullet-3 plant
+because the planned dependency is a cycle Cargo refuses (C7). None touches a frozen invariant.
+
+**PR E-a lifecycle: READY FOR OPERATOR REVIEW** — final executable head `331b670`; the PR head is the
+Markdown-only commit that records this. Implementation context CLOSED / AWAITING OPERATOR ACTION.
+Post-merge: this session records the merge identity here; the primary session updates §9.2's status,
+the step header and `overall.md`.
 
 ## 14.6 Test ownership
 
@@ -1466,6 +1511,14 @@ against the merged main (if 12d re-baselined the towns, E-a's claim is "unchange
 
 - **E-Ea0** (design, 47c81d1): doc checks 176 sections / 25 documents, 51 decision ids distinct;
   ARC-53…55 and DEP-21…23 free on every `origin/*` branch.
+- **E-Ea-base** (47c81d1, built into `target/ea-base`): 300-day seed-7 runs — social-cafe 339 lines,
+  365 330 facts, sha (all but `wall`) `ad49c723…16c64b` (= step-10's E-0), market-town 355 lines,
+  372 755 facts, `365b50e0…5391d1d`; seed-8 social-cafe control `7b630b4b…690602a`. `validate` of the
+  three worlds saved for `cmp`.
+- **E-Ea1 … E-Ea7, E-Ea-final**: recorded in each commit's items in §14.5.
+- **Environment:** `cargo` is not on this host's non-interactive PATH; every command was run with
+  `$HOME/.cargo/bin` prepended. The first two background runs failed with "command not found" before
+  doing anything (no result was taken from them).
 
 ## 14.9 Freeze questions
 
