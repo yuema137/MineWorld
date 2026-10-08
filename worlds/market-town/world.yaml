@@ -30,6 +30,12 @@ world:
   # Must match this pack's directory name: a pack with two identities has none.
   id: market-town
   name: Market Town
+  # The pack's package identity (docs/DECISIONS.md ARC-53), never world state.
+  version: 0.1.0
+  license: MIT
+
+# The framework versions this world is authored for (ARC-53).
+mineworld: "^0.1"
 
 # The capabilities this world asks for, in the order they are installed — which is the order their
 # reducers run in, so it is the pack's statement and not a sort. `movement`, `conversation` and

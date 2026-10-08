@@ -135,10 +135,16 @@ world that does not enable an installed pack is not affected by it
 `Default` and carries what the build needs to know about the pack beyond `System`:
 
 ```text
+PACKAGE          the pack's package identity (ARC-53): its Cargo name, version, licence, authors and
+                 repository, recorded at compile time by mineworld_sdk::package!(); required
 BIOGRAPHICAL     the pack's event types that belong in a person's biography (ARC-29); default none
 SECTION          the authored section the pack owns (ARC-31), if any; default none
 decode_section   how that section is decoded from a content file; default: refused, naming the pack
 ```
+
+`PACKAGE` has no default: a pack that does not state it does not compile, so no pack in a build is
+anonymous. It is always the same line, the first of the `impl`, and it is read by `mineworld packs`
+only — never by a system, so a pack's version never reaches a fact.
 
 A pack that owns a section implements `mineworld_authoring::AuthoredSection` and writes
 `mineworld_sdk::owns_section!();` inside its `impl SystemPack`. The macro defines `SECTION` and
@@ -146,9 +152,12 @@ A pack that owns a section implements `mineworld_authoring::AuthoredSection` and
 no section writes neither.
 
 ```rust
-impl SystemPack for ConversationSystem {}
+impl SystemPack for ConversationSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+}
 
 impl SystemPack for NamingSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
     mineworld_sdk::owns_section!();
 }
@@ -302,6 +311,11 @@ a silently accepted field is a world its author believes they authored.
 world:
   id: social-cafe          # required. Must equal the pack directory's name.
   name: Social Café        # required. For a person; no system reads it.
+  version: 0.1.0           # optional to the loader; semver. Required by `packs validate` (ARC-53)
+  license: MIT             # optional to the loader; an SPDX expression. Required by `packs validate`
+
+mineworld: "^0.1"          # optional to the loader; the framework versions this world is authored
+                           # for. When present, a framework outside it is refused by name
 
 systems:                   # the capabilities this world enables, in installation order
   - presence
@@ -494,6 +508,13 @@ Six rules govern this subset, and each one is a decision rather than an implemen
    provides but the world does not enable is refused naming that pack, as rule 4 refuses an
    unowned `location`: a silently ignored section is a world its author believes they authored.
 
+**Package fields** (`DECISIONS.md` `ARC-53`). `world.version`, `world.license` and `mineworld:` state
+the World Pack's package identity. They are optional to the loader in MVP-0, and checked whenever they
+are present: a version that is not semver, or a licence that is not an SPDX expression, is refused at
+its line and column, and a `mineworld:` range the running framework (0.1.0) does not satisfy is refused
+naming the range and the framework version. `mineworld packs validate` (§8.1) requires all three. They
+are never world state: no genesis fact, no `Metadata` and no save carries them.
+
 Initial state is **not** written into the world by the loader. Each authored `passage`, each
 authored `location` and each section becomes a recorded event caused by `Causation::WorldGenesis`
 — passages first, because they are facts about places that exist before anybody is in them, then
@@ -613,7 +634,15 @@ presentation/mineworld-default/
 ├── README.md     what the family is, and what the packs must share
 ├── 2D/           manifest.yaml · ART_DIRECTION.md · references/
 └── 3D/           manifest.yaml · ART_DIRECTION.md · references/
-``` The reference images are the source of truth; the manifest
+```
+
+Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECISIONS.md` `ARC-53`,
+[`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §5.0): `id` (`mineworld-default-2d`, `mineworld-default-3d`),
+`type: presentation-pack`, `version`, `mineworld`, `license`, `authors`. The style manifest keeps its
+own `id`, which names the style, not the pack. `mineworld packs validate` checks both files: the
+package fields, and that the style manifest has an `id` and a `dimension` list.
+
+The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract
 (§16).
 
@@ -730,6 +759,9 @@ mineworld run <world> --headless --seed N --days N [--save DIR]
 mineworld inspect <save-directory> [--last N]
 mineworld biography <world> --save DIR --person KEY [--json]
 mineworld create <directory>
+mineworld packs list [--packs DIR]...
+mineworld packs show <id> [--packs DIR]...
+mineworld packs validate <directory>
 ```
 
 | Command | What it does |
@@ -741,6 +773,7 @@ mineworld create <directory>
 | `inspect` | Reports what a save holds, without resuming or writing it. Described below. |
 | `biography` | Prints a Person's objective biography, derived from a save's fact log without resuming or writing it ([`DECISIONS.md`](DECISIONS.md) `ARC-29`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
+| `packs` | Prints package identities (`DECISIONS.md` `ARC-53`): `list`, `show` one, `validate` one data pack. Described below. |
 
 **`run`.** `--headless` is required: it states the only mode `run` has in MVP-0, and leaves a
 non-headless `run` possible later without changing what an existing invocation means. `--seed N`
@@ -794,6 +827,25 @@ rule `EntityKey` enforces). The pack written has one place, two people who are b
 systems `presence`, `movement` and `conversation`, and it is read and loaded before `create`
 reports success. An existing directory is refused and left untouched.
 
+**`packs`** (`DECISIONS.md` `ARC-53`). Package identities, never world state:
+- `list` prints one line per pack — type, id, version, licence, authors (`—` for a world, which has
+  none), then for a System Pack `system <id>` and for a data pack its directory — and last a count.
+  It reads the build's code packs (every System Pack of the installed set in its order, then the
+  controllers this binary composes) and then, for each `--packs DIR` in the order given, every
+  immediate subdirectory of `DIR` holding `world.yaml` or `pack.yaml`, by name. A subdirectory holding
+  neither is not a pack and is not listed; one holding both is refused; a `DIR` that is itself a pack
+  is refused. Nothing is read from a directory that was not named.
+- `show <id>` prints every package field of one pack, `repository` or `—`, a data pack's `mineworld`
+  range, and for a System Pack its system id and `SystemVersion`. An id no source provides is refused,
+  listing the ids that exist.
+- `validate <directory>` checks one data pack: its package fields, all required, then its content —
+  a World Pack is read and loaded as `validate` does; a Presentation Pack's style manifest must have an
+  `id` and a `dimension` list.
+
+Every pack's identity is validated: an id outside the rule, a version that is not semver, a licence
+that is not an SPDX expression, a missing author, an unknown or missing field, a `type` the file does
+not carry, and two packs with one id are each refused by name with a non-zero exit.
+
 ---
 
 # 9. Dependencies, versions, and migration
@@ -819,6 +871,16 @@ Rules:
    world history is durable ([`ARCHITECTURE.md`](ARCHITECTURE.md) §7).
 3. Before MineWorld publishes stable public contracts, a wrong interface is fixed cleanly
    rather than wrapped in adapters (§29 of the standards).
+4. **A pack's `SystemVersion` and its release version are two things** (`DECISIONS.md` `ARC-53`).
+   `SystemVersion` is the contract counter a save is checked against; the semver version is what a
+   range is checked against. Raising `SystemVersion` — which makes existing saves refuse — is a
+   breaking release: a MINOR bump before 1.0, a MAJOR bump from 1.0.
+
+**What MVP-0 implements of this list** (`ARC-53`): `id`, `version`, a type, a `mineworld` range for
+data packs, an SPDX `license` and provenance (authors, repository), stated by each pack's own carrier
+(`PACKAGE_FORMAT.md` §5.0), and printed by `mineworld packs` (§8.1). `dependencies` between code packs
+are Cargo's; a world's requirements, `requires` capabilities, `provides`, and configuration and
+migration schemas are not implemented.
 
 ---
 

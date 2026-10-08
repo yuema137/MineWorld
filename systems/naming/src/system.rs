@@ -32,6 +32,7 @@ impl SystemIdentity for NamingSystem {
 /// biographical facts (none), and the `name:` section of a person's file, which its
 /// `AuthoredSection` impl (`src/section.rs`) describes.
 impl SystemPack for NamingSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
     mineworld_sdk::owns_section!();
 }

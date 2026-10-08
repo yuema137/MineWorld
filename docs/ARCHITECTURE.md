@@ -517,6 +517,8 @@ mineworld/
 ├── server/        the process that hosts the kernel
 ├── clients/       godot, admin-web
 ├── sdk/           python, rust
+├── packages/      what a package is: package identity, pack.yaml, versions and licences
+│                  (a leaf crate, DECISIONS.md ARC-53)
 ├── worlds/        sample World Packs
 ├── tools/         world-validator, replay, inspector, benchmark
 └── tests/         conformance and acceptance tests

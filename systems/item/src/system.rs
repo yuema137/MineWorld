@@ -26,6 +26,7 @@ impl SystemIdentity for ItemSystem {
 /// biographical, and the `item:` section of an item file, which its `AuthoredSection` impl
 /// (`src/section.rs`) describes.
 impl SystemPack for ItemSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     mineworld_sdk::owns_section!();
 }
 
