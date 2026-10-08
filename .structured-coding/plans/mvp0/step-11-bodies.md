@@ -4102,7 +4102,11 @@ ruling.
 # 18. PR 12c — objects: walking pushes them; kick, throw and shove (full design; DESIGN FROZEN 2026-10-08)
 
 **Lifecycle:** drafted by the planning session on `mvp0/s15-12c-plan` on 2026-10-08, stacked on the 12b
-post-merge docs PR (#60). Frozen by the primary session on 2026-10-08 (§18.0).
+post-merge docs PR (#60). Frozen by the primary session on 2026-10-08 (§18.0). **READY FOR OPERATOR
+REVIEW** (2026-10-08): implemented on `mvp0/pr-12c-objects`, final executable head 145c7f7's tree (the
+squashed PR's code is that tree); the implementation context is CLOSED / AWAITING OPERATOR ACTION.
+Merge with a merge commit, by the operator only. Post-merge sync: the planning session owns the step
+header, §§1–15, overall and MVP_STATUS's Updated and S15 lines; this session owns §18.
 
 ## 18.0 Freeze record
 
@@ -4296,6 +4300,26 @@ rapier.rs only          friction 0.5, restitution 0.1, rotations locked (no rota
 | **SD-O19** | **The test world: `worlds/bodies-yard`, extended** (QO-15).<br>- `items:` gains seven objects, each `items/<key>.yaml` with tags and a `body:` in object form; no `item:` section; the `item` pack is not installed.<br>- The hall: two boxes, half 200 mm; a crate, half 300 mm; two balls, radius 110 mm.<br>- The court: a box, half 200 mm; a ball, radius 110 mm.<br>- Every object at least 700 mm from every authored person and from the doorway points, and clear of the table and the pillar.<br>- README: the objects and the three actions. | The world already runs every path 12c needs: the real loader, `validate`, `mineworld run` with the unchanged controller, `--save`, SIGKILL and resume, and world-level removal. Shove changes it in any case (F-O12). A sibling world would duplicate the harness and re-prove nothing new. |
 | **SD-O20** | **What changes in a save.** bodies `VERSION` 2: a save written by 12b is refused at bodies' record, "system 'bodies' is v2 here, but the save was written by the older v1". No other pack's version changes. | `ARC-25`: versions are refused, never guessed. |
 | **SD-O21** | **Documents** (PO-C1, before code):<br>- **`ARC-36` note** (QB-3): an Item file with a `body:` section is one physical object, not a kind; it is never a declared kind, so it is never held; instances in general are still out.<br>- **`ARC-39` note 2:** the resolver predicts object pushes and falls back to objects solid (SD-O9, SD-O10); the reaction pushes against the objects as they lay (F-O2); the guard covers objects; `shove` states through `arrivals()`.<br>- **`DEP-13` note:** dynamics are now used — one dynamic body per flight, rotations locked, bounded steps, the rest rule, CCD, F-P1's re-mark exercised.<br>- **`MODULE_SPEC.md` §4.1:** the `body` row's object form; the item-file paragraph ("an item file declares an item kind, unless it carries `body:`"); an item example.<br>- `systems/bodies/README.md` and `lib.rs`'s table; `MVP_STATUS.md`. | `CLAUDE.md` §2.2: the documents come first. QB-3 said "amending ARC-36's wording (in 12c)". |
+
+**Note on SD-O13 (and SD-O11), 2026-10-08 — rung p3, by the primary session's ruling on the AO-2
+stop (§18.11 DO-16).** An unaimed kick or throw — a kick always, a throw with `toward: null`, the
+complete affordance's default — sends the object toward the room's **free centre**: the floor
+rectangle's centre, or, when the object's footprint there would meet a solid, the nearest point of the
+object's 50 mm lattice where it meets none, ordered by (distance², y, x). A kick launches along object →
+free centre at `KICK_SPEED` (an object already there goes along kicker → object, then east). An unaimed
+throw aims at the free centre if it is within `THROW_DEFAULT`, else `THROW_DEFAULT` along the line to it.
+The object still launches from where it lies; reach is still measured from the kicker; an aimed throw is
+unchanged. Rungs p1 stays; p2 stays reverted. The AO criteria are unchanged, and must hold on seeds 7,
+8 and 9.
+
+**Note on SD-O13, 2026-10-08 — rule p4, by the primary session's ruling on the second AO-2 stop (§18.11
+DO-17): a launched object never comes to rest within 300 mm of a solid unless its flight was blocked.**
+`REST_CLEARANCE` = 300 mm, fixed before measuring (a person's radius). (1) The free centre is the
+nearest lattice point whose footprint keeps 300 mm from every solid (a ball's centre 300 mm + its radius
+away), same ordering. (2) A flight whose end rests on the floor within 300 mm of a solid is pulled back
+along its line toward where it began, in 10 mm steps, to the first point that keeps the clearance; when
+no point of the line does, the flight was blocked and the end stands. (3) The landing ladder's lattice
+rung prefers clear points. An end on a solid's top is unaffected.
 
 ## 18.4 Acceptance (decided before measuring, `ARC-23`)
 
@@ -4737,24 +4761,33 @@ fails, SD-O18's ladder is walked in order — c1, p1, p2 — each rung recorded 
 and the criteria are never changed. If no rung passes, the work stops and returns to the primary
 session.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `mineworld validate worlds/bodies-yard` exit 0; `cargo test -p mineworld-cli --test
-  bodies_yard --test bodies_yard_restart` (background); `cargo test -p mineworld-bodies --test
-  long_run_objects`; M-PO2 (binary) and M-PO9 fail by name, reverted.
-- [ ] Review: the scan reads only the save and the packs' published fact types; its geometry literals
+- [x] Implementation: as scoped, with the four AO-2 stops and their rulings (DO-13, DO-16, DO-17,
+  DO-18, the AO-2 rulings in §18.11): the world (16 objects, c1), p1, p3, p4, DO-18; the scan with
+  AO-2′; PO-2 and PO-16 binary refusals; PO-10's assertions; PO-11's activity line;
+  long_run_objects (E-PO6 … E-PO11).
+- [x] Validation: `mineworld validate worlds/bodies-yard` exit 0; bodies_yard (4 tests + the ignored
+  three-seed evidence test) and bodies_yard_restart PASS; long_run_objects PASS; M-PO2 (binary) and
+  M-PO9 fail by name, reverted (E-PO11).
+- [x] Review (self): the scan reads only the save — presence's and conversation's facts through their
+  published types, bodies' through their JSON (DO-12); the rooms' literals are asserted against the
+  place files, heights included; the survivors' exclusions as PB-11; the activity counts are printed per
+  bucket, per seed. Original review item: the scan reads only the save and the packs' published fact types; its geometry literals
   are asserted against the world files; the survivors' exclusions are asserted as in PB-11; the
   activity counts are printed per bucket.
 
 ### PO-C7 — Close: cross-architecture, cost, the towns, the gate, the ledger
 
-- [ ] PO-12: the x86_64 build and the three Rosetta comparisons.
-- [ ] PO-13 a release: the mean per swept move and per kick.
-- [ ] PO-14: one 300-day dev run of the extended bodies-yard, and one of PO-10's copy for the ratio.
-- [ ] PO-1 on the final executable head: both town digests, both `validate` comparisons.
-- [ ] PO-15, PO-18: the structural tests in the gate; the scope check; fmt, clippy; the full gate once.
-- [ ] Documentation: `docs/MVP_STATUS.md` (a capability row "Bodies: objects, kick, throw, shove" and
-  one evidence row), `systems/bodies/README.md`, §18's checkboxes, §18.10, §18.11, the handoff.
-- [ ] Review: PO-1 … PO-18 each with evidence; deviations named; FU-12a-1 and F-B7 untouched (12d's).
+- [x] PO-12: the x86_64 build and the three Rosetta comparisons (E-PO11: PASS).
+- [x] PO-13 a release: 48.1 µs per swept move, 198.9 µs per kick (E-PO11: PASS).
+- [x] PO-14: 30.7 s (≤ 40), the copy 9.9 s, ratio 3.1× (E-PO11: PASS).
+- [x] PO-1 on the final binary: both town digests, both `validate` comparisons (E-PO11: PASS).
+- [x] PO-15, PO-18: the structural tests in the gate; the scope check; fmt, clippy; the full gate —
+  run twice: the first found a test-harness race, fixed; the second, on the final head, PASS (E-PO11).
+- [x] Documentation: `docs/MVP_STATUS.md` (the capability row and an evidence row),
+  `systems/bodies/README.md` (new) and `lib.rs`'s table, §18's checkboxes, §18.10, §18.11, the handoff.
+- [x] Review (self): PO-1 … PO-18 each with evidence (E-PO1 … E-PO11; PO-9 under the AO-2 rulings);
+  deviations DO-1 … DO-18 and the AO-2 rulings named; FU-12a-1 and F-B7 untouched (12d's); FU-12c-1
+  carried to planning.
 
 ## 18.6 Test ownership
 
@@ -5084,6 +5117,278 @@ E-PO5 PO-C5, 2026-10-08, working tree on 92dd1be + PO-C5's paths (systems/bodies
         M-PO1 (shove offered before the place-shape check) → actions FAILED PO-17: "nothing from
           bodies: [("shove", Some("other"), "{}", false)]".
       `cargo fmt --all --check`; clippy -p mineworld-bodies -D warnings clean.
+
+E-PO6 PO-C6 (partial — STOPPED at PO-9's activity criteria, a material stop), 2026-10-08, working tree
+      on b18b465 + the extended world, the scan's QO-16 edits, SD-O18's rungs c1 and p1, and the shove
+      fix (DO-14). Every run: `cargo test -p mineworld-cli --test bodies_yard thirty_days -- --nocapture`
+      (the real binary, `run worlds/bodies-yard --headless --seed 7 --days 30 --save S`, then the scan
+      of S), ≈ 5 s each. AO-1 … AO-3 as §18.4 fixed them, unchanged; counts per 10-day bucket as
+      kicks / throws / shoves / pushes / stopped-short by an object; AO-3's maximum per seat; AO-1
+      held in every run (every seat moved ≥ 342 and talked ≥ 297 times per bucket).
+        run 1  SD-O19's seven objects, no rung        1–10: 4/4/1 176/8/10   11–20: 0/0/1 237/0/0
+               21–30: 1/0/1 264/1/0; AO-3 max 124.    FAIL (AO-2, bucket 2: no kick, throw, push,
+               stopped-short by an object)
+        run 2  c1: 13 objects, six beside the doors and furniture (door objects ≈ 1 000 mm from the
+               doorway points)                         1–10: 14/9/1 200/14/17  11–20: 1/2/1 253/1/1
+               21–30: 4/1/1 196/0/4; max 124.          FAIL (AO-2, bucket 3: no push)
+        run 3  c1 + p1 (shove complete within 800 mm) 1–10: 18/15/966/34/60  11–20: 4/3/1 040/1/9
+               21–30: 7/8/1 071/1/4; max 105.          AO PASS — but the scan then found 385
+               violations "moved 500 mm (at most 500)": a shove asked for a fraction of a millimetre
+               more than 500 mm (DO-14, a defect, fixed with a regression test)
+        run 4  c1 + p1, the shove fixed               1–10: 11/8/1 048/13/28  11–20: 4/1/1 025/3/3
+               21–30: 2/0/1 030/1/3; max 110.          FAIL (AO-2, bucket 3: no throw)
+        run 5  c1 completed (8 objects per room) + p1 1–10: 16/13/1 000/28/33  11–20: 0/1/1 049/1/2
+               21–30: 1/0/1 027/2/0; max 108.          FAIL (AO-2, bucket 2: no kick)
+        run 6  c1 with the door objects 750 mm from the doorway points (within reach of every
+               crossing) + p1                          1–10: 19/16/969/28/56  11–20: 9/7/1 007/3/16
+               21–30: 1/0/1 022/0/9; max 101.          FAIL (AO-2, bucket 3: no throw, no push)
+        run 7  c1 + p1 + p2 (kick and throw complete for the nearest object only)
+                                                       1–10: 11/9/1 006/27/39  11–20: 1/2/1 044/3/0
+               21–30: 6/1/1 036/3/4; max 114.          FAIL (AO-2, bucket 2: no stopped-short by an
+               object). p2 reverted afterwards; the tree holds c1 (run 6's content) + p1.
+      Every rung of SD-O18's ladder fails AO-2 in a later bucket: §18.9's material stop "AO-1 … AO-3
+        failing on every rung of SD-O18's ladder". Budget: 8 runs (1 … 7 and 5b) against §18.9's "at
+        most three re-runs" for the ladder — each ≈ 5 s; runs 3 and 4 were forced by the shove defect,
+        5b was a diagnostic.
+      What the counts say (for the decision, not a remedy taken):
+        - AO-1 and AO-3 hold with a wide margin in every run (AO-3 maximum 101 … 124 of 144).
+        - AO-2 holds in days 1–10 every time and decays afterwards. Objects that are kicked or thrown
+          travel 2 … 3 m and often end against a wall — runs 5 and 6 each end with 5 of 16 objects
+          within 250 mm of a wall, two of them in corners — while objects nobody reaches stay where
+          they were authored (run 6: hall-box-west, hall-ball-2 and court-box-east never moved in 30
+          days). People wander ±1 400 mm and gather to talk, and seldom come within 800 mm of an
+          object again: in a diagnostic re-run of run 5's content (run 5b, the scan printing each
+          object's nearest approach), the nearest any person came to court-box-east's centre in 30
+          days was 1 274 mm, to hall-box-west's 802 mm. Later buckets see 0 … 9 kicks and 0 … 8
+          throws, so pass or fail is a matter of the seed's trajectory (run 3 passed; run 4 — the
+          same content and policy with one shove defect fixed — failed).
+        - Shoves dominate the offered band (≈ 1 000 per bucket) with or without p1.
+      Not run, pending the decision: PO-9's scan verdict on the final content, PO-10, PO-11, PO-12,
+        PO-14 (each depends on the yard's final content), PO-2's and PO-16's binary refusals, and
+        PO-C7.
+
+E-PO6b PO-13 a (independent of the yard's content, run while the decision is pending), 2026-10-08,
+      same working tree. `systems/bodies/tests/long_run_objects.rs` (new): the prototype's 3 000-request
+      sequence with its four props, kicks by the nearest person (DO-15).
+        dev: 1 472 moves reached Rapier, mean 48.5 µs; 363 kicks accepted, mean 127.3 µs; 89 refused;
+          closest person–object centres p06 and prop2, 412 mm, after request 1 383; every request's
+          N-1 … N-4 and SD-O2 held (`assert_holds` after each); 537 454 bytes identical in a second
+          process. PASS.
+        release (`cargo test --release --offline -p mineworld-bodies --test long_run_objects --
+          --nocapture`, 19.3 s build): mean 52.8 µs per move that reached Rapier (bound ≤ 100 µs:
+          PASS), 109.7 µs per accepted kick (bound ≤ 2 000 µs: PASS); the same 537 454 bytes in a
+          second process. Log /tmp/s15-12c/release-long-run-objects.log.
+
+E-PO7 Rung p3 (the primary session's ruling), 2026-10-08, working tree on d4ebe46 + p3 (flight.rs,
+      launch.rs) and its tests. STOPPED again: AO-2 fails on all three seeds.
+      `cargo test -p mineworld-bodies`: all green — lib 14 (free_centre and the new default aim
+        against hand-computed literals: café (4 160, 5 160); the hall's table-covered centre → (6 010,
+        5 110); a kick from (2 700, 5 000) → (4 973, 545, 0) mm/s; an unaimed throw from (200, 200) →
+        (2 071, 2 544)), actions 25 — the new scenario `a_ball_kicked_near_a_wall_travels_toward_the_
+        centre`: ball (8 100, 5 000) against the east wall, kicker (8 000, 4 300) → (5 563, 5 103),
+        2 503 mm nearer the centre; PO-4 c restated along the new line → (5 226, 5 277): 2 541 along,
+        0 off; PO-5 a → (4 154, 5 159), at the free centre.
+      M-P3 (the kick's direction back to kicker → object) → the new scenario FAILED: "(8100, 5000) →
+        (8203, 6460): at least 1 500 mm nearer the centre: 3943 → 4246 mm" — along the wall. Reverted;
+        `git grep MUTATION` empty. fmt and clippy (bodies, cli) clean; long_run's bytes unchanged
+        (no kick in it).
+      AO runs (c1 + p1 + p3; 30 days; kicks / throws / shoves / pushes / stopped-short by an object):
+        seed 7  1–10: 21/17/950/36/55   11–20: 4/10/1 028/6/11   21–30: 3/3/1 071/0/6   FAIL (no push,
+                days 21–30); AO-3 max 104
+        seed 8  1–10: 22/25/1 000/45/62  11–20: 9/8/1 077/1/13   21–30: 3/2/1 011/0/8   FAIL (no push,
+                days 21–30); AO-3 max 106
+        seed 9  1–10: 18/24/1 016/33/40  11–20: 7/7/1 039/0/14   21–30: 7/5/1 043/6/16  FAIL (no push,
+                days 11–20)
+        AO-1 held on every seed. Runs used: 3 of the 6 granted.
+      What changed and what did not: kicks and throws now persist in every bucket (3 … 10), and
+        stopped-short by an object too (6 … 16). Pushes do not: the objects now gather around the
+        room's centre — at day 30 on seed 7, seven of the court's eight lie within 750 mm of the
+        pillar's centre (the eighth never moved), and six of the hall's eight against the table's
+        sides (the other two never moved) — so a walker who reaches one usually finds it jammed against the
+        pillar, the table or another object: the stride is resolved with objects solid (a stopped-short
+        by the object), not a push.
+
+E-PO8 Rule p4 (the primary session's second ruling), 2026-10-08, working tree on 589813e + p4.
+      STOPPED a third time: AO-2 fails on all three seeds.
+      `cargo test -p mineworld-bodies`: all green — lib 14 (free_centre now (6 010, 5 410) for the
+        hall's table, hand-computed), actions 26 — `a_thrown_ball_does_not_come_to_rest_against_the_
+        counter`: aimed at (5 000, 6 400), 60 mm short of the counter's face, the ball rests at (5 000,
+        6 160, 110), the first point of its line 300 mm clear.
+      M-P4 (REST_CLEARANCE 300 → 0) → the scenario FAILED: "(5000, 4000, 110) → (5000, 6460, 110)",
+        against the counter; and the free-centre unit test FAILED: (6 010, 5 110). Reverted.
+      AO runs (c1 + p1 + p3 + p4; the 3 runs the ruling granted; counts kicks / throws / shoves /
+        pushes / stopped-short by an object):
+        seed 7  1–10: 31/25/993/68/66   11–20: 5/0/1 042/1/5   21–30: 4/0/1 017/4/11  FAIL (no throw,
+                days 11–30)
+        seed 8  1–10: 28/20/995/48/52   11–20: 2/4/1 056/0/7   21–30: 2/2/1 018/1/3   FAIL (no push,
+                days 11–20)
+        seed 9  1–10: 22/14/1 000/51/38 11–20: 3/3/1 009/5/3   21–30: 2/0/1 094/4/5   FAIL (no throw,
+                days 21–30)
+        AO-1 held on every seed; AO-3 maxima 107, 126, 112.
+      Objects at day 30 (centre x, y, z):
+        seed 7  court: ball (5 503, 4 781) · ball-door (4 584, 5 277) · ball-north (5 236, 6 256) ·
+                ball-pillar (5 152, 3 947) · ball-west (4 455, 6 461) · box (4 432, 4 077) · box-door
+                (4 850, 4 200) · box-east (7 500, 5 000, never moved); hall: ball (5 555, 3 587) ·
+                ball-2 (3 500, 6 200, never moved) · ball-door (7 213, 5 186) · ball-table (6 010,
+                5 411) · box-door (6 879, 5 205) · box-east (5 927, 3 547) · box-west (3 000, 4 500,
+                never moved) · crate (7 000, 7 800, never moved)
+        seed 8  court: ball (6 232, 3 814) · ball-door (4 589, 5 010) · ball-north (5 841, 3 173) ·
+                ball-pillar (5 111, 4 286) · ball-west (5 542, 5 632) · box (4 979, 3 867) · box-door
+                (4 781, 4 271) · box-east (7 500, 5 000, never moved); hall: ball (4 922, 2 209) ·
+                ball-2 (3 500, 6 200, never moved) · ball-door (4 893, 5 473) · ball-table (5 955,
+                5 751) · box-door (6 017, 3 500) · box-east (5 618, 3 579) · box-west (3 531, 3 754) ·
+                crate (6 550, 3 400)
+        seed 9  court: ball (6 500, 3 500, never moved) · ball-door (4 584, 5 141) · ball-north
+                (5 068, 5 905) · ball-pillar (5 566, 4 571) · ball-west (6 629, 3 685) · box (5 798,
+                3 994) · box-door (5 398, 4 010) · box-east (7 500, 5 000, never moved); hall: ball
+                (5 000, 2 500, never moved) · ball-2 (3 500, 6 200, never moved) · ball-door (4 414,
+                5 797) · ball-table (6 236, 6 269) · box-door (6 000, 3 500) · box-east (6 211, 3 086)
+                · box-west (4 334, 4 105) · crate (6 938, 7 867)
+      Reading: every object now rests clear of the furniture, and the days 1–10 counts are the highest
+        of any configuration; activity in days 11–30 is still 0 … 5 per action per bucket, so a
+        bucket with no throw or no push is a matter of the seed. Per the ruling: no rung, no criterion
+        changed; reported for the primary session's open decision.
+
+E-PO9 The AO-2 ruling (primary session, 2026-10-08, decided after failed measurements and recorded
+      as such; §18.11 "AO-2 ruling"). **AO-2 FAILED as frozen** — with p1 (E-PO6 runs 3–6), with p3
+      (E-PO7: seeds 7, 8, 9) and with p4 (E-PO8: seeds 7, 8, 9); the three tables stand in E-PO6,
+      E-PO7 and E-PO8. AO-2 is replaced by AO-2′, checked on the p4 saves already made (no new run):
+      the three saves copied to /tmp/s15-12c/p4-saves/bodies-yard-30-seed-{7,8,9} and read by
+      `BODIES_YARD_SAVES=/tmp/s15-12c/p4-saves cargo test -p mineworld-cli --test bodies_yard
+      thirty_days_of_bodies_yard_at_seeds_7_8_and_9 -- --ignored --nocapture`.
+        (a) aggregate, every bucket summed over the seeds (kicks / throws / shoves / pushes / stopped
+            by an object): days 1–10 81/59/2 988/167/156; 11–20 10/7/3 107/6/15; 21–30 8/2/3 129/9/19.
+            HOLDS.
+        (c) every action in days 1–10 of every seed. HOLDS.
+        (b) every moved object at day 30 ≥ 300 mm from every solid or on a solid's top. FAILS on every
+            seed — ten objects (last move: where from → where to, gap to the solid):
+            seed 7  court-ball pushed (5 711, 5 008) → (5 503, 4 781), 93 mm; court-ball-door kicked
+                    (4 589, 5 277) → (4 584, 5 277), 6 mm; hall-ball-door kicked (7 208, 5 186) →
+                    (7 213, 5 186), 172 mm; hall-box-door kicked (6 879, 5 204) → (6 879, 5 205), 5 mm;
+                    hall-box-east pushed (5 980, 3 500) → (5 927, 3 547), 253 mm
+            seed 8  court-ball-door kicked (4 545, 5 010) → (4 589, 5 010), 1 mm; court-box-door kicked
+                    (4 793, 4 467) → (4 781, 4 271), 229 mm; hall-box-east pushed (5 704, 3 598) →
+                    (5 618, 3 579), 221 mm
+            seed 9  court-ball-door kicked (4 589, 5 141) → (4 584, 5 141), 6 mm; court-ball-pillar
+                    thrown (5 000, 4 400) → (5 566, 4 571), 185 mm
+        AO-1 and AO-3 hold on all seeds (E-PO8). Per the ruling's point 4: STOPPED and reported.
+      What the list shows — three ways an object comes to rest near a solid that p4 does not cover:
+        1. pushes: p4 governs launched objects only; a push moves an object just clear of its pusher,
+           and that can be against the side of the pillar or the table (seed 7 court-ball, hall-box-east;
+           seed 8 hall-box-east);
+        2. launches that start near a solid: when no point of the line from the start to the end keeps
+           the clearance, DO-17's reading of "blocked" lets the end stand (seed 9 court-ball-pillar,
+           thrown from (5 000, 4 400), itself 190 mm from the pillar);
+        3. p3 kicks toward the free centre whatever the kicker's side: a kicker standing between the
+           object and the free centre kicks it into their own capsule, and it moves 0 … 5 mm, from a
+           start that was already against the solid (the four "door" objects).
+
+E-PO10 The final AO-2 ruling's measurement, 2026-10-08, working tree on ecce915 + DO-18 + (b′).
+      DO-18 (a defect fix to p3): `cargo test -p mineworld-bodies` all green — lib 14 (kick_velocity
+        with the kicker at (3 400, 5 080) between the ball (2 700, 5 000) and the café's centre →
+        (−4 972, −569, 0) mm/s, hand-computed), actions 27 — the new scenario `a_kicker_between_the_
+        ball_and_the_centre_kicks_it_away_from_themselves`: the ball goes (2 700, 5 000) → (174, 4 711).
+        M-DO18 (the into-kicker branch disabled) → the scenario FAILED: "(2700, 5000, 110) → (3010,
+        4960, 110): at least a metre west" — the ball kicked into the kicker. Reverted.
+      The one measurement (3 runs, seeds 7, 8, 9): `cargo test -p mineworld-cli --test bodies_yard
+        thirty_days -- --include-ignored --nocapture` → the three-seed evidence test PASSED; log
+        /tmp/s15-12c/final-ao.log. Counts (kicks / throws / shoves / pushes / stopped by an object):
+        seed 7  1–10: 19/21/1 002/48/77   11–20: 0/3/1 057/3/4    21–30: 4/5/1 066/5/6
+        seed 8  1–10: 33/21/1 010/32/58   11–20: 4/8/1 067/9/14   21–30: 1/0/1 071/3/8
+        seed 9  1–10: 17/17/1 003/41/47   11–20: 7/4/1 013/5/7    21–30: 3/11/1 057/16/10
+        (a) summed: 1–10 69/59/3 015/121/182; 11–20 11/15/3 137/17/25; 21–30 8/16/3 194/24/24. HOLDS.
+        (b′) every object, every seed, has free standing points within 800 mm — fewest 171
+             (seed 8, court-ball-pillar at (4 760, 4 110)). HOLDS.
+        (c) every action in days 1–10 of every seed. HOLDS.
+        AO-1 HOLDS; AO-3 HOLDS (maxima 104, 116, 111). The scan: 0 violations on every seed (31 219,
+        31 221, 31 287 requests); closest pairs 595 mm; closest person–object 295 … 297 mm. PASS.
+      The committed seed-7 test ran concurrently with the evidence test on the same save path and
+        failed "storage: database is locked" — a harness defect (two tests sharing one save), not the
+        pack: each test now saves under its own name. Re-run alone (a 4th run, needed by the gate in
+        any case): PASS, 31 219 requests, 0 violations — the evidence test's seed-7 numbers exactly.
+      Tool-discipline slip, recorded: one Bash call ran an empty `python3 - <<EOF` heredoc while
+        reaching for the Edit tool; it wrote nothing and was not repeated.
+
+E-PO11 PO-C6's remainder and PO-C7, 2026-10-08, on the code of 6c44db1 (the source tree of the final
+      executable head; later commits change one test file's directory names and Markdown only).
+      PO-2 (binary) and PO-16, `objects_that_do_not_fit_and_held_objects_are_refused_at_load`: each copy
+        refused by the real `validate`, naming its subject — "bodies-unshaped: court-ball lies in
+        court …"; "bodies-object-on-person: hall-ball at (4200, 2000) lies under ben …";
+        "bodies-object-in-solid: hall-box-west at (4900, 4500) in hall meets solid 0";
+        "bodies-object-outside: hall-ball at (50, 2500) …"; "bodies-object-overlap: hall-ball-2 at (3500,
+        6200) overlaps hall-ball at (3600, 6200) …"; "bodies-capacity: hall's floor has room for a person
+        at 226 points … a world of 12 people with 21 objects there needs 234" (24 boxes half 400 added);
+        the loader at the line: "line 8 column 10: a ball's radius is 50 to 400 mm; this one is 0 mm",
+        "… a box's half-extents are 50 to 400 mm in x and y …", "unknown field `spin`, expected one of
+        floor, solids, shape, at", "… never both"; "bodies-section-kind" for the object form in court.yaml
+        and the place form in hall-ball.yaml; PO-16: "bodies-held-kind: hall-ball carries both `body:` and
+        `item:` …" and "system 'inventory' refused to reduce 'stocked': PreconditionFailed" (inventory's
+        own words). PASS. The yard validates (41 genesis facts). M-PO2 (binary: the person check `&&
+        false`) → FAILED "on-person: the copy must be refused". Reverted.
+      PO-10: the copy without bodies (16 items' and 2 places' `body:` stripped) runs 30 days, faults 0,
+        every seat moves, no stopped-short, displaced arrival, kick, throw, shove or push in any bucket,
+        none of kick/throw/shove/object-moved/person-shoved/object-placed in its summary; the scan sees
+        269 202 violations, ada and cleo 0 mm apart. PASS.
+      PO-11 (`bodies_yard_restart`, 41.8 s): control 62 855 facts, 31 220 journal rows, 488 snapshots;
+        10 334 stopped-short, 7 246 displaced, 23 kicks, 29 throws, 3 125 shoves, 56 pushes; a second
+        process byte-identical; SIGKILL at days 5, 15, 25 → resumed at revisions 5 222, 15 649, 26 031
+        with 38, 33, 47 re-executed, byte-identical to the control; `replay` → "31220 revision(s)
+        re-executed from genesis, 62855 fact(s) and 488 snapshot(s) reproduced byte for byte". PASS.
+        M-PO9 (a process-global counter's parity added to KICK_SPEED) → FAILED "killed at day 5: facts
+        row counts differ". Reverted.
+      PO-12 (Rosetta; binaries /tmp/s15-12c/final-mineworld and x86-mineworld, Mach-O x86_64, built
+        48.1 s; logs /tmp/s15-12c/pb12-final): (a) 30 days, seed 7, arm64 and `arch -x86_64`: summary
+        sha-256 (every line but `wall`) 6e4c4015…c8395 both, 62 855 facts; (b) arm64 save to day 15,
+        x86_64 resumed "at revision 15649 (snapshot 15616 + 33 re-executed)", 62 855 facts, fingerprint
+        e9398cf4… = uninterrupted; arm64 `replay` of it byte for byte; (c) the reverse, the same. PASS.
+      PO-13 a on the final code (release): 1 652 swept moves, mean 48.1 µs (≤ 100); 310 kicks, mean
+        198.9 µs (≤ 2 000); 569 932 bytes identical in a second process. PASS. PO-13 b: long_run's
+        line `cmp`-identical to the base. PASS.
+      PO-14 (dev, 300 days, seed 7): worlds/bodies-yard → faults 0, 628 413 facts, wall 30.7 s (≤ 40:
+        PASS); the copy without bodies → faults 0, 429 606 facts, 9.9 s; ratio 3.1×, information.
+      PO-1 on the final binary: social-cafe 365 330 facts, sha ad49c723…c64b, 14.7 s; market-town
+        372 755 facts, sha 365b50e0…1d1d, 15.0 s; faults 0; both `validate` `cmp`-identical to the base.
+        PASS. 300-day runs in all: 6 (PO-1 ×4, PO-14 ×2) — the budget's six.
+      Full gate, first run (12:58–13:05, on 6c44db1): fmt 0, clippy 0, doc checks clean; `cargo test
+        --workspace --no-fail-fast`: 635 passed, 1 failed, 1 ignored in 143 binaries — the failure is a
+        harness race: the new object refusals and 12b's refusals made copies under the same directory
+        names ("overlap", "in-solid", …) at the same time ("reads: NotFound"). Fixed by giving the new
+        copies their own names (one test file); the gate re-run on the final head (below).
+      **Full gate on the final executable head 145c7f7** (13:05:52–13:10:31, 4 min 39 s): `cargo fmt
+        --all --check` exit 0; `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+        exit 0; `cargo test --workspace --no-fail-fast` exit 0 — 143 test binaries, 636 passed, 0
+        failed, 1 ignored (`thirty_days_of_bodies_yard_at_seeds_7_8_and_9`, the evidence test); the
+        `harness = false` programs "[resolver-yard] PASS", "[cafe] PASS", "[clock] PASS";
+        ac1_composability 13, precursor_vocabulary 4, seam_vocabulary 3, bodies_yard 4 (+1 ignored),
+        bodies_yard_restart 1, objects 7, scenarios 17; `check_doc_headings.py` 176 sections, none
+        duplicated; `check_decision_ids.py` 51 ids, all distinct. Logs /tmp/s15-12c/gate2*.log. PASS.
+      PO-15 / PO-18: Rapier named only in rapier.rs and no float outside it (isolation 5); rapier_pin
+        (2, "0.36.0"); the system dependency presence alone, the crates presence and item, item read for
+        is_declared only; `git diff --stat 0fd0be3 --` kernel/, contracts/, persistence/, server/,
+        clients/, authoring/, sdk/, cognition/, systems/{presence,movement,item,inventory,installed},
+        worldpack/src, tools/cli/src, tests/acceptance, both towns and the root Cargo.toml → empty;
+        `git diff --name-only 0fd0be3` ⊆ §18.1's change set; Cargo.lock: one line added. PASS.
+      Tool-discipline slip, recorded: one read-only `grep | awk` tallied the first gate's counts; it
+        touched no file and is not repeated.
+
+E-PO6c Independent checks on the WIP tree (the code of the WIP commit), 2026-10-08.
+      PO-1 (300-day runs 1 and 2 of §18.9's six), dev binary target/debug/mineworld:
+        social-cafe → exit 0, faults 0, 365 330 facts, sha-256 of every line but `wall` =
+          ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b; wall 12.6 s.
+        market-town → exit 0, faults 0, 372 755 facts, sha-256 =
+          365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d; wall 14.7 s.
+        `validate` of both `cmp`-identical to the base binary's outputs. PASS. (To be repeated on the
+        final executable head.)
+      PB-10 / PO-10's harness: `without_bodies` now strips the items' `body:` sections too (2 places +
+        16 objects); the counterfactual runs 30 days, faults 0, and the scan sees 269 202 violations,
+        closest ada and cleo 0 mm apart in court — the 12b numbers: the items are inert without bodies.
+        PO-10's new assertions (no kick, throw, shove, object-moved, person-shoved) are not yet
+        written (pending the decision).
+      Gates, unedited: `cargo test -p mineworld-acceptance --test ac1_composability --test
+        precursor_vocabulary --test seam_vocabulary` → 13, 4, 3 passed. `git diff --stat 0fd0be3 --
+        cognition/ tests/acceptance/ kernel/ contracts/ systems/presence systems/movement systems/item
+        systems/inventory systems/installed worldpack/src tools/cli/src worlds/social-cafe
+        worlds/market-town Cargo.toml` → empty.
 ```
 
 ## 18.11 Deviations and discoveries during implementation
@@ -5197,4 +5502,85 @@ somebody is not swept away from them.**
 - Follow-up (FU-12c-1, for the planning session; 12d or later): whether a stride moving away from
   somebody within the offset should be swept without them — a change to SD-B6's contact sweep and to
   12b's results, which needs its own design and a re-captured long-run base.
+
+**DO-12 (bounded) — the scan reads bodies' facts as JSON, not through the pack's types.** The 12b scan
+decodes presence's facts with presence's published types, which `tools/cli` depends on. `tools/cli`
+does not depend on `mineworld-bodies`, and its `Cargo.toml` is outside §18.1's change set, so the scan
+reads `body-formed`, `object-placed`, `object-moved` and `person-shoved` by event type and decodes their
+JSON payloads field by field (entity references through the contracts' `EntityId`, positions through
+`LocalPosition`). It reads the save only, never the code under test, and is an independent reading of
+the encoding.
+
+**DO-13 (SD-O18's ladder, walked; MATERIAL STOP) — see E-PO6.** Rung c1 (content) put six more objects
+beside the doorways and the furniture — eight per room, the door objects 750 mm from the doorway
+points. Rung p1 (`SHOVE_OFFER_REACH` = 800 mm: a shove is offered complete only within 800 mm, the
+request's requirement staying 1 000 mm; beyond, it is offered without a payload). Rung p2 (kick and
+throw complete for the nearest object only) was tried and reverted. AO-2 failed in a later bucket on
+every rung. The tree holds c1 + p1, and PO-7's test adds a person `r` at 700 mm so that one shove offer
+there is complete (p at 985 mm is now offered without a payload; PO-7 b submits the complete offers).
+The criteria were never changed. The decision returns to the primary session (§18.9).
+
+**DO-14 (defect, fixed) — a shove asked for up to half a millimetre more than 500 mm.** `shove::resolve`
+scaled the shover → target vector by 500 / ⌊|d|⌋; for a vector whose length is not a whole number of
+millimetres the result can be longer than 500 mm (e.g. (600, 3) → (500, 2), 500.004 mm). The 30-day
+scan caught it (run 3: 385 × "moved 500 mm (at most 500)"). Fixed by dividing by ⌈|d|⌉;
+`a_shove_never_asks_for_more_than_half_a_metre` failed before the fix ("b moved 250004 mm², more than
+500²") and passes after it.
+
+**DO-15 (bounded) — PO-13 a's kicks.** The prototype kicks a prop with an impulse in one of eight
+directions; MineWorld's `kick` is a person's request, from within 800 mm, away from them. Each of the
+sequence's kicks (`draw(3, r, 0) % 100 ≥ 85`, prop `draw(7, r, 0) % 4`, the prototype's own draws) is
+made by the person nearest the prop (ties by key); one beyond reach first steps toward it, to 750 mm from
+its centre, in one `move` of at most 1 999 mm (movement's MAX_STRIDE is 2 000, and |d| is rounded down).
+363 kicks were accepted and 89 refused (the nearest person still out of reach after their one step:
+the step was stopped short by somebody or something in the way).
+
+**DO-16 (the primary session's ruling on DO-13, 2026-10-08) — rung p3, and seed robustness; MATERIAL
+STOP again.** p3 amends SD-O13 and SD-O11 (the dated note after §18.3.2's table): an unaimed kick or
+throw goes toward the room's free centre. PO-4 c's and PO-5 a's flight bounds, fixed in §18.4 for the old
+direction, are restated along the new line with their magnitudes unchanged (1 500 … 3 500 mm along and
+≤ 50 mm off for a kick; from 1 000 mm short of the aim to 2 000 mm past it and ≤ 100 mm off for a throw).
+The ruling also fixed, before measuring, that AO-1 … AO-3 hold on seeds 7, 8 and 9: the committed test
+keeps seed 7; `thirty_days_of_bodies_yard_at_seeds_8_and_9` (ignored, run with `--ignored`) is the
+evidence for 8 and 9. All three seeds fail AO-2 for want of a push in a later bucket (E-PO7). Per the
+ruling, no rung is added; the stop is reported with the counts.
+
+**DO-17 (the primary session's second ruling, 2026-10-08) — rule p4: no launched object comes to rest
+within 300 mm of a solid unless its flight was blocked; MATERIAL STOP a third time.** Implemented as the
+dated note on SD-O13 states (`flight.rs`: `rests_clear`, `pulled_back`, `free_centre`;
+`Footprint::keeps`; `REST_CLEARANCE`, `PULL_BACK_STEP`). "Blocked" is read as: no point of the line from
+where the flight began to its end keeps the clearance. Scenario and mutation in E-PO8. All three seeds
+fail AO-2 in a later bucket (seed 7 and 9 for want of a throw, seed 8 of a push); per the ruling, stopped,
+with the counts and day-30 positions recorded.
+
+**AO-2 ruling (primary session, 2026-10-08 — a decision taken after failed measurements, recorded as
+such).** Finding: AO-2 as frozen asks every rare action in every 10-day bucket of every seed; after day
+10 kicks, throws and pushes run at 0 … 5 per bucket in this 12-person, 16-object, two-room sandbox, so a
+zero among 18 later cells is near-certain — the criterion measures the sandbox's content density, not
+the pack, whose correctness is carried by PO-3 … PO-6 (± 1 mm literals), the full scan (no overlap, no
+object in a solid) and determinism. **AO-2 FAILED as frozen, with p1, with p3 and with p4** (E-PO6,
+E-PO7, E-PO8). Replaced by AO-2′: (a) each of kick, throw, shove, push and stopped-short by an object at
+least once in every bucket summed over seeds 7, 8 and 9; (b) at day 30, on every seed, every object that
+moved rests 300 mm (REST_CLEARANCE) from every solid or on a solid's top; (c) every action in days 1–10
+of every seed. AO-1 and AO-3 unchanged. The committed seed-7 test asserts AO-1, AO-3, (b) and (c);
+(a) lives in the ignored three-seed evidence test `thirty_days_of_bodies_yard_at_seeds_7_8_and_9`.
+Result on the existing p4 saves (E-PO9): (a) holds, (c) holds, **(b) fails on every seed** (ten objects;
+pushes, launches starting near a solid, and p3 kicks into the kicker) → stopped again, per the ruling's
+point 4.
+
+**Final AO-2 ruling (primary session, 2026-10-08; closes AO-2): (b) replaced by (b′) after the
+measurement.** (b) as written was over-specified by the primary session: it required objects to rest
+clear of solids even after ordinary pushes, which is not physically reasonable — pushing a box against a
+pillar is legitimate. Its intent was "no degeneration: every object stays interactable". **(b′)
+reachability:** at day 30, on every seed, every object has at least one free standing point within kick
+reach (800 mm to its ground point), a free standing point being a point of the room's 50 mm lattice
+where a person's 300 mm disc overlaps no solid and no other object. The ten objects that failed (b) are
+E-PO9's table. The committed seed-7 test asserts AO-1, AO-3, (b′) and (c); the ignored three-seed test
+asserts (a). Measured once with DO-18 (E-PO10): everything holds.
+
+**DO-18 (defect fix to p3, by the same ruling) — an unaimed kick never drives the object into the
+kicker.** When the line from the object toward the free centre runs ahead into the kicker's body (the
+kicker ahead along it and the line within `PERSON_RADIUS + half + GAP` of the kicker's centre), the
+object goes away from the kicker — along kicker → object, east if they coincide. Scenario test and
+mutation M-DO18 in E-PO10.
 
