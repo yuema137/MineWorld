@@ -78,3 +78,54 @@ pub fn assert_quiet(from: i64, length: i64, test: &str) {
         inside.join(", ")
     );
 }
+
+/// [`assert_quiet`] for any pack's people, reading every `from: "HH:MM"` **and** every
+/// `until: "HH:MM"` — so a job's shift boundaries count as a routine's do (step-10 F-64, QS-63): a
+/// shift's start or end wakes a process and commits a revision just as a routine boundary does.
+///
+/// Fails if `people` holds no boundary at all, for the same reason [`assert_quiet`] does.
+pub fn assert_quiet_in(people: &Path, from: i64, length: i64, test: &str) {
+    let mut boundaries = Vec::new();
+    for entry in std::fs::read_dir(people).expect("people/ lists") {
+        let path = entry.expect("an entry").path();
+        let person = path
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let text = std::fs::read_to_string(&path).expect("a person's file reads");
+        for line in text.lines() {
+            for label in ["from: \"", "until: \""] {
+                let Some(at) = line.find(label) else {
+                    continue;
+                };
+                let clock = &line[at + label.len()..at + label.len() + 5];
+                let (hours, minutes) = clock.split_once(':').expect("HH:MM");
+                let hours: i64 = hours.parse().expect("hours");
+                let minutes: i64 = minutes.parse().expect("minutes");
+                boundaries.push((format!("{person} {label}"), hours * 3_600 + minutes * 60));
+            }
+        }
+    }
+    assert!(
+        !boundaries.is_empty(),
+        "fixture assumption unchecked: no boundary was found in {}, so the window check would \
+         prove nothing",
+        people.display()
+    );
+    let from = from.rem_euclid(DAY);
+    let inside: Vec<String> = boundaries
+        .iter()
+        .filter(|(_, at)| (at - from).rem_euclid(DAY) < length)
+        .map(|(which, at)| format!("{which}{:02}:{:02}", at / 3_600, at % 3_600 / 60))
+        .collect();
+    assert!(
+        inside.is_empty(),
+        "fixture assumption violated: a routine or shift boundary falls in the window that {test} \
+         relies on ({:02}:{:02} for {} s); it would wake a process and commit a revision while the \
+         test runs. Inside the window: {}",
+        from / 3_600,
+        from % 3_600 / 60,
+        length,
+        inside.join(", ")
+    );
+}
