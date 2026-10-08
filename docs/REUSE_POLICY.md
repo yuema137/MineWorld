@@ -616,8 +616,17 @@ to leave one honest principle in their place:
 > **Do not re-step into pits others have already fallen into; reuse the wheels they have already
 > built well; decide MineWorld's own abstraction and long-term direction ourselves.**
 
-Audited so far: Microverse (`docs/references/MICROVERSE_AUDIT.md`, in progress). Worth auditing
-next: AI Town, Concordia, AgentSociety, SimWorld.
+Audited so far:
+- **Microverse** (`docs/references/MICROVERSE_AUDIT.md`, in progress).
+- **Tencent HY-World 2.0** (`docs/references/HY_WORLD_2_COMPARISON.md`, 2026-10-08).
+  - Nothing is reusable, because of its licence. It is excluded under DEP-8.
+  - Its tool-design ideas are adopted as references:
+    - T-1, T-2, T-7, T-8: job directories, input-hash caching, draft and final tiers, seeds in
+      provenance. These go to the asset-generation tooling.
+    - T-4: scripted walkthroughs over the server's disclosed places. This goes to S14's visual review.
+  - Gaussian splats (Brush, a Godot splat addon) are deferred to an MVP-1 spike, for backdrops only.
+
+Worth auditing next: AI Town, Concordia, AgentSociety, SimWorld.
 
 ## 18. Final Principle
 
