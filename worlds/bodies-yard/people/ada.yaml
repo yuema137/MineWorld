@@ -1,0 +1,11 @@
+# Ada — in the hall's south-west, by the wall. Six people start in each room, at least a metre apart
+# and clear of the walls and the furniture, so the world loads (the `bodies` system checks it).
+
+tags:
+  - walker
+
+location:
+  place: hall
+  position:
+    x: 2000
+    y: 2000

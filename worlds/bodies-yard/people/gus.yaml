@@ -1,0 +1,10 @@
+# Gus — in the court's south-west, near the door from the hall.
+
+tags:
+  - walker
+
+location:
+  place: court
+  position:
+    x: 2000
+    y: 2000

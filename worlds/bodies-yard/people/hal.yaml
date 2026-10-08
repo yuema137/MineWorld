@@ -1,0 +1,10 @@
+# Hal — in the court, south of the pillar.
+
+tags:
+  - walker
+
+location:
+  place: court
+  position:
+    x: 5000
+    y: 2000

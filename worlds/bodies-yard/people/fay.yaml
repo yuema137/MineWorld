@@ -1,0 +1,10 @@
+# Fay — in the hall's north-east, not far from the door to the court.
+
+tags:
+  - walker
+
+location:
+  place: hall
+  position:
+    x: 9500
+    y: 6500

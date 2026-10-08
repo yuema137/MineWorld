@@ -1,0 +1,15 @@
+# The court: a 10 m square yard with a pillar in the middle. Millimetres from its inner south-west
+# corner, x east and y north.
+
+tags:
+  - court
+
+note: A square yard around a stone pillar, entered from the hall's east door.
+
+# Owned by the `bodies` system: the floor and the pillar, three metres high.
+body:
+  floor:
+    min: { x: 0, y: 0 }
+    max: { x: 10000, y: 10000 }
+  solids:
+    - { min: { x: 4700, y: 4700 }, max: { x: 5300, y: 5300 }, height: 3000 }

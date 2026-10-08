@@ -1,0 +1,10 @@
+# Dina — in the hall's north-west.
+
+tags:
+  - walker
+
+location:
+  place: hall
+  position:
+    x: 2000
+    y: 7000

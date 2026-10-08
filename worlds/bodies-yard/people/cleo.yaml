@@ -1,0 +1,10 @@
+# Cleo — in the hall's south-east.
+
+tags:
+  - walker
+
+location:
+  place: hall
+  position:
+    x: 8000
+    y: 2000

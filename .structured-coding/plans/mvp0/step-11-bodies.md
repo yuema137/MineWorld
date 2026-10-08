@@ -3452,19 +3452,22 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C6.
 
-- [ ] Implementation: as scoped. The activity precondition is checked before any scan or comparison.
-- [ ] Validation:
-  - `cargo test -p mineworld-cli --test bodies_yard --test bodies_yard_restart`;
-  - `cargo test -p mineworld-bodies --test long_run`;
-  - `mineworld validate worlds/bodies-yard` → exit 0;
-  - M-PB4 at binary level;
-  - M-PB8, each applied, failing by name, and reverted.
-  If the activity precondition fails (too few contacts in a bucket), the remedy is in world data: a
-  smaller room or closer starting positions. It is never in the controller (ARC-27, I-9's spirit),
-  and it is recorded as a bounded deviation.
-- [ ] Review: the scan reads the save, not the code under test. The geometry literals are copied from
-  the world file once, with a test that the file still says them. Every survivor exclusion is
-  asserted.
+- [x] Implementation: as scoped. `worlds/bodies-yard`: world.yaml (presence, movement, conversation,
+  bodies; places court, hall; twelve people, all seats), places/hall.yaml (passage to the court,
+  floor 12 000 × 9 000, the table) and court.yaml (10 000², the pillar), twelve people files
+  (location and tags), README.md — SD-B13's layout exactly. `tools/cli/tests/bodies/mod.rs`: run,
+  copy, `without_bodies`, the geometry literals with `the_world_file_still_says_the_geometry`, `scan`
+  (replays presence's facts by request, checks after each request) and `assert_active` (per 10-day
+  bucket). `bodies_yard.rs`: PB-4, PB-9, PB-10. `bodies_yard_restart.rs`: PB-11 (two processes,
+  SIGKILL at 5/15/25, `mineworld replay` from genesis). `systems/bodies/tests/long_run.rs`: PB-14(a),
+  with its own second process.
+- [x] Validation (E-PB7): `mineworld validate worlds/bodies-yard` exit 0; bodies_yard 3 and
+  bodies_yard_restart 1 pass; long_run passes. The activity precondition held on the first world
+  layout, with no tuning. M-PB4 (binary) and M-PB8 each fail by name and are reverted.
+- [x] Review: the scan reads only the save (`Tables`) and presence's published fact types; geometry
+  literals are asserted against the files. Survivor exclusions asserted: SIGKILL status, no
+  `history` line, head short of the control's, resume reported at the head on disk, a tail > 0. The
+  scan locates its closest pair by request and instant (DB-9).
 
 ### PB-C8 — Close: cross-architecture, cost, status, the gate, the ledger
 
@@ -3774,6 +3777,43 @@ E-PB6 PB-C6, 2026-10-07, working tree on 539ebbf + PB-C6's four paths + Cargo.lo
         market-town → exit 0, faults 0, 372 755 facts, sha-256 =
           365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d. Wall 15.1 s. PASS.
         `validate` of both, `cmp` against the base binary's outputs: identical. PASS.
+
+E-PB7 PB-C7, 2026-10-07, working tree on 1b86701 + PB-C7's paths.
+      `mineworld validate worlds/bodies-yard` (PR binary) → exit 0, 15 genesis facts, "a valid World
+        Pack". A first look, `run worlds/bodies-yard --headless --seed 7 --days 30` → faults 0, moves
+        accepted 15 679, talks 15 124, arrived 22 484, stopped-short 9 849, person-entered-place 2 329;
+        wall 3.6 s.
+      `cargo test -p mineworld-cli --test bodies_yard --test bodies_yard_restart -- --nocapture`: 3 + 1
+        passed (the counterfactual's first run failed on the test's own check that the body: section
+        was stripped — a comment line says "floor"; the check now looks for the section's lines).
+        PB-4: each copy refused, naming its subject — "bodies-overlap … ada and ben stand 420 mm apart
+          in hall"; "bodies-in-solid … cleo stands 0 mm from a solid in hall"; "bodies-outside …
+          cleo stands at (200, 4500) in hall"; "bodies-capacity … 4 points … 12 people needs 45";
+          the loader at hall.yaml "line 23 column 3: the floor runs from min to max and each side is
+          at least 620 mm; this one is 0 mm by 9000 mm"; "line 26 column 3: unknown field `wall`,
+          expected one of floor, solids"; "line 23 column 3: solid 0 is 0 mm high; a solid is 1 to
+          10000 mm high". The yard itself validates. PASS.
+        PB-9: activity first, per 10-day bucket — days 1–10: every seat 400 … 470 moves, stopped-short
+          3 095, displaced 2 269, crossings 364 each way; 11–20: 3 385 / 2 229 / 389 each way; 21–30:
+          3 369 / 2 295 / 411 and 412. Then the scan: 30 803 requests, no violation; closest pair gus
+          and kai, 595 mm apart in court, after request ActionId(22106) at 1 860 306 s. PASS.
+        PB-10: without bodies, faults 0, every seat moves in every bucket, no stopped-short or
+          displaced arrival; the scan reports 269 202 violations, closest ada and cleo, 0 mm apart in
+          court, after request ActionId(365) at 30 602 s. PASS (the instrument sees overlaps).
+        PB-11: control 59 619 facts, 30 804 journal rows, 482 snapshots, 9 849 stopped-short, 6 793
+          displaced; a second process byte-identical; killed at revisions 5 137, 15 434, 25 673,
+          each resumed there with 17, 10, 9 re-executed, byte-identical to the control; `mineworld
+          replay` → "30804 revision(s) re-executed from genesis, 59619 fact(s) and 482 snapshot(s)
+          reproduced byte for byte". PASS.
+      `cargo test -p mineworld-bodies --test long_run -- --nocapture` (dev): "2548 moves; closest pair
+        p09 and p11, 600 mm, after request 1613"; 1 302 moves reached Rapier, mean 38.9 µs each; the
+        fast path answered 1 246 (48.9 %); 4 091 738 bytes identical in a second process. PASS.
+      M-PB4 (binary; `&& false` on the pair check) → bodies_yard FAILED: "overlap: the copy must be
+        refused" (the copy validated). Reverted.
+      M-PB8 (a process-global counter's parity added to the nudge spacing) → bodies_yard_restart
+        FAILED: the day-5 survivor "replay diverged at revision r5121: fact 9859 differs from the
+        logged fact 9859". Reverted; `git grep -n MUTATION` empty.
+      clippy (-p mineworld-cli -p mineworld-bodies, two type aliases in the scan) and fmt clean.
 ```
 
 ## 17.11 Deviations and discoveries during implementation
@@ -3853,3 +3893,8 @@ of the seam scan's files (12a's `ADDED_TEST_FILES`), and QP-2's own edit makes i
 files are QP-2's; the test names the pack on exactly one line (`const LISTED: &str = "bodies";`), and
 `INSTALLED_PACK_LINES` admits the word there and nowhere else in that file, with the same
 fails-if-unused rule.
+
+**DB-9 (bounded) — the scan locates by request and instant, not by revision.** PB-9 asks the scan to
+print "the closest pair, its place and its revision". A stored fact carries its `EventId`, its
+instant and its cause, not the journal revision that produced it. The scan names the request
+(`ActionId`) and the instant, which locate the same moment in the save without reading the journal.
