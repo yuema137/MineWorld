@@ -271,4 +271,176 @@ formatting, and the mapping from weather condition to a *presentation intent* (`
 particles, fog volume, wet-surface roughness) and how the 2D client does (a canvas tint and a particle
 overlay). Weather visuals, sky assets and the condition → intent table are Presentation Pack content.
 
-<!-- §4 onward follows -->
+---
+
+# 4. Design — two time domains
+
+## 4.1 Definitions (proposed terms; added to `CORE_CONCEPTS.md` §time by ARC-TW-a, not synonyms of existing ones)
+
+- **Calendar time** is `WorldTime`: the world's one clock, whole simulated seconds from the epoch. Every fact,
+  every Process wake-up and every `Observation.at` is stamped in it. The calendar, the sun, weather, routines,
+  shifts, wages and every calendar-driven Process are functions of it. *Nothing about this changes.*
+- **Embodied time** is real (wall-clock) time as experienced by a body: how fast a player walks, how long a
+  line takes to type or to speak, how long an animation or a physics impulse plays. **Embodied time is not a
+  world quantity.** No fact, component, Process or rule carries it. It exists only as the *cadence at which
+  embodied inputs arrive at the server*: a human's client sends `MoveIntent`s and lines at human speed; the
+  host consults a hosted controller every `cadence` wall seconds; a client animates at frame rate.
+- **Time scale** `s` is a host pacing parameter: world seconds per wall second while the world runs
+  (integer ≥ 1; play offers 6, 12, 24; default 12). **Paused** is a host pacing state in which world seconds
+  do not pass. Neither is world state; no System Pack can read either.
+
+## 4.2 How the scale maps onto `WorldTime` and the event queue
+
+The kernel already says pacing is the host's (`kernel/src/clock.rs`: "How fast a hosted world's seconds pass
+in real time is the host's decision"). The host computes the target instant from the wall clock and calls
+`advance_to(target)`; the queue fires everything due on the way in `(WorldTime, sequence)` order. The scale
+changes only *how fast the target moves*.
+
+Alternatives compared:
+
+| Option | What changes | Verdict |
+| --- | --- | --- |
+| **A. Host-paced `WorldTime` (chosen).** `HostClock` keeps a *segment*: `(wall_anchor, world_anchor, scale, paused)`; `now = world_anchor + floor((wall − wall_anchor) × scale)` when running, `world_anchor` when paused. A pause, resume or scale change closes the segment at the current `now` and opens a new one. | `server/src/runtime.rs` `HostClock` only (S11-B already adds a constant scale). | Kernel and contracts untouched; `run` untouched; the queue untouched. Monotonicity holds because every new segment starts at the old segment's `now`. |
+| B. Two kernel clocks (calendar and embodied) with an explicit ratio in the kernel | `WorldClock`, `advance`, every Process start (which clock?), every fact stamp | **Reject.** Kernel learns a game concept (a "day" ratio), every Process must say which clock it uses, and persistence must reconcile two timelines. Violates kernel ignorance and change amplification. |
+| C. Scale applied inside each System Pack (each pack multiplies its durations) | Every calendar-driven pack reads a shared scale | **Reject.** Packs would read host state; a rule depending on the host is a determinism and ownership defect; headless and hosted would diverge. |
+| D. Embodied actions take world durations divided by the scale (e.g. a walk Process) | Movement, conversation, bodies | **Reject.** Embodied pacing is already not modelled in world time (ARC-26: `MAX_STRIDE` is "not a speed limit"); inventing durations just to cancel the scale adds the coupling the operator asked to avoid. |
+
+**Consequence for embodied rules.** The rule "the scale must not affect actions, physics or dialogue speed" is
+met *by construction* for anything that is per-request (movement strides, bodies impulses, a line spoken): the
+server resolves each request at the instant it arrives, and the wall-clock rate of requests is the body's.
+It is met *by the cadence rule* for hosted controllers (§4.4). The residue — world-time constants that in
+practice measure a human's embodied response — is audited in §4.5.
+
+## 4.3 Live scale changes and pause are recorded inputs
+
+- **Owner.** The host (the `server` crate, S11's lane). Not a System Pack: no rule may depend on them.
+- **Record.** Every segment boundary is appended to a **host journal** in the save: `HostRecord { at:
+  WorldTime, revision: Revision, kind: Paused | Resumed | Scaled { to: u32 } | Started { scale, paused } |
+  Stopped }`, written in the same transaction as the checkpoint that follows it or by itself. It is not a fact
+  (I-4: admin touches no world state) and it never enters the fact log, revisions or drift checks.
+- **Why it is needed, and what "exact replay" means.** The *world* replays exactly without it: every fact
+  already carries its instant, and state is the fold of facts. What the journal adds is the *host's*
+  timeline: for a hosted world it lets a tool reconstruct when each hosted controller was due (`cadence × s`)
+  and therefore re-run the hosted controllers against the recorded facts and get the same requests (the
+  hosted analogue of AC-12). The adversarial test is exactly that (TW-c, criterion 4).
+- **Persistence.** One additive table `host_journal(seq INTEGER PRIMARY KEY, at INTEGER, revision INTEGER,
+  kind TEXT, scale INTEGER)`; an older save without the table opens with an empty journal (no migration of
+  existing rows). The `persistence` crate owns the table; the server owns its meaning.
+
+Alternatives: (a) a SystemInternal fact from a `clock` pack — rejected, it would make pacing world state and
+let rules react to the scale; (b) a sidecar file beside the save — rejected, a second persistence authority
+that can drift from the checkpoint.
+
+## 4.4 Hosted controllers: cadence in wall seconds
+
+S11-B's `--pace SECONDS` is in **world** seconds (QS11B-4 ruled "a pace is about a life"). Under the second
+operator statement that ruling inverts for *consult cadence*: a hosted Person walks one stride per consult,
+and walking is embodied. Proposed (QTW-13, operator-material because it amends a ruling):
+
+- `--pace` becomes **wall seconds** (`--cadence` is the clearer name; QTW-13). The adapter's
+  `next_consult(after) = after + cadence × s_current`, computed when the consult is scheduled.
+- **Live scale change.** The host recomputes every pending `next_consult` from the change instant: a seat due
+  at `t` under scale `s₀` with `w` wall seconds still to wait is rescheduled to `now + w × s₁`. So a walker's
+  wall-clock stride rate never jumps. **Pause** freezes them all (the clock does not move, nothing is due).
+- **Headless `run` is unchanged**: its paced controller keeps `pace = 900` world seconds — a time-lapse in
+  which embodied cadence is notionally `900 / s` wall seconds. `run` has no scale (§4.6).
+
+## 4.5 World-time constants that are embodied in practice (audit result)
+
+| Constant | Pack | At 12× it lasts (wall) | Domain ruling | Action |
+| --- | --- | --- | --- | --- |
+| `CONVERSATION_GAP = 300 s` | conversation | 25 s (12.5 s at 24×) | Calendar by the rule "no pack reads the scale"; but a human typing a long line can open a "new conversation" | QTW-15: make it configurable content through IL-b, raise the interactive World Packs' value; headless default unchanged |
+| `INVITATION_LIFETIME = 1800 s` | group-activity | 150 s (75 s at 24×) | Calendar ("the café meetup at 3 pm") but answered by a human | QTW-15, same remedy |
+| `ACTIVITY_LENGTH = 3600 s` | group-activity | 5 min | Calendar | none |
+| Shift lengths, routine parts | schedule, employment | parts ≥ 4 h → ≥ 20 min (≥ 10 min at 24×) | Calendar | §9 feasibility |
+| `MAX_STRIDE = 2000 mm` | movement | per request | Neither | none |
+| bodies impulses | bodies | per request | Neither | none |
+
+No pack constant is changed by S19. QTW-15 is a content question, routed to IL-b.
+
+## 4.6 What the scale means in headless `run`
+
+Nothing. `run` has no wall clock: it advances day by day with idle skipping, as fast as the machine allows
+(`AC-11`). It neither accepts nor records a scale; its output for a world without `calendar`/`weather` is
+byte-identical to today's (INV-TW-1). Calendar and weather packs behave identically in `run` and hosted,
+because they read only `WorldTime`.
+
+---
+
+# 5. Design — the `calendar` System Pack
+
+## 5.1 What it owns
+
+The world's civil calendar and sun: which local date and weekday an instant is, where the sun is, and the
+day's light events. It owns no other pack's facts. Removing it removes the date display's source, day and
+night, and nothing else; a world without it renders today's fixed golden hour and an un-dated clock.
+
+## 5.2 Configuration (`configure/calendar.yaml`, ARC-61 seam; content, not code)
+
+```yaml
+# configure/calendar.yaml — the market-town default
+epoch: 2026-10-08          # local civil date at instant 0; instant 0 is that date's local midnight
+utc_offset: -08:00         # fixed standard offset; no DST in v1 (QTW-9)
+latitude: 32.7157          # San Diego; decimal degrees, stored as micro-degrees (i32)
+longitude: -117.1611
+```
+
+- Instant 0 = local midnight of `epoch`, so the calendar agrees with `schedule`'s existing convention
+  (`TimeOfDay::of(at) = at mod 86 400`) without touching `schedule` (INV-TW-4).
+- Decoded into owner types (`CalendarDate`, `UtcOffsetSeconds(i32)`, `Latitude(MicroDegrees)`,
+  `Longitude(MicroDegrees)`); a latitude outside ±90°, a longitude outside ±180°, an offset outside ±14 h, or an
+  invalid date is a refusal at assembly (IL-a's `Rejection`), naming the file and key.
+- Polar day and night are legal (no sunrise that day); the record says so (§5.4).
+
+## 5.3 Facts (event types owned by `calendar`)
+
+| Event | Visibility | When | Payload (integers) |
+| --- | --- | --- | --- |
+| `calendar-configured` | SystemInternal | genesis (IL-a seed) | the decoded configuration |
+| `day-began` | Public | each local midnight | `date {y, m, d}`, `weekday` (0 = Monday), `day_start: WorldTime`, `events` (§5.4), `track` (§5.4) |
+| `daylight-changed` | Public | at astronomical dawn, civil dawn, sunrise, sunset, civil dusk, astronomical dusk | `phase` ∈ {night, astronomical-twilight, civil-twilight, day} |
+
+Reducers fold them into the state of one world-level `calendar` Process (started by the configured fact's
+reduction, woken at the next due light event or midnight). The Process state is the current day record; it is
+persisted in snapshots like every Process, so a resumed world needs no recomputation.
+
+Why facts rather than a pure function evaluated at disclosure: `WorldRead` has no `now()` (§2.1), presence's
+`discloses` has no `at` (§2.4), and other packs must be able to *react* to dawn and dusk (street lamps, a
+sleep routine) through facts (ARC-26, ARC-28). Rejected alternative: an additive `discloses_at` on presence's
+`PerceptionProvider` — it would let disclosure depend on the instant without an owned fact, and reactors would
+still need facts. With facts, presence, kernel and contracts are untouched (INV-TW-3).
+
+## 5.4 The day record
+
+```text
+CalendarDay {
+  date: CalendarDate { year: i32, month: u8, day: u8 }, weekday: u8,
+  day_start: WorldTime,                       // instant of local midnight
+  events: DayEvents { astronomical_dawn, civil_dawn, sunrise, solar_noon, sunset, civil_dusk,
+                      astronomical_dusk }     // each Option<u32> seconds after day_start; None in polar cases
+  track: [SunSample; 97]                      // every 900 s from 00:00 to 24:00 inclusive
+}
+SunSample { elevation: i32 /* millidegrees */, azimuth: i32 /* millidegrees from north, clockwise */ }
+```
+
+- Date arithmetic: days-from-civil / civil-from-days (H. Hinnant's public-domain integer algorithms, ~25
+  lines) in the pack. Compared with `chrono` and `time`: both are mature, but the pack needs only these two
+  integer conversions and a weekday; formatting happens in clients. Recorded in DEP-TW-a as "build: two
+  functions; a dependency for them would be heavier than the code".
+- The 15-minute track (97 × 2 × `i32`) is the only sun the clients see; clients interpolate linearly by their
+  clock estimate (§8.3). At 15 minutes the sun moves ≤ 3.75°; linear interpolation error is far under a degree.
+- Leap years follow the proleptic Gregorian calendar; dates are valid for years 1901–2099 (NOAA's validity
+  range, a refusal outside it).
+
+## 5.5 Disclosure
+
+`calendar` implements presence's `PerceptionProvider::discloses` for the observer's **place**: one record
+`calendar.day` (the current `CalendarDay`, minus nothing) and one record `calendar.light` (`phase`). Both
+change only at facts, so S11-C's delta stream sends them once per change. Every observation still carries
+`at`; clients compute the time of day as `at − day_start` and the HUD from there (§8.2). The record types are
+declared by `calendar`, so presence keeps them (`owned_by_an_enabled_system`).
+
+A world that enables `calendar` without `configure/calendar.yaml` seeds nothing and discloses nothing
+(IL-a's "a pack that declares nothing is never configured"); `mineworld check` warns (QTW-8).
+
+<!-- §6 onward follows -->
