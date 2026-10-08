@@ -29,10 +29,17 @@ STOP                 PR IL-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## Current checkpoint
 
-- E-IA-0 captured on 0d35d6b code (artifacts `target/il-a/base-*`, script `target/il-a/capture.sh`).
-- IA-C1 (specs) in progress.
+- IA-C1 … IA-C8 committed and pushed; origin/main e98321a (#77) merged (c6ca232). IA-1 … IA-10 PASS
+  (§11.11 E-IA-0 … E-IA-8); IA-11, the full gate on the final code head, is E-IA-9.
+- The canary branch is deleted and was never pushed. Town 300-day run budget used up (5 of 5).
+- The session was cut off by an API rate limit during IA-C7 and resumed; the uncommitted IA-C7 files
+  were kept and finished (D-15).
 
 ## Next actions
 
-IA-C2 authoring → IA-C3 sdk/installed → IA-C4 read → IA-C5 seed/drift → IA-C6 hosts → IA-C7 proof →
-IA-C8 close.
+- Operator review of the PR (READY FOR OPERATOR REVIEW). Do not merge without explicit authorization.
+- If S16 E-b merges first: whoever merges second merges main, places IL-a's `read_with` line directly
+  after E-b's `requirements::resolve` line and the `WorldManifest` field after `requires` (§11.5), keeps
+  the drift calls in `persisted`/`replay` beside E-b's `--packs` plumbing, then re-runs IA-1 (a new town
+  run budget is the operator's to grant) and IA-9.
+- IL-b: let the framework-owned `packages` key through to `mineworld-packages`; give `classes` meaning.

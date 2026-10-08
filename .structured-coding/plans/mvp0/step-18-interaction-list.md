@@ -1252,8 +1252,18 @@ Neither pack names a physics word or an interaction word.
 - IA-11's full gate on the final head, in the background.
 - `MVP_STATUS.md`; the §11.11 ledger; the handoff.
 
-- [ ] Implementation · [ ] Validation: as listed, each result PASS/FAIL/INCONCLUSIVE from evidence ·
-  [ ] Review: IA-1 … IA-11 each with evidence; deviations recorded in §11.12.
+- [x] Implementation: IA-1 captured on the head; the canary built, run and discarded; IA-9's diff
+  recorded; `MVP_STATUS.md` (written at IA-C1) re-checked current; the ledger (E-IA-7, E-IA-8, E-IA-9)
+  and the handoff closed.
+- [x] Validation: IA-1, IA-9, IA-10 PASS (E-IA-8); IA-11 the full gate (E-IA-9).
+- [x] Review: IA-1 … IA-11 each with evidence below; deviations D-1 … D-15 recorded in §11.12.
+
+**Acceptance summary.** IA-1 PASS (E-IA-8). IA-2 PASS (E-IA-5 in-crate order and M-IA2; E-IA-7
+test-tuning). IA-3 PASS (E-IA-4 reader, M-IA3; E-IA-6 binary; file-missing at the binary on the canary,
+D-8). IA-4 PASS (a: E-IA-5 M-IA4a and E-IA-7 over a real save; b: E-IA-6 M-IA4b; c: E-IA-8 canary).
+IA-5 PASS (E-IA-3, M-IA5a, M-IA5b; registration.rs and arrival_resolvers* unedited). IA-6 PASS (E-IA-3,
+M-IA6). IA-7 PASS (E-IA-7). IA-8 PASS (E-IA-7, M-IA8; seam_vocabulary unedited). IA-9 PASS (E-IA-8).
+IA-10 PASS (E-IA-8). IA-11 see E-IA-9.
 
 ## 11.7 Test ownership
 
@@ -1367,6 +1377,34 @@ E-IA-7  2026-10-08, IA-C7 on c6ca232 + the IA-C7 tree: `cargo test -p mineworld-
         "worldpack/src/configure.rs:361: talk"; reverted (file restored), `git grep MUTATION -- '*.rs'`
         empty. Lock diff: exactly `+ "mineworld-authoring"` and `+ "mineworld-sdk"` in
         mineworld-acceptance's list. PASS.
+E-IA-8  2026-10-08, IA-C8 on a83b103 (origin/main e98321a merged), by target/il-a/capture.sh head, dev
+        profile (artifacts target/il-a/head-*):
+        IA-1  social-cafe 300 days seed 7: exit 0, sha ad49c723…c64b (= E-IA-0), wall 17 s;
+              market-town: exit 0, faults 0, 372 755 facts, fingerprint 085ed9c55cae7947, sha
+              365b50e0…1d1d (= E-IA-0), wall 24 s; bodies-yard 30 days: sha 6e4c4015…c8395 (= E-IA-0);
+              long_run second process: exit 0, 4 091 748 bytes, sha d7025dbc…79eaf (= E-IA-0);
+              validate ×3: `cmp` identical to E-IA-0's files (and shas ebcd60a0…, 64f41086…,
+              7356b8f8… equal). Town runs used: 5 of 5 (E-IA-0 ×2, M-IA1 ×1, IA-1 ×2). PASS.
+        IA-9  `git diff origin/main mvp0/pr-il-a-seam --stat -- kernel contracts persistence server clients
+              cognition worlds Cargo.toml`: empty. The three guards (ac1_composability, precursor_vocabulary,
+              seam_vocabulary): no diff, all pass (E-IA-7). Cargo.lock: exactly A-1's two lines (E-IA-7).
+              Every changed path (32 files, `--name-only`) is in §11.1's change set as amended. PASS.
+        IA-10 the canary, on local branch canary/il-a-ia10 from a83b103, never pushed: test-tuning as a
+              crate systems/test-tuning (the IA-C7 pack plus an empty PerceptionProvider impl) installed
+              with its two ARC-33 lines; a scratch test copied social-cafe as `tuning-cafe` with
+              `test-tuning` enabled and `configure: [test-tuning]` (`step: 5`), under the scratch helper:
+              `validate` ok; `run --days 30 --save` control: faults 0, 37 086 facts, exactly one
+              `tuning-configured` fact in the save; a second save SIGKILLed at day 15 (14 282 of 28 523
+              journal rows) and re-run: "resumed … at revision 14282 (snapshot 14272 + 10 re-executed)",
+              facts, journal and snapshots byte-identical to the control; `replay` ok (28 523 revisions,
+              37 086 facts, 446 snapshots); configure/test-tuning.yaml edited to `step: 10` → `run` and
+              `replay` both exit non-zero, "the world's configuration differs from the save's: system
+              'test-tuning' (save: tuning-configured {"step":5} SystemInternal; this pack:
+              tuning-configured {"step":10} SystemInternal)"; the file removed → `validate` refuses
+              "configure: names 'test-tuning', but …/configure/test-tuning.yaml does not exist" (D-8's
+              file-missing case). Wall 12.5 s. Then the tree restored, the branch deleted
+              (`git branch -D`), `git ls-remote origin 'refs/heads/canary*'` empty, `git status` clean.
+              PASS.
 ```
 
 ## 11.12 Deviations
