@@ -1,0 +1,7 @@
+error[E0046]: not all trait items implemented, missing: `PACKAGE`
+  --> tests/compile_fail/a_pack_without_its_package_does_not_compile.rs:25:1
+   |
+25 | impl SystemPack for Anonymous {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `PACKAGE` in implementation
+   |
+   = help: implement the missing item: `const PACKAGE: Package = /* value */;`

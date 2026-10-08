@@ -42,6 +42,7 @@ impl SystemIdentity for BodiesSystem {
 /// `body:` section of a place or an item file, which its `AuthoredSection` impl (`src/section.rs`)
 /// describes. No biographical fact (step-11 QO-17).
 impl SystemPack for BodiesSystem {
+    const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     mineworld_sdk::owns_section!();
 }
 
