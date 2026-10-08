@@ -5059,11 +5059,14 @@ object to R + GAP = 310 mm, as SD-O8 says. Every PO-3 literal is unchanged by it
 far deeper than 5 mm).
 
 **DO-6 (bounded) — PO-3 f's layout: two nudged people, not the walker and one nudged person.** PO-3 f
-asks for "the walker and a nudged person would both push one ball". Under the bounds, that layout does
-not exist: a nudged person moves straight away from the walker, so for their disc to reach a ball that it
-did not overlap before, the ball must lie beyond them as seen from the walker — and then the walker's own
-end, at least 610 mm behind them, is more than 405 mm (R − TOLERANCE + the ball's radius) from that ball.
-The test uses the case that exists: the walker's end nudges two people either side of its line, and each
+asks for "the walker and a nudged person would both push one ball". Under the bounds that layout is hard
+to build: a nudged person moves straight away from the walker, so their disc can newly reach a ball only
+if the ball lies roughly beyond them as seen from the walker, while the walker's own end — at least
+610 mm from them — must also come within 405 mm (R − TOLERANCE + a 110 mm ball's radius) of it, and before
+the request the person must have kept 295 mm from it. The session searched three families of such
+layouts by hand (a ball beside the walker's line, a box ahead of it, a person between) and found none
+with margins wider than the rounding of the nudge. It did not prove that none exists. The test uses a
+case that clearly exists: the walker's end nudges two people either side of its line, and each
 of their new discs overlaps one ball (r 375). Each push alone would keep the invariant, so only the
 "pushed twice" rule refuses the set — which is what M-PO10 must show, and does (E-PO3). The first layout
 tried (a ball of r 270) was refused by the final-state check instead, so M-PO10 survived it; that is why
