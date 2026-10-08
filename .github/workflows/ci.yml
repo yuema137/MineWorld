@@ -25,17 +25,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      # Full history as a partial clone; the 3D client and presentation trees are not needed by any
-      # check (step-14 §3.5). A shallow clone would make the AC-1 scan fail by name (ARC-35).
+      # Full history as a partial clone: every commit and tree, and only the checked-out revision's
+      # blobs. A shallow clone would make the AC-1 scan fail by name (ARC-35). The whole tree is
+      # checked out, because tests read presentation/ and clients/protocol/ (step-14 A-C3, run 2).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           filter: blob:none
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /*
-            !/clients/3d-spike/
-            !/presentation/
       - uses: ./.github/actions/layer
         with:
           layer: fast
@@ -50,22 +46,15 @@ jobs:
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        !endsWith(github.ref, '-image'))
     runs-on: ubuntu-24.04
-    # A cold build plus the full suite on a 2-vCPU private runner exceeded 45 min (step-14 A-C3, run 1).
-    timeout-minutes: 75
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           filter: blob:none
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /*
-            !/clients/3d-spike/
-            !/presentation/
       - uses: ./.github/actions/layer
         with:
           layer: core
-          free-disk: "true"
 
   # Not a layer: evidence that the shipped image hosts a world (step-14 A13-5). On demand, or from a
   # scratch branch named `scratch/*-image` before this workflow is on main (dispatch needs it there).

@@ -1046,6 +1046,58 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
           `cargo test --workspace`. The tests run are the same; the log now separates build time from
           test time, which A13-6 needs.
   - Push run 37834772746 (`fast` only) **PASS**; not test-sized.
+  - **Main moved: merged into the branch.** PR #63 became `dirty`, conflicting with main's #64–#75 in
+    `README.md` and `docs/DECISIONS.md`. While dirty, GitHub created **no** `pull_request` run for the
+    pushed head `4665954`. Main was merged at `e8caf0d`, the repository's usual practice. Both sides were
+    kept:
+    - `README.md`: main's new "Where to look" list, plus the CI and Docker lines;
+    - `DECISIONS.md`: main's DEP-13 note, ARC-53 and DEP-21, then DEP-17, DEP-18 and ARC-48.
+
+    `check_decision_ids` → 56 ids, all distinct. The PR diff still touches only §12.1's files plus D-13a-1
+    and D-13a-2.
+  - **Run 2 ●, `pull_request` 37843100106** (head `e8caf0d`), the first run on a **public** runner.
+    - `fast` **PASS** in 1 min 31 s. Its cache was restored from `main`'s scope; `fast` was saved in run 1.
+    - `test` **FAIL**, a genuine finding: `tools/cli/tests/packs.rs:161`,
+      `the_data_packs_in_named_directories_are_listed_and_validate`, panicked with "packs list failed:
+      [mineworld] …/presentation/mineworld-default: could not be read: No such file or directory".
+      - The test arrived on main with S16 E-a (#70) after §2's audit. It reads `presentation/`, which
+        §3.5's sparse checkout omitted.
+      - §3.5's fallback is taken, recorded as **D-13a-5**: sparse checkout is dropped from both jobs, and
+        the partial clone (`blob:none`, `fetch-depth: 0`) is kept. The checkout is now uniform; `fast` gets
+        the same tree as `test`.
+      - Everything else in the run was healthy:
+        - cold `cargo test --workspace --no-run` took 282.5 s;
+        - 32 binaries had passed before the failure, `ac1_composability` 13/13 among them;
+        - free disk was 107 GB before the tests (`/dev/root` 145 G) and 95 GB after;
+        - `target/` was 11 G at the failure.
+    - **Disk is not a problem on the public runner.** The `free-disk` step freed 22 GB (from 86 G to
+      108 G available) but was not needed. It is removed again, so D-13a-4's remedy (2) is withdrawn on
+      the evidence. `test`'s `timeout-minutes` returns to the design's 45. Run 1's timeout belonged to
+      the 2-vCPU private runner, which no longer applies.
+  - **`image` ●, push run 37843147556** on `scratch/13a-image` (head `e8caf0d`): **PASS**, A13-5.
+    - The `image` job took 3 min 44 s. The build context was 3.59 MB, so `.dockerignore` holds.
+    - The release `cargo build --locked -p mineworld-cli` took 132.7 s, cold.
+    - `scripts/ci_image.py mineworld:ci` printed PASS for each of:
+      - `validate` for social-cafe, market-town and bodies-yard;
+      - the 1-day social-cafe run, with `faults 0`;
+      - the default command creating its world on the volume and listening on 7878, with a TCP connect
+        accepted;
+      - `docker stop` stopping the server with exit 0 (SIGINT reached it as PID 1);
+      - a restart on the same volume resuming the world and listening again.
+
+      It ended with "every expectation held". The branch was deleted after the run.
+  - **A13-M1 ●, run 37843159994** on `scratch/13a-m1` (`6f73b91`: two spaces after `assert_eq!(` in
+    `contracts/tests/action.rs`): `fast` **red** at `cargo fmt --all --check`, "Diff in
+    …/contracts/tests/action.rs:73", "[ci] layer fast FAILED at: cargo fmt --all --check". The run was
+    then cancelled, which stopped its parallel `test`.
+  - **A13-M4 ●, run 37843175171** on `scratch/13a-m4` (`d6f805f`: tag `1.97.0`): `fast` **red** at
+    `check_ci_pins.py`: "Dockerfile:13: rust image tag is 1.97.0, rust-toolchain.toml channel is 1.97.1".
+    Cancelled the same way.
+  - **A13-M5 ●, run 37843200610** on `scratch/13a-m5` (`b1b72fd`: runtime `FROM debian:trixie-slim`, no
+    digest): `fast` **red** at `check_ci_pins.py`: "Dockerfile:29: debian:trixie-slim is not pinned by an
+    @sha256: digest". Cancelled the same way.
+  - The scratch branches for M1, M4, M5 and image were deleted after their runs. `git ls-remote --heads
+    origin 'scratch/*'` → empty.
 - [ ] Validation (the PR's own runs are the evidence; each recorded with run id, head SHA, wall time):
   - `python3 scripts/ci_layer.py --list fast` and `core` locally: the commands equal §3.4 and
     `standards.md`'s declared checks (a review diff, recorded).

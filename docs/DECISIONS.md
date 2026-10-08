@@ -3625,8 +3625,9 @@ the same entry point runs locally.
   while the project's PR rate needs several times that (step-14 §10.1). The repository became public on
   2026-10-08, so standard hosted runners are free. Runs are still kept purposeful.
 - **Runner disk.** The default suite writes about 16 GB of scratch saves (step-14 F-3). The `test` layer
-  frees the runner's preinstalled SDKs first, and prints free disk before and after. A shortfall is
-  remedied in the workflow, never by changing tests in CI.
+  prints free disk before and after. The public runner measured about 107 GB free before the tests, so
+  no clean-up step is needed. A future shortfall is remedied in the workflow, never by changing tests in
+  CI.
 - **Building the image per job.** About 30–90 seconds per job. This is the price of one definition of the
   environment.
 
@@ -3743,8 +3744,9 @@ clients    Godot headless probes  nightly; workflow_dispatch (13c)              
   - `cargo test` cannot exclude a target without a hand-kept list, and such a list fails open. So layer 2
     is the whole suite until a fail-closed selector exists.
 - **Full history.** Every job that runs a layer checks out with `fetch-depth: 0`, as a partial clone
-  (`filter: blob:none`), with a sparse checkout that omits `clients/3d-spike/` and `presentation/`. A
-  shallow clone makes `ac1_composability` fail by name, never skip.
+  (`filter: blob:none`), of the whole tree. Tests read `presentation/` and `clients/protocol/`, so a
+  sparse checkout that omitted them was tried and dropped (step-14 A-C3). A shallow clone makes
+  `ac1_composability` fail by name, never skip.
 - **Economy.**
   - `concurrency` is per ref, and cancels a stale run except on `main`.
   - A draft PR runs `fast` only.
