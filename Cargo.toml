@@ -68,6 +68,12 @@ tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "net", "t
 futures-util = { version = "0.3.34", default-features = false, features = ["sink", "std"] }
 tokio-tungstenite = "0.29.0"
 
+# Join secrets (DEP-14): the OS random source makes an invite, and `subtle` compares an offered one in
+# constant time. Named only inside `server/src/admission.rs`. `getrandom` 0.3 is already compiled
+# through tungstenite's `rand`, so this adds an edge, not a second copy.
+getrandom = "0.3.4"
+subtle = "2.6.1"
+
 # The `mineworld` command's argument parsing (DEP-11): named only in `tools/cli/src/main.rs`.
 clap = { version = "4.6.6", features = ["derive"] }
 

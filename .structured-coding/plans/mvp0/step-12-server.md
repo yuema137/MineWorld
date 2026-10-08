@@ -1741,6 +1741,12 @@ E-SA1 A-C1. check_decision_ids → 53 ids, all distinct (ARC-41, DEP-14 new). ch
       with git grep: §1, §5, §6, §6.2, §7, §8 in code, tests and docs); §9 is now "what revision 2
       does not have" (references to "§9" in spike/unreal/probe.py and UNREAL_ADAPTER_SPIKE.md meant
       revision 1's "not in revision 1" — frozen spike evidence, left).
+E-SA2 A-C2 (995c30d). protocol.rs 513 → 288 lines; request.rs 122, summary.rs 136. clippy -D warnings
+      clean; `cargo test -p mineworld-server`: 19 unit + 4 headless + 9 two_clients + 1 doc, all pass,
+      the same tests as the base (tests.rs untouched). Public paths re-exported unchanged.
+E-SA3 A-C3. admission.rs (with 5 unit tests): `cargo test -p mineworld-server --lib admission` 5
+      passed; clippy clean. `cargo tree -i subtle -e normal` → mineworld-server (→ mineworld-cli) only.
+      Cargo.lock: +1 package (subtle 2.6.1) and the server's two dependency lines; nothing else.
 ```
 
 ## 15.11 Deviations and discoveries

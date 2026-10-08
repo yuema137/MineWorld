@@ -23,6 +23,7 @@
 //! # The shape of it
 //!
 //! ```text
+//! admission   who may join: the invite, the offered invite, the nickname
 //! app         the router: /health, /status, /ws
 //! parity      AC-13's comparison: what it means for two clients to ask the same thing
 //! session     one client's conversation: join, then observations out and requests in
@@ -62,6 +63,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod admission;
 pub mod app;
 pub mod host;
 pub mod parity;
@@ -70,6 +72,10 @@ pub mod protocol;
 mod runtime;
 mod session;
 
+pub use admission::{
+    Admission, AdmissionError, InviteToken, Nickname, OfferedInvite, UNAUTHORIZED_DELAY,
+    Unauthorized,
+};
 pub use host::{
     HostConfig, HostError, HostedWorld, Perceived, SeatRoster, Seated, Submitted, SubscriptionId,
     WorldHost,
