@@ -91,28 +91,20 @@ impl Server {
     }
 }
 
-/// A save directory of its own under the system temporary directory, empty when made and removed
-/// when dropped.
+/// A save path of its own that does not exist yet, removed when dropped (scratch, DEP-29).
 pub struct SaveDir {
-    path: std::path::PathBuf,
+    scratch: mineworld_test_support::Scratch,
 }
 
 impl SaveDir {
     pub fn new(name: &str) -> Self {
-        let path =
-            std::env::temp_dir().join(format!("mineworld-cli-{}-{name}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&path);
-        Self { path }
+        Self {
+            scratch: mineworld_test_support::scratch!(name),
+        }
     }
 
     pub fn path(&self) -> &str {
-        self.path.to_str().expect("a UTF-8 temporary path")
-    }
-}
-
-impl Drop for SaveDir {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
+        self.scratch.to_str().expect("a UTF-8 temporary path")
     }
 }
 

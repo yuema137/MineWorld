@@ -336,9 +336,29 @@ Each commit tracks implementation, validation and review separately; evidence go
 **Scope.** `headless/mod.rs` `fresh`, `support/mod.rs` `SaveDir`, `bodies/mod.rs` `copy_of`, `commands.rs`,
 and the callers §4.2 names; `tools/cli/Cargo.toml` dev-dependency. **Depends on** C1.
 
-- [ ] Implementation: as §4.2; every C-g site binds its guard.
-- [ ] Validation: `cargo test -p mineworld-cli` passes with the same test names; `left` after it → 0.
-- [ ] Review: each hunk scratch-only (§8); no assertion line touched.
+- [x] Implementation: as §4.2. `fresh` returns `Scratch` (re-exported by `headless`); `SaveDir` keeps
+  `new(name)` / `path() -> &str` and wraps a `Scratch`; `commands.rs` uses `scratch!`.
+  - **Bounded deviation (C-g resolved by `Scratch::within`, commit `5c5a087`).** Deviation: the helper
+    gains `within(child)` and `AsRef<OsStr>`. Reason: four helpers return a pack copy *inside* a
+    scratch (`content_kinds::with_things`, `market_composition::without`,
+    `social_composition::without_owning` — a fourth C-g site the design's audit missed, found by
+    reading every function that calls `fresh` — and `bodies::copy_of` / `without_bodies`); binding a
+    guard inside them would remove the copy on return. They now return the `Scratch` itself,
+    `fresh(name).within("<pack>")`, so the guard lives as long as the caller's binding and the leaf is
+    still the pack's id. `AsRef<OsStr>` lets a `&Scratch` go to `WorldPack::read(impl Into<PathBuf>)`
+    unchanged. Impact: no call-site line of any test changed for it; `copy_of`/`without_bodies` take
+    the guard by value (`copy_of(fresh(..))`, three lines). Validation: the helper's own
+    `a_pack_copy_is_named_as_its_pack_and_its_whole_scratch_goes_with_it`.
+  - `Some(&save)` where `Option<&Path>` is expected needed **no** edit: the compiler coerces
+    `&Scratch` through `Deref` there. Only `market_town.rs`'s explicit `(PathBuf, …)` tuple type and
+    `bodies_yard.rs::scanned`'s `match` (C-e: the guard is held in a deferred `let scratch;` so the
+    operator's `BODIES_YARD_SAVES` path is never owned) changed.
+- [x] Validation (E-TH2): `cargo test -p mineworld-cli -p mineworld-test-support` → 53 passed,
+  0 failed, 1 ignored (the AO-2 evidence test), exit 0; `/tmp/th-dev/tmp` empty afterwards (it held
+  only this run). Name-for-name comparison with §2.1 is A-1, on the full run.
+- [x] Review: hunks classified in §8; `git diff -U0 -- '*.rs'` (helper excluded) has no added or
+  removed `assert` line; the only removed `.expect(` lines are the old helpers' own
+  `create_dir_all(..).expect("a scratch directory")`.
 
 ### C3 — `worldpack`, `tests/acceptance` (incl. `arrival_resolvers_resume`), `persistence`
 (incl. `kill_and_resume`), `systems/*/tests/persisted.rs`
