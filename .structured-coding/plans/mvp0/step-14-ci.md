@@ -626,6 +626,150 @@ CI          S13 is the CI; each PR's canonical evidence is its own workflow run 
 
 # 9. PR 13a — the container and the per-PR CI (full design)
 
+## 9.0 Freeze-ready revision (2026-10-08, implementing session)
+
+**Status:** `PROPOSED FOR FREEZE`. Nothing below is frozen until the primary session records approval.
+Written by the 13a implementing session (worktree `/Users/yuema137/mineworld-worktrees/impl-s13a`, branch
+`mvp0/pr-13a-ci`, from `main @ 47c81d1`). It applies the operator's 2026-10-08 decision to make the
+repository public and the coordination rulings in `overall.md` "Parallel build-out, 2026-10-08" to §§3–9.
+Where this subsection and older text in this file disagree, this subsection governs 13a.
+
+### R-0 Base re-audit (main @ 47c81d1)
+
+- The 29 commits in `0fd0be3..47c81d1` touch only `.structured-coding/plans/` (7 files, `git diff --stat`).
+  §2's audit therefore holds unchanged: still no `.github/`, no `Dockerfile`; `rust-toolchain.toml` still
+  `1.97.1` with `rustfmt` and `clippy`.
+- GitHub API (GET, 2026-10-08): the repository is **still private**; `actions/workflows` → `0`;
+  `actions/permissions` → enabled, `allowed_actions: all`, `sha_pinning_required: false`.
+- The reserved numbers ARC-48, ARC-49 and DEP-17…19 appear in no `docs/DECISIONS.md` on any `origin/*`
+  branch (grep over every remote branch).
+
+### R-1 Triggers: the full design, not option (c)
+
+The operator chose §10.1's option (a): public. The reduced trigger set of option (c) is therefore
+dropped, and §3.4's table is implemented as drawn for layers 1–2:
+
+| Job | Trigger in 13a's `ci.yml` |
+| --- | --- |
+| `fast` | `push` to **every** branch; `pull_request` (`opened`, `synchronize`, `reopened`, `ready_for_review`) |
+| `test` | `pull_request` of a non-draft PR (same types); `push` to `main`; `push` to `scratch/**` (mutation evidence, R-4) |
+| `image` | `workflow_dispatch`; `push` to a branch matching `scratch/*-image` (see the discovery below) |
+
+- **The economy bullet of §3.4 is withdrawn.** It restricted `push` to `main`, `wip/**`, `plan/**` and
+  `docs/**` to avoid running `fast` twice on a PR branch. That was a minutes measure, and minutes are free
+  on a public repository. `fast` on every push gives a planning or docs branch its structural verdict
+  before any PR exists. The cost is a second `fast` run on a PR branch's push, and it is accepted. The
+  `concurrency` rule stays as §3.4 states it: per ref, cancel in progress except on `main`.
+- **Draft PRs** still run `fast` only. Turning a PR ready (`ready_for_review`) starts `test` on the same
+  head.
+- **Discovery: `workflow_dispatch` cannot run before 13a merges.** GitHub offers a dispatch only for a
+  workflow file present on the default branch, and `ci.yml` first reaches `main` when 13a merges. A-C3's
+  "`workflow_dispatch` of `image`" for A13-5 is therefore impossible inside 13a. Bounded correction: the
+  `image` job also runs on a push to a branch named `scratch/*-image`. 13a's A13-5 evidence comes from
+  one such scratch branch, pushed and deleted (R-4). If that run is unavailable, the fallback is A-C2's
+  local `docker build --platform linux/amd64 --target runtime`, recorded as local evidence. After merge,
+  `workflow_dispatch` is the normal way to run `image`.
+- **Until the flip happens** the repository is private on GitHub Free, and 13a's own runs are billed
+  against the 2 000 included minutes. The contract's budget (§9.4: at most 12 runs of `test`-sized work,
+  no spending) stays binding for 13a regardless of when the flip happens. Its expected use: PR cold run
+  and cached run (2); A13-M1…M5 (5); the `image` scratch run (1); repairs and the final head (≤ 4).
+  `fast`-only mutations (M1, M4, M5) cancel their run with `gh run cancel` once `fast` is red, so their
+  parallel `test` job stops early.
+- **Runner size.** Hosted `ubuntu-24.04` for a private repository has 2 vCPU. A public repository gets the
+  larger standard runner (4 vCPU at GitHub's published terms†). 13a's A13-3 and A13-6 figures are measured
+  before the flip, so the ledger labels them "private runner". They are an upper bound on the public
+  figures, not a substitute for them. The first post-flip `test` run on `main` is recorded beside them by
+  whichever session observes it. This is not a 13a acceptance item.
+
+### R-2 Branch protection is a follow-up, not 13a's
+
+- 13a configures **no** repository setting: no protection, no ruleset, no Actions policy, no spending
+  limit (material stop, §9.4).
+- **After the flip**, the primary session, with the operator, enables protection (or a ruleset) on
+  `main` that requires the checks `fast` and `test`, plus "require branches to be up to date", because
+  AC-1's scan reads merge structure. At that point `D-12`'s "protection makes it a mechanism" becomes
+  true.
+- What 13a must do so that follow-up works:
+  - The two jobs' check names are exactly `fast` and `test`: no matrix, no decorated `name:`. A required
+    check matches by name, so these two names are a stable interface and ARC-48 records them as such.
+  - ARC-48 states the state of enforcement truthfully on the day it merges. If protection is not yet
+    enabled, "blocks" means the §3.7 policy: green `fast` and `test` on the exact final head are required
+    for `READY FOR OPERATOR REVIEW`, and the operator merges only on both green. It names the follow-up
+    that turns this into a mechanism.
+  - ARC-48 does not claim the mechanism exists before it does.
+- **A known property for the follow-up to weigh, not a 13a defect.** A job skipped by its `if:` (for
+  example `test` on a draft PR) reports "skipped", and GitHub counts a skipped required check as
+  satisfied. A draft cannot be merged, and `ready_for_review` re-runs `test` on the same head, so the gap
+  does not open in practice. ARC-48 records it.
+- **Public-repository settings the follow-up owns,** also not 13a's:
+  - the fork-PR approval policy ("require approval for first-time contributors" or stricter);
+  - whether to set `sha_pinning_required: true`, which 13a's full-SHA pins already satisfy;
+  - Dependabot for action pins, which QS13-11 deferred "until the repository is public".
+
+  13a's workflow is already safe for fork PRs: it uses `pull_request`, never `pull_request_target`, has
+  `permissions: contents: read`, and needs no secret (I-S13-7). The Actions cache is scoped per ref, so a
+  fork PR cannot write `main`'s cache entries.
+
+### R-3 Decision numbers (coordination ruling 6)
+
+| Placeholder | Number | Title (as §A-C1 / §7.2) | PR |
+| --- | --- | --- | --- |
+| `DEP-S13-a` | **DEP-17** | CI runs on GitHub Actions hosted Linux runners, inside the repository's own toolchain container | 13a |
+| `DEP-S13-b` | **DEP-18** | Container images: official `rust` slim to build, Debian slim to run, both pinned by digest | 13a |
+| `DEP-S13-c` | **DEP-19** | `sha2` as a dev-dependency of `mineworld-cli` for the parity test | 13b |
+| `ARC-S13-a` | **ARC-48** | CI layers, triggers, and what blocks | 13a |
+| `ARC-S13-b` | **ARC-49** | How AC-8 is measured | 13b |
+
+From here on, every placeholder in this file reads as its number. A-C1's "grep for the next free numbers"
+step is replaced by a re-check that these five are still unused on every `origin/*` branch just before
+A-C1 commits.
+
+The public decision changes two records' content, not their numbers:
+
+- **DEP-17** records §5.1's cost column as "public: free standard runners", and drops "the repository
+  goes public" from its revisit triggers, since that has now happened.
+- **DEP-18 / §5.2 option (D)**, a prebuilt toolchain image on GHCR, loses its "private storage" reason
+  for declining, because public packages are free. It stays declined for 13a for two reasons. Pushing an
+  image needs `packages: write`, which conflicts with I-S13-7's `contents: read` on PR jobs. And (A)
+  costs about 30–60 s per job with the GHA layer cache. DEP-17 records (D) as a revisit when per-job image
+  build time is measured above about 2 min.
+
+### R-4 Scratch branches (QS13-14 accepted)
+
+- The operator accepted QS13-14 (relayed by the primary session's 13a kickoff, 2026-10-08). The 13a
+  session may push branches named `scratch/13a-*` only to trigger CI for A13-M1…M5 and the `image`
+  evidence (`scratch/13a-image`), and must delete each after its run.
+- `git ls-remote --heads origin 'scratch/*'` → empty is recorded at A-C4.
+- Scratch commits are never merged and never cherry-picked onto `mvp0/pr-13a-ci`. Each run's id, head SHA,
+  the job that turned red and the decisive log line go into the A-C3 ledger.
+- M3 mutates the workflow's checkout on its scratch branch. Because the push trigger reads the workflow
+  from the pushed commit, the mutated `ci.yml` is the one that runs. This is what makes M3 observable on a
+  scratch branch at all.
+
+### R-5 Other rulings that touch 13a
+
+- **Ruling 10 (test hygiene).** About 16 GB of scratch saves (F-3) are fixed by a separate bounded PR
+  after 12c. That PR is not 13a, and I-S13-2 still forbids 13a from editing tests. If A13-3 shows the disk
+  does not hold, §10's R-2 remedies apply in order, and remedy (2), freeing the runner's preinstalled
+  SDKs, is a workflow step inside 13a's scope.
+- **Ruling 7 (PR numbering).** "13a" is a working name. The GitHub PR number is whatever GitHub assigns.
+- **Ruling 8 (lanes).** 13a starts now. 13b waits for 12d.
+
+### R-6 Contract amendments (§9.4, proposed with this revision)
+
+```text
+IMPLEMENTATION BASE  main @ 47c81d1; branch mvp0/pr-13a-ci; worktree
+                     /Users/yuema137/mineworld-worktrees/impl-s13a (replaces the proposed s13-13a)
+scratch branches     authorized, bounded to scratch/13a-*, deleted after each run;
+                     source: operator acceptance of QS13-14, relayed in the primary session's 13a
+                     kickoff, 2026-10-08
+workflow_dispatch    N/A before merge (R-1 discovery); replaced by the scratch/13a-image push run
+repository settings  NOT authorized (unchanged): protection, rulesets, Actions policy, spending limit;
+                     source: kickoff "material stops", 2026-10-08
+Rust code and tests  NOT authorized (unchanged, I-S13-1, I-S13-2; kickoff "material stops")
+spending             none (unchanged; kickoff "material stops")
+```
+
 ## 9.1 Identity, base, approved scope
 
 ```text
