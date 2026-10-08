@@ -6533,6 +6533,13 @@ budget").** A new Class I piece, evidence E-Z3 (E3's scan is 49 % of the with-bo
 
 SD-Z6 is implemented first (ZC-3, which SD-Z1's drop vacated), then SD-Z3 and SD-Z4 (ZC-4) as frozen.
 
+**Amendment (2026-10-08, primary session's ruling on §20.13 Z-D7, option (c)): SD-Z3 and SD-Z4 are
+dropped.** Evidence E-Z5: their integer answers differ from Rapier's by more than 50 mm on 2.15 % of
+those they give (ZR-3's bound 1 %), and no CPU gain from them is measurable over SD-Z6 alone. Their
+code stays on `mvp0/s15-12d0-zc4-wip` @ c1b5749, unmerged, for reference only. What remains: Class I
+SD-Z2 and SD-Z6; Class R SD-Z5. TZ-4, TZ-5, M-Z3, M-Z4 and ZR-3 are withdrawn with them; TZ-9a
+(≤ 3.0 ×) and TZ-9b (≤ 50 ms) stand as fixed.
+
 ## 20.4 Which results must not move, and the re-capture rule (decided before measuring)
 
 **Class I (SD-Z1, SD-Z2, SD-Z3) must be byte-identical.** With SD-Z4 and SD-Z5 off — a crate-private
@@ -6586,6 +6593,11 @@ patch (`/tmp/s15-12d0/sd-z1-reverted.patch`) is reference only. Per `ARC-23` ("l
 the ZC-1 profile (Z-D3) is taken before ZC-4, and ZC-4 starts only if the profile's estimate says SD-Z3
 and SD-Z4 (with §20.7's ladder) can plausibly reach TZ-9's 1.5 ×; otherwise stop and report. TZ-9's
 bound is unchanged.
+
+**Amendment (2026-10-08, primary session's ruling on §20.13 Z-D7, option (c)).** SD-Z3 and SD-Z4 are
+dropped (§20.3's amendment; evidence E-Z5). Class I is SD-Z2 and SD-Z6; Class R is SD-Z5 alone. ZR-3
+(the shadow comparison of integer answers) has no subject left and is withdrawn; ZR-1, ZR-2, ZR-4 and
+ZR-5 apply to SD-Z5. ZR-4 is also run for the Class-I build.
 
 Towns: neither installs bodies before 12d, so social-cafe's and market-town's 300-day digests are
 unchanged by 12d-0 in every class (TZ-1).
