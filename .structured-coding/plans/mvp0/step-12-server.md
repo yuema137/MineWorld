@@ -2191,9 +2191,10 @@ SB-10. **Review:** the module never logs the resume secret; every four-argument 
 
 ### B-C8 — Close: README, digests, scope, full gate, ledger, PR
 
-- [ ] Implementation: `server/README.md` (`--town`, takeover); ledger · [ ] Validation: SB-11 digests,
-  SB-12 scope and sizes, one full gate on the final executable head (background) · [ ] Review: SB-1 …
-  SB-12 with evidence; the PR marked READY FOR OPERATOR REVIEW — DO NOT MERGE.
+- [x] Implementation: `server/README.md` (`--town`, takeover); ledger · [x] Validation: SB-11 digests,
+  SB-12 scope and sizes, one full gate on the final executable head (background) — E-SB7, E-SB8: all
+  green but one CP-B4 measurement under load (D-SB12, material) · [x] Review: SB-1 … SB-12 with
+  evidence; the PR marked READY FOR OPERATOR REVIEW — DO NOT MERGE, with D-SB12 flagged.
 
 **E-SB0 (first action after the freeze, before any code):** the base's two 300-day digests (expected
 `ad49c723…c64b` and `365b50e0…1d1d`), and a timing of `cargo test -p mineworld-cli` at the base.
@@ -2366,6 +2367,27 @@ E-SB6 B-C7 (SB-10). world_client.gd: `connect_to_world(…, take_over := false)`
       `./mineworld-slice --world --link` → "all link checks pass". The check drops the socket by
       closing the module's own WebSocketPeer — the event a dropped network produces; no test-only
       path in the module. Each server stopped by its own PID (run.sh's `kill "$server"`).
+E-SB7 B-C8. Merged origin/main b97cb4a (S16 E-b #78 with `--packs`, S19 plan #81): conflicts in
+      tools/cli/src/main.rs and MODULE_SPEC §8.1 resolved by carrying E-b's `PackRoots` into
+      `ServeRequest.roots` and `WorldPack::read_with` in serve.rs (QS11B-6's rule); the merged
+      main.rs is 486 lines. IL-a has not landed; its drift call will go into serve.rs::persisted.
+      SB-11 digests on the merged head (debug build, `grep -v '^wall' | shasum -a 256`):
+        social-cafe seed 7, 300 days: 339 lines, ad49c723…c64b = E-SB0
+        market-town seed 7, 300 days: 355 lines, 365b50e0…1d1d = E-SB0
+      run.rs untouched; cognition's paced tests untouched.
+      SB-12: no diff under kernel/, contracts/, persistence/, worlds/, worldpack/, systems/,
+      authoring/, sdk/, tests/acceptance/; no Cargo.toml/Cargo.lock change; server/ names no
+      controller crate. Sizes: runtime.rs 492, host.rs 432, session.rs 399, protocol.rs 358,
+      main.rs 486 — each under 500.
+      check_decision_ids 60 distinct; check_doc_headings 191, none duplicated; check_scratch scan
+      151 sources clean.
+E-SB8 Full gate on be674d7 (the merge head; later commits are docs only): fmt --check ok, check ok,
+      clippy -D warnings ok, `cargo test --workspace --no-fail-fast`: 164 test binaries ok, ONE
+      failed — hosted_town: `[world] ticks 1202, longest tick 160 ms` > 50 ms. The machine's load
+      average was ~21 during the gate (other worktrees' 300-day runs and Godot checks running
+      concurrently). CP-B4 measurements so far: 13 ms (E-SB5, isolated), PASS inside the full CLI
+      suite run, 160 ms (this gate, load ~21), 1 ms (re-run on the same head right after, load ~7).
+      Classification: CP-B4 FAIL once under load; PASS ×3. Material per §16.8 — see D-SB12.
 ```
 
 ## 16.11 Deviations and discoveries
@@ -2428,6 +2450,21 @@ D-SB9 (bounded) Existing test edited because a hosted `--agent` changes what it 
       tools/cli/tests/ac15_one_alice.rs `clients` 3 → 2 (there_is_only_one_alice) and 2 → 1
       (killing_one_window_…) — an in-server controller is no longer a client (SD-B4). No other
       existing CLI test assertion changed.
+D-SB11 (bounded) Paths beside §16.5's list, each the companion of a listed one: server/src/seats/
+      tests.rs (seats.rs's unit tests), clients/protocol/checks/reconnect_check.gd.uid (Godot's
+      generated id for the listed check), clients/protocol/evidence/README.md (names the two new
+      evidence files), tools/cli/tests/ac15_one_alice.rs (D-SB9, the §16.8 exception). The old
+      `--agent` printed one `[mineworld] agent: …` line per outcome; the hosted adapter prints none
+      while running and its counts in the shutdown statistics instead (SD-B11) — the regenerated
+      evidence logs show the difference.
+D-SB12 (MATERIAL — operator's decision) CP-B4's 50 ms longest-tick bound failed once (160 ms) in
+      the full workspace gate on a machine at load ~21, and held in three other runs (13 ms, suite
+      PASS, 1 ms). The longest tick is a single maximum over ~1200 ticks, so one scheduler or fsync
+      stall (Durability::PowerLoss, one fsync per hosted request) decides it. Nothing was changed to
+      make it pass. Options for the operator (R-S11-5): (a) accept as a load outlier and keep the
+      bound, running hosted_town alone in CI; (b) bound a high percentile (e.g. p99) instead of the
+      maximum, with the maximum reported; (c) Durability::Commit for hosted saves; (d) a longer
+      default pace. The PR is opened for review with this item flagged; not merged.
 D-SB10 (bounded) The paced lattice's `genesis` is `HostConfig::epoch`, the instant every world this
       command creates begins at, so it is the same after a resume; hosted instants follow the wall
       clock anyway (ARC-42's accepted limitation).

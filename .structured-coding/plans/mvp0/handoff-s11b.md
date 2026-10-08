@@ -31,7 +31,12 @@ VALIDATION BUDGET   §16.9 (~1.5 h total; 300-day runs ≤ 6; Godot one window a
 STOP CONDITIONS     normal: PR S11-B READY FOR OPERATOR REVIEW — DO NOT MERGE; material: §16.8 (a
                     kernel/contract/persistence edit, a path outside §16.5, a digest change, CP-B4's
                     50 ms bound failing)
-CURRENT CHECKPOINT  E-SB0 done (digests equal the expected base values). B-C1 in progress.
-NEXT ACTIONS        B-C1 → B-C2 → B-C3 → B-C4 → B-C5 → B-C6 → merge origin/main → B-C7 → B-C8
-BACKGROUND JOBS     none recorded
+CURRENT CHECKPOINT  B-C1 … B-C7 committed and pushed; origin/main (E-b #78, S19 plan #81) merged;
+                    QTW-13 amendment applied (D-SB6); digests = E-SB0 (E-SB7); full gate on the
+                    head, then the PR as READY FOR OPERATOR REVIEW — DO NOT MERGE.
+                    A resumed session (rate limit) audited and kept the 13 uncommitted files (D-SB4).
+NEXT ACTIONS        operator review; on merge, the post-merge sync of §16 (this session's) and
+                    §§1–14 / overall.md / MVP_STATUS (the primary session's). If IL-a lands first,
+                    its drift call goes into tools/cli/src/serve.rs::persisted.
+BACKGROUND JOBS     none after the gate
 ```
