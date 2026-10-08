@@ -126,6 +126,56 @@ async fn walks_from_the_apartments_into_the_cafe() {
     assert_eq!(arrivals, accepted, "one recorded arrival per accepted move");
 }
 
+/// F-9 and F-10, where `./mineworld-2d` starts: carol at home, played through the real input path.
+/// Clicking past the room's far wall must not change the drawn floor; a click on the door, or walking
+/// onto it with the keys, must take her out to the place the doorway leads to — confirmed by the
+/// save's own `person-entered-place`, not by the client.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
+async fn leaves_home_by_its_door_and_the_room_stays_put() {
+    for exit in ["click", "keys"] {
+        let save = SaveDir::new(&format!("2d-home-{exit}"));
+        let mut world = World::start(&args(&hosted(&save)), None).await;
+        let (status, lines) = Drive::start(
+            world.address,
+            "carol",
+            &["--drive=home", &format!("--exit={exit}")],
+        )
+        .finish()
+        .await;
+        assert!(
+            status.success() && passed(&lines),
+            "{exit}: the drive passes"
+        );
+        let observer = evidence(&lines, "welcome")[0]["observer"]
+            .as_str()
+            .expect("observer")
+            .to_owned();
+        let visited = places(&lines);
+        world.kill();
+        let mut entered = Vec::new();
+        for fact in &facts(&save) {
+            if *fact.event_type() == PersonEnteredPlace::EVENT_TYPE {
+                let e: PersonEnteredPlace = serde_json::from_slice(
+                    fact.payload()
+                        .payload_for::<PersonEnteredPlace>()
+                        .expect("presence's fact"),
+                )
+                .expect("decodes");
+                if e.person().entity_id().to_string() == observer {
+                    entered.push(e.place().entity_id().to_string());
+                }
+            }
+        }
+        assert_eq!(visited.len(), 2, "{exit}: home, then out: {visited:?}");
+        assert_eq!(
+            entered,
+            visited[1..].to_vec(),
+            "{exit}: the save records the one crossing"
+        );
+    }
+}
+
 /// AC-W10: the same walk asks the world for exactly the same things whatever draws it; and a click
 /// asks for the point clicked, in both projections.
 #[tokio::test]

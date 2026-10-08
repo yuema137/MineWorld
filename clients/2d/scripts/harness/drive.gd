@@ -122,6 +122,8 @@ func _run() -> void:
 			_report_self()
 		"click":
 			await _click()
+		"home":
+			await _home(String(app.options.get("exit", "click")))
 		_:
 			await _seconds(SETTLE_S)
 			_check_seated()
@@ -233,10 +235,78 @@ func _street(n: int) -> void:
 
 
 ## The click path (AC-W10): clicking where a point is drawn asks to walk to that point.
-func _click() -> void:
+## The player's own first minute, as `./mineworld-2d` starts it: seated at home, with only the room's
+## one disclosed doorway known. Played through the real input path (a click on the screen, or the
+## keys), never through the walker's API.
+## 1. Click well past the room's far wall: the drawn floor must not change (F-9). The world may well
+##    accept the walk — it discloses no extent for the room — and that is reported, not corrected.
+## 2. Leave by the door, with a click on it (`--exit=click`) or by walking onto it with the keys
+##    (`--exit=keys`): the observer's place must become the one the doorway leads to (F-10).
+func _home(exit: String) -> void:
 	await _seconds(SETTLE_S)
-	var target: Vector2 = app.walker.body_plan + Vector2(1.0, 0.5)
-	var screen: Vector2 = app.get_viewport().get_canvas_transform() * app.projection.to_screen(target)
+	var here: String = app.latest.place()
+	var room: Dictionary = app.places.drawn.get(here, {})
+	var doorways: Array = app.town.passages.get(here, [])
+	if room.is_empty() or doorways.size() != 1:
+		_check(false, "home", "not seated in a drawn room with one doorway: %s, %d doorway(s)" % [here, doorways.size()])
+		return
+	var p: Dictionary = doorways[0]
+	var door: Vector2 = app.town.to_plan(here, {"x": p["here"].x, "y": p["here"].y})
+	var floor_before: Rect2 = room["rect"]
+	_check(app.places.has_method("door_drawn") and app.places.door_drawn(here, door), "the doorway is drawn", "at %s in %s" % [door, here])
+	var in_dir: Vector2 = room["in_dir"]
+	var beyond: Vector2 = door + in_dir * (floor_before.size.length() + 3.0)
+	await _press_at(beyond)
+	await _until(func() -> bool: return not app.walker.is_walking(), TIMEOUT_S)
+	await _seconds(0.6)
+	var floor_after: Rect2 = app.places.drawn.get(here, {}).get("rect", Rect2())
+	_check(floor_after == floor_before, "the drawn floor stays put", "before %s, after %s" % [floor_before, floor_after])
+	var body: Vector2 = app.walker.body_plan
+	print("EVIDENCE ", JSON.stringify({"beyond_the_floor": {"place": app.latest.place(),
+		"local": app.latest.self_location().get("local"), "outside_drawn_floor": not floor_before.has_point(body),
+		"accepted": _results.filter(func(r: Dictionary) -> bool: return r.has("accepted")).size(),
+		"results": _results.size()}}))
+	if _capture != null:
+		await _capture.shoot("07_home_interior", 1.6, floor_before.get_center())
+	if exit == "keys":
+		await _press_at(door + in_dir * 1.0)
+		await _until(func() -> bool: return not app.walker.is_walking(), TIMEOUT_S)
+		await _hold_keys_toward(door, p["to"])
+	else:
+		await _press_at(door)
+	var out := await _until(func() -> bool: return app.latest.place() == p["to"] and not app.walker.is_walking(), 20.0)
+	_check(out, "out through the door (%s)" % exit, "now in %s, the doorway leads to %s" % [app.latest.place(), p["to"]])
+	if _capture != null and out:
+		await _seconds(SETTLE_S)
+		await _capture.shoot("08_home_door", 1.6, door)
+	_report_self()
+
+
+## Holds the arrow keys whose direction on the screen best points the body at `door`, until the
+## observer is in `to` or ten seconds pass.
+func _hold_keys_toward(door: Vector2, to: String) -> void:
+	var want: Vector2 = (door - app.walker.body_plan).normalized()
+	var best: Array = []
+	var best_dot := -2.0
+	for combo in [["move_up"], ["move_down"], ["move_left"], ["move_right"], ["move_up", "move_left"],
+			["move_up", "move_right"], ["move_down", "move_left"], ["move_down", "move_right"]]:
+		var screen := Vector2.ZERO
+		for action in combo:
+			screen += {"move_up": Vector2(0, -1), "move_down": Vector2(0, 1), "move_left": Vector2(-1, 0), "move_right": Vector2(1, 0)}[action]
+		var d: float = app.projection.screen_dir_to_plan(screen).dot(want)
+		if d > best_dot:
+			best_dot = d
+			best = combo
+	for action in best:
+		Input.action_press(action)
+	await _until(func() -> bool: return app.latest.place() == to, 10.0)
+	for action in best:
+		Input.action_release(action)
+
+
+## A left click on the screen point where `plan` is drawn, through the viewport's input path.
+func _press_at(plan: Vector2) -> void:
+	var screen: Vector2 = app.get_viewport().get_canvas_transform() * app.projection.to_screen(plan)
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
 	press.pressed = true
@@ -245,6 +315,13 @@ func _click() -> void:
 	# In the viewport's own coordinates (`in_local_coords`), as the canvas transform gives them.
 	app.get_viewport().push_input(press, true)
 	await _seconds(0.2)
+
+
+func _click() -> void:
+	await _seconds(SETTLE_S)
+	var target: Vector2 = app.walker.body_plan + Vector2(1.0, 0.5)
+	var screen: Vector2 = app.get_viewport().get_canvas_transform() * app.projection.to_screen(target)
+	await _press_at(target)
 	var asked: Variant = null
 	if not _requests.is_empty():
 		var to: Dictionary = _requests[-1]["payload"]["payload"]["to"]
