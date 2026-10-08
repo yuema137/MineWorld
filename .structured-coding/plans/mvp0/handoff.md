@@ -39,7 +39,15 @@ STOP CONDITIONS     NORMAL: PR 12d-0 READY FOR OPERATOR REVIEW — DO NOT MERGE.
 POST-MERGE SYNC     planning session: header, §19 (its base and TD-14 references), overall, MVP_STATUS
 ```
 
-## Current checkpoint — STOPPED (material): TZ-9 cannot pass within §20 (§20.13 Z-D6, E-Z3)
+## Current checkpoint — STOPPED (material): ZR-3 fails for SD-Z3 + SD-Z4 (§20.13 Z-D7, E-Z5)
+
+- Z-D6 ruled: SD-Z6 added (Class I) and done on the PR branch (18d8e48, E-Z4: ZI-1 … ZI-4 identical);
+  TZ-9 re-scoped to TZ-9a (3.0 ×) and TZ-9b (50 ms).
+- ZC-4 (SD-Z3 + SD-Z4) written and tested, ZR-3 fails on long_run (9 of 418 > 50 mm = 2.15 %); parked
+  on `mvp0/s15-12d0-zc4-wip` @ c1b5749. Options (a)/(b)/(c) in Z-D7. ZC-5, ZC-6, TZ-9a/b not run.
+- Binaries: `/tmp/s15-12d0/z6-mineworld` (PR head's code), `/tmp/s15-12d0/z34-mineworld` (the WIP).
+
+### Earlier checkpoint — TZ-9 cannot pass within §20 (§20.13 Z-D6, E-Z3)
 
 - Z-D4 ruled: SD-Z1 dropped (§20.4 amendment). The ZC-1 profile (E-Z3, `/usr/bin/sample`, 30 and 300
   days): 49 % of the with-bodies run is entry E3's `nearest_free` lattice scan, 24 % stride/Rapier,

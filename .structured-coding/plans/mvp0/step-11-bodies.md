@@ -6732,10 +6732,12 @@ generated rooms, targets and occupancies; the old scan kept as the tests' refere
 **Scope.** `walls.rs` (new), `stride.rs` (the route before the scene), `resolve.rs` (`Route::Walled`;
 `Policy.integer_walls`), `tests/walls.rs` (TZ-5, M-Z4); the shadow comparison harness (ZR-3) as an
 ignored test reading both policies.
-- [ ] Implementation.
-- [ ] Validation: TZ-5; with the policy off, ZI-1 … ZI-3 still identical; ZR-1 … ZR-3 on.
-- [ ] Review: the clamp never lengthens (proof in the doc comment, a property test over the long run's
-  requests); no float; V1 … V4 still applied.
+- [ ] Implementation: written with SD-Z3 (E-Z5), parked on `mvp0/s15-12d0-zc4-wip` @ c1b5749 — not
+  on the PR branch (Z-D7).
+- [ ] Validation: TZ-4, TZ-5, M-Z3, M-Z4, ZR-1, ZR-2's long_run invariants and the off-policy identity
+  PASS; **ZR-3 FAILS** on long_run (9 of 418 > 50 mm, 2.15 %; E-Z5; §20.13 Z-D7, MATERIAL STOP).
+- [ ] Review: the clamp never lengthens (proof in `walls.rs`; a property test over 20 000 generated
+  strides in place of the long run's requests); no float; V1 … V4 still applied. Pending the ruling.
 
 ### ZC-5 — SD-Z5, FU-12c-1 (Class R)
 
@@ -7038,6 +7040,46 @@ E-Z4 ZC-3 (SD-Z6), 2026-10-08, working tree on 8ea28d4 + entry.rs.
        1, scenarios 17). TZ-2 for SD-Z6: PASS.
      Information (not TZ-9a): social-cafe prototype, 30 days, CPU 4.45 s (base 8.95 s; without 1.73 s).
 
+E-Z5 ZC-4 (SD-Z3 + SD-Z4), 2026-10-08, on 18d8e48 + the ZC-4 code, parked on branch
+     `mvp0/s15-12d0-zc4-wip` @ c1b5749 (pushed; not on the PR branch). Code: `geometry.rs` (`Area::
+     spanning`, `grown`, `meets`, `clamp`, `clear_of_segment`, `crossed_by`; `corridor_clear(…, exact)`),
+     `walls.rs` (new: `walled`, the clamp, its two unit tests), `stride.rs` (the Walled route after the
+     clear one, V1 … V4 applied, a failing answer going on to Rapier), `resolve.rs` (`Policy.
+     exact_corridor`, `integer_walls`; `RAPIER_PATH`; `Route::Walled`; `#[doc(hidden)] pub fn shadow`
+     and `Shadow`, ZR-3's comparison), `tests/walls.rs` (TZ-5), `tests/shadow.rs` (ZR-3, ignored).
+     One existing unit test edited to compile (`resolve.rs`
+     `without_verification_the_controller_leaves_the_pair_overlapping`: `..PRODUCTION` added to its
+     struct literal; its assertion unchanged).
+     fmt, clippy -D warnings clean. `cargo test -p mineworld-bodies`: every test passes (lib 22 —
+       TZ-4's four, the clamp's two among them —, walls 5, and every existing file unedited, PB-5 a's
+       8 010 ± 1 and PB-5 c's slide included): ZR-1 PASS.
+     TZ-4 PASS; M-Z3 (the exact test replaced by the box overlap): `a_diagonal_320_mm_from_a_post_is_clear`
+       FAILS. TZ-5 a–e PASS; M-Z4 (C shrunk by R): a → (8 020, 3 000), b → (8 020, 4 400), c → (8 020,
+       10 020), FAIL as designed.
+     Class-I check with SD-Z3 and SD-Z4 off (PRODUCTION's two flags false, temporarily; step.sh
+       z34off): ZI-1 d7025dbc…, ZI-2 53d017d0…, ZI-3 6e4c4015… = E-Z-base: the plumbing moves nothing.
+     **ZR-3 on long_run's 3 000 requests (`--test shadow -- --ignored`, /tmp/s15-12d0/zr3-longrun.txt):
+       418 compared (363 Walled, 55 newly Clear); per-axis difference max 1 605 mm, mean 15.7 mm;
+       9 above 50 mm = 2.15 % > 1 % — FAIL.** (Walled 8 of 363 = 2.2 %; newly Clear 1 of 55 = 1.8 %.)
+       The nine, each with Rapier's end on the same state:
+         64    p09 (7 605, 2 620) → (8 539, 3 554)  Walled (8 010, 3 554)   Rapier (7 872, 3 237)
+         221   p10 (316, 1 986) → (−135, 2 437)     Walled (310, 2 437)     Rapier (316, 2 294)
+         691   p04 (6 710, 2 116) → (8 056, 770)    Walled (8 010, 770)     Rapier (6 805, 2 198)
+         920   p12 (4 765, 1 214) → (3 692, 141)    Walled (3 692, 310)     Rapier (3 857, 310)
+         1149  p02 (5 835, 6 260) → (7 764, 6 260)  Clear  (7 764, 6 260)   Rapier (6 159, 6 256)
+         1407  p14 (3 879, 10 010) → (2 535, 11 354) Walled (2 535, 10 010) Rapier (3 879, 10 010)
+         1634  p08 (8 010, 3 055) → (8 540, 2 525)  Walled (8 010, 2 525)   Rapier (8 010, 2 755)
+         1687  p03 (1 241, 310) → (1 665, −114)     Walled (1 665, 310)     Rapier (1 612, 310)
+         1867  p14 (1 184, 310) → (137, −737)       Walled (310, 310)       Rapier (1 183, 310)
+       In all nine Rapier keeps less of the stride than the integers: it slides less along the wall, and
+       where the walker starts at the controller's offset (1407, 1867) or glides along it (1149, the
+       counter's face at 6 260) it barely moves or does not move at all — the same behaviour E-Z1 found
+       for SD-Z3 (Z-D2). The integer answers keep V1 … V4 after every request (asserted in the test).
+     Not run, the stop coming first: ZR-3 on the 300-day prototype, ZR-4, the re-capture (ZR-5), ZC-5.
+     Information (not TZ-9a; load average 68 … 87, so CPU itself inflated): 30 prototype days,
+       interleaved z6, z34, z6, z34 → 7.40, 7.86, 7.72, 7.68 s. SD-Z3 + SD-Z4 show no CPU gain over
+       SD-Z6 alone that this instrument can see under this load.
+
 The prototype (E-TD0b), stated so it can be rebuilt:
   1  GIT_INDEX_FILE=/tmp/s15-12d0/proto.idx git --work-tree=/tmp/s15-12d0/proto checkout 21f96ff -- \
        worlds/social-cafe worlds/market-town
@@ -7190,6 +7232,37 @@ Validation consequence:
   even that plus every Rapier stride at zero cost leaves ≈ 2.0 ×, so the remaining ≈ 15 s of bodies'
   other cost (more facts) is also in question — whether QB-11's 1.5 × is reachable at all on this
   prototype is the operator's question, with these numbers.
+```
+
+**Ruling on Z-D6 (operator, 2026-10-08, relayed by the coordinator): "fix the scan, and switch to an
+absolute budget".** SD-Z6 added as Class I (§20.3 amendment); TZ-9 re-scoped to TZ-9a (3.0 ×) and TZ-9b
+(50 ms), the 1.5 × kept as superseded (§20.5 amendment). SD-Z6 done, Class I PASS (E-Z4).
+
+**Z-D7 — MATERIAL STOP: ZR-3 fails for SD-Z3 + SD-Z4 (E-Z5).**
+
+```text
+Previous assumption:
+  §20.4 ZR-3 (and its amendment): the integer answers of SD-Z3 and SD-Z4 differ from Rapier's by more
+  than 50 mm on an axis on at most 1 % of the requests they answer (QZ-1 accepted that the slide keeps
+  all tangential motion where Rapier's controller "may" keep less).
+Audit evidence:
+  E-Z5. Over long_run's 3 000 requests: 418 answered by integers (363 Walled, 55 newly Clear), 9 of them
+  more than 50 mm from Rapier's answer on the same state — 2.15 %. In every one Rapier keeps less: it
+  slides less, and from or along its own offset it sticks (no motion at all in two, 1 605 mm less in
+  one). ZR-1 passes (every test, PB-5 a and c), V1 … V4 hold, TZ-4, TZ-5 and both mutations behave;
+  with both pieces off ZI-1 … ZI-3 are E-Z-base's.
+Corrected understanding:
+  The difference is not a defect of the integers: it is Rapier's controller sticking at its offset
+  (E-Z1's finding, again). But the frozen bound measures exactly that difference, and it is exceeded.
+Implementation consequence:
+  The ZC-4 code is parked on mvp0/s15-12d0-zc4-wip @ c1b5749, not on the PR branch. No re-capture.
+  ZC-5, ZC-6 and the gate not started.
+Validation consequence:
+  For the operator: (a) widen ZR-3's bound (its 1 % / 50 mm was set before E-Z1 and E-Z5 showed what
+  Rapier does at its offset); (b) narrow SD-Z4 so that it does not answer strides that start at or
+  glide along C's edge (likely to bring most of the nine under 50 mm, at the cost of sending those
+  strides back to Rapier); or (c) drop SD-Z3 and SD-Z4 and measure TZ-9a with SD-Z6 alone (+ SD-Z5),
+  since under the present load E-Z5 sees no CPU gain from them. Either way TZ-9a is not yet measured.
 ```
 
 **Z-D5 — The resumed session (bounded).** The previous implementation session ended (API rate limit)
