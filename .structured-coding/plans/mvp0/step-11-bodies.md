@@ -6726,7 +6726,8 @@ POST-MERGE SYNC     planning session: header, §19 (its base and TD-14 reference
 
 ```text
 E-Z0 ZC-0, 2026-10-08, planning session, on mvp0/s15-12d0-plan (main f842c52 + §19, §20).
-     Doc checks: see the commit's run.
+     Doc checks: 191 numbered sections across 26 documents, none duplicated; 55 decision ids, all
+     distinct. No cargo run: the prototype measurements are E-TD0b's.
 
 The prototype (E-TD0b), stated so it can be rebuilt:
   1  GIT_INDEX_FILE=/tmp/s15-12d0/proto.idx git --work-tree=/tmp/s15-12d0/proto checkout 21f96ff -- \
