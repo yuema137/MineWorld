@@ -57,11 +57,16 @@ func _ready() -> void:
 	_hud()
 	_link()
 
-	if SliceProbe.scripted():
-		probe = SliceProbe.new()
+	if _scripted():
+		probe = SliceProbeWorld.new() if SliceProbeWorld.requested() else SliceProbe.new()
 		probe.player = player
 		probe.slice = self
 		add_child(probe)
+
+
+## Whether a scripted probe mode, standalone or connected, runs this session.
+static func _scripted() -> bool:
+	return SliceProbe.scripted() or SliceProbeWorld.requested()
 
 
 ## `Props.gltf` keeps one generated scene per slug as a template it duplicates
@@ -335,7 +340,7 @@ func _reflections() -> void:
 func _spawn_player() -> void:
 	player = SlicePlayer.new()
 	player.name = "Player"
-	player.look_enabled = not SliceProbe.scripted()
+	player.look_enabled = not _scripted()
 	add_child(player)
 	player.place(SliceWorld.SPAWN, SliceWorld.SPAWN_YAW, -2.0)
 
@@ -347,7 +352,7 @@ func _process(_d: float) -> void:
 
 
 func _hud() -> void:
-	if SliceProbe.scripted() and not SliceProbe.with_hud():
+	if _scripted() and not SliceProbeWorld.with_hud():
 		return
 	hud = ControlsHud.attach(self, player)
 	_hud_place = hud.add_line("place: -")

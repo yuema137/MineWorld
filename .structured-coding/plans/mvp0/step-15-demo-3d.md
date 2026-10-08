@@ -1803,10 +1803,18 @@ measurements (QS14-12, the brief's material stop) — never fall back to Godot P
 `slice_probe.gd` (the block removed; `_process` calls `_run(_mode)`; `scripted()`/`with_hud()` ask the
 sibling for its flags); `slice_main.gd` (which probe to instantiate). **Non-goals:** any behaviour change.
 
-- [ ] Implementation: as scoped (D-16a-5).
-- [ ] Validation (E16a-3): `--world --link` and `--world --conversation` print the same check lines as
-  C2's runs; `--drive` (headless) unchanged; line counts of both files recorded.
-- [ ] Review: the moved block diffed against its original (`git diff --color-moved`): moved, not edited.
+- [x] Implementation: as scoped (D-16a-5). `SliceProbe` gains `MODES`, `requested_of(modes)`,
+  `_modes()` and `_run(mode)`; `with_hud()` moved to `SliceProbeWorld` (it names a connected mode);
+  `SliceMain._scripted()` asks both. Done on the merged head `05f5cb3` (16b's shared module in).
+- [x] Validation (E16a-3, 13:35–13:41, Jolt): `--drive` "all drive checks pass"; `--world --link` "all
+  link checks pass" with the same lines as C2 (50/50 moves, sent (1596, 1139) = server's, door
+  too_far_away, counter accepted and reply heard, watch 60 s in 60.0 s); `--world --conversation`
+  "conversation on screen, no ids", the same door toast. Port 7979 free before each run; the server was
+  the launcher's own (its PID, this worktree's path). Lines: `slice_probe.gd` 1 649 → 1 311,
+  `slice_probe_world.gd` 395.
+- [x] Review: the moved block compared by content with its original (from "## C8, with S6" to the line
+  before "## Every street door"): identical apart from the trailing blank lines. Every former call site
+  of `scripted()`/`with_hud()` (`slice_main.gd` ×3) updated; no other caller exists.
 
 **Commit boundary.** A pure move plus the two dispatch edits.
 
