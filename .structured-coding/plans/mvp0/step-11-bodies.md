@@ -4262,3 +4262,208 @@ rapier.rs only          friction 0.5, restitution 0.1, rotations locked (no rota
 | **SD-O19** | **The test world: `worlds/bodies-yard`, extended** (QO-15).<br>- `items:` gains seven objects, each `items/<key>.yaml` with tags and a `body:` in object form; no `item:` section; the `item` pack is not installed.<br>- The hall: two boxes, half 200 mm; a crate, half 300 mm; two balls, radius 110 mm.<br>- The court: a box, half 200 mm; a ball, radius 110 mm.<br>- Every object at least 700 mm from every authored person and from the doorway points, and clear of the table and the pillar.<br>- README: the objects and the three actions. | The world already runs every path 12c needs: the real loader, `validate`, `mineworld run` with the unchanged controller, `--save`, SIGKILL and resume, and world-level removal. Shove changes it in any case (F-O12). A sibling world would duplicate the harness and re-prove nothing new. |
 | **SD-O20** | **What changes in a save.** bodies `VERSION` 2: a save written by 12b is refused at bodies' record, "system 'bodies' is v2 here, but the save was written by the older v1". No other pack's version changes. | `ARC-25`: versions are refused, never guessed. |
 | **SD-O21** | **Documents** (PO-C1, before code):<br>- **`ARC-36` note** (QB-3): an Item file with a `body:` section is one physical object, not a kind; it is never a declared kind, so it is never held; instances in general are still out.<br>- **`ARC-39` note 2:** the resolver predicts object pushes and falls back to objects solid (SD-O9, SD-O10); the reaction pushes against the objects as they lay (F-O2); the guard covers objects; `shove` states through `arrivals()`.<br>- **`DEP-13` note:** dynamics are now used — one dynamic body per flight, rotations locked, bounded steps, the rest rule, CCD, F-P1's re-mark exercised.<br>- **`MODULE_SPEC.md` §4.1:** the `body` row's object form; the item-file paragraph ("an item file declares an item kind, unless it carries `body:`"); an item example.<br>- `systems/bodies/README.md` and `lib.rs`'s table; `MVP_STATUS.md`. | `CLAUDE.md` §2.2: the documents come first. QB-3 said "amending ARC-36's wording (in 12c)". |
+
+## 18.4 Acceptance (decided before measuring, `ARC-23`)
+
+Rules for every criterion below, as in §17.4:
+- Each guarded criterion names the mutation shown to break it. A mutation is applied in the working
+  tree, observed to fail by name, and reverted. `git status` and `git grep MUTATION` are recorded
+  afterwards.
+- Every expected position is a literal computed by hand from the test's own layout, never by the code
+  under test (test rules §25). Positions that pass through a Rapier sweep or cast are asserted to
+  within ±1 mm of the hand-computed literal. Positions that pass through a **flight** cannot be
+  hand-computed to the millimetre; they are asserted against **bounds fixed here**, and their bytes
+  against a second process.
+- The scenario room is 12b's: the prototype's café, floor (0, 0)–(8 320, 10 320), the counter (3 860,
+  6 570)–(8 320, 7 170) at height 1 100. A box "half 200" is a 400 mm cube; a ball "r 110" has radius
+  110 mm.
+
+```text
+PO-1  Nothing existing moves. On the PR head:
+        - `mineworld run worlds/social-cafe --headless --seed 7 --days 300`: faults 0, 365 330 facts,
+          sha-256 of every line but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b;
+        - `mineworld run worlds/market-town --headless --seed 7 --days 300`: faults 0, 372 755 facts,
+          sha-256 = 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d;
+        - `mineworld validate` of both worlds byte-identical to the base binary's output;
+        - every existing test passes; the only edits to existing tests are those QO-16 names.
+      (Neither town installs bodies, F-O12; the guard on bodies' own inertness is PO-17 and M-PO1.)
+PO-2  Objects at load (SD-O4, SD-O5), through the real `mineworld validate` on test-time copies of
+      worlds/bodies-yard (tools/cli/tests/bodies_yard.rs). Each refusal exits non-zero and names its
+      subject and the numbers:
+        - a ball whose place has no `body:` (the copy strips the court's) → "bodies-unshaped";
+        - a ball 200 mm from a person → "bodies-object-on-person";
+        - a box overlapping the table → "bodies-object-in-solid";
+        - a ball 50 mm from the floor's edge → "bodies-object-outside";
+        - two balls 100 mm apart → "bodies-object-overlap";
+        - a hall too small for its people and objects → "bodies-capacity", with the counts;
+        - `shape: { ball: 0 }`, `shape: { box: { x: 500, y: 100, z: 100 } }`, an unknown key, and a
+          section with both `floor` and `shape` → each refused by the loader at its line and column,
+          with bodies' own message;
+        - the object form in a place file, and the place form in an item file → "bodies-section-kind".
+      Positive control: worlds/bodies-yard itself validates.
+      M-PO2  the person-overlap check removed → the 200 mm copy validates.
+PO-3  Walking pushes objects (systems/bodies/tests/objects.rs: a hand-built world with presence,
+      movement and bodies, through the real World::dispatch, [bodies] registered). Facts are checked
+      in order, with causes: a pushed object's `object-moved` is Causation::Event(the pushing
+      arrival), with the walker's ActionId as its decision (AC-9).
+        a  push: the walker at (2 800, 5 000) asks +500 mm in x; a box half 200 stands at
+           (3 500, 5 000), its face at x = 3 300. Contact is at 2 990 (face − R − GAP); the candidate
+           rule stops the walker 300 mm past it, at (3 290 ± 1, 5 000); the box is pushed +x until its
+           face is 310 mm from the walker's centre, to (3 800 ± 1, 5 000); stopped-short { wanted
+           (3 300, 5 000), reached, by: the box }.
+        b  jam: a box half 200 stands with its face on the east wall, at (8 120, 5 000); the walker
+           at (7 300, 5 000) asks +500 mm. The push would jam, so the stride is resolved with objects
+           solid: the walker at (7 610 ± 1, 5 000), the box unchanged, stopped-short by the box.
+        c  no tunnelling: a ball r 110 at (4 000, 5 000); the walker at (3 000, 5 000) asks +2 000 mm.
+           The walker ends at (3 880 ± 1, 5 000) — 300 mm past contact — and the ball is pushed to
+           (4 300 ± 1, 5 000); it is never passed over.
+        d  the fast path: a stride whose corridor stays 311 mm clear of every footprint → exactly
+           `to`, one fact, payload bytes equal to Arrived::new(person, to)'s encoding.
+        e  a nudged person pushes: the walker nudges B, and B's new disc overlaps a ball beside B →
+           the ball's `object-moved` is by B, caused by B's `arrived`; nobody overlaps the ball.
+        f  conflict: the walker and a nudged person would both push one ball → the stride is
+           resolved with objects solid (the resolver's own account, `explain`, says so); the ball is
+           unchanged; nobody overlaps it.
+        g  never through a solid: a box pushed toward the counter jams like (b).
+      After every request: V1–V4 hold, and every object keeps SD-O2's invariant.
+      M-PO3  the prediction (SD-O9 step 6) skipped → (b) fails: the walker is recorded at 7 800, and
+             bodies' reaction refuses with `bodies-object-jammed`.
+      M-PO4  the fast path and the contact sweep ignore objects → (c) fails: the walker reaches
+             (5 000, 5 000) and the ball is not where (c) says.
+      M-PO10 a push set with one object pushed twice is accepted → (f) fails.
+PO-4  kick (same file, and the scenarios' world):
+        a  reach: the kicker at (2 000, 5 000); a ball r 110 at (2 800, 5 000) is kicked (Accepted); at
+           (2 801, 5 000) the answer is Rejected(TooFarAway).
+        b  refusals: a ball in the other place → TooFarAway; an Item without a body → TargetUnavailable;
+           a box lying on the counter → TargetUnavailable; a positionless kicker → PreconditionFailed;
+           a malformed payload → the codec's refusal, as item-transfer's.
+        c  open floor: the kicker at (2 000, 5 000), a ball r 110 at (2 700, 5 000) → one fact,
+           `object-moved { how: kicked, by: the kicker }`, Causation::Action, emitted_by bodies. Bounds
+           fixed now: the ball's x grows by 1 500 … 3 500 mm, |Δy| ≤ 50 mm, z = 110 ± 5; `path` has
+           1 … 40 keyframes, the first equal to `from`, every one inside the floor; nobody moved.
+        d  a wall: the ball at (7 500, 5 000), kicked +x from (6 800, 5 000) → it ends inside the floor,
+           x ≤ 8 320 − 110 + 5, and keeps SD-O2's invariant.
+        e  a person in the way: C stands at (4 000, 5 000); the kick of (c) → the ball ends at least
+           405 mm from C's centre; C has no new fact.
+        f  the fallback: under a test policy that cuts a throw's flight after 2 sub-steps, the object
+           is still in the air; the landing is the nearest free lattice point to its ground point, at
+           rest height (a literal of the 50 mm lattice).
+        g  without bodies: a world of presence and movement answers `kick`, `throw` and `shove`
+           ActionResult::Unavailable (I-9).
+      M-PO5  verification of a landing (V-O) off → (f) fails: the object is recorded in the air.
+PO-5  throw:
+        a  complete form: the thrower at (2 000, 5 000), a ball r 110 at (2 600, 5 000), `toward: null`
+           → the default aim is (5 600, 5 000). Bounds fixed now: the ball ends with x in 4 600 … 7 600
+           and |Δy| ≤ 100, at rest on the floor; one fact, how: thrown.
+        b  aimed: `toward: (2 600, 8 600)` from the same start → it ends within 1 500 mm of the point,
+           at rest, on the floor or on the counter, keeping SD-O2's invariant.
+        c  refusals: `toward` outside the floor → PreconditionFailed; `toward` 6 001 mm from the ball →
+           PreconditionFailed, 6 000 mm → Accepted; reach as PO-4 a.
+        d  onto the counter: aimed at a point on the counter top → the ball ends either on its top
+           (z = 1 100 + 110 ± 5, footprint within the counter) or on the floor; never inside it. Which,
+           is recorded.
+        e  into people: aimed at a point among three standing people → it ends overlapping none of them
+           (≥ 405 mm from each centre), and none of them moves.
+PO-6  shove:
+        a  A at (3 400, 5 000) shoves B at (4 000, 5 000) → facts in order: person-shoved { by A,
+           person B }, arrived B (4 500, 5 000); each Causation::Action(A's ActionId), emitted_by
+           bodies; no stopped-short.
+        b  a wall: A at (7 100, 5 000), B at (7 700, 5 000) → B arrives at (8 010 ± 1, 5 000), with
+           stopped-short { B, wanted (8 200, 5 000), reached, by None }.
+        c  into a person: C stands off B's line beyond BIAS_BAND, 541 mm from B's end point → C is
+           nudged to a hand-computed literal, ≤ 310 mm, and recorded as a displaced `arrived` in the
+           same list; every pair ≥ 595 mm afterwards.
+        d  into an object: a ball behind B → pushed by B, caused by B's `arrived`.
+        e  refusals: B at 1 000 mm → Accepted, 1 001 mm → TooFarAway; oneself → NoSupportedInteraction;
+           a positionless B, or B in a place without a shape → TargetUnavailable; B in another place →
+           TooFarAway; a positionless A → PreconditionFailed.
+      M-PO7  SHOVE_DISTANCE 500 → 800 → (a) fails, naming B's x.
+      M-PO8  shove states Arrived::new directly, bypassing arrivals() → (c) fails (C not nudged).
+PO-7  The offers (pack test through presence's observe, with bodies as a provider). The observer at
+      (2 000, 5 000); a ball r 110 at (2 700, 5 000) (700 mm); a box half 200 at (2 000, 5 900)
+      (900 mm); P at (2 900, 5 400) (985 mm); Q at (3 200, 5 000) (1 200 mm):
+        a  exactly these affordances from bodies, in this order, with these JSON payloads: kick { ball }
+           and throw { ball, toward: null } (target none, requirement at_place(the room), available);
+           shove → P (available); shove → Q (unavailable, TooFarAway). None for the box, none to
+           oneself.
+        b  each available affordance, submitted unchanged through Affordance::request, is Accepted
+           (in a fresh copy of the world each).
+        c  in a place without a shape, and for a positionless observer: no affordance from bodies.
+      M-PO11 objects beyond reach offered → (a) fails, naming the box.
+PO-8  Disclosure (pack test): an observer in the hall is told the hall's `loose-objects` listing — each
+      object, its shape and its position, as authored — and nothing of the court's.
+PO-9  The 30-day real run (tools/cli/tests/bodies_yard.rs): `mineworld run worlds/bodies-yard
+      --headless --seed 7 --days 30 --save S` → exit 0, faults 0.
+      Activity first (ARC-23; SD-O18), per 10-day bucket, fixed now:
+        AO-1  every seat moves and talks;
+        AO-2  at least one accepted kick, one throw, one shove, one `object-moved { pushed }` and one
+              stopped-short by an object;
+        AO-3  for every seat, kicks + throws + shoves accepted ≤ 144 — a tenth of the seat's 1 440
+              consults: nobody does something physical more than once every 100 simulated minutes
+              on average.
+      The counts are printed. Then the scan, replaying S's facts in EventId order and checking after
+      each request:
+        - people: no pair in one place closer than 595 mm; no centre outside the floor shrunk by
+          295 mm or within 295 mm of a solid; every displaced arrival (an `arrived` after the first in
+          a request's list) stays in its place, moves ≤ 310 mm, at most 4 per request, and is stated by
+          movement (a move) or by bodies (a shove); a shoved person's own arrival moves ≤ 500 mm;
+        - objects: each within its floor, at rest on the floor or a solid's top, out of every other
+          solid, ≥ 295 mm from every person's centre measured to its footprint, overlapping no other
+          object;
+        - every `object-moved` starts where the scan last saw the object; a pushed one is caused by an
+          `arrived` of the same request, a kicked or thrown one by the request itself.
+      It prints the closest person–person and person–object approaches, with their place and request.
+PO-10 The instrument sees, and bodies can be removed (I-10; AC-2 at world level). A test-time copy
+      drops `bodies` from `systems` and every `body:` section, places' and items'. It runs 30 days with
+      faults 0, every seat moves, and no kick, throw, shove, `object-moved` or `person-shoved` is
+      recorded (nothing offers them). The scan reports a person–person overlap, naming the pair.
+PO-11 Determinism (tools/cli/tests/bodies_yard_restart.rs, as PB-11, on the extended world): activity
+      first — the control holds kicks, throws, shoves and pushes, each > 0; two processes for 30 days
+      byte-identical; SIGKILL at days 5, 15 and 25, each survivor resumed at the head on disk with a
+      re-executed tail > 0 at least once, byte-identical to the control; `mineworld replay` from
+      genesis reproduces every fact.
+      M-PO9  an impure flight (a process-global counter's parity added to KICK_SPEED) → a survivor is
+             refused (ReplayDiverged), or its rows differ.
+PO-12 Cross-architecture (recorded real evidence, as PB-12): the 30-day summary sha-256 of the extended
+      bodies-yard equal on arm64 and x86_64 under Rosetta; an arm64 save at day 15 resumed by x86_64 to
+      day 30, and the reverse, each equal to the uninterrupted run. The fallback of QP-16 applies.
+PO-13 Long runs (systems/bodies/tests):
+        a  long_run_objects.rs: the prototype's 3 000-request sequence (§9.5) with its four props —
+           two boxes half 200, a ball r 110, a crate half 300 — and its kicks as `kick` requests.
+           After every request N-1 … N-4 hold and every object keeps SD-O2's invariant; the closest
+           person–object approach is located; the final bytes are identical in a second process.
+           Release (`cargo test --release -p mineworld-bodies --test long_run_objects -- --nocapture`)
+           prints the mean time per move that reaches Rapier — PASS ≤ 100 µs — and per kick —
+           PASS ≤ 2 000 µs.
+        b  long_run.rs (12b's, no objects) unchanged: its second-process bytes on the PR head equal the
+           bytes captured on the base before any 12c code (E-PO-base). A world without objects is
+           resolved exactly as in 12b.
+      M-PO12 the walls-only sweep W counts objects (an empty object group still changes the filter's
+             behaviour, or a stray collider is inserted) → (b) fails, or, with no object present,
+             nothing changes and the mutation is recorded as not reachable by (b) — then (c) of PO-3
+             is its owner.
+PO-14 Cost (recorded real evidence; QB-11 stays 12d's): 300 days of the extended bodies-yard, seed 7,
+      dev profile, as `mineworld run` is measured → faults 0 and wall time ≤ 40 s on this machine (12b's
+      guard of 25 s, plus 15 s for objects and the three actions, fixed now). The ratio to PO-10's copy
+      is recorded as information.
+PO-15 Structural (bodies' own tests and the existing scans):
+        - only systems/bodies/src/rapier.rs names rapier; no f32 or f64 outside it;
+        - bodies' system dependency is presence alone; its pack crates are presence and item (QO-4);
+        - rapier_pin holds (bodies VERSION, rapier3d) = (2, "0.36.0");
+        - ac1_composability 13/13, precursor_vocabulary 4/4 and seam_vocabulary 3 pass unedited;
+          presence's and movement's structural scans pass unedited;
+        - `git diff --stat <base>...HEAD -- cognition/` is empty: the controller is unchanged.
+PO-16 QB-3, end to end (validate on copies):
+        - a copy that installs `item` and gives the hall's ball an `item: { category: toy }` section →
+          refused "bodies-held-kind", naming the ball;
+        - a copy that installs `item` and `inventory` and gives ada `holdings: { <the ball>: 1 }` (no
+          `item:` on the ball) → refused at load by inventory's `stocked` (not a declared kind).
+PO-17 Inert where absent (I-13, as PB-19): in a world with bodies installed, a place without `body:`
+      offers nothing from bodies, its `move`s record exactly Arrived::new's bytes, and `kick` of an
+      object there is impossible (no object can lie there, PO-2).
+      M-PO1  shove offered in a place without a shape → the first bullet fails.
+PO-18 Scope and the gate: `git diff --name-only <base>...HEAD` ⊆ §18.1's change set; the no-diff paths
+      empty; Cargo.lock changes only mineworld-bodies' dependency list; `cargo fmt --check` and
+      `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean; the full workspace
+      gate runs once, on the final executable head.
+```
