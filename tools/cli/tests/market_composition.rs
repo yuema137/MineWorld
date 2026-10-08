@@ -28,7 +28,9 @@ mod market;
 
 use std::path::{Path, PathBuf};
 
-use headless::{Tables, every_seat_active_in_every_bucket, fresh, lines, mineworld, stderr};
+use headless::{
+    Scratch, Tables, every_seat_active_in_every_bucket, fresh, lines, mineworld, stderr,
+};
 use market::{MARKET_TOWN, MarketFact, Town, market_fact, run_pack};
 use mineworld_contracts::{Causation, EventEnvelope};
 
@@ -98,8 +100,8 @@ fn files(root: &Path) -> Vec<(PathBuf, String)> {
 
 /// A copy of Market Town, named as the pack (a pack's id is its directory), without `pack` and the
 /// section it owns; asserted, before it is used, to differ from Market Town by exactly those.
-fn without(pack: &str, section: Option<&str>, carriers: usize) -> PathBuf {
-    let copy = fresh(&format!("market-without-{pack}")).join("market-town");
+fn without(pack: &str, section: Option<&str>, carriers: usize) -> Scratch {
+    let copy = fresh(&format!("market-without-{pack}")).within("market-town");
     copy_dir(Path::new(MARKET_TOWN), &copy);
     let manifest = copy.join("world.yaml");
     let text = std::fs::read_to_string(&manifest).expect("world.yaml reads");
@@ -302,7 +304,7 @@ fn as_count(count: u64) -> usize {
 #[test]
 fn each_market_pack_removed_runs_or_is_refused_as_its_dependencies_say() {
     let town = Town::read(Path::new(MARKET_TOWN));
-    let copies: Vec<(&str, PathBuf)> = PACKS
+    let copies: Vec<(&str, Scratch)> = PACKS
         .iter()
         .map(|(pack, section, carriers)| (*pack, without(pack, *section, *carriers)))
         .collect();
@@ -310,7 +312,7 @@ fn each_market_pack_removed_runs_or_is_refused_as_its_dependencies_say() {
         copies
             .iter()
             .find(|(case, _)| *case == pack)
-            .map(|(_, path)| path.as_path())
+            .map(|(_, path)| path.path())
             .expect("a copy")
     };
 

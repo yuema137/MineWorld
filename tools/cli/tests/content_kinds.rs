@@ -7,9 +7,9 @@
 
 mod headless;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use headless::{PACK, Tables, fresh, mineworld, stderr, stdout};
+use headless::{PACK, Scratch, Tables, fresh, mineworld, stderr, stdout};
 
 /// Copies `from` into `to`, recursively.
 fn copy(from: &Path, to: &Path) {
@@ -27,8 +27,8 @@ fn copy(from: &Path, to: &Path) {
 
 /// `worlds/social-cafe` as `with-things`, plus item kinds `lantern` and `pebble` and the organization
 /// `chess-club`, each a tags-only file.
-fn with_things(name: &str) -> PathBuf {
-    let root = fresh(name).join("with-things");
+fn with_things(name: &str) -> Scratch {
+    let root = fresh(name).within("with-things");
     copy(Path::new(PACK), &root);
     let manifest = root.join("world.yaml");
     let text = std::fs::read_to_string(&manifest).expect("social-cafe's manifest");

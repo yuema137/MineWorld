@@ -35,3 +35,5 @@ mineworld-worldpack = { workspace = true }
 serde = { workspace = true }
 serde-saphyr = { workspace = true }
 serde_json = { workspace = true }
+# Scratch repositories and saves, removed when each test ends (DEP-29).
+mineworld-test-support = { workspace = true }

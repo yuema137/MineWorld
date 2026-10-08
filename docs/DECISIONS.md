@@ -3816,3 +3816,60 @@ abstraction (rule 11).
 per-world applicability comes from the world enabling the implementing pack, or from its configuration
 (`ARC-61`). Disabling a pack at run time while its implementation is registered is not supported
 (QB-17).
+
+---
+
+## DEP-29 — Test scratch: a `std`-only helper of our own, not the `tempfile` crate
+
+**Date** 2026-10-08 · **Status** selected; no dependency added · **Approved by** the primary session at
+the freeze of PR test-hygiene (its QTH-3, which asked for this record) · **Relates to**
+`ENGINEERING_STANDARDS.md` §22 "Test scratch" · **Design**
+`.structured-coding/plans/mvp0/pr-test-hygiene.md` §§2–4
+
+**Problem.** A passing `cargo test --workspace` left 135 entries, about 16 GB, under `target/tmp`:
+helpers removed a test's directory *before* the test and never after. Every test must remove its own
+scratch. The audit fixed what the mechanism must do:
+- the scratch path's last component is exactly the name the test gives, because a World Pack's id is
+  its directory's name and refusal messages name it;
+- some tests need a path that does **not** exist yet (the CLI creates the save), others an existing
+  empty directory;
+- two tests of one process must never share a scratch (12c's "database is locked"), and two processes
+  on one `target/` must not collide;
+- saves an operator wants to keep (`BODIES_YARD_SAVES`) must be keepable, side by side in one
+  directory.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17 — both directions):
+
+```text
+(a) `tempfile` 3.27 (`TempDir`, removed on drop; MIT OR Apache-2.0; mature). Not in Cargo.lock: it
+    would add tempfile, fastrand and rustix (+ linux-raw-sys on Linux)
+(b) a std-only test-support crate of our own (`mineworld-test-support`, publish = false)
+(c) a remove_dir_all at the end of every test
+```
+
+**Choice: (b).** No dependency is added.
+
+**Why not the others** (`REUSE_POLICY.md` §12's reasons):
+
+- **(a) `tempfile` — missing required semantics, so a wrapper of the whole helper's size anyway.**
+  - Its names carry a random suffix. The leaf name must be exact, so the test's directory would be a
+    child of the `TempDir`, which already is (b)'s layout.
+  - Random containers scatter kept saves, so `BODIES_YARD_SAVES` could no longer point at one
+    directory.
+  - A same-name clash between two tests is hidden by random names rather than reported; (b) panics
+    and names it, which turns a locked database into a clear failure.
+  - Keeping a scratch on failure needs `std::thread::panicking()` in our own `Drop` anyway.
+  - What it does well — secure, race-free creation in a shared world-writable directory — is not
+    needed for a test's scratch under the build's own `target/`.
+- **(c) cleanup in each test — the failure mode that caused the problem.** It does not run on an early
+  `return` or a panic, nothing checks it, and about sixty sites would each have to remember it.
+
+**Isolating interface.** `mineworld-test-support`: `Scratch` and the `scratch!` macro. Tests name
+only those; if the helper is ever replaced (by `tempfile` or otherwise), only that crate changes.
+
+**Accepted limitations and the revisit trigger.**
+- A process killed with `SIGKILL` (or a test with an infinite loop that is killed) leaves its
+  `mineworld-scratch-<pid>` directory; it is under `target/`, so `cargo clean` removes it, and
+  `check_scratch.py left` reports it.
+- Revisit if test scratch must live outside `target/` in a shared, world-writable directory, where
+  `tempfile`'s secure creation matters.
