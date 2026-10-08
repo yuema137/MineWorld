@@ -10,7 +10,7 @@ integration checkpoints and adversarial criteria, risks, and open questions.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 (S14, S15), §4, §7.
 **Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`. Nothing here is frozen and nothing here
 authorizes implementation. Each PR is detailed to the commit and frozen in turn (`CLAUDE.md` §3.1).
-**PR 16a:** detailed to the commit in §18 (DRAFT, awaiting the primary session's freeze).
+**PR 16a:** detailed to the commit in §18, `DESIGN FROZEN (2026-10-08), primary session`.
 **Branch:** `plan/s14-3d`, from `main @ 0fd0be3`, worktree `/Users/yuema137/mineworld-worktrees/plan-s14-3d`,
 held by this planning session only.
 **Written in parallel** with the S11, S12, S13 and Milestone E planning sessions, while 12c is being
@@ -987,15 +987,30 @@ The others are the primary session's to decide at freeze. Each has a recommendat
 
 ---
 
-# 18. PR 16a — the client, ready for bodies (full design; DRAFT, awaiting freeze)
+# 18. PR 16a — the client, ready for bodies (full design; DESIGN FROZEN 2026-10-08)
 
-**Lifecycle:** `DRAFT — awaiting the primary session's freeze`. Nothing in this section authorizes
-implementation until a `DESIGN FROZEN` record is added to §18.0 by the primary session (`CLAUDE.md`
-§3.1; overall "Parallel build-out, 2026-10-08", ruling 9).
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — record in §18.0. Implementation is
+authorized by that freeze (`CLAUDE.md` §3.1; overall "Parallel build-out, 2026-10-08", ruling 9).
 
 ## 18.0 Freeze record
 
-*(empty until the primary session freezes this section)*
+## DESIGN FROZEN
+
+```text
+Design revision     §§18.1–18.6 as committed in fe3e814
+Approved by         the primary session, 2026-10-08 ("FREEZE: PR 16a is DESIGN FROZEN (2026-10-08),
+                    primary session"), relayed to this implementation session
+Implementation base main @ 47c81d1; branch mvp0/pr-16a-jolt-targeting
+Execution contract  §18.8
+Lifecycle           FROZEN
+Rulings             §18 accepted as written, including the two departures (only LAYER_BODIES; the
+                    tools-only commit). Q-16a-1 accepted: a small centre dot and a "looking at: …"
+                    HUD line, connected only — a 3D visual default delegated to the primary session,
+                    judged by the operator in play; the HUMAN_REVIEW_QUEUE checklist wording gains it.
+                    Q-16a-2 … Q-16a-6 accepted as recommended. Report Bob's occlusion of the door talk
+                    as measured. One Godot window at a time; 16b and S12 13a also run Godot, so a
+                    stalled capture is re-run
+```
 
 ## 18.1 Identity, base, approved scope
 
