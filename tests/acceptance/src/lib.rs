@@ -16,6 +16,16 @@
 //!                        (docs/DECISIONS.md ARC-35 and its notes) — the two transformation merges'
 //!                        change set from git history (fails, naming it, without the full history),
 //!                        the dependency structure from `cargo metadata`, and the world delta
+//! arrival_resolvers      SC-2 … SC-5, SC-8: presence resolves an arrival before it records it
+//!                        (docs/DECISIONS.md ARC-39) — synthetic resolvers (tests/resolvers/) driven
+//!                        through the real kernel and movement pack, in a process that registers them
+//! arrival_resolvers_unregistered
+//!                        a process that never registers: a resolver's pack refuses to install, and
+//!                        a world without one runs unchanged
+//! arrival_resolvers_resume
+//!                        SC-6: SIGKILL and resume with a resolver installed, byte for byte (a
+//!                        program, harness = false)
+//! seam_vocabulary        SC-7: the seam's sources name no physics, and movement names no resolver
 //! ```
 //!
 //! A test-only System Pack defined here is compiled into no library, which is what lets such a test

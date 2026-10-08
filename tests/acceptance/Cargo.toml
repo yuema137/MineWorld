@@ -15,6 +15,10 @@ publish = false
 [dev-dependencies]
 mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
+# The arrival-resolver seam (step-11 §16, ARC-39): its synthetic resolvers are driven through the real
+# movement pack, and its SIGKILL-and-resume test writes a real save.
+mineworld-movement = { workspace = true }
+mineworld-persistence = { workspace = true }
 mineworld-presence = { workspace = true }
 mineworld-rule-controller = { workspace = true }
 # AC-1 check 3 (ARC-35 item 4): both World Packs are read by the real loader, their YAML compared as

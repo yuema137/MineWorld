@@ -2242,12 +2242,26 @@ Nothing else in movement.
 
 **Depends on:** RS-C3, RS-C4.
 
-- [ ] Implementation: as scoped; every test of `arrival_resolvers.rs` registers first (SD-R12).
-- [ ] Validation: `cargo test -p mineworld-acceptance --test arrival_resolvers --test
-  arrival_resolvers_unregistered`; M-RS2, M-RS3, M-RS4, M-RS5, M-RS6, M-RS8 each applied, failing by
-  name, reverted.
-- [ ] Review: every expected position is a literal from the layout; the synthetic packs are in no
-  library and in no installed set; `Cargo.lock` gains only acceptance's two names.
+- [x] Implementation: as scoped; every test of `arrival_resolvers.rs` calls `register_all()` first
+  (SD-R12). `resolvers/mod.rs`: `Fences` (+ `Fence`, `test-fence-raised`), `Grid` (+ `GridStep`,
+  `test-grid-laid`), `Rogue` (+ `RogueMode { Violation }`, `test-rogue-set`; fourteen breaching modes
+  and `Obey`), `Echo` (+ `test-heard`), `Placer` (+ `test-place`); `Plan` / `Cast` / `Town` (yard and
+  lane, a doorway yard (9 000, 2 000) ↔ lane (0, 2 000), genesis placements through `arrival`);
+  `owned_state`; `Fact` / `fact` / `facts`; RS-7's twelve-move `SCRIPT` and `run_inert_script`.
+  The acceptance crate's doc table names the four new files (the RS-C6 and RS-C7 rows written ahead).
+  DR-3 (the support file's size) in §16.11.
+- [x] Validation (E-RS5): 7 + 2 pass; clippy and fmt clean; M-RS2, M-RS3, M-RS4, M-RS5, M-RS6, M-RS8
+  each applied, failed by name, reverted.
+- [x] Review: every expected position in an assertion is a literal from the test's layout (4 990,
+  5 200, 4 000, 4 500, 5 500, 5 600, …), never read from the code under test; the synthetic packs are
+  defined only under `tests/acceptance/tests/`, which no library compiles, and `systems/installed`'s
+  `resolution:` line is still `[]`; `git diff Cargo.lock` is exactly two added lines in
+  `mineworld-acceptance`'s dependency list (`mineworld-movement`, `mineworld-persistence`). RS-4 drives
+  every reachable rule of SD-R10 by its own message. Not separately reachable, by construction:
+  (d) `admit(person, reached)` — `admit(person, to)` passed and rule (a) puts `reached` in `to`'s
+  place, so the same person and place are asked again; and (e)'s `admit` of a displaced person, after
+  the living-person and same-place checks. Both are kept as SD-R10 states them: they are the owner's
+  own check, and cost nothing.
 
 ### RS-C6 — SIGKILL and resume with a resolver installed
 
@@ -2485,6 +2499,34 @@ E-RS4 RS-C4, 2026-10-07, working tree on afda4e6 + movement's one file.
         20 720), no `stopped-short` line; sha-256 of every line but `wall` =
         ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-RS0. Wall 13.4 s.
         PASS (RS-1's first bullet, early; 300-day run 1 of 4). Log /tmp/s15-12a/rsc4-cafe300.txt.
+
+E-RS5 RS-C5, 2026-10-07, working tree on b1d4038 + RS-C5's paths.
+      `cargo test -p mineworld-acceptance --test arrival_resolvers --test
+        arrival_resolvers_unregistered` → 7 passed (RS-3, RS-4, RS-5, RS-6, RS-7 registered, RS-12,
+        RS-14) + 2 passed (RS-9, RS-7 unregistered). PASS. The first run passed as written; the
+        mutations below are what show each assertion bites.
+      clippy -p mineworld-acceptance -p mineworld-presence --all-targets -D warnings: clean after two
+        type aliases (`Spot`, `Resident`) and `type Row` for `type_complexity`. fmt clean.
+      `git diff Cargo.lock`: + "mineworld-movement", + "mineworld-persistence" in mineworld-acceptance's
+        dependencies; nothing else.
+      Mutations (each applied in the working tree, run, reverted; `git grep -n MUTATION -- systems sdk
+      worldpack tests tools` empty afterwards; 7 + 2 green again):
+        M-RS2  the fold asks no resolver (`.iter().take(0)` on the catalog) → RS-3 FAILED: "left:
+               [Arrived(PersonId(EntityId(3)), … x: Millimetres(5500) …)]" — alice recorded at
+               (5 500, 2 000); RS-4, RS-5, RS-6, RS-14 failed with it.
+        M-RS3  arrivals drops the displaced emissions (`.take(0)`) → RS-3 FAILED: the right side holds
+               "Arrived(PersonId(EntityId(4)), … x: 5200, y: 2100 …)", bob's, missing on the left.
+        M-RS4  check (c) disabled (`&& false`) → RS-4 FAILED: "lengthened the arrival: recorded
+               [Arrived(… x: Millimetres(6500) …), StoppedShort { … }]".
+        M-RS5  `register_resolvers` does not sort → RS-5 FAILED with alice at x 4990 instead of 4000.
+               The first run of this mutation failed earlier, at the registered_resolvers() assertion
+               ([test-grid, test-rogue, test-fences]); the position assertion was moved first, so the
+               behavioural claim is what fails, and the id-order assertion stays after it.
+        M-RS6  arrival() never refuses a changed placement (`.filter(|_| false)`) → RS-6 FAILED: "left:
+               Ok(Emission { … arrived …}) right: Err(System { code: resolution-refused, detail:
+               test-fences: would change a placement; … })".
+        M-RS8  fences' `require_registered` commented out → RS-9 FAILED: "installing test-fences must
+               panic: Ok(())"; RS-7's unregistered half still passed (it installs no resolver pack).
 ```
 
 ## 16.11 Deviations and discoveries during implementation (12a session)
@@ -2510,3 +2552,14 @@ E-RS4 RS-C4, 2026-10-07, working tree on afda4e6 + movement's one file.
 - Implementation: the guard names the resolver's `SystemId`, which is the name the catalog, the
   panics and every refusal use. The negative control's stub resolver has a distinct id.
 - Impact: none on what is caught; only the word in the message.
+
+**DR-3 (bounded, reviewed) — `tests/acceptance/tests/resolvers/mod.rs` is 988 lines.**
+- The file holds the five synthetic packs SD-R11 names (three resolvers, each a component, a genesis
+  fact, a system and a resolver), the world builder and the RS-7 script. `ENGINEERING_STANDARDS.md`
+  and `CLAUDE.md` §4 make ~800 lines a strong warning, a review trigger rather than a rule.
+- Options: split into `resolvers/{fences,grid,rogue,echo,town}.rs` — each a path outside §16.1's
+  change set, which names one support file, and the kickoff makes any path outside §16's change set a
+  material stop; or compress the three resolver packs with a local macro — the "clever
+  metaprogramming" the standards warn against.
+- Decision: keep one file, with one section per pack in SD-R11's order. It is test support compiled
+  into no library. Flagged for the operator's review; a split is a mechanical follow-up if wanted.
