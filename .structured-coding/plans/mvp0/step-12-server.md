@@ -2187,7 +2187,7 @@ crate; statistics lines carry no secret.
 out of evidence); `ADOPTION.md` §2/§6; evidence regenerated. **Validation (one Godot window at a time):**
 SB-10. **Review:** the module never logs the resume secret; every four-argument call unchanged.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation · [x] Review (E-SB6)
 
 ### B-C8 — Close: README, digests, scope, full gate, ledger, PR
 
@@ -2355,6 +2355,17 @@ E-SB5 B-C6 (origin/main e98321a — test hygiene #77 — merged first; new tests
       QTW-13 (D-SB6): hosted.rs unit tests 2 PASS; its mutation red; reverted.
       clippy -D warnings, workspace, all targets: clean. Sizes: main.rs 412, serve.rs 271,
       hosted.rs 258.
+E-SB6 B-C7 (SB-10). world_client.gd: `connect_to_world(…, take_over := false)`, `var reconnect`,
+      `signal reconnecting(attempt)`, `State.RECONNECTING` appended (no existing name changed),
+      `took_over` "connection", resume never printed. Godot 4.7, one headless window at a time:
+      `run.sh reconnect` → 6 PASS, 0 failure(s): hosted, hold 10, a resume given (not shown), one
+      attempt announced [1], welcomed "held", same observer "17". `run.sh affordances` → PASS, 0
+      failure(s). `run.sh evidence` → exit 0, Alice answers in every transcript, no SCRIPT ERROR;
+      server logs lose the old per-outcome `agent:` lines and gain the `hold … time scale …` line
+      (the agent is no longer a task printing outcomes; its counts are in the shutdown statistics).
+      `./mineworld-slice --world --link` → "all link checks pass". The check drops the socket by
+      closing the module's own WebSocketPeer — the event a dropped network produces; no test-only
+      path in the module. Each server stopped by its own PID (run.sh's `kill "$server"`).
 ```
 
 ## 16.11 Deviations and discoveries
