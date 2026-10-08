@@ -1045,12 +1045,48 @@ Tests AC-W3, AC-W4 in `client_2d.rs`.
   different instance; a final refusal stops retrying; the module stays policy-free (`ADOPTION.md` §6.1).
 
 #### C7 — Stills, preview package, final gates
-- [ ] Implementation: capture mode; stills committed under `clients/2d/shots/preview/`; README;
-  ledger and handoff.
-- [ ] Validation: AC-W9, AC-W11 and AC-W12 on the final head; stills viewed one at a time and the
-  findings recorded as facts.
-- [ ] Review: the preview package complete per `ARC-20`; known misses stated largest first; no
-  comparative without a fact (`ARC-17`).
+- [x] Implementation: capture mode (C3's `harness/capture.gd`; stills renamed to §14.2's names);
+  the drive now asserts AC-W12's painter's order (`_check_painters_order`, `2426c5e`); test worlds on
+  port 0 with the join line (D-12, `20061a3`); stills under `clients/2d/shots/preview/` (`51afae6`);
+  README line; ledger and handoff.
+- [x] Validation (code head `51afae6`; later commits are Markdown only), Godot 4.7.2, macOS arm64:
+  - `cargo test -p mineworld-cli --test client_2d -- --ignored --test-threads=1` → 7 passed, 127.5 s
+    (AC-W1, W3, W4, W5, W6, W7, W10), on the port-0 test worlds.
+  - AC-W8 `check_client_rules.py` → PASS, 0 findings (plants: C5's E-5). AC-W9 `--scope origin/main`
+    → PASS; planted `server/src/lib.rs` and `clients/protocol/mineworld/space.gd` → FAIL, 2 findings,
+    each by name; reverted → PASS; unknown base → FAIL. `--check-pack` → PASS.
+  - AC-W11: `cargo fmt --check` clean; `cargo clippy --workspace --all-targets -D warnings` clean;
+    `cargo test --workspace` 689 passed, 0 failed, 8 ignored (13a's 7 Godot-gated + main's 1: no
+    non-ignored test added). `clients/protocol/run.sh evidence` exit 0: sequential transcripts differ
+    only in port and instance; the two `simultaneous` logs and `server-simultaneous.log` also in
+    action ids, the interleaving of two concurrent clients (no server or module change here);
+    evidence restored to `main`'s committed files (outside I-4). `./mineworld-slice --drive` → "all
+    drive checks pass".
+  - AC-W12, after `git clean -xfd clients/2d`: capture runs `town`, `none`, `full` and headless
+    `people`, `procedural` each "drive complete: PASS"; 0 lines matching `ERROR|SCRIPT ERROR|Failed
+    loading`; roles resolved 48 / 44 / 44 / 40, 0 missing; heights within 0.2 px of intended
+    (Alice 57.5 vs 57.6, Carol 58.0 vs 58.2 …); façades on their doorways 0.00 px (3 checked);
+    façade gone 0.27–0.30 s after the place changed (bound 1.0 s); in the café only perceived people
+    drawn (Ivan, on the street, is not); painter's order PASS (mutation: y-sort off → FAIL, reverted).
+  - `check_scratch.py scan` → PASS; `left --target-dir target` → nothing under `target/`; four empty
+    `$TMPDIR/mineworld-kill-*` directories dated 2026-10-05 are reported, from a test name no longer
+    in the tree and pids not of this session (left as found).
+  - Stills viewed one at a time. Facts, largest first: (1) in the plain still the café's room, grown
+    to hold its people (F-7), is drawn overlapping the street band it opens onto; (2) dressing props
+    are drawn over people — on the street a terrace parasol hides Ivan's body (`02_cafe_door`), in
+    `full` one covers Vera's feet; (3) the cast is chosen by id hash, so Bob is drawn with a sprite
+    that reads as a girl — the world states no appearance either way; (4) a pendant lamp crosses
+    Bob's label, and labels overlap where people stand close (plain); (5) from inside the café the
+    unknown neighbour's façade overlaps the room's south corner (`03_cafe_interior`); (6) in `full`
+    the unknown neighbour is drawn plainly (its role is bound in `town` only, C2). No torn sprite, no
+    missing texture, nobody drawn outside the observation, no façade detached from its doorway.
+  - Luminance (Rec. 709, every second pixel, a throwaway GDScript outside the tree; it reproduces the
+    plate's recorded figures exactly): `04_ref_framing` mean 0.656, p50 0.689, >0.7 48.6%, <0.2 0.6%;
+    the plate `02_cafe_street.png` mean 0.517, p50 0.512, >0.7 24.2%, <0.2 4.4%. Reported as facts,
+    not a gate: the connected still is brighter and has almost no deep shadow.
+- [x] Review: the preview package (launch command, stills, the reference beside `04_ref_framing`,
+  known misses as facts, the question) is in the PR body; labelled preview (`ARC-24`); no
+  comparative without a fact.
 
 ### 14.7 Files touched
 

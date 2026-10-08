@@ -21,12 +21,13 @@ STOPS               any edit to clients/protocol/mineworld/**; any server/kernel
 
 - C0 `26c451d`; freeze `610b50f`; C1 `318c0b9`; C2 `4f6f6b2`; C3–C5 client `74b7c2c`; C5/C6 tests and
   reconnect `bc935c4`; revision 2 `a00e87f`; F-6 `f4e0a75`; F-7 `42884a3`; merge of #77 `3b0d1e1`.
-- Then: test worlds on port 0 with the join line (D-12); C7 (stills, preview, final gates, PR).
+- D-12 test worlds on port 0 `20061a3`; painter's order check `2426c5e`; preview stills `51afae6`;
+  C7 ledger with the final gates (this commit).
 
 ## Next actions
 
-1. C7: capture runs (town, none, full) one window at a time, stills into `clients/2d/shots/preview/`,
-   final gates (AC-W9, AC-W11, AC-W12, `check_scratch.py scan` and `left`), PR.
+1. The PR is open, READY FOR OPERATOR REVIEW (preview). Await the operator; do not merge.
+2. After merge: §14's lifecycle and evidence (this session's sync duty, §14.9).
 
 ## Background processes
 

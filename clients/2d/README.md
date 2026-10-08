@@ -21,5 +21,7 @@ What it is and is not:
 - The art is a separate Presentation Pack, `presentation/mineworld-default/2D`, read from disk at
   runtime. `--presentation=none` draws plainly; `--variant=` picks one of the four style sets.
 
+What it looks like today: [`shots/preview/`](shots/preview/) (a preview, not an accepted look).
+
 For agents: the pack format is [`PRESENTATION.md`](PRESENTATION.md); the design and its acceptance
 are `.structured-coding/plans/mvp0/step-13-client-2d.md` §14.
