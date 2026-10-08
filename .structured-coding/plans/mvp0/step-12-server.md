@@ -491,3 +491,180 @@ public at `GET /status`. A WebSocket admin frame was considered and rejected: `N
 on HTTP, and a frame would widen the client vocabulary that `INV-9` is defined as the absence of.
 
 ---
+
+# 5. The wire contract: protocol revision 2
+
+**Status: PROPOSED, part of this step's freeze.** This section is what S12 and S14 design against. On
+freeze it becomes `server/PROTOCOL.md` revision 2 (written by S11-A, completed by S11-C); until then
+`PROTOCOL.md` revision 1 is what `main` speaks. Everything revision 1 says and this section does not
+change stays in force: identities are decimal strings, every other number is an integer, `seq` orders
+frames, `action_type` appears twice, `actor_location` is a report, `result` and the `ActionResult` shapes,
+the reporting rule of §6.2, and `AC-13`'s semantic core.
+
+## 5.1 Versioning rule
+
+- `PROTOCOL_VERSION` becomes `2` in S11-A, the first PR that changes the wire. The client states the
+  revision it speaks in `join`; a server answers a different number with `refused { code:
+  "protocol_mismatch" }` and closes. A client that receives a `welcome.protocol` it does not know refuses
+  to continue (unchanged from revision 1).
+- **Implemented incrementally, specified whole.** Revision 2 is specified completely here, and lands over
+  S11-A … S11-D. A conforming revision-2 client must handle every frame in §5.3 from the start. The server
+  is allowed to send a subset while the step is in flight: before S11-C merges it sends only whole
+  `observation` frames, `events` is empty, and there is no `delta`; before S11-B merges there is no hold
+  and `resume` is absent. Each such absence is a frame the server *may* omit, never a different meaning
+  for a frame it sends, so a client written against this section is correct against every intermediate
+  `main`.
+- Any change to this section after freeze is a protocol change: it returns to the primary session, and to
+  the S12 and S14 owners, as a revision of this step.
+
+## 5.2 What a client may say (closed set of three)
+
+```json
+{ "t": "join", "protocol": 2, "invite": "3f9c…", "nickname": "Yue", "seat": "visitor",
+  "resume": null }
+{ "t": "submit", "token": "c1", "request": { … an ActionRequest, unchanged from revision 1 … } }
+{ "t": "leave" }
+```
+
+| Frame | Fields | Rules |
+| --- | --- | --- |
+| `join` | `protocol` (integer, required), `invite` (string, required), `nickname` (string, 1–32 scalar values after trimming, no control characters, required), `seat` (entity key, required), `resume` (string or `null`, optional, default `null`) | Valid only before a seat is granted. A second `join` on a seated connection is `already_joined`. |
+| `submit` | `token`, `request` | Unchanged. Before a seat is granted: `not_joined`. |
+| `leave` | — | Releases the seat at once (no hold); the server answers `closing { reason: "left" }` and closes. |
+
+There is still no frame that sets a value, names an observer, widens a scope or states a fact. Any other
+`t` is `unknown_frame`, which is where a state-asserting message lands (`INV-9`). Field order is free;
+unknown fields inside a known frame are `malformed_frame` (the contract denies unknown fields, so a typo is
+loud).
+
+## 5.3 What the server says
+
+| Frame | When | Shape |
+| --- | --- | --- |
+| `welcome` | once, after a granted `join` | `{ "t": "welcome", "protocol": 2, "seat": "visitor", "observer": "101", "nickname": "Yue", "session": "7", "resume": "a1b2…" , "hold_seconds": 30, "took_over": "hosted", "world": WorldSummary }` |
+| `observation` | the first frame; every `keyframe_every`-th frame; the first frame after a resume; and any frame the server chooses | `{ "t": "observation", "seq": 1, "revision": 7, "observation": Observation }` |
+| `delta` | any other frame, from S11-C | `{ "t": "delta", "seq": 2, "base": 1, "revision": 7, "delta": ObservationDelta }` |
+| `result` | one per `submit` | unchanged |
+| `refused` | a frame was not accepted | unchanged shape; codes in §5.6 |
+| `closing` | immediately before the server closes the socket | `{ "t": "closing", "reason": "kicked", "detail": "…" }` |
+
+Field notes:
+
+- `welcome.session` is a `SessionId` as a decimal string (an identity, so a string). It names this
+  connection on the admin surface and nowhere else.
+- `welcome.resume` is a 128-bit secret as 32 lowercase hexadecimal characters; `null` before S11-B.
+  `hold_seconds` is an integer; `0` before S11-B.
+- `welcome.took_over` is `"none"` when the seat was free, `"hosted"` when an in-server controller was
+  driving it, `"held"` when this join resumed a held seat. It says that control changed hands, never which
+  controller kind or which player: a client may tell its player "you are now playing Alice, who was living
+  on her own", and learns nothing about other players.
+- `observation.observation.entities` is in ascending `EntityId` order (new in revision 2).
+- `observation.observation.events` is the facts this observer learned since the previous frame on this
+  connection, oldest first; empty before S11-C. A fact is a `PerceivedEvent` — the event envelope the
+  contract already serializes, with `event_type`, `caused_by`, `visibility`, participants and the owning
+  pack's JSON payload.
+- `closing.reason` is one of `left`, `kicked`, `superseded`, `unauthorized`, `protocol_mismatch`,
+  `world_stopped`, `server_stopping`. `detail` is for a developer; a client branches on `reason`.
+
+## 5.4 `ObservationDelta`
+
+```json
+{ "at": 4112,
+  "self_location": { … a Location … },
+  "entities": { "upsert": [ PerceivedEntity, … ], "remove": [ "9007199254740995" ] },
+  "relations": [ Relation, … ],
+  "affordances": [ Affordance, … ],
+  "events": [ PerceivedEvent, … ] }
+```
+
+Applying a delta whose `base` is the `seq` of the observation the client holds yields the observation of
+`seq`, defined field by field:
+
+| Field | Present | Meaning |
+| --- | --- | --- |
+| `at` | always | replaces |
+| `self_location` | only if changed | replaces; `null` means the observer now has no location |
+| `entities.upsert` | only if non-empty | each replaces the entity with the same id, or is added; the result is re-sorted by id |
+| `entities.remove` | only if non-empty | ids no longer perceived; removing an id not held is a client-side protocol error |
+| `relations` | only if changed | replaces the whole list |
+| `affordances` | only if changed | replaces the whole list, order preserved |
+| `events` | always | replaces (events are a since-last-frame stream, never accumulated) |
+
+`observer` never changes on a connection and is not in a delta. A delta whose `base` is not the `seq` the
+client holds cannot occur on one WebSocket (ordered, reliable, dropped frames are dropped before they are
+numbered); a client that sees one must drop the connection and resume, which yields a keyframe.
+
+## 5.5 HTTP
+
+```text
+GET /health            unchanged, but `protocol: 2`
+GET /status            WorldSummary, revision 2 (below); public
+GET /ws                the live connection
+/admin/...             §4.9; exists only with an admin token; Authorization: Bearer
+```
+
+`WorldSummary`, revision 2:
+
+```json
+{ "protocol": 2, "instance": "1a2b…", "at": 4112, "entities": 41,
+  "systems": [ { "system": "conversation", "enabled": true,
+                 "provides": [ "talk" ], "states": [ "spoke", "conversation-started" ] } ],
+  "seats": [ "visitor", "wanderer", "alice" ], "clients": 2,
+  "observations_dropped": 0, "events_dropped": 0, "faults": 0, "revision": 7 }
+```
+
+- Removed: `deferrals_unscheduled` (always `0` since S4; step-04 L-2).
+- Added: per system `provides` (action types) and `states` (event types it emits, including another
+  system's vocabulary it is declared to state), read from the kernel's `SystemDeclaration` — composition,
+  not state, so it stays public. A client uses it to know whether to offer a verb at all and to name an
+  `event_type` it receives.
+- Added: `events_dropped`, facts lost to a full pending queue (§4.7).
+- `clients` counts seated connections only (hosted controllers are not clients).
+
+## 5.6 Refusal codes, revision 2
+
+Revision 1's nine codes stand. Added:
+
+| `code` | Meaning |
+| --- | --- |
+| `protocol_mismatch` | `join.protocol` is not a revision this server speaks. Followed by `closing`. |
+| `unauthorized` | Wrong or missing invite token, after a fixed delay. Followed by `closing`. |
+| `invalid_nickname` | Empty after trimming, longer than 32, or containing a control character. |
+| `seat_occupied` | Another connection holds the seat, or it is held and no valid `resume` was given. |
+| `invalid_resume` | A `resume` that does not match the seat's hold (expired, or for another seat). The client may retry without it. |
+
+`refused` keeps meaning "this frame was not a request"; a `Rejection` inside a `result` keeps meaning "the
+world considered the request and said no". Being closed is `closing`, never a refusal.
+
+## 5.7 What revision 2 deliberately does not have
+
+```text
+a subscribe / scope frame      a connection perceives its observer (INV-13); nothing to widen
+admin frames on the socket     admin is HTTP (§4.9)
+binary or compressed frames    QS11-1; Godot's WebSocketPeer does not support permessage-deflate (§7.3)
+an observer-naming field       unchanged from revision 1: there is none
+other players' nicknames       not world data (QS11-7)
+```
+
+---
+
+# 6. Invariants of this step
+
+Each is checked by a test or a diff gate in the PR that could break it (§9).
+
+| ID | Invariant | How it is held |
+| --- | --- | --- |
+| **I-1** | No kernel, contract or persistence change: `kernel/`, `contracts/`, `persistence/` have no diff in any S11 PR. | Diff gate per PR. Events use the existing `Observation.events` and `Visibility`; the vocabulary uses existing `SystemDeclaration` accessors. A needed edit there is a material stop. |
+| **I-2** | Control is host state. A binding change (join, takeover, leave, hold, resume, release, kick) adds no journal entry and no fact and does not move the revision. | `AC-5` test reads the save's revision and fact count across both binding changes. |
+| **I-3** | At most one controller drives a seat at any instant. | `SeatTable` is the only writer of bindings; a test races two joins and a resume on one seat and asserts exactly one `welcome`. |
+| **I-4** | The client vocabulary is closed and asserts nothing; the admin surface changes no world state. | `INV-9` table test over rev 2's frames; S11-D calls every admin route against a saved world and asserts revision and facts unchanged. |
+| **I-5** | No secret is persisted or disclosed: the invite, admin token and resume secrets appear in no save, World Pack, observation, fact, `/status` or log line, except the one startup line that prints a generated invite. | A test greps the save file's bytes and the captured stdout/stderr of a hosted run for each secret. |
+| **I-6** | `mineworld run` is untouched: the 300-day seed-7 digests of `social-cafe` and `market-town` are identical before and after every S11 PR (against that PR's base, since S15's 12d re-baselines them). | Digest comparison per PR. |
+| **I-7** | Facts reach an observer only by perception's `learns`; `SystemInternal` facts reach nobody. | A test with a pack fixture stating each `Visibility` and two observers in different places. |
+| **I-8** | A hosted controller takes the session's authority path: the same actor check, server-allocated `ActionId` and instant, journal-before-answer. | Shared `submit` function; a test drives a hosted seat and a session seat and finds both requests journaled identically. |
+| **I-9** | The server names no System Pack and no controller crate. | `ac1_composability` check 2 and the I-2 vocabulary scan (both already bite, step-10 11f); `server/Cargo.toml` gains no `mineworld-*` pack or cognition dependency. |
+| **I-10** | A delta-reconstructed observation equals the whole observation the server computed for that frame — in Rust and in Godot. | Keyframe comparison in both appliers (§9, CP-C3, CP-E2). |
+| **I-11** | The world never waits for a client or a controller: no `await` on the world thread, `try_send` for every delivery, `decide` bounded. | Review, plus CP-B4's measured tick duration. |
+| **I-12** | `AC-13` and `AC-15` stay green: `ac13_semantic_parity.rs` and `ac15_one_alice.rs` pass on every S11 PR head, updated only for the rev 2 handshake. | Per-PR gate. |
+
+---
