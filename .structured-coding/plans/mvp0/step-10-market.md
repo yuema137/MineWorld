@@ -3388,6 +3388,10 @@ DP-5  Previous assumption (SD-36, P-8): the 2-day save holds `shift-started { pr
 DP-6  M-P12's second control was "bob left on the street"; it was run as "bob never walks" (he stays
       in the apartments, as the save left him) — the same claim: bob outside the café perceives no
       listing.
+DP-8  P-11 lists "the S9 row" of MVP_STATUS, but §17's POST-MERGE SYNC gives MVP_STATUS's Updated and
+      S9 lines to the planning session. Followed §17: this PR changes the Market Town axis (✅ with
+      QS-65's wording), the market-town artefact row and adds four evidence rows (AC-1, CP-4, AC-2,
+      Milestone C); the S9 row and the Updated line are left for the S9 closeout.
 DP-7  Tool slip: one `sed -i` was used on milestone_c.rs's doc header (forbidden by the session's
       tool rules); the line was then rewritten with the Edit tool. No other effect.
 ```

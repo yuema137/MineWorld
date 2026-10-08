@@ -38,11 +38,13 @@ STOP CONDITIONS     normal: PR 11f READY FOR OPERATOR REVIEW — DO NOT MERGE. M
 
 ## Current checkpoint
 
-P-C1 in progress (the ARC-35 note).
+P-C1 … P-C7 done and pushed (head a7ea13f); evidence §9.6 E-P0 … E-P7; deviations §4.6.8 DP-1 …
+DP-7. market_town runs used 5 of 6. Next: P-C8 — MVP_STATUS, HUMAN_REVIEW_QUEUE, market-town README,
+then the full gate once (background), P-9 comparisons, PR.
 
 ## Next actions
 
-P-C1 → P-C2 → P-C3 → P-C4 → P-C5 → P-C6 → P-C7 → P-C8, each committed and pushed when coherent.
+P-C8: documents (SD-37, QS-65 wording), full gate, P-9, PR READY FOR OPERATOR REVIEW (merge commit).
 
 ## Background processes
 

@@ -7,7 +7,7 @@ a place here when a coherent capability can be *experienced* as a whole.
 Engineering progress is tracked separately in [`MVP_STATUS.md`](MVP_STATUS.md). A milestone parked
 here does not block anything else.
 
-**Updated:** 2026-10-07 (Milestone B)
+**Updated:** 2026-10-07 (Milestone C demonstrated, awaiting the operator's review)
 
 ---
 
@@ -17,7 +17,7 @@ here does not block anything else.
 | --- | --- | --- | --- |
 | **A** | Runnable world runtime | load Social Café → server → two clients + an agent → cause a change → all observe it | ✅ **complete 2026-09-27** — `AC-15` holds, 259 tests · restart/persistence is S5 and moves to **B** |
 | **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **demonstrated 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`; awaiting the operator's review (below) |
-| **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ❌ |
+| **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **demonstrated 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs`; awaiting the operator's review (below) |
 | **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | ❌ |
 | **E** | Package composition | a real world assembled from independently installable packs | ❌ |
 
@@ -66,6 +66,38 @@ The test performs all of this with real SIGKILLs of both `run` and `server`.
 
 Watch for one known gap: relationships never decay. After about two months every pair is as close as
 it gets, and no more relationship changes happen. The 300-day test prints that per month.
+
+**Milestone C, and how to see it for yourself.** Market Town is Social Café plus six installed System
+Packs and configuration. Alice works the café counter in the mornings and is paid by the hour; the
+café restocks from her shift; everyone buys, eats, drinks and gives. Two days, saved, then hosted:
+
+```sh
+mineworld run worlds/market-town --headless --seed 7 --days 2 --save /tmp/market
+mineworld inspect /tmp/market --last 0                         # every cause resolves
+mineworld server worlds/market-town --save /tmp/market         # then join `alice` and `bob`
+```
+
+What to look at:
+- In the save, on day 1: Alice is `hired`; her shift starts at 05:30 while she is still walking
+  over, she arrives at the café at 07:15, and at 14:00 `shift-ended`, `wage-due` and the
+  `money-transferred` that pays her follow.
+- In the server, walk Alice and Bob into the café. Alice is offered a `buy` per thing on the shelf,
+  each a complete request; submit one as it is offered. Her own `wallet` falls by the price, and her
+  `holdings` gain one.
+- Bob, in the café, sees the shop's listing: the stock of what Alice bought is one lower. He is never
+  shown Alice's wallet or what she carries.
+- Kill the server and start the same command again: the same world, the same revision, the same
+  wallet, holdings and shelf.
+
+The test (`tools/cli/tests/milestone_c.rs`) does all of this with real sockets and a real SIGKILL.
+Its sibling tests prove the rest of S9: `tests/acceptance/tests/ac1_composability.rs` (AC-1 as
+`ARC-35` measures it, within `ARC-33`'s static-linking boundary — installing a pack is a directory,
+two lines in `systems/installed` and a rebuild), `tools/cli/tests/market_town.rs` (the market lives
+300 days) and `tools/cli/tests/market_composition.rs` (each market pack removable).
+
+Watch for the known limits: people without a job live on an endowment sized for 300 days (L-13);
+items and organizations have no names, so a listing shows ids (F-41); every unavailable buy says
+`TargetUnavailable`, whatever the reason (F-48).
 
 ## Default-style milestones — taste, and the operator decides
 
