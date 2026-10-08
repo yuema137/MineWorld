@@ -182,7 +182,15 @@ pub struct AssembledWorld {
 impl WorldPack {
     /// Installs this pack's systems into an empty world, in the order the pack states, and nothing
     /// else.
+    ///
+    /// First it registers the build's arrival resolvers — the installed set's `resolution:` line —
+    /// with presence (`docs/DECISIONS.md` `ARC-39`). Every host composes through here (`assemble` and
+    /// `load` call this), so no host can run a world without registering them, and a resolver's pack
+    /// installed below finds itself registered. Registering the same list again is a no-op, so a
+    /// process may compose any number of worlds; a different list registered earlier in the process
+    /// is a defect of the host and panics, naming both.
     pub fn compose(&self) -> Result<ComposedWorld, PackError> {
+        mineworld_presence::register_resolvers(Capability::resolvers());
         let mut world = World::new();
         for capability in self.systems() {
             capability.install(&mut world)?;

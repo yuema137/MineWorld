@@ -2184,12 +2184,23 @@ on every `origin/*` branch (it was on 2026-10-07, §16.10).
 
 **Depends on:** RS-C2.
 
-- [ ] Implementation: as scoped. The `twins` test is not edited.
-- [ ] Validation: `cargo test -p mineworld-sdk -p mineworld-installed-systems -p mineworld-worldpack`
-  (worldpack's structure test still passes: presence is on its allow-list); M-RS9 applied and reverted;
-  the stub negative control fails as intended inside its own test.
-- [ ] Review: the sdk still names no pack; the macro's two arms expand identically except
-  `resolvers()`; compose registers before the first install, so `assemble` and `load` inherit it.
+- [x] Implementation: as scoped. `installed!` now has two public arms — with and without
+  `resolution: $trait => [ $( $Resolver:ty , )* ];` — both forwarding to one internal `@catalog` arm
+  holding the former body; the resolution arm adds one `impl Capability { pub fn resolvers() }`.
+  `systems/installed`: `resolution: mineworld_presence::ArrivalResolver => [];` and a doc paragraph.
+  `systems/installed/tests/resolution.rs`: the guard (`faults`) on the real set, and the `stray` stub
+  set (one pack `lone`, resolution line `[Stray, Stray,]`) as its negative control. `worldpack`
+  `compose()`: `mineworld_presence::register_resolvers(Capability::resolvers())` first, and its doc.
+  `worldpack/tests/registration.rs`: RS-10. The `twins` test is not edited.
+- [x] Validation (E-RS3): `cargo test -p mineworld-sdk -p mineworld-installed-systems -p
+  mineworld-worldpack` all pass, worldpack's structure test included; the CLI's inspect and
+  social_composition re-run at this state, 3 + 4 pass; M-RS9 applied, failed by name, reverted; the
+  stub negative control yields its three expected faults inside its own test.
+- [x] Review: the sdk names no pack and no trait (the trait path comes from the invocation); both
+  public arms call the same `@catalog` arm, so they cannot drift, and differ only by `resolvers()`;
+  `register_resolvers` is the first statement of `compose`, before `World::new()` and every install,
+  and `assemble` → `compose`, `load` → `assemble`, so both inherit it. Worldpack names
+  `mineworld_presence` already (allow-listed for `location`), so no new crate name appears there.
 
 ### RS-C4 — movement states through `arrivals`
 
@@ -2445,6 +2456,21 @@ E-RS2 RS-C2, 2026-10-07, working tree on 0d1f4c7 + RS-C2's paths.
       M-RS7 (`true || current == offered` in register_resolvers): resolver_catalog FAILED —
         "panicked at systems/presence/tests/resolver_catalog.rs:46:10: this registration must panic:
         ()" (the [a] step). Reverted; `git grep -n MUTATION -- systems sdk worldpack tests tools` empty.
+
+E-RS3 RS-C3, 2026-10-07, working tree on df23827 + RS-C3's paths.
+      `cargo test -p mineworld-sdk -p mineworld-installed-systems -p mineworld-worldpack` (8.2 s):
+        installed: installed.rs 3 (twins unedited), resolution.rs 2; sdk unit 1; worldpack unit 4,
+        content_kinds 1, refusals 38, registration 1, social_cafe 15, structure 2; doc-tests 1. PASS.
+      `cargo test -p mineworld-cli --test inspect --test social_composition` (19.9 s): 3 + 4. PASS
+        (the exact-state re-run E-RS2 deferred here).
+      clippy -p mineworld-sdk -p mineworld-installed-systems -p mineworld-worldpack --all-targets
+        -D warnings: clean. fmt --all --check: clean after `cargo fmt --all` (two test files re-wrapped).
+      M-RS9 (compose's register_resolvers line commented out): registration FAILED — "assertion
+        `left == right` failed: composing registered the installed set's resolution: list, which is
+        empty in this build / left: None / right: Some([])". Reverted; `git grep -n MUTATION --
+        systems sdk worldpack tests tools` empty.
+      Tool-discipline note: one read-only `awk` was used to reformat this run's test-count lines; it
+        touched no file. Not repeated.
 ```
 
 ## 16.11 Deviations and discoveries during implementation (12a session)
