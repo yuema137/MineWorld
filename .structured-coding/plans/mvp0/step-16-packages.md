@@ -1602,12 +1602,46 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 
 # 15. PR E-b — requirements and resolution (PR design)
 
-**Lifecycle:** `DRAFT — awaiting the primary session's freeze`. Nothing in this section authorizes
-implementation until §15.0 holds a `DESIGN FROZEN` record.
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — implementation in progress.
 
 ## 15.0 Freeze record
 
-*(Empty until the primary session freezes this design.)*
+```text
+DESIGN FROZEN (2026-10-08), primary session
+Design revision:     §15 as committed in e9d4ae9, with the rulings below
+Approved by:         the primary session's freeze message to the E-b session, 2026-10-08: "E-b is DESIGN
+                     FROZEN (2026-10-08), primary session. §15 is accepted as written, with these rulings"
+Rulings:
+  FQ-b1  accepted — framework defaults decided by the primary session: create's template gains
+         `version: 0.1.0`, `license: MIT  # set your own`, `mineworld: "^0.1"`
+  FQ-b2  CHANGED — (1) the default allow-list is MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib,
+         CC0-1.0, Unlicense; (2) CC-BY-4.0 stays out of the default (attribution handling), recorded as a
+         candidate for asset packs; (3) the policy is world-configurable, through no bespoke key: E-b
+         ships the default and the evaluator, with the policy as a typed value that a later
+         `configure/packages.yaml` under S17's generic `configure:` seam (ARC-61, PL-a) can override —
+         the hook is recorded; (4) judged with spdx's evaluator as designed
+  FQ-b3  accepted — classification moves into E-b
+  FQ-b4  accepted — validate prints only `requires` lines; packs resolve prints the composition; §9.3's
+         departure recorded
+  FQ-b5  accepted — E-b uses ARC-54, ARC-55, no DEP; E-c's ARC-33 revision is ARC-66; DEP-22 and DEP-23
+         stay reserved for E-c
+  Limits accepted as stated: third-party end to end is proven in E-c; vendored packs count as bundled
+Endpoint authority:  implementation, commits, pushes and opening the PR marked READY FOR OPERATOR REVIEW
+                     authorized by that message; merge NOT authorized
+Material stops:      editing load.rs; any kernel, contract or persistence change; any digest change; any
+                     change to the three worlds' validate output
+Implementation base: main @ 1a1d08e, branch mvp0/pr-eb-requirements
+Execution contract:  §15.9, with ENDPOINT AUTHORITY as above
+Lifecycle:           FROZEN
+```
+
+**How FQ-b2's ruling changes the design (bounded, recorded before code).** PD-17 now reads: the
+policy is a typed value, `mineworld_packages::LicencePolicy { allowed: BTreeSet<LicenseId> }` —
+deserializable, with `LicencePolicy::default()` the eight identifiers above — and `resolve` takes it as
+an argument rather than reading a constant. `worldpack` passes `LicencePolicy::default()` in E-b. The
+override hook: when S17's PL-a lands `configure:`, a world's `configure/packages.yaml` decodes into the
+same type and replaces the default for that world; E-b adds no key and no file for it. ARC-55 records the
+default, the evaluator, the CC-BY-4.0 candidacy and this hook.
 
 ## 15.1 Identity, base, approved scope
 
