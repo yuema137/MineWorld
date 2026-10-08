@@ -20,15 +20,20 @@ use std::collections::BTreeMap;
 
 use mineworld_bodies::{BodiesSystem, PlaceShape, place_shaped};
 use mineworld_contracts::{
-    ActionId, ActionIntent, ActionRecord, ActionResult, EntityId, EntityKey, EntityType,
-    EventEnvelope, LocalPosition, Location, Millimetres, Observation, PersonId, PlaceId, WorldTime,
+    Action, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId, Causation, EntityId,
+    EntityKey, EntityType, EventEnvelope, LocalPosition, Location, Millimetres, Observation,
+    PersonId, PlaceId, SystemId, Visibility, WorldTime,
 };
-use mineworld_kernel::{Emission, KernelError, World};
+use mineworld_kernel::{
+    Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
+    WorldView,
+};
 use mineworld_movement::{Move, MovementSystem, passage};
 use mineworld_presence::{
-    ArrivalResolver, PerceptionProvider, Presence, PresenceSystem, arrival, register_resolvers,
+    ArrivalResolver, Arrived, PerceptionProvider, PersonEnteredPlace, Presence, PresenceSystem,
+    StoppedShort, arrival, register_resolvers,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// The instant every request in these tests is made at (`AC-12`: supplied, never read from a clock).
 pub const NOW: WorldTime = WorldTime::from_seconds(3_600);
@@ -82,6 +87,8 @@ pub struct Plan {
     pub passages: Vec<(Side, Side)>,
     /// Whether bodies is installed at all.
     pub without_bodies: bool,
+    /// Whether the test-only bypassing pack is installed (PB-17).
+    pub with_bypass: bool,
 }
 
 impl Plan {
@@ -119,6 +126,9 @@ impl Yard {
         if !plan.without_bodies {
             world.install(BodiesSystem).expect("bodies installs");
             providers.push(Box::new(BodiesSystem));
+        }
+        if plan.with_bypass {
+            world.install(Bypass).expect("the bypassing pack installs");
         }
 
         let mut places = BTreeMap::new();
@@ -188,15 +198,59 @@ impl Yard {
 
     /// Asks for `person` to move to `to`: the dispatch's answer and its facts.
     pub fn r#move(&mut self, person: &str, to: Location) -> (ActionResult, Vec<EventEnvelope>) {
+        let moved = self.walk(person, to);
+        (moved.result, moved.events)
+    }
+
+    /// Asks for `person` to move to `to`, keeping the request's identity with its answer.
+    pub fn walk(&mut self, person: &str, to: Location) -> Moved {
+        let record = ActionRecord::new::<Move>(encode(&Move::new(to)));
+        self.submit(person, record)
+    }
+
+    /// Submits `record` as `person`'s request.
+    pub fn submit(&mut self, person: &str, record: ActionRecord) -> Moved {
         let id = self.next_id();
         let actor = self.people[person];
-        let record = ActionRecord::new::<Move>(encode(&Move::new(to)));
         let intent = ActionIntent::new(id, actor, record, NOW);
         let dispatched = self
             .world
             .dispatch(&intent, NOW)
             .expect("dispatch answers rather than failing");
-        (dispatched.result().clone(), dispatched.events().to_vec())
+        Moved {
+            id,
+            result: dispatched.result().clone(),
+            events: dispatched.events().to_vec(),
+        }
+    }
+
+    /// Every person standing in `place` with a position, by key, in identity order.
+    pub fn standing(&self, place: &str) -> Vec<(&'static str, (i32, i32))> {
+        self.people
+            .iter()
+            .filter(|(_, id)| {
+                self.world
+                    .components()
+                    .get::<Presence>(**id)
+                    .is_some_and(|presence| presence.location().place() == self.places[place])
+            })
+            .filter_map(|(key, _)| self.point(key).map(|at| (*key, at)))
+            .collect()
+    }
+
+    /// The closest pair standing in `place`, by key, and their distance squared.
+    pub fn closest(&self, place: &str) -> Option<(&'static str, &'static str, i64)> {
+        let standing = self.standing(place);
+        let mut best: Option<(&'static str, &'static str, i64)> = None;
+        for (i, (a, at_a)) in standing.iter().enumerate() {
+            for (b, at_b) in &standing[i + 1..] {
+                let d = distance2(*at_a, *at_b);
+                if best.is_none_or(|(_, _, closest)| d < closest) {
+                    best = Some((a, b, d));
+                }
+            }
+        }
+        best
     }
 
     /// Where presence says `person` is, as a point; [`None`] without a position.
@@ -231,6 +285,154 @@ impl Yard {
         let providers: Vec<&dyn PerceptionProvider> =
             self.providers.iter().map(AsRef::as_ref).collect();
         mineworld_presence::observe(&self.world, self.people[observer], NOW, &providers)
+    }
+}
+
+/// One request and what it became.
+pub struct Moved {
+    pub id: ActionId,
+    pub result: ActionResult,
+    pub events: Vec<EventEnvelope>,
+}
+
+/// A recorded fact, decoded with its owner's published types.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Fact {
+    Arrived(EntityId, Location),
+    StoppedShort {
+        person: EntityId,
+        wanted: Location,
+        reached: Location,
+        by: Option<EntityId>,
+    },
+    Entered(EntityId),
+    Other(String),
+}
+
+pub fn fact(event: &EventEnvelope) -> Fact {
+    let record = event.payload();
+    if let Ok(payload) = record.payload_for::<Arrived>() {
+        let arrived: Arrived = serde_json::from_slice(payload).expect("presence's encoding");
+        return Fact::Arrived(arrived.person().entity_id(), arrived.location());
+    }
+    if let Ok(payload) = record.payload_for::<StoppedShort>() {
+        let stopped: StoppedShort = serde_json::from_slice(payload).expect("presence's encoding");
+        return Fact::StoppedShort {
+            person: stopped.person().entity_id(),
+            wanted: stopped.wanted(),
+            reached: stopped.reached(),
+            by: stopped.by(),
+        };
+    }
+    if let Ok(payload) = record.payload_for::<PersonEnteredPlace>() {
+        let entered: PersonEnteredPlace =
+            serde_json::from_slice(payload).expect("presence's encoding");
+        return Fact::Entered(entered.person().entity_id());
+    }
+    Fact::Other(event.event_type().as_str().to_owned())
+}
+
+impl Moved {
+    pub fn accepted(&self) -> bool {
+        matches!(self.result, ActionResult::Accepted { .. })
+    }
+
+    pub fn facts(&self) -> Vec<Fact> {
+        self.events.iter().map(fact).collect()
+    }
+
+    /// Every fact but presence's own occupancy change is the request's, stated by movement (`AC-9`).
+    pub fn assert_caused_by_the_request(&self) {
+        for event in &self.events {
+            if event.event_type().as_str() == "person-entered-place" {
+                continue;
+            }
+            assert_eq!(
+                *event.caused_by(),
+                Causation::Action(self.id),
+                "caused by the request: {:?}",
+                fact(event)
+            );
+            assert_eq!(
+                event.provenance().emitted_by().as_str(),
+                "movement",
+                "stated by movement"
+            );
+            assert_eq!(
+                event.provenance().controller_decision(),
+                Some(self.id),
+                "the controller's decision"
+            );
+        }
+    }
+
+    /// The people this request moved besides the walker: every `arrived` after the first.
+    pub fn displaced(&self) -> Vec<(EntityId, Location)> {
+        self.facts()
+            .into_iter()
+            .skip(1)
+            .filter_map(|fact| match fact {
+                Fact::Arrived(person, at) => Some((person, at)),
+                _ => None,
+            })
+            .collect()
+    }
+}
+
+/// The ground point of a location.
+pub fn xy(location: Location) -> (i32, i32) {
+    let local = location.local().expect("a position");
+    (local.x().value(), local.y().value())
+}
+
+// ---------------------------------------------------------------------------------------------
+// test-bypass (PB-17): a stating system that encodes presence's `arrived` itself, bypassing the
+// constructor that resolves it (ARC-39's accepted limitation, step-11 F-R11)
+// ---------------------------------------------------------------------------------------------
+
+#[derive(Default)]
+pub struct Bypass;
+
+impl SystemIdentity for Bypass {
+    const ID: SystemId = SystemId::from_static("test-bypass");
+}
+
+/// Put `person` at `to`, unresolved.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct Put {
+    pub person: PersonId,
+    pub to: Location,
+}
+
+impl Action for Put {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("test-put");
+    const OWNER: SystemId = Bypass::ID;
+}
+
+impl System for Bypass {
+    const VERSION: SystemVersion = SystemVersion::new(1);
+
+    fn declaration(&self) -> SystemDeclaration {
+        SystemDeclaration::of::<Self>()
+            .depending_on([PresenceSystem::ID])
+            .providing::<Put>()
+            .emitting::<Arrived>()
+    }
+
+    fn resolve(
+        &self,
+        _world: &mut WorldView<'_, Self>,
+        intent: &ActionIntent,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let put: Put = serde_json::from_slice(intent.payload().payload()).expect("a test-put");
+        Ok(vec![
+            Emission::new::<Arrived>(
+                encode(&Arrived::new(put.person, put.to)),
+                Visibility::Place(put.to.place()),
+            )
+            .about(vec![put.person.entity_id()])
+            .at_place(put.to.place()),
+        ])
     }
 }
 

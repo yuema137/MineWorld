@@ -3350,13 +3350,30 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C3.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-bodies` passes. M-PB5, M-PB6, M-PB7, M-PB10, M-PB11 and the
-  PB-19 half of M-PB1 are each applied, fail by name, and are reverted. Each scenario's facts are
-  checked for order, causation and `emitted_by`.
-- [ ] Review: every degrade path ends in a state V1–V3 accepts, including stay. The snap cannot
-  lengthen (rule (c)). Displaced order is generation, then `EntityId`. No float outside `rapier.rs`.
-  The resolver keeps nothing between calls: no static, no cache, no clock.
+- [x] Implementation: as scoped. `resolve.rs`: `impl ArrivalResolver` (SD-B15 pass-through → inert
+  rule → guard → `stride` or `entry`), `answer` (the crate-private core), `Policy { verify }` with
+  `PRODUCTION`, `guard` (SD-B9: pair < 595 mm or a centre outside the floor/in a solid by more than
+  the tolerance → panic naming both keys, the place, the distance and ARC-39), `stride` (SD-B6:
+  corridor fast path → one `Scene` → `reach` (W, B, candidate) → `nudge` → verify → `degrade`),
+  `nudge` (SD-B7), `entry` (SD-B8 E1/E2/E3), `relocated` (keeps z and facing), and a public
+  `explain(world, person, to) -> Option<Outcome>` with `Outcome { route, generations, nudged,
+  nudge_failed, degraded }` — the resolver's own account, which the tests read generations and
+  degradation from (§17.4 PB-6: "read from the resolver core's outcome"; DB-7). `geometry.rs`:
+  `Point` arithmetic, `scaled_down`, `at_least`, `no_longer_than`, `segment_clear_of`,
+  `Room::corridor_clear`/`free_at`/`nearest_free`. `rapier.rs`: `Swept.contact`, the capsule's
+  position at its first person contact (DB-4). Tests: `tests/scenarios.rs` (15), PB-8's two unit
+  tests in `resolve.rs`, `Bypass` and `Moved`/`Fact` in the support.
+- [x] Validation (E-PB4): `cargo test -p mineworld-bodies` → lib 5, genesis 6, isolation 4, rapier_pin
+  1, scenarios 15. M-PB5, M-PB6, M-PB7, M-PB10, M-PB11 and M-PB1's pack half each fail by name and
+  are reverted. Every scenario's facts are checked for order, causation (`Action(id)`),
+  `emitted_by` movement and the controller decision.
+- [x] Review: every degrade path ends in a state `verifies` accepted, and stay is the start the
+  guard admitted. The snap moves a point onto the target and `no_longer_than` then clamps, so
+  neither lengthens (rule (c)); `at_least` rounds a nudge up and the pass then refuses any nudge
+  over 310 mm, so the bound holds by construction. Displaced order is pusher by pusher, then
+  `EntityId` within a pusher — generation order. `isolation` holds no float outside `rapier.rs`.
+  No static, cache or clock: `Scene` is built and dropped inside `stride`/`entry`. `stride` was
+  split (`reach`) to stay under the ~100-line warning; resolve.rs is 700 lines with its tests.
 
 ### PB-C5 — QB-16: the head-on bias
 
@@ -3676,6 +3693,38 @@ E-PB3 PB-C3, 2026-10-07, working tree on 3074db9 + PB-C3's paths.
         MUTATION -- systems` empty.
       clippy -p mineworld-bodies --all-targets -D warnings: clean after four type aliases in the test
         support (`Rect`, `Xy`, `Resident`, `Side`). fmt clean.
+
+E-PB4 PB-C4, 2026-10-07, working tree on b48cecc + PB-C4's paths.
+      First run of scenarios.rs (B = the contact sweep's end, as the prototype): 12 of 15 passed. The
+        three failures were all "the walker ends at contact": the chain 612 mm, the two pinned cases
+        624 mm from the person — the controller slides on along the person's curve after the first
+        touch. Second run (B = the first-touch point for both uses): the chain 608 mm, and n3 had
+        0 blocked strides. Third (DB-4's reading: the candidate rule measures the swept end, a
+        blocked walker stops at the first touch): every behavioural claim held; the chain's 608 mm is
+        the oracle's error (DB-6). Final: the position oracles as DB-6 states them. Then 15 of 15.
+      Printed: n2 — b moved 507 mm in all, in 3 nudges (≤ 310 each); n3 — 6 strides blocked, at most
+        2 moved, 2 generations; chain — walker at (2 871, 5 000), stopped-short by p1, nobody moved;
+        pinned — walker at (7 451, 2 983) and (5 266, 5 701); guard — "bodies: alice and bob stand
+        200 mm apart in room, closer than 595 mm, … (DECISIONS.md ARC-39)". Entries: (900, 2 000)
+        exactly; the occupant nudged to (1 510, 2 000); placed at (1 100, 1 850) by the occupant;
+        placed at (5 000, 6 250) by None.
+      PB-8 (lib): verification off → walker (2 983, 383), the person against the wall (2 970, 314),
+        70 mm apart (the prototype: 33 mm) — F-P6 reproduced with two people; on → walker (2 563,
+        758), 602 mm apart, `degraded: Halved(4)`.
+      Mutations (each applied, run, reverted; `git grep -n MUTATION -- systems` empty afterwards):
+        M-PB5  CHAIN_MAX 3 → the chain case FAILED: p3 recorded at (4 464, 6 098) — the third
+               generation, exactly the hand-computed 4 376 + 88, 6 032 + 66.
+        M-PB6  NUDGE_MAX 400 → n2 FAILED "b nudged 338 mm, more than 310 (I-11)"; n3 FAILED "c1 nudged
+               402 mm".
+        M-PB7  PRODUCTION verify off → PB-8 FAILED "walker (2983, 383) and the person against the
+               wall (2970, 314) are 70 mm apart".
+        M-PB10 the guard call removed → PB-17 FAILED "the next arrival into the place must panic".
+        M-PB11 E3 answers `to` → case c FAILED "occupant and walker stand 400 mm apart in the hall";
+               case d FAILED too.
+        M-PB1  (pack half) a place without a shape treated as a ±100 m floor → PB-19 FAILED, at the
+               guard: "bob and carol stand 316 mm apart in yard".
+      clippy and fmt clean. Tool-discipline note: PB-8's test module was appended with a `cat >>`
+        heredoc rather than the Edit tool; content as intended; not repeated.
 ```
 
 ## 17.11 Deviations and discoveries during implementation
@@ -3704,3 +3753,47 @@ E-PB3 PB-C3, 2026-10-07, working tree on 3074db9 + PB-C3's paths.
 **DB-3 (bounded, tightening) — the no-float scan covers every source file but `rapier.rs`.** §17.4
 PB-15 names component.rs, event.rs and section.rs. PB-C4's review asks "no float outside `rapier.rs`".
 The scan holds the latter, which includes the former; it lists each offending line.
+
+**DB-4 (bounded; flagged for the operator) — where a blocked walker stops.**
+- Previous assumption: §4.5.1 step 2 defines the contact reach B as "the same sweep with people
+  solid", step 5 puts a blocked walker at B, and §17.4 PB-6/PB-7 expect the blocked walker "at contact
+  (± 1 mm)" with the first person.
+- Audit evidence (E-PB4): with `slide: true` (SD-B11), once the capsule touches a person the
+  controller slides it on along their curve. For an oblique approach the sweep's end is 612 mm
+  (chain) and 624 mm (pinned) from the person — not at contact. Using the first-touch point for both
+  of B's uses keeps the contact, but changes the candidate rule's measurement and n3 then never
+  blocks (0 of 12), against PB-6's "at least one stride is blocked" and the prototype's n3 (3 of 12).
+- The text is inconsistent for oblique contacts: no single B satisfies both "B is the sweep" and
+  "a blocked walker is at contact".
+- Decision: B's two uses take its two meanings. The candidate rule (step 3) measures how far the
+  walker gets with people solid — the sweep's end, sliding included, exactly the prototype's B. A
+  blocked walker (step 5, and the halving path of step 8) stops where that sweep first touched a
+  person: `Swept.contact`, from Rapier's `CharacterCollision::translation_applied`. Without a person
+  touched, both are the sweep's end.
+- Invariants: unchanged (I-11, I-12: the contact point is ≥ 600 mm from the person, and verify still
+  runs). Scope: unchanged. The R′ algorithm's numbers differ from the prototype's only where a
+  blocked walker would have slid on.
+- Validation: every PB-5 … PB-8, PB-17 … PB-19 scenario passes; n3 blocks 6 of 12; the long run
+  (PB-14 a) measures N-1 … N-4 on it.
+
+**DB-5 (discovery) — n2's and n3's first person met lies inside the head-on band.** PB-6 says each
+case's layout keeps the first person met outside `BIAS_BAND`. n2's B stands 100 mm off the walker's
+line and n3's first person exactly on it, as the prototype's scenarios (§9.6) fix them. Those two
+layouts are not changed; HB-3 already requires that "n2 and n3 still meet PB-6" with the bias on, so
+PB-C5 re-runs them under it. The chain case (300 mm off) and the two pinned cases (219 mm off) are laid
+out outside the band, as PB-6 asks.
+
+**DB-6 (bounded) — the hand-computed contact point of an oblique stop.** PB-6/PB-7's "at contact
+(± 1 mm)" was first written as 610 mm = 2R + GAP from the person. Rapier keeps the controller's 10 mm
+offset along the direction of motion, so a walker meeting a person at angle θ off their line of
+centres stops 600 + 10·cos θ from them: 608.7 mm in the chain layout, 609.3 mm in the pinned ones.
+The tests now assert, as §17.4's rule for positions through Rapier states, the reached point within
+±1 mm per axis of the contact point computed by hand from the layout — (2 870, 5 000), (7 452, 2 984),
+(5 266, 5 702) — and that the walker touches without overlapping (600 … 611 mm). Rapier's points:
+(2 871, 5 000), (7 451, 2 983), (5 266, 5 701).
+
+**DB-7 (bounded) — `explain`, a public account of a resolution.** PB-6 reads generations "from the
+resolver core's outcome in the same tests", and `scenarios.rs` is an integration test that sees only
+the crate's public API. `mineworld_bodies::explain(world, person, to) -> Option<Outcome>` runs the
+same core as the resolver, reading `from` from presence as presence does. It writes nothing and
+names no Rapier type; it is the pack's own surface, not a seam change.

@@ -137,6 +137,54 @@ impl Room {
             .map(i64::isqrt)
     }
 
+    /// Whether a stride from `from` to `to` meets nothing, by integers alone — the fast path, on which
+    /// no scene is built (step-11 SD-B6 step 2). Clear means: the centre's whole segment keeps a radius
+    /// and a gap from the floor's edge (both ends do, and the shrunk floor is convex); the segment's
+    /// box, grown by a radius and a gap, meets no solid's footprint; and every other person keeps two
+    /// radii and a gap from the segment. This is the definition of the clear case, not an
+    /// approximation of the sweep: a stride that is not clear is swept.
+    pub(crate) fn corridor_clear(&self, from: Point, to: Point, others: &[Point]) -> bool {
+        let margin = PERSON_RADIUS.value() + GAP.value();
+        if !self.floor.holds(from, margin) || !self.floor.holds(to, margin) {
+            return false;
+        }
+        let grown = Area {
+            min: Point::new(from.x.min(to.x) - margin, from.y.min(to.y) - margin),
+            max: Point::new(from.x.max(to.x) + margin, from.y.max(to.y) + margin),
+        };
+        let meets = |area: &Area| {
+            area.min.x <= grown.max.x
+                && area.max.x >= grown.min.x
+                && area.min.y <= grown.max.y
+                && area.max.y >= grown.min.y
+        };
+        if self.solids.iter().any(|(area, _)| meets(area)) {
+            return false;
+        }
+        let apart = 2 * PERSON_RADIUS.value() + GAP.value();
+        others
+            .iter()
+            .all(|other| segment_clear_of(from, to, *other, apart))
+    }
+
+    /// Whether a person fits at `p` with room to spare: inside the floor shrunk by a radius, a radius
+    /// from every solid, and two radii and a gap from each of `others` (step-11 SD-B8 E1).
+    pub(crate) fn free_at(&self, p: Point, others: &[Point]) -> bool {
+        let apart = i64::from(2 * PERSON_RADIUS.value() + GAP.value());
+        self.admits(p, PERSON_RADIUS.value())
+            && others
+                .iter()
+                .all(|other| distance2(p, *other) >= apart * apart)
+    }
+
+    /// The free point (as [`Room::free_at`]) of the [`LATTICE`] nearest `target`, ties broken by `y`
+    /// then `x`; [`None`] only when the floor has none.
+    pub(crate) fn nearest_free(&self, target: Point, others: &[Point]) -> Option<Point> {
+        lattice(self.floor, PERSON_RADIUS.value(), LATTICE.value())
+            .filter(|p| self.free_at(*p, others))
+            .min_by_key(|p| (distance2(*p, target), p.y, p.x))
+    }
+
     /// The points of the [`CAPACITY_GRID`], anchored at the floor's south-west corner plus a radius
     /// on each axis, where a person fits: inside the floor shrunk by a radius and at least a radius
     /// from every solid (step-11 SD-B4).
@@ -158,6 +206,84 @@ pub(crate) fn lattice(floor: Area, margin: i32, step: i32) -> impl Iterator<Item
     (0..rows).flat_map(move |row| {
         (0..columns).map(move |column| Point::new(x0 + column * step, y0 + row * step))
     })
+}
+
+impl Point {
+    /// `self − other`, as an offset.
+    pub(crate) const fn minus(self, other: Self) -> Self {
+        Self::new(self.x - other.x, self.y - other.y)
+    }
+
+    /// `self + offset`.
+    pub(crate) const fn plus(self, offset: Self) -> Self {
+        Self::new(self.x + offset.x, self.y + offset.y)
+    }
+
+    /// The length of this offset, rounded down.
+    pub(crate) fn length(self) -> i64 {
+        distance2(self, Self::new(0, 0)).isqrt()
+    }
+}
+
+/// `offset` scaled by `numerator / denominator`, each component truncated toward zero, so the result
+/// is never longer than the exact scaling. `denominator` must be positive.
+pub(crate) fn scaled_down(offset: Point, numerator: i64, denominator: i64) -> Point {
+    let scale = |v: i32| {
+        i32::try_from(i64::from(v) * numerator / denominator).expect("a scaled-down offset fits")
+    };
+    Point::new(scale(offset.x), scale(offset.y))
+}
+
+/// The offset along `direction` that is at least `length` long: `direction × length / |direction|`,
+/// each component rounded away from zero and the length divided by `|direction|` rounded down, so
+/// what it lacks in exactness it makes up in length. `direction` must not be zero.
+pub(crate) fn at_least(direction: Point, length: i64) -> Point {
+    let norm = direction.length().max(1);
+    let scale = |v: i32| {
+        let product = i64::from(v) * length;
+        let quotient = product / norm;
+        let rounded = if product % norm == 0 {
+            quotient
+        } else {
+            quotient + product.signum()
+        };
+        i32::try_from(rounded).expect("a nudge fits")
+    };
+    Point::new(scale(direction.x), scale(direction.y))
+}
+
+/// `p`, moved toward `from` if needed so that it is no farther from `from` than `target` is: a
+/// resolver may shorten or bend an arrival, never lengthen it (`ARC-39` rule (c)). A quantized sweep
+/// that slid along a wall can come back a fraction of a millimetre long; this takes it back.
+pub(crate) fn no_longer_than(from: Point, p: Point, target: Point) -> Point {
+    let (asked, got) = (distance2(from, target), distance2(from, p));
+    if got <= asked {
+        return p;
+    }
+    let ceil_root = |v: i64| {
+        let root = v.isqrt();
+        if root * root == v { root } else { root + 1 }
+    };
+    from.plus(scaled_down(p.minus(from), asked.isqrt(), ceil_root(got)))
+}
+
+/// Whether every point of the segment `a`–`b` is at least `radius` from `p`, exactly, in `i128`.
+pub(crate) fn segment_clear_of(a: Point, b: Point, p: Point, radius: i32) -> bool {
+    let wide = |v: i32| i128::from(v);
+    let (abx, aby) = (wide(b.x) - wide(a.x), wide(b.y) - wide(a.y));
+    let (apx, apy) = (wide(p.x) - wide(a.x), wide(p.y) - wide(a.y));
+    let reach = wide(radius) * wide(radius);
+    let along = apx * abx + apy * aby;
+    let span = abx * abx + aby * aby;
+    if span == 0 || along <= 0 {
+        return apx * apx + apy * apy >= reach;
+    }
+    if along >= span {
+        let (bpx, bpy) = (wide(p.x) - wide(b.x), wide(p.y) - wide(b.y));
+        return bpx * bpx + bpy * bpy >= reach;
+    }
+    let cross = abx * apy - aby * apx;
+    cross * cross >= reach * span
 }
 
 /// The squared distance between two points, exactly.

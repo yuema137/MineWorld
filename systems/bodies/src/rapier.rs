@@ -80,12 +80,14 @@ pub(crate) enum Against {
     FixedAndPeople,
 }
 
-/// Where a sweep ended, quantized, and the first person it touched, by the index the scene was built
-/// with.
+/// Where a sweep ended, quantized; the first person it touched, by the index the scene was built
+/// with; and where the capsule stood, quantized, when it first touched them — before the controller
+/// slid it on along their curve.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Swept {
     pub(crate) end: Point,
     pub(crate) touched: Option<usize>,
+    pub(crate) contact: Option<Point>,
 }
 
 /// One place, built for one resolution and dropped with it.
@@ -144,16 +146,21 @@ impl Scene {
                     touched = self
                         .people
                         .iter()
-                        .position(|(_, collider)| *collider == collision.handle);
+                        .position(|(_, collider)| *collider == collision.handle)
+                        .map(|index| (index, collision.translation_applied));
                 }
             },
         );
+        let at = |translation: Vector| {
+            Point::new(
+                millimetres(metres(from.x) + translation.x),
+                millimetres(metres(from.y) + translation.y),
+            )
+        };
         Swept {
-            end: Point::new(
-                millimetres(metres(from.x) + moved.translation.x),
-                millimetres(metres(from.y) + moved.translation.y),
-            ),
-            touched,
+            end: at(moved.translation),
+            touched: touched.map(|(index, _)| index),
+            contact: touched.map(|(_, applied)| at(applied)),
         }
     }
 }
