@@ -1,8 +1,9 @@
 class_name MineWorldClient
 extends Node
 
-## A connection to a MineWorld server: the two frames a client may send, and the four things it can
-## be told.
+## A connection to a MineWorld server: the three frames a client may send (join, submit, leave), and
+## the five things it can be told (welcome, observation, result, refused, closing) — protocol
+## revision 2.
 ##
 ## Drop this node into a scene, connect the signals, call [method connect_to_world], and render what
 ## arrives. `server/PROTOCOL.md` is the specification this implements and governs where the two
@@ -12,7 +13,7 @@ extends Node
 ## var world := MineWorldClient.new()
 ## add_child(world)
 ## world.observed.connect(_on_observed)
-## world.connect_to_world("127.0.0.1:7878", "visitor")
+## world.connect_to_world("127.0.0.1:7878", "visitor", invite, "Yue")
 ## ...
 ## world.submit("talk", alice_id, { "utterance": "hello" })
 ## [/codeblock]
@@ -37,7 +38,7 @@ extends Node
 
 ## Which revision of the protocol this module speaks. A server that answers with another number is
 ## refused rather than guessed at.
-const PROTOCOL := 1
+const PROTOCOL := 2
 
 ## The connection got a seat: this is the observer it sees the world as, and what the world is.
 ##
@@ -56,6 +57,13 @@ signal resolved(token: String, action_id: String, result: Dictionary)
 ##
 ## `code` is one of the codes in `PROTOCOL.md` §5 — a client branches on it and never on `detail`.
 signal refused(code: String, token: String, detail: String)
+
+## The server said it is closing this connection, and why — emitted before [signal disconnected].
+##
+## `reason` is one of `PROTOCOL.md` §5.6's: `left`, `unauthorized`, `protocol_mismatch`,
+## `world_stopped`, and from later S11 pull requests `kicked`, `superseded`, `server_stopping`. A client
+## branches on `reason` (a wrong invite is `unauthorized`) and never on `detail`.
+signal closing(reason: String, detail: String)
 
 ## The connection ended, or could not be made. `reason` is for a developer and a status line.
 signal disconnected(reason: String)
@@ -112,7 +120,32 @@ var revision: Variant = null
 ## How many observations arrived out of order and were dropped. Normally zero.
 var stale_observations: int = 0
 
+## The player's nickname as the server accepted it (trimmed), from the welcome. Shown to this
+## connection only: no other player is ever told it (`PROTOCOL.md` §4.1).
+var nickname: String = ""
+
+## Which connection this is, from the welcome: an identity string, for the operator's admin surface.
+## Not a credential.
+var session: String = ""
+
+## Whether control of the Person changed hands when this connection joined: `"none"`, `"hosted"` (it
+## was living on its own) or `"held"` (this connection resumed its own seat). Always `"none"` until
+## S11-B.
+var took_over: String = ""
+
+## How long the server holds this seat after the socket drops, in seconds; `0` until S11-B.
+var hold_seconds: int = 0
+
+## The secret that re-takes this seat after a dropped socket, or `null`; always `null` until S11-B.
+## Kept for the reconnect policy S11-B adds; never logged.
+var resume: Variant = null
+
+## Why the server last closed this connection (`closing.reason`), or `""`.
+var close_reason: String = ""
+
 var _socket := WebSocketPeer.new()
+var _invite := ""
+var _nickname_asked := ""
 var _url := ""
 var _tokens := 0
 
@@ -122,11 +155,27 @@ var _tokens := 0
 ## `address` may be `"host:port"`, `"ws://host:port"` or a whole `"ws://host:port/ws"` — a client
 ## should not have to remember the route. `seat_name` is a seat the world offers; `GET /status` lists
 ## them, and one the roster does not contain is refused `unknown_seat`.
-func connect_to_world(address: String, seat_name: String) -> void:
+##
+## `invite` is the server's invite: required on every server, loopback included. A server started
+## without one prints it on its `[mineworld] invite <token> — join with: …` line. A wrong invite is
+## answered `refused unauthorized`, then [signal closing] with `"unauthorized"`. This module never
+## prints, logs or emits it. `nickname` names the *player* (1 to 32 characters, trimmed by the
+## server); nobody else is shown it.
+func connect_to_world(
+	address: String, seat_name: String, invite: String, nickname_asked: String
+) -> void:
 	if state != State.IDLE and state != State.CLOSED:
 		push_warning("[mineworld] already connected; ignoring connect_to_world")
 		return
 	seat = seat_name
+	_invite = invite
+	_nickname_asked = nickname_asked
+	nickname = ""
+	session = ""
+	took_over = ""
+	hold_seconds = 0
+	resume = null
+	close_reason = ""
 	observer = ""
 	world = {}
 	latest = null
@@ -260,6 +309,16 @@ func disconnect_from_world(reason: String = "closed by the client") -> void:
 	_close(reason)
 
 
+## Gives the seat up at once and ends the connection: sends `leave`, and the server answers
+## [signal closing] with `"left"` and closes. Unlike [method disconnect_from_world], which only drops
+## the socket, this tells the server the player is gone rather than interrupted — from S11-B a dropped
+## socket's seat is held for a reconnect, and a left one is not.
+func leave_world() -> void:
+	if state == State.IDLE or state == State.CLOSED:
+		return
+	_send({ "t": "leave" })
+
+
 ## Whether this connection is seated and can act.
 func is_seated() -> bool:
 	return state == State.SEATED
@@ -281,17 +340,36 @@ func _process(_delta: float) -> void:
 		WebSocketPeer.STATE_OPEN:
 			if state == State.OPENING:
 				state = State.JOINING
-				_send({ "t": "join", "seat": seat })
-			while _socket.get_available_packet_count() > 0:
-				_receive(_socket.get_packet().get_string_from_utf8())
-				if state == State.CLOSED:
-					return
+				# `protocol` is the int constant, so JSON writes it as an integer (`PROTOCOL.md` §7).
+				_send({
+					"t": "join", "protocol": PROTOCOL, "invite": _invite,
+					"nickname": _nickname_asked, "seat": seat, "resume": null,
+				})
+			_drain()
+		WebSocketPeer.STATE_CLOSING:
+			_drain()
 		WebSocketPeer.STATE_CLOSED:
+			# What arrived with the close is still read first: a server that refuses a join sends
+			# `refused` and `closing` and closes at once, and both frames can land in the same poll.
+			_drain()
+			if state == State.CLOSED:
+				return
 			var code := _socket.get_close_code()
 			var note := _socket.get_close_reason()
-			_close("the connection closed (%d %s)" % [code, note])
+			if close_reason != "":
+				_close("the server closed the connection: %s" % close_reason)
+			else:
+				_close("the connection closed (%d %s)" % [code, note])
 		_:
 			pass
+
+
+## Every frame waiting on the socket, in order, until there are none or the connection was closed.
+func _drain() -> void:
+	while _socket.get_available_packet_count() > 0:
+		_receive(_socket.get_packet().get_string_from_utf8())
+		if state == State.CLOSED:
+			return
 
 
 ## One text frame from the server.
@@ -318,6 +396,12 @@ func _receive(text: String) -> void:
 				String(frame.get("token", "")),
 				String(frame.get("detail", "")),
 			)
+		"closing":
+			# The connection is over; the reason is the only thing a client branches on. The client
+			# closes the socket itself, which is what the server waits for (`PROTOCOL.md` §5.6).
+			close_reason = String(frame.get("reason", ""))
+			closing.emit(close_reason, String(frame.get("detail", "")))
+			disconnect_from_world("the server closed the connection: %s" % close_reason)
 		var unknown:
 			# A frame from a future revision. Reported and ignored rather than guessed at: a client
 			# that invented a meaning for it would be a client acting on something it cannot read.
@@ -338,6 +422,11 @@ func _welcome(frame: Dictionary) -> void:
 	# `9007199254740995` and `9007199254740997` parse to the same value and two entities become one
 	# — measured, not theoretical (`spike/FINDINGS.md` F1, F2, `PROTOCOL.md` §7).
 	observer = String(frame.get("observer", ""))
+	nickname = String(frame.get("nickname", ""))
+	session = String(frame.get("session", ""))
+	took_over = String(frame.get("took_over", "none"))
+	hold_seconds = int(frame.get("hold_seconds", 0))
+	resume = frame.get("resume")
 	world = frame.get("world", {})
 	revision = _revision_of(world)
 	state = State.SEATED

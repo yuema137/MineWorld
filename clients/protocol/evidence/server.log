@@ -1,13 +1,13 @@
 [mineworld] Social Café (social-cafe) — 7 system(s), 11 seat(s)
-[mineworld] listening on http://127.0.0.1:7878 (ws://127.0.0.1:7878/ws), protocol 1
+[mineworld] listening on http://127.0.0.1:55869 (ws://127.0.0.1:55869/ws), protocol 2
 [mineworld] 18 entities, 7 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
-[mineworld] world instance 0000000018dc2ba98d757ba80af60000
+[mineworld] world instance 0000000018dca869b9b79740e1c20000
 [mineworld] agent: driving 'alice' as entity 7
 [mineworld] agent: 7 -> Some(EntityId(17)) accepted as action 6 (1 fact(s))
 [mineworld] Social Café (social-cafe) — 7 system(s), 11 seat(s)
-[mineworld] listening on http://127.0.0.1:7878 (ws://127.0.0.1:7878/ws), protocol 1
+[mineworld] listening on http://127.0.0.1:55885 (ws://127.0.0.1:55885/ws), protocol 2
 [mineworld] 18 entities, 7 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
-[mineworld] world instance 0000000018dc2baaee1a75e80b290000
+[mineworld] world instance 0000000018dca86a7f010db0e1fa0000
 [mineworld] agent: driving 'alice' as entity 7
 [mineworld] agent: 7 -> Some(EntityId(17)) accepted as action 6 (1 fact(s))
 [mineworld] agent: 7 -> Some(EntityId(18)) accepted as action 10 (1 fact(s))

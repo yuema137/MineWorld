@@ -14,7 +14,8 @@
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
-#   ./mineworld-slice --server=host:port [--seat=visitor]   connect to a running world
+#   ./mineworld-slice --server=host:port --invite=TOKEN [--seat=visitor] [--nickname=NAME]
+#                                     connect to a running world, with the invite its server printed
 #
 # Needs Godot 4.7 on PATH (brew install godot). --world also needs cargo.
 #
@@ -62,20 +63,33 @@ for a in "$@"; do
 done
 
 # --world: host worlds/social-cafe locally, exactly as clients/protocol/run.sh
-# does, connect to it, and stop it when the slice exits.
+# does, connect to it, and stop it when the slice exits. The server listens on a
+# port the OS chooses and generates its invite; both are read from the join line
+# it prints (server/PROTOCOL.md sec.4.1). Only this script's own server is stopped.
 server_pid=""
 if [ "$world" = "1" ]; then
   export PATH="$HOME/.cargo/bin:$PATH"
-  address="127.0.0.1:7979"
   (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
   log="$proj/shots/slice/server.log"
   mkdir -p "$(dirname "$log")"
-  "$here/target/debug/mineworld" server "$here/worlds/social-cafe" --listen "$address" \
+  "$here/target/debug/mineworld" server "$here/worlds/social-cafe" --listen 127.0.0.1:0 \
     --agent alice > "$log" 2>&1 &
   server_pid=$!
   trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null' EXIT
-  sleep 2
-  args+=("--server=$address")
+  line=""
+  for _ in $(seq 1 150); do
+    line="$(grep -m1 '^\[mineworld\] invite ' "$log" || true)"
+    [ -n "$line" ] && break
+    kill -0 "$server_pid" 2>/dev/null || break
+    sleep 0.2
+  done
+  if [ -z "$line" ]; then
+    echo "error: the server printed no join line (log: $log)" >&2
+    exit 1
+  fi
+  invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
+  address="$(printf '%s\n' "$line" | sed -n 's/.* join with: \([^ ]*\) .*/\1/p')"
+  args+=("--server=$address" "--invite=$invite")
   echo "world: worlds/social-cafe on $address (log: $log)"
 fi
 

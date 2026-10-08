@@ -911,6 +911,8 @@ nickname, receives `welcome` with `protocol: 2`, submits a `talk` and gets its `
 and `clients/protocol/ADOPTION.md` (whoever merges second rebases; 12e edits only §6.2 and its ADOPTION
 section); S14 on `slice_link.gd` (one call site).
 
+**Detailed to the commit in §15** (PR design, awaiting the primary session's freeze).
+
 ## 9.2 S11-B — Seats, hold and resume, takeover, hosted controllers, `F-13`
 
 **Scope.** `seats.rs` (`SeatTable`, §4.2) and `hosted.rs` (`HostedController`, consult schedule, §4.5) in
@@ -1192,4 +1194,697 @@ MODULE_SPEC.md §8.1    the server line, per §11.4, in S11-A/B/D
 | **R-S11-6** | Making seats exclusive breaks a test that relied on two connections per seat (e.g. `ac15_one_alice.rs`'s "cannot act as Alice" case, which may join Alice's seat). | Audited in S11-B's design before freeze; the test's claim is preserved by asserting `seat_occupied` or a takeover explicitly. |
 | **R-S11-7** | The paced controller's chattiness at a 5 s pace makes the hosted town feel wrong. | QS11-4 puts it before the operator; measured counts in CP-B4's evidence. |
 | **R-S11-8** | `PROTOCOL.md` and `ADOPTION.md` edited concurrently by S11-A and S15 12e. | §11.2's rebase rule. |
+
+---
+
+# 15. PR S11-A — handshake and authentication (full design)
+
+**Lifecycle:** `READY FOR OPERATOR REVIEW — DO NOT MERGE` (final executable head 76be4d2; the PR head
+adds this ledger only). Implementation context `CLOSED / AWAITING OPERATOR ACTION`. Before that:
+`DESIGN FROZEN (2026-10-08), primary session`; `PR DESIGN — DRAFT`.
+
+**Freeze record.** The primary session's freeze message (2026-10-08) accepts §15 as written — SD-A1 …
+SD-A14, SA-1 … SA-12 with their mutations, A-C1 … A-C8, the `protocol.rs` split first — and all six
+points of §15.8 as recommended, and leaving `spike/unreal/probe.py` untouched. It adds one coordination
+rule for item 4: S12's 13a (new `clients/2d/`, one `connect_to_world` call in its `link.gd` and one
+launcher) and 16b (`clients/protocol/checks/`) will probably merge first; at every rebase S11-A merges
+`origin/main` and updates every in-repo `connect_to_world` call site and launcher found on `main` at that
+moment, including `clients/2d/` and `clients/protocol/checks/`, and shows that `git grep connect_to_world`
+on the final head finds only the new signature (added to SA-9 and §15.5). Godot runs one window at a time.
+Material stops: any kernel or contract change, any path outside the frozen change set.
+Execution contract: §15.9, endpoint "implementation + local validation" now authorized by this message.
+**Author:** the S11-A implementing session, 2026-10-08, worktree
+`/Users/yuema137/mineworld-worktrees/impl-s11a`, branch `mvp0/pr-s11a-handshake`.
+**Binding parents:** this file §§4.1, 5, 6, 7.1, 7.2, 7.7, 8, 9.1, 11.3, 11.4; `overall.md` "Parallel build-out,
+2026-10-08" (operator decisions and coordination rulings 1, 4, 6, 7, 9, 10), which override this file where
+they differ.
+
+Evidence goes into §15.10 as `E-SA<n>`; deviations into §15.11 as `D-SA<n>`. A planned commit may become
+several coherent commits; the mapping is recorded. Line counts are estimates, never targets.
+
+## 15.1 Identity, base, approved scope
+
+```text
+PR            S11-A — handshake, authentication, and revision 2's frames (S11, first of five);
+              PR number assigned at freeze (ruling 7)
+base          main @ 47c81d1. The shared-module PR 16b is frozen and lands BEFORE S11-A (coordinator,
+              2026-10-08): S11-A rebases over it before its Godot commit (A-C7) if it has merged by then,
+              and in any case before the PR is marked ready. Re-audit of clients/protocol/ on that rebase.
+branch        mvp0/pr-s11a-handshake, worktree impl-s11a, held by this session only
+audit         §15.2 (files and symbols read on 47c81d1)
+scope         §9.1 as amended by the rulings: protocol revision 2's handshake and frames (§5.2, §5.3
+              minus `delta`, §5.5, §5.6), the admission module, the CLI's invite, the Godot module's join
+              credentials and every in-repo call site, golden frames (S10's R-S11-7), PROTOCOL.md
+              revision 2, DEP-14 and ARC-41
+```
+
+**Applied coordination rulings.**
+
+- Decision numbers are ARC-40 … ARC-44 and DEP-14 … DEP-15 only (ruling 6). The placeholders of §7.10 map
+  as follows. S11-A records only the first two rows; each other record lands in the PR named.
+
+  | Placeholder | Number | Content | Recorded in |
+  | --- | --- | --- | --- |
+  | DEP-S11-a | **DEP-14** | secrets: `getrandom` for invite and resume secrets, `subtle` for constant-time comparison | S11-A |
+  | ARC-S11-b + the JSON half of ARC-S11-d | **ARC-41** | revision 2 is specified whole and implemented incrementally ("may omit, never redefine"); JSON text stays the wire encoding for MVP-0, superseding `D-4`'s timing but not its direction (operator, QS11-1) | S11-A |
+  | ARC-S11-a | **ARC-40** | control is host state; a binding change moves no revision | S11-B |
+  | ARC-S11-c | **ARC-42** | hosted controllers on the world thread behind a bounded synchronous seam | S11-B |
+  | ARC-S11-d (facts half) | **ARC-43** | facts reach observers through perception's judgement, at record time | S11-C |
+  | DEP-S11-b | **DEP-15** | observation deltas, decided by CP-C1's measurement | S11-C |
+  | — | ARC-44 | unassigned reserve | — |
+
+  ARC-S11-b was assigned to no PR in §9; S11-A is the PR that raises `protocol` to 2 and writes the
+  revision rule into `PROTOCOL.md`, so it records it. The JSON half moves from ARC-S11-d to ARC-41 because
+  S11-A is the PR that puts revision 2 on the wire in JSON; S11-C's ARC-43 then carries only facts.
+- An invite is required even on loopback, and the server prints a ready join line (QS11-6). There is no
+  `--open` flag and no "no invite" mode. S12's R-S11-1 asked that "a server started without a token keeps
+  accepting a join without one"; the operator's decision overrides it — localhost play stays one command
+  because the server prints the join line and the launchers read it (SD-A11).
+- Nicknames are hidden from other players (QS11-7): a nickname reaches only the player's own `welcome`
+  (and, from S11-D, the admin surface). It is in no observation, no `/status`, no fact, no save and no
+  server log line (SA-5).
+- JSON on the wire (QS11-1): no encoding change; ARC-41 records it.
+- The shared GDScript module (ruling 4): 16b lands first with the read-only additions
+  (`MineWorldObservation.affordances(action_type, target)` widened, `complete_affordances`,
+  `is_complete`, `affordances_about`, `component_value`; `MineWorldClient.submit_affordance`, `submit`'s
+  payload widened to `Variant`, `revision` read from frames; `clients/protocol/checks/`). S11-A changes
+  only the join credentials (`PROTOCOL`, `connect_to_world`, the join frame, the welcome's new fields,
+  `closing`, `leave`) and every in-repo call site — **including any 16b check under
+  `clients/protocol/checks/` that connects to a server** — and keeps 16b's names exactly as they are.
+- Names: S11's names win (ruling 1). S14's R-S11-6 asked the 3D client to take `--token=`; it takes
+  `--invite=`. S12's R-S11-1 suggested `bad_token`; the code is `unauthorized`.
+- The other rulings' additions to revision 2 are **not** S11-A's: `take_over` in `join` and `time_scale`
+  (S11-B), `acted_through` and the `perceived` stream with `cursor_unavailable` and `lagged` (S11-C).
+  S11-A's `PROTOCOL.md` names each with its owning PR; the owning PR specifies its shape and semantics
+  in `PROTOCOL.md` when it lands it. Until then a `join` carrying `take_over` or `perceived` is
+  `malformed_frame` (§5.2's unknown-field rule), so a client sends a field only to a server whose
+  `PROTOCOL.md` lists it as landed (SD-A2).
+- Test hygiene (ruling 10): every new test removes its own scratch data (`SaveDir` drops its directory;
+  a test that captures output writes it to memory, never to `target/`).
+
+## 15.2 Source audit (`main @ 47c81d1`)
+
+| File / symbol | Finding | Consequence for S11-A |
+| --- | --- | --- |
+| `server/src/protocol.rs` (513 lines) | `PROTOCOL_VERSION = 1`; `ClientFrame { Join { seat }, Submit }` with **no** `deny_unknown_fields` (an extra field is silently ignored today); `CLIENT_FRAME_TAGS = ["join", "submit"]`; `ServerFrame { Welcome, Observation, Result, Refused }`; `RefusalCode` (9); `WorldSummary` with `deferrals_unscheduled`; `SystemSummary { system, enabled }`. **Already past the 500-line review trigger.** | Split before growth (A-C2, SD-A13); `deny_unknown_fields` added (SD-A2); new variants. |
+| `server/src/session.rs` (209) `run`, `handshake`, `stream`, `submit` | The handshake loops until `host.join(seat)` succeeds; every failure is a `refused` and the loop continues; a closed socket ends it. No delay, no closing frame, no credential. | The handshake gains the ordered checks of SD-A1, the fixed delay and `closing`. |
+| `server/src/app.rs` (94) `router(host)`, `serve`, `serve_with_shutdown`, `health` | Router state is the `WorldHost` alone. | State becomes `{ host, admission, session ids }`; three public signatures gain an `Admission` (SD-A8). |
+| `server/src/runtime.rs` (435) `summary` l. 410–434 | Builds `WorldSummary` from `world.systems()` (`order()`, `is_enabled()`); `deferrals_unscheduled: 0` hard-coded. | `summary` reads `Registry::declaration(id)` → `provides()`, `emits()` (`kernel/src/system.rs` l. 206, 211; `kernel/src/registry.rs` l. 104). No kernel change: both accessors are public. `emits()` already includes event types owned by other systems (`emitting::<E>` pushes every type, l. 169–174), which is §5.5's "states". |
+| `server/src/host.rs` (498) `WorldHost::join(seat)` | Takes a seat only. | Unchanged in S11-A: the world thread never sees an invite or a nickname (SD-A8). |
+| `server/Cargo.toml` | No `getrandom`, no `subtle`. | Two dependencies (DEP-14). |
+| `Cargo.lock` | `getrandom 0.3.4` present as a **normal** dependency of `mineworld-server` already (`cargo tree -i getrandom@0.3.4`: rand_core → rand → tungstenite → tokio-tungstenite → axum → mineworld-server). `subtle` absent. | `getrandom` adds an edge, not a package; `subtle` adds one package. |
+| `subtle` 2.6.1 (`cargo info`, 2026-10-08) | BSD-3-Clause; dalek-cryptography; no dependencies; default features `std`, `i128`. | §7.2's "to verify" closed: verified. |
+| `constant_time_eq` 0.6.1 (`cargo info`) | CC0-1.0 OR MIT-0 OR Apache-2.0. | The recorded alternative; verified. |
+| `getrandom` 0.3.4 (`cargo info`) | MIT OR Apache-2.0; latest is 0.4.3. | Use 0.3 (the version already compiled) rather than add a second copy. |
+| Root `Cargo.toml` l. 72 | `clap = { version = "4.6.6", features = ["derive"] }`. | Add clap's `env` feature (no new crate) for `MINEWORLD_INVITE` with `hide_env_values` (SD-A9). |
+| `tools/cli/src/main.rs` (466) `serve` l. 286–372 | Prints the pack line, listening line, entities/seats line, instance line; spawns `agent::drive` per `--agent` (in-process, through `host.join`, no socket). | Invite resolution and the join line go to a new `tools/cli/src/invite.rs` so `main.rs` stays under 500. `agent::drive` needs no invite: admission gates the socket, and an in-process controller is the composition root's own code. |
+| `tools/cli/tests/support/mod.rs` `Server::start` l. 49, `Client::join` l. 194 | Every CLI acceptance test (ac13, ac15, milestone_b, milestone_c, restart, bodies_yard*, market_*) starts the binary and joins through these two. | Changing these two is "only the join frames changed" (§9.1 criterion 5); the test files themselves need no edit. |
+| `tools/cli/tests/server_command.rs` l. 165 | One raw join frame (`"otto"`). | Updated. |
+| `server/tests/two_clients.rs` | Own `start()` (l. 48, `app::serve`), own `Client::join` (l. 95), raw joins l. 532, 545; l. 569–638 asserts `after.deferrals_unscheduled == 0`. | `start` passes an admission; the deferral test keeps its claim (the deferred fact arrives, with its cause, later) and drops the dead field's assertion — the field no longer exists. |
+| `server/tests/headless.rs` | No socket, no `WorldSummary` field asserted that changes. | Expected unchanged; touched only if the compiler says so. |
+| `clients/protocol/mineworld/world_client.gd` | `PROTOCOL := 1`; `connect_to_world(address, seat_name)`; join sent in `_process` l. 213; `_receive` handles four kinds and warns on unknown ones. | SD-A10. |
+| Call sites of `connect_to_world` | `clients/protocol/demo/demo.gd` l. 100; `clients/3d-spike/scripts/slice/slice_link.gd` l. 181 (from `slice_main.gd` l. 382); `clients/3d-spike/mineworld` is a symlink to the module. | SD-A11. |
+| Launchers that start a server | `clients/protocol/run.sh` `start_server`; `mineworld-slice --world` (l. 69–80; its log is git-ignored, `clients/3d-spike/.gitignore` l. 6). | Both read the join line (SD-A11). |
+| `clients/protocol/evidence/` | Committed transcripts and server logs; `tools/cli/tests/ac13_semantic_parity.rs` l. 42 reads `request-2d.json` / `request-3d.json` (submit frames only). | Regenerated by CP-A with the invite line kept out of every committed log (SD-A11). |
+| `spike/unreal/probe.py`, `spike/**` | A hand-run probe of revision 1 with captured evidence; the spike server is a separate binary. | **Not updated**: frozen revision-1 evidence, not a client of `main`. Recorded, not a call site. |
+| `docs/MODULE_SPEC.md` §8.1 l. 699 | The `server` line lacks `--invite`. | Updated in A-C1. |
+| `docs/DECISIONS.md` | Highest ids on `main` and every `origin/*` branch: ARC-39, DEP-13; no branch holds ARC-40…44 or DEP-14…15 (checked 2026-10-08). | ARC-41 and DEP-14 are free. |
+| `.github/workflows` | Absent at the base (S13's 13a is in flight). | CI evidence: see the contract (§15.9). |
+
+## 15.3 Design decisions (SD-A1 … SD-A14)
+
+| ID | Decision | Why |
+| --- | --- | --- |
+| **SD-A1** | **Order of the handshake checks**, in the session: (1) `protocol` — not 2 → `refused protocol_mismatch`, `closing { protocol_mismatch }`, close; (2) `invite` — wrong or missing → wait `UNAUTHORIZED_DELAY` (500 ms) from the frame's arrival, then `refused unauthorized`, `closing { unauthorized }`, close; (3) `nickname` — invalid → `refused invalid_nickname`, the connection stays in the handshake; (4) `resume` — non-null → `refused invalid_resume`, stays (S11-B gives it meaning); (5) `seat` → `host.join`, refusals unchanged from revision 1. | The protocol is checked before the credential, so a revision-1 client is told what is wrong rather than that its (absent) invite is wrong, and a mismatch reveals nothing secret. The invite before everything that consults the world, so an unauthenticated connection learns nothing about seats. One guess per connection (§7.7). |
+| **SD-A2** | **`join`'s wire shape, decoded structurally.** `protocol` defaults to `1` when absent, so the literal revision-1 frame `{"t":"join","seat":"visitor"}` decodes and is answered `protocol_mismatch`, not `malformed_frame`. `invite` and `nickname` default to `""` when absent and are then answered by SD-A1's checks (missing invite → `unauthorized`, as §9.1 criterion 2 requires). `seat` is required. `resume` is optional, default `null`. **Every client frame denies unknown fields** (`#[serde(deny_unknown_fields)]`): §5.2's rule, which is what turns a `join` carrying `observer` into `malformed_frame`. The offered invite is held in an `OfferedInvite` newtype whose `Debug` is redacted. `take_over` and `perceived` are not accepted until S11-B and S11-C land them. | §5.2. Without `deny_unknown_fields` today an extra field is ignored, so a client that typed `obsever` would never know. If serde cannot combine `deny_unknown_fields` with the internally tagged enum, the bounded fallback is an explicit per-variant key list in `decode` (recorded as a deviation). |
+| **SD-A3** | **`leave`**: on a seated connection, the session releases the subscription (`host.leave`), sends `closing { left }` and closes. Before a seat, `leave` is answered the same way (there is nothing to release, and a client asking to go is let go). No hold exists before S11-B. | §5.2. Leaving is always honoured; a `not_joined` refusal to a client that wants to go would leave it holding a socket for nothing. |
+| **SD-A4** | **`closing`**, a `ServerFrame` variant with `reason: ClosingReason` (`left`, `kicked`, `superseded`, `unauthorized`, `protocol_mismatch`, `world_stopped`, `server_stopping`) and an optional `detail`, sent immediately before the server closes the socket. S11-A sends `left`, `unauthorized`, `protocol_mismatch`, and `world_stopped` (the world's observation channel ended). `kicked` and `superseded` arrive with S11-B/S11-D; `server_stopping` with the S11 PR that wires graceful shutdown into sessions. | §5.3, §5.1's "may omit, never redefine": every reason is defined now and sent only when true. |
+| **SD-A5** | **`welcome`, revision 2**: `protocol`, `seat`, `observer`, `nickname` (as trimmed and accepted), `session` (a `SessionId`, decimal string), `resume: null`, `hold_seconds: 0`, `took_over: "none"`, `world`. `SessionId` is allocated per connection by the router state (an `AtomicU64` behind an `Arc`), never reused within a process, and has no other use until S11-D. `took_over` is a `TookOver` enum (`none`, `hosted`, `held`). **Known limitation until S11-B:** seats are not exclusive (A-1), so a human joining a seat an `--agent` drives is told `"none"` while the agent keeps acting — the defect S11-B removes, stated in `PROTOCOL.md`. | §5.3, §9.1. |
+| **SD-A6** | **`WorldSummary`, revision 2**: `deferrals_unscheduled` removed; each `systems[]` entry gains `provides` (`ActionTypeId`s) and `states` (`EventTypeId`s) from the kernel's declaration; `events_dropped: 0` added (no fact is delivered before S11-C, so none is dropped — the value is true, not a placeholder); `clients` keeps its revision-1 meaning in S11-A (every subscription, `--agent` included) until S11-B makes hosted controllers non-clients. | §5.5. Composition, not state: public. |
+| **SD-A7** | **`server/src/admission.rs`**: `InviteToken` — an operator-given token is 8–128 bytes of printable ASCII without whitespace (it survives a shell, an environment variable and the join line); a generated one is 16 bytes from `getrandom::fill` as 32 lowercase hexadecimal characters. `Debug` prints `InviteToken(<redacted>)`; no `Serialize`, no `Display` except an explicit `reveal()` the CLI calls once. `Nickname` — trimmed, 1–32 Unicode scalar values, no control character; serializes as its text (it appears in `welcome`). `Admission { invite }`, `admit(&self, &OfferedInvite) -> Result<(), Unauthorized>` by `subtle::ConstantTimeEq` over the bytes; `UNAUTHORIZED_DELAY = 500 ms`, applied by the session. `subtle` returns early on unequal lengths: the invite's length is not secret (a generated one is always 32), and this is documented beside the call. | §4.1, §7.2 (DEP-14), §7.7. One module, no world access (§8.1). |
+| **SD-A8** | **Admission is the transport's, never the world's.** `app::router(host, admission)`, `app::serve(listener, host, admission)`, `app::serve_with_shutdown(listener, host, admission, shutdown)`. `WorldHost::join(seat)` keeps its signature: the world thread never holds an invite or a nickname, so neither can reach a journal, a fact or a save (I-5 by construction). | A-9 (the world thread owns only world-touching state); §8.1. |
+| **SD-A9** | **CLI.** `--invite TOKEN`, with `env = "MINEWORLD_INVITE"` and `hide_env_values = true` (clap's `env` feature; the flag wins over the variable, which is clap's own precedence). A supplied token that is not a legal `InviteToken` stops the server with a message that does **not** echo it. When neither is given, a token is generated and printed once, after the listening line, exactly in §11.4's frozen form: `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. When one is supplied, the server prints `[mineworld] join with: <address> seat=<seat> invite=<the invite you gave>` and never the token. `<address>` is the bound `host:port`; `<seat>` is the first roster seat no `--agent` drives, or the first seat if every one is. Resolution and the line live in `tools/cli/src/invite.rs`; `main.rs` gains the flag and one call. | §4.1, §11.4, QS11-6. The supplied-token line starts `[mineworld] join`, not `[mineworld] invite`, so §11.4's parsing rule never mistakes it for a token line. `--help` must not print the environment value. |
+| **SD-A10** | **The Godot module.** `PROTOCOL := 2`. `connect_to_world(address: String, seat_name: String, invite: String, nickname: String)` — typed, required parameters rather than M-5's `credentials := {}`: S11 owns the shape (ruling 1) and the invite is always required, so a default would only move the failure to a server refusal. The join frame sends `protocol`, `invite`, `nickname`, `seat` and `resume: null`. `_welcome` keeps `seat`, `observer`, `world` and adds members `nickname`, `session`, `took_over`, `hold_seconds`, `resume` (stored, unused until S11-B's reconnect policy). A new signal `closing(reason: String, detail: String)` is emitted for a `closing` frame, and `close_reason` holds the reason, before `disconnected`. `leave_world()` sends `leave`; `disconnect_from_world()` still only drops the socket. The module never prints, logs or emits the invite. No reconnect and no delta (S11-B, S11-C). 16b's API is untouched. | §5, ruling 4, R-9. |
+| **SD-A11** | **Call sites and launchers.** `demo.gd`: `--invite VALUE` and `--nickname VALUE` (default nickname `demo`). `run.sh`: starts each server **without** `--invite`, captures its stdout in a scratch file under `$TMPDIR`, waits for the `[mineworld] invite` line, extracts the token, passes it to every Godot client; the committed `server*.log` files receive the server's output with that one line removed (`grep -v '^\[mineworld\] invite '`), so no token — even a dead one — enters the repository history before the repository goes public. `slice_link.gd`: `invite_from_args()` (`--invite=`), `nickname_from_args()` (`--nickname=`, default `player`), `start(address, seat, invite, nickname)`; `slice_main.gd` passes them. `mineworld-slice --world`: reads the join line from its (git-ignored) log and passes `--invite=`; `--server=host:port` is documented to need `--invite=`. Every 16b check under `clients/protocol/checks/` that joins a server is updated the same way after the rebase. | §9.1 "every in-repo caller"; I-5. |
+| **SD-A12** | **Golden frames** (S10's R-S11-7, carried by ruling 1). `server/tests/frames/<kind>.json` for every frame S11-A defines: client `join`, `submit`, `leave`; server `welcome`, `observation`, `result`, `refused`, `closing`. `server/tests/frames.rs` builds one canonical example of each from the Rust types (fixed ids, `WorldInstanceId::from_raw`), and fails, naming the file, if the example's serialization differs from the file (compared as JSON values) or the file does not decode back to the example (client frames through `ClientFrame::decode`). Tests never write files; a developer who changes a frame updates its file by hand, which is the reviewable act. S11-B … S11-D add their frames' files. | R-S11-7: the Python SDK (S10 P3, after S11-A) reads these. The example is reviewed JSON in the repository, not the implementation's output compared with itself (rules §25): the file is the oracle. |
+| **SD-A13** | **Split `protocol.rs` before it grows** (it is 513 lines): `protocol/request.rs` (`WirePayload`, `into_kernel_request`, `CorrelationToken`, `MAX_TOKEN_LENGTH`), `protocol/summary.rs` (`WorldInstanceId`, `WorldSummary`, `SystemSummary`); `protocol.rs` keeps the frames, `RefusalCode`, `Refusal`, `ProtocolError`, and re-exports the moved items so every path `mineworld_server::protocol::X` and every `lib.rs` re-export is unchanged. A pure move, in its own commit. | `ENGINEERING_STANDARDS.md` §10; §8.2's "refuses to land one past 500 without the split recorded". |
+| **SD-A14** | **`PROTOCOL.md` revision 2**, rewritten in A-C1 from §5: the three client frames, the server frames (with `delta` and `ObservationDelta` specified and marked "from S11-C"), the handshake order of SD-A1, the closing reasons, the refusal codes, `WorldSummary` revision 2, HTTP, what revision 2 does not have, and a **landing table** — for each frame and field, the PR that lands it and what the server sends before that (§5.1). The rulings' additions (`take_over`, `time_scale`, `acted_through`, the `perceived` stream) are listed in the landing table with their owning PR and specified there by that PR. §6 (submitting) and §6.2 (the reporting rule) are carried verbatim, so S15's 12e edit of §6.2 rebases cleanly. | §5.1, §15.1's ruling notes; `CLAUDE.md` §2.2 (spec before code). |
+
+## 15.4 Acceptance (decided before measuring, `ARC-23`)
+
+Every bound below is a literal from the requirement (§§4.1, 5, 9.1, 11.4), never from the implementation.
+Each guard names the mutation that must turn it red (planted on the working tree, never committed,
+reverted, recorded in §15.10).
+
+```text
+SA-1  Protocol first. A join with the right invite and "protocol": 1 is answered refused
+      protocol_mismatch, then closing {reason: protocol_mismatch}, then the socket closes; so is the
+      literal revision-1 frame {"t":"join","seat":"bob"} (no protocol field). No welcome on either.
+      [server/tests/two_clients.rs]
+      Mutation M-SA1: skip the protocol check  → a welcome arrives; the test fails.
+
+SA-2  Invite. Three joins, each on its own connection: invite missing; the invite with its last
+      character changed; the invite with a trailing space. Each is answered refused unauthorized no
+      sooner than 500 ms after the frame was sent (measured by the test's own clock), then closing
+      {reason: unauthorized}, then the socket closes; none receives a welcome.
+      [server/tests/two_clients.rs]
+      Mutation M-SA2a (§9.1 criterion 6): Admission::admit returns Ok for any token → fails.
+      Mutation M-SA2b: remove the delay → the 500 ms assertion fails.
+
+SA-3  The generated invite is a secret. `mineworld server worlds/social-cafe --save DIR` with no
+      --invite and no MINEWORLD_INVITE: exactly one stdout line contains the token, and it is the
+      §11.4 line (begins "[mineworld] invite ", contains "join with: ", "seat=", "invite=<token>");
+      a client joining with it is welcomed; after SIGKILL, the token is in no byte of stderr and no
+      byte of any file under DIR. With MINEWORLD_INVITE=T: a join with T is welcomed, and T is in no
+      byte of stdout or stderr. With both --invite F and MINEWORLD_INVITE=T: F is welcomed, T is
+      refused unauthorized (the flag wins). An illegal supplied invite ("short") stops the server
+      with a non-zero status and a message that does not contain it.
+      [tools/cli/tests/server_command.rs, the real binary]
+      Mutation M-SA3: print the token a second time (on the "listening" line) → the one-line count
+      fails.
+
+SA-4  INV-9 over revision 2, through the real binary on a persisted world. `mineworld server
+      worlds/social-cafe --save DIR` (no --agent), inside the routine-free first minutes the restart
+      tests already rely on. One seated client sends, in order: {"t":"set_state",…},
+      {"t":"move_to","position":{…}}, {"t":"give",…} → each unknown_frame; a submit whose actor is
+      another Person → actor_not_observer. A second, unjoined connection sends a join carrying an
+      "observer" field → malformed_frame and no welcome. Afterwards GET /status's revision equals its
+      value before the table; after SIGKILL, `mineworld inspect DIR` reports exactly as many facts as
+      `mineworld validate worlds/social-cafe` reports genesis facts (an oracle independent of the
+      server: nothing but genesis was ever recorded).
+      [tools/cli/tests/server_command.rs]
+      Mutation M-SA4: remove deny_unknown_fields from ClientFrame → the observer-carrying join is
+      welcomed; the test fails.
+
+SA-5  Nicknames are hidden. Client A joins as nickname "  Zephyrine-7 " and is welcomed with
+      "Zephyrine-7" (trimmed). Client B, on another seat, then reads its welcome, two seconds of its
+      observations, its refusals and a result, and GET /status: none contains "Zephyrine-7"; nor does
+      the server's stdout or stderr (real binary). Invalid nicknames — "   ", 33 scalar values, one
+      containing U+0007 — are each answered invalid_nickname with the connection left open, and a
+      retry with a valid nickname on the same connection is welcomed. Exactly 32 scalar values
+      (including multi-byte ones, "é" × 32) is accepted.
+      [server/tests/two_clients.rs; the output check in tools/cli/tests/server_command.rs]
+      Mutation M-SA5: the length check counts bytes instead of scalar values → "é" × 32 is refused;
+      the test fails. (Hiding itself is structural — no path carries a nickname to the world thread,
+      SD-A8 — so no mutation can plant a leak without adding that path; the test is the regression
+      guard, said honestly per the test rules §24.)
+
+SA-6  Welcome and leave, revision 2. A welcome carries protocol 2, the seat, the observer, the
+      nickname, a session that is a decimal string distinct from every other connection's,
+      resume null, hold_seconds 0, took_over "none". A join with a non-null resume is answered
+      invalid_resume and the same connection then joins without it. `leave` on a seated connection
+      → closing {reason: left}, the socket closes, and /status's clients falls back by one; `leave`
+      before a seat → closing {left}. A second join on a seated connection → already_joined (as in
+      revision 1). A submit before a seat → not_joined.
+      [server/tests/two_clients.rs]
+      Mutation M-SA6: do not release the subscription on leave → the clients count assertion fails.
+
+SA-7  /status, revision 2, through the real binary on social-cafe: protocol 2; no key
+      "deferrals_unscheduled"; the "conversation" entry's provides contains "talk" and its states
+      contains "spoke"; events_dropped is 0. GET /health says protocol 2. (CP-A's status half.)
+      [tools/cli/tests/server_command.rs]
+      Mutation M-SA7: take states from subscribes() instead of emits() → "spoke" missing; fails.
+
+SA-8  Golden frames. Eight files under server/tests/frames/; server/tests/frames.rs passes; renaming
+      one field of one frame (hold_seconds → hold) fails it naming welcome.json.
+      Mutation M-SA8: exactly that rename.
+
+SA-9  The far side (R-9, CP-A). `clients/protocol/run.sh evidence`, on a server started with no
+      --invite: the script reads the printed line; each headless Godot 4.7.2 client joins with that
+      invite and a nickname, logs a welcome with protocol 2, walks, submits `talk` and logs its
+      result accepted; Alice (--agent) answers. The two request-*.json files AC-13 reads are
+      regenerated and `ac13_semantic_parity` passes on them. No committed evidence file contains a
+      line beginning "[mineworld] invite ". `./mineworld-slice --world --link` (headless) reports its
+      round trip passing with the new start() call. `git grep -n connect_to_world` on the final head
+      finds only calls with the four-argument signature (freeze coordination rule).
+      Negative far-side run (once, evidence only): the demo with a wrong --invite logs refused
+      unauthorized, then closing unauthorized, and never a welcome.
+
+SA-10 Nothing else moved. Every existing test passes; the only edits to existing tests are (a) the
+      join helpers in tools/cli/tests/support/mod.rs, server/tests/two_clients.rs and the raw join in
+      server_command.rs, (b) two_clients.rs's deferral test losing its assertion on the removed
+      field, (c) new tests. ac13_semantic_parity, ac15_one_alice, milestone_b, milestone_c and
+      restart pass with no edit to their own files. The 300-day seed-7 `run` digests of social-cafe
+      and market-town at the PR head equal those at the base (E-SA0; I-6).
+
+SA-11 Scope (I-1, I-9). `git diff --name-only 47c81d1...HEAD` (or the rebased base) ⊆ §15.5's change
+      set; nothing under kernel/, contracts/, persistence/, worlds/, worldpack/, systems/,
+      cognition/, authoring/, sdk/, tests/acceptance/. server/Cargo.toml gains exactly `subtle` and
+      `getrandom`; Cargo.lock gains exactly the `subtle` package and those two edges of
+      mineworld-server; no mineworld-* pack or controller dependency enters the server.
+      ac1_composability and the I-2 scan pass.
+
+SA-12 Size. At the head, protocol.rs, session.rs, runtime.rs, host.rs and tools/cli/src/main.rs are
+      each under 500 lines, or the split is recorded as a deviation.
+```
+
+## 15.5 Change set
+
+```text
+server/src/{protocol.rs, protocol/request.rs (new), protocol/summary.rs (new), protocol/tests.rs,
+            admission.rs (new), session.rs, app.rs, runtime.rs (summary only), lib.rs}
+server/{Cargo.toml, PROTOCOL.md, README.md}
+server/tests/{two_clients.rs, frames.rs (new), frames/*.json (new, eight)}
+            (headless.rs and support/mod.rs only if the compiler requires it)
+Cargo.toml (workspace: subtle, getrandom; clap's env feature), Cargo.lock
+tools/cli/src/{main.rs, invite.rs (new)}
+tools/cli/tests/{support/mod.rs, server_command.rs}
+clients/protocol/{mineworld/world_client.gd, demo/demo.gd, run.sh, ADOPTION.md, README.md,
+                  evidence/* (regenerated by run.sh)}
+clients/protocol/checks/** (only 16b's checks that join a server, after the rebase)
+clients/2d/** (only S12 13a's connect_to_world call site and its launcher, after the rebase; freeze)
+clients/3d-spike/scripts/slice/{slice_link.gd, slice_main.gd}; mineworld-slice
+docs/{DECISIONS.md (DEP-14, ARC-41), MODULE_SPEC.md §8.1}
+.structured-coding/plans/mvp0/{step-12-server.md §15, handoff.md}
+```
+
+## 15.6 Commit plan
+
+### A-C0 — Design (this section) — docs only
+
+- [x] Implementation: §15 and the pointer in §9.1, from the audit in §15.2.
+- [x] Validation: Markdown only; `git diff --stat` shows this file alone.
+- [x] Review: every finding in §15.2 cites a file and line, a command or a measurement; every ruling of
+  `overall.md` "Parallel build-out" that bears on S11-A is applied in §15.1; each acceptance guard has a
+  named mutation or an honest statement why it has none (SA-5's hiding, SA-9, SA-10, SA-11 are checks,
+  not guards). Self-review only; the primary session's freeze is pending.
+
+### A-C1 — Specs before code: `PROTOCOL.md` revision 2, DEP-14, ARC-41, MODULE_SPEC §8.1
+
+**Goal.** Revision 2 and its two records exist as reviewable specifications before code relies on them
+(`CLAUDE.md` §2.2). **Scope.** `server/PROTOCOL.md` rewritten per SD-A14; `docs/DECISIONS.md` gains DEP-14
+(§7.2's three tables with the licences verified in §15.2, the isolating interface — `admission.rs` is the
+only file naming either crate — and the revisit trigger: durable player identity or public hosting, with
+`governor` named as the adopt route for rate limiting) and ARC-41 (§5.1's rule; JSON stays for MVP-0;
+what it supersedes of `D-4` and why, and that `ARCHITECTURE.md` §13.1's stale sentence is S10 P3's G-1 edit,
+recorded here so the disagreement is not silent); `docs/MODULE_SPEC.md` §8.1's `server` line gains
+`[--invite TOKEN]` and its table row the environment variable and the join line. **Depends on:** freeze.
+**Non-goals:** no code; no edit to `NETWORKING.md` (§13 leaves its §5 note to S11-E).
+
+- [x] Implementation: the three documents (layout: D-SA2).
+- [x] Validation: `python3 scripts/check_decision_ids.py`; `python3 scripts/check_doc_headings.py`;
+  ARC-41 and DEP-14 are the only new ids (E-SA1).
+- [x] Review: `PROTOCOL.md` against §5 line by line (every field of §5.2–§5.6 present, every "from S11-x"
+  absence stated as an omission, never a different meaning); §6 and §6.2 byte-identical to the base;
+  terminology per `CORE_CONCEPTS.md` (seat, observer, Person; a nickname labels a player, not a Person).
+
+**Acceptance.** As validation and review. **Commit boundary.** Documentation only.
+
+### A-C2 — `protocol.rs` split (pure move)
+
+**Goal.** SA-12 before growth (SD-A13). **Scope.** `server/src/protocol.rs`, `protocol/request.rs`,
+`protocol/summary.rs`; `protocol/tests.rs` imports only if a path changes. **Non-goals:** no behaviour,
+signature or public path changes.
+
+- [x] Implementation: move the items; `pub use` them from `protocol`; module docs say what lives where.
+- [x] Validation: `cargo test -p mineworld-server` — the same test names and count as at the base, all
+  passing; `cargo clippy -p mineworld-server --all-targets -- -D warnings`; `git diff -M --stat` shows the
+  moves.
+- [x] Review: `lib.rs`'s re-export list unchanged; `cargo doc`-visible paths unchanged (the crate's public
+  items are listed before and after and compared). *Done as:* `lib.rs` untouched by A-C2 and every
+  moved item re-exported from `protocol` under its old name; the workspace (cli, tests) compiled with no
+  import edit, which is the dependents' own check. No `cargo doc` listing was made (E-SA2).
+
+**Failure case.** Any test change needed means the move was not pure: fix the move.
+
+### A-C3 — `admission.rs`: invite, nickname, constant-time admission
+
+**Goal.** SD-A7 as a unit with no transport. **Scope.** `server/src/admission.rs`, `lib.rs` (module and
+re-exports `Admission`, `InviteToken`, `Nickname`, `OfferedInvite`, `UNAUTHORIZED_DELAY`),
+`server/Cargo.toml` (`subtle`, `getrandom`, both `workspace = true`), root `Cargo.toml`
+(`subtle = "2.6"`, `getrandom = "0.3"`), `Cargo.lock`. **Depends on:** A-C1.
+
+- [x] Implementation: the four types and the constant, with module documentation of what each secret
+  is, where it may appear (the one join line) and where it may not (I-5).
+- [x] Validation (unit, in the module): a generated invite is 32 lowercase hexadecimal characters and two
+  generations differ; an operator token of 7 bytes, of 129 bytes, with a space, with a control character,
+  with a non-ASCII character is refused and the refusal's text does not contain the token; `admit` accepts
+  exactly the token and refuses a one-character change, a trailing space, a prefix, the empty string;
+  `format!("{:?}")` of an `InviteToken` and of an `OfferedInvite` does not contain the token; nickname
+  rules as SA-5 (trim, 1–32 scalar values with "é" × 32 accepted and × 33 refused, U+0007 refused).
+  `cargo clippy -D warnings`. `cargo tree -i subtle` shows `mineworld-server` alone depending on it.
+- [x] Review: `subtle` and `getrandom` are named nowhere but `admission.rs`; no `Serialize` on a secret;
+  no `Display` on a secret but the explicit `reveal()`.
+
+### A-C4 — Revision 2's frames, `WorldSummary` revision 2, golden frames
+
+**Goal.** The protocol layer of revision 2 (SD-A2, SD-A4, SD-A5's types, SD-A6, SD-A12), without the
+session. **Scope.** `protocol.rs`: `PROTOCOL_VERSION = 2`; `ClientFrame::Join { protocol, invite:
+OfferedInvite, nickname: String, seat, resume: Option<String> }` with the defaults of SD-A2, `Leave`,
+`deny_unknown_fields`, `CLIENT_FRAME_TAGS = ["join", "submit", "leave"]`; `ServerFrame::Welcome` gains
+`nickname: Nickname`, `session: SessionId`, `resume: Option<String>`, `hold_seconds: u32`, `took_over:
+TookOver`; `ServerFrame::Closing { reason: ClosingReason, detail: Option<String> }`; `RefusalCode` gains
+`ProtocolMismatch`, `Unauthorized`, `InvalidNickname`, `SeatOccupied` (defined; sent from S11-B),
+`InvalidResume`. `summary.rs`: `WorldSummary` revision 2, `SystemSummary { system, enabled, provides,
+states }`. `runtime.rs` `summary()`: reads the declarations; `deferrals_unscheduled` gone;
+`events_dropped: 0`. `protocol/tests.rs` updated; `server/tests/frames.rs` and `server/tests/frames/*.json`.
+The session is adapted only as far as needed to compile (it sends the new welcome fields with fixed
+values); the handshake logic is A-C5. **Depends on:** A-C2, A-C3.
+
+- [x] Implementation: as scoped.
+- [x] Validation: unit tests in `protocol/tests.rs` for decode — the literal revision-1 join decodes with
+  `protocol == 1`; a join without `invite`/`nickname` decodes with empty values; a join with `observer`,
+  a submit with an extra field and a `leave` with a field are `malformed_frame`; `move_to`/`give`/`set_state`
+  are `unknown_frame`; `leave` decodes. SA-8 with M-SA8. `cargo test -p mineworld-server`; clippy.
+- [x] Review: no field of a contract type re-declared (welcome still carries `EntityId`, `WorldSummary`
+  by the contract's serde); `SeatOccupied` is defined and documented as "from S11-B" and nothing sends it;
+  every code in §5.6 present with its `PROTOCOL.md` meaning; `runtime.rs` diff is `summary()` alone.
+
+### A-C5 — The handshake: ordered checks, delay, `closing`, `leave`
+
+**Goal.** SA-1, SA-2, SA-5 (socket half), SA-6 through a real socket. **Scope.** `session.rs` (SD-A1,
+SD-A3, SD-A4, SD-A5's allocation), `app.rs` (router state, three signatures, SD-A8), `lib.rs` (doc example),
+`server/tests/two_clients.rs` (`start()` builds an `Admission` from a fixed test invite; the join helpers
+send `protocol`, `invite`, `nickname`; new tests for SA-1, SA-2, SA-5, SA-6; the deferral test as
+§15.2 states). So that no commit leaves the CLI's acceptance tests red, this commit also carries the CLI's
+invite (SD-A9): `tools/cli/src/invite.rs`, `--invite` in `main.rs`, clap's `env` feature, and
+`tools/cli/tests/support/mod.rs` (`Server::start` passes a fixed test invite unless the arguments carry
+one; `Client::join` sends the revision-2 join) and the raw join in `server_command.rs`. A-C6 then adds the
+real-binary acceptance tests. **Depends on:** A-C4.
+
+- [x] Implementation: as scoped. `session.rs`'s handshake is split into one function per check if it
+  passes ~50 lines (standards: one conceptual operation per function).
+- [x] Validation: `cargo test -p mineworld-server` (two_clients, headless, frames, unit); SA-1, SA-2, SA-5,
+  SA-6 with mutations M-SA1, M-SA2a, M-SA2b, M-SA5, M-SA6, each recorded and reverted; clippy; the
+  suites that start the binary — `ac13_semantic_parity`, `ac15_one_alice`, `milestone_b`, `milestone_c`,
+  `restart`, `server_command`, `bodies_yard`, `bodies_yard_restart`, `market_town`, `market_composition`,
+  `social_composition` — pass with no edit to their own files (SA-10's first half).
+- [x] Review: the delay runs in the session task and never on the world thread (I-11); a connection that
+  fails the invite can send nothing further (the socket is closed after `closing`); no `eprintln!`/`println!`
+  in the server prints a frame, a nickname or an invite; `session.rs` stays socket work only (§8.2).
+
+### A-C6 — The CLI's invite and the real-binary acceptance
+
+**Goal.** SA-3, SA-4, SA-5 (output half), SA-7 through `mineworld server`. **Scope.**
+`tools/cli/tests/support/mod.rs` (a variant of `Server::start` that sets environment variables and
+captures stdout and stderr in memory), `tools/cli/tests/server_command.rs` (new tests for SA-3, SA-4,
+SA-5's output check, SA-7); `tools/cli/src/invite.rs` only if a test finds a defect (recorded).
+**Depends on:** A-C5.
+
+- [x] Implementation: as scoped.
+- [x] Validation: `cargo test -p mineworld-cli --test server_command`; M-SA3, M-SA4, M-SA7 recorded and
+  reverted; `mineworld server --help` shows `MINEWORLD_INVITE` and no value of it; clippy.
+- [x] Review: the token reaches stdout only through `invite.rs`'s one line; `main.rs` < 500 lines; the
+  join line matches §11.4 character for character. *Result:* the first and third hold (SA-3's test);
+  `main.rs` was 486 at A-C6 and is 523 after merging E-a's `packs` command (D-SA10).
+
+### A-C7 — The Godot module, its call sites and the far side (CP-A)
+
+**Goal.** SD-A10, SD-A11, SA-9. **Scope.** Rebase over 16b first if it has merged (re-run the A-C6
+validation's Rust half if the rebase touched Rust; it should not). `clients/protocol/mineworld/world_client.gd`,
+`clients/protocol/demo/demo.gd`, `clients/protocol/run.sh`, `clients/protocol/ADOPTION.md` (§2's API:
+`connect_to_world`'s parameters, `closing`, `leave_world`, the welcome members; §6: authentication is now
+done, reconnect and deltas are not yet), `clients/protocol/README.md`, `clients/protocol/evidence/*` (as
+`run.sh evidence` writes it), 16b's checks that join a server, `clients/3d-spike/scripts/slice/slice_link.gd`,
+`slice_main.gd`, `mineworld-slice`. **Depends on:** A-C6.
+
+- [x] Implementation: as scoped; 16b's names untouched (`git diff` of the module shows only the
+  credential, welcome, `closing` and `leave` hunks).
+- [x] Validation (background, each run waited on with Monitor): `clients/protocol/run.sh evidence` (SA-9);
+  `cargo test -p mineworld-cli --test ac13_semantic_parity` on the regenerated evidence;
+  `grep -rn '^\[mineworld\] invite ' clients/protocol/evidence` → nothing; the negative far-side run with a
+  wrong invite (transcript kept under `/tmp`, not committed); `./mineworld-slice --world --link`; any 16b
+  check that runs headless against a server.
+- [x] Review: the module never logs the invite (`grep -n invite` over the module shows only the frame
+  field and the parameter); `took_over`, `session`, `hold_seconds`, `resume` read with their revision-2
+  meaning; a `closing` frame is reported before `disconnected` with its reason; no world rule entered a
+  client.
+
+### A-C8 — Close: README, digests, scope, full gate, ledger, PR
+
+**Goal.** SA-10, SA-11, SA-12 and the review-ready handoff. **Scope.** `server/README.md` (the join line
+and the invite in the short orientation), §15.10 evidence, §15.11 deviations, `handoff.md`.
+
+- [x] Implementation: the README; the ledger.
+- [x] Validation: the 300-day seed-7 runs of both towns at the head against E-SA0 (SA-10); SA-11's diff
+  and `Cargo.lock` audit; `wc -l` for SA-12; **one** full gate on the final executable head, in the
+  background: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D
+  warnings`, `cargo test --workspace --no-fail-fast`, `check_decision_ids`, `check_doc_headings`; test
+  counts and wall time recorded; scratch data under `target/` and `$TMPDIR` checked for leftovers.
+- [x] Review: SA-1 … SA-12 each hold with recorded evidence; every mutation was planted, seen red and
+  reverted (`git status` clean of it); deviations bounded; the PR body lists the conflict surfaces
+  (`PROTOCOL.md` §6.2 with S15 12e, `slice_link.gd` with S14) and marks the PR **READY FOR OPERATOR REVIEW
+  — DO NOT MERGE**.
+
+**E-SA0 (the first action after the freeze, before any code changes):** build the base
+binary and record the 300-day seed-7 `run` digests (sha-256 of every output line but `wall`) of
+`worlds/social-cafe` and `worlds/market-town`, with fact totals and faults, as the parity reference.
+
+## 15.7 Test ownership for S11-A
+
+```text
+STATIC      cargo fmt, cargo clippy -D warnings: formatting, unused items, exhaustive matches over the
+            new RefusalCode / ClosingReason / TookOver variants
+UNIT        admission: invite parsing and generation, constant-time admit's equality semantics,
+            redacted Debug, nickname rules (A-C3); protocol decode: defaults, unknown fields, the new
+            tags (A-C4); golden frames (A-C4)
+INTEGRATION server/tests/two_clients.rs over a real socket: the handshake's order, delay, closing,
+            leave, welcome fields, nickname hiding between clients (A-C5)
+REAL BINARY tools/cli/tests/server_command.rs: the generated, supplied and environment invite, the
+            secret-in-output/save checks, INV-9 against a persisted world, /status revision 2; every
+            existing CLI acceptance test, unchanged (A-C6)
+FAR SIDE    Godot 4.7.2 headless: run.sh evidence, the wrong-invite run, mineworld-slice --world --link
+            (A-C7) — R-9's rule, the Gate-2-like layer for this PR
+REAL RUN    the two 300-day digests (SA-10)
+GATE 1      NOT REQUIRED — no language model anywhere in S11-A
+CI          no workflow at the base. If S13's 13a merges a workflow before the final head, the PR's CI
+            on the exact final head is the canonical full-suite evidence and the local full gate is
+            not repeated (test rules §9); otherwise the one local full gate of A-C8 is
+```
+
+## 15.8 Is any of this material?
+
+Nothing in S11-A changes `kernel/`, `contracts/` or `persistence/`, a frozen invariant of an earlier step,
+or the behaviour of any world. The public wire contract changes, but that change is the step's frozen §5
+under operator decisions already taken (QS11-1, -6, -7, -14). Points the primary session should confirm at
+freeze, none of which is believed to need the operator:
+
+1. **ARC-41 absorbs the JSON half of ARC-S11-d**, and S11-A records ARC-41 (ARC-S11-b had no PR). S11-C's
+   ARC-43 then covers facts only.
+2. **The rulings' additions to revision 2 are specified by their owning PRs** (`take_over`, `time_scale` in
+   S11-B; `acted_through`, `perceived` in S11-C). S11-A's `PROTOCOL.md` lists them in the landing table,
+   and its decoder refuses them as unknown fields until they land. The alternative — accepting and
+   ignoring them now — would fix their shapes in S11-A's design ahead of their owners.
+3. **§9.1 criterion 3 vs §11.4's line.** §11.4's frozen join line contains the token twice (`invite <token>
+   — … invite=<token>`), so "appears exactly once in stdout" is read as **exactly one line**. SA-3 measures
+   it that way.
+4. **`connect_to_world` takes typed `invite` and `nickname` parameters**, not M-5's `credentials := {}`.
+   S12 (13e) and S14 consume it as such.
+5. **`took_over: "none"` while seats are not exclusive** (SD-A5): true to the frozen §9.1 text and stated in
+   `PROTOCOL.md` as the defect S11-B removes.
+6. **Golden frames (R-S11-7) are in S11-A's scope**, as ruling 1 requires S11 to carry S10's requirements
+   and S10's P3 starts after S11-A.
+
+**Material stops during execution:** any needed edit under `kernel/`, `contracts/`, `persistence/` or any
+path outside §15.5; an existing test failing for a reason other than SA-10's listed edits; either digest
+differing from E-SA0; a 16b name that S11-A would have to change; a dependency beyond `subtle` and the
+`getrandom` edge.
+
+## 15.9 Execution contract (proposed; confirmed only by the primary session's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 12 (S11) / PR S11-A — handshake and authentication, protocol revision 2
+                    part 1 (PR number assigned at freeze)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-12-server.md §15; evidence §15.10 (E-SA<n>);
+                    deviations §15.11 (D-SA<n>)
+RELATED / BINDING   this file §§4.1, 5, 6, 7.1, 7.2, 7.7, 8, 9.1, 11.3, 11.4; overall.md "Parallel
+                    build-out, 2026-10-08" (decisions; rulings 1, 4, 6, 7, 9, 10); docs/NETWORKING.md
+                    §§2, 3, 5, 9, 10; server/PROTOCOL.md; docs/DECISIONS.md DEP-3, ARC-23, ARC-25;
+                    docs/REUSE_POLICY.md; docs/ENGINEERING_STANDARDS.md; CLAUDE.md §§2–4
+IMPLEMENTATION BASE main @ 47c81d1, rebased over 16b when it merges; branch mvp0/pr-s11a-handshake;
+                    worktree /Users/yuema137/mineworld-worktrees/impl-s11a, held by this session only
+APPROVED SCOPE      §15.5's change set; A-C1 … A-C8; SD-A1 … SD-A14
+FROZEN INVARIANTS   I-1: no diff under kernel/, contracts/, persistence/ (nor worlds/, worldpack/,
+                    systems/, cognition/, authoring/, sdk/, tests/acceptance/).
+                    I-5: no invite, offered invite or nickname reaches the world thread, a save, an
+                    observation, a fact, /status or a log line, except the one generated-invite line.
+                    I-6: both 300-day digests equal E-SA0.
+                    I-9: the server names no System Pack and no controller crate.
+                    I-12: ac13, ac15 and the milestone tests pass with no edit to their own files.
+                    16b's GDScript names unchanged. No hold, takeover, delta or fact delivery (S11-B/C).
+SEQUENCE            E-SA0 → A-C1 → A-C2 → A-C3 → A-C4 → A-C5 → A-C6 → (rebase over 16b) → A-C7 → A-C8;
+                    each commit pushed when coherent
+VALIDATION BUDGET   unit/integration/static unrestricted; 300-day runs (~15 s each) at most six;
+                    run.sh evidence at most three runs and mineworld-slice --world --link at most three,
+                    each in the background; one full workspace gate on the final head (background,
+                    ~5 min); about one hour in total; real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §15 checkboxes; §15.10 evidence; §15.11 deviations
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for S11-A at A-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   authorized (source: the primary session's freeze message,
+                                      2026-10-08)
+  semantic commits, branch push       authorized after the freeze (source: the S11-A brief, "commit and
+                                      push after each step"; D-12)
+  PR creation / update                authorized (source: the brief, "open a PR marked READY FOR
+                                      OPERATOR REVIEW"; D-12)
+  CI repair to review readiness       authorized if a workflow exists on the final head; otherwise N/A
+  merge                               operator only, explicit, never inherited (source: the brief,
+                                      "Do not merge"; D-12)
+POST-MERGE SYNC     this session owns §15 (merge identity, evidence, deviations, remaining issues);
+                    the primary session owns this step's §§1–14 and header, overall.md and MVP_STATUS
+NORMAL STOP         PR S11-A READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       §15.8's list
+```
+
+## 15.10 Evidence ledger
+
+```text
+E-SA0 2026-10-08, base main @ 47c81d1 (worktree impl-s11a, before any code change). Debug build
+      (`cargo build -p mineworld-cli`), binary copied to /tmp/s11a/mineworld-base.
+      `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, 339 lines,
+        sha-256 of every line but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+        (= step-10 E-0 and step-11 E-RS0); wall 22.0 s.
+      `mineworld run worlds/market-town --headless --seed 7 --days 300` → exit 0, 355 lines,
+        sha-256 = 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d (= step-10 E-P0).
+      Filter: `grep -v '^wall\|wall '` then `shasum -a 256`. Outputs under /tmp/s11a/base-*.out.
+E-SA1 A-C1. check_decision_ids → 53 ids, all distinct (ARC-41, DEP-14 new). check_doc_headings → 176
+      numbered sections across 25 documents, none duplicated. PROTOCOL.md: §6 and §6.2 carried —
+      `diff` against the base shows §6.2 identical and one cross-reference in §6 ("§5" → "§5.2");
+      §7 gains SessionId and the integer fields; section numbers 1–8 keep their revision-1 meaning
+      (routes, client frames, identity, sequence, server frames, submitting, numbers, rates), so every
+      existing "PROTOCOL.md §n" reference in the repository still points at the right section (audited
+      with git grep: §1, §5, §6, §6.2, §7, §8 in code, tests and docs); §9 is now "what revision 2
+      does not have" (references to "§9" in spike/unreal/probe.py and UNREAL_ADAPTER_SPIKE.md meant
+      revision 1's "not in revision 1" — frozen spike evidence, left).
+E-SA2 A-C2 (995c30d). protocol.rs 513 → 288 lines; request.rs 122, summary.rs 136. clippy -D warnings
+      clean; `cargo test -p mineworld-server`: 19 unit + 4 headless + 9 two_clients + 1 doc, all pass,
+      the same tests as the base (tests.rs untouched). Public paths re-exported unchanged.
+E-SA3 A-C3. admission.rs (with 5 unit tests): `cargo test -p mineworld-server --lib admission` 5
+      passed; clippy clean. `cargo tree -i subtle -e normal` → mineworld-server (→ mineworld-cli) only.
+      Cargo.lock: +1 package (subtle 2.6.1) and the server's two dependency lines; nothing else.
+E-SA4 A-C4 … A-C6 (one commit, D-SA3), working tree on b6075e2 + the commit's diff.
+      cargo fmt --check clean; clippy --workspace --all-targets --all-features -D warnings clean.
+      `cargo test -p mineworld-server -p mineworld-cli --no-fail-fast`: every binary passes —
+      server: unit 26, frames 8, handshake 7, headless 4, two_clients 9, doc 1; cli: ac13 2, ac15 6,
+      biography 2, bodies_yard 3, bodies_yard_restart 1, commands 4, content_kinds 3, create 2,
+      inspect 3, market_composition 1, market_town 1, milestone_b 1, milestone_c 1, restart 2,
+      routines 1, run 3, run_restart 2, server_command 7, social_composition 4. ~4 min wall. The CLI
+      acceptance files (ac13, ac15, milestone_b/c, restart, …) have no diff: only support/mod.rs's
+      join and Server::start changed (SA-10 first half).
+      Flake observed once before D-SA5: "cannot listen on 127.0.0.1:50918: Address already in use";
+      server_command then 3/3 runs green after D-SA5.
+      Mutations (each planted on the working tree, seen red, reverted; final `git diff` free of them):
+        M-SA1  protocol check disabled            → handshake a_join_of_another_revision… FAILED
+        M-SA2a admit() always Ok                  → handshake a_wrong_or_missing_invite… FAILED,
+                                                    server_command a_given_invite…flag_beats… FAILED
+        M-SA2b delay removed                      → handshake a_wrong_or_missing_invite… FAILED
+        M-SA3  join line printed twice            → server_command a_generated_invite… FAILED
+        M-SA4  deny_unknown_fields removed        → server_command state_assertions… FAILED
+        M-SA5  nickname length in bytes           → handshake an_invalid_nickname… FAILED
+        M-SA6  no host.leave on leave             → handshake leave_gives_the_seat_up… FAILED
+        M-SA7  as designed (states ← subscribes()) stayed GREEN: conversation subscribes to its own
+               `spoke`, so the mutation does not change the observable. Replaced by states ← empty
+               → server_command status_names… FAILED. Recorded rather than hidden (rules §24).
+        M-SA8  hold_seconds renamed "hold"        → frames welcome FAILED, naming welcome.json
+      Sizes (SA-12): protocol.rs 353, session.rs 349, runtime.rs 441, host.rs 498 (unchanged),
+      tools/cli/src/main.rs 486 — all under 500.
+E-SA5 Rebase: merged origin/main @ 889d217 (16b #66, 12c #67, docs #64/#65/#68/#69) as 9cdf1b0. One
+      conflict, docs/DECISIONS.md (both appended at the end): 12c's DEP-13 note kept before ARC-41 and
+      DEP-14; check_decision_ids 53 distinct, check_doc_headings clean. clients/2d is not on main yet
+      (S12 13a unmerged), so the call sites on main are the module, demo.gd, 16b's
+      checks/affordances_check.gd and the 3D slice.
+E-SA6 A-C7, Godot 4.7.2.stable.official.ed1daf0bf, one window at a time.
+      - First negative run (wrong invite, headless demo): the client logged only "disconnected: the
+        connection closed (0 )" — neither the refusal nor `closing` (FAIL of SA-9's negative half).
+        Second, with a 1000 close frame and a grace for the client's reply: same, code 1000. Cause:
+        Godot's WebSocketPeer discards frames it has not handed out when a close frame arrives in the
+        same read. Fix (D-SA8): the server sends `closing`, waits up to 2 s for the client to close,
+        then closes; the module closes on `closing`, and drains frames in CLOSING/CLOSED too. Third
+        run: "refused: unauthorized — that is not this server's invite", "the server is closing the
+        connection: unauthorized", "disconnected: the server closed the connection: unauthorized" —
+        PASS. Neither invite appears in either log (grep count 0 and 0). Transcripts under /tmp/s11a,
+        not committed (§15.6 A-C7).
+      - `run.sh evidence` (final module): exit 0; every transcript logs "seated: … protocol 2, as
+        'demo-<flavour>-<seat>', took over: none"; the AC-13 talk is answered by Alice (agent);
+        request-2d.json and request-3d.json byte-identical to the base (no diff);
+        `cargo test --test ac13_semantic_parity` 2 passed on them. Servers ran on OS-chosen ports
+        (55869 …), started without --invite; the script read address and invite from the join line.
+        `grep -rln '^\[mineworld\] invite ' clients/protocol/evidence` → nothing.
+      - `run.sh affordances` (16b's live check, now joining with the invite): "PASS — 0 failure(s)".
+      - `run.sh` windowed: screenshot evidence/demo-scene.png, inspected — seat 'wanderer' = observer
+        18, Alice, Bob, Wes, Vera drawn, talk answered ("accepted (4 fact(s))").
+      - `./mineworld-slice --world --link` (headless, server on 127.0.0.1:0, invite from its line):
+        "[link] seated as visitor [observer 17 …]", "all link checks pass", exit 0, 2 min 10 s.
+      - `git grep -n "connect_to_world("` over *.gd and *.sh: only the four-argument definition and
+        its three callers (slice_link.gd, checks/affordances_check.gd, demo/demo.gd).
+      - Integers (16b's D-2): the join's one number, `protocol`, is the module's int constant
+        `PROTOCOL`, never a parsed value, so JSON.stringify writes `2`; `ClientFrame::Join.protocol`
+        is a u32 and serde_json refuses `2.0` for it, so every welcome above is evidence it went out
+        as an integer. `leave` carries no number. Read side: `hold_seconds` through int().
+      - After the closing change: server suites green again (handshake 7 passed, 7.5 s with the
+        grace), server_command 7 passed; clippy clean.
+E-SA7 A-C8, the close.
+      - Second rebase: merged origin/main @ 1a1d08e (E-a #70, S17 plan #71) as 76be4d2. Conflicts:
+        tools/cli/src/main.rs (`mod invite;` beside E-a's `mod packs;`, both kept) and
+        docs/DECISIONS.md (ARC-41, DEP-14 kept before E-a's ARC-53, DEP-21). check_decision_ids 55
+        distinct; check_doc_headings 177 sections, none duplicated. No new connect_to_world call site
+        on main (clients/2d not merged yet).
+      - SA-10 digests at 9cdf1b0's executable content (+ README only after): social-cafe
+        ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b (339 lines), market-town
+        365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d (355 lines) — both = E-SA0.
+        (E-a's merge touches packages/ and the CLI's `packs` command, not `run`.)
+      - SA-11: `git diff --name-only origin/main...HEAD` ⊆ §15.5 (plus D-SA1's handoff file and
+        D-SA4's handshake.rs); nothing under kernel/, contracts/, persistence/, worlds/, worldpack/,
+        systems/, cognition/, authoring/, sdk/, tests/acceptance/. Cargo.lock: +subtle package, the
+        server's +getrandom +subtle lines, nothing else of ours. `git grep getrandom|subtle` in *.rs:
+        admission.rs only.
+      - SA-12: protocol.rs 353, session.rs 369, runtime.rs 441, host.rs 498, main.rs 523 (D-SA10).
+      - `mineworld server --help` with MINEWORLD_INVITE set shows "[env: MINEWORLD_INVITE]" and not
+        the value (grep count 0).
+      - FULL GATE on the final executable head 76be4d2, 13:43–13:50 PDT: `cargo fmt --all --check`
+        OK; `cargo clippy --workspace --all-targets --all-features -D warnings` clean;
+        check_decision_ids 55 distinct; check_doc_headings OK; `cargo test --workspace --no-fail-fast`
+        153 test binaries, 682 tests passed, 0 failed, 7 min 4 s wall. Log /tmp/s11a/full-gate.log.
+        Scratch: one leftover $TMPDIR/mineworld-cli-83715-2d-i5-variantfull, not a name any S11-A
+        test uses (ruling 10's bounded PR owns the sweep).
+      - CI: no workflow on main at the final head (S13's 13a unmerged); the local full gate above is
+        the canonical full-suite evidence (§15.7).
+```
+
+## 15.11 Deviations and discoveries
+
+```text
+D-SA1 (bounded) Handoff file. Six lanes run in parallel and the effort's single handoff.md would be
+      rewritten by each; S11-A keeps its continuation aid in handoff-s11a.md and leaves handoff.md
+      untouched.
+D-SA2 (bounded) PROTOCOL.md layout. §15.3 SD-A14 lists the content; the numbering keeps revision 1's
+      section numbers for the same subjects (E-SA1) so no reference elsewhere goes stale: joining's
+      checks are §4.1, WorldSummary is §5.7, the landing table and the revision rule are §10.
+D-SA3 (bounded) Commit mapping. A-C4, A-C5 and A-C6 land as one commit: the new frames cannot compile
+      without the session's handshake, and the router's new signature cannot compile without the CLI
+      passing an admission, so any split leaves the workspace or the CLI suites red in between.
+D-SA4 (bounded) The socket tests of SA-1, SA-2, SA-5 and SA-6 live in a new
+      server/tests/handshake.rs (with its own small client that sees the server close) rather than in
+      two_clients.rs, which is 640 lines; two_clients.rs changes only as §15.2 says. support/mod.rs
+      gains INVITE, admission() and join_frame().
+D-SA5 (bounded) Test harness ports. tools/cli/tests/support's free_port() releases the port before the
+      binary binds it; with more servers per run, and other worktrees' suites on the same machine, a
+      run failed once with "Address already in use" (E-SA4). Server::start now restarts the binary on a
+      new port, at most three times, when it exits before answering /health; a server that runs but
+      stays silent still fails the test. Server::start_captured shares the same launch.
+D-SA6 (bounded) The join line's seat. "The first roster seat no --agent drives" is the roster's order,
+      which is key order (SeatRoster is a BTreeSet): social-cafe's line suggests `alice` with no
+      --agent. SA-3's test takes the expected seat from /status rather than assuming `visitor`.
+D-SA8 (bounded, a discovery from the far side — flagged to the primary session) The closing
+      handshake. SD-A4 said the server sends `closing` "immediately before the server closes the
+      socket". Against Godot that loses `closing` and the refusal before it (E-SA6). PROTOCOL.md §5.6
+      now states: the client closes the socket on receiving `closing`; the server waits up to 2 s for
+      that, then sends its own close (1000) and drops the connection. No frame or field changes; the
+      module closes on `closing`; Rust test clients that do not close simply see the server close
+      after the grace. Also: the module drains queued frames in CLOSING/CLOSED states, and demo.gd no
+      longer treats a token-less refusal as its stride's (it matched the empty token).
+D-SA9 (bounded) Launchers bind 127.0.0.1:0 and read the address as well as the invite from the join
+      line (coordinator's port-collision finding): run.sh no longer pkills by name and stops only its
+      own PID; mineworld-slice --world no longer uses 7979. The committed server logs therefore name
+      ephemeral ports.
+D-SA10 (bounded, reported) tools/cli/src/main.rs is 523 lines after the second rebase: 466 at the base,
+      +20 for S11-A (the flag, one resolution call, the join line), +37 from E-a's `packs` command
+      merged in. Past the ~500 review trigger, far from the 800 warning; still one responsibility
+      (argument parsing, dispatch, `serve`). Not split here — moving `serve` out would touch E-a's
+      code in an S11-A PR. Recommended for S11-B, which rewrites `serve` for --town anyway: extract
+      `serve`/`persisted` into tools/cli/src/serve.rs.
+D-SA7 (bounded) ClientFrame no longer derives Serialize: nothing serialized a client frame, and an
+      OfferedInvite (a possible near miss of the secret) should not be serializable. `Leave` is an
+      empty struct variant (`Leave {}`) so that deny_unknown_fields applies to it.
+```
 

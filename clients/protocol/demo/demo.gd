@@ -65,6 +65,10 @@ const STRIDE := 1.9
 var _world := MineWorldClient.new()
 var _address := DEFAULT_ADDRESS
 var _seat := DEFAULT_SEAT
+# The server's invite (`--invite`), required on every server, and this player's nickname. The invite
+# is passed to the module and never printed.
+var _invite := ""
+var _nickname := "demo"
 var _autopilot := false
 # `2d` reports no position when it acts; `3d` reports the one it walked to. The only difference
 # between the two clients at the protocol boundary, and the whole of `AC-13`'s permitted difference.
@@ -97,7 +101,9 @@ func _ready() -> void:
 	_world.disconnected.connect(_on_disconnected)
 	_world.submitted_request.connect(_on_submitted)
 	_note("connecting to %s as seat '%s' (%s)" % [_address, _seat, _flavour])
-	_world.connect_to_world(_address, _seat)
+	_world.closing.connect(func(reason: String, _detail: String) -> void:
+		_note("the server is closing the connection: %s" % reason))
+	_world.connect_to_world(_address, _seat, _invite, _nickname)
 
 
 func _read_arguments() -> void:
@@ -112,6 +118,12 @@ func _read_arguments() -> void:
 				index += 1
 			"--seat":
 				_seat = value
+				index += 1
+			"--invite":
+				_invite = value
+				index += 1
+			"--nickname":
+				_nickname = value
 				index += 1
 			"--flavour":
 				_flavour = value
@@ -134,7 +146,9 @@ func _read_arguments() -> void:
 # ------------------------------------------------------------------------------------------------
 
 func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
-	_note("seated: seat '%s' is observer %s" % [seat, observer])
+	_note("seated: seat '%s' is observer %s, protocol %d, as '%s', took over: %s" % [
+		seat, observer, MineWorldClient.PROTOCOL, _world.nickname, _world.took_over,
+	])
 	_note("world instance %s, %d entities, %d client(s)" % [
 		_world.world_instance(), int(world.get("entities", 0)), int(world.get("clients", 0)),
 	])
@@ -159,7 +173,8 @@ func _on_resolved(token: String, action_id: String, result: Dictionary) -> void:
 func _on_refused(code: String, token: String, detail: String) -> void:
 	_last_answer = "refused (%s)" % code
 	_note("%s refused: %s — %s" % [token, code, detail])
-	if token == _stride_token:
+	# A refusal without a token (a join's) belongs to no stride.
+	if token != "" and token == _stride_token:
 		_stride_answered(false)
 
 
