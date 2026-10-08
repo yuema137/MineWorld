@@ -6,20 +6,23 @@
 //!                 800 mm, in ItemId order: kick { object } (on the floor only), then
 //!                 throw { object, toward: null } — each at_place(the place), available.
 //!                 Objects beyond reach are not offered (QO-7)
+//! target a person shove {} to a different, living Person — same_place().within(1 000 mm),
+//!                 available iff they stand at a position in a shaped place
 //! ```
 //!
 //! Nothing to an observer without a position, and nothing in a place without a shape.
 
-use mineworld_contracts::{EntityId, SpatialRequirement};
+use mineworld_contracts::{EntityId, EntityType, LifecycleState, SpatialRequirement};
 use mineworld_kernel::WorldRead;
 use mineworld_presence::Offer;
 
-use crate::action::{Kick, Throw};
+use crate::action::{Kick, Shove, Throw, shove_requirement};
 use crate::component::PlaceShape;
 use crate::footprint::Resting;
 use crate::geometry::TOLERANCE;
 use crate::launch::{in_reach, standing};
 use crate::objects::lying_in;
+use crate::shove::has_body;
 
 /// Every offer of this pack to `observer` about `target`, in a fixed order (`AC-12`).
 pub(crate) fn offers(
@@ -34,8 +37,8 @@ pub(crate) fn offers(
     let Some(shape) = world.component::<PlaceShape>(place.entity_id()) else {
         return Vec::new();
     };
-    if target.is_some() {
-        return Vec::new();
+    if let Some(target) = target {
+        return shoves(world, observer, target);
     }
     let room = shape.room();
     let requirement = SpatialRequirement::at_place(place).requiring_target_available();
@@ -53,4 +56,23 @@ pub(crate) fn offers(
         Offer::complete(&Throw::new(*object, None), requirement).expect("a throw encodes")
     });
     kicks.chain(throws).collect()
+}
+
+/// `shove {}` to `target`, a different, living Person (step-11 SD-O12): available iff they stand at
+/// a position in a shaped place; perception prices the distance (`TooFarAway` beyond 1 000 mm). Never
+/// to oneself (step-10 F-40).
+fn shoves(world: &WorldRead<'_>, observer: EntityId, target: EntityId) -> Vec<Offer> {
+    let person = world.entity(target).is_some_and(|record| {
+        record.entity_type() == EntityType::Person
+            && record.lifecycle() != LifecycleState::Destroyed
+    });
+    if target == observer || !person {
+        return Vec::new();
+    }
+    let (_, available) = has_body(world, target);
+    vec![
+        Offer::complete(&Shove {}, shove_requirement())
+            .expect("a shove encodes")
+            .with_target_available(available),
+    ]
 }

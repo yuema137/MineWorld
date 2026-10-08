@@ -4702,9 +4702,17 @@ aimed point on a solid; a kick of an object touching a wall; CCD against the cou
 
 **Depends on:** PO-C4.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: the pack's tests; M-PO7, M-PO8 and M-PO1 fail by name, reverted.
-- [ ] Review: shove never writes a position — presence records it; the emission order is person-shoved,
+- [x] Implementation: as scoped (E-PO5): `shove.rs` (validate, resolve through `arrivals()`),
+  `offer.rs` (the shove offers), `system.rs` (providing Shove; emitting PersonShoved, Arrived,
+  StoppedShort); `tests/actions.rs` (PO-6, PO-7's shove rows, PO-4 g, PO-17 — DO-1: in actions.rs, not
+  scenarios.rs); DO-11.
+- [x] Validation: the pack's tests; M-PO7, M-PO8 and M-PO1 fail by name, reverted; PO-13 b re-checked
+  (E-PO5).
+- [x] Review (self): `shove::resolve` returns `person-shoved` then exactly `arrivals()`'s list — no
+  `Arrived::new` in the pack's sources; presence's refusal becomes `FactRefusedByOwner { presence,
+  arrived }` as in movement; `shove` to oneself is NoSupportedInteraction and never offered; the
+  target's availability is `has_body` (a position in a shaped place), shared by validate and the offer.
+  Original review item: shove never writes a position — presence records it; the emission order is person-shoved,
   then `arrivals()`'s list; a refusal of presence's becomes `FactRefusedByOwner` as movement's does; no
   shove to oneself; the target's availability is "has a body".
 
@@ -5020,9 +5028,9 @@ E-PO4 PO-C4, 2026-10-08, working tree on f6243db + PO-C4's paths (systems/bodies
         PO-4 c  kicked from (2 700, 5 000, 110) to (5 238, 5 000, 110): Δx 2 538 ∈ 1 500 … 3 500,
                 Δy 0, z 110; 12 keyframes, the first = from; the kicker unmoved.
         PO-4 d  against the wall: (8 206, 5 000, 110) ≤ 8 215.
-        PO-4 e  toward c at (4 000, 5 000): (3 560, 5 010, 110) — a lattice point (rung 2): the ball
-                rebounded off c's capsule and came to rest overlapping c's disc, so V-O refused the
-                simulated end; 450 mm from c's centre ≥ 405; c has no fact.
+        PO-4 e  toward c at (4 000, 5 000): (3 560, 5 010, 110) — a point of the 50 mm lattice for r
+                110, so rung 2 placed it (V-O refused the simulated end); 440 mm from c's centre ≥ 405;
+                c has no fact.
         PO-4 f  (flight.rs unit) after 2 sub-steps (2 725, 5 000, 235), in the air; landed at
                 (2 710, 5 010, 110): on the 50 mm lattice for r 110 (x, y ≡ 110 mod 50), nearest.
         PO-5 a  unaimed: (2 600, 5 000, 110) → (5 945, 5 000, 110): x ∈ 4 600 … 7 600, Δy 0.
@@ -5044,6 +5052,38 @@ E-PO4 PO-C4, 2026-10-08, working tree on f6243db + PO-C4's paths (systems/bodies
           throw of the ball, nothing for the box", and each_offered_… (the box's throw TooFarAway).
       `cargo fmt --all`; `cargo clippy -p mineworld-bodies --all-targets --all-features -- -D warnings`
         clean.
+
+E-PO5 PO-C5, 2026-10-08, working tree on 92dd1be + PO-C5's paths (systems/bodies/** only).
+      `cargo test -p mineworld-bodies --offline`: lib 13, actions 23 (+ PO-6 a … e, the 600 mm
+        record, PO-7's shove rows, PO-4 g's shove, PO-17), genesis 6, isolation 5, long_run 1,
+        objects 7, objects_genesis 10, rapier_pin 1, scenarios 17. PASS. long_run's LONG-RUN line
+        `cmp` identical to the base again (PO-13 b holds with shove in the pack).
+      First run of PO-6 with §18.4's layouts (shover 600 mm behind the target): (a) → person-shoved,
+        arrived b (4 301, 5 000), stopped-short { by: None }; (b) → b at (8 000, 5 000). Moving the
+        shover to 700 mm: (a) → b exactly (4 500, 5 000), no stopped-short. DO-11.
+      PO-6 as passing (shover 700 mm behind): (a) [person-shoved, arrived] — b (4 500, 5 000), a
+        unmoved, both facts Causation::Action(a's id), emitted by bodies; (b) b (8 010 ± 1, 5 000),
+        stopped-short { b, wanted (8 200, 5 000), by None }; (c) [person-shoved, arrived b, arrived c,
+        stopped-short]: b (4 499, 4 999), c (5 063, 5 234) — each ±1 mm of the literals (4 500, 5 000)
+        and (5 064, 5 234) (b's stride is swept, so b's end is Rapier's, a millimetre short: a true
+        stopped-short), c nudged 69 mm ≤ 310; (d) the ball pushed by b, Causation::Event(b's arrived),
+        to (4 919, 5 001) ± 1 of (4 920, 5 000); (e) 1 000 mm Accepted, 1 001 TooFarAway, oneself
+        NoSupportedInteraction, a positionless b and b in an unshaped place TargetUnavailable, b in
+        another shaped place TooFarAway, a positionless a PreconditionFailed. PASS.
+      PO-7 shove rows: shove → p { payload {}, available }, shove → q { unavailable TooFarAway },
+        requirement same_place().within(1 000).requiring_target_available(); none to oneself; the
+        available shove submitted through Affordance::request is Accepted. PO-4 g: without bodies,
+        kick, throw and shove → ActionResult::Unavailable. PO-17: in a world with bodies, an unshaped
+        place offers nothing from bodies, and a move there records exactly Arrived::new's bytes. PASS.
+      Mutations (applied, run, reverted; `git grep -n MUTATION -- systems` empty afterwards):
+        M-PO7 (SHOVE_DISTANCE 500 → 800) → actions FAILED (a) "b 500 mm on: left Some((4800, 5000))",
+          (b) "wanted (8500, 5000)", (c), (d).
+        M-PO8 (shove states Arrived::new directly, bypassing arrivals()) → actions FAILED (c): two facts,
+          c not nudged; (b) and the 600 mm record: no stopped-short. (d) survived: b's unresolved
+          arrival overlaps the ball, and the reaction's push happens to be valid there.
+        M-PO1 (shove offered before the place-shape check) → actions FAILED PO-17: "nothing from
+          bodies: [("shove", Some("other"), "{}", false)]".
+      `cargo fmt --all --check`; clippy -p mineworld-bodies -D warnings clean.
 ```
 
 ## 18.11 Deviations and discoveries during implementation
@@ -5136,4 +5176,25 @@ object to refuse, instead of one placed there by hand.
 cuts a throw's flight after 2 sub-steps". The step bound is a parameter of `rapier::fly`, so the unit test
 flies the throw with 2 sub-steps and lands it through the production `land`; no policy switch exists in
 production code. M-PO5 is a real mutation of `land`.
+
+**DO-11 (bounded; discovery about 12b's people path, kept unchanged) — a person within 610 mm of
+somebody is not swept away from them.**
+- Previous assumption: PO-6 a and b lay the shover 600 mm behind the target and expect the target 500 mm
+  on (a) and at the wall (b).
+- Audit evidence (E-PO5): with those layouts the target moved 301 mm with `stopped-short { by: None }`
+  (a), and 300 mm (b). With the shover 700 mm behind, (a) is exactly (4 500, 5 000) and (b) (8 010 ± 1,
+  5 000). The cause is 12b's resolver, unchanged: the shover stands within 2R + GAP = 610 mm of the
+  target's path, so the corridor is not clear (SD-B6's definition) and the stride is swept; the contact
+  sweep starts inside the character controller's 10 mm offset of the shover and advances 1 mm, and the
+  candidate rule allows 300 mm beyond that. Every walker in that position — between CLEARANCE (595)
+  and 610 mm from somebody, which a blocked walker reaches (608.7 mm, DB-6) — has the same short first
+  stride away from them. The result is bounded and true (a stopped-short is recorded); it is not an
+  invariant violation.
+- Decision: the people path is not changed. PO-13 b freezes it byte for byte (a change here is a
+  material stop), and §18.1 changes it only where objects enter. PO-6 a … d lay the shover 700 mm behind
+  the target; a separate test, `a_shove_from_600_mm_is_cut_short_by_the_shover`, keeps §18.4's own
+  layout and pins what it does.
+- Follow-up (FU-12c-1, for the planning session; 12d or later): whether a stride moving away from
+  somebody within the offset should be swept without them — a change to SD-B6's contact sweep and to
+  12b's results, which needs its own design and a re-captured long-run base.
 

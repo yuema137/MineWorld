@@ -19,7 +19,8 @@
 use std::collections::BTreeMap;
 
 use mineworld_bodies::{
-    BodiesSystem, BodyShape, LooseObjects, ObjectMoved, PlaceShape, body_formed, place_shaped,
+    BodiesSystem, BodyShape, LooseObjects, ObjectMoved, PersonShoved, PlaceShape, body_formed,
+    place_shaped,
 };
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionRequest, ActionResult, ActionTypeId,
@@ -570,6 +571,12 @@ pub fn at_in(place: PlaceId, at: (i32, i32)) -> Location {
 
 pub fn encode<T: Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).expect("a payload encodes")
+}
+
+/// A recorded `person-shoved`, decoded with its owner's published type.
+pub fn person_shoved(event: &EventEnvelope) -> Option<PersonShoved> {
+    let payload = event.payload().payload_for::<PersonShoved>().ok()?;
+    Some(serde_json::from_slice(payload).expect("bodies' encoding"))
 }
 
 /// A recorded `object-moved`, decoded with its owner's published type.

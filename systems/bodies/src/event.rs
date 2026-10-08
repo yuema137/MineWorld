@@ -287,7 +287,6 @@ impl PersonShoved {
 }
 
 /// [`PersonShoved`] as a fact: heard in the place, about both people.
-#[expect(dead_code, reason = "shove arrives in PO-C5")]
 pub(crate) fn person_shoved(by: PersonId, person: PersonId, place: PlaceId) -> Emission {
     Emission::new::<PersonShoved>(
         codec::encode(&PersonShoved { by, person }),

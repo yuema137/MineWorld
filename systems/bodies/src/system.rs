@@ -10,20 +10,20 @@ use mineworld_kernel::{
     WorldRead, WorldView,
 };
 use mineworld_presence::{
-    Arrived, PerceptionProvider, Presence, PresenceSystem, require_registered,
+    Arrived, PerceptionProvider, Presence, PresenceSystem, StoppedShort, require_registered,
 };
 use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
-use crate::action::{Kick, Throw};
+use crate::action::{Kick, Shove, Throw};
 use crate::codec;
 use crate::component::{BodyShape, LooseObjects, PlaceShape};
 use crate::event::{
-    BodyFormed, How, Movement, ObjectMoved, ObjectPlaced, PlaceShaped, object_moved,
+    BodyFormed, How, Movement, ObjectMoved, ObjectPlaced, PersonShoved, PlaceShaped, object_moved,
 };
 use crate::geometry::Point;
 use crate::push::Lay;
-use crate::{genesis, launch, objects, offer};
+use crate::{genesis, launch, objects, offer, shove};
 
 /// Bodies: places with walls and furniture, loose objects lying in them, and people who neither pass
 /// through them nor through each other.
@@ -62,8 +62,10 @@ impl System for BodiesSystem {
     const VERSION: SystemVersion = SystemVersion::new(2);
 
     /// Depends on presence (where people are, and the seam this pack resolves through); owns the
-    /// shapes of places and objects and where the objects lie; states and reduces its own genesis
-    /// facts.
+    /// shapes of places and objects and where the objects lie; provides `kick`, `throw` and `shove`;
+    /// states and reduces its own facts; and, for `shove` only, states presence's `arrived` and
+    /// `stopped-short` through `arrivals()` (`ARC-26`; step-11 SD-O7: with `shove` it is a mover). It
+    /// hears presence's `arrived`, its own included (step-11 F-R7).
     fn declaration(&self) -> SystemDeclaration {
         SystemDeclaration::of::<Self>()
             .depending_on([PresenceSystem::ID])
@@ -72,10 +74,14 @@ impl System for BodiesSystem {
             .owning::<LooseObjects>()
             .providing::<Kick>()
             .providing::<Throw>()
+            .providing::<Shove>()
             .emitting::<PlaceShaped>()
             .emitting::<BodyFormed>()
             .emitting::<ObjectPlaced>()
             .emitting::<ObjectMoved>()
+            .emitting::<PersonShoved>()
+            .emitting::<Arrived>()
+            .emitting::<StoppedShort>()
             .subscribing_to::<PlaceShaped>()
             .subscribing_to::<BodyFormed>()
             .subscribing_to::<ObjectPlaced>()
@@ -139,19 +145,23 @@ impl System for BodiesSystem {
         Ok(Vec::new())
     }
 
-    /// Whether this `kick` or `throw` may happen (step-11 SD-O11, SD-O13; `launch.rs`).
+    /// Whether this `kick`, `throw` or `shove` may happen (step-11 SD-O11, SD-O13, SD-O15;
+    /// `launch.rs`, `shove.rs`).
     fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
         let action = intent.action_type();
         if *action == Kick::ACTION_TYPE {
             launch::validate_kick(world, intent)
         } else if *action == Throw::ACTION_TYPE {
             launch::validate_throw(world, intent)
+        } else if *action == Shove::ACTION_TYPE {
+            shove::validate(world, intent)
         } else {
             Err(Rejection::NoSupportedInteraction)
         }
     }
 
-    /// A `kick` or `throw`, resolved at the instant (QB-6): one `object-moved`.
+    /// A `kick` or `throw`, resolved at the instant (QB-6): one `object-moved`. A `shove`:
+    /// `person-shoved`, then presence's facts for the shoved person's arrival.
     fn resolve(
         &self,
         world: &mut WorldView<'_, Self>,
@@ -163,6 +173,8 @@ impl System for BodiesSystem {
             launch::resolve_kick(&read, intent)
         } else if *action == Throw::ACTION_TYPE {
             launch::resolve_throw(&read, intent)
+        } else if *action == Shove::ACTION_TYPE {
+            shove::resolve(&read, intent)
         } else {
             Err(refused(
                 ObjectMoved::EVENT_TYPE,

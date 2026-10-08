@@ -8,7 +8,7 @@
 
 mod support;
 
-use mineworld_bodies::{How, Kick, Throw, Toward};
+use mineworld_bodies::{How, Kick, Shove, Throw, Toward};
 use mineworld_contracts::{
     ActionRecord, ActionResult, Causation, LocalPosition, Millimetres, Rejection,
 };
@@ -187,11 +187,11 @@ fn a_kicked_ball_does_not_end_in_a_person() {
 }
 
 #[test]
-fn without_bodies_kick_and_throw_are_unavailable() {
+fn without_bodies_kick_throw_and_shove_are_unavailable() {
     let plan = Plan {
         without_bodies: true,
         objects: vec![("ball", ball(110), "room", (2_700, 5_000))],
-        ..Plan::room(cafe(), &[("kicker", (2_000, 5_000))])
+        ..Plan::room(cafe(), &[("kicker", (2_000, 5_000)), ("b", (3_000, 5_000))])
     };
     let mut yard = Yard::new(&plan);
     assert_eq!(
@@ -202,6 +202,253 @@ fn without_bodies_kick_and_throw_are_unavailable() {
         throw(&mut yard, "kicker", "ball", None).result,
         ActionResult::Unavailable
     );
+    assert_eq!(
+        shove(&mut yard, "kicker", "b").result,
+        ActionResult::Unavailable
+    );
+}
+
+// ---------------------------------------------------------------------------------------------
+// PO-6 — shove
+// ---------------------------------------------------------------------------------------------
+
+fn shove(yard: &mut Yard, who: &str, whom: &str) -> Moved {
+    let target = yard.people[whom];
+    yard.submit_at(who, ActionRecord::new::<Shove>(encode(&Shove {})), target)
+}
+
+/// The facts of a shove, by type, each the request's own and stated by bodies, except presence's own
+/// occupancy change and an object pushed by an arrival.
+fn shoved_facts(moved: &Moved) -> Vec<String> {
+    assert!(moved.accepted(), "accepted: {:?}", moved.result);
+    moved
+        .events
+        .iter()
+        .map(|event| {
+            let kind = event.event_type().as_str().to_owned();
+            if kind != "object-moved" && kind != "person-entered-place" {
+                assert_eq!(*event.caused_by(), Causation::Action(moved.id), "{kind}");
+                assert_eq!(event.provenance().emitted_by().as_str(), "bodies", "{kind}");
+            }
+            kind
+        })
+        .collect()
+}
+
+// Every shover below stands 700 mm from their target, not §18.4's 600 mm: a person within the
+// character controller's 10 mm offset of somebody (595 ≤ d < 610 mm) is not swept away from them
+// (§18.11 DO-11). `a_shove_from_600_mm_is_cut_short_by_the_shover` keeps §18.4's layout and records
+// what it does.
+
+#[test]
+fn a_shove_moves_its_target_half_a_metre_through_presence() {
+    let mut yard = yard(&[("a", (3_300, 5_000)), ("b", (4_000, 5_000))], vec![]);
+    let moved = shove(&mut yard, "a", "b");
+    assert_eq!(shoved_facts(&moved), ["person-shoved", "arrived"]);
+    let shoved = support::person_shoved(&moved.events[0]).expect("a person-shoved");
+    assert_eq!(
+        (shoved.by().entity_id(), shoved.person().entity_id()),
+        (yard.people["a"], yard.people["b"])
+    );
+    assert_eq!(yard.point("b"), Some((4_500, 5_000)), "b 500 mm on");
+    assert_eq!(yard.point("a"), Some((3_300, 5_000)), "a unmoved");
+    holds(&yard);
+}
+
+/// §18.4 PO-6 a's own layout, 600 mm apart: the shove is resolved, bounded and true, but cut short —
+/// b moves 301 mm (the contact sweep advances 1 mm from inside its offset of a, and the candidate rule
+/// allows 300 mm more), with `stopped-short { by: None }`. Recorded, not changed: it is 12b's people
+/// path, which PO-13 b holds byte-identical (DO-11).
+#[test]
+fn a_shove_from_600_mm_is_cut_short_by_the_shover() {
+    let mut yard = yard(&[("a", (3_400, 5_000)), ("b", (4_000, 5_000))], vec![]);
+    let moved = shove(&mut yard, "a", "b");
+    assert_eq!(
+        shoved_facts(&moved),
+        ["person-shoved", "arrived", "stopped-short"]
+    );
+    assert_eq!(yard.point("b"), Some((4_301, 5_000)));
+    holds(&yard);
+}
+
+#[test]
+fn a_shove_into_the_wall_stops_short() {
+    let mut yard = yard(&[("a", (7_000, 5_000)), ("b", (7_700, 5_000))], vec![]);
+    let moved = shove(&mut yard, "a", "b");
+    assert_eq!(
+        shoved_facts(&moved),
+        ["person-shoved", "arrived", "stopped-short"]
+    );
+    let (x, y) = yard.point("b").expect("placed");
+    assert!(
+        (x - 8_010).abs() <= 1 && y == 5_000,
+        "b at the wall: ({x}, {y})"
+    );
+    match &moved.facts()[2] {
+        support::Fact::StoppedShort {
+            person, wanted, by, ..
+        } => {
+            assert_eq!(*person, yard.people["b"]);
+            assert_eq!(support::xy(*wanted), (8_200, 5_000));
+            assert_eq!(*by, None, "the wall");
+        }
+        other => panic!("a stopped-short, not {other:?}"),
+    }
+    holds(&yard);
+}
+
+#[test]
+fn a_shove_into_a_person_nudges_them_within_the_bounds() {
+    // c stands 541 mm from b's end (4 500, 5 000), 207 mm off its line: nudged by at_least((500, 207),
+    // 610 − 541 = 69) = (64, 27).
+    let mut yard = yard(
+        &[
+            ("a", (3_300, 5_000)),
+            ("b", (4_000, 5_000)),
+            ("c", (5_000, 5_207)),
+        ],
+        vec![],
+    );
+    let moved = shove(&mut yard, "a", "b");
+    let facts = shoved_facts(&moved);
+    // b's stride is swept (c is near its line), so b's end is Rapier's, within ±1 mm of (4 500,
+    // 5 000); a millimetre short is a true stopped-short, after the two arrivals.
+    assert_eq!(
+        facts[..3],
+        ["person-shoved", "arrived", "arrived"],
+        "{facts:?}"
+    );
+    let near = |(x, y): Xy, (wx, wy): Xy| (x - wx).abs() <= 1 && (y - wy).abs() <= 1;
+    let b = yard.point("b").expect("placed");
+    let c = yard.point("c").expect("placed");
+    println!("shove into c: b {b:?}, c {c:?}; {facts:?}");
+    assert!(near(b, (4_500, 5_000)), "b at {b:?}");
+    assert!(near(c, (5_064, 5_234)), "c nudged 69 mm, to {c:?}");
+    // `displaced()` reads "every arrived after the first fact"; here the first fact is person-shoved.
+    assert_eq!(
+        moved.displaced().len(),
+        2,
+        "b's arrival, then c's — the one displaced"
+    );
+    holds(&yard);
+}
+
+#[test]
+fn a_shoved_person_pushes_an_object_behind_them() {
+    // The ball's edge 290 mm from b's end: pushed 20 mm on, by b, caused by b's arrival.
+    let mut yard = yard(
+        &[("a", (3_300, 5_000)), ("b", (4_000, 5_000))],
+        vec![("ball", ball(110), "room", (4_900, 5_000))],
+    );
+    let moved = shove(&mut yard, "a", "b");
+    let facts = shoved_facts(&moved);
+    println!("shove into the ball: {facts:?}");
+    assert_eq!(facts[..2], ["person-shoved", "arrived"], "{facts:?}");
+    let pushes: Vec<_> = moved
+        .events
+        .iter()
+        .filter_map(|event| object_moved(event).map(|fact| (event, fact)))
+        .collect();
+    assert_eq!(pushes.len(), 1, "one push: {facts:?}");
+    let (event, pushed) = &pushes[0];
+    assert_eq!(pushed.how(), How::Pushed);
+    assert_eq!(pushed.by().entity_id(), yard.people["b"]);
+    assert_eq!(
+        *event.caused_by(),
+        Causation::Event(moved.events[1].id()),
+        "caused by b's arrival"
+    );
+    let (x, y, _) = yard.object("ball");
+    assert!(
+        (x - 4_920).abs() <= 1 && (y - 5_000).abs() <= 1,
+        "ball at ({x}, {y})"
+    );
+    holds(&yard);
+}
+
+#[test]
+fn a_shove_is_refused_beyond_reach_at_oneself_and_without_a_body() {
+    let mut reach = yard(&[("a", (3_000, 5_000)), ("b", (4_000, 5_000))], vec![]);
+    assert!(shove(&mut reach, "a", "b").accepted(), "1 000 mm: in reach");
+    let mut far = yard(&[("a", (2_999, 5_000)), ("b", (4_000, 5_000))], vec![]);
+    assert_eq!(
+        rejected(&shove(&mut far, "a", "b")),
+        Rejection::TooFarAway,
+        "1 001 mm"
+    );
+    assert_eq!(
+        rejected(&shove(&mut far, "a", "a")),
+        Rejection::NoSupportedInteraction,
+        "oneself"
+    );
+    let plan = Plan {
+        places: vec![
+            ("room", Some(cafe())),
+            ("yard", Some(cafe())),
+            ("street", None),
+        ],
+        people: vec![
+            ("a", "room", Some((3_000, 5_000))),
+            ("ghost", "room", None),
+            ("elsewhere", "yard", Some((3_500, 5_000))),
+            ("walker", "street", Some((3_500, 5_000))),
+            ("nowhere", "street", Some((4_000, 5_000))),
+        ],
+        ..Plan::default()
+    };
+    let mut yard = Yard::new(&plan);
+    assert_eq!(
+        rejected(&shove(&mut yard, "a", "ghost")),
+        Rejection::TargetUnavailable
+    );
+    assert_eq!(
+        rejected(&shove(&mut yard, "a", "elsewhere")),
+        Rejection::TooFarAway
+    );
+    assert_eq!(
+        rejected(&shove(&mut yard, "walker", "nowhere")),
+        Rejection::TargetUnavailable
+    );
+    assert_eq!(
+        rejected(&shove(&mut yard, "ghost", "a")),
+        Rejection::PreconditionFailed
+    );
+}
+
+// ---------------------------------------------------------------------------------------------
+// PO-17 — inert where absent
+// ---------------------------------------------------------------------------------------------
+
+#[test]
+fn a_place_without_a_shape_offers_nothing_and_records_moves_exactly() {
+    let plan = Plan {
+        places: vec![("room", Some(cafe())), ("street", None)],
+        people: vec![
+            ("walker", "street", Some((3_500, 5_000))),
+            ("other", "street", Some((4_000, 5_000))),
+        ],
+        ..Plan::default()
+    };
+    let mut yard = Yard::new(&plan);
+    assert!(
+        bodies_affordances(&yard, "walker").is_empty(),
+        "nothing from bodies: {:?}",
+        bodies_affordances(&yard, "walker")
+    );
+    let to = yard.at("street", (3_900, 5_000));
+    let moved = yard.walk("walker", to);
+    let id = mineworld_contracts::PersonId::new(
+        yard.people["walker"],
+        mineworld_contracts::EntityType::Person,
+    )
+    .expect("a person");
+    assert_eq!(moved.events.len(), 1, "one fact");
+    assert_eq!(
+        moved.events[0].payload().payload(),
+        encode(&mineworld_presence::Arrived::new(id, to)).as_slice(),
+        "exactly Arrived::new's bytes, though the two now overlap"
+    );
+    // A kick there is impossible: no object can lie in an unshaped place (objects_genesis.rs).
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -458,10 +705,45 @@ fn the_kicks_and_throws_offered_are_the_objects_within_reach() {
 }
 
 #[test]
+fn a_shove_is_offered_to_each_other_person_and_priced_by_distance() {
+    let yard = offered();
+    let observation = yard.observation("observer");
+    let shoves: Vec<_> = observation
+        .affordances()
+        .iter()
+        .filter(|affordance| affordance.action_type().as_str() == "shove")
+        .map(|affordance| {
+            (
+                affordance.target().map(|target| yard.key_of(target)),
+                affordance.payload().map(ToString::to_string),
+                affordance.unavailable_reason().cloned(),
+                *affordance.requirement(),
+            )
+        })
+        .collect();
+    println!("shoves: {shoves:?}");
+    let requirement = mineworld_bodies::shove_requirement();
+    assert_eq!(
+        shoves,
+        [
+            (Some("p"), Some("{}".to_owned()), None, requirement),
+            (
+                Some("q"),
+                Some("{}".to_owned()),
+                Some(Rejection::TooFarAway),
+                requirement
+            ),
+        ],
+        "p at 985 mm available, q at 1 265 mm TooFarAway, none to oneself"
+    );
+}
+
+#[test]
 fn each_offered_kick_and_throw_is_accepted_as_offered() {
     let observation = offered().observation("observer");
     for affordance in observation.affordances().iter().filter(|affordance| {
-        ["kick", "throw"].contains(&affordance.action_type().as_str()) && affordance.is_available()
+        ["kick", "throw", "shove"].contains(&affordance.action_type().as_str())
+            && affordance.is_available()
     }) {
         let mut fresh = offered();
         let request = affordance
