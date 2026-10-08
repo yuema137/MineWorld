@@ -1106,10 +1106,10 @@ Neither pack names a physics word or an interaction word.
 - IA-10's canary, on a scratch branch never pushed, deleted after.
 - IA-9's `git diff --stat`.
 - IA-11's full gate on the final head, in the background.
-- `MVP_STATUS.md`; the §11.8 ledger; the handoff.
+- `MVP_STATUS.md`; the §11.11 ledger; the handoff.
 
 - [ ] Implementation · [ ] Validation: as listed, each result PASS/FAIL/INCONCLUSIVE from evidence ·
-  [ ] Review: IA-1 … IA-11 each with evidence; deviations recorded in §11.9.
+  [ ] Review: IA-1 … IA-11 each with evidence; deviations recorded in §11.12.
 
 ## 11.7 Test ownership
 
@@ -1145,8 +1145,8 @@ Neither pack names a physics word or an interaction word.
 ```text
 PROJECT / PR        MVP-0 · S17 / PR IL-a — the configuration seam and the extension catalogs (framework
                     precursor; names no physics and no interaction)
-PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-18-interaction-list.md §11; evidence §11.8 ledger
-                    (E-IA<n>); deviations §11.9's successor section, added at the first deviation
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-18-interaction-list.md §11; evidence §11.11
+                    (E-IA<n>); deviations §11.12, added at the first deviation
 RELATED / BINDING   this file §§4.3, 4.10, 5 (IL-I1, IL-I4, IL-I8, IL-I10), 6; overall.md "The World
                     Interaction List"; step-18-physics-list.md §4.6–§4.7 (ARC-61/62 drafts);
                     step-16-packages.md §15 (E-b, frozen); DECISIONS ARC-5, ARC-23, ARC-25, ARC-26, ARC-31,
