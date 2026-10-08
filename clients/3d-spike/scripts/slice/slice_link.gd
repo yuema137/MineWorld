@@ -7,7 +7,10 @@
 ## sits in this scene, which perceived people to draw, and when to report the
 ## player's body.
 ##
-## It is the ONLY slice file that names an action type.
+## The one action it names is `move`, the body's strides. Every interaction
+## request is built by `intents.gd` (`SliceIntents`), and what the player is
+## looking at is `targeting.gd`'s ray (`SliceTargeting`): this file connects
+## them to the world (step-15 §19).
 ##
 ## What it never does (`ADOPTION.md` sec.3.3): decide whether an action is
 ## allowed, compare positions to decide whether to submit, or keep a list of
@@ -151,7 +154,7 @@ var _unknown_said := false
 ## EntityId string -> the label last shown for it, so someone heard after they
 ## have left view is still named as they were seen
 var _labels := {}
-var _talk_pending := {}            ## talk token -> [target id, what the player said]
+var intents := SliceIntents.new()  ## every interaction request, and what each token asked
 
 
 static func address_from_args() -> String:
@@ -367,6 +370,8 @@ func _figure(id: String) -> Node3D:
 	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, false)
 	n.name = "Person_" + id
 	n.set_meta("entity_id", id)       # a string, never a number (ADOPTION.md sec.3.1)
+	# what the targeting ray meets; nothing collides with it (step-15 §19)
+	n.add_child(SliceTargeting.person_collider())
 	world_root.add_child(n)
 	var label := Label3D.new()
 	label.name = "Label"
@@ -447,8 +452,8 @@ func _location(key: String, local: Dictionary) -> Dictionary:
 		MineWorldSpace.yaw_from_3d_radians(player.rotation.y))
 
 
-## Talk to whoever the camera is facing. Targeting is presentation; whether a
-## conversation may happen is the server's, and the request is sent regardless
+## Talk to whoever the camera is looking at. Targeting is presentation; whether
+## a conversation may happen is the server's, and the request is sent regardless
 ## of what the affordance says (ADOPTION.md sec.3.3).
 func talk_to_facing(utterance: String) -> String:
 	var target := facing_person()
@@ -456,15 +461,12 @@ func talk_to_facing(utterance: String) -> String:
 		_say("nobody in view to talk to", "", true)
 		return ""
 	var obs := client.latest
-	if obs != null and not obs.may("talk", target):
+	if not SliceIntents.talk_offered(obs, target):
 		_say("the world says talking to %s is unavailable: %s"
-			% [display_label(target), _readable(obs.unavailable_reason("talk", target))],
+			% [display_label(target), _readable(SliceIntents.talk_reason(obs, target))],
 			"target %s" % target)
-	var tok := client.submit("talk", target, { "utterance": utterance },
+	return intents.talk(client, target, utterance,
 		_location(here_key, to_world(here_key, player.global_position)))
-	_tokens[tok] = "talk"
-	_talk_pending[tok] = [target, utterance]
-	return tok
 
 
 ## A server's reason code, as words: `too_far_away` -> "too far away".
@@ -474,21 +476,11 @@ static func _readable(code: Variant) -> String:
 	return String(code).replace("_", " ") if typeof(code) == TYPE_STRING else str(code)
 
 
+## The perceived person the camera's ray meets first, or "" -- a wall, a
+## counter or nothing in the way of the eye (`SliceTargeting`).
 func facing_person() -> String:
-	var cam := player.get_viewport().get_camera_3d()
-	if cam == null:
-		return ""
-	var fwd := -cam.global_transform.basis.z
-	var best := ""
-	var best_dot := 0.80
-	for id in figures:
-		var to: Vector3 = (figures[id] as Node3D).global_position + Vector3(0, 1.4, 0) \
-			- cam.global_position
-		var d := fwd.dot(to.normalized())
-		if d > best_dot:
-			best_dot = d
-			best = id
-	return best
+	var id := String(SliceTargeting.aim(player.get_viewport())["entity"])
+	return id if figures.has(id) else ""
 
 
 func _on_resolved(token: String, action_id: String, result: Variant) -> void:
@@ -497,7 +489,8 @@ func _on_resolved(token: String, action_id: String, result: Variant) -> void:
 		kind = String(result)
 	elif typeof(result) == TYPE_DICTIONARY and not (result as Dictionary).is_empty():
 		kind = String((result as Dictionary).keys()[0])
-	var what: String = _tokens.get(token, "?")
+	var req := intents.take(token)
+	var what: String = req.get("action", _tokens.get(token, "?"))
 	answers.append({ "token": token, "action": what, "action_id": action_id, "result": kind,
 		"detail": result, "sent": last_sent_local.duplicate() })
 	if what == MOVE_ACTION and kind != "accepted":
@@ -507,17 +500,16 @@ func _on_resolved(token: String, action_id: String, result: Variant) -> void:
 	if kind == "accepted" and what == MOVE_ACTION:
 		return  # the steady stream of position reports; not worth a toast
 	var log_detail := "%s %s -> %s %s" % [what, token, kind, JSON.stringify(result)]
-	if what == "talk" and _talk_pending.has(token):
-		var p: Array = _talk_pending[token]
-		_talk_pending.erase(token)
+	if req.has("words"):
 		if kind == "accepted":
 			# what the player said, echoed as a line of the conversation
-			_say("talking to %s" % display_label(p[0]))
-			_speak(display_label(client.observer), p[1], log_detail)
+			_say("talking to %s" % display_label(req["target"]))
+			_speak(display_label(client.observer), req["words"], log_detail)
 			return
 		var reason: Variant = (result as Dictionary).get(kind) \
 			if typeof(result) == TYPE_DICTIONARY else result
-		_say("can't talk to %s: %s" % [display_label(p[0]), _readable(reason)],
+		_say("can't %s %s: %s" % [SliceIntents.verb(what), display_label(req["target"]),
+			_readable(reason)],
 			log_detail, true)
 		return
 	_say("%s: %s" % [what, kind if kind == "accepted" else "%s, %s" % [kind, _readable(
@@ -526,19 +518,24 @@ func _on_resolved(token: String, action_id: String, result: Variant) -> void:
 
 
 func _on_refused(code: String, token: String, _detail: String) -> void:
-	answers.append({ "token": token, "action": _tokens.get(token, "?"), "result": "refused",
-		"code": code })
+	var req := intents.take(token)
+	answers.append({ "token": token, "action": req.get("action", _tokens.get(token, "?")),
+		"result": "refused", "code": code })
 	if _tokens.get(token, "") == MOVE_ACTION:
 		_reconcile = true
-	var target := ""
-	if _talk_pending.has(token):
-		target = String(_talk_pending[token][0])
-		_talk_pending.erase(token)
-	_say("refused%s: %s" % [" talking to " + display_label(target) if target != "" else "",
-		_readable(code)], "token %s" % token, true)
+	var about := ""
+	if req.has("target"):
+		about = " (%s %s)" % [SliceIntents.verb(req["action"]), display_label(req["target"])]
+	_say("refused%s: %s" % [about, _readable(code)], "token %s" % token, true)
+
+
+## The person the player is looking at, by the name the HUD shows, or "".
+func looking_at() -> String:
+	var id := facing_person()
+	return display_label(id) if id != "" else ""
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo \
 			and (event as InputEventKey).physical_keycode == KEY_E and client != null:
-		talk_to_facing("Hello! A coffee, please.")
+		talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)

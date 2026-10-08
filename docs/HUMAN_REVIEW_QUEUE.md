@@ -683,6 +683,13 @@ the mouse.
    `You: Hello! A coffee, please.`, then
    `Alice Moreau: I remember you. You said "Hello! A coffee, please.". You are the first person to speak to me here.`
 
+   **Since S14 PR 16a (2026-10-08), you talk by aiming.** Connected, a small dot marks the centre of
+   the screen and a HUD line reads `looking at: <name>`: E talks to whoever the dot is on, and nobody
+   is targeted through a wall. From the door Alice stands almost behind Bob — put the dot just right
+   of Bob's head, on her, until the line says `looking at: Alice Moreau`. The dot and the line are a
+   3D visual default chosen by the primary session (step-15 Q-16a-1); whether they feel right is
+   yours to judge in play.
+
 The objective checks behind this, if you want them: `./mineworld-slice --drive` (walk-in, loop,
 walls, cameras, jumps, The Flower Room), `--measure` (scale), `--threshold` (light at the door),
 `--character` (she animates; every camera mode), `--world --link` (the connected round trip),
@@ -765,6 +772,9 @@ launch        plain launch and every mode exit 0; no script or resource errors
 7. **First person draws no body**, on purpose (`player.gd`).
 8. **On exit, Godot prints `7 RIDs of type "Texture" were leaked`.** No resource or object is named,
    it is present with GI off, and it has no effect while running. Not attributed.
+   *Attributed 2026-10-08 (S14 PR 16a): engine-side — one reflection probe in an empty scene leaks the
+   same 7 texture RIDs on Godot 4.7.2 (Metal), even when freed first; reproduction
+   `clients/3d-spike/tools/reflection_probe_leak.gd`, evidence `step-15-demo-3d.md` §19.7 E16a-6.*
 9. **In `09_character_close.jpg` a pendant lamp hangs just above her bun** in the frame.
 10. **The environment misses of the 2026-10-06 preview stand**, unchanged by this step: through
    `03`'s glass a barista and glowing pendants, ours a counter at the back (empty offline; with

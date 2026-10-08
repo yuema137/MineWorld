@@ -4,6 +4,9 @@ class_name Build
 extends RefCounted
 
 const LAYER_WORLD := 1
+## Perceived people's colliders (step-15 §4.2). In PR 16a they exist for the
+## targeting ray only: neither the player nor the camera masks them.
+const LAYER_BODIES := 2
 
 
 static func _mi(mesh: Mesh, mat: Material, xf: Transform3D, parent: Node3D, nm := "m") -> MeshInstance3D:
