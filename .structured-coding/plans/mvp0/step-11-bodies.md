@@ -6755,16 +6755,22 @@ ignored test reading both policies.
 
 **Scope.** `rapier.rs` (the sweep's exclusion predicate), `stride.rs`; `tests/actions.rs`: the DO-11 pin
 renamed and flipped (TZ-6, M-Z5).
-- [ ] Implementation.
-- [ ] Validation: TZ-6; ZR-1, ZR-2.
-- [ ] Review: excluded only while within 2R + GAP and behind; V1 still counts them.
+- [x] Implementation: 31e3779 (E-Z6). The nudge pass's sweeps are walls-only and never meet people, so
+  only the walker's contact sweep leaves anybody out.
+- [x] Validation: TZ-6 (with Z-D8's literal), M-Z5, ZR-1, ZR-2; with SD-Z5 off ZI-1 … ZI-3 = E-Z-base
+  (E-Z6).
+- [x] Review: excluded only while within 2R + GAP (inclusive) and behind (d · (p − start) ≤ 0, d the
+  aim's offset, the bias included); V1 still counts them (`verifies` reads every other person); with
+  nobody left out the query filter is the one built before.
 
 ### ZC-6 — VERSION, documents, re-capture, the gate, close
 
-- [ ] `VERSION` 3; `rapier_pin`; ARC-39 note 4, DEP-13 note; README; MVP_STATUS.
-- [ ] ZR-1 … ZR-5: the new bases recorded.
-- [ ] **TZ-9, the gate**, on the final executable head. PASS → READY. FAIL → STOP and report.
-- [ ] TZ-1, TZ-8, TZ-10; the full gate once; the ledger; the handoff.
+- [x] `VERSION` 3; `rapier_pin`; ARC-39 note 3 (the next free number), DEP-13 note; README; MVP_STATUS
+  (df94e46).
+- [x] ZR-1, ZR-2, ZR-4, ZR-5: the new bases recorded (E-Z6, E-Z7). ZR-3 withdrawn (§20.4 amendment).
+- [ ] **TZ-9a FAILS on social-cafe (3.60 ×), passes on market-town (2.999 ×); TZ-9b PASSES (max
+  10.5 ms)** — E-Z7; §20.13 Z-D9, MATERIAL STOP. Not READY.
+- [x] TZ-1, TZ-8, TZ-10; the full gate once (E-Z7); the ledger; the handoff.
 - [ ] Review: every TZ with evidence; deviations named; §19's TD-14 references updated in the ledger
   only (the planning session updates §19 after merge).
 
@@ -7092,6 +7098,66 @@ E-Z5 ZC-4 (SD-Z3 + SD-Z4), 2026-10-08, on 18d8e48 + the ZC-4 code, parked on bra
        interleaved z6, z34, z6, z34 → 7.40, 7.86, 7.72, 7.68 s. SD-Z3 + SD-Z4 show no CPU gain over
        SD-Z6 alone that this instrument can see under this load.
 
+E-Z6 ZC-5 (SD-Z5), 2026-10-08, commit 31e3779 (on b987d7f: SD-Z2 + SD-Z6; SD-Z3/Z4 dropped).
+     Code: `rapier.rs` `Scene::sweep_past` (people at given scene indexes left out of a contact sweep by
+       a query predicate; with none left out the filter is exactly the one built before), `stride.rs`
+       (`behind`: within 2R + GAP of the start, inclusive, and d · (p − start) ≤ 0; passed to the
+       contact sweep only — walls sweeps never meet people), `resolve.rs` (`Policy.away_free`),
+       `system.rs` VERSION 3, `tests/rapier_pin.rs` (3, "0.36.0"), `tests/actions.rs` (DO-11's pin
+       renamed and flipped; a new "toward" test; a misplaced doc comment moved to the test it describes).
+     Class-I check with SD-Z5 off (`away_free: false`, temporarily; step.sh z5off): ZI-1 d7025dbc…,
+       ZI-2 53d017d0…, ZI-3 6e4c4015… = E-Z-base, every bodies test passing.
+     With SD-Z5 on: fmt, clippy -D warnings clean; `cargo test -p mineworld-bodies` every test passes;
+       the only edited tests are the named flip, the pin's literal and the new toward test (ZR-1 PASS).
+       PB-5 a and c unedited and passing.
+     TZ-6: `a_shove_from_600_mm_moves_its_target_half_a_metre` → b at (4 499, 4 999), stopped-short
+       { by: None } — not (4 500, 5 000) without a stopped-short as TZ-6 predicted (§20.13 Z-D8);
+       `a_stride_toward_a_person_600_mm_away_is_still_stopped` → a stays at (3 400, 5 000), stopped by
+       b, b unmoved.
+     M-Z5 (the d · (p − start) test made always true): the toward test FAILS — a at (4 369, 4 758).
+       Restored.
+     ZR-2: long_run's N-1 … N-4 and long_run_objects' SD-O2 after every request (both pass); bodies-yard
+       30-day scan and two processes, SIGKILL and replay (`tools/cli/tests/bodies_yard*.rs`, pass in the
+       full gate, E-Z7).
+     ZR-5, the new bases (step.sh z5, binary /tmp/s15-12d0/z5-mineworld):
+       ZI-1  E-Z-base d7025dbc…79eaf (4 091 748 bytes) → 23f7fa76016294ab18ae5b6a6b568b61d1b36fc0741ee51eb7952276a1de5125
+             (4 019 632 bytes)
+       ZI-2  E-Z-base 53d017d0…95411 (569 950 bytes) → c8358f8bbc06c94fbd7db33375dfe21ad0da80ddd39ee93ce9a72d542798c5b4
+             (612 428 bytes)
+       ZI-3  E-Z-base 6e4c4015…c8395 (62 855 facts) → bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6
+             (62 385 facts, faults 0)
+
+E-Z7 ZC-6, 2026-10-08, on 31e3779 (code) — /tmp/s15-12d0/close.sh z5, gate-town.sh; binary
+     /tmp/s15-12d0/z5-mineworld.
+     TZ-1: validate bodies-yard 7356b8f8…, market-town 64f41086…, social-cafe ebcd60a0… — each = E-Z-base;
+       social-cafe 300 days ad49c723…c64b, market-town 365b50e0…1d1d — both = E-TD0. PASS.
+     ZR-4 / TZ-8: x86_64 build (`--target x86_64-apple-darwin`, own target dir), bodies-yard 30 days
+       under `arch -x86_64`: summary sha bd6a1002…80e6 = arm64's. PASS (covers Class I and SD-Z5).
+       Two processes, SIGKILL and replay from genesis: `bodies_yard_is_the_same_world_in_two_processes_
+       and_after_sigkill` passes.
+     TZ-10 / full gate: `cargo fmt --all --check` 0, `cargo clippy --workspace --all-targets -D
+       warnings` 0, `cargo test --workspace` 0 (153 result lines, all ok; the ignored are the existing
+       ones). Isolation, rapier_pin (3, "0.36.0"), ac1_composability, precursor_vocabulary,
+       seam_vocabulary unedited and passing. Doc checks: 191 sections, none duplicated; 55 decision ids.
+     **TZ-9a** (§20.5 amendment, §20.6.1's instrument; CPU = user + sys; 300 days, seed 7):
+       first set (15:19 … 15:24, load 46 → 5):
+         social-cafe  without 14.51, with 47.33, without 13.64, with 49.02 → pair ratios 3.262, 3.594:
+                      10.2 % apart → CONTAMINATED, re-run once
+         market-town  without 16.93, with 47.17, without 15.73, with 44.90 → pair ratios 2.786, 2.854
+                      (2.4 % apart): max(with) ÷ min(without) = 47.17 ÷ 15.73 = **2.999 × ≤ 3.0 — PASS**
+       social-cafe re-run (15:24 … 15:26, load 7 → 5): without 12.60, with 45.02, without 13.29, with
+         45.40 → pair ratios 3.573, 3.416 (4.6 % apart, clean): max ÷ min = 45.40 ÷ 12.60 = **3.60 × >
+         3.0 — FAIL**, both pairs above 3.0.
+       Faults 0 in all twelve; with bodies 523 956 facts (social-cafe), 526 120 (market-town), each the
+       same in every run; without, 361 979 and 368 608 (= E-Z-before's). Against the "before" (E-Z-before:
+       7.98 ×, ≥ 6.02 ×) the cost has halved: with bodies ≈ 45–49 s, was ≈ 105–114 s.
+     **TZ-9b**: a scratch copy of 31e3779 (/tmp/s15-12d0/tz9bsrc, never committed) timing every call of
+       bodies' `ArrivalResolver::resolve` (Instant, one stderr line per call), market-town prototype,
+       300 days, seed 7: faults 0, 526 120 facts, fingerprint 47753fa6… = the gate's (the timing changes
+       nothing). 244 165 calls: p50 55 µs, p90 227 µs, p99 332 µs, p99.9 540 µs, max 10.54 ms.
+       **max ≤ 50 ms — PASS.** (Load average ≈ 5 during the run.)
+     §20.7's ladder not tried: the ruling relayed with option (c) says a clear TZ-9a failure stops.
+
 The prototype (E-TD0b), stated so it can be rebuilt:
   1  GIT_INDEX_FILE=/tmp/s15-12d0/proto.idx git --work-tree=/tmp/s15-12d0/proto checkout 21f96ff -- \
        worlds/social-cafe worlds/market-town
@@ -7275,6 +7341,46 @@ Validation consequence:
   glide along C's edge (likely to bring most of the nine under 50 mm, at the cost of sending those
   strides back to Rapier); or (c) drop SD-Z3 and SD-Z4 and measure TZ-9a with SD-Z6 alone (+ SD-Z5),
   since under the present load E-Z5 sees no CPU gain from them. Either way TZ-9a is not yet measured.
+```
+
+**Ruling on Z-D7 (primary session, 2026-10-08): option (c).** SD-Z3 and SD-Z4 dropped (§20.3, §20.4
+amendments); SD-Z5 done (E-Z6); ZC-6 run (E-Z7).
+
+**Z-D8 — TZ-6's literal (bounded).** TZ-6 predicted that with SD-Z5 the 600 mm shove leaves b at
+(4 500, 5 000) with no stopped-short. It leaves b at (4 499, 4 999) with `stopped-short { by: None }`:
+the shover is no longer in the sweep (the fix holds — 499 mm, not 301, and not stopped by a), but
+Rapier's controller drifts 1 mm on each axis in open floor, beyond the 1 mm snap (E-Z1's request 518
+showed the same drift). The test pins the measured point and asserts "not stopped by a"; the
+prediction, not the rule, was wrong. No scope, invariant or contract moves.
+
+**Z-D9 — MATERIAL STOP: TZ-9a fails on social-cafe (E-Z7).**
+
+```text
+Previous assumption:
+  §20.5's amendment: with SD-Z6 (and the pieces then in scope) both town prototypes cost at most
+  3.0 × their copies without bodies.
+Audit evidence:
+  E-Z7. market-town 2.999 × (PASS, by a hair). social-cafe: first set contaminated (pair ratios 10.2 %
+  apart), re-run clean: 3.573 and 3.416, max ÷ min 3.60 × — both pairs above 3.0. TZ-9b passes (max
+  10.5 ms, p99 0.33 ms). Every other gate passes (TZ-1, TZ-2, TZ-6, TZ-8, TZ-10, ZR-1, ZR-2, ZR-4, ZR-5).
+Corrected understanding:
+  SD-Z6 halves bodies' cost (≈ 110 s → ≈ 46 s of CPU per 300 days) but the social-cafe prototype's
+  copy without bodies is cheaper than market-town's (12.6 … 14.5 s against 15.7 … 16.9 s) while the
+  with-bodies cost is about the same, so its ratio is higher.
+Implementation consequence:
+  None further: the ruling says a clear TZ-9a failure stops. §20.7's ladder (L1, L2) not tried: L1
+  ("B = W when nobody is in reach") rests on SD-Z1's reach, which E-Z2 showed Rapier's non-locality
+  makes not byte-identical; L2 is an integer nudge, of the kind E-Z5 showed differs from Rapier at its
+  offset. The PR is not opened as READY.
+Validation consequence:
+  For the operator, with the numbers above: accept 3.60 × on social-cafe, try the ladder, or a further
+  piece. What remains (E-Z7's addendum, a 30-day sample of the head's build, social-cafe prototype,
+  /tmp/s15-12d0/profile/z5-sample.txt): main thread 3 345 samples; bodies' resolve 1 724 (51.5 %), of
+  which stride (Rapier's sweeps and scene builds) ≈ 1 700 and E3's search ≈ 1 — SD-Z6 removed it. On
+  300 days that puts ≈ 20 s of social-cafe's ≈ 33 s of bodies' CPU in Rapier strides and ≈ 12 s in the
+  rest (more facts). Passing 3.0 × (≤ 37.8 s) needs ≈ 7.6 s less: about 37 % of the Rapier strides'
+  cost. L1 (skipping the contact sweep, one of each attempt's two sweeps, when nobody is near) is the
+  size of cut that could reach it, but would have to be Class R (E-Z2's non-locality).
 ```
 
 **Z-D5 — The resumed session (bounded).** The previous implementation session ended (API rate limit)
