@@ -8,7 +8,7 @@ questions (QIL-1 …). It holds no frozen PR design.
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md); siblings: [`step-11-bodies.md`](step-11-bodies.md)
 (S15), [`step-16-packages.md`](step-16-packages.md) (S16), [`step-17-cognition.md`](step-17-cognition.md)
 (S10), [`step-12-server.md`](step-12-server.md) (S11-C perception).
-**Lifecycle:** `DRAFT — awaiting the primary session's review`. Nothing here authorizes implementation.
+**Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions in `overall.md` "The World Interaction List (operator, 2026-10-08)", which bind and override this document where they differ (notably: the carrier stays `configure:`, QIL-2). Each PR (IL-a … IL-i) is detailed and frozen in turn.
 Edits to `overall.md`, `docs/DECISIONS.md` and the specifications are proposed in §9 and §10 and not applied.
 **Authority.** This document is the one authority for the merged step.
 [`step-18-physics-list.md`](step-18-physics-list.md) (S17, frozen at step level) is **superseded** by it.
