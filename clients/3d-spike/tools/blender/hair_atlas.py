@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 """The strand atlas the default character's hair cards are textured with.
 
     blender --background --python hair_atlas.py -- <out.png>

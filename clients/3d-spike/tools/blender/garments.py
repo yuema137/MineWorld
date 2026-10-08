@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 """The default character's clothing, modelled in Blender against the identity contract.
 
 Called by `character_model.py`; see that file for the pipeline and for how to

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
 """Assemble the MineWorld default character, in Blender, into one rigged GLB.
 
     blender --background --python character_model.py -- \
