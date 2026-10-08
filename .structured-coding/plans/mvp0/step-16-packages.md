@@ -1167,11 +1167,19 @@ before code (`CLAUDE.md` §2.2). Markdown only.
   | validate`; §9: the MVP-0 subset and the rule that raising `SystemVersion` is a breaking release.
 - `docs/ARCHITECTURE.md` §14: `packages/`.
 
-- [ ] Implementation: as scoped; ARC-53 / DEP-21 re-checked free on every `origin/*` branch after
-  `git fetch` before writing.
-- [ ] Validation: both doc checks; `git grep` that no other document defines "pack identity"
-  differently (`CLAUDE.md` §2.1(3)).
-- [ ] Review: no defined term redefined (`World Pack`, `System Pack`, `Controller Pack`, `Presentation
+- [x] Implementation: as scoped; ARC-53 / DEP-21 re-checked free on every `origin/*` branch after
+  `git fetch` (none holds either). `PACKAGE_FORMAT.md` gains §5.0 *Package identity in MVP-0* (the
+  carrier table and `pack.yaml`'s fields) and an §8 row; `MODULE_SPEC.md` §3.1 (`PACKAGE` in the table
+  and both examples), §4.1 (the three world fields in the sample and a "Package fields" paragraph),
+  §6.1 (`pack.yaml`), §8.1 (`packs` in the synopsis, the table and its own paragraph), §9 (rule 4 and
+  the MVP-0 subset); `ARCHITECTURE.md` §14 (`packages/`). DEP-21's weight line is filled in Ea-C2.
+  Bounded fix on the way: `MODULE_SPEC.md` §6.1 had a code fence closed mid-line ("``` The reference
+  images…"), which ran the following prose into the block; the new `pack.yaml` paragraph sits there and
+  the fence is now closed on its own line.
+- [x] Validation: `check_doc_headings` → 177 sections / 25 documents, none duplicated (+1: §5.0);
+  `check_decision_ids` → 53 ids, distinct (+2). `git grep -n "pack identity\|package identity" docs`
+  → only ARC-53, PACKAGE_FORMAT §5.0/§8, MODULE_SPEC — one definition (E-Ea1).
+- [x] Review: no defined term redefined (`World Pack`, `System Pack`, `Controller Pack`, `Presentation
   Pack` used as `MODULE_SPEC.md` defines them; "package identity", "carrier" are new descriptive terms
   defined in ARC-53); `MODULE_SPEC.md` §4's frozen model is not edited (its `requires:` amendment is
   E-b's); every PD-n appears in ARC-53.
