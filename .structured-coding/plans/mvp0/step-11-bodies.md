@@ -6427,4 +6427,357 @@ E-TD-base, E-TD1 … : the implementing session's.
 
 None yet.
 
+---
+
+# 20. PR 12d-0 — bodies' cost (full design; DRAFT, not frozen)
+
+**Lifecycle:** inserted by the primary session's QD-2 ruling (2026-10-08, §19's header) and drafted by
+the planning session on `mvp0/s15-12d0-plan`, from `main @ f842c52` (#72 and S11-A #76 merged; S11-A
+touches nothing of bodies). **Not frozen.** Nothing in §20 authorizes implementation.
+
+The ruling, as relayed: implement DB-10's options 2 and 3 — integer wall-only strides that never touch
+Rapier, and only the people who can be reached in the scene; decide **before measuring** which results
+must stay byte-identical (bodies-yard, `long_run`) and which may legitimately change, and if option 3
+changes results, re-capture the bases under a stated rule; measure E-TD0b's town prototype against
+QB-11's 1.5 × **before 12d is frozen**; if 12d-0 cannot reach ≤ 1.5 × on the prototype, stop and report —
+that goes back to the operator. QB-11 is not re-scoped.
+
+## 20.1 Identity, base, approved scope
+
+```text
+PR            12d-0 — bodies' cost (S15, a precursor between 12c and 12d)
+base          main after this design's PR merges (f842c52 + Markdown only). Re-audit §20.2 if anything
+              under systems/bodies, systems/presence, kernel/src or tools/cli/tests/bodies* moved
+branch        mvp0/pr-12d0-cost, in its own worktree, held by the implementing session only
+audit         §20.2 (main @ f842c52, 2026-10-08), E-TD0b
+scope         DB-10 options 2 and 3 as SD-Z1 … SD-Z5 define them; FU-12c-1 (QD-10); the cost gate on
+              E-TD0b's prototype (§20.12)
+depends on    12c merged (889d217); the 12c post-merge docs (#72)
+merge         a merge commit, never a squash
+```
+
+**Goal.** A stride costs what it needs: the scene holds only what the stride can reach, Rapier is not
+consulted where integers answer exactly, and the towns of §19 run within QB-11's 1.5 × — measured on the
+prototype before §19 is frozen.
+
+**Change set.**
+
+```text
+systems/bodies/src/{rapier,stride,entry,resolve,geometry,system}.rs   SD-Z1 … SD-Z5; VERSION 3
+systems/bodies/src/reach.rs            new: the reachable set (SD-Z1), integer only
+systems/bodies/src/walls.rs            new: integer wall strides (SD-Z4)
+systems/bodies/tests/{cull,walls}.rs   new: SD-Z1's identity, SD-Z4's literals
+systems/bodies/tests/{rapier_pin,actions}.rs   (3, "0.36.0"); FU-12c-1 flips the DO-11 pin (§20.6)
+systems/bodies/README.md, lib.rs's table
+docs/DECISIONS.md                      ARC-39 note 4 (SD-Z4, SD-Z5: results changed by design), DEP-13
+                                       note (what of Rapier is now consulted)
+docs/MVP_STATUS.md                     the S15 rows
+.structured-coding/plans/mvp0/{step-11-bodies,handoff}.md
+```
+
+No diff: everything outside `systems/bodies/` and the documents above — in particular `worlds/`
+(bodies-yard included), `tools/cli/`, presence, movement, the controller, the kernel, contracts, the
+root `Cargo.toml`, `Cargo.lock`. The prototype is never committed: it lives in `/tmp`, regenerated
+from §20.12's recipe.
+
+**Non-goals.** Any change to a bodies *rule* other than SD-Z4 and SD-Z5 (constants, the nudge, the
+bias, the push, the flight, entry placement's lattice); the towns (12d); per-place caching of a scene
+(I-5 forbids it); the release profile for `mineworld run`; `parallel` or `simd8` (DC-1).
+
+## 20.2 Source audit (`main @ f842c52`, 2026-10-08)
+
+| ID | Finding | Evidence | Consequence |
+| --- | --- | --- | --- |
+| **F-Z1** | **Every swept stride builds the whole place.** `stride` builds one `Scene` with the floor slab, four perimeter walls, **every** solid, **every** person standing in the place and **every** object, then runs a walls-only sweep, a contact sweep, the nudge pass's sweeps, and on a jam a second attempt on the same scene. `entry`'s E2 builds the same. | `stride.rs:111–166`; `entry.rs:47–60`; `rapier.rs:120–155, 420–490` | On the prototype's street (≈ 60 solids, up to 12 people) every swept stride inserts ≈ 70 colliders to answer queries that touch a handful. SD-Z1. |
+| **F-Z2** | **A scene runs the narrow phase it never reads.** `refresh` calls `PhysicsWorld::detect_collisions`, which steps the broad phase and the narrow phase. Scene queries read only the broad phase: `query_pipeline_with_filter` is `broad_phase.as_query_pipeline(narrow_phase.query_dispatcher(), …)`. The re-mark of dynamic bodies after it (F-P1) matters only where something is dynamic: a flight. A people scene has no dynamic body. | `rapier.rs:495–515`; `rapier3d-0.36.0/src/pipeline/physics_world.rs:175–185, 569–581` | DB-10 option 2's "broad phase without the narrow phase", for `Scene` only (SD-Z2). `Pile` and `fly` keep `refresh` unchanged. Whether 0.36.0 exposes a broad-phase-only update is audited in ZC-2; if it does not, SD-Z2 is dropped, recorded, and the rest stands. |
+| **F-Z3** | **The fast path is coarse against solids.** `corridor_clear` refuses any stride whose segment's bounding box, grown by R + GAP, meets a solid's box — a diagonal stride is swept when a solid lies anywhere in its box, however far from the segment itself. | `geometry.rs:239–261` | On a street of lamps, bollards and trees, many clear strides go to Rapier. An exact integer segment-to-box distance (SD-Z3). |
+| **F-Z4** | **A stride stopped only by the floor's edge is answered by Rapier's slide.** The floor is an axis-aligned rectangle; the centre's free region against it alone is the floor shrunk by R + GAP (the controller's offset), a rectangle. 12b measured its stop to ± 1 mm (PB-5 a: 8 010 = 8 320 − 300 − 10). Its slide was asserted only as "it slid" (PB-5 c: y > 4 010): how much tangential motion Rapier keeps is not pinned. | `stride.rs:239–267`; §17.4 PB-5 a, c | An integer clamp reproduces the stop exactly and the slide only approximately: **SD-Z4 changes results** wherever a walker slides along a wall. Hence the re-capture rule (§20.4 ZR). |
+| **F-Z5** | **The prototype's strides end mostly at walls.** E-TD0b: 71 % of 243 397 accepted moves ended stopped short with the street's props; 30 % (58 371 of 194 013) with walls only; and the paced controller wanders ± 1 400 mm with no notion of a wall (F-D14). | E-TD0b | SD-Z4 answers the walls-only share without Rapier; SD-Z1 and SD-Z3 make the props' share cheap. Neither changes what the controller asks. |
+| **F-Z6** | **What holds bodies' results today.** `long_run.rs` and `long_run_objects.rs` compare a second process's bytes and check N-1 … N-4 after every request; `bodies_yard.rs` and `bodies_yard_restart.rs` check activity, the scan, two processes and SIGKILL. **No test holds a captured digest**: the references (E-PO-base's `long_run` sha, the bodies-yard 30-day summary sha `6e4c4015…c8395`) are ledger entries. | `systems/bodies/tests/long_run*.rs`; `tools/cli/tests/bodies_yard*.rs`; §18.10 | Re-capturing a base edits the ledger only. Which bases may move is decided now (§20.4). |
+| **F-Z7** | **FU-12c-1 is one predicate in the contact sweep.** A walker standing 595 … 610 mm from somebody (a blocked walker ends 608.7 mm away, DB-6) is swept with them solid, so a stride directly away advances 1 mm and is cut to `NUDGE_MAX` past it (DO-11, `a_shove_from_600_mm_is_cut_short_by_the_shover`). | `stride.rs:239–267`; `rapier.rs:161–205`; §18.11 DO-11 | SD-Z5. Changes results (class R). |
+| **F-Z8** | **12d's prototype exists only in `/tmp`.** It is `worlds/social-cafe` at `21f96ff` with six place files, four item files and `world.yaml` changed (E-TD0b). | E-TD0b | §20.12 states it in full, so the gate is reproducible from the repository. |
+
+## 20.3 Design (SD-Z1 … SD-Z5)
+
+| ID | Decision | Class | Rationale |
+| --- | --- | --- | --- |
+| **SD-Z1** | **Only what a stride can reach is in its scene** (DB-10 option 2). `reach.rs`, integer only: a stride from `start` asking for `d` has a **reach box** — `start`'s square of half-side ρ = \|d\| + `REACH_MARGIN`, `REACH_MARGIN` = **2 200 mm**. A solid, a person or an object's footprint enters the scene iff its box meets the reach box; the others are left out. Canonical order is kept among those inserted (floor slab, walls, solids in authored order, people by `EntityId`, objects by `ItemId`); scene indexes are mapped back to the place's lists, so `Touch`, `in_scene` and every answer name the same entities. `REACH_MARGIN`'s derivation, stated in `reach.rs` and checked by a unit test from the constants: the walker ends within \|d\| of `start` (no stride is lengthened); a generation-1 nudged person stood within 2R (600) of the walker's end and moves ≤ NUDGE_MAX + GAP (310); its sweep can touch a solid within R (300) of its path → 1 210; a generation-2 person stood within 2R of a generation-1 end → 1 510 and moves ≤ 310 → 1 820, a solid within R of it → 2 120; rounded up to 2 200. Entry's E2 uses the same box around `to` with \|d\| = 0. | **I** (must be byte-identical) | Every collider left out is one no query of this resolution can touch: a shape cast's time of impact against a collider does not depend on other colliders. What could still differ is the order in which Rapier visits equal hits; that is exactly what TZ-2 measures, and a difference is a finding, not a re-capture (§20.4). |
+| **SD-Z2** | **A people scene updates its broad phase only** (DB-10 option 2's other half). `Scene::build` replaces `refresh` by the broad-phase update the query pipeline reads, if 0.36.0 exposes one (F-Z2); `Pile` and `fly` keep `refresh`, F-P1's re-mark and its canary unchanged. | **I** | The narrow phase's contacts are read by no sweep. If no broad-phase-only update exists in 0.36.0, SD-Z2 is dropped and recorded (ZC-2). |
+| **SD-Z3** | **An exact corridor.** `corridor_clear`'s solid test becomes the exact integer distance from the centre's segment to each solid's box ≥ R + GAP (`i128`), in place of the boxes' overlap. The people and objects tests are already exact. | **I** | A corridor that is exactly clear by R + GAP is one Rapier sweeps to `to` and the snap (1 mm) returns `to`, which is the fast path's answer. A difference is a finding (§20.4). |
+| **SD-Z4** | **Integer wall strides** (DB-10 option 3), `walls.rs`. A stride whose corridor is not clear is answered without Rapier when all hold: `start` lies inside C, the floor shrunk by R + GAP; no solid's box, grown by R + GAP, meets the bounding box of `start` and `target`; every other person's centre is at least 2R + GAP from that box; every object's footprint is at least R + GAP from it. Then the walker ends at `clamp(target, C)` — each coordinate clamped to C — which is the controller's stop at the wall (offset GAP) and its slide along it, and which lies in the box, never farther from `start` than `target` (a projection onto a convex set containing `start`). `stopped_by` None; `Route::Walled`; no nudge, no push (nothing else is in reach); V1 … V4 still run. Every other stride goes to Rapier as today. | **R** (may change results) | Most of the towns' stopped strides are walls (F-Z5). The stop is exactly Rapier's (PB-5 a); the slide keeps all the tangential motion, which Rapier's controller may not (F-Z4) — a deliberate, recorded change to SD-B6 step 4 for this one case. |
+| **SD-Z5** | **FU-12c-1: a stride away from a person within the offset is not stopped by them.** In the contact sweep (`Against::Contact`) and the nudge pass's sweeps, a person whose centre lies within 2R + GAP of `start` and on the far side of `start` from the stride (d · (p − start) ≤ 0) is excluded from the sweep. Verification (V1) still counts them, so the result can never overlap them. | **R** | DO-11's fix, in the PR that re-captures the bases anyway (QD-10). |
+
+`VERSION` 2 → 3: SD-Z4 and SD-Z5 change results; a 12c save is refused by name (`ARC-25`).
+
+## 20.4 Which results must not move, and the re-capture rule (decided before measuring)
+
+**Class I (SD-Z1, SD-Z2, SD-Z3) must be byte-identical.** With SD-Z4 and SD-Z5 off — a crate-private
+`Policy { integer_walls: false, away_free: false }`, the production default being on — the build after
+ZC-3 must reproduce exactly, against E-Z-base captured on the base before any code:
+
+```text
+ZI-1  long_run.rs's second-process bytes (12b's 3 000 requests): sha-256 equal
+ZI-2  long_run_objects.rs's bytes (12c's): equal
+ZI-3  bodies-yard 30-day seed-7: the summary sha-256 (every line but `wall`) equal to 6e4c4015…c8395
+ZI-4  every bodies scenario, objects and actions test passing unedited
+```
+
+A Class-I piece that moves any of ZI-1 … ZI-3 is not result-preserving. It is reverted, the first
+differing request is located and recorded (§20.13), and the primary session decides whether it is
+dropped or moved to Class R under ZR. It is never re-captured silently.
+
+**Class R (SD-Z4, SD-Z5) may change results, and the bases are re-captured only when all of ZR hold:**
+
+```text
+ZR-1  every bodies test passes unedited, except the one named flip (FU-12c-1's pin, §20.6); PB-5 a's
+      8 010 ± 1 and PB-5 c's slide hold through SD-Z4
+ZR-2  every invariant holds after every request: long_run's N-1 … N-4, long_run_objects' SD-O2, the
+      bodies-yard scan (0 violations); two processes and SIGKILL byte-identical (bodies_yard_restart)
+ZR-3  the shadow comparison: over long_run's 3 000 requests and the 300-day prototype run of §20.12,
+      every request SD-Z4 answers is also answered by the Rapier path on the same state (a crate-private
+      `explain` over both policies); reported: how many, and the per-axis difference's maximum and
+      mean. PASS iff every SD-Z4 answer keeps V1 … V4 and at most 1 % of them differ from Rapier's by
+      more than 50 mm on an axis; each one above 50 mm is printed with its state
+ZR-4  cross-architecture: the new bodies-yard 30-day sha equal on arm64 and on x86_64 under Rosetta
+ZR-5  recorded, before and after, in §20.12: ZI-1's and ZI-2's sha-256 and ZI-3's summary sha — the new
+      bases 12d's TD-14 and S17's PL-b read
+```
+
+Towns: neither installs bodies before 12d, so social-cafe's and market-town's 300-day digests are
+unchanged by 12d-0 in every class (TZ-1).
+
+## 20.5 Acceptance (decided before measuring, `ARC-23`)
+
+```text
+TZ-1  Nothing else moves: both towns' 300-day seed-7 digests equal E-TD0's (ad49c723…c64b,
+      365b50e0…1d1d); `validate` of every world byte-identical to the base binary's.
+TZ-2  Class I is byte-identical (ZI-1 … ZI-4), with SD-Z4 and SD-Z5 off.
+      M-Z1  REACH_MARGIN 2 200 → 0 → ZI-1 differs, or a nudge scenario fails (a nudged person's wall left
+            out of the scene) — named.
+      M-Z2  the reach box drops people (solids only) → a scenario fails, naming the person not nudged.
+TZ-3  SD-Z1's margin is derived, not tuned: a unit test recomputes 2 200 from PERSON_RADIUS, GAP,
+      NUDGE_MAX and CHAIN_MAX and fails if a constant moves without it.
+TZ-4  SD-Z3 (walls.rs and geometry tests, hand-computed literals): a diagonal stride 320 mm from a lamp
+      post's box (its bounding box overlapping the post) is Clear, exactly `to`; at 300 mm it is swept.
+      M-Z3  the corridor back to box overlap → the 320 mm case is Swept.
+TZ-5  SD-Z4 (tests/walls.rs, the café room of §17.4, hand-computed literals, through World::dispatch):
+        a  east from (7 000, 3 000) to (8 500, 3 000) → (8 010, 3 000) exactly, stopped-short by None,
+           Route::Walled, no scene built (a crate-private counter of scenes built reads 0);
+        b  diagonal from (7 000, 3 000) to (8 400, 4 400) → (8 010, 4 400) exactly;
+        c  into the north-east corner → (8 010, 10 010);
+        d  the same stride with a person 700 mm off its box → Route::Swept (Rapier), as before;
+        e  a start 305 mm from the wall (outside C) → Swept.
+      M-Z4  C shrunk by R instead of R + GAP → a fails: 8 020.
+TZ-6  SD-Z5: `a_shove_from_600_mm_…` (renamed `a_shove_from_600_mm_moves_its_target_half_a_metre`)
+      → B at (4 500, 5 000), no stopped-short; a stride toward a person 600 mm away is still stopped.
+      M-Z5  the d · (p − start) ≤ 0 test dropped (every near person excluded) → the toward case overlaps,
+            and V1 degrades it, named.
+TZ-7  Class R's rule ZR-1 … ZR-5 holds, and the new bases are recorded.
+TZ-8  Determinism: two processes and SIGKILL (bodies_yard_restart.rs), `replay` from genesis; ZR-4.
+TZ-9  THE GATE — QB-11 on E-TD0b's prototype (§20.12), never re-scoped: dev profile, 300 days, seed 7,
+      for the social-cafe prototype and the market-town prototype: each with bodies and its copy
+      without (bodies out of `systems`, every `body:` stripped), two runs each, consecutive, one
+      machine, nothing else building or running. PASS iff, for each town, max(with) ≤ 1.5 × min(without),
+      faults 0 in all eight runs. Also reported, not judged: release µs per swept move and per Walled
+      stride (long_run), the share of strides by Route, and each town's activity lines.
+      FAIL → STOP. The numbers go back to the operator, as the ruling requires. No further optimization
+      is added inside 12d-0 after a failed measurement except §20.7's pre-declared ladder.
+TZ-10 Structural: Rapier only in rapier.rs, no float outside it (isolation); rapier_pin (3, "0.36.0");
+      ac1_composability, precursor_vocabulary, seam_vocabulary unedited; scope ⊆ §20.1; fmt, clippy;
+      the full gate once on the final executable head.
+```
+
+## 20.6 Commit plan
+
+Rules as §19.5 (separate implementation, validation and review items; `E-Z<n>` evidence; Edit and Write
+only; long runs in the background).
+
+### ZC-0 — Design (this section) — docs only
+
+- [x] Implementation: §20 and the header lines, by the planning session on `mvp0/s15-12d0-plan`.
+- [x] Validation: both doc checks (E-Z0).
+- [x] Review: every §20.2 claim cites a file and line, Rapier's source, or E-TD0b; Class I and Class R
+  fixed before any measurement; the gate's stop stated.
+
+### ZC-1 — Base captures and the prototype, before any code
+
+**Scope.** E-Z-base: the base `mineworld` binary to `/tmp/s15-12d0/base-mineworld`; ZI-1's and ZI-2's
+bytes (`BODIES_LONG_RUN_SECOND_PROCESS=1`, and long_run_objects' second-process mode) and their sha-256;
+ZI-3's summary; both towns' 300-day digests (TZ-1). The prototypes regenerated by §20.12's recipe, both
+towns and both copies without bodies; `validate` of each; **the gate's "before"**: TZ-9's eight runs on
+the base binary, recorded (they reproduce E-TD0b's order of magnitude or the recipe is wrong). A
+profile, information only: with the base binary, 30 prototype days, the share of strides by Route and
+the scene's mean collider count (a crate-private counter read by an ignored test).
+- [ ] Implementation: the captures, the prototypes, the profile.
+- [ ] Validation: each capture's sha recorded; the prototypes validate.
+- [ ] Review: the recipe in §20.12 is what was run, file by file.
+
+### ZC-2 — SD-Z2 and SD-Z3 (Class I)
+
+**Scope.** `rapier.rs` (`Scene::build` without the narrow phase, if 0.36.0 allows; audited first),
+`geometry.rs` (`corridor_clear` exact against solids); geometry unit tests (TZ-4).
+- [ ] Implementation.
+- [ ] Validation: TZ-2's ZI-1 … ZI-4 identical; M-Z3; `cargo test -p mineworld-bodies`.
+- [ ] Review: `Pile` and `fly` untouched; F-P1's canary and fix unchanged; integer `i128` only.
+
+### ZC-3 — SD-Z1, the reachable scene (Class I)
+
+**Scope.** `reach.rs` (new), `rapier.rs` (`Scene::build` over a subset with an index map), `stride.rs`,
+`entry.rs`; `tests/cull.rs` (TZ-3, M-Z1, M-Z2).
+- [ ] Implementation.
+- [ ] Validation: ZI-1 … ZI-4 identical (with SD-Z4/Z5 not yet present); M-Z1, M-Z2 by name.
+- [ ] Review: canonical order kept among those inserted; every `Touch` maps back to the right entity;
+  nothing cached.
+
+### ZC-4 — SD-Z4, integer wall strides (Class R)
+
+**Scope.** `walls.rs` (new), `stride.rs` (the route before the scene), `resolve.rs` (`Route::Walled`;
+`Policy.integer_walls`), `tests/walls.rs` (TZ-5, M-Z4); the shadow comparison harness (ZR-3) as an
+ignored test reading both policies.
+- [ ] Implementation.
+- [ ] Validation: TZ-5; with the policy off, ZI-1 … ZI-3 still identical; ZR-1 … ZR-3 on.
+- [ ] Review: the clamp never lengthens (proof in the doc comment, a property test over the long run's
+  requests); no float; V1 … V4 still applied.
+
+### ZC-5 — SD-Z5, FU-12c-1 (Class R)
+
+**Scope.** `rapier.rs` (the sweep's exclusion predicate), `stride.rs`; `tests/actions.rs`: the DO-11 pin
+renamed and flipped (TZ-6, M-Z5).
+- [ ] Implementation.
+- [ ] Validation: TZ-6; ZR-1, ZR-2.
+- [ ] Review: excluded only while within 2R + GAP and behind; V1 still counts them.
+
+### ZC-6 — VERSION, documents, re-capture, the gate, close
+
+- [ ] `VERSION` 3; `rapier_pin`; ARC-39 note 4, DEP-13 note; README; MVP_STATUS.
+- [ ] ZR-1 … ZR-5: the new bases recorded.
+- [ ] **TZ-9, the gate**, on the final executable head. PASS → READY. FAIL → STOP and report.
+- [ ] TZ-1, TZ-8, TZ-10; the full gate once; the ledger; the handoff.
+- [ ] Review: every TZ with evidence; deviations named; §19's TD-14 references updated in the ledger
+  only (the planning session updates §19 after merge).
+
+## 20.7 If the gate fails: the only ladder, fixed now
+
+If TZ-9 fails with SD-Z1 … SD-Z5 in, these may be tried, in order, each measured once, each recorded;
+then stop:
+
+```text
+L1  (Class I) the contact sweep skipped when no person or object meets the reach box (B = W)
+L2  (Class R, under ZR) a nudge whose path stays inside C and meets no solid's grown box is answered by
+    integers, as SD-Z4 answers a walker
+```
+
+Nothing else — no change to the prototype's geometry to pass (its solids are 12d's question, QD-2 (c),
+the operator's), no constant, no controller change. If L2 does not pass, the stop goes to the operator
+with every number.
+
+## 20.8 Test ownership
+
+```text
+UNIT        reach.rs (the margin's derivation), walls.rs (the clamp), geometry (the exact corridor)
+INTEGRATION tests/walls.rs, tests/cull.rs; every existing bodies test (the Class-I and ZR-1 net)
+REAL RUN    bodies_yard*.rs (committed); TZ-9's prototype runs, ZR-3's shadow, Rosetta (recorded)
+STRUCTURAL  isolation, rapier_pin, the three acceptance scans, scope
+GATE 1      NOT REQUIRED
+```
+
+## 20.9 Is any of this material?
+
+Within the ruling, no: options 2 and 3 are its words, FU-12c-1 is QD-10's, and the re-capture rule is
+the one the ruling asked to be stated. Two things return to the operator if they happen: **TZ-9 failing**
+(the ruling's stop), and a Class-I piece that cannot be made byte-identical **and** is needed for TZ-9
+(it would then change results beyond what the ruling named).
+
+## 20.10 Questions (QZ-1 …)
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QZ-1** | SD-Z4 keeps all tangential motion along a wall where Rapier's controller may keep less (F-Z4). Accept the change of definition? | **Yes**: it is the simpler, exactly stated rule, and ZR-3 measures the difference. |
+| **QZ-2** | `REACH_MARGIN` 2 200 mm, derived (SD-Z1). | **Accept.** |
+| **QZ-3** | The gate on **both** towns' prototypes, though the ruling names "your prototype" (social-cafe). | **Both**, since 12d's TD-12 binds both; market-town's prototype is the same geometry plus its market. |
+| **QZ-4** | The ladder L1, L2 (§20.7) fixed now. | **Accept**; anything beyond it is the operator's. |
+| **QZ-5** | The prototype stays uncommitted (`/tmp`, from §20.12's recipe). | **Yes**: 12d owns the towns' content; a committed fixture would be a second copy of it. |
+
+## 20.11 Proposed execution contract for PR 12d-0
+
+```text
+PROJECT / PR        MVP-0 · Step 11 / PR 12d-0 — bodies' cost (S15, precursor to 12d)
+PRIMARY DESIGN DOC  step-11-bodies.md §20; evidence §20.12 (E-Z<n>); deviations §20.13
+RELATED / BINDING   §19's header (the QD-2 ruling), §17.11 DB-10, §18, E-TD0b; DEP-13, ARC-39; CLAUDE.md §§2–4
+IMPLEMENTATION BASE main after this design's PR (f842c52 + Markdown); branch mvp0/pr-12d0-cost; worktree
+                    /Users/yuema137/mineworld-worktrees/s15-12d0 (proposed)
+APPROVED SCOPE      §20.1; ZC-1 … ZC-6; SD-Z1 … SD-Z5; §20.7's ladder only on a failed gate
+FROZEN INVARIANTS   no diff outside systems/bodies/ and the named documents; bodies' rules unchanged but
+                    SD-Z4 and SD-Z5; Class I byte-identical (ZI-1 … ZI-4); Class R only under ZR; towns'
+                    digests unchanged (TZ-1); QB-11 1.5 × on the prototype, never re-scoped; nothing of
+                    Rapier survives a resolution (I-5); no float outside rapier.rs
+VALIDATION BUDGET   unit/integration unrestricted; 300-day prototype runs: 8 before (ZC-1), 8 for the gate,
+                    8 per ladder rung at most; ZR-3's shadow once; the x86_64 build once; one full gate;
+                    about two hours; real-model NOT REQUIRED
+ENDPOINT AUTHORITY  commits, push, PR: recommended authorized as for 12a–12c; merge: operator only, merge
+                    commit
+NORMAL STOP         PR 12d-0 READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       TZ-9 failing after §20.7's ladder; a Class-I piece not byte-identical and needed; an edit
+                    outside the change set; a town digest moving; Rosetta differing
+POST-MERGE SYNC     planning session: header, §19 (its base and TD-14 references), overall, MVP_STATUS
+```
+
+## 20.12 Evidence ledger, and the prototype's recipe
+
+```text
+E-Z0 ZC-0, 2026-10-08, planning session, on mvp0/s15-12d0-plan (main f842c52 + §19, §20).
+     Doc checks: see the commit's run.
+
+The prototype (E-TD0b), stated so it can be rebuilt:
+  1  GIT_INDEX_FILE=/tmp/s15-12d0/proto.idx git --work-tree=/tmp/s15-12d0/proto checkout 21f96ff -- \
+       worlds/social-cafe worlds/market-town
+  2  social-cafe: world.yaml gains `- bodies` after `- schedule`, and
+       items: [cafe-ball, cafe-box, street-ball, street-box]
+     market-town: world.yaml gains `- bodies` after `- schedule` (before `- item`), and the four keys
+       in its items list; the four item files and the six place files copied from social-cafe's
+  3  the place files' `passages` and `body:` sections, and the item files, exactly as §19.3.1 states
+     them, with placeholder sizes where the slice uses put_solid (the café's tables half 300; the
+     florist's shelves (0..440, ±400), its shelf units (±450, 6 990..7 350), its table half 450, its crate
+     half 300; on the street: planter boxes 1 000 × 500, pots 400 × 400, A-boards 600 × 400, the bicycle
+     half 350, benches 1 900 × 700), and on the street exactly the 59 solids listed below (the
+     prototype's rounding of §19.3.1: lamps half 90, bollards 110, bins 170)
+  4  the copies without bodies: `- bodies` removed, every `body:` section removed (places' and items')
+  5  `cargo run -p mineworld-cli -- validate <copy>` → valid (social-cafe: 22 entities, 67 genesis facts)
+```
+
+The prototype's street, `body:` (floor, then solids as `min-x min-y max-x max-y height`, in order):
+
+```text
+floor  -37450 -13000 30550 3200
+15050 1000 26050 3200 1900 | -27540 -690 -27360 -510 2400 | -11540 -690 -11360 -510 2400
+5460 -690 5640 -510 2400 | 21460 -690 21640 -510 2400 | -20540 -9290 -20360 -9110 2400
+-2540 -9290 -2360 -9110 2400 | 14460 -9290 14640 -9110 2400 | -5560 -1090 -5340 -870 1000
+-3210 -1090 -2990 -870 1000 | -860 -1090 -640 -870 1000 | 1490 -1090 1710 -870 1000
+3840 -1090 4060 -870 1000 | 6190 -1090 6410 -870 1000 | 8540 -1090 8760 -870 1000
+10890 -1090 11110 -870 1000 | 13240 -1090 13460 -870 1000 | 15590 -1090 15810 -870 1000
+-22560 -8930 -22340 -8710 1000 | -20160 -8930 -19940 -8710 1000 | 4040 -8930 4260 -8710 1000
+-20 -1020 320 -680 900 | -25020 -1020 -24680 -680 900 | -31110 -110 -30790 210 2200
+-24120 -120 -23780 220 2200 | -16130 -130 -15770 230 2200 | 16890 -110 17210 210 2200
+23380 -120 23720 220 2200 | -32600 -10000 -32300 -9700 2200 | -25610 -10010 -25290 -9690 2200
+-16620 -10020 -16280 -9680 2200 | -8630 -10030 -8270 -9670 2200 | -100 -10000 200 -9700 2200
+8390 -10010 8710 -9690 2200 | 17380 -10020 17720 -9680 2200 | -10425 -955 -8875 -5 600
+-3825 -955 -2275 -5 600 | 10375 -955 11925 -5 600 | 17975 -955 19525 -5 600
+-28625 -9770 -27275 -8870 600 | -14125 -9770 -12775 -8870 600 | 2375 -9770 3725 -8870 600
+530 1000 1770 1800 850 | 750 780 1550 2020 850 | 2580 1000 3820 1800 850 | 2800 780 3600 2020 850
+4630 1000 5870 1800 850 | 4850 780 5650 2020 850 | -2900 2200 -1900 2700 600 | 6800 2200 7800 2700 600
+-1350 2520 -950 2920 500 | 970 2520 1370 2920 500 | 5050 2150 5450 2550 500 | -1400 1450 -800 1850 1000
+-30950 1200 -30350 1600 1000 | -19400 -150 -17500 550 840 | -7400 -10350 -5500 -9650 840
+-4450 -550 -4250 -350 2200 | 8600 1800 9300 2500 1100
+```
+
+The other five places' prototype bodies are §19.3.1's, with the placeholders of step 3; the café's
+tables are (4 560, 2 860)–(5 160, 3 460), (6 810, 4 260)–(7 410, 4 860), (1 960, 8 260)–(2 560, 8 860),
+each h 750; the store's put_solid placeholders are (0, 2 150)–(440, 2 950) and (0, 3 400)–(440, 4 200)
+h 1 800, (4 900, 6 990)–(5 800, 7 350) and (6 200, 6 990)–(7 100, 7 350) h 1 800, (3 600, 2 900)–(4 500,
+3 800) h 750, (7 100, 300)–(7 700, 900) h 600.
+
+## 20.13 Deviations and discoveries during implementation
+
+None yet.
+
 
