@@ -6,9 +6,10 @@
 
 use mineworld_contracts::{ActionId, ActionResult, EntityId, EntityKey};
 use mineworld_persistence::WorldRevision;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
-use crate::protocol::{WireObservation, WorldSummary};
+use crate::admission::ResumeSecret;
+use crate::protocol::{ClosingReason, TookOver, WireObservation, WorldSummary};
 
 /// Which connection a subscription belongs to. Allocated by the world, never reused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -48,7 +49,8 @@ pub struct Perceived {
     pub observation: WireObservation,
 }
 
-/// A seated connection: which observer it is, and its own stream of observations.
+/// A seated connection: which observer it is, how it came by the seat, and its own stream of
+/// observations.
 #[derive(Debug)]
 pub struct Seated {
     seat: EntityKey,
@@ -56,23 +58,69 @@ pub struct Seated {
     world: WorldSummary,
     subscription: SubscriptionId,
     observations: mpsc::Receiver<Perceived>,
+    binding: Binding,
+    released: oneshot::Receiver<ClosingReason>,
+}
+
+/// What the seat table answered about a granted seat: the welcome's control fields.
+#[derive(Debug, Clone)]
+pub(crate) struct Binding {
+    pub(crate) took_over: TookOver,
+    pub(crate) resume: ResumeSecret,
+    pub(crate) hold_seconds: u32,
 }
 
 impl Seated {
-    pub(crate) const fn new(
+    pub(crate) fn new(
         seat: EntityKey,
         observer: EntityId,
         world: WorldSummary,
         subscription: SubscriptionId,
-        observations: mpsc::Receiver<Perceived>,
+        streams: (mpsc::Receiver<Perceived>, oneshot::Receiver<ClosingReason>),
+        binding: Binding,
     ) -> Self {
+        let (observations, released) = streams;
         Self {
             seat,
             observer,
             world,
             subscription,
             observations,
+            binding,
+            released,
         }
+    }
+
+    /// Whether control of the Person changed hands when this connection was seated.
+    pub const fn took_over(&self) -> TookOver {
+        self.binding.took_over
+    }
+
+    /// The secret that re-takes this seat if this connection's socket drops.
+    pub const fn resume(&self) -> &ResumeSecret {
+        &self.binding.resume
+    }
+
+    /// How long the seat is held after a dropped socket, in wall seconds.
+    pub const fn hold_seconds(&self) -> u32 {
+        self.binding.hold_seconds
+    }
+
+    /// Completes, with the reason, when the world unbinds this connection from its seat — another
+    /// connection took it over or superseded it. The session closes with that reason.
+    pub const fn released(&mut self) -> &mut oneshot::Receiver<ClosingReason> {
+        &mut self.released
+    }
+
+    /// Both of this connection's streams at once — its observations and its release — for a task
+    /// that waits on either.
+    pub const fn streams(
+        &mut self,
+    ) -> (
+        &mut mpsc::Receiver<Perceived>,
+        &mut oneshot::Receiver<ClosingReason>,
+    ) {
+        (&mut self.observations, &mut self.released)
     }
 
     /// The seat that was granted.

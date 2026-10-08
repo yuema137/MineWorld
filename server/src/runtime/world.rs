@@ -5,7 +5,8 @@
 //! advanced", "which identity does the next request get", and "did that input complete" — the
 //! bookkeeping a hosted world needs that the kernel deliberately does not own.
 
-use std::time::Instant;
+use std::num::NonZeroU32;
+use std::time::{Duration, Instant};
 
 use mineworld_contracts::{ActionId, ActionIntent, WorldTime};
 use mineworld_kernel::{Advanced, Dispatched, KernelError, World};
@@ -19,22 +20,56 @@ use crate::host::Hosted;
 /// moved only by advancing and dispatching (S4) — and not a scheduler: it answers "how far should the
 /// world be advanced", which is a deployment decision rather than a simulation one. A headless run
 /// that wants a hundred days in a second advances the kernel directly and has no use for this.
+///
+/// `scale` world seconds pass per wall second (`--time-scale`): the elapsed wall time is scaled in
+/// milliseconds before it is cut to whole seconds, so a scaled clock moves smoothly rather than in
+/// jumps of `scale` seconds.
 pub(super) struct HostClock {
     epoch: WorldTime,
     started: Instant,
+    scale: NonZeroU32,
 }
 
 impl HostClock {
-    pub(super) fn new(epoch: WorldTime) -> Self {
+    pub(super) fn new(epoch: WorldTime, scale: NonZeroU32) -> Self {
         Self {
             epoch,
             started: Instant::now(),
+            scale,
         }
     }
 
     pub(super) fn now(&self) -> WorldTime {
-        let elapsed = i64::try_from(self.started.elapsed().as_secs()).unwrap_or(i64::MAX);
+        let scaled = self.started.elapsed().as_millis() * u128::from(self.scale.get()) / 1_000;
+        let elapsed = i64::try_from(scaled).unwrap_or(i64::MAX);
         WorldTime::from_seconds(self.epoch.seconds().saturating_add(elapsed))
+    }
+
+    pub(super) const fn scale(&self) -> NonZeroU32 {
+        self.scale
+    }
+}
+
+/// How long the world thread's ticks took: counted, and the longest kept, for the operator's
+/// statistics line on shutdown (`ARC-42`, step-12 CP-B4).
+#[derive(Default)]
+pub(super) struct TickTimes {
+    ticks: u64,
+    longest: Duration,
+}
+
+impl TickTimes {
+    pub(super) fn record(&mut self, took: Duration) {
+        self.ticks += 1;
+        self.longest = self.longest.max(took);
+    }
+
+    pub(super) fn report(&self) -> String {
+        format!(
+            "[world] ticks {}, longest tick {} ms",
+            self.ticks,
+            self.longest.as_millis()
+        )
     }
 }
 

@@ -78,5 +78,5 @@ pub async fn drive(host: WorldHost, seat: EntityKey) {
             }
         }
     }
-    host.leave(seated.subscription());
+    host.leave(seated.subscription(), mineworld_server::Departure::Left);
 }

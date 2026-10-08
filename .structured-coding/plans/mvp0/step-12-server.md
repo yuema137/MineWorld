@@ -2124,7 +2124,7 @@ bounded synchronous seam; asynchronous controllers connect as sessions; the comp
 today's fields only. **Validation:** `cargo test -p mineworld-server -p mineworld-cli` — the same tests,
 all passing; clippy. **Review:** public paths unchanged; `main.rs` < 500.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation · [x] Review (E-SB2, commit 8882798)
 
 ### B-C3 — `SeatTable` (`seats.rs`) and `ResumeSecret`
 
@@ -2133,7 +2133,7 @@ transition of §4.2 and its refusals; `take_over` on `Connected` and `Held`; res
 `Connected` (supersede); expiry at `until` and not before; `default` rebuilds through the factory;
 `ResumeSecret` format and redacted `Debug`. **Review:** no world access in `seats.rs`; one writer.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation · [x] Review (E-SB3, commit 89069b2, with B-C4 — D-SB2)
 
 ### B-C4 — The `HostedController` seam and `RuleController::since`
 
@@ -2142,7 +2142,7 @@ transition of §4.2 and its refusals; `take_over` on `Connected` and `Held`; res
 `since(t)` controller does not answer a line heard at `t` and answers one at `t + 1`; `new()` unchanged
 (existing tests untouched and passing); paced tests untouched.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation · [x] Review (E-SB3, commit 89069b2 — D-SB2)
 
 ### B-C5 — The runtime and the session: seats, holds, consults, time scale, revision 2's additions
 
@@ -2153,7 +2153,7 @@ golden frames, `server/tests/seats.rs` (SB-2, SB-7), `handshake.rs` updated wher
 `invalid_resume` for every resume. **Validation:** server suites; M-SB2, M-SB7. **Review:** I-11 (no wait
 on the world thread; consults bounded); the session holds no binding state.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation · [x] Review (E-SB4; D-SB3, D-SB4)
 
 ### B-C6 — The CLI: hosted adapters, flags, statistics; real-binary acceptance
 
@@ -2295,6 +2295,19 @@ E-SB3 B-C3 + B-C4 (one commit, D-SB2). seats.rs + seats/tests.rs (10 unit tests:
       (a line at the binding instant is not answered, one at +1 s is; new() unchanged); 35 passed,
       every existing test untouched. clippy on this commit alone reports only dead code (the seat
       table and seam are wired by B-C5); the workspace is clippy-clean from B-C5 on.
+E-SB4 B-C5. Resumed session (D-SB4): the 13 uncommitted files were audited hunk by hunk and kept.
+      `cargo test -p mineworld-server`: unit 37, frames 8, handshake 7, headless 4, seats 4 (new),
+      two_clients 9, doc 1 — all pass. seats.rs: three-way race on a free seat → exactly one welcome,
+      the forged resume invalid_resume, the losing plain join seat_occupied; a plain join on a
+      connected seat seat_occupied, then take_over → welcome "connection" (same observer) and the
+      holder closing{taken_over}; a resume on a live connection → "held", the old one
+      closing{superseded}; a test HostedController (written against the public seam) asking as
+      carol → Refused(actor_not_observer), no fact perceived, as alice → Accepted with an ActionId
+      consecutive with bob's session's ids. clippy -D warnings clean (server + cli, all targets).
+      Mutations: M-SB2 (SeatTable grants a plain join on Connected) → race test "exactly one welcome:
+      left 2" and the occupied test red; reverted. M-SB7 (consult submits as request.actor()) →
+      "acting as somebody else … left: Answered(… Accepted …)"; reverted. Both re-green.
+      Sizes: runtime.rs 492, host.rs 432, session.rs 399, protocol.rs 358.
 ```
 
 ## 16.11 Deviations and discoveries
@@ -2308,5 +2321,24 @@ D-SB2 (bounded) Commit mapping. B-C3 (SeatTable) and B-C4 (the seam) land as one
       seat holds a bound HostedController, so the table cannot compile without the trait. Held
       carries no `observer` (SD-B1 listed one): the runtime resolves a seat's observer from the
       roster whenever it needs it, so the table stays free of world identities.
+D-SB3 (bounded) The first binding instant (F-13). A world resumed with history binds its controllers
+      at its own instant (its last input); a world holding only its genesis binds them one second
+      before it, because the host clock stamps a line said in the first wall second with the genesis
+      instant itself and `since(t)` treats `at ≤ t` as answered (runtime.rs `first_binding`).
+D-SB4 (bounded) Resumed session. The previous implementation session was cut off by an API rate limit
+      with 13 files uncommitted (B-C5's runtime, host, session, protocol and golden-frame hunks).
+      Audited and kept, not discarded: coherent with SD-B1…SD-B13 and compiling. Finished by
+      server/tests/seats.rs, a one-line edit to protocol/tests.rs (its "field a later PR defines"
+      example was `take_over`, now defined; replaced by `scope`), and a one-argument edit to
+      agent.rs (`Departure::Left`) so the workspace compiles until B-C6 deletes the file.
+      `WorldHost::join(seat)` is kept as a plain join labelled session 0 for in-process callers.
+D-SB5 (forward constraint, S19) Live time scale and pause. The operator's later requirements (4 h /
+      2 h / 1 h per day, host-only, live; calendar time only; pause/resume) are not implemented here
+      and not precluded: HostClock is `epoch + scale × elapsed wall time`, so a live change is a
+      rebase (epoch := now, started := Instant::now(), scale := new) and a pause is a rebase with
+      the clock frozen until resume; both stay on the world thread. Holds are wall time and
+      consults skip (never queue) missed instants, so neither misbehaves across a rebase.
+      `welcome.world.time_scale` is a snapshot; a live change would need an announcement frame
+      (S19's to specify). Movement and dialogue are not scaled by anything in this PR.
 ```
 
