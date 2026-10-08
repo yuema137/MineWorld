@@ -352,7 +352,7 @@ unbound), the seat becomes `Connected`, and the human's next observation is of t
 same components. When the human `leave`s, is kicked, or their hold expires, the seat returns to its hosted
 controller, which is **rebuilt from its configuration**, not resumed from memory (§4.6).
 
-The claim `AC-5` makes, and how it is measured (§10, decided before measuring): across a takeover and a
+The claim `AC-5` makes, and how it is measured (§9.2 CP-B1, decided before measuring): across a takeover and a
 release, in `worlds/market-town`, the Person's `EntityId` is unchanged; the save's journal gains no entry
 and its revision does not move at either binding change; the Person's biography (`mineworld biography`),
 relationships (`knows` edges and values), holdings, wallet and job, read from the save before the takeover
@@ -854,3 +854,342 @@ work only; it never reads world state.
 | A rule controller blocking the world | `HostedController::decide` is documented bounded; CP-B4 measures the world thread's tick time with `--town` on `market-town`. |
 
 ---
+
+# 9. The PRs
+
+Five PRs. Each runs the product at its checkpoint — the real `mineworld` binary over real sockets, and
+for the wire, a real Godot client — never only a unit. Adversarial criteria and their bounds are fixed
+here, before anything is measured (`ARC-23`): bounds are literals derived from the requirement, never from
+the implementation under test, and each PR's review plants one mutation to show its decisive test bites.
+
+```text
+S11-A  handshake, authentication, revision 2's frames ──┐
+                                                        ▼
+S11-B  seats, hold and resume, takeover, hosted controllers, F-13   (AC-3, AC-5, the town lives)
+                                                        │
+                       ┌────────────────────────────────┴───────────────┐
+                       ▼                                                ▼
+S11-C  facts in observations, and deltas                 S11-D  the admin surface
+                       └────────────────────────────────┬───────────────┘
+                                                        ▼
+S11-E  the proof: AC-7, INV-9 over revision 2, and the far side (Godot) — no production change
+```
+
+## 9.1 S11-A — Handshake, authentication, and revision 2's frames
+
+**Scope.** `PROTOCOL_VERSION = 2`. `join` with `protocol`, `invite`, `nickname`, `resume` (accepted and
+ignored until S11-B, always answered `invalid_resume` if non-null); `leave` (closes the connection;
+before S11-B there is no hold to skip); `closing`; the five new refusal codes; `welcome`'s new fields
+(`session`, `nickname`; `resume: null`, `hold_seconds: 0`, `took_over: "none"` until S11-B);
+`WorldSummary` revision 2 (`deferrals_unscheduled` removed; `provides`, `states`, `events_dropped`
+added). `admission.rs` (`Admission`, `Nickname`, `InviteToken`, constant-time comparison, generation).
+CLI: `--invite`, `MINEWORLD_INVITE`, generated invite printed as one join line. `PROTOCOL.md` rewritten to
+revision 2 as specified in §5 (marking what lands in later PRs). The Godot module:
+`connect_to_world(address, seat, invite, nickname)` and the new frames; every in-repo caller updated
+(`clients/protocol/demo`, `clients/3d-spike/scripts/slice/slice_link.gd` l. 181, Rust test clients).
+DEP-S11-a recorded.
+
+**Integration checkpoint CP-A.** `mineworld server worlds/social-cafe` with no `--invite` prints a join
+line; the protocol module's headless Godot run (`clients/protocol/run.sh`) joins with that invite and a
+nickname, receives `welcome` with `protocol: 2`, submits a `talk` and gets its `result`; `/status` lists
+`conversation` providing `talk` and stating `spoke`.
+
+**Adversarial criteria (decided now).**
+1. A join with the right invite and `protocol: 1` is refused `protocol_mismatch` and closed.
+2. Missing invite, an invite differing only in its last character, and the invite with a trailing space
+   are each refused `unauthorized`, each no sooner than 500 ms after the frame, then closed.
+3. The generated invite appears exactly once in the server's captured stdout and in no byte of the save
+   file (`--save`).
+4. `INV-9`: a table of state-asserting messages (`set_state`, `move_to` with a position, `give`, a
+   `submit` with another actor, a `join` carrying an `observer` field) is refused, and the world's
+   revision and fact count are unchanged after the table.
+5. `ac13_semantic_parity`, `ac15_one_alice`, `milestone_b`, `milestone_c` pass with only their join
+   frames changed; I-6 digests unchanged.
+6. Review mutation: an `Admission` that accepts any token must fail criterion 2.
+
+**May run in parallel with:** S15 12c and 12d; S13. **Conflicts with:** S15 12e on `server/PROTOCOL.md`
+and `clients/protocol/ADOPTION.md` (whoever merges second rebases; 12e edits only §6.2 and its ADOPTION
+section); S14 on `slice_link.gd` (one call site).
+
+## 9.2 S11-B — Seats, hold and resume, takeover, hosted controllers, `F-13`
+
+**Scope.** `seats.rs` (`SeatTable`, §4.2) and `hosted.rs` (`HostedController`, consult schedule, §4.5) in
+the server; `runtime.rs` routes join, leave, drop and tick through them; `welcome` gains real `resume`,
+`hold_seconds`, `took_over`. CLI: `tools/cli/src/hosted.rs` (`ReactiveSeat`, `PacedSeat`) replaces
+`agent.rs`; `--town`, `--seed`, `--pace`, `--hold`. `RuleController::since` (§4.6). Godot module: opt-in
+reconnect with `resume`. ARC-S11-a, ARC-S11-c recorded.
+
+**Integration checkpoints.**
+- **CP-B1 (`AC-5`).** `mineworld server worlds/market-town --town --save DIR`. A client joins `alice`
+  (`took_over: "hosted"`), talks to Bob, buys one item she is offered, and `leave`s; Alice returns to her
+  paced controller. Read from the save: the journal length and revision are unchanged across the join
+  and across the leave (I-2); Alice's `EntityId` is the one `validate` printed; her biography, `knows`
+  edges and values, holdings, wallet and job before the join equal those after the leave once the facts
+  caused by actions submitted in between are applied — and every such fact names an `ActionId` the
+  human's session or her controller submitted.
+- **CP-B2 (`AC-3`).** Same world. A client seated as `visitor` is killed (socket dropped, no `leave`).
+  During the hold, `visitor`'s position in the save does not change and the world's revision advances
+  (the town acts while nobody plays). A reconnect presenting `resume` inside the hold is granted
+  `took_over: "held"`, the same observer, and a keyframe whose `at` is later than the last frame before
+  the drop. After the hold, a reconnect without `resume` takes the seat back from the paced controller.
+- **CP-B3 (`F-13`).** `mineworld server worlds/social-cafe --agent alice --save DIR`; a client talks to
+  Alice and receives her answer; SIGKILL; restart on the same save; the client rejoins and waits 15 wall
+  seconds without speaking. Alice states no `spoke` addressed to the client after the restart.
+- **CP-B4 (the town lives).** `market-town --town --pace 5`, 120 wall seconds, two sessions connected:
+  every hosted seat has at least 3 accepted `move`s; zero faults; the world thread's longest tick (a
+  test-only probe) is at most 50 ms — half the 100 ms observation cadence, a bound from the cadence and
+  not from the code.
+
+**Adversarial criteria.**
+1. Two joins and one resume racing on one seat produce exactly one `welcome`; the others are
+   `seat_occupied` or `invalid_resume` (I-3).
+2. A `HostedController` adapter that returns a request acting as another Person is refused
+   `actor_not_observer` and counted, exactly as a session would be (I-8).
+3. Review mutation: return a dropped seat to its hosted controller immediately (no hold) — CP-B2's
+   "position unchanged during the hold" must fail. Second mutation: bind the reactive controller with
+   `new()` instead of `since` — CP-B3 must fail.
+4. I-6 digests unchanged; `cognition/rule-controller`'s paced tests unchanged and passing.
+
+**May run in parallel with:** S15 12c–12e (no shared file except `ADOPTION.md`); S13; the start of S11-C's
+pure commits (below). **Conflicts with:** S11-C and S11-D on `runtime.rs`/`host.rs`/`session.rs` — they
+integrate after B.
+
+## 9.3 S11-C — Facts in observations, and deltas
+
+**Scope.** Perception seam `learns` (default false); presence implements it from `Visibility`;
+`PackPerception` forwards it; per-subscriber pending facts, judged at record time, cleared on successful
+queueing, bounded and counted (`events_dropped`). `protocol/delta.rs` (`ObservationDelta`, `diff`,
+`apply`); the session sorts entities, emits keyframes and deltas; `--keyframe-every`. The measurement
+(`json-patch` as a dev-dependency of one test). Godot module: `delta` application in
+`MineWorldObservation`; `events()` documented as since-last-frame. DEP-S11-b, ARC-S11-d recorded.
+
+Order inside the PR, so that work can start before S11-B merges: (1) the measurement harness and the pure
+`delta.rs` with its Rust tests; (2) presence's `learns` with its tests; (3) runtime and session
+integration, rebased on S11-B.
+
+**Integration checkpoints.**
+- **CP-C1 (measure before adopting).** Frames recorded from `market-town --town` with four sessions for
+  60 s. Reported per client per second: whole JSON bytes; JSON Patch bytes; typed-delta bytes. Decision
+  rule fixed now: ship the typed delta only if it is at most half the whole-frame bytes; adopt `json-patch`
+  instead if its bytes are within 10 % of the typed delta's; if neither halves the bytes, ship keyframes
+  only and record why.
+- **CP-C2 (facts, `INV-13`).** In `social-cafe` hosted with `--town`, `visitor` and `wanderer` in the café
+  and `hana` (hosted) on the street: a `talk` from `visitor` to Alice reaches `wanderer` as a `spoke`
+  fact stated with `Place(café)` visibility and does not reach the street; a `Participants` fact reaches
+  only its participants; a `SystemInternal` fact from a test pack reaches nobody (I-7).
+- **CP-C3 (reconstruction).** For the CP-C1 run, the Rust applier's reconstruction of every frame equals
+  the whole observation the server computed for it; at every keyframe the reconstructed and received
+  observations are byte-equal after canonical sorting (I-10).
+
+**Adversarial criteria.**
+1. A client that stops reading for 5 s and resumes receives every fact it learned exactly once and in
+   order, or `events_dropped` accounts for the difference exactly.
+2. No fact appears in two frames of one connection.
+3. Review mutation: ignore `entities.remove` in `apply` — CP-C3 must fail. Second: judge `Place`
+   visibility at sweep time instead of record time — a CP-C2 case where the listener walks out in the same
+   second must fail.
+4. I-6 digests unchanged (presence's `observe` is untouched; only `learns` is added).
+
+**May run in parallel with:** S11-D (rebase obligation on `runtime.rs`, `host.rs`); S15 12c; S13.
+**Conflicts with:** anything editing `systems/presence/src` — S15's 12a–12e plan no presence edit after
+12a, which must be re-checked against 12d's frozen change set before S11-C freezes.
+
+## 9.4 S11-D — The admin surface
+
+**Scope.** `admin.rs`: the four routes of §4.9, bearer check (constant time), mounted only with
+`--admin-token` / `MINEWORLD_ADMIN_TOKEN`; `Command` variants for listing, kicking and releasing;
+`SeatTable` gains `kick` and `release`. `PROTOCOL.md` gains an admin section.
+
+**Integration checkpoint CP-D.** Through the binary with `--town --save DIR --admin-token T`: two
+sessions; `GET /admin/sessions` lists both with nicknames and seats; `GET /admin/seats` shows them
+`connected` and the rest `hosted`; kicking one sends it `closing { reason: "kicked" }` and its seat shows
+`hosted` at once (no hold); releasing the other's seat does the same.
+
+**Adversarial criteria.**
+1. In a hosted `social-cafe` with `--save`, no `--town`, no submitting client, inside the routine-free
+   00:00–05:00 window the restart tests already rely on (so nothing is due), every admin route called
+   twice leaves the save's revision and fact count exactly unchanged (I-4).
+2. Without a configured token the routes answer 404; with a wrong token, 401 no sooner than 500 ms.
+3. The admin token is in no save byte and no log line (I-5).
+4. Review mutation: have `kick` also submit a no-op request as the kicked seat — criterion 1 must fail.
+
+**May run in parallel with:** S11-C; S15; S13.
+
+## 9.5 S11-E — The proof
+
+No production change (as 11f was for `AC-1`). Committed acceptance tests named for their criteria, the
+far-side Godot proof, and evidence.
+
+**Integration checkpoints.**
+- **CP-E1 (`AC-7`).** `mineworld server worlds/market-town --town --save DIR` with four clients under four
+  nicknames as `visitor`, `wanderer`, `bob` and `carol` (two of them taken over from the town). All four
+  `talk` to Alice; Alice's disclosed history holds all four lines; Alice answers each by name (she is
+  driven by `--agent alice`). One client `buy`s from the café; the other three see the café's stock one
+  lower in their own observations and none of the buyer's private state. All four `welcome`s and the last
+  observation of each name the same instance and, after the purchase, the same revision.
+- **CP-E2 (the far side, `R-9`).** A headless Godot run of the protocol module against the real binary:
+  join with invite and nickname; apply deltas for 60 s and compare with every keyframe (I-10 from the far
+  side); drop the socket and resume within the hold; receive a `spoke` fact; be kicked by the admin route
+  and report `closing`. Evidence under `clients/protocol/evidence/rev2/`.
+- **CP-E3 (`INV-9`, revision 2).** The table of §9.1 criterion 4 extended to `leave` misuse, a `join`
+  after `leave`, and every admin route without a token, run against the binary.
+- **CP-E4.** `ac13`, `ac15`, `milestone_b`, `milestone_c`, `ac1_composability`, the I-2 scan and both
+  300-day digests pass on the PR head.
+
+**Adversarial criterion.** The diff touches only `tools/cli/tests/`, `server/tests/`, `clients/protocol/`
+(demo, run script, evidence) and Markdown; review plants one mutation — accept a second join on an
+occupied seat — and CP-E1 must fail by name.
+
+**May run in parallel with:** S12 and S14 client work, which it does not touch.
+
+---
+
+# 10. Acceptance mapping
+
+| Criterion | Where it is proven | Test file (planned) |
+| --- | --- | --- |
+| `AC-3` disconnect, simulation continues, reconnect | S11-B CP-B2; end to end with the 2D client in S12 (`overall.md` §4) | `tools/cli/tests/ac3_reconnect.rs` |
+| `AC-5` takeover with the Person intact | S11-B CP-B1 | `tools/cli/tests/ac5_takeover.rs` |
+| `AC-7` several humans, the same NPCs | S11-E CP-E1 | `tools/cli/tests/ac7_many_players.rs` |
+| `INV-9` state assertions refused | S11-A criterion 4; S11-E CP-E3 | `server/tests/two_clients.rs` (extended), `tools/cli/tests/inv9_closed_vocabulary.rs` |
+| `F-13` closed | S11-B CP-B3 | `tools/cli/tests/restart.rs` (extended) |
+| The hosted town lives | S11-B CP-B4 | `tools/cli/tests/hosted_town.rs` |
+| `R-9` far side | S11-A CP-A; S11-E CP-E2 | `clients/protocol/run.sh`, evidence |
+| `AC-15` not broken | every PR (I-12) | `tools/cli/tests/ac15_one_alice.rs` |
+
+Step S11 is complete when S11-A … S11-E are merged, each checkpoint above has evidence on its PR head, and
+the operator has run the short test list the primary session hands over at that milestone.
+
+---
+
+# 11. Parallelism and file ownership
+
+## 11.1 Within S11
+
+```text
+S11-A  ─►  S11-B  ─►  S11-C (pure commits may start after A)  ─┐
+                  └─►  S11-D                                    ├─►  S11-E
+```
+
+## 11.2 Against S12, S13, S14 and S15 (12c–12e)
+
+| Other work | Relation | Rule |
+| --- | --- | --- |
+| **S15 12c** (frozen; no server, cli, presence or clients diff) | independent | fully parallel with every S11 PR |
+| **S15 12d** (worlds, movement, worldpack, digests) | independent files; shares I-6's digests | S11 PRs compare digests against their own base; if 12d merges mid-PR, rebase and re-measure |
+| **S15 12e** (3D client; `server/PROTOCOL.md` §6.2, `ADOPTION.md`) | **conflicts with S11-A** on two documents | whichever lands second rebases; 12e edits only §6.2 and its section of `ADOPTION.md`; 12e targets revision 2's handshake if S11-A is merged first |
+| **S12** (2D client) | **consumer** | designs against §5 now; implements against `main` after S11-A merges; adopts deltas and facts after S11-C; never edits `clients/protocol/mineworld/` while S11 is open — module changes go through S11 |
+| **S13** (CI, container) | consumer of the CLI contract | parallel; uses `MINEWORLD_INVITE` and `MINEWORLD_ADMIN_TOKEN` (frozen in §11.4); runs S11's new tests; decides whether CP-E2's Godot run joins CI |
+| **S14** (3D client) | **consumer**; conflicts with S11-A on `slice_link.gd` l. 181 | as S12; S11-A changes that one call to pass invite and nickname |
+| **Milestone E** | unknown to this step | if it needs a hosted world with players, it depends on S11-B (`--town`) and S11-A (invite) |
+
+## 11.3 Files each PR touches
+
+```text
+S11-A  server/src/{protocol.rs, protocol/tests.rs, session.rs, app.rs, runtime.rs (summary only),
+       admission.rs (new), lib.rs}; server/{Cargo.toml, PROTOCOL.md, README.md};
+       server/tests/{two_clients.rs, headless.rs, support/mod.rs}; Cargo.toml (workspace deps),
+       Cargo.lock; tools/cli/src/main.rs; tools/cli/tests/{support/mod.rs, server_command.rs,
+       ac15_one_alice.rs, ac13_semantic_parity.rs, milestone_b.rs, milestone_c.rs, restart.rs};
+       clients/protocol/{mineworld/world_client.gd, demo/demo.gd, run.sh, ADOPTION.md, README.md};
+       clients/3d-spike/scripts/slice/slice_link.gd (one call); docs/MODULE_SPEC.md §8.1;
+       docs/NETWORKING.md (none expected); docs/DECISIONS.md (DEP-S11-a)
+S11-B  server/src/{seats.rs (new), hosted.rs (new), runtime.rs, host.rs, session.rs, protocol.rs,
+       lib.rs}; server/tests/seats.rs (new); tools/cli/src/{main.rs, hosted.rs (new), agent.rs (deleted)};
+       cognition/rule-controller/src/{lib.rs, tests.rs}; tools/cli/tests/{ac3_reconnect.rs,
+       ac5_takeover.rs, hosted_town.rs (new), restart.rs, ac15_one_alice.rs};
+       clients/protocol/{mineworld/world_client.gd, ADOPTION.md}; server/PROTOCOL.md;
+       docs/MODULE_SPEC.md §8.1; docs/DECISIONS.md (ARC-S11-a, ARC-S11-c)
+S11-C  server/src/{perception.rs, runtime.rs, session.rs, host.rs, protocol.rs, protocol/delta.rs (new)};
+       server/{Cargo.toml (dev-dep json-patch), PROTOCOL.md}; Cargo.lock; server/tests/{facts.rs,
+       deltas.rs} (new); systems/presence/src/{observe.rs or a new learns.rs, lib.rs} and its tests;
+       tools/cli/src/{perceive.rs, main.rs}; tools/cli/tests/facts.rs (new);
+       clients/protocol/{mineworld/observation.gd, mineworld/world_client.gd, ADOPTION.md};
+       docs/DECISIONS.md (DEP-S11-b, ARC-S11-d)
+S11-D  server/src/{admin.rs (new), app.rs, host.rs, runtime.rs, seats.rs}; server/tests/admin.rs (new);
+       tools/cli/src/main.rs; server/{PROTOCOL.md, README.md}; docs/MODULE_SPEC.md §8.1
+S11-E  tools/cli/tests/{ac7_many_players.rs, inv9_closed_vocabulary.rs} (new); server/tests/ (extended);
+       clients/protocol/{demo/, run.sh, evidence/rev2/}; Markdown
+```
+
+No S11 PR touches `kernel/`, `contracts/`, `persistence/`, `worlds/`, `worldpack/`, `sdk/`, `authoring/`,
+`systems/` other than `presence` (S11-C only), or any System Pack's vocabulary.
+
+## 11.4 The CLI contract S13 and the clients' launchers build on (frozen with this step)
+
+```text
+mineworld server <world> [--listen ADDRESS] [--save DIR]
+                         [--invite TOKEN]              env MINEWORLD_INVITE; generated and printed if absent
+                         [--admin-token TOKEN]         env MINEWORLD_ADMIN_TOKEN; no admin routes if absent
+                         [--agent SEAT]...             reactive rule controller, F-13-safe
+                         [--town [--seed N] [--pace SECONDS]]   paced controllers on every other seat
+                         [--hold SECONDS]              default 30
+                         [--keyframe-every N]          default 50
+```
+
+The generated-invite line is `[mineworld] invite <token> — join with: <address> seat=<seat>
+invite=<token>`; S13 and the launchers may parse the token after `invite ` on a line beginning
+`[mineworld] invite`. A flag on the command line wins over its environment variable.
+
+---
+
+# 12. Questions
+
+**Operator-material** means the answer changes an operator decision, the kernel, scope, or a frozen
+contract; those need the operator, the rest the primary session.
+
+| ID | Question | Recommendation | Material? |
+| --- | --- | --- | --- |
+| **QS11-1** | `D-4` (operator, 2026-09-25) says protobuf is introduced "at the first real cross-language boundary (S10 Python cognition, S11/S12 Godot)". The Godot boundary has run on JSON since S5V. Introduce protobuf now, or record that JSON stays for MVP-0? | **JSON stays for MVP-0** (§7.1): the mirror schema is the drift `R-3` names, `godobuf` is single-maintainer, and bandwidth is answered by deltas. Record ARC-S11-d as superseding `D-4`'s timing, not its direction. | **Yes** — revises an operator decision. |
+| **QS11-2** | Hosted controllers on the world thread behind a bounded synchronous seam, or as tasks like `agent.rs`? | **World thread** (§4.5, ARC-S11-c); asynchronous controllers connect as sessions. | No (architecture record, primary session) — but flag to the operator because it shapes where an LM controller attaches in MVP-1. |
+| **QS11-3** | Does `--town` drive the player seats (`visitor`, `wanderer`) while nobody plays them? | **Yes**: a Person is not a player (`INV-1`), and a seat taken over or handed back is the same mechanism for every seat. A world that wants a seat idle simply does not run `--town`, or names it in a later `--idle SEAT` (not planned). | No. |
+| **QS11-4** | Hosted pace and time scale: the paced controller's rates are tuned for 900 s; at a 5 s pace a person greets someone about every 25 s. Keep `HostClock` at 1 s : 1 s with no `--rate`, default `--pace 5`? | **Yes for MVP-0**, measured in CP-B4; a controller tuned for real-time hosting is cognition work (S10/MVP-1), recorded as a follow-up rather than tuned here. | **Yes** — it is the felt life of the hosted world, a product judgement. |
+| **QS11-5** | Seat hold after a drop: 30 s? | **30 s**, `--hold` to change it. Long enough for a Wi-Fi blink or a client restart; short enough that a quitter's Person rejoins the town. | No. |
+| **QS11-6** | Is the invite required on loopback (single player on one machine)? | **Always required**: one path (`NETWORKING.md` §1); the server prints a ready join line, and launchers pass it. No `--open` flag. | **Yes** — user-facing launch flow for S12/S14 and the operator's own demos. |
+| **QS11-7** | Are nicknames visible to other players? | **No**: only to the player's own connection and the admin surface; not world data. A "who is playing" UI is a later presentation feature over an explicit, separate frame. | **Yes** — product choice touching `INV-1`'s "the world cannot tell". |
+| **QS11-8** | Facts in observations (presence's `learns`) in S11's scope? | **Yes**: the brief names it, S12 needs other people's speech and purchases, and presence's own doc assigns it to S11. | No. |
+| **QS11-9** | Deltas in S11, gated by CP-C1's measurement? | **Yes**, with the rule fixed in CP-C1, including "ship keyframes only" as a legitimate outcome. | No. |
+| **QS11-10** | Admin: read, kick, release only — no runtime enable/disable of systems (it needs a fourth `WorldInput` kind)? | **Yes**: enable/disable is a persistence-contract change and out of scope. | **Yes, only if the operator wants enable/disable in MVP-0** (scope + persistence contract). |
+| **QS11-11** | Fix `F-13` here by `RuleController::since` (an edit in `cognition/`), rather than leave it to S10? | **Yes**: one constructor, no persisted controller state, `run` untouched. | No (moves a finding between steps; record in `overall.md` §7). |
+| **QS11-12** | PR identifiers. | The primary session assigns real numbers; placeholders `S11-A … S11-E` here. | No. |
+| **QS11-13** | Join brute-force protection: own "one guess per connection, 500 ms delay", or `governor` now? | **Own now**; `governor` recorded as the adopt route for public hosting. | No. |
+| **QS11-14** | The invite and resume secrets cross a LAN in clear over `ws://`. Accept for MVP-0, with TLS from a gateway or tunnel (`NETWORKING.md` §7) documented by S13? | **Accept and document**; no TLS inside the server. | **Yes** — security posture. |
+| **QS11-15** | One protocol revision (2) specified whole and implemented incrementally under "may omit, never redefine", or one revision number per PR? | **One revision** (§5.1, ARC-S11-b): S12/S14 build once. | No. |
+| **QS11-16** | `took_over` in `welcome` tells a player the Person was living on its own. Keep? | **Keep**: it is the player's own binding history, not another player's data. | No. |
+
+---
+
+# 13. Edits proposed for the primary session (not made here)
+
+```text
+overall.md §3 S11      add "Design: step-12-server.md (DRAFT)"; Output gains "hosted controllers
+                       (--town) and facts and deltas in observations"; acceptance unchanged
+overall.md §4          AC-3 "S11 (CP-B2), end-to-end in S12"; AC-5 "S11 (CP-B1)" — no longer "with S10";
+                       AC-7 "S11 (CP-E1)"
+overall.md §5          on QS11-1: record D-4's timing superseded for MVP-0 (if the operator agrees)
+overall.md §7          F-13 moves from S10 to S11 (S11-B); S11's remaining line becomes the five PRs
+overall.md §6          add R-S11-1 … R-S11-6 (§14)
+MVP_STATUS.md          S11 row: "step planned (step-12-server.md), five PRs"; Networking row unchanged
+                       until S11-B merges
+DECISIONS.md           DEP-S11-a, DEP-S11-b, ARC-S11-a … d, with real numbers at freeze, each landed in
+                       the PR named in §7.10 rather than in advance
+NETWORKING.md §5       after S11-E: note that admin commands are HTTP (§3) rather than WebSocket frames,
+                       which §5's "Client → Server" list currently implies
+MODULE_SPEC.md §8.1    the server line, per §11.4, in S11-A/B/D
+```
+
+---
+
+# 14. Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| **R-S11-1** | Hosted controllers and per-consult perception load the world thread; with `--town` on `market-town` and four clients, ticks lengthen and observation delivery stalls. | CP-B4's 50 ms bound, measured; pace raised before seats are dropped, as `ARC-27`'s rule does for `run`. |
+| **R-S11-2** | A race between a drop, a resume and a takeover leaves two controllers on one seat (A-1 reintroduced). | One writer (`SeatTable` on the world thread); §9.2 criterion 1's race test. |
+| **R-S11-3** | The Rust and GDScript delta appliers diverge; a client renders a world that never existed. | I-10 checked from both sides (CP-C3, CP-E2); periodic keyframes bound the damage. |
+| **R-S11-4** | Protocol churn under S12/S14 while they build. | §5 frozen with this step; "may omit, never redefine"; any change is a revision of this step, sent to their owners. |
+| **R-S11-5** | A persisted hosted world with `--town` journals every NPC request with power-loss durability; fsync rate limits the town. | CP-B4 runs with `--save`; if the bound fails, the remedy is a durability setting decided by the operator, not silently relaxed. |
+| **R-S11-6** | Making seats exclusive breaks a test that relied on two connections per seat (e.g. `ac15_one_alice.rs`'s "cannot act as Alice" case, which may join Alice's seat). | Audited in S11-B's design before freeze; the test's claim is preserved by asserting `seat_occupied` or a takeover explicitly. |
+| **R-S11-7** | The paced controller's chattiness at a 5 s pace makes the hosted town feel wrong. | QS11-4 puts it before the operator; measured counts in CP-B4's evidence. |
+| **R-S11-8** | `PROTOCOL.md` and `ADOPTION.md` edited concurrently by S11-A and S15 12e. | §11.2's rebase rule. |
+
