@@ -1,8 +1,9 @@
 ## The walker. One movement implementation, three cameras observing it.
 ##
 ## Minecraft is the *control* reference and nothing else (ART_DIRECTION sec.9):
-## WASD, mouse look, gravity, collision, and deliberately no jump -- this is a
-## walking simulator. Speeds are real human speeds, not game speeds: 1.45 m/s
+## WASD, mouse look, gravity, collision, and Space to jump -- added at the
+## operator's request after playing it, at a human height rather than
+## Minecraft's (see JUMP_HEIGHT). Speeds are real human speeds, not game speeds: 1.45 m/s
 ## stroll, 3.1 m/s jog. Eye height 1.66 m. Those three numbers do more for the
 ## "am I a person in a town" feeling than any amount of geometry.
 ##
@@ -22,6 +23,22 @@ const EYE_HEIGHT := CameraRig.EYE_HEIGHT
 const MOUSE_SENS := 0.0016
 const PITCH_LIMIT := deg_to_rad(84.0)
 
+## The controller's gravity. Stronger than 9.81 on purpose and unchanged from
+## the accepted movement feel: a walking body that drops off a kerb at real g
+## floats.
+const GRAVITY := 22.0
+## How high a jump lifts the feet, in metres. 0.45, not Minecraft's 1.25: a
+## standing adult's jump clears roughly 0.4-0.5 m, and this is a person in a
+## town, not a block-climber. The body leaves the ground at sqrt(2 g h), so
+## at GRAVITY the jump lasts 2v/g = 0.40 s.
+##
+## It is rendered movement, local to the client (CLAUDE.md sec.4 rule 14) --
+## not a server action. A connected client reports position, not jumps, and a
+## jump changes height for 0.4 s and xy not at all, so it cannot carry the body
+## past anything the server measures in the plane.
+const JUMP_HEIGHT := 0.45
+const JUMP_VELOCITY := sqrt(2.0 * GRAVITY * JUMP_HEIGHT)
+
 ## Fixed, so the player character looks the same on every run.
 const BODY_SEED := 90210
 const BODY_HEIGHT := 1.75
@@ -32,6 +49,12 @@ signal camera_mode_changed(mode_name: String)
 ## Set by the scripted runner: headless has no capturable mouse, so the
 ## capture check would otherwise swallow every synthetic motion event.
 var scripted_look := false
+## Set by a scripted runner that turns the body itself and sends no mouse
+## motion. Then every mouse motion is the real cursor crossing the capture
+## window, and it would turn the view between the runner's turn and its
+## capture: the slice's frames and its talk target varied from run to run with
+## every person in the same place (2026-10-07).
+var ignore_mouse_look := false
 
 ## The three cameras. Not a movement system -- a passive observer.
 var rig: CameraRig
@@ -114,7 +137,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (look_enabled or scripted_look):
 		return
 	var looking := scripted_look or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-	if event is InputEventMouseMotion and looking:
+	if event is InputEventMouseMotion and looking and not ignore_mouse_look:
 		var mm := event as InputEventMouseMotion
 		rotate_y(-mm.relative.x * MOUSE_SENS)
 		rig.pitch = clampf(rig.pitch - mm.relative.y * MOUSE_SENS, -PITCH_LIMIT, PITCH_LIMIT)
@@ -128,14 +151,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
+## Jumps made since start, for the drive test's "no jump in mid-air" check.
+var jumps := 0
+
+
 func _physics_process(delta: float) -> void:
+	var driving := look_enabled or scripted_look
 	if not is_on_floor():
-		velocity.y -= 22.0 * delta
+		velocity.y -= GRAVITY * delta
 	else:
 		velocity.y = -0.2
+		# Only from the floor: is_on_floor() is false for the whole flight, so a
+		# second press in the air does nothing -- there is no double jump.
+		if driving and Input.is_action_just_pressed("jump"):
+			velocity.y = JUMP_VELOCITY
+			jumps += 1
 
 	var wish := Vector3.ZERO
-	var driving := look_enabled or scripted_look
 	if driving:
 		var ix := Input.get_axis("move_left", "move_right")
 		var iz := Input.get_axis("move_forward", "move_back")

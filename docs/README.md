@@ -17,6 +17,7 @@ Start with [`VISION.md`](VISION.md) — what MineWorld is and is not.
 | [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) | the rules to read before touching production code, and the playable-world requirements |
 | [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) | the complete engineering policy all code follows |
 | [`ART_DIRECTION.md`](ART_DIRECTION.md) | the default 3D look, and how any Presentation Style Pack is defined |
+| [`VISUAL_SLICE.md`](VISUAL_SLICE.md) | the scope every 3D presentation slice is built to, engine-neutral so the tracks compare |
 | [`REUSE_POLICY.md`](REUSE_POLICY.md) | when to adopt a dependency and when to build our own |
 | [`DECISIONS.md`](DECISIONS.md) | why the dependencies and architectural routes are what they are |
 | [`references/`](references/) | audits of existing projects: what they solved, and what must not be imported |

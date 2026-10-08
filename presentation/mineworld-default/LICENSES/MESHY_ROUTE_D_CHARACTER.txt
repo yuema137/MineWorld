@@ -1,0 +1,40 @@
+Route D+ default-character candidate, generated with Meshy image-to-3D
+
+Asset:    clients/3d-spike/assets/characters/meshy_d/meshy_d.glb
+          clients/3d-spike/assets/characters/meshy_d/meshy_d_base_color.png
+          (the PNG is the base colour Godot extracts from the GLB on import; it is
+          the same pixels as the GLB's embedded image)
+Origin:   AI-generated. Meshy image-to-3D (https://www.meshy.ai), ai_model
+          meshy-7.1, pose_mode a-pose, no remesh, task
+          01a1155c-dafe-70bc-9279-9cef9a35856b, generated 2026-10-07 on a paid
+          Meshy plan. Input: a masked crop of
+          presentation/mineworld-default/3D/references/04_character_closeup.png.
+Modified: scaled; decimated from 1,800,586 to 95,000 triangles; base colour
+          re-baked from the original surface onto the decimated mesh; rigged on
+          the CharMorph export's 52-joint
+          skeleton with Blender automatic weights. Scripts and the unmodified
+          downloads are kept outside the repository
+          (docs/references/CHARACTER_ROUTE_D_PLUS.md sections 5 and 8).
+
+Licence:  Meshy Terms of Use, last updated 2026-09-19,
+          https://www.meshy.ai/terms-of-use, read 2026-10-07: "such customers on
+          a paid Meshy plan own their Customer Output". Ownership survives
+          cancellation per Meshy's help centre
+          (https://help.meshy.ai/en/articles/9992023). As the owner, MineWorld
+          distributes this asset under the repository's licence. Record:
+          docs/DECISIONS.md DEP-8 ("Generated meshes, recorded 2026-10-06").
+
+AI identifiers (Terms of Use section 2.4: "You agree not to remove, alter,
+disable, or otherwise tamper with such identifiers"):
+          Inspected 2026-10-07 in the original download (model_glb.glb and its
+          embedded JPEG; tex0_base_color.png): glTF asset {"generator":
+          "pygltflib@v1.16.5"}, no extras, no extensions, no XMP, no C2PA/JUMBF,
+          no PNG text chunks, no occurrence of "meshy". No machine-readable
+          identifier was present, so none was removed. An invisible pixel
+          watermark cannot be ruled out by inspection; the texture is only
+          resampled by baking, which does not target one.
+          Added by MineWorld, kept in the committed GLB: the glTF
+          scenes[0].extras.mineworld_provenance object, stating
+          "source_type": "generated", "ai_generated": true, the generator
+          (Meshy image-to-3D, meshy-7.1, a-pose, paid plan), the Meshy task id,
+          the input and the post-processing. Do not strip it when re-exporting.
