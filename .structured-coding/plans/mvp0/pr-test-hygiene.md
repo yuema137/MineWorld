@@ -312,14 +312,24 @@ Each commit tracks implementation, validation and review separately; evidence go
 §4.4; root `Cargo.toml` member `tests/support` and `[workspace.dependencies] mineworld-test-support`.
 **Non-goals.** No existing test edited.
 
-- [ ] Implementation: crate, macro, registry, `Keep`, `Drop`; the script; the spec text; standards.md.
-- [ ] Validation: the helper's tests — removed on drop (pass); removed when panicking under `Keep::Never`;
-  kept under `Keep::Failed` when panicking and removed when not; kept under `Keep::All`; duplicate live
-  name panics with the name; a name released by drop can be reused; `absent` does not exist, `empty`
-  is an empty directory; the container disappears with its last scratch. `check_scratch.py scan`
-  **reports** the current (pre-migration) hits — the expected list of §2.3 — and `left` reports §2.2's
-  135 entries on the measurement dir. Clippy clean.
-- [ ] Review: no `unsafe`, no `set_var`; lock held across create/remove; leaf name exact (C-a).
+- [x] Implementation: `tests/support/{Cargo.toml, README.md, src/lib.rs, tests/scratch.rs}`; root
+  `Cargo.toml` member and workspace dependency; `scripts/check_scratch.py`; `ENGINEERING_STANDARDS.md`
+  §22 "Test scratch"; `DECISIONS.md` **DEP-29** (added per the freeze's QTH-3 ruling);
+  `standards.md` convention line and `scratch-scan` check.
+  - Bounded detail: a scratch name must be one plain path component (asserted). The one site that
+    used a two-component name (`social_cafe.rs`'s `unnamed/social-cafe`) takes `unnamed` as its
+    scratch and joins `social-cafe` (C3), so removal always covers the whole tree.
+  - Bounded detail: `Keep` is read when the guard is **made**, so an invalid value panics in the test,
+    never inside `Drop` during unwinding (which would abort).
+- [x] Validation (E-TH1): `cargo test -p mineworld-test-support` → 6 passed (removed on drop for both
+  shapes, leaf name and location; failing test × `Never`/`Failed`/`All`; passing test × the three,
+  including the container's removal; duplicate live name refused with its name, reusable after drop;
+  non-single-component names refused; the variable's values). `cargo clippy -p
+  mineworld-test-support --all-targets -- -D warnings` clean. `/tmp/th-dev/tmp` empty after it.
+  `check_scratch.py scan` on the pre-migration tree → exit 1 with exactly the 16 lines of §2.3's (L)
+  and (T) populations, nothing else.
+- [x] Review: `#![forbid(unsafe_code)]`, no `set_var`; registry lock held across registration,
+  creation, removal and the container's removal; the lock is released before any panic; leaf exact.
 
 ### C2 — `tools/cli/tests` on the helper
 

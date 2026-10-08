@@ -1112,6 +1112,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-test-support"
+version = "0.0.0"
+
+[[package]]
 name = "mineworld-worldpack"
 version = "0.0.0"
 dependencies = [

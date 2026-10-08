@@ -693,6 +693,33 @@ without Godot, Unreal, or any graphical interface.
 
 This is essential for reproducibility and infrastructure testing.
 
+## Test scratch
+
+A headless test that writes files — a save, a copied or generated pack, a scratch repository — owns
+them only for its own duration. The rules:
+
+- A test makes its scratch through `mineworld-test-support`'s `Scratch` (the `scratch!` macro), never
+  by joining a name onto `CARGO_TARGET_TMPDIR`, `std::env::temp_dir()` or a literal `/tmp` path.
+  `scripts/check_scratch.py scan` reports any such line in a test.
+- A scratch lives at `<CARGO_TARGET_TMPDIR>/mineworld-scratch-<pid>/<name>`. Its last path component is
+  exactly the name the test gives, because a World Pack's id is its directory's name.
+- A scratch is removed when its guard is dropped, **whether the test passed or failed**.
+  `MINEWORLD_KEEP_SCRATCH=failed` keeps the scratch of a test that panicked, `MINEWORLD_KEEP_SCRATCH=all`
+  keeps every scratch; a kept scratch prints `[scratch] kept <path>` to stderr. Any other value is
+  refused.
+- A name is unique among the scratches alive in one process. Creating a name that is already alive
+  panics and names it, so two tests can never share one save.
+- Only the process that created a scratch removes it. A child process that receives a scratch path
+  (a `harness = false` kill test) never owns it.
+- A path an operator supplies to a test through an environment variable (`BODIES_YARD_SAVES`) is
+  read, never removed.
+- After a passing `cargo test --workspace`, `scripts/check_scratch.py left` reports nothing under
+  `target/tmp` and no `mineworld-*` entry in the temporary directory.
+
+The reasons are disk and isolation: before this rule a passing suite left about 16 GB of saves under
+`target/tmp` (`.structured-coding/plans/mvp0/pr-test-hygiene.md` §2), and two tests sharing one save
+failed with a locked database. The helper is our own code rather than the `tempfile` crate: `DEP-29`.
+
 ---
 
 # 23. Deterministic Test Mode
