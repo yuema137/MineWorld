@@ -4158,7 +4158,8 @@ Cargo.lock                            mineworld-bodies' dependency list gains mi
 worlds/bodies-yard/**                 items: and items/*.yaml with body: sections; README
 tools/cli/tests/bodies/mod.rs         the scan: objects, and the facts shove and pushes state
 tools/cli/tests/bodies_yard.rs        refusals of objects at load; the 30-day run's activity criteria
-tools/cli/tests/bodies_yard_restart.rs   unchanged unless its literals name 12b's counts (QO-16)
+tools/cli/tests/bodies_yard_restart.rs   its activity line gains the new facts (QO-16)
+systems/bodies/tests/{rapier_pin,isolation}.rs   QO-16's literal and claim; the other 12b tests unedited
 .structured-coding/plans/mvp0/{step-11-bodies,handoff}.md   this ledger, the handoff
 ```
 
