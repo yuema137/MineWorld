@@ -6,7 +6,7 @@
 //! here: a pack is located by its system id, then the packs are counted (`ARC-23`). No crate of a
 //! market pack is named in this file (`ARC-35` check 2).
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use mineworld_packages::License;
@@ -35,15 +35,12 @@ fn repository(relative: &str) -> String {
         .to_owned()
 }
 
-/// A directory of its own under Cargo's per-target scratch root, removed when dropped.
-struct Scratch(PathBuf);
+/// A directory of its own, removed when the test ends (scratch, DEP-29).
+struct Scratch(mineworld_test_support::Scratch);
 
 impl Scratch {
     fn new(name: &str) -> Self {
-        let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("packs-{name}"));
-        let _ = std::fs::remove_dir_all(&path);
-        std::fs::create_dir_all(&path).expect("scratch directory");
-        Self(path)
+        Self(mineworld_test_support::scratch!(empty format!("packs-{name}")))
     }
 
     fn write(&self, relative: &str, text: &str) {
@@ -54,12 +51,6 @@ impl Scratch {
 
     fn path(&self) -> &str {
         self.0.to_str().expect("a UTF-8 path")
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 
