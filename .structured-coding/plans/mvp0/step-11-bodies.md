@@ -6026,3 +6026,154 @@ No rung touches bodies' rules or offer policy: that would move bodies-yard's res
 unchanged, and is a design change. If no rung passes — or TD-5's market activity fails for want of the
 offered band's draws (F-D13) — the work stops and returns to the primary session with the counts.
 
+## 19.5 Commit plan
+
+Rules for every commit, as in §18.5:
+- Each commit tracks implementation, validation and review separately; evidence into §19.12 as
+  `E-TD<n>`, deviations into §19.13. A planned commit may become several coherent commits; the mapping
+  is recorded. Each commit leaves the workspace's tests green.
+- Commands from the worktree root, with `$HOME/.cargo/bin/cargo`. Anything longer than about two
+  minutes runs in the background (300-day runs, the x86_64 build, the CLI test binaries, the gate).
+- Every file change with the Edit and Write tools; no `sed -i`, `awk`, heredoc appends or inline
+  `python3 -c`.
+
+### TD-C0 — Design (this section) — docs only
+
+- [x] Implementation: §19 and the header line, by the planning session on `mvp0/s15-12d-plan`, from the
+  audit in §19.2.
+- [x] Validation: both doc checks (E-TD0); the two 300-day baselines re-measured on the base (E-TD0);
+  the planning prototype (E-TD0b), recorded as information, never as acceptance.
+- [x] Review: every §19.2 claim cites a file and line or a measurement; each departure from §11.1,
+  §10.4 and R-12d-1 … R-12d-4 is named with its finding and question; operator-material questions are
+  marked. The planning session's self-review; the freeze is the primary session's.
+
+### TD-C1 — Specs before code, the base captures, the geometry table
+
+**Goal.** The decisions 12d relies on are reviewable before any code (`CLAUDE.md` §2.2), the references
+12d must not move are captured before it can move them, and the slice's geometry is fixed as numbers.
+**Scope.** `docs/DECISIONS.md`: dated notes on `ARC-35` (SD-D9; only as QD-1 is answered), `ARC-37`
+(SD-D10), `ARC-39` note 3 (SD-D5, the towns). `docs/MODULE_SPEC.md` §4.1: `item`'s `name` and the
+catalogue; `body`'s `bodies-doorway` refusal. The handoff, reinitialized. **E-TD-base**, before any code:
+the base `mineworld` binary (copied to `/tmp/s15-12d/base-mineworld`); `validate` of both towns with it;
+both 300-day summaries; bodies-yard's 30-day summary sha; 12b's `long_run` bytes
+(`BODIES_LONG_RUN_SECOND_PROCESS=1`). **E-TD1**, the geometry table of TD-3: every slice collider of the
+café, the street and The Flower Room, its source line, its authored box and its deviation; the
+`put_solid` props sized from their glTF bounds × 0.92.
+**Depends on:** freeze. **Non-goals:** no code, no world file.
+**Failure and edge cases.** A `put_solid` prop whose bounds cannot be read from the asset: read from a
+headless Godot print of the built collider's AABB in the slice, recorded; never guessed. A street with
+more than 64 colliders: stop (SOLIDS_MAX is bodies' rule) — QD-3's answer decides which are merged.
+
+- [ ] Implementation: the three notes, MODULE_SPEC §4.1, the handoff; E-TD-base; E-TD1.
+- [ ] Validation: both doc checks; the decision-id count unchanged; every capture's sha-256 recorded.
+- [ ] Review: the notes say what SD-D5, SD-D9 and SD-D10 decide and nothing more; no defined term
+  redefined (`Item`, `World Pack`); E-TD1's every row ≤ 150 mm or named under QD-3.
+
+### TD-C2 — R-PK-2: item kinds have names, disclosed as a catalogue
+
+**Goal.** TD-13. **Scope.** `systems/item/src/`: `name.rs` (new, `ItemName`), `section.rs` (`name`,
+required), `event.rs` and `component.rs` (the field; schema 2), `system.rs` (`VERSION` 2; `discloses`:
+the `item-catalogue` record on a place), `lib.rs`'s table; `systems/item/tests/item.rs` (the refusals,
+the catalogue). `worlds/market-town/items/*.yaml`: the twenty names. Existing tests that build
+`ItemKindDeclared` or an `item:` section by hand gain a name, each listed (§19.6).
+**Depends on:** TD-C1. **Non-goals:** names for objects or organizations; R-PK-1; any client.
+**Failure and edge cases.** A disclosed record whose type no table holds: audit `presence::observe` and
+the server's encoder first (QD-12); if a disclosed type must be an owned table, the catalogue becomes a
+component on each place written at genesis — a bounded deviation, recorded. Two kinds with one name:
+allowed (names are display, not identity). A name with surrounding whitespace: refused.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-item`; `-p mineworld-inventory -p mineworld-economy -p
+  mineworld-consumption -p mineworld-employment -p mineworld-item-transfer` green; `validate
+  worlds/market-town`; M-TD6 fails by name, reverted.
+- [ ] Review: the catalogue is built at disclosure from `ItemKind`, never stored; `ItemId` order; item
+  still depends on no pack; no market word added outside `systems/` and `worlds/` (check 2).
+
+### TD-C3 — bodies refuses a doorway inside a wall
+
+**Goal.** TD-2's doorway rows, M-TD1. **Scope.** `systems/bodies/src/genesis.rs` (`fits` gains the
+doorway check, refusal `bodies-doorway`), `system.rs` (`VERSION` 3), `Cargo.toml` (`mineworld-movement`,
+with its reason), `Cargo.lock`; `tests/genesis.rs` is left unedited — the new refusals go in a new
+`tests/doorways_genesis.rs` (12c's DO-1 rule); `tests/rapier_pin.rs` (3, "0.36.0"); `tests/isolation.rs`
+(the crate claim gains movement, read for `Passages` only, with its own "names nothing else" guard and a
+mutation, as 12c's `is_declared` guard).
+**Depends on:** TD-C1. **Non-goals:** any change to resolution; a doorway check against objects or
+people (objects keep ≥ 700 mm by content, TD-2; people are entry-placed, SD-B8).
+**Failure and edge cases.** A passage with no local point on one side (a semantic world): nothing to
+check. A place without `body:`: nothing to check. bodies-yard: its four doorway points pass (12b
+authored them free) — its 30-day sha unchanged (TD-14).
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-bodies`; bodies-yard's 30-day sha and `long_run` bytes equal
+  E-TD-base; M-TD1 fails by name, reverted; the movement-names-nothing-else mutation bites.
+- [ ] Review: the check reads `Passages` only; integer arithmetic; the message names both places, the
+  point and the distance; the doorway check runs after the people checks, in `fits`' order.
+
+### TD-C4 — AC-1's check 3 admits Social Café's own items (only if QD-1 is "amend")
+
+**Goal.** TD-4. **Scope.** `tests/acceptance/tests/ac1_composability.rs`: `compare_manifests` (Social
+Café's `items` a subset of Market Town's), `world_delta_failures` (`items/` compared like `places/` for
+Social Café's files; Market Town-only files as today), the unit test's new cases.
+**Depends on:** TD-C1's `ARC-35` note. **Non-goals:** checks 1 and 2; `organizations/`.
+**Failure and edge cases.** Social Café with no `items:` (every world before 12d): the check behaves
+exactly as today — shown by running it on the base's two towns.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-acceptance --test ac1_composability` on this commit (the
+  towns unchanged: passes as before) and again after TD-C5; M-TD2, M-TD3, M-TD4 fail by name.
+- [ ] Review: the claim "Market Town is Social Café plus configuration" is stated in the test's doc and
+  unchanged; no case is weakened; the operator's QD-1 answer is cited in the doc comment.
+
+### TD-C5 — The towns get bodies
+
+**Goal.** TD-2, TD-3 on the real towns; TD-9 for the literal edits. **Scope.** §19.1's world paths: both
+`world.yaml`s (SD-D1, the four objects), every place file (SD-D2, SD-D3, SD-D4), the four object files
+in both towns, both READMEs; the existing tests' literal edits of §19.6.
+**Depends on:** TD-C2, TD-C3, TD-C4.
+**Failure and edge cases.** A genesis refusal of a slice-matched solid (a person within 300 mm): the
+person does not move (SD-D7); the solid is re-read (E-TD1) and, if the slice really places them
+overlapping, that is a QD to the primary session, not an edit. A straight-walk test meeting a solid: its
+route gains a waypoint around it, the claim unchanged (§19.6).
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `validate` both towns (exit 0, the six shapes, the four objects); `ac1_composability`
+  13/13+; every edited test passes; the town places' files byte-identical across the two towns (`cmp`).
+- [ ] Review: each edited test's claim is unchanged (§19.6 row by row); no person file changed; no
+  slice-matched coordinate differs from E-TD1.
+
+### TD-C6 — FU-12a-1: three comments reworded (QD-9)
+
+**Goal.** Close FU-12a-1. **Scope.** `systems/movement/src/action.rs:14, 21` and `worldpack/src/read.rs:354`
+(comments only); `tests/acceptance/tests/seam_vocabulary.rs`: the three `PRE_EXISTING` entries removed.
+**Depends on:** none. **Non-goals:** any code line.
+
+- [ ] Implementation: as scoped. The `MAX_STRIDE` comment no longer says movement "does not see walls"
+  as a gap: walls are bodies' (ARC-39), and movement still decides only the stride and the passage.
+- [ ] Validation: `cargo test -p mineworld-acceptance --test seam_vocabulary`; `-p mineworld-movement`;
+  `git diff` shows comment lines only.
+- [ ] Review: each reworded comment is still true; no new allow-list entry.
+
+### TD-C7 — The towns, run for real
+
+**Goal.** TD-5 … TD-8, TD-13's town half. **Scope.** `tools/cli/tests/bodies/mod.rs` (SD-D12: the place
+reader); `tools/cli/tests/town_bodies.rs` (new): TD-2's refusals on copies, the 300-day run of each town
+with TD-6's counts **checked before** TD-7's scan, TD-8's counterfactual, TD-13's catalogue disclosure.
+**Depends on:** TD-C5. **Activity first:** TD-5 and TD-6 on the first runs; on a failure, §19.4's ladder
+in order, each rung recorded with its counts; no rung passing → stop.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-cli --test town_bodies` (both towns), and run.rs, run_restart.rs,
+  routines.rs, market_town.rs, market_composition.rs, milestone_b.rs, milestone_c.rs; bodies-yard's
+  tests unchanged and green.
+- [ ] Review: the scan reads the save and the place files only; the counts printed per bucket; the
+  counterfactual's geometry is the real town's.
+
+### TD-C8 — Close: cost, cross-architecture, the re-baseline, the gate, the ledger
+
+- [ ] TD-12: the eight 300-day runs, consecutive, nothing else running (E-TD).
+- [ ] TD-11: the x86_64 build and the Rosetta comparisons.
+- [ ] TD-10, TD-14, TD-15, TD-16; the full gate once on the final executable head.
+- [ ] TD-1: the after digests recorded (E-TD, MVP_STATUS, the handoff for overall §7).
+- [ ] Documentation: `docs/MVP_STATUS.md`; both READMEs; §19's checkboxes, §19.12, §19.13; the handoff.
+- [ ] Review: TD-1 … TD-16 each with evidence; deviations named; FU-12c-1 and QD-10 untouched.
+
