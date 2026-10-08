@@ -2212,6 +2212,14 @@ clippy `-D warnings` exit 0; `cargo test --workspace` exit 0, 157 result lines a
 scratch outside mineworld-test-support"; the path check is still empty (`shots/16a/final/gates4.log`).
 No client script changed in that merge, so the Godot runs above stand. **G-1 PASS on the PR head.**
 
+**After the PR opened, main took E-b (#78, `4bdbca1`)**, and `DECISIONS.md` conflicted again. Merged as
+`13a4a72` on the coordinator's instruction. The resolution keeps both sides' records unchanged: DEP-20,
+then main's ARC-54, ARC-55 and the ARC-53 note. Against main the file only gains lines. No client file
+changed, so the Godot checks were not re-run. G-1 on `13a4a72`: fmt clean; clippy `-D warnings` exit 0;
+`cargo test --workspace` exit 0, with 162 result lines all `ok`, 710 passed, 0 failed and 1 ignored (AO-2's
+evidence); `check_decision_ids` "59 … all distinct"; `check_doc_headings` "191 … none duplicated";
+`check_scratch.py scan` "148 test sources … (2 exempt)" (`shots/16a/final/gates5.log`). **G-1 PASS.**
+
 ## 19.8 Execution contract (proposed; confirmed at freeze)
 
 ```text
