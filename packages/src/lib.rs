@@ -36,14 +36,23 @@ mod error;
 mod found;
 mod identity;
 mod manifest;
+mod policy;
+mod resolve;
+mod roots;
 
-pub use declared::Package;
+pub use declared::{Package, compiled_under};
 pub use error::PackageError;
 pub use found::{DataPack, WORLD_FILE, packs_in};
 pub use identity::{
     Compatibility, Identity, License, PackId, PackType, Version, distinct, framework_version,
 };
 pub use manifest::{PACK_FILE, STYLE_FILE, check_style_manifest, read_pack_file};
+pub use policy::LicencePolicy;
+pub use resolve::{
+    CodePack, Composition, FoundPack, Installed, Resolved, Source, SystemPackUsed,
+    WorldRequirements, resolve,
+};
+pub use roots::{PACKS_VARIABLE, PackRoots};
 
 /// The framework's release version: the version every framework crate and every bundled pack share
 /// (`ARC-53`). This crate is one of them, so its own Cargo version is the framework's.
