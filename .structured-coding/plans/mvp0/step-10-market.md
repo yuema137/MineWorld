@@ -3194,14 +3194,20 @@ dev-dependencies (`workspace = true`); `Cargo.lock` regenerated (two names in mi
 SD-34). Reuses `headless::{Tables, mineworld, fresh, every_seat_active_in_every_bucket, deterministic}`
 unchanged.
 
-- [ ] Implementation: the mirrors, the `Ledger`, the per-bucket conditions, the snapshot cross-check;
-  the one test in I-7's order.
-- [ ] Validation: `cargo test -p mineworld-cli --test market_town` (P-5, P-6; wall recorded); M-P8, M-P9,
-  M-P10, each observed to fail **before** the comparison is reached (§9.6 E-P5).
-- [ ] Review: each condition is located before counted (a bucket with zero of something is reported as
-  zero, never absent — ARC-23); the job holders are read from `hired`, and their number is asserted;
-  the snapshot cross-check reads the newest snapshot and replays exactly the facts at or before its
-  revision; no market crate is named (P-3's bullet 3 sees this file).
+- [x] Implementation: the mirrors, the `Ledger`, the per-bucket conditions, the snapshot cross-check;
+  the one test in I-7's order — `42c22ea`. `market/mod.rs`: `run_pack`, `run_market`, `Town`,
+  `MarketFact` + `market_fact` (slug match, schema version 1, exact fields), `wallet_balance`,
+  `holdings`, `listing`, `Ledger`, `market_lives`, `genesis_money`, `state_matches_replay`.
+  `market_town.rs`: one test.
+- [x] Validation: PASS 44.3 s (runs 35.6 s in parallel); M-P8, M-P9, M-P10 each fail by name before any
+  comparison (§9.6 E-P5).
+- [x] Review: every required count is printed per bucket with zeros shown, and every failure is
+  collected and reported together (restructured after M-P8's first run reported only the first
+  inline wallet violation — DP-3); job holders read from `hired`, asserted exactly two; the
+  snapshot check takes the newest snapshot and replays facts with ids below the first fact of any
+  later revision; the files name slugs only (check 2 bullet 3 passes over them). serde is not a
+  dependency of mineworld-cli, so the mirrors are exact-field checks over `serde_json::Value`
+  decoding each field into the contracts' id types, equivalent to `deny_unknown_fields` (DP-4).
 
 ### P-C6 — `tools/cli/tests`: AC-2 at world level
 
@@ -3350,6 +3356,14 @@ DP-2  Check 3 also reads items/ and organizations/ files: every key other than t
       `tags` and `note` must be a section a market pack owns. SD-32 names only "items/ and
       organizations/ exist in Market Town only"; this tightens it within ARC-35 item 4's intent
       ("plus sections owned by market packs only") and loosens nothing. Holds on the head.
+DP-3  market_lives first asserted the run conditions inline, fact by fact. M-P8's first run therefore
+      failed at day 43 naming cafe-company's drained wallet, not the expected "bucket 1: no
+      purchase". Both are before any comparison, but the report hid the rest. Now every failure is
+      collected and reported together, per-bucket absences first. Re-run of M-P8: as expected.
+DP-4  SD-33 names `#[derive(Deserialize)] #[serde(deny_unknown_fields)]` mirrors. mineworld-cli has no
+      serde dependency and its Cargo.toml is not a §4.6.1 path, so the mirrors are written as an exact
+      field-set check over serde_json::Value, each field decoded into the contracts' id type. Same
+      strength: an added or missing field fails by name.
 ```
 
 ---
@@ -4680,6 +4694,25 @@ E-P4 P-C4: `cargo test -p mineworld-acceptance --test ac1_composability` → 13 
        Café's". M-P14 (carol.yaml routine "07:00" → "07:30") → FAIL "people/carol.yaml: `routine`
        differs from Social Café's". Each run against the built test binary and `git restore`d; `git grep
        -n MUTATION -- worlds tests tools` empty.
+E-P5 P-C5 (42c22ea): `cargo test -p mineworld-cli --test market_town` → PASS, 44.3 s (five runs in
+     parallel, 35.6 s). 300-day seed 7, per bucket: purchases 349, 256, 276, 265, 250, 271, 247, 264,
+     258, 274; wages paid alice 30 every bucket, felix 28–30; items-produced 194–203; items-consumed
+     251–358; every seat gave 77–166 per bucket; zero wage-unpaid; no wallet below 100; nobody above
+     six. Snapshot at revision 289 024 (head 289 045): 14 wallets equal to the replay, total 2 360 000
+     = genesis; holdings equal. Purchase and wage counts equal E-6 run 3's, independently. The four
+     30-day saves pass the same conditions over one bucket (control 349 purchases; seed 8 315); then
+     control = twin byte for byte and in print; the run killed after day 15 resumed at its on-disk
+     head and equals the control; seed 8 first differs at fact #144.
+     M-P8 (consumption removed from market-town's systems) → FAIL, 128 conditions, first "bucket 0: no
+       items-consumed", "bucket 1 (days 31-60): no purchase", …, wage-unpaid, "cafe-company's wallet
+       fell to 30 … (day 43)". (First run, before DP-3: failed on the wallet alone.)
+     M-P9 (economy's money-transferred reduction does not debit the payer) → bucket conditions pass,
+       then FAIL on the snapshot: "a wallet economy wrote differs from the replay … #7: stored 255500,
+       replayed 31050; …"; stored total 3 587 610 vs genesis 2 360 000.
+     M-P10 (buy offered with Offer::new, incomplete) → FAIL, 30 conditions, first "bucket 0 (days
+       1-30): no purchase".
+     Each reverted (`git restore`); `git grep MUTATION -- systems worlds tools tests` empty. market_town
+     runs used: 5 of 6 (positive, M-P8 twice, M-P9, M-P10); the sixth is the final gate.
 ```
 
 ---
