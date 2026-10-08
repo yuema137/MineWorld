@@ -10,7 +10,10 @@
 //! the composition root hands it a world, a perception and the controllers that drive seats.
 
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::Duration;
 
 use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_persistence::{Creation, Durability, PersistentWorld, SqliteBackend};
@@ -21,7 +24,7 @@ use mineworld_server::{
 use mineworld_worldpack::WorldPack;
 
 use crate::perceive::PackPerception;
-use crate::{agent, described, invite, listed};
+use crate::{described, hosted, invite, listed};
 
 /// What `mineworld server` was asked.
 pub struct ServeRequest {
@@ -33,8 +36,48 @@ pub struct ServeRequest {
     pub invite: Option<String>,
     /// The seats the reactive rule controller drives.
     pub agents: Vec<EntityKey>,
+    /// Whether the paced rule controller drives every other seat.
+    pub town: bool,
+    /// The paced controllers' seed.
+    pub seed: u64,
+    /// How often each paced seat is consulted, in wall seconds (QTW-13).
+    pub pace: NonZeroU32,
+    /// How long a dropped connection's seat is held, in wall seconds.
+    pub hold: u32,
+    /// World seconds per wall second.
+    pub time_scale: NonZeroU32,
     /// Where the world is kept, when it is persisted.
     pub save: Option<PathBuf>,
+}
+
+/// Which controller drives a seat nobody plays.
+#[derive(Clone, Copy)]
+enum Driver {
+    Reactive,
+    /// The paced controller, as seat number `k` in roster order.
+    Paced(usize),
+}
+
+/// The seats in-server controllers drive, with the tally each one's statistics go to.
+fn drivers(
+    seats: &[EntityKey],
+    agents: &[EntityKey],
+    town: bool,
+) -> Vec<(EntityKey, Driver, hosted::Tally)> {
+    seats
+        .iter()
+        .enumerate()
+        .filter_map(|(k, seat)| {
+            let driver = if agents.contains(seat) {
+                Driver::Reactive
+            } else if town {
+                Driver::Paced(k)
+            } else {
+                return None;
+            };
+            Some((seat.clone(), driver, hosted::Tally::default()))
+        })
+        .collect()
 }
 
 /// Loads a pack and hosts it until interrupted, with a controller on each requested seat.
@@ -44,13 +87,22 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         listen,
         invite,
         agents,
+        town,
+        seed,
+        pace,
+        hold,
+        time_scale,
         save,
     } = request;
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
     let pack = WorldPack::read(&world).map_err(described)?;
     let invite = invite::Invite::resolve(invite)?;
-    let config = HostConfig::default();
+    let config = HostConfig {
+        hold: Duration::from_secs(u64::from(hold)),
+        time_scale,
+        ..HostConfig::default()
+    };
     let epoch = config.epoch;
     println!(
         "[mineworld] {} ({}) — {} system(s), {} seat(s)",
@@ -75,6 +127,19 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         }
     }
 
+    let roster: Vec<EntityKey> = pack.seats().iter().cloned().collect();
+    let driven = drivers(&roster, &agents, town);
+    let tallies: Vec<(EntityKey, hosted::Tally)> = driven
+        .iter()
+        .map(|(seat, _, tally)| (seat.clone(), Arc::clone(tally)))
+        .collect();
+    // Cadence is wall time (QTW-13): the adapters scale it into world seconds themselves.
+    let pacing = hosted::Pacing {
+        seed,
+        pace,
+        scale: time_scale,
+    };
+
     let recent = config.recent_events;
     let host = WorldHost::spawn(config, move || {
         let seats = SeatRoster::new(pack.seats().iter().cloned());
@@ -89,6 +154,20 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
                     .perceiving(PackPerception::new(providers))
             }
         };
+        // Each seat's factory builds a fresh controller, bound at the instant it is given: at start,
+        // and every time a person gives the seat back (`PROTOCOL.md` §4.2). The paced lattice begins
+        // at the epoch every world this command creates begins at, so it is the same after a resume.
+        let hosted =
+            driven
+                .into_iter()
+                .fold(hosted, |hosted, (seat, driver, tally)| match driver {
+                    Driver::Reactive => hosted.hosting(seat, move |bound| {
+                        Box::new(hosted::ReactiveSeat::bound(bound, time_scale, &tally))
+                    }),
+                    Driver::Paced(k) => hosted.hosting(seat, move |_bound| {
+                        Box::new(hosted::PacedSeat::new(pacing, epoch, k, &tally))
+                    }),
+                });
         Ok(hosted.seating(seats))
     })
     .await
@@ -117,11 +196,16 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     }
     let admission = Admission::new(invite.token().clone());
 
-    // Each controller is a task of its own, occupying a seat exactly as a client's connection does.
-    // In-process, so it presents no invite: admission gates the socket, not the composition root.
-    for seat in agents {
-        tokio::spawn(agent::drive(host.clone(), seat));
-    }
+    println!(
+        "[mineworld] hold {hold} s, time scale {}, {} seat(s) driven in-server{}",
+        status.time_scale,
+        tallies.len(),
+        if town {
+            format!(" (town: seed {seed}, pace {pace} wall s)")
+        } else {
+            String::new()
+        },
+    );
 
     app::serve_with_shutdown(listener, host.clone(), admission, async {
         let _ = tokio::signal::ctrl_c().await;
@@ -130,7 +214,10 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     .await
     .map_err(|error| format!("[mineworld] {error}"))?;
 
+    // Returns once the world thread has checkpointed and printed its tick statistics; then each
+    // in-server controller's (`ARC-42`, step-12 SD-B11).
     host.shutdown().await;
+    hosted::report(&tallies);
     Ok(())
 }
 

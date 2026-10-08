@@ -39,6 +39,9 @@ pub fn join_frame(seat: &str) -> Value {
 /// The pack every test is pointed at: the repository's own.
 pub const PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/social-cafe");
 
+/// The twelve-person town, for the tests in which in-server controllers drive a whole town.
+pub const MARKET_PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/market-town");
+
 /// The real binary, hosting the real pack, killed when the test ends.
 pub struct Server {
     process: Child,
@@ -151,6 +154,37 @@ impl Server {
         self.process.kill().expect("SIGKILL is delivered");
         self.process.wait().expect("the process is reaped")
     }
+
+    /// Stops the process with `SIGINT`, as an operator's Ctrl-C does — the graceful stop that prints
+    /// the shutdown statistics (step-12 SD-B11) — and returns how it ended.
+    pub fn interrupt(&mut self) -> std::process::ExitStatus {
+        let sent = Command::new("kill")
+            .args(["-INT", &self.process.id().to_string()])
+            .status()
+            .expect("kill runs");
+        assert!(sent.success(), "SIGINT is delivered");
+        self.process.wait().expect("the process is reaped")
+    }
+}
+
+/// The first file under `directory` whose bytes contain `needle`, if any — for the claim that a
+/// secret is in no byte of a save.
+pub fn file_containing(directory: &std::path::Path, needle: &[u8]) -> Option<std::path::PathBuf> {
+    for entry in std::fs::read_dir(directory).expect("the directory exists") {
+        let path = entry.expect("an entry").path();
+        if path.is_dir() {
+            if let Some(found) = file_containing(&path, needle) {
+                return Some(found);
+            }
+        } else if std::fs::read(&path)
+            .expect("readable")
+            .windows(needle.len())
+            .any(|window| window == needle)
+        {
+            return Some(path);
+        }
+    }
+    None
 }
 
 /// What a captured server has written so far, one string per line, kept in memory.
@@ -436,6 +470,27 @@ impl Client {
         };
         serde_json::from_str(&text)
             .unwrap_or_else(|error| panic!("a server frame: {error} in {text}"))
+    }
+
+    /// The next frame that is not an observation.
+    pub async fn answer(&mut self) -> ServerFrame {
+        loop {
+            let frame = self.frame().await;
+            if !matches!(frame, ServerFrame::Observation { .. }) {
+                return frame;
+            }
+        }
+    }
+
+    /// Joins with a frame of the test's own making (a `resume`, a `take_over`) and returns the
+    /// server's answer to it: a welcome or a refusal. A welcome records the observer.
+    pub async fn join_as(&mut self, frame: Value) -> ServerFrame {
+        self.send(frame).await;
+        let answer = self.answer().await;
+        if let ServerFrame::Welcome { observer, .. } = &answer {
+            self.observer = Some(*observer);
+        }
+        answer
     }
 
     /// Closes the connection, as a killed client does.

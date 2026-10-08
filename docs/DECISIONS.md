@@ -3450,9 +3450,15 @@ not a dependency (step-12 §7.4).
   (`NETWORKING.md` §9: "matchmaking, global accounts" are non-goals), so the server cannot tell the
   dropped player from a friend on the same invite; a finer policy — for example, only the operator may
   take a held seat — needs accounts. This is LAN-friends trust, stated rather than implied (QS11B-3).
-- **A hold is wall time; a pace is world time.** `--hold` counts wall seconds (a hold is about a
-  network); `--pace` counts world seconds (a pace is about a life). With `--time-scale 60` a 30-second
-  hold is half an hour of the world (QS11B-4).
+- **A hold and a pace are both wall time.** `--hold` counts wall seconds (a hold is about a network).
+  `--pace` counts wall seconds too — **amended 2026-10-08 by operator ruling QTW-13**
+  ([`step-19-time-weather.md`](../.structured-coding/plans/mvp0/step-19-time-weather.md) §4.4), which
+  reverses QS11B-4's "a pace is about a life": a hosted Person walks one stride per consult and walking is
+  embodied, so the time scale must never make it walk or talk faster. An adapter states its cadence to
+  the seam as `cadence × time_scale` world seconds (the reactive controller's one wall second likewise).
+  With `--time-scale 60` a 30-second hold is half an hour of the world, and a paced seat is consulted
+  every 5 wall seconds, 300 world seconds. Headless `run` is unaffected: it has no wall clock and keeps
+  its 900-second world pace (`ARC-27`).
 - **Nothing survives a restart.** Holds and resume secrets are host state and are not persisted; after a
   restart a player joins again and finds the seat free or hosted.
 - **"Missed the moment."** A controller bound at an instant treats every line heard at or before that

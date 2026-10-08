@@ -1,10 +1,12 @@
 //! `mineworld` — the command that runs a world.
 //!
 //! ```text
-//! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--save DIR]
+//! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--town]
+//!                  [--seed N] [--pace SECONDS] [--hold SECONDS] [--time-scale N] [--save DIR]
 //!                                       load the pack and host it; with --save, persisted;
 //!                                       clients join with the invite (generated and printed
-//!                                       when neither --invite nor MINEWORLD_INVITE gives one)
+//!                                       when neither --invite nor MINEWORLD_INVITE gives one);
+//!                                       in-server controllers drive seats nobody plays (ARC-42)
 //! mineworld validate <world>            load it, say what it is, and stop
 //! mineworld replay <world> --save DIR   re-execute a save's whole history and check it
 //! mineworld run <world> --headless --seed N --days N [--save DIR]
@@ -51,9 +53,9 @@
 //! into plain values before anything runs, so no other module names the parser. The command surface
 //! is specified in `docs/MODULE_SPEC.md` §8.1.
 
-mod agent;
 mod biography;
 mod create;
+mod hosted;
 mod inspect;
 mod invite;
 mod packs;
@@ -62,6 +64,7 @@ mod run;
 mod serve;
 
 use std::net::SocketAddr;
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -100,10 +103,27 @@ enum Subcommand {
             hide_env_values = true
         )]
         invite: Option<String>,
-        /// Drive that seat with a rule controller, in this process, over the same path a client's
-        /// connection uses. Repeat it for more than one.
+        /// Drive that seat with the reactive rule controller, on the world thread, whenever no
+        /// player holds it. Repeat it for more than one.
         #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
         agents: Vec<EntityKey>,
+        /// Drive every other seat with the paced rule controller whenever no player holds it.
+        #[arg(long)]
+        town: bool,
+        /// The paced controllers' seed.
+        #[arg(long, default_value_t = 0)]
+        seed: u64,
+        /// How often each paced seat is consulted, in wall seconds: the time scale never makes a
+        /// hosted Person walk or talk faster.
+        #[arg(long, value_name = "SECONDS", default_value = "5")]
+        pace: NonZeroU32,
+        /// How long a dropped connection's seat is held for its resume, in wall seconds; 0 holds
+        /// none.
+        #[arg(long, value_name = "SECONDS", default_value_t = 30)]
+        hold: u32,
+        /// How many world seconds pass per wall second.
+        #[arg(long, value_name = "N", default_value = "1")]
+        time_scale: NonZeroU32,
         /// Keep the world in DIR/world.sqlite: created from the pack the first time, resumed — the
         /// same world, where it stopped — every time after.
         #[arg(long, value_name = "DIR")]
@@ -230,6 +250,11 @@ async fn main() -> ExitCode {
             listen,
             invite,
             agents,
+            town,
+            seed,
+            pace,
+            hold,
+            time_scale,
             save,
         } => {
             serve::serve(serve::ServeRequest {
@@ -237,6 +262,11 @@ async fn main() -> ExitCode {
                 listen,
                 invite,
                 agents,
+                town,
+                seed,
+                pace,
+                hold,
+                time_scale,
                 save,
             })
             .await

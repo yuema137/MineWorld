@@ -1907,6 +1907,20 @@ primary session informs the operator); (4) hold in wall seconds, pace in world s
 statistics line is CP-B4's probe; (6) no merge order with E-b or IL-a. Implementation is done by a fresh
 session in its own worktree on `mvp0/pr-s11b-seats` (§16.9's endpoint "implementation + local
 validation" is authorized by this message).
+**Amendment 2026-10-08 (operator ruling QTW-13, relayed by the primary session).** QS11B-4 is reversed
+for consult cadence: `--pace` is measured in **wall** seconds, not world seconds, so that changing the
+time scale never speeds up NPC movement or talk (`step-19-time-weather.md` §4.4 and its QTW-13 row, on
+`plan/s19-time-weather`). Applied in S11-B as follows, and only in hosted serve mode: the seam stays in
+world time (SD-B5 unchanged); the CLI adapters (SD-B7) state their cadence as `cadence × time_scale`
+world seconds — `PacedSeat` consults seat `k` at `genesis + (k + m·pace)·time_scale` and tells
+`PacedRuleController` its pace in world seconds (`pace × time_scale`, its answering window);
+`ReactiveSeat` is consulted every wall second (`time_scale` world seconds). SD-B9's `--pace` reads "wall
+seconds"; `--hold` was already wall time. At `--time-scale 1` (every existing test, SB-6) nothing
+changes. Headless `run`, `run.rs` and the 300-day digests are untouched (I-6). `ARC-40`'s limitation and
+`MODULE_SPEC.md` §8.1 are amended with the date and the citation. The `--pace` → `--cadence` rename
+QTW-13 suggests, and rescheduling pending consults on a live scale change, are S19's (TW-c); the form
+`cadence × s_current` is the one S19 §4.4 reschedules. Evidence E-SB5; deviation record D-SB6.
+
 **Author:** the S11 implementing session, 2026-10-08, worktree
 `/Users/yuema137/mineworld-worktrees/impl-s11a`, branch `mvp0/pr-s11b-seats` (from `main @ f842c52`).
 **Binding parents:** this file §§4.2–4.6, 5 (as `server/PROTOCOL.md` revision 2 now states it), 6, 7.4,
@@ -2163,7 +2177,9 @@ on the world thread; consults bounded); the session holds no binding state.
 (SB-11's first half); M-SB1, M-SB3, M-SB4, M-SB5, M-SB6, M-SB8. **Review:** the server names no controller
 crate; statistics lines carry no secret.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation · [x] Review (E-SB5; D-SB6 … D-SB10; full `cargo test -p
+  mineworld-cli --no-fail-fast` after the QTW-13 change: every target green but ac15's second
+  `clients` literal, fixed (D-SB9) and re-run 6/6)
 
 ### B-C7 — The Godot module: `take_over`, opt-in reconnect; the far side
 
@@ -2308,6 +2324,37 @@ E-SB4 B-C5. Resumed session (D-SB4): the 13 uncommitted files were audited hunk 
       left 2" and the occupied test red; reverted. M-SB7 (consult submits as request.actor()) →
       "acting as somebody else … left: Answered(… Accepted …)"; reverted. Both re-green.
       Sizes: runtime.rs 492, host.rs 432, session.rs 399, protocol.rs 358.
+E-SB5 B-C6 (origin/main e98321a — test hygiene #77 — merged first; new tests use SaveDir, i.e.
+      `scratch!`). tools/cli/src/hosted.rs (ReactiveSeat, PacedSeat, statistics), serve.rs wiring,
+      main.rs flags, agent.rs deleted. Smoke (market-town --town, port 0, SIGINT): join line read,
+      `[world] ticks 19, longest tick 0 ms` and eleven `[world] hosted …` lines.
+      SB-1 ac5_takeover binding_changes_… PASS: revision 1 through join alice (hosted), leave, rejoin
+      (hosted), drop, resume (held), take_over (connection; holder closing{taken_over}), leave, drop +
+      3 s hold expiry (free again); inspect `facts      53` = validate's 53 genesis facts.
+      M-SB1 (join submits a talk as the seat) → "taking alice from her controller moved the revision:
+      left 2, right 1"; reverted.
+      SB-3/SB-9 ac3_reconnect PASS (13 s): hosted → drop → revision advanced during the hold → resume
+      within 10 s → "held", same observer, later `at`, same self_location; second drop + 11 s →
+      resume invalid_resume, plain join "hosted"; /status clients 1 with --town; three secrets in no
+      stdout/stderr line and no save byte. M-SB3 (no hold) → the inside-hold resume refused
+      invalid_resume (the seat was already back with the town); reverted.
+      SB-4 ac5_takeover a_player_takes_alice… PASS (D-SB7): biography before a prefix of after, every
+      added event_id among the players' answered events, revision = head + 3, components changed
+      {acquaintances, conversation-history, holdings, wallet}, wallet lower, holdings +1. M-SB4 (a
+      hosted seat stays Hosted when a player joins) → revision 5 ≠ 4; reverted.
+      SB-5 restart a_restarted_agent… PASS (16.6 s): revision 7 unchanged over 15 silent wall seconds
+      after the restart, history unchanged. M-SB5 (ReactiveSeat binds RuleController::new()) →
+      "left 8, right 7"; reverted.
+      SB-6 hosted_town PASS (120.6 s, scale 1): `[world] ticks 1201, longest tick 13 ms`; accepted
+      moves per hosted seat alice 17, bob 16, carol 10, dev 20, erin 20, felix 16, grace 16, hana 14,
+      ivan 8; zero faults; clients 2. CP-B4's 50 ms bound holds with Durability::PowerLoss.
+      M-SB6 (a slot's first consult a billion seconds away) → "alice made 0 accepted move(s)";
+      reverted.
+      SB-8 server_command time_scale… PASS: welcome and /status 60, Δat 100…140 over 2 wall s; plain 1.
+      M-SB8 (HostClock ignores the scale) → "differ by 2 world seconds"; reverted.
+      QTW-13 (D-SB6): hosted.rs unit tests 2 PASS; its mutation red; reverted.
+      clippy -D warnings, workspace, all targets: clean. Sizes: main.rs 412, serve.rs 271,
+      hosted.rs 258.
 ```
 
 ## 16.11 Deviations and discoveries
@@ -2339,6 +2386,39 @@ D-SB5 (forward constraint, S19) Live time scale and pause. The operator's later 
       the clock frozen until resume; both stay on the world thread. Holds are wall time and
       consults skip (never queue) missed instants, so neither misbehaves across a rebase.
       `welcome.world.time_scale` is a snapshot; a live change would need an announcement frame
-      (S19's to specify). Movement and dialogue are not scaled by anything in this PR.
+      (S19's to specify). Hosted consult cadence is wall time from the QTW-13 amendment (D-SB6); on
+      a live change S19 must reschedule each slot's pending `next` (`now + w × s₁`, its §4.4) — the
+      slot already re-asks `next_consult` after every consult, so a rescale needs one pass over the
+      table and no seam change. Nothing in this PR scales movement or dialogue.
+D-SB6 (ruling) QTW-13 applied (the dated amendment under §16's freeze record): `--pace` in wall
+      seconds, the reactive second in wall time, both stated to the world-time seam × time_scale, in
+      tools/cli/src/hosted.rs and serve.rs only. Files touched are inside §16.5 (hosted.rs, serve.rs,
+      main.rs, docs/DECISIONS.md ARC-40, MODULE_SPEC.md §8.1); no invariant changes — I-6 holds
+      because run.rs is untouched. Guard: hosted.rs `cadence_is_wall_time_whatever_the_scale`; its
+      mutation (pace not multiplied by the scale) → "left [1120, 1125, 1130], right [1120, 1420,
+      1720]"; reverted. Seat offsets are k wall seconds as well (k × scale world seconds), so seats
+      stay spread across ticks at any scale.
+D-SB7 (bounded) SB-4's evidence. (a) `mineworld biography --json` carries `event_id`, not a cause, so
+      "every added entry's cause is an ActionId this client was answered with" is checked as every
+      added entry's event_id being among the events the players' accepted requests returned (the
+      server's own answer ties those events to those ActionIds). (b) `talk` is not biographical, so a
+      controller answering while alice is played would not show in her biography: M-SB4 was seen
+      green on the biography check alone. The test therefore adds a second session playing bob who
+      speaks to alice while she is played, and asserts the persisted revision advanced by exactly
+      the players' three requests; under M-SB4 it is head+4. (c) Alice's changed components are
+      wallet (lower), holdings (+1), conversation-history and **acquaintances** — a first talk makes
+      two people acquainted, which SB-4's literal omitted; listed, not hidden.
+D-SB8 (bounded) SB-3's "visitor's location unchanged during the hold" is read from the resumed
+      client's own first observation (equal `self_location` to the last one before the drop) rather
+      than from a second client's: the visitor is not guaranteed to be in a second client's
+      perception, and its own observation is the stronger witness. The revision advancing during the
+      hold is read from /status as written.
+D-SB9 (bounded) Existing test edited because a hosted `--agent` changes what it observes (§16.8):
+      tools/cli/tests/ac15_one_alice.rs `clients` 3 → 2 (there_is_only_one_alice) and 2 → 1
+      (killing_one_window_…) — an in-server controller is no longer a client (SD-B4). No other
+      existing CLI test assertion changed.
+D-SB10 (bounded) The paced lattice's `genesis` is `HostConfig::epoch`, the instant every world this
+      command creates begins at, so it is the same after a resume; hosted instants follow the wall
+      clock anyway (ARC-42's accepted limitation).
 ```
 
