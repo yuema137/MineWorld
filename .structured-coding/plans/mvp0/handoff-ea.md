@@ -20,10 +20,12 @@ STOPS               kernel/contract/persistence change; digest change from merge
 
 ## Current checkpoint
 
-**READY FOR OPERATOR REVIEW — CLOSED / AWAITING OPERATOR ACTION.** Final executable head `331b670`:
-fmt, clippy and `cargo test --workspace` (602 passed, 0 failed, 0 ignored, 0 filtered) green; both
-towns' digests equal base; AC-1 13 passed. The evidence commit after it is Markdown only. The PR is
-open; do not merge without the operator's explicit approval. After merge: record the merge identity
+**READY FOR OPERATOR REVIEW — CLOSED / AWAITING OPERATOR ACTION.** PR #70. Final executable head
+`e118935` (main with S15's 12c merged in; supersedes `331b670`): fmt, clippy and `cargo test
+--workspace` (656 passed, 0 failed, 1 ignored — 12c's own `#[ignore]` — 0 filtered) green; both towns'
+digests equal base; AC-1 13 passed. The evidence commit after it is Markdown only. If main moves
+again: merge it (§14.7), re-run the gate, record. Do not merge the PR without the operator's explicit
+approval. After merge: record the merge identity
 in §14 and report to the primary session, which owns §9.2, the step header and `overall.md`.
 
 Process slip, recorded for the operator: one `sed -i` was used on this file (a one-phrase edit to this

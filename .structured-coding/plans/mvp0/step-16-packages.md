@@ -941,7 +941,8 @@ fields, `mineworld:`, `requires:`), §8.1 (`packs`), §9 (MVP-0 subset, SystemVe
 # 14. PR E-a — pack identity (PR design)
 
 **Lifecycle:** `READY FOR OPERATOR REVIEW` — DESIGN FROZEN (2026-10-08), primary session; implemented,
-final executable head `331b670`, evidence in §14.5 Ea-C7 and §14.8. Not merged.
+final executable head `e118935` (main with S15's 12c merged in), evidence in §14.5 Ea-C7 and §14.8. PR
+#70. Not merged.
 
 ## 14.0 Freeze record
 
@@ -1464,8 +1465,26 @@ C3 `66f2d07` · merge `f66b42d` · C4 `e7dcfac` · C5 `63d0c33` · C6 `5ab5f5f` 
 (C2); `tests/packs.rs` self-contained rather than through `support/` (C6); M-A8 run as a bullet-3 plant
 because the planned dependency is a cycle Cargo refuses (C7). None touches a frozen invariant.
 
-**PR E-a lifecycle: READY FOR OPERATOR REVIEW** — final executable head `331b670`; the PR head is the
-Markdown-only commit that records this. Implementation context CLOSED / AWAITING OPERATOR ACTION.
+**Main moved after the PR opened (E-Ea-final-2).** PR #70 showed CONFLICTING once S15's 12c merged
+(#67, `889d217`): `systems/bodies/**`, `tools/cli/tests/bodies*`, `worlds/bodies-yard/**`, docs. Merged
+per §14.7 as `e118935`. Two conflicts, both documentation, resolved as a union: `docs/DECISIONS.md` (12c's
+DEP-13 note placed at the end of DEP-13, before ARC-53) and `docs/MVP_STATUS.md` (both evidence rows
+kept). `systems/bodies/src/system.rs` merged cleanly with its `PACKAGE` line; `worlds/bodies-yard/
+world.yaml` merged cleanly with both the package fields and 12c's `items:`; 12c added no `SystemPack`
+impl. The base for EA-6 stays valid: 12c's frozen PO-1 holds the towns at the same two digests
+(step-11, its final-head record). Full gate re-run on the new executable head **`e118935`**: fmt 0;
+clippy `--all-features -D warnings` 0; `cargo test --workspace --no-fail-fast` exit 0, 321 s, **656
+passed, 0 failed, 1 ignored, 0 filtered** over 151 harness result lines, `resolver-yard`, `cafe`,
+`clock` PASS. 656 = 12c's recorded final count 636 + this PR's 20. The one ignored test is 12c's own
+`thirty_days_of_bodies_yard_at_seeds_7_8_and_9` (`#[ignore]`, "evidence for the AO-2 ruling … run with
+--ignored"), not this PR's. EA-6 on `e118935`: social-cafe `ad49c723…16c64b`, market-town
+`365b50e0…5391d1d` — unchanged; `validate` of both towns byte-identical (bodies-yard's output
+legitimately changed with 12c's objects and is not this PR's invariant). `packs list --packs worlds
+--packs presentation/mineworld-default` → 20 packs, exit 0. `git diff --stat origin/main HEAD -- kernel
+contracts persistence server clients tests/acceptance` → empty.
+
+**PR E-a lifecycle: READY FOR OPERATOR REVIEW** — final executable head `e118935` (it supersedes
+`331b670`); the PR head is the Markdown-only commit that records this. Implementation context CLOSED / AWAITING OPERATOR ACTION.
 Post-merge: this session records the merge identity here; the primary session updates §9.2's status,
 the step header and `overall.md`.
 
