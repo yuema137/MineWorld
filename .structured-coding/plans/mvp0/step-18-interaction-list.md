@@ -1265,6 +1265,14 @@ Neither pack names a physics word or an interaction word.
 
 **Freeze rulings (primary session, 2026-10-08).** QIA-1 to QIA-6 accepted as recommended. QIA-1: `packages` and `classes` are reserved in IL-a and both are wired in IL-b — consistent with the E-b freeze (FQ-b2), under which E-b ships the default licence policy and its evaluator, and a later `configure/packages.yaml` override is a recorded hook. QIA-4: guidance only, stated in ARC-61. QIA-5: authorized, never pushed, deleted afterwards.
 
+**Coordination note from S16 E-b (2026-10-08, relayed by the primary session during IL-a's
+implementation).** The `packages` key is owned by the framework crate `mineworld-packages`, not by a System
+Pack; the `configure:` seam is keyed by system id. IL-a reserves `packages` and refuses it; IL-a's reservation
+and messages do not assume a key names a system (`ConfigurationReserved` says "reserved for the licence
+policy's override", and `ConfigurationKey`'s documentation says a key is a system id *or* a reserved key).
+**IL-b must let the framework-owned `packages` key through** — routed to `mineworld-packages`, not resolved
+against the installed set, not seeded, not drift-checked (§11.5's hook paragraph).
+
 ## 11.10 Proposed execution contract for PR IL-a
 
 ```text

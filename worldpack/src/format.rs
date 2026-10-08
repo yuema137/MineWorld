@@ -79,12 +79,13 @@ pub struct WorldManifest {
     pub configure: Vec<ConfigurationKey>,
 }
 
-/// A key of `world.yaml`'s `configure:` list: a system id, naming `configure/<key>.yaml`
-/// (`DECISIONS.md` `ARC-61`).
+/// A key of `world.yaml`'s `configure:` list, naming `configure/<key>.yaml` (`DECISIONS.md`
+/// `ARC-61`): an enabled System Pack's id, or a reserved key.
 ///
-/// Its own type rather than a [`SystemId`], because two keys are reserved for things that are not
-/// systems (`classes`, `packages`) and a key is checked against the build before it is one. It
-/// validates as a system id does, at its line in `world.yaml`.
+/// Its own type rather than a [`SystemId`], because not every key names a system: `classes` is the
+/// Interaction List's and `packages` belongs to the framework's package crate (the licence policy's
+/// override), both reserved in this build and wired by a later one. It is spelled as a system id is
+/// and validates at its line in `world.yaml`; whether it names a system is decided after.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(transparent)]
 pub struct ConfigurationKey(SystemId);

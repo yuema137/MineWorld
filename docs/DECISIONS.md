@@ -3714,14 +3714,16 @@ was created with, because resume does not re-read content (`ARC-25`).
    direction: `None`, no facts, and a decode that refuses "the '<id>' system takes no configuration".
    The installed set's `Capability` aggregates them: `configuration`, `decode_configuration`,
    `configuration_facts`.
-3. **The carrier is `world.yaml` `configure:`**, an optional list of keys. Each key is a system id and
-   names `configure/<key>.yaml`, decoded straight from the YAML stream into the owner's type, so a
+3. **The carrier is `world.yaml` `configure:`**, an optional list of keys. Each key is an enabled
+   System Pack's id or a reserved key (item 4), and names `configure/<key>.yaml`, decoded straight from the YAML stream into the owner's type, so a
    refusal keeps its line and column (`DEP-10`). The list's order is the author's and is the seeding
    order. Absent means empty.
 4. **Reserved keys.** `classes` (the Interaction List's entity classes, `ARC-64`, IL-b) and `packages`
-   (the licence-policy override hook of S16 E-b, FQ-b2) are reserved: listing either is refused,
-   "reserved for <what>; not configurable in this build". Both are wired in IL-b. A test holds that no
-   installed pack's id is a reserved key.
+   (the licence-policy override hook of S16 E-b, FQ-b2 — owned by the framework crate
+   `mineworld-packages`, not by a System Pack) are reserved: listing either is refused, "reserved for
+   <what>; not configurable in this build". Both are wired in IL-b, which lets `packages` through to its
+   framework owner rather than resolving it against the installed set. A test holds that no installed
+   pack's id is a reserved key.
 5. **Refused by name**, each naming the key and the file, with line and column where a YAML value is
    involved: a key that is no system of this build; a system the world does not enable; a system that
    takes no configuration; a reserved key; a key listed twice; a listed file missing; a `.yaml` file in
