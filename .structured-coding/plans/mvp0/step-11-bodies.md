@@ -4099,11 +4099,44 @@ ruling.
 
 ---
 
-# 18. PR 12c — objects: walking pushes them; kick, throw and shove (full design; DRAFT, not frozen)
+# 18. PR 12c — objects: walking pushes them; kick, throw and shove (full design; DESIGN FROZEN 2026-10-08)
 
 **Lifecycle:** drafted by the planning session on `mvp0/s15-12c-plan` on 2026-10-08, stacked on the 12b
-post-merge docs PR (#60). **Not frozen.** Nothing in §18 authorizes implementation. The freeze record,
-§18.0, is written by the primary session when it freezes.
+post-merge docs PR (#60). Frozen by the primary session on 2026-10-08 (§18.0).
+
+## 18.0 Freeze record
+
+**DESIGN FROZEN (2026-10-08), primary session.** The execution contract (§18.9) is confirmed. This
+record binds, and overrides any other text in §18.
+
+- **QO-1 to QO-20 are accepted as recommended.** None of them, as recommended, contradicts an operator
+  decision.
+  - QO-3: objects are authored in their item file. QB-3's letter stands.
+  - QO-5: 12c has no pick-up or put-down. Scope is unchanged. Carrying is designed only, and waits on
+    a unique-held-object representation (ARC-36 item 3).
+- **The `bodies` → `mineworld-item` crate dependency is accepted, with bounds.** `bodies` uses it
+  only to call the read-only `mineworld_item::is_declared`, so that an Item cannot carry both `body:`
+  and `item:`.
+  - This couples a physics pack to a market pack's crate. AC-1's check 2 allows it, because the
+    dependent lives under `systems/`. It is still a coupling, so 12c must:
+    - (a) record it in ARC-39's 12c note, naming the one function used;
+    - (b) add a test asserting that `bodies` names nothing else from `mineworld_item`, with a
+      mutation showing that the test bites;
+    - (c) declare no *system* dependency on `item`. A world may install `bodies` without `item`,
+      and `validate` and a run must show that.
+  - If the implementation needs anything more from `item`, that is a material stop.
+- **QO-16:** the named test edits are accepted with their claims unchanged. They are `rapier_pin`
+  (VERSION 2), `isolation`'s dependency claim, and the bodies-yard scan and activity lines.
+  - 12b's 30-day bodies-yard sha is not frozen and may change.
+  - The towns' digests and 12b's long-run base capture may not change.
+- **The activity ladder (AO-1 to AO-3) is fixed now.** Any fix goes to content or pack offer policy,
+  never to the controller.
+- **The cost bounds are fixed now and are not re-scoped after measuring:**
+  - release ≤ 100 µs per swept move;
+  - release ≤ 2 ms per kick or throw;
+  - 300-day dev run ≤ 40 s.
+- **Merge:** with a merge commit.
+- **Implementation:** in a fresh session on `mvp0/pr-12c-objects`, in its own worktree.
 
 This section refines §4.5.4, §4.6, §4.7, §7.2, §8.1, §10.1–§10.4 and §11.1's 12c row from merged
 source. Where they and §18 disagree, §18 governs, and each difference is named with the finding that
