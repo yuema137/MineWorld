@@ -533,3 +533,198 @@ package is a short runnable list (the operator's standing preference), for examp
 Plus the objective evidence the operator can re-run (`--link`, `--bodies`, `--geometry`, the `AC-13`
 test), frames of each interaction, known limitations as facts, and the questions asked. The operator
 judges embodiment and interaction correctness (`MVP.md` §7.2), not graphics.
+
+---
+
+# 5. Validation — how each claim is shown, by running the client
+
+Every claim below is shown by a scripted mode of the real client against a real `mineworld server`,
+started by `./mineworld-slice --world …` exactly as the operator starts it (`ENGINEERING_RULES.md` §19).
+Connected modes move out of the 1 649-line `slice_probe.gd` into a sibling, `slice_probe_world.gd`
+(F-S14-12); the existing modes are not edited beyond what their claims need.
+
+| Mode | PR | Claim | Pass condition, decided before running (`ARC-23`) |
+| --- | --- | --- | --- |
+| `--drive`, `--measure`, `--threshold`, `--link`, `--conversation` | 16a | The accepted slice is unchanged on Jolt | every existing line passes as it did on Godot Physics; any number that moves is reported with both values |
+| `--world --target` | 16a | The ray targets what is visible, and only that | from the café door, facing Alice through the room: Alice; with a wall between (from the street, facing her through the back of the building): nobody; the E press from the door still submits and is answered `too_far_away` |
+| `--world --geometry` | 12e | The scene and the server agree on walls (R-B4) | every disclosed face has a scene collider within 150 mm, and vice versa, gaps excepted; each miss printed with coordinates |
+| `--world --bodies` | 12e | Bodies, end to end, with frames | (a) the player walks into a standing person: that person's next observed position moved by 1 … 310 mm, the player is never drawn closer than 0.59 m to them, and no correction exceeds the nudge; (b) into a group of three: the body stops, no `move` refused; (c) into a box: the box's disclosed position moves; (d) F on a ball within reach: accepted, the ball moves; out of reach: `too_far_away`; (e) G, G: accepted, the object moves; aimed: accepted; (f) a second scripted connection on another seat shoves the player: the player's body is corrected within two observations; (g) after the run, the drawn positions of the player, every person and every object equal the final observation's, and the save's last facts (`mineworld inspect`) |
+| `--world --bodies --no-people-colliders` | 12e | **No rule in the client** (12e's adversarial criterion) | with the people colliders not built, walking into a person still ends with the person nudged and the player corrected by the server's answer; the client's submitted requests contain no new kind |
+| `--world --street` | 16c | People walk, and walk into doors | 60 s watched: at least three people move; no drawn figure moves more than 3.1 m/s × frame time except a placement; every figure that leaves view does so within 1.5 m of a disclosed doorway point; no figure is drawn inside a scene collider |
+| `--world=market-town --buy` | 16d | Buying is the server's list | in the café, B lists exactly the observation's complete `buy` affordances, by name, never an id; one is bought: accepted; the wallet and holdings the observation discloses change |
+| `--scenario=ac13` | 16e | `AC-13` against S12 | §4.8 |
+
+---
+
+# 6. Ownership and change amplification
+
+```text
+owns nothing in the world   the client owns no world state; it owns its scene, its bodies' local
+                            motion, and its drawing of what it was told
+decides nothing             every validity question is the server's (§10 I-S14-1)
+```
+
+What the step's PRs touch, and must not touch:
+
+| May touch | Must not touch |
+| --- | --- |
+| `clients/3d-spike/**` (scripts, `project.godot`, evidence), `mineworld-slice` | `kernel/`, `contracts/`, `persistence/`, `server/src`, every System Pack, `cognition/` |
+| `clients/protocol/mineworld/**` and `ADOPTION.md`, **only** in 16b and in coordination with S12 (§12) | the 2D client's files (S12's) |
+| `tools/cli/tests/ac13_clients.rs` (16e) | `tools/cli/src` — except R-S11-2's hosted controller, if S11 assigns it to this step (QS14-10) |
+| docs: `server/PROTOCOL.md` §6.2 (the correction rule), `docs/DECISIONS.md` (DEP-14, ARC-S14-a), `docs/MVP_STATUS.md`, `docs/HUMAN_REVIEW_QUEUE.md` | `worlds/**` — the town's geometry and passages are 12d's (§11.3) |
+
+The change-amplification test (`CLAUDE.md` §4 rule 5): adding embodied interaction adds client modules
+and a few protocol-module readers, and edits no system, no contract and no scheduler. If any PR finds it
+needs one, it stops and returns to the primary session.
+
+---
+
+# 7. The two gating questions, and §12
+
+- **§11 — Can this support a Minecraft-like embodied 3D client without redesigning the kernel? Yes, and
+  this step is that client.** Movement is local and continuous, reported as strides; interaction is
+  acquired spatially by a ray; the kernel, the contracts and every system are unchanged.
+- **§§9, 22 — Can 2D and 3D use the capability without duplicating game logic? Yes.** The 2D client
+  sends the same five requests by clicking (S12), and `AC-13`'s test compares them (§4.8). The only
+  difference between the clients is acquisition, plus the 3D client's local collision, which predicts a
+  result the server states and decides nothing (`--no-people-colliders`, §5).
+- **§12 — Does an engine concept enter a generic contract? No.** Jolt, layers, `AnimatableBody3D`, rays
+  and tweens live in `clients/3d-spike`. The protocol module gains only readers of what the server
+  already sends (§12).
+
+---
+
+# 8. Reuse before reinvention — the comparison for every non-trivial piece
+
+The operator's directive (§1.5) and `REUSE_POLICY.md`: adopt → adapt behind a MineWorld interface →
+extend → build our own, with several real candidates compared before choosing. Facts about third-party
+projects were read on 2026-10-08 from their repositories (licence from GitHub's licence detection, which
+reads the LICENSE file; latest release from the releases page) and are re-verified when the PR that
+adopts or rejects them is designed. "Fit" always means: works with a **Rust server that is authoritative
+and speaks `server/PROTOCOL.md`**, and puts **no world rule in the client**.
+
+## 8.1 Client-side physics (collision, the character's sweep)
+
+| Option | Fit | Licence | Maturity, maintenance | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Jolt, built into Godot 4.7.2** | Prediction only, never authoritative; nothing to integrate: a project setting. `CharacterBody3D` runs on it unchanged | MIT (Jolt) | In the engine since 4.4; "By default, new projects will use it as the physics engine" (4.7 docs) | One line, plus re-running the accepted slice's checks | **Adopt (DEP-14).** The engine's own default and its better solver, at zero integration cost |
+| Godot Physics (what runs today, F-S14-2) | Equally fit | MIT | The legacy default; maintained | Zero | **Keep as the fallback.** If a Jolt difference breaks an accepted slice check that cannot be fixed in the client, switching back is the same one line (QS14-12) |
+| `appsinacup/godot-rapier-physics` (GDExtension, Rapier in Godot) | Fit; its one advantage — determinism matching the server's Rapier — buys nothing, because the client is not authoritative (step-11 §3.3) | MIT | v0.36.0, released 2 Oct (2026), API features for Godot 4.4–4.7 | A binary extension per platform to ship and keep in step with Godot | **Reject now; recorded as the route** if corrections ever become visible enough to need bit-matching prediction (R-B4, step-11 §3.3) |
+| `godot-jolt/godot-jolt` (the former extension) | — | MIT | Maintenance mode; "the only supported versions of Godot are between 4.3 and 4.6" | — | **Reject**: superseded by the built-in module and does not support 4.7 |
+| Build our own collision | — | — | — | A physics engine | **Reject**: commodity infrastructure (`REUSE_POLICY.md` §4) |
+
+## 8.2 Prediction and reconciliation (netcode)
+
+| Option | Fit | Licence | Maturity, maintenance | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| Godot's high-level multiplayer (`MultiplayerSynchronizer`, `MultiplayerSpawner`, RPC over ENet/WebSocket peers) | **No.** Both ends must be Godot speaking Godot's RPC and replication protocol; our server is Rust and speaks `PROTOCOL.md`. Replicating state from the client would also invert authority | MIT | In the engine | Replacing the server, or emulating Godot's protocol in Rust | **Reject** |
+| `foxssake/netfox` (client-side prediction, server reconciliation by rollback, lag compensation) | **No.** "Supports client-server architecture" through Godot's high-level multiplayer: the server must be a Godot process that re-simulates the player's inputs tick by tick. MineWorld's server decides semantic strides, not input ticks | MIT | Active: v1.35.3 (23 Nov, likely 2025), Godot 4.x | Re-architecting the server around Godot ticks — the framework lock-in `REUSE_POLICY.md` §3 forbids | **Reject** for the client; recorded as the reference implementation of the pattern |
+| `godot-rollback-netcode` (Snopek, GitHub fork `maximkulkin/…`) | **No.** Peer-to-peer rollback; every peer runs the same deterministic simulation | MIT | Godot 3 APIs; last commit Aug 2022; no releases | — | **Reject** |
+| The **pattern**: client-side prediction with server reconciliation (Gambetta; Valve's Source networking) | **Yes**, in its simplest form: predict only your own body, adopt the server's answer on a difference, suspend reports while stale strides drain | — | Decades of practice | ~100 lines in `slice_link.gd` (§4.3) | **Adopt the pattern, implement it ourselves.** No library implements it against a non-Godot semantic server; the rule is one number and one suspension, smaller than any adapter |
+
+## 8.3 Character controller
+
+| Option | Fit | Licence | Maturity, maintenance | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **The slice's `Player` on `CharacterBody3D.move_and_slide`** | Fit; already the accepted controller (`VIS-3D-GODOT-2`), measured by `--drive`; three cameras observe it | ours on MIT engine | In use, accepted by the operator | Zero; 12e adds the press-through report (§4.3) | **Keep** |
+| Jolt's own character (`CharacterVirtual`) | Fit in principle | MIT | Godot 4.7 does not expose it as a node; `CharacterBody3D` runs on the generic physics server API (to be re-verified in 16a) | Native code to bind it | **Reject**: not reachable from GDScript, and nothing is missing from `CharacterBody3D` |
+| Community first-person controller templates (e.g. the COGITO immersive-sim template; generic "proto controller" scripts) | **Poor.** They bring their own interaction, inventory and door logic — rules a MineWorld client must not have | various (COGITO's repository URL answered 404 on 2026-10-08; unverified) | varies | Removing their rules | **Reject**: the controller exists and is accepted; a template would replace accepted feel with someone else's |
+| Build a new controller | — | — | — | Re-doing accepted work | **Reject** |
+
+## 8.4 Targeting and interaction UI
+
+| Option | Fit | Licence | Maturity, maintenance | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Godot's physics ray** (`PhysicsDirectSpaceState3D.intersect_ray`, or a `RayCast3D` node on the camera) | Fit: acquisition only; walls occlude | MIT (engine) | In the engine | A few lines | **Adopt** (§4.4) |
+| `Area3D` proximity "interactables" (the common Godot pattern: a trigger sphere around each thing) | **No.** A trigger radius is a reach rule in the client — exactly what `ENGINEERING_RULES.md` §7 gives to the System | MIT (engine) | Common | — | **Reject** |
+| Interaction-component frameworks from templates (COGITO-style interactables, dialogue choices) | **No.** They decide what can be done to a thing in the client | various | varies | Stripping their rules | **Reject** |
+| `nathanhoad/godot_dialogue_manager` (branching dialogue) | **No** for interaction: authored branching dialogue is a client-side source of lines and choices, while MineWorld's lines are the server's (`conversation-history`). Possibly later as a display widget only | MIT | Active: v4.1.0 for Godot 4.7 (4 Sep) | An addon for subtitles we already draw | **Reject now** |
+| **Build:** a thin HUD over the ray and the observation's offers (§4.4) | Fit by construction: it reads `affordances()` and submits | ours | — | Small; the HUD and captions exist (`ControlsHud`) | **Build**, because every candidate either evaluates reach or authors lines in the client |
+
+## 8.5 Object rendering and motion
+
+| Option | Fit | Licence | Maturity, maintenance | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| **Godot primitives** (`BoxMesh`, `SphereMesh`) sized exactly to the disclosed shape | Fit: the drawn object is the collider is the server's shape | MIT (engine) | In the engine | Minimal | **Adopt** for geometry |
+| CC0 props already in the repository (Poly Haven, Quaternius; `clients/3d-spike/ASSETS.md`, `DEP-8`) | Fit for appearance when a prop's proportions match a disclosed box or ball; must be scaled to the disclosed shape, never the reverse | CC0 | Already vetted under `DEP-8` | Choosing and scaling | **Adopt where one fits** (a crate, a ball), else the primitive with the slice's palette (QS14-13, taste) |
+| `MultiMeshInstance3D` | Unneeded: at most 32 objects in a place (`OBJECTS_MAX`) | MIT | In the engine | — | **Reject** as premature |
+| Godot's built-in physics interpolation (4.4+ in 3D) | Smooths physics ticks into render frames; it does not interpolate between network snapshots | MIT | In the engine | — | **Not the tool for this**; may be enabled for the player's own body independently |
+| **`Tween`** between disclosed positions; a `path` when R-S11-1 delivers it | Fit: presentation only | MIT (engine) | In the engine | A few lines | **Adopt** |
+| netfox's tick interpolator | Tied to netfox's tick loop | MIT | Active | Adopting netfox | **Reject** with §8.2 |
+
+## 8.6 Figure motion between observations
+
+| Option | Verdict |
+| --- | --- |
+| **Walk toward the newest observed position at a bounded speed, with the existing gait** (`NPC.step`) | **Adopt (build, ~40 lines).** The figures already have a gait driven by speed; a snapshot buffer is not needed at 10 Hz with strides the server bounds |
+| A snapshot-interpolation buffer (render 100–200 ms in the past, interpolate between two snapshots) — the textbook approach, as in netfox and Source | **Reject now**: it adds latency to every figure to smooth a motion that the gait already smooths; revisit if figures stutter when played |
+| `NavigationAgent3D` to path figures between observed positions | **Reject**: a navmesh decides where a person can walk, which is the server's (`ENGINEERING_RULES.md` §12); the server's positions are already reachable |
+
+## 8.7 How the client is tested
+
+| Option | Verdict |
+| --- | --- |
+| **The slice's own scripted probe** (`SliceProbe`), run against a real server | **Keep** — it is real execution, and every claim in §5 is a mode of it |
+| GUT (Godot Unit Test) or gdUnit4, both MIT | **Not now**: the one unit-shaped check (the builder equals the offer, §4.4) runs inside the connected probe, against a real offer; adopting a test framework for one assertion is premature. Revisit if the client grows pure logic worth unit tests |
+
+---
+
+# 9. Modularity and pluggability
+
+## 9.1 The 3D client is a removable presentation
+
+The 3D client is a **client** in the presentation layer: a renderer of observations and a source of
+requests. Its look is the default **Presentation Style Pack**, `presentation/mineworld-default/3D`
+(`MODULE_SPEC.md` §6, `ARC-1`), whose hard constraint is that "swapping a Presentation Pack changes
+nothing about the simulation". This step keeps both true:
+
+```text
+remove clients/3d-spike, mineworld-slice and mineworld-3d
+  → cargo fmt / check / clippy / test: unchanged (no Rust crate names clients/)
+  → every world loads, runs, validates and replays: unchanged
+  → the 2D client (S12) and headless runs work: unchanged
+```
+
+16e runs that removal on a scratch copy and records it (the adversarial criterion of `overall.md` S14,
+"Removing the 3D client changes no system").
+
+## 9.2 Inside the client: small modules with one job each
+
+```text
+scripts/slice/
+  slice_link.gd          the connection; reporting strides; the correction rule (§4.3)   (exists)
+  intents.gd             every interaction request; offers matched; the only other file naming an
+                         action type (§4.4)                                               (16a/12e)
+  targeting.gd           the ray; what is targeted; nothing about validity                 (16a)
+  client_bodies.gd       colliders from disclosure: place walls and solids, people, objects (12e)
+  object_view.gd         drawing and moving loose objects (§4.5)                          (12e)
+  figure_motion.gd       walking figures toward their observed position (§4.6)            (16c)
+  slice_probe_world.gd   the connected probe modes (§5)                                   (16a, grows)
+```
+
+Each module is optional in the pluggable sense that matters here: in a world without `bodies`, no
+`place-shape` and no `loose-objects` are disclosed, so `client_bodies.gd` builds nothing and the client
+behaves as today; in a world without `economy`, no `buy` is offered and B shows nothing. Nothing in the
+client switches on a world's name or its list of systems: what is drawn and offered follows from what is
+disclosed.
+
+## 9.3 What the 3D client shares with the 2D client, and what it does not
+
+| Shared (one copy, `clients/protocol/mineworld`, or one definition in the server) | Each client's own |
+| --- | --- |
+| the frames, the seat, tokens, ids as strings, integers (`MineWorldClient`) | acquisition: a ray and keys (3D); clicks (2D) |
+| reading an observation, offers, complete affordances, disclosed components (`MineWorldObservation`) | the scene, meshes, sprites, animation, cameras |
+| the one axis conversion (`MineWorldSpace`) | local collision and the correction rule (3D only; the 2D client predicts nothing, step-11 §7.3) |
+| the `AC-13` comparison (`server/src/parity.rs`) and the transcript format (§4.8) | wording, layout and input mapping |
+| the obligations of `ADOPTION.md` §3 | |
+
+## 9.4 Nothing leaks across layers
+
+| Boundary | What could leak | Why it does not |
+| --- | --- | --- |
+| client → contracts | an engine type, a layer, a collider | the client sends `ActionRequest`s built by the shared module; nothing else can be sent (`PROTOCOL.md` §2) |
+| client → systems | a reach, a radius, a capacity | the client never compares a position with a rule; the scan in §10 fails on a copied rule constant |
+| systems → client | a rule the client must re-implement | the client reads verdicts (`available`, `unavailable_reason`) and disclosed state only |
+| protocol module → 3D | a 3D-only concept in the shared module | §12's changes are readers of server frames; none names Godot 3D types |
+| world content → client | a copy of a pack's geometry or layout | the client binds a place by its disclosed doorway and builds walls from disclosure; it quotes no pack file (`slice_link.gd`'s existing rule) |
+| physics engine → client code | Jolt-specific calls | only the project setting names Jolt; the code uses the generic `PhysicsServer3D` nodes, so Godot Physics remains a one-line fallback (§8.1) |
