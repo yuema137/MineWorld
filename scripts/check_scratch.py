@@ -28,6 +28,18 @@ ROOT = Path(__file__).resolve().parent.parent
 # The helper itself is the one place that may name the scratch root.
 HELPER = ROOT / "tests" / "support"
 FORBIDDEN = re.compile(r'CARGO_TARGET_TMPDIR|temp_dir\(\)|"/tmp\b')
+
+# Files that keep a scratch guard of their own, each with the reason it cannot use the helper. An entry
+# is still bound by the rule's substance (a name of its own, removed on drop), and `left` still checks
+# what it leaves. Keep this list short; an entry needs a reason a reviewer can verify.
+EXEMPT = {
+    "packages/tests/manifest.rs": (
+        "mineworld-packages is a leaf, and packages/tests/structure.rs asserts that no table of its "
+        "manifest whose name contains 'dependencies' names a mineworld crate, dev-dependencies "
+        "included; a dev-dependency on mineworld-test-support would fail that test's assertion "
+        "(pr-test-hygiene.md §7 C4)"
+    ),
+}
 SKIPPED_DIRECTORIES = {"target", ".git", "node_modules", ".godot"}
 
 
@@ -52,7 +64,12 @@ def scan() -> int:
         print("no test sources found — has the layout changed?", file=sys.stderr)
         return 2
     hits = []
+    exempted = []
     for source in sources:
+        relative = source.relative_to(ROOT).as_posix()
+        if relative in EXEMPT:
+            exempted.append(relative)
+            continue
         for number, line in enumerate(source.read_text(encoding="utf-8").splitlines(), start=1):
             if line.lstrip().startswith("//"):
                 continue
@@ -68,7 +85,16 @@ def scan() -> int:
             file=sys.stderr,
         )
         return 1
-    print(f"{len(sources)} test sources, none makes scratch outside mineworld-test-support")
+    stale = sorted(set(EXEMPT) - set(exempted))
+    if stale:
+        print(f"exemptions naming no test source (remove them): {stale}", file=sys.stderr)
+        return 1
+    for relative in exempted:
+        print(f"exempt: {relative} — {EXEMPT[relative]}")
+    print(
+        f"{len(sources)} test sources, none makes scratch outside mineworld-test-support "
+        f"({len(exempted)} exempt)"
+    )
     return 0
 
 

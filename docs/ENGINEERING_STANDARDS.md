@@ -700,7 +700,10 @@ them only for its own duration. The rules:
 
 - A test makes its scratch through `mineworld-test-support`'s `Scratch` (the `scratch!` macro), never
   by joining a name onto `CARGO_TARGET_TMPDIR`, `std::env::temp_dir()` or a literal `/tmp` path.
-  `scripts/check_scratch.py scan` reports any such line in a test.
+  `scripts/check_scratch.py scan` reports any such line in a test. A test that cannot depend on the
+  helper keeps a guard of its own with the same behaviour and is listed, with its reason, in that
+  script's `EXEMPT` table (today one: the leaf crate `mineworld-packages`, whose structure test
+  refuses any MineWorld dependency).
 - A scratch lives at `<CARGO_TARGET_TMPDIR>/mineworld-scratch-<pid>/<name>`. Its last path component is
   exactly the name the test gives, because a World Pack's id is its directory's name.
 - A scratch is removed when its guard is dropped, **whether the test passed or failed**.
