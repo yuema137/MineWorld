@@ -976,7 +976,48 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
 
 **Depends on:** A-C2.
 
-- [ ] Implementation: the script, the workflow, the ignore line.
+- [x] Implementation: `scripts/ci_layer.py`, `.github/workflows/ci.yml` and the `/.ci/` ignore line. Two
+  bounded additions, each recorded as a deviation:
+  - **D-13a-1. `.github/actions/layer/action.yml`, a local composite action.** `fast` and `test` need the
+    same four steps: build the toolchain image, restore the caches, `docker run` the layer, prune. A
+    matrix would also share them, but it decorates check names or needs per-entry `if:` tricks, and the
+    names `fast` and `test` are an interface (§9.0 R-2). Copying the steps into both jobs would duplicate
+    about 40 lines. The composite action names a layer and holds no command, so I-S13-9 holds. Impact:
+    one more file under `.github/`. Validation: the PR's own runs.
+  - **D-13a-2. `scripts/ci_image.py`, the `image` job's evidence.** A13-5's checks are written as a
+    stdlib script that reads each verdict from the program's output, not as shell lines in YAML. This
+    keeps the workflow free of commands (I-S13-9), and 13b grows the script into `scenario`. The
+    checks: `validate` for the three worlds; the 1-day run, which must print `faults 0`; and the default
+    command on a named volume. That last one must create a world and listen on 7878, with a TCP connect
+    accepted. Then `docker stop` must stop it with exit 0, and a restart must resume.
+  - **D-13a-3. Mounts.** The container mounts the checkout at its own host path, and `RUNNER_TEMP`
+    read-only, instead of mounting at `/work` (§9 A-C3, step 4). The reason: actions/checkout v6+ keeps
+    the fetch credential in a `RUNNER_TEMP` file, included from `.git/config` by an `includeIf gitdir:`
+    on the host path (checkout README, "What's new"). The history scans fetch old blobs of the partial
+    clone on demand, which needs that credential while the repository is private. At `/work` the
+    include would not match, and the scans would fail on a private repository.
+  - **Choices within scope:**
+    - The `test` job skips `scratch/*-image` branches, so the `image` evidence run does not spend a
+      `test`-sized run (budget, §9.0 R-1).
+    - The `image` job's checkout is depth 1 with `persist-credentials: false`, because it reads no
+      history and runs no test.
+    - Action pins, resolved 2026-10-08 via `gh api repos/<r>/releases/latest` → `commits/<tag>`:
+      - `actions/checkout` v7.0.1 `3d3c42e5…`;
+      - `actions/cache` v6.1.0 `55cc8345…`;
+      - `docker/setup-buildx-action` v4.4.1 `f87e5991…`;
+      - `docker/build-push-action` v7.4.0 `c3c9e263…`.
+- Local evidence before the first push (2026-10-08, working tree on `1a8c0b7` plus the A-C3 files):
+  - [x] `ci_layer.py --list fast` and `--list core` print exactly §3.4's commands: the six `fast`
+    commands, then `cargo test --workspace`. These equal `standards.md`'s declared checks, plus
+    `check_ci_pins.py`. An unknown layer, or `--list` with no layer, exits 2 with the usage line naming
+    `fast, core`.
+  - [x] `PATH=~/.cargo/bin:$PATH python3 scripts/ci_layer.py fast` on the Mac → "layer fast passed: 6
+    command(s) in 23.9 s". It printed rustc 1.97.1, rustfmt 1.9.0, clippy 0.1.97, not shallow, and no
+    partial-clone filter (a full local clone). Log: `/tmp/s13a/fast-local.log`, not committed.
+  - **Finding F-13a-1, fixed.** The first local run crashed with a Python traceback, because `rustc` was
+    not on this shell's PATH. That is an environment difference, but a traceback is not a verdict. Now a
+    missing tool in the environment report prints "(not found on PATH)", and a missing tool in a layer
+    command fails the layer with exit 127, naming the tool.
 - [ ] Validation (the PR's own runs are the evidence; each recorded with run id, head SHA, wall time):
   - `python3 scripts/ci_layer.py --list fast` and `core` locally: the commands equal §3.4 and
     `standards.md`'s declared checks (a review diff, recorded).
@@ -1077,6 +1118,29 @@ STOP CONDITION      A13-1 … A13-8 with evidence on the exact final head; A13-M
                     and `test` green on that head
 MERGE AUTHORITY     never without explicit operator approval
 ```
+
+## 9.5 Handoff for 13a (continuation aid, not a design authority)
+
+**Deviation D-13a-0, from the contract's "HANDOFF handoff.md, re-initialized for 13a".** Six lanes run at
+once (`overall.md` ruling 8), and `.structured-coding/plans/mvp0/handoff.md` currently holds S15's 12b
+state. If every lane re-initialized that one file, they would overwrite each other's handoffs and
+conflict at every merge. 13a's handoff therefore lives here, beside its ledger, and `handoff.md` is
+untouched.
+
+```text
+PROJECT / PR       MineWorld mvp0 — S13 PR 13a, the container and the per-PR CI
+PRIMARY DESIGN     this file §9 (§9.0 binds); contract §9.4 as amended by §9.0 R-6
+BRANCH / WORKTREE  mvp0/pr-13a-ci · /Users/yuema137/mineworld-worktrees/impl-s13a (sole writer)
+BASE               main @ 47c81d1
+FROZEN             2026-10-08, primary session (§9.0 status line)
+ENDPOINTS          commits, push, PR create/update, CI repair: authorized (D-12); scratch/13a-*
+                   push+delete: authorized (QS13-14, §9.0 R-4); settings, spending, Rust/test edits:
+                   NOT authorized; merge: operator only
+BUDGET             ≤ 12 test-sized CI runs in total (count kept in A-C3's evidence)
+STOP               PR READY FOR OPERATOR REVIEW — DO NOT MERGE
+```
+
+The current checkpoint and the next actions are the first unchecked item of A-C3 / A-C4.
 
 ---
 
