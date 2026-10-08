@@ -4633,11 +4633,22 @@ the bisection cannot satisfy within `PUSH_SEARCH` (a jam); an object touched at 
 an arrival into a shaped place with no objects (inert, byte-identical to 12b); an object on the counter
 (never pushed).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-bodies` — `objects` (PO-3), every 12b scenario unedited, and
-  `long_run` against E-PO-base (PO-13 b); M-PO3, M-PO4, M-PO10 and M-PO12 each fail by name and are
-  reverted.
-- [ ] Review: prediction and reaction call the same `pushes` with the same inputs (SD-O10); the
+- [x] Implementation: as scoped, in the files DO-2 names: `rapier.rs` (`Against::{Walls,
+  WallsAndObjects, Contact}`, `Touch`, objects in `Scene` as extruded footprints — DO-4 —, `Pile` and its
+  shape cast), `push.rs` (`Lay::pushes`, `Lay::predict`), `stride.rs`, `entry.rs`, `resolve.rs` (guard
+  with objects, `Objects` in `Outcome`), `system.rs` (the reaction to `arrived`, `object-moved`'s
+  reduction), `tests/objects.rs`; DO-5's trigger (E-PO3).
+- [x] Validation: `cargo test -p mineworld-bodies` — `objects` (PO-3), every 12b scenario unedited, and
+  `long_run` against E-PO-base (PO-13 b, `cmp` identical); M-PO3 (two variants), M-PO4, M-PO10 and
+  M-PO12 each fail by name and are reverted (E-PO3).
+- [x] Review (self): the resolver's `Lay::predict` and the reaction's `Lay::pushes` run the same function
+  on the same inputs — the end point, the room, `objects::lying_in` as they lay (no object-moved of the
+  request is reduced before the reactions, F-O2); the objects-solid path predicts nothing and its V4
+  requires nobody under an object, so its reactions push nothing; every degrade rung is checked with V4
+  against the objects as they lay; stay is the start the guard admitted (with DO-5, it pushes nothing);
+  no float outside `rapier.rs` (isolation green); the new files are under 500 lines except rapier.rs
+  (526, the one file allowed to name Rapier — reviewed: scene, pile and conversions, one concern).
+  Original review item: prediction and reaction call the same `pushes` with the same inputs (SD-O10); the
   objects-solid path pushes nothing; every degrade path ends in a state that passes V1–V4; stay is the
   start the guard admitted; no float outside `rapier.rs`; `resolve.rs` and the new files stay under the
   size warnings (split along SD-O8 / SD-O9 if not).
@@ -4953,6 +4964,43 @@ E-PO2 PO-C2, 2026-10-08, working tree on 2fb6d6a + PO-C2's paths (systems/bodies
       `git diff Cargo.lock`: one line, mineworld-bodies' dependency list gains "mineworld-item".
       `cargo fmt --all`; `cargo clippy -p mineworld-bodies --all-targets --all-features -- -D warnings`
         clean.
+
+E-PO3 PO-C3, 2026-10-08, working tree on 7cb6d0e + PO-C3's paths (systems/bodies/** only).
+      `cargo test -p mineworld-bodies --offline`: lib 10, genesis 6, isolation 5, long_run 1, objects 7
+        (new: PO-3 a … g), objects_genesis 10, rapier_pin 1, scenarios 17 — every 12b test unedited
+        and green. PASS on the first run of objects.rs except (f)'s layout, re-laid for M-PO10 (DO-6).
+        (a) walker (3 290 ± 1, 5 000), box (3 800 ± 1, 5 000, 200), facts [arrived, stopped-short (by
+          the box), object-moved], the push Causation::Event(the arrived), decision = the walker's
+          ActionId, emitted by bodies; (b) explain → Objects::Solid; walker (7 610 ± 1), box unmoved,
+          stopped-short by the box; (c) walker (3 880 ± 1), ball (4 300 ± 1); (d) Route::Clear, one
+          fact = Arrived::new's bytes; (e) b nudged, the ball pushed by b, caused by b's arrived;
+          (f) explain → { nudge_failed: true, objects: Solid }, ball unmoved, nothing pushed; (g) walker
+          (5 000, 5 860 ± 1), box unmoved, stopped by it. After every request `assert_holds`: V1–V4
+          and SD-O2 from the test's literals.
+      PO-13 b: `BODIES_LONG_RUN_SECOND_PROCESS=1 cargo test -p mineworld-bodies --test long_run --
+        --nocapture` → its LONG-RUN line `cmp` identical to /tmp/s15-12c/base-longrun-line.txt (sha
+        d7025dbc…79eaf). PASS: a world without objects is resolved exactly as in 12b. Recorded
+        evidence, not a committed comparison: the base bytes live outside the repository, and 12b's
+        long_run.rs stays unedited.
+      Mutations (applied, run, reverted; `git grep -n MUTATION -- systems` empty afterwards):
+        M-PO3 variant 1 (step 6's fallback to objects solid removed; V4 kept) → objects FAILED (b)
+          "Outcome { … degraded: Blocked, objects: Untouched }" and (f); (g) survived — V4 and the
+          degrade ladder still stopped the walker at contact (defence in depth, recorded).
+        M-PO3 variant 2 (step 6 removed entirely: no prediction, V4 given no objects) → objects
+          FAILED (b) and (f) at `explain`, and (g) at dispatch: "FactRefusedByOwner { bodies,
+          object-moved, bodies-object-jammed: box cannot be pushed out of walker's way at (5000,
+          6000) in room … }" — the reaction's guard (ARC-39 note 2, point 2) fires.
+        M-PO4 (the fast path and the contact sweep ignore objects) → objects FAILED (a) "walker at
+          (3300, 5000)", (b), (c) "walker at (5000, 5000)" — the walker passes over the ball —, (g).
+        M-PO10 (a push set with one object pushed twice accepted) → (f) FAILED: "Outcome { …
+          nudged: 2, objects: Pushed(2) }".
+        M-PO12 (NUDGE_MAX 300 → 299) → long_run's LONG-RUN line differs from the base's at byte
+          43 935 (4 075 132 bytes against 4 091 748): the comparison sees the people path.
+      DO-4's experiment (objects inserted as their real shapes in people's sweeps, reverted) → (c)
+        FAILED "walker at (3933, 5000)": 53 mm past the footprint's contact point.
+      `cargo fmt --all`; `cargo clippy -p mineworld-bodies --all-targets --all-features -- -D warnings`
+        clean. Source sizes: rapier.rs 526, component.rs 451, geometry.rs 476, resolve.rs 436 (was
+        758: split into resolve.rs, stride.rs 406, entry.rs 120, push.rs 147 — DO-2).
 ```
 
 ## 18.11 Deviations and discoveries during implementation
@@ -4984,4 +5032,45 @@ by more than 5 mm, resting height, capacity — because the frozen design requir
 SD-O17: the stored state is checked on integers so that the check is exactly reproducible on every
 machine and the engine's answer is never the last word). Parry's distance queries are `f32` and would put
 a float comparison into the invariant every save is replayed against; they were not used for that.
+
+**DO-4 (bounded; discovery) — a person's sweep sees an object as its footprint, extruded.**
+- Previous assumption: SD-O16 inserts objects into every scene as their real cuboids and balls.
+- Audit evidence (E-PO3): with a ball's real shape in the people's scene, PO-3 c's walker ended at
+  (3 933, 5 000), 53 mm past the footprint's contact point (3 880): the capsule's rounded bottom (centre
+  310 mm up) meets a ball of radius 110 below the ball's equator, at a horizontal distance of √(410² −
+  200²) ≈ 358 mm instead of 410 mm. The integer checks (V4, the invariant, the push trigger) all read the
+  2D footprint, so the sweep and the checks disagreed.
+- Decision: in people's scenes (`Scene`), an object is its footprint extruded from below the floor to the
+  walls' height — a box as a tall cuboid, a ball as a tall capsule of its radius. The push's cast
+  (`Pile`) and the flight keep the real shapes (§18.3.1). The canonical order is unchanged (objects after
+  people, in `ItemId` order), and a world without objects builds exactly 12b's scene (PO-13 b holds).
+- Impact: the sweep's notion of an object is the checks' notion. No invariant, constant or contract
+  changes.
+
+**DO-5 (bounded; tightening) — the push trigger is "closer than `PERSON_RADIUS − TOLERANCE`".** SD-O8 says
+an object is pushed when its footprint is "closer than R" to the person. The stored-state invariant
+(SD-O2) and V4 allow a person within 295 … 300 mm of a footprint. With the trigger at R, a walker who
+*stays* where they were (the last rung of the degrade ladder, valid by induction) could stand 297 mm from
+an object, and the reaction to their recorded `arrived` would push it — a push nobody predicted, which
+could jam and fail the dispatch. The trigger is therefore the invariant's own threshold, R − TOLERANCE =
+295 mm (`Footprint::under`): every state the invariant admits pushes nothing, so "stay" is valid by
+induction for objects too, and V4 means exactly "the reactions push nothing". Pushes still move the
+object to R + GAP = 310 mm, as SD-O8 says. Every PO-3 literal is unchanged by it (each overlap there is
+far deeper than 5 mm).
+
+**DO-6 (bounded) — PO-3 f's layout: two nudged people, not the walker and one nudged person.** PO-3 f
+asks for "the walker and a nudged person would both push one ball". Under the bounds, that layout does
+not exist: a nudged person moves straight away from the walker, so for their disc to reach a ball that it
+did not overlap before, the ball must lie beyond them as seen from the walker — and then the walker's own
+end, at least 610 mm behind them, is more than 405 mm (R − TOLERANCE + the ball's radius) from that ball.
+The test uses the case that exists: the walker's end nudges two people either side of its line, and each
+of their new discs overlaps one ball (r 375). Each push alone would keep the invariant, so only the
+"pushed twice" rule refuses the set — which is what M-PO10 must show, and does (E-PO3). The first layout
+tried (a ball of r 270) was refused by the final-state check instead, so M-PO10 survived it; that is why
+the layout was changed.
+
+**DO-7 (bounded) — what an entry placed elsewhere names as `stopped_by`.** SD-B8 E3 names the
+lowest-`EntityId` person whose disc covers `to`, else `None`. With objects, `to` can be unfree because of
+an object alone (E1 now requires a radius of clearance from every footprint): E3 then names the first such
+object in `ItemId` order — "the first person or object touched", as SD-O9 step 8 says for strides.
 

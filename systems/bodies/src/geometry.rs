@@ -255,14 +255,6 @@ impl Room {
                 .all(|other| distance2(p, *other) >= apart * apart)
     }
 
-    /// The free point (as [`Room::free_at`]) of the [`LATTICE`] nearest `target`, ties broken by `y`
-    /// then `x`; [`None`] only when the floor has none.
-    pub(crate) fn nearest_free(&self, target: Point, others: &[Point]) -> Option<Point> {
-        lattice(self.floor, PERSON_RADIUS.value(), LATTICE.value())
-            .filter(|p| self.free_at(*p, others))
-            .min_by_key(|p| (distance2(*p, target), p.y, p.x))
-    }
-
     /// The points of the [`CAPACITY_GRID`], anchored at the floor's south-west corner plus a radius
     /// on each axis, where a person fits: inside the floor shrunk by a radius and at least a radius
     /// from every solid (step-11 SD-B4).

@@ -2,21 +2,26 @@
 //! under, and what it discloses.
 
 use mineworld_contracts::{
-    ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventTypeId, PlaceId, Rejection,
-    SystemId,
+    ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventTypeId, LocalPosition,
+    Millimetres, PlaceId, Rejection, RejectionCode, SystemId,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
     WorldRead, WorldView,
 };
-use mineworld_presence::{PerceptionProvider, Presence, PresenceSystem, require_registered};
+use mineworld_presence::{
+    Arrived, PerceptionProvider, Presence, PresenceSystem, require_registered,
+};
 use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
 use crate::codec;
 use crate::component::{BodyShape, LooseObjects, PlaceShape};
-use crate::event::{BodyFormed, ObjectMoved, ObjectPlaced, PlaceShaped};
+use crate::event::{
+    BodyFormed, How, Movement, ObjectMoved, ObjectPlaced, PlaceShaped, object_moved,
+};
 use crate::geometry::Point;
+use crate::push::Lay;
 use crate::{genesis, objects};
 
 /// Bodies: places with walls and furniture, loose objects lying in them, and people who neither pass
@@ -72,6 +77,7 @@ impl System for BodiesSystem {
             .subscribing_to::<BodyFormed>()
             .subscribing_to::<ObjectPlaced>()
             .subscribing_to::<ObjectMoved>()
+            .subscribing_to::<Arrived>()
     }
 
     /// Refuses to join a world whose host never registered this pack's resolver — before anything
@@ -90,6 +96,8 @@ impl System for BodiesSystem {
     /// body-formed    → BodyShape        a living Item with no shape yet; states object-placed
     /// object-placed  → LooseObjects     SD-O5's checks, in order
     /// object-moved   → LooseObjects     the object lies at `from`; `to` keeps SD-O2's invariant
+    /// arrived        (presence's)       → object-moved { pushed } for every object the person's
+    ///                                   disc now overlaps (SD-O8); nothing is written
     /// ```
     ///
     /// A refusal writes nothing and fails with [`KernelError::FactRefusedByOwner`], naming the
@@ -121,10 +129,83 @@ impl System for BodiesSystem {
             let row = objects::moved(&world.read(), &moved)
                 .map_err(|reason| refused(ObjectMoved::EVENT_TYPE, reason))?;
             world.insert(moved.place().entity_id(), row)?;
+        } else if *kind == Arrived::EVENT_TYPE {
+            let arrived: Arrived = codec::event_payload(event.payload())?;
+            return pushed_by(&world.read(), &arrived);
         }
         Ok(Vec::new())
     }
 }
+
+/// The reaction to a recorded `arrived` (step-11 SD-O8): the person pushes every loose object their
+/// disc now overlaps, each stated as `object-moved { how: pushed }`, caused by the arrival and so by
+/// the request (`AC-9`). Inert for an arrival without a position, a place without a shape or without
+/// objects — which includes every genesis placement, since no object lies anywhere before genesis's
+/// second generation.
+///
+/// The resolver predicted exactly these pushes from the same inputs (SD-O10), so for a resolved
+/// arrival none jams. A jam here means an arrival escaped resolution — `ARC-39` item 7's guard, which
+/// for objects can be built at the reaction — and the dispatch fails with `bodies-object-jammed`.
+fn pushed_by(world: &WorldRead<'_>, arrived: &Arrived) -> Result<Vec<Emission>, KernelError> {
+    let location = arrived.location();
+    let Some(local) = location.local() else {
+        return Ok(Vec::new());
+    };
+    let place = location.place();
+    let Some(shape) = world.component::<PlaceShape>(place.entity_id()) else {
+        return Ok(Vec::new());
+    };
+    let lying = objects::lying_in(world, place);
+    if lying.is_empty() {
+        return Ok(Vec::new());
+    }
+    let room = shape.room();
+    let person = arrived.person();
+    let at = Point::new(local.x().value(), local.y().value());
+    let pushes = Lay::new(&room, &lying).pushes(at).map_err(|jam| {
+        refused(
+            ObjectMoved::EVENT_TYPE,
+            Rejection::System {
+                code: JAMMED,
+                detail: Some(format!(
+                    "{} cannot be pushed out of {}'s way at ({}, {}) in {}: the arrival was not \
+                     resolved with objects solid (DECISIONS.md ARC-39 note 2)",
+                    name(world, jam.object.entity_id()),
+                    name(world, person.entity_id()),
+                    at.x,
+                    at.y,
+                    name(world, place.entity_id()),
+                )),
+            },
+        )
+    })?;
+    Ok(pushes
+        .into_iter()
+        .map(|push| {
+            let from = lying[push.index].1;
+            object_moved(Movement {
+                object: push.object,
+                place,
+                from: LocalPosition::new(
+                    Millimetres::new(from.centre.x),
+                    Millimetres::new(from.centre.y),
+                    Millimetres::new(from.z),
+                ),
+                to: LocalPosition::new(
+                    Millimetres::new(push.to.x),
+                    Millimetres::new(push.to.y),
+                    Millimetres::new(from.z),
+                ),
+                how: How::Pushed,
+                by: person,
+                path: Vec::new(),
+            })
+        })
+        .collect())
+}
+
+/// Why a push was refused at the reaction: it jams, so the arrival escaped resolution.
+const JAMMED: RejectionCode = RejectionCode::from_static("bodies-object-jammed");
 
 /// Every person whose presence puts them in `place` at a position, in `EntityId` order — the order a
 /// scene inserts people in (step-11 DC-2). A person in the place with no position has no body here.

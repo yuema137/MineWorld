@@ -46,7 +46,6 @@ impl Footprint {
     }
 
     /// The same outline, centred at `centre`.
-    #[cfg_attr(not(test), expect(dead_code, reason = "the pushes arrive in PO-C3"))]
     pub(crate) const fn at(self, centre: Point) -> Self {
         Self { centre, ..self }
     }
@@ -121,10 +120,6 @@ impl Footprint {
     /// way, by integers alone: a ball exactly; a box when the segment's box, grown by `margin`, does
     /// not reach it — the definition of the clear case, as `Room::corridor_clear` defines it for
     /// solids (step-11 SD-O9 step 2).
-    #[expect(
-        dead_code,
-        reason = "the resolver's fast path with objects arrives in PO-C3"
-    )]
     pub(crate) fn clear_of_segment(&self, from: Point, to: Point, margin: i32) -> bool {
         match self.outline {
             Outline::Disc { r } => segment_clear_of(from, to, self.centre, margin + r),
@@ -258,7 +253,6 @@ pub(crate) fn blocks(shape: BodyShape) -> usize {
 /// smallest whole millimetre `t` in `[0, PUSH_SEARCH]` at which the footprint is at least
 /// `PERSON_RADIUS + GAP` from `p`, found by bisection in exactly ten halvings. [`None`] when even
 /// `PUSH_SEARCH` is not enough.
-#[cfg_attr(not(test), expect(dead_code, reason = "the pushes arrive in PO-C3"))]
 pub(crate) fn push_offset(footprint: Footprint, p: Point) -> Option<Point> {
     let direction = match footprint.centre.minus(p) {
         Point { x: 0, y: 0 } => Point::new(1, 0),

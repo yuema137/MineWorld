@@ -221,7 +221,6 @@ impl ObjectMoved {
 }
 
 /// The parts of an [`ObjectMoved`], as this pack builds one.
-#[expect(dead_code, reason = "the pushes arrive in PO-C3")]
 pub(crate) struct Movement {
     pub(crate) object: ItemId,
     pub(crate) place: PlaceId,
@@ -233,7 +232,6 @@ pub(crate) struct Movement {
 }
 
 /// [`ObjectMoved`] as a fact: heard in the place, about the object and whoever moved it.
-#[expect(dead_code, reason = "the pushes arrive in PO-C3")]
 pub(crate) fn object_moved(movement: Movement) -> Emission {
     let Movement {
         object,

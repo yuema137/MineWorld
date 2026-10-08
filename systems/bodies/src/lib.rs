@@ -27,11 +27,14 @@
 #![warn(missing_docs)]
 
 mod codec;
+mod entry;
 mod footprint;
 mod genesis;
 mod objects;
+mod push;
 mod rapier;
 mod section;
+mod stride;
 
 pub mod component;
 pub mod event;
@@ -54,6 +57,6 @@ pub use geometry::{
     REST_STEPS, SHOVE_DISTANCE, SHOVE_REACH, SNAP, THROW_DEFAULT, THROW_FLIGHT, THROW_RANGE_MAX,
     THROW_REACH, THROW_STEPS, TOLERANCE,
 };
-pub use resolve::{Degraded, Outcome, Route, explain};
+pub use resolve::{Degraded, Objects, Outcome, Route, explain};
 pub use section::{Body, Lies};
 pub use system::BodiesSystem;

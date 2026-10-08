@@ -19,7 +19,7 @@
 use std::collections::BTreeMap;
 
 use mineworld_bodies::{
-    BodiesSystem, BodyShape, LooseObjects, PlaceShape, body_formed, place_shaped,
+    BodiesSystem, BodyShape, LooseObjects, ObjectMoved, PlaceShape, body_formed, place_shaped,
 };
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId, Causation, EntityId,
@@ -539,6 +539,112 @@ pub fn at_in(place: PlaceId, at: (i32, i32)) -> Location {
 
 pub fn encode<T: Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).expect("a payload encodes")
+}
+
+/// A recorded `object-moved`, decoded with its owner's published type.
+pub fn object_moved(event: &EventEnvelope) -> Option<ObjectMoved> {
+    let payload = event.payload().payload_for::<ObjectMoved>().ok()?;
+    Some(serde_json::from_slice(payload).expect("bodies' encoding"))
+}
+
+/// The squared distance from `p` to the rectangle `rect`: zero inside it.
+fn to_rect2(p: Xy, (x0, y0, x1, y1): Rect) -> i64 {
+    let dx = i64::from((x0 - p.0).max(p.0 - x1).max(0));
+    let dy = i64::from((y0 - p.1).max(p.1 - y1).max(0));
+    dx * dx + dy * dy
+}
+
+/// Every invariant the pack keeps in `place`, checked from the test's own literals for the room —
+/// `floor` and `solids` — and from the shapes and positions the world holds (step-11 V1–V4, SD-O2):
+/// people 595 mm apart, inside the floor shrunk by 295 mm, 295 mm from every solid; every object
+/// within the floor, resting on it or on a solid's top (± 5 mm), clear of the other solids, of the
+/// other objects (by more than 5 mm) and of every person's disc (295 mm from its footprint).
+pub fn assert_holds(yard: &Yard, place: &str, floor: Rect, solids: &[(Rect, i32)]) {
+    let people = yard.standing(place);
+    for (i, (a, at_a)) in people.iter().enumerate() {
+        for (b, at_b) in &people[i + 1..] {
+            let d = distance2(*at_a, *at_b);
+            assert!(d >= 595 * 595, "{a} and {b} {} mm apart", d.isqrt());
+        }
+        let (x0, y0, x1, y1) = floor;
+        assert!(
+            (x0 + 295..=x1 - 295).contains(&at_a.0) && (y0 + 295..=y1 - 295).contains(&at_a.1),
+            "{a} at {at_a:?} is inside the floor"
+        );
+        for (rect, _) in solids {
+            assert!(
+                to_rect2(*at_a, *rect) >= 295 * 295,
+                "{a} at {at_a:?} clear of {rect:?}"
+            );
+        }
+    }
+    let objects = yard.objects(place);
+    let outline = |key: &str| -> (bool, i32, i32, i32) {
+        let shape = *yard
+            .world
+            .components()
+            .get::<BodyShape>(yard.items[key].entity_id())
+            .expect("a shape");
+        match shape {
+            BodyShape::Box(half) => (true, half.x().value(), half.y().value(), half.z().value()),
+            BodyShape::Ball(r) => (false, r.value(), r.value(), r.value()),
+        }
+    };
+    for (i, (key, (x, y, z))) in objects.iter().enumerate() {
+        let (boxy, hx, hy, hz) = outline(key);
+        let (x0, y0, x1, y1) = floor;
+        assert!(
+            x - hx >= x0 && x + hx <= x1 && y - hy >= y0 && y + hy <= y1,
+            "{key} at ({x}, {y}) within the floor"
+        );
+        let rests_on_floor = (z - hz).abs() <= 5;
+        let rests_on = solids.iter().position(|((a, b, c, d), height)| {
+            (z - (height + hz)).abs() <= 5
+                && x - hx >= *a
+                && x + hx <= *c
+                && y - hy >= *b
+                && y + hy <= *d
+        });
+        assert!(rests_on_floor || rests_on.is_some(), "{key} at z {z} rests");
+        for (index, ((a, b, c, d), _)) in solids.iter().enumerate() {
+            if Some(index) == rests_on {
+                continue;
+            }
+            let meets = if boxy {
+                x - hx < *c && x + hx > *a && y - hy < *d && y + hy > *b
+            } else {
+                to_rect2((*x, *y), (*a, *b, *c, *d)) < i64::from(hx).pow(2)
+            };
+            assert!(!meets, "{key} at ({x}, {y}) clear of solid {index}");
+        }
+        for (person, at) in &people {
+            let reach = if boxy {
+                to_rect2(*at, (x - hx, y - hy, x + hx, y + hy)) >= 295 * 295
+            } else {
+                distance2(*at, (*x, *y)) >= i64::from(295 + hx).pow(2)
+            };
+            assert!(
+                reach,
+                "{person} at {at:?} keeps 295 mm from {key} at ({x}, {y})"
+            );
+        }
+        for (other, (ox, oy, _)) in &objects[i + 1..] {
+            let (other_boxy, ohx, ohy, _) = outline(other);
+            let apart = match (boxy, other_boxy) {
+                (true, true) => hx + ohx - (x - ox).abs() <= 5 || hy + ohy - (y - oy).abs() <= 5,
+                (false, false) => distance2((*x, *y), (*ox, *oy)) >= i64::from(hx + ohx - 5).pow(2),
+                (false, true) => {
+                    to_rect2((*x, *y), (ox - ohx, oy - ohy, ox + ohx, oy + ohy))
+                        >= i64::from(hx - 5).pow(2)
+                }
+                (true, false) => {
+                    to_rect2((*ox, *oy), (x - hx, y - hy, x + hx, y + hy))
+                        >= i64::from(ohx - 5).pow(2)
+                }
+            };
+            assert!(apart, "{key} and {other} do not overlap");
+        }
+    }
 }
 
 /// The squared distance between two points, exactly.
