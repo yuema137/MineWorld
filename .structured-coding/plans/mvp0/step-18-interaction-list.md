@@ -313,3 +313,316 @@ and its schema validation as our semantics; keep conditions out (QPL-1); keep Ce
 upgrade path if attribute conditions are ever required. Both failure modes of `REUSE_POLICY.md` §17 are
 checked. Nothing commodity is rebuilt (no policy language, no parser beyond `serde-saphyr`). Nothing is
 forced: no general policy engine on a hot path, no scripting, no async runtime and no wall clock.
+
+---
+
+# 4. Design — the World's Interaction List
+
+## 4.1 Vocabulary
+
+None of these terms reuses a defined term (`CORE_CONCEPTS.md`, `MODULE_SPEC.md`). They are proposed for
+`MODULE_SPEC.md` (a new section, §12), not for the core ontology.
+
+| Term | Meaning |
+| --- | --- |
+| **entity class** | A name the list gives to a tag selector over one entity type: `noble` = a Person carrying the tag `noble`. Every entity also belongs to the implicit class named by its type (`person`, `item`, `place`, `organization`). Supersedes S17's "body class". |
+| **World's Interaction List** ("the list") | One document per world: a `classes` section and one section per System Pack, which that pack types and enforces. |
+| **section** | One pack's part of the list: rules, parameters, consequences, regions. |
+| **selector** | An entity class, or `*`, in one role of a rule. |
+| **role** | A position in an interaction, declared by the owning pack per action and per fact: `actor`, `target`, `object` (an item kind or a loose object), `place`. |
+| **rule** | `permit` or `forbid` for (action, role selectors). |
+| **parameter block** | A pack's typed numbers (ranges, capacities, amounts, durations), bounded by the pack. |
+| **consequence** | For one fact type and role selectors: its audience (narrowed within the owner's bounds) and its biographical flag. |
+| **reference list** | A section compiled into a pack: always `default` (today's behaviour), and any named list the pack ships (`winter` from `ice`). |
+| **region** | A place whose section entries override the world's for that place. |
+| **interaction kind** | Code a pack provides through another pack's extension catalog (ARC-62): bodies' `slide`. |
+
+## 4.2 Entity classes (ARC-64)
+
+```yaml
+# interactions/classes.yaml — in priority order: an entity's class is the first entry whose selector
+# it matches; otherwise its type's implicit class
+- { class: noble,      of: person, tag: noble }
+- { class: servant,    of: person, tag: servant }
+- { class: commoner,   of: person, tag: villager }
+- { class: heirloom,   of: item,   tag: heirloom }
+- { class: staff-only, of: place,  tag: back-room }
+- { class: guild,      of: organization, tag: guild }
+```
+
+- **Membership is read from tags**, which exist on every entity, are authored in every content file,
+  are kept in a fixed order, and are "a taxonomy, not state" (A-1). A class therefore needs no fact, no
+  component and no owner: it is a name for a question every pack may already ask. A world without
+  `classes.yaml` has only the implicit classes, and nothing is seeded.
+- **One class per entity, by priority.** Several matching tags resolve by list order, so every lookup is
+  a total function. Multiple simultaneous classes and class inheritance (flecs' `IsA`) are QIL-6.
+- **Item kinds (ARC-36).** An item file is a kind, and its tags are the kind's. So `heirloom` classes a
+  kind, and every holding of it inherits the class, because holdings are counts of kinds. A loose
+  object (bodies, 12c) is its own Item entity with its own tags, so it is classed individually. An
+  item's `category` (item's own section, read by consumption) is item's state, not a tag. A class never
+  selects on it (that would make the list read a pack's state); consumption's categories become
+  consumption's parameters instead (§2.2).
+- **Immutable.** Tags do not change after genesis, so a class does not change while a world runs. A
+  promotion (a servant becoming a guard) needs mutable classes, which is a later design (QIL-7).
+- **S17's per-object `class:` in `body:`, `object-classed` and `BodyClass` are withdrawn.** Tags do the
+  job with no new fact (§4.9).
+
+## 4.3 Where the list lives in a World Pack (ARC-61's carrier)
+
+```yaml
+# world.yaml
+interactions:            # optional: names interactions/<section>.yaml; `classes` is optional too
+  - classes
+  - conversation
+  - item-transfer
+  - bodies
+```
+
+```text
+interactions/classes.yaml        the world's classes (§4.2), decoded by the sdk
+interactions/<system id>.yaml    that pack's section, decoded straight into the pack's type
+```
+
+This is ARC-61's seam, unchanged in mechanism: owner-typed, decoded with line and column, refused by
+name (owner not enabled, unknown section, missing file, unknown key, bound exceeded), seeded after
+passages and locations and before sections, with a drift check at resume. Only the carrier's name
+moves from `configure:` / `configure/` to `interactions:` / `interactions/`, because every configurable
+thing in a pack is now part of its section (QIL-2). A world with no `interactions:` key seeds nothing
+new.
+
+## 4.4 The SDK schema: the SDK supplies the shape, the pack supplies the meaning (ARC-63)
+
+**What every section looks like** (one YAML shape for every pack):
+
+```yaml
+# interactions/conversation.yaml
+extends: default                   # optional: a reference list of this pack (or of a provider pack)
+default: permit                    # optional: permit (today) | forbid — what no rule matches gets
+rules:
+  - { action: talk, actor: noble,    target: commoner, effect: forbid }
+  - { action: talk, actor: commoner, target: noble,    effect: forbid }
+parameters:
+  - { range: 3000, gap: 300, remember: 32 }                 # unscoped: the section's base
+  - { actor: guard, range: 6000 }                           # scoped: the fields it names
+consequences:
+  - { fact: spoke, actor: servant, biography: off }
+  - { fact: spoke, audience: participants }                 # nobody overhears, in this world
+  - { fact: spoke, actor: servant, remember: off }          # a pack-specific consequence knob
+regions:
+  library:                                                  # a place key
+    parameters: [ { range: 1000 } ]
+    consequences: [ { fact: spoke, audience: participants } ]
+```
+
+**What a pack writes, in Rust** (in `mineworld-sdk`, module `interactions`):
+
+```rust
+/// Implemented by a System Pack that has a section. The SDK decodes, resolves and looks up; the pack
+/// declares what its section may say and enforces the answers.
+pub trait InteractionSection: SystemIdentity {
+    /// The pack's typed parameter block, generated by `parameters!` with a bound and a default per
+    /// field, and its all-optional "partial" twin for scoped entries.
+    type Parameters: Parameters;
+    /// Pack-specific consequence knobs (e.g. conversation's `remember`), typed; `()` for none.
+    type Knobs: Knobs;
+    /// Each action: its roles and whether a region may scope it.
+    const ACTIONS: &'static [ActionDecl];
+    /// Each of its own fact types: which envelope entities fill which role, its default audience,
+    /// the narrowest audience a list may choose, whether biography is configurable, its default.
+    const FACTS: &'static [FactDecl];
+    /// The `default` reference list — today's behaviour, written out — and any named lists.
+    const REFERENCE: &'static [(&'static str, &'static str)];
+}
+```
+
+and three pure lookups, each a function of a `WorldRead`, the place and the roles:
+
+```rust
+pub fn permits<S: InteractionSection>(w: &WorldRead, at: PlaceId, action: ActionTypeId, roles: &Roles)
+    -> Result<(), Rejection>;                       // Err(PermissionDenied) when forbidden
+pub fn parameters<S: InteractionSection>(w: &WorldRead, at: PlaceId, roles: &Roles) -> S::Parameters;
+pub fn consequence<S: InteractionSection>(w: &WorldRead, at: Option<PlaceId>, fact: EventTypeId,
+    roles: &Roles, owner_default: Visibility) -> Consequence<S::Knobs>;   // audience, biographical, knobs
+```
+
+- **Absent means the reference.** When the world configures nothing for `S`, each lookup returns the
+  pack's `default` without touching state: `permits` is `Ok`, `parameters` are today's constants, and
+  `consequence` returns `owner_default` and the compiled biographical set. This is what keeps every
+  unconfigured world byte-identical (IL-I1), pack by pack.
+- **Generated, not hand-written.** An `interactions!()` macro inside `impl SystemPack` (like
+  `owns_section!()`) wires the decode, the seeding fact `<pack>-interactions-configured` (the pack's own
+  vocabulary, ARC-26), the reduction and the component.
+
+## 4.5 Composition and precedence
+
+```text
+L0  the pack's bounds         code; never overridden; a value outside them is refused at load
+L1  the pack's `default`      compiled in; today's behaviour
+L2  `extends`                 a named reference list of this pack, or one a provider pack ships to it
+                              (bodies' `winter` from `ice`); chains ≤ 4, no cycles
+L3  the world's section       interactions/<pack>.yaml
+L4  a region                  that section's `regions.<place>` entries, for that place only
+```
+
+1. **Levels replace by selector.** An entry at a higher level replaces a lower level's entry with the
+   same key (action or fact, plus its selectors); entries with different selectors coexist.
+2. **Then specificity.** Among the entries that apply to a request, the one naming the most roles
+   (non-`*` selectors; a place class counts) wins.
+3. **Then forbid wins.** Among rules of equal specificity, `forbid` overrides `permit` (Cedar). For a
+   parameter field or a consequence of equal specificity, two different values are **refused at load**,
+   naming both entries, so ambiguity never reaches run time.
+4. **Default.** No matching rule gives the section's `default`, which is `permit` unless the section says
+   otherwise.
+5. **Parameters field by field.** A scoped entry overrides only the fields it names.
+
+**Storage and lookup** (determinism, ARC-25): a configured section is seeded as one genesis fact holding
+the fully resolved section, with the classes it references copied in. The pack reduces it into a
+component `Interactions<pack>` on every Place, holding the base plus that place's region entries. That
+gives every lookup a place:
+- a request uses the actor's place;
+- a reaction uses the fact's place;
+- a fact without a place uses the base, which every copy carries.
+
+Lookups are binary searches over sorted vectors. Nothing is looked up from a file at run time.
+
+## 4.6 Enforcement stays in the owning pack
+
+- **Where.** In the pack's `validate`, after the payload, the actor and the target's existence and
+  before its spatial requirement: `permits` → `PermissionDenied`. In its offers, through the same call,
+  as `available: false` with `PermissionDenied` (ARC-34). At emission: `consequence` chooses the
+  audience and the knobs. In reactions: `parameters` (e.g. relationships' regard values).
+- **A list cannot grant.**
+  - The decoded section names only the pack's declared actions and facts; an unknown name is refused.
+  - `permit` is a filter AND-ed with the pack's own validation, so a permitted talk still needs the same
+    place and the range.
+  - Parameters stay within the pack's bounds.
+  - Audience only narrows (§4.7), and biography changes only where the owner allows.
+  - A section for a pack the world does not enable is refused, so no list can name an interaction no
+    installed pack implements.
+- **The kernel is ignorant.** It sees actions, rejections, facts and components it has always seen. No
+  kernel, contract or persistence type changes.
+- **New interaction kinds** are code from packs, through ARC-62's extension catalogs. Bodies' catalog is
+  the only one in MVP-0 (`InteractionKind`, `step-18-physics-list.md` §4.7). Another pack opens its own
+  catalog with one `extension` line when a kind first needs plugging in. A wholly new interaction (fish,
+  craft) is a new pack's action, and that pack gets its own section automatically.
+
+## 4.7 Consequence routing (ARC-65)
+
+**What a list may govern, per fact type and role selectors:**
+
+| Knob | Range | Who bounds it |
+| --- | --- | --- |
+| **audience** | narrowing along `Public ⊇ Place ⊇ Participants ⊇ Entities(⊆ participants)`, never below the owner's declared narrowest (e.g. `spoke` never below `Participants`, since the listener must hear) | the owner's `FactDecl` |
+| **biography** | `on` / `off` | the owner's `FactDecl.configurable`; a fact the owner marks non-configurable keeps its compiled flag |
+| **pack knobs** | typed per pack (conversation's `remember`) | the owner's `Knobs` type |
+
+**What a list may never do.** Widen an audience (that would leak private state, against INV-13's
+intent); stop a fact from being recorded (INV-11); change a payload, an owner or a fact's subjects;
+route a fact owned by another pack. A fact stated through another pack's constructor gets its
+consequence from the owner's section (F-IL-3): inventory's section governs `items-transferred` whoever
+states it.
+
+**"Does what is said enter an NPC's biography and history" — answered layer by layer (INV-4, F-IL-4):**
+
+```text
+fact log    always. `spoke` is recorded in every world; the log is the truth (INV-11)
+biography   the list's `biography` for `spoke` and the speaker's class: the ARC-29 projection asks the
+            save's resolved sections instead of only the compiled set
+in-world    conversation's `Remembered` (the 32 lines a person was told) — the `remember` knob, the
+recall      listener's class; conversation's own state
+memory      cognition's, derived only from perceived facts (S10 §3.8.1). The list governs it only through
+            audience: `spoke` narrowed to `participants` is not overheard, so bystanders' memories
+            never hold it. The listener always perceives what was said to them; a world in which some
+            people should not hear others forbids the talk instead. No list writes into a mind
+```
+
+**Coordination with S10 and S11-C (no change to either function).**
+- The audience is chosen by the owner at emission and carried in the envelope's `Visibility`. S11-C's
+  `mineworld_presence::audience::admits` reads only the envelope, so it applies the list's narrowing with
+  no code change and no knowledge of lists.
+- S10's ingestion reads only what S11-C delivers. I-4 of S10 (live + resumed = `mineworld perceived`)
+  holds unchanged.
+- **The biography projection changes.** ARC-29's `Capability::biographical` (compile-time) becomes the
+  default. `mineworld biography` additionally reads, from the save:
+  - the genesis `*-interactions-configured` facts;
+  - the genesis journal row's assembled entities, for tags.
+
+  It then asks each owner's `consequence` for the fact's roles. With no configured section it is
+  ARC-29 exactly. An amendment to ARC-29's "reads a save's fact table and nothing else" (§12).
+- **Cognition's own policy stays the operator's** (`cognition.toml`, S10 §3.7.4). A world cannot tell a
+  mind what to forget (QIL-10).
+
+## 4.8 What a list looks like for the operator's three examples
+
+```yaml
+# interactions/classes.yaml
+- { class: noble,    of: person, tag: noble }
+- { class: servant,  of: person, tag: servant }
+- { class: commoner, of: person, tag: villager }
+- { class: heirloom, of: item,   tag: heirloom }
+```
+```yaml
+# interactions/conversation.yaml — nobles and commoners do not talk; servants' lines are not history
+rules:
+  - { action: talk, actor: noble,    target: commoner, effect: forbid }
+  - { action: talk, actor: commoner, target: noble,    effect: forbid }
+consequences:
+  - { fact: spoke, actor: servant, biography: off }
+```
+```yaml
+# interactions/item-transfer.yaml — heirlooms cannot be given
+rules:
+  - { action: give, object: heirloom, effect: forbid }
+```
+```yaml
+# interactions/economy.yaml — nor bought
+rules:
+  - { action: buy, object: heirloom, effect: forbid }
+```
+
+`talk` from a noble to a commoner is refused `PermissionDenied`, and the offer shows it unavailable for
+that reason; `spoke` by a servant is recorded and perceived but appears in no biography; `give` and `buy`
+of an heirloom are refused. No code, no fork.
+
+## 4.9 The bodies section (S17's design, kept and re-expressed)
+
+What changes from `step-18-physics-list.md`:
+- **"Body class" is entity class.** The pair table's `actor`/`body` become the generic roles
+  `actor`/`target` and `object`, selected by entity classes from tags. `class:` on `body:`,
+  `object-classed` and `BodyClass` are withdrawn.
+- **`PlacePhysics` is `Interactions<bodies>`** (§4.5), and S17's `physics:` key on a place's `body:` is
+  withdrawn in favour of the section's `regions:`.
+- **The physics document's top-level blocks** (`people`, `pairs`, `launch`, `surfaces`, `combine`,
+  `classes.*.material`) become bodies' `Parameters` and `Knobs`, scoped by selectors like any other
+  section. The values, the bounds, the engine constants and the byte-identity argument of S17 §4.4 are
+  unchanged.
+- **Interaction kinds and consequence packs** are exactly S17 §4.7 (ARC-62).
+
+## 4.10 Persistence, drift, versioning, tools
+
+1. **The resolved list is state** (§4.5); a save carries it. Replay re-executes genesis from the
+   journal (ARC-25).
+2. **Drift is refused** (QPL-12). At resume from a World Pack, the host re-seeds every configured
+   section and `classes.yaml` and compares them with the save's genesis facts. Any difference is refused
+   by name: "the world's interaction list differs from the save's: section 'conversation', rule 2".
+   Tag drift is content drift and is not checked (QPL-12's scope).
+3. **A pack's `default` is pinned to its `SystemVersion`** by a test per pack. Changing a reference list
+   is a version bump, so an old save is refused (A-12 of the old file). Under S16's QSE-7 that is a
+   breaking release.
+4. **A world's list** travels with the World Pack's semver (S16). A third-party pack's sections and
+   reference lists are reached by enabling it and naming it in `requires:`, with nothing new.
+5. **`mineworld interactions <world> [--place KEY] [--json]`** prints the resolved list per section and
+   per place — the "interaction matrix" (§3 row 6) — so an author sees what precedence produced. It reads
+   only the World Pack.
+
+## 4.11 Clients
+
+- **What reaches a client:**
+  - affordances, already: an offer is available, or unavailable with `PermissionDenied` (ARC-34);
+  - an offer's `SpatialRequirement`, already, which now carries a list's range;
+  - tags, already, in observations;
+  - facts the client's seat perceives, already, with the list's narrowed audience.
+- **What does not:** the list, the classes table, parameters as such, and biography flags. A client
+  cannot ask "what is forbidden"; it can only see what it is offered. I-8 and I-S14-1 hold, and S14's
+  rule-constant scan needs no new entry, because the list is not a constant in a client.
+- 2D and 3D use one semantic path, as before (`AC-13`).
