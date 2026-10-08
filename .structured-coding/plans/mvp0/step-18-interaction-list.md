@@ -1416,6 +1416,42 @@ E-IA-9  2026-10-08, IA-11 full gate on c86ffb3 (the final code head; later commi
         (target/tmp/<name> and $TMPDIR/mineworld-kill-*, from this worktree's pre-merge runs); none is
         a mineworld-scratch-<pid> container and none is IL-a's (no `configure-*`, `configuration-*` or
         canary name). The gate left nothing new. PASS.
+E-IA-10 2026-10-08, after main moved (coordinator's instruction): S16 E-b (#78, 4bdbca1), S19's plan (#81,
+        docs only) and S14 16a (#79, 6dddb4f: client-only plus tests/acceptance client_rules) merged in.
+        Merges:
+        - be30002 (E-b). §11.5's shared lines were placed as designed: `WorldManifest.configure` after E-b's
+          `requires`; in `read_with`, `configure::read` directly after `requirements::resolve`; module doc
+          step 4c after 4b; `replay(world, save, roots)` reads with `read_with`, then `saved_genesis` →
+          `check_configuration` → `compose` → `verify`; `persisted` and run.rs's resume branch keep their
+          check before `PersistentWorld::resume` (E-b's run.rs and server changes merged cleanly around
+          them). Doc conflicts in DECISIONS.md (ARC-61/62 beside ARC-54/55 and the ARC-53 note),
+          MODULE_SPEC.md §4.1 (E-b's "Requirements" paragraph first, then "Configuration", now saying
+          that configuration is read after requirements resolve, as read.rs does) and MVP_STATUS.md (IL-a's
+          row, then E-a's updated row and E-b's row) were resolved by keeping both sides. load.rs and worlds/
+          were untouched by E-b.
+        - fe40daf (16a + #81). One DECISIONS.md conflict (DEP-20 beside ARC-61/62), kept both. No path
+          under kernel/ contracts/ persistence/ server/ systems/ worldpack/ sdk/ authoring/ tools/ worlds/,
+          the root Cargo.toml or Cargo.lock differs between 4bdbca1 and 6dddb4f.
+        `cargo clean` was run in this worktree before re-gating (17.0 GiB removed). `check_scratch.py left`
+        then listed 0 entries under target/; four empty `mineworld-kill-*` directories in the shared
+        system $TMPDIR predate #77 and lie outside this worktree, so they were left alone.
+        IA-1 (on be30002; fresh budget of 4 town runs granted by the primary session, 2 used): social-cafe
+          300 days seed 7 sha ad49c723…c64b, 365 330 facts, fingerprint 59339a9c281829c9, faults 0;
+          market-town sha 365b50e0…1d1d, 372 755 facts, fingerprint 085ed9c55cae7947, faults 0;
+          bodies-yard 30 days sha 6e4c4015…c8395, 62 855 facts; long_run 4 091 748 bytes sha
+          d7025dbc…79eaf; validate ×3 `cmp`-identical to E-IA-0. All equal E-IA-0. 16a changes no
+          simulation path (above), so the runs stand for fe40daf. PASS.
+        IA-9 (on fe40daf, against origin/main 6dddb4f): `git diff --stat` empty under kernel/ contracts/
+          persistence/ server/ clients/ cognition/ worlds/ and the root Cargo.toml; the three guards have
+          no diff; Cargo.lock differs by exactly `+ "mineworld-authoring"` and `+ "mineworld-sdk"`; 32
+          changed files, the same set as at 93faa6a, all inside §11.1 as amended. PASS.
+        IA-11, the full gate on fe40daf (final code head; the commit after it is this ledger only):
+          fmt, check, `clippy --workspace --all-targets -D warnings` all 0; `cargo test --workspace` 0,
+          168 result lines, 736 passed, 0 failed (client_rules 3, configuration_seam 4,
+          configuration_vocabulary 2, worldpack configuration 8 among them); check_doc_headings 191 / 26,
+          check_decision_ids 61 distinct; check_scratch.py scan 0; `left` 0 entries under target/ (only
+          the 4 pre-existing $TMPDIR entries). PASS. (An interim gate on be30002, before 16a merged, also
+          passed: 733 passed, 0 failed.)
 ```
 
 ## 11.12 Deviations

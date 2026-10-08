@@ -38,8 +38,6 @@ STOP                 PR IL-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 ## Next actions
 
 - Operator review of the PR (READY FOR OPERATOR REVIEW). Do not merge without explicit authorization.
-- If S16 E-b merges first: whoever merges second merges main, places IL-a's `read_with` line directly
-  after E-b's `requirements::resolve` line and the `WorldManifest` field after `requires` (§11.5), keeps
-  the drift calls in `persisted`/`replay` beside E-b's `--packs` plumbing, then re-runs IA-1 (a new town
-  run budget is the operator's to grant) and IA-9.
+- Done: E-b (#78), #81 and 16a (#79) merged in (be30002, fe40daf) with §11.5's lines placed as
+  designed. IA-1 (2 of 4 town runs), IA-9 and the full gate were re-run, all PASS (E-IA-10).
 - IL-b: let the framework-owned `packages` key through to `mineworld-packages`; give `classes` meaning.
