@@ -2388,6 +2388,37 @@ E-SB8 Full gate on be674d7 (the merge head; later commits are docs only): fmt --
       concurrently). CP-B4 measurements so far: 13 ms (E-SB5, isolated), PASS inside the full CLI
       suite run, 160 ms (this gate, load ~21), 1 ms (re-run on the same head right after, load ~7).
       Classification: CP-B4 FAIL once under load; PASS ×3. Material per §16.8 — see D-SB12.
+E-SB9 D-SB12 located before counted (primary-session ruling: no bound change, no option chosen;
+      ARC-23). A scratch probe — a local uncommitted patch to server/src/runtime.rs, lib.rs,
+      server/Cargo.toml (libc, for thread CPU time) and persistence/src/world.rs, reverted after
+      (`git status` clean) — timed every tick's phases in wall and thread-CPU time: expire; per
+      hosted consult its advance, observe (perception), decide and submit, the submit split into
+      kernel dispatch, row encode, snapshot (every 64th revision) and the SQLite commit
+      (Durability::PowerLoss); the tick's own advance; the sweep (perception + try_send fan-out).
+      Any tick over 20 ms was logged with its breakdown, and every new maximum. The CP-B4 scenario
+      (hosted_town: market-town --town --pace 5 --save, two sessions, 120 s, SIGINT) was run:
+        run  conditions                                      p50      p99      max     >20 ms
+        1    machine as found, load 8.1→7.5                  0.29 ms  1.94 ms  3.58 ms  0
+        2    as found, load 7.5→2.5                          0.30 ms  2.20 ms  10.87 ms 0
+        3    as found, load 2.5→5.4                          0.27 ms  2.11 ms  5.34 ms  0
+        4    + `cargo test --workspace` in this worktree,    0.08 ms  0.89 ms  3.29 ms  0
+             load 14.8 (the hog itself passed, exit 0)
+        5    + 16 CPU-bound 300-day runs (no save), load 17.7 0.11 ms 1.21 ms  3.46 ms  0
+        6    + 8 fsync-heavy hosted servers (--town --pace 1  0.08 ms 0.96 ms  13.55 ms 0
+             --save, PowerLoss), load ~15
+      (Runs 5 and 6 go beyond the ruling's list to provoke each hypothesis separately; every hog
+      was this session's own PIDs, stopped afterwards.) Tick start-to-start: p50 100 ms, max
+      119 ms in every run — the tick is never starved of its turn by more than ~20 ms.
+      The slowest ticks and where their time went:
+        run 4  3.3 ms wall / 0.6 ms CPU: consult.decide 2.6 ms wall, 0.1 ms CPU (descheduled)
+        run 5  3.5 ms wall / 0.5 ms CPU: sqlite-commit 3.2 ms wall (I/O wait)
+        run 6  13.5 ms wall / 0.2 ms CPU: consult.observe 8.4 ms wall, 0.0 ms CPU (descheduled)
+               + sqlite-commit 5.1 ms wall (I/O wait)
+      Steady state: a tick's own CPU is ≤ 0.6 ms; a commit is 0.1–0.4 ms; no snapshot was ever in a
+      slowest tick. The 160 ms tick was not reproduced in six probed runs. Every outlier has wall ≫
+      CPU: the world thread was off-CPU (descheduled, or waiting on the commit's I/O), never busy.
+      Neither stall source reached 15 ms under the loads this session could make; the 160 ms one
+      coincided with a load of ~21 from other worktrees' concurrent runs.
 ```
 
 ## 16.11 Deviations and discoveries
@@ -2465,6 +2496,15 @@ D-SB12 (MATERIAL — operator's decision) CP-B4's 50 ms longest-tick bound faile
       bound, running hosted_town alone in CI; (b) bound a high percentile (e.g. p99) instead of the
       maximum, with the maximum reported; (c) Durability::Commit for hosted saves; (d) a longer
       default pace. The PR is opened for review with this item flagged; not merged.
+      Proposal after locating (E-SB9): (b) — bound the tick's p99 at ≤ 50 ms and report the max
+      beside it. Every probed run's p99 is ≤ 2.2 ms, an order of magnitude under the bound with any
+      hog, so the p99 bound keeps CP-B4's meaning (the hosted work fits the cadence) while not
+      failing on one off-CPU stall the server cannot control. Not (c): commits stayed ≤ 5.1 ms even
+      under eight fsync-heavy neighbours, and the outliers were as often descheduling as I/O, so
+      weaker durability would trade crash safety for a stall it does not remove. Not (d): the
+      world thread's own CPU per tick is ≤ 0.6 ms, so a longer pace removes no measured cost.
+      (a) alone leaves a maximum that one scheduler hiccup can fail. CP-B4's ≤ 50 ms maximum stays
+      frozen until the operator decides.
 D-SB10 (bounded) The paced lattice's `genesis` is `HostConfig::epoch`, the instant every world this
       command creates begins at, so it is the same after a resume; hosted instants follow the wall
       clock anyway (ARC-42's accepted limitation).
