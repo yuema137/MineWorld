@@ -3332,10 +3332,9 @@ another CI service rewrites that one file. Changing what a layer runs edits one 
 `scripts/ci_layer.py`, and the same entry point runs locally.
 
 **Accepted limitations.**
-- **Cost.** While the repository is private on GitHub Free, CI draws on 2 000 included Linux minutes a
-  month, and the project's PR rate needs several times that (step-14 §10.1). The operator decided to make
-  the repository public (2026-10-08), after which standard hosted runners are free. Until then, CI runs
-  are budgeted per PR.
+- **Cost.** As a private repository on GitHub Free, CI would draw on 2 000 included Linux minutes a month,
+  while the project's PR rate needs several times that (step-14 §10.1). The repository became public on
+  2026-10-08, so standard hosted runners are free. Runs are still kept purposeful.
 - **Runner disk.** The default suite writes about 16 GB of scratch saves (step-14 F-3). The `test` layer
   prints free disk before and after. A shortfall is remedied in the workflow (freeing the runner's
   preinstalled SDKs), never by changing tests in CI.
@@ -3474,11 +3473,13 @@ clients    Godot headless probes  nightly; workflow_dispatch (13c)              
 1. **Policy, in force now.** An execution contract's `READY FOR OPERATOR REVIEW` requires green `fast` and
    `test` on the exact final PR head. That run is the PR's one canonical full-suite evidence, replacing a
    local full gate. The operator merges only with both green.
-2. **Mechanism, not yet in force.** When this record was written, the repository was private on GitHub
-   Free, where branch protection and rulesets are unavailable (step-14 F-1: the API answers 403). `D-12`'s
-   "protection makes that a mechanism" was therefore not yet true.
-   - After the repository is made public, the primary session and the operator enable protection, or a
-     ruleset, on `main`.
+2. **Mechanism, not yet in force.** While this record was being written, the repository was private on
+   GitHub Free, where branch protection and rulesets are unavailable (step-14 F-1: the API answers 403).
+   `D-12`'s "protection makes that a mechanism" was therefore not yet true.
+   - The repository became public on 2026-10-08, which makes protection available.
+   - Protection follows this record's PR (S13 13a) **after it merges**. Requiring checks that do not yet
+     exist on `main` would block every merge. The primary session then enables protection, or a ruleset,
+     on `main`.
    - It requires `fast` and `test` and "require branches to be up to date", because AC-1's scan reads
      merge structure.
    - That settings change is outside every PR, and is recorded where it is made.
