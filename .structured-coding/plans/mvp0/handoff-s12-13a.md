@@ -10,7 +10,7 @@ run in parallel and every one would append to the same file.
 PROJECT / PR        S12 PR 13a — a world you can walk
 DESIGN              step-13-client-2d.md §14; contract §14.9
 BRANCH / WORKTREE   mvp0/pr-s12-13a-walkable-2d · /Users/yuema137/mineworld-worktrees/impl-s12-13a
-BASE                main @ 47c81d1
+BASE                main @ 47c81d1; main merged in at d6bd41d (S11-A), 3b0d1e1 (test hygiene #77)
 SCOPE               §14.0–§14.7; frozen invariants §14.9
 ENDPOINTS           implement, commit, push, PR (READY FOR OPERATOR REVIEW, preview) — primary session's
                     freeze message 2026-10-08 and D-12; merge: operator only
@@ -19,18 +19,17 @@ STOPS               any edit to clients/protocol/mineworld/**; any server/kernel
 
 ## Checkpoint
 
-- C0 design `26c451d`; freeze header `610b50f`; C1 `318c0b9`; C2 `4f6f6b2`; merge of main (16b)
-  `38dfe93`; client code C3–C5 `74b7c2c`.
-- Current: C5 tests (`tools/cli/tests/client_2d.rs`, `godot2d/`) and C6 reconnect, in the working tree;
-  then C7 (stills, preview, final gates, PR).
+- C0 `26c451d`; freeze `610b50f`; C1 `318c0b9`; C2 `4f6f6b2`; C3–C5 client `74b7c2c`; C5/C6 tests and
+  reconnect `bc935c4`; revision 2 `a00e87f`; F-6 `f4e0a75`; F-7 `42884a3`; merge of #77 `3b0d1e1`.
+- Then: test worlds on port 0 with the join line (D-12); C7 (stills, preview, final gates, PR).
 
 ## Next actions
 
-1. Commit tests + reconnect once `cargo test -p mineworld-cli --test client_2d -- --ignored
-   --test-threads=1` is green; record mutations (W1, W3, W5, W6, W7 done; W4, W10 pending).
-2. C7: capture runs (town, none, full), stills into `clients/2d/shots/preview/`, final gates, PR.
+1. C7: capture runs (town, none, full) one window at a time, stills into `clients/2d/shots/preview/`,
+   final gates (AC-W9, AC-W11, AC-W12, `check_scratch.py scan` and `left`), PR.
 
 ## Background processes
 
-Only processes this session started (by PID), never by name. Godot user dir may hold
-`mutation_w3.txt` only during the W3 mutation; it was removed.
+Only processes this session started (by PID), never by name. The host restarted once mid-run
+(2026-10-08); its leftover scratch is F-8. Cargo is at `$HOME/.cargo/bin` (not on the restarted
+host's PATH).

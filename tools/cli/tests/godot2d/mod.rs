@@ -195,47 +195,88 @@ pub fn passed(lines: &[String]) -> bool {
 }
 
 /// A hosted world that a test may kill and start again on the same address.
+///
+/// Started the way an operator starts one (S11-A): `--listen 127.0.0.1:0`, so the system picks a
+/// port nobody holds, and the address is read from the one join line the server prints. The test's
+/// invite is given (`--invite`), so that line carries no secret. Only this test's own child process is
+/// ever killed.
 pub struct World {
     child: Option<Child>,
     pub address: SocketAddr,
     arguments: Vec<String>,
 }
 
+/// The line a server prints when it was given its invite (`tools/cli/src/invite.rs`).
+const JOIN_LINE: &str = "[mineworld] join with: ";
+
 impl World {
-    /// `mineworld server <arguments> --listen <address>` (a free port when `address` is None).
+    /// `mineworld server <arguments> --listen 127.0.0.1:0` — or `--listen <address>` when a test
+    /// replaces a world it has just killed on that address (AC-W4).
     pub async fn start(arguments: &[&str], address: Option<SocketAddr>) -> Self {
-        let address = match address {
-            Some(address) => address,
-            None => crate::support::free_port().await,
-        };
         let mut world = Self {
             child: None,
-            address,
+            address: address.unwrap_or_else(|| "127.0.0.1:0".parse().expect("an address")),
             arguments: arguments.iter().map(|a| (*a).to_owned()).collect(),
         };
-        world.restart().await;
+        world.launch().await;
         world
     }
 
-    /// Starts the process again, with the same arguments and address.
+    /// Starts the process again, with the same arguments, on the address it was bound to.
     pub async fn restart(&mut self) {
-        let child = Command::new(env!("CARGO_BIN_EXE_mineworld"))
+        assert_ne!(self.address.port(), 0, "a world restarts where it was");
+        self.launch().await;
+    }
+
+    async fn launch(&mut self) {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_mineworld"))
             .args(&self.arguments)
             .args(["--listen", &self.address.to_string(), "--invite", INVITE])
             .env_remove("MINEWORLD_INVITE")
-            .stdout(Stdio::null())
+            .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
             .spawn()
             .expect("the mineworld binary runs");
+        let stdout = child.stdout.take().expect("piped");
         self.child = Some(child);
+        let (sender, joined) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            // Read every line, so the server never blocks on a full pipe; pass on the join line.
+            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+                if let Some(rest) = line.strip_prefix(JOIN_LINE) {
+                    let _ = sender.send(rest.split(' ').next().unwrap_or("").to_owned());
+                }
+            }
+        });
         let deadline = Instant::now() + Duration::from_secs(30);
+        let printed = loop {
+            if let Ok(address) = joined.try_recv() {
+                break address;
+            }
+            let child = self.child.as_mut().expect("running");
+            if let Some(status) = child.try_wait().expect("the process can be waited on") {
+                panic!("the world exited before printing its join line: {status}");
+            }
+            assert!(
+                Instant::now() < deadline,
+                "the world printed no join line in 30 s"
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        };
+        let printed: SocketAddr = printed
+            .parse()
+            .unwrap_or_else(|e| panic!("the join line's address {printed:?}: {e}"));
+        if self.address.port() != 0 {
+            assert_eq!(printed, self.address, "restarted where it was");
+        }
+        self.address = printed;
         while Instant::now() < deadline {
             if get(self.address, "/health").await.is_some() {
                 return;
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
-        panic!("the world did not come up on {}", self.address);
+        panic!("the world did not answer on {}", self.address);
     }
 
     /// `SIGKILL`, and returns how it ended.

@@ -1207,3 +1207,22 @@ NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
   bend the next stride's direction. Frames showing exactly the pre-move position are ignored for
   600 ms after an accepted result and counted (`stale_frames_ignored`); in the five AC-W10 runs after
   the fix the count was 0, so the race was not observed — the guard is recorded as defensive.
+- **D-12 (bounded) — the test worlds bind port 0 and read the join line.** *Previous:* `World` picked a
+  port with `support::free_port()` (bind, release, reuse), which another process can take in between.
+  *Now* (the coordinator's S11-A instruction): `mineworld server … --listen 127.0.0.1:0 --invite
+  <test invite>`; the address is read from the server's one `[mineworld] join with: <address> …` line
+  (a given invite prints no secret); a restart (AC-W4) binds that same address again and asserts the
+  printed address equals it. Only the test's own child is ever killed (`Child::kill`, never by name).
+- **D-13 (bounded) — test scratch on `mineworld-test-support` (#77).** The merge of `main` (`3b0d1e1`)
+  moved `support::SaveDir` onto `scratch!`, so every save `client_2d.rs` makes lives in
+  `target/tmp/mineworld-scratch-<pid>/<name>` and is removed when its guard drops;
+  `check_scratch.py scan` passes with no change to `client_2d.rs`.
+- **F-8 (found, cause established) — the leaked `$TMPDIR/mineworld-cli-<pid>-2d-i5-variantfull`.** The
+  pre-#77 `SaveDir` removed its directory on `Drop`, and in `the_requests_do_not_depend_on_the_presentation`
+  the `World` (declared after the save) is dropped first, so its server is killed and reaped before
+  the save is removed — on a pass and on a panic alike. No server child outlives the guard. The only
+  path that leaves the save is the test process itself dying without unwinding. Reproduced on
+  2026-10-08: the host restarted mid-run (the test binary SIGKILLed during that loop) and left exactly
+  `target/tmp/mineworld-scratch-50121/2d-i5-variantprocedural`, which `check_scratch.py left` reported
+  (rc 1) and which was then removed by hand. Nothing in the test can clean up after its own SIGKILL;
+  the helper's `left` check is what makes such a leftover visible. Not a test defect; no code change.
