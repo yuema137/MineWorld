@@ -2278,6 +2278,23 @@ E-SB1 B-C1. check_decision_ids → 57 ids, all distinct (ARC-40, ARC-42 new; ARC
       took_over "connection", closing.taken_over, WorldSummary.time_scale, clients without hosted
       controllers. ARC-40 records QS11B-3 (one trust level) and QS11B-4 (hold in wall seconds) as
       MVP-0 limitations.
+      E-SB0 (continued): `cargo test -p mineworld-cli --no-fail-fast` at the base: exit 0, 55 passed,
+      0 failed, 446 s wall.
+E-SB2 B-C2 (pure moves). host.rs 498 → 387 (handles.rs new), runtime.rs 441 → 344 (runtime/world.rs
+      new), tools/cli/src/main.rs 523 → 382 (serve.rs new). clippy -D warnings clean on server + cli;
+      `cargo test -p mineworld-server`: unit 26, frames 8, handshake 7, headless 4, two_clients 9,
+      doc 1 — the base's tests and counts (E-SA4); `--test server_command --test restart` 7 + 2 pass.
+      lib.rs re-exports unchanged (handles re-exported from host).
+E-SB3 B-C3 + B-C4 (one commit, D-SB2). seats.rs + seats/tests.rs (10 unit tests: free/occupied/
+      take_over, hosted yields without a flag and is unbound, leave rebuilds through the factory at
+      the release instant, hold expiry at `until` and not 1 ms before, resume on held / on a live
+      connection (superseded) / wrong secret / wrong seat / secret replaced on every welcome,
+      take_over kills a held secret, hold 0, due order by instant then seat, unknown seat);
+      admission.rs ResumeSecret/OfferedResume (+1 test: format, freshness, exact match, redacted
+      Debug). `cargo test -p mineworld-server --lib` 37 passed. rule-controller: `since` + 1 test
+      (a line at the binding instant is not answered, one at +1 s is; new() unchanged); 35 passed,
+      every existing test untouched. clippy on this commit alone reports only dead code (the seat
+      table and seam are wired by B-C5); the workspace is clippy-clean from B-C5 on.
 ```
 
 ## 16.11 Deviations and discoveries
@@ -2287,5 +2304,9 @@ D-SB1 (bounded) PROTOCOL.md layout. SD-B2's join rules are §4.2 (new), with §4
       "4 seat" and "5 control" in place of S11-A's "4 resume, 5 seat": the resume is now judged on the
       world thread with the seat, after the roster check, as SD-B2 orders. Section numbers 1–10 keep
       their meaning (D-SA2).
+D-SB2 (bounded) Commit mapping. B-C3 (SeatTable) and B-C4 (the seam) land as one commit: a Hosted
+      seat holds a bound HostedController, so the table cannot compile without the trait. Held
+      carries no `observer` (SD-B1 listed one): the runtime resolves a seat's observer from the
+      roster whenever it needs it, so the table stays free of world identities.
 ```
 

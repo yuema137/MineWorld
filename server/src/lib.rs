@@ -28,7 +28,9 @@
 //! parity      AC-13's comparison: what it means for two clients to ask the same thing
 //! session     one client's conversation: join, then observations out and requests in
 //! host        WorldHost — the handle, the seats, and the thread a World must live on
-//! runtime     the world thread: the clock, the request allocator, the subscribers
+//! seats       who drives each seat: free, hosted, connected or held — and its only writer
+//! hosted      the seam an in-server controller is written to; the server names none
+//! runtime     the world thread: the clock, the request allocator, the subscribers, the consults
 //! perception  the one seam a hosted world provides: what each observer perceives
 //! protocol    the frames, and nothing else a client may say
 //! ```
@@ -68,20 +70,23 @@
 pub mod admission;
 pub mod app;
 pub mod host;
+pub mod hosted;
 pub mod parity;
 pub mod perception;
 pub mod protocol;
 mod runtime;
+pub mod seats;
 mod session;
 
 pub use admission::{
-    Admission, AdmissionError, InviteToken, Nickname, OfferedInvite, UNAUTHORIZED_DELAY,
-    Unauthorized,
+    Admission, AdmissionError, InviteToken, Nickname, OfferedInvite, OfferedResume, ResumeSecret,
+    UNAUTHORIZED_DELAY, Unauthorized,
 };
 pub use host::{
     HostConfig, HostError, HostedWorld, Perceived, SeatRoster, Seated, Submitted, SubscriptionId,
     WorldHost,
 };
+pub use hosted::{HostedAnswer, HostedController, HostedFactory};
 pub use mineworld_persistence::WorldRevision;
 pub use parity::{RequestField, SemanticCore, differing_fields, semantic_core};
 pub use perception::{PerceivesNothing, Perception, PerceptionContext};
@@ -90,3 +95,4 @@ pub use protocol::{
     RefusalCode, ServerFrame, SessionId, SystemSummary, TookOver, WireObservation, WirePayload,
     WorldInstanceId, WorldSummary,
 };
+pub use seats::{Departure, JoinRequest};
