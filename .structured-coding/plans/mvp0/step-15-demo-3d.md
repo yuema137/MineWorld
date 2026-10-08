@@ -1189,11 +1189,18 @@ Each commit tracks implementation, validation and review separately. Evidence go
 
 **Depends on:** freeze. **Non-goals:** no code; `PROTOCOL.md` unchanged (the wire is unchanged).
 
-- [ ] Implementation: the edits above.
-- [ ] Validation: `check_doc_headings`, `check_decision_ids`; every method named in ADOPTION §2 exists
-  after B-C3 (re-checked at B-C4 by grep of `func` names against the §2 lists).
-- [ ] Review: no new term; "affordance" and "complete affordance" as `CORE_CONCEPTS.md` §15.2 defines
+- [x] Implementation: the edits above. ADOPTION §2 gained the API lines, three paragraphs ("Listing
+  affordances", "Complete affordances" rewritten, "Disclosed components") and the two-kinds paragraph
+  (S12's M-7); §3.3 one `allowed` line. README: `checks/` and a "module's own checks" block. ARC-34:
+  "Note, 2026-10-08 (S14, PR 16b)".
+- [x] Validation: `check_doc_headings` → 176 sections, none duplicated; `check_decision_ids` → 51 ids,
+  all distinct (no new id). The §2 ↔ `func` cross-check is B-C4's.
+- [x] Review: no new term; "affordance" and "complete affordance" as `CORE_CONCEPTS.md` §15.2 defines
   them; §3.3's four rules unchanged in substance; nothing in ADOPTION contradicts `PROTOCOL.md` §§5–6.
+  Done: the only terms used are Affordance, complete affordance, payload, target; "choice" appears
+    only in ARC-34/PROTOCOL's own sense ("one per choice offered"); §3.3 gains one allowed line and
+    loses nothing; PROTOCOL §5's "keep them apart by their position" and §6's "submit unchanged" are
+    restated, not altered.
 
 ### B-C2 — `MineWorldObservation`: SB-1 … SB-4, and the reader check
 
@@ -1312,7 +1319,17 @@ material stop.
 
 ## 18.9 Evidence ledger (E-B<n>)
 
-Empty until execution. E-B0 is the base run of A-5 and A-6 on 47c81d1, made before any code edit.
+E-B0 is the base run of A-5 and A-6 on 47c81d1 (module and demo untouched), made before any code edit.
+
+**E-B0a — `bash clients/protocol/run.sh evidence` on the base (2026-10-08). PASS.** 58.6 s wall, exit 0.
+All five transcripts end as committed: both flavours walk, `talk` to "7" accepted, Alice's reply heard
+("…You are the first person to speak to me here."), `wrote 5 submitted request(s)`; the wanderer is
+told what Vera said; the simultaneous pair shares one instance. `git diff` after the run:
+`request-2d.json` and `request-3d.json` **unchanged** (the requests reproduce byte for byte, so A-5's
+comparison is meaningful); seven `.log` files differ only in the world instance, and in
+`simultaneous-3d.log` the client count (3 vs 2) and the ActionIds (+1) — the two simultaneous clients'
+join order, a race the base already has. Logs kept in `/tmp/16b/base-evidence/`; the committed
+evidence restored with `git checkout -- clients/protocol/evidence` (QSB-5).
 
 ## 18.10 Deviations and discoveries during implementation
 

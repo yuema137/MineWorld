@@ -2386,6 +2386,19 @@ to 57 741 over the 300 days — the share of consults the band takes — which i
 something to everyone everywhere costs, and a reason for a pack to offer less, not for the controller
 to change.
 
+**Note, 2026-10-08 (S14, PR 16b) — the first client accessors.** Point 7's "no client code changes in
+S9" stands as history. The shared GDScript module `clients/protocol/mineworld` now reads and submits
+complete affordances, for both reference clients at once:
+- `MineWorldObservation.affordances(action_type, target)`, `complete_affordances(…)`,
+  `affordances_about(id)` and `is_complete(affordance)` list them in the server's order and never pick
+  one;
+- `MineWorldClient.submit_affordance(affordance)` submits one unchanged, whether or not it is
+  available, and refuses only an affordance with no `payload`.
+
+Nothing on the wire changed. The API is specified in `clients/protocol/ADOPTION.md` §2 and designed in
+`.structured-coding/plans/mvp0/step-15-demo-3d.md` §18. No new record was needed: it is this decision's
+point 3 and point 7 carried into code.
+
 ---
 
 ## ARC-35 — How AC-1 is measured
