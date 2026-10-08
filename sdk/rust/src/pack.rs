@@ -17,12 +17,25 @@ use crate::section::SectionOwner;
 /// that has to learn it (`DECISIONS.md` `ARC-33`).
 ///
 /// Every default is the safe direction: a pack that declares nothing is biographically silent, owns
-/// no section, and refuses to decode one.
+/// no section, and refuses to decode one. Its package identity has no default, so no pack is
+/// anonymous.
 ///
 /// `Default` is required because the installed set makes the pack twice — once to install into a
 /// world, once to answer perception — and a system holds no fields: its mutable state is the
 /// components it owns, which live in the world (`INV-7`).
 pub trait SystemPack: System + Default {
+    /// This pack's package identity (`DECISIONS.md` `ARC-53`): its Cargo name, version, licence,
+    /// authors and repository, recorded at compile time. Always the same line, the first of the
+    /// `impl`:
+    ///
+    /// ```text
+    /// const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+    /// ```
+    ///
+    /// Required: a pack that does not state it does not compile. Read by `mineworld packs` only —
+    /// never by a system, so a pack's version never reaches a fact.
+    const PACKAGE: crate::Package;
+
     /// Which of this pack's event types belong in a person's objective biography
     /// (`DECISIONS.md` `ARC-29`) — the pack's own judgement over its own vocabulary.
     const BIOGRAPHICAL: &'static [EventTypeId] = &[];
@@ -60,6 +73,7 @@ pub trait SystemPack: System + Default {
 ///
 /// ```text
 /// impl SystemPack for NamingSystem {
+///     const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
 ///     const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
 ///     mineworld_sdk::owns_section!();
 /// }
@@ -105,7 +119,9 @@ mod tests {
         }
     }
 
-    impl SystemPack for Silent {}
+    impl SystemPack for Silent {
+        const PACKAGE: crate::Package = crate::package!();
+    }
 
     /// A pack that owns no section is refused, naming itself, rather than decoded by anything — the
     /// answer the catalog's last arm gave before packs declared themselves.

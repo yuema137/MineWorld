@@ -10,7 +10,7 @@
 //! ```text
 //! 1  the directory exists, and world.yaml is in it
 //! 2  world.yaml parses, with unknown fields refused
-//! 3  the pack's id is its directory's name
+//! 3  the pack's id is its directory's name, and a stated `mineworld:` range admits this framework
 //! 4  every system it enables exists here, and none twice
 //! 5  every authoring key is declared once, across places, population, items and organizations
 //! 6  every declared key has its file, and every file in people/, places/, items/ and
@@ -31,6 +31,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use mineworld_contracts::{EntityKey, EntityType, SystemId};
+use mineworld_packages::{Compatibility, License, Version};
 use serde::de::DeserializeOwned;
 
 use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
@@ -43,6 +44,19 @@ use crate::format::{
 
 /// The file every World Pack has.
 pub const MANIFEST: &str = "world.yaml";
+
+/// A World Pack's package fields, as `world.yaml` states them (`DECISIONS.md` `ARC-53`): each typed and
+/// checked when present, all optional to the loader. `mineworld packs validate` requires them, through
+/// `mineworld_packages::Identity::of_world`.
+#[derive(Debug, Clone, Default)]
+pub struct PackageFields {
+    /// `world.version`.
+    pub version: Option<Version>,
+    /// `world.license`.
+    pub license: Option<License>,
+    /// `mineworld:`, already found to admit this framework.
+    pub mineworld: Option<Compatibility>,
+}
 
 /// The extension a content file has. Anything else in a content directory is not content and is
 /// left alone — a README belongs in a pack as much as it does anywhere else.
@@ -58,6 +72,7 @@ pub struct WorldPack {
     root: PathBuf,
     id: String,
     name: String,
+    package: PackageFields,
     systems: Vec<Capability>,
     places: BTreeMap<EntityKey, AuthoredPlace>,
     people: BTreeMap<EntityKey, AuthoredPerson>,
@@ -78,6 +93,14 @@ impl WorldPack {
         let manifest: WorldManifest = parse(&manifest_path, "world")?;
 
         check_pack_id(&root, &manifest.world.id)?;
+        if let Some(range) = &manifest.mineworld {
+            range
+                .require_framework()
+                .map_err(|refusal| PackError::FrameworkNotSupported {
+                    path: manifest_path.clone(),
+                    refusal,
+                })?;
+        }
         let systems = resolve_systems(&manifest.systems)?;
         check_keys_are_declared_once(&manifest)?;
 
@@ -131,6 +154,11 @@ impl WorldPack {
             root,
             id: manifest.world.id,
             name: manifest.world.name,
+            package: PackageFields {
+                version: manifest.world.version,
+                license: manifest.world.license,
+                mineworld: manifest.mineworld,
+            },
             systems,
             places,
             people,
@@ -155,6 +183,12 @@ impl WorldPack {
     /// What the world is called, for a person.
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// The package fields `world.yaml` states (`DECISIONS.md` `ARC-53`), each already checked —
+    /// for `mineworld packs` only. Nothing that builds a world reads them: they are not world state.
+    pub fn package_fields(&self) -> &PackageFields {
+        &self.package
     }
 
     /// The systems this world enables, in the order the pack states — which is installation order,
@@ -230,6 +264,7 @@ impl WorldPack {
             root: PathBuf::from("in-memory"),
             id: "in-memory".to_owned(),
             name: "In Memory".to_owned(),
+            package: PackageFields::default(),
             systems,
             places,
             people,

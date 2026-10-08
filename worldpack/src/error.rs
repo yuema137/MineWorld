@@ -158,6 +158,17 @@ pub enum PackError {
         directory: String,
     },
 
+    /// `world.yaml`'s `mineworld:` range does not admit the framework this build is
+    /// (`DECISIONS.md` `ARC-53`). Refused rather than run: the author said which frameworks the world
+    /// is for, and this is not one of them.
+    #[error("{path}: {refusal}")]
+    FrameworkNotSupported {
+        /// The `world.yaml` that states the range.
+        path: PathBuf,
+        /// The refusal, naming the range and the framework's version.
+        refusal: mineworld_packages::PackageError,
+    },
+
     /// `world.yaml` enables a system this build does not provide.
     ///
     /// The available names are listed, because the author's next question is which ones exist. In
