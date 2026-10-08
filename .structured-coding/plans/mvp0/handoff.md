@@ -43,13 +43,14 @@ STOP CONDITIONS     normal: PR 12a READY FOR OPERATOR REVIEW — DO NOT MERGE. M
 
 ## Current checkpoint
 
-RS-C1 (documents) in progress. Before any edit: the base binary for RS-2 was built from 6d48e03 and
-copied to `/tmp/s15-12a/base-mineworld`; the base save `B` (`/tmp/s15-12a/B.mwsave`, pristine copy
-`B.orig.mwsave`) and base `validate` outputs (`/tmp/s15-12a/base-validate-*.txt`) were written by it.
+RS-C1 … RS-C6 committed and pushed (0d1f4c7, df23827, afda4e6, b1d4038, 9acbe04, and RS-C6's
+commit). Evidence E-RS-base, E-RS1 … E-RS6 in §16.10; deviations DR-1 … DR-3 in §16.11. The base
+binary for RS-2 is `/tmp/s15-12a/base-mineworld` (built from 6d48e03 before any edit); base save `B`
+is `/tmp/s15-12a/B.mwsave` (pristine copy `B.orig.mwsave`); base `validate` outputs are
+`/tmp/s15-12a/base-validate-*.txt`. Budget used: 300-day runs 1 of 4; SIGKILL harness 3 of 4.
 
 ## Next actions
 
-1. Commit RS-C1 and push.
-2. RS-C2: `systems/presence/src/resolve.rs`, `event.rs`, `system.rs` (VERSION 3), `lib.rs`, README,
-   `tests/resolver_catalog.rs`; the three QR-2 literals.
-3. RS-C3, RS-C4, RS-C5, RS-C6, RS-C7, RS-C8 in order (§16.5).
+1. RS-C7: `tests/acceptance/tests/seam_vocabulary.rs` (RS-13), the two planted violations.
+2. RS-C8: RS-1 (two 300-day runs, validate diffs, M-RS1), RS-2 (cross-build), RS-15, RS-16, the full
+   gate in the background, MVP_STATUS rows, ledger, PR.

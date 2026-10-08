@@ -2274,11 +2274,18 @@ reason in a comment.
 
 **Depends on:** RS-C5.
 
-- [ ] Implementation: as scoped; every child registers `[fences]` before composing.
-- [ ] Validation: `cargo test -p mineworld-acceptance --test arrival_resolvers_resume`; M-RS10 applied,
-  failing, reverted.
-- [ ] Review: the four exclusions of `kill_and_resume`'s header hold (killed, survivor read the file,
-  tail > 0 at least once, counts located first).
+- [x] Implementation: as scoped; every child — and the parent, before `verify` composes — registers
+  `[fences]` before composing. World: presence, movement, fences; alice (3 800, 1 500), bob (4 200,
+  2 500), carol (5 300, 1 800), dan (6 000, 2 200); Fence 5 000. 400 steps: seat `index % 4` asks to
+  move to a point of the 3 m × 2 m box x 3 500 … 6 499, y 1 000 … 2 999 from `mix(index, 13)`.
+  PowerLoss durability, a snapshot every 32 revisions. Rows are compared through the public
+  `PersistenceBackend` (journal_after, facts_of, snapshot_revisions / snapshot_at), so acceptance gains
+  no `rusqlite`. `[[test]] harness = false` with its reason in `tests/acceptance/Cargo.toml`.
+- [x] Validation (E-RS6): the harness passes; M-RS10 applied, failed (ReplayDiverged), reverted.
+- [x] Review: the four exclusions hold — victim status is SIGKILL, no "done", head short of the
+  control's; the survivor reports the head it resumed from (= the file's) and replayed = head −
+  snapshot; tails 16, 11, 7 (> 0 every time); the control's 123 stopped-short facts and 41 displaced
+  arrivals are counted, and asserted > 0, before any comparison.
 
 ### RS-C7 — the seam names no physics
 
@@ -2527,6 +2534,22 @@ E-RS5 RS-C5, 2026-10-07, working tree on b1d4038 + RS-C5's paths.
                test-fences: would change a placement; … })".
         M-RS8  fences' `require_registered` commented out → RS-9 FAILED: "installing test-fences must
                panic: Ok(())"; RS-7's unregistered half still passed (it installs no resolver pack).
+
+E-RS6 RS-C6, 2026-10-07, working tree on 9acbe04 + RS-C6's paths.
+      `cargo test -p mineworld-acceptance --test arrival_resolvers_resume` (harness run 1 of ≤ 4):
+        "[resolver-yard] control: 401 revisions, 516 facts, 14 snapshots; 346 moves accepted, 54
+        refused; 123 stopped-short, 41 displaced arrivals"; early: kill at 80, 80 committed, survivor
+        restored snapshot 64, re-executed 16 revisions (24 facts); middle: kill at 203, 203 committed,
+        snapshot 192, re-executed 11 (12 facts); late: kill at 327, 327 committed, snapshot 320,
+        re-executed 7 (9 facts); each byte-identical to the control and verify() = 401 revisions;
+        "PASS in 0.3 s". PASS.
+      M-RS10 (run 2): fences' stop distance minus a process-global AtomicI32 counter's parity →
+        FAILED: the early survivor happened to agree, the middle survivor was refused — "resumes:
+        ReplayDiverged { revision: WorldRevision(194), detail: \"fact 248 differs from the logged fact
+        248\" }"; "resume failed: exit status: 101". Reverted; `git grep -n MUTATION -- systems sdk
+        worldpack tests tools` empty; the failed run's scratch saves under $TMPDIR removed.
+      Run 3, after the revert and `cargo fmt`: identical numbers, "PASS in 0.2 s". clippy -p
+        mineworld-acceptance --all-targets -D warnings clean.
 ```
 
 ## 16.11 Deviations and discoveries during implementation (12a session)

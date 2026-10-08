@@ -8,6 +8,14 @@ license.workspace = true
 authors.workspace = true
 publish = false
 
+# SC-6 for the arrival-resolver seam (step-11 RS-11) is its own program, as persistence's
+# kill_and_resume is: the same binary is the parent that kills and the child that is killed, selected
+# by an environment variable, so it cannot use the test harness — a harness would also count the child
+# entry point as a test that "passed" by doing nothing.
+[[test]]
+name = "arrival_resolvers_resume"
+harness = false
+
 # No dependencies of its own: the repository-reading tests read files and run `git`. The cross-crate
 # checkpoints of S9 drive real crates together, so they need those crates as dev-dependencies — and
 # here, rather than in any of them, a test-only System Pack can be defined that no library is ever
