@@ -940,12 +940,30 @@ fields, `mineworld:`, `requires:`), §8.1 (`packs`), §9 (MVP-0 subset, SystemVe
 
 # 14. PR E-a — pack identity (PR design)
 
-**Lifecycle:** `DRAFT — awaiting the primary session's freeze`. Nothing in this section authorizes
-implementation until a `DESIGN FROZEN` record is added to §14.0 by the primary session.
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — implementation in progress.
 
 ## 14.0 Freeze record
 
-*(Empty until the primary session freezes this design.)*
+```text
+DESIGN FROZEN (2026-10-08), primary session
+Design revision:     §14 as committed in ae2bd5b (PD-1 … PD-9, EA-1 … EA-11 with their mutations,
+                     Ea-C1 … Ea-C7, §14.7's merge plan)
+Approved by:         the primary session's freeze message to the E-a session, 2026-10-08: "S16 PR E-a is
+                     DESIGN FROZEN (2026-10-08), primary session. §14 is accepted as written"
+Rulings:             FQ-1 accepted (world and presentation identity in E-a as Ea-C5, separable; loader
+                     optional but checked when present; packs validate requires; mineworld: check pulled
+                     forward). FQ-2 accepted (pack.yaml states its id; directory free; nothing renamed).
+                     FQ-3 accepted (license: MIT for both presentation packs and the three worlds,
+                     consistent with D-1; the GPL Blender scripts do not affect packs). FQ-4, FQ-5
+                     accepted (const PACKAGE expression form; handoff-ea.md)
+Evidence rule:       report exactly what the harness reports — passed, ignored, filtered
+Merge plan:          merging origin/main, never a force-push; Cargo.lock regenerated, never hand-merged
+Implementation base: main @ 47c81d1, branch mvp0/pr-ea-pack-identity
+Execution contract:  §14.10
+Material stops:      any kernel, contract or persistence change; any digest change from the merged main;
+                     AC-1 failing
+Lifecycle:           FROZEN
+```
 
 ## 14.1 Identity, base, approved scope
 
