@@ -1334,12 +1334,25 @@ identity to E-b, this commit moves whole.
 
 **Depends on:** C2.
 
-- [ ] Implementation: as scoped. Audit `PackError` matches across the workspace first (a new variant
-  must break no exhaustive `match`).
-- [ ] Validation: `cargo test -p mineworld-worldpack`; mutation M-A7; EA-6's `validate` byte-identity
-  for the three worlds; `cargo test -p mineworld-acceptance --test ac1_composability` (check 3 with
-  the new fields).
-- [ ] Review: the fields reach no genesis fact, no `Metadata` and no save (`git grep` the accessor's
+- [x] Implementation: as scoped. `PackError` audit: no `match` on its variants outside `worldpack/src`
+  (`git grep "PackError::" | grep "=>"` → none), so `FrameworkNotSupported { path, refusal }` breaks
+  nothing. Bounded refinement: the accessor is `WorldPack::package_fields() -> &PackageFields` (a named
+  struct in `read.rs`, exported), not `package()`, so it cannot be mistaken for a code pack's
+  `Package`; the range check runs right after `check_pack_id` (read order step 3, documented in the
+  module's list). `WorldPack::in_memory` (a `#[cfg(test)]` constructor) needed the new field too —
+  found by the first clippy run (E0063), fixed with `PackageFields::default()`.
+- [x] Validation (E-Ea5): `cargo clippy --workspace --all-targets -- -D warnings` → 0. `cargo test -p
+  mineworld-worldpack -p mineworld-packages -p mineworld-acceptance --no-fail-fast`: 21 binaries,
+  **109 passed, 0 failed, 0 ignored, 0 filtered** (ac1_composability among them, check 3 reading the
+  new equal fields), `arrival_resolvers_resume` PASS. New: `package_fields.rs` 2 passed — a bad
+  `version: 1.0` refused naming `world.yaml` at "line 4", `license: NOPE` refused as not an SPDX
+  expression, `mineworld: "not a range"` refused, `mineworld: "^9"` refused as `FrameworkNotSupported`
+  naming `^9` and `0.1.0`; a world without the fields reads. `structure.rs` 2 passed with
+  `mineworld_packages` on the allow-list. **M-A7** (the range check filtered out) →
+  `a_stated_field_that_is_wrong_is_refused_by_name` FAILS ("^9 excludes 0.1": the world read);
+  reverted, `git diff` shows the check as written. `mineworld validate` of the three worlds after
+  the fields were added: byte-identical to base (`cmp`).
+- [x] Review: the fields reach no genesis fact, no `Metadata` and no save (`git grep` the accessor's
   callers: `tools/cli/src/packs.rs` only); seam words absent from `worldpack/src` additions; check 3's
   `world:` comparison sees equal values in both towns.
 

@@ -1135,6 +1135,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-naming",
+ "mineworld-packages",
  "mineworld-presence",
  "mineworld-schedule",
  "mineworld-sdk",
