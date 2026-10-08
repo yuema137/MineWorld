@@ -915,7 +915,7 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
   Debian `trixie` is the expected variant (§3.1), so no fallback was needed. Both stages pin the
   multi-platform index digest, so the same `Dockerfile` builds `linux/amd64` in CI and `linux/arm64` on
   the Mac.
-- [ ] Validation:
+- [x] Validation (local pins and mutations; the image evidence is in CI, as recorded):
   - [x] `python3 scripts/check_ci_pins.py` → exit 0: "toolchain pins agree: rust 1.97.1
     (rust-toolchain.toml, Cargo.toml, Dockerfile), Debian trixie, every base image pinned by digest".
     Run locally with Python 3.14.7; the container runs trixie's Python 3.13, and `tomllib` exists in both.
@@ -929,17 +929,21 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
     - **Finding, fixed before commit.** The first M5 run also printed a second, misleading line ("neither
       rust:… nor debian:…"), because the tag patterns required an `@`. The patterns now accept a
       missing digest, so only the true cause is printed.
-  - [ ] Local `docker build`: **NOT RUN**. The Docker Desktop daemon was not running on 2026-10-08 (the
-    socket `~/.docker/run/docker.sock` was absent), and starting it is not this session's to do. A13-5
-    therefore rests on the `image` job's run from `scratch/13a-image` (§9.0 R-1), recorded in A-C3.
-  - `docker build --platform linux/amd64 --target runtime .` on the operator's Mac if the Docker daemon is
-    running. Otherwise this is deferred to A-C3's CI image build and recorded as NOT RUN locally, with
-    the reason.
-  - The image's `mineworld validate` for the three worlds; the 1-day run; server start, stop, start on a
-    named volume (A13-5).
-- [ ] Review: no `latest` tag; no `curl | sh`; non-root runtime user; nothing secret in a layer; the
-  runtime stage contains only the binary and `worlds/`; the build is `--locked`, so a stale `Cargo.lock`
-  fails rather than resolving.
+  - N/A, local `docker build`: **NOT RUN**. The Docker Desktop daemon was not running at any point in
+    this session: checked at the start and again before closing (socket `~/.docker/run/docker.sock`
+    absent). Starting it is not this session's to do. As planned, A13-5 rests on CI instead: the `image`
+    job's run from `scratch/13a-image` (§9.0 R-1), recorded in A-C3, which is **PASS**: `validate` ×3,
+    the 1-day run with `faults 0`, and start, stop and start again on a named volume.
+  - The optional local `linux/arm64` build (§3.3) was not run, for the same reason.
+- [x] Review:
+  - Both `FROM`s carry a tag and a digest, and neither tag is `latest`.
+  - Nothing is piped to a shell (`curl | sh`): packages come from apt, and components from the image's
+    own rustup.
+  - The runtime runs as the non-root user `mineworld`.
+  - No secret, `ARG` or build secret appears anywhere.
+  - The runtime stage copies only `/usr/local/bin/mineworld` and `worlds/`.
+  - The build is `--locked`.
+  - `.dockerignore` keeps the context to 3.59 MB (the image run's "transferring context").
 
 **Commit boundary.** Container files and the pin check only.
 
