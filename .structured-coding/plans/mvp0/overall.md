@@ -367,6 +367,26 @@ Original scope, retained for MVP-1:
   changes no system, and the diff that added it touches no kernel contract. If the two clients
   needed separate rule implementations, the architecture is wrong (§9).
 
+### S15 — Bodies and physical interaction *(inserted 2026-10-07, operator requirement)*
+
+**Design:** [`step-11-bodies.md`](step-11-bodies.md). People never pass through each other or through
+walls; walking nudges people and pushes loose objects aside; people can kick, throw and shove. Presence
+resolves every arrival before recording it, through an `ArrivalResolver` seam carried by `installed!`
+(`ARC-39`, a framework precursor proven with a synthetic resolver); a `bodies` System Pack on Rapier
+(`DEP-13`) is the first resolver. The 3D client collides with people and reconciles on difference (Jolt,
+`DEP-14`). No kernel or contract change; the log holds only true arrivals.
+
+- **Depends on:** S9 complete (11f merged). **Feeds:** S14 (`AC-14` collision and object interaction),
+  S12 (the same three actions).
+- **Acceptance checkpoint:** with no resolver installed, existing worlds' facts are byte-identical; after
+  every request of a seeded 30-day run with bodies, no two people in one place are closer than 595 mm,
+  every nudge is at most 310 mm and every chain at most two generations; a person walking into a box
+  moves it; kick, throw and shove are resolved server-side and replay byte for byte after SIGKILL, on
+  arm64 and on x86_64; removing `bodies` makes the three actions unavailable and changes nothing else.
+
+Applied in the S9 closeout from `step-11-bodies.md` §12.1. The step design is `DESIGN FROZEN
+(2026-10-07)`, revision 1, with PRs 12a–12e; S15 precedes S14 (step-11 §12).
+
 ### The `AC-13` harness — proven, 2026-09-25
 
 The mandatory cross-renderer test now has a mechanism rather than an intention, demonstrated on
@@ -463,6 +483,7 @@ scope decision.
 | Sample worlds as integration fixtures (§21) | S8, S9, maintained thereafter |
 | Layered CI (§16) | S13, with fast checks introduced in S1 |
 | Playable-world north star (`ENGINEERING_RULES.md` §1) | S12 and S14; gated continuously from S2 onward by the §11 review question |
+| Operator requirement 2026-10-07: bodies do not interpenetrate; nudge, push, kick, throw | S15 |
 
 ---
 
@@ -508,7 +529,8 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 
 # 7. Current position
 
-**Updated 2026-09-29.** This section had not been updated since PR 01 — it still read
+**Last updated 2026-10-07** (S9 closeout: 11f merged as `fea2516`, S9 complete, S15 placed).
+**Restated 2026-09-29.** This section had not been updated since PR 01 — it still read
 "In flight: PR 01" with seventeen PRs merged — because the post-merge obligation to update
 PR → step → overall was skipped after nearly every merge. A plan that cannot answer "where are
 we" has stopped being the authority, so the obligation is restated below and is not optional.
@@ -683,28 +705,85 @@ Next, framework (critical path to Milestone B):
             carries one unavailability reason) are framework limits worked within; both are carried
             to the S9 closeout.
             The measured transformation is complete: 11d `70e532f` and 11e `2dddda8`.
-       Next: 11f, the proof, outside the AC-1 range — the mechanical AC-1 test (ARC-35's three
-       checks), market-town's activity check as a committed test, AC-2 at world level for every
-       market pack, and Milestone C through the real server. Detailed and frozen before
-       implementation.
+       11f  the proof                               PR 11f (GitHub #51), merged fea2516
+            Outside the AC-1 range. `tests/acceptance/tests/ac1_composability.rs` runs ARC-35's
+            three checks: the two transformation merges change only `systems/`, `worlds/`,
+            `Cargo.lock` and Markdown; only `systems/` depends on a market pack (normal and build
+            edges, QS-54); Market Town's files are Social Café's plus sections the six packs own.
+            Check 1 fails, never skips, on a shallow clone. `market_town.rs` makes CP-4 a committed
+            300-day test, `market_composition.rs` is AC-2 at world level for the six market packs,
+            and `milestone_c.rs` drives Milestone C through the real server with a real SIGKILL.
+            No pack, world or framework file changed. Reviewed before merge:
+            - gates re-run on the PR head (526/0);
+            - the diff touched no pack, world or framework file; the only change under `worlds/`
+              is market-town's README;
+            - my own mutation, a comment naming `mineworld_inventory` planted in
+              `server/src/lib.rs`, failed check 2, naming `server/src/lib.rs:84`; reverted;
+            - after the merge, `ac1_composability` passes on main itself, 13/13, on a non-shallow
+              clone.
+            DP-5 is ruled a bounded deviation, not a material stop. Milestone C's claim, "works and
+            earns", is located in the save: Alice arrives during the shift, then `shift-ended` with
+            time worked, `wage-due`, and the payment. "Present at shift start" was a wrong planning
+            assumption. Content finding, not fixed here (I-9): Alice's routine and her shift both
+            start at 05:30, so she is always late; a content issue for a later step.
+       S9 COMPLETE (2026-10-07).
+            AC-1       demonstrated as ARC-35 measures it, within ARC-33's static-linking boundary
+                       (installing = a directory, two lines in systems/installed, a rebuild; without
+                       a rebuild is ARC-8, outside MVP-0) — operator acceptance pending (QS-65; the
+                       runnable checklist is HUMAN_REVIEW_QUEUE's Milestone C entry)
+            AC-2       confirmed for the six market packs at world level, beside S6's movement and
+                       S8's social packs
+            CP-4       the market lives 300 days, as a committed test (market_town.rs)
+            Milest. C  demonstrated, awaiting the operator's review
+          Known limits carried forward (step-10 §4.6.6):
+            F-47       a System Pack owns one section, so a shop is authored on its operator (ARC-38);
+                       lifting it is framework work for a later step
+            F-48       an offer carries one unavailability reason: out of stock, cannot pay and
+                       cannot carry all read TargetUnavailable
+            F-41       item kinds and organizations have no names; a listing shows ids (S12)
+            L-12       people walk ~8 m per in-world hour headless; routines are authored in ≥ 4 h parts
+            L-13       a bounded-horizon economy: ten of twelve people live on endowments sized for
+                       300 days
+            Rel. sat.  relationships never decay; the social graph saturates after ~60 days
+            QS-10      `sleep` and needs are still open (MVP §5); `eat` and `drink` closed by
+                       consumption
+            DP-5       shift-started.present is false whenever routine and shift begin at the same
+                       minute — Market Town's content (Alice, 05:30), for a later step
+            F-58       persistence's kill_and_resume test links the market packs through worldpack
+                       and the installed set; check 2 reads normal and build edges (QS-54)
+            S13        CI must check out with `fetch-depth: 0`, or the AC-1 test fails (by design,
+                       never a skip)
 
-Remaining:  S9 (11f) ... S14, Milestones C-E
+  S15  Bodies and physical interaction — five PRs (step-11, DESIGN FROZEN 2026-10-07, revision 1;
+       operator decisions QB-1 resolve before recording, QB-10 nudging, QB-2 withdrawn, QB-15 F1
+       registration at start-up; QB-16 decided and tested in 12b; QB-17 deferred; the remaining
+       QBs as recommended). Placed in §3 by step-11-bodies §12.1:
+       12a  the arrival-resolver seam (framework precursor; names no physics; ARC-39)
+       12b  people: walls and nudging (DEP-13, `systems/bodies` on Rapier)
+       12c  objects: push, kick, throw; shove
+       12d  the town gets bodies (digests re-baselined here, and only here)
+       12e  the 3D client (Jolt, DEP-14), after the visual slice (now on main as #50)
+       Each PR is detailed to the commit and frozen in turn; none is frozen yet.
+
+Next, framework:  S15 12a, the arrival-resolver seam — detailed to the commit and frozen, then
+                  implemented in a fresh session, after this closeout merges. S15 precedes S14
+                  (step-11 §12).
+Next, operator:   accept or reject AC-1 and Milestone C (QS-65) with HUMAN_REVIEW_QUEUE's
+                  Milestone C checklist; Milestone B's test is still pending too.
+
+Remaining:  S15 (12a–12e), S10 (reduced), S11 (authentication, admin frames, deltas), S12, S13,
+            S14; Milestones D and E; the operator's reviews of Milestones B and C
 
 Visual track (parallel, never blocking the above; ARC-20):
   VIS-2D-1         town accepted as default style (ARC-14); milestone not yet packaged
-  VIS-3D-GODOT-1   vis/3d-human-pipeline @ 6bfcfb7 — FAILED by the operator 2026-10-06 on
-                   preview 3: not the same person, and not the reference's quality tier. The
-                   candidate is kept only as pipeline validation (VISUAL_FIDELITY §9.2). The
-                   operator chose route E: an image-to-3D head as a wrap target, run locally
-                   where an MIT-class generator works on Apple silicon, and through a paid Meshy
-                   account once the operator provides one. Route C (a commissioned artist)
-                   stays the fallback.
-  VIS-3D-GODOT-2   vis/3d-godot-2-environment — operator: "café and street look good".
-                   Since then: V/F5 camera key with an on-screen toast, Space to jump, every
-                   door rebuilt to read as a door, and the slice connected to a real MineWorld
-                   world through clients/protocol/mineworld. In progress: raking light,
-                   grey setts, planting, and a second enterable building (VISUAL_SLICE §4
-                   amended to require it; the shared spec keeps the A/B fair).
+  VIS-3D-GODOT-1   route D+ ACCEPTED by the operator as the interim standard, 2026-10-07 —
+                   not a final acceptance; refinement continues later. Fixed afterwards: the
+                   hand and pack clipping, and the head sway while running. Before it, the
+                   CharMorph candidate FAILED (2026-10-06) and is kept as pipeline validation
+                   only (VISUAL_FIDELITY §9.2).
+  VIS-3D-GODOT-2   ACCEPTED ON SCREENSHOTS by the operator, 2026-10-07; the interactive test
+                   (one combined session with the character) is pending (HUMAN_REVIEW_QUEUE).
+                   Both are on main as of #50 (squash, 690c9d0).
   VIS-3D-UE5-1     parked (ARC-21)
 
 Toolchain:  rust 1.97.1, Godot 4.7.2, Blender 5.2.2, Python 3.14.7

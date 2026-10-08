@@ -38,6 +38,10 @@ STOP CONDITIONS     normal: PR 11f READY FOR OPERATOR REVIEW — DO NOT MERGE. M
 
 ## Current checkpoint
 
+**MERGED 2026-10-07 as `fea2516` (#51). S9 COMPLETE.** The post-merge sync below is done by the
+S9 closeout PR (`docs/s9-closeout`): step-10 header, overall §7 (and §§3–4 for S15), MVP_STATUS.
+This handoff is closed; the next context is S15 PR 12a's (`step-11-bodies.md`).
+
 **READY FOR OPERATOR REVIEW. Context CLOSED / AWAITING OPERATOR ACTION.** P-C1 … P-C8 done.
 Final executable head e9f88dc (main @ 690c9d0 merged in, as instructed); gates on it in step-10
 §9.6 E-P-final: 526/0, 166 s. Later commits are Markdown only. Deviations §4.6.8 DP-1 … DP-9 —

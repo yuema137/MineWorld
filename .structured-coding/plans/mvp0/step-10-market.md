@@ -6,6 +6,7 @@ are specified at medium scope and are each re-audited and detailed to the commit
 before them merges (`CLAUDE.md` §3, "detail one step ahead").
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 S9, §4 (`AC-1`, `AC-2`), §7 (F-1, F-3)
 **Lifecycle:** step design `DESIGN FROZEN (2026-10-07)` for §§1–3 and the six-PR split.
+**S9 COMPLETE (2026-10-07):** all six PRs merged; 11f last, as `fea2516`.
 - **PR 11a** `MERGED` as `c472636` (GitHub #36, 2026-10-07; post-merge docs `7ed1648`).
 - **PR 11b** `MERGED` as `ae1a315` (GitHub #39, 2026-10-07), merged first.
 - **PR 11c** `MERGED` as `c5dc51c` (GitHub #40, 2026-10-07), rebased onto `ae1a315` before merging
@@ -34,10 +35,29 @@ before them merges (`CLAUDE.md` §3, "detail one step ahead").
   carried to the S9 closeout.
 - **The measured transformation is complete.** Its two merges are 11d `70e532f` and 11e `2dddda8`,
   each a merge commit read against its own first parent (ARC-35 point 1).
-- **PR 11f** — the proof — is next, outside the AC-1 range: the mechanical AC-1 test, market-town's
-  activity check as a committed test, AC-2 at world level for every market pack, and Milestone C
-  through the real server. Detailed in §4.6 by the planning session on `mvp0/s9-11f-plan` from
-  `main @ 2dddda8`.
+- **PR 11f** `MERGED` as `fea2516` (GitHub #51, 2026-10-07), with a merge commit — the proof,
+  outside the AC-1 range: the mechanical AC-1 test, market-town's activity check as a committed test,
+  AC-2 at world level for every market pack, and Milestone C through the real server. Designed in
+  §4.6 (`DESIGN FROZEN` per the first §4.6.0); evidence §9.6; deviations §4.6.8. The primary
+  session's review:
+  - gates re-run on the PR head: 526 passed, 0 failed;
+  - the diff touched no pack, no world and no framework file; the only change under `worlds/` is
+    `worlds/market-town/README.md`;
+  - its own mutation, a comment naming `mineworld_inventory` planted in `server/src/lib.rs`, failed
+    check 2, naming `server/src/lib.rs:84`; the mutation was reverted;
+  - after the merge, `cargo test -p mineworld-acceptance --test ac1_composability` passes **on
+    `main` itself**, 13 of 13, on a non-shallow clone (the first §4.6.0's last condition);
+  - **DP-5 ruled a bounded deviation, not a material stop.** Milestone C's claim, "works and
+    earns", is located in the save: Alice arrives at the café during the shift, then `shift-ended`
+    with time worked, `wage-due`, and the payment. "Present at the shift start" was a wrong
+    planning assumption, measured false, not a failed claim;
+  - **a content finding, recorded, not fixed here (I-9):** Alice's routine and her shift both start
+    at 05:30, so she is always late for work. Changing Market Town's content is a later step's work.
+- **S9 COMPLETE (2026-10-07).** The closeout of §4.6.6 is recorded in [`overall.md`](overall.md) §7
+  and [`MVP_STATUS.md`](../../../docs/MVP_STATUS.md), by the planning session on `docs/s9-closeout`
+  from `main @ fea2516`. AC-1 is demonstrated as ARC-35 measures it, within ARC-33's static-linking
+  boundary; the operator's acceptance is pending (QS-65), asked with the runnable checklist in
+  [`HUMAN_REVIEW_QUEUE.md`](../../../docs/HUMAN_REVIEW_QUEUE.md) (Milestone C).
 
 **Freeze record (2026-10-07).**
 
