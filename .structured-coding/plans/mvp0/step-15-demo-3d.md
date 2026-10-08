@@ -1886,13 +1886,15 @@ promenade, `main.gd`, is left as it is, F-S14-1, and its exit is reported). If n
 artefact row and the S14 stage row (§17.4, made true on the head); `docs/HUMAN_REVIEW_QUEUE.md`
 limitation 8 (Q-16a-6); this section's ledger and closeout.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation (E16a-7, on the final executable head): the slice's checks once more (`--drive`,
+- [x] Implementation: as scoped; plus one bounded fix found by the gate — the scan's admission of the
+  join frame's `"invite"` key (E16a-7, `841fc9d`).
+- [x] Validation (E16a-7, on the final executable head): the slice's checks once more (`--drive`,
   `--measure`, `--threshold`, `--character`, `--world --link`, `--world --conversation`,
   `--world --target`) — I-S14-7; G-1, including the path check of the diff.
-- [ ] Review: every acceptance line has its evidence; deviations recorded; the PR body carries the
+- [x] Review: every acceptance line has its evidence; deviations recorded; the PR body carries the
   operator's short runnable list (overall memory: milestone handoff), including what the reticle looks
-  like and how to aim.
+  like and how to aim. Decorative townspeople hidden when connected and the strict 150 mm geometry
+  probe stay outside 16a's frozen files: 16c's first item and 12e's (§19.9).
 
 Then push, open the PR **READY FOR OPERATOR REVIEW**, and stop. Do not merge.
 
@@ -2152,6 +2154,55 @@ All plants reverted; the scan green again; `git status` shows only the test and 
    again to confirm), so an upstream report or an engine upgrade can be checked in one command.
    The promenade's much larger exit report (E16a-1) is a separate matter, out of 16a's scope.
 
+### E16a-7 — the final executable head `9ef9c61` (merged with S11-A's protocol 2; 14:07–14:40)
+
+**The merge.** `origin/main` brought S11-A (#76): `slice_link.gd` connects with an invite and a nickname,
+and `--world` hosts on port 0 and reads the server's join line. Conflicts resolved in S11-A's favour as
+the coordinator directed: the launcher keeps S11-A's flow, and 16a's `--port=` and "port in use"
+refusal (added in C4 on the coordinator's 16b finding) are **dropped as superseded** — a port the OS
+chooses cannot collide, and the join line names the server this run started. `slice_main.gd` starts
+the link with S11-A's arguments and keeps 16a's reticle. `DECISIONS.md`: main's records, then DEP-20.
+
+**Every check, on that head** (Jolt: "a new space's solver iterations 8"):
+
+| Check | Result |
+| --- | --- |
+| `--drive` | PASS — engine Jolt; all drive checks pass |
+| `--measure` | the base's lines (the pre-existing stature line, E16a-1) |
+| `--threshold` | first run **stalled** (INCONCLUSIVE) — a windowed Godot of lane S12 13a covered ours, as R-16a-4 foresaw; killed and re-run alone: PASS, café worst ×1.57, florist ×1.42, 0.00 % clipped |
+| `--character` | PASS — all character checks pass |
+| `--world --link` | PASS — on `127.0.0.1:62292` (port 0); 50 moves accepted, sent = server's; door too_far_away; counter accepted, reply heard; watch 60 s in 60.0 s |
+| `--world --conversation` | PASS — "can't talk to Alice Moreau: too far away"; both lines at the counter; no ids |
+| `--world --target` | PASS — T-1 … T-4 as E16a-4, Bob cleared by 67 mm again |
+| `./mineworld-3d --drive` | PASS — the three STOPPED verdicts, drive test done |
+| leak | the same 7 Texture RIDs on windowed exits (engine-side, E16a-6) |
+
+**Resumed session (the first was ended by an API rate limit during the gate run).** Found: three
+uncommitted files — `MVP_STATUS.md` and `HUMAN_REVIEW_QUEUE.md` (C7's scoped edits, kept and committed
+after review) and this ledger's E16a-7 (kept) — plus the untracked `reflection_probe_leak.gd.uid`
+(Godot's uid for C6's tool; every other tool's uid is tracked, so kept). No Godot, server or cargo
+process of this worktree was still running. The interrupted `cargo test --workspace` on `9ef9c61`
+(`shots/16a/final/gates.log`) had already **failed one test**: `client_rules`, on
+`clients/protocol/mineworld/world_client.gd:345: the action "invite" is named outside the files that
+build requests`.
+
+**A bounded discovery, fixed in the test (`841fc9d`).** S11-A's protocol 2 put an `"invite"` key (the
+join credential, `PROTOCOL.md` §§2, 4.1) in the shared module's join frame. group-activity declares an
+action type spelled `invite`, so the scan, which reads every literal, reported it. It is a wire key, not
+a request — the same kind of collision as `human.gd`'s animation input (Q-16a-5). Resolution: one
+admission `(world_client.gd, "invite", reason)` in `ACTION_LITERALS`; the shared module is not edited
+(16a's non-goal). The admission is checked like the others: if the key goes, the entry fails as stale.
+The commit touches no script a scene runs, so the Godot runs above stand for the PR head.
+
+**Gates (G-1), on `841fc9d`:** `cargo fmt --all --check` clean; `check_decision_ids` "56 decision ids,
+all distinct"; `check_doc_headings` "191 numbered sections across 26 documents, none duplicated"; the
+diff against `origin/main` names no file under `kernel/`, `contracts/`, `persistence/`, `server/src`,
+`systems/`, `cognition/`, `worlds/` or `clients/protocol/`; `client_rules` 3 passed. `cargo clippy --workspace --all-targets -- -D warnings` exit 0.
+`cargo test --workspace` (one complete run; an earlier one on the same head was killed by a host restart
+inside `market_town` and is not counted): exit 0, 154 result lines all `ok`, 685 passed, 0 failed,
+1 ignored (pre-existing), `market_town_lives_three_hundred_days…` ok, `client_rules` ok
+(`shots/16a/final/gates3.log`). **G-1 PASS.**
+
 ## 19.8 Execution contract (proposed; confirmed at freeze)
 
 ```text
@@ -2195,11 +2246,12 @@ MATERIAL STOP       a regression of an accepted visual or a confirmed J-3 rise; 
 ## 19.9 Handoff (live; replaces a separate file for this lane, Q-16a-4)
 
 ```text
-checkpoint     C2 committed (ec7aadd); origin/main merged (16b #66, 12c #67, client-parity rule #69,
-               physics list #71); this section renumbered §18 → §19
-next action    C3: move the connected probe modes to slice_probe_world.gd
+checkpoint     C0–C7 committed; origin/main merged at 9ef9c61 (S11-A protocol 2); the scan's
+               "invite" admission 841fc9d; G-1 green (E16a-7); PR open READY FOR OPERATOR REVIEW
+next action    none — wait for the operator's review; do not merge
 background     none
-notes          12c merged: kick, throw and shove are now declared action types; the scan sees them.
+notes          Bob/door (R-16a-2): the ray clears Bob by 67 mm aiming at Alice's head from the door
+               (E16a-4, again on 9ef9c61). 12c merged: kick, throw and shove are now declared action types; the scan sees them.
                Coordinator 2026-10-08: check port 7979 before each connected run, kill only own
                PIDs, a run on a foreign world is INCONCLUSIVE; decorative townspeople hidden when
                connected (QS14-9) is outside 16a's frozen files (streetscape.gd) -> recorded as
