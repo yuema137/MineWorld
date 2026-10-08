@@ -99,10 +99,12 @@ frame        the dictionary exactly as it arrived
 `action_type` narrows it to one type (`""` matches any); `target` narrows it to one target — `null`
 matches any target, `""` matches the affordances directed at nobody, and an identity string matches
 exactly that target, as every other method here spells it. `affordances_about(id)` is every affordance
-that concerns one entity: its `target` is `id`, or its `payload` is an object with a top-level string
-value equal to `id` — which is how a target-less `buy { item }` or `kick { object }` is found from the
-thing it is about, without the module or the client knowing either action. Nested values are not
-searched.
+that concerns one entity: its `target` is `id`, or its `payload` is an object with a top-level value
+that refers to `id` — the identity string itself, or the contract's typed reference
+`{ "entity": id, "entity_type": … }`, which is how a typed identity such as an item's travels
+(`buy`'s payload is `{ "item": { "entity": "22", "entity_type": "item" } }`). That is how a
+target-less `buy { item }` or `kick { object }` is found from the thing it is about, without the
+module or the client knowing either action. Nothing deeper is searched.
 
 **Complete affordances.** An affordance may carry a `payload` key: the complete request the offering
 system would accept (`PROTOCOL.md` §5, `docs/DECISIONS.md` `ARC-34`). `is_complete(affordance)` says
@@ -117,7 +119,11 @@ affordances, where type and target name one entry.
 Submit a complete affordance with `submit_affordance(affordance)`: it sends the affordance's
 `action_type`, `target` and `payload` exactly as offered, labelled like any other request, without
 anybody knowing what the action is. It does this **whether or not the affordance is available** — the
-server answers, and an unavailable one comes back rejected with its reason. It refuses, returning `""`
+server answers, and an unavailable one comes back rejected with its reason. "Unchanged" means the JSON
+the server sent: Godot parses every number as a double, so an offered `"count": 1` arrives as `1.0`,
+and `submit_affordance` sends every whole number in the payload as the integer it was on the wire —
+re-sending `1.0` is refused (§3.2). Never rebuild a complete affordance's request with `submit` for
+that reason. It refuses, returning `""`
 and sending nothing, only an affordance that is not complete: there is no payload to send unchanged,
 and inventing one would be the client knowing the action.
 

@@ -1,0 +1,50 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[check] connecting to 127.0.0.1:7878 as seat 'visitor'
+[check] observer 17, Alice 7, revision 1
+[check] complete: {"action_type":"buy","available":true,"payload":{"item":{"entity":"22","entity_type":"item"}},"requirement":{"place":{"specific":{"entity":"2","entity_type":"place"}},"requires_line_of_access":false,"requires_target_available":true,"within_range":null},"target":null,"unavailable_reason":null}
+[check] complete: {"action_type":"buy","available":true,"payload":{"item":{"entity":"24","entity_type":"item"}},"requirement":{"place":{"specific":{"entity":"2","entity_type":"place"}},"requires_line_of_access":false,"requires_target_available":true,"within_range":null},"target":null,"unavailable_reason":null}
+[check] complete: {"action_type":"buy","available":true,"payload":{"item":{"entity":"25","entity_type":"item"}},"requirement":{"place":{"specific":{"entity":"2","entity_type":"place"}},"requires_line_of_access":false,"requires_target_available":true,"within_range":null},"target":null,"unavailable_reason":null}
+[check] complete: {"action_type":"buy","available":true,"payload":{"item":{"entity":"33","entity_type":"item"}},"requirement":{"place":{"specific":{"entity":"2","entity_type":"place"}},"requires_line_of_access":false,"requires_target_available":true,"within_range":null},"target":null,"unavailable_reason":null}
+[check] complete: {"action_type":"buy","available":true,"payload":{"item":{"entity":"36","entity_type":"item"}},"requirement":{"place":{"specific":{"entity":"2","entity_type":"place"}},"requires_line_of_access":false,"requires_target_available":true,"within_range":null},"target":null,"unavailable_reason":null}
+[check] complete: {"action_type":"buy","available":true,"payload":{"item":{"entity":"37","entity_type":"item"}},"requirement":{"place":{"specific":{"entity":"2","entity_type":"place"}},"requires_line_of_access":false,"requires_target_available":true,"within_range":null},"target":null,"unavailable_reason":null}
+[check] complete: {"action_type":"eat","available":true,"payload":{"item":{"entity":"19","entity_type":"item"}},"requirement":{"place":"any","requires_line_of_access":false,"requires_target_available":false,"within_range":null},"target":null,"unavailable_reason":null}
+[check] complete: {"action_type":"give","available":false,"payload":{"count":1.0,"item":{"entity":"19","entity_type":"item"}},"requirement":{"place":"same_place_as_actor","requires_line_of_access":false,"requires_target_available":true,"within_range":3000.0},"target":"7","unavailable_reason":"too_far_away"}
+[check] complete: {"action_type":"give","available":false,"payload":{"count":1.0,"item":{"entity":"34","entity_type":"item"}},"requirement":{"place":"same_place_as_actor","requires_line_of_access":false,"requires_target_available":true,"within_range":3000.0},"target":"7","unavailable_reason":"too_far_away"}
+[check] complete: {"action_type":"give","available":false,"payload":{"count":1.0,"item":{"entity":"19","entity_type":"item"}},"requirement":{"place":"same_place_as_actor","requires_line_of_access":false,"requires_target_available":true,"within_range":3000.0},"target":"8","unavailable_reason":"too_far_away"}
+[check] complete: {"action_type":"give","available":false,"payload":{"count":1.0,"item":{"entity":"34","entity_type":"item"}},"requirement":{"place":"same_place_as_actor","requires_line_of_access":false,"requires_target_available":true,"within_range":3000.0},"target":"8","unavailable_reason":"too_far_away"}
+[check] complete: {"action_type":"give","available":false,"payload":{"count":1.0,"item":{"entity":"19","entity_type":"item"}},"requirement":{"place":"same_place_as_actor","requires_line_of_access":false,"requires_target_available":true,"within_range":3000.0},"target":"18","unavailable_reason":"too_far_away"}
+[check] complete: {"action_type":"give","available":false,"payload":{"count":1.0,"item":{"entity":"34","entity_type":"item"}},"requirement":{"place":"same_place_as_actor","requires_line_of_access":false,"requires_target_available":true,"within_range":3000.0},"target":"18","unavailable_reason":"too_far_away"}
+[check] PASS A-2 one complete buy per kind the café prices: 6
+[check] PASS A-2 every buy is target-less: []
+[check] PASS A-2 two give affordances against Alice, one per kind held: 2
+[check] PASS A-2 both are complete: 2
+[check] PASS A-2 they differ only in payload, in the server's order: true
+[check] PASS A-2 their payload items differ: true
+[check] PASS A-2 talk to Alice is offered and incomplete: [false,false]
+[check] PASS A-2 affordances_about(item) contains the buy naming it: true
+[check] PASS A-4 revision is an int (a saved world): 2
+WARNING: [mineworld] submit_affordance: 'talk' is not complete; compose and submit()
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] submit_affordance (res://mineworld/world_client.gd:217)
+         [1] _first_view (res://checks/affordances_check.gd:133)
+         [2] _on_observed (res://checks/affordances_check.gd:96)
+         [3] _observation (res://mineworld/world_client.gd:361)
+         [4] _receive (res://mineworld/world_client.gd:308)
+         [5] _process (res://mineworld/world_client.gd:286)
+[check] PASS A-4 submit_affordance(incomplete talk) returns "" and sends nothing: ["",0]
+[check] Alice's first give is available=false, reason "too_far_away"
+[check] PASS A-4 submit_affordance(unavailable give) is sent: false
+[check] PASS A-3 the request is the affordance, unchanged: [true,true,true,true,true]
+[check] bought item 22 at price 400; wallet 200000, held 0, revision 1
+[check] c1 -> action 1: {"rejected":"too_far_away"}
+[check] PASS A-4 the server answers the unavailable give: rejected too_far_away: "too_far_away"
+[check] c2 -> action 2: {"accepted":{"events":["130","131"]}}
+[check] PASS A-3 the buy is accepted: true
+[check] PASS A-3 the wallet fell by the price: 400
+[check] PASS A-3 holdings of that kind rose by one: 1
+[check] PASS A-4 revision rose after the accepted buy: true
+[check] PASS A-4 revision never decreased: true
+[check] revisions seen: 2 observations, first 1, last 3
+[check] PASS — 0 failure(s)

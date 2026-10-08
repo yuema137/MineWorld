@@ -203,10 +203,12 @@ static func is_complete(affordance: Dictionary) -> bool:
 
 ## Every affordance that concerns one entity, complete or not, in list order.
 ##
-## One concerns `id` when it is directed at `id`, or when its `payload` is an object holding `id` as
-## a top-level string value — which is how an affordance directed at nobody but about a thing, such as
-## one naming an object or an item in its payload, is found from that thing without this module or
-## its client knowing the action. Nested values are not searched.
+## One concerns `id` when it is directed at `id`, or when its `payload` is an object with a top-level
+## value that refers to `id` — the identity string itself, or the contract's typed reference
+## `{ "entity": id, "entity_type": … }`, which is how a typed identity such as an item's travels
+## (`TypedEntityRef`). That is how an affordance directed at nobody but about a thing — one naming an
+## item or an object in its payload — is found from that thing without this module or its client
+## knowing the action. Nothing deeper is searched.
 func affordances_about(id: String) -> Array:
 	var found: Array = []
 	for offered in affordances():
@@ -267,12 +269,16 @@ static func _target_of(offered: Dictionary) -> String:
 	return "" if against == null else String(against)
 
 
-## Whether an affordance's payload is an object holding `id` as a top-level string value.
+## Whether an affordance's payload is an object with a top-level value referring to `id`: the
+## identity string, or a typed reference `{ "entity": id, … }`.
 static func _payload_names(offered: Dictionary, id: String) -> bool:
 	var payload: Variant = offered.get("payload")
 	if typeof(payload) != TYPE_DICTIONARY:
 		return false
 	for value in payload.values():
 		if typeof(value) == TYPE_STRING and value == id:
+			return true
+		if typeof(value) == TYPE_DICTIONARY and typeof(value.get("entity")) == TYPE_STRING \
+				and value["entity"] == id:
 			return true
 	return false

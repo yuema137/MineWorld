@@ -8,7 +8,8 @@ extends SceneTree
 # Everything a real server sends is checked against a real server by `checks/affordances_check.gd`
 # (`run.sh affordances`); this file owns only what that run cannot produce today: an array-valued
 # component (12c's listings), a complete affordance whose payload is `null` (a payload-less action),
-# an identity nested inside a payload, and target filtering on target-less affordances. The frames
+# an identity nested inside a payload, both reference forms side by side, and target filtering over
+# every combination. The frames
 # below are synthetic and say so; every expected value is written by hand, never computed by the code
 # under test (`step-15-demo-3d.md` §18.4 A-1).
 #
@@ -67,6 +68,10 @@ func _frame() -> Dictionary:
 			# 5: complete and target-less, naming Bob only inside a nested value
 			{ "action_type": "point", "target": null, "available": true,
 				"payload": { "at": { "who": BOB } } },
+			# 6: complete and target-less, naming an item by the contract's typed reference — the
+			#    shape every typed identity (ItemId, …) travels in (`TypedEntityRef`)
+			{ "action_type": "pick", "target": null, "available": true,
+				"payload": { "item": { "entity": TEA, "entity_type": "item" }, "count": 1.0 } },
 		],
 	}
 
@@ -79,15 +84,15 @@ func _listing(observation) -> void:
 	_expect("a. affordance(type, target) is still the first",
 		observation.affordance("hand", ALICE).get("payload", {}).get("item"), COFFEE)
 	_expect("a. affordances() with no argument is the whole list",
-		observation.affordances().size(), 6)
+		observation.affordances().size(), 7)
 
 
 # A-1b: null = any target, "" = target-less, an id = exactly that target.
 func _targets(observation) -> void:
 	_expect("b. target null matches any", _types(observation.affordances("", null)),
-		["wave", "hand", "hand", "nudge", "shrug", "point"])
+		["wave", "hand", "hand", "nudge", "shrug", "point", "pick"])
 	_expect("b. target \"\" matches the target-less", _types(observation.affordances("", "")),
-		["nudge", "point"])
+		["nudge", "point", "pick"])
 	_expect("b. an id matches exactly that target", _types(observation.affordances("", BOB)),
 		["shrug"])
 
@@ -100,7 +105,8 @@ func _completeness(observation) -> void:
 		Observation.is_complete(listed[4]),
 	], [false, true, true])
 	_expect("c. complete_affordances() lists the complete subset",
-		_types(observation.complete_affordances()), ["hand", "hand", "nudge", "shrug", "point"])
+		_types(observation.complete_affordances()),
+		["hand", "hand", "nudge", "shrug", "point", "pick"])
 	_expect("c. complete_affordances(type, target) narrows like affordances()",
 		_types(observation.complete_affordances("wave", ALICE)), [])
 
@@ -127,6 +133,8 @@ func _about(observation) -> void:
 		_types(observation.affordances_about(BOX)), ["nudge"])
 	_expect("e. affordances_about(coffee) finds the one complete choice naming it",
 		_items(observation.affordances_about(COFFEE)), [COFFEE])
+	_expect("e. affordances_about(tea) finds a typed reference too",
+		_types(observation.affordances_about(TEA)), ["hand", "pick"])
 	_expect("e. affordances_about(Bob) does not search nested values",
 		_types(observation.affordances_about(BOB)), ["shrug"])
 

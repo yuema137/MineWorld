@@ -1258,13 +1258,20 @@ Each commit tracks implementation, validation and review separately. Evidence go
 
 **Depends on:** B-C2. **Non-goals:** no change to `demo.gd`, nor to the commands the existing modes run.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `bash clients/protocol/run.sh affordances` → every A-2 … A-4 claim PASS, transcript
-  inspected (counts, prices, the `too_far_away`, the revision sequence); M-B2, M-B3, M-B6 each make it
-  FAIL, then reverted (A-8); the save directory is gone after the run.
-- [ ] Review: `submit_affordance` never reads `available`; it cannot emit `submitted_request` without
-  sending; `revision` cannot move on a stale frame; the existing modes' server command lines are
-  unchanged character for character (diff read).
+- [x] Implementation: as scoped, plus D-1 and D-2 (§18.10), found by the first live run. The live
+  check is a `SceneTree` script (no `.tscn` needed); it prints every complete affordance it was offered,
+  so the transcript shows the real payload shapes. Godot's `.uid` sidecars for the two new scripts are
+  committed, as the module's own are.
+- [x] Validation: E-B4 (live check 22 claims PASS on the final B-C3 tree); E-B5 (M-B1, M-B2, M-B3,
+  M-B6, M-B7, M-B8 against it, each FAIL, reverted); the reader check re-run with D-1's typed-reference
+  case, 18/18 PASS; no `world.sqlite` left in `$TMPDIR` after the runs (`find … -newer` → 0).
+- [x] Review: `submit_affordance` never reads `available` (M-B2 shows the check would see it); it
+  emits `submitted_request` only through `submit`, i.e. only when it sends; `revision` is assigned after
+  the stale return, so a stale frame moves neither `latest` nor `revision`; the existing modes call
+  `start_server "$log"`, which now runs `mineworld server "worlds/social-cafe" --listen … --agent
+  alice` — the same argv as before (the quoted `worlds/$world` expands to the same word, the empty
+  `save` array to nothing) and the same `pkill` pattern. `_as_sent` touches numbers only: identities
+  are strings and pass through.
 
 ### B-C4 — Final gates on the PR head, ledger, PR
 
@@ -1367,9 +1374,56 @@ M-B7  affordances_about ignores the payload          FAIL e "box" []; FAIL e "co
 **E-B3 — `./mineworld-slice --drive` on the B-C2 tree. PASS.** 77.8 s, exit 0, "all drive checks
 pass"; its 18 verdict lines are identical to E-B0b's (`diff` empty).
 
+**E-B4 — `bash clients/protocol/run.sh affordances` on the B-C3 tree. PASS** (after D-1 and D-2; the
+first run is E-B4a below). ~65 s including the build, exit 0, 22 claims PASS. Observer `17`, Alice
+`7`, revision 1 at the first view. Offered complete: six `buy`, target null, payload
+`{ item: { entity, entity_type: "item" } }` for items 22, 24, 25, 33, 36, 37; one `eat` (item 19);
+`give { count: 1, item }` for items 19 and 34 against each of `7`, `8`, `18`, all `available: false`,
+`too_far_away`. A-2: 6 buys, all target-less; 2 gives against Alice, both complete, in the server's
+order, items differing; `talk` offered and incomplete; `affordances_about("22")` contains the buy.
+A-4: `submit_affordance(talk)` → `""`, 0 requests emitted; Alice's first give sent as `c1`, answered
+`{"rejected":"too_far_away"}`. A-3: the buy request equals the affordance on all five fields; `c2`
+answered `accepted` (events 130, 131); wallet 200 000 → 199 600 (price 400 from the café's `shop`
+listing), item 22 held 0 → 1; revision 1 at the buy → 3 after it, never decreasing. Transcript:
+`clients/protocol/evidence/affordances-market-town.log`.
+
+**E-B4a — the first live run, before D-1 and D-2. FAIL**, which is what found them: `SCRIPT ERROR:
+Invalid call 'String' constructor` at the check's item comparison — `payload.item` is an object
+`{ "entity": "22", "entity_type": "item" }`, not a string; the run then timed out at 60 s.
+
+**E-B5 — mutations against the live check** (each in the working tree, run, reverted by restoring the
+saved file; `grep -c MUTATION` → 0 in all three module files afterwards; the clean re-run PASS):
+
+```text
+M-B1  affordances() returns after the first match     FAIL A-2 buys 1 (6); gives 1 (2); complete 1 (2)
+M-B2  submit_affordance skips available = false       FAIL A-4 "unavailable give is sent" (token "")
+M-B3  submit_affordance sends an incomplete one       FAIL A-4 "talk returns \"\" and sends nothing"
+      with an invented {} payload                          ["c1",1]
+M-B6  revision not updated by observation frames      FAIL A-4 "revision rose after the buy" false
+M-B7  affordances_about without the typed reference   FAIL A-2 "affordances_about(item) contains the
+      (the frozen string-only rule)                        buy" false; reader FAIL e "tea … typed
+                                                           reference" ["hand"]
+M-B8  submit_affordance without _as_sent (D-2)        FAIL A-4: the give is answered
+                                                           {"rejected":"precondition_failed"} — the
+                                                           server could not read count 1.0
+```
+
+M-B3's first form (skipping the completeness guard) crashed on the missing `payload` key instead of
+sending; a crash is not the failure the claim is about, so it was replaced by the faithful form above
+and both are recorded. M-B8 is beyond A-8's list: it is D-2's own evidence.
+
 ## 18.10 Deviations and discoveries during implementation
 
-None yet.
+Both found by the first live run (E-B4a). Both are **bounded**: they change how SB-3 and SB-5 reach
+their frozen result, not the result. A-2 ("affordances_about(item) contains the buy") and A-3/A-4
+("submitted unchanged", "the server answers") are unchanged, and both would have failed in a real
+world without these corrections. The audit's error is recorded as such: F-16b-7 read the `give`/`buy`
+payload shapes from step-10's SD-20 text (`give { item: ItemId, count }`), not from a live frame.
+
+| ID | Discovery | Decision | Evidence |
+| --- | --- | --- | --- |
+| **D-1** | **Every typed identity in a payload travels as the contract's `TypedEntityRef`**, `{ "entity": "22", "entity_type": "item" }` (`contracts/src/ids.rs:855`, `#[serde(into = "TypedEntityRef")]` on `ItemId`), not as a bare string. SB-3's "top-level String value" would match no `buy`, `give` or `eat` offered in any world today. | `affordances_about(id)` also matches a top-level value that is an object whose `entity` is the string `id`. That is the contract's own reference shape — the module already reads it in `place()` (`self_location.place.entity`) — so no pack shape is learned. Still top level only. ADOPTION §2 and the doc comment say so; the reader check gained the `pick` case. | E-B4a, E-B4; M-B7 (live and reader) |
+| **D-2** | **Godot parses every JSON number as a double**, so an offered `"count": 1` is `1.0` in the affordance, and `JSON.stringify` writes it back as `1.0`. Submitted that way, the server cannot decode `give`'s `u32` count and answers `precondition_failed`. "Unchanged" as SB-5 states it is therefore impossible without restoring integers. | `submit_affordance` sends `_as_sent(payload)`: every finite whole-number double within ±2^53 becomes an `int`, recursively; strings (identities) and everything else pass through. That is the JSON the server sent. A system field declared as a float accepts an integer, so nothing is lost. `submit` itself is unchanged: a caller composing its own payload keeps `ADOPTION.md` §3.2's obligation. | E-B4; M-B8 |
 
 ## 18.11 Execution contract for PR 16b (proposed; confirmed at the freeze)
 
