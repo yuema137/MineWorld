@@ -2,10 +2,10 @@
 
 use std::sync::Arc;
 
-use mineworld_authoring::AuthoredContent;
-use mineworld_contracts::EventTypeId;
+use mineworld_authoring::{AuthoredConfiguration, AuthoredContent};
+use mineworld_contracts::{EventTypeId, SystemId};
 use mineworld_kernel::System;
-use serde::de::{Error as _, MapAccess};
+use serde::de::{Deserializer, Error as _, MapAccess};
 
 use crate::section::SectionOwner;
 
@@ -63,6 +63,73 @@ pub trait SystemPack: System + Default {
             Self::ID.as_str()
         )))
     }
+
+    /// Its own id when the pack takes a world-level configuration (`DECISIONS.md` `ARC-61`), else
+    /// [`None`].
+    ///
+    /// Defined only through [`configures!`](crate::configures), with the two items below.
+    const CONFIGURATION: Option<SystemId> = None;
+
+    /// The event types its configuration may seed: what the loader admits at genesis, and what the
+    /// drift check at resume compares (`ARC-61` items 5 and 7).
+    const CONFIGURATION_FACTS: &'static [EventTypeId] = &[];
+
+    /// Decodes `configure/<id>.yaml` with the pack's own type — straight from the stream, so a refusal
+    /// keeps its line and column (`DEP-10`).
+    ///
+    /// # Errors
+    ///
+    /// The deserializer's own error when the configuration is not valid. By default, every call is
+    /// refused with "the '`<id>`' system takes no configuration": a pack that declares none is never
+    /// silently configured.
+    fn decode_configuration<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Arc<dyn AuthoredConfiguration>, D::Error> {
+        let _ = deserializer;
+        Err(D::Error::custom(format!(
+            "the '{}' system takes no configuration",
+            Self::ID.as_str()
+        )))
+    }
+}
+
+/// Declares, inside an `impl SystemPack`, that the pack takes the world-level configuration its
+/// [`PackConfiguration`](mineworld_authoring::PackConfiguration) impl describes (`DECISIONS.md`
+/// `ARC-61`).
+///
+/// Defines [`SystemPack::CONFIGURATION`], [`SystemPack::CONFIGURATION_FACTS`] and
+/// [`SystemPack::decode_configuration`] together, from that one impl, so they cannot disagree.
+///
+/// ```text
+/// impl SystemPack for ExampleSystem {
+///     const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
+///     mineworld_sdk::configures!();
+/// }
+/// ```
+///
+/// The pack states its configuration facts `Visibility::SystemInternal` with no subjects: a world's
+/// configuration is nobody's perception (`ARC-61` item 8).
+#[macro_export]
+macro_rules! configures {
+    () => {
+        const CONFIGURATION: ::core::option::Option<$crate::__private::SystemId> =
+            ::core::option::Option::Some(<Self as $crate::__private::SystemIdentity>::ID);
+
+        const CONFIGURATION_FACTS: &'static [$crate::__private::EventTypeId] =
+            <Self as $crate::__private::PackConfiguration>::FACTS;
+
+        fn decode_configuration<'de, D: $crate::__private::Deserializer<'de>>(
+            deserializer: D,
+        ) -> ::core::result::Result<
+            $crate::__private::Arc<dyn $crate::__private::AuthoredConfiguration>,
+            D::Error,
+        > {
+            $crate::__private::DeserializeSeed::deserialize(
+                $crate::__private::DecodeConfiguration::<Self>::new(),
+                deserializer,
+            )
+        }
+    };
 }
 
 /// Declares, inside an `impl SystemPack`, that the pack owns the section its
@@ -133,5 +200,20 @@ mod tests {
 
         let refusal = Silent::decode_section(&mut map).expect_err("nothing to decode with");
         assert_eq!(refusal.to_string(), "the 'silent' system owns no section");
+    }
+
+    /// A pack that declares no configuration is refused one, naming itself, and states no
+    /// configuration facts for the drift check to compare (`ARC-61`).
+    #[test]
+    fn a_pack_that_declares_no_configuration_refuses_one_and_says_which_pack_it_is() {
+        let deserializer = serde::de::value::UnitDeserializer::<Error>::new();
+        let refusal =
+            Silent::decode_configuration(deserializer).expect_err("nothing to decode with");
+        assert_eq!(
+            refusal.to_string(),
+            "the 'silent' system takes no configuration"
+        );
+        assert_eq!(Silent::CONFIGURATION, None);
+        assert!(Silent::CONFIGURATION_FACTS.is_empty());
     }
 }

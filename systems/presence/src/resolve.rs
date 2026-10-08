@@ -233,7 +233,7 @@ pub fn require_registered(resolver: &SystemId) {
                 .iter()
                 .any(|registered| registered.resolver_of() == *resolver),
             "the '{resolver}' system resolves arrivals, but the resolvers registered with \
-             register_resolvers are {:?}: list it on the installed set's resolution: line \
+             register_resolvers are {:?}: list it on presence's extension line in the installed set \
              (DECISIONS.md ARC-39)",
             ids(resolvers)
         ),

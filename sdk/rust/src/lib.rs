@@ -7,10 +7,12 @@
 //! ```text
 //! a System Pack     implements SystemPack: its package identity (PACKAGE = package!(), required),
 //!                   its biographical event types, the authored section it owns (owns_section!), and
-//!                   how that section is decoded — each but the first defaulting to none
+//!                   how that section is decoded, and the world-level configuration it takes
+//!                   (configures!, ARC-61) — each but the first defaulting to none
 //! the installed set systems/installed: one installed! invocation, one line per pack — the build's
 //!                   only list of System Packs, expanded into the catalog the loader reads
-//! resolution:       installed!'s optional line listing the build's arrival resolvers (ARC-39)
+//! extension         installed!'s optional lines, one per catalog: a pack-owned trait, its register
+//!                   function, and the types other packs implement it with (ARC-62)
 //! ```
 //!
 //! Installing a pack in MVP-0 is a new directory under `systems/`, two lines in `systems/installed/`
@@ -42,8 +44,10 @@ pub use section::SectionOwner;
 pub mod __private {
     pub use std::sync::Arc;
 
-    pub use mineworld_authoring::{AuthoredContent, Decode};
+    pub use mineworld_authoring::{
+        AuthoredConfiguration, AuthoredContent, Decode, DecodeConfiguration, PackConfiguration,
+    };
     pub use mineworld_contracts::{EventTypeId, SystemId};
     pub use mineworld_kernel::{KernelError, System, SystemIdentity, SystemVersion, World};
-    pub use serde::de::MapAccess;
+    pub use serde::de::{DeserializeSeed, Deserializer, MapAccess};
 }

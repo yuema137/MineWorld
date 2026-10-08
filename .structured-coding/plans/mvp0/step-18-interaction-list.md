@@ -1067,10 +1067,36 @@ two-line follow-up if the primary session prefers.
 - The test-local two-catalog `installed!` of IA-5, in `sdk/rust/tests/extensions.rs` (NEW; add it to
   the change set).
 
-- [ ] Implementation · [ ] Validation: workspace `cargo check`; `cargo test -p mineworld-sdk -p
-  mineworld-installed-systems -p mineworld-presence -p mineworld-worldpack`; `seam_vocabulary`,
-  `arrival_resolvers*`, `registration` unedited and passing; M-IA5a, M-IA5b, M-IA6 · [ ] Review: no
-  shim, no remaining `resolution:` grammar; presence's diff is one string.
+- [x] Implementation: `pack.rs` — `CONFIGURATION`, `CONFIGURATION_FACTS`, `decode_configuration`
+  (default refusal "the '<id>' system takes no configuration") and `configures!()`, plus a unit test of
+  the default; `installed.rs` — the grammar is now an entry arm, an accumulator arm per `extension`
+  line (a tt-muncher: a `$(extension …)*` repetition followed by `$($Variant:ident …)+` would be a
+  macro_rules local ambiguity, since `extension` is itself an ident) and the pack-lines arm, which
+  expands `register_extensions()` and `extension_types()`; `@catalog` gains `configuration`,
+  `decode_configuration`, `configuration_facts`; the `resolution:` arm and `resolvers()` are deleted.
+  `lib.rs`: crate doc, `__private` gains `AuthoredConfiguration`, `DecodeConfiguration`,
+  `PackConfiguration`, `DeserializeSeed`, `Deserializer`. `systems/installed/src/lib.rs`: the line,
+  one physical line, and its doc paragraph. `resolution.rs` rewritten over `extension_types()` and
+  `type_name()`. Presence: one message string. `load.rs` compose → `Capability::register_extensions()`
+  and its doc. `registration.rs`: the `LISTED` doc comment only. New `sdk/rust/tests/extensions.rs`.
+- [x] Validation (E-IA-3): `cargo check --workspace --all-targets` clean; `cargo test -p mineworld-sdk
+  -p mineworld-installed-systems -p mineworld-presence -p mineworld-worldpack` all ok (sdk extensions 1,
+  installed resolution 2, worldpack registration 1 — unedited code); `-p mineworld-acceptance --test
+  seam_vocabulary` 3, `arrival_resolvers` 7, `arrival_resolvers_unregistered` 2, `arrival_resolvers_resume`
+  PASS — all unedited. Clippy `-D warnings` workspace clean; fmt clean. Mutations, each observed then
+  reverted (`git grep MUTATION` empty after):
+  - M-IA5a (the accumulator arm drops earlier lines, so the first line is skipped) → `extensions` FAILS
+    "the first line, in its listed order: left None".
+  - M-IA5b (each list reversed before its register call) → FAILS "left [test-relay-b, test-relay-a]".
+  - M-IA6 (the duplicate check disabled) → `resolution` FAILS
+    `the_guard_sees_a_type_that_is_not_installed_and_one_listed_twice` (2 faults instead of 3).
+  `git grep "resolution:\|resolvers()" -- '*.rs'`: no arm, no `resolvers()`; the remaining hits are
+  presence's own `registered_resolvers()`, unrelated prose, and two message strings in the frozen,
+  unedited `seam_vocabulary.rs` and `registration.rs` (recorded, not edited: §11.7).
+- [x] Review: no shim; `extension_types()` returns a `Vec` rather than the designed `&'static [..]`
+  because `core::any::type_name` is not `const` (D-4); presence's diff is one string, no `VERSION`
+  change; the seam scan's admitted lines (`mineworld_bodies::BodiesSystem` in the installed set,
+  `LISTED` in registration.rs) are untouched in substance and still admit (scan passes).
 
 ### IA-C4 — `worldpack`: reading `configure:`
 
@@ -1250,4 +1276,7 @@ D-2  (bounded, accepted) sdk/rust/tests/extensions.rs's second catalog is a test
      presence's: the sdk cannot depend on presence (it sits below every pack, ARC-33). IA-5's presence
      half is held by worldpack/tests/registration.rs and arrival_resolvers*.rs, unedited.
 D-3  (material, ruled) Amendment A-1, §11.1.
+D-4  (bounded) Capability::extension_types() returns Vec<(&'static str, Vec<&'static str>)>, not a
+     &'static slice (SD-IA-3): the types' Rust paths come from core::any::type_name, which is not const,
+     and the installed set's guard compares them with Capability::type_name. No caller beyond the guard.
 ```
