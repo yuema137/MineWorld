@@ -7,7 +7,7 @@ risks, questions (QPL-1 …) and draft decision records. It holds no frozen PR d
 **Effort:** `mvp0` · parent: [`overall.md`](overall.md) §3 (S15, S16), "Parallel build-out,
 2026-10-08"; sibling: [`step-11-bodies.md`](step-11-bodies.md) (S15), [`step-16-packages.md`](step-16-packages.md)
 (S16).
-**Lifecycle:** `DRAFT — awaiting the primary session's review`. Nothing here authorizes
+**Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)`, frozen at step level by the primary session under the operator decisions recorded in `overall.md` "Physics list and configurable rules (operator, 2026-10-08)", which bind and override this document where they differ. Superseded: `DRAFT — awaiting the primary session's review`. Nothing here authorizes
 implementation. Proposed edits to `overall.md`, `docs/DECISIONS.md` and the specifications are stated
 inside this document (§11, §12) and are not applied.
 **Branch:** `plan/physics-list` from `main @ e1ec5ff`, worktree

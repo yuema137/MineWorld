@@ -706,6 +706,57 @@ client side:
    - The rest lands with 12d (towns get geometry), 16c (all places and doorways in 3D) and 16e/13f
      (the parity test).
 
+## Physics list and configurable rules (operator, 2026-10-08)
+
+The step design [`step-18-physics-list.md`](step-18-physics-list.md) is frozen at step level and
+numbered **S17 — Physics list**.
+
+**Operator decisions:**
+
+1. **S17's full scope is in MVP-0 (QPL-13).** It includes PL-a to PL-c and the PL-d demonstration:
+   an `ice` interaction kind, a `fragile` consequence pack and `worlds/rink`. Its key test is that
+   the commit installing `ice` and `fragile` leaves `systems/bodies` unedited. This is AC-1's
+   physics counterpart. The operator plays a configured world after PL-c.
+2. **Every pack's rule numbers become world-configurable, in MVP-0.**
+   - This is a new step, **S18 — Configurable rules** (the audit's S-CFG, G-PL-4).
+   - It covers, among others: inventory capacity, interaction ranges, relationship regard values,
+     `MAX_STRIDE`, and consumption's food and drink categories.
+   - Each value moves behind S17's `configure:` seam.
+   - Defaults reproduce today's behaviour byte for byte.
+   - S18 starts after S17's PL-a lands the seam.
+3. **The 3D client reads a Presentation Pack and builds places from the server's disclosure, in
+   MVP-0 (QPL-17, G-PL-1).**
+   - This is a new S14 PR, **16f**, after 12e.
+   - Walls, doors and places come from disclosed geometry, and art only decorates.
+   - Changing the Presentation Pack changes the look.
+   - Today's hand-built café becomes part of the default Presentation Pack.
+   - This completes the "One world, two views" rule.
+4. **Accepted as recommended:**
+   - QPL-1: a list is data, never scripts. New behaviour comes from installed packs.
+   - QPL-2: the generic `configure:` seam (ARC-PL-a), with `configure/<system>.yaml` typed by its
+     owning pack.
+   - QPL-12: resume is refused on configuration drift.
+   - QPL-11: no runtime entity creation by a System in this step, because it needs a kernel change.
+   - QPL-15: the README tagline drops "LM-native" and leads with "framework". README PR #68
+     already does this.
+   - QPL-4: the timing:
+     - PL-a beside 12d, after S16 E-a, because both touch `installed!`/`worldpack`;
+     - PL-b after 12d, beside 12e;
+     - then PL-c and PL-d.
+
+**Primary-session rulings:**
+
+- QPL-3, -5 to -10, -14, -16, -18 to -20 are accepted as recommended.
+- QPL-10's migration of presence's `resolution:` line to the generic extension form happens in PL-a,
+  with no compatibility shim.
+- **Decision numbers:**
+  - S17 uses ARC-61 to ARC-63 and DEP-28. ARC-PL-a becomes ARC-61, ARC-PL-b becomes ARC-62,
+    DEP-PL-a becomes DEP-28.
+  - S18 uses ARC-64 to ARC-65.
+  - S14's 16f uses its existing range, ARC-50 to ARC-52.
+- **PRs are frozen one at a time,** as with every other step. 12d is unaffected by S17 and proceeds
+  now. PL-b re-checks 12d's re-baselined digests.
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
