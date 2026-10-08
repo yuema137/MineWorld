@@ -39,15 +39,18 @@ STOP CONDITIONS     NORMAL: PR 12d-0 READY FOR OPERATOR REVIEW — DO NOT MERGE.
 POST-MERGE SYNC     planning session: header, §19 (its base and TD-14 references), overall, MVP_STATUS
 ```
 
-## Current checkpoint — STOPPED (material): SD-Z3 is not result-preserving (§20.13 Z-D2)
+## Current checkpoint — STOPPED (material): SD-Z1 is not result-preserving (§20.13 Z-D4)
 
+- Z-D2 ruled (option (b): SD-Z3 → Class R); TZ-9's instrument fixed (§20.6.1). Both recorded.
 - ZC-1: E-Z-base captured (ZI-1 d7025dbc…, ZI-2 53d017d0…, ZI-3 6e4c4015…, TZ-1 both towns, the
-  validate outputs). The gate's "before" (TZ-9's eight base runs) NOT yet run: the machine was never
-  quiet (load 23 … 61). The profile pending (Z-D3).
-- ZC-2: SD-Z2 (`rapier.rs` `index`) committed, byte-identical (E-Z1). SD-Z3 moved ZI-1 and ZI-2 —
-  first differing request 307 of long_run (and 518 with a strict 311 mm margin); reverted. Awaiting
-  the primary session: drop SD-Z3, or move it to Class R under ZR.
-- Not started: ZC-3 (SD-Z1), ZC-4 (SD-Z4), ZC-5 (SD-Z5), ZC-6.
+  validate outputs). The gate's "before" under §20.6.1: 7 of 8 runs (E-Z-before; social-cafe 7.98 ×,
+  market-town ≥ 6.02 ×). The profile pending (Z-D3).
+- ZC-2: SD-Z2 (`rapier.rs` `index`) committed, byte-identical (E-Z1). SD-Z3 reverted (Z-D2), to be
+  re-applied as Class R in ZC-4.
+- ZC-3: SD-Z1 written, moved ZI-1, ZI-2 and ZI-3 (E-Z2; first differing stride long_run's 419th, 14 mm),
+  reverted; patch at `/tmp/s15-12d0/sd-z1-reverted.patch`. Also: SD-Z1 buys no measurable CPU on 30
+  prototype days. Awaiting the primary session: drop SD-Z1, or move it to Class R under ZR.
+- Not started: ZC-4 (SD-Z3 + SD-Z4), ZC-5 (SD-Z5), ZC-6. No PR opened.
 - Base binary: `/tmp/s15-12d0/base-mineworld` (built on 953ff10).
 - Prototype rebuilt from §20.12's recipe: `/tmp/s15-12d0/proto/worlds/{social-cafe,market-town}`;
   the copies without bodies: `/tmp/s15-12d0/nobodies/worlds/{social-cafe,market-town}`. All four
@@ -57,7 +60,10 @@ POST-MERGE SYNC     planning session: header, §19 (its base and TD-14 reference
 
 ## Next actions
 
-1. On the primary session's ruling on Z-D2: apply it (drop SD-Z3, or re-implement it as Class R with
-   its strides in ZR-3's shadow comparison).
-2. Run TZ-9's "before" (`bash /tmp/s15-12d0/gate.sh before /tmp/s15-12d0/base-mineworld`, ≈ 15 min)
-   when the load average is low; then ZC-3 (SD-Z1, reach.rs), ZC-4, ZC-5, ZC-6.
+1. On the primary session's ruling on Z-D4: drop SD-Z1, or re-apply the kept patch as Class R
+   (`git apply /tmp/s15-12d0/sd-z1-reverted.patch`; its two wrong cull scenarios rewritten from
+   measured values).
+2. ZC-4 (SD-Z3 behind `Policy.exact_corridor`, SD-Z4, ZR-3's shadow), ZC-5, ZC-6; TZ-9 with
+   `bash /tmp/s15-12d0/gate.sh after <binary>` (CPU instrument, interleaved).
+3. Worth taking first (Z-D3, information): the ZC-1 profile — where ≈ 7 s of CPU per 30 prototype
+   days goes, since scene size is ruled out.

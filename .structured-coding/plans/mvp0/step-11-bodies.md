@@ -6516,6 +6516,14 @@ bias, the push, the flight, entry placement's lattice); the towns (12d); per-pla
 
 `VERSION` 2 → 3: SD-Z4 and SD-Z5 change results; a 12c save is refused by name (`ARC-25`).
 
+**Amendment (2026-10-08, primary session's ruling on §20.13 Z-D2, option (b)).** SD-Z3 is reclassified
+from Class I to **Class R**. Its rationale above ("a corridor exactly clear by R + GAP is one Rapier
+sweeps to `to`") is false (E-Z1): Rapier's character controller is not exact on strides that start at,
+or glide along, its offset from a face, so every stride moved from Rapier to the integers may change
+its result. SD-Z3 stays as designed (the exact integer segment-to-box distance ≥ R + GAP); what changes
+is its class: it changes results by design, together with SD-Z4 and SD-Z5, and `VERSION` 3 covers it.
+SD-Z2 stays Class I (E-Z1: PASS).
+
 ## 20.4 Which results must not move, and the re-capture rule (decided before measuring)
 
 **Class I (SD-Z1, SD-Z2, SD-Z3) must be byte-identical.** With SD-Z4 and SD-Z5 off — a crate-private
@@ -6549,6 +6557,16 @@ ZR-4  cross-architecture: the new bodies-yard 30-day sha equal on arm64 and on x
 ZR-5  recorded, before and after, in §20.12: ZI-1's and ZI-2's sha-256 and ZI-3's summary sha — the new
       bases 12d's TD-14 and S17's PL-b read
 ```
+
+**Amendment (2026-10-08, primary session's ruling on §20.13 Z-D2).** Class I is SD-Z1 and SD-Z2;
+Class R is SD-Z3, SD-Z4 and SD-Z5. With SD-Z3, SD-Z4 and SD-Z5 off (`Policy { exact_corridor: false,
+integer_walls: false, away_free: false }`), the build must still reproduce ZI-1 … ZI-3 exactly. ZR-3's
+shadow comparison covers every request SD-Z3 newly answers as Clear (a stride the old box-overlap
+corridor would have swept) as well as every request SD-Z4 answers: each is also answered by the Rapier
+path on the same state and compared; the bound is unchanged — every such answer keeps V1 … V4, and at
+most 1 % of them differ from Rapier's by more than 50 mm on an axis, each such one printed. The
+re-capture rule (ZR-1 … ZR-5) applies once, for SD-Z3, SD-Z4 and SD-Z5 together. TZ-4 and M-Z3 stand
+as tests of SD-Z3's rule (Class R's ZR-1 net), not of byte-identity.
 
 Towns: neither installs bodies before 12d, so social-cafe's and market-town's 300-day digests are
 unchanged by 12d-0 in every class (TZ-1).
@@ -6619,9 +6637,10 @@ the scene's mean collider count (a crate-private counter read by an ignored test
   (E-Z-base). **Pending:** the gate's "before" (eight runs need a quiet machine; the load average was
   23 … 61 throughout, other lanes building and running) and the profile (to be taken with a scratch
   instrumented build outside the repository — a crate-private counter cannot be read by an ignored
-  test from the CLI's run; §20.13 Z-D3).
+  test from the CLI's run; §20.13 Z-D3). The "before" taken under §20.6.1's instrument: 7 of 8 runs,
+  the eighth cut by the previous session's end (E-Z-before); the profile still pending.
 - [ ] Validation: each capture's sha recorded (E-Z-base); the prototypes validate (E-Z-base). The
-  "before" runs pending.
+  "before" reproduces E-TD0b's order of magnitude (E-Z-before: 7.4 … 8.0 × on social-cafe).
 - [x] Review: the recipe in §20.12 is what was run, file by file — each place and item file
   transcribed from §19.3.1 and the listing, and checked line for line against E-TD0b's own copy
   (E-Z-base).
@@ -6644,8 +6663,10 @@ the scene's mean collider count (a crate-private counter read by an ignored test
 
 **Scope.** `reach.rs` (new), `rapier.rs` (`Scene::build` over a subset with an index map), `stride.rs`,
 `entry.rs`; `tests/cull.rs` (TZ-3, M-Z1, M-Z2).
-- [ ] Implementation.
-- [ ] Validation: ZI-1 … ZI-4 identical (with SD-Z4/Z5 not yet present); M-Z1, M-Z2 by name.
+- [ ] Implementation: written (`reach.rs` with TZ-3's unit tests, `stride.rs`, `entry.rs`,
+  `tests/cull.rs`), **moved ZI-1, ZI-2 and ZI-3, reverted** (E-Z2; §20.13 Z-D4, MATERIAL STOP). The
+  patch is kept at `/tmp/s15-12d0/sd-z1-reverted.patch` (sha-256 13dad5e1…f0e31), not committed.
+- [ ] Validation: FAILED TZ-2 — not result-preserving (E-Z2). M-Z1, M-Z2 not run.
 - [ ] Review: canonical order kept among those inserted; every `Touch` maps back to the right entity;
   nothing cached.
 
@@ -6675,6 +6696,26 @@ renamed and flipped (TZ-6, M-Z5).
 - [ ] TZ-1, TZ-8, TZ-10; the full gate once; the ledger; the handoff.
 - [ ] Review: every TZ with evidence; deviations named; §19's TD-14 references updated in the ledger
   only (the planning session updates §19 after merge).
+
+### 20.6.1 TZ-9's instrument under machine load (primary session's ruling, 2026-10-08, before any TZ-9 run)
+
+The machine is never quiet (eight lanes in parallel; E-Z-base saw load averages of 23 … 61), so TZ-9's
+measure is fixed now, before any run:
+
+```text
+measure     user + sys CPU time of each 300-day run, from `/usr/bin/time -l` — far less sensitive to
+            load than wall time, and still the cost of bodies, which is what QB-11 bounds
+pass        for each town, max(CPU, with bodies) ≤ 1.5 × min(CPU, without) — QB-11, unchanged
+order       per town, two runs per side, interleaved: without, with, without, with — both sides share
+            the load
+recorded    wall time and the load average before and after each run, information only
+load stop   if on either town the CPU ratios (with ÷ without) of the two pairs differ from each other
+            by more than 10 %, the measurement is contaminated: re-run once; if they still differ,
+            stop and report
+```
+
+The bound is not re-scoped and §20.7's ladder is unchanged. The same instrument is used for the
+"before" (ZC-1) and for each ladder rung.
 
 ## 20.7 If the gate fails: the only ladder, fixed now
 
@@ -6832,6 +6873,66 @@ E-Z1 ZC-2, 2026-10-08, working tree on 953ff10 + rapier.rs (SD-Z2) and geometry.
        long_run_objects 1, objects 7, objects_genesis 10, rapier_pin 1, scenarios 17 — every test
        passes, none edited. TZ-2 for SD-Z2: PASS.
 
+E-Z-before ZC-1, the gate's "before", 2026-10-08 14:24 … 14:33, base binary (/tmp/s15-12d0/base-mineworld,
+     7ba96db5…40b0), /tmp/s15-12d0/gate.sh under §20.6.1's instrument (CPU = user + sys from
+     `/usr/bin/time -l`; interleaved without, with, without, with; dev binary, 300 days, seed 7). Started
+     by the previous session; that session ended during the eighth run, which never finished (no
+     process left; its .time file empty). Information, not a gate:
+       social-cafe  without 14.05+0.19 = 14.24 s (wall 14.9, load 15.3 → 13.0)
+                    with   103.07+1.59 = 104.66 s (wall 110.2, load 13.0 → 7.3)
+                    without 14.14+0.15 = 14.29 s (wall 14.7, load 7.3 → 6.5)
+                    with   111.90+1.72 = 113.62 s (wall 150.3, load 6.5 → 43.8)
+                    pair ratios 7.35 and 7.95 (8.2 % apart, inside the 10 % load stop);
+                    max(with) ÷ min(without) = 7.98 ×
+       market-town  without 20.32+0.19 = 20.51 s (wall 31.5, load 43.8 → 47.0)
+                    with    93.66+0.74 = 94.40 s (wall 95.5, load 47.0 → 12.9)
+                    without 15.60+0.09 = 15.69 s (wall 15.8, load 12.9 → 11.0)
+                    with    — not finished
+                    pair 1 ratio 4.60; max(with) ÷ min(without) ≥ 94.40 ÷ 15.69 = 6.02 ×
+     Faults 0 in all seven; with bodies 525 890 facts (social-cafe), 528 325 (market-town). The order of
+     magnitude reproduces E-TD0b's (the recipe stands). Not re-run: the "before" judges nothing.
+
+E-Z2 ZC-3, 2026-10-08, working tree on e179132 + SD-Z1 (`reach.rs`, `stride.rs`, `entry.rs`,
+     `footprint.rs` `bounds` made crate-visible, `tests/cull.rs`), Class-R pieces absent
+     (`Policy.exact_corridor` false; SD-Z4, SD-Z5 not written). Recovered from the previous session's
+     uncommitted tree (§20.13 Z-D5). /tmp/s15-12d0/step.sh <label> (dev build, capture.sh, the bodies tests):
+       REACH_MARGIN 2 200 (c3)        ZI-1 4 187 312 bytes fda31dd8ca4d5e84dd60269a6d61ab63ec21b9a9035ee469a7bfc8ee1bb45d84
+                                      ZI-2 706 094 bytes 7ec3977e3c21ca013c3e937673ad230ddc9f999cf0482876e53c712a3e276309
+                                      ZI-3 bc470547d9ca1239a4389d905d1e683e2de90e0898a198a6850b3e37fc8a2bf6
+                                        (63 221 facts) — all three ≠ E-Z-base
+       REACH_MARGIN 1 000 000 (c3wide) ZI-1 d7025dbc…, ZI-2 53d017d0…, ZI-3 6e4c4015… = E-Z-base: the
+                                      subset scene and its index maps are correct when nothing is left out
+       REACH_MARGIN 10 000 (c3m10k)   ZI-1, ZI-2, ZI-3 = E-Z-base (on these runs; not a proof)
+     First differing stride (a temporary probe in resolve.rs resolving every stride twice, whole place and
+       reach, printing the first difference; not committed): long_run, the 419th stride of the first
+       process — p07 (EntityId 9) from (4 359, 310) to (5 044, 995), a 969 mm stride:
+         whole place  (4 840, 791); EntityId 4 nudged to (5 298, 386), 5 to (4 519, 1 311); stopped by 4
+         reach        (4 826, 777); EntityId 4 nudged to (5 299, 391), 5 to (4 525, 1 308); stopped by 4
+       The reach box (x 1 190 … 7 528, y −2 859 … 3 479) left out the counter (its nearest edge 6 260 mm
+       from the start) and ten people (EntityId 2, 7, 8, 10, 11, 12, 13, 14, 15, 16), none within 1 400 mm
+       of anything the stride touched. 14 mm on each axis.
+     Which half moves it (same probe): left out only people (every solid kept) → differs, first at
+       stride 569; left out only solids (every person kept) → differs, at the same stride 569 with the
+       same values: p00 (EntityId 2) from (529, 2 820) to (1 122, 3 413): whole place (1 124, 3 177),
+       EntityId 10 to (598, 3 490); reach (1 125, 3 177), EntityId 10 to (599, 3 489) — 1 mm.
+     Reading: SD-Z1's rationale (§20.3: "a shape cast's time of impact against a collider does not
+       depend on other colliders") does not hold for Rapier 0.36.0's character controller as this pack
+       uses it: removing colliders far from everything a stride touches moves its result by 1 … 14 mm,
+       whichever kind is removed. The likeliest mechanism — not audited further — is that the
+       controller's iterated casts and slide depend on the query pipeline's BVH, whose shape depends on
+       every collider in it. No margin is a proof of identity; 10 000 mm reproduced these three runs
+       only.
+     Cost, information only (not TZ-9; /tmp/s15-12d0/z1info.sh: 30 prototype days of social-cafe, CPU =
+       user + sys, two interleaved rounds): base 8.95 / 12.54 s; SD-Z1 at 2 200 9.17 / 13.06 s; SD-Z1 at
+       10 000 9.07 / 14.95 s; without bodies (base, once) 1.73 s. **SD-Z1 buys no measurable CPU** on the
+       prototype: bodies costs ≈ 7.2 s per 30 days (≈ 5 ×), and leaving ≈ 60 of ≈ 70 colliders out of a
+       scene does not reduce it. Where that cost lies is unmeasured (the ZC-1 profile, Z-D3, still
+       pending).
+     The previous session's tests/cull.rs: two of its three scenarios (`a_walker_meets_the_person_on_its
+       _path`, `a_person_nudged_toward_a_post_is_held_by_it`) fail on the whole-place scene as well
+       (margin 1 000 000): their expected values were never run. Reverted with the rest.
+     SD-Z1 reverted: the tree is e179132's code again (`cargo test -p mineworld-bodies --lib`: 14 passed).
+
 The prototype (E-TD0b), stated so it can be rebuilt:
   1  GIT_INDEX_FILE=/tmp/s15-12d0/proto.idx git --work-tree=/tmp/s15-12d0/proto checkout 21f96ff -- \
        worlds/social-cafe worlds/market-town
@@ -6916,6 +7017,13 @@ Validation consequence:
 Stop reported to the coordinator with this record. Work on SD-Z1, SD-Z4 and SD-Z5 not started:
 the kickoff makes this a material stop and says not to work around it.
 
+**Ruling (primary session, 2026-10-08, relayed by the coordinator): option (b).** SD-Z3 is Class R;
+its newly clear strides join ZR-3's shadow comparison, bound unchanged; the re-capture rule applies
+once, with SD-Z4; SD-Z2 stays Class I (PASS). Recorded as dated amendments to §20.3 and §20.4. Same
+message: TZ-9's instrument under load fixed before any TZ-9 run (§20.6.1). SD-Z3 is re-applied in ZC-4,
+behind `Policy.exact_corridor`, so that the Class-I identity check (all three Class-R pieces off) stays
+runnable.
+
 **Z-D3 — The ZC-1 profile's instrument (bounded).** §20.6 ZC-1 asks for the share of strides by Route
 and the scene's mean collider count over 30 prototype days, "a crate-private counter read by an
 ignored test". The prototype runs through the CLI binary; a test of this crate cannot run a World Pack
@@ -6923,5 +7031,46 @@ from disk, and a counter in the production code would be a static the resolver k
 Instead: a scratch copy of the source exported outside the repository (as the prototype is), with
 counters printed at exit, built into its own target directory; nothing of it is committed. Information
 only, as the design states.
+
+**Z-D4 — MATERIAL STOP: SD-Z1 (Class I) is not result-preserving (E-Z2).**
+
+```text
+Previous assumption:
+  §20.3 SD-Z1: every collider left out of the reach box is one no query of the resolution can touch,
+  since a shape cast's time of impact against a collider does not depend on other colliders; only the
+  order of equal hits could differ (Class I).
+Audit evidence:
+  E-Z2. With REACH_MARGIN 2 200, ZI-1, ZI-2 and ZI-3 all move. With 1 000 000 all three equal E-Z-base
+  (the subset scene and its index maps are right); with 10 000 too, on those runs. First differing
+  stride: long_run's 419th — p07's 969 mm stride ends 14 mm apart on each axis, with the counter and
+  ten people, none within 1 400 mm of what the stride touched, left out. Leaving out only far people,
+  or only far solids, each moves a result (stride 569, 1 mm).
+Corrected understanding:
+  Rapier 0.36.0's character controller, as this pack uses it, is not local: its result depends on
+  colliders far from anything it touches (by 1 … 14 mm here), most likely through the query
+  pipeline's BVH. No reach margin can be shown byte-identical. And, information only: SD-Z1 does not
+  reduce the prototype's CPU time measurably (30 days: 8.95 s base, 9.17 s with SD-Z1; 1.73 s without
+  bodies) — the scene's size is not where bodies' cost lies.
+Implementation consequence:
+  SD-Z1 reverted (patch kept in /tmp, sha-256 13dad5e1…f0e31). ZC-4 … ZC-6 not started: SD-Z1 is
+  Class I and the kickoff makes its failure a material stop.
+Validation consequence:
+  TZ-2's M-Z1 and M-Z2, and TZ-3, cannot be met as Class I. Per §20.4 the primary session decides:
+  drop SD-Z1 (the measurement says it buys nothing), or move it to Class R under ZR. A further
+  question the cost reading raises for the operator: with the scene's size ruled out, TZ-9 rests on
+  SD-Z3 and SD-Z4 (taking strides away from Rapier altogether) and on §20.7's ladder; the ZC-1 profile
+  (Z-D3), still pending, is what would show where the ≈ 7 s per 30 days goes before more is built.
+```
+
+**Z-D5 — The resumed session (bounded).** The previous implementation session ended (API rate limit)
+with an uncommitted tree: the two §20 amendments, §20.6.1 and the Z-D2 ruling (kept, committed with
+this record); SD-Z1 (`reach.rs`, `tests/cull.rs`, `stride.rs`, `entry.rs`, `footprint.rs`), and the
+first pieces of ZC-4 (`geometry.rs`: `spanning`, `grown`, `meets`, `clamp`, SD-Z3's
+`clear_of_segment` and `crossed_by` behind a new `exact` argument; `resolve.rs`: `Policy`'s
+`exact_corridor`, `integer_walls`, `away_free`, `RAPIER_PATH`, `Route::Walled`) — not compiling
+(`corridor_clear`'s one caller not updated). The resumed session finished SD-Z1 to compile with the
+Class-R pieces off (the unused stubs `integer_walls`, `away_free`, `RAPIER_PATH`, `Route::Walled` and
+`clamp` removed; `exact_corridor` kept, false), measured it (E-Z2), and reverted all code with it; SD-Z3's
+geometry and `exact_corridor` are in the same kept patch. Its background "before" run had ended with the session, 7 of 8 runs done (E-Z-before).
 
 
