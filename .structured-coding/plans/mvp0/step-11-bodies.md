@@ -5641,3 +5641,770 @@ DO-17 are the material stops the AO-2 rulings closed. DO-18 is a defect fix.
 - **Measured for 12d's risk, not a bound on it:** bodies-yard's 300-day dev run with objects took
   30.7 s against 9.9 s without bodies, 3.1× (PO-14). The towns' bound stays 1.5× (DB-10 (b2)).
 
+---
+
+# 19. PR 12d — the town gets bodies (full design; DRAFT, not frozen)
+
+**Lifecycle:** drafted by the planning session on `mvp0/s15-12d-plan` on 2026-10-08, stacked on the 12c
+post-merge docs PR (#72). **Not frozen.** Nothing in §19 authorizes implementation. The questions the
+freeze must answer are §19.8 (QD-1 …); those marked **[OM]** are the operator's.
+
+This section refines §5, §10.4, §11.1's 12d row, QB-5 and QB-11 from merged source. Where they and §19
+disagree, §19 governs, and each difference is named with the finding that caused it (§19.2) and the
+question that asks for it (§19.8).
+
+## 19.1 Identity, base, approved scope
+
+```text
+PR            12d — the town gets bodies (S15, fourth of five)
+base          main after #72 (the 12c post-merge docs PR) and the PR carrying this design merge —
+              21f96ff + Markdown only. Re-audit §19.2 if anything under worlds/social-cafe,
+              worlds/market-town, systems/bodies, systems/item, systems/movement, worldpack/src,
+              tests/acceptance, tools/cli/tests, persistence/tests or clients/3d-spike/scripts moved
+branch        mvp0/pr-12d-town, in its own worktree, held by the implementing session only
+audit         §19.2 (main @ 21f96ff, 2026-10-08)
+scope         §11.1's 12d row; QB-5 (both towns install bodies); QB-11 (≤ 1.5×, on the towns, never
+              re-scoped: DB-10 (b2)); F-B7; FU-12a-1; S14's R-12d-1 … R-12d-4 (step-15 §11.3); S12's
+              R-PK-2 (`step-13-client-2d.md`, R-PK-2, RK-5, QS12-3) by coordination ruling 5 (overall.md "Parallel build-out");
+              as refined by SD-D1 … SD-D16 and answered by QD-1 …
+depends on    12c merged (889d217). bodies, presence's seam and movement used as merged
+merge         a merge commit, never a squash
+```
+
+**Goal.** Both towns get bodies, and their digests move once, here and nowhere else:
+
+- **Every place of `social-cafe` and `market-town` has a `body:` section**: a floor and solid boxes in
+  integer millimetres. The café's and the street's match the 3D slice's colliders within 150 mm, the
+  tolerance S14 set for its geometry probe (step-15 §4.2). The store is The Flower Room (R-12d-2).
+  The apartments, the workplace and the park, which the slice does not draw inside, get rooms that
+  hold their people and match their files' own descriptions.
+- **Every doorway point lies where a person fits** (F-B7): at least 310 mm (R + GAP) inside its floor
+  and from every solid, on both sides. A doorway that does not is refused at load, by name (§11.1's
+  adversarial criterion).
+- **Loose objects lie where players meet them**: a box and a ball in the café and on the pavement
+  outside it (R-12d-3), each at least 700 mm from every doorway point.
+- **`bodies` is installed in both towns**, the same place geometry in both (R-12d-4, `ARC-35` check 3).
+- **S12's item names (R-PK-2)** are folded into the same re-baseline: `item:` gains a `name`, and
+  `item` discloses a catalogue of declared kinds on every perceived place.
+- **The digests are re-baselined once**, with the before and after recorded, after the activity
+  precondition (`ARC-23`) and the full scan hold, and QB-11's cost bound holds on both towns.
+
+**Change set.** Every path this PR may touch:
+
+```text
+worlds/social-cafe/world.yaml          systems += bodies; items: (the four objects)
+worlds/social-cafe/places/*.yaml       body: sections; passage points moved (SD-D3, SD-D4)
+worlds/social-cafe/items/*.yaml        new: cafe-ball, cafe-box, street-ball, street-box (body: only)
+worlds/social-cafe/README.md           geometry, objects, the three actions
+worlds/market-town/world.yaml          systems += bodies (same position as social-cafe's); items: the
+                                       four objects added
+worlds/market-town/places/*.yaml       byte-identical to social-cafe's (R-12d-4, check 3)
+worlds/market-town/items/*.yaml        the four object files, byte-identical to social-cafe's; each of
+                                       the twenty kinds' `item:` gains `name` (R-PK-2)
+worlds/market-town/README.md           the same, and the names
+systems/item/**                        R-PK-2: ItemName, the section's `name`, item-kind-declared and
+                                       ItemKind carry it, the catalogue disclosed on a place; VERSION 2
+systems/bodies/src/{genesis,system}.rs the doorway check (SD-D5); VERSION 3 (QD-6)
+systems/bodies/Cargo.toml, Cargo.lock  mineworld-movement as a crate dependency, for Passages only
+                                       (SD-D5, QD-5)
+systems/bodies/tests/{rapier_pin,isolation,genesis}.rs   QD-6's literal; QD-5's dependency claim; the
+                                       doorway refusals
+tests/acceptance/tests/ac1_composability.rs   check 3 admits Social Café's own items (SD-D9; QD-1 [OM])
+systems/movement/src/action.rs, worldpack/src/read.rs,
+tests/acceptance/tests/seam_vocabulary.rs     FU-12a-1: three comments reworded, three allow-list
+                                       entries removed (QD-9)
+tools/cli/tests/town_bodies.rs         new: the towns' activity, scan, counterfactual and cost
+tools/cli/tests/bodies/mod.rs          the scan reads any world's place files (SD-D12)
+existing tests                         the named literal edits of §19.6, each claim unchanged (QD-8)
+docs/DECISIONS.md                      notes: ARC-35 (check 3), ARC-37 (the catalogue), ARC-39 (doorways)
+docs/MODULE_SPEC.md                    §4.1: `item`'s name and catalogue; `body`'s doorway refusal
+docs/MVP_STATUS.md                     the S15 rows, the evidence rows
+.structured-coding/plans/mvp0/{step-11-bodies,handoff}.md   this ledger, the handoff
+```
+
+Paths with no diff:
+- `kernel/`, `contracts/`, `persistence/src/`, `server/`, `cognition/`, `clients/`, `authoring/`,
+  `sdk/`;
+- `systems/presence/`, and every System Pack other than `bodies`, `item` and FU-12a-1's comment lines
+  in `movement`;
+- `tools/cli/src/`, `worldpack/src/` beyond FU-12a-1's comment;
+- `worlds/bodies-yard/`;
+- the root `Cargo.toml`.
+
+**Non-goals.**
+- The 3D client: colliders, the correction rule, the frame binding's new doorway offset, the
+  florist bound to `store` — 12e and 16c (step-15 §13).
+- The 2D client reading the catalogue (13c) or drawing bodies (13d).
+- FU-12c-1 (a stride moving away from somebody within the controller's offset): it changes 12b's
+  results and its long-run base, and needs its own design (QD-10).
+- Names for loose objects and organizations: an object is not a declared kind, so the catalogue does
+  not name it (QD-4); organizations are not needed by any Demo A interaction (R-PK-2).
+- R-PK-1 (doorways say where they lead): S12 13c, with no digest change.
+- Any change to presence, movement's rules, the paced controller, the kernel or contracts.
+- Any change to bodies' rules (constants, sweep, nudge, push, flight). If QB-11 fails, DB-10's options
+  2 and 3 are a design change brought to the operator, not done here (§19.4 TD-12).
+
+## 19.2 Source audit (`main @ 21f96ff`, 2026-10-08)
+
+Each finding was read in this session from the file named, or measured (E-TD0). The 3D slice was read
+on `main` (`clients/3d-spike`, merged as #50), read-only. S12 13a and S14 16a were read in their
+implementation worktrees, read-only, at the states named in F-D12.
+
+| ID | Finding | Evidence | Consequence for 12d |
+| --- | --- | --- | --- |
+| **F-D1** | **AC-1's check 3 forbids any item in Social Café, and any `body:` in a Market Town item file.** `compare_manifests` fails "`items` must be absent in Social Café and present in Market Town"; `world_delta_failures` fails "items/: must exist in Market Town only"; `market_only_content` admits in an item file only `tags`, `note` and sections a market pack owns, and `body` is owned by `bodies`. `ARC-35` item 4, approved by the operator, says the same in words: "`items/` and `organizations/`: present only in Market Town". | `tests/acceptance/tests/ac1_composability.rs:1080–1082, 1121–1138, 1178–1189`; `docs/DECISIONS.md:2495–2500` | A loose object is an Item file (`ARC-36` note, QB-3). So **no town can carry an object without amending check 3 and `ARC-35` item 4**: in Social Café the `items:` list and `items/` fail; in Market Town alone, the object's `body:` fails. R-12d-3 (objects where players meet them) and the operator's "at least one box and one ball" therefore need an operator decision (QD-1 **[OM]**, SD-D9). |
+| **F-D2** | **Check 3 accepts geometry that is identical in both towns.** Every key of a Social Café place file must be present in Market Town's with an equal value (structural YAML comparison, map order free); `systems` must be Social Café's list in order, then exactly the six market packs. | `ac1_composability.rs:1028–1054, 1094–1121` | `body:` sections byte-identical in both towns pass. `bodies` must sit at the same position in both `systems:` lists, before Market Town's six (SD-D1). Check 1 (the 11d/11e merges) and check 2 (crate edges) are untouched: `bodies → item` and `bodies → movement` are `systems/` edges (F-O11). |
+| **F-D3** | **Every doorway point is too close to a wall, on both sides.** `here`: the café (1 610, 200), the apartments (2 000, 200), the store (1 500, 200), the workplace (1 500, −200) — each 200 mm from its front wall — and the park (1 000, 14 800), 200 mm from a 15 m edge. `there` on the street: the north doors at y 3 000, 200 mm inside the slice's north façade line (y 3 200); the south doors at y −13 000, which **is** the slice's south façade line — outside any floor the slice allows. | `worlds/social-cafe/places/*.yaml`; slice: `street.gd:31–38`, `terrace.gd:19, 114` (F-D6) | F-B7 generalized: with a floor, every crossing would land by entry placement's E3 rather than on the doorway (SD-B8), and the south doors would be outside the street. Every point moves to ≥ 310 mm inside (SD-D3). |
+| **F-D4** | **Nothing refuses a doorway inside a wall.** Bodies' genesis checks people (overlap, outside, in a solid, capacity) and objects; it never reads movement's `Passages`. Bodies depends on presence only and does not link `mineworld-movement`. | `systems/bodies/src/genesis.rs:62–137`; `systems/bodies/Cargo.toml` | §11.1's adversarial criterion for 12d ("a doorway authored inside a wall … is refused at load by name") needs a new check that reads `Passages` (SD-D5, QD-5). |
+| **F-D5** | **The slice's café, in the café's own frame, is exactly the world's room.** `MineWorldSpace.to_3d` maps (x, y, z) mm to Godot (x, z, −y) m. `SliceLink` binds a frame by translating the place's disclosed doorway onto a scene door point: the café's `here` onto a point 0.2 m inside the façade's inner face, the street's `there` onto a point 0.2 m outside the façade. That puts the café's origin on the room's inner south-west corner, scene (1.84, −8.44): the inner faces are café x 0 and 8 320, y 0 and 10 320, as `cafe.yaml` says. The street's origin is scene (3.45, −4.90). | `clients/protocol/mineworld/space.gd:54–61`; `slice_link.gd:50–53, 62, 70–92`; `slice/cafe.gd:26–38`; `cafe_interior.gd:35–37` | The café's floor is (0, 0)–(8 320, 10 320). **Moving a doorway point moves the client's binding** by the same amount unless the client's 0.2 m constants move with it: a 12e/16c change, stated as a cross-lane impact (§19.10). |
+| **F-D6** | **The slice's colliders, in world millimetres.** Café: the counter (3 860, 6 570)–(8 320, 7 350) h 1 060; the back worktop (3 860, 9 290)–(8 320, 9 910) h 880; the window bench slab (2 360, 460)–(8 020, 900), top 470; the west dresser (0, 2 110)–(340, 4 510) h 840; three round tables at (4 860, 3 160), (7 110, 4 560), (2 260, 8 560); the open door leaf, a diagonal board whose box is (785, −187)–(1 120, 734); the back-room blocker (195, 10 230)–(1 245, 10 370). The door's clear opening is café x 1 120 … 2 100. Street: floor band y −13 000 … 3 200 (south and north façades), x −37 450 … 30 550 (the street volume); a retaining wall (15 050, 1 000)–(26 050, 3 200) h 1 900; 7 lamps, 13 bollards, 2 bins, 12 trees (cylinders r 130 … 264), 7 stone planters (boxes), 3 terrace tables (cylinders r 620), 2 planter boxes, 3 clay pots, 2 A-boards, 2 benches, a fingerpost and a bicycle. The Flower Room: interior 7 900 × 7 350, door 8 390 mm east of the café's door, its own colliders (staging, shelves, counter, step, table, crate, door leaf). The other façade doors are not enterable: the Flats' house door at street x −19 700 (north), a house door at −5 700 (south), the Lakeside Deli at 4 710 (south), a house door at 15 300 (south), among others. | `cafe_interior.gd:22–24, 136–152, 285–293, 334–336, 436–488, 533`; `cafe.gd:216–218, 258–281`; `street.gd:31–38, 62–139`; `streetscape.gd:41–325`; `slice_world.gd:117–194`; `shop_interior.gd:25–304`; `terrace.gd:83–147, 220–233`; `profile.gd:385–419` (planning agent's audit, cited line by line) | The geometry of SD-D2. Three facts shape it: (1) slice cylinders and a diagonal leaf are not boxes (SD-D2's approximation rules, QD-3); (2) colliders placed with `put_solid` (the tables, pots, planter boxes, A-boards, the florist's shelves, table and crate) are sized at run time from the glTF asset's bounds × 0.92, so their sizes are not in code — 12d reads them from the assets (SD-D2); (3) the street has about 60 colliders, under bodies' 64-solid limit (`SOLIDS_MAX`). |
+| **F-D7** | **The slice's doors do not match four of the world's.** The world's store door (street x 12 000) lies 3 610 mm east of The Flower Room's door, inside its façade; the apartments' (−12 000, north) lies on the Flats' façade 7 700 mm from its door; the park's (8 000, south) lies 1 950 mm inside a unit with no door near; the workplace's (−6 000, south) is 300 mm from a house door. | as F-D6; `worlds/social-cafe/places/{store,apartments,park,workplace}.yaml` | R-12d-2: each street-side point moves onto a slice door (SD-D4). Walks get longer on the street (QD-7). |
+| **F-D8** | **Capacity is per place, against the whole world's population.** A shaped place must offer at least 4·(people − 1) + 1 points of the 650 mm grid inside its floor shrunk by 300 mm and clear of solids by 300 mm, plus each object's `blocks`. With twelve people: **45 points**, in every shaped place, the smallest included. | `systems/bodies/src/genesis.rs:79–92`; `geometry.rs:276–280`; SD-O5 | A floor needs about 4.5 m × 4.5 m net of solids. Every room of SD-D2 has margin; the numbers are part of validation (TD-2). |
+| **F-D9** | **Identities: items come after people, in key order.** Social Café's ids 1–18 do not move when items are added. In Market Town the four object keys sort among the twenty kinds (`cafe-ball` after `bread`), so most kinds' ids and both organizations' move. | `worldpack/src/load.rs:1–33`; `worldpack/src/read.rs:176–205` (a `BTreeMap`, key order) | Expected under a re-baseline; named so no test or client assumes a kind's raw id (§19.6). |
+| **F-D10** | **Thirteen test files hold a literal or a behaviour that 12d's content changes** — the systems list (`commands.rs:34`, `server_command.rs:43–53`, `worldpack/tests/social_cafe.rs:67–77`), `inspect`'s system lines (`inspect.rs:36–37`, `social_composition.rs:380, 420`), genesis counts ("53 genesis fact(s)": `commands.rs:40`, `content_kinds.rs:136`, `social_cafe.rs:219, 378`), entity counts (`server_command.rs:34, 85`, `social_cafe.rs:109`, `content_kinds.rs:122–132`), the old doorway (`social_cafe.rs:647, 803, 832, 843`), Social Café's absent `items:` (`content_kinds.rs:39–40, 114`; the copy in `social_cafe.rs:338–391`), otto's single arrival (`routines.rs:225`), and straight walks across the café whose every stride must be accepted at the requested point (`ac15_one_alice.rs`, `restart.rs`, `social_cafe.rs:709–717`, `ac13_semantic_parity.rs` replaying the frozen `clients/protocol/evidence/request-{2d,3d}.json`). | planning agent's audit of every file, cited by line; §19.6 lists each | Literal edits with unchanged claims (QD-8). The straight walks are a geometry constraint on SD-D2: the café's solids and objects keep clear of those lines (SD-D2, TD-9). |
+| **F-D11** | **R-PK-2 meets an `item` pack that discloses nothing.** `AuthoredItem { category }` denies unknown fields; `item-kind-declared { item, category }` (schema 1) is reduced into `ItemKind { category }` (schema 1); `PerceptionProvider for ItemSystem {}` is empty; `ARC-37`: "items are never perceived". | `systems/item/src/{section,event,component,system}.rs`; `docs/MODULE_SPEC.md:418–420` | R-PK-2 is an `item` change (SD-D10): a section field, a fact field, a component field, a disclosure, `VERSION` 2, and an `ARC-37` note. Market Town's genesis facts change; Social Café does not install `item`. |
+| **F-D12** | **The in-flight clients assume today's doorways.** S12 13a (`impl-s12-13a`, uncommitted work included): `drive.gd:133–149` finds the café's door on the street by exact equality with (0, 3 000); `godot.yaml:58` draws the café from `door_from_left_m 1.61`; `client_2d.rs:165–181` walks the wanderer straight toward Alice's counter and carol from her genesis point. S14 16a (`impl-s14-16a`): A16-7 holds the café's people, the door (1 610, 200) ↔ (0, 3 000), and Ivan; T-2 relies on the florist being reported as the street; `slice_link.gd:80–86` binds the doorways at 0.2 m. Neither has a geometry probe; the 150 mm probe is 12e's (`--world --geometry`, step-15 §4.2). | planning agent's audit of both worktrees, cited by line | Cross-lane impacts (§19.10): each moved point breaks an exact-equality lookup or a 0.2 m binding. S14 anticipated it (R-12d-1, R-12d-2, F-S14-9); S12 13a's exact match on (0, 3 000) does not (QD-11). |
+| **F-D13** | **The offered band is shared.** The paced controller picks uniformly among all available complete affordances. In Market Town those are `give`, `buy`, `eat` and `drink`; with bodies, `kick` and `throw` per object within 800 mm and `shove` per person within 800 mm (12c's p1) join them. | `cognition/rule-controller/src/offered.rs`; `systems/bodies/src/offer.rs:22–89`; `geometry.rs:96` | Market activity is drawn less often wherever people stand close — the café and the store. Market Town's `market_lives` (a purchase, a wage per holder, production, consumption and a give from every seat, in every bucket) is the guard (TD-6); the remedy, if needed, is bodies' offer policy, never the controller (`ARC-34` item 4, SD-O18). |
+| **F-D14** | **The paced controller's walking is bounded by nothing in the world.** `wander` draws ±1 400 mm per axis; `approach` stops 1 000 mm short; `through` aims for the exact doorway point. In bodies-yard, 63 % of moves end stopped short. | `cognition/rule-controller/src/paced.rs:66–105, 266–362`; DB-10 | With walls the towns' moves will often be swept, not fast-pathed: the cost risk of TD-12, and the activity risk of TD-5 (R-B8). |
+| **F-D15** | **Baselines reproduce on this base.** Both 300-day seed-7 runs give E-RS0's digests and counts (E-TD0). | E-TD0 | The "before" of the re-baseline (TD-1). |
+
+## 19.3 Design (SD-D1 … SD-D16)
+
+### 19.3.1 The geometry, place by place (SD-D2)
+
+Every coordinate is integer millimetres in the place's own frame, which does not move: each place's
+origin stays where its file's header comment puts it, so every authored person keeps their position.
+`h` is a solid's height above the floor. A slice cylinder of radius r becomes a box (QD-3):
+
+```text
+r ≤ 500 mm   one square of half-side ⌊r · 0.7071⌋ (inscribed): a face lies at most 0.293·r inside the
+             cylinder and never outside it — at most 147 mm for r = 500
+r > 500 mm   two crossed boxes of half-extents (r, ⌊0.65·r⌋) and (⌊0.65·r⌋, r): for r = 620, (620, 403);
+             the worst point is 38 mm off the cylinder
+a diagonal   the open door leaves: their axis-aligned box, clipped to the floor. Its faces lie up to the
+board        board's diagonal from the board; the 150 mm probe cannot hold a diagonal against an
+             axis-aligned box, so 12e's probe exempts the leaves by name (QD-3)
+put_solid    the asset's glTF bounds (the POSITION accessor's min/max of the mesh the scene loads) × 0.92,
+             centred where the scene places it, as `dressing.gd:135–140` sizes the collider. Read in
+             TD-C1 and recorded per prop (E-TD1); the planning sizes below are placeholders, marked ≈
+```
+
+**The café** (`places/cafe.yaml`; frame unchanged — the inner south-west corner, F-D5):
+
+```text
+floor          (0, 0) – (8 320, 10 320)                       the inner faces (cafe_interior.gd:35–37)
+solids         counter         (3 860, 6 570) – (8 320, 7 350)   h 1 060
+               back worktop    (3 860, 9 290) – (8 320, 9 910)   h   880
+               window bench    (2 360,   460) – (8 020,   900)   h   470   the seat slab; the stools
+                                                                           and front board are visual
+               dresser         (    0, 2 110) – (  340, 4 510)   h   840
+               table east      ≈ (4 860, 3 160) ± 300            h   750   put_solid
+               table north     ≈ (7 110, 4 560) ± 300            h   750   put_solid
+               table back      ≈ (2 260, 8 560) ± 300            h   750   put_solid
+               door leaf       (  785,     0) – (1 120,   734)   h 2 070   clipped at y 0 (QD-3)
+               back-room board (  195, 10 230) – (1 245, 10 320) h 2 000   clipped at the floor
+doorway        here (1 610, 400) — was (1 610, 200)              F-B7: 400 from the front wall,
+                                                                  490 from the leaf's box, centred on
+                                                                  the door's clear opening x 1 120 … 2 100
+```
+
+**The street** (`places/street.yaml`; frame unchanged — the café's door at x 0, the north façade's
+doorways at y 3 000 before 12d):
+
+```text
+floor          (−37 450, −13 000) – (30 550, 3 200)    the façade lines and the street's volume
+solids         about 60 (≤ 64, SOLIDS_MAX), each from streetscape.gd / street.gd / slice_world.gd:
+               retaining wall (15 050, 1 000) – (26 050, 3 200) h 1 900; lamps (squares, half 91),
+               bollards (half 113), bins (half 169), trees (half 156 … 186), stone planters (their
+               boxes), terrace tables (crossed pairs, (620, 403)), planter boxes, clay pots and A-boards
+               (put_solid), benches (their boxes), the fingerpost (half 98), the bicycle (half 353)
+               — the full list, with each source line, is TD-C1's table (E-TD1)
+doorways       café         there (     0,   2 800)   was (0, 3 000): 400 inside the north façade
+               store        there (  8 390,   2 800)   was (12 000, 3 000): The Flower Room's door
+               apartments   there (−19 700,   2 800)   was (−12 000, 3 000): the Flats' house door
+               workplace    there ( −5 700, −12 600)   was (−6 000, −13 000): the house door 300 mm east
+               park         there ( 15 300, −12 600)   was (8 000, −13 000): the unit's house door (QD-7)
+```
+
+**The store** (`places/store.yaml`; frame: the inner south-west corner of The Flower Room — the store's
+header already defines its origin as its inner south-west corner, so the frame's meaning is kept and
+only its extent is now authored):
+
+```text
+floor          (0, 0) – (7 900, 7 350)                 shop_interior.gd:39–42
+solids         window staging  (2 100,   110) – (7 200,   950)   h 1 200
+               work counter    (4 500, 5 750) – (7 650, 6 450)   h   950
+               bucket step     (7 230, 1 150) – (7 850, 4 550)   h   220
+               display shelves ≈ (220, 2 550) and (220, 3 800)   put_solid
+               shelves         ≈ (5 350, 7 190) and (6 650, 7 190) put_solid
+               display table   ≈ (4 050, 3 350)                 put_solid
+               crate           ≈ (7 400,   600)                 put_solid
+               door leaf       (  230,     0) – (  560,   850)   h 2 080   clipped (QD-3)
+doorway        here (1 040, 400) — was (1 500, 200): the door's centre, fx 1 040 (opening 530 … 1 550)
+person         felix (3 000, 3 000), unchanged: 600 mm from the display table's placeholder box
+```
+
+**The apartments, the workplace, the park** (no slice interior; rooms sized to their headers'
+descriptions and to their people, and nothing else — `VISUAL_SLICE.md` §4 keeps them unenterable in 3D,
+so there is nothing to match):
+
+```text
+apartments  floor (0, 0) – (8 000, 6 000)           "an entrance hall … and the stairs up"
+            solids  stairs (0, 4 200) – (2 400, 6 000) h 3 000
+            here (2 000, 400) — was (2 000, 200);   carol (3 000, 2 500), otto (6 000, 4 000) unchanged
+workplace   floor (0, −7 000) – (9 000, 0)           the origin is the inner north-west corner
+            solids  meeting table (4 000, −5 800) – (6 400, −4 800) h 750
+                    desks (6 500, −2 000) – (8 400, −1 200) h 750
+                    kitchenette (0, −7 000) – (2 400, −6 400) h 900
+            here (1 500, −400) — was (1 500, −200); grace (3 000, −3 000), hana (5 000, −3 500)
+park        floor (0, 0) – (20 000, 15 000)          "about 20 m by 15 m"
+            solids  bench (3 000, 12 000) – (4 900, 12 700) h 840; bench (12 000, 5 000) – (13 900,
+                    5 700) h 840; a fountain (9 000, 6 000) – (11 000, 8 000) h 600
+            here (1 000, 14 600) — was (1 000, 14 800); dev (5 000, 9 000), erin (6 500, 9 500)
+```
+
+**The objects** (`items/<key>.yaml`, the object form of `body:`, tags only — no `item:`, so never a
+declared kind, QB-3):
+
+```text
+cafe-box      box half (200, 200, 200)   café   (7 300, 2 200)   by the window, east of the lane
+cafe-ball     ball 110                    café   (2 600, 5 600)   west of the lane to the counter
+street-box    box half (250, 250, 250)   street (−3 000, 1 200)  on the pavement west of the door
+street-ball   ball 110                    street ( 2 200,   600)  on the pavement, between the terrace
+                                                                   tables and the kerb
+```
+
+Each lies at least 700 mm from every doorway point and every authored person, and at least 420 mm
+(R + GAP + its half-size) from the straight lines F-D10's tests walk, so those strides still meet
+nothing (TD-9).
+
+### 19.3.2 Decisions
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **SD-D1** | **Install.** `bodies` is appended to Social Café's `systems:` after `schedule`, and inserted at the same position in Market Town's, before its six market packs. Every earlier reduction order stays as it was. | F-D2: check 3 requires Social Café's list as Market Town's prefix. Bodies depends on presence only. |
+| **SD-D2** | **Geometry as §19.3.1.** Every slice collider standing on a walkable floor of the café, the street or The Flower Room is a solid; nothing the slice does not collide with is a solid. The apartments, workplace and park get rooms from their own descriptions. A solid's height is the collider's top above the floor. | The server is the single source of layout ("One world, two views"); the 150 mm probe is two-directional (step-15 §4.2), so a collider missing on either side is a defect. Decoration is the client's. |
+| **SD-D3** | **Doorway points, inside.** Every `here` and every street-side `there` lies 400 mm inside its floor's edge, at least 310 mm (R + GAP) from every solid. 400 rather than 310: the binding constant a client moves (F-D5) is then a round 0.4 m, and 90 mm of margin absorbs a solid's rounding. | F-B7 (R-12d-1). E1 then places a crossing exactly on the point (SD-B8). |
+| **SD-D4** | **The street's doors onto the slice's** (R-12d-2): the store onto The Flower Room's door; the apartments onto the Flats' house door; the workplace onto the house door 300 mm east; the park onto the unit house door at x 15 300 (QD-7). Each `there` keeps its side (north y 2 800, south y −12 600). The store's and the street's header comments, which state the old distances, are rewritten with the new ones. | F-D7. Every door a person walks through in 3D is a door the scene draws. |
+| **SD-D5** | **A doorway inside a wall is refused at load** (§11.1). Bodies' reduction of `place-shaped` also checks every doorway point of the place, from movement's `Passages` (`here` of each passage out of it, and `there` of each passage into it): inside the floor shrunk by R + GAP, and at least R + GAP from every solid. Refusal `bodies-doorway`, naming the place, the passage's other place and the point, and the distance. A crate dependency on `mineworld-movement` for the read-only `Passages` type, as 12c's on `mineworld-item` (QD-5); no system dependency — a world without movement has no passages to check. Bodies `VERSION` 3 (QD-6). | F-D4. A doorway inside a wall would otherwise be a silent E3 shift on every crossing — exactly F-B7 — rather than a load error. Genesis orders passages before sections (F-B4), so `Passages` is reduced when `place-shaped` is. |
+| **SD-D6** | **Objects** as §19.3.1, identical files in both towns. Their keys sort after the people's, so Social Café's ids 1–18 do not move (F-D9). | R-12d-3, R-12d-4; S14 §3.1's "interacts with one object" happens in the town. |
+| **SD-D7** | **People are not moved.** Every authored position stays; each is checked by bodies' genesis (outside, in a solid, overlap, capacity) through `mineworld validate`. | The towns' people files stay byte-identical, so check 3's person comparison is untouched and no test that names a person's position changes. |
+| **SD-D8** | **The 3D binding is not 12d's.** 12d moves the doorway points; the slice's `door_point` constants (0.2 m, `slice_link.gd:80–86`) move to 0.4 m in 12e (or 16c, whichever first connects to a 12d world), with the florist bound to `store` (F-S14-9). Until then a connected slice draws the café 200 mm off and the street 200 mm off, and the florist hack fails against the street's floor. | I-S14-2: no S14 PR touches `worlds/`; no 12d path touches `clients/`. Stated in §19.10 so neither lane is surprised. |
+| **SD-D9** | **Check 3 admits Social Café's own items** (QD-1 **[OM]**). Amended rule, in `ac1_composability.rs` and as a dated note on `ARC-35` item 4: Social Café may have `items:` and `items/`; Market Town's `items:` contains Social Café's (as a set); every Social Café item file exists in Market Town with an equal value (`compare_content`, as places and people); every item file only Market Town has carries only the format's fields and market sections (`market_only_content`, unchanged); `organizations/` stays Market Town's only. The claim is unchanged: **Market Town is Social Café plus configuration.** Its unit test gains the cases (a social item missing in Market Town; differing; a market-only item with `body:`). | F-D1. A loose object is Social Café's content, so it belongs to both towns, exactly as a place's `body:` does. Without the amendment, no town can carry an object. The operator approved `ARC-35` and accepted AC-1 on this test; amending its letter is theirs. |
+| **SD-D10** | **R-PK-2, item names, in `item`.** `item: { category, name }`, `name` an `ItemName` (1–64 bytes, no control characters, no surrounding whitespace — naming's display-name rule, restated in `item`, which depends on no pack), **required**. `item-kind-declared` and `ItemKind` carry it (schema 2 each); `VERSION` 2. `item` discloses, to whoever perceives a place, an `item-catalogue` record on the place: `[{ item, category, name }]` for every declared kind, in `ItemId` order, built from `ItemKind` at disclosure (economy's `Listing` precedent, F-O5). The twenty Market Town kinds get names (QD-4). `ARC-37` gains a dated note: kinds are now disclosed as a catalogue; items are still never perceived as entities. | Coordination ruling 5: the names change Market Town's genesis facts, so they land in the one re-baseline (QS12-3, RK-5). Required, because a kind without a name is what F-41 is. A disclosed-only record type is audited first in TD-C2 (QD-12). |
+| **SD-D11** | **Activity before determinism, decided now** (`ARC-23`; §19.4 TD-5 … TD-8). With bodies, both towns must still live as they did — every existing activity assertion of `run.rs`, `run_restart.rs`, `routines.rs`, `market_town.rs`, `milestone_b.rs`, `milestone_c.rs` and `market_composition.rs` passes unedited in its claim — and the physical actions must happen and stay rare. A remedy, if one is needed, is in content (object and doorway placement, §19.4's ladder), never in the controller (`ARC-34` item 4, SD-O18), never in bodies' rules within 12d (they would move bodies-yard), and never by changing a criterion. | 12c's AO-2 was decided after failed measurements (§18.12); 12d fixes its criteria before any town run, and states them per run, not per 10-day bucket, for the rare actions — the lesson of AO-2′ (a). |
+| **SD-D12** | **The scan, for any world.** `tools/cli/tests/bodies/mod.rs` today asserts bodies-yard's room literals. It gains a reader of a world's place files (`body:` floors and solids, by the YAML, never by bodies' code) and runs unchanged on bodies-yard and both towns. | One instrument for the invariant on every world with bodies; read from the save and the authored files only (DO-12). |
+| **SD-D13** | **The counterfactual and the cost copy.** A test-time copy of each town without `bodies` in `systems` and without every `body:` (places' and items' — an item file left with tags only is an inert entity, F-O10). It loads, runs 300 days with faults 0, and is QB-11's denominator. | DB-10 (b2): "with versus without bodies", on the towns. The same copy shows the instrument sees (I-10). |
+| **SD-D14** | **Determinism evidence on the towns.** The existing `run_restart.rs` (social-cafe, SIGKILL) and `market_town.rs` (SIGKILL at four days) now exercise bodies; a new two-process test is not added. Rosetta: the 30-day social-cafe and market-town summaries on arm64 and x86_64, and an arm64 save resumed on x86_64 (recorded evidence, as PO-12). | The towns' existing restart tests already are the strongest committed check; they become bodies tests by content alone. |
+| **SD-D15** | **Re-baseline once.** After TD-5 … TD-11 hold on the final executable head, the new 300-day seed-7 digests of both towns are recorded in E-TD (with their fact counts and the old ones), in `MVP_STATUS.md`'s evidence row, and in `overall.md` §7. No code holds a town digest (F-D10's audit: none does), so nothing else is edited for them. | Coordination ruling 5. S13 13b records `ac8.ref` after 12d (QS13-12); S11, S16 and S10 compare against main (§19.10). |
+| **SD-D16** | **Documents first** (TD-C1): the `ARC-35` note (SD-D9, after the operator's QD-1), the `ARC-37` note (SD-D10), an `ARC-39` note 3 (the towns install bodies; the doorway refusal, SD-D5), `MODULE_SPEC.md` §4.1 (`item`'s `name` and catalogue; `body`'s doorway refusal), both towns' READMEs. | `CLAUDE.md` §2.2. |
+
+## 19.4 Acceptance (decided before measuring, `ARC-23`)
+
+Rules, as in §17.4 and §18.4:
+- Each guarded criterion names the mutation shown to break it. A mutation is applied in the working
+  tree, observed to fail by name, and reverted; `git status` and `git grep MUTATION` are recorded.
+- Every expected value is a literal from the authored files or the slice's source, never computed by
+  the code under test.
+- **Order of evidence:** TD-5 … TD-8 (activity, then the scan) on a run before any determinism or cost
+  claim is made on it; the re-baseline (TD-1's "after") only once TD-2 … TD-15 hold on the final
+  executable head.
+- **No criterion below is changed after a measurement.** A failure is either a bounded remedy this
+  section already names, or a material stop with the numbers.
+
+```text
+TD-1  The re-baseline, once. Before (E-TD0, on the base): social-cafe 365 330 facts, sha-256 of every
+      summary line but `wall` ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b;
+      market-town 372 755 facts, 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d;
+      faults 0. After: the same two runs on the final executable head, faults 0, their counts and
+      digests recorded in E-TD, MVP_STATUS and overall §7 — and nowhere in code (SD-D15).
+TD-2  Load and refusals (tools/cli/tests/town_bodies.rs, through the real `mineworld validate`):
+        - both towns validate; the summary lists `bodies`, the six shaped places, the four objects;
+        - on test-time copies, each refused, exit non-zero, naming its subject and the numbers:
+            the café's `here` back at (1 610, 200)  → "bodies-doorway", cafe, street, "(1610, 200)",
+                                                      "200 mm";
+            the street's café `there` at (0, 3 100)  → "bodies-doorway", street, "100 mm";
+            a doorway point inside the counter       → "bodies-doorway", "solid";
+            bob moved to (4 500, 6 400)              → "bodies-in-solid" (130 mm into the counter's
+                                                      clearance);
+            visitor moved onto the wanderer          → "bodies-overlap";
+            the café ball moved onto bob             → "bodies-object-on-person".
+      M-TD1  the doorway check removed → the first copy validates.
+TD-3  The geometry matches the slice. A table in E-TD1, one row per authored solid and floor edge of
+      the café, the street and the store: its slice source (file:line), the slice's shape, the authored
+      box, and the largest distance between them, hand-computed; every row ≤ 150 mm except the door
+      leaves (QD-3), each named. Reviewed in TD-C1; the executable form is 12e's `--world --geometry`.
+      Every doorway point is ≥ 310 mm from its floor's edge and every solid (TD-2's check, on the real
+      towns).
+TD-4  AC-1 holds, with check 3 amended (only if QD-1 is answered "amend"):
+        - `ac1_composability` passes all its tests, including the new check-3 cases of SD-D9;
+        - `precursor_vocabulary` 4/4 unedited (F-O11);
+        - the sections Market Town adds to Social Café's files are unchanged in kind (the test's
+          printed list: holdings, economy, job).
+      M-TD2  a Market Town-only item file with a `body:` → check 3 fails, naming the file and `body`.
+      M-TD3  one of Social Café's object files deleted from Market Town → check 3 fails, naming it.
+      M-TD4  `bodies` removed from Market Town's `systems` only → check 3 fails ("does not begin with
+             Social Café's list").
+TD-5  The towns still live (activity first). On the final head, unedited in their claims:
+        - run.rs: every seat moves and talks in every 30-day bucket of the 300-day social-cafe run;
+          every one of the six places is entered; the social precondition holds;
+        - run_restart.rs, routines.rs (≥ 90 % of agenda segments reached per seat), milestone_b.rs,
+          milestone_c.rs;
+        - market_town.rs: every seat moves and talks, and the market lives (a purchase, a wage paid to
+          each holder, production, consumption, a give from every seat), in every bucket; no wage
+          unpaid, no drained wallet;
+        - market_composition.rs: every copy without a market pack still lives.
+TD-6  Bodies happen, and stay rare (town_bodies.rs, both towns, 300 days, seed 7):
+        - per 30-day bucket: at least one `stopped-short` and at least one displaced `arrived`;
+        - over the run: at least one accepted kick, one throw, one shove, one `object-moved { pushed }`;
+        - per seat per 30-day bucket: kicks + throws + shoves accepted ≤ 288 (a tenth of its 2 880
+          consults, AO-3's rate);
+        - at day 300, every object has a free standing point within 800 mm (AO-2′ (b′)).
+      The counts are printed per bucket.
+TD-7  Nobody overlaps (the scan, SD-D12), after every request of both 300-day saves: no pair in one
+      place closer than 595 mm; no centre outside its floor shrunk by 295 mm or within 295 mm of a
+      solid; every displaced arrival stays in its place, ≤ 310 mm, ≤ 4 per request; every object
+      within its floor, at rest, out of every solid, ≥ 295 mm from every person. The closest pair, the
+      closest person–object approach, their place and request are printed.
+TD-8  The instrument sees (I-10): the SD-D13 copy of social-cafe runs 30 days with faults 0, every seat
+      moves, and no kick, throw, shove, `object-moved`, `person-shoved` or `stopped-short` is recorded;
+      the scan, applied to it with the geometry of the real town, reports a violation, naming the pair
+      or the person and the solid.
+TD-9  Every existing test passes. The only edits are §19.6's list, each a literal or a route whose
+      claim is stated unchanged there (QD-8). No assertion is weakened, no threshold lowered.
+TD-10 Determinism, committed: run_restart.rs (two processes, SIGKILL early/middle/late) and
+      market_town.rs (SIGKILL) pass on the towns with bodies; `mineworld replay` of a 30-day market-town
+      save reproduces every fact from genesis.
+      M-TD5  an impure resolver (12b's M-PB8, a process-global counter's parity in GAP) → a survivor is
+             refused or diverges.
+TD-11 Cross-architecture (recorded, as PO-12): an x86_64-apple-darwin `mineworld` under Rosetta gives
+      the same 30-day summary sha-256 (every line but `wall`) as arm64 for both towns; an arm64
+      market-town save at day 15 resumes on x86_64 to day 30 with the uninterrupted sha, and the
+      reverse. The QP-16 fallback (PARTIAL, never PASS) applies if the CLI cannot be cross-built.
+TD-12 QB-11, never re-scoped (DB-10 (b2)). Dev profile, `mineworld run <town> --headless --seed 7 --days
+      300`, for each town: the town and its SD-D13 copy, two runs each, consecutive, one machine, no
+      other build or test running. PASS iff max(with) ≤ 1.5 × min(without), faults 0 in all eight.
+      FAIL → a material stop with the numbers: DB-10's options 2 (a cheaper sweep: broad phase
+      without the narrow phase; only the people a stride can reach in the scene) and 3 (walls-only
+      strides answered by integers) become a design change brought to the operator. Nothing in 12d
+      changes bodies' resolution to pass it.
+TD-13 R-PK-2 (systems/item tests and town_bodies.rs):
+        - market-town validates with twenty names; an `item:` without `name`, with an empty name, or
+          with a 65-byte name is refused by the loader at its line;
+        - an observer in the café of market-town is disclosed `item-catalogue` on the café: twenty
+          entries `{ item, category, name }`, in ItemId order, as authored; an observer in social-cafe
+          (no `item`) is disclosed none; market_composition's copy without `item` discloses none;
+        - item VERSION 2, `item-kind-declared` and `item-kind` schema 2.
+      M-TD6  the catalogue omits `name` → the café disclosure test fails, naming the first kind.
+TD-14 Structural, unedited unless named: bodies' `isolation` (Rapier only in rapier.rs; no float
+      outside it; system dependency presence alone; pack crates presence, item and — QD-5 — movement,
+      each read for one named item); `rapier_pin` (bodies VERSION 3 — QD-6); seam_vocabulary with
+      FU-12a-1's three entries removed (they then fail as unused if a comment still names its word);
+      ac1_composability per TD-4; `git diff <base> -- worlds/bodies-yard systems/bodies/src/{resolve,
+      stride,entry,push,flight,launch,shove,rapier}.rs` empty; the bodies-yard 30-day sha and 12b's
+      long-run bytes equal to the base's (bodies' rules did not move).
+TD-15 Milestones and AC-15, on the final head: milestone_b.rs, milestone_c.rs, market_town.rs (300
+      days), ac15_one_alice.rs, restart.rs, server_command.rs, ac13_semantic_parity.rs pass, with
+      §19.6's literals only.
+TD-16 Scope and the gate: `git diff --name-only <base>...HEAD` ⊆ §19.1's change set; the no-diff paths
+      empty; Cargo.lock changes only mineworld-bodies' dependency list; `cargo fmt --check` and `cargo
+      clippy --workspace --all-targets --all-features -- -D warnings` clean; both doc checks; the full
+      workspace gate once, on the final executable head.
+```
+
+**Remedy ladder, fixed now (SD-D11), used only for TD-5 or TD-6, each rung a bounded deviation recorded
+with its counts, the criteria never changed:**
+
+```text
+c1  content: move an object or a non-slice room's solids (apartments, workplace, park) out of where
+    the counts show people jam; slice-matched solids never move
+c2  content: QD-7's alternative doors (the apartments onto Maple & Co. at −8 610; the park onto the
+    Lakeside Deli at 4 710) if routines.rs or a place-entered count fails for the walk's length
+```
+
+No rung touches bodies' rules or offer policy: that would move bodies-yard's results, which TD-14 holds
+unchanged, and is a design change. If no rung passes — or TD-5's market activity fails for want of the
+offered band's draws (F-D13) — the work stops and returns to the primary session with the counts.
+
+## 19.5 Commit plan
+
+Rules for every commit, as in §18.5:
+- Each commit tracks implementation, validation and review separately; evidence into §19.12 as
+  `E-TD<n>`, deviations into §19.13. A planned commit may become several coherent commits; the mapping
+  is recorded. Each commit leaves the workspace's tests green.
+- Commands from the worktree root, with `$HOME/.cargo/bin/cargo`. Anything longer than about two
+  minutes runs in the background (300-day runs, the x86_64 build, the CLI test binaries, the gate).
+- Every file change with the Edit and Write tools; no `sed -i`, `awk`, heredoc appends or inline
+  `python3 -c`.
+
+### TD-C0 — Design (this section) — docs only
+
+- [x] Implementation: §19 and the header line, by the planning session on `mvp0/s15-12d-plan`, from the
+  audit in §19.2.
+- [x] Validation: both doc checks (E-TD0); the two 300-day baselines re-measured on the base (E-TD0);
+  the planning prototype (E-TD0b), recorded as information, never as acceptance.
+- [x] Review: every §19.2 claim cites a file and line or a measurement; each departure from §11.1,
+  §10.4 and R-12d-1 … R-12d-4 is named with its finding and question; operator-material questions are
+  marked. The planning session's self-review; the freeze is the primary session's.
+
+### TD-C1 — Specs before code, the base captures, the geometry table
+
+**Goal.** The decisions 12d relies on are reviewable before any code (`CLAUDE.md` §2.2), the references
+12d must not move are captured before it can move them, and the slice's geometry is fixed as numbers.
+**Scope.** `docs/DECISIONS.md`: dated notes on `ARC-35` (SD-D9; only as QD-1 is answered), `ARC-37`
+(SD-D10), `ARC-39` note 3 (SD-D5, the towns). `docs/MODULE_SPEC.md` §4.1: `item`'s `name` and the
+catalogue; `body`'s `bodies-doorway` refusal. The handoff, reinitialized. **E-TD-base**, before any code:
+the base `mineworld` binary (copied to `/tmp/s15-12d/base-mineworld`); `validate` of both towns with it;
+both 300-day summaries; bodies-yard's 30-day summary sha; 12b's `long_run` bytes
+(`BODIES_LONG_RUN_SECOND_PROCESS=1`). **E-TD1**, the geometry table of TD-3: every slice collider of the
+café, the street and The Flower Room, its source line, its authored box and its deviation; the
+`put_solid` props sized from their glTF bounds × 0.92.
+**Depends on:** freeze. **Non-goals:** no code, no world file.
+**Failure and edge cases.** A `put_solid` prop whose bounds cannot be read from the asset: read from a
+headless Godot print of the built collider's AABB in the slice, recorded; never guessed. A street with
+more than 64 colliders: stop (SOLIDS_MAX is bodies' rule) — QD-3's answer decides which are merged.
+
+- [ ] Implementation: the three notes, MODULE_SPEC §4.1, the handoff; E-TD-base; E-TD1.
+- [ ] Validation: both doc checks; the decision-id count unchanged; every capture's sha-256 recorded.
+- [ ] Review: the notes say what SD-D5, SD-D9 and SD-D10 decide and nothing more; no defined term
+  redefined (`Item`, `World Pack`); E-TD1's every row ≤ 150 mm or named under QD-3.
+
+### TD-C2 — R-PK-2: item kinds have names, disclosed as a catalogue
+
+**Goal.** TD-13. **Scope.** `systems/item/src/`: `name.rs` (new, `ItemName`), `section.rs` (`name`,
+required), `event.rs` and `component.rs` (the field; schema 2), `system.rs` (`VERSION` 2; `discloses`:
+the `item-catalogue` record on a place), `lib.rs`'s table; `systems/item/tests/item.rs` (the refusals,
+the catalogue). `worlds/market-town/items/*.yaml`: the twenty names. Existing tests that build
+`ItemKindDeclared` or an `item:` section by hand gain a name, each listed (§19.6).
+**Depends on:** TD-C1. **Non-goals:** names for objects or organizations; R-PK-1; any client.
+**Failure and edge cases.** A disclosed record whose type no table holds: audit `presence::observe` and
+the server's encoder first (QD-12); if a disclosed type must be an owned table, the catalogue becomes a
+component on each place written at genesis — a bounded deviation, recorded. Two kinds with one name:
+allowed (names are display, not identity). A name with surrounding whitespace: refused.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-item`; `-p mineworld-inventory -p mineworld-economy -p
+  mineworld-consumption -p mineworld-employment -p mineworld-item-transfer` green; `validate
+  worlds/market-town`; M-TD6 fails by name, reverted.
+- [ ] Review: the catalogue is built at disclosure from `ItemKind`, never stored; `ItemId` order; item
+  still depends on no pack; no market word added outside `systems/` and `worlds/` (check 2).
+
+### TD-C3 — bodies refuses a doorway inside a wall
+
+**Goal.** TD-2's doorway rows, M-TD1. **Scope.** `systems/bodies/src/genesis.rs` (`fits` gains the
+doorway check, refusal `bodies-doorway`), `system.rs` (`VERSION` 3), `Cargo.toml` (`mineworld-movement`,
+with its reason), `Cargo.lock`; `tests/genesis.rs` is left unedited — the new refusals go in a new
+`tests/doorways_genesis.rs` (12c's DO-1 rule); `tests/rapier_pin.rs` (3, "0.36.0"); `tests/isolation.rs`
+(the crate claim gains movement, read for `Passages` only, with its own "names nothing else" guard and a
+mutation, as 12c's `is_declared` guard).
+**Depends on:** TD-C1. **Non-goals:** any change to resolution; a doorway check against objects or
+people (objects keep ≥ 700 mm by content, TD-2; people are entry-placed, SD-B8).
+**Failure and edge cases.** A passage with no local point on one side (a semantic world): nothing to
+check. A place without `body:`: nothing to check. bodies-yard: its four doorway points pass (12b
+authored them free) — its 30-day sha unchanged (TD-14).
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-bodies`; bodies-yard's 30-day sha and `long_run` bytes equal
+  E-TD-base; M-TD1 fails by name, reverted; the movement-names-nothing-else mutation bites.
+- [ ] Review: the check reads `Passages` only; integer arithmetic; the message names both places, the
+  point and the distance; the doorway check runs after the people checks, in `fits`' order.
+
+### TD-C4 — AC-1's check 3 admits Social Café's own items (only if QD-1 is "amend")
+
+**Goal.** TD-4. **Scope.** `tests/acceptance/tests/ac1_composability.rs`: `compare_manifests` (Social
+Café's `items` a subset of Market Town's), `world_delta_failures` (`items/` compared like `places/` for
+Social Café's files; Market Town-only files as today), the unit test's new cases.
+**Depends on:** TD-C1's `ARC-35` note. **Non-goals:** checks 1 and 2; `organizations/`.
+**Failure and edge cases.** Social Café with no `items:` (every world before 12d): the check behaves
+exactly as today — shown by running it on the base's two towns.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-acceptance --test ac1_composability` on this commit (the
+  towns unchanged: passes as before) and again after TD-C5; M-TD2, M-TD3, M-TD4 fail by name.
+- [ ] Review: the claim "Market Town is Social Café plus configuration" is stated in the test's doc and
+  unchanged; no case is weakened; the operator's QD-1 answer is cited in the doc comment.
+
+### TD-C5 — The towns get bodies
+
+**Goal.** TD-2, TD-3 on the real towns; TD-9 for the literal edits. **Scope.** §19.1's world paths: both
+`world.yaml`s (SD-D1, the four objects), every place file (SD-D2, SD-D3, SD-D4), the four object files
+in both towns, both READMEs; the existing tests' literal edits of §19.6.
+**Depends on:** TD-C2, TD-C3, TD-C4.
+**Failure and edge cases.** A genesis refusal of a slice-matched solid (a person within 300 mm): the
+person does not move (SD-D7); the solid is re-read (E-TD1) and, if the slice really places them
+overlapping, that is a QD to the primary session, not an edit. A straight-walk test meeting a solid: its
+route gains a waypoint around it, the claim unchanged (§19.6).
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `validate` both towns (exit 0, the six shapes, the four objects); `ac1_composability`
+  13/13+; every edited test passes; the town places' files byte-identical across the two towns (`cmp`).
+- [ ] Review: each edited test's claim is unchanged (§19.6 row by row); no person file changed; no
+  slice-matched coordinate differs from E-TD1.
+
+### TD-C6 — FU-12a-1: three comments reworded (QD-9)
+
+**Goal.** Close FU-12a-1. **Scope.** `systems/movement/src/action.rs:14, 21` and `worldpack/src/read.rs:354`
+(comments only); `tests/acceptance/tests/seam_vocabulary.rs`: the three `PRE_EXISTING` entries removed.
+**Depends on:** none. **Non-goals:** any code line.
+
+- [ ] Implementation: as scoped. The `MAX_STRIDE` comment no longer says movement "does not see walls"
+  as a gap: walls are bodies' (ARC-39), and movement still decides only the stride and the passage.
+- [ ] Validation: `cargo test -p mineworld-acceptance --test seam_vocabulary`; `-p mineworld-movement`;
+  `git diff` shows comment lines only.
+- [ ] Review: each reworded comment is still true; no new allow-list entry.
+
+### TD-C7 — The towns, run for real
+
+**Goal.** TD-5 … TD-8, TD-13's town half. **Scope.** `tools/cli/tests/bodies/mod.rs` (SD-D12: the place
+reader); `tools/cli/tests/town_bodies.rs` (new): TD-2's refusals on copies, the 300-day run of each town
+with TD-6's counts **checked before** TD-7's scan, TD-8's counterfactual, TD-13's catalogue disclosure.
+**Depends on:** TD-C5. **Activity first:** TD-5 and TD-6 on the first runs; on a failure, §19.4's ladder
+in order, each rung recorded with its counts; no rung passing → stop.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-cli --test town_bodies` (both towns), and run.rs, run_restart.rs,
+  routines.rs, market_town.rs, market_composition.rs, milestone_b.rs, milestone_c.rs; bodies-yard's
+  tests unchanged and green.
+- [ ] Review: the scan reads the save and the place files only; the counts printed per bucket; the
+  counterfactual's geometry is the real town's.
+
+### TD-C8 — Close: cost, cross-architecture, the re-baseline, the gate, the ledger
+
+- [ ] TD-12: the eight 300-day runs, consecutive, nothing else running (E-TD).
+- [ ] TD-11: the x86_64 build and the Rosetta comparisons.
+- [ ] TD-10, TD-14, TD-15, TD-16; the full gate once on the final executable head.
+- [ ] TD-1: the after digests recorded (E-TD, MVP_STATUS, the handoff for overall §7).
+- [ ] Documentation: `docs/MVP_STATUS.md`; both READMEs; §19's checkboxes, §19.12, §19.13; the handoff.
+- [ ] Review: TD-1 … TD-16 each with evidence; deviations named; FU-12c-1 and QD-10 untouched.
+
+**The cost bound is predicted to fail (E-TD0b), so QD-2 [OM] is answered before the freeze.** The
+planning prototype — this design's geometry in a scratch copy of social-cafe, run by the merged binary —
+took 191.4 and 155.2 s against 13.7 and 13.5 s without bodies: **14.2 ×** as TD-12 computes it
+(max(with) ÷ min(without); 11.3 × at best) against QB-11's
+1.5 ×. With the street's props removed (floors, walls and the retaining wall only) it took 46.5 s:
+**3.4 ×**. The commit plan above is the plan *if* QD-2 is answered by a precursor that makes the bound
+reachable; it is not executable as it stands, because TD-12 would stop it at TD-C8 after everything else
+was built.
+
+## 19.6 Test ownership, and the existing tests 12d edits
+
+```text
+STATIC      cargo fmt; clippy -D warnings; ItemName's type (an invalid name cannot be built); the body:
+            section's type (12b, 12c), unchanged
+UNIT        systems/item: ItemName, the section's refusals, the catalogue order; bodies: the doorway
+            check against hand-computed points (doorways_genesis.rs)
+INTEGRATION hand-built worlds through World::dispatch: item's catalogue disclosure (item.rs); bodies'
+            doorway refusals (doorways_genesis.rs)
+STRUCTURAL  ac1_composability with check 3 amended (TD-4); precursor_vocabulary, seam_vocabulary
+            (FU-12a-1), bodies' isolation and rapier_pin (TD-14); no diff in the no-diff paths (TD-16)
+REAL RUN    (Gate 2's role) the real binary on both towns: validate and its refusals (TD-2), the 300-day
+            runs with activity, the scan and the counterfactual (TD-5 … TD-8) — committed in
+            town_bodies.rs and the existing CLI tests; the cost (TD-12), Rosetta (TD-11), the
+            re-baseline (TD-1) — recorded evidence on the final head
+GATE 1      NOT REQUIRED: no model; the paced controller is a rule and is not edited
+CI          S13 13a's CI if merged by then (its layer 2 runs the workspace tests); otherwise the full
+            local gate once on the final executable head
+```
+
+Owned elsewhere and not repeated: 12a–12c own the seam, people, objects and the three actions on
+bodies-yard; 12e owns the 150 mm probe (`--world --geometry`) that executes TD-3; S12 13c owns the
+client's reading of the catalogue.
+
+**Existing tests 12d edits (QD-8)** — each a literal or a route, each claim unchanged; F-D10's audit:
+
+| File | What changes | The claim, unchanged |
+| --- | --- | --- |
+| `tools/cli/tests/commands.rs:34, 40` | the systems line gains `bodies`; "53 genesis fact(s)" → the new count | `validate` prints the world's systems and its genesis |
+| `tools/cli/tests/inspect.rs:36–37`; `social_composition.rs:380, 420` | `inspect`'s systems line gains `, bodies v3` | `inspect` reports the save's composition |
+| `tools/cli/tests/server_command.rs:34, 43–53, 85` | entities 18 → 22; the systems array gains `bodies` | the server reports the world it hosts |
+| `worldpack/tests/social_cafe.rs:67–77, 109, 219` | the systems list, entities 22, genesis count | the pack loads as authored |
+| `worldpack/tests/social_cafe.rs:338–391` | the bare copy also copies `items/` and drops `bodies` with the `body:` sections; its "17 facts" and byte-equal prefix restated for the copy | removing naming and schedule changes nothing else |
+| `worldpack/tests/social_cafe.rs:647, 803, 832, 843` | the doorway (1 610, 200) → (1 610, 400); the street point (500, 3 000) → (500, 2 800); the crossing's fact kinds as recorded | a person walks out of the café through its door |
+| `tools/cli/tests/content_kinds.rs:39–40, 114–136` | the copy appends its two kinds to Social Café's `items:` instead of adding the key; ids and genesis counts restated | tags-only items and an organization change nothing a run decides |
+| `tools/cli/tests/routines.rs:225` | "otto arrived once" → "every `arrived` of otto after genesis is caused by another person's request" | schedule moves nobody |
+| `tools/cli/tests/{ac15_one_alice,restart}.rs`, `worldpack/tests/social_cafe.rs:709–717` | a straight walk that meets a table gains one waypoint around it (only where TD-C5 shows it is needed) | the walker reaches the counter and talks to Alice |
+| `tools/cli/tests/market_composition.rs:38–45` | none expected: the object files carry no `item:`, so the carrier counts stay 20 / 14 / 14 / 2 | the six packs are removable |
+| `clients/protocol/evidence/request-{2d,3d}.json` (`ac13_semantic_parity.rs`) | none expected: the frozen strides pass ≥ 900 mm from every café solid by SD-D2's numbers; if TD-C5 shows otherwise, it is a stop (frozen evidence is not re-recorded by 12d) | AC-13 on the protocol flavours |
+| `systems/bodies/tests/{rapier_pin,isolation}.rs` | (3, "0.36.0"); the crate claim gains movement (QD-5, QD-6) | the pack's version moves with Rapier's; bodies reads two packs' crates for one item each |
+| `tests/acceptance/tests/{ac1_composability,seam_vocabulary}.rs` | TD-C4 (QD-1); TD-C6 (FU-12a-1) | AC-1; the seam names no physics |
+
+## 19.7 Is any of this material?
+
+**Yes — three things, each marked [OM] in §19.8:**
+
+1. **Objects in the towns need `ARC-35` item 4 and AC-1's check 3 amended** (F-D1, QD-1). The operator
+   approved `ARC-35` and accepted AC-1 on this test. No design puts a loose object in either town
+   without it.
+2. **QB-11's ≤ 1.5 × is predicted to fail by an order of magnitude** (E-TD0b, QD-2). DB-10 (b2) makes
+   the bound unchangeable and names options 2 and 3 as the design change; the evidence says that change
+   must come **before** 12d, as its own reviewed PR, not as a stop discovered at TD-C8.
+3. **R-12d-2 moves three of the town's doors far from where the world put them** (QD-7): the apartments
+   7.7 m west, the park 7.3 m east. That is content the operator may want to see, because it lengthens
+   walks in a world whose people already walk slowly (L-12), and the prototype halved entries and talks
+   (E-TD0b).
+
+Bounded, for the primary session: the bodies → movement crate read (QD-5, 12c's precedent), bodies
+`VERSION` 3 (QD-6), R-PK-2 inside 12d (QD-4), the test edits (QD-8), FU-12a-1 inside 12d (QD-9), the
+approximation rules (QD-3), the disclosed-only catalogue type (QD-12).
+
+Not needed: any kernel, contract, persistence, server, cognition, presence or client change.
+
+## 19.8 Questions (QD-1 …)
+
+**[OM]** marks the operator's. The others are the primary session's at freeze. Each has a
+recommendation.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QD-1 [OM]** | **Objects need check 3 amended** (F-D1). (a) Amend `ARC-35` item 4 and check 3 so Social Café may own items, and Market Town carries them unchanged (SD-D9); (b) no objects in the towns — R-12d-3 unmet, AC-14's object interaction only in bodies-yard; (c) objects in Market Town only — also fails check 3 (`body` is not a market section), so it needs a different amendment that makes the towns differ by more than configuration. | **(a).** It keeps the claim word for word — Market Town is Social Café plus configuration — and treats an object as what it is, Social Café's content, exactly as a place's `body:` already is. (c) weakens the claim; (b) fails the operator's requirement. |
+| **QD-2 [OM]** | **QB-11 is predicted to fail by an order of magnitude** (E-TD0b: 14.2 × as TD-12 computes it, 11.3 × at best, against ≤ 1.5 ×; 3.4 × with the street's props removed). DB-10 (b2) forbids re-scoping and names options 2 and 3 as the design change. When? (a) **A precursor PR, "12d-0: bodies' cost"**, designed and frozen before 12d: DB-10 option 2 (a scene of only what a stride can reach — solids, people and objects whose boxes meet the stride's swept box, chosen by an integer test; broad phase without the narrow phase), option 3 (a stride stopped only by the floor's axis-aligned edge or one solid's face, with nobody and nothing else near, answered by integers — the stop and the slide along an axis-aligned face are exact in integers — with Rapier kept for every other case), and a fast path for nudge-free contacts; its own acceptance re-captures bodies-yard's and `long_run`'s bases, because results may move by a millimetre, and it runs before PL-b (S17), which freezes the default's results; (b) build 12d as designed and stop at TD-12 — the evidence says it will stop; (c) author fewer street solids, and have the slice drop the matching colliders (a client change in 12e/16f, against the accepted slice). | **(a), with (c) as a content option the operator may add.** The prototype says no content choice alone gets near 1.5 × (3.4 × with nearly every street prop gone), so the pack must get cheaper. Doing it first means 12d is frozen against a bound it can meet, and PL-b re-checks one set of results, not two. 12d's design is otherwise unchanged by (a). |
+| **QD-3** | **Shapes the slice has and bodies does not**: cylinders (inscribed square for r ≤ 500; crossed boxes above), the diagonal door leaves (their box, exempted by name in 12e's probe), `put_solid` props (glTF bounds × 0.92). | **As SD-D2.** Bodies' solids are axis-aligned boxes by design (SD-B3); a rotated or round solid is a bodies change nobody has asked for. The leaves are a probe exemption, not a content lie. |
+| **QD-4** | **R-PK-2's code inside 12d**, or S12 13c lands the code first with `name` optional (no fact changes) and 12d adds the names? | **Inside 12d**, `name` required. One PR changes Market Town's genesis once; S12 is busy with 13a; a required name is what F-41 asks. Objects stay unnamed (they are not declared kinds); `R-S15-2` (tags in the listing) is the later route for them. |
+| **QD-5** | **bodies reads movement's `Passages`** (a crate dependency, no system dependency) for SD-D5's refusal. Alternatives: a content test in `tools/cli/tests` that checks doorway points (not a load refusal, so §11.1's "refused at load by name" is unmet); a kernel-level read of passages (no). | **The crate read**, bounded as 12c's `is_declared`: named in `ARC-39` note 3, `isolation.rs` asserts bodies names nothing else of movement, with a mutation. Movement is a framework pack (`worldpack` names it), so AC-1's checks are untouched. |
+| **QD-6** | **bodies `VERSION` 2 → 3** for the new refusal. | **Yes.** A save of a world the refusal now rejects must be refused by name, not re-executed into a genesis error. `rapier_pin`'s literal moves with it. |
+| **QD-7 [OM]** | **Which slice doors the apartments and the park use** (R-12d-2). (a) The Flats' house door (−19 700, north) and the unit house door (15 300, south): right buildings, but 7.7 m and 7.3 m from today's points, so longer walks; (b) Maple & Co. (−8 610) and the Lakeside Deli (4 710): 3.4 m and 3.3 m off, but shops' doors used as a home's and a park's. | **(a)**, with (b) as §19.4's ladder rung c2 if routines or entries fail TD-5. The doors should be the buildings the scene says they are; the prototype's halved entries (E-TD0b) are mostly the props' doing (V1 restored most of them), which QD-2 addresses. |
+| **QD-8** | **The existing tests edited** (§19.6), each a literal or a waypoint with its claim stated. | **Accept.** Each follows from content 12d is asked to change; none weakens an assertion. Frozen AC-13 evidence is never re-recorded by 12d. |
+| **QD-9** | **FU-12a-1 inside 12d** (three comments in movement and worldpack, three allow-list entries removed), although 12d otherwise needs no edit there. | **Yes, as TD-C6**, comment-only. 12d makes the `MAX_STRIDE` comment's "does not see walls" stale in the towns, so this is its natural home; the scan's allow-list then shrinks. |
+| **QD-10** | **FU-12c-1** (a stride away from somebody within the controller's offset is swept with them). | **Not in 12d.** It changes 12b's results and long-run base and needs its own design. If QD-2 (a) is taken, it belongs in 12d-0, which re-captures those bases anyway. |
+| **QD-11** | **S12 13a's exact match on (0, 3 000)** (F-D12) breaks when the café's street point moves to (0, 2 800). | **13a reads the café's `there` from the disclosed passage that leads to the café**, rather than an equality on a literal — a 13a change, told to S12 now (§19.10). 12d does not keep a point inside the façade's clearance to suit a client test. |
+| **QD-12** | **The catalogue as a disclosed record of a type no table holds.** | **Audit first** (TD-C2): if `presence::observe` or the server's encoder requires a disclosed type to be an installed component, the catalogue becomes a component on each place written at genesis — bounded, recorded. |
+| **QD-13** | **Activity criteria for the physical actions**: per run, not per bucket (AO-2′ (a)'s lesson); stopped-short and displaced arrivals per bucket; ≤ 288 per seat per bucket; objects reachable at day 300. | **Accept, fixed now.** |
+
+## 19.9 Proposed execution contract for PR 12d
+
+```text
+PROJECT / PR        MVP-0 · Step 11 / PR 12d — the town gets bodies (S15, fourth of five)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §19; evidence §19.12 (E-TD<n>);
+                    deviations §19.13
+RELATED / BINDING   this file's header (QB-5, QB-11, DB-10 (b2)), §§5, 10.4, 11.1, §17 (12b), §18 (12c as
+                    merged, §18.12), §19; overall.md "Parallel build-out" ruling 5, "Framework, not demo"
+                    item 3, "One world, two views", "Physics list" (PL-b re-checks 12d); step-15 §11.3
+                    (R-12d-1 … R-12d-4), §4.2 (the 150 mm probe); step-13 R-PK-2, QS12-3; DECISIONS ARC-23,
+                    ARC-25, ARC-34, ARC-35, ARC-36, ARC-37, ARC-39 and its notes, DEP-13; MODULE_SPEC §4.1;
+                    CLAUDE.md §§2–4
+PRECONDITION        QD-1 and QD-2 answered by the operator. If QD-2 is (a), 12d-0 merged first and this
+                    contract's base and TD-14 re-read against it
+IMPLEMENTATION BASE main after #72, this design's PR and (QD-2 (a)) 12d-0; branch mvp0/pr-12d-town;
+                    worktree /Users/yuema137/mineworld-worktrees/s15-12d (proposed), held by the
+                    implementing session only
+APPROVED SCOPE      §19.1's change set; TD-C1 … TD-C8; SD-D1 … SD-D16 as answered by QD-1 … QD-13
+FROZEN INVARIANTS   No edit under kernel/, contracts/, persistence/src/, server/, cognition/, clients/,
+                    authoring/, sdk/, systems/presence/, tools/cli/src/, worlds/bodies-yard/, the root
+                    Cargo.toml; movement and worldpack sources only FU-12a-1's comment lines; no System Pack
+                    other than bodies (SD-D5 only) and item (SD-D10 only).
+                    bodies' rules unchanged: bodies-yard's 30-day sha and 12b's long_run bytes equal to the
+                    base's (TD-14).
+                    QB-11 ≤ 1.5 × on both towns, never re-scoped (TD-12).
+                    Activity criteria fixed (TD-5, TD-6); the controller unchanged; remedies only §19.4's
+                    content ladder.
+                    No person file changes; both towns' place files and object files byte-identical to each
+                    other (check 3).
+                    The digests are re-baselined once, after TD-2 … TD-15 hold, and recorded, never coded.
+                    Existing tests unchanged except §19.6's rows.
+SEQUENCE            TD-C1 → TD-C2 → TD-C3 → TD-C4 → TD-C5 → TD-C6 → TD-C7 → TD-C8, each committed and pushed
+                    when coherent; E-TD-base and E-TD1 in TD-C1 before any code
+VALIDATION BUDGET   unit/integration/static unrestricted; 300-day town runs (~15 s without bodies, the
+                    with-bodies time is what 12d-0 makes it): at most twelve (TD-12's eight, TD-1's two,
+                    two re-runs); 30-day runs inside committed tests; the ladder at most three content
+                    re-runs; the x86_64 build once and its Rosetta runs; one full gate on the final head;
+                    about two hours in total; real-model NOT REQUIRED
+LIVE DOCUMENTATION  §19 checkboxes; §19.12; §19.13
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 12d at TD-C1
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the freeze message
+  semantic commits, branch push       recommended authorized, as for 12a–12c
+  PR creation / update                recommended authorized, as for 12a–12c
+  scratch builds                      recommended authorized: the base binary and the x86_64 build, in
+                                      /tmp/s15-12d; no branch
+  CI repair                           only if S13 13a's CI is merged; otherwise N/A
+  merge                               operator only, with a merge commit; never inherited, never widened
+POST-MERGE SYNC     the planning session owns the step header, §§1–15, overall and MVP_STATUS's Updated and
+                    S15 lines; the implementing session owns §19 and the evidence rows
+NORMAL STOP         PR 12d READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       an edit outside §19.1's change set; bodies-yard's sha or long_run's bytes moving; TD-12
+                    failing; TD-5 or TD-6 failing on every rung; a slice-matched solid refused at genesis
+                    by an authored person; the frozen AC-13 evidence needing re-recording; cross-architecture
+                    digests differing (TD-11 FAIL, not PARTIAL); an answer to QD-1 or QD-7 other than the
+                    design's
+```
+
+## 19.10 Cross-lane impacts
+
+| Lane | What 12d changes for it | What it must do |
+| --- | --- | --- |
+| **S12 13a** (in implementation, `impl-s12-13a`) | The café's street point (0, 3 000) → (0, 2 800); every place's doorway points; walls and solids on the straight strides its tests walk (`client_2d.rs:165–181`: the wanderer toward Alice ends behind the counter's face, and the counter is now solid); `godot.yaml:58`'s `door_from_left_m 1.61` still right (x unchanged) | Before 12d merges, or in a rebase after: find the café's door by the disclosed passage leading to the café, not by equality on (0, 3 000) (QD-11); route its scripted walks to points that are free in the authored geometry (the counter's customer side, y ≤ 6 270). 13d (bodies in 2D) waits on 12d as planned. |
+| **S12 13c** (R-PK-2's client half) | `item-catalogue` exists on every perceived place of market-town (SD-D10) | Read names from it; R-PK-1 stays 13c's. |
+| **S14 16a** (in implementation, `impl-s14-16a`) | A16-7's door (1 610, 200) ↔ (0, 3 000) moves; T-2 relies on the florist being reported as the street, and with bodies the street's floor ends at the façade, so a body inside the florist is outside it | 16a is not affected while it connects to a pre-12d world; if it rebases onto 12d, T-2's florist walk and the door literal need 12e's binding (the next row). |
+| **S15 12e / S14 16c** | The doorway points sit 400 mm inside instead of 200; the store's floor is The Flower Room; objects exist in the café and on the street | `slice_link.gd:80–86`'s 0.2 m becomes 0.4 m on both sides; `PLACE_KEY[FLORIST_PLACE] = "store"`; the probe `--world --geometry` exempts the two door leaves by name (QD-3); the four objects are drawn from `loose-objects`. Stated in step-15 R-12d-1 / F-S14-9 already; 12d adds the 0.4 m. |
+| **S11** (S11-A in implementation) | Both 300-day digests | I-6 compares against the PR's own base (`step-12-server.md` I-6): E-SA0 is re-recorded if 12d merges first. No code holds a digest. |
+| **S11-A's E-SA0, S16's ledger** | The digests recorded in their ledgers become historical | No edit; their invariants already compare against `main`. |
+| **S13 13b** (AC-8) | `ac8.ref`'s town references | Recorded **after** 12d merges (QS13-12); 13a's `ci_image.py` (`run worlds/social-cafe --days 1`, faults 0) still holds. |
+| **S17 PL-a / PL-b** | PL-b's byte-identity reference becomes 12d's digests (and, with QD-2 (a), 12d-0's bodies-yard and long_run bases) | PL-a may run beside 12d (it touches `installed!`/`worldpack`; 12d touches only `read.rs`'s comment there — a trivial conflict at worst). PL-b after 12d. |
+| **S16 E-a** | merged (#70); its `version`/`license` lines in both `world.yaml`s are kept | none |
+| **Test hygiene** (`mvp0/pr-test-hygiene`) | `town_bodies.rs` and the copies 12d adds | Whichever lands second applies the hygiene rule (every test removes its scratch data) to the other's new tests; 12d's new tests use the hygiene PR's helper if it has merged. |
+| **S10** | The digests | I-7 compares against `main` at merge time. |
+
+## 19.11 Demo coverage ("Framework, not demo", item 3)
+
+With 12d, the default demo world — **market-town**, which has everything social-cafe has (QS14-5) —
+exercises in a headless 300-day run, by the unchanged paced controller:
+
+```text
+exercised   move (walls, solids, doorways, nudging); talk; invite, accept-invitation,
+            decline-invitation, join-group-activity, leave-group-activity (group activities);
+            relationships forming (passive); names (naming); agendas and their following (schedule);
+            give; buy; eat; drink; work and wages (employment, passive); kick; throw (the complete,
+            unaimed form); shove; pushing objects by walking; nudging people by walking
+not yet     throw with an aimed point (offered incomplete; a client sends it, the controller cannot)
+            sleep and needs (MVP §5; QS-10 open)
+            persona (S10)
+            fishing — the third-party pack of Milestone E (S16)
+            the item catalogue's use by a client (13c), and names for loose objects (QD-4)
+```
+
+The coverage test the item asks for ("each interaction occurs in a scripted or headless run") is not
+12d's; TD-6 and the existing market tests are its headless evidence for the interactions above.
+
+## 19.12 Evidence ledger
+
+```text
+E-TD0 TD-C0, 2026-10-08, planning session, on mvp0/s15-12d-plan @ 0f29ce9 (= main 21f96ff + the 12c
+      post-merge docs commit). `cargo build -p mineworld-cli` (dev, opt-level 1) 53.3 s.
+      `cargo run -p mineworld-cli -- run worlds/<town> --headless --seed 7 --days 300`:
+        social-cafe  faults 0, 365 330 facts, sha-256 (every line but `wall`)
+                     ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b; wall 33.7 s (the
+                     machine was loaded by parallel builds; 13.7 and 13.5 s in E-TD0b's quiet runs)
+        market-town  faults 0, 372 755 facts,
+                     365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d; wall 16.4 s
+      Both equal E-RS0 / PO-1: the "before" of TD-1.
+      Doc checks: 176 numbered sections, none duplicated; 51 decision ids, all distinct.
+
+E-TD0b Planning prototype — information for QD-2, not acceptance (ARC-23: no 12d criterion was set or
+      changed by it; QB-11's bound predates it). A scratch copy of social-cafe at
+      /tmp/s15-12d/proto/worlds/social-cafe, exported by `git --work-tree … checkout HEAD`, with §19.3.1's
+      geometry (the street's ≈ 60 props with placeholder sizes where the slice uses put_solid), the moved
+      doorways and the four objects; `validate` → valid, 22 entities, 67 genesis facts. Runs by the
+      merged binary, dev profile, 300 days, seed 7, consecutive, one machine:
+        without bodies (worlds/social-cafe)   13.7 s, 13.5 s; faults 0; 365 330 facts
+        with bodies, full geometry            191.4 s, 155.2 s; faults 0; 525 890 facts
+            moves accepted 243 397, of which stopped-short 172 052 (71 %); shoves 4 738; kicks 2;
+            throws 2; object-moved 29; talks 32 916 (67 752 without); person-entered-place 10 015
+            (20 720 without); every seat still moved and talked in every 30-day bucket (talks per seat
+            per bucket ≥ 99)
+            → 14.2 × as TD-12 computes it (191.4 ÷ 13.5); 11.3 × at best; QB-11 is 1.5 ×
+        variant V1: the street's floor and the retaining wall only (no lamp, bollard, tree, planter,
+            table, pot, board, bench, post or bicycle)
+                                              46.5 s; faults 0; 467 215 facts; moves 194 013,
+            stopped-short 58 371; shoves 11 974   → 3.4 ×
+      Reading: the street's props multiply stopped strides threefold and the cost fourfold; even without
+      them, walls alone put the towns at 3.4 ×. The paced controller wanders ± 1 400 mm with no notion
+      of a wall (F-D14), so most strides near an edge are swept. Logs: /tmp/s15-12d/p-*.txt.
+
+E-TD-base, E-TD1 … : the implementing session's.
+```
+
+## 19.13 Deviations and discoveries during implementation
+
+None yet.
+
+
