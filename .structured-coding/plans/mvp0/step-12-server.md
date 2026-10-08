@@ -1199,7 +1199,9 @@ MODULE_SPEC.md §8.1    the server line, per §11.4, in S11-A/B/D
 
 # 15. PR S11-A — handshake and authentication (full design)
 
-**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session`. Superseded: `PR DESIGN — DRAFT`.
+**Lifecycle:** `READY FOR OPERATOR REVIEW — DO NOT MERGE` (final executable head 76be4d2; the PR head
+adds this ledger only). Implementation context `CLOSED / AWAITING OPERATOR ACTION`. Before that:
+`DESIGN FROZEN (2026-10-08), primary session`; `PR DESIGN — DRAFT`.
 
 **Freeze record.** The primary session's freeze message (2026-10-08) accepts §15 as written — SD-A1 …
 SD-A14, SA-1 … SA-12 with their mutations, A-C1 … A-C8, the `protocol.rs` split first — and all six
@@ -1494,12 +1496,14 @@ recorded here so the disagreement is not silent); `docs/MODULE_SPEC.md` §8.1's 
 `protocol/summary.rs`; `protocol/tests.rs` imports only if a path changes. **Non-goals:** no behaviour,
 signature or public path changes.
 
-- [ ] Implementation: move the items; `pub use` them from `protocol`; module docs say what lives where.
-- [ ] Validation: `cargo test -p mineworld-server` — the same test names and count as at the base, all
+- [x] Implementation: move the items; `pub use` them from `protocol`; module docs say what lives where.
+- [x] Validation: `cargo test -p mineworld-server` — the same test names and count as at the base, all
   passing; `cargo clippy -p mineworld-server --all-targets -- -D warnings`; `git diff -M --stat` shows the
   moves.
-- [ ] Review: `lib.rs`'s re-export list unchanged; `cargo doc`-visible paths unchanged (the crate's public
-  items are listed before and after and compared).
+- [x] Review: `lib.rs`'s re-export list unchanged; `cargo doc`-visible paths unchanged (the crate's public
+  items are listed before and after and compared). *Done as:* `lib.rs` untouched by A-C2 and every
+  moved item re-exported from `protocol` under its old name; the workspace (cli, tests) compiled with no
+  import edit, which is the dependents' own check. No `cargo doc` listing was made (E-SA2).
 
 **Failure case.** Any test change needed means the move was not pure: fix the move.
 
@@ -1510,16 +1514,16 @@ re-exports `Admission`, `InviteToken`, `Nickname`, `OfferedInvite`, `UNAUTHORIZE
 `server/Cargo.toml` (`subtle`, `getrandom`, both `workspace = true`), root `Cargo.toml`
 (`subtle = "2.6"`, `getrandom = "0.3"`), `Cargo.lock`. **Depends on:** A-C1.
 
-- [ ] Implementation: the four types and the constant, with module documentation of what each secret
+- [x] Implementation: the four types and the constant, with module documentation of what each secret
   is, where it may appear (the one join line) and where it may not (I-5).
-- [ ] Validation (unit, in the module): a generated invite is 32 lowercase hexadecimal characters and two
+- [x] Validation (unit, in the module): a generated invite is 32 lowercase hexadecimal characters and two
   generations differ; an operator token of 7 bytes, of 129 bytes, with a space, with a control character,
   with a non-ASCII character is refused and the refusal's text does not contain the token; `admit` accepts
   exactly the token and refuses a one-character change, a trailing space, a prefix, the empty string;
   `format!("{:?}")` of an `InviteToken` and of an `OfferedInvite` does not contain the token; nickname
   rules as SA-5 (trim, 1–32 scalar values with "é" × 32 accepted and × 33 refused, U+0007 refused).
   `cargo clippy -D warnings`. `cargo tree -i subtle` shows `mineworld-server` alone depending on it.
-- [ ] Review: `subtle` and `getrandom` are named nowhere but `admission.rs`; no `Serialize` on a secret;
+- [x] Review: `subtle` and `getrandom` are named nowhere but `admission.rs`; no `Serialize` on a secret;
   no `Display` on a secret but the explicit `reveal()`.
 
 ### A-C4 — Revision 2's frames, `WorldSummary` revision 2, golden frames
@@ -1537,12 +1541,12 @@ states }`. `runtime.rs` `summary()`: reads the declarations; `deferrals_unschedu
 The session is adapted only as far as needed to compile (it sends the new welcome fields with fixed
 values); the handshake logic is A-C5. **Depends on:** A-C2, A-C3.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: unit tests in `protocol/tests.rs` for decode — the literal revision-1 join decodes with
+- [x] Implementation: as scoped.
+- [x] Validation: unit tests in `protocol/tests.rs` for decode — the literal revision-1 join decodes with
   `protocol == 1`; a join without `invite`/`nickname` decodes with empty values; a join with `observer`,
   a submit with an extra field and a `leave` with a field are `malformed_frame`; `move_to`/`give`/`set_state`
   are `unknown_frame`; `leave` decodes. SA-8 with M-SA8. `cargo test -p mineworld-server`; clippy.
-- [ ] Review: no field of a contract type re-declared (welcome still carries `EntityId`, `WorldSummary`
+- [x] Review: no field of a contract type re-declared (welcome still carries `EntityId`, `WorldSummary`
   by the contract's serde); `SeatOccupied` is defined and documented as "from S11-B" and nothing sends it;
   every code in §5.6 present with its `PROTOCOL.md` meaning; `runtime.rs` diff is `summary()` alone.
 
@@ -1558,14 +1562,14 @@ invite (SD-A9): `tools/cli/src/invite.rs`, `--invite` in `main.rs`, clap's `env`
 one; `Client::join` sends the revision-2 join) and the raw join in `server_command.rs`. A-C6 then adds the
 real-binary acceptance tests. **Depends on:** A-C4.
 
-- [ ] Implementation: as scoped. `session.rs`'s handshake is split into one function per check if it
+- [x] Implementation: as scoped. `session.rs`'s handshake is split into one function per check if it
   passes ~50 lines (standards: one conceptual operation per function).
-- [ ] Validation: `cargo test -p mineworld-server` (two_clients, headless, frames, unit); SA-1, SA-2, SA-5,
+- [x] Validation: `cargo test -p mineworld-server` (two_clients, headless, frames, unit); SA-1, SA-2, SA-5,
   SA-6 with mutations M-SA1, M-SA2a, M-SA2b, M-SA5, M-SA6, each recorded and reverted; clippy; the
   suites that start the binary — `ac13_semantic_parity`, `ac15_one_alice`, `milestone_b`, `milestone_c`,
   `restart`, `server_command`, `bodies_yard`, `bodies_yard_restart`, `market_town`, `market_composition`,
   `social_composition` — pass with no edit to their own files (SA-10's first half).
-- [ ] Review: the delay runs in the session task and never on the world thread (I-11); a connection that
+- [x] Review: the delay runs in the session task and never on the world thread (I-11); a connection that
   fails the invite can send nothing further (the socket is closed after `closing`); no `eprintln!`/`println!`
   in the server prints a frame, a nickname or an invite; `session.rs` stays socket work only (§8.2).
 
@@ -1577,11 +1581,12 @@ captures stdout and stderr in memory), `tools/cli/tests/server_command.rs` (new 
 SA-5's output check, SA-7); `tools/cli/src/invite.rs` only if a test finds a defect (recorded).
 **Depends on:** A-C5.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-cli --test server_command`; M-SA3, M-SA4, M-SA7 recorded and
+- [x] Implementation: as scoped.
+- [x] Validation: `cargo test -p mineworld-cli --test server_command`; M-SA3, M-SA4, M-SA7 recorded and
   reverted; `mineworld server --help` shows `MINEWORLD_INVITE` and no value of it; clippy.
-- [ ] Review: the token reaches stdout only through `invite.rs`'s one line; `main.rs` < 500 lines; the
-  join line matches §11.4 character for character.
+- [x] Review: the token reaches stdout only through `invite.rs`'s one line; `main.rs` < 500 lines; the
+  join line matches §11.4 character for character. *Result:* the first and third hold (SA-3's test);
+  `main.rs` was 486 at A-C6 and is 523 after merging E-a's `packs` command (D-SA10).
 
 ### A-C7 — The Godot module, its call sites and the far side (CP-A)
 
@@ -1593,14 +1598,14 @@ done, reconnect and deltas are not yet), `clients/protocol/README.md`, `clients/
 `run.sh evidence` writes it), 16b's checks that join a server, `clients/3d-spike/scripts/slice/slice_link.gd`,
 `slice_main.gd`, `mineworld-slice`. **Depends on:** A-C6.
 
-- [ ] Implementation: as scoped; 16b's names untouched (`git diff` of the module shows only the
+- [x] Implementation: as scoped; 16b's names untouched (`git diff` of the module shows only the
   credential, welcome, `closing` and `leave` hunks).
-- [ ] Validation (background, each run waited on with Monitor): `clients/protocol/run.sh evidence` (SA-9);
+- [x] Validation (background, each run waited on with Monitor): `clients/protocol/run.sh evidence` (SA-9);
   `cargo test -p mineworld-cli --test ac13_semantic_parity` on the regenerated evidence;
   `grep -rn '^\[mineworld\] invite ' clients/protocol/evidence` → nothing; the negative far-side run with a
   wrong invite (transcript kept under `/tmp`, not committed); `./mineworld-slice --world --link`; any 16b
   check that runs headless against a server.
-- [ ] Review: the module never logs the invite (`grep -n invite` over the module shows only the frame
+- [x] Review: the module never logs the invite (`grep -n invite` over the module shows only the frame
   field and the parameter); `took_over`, `session`, `hold_seconds`, `resume` read with their revision-2
   meaning; a `closing` frame is reported before `disconnected` with its reason; no world rule entered a
   client.
@@ -1610,13 +1615,13 @@ done, reconnect and deltas are not yet), `clients/protocol/README.md`, `clients/
 **Goal.** SA-10, SA-11, SA-12 and the review-ready handoff. **Scope.** `server/README.md` (the join line
 and the invite in the short orientation), §15.10 evidence, §15.11 deviations, `handoff.md`.
 
-- [ ] Implementation: the README; the ledger.
-- [ ] Validation: the 300-day seed-7 runs of both towns at the head against E-SA0 (SA-10); SA-11's diff
+- [x] Implementation: the README; the ledger.
+- [x] Validation: the 300-day seed-7 runs of both towns at the head against E-SA0 (SA-10); SA-11's diff
   and `Cargo.lock` audit; `wc -l` for SA-12; **one** full gate on the final executable head, in the
   background: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D
   warnings`, `cargo test --workspace --no-fail-fast`, `check_decision_ids`, `check_doc_headings`; test
   counts and wall time recorded; scratch data under `target/` and `$TMPDIR` checked for leftovers.
-- [ ] Review: SA-1 … SA-12 each hold with recorded evidence; every mutation was planted, seen red and
+- [x] Review: SA-1 … SA-12 each hold with recorded evidence; every mutation was planted, seen red and
   reverted (`git status` clean of it); deviations bounded; the PR body lists the conflict surfaces
   (`PROTOCOL.md` §6.2 with S15 12e, `slice_link.gd` with S14) and marks the PR **READY FOR OPERATOR REVIEW
   — DO NOT MERGE**.
@@ -1808,6 +1813,32 @@ E-SA6 A-C7, Godot 4.7.2.stable.official.ed1daf0bf, one window at a time.
         as an integer. `leave` carries no number. Read side: `hold_seconds` through int().
       - After the closing change: server suites green again (handshake 7 passed, 7.5 s with the
         grace), server_command 7 passed; clippy clean.
+E-SA7 A-C8, the close.
+      - Second rebase: merged origin/main @ 1a1d08e (E-a #70, S17 plan #71) as 76be4d2. Conflicts:
+        tools/cli/src/main.rs (`mod invite;` beside E-a's `mod packs;`, both kept) and
+        docs/DECISIONS.md (ARC-41, DEP-14 kept before E-a's ARC-53, DEP-21). check_decision_ids 55
+        distinct; check_doc_headings 177 sections, none duplicated. No new connect_to_world call site
+        on main (clients/2d not merged yet).
+      - SA-10 digests at 9cdf1b0's executable content (+ README only after): social-cafe
+        ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b (339 lines), market-town
+        365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d (355 lines) — both = E-SA0.
+        (E-a's merge touches packages/ and the CLI's `packs` command, not `run`.)
+      - SA-11: `git diff --name-only origin/main...HEAD` ⊆ §15.5 (plus D-SA1's handoff file and
+        D-SA4's handshake.rs); nothing under kernel/, contracts/, persistence/, worlds/, worldpack/,
+        systems/, cognition/, authoring/, sdk/, tests/acceptance/. Cargo.lock: +subtle package, the
+        server's +getrandom +subtle lines, nothing else of ours. `git grep getrandom|subtle` in *.rs:
+        admission.rs only.
+      - SA-12: protocol.rs 353, session.rs 369, runtime.rs 441, host.rs 498, main.rs 523 (D-SA10).
+      - `mineworld server --help` with MINEWORLD_INVITE set shows "[env: MINEWORLD_INVITE]" and not
+        the value (grep count 0).
+      - FULL GATE on the final executable head 76be4d2, 13:43–13:50 PDT: `cargo fmt --all --check`
+        OK; `cargo clippy --workspace --all-targets --all-features -D warnings` clean;
+        check_decision_ids 55 distinct; check_doc_headings OK; `cargo test --workspace --no-fail-fast`
+        153 test binaries, 682 tests passed, 0 failed, 7 min 4 s wall. Log /tmp/s11a/full-gate.log.
+        Scratch: one leftover $TMPDIR/mineworld-cli-83715-2d-i5-variantfull, not a name any S11-A
+        test uses (ruling 10's bounded PR owns the sweep).
+      - CI: no workflow on main at the final head (S13's 13a unmerged); the local full gate above is
+        the canonical full-suite evidence (§15.7).
 ```
 
 ## 15.11 Deviations and discoveries
@@ -1846,6 +1877,12 @@ D-SA9 (bounded) Launchers bind 127.0.0.1:0 and read the address as well as the i
       line (coordinator's port-collision finding): run.sh no longer pkills by name and stops only its
       own PID; mineworld-slice --world no longer uses 7979. The committed server logs therefore name
       ephemeral ports.
+D-SA10 (bounded, reported) tools/cli/src/main.rs is 523 lines after the second rebase: 466 at the base,
+      +20 for S11-A (the flag, one resolution call, the join line), +37 from E-a's `packs` command
+      merged in. Past the ~500 review trigger, far from the 800 warning; still one responsibility
+      (argument parsing, dispatch, `serve`). Not split here — moving `serve` out would touch E-a's
+      code in an S11-A PR. Recommended for S11-B, which rewrites `serve` for --town anyway: extract
+      `serve`/`persisted` into tools/cli/src/serve.rs.
 D-SA7 (bounded) ClientFrame no longer derives Serialize: nothing serialized a client frame, and an
       OfferedInvite (a possible near miss of the secret) should not be serializable. `Leave` is an
       empty struct variant (`Leave {}`) so that deny_unknown_fields applies to it.

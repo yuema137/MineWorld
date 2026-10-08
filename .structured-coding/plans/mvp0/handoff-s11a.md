@@ -21,7 +21,10 @@ ENDPOINT AUTHORITY  implementation, commits, push, PR: authorized (freeze messag
                     merge: operator only
 VALIDATION BUDGET   §15.9
 STOP CONDITIONS     normal: READY FOR OPERATOR REVIEW — DO NOT MERGE; material: §15.8
-CURRENT CHECKPOINT  A-C1 (specs) committed; next A-C2 (protocol.rs split)
-NEXT ACTIONS        A-C2 → A-C3 → A-C4 → A-C5 → A-C6 → merge origin/main → A-C7 (Godot, one window at a
-                    time) → A-C8
+CURRENT CHECKPOINT  READY FOR OPERATOR REVIEW — DO NOT MERGE. Final executable head 76be4d2 (full gate
+                    green, E-SA7); PR head = that + the ledger commit. Context CLOSED / AWAITING
+                    OPERATOR ACTION.
+NEXT ACTIONS        operator review and merge decision; if main moves again before merge, merge
+                    origin/main, update any new connect_to_world call site (clients/2d), re-run the
+                    affected suites; after merge, record the merge identity in step-12 §15
 ```
