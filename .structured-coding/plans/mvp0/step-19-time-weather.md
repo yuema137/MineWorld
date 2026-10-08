@@ -187,4 +187,88 @@ kernel             unchanged. Contracts unchanged. One additive, defaulted metho
 - No pack uses `chrono`, `time` or `libm` today. Bodies uses Rapier floats with determinism handled under
   DEP-13; positions reach facts as integer millimetres.
 
-<!-- §3 onward follows -->
+---
+
+# 3. Reuse comparisons (`REUSE_POLICY.md`; the operator's standing rule)
+
+All sources below were read on **2026-10-08** by this session's research agents. Nothing was downloaded; sizes
+marked *estimate* are computed from the record formats because the NCEI directory listings could not be read
+(the GHCN-Daily `by_station/` index exceeds 10 MB; the ISD-Lite 2023 index was truncated before `722900`).
+
+## 3.1 Solar position (server side)
+
+| Option | Licence | Fit and accuracy | Maturity (crates.io API) | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| NOAA Solar Calculator equations (Meeus), <https://gml.noaa.gov/grad/solcalc/calcdetails.html> | No licence statement on the page; US-government work and published mathematics, so a re-implementation is safe (inference, recorded as such) | Rise/set "theoretically accurate to within a minute" within ±72° latitude; valid 1901–2099; elevation, azimuth, twilight all derivable | The page says the calculator is no longer actively supported; the equations are stable | ~100 lines of `f64` of our own, plus golden tests | **Fallback.** Well within game accuracy; ours to maintain. |
+| NREL SPA (Reda & Andreas 2004) | Paper public; the **C reference code is not freely redistributable** (pvlib: "Due to license restrictions, the C code must be downloaded separately", <https://pvlib-python.readthedocs.io/en/stable/reference/generated/pvlib.solarposition.spa_c.html>; `midcdmz.nrel.gov` did not resolve) | ±0.0003°, years −2000…6000 — far beyond need | Reference implementation | Vendoring is a licence problem | **Reject the C code.** Clean-room ports of the paper are fine (next row). |
+| `solar-positioning` 0.7.0 (2026-09-26), <https://github.com/klausbrunner/solarpositioning-rs> | MIT | Full SPA plus Grena3; azimuth, zenith, sunrise, sunset, transit, civil/nautical/astronomical twilight, custom horizons; >1000 reference test points | 65k downloads total, 56k recent; repo pushed 2026-10-05; **pre-1.0, README warns the API may change** | One dependency; `default-features = false, features = ["libm"]`; `chrono` optional; numeric `JulianDate` API; event searches need no heap | **Adopt, behind a MineWorld seam.** Best fit. |
+| `sunrise` 3.0.0 (2026-01-01), <https://github.com/nathan-osman/rust-sunrise> | MIT | Rise/set/dawn times only (Wikipedia "Sunrise equation"); **no elevation or azimuth** | 4.68M / 251k | Uses `chrono::NaiveDate` | **Reject:** too narrow — lighting needs elevation and azimuth. |
+| `spa` 0.5.1 (2024-02-11), <https://github.com/frehberg/spa-rs> | Apache-2.0 | Not the NREL SPA despite its name: PSA "sunpos" (<0.5′ from 1999), sunrise "within a few minutes" | 4.54M / 197k; stale | `FloatOps` trait, caller supplies `libm` | **Reject:** unmaintained, misleading name, less accurate. |
+| `sun` 0.3.1 (2024-10-18), <https://github.com/flosse/rust-sun> (moved to Codeberg) | MIT | Port of JS suncalc | 178k / 16k | `no_std` not stated | **Reject:** low accuracy and activity. |
+| `astro` 2.0.0 (2016), <https://github.com/saurvs/astro-rust> | MIT | Broad Meeus | 189k / 44k; abandoned since 2019 | — | **Reject:** dead. |
+
+**Floating point and determinism.** Every option evaluates `f64` transcendental functions. `std`'s
+`sin`/`cos`/`atan2` are not guaranteed bit-identical across platforms; `libm` is a pure-Rust software
+implementation and is. The pack therefore builds the crate with `libm` only, quantizes every output to
+integers before it reaches a fact, a component or a disclosure (millidegrees for angles, whole world seconds
+for event times), and pins golden values for San Diego and for a high-latitude case in a regression test.
+Quantization absorbs ulp-level differences except exactly at a rounding boundary; the golden test is what
+would catch a dependency upgrade that moves a boundary (R-TW-2).
+
+**Recommendation (DEP-TW-a).** Adopt `solar-positioning` (MIT, `libm`, no `chrono`) inside the `calendar`
+pack behind one private function `sun_at(latitude, longitude, instant_utc) -> SunState` and one
+`day_events(...) -> DayEvents`; if the pre-1.0 API churns or the dependency is rejected at review, the
+same two functions are re-implemented from the NOAA equations (~100 lines) without touching anything else.
+
+**Who computes the sun: the server, once.** Options: (a) the server computes and discloses integer sun state;
+(b) the server discloses latitude, longitude and the calendar, and each client computes. (b) puts the same
+astronomy in two GDScript clients plus every controller that wants to know whether it is dark, and lets them
+disagree (a parity defect by construction). **Chosen: (a).** The server is the only place that runs the model;
+clients interpolate between disclosed samples with one shared GDScript helper (§8.3). Sky3D's own astronomy
+(below) is switched off.
+
+## 3.2 Historical weather data
+
+| Source | Licence and terms | Fit for San Diego | Size | Verdict |
+| --- | --- | --- | --- | --- |
+| **NOAA GHCN-Daily**, station `USW00023188` San Diego International Airport (Lindbergh Field), <https://www.ncei.noaa.gov/cdo-web/datasets/GHCND/stations/GHCND:USW00023188/detail> | NOAA open data, **CC0-1.0** ("no restrictions on the use of the data"; <https://registry.opendata.aws/noaa-ghcnh/>, <https://catalog.data.gov/dataset/global-historical-climatology-network-daily-ghcn-daily-version-32>); US federal work. NOAA asks for attribution, no implied endorsement, and that modified data not be presented as original NOAA data. | Period of record 1939-07-01 → 2026-10-03 (updating). Elements (<https://www.ncei.noaa.gov/pub/data/ghcn/daily/readme.txt>): TMAX, TMIN (0.1 °C), PRCP (0.1 mm), AWND (0.1 m/s), weather types WT01 fog, WT02 heavy fog, WT03 thunder, WT08 smoke/haze, WT13 mist, WT14 drizzle, WT16 rain, WT21 ground fog. **Which WT flags are populated for this station, and in which years, is unverified** (checked by the fetch tool, §6.4). | *Estimate:* one wide row per day, 10 years ≈ 3,650 rows ≈ **120–150 KB** uncompressed. | **Adopt as the default daily layer.** |
+| NOAA ISD / ISD-Lite, station `722900-23188`, <https://www.ncei.noaa.gov/pub/data/noaa/isd-lite/isd-lite-format.txt> | Same NOAA terms (CC0 / public domain). | Hourly: temperature, dewpoint, sea-level pressure, wind direction and speed, **sky total coverage code (0–19)**, precipitation 1 h / 6 h. **No visibility or fog field.** **Superseded**: no updates after ~2025-08-24; NCEI's FTP/HTTPS ISD service retired 2026-07-31 (notice 2026-06-23); still served through NODD (<https://www.nesdis.noaa.gov/news/global-historical-climate-network-hourly-integrated-surface-data-global-hourly>, <https://forum.cmascenter.org/t/transition-isd-to-ghcnh/5985>). | *Estimate:* ~0.5 MB/year raw, ~80–120 KB gzipped; 10 years ≈ 5 MB raw, 1 MB gz. | **Reject for new work** in favour of GHCNh. |
+| **NOAA GHCNh** (GHCN-hourly), S3 bucket `noaa-ghcnh-pds`, <https://registry.opendata.aws/noaa-ghcnh/> | CC0. | ISD's successor: one file per station for the whole record, updated daily, **includes visibility and present weather** (fog). | Per-station file size not read; derived hourly sky-cover summary is small (§6.4). | **Adopt as the optional hourly layer** (sky cover, fog) — second PR of the data plan (QTW-6). |
+| Meteostat, <https://dev.meteostat.net/license>, <https://dev.meteostat.net/terms.html> | **Now CC BY 4.0** ("for any purpose, even commercially", credit Meteostat and its providers) — *not* the CC BY-NC the brief expected; the change from older terms is recorded with this date. | Repackages NOAA for this station; adds nothing. | — | **Reject:** a redundant intermediary with an attribution duty NOAA's own data does not carry. |
+| Open-Meteo historical, <https://open-meteo.com/en/licence>, <https://open-meteo.com/en/terms> | Data CC BY 4.0 with visible attribution ("Weather data by Open-Meteo.com"); code AGPLv3; **the free API is non-commercial only** ("You may only use the free API services for non-commercial purposes"). Historical API believed to be ERA5-based (unverified). | Gridded reanalysis; convenient API. | — | **Reject:** the free access route fails DEP-8's commercial-use rule even though the data licence passes. |
+| ERA5 / Copernicus | **CC BY 4.0 since 2025-07-02** (<https://forum.ecmwf.int/t/cc-by-licence-to-replace-licence-to-use-copernicus-products-on-02-july-2025/13464>); attribution "Generated using or contains modified Copernicus Climate Change Service information [year]". | ~31 km grid smooths San Diego's coastal marine layer ("May Gray / June Gloom"); needs a CDS account and NetCDF/GRIB extraction. | — | **Fallback only**, for a world placed where no station exists (QTW-10). |
+
+**San Diego default plan** — §6.4.
+
+## 3.3 Rule-based weather
+
+| Option | Licence | Fit | Verdict |
+| --- | --- | --- | --- |
+| **WGEN** (Richardson 1981, *Water Resources Research* 17:182–190; Richardson & Wright 1984, USDA-ARS ARS-8; <https://modeling.bsyse.wsu.edu/ClimGen/documentation/description.pdf>, <https://int-res.com/articles/cr1998/10/c010p095.pdf>) | Published algorithm; a clean-room implementation has no licence issue | First-order two-state Markov chain for wet/dry days with seasonally varying P(W\|D), P(W\|W); wet-day amounts from a two-parameter gamma; temperature as AR(1) conditioned on wet/dry. Known weaknesses: spell lengths, extremes. | **Adopt the structure, simplified ("WGEN-lite")**: Markov wet/dry with monthly integer probabilities (per-mille), amounts from a per-month integer table of quantiles instead of a gamma sampler (no floats), temperature as monthly mean ± integer-bounded noise with an integer AR(1) coefficient. All in `i64`, driven by counter-based SplitMix64 (the tree's existing generator, §2.7). |
+| LARS-WG, <https://sites.google.com/view/lars-wg/> | Academic, non-commercial only | Stronger spell modelling | **Reject:** licence. |
+| ClimGen (WSU) | Not checked | Weibull amounts | Not pursued. |
+| Plain rule tables (per month: chance of each condition) | Ours | Independent days; no persistence of rain spells; trivially authored | **Kept as the degenerate case of the same file**: a rules file with P(W\|W) = P(W\|D) *is* an independent table. One schema, not two. |
+
+The rules are content: `configure/weather.yaml` carries the monthly table. A tool (`tools/weather-fetch`,
+§6.4) can **fit** the table from the committed station file, so "San Diego rules" and "San Diego record"
+describe the same climate; a player may also author a table by hand (e.g. "always rainy town").
+
+## 3.4 Godot sky, light and weather visuals (Presentation Pack content)
+
+| Option | Licence | Fit | Verdict |
+| --- | --- | --- | --- |
+| **Sky3D** v2.1.0 (2026-05-19), <https://github.com/TokisanGames/Sky3D> | MIT (Cory Petkovsek 2023–25; J. Cuéllar 2021); star-map assets carry their own licences — **already approved in DEP-8's table**, credit required only if the bundled star map ships | Godot 4.3+, Forward+/Mobile/Compatibility; sun, moon with phases, stars, clouds, fog; no rain. Computes the sun itself (`TimeOfDay.gd`: lat/long/UTC offset/date, SIMPLE or REALISTIC), **but can be driven externally**: `SkyDome.gd` exports `sun_azimuth`, `sun_altitude`, `moon_altitude`; turn off `game_time_enabled`/`editor_time_enabled`. ~906 stars. | **Adopt for the 3D client**, driven by disclosed sun state; its clock and astronomy off (otherwise it duplicates the server's authority). Moon: QTW-11. |
+| Built-in `PhysicalSkyMaterial` / `ProceduralSkyMaterial`, <https://docs.godotengine.org/en/stable/classes/class_physicalskymaterial.html> | Godot (MIT) | Sun from the first `DirectionalLight3D`; Rayleigh/Mie, turbidity, `night_sky` texture; no clouds, moon or stars | **Fallback path** and the first PR's renderer: rotate the existing key light from disclosed state; zero dependency. |
+| Time of Day (J. Cuéllar) forks, e.g. `Boyquotes/jc.time-of-day` | MIT | Original repository gone; Sky3D is its maintained continuation | **Reject** in favour of Sky3D. |
+| SunshineClouds2 (Bonkahe), Godot asset library 17397 | MIT, ~609 stars, pushed 2026-09-27, Godot 4.4 | Volumetric clouds only | **Later, optional** (overcast visuals); not in S19's PRs. |
+| godotshaders.com sky/rain shaders | Per-shader (CC0, MIT, GPL-3, Shadertoy ports) | Mixed | Only individually audited CC0/MIT items; none needed now. |
+| Rain: `GPUParticles3D` + `GPUParticlesCollisionHeightField3D`, <https://docs.godotengine.org/en/stable/tutorials/3d/particles/collision.html> | Godot | Camera-following height field, "When Moved"/"Always" update; SDF collision absent in Compatibility; no maintained MIT 3D rain addon found (WeatherSystem2D and a screen-space rain shader are 2D/overlay, MIT) | **Build in-house**: a camera-following box emitter with streak quads and a height-field collider — small commodity work. |
+
+**Shared versus renderer-only.** Shared (one GDScript module, used by both clients): reading the disclosed
+calendar and weather records, the clock estimate between frames, interpolation of the sun track, date and time
+formatting, and the mapping from weather condition to a *presentation intent* (`rain_intensity`, `fog_density`,
+`cloud_cover`, `wetness`, all 0..1). Renderer-only: how the 3D client spends those intents (Sky3D, key light,
+particles, fog volume, wet-surface roughness) and how the 2D client does (a canvas tint and a particle
+overlay). Weather visuals, sky assets and the condition → intent table are Presentation Pack content.
+
+<!-- §4 onward follows -->
