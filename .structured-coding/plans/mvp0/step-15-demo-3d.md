@@ -1852,11 +1852,15 @@ in the ledger. **Commit boundary.** Targeting and intents, with their probe mode
 lexer, the three rules, the allow-lists with reasons, fail-closed roots); `tests/acceptance/src/lib.rs`
 (the crate's list gains `client_rules`). **Non-goals:** S12's files (it adds its allow-list lines).
 
-- [ ] Implementation: as scoped (D-16a-6).
-- [ ] Validation (E16a-5): `cargo test -p mineworld-acceptance --test client_rules`; clippy `-D warnings`
-  on the crate; M-5 … M-10 (M-10 a kept unit test of the lexer).
-- [ ] Review: the allow-list has exactly the entries A16-9 justifies, each with its reason; the scan reads
-  the working tree (so a plant is seen); nothing is skipped silently.
+- [x] Implementation: as scoped (D-16a-6). Bounded deviation: `clients/protocol/checks/` (added by 16b
+  after this design, the shared module's own live checks of named affordances) is excluded beside
+  `demo/`, for the same reason — it exercises the protocol as a test does and builds no client's
+  requests; recorded in the file's documentation.
+- [x] Validation (E16a-5): green (3 passed); clippy `-D warnings` and fmt clean; M-5 … M-10 PASS.
+- [x] Review: three action admissions (A16-9: `slice_link.gd` "move", `intents.gd` "talk", `human.gd`
+  "move"), no rule-name admission, each with a reason; the scan reads the working tree; directories are
+  only skipped by the three named exclusions, symlinks and hidden directories, and a missing root
+  panics.
 
 **Commit boundary.** The test file and the crate's doc list.
 
@@ -2102,6 +2106,26 @@ pre-16a rule would have chosen: 15", a FAIL condition if it did not).
 
 **Port, recorded.** 7979 was free before every connected run (`lsof`), and each server was the launcher's
 own child (killed by PID on exit, never by name).
+
+### E16a-5 — the no-rule scan (`tests/acceptance/tests/client_rules.rs`, on `acbebbf` + the test)
+
+First run on the base (before C4) failed as it should, naming `slice_link.gd`'s `"talk"` literals; after
+C4 it is green: `cargo test -p mineworld-acceptance --test client_rules` → 3 passed (the scan, the
+lexer, the rule-name and pack-path recognisers). It reads 36 scripts (33 of the 3D client, 3 of the
+shared module) and collects the build's action types from `ActionTypeId::from_static` — since 12c merged
+these include `kick`, `throw` and `shove`, so the design's M-5 expectation ("kick not reported") no
+longer applies and both plants are reported.
+
+| Mutation | Plant | Result |
+| --- | --- | --- |
+| M-5 | `const _PLANT_M5 := ["talk", "kick"]` in `targeting.gd` | FAILED: `targeting.gd:20: the action "talk" …`, `targeting.gd:20: the action "kick" …` |
+| M-6 | `const TALK_REACH := 2.0` in `intents.gd` | FAILED: `intents.gd:15: \`TALK_REACH\` names a rule` |
+| M-7 | `load("res://../../worlds/social-cafe/people/alice.yaml")` in `slice_link.gd` | FAILED: `slice_link.gd:25: "res://../../worlds/…" names a pack's file` |
+| M-8 | an admission of `"shove"` in `targeting.gd` | FAILED: `the admission of "shove" admits nothing; remove it` |
+| M-9 | the action-type root pointed at `clients/` | FAILED: `the build's action types were not found …: []` |
+| M-10 | (kept unit test) a `"shove"` in a comment, a `"#"` in a string before `"move"`, an escaped quote, a triple-quoted string over two lines | the lexer test passes: comment not read, the rest read with the right line numbers |
+
+All plants reverted; the scan green again; `git status` shows only the test and the crate's doc list.
 
 ## 19.8 Execution contract (proposed; confirmed at freeze)
 
