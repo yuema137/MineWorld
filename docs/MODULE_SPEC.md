@@ -577,7 +577,9 @@ presentation/<style-id>/
   generation/optional_prompt_guidelines.md
 ```
 
-Not every pack needs every directory. A style that covers more than one dimension is more than
+Not every pack needs every directory. What `assets/asset_bindings.yaml` and `renderer/godot.yaml`
+contain for the 2D reference client is specified in
+[`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) (`DECISIONS.md` `ARC-46`). A style that covers more than one dimension is more than
 one pack, grouped in a family directory, because one manifest cannot describe two dimensions
 whose character proportions differ (`DECISIONS.md` `ARC-3`). The shipped default:
 

@@ -915,11 +915,14 @@ laid out from market-town's street, QS12-1), `ARC-45`, `ARC-46`, `ARC-47`, `DEP-
 top-down". `docs/MODULE_SPEC.md` §6.1: one pointer to `clients/2d/PRESENTATION.md`.
 `clients/2d/PRESENTATION.md` (new spec): the two files' schema, the role vocabulary, runtime loading,
 fallback. `clients/protocol/ADOPTION.md` §6: the reconnect pattern (M-4) as guidance.
-- [ ] Implementation: as scoped.
-- [ ] Validation: `check_decision_ids` (all distinct; ARC-14, 45–47, DEP-16 present once);
-  `check_doc_headings`.
-- [ ] Review: ARC-14 text byte-equal to the branch's apart from the note; no defined term redefined;
-  ADOPTION.md changes in §6 only.
+- [x] Implementation: as scoped. ARC-14 inserted after ARC-13 (numeric adjacency, filling `ARC-16`'s
+  gap); ARC-45, ARC-46, ARC-47, DEP-16 appended. `clients/2d/PRESENTATION.md` specifies both pack
+  files, the role vocabulary, doorway-relative anchoring, interiors, outdoor places, edges, plain
+  drawing. `ADOPTION.md` gains §6.1 and a pointer in §6's table.
+- [x] Validation: `check_decision_ids` → 56 ids, all distinct (51 + 5); `check_doc_headings` → 176
+  sections, none duplicated; each new heading present exactly once.
+- [x] Review: ARC-14 extracted from `af5e236` and from this tree and `diff`ed → identical (the note
+  follows it). No defined term redefined. `ADOPTION.md` touched in §6 only (16b edits §2).
 
 #### C2 — The pack's art, bindings and renderer parameters
 **Scope.** §14.5's files; `assets/asset_bindings.yaml` (four variants); `renderer/godot.yaml`;

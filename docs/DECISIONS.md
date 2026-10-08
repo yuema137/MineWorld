@@ -1064,6 +1064,71 @@ culled from above, reading as pale angular shards floating over the lake. That w
 it is fixed regardless of what happens to the lighting.
 ---
 
+## ARC-14 — The default 2D style is `town`
+
+**Date** 2026-09-27
+
+[`ARC-11`](#arc-11--default-style-is-taste-style-infrastructure-is-architecture) separates the
+default style, which is taste and the operator's to decide, from the style infrastructure, which
+is architecture and proceeds autonomously. This record is that decision taken: **the operator
+compared four complete scenes and chose `town`.** It is no longer a candidate.
+
+**What was compared.** Four art variants of the same walkable square, identical in layout,
+projection, camera, crowd density and scene logic, differing only in which art each role
+resolves to:
+
+| Variant | Art |
+| --- | --- |
+| `town` | generated cast, plus the shared generated set — buildings, props, vegetation, ground |
+| `full` | generated cast, plus shopfronts and planted props generated for the spike |
+| `people` | generated cast over the procedural world |
+| `procedural` | the earlier all-procedural build, as the baseline |
+
+All four were rendered at one commit and at matched framing, including a still framed to
+`presentation/mineworld-default/2D/references/02_cafe_street.png` so the comparison against the
+plates is like for like. The sets are in `clients/2d-spike/screenshots/`, and
+`clients/2d-spike/README.md` gives the launch commands.
+
+**What distinguishes the choice.** `town` carries a warm overall key measurably close to the
+reference plates — whole-frame mean luminance 0.513 against the plates' 0.517, with 4.0% of the
+frame below 0.20 luminance against 4.4%. Beyond the numbers: cherry blossom against the greens,
+a varied roofline of terracotta, slate and tile, and building silhouettes that differ from one
+another rather than repeating one mass. It reads as a place with a history of being built in
+rather than a row of one shop.
+
+**Its known weakness, accepted.** The shared set has four distinct tree sprites, so repetition
+shows at wide zoom where `full`'s nine procedural species do not. The operator chose `town` with
+that visible.
+
+**The other three are kept.** They are not dead alternatives — they are the demonstration that
+the presentation layer is swappable, which is the substance of `ARC-11`'s split. `--variant=`
+remains the interface, and a change that can only be made to `town` is a change made in the
+wrong place.
+
+**This fixes the default, not the style system.** MineWorld must host anime, pixel, voxel,
+low-poly, photorealistic, retro, hand-painted and minimal styles
+([`ARC-11`](#arc-11--default-style-is-taste-style-infrastructure-is-architecture)). A World Pack
+ships its own Presentation Pack and selects its own style without touching this choice and
+without modifying the default pack; nothing here privileges `town` in the loader, the contracts
+or the renderer bindings. If a later change makes `town` hard to replace, that change is the
+defect, not this record.
+
+**Recorded because** "good enough" silently becoming "accepted" is the failure `ARC-11` exists to
+prevent, and the converse also needs a record: once the operator has chosen, an agent should not
+reopen the question as though it were still open.
+
+**Note, 2026-10-08 — how this record reached `main`.** The text above is carried verbatim from
+`vis/2d-generated-assets` @ `af5e236`, the branch it was written on, which is not merged (S12 PR 13a,
+`.structured-coding/plans/mvp0/step-13-client-2d.md` §14). It fills the identifier gap `ARC-16`
+recorded. Two things changed since, both operator decisions of 2026-10-08 (QS12-1, QS12-2): the
+style is now drawn by the connected reference client `clients/2d/`, laid out from a world's disclosed
+passages (market-town's street) rather than the spike's invented square; and the art moved into
+the Presentation Pack `presentation/mineworld-default/2D/`, where the four variants are binding sets
+(`ARC-46`). `clients/2d-spike/` and its screenshots stay on that branch as the visual reference.
+Neither change reopens the choice of `town`.
+
+---
+
 ## ARC-16 — A decision identifier names one decision, and a check enforces it
 
 **Date** 2026-09-27 · **Source** two collisions found in one session · **Relates to**
@@ -3252,3 +3317,151 @@ determinism  cross-platform needs `enhanced-determinism` and IEEE 754-2008 targe
 - **The licence tree is permissive**: every package Rapier brings, with these features, is Apache-2.0,
   MIT, Zlib, Unlicense or Unicode-3.0, each alone or as one of a permissive choice (recorded in step-11
   §17.10).
+
+---
+
+## ARC-45 — A 2D client draws one town from disclosed passages, and remembers it only as presentation
+
+**Date** 2026-10-08 · **Approved by** the primary session at S12 PR 13a's design freeze · **Relates
+to** `ARC-26`, `INV-5`, `INV-13`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §6.1 · **Design**
+`.structured-coding/plans/mvp0/step-13-client-2d.md` §§4.3, 14
+
+**Problem.** Every `Place` has its own frame, and a World Pack authors no geometry beyond positions
+and passages. A 2D client must still draw one continuous town — a street with doors you walk through —
+without inventing a fact the world did not state and without binding its drawing to one world's keys
+or coordinates.
+
+**Decided.**
+
+1. **Frames are glued at disclosed passages, by translation only.** The place the client first
+   stands in is the root of the drawing. A place `P` reached through a passage with `here = h` (in
+   the place it was disclosed from, `Q`) and `there = t` (in `P`) is drawn with its origin at
+   `origin(Q) + h − t`. Never rotated, never scaled: `+x` east and `+y` north everywhere.
+2. **The layout is learned, per world instance, in memory.** A passage is learned when an
+   observation discloses it; a place's tags when the observer stands in it. The cache holds no world
+   truth and nothing is submitted from it except positions the player chose. It is dropped when the
+   `instance` changes. A cache on disk across launches was considered and not chosen: it is state
+   kept for a convenience that the world disclosing a doorway's destination (step-13 R-PK-1) provides
+   properly.
+3. **Appearance comes from world data.** A known place's look is chosen by its tags; a place not yet
+   visited is drawn with a generic façade chosen by a stable hash of its id **string**. A person's
+   look is chosen from tags and the same hash; a label is `display_name`, else the id.
+4. **Dressing anchors only to disclosed doorways or to the extent they span.** Terraces, planters,
+   lamps and trees are placed relative to a doorway, or to the rectangle the disclosed doorways of
+   the root place span. Nothing is positioned by a world key or an absolute coordinate, so the same
+   pack dresses any world.
+5. **Decoration is not enforced.** Where no `place-shape` is disclosed, a place's footprint is drawn
+   from the pack and never used to refuse or shorten a stride. Where one is disclosed (S15), the
+   server's numbers are the only blocking geometry a client draws.
+6. **Only the perceived is drawn.** Nobody outside the observer's place is drawn; other buildings
+   are façades, honestly empty (`INV-13`).
+
+**Limitation accepted.** Until a doorway names where it leads, a neighbouring building looks
+generic until it has been entered once in the running instance.
+
+---
+
+## ARC-46 — A Presentation Pack binds roles to art; a client core names no asset
+
+**Date** 2026-10-08 · **Approved by** the primary session at S12 PR 13a's design freeze · **Relates
+to** `ARC-1`, `ARC-3`, `ARC-11`, `ARC-14`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1 · **Specified in**
+[`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md)
+
+**Problem.** `MODULE_SPEC.md` §6.1 names `assets/asset_bindings.yaml` and `renderer/godot.yaml` and
+specifies neither. The 2D spike resolved art through role maps compiled into its scene script, so its
+four variants (`ARC-14`) were code, and the pack it drew from was its own project directory.
+
+**Decided.**
+
+1. **The core asks for roles, never for files.** `person:<n>`, `player`, `facade:<tag>`,
+   `facade:unknown:<n>`, `ground:<tag>`, `interior:<tag>:<fitting>`, `prop:<name>`. The pack's
+   `assets/asset_bindings.yaml` resolves a role to a file under the pack, per binding set; a role a
+   set does not bind is drawn plainly (shapes and text), so the client runs and is testable with no
+   pack at all (`--presentation=none`).
+2. **`ARC-14`'s variants are binding sets** in one pack: `town` (default), `full`, `people`,
+   `procedural`, selected by `--variant=`.
+3. **`renderer/godot.yaml`** states the renderer's parameters: projection, pixels per metre, the
+   sprite scale rule, the post-process and contour shaders, façade dressing and interior footprints
+   per tag, all anchored as `ARC-45` point 4 requires.
+4. **The pack is data, loaded at runtime from any directory**: images through `Image.load_from_file`
+   and `Image.load_svg_from_buffer`, shaders from their source text. It is never imported into the
+   client's Godot project and it contains no GDScript, so `--presentation=<dir>` takes any pack.
+5. **Both files are written in YAML's JSON-compatible subset** (`DEP-16`): valid YAML for any YAML
+   tool, read by Godot's built-in JSON parser. Their comments live in `PRESENTATION.md`.
+
+**What it does not decide.** Whether an interaction is valid (`ART_DIRECTION.md` §19), or anything
+about a world: a pack may depict any world, and a world may be depicted by any pack.
+
+---
+
+## ARC-47 — No rule in the client, made executable
+
+**Date** 2026-10-08 · **Approved by** the primary session at S12 PR 13a's design freeze · **Relates
+to** [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§4, 7–9; `INV-5`; `INV-9`; `ARC-23` · **Design**
+step-13 §§4.4, 8, 14.2 (AC-W5 … AC-W8)
+
+**Problem.** "The client implements no world rule" has so far been a review convention. A convention
+is checked when someone remembers to; the 2D client is the place it is easiest to break, because a
+renderer that already knows positions is one comparison away from deciding a distance.
+
+**Decided.** The rule is a property tests hold, in two halves.
+
+1. **Structure, scanned** (`scripts/check_client_rules.py`, on `clients/2d/**/*.gd`, comments
+   excluded): only `scripts/intents.gd` submits; no other file names an action type that file
+   composes; a function that submits reads no verdict (`may(`, `"available"`, `unavailable_reason`,
+   `requirement(`); distances are computed only where they are request sizes, routes or drawing
+   (`walker.gd`, `projection.gd`, `town.gd`, `scene/`); only `link.gd` opens a connection. Each rule is
+   shown to report a planted violation by file and line before it is trusted.
+2. **Behaviour, against a server that lies** (a test-only revision-1 stub): an offer marked
+   unavailable is still submitted when the player chooses it; a refused stride ends the walk and the
+   body is drawn where the next observation puts it; an observation that moves the player is followed,
+   never argued with by a correcting `move`. Each is shown to fail under the planted mutation.
+
+The client composes only the requests it knows how to ask for, decides nothing, never refuses to
+submit what the player chose, and never retries a request whose answer it did not see (a retry
+could do a thing twice; the server allocates identity, `INV-6`).
+
+---
+
+## DEP-16 — The 2D reference client: Godot built-ins and the shared protocol module, no addon
+
+**Date** 2026-10-08 · **Status** selected · **Approved by** the primary session at S12 PR 13a's design
+freeze · **Relates to** `DEP-4`, `DEP-9`, `ARC-46`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design**
+step-13 §5 (the comparison), §14.4
+
+**Problem.** The 2D client needs drawing, UI widgets, a connection, routing and pack-file reading.
+Each has mature candidates; some would put MineWorld inside another framework's execution model.
+
+**Choice, per piece** (step-13 §5 holds the full comparison and sources):
+
+```text
+drawing          Node2D + Sprite2D, y-sorted, Camera2D, canvas shaders     adopt (built-in)
+                 TileMapLayer                                              only if ground drawing is too slow
+                 Tiled + YATI, LDtk + importer                             reject: a second source of layout
+widgets          Control nodes + Theme                                     adopt (built-in)
+                 Dialogue Manager, Dialogic 2                              reject: a second source of conversation
+connection       clients/protocol/mineworld over WebSocketPeer             adopt (ours, already shared with 3D)
+                 Godot MultiplayerAPI, Nakama                              reject: another authority model
+                 godot-rust (gdext)                                        reject for now: native per platform
+routing          straight strides through disclosed doorways               adopt
+                 NavigationServer2D from a disclosed place-shape           adopt when a place discloses solids
+pack files       Godot's JSON parser over YAML's JSON-compatible subset    adopt
+                 fimbul-works/godot-yaml, KoBeWi/Godot-YAML (GDExtension,  reject: native per platform
+                 RapidYAML)
+                 YAML.gd (pure GDScript)                                   reject: an unvetted parser for two
+                                                                           small files we author
+test harness     a scripted scene printing PASS/FAIL, driven by Rust tests adopt; GUT/gdUnit4 not needed yet
+```
+
+**Why not ourselves.** Nothing here is built that a built-in provides; the client's own code is
+acquisition, drawing and the protocol module that already exists.
+
+**Isolating interface.** Pack files are read in one script (`clients/2d/scripts/presentation.gd`); a
+YAML reader, if a pack author ever needs full YAML, replaces that one call.
+
+**Limitation accepted.** Pack files cannot carry comments; their documentation is a specification
+file beside the client. Revisit when a pack author needs full YAML.
+
+Sources checked 2026-10-08: [fimbul-works/godot-yaml](https://github.com/fimbul-works/godot-yaml) ·
+[KoBeWi/Godot-YAML](https://github.com/KoBeWi/Godot-YAML) ·
+[YAML.gd](https://godotengine.org/asset-library/asset/4120), plus step-13 §5's list.
