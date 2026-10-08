@@ -13,7 +13,8 @@ written"). Rulings: QTH-1, QTH-2, QTH-4, QTH-5 accepted as recommended; **QTH-3 
 (#70) three raw `CARGO_TARGET_TMPDIR` uses. Material stops: any assertion change, any production-code
 change, any digest change.
 **PR number:** assigned at freeze (ruling 7). Working name: *test-hygiene*.
-**Status: READY FOR OPERATOR REVIEW — DO NOT MERGE** (2026-10-08). The last code head is `5e0eb7b`. The
+**Status: READY FOR OPERATOR REVIEW — DO NOT MERGE** (2026-10-08), GitHub
+[#77](https://github.com/yuema137/MineWorld/pull/77). The last code head is `5e0eb7b`. The
 final gate on it is green (§9 E-TH5). A-1 … A-9 PASS, and M-1 … M-4 each turn their check red. There
 are two bounded deviations, both recorded under C2 and C4: the helper gained `within`, and one scan
 exemption was added. No material stop was hit. This implementation context is closed and awaits the
