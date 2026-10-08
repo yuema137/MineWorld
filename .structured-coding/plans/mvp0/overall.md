@@ -529,8 +529,8 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 
 # 7. Current position
 
-**Last updated 2026-10-07** (S15: 12a merged as `03f1d7c`; next is 12b. Before that: the S9
-closeout, 11f merged as `fea2516`, S9 complete, S15 placed).
+**Last updated 2026-10-07** (S15: 12b merged as `9c617ed`; next is 12c. Before that: 12a merged as
+`03f1d7c`; the S9 closeout, 11f merged as `fea2516`, S9 complete, S15 placed).
 **Restated 2026-09-29.** This section had not been updated since PR 01 — it still read
 "In flight: PR 01" with seventeen PRs merged — because the post-merge obligation to update
 PR → step → overall was skipped after nearly every merge. A plan that cannot answer "where are
@@ -776,21 +776,42 @@ Next, framework (critical path to Milestone B):
             file. DR-4 accepted: three pre-existing words are allow-listed in `seam_vocabulary.rs`.
             Follow-up FU-12a-1: the next PR allowed to edit movement's `action.rs` and worldpack's
             `read.rs` rewords those comments and removes the entries.
-       12b  people: walls and nudging (DEP-13, `systems/bodies` on Rapier) — being detailed
-            (step-11 §17)
-       12c  objects: push, kick, throw; shove
-       12d  the town gets bodies (digests re-baselined here, and only here)
+       12b  people: walls and nudging               PR 12b (GitHub #59), merged 9c617ed
+            The first resolver pack. `systems/bodies` (DEP-13: `rapier3d =0.36.0` with
+            `enhanced-determinism`, pinned in the pack's own manifest, named only in `rapier.rs`) is
+            the build's only registered resolver. A place file's `body:` section gives a place a floor
+            and solids; an arrival into it stops at walls and furniture, nudges the people in the way
+            (≤ 310 mm, ≤ 2 generations, ≤ 4 people), and is verified on integers so no two people
+            stand closer than 595 mm (blocked → halved → stay). Head-on walkers keep right and pass
+            (QB-16). A crossing into a crowded doorway lands at the nearest free point, which a
+            capacity check at load guarantees (QP-7). A guard on the starting state replaces ARC-39's
+            reaction guard (QP-1). `worlds/bodies-yard` is the integration world: 30 days, 30 803
+            requests, no violation; without bodies, 0 mm overlaps; SIGKILL and resume byte-identical;
+            arm64 and x86_64 under Rosetta agree. No place of social-cafe or market-town has a
+            `body:`, so both 300-day digests are unchanged. Reviewed before merge:
+            - gates re-run on the PR head (582/0);
+            - the root `Cargo.toml` has no diff; no kernel, contracts, server, persistence or
+              cognition path; `rapier3d` and `parry3d` used only in `systems/bodies/src/rapier.rs`;
+            - my own mutation, `CLEARANCE` 300 mm, failed
+              `resolve::tests::verify_then_degrade_keeps_the_pair_apart`; reverted;
+            - after the merge, `ac1_composability` 13/13 and the I-2 scan 4/4 on main.
+            PB-14(b) FAILED as frozen (2.06× on bodies-yard; QP-9's opt-level remedy did not move it
+            and was reverted) and was re-scoped by the primary session after the failure (DB-10):
+            (b1) ≤ 25 s on bodies-yard PASSES at 19.3 s; (b2), QB-11's ≤ 1.5× on the towns, is
+            carried to 12d unchanged. Also carried to 12d: F-B7 (the café's doorway point 200 mm from
+            its wall) and FU-12a-1.
+       12c  objects: push, kick, throw; shove — being detailed (step-11 §18)
+       12d  the town gets bodies (digests re-baselined here, and only here; QB-11's bound on the towns)
        12e  the 3D client (Jolt, DEP-14), after the visual slice (now on main as #50)
-       Each PR is detailed to the commit and frozen in turn. 12a merged; 12b–12e not frozen.
+       Each PR is detailed to the commit and frozen in turn. 12a and 12b merged; 12c–12e not frozen.
 
-Next, framework:  S15 12b, people: walls and nudging — detailed to the commit in step-11 §17, then
-                  frozen by the operator and implemented in a fresh session. S15 precedes S14
-                  (step-11 §12).
+Next, framework:  S15 12c, objects: push, kick, throw; shove — detailed to the commit in step-11 §18,
+                  then frozen and implemented in a fresh session. S15 precedes S14 (step-11 §12).
 Next, operator:   AC-1, Milestone B and Milestone C ACCEPTED 2026-10-07 (the operator ran
                   milestone_b, ac1_composability, milestone_c, market_town and a 30-day run on
                   main, all passing). VIS-3D-GODOT-2 accepted after the operator played it. Nothing pending with the operator.
 
-Remaining:  S15 (12b–12e), S10 (reduced), S11 (authentication, admin frames, deltas), S12, S13,
+Remaining:  S15 (12c–12e), S10 (reduced), S11 (authentication, admin frames, deltas), S12, S13,
             S14; Milestones D and E
 
 Visual track (parallel, never blocking the above; ARC-20):
