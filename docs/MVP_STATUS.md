@@ -5,7 +5,7 @@ The point of this file is to stop MVP-0 being declared complete while a real pat
 `✅` means **actually run and inspected**, never inferred from a passing test suite or a
 successful compile. `🚧` means in progress. `❌` means not started.
 
-**Updated:** 2026-10-07 (the operator accepted AC-1 and Milestones B and C; S9 complete: PR 11f merged as `fea2516`; AC-1 demonstrated as ARC-35 measures it, within ARC-33's static-linking boundary, operator acceptance pending; Milestone C demonstrated, awaiting the operator's review; next is S15's PR 12a; earlier rows stand). Subjective questions are queued in
+**Updated:** 2026-10-07 (S15's PR 12a merged as `03f1d7c`: the arrival-resolver seam, reviewed by the operator on the PR head (542 passed, 0 failed) with no resolver installed yet; next is S15's PR 12b, the `bodies` pack. Earlier the same day: the operator accepted AC-1 and Milestones B and C, and S9 completed with PR 11f, merged as `fea2516`; earlier rows stand). Subjective questions are queued in
 [`HUMAN_REVIEW_QUEUE.md`](HUMAN_REVIEW_QUEUE.md); a demo parked there does not block engineering.
 
 ## Capability matrix
@@ -103,6 +103,7 @@ the 2D and 3D clients         vis/2d-generated-assets and vis/3d-human-pipeline,
 | S12 Demo A, 2D client | spike running; the protocol layer it adopts is merged (`clients/protocol/`) |
 | S13 deployment parity and CI | medium scope; the repository now exists, so this is workflows and containers |
 | S14 Demo B, 3D walking world | spike running; the protocol layer it adopts is merged (`clients/protocol/`) |
+| S15 bodies and physical interaction | 🚧 five PRs (`step-11-bodies.md`, step design frozen 2026-10-07). 12a merged (`03f1d7c`): the arrival-resolver seam (`ARC-39`). presence resolves every arrival before recording it; the installed set's `resolution:` list is still empty, so every world records what it did before, byte for byte. Next is 12b, people: walls and nudging, with the `bodies` pack on Rapier (`DEP-13`), being detailed. 12c objects, 12d the town, and 12e the 3D client follow |
 
 ## Evidence banked so far
 
