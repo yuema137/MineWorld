@@ -5,11 +5,15 @@ status, WebSocket for the live connection.
 
 ```text
 mineworld server worlds/social-cafe --listen 127.0.0.1:7878
+[mineworld] invite 3f9c… — join with: 127.0.0.1:7878 seat=alice invite=3f9c…
 
 GET /health   is this process up
-GET /status   what the world is: time, entities, systems, seats, connected clients
+GET /status   what the world is: time, entities, systems and their verbs, seats, connected clients
 GET /ws       the live connection
 ```
+
+Every client joins with the server's invite and a nickname — on loopback too. Give one with
+`--invite TOKEN` or `MINEWORLD_INVITE`, or let the server make one and print it, as above.
 
 The binary is [`tools/cli`](../tools/cli), not this crate, and deliberately: hosting a world means
 loading a World Pack, which means installing System Packs, and a transport that depended on those
@@ -22,7 +26,8 @@ every request is written to it before it is answered, and each frame tells the c
 
 Each connected client gets what **its** observer perceives — not a world dump, and not a filtered
 copy of one. It submits requests; the server allocates their identity and the world decides what
-happens. A client can say two things: which seat it wants, and what it would like to happen.
+happens. A client can say three things: which seat it wants, what it would like to happen, and that
+it is leaving.
 
 Read next:
 

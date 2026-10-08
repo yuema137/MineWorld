@@ -16,8 +16,12 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
   executable head `0733c77`. Design, evidence, deviations DB-1 … DB-10 and the DB-10 ruling in §17;
   the operator's review in §17.12. Carried to 12d: QB-11's ≤ 1.5× bound on the towns (DB-10 (b2)),
   F-B7 and FU-12a-1.
-- **PR 12c** is next: detailed to the commit in §18 by the planning session, on `mvp0/s15-12c-plan`;
-  not frozen. Nothing in §18 authorizes implementation. Its questions are §18.8 (QO-1 … QO-20).
+- **PR 12c — MERGED** as GitHub #67, merge commit `889d217` (2026-10-08), PR head `5ef5bff`, final
+  executable head `145c7f7`. Design, evidence, deviations DO-1 … DO-18 and the AO-2 rulings in §18;
+  the operator's review in §18.12. Carried to 12d: FU-12c-1, with QB-11's ≤ 1.5× bound on the towns
+  (DB-10 (b2)), F-B7 and FU-12a-1 still open.
+- **PR 12d** is next: the town gets bodies, being detailed to the commit by the planning session on
+  `mvp0/s15-12d-plan`; not frozen.
 
 **Freeze record (primary session, 2026-10-07).** The operator decided:
 
@@ -4099,7 +4103,7 @@ ruling.
 
 ---
 
-# 18. PR 12c — objects: walking pushes them; kick, throw and shove (full design; DESIGN FROZEN 2026-10-08)
+# 18. PR 12c — objects: walking pushes them; kick, throw and shove (full design; DESIGN FROZEN 2026-10-08; MERGED #67, `889d217`)
 
 **Lifecycle:** drafted by the planning session on `mvp0/s15-12c-plan` on 2026-10-08, stacked on the 12b
 post-merge docs PR (#60). Frozen by the primary session on 2026-10-08 (§18.0). **READY FOR OPERATOR
@@ -4107,6 +4111,8 @@ REVIEW** (2026-10-08): implemented on `mvp0/pr-12c-objects`, final executable he
 squashed PR's code is that tree); the implementation context is CLOSED / AWAITING OPERATOR ACTION.
 Merge with a merge commit, by the operator only. Post-merge sync: the planning session owns the step
 header, §§1–15, overall and MVP_STATUS's Updated and S15 lines; this session owns §18.
+**MERGED** as GitHub #67, merge commit `889d217` (2026-10-08), with a merge commit as frozen; the review
+and merge record is §18.12, written by the planning session at the operator's instruction.
 
 ## 18.0 Freeze record
 
@@ -5583,4 +5589,55 @@ kicker.** When the line from the object toward the free centre runs ahead into t
 kicker ahead along it and the line within `PERSON_RADIUS + half + GAP` of the kicker's centre), the
 object goes away from the kicker — along kicker → object, east if they coincide. Scenario test and
 mutation M-DO18 in E-PO10.
+
+## 18.12 Operator review and merge (post-merge record, planning session)
+
+**Merged:** GitHub #67, merge commit `889d217` (2026-10-08), with a merge commit as frozen. PR head
+`5ef5bff`; final executable head `145c7f7`, whose tree is the PR's code (E-PO11).
+
+**The operator's review evidence, on the PR head, before the merge:**
+
+- **Gates re-run:** 636 passed, 0 failed, 1 ignored (the three-seed evidence test,
+  `thirty_days_of_bodies_yard_at_seeds_7_8_and_9`). The `harness = false` programs passed:
+  `resolver-yard`, `cafe` and `clock`. This matches E-PO11.
+- **Scope:** no forbidden path is touched. Re-checked by the planning session on the merge itself,
+  `git diff --name-only 889d217^1 889d217`: every path lies under `systems/bodies/`,
+  `worlds/bodies-yard/` or `tools/cli/tests/`, or is `Cargo.lock`, `docs/DECISIONS.md`,
+  `docs/MODULE_SPEC.md`, `docs/MVP_STATUS.md` or this effort's plans. Nothing under `kernel/`,
+  `contracts/`, `persistence/`, `server/`, `cognition/`, `clients/`, `authoring/`, `sdk/`,
+  `worldpack/src/`, `tools/cli/src/`, `tests/acceptance/`, `systems/{presence,movement,item,inventory,
+  installed}`, either town, or the root `Cargo.toml` (§18.9's frozen invariants).
+- **The operator's own mutation:** `KICK_REACH` 800 → 1 000 mm. It failed
+  `a_kick_reaches_800_mm_and_no_farther` (PO-4 a). The mutation was reverted. It is independent of the
+  implementing session's mutations: none of M-PO1 … M-PO12, M-ITEM, M-P3, M-P4 or M-DO18 changed a
+  reach constant.
+- **After the merge, on main:** `ac1_composability` passes 13/13 and `precursor_vocabulary` (the I-2
+  scan) 4/4 (PO-15 holds on the merged tree).
+
+**Recorded as it happened.** AO-2 failed as frozen, and was decided by the primary session after the
+measurements, not before them:
+
+- **AO-2 failed as frozen** on every rung of SD-O18's ladder (c1, p1, p2; E-PO6). The primary session
+  then added two rules that were not in the frozen design: **p3** (an unaimed kick or throw heads for
+  the room's free centre; E-PO7) and **p4** (no launched object comes to rest within 300 mm of a solid
+  unless blocked; E-PO8). AO-2 still failed with each.
+- **DO-18 is a defect fix to p3**, not a new rule: p3 could kick an object into its own kicker.
+- **AO-2 was replaced by AO-2′** after those failures. Its clause (b), "every moved object rests
+  300 mm clear of every solid", was then **replaced by (b′), reachability**, after measuring that (b)
+  failed on every seed (E-PO9). The reason given: (b) was over-specified — it forbade an ordinary push
+  against a pillar, which is legitimate — and its intent was that every object stays interactable,
+  which (b′) states directly. AO-2′ with (b′) held on seeds 7, 8 and 9 (E-PO10).
+
+**Deviations:** DO-1 … DO-12, DO-14 and DO-15 stand as bounded, as recorded in §18.11. DO-13, DO-16 and
+DO-17 are the material stops the AO-2 rulings closed. DO-18 is a defect fix.
+
+**What 12c leaves.**
+
+- **For 12d, carried:** QB-11's ≤ 1.5× bound on both towns' 300-day seed-7 dev runs, with versus
+  without bodies, never re-scoped (DB-10 (b2)); F-B7 (the café's doorway point 200 mm from its wall);
+  FU-12a-1 (the three allow-listed comments); **FU-12c-1** (a stride moving away from somebody within
+  the controller's offset is swept with them, DO-11). 12d is being detailed by the planning session
+  on `mvp0/s15-12d-plan`.
+- **Measured for 12d's risk, not a bound on it:** bodies-yard's 300-day dev run with objects took
+  30.7 s against 9.9 s without bodies, 3.1× (PO-14). The towns' bound stays 1.5× (DB-10 (b2)).
 

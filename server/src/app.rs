@@ -10,6 +10,8 @@
 //! configuration, and there is no second code path anywhere in this crate for a single player.
 
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::Json;
 use axum::Router;
@@ -20,8 +22,9 @@ use axum::routing::{any, get};
 use serde::Serialize;
 use tokio::net::TcpListener;
 
+use crate::admission::Admission;
 use crate::host::WorldHost;
-use crate::protocol::{PROTOCOL_VERSION, WorldSummary};
+use crate::protocol::{PROTOCOL_VERSION, SessionId, WorldSummary};
 use crate::session;
 
 /// What `GET /health` answers: that this process is up, and which protocol it speaks.
@@ -36,30 +39,50 @@ pub struct Health {
     pub protocol: u32,
 }
 
-/// The routes, over one hosted world.
-pub fn router(host: WorldHost) -> Router {
+/// What every route is served over: the world, who may join it, and the next connection's number.
+///
+/// Admission belongs to the transport, never to the world: the world thread is asked for a seat
+/// only after a connection has passed it (`PROTOCOL.md` §4.1).
+#[derive(Clone)]
+struct Hosting {
+    host: WorldHost,
+    admission: Arc<Admission>,
+    sessions: Arc<AtomicU64>,
+}
+
+/// The routes, over one hosted world, admitting the holders of one invite.
+pub fn router(host: WorldHost, admission: Admission) -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/status", get(status))
         .route("/ws", any(upgrade))
-        .with_state(host)
+        .with_state(Hosting {
+            host,
+            admission: Arc::new(admission),
+            sessions: Arc::new(AtomicU64::new(1)),
+        })
 }
 
 /// Serves until the process is stopped.
-pub async fn serve(listener: TcpListener, host: WorldHost) -> std::io::Result<()> {
-    axum::serve(listener, router(host)).await
+pub async fn serve(
+    listener: TcpListener,
+    host: WorldHost,
+    admission: Admission,
+) -> std::io::Result<()> {
+    axum::serve(listener, router(host, admission)).await
 }
 
 /// Serves until `shutdown` completes, and then stops accepting connections.
 pub async fn serve_with_shutdown<S>(
     listener: TcpListener,
     host: WorldHost,
+    admission: Admission,
     shutdown: S,
 ) -> std::io::Result<()>
 where
     S: Future<Output = ()> + Send + 'static,
 {
-    axum::serve(listener, router(host))
+    axum::serve(listener, router(host, admission))
         .with_graceful_shutdown(shutdown)
         .await
 }
@@ -82,13 +105,20 @@ async fn health() -> Json<Health> {
 ///
 /// `503` when the world thread is gone, because a server whose world has stopped is not a server
 /// that should report itself healthy on this route.
-async fn status(State(host): State<WorldHost>) -> Result<Json<WorldSummary>, StatusCode> {
-    host.status()
+async fn status(State(hosting): State<Hosting>) -> Result<Json<WorldSummary>, StatusCode> {
+    hosting
+        .host
+        .status()
         .await
         .map(Json)
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
 }
 
-async fn upgrade(upgrade: WebSocketUpgrade, State(host): State<WorldHost>) -> impl IntoResponse {
-    upgrade.on_upgrade(move |socket| session::run(socket, host))
+async fn upgrade(upgrade: WebSocketUpgrade, State(hosting): State<Hosting>) -> impl IntoResponse {
+    let connection = session::Connection {
+        session: SessionId::new(hosting.sessions.fetch_add(1, Ordering::Relaxed)),
+        host: hosting.host,
+        admission: hosting.admission,
+    };
+    upgrade.on_upgrade(move |socket| session::run(socket, connection))
 }
