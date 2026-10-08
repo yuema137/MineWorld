@@ -1,0 +1,69 @@
+# Runs one CI layer inside the repository's toolchain container (docs/DECISIONS.md DEP-17, ARC-48).
+#
+# The caller has checked the repository out already. This action builds the Dockerfile's `toolchain`
+# stage, restores the Cargo caches, runs `python3 scripts/ci_layer.py <layer>` in the container, and
+# prunes target/ before the cache is saved. It names a layer, never a command: what a layer runs is
+# scripts/ci_layer.py's (step-14 I-S13-9).
+name: Run a CI layer in the toolchain container
+description: Build the toolchain stage, restore caches, run scripts/ci_layer.py, prune the cache.
+inputs:
+  layer:
+    description: A layer of scripts/ci_layer.py (fast, core).
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+    - name: Build the toolchain image
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        target: toolchain
+        load: true
+        tags: mineworld-toolchain:ci
+        cache-from: type=gha,scope=toolchain
+        cache-to: type=gha,mode=max,scope=toolchain
+
+    # One cache per layer: `fast` holds check/clippy metadata, `core` test builds. A PR restores
+    # main's entry through the prefix; an entry is saved only when the layer passed.
+    - name: Restore the Cargo caches
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          .ci/cargo/registry
+          .ci/cargo/git
+          target
+        key: cargo-${{ inputs.layer }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'Dockerfile') }}
+        restore-keys: cargo-${{ inputs.layer }}-
+
+    # The checkout is mounted at its own path, and RUNNER_TEMP read-only beside it: actions/checkout
+    # keeps the fetch credential in a RUNNER_TEMP file included by path from .git/config, and the
+    # history scans fetch old blobs of this partial clone on demand. Running as the runner's own user
+    # leaves no root-owned file for the cache step to trip on.
+    - name: Run layer ${{ inputs.layer }}
+      shell: bash
+      env:
+        LAYER: ${{ inputs.layer }}
+      run: |
+        docker run --rm \
+          --user "$(id -u):$(id -g)" \
+          --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
+          --volume "$RUNNER_TEMP:$RUNNER_TEMP:ro" \
+          --workdir "$GITHUB_WORKSPACE" \
+          --env HOME=/tmp \
+          --env CARGO_HOME="$GITHUB_WORKSPACE/.ci/cargo" \
+          --env CARGO_INCREMENTAL=0 \
+          --env CARGO_PROFILE_DEV_DEBUG=line-tables-only \
+          mineworld-toolchain:ci python3 scripts/ci_layer.py "$LAYER"
+
+    - name: Prune target/ before the cache is saved
+      shell: bash
+      run: |
+        docker run --rm \
+          --user "$(id -u):$(id -g)" \
+          --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
+          --workdir "$GITHUB_WORKSPACE" \
+          --env HOME=/tmp \
+          --env CARGO_HOME="$GITHUB_WORKSPACE/.ci/cargo" \
+          mineworld-toolchain:ci python3 scripts/ci_layer.py --prune-cache
