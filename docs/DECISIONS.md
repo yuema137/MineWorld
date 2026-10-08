@@ -319,6 +319,19 @@ at issue, and it needs its own decision at that point rather than being discover
 - **Vecteezy, Freepik** — require attribution *and* forbid redistributing the file. Not open.
 - **MB-Lab** — licence of generated characters unconfirmed from a primary source. Marked unconfirmed rather than assumed; prefer MPFB2.
 - **CC-BY-SA and GPL assets** — copyleft incompatible with MIT redistribution, whatever their quality.
+- **The Tencent Hunyuan family under Tencent's community licences: code, weights and outputs.**
+  This covers Hunyuan3D, HunyuanWorld 1.0, HunyuanWorld-Mirror, HY-World 2.0 (including the
+  WorldStereo 2.0 weights) and HunyuanImage. Operator decision, 2026-10-08. The licences fail the
+  relicensing test on three counts:
+  - they exclude the EU, the UK and South Korea, including use of Output there (§5(c));
+  - every downstream licence must carry Tencent's use restrictions as enforceable terms, which
+    MIT cannot (§5(a));
+  - outputs may not be used to improve other AI models (§5(b)).
+
+  The operator also chose **no private look-development use**, so that no output or derivative can
+  leak into the repository. Re-evaluate only if Tencent relicenses a component under a permissive
+  licence. Evidence, read at source on 2026-10-08:
+  [`docs/references/HY_WORLD_2_COMPARISON.md`](references/HY_WORLD_2_COMPARISON.md).
 
 **Generated meshes, recorded 2026-10-06 (route E experiment, read at source).** Meshy's paid
 plan passes the relicensing test: *"such customers on a paid Meshy plan own their Customer

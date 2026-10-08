@@ -757,6 +757,72 @@ numbered **S17 — Physics list**.
 - **PRs are frozen one at a time,** as with every other step. 12d is unaffected by S17 and proceeds
   now. PL-b re-checks 12d's re-baselined digests.
 
+## The World Interaction List (operator, 2026-10-08)
+
+The operator clarified that the "physics list" means interactions between **any** virtual objects,
+not only physical law:
+
+> "我们这里说的physics list，并非只是物理规律，而是不同的object之间的相互作用，比如，人物是否可以对话，对话内容是否进入npc的biography和history，物品是否可以交易（改变人物归属）等等，是广义的虚拟object之间的相互作用"
+
+The examples given are whether people may talk, whether what is said enters an NPC's biography and
+history, and whether an item may be traded (its ownership changed).
+
+The design [`step-18-interaction-list.md`](step-18-interaction-list.md) supersedes
+`step-18-physics-list.md`. Its bodies parts are incorporated by reference. It is frozen at step
+level.
+
+**Operator decisions:**
+
+1. **S17 and S18 merge into one step:** **S17 — The World's Interaction List.** S18's number is
+   retired (QIL-1).
+2. **Classes come from tags (QIL-3) and are fixed for MVP-0 (QIL-7).**
+   - Classes are declared as tag selectors.
+   - An entity's class does not change during play.
+   - Promotion and demotion are left for a later dedicated pack.
+3. **Consequence routing (QIL-8).**
+   - The world's objective fact log always records everything. Saves, replay and causality depend
+     on it (INV-11).
+   - The list may narrow a fact's audience, within the owning pack's declared bounds.
+   - The list may switch the biography flag where the owning pack allows it.
+   - An NPC remembers only what it perceived, so memory follows audience.
+4. **A world cannot order minds to forget (QIL-10).** That belongs to cognition.
+5. **Demonstrations in MVP-0, which the operator plays (QIL-17):**
+   - **`worlds/manor` (IL-h)**, configured with no code edit:
+     - nobles and villagers cannot talk;
+     - servants' lines enter no biography;
+     - heirlooms cannot be given or bought.
+   - **`worlds/rink` (IL-i)**: ice and fragile.
+
+**Primary-session rulings:**
+
+- **QIL-2: overruled.** The operator approved the generic `configure:` seam (QPL-2) for any pack's
+  configuration, and S16 E-b's licence policy already relies on it.
+  - The carrier stays `configure:` (ARC-61), with files at `configure/<pack>.yaml`.
+  - The Interaction List is the set of interaction sections under that seam, following ARC-63's
+    schema.
+  - Classes live in `configure/classes.yaml`.
+- **QIL-4 to QIL-6, QIL-9, QIL-11 to QIL-16 and QIL-18 to QIL-20: accepted as recommended.**
+  - Default effect is permit.
+  - Precedence: level, then specificity, then forbid-wins. Conflicts at equal specificity are
+    refused at load.
+  - A forbidden offer is shown as unavailable with `PermissionDenied`.
+  - ARC-29 is amended.
+  - PR order: IL-a, IL-b, then (IL-c, IL-d, IL-i) and (IL-e, IL-f, IL-g, IL-h).
+- **Decision numbers:**
+
+  | Number | Subject |
+  | --- | --- |
+  | ARC-61 | configuration seam |
+  | ARC-62 | extension catalogs |
+  | ARC-63 | the Interaction List schema |
+  | ARC-64 | classes |
+  | ARC-65 | consequence routing |
+  | DEP-28 | our own schema on Cedar's semantics; the Cedar engine declined |
+
+- **IL-a starts next, in parallel with 12d.** S16 E-a has landed. E-b is in implementation and touches
+  `worldpack/src/{format,read}.rs` adjacently, so whichever PR merges second performs the mechanical
+  merge.
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
