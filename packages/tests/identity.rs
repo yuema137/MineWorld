@@ -20,6 +20,38 @@ fn package_records_the_crate_it_is_written_in() {
     );
     assert_eq!(identity.license.as_str(), "MIT");
     assert_eq!(identity.authors, ["Yue Ma"]);
+    assert!(
+        OURS.bundled(),
+        "this crate is compiled from the framework's workspace"
+    );
+}
+
+/// Bundled is where a pack was compiled from (`ARC-54` point 2): under the workspace root, separator
+/// included, so a sibling directory that merely shares the root's name as a prefix is not under it.
+#[test]
+fn bundled_means_compiled_under_the_framework_workspace() {
+    use mineworld_packages::compiled_under;
+    let packages = "/a/repo/packages";
+    assert!(compiled_under("/a/repo/systems/presence", packages));
+    assert!(compiled_under("/a/repo/packages", packages));
+    for elsewhere in [
+        "/a/repo2/systems/x",
+        "/a/rep",
+        "/home/u/.cargo/git/checkouts/acme-fishing-1234/abcd",
+        "",
+    ] {
+        assert!(!compiled_under(elsewhere, packages), "{elsewhere}");
+    }
+    assert!(compiled_under(
+        r"C:\w\repo\systems\x",
+        r"C:\w\repo\packages"
+    ));
+    assert!(
+        !compiled_under("/a/repo/x", "packages"),
+        "no separator, no root"
+    );
+    let third = Package::declared("acme-thing", "0.1.0", "MIT", "A", "", "/elsewhere/acme");
+    assert!(!third.bundled());
 }
 
 /// Cargo checks a code pack's name and version; nothing checks its licence or authors but this. Each
@@ -35,7 +67,14 @@ fn a_code_pack_without_a_usable_licence_or_author_is_refused_by_name() {
         ),
         ("MIT", "", "no author"),
     ] {
-        let package = Package::declared("acme-thing", "0.1.0", license, authors, "");
+        let package = Package::declared(
+            "acme-thing",
+            "0.1.0",
+            license,
+            authors,
+            "",
+            "/elsewhere/acme",
+        );
         let refusal = Identity::of_code_pack(&package, PackType::SystemPack)
             .expect_err(needle)
             .to_string();
@@ -50,6 +89,7 @@ fn a_code_pack_without_a_usable_licence_or_author_is_refused_by_name() {
         "MIT OR Apache-2.0",
         "A:B",
         "https://x",
+        "/elsewhere/acme",
     );
     let identity = Identity::of_code_pack(&two, PackType::SystemPack).expect("an expression");
     assert_eq!(identity.authors, ["A", "B"]);

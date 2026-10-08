@@ -1842,9 +1842,31 @@ applies, how it is widened); an ARC-53 note (the `bundled` field moved from E-c 
 (argument and environment order, empty entries, a missing root), `packages/tests/policy.rs` (OR, AND,
 WITH, `+`, each refusal naming the identifier), a unit test of the prefix function.
 
-- [ ] Implementation · [ ] Validation: clippy, `cargo test -p mineworld-packages -p mineworld-acceptance`;
-  M-B2, M-B3, M-B5 (unit side) · [ ] Review: still a leaf (EA-9's test); no environment read in the
-  library; no path stored in `Package`.
+- [x] Implementation (E-Eb2): as scoped, with the §15.0 ruling applied — `LicencePolicy` is a typed
+  value (`allowed: BTreeSet<&'static str>`, deserializable through a checked `Stated { allowed }` with
+  unknown fields refused, `Default` = the eight identifiers) and `resolve` takes it as an argument.
+  `resolve(world, enabled, &Installed { build, found, searched }, &policy)`: the inputs that are not the
+  world's own grouped in `Installed` (clippy's argument count; and they are one thing — what is
+  installed). `Package::declared` gains a sixth argument, the pack's `CARGO_MANIFEST_DIR`, consumed by
+  the `const fn compiled_under` and not stored; `compiled_under` is exported `#[doc(hidden)]` for its
+  test. E-a's two direct `Package::declared` calls in `packages/tests/identity.rs` gain that argument
+  (this crate's own test; claim unchanged). A Controller Pack in `requires:` is refused as wrong type
+  when found; from the World Pack loader's view the build holds System Packs only, so a controller id
+  is reported absent there (controllers are composed by hosts, S10) — bounded, recorded.
+- [x] Validation (E-Eb2): `cargo clippy --workspace --all-targets -- -D warnings` → 0 (first run:
+  `type_complexity` on the refusal table, answered with a named `Case` type). `cargo test -p
+  mineworld-packages`: identity 7, manifest 4, policy 2, resolve 3, roots 2, structure 2 — 20 passed,
+  0 failed, 0 ignored, 0 filtered. With sdk, installed-systems and acceptance alongside: every result
+  `ok`; ac1_composability 13, precursor 4, seam 3, `resolver-yard` PASS. Mutations, each reverted
+  (`git diff` of `packages/src` holds no `false &&` / `true ||` afterwards):
+  - M-B2 rule 3 disabled (`if false && …`) → `every_failed_rule_is_refused_by_name` FAILS at "third-party
+    not required" (a composition came back), and the rule-order test fails too.
+  - M-B3 the policy allows everything (`true || …`) → both policy tests FAIL.
+  - M-B5 (unit side) `bundled` forced false → `package_records_the_crate_it_is_written_in` FAILS "this
+    crate is compiled from the framework's workspace".
+- [x] Review: still a leaf (`structure.rs` 2 passed); no environment read in the library
+  (`PackRoots::new` takes the variable's value; `split_paths` parses it); `Package` stores a boolean,
+  no path.
 
 ### Eb-C3 — `worldpack`: `requires:`, `read_with`, the composition
 
