@@ -158,10 +158,12 @@ impl Server {
     /// Stops the process with `SIGINT`, as an operator's Ctrl-C does — the graceful stop that prints
     /// the shutdown statistics (step-12 SD-B11) — and returns how it ended.
     pub fn interrupt(&mut self) -> std::process::ExitStatus {
-        let sent = Command::new("kill")
-            .args(["-INT", &self.process.id().to_string()])
+        // The shell's builtin `kill`, not a `kill` binary: a minimal CI image has a shell and may have
+        // no procps (and this crate takes no libc dependency to signal a child).
+        let sent = Command::new("sh")
+            .args(["-c", &format!("kill -INT {}", self.process.id())])
             .status()
-            .expect("kill runs");
+            .expect("sh runs");
         assert!(sent.success(), "SIGINT is delivered");
         self.process.wait().expect("the process is reaped")
     }

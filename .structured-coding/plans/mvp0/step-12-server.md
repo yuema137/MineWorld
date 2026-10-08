@@ -2505,6 +2505,10 @@ D-SB12 (MATERIAL — operator's decision) CP-B4's 50 ms longest-tick bound faile
       world thread's own CPU per tick is ≤ 0.6 ms, so a longer pace removes no measured cost.
       (a) alone leaves a maximum that one scheduler hiccup can fail. CP-B4's ≤ 50 ms maximum stays
       frozen until the operator decides.
+D-SB13 (bounded) CI on main (#63) ran #83's `test` job red at 0c9dc02: hosted_town's
+      `Server::interrupt` spawned a `kill` binary, which the runner image does not have ("kill
+      runs: NotFound"). It now sends SIGINT through `sh -c 'kill -INT <pid>'` (the shell builtin),
+      with no new dependency; re-run locally green (longest tick 3 ms).
 D-SB10 (bounded) The paced lattice's `genesis` is `HostConfig::epoch`, the instant every world this
       command creates begins at, so it is the same after a resume; hosted instants follow the wall
       clock anyway (ARC-42's accepted limitation).
