@@ -3386,12 +3386,21 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C4.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: HB-1 … HB-4 pass. M-PB9 fails HB-1, and is reverted. If HB-1 fails, the ladder of
-  PB-13 is walked, and each rung's trace is recorded (§17.11).
-- [ ] Review: the turned stride is never longer than `d` (an assertion in the code, and a case in the
-  test); the bias changes only the walker's own target; PB-6's layouts still keep their first person
-  outside the band.
+- [x] Implementation: as scoped. `geometry.rs`: `BIAS_BAND` 200 mm, `BIAS_TURN` (4, 1), the
+  ceiling 4 124, `first_met` (SD-B10's three conditions, exact in `i128`, ties to `EntityId`),
+  `head_on`, `turned_right` (asserts the turn is never longer). `resolve.rs`: `Policy { bias, verify
+  }`, the bias after the fast path and before the sweeps; a walker who reaches the turned aim is
+  stopped-short `by` the person met; `Outcome.biased`. `scenarios.rs`: a shared `scenario(n1|n2|n3)`
+  runner over `bounded_stride` (HB-2's checks on every request), n1 (HB-1), n2's east-of-b (HB-3),
+  HB-4 as a second process of the same test binary comparing every fact and the final state byte for
+  byte. PB-8 gains its production-policy case.
+- [x] Validation (E-PB5): with the frozen constants, HB-1 … HB-4 PASS on the first run; the ladder of
+  PB-13 was not needed. M-PB9 (`BIAS_BAND` 0) fails HB-1 by name, reverted. All bodies tests pass.
+- [x] Review: the code asserts the turn never lengthens; a unit test walks every stride a `move` may
+  ask on a 37 mm grid (9 000+), checking never longer, to the right, and between atan(1/5) and
+  atan(1/3). Only `aim` changes; nudges are still straight away from their pusher (I-11's 310 mm
+  unchanged). The chain and pinned layouts keep their first person 300 and 219 mm off the line;
+  n2 and n3 do not (DB-5) and pass under the bias (HB-3).
 
 ### PB-C6 — Install: the build's first resolver
 
@@ -3725,6 +3734,27 @@ E-PB4 PB-C4, 2026-10-07, working tree on b48cecc + PB-C4's paths.
                guard: "bob and carol stand 316 mm apart in yard".
       clippy and fmt clean. Tool-discipline note: PB-8's test module was appended with a `cat >>`
         heredoc rather than the Edit tool; content as intended; not repeated.
+
+E-PB5 PB-C5, 2026-10-07, working tree on c16ab2a + PB-C5's paths. Criteria HB-1 … HB-4 as §17.4
+      PB-13 states them, applied unchanged; constants as frozen (BIAS_BAND 200, BIAS_TURN (4, 1)).
+      `cargo test -p mineworld-bodies --test scenarios -- --nocapture`: 17 passed.
+        HB-1 PASS: n1 — "a ends at (7575, 4675), b at (550, 5285); 1 strides turned by the bias". The
+          turn came at request 7 (b, meeting a head-on: b → (4 336, 5 121), a nudged), then two
+          off-centre strides with one nudge each, then both walk on clear corridors.
+        HB-2 PASS: every one of the 24 requests passed `bounded_stride` (pair ≥ 595 mm, every nudge
+          ≤ 310 mm, ≤ 4 moved, ≤ 2 generations, both inside the floor shrunk by 295 mm, every fact
+          caused by its request and stated by movement).
+        HB-3 PASS: n2 — b moved 211 mm in all, in 2 nudges; a ends at (7 562, 4 698), east of b at
+          (4 038, 5 308); n3 — 2 strides blocked, at most 4 moved, 2 generations.
+        HB-4 PASS: a second process of the same binary printed n1 (26 605 bytes), n2 (15 046), n3
+          (35 268), each equal to this process's bytes (every fact's envelope and the final state).
+      The ladder of PB-13 was not walked: the first rung's criterion passed.
+      PB-8 under the production policy: biased, walker (2 552, 756), 608 mm from the person against
+        the wall, not degraded.
+      M-PB9 (BIAS_BAND 0) → n1 FAILED: "HB-1: after 24 requests a has passed b: a (3710, 5000), b
+        (4320, 5000)" — F-P7 reappears. Reverted; `git grep -n MUTATION -- systems` empty.
+      geometry unit test: the turn over 9 000+ strides on a 37 mm grid — never longer, right, ~14°.
+      clippy (one type alias `Keyed`) and fmt clean.
 ```
 
 ## 17.11 Deviations and discoveries during implementation

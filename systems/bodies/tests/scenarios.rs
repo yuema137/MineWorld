@@ -204,57 +204,175 @@ fn bounded_stride(yard: &mut Yard, walker: &str, (dx, dy): Xy) -> (Outcome, Move
     (outcome, moved)
 }
 
+/// The prototype's scenarios (step-11 §9.6), each a fixed sequence of strides in the café, every
+/// stride checked by [`bounded_stride`]:
+///
+/// ```text
+/// n1  head-on   a (2 000, 5 000) and b (6 320, 5 000) alternate 0.5 m strides toward each other,
+///               12 each — a asks +500 mm in x from where presence says a stands, b −500 mm
+/// n2  standing  a from (2 000, 5 000) walks +x in 12 strides of 0.5 m; b stands at (4 000, 5 100)
+/// n3  crowd     a from (2 000, 5 000) walks +x in 12 strides of 0.5 m into five standing people
+/// ```
+/// A person's key with a point: where they stand, or the step they take.
+type Keyed = (&'static str, Xy);
+
+fn scenario(name: &str) -> (Yard, Vec<(Outcome, Moved)>) {
+    let (people, strides): (Vec<Keyed>, Vec<Keyed>) = match name {
+        "n1" => (
+            vec![("a", (2_000, 5_000)), ("b", (6_320, 5_000))],
+            (0..24)
+                .map(|r| {
+                    if r % 2 == 0 {
+                        ("a", (500, 0))
+                    } else {
+                        ("b", (-500, 0))
+                    }
+                })
+                .collect(),
+        ),
+        "n2" => (
+            vec![("a", (2_000, 5_000)), ("b", (4_000, 5_100))],
+            vec![("a", (500, 0)); 12],
+        ),
+        "n3" => (
+            vec![
+                ("a", (2_000, 5_000)),
+                ("c1", (5_000, 5_000)),
+                ("c2", (5_000, 5_650)),
+                ("c3", (5_000, 4_350)),
+                ("c4", (5_650, 5_000)),
+                ("c5", (5_650, 5_650)),
+            ],
+            vec![("a", (500, 0)); 12],
+        ),
+        other => panic!("no scenario {other}"),
+    };
+    let mut yard = Yard::new(&Plan::room(cafe(), &people));
+    let mut done = Vec::new();
+    for (stride, (walker, step)) in strides.into_iter().enumerate() {
+        let (outcome, moved) = bounded_stride(&mut yard, walker, step);
+        if std::env::var_os(SECOND_PROCESS).is_none() {
+            println!(
+                "{name} stride {stride:2}: {walker} → {:?}; {} moved; {outcome:?}",
+                yard.point(walker),
+                moved.displaced().len()
+            );
+        }
+        done.push((outcome, moved));
+    }
+    (yard, done)
+}
+
 #[test]
 fn n2_a_standing_person_is_nudged_aside_a_little_at_a_time() {
-    let mut yard = Yard::new(&Plan::room(
-        cafe(),
-        &[("a", (2_000, 5_000)), ("b", (4_000, 5_100))],
-    ));
-    let mut nudges = 0;
-    for stride in 0..12 {
-        let (outcome, moved) = bounded_stride(&mut yard, "a", (500, 0));
-        nudges += moved.displaced().len();
-        println!(
-            "n2 stride {stride:2}: a {:?} b {:?} {outcome:?}",
-            yard.point("a"),
-            yard.point("b")
-        );
-    }
-    let b = yard.point("b").expect("placed");
+    let (yard, strides) = scenario("n2");
+    let nudges: usize = strides
+        .iter()
+        .map(|(_, moved)| moved.displaced().len())
+        .sum();
+    let (a, b) = (yard.point("a").expect("a"), yard.point("b").expect("b"));
     let moved = distance2((4_000, 5_100), b).isqrt();
-    println!("n2: b moved {moved} mm in all, in {nudges} nudges");
+    println!("n2: b moved {moved} mm in all, in {nudges} nudges; a ends at {a:?}, b at {b:?}");
     assert!(
         moved >= 100,
         "the instrument sees a nudge: b moved {moved} mm"
     );
+    // HB-3: with the bias on, the walker gets past the person standing in the way.
+    assert!(a.0 > b.0, "a ends east of b: a {a:?}, b {b:?}");
 }
 
 #[test]
 fn n3_a_crowd_is_nudged_in_bounded_chains_and_sometimes_blocks() {
-    let mut yard = Yard::new(&Plan::room(
-        cafe(),
-        &[
-            ("a", (2_000, 5_000)),
-            ("c1", (5_000, 5_000)),
-            ("c2", (5_000, 5_650)),
-            ("c3", (5_000, 4_350)),
-            ("c4", (5_650, 5_000)),
-            ("c5", (5_650, 5_650)),
-        ],
-    ));
-    let (mut blocked, mut most, mut deepest) = (0, 0, 0);
-    for stride in 0..12 {
-        let (outcome, moved) = bounded_stride(&mut yard, "a", (500, 0));
-        if outcome.nudge_failed || outcome.degraded != Degraded::No {
-            blocked += 1;
-        }
-        most = most.max(moved.displaced().len());
-        deepest = deepest.max(outcome.generations);
-        println!("n3 stride {stride:2}: a {:?} {outcome:?}", yard.point("a"));
-    }
+    let (_, strides) = scenario("n3");
+    let blocked = strides
+        .iter()
+        .filter(|(outcome, _)| outcome.nudge_failed || outcome.degraded != Degraded::No)
+        .count();
+    let most = strides
+        .iter()
+        .map(|(_, moved)| moved.displaced().len())
+        .max()
+        .unwrap_or(0);
+    let deepest = strides
+        .iter()
+        .map(|(outcome, _)| outcome.generations)
+        .max()
+        .unwrap_or(0);
     println!("n3: {blocked} strides blocked; at most {most} moved, {deepest} generations");
     assert!(blocked >= 1, "at least one stride is blocked");
     assert!(most >= 1, "the crowd was nudged");
+}
+
+// ---------------------------------------------------------------------------------------------
+// PB-13 — QB-16, the head-on bias (HB-1 … HB-4, fixed before measuring)
+// ---------------------------------------------------------------------------------------------
+
+/// HB-1 and HB-2: two walkers meeting exactly head-on pass each other, within every bound.
+#[test]
+fn n1_walkers_meeting_head_on_pass_each_other() {
+    let (yard, strides) = scenario("n1");
+    let biased = strides.iter().filter(|(outcome, _)| outcome.biased).count();
+    let (a, b) = (yard.point("a").expect("a"), yard.point("b").expect("b"));
+    println!("n1: a ends at {a:?}, b at {b:?}; {biased} strides turned by the bias");
+    assert!(
+        a.0 > b.0,
+        "HB-1: after 24 requests a has passed b: a {a:?}, b {b:?}"
+    );
+}
+
+/// Set in the second process HB-4 starts; that process prints its scenarios' bytes and nothing else.
+const SECOND_PROCESS: &str = "BODIES_HB4_SECOND_PROCESS";
+
+/// A scenario's whole result as bytes: every fact of every stride, as recorded, and where everybody
+/// ends.
+fn bytes_of(name: &str) -> String {
+    let (yard, strides) = scenario(name);
+    let facts: Vec<&mineworld_contracts::EventEnvelope> = strides
+        .iter()
+        .flat_map(|(_, moved)| moved.events.iter())
+        .collect();
+    let state = yard.standing("room");
+    serde_json::to_string(&(facts, state)).expect("encodes")
+}
+
+/// HB-4: n1, n2 and n3 give byte-identical facts and final states in a second process — this test
+/// binary run again, as its own process.
+#[test]
+fn the_head_on_scenarios_are_byte_identical_in_a_second_process() {
+    if std::env::var_os(SECOND_PROCESS).is_some() {
+        for name in ["n1", "n2", "n3"] {
+            println!("HB4 {name} {}", bytes_of(name));
+        }
+        return;
+    }
+    let output = std::process::Command::new(std::env::current_exe().expect("this test binary"))
+        .args([
+            "--exact",
+            "the_head_on_scenarios_are_byte_identical_in_a_second_process",
+            "--nocapture",
+            "--test-threads",
+            "1",
+        ])
+        .env(SECOND_PROCESS, "1")
+        .output()
+        .expect("the second process runs");
+    assert!(output.status.success(), "the second process succeeded");
+    let printed = String::from_utf8(output.stdout).expect("utf-8");
+    for name in ["n1", "n2", "n3"] {
+        let ours = bytes_of(name);
+        let prefix = format!("HB4 {name} ");
+        let theirs = printed
+            .lines()
+            // The harness prints "test … ... " ahead of the first line, on the same line.
+            .find_map(|line| line.find(&prefix).map(|at| &line[at + prefix.len()..]))
+            .unwrap_or_else(|| panic!("the second process printed {name}"));
+        println!(
+            "HB-4 {name}: {} bytes here, {} in the second process",
+            ours.len(),
+            theirs.len()
+        );
+        assert_eq!(ours, theirs, "{name} is byte-identical in two processes");
+    }
 }
 
 #[test]

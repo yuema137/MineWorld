@@ -40,6 +40,18 @@ pub const NUDGED_MAX: usize = 4;
 /// Verify, then degrade: how often the blocked advance is halved before the walker stays.
 pub const HALVINGS: u32 = 8;
 
+/// The head-on bias (step-11 QB-16, SD-B10): a person first met within this distance of the walker's
+/// line counts as head-on.
+pub const BIAS_BAND: Millimetres = Millimetres::new(200);
+
+/// The head-on bias's turn, `(along, right)`: a head-on walker's stride is turned right to
+/// `along · d + right · right(d)`, scaled back to no longer than `d` — atan(1/4) ≈ 14.04°.
+pub const BIAS_TURN: (i64, i64) = (4, 1);
+
+/// `⌈√(along² + right²) × 1000⌉` for [`BIAS_TURN`]: √17 × 1000 = 4 123.1, rounded up so the turned
+/// stride is never longer than the one asked for (`ARC-39` rule (c)).
+const BIAS_NORM_MILLI: i64 = 4_124;
+
 /// A sweep ending within this of its target reached the target exactly (step-11 F-B9).
 pub const SNAP: Millimetres = Millimetres::new(1);
 
@@ -267,6 +279,63 @@ pub(crate) fn no_longer_than(from: Point, p: Point, target: Point) -> Point {
     from.plus(scaled_down(p.minus(from), asked.isqrt(), ceil_root(got)))
 }
 
+/// The first person a stride from `from` by `d` meets: among `others`, those ahead of the walker
+/// (`d·(p − from) > 0`), within two radii and a gap of the walker's line, and no farther along it
+/// than the stride's end plus two radii and a gap; the one least far along, ties to the earlier
+/// index (`EntityId` order). Returns its index and its squared distance from the line, times |d|²
+/// (`cross²`), exactly (step-11 SD-B10).
+pub(crate) fn first_met(from: Point, d: Point, others: &[Point]) -> Option<(usize, i128)> {
+    let wide = |v: i32| i128::from(v);
+    let length2 = wide(d.x) * wide(d.x) + wide(d.y) * wide(d.y);
+    if length2 == 0 {
+        return None;
+    }
+    let spacing = wide(2 * PERSON_RADIUS.value() + GAP.value());
+    others
+        .iter()
+        .enumerate()
+        .filter_map(|(index, p)| {
+            let (px, py) = (wide(p.x) - wide(from.x), wide(p.y) - wide(from.y));
+            let along = wide(d.x) * px + wide(d.y) * py;
+            let cross = wide(d.x) * py - wide(d.y) * px;
+            let beyond = along - length2;
+            let near_enough = beyond <= 0 || beyond * beyond <= spacing * spacing * length2;
+            (along > 0 && cross * cross < spacing * spacing * length2 && near_enough).then_some((
+                index,
+                along,
+                cross * cross,
+            ))
+        })
+        .min_by_key(|(index, along, _)| (*along, *index))
+        .map(|(index, _, cross2)| (index, cross2))
+}
+
+/// Whether a person met at `cross2` (as [`first_met`] returns it) is head-on: within [`BIAS_BAND`]
+/// of a stride `d`'s line.
+pub(crate) fn head_on(d: Point, cross2: i128) -> bool {
+    let band = i128::from(BIAS_BAND.value());
+    let length2 = i128::from(d.x) * i128::from(d.x) + i128::from(d.y) * i128::from(d.y);
+    cross2 < band * band * length2
+}
+
+/// The stride `d` turned right by [`BIAS_TURN`] and scaled back, each component truncated toward
+/// zero: `(along · d + right · right(d)) × 1000 / ⌈√(along² + right²) × 1000⌉`, where `right(d)` =
+/// `(d.y, −d.x)` is the walker's right with z up. Never longer than `d`.
+pub(crate) fn turned_right(d: Point) -> Point {
+    let (along, right) = BIAS_TURN;
+    let component =
+        |v: i32, w: i32| (along * i64::from(v) + right * i64::from(w)) * 1_000 / BIAS_NORM_MILLI;
+    let turned = Point::new(
+        i32::try_from(component(d.x, d.y)).expect("a turned stride fits"),
+        i32::try_from(component(d.y, -d.x)).expect("a turned stride fits"),
+    );
+    assert!(
+        distance2(turned, Point::new(0, 0)) <= distance2(d, Point::new(0, 0)),
+        "a turned stride is never longer than the stride asked for"
+    );
+    turned
+}
+
 /// Whether every point of the segment `a`–`b` is at least `radius` from `p`, exactly, in `i128`.
 pub(crate) fn segment_clear_of(a: Point, b: Point, p: Point, radius: i32) -> bool {
     let wide = |v: i32| i128::from(v);
@@ -305,4 +374,45 @@ pub(crate) fn closest_pair(people: &[Point]) -> Option<(usize, usize, i64)> {
         }
     }
     best
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// SD-B10's turn, over every stride a `move` may ask for on a 37 mm grid: never longer than the
+    /// stride (rule (c)), always to the walker's right, and about 14° off it.
+    #[test]
+    fn the_head_on_turn_is_right_never_longer_and_about_fourteen_degrees() {
+        let mut checked = 0;
+        for x in (-2_000..=2_000).step_by(37) {
+            for y in (-2_000..=2_000).step_by(37) {
+                let d = Point::new(x, y);
+                let length2 = distance2(d, Point::new(0, 0));
+                if length2 == 0 || length2 > 2_000 * 2_000 {
+                    continue;
+                }
+                let turned = turned_right(d);
+                assert!(
+                    distance2(turned, Point::new(0, 0)) <= length2,
+                    "{d:?} → {turned:?}"
+                );
+                let cross =
+                    i64::from(d.x) * i64::from(turned.y) - i64::from(d.y) * i64::from(turned.x);
+                let dot =
+                    i64::from(d.x) * i64::from(turned.x) + i64::from(d.y) * i64::from(turned.y);
+                assert!(cross < 0, "turned right: {d:?} → {turned:?}");
+                // tan θ = −cross / dot, and atan(1/4) ≈ 14.04°: 1/5 < tan θ < 1/3 for any stride
+                // longer than a few millimetres.
+                if length2 >= 100 * 100 {
+                    assert!(
+                        -cross * 5 > dot && -cross * 3 < dot,
+                        "about 14°: {d:?} → {turned:?}"
+                    );
+                }
+                checked += 1;
+            }
+        }
+        assert!(checked > 9_000, "strides checked: {checked}");
+    }
 }

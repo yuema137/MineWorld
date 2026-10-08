@@ -31,7 +31,8 @@ use mineworld_presence::{ArrivalResolver, Arriving, Presence, Resolution};
 use crate::component::PlaceShape;
 use crate::geometry::{
     CHAIN_MAX, CLEARANCE, GAP, HALVINGS, NUDGE_MAX, NUDGED_MAX, PERSON_RADIUS, Point, Room, SNAP,
-    TOLERANCE, at_least, closest_pair, distance2, no_longer_than, scaled_down,
+    TOLERANCE, at_least, closest_pair, distance2, first_met, head_on, no_longer_than, scaled_down,
+    turned_right,
 };
 use crate::rapier::{Against, Scene};
 use crate::system::{BodiesSystem, name, standing_in};
@@ -40,12 +41,17 @@ use crate::system::{BodiesSystem, name, standing_in};
 /// what it is for (step-11 PB-8).
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Policy {
+    /// The head-on bias (step-11 QB-16, SD-B10).
+    pub(crate) bias: bool,
     /// Verify, then degrade (step-11 DC-8, I-12).
     pub(crate) verify: bool,
 }
 
 /// What every world runs.
-pub(crate) const PRODUCTION: Policy = Policy { verify: true };
+pub(crate) const PRODUCTION: Policy = Policy {
+    bias: true,
+    verify: true,
+};
 
 /// The way an arrival into a shaped place was resolved.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,6 +95,8 @@ pub struct Outcome {
     pub nudge_failed: bool,
     /// What verification did.
     pub degraded: Degraded,
+    /// Whether the head-on bias turned the stride.
+    pub biased: bool,
 }
 
 /// A resolution in this pack's terms: points, not locations.
@@ -247,23 +255,30 @@ fn stride(
             reached: target,
             displaced: Vec::new(),
             stopped_by: None,
-            outcome: Outcome {
-                route: Route::Clear,
-                generations: 0,
-                nudged: 0,
-                nudge_failed: false,
-                degraded: Degraded::No,
-            },
+            outcome: Outcome::plain(Route::Clear),
         };
     }
 
+    // The head-on bias (step-11 SD-B10): a walker whose first person met stands within the band of
+    // their line aims to their right instead — "keep right" — so that two walkers meeting head-on
+    // pass rather than pushing each other straight back. Only the walker's own aim turns; nudges stay
+    // straight away from their pusher.
+    let asked = target.minus(start);
+    let met = first_met(start, asked, &other_points)
+        .filter(|(_, cross2)| policy.bias && head_on(asked, *cross2))
+        .map(|(index, _)| others[index].0);
+    let aim = match met {
+        Some(_) => start.plus(turned_right(asked)),
+        None => target,
+    };
+
     let points: Vec<Point> = standing.iter().map(|(_, at)| *at).collect();
     let scene = Scene::build(room, &points);
-    let reach = reach(&scene, me, start, target);
+    let reach = reach(&scene, me, start, aim);
 
     // The scene index of each other person: they keep their place in `standing`.
     let in_scene: Vec<usize> = (0..standing.len()).filter(|index| *index != me).collect();
-    let desired = target.minus(start);
+    let desired = aim.minus(start);
     let fallback = if desired == Point::new(0, 0) {
         Point::new(1, 0)
     } else {
@@ -298,9 +313,13 @@ fn stride(
     } else {
         generations
     };
-    let stopped_by = if result.walker == target
-        || (degraded == Degraded::No && !nudge_failed && reach.walls_stopped)
-    {
+    let stopped_by = if result.walker == target {
+        None
+    } else if result.walker == aim {
+        // The bias turned a walker who then reached the turned aim: what turned them is the person
+        // they met head-on.
+        met
+    } else if degraded == Degraded::No && !nudge_failed && reach.walls_stopped {
         None
     } else {
         reach.touched.map(|index| standing[index].0)
@@ -319,7 +338,22 @@ fn stride(
             nudged: result.displaced.len(),
             nudge_failed,
             degraded,
+            biased: met.is_some(),
         },
+    }
+}
+
+impl Outcome {
+    /// A route that moved nobody and degraded nothing.
+    const fn plain(route: Route) -> Self {
+        Self {
+            route,
+            generations: 0,
+            nudged: 0,
+            nudge_failed: false,
+            degraded: Degraded::No,
+            biased: false,
+        }
     }
 }
 
@@ -514,11 +548,9 @@ fn nudge(
 fn entry(room: &Room, standing: &[(EntityId, Point)], target: Point) -> Answer {
     let points: Vec<Point> = standing.iter().map(|(_, at)| *at).collect();
     let outcome = |route, generations, nudged| Outcome {
-        route,
         generations,
         nudged,
-        nudge_failed: false,
-        degraded: Degraded::No,
+        ..Outcome::plain(route)
     };
     // E1: a person fits at `to`.
     if room.free_at(target, &points) {
@@ -679,7 +711,10 @@ mod tests {
 
     #[test]
     fn without_verification_the_controller_leaves_the_pair_overlapping() {
-        let (walker, other, apart, outcome) = resolved(Policy { verify: false });
+        let (walker, other, apart, outcome) = resolved(Policy {
+            bias: false,
+            verify: false,
+        });
         println!(
             "verification off: walker {walker:?}, against {other:?}, {} mm apart; {outcome:?}",
             apart.isqrt()
@@ -691,9 +726,13 @@ mod tests {
         );
     }
 
+    /// The production verification, with the bias off so that the geometry is the prototype's.
     #[test]
     fn verify_then_degrade_keeps_the_pair_apart() {
-        let (walker, other, apart, outcome) = resolved(PRODUCTION);
+        let (walker, other, apart, outcome) = resolved(Policy {
+            bias: false,
+            ..PRODUCTION
+        });
         println!(
             "verification on: walker {walker:?}, against {other:?}, {} mm apart; {outcome:?}",
             apart.isqrt()
@@ -704,5 +743,16 @@ mod tests {
             apart.isqrt()
         );
         assert_ne!(outcome.degraded, Degraded::No, "verification degraded it");
+    }
+
+    /// And the production policy, bias on, from the same start.
+    #[test]
+    fn the_production_policy_keeps_the_pair_apart_from_the_same_start() {
+        let (walker, other, apart, outcome) = resolved(PRODUCTION);
+        println!(
+            "production: walker {walker:?}, against {other:?}, {} mm apart; {outcome:?}",
+            apart.isqrt()
+        );
+        assert!(apart >= 595 * 595, "{} mm apart", apart.isqrt());
     }
 }
