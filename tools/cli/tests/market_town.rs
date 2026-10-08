@@ -30,10 +30,12 @@ mod market;
 
 use std::io::{BufRead, BufReader};
 use std::os::unix::process::ExitStatusExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Stdio};
 
-use headless::{BINARY, Tables, deterministic, every_seat_active_in_every_bucket, fresh, lines};
+use headless::{
+    BINARY, Scratch, Tables, deterministic, every_seat_active_in_every_bucket, fresh, lines,
+};
 use market::{MARKET_TOWN, Town, market_lives, run_market, state_matches_replay};
 use mineworld_contracts::EventEnvelope;
 
@@ -113,7 +115,7 @@ fn living(town: &Town, printed: &str, save: &Path, days: i64, what: &str) -> Vec
 fn market_town_lives_three_hundred_days_then_the_same_seed_is_the_same_market() {
     let town = Town::read(Path::new(MARKET_TOWN));
     let long = fresh("market-300");
-    let (control, twin, killed, other): (PathBuf, PathBuf, PathBuf, PathBuf) = (
+    let (control, twin, killed, other): (Scratch, Scratch, Scratch, Scratch) = (
         fresh("market-30-control"),
         fresh("market-30-twin"),
         fresh("market-30-killed"),

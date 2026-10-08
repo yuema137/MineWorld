@@ -1,0 +1,12 @@
+[package]
+name = "mineworld-test-support"
+description = "Test support for MineWorld's own tests: a test's scratch directory, removed when the test ends (ENGINEERING_STANDARDS.md §22, DEP-29)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+# Standard library only (DEP-29). Crates name this under [dev-dependencies], never [dependencies].
+[dependencies]

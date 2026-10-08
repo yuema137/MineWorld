@@ -12,7 +12,7 @@
 
 #![allow(dead_code)]
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionTypeId, EntityId, EntityKey, EntityType,
@@ -375,30 +375,19 @@ impl Step {
 // a scratch directory
 // ---------------------------------------------------------------------------------------------
 
-/// A directory of its own under the system temporary directory, emptied when created and removed
-/// when dropped.
+/// A directory of its own, empty when created and removed when the test ends (scratch, DEP-29).
 pub struct Scratch {
-    path: PathBuf,
+    scratch: mineworld_test_support::Scratch,
 }
 
 impl Scratch {
     pub fn new(name: &str) -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "mineworld-persistence-{}-{name}",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_dir_all(&path);
-        std::fs::create_dir_all(&path).expect("a scratch directory");
-        Self { path }
+        Self {
+            scratch: mineworld_test_support::scratch!(empty name),
+        }
     }
 
     pub fn path(&self) -> &Path {
-        &self.path
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.path);
+        self.scratch.path()
     }
 }

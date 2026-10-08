@@ -5,9 +5,10 @@
 //! The fixture is written at runtime and is neutral content (a lantern, a pebble, a chess club), so the
 //! test proves the format's capability without any pack that would use it.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use mineworld_contracts::{EntityKey, EntityType, Tag, WorldTime};
+use mineworld_test_support::Scratch;
 use mineworld_worldpack::{LoadedWorld, WorldPack};
 
 fn key(value: &str) -> EntityKey {
@@ -16,9 +17,8 @@ fn key(value: &str) -> EntityKey {
 
 /// Writes a pack called `id`: two places, two people placed in them, and — when `with_kinds` — two
 /// item kinds (listed out of key order on purpose) and one organization, each a tags-only file.
-fn write_pack(id: &str, with_kinds: bool) -> PathBuf {
-    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(id);
-    let _ = std::fs::remove_dir_all(&root);
+fn write_pack(id: &str, with_kinds: bool) -> Scratch {
+    let root = mineworld_test_support::scratch!(id);
     let write = |relative: &str, contents: &str| {
         let path = root.join(relative);
         std::fs::create_dir_all(path.parent().expect("a parent")).expect("a writable directory");
