@@ -2745,3 +2745,89 @@ words.**
 **What 12a leaves for 12b.** The `resolution:` line in `systems/installed` reads `[]`. 12b adds
 `mineworld_bodies::BodiesSystem,` to it. With that, bodies is the first registered resolver in every
 build. It stays inert in every world that does not install `bodies`.
+
+---
+
+# 17. PR 12b — people: walls and nudging (full design; NOT FROZEN)
+
+**Lifecycle:** drafted by the planning session on `mvp0/s15-12b-plan`, 2026-10-07. It is not frozen
+and authorizes nothing. It becomes binding only when the operator or the primary session records a
+freeze in §17.0. Its open questions are QP-1 … QP-16 (§17.8); the operator-material ones are marked
+**[OM]**.
+
+## 17.0 Freeze record
+
+*Empty until the design is frozen.*
+
+## 17.1 Identity, base, approved scope
+
+```text
+PR            12b — people: walls and nudging (S15, second of five; the first resolver pack)
+base          main after #57 (the 12a post-merge docs PR) merges — 03f1d7c + Markdown only. Re-audit
+              §17.2 if anything under systems/presence, systems/movement, systems/installed, sdk/rust,
+              worldpack, authoring, kernel/src, tests/acceptance or tools/cli/tests moved
+branch        mvp0/pr-12b-people, in its own worktree, held by the implementing session only
+audit         §17.2 (main @ 03f1d7c, 2026-10-07)
+scope         §4.5 (the nudge rule), §6.3 (DC-1 … DC-9), §9.7–§9.8 (R′, verify-then-degrade), §10.1
+              (I-2 … I-5, I-8, I-10 … I-13), §11.1's 12b row, QB-10, QB-16 — as refined by SD-B1 …
+              SD-B16 and answered by QP-1 … QP-16
+depends on    12a merged (03f1d7c). The ArrivalResolver seam is used as merged, unchanged.
+merge         a merge commit, never a squash
+```
+
+**Goal.** People have bodies wherever a world gives a place geometry. A new System Pack, `bodies`, is
+the build's first registered `ArrivalResolver`. Before presence records an arrival into a place that
+has geometry, it does three things:
+- it stops the walker at walls and furniture;
+- it nudges the people in the way aside, within the bounds the operator set (QB-10);
+- it verifies the integer result, and degrades it when a pair would overlap.
+
+So the log holds only arrivals in which no two people overlap and nobody stands in a wall. Rapier
+(`DEP-13`) does the sweeping, behind one module. Nothing of Rapier outlives one resolution. Every
+world without geometry records exactly what it records today, byte for byte. That includes
+social-cafe and market-town, which gain geometry only in 12d.
+
+**Change set.** Every path this PR may touch:
+
+```text
+docs/DECISIONS.md                     DEP-13 (new, after ARC-39); a dated note on ARC-39 (QP-1, the
+                                      bounds QR-11 moved here)
+docs/MODULE_SPEC.md                   §4.1: the `body` section (place files), its row in the section
+                                      table, "six sections" → seven
+docs/MVP_STATUS.md                    one capability row, one evidence row
+Cargo.toml (root)                     [workspace.dependencies] rapier3d, exact pin (QP-3). Contingent,
+                                      only if PB-14(b) fails and the operator approved QP-9:
+                                      [profile.dev.package.rapier3d] and .parry3d opt-level
+Cargo.lock                            rapier3d =0.36.0 and its transitive packages; mineworld-bodies;
+                                      no existing package changes version
+systems/bodies/**                     new: the pack (crate mineworld-bodies, SystemId "bodies")
+systems/installed/Cargo.toml          mineworld-bodies = { path = "../bodies" }
+systems/installed/src/lib.rs          Bodies => mineworld_bodies::BodiesSystem, and the resolution line
+                                      [mineworld_bodies::BodiesSystem,]; one doc sentence
+worlds/bodies-yard/**                 new: the integration world (SD-B13, QP-4)
+worldpack/tests/registration.rs       the installed set's list is now [bodies] (QP-2)
+tests/acceptance/tests/seam_vocabulary.rs   a self-checking admission for the installed set's two
+                                      lines that name the pack (QP-2)
+tools/cli/tests/bodies_yard.rs        new: the 30-day real run, its scan and its counterfactual
+tools/cli/tests/bodies_yard_restart.rs     new: two processes, SIGKILL and resume
+tools/cli/tests/bodies/mod.rs         new: the scan, shared by the two files above
+.structured-coding/plans/mvp0/{step-11-bodies,handoff}.md   this ledger, the handoff
+```
+
+Paths with no diff:
+- `kernel/`, `contracts/`, `persistence/`, `server/`, `cognition/`, `clients/`, `authoring/`,
+  `sdk/`;
+- `systems/presence/`, `systems/movement/`, and every other existing System Pack;
+- `worldpack/src/`, `tools/cli/src/`;
+- `worlds/social-cafe/`, `worlds/market-town/`.
+
+No existing test is edited except QP-2's two files.
+
+**Non-goals.**
+- Loose objects, `kick`, `throw` and `shove` belong to 12c. The `Lying` component, `object-moved` and
+  `person-shoved` come with them, and so does any `BodyShape` on an Item.
+- Geometry for social-cafe and market-town, and their digest re-baselines, belong to 12d.
+- Godot, Jolt (`DEP-14`), colliders and reconciliation belong to 12e.
+- Per-person body shapes are deferred: every person is the default capsule (QP-6).
+- No line of access (QB-9), no speed limit (QB-14), and no runtime disable of a resolver (QB-17).
+- No change to presence, movement, the seam or the kernel.
