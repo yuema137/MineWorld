@@ -1404,8 +1404,18 @@ identity to E-b, this commit moves whole.
 
 ### Ea-C7 — Close: status, full gate, ledger, PR
 
-- [ ] Documentation: `docs/MVP_STATUS.md` (a capability row "pack identity" and an evidence row);
-  `packages/README.md` final; this ledger; the handoff.
+- [x] Documentation: `docs/MVP_STATUS.md` (a capability row "Pack identity" and an evidence row);
+  `packages/README.md`; this ledger; the handoff. `origin/main` merged a second time (`22d4391`: #66
+  16b's GDScript protocol module, #68 README, #69 client-parity rule — no Rust, no world, no manifest,
+  no conflict), so the base digests measured on 47c81d1 still describe the merged main.
+- **M-A8, as run (E-Ea7).** The planned mutation — `mineworld-economy` added to
+  `packages/Cargo.toml` — cannot exercise check 2: it makes a dependency cycle (economy → sdk →
+  packages → economy) and Cargo refuses to resolve the workspace at all, a stronger refusal than
+  check 2's (recorded; the planned form is an *invalid* mutation for this test). Bullet 1 cannot be
+  planted against a crate every pack depends on. Bullet 3 was planted instead: the line `// PLANTED
+  M-A8: use mineworld_economy::Wallet;` in `packages/src/found.rs` → check 2 FAILS: "26 workspace
+  members read … packages/src/found.rs:2 names mineworld_economy". So check 2 reads the new member and
+  scans its sources. Reverted; `git grep PLANTED -- packages` empty, `git status` clean.
 - [ ] Validation on the final executable head (background, Monitor): `cargo fmt --all --check`; `cargo
   clippy --workspace --all-targets --all-features -- -D warnings`; `cargo test --workspace
   --no-fail-fast` (counts, wall, compared with base: base + new tests, none removed); EA-6 both towns
