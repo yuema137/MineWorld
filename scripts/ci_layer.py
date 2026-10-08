@@ -39,18 +39,21 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_doc_headings.py"],
         ["python3", "scripts/check_decision_ids.py"],
         ["python3", "scripts/check_ci_pins.py"],
+        ["python3", "scripts/check_scratch.py", "scan"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
     ],
     # Building first and running second runs the same tests; it only makes the log say how long the
-    # build took and how long the tests did, which is what CI's budget is judged by.
+    # build took and how long the tests did, which is what CI's budget is judged by. After a passing
+    # suite, nothing may be left behind (ENGINEERING_STANDARDS.md §22, "Test scratch"; QTH-4).
     "core": [
         ["cargo", "test", "--workspace", "--no-run"],
         ["cargo", "test", "--workspace"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
 }
 
-# Layers whose disk use is a finding of its own (step-14 F-3: the suite leaves ~16 GB of saves).
+# Layers whose disk use is worth recording (step-14 A13-3: free disk and the size of target/).
 MEASURES_DISK = {"core"}
 
 ENVIRONMENT: list[list[str]] = [

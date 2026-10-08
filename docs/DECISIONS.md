@@ -3746,9 +3746,10 @@ the same entry point runs locally.
 - **Cost.** As a private repository on GitHub Free, CI would draw on 2 000 included Linux minutes a month,
   while the project's PR rate needs several times that (step-14 §10.1). The repository became public on
   2026-10-08, so standard hosted runners are free. Runs are still kept purposeful.
-- **Runner disk.** The default suite writes about 16 GB of scratch saves (step-14 F-3). The `test` layer
-  prints free disk before and after. The public runner measured about 107 GB free before the tests, so
-  no clean-up step is needed. A future shortfall is remedied in the workflow, never by changing tests in
+- **Runner disk.** The default suite once wrote about 16 GB of scratch saves (step-14 F-3); since the
+  test-hygiene PR (#77, `DEP-29`) each test removes its own, and `test` checks that nothing is left. The
+  `test` layer prints free disk before and after. The public runner measured about 107 GB free before
+  the tests, so no clean-up step is needed. A future shortfall is remedied in the workflow, never by changing tests in
   CI.
 - **Building the image per job.** About 30–90 seconds per job. This is the price of one definition of the
   environment.
@@ -3854,10 +3855,13 @@ clients    Godot headless probes  nightly; workflow_dispatch (13c)              
 
 - **`fast`** runs, in order:
   - `cargo fmt --all --check`;
-  - `scripts/check_doc_headings.py`, `scripts/check_decision_ids.py` and `scripts/check_ci_pins.py`;
+  - `scripts/check_doc_headings.py`, `scripts/check_decision_ids.py`, `scripts/check_ci_pins.py` and
+    `scripts/check_scratch.py scan`;
   - `cargo check --workspace --all-targets`;
   - `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
-- **`test`** runs `cargo test --workspace`: the whole default suite.
+- **`test`** runs `cargo test --workspace`: the whole default suite. After it passes,
+  `scripts/check_scratch.py left --target-dir target` fails the layer if any test left scratch behind
+  (`ENGINEERING_STANDARDS.md` §22, `DEP-29`).
   - It builds first with `--no-run`, which runs no test and only separates build time from test time in
     the log.
   - That includes the two `harness = false` programs and the history-reading scans of `ARC-35`.
