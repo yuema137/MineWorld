@@ -1199,9 +1199,13 @@ MODULE_SPEC.md §8.1    the server line, per §11.4, in S11-A/B/D
 
 # 15. PR S11-A — handshake and authentication (full design)
 
-**Lifecycle:** `READY FOR OPERATOR REVIEW — DO NOT MERGE` (final executable head 76be4d2; the PR head
-adds this ledger only). Implementation context `CLOSED / AWAITING OPERATOR ACTION`. Before that:
-`DESIGN FROZEN (2026-10-08), primary session`; `PR DESIGN — DRAFT`.
+**Lifecycle:** `MERGED` — GitHub #76, merge commit `f842c52` (2026-10-08), PR head `cc1f428`, final
+executable head `76be4d2`. The primary session re-ran the gates on the merge (682 passed, 0 failed; scope
+clean), planted its own mutation (an `Admission` admitting any invite) and saw both
+`only_the_invite_itself_is_admitted` and the socket test `a_wrong_or_missing_invite_is_refused…` fail;
+on `main` afterwards AC-1 13/13 and the I-2 scan 4/4. D-SA8 (the client closes on `closing`; the server
+waits up to 2 s) and D-SA10 (S11-B moves `serve` out of `main.rs`) accepted. Before that: `READY FOR
+OPERATOR REVIEW`; `DESIGN FROZEN (2026-10-08), primary session`; `PR DESIGN — DRAFT`.
 
 **Freeze record.** The primary session's freeze message (2026-10-08) accepts §15 as written — SD-A1 …
 SD-A14, SA-1 … SA-12 with their mutations, A-C1 … A-C8, the `protocol.rs` split first — and all six
@@ -1886,5 +1890,374 @@ D-SA10 (bounded, reported) tools/cli/src/main.rs is 523 lines after the second r
 D-SA7 (bounded) ClientFrame no longer derives Serialize: nothing serialized a client frame, and an
       OfferedInvite (a possible near miss of the secret) should not be serializable. `Leave` is an
       empty struct variant (`Leave {}`) so that deny_unknown_fields applies to it.
+```
+
+---
+
+# 16. PR S11-B — seats, hold and resume, takeover, hosted controllers, `F-13` (full design)
+
+**Lifecycle:** `PR DESIGN — DRAFT, awaiting the primary session's freeze`. Nothing below authorizes code.
+**Author:** the S11 implementing session, 2026-10-08, worktree
+`/Users/yuema137/mineworld-worktrees/impl-s11a`, branch `mvp0/pr-s11b-seats` (from `main @ f842c52`).
+**Binding parents:** this file §§4.2–4.6, 5 (as `server/PROTOCOL.md` revision 2 now states it), 6, 7.4,
+7.5, 8, 9.2, 11; §15 as merged (S11-A's handshake, D-SA8, D-SA10); `overall.md` "Parallel build-out,
+2026-10-08" rulings 1, 3, 6, 7, 9, 10; the primary session's S11-B brief (2026-10-08). Evidence in §16.10
+(`E-SB<n>`), deviations in §16.11 (`D-SB<n>`).
+
+## 16.1 Identity, base, scope
+
+```text
+PR            S11-B — seats, hold and resume, takeover, hosted controllers, F-13 (S11, second of five)
+base          main @ f842c52 (S11-A merged as #76); merge origin/main at each rebase
+branch        mvp0/pr-s11b-seats, worktree impl-s11a, held by this session only
+scope         §9.2 as amended by the brief:
+                one controller per seat (SeatTable); a hold after a dropped socket and resume (AC-3);
+                takeover with `take_over: true` and release (AC-5); in-server controllers on the world
+                thread (--town paced, --agent reactive) — the hosted town lives; --time-scale reported
+                in the welcome (ruling 1, S12's R-S11-6); F-13 by RuleController::since (ruling 3);
+                `serve` moved out of tools/cli/src/main.rs (D-SA10); the Godot module's opt-in
+                reconnect with `resume` and its `take_over` argument
+not in scope  admin routes, kick and release over HTTP (S11-D); facts in observations, deltas,
+              acted_through, the perceived stream (S11-C); an asynchronous (LM) controller (S10)
+```
+
+**Coordination with lanes in flight (the brief's point 3).**
+
+| Lane | What it does to S11-B's files | Rule |
+| --- | --- | --- |
+| **S16 E-b** (`mvp0/pr-eb-requirements`, unmerged) | Adds `--packs` (`PackDirs`, `PackRoots`) to every command including `server`; `serve(…, roots)` reads the pack with `read_with` (`tools/cli/src/main.rs`). | B-C2 moves `serve`/`persisted` verbatim into `tools/cli/src/serve.rs` behind a `ServeRequest` struct. If E-b lands first, S11-B rebases and carries `roots` into `ServeRequest`. If S11-B lands first, E-b's `serve` hunk moves to `serve.rs` as one field and one argument. Either way the flag stays declared in `main.rs`'s `Subcommand::Server`. |
+| **IL-a** (`mvp0/pr-il-a-seam`, frozen) | One configuration-drift call in `persisted` before `PersistentWorld::resume` (`step-18-interaction-list.md` §11, F-IA-8: `main.rs:424`). | Same: the call lands in `serve.rs::persisted` if S11-B is first; S11-B carries it if IL-a is first. Different lines of one function; mechanical. |
+| **test hygiene** (`mvp0/pr-test-hygiene`, frozen) | A `mineworld-test-support` crate (`scratch!(name)`, `Scratch`), keeping `SaveDir::new(name)` / `.path() -> &str` source-compatible in `tools/cli/tests/support`. | S11-B's new tests use `SaveDir::new` (or `scratch!` if the crate has landed by B-C6), with names unique per test; nothing writes outside its scratch. |
+| **S12 13a** (`clients/2d`, unmerged) | One `connect_to_world` call and one launcher. | The new optional fifth argument (`take_over := false`) keeps every four-argument call valid; launchers need no change. |
+| **S15 12e / S14** | `PROTOCOL.md` §6.2, `slice_link.gd`. | S11-B edits neither §6.2 nor `slice_link.gd`. |
+
+## 16.2 Source audit (`main @ f842c52`)
+
+| File / symbol | Finding | Consequence |
+| --- | --- | --- |
+| `server/src/runtime.rs` (441) `join` l. 255 | Pushes a new `Subscriber` for every join on a roster seat: **two connections may hold one seat** (A-1 still true). `Command::Leave(SubscriptionId)` removes a subscriber; a dead channel is reaped by `sweep`. | Joins and departures go through a `SeatTable`; a departure says whether the client left or dropped. |
+| `runtime.rs` `HostClock` l. 64–81 | `now = epoch + elapsed wall seconds`: one simulated second per wall second, no scale. | `HostClock` gains `scale` (integer ≥ 1). |
+| `runtime.rs` `submit` l. 283–319 | The one authority path: actor check, `ActionIds::allocate`, instant from `clock.now()`, advance, dispatch, `remember`, sweep. | Becomes `submit_at(observer, request, at)`; sessions pass `clock.now()`, hosted consults pass their lattice instant (I-8: one function). |
+| `runtime.rs` `tick` l. 351, `sweep` l. 382 | `Command::Sweep` every `observation_interval` (100 ms) from a tokio ticker (`host.rs` l. 392–402); the tick advances then sweeps. | Hosted consults and hold expiry run in `tick`, before the sweep. |
+| `server/src/host.rs` (498) | `Command`, `Seated`, `Submitted`, `Perceived`, `HostedWorld` builder (`seating`, `perceiving`), `WorldHost::{join, submit, leave}`. **At the 500-line trigger.** | Split before growth (B-C2): the handles (`Seated`, `Submitted`, `Perceived`, `SubscriptionId`) move to `host/handles.rs`. |
+| `server/src/session.rs` (369) | Handshake per §4.1; `resume` non-null → `invalid_resume`; `took_over: None`, `resume: None`, `hold_seconds: 0` fixed; `host.leave(subscription)` on every ending. | Join carries `take_over` and `resume` to the world thread; the welcome carries what the table answered; a `released` channel tells a session it was taken over or superseded. |
+| `server/src/protocol.rs` `ClientFrame::Join` | `protocol, invite, nickname, seat, resume`; `deny_unknown_fields`. | Gains `take_over: bool` (default `false`). |
+| `protocol/connection.rs` `TookOver { None, Hosted, Held }`, `ClosingReason` | No value for "another connection held it" and no reason for "taken over". | Additions specified in §16.3 SD-B4 (QS11B-2). |
+| `server/src/admission.rs` | `InviteToken::generate` (getrandom), `ct_eq` (subtle) — DEP-14 already names resume secrets. | `ResumeSecret` beside them; no new dependency. |
+| `tools/cli/src/agent.rs` (82) | `drive`: a tokio task occupying a seat through `host.join` and running `RuleController::new()` on every observation it is sent; prints each outcome. | Replaced by a hosted adapter on the world thread (`tools/cli/src/hosted.rs`); deleted. |
+| `tools/cli/src/main.rs` (523) `serve` l. ~320–420, `persisted` | Over the trigger (D-SA10). | Moved to `tools/cli/src/serve.rs` (B-C2). |
+| `tools/cli/src/run.rs` l. 38–137 | `PACE` 900 s; consult lattice `genesis + k + m·PACE`, seat `k` in roster order; `PacedRuleController::new(seed, PACE)`; one `decide(&self, &Observation)` per consult. | The hosted paced adapter uses the same formula with `--pace`; `run.rs` is not edited (I-6). |
+| `cognition/rule-controller/src/lib.rs` `RuleController` l. 83–128 | `answered: BTreeMap<EntityId, Heard>`; `decide` answers the newest unanswered line per speaker. `Heard` carries `at` (`systems/conversation/src/component.rs` l. 27–31). | `RuleController::since(at)`: a line heard at or before `at` counts as answered (F-13). `new()` unchanged. |
+| `tools/cli/tests/*` | No test joins a seat an `--agent` drives, and no two connections join one seat (grep of every `join(`: ac13/ac15 join `visitor`/`wanderer`; milestone_b/c join through `support`, one connection per seat). | Exclusivity breaks no existing test (R-S11-6 audited). |
+| `persistence` | `SqliteBackend::{create, open}(…, Durability::PowerLoss)` in `persisted`: one fsync per journaled input. | `--town --save` journals every NPC request; CP-B4 measures it (R-S11-5). |
+
+## 16.3 Design decisions (SD-B1 … SD-B14)
+
+| ID | Decision | Why |
+| --- | --- | --- |
+| **SD-B1** | **`server/src/seats.rs`: `SeatTable`**, owned by `WorldRuntime`, the only writer of bindings. One state per roster seat: `Free`; `Hosted(HostedSlot)`; `Connected { subscription, session, resume }`; `Held { until: Instant, resume, observer }`. Pure transitions over an injected wall-clock `Instant`, so they are unit-testable with no thread. Every transition is host state: no journal entry, no fact, no revision (I-2, ARC-40). | §4.2. One writer on the thread that owns the world (A-9). |
+| **SD-B2** | **The join rules**, in this order, after S11-A's admission: (1) `resume` given → it must match the seat's `Held` secret (constant time) or the seat's live `Connected` secret (a half-open old socket): granted `took_over: "held"`, the old connection, if any, closed `superseded`; otherwise `invalid_resume`. (2) `Free` → granted, `"none"`. (3) `Hosted` → granted without any flag, `"hosted"`: the in-server controller yields to a person (§4.4, CP-B1). (4) `Connected` or `Held` by somebody else → `seat_occupied`, unless `take_over: true`: then granted, `"connection"`, and the previous connection, if live, is closed `taken_over`; a held seat's secret dies. | §4.2–4.4; ruling 1's explicit flag for taking a seat from another *connection* (S10's R-S11-4: a human displaces an LM session). An in-server controller is not a connection and needs no flag. |
+| **SD-B3** | **Departures**: `leave` frame, or the session ending on `closing` it sent → the seat returns to its default at once. Socket gone without `leave` → `Held { until: now + hold, resume }`; nobody drives the Person during the hold, not even its hosted controller. Hold expiry (checked each tick) → default. `default(seat)` = `Hosted` with a controller **rebuilt** from its factory at that instant, or `Free`. | §4.3, §4.4: a blinking Wi-Fi does not hand the Person to the town; a released Person is driven by a fresh controller, never one resumed from memory (§4.6). |
+| **SD-B4** | **Protocol additions inside revision 2** (owned by S11-B per the landing table; `PROTOCOL.md` updated in B-C1): `join.take_over` (bool, default `false`); `welcome.resume` a 32-hex secret, refreshed on every welcome; `welcome.hold_seconds` the server's hold; `welcome.took_over` gains **`"connection"`**; `closing.reason` gains **`"taken_over"`**; `seat_occupied` is sent; `WorldSummary.time_scale` (integer ≥ 1, in `welcome.world` and `/status`); `WorldSummary.clients` counts connections only. Golden frames updated (welcome, closing). | Ruling 1 (take_over, time scale "reported in welcome"); S10 R-S11-4 needs the evicted session told distinctly; `took_over` must not claim `"none"` when a connection was displaced. QS11B-2 asks the primary session to confirm the two new values. |
+| **SD-B5** | **`server/src/hosted.rs`: the seam.** `pub trait HostedController: 'static { fn next_consult(&self, after: WorldTime) -> WorldTime; fn decide(&mut self, observation: &WireObservation) -> Option<ActionRequest>; fn answered(&mut self, _answer: &HostedAnswer) {} }` with `HostedAnswer { action_id, result } | Refused(RefusalCode)`. Registered per seat on `HostedWorld` as a factory: `HostedWorld::hosting(seat, impl Fn(WorldTime) -> Box<dyn HostedController>)` — called at server start and at every release, with the binding instant. The server names no controller crate (I-9). | §4.5, ARC-42. `answered` keeps today's per-outcome printing possible without the server printing for a controller. |
+| **SD-B6** | **Consults on the world thread.** In `tick`, before the sweep: for every `Hosted` seat whose `next_consult ≤ now`, in instant order then seat order: advance the world to that instant, compute the seat's observation through the same `Perception::observe`, `decide`, and pass any request through `submit_at(observer, request, instant)` — the session's path (actor check, server `ActionId`, journal first). A seat consulted at most once per tick per due instant; consults due while a seat is `Connected`/`Held` are skipped, not queued. | §4.5; I-8; I-11 (bounded synchronous work; measured, CP-B4). |
+| **SD-B7** | **CLI adapters** in `tools/cli/src/hosted.rs`: `ReactiveSeat` (`RuleController::since(bound_at)`, `next_consult = after + 1 s`) for `--agent SEAT`; `PacedSeat` (`PacedRuleController::new(seed, pace)`, `next_consult` = the next `genesis + k + m·pace` after `after`, seat `k` in roster order — `run`'s formula with `--pace`) for every other seat under `--town`. `agent.rs` is deleted. | §4.5, §4.6. `run.rs` untouched (I-6). |
+| **SD-B8** | **`RuleController::since(at: WorldTime)`** in `cognition/rule-controller`: a line whose `Heard.at ≤ at` is treated as answered. `new()` keeps answering every line. | F-13, §4.6, ruling 3. |
+| **SD-B9** | **CLI flags** (§11.4's frozen contract plus the ruling's time scale): `--town`, `--seed N` (default 0), `--pace SECONDS` (world seconds, default 5), `--hold SECONDS` (wall seconds, default 30, `0` = no hold), `--time-scale N` (world seconds per wall second, integer ≥ 1, default 1). `--agent` seats are reactive; `--town` drives every other seat. | §11.4, QS11-3, QS11-4, QS11-5; S12 R-S11-6 (`--time-scale`). |
+| **SD-B10** | **`tools/cli/src/serve.rs`**: `serve`, `persisted` and the hosted-controller wiring move out of `main.rs` behind `ServeRequest { world, listen, invite, agents, town, seed, pace, hold, time_scale, save }` (E-b adds `roots`). `main.rs` keeps the `clap` declaration and one call. | D-SA10 (accepted); file sizes (SB-12). |
+| **SD-B11** | **Operator's statistics on shutdown.** On a graceful stop (Ctrl-C / SIGINT) the server prints `[world] ticks N, longest tick M ms` and one line per hosted seat `[world] hosted <seat>: C consults, A accepted (by action type, e.g. move 7,
+talk 2), R rejected, F refused` — counted by the adapter through `answered`, printed by the composition
+root, so the server still names no action type. Host state, not world state; nothing secret. CP-B4 reads it. | CP-B4's "test-only probe", made an operator-visible line rather than a hidden hook (no test-only code path in the product). |
+| **SD-B12** | **`ResumeSecret`** in `admission.rs`: 16 bytes from `getrandom`, 32 lowercase hex, `Debug` redacted, compared with `subtle` (DEP-14 already covers resume secrets). It is sent only in the holder's own `welcome`. | §4.3, I-5. |
+| **SD-B13** | **Session plumbing**: `Command::Join` carries `JoinRequest { seat, take_over, resume: Option<ResumeSecret>, session }`; `Seated` carries `took_over`, `resume`, `hold_seconds` and a `released: oneshot::Receiver<ClosingReason>` the session selects on (taken over → `closing{taken_over}`, superseded → `closing{superseded}`); `WorldHost::leave(subscription, Departure::{Left, Dropped})`. | One writer (the table); the session holds no binding state. |
+| **SD-B14** | **The Godot module**: `connect_to_world(address, seat, invite, nickname, take_over := false)`; `var reconnect := false` (opt-in). When `reconnect` is on and the connection drops without a `closing`, the module rejoins with the stored `resume` at 1 s, 2 s, 4 s … while within `hold_seconds`, then once without it; it emits `reconnecting(attempt)` and the usual `welcomed`. Every four-argument call stays valid. A new headless check `clients/protocol/checks/reconnect_check.gd` and `run.sh reconnect`. | §4.3's module policy; R-9's far side; S12 13a unaffected. |
+
+**Size plan (SB-12).** `runtime.rs` (441) gains the seat and consult calls; its clock, `ActionIds` and the
+`Hosted` dispatch wrapper move to `server/src/runtime/world.rs` in B-C2's pure move. `host.rs` (498)
+splits as SD-B5/16.2 say. `session.rs` (369) gains about 40 lines. `main.rs` drops to about 350.
+
+## 16.4 Acceptance (decided before measuring, `ARC-23`)
+
+Bounds are literals from §§4.2–4.6, 9.2 and 11.4. Each guard names its mutation (planted on the working
+tree, seen red, reverted, recorded in §16.10).
+
+```text
+SB-1  Control is host state (I-2, ARC-40). `mineworld server worlds/social-cafe --save DIR --agent alice
+      --hold 3`, inside the routine-free first minutes, nobody speaking: GET /status's revision is the
+      same before and after each of: a client joining `alice` (welcome took_over "hosted"); it leaving
+      (alice back to her controller); a client joining `visitor`, its socket killed (hold), the client
+      rejoining with its resume (took_over "held"); a second connection taking `visitor` with
+      take_over: true (the first receives closing {taken_over}); that one leaving; the 3 s hold of a
+      dropped seat expiring. After SIGKILL, `mineworld inspect DIR` facts = `validate`'s genesis count.
+      [tools/cli/tests/ac5_takeover.rs]
+      Mutation M-SB1: a binding change that dispatches (`join` submits a no-op `move` as the seat) →
+      the revision moves; the test fails.
+
+SB-2  One controller per seat (I-3). Server socket test: three connections race for one free seat —
+      two plain joins and one join with a forged resume — exactly one welcome; the others are refused
+      seat_occupied / invalid_resume. A fourth connection without take_over on a connected seat is
+      seat_occupied, and with take_over: true is welcomed "connection" while the holder receives
+      closing {taken_over} and is closed. [server/tests/seats.rs]
+      Mutation M-SB2: SeatTable grants a plain join on a Connected seat → two welcomes; fails.
+
+SB-3  Hold and resume (AC-3, CP-B2). `mineworld server worlds/market-town --town --save DIR --hold 10`:
+      a client seated as `visitor` is killed without `leave`. During the hold, a second client's
+      observations show visitor's location unchanged while /status's revision advances (the town acts
+      while nobody plays visitor). A reconnect with the resume inside the hold is welcomed
+      took_over "held", the same observer, and an observation whose `at` is later than the last one
+      before the drop. A drop then a plain join after the hold expires is welcomed took_over "hosted".
+      A resume presented after expiry is invalid_resume. [tools/cli/tests/ac3_reconnect.rs]
+      Mutation M-SB3: return a dropped seat to its default at once (no hold) → the reconnect is
+      welcomed "hosted", not "held"; fails.
+
+SB-4  Takeover with the Person intact (AC-5, CP-B1). `mineworld server worlds/market-town --save DIR
+      --agent alice` (alice hosted; her colleagues idle): before, the save's biography of alice
+      (`mineworld biography --json`, read with the server stopped) and her `EntityId` from `validate`.
+      Restarted on the same save, a client joins `alice` (took_over "hosted", observer = that id),
+      talks to bob, submits an offered complete `buy` and leaves; the server is stopped. After: the
+      biography before is a prefix of the biography after, and every added entry's cause is an
+      ActionId this client was answered with; alice's own disclosed components in the client's first
+      and last observations differ only in wallet (−price), holdings (+1) and conversation history.
+      [tools/cli/tests/ac5_takeover.rs]
+      Mutation M-SB4: rebuild the hosted controller on takeover instead of unbinding it (it keeps
+      acting) → alice's controller answers bob's reply while the human holds her; an unexplained
+      biography entry appears; fails.
+
+SB-5  F-13 (CP-B3). `mineworld server worlds/social-cafe --agent alice --save DIR`: a client talks to
+      alice and receives her answer; SIGKILL; restart on the save; the client rejoins and is silent for
+      15 wall seconds: no `spoke` by alice addressed to the client is recorded after the restart
+      (`mineworld inspect` / the client's disclosed history). [tools/cli/tests/restart.rs, extended]
+      Mutation M-SB5: the reactive adapter binds `RuleController::new()` instead of `since` → alice
+      re-answers after the restart; fails.
+
+SB-6  The town lives (CP-B4). `mineworld server worlds/market-town --town --pace 5 --save DIR`, two
+      sessions connected, 120 wall seconds, then SIGINT: the shutdown lines show every hosted seat with
+      ≥ 3 accepted `move` requests, zero faults (/status), and `longest tick ≤ 50 ms` — half the 100 ms
+      cadence. [tools/cli/tests/hosted_town.rs]
+      Mutation M-SB6: consults never fire (next_consult always in the future) → accepted 0; fails.
+
+SB-7  A hosted controller has no privilege (I-8). Server test: a test HostedController that returns a
+      request whose actor is another Person is answered Refused(actor_not_observer) through
+      `answered`, nothing is dispatched, and a request it makes as its own Person receives a
+      server-allocated ActionId in sequence with the sessions'. [server/tests/seats.rs]
+      Mutation M-SB7: hosted requests bypass `submit_at`'s actor check → dispatched; fails.
+
+SB-8  Time scale. `--time-scale 60`: welcome.world.time_scale and /status's time_scale are 60, and
+      two /status answers 2 wall seconds apart differ in `at` by 100 … 140 world seconds; without the
+      flag, time_scale is 1. [tools/cli/tests/server_command.rs]
+      Mutation M-SB8: HostClock ignores the scale → the `at` difference is ≈ 2; fails.
+
+SB-9  Clients and secrets. /status's `clients` counts connections only (a server with --town and one
+      connection reports 1). The resume secret is in no stdout/stderr byte and no save byte (I-5;
+      SA-3's method). [tools/cli/tests/ac3_reconnect.rs]
+
+SB-10 The far side (R-9). `clients/protocol/run.sh reconnect`: a headless Godot check joins `visitor`
+      on a `--town --hold 10` market-town, drops its socket without `leave`, and with `reconnect = true`
+      is welcomed again with took_over "held" and the same observer; `run.sh evidence`, `run.sh
+      affordances` and `./mineworld-slice --world --link` still pass. [clients/protocol/checks/]
+
+SB-11 Nothing else moved. Every existing test passes; existing tests edited only where a hosted
+      `--agent` changes what they observe (listed in §16.11 if any); 300-day seed-7 digests of both
+      towns equal those at the base (I-6; `run.rs` untouched); cognition's paced tests unchanged.
+
+SB-12 Scope and size. No diff under kernel/, contracts/, persistence/, worlds/, worldpack/, systems/,
+      authoring/, sdk/, tests/acceptance/; no new dependency; the server names no controller crate.
+      runtime.rs, host.rs, session.rs, protocol.rs and tools/cli/src/main.rs each under 500 lines.
+```
+
+## 16.5 Change set
+
+```text
+server/src/{seats.rs (new), hosted.rs (new), runtime.rs, runtime/world.rs (new, moved), host.rs,
+            host/handles.rs (new, moved), session.rs, protocol.rs, protocol/connection.rs,
+            protocol/summary.rs, admission.rs, app.rs (only if a signature moves), lib.rs}
+server/{PROTOCOL.md, README.md}
+server/tests/{seats.rs (new), handshake.rs, frames.rs, frames/{welcome,closing,join}.json,
+              support/mod.rs, two_clients.rs (only if the compiler requires)}
+cognition/rule-controller/src/{lib.rs, tests.rs}
+tools/cli/src/{main.rs, serve.rs (new, moved), hosted.rs (new), agent.rs (deleted)}
+tools/cli/tests/{support/mod.rs, ac3_reconnect.rs (new), ac5_takeover.rs (new), hosted_town.rs (new),
+                 restart.rs, server_command.rs}
+clients/protocol/{mineworld/world_client.gd, checks/reconnect_check.gd (new), run.sh, ADOPTION.md,
+                  README.md, evidence/* (regenerated)}
+docs/{DECISIONS.md (ARC-40, ARC-42), MODULE_SPEC.md §8.1}
+.structured-coding/plans/mvp0/{step-12-server.md §§15 (merge record), 16; handoff-s11b.md}
+```
+
+## 16.6 Commit plan
+
+### B-C0 — Design (this section) and S11-A's merge record — docs only
+
+- [x] Implementation: §15's lifecycle records the merge; §16 from the audit in §16.2.
+- [x] Validation: Markdown only.
+- [x] Review: every lane in §16.1's table checked against its branch (`git diff origin/main...origin/<lane>`);
+  every guard in §16.4 names a mutation. Self-review only; the freeze is pending.
+
+### B-C1 — Specs before code: `PROTOCOL.md`, ARC-40, ARC-42, MODULE_SPEC §8.1
+
+**Scope.** `server/PROTOCOL.md`: the landing table's S11-B rows become landed; §2's `join` row gains
+`take_over`; §4.1's checks gain the seat rules of SD-B2; §5.1 (`resume`, `hold_seconds`, `took_over` with
+`"connection"`); §5.6 (`taken_over`); §5.7 (`time_scale`, `clients`). `docs/DECISIONS.md`: **ARC-40**
+(control is host state: bindings, sessions, holds, nicknames are never journaled; a binding change moves
+no revision; AC-5 is measured on that) and **ARC-42** (hosted controllers on the world thread behind a
+bounded synchronous seam; asynchronous controllers connect as sessions; the comparison of §7.5).
+`MODULE_SPEC.md` §8.1: the `server` line and row gain `--town`, `--seed`, `--pace`, `--hold`,
+`--time-scale`.
+
+- [ ] Implementation · [ ] Validation: `check_decision_ids`, `check_doc_headings` · [ ] Review: §6 and §6.2
+  of `PROTOCOL.md` untouched (12e's surface); every new value appears in the landing table.
+
+### B-C2 — Pure moves: `host/handles.rs`, `runtime/world.rs`, `tools/cli/src/serve.rs`
+
+**Scope.** Move, re-export, no behaviour change; `serve`/`persisted` move behind `ServeRequest` with
+today's fields only. **Validation:** `cargo test -p mineworld-server -p mineworld-cli` — the same tests,
+all passing; clippy. **Review:** public paths unchanged; `main.rs` < 500.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+### B-C3 — `SeatTable` (`seats.rs`) and `ResumeSecret`
+
+**Scope.** SD-B1–SD-B3 and SD-B12 as pure code over an injected `Instant`. **Validation (unit):** every
+transition of §4.2 and its refusals; `take_over` on `Connected` and `Held`; resume on `Held` and on a live
+`Connected` (supersede); expiry at `until` and not before; `default` rebuilds through the factory;
+`ResumeSecret` format and redacted `Debug`. **Review:** no world access in `seats.rs`; one writer.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+### B-C4 — The `HostedController` seam and `RuleController::since`
+
+**Scope.** `hosted.rs` (trait, `HostedAnswer`, the factory type, the due-consult order) and
+`cognition/rule-controller` `since`. **Validation (unit):** consult order across seats and instants; a
+`since(t)` controller does not answer a line heard at `t` and answers one at `t + 1`; `new()` unchanged
+(existing tests untouched and passing); paced tests untouched.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+### B-C5 — The runtime and the session: seats, holds, consults, time scale, revision 2's additions
+
+**Scope.** `runtime.rs` (`submit_at`, join/departure through the table, consults and expiry in `tick`,
+`time_scale`, `clients`), `host.rs`/`handles.rs` (`JoinRequest`, `Departure`, `Seated` fields,
+`released`), `session.rs` (take_over, resume, the released branch, `Departure`), `protocol*` (SD-B4),
+golden frames, `server/tests/seats.rs` (SB-2, SB-7), `handshake.rs` updated where S11-A asserted
+`invalid_resume` for every resume. **Validation:** server suites; M-SB2, M-SB7. **Review:** I-11 (no wait
+on the world thread; consults bounded); the session holds no binding state.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+### B-C6 — The CLI: hosted adapters, flags, statistics; real-binary acceptance
+
+**Scope.** `tools/cli/src/hosted.rs`, `serve.rs` wiring, `main.rs` flags, `agent.rs` deleted; tests
+`ac5_takeover.rs` (SB-1, SB-4), `ac3_reconnect.rs` (SB-3, SB-9), `hosted_town.rs` (SB-6), `restart.rs`
+(SB-5), `server_command.rs` (SB-8). **Validation:** those tests and every suite that starts the binary
+(SB-11's first half); M-SB1, M-SB3, M-SB4, M-SB5, M-SB6, M-SB8. **Review:** the server names no controller
+crate; statistics lines carry no secret.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+### B-C7 — The Godot module: `take_over`, opt-in reconnect; the far side
+
+**Scope.** SD-B14; `checks/reconnect_check.gd`; `run.sh reconnect` (port 0, own PID only, invite line kept
+out of evidence); `ADOPTION.md` §2/§6; evidence regenerated. **Validation (one Godot window at a time):**
+SB-10. **Review:** the module never logs the resume secret; every four-argument call unchanged.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+### B-C8 — Close: README, digests, scope, full gate, ledger, PR
+
+- [ ] Implementation: `server/README.md` (`--town`, takeover); ledger · [ ] Validation: SB-11 digests,
+  SB-12 scope and sizes, one full gate on the final executable head (background) · [ ] Review: SB-1 …
+  SB-12 with evidence; the PR marked READY FOR OPERATOR REVIEW — DO NOT MERGE.
+
+**E-SB0 (first action after the freeze, before any code):** the base's two 300-day digests (expected
+`ad49c723…c64b` and `365b50e0…1d1d`), and a timing of `cargo test -p mineworld-cli` at the base.
+
+## 16.7 Test ownership
+
+```text
+STATIC      fmt; clippy -D warnings (exhaustive matches over the seat states and the new enum values)
+UNIT        SeatTable transitions and refusals; ResumeSecret; consult order; RuleController::since
+INTEGRATION server/tests/seats.rs over real sockets: exclusivity race, take_over, supersede, released
+            sessions, hosted authority (SB-2, SB-7); handshake and golden frames updated
+REAL BINARY ac5_takeover (SB-1, SB-4), ac3_reconnect (SB-3, SB-9), restart (SB-5), hosted_town (SB-6),
+            server_command (SB-8); every existing CLI acceptance test unchanged
+FAR SIDE    Godot reconnect check; run.sh evidence/affordances; mineworld-slice --world --link (SB-10)
+REAL RUN    both 300-day digests (SB-11)
+GATE 1      NOT REQUIRED — no language model
+CI          S13's workflow if merged by the final head (its run on the exact head is canonical);
+            otherwise one local full gate
+```
+
+## 16.8 Is any of this material?
+
+No kernel, contract or persistence change; no new dependency. Points for the primary session's freeze:
+
+1. **QS11B-1 — Hosted seats need no flag.** A join on a seat an in-server controller drives takes it over
+   without `take_over` (§4.4, CP-B1's frozen text); the flag is required only to displace another
+   *connection* or a held seat (ruling 1, S10 R-S11-4). Recommended as written.
+2. **QS11B-2 — Two values added inside revision 2:** `took_over: "connection"` and `closing.reason:
+   "taken_over"`. Both are S11-B's to specify under the landing table; they let a displaced client (an
+   LM session) be told distinctly and stop `took_over` from claiming `"none"`. Recommended.
+3. **QS11B-3 — Who may take over.** Any holder of the invite may take any seat with `take_over: true`,
+   including a dropped player's held seat. MVP-0 has one trust level (`NETWORKING.md` §9); finer policy
+   (e.g. an operator-only takeover of a held seat) would need accounts. Recommended: accept for MVP-0 and
+   record it in ARC-40's limitations. **Operator-visible**, so flagged.
+4. **QS11B-4 — Hold time base.** `--hold` is wall seconds and `--pace` world seconds; with
+   `--time-scale 60` a 30 s hold is 30 minutes of world time. Recommended (a hold is about a network,
+   a pace about a life).
+5. **QS11B-5 — Shutdown statistics lines** (SD-B11) as CP-B4's probe instead of a hidden test hook.
+6. **QS11B-6 — Merge order with E-b and IL-a** (§16.1): whichever lands second carries the other's
+   `serve`/`persisted` lines; no order is required.
+
+**Material stops:** any edit under `kernel/`, `contracts/`, `persistence/`; a path outside §16.5; an
+existing test failing for a reason other than a hosted `--agent` changing what it observes (each such
+edit listed and justified, or the stop); a digest change; CP-B4's 50 ms bound failing (the remedy —
+pace or durability — is the operator's, R-S11-5).
+
+## 16.9 Execution contract (proposed; confirmed only by the primary session's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 12 (S11) / PR S11-B — seats, hold and resume, takeover, hosted
+                    controllers, F-13
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-12-server.md §16; evidence §16.10; deviations §16.11
+RELATED / BINDING   this file §§4.2–4.6, 5, 6, 7.4, 7.5, 8, 9.2, 11, 15; server/PROTOCOL.md revision 2;
+                    overall.md "Parallel build-out, 2026-10-08"; docs/DECISIONS.md DEP-14, ARC-41,
+                    ARC-23, ARC-25, ARC-27; NETWORKING.md; CLAUDE.md §§2–4
+IMPLEMENTATION BASE main @ f842c52, merged forward at each rebase; branch mvp0/pr-s11b-seats; worktree
+                    /Users/yuema137/mineworld-worktrees/impl-s11a, held by this session only
+APPROVED SCOPE      §16.5; B-C1 … B-C8; SD-B1 … SD-B14 as answered by QS11B-1 … QS11B-6
+FROZEN INVARIANTS   I-1 (no kernel/contracts/persistence diff); I-2/ARC-40 (a binding change moves no
+                    revision); I-3 (one controller per seat); I-5 (resume secrets and invites in no
+                    save, observation, fact, /status or log); I-6 (digests = E-SB0; run.rs untouched);
+                    I-8 (hosted requests take submit_at); I-9 (no controller crate in server/);
+                    I-11 (nothing waits on the world thread); 16b's GDScript names unchanged;
+                    four-argument connect_to_world calls valid
+SEQUENCE            E-SB0 → B-C1 → B-C2 → B-C3 → B-C4 → B-C5 → B-C6 → (merge origin/main) → B-C7 → B-C8
+VALIDATION BUDGET   unit/integration/static unrestricted; real-binary tests as listed (hosted_town ~2.5
+                    min, background); 300-day runs at most six; Godot runs one window at a time, each
+                    mode at most three times; one full gate on the final head (background, ~7 min);
+                    about 1.5 hours in total; real-model: NOT REQUIRED
+LIVE DOCUMENTATION  §16 checkboxes; §16.10; §16.11
+HANDOFF             .structured-coding/plans/mvp0/handoff-s11b.md
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the primary session's freeze message
+  semantic commits, branch push       authorized after the freeze (the brief: same rules as S11-A)
+  PR creation / update                authorized (same)
+  CI repair                           authorized if a workflow exists on the final head
+  merge                               operator only; never inherited
+POST-MERGE SYNC     this session owns §16; the primary session owns §§1–14, overall.md, MVP_STATUS
+NORMAL STOP         PR S11-B READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       §16.8's list
+```
+
+## 16.10 Evidence ledger
+
+```text
+(empty until the freeze)
+```
+
+## 16.11 Deviations and discoveries
+
+```text
+(none yet)
 ```
 
