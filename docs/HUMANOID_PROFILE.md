@@ -2,8 +2,8 @@
 
 **Date** 2026-09-27 · **Status** describes a working implementation, not a plan
 · **Implemented by** `clients/3d-spike/` — `scripts/human.gd`,
-`tools/character_model.py`, `tools/garments.py`, `tools/hair.py`,
-`tools/model_lib.py`, `tools/character_textures.py`, `tools/patch_imports.py`,
+`tools/blender/character_model.py`, `tools/blender/garments.py`, `tools/blender/hair.py`,
+`tools/blender/model_lib.py`, `tools/character_textures.py`, `tools/patch_imports.py`,
 `tools/make_bonemaps.gd`, `tools/measure_stride.gd`, `tools/material_probe.gd`
 
 Every number here was measured from the running thing, by a tool in this repository
@@ -71,7 +71,7 @@ that both maps make the same choice, and they do.
 | Bone axis | **+Y from parent to child** | enforced by the importer's *Overwrite Axis* |
 | Node transform on the skeleton | none | enforced by *Apply Node Transform* |
 | Rest pose | T-pose | see §3 |
-| **Canonical authored height** | **1.7670 m** | printed by `tools/character_model.py`: sole to crown, z −0.0201 … 1.7469. **Hair is excluded on purpose** — the gathered updo reaches 1.8026, and `height_mm` in the world means how tall the person is, not how tall her hair is. |
+| **Canonical authored height** | **1.7670 m** | printed by `tools/blender/character_model.py`: sole to crown, z −0.0201 … 1.7469. **Hair is excluded on purpose** — the gathered updo reaches 1.8026, and `height_mm` in the world means how tall the person is, not how tall her hair is. |
 | Skeleton `motion_scale` | 1.0048 | Godot sets it from hip height under *Normalize Position Tracks*; it moved from 0.9956 when the body was re-baked through the Ultra Feminine morph |
 
 ### Height rule
@@ -199,7 +199,7 @@ and a foot-lock IK pass is where it would go next.
 
 ## 5. What a second character costs
 
-The pipeline is `tools/character_model.py` plus a `BoneMap`. For a new character that is
+The pipeline is `tools/blender/character_model.py` plus a `BoneMap`. For a new character that is
 already a rigged glTF humanoid:
 
 | step | cost |
@@ -233,7 +233,7 @@ possible.
   does not carry them. That is what makes the character's expression fixed: she
   cannot smile, and `CHARACTER_IDENTITY.md` §3 names a slight closed-mouth smile
   as an identity feature. Re-exporting with `export_morph` on is the route.
-- **Hair is modelled card geometry** (`tools/hair.py`): an opaque cap, a swept
+- **Hair is modelled card geometry** (`tools/blender/hair.py`): an opaque cap, a swept
   mass in clumps, a twist at the crown, a hairline layer and named loose
   strands. It has no physics.
 - **The garments are cut out of the body surface** and offset, which is what

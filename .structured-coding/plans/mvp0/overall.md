@@ -499,7 +499,7 @@ Resolved by the operator on 2026-09-25, in the planning session that produced th
 | **D-9** | Publication endpoint. | ~~Local-only until S13.~~ **Superseded 2026-09-26 by `D-12`.** |
 | **D-12** | Publication endpoint, revised. | **Remote from now on.** `git@github.com:yuema137/MineWorld.git` exists; `main` and the in-flight branch are pushed. The operator is enabling branch protection on `main`, so from here every change reaches `main` through a pull request. Execution contracts change accordingly: **branch push is authorized**, **PR creation is authorized**, and **merge still requires explicit operator authorization** — protection makes that a mechanism rather than a promise. Remote CI becomes possible earlier than S13 planned, so S13 keeps only the workflow files and container work. |
 | **D-3** | Whether S2 includes the `Observation` contract. | **Included in S2.** `RuleController` in S7 needs observations, and defining the controller-facing triple (`ActionIntent`, `Event`, `Observation`) together prevents `INV-13` from being retrofitted. Recorded as a planning decision; raise it when agreeing to this document if you disagree. |
-| **D-1** | License. | **MIT stays.** Operator decision 2026-09-25. Revisit only before publication in S13 if the patent-grant argument becomes material. |
+| **D-1** | License. | **MIT stays.** Operator decision 2026-09-25. Revisit only before publication in S13 if the patent-grant argument becomes material. **Revisited 2026-10-08, before publication: MIT kept.** The patent argument was found not material: the pre-publication audit read the licence of all 183 crates in `Cargo.lock` and found none that requires Apache-2.0 outbound (every Apache-2.0 crate is dual-licensed with MIT or is Apache-only and compatible with an MIT project), no copyleft-only and no non-OSI dependency; Apache-2.0's patent grant protects users against patent claims by contributors, and the history has one human author and no outside contributions, so there is no such claim for it to guard against today; and every bundled asset is CC0 or owned output, so nothing third-party needs Apache-2.0's terms. Revisit if outside contributions begin and a contributor's patents become a real question. **Publication decisions, operator, 2026-10-08:** (a) the Blender scripts that use `bpy` are licensed GPL-2.0-or-later in `clients/3d-spike/tools/blender/`, while the rest stays MIT ("这 7 个文件单独标 GPL"); (b) the institutional email that GitHub wrote into 61 web-merge commits becomes public with the repository, and history is not rewritten ("可以，不改历史"). Follow-up for the operator: enable GitHub's "Keep my email addresses private". |
 | **D-2** | `ENGINEERING_STANDARDS.md` §16 wording. | **Fixed** to "The principle does not change:" — operator approved 2026-09-25. |
 | **D-6** | Time model: fixed semantic tick versus a discrete-event queue. | **Discrete-event queue**, keyed by `(WorldTime, sequence)` with a monotonic sequence as the tie-break, at one-simulated-second granularity. Idle time is skipped rather than ticked, which is what makes `AC-11`'s hundreds of simulated days cheap. Recorded at project level as [`DEP-6`](../../../docs/DECISIONS.md) with the comparison against existing crates. |
 | **D-11** | How the reference clients are built and how their demos are verified, given that "actually run the renderer" must be mechanically possible. | **Godot 4.7.2 for both clients, as the frozen spec already names.** Installed and verified on 2026-09-25 to run headless and execute GDScript with stdout. Demo evidence comes from a scripted run that drives input and writes PNG frames, which are then inspected — not from compilation or from server tests. No deviation from `ARCHITECTURE.md` §13 is needed, and therefore no engine concept needs to enter a contract to make verification possible. **Proven end to end on 2026-09-25**, not assumed: a windowed run rendered through Metal on the host GPU, `get_viewport().get_texture().get_image().save_png()` returned `0`, and the resulting 640×360 PNG was read back and visually confirmed. The recipe is `godot --path <project>`, a `_process` counter that captures after a few frames and calls `get_tree().quit(0)`; `--headless` runs scripts and prints but renders nothing, so it is for logic checks only. |
@@ -613,6 +613,98 @@ Six step designs were drafted at once:
    session freezes it before code begins.
 10. **Test hygiene.** The full suite leaves about 16 GB of scratch saves in `target/` (S13 audit).
     Every test must remove its own scratch data. One bounded PR fixes this after 12c merges.
+
+## Framework, not demo: operator requirements, 2026-10-08
+
+1. **What ships is a framework.** The operator's words:
+
+   > "我们ship的需要是一个框架，大家可以按自己喜欢的画风，设定，enable不同的功能…大家可以加入自己的'physics list'，决定不同object之间的相互作用"
+
+   That is: users choose their own art style and setting, enable the features they want, and supply
+   their own "physics list" for how kinds of object interact. The design of interaction rules as
+   content or pluggable code, together with a framework-wide pluggability audit, is being drafted as
+   [`step-18-physics-list.md`](step-18-physics-list.md).
+2. **The README presents the framework.** It states what MineWorld provides and what a user
+   implements. It gives a playable demo first, then shows how to make your own world.
+3. **The default demo covers every basic feature.**
+
+   > "我们要保证提供一个已经可以玩的demo，然后其他的user也可以轻松方便做自己的。我们的demo里面应该把所有基本功能都cover"
+
+   That is: ship an already-playable demo, make it easy for other users to build their own, and
+   have the demo cover every basic function.
+
+   **Acceptance, to be made executable before MVP-0 closes:**
+   - One default demo world enables every System Pack the framework ships with basic features.
+   - A coverage test lists every interaction those packs offer and shows that each one occurs in a
+     scripted or headless run of the demo world.
+   - The playable clients expose every one of those interactions through affordances.
+   - Gaps known today:
+     - the towns get bodies only in S15 12d;
+     - `sleep` and needs do not exist (MVP §5);
+     - `persona` arrives with S10;
+     - a third-party pack arrives with S16.
+4. **In-game settings.** The operator's words:
+
+   > "增加设置功能，在游戏里可以修改设置。设置要包括基本的语言选择（目前支持英文和简体中文就行，英文是default），然后刷新率 分辨率之类的"
+
+   That is: settings changeable in game, including language (English as default, plus Simplified
+   Chinese), refresh rate, resolution and the like.
+
+   **Requirement, binding on both reference clients (S12 and S14):**
+   - An in-game settings menu with:
+     - language: `en` by default, plus `zh-Hans`, covering all client UI text;
+     - display: resolution, window or fullscreen, VSync, frame-rate cap (refresh rate);
+     - basic input options.
+   - Settings persist per user on the local machine.
+   - Settings are presentation-only and never reach the server.
+   - Settings are shared between the 2D and 3D clients through one client-side settings module.
+     This is not the protocol module.
+   - Translations live in the Presentation layer as standard translation files, so a user can add a
+     language without code.
+   - World content (names, dialogue) is not translated by this requirement.
+   - A planning agent is to compare options (Godot `TranslationServer` with gettext `.po` versus
+     CSV, Godot's `DisplayServer`/project settings, existing settings-menu addons) and propose the
+     PR. It runs after S12 13a and S14 16a land, so it does not collide with them.
+
+## One world, two views: client-parity rule (operator, 2026-10-08)
+
+The operator wrote:
+
+> "为什么现在2d和3d的场景并非一一对应？我们不是说好了吗，2d和3d只是视觉呈现方式，但是后端应该保持一样"
+
+That is: the 2D and 3D scenes do not correspond one-to-one, but the agreement was that 2D and 3D
+are only presentation and the backend stays the same.
+
+The backend already is one: one server, one World Pack, one set of facts. The divergence is on the
+client side:
+- the 2D the operator saw was the unconnected spike, an invented quayside square that was never
+  merged;
+- the 3D slice is hand-built and draws 2 of the town's 6 places, with three doorways on blank walls
+  and decorative townspeople who do not exist in the world;
+- nothing enforces correspondence.
+
+**Rule, binding on S12, S14 and S15 12e:**
+
+1. **The server is the single source of layout.** Every place, doorway, wall/solid (`PlaceShape`),
+   person and loose object a client shows comes from what the server discloses. A client may add
+   decoration: art, props with no simulation meaning, lighting. It may not add or omit anything
+   the world has.
+   - The decorative townspeople are hidden whenever the client is connected (QS14-9).
+   - Standalone mode is labelled as a showcase, not as the world.
+2. **2D derives its layout from the disclosure.** 3D is authored art over the disclosed geometry, held
+   to it by S14 16a's geometry probe (walls within 150 mm) and S14 16c's binding of every doorway and
+   every place.
+3. **A parity test, owned by S14 16e together with S12 13f.**
+   - **Setup:** both reference clients join one running world. For one seed, each reports what it
+     currently shows: places, doorways with destinations, people by id and name, loose objects by
+     id, and available affordances.
+   - **Check:** the two reports must be identical, apart from fields declared presentation-only.
+   - **Mutation:** removing a doorway from one client's scene must make the test fail.
+   - **Coverage:** this extends AC-13 and AC-15 from "same request" to "same world shown".
+4. **Order of work:**
+   - S12 13a (in implementation) already builds 2D from market-town's real street.
+   - The rest lands with 12d (towns get geometry), 16c (all places and doorways in 3D) and 16e/13f
+     (the parity test).
 
 ## Still open
 

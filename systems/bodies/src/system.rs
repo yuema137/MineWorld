@@ -1,28 +1,36 @@
-//! The installable system: what it declares, the one fact it reduces and the checks it reduces it
+//! The installable system: what it declares, the facts it reduces and the checks it reduces them
 //! under, and what it discloses.
 
 use mineworld_contracts::{
-    ComponentRecord, EntityId, EntityType, Event, EventEnvelope, LifecycleState, PlaceId,
-    Rejection, RejectionCode, SystemId,
+    Action, ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventTypeId,
+    LocalPosition, Millimetres, PlaceId, Rejection, RejectionCode, SystemId,
 };
 use mineworld_kernel::{
     Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
     WorldRead, WorldView,
 };
-use mineworld_presence::{PerceptionProvider, Presence, PresenceSystem, require_registered};
+use mineworld_presence::{
+    Arrived, PerceptionProvider, Presence, PresenceSystem, StoppedShort, require_registered,
+};
 use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
+use crate::action::{Kick, Shove, Throw};
 use crate::codec;
-use crate::component::PlaceShape;
-use crate::event::PlaceShaped;
-use crate::geometry::{CLEARANCE, PERSON_RADIUS, Point, closest_pair};
+use crate::component::{BodyShape, LooseObjects, PlaceShape};
+use crate::event::{
+    BodyFormed, How, Movement, ObjectMoved, ObjectPlaced, PersonShoved, PlaceShaped, object_moved,
+};
+use crate::geometry::Point;
+use crate::push::Lay;
+use crate::{genesis, launch, objects, offer, shove};
 
-/// Bodies: places with walls and furniture, and people who neither pass through them nor through
-/// each other.
+/// Bodies: places with walls and furniture, loose objects lying in them, and people who neither pass
+/// through them nor through each other.
 ///
-/// A unit struct, like every System Pack: its state is the [`PlaceShape`]s it owns, held in the world,
-/// and the resolver it registers keeps nothing between calls (`ARC-39`).
+/// A unit struct, like every System Pack: its state is the [`PlaceShape`]s, [`BodyShape`]s and
+/// [`LooseObjects`] it owns, held in the world, and the resolver it registers keeps nothing between
+/// calls (`ARC-39`).
 #[derive(Default)]
 pub struct BodiesSystem;
 
@@ -31,160 +39,220 @@ impl SystemIdentity for BodiesSystem {
 }
 
 /// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): the
-/// `body:` section of a place file, which its `AuthoredSection` impl (`src/section.rs`) describes. No
-/// biographical fact: a place's shape is not an event in anybody's life.
+/// `body:` section of a place or an item file, which its `AuthoredSection` impl (`src/section.rs`)
+/// describes. No biographical fact (step-11 QO-17).
 impl SystemPack for BodiesSystem {
     mineworld_sdk::owns_section!();
 }
 
-/// Why a place's shape was refused at genesis: the authored people do not fit it.
-const OVERLAP: RejectionCode = RejectionCode::from_static("bodies-overlap");
-const OUTSIDE: RejectionCode = RejectionCode::from_static("bodies-outside");
-const IN_SOLID: RejectionCode = RejectionCode::from_static("bodies-in-solid");
-const CAPACITY: RejectionCode = RejectionCode::from_static("bodies-capacity");
+/// A fact this pack may not take, reached at reduction: reported as the owner's refusal (`ARC-26`).
+pub(crate) fn refused(event_type: EventTypeId, reason: Rejection) -> KernelError {
+    KernelError::FactRefusedByOwner {
+        system: BodiesSystem::ID,
+        event_type,
+        reason,
+    }
+}
 
 impl System for BodiesSystem {
-    /// Version 1. A Rapier upgrade changes results, so it bumps this version with it (`DEP-13`;
-    /// `tests/rapier_pin.rs` holds the two together).
-    const VERSION: SystemVersion = SystemVersion::new(1);
+    /// Version 2: loose objects, pushes, `kick`, `throw` and `shove` change results and vocabulary, so
+    /// a save written by version 1 is refused by name (`ARC-25`; step-11 SD-O20). A Rapier upgrade
+    /// also changes results, so it bumps this version with it (`DEP-13`; `tests/rapier_pin.rs` holds
+    /// the two together).
+    const VERSION: SystemVersion = SystemVersion::new(2);
 
     /// Depends on presence (where people are, and the seam this pack resolves through); owns the
-    /// shapes of places; states and reduces `place-shaped`. No action, and no fact in another pack's
-    /// vocabulary: an arrival is stated by whoever moves the person, and this pack only answers what it
-    /// achieves.
+    /// shapes of places and objects and where the objects lie; provides `kick`, `throw` and `shove`;
+    /// states and reduces its own facts; and, for `shove` only, states presence's `arrived` and
+    /// `stopped-short` through `arrivals()` (`ARC-26`; step-11 SD-O7: with `shove` it is a mover). It
+    /// hears presence's `arrived`, its own included (step-11 F-R7).
     fn declaration(&self) -> SystemDeclaration {
         SystemDeclaration::of::<Self>()
             .depending_on([PresenceSystem::ID])
             .owning::<PlaceShape>()
+            .owning::<BodyShape>()
+            .owning::<LooseObjects>()
+            .providing::<Kick>()
+            .providing::<Throw>()
+            .providing::<Shove>()
             .emitting::<PlaceShaped>()
+            .emitting::<BodyFormed>()
+            .emitting::<ObjectPlaced>()
+            .emitting::<ObjectMoved>()
+            .emitting::<PersonShoved>()
+            .emitting::<Arrived>()
+            .emitting::<StoppedShort>()
             .subscribing_to::<PlaceShaped>()
+            .subscribing_to::<BodyFormed>()
+            .subscribing_to::<ObjectPlaced>()
+            .subscribing_to::<ObjectMoved>()
+            .subscribing_to::<Arrived>()
     }
 
     /// Refuses to join a world whose host never registered this pack's resolver — before anything
-    /// else, as `ARC-39` item 7 requires — and then declares its one table.
+    /// else, as `ARC-39` item 7 requires — and then declares its three tables.
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
         require_registered(&Self::ID);
-        tables.component::<PlaceShape>()
+        tables.component::<PlaceShape>()?;
+        tables.component::<BodyShape>()?;
+        tables.component::<LooseObjects>()
     }
 
-    /// Reduces `place-shaped` into the place's [`PlaceShape`] — the only write this pack makes — after
-    /// checking that the people authored into the place fit it.
-    ///
-    /// Genesis states every location before any section, and reduces its facts in order, so by the
-    /// time this fact is reduced every authored person stands where the world placed them (step-11
-    /// F-B4). The checks run on integers and refuse with [`KernelError::FactRefusedByOwner`], naming
-    /// the people, the place and the numbers; nothing is written unless all four pass:
+    /// Reduces this pack's facts — the only writes it makes — each after the owner's check:
     ///
     /// ```text
-    /// bodies-capacity  the floor cannot hold the world's population: fewer than 4 × (people − 1) + 1
-    ///                  points of the 650 mm grid where a person fits (what guarantees an arrival
-    ///                  always finds room, step-11 SD-B4, SD-B8)
-    /// bodies-outside   a person's centre lies outside the floor shrunk by 300 mm
-    /// bodies-in-solid  a person's centre lies within 300 mm of a solid
-    /// bodies-overlap   two people stand closer than 595 mm
+    /// place-shaped   → PlaceShape       the people authored into the place fit it (SD-B4)
+    /// body-formed    → BodyShape        a living Item with no shape yet; states object-placed
+    /// object-placed  → LooseObjects     SD-O5's checks, in order
+    /// object-moved   → LooseObjects     the object lies at `from`; `to` keeps SD-O2's invariant
+    /// arrived        (presence's)       → object-moved { pushed } for every object the person's
+    ///                                   disc now overlaps (SD-O8); nothing is written
     /// ```
+    ///
+    /// A refusal writes nothing and fails with [`KernelError::FactRefusedByOwner`], naming the
+    /// subjects and the numbers.
     fn react(
         &self,
         world: &mut WorldView<'_, Self>,
         event: &EventEnvelope,
     ) -> Result<Vec<Emission>, KernelError> {
-        if *event.event_type() != PlaceShaped::EVENT_TYPE {
-            return Ok(Vec::new());
+        let kind = event.event_type();
+        if *kind == PlaceShaped::EVENT_TYPE {
+            let shaped: PlaceShaped = codec::event_payload(event.payload())?;
+            genesis::fits(&world.read(), shaped.place(), shaped.shape())
+                .map_err(|reason| refused(PlaceShaped::EVENT_TYPE, reason))?;
+            world.insert(shaped.place().entity_id(), shaped.shape().clone())?;
+        } else if *kind == BodyFormed::EVENT_TYPE {
+            let formed: BodyFormed = codec::event_payload(event.payload())?;
+            let placed = genesis::formed(&world.read(), &formed)
+                .map_err(|reason| refused(BodyFormed::EVENT_TYPE, reason))?;
+            world.insert(formed.object().entity_id(), formed.shape())?;
+            return Ok(vec![placed]);
+        } else if *kind == ObjectPlaced::EVENT_TYPE {
+            let placed: ObjectPlaced = codec::event_payload(event.payload())?;
+            let row = genesis::placed(&world.read(), &placed)
+                .map_err(|reason| refused(ObjectPlaced::EVENT_TYPE, reason))?;
+            world.insert(placed.place().entity_id(), row)?;
+        } else if *kind == ObjectMoved::EVENT_TYPE {
+            let moved: ObjectMoved = codec::event_payload(event.payload())?;
+            let row = objects::moved(&world.read(), &moved)
+                .map_err(|reason| refused(ObjectMoved::EVENT_TYPE, reason))?;
+            world.insert(moved.place().entity_id(), row)?;
+        } else if *kind == Arrived::EVENT_TYPE {
+            let arrived: Arrived = codec::event_payload(event.payload())?;
+            return pushed_by(&world.read(), &arrived);
         }
-        let shaped: PlaceShaped = codec::event_payload(event.payload())?;
-        let place = shaped.place();
-        fits(&world.read(), place, shaped.shape()).map_err(|reason| {
-            KernelError::FactRefusedByOwner {
-                system: Self::ID,
-                event_type: PlaceShaped::EVENT_TYPE,
-                reason,
-            }
-        })?;
-        world.insert(place.entity_id(), shaped.shape().clone())?;
         Ok(Vec::new())
     }
+
+    /// Whether this `kick`, `throw` or `shove` may happen (step-11 SD-O11, SD-O13, SD-O15;
+    /// `launch.rs`, `shove.rs`).
+    fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
+        let action = intent.action_type();
+        if *action == Kick::ACTION_TYPE {
+            launch::validate_kick(world, intent)
+        } else if *action == Throw::ACTION_TYPE {
+            launch::validate_throw(world, intent)
+        } else if *action == Shove::ACTION_TYPE {
+            shove::validate(world, intent)
+        } else {
+            Err(Rejection::NoSupportedInteraction)
+        }
+    }
+
+    /// A `kick` or `throw`, resolved at the instant (QB-6): one `object-moved`. A `shove`:
+    /// `person-shoved`, then presence's facts for the shoved person's arrival.
+    fn resolve(
+        &self,
+        world: &mut WorldView<'_, Self>,
+        intent: &ActionIntent,
+    ) -> Result<Vec<Emission>, KernelError> {
+        let action = intent.action_type();
+        let read = world.read();
+        if *action == Kick::ACTION_TYPE {
+            launch::resolve_kick(&read, intent)
+        } else if *action == Throw::ACTION_TYPE {
+            launch::resolve_throw(&read, intent)
+        } else if *action == Shove::ACTION_TYPE {
+            shove::resolve(&read, intent)
+        } else {
+            Err(refused(
+                ObjectMoved::EVENT_TYPE,
+                Rejection::NoSupportedInteraction,
+            ))
+        }
+    }
 }
 
-/// Whether the world as it stands fits `shape` in `place`: SD-B4's four checks, in the order above.
-fn fits(world: &WorldRead<'_>, place: PlaceId, shape: &PlaceShape) -> Result<(), Rejection> {
-    let is_place = world.entity(place.entity_id()).is_some_and(|entity| {
-        entity.entity_type() == EntityType::Place && entity.lifecycle() != LifecycleState::Destroyed
-    });
-    if !is_place {
-        return Err(Rejection::PreconditionFailed);
+/// The reaction to a recorded `arrived` (step-11 SD-O8): the person pushes every loose object their
+/// disc now overlaps, each stated as `object-moved { how: pushed }`, caused by the arrival and so by
+/// the request (`AC-9`). Inert for an arrival without a position, a place without a shape or without
+/// objects — which includes every genesis placement, since no object lies anywhere before genesis's
+/// second generation.
+///
+/// The resolver predicted exactly these pushes from the same inputs (SD-O10), so for a resolved
+/// arrival none jams. A jam here means an arrival escaped resolution — `ARC-39` item 7's guard, which
+/// for objects can be built at the reaction — and the dispatch fails with `bodies-object-jammed`.
+fn pushed_by(world: &WorldRead<'_>, arrived: &Arrived) -> Result<Vec<Emission>, KernelError> {
+    let location = arrived.location();
+    let Some(local) = location.local() else {
+        return Ok(Vec::new());
+    };
+    let place = location.place();
+    let Some(shape) = world.component::<PlaceShape>(place.entity_id()) else {
+        return Ok(Vec::new());
+    };
+    let lying = objects::lying_in(world, place);
+    if lying.is_empty() {
+        return Ok(Vec::new());
     }
     let room = shape.room();
-    let r = PERSON_RADIUS.value();
-    let named = |entity: EntityId| name(world, entity);
-    let refuse = |code, detail: String| Rejection::System {
-        code,
-        detail: Some(detail),
-    };
-
-    let population = world
-        .entities()
-        .filter(|entity| {
-            entity.entity_type() == EntityType::Person
-                && entity.lifecycle() != LifecycleState::Destroyed
-        })
-        .count();
-    let needed = 4 * population.saturating_sub(1) + 1;
-    let capacity = room.capacity();
-    if capacity < needed {
-        return Err(refuse(
-            CAPACITY,
-            format!(
-                "{}'s floor has room for a person at {capacity} points of the 650 mm grid; a world \
-                 of {population} people needs {needed}",
-                named(place.entity_id())
-            ),
-        ));
-    }
-
-    let people = standing_in(world, place);
-    for (person, at) in &people {
-        if !room.floor.holds(*at, r) {
-            return Err(refuse(
-                OUTSIDE,
-                format!(
-                    "{} stands at ({}, {}) in {}, outside its floor shrunk by {r} mm",
-                    named(*person),
+    let person = arrived.person();
+    let at = Point::new(local.x().value(), local.y().value());
+    let pushes = Lay::new(&room, &lying).pushes(at).map_err(|jam| {
+        refused(
+            ObjectMoved::EVENT_TYPE,
+            Rejection::System {
+                code: JAMMED,
+                detail: Some(format!(
+                    "{} cannot be pushed out of {}'s way at ({}, {}) in {}: the arrival was not \
+                     resolved with objects solid (DECISIONS.md ARC-39 note 2)",
+                    name(world, jam.object.entity_id()),
+                    name(world, person.entity_id()),
                     at.x,
                     at.y,
-                    named(place.entity_id())
+                    name(world, place.entity_id()),
+                )),
+            },
+        )
+    })?;
+    Ok(pushes
+        .into_iter()
+        .map(|push| {
+            let from = lying[push.index].1;
+            object_moved(Movement {
+                object: push.object,
+                place,
+                from: LocalPosition::new(
+                    Millimetres::new(from.centre.x),
+                    Millimetres::new(from.centre.y),
+                    Millimetres::new(from.z),
                 ),
-            ));
-        }
-        if let Some(distance) = room.solid_within(*at, r) {
-            return Err(refuse(
-                IN_SOLID,
-                format!(
-                    "{} stands {distance} mm from a solid in {}; a person keeps {r} mm from every \
-                     solid",
-                    named(*person),
-                    named(place.entity_id())
+                to: LocalPosition::new(
+                    Millimetres::new(push.to.x),
+                    Millimetres::new(push.to.y),
+                    Millimetres::new(from.z),
                 ),
-            ));
-        }
-    }
-    let points: Vec<Point> = people.iter().map(|(_, at)| *at).collect();
-    if let Some((a, b, distance2)) = closest_pair(&points)
-        && distance2 < i64::from(CLEARANCE.value()) * i64::from(CLEARANCE.value())
-    {
-        return Err(refuse(
-            OVERLAP,
-            format!(
-                "{} and {} stand {} mm apart in {}; people stand at least {} mm apart",
-                named(people[a].0),
-                named(people[b].0),
-                distance2.isqrt(),
-                named(place.entity_id()),
-                CLEARANCE.value()
-            ),
-        ));
-    }
-    Ok(())
+                how: How::Pushed,
+                by: person,
+                path: Vec::new(),
+            })
+        })
+        .collect())
 }
+
+/// Why a push was refused at the reaction: it jams, so the arrival escaped resolution.
+const JAMMED: RejectionCode = RejectionCode::from_static("bodies-object-jammed");
 
 /// Every person whose presence puts them in `place` at a position, in `EntityId` order — the order a
 /// scene inserts people in (step-11 DC-2). A person in the place with no position has no body here.
@@ -209,14 +277,25 @@ pub(crate) fn name(world: &WorldRead<'_>, entity: EntityId) -> String {
 }
 
 impl PerceptionProvider for BodiesSystem {
-    /// Discloses a place's [`PlaceShape`] — its floor and solids — to whoever perceives the place.
+    /// This pack's complete affordances (step-11 SD-O12; `offer.rs`).
+    fn offers(
+        &self,
+        world: &WorldRead<'_>,
+        observer: EntityId,
+        target: Option<EntityId>,
+    ) -> Vec<mineworld_presence::Offer> {
+        offer::offers(world, observer, target)
+    }
+
+    /// Discloses a place's [`PlaceShape`] — its floor and solids — and a listing of the loose objects
+    /// lying in it — each one's shape and position — to whoever perceives the place.
     ///
     /// Perception asks only about entities the observation already lists, and it lists only the
-    /// observer's own place, so a person learns the walls of the room they stand in and of no other.
-    /// It states where the walls are, never whether one may pass: that is decided on the server, when
-    /// an arrival is resolved (`ENGINEERING_RULES.md` §8). A client builds its colliders from these
-    /// numbers, so the walls it predicts are the walls the server resolves against (step-11 R-B4). A
-    /// person, and a place without a shape, disclose nothing.
+    /// observer's own place, so a person learns the walls and the objects of the room they stand in
+    /// and of no other. It states where things are, never whether one may pass: that is decided on
+    /// the server, when an arrival is resolved (`ENGINEERING_RULES.md` §8). A client builds its
+    /// colliders from these numbers, so what it predicts is what the server resolves against
+    /// (step-11 R-B4). A person, and a place without a shape, disclose nothing.
     fn discloses(
         &self,
         world: &WorldRead<'_>,
@@ -229,14 +308,17 @@ impl PerceptionProvider for BodiesSystem {
         if !is_place {
             return Vec::new();
         }
-        world
+        let mut records: Vec<ComponentRecord<Value>> = world
             .component::<PlaceShape>(subject)
-            .map(|shape| {
-                vec![ComponentRecord::new::<PlaceShape>(
-                    subject,
-                    codec::to_value(shape),
-                )]
-            })
-            .unwrap_or_default()
+            .map(|shape| ComponentRecord::new::<PlaceShape>(subject, codec::to_value(shape)))
+            .into_iter()
+            .collect();
+        if let Some(listing) = objects::listing(world, subject) {
+            records.push(ComponentRecord::new::<LooseObjects>(
+                subject,
+                codec::to_value(&listing),
+            ));
+        }
+        records
     }
 }

@@ -333,6 +333,58 @@ TripoSG (MIT code and weights) pass, provided their bundled background removers 
 defaults, and `briaai/RMBG-1.4`, non-commercial) are not run; BiRefNet (MIT) is the substitute.
 Details and quotes: [`references/CHARACTER_ROUTE_E_EXPERIMENT.md`](references/CHARACTER_ROUTE_E_EXPERIMENT.md) §§2, 9.4.
 
+**Generated images (OpenAI), recorded 2026-10-08 (pre-publication audit, read at source).**
+OpenAI image output passes the relicensing test under both agreements that can apply. Read
+first-hand on 2026-10-08 in a browser (an automated fetcher receives HTTP 403 from these pages,
+which is why the route E experiment could only quote a search result):
+
+- **ChatGPT** (consumer) — Terms of Use, effective 2026-01-01,
+  <https://openai.com/policies/terms-of-use/>: *"Ownership of content. As between you and OpenAI,
+  and to the extent permitted by applicable law, you (a) retain your ownership rights in Input
+  and (b) own the Output. We hereby assign to you all our right, title, and interest, if any, in
+  and to Output."*
+- **The API (`gpt-image-1`, the `tools/asset_generation` models) and ChatGPT Business /
+  Enterprise** — OpenAI Services Agreement, effective 2026-01-01 (page updated 2025-12-01),
+  <https://openai.com/policies/services-agreement/>, §4.1: *"As between Customer and OpenAI, to
+  the extent permitted by applicable law, Customer: (a) retains all ownership rights in Input;
+  and (b) owns all Output. OpenAI hereby assigns to Customer all OpenAI's right, title, and
+  interest, if any, in and to Output."* The Agreement *"only applies to use of OpenAI's APIs,
+  ChatGPT Enterprise, ChatGPT Business, ChatGPT for Clinicians, and other services for customers
+  who are businesses and developers"*.
+
+Both versions were in force from 2026-01-01 through the read date, so they are the terms that
+governed every OpenAI image in this repository (generated 2026-09-26 onwards). The ChatGPT
+account tier is not recorded in the images' metadata; the conclusion does not depend on it,
+because both agreements assign Output to the user. As the owner, MineWorld distributes these
+images under the repository's licence. Neither agreement restricts redistribution or publication
+of Output. What they do require, and how MineWorld meets it:
+
+- *"Represent that Output was human-generated when it was not"* is prohibited (Terms of Use,
+  "What you cannot do"). Every OpenAI-derived asset is recorded as AI-generated in its
+  provenance record (`ARC-9`), and the top-level `NOTICE` says so.
+- *"Use Output to develop models that compete with OpenAI"* (Terms of Use) and *"use Output to
+  develop artificial intelligence models that compete with OpenAI's products and services"*
+  (Services Agreement §3.3(e)) are prohibited. The restriction binds the account holder;
+  MineWorld trains no model on these images.
+- The Sharing & Publication Policy (updated 2022-11-14,
+  <https://openai.com/policies/sharing-publication-policy/>; binding under the Terms of Use's
+  "What you can do" and an "OpenAI Policy" under the Services Agreement) asks that shared content be attributed to the publisher and that one
+  *"Indicate that the content is AI-generated in a way no user could reasonably miss or
+  misunderstand."* The provenance records and `NOTICE` do both.
+- *"Output may not be unique and other users may receive similar output"* (Terms of Use;
+  Services Agreement §4.4). Ownership is of our Output only; MineWorld claims nothing in anyone
+  else's similar image.
+- No clause in either agreement, nor in the Usage Policies (effective 2025-10-29) or the Service
+  Terms (updated 2026-09-29), requires an identifier to be kept. The ChatGPT images carry a
+  signed C2PA manifest (`claim_generator` "OpenAI Media Service API", software agent "ChatGPT" /
+  "gpt-image", source type `trainedAlgorithmicMedia`); MineWorld keeps it in every committed
+  original anyway, matching the Meshy rule. Re-encoded derivatives (JPEG crops, the 768 px texture
+  sources) lose it, and their provenance is carried by the written record instead.
+
+The records this entry backs: `presentation/mineworld-default/{2D,3D}/references/PROVENANCE.md`
+(the ten ChatGPT reference images and their crops), `clients/3d-spike/ASSETS.md` (the two
+`gpt-image-1` texture sources) and the `.provenance.yaml` sidecars of the generated 2D candidates.
+
 Per-asset sources — Sketchfab's CC0 filter, OpenGameArt, BlenderKit's free tier — mix licences
 within one site, so they are usable only with a per-asset check recorded in that pack's
 `LICENSES/`.
@@ -2386,6 +2438,19 @@ to 57 741 over the 300 days — the share of consults the band takes — which i
 something to everyone everywhere costs, and a reason for a pack to offer less, not for the controller
 to change.
 
+**Note, 2026-10-08 (S14, PR 16b) — the first client accessors.** Point 7's "no client code changes in
+S9" stands as history. The shared GDScript module `clients/protocol/mineworld` now reads and submits
+complete affordances, for both reference clients at once:
+- `MineWorldObservation.affordances(action_type, target)`, `complete_affordances(…)`,
+  `affordances_about(id)` and `is_complete(affordance)` list them in the server's order and never pick
+  one;
+- `MineWorldClient.submit_affordance(affordance)` submits one unchanged, whether or not it is
+  available, and refuses only an affordance with no `payload`.
+
+Nothing on the wire changed. The API is specified in `clients/protocol/ADOPTION.md` §2 and designed in
+`.structured-coding/plans/mvp0/step-15-demo-3d.md` §18. No new record was needed: it is this decision's
+point 3 and point 7 carried into code.
+
 ---
 
 ## ARC-35 — How AC-1 is measured
@@ -2655,6 +2720,23 @@ There are three ways to give a world such entities:
   items 5–7 are proven with a section owner that exists only in the loader's own tests.
 - Organization membership, roles and accounts (`CORE_CONCEPTS.md` §8) are not authored fields. They
   are the state of whichever System Pack owns them, carried as its section.
+
+**Note, 2026-10-08 (S15, PR 12c; step-11 QB-3, decided by the operator; §18.0, SD-O3) — an item file
+with a `body:` section is one physical object.** Item 2 reads `Item` as a kind. The `bodies` System
+Pack adds the second reading `CORE_CONCEPTS.md` §7 already allows, "unique items", for exactly one
+case, and nothing else changes:
+
+1. **An item file that carries the `bodies` pack's `body:` section declares one physical object**, not
+   a kind: the Item entity *is* that object, lying in one place at one position, with one shape. It is
+   created at genesis like every other authored Item (item 4); no entity is created while a world runs.
+2. **It is never a declared kind, so it is never held.** It carries no `item:` section: `bodies`
+   refuses, at genesis, an Item that is both a declared kind and an object (`bodies-held-kind`). What
+   a person or an organization may hold is a declared kind (`ARC-37`), so the pack that owns holdings
+   refuses every holding of an object by its own rule, at genesis and while the world runs. Lying in a
+   place and being held are disjoint by construction.
+3. **Instances in general stay out of MVP-0** (item 3). An object is authored, not created; a kind
+   still has no instances; and how a unique object could one day be held — what carrying needs — is
+   the first decision of the step that adds carrying, not this note's.
 
 ---
 
@@ -3166,6 +3248,42 @@ decision; items 1–8 are unchanged except where item 7 is refined below.
    does not bound such an arrival (the limitation above), so the point may be farther from the doorway
    than `to` is.
 
+**Note 2, 2026-10-08 (S15, PR 12c; step-11 §18.0, SD-O8 … SD-O10, SD-O15, QO-4, QO-9, QO-18) —
+loose objects, and a pack that is also a mover.** Items 1–8 and the first note are unchanged except
+where this note refines item 7 for objects.
+
+1. **The resolver predicts object pushes.** Loose objects are `bodies`' own state (an Item with a
+   `body:` section, `ARC-36` note), so presence cannot record their moves and a resolver cannot emit
+   them: they move in `bodies`' reaction to each recorded `arrived`. That reaction pushes every loose
+   object lying on the floor whose footprint the person's disc overlaps, straight away from the
+   person's centre, by a shape cast against the fixed geometry and the other objects — computed
+   **against the objects as they lay before the request**, with people not as obstacles. Reduction is
+   breadth-first: every reaction of one emission list sees the objects as they lay, and the people
+   not yet where the list leaves them (step-11 F-O2, F-B1). Before answering, the resolver runs the
+   same function on the same three inputs — the person's end point, the room, the objects as they lay
+   — for the walker and for every person it displaces, in emission order, and accepts the result only
+   if no object is pushed twice, no push is cut short (a jam), and in the final state no person
+   overlaps an object and no two objects overlap. Otherwise it resolves the arrival again with the
+   objects solid, and nothing is pushed. So what the reactions push is exactly what the resolver
+   checked, and a walker never ends inside a jammed box.
+2. **The guard covers objects.** The starting-state guard (the first note, point 2) also checks that
+   every object lies within its floor, rests on the floor or on one solid's top, keeps clear of every
+   other solid and object, and is overlapped by no person's disc. And because a push is computed from
+   the arrival and the objects alone, item 7's third bullet can be built for objects at the reaction
+   itself: a push that jams there means an arrival escaped resolution, and the reaction fails the
+   dispatch with `bodies-object-jammed`.
+3. **`bodies` is also a mover.** Its `shove` action states presence's `arrived` and `stopped-short`
+   through `arrivals()`, exactly as `movement` does (`ARC-26`): the shoved person's arrival is resolved
+   by the registered resolvers like any other — walls stop them, the people behind them are nudged
+   within the first note's bounds, objects are pushed or block, and the head-on bias applies to it as
+   to every arrival within a place. A pack may subscribe to a fact type it also states (step-11 F-R7).
+4. **One crate dependency outside presence, used for one read.** `bodies` refuses, at genesis, an
+   Item that is both an object and a declared kind (`ARC-36` note, point 2). It asks the `item` pack's
+   read-only `mineworld_item::is_declared`, and nothing else from that crate; a structural test holds
+   that. This is a crate dependency, not a system dependency: `bodies` declares a system dependency on
+   presence alone, a world may install `bodies` without `item`, and in such a world the answer is "not
+   declared".
+
 ---
 
 ## DEP-13 — Server physics: Rapier (`rapier3d`, `enhanced-determinism`) inside the `bodies` pack
@@ -3252,6 +3370,25 @@ determinism  cross-platform needs `enhanced-determinism` and IEEE 754-2008 targe
 - **The licence tree is permissive**: every package Rapier brings, with these features, is Apache-2.0,
   MIT, Zlib, Unlicense or Unicode-3.0, each alone or as one of a permissive choice (recorded in step-11
   §17.10).
+
+**Note, 2026-10-08 (S15, PR 12c; step-11 §18.0, SD-O14, SD-O16) — dynamics are now used.** `kick` and
+`throw` simulate one object's flight at the instant of the request (step-11 QB-6): the first stepped
+simulation in MineWorld. The isolating interface is unchanged — integers in, integers out, nothing
+kept, every float converted by the same two functions — and what the flight adds is bounded:
+- **One dynamic body per flight.** A flight scene holds the place's fixed geometry, the people as
+  kinematic capsules in `EntityId` order, the other objects as fixed colliders in `ItemId` order, and
+  the flying object last: dynamic, rotations locked (no rotation is ever persisted), with continuous
+  collision detection so a fast object cannot pass a thin solid. Friction 0.5, restitution 0.1.
+- **Bounded steps and a rest rule.** Sub-steps of 1/60 s, at most 180 for a kick and 240 for a throw;
+  the object has come to rest once it has been slower than 50 mm/s for 10 consecutive sub-steps. Both
+  are pure functions of the state.
+- **F-P1's re-mark is exercised.** The adapter's `refresh` runs after the scene is built and before the
+  first step; without it the flying object would never move (the canary above).
+- **The engine's answer is never the last word.** The landing is quantized and verified on integers
+  against the stored-state invariant of objects; if it fails, the nearest verified point of a 50 mm
+  lattice is taken, and if none verifies, the object stays where it was.
+- **Launch velocities are integers** (millimetres per second, computed with + − × ÷ only), converted
+  into Rapier's metres by the adapter's one conversion.
 
 ---
 

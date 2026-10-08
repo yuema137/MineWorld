@@ -773,6 +773,7 @@ version = "0.0.0"
 dependencies = [
  "mineworld-authoring",
  "mineworld-contracts",
+ "mineworld-item",
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-presence",
