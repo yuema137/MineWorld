@@ -5641,3 +5641,130 @@ DO-17 are the material stops the AO-2 rulings closed. DO-18 is a defect fix.
 - **Measured for 12d's risk, not a bound on it:** bodies-yard's 300-day dev run with objects took
   30.7 s against 9.9 s without bodies, 3.1× (PO-14). The towns' bound stays 1.5× (DB-10 (b2)).
 
+---
+
+# 19. PR 12d — the town gets bodies (full design; DRAFT, not frozen)
+
+**Lifecycle:** drafted by the planning session on `mvp0/s15-12d-plan` on 2026-10-08, stacked on the 12c
+post-merge docs PR (#72). **Not frozen.** Nothing in §19 authorizes implementation. The questions the
+freeze must answer are §19.8 (QD-1 …); those marked **[OM]** are the operator's.
+
+This section refines §5, §10.4, §11.1's 12d row, QB-5 and QB-11 from merged source. Where they and §19
+disagree, §19 governs, and each difference is named with the finding that caused it (§19.2) and the
+question that asks for it (§19.8).
+
+## 19.1 Identity, base, approved scope
+
+```text
+PR            12d — the town gets bodies (S15, fourth of five)
+base          main after #72 (the 12c post-merge docs PR) and the PR carrying this design merge —
+              21f96ff + Markdown only. Re-audit §19.2 if anything under worlds/social-cafe,
+              worlds/market-town, systems/bodies, systems/item, systems/movement, worldpack/src,
+              tests/acceptance, tools/cli/tests, persistence/tests or clients/3d-spike/scripts moved
+branch        mvp0/pr-12d-town, in its own worktree, held by the implementing session only
+audit         §19.2 (main @ 21f96ff, 2026-10-08)
+scope         §11.1's 12d row; QB-5 (both towns install bodies); QB-11 (≤ 1.5×, on the towns, never
+              re-scoped: DB-10 (b2)); F-B7; FU-12a-1; S14's R-12d-1 … R-12d-4 (step-15 §11.3); S12's
+              R-PK-2 (`step-13-client-2d.md`, R-PK-2, RK-5, QS12-3) by coordination ruling 5 (overall.md "Parallel build-out");
+              as refined by SD-D1 … SD-D16 and answered by QD-1 …
+depends on    12c merged (889d217). bodies, presence's seam and movement used as merged
+merge         a merge commit, never a squash
+```
+
+**Goal.** Both towns get bodies, and their digests move once, here and nowhere else:
+
+- **Every place of `social-cafe` and `market-town` has a `body:` section**: a floor and solid boxes in
+  integer millimetres. The café's and the street's match the 3D slice's colliders within 150 mm, the
+  tolerance S14 set for its geometry probe (step-15 §4.2). The store is The Flower Room (R-12d-2).
+  The apartments, the workplace and the park, which the slice does not draw inside, get rooms that
+  hold their people and match their files' own descriptions.
+- **Every doorway point lies where a person fits** (F-B7): at least 310 mm (R + GAP) inside its floor
+  and from every solid, on both sides. A doorway that does not is refused at load, by name (§11.1's
+  adversarial criterion).
+- **Loose objects lie where players meet them**: a box and a ball in the café and on the pavement
+  outside it (R-12d-3), each at least 700 mm from every doorway point.
+- **`bodies` is installed in both towns**, the same place geometry in both (R-12d-4, `ARC-35` check 3).
+- **S12's item names (R-PK-2)** are folded into the same re-baseline: `item:` gains a `name`, and
+  `item` discloses a catalogue of declared kinds on every perceived place.
+- **The digests are re-baselined once**, with the before and after recorded, after the activity
+  precondition (`ARC-23`) and the full scan hold, and QB-11's cost bound holds on both towns.
+
+**Change set.** Every path this PR may touch:
+
+```text
+worlds/social-cafe/world.yaml          systems += bodies; items: (the four objects)
+worlds/social-cafe/places/*.yaml       body: sections; passage points moved (SD-D3, SD-D4)
+worlds/social-cafe/items/*.yaml        new: cafe-ball, cafe-box, street-ball, street-box (body: only)
+worlds/social-cafe/README.md           geometry, objects, the three actions
+worlds/market-town/world.yaml          systems += bodies (same position as social-cafe's); items: the
+                                       four objects added
+worlds/market-town/places/*.yaml       byte-identical to social-cafe's (R-12d-4, check 3)
+worlds/market-town/items/*.yaml        the four object files, byte-identical to social-cafe's; each of
+                                       the twenty kinds' `item:` gains `name` (R-PK-2)
+worlds/market-town/README.md           the same, and the names
+systems/item/**                        R-PK-2: ItemName, the section's `name`, item-kind-declared and
+                                       ItemKind carry it, the catalogue disclosed on a place; VERSION 2
+systems/bodies/src/{genesis,system}.rs the doorway check (SD-D5); VERSION 3 (QD-6)
+systems/bodies/Cargo.toml, Cargo.lock  mineworld-movement as a crate dependency, for Passages only
+                                       (SD-D5, QD-5)
+systems/bodies/tests/{rapier_pin,isolation,genesis}.rs   QD-6's literal; QD-5's dependency claim; the
+                                       doorway refusals
+tests/acceptance/tests/ac1_composability.rs   check 3 admits Social Café's own items (SD-D9; QD-1 [OM])
+systems/movement/src/action.rs, worldpack/src/read.rs,
+tests/acceptance/tests/seam_vocabulary.rs     FU-12a-1: three comments reworded, three allow-list
+                                       entries removed (QD-9)
+tools/cli/tests/town_bodies.rs         new: the towns' activity, scan, counterfactual and cost
+tools/cli/tests/bodies/mod.rs          the scan reads any world's place files (SD-D12)
+existing tests                         the named literal edits of §19.6, each claim unchanged (QD-8)
+docs/DECISIONS.md                      notes: ARC-35 (check 3), ARC-37 (the catalogue), ARC-39 (doorways)
+docs/MODULE_SPEC.md                    §4.1: `item`'s name and catalogue; `body`'s doorway refusal
+docs/MVP_STATUS.md                     the S15 rows, the evidence rows
+.structured-coding/plans/mvp0/{step-11-bodies,handoff}.md   this ledger, the handoff
+```
+
+Paths with no diff:
+- `kernel/`, `contracts/`, `persistence/src/`, `server/`, `cognition/`, `clients/`, `authoring/`,
+  `sdk/`;
+- `systems/presence/`, and every System Pack other than `bodies`, `item` and FU-12a-1's comment lines
+  in `movement`;
+- `tools/cli/src/`, `worldpack/src/` beyond FU-12a-1's comment;
+- `worlds/bodies-yard/`;
+- the root `Cargo.toml`.
+
+**Non-goals.**
+- The 3D client: colliders, the correction rule, the frame binding's new doorway offset, the
+  florist bound to `store` — 12e and 16c (step-15 §13).
+- The 2D client reading the catalogue (13c) or drawing bodies (13d).
+- FU-12c-1 (a stride moving away from somebody within the controller's offset): it changes 12b's
+  results and its long-run base, and needs its own design (QD-10).
+- Names for loose objects and organizations: an object is not a declared kind, so the catalogue does
+  not name it (QD-4); organizations are not needed by any Demo A interaction (R-PK-2).
+- R-PK-1 (doorways say where they lead): S12 13c, with no digest change.
+- Any change to presence, movement's rules, the paced controller, the kernel or contracts.
+- Any change to bodies' rules (constants, sweep, nudge, push, flight). If QB-11 fails, DB-10's options
+  2 and 3 are a design change brought to the operator, not done here (§19.4 TD-12).
+
+## 19.2 Source audit (`main @ 21f96ff`, 2026-10-08)
+
+Each finding was read in this session from the file named, or measured (E-TD0). The 3D slice was read
+on `main` (`clients/3d-spike`, merged as #50), read-only. S12 13a and S14 16a were read in their
+implementation worktrees, read-only, at the states named in F-D12.
+
+| ID | Finding | Evidence | Consequence for 12d |
+| --- | --- | --- | --- |
+| **F-D1** | **AC-1's check 3 forbids any item in Social Café, and any `body:` in a Market Town item file.** `compare_manifests` fails "`items` must be absent in Social Café and present in Market Town"; `world_delta_failures` fails "items/: must exist in Market Town only"; `market_only_content` admits in an item file only `tags`, `note` and sections a market pack owns, and `body` is owned by `bodies`. `ARC-35` item 4, approved by the operator, says the same in words: "`items/` and `organizations/`: present only in Market Town". | `tests/acceptance/tests/ac1_composability.rs:1080–1082, 1121–1138, 1178–1189`; `docs/DECISIONS.md:2495–2500` | A loose object is an Item file (`ARC-36` note, QB-3). So **no town can carry an object without amending check 3 and `ARC-35` item 4**: in Social Café the `items:` list and `items/` fail; in Market Town alone, the object's `body:` fails. R-12d-3 (objects where players meet them) and the operator's "at least one box and one ball" therefore need an operator decision (QD-1 **[OM]**, SD-D9). |
+| **F-D2** | **Check 3 accepts geometry that is identical in both towns.** Every key of a Social Café place file must be present in Market Town's with an equal value (structural YAML comparison, map order free); `systems` must be Social Café's list in order, then exactly the six market packs. | `ac1_composability.rs:1028–1054, 1094–1121` | `body:` sections byte-identical in both towns pass. `bodies` must sit at the same position in both `systems:` lists, before Market Town's six (SD-D1). Check 1 (the 11d/11e merges) and check 2 (crate edges) are untouched: `bodies → item` and `bodies → movement` are `systems/` edges (F-O11). |
+| **F-D3** | **Every doorway point is too close to a wall, on both sides.** `here`: the café (1 610, 200), the apartments (2 000, 200), the store (1 500, 200), the workplace (1 500, −200) — each 200 mm from its front wall — and the park (1 000, 14 800), 200 mm from a 15 m edge. `there` on the street: the north doors at y 3 000, 200 mm inside the slice's north façade line (y 3 200); the south doors at y −13 000, which **is** the slice's south façade line — outside any floor the slice allows. | `worlds/social-cafe/places/*.yaml`; slice: `street.gd:31–38`, `terrace.gd:19, 114` (F-D6) | F-B7 generalized: with a floor, every crossing would land by entry placement's E3 rather than on the doorway (SD-B8), and the south doors would be outside the street. Every point moves to ≥ 310 mm inside (SD-D3). |
+| **F-D4** | **Nothing refuses a doorway inside a wall.** Bodies' genesis checks people (overlap, outside, in a solid, capacity) and objects; it never reads movement's `Passages`. Bodies depends on presence only and does not link `mineworld-movement`. | `systems/bodies/src/genesis.rs:62–137`; `systems/bodies/Cargo.toml` | §11.1's adversarial criterion for 12d ("a doorway authored inside a wall … is refused at load by name") needs a new check that reads `Passages` (SD-D5, QD-5). |
+| **F-D5** | **The slice's café, in the café's own frame, is exactly the world's room.** `MineWorldSpace.to_3d` maps (x, y, z) mm to Godot (x, z, −y) m. `SliceLink` binds a frame by translating the place's disclosed doorway onto a scene door point: the café's `here` onto a point 0.2 m inside the façade's inner face, the street's `there` onto a point 0.2 m outside the façade. That puts the café's origin on the room's inner south-west corner, scene (1.84, −8.44): the inner faces are café x 0 and 8 320, y 0 and 10 320, as `cafe.yaml` says. The street's origin is scene (3.45, −4.90). | `clients/protocol/mineworld/space.gd:54–61`; `slice_link.gd:50–53, 62, 70–92`; `slice/cafe.gd:26–38`; `cafe_interior.gd:35–37` | The café's floor is (0, 0)–(8 320, 10 320). **Moving a doorway point moves the client's binding** by the same amount unless the client's 0.2 m constants move with it: a 12e/16c change, stated as a cross-lane impact (§19.10). |
+| **F-D6** | **The slice's colliders, in world millimetres.** Café: the counter (3 860, 6 570)–(8 320, 7 350) h 1 060; the back worktop (3 860, 9 290)–(8 320, 9 910) h 880; the window bench slab (2 360, 460)–(8 020, 900), top 470; the west dresser (0, 2 110)–(340, 4 510) h 840; three round tables at (4 860, 3 160), (7 110, 4 560), (2 260, 8 560); the open door leaf, a diagonal board whose box is (785, −187)–(1 120, 734); the back-room blocker (195, 10 230)–(1 245, 10 370). The door's clear opening is café x 1 120 … 2 100. Street: floor band y −13 000 … 3 200 (south and north façades), x −37 450 … 30 550 (the street volume); a retaining wall (15 050, 1 000)–(26 050, 3 200) h 1 900; 7 lamps, 13 bollards, 2 bins, 12 trees (cylinders r 130 … 264), 7 stone planters (boxes), 3 terrace tables (cylinders r 620), 2 planter boxes, 3 clay pots, 2 A-boards, 2 benches, a fingerpost and a bicycle. The Flower Room: interior 7 900 × 7 350, door 8 390 mm east of the café's door, its own colliders (staging, shelves, counter, step, table, crate, door leaf). The other façade doors are not enterable: the Flats' house door at street x −19 700 (north), a house door at −5 700 (south), the Lakeside Deli at 4 710 (south), a house door at 15 300 (south), among others. | `cafe_interior.gd:22–24, 136–152, 285–293, 334–336, 436–488, 533`; `cafe.gd:216–218, 258–281`; `street.gd:31–38, 62–139`; `streetscape.gd:41–325`; `slice_world.gd:117–194`; `shop_interior.gd:25–304`; `terrace.gd:83–147, 220–233`; `profile.gd:385–419` (planning agent's audit, cited line by line) | The geometry of SD-D2. Three facts shape it: (1) slice cylinders and a diagonal leaf are not boxes (SD-D2's approximation rules, QD-3); (2) colliders placed with `put_solid` (the tables, pots, planter boxes, A-boards, the florist's shelves, table and crate) are sized at run time from the glTF asset's bounds × 0.92, so their sizes are not in code — 12d reads them from the assets (SD-D2); (3) the street has about 60 colliders, under bodies' 64-solid limit (`SOLIDS_MAX`). |
+| **F-D7** | **The slice's doors do not match four of the world's.** The world's store door (street x 12 000) lies 3 610 mm east of The Flower Room's door, inside its façade; the apartments' (−12 000, north) lies on the Flats' façade 7 700 mm from its door; the park's (8 000, south) lies 1 950 mm inside a unit with no door near; the workplace's (−6 000, south) is 300 mm from a house door. | as F-D6; `worlds/social-cafe/places/{store,apartments,park,workplace}.yaml` | R-12d-2: each street-side point moves onto a slice door (SD-D4). Walks get longer on the street (QD-7). |
+| **F-D8** | **Capacity is per place, against the whole world's population.** A shaped place must offer at least 4·(people − 1) + 1 points of the 650 mm grid inside its floor shrunk by 300 mm and clear of solids by 300 mm, plus each object's `blocks`. With twelve people: **45 points**, in every shaped place, the smallest included. | `systems/bodies/src/genesis.rs:79–92`; `geometry.rs:276–280`; SD-O5 | A floor needs about 4.5 m × 4.5 m net of solids. Every room of SD-D2 has margin; the numbers are part of validation (TD-2). |
+| **F-D9** | **Identities: items come after people, in key order.** Social Café's ids 1–18 do not move when items are added. In Market Town the four object keys sort among the twenty kinds (`cafe-ball` after `bread`), so most kinds' ids and both organizations' move. | `worldpack/src/load.rs:1–33`; `worldpack/src/read.rs:176–205` (a `BTreeMap`, key order) | Expected under a re-baseline; named so no test or client assumes a kind's raw id (§19.6). |
+| **F-D10** | **Thirteen test files hold a literal or a behaviour that 12d's content changes** — the systems list (`commands.rs:34`, `server_command.rs:43–53`, `worldpack/tests/social_cafe.rs:67–77`), `inspect`'s system lines (`inspect.rs:36–37`, `social_composition.rs:380, 420`), genesis counts ("53 genesis fact(s)": `commands.rs:40`, `content_kinds.rs:136`, `social_cafe.rs:219, 378`), entity counts (`server_command.rs:34, 85`, `social_cafe.rs:109`, `content_kinds.rs:122–132`), the old doorway (`social_cafe.rs:647, 803, 832, 843`), Social Café's absent `items:` (`content_kinds.rs:39–40, 114`; the copy in `social_cafe.rs:338–391`), otto's single arrival (`routines.rs:225`), and straight walks across the café whose every stride must be accepted at the requested point (`ac15_one_alice.rs`, `restart.rs`, `social_cafe.rs:709–717`, `ac13_semantic_parity.rs` replaying the frozen `clients/protocol/evidence/request-{2d,3d}.json`). | planning agent's audit of every file, cited by line; §19.6 lists each | Literal edits with unchanged claims (QD-8). The straight walks are a geometry constraint on SD-D2: the café's solids and objects keep clear of those lines (SD-D2, TD-9). |
+| **F-D11** | **R-PK-2 meets an `item` pack that discloses nothing.** `AuthoredItem { category }` denies unknown fields; `item-kind-declared { item, category }` (schema 1) is reduced into `ItemKind { category }` (schema 1); `PerceptionProvider for ItemSystem {}` is empty; `ARC-37`: "items are never perceived". | `systems/item/src/{section,event,component,system}.rs`; `docs/MODULE_SPEC.md:418–420` | R-PK-2 is an `item` change (SD-D10): a section field, a fact field, a component field, a disclosure, `VERSION` 2, and an `ARC-37` note. Market Town's genesis facts change; Social Café does not install `item`. |
+| **F-D12** | **The in-flight clients assume today's doorways.** S12 13a (`impl-s12-13a`, uncommitted work included): `drive.gd:133–149` finds the café's door on the street by exact equality with (0, 3 000); `godot.yaml:58` draws the café from `door_from_left_m 1.61`; `client_2d.rs:165–181` walks the wanderer straight toward Alice's counter and carol from her genesis point. S14 16a (`impl-s14-16a`): A16-7 holds the café's people, the door (1 610, 200) ↔ (0, 3 000), and Ivan; T-2 relies on the florist being reported as the street; `slice_link.gd:80–86` binds the doorways at 0.2 m. Neither has a geometry probe; the 150 mm probe is 12e's (`--world --geometry`, step-15 §4.2). | planning agent's audit of both worktrees, cited by line | Cross-lane impacts (§19.10): each moved point breaks an exact-equality lookup or a 0.2 m binding. S14 anticipated it (R-12d-1, R-12d-2, F-S14-9); S12 13a's exact match on (0, 3 000) does not (QD-11). |
+| **F-D13** | **The offered band is shared.** The paced controller picks uniformly among all available complete affordances. In Market Town those are `give`, `buy`, `eat` and `drink`; with bodies, `kick` and `throw` per object within 800 mm and `shove` per person within 800 mm (12c's p1) join them. | `cognition/rule-controller/src/offered.rs`; `systems/bodies/src/offer.rs:22–89`; `geometry.rs:96` | Market activity is drawn less often wherever people stand close — the café and the store. Market Town's `market_lives` (a purchase, a wage per holder, production, consumption and a give from every seat, in every bucket) is the guard (TD-6); the remedy, if needed, is bodies' offer policy, never the controller (`ARC-34` item 4, SD-O18). |
+| **F-D14** | **The paced controller's walking is bounded by nothing in the world.** `wander` draws ±1 400 mm per axis; `approach` stops 1 000 mm short; `through` aims for the exact doorway point. In bodies-yard, 63 % of moves end stopped short. | `cognition/rule-controller/src/paced.rs:66–105, 266–362`; DB-10 | With walls the towns' moves will often be swept, not fast-pathed: the cost risk of TD-12, and the activity risk of TD-5 (R-B8). |
+| **F-D15** | **Baselines reproduce on this base.** Both 300-day seed-7 runs give E-RS0's digests and counts (E-TD0). | E-TD0 | The "before" of the re-baseline (TD-1). |
+
