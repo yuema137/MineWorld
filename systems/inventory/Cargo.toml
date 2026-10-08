@@ -25,3 +25,4 @@ serde_json = { workspace = true }
 # The tests decode a section from YAML text as the loader does, and restart a saved world.
 mineworld-persistence = { workspace = true }
 serde-saphyr = { workspace = true }
+mineworld-test-support = { workspace = true }

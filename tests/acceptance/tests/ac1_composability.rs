@@ -28,6 +28,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use mineworld_test_support::Scratch;
+
 /// One merge of the measured transformation (`ARC-35` item 1): the PR, its GitHub number and branch,
 /// and the merge commit's id, recorded once it existed (the accepted limitation).
 struct Transformation {
@@ -427,10 +429,8 @@ fn check_1_the_change_set() {
 }
 
 /// A scratch repository under the test target directory, made with `git init` and the given commits.
-fn scratch_repository(name: &str, commits: &[&str]) -> PathBuf {
-    let path = Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
-    let _ = std::fs::remove_dir_all(&path);
-    std::fs::create_dir_all(&path).expect("a scratch directory");
+fn scratch_repository(name: &str, commits: &[&str]) -> Scratch {
+    let path = mineworld_test_support::scratch!(empty name);
     git(&path, &["init", "--quiet", "--initial-branch=main"]).expect("git init");
     for (index, message) in commits.iter().enumerate() {
         std::fs::write(path.join("file.txt"), format!("{index}\n")).expect("a file");
@@ -470,8 +470,7 @@ fn check_1_fails_closed_without_the_merges() {
 #[test]
 fn check_1_fails_closed_on_a_shallow_clone() {
     let origin = scratch_repository("ac1-two-commits", &["first", "second"]);
-    let clone = Path::new(env!("CARGO_TARGET_TMPDIR")).join("ac1-shallow-clone");
-    let _ = std::fs::remove_dir_all(&clone);
+    let clone = mineworld_test_support::scratch!("ac1-shallow-clone");
     let url = format!("file://{}", origin.display());
     git(
         &origin,

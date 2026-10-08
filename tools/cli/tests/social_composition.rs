@@ -23,26 +23,25 @@
 mod headless;
 mod social;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use headless::{
-    PACK, Tables, every_seat_active_in_every_bucket, fresh, lines, mineworld, run, seats, stderr,
-    stdout,
+    PACK, Scratch, Tables, every_seat_active_in_every_bucket, fresh, lines, mineworld, run, seats,
+    stderr, stdout,
 };
 use mineworld_contracts::{Causation, EntityId, EventEnvelope};
 
 const DAYS: u64 = 30;
 
 /// A copy of the pack, named as the pack (a pack's id is its directory), with `system` left out.
-fn without(system: &str) -> PathBuf {
+fn without(system: &str) -> Scratch {
     without_owning(system, None)
 }
 
 /// [`without`], and with the section `system` owns removed from every person's file: a world that
 /// does not enable a section's owner refuses the section (`MODULE_SPEC.md` §4.1 rule 6).
-fn without_owning(system: &str, section: Option<&str>) -> PathBuf {
-    let root = fresh(&format!("composition-without-{system}"));
-    let copy = root.join("social-cafe");
+fn without_owning(system: &str, section: Option<&str>) -> Scratch {
+    let copy = fresh(&format!("composition-without-{system}")).within("social-cafe");
     copy_dir(Path::new(PACK), &copy);
     let manifest = copy.join("world.yaml");
     let text = std::fs::read_to_string(&manifest).expect("world.yaml reads");

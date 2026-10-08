@@ -44,3 +44,5 @@ tokio-tungstenite = { workspace = true }
 mineworld-group-activity = { workspace = true }
 mineworld-relationships = { workspace = true }
 mineworld-schedule = { workspace = true }
+# Every test's saves and pack copies are scratch removed when the test ends (DEP-29).
+mineworld-test-support = { workspace = true }
