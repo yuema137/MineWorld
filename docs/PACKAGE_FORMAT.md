@@ -229,10 +229,23 @@ provenance  authors; repository where stated                Cargo authors,     (
   repository: https://github.com/yuema137/MineWorld   # optional
   ```
 
-  Any other field is refused by name, `dependencies` included until a world's requirements are
-  resolved. A `type` that `pack.yaml` does not carry is refused naming its carrier: `system-pack` and
-  `controller-pack` (`Cargo.toml`), `world-pack` (`world.yaml`); `asset-pack` is refused in MVP-0.
+  Any other field is refused by name, `dependencies` included: a world's requirements are resolved
+  (below), a data pack's own dependencies on other data packs are not, in MVP-0. A `type` that
+  `pack.yaml` does not carry is refused naming its carrier: `system-pack` and `controller-pack`
+  (`Cargo.toml`), `world-pack` (`world.yaml`); `asset-pack` is refused in MVP-0.
 - The framework's own version is **0.1.0**, shared by every framework crate and every bundled pack.
+- **Bundled or third-party** ([`DECISIONS.md`](DECISIONS.md) `ARC-54`). A code pack is *bundled* when it
+  was compiled from the framework's own workspace — decided at compile time by `package!()` from where
+  the crate's manifest lies, and recorded as one boolean. Every other code pack is *third-party*.
+- **Requirements** (`ARC-54`). A World Pack names in `requires:` every pack it uses that is not
+  bundled, with a semver range; the build and the pack roots named by `--packs` and `MINEWORLD_PACKS`
+  are searched, one installed version per pack is checked, and each failure is refused by name
+  ([`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1).
+- **Licence policy** (`ARC-55`). A pack in a world's composition carries a licence the policy allows. The
+  default allows `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC`, `Zlib`, `CC0-1.0` and
+  `Unlicense`; an expression is judged by whether it can be satisfied with those alone. The policy is a
+  typed value a world will be able to override through the generic configuration seam (S17).
+  `CC-BY-4.0` is a candidate for asset packs once attribution is handled; it is not in the default.
 
 ## 5.1 Source pack versus runtime pack
 
@@ -336,6 +349,7 @@ Frozen as a design; implemented only as far as MVP-0 needs.
 | Asset Pack as a type, glTF canonical, asset contract | specified; the 3D spike is its first real test |
 | `.mwpack`, `mineworld validate asset`, dependency resolution | after the vertical slice |
 | Package identity (§5.0) | every pack: code packs by `Cargo.toml` and `package!()`, World Packs by `world.yaml`, Presentation Packs by `pack.yaml`; `mineworld packs list \| show \| validate`; framework 0.1.0 (`DECISIONS.md` `ARC-53`, S16 PR E-a) |
+| Requirements and licence policy (§5.0) | a world's `requires:` resolved against the build and the pack roots (`--packs`, `MINEWORLD_PACKS`), one version per pack, each failure refused by name; bundled or third-party decided at compile time; the default licence policy; `mineworld packs resolve` (`ARC-54`, `ARC-55`, S16 PR E-b). A data pack's own `dependencies`, version selection and a registry: not in MVP-0 |
 | Tier 0 | what the sample worlds already are |
 | World Pack fields | the subset [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 specifies: identity, `systems`, `places`, `population`, `items`, `organizations`, `seats`, one content file per declared key (`places/`, `people/`, `items/`, `organizations/`; an authored Item is a kind, `DECISIONS.md` `ARC-36`), a person's `location`, and a place's `passages` (doorways between places, owned by the `movement` system, `DECISIONS.md` `ARC-26`), and **sections**: a top-level key of a person, place, item or organization file that a System Pack declares as its own, validates with its own type and turns into its own genesis facts (`ARC-31`; in MVP-0 `name`, owned by `naming`, `routine`, owned by `schedule`, `item`, owned by `item`, and `holdings`, owned by `inventory`, `ARC-37`; `economy`, owned by `economy`, and `job`, owned by `employment`, `ARC-38`); every other field of §4's model is refused by name |
 | Tier 1 WASM/WIT | specified; MVP-0 ships trusted in-process Rust systems ([`ARCHITECTURE.md`](ARCHITECTURE.md) §12) |

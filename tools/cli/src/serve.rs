@@ -21,7 +21,7 @@ use mineworld_presence::PerceptionProvider;
 use mineworld_server::{
     Admission, HostConfig, HostError, HostedWorld, SeatRoster, WorldHost, WorldInstanceId, app,
 };
-use mineworld_worldpack::WorldPack;
+use mineworld_worldpack::{PackRoots, WorldPack};
 
 use crate::perceive::PackPerception;
 use crate::{described, hosted, invite, listed};
@@ -48,6 +48,8 @@ pub struct ServeRequest {
     pub time_scale: NonZeroU32,
     /// Where the world is kept, when it is persisted.
     pub save: Option<PathBuf>,
+    /// Where the world's `requires:` is resolved (`--packs`, then `MINEWORLD_PACKS`; `ARC-54`).
+    pub roots: PackRoots,
 }
 
 /// Which controller drives a seat nobody plays.
@@ -93,10 +95,11 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         hold,
         time_scale,
         save,
+        roots,
     } = request;
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
-    let pack = WorldPack::read(&world).map_err(described)?;
+    let pack = WorldPack::read_with(&world, &roots).map_err(described)?;
     let invite = invite::Invite::resolve(invite)?;
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),

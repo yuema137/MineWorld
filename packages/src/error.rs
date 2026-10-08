@@ -132,4 +132,75 @@ pub enum PackageError {
         /// Where the second one comes from.
         second: String,
     },
+    /// A pack root that is not a directory.
+    #[error("the pack directory {path} (from {source_name}) does not exist or is not a directory")]
+    NoSuchRoot {
+        /// The path given.
+        path: PathBuf,
+        /// Where it was given: `--packs` or `MINEWORLD_PACKS`.
+        source_name: &'static str,
+    },
+    /// A required pack found nowhere (`ARC-54`).
+    #[error("requires: {id} is not in {searched}")]
+    Absent {
+        /// The required id.
+        id: String,
+        /// Every place searched, or that no pack directory was given.
+        searched: String,
+    },
+    /// A required pack of a type a world cannot require.
+    #[error("requires: {id} is a {kind}, which a world cannot require — {why}")]
+    WrongType {
+        /// The required id.
+        id: String,
+        /// Its type.
+        kind: String,
+        /// Why.
+        why: &'static str,
+    },
+    /// A bundled pack listed in `requires:`.
+    #[error(
+        "requires: {id} is bundled — versioned with the framework, which `mineworld:` already \
+         covers; remove it from requires"
+    )]
+    BundledRequired {
+        /// The required id.
+        id: String,
+    },
+    /// A required pack at a version the range does not admit.
+    #[error("requires: {id} \"{range}\", but the {id} found is {found}")]
+    OutOfRange {
+        /// The required id.
+        id: String,
+        /// The range required.
+        range: String,
+        /// The version found.
+        found: String,
+    },
+    /// An enabled third-party system whose pack is not required.
+    #[error(
+        "systems: enables {system}, whose pack {pack} is third-party; add `{pack}: \"<range>\"` to \
+         requires"
+    )]
+    ThirdPartyNotRequired {
+        /// The system id.
+        system: String,
+        /// Its pack's id.
+        pack: String,
+    },
+    /// A licence the policy does not allow (`ARC-55`).
+    #[error(
+        "{pack}'s licence \"{expression}\" is not allowed: {failed} cannot be satisfied by the licence \
+         policy ({allowed})"
+    )]
+    LicenceNotAllowed {
+        /// The pack.
+        pack: String,
+        /// Its expression.
+        expression: String,
+        /// The requirements that failed, as written.
+        failed: String,
+        /// The allowed identifiers.
+        allowed: String,
+    },
 }

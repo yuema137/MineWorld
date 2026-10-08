@@ -12,6 +12,8 @@
 //! 2  world.yaml parses, with unknown fields refused
 //! 3  the pack's id is its directory's name, and a stated `mineworld:` range admits this framework
 //! 4  every system it enables exists here, and none twice
+//! 4b its requirements resolve in this build and the pack roots, and every pack in its composition
+//!    carries a licence the policy allows (ARC-54, ARC-55)
 //! 5  every authoring key is declared once, across places, population, items and organizations
 //! 6  every declared key has its file, and every file in people/, places/, items/ and
 //!    organizations/ is declared
@@ -31,7 +33,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use mineworld_contracts::{EntityKey, EntityType, SystemId};
-use mineworld_packages::{Compatibility, License, Version};
+use mineworld_packages::{Compatibility, Composition, License, PackRoots, Version};
 use serde::de::DeserializeOwned;
 
 use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
@@ -73,6 +75,7 @@ pub struct WorldPack {
     id: String,
     name: String,
     package: PackageFields,
+    composition: Composition,
     systems: Vec<Capability>,
     places: BTreeMap<EntityKey, AuthoredPlace>,
     people: BTreeMap<EntityKey, AuthoredPerson>,
@@ -82,8 +85,16 @@ pub struct WorldPack {
 }
 
 impl WorldPack {
-    /// Reads the pack in `root` and validates it, or says what is wrong and where.
+    /// Reads the pack in `root` and validates it, or says what is wrong and where — resolving its
+    /// requirements in this build alone, with no pack root. A world without `requires:` reads exactly
+    /// as it did before requirements existed.
     pub fn read(root: impl Into<PathBuf>) -> Result<Self, PackError> {
+        Self::read_with(root, &PackRoots::none())
+    }
+
+    /// As [`WorldPack::read`], resolving the world's requirements in this build and in `roots`
+    /// (`DECISIONS.md` `ARC-54`).
+    pub fn read_with(root: impl Into<PathBuf>, roots: &PackRoots) -> Result<Self, PackError> {
         let root = root.into();
         if !root.is_dir() {
             return Err(PackError::NotAPackDirectory { path: root });
@@ -98,10 +109,11 @@ impl WorldPack {
                 .require_framework()
                 .map_err(|refusal| PackError::FrameworkNotSupported {
                     path: manifest_path.clone(),
-                    refusal,
+                    refusal: Box::new(refusal),
                 })?;
         }
         let systems = resolve_systems(&manifest.systems)?;
+        let composition = crate::requirements::resolve(&manifest_path, &manifest, &systems, roots)?;
         check_keys_are_declared_once(&manifest)?;
 
         let places = read_content(&root, &manifest.places, ContentKind::Place, |text| {
@@ -159,6 +171,7 @@ impl WorldPack {
                 license: manifest.world.license,
                 mineworld: manifest.mineworld,
             },
+            composition,
             systems,
             places,
             people,
@@ -168,6 +181,13 @@ impl WorldPack {
         };
         check_sections(&pack)?;
         Ok(pack)
+    }
+
+    /// The world's resolved composition (`DECISIONS.md` `ARC-54`): each requirement with the pack that
+    /// met it, each enabled system's pack — for `mineworld validate` and `mineworld packs` only. Nothing
+    /// that builds a world reads it: it is not world state.
+    pub fn composition(&self) -> &Composition {
+        &self.composition
     }
 
     /// The directory this pack was read from.
@@ -265,6 +285,12 @@ impl WorldPack {
             id: "in-memory".to_owned(),
             name: "In Memory".to_owned(),
             package: PackageFields::default(),
+            composition: Composition {
+                framework: mineworld_packages::framework_version(),
+                mineworld: None,
+                required: Vec::new(),
+                systems: Vec::new(),
+            },
             systems,
             places,
             people,
@@ -295,7 +321,7 @@ impl WorldPack {
 ///
 /// The parser's report becomes the error's detail unaltered: it carries the line, the column and an
 /// excerpt, and rewriting it in this crate's words would lose exactly the part an author needs.
-fn parse<T: DeserializeOwned>(path: &Path, kind: &'static str) -> Result<T, PackError> {
+pub(crate) fn parse<T: DeserializeOwned>(path: &Path, kind: &'static str) -> Result<T, PackError> {
     parse_with(path, kind, |text| serde_saphyr::from_str(text))
 }
 
