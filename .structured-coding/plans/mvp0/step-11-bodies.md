@@ -6717,10 +6717,13 @@ the scene's mean collider count (a crate-private counter read by an ignored test
 
 **Scope.** `entry.rs` (`nearest_free`), its unit tests (the outward search equal to the full scan on
 generated rooms, targets and occupancies; the old scan kept as the tests' reference).
-- [ ] Implementation.
-- [ ] Validation: ZI-1 … ZI-4 identical (E-Z-base); the unit tests; M-Z6: the stop bound loosened by
-  one ring too few (`>=` for `>`) → a unit test names the differing point.
-- [ ] Review: integers only; the bound's proof in the doc comment; no cache.
+- [x] Implementation: `entry.rs` `nearest_free` (rings about the clamped nearest indexes, the strict
+  bound); `tests` with the old scan as `scanned` (E-Z4).
+- [x] Validation: ZI-1 … ZI-4 identical (E-Z4); 3 000 generated cases equal to the scan; M-Z6 (`>=`
+  for `>`) → `an_equal_distance_in_a_later_ring_wins_on_y` fails, "ring 5 not visited" (E-Z4).
+- [x] Review: integers only (`i64` indexes; `i32` only for points on the floor); the bound's proof in
+  the doc comment; `free` is evaluated only for a point whose key would win, which changes nothing (it
+  is pure); nothing kept between calls.
 - [ ] Review: canonical order kept among those inserted; every `Touch` maps back to the right entity;
   nothing cached.
 
@@ -7020,6 +7023,20 @@ E-Z3 ZC-1's profile (Z-D3, by the primary session's ruling before ZC-4), 2026-10
        needs ≤ 21.4 s. **They cannot reach 1.5 ×, with or without the ladder.** Even removing E3's search
        entirely as well leaves ≈ 29 s ≈ 2.0 ×. (30 days, the same arithmetic on 8.95 s with, 1.73 s
        without: best case for SD-Z3 + SD-Z4 + L1 + L2 ≈ 6.7 s ≈ 3.9 ×.)
+
+E-Z4 ZC-3 (SD-Z6), 2026-10-08, working tree on 8ea28d4 + entry.rs.
+     `cargo clippy -p mineworld-bodies --all-targets -D warnings` clean; `cargo test -p mineworld-bodies
+       --lib entry`: `the_outward_search_finds_the_scans_point` (3 000 generated cases: floors 600 mm …
+       12 m a side anywhere in ±20 m, targets up to 5 m outside, occupancy 0 … 100 %) and
+       `an_equal_distance_in_a_later_ring_wins_on_y` pass.
+     M-Z6 (`reach * reach >= kept`): `an_equal_distance_in_a_later_ring_wins_on_y` FAILS — "ring 5 not
+       visited", (5 150, 5 200) for (5 250, 5 000); the generated cases happen to pass. Restored.
+     /tmp/s15-12d0/step.sh z6 (binary /tmp/s15-12d0/z6-mineworld): ZI-1 d7025dbc…79eaf, ZI-2
+       53d017d0…95411, ZI-3 6e4c4015…c8395 — all three = E-Z-base (bodies-yard 30 days: wall 2.0 s, was
+       15.8 s). ZI-4: `cargo test -p mineworld-bodies` every test passes, none edited (lib 16, actions 27,
+       genesis 6, isolation 5, long_run 1, long_run_objects 1, objects 7, objects_genesis 10, rapier_pin
+       1, scenarios 17). TZ-2 for SD-Z6: PASS.
+     Information (not TZ-9a): social-cafe prototype, 30 days, CPU 4.45 s (base 8.95 s; without 1.73 s).
 
 The prototype (E-TD0b), stated so it can be rebuilt:
   1  GIT_INDEX_FILE=/tmp/s15-12d0/proto.idx git --work-tree=/tmp/s15-12d0/proto checkout 21f96ff -- \
