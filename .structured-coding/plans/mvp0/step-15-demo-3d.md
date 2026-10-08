@@ -1000,7 +1000,15 @@ Approved by         the primary session, 2026-10-08 — freeze message: "FREEZE:
 Implementation base main @ 47c81d1, branch mvp0/pr-16b-shared-module
 Execution contract  §18.11
 Lifecycle           FROZEN — DESIGN FROZEN (2026-10-08), primary session
+                    → READY FOR OPERATOR REVIEW (2026-10-08). Final executable head 5c10e06; the PR
+                    head is the ledger commit after it (Markdown only). Implementation context CLOSED /
+                    AWAITING OPERATOR ACTION. DO NOT MERGE without the operator; lands before S11-A.
 ```
+
+**Post-merge synchronization (pending, owners per §18.11):** this session records the merge identity
+in this section; the primary session updates the step header, §§12–13 (16b delivered; the `bodies-yard`
+kick check now 12e's, QSB-4), `step-13-client-2d.md` §7 (S12's M-1 … M-3 delivered under SB-1 … SB-7's
+names, and D-1/D-2), `overall.md` §7, and tells S11-A to rebase.
 
 The first commit of the PR is this section, Markdown only (coordination ruling 9).
 **Coordination:** `overall.md` "Parallel build-out, 2026-10-08", ruling 4 — this is **the** shared-module
@@ -1277,18 +1285,18 @@ Each commit tracks implementation, validation and review separately. Evidence go
 
 **Goal.** A-5 … A-8 on the exact head; the PR opened READY FOR OPERATOR REVIEW.
 
-- [ ] Implementation: §18.9 evidence and §18.10 deviations completed; handoff closed.
-- [ ] Validation, on the final executable head:
-  - [ ] `bash clients/protocol/run.sh evidence` (background) → A-5; regenerated logs inspected, then
-    restored with `git checkout -- clients/protocol/evidence` unless the requests changed (a change is
-    a FAIL to investigate, never committed as "new evidence" — QSB-5);
-  - [ ] `cargo test -p mineworld-cli --test ac13_semantic_parity`;
-  - [ ] `./mineworld-slice --drive` and `./mineworld-slice --world --link` → A-6, against E-B0;
-  - [ ] reader check and `run.sh affordances` once more;
-  - [ ] the A-7 grep over `git diff 47c81d1 -- clients/protocol/mineworld`;
-  - [ ] `check_doc_headings`, `check_decision_ids`.
-- [ ] Review: the whole diff against §18.1's path list (any other path is a material stop); ADOPTION
-  §2 against the code's `func` list; every A-8 mutation recorded with its failing line.
+- [x] Implementation: §18.9 evidence and §18.10 deviations completed; handoff closed.
+- [x] Validation, on the final executable head `5c10e06` (E-B6 … E-B9):
+  - [x] `bash clients/protocol/run.sh evidence` → A-5 PASS; logs inspected, committed evidence restored;
+  - [x] `cargo test -p mineworld-cli --test ac13_semantic_parity` → 2 passed;
+  - [x] `./mineworld-slice --drive` and `./mineworld-slice --world --link` → A-6 PASS (the link run
+    once INCONCLUSIVE from a port collision, re-run);
+  - [x] reader check and `run.sh affordances`: last run on content identical to the head's code;
+  - [x] the A-7 grep over `git diff 47c81d1 -- clients/protocol/mineworld` → clean;
+  - [x] `check_doc_headings`, `check_decision_ids`.
+- [x] Review: the whole diff against §18.1's path list — every changed path is on it
+  (`git diff --stat 47c81d1`, E-B9); ADOPTION §2 against the code's `func` list (E-B8); every A-8
+  mutation recorded with its failing line (E-B2, E-B5).
 
 ## 18.6 Test ownership
 
@@ -1407,6 +1415,34 @@ M-B8  submit_affordance without _as_sent (D-2)        FAIL A-4: the give is answ
                                                            {"rejected":"precondition_failed"} — the
                                                            server could not read count 1.0
 ```
+
+**E-B6 — `bash clients/protocol/run.sh evidence` on the head `5c10e06`. PASS (A-5).** Exit 0.
+`git diff --exit-code` on `request-2d.json` and `request-3d.json` → 0: byte-identical to the committed
+files. Against E-B0a's logs, with world-instance lines removed: `transcript-2d`, `transcript-3d` and
+`transcript-3d-wanderer` identical; `simultaneous-2d` and `simultaneous-3d` differ only in the
+interleaved ActionIds of the two concurrent clients (2d `c2` action 3 → 6; 3d `c2` 4 → 3, `c3` 5 → 4),
+the race E-B0a already showed. Committed evidence restored (QSB-5).
+
+**E-B7 — `cargo test -p mineworld-cli --test ac13_semantic_parity` on the head. PASS.** 2 passed,
+0 failed. (The first attempt inside the gate chain never ran: `cargo` was not on that shell's PATH.
+Recorded as not run, then run.)
+
+**E-B8 — the 3D slice on the head (A-6).** `--drive`: PASS, 66.0 s, its 18 verdict lines identical to
+E-B0b's. `--world --link`: first run **INCONCLUSIVE** — `shots/slice/server.log`: "cannot listen on
+127.0.0.1:7979: Address already in use", so the slice joined another lane's server (different place ids,
+4 link checks failed against a world it was not meant to see). Re-run with the port free: PASS, 107.2 s,
+"all link checks pass", our server listening, its verdict lines identical to E-B0c's. A-7 scan:
+the 194 added lines of `git diff 47c81d1 -- clients/protocol/mineworld` contain none of the 11 action
+types the packs declare (`accept-invitation buy decline-invitation drink eat give invite
+join-group-activity leave-group-activity move talk`), no `distance`/`length(`/`Vector2|3`/`Node2D|3D`/
+`CollisionObject`/rule-constant name; "available" appears once, in `submit_affordance`'s doc comment
+saying it is not read. ADOPTION §2 ↔ code: each of the six new functions is defined once and named in
+ADOPTION, and `revision` is in both.
+
+**E-B9 — scope.** `git diff --stat 47c81d1 HEAD`: 15 files, every one on §18.1's list (`checks/**`
+includes the two `.uid` sidecars). No file under `demo/`, `clients/3d-spike/`, `server/`, any crate,
+world or pack; no committed evidence file changed. Reader check 18/18 and the live check 22/22 last
+ran on code identical to the head's (only Markdown changed after them).
 
 M-B3's first form (skipping the completeness guard) crashed on the missing `payload` key instead of
 sending; a crash is not the failure the claim is about, so it was replaced by the faithful form above

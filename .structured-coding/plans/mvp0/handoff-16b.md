@@ -30,5 +30,10 @@ STOP CONDITIONS     NORMAL: READY FOR OPERATOR REVIEW — DO NOT MERGE. MATERIAL
 
 ## Live state
 
-- Current checkpoint: E-B0 (base runs) in progress.
-- Next: B-C1 (ADOPTION, README, ARC-34 note) → B-C2 → B-C3 → B-C4.
+- Checkpoint: **READY FOR OPERATOR REVIEW** (2026-10-08). B-C0 … B-C4 done. Final executable head
+  `5c10e06`; the PR head is the closing ledger commit (Markdown only). Context CLOSED / AWAITING
+  OPERATOR ACTION.
+- Evidence: step-15 §18.9 E-B0 … E-B9; deviations D-1 (typed references in `affordances_about`), D-2
+  (integers restored by `submit_affordance`) in §18.10.
+- Next (operator / primary session): review and merge before S11-A; post-merge sync as §18's header
+  lists. No background jobs running; scratch saves removed.
