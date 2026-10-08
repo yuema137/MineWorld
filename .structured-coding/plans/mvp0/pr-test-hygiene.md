@@ -13,10 +13,15 @@ written"). Rulings: QTH-1, QTH-2, QTH-4, QTH-5 accepted as recommended; **QTH-3 
 (#70) three raw `CARGO_TARGET_TMPDIR` uses. Material stops: any assertion change, any production-code
 change, any digest change.
 **PR number:** assigned at freeze (ruling 7). Working name: *test-hygiene*.
+**Status: READY FOR OPERATOR REVIEW — DO NOT MERGE** (2026-10-08). The last code head is `5e0eb7b`. The
+final gate on it is green (§9 E-TH5). A-1 … A-9 PASS, and M-1 … M-4 each turn their check red. There
+are two bounded deviations, both recorded under C2 and C4: the helper gained `within`, and one scan
+exemption was added. No material stop was hit. This implementation context is closed and awaits the
+operator.
 
 ---
 
-## 1. Identity, base, approved scope (proposed)
+## 1. Identity, base, approved scope (frozen 2026-10-08)
 
 ```text
 PR            test-hygiene — every test removes its own scratch data
@@ -390,22 +395,141 @@ commit is only `worldpack` + `ac1_composability` and the two `harness = false` p
 
 ### C4 — Close: full gate, mutations, A-2…A-8 evidence, ledger
 
-- [ ] Implementation: §9 filled; status line; handoff note for S13 (R-2's new figures, QTH-4).
-- [ ] Validation: A-1 … A-9, M-1 … M-4, each PASS/FAIL/INCONCLUSIVE from evidence.
-- [ ] Review: the whole diff against I-TH-1 and A-8.
+- [x] Implementation: §9 filled; status line; the note for S13 below (§9 E-TH-R2).
+  - **Coordination (primary session, during C3–C4):** `origin/main` merged three times: E-a (#70) at
+    `966adfb` (DECISIONS.md conflict resolved: ARC-53 and DEP-21 kept verbatim, DEP-29 appended
+    after them; the diff of DECISIONS.md against main is DEP-29's 57 added lines only), a docs-only
+    main at `e728620`, S11-A (#76) at `5e0eb7b` (`tools/cli/tests/support/mod.rs`: S11-A's
+    `Captured`/`drain` kept verbatim, `SaveDir` kept as this PR's). E-a's three raw scratch uses
+    converted in `1edf566`; S11-A added none (its two new `SaveDir::new` uses compile unchanged, as
+    C-h planned).
+  - **Bounded deviation — one recorded scan exemption.** Deviation: `packages/tests/manifest.rs`
+    (E-a) keeps its own drop guard instead of the helper, and `check_scratch.py scan` lists it in an
+    `EXEMPT` table with its reason (and fails on a stale entry). Reason: `packages/tests/structure.rs`
+    asserts that no table of the leaf crate's manifest whose name contains "dependencies" names a
+    `mineworld` crate — dev-dependencies included — so adding `mineworld-test-support` would make an
+    existing assertion fail; changing that assertion is a material stop, and renaming the dependency
+    to slip past it would be evasion. Impact: QTH-2's "scan without exceptions" becomes "one
+    exemption, stated"; the guard there already has the rule's substance (its own name under
+    `CARGO_TARGET_TMPDIR`, removed on drop) and `left` still checks what it leaves.
+    `ENGINEERING_STANDARDS.md` §22 says so. If the operator prefers, the structure test can later
+    admit `[dev-dependencies]` explicitly — that is E-a's owner's call, not this PR's.
+  - **Bounded deviation — `left` lists a helper container by its scratches** (`fb045f1`), so M-1's
+    report names `mineworld-scratch-<pid>/inspect-run` as §6 specifies, not only the container.
+  - **Observed, not changed:** a kept scratch's `[scratch] kept <path>` line goes to stderr, which the
+    test harness captures for a *passing* test; it shows with `--nocapture` or when the test fails
+    (where it matters). The kept directory is always `<CARGO_TARGET_TMPDIR>/mineworld-scratch-<pid>`.
+  - **QTH-4:** 13a (`mvp0/pr-13a-ci`) has not merged, so the `left` call in `scripts/ci_layer.py`
+    is 13a's to add when it lands second: one line after the test layer,
+    `python3 scripts/check_scratch.py left --target-dir target`.
+- [x] Validation (E-TH4 … E-TH8): A-1 … A-9 PASS; M-1 … M-4 each turn their check red (§9).
+- [x] Review: the whole diff against the merge base `f842c52`: no path outside `**/tests/**`,
+  `tests/support/**`, `Cargo.toml`/`Cargo.lock`, `scripts/check_scratch.py` and Markdown; no added or
+  removed `assert` line in any `.rs` file outside the helper; `Cargo.lock` gains exactly one package,
+  the path package `mineworld-test-support`, and its name in eight dependents' lists.
 
-A planned commit may split into several coherent commits; the mapping is recorded here.
+Commit mapping: C1 → `3b842ec` (+ `5c5a087`, the helper's `within`/`AsRef<OsStr>`, found in C2);
+C2 → `5f2cee9`; C3 → `7971fdd`; E-a conversion → `1edf566`; `left` listing → `fb045f1`; merges
+`966adfb`, `e728620`, `5e0eb7b`; C4 → the closing ledger commit.
 
-## 8. Hunk classification (filled during C2–C3)
+## 8. Hunk classification
 
-Every hunk in an existing test file is listed with one of: `scratch-construct`, `scratch-pass-path`,
-`scratch-bind-guard`, `scratch-remove-deleted`, `import`. Any other kind is a material stop.
+Every hunk in an existing test file, against the merge base `f842c52` (`git diff -U0`), is one of:
+`scratch-construct` (a scratch is made through the helper instead of a raw path), `scratch-type` (a
+binding, field, tuple or return type becomes the guard so it lives as long as its path is used),
+`scratch-pass-path` (a guard is passed where a path was), `scratch-remove-deleted` (a now-redundant
+`remove_dir_all` or `Drop` impl deleted), `import`, or `comment` (a doc comment on a scratch helper).
+No other kind occurs.
+
+| File | Hunks | Kinds |
+| --- | ---: | --- |
+| `persistence/tests/kill_and_resume.rs` | 4 | import; construct; remove-deleted ×2 |
+| `persistence/tests/support/mod.rs` | 5 | import; comment; construct (field + `new`); type (`path()`); remove-deleted (`Drop`) |
+| `systems/{employment,group-activity,inventory,movement,schedule}/tests/persisted.rs` | 3 each | import; comment + construct; remove-deleted (`Drop`) |
+| `tests/acceptance/tests/ac1_composability.rs` | 3 | import; construct + type (`scratch_repository`); construct (clone) |
+| `tests/acceptance/tests/arrival_resolvers_resume.rs` | 4 | import; construct; remove-deleted ×2 |
+| `tools/cli/tests/bodies/mod.rs` | 3 | import; construct + type (`copy_of`); type (`without_bodies`) |
+| `tools/cli/tests/bodies_yard.rs` | 6 | pass-path ×3 (`copy_of(fresh(..))`, `without_bodies(fresh(..))`); comment + type ×3 (`scanned`'s deferred guard) |
+| `tools/cli/tests/commands.rs` | 1 | construct |
+| `tools/cli/tests/content_kinds.rs` | 3 | import ×2; construct + type (`with_things`) |
+| `tools/cli/tests/headless/mod.rs` | 3 | import ×2; construct + type (`fresh`) |
+| `tools/cli/tests/market_composition.rs` | 4 | import; construct + type (`without`); type (`copies`); pass-path (`.path()`) |
+| `tools/cli/tests/market_town.rs` | 3 | import ×2; type (the four 30-day saves' tuple) |
+| `tools/cli/tests/packs.rs` | 4 | import; comment + construct; remove-deleted (`Drop`) |
+| `tools/cli/tests/social_composition.rs` | 4 | import ×2; type (`without`); construct + type (`without_owning`) |
+| `tools/cli/tests/support/mod.rs` | 4 | comment; construct (`SaveDir`); type (`path()`); remove-deleted (`Drop`) |
+| `worldpack/tests/content_kinds.rs` | 3 | import ×2; construct + type (`write_pack`) |
+| `worldpack/tests/package_fields.rs` | 4 | import; comment + construct; remove-deleted (`Drop`) |
+| `worldpack/tests/refusals.rs` | 3 | import; type (`Fixture.root`); construct |
+| `worldpack/tests/social_cafe.rs` | 1 | construct |
 
 ## 9. Evidence
 
 - **E-TH-audit** — §2.1's run (log `/tmp/th-logs/suite.log`): 636 passed, 0 failed, 1 ignored;
   `target/tmp` 16 GB in 135 entries; TMPDIR 0 entries.
 - **E-TH0** — C0's doc checks, as recorded under C0.
+- **E-TH1 … E-TH3** — recorded under C1, C2, C3.
+- **E-TH4 — A-2 on the C3 head (+ E-a merge), 2026-10-08.** `TMPDIR=/tmp/th-final-tmp/
+  CARGO_TARGET_DIR=/tmp/th-final cargo test --workspace --no-fail-fast` on `1edf566` (cold target):
+  exit 0, 663 passed, 0 failed, 1 ignored, wall 465 s. `check_scratch.py left` → "no scratch left";
+  `du -sk` of `target/tmp` and of TMPDIR → 0 and 0 (bound ≤ 1 024 KiB): **PASS**. Peak of
+  `target/tmp`, sampled every 2 s (227 samples): 4 982 208 KiB ≈ 4.75 GiB.
+- **E-TH5 — the final gate, on `5e0eb7b`** (the last code head; later commits change Markdown only),
+  after merging S11-A (#76):
+  - `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets --all-features -- -D
+    warnings` clean (`cargo check --all-targets` is implied by it); `check_decision_ids.py` → 54 ids,
+    distinct; `check_doc_headings.py` → 191 sections across 26 documents, none duplicated;
+    `check_scratch.py scan` → "142 test sources, none makes scratch outside mineworld-test-support
+    (1 exempt)".
+  - `TMPDIR=/tmp/th-gate-tmp/ CARGO_TARGET_DIR=/tmp/th-gate cargo test --workspace --no-fail-fast`
+    (cold target): **exit 0; 689 passed, 0 failed, 1 ignored**; 156 result lines; wall 610 s; the
+    `harness = false` programs print `[resolver-yard] PASS`, `[cafe] PASS`, `[clock] PASS`.
+  - **A-2 PASS:** `left` → "no scratch left under /tmp/th-gate/tmp or as /tmp/th-gate-tmp/mineworld-*";
+    `du -sk` → 0 KiB and 0 KiB; TMPDIR holds 0 entries of any name.
+  - **A-7:** peak `target/tmp` 4 982 108 KiB ≈ 4.75 GiB (284 samples, every 2 s) — `run.rs`'s two
+    300-day saves alive together.
+  - **A-1 PASS:** every one of §2.1's 636 test names passes or is ignored as before, except two whose
+    names S11-A changed in `server/src` (`protocol::tests::the_two_client_frames_decode` became
+    `the_three_client_frames_decode`; a doctest's line moved 41 → 42) — this PR's diff touches no
+    `server/` path. The 55 names not in §2.1 are the helper's 7 tests and tests added by E-a and S11-A
+    (each name found among the `fn`s their merges added). No `assert` line is added or removed in any
+    `.rs` file outside the helper (`git diff -U0 f842c52 HEAD`).
+- **E-TH6 — A-3 PASS:** `scan` on the head → exit 0, as above.
+- **E-TH7 — mutations (each an uncommitted edit, reverted with `git checkout --`, its residue removed;
+  target `/tmp/th-final`):**
+  - **M-1 PASS (red as required):** `inspect.rs`'s `inspect-run` guard leaked with `Box::leak`. The
+    test still passes (3 passed) — a leak is invisible to the test — and `left` → exit 1, "233.8 MiB
+    /tmp/th-final/tmp/mineworld-scratch-97869/inspect-run". Reverted: `left` → exit 0.
+  - **M-2 PASS:** `social_cafe.rs:342` back to `Path::new(env!("CARGO_TARGET_TMPDIR")).join(
+    "unnamed/social-cafe")`: `scan` → exit 1 naming `worldpack/tests/social_cafe.rs:342`; the test
+    passes (15 passed) and `left` → exit 1, "18.2 KiB /tmp/th-final/tmp/unnamed".
+  - **M-3 PASS:** `run.rs`'s second scratch renamed to `run-seed-7`: `a_different_seed_makes_a_different_world`
+    FAILED, "scratch \"run-seed-7\" is already in use by another test in this process" — 12c's locked
+    database becomes a named refusal. `left` afterwards → 0.
+  - **M-4a PASS (the silent case):** `with_things` back to `fresh(name).join("with-things")` returning
+    `PathBuf`: 3 passed, and `left` → exit 1, three `content-kinds-*` entries. **M-4b PASS (the loud
+    case):** `copy_of(fresh(..)).to_path_buf()`: `people_who_do_not_fit_and_malformed_bodies_are_refused_at_load`
+    FAILED, "reads: … No such file or directory" (the copy is gone before it is read).
+- **E-TH8 — A-5 and A-6:**
+  - **A-5 PASS:** the `inspect` test binary run twice at once on one target: both "3 passed", exit 0
+    and 0; `left` → 0 (two containers, pids apart, each emptied and removed).
+  - **A-6 PASS:** `MINEWORLD_KEEP_SCRATCH=all cargo test -p mineworld-cli --test bodies_yard
+    thirty_days_of_bodies_yard_at_seeds -- --ignored` → ok in 18.5 s, leaving
+    `mineworld-scratch-2797/bodies-yard-30-seed-{7,8,9}` (769 MiB). Re-run with
+    `BODIES_YARD_SAVES=/tmp/th-final/tmp/mineworld-scratch-2797 … --nocapture` → ok in 1.2 s with no
+    world run, scanning 31 219 / 31 221 / 31 287 requests, 0 violations — 12c's AO-2 numbers exactly —
+    and the three saves were still there afterwards (the operator's saves are never removed). The
+    default and `failed` policies on a failing test are the helper's own tests (C1).
+  - The `$TMPDIR/mineworld-cli-<pid>-2d-i5-variantfull` leftover S11-A reported comes from S12's
+    in-flight `tools/cli/tests/client_2d.rs` (`SaveDir::new("2d-i5-…")`, on
+    `mvp0/pr-s12-13a-walkable-2d`, not on `main`). `left` reports that pattern (checked with a
+    planted directory of that name: exit 1). Once S12 rebases, its `SaveDir` lives under
+    `target/tmp/mineworld-scratch-<pid>/`. Old `SaveDir` already removed on drop, so a leftover means
+    that process was killed or something recreated the path after the drop (for example a server child
+    still writing). That is for S12 to look at; this PR's `left` will name it.
+- **E-TH-R2 — for S13 (R-2), replacing F-3's figures:** a passing suite now leaves 0 bytes of scratch.
+  The scratch peak is about 4.75 GiB, all inside `run.rs`. The 4.5 GB build is unchanged. The ≈ 20 GB
+  disk requirement becomes about 9–10 GB.
 
 ## 10. Freeze questions
 
