@@ -221,3 +221,315 @@ Every finding was read in this session from the file named, or measured by the c
 | Three town doorways land on blank walls | F-S14-21 | R-12d-2 → 16c |
 | Texture RID leak warning on exit | F-S14-11 | 16a |
 | Items and organizations are unnamed (F-41) | F-S14-24 | R-S15-1 (pack/content) → 16d |
+
+---
+
+# 4. Design
+
+## 4.1 How 12e and S14 divide — options and recommendation
+
+Both build the same client, in the same files (`slice_link.gd`, `player.gd`, the probe). Three ways to
+cut it:
+
+| Option | What it means | For | Against |
+| --- | --- | --- | --- |
+| **A. 12e stays S15's last PR; S14 is everything else; one plan (this file) for both** | 12e = Jolt colliders from disclosure, the correction rule, press-through, ray targeting of people and objects, kick/throw/shove, objects drawn. S14 = the parts that are not bodies: Jolt switch and ray targeting first (16a), the shared-module accessors (16b), a living street and the town's doorways (16c), buy and the market world (16d), AC-13 with S12 and the Demo B package (16e). | S15's acceptance ("the 3D client collides with people and reconciles on difference", `overall.md` §3 S15) closes where the operator's requirement R-1 becomes visible. The 12e row stays as the operator froze it. One plan means one designer of `SliceLink`. | Two step names over one client; the 12e row's scope must be refined by this file (§17.2). |
+| **B. Merge 12e into S14** | S15 ends at 12d; all client work is S14's. | One step owns one client. | Changes a frozen step split (`step-11-bodies.md` header: "the five-PR split are frozen") — an operator decision. S15 would close without its client-side acceptance. |
+| **C. One large client PR** | 12e and all of S14 in one PR. | Fewest merges. | Thousands of lines across physics, UI, motion and evidence in one review; waits for every dependency at once (12d, S11, S12); violates "small reviewable PRs" and stalls the parts that can start now. |
+
+**Recommendation: A.** It changes no operator decision, it lets 16a and 16b start now, and it keeps the
+bodies work reviewable as one coherent PR whose checkpoint is S15's. This file is the plan for both, so
+12e's detail lives here; `step-11-bodies.md` §11.1's row is refined, not replaced (§17.2). The order:
+
+```text
+now           16a  Jolt, ray targeting, the leak, the no-rule scan          (3D client only)
+now           16b  shared module: complete affordances, raw components     (with S12)
+after 12d     12e  bodies in the client: colliders, correction, press-through, kick/throw/shove, objects
+after 12d     16c  a living street: walking people, motion, the town's doorways   (+ R-S11-2)
+after 12e     16d  buy, market-town, names on things                       (+ R-S15-1)
+after S12     16e  AC-13 against S12's client, AC-15 with three windows, Demo B for the operator
+```
+
+## 4.2 Colliders from what the server discloses
+
+One rule governs every collider the client builds: **its shape and position come from the observation,
+never from a copy of the pack and never from a number the client invents.** The scene's own static
+geometry stays, because it is the world the operator accepted; the disclosed geometry is added beside it
+(R-B4's "one source").
+
+**Layers** (all in `Build`, the one file that already defines `LAYER_WORLD`):
+
+```text
+LAYER_WORLD       1   the scene's static geometry (unchanged)
+LAYER_BODIES      2   perceived people (AnimatableBody3D capsules)
+LAYER_OBJECTS     4   loose objects (AnimatableBody3D boxes and balls)
+LAYER_DISCLOSED   8   the current place's disclosed walls and solids (invisible StaticBody3D)
+player mask       LAYER_WORLD | LAYER_DISCLOSED | LAYER_BODIES | LAYER_OBJECTS
+camera boom mask  LAYER_WORLD (unchanged: a third-person camera does not stop at a person)
+target ray mask   all four
+```
+
+**The current place's walls and solids** (`place-shape`, F-S14-18). When the observer's place or its
+disclosed `place-shape` payload changes, the client rebuilds one node `DisclosedGeometry` for that place,
+in that place's frame (`SliceLink.to_scene`):
+
+- the floor's four edges as walls 200 mm thick, outside the floor, 3 000 mm high — the numbers bodies'
+  own Rapier scene uses for its perimeter (SD-B11), so the client's wall is where the server's is;
+- a **gap** in a wall wherever a passage the observer was told about (`passages.leads_to[].here`) lies
+  within 400 mm of that edge, `DOOR_GAP` = 2 000 mm wide, centred on the passage point's projection. A
+  crossing is a placement, not a sweep (SD-B3), so the server has no wall there to mirror; a gap wider
+  than the scene's door is harmless, because the scene's own jambs still stop the body;
+- each solid as a box from its footprint, `height` high, standing on the floor.
+
+The node is invisible. It never replaces the scene's walls; it exists so that the body is stopped where
+the server would stop it even if the scene and the server disagree. Where they disagree, the
+disagreement is a content defect, found by a probe rather than by the player (`--world --geometry`,
+§5): for every disclosed edge and solid face, rays from inside the floor must meet a scene collider
+within 150 mm of the disclosed face (except at gaps); for every scene collider face inside the disclosed
+floor, a disclosed face must lie within 150 mm. Both directions are reported with coordinates; the probe
+fails on either. That is the executable form of R-B4.
+
+**People.** Every drawn figure carries an `AnimatableBody3D` child, `CapsuleShape3D` r 0.30 m, h 1.72 m,
+centre 0.86 m up, on `LAYER_BODIES`, with `sync_to_physics` on, so it moves with the drawn figure (§4.6)
+and pushes nothing. The numbers are the server's default person (`PERSON_RADIUS`, `PERSON_HEIGHT`, SD-B2),
+which 12b does not disclose because every person is the default capsule (QP-6). The client holds them in
+one constant pair beside the player's own capsule, which already has them (F-S14-3), and cites their
+source; when bodies discloses a person's shape (§10.2 of step-11 anticipates it), the client reads it
+instead (QS14-3).
+
+**Objects** (`loose-objects`, F-S14-19). One `AnimatableBody3D` per listed object, its shape exactly the
+disclosed one (`BoxShape3D` of size 2·half, `SphereShape3D` of the radius), on `LAYER_OBJECTS`, carrying
+the object's id as node metadata (a string, `ADOPTION.md` §3.1). Drawn as described in §4.5.
+
+## 4.3 Local prediction and the correction rule
+
+**Jolt.** `[physics] 3d/physics_engine="Jolt Physics"` in `project.godot` (DEP-14). The slice's accepted
+behaviour is re-measured on it before anything else is built (16a): `--drive` (walk-in, loop within
+0.10 m, walls, cameras with zero body movement on a switch, jumps 0.49 m, the florist loop), `--measure`,
+`--link`. Step-11 §3.2 records the known differences (position-only stabilization, kinematic contacts);
+`CharacterBody3D.move_and_slide` is the only physics the player uses, so the risk is small and measured
+rather than assumed.
+
+**What the client predicts.** Exactly one thing: that its own body is stopped by what stands in its
+way. It does not predict a nudge, a push, a shove or a landing. It never moves anybody else's figure or
+any object except to where an observation puts it.
+
+**Press-through: reporting the stride the player asked for** (QS14-1). A body that stops locally at a
+person never asks the server to nudge them, so QB-10 ("walking into a person nudges them aside") would
+never happen from the 3D client, and 12e's own checkpoint ("walks the player into Alice, who is nudged
+aside") could not pass. So when, in a physics frame, `move_and_slide` reports a collision with a
+`LAYER_BODIES` or `LAYER_OBJECTS` collider and the input points into it, the next report is not the
+body's position but the **intended** one: the capsule cast from the body along the input direction for
+the distance the input would have moved it since the last report, against `LAYER_WORLD |
+LAYER_DISCLOSED` only (`PhysicsDirectSpaceState3D.cast_motion`). The server decides what that stride
+achieves — a nudge of at most 300 mm, a push, a jam, a stop — and the correction rule shows its answer.
+The client still decides nothing: it reports a wish, bounded by the same `REPORT_DIST` cadence as any
+stride, and adopts the answer. Without the input pointing into a person or an object, the report is the
+body's position, exactly as today.
+
+**The correction rule** (proposed `ARC-S14-a`; step-11 §7.1 item 4, made buildable):
+
+```text
+CORRECTION_MM  150     more than the server's quantization and the controller's 10 mm GAP, less
+                       than a visible jump (step-11 §7.1)
+
+baseline       the position sent with the most recent `move` whose answer has arrived
+in flight      the positions sent with every `move` not yet answered
+
+on each observation of the place the body is in:
+  auth  = self_location.local (x, y; height is never compared)
+  if |auth − baseline| > CORRECTION_MM  and  |auth − p| > CORRECTION_MM for every p in flight:
+        correct: move the body to auth, zero its velocity, reset the reporting baseline to auth,
+        and SUSPEND reporting until every move sent before the correction has been answered and one
+        further observation has arrived; then apply this rule once more and resume.
+on an observation of another place:
+        the place changed under the client (a crossing it did not ask for, or one it did): adopt it
+        as today (`_reconcile`).
+```
+
+The suspension is what makes the rule converge: a stride sent from the wrong position can still be
+accepted after the correction and would otherwise drag the body back, correction after correction. It
+replaces the refusal-only `_reconcile` (F-S14-8) and covers, with one number, a stride the server
+stopped short, being nudged by somebody walking into you, a shove, a jam at a box, and a refusal.
+
+**If S11 adds `acted_through`** (R-S11-4: the newest `ActionId` of this connection the observation
+reflects), the rule becomes exact: `auth` is compared with the position sent in that action, and
+nothing in flight needs to be considered. The heuristic above is the fallback and is what 12e builds
+if R-S11-4 is not available when 12e is implemented.
+
+**How a correction looks.** A difference up to 1 m glides over 120 ms; a larger one snaps. Presentation
+only (QS14-11).
+
+## 4.4 Targeting, and intents through affordances
+
+**Acquisition is a ray.** The cone in `facing_person()` (F-S14-5) is replaced by one physics ray from
+the active camera through the screen centre (in third person, starting past the player's own capsule),
+30 m long, against all four layers. The first hit decides the target:
+
+```text
+hit a LAYER_BODIES collider     a person: its figure's entity_id
+hit a LAYER_OBJECTS collider    an object: its object id
+hit anything else               no entity target; the hit point is the aim point (for throw)
+nothing within 30 m             no target
+```
+
+Walls occlude by construction. 30 m is the draw distance of a target highlight, not a reach: nothing is
+refused because it is far — the server says `too_far_away`.
+
+**What the player is offered is the server's list.** The HUD shows, for the current target, what the
+latest observation offers, never what the client concludes:
+
+```text
+person    every affordance whose target is the person (talk, shove, …), with available or the reason
+object    every complete affordance whose payload names the object (kick, throw), from M-1
+here      in a place that offers complete target-less affordances (buy), "B: buy" is shown
+```
+
+A wording table maps an action type to a verb ("talk", "shove", "kick", "throw", "buy"); an unknown type
+is shown as its own name. That is presentation (`ADOPTION.md` §4: wording is the client's).
+
+**Intents.** One file, `scripts/slice/intents.gd` (`SliceIntents`), builds every interaction request.
+With `slice_link.gd` (which keeps `move`), it is the only file in the client that names an action type —
+the scan in §10 holds that.
+
+| Action | Key | Acquisition | `target` | Payload | Complete offer? | What the client knows |
+| --- | --- | --- | --- | --- | --- | --- |
+| `talk` | E | ray hits a person | the person | `{ utterance }` — the line the player says | no (free text, F-S14-20) | the name and the payload shape |
+| `shove` | R | ray hits a person | the person | `{}` | yes, one per present person (SD-O12) | the name and `{}` |
+| `kick` | F | ray hits an object | `null` | `{ object: <id> }` | yes, for objects within 800 mm (QO-7) | the name and the payload shape |
+| `throw` (default aim) | G, G | ray hits an object; G again without aiming elsewhere | `null` | `{ object, toward: null }` | yes, within 800 mm (SD-O13) | as kick |
+| `throw` (aimed) | G, aim, G | ray hits an object; then the ray's hit point | `null` | `{ object, toward: { x, y } }` in the player's place frame (`to_world`, rounded mm) | no (a free point) | as kick, and `toward` |
+| `buy` | B | none: a menu of what this place offers | `null` | the offered complete payload, unchanged | yes, one per priced kind (F-S14-20) | **nothing**: the menu lists complete affordances and submits them unchanged (M-2) |
+
+Two rules make "through affordances" exact without making the client depend on an offer existing:
+
+1. **When a complete offer matches, it is submitted unchanged** (M-2). For shove, kick and throw (default
+   aim) the client looks for the complete affordance with that type whose target, or whose
+   `payload.object`, is the targeted entity.
+2. **When none matches, the same request is built by name and submitted anyway**, so that the server
+   says why (`too_far_away` for an object out of reach, which QO-7 deliberately does not offer;
+   `unavailable` in a world without bodies, I-9). A test asserts that, wherever an offer exists, the
+   built request equals the offered one byte for byte — the builder can never drift from the pack.
+
+`ADOPTION.md` §3.3's "NOT allowed: keep a list of which actions exist in this world" is respected: the
+keys are an input mapping, and the client's knowledge of five action names is the same knowledge the
+slice already has of `talk` and `move` — what a request is called and how its payload is shaped, never
+whether it is allowed. `buy` needs no name at all.
+
+**Throw's aim is a two-press gesture** (QS14-8): the first G picks the object and shows an aim marker
+where the ray meets the world; the second G throws toward it, or, if the aim never left the object,
+throws with `toward: null`. Esc cancels. The marker is drawn wherever the ray hits — the client never
+clamps it to a range (`THROW_RANGE_MAX` is the server's; an aim beyond it is answered
+`precondition_failed`).
+
+**Answers.** A `result` is shown in words (`SliceLink._readable` already maps codes). A kick or throw
+that is accepted is seen when the next observation moves the object; a shove when it moves the person.
+
+## 4.5 Object rendering
+
+```text
+source      the drawn place's `loose-objects` listing: { object, shape, at } per object
+mesh        box  → a carton/crate mesh scaled exactly to 2·half, from the accepted palette
+            ball → a sphere of the radius, from the accepted palette
+            The collider is the same shape (§4.2): what you see is what blocks you.
+appearance  from the shape only: items are never perceived (F-O1), so no tag or name is known.
+            R-S15-2 (optional) would let the listing carry tags, and the client choose a mesh from them.
+motion      when an object's `at` changes, its body tweens from the old to the new position over
+            clamp(distance / 4 m/s, 0.15 s, 0.8 s); a ball also rolls (rotation = distance / radius
+            about the horizontal axis normal to the motion) — rotation is presentation, the server
+            locks it (SD-O16)
+            with R-S11-1, an `object-moved` the observer is told about is drawn along its `path`, one
+            keyframe per 0.1 s (PATH_EVERY = 6 sub-steps), and the tween is the fallback
+lifetime    objects exist while their place is drawn; leaving the place frees them
+```
+
+## 4.6 A street people walk in (16c)
+
+- **Who walks.** People walk only if the server hosts a controller that walks them: R-S11-2 (a hosted
+  paced controller per seat). Nothing in the client makes anyone move.
+- **How they are drawn moving.** A figure no longer jumps to each observed position. It walks toward the
+  newest one at up to the jog speed (3.1 m/s), with the same gait the player's body uses
+  (`NPC.step(delta, speed)`, which `Player` already drives), facing its direction of motion, and the
+  observed facing when it stands. A figure more than 4 m behind its observed position (a crossing into
+  view, a long correction) is placed, not walked. Interpolation is presentation; its collider follows
+  the drawn figure, so what the player sees is what blocks them.
+- **Leaving view.** A person who leaves the observation while near a disclosed doorway of this place
+  walks the last metres to that doorway's scene point and is then removed; otherwise they are removed at
+  once, as today.
+- **Decorative townspeople** (F-S14-10) are not built when the client is connected (QS14-9): in a
+  connected client every person drawn is a person of the world.
+
+## 4.7 Places and doorways
+
+12d authors the town's `body:` sections "matching the 3D slice's layout" (step-11 §11.1). This step adds
+what the client needs from that authoring (stated as requirements on 12d in §11.3):
+
+- **The café and the street** match the slice's café room and the street's walkable area, so the
+  geometry probe (§4.2) passes.
+- **The store is The Flower Room** (QS14-4, operator-material): the world's `store` stands "on the
+  street's north side, east of the café" — where The Flower Room is — but its street-side doorway lands
+  3.62 m east of that door (F-S14-21). 12d moves the store's passage onto The Flower Room's door and
+  authors the store's floor to that room. The client binds `SliceWorld.FLORIST_PLACE` to the key `store`
+  instead of `street` (F-S14-9). That is required in any case: once the street has a floor, a body
+  reported as "street" inside the florist is outside the street's walls. What the room *looks like* —
+  the florist the operator accepted, or a corner store the world describes — is the operator's.
+- **Workplace, apartments and park** keep doorways the player cannot use (`VISUAL_SLICE.md` §4 forbids
+  a third enterable building), but their street-side points move onto existing non-enterable doors of
+  the slice, so a person going home or to work walks to a door and through it rather than into a blank
+  wall.
+
+## 4.8 The `AC-13` equivalence test against S12's 2D client
+
+**What is compared.** For each interaction, the request each real client submits — through its own
+acquisition — has the same semantic core, compared by the server's own `parity::semantic_core` and
+`differing_fields` (F-S14-23), with `differing_fields ⊆ { ActorLocation }`, and both are resolved to the
+same result kind with the same fact types caused.
+
+```text
+talk     the barista, with the scenario's utterance (a scenario constant given to both clients as
+         --utterance=, never typed differently in each)
+shove    a named person standing next to the player
+kick     a named object (bodies' scenario world, or the town after 12d)
+throw    the same object, complete form (toward: null). An aimed throw is acquired by a click in 2D and
+         by a ray in 3D; their points cannot be equal to the millimetre, so the aimed form is shown
+         accepted by both, and is not part of the equality
+buy      one kind, in market-town (after 16d)
+```
+
+`move` is excluded: a 2D client walks in clicked strides and a 3D client in walked ones, and both are
+just `move`; their equality would be a test of identical walking, not of identical meaning.
+
+**How.** Each client has a scripted scenario mode that plays the same scenario against a fresh hosted
+world of the same pack (ids are allocated deterministically at genesis, so the same seat and the same
+people have the same ids), and writes what it submitted, with the answers, as evidence in the format
+`clients/protocol/evidence/request-*.json` already uses (`{ flavour, token, request }`, plus `result`).
+A test, `tools/cli/tests/ac13_clients.rs`, reads the two transcripts and compares the pairs. A world run
+with `--save` lets the test read, with `mineworld inspect`, that the caused facts have the same types.
+Each flavour runs on its own fresh world, for the reason the existing evidence README gives.
+
+**What S12 must provide** (coordination item C-S12-1, §12.3): a scripted scenario mode in the 2D client
+that performs the five interactions by its own acquisition (clicks), and writes the same transcript
+format through `MineWorldClient.submitted_request`.
+
+## 4.9 How the operator will play it and judge it
+
+At 16e the step ends with a review package in `docs/HUMAN_REVIEW_QUEUE.md`, a framework milestone
+(`ENGINEERING_RULES.md` §19), not a visual one: the look is `VIS-3D-GODOT-2`'s, already accepted. The
+package is a short runnable list (the operator's standing preference), for example:
+
+```text
+1  ./mineworld-slice --world                 social-cafe with bodies, people walking
+   walk out of the café: people walk the street, and go into doors, not walls
+   walk into Wes: he steps aside; walk into a group: you stop
+   jog into the townsperson who stood in v2_run_into_townsperson.jpg: you no longer pass through
+2  find the box by the café door: walk into it (it slides), look at it and press F (it is kicked),
+   G, G (thrown), G, aim at the floor, G (thrown there)
+3  look at Bob and press R (he is shoved); stand still and let somebody walk into you (you are nudged)
+4  ./mineworld-slice --world=market-town     at the counter press B: buy a coffee by its name
+5  three windows: mineworld server worlds/market-town --paced-all, ./mineworld-slice --server=…,
+   the 2D client: speak to Alice in 2D, walk up to her in 3D, she knows (AC-15)
+```
+
+Plus the objective evidence the operator can re-run (`--link`, `--bodies`, `--geometry`, the `AC-13`
+test), frames of each interaction, known limitations as facts, and the questions asked. The operator
+judges embodiment and interaction correctness (`MVP.md` §7.2), not graphics.
