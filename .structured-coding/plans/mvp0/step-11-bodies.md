@@ -2296,10 +2296,17 @@ written again here (about twenty lines) rather than moved, so the I-2 scan's fil
 
 **Depends on:** RS-C5 (the files it lists exist).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: the test passes; the two planted violations fail by name, removed.
-- [ ] Review: the list of scanned paths is every code path §16.1 changes; Markdown is the only exclusion
-  and is stated.
+- [x] Implementation: as scoped. Three tests: `the_seam_names_no_physics` (the five directories,
+  recursively, and the seven added test files; a missing one fails; ≥ 33 files),
+  `movement_names_no_resolver`, and a splitter check (`RigidBody`, `body_shape`, `Bodies`, `collide`
+  found; `nobody`, `somebody`, `embody` not). Three pre-existing lines in files 12a does not touch are
+  admitted by a self-checking exemption list (DR-4).
+- [x] Validation (E-RS7): 3 pass; both planted violations fail by name, removed.
+- [x] Review: the scanned code paths are every non-Markdown path §16.1 changes or adds outside `docs/`,
+  `tools/cli/tests` (QR-2's two literals), `Cargo.lock`, `tests/acceptance/Cargo.toml` and
+  `tests/acceptance/src/lib.rs` — those last are manifests and a doc table that RS-13 does not list,
+  and none names a word of the vocabulary (checked by eye on the diff); Markdown is the only file-type
+  exclusion, and the scan's own file the only file exclusion, both stated in its header.
 
 ### RS-C8 — Close: real runs, the refusal, status, full gate, ledger
 
@@ -2550,6 +2557,20 @@ E-RS6 RS-C6, 2026-10-07, working tree on 9acbe04 + RS-C6's paths.
         worldpack tests tools` empty; the failed run's scratch saves under $TMPDIR removed.
       Run 3, after the revert and `cargo fmt`: identical numbers, "PASS in 0.2 s". clippy -p
         mineworld-acceptance --all-targets -D warnings clean.
+
+E-RS7 RS-C7, 2026-10-07, working tree on 0d21436 + seam_vocabulary.rs.
+      First run: FAILED on its own file-count floor (33 files, floor guessed at > 40); the floor was set
+        to the counted 33 (presence 8, movement 6, sdk 4, installed 1, worldpack 7, added tests 7).
+      Second run: FAILED — systems/movement/src/action.rs:14 `body`; after the first exemption, third
+        run FAILED — action.rs:21 `physical`, worldpack/src/read.rs:354 `collision`. All three are
+        pre-existing prose in files PR 12a does not touch (`git diff 6d48e03 -- <file>` empty) → DR-4.
+      Fourth run: 3 passed. PASS.
+      Planted (both at once): `// a capsule nudges` at systems/presence/src/resolve.rs:38 and
+        `use mineworld_presence::ArrivalResolver as _;` at systems/movement/src/system.rs:20 → FAILED:
+        "…/systems/presence/src/resolve.rs:38: capsule", "…/resolve.rs:38: nudges";
+        "…/systems/movement/src/system.rs:20: ArrivalResolver". Removed; `git diff --stat systems`
+        empty; presence 15 + 1 and movement 3 + 7 + 1 pass again (their own structural scans unedited
+        and green); seam_vocabulary 3 pass. clippy and fmt clean.
 ```
 
 ## 16.11 Deviations and discoveries during implementation (12a session)
@@ -2586,3 +2607,22 @@ E-RS6 RS-C6, 2026-10-07, working tree on 9acbe04 + RS-C6's paths.
   metaprogramming" the standards warn against.
 - Decision: keep one file, with one section per pack in SD-R11's order. It is test support compiled
   into no library. Flagged for the operator's review; a split is a mechanical follow-up if wanted.
+
+**DR-4 (bounded; flagged for the operator) — RS-13 "over the current text" meets three pre-existing
+words.**
+- Previous assumption: RS-13 scans the current text of five source directories for the physics
+  vocabulary and expects none. §16.2 audited the vocabulary only against the lines 12a adds.
+- Audit evidence: on the base, three lines already match, none of them the seam:
+  `systems/movement/src/action.rs:14` "A body walking or jogging that reports…" and `:21` "this pack's
+  policy rather than a physical constant" (MAX_STRIDE's documentation, `41bb073`);
+  `worldpack/src/read.rs:354` "…the normal case rather than a collision" (seat keys, `ff49368`). 12a
+  may not edit either file (I-1: movement exactly SD-R9; `read.rs` is outside §16.1).
+- Options: (a) edit the three comments — two frozen-scope breaches; (b) scan only the lines 12a adds
+  — weaker than RS-13, which deliberately reads the current text so that a later PR cannot add the
+  vocabulary to the seam either; (c) keep the whole-text scan and admit exactly those three words on
+  exactly those lines, with a reason each, through a list that fails if an entry admits nothing
+  (ARC-35 item 7's allow-list discipline).
+- Decision: (c), in `seam_vocabulary.rs`'s `PRE_EXISTING`. Every other word on every line of the
+  five directories is still refused, and any new use is refused. The operator may prefer (a) as a
+  two-file comment edit in a later PR, after which the entries fail as unused and are removed.
+- Validation: E-RS7 (the three failures, then green; the planted violations still fail by name).
