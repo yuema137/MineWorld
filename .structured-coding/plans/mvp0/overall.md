@@ -666,6 +666,46 @@ Six step designs were drafted at once:
      CSV, Godot's `DisplayServer`/project settings, existing settings-menu addons) and propose the
      PR. It runs after S12 13a and S14 16a land, so it does not collide with them.
 
+## One world, two views: client-parity rule (operator, 2026-10-08)
+
+The operator wrote:
+
+> "为什么现在2d和3d的场景并非一一对应？我们不是说好了吗，2d和3d只是视觉呈现方式，但是后端应该保持一样"
+
+That is: the 2D and 3D scenes do not correspond one-to-one, but the agreement was that 2D and 3D
+are only presentation and the backend stays the same.
+
+The backend already is one: one server, one World Pack, one set of facts. The divergence is on the
+client side:
+- the 2D the operator saw was the unconnected spike, an invented quayside square that was never
+  merged;
+- the 3D slice is hand-built and draws 2 of the town's 6 places, with three doorways on blank walls
+  and decorative townspeople who do not exist in the world;
+- nothing enforces correspondence.
+
+**Rule, binding on S12, S14 and S15 12e:**
+
+1. **The server is the single source of layout.** Every place, doorway, wall/solid (`PlaceShape`),
+   person and loose object a client shows comes from what the server discloses. A client may add
+   decoration: art, props with no simulation meaning, lighting. It may not add or omit anything
+   the world has.
+   - The decorative townspeople are hidden whenever the client is connected (QS14-9).
+   - Standalone mode is labelled as a showcase, not as the world.
+2. **2D derives its layout from the disclosure.** 3D is authored art over the disclosed geometry, held
+   to it by S14 16a's geometry probe (walls within 150 mm) and S14 16c's binding of every doorway and
+   every place.
+3. **A parity test, owned by S14 16e together with S12 13f.**
+   - **Setup:** both reference clients join one running world. For one seed, each reports what it
+     currently shows: places, doorways with destinations, people by id and name, loose objects by
+     id, and available affordances.
+   - **Check:** the two reports must be identical, apart from fields declared presentation-only.
+   - **Mutation:** removing a doorway from one client's scene must make the test fail.
+   - **Coverage:** this extends AC-13 and AC-15 from "same request" to "same world shown".
+4. **Order of work:**
+   - S12 13a (in implementation) already builds 2D from market-town's real street.
+   - The rest lands with 12d (towns get geometry), 16c (all places and doorways in 3D) and 16e/13f
+     (the parity test).
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
