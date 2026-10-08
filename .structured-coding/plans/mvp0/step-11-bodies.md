@@ -4438,10 +4438,9 @@ PO-13 Long runs (systems/bodies/tests):
         b  long_run.rs (12b's, no objects) unchanged: its second-process bytes on the PR head equal the
            bytes captured on the base before any 12c code (E-PO-base). A world without objects is
            resolved exactly as in 12b.
-      M-PO12 the walls-only sweep W counts objects (an empty object group still changes the filter's
-             behaviour, or a stray collider is inserted) → (b) fails, or, with no object present,
-             nothing changes and the mutation is recorded as not reachable by (b) — then (c) of PO-3
-             is its owner.
+      M-PO12 NUDGE_MAX 300 → 299 → (b) fails: the bytes differ from the base's. This shows the
+             comparison sees a change to the people path; that objects leave it alone where there are
+             none is what (b) then holds.
 PO-14 Cost (recorded real evidence; QB-11 stays 12d's): 300 days of the extended bodies-yard, seed 7,
       dev profile, as `mineworld run` is measured → faults 0 and wall time ≤ 40 s on this machine (12b's
       guard of 25 s, plus 15 s for objects and the three actions, fixed now). The ratio to PO-10's copy
@@ -4467,3 +4466,216 @@ PO-18 Scope and the gate: `git diff --name-only <base>...HEAD` ⊆ §18.1's chan
       `cargo clippy --workspace --all-targets --all-features -- -D warnings` clean; the full workspace
       gate runs once, on the final executable head.
 ```
+
+## 18.5 Commit plan
+
+Rules for every commit, as in §17.5:
+- Each commit tracks implementation, validation and review separately.
+- Evidence goes into §18.10 as `E-PO<n>`, deviations into §18.11.
+- A planned commit may become several coherent commits; the mapping is recorded.
+- Each commit leaves the workspace's tests green.
+- Commands run from the worktree root, with `$HOME/.cargo/bin/cargo` if `cargo` is not on PATH.
+- Anything longer than about two minutes runs in the background: the x86_64 build, 300-day runs, the
+  CLI test binaries, the full gate.
+- Every file change is made with the Edit and Write tools; no `sed -i`, `awk`, heredoc appends or inline
+  `python3 -c` (DB-10's tool-discipline note).
+
+### PO-C0 — Design (this section) — docs only
+
+- [x] Implementation: §18 and the header line, by the planning session on `mvp0/s15-12c-plan`, from the
+  audit in §18.2.
+- [x] Validation: `python3 scripts/check_doc_headings.py` and `python3 scripts/check_decision_ids.py`
+  (E-PO0).
+- [x] Review: every claim in §18.2 cites a file and a line, or a section of this document. Each departure
+  from §§4.5.4, 4.6, 4.7, 7.2, 8.1 and 10.2 is named with its finding and its question. This is the
+  planning session's self-review; the freeze is the primary session's.
+
+### PO-C1 — Specs before code, and the base captures
+
+**Goal.** QB-3's amendment, the object rules and the dynamics are reviewable decisions before any code
+relies on them (`CLAUDE.md` §2.2). The references that 12c must not move are captured before it can
+move them.
+
+**Scope.**
+- `docs/DECISIONS.md`: dated notes on **ARC-36** (QB-3), **ARC-39** (note 2: objects and shove) and
+  **DEP-13** (dynamics), each as SD-O21 states it, without rewriting the records.
+- `docs/MODULE_SPEC.md` §4.1: the `body` row's object form and its refusals; the item-file paragraph;
+  a commented item example with `body:`.
+- The handoff, reinitialized for 12c.
+- **E-PO-base**, before any code, on the base:
+  - the base binary (`cargo build -p mineworld-cli`, copied to `/tmp/s15-12c/base-mineworld`);
+  - `validate` of social-cafe and market-town with it, kept as PO-1's reference;
+  - the long run's bytes: `BODIES_LONG_RUN_SECOND_PROCESS=1 cargo test -p mineworld-bodies --test
+    long_run -- --nocapture`, the `LONG-RUN` line kept, with its sha-256 (PO-13 b);
+  - for information only, the 12b bodies-yard 30-day summary sha-256 (E-PB8's `3a2c3322…`) re-run.
+
+**Depends on:** freeze. **Non-goals:** no code.
+
+- [ ] Implementation: the three notes, MODULE_SPEC §4.1, the handoff; E-PO-base captured.
+- [ ] Validation: both doc checks pass; the decision-id count is unchanged (notes add no id); every
+  captured file exists, with its sha-256 recorded in E-PO1.
+- [ ] Review: the ARC-36 note says exactly what QB-3 decided and nothing more (instances in general
+  stay out); no defined term is redefined (`Item` keeps `CORE_CONCEPTS.md` §7's meaning: "unique
+  items" is one of the readings it already allows); the ARC-39 note states SD-O8 … SD-O10 and refines
+  item 7 for objects only.
+
+**Commit boundary.** Documentation only.
+
+### PO-C2 — Objects at genesis: the section, the two generations, the state, disclosure
+
+**Goal.** A world can author loose objects, and a world whose objects do not fit does not load (PO-2's
+pack half, PO-8, PO-16's first bullet).
+
+**Scope.**
+- `systems/bodies/src/section.rs`: the two-form type (SD-O4), `CARRIED_BY = [Place, Item]`,
+  `references`, `seed`.
+- `src/component.rs`: `BodyShape`, `LooseObjects`, `Lying`, with their authored forms and bounds.
+- `src/event.rs`: `BodyFormed`, `ObjectPlaced`, and their constructors.
+- `src/system.rs`:
+  - the declaration of SD-O7, as far as these facts go;
+  - `VERSION` 2;
+  - install with three tables;
+  - the reductions of `body-formed` (and its reaction stating `object-placed`) and of `object-placed`,
+    with SD-O5's checks in order;
+  - disclosure of the listing.
+- `src/geometry.rs`: footprints, the stored-state invariant, `blocks(o)`, the capacity sum.
+- `systems/bodies/Cargo.toml`: `mineworld-item`, with its reason (QO-4); `Cargo.lock`.
+- Tests:
+  - `tests/genesis.rs`: each refusal of SD-O5 in a hand-built genesis, naming its subject; PO-8;
+  - `tests/rapier_pin.rs`: the pair becomes (2, "0.36.0") (QO-16);
+  - `tests/isolation.rs`: the dependency claim becomes "system dependency presence; pack crates
+    presence and item" (QO-16).
+
+**Depends on:** PO-C1.
+
+**Failure and edge cases.** An object authored in a place listed after it (generation 2 sees it); two
+items naming the same place (both placed, in key order); an Item with a `body:` in a world without
+`item` (not declared: placed); a place with 32 objects (placed) and 33 (refused).
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-bodies` (every 12b test still green, `rapier_pin` and
+  `isolation` with QO-16's edits); M-PO2's pack half (the person-overlap check removed) fails a genesis
+  test by name, reverted; clippy and fmt clean.
+- [ ] Review: no write outside the two reductions; generation 2's checks run in SD-O5's order; each
+  refusal names a key a world author recognizes; the listing is built at disclosure, not stored; the
+  place form decodes and refuses exactly as in 12b (12b's genesis tests unedited).
+
+### PO-C3 — Walking pushes objects
+
+**Goal.** PO-3 and PO-13 b through the real dispatch: walking pushes objects, a jammed object blocks,
+and a world without objects resolves exactly as 12b did.
+
+**Scope.**
+- `src/rapier.rs`: objects in a scene (their own group, inserted after the people in `ItemId` order);
+  the walls-only, contact and objects-solid filters; the push's shape cast (SD-O16).
+- `src/geometry.rs`: point and segment to footprint, the push bisection, V4 (SD-O17).
+- `src/push.rs` (new): `pushes`, the one function of SD-O8.
+- `src/event.rs`: `ObjectMoved` and its constructor.
+- `src/system.rs`: the reaction to `arrived` (SD-O8) and the reduction of `object-moved` (SD-O6).
+- `src/resolve.rs`: the guard with objects; the fast path with objects; the contact sweep with
+  objects; step 6's prediction and the objects-solid re-resolution; V4 in verify and degrade; entries
+  clear of objects; `stopped_by` naming an object; `Outcome` gains how objects were treated (none,
+  pushed, solid) for `explain`.
+- `tests/objects.rs` (new): PO-3 a … g.
+
+**Depends on:** PO-C2.
+
+**Failure and edge cases.** A pusher whose centre coincides with the footprint's centre ((1, 0)); a push
+the bisection cannot satisfy within `PUSH_SEARCH` (a jam); an object touched at exactly R (not pushed);
+an arrival into a shaped place with no objects (inert, byte-identical to 12b); an object on the counter
+(never pushed).
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-bodies` — `objects` (PO-3), every 12b scenario unedited, and
+  `long_run` against E-PO-base (PO-13 b); M-PO3, M-PO4, M-PO10 and M-PO12 each fail by name and are
+  reverted.
+- [ ] Review: prediction and reaction call the same `pushes` with the same inputs (SD-O10); the
+  objects-solid path pushes nothing; every degrade path ends in a state that passes V1–V4; stay is the
+  start the guard admitted; no float outside `rapier.rs`; `resolve.rs` and the new files stay under the
+  size warnings (split along SD-O8 / SD-O9 if not).
+
+### PO-C4 — kick and throw
+
+**Goal.** PO-4, PO-5 and the kick and throw half of PO-7.
+
+**Scope.**
+- `src/action.rs` (new): `Kick`, `Throw` and their requirements; `src/codec.rs`: their decoding.
+- `src/rapier.rs`: the flight (SD-O14).
+- `src/flight.rs` (new): launch velocities in integers (SD-O11, SD-O13), V-O and the landing ladder.
+- `src/system.rs`: `validate` and `resolve` for both; providing them.
+- `src/offer.rs` (new): the target-less offers of SD-O12.
+- `tests/actions.rs` (new): PO-4, PO-5, PO-7's kick and throw rows.
+
+**Depends on:** PO-C3.
+
+**Failure and edge cases.** A flight that never comes to rest (the step bound); a flight that leaves the
+object in the air (rung 2); a crowded room where no lattice point verifies (rung 3, `to` = `from`); an
+aimed point on a solid; a kick of an object touching a wall; CCD against the counter's thin edge.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo test -p mineworld-bodies --test actions` and the rest of the pack; the flight's
+  bytes identical in a second process of the same test binary; M-PO5 and M-PO11 fail by name, reverted.
+- [ ] Review: only + − × ÷ on values that reach Rapier (DC-3); one dynamic body per scene, inserted
+  last; `refresh` runs before the first step (F-P1); the rest test and the step bound are pure functions
+  of the state; the offer's requirement is at_place and `validate`'s is the declared one (F-O6).
+
+### PO-C5 — shove
+
+**Goal.** PO-6, the shove half of PO-7, PO-17 and PO-4 g.
+
+**Scope.**
+- `src/action.rs`: `Shove` and its requirement; `src/event.rs`: `PersonShoved`.
+- `src/system.rs`: `validate` and `resolve` (through presence's `arrivals()`); the declaration's
+  presence facts (SD-O7).
+- `src/offer.rs`: the shove offers.
+- `tests/actions.rs`: PO-6, PO-7's shove rows; `tests/scenarios.rs`'s inert case gains offers (PO-17);
+  PO-4 g.
+
+**Depends on:** PO-C4.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: the pack's tests; M-PO7, M-PO8 and M-PO1 fail by name, reverted.
+- [ ] Review: shove never writes a position — presence records it; the emission order is person-shoved,
+  then `arrivals()`'s list; a refusal of presence's becomes `FactRefusedByOwner` as movement's does; no
+  shove to oneself; the target's availability is "has a body".
+
+### PO-C6 — The world and the real runs
+
+**Goal.** PO-2's binary half, PO-9, PO-10, PO-11, PO-13 a and PO-16, on the extended
+`worlds/bodies-yard`.
+
+**Scope.**
+- `worlds/bodies-yard`: `items:` and seven `items/<key>.yaml` (SD-O19); the README.
+- `tools/cli/tests/bodies/mod.rs`: the scan's object checks and the facts shove and pushes state
+  (QO-16); the copy without bodies also strips items' `body:`.
+- `tools/cli/tests/bodies_yard.rs`: PO-2's refusals, PO-9 with AO-1 … AO-3 checked **before** the scan,
+  PO-10, PO-16.
+- `tools/cli/tests/bodies_yard_restart.rs`: PO-11's activity line (QO-16).
+- `systems/bodies/tests/long_run_objects.rs` (new): PO-13 a.
+
+**Depends on:** PO-C5.
+
+**Activity first.** AO-1 … AO-3 are evaluated on the first 30-day run before any other claim. If one
+fails, SD-O18's ladder is walked in order — c1, p1, p2 — each rung recorded in §18.11 with its counts,
+and the criteria are never changed. If no rung passes, the work stops and returns to the primary
+session.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `mineworld validate worlds/bodies-yard` exit 0; `cargo test -p mineworld-cli --test
+  bodies_yard --test bodies_yard_restart` (background); `cargo test -p mineworld-bodies --test
+  long_run_objects`; M-PO2 (binary) and M-PO9 fail by name, reverted.
+- [ ] Review: the scan reads only the save and the packs' published fact types; its geometry literals
+  are asserted against the world files; the survivors' exclusions are asserted as in PB-11; the
+  activity counts are printed per bucket.
+
+### PO-C7 — Close: cross-architecture, cost, the towns, the gate, the ledger
+
+- [ ] PO-12: the x86_64 build and the three Rosetta comparisons.
+- [ ] PO-13 a release: the mean per swept move and per kick.
+- [ ] PO-14: one 300-day dev run of the extended bodies-yard, and one of PO-10's copy for the ratio.
+- [ ] PO-1 on the final executable head: both town digests, both `validate` comparisons.
+- [ ] PO-15, PO-18: the structural tests in the gate; the scope check; fmt, clippy; the full gate once.
+- [ ] Documentation: `docs/MVP_STATUS.md` (a capability row "Bodies: objects, kick, throw, shove" and
+  one evidence row), `systems/bodies/README.md`, §18's checkboxes, §18.10, §18.11, the handoff.
+- [ ] Review: PO-1 … PO-18 each with evidence; deviations named; FU-12a-1 and F-B7 untouched (12d's).
+
