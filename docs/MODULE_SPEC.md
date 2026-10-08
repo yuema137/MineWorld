@@ -264,8 +264,9 @@ world:
   calendar: modern
   geography: pacific_northwest
 
-entity_packs:
-  - modern-life
+requires:                  # every pack this world uses that is not versioned with the framework
+  modern-life: "^1.2"      #   an Entity Pack: requiring it puts its item kinds in this world
+  lakewood-realistic: "^1" #   a Presentation Pack: the world is authored for it
 
 systems:
   - conversation
@@ -283,9 +284,6 @@ population:
 cognition_profile:
   default: local_agents
 
-presentation_profile:
-  default: lakewood_realistic
-
 network_profile:
   default: private_server
 ```
@@ -294,17 +292,24 @@ Constraints:
 
 1. A World Pack contains no secrets and no credentials. It declares required *capabilities*;
    the operator supplies endpoints and keys.
-2. A World Pack contains no renderer-specific assets; it names a Presentation Pack.
+2. A World Pack contains no renderer-specific assets; it requires a Presentation Pack.
+
+**Amended 2026-10-08 (S16 QSE-8, accepted by the operator; `DECISIONS.md` `ARC-54`).** One
+`requires:` map — pack id to semver range — replaces the frozen model's separate `entity_packs:` list
+and `presentation_profile:`: requiring an Entity Pack is using it, and requiring a Presentation Pack is
+declaring it. `requires:` names packs and versions only; which systems a world enables stays
+`systems:`, and how a pack is configured is a separate seam.
 3. A World Pack never redefines simulation rules. If a world needs a new rule, that is a
    System Pack.
 
 ## 4.1 The fields MVP-0's loader reads
 
-The model above is the frozen one and is unchanged. This subsection states the **subset MVP-0
-implements**, because the loader (`worldpack/`) exists and an author needs to know what it accepts.
-Fields of §4's model that MVP-0 does not implement — `era`, `calendar`, `geography`, `entity_packs`,
-`cognition_profile`, `presentation_profile`, `network_profile` — are **refused by name**, not ignored:
-a silently accepted field is a world its author believes they authored.
+The model above is the frozen one, amended only by QSE-8's `requires:`. This subsection states the
+**subset MVP-0 implements**, because the loader (`worldpack/`) exists and an author needs to know what
+it accepts. Fields of §4's model that MVP-0 does not implement — `era`, `calendar`, `geography`,
+`cognition_profile`, `network_profile` — and the two `requires:` replaced, `entity_packs` and
+`presentation_profile`, are **refused by name**, not ignored: a silently accepted field is a world its
+author believes they authored.
 
 ```yaml
 # world.yaml
@@ -316,6 +321,9 @@ world:
 
 mineworld: "^0.1"          # optional to the loader; the framework versions this world is authored
                            # for. When present, a framework outside it is refused by name
+
+requires:                  # optional; every pack this world uses that is not bundled, with a range
+  mineworld-default-3d: "^0.1"   # found in a directory named by --packs or MINEWORLD_PACKS (ARC-54)
 
 systems:                   # the capabilities this world enables, in installation order
   - presence
@@ -514,6 +522,40 @@ are present: a version that is not semver, or a licence that is not an SPDX expr
 its line and column, and a `mineworld:` range the running framework (0.1.0) does not satisfy is refused
 naming the range and the framework version. `mineworld packs validate` (§8.1) requires all three. They
 are never world state: no genesis fact, no `Metadata` and no save carries them.
+
+**Requirements** (`DECISIONS.md` `ARC-54`, `ARC-55`). `requires:` maps a pack id to a semver range, with
+Cargo's meaning. It names every pack the world uses that is **not bundled** — a bundled pack is a code
+pack compiled from the framework's own workspace and is versioned with it, so the world's `mineworld:`
+range already covers it. Packs are searched in this build and in the **pack roots**: the directories
+named by `--packs DIR` on the command, in order, then those in `MINEWORLD_PACKS`; nothing else is
+searched, not even the world's own directory. A pack root's immediate subdirectories holding
+`pack.yaml` or `world.yaml` are its packs. Resolution keeps one installed version per pack and chooses
+nothing. It runs after `systems` is resolved and before content is read, and the first failure is
+refused by name, in this order:
+
+1. any pack found twice under one id, naming both places;
+2. for each requirement, in id order:
+   - absent — naming the id and every place searched, or that no pack directory was given;
+   - of a type a world cannot require — a World Pack or a Controller Pack — or an Entity Pack, which is
+     read from S16's PR E-d;
+   - bundled — "versioned with the framework; remove it from requires";
+   - at a version the range does not admit — naming the id, the range and the version found;
+3. a **third-party** system the world enables in `systems` that `requires:` does not name — naming the
+   system, its pack and the missing requirement;
+4. a licence outside the **licence policy** — the world's own when stated, every required pack's, every
+   enabled system's pack's — naming the pack, its expression, the identifiers that failed and the
+   allowed ones.
+
+The **licence policy**'s default allows `MIT`, `Apache-2.0`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC`,
+`Zlib`, `CC0-1.0` and `Unlicense`. An expression is allowed when it can be satisfied with those
+identifiers alone, with no `WITH` addition and no `+`: `MIT OR GPL-3.0-only` is allowed, `MIT AND
+GPL-3.0-only` is not. The policy is a typed value, so a world will be able to narrow or extend it
+through the generic configuration seam (S17); until then every world uses the default.
+
+The resolved **composition** — the framework, each requirement with the version and the place that
+satisfied it, each enabled system's pack — is printed by `mineworld packs resolve` (§8.1). It is never
+world state: no fact and no save records a version or a pack root, and a world resumed from a save is
+resolved again against the roots given then.
 
 Initial state is **not** written into the world by the loader. Each authored `passage`, each
 authored `location` and each section becomes a recorded event caused by `Causation::WorldGenesis`
@@ -752,17 +794,25 @@ One binary, `mineworld`, built from `tools/cli`. Its arguments are parsed by `cl
 wrong and a non-zero exit status, never a panic.
 
 ```text
-mineworld server <world> [--listen ADDRESS] [--agent SEAT]... [--save DIR]
-mineworld validate <world>
-mineworld replay <world> --save DIR
-mineworld run <world> --headless --seed N --days N [--save DIR]
+mineworld server <world> [--listen ADDRESS] [--agent SEAT]... [--save DIR] [--packs DIR]...
+mineworld validate <world> [--packs DIR]...
+mineworld replay <world> --save DIR [--packs DIR]...
+mineworld run <world> --headless --seed N --days N [--save DIR] [--packs DIR]...
 mineworld inspect <save-directory> [--last N]
-mineworld biography <world> --save DIR --person KEY [--json]
+mineworld biography <world> --save DIR --person KEY [--json] [--packs DIR]...
 mineworld create <directory>
 mineworld packs list [--packs DIR]...
 mineworld packs show <id> [--packs DIR]...
-mineworld packs validate <directory>
+mineworld packs validate <directory> [--packs DIR]...
+mineworld packs resolve <world> [--packs DIR]...
 ```
+
+**Pack roots** (`DECISIONS.md` `ARC-54`). Every command that reads a world takes `--packs DIR`,
+repeatable: the directories a world's `requires:` is resolved in (§4.1), in the order given, followed
+by the entries of the `MINEWORLD_PACKS` environment variable (a path list, `:`-separated on Unix; empty
+entries skipped). A root that does not exist or is not a directory is refused, naming it and whether it
+came from `--packs` or `MINEWORLD_PACKS`. A world without `requires:` needs none. `validate` prints one
+`requires` line per requirement, after `seats`, only when the world states `requires:`.
 
 | Command | What it does |
 | --- | --- |
@@ -838,13 +888,19 @@ reports success. An existing directory is refused and left untouched.
 - `show <id>` prints every package field of one pack, `repository` or `—`, a data pack's `mineworld`
   range, and for a System Pack its system id and `SystemVersion`. An id no source provides is refused,
   listing the ids that exist.
-- `validate <directory>` checks one data pack: its package fields, all required, then its content —
-  a World Pack is read and loaded as `validate` does; a Presentation Pack's style manifest must have an
-  `id` and a `dimension` list.
+- `validate <directory>` checks one data pack: its package fields, all required, its licence against
+  the licence policy, then its content — a World Pack is read (its requirements resolved in the pack
+  roots) and loaded as `validate` does; a Presentation Pack's style manifest must have an `id` and a
+  `dimension` list.
+- `resolve <world>` prints the world's composition (`ARC-54`): the framework's version and the world's
+  `mineworld:` range; each requirement with the version that satisfied it and where it was found;
+  each enabled system with its pack, version and `bundled` or `third-party` — or the first refusal.
 
-Every pack's identity is validated: an id outside the rule, a version that is not semver, a licence
-that is not an SPDX expression, a missing author, an unknown or missing field, a `type` the file does
-not carry, and two packs with one id are each refused by name with a non-zero exit.
+`list`, `show` and `resolve` read the pack roots of `--packs` and then `MINEWORLD_PACKS`. Every pack's
+identity is validated: an id outside the rule, a version that is not semver, a licence that is not an
+SPDX expression, a missing author, an unknown or missing field, a `type` the file does not carry, and
+two packs with one id are each refused by name with a non-zero exit. `list` and `show` print licences;
+they do not judge them against the policy.
 
 ---
 

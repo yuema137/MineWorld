@@ -1815,8 +1815,21 @@ applies, how it is widened); an ARC-53 note (the `bundled` field moved from E-c 
 `MINEWORLD_PACKS`, `packs resolve`, `validate`'s `requires` lines). `docs/PACKAGE_FORMAT.md` §5.0
 (dependencies and the policy) and §8 (status row).
 
-- [ ] Implementation · [ ] Validation: both doc checks; ARC-54/55 free on every `origin/*` branch ·
-  [ ] Review: no defined term redefined; MODULE_SPEC §4's change limited to QSE-8's sentence.
+- [x] Implementation: ARC-54 (eight points, limitations incl. vendored-as-bundled), ARC-55 (default
+  list as ruled, the evaluator, the typed policy and its `configure/packages.yaml` hook, options (a)–(c),
+  CC-BY-4.0 recorded as the asset-pack candidate), an "ARC-53 note" (classification moved to E-b).
+  `MODULE_SPEC.md` §4: the model's `entity_packs:`/`presentation_profile:` replaced by `requires:`, with
+  a dated amendment paragraph citing QSE-8; constraint 2 "names" → "requires" a Presentation Pack; §4.1
+  intro, the sample's `requires:`, a "Requirements" paragraph (order of refusals, the policy); §8.1
+  synopsis (`--packs` on every world-reading command, `packs resolve`), a "Pack roots" paragraph, the
+  `packs` paragraph (`validate` judges the policy; `resolve`). `PACKAGE_FORMAT.md` §5.0 (bundled,
+  requirements, licence policy; `dependencies` wording) and §8's row.
+- [x] Validation: `check_decision_ids` → 55 ids, distinct (+2); `check_doc_headings` → 177 sections,
+  none duplicated. ARC-54/55 free on every `origin/*` branch (re-checked at C0, `git fetch` since: main
+  unchanged at `1a1d08e`).
+- [x] Review: no defined term redefined ("pack root", "bundled", "third-party", "composition",
+  "licence policy" are introduced as descriptive terms in ARC-54/55, not core concepts); the frozen
+  model's edit is exactly QSE-8's replacement, marked as an amendment.
 
 ### Eb-C2 — `packages`: roots, policy, bundled, resolve
 
