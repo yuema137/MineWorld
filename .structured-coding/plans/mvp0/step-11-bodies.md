@@ -3227,13 +3227,20 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** freeze, including QP-1, QP-3 and QP-7. **Non-goals:** no code.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: both doc checks pass (the decision ids grow by one: 50 → 51). Every cited section
-  exists. DEP-13's version, licence and MSRV match §17.3.3 character for character.
-- [ ] Review: DEP-13 answers REUSE_POLICY §11's six questions and §12's rejection reasons. The ARC-39
-  note amends without rewriting, and says which item it refines. No defined term is redefined:
-  `Place`, `Person`, `System Pack`, `World Pack` keep their CORE_CONCEPTS sense. `body`, `floor` and
-  `solid` are a section's words, not ontology.
+- [x] Implementation: as scoped, with §17.0's override: DEP-13 states the pin lives in
+  `systems/bodies/Cargo.toml`, not the root (QP-3 overruled; DB-1). ARC-39 gains a dated note with
+  three points (bounds; item 7 bullet 3 realized as the starting-state guard; placement of a
+  crossing). MODULE_SPEC §4.1: the commented `body:` example in the place file, the `body` row,
+  "seven sections". Handoff reinitialized for 12b. DEP-13 and ARC-40 confirmed free on every
+  `origin/*` ref after `git fetch` (E-PB1).
+- [x] Validation: both doc checks pass, decision ids 50 → 51 (E-PB1). Cited sections exist:
+  REUSE_POLICY §§4, 11, 12, 17; MVP §9 (AC-8, AC-12); ARC-25, ARC-30, ARC-33. DEP-13's facts block
+  is §17.3.3's lines for rapier3d, licence, MSRV, features and parry3d copied verbatim; the
+  `serde-serialize` features line and the prose determinism lines are summarized, not altered.
+- [x] Review: DEP-13 answers §11's six questions (problem; options (a)–(e); why this; why not ourselves;
+  isolating interface `rapier.rs`; limitations) and gives §12's reason for each rejected option. The
+  ARC-39 note says it refines item 7 only and leaves items 1–8 otherwise unchanged. No defined term
+  redefined; `body`, `floor`, `solid` are section words.
 
 **Commit boundary.** Documentation only.
 
@@ -3589,8 +3596,23 @@ E-PB0 PB-C0, 2026-10-07, planning session, on main @ 03f1d7c (12a merged) + the 
       `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
         duplicated. `python3 scripts/check_decision_ids.py` → 50 decision ids, all distinct.
       No cargo build or test: this commit is documentation only.
+
+E-PB1 PB-C1, 2026-10-07, 12b implementation session, on main @ 918c869 + PB-C1's three files.
+      `git fetch origin`; `git show <ref>:docs/DECISIONS.md | grep 'DEP-13\|ARC-40'` over every
+        refs/remotes/origin/* → no match: DEP-13 free.
+      `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
+        duplicated. `python3 scripts/check_decision_ids.py` → 51 decision ids, all distinct (50 + DEP-13).
+      PASS. Documentation only; no cargo run.
 ```
 
 ## 17.11 Deviations and discoveries during implementation
 
-*None yet.*
+**DB-1 (bounded; follows §17.0) — what QP-3's overruling changes in the text below it.**
+- §17.0 overrules QP-3: `rapier3d =0.36.0` is declared in `systems/bodies/Cargo.toml`. Several
+  sentences written before the freeze still say "root": §17.1's change set (`Cargo.toml (root)`
+  `[workspace.dependencies]`), SD-B14, PB-C1 ("declared in the root workspace"), PB-C2's first scope
+  bullet, PB-2's M-PB2 ("added to the root line"), PB-15's second bullet ("except the root
+  Cargo.toml's one dependency line"), and the §17.9 invariant ("the root manifest's one line").
+- Reading, as §17.0 binds: each "root" there means `systems/bodies/Cargo.toml`. The root manifest is
+  not touched (unless QP-9's contingency fires). M-PB2 adds `parallel` to the pack's line; PB-15's
+  allowance is the pack's manifest.
