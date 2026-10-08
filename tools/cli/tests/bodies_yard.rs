@@ -30,7 +30,7 @@ const SEATS: [&str; 12] = [
 
 /// `validate` of a copy of the yard with `edit` applied to `file` must fail, naming every word.
 fn refused(case: &str, file: &str, from: &str, to: &str, names: &[&str]) {
-    let copy = copy_of(&fresh(&format!("bodies-yard-refused-{case}")));
+    let copy = copy_of(fresh(&format!("bodies-yard-refused-{case}")));
     let path = copy.join(file);
     let text = std::fs::read_to_string(&path).expect("reads");
     assert_eq!(
@@ -52,7 +52,7 @@ fn refused(case: &str, file: &str, from: &str, to: &str, names: &[&str]) {
 fn refused_after(case: &str, edit: impl FnOnce(&Path), names: &[&str]) -> String {
     // Its own directory names: the 12b test above refuses copies with some of the same case names,
     // and the two tests run at once.
-    let copy = copy_of(&fresh(&format!("bodies-yard-object-refused-{case}")));
+    let copy = copy_of(fresh(&format!("bodies-yard-object-refused-{case}")));
     edit(&copy);
     let output = mineworld(&["validate", copy.to_str().expect("a path")]);
     let said = format!("{}{}", stdout(&output), stderr(&output));
@@ -393,13 +393,16 @@ fn thirty_days_of_bodies_yard_at_seeds_7_8_and_9() {
 /// scan. Each test saves under its own name: two tests running at once must never share a save.
 fn scanned(seed: u64, name: &str, saved: Option<&Path>) -> bodies::Report {
     the_world_file_still_says_the_geometry(Path::new(YARD));
+    // The operator's saves (`BODIES_YARD_SAVES`) are only read; a run's own save is scratch, held
+    // until the scan has read it.
+    let scratch;
     let save = match saved {
         Some(directory) => directory.join(name),
         None => {
-            let save = fresh(name);
-            let printed = run(Path::new(YARD), seed, 30, Some(&save));
+            scratch = fresh(name);
+            let printed = run(Path::new(YARD), seed, 30, Some(&scratch));
             assert!(printed.contains("faults     0"), "faults 0: {printed}");
-            save
+            scratch.to_path_buf()
         }
     };
     scan(&Tables::read(&save), &keys_of(Path::new(YARD)))
@@ -432,7 +435,7 @@ fn check(seed: u64, report: &bodies::Report) {
 
 #[test]
 fn without_bodies_the_same_world_runs_and_the_scan_sees_people_overlap() {
-    let copy = without_bodies(&fresh("bodies-yard-without-bodies"));
+    let copy = without_bodies(fresh("bodies-yard-without-bodies"));
     let save = fresh("bodies-yard-without-bodies-save");
     let printed = run(&copy, 7, 30, Some(&save));
     assert!(printed.contains("faults     0"), "faults 0: {printed}");

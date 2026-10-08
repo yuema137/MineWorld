@@ -38,3 +38,5 @@ mineworld-schedule = { workspace = true }
 # The tests encode an action payload the way a client does — with the contract's own serde, because a
 # System Pack's codec is private to it, which is the point of `DEP-5`'s choice reaching the wire.
 serde_json = { workspace = true }
+# Every test's pack directory is scratch removed when the test ends (DEP-29).
+mineworld-test-support = { workspace = true }
