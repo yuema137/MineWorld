@@ -902,11 +902,36 @@ relies on them (`CLAUDE.md` §2.2, `REUSE_POLICY.md` §11).
 
 **Depends on:** A-C1.
 
-- [ ] Implementation: the three files; tag and digests read with `docker buildx imagetools inspect` and
-  recorded in the ledger with the date.
+- [x] Implementation: `Dockerfile`, `.dockerignore` and `scripts/check_ci_pins.py`. Pins were read with
+  `docker buildx imagetools inspect`, which needs no daemon, on 2026-10-08 19:41 UTC:
+
+  ```text
+  rust:1.97.1-slim-trixie  index sha256:8e8cf8f7fd54a2d23d5a743b3a03f56e26b6c774276c33fa0595111704ebb15c
+                           (linux/amd64 manifest sha256:fc0648ac…697c5a, created 2026-08-05,
+                            base debian:trixie-slim; source rust-lang/docker-rust@40acf791)
+  debian:trixie-slim       index sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f
+  ```
+
+  Debian `trixie` is the expected variant (§3.1), so no fallback was needed. Both stages pin the
+  multi-platform index digest, so the same `Dockerfile` builds `linux/amd64` in CI and `linux/arm64` on
+  the Mac.
 - [ ] Validation:
-  - `python3 scripts/check_ci_pins.py` → passes.
-  - A13-M4 and A13-M5 run locally as working-tree edits (reverted): each fails, naming the values.
+  - [x] `python3 scripts/check_ci_pins.py` → exit 0: "toolchain pins agree: rust 1.97.1
+    (rust-toolchain.toml, Cargo.toml, Dockerfile), Debian trixie, every base image pinned by digest".
+    Run locally with Python 3.14.7; the container runs trixie's Python 3.13, and `tomllib` exists in both.
+  - [x] Local mutations, as working-tree edits, each reverted, with the restored file passing again:
+    - **M4**, tag `1.97.0` → exit 1: "Dockerfile:13: rust image tag is 1.97.0, rust-toolchain.toml
+      channel is 1.97.1".
+    - **M5**, a runtime `FROM` with no digest → exit 1: "Dockerfile:29: debian:trixie-slim is not pinned by
+      an @sha256: digest".
+    - **Extra**, a runtime on `bookworm` → exit 1: "base images name different Debian releases:
+      ['bookworm', 'trixie']".
+    - **Finding, fixed before commit.** The first M5 run also printed a second, misleading line ("neither
+      rust:… nor debian:…"), because the tag patterns required an `@`. The patterns now accept a
+      missing digest, so only the true cause is printed.
+  - [ ] Local `docker build`: **NOT RUN**. The Docker Desktop daemon was not running on 2026-10-08 (the
+    socket `~/.docker/run/docker.sock` was absent), and starting it is not this session's to do. A13-5
+    therefore rests on the `image` job's run from `scratch/13a-image` (§9.0 R-1), recorded in A-C3.
   - `docker build --platform linux/amd64 --target runtime .` on the operator's Mac if the Docker daemon is
     running. Otherwise this is deferred to A-C3's CI image build and recorded as NOT RUN locally, with
     the reason.
