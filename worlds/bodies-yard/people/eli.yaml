@@ -1,0 +1,10 @@
+# Eli — in the hall, north of the table.
+
+tags:
+  - walker
+
+location:
+  place: hall
+  position:
+    x: 6000
+    y: 7000

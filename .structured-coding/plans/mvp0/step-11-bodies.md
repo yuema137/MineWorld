@@ -3227,13 +3227,20 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** freeze, including QP-1, QP-3 and QP-7. **Non-goals:** no code.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: both doc checks pass (the decision ids grow by one: 50 → 51). Every cited section
-  exists. DEP-13's version, licence and MSRV match §17.3.3 character for character.
-- [ ] Review: DEP-13 answers REUSE_POLICY §11's six questions and §12's rejection reasons. The ARC-39
-  note amends without rewriting, and says which item it refines. No defined term is redefined:
-  `Place`, `Person`, `System Pack`, `World Pack` keep their CORE_CONCEPTS sense. `body`, `floor` and
-  `solid` are a section's words, not ontology.
+- [x] Implementation: as scoped, with §17.0's override: DEP-13 states the pin lives in
+  `systems/bodies/Cargo.toml`, not the root (QP-3 overruled; DB-1). ARC-39 gains a dated note with
+  three points (bounds; item 7 bullet 3 realized as the starting-state guard; placement of a
+  crossing). MODULE_SPEC §4.1: the commented `body:` example in the place file, the `body` row,
+  "seven sections". Handoff reinitialized for 12b. DEP-13 and ARC-40 confirmed free on every
+  `origin/*` ref after `git fetch` (E-PB1).
+- [x] Validation: both doc checks pass, decision ids 50 → 51 (E-PB1). Cited sections exist:
+  REUSE_POLICY §§4, 11, 12, 17; MVP §9 (AC-8, AC-12); ARC-25, ARC-30, ARC-33. DEP-13's facts block
+  is §17.3.3's lines for rapier3d, licence, MSRV, features and parry3d copied verbatim; the
+  `serde-serialize` features line and the prose determinism lines are summarized, not altered.
+- [x] Review: DEP-13 answers §11's six questions (problem; options (a)–(e); why this; why not ourselves;
+  isolating interface `rapier.rs`; limitations) and gives §12's reason for each rejected option. The
+  ARC-39 note says it refines item 7 only and leaves items 1–8 otherwise unchanged. No defined term
+  redefined; `body`, `floor`, `solid` are section words.
 
 **Commit boundary.** Documentation only.
 
@@ -3258,14 +3265,28 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C1.
 
-- [ ] Implementation: as scoped. `#![forbid(unsafe_code)]`, `#![warn(missing_docs)]`; no
-  `HashMap` (clippy).
-- [ ] Validation: `cargo test -p mineworld-bodies`; clippy and fmt clean. `git diff Cargo.lock` lists
-  only added packages. The licence tree is recorded (PB-2). M-PB2 and M-PB3 are each applied, fail
-  by name, and are reverted. The planted `use rapier3d as _;` fails isolation, and is removed.
-- [ ] Review: no Rapier type in a `pub` signature outside `rapier.rs`; the conversion functions are
-  the only float↔integer crossings; the insertion order matches SD-B11 exactly; the canary asserts
-  the defect as it is, not as it should be.
+- [x] Implementation: as scoped, with §17.0's override (DB-1): no root-manifest edit;
+  `systems/bodies/Cargo.toml` declares `rapier3d = { version = "=0.36.0", features =
+  ["enhanced-determinism"] }` with its reason. `src/lib.rs` (doc table, `forbid(unsafe_code)`,
+  `warn(missing_docs)`), `src/codec.rs`, `src/geometry.rs` (the published constants of §17.3.1 as
+  `Millimetres`/`usize`/`u32`, and the crate-private integer `Point`, `Area`, `Room` the adapter
+  takes), `src/rapier.rs` (`Scene::build` in SD-B11's order, `Scene::sweep` with `Against::{Fixed,
+  FixedAndPeople}` returning the quantized end and the first person touched, `refresh`, the
+  controller, `metres`/`millimetres`, and the PB-3 unit tests plus a round-trip test of the two
+  conversions over ±100 000 mm). `tests/rapier_pin.rs` (PB-2's lock and features; the VERSION pair
+  joins in PB-C3, when `BodiesSystem` exists), `tests/isolation.rs` (PB-15's first four bullets: the
+  crate name `rapier3d` only in `rapier.rs`, nowhere outside the pack, no `f32`/`f64` in any source
+  file but `rapier.rs` — widened from §17.4's three files, DB-3 — and presence the only pack
+  dependency). Two `#[allow(dead_code)]` on `mod codec` and `mod rapier` until PB-C3/PB-C4 use them.
+- [x] Validation (E-PB2): `cargo test -p mineworld-bodies` 3 + 4 + 1 pass; clippy `-D warnings` and fmt
+  clean; `git diff Cargo.lock`: 39 packages added, no line removed, no existing version changed;
+  licence tree recorded. M-PB2 and M-PB3 each fail by name and are reverted (M-PB3 as first written
+  survived — DB-2); the planted `use rapier3d as _;` fails isolation naming the file, removed.
+- [x] Review: no Rapier type in a `pub` or `pub(crate)` signature outside `rapier.rs` (`Scene`,
+  `Swept`, `Against` carry only `Point`, `usize` and Rapier handles in private fields); `metres` and
+  `millimetres` are the only float↔integer crossings; insertion order is slab, west, east, south,
+  north, solids in authored order, people in the given order — SD-B11's; the canary asserts z stays
+  at 800 ± 1 mm, the defect as it is.
 
 ### PB-C3 — Place geometry: the `body:` section, PlaceShape, genesis checks, disclosure
 
@@ -3289,12 +3310,24 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C2.
 
-- [ ] Implementation: as scoped. The reduction writes `PlaceShape` only after all four checks pass.
-- [ ] Validation: `cargo test -p mineworld-bodies` passes, with a refusal per check and a positive
-  control. M-PB4 is shown here at pack level; PB-4's real-binary half is in PB-C7.
-- [ ] Review: refusal codes and details name keys rather than raw ids wherever the world can resolve
-  them; the capacity count's anchor and spacing are SD-B4's; the disclosure is the component exactly
-  as reduced.
+- [x] Implementation: as scoped. `component.rs`: `PlaceShape { floor: Floor, solids: Vec<Solid> }`
+  with `Corner`/`Floor`/`Solid` in `Millimetres`, `deny_unknown_fields`, and `try_from` an `Authored`
+  form that holds SD-B3's rules (coordinate bound, sides ≥ 620, ≤ 64 solids, non-empty, height
+  1 … 10 000) — the section's type is the component's. `event.rs`: `PlaceShaped`, `place_shaped()`
+  (public, as movement's `passage`). `section.rs`: `body`, `CARRIED_BY = [Place]`. `system.rs`:
+  `BodiesSystem` (VERSION 1), declaration and install (`require_registered` first), the reduction
+  with SD-B4's checks in the order capacity → outside → in-solid → overlap (capacity first so a
+  too-small room is named as such even when its people are also outside it), `discloses`.
+  `geometry.rs`: `Area::holds`/`distance2`, `Room::admits`/`clear_of_solids`/`solid_within`/
+  `capacity`, `lattice`, `distance2`, `closest_pair`. `resolve.rs`: `impl ArrivalResolver` returning
+  `so_far` (inert until PB-C4), so the pack can be registered. `tests/support/mod.rs`, 
+  `tests/genesis.rs`; `rapier_pin.rs` gains the VERSION pair.
+- [x] Validation (E-PB3): `cargo test -p mineworld-bodies` → lib 3, genesis 6, isolation 4,
+  rapier_pin 1. M-PB4 (pack level) fails by name, reverted. clippy and fmt clean.
+- [x] Review: details name keys (`alice and bob stand 420 mm apart in room`); the capacity lattice is
+  anchored at `floor.min + (300, 300)`, spacing 650, admitted at margin 300 — SD-B4's; disclosure is
+  `codec::to_value` of the component as reduced, asserted against the authored literals; nothing is
+  written unless `fits` returns `Ok`.
 
 ### PB-C4 — The resolver: walls, nudging, verify-then-degrade, entry placement, the guard
 
@@ -3317,13 +3350,30 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C3.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-bodies` passes. M-PB5, M-PB6, M-PB7, M-PB10, M-PB11 and the
-  PB-19 half of M-PB1 are each applied, fail by name, and are reverted. Each scenario's facts are
-  checked for order, causation and `emitted_by`.
-- [ ] Review: every degrade path ends in a state V1–V3 accepts, including stay. The snap cannot
-  lengthen (rule (c)). Displaced order is generation, then `EntityId`. No float outside `rapier.rs`.
-  The resolver keeps nothing between calls: no static, no cache, no clock.
+- [x] Implementation: as scoped. `resolve.rs`: `impl ArrivalResolver` (SD-B15 pass-through → inert
+  rule → guard → `stride` or `entry`), `answer` (the crate-private core), `Policy { verify }` with
+  `PRODUCTION`, `guard` (SD-B9: pair < 595 mm or a centre outside the floor/in a solid by more than
+  the tolerance → panic naming both keys, the place, the distance and ARC-39), `stride` (SD-B6:
+  corridor fast path → one `Scene` → `reach` (W, B, candidate) → `nudge` → verify → `degrade`),
+  `nudge` (SD-B7), `entry` (SD-B8 E1/E2/E3), `relocated` (keeps z and facing), and a public
+  `explain(world, person, to) -> Option<Outcome>` with `Outcome { route, generations, nudged,
+  nudge_failed, degraded }` — the resolver's own account, which the tests read generations and
+  degradation from (§17.4 PB-6: "read from the resolver core's outcome"; DB-7). `geometry.rs`:
+  `Point` arithmetic, `scaled_down`, `at_least`, `no_longer_than`, `segment_clear_of`,
+  `Room::corridor_clear`/`free_at`/`nearest_free`. `rapier.rs`: `Swept.contact`, the capsule's
+  position at its first person contact (DB-4). Tests: `tests/scenarios.rs` (15), PB-8's two unit
+  tests in `resolve.rs`, `Bypass` and `Moved`/`Fact` in the support.
+- [x] Validation (E-PB4): `cargo test -p mineworld-bodies` → lib 5, genesis 6, isolation 4, rapier_pin
+  1, scenarios 15. M-PB5, M-PB6, M-PB7, M-PB10, M-PB11 and M-PB1's pack half each fail by name and
+  are reverted. Every scenario's facts are checked for order, causation (`Action(id)`),
+  `emitted_by` movement and the controller decision.
+- [x] Review: every degrade path ends in a state `verifies` accepted, and stay is the start the
+  guard admitted. The snap moves a point onto the target and `no_longer_than` then clamps, so
+  neither lengthens (rule (c)); `at_least` rounds a nudge up and the pass then refuses any nudge
+  over 310 mm, so the bound holds by construction. Displaced order is pusher by pusher, then
+  `EntityId` within a pusher — generation order. `isolation` holds no float outside `rapier.rs`.
+  No static, cache or clock: `Scene` is built and dropped inside `stride`/`entry`. `stride` was
+  split (`reach`) to stay under the ~100-line warning; resolve.rs is 700 lines with its tests.
 
 ### PB-C5 — QB-16: the head-on bias
 
@@ -3336,12 +3386,21 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C4.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: HB-1 … HB-4 pass. M-PB9 fails HB-1, and is reverted. If HB-1 fails, the ladder of
-  PB-13 is walked, and each rung's trace is recorded (§17.11).
-- [ ] Review: the turned stride is never longer than `d` (an assertion in the code, and a case in the
-  test); the bias changes only the walker's own target; PB-6's layouts still keep their first person
-  outside the band.
+- [x] Implementation: as scoped. `geometry.rs`: `BIAS_BAND` 200 mm, `BIAS_TURN` (4, 1), the
+  ceiling 4 124, `first_met` (SD-B10's three conditions, exact in `i128`, ties to `EntityId`),
+  `head_on`, `turned_right` (asserts the turn is never longer). `resolve.rs`: `Policy { bias, verify
+  }`, the bias after the fast path and before the sweeps; a walker who reaches the turned aim is
+  stopped-short `by` the person met; `Outcome.biased`. `scenarios.rs`: a shared `scenario(n1|n2|n3)`
+  runner over `bounded_stride` (HB-2's checks on every request), n1 (HB-1), n2's east-of-b (HB-3),
+  HB-4 as a second process of the same test binary comparing every fact and the final state byte for
+  byte. PB-8 gains its production-policy case.
+- [x] Validation (E-PB5): with the frozen constants, HB-1 … HB-4 PASS on the first run; the ladder of
+  PB-13 was not needed. M-PB9 (`BIAS_BAND` 0) fails HB-1 by name, reverted. All bodies tests pass.
+- [x] Review: the code asserts the turn never lengthens; a unit test walks every stride a `move` may
+  ask on a 37 mm grid (9 000+), checking never longer, to the right, and between atan(1/5) and
+  atan(1/3). Only `aim` changes; nudges are still straight away from their pusher (I-11's 310 mm
+  unchanged). The chain and pinned layouts keep their first person 300 and 219 mm off the line;
+  n2 and n3 do not (DB-5) and pass under the bias (HB-3).
 
 ### PB-C6 — Install: the build's first resolver
 
@@ -3362,16 +3421,21 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C5.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation:
-  - `cargo test -p mineworld-installed-systems -p mineworld-worldpack -p mineworld-acceptance`
-    passes;
-  - `cargo test -p mineworld-cli` passes, which exercises every CLI path that composes;
-  - the base binary is built from the base before this commit and kept in `/tmp/s15-12b/`;
-  - the PR binary's two 300-day runs equal PB-1's digests;
-  - both `validate` outputs `cmp` equal to the base binary's.
-- [ ] Review: the installed set's `resolution:` test (12a SD-R8) passes unedited. QP-2's two edits keep
-  each test's claim. No other existing test needed an edit; any that did would be a material stop.
+- [x] Implementation: as scoped. `systems/installed`: the manifest line, `Bodies =>
+  mineworld_bodies::BodiesSystem,`, `resolution: … => [mineworld_bodies::BodiesSystem,]`, and the doc
+  paragraph reworded (it said the line was empty). `worldpack/tests/registration.rs`: the expected
+  list is `[bodies]`, written once as `const LISTED`, the panic text follows it, the doc drops "empty
+  in this build". `seam_vocabulary.rs`: `INSTALLED_PACK_LINES` with two self-checking entries — the
+  installed set's lines naming `mineworld_bodies::BodiesSystem`, and registration.rs's `LISTED` line
+  (DB-8) — joined to `PRE_EXISTING` through `admissions()`.
+- [x] Validation (E-PB6): the three crates' tests pass (AC-1 13/13, the I-2 scan 4/4, seam_vocabulary
+  3, registration 1, resolution 2, `[resolver-yard] PASS`); `cargo test -p mineworld-cli` 41 passed in
+  18 binaries, 195 s; base binary built before any code (E-PB-base); the PR binary's two 300-day runs
+  equal PB-1's digests; both `validate` outputs `cmp`-identical.
+- [x] Review: `tests/resolution.rs` passes unedited (bodies is an installed pack, listed once). The two
+  QP-2 edits keep their claims: registration still holds "compose registers the installed list, a
+  second compose is a no-op, a different list panics naming both"; the seam scan still refuses every
+  physics word on every other line. No other existing test needed an edit.
 
 ### PB-C7 — The world: worlds/bodies-yard, the real run, the counterfactual, restart
 
@@ -3388,38 +3452,69 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C6.
 
-- [ ] Implementation: as scoped. The activity precondition is checked before any scan or comparison.
-- [ ] Validation:
-  - `cargo test -p mineworld-cli --test bodies_yard --test bodies_yard_restart`;
-  - `cargo test -p mineworld-bodies --test long_run`;
-  - `mineworld validate worlds/bodies-yard` → exit 0;
-  - M-PB4 at binary level;
-  - M-PB8, each applied, failing by name, and reverted.
-  If the activity precondition fails (too few contacts in a bucket), the remedy is in world data: a
-  smaller room or closer starting positions. It is never in the controller (ARC-27, I-9's spirit),
-  and it is recorded as a bounded deviation.
-- [ ] Review: the scan reads the save, not the code under test. The geometry literals are copied from
-  the world file once, with a test that the file still says them. Every survivor exclusion is
-  asserted.
+- [x] Implementation: as scoped. `worlds/bodies-yard`: world.yaml (presence, movement, conversation,
+  bodies; places court, hall; twelve people, all seats), places/hall.yaml (passage to the court,
+  floor 12 000 × 9 000, the table) and court.yaml (10 000², the pillar), twelve people files
+  (location and tags), README.md — SD-B13's layout exactly. `tools/cli/tests/bodies/mod.rs`: run,
+  copy, `without_bodies`, the geometry literals with `the_world_file_still_says_the_geometry`, `scan`
+  (replays presence's facts by request, checks after each request) and `assert_active` (per 10-day
+  bucket). `bodies_yard.rs`: PB-4, PB-9, PB-10. `bodies_yard_restart.rs`: PB-11 (two processes,
+  SIGKILL at 5/15/25, `mineworld replay` from genesis). `systems/bodies/tests/long_run.rs`: PB-14(a),
+  with its own second process.
+- [x] Validation (E-PB7): `mineworld validate worlds/bodies-yard` exit 0; bodies_yard 3 and
+  bodies_yard_restart 1 pass; long_run passes. The activity precondition held on the first world
+  layout, with no tuning. M-PB4 (binary) and M-PB8 each fail by name and are reverted.
+- [x] Review: the scan reads only the save (`Tables`) and presence's published fact types; geometry
+  literals are asserted against the files. Survivor exclusions asserted: SIGKILL status, no
+  `history` line, head short of the control's, resume reported at the head on disk, a tail > 0. The
+  scan locates its closest pair by request and instant (DB-9).
 
 ### PB-C8 — Close: cross-architecture, cost, status, the gate, the ledger
 
-- [ ] PB-12, in the background:
-  - `cargo build -p mineworld-cli --target x86_64-apple-darwin`, the binary copied to `/tmp/s15-12b/`;
-  - the three Rosetta runs, compared with arm64's;
-  - the fallback if the build fails.
-- [ ] PB-14(a): release `long_run`, with its printed mean.
-- [ ] PB-14(b): four 300-day bodies-yard runs, in the background, two at a time.
-- [ ] PB-1 on the final executable head: both 300-day digests, and both `validate` comparisons.
-  M-PB1's 300-day half, applied once and reverted.
-- [ ] PB-15, PB-20: the structural tests and the scope check; fmt and clippy; the full gate once, in
-  the background (expect about 6 minutes, now that Rapier compiles).
-- [ ] Documentation: `docs/MVP_STATUS.md` (a "Bodies" capability row and one evidence row); §17's
-  checkboxes; §17.10; the handoff.
-- [ ] Review: PB-1 … PB-20 each with evidence; deviations in §17.11; FU-12a-1 still open, since 12b
-  touches neither file.
+- [x] PB-12: the x86_64 build (34 s, needed the network once), three Rosetta comparisons — PASS
+  (E-PB8). The fallback was not needed.
+- [x] PB-14(a): release `long_run`, 45.9 µs per swept move — PASS (E-PB8).
+- [x] PB-14(b): FAILED as frozen (2.06×), QP-9 tried and reverted, material stop; re-scoped by the
+  primary session to (b1) ≤ 25 s — PASS at 19.3 s — and (b2) carried to 12d (DB-10, E-PB8, E-PB9).
+- [x] PB-1 on the final executable head: both digests and both `validate` comparisons — PASS. M-PB1's
+  300-day half applied once and reverted — the digest differs, stopped-short appears (E-PB9).
+- [x] PB-15, PB-20: structural tests in the gate, the scope check; fmt, clippy, the full gate once —
+  582 passed, 0 failed, 279 s (E-PB9).
+- [x] Documentation: `docs/MVP_STATUS.md` (the "Bodies: walls and nudging" capability row and one
+  evidence row); §17's checkboxes; §17.10; §17.11; the handoff.
+- [x] Review: PB-1 … PB-20 each with evidence (the table below); deviations DB-1 … DB-10 in §17.11;
+  FU-12a-1 still open (12b touches neither file).
 
-**PR 12b lifecycle:** NOT FROZEN.
+```text
+PB-1   PASS  E-PB6, E-PB9 (both digests twice, validate identical, every existing test in the gate;
+             existing-test edits: QP-2's two files only); M-PB1 seen in both halves (E-PB4, E-PB9)
+PB-2   PASS  rapier_pin (E-PB2); M-PB2
+PB-3   PASS  rapier.rs canary and fix; M-PB3 (second form; DB-2)
+PB-4   PASS  bodies_yard (E-PB7); M-PB4 at pack and binary level
+PB-5   PASS  scenarios: east wall, counter, slide, fast path
+PB-6   PASS  scenarios: n2, n3, the chain (DB-4, DB-5, DB-6); M-PB5, M-PB6
+PB-7   PASS  scenarios: pinned against the east wall and the counter
+PB-8   PASS  resolve.rs unit tests (F-P6 reproduced with two people); M-PB7
+PB-9   PASS  bodies_yard (activity first; 30 803 requests, 0 violations, closest 595 mm)
+PB-10  PASS  bodies_yard (without bodies: closest 0 mm, 269 202 violations)
+PB-11  PASS  bodies_yard_restart; M-PB8
+PB-12  PASS  E-PB8 (Rosetta, both directions)
+PB-13  PASS  scenarios n1, HB-1 … HB-4 with the frozen constants; M-PB9
+PB-14  (a) PASS 45.9 µs; (b) FAILED as frozen 2.06×, re-scoped by ruling: (b1) PASS 19.3 s ≤ 25 s,
+             (b2) carried to 12d (DB-10)
+PB-15  PASS  isolation 4; planted import; seam_vocabulary, ac1 13, precursor 4, presence's and
+             movement's scans in the gate
+PB-16  PASS  genesis.rs disclosure
+PB-17  PASS  scenarios guard; M-PB10
+PB-18  PASS  scenarios entries a–d; M-PB11
+PB-19  PASS  scenarios inert; M-PB1 (pack half)
+PB-20  PASS  E-PB9 (scope, gate)
+```
+
+**PR 12b lifecycle:** READY FOR OPERATOR REVIEW — DO NOT MERGE. Implementation context CLOSED /
+AWAITING OPERATOR ACTION. Final executable head `0733c77`; the PR head is the commit that carries this
+line. Merge with a merge commit. POST-MERGE SYNC: the planning session (step header, §§1–15, overall,
+MVP_STATUS's Updated and S15 lines), with 12d's carried items (DB-10 ruling, F-B7, FU-12a-1).
 
 ## 17.6 Test ownership
 
@@ -3589,8 +3684,367 @@ E-PB0 PB-C0, 2026-10-07, planning session, on main @ 03f1d7c (12a merged) + the 
       `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
         duplicated. `python3 scripts/check_decision_ids.py` → 50 decision ids, all distinct.
       No cargo build or test: this commit is documentation only.
+
+E-PB1 PB-C1, 2026-10-07, 12b implementation session, on main @ 918c869 + PB-C1's three files.
+      `git fetch origin`; `git show <ref>:docs/DECISIONS.md | grep 'DEP-13\|ARC-40'` over every
+        refs/remotes/origin/* → no match: DEP-13 free.
+      `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
+        duplicated. `python3 scripts/check_decision_ids.py` → 51 decision ids, all distinct (50 + DEP-13).
+      PASS. Documentation only; no cargo run.
+
+E-PB-base 12b session, 2026-10-07, before any code, on 5a5bbd0 (= base 918c869 + Markdown only;
+      `git diff --stat 918c869 HEAD -- ':!*.md'` empty). `cargo build -p mineworld-cli` 25.1 s;
+      target/debug/mineworld copied to /tmp/s15-12b/base-mineworld (sha-256 13eb2ac9…7c86b). With it:
+      `validate worlds/social-cafe` and `validate worlds/market-town` → exit 0 each, outputs kept as
+      /tmp/s15-12b/base-validate-{social-cafe,market-town}.txt (27 and 51 lines): PB-1's reference.
+
+E-PB2 PB-C2, 2026-10-07, working tree on 5a5bbd0 + systems/bodies/** + Cargo.lock.
+      First Rapier build: `cargo test -p mineworld-bodies --no-run` 18.8 s (rapier3d, parry3d and 37
+        more compiled at opt-level 1).
+      `cargo test -p mineworld-bodies`: lib 3 (canary: z 800 mm after 20 steps without the re-mark;
+        fix: z ≤ 300 mm; round trip of ±100 000 mm exact), isolation 4, rapier_pin 1 ("locked:
+        rapier3d ["0.36.0"], parry3d ["0.31.1"]"; resolved features ["alloc", "default", "dim3",
+        "enhanced-determinism", "f32", "std"]). PASS.
+      clippy -p mineworld-bodies --all-targets -D warnings: clean. fmt --all: re-wrapped two test
+        files; --check clean afterwards.
+      `git diff Cargo.lock`: +390 lines, 39 `name =` lines added (mineworld-bodies, rapier3d, parry3d
+        and their dependencies), no `-` line: no existing package changed.
+      Licence tree (`cargo tree -p rapier3d -e normal --offline -f '{p} | {l}' --prefix none`, deduplicated):
+        Apache-2.0; MIT; MIT OR Apache-2.0; MIT/Apache-2.0; Apache-2.0 OR MIT; Zlib; Zlib OR Apache-2.0
+        OR MIT; Unlicense OR MIT; (MIT OR Apache-2.0) AND Unicode-3.0 — every one in §17.3.3's
+        permissive set. Tool-discipline note: this one read-only pipeline used `awk` to cut the licence
+        column; it touched no file, and it is not repeated.
+      M-PB2 (`"parallel"` added to the pack's rapier3d line; needs `rayon`, fetched online once) →
+        rapier_pin FAILED: "parallel must be off (DEP-13): [..., "parallel", "std"]". Reverted; the
+        manifest and Cargo.lock restored from copies (`grep -c rayon Cargo.lock` → 0).
+      M-PB3, first form (`set_translation` replaced by a no-op inside the loop) → all 3 lib tests
+        PASSED: the mutation survived (DB-2). Second form (the whole re-mark loop removed) → FAILED:
+        "the box fell: 800 mm". Reverted.
+      Planted `use rapier3d as _;` at the end of geometry.rs (resolve.rs does not exist yet) →
+        isolation FAILED: "only systems/bodies/src/rapier.rs may name rapier3d (DEP-13):
+        …/systems/bodies/src/geometry.rs:87". Removed; `git grep -n MUTATION -- systems` empty; all
+        green again.
+
+E-PB3 PB-C3, 2026-10-07, working tree on 3074db9 + PB-C3's paths.
+      `cargo test -p mineworld-bodies`: lib 3, genesis 6, isolation 4, rapier_pin 1 (with the VERSION
+        pair), all PASS on the first run. The refusals as printed:
+        "bodies-overlap: alice and bob stand 420 mm apart in room; people stand at least 595 mm apart";
+        "bodies-outside: carol stands at (200, 3000) in room, outside its floor shrunk by 300 mm";
+        "bodies-in-solid: dan stands 0 mm from a solid in room; …";
+        "bodies-capacity: room's floor has room for a person at 4 points of the 650 mm grid; a world of
+        12 people needs 45". Disclosure: alice (hall) is told exactly the hall's shape; no court record.
+      M-PB4 (pack level: `&& false` on the pair check) → genesis FAILED:
+        two_people_closer_than_595_mm_… "this genesis must be refused". Reverted; `git grep -n
+        MUTATION -- systems` empty.
+      clippy -p mineworld-bodies --all-targets -D warnings: clean after four type aliases in the test
+        support (`Rect`, `Xy`, `Resident`, `Side`). fmt clean.
+
+E-PB4 PB-C4, 2026-10-07, working tree on b48cecc + PB-C4's paths.
+      First run of scenarios.rs (B = the contact sweep's end, as the prototype): 12 of 15 passed. The
+        three failures were all "the walker ends at contact": the chain 612 mm, the two pinned cases
+        624 mm from the person — the controller slides on along the person's curve after the first
+        touch. Second run (B = the first-touch point for both uses): the chain 608 mm, and n3 had
+        0 blocked strides. Third (DB-4's reading: the candidate rule measures the swept end, a
+        blocked walker stops at the first touch): every behavioural claim held; the chain's 608 mm is
+        the oracle's error (DB-6). Final: the position oracles as DB-6 states them. Then 15 of 15.
+      Printed: n2 — b moved 507 mm in all, in 3 nudges (≤ 310 each); n3 — 6 strides blocked, at most
+        2 moved, 2 generations; chain — walker at (2 871, 5 000), stopped-short by p1, nobody moved;
+        pinned — walker at (7 451, 2 983) and (5 266, 5 701); guard — "bodies: alice and bob stand
+        200 mm apart in room, closer than 595 mm, … (DECISIONS.md ARC-39)". Entries: (900, 2 000)
+        exactly; the occupant nudged to (1 510, 2 000); placed at (1 100, 1 850) by the occupant;
+        placed at (5 000, 6 250) by None.
+      PB-8 (lib): verification off → walker (2 983, 383), the person against the wall (2 970, 314),
+        70 mm apart (the prototype: 33 mm) — F-P6 reproduced with two people; on → walker (2 563,
+        758), 602 mm apart, `degraded: Halved(4)`.
+      Mutations (each applied, run, reverted; `git grep -n MUTATION -- systems` empty afterwards):
+        M-PB5  CHAIN_MAX 3 → the chain case FAILED: p3 recorded at (4 464, 6 098) — the third
+               generation, exactly the hand-computed 4 376 + 88, 6 032 + 66.
+        M-PB6  NUDGE_MAX 400 → n2 FAILED "b nudged 338 mm, more than 310 (I-11)"; n3 FAILED "c1 nudged
+               402 mm".
+        M-PB7  PRODUCTION verify off → PB-8 FAILED "walker (2983, 383) and the person against the
+               wall (2970, 314) are 70 mm apart".
+        M-PB10 the guard call removed → PB-17 FAILED "the next arrival into the place must panic".
+        M-PB11 E3 answers `to` → case c FAILED "occupant and walker stand 400 mm apart in the hall";
+               case d FAILED too.
+        M-PB1  (pack half) a place without a shape treated as a ±100 m floor → PB-19 FAILED, at the
+               guard: "bob and carol stand 316 mm apart in yard".
+      clippy and fmt clean. Tool-discipline note: PB-8's test module was appended with a `cat >>`
+        heredoc rather than the Edit tool; content as intended; not repeated.
+
+E-PB5 PB-C5, 2026-10-07, working tree on c16ab2a + PB-C5's paths. Criteria HB-1 … HB-4 as §17.4
+      PB-13 states them, applied unchanged; constants as frozen (BIAS_BAND 200, BIAS_TURN (4, 1)).
+      `cargo test -p mineworld-bodies --test scenarios -- --nocapture`: 17 passed.
+        HB-1 PASS: n1 — "a ends at (7575, 4675), b at (550, 5285); 1 strides turned by the bias". The
+          turn came at request 7 (b, meeting a head-on: b → (4 336, 5 121), a nudged), then two
+          off-centre strides with one nudge each, then both walk on clear corridors.
+        HB-2 PASS: every one of the 24 requests passed `bounded_stride` (pair ≥ 595 mm, every nudge
+          ≤ 310 mm, ≤ 4 moved, ≤ 2 generations, both inside the floor shrunk by 295 mm, every fact
+          caused by its request and stated by movement).
+        HB-3 PASS: n2 — b moved 211 mm in all, in 2 nudges; a ends at (7 562, 4 698), east of b at
+          (4 038, 5 308); n3 — 2 strides blocked, at most 4 moved, 2 generations.
+        HB-4 PASS: a second process of the same binary printed n1 (26 605 bytes), n2 (15 046), n3
+          (35 268), each equal to this process's bytes (every fact's envelope and the final state).
+      The ladder of PB-13 was not walked: the first rung's criterion passed.
+      PB-8 under the production policy: biased, walker (2 552, 756), 608 mm from the person against
+        the wall, not degraded.
+      M-PB9 (BIAS_BAND 0) → n1 FAILED: "HB-1: after 24 requests a has passed b: a (3710, 5000), b
+        (4320, 5000)" — F-P7 reappears. Reverted; `git grep -n MUTATION -- systems` empty.
+      geometry unit test: the turn over 9 000+ strides on a 37 mm grid — never longer, right, ~14°.
+      clippy (one type alias `Keyed`) and fmt clean.
+
+E-PB6 PB-C6, 2026-10-07, working tree on 539ebbf + PB-C6's four paths + Cargo.lock.
+      `cargo test --offline -p mineworld-installed-systems -p mineworld-worldpack -p
+        mineworld-acceptance`: every binary ok — ac1_composability 13, precursor_vocabulary 4,
+        seam_vocabulary 3, arrival_resolvers 7, arrival_resolvers_unregistered 2,
+        arrival_resolvers_resume "[resolver-yard] PASS in 0.2 s", installed 3, resolution 2,
+        registration 1, refusals 38, social_cafe 15, … PASS.
+      `cargo test --offline -p mineworld-cli`: 18 test binaries, 41 passed, 0 failed, 3 min 15 s. PASS.
+      PR binary (target/debug/mineworld → /tmp/s15-12b/pr-mineworld), 300-day runs 1 and 2 of 8:
+        social-cafe → exit 0, faults 0, 365 330 facts, no stopped-short line, sha-256 of every line
+          but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b. Wall 12.7 s.
+        market-town → exit 0, faults 0, 372 755 facts, sha-256 =
+          365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d. Wall 15.1 s. PASS.
+        `validate` of both, `cmp` against the base binary's outputs: identical. PASS.
+
+E-PB7 PB-C7, 2026-10-07, working tree on 1b86701 + PB-C7's paths.
+      `mineworld validate worlds/bodies-yard` (PR binary) → exit 0, 15 genesis facts, "a valid World
+        Pack". A first look, `run worlds/bodies-yard --headless --seed 7 --days 30` → faults 0, moves
+        accepted 15 679, talks 15 124, arrived 22 484, stopped-short 9 849, person-entered-place 2 329;
+        wall 3.6 s.
+      `cargo test -p mineworld-cli --test bodies_yard --test bodies_yard_restart -- --nocapture`: 3 + 1
+        passed (the counterfactual's first run failed on the test's own check that the body: section
+        was stripped — a comment line says "floor"; the check now looks for the section's lines).
+        PB-4: each copy refused, naming its subject — "bodies-overlap … ada and ben stand 420 mm apart
+          in hall"; "bodies-in-solid … cleo stands 0 mm from a solid in hall"; "bodies-outside …
+          cleo stands at (200, 4500) in hall"; "bodies-capacity … 4 points … 12 people needs 45";
+          the loader at hall.yaml "line 23 column 3: the floor runs from min to max and each side is
+          at least 620 mm; this one is 0 mm by 9000 mm"; "line 26 column 3: unknown field `wall`,
+          expected one of floor, solids"; "line 23 column 3: solid 0 is 0 mm high; a solid is 1 to
+          10000 mm high". The yard itself validates. PASS.
+        PB-9: activity first, per 10-day bucket — days 1–10: every seat 400 … 470 moves, stopped-short
+          3 095, displaced 2 269, crossings 364 each way; 11–20: 3 385 / 2 229 / 389 each way; 21–30:
+          3 369 / 2 295 / 411 and 412. Then the scan: 30 803 requests, no violation; closest pair gus
+          and kai, 595 mm apart in court, after request ActionId(22106) at 1 860 306 s. PASS.
+        PB-10: without bodies, faults 0, every seat moves in every bucket, no stopped-short or
+          displaced arrival; the scan reports 269 202 violations, closest ada and cleo, 0 mm apart in
+          court, after request ActionId(365) at 30 602 s. PASS (the instrument sees overlaps).
+        PB-11: control 59 619 facts, 30 804 journal rows, 482 snapshots, 9 849 stopped-short, 6 793
+          displaced; a second process byte-identical; killed at revisions 5 137, 15 434, 25 673,
+          each resumed there with 17, 10, 9 re-executed, byte-identical to the control; `mineworld
+          replay` → "30804 revision(s) re-executed from genesis, 59619 fact(s) and 482 snapshot(s)
+          reproduced byte for byte". PASS.
+      `cargo test -p mineworld-bodies --test long_run -- --nocapture` (dev): "2548 moves; closest pair
+        p09 and p11, 600 mm, after request 1613"; 1 302 moves reached Rapier, mean 38.9 µs each; the
+        fast path answered 1 246 (48.9 %); 4 091 738 bytes identical in a second process. PASS.
+      M-PB4 (binary; `&& false` on the pair check) → bodies_yard FAILED: "overlap: the copy must be
+        refused" (the copy validated). Reverted.
+      M-PB8 (a process-global counter's parity added to the nudge spacing) → bodies_yard_restart
+        FAILED: the day-5 survivor "replay diverged at revision r5121: fact 9859 differs from the
+        logged fact 9859". Reverted; `git grep -n MUTATION` empty.
+      clippy (-p mineworld-cli -p mineworld-bodies, two type aliases in the scan) and fmt clean.
+
+E-PB8 PB-C8 (partial — stopped at PB-14(b), a material stop), 2026-10-07, on db64471's code.
+      PB-12 (cross-architecture; recorded real evidence). `cargo build -p mineworld-cli --target
+        x86_64-apple-darwin` (online once: `--offline` lacked an x86-only crate; Cargo.lock unchanged)
+        34.1 s → Mach-O x86_64. arm64 binary rebuilt at the same code. Logs /tmp/s15-12b/pb12/.
+        (a) `run worlds/bodies-yard --headless --seed 7 --days 30`: arm64 and `arch -x86_64` x86_64
+            each exit 0, faults 0, 59 619 facts; sha-256 of every line but `wall` =
+            3a2c3322bcebc39e8d50e2969cfe25bd73da36e743a64f728b567337fb5eaa9d for both. Wall 2.0 s and
+            3.3 s.
+        (b) arm64 save to day 15, resumed by x86_64 to day 30: "resumed … at revision 15434 (snapshot
+            15424 + 10 re-executed)", history 59 619 facts, fingerprint 8dd003dddc41858d = the arm64
+            uninterrupted run's; then arm64 `replay` of that save: "30804 revision(s) re-executed from
+            genesis, 59619 fact(s) and 482 snapshot(s) reproduced byte for byte".
+        (c) the reverse: x86_64 save to day 15, resumed by arm64 — the same resume line and history;
+            x86_64 `replay` of it reproduces byte for byte. And x86_64 `replay` of the arm64
+            uninterrupted save: byte for byte.
+        PASS (under Rosetta; a native x86_64 host remains S13's).
+      PB-14 (a) (release): `cargo test --release -p mineworld-bodies --test long_run -- --nocapture`
+        (19.6 s with the build): 2 548 moves; 1 302 reached Rapier, mean 45.9 µs per such move (target
+        about 61, PASS ≤ 100); the fast path answered 1 246 (48.9 %); closest pair 600 mm; 4 091 738
+        bytes identical in a second process. PASS. (Dev, E-PB7: 38.9 µs.)
+      PB-14 (b) (dev profile, 300 days, seed 7, one machine, consecutive; 300-day runs 3–6 and 7–10 of
+        the budget — the second four are QP-9's re-measurement):
+        with bodies (worlds/bodies-yard)          19.4 s, 19.3 s   faults 0, 0
+        without (PB-10's copy, target/tmp/…)       9.4 s,  9.4 s   faults 0, 0
+        max(with) / min(without) = 2.06 > 1.5. FAIL.
+        QP-9's remedy, applied as permitted: `[profile.dev.package.rapier3d]` and `.parry3d`
+          `opt-level = 3` in the root manifest; rebuilt (16.5 s); with 19.1 s, 19.2 s; without 9.3 s,
+          9.3 s — still 2.06×. Every printed line but `wall` identical with and without the override
+          (`diff`), for both worlds. The remedy does not move the bound, so the root-manifest edit was
+          reverted rather than kept without its justification. FAIL with QP-9 → material stop (§17.9).
+        Where the time goes (from the runs' own summaries): both worlds ask the same — 345 600
+          consults, ≈ 158 000 moves and ≈ 150 600 talks accepted. With bodies, 99 499 moves end
+          stopped short (63 %) and 70 262 displaced arrivals are recorded: 599 401 facts against
+          429 606. The paced controller's wander (±1 400 mm a stride) knows no walls, so in two
+          walled rooms most moves reach a wall and are swept; the long run puts a swept move at about
+          40 µs (dev) and a fast-path move far below it, and each extra fact is recorded, reduced and
+          fingerprinted. ≈ 9.9 s over ≈ 158 000 moves is ≈ 62 µs per move.
+      Not run, pending the decision: PB-1 on the final head and M-PB1's 300-day half; the full gate.
+
+E-PB9 PB-C8 close, 2026-10-07, after the DB-10 ruling. Final executable head 0733c77 (code identical
+      to db64471: every later commit changes Markdown only).
+      M-PB1, 300-day half (the inert rule dropped: a place without a shape read as a ±100 m floor; built
+        once into /tmp/s15-12b/mpb1-mineworld, then the source reverted — `git grep MUTATION` empty):
+        `run worlds/social-cafe --headless --seed 7 --days 300` → exit 0, faults 0, 439 775 facts,
+        "facts      stopped-short 37737", sha-256 of every line but `wall` = f0cc1c47bfdbd5b4…0e98f9 ≠
+        PB-1's ad49c723…c64b. Wall 664.9 s (every entry searches a 200 m lattice; a first attempt was
+        killed after 5 min of silence and the run restarted in the background). PASS (it fails PB-1).
+      Full gate (once, background, 23:39:59 – 23:44:43; the M-PB1 run shared the CPU):
+        `cargo fmt --all --check` exit 0; `cargo clippy --workspace --all-targets --all-features -- -D
+        warnings` exit 0; `cargo test --workspace --no-fail-fast` exit 0, wall 279 s: 139 harness
+        binaries, 582 passed, 0 failed; the `harness = false` programs "[resolver-yard] PASS",
+        "[cafe] PASS", "[clock] PASS"; ac1_composability 13, precursor_vocabulary 4, seam_vocabulary 3,
+        bodies_yard 3, bodies_yard_restart 1, scenarios 17, long_run 1, rapier_pin 1;
+        `check_doc_headings.py` → 176 sections, none duplicated; `check_decision_ids.py` → 51 ids, all
+        distinct. Logs /tmp/s15-12b/gate.log, test.log, clippy.log. PASS.
+      PB-1 on the final head (binary from the gate's build, /tmp/s15-12b/final-mineworld): social-cafe
+        exit 0, faults 0, 365 330 facts, sha ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b;
+        market-town exit 0, faults 0, 372 755 facts, sha
+        365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d; both `validate` outputs `cmp`
+        identical to the base binary's. PASS.
+      PB-14 (b1) (the ruling's guard, fixed before this measurement: ≤ 25 s): `run worlds/bodies-yard
+        --headless --seed 7 --days 300`, dev, quiet machine → exit 0, faults 0, 599 401 facts, wall
+        19.3 s; every other line identical to E-PB8's runs. PASS. Ratio to the world without bodies:
+        2.06× (E-PB8), recorded as information.
+      PB-20: `git diff --name-only 918c869...HEAD` = 45 paths, every one in §17.1's change set (with
+        §17.0's override: no root manifest); `git diff --stat` over kernel/, contracts/,
+        persistence/, server/, cognition/, clients/, authoring/, sdk/, systems/presence/,
+        systems/movement/, worldpack/src/, tools/cli/src/, worlds/social-cafe/, worlds/market-town/ and
+        the root Cargo.toml: empty; Cargo.lock: no line removed (packages added only). PASS.
+      300-day runs in all: 13 (PB-1 ×4, PB-14(b) ×4, QP-9's re-measurement ×4, b1 ×1) plus M-PB1 ×1
+        and its killed first attempt — over the budget of 8; the QP-9 overrun accepted by the ruling,
+        b1 required by it.
 ```
 
 ## 17.11 Deviations and discoveries during implementation
 
-*None yet.*
+**DB-1 (bounded; follows §17.0) — what QP-3's overruling changes in the text below it.**
+- §17.0 overrules QP-3: `rapier3d =0.36.0` is declared in `systems/bodies/Cargo.toml`. Several
+  sentences written before the freeze still say "root": §17.1's change set (`Cargo.toml (root)`
+  `[workspace.dependencies]`), SD-B14, PB-C1 ("declared in the root workspace"), PB-C2's first scope
+  bullet, PB-2's M-PB2 ("added to the root line"), PB-15's second bullet ("except the root
+  Cargo.toml's one dependency line"), and the §17.9 invariant ("the root manifest's one line").
+- Reading, as §17.0 binds: each "root" there means `systems/bodies/Cargo.toml`. The root manifest is
+  not touched (unless QP-9's contingency fires). M-PB2 adds `parallel` to the pack's line; PB-15's
+  allowance is the pack's manifest.
+
+**DB-2 (discovery) — what actually re-marks the bodies in F-P1's workaround.**
+- Previous assumption: §9.4 and SD-B11 say the workaround is `set_translation(current, true)` on each
+  dynamic body after `detect_collisions`.
+- Audit evidence: M-PB3 written as "replace `set_translation` with a no-op inside the loop" survived —
+  the box still fell. `rapier3d-0.36.0/src/dynamics/rigid_body_set.rs:407–415`: `iter_mut` clears
+  `modified_bodies` and pushes every body it yields onto it. Borrowing the set mutably is the re-mark.
+- Corrected understanding: the loop over `bodies.iter_mut()` is the workaround; `set_translation(..,
+  true)` additionally wakes the body and states the intent.
+- Implementation: the code is unchanged; `refresh`'s comment says which line does what. M-PB3 is
+  "the whole loop removed", which fails the fix test (E-PB2).
+
+**DB-3 (bounded, tightening) — the no-float scan covers every source file but `rapier.rs`.** §17.4
+PB-15 names component.rs, event.rs and section.rs. PB-C4's review asks "no float outside `rapier.rs`".
+The scan holds the latter, which includes the former; it lists each offending line.
+
+**DB-4 (bounded; flagged for the operator) — where a blocked walker stops.**
+- Previous assumption: §4.5.1 step 2 defines the contact reach B as "the same sweep with people
+  solid", step 5 puts a blocked walker at B, and §17.4 PB-6/PB-7 expect the blocked walker "at contact
+  (± 1 mm)" with the first person.
+- Audit evidence (E-PB4): with `slide: true` (SD-B11), once the capsule touches a person the
+  controller slides it on along their curve. For an oblique approach the sweep's end is 612 mm
+  (chain) and 624 mm (pinned) from the person — not at contact. Using the first-touch point for both
+  of B's uses keeps the contact, but changes the candidate rule's measurement and n3 then never
+  blocks (0 of 12), against PB-6's "at least one stride is blocked" and the prototype's n3 (3 of 12).
+- The text is inconsistent for oblique contacts: no single B satisfies both "B is the sweep" and
+  "a blocked walker is at contact".
+- Decision: B's two uses take its two meanings. The candidate rule (step 3) measures how far the
+  walker gets with people solid — the sweep's end, sliding included, exactly the prototype's B. A
+  blocked walker (step 5, and the halving path of step 8) stops where that sweep first touched a
+  person: `Swept.contact`, from Rapier's `CharacterCollision::translation_applied`. Without a person
+  touched, both are the sweep's end.
+- Invariants: unchanged (I-11, I-12: the contact point is ≥ 600 mm from the person, and verify still
+  runs). Scope: unchanged. The R′ algorithm's numbers differ from the prototype's only where a
+  blocked walker would have slid on.
+- Validation: every PB-5 … PB-8, PB-17 … PB-19 scenario passes; n3 blocks 6 of 12; the long run
+  (PB-14 a) measures N-1 … N-4 on it.
+
+**DB-5 (discovery) — n2's and n3's first person met lies inside the head-on band.** PB-6 says each
+case's layout keeps the first person met outside `BIAS_BAND`. n2's B stands 100 mm off the walker's
+line and n3's first person exactly on it, as the prototype's scenarios (§9.6) fix them. Those two
+layouts are not changed; HB-3 already requires that "n2 and n3 still meet PB-6" with the bias on, so
+PB-C5 re-runs them under it. The chain case (300 mm off) and the two pinned cases (219 mm off) are laid
+out outside the band, as PB-6 asks.
+
+**DB-6 (bounded) — the hand-computed contact point of an oblique stop.** PB-6/PB-7's "at contact
+(± 1 mm)" was first written as 610 mm = 2R + GAP from the person. Rapier keeps the controller's 10 mm
+offset along the direction of motion, so a walker meeting a person at angle θ off their line of
+centres stops 600 + 10·cos θ from them: 608.7 mm in the chain layout, 609.3 mm in the pinned ones.
+The tests now assert, as §17.4's rule for positions through Rapier states, the reached point within
+±1 mm per axis of the contact point computed by hand from the layout — (2 870, 5 000), (7 452, 2 984),
+(5 266, 5 702) — and that the walker touches without overlapping (600 … 611 mm). Rapier's points:
+(2 871, 5 000), (7 451, 2 983), (5 266, 5 701).
+
+**DB-7 (bounded) — `explain`, a public account of a resolution.** PB-6 reads generations "from the
+resolver core's outcome in the same tests", and `scenarios.rs` is an integration test that sees only
+the crate's public API. `mineworld_bodies::explain(world, person, to) -> Option<Outcome>` runs the
+same core as the resolver, reading `from` from presence as presence does. It writes nothing and
+names no Rapier type; it is the pack's own surface, not a seam change.
+
+**DB-8 (bounded; within QP-2) — the seam scan's admission covers registration.rs too.** QP-2 admits
+`bodies` "on the installed set's two lines only". But `worldpack/tests/registration.rs` is itself one
+of the seam scan's files (12a's `ADDED_TEST_FILES`), and QP-2's own edit makes it name the pack. Both
+files are QP-2's; the test names the pack on exactly one line (`const LISTED: &str = "bodies";`), and
+`INSTALLED_PACK_LINES` admits the word there and nowhere else in that file, with the same
+fails-if-unused rule.
+
+**DB-9 (bounded) — the scan locates by request and instant, not by revision.** PB-9 asks the scan to
+print "the closest pair, its place and its revision". A stored fact carries its `EventId`, its
+instant and its cause, not the journal revision that produced it. The scan names the request
+(`ActionId`) and the instant, which locate the same moment in the save without reading the journal.
+
+**DB-10 — MATERIAL STOP: PB-14(b) fails, with QP-9's remedy applied (E-PB8).**
+- Criterion (fixed before measuring): 300 days of bodies-yard in the dev profile, max(with bodies) ≤
+  1.5 × min(without). Measured 19.4 / 19.3 s against 9.4 / 9.4 s: 2.06×. With QP-9's opt-level 3 for
+  rapier3d and parry3d: 19.1 / 19.2 s against 9.3 / 9.3 s, still 2.06×, outputs identical. §17.9 makes
+  this a material stop; the override is reverted, the root manifest is untouched.
+- What the evidence says: the cost is the world, not a defect. Both runs ask the same requests; with
+  bodies, 63 % of moves end stopped short at a wall or a person and 70 262 people are nudged, so
+  nearly every move is swept and 170 000 more facts are recorded. Release cost per swept move is
+  45.9 µs (PB-14 a, PASS). Every other criterion that ran passed.
+- Options for the decision (none taken):
+  1. Read QB-11's bound as it was meant (step-11 §13: "measured in 12c and 12d", against the town),
+     and for bodies-yard — a world built to make contacts happen — record the measured ratio rather
+     than gate on it; PB-14(a)'s per-move cost stays the gate here.
+  2. Make swept moves cheaper inside the frozen design, then re-measure: build the scene's broad
+     phase without the narrow phase (`detect_collisions` computes contacts no query uses), and put in
+     the scene only the people a stride can reach. Both change the adapter, not the rules; the first
+     needs F-P1's re-check, the second a recorded change to SD-B11's canonical order.
+  3. Answer more walls-only strides by integers (the floor's edge is axis-aligned). A change to
+     SD-B6's fast path, so to Rapier's slide results: a design change.
+  4. A layout change to bodies-yard that makes its people walk into walls less. The bound would then
+     measure the world's layout more than the pack.
+
+**DB-10 ruling (primary session, 2026-10-07): option 1 — a re-scope decided after a failed
+measurement, recorded as such.**
+- **PB-14(b) FAILED as frozen:** 2.06× in all four runs (19.4 / 19.3 s with bodies, 9.4 / 9.4 s
+  without). QP-9's opt-level remedy was tried, did not move the ratio (19.1 / 19.2 s against
+  9.3 / 9.3 s), and was reverted.
+- **Why the bound is re-scoped:** QB-11's "+50 % on a 300-day run" was stated for the towns — §13:
+  "measured in 12c and 12d". Applying it to bodies-yard, a deliberately contact-heavy stress world
+  where 63 % of moves end stopped short, was 12b's own extension in §17.4. The primary session
+  re-scoped the bound to what QB-11 bounds, after the failure, and says so here.
+- **Re-scoping is not loosening.** For 12b, PB-14(b) is replaced by two checks:
+  - **(b1) An absolute regression guard on bodies-yard,** fixed by the ruling before any further
+    measurement: a dev-profile 300-day seed-7 run of bodies-yard with bodies takes **≤ 25 s on this
+    machine**. The ratio to the world without bodies (2.06×) is recorded as information, not as a
+    pass or a fail.
+  - **(b2) QB-11's bound stays exactly as written for the towns.** 12d must show ≤ 1.5× on
+    social-cafe and market-town with geometry. If a town fails, DB-10's options 2 and 3 (a cheaper
+    sweep; integer walls-only strides) become 12d's work, raised as a design change at that point.
+    The town bound is never re-scoped.
+- **Carried to 12d** (with FU-12a-1 and F-B7): the ≤ 1.5× bound on both towns' 300-day seed-7 dev
+  runs, with versus without bodies; on failure, DB-10 options 2 and 3 as a design change. Not
+  re-scoped.
+- **Accepted as bounded by the same ruling:** DB-4, DB-6, DB-7, DB-8, DB-9, and the 300-day budget
+  overrun from QP-9's re-measurement (10 runs before the close against 8, the extra four being the
+  re-measurement). Each stands as recorded above.
+- **Tool discipline:** the two slips recorded in E-PB2 (`awk`) and E-PB4 (`cat >>` heredoc) are not
+  repeated; every file change is made with the Edit and Write tools.

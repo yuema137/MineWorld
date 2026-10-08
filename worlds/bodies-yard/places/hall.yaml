@@ -1,0 +1,27 @@
+# The hall: a 12 m by 9 m room with a table in the middle. Millimetres from its inner south-west
+# corner, x east and y north (docs/CORE_CONCEPTS.md §6.1).
+
+tags:
+  - hall
+
+note: A long room with a table in the middle and a door on the east wall, into the court.
+
+# The east door: 400 mm in from the east wall in the hall, 400 mm in from the west wall in the court —
+# both far enough from the walls for a person to stand on.
+passages:
+  - to: court
+    here:
+      x: 11600
+      y: 4500
+    there:
+      x: 400
+      y: 5000
+
+# Owned by the `bodies` system: the floor is the walkable rectangle, and its edge is the walls; the
+# table stands 750 mm high on it.
+body:
+  floor:
+    min: { x: 0, y: 0 }
+    max: { x: 12000, y: 9000 }
+  solids:
+    - { min: { x: 5000, y: 4000 }, max: { x: 7000, y: 5000 }, height: 750 }

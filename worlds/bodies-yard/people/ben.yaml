@@ -1,0 +1,10 @@
+# Ben — in the hall, south of the table.
+
+tags:
+  - walker
+
+location:
+  place: hall
+  position:
+    x: 4000
+    y: 2000

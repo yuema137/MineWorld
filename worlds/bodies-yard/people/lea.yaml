@@ -1,0 +1,10 @@
+# Lea — in the court, north of the pillar.
+
+tags:
+  - walker
+
+location:
+  place: court
+  position:
+    x: 5000
+    y: 7500

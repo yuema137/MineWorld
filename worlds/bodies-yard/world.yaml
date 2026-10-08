@@ -1,0 +1,56 @@
+# Bodies Yard — two walled rooms and twelve people: the world the `bodies` System Pack is run in
+# (docs/DECISIONS.md ARC-39 note, DEP-13; step-11 SD-B13).
+#
+# Each place carries a `body:` section, owned by `bodies`: its floor, whose edge is its walls, and the
+# furniture standing on it. A person walking here stops at the walls and the furniture, and nudges the
+# people in their way aside — a little, never through a wall, never into anybody. That is decided on
+# the server, before anything is recorded; nothing in this file is a rule.
+#
+# Fields are specified in docs/MODULE_SPEC.md §4.1.
+
+world:
+  id: bodies-yard
+  name: Bodies Yard
+
+# `bodies` depends on `presence`, so it comes after it. `conversation` is here because talking is what
+# draws people toward each other, and a yard nobody walks across tells nothing about bodies. Leave
+# `bodies` out — with the `body:` sections, which a world that does not enable it refuses — and people
+# walk through the walls, the table and each other, exactly as everywhere else before S15.
+systems:
+  - presence
+  - movement
+  - conversation
+  - bodies
+
+places:
+  - court
+  - hall
+
+population:
+  - ada
+  - ben
+  - cleo
+  - dina
+  - eli
+  - fay
+  - gus
+  - hal
+  - ivy
+  - jon
+  - kai
+  - lea
+
+# Everybody is a seat: `mineworld run` drives each with a seeded rule controller.
+seats:
+  - ada
+  - ben
+  - cleo
+  - dina
+  - eli
+  - fay
+  - gus
+  - hal
+  - ivy
+  - jon
+  - kai
+  - lea

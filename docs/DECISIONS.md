@@ -3127,3 +3127,128 @@ and tests alike.
   apply to its own resolutions; there is no seam-level number without geometry.
 - **A resolver cannot emit**; its pack's consequences happen in its reactions to the recorded facts,
   which its resolver must predict.
+
+**Note, 2026-10-07 (S15, PR 12b; step-11 §17.0 QP-1, QP-7, QR-11) — the first resolver.** The `bodies`
+System Pack (`DEP-13`) is the first registered resolver. This note records what it adds to this
+decision; items 1–8 are unchanged except where item 7 is refined below.
+
+1. **Its bounds** (QR-11 moved them here from the seam). Per arrival that bodies resolves within a place:
+   - no other person is moved by more than 310 mm (`NUDGE_MAX` 300 mm plus the character controller's
+     10 mm `GAP`);
+   - at most two generations of nudges (`CHAIN_MAX`), and at most four people moved (`NUDGED_MAX`); an
+     arrival that needs more is stopped at contact instead, and nobody else moves;
+   - nobody is moved into another place (rule (a) and (e) already refuse it) or through fixed
+     geometry;
+   - after quantization to whole millimetres, no two people in one place are closer than 595 mm
+     (`CLEARANCE`, 2 × 300 mm − 5 mm), nobody's centre is outside the floor shrunk by 295 mm, and
+     nobody's centre is within 295 mm of a solid. The check is on integers, and it degrades the result —
+     blocked, then the advance halved up to eight times, then stay — rather than trusting the character
+     controller (step-11 F-P6).
+2. **Item 7, third bullet, is realized as a guard on the starting state** (QP-1). The bullet promised a
+   check "in its reactions to the recorded arrivals". That check cannot be built: a reduction lets every
+   subscriber react to one fact before the next fact of the same emission list is reduced, and
+   `arrivals` returns the walker's `arrived` before the displaced people's, so a reaction to the walker's
+   arrival sees the walker overlapping the people it has not yet seen move (step-11 F-B1). Bodies
+   therefore checks, at the start of every resolution that is not inert, the place's **current** state:
+   every pair of positioned people at least 595 mm apart, everyone inside the floor and out of every
+   solid. Every resolved arrival keeps that state and genesis checked it, so a violation means an arrival
+   escaped resolution — a constructor bypass (the limitation above) or a host that registered nothing.
+   The resolver then **panics**, naming the pair (or the person), the place, the distance and this
+   decision: a resolver returns a `Resolution` and has no error path, and `require_registered` already
+   chose a panic for host defects. The violation is caught at the next arrival into that place, not at
+   the bypassing fact itself.
+3. **An arrival from another place, or from nowhere, is placed** (QP-7). A resolver cannot refuse an
+   arrival or end it in another place (rule (a)), so an arrival into a place that has geometry always
+   ends in that place: at `to` if a person fits there; else at `to` with the people in the way nudged,
+   under the bounds of point 1; else at the nearest free point of a 50 mm lattice, with nobody moved and
+   `stopped-short` recorded. Bodies' genesis check guarantees such a point exists: a place with geometry
+   must hold, on a 650 mm sub-lattice, at least `4 × (people in the world − 1) + 1` free points. Rule (c)
+   does not bound such an arrival (the limitation above), so the point may be farther from the doorway
+   than `to` is.
+
+---
+
+## DEP-13 — Server physics: Rapier (`rapier3d`, `enhanced-determinism`) inside the `bodies` pack
+
+**Date** 2026-10-07 · **Status** selected; dependency added in S15 PR 12b · **Approved by** the
+operator (step-11 D-1 … D-5, QB-4, QB-12) and the primary session at PR 12b's design freeze (step-11
+§17.0: QP-3 overruled, so the pin lives in the pack's own manifest) · **Relates to** `ARC-25`,
+`ARC-30`, `ARC-33`, `ARC-39`, [`MVP.md`](MVP.md) §9 `AC-8`, `AC-12` · **Design**
+`.structured-coding/plans/mvp0/step-11-bodies.md` §§3, 6, 9, 15.1, 17 (S15, PR 12b)
+
+**Problem.** People must not pass through each other or through walls, and later must push, kick and
+throw objects (the operator, 2026-10-07). The answer is decided on the server and must replay byte for
+byte (`ARC-25`), on more than one machine (`AC-8`). Sweeping a body against walls and other bodies, and
+later integrating a kicked object until it rests, is a physics engine's work.
+
+**Options considered** (`REUSE_POLICY.md` §§11–12, §17 — both directions).
+
+```text
+(a) rapier3d (dimforge), Apache-2.0           chosen
+(b) parry3d alone (Rapier's geometry crate)   no dynamics: kick and throw would need our own integrator
+(c) our own circle-and-box code               a physics engine is commodity infrastructure
+(d) Jolt through Rust bindings                bindings unmaintained since May 2024; cannot enable Jolt's
+                                              cross-platform determinism
+(e) Avian                                     requires Bevy's ECS and scheduler
+```
+
+**Choice: `rapier3d =0.36.0`**, with the feature `enhanced-determinism`, and without `simd8`,
+`parallel` and `serde-serialize`. Declared **in `systems/bodies/Cargo.toml` only**, not in the root
+`[workspace.dependencies]`: installing a pack touches only `systems/**` and `Cargo.lock` (`ARC-33`),
+and the primary session chose that over the root's one-version convenience (step-11 §17.0, QP-3). No
+other crate depends on it.
+
+**Why not ourselves** (`REUSE_POLICY.md` §12). Kick and throw need integration, contacts, friction and
+rest, which is a physics engine (`REUSE_POLICY.md` §4). Ours would also have to earn the cross-platform
+determinism Rapier documents and the prototype measured (step-11 §§9.4, 9.8).
+
+**Why not the others.** `parry3d` alone has no dynamics (missing required semantics). The Jolt bindings
+are unmaintained and cannot enable Jolt's determinism (unmaintained project). Avian would put the
+simulation inside Bevy's execution model (architecture mismatch, unacceptable lock-in).
+
+**Isolating interface.** `systems/bodies/src/rapier.rs` is the only source file that names
+`rapier3d`, and a structural test holds that. It takes integers in — a place's floor and solids, the
+people standing in it, one sweep request — and gives integer millimetres out. No Rapier type appears
+in a component, a fact, a contract, a public signature or another crate. Nothing of Rapier survives a
+call: every resolution builds a fresh world for one place, in a canonical insertion order, and drops
+it. Every float is converted from integers by one function and quantized back by one function,
+`(metres × 1000).round()` to `i32`.
+
+**Facts, re-verified 2026-10-07** (the crate's own `Cargo.toml` in the local registry, and crates.io,
+the licence file, the determinism guide and the changelog):
+
+```text
+rapier3d     newest non-yanked on crates.io: 0.36.0, published 2026-09-25 (sebcrozet); 71 versions.
+             The dimforge CHANGELOG's top heading is v0.36.1 (2026-10-04, Python bindings only),
+             which is NOT on crates.io. Pin: =0.36.0.
+licence      Apache-2.0 (crates.io field and the crate's Cargo.toml; LICENSE: "Apache License
+             Version 2.0", "Copyright 2020 Sébastien Crozet"). Compatible with MineWorld's MIT.
+MSRV         rust-version 1.86, edition 2024 (crate Cargo.toml and crates.io). Ours: 1.97.1.
+features     default = [dim3, f32, std]
+             enhanced-determinism = [simba/libm_force, parry3d/enhanced-determinism]
+             parallel = [dep:rayon, std, parry3d/parallel]
+             simd8 = [parry3d/simd8]  — the only SIMD feature in 0.36.0
+parry3d      ^0.31.1 required; 0.31.1 newest (2026-09-18), Apache-2.0, no MSRV declared; 0.31.0 yanked
+determinism  cross-platform needs `enhanced-determinism` and IEEE 754-2008 targets; it cannot be
+             combined with `simd8`; inputs computed with functions beyond + − × ÷ must use nalgebra's
+             ComplexField/RealField. MineWorld computes every direction and length in integers instead.
+```
+
+**Accepted limitations.**
+- **Monthly breaking releases** (0.33 to 0.36 in four months). The pin is exact. An upgrade is a change
+  of results, so it bumps `bodies`' `VERSION` and an old save is refused by name rather than diverging
+  on replay; a test holds the pack's version and the locked Rapier version together.
+- **A defect in 0.36.0, worked around** (step-11 F-P1). `PhysicsWorld::detect_collisions` on a fresh
+  world leaves every dynamic body un-integrated by the next step. The cause is upstream behaviour
+  (changelog v0.35.0: "`CollisionPipeline::step` now clears the rigid-bodies' modified flags"). The
+  adapter re-marks each dynamic body after detecting collisions; a canary test asserts the defect as it
+  is, so an upstream change turns it red and the workaround is then removed deliberately.
+- **The character controller is not an interpenetration guarantee** (step-11 F-P6). The pack verifies
+  the non-overlap invariant on integers after every resolution and degrades the result (`ARC-39` note).
+- **Cross-architecture identity is evidenced under Rosetta only** (arm64 and x86_64 translated, on one
+  machine, step-11 §9.8 and PR 12b's PB-12). A native x86_64 host (S13) is the stronger check.
+- **No momentum between resolutions.** Everything is at rest between requests; a kicked object's whole
+  motion is resolved at the instant of the kick (S15's later PR).
+- **The licence tree is permissive**: every package Rapier brings, with these features, is Apache-2.0,
+  MIT, Zlib, Unlicense or Unicode-3.0, each alone or as one of a permissive choice (recorded in step-11
+  §17.10).

@@ -67,6 +67,38 @@ const PRE_EXISTING: [(&str, &str, &str, &str); 3] = [
     ),
 ];
 
+/// The installed set names its packs (`ARC-33`), and since PR 12b one of them is the first resolver's
+/// pack, whose name is a word of the vocabulary above. These entries admit that name on exactly the
+/// lines that list the pack — the installed set's two lines, and the one line of the registration test
+/// that pins the list it registers — with the same rules as [`PRE_EXISTING`]: one word, lines holding
+/// the substring, and an entry that admits nothing fails (step-11 §17.0 QP-2, §17.11 DB-8). Every other
+/// line of every scanned file is still refused the word.
+const INSTALLED_PACK_LINES: [(&str, &str, &str, &str); 2] = [
+    (
+        "systems/installed/src/lib.rs",
+        "mineworld_bodies::BodiesSystem",
+        "bodies",
+        "ARC-33: the installed set lists each pack it links, here on its pack line and on the \
+         resolution: line; the seam itself still names no pack",
+    ),
+    (
+        "worldpack/tests/registration.rs",
+        "const LISTED: &str = \"bodies\";",
+        "bodies",
+        "QP-2: the registration test pins the installed set's resolution: list, which names the pack \
+         it registers",
+    ),
+];
+
+/// Every admission, in one order: what predates the seam, then the installed set's pack lines.
+fn admissions()
+-> impl Iterator<Item = &'static (&'static str, &'static str, &'static str, &'static str)> {
+    PRE_EXISTING.iter().chain(INSTALLED_PACK_LINES.iter())
+}
+
+/// How many admissions there are.
+const ADMISSIONS: usize = PRE_EXISTING.len() + INSTALLED_PACK_LINES.len();
+
 /// What movement must never name: the seam's resolver side and the synthetic resolvers.
 const RESOLVER_NAMES: [&str; 7] = [
     "ArrivalResolver",
@@ -136,8 +168,8 @@ fn files_under(directory: &Path, into: &mut Vec<PathBuf>) {
     }
 }
 
-/// Every physics word in `text`, as `path:line: word`, except those a [`PRE_EXISTING`] entry admits;
-/// each admitting entry's index is marked in `used`.
+/// Every physics word in `text`, as `path:line: word`, except those an entry of [`admissions`]
+/// admits; each admitting entry's index is marked in `used`.
 fn physics_words(path: &Path, text: &str, used: &mut [bool]) -> Vec<String> {
     let mut found = Vec::new();
     for (number, line) in text.lines().enumerate() {
@@ -145,11 +177,9 @@ fn physics_words(path: &Path, text: &str, used: &mut [bool]) -> Vec<String> {
             if !PHYSICS.iter().any(|physics| word.starts_with(physics)) {
                 continue;
             }
-            let admitted = PRE_EXISTING
-                .iter()
-                .position(|(file, substring, admits, _)| {
-                    path.ends_with(file) && line.contains(substring) && word == *admits
-                });
+            let admitted = admissions().position(|(file, substring, admits, _)| {
+                path.ends_with(file) && line.contains(substring) && word == *admits
+            });
             match admitted {
                 Some(entry) => used[entry] = true,
                 None => found.push(format!("{}:{}: {word}", path.display(), number + 1)),
@@ -175,7 +205,7 @@ fn the_seam_names_no_physics() {
     assert!(files.len() >= 33, "every file is scanned: {}", files.len());
 
     let mut found = Vec::new();
-    let mut used = [false; PRE_EXISTING.len()];
+    let mut used = [false; ADMISSIONS];
     for file in &files {
         let text = std::fs::read_to_string(file).expect("a scanned file reads");
         found.extend(physics_words(file, &text, &mut used));
@@ -185,7 +215,7 @@ fn the_seam_names_no_physics() {
         "the arrival-resolver seam must name no physics (ARC-39):\n{}",
         found.join("\n")
     );
-    for ((file, substring, word, reason), used) in PRE_EXISTING.iter().zip(used) {
+    for ((file, substring, word, reason), used) in admissions().zip(used) {
         assert!(!reason.is_empty(), "{file}: an exemption needs a reason");
         assert!(
             used,
@@ -224,7 +254,7 @@ fn the_splitter_finds_physics_inside_identifiers_and_not_inside_other_words() {
     let found = physics_words(
         Path::new("x.rs"),
         "let RigidBody = body_shape; // Bodies collide; nobody, somebody, embody",
-        &mut [false; PRE_EXISTING.len()],
+        &mut [false; ADMISSIONS],
     );
     assert_eq!(
         found,

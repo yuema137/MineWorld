@@ -1,57 +1,81 @@
-# Handoff — S15: PR 12a implementation (the arrival-resolver seam)
+# Handoff — S15: PR 12b implementation (people: walls and nudging)
 
 A continuation aid, never a design authority. The authority is
-[`step-11-bodies.md`](step-11-bodies.md) §16 (§16.0's freeze record binds and overrides the rest of
-§16), with evidence in §16.10 (`E-RS<n>`) and deviations in §16.11. The S9 contexts (11a … 11f) are
-CLOSED; their handoff text is in git history at `b8afd4f`.
+[`step-11-bodies.md`](step-11-bodies.md) §17 (§17.0's freeze record binds and overrides the rest of
+§17), with evidence in §17.10 (`E-PB<n>`) and deviations in §17.11. The 12a context is CLOSED; its
+handoff text is in git history at `918c869`.
 
 ```text
-PROJECT / PR        MVP-0 · Step 11 / PR 12a — the arrival-resolver seam (S15, first of five; a framework
-                    precursor that names no physics)
-PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §16; evidence §16.10; deviations §16.11
-RELATED / BINDING   step-11 header freeze record (QB-1, QB-10, QB-15 and its three bounds), §§4.3–4.4,
-                    4.6–4.7, 8.2, 10.1 (I-1, I-2, I-6, I-7, I-13), 11.1, 15.3; overall.md §3 (S15), §7;
-                    DECISIONS ARC-15, ARC-23, ARC-25, ARC-26, ARC-33, ARC-35 and its notes, DEP-12, and
-                    ARC-39 (this PR); MODULE_SPEC §3.1; ENGINEERING_RULES §15; CLAUDE.md §§2–4
-BRANCH / WORKTREE   mvp0/pr-12a-resolver-seam in /Users/yuema137/mineworld-worktrees/s15-12a (sole writer)
-BASE                main @ 6d48e03 (b8afd4f + the 12a planning merge #53, Markdown only)
-APPROVED SCOPE      §16.1's change set; RS-C1 … RS-C8; SD-R1 … SD-R14 as answered by QR-1 … QR-12
+PROJECT / PR        MVP-0 · Step 11 / PR 12b — people: walls and nudging (S15, second of five; the first
+                    resolver pack, `bodies`, on Rapier)
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §17; evidence §17.10; deviations §17.11
+RELATED / BINDING   step-11 header freeze record (QB-1, QB-10, QB-15), §§4.4–4.7, 5, 6.3, 9.6–9.8, 10.1,
+                    11.1, 15.1, §16 (12a as merged); overall.md §3 (S15), §7; DECISIONS ARC-15, ARC-23,
+                    ARC-25, ARC-26, ARC-27, ARC-30, ARC-31, ARC-33, ARC-35, ARC-39, DEP-12, DEP-13 (this
+                    PR); REUSE_POLICY §§11–12, 15, 17; MODULE_SPEC §§3.1, 4.1; CLAUDE.md §§2–4
+BRANCH / WORKTREE   mvp0/pr-12b-people in /Users/yuema137/mineworld-worktrees/s15-12b (sole writer)
+BASE                main @ 918c869 (03f1d7c + the 12a post-merge docs and the 12b planning merge #58,
+                    Markdown only)
+APPROVED SCOPE      §17.1's change set, with §17.0's override: rapier3d declared in
+                    systems/bodies/Cargo.toml, NOT the root manifest (QP-3 overruled); PB-C1 … PB-C8;
+                    SD-B1 … SD-B16 as answered by QP-1 … QP-16
 FROZEN INVARIANTS   no edit under kernel/, contracts/, persistence/, server/, cognition/, clients/,
-                    worlds/, authoring/, tools/cli/src/, root Cargo.toml; no System Pack but presence and
-                    movement; movement exactly SD-R9. RS-1: social-cafe sha ad49c723…c64b (365 330
-                    facts) and market-town sha 365b50e0…1d1d (372 755 facts), faults 0, no digest
-                    re-baselined. Existing tests unchanged except QR-2's three `presence v2` literals.
-                    Presence's declaration unchanged (QR-3); VERSION 3 (QR-2). QB-15 bounds as §16.9.
-                    The seam names no physics (RS-13); synthetic packs in test files only; no market word.
-ENDPOINT AUTHORITY  source: the primary session's kickoff message for 12a (2026-10-07) and §16.9
-  implementation + local validation   authorized (kickoff: "You may implement RS-C1…RS-C8")
-  semantic commits, branch push       authorized (kickoff: "commit, push"; "Commit and push after every
-                                      small step")
-  PR creation / update                authorized; marked READY FOR OPERATOR REVIEW
-  scratch base build (RS-2)           authorized (§16.9); done: /tmp/s15-12a/base-mineworld from 6d48e03
+                    authoring/, sdk/, systems/presence/, systems/movement/, worldpack/src/, tools/cli/src/,
+                    worlds/social-cafe/, worlds/market-town/; no other existing System Pack. Root
+                    Cargo.toml untouched unless QP-9 (PB-14(b) > 1.5×) — then only dev opt-level
+                    overrides for rapier3d/parry3d. PB-1: social-cafe sha ad49c723…c64b (365 330 facts)
+                    and market-town sha 365b50e0…1d1d (372 755 facts), faults 0. Existing tests unchanged
+                    except QP-2's two files. Rapier named only in systems/bodies/src/rapier.rs (and the
+                    pack's manifest); nothing of Rapier survives a resolution; no float persisted.
+                    I-11 (≤ 310 mm, ≤ 2 generations, ≤ 4 people), I-12 (595 mm on integers, blocked →
+                    halved → stay), I-13 (inert where PlaceShape is absent). DEP-13 before any code.
+ENDPOINT AUTHORITY  source: the primary session's kickoff message for 12b (2026-10-07) and §17.9
+  implementation + local validation   authorized (kickoff: "Implement PB-C0 … PB-C8")
+  semantic commits, branch push       authorized (kickoff: "commit and push"; "Commit and push after
+                                      every small step")
+  PR creation / update                authorized; open against main marked READY FOR OPERATOR REVIEW
+  scratch builds                      authorized: base binary before PB-C6, x86_64-apple-darwin build
+                                      (PB-12), both under /tmp/s15-12b; `rustup target add/list` allowed
+  root-manifest profile override      only if PB-14(b) fails (QP-9)
   CI repair                           N/A — no CI workflow (S13)
   merge                               operator only, with a merge commit — NOT this session
-VALIDATION BUDGET   unit/integration/static unrestricted; 300-day runs ≤ 4 (RS-C4, RS-C8, M-RS1, one
-                    re-run); RS-2's cross-build runs; SIGKILL harness ≤ 4 runs; one full workspace gate on
-                    the final head (background); about one hour; real model NOT REQUIRED
-STOP CONDITIONS     normal: PR 12a READY FOR OPERATOR REVIEW — DO NOT MERGE. Material: any kernel or
-                    contract change; a path outside §16.1; naming physics in the seam; movement naming a
-                    resolver; a change to an existing world's facts (either 300-day digest ≠ E-RS0); an
-                    existing test failing for a reason other than QR-2's literals; presence's or
-                    movement's structural scan needing an edit; an answer to QR-2/QR-4 other than §16.0's
+VALIDATION BUDGET   unit/integration/static unrestricted; 300-day runs ≤ 8 in all (PB-1 ×2 at PB-C6 and
+                    ×2 at PB-C8, M-PB1 ×1, PB-14(b) ×4, one re-run each); 30-day bodies-yard runs inside
+                    their tests; the x86_64 build once and its Rosetta runs; one full workspace gate on the
+                    final head (background); about 90 minutes; real model NOT REQUIRED
+STOP CONDITIONS     normal: PR 12b READY FOR OPERATOR REVIEW — DO NOT MERGE. Material: any kernel or
+                    contract change; a change to an existing world's facts; a path outside §17.1; a
+                    root-manifest edit other than QP-9's; Rapier named outside rapier.rs; a persisted
+                    float; HB-1 failing on every rung of PB-13's ladder; PB-14(a) > 100 µs or (b) > 1.5×
+                    without QP-9 passing; PB-12 FAIL (not PARTIAL); an existing test failing for a
+                    reason other than QP-2
 ```
 
-## Current checkpoint
+## READY FOR OPERATOR REVIEW — DO NOT MERGE (context CLOSED / AWAITING OPERATOR ACTION)
 
-**READY FOR OPERATOR REVIEW — DO NOT MERGE. Context CLOSED / AWAITING OPERATOR ACTION.**
-RS-C1 … RS-C8 done: 0d1f4c7, df23827, afda4e6, b1d4038, 9acbe04, 0d21436, dc2b6b4 (final executable
-head), then the Markdown-only close. Gates on dc2b6b4 (§16.10 E-RS8): fmt, clippy, 542/0 in 249 s,
-both doc checks. RS-1 … RS-16 PASS. Deviations DR-1 … DR-4 (§16.11); DR-3 (support file size) and
-DR-4 (three pre-existing words admitted by the RS-13 scan) are flagged for the operator. Budget used:
-300-day runs 4 of 4; SIGKILL harness 3 of 4 standalone, plus once inside the gate.
+The primary session ruled DB-10 option 1. After the ruling: M-PB1's 300-day half, PB-1 on the final
+head, PB-20, the full gate (582 passed, 0 failed, 279 s), and b1 (19.3 s ≤ 25 s) — E-PB9. Final
+executable head 0733c77. The PR is opened against main; merge with a merge commit, by the operator
+only. Post-merge sync: the planning session, with 12d's carried items.
+
+## MATERIAL STOP (2026-10-07, resolved by the ruling)
+
+PB-14(b) fails, 2.06× against 1.5×, also with QP-9's override (reverted). Evidence E-PB8, options
+DB-10 (§17.11). Reported to the primary session; no PR opened. PB-C1 … PB-C7 committed and pushed
+(through db64471); PB-12 PASS, PB-14(a) PASS. Pending the decision: PB-1 and M-PB1's 300-day half on
+the final head, the full gate, PB-C8's commit of the close, the PR.
+
+## Checkpoint before the stop
+
+PB-C1 … PB-C5 committed and pushed: 5a5bbd0, 3074db9, b48cecc, c16ab2a, 539ebbf. The pack exists,
+is not yet installed. Evidence E-PB1 … E-PB5; deviations DB-1 … DB-7 (§17.11; DB-4, the blocked
+walker's stop at first contact, is flagged for the operator). Base binary and its validate outputs:
+/tmp/s15-12b/base-mineworld, /tmp/s15-12b/base-validate-*.txt. Budget used: 300-day runs 0 of 8.
 
 ## Next actions
 
-- Operator reviews the PR; merge **with a merge commit** (not a squash).
-- Post-merge (planning session): step header, §§1–15, overall, MVP_STATUS's Updated and S15 lines;
-  then detail 12b. This session records the merge identity in §16 if asked.
+- PB-C6: install (systems/installed two lines + manifest), QP-2's two test edits (registration.rs,
+  seam_vocabulary.rs — the admission must also cover registration.rs's lines, which name `bodies`),
+  `cargo test -p mineworld-cli` (background), PB-1's two 300-day digests and validate cmp.
+- PB-C7: worlds/bodies-yard, tools/cli/tests/bodies{,_yard,_yard_restart}.rs, long_run.rs.
+- PB-C8: Rosetta (x86_64 build in background), cost, MVP_STATUS, full gate once, PR.

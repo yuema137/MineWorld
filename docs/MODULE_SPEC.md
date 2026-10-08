@@ -356,6 +356,10 @@ passages:                  # optional. Requires the `movement` system.
     there:                 # optional: the same doorway in `to`, integer millimetres
       x: 0
       y: 2000
+# body:                    # a section owned by the `bodies` system (below)
+#   floor: { min: { x: 0, y: 0 }, max: { x: 8320, y: 10320 } }
+#   solids:
+#     - { min: { x: 3860, y: 6570 }, max: { x: 8320, y: 7170 }, height: 1100 }
 ```
 
 ```yaml
@@ -391,7 +395,7 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has six sections:
+or the pack is refused. MVP-0 has seven sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
@@ -419,6 +423,16 @@ job       employment people   { employer: <organization key>, workplace: <place 
                               <count per full shift ≥ 1> } }; from < until (a shift lies within one
                               day); produces is optional. Work is attendance at the workplace during
                               the shift. Disclosed to the employee only (`ARC-38`)
+body      bodies     places   { floor: { min: {x, y}, max: {x, y} }, solids: [ { min: {x, y}, max: {x,
+                              y}, height } ] }: the place's walkable rectangle — its edge is the
+                              place's walls — and up to 64 solid boxes standing on it, integer
+                              millimetres in the place's frame. Each floor side ≥ 620 mm; each solid
+                              non-empty, height 1–10 000; every coordinate within ±100 000. `solids` is
+                              optional. Unknown keys refused. A place without it has no geometry, and
+                              nobody in it is resolved. At genesis the pack refuses two people closer
+                              than 595 mm, a centre outside the floor shrunk by 300 mm or within 300 mm
+                              of a solid, and a floor that cannot hold the world's population. Disclosed
+                              to whoever perceives the place (`ARC-39` note, `DEP-13`)
 ```
 
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and
