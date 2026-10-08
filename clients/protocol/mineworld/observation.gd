@@ -99,16 +99,28 @@ func location_of(id: String) -> Dictionary:
 ## A component is in an observation because its owning System Pack chose to disclose it to *this*
 ## observer. Most are not: an observation is a list of what was exposed deliberately, and a client
 ## that finds nothing here has been told nothing, not lied to (`INV-13`).
+##
+## Only a payload that is a JSON object comes back; anything else is `{}`. Read a payload of another
+## shape — a listing that is an array — through [method component_value].
 func component(id: String, component_type: String) -> Dictionary:
-	var perceived := entity(id)
-	var components: Variant = perceived.get("components", [])
+	var payload: Variant = component_value(id, component_type)
+	return payload if typeof(payload) == TYPE_DICTIONARY else {}
+
+
+## The payload of one disclosed component exactly as it arrived — an object, an array, a number — or
+## `null` when that component was not disclosed about that entity.
+##
+## The same lookup as [method component], without its Dictionary typing: a pack chooses the shape of
+## what it discloses, and a reader that coerced it would lose what it does not expect.
+func component_value(id: String, component_type: String) -> Variant:
+	var components: Variant = entity(id).get("components", [])
 	if typeof(components) != TYPE_ARRAY:
-		return {}
+		return null
 	for record in components:
-		if String(record.get("component_type", "")) == component_type:
-			var payload: Variant = record.get("payload")
-			return payload if typeof(payload) == TYPE_DICTIONARY else {}
-	return {}
+		if typeof(record) == TYPE_DICTIONARY \
+				and String(record.get("component_type", "")) == component_type:
+			return record.get("payload")
+	return null
 
 
 ## The payload of one component the world disclosed about the observer itself.
@@ -142,24 +154,74 @@ func events() -> Array:
 	return listed if typeof(listed) == TYPE_ARRAY else []
 
 
-## Everything the observer may attempt, each with the server's answer.
-func affordances() -> Array:
+## What the observer may attempt, each with the server's answer, in the order the server listed it.
+##
+## With no argument, every affordance. `action_type` narrows the list to one action type (`""`
+## matches any). `target` narrows it to one target: `null` matches any target, `""` matches the
+## affordances directed at nobody, and an identity string matches exactly that target.
+##
+## Every match comes back, never only the first: several complete affordances routinely share an
+## action type and a target and differ only in `payload`, one per choice the world offers, and a
+## client keeps them apart by their position in this list (`server/PROTOCOL.md` §5).
+func affordances(action_type: String = "", target: Variant = null) -> Array:
 	var listed: Variant = frame.get("affordances", [])
-	return listed if typeof(listed) == TYPE_ARRAY else []
+	if typeof(listed) != TYPE_ARRAY:
+		return []
+	if action_type.is_empty() and target == null:
+		return listed
+	var found: Array = []
+	for offered in listed:
+		if not action_type.is_empty() and String(offered.get("action_type", "")) != action_type:
+			continue
+		if target != null and _target_of(offered) != String(target):
+			continue
+		found.append(offered)
+	return found
+
+
+## The complete affordances among [method affordances], filtered the same way.
+##
+## A complete affordance carries the exact request the offering system would accept
+## (`docs/DECISIONS.md` `ARC-34`); submit it with [method MineWorldClient.submit_affordance],
+## knowing nothing about the action.
+func complete_affordances(action_type: String = "", target: Variant = null) -> Array:
+	var found: Array = []
+	for offered in affordances(action_type, target):
+		if is_complete(offered):
+			found.append(offered)
+	return found
+
+
+## Whether an affordance is complete: whether it carries a `payload`.
+##
+## The key's presence decides, not its value. The protocol leaves `payload` out of an affordance that
+## has none, so a present `null` is a complete affordance whose payload is `null` — an action that
+## takes no arguments.
+static func is_complete(affordance: Dictionary) -> bool:
+	return affordance.has("payload")
+
+
+## Every affordance that concerns one entity, complete or not, in list order.
+##
+## One concerns `id` when it is directed at `id`, or when its `payload` is an object holding `id` as
+## a top-level string value — which is how an affordance directed at nobody but about a thing, such as
+## one naming an object or an item in its payload, is found from that thing without this module or
+## its client knowing the action. Nested values are not searched.
+func affordances_about(id: String) -> Array:
+	var found: Array = []
+	for offered in affordances():
+		if _target_of(offered) == id or _payload_names(offered, id):
+			found.append(offered)
+	return found
 
 
 ## The server's answer about one action against one target, or `{}` when it was not offered.
 ##
-## `target` is `""` for an action directed at nobody.
+## `target` is `""` for an action directed at nobody. The **first** match: for complete affordances,
+## of which several may share an action type and a target, use [method affordances].
 func affordance(action_type: String, target: String = "") -> Dictionary:
-	for offered in affordances():
-		if String(offered.get("action_type", "")) != action_type:
-			continue
-		var against: Variant = offered.get("target")
-		var named := "" if against == null else String(against)
-		if named == target:
-			return offered
-	return {}
+	var found := affordances(action_type, target)
+	return found[0] if not found.is_empty() else {}
 
 
 ## Whether the **server** says this may be attempted right now.
@@ -194,9 +256,23 @@ func requirement(action_type: String, target: String = "") -> Dictionary:
 ## Every action type offered against one target, whether available or not.
 func offered_against(target: String = "") -> PackedStringArray:
 	var found := PackedStringArray()
-	for offered in affordances():
-		var against: Variant = offered.get("target")
-		var named := "" if against == null else String(against)
-		if named == target:
-			found.append(String(offered.get("action_type", "")))
+	for offered in affordances("", target):
+		found.append(String(offered.get("action_type", "")))
 	return found
+
+
+## An affordance's target as an identity string, `""` for one directed at nobody.
+static func _target_of(offered: Dictionary) -> String:
+	var against: Variant = offered.get("target")
+	return "" if against == null else String(against)
+
+
+## Whether an affordance's payload is an object holding `id` as a top-level string value.
+static func _payload_names(offered: Dictionary, id: String) -> bool:
+	var payload: Variant = offered.get("payload")
+	if typeof(payload) != TYPE_DICTIONARY:
+		return false
+	for value in payload.values():
+		if typeof(value) == TYPE_STRING and value == id:
+			return true
+	return false

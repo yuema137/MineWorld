@@ -1223,12 +1223,17 @@ Each commit tracks implementation, validation and review separately. Evidence go
 **Depends on:** B-C1. **Non-goals:** `affordance`, `may`, `unavailable_reason`, `requirement`,
 `offered_against` keep their meaning.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: the reader check (A-1, all five claims PASS, output inspected, not only the exit
-  code); M-B1, M-B4, M-B5, M-B7 each make it FAIL naming the claim, then reverted (A-8);
-  `./mineworld-slice --drive` still runs (the symlinked file parses).
-- [ ] Review: first-match semantics of `affordance()` untouched; `null` vs `""` target handled as
-  every existing method spells it; no position, no `available`, no action-type literal (A-7).
+- [x] Implementation: as scoped. `affordance()` is now `affordances(type, target)[0]` and
+  `offered_against()` is `affordances("", target)` mapped to types, so the target conversion exists once
+  (`_target_of`); `_payload_names` is the top-level search. `component_value` also skips a component
+  record that is not an object (the old loop would have errored on one).
+- [x] Validation: E-B1 (reader check 17/17 PASS); E-B2 (M-B1, M-B4, M-B5, M-B7 each FAIL naming their
+  claims, reverted, 0 `MUTATION` markers left); `--drive` on this tree: E-B3.
+- [x] Review: `affordance(type, target)` returns the same first entry as before for every input (same
+  filter, same order, `{}` when none); `affordances()` with no argument returns the frame's own array as
+  before; `""` still means target-less in `affordance`, `may`, `unavailable_reason`, `requirement`,
+  `offered_against`; the added code compares no position, reads no `available`, holds no action-type
+  literal, and names no engine type (A-7, checked again at B-C4).
 
 ### B-C3 — `MineWorldClient`: SB-5 … SB-7, the live check, `run.sh affordances`
 
@@ -1330,6 +1335,37 @@ comparison is meaningful); seven `.log` files differ only in the world instance,
 `simultaneous-3d.log` the client count (3 vs 2) and the ActionIds (+1) — the two simultaneous clients'
 join order, a race the base already has. Logs kept in `/tmp/16b/base-evidence/`; the committed
 evidence restored with `git checkout -- clients/protocol/evidence` (QSB-5).
+
+**E-B0b — `./mineworld-slice --drive` on the base. PASS.** 77.3 s wall, exit 0, "all drive checks
+pass" (walk-in, loop closes within 0.10 m, three wall pushes, exit to `street.main`, three cameras with
+the body still, jumps 0.488/0.491 m, the Flower Room loop within 0.12 m). Verdict lines kept in
+`/tmp/16b/e-b0-drive.verdicts` for comparison.
+
+**E-B0c — `./mineworld-slice --world --link` on the base. PASS.** 111.4 s wall, exit 0, "all link
+checks pass": out to the street and back, jog, two jumps, `talk` from the counter 1.99 m from Alice
+accepted and her reply heard, five street doorways mapped, the 60 s street watch. Verdict lines kept in
+`/tmp/16b/e-b0-link.verdicts`.
+
+**E-B1 — reader check on the B-C2 tree. PASS.** `godot --headless --path clients/protocol --script
+res://checks/reader_check.gd`: 17 claims, 17 PASS, exit 0 (a: both `hand` items `8001, 8002` in order,
+`affordance()` still `8001`, 6 entries; b: null → all six, `""` → `nudge, point`, Bob → `shrug`; c:
+`[false, true, true]`, the five complete; d: `[TYPE_ARRAY, 2]`, `{floor: 1}`, `null`, `{}`; e: Alice →
+`wave, hand, hand`, box → `nudge`, coffee → `8001`, Bob → `shrug` only).
+
+**E-B2 — mutations against the reader check.** Each made in `observation.gd`, run, and reverted by
+restoring the saved file (`grep -c MUTATION` → 0 afterwards; the clean re-run PASS):
+
+```text
+M-B1  affordances() returns after the first match   FAIL a "returns both, in order" ["8001"];
+                                                     FAIL b "\"\" matches the target-less" ["nudge"]
+M-B4  is_complete = payload != null                  FAIL c "is_complete per entry" [false,true,false];
+                                                     FAIL c "complete subset" (shrug missing)
+M-B5  component_value coerces to Dictionary          FAIL d "array payload as an array" [27,-1]
+M-B7  affordances_about ignores the payload          FAIL e "box" []; FAIL e "coffee" []
+```
+
+**E-B3 — `./mineworld-slice --drive` on the B-C2 tree. PASS.** 77.8 s, exit 0, "all drive checks
+pass"; its 18 verdict lines are identical to E-B0b's (`diff` empty).
 
 ## 18.10 Deviations and discoveries during implementation
 
