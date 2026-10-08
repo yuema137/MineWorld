@@ -1,0 +1,33 @@
+[package]
+name = "mineworld-bodies"
+description = "MineWorld's BodiesSystem: places with walls and furniture, and the arrival resolver that stops people at them and nudges the people in the way aside — decided on the server, on integers, with Rapier behind one module."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# The seam a pack owns a section of an authored file through: a place file's `body:` (ARC-31).
+mineworld-authoring = { workspace = true }
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# The one System Pack this pack depends on: where people are, the ArrivalResolver seam it answers
+# through (ARC-39), and PerceptionProvider, the seam it discloses a place's shape through.
+mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# Server physics (DECISIONS.md DEP-13): pinned exactly, because an upgrade changes results and bumps
+# this pack's VERSION; `enhanced-determinism` for cross-platform identity; never `simd8` (it cannot be
+# combined with it), `parallel` (no solver runs here) or `serde-serialize` (nothing of Rapier is
+# persisted). Declared here rather than in the root manifest, so installing this pack touches only
+# systems/ and Cargo.lock (step-11 §17.0, QP-3). Named only in src/rapier.rs.
+rapier3d = { version = "=0.36.0", features = ["enhanced-determinism"] }
+
+[dev-dependencies]
+# The scenarios walk people through the real `move` action.
+mineworld-movement = { workspace = true }
+# The tests decode a section from YAML text exactly as the World Pack loader does (DEP-10).
+serde-saphyr = { workspace = true }

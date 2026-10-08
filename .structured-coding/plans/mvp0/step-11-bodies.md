@@ -3265,14 +3265,28 @@ relies on them (`CLAUDE.md` §2.2; the operator's binding "DEP-13 within 12b, be
 
 **Depends on:** PB-C1.
 
-- [ ] Implementation: as scoped. `#![forbid(unsafe_code)]`, `#![warn(missing_docs)]`; no
-  `HashMap` (clippy).
-- [ ] Validation: `cargo test -p mineworld-bodies`; clippy and fmt clean. `git diff Cargo.lock` lists
-  only added packages. The licence tree is recorded (PB-2). M-PB2 and M-PB3 are each applied, fail
-  by name, and are reverted. The planted `use rapier3d as _;` fails isolation, and is removed.
-- [ ] Review: no Rapier type in a `pub` signature outside `rapier.rs`; the conversion functions are
-  the only float↔integer crossings; the insertion order matches SD-B11 exactly; the canary asserts
-  the defect as it is, not as it should be.
+- [x] Implementation: as scoped, with §17.0's override (DB-1): no root-manifest edit;
+  `systems/bodies/Cargo.toml` declares `rapier3d = { version = "=0.36.0", features =
+  ["enhanced-determinism"] }` with its reason. `src/lib.rs` (doc table, `forbid(unsafe_code)`,
+  `warn(missing_docs)`), `src/codec.rs`, `src/geometry.rs` (the published constants of §17.3.1 as
+  `Millimetres`/`usize`/`u32`, and the crate-private integer `Point`, `Area`, `Room` the adapter
+  takes), `src/rapier.rs` (`Scene::build` in SD-B11's order, `Scene::sweep` with `Against::{Fixed,
+  FixedAndPeople}` returning the quantized end and the first person touched, `refresh`, the
+  controller, `metres`/`millimetres`, and the PB-3 unit tests plus a round-trip test of the two
+  conversions over ±100 000 mm). `tests/rapier_pin.rs` (PB-2's lock and features; the VERSION pair
+  joins in PB-C3, when `BodiesSystem` exists), `tests/isolation.rs` (PB-15's first four bullets: the
+  crate name `rapier3d` only in `rapier.rs`, nowhere outside the pack, no `f32`/`f64` in any source
+  file but `rapier.rs` — widened from §17.4's three files, DB-3 — and presence the only pack
+  dependency). Two `#[allow(dead_code)]` on `mod codec` and `mod rapier` until PB-C3/PB-C4 use them.
+- [x] Validation (E-PB2): `cargo test -p mineworld-bodies` 3 + 4 + 1 pass; clippy `-D warnings` and fmt
+  clean; `git diff Cargo.lock`: 39 packages added, no line removed, no existing version changed;
+  licence tree recorded. M-PB2 and M-PB3 each fail by name and are reverted (M-PB3 as first written
+  survived — DB-2); the planted `use rapier3d as _;` fails isolation naming the file, removed.
+- [x] Review: no Rapier type in a `pub` or `pub(crate)` signature outside `rapier.rs` (`Scene`,
+  `Swept`, `Against` carry only `Point`, `usize` and Rapier handles in private fields); `metres` and
+  `millimetres` are the only float↔integer crossings; insertion order is slab, west, east, south,
+  north, solids in authored order, people in the given order — SD-B11's; the canary asserts z stays
+  at 800 ± 1 mm, the defect as it is.
 
 ### PB-C3 — Place geometry: the `body:` section, PlaceShape, genesis checks, disclosure
 
@@ -3603,6 +3617,39 @@ E-PB1 PB-C1, 2026-10-07, 12b implementation session, on main @ 918c869 + PB-C1's
       `python3 scripts/check_doc_headings.py` → 176 numbered sections across 25 documents, none
         duplicated. `python3 scripts/check_decision_ids.py` → 51 decision ids, all distinct (50 + DEP-13).
       PASS. Documentation only; no cargo run.
+
+E-PB-base 12b session, 2026-10-07, before any code, on 5a5bbd0 (= base 918c869 + Markdown only;
+      `git diff --stat 918c869 HEAD -- ':!*.md'` empty). `cargo build -p mineworld-cli` 25.1 s;
+      target/debug/mineworld copied to /tmp/s15-12b/base-mineworld (sha-256 13eb2ac9…7c86b). With it:
+      `validate worlds/social-cafe` and `validate worlds/market-town` → exit 0 each, outputs kept as
+      /tmp/s15-12b/base-validate-{social-cafe,market-town}.txt (27 and 51 lines): PB-1's reference.
+
+E-PB2 PB-C2, 2026-10-07, working tree on 5a5bbd0 + systems/bodies/** + Cargo.lock.
+      First Rapier build: `cargo test -p mineworld-bodies --no-run` 18.8 s (rapier3d, parry3d and 37
+        more compiled at opt-level 1).
+      `cargo test -p mineworld-bodies`: lib 3 (canary: z 800 mm after 20 steps without the re-mark;
+        fix: z ≤ 300 mm; round trip of ±100 000 mm exact), isolation 4, rapier_pin 1 ("locked:
+        rapier3d ["0.36.0"], parry3d ["0.31.1"]"; resolved features ["alloc", "default", "dim3",
+        "enhanced-determinism", "f32", "std"]). PASS.
+      clippy -p mineworld-bodies --all-targets -D warnings: clean. fmt --all: re-wrapped two test
+        files; --check clean afterwards.
+      `git diff Cargo.lock`: +390 lines, 39 `name =` lines added (mineworld-bodies, rapier3d, parry3d
+        and their dependencies), no `-` line: no existing package changed.
+      Licence tree (`cargo tree -p rapier3d -e normal --offline -f '{p} | {l}' --prefix none`, deduplicated):
+        Apache-2.0; MIT; MIT OR Apache-2.0; MIT/Apache-2.0; Apache-2.0 OR MIT; Zlib; Zlib OR Apache-2.0
+        OR MIT; Unlicense OR MIT; (MIT OR Apache-2.0) AND Unicode-3.0 — every one in §17.3.3's
+        permissive set. Tool-discipline note: this one read-only pipeline used `awk` to cut the licence
+        column; it touched no file, and it is not repeated.
+      M-PB2 (`"parallel"` added to the pack's rapier3d line; needs `rayon`, fetched online once) →
+        rapier_pin FAILED: "parallel must be off (DEP-13): [..., "parallel", "std"]". Reverted; the
+        manifest and Cargo.lock restored from copies (`grep -c rayon Cargo.lock` → 0).
+      M-PB3, first form (`set_translation` replaced by a no-op inside the loop) → all 3 lib tests
+        PASSED: the mutation survived (DB-2). Second form (the whole re-mark loop removed) → FAILED:
+        "the box fell: 800 mm". Reverted.
+      Planted `use rapier3d as _;` at the end of geometry.rs (resolve.rs does not exist yet) →
+        isolation FAILED: "only systems/bodies/src/rapier.rs may name rapier3d (DEP-13):
+        …/systems/bodies/src/geometry.rs:87". Removed; `git grep -n MUTATION -- systems` empty; all
+        green again.
 ```
 
 ## 17.11 Deviations and discoveries during implementation
@@ -3616,3 +3663,18 @@ E-PB1 PB-C1, 2026-10-07, 12b implementation session, on main @ 918c869 + PB-C1's
 - Reading, as §17.0 binds: each "root" there means `systems/bodies/Cargo.toml`. The root manifest is
   not touched (unless QP-9's contingency fires). M-PB2 adds `parallel` to the pack's line; PB-15's
   allowance is the pack's manifest.
+
+**DB-2 (discovery) — what actually re-marks the bodies in F-P1's workaround.**
+- Previous assumption: §9.4 and SD-B11 say the workaround is `set_translation(current, true)` on each
+  dynamic body after `detect_collisions`.
+- Audit evidence: M-PB3 written as "replace `set_translation` with a no-op inside the loop" survived —
+  the box still fell. `rapier3d-0.36.0/src/dynamics/rigid_body_set.rs:407–415`: `iter_mut` clears
+  `modified_bodies` and pushes every body it yields onto it. Borrowing the set mutably is the re-mark.
+- Corrected understanding: the loop over `bodies.iter_mut()` is the workaround; `set_translation(..,
+  true)` additionally wakes the body and states the intent.
+- Implementation: the code is unchanged; `refresh`'s comment says which line does what. M-PB3 is
+  "the whole loop removed", which fails the fix test (E-PB2).
+
+**DB-3 (bounded, tightening) — the no-float scan covers every source file but `rapier.rs`.** §17.4
+PB-15 names component.rs, event.rs and section.rs. PB-C4's review asks "no float outside `rapier.rs`".
+The scan holds the latter, which includes the former; it lists each offending line.
