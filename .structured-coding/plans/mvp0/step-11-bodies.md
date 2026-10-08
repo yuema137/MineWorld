@@ -2028,7 +2028,8 @@ RS-12 Subscribe-and-emit (SC-8, §8.2's kernel-adjacent fact). test-echo install
       bob's arrived — echo heard the arrival it stated) — and nothing more (the cascade ends at depth 3).
 RS-13 Names (SC-7, the seam names no physics). `tests/acceptance/tests/seam_vocabulary.rs`, over the
       current text of systems/presence/src, systems/movement/src, sdk/rust/src, systems/installed/src,
-      worldpack/src and every file this PR adds under */tests/ — all non-Markdown, comments included,
+      worldpack/src and every file this PR adds under */tests/ but the scan's own file, which must name
+      its vocabulary — all non-Markdown, comments included,
       split into words as the I-2 scan splits them: no word beginning `body`, `bodies`, `bodily`,
       `physic`, `rapier`, `nudg`, `collision`, `collid`, `capsule`, `jolt`; and movement's src names none
       of `ArrivalResolver`, `Resolution`, `register_resolvers`, `require_registered`, `test-fences`,
