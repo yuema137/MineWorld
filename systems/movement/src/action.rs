@@ -11,15 +11,16 @@ use crate::system::MovementSystem;
 /// The furthest one `move` may carry a person from their authoritative position: two metres.
 ///
 /// Millimetres, as an integer, because positions reach the event log (`AC-12`). What it is: a bound
-/// on **one request**. A body walking or jogging that reports before it has travelled this far since
+/// on **one request**. A person walking or jogging who reports before travelling this far since
 /// its last accepted position is never refused (`server/PROTOCOL.md` §6.2, the reporting rule);
 /// a client that reports a five-metre jump is.
 ///
 /// What it is **not**: a speed limit. It bounds one request, not requests per second — a client that
 /// sends strides back to back moves as fast as it sends them (`DECISIONS.md` `ARC-26`, limitation
-/// L-1). Nor does it see walls: a stride may pass through a table, because line of access needs
-/// geometry no layer owns yet (`DD-7`, L-2). It is this pack's policy rather than a physical
-/// constant, and becomes world configuration with S7.
+/// L-1). Nor is it about walls: where a place has walls and furniture, the arrival resolver the world
+/// installs stops the stride at them before the arrival is recorded (`ARC-39`); this pack decides only
+/// the stride's length and the passage. It is this pack's policy, not a law of nature, and becomes
+/// world configuration with S7.
 pub const MAX_STRIDE: Millimetres = Millimetres::new(2_000);
 
 /// A person asks to be somewhere else: a stride within the place they are in, or through a doorway

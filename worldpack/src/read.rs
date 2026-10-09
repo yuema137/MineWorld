@@ -434,7 +434,7 @@ fn check_keys_are_declared_once(manifest: &WorldManifest) -> Result<(), PackErro
     }
 
     // Seats are checked among themselves: a seat *is* one of the people, so a seat repeating a
-    // population key is the normal case rather than a collision.
+    // population key is the normal case, not a clash.
     let mut seats = BTreeSet::new();
     for seat in &manifest.seats {
         if !seats.insert(seat) {

@@ -6300,11 +6300,19 @@ route gains a waypoint around it, the claim unchanged (§19.6).
 (comments only); `tests/acceptance/tests/seam_vocabulary.rs`: the three `PRE_EXISTING` entries removed.
 **Depends on:** none. **Non-goals:** any code line.
 
-- [ ] Implementation: as scoped. The `MAX_STRIDE` comment no longer says movement "does not see walls"
-  as a gap: walls are bodies' (ARC-39), and movement still decides only the stride and the passage.
-- [ ] Validation: `cargo test -p mineworld-acceptance --test seam_vocabulary`; `-p mineworld-movement`;
-  `git diff` shows comment lines only.
-- [ ] Review: each reworded comment is still true; no new allow-list entry.
+- [x] Implementation: as scoped. `action.rs`: "A body walking or jogging" → "A person walking or
+  jogging"; "Nor does it see walls: … no layer owns yet (`DD-7`, L-2). It is this pack's policy rather
+  than a physical constant" → "Nor is it about walls: where a place has walls and furniture, the
+  arrival resolver the world installs stops the stride at them before the arrival is recorded
+  (`ARC-39`); this pack decides only the stride's length and the passage. It is this pack's policy,
+  not a law of nature". `read.rs:437`: "rather than a collision" → "not a clash". `seam_vocabulary.rs`:
+  `PRE_EXISTING` emptied (length 0), its doc saying why.
+- [x] Validation: `seam_vocabulary` 3/3; `-p mineworld-movement` all ok; `git diff -U0 systems/movement
+  worldpack` has no changed line that is not a comment.
+- [x] Review: each reworded comment is still true (movement names no resolver, so "the arrival resolver
+  the world installs" rather than `bodies`, which the seam scan forbids in movement); no new allow-list
+  entry. Cross-platform (the operator's 2026-10-08 requirement, relayed): nothing in TD-C2 … TD-C6 adds
+  a path, signal, `/tmp` or shell assumption; the tests touched read files through `Path::join`.
 
 ### TD-C7 — The towns, run for real
 
