@@ -2579,6 +2579,25 @@ E-IB-12 2026-10-09, IB-12, IB-13, IB-14 on 35885f2's code:
               head unconfigured 1.21, 1.23, 1.21 (median 1.21 ≤ 1.23 × 1.05 = 1.29); configured 1.24,
               1.28, 1.21 (median 1.24 ≤ 1.21 × 1.05 = 1.27). Load average 18–25 throughout (other
               sessions). The head's three runs print the base's 30-day sha 06e2d63c…. PASS.
+E-IB-13 2026-10-09, after the PR opened (#102), main moved: TW-a (#94, f80bbb7) merged — a new System Pack
+        `calendar` with a plain configuration, installed, and enabled and configured in market-town
+        (`configure: [calendar]`), so main's market-town digest is now TW-a's baseline (300 days seed 7:
+        24a95d2a…d270, 374 857 facts; step-19 E-TWa-9). Merged as aeafbc5: DECISIONS.md conflict (ARC-63 …
+        DEP-28 against TW-a's ARC-67 / DEP-30) resolved by keeping both; the coordination rule (§12.12:
+        whichever of TW-a and IL-b merges second updates the other's seed) applied to
+        systems/calendar/src/system.rs (`seed` takes `&ConfigurationContext`) and its tests/support/mod.rs
+        — the only edits to that pack. `cargo test -p mineworld-calendar` 8 + 5 + 2 pass;
+        ac1_composability 14 pass (unedited by IL-b).
+        Byte identity against the new main, uncounted 30-day runs (the 300-day budget, 4 of 4, is spent):
+        origin/main f80bbb7 built in a temporary detached worktree under target/il-b (removed after) and
+        the merged head, both dev, seed 7, 30 days: market-town sha 158a1fc1…04d7 on both (38 216 facts,
+        faults 0) — the calendar configuration seeded through IL-b's context path; social-cafe 06e2d63c…
+        on both (= E-IB-0's 30-day); validate ×3 `cmp`-identical main against head.
+        NOT RUN: market-town 300 days on the merged head against 24a95d2a…d270. It would be a fifth town
+        run, which the contract makes a request to the primary session, not a reason to exceed the budget
+        (§12.12 VALIDATION BUDGET). Requested in the PR and the report. social-cafe's 300-day IB-1 (E-IB-11)
+        stands: TW-a changes no file social-cafe composes (calendar is not enabled there; the 30-day sha is
+        unchanged).
 ```
 
 ## 12.14 Deviations
