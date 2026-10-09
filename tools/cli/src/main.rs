@@ -12,7 +12,9 @@
 //! mineworld inspect <save> [--last N]   what a save holds; every fact's cause checked (AC-9)
 //! mineworld biography <world> --save DIR --person KEY [--json]
 //!                                       a Person's objective biography, from the fact log (ARC-29)
-//! mineworld create <directory>          a new, minimal World Pack
+//! mineworld perceived <world> --save DIR --person KEY [--since ID] [--json]
+//!                                       the facts a Person perceived, from the fact log (ARC-43)
+//! mineworld create <directory>         a new, minimal World Pack
 //! mineworld packs list|show|validate|resolve
 //!                                       package identities, and a world's composition (ARC-53, 54)
 //! ```
@@ -61,6 +63,7 @@ mod inspect;
 mod invite;
 mod packs;
 mod perceive;
+mod perceived;
 mod run;
 
 use std::net::SocketAddr;
@@ -206,6 +209,14 @@ enum Subcommand {
         #[command(flatten)]
         packs: PackDirs,
     },
+    /// Print the facts a Person perceived, judged from a save's fact log by the audience rule the
+    /// server's perceived stream uses (ARC-43), without resuming or writing it.
+    Perceived {
+        #[command(flatten)]
+        args: perceived::PerceivedArgs,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
     /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
     Packs {
         #[command(subcommand)]
@@ -323,6 +334,9 @@ async fn main() -> ExitCode {
                 roots: &roots,
             })
         }),
+        Subcommand::Perceived { args, packs } => packs
+            .roots()
+            .and_then(|roots| perceived::perceived(&args, &roots)),
         Subcommand::Packs { command } => match command {
             PacksCommand::List { packs } => packs.roots().and_then(|roots| packs::list(&roots)),
             PacksCommand::Show { id, packs } => {
@@ -353,7 +367,8 @@ fn not_yet(command: &str) -> Result<(), String> {
     Err(format!(
         "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
          and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
-         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld create, \
+         mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld perceived, \
+         mineworld create, \
          mineworld packs (see mineworld --help)."
     ))
 }

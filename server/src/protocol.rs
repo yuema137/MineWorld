@@ -43,9 +43,11 @@
 //! protocol/request      a submitted request's payload and the client's correlation token
 //! protocol/summary      what a world is: its instance identity and its composition
 //! protocol/connection   what a frame says about the connection: its session, a takeover, a closing
+//! protocol/fact         a recorded fact as a client receives it (PROTOCOL.md §5.2)
 //! ```
 
 mod connection;
+mod fact;
 mod request;
 mod summary;
 #[cfg(test)]
@@ -63,6 +65,7 @@ use serde_json::Value;
 use crate::admission::{Nickname, OfferedInvite};
 
 pub use connection::{ClosingReason, SessionId, TookOver};
+pub use fact::{PayloadForm, wire_fact};
 pub use request::{CorrelationToken, MAX_TOKEN_LENGTH, WirePayload, into_kernel_request};
 pub use summary::{SystemSummary, WorldInstanceId, WorldSummary};
 

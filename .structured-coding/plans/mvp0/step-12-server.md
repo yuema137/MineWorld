@@ -2250,7 +2250,7 @@ match arm in `main.rs`, `tools/cli/tests/perceived.rs` (the offline half), MODUL
 carries the one `main.rs` variant, which is mechanical. Path handling uses `std::path` only, with no Unix
 assumption (§17.14).
 
-- [ ] Implementation · [ ] Validation:
+- [x] Implementation · [x] Validation (E-SC3):
   - a 30-day social-cafe `run --save`, exported for one person:
     - every exported id is a fact in the save;
     - every `Place(p)` fact exported is one the person was in `p` for, checked against an independent
@@ -2258,7 +2258,7 @@ assumption (§17.14).
     - `--since X` exports exactly the suffix after X;
     - an unknown person is refused by name;
     - `--json` lines decode as `PerceivedEvent<Value>`.
-  · [ ] Review:
+  · [x] Review (E-SC3):
   - it reads the save and the pack and nothing else;
   - it opens the save, reads it, and closes it, so no handle outlives the command (Windows locking,
     §17.14).
@@ -2429,8 +2429,16 @@ MATERIAL STOP       a needed kernel/contract/persistence edit; R-SC1 (fold ≠ c
 ## 17.12 Evidence ledger
 
 ```text
-E-SC0 (pending: base binary built from an export of origin/main @ 927ab93 into /tmp/s11c/base, own
-      target dir — see D-SC1)
+E-SC0 2026-10-08/09, base origin/main @ 927ab93, exported with `git archive` to /tmp/s11c/base and
+      built debug with CARGO_TARGET_DIR=/tmp/s11c/base-target (D-SC1).
+      `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → 339 lines, sha-256 of every
+        line but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b (= E-SB0).
+      `mineworld run worlds/market-town --headless --seed 7 --days 300` → 355 lines, sha-256 =
+        365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d (= E-SB0).
+      The first market-town run was stopped at day 178 by the 30 min background limit (host load
+      average ~255 from other lanes); rerun alone to completion. Outputs /tmp/s11c/base-*.out.
+      rustup target list --installed: aarch64-apple-darwin, x86_64-apple-darwin — no
+      x86_64-pc-windows-msvc, so §17.14's Windows cargo check will be INCONCLUSIVE (owner S13).
 E-SC1 C-C1, 2026-10-08, working tree on origin/main @ 927ab93. check_decision_ids → 70 ids, all
       distinct (ARC-43 new, placed after DEP-14 inside S11's region). check_doc_headings → 191
       numbered sections across 26 documents, none duplicated (PROTOCOL.md §5.8 new). PROTOCOL.md
@@ -2464,6 +2472,25 @@ E-SC2 C-C3, working tree on ba9b6ce. systems/presence/src/audience.rs: Whereabou
       the reducer does (a mover states presence's arrived); names no other pack's type (the fixture
       uses person-entered-place as a label); no physics or market word; `admits` matches every
       Visibility variant with no wildcard, so a new variant is a compile error.
+E-SC3 C-C3b (+ wire_fact, D-SC2), working tree on e9f4f2c. tools/cli/src/perceived.rs (PerceivedArgs
+      as clap::Args, perceived, read_facts); main.rs one `mod`, one variant (flattened args + packs),
+      one arm, the module doc line and the not_yet list; server/src/protocol/fact.rs.
+      wire_fact unit (server lib): JSON payload → the contract envelope with the value in place,
+      fields checked against the contract's own serialization of the original; non-JSON → null and
+      PayloadForm::NotJson; a tampered event_type is still refused by the contract. 3/3 PASS.
+      tools/cli/tests/perceived.rs the_export_is_the_log_judged_for_one_person (30-day seed-7
+      social-cafe save, person wanderer): exported 16 041 of 37 085 facts, 11 655 of them overheard
+      Place facts after genesis not naming the wanderer; every id a fact of the save, strictly
+      ascending; equal to an independent oracle (Visibility read literally, the wanderer's place
+      tracked through arrived payloads decoded with presence's type; its genesis placement checked
+      equal to the pack's authored Presence from WorldPack::load); --since <median id> = exactly the
+      suffix; --json lines decode as PerceivedEvent<Value> with the same ids; `--person nobody` exits
+      non-zero, empty stdout, stderr "'nobody' is not a person of …". PASS (with the fold test, 2/2).
+      clippy -D warnings (server, cli, all targets) clean; fmt clean.
+      Review: reads the pack (read_with + load at EPOCH for keys) and the save's manifest and fact
+      table only; never resumes, never writes; the SqliteBackend is dropped inside read_facts before
+      any output, so no handle outlives the read (§17.14); paths via std::path only; the non-JSON note
+      goes to stderr so --json stdout stays one PerceivedEvent per line.
 ```
 
 ## 17.13 Deviations and discoveries
