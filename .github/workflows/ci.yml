@@ -83,6 +83,51 @@ jobs:
         with:
           layer: platforms
 
+  # The Python workspace (sdk/python): ci_layer.py's `python` layer (static checks, the binary, pytest
+  # with the real server) or `python-smoke` (no binary; the real_server tests deselected by name). Its
+  # own job, so the required `fast` and `test` are neither renamed nor slowed (pr-s10-p3 QP3-3); not a
+  # required check until the primary session makes it one. Every platform (D-P3-11): Linux runs in the
+  # toolchain container like every other layer; Windows and macOS cannot, so they install the pinned
+  # Rust toolchain (rust-toolchain.toml) and uv (DEP-26) on the runner, and Python from uv, at the
+  # floor `requires-python` declares (ARC-48's note of 2026-10-08).
+  python:
+    name: python (${{ matrix.os }}, ${{ matrix.layer }})
+    if: >-
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image'))
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, layer: python }
+          - { os: windows-2025, layer: python }
+          - { os: macos-15, layer: python }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - if: runner.os == 'Linux'
+        uses: ./.github/actions/layer
+        with:
+          layer: ${{ matrix.layer }}
+      - if: runner.os != 'Linux'
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.5"
+          python-version: "3.12"
+          enable-cache: false
+      - if: runner.os != 'Linux' && matrix.layer == 'python'
+        name: Install the pinned Rust toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - if: runner.os != 'Linux'
+        name: Run layer ${{ matrix.layer }}
+        run: uv run --locked python scripts/ci_layer.py ${{ matrix.layer }}
+
   # Not a layer: evidence that the shipped image hosts a world (step-14 A13-5). On demand, or from a
   # scratch branch named `scratch/*-image` before this workflow is on main (dispatch needs it there).
   image:

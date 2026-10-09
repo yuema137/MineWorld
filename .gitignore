@@ -15,6 +15,8 @@
 __pycache__/
 *.py[cod]
 .venv/
+.pytest_cache/
+.ruff_cache/
 venv/
 
 # Node
@@ -35,7 +37,9 @@ spike/server/target/
 
 # Scratch files a shell-quoting slip can create at the repo root: a filename that
 # is itself a JSON object. Two were committed to main before this line existed.
-{"*
+# Written `[{]` rather than `{`: Git reads both the same, and ruff, which honours this
+# file, parses `{` as the start of a glob alternation and refuses the whole file.
+[{]"*
 
 # Personal, per-machine agent authorization. This is one developer's grant for their
 # own environment, never repository policy: a contributor inherits it silently
