@@ -131,7 +131,11 @@ async fn cp_c1_whole_typed_and_json_patch_bytes_on_a_hosted_town() {
         patch_all += rate(patch);
     }
     let clients = recorded.len() as f64;
-    let (whole, typed, patch) = (whole_all / clients, typed_all / clients, patch_all / clients);
+    let (whole, typed, patch) = (
+        whole_all / clients,
+        typed_all / clients,
+        patch_all / clients,
+    );
     // SD-C10's frozen rule, literally.
     let within_ten_percent = (patch - typed).abs() <= typed * 0.10;
     let outcome = if typed <= whole / 2.0 && !within_ten_percent {
@@ -147,6 +151,12 @@ async fn cp_c1_whole_typed_and_json_patch_bytes_on_a_hosted_town() {
         100.0 * typed / whole,
         100.0 * patch / whole,
     );
-    assert!(pairs >= 2_000, "CA-9 needs at least 2 000 recorded pairs, had {pairs}");
-    assert!(mismatches.is_empty(), "CA-9: reconstruction differs at {mismatches:?}");
+    assert!(
+        pairs >= 2_000,
+        "CA-9 needs at least 2 000 recorded pairs, had {pairs}"
+    );
+    assert!(
+        mismatches.is_empty(),
+        "CA-9: reconstruction differs at {mismatches:?}"
+    );
 }
