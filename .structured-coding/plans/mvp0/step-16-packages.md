@@ -2526,9 +2526,9 @@ with `--locked`; `scripts/ci_layer.py` `fast` gains `cargo deny check licenses s
 `scripts/check_ci_pins.py` if the pin must be checked; DEP-Ec-a's measured cost (install time, image
 size).
 
-- [ ] Implementation · [ ] Validation (`python3 scripts/ci_layer.py --list fast`; a local
-  `cargo deny check …` exit 0; M-C8; one CI run of `fast` on the branch) · [ ] Review (no advisories
-  check; every licence beyond ARC-55's eight named with its crates).
+- [x] Implementation · [x] Validation (`python3 scripts/ci_layer.py --list fast`; a local
+  `cargo deny check …` exit 0; M-C8; one CI run of `fast` on the branch — the PR's run, recorded at C8)
+  · [x] Review (no advisories check; every licence beyond ARC-55's eight named with its crates) — E-Ec7.
 
 ### Ec-C8 — Close
 
@@ -2678,6 +2678,28 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
   - *Bounded*: `resolve` prints no licences, so EC-6's "prints the pack with MIT" is read from `packs list`
     (the located line's licence column), and the policy's judgement is the resolution succeeding; M-C6
     (GPL pack) is Ec-C8's evidence.
+- **E-Ec7** (Ec-C7, DEP-22): `deny.toml` (new) — `[licenses]` ARC-55's eight plus **`Unicode-3.0`**
+  (`unicode-ident`: "(MIT OR Apache-2.0) AND Unicode-3.0"), the only addition the graph needs: `cargo deny
+  list` also shows `Apache-2.0 WITH LLVM-exception` (wasi, wasip2, wit-bindgen), `BSL-1.0` (ryu) and
+  `LGPL-2.1-or-later` (r-efi), each one branch of an `OR` the allow-list already satisfies, so not added;
+  `unused-allowed-license = "allow"` keeps ARC-55's list whole (ISC is unused today); `[sources]` crates.io
+  + `allow-git = ["https://github.com/yuema137/mineworld-pack-fishing"]`, unknown registries and git
+  denied; no advisories. `Dockerfile` `toolchain` stage: `cargo install --locked cargo-deny@0.20.2`
+  (registry cache removed in the same layer). `scripts/ci_layer.py` `fast` gains `cargo deny check licenses
+  sources bans` (and `cargo deny --version` in the recorded environment). Local (macOS, cargo-deny 0.20.2,
+  install ≈ 6 min on this laptop): `bans ok, licenses ok, sources ok`, exit 0. **M-C8** `allow-git = []` →
+  `cargo deny check sources` exit 8, "error[source-not-allowed]: detected 'git' source not explicitly
+  allowed … acme-fishing 0.1.0 git+https://github.com/yuema137/mineworld-pack-fishing?rev=b40e71ff…",
+  "sources FAILED"; restored. `check_ci_pins.py` unchanged and passing (it pins base images; the tool is
+  pinned by `@0.20.2 --locked` in the Dockerfile, read by review). Image-size and CI install-time cost:
+  recorded from the PR's first `fast` run at C8.
+  - **Deviation (bounded, raised): `[bans] wildcards = "warn"`, not "deny".** cargo-deny 0.20 counts a
+    path dependency as a wildcard unless its crate says `publish = false`, and none of the 23 workspace
+    crates does: "deny" fails on every crate (`found 4 wildcard dependencies for crate
+    'mineworld-authoring' … allow-wildcard-paths … does not apply to public crates`). Every finding was a
+    workspace path dependency; no registry crate has a `*` requirement. Marking each crate `publish =
+    false` edits 23 manifests outside §16's paths (a material stop), so wildcards are reported, not
+    denied, until the workspace decides `publish`; recorded in `deny.toml` and here.
 
 ## 16.9 Freeze questions
 

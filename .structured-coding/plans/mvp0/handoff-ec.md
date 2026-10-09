@@ -26,9 +26,14 @@ VALIDATION BUDGET   targeted per commit; towns' 300-day runs; EC-3 vendor outsid
 
 ## Current checkpoint
 
-Session started 2026-10-08. Worktree created from `origin/main @ 6ca763d`; skill, working rules, test
-rules and §16 read; pack repository cloned (it holds GitHub's initial `LICENSE` commit `ac32b96`).
-Next: Ec-C1 (docs).
+Ec-C1 … C6 committed and pushed (`1b59dba`, `d56729c`, `e127e1c`, `5a1d33e` ledger of C4, `b5aebd8`
+install, `51f0382` proofs). The pack is `b40e71f` on the pack repository's `main`, tag `v0.1.0`, its CI
+green on ubuntu/macos/windows (run 37907882591). Working on Ec-C7 (`deny.toml`, Dockerfile, `fast`) and
+C7b (`platforms` layer, `.github/actions/native` per step-14 §13.0.3, job on `macos-26`,
+`windows-2025`). origin/main has moved (13b plan #88, S11b #83): merge before C8's gate. Local
+`/tmp/ec-check/market-town` is the EC-1 scratch world (delete at close). Local pack-dev config:
+`/Users/yuema137/mineworld-worktrees/ext-fishing-local.toml` and target `ext-fishing-target` (delete at
+close).
 
 ## Environment note
 

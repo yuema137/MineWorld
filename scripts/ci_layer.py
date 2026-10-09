@@ -42,6 +42,8 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_scratch.py", "scan"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
+        # The code graph's licences, sources and bans (DEP-22, deny.toml); never advisories (ARC-48).
+        ["cargo", "deny", "check", "licenses", "sources", "bans"],
     ],
     # Building first and running second runs the same tests; it only makes the log say how long the
     # build took and how long the tests did, which is what CI's budget is judged by. After a passing
@@ -61,6 +63,7 @@ ENVIRONMENT: list[list[str]] = [
     ["cargo", "-V"],
     ["cargo", "fmt", "--version"],
     ["cargo", "clippy", "--version"],
+    ["cargo", "deny", "--version"],
     ["git", "--version"],
     ["git", "rev-parse", "HEAD"],
     ["git", "rev-parse", "--is-shallow-repository"],

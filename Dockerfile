@@ -18,6 +18,10 @@ RUN apt-get update \
 # rust-toolchain.toml's components, installed here so that a non-root CI user never needs to write
 # to RUSTUP_HOME.
 RUN rustup component add rustfmt clippy
+# The code graph's licence, source and ban policy, run by the `fast` layer (DECISIONS.md DEP-22).
+# Pinned, built from its own lock; installed into the image's CARGO_HOME bin, which is on PATH.
+RUN cargo install --locked cargo-deny@0.20.2 \
+    && rm -rf /usr/local/cargo/registry /usr/local/cargo/git
 ENV CARGO_TERM_COLOR=always
 WORKDIR /work
 
