@@ -2064,11 +2064,12 @@ IB-9).
 **Goal.** SD-IB-12.
 **Scope.** `systems/presence/src/interaction.rs` (`Offer::refused`, the field, its accessor);
 `observe.rs` (`verdict`: refusal first); one presence test. No VERSION change: an offer is not state.
-- [ ] Implementation: as above.
-- [ ] Validation: a presence test where a refused offer is unavailable with its reason, its
+- [x] Implementation: as above (E-IB-4).
+- [x] Validation: a presence test where a refused offer is unavailable with its reason, its
   requirement shown, its payload carried, even when the target is out of range (the refusal wins);
-  `complete_affordances` and every presence test pass unedited.
-- [ ] Review: no pack but test-tuning calls it; `Affordance` and `contracts/` untouched.
+  `complete_affordances` and every presence test pass unedited (E-IB-4; complete_affordances in the
+  final gate, E-IB-11).
+- [x] Review: no pack but test-tuning calls it; `Affordance` and `contracts/` untouched (E-IB-4).
 
 ### IB-C5 — `sdk::interactions`: declarations, sections, resolution
 
@@ -2356,6 +2357,16 @@ E-IB-3  2026-10-09, IB-C3: worldpack configure.rs — FRAMEWORK (classes, packag
         got Ok(WorldPack …)") and a_world_licence_policy_governs_validate_and_packs_validate; reverted,
         `git grep MUTATION -- '*.rs'` empty.
         validate ×3 on the IB-C3 tree (dev binary): `cmp`-identical to E-IB-0's three files. PASS.
+E-IB-4  2026-10-09, IB-C4: presence `Offer` gains a private `refused: Option<Rejection>` (None from both
+        constructors), the builder `refused(Rejection)` and the accessor `refusal()`; nothing existing
+        changed (additive, QIB-3). observe.rs `verdict`: a refusal is the verdict before the spatial
+        evaluation; the requirement and the payload are attached as before. No VERSION change (an offer
+        is not state). New test a_refused_offer_is_unavailable_for_its_own_reason_before_any_spatial_check
+        (Bellringer's three offers, refused PermissionDenied: inside the belfry and outside it the
+        reason is PermissionDenied, the requirement and payload equal the unrefused offer's).
+        `cargo test -p mineworld-presence`: presence 16 passed (15 unedited + 1), resolver_catalog 1.
+        Review: `git diff -- contracts` empty; `git grep "\.refused(" -- systems` → presence's own test
+        only. PASS.
 ```
 
 ## 12.14 Deviations
