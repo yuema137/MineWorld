@@ -2473,8 +2473,8 @@ already in the workspace.
 `tools/cli/tests/packs.rs`: one new assertion — every listed system pack carries `bundled` or
 `third-party`, and with this build's 14 all are `bundled` (an addition; no existing assertion edited).
 
-- [ ] Implementation · [ ] Validation (`tests/packs.rs`, `commands.rs`; clippy) · [ ] Review (`main.rs`
-  untouched; the `[.., "system", id]` pattern still matches).
+- [x] Implementation · [x] Validation (`tests/packs.rs`, `commands.rs`; clippy) · [x] Review (`main.rs`
+  untouched; the `[.., "system", id]` pattern still matches) — E-Ec3.
 
 ### Ec-C4 — The pack, in its own repository
 
@@ -2593,6 +2593,14 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
     locate step now requires only that both kinds are found (non-empty), and naming is the refusal's job.
     Also: members come from `cargo metadata --no-deps` (resolves nothing, so a mutated lock is read as it
     is, never rewritten by Cargo first).
+- **E-Ec3** (Ec-C3): `tools/cli/src/packs.rs` — `Origin::System` and `Origin::Controller` carry `bundled`
+  from the pack's own `Package`; `list` prints `bundled` / `third-party` after the authors (before
+  `system <id>` for a System Pack; alone for the controller); `show` prints `source      this build
+  (bundled)` / `(third-party)`. `tools/cli/tests/packs.rs` gains one test, every System Pack's word equal to
+  its capability's `package().bundled()` (located: 14 bundled, 0 third-party on this commit); no existing
+  assertion edited. `cargo test -p mineworld-cli --test packs --test commands` → 4, 6 passed; `cargo clippy
+  -p mineworld-cli --all-targets -D warnings` clean; `main.rs` untouched. *Bounded extension*: the
+  controller line gets the word too — `ARC-66` point 4 says "every code pack", and the controller is one.
 
 ## 16.9 Freeze questions
 
