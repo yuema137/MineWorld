@@ -3131,6 +3131,20 @@ GATE 1      NOT REQUIRED (nothing LM-facing)       CI  fast and core on the PR
   worlds byte-identical; 300-day seed-7 sha (all but `wall`) social-cafe `ad49c7235f672153` = base,
   market-town `24a95d2ae4e9d99b` = base (TW-a's recorded re-baseline), 374 857 facts. ED-1's fixture
   copies the current Market Town, calendar included, so it needs no re-capture.
+- **CI repair** (`c85075d`, run 37982065130): Windows ✓, macOS ✗ in the action's line-ending probe —
+  under `pipefail`, `grep -o '\r'` with no match (an LF checkout) exits 1. The probe now treats no match
+  as 0 (`{ … || true; }`), checked locally under `set -eo pipefail`: LF file 0, CRLF file 2.
+- **Non-preclusion, MVP-1 regions/travel (S21 §10, PR #109; coordinator, 2026-10-09)** — nothing built,
+  confirmed against E-d's code:
+  - **N-5:** the refusal "a world is not a part of another world" stays confined to `requires:`. It lives
+    only in `packages/src/resolve.rs` `requirement()` (`PackType::WorldPack`), which only resolves
+    `requires:` entries. E-d added no other World-Pack-type check; `entities.rs` handles only
+    `EntityPack` requirements and skips every other type. A future `regions:` key using a World Pack is
+    not refused by anything E-d added.
+  - **N-6:** id allocation stays one function of the ordered keys. E-d merges pack kinds into the same
+    key-ordered `items` map and leaves `load.rs`' creation loop untouched — places, people, items,
+    organizations, each in `EntityKey` order. There is no per-source loop and no source-dependent order,
+    so prefixing region keys with `<region>-` later changes only the keys that loop sees.
 
 | Lane | Overlap | Resolution |
 | --- | --- | --- |
