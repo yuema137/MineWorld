@@ -30,6 +30,10 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
   "Refresh" note); **DESIGN FROZEN (2026-10-08), primary session**, to be implemented in a fresh
   session in `impl-12d` on `mvp0/pr-12d-towns`. The operator decided QD-1
   (amend check 3) and the primary session ruled QD-2 … QD-13 (§19's header); QD-14 … are new.
+  **Paused** at `8814aad` on material stop TD-D7 (the walkers do not route round the new geometry), by
+  the operator's ruling of 2026-10-08: "add pathfinding; 12d waits for it".
+- **PR 12n — navigation** (12n-1 the walk, 12n-2 people walk there): §21, **PR design — ready for
+  freeze review** (2026-10-09, planning session, `plan/s15-12n`). Also decides 12d's TD-D8 (§21.6).
 
 **Freeze record (primary session, 2026-10-07).** The operator decided:
 
@@ -7629,5 +7633,506 @@ is §20.7's L1 as Class R (E-Z7's addendum sizes it).
 
 **Follow-ups carried.** FU-12c-1 is closed by SD-Z5. F-B7 and FU-12a-1 stay with 12d. The ZC-1 route
 counters (Z-D3) were replaced by sampling profiles (E-Z3, E-Z7's addendum); no counter exists in code.
+
+---
+
+# 21. PR 12n — navigation: "go to X", routed round walls and furniture (PR design — ready for freeze review)
+
+**Lifecycle:** PR design — ready for freeze review. Drafted by the planning session on `plan/s15-12n`
+from `main @ ec38570` (2026-10-09). **Not frozen.** Nothing in §21 authorizes implementation. The
+questions are §21.10 (QN-1 …); the operator-material ones are marked **[OM]**. Every decision, criterion
+and record id below is a placeholder until the freeze assigns it (`ARC-W`, `DEP-P`, `NV-n`, `NW-n`).
+
+**Why this PR exists (operator ruling, 2026-10-08, relayed by the coordinator):** "add pathfinding; 12d
+waits for it." 12d (§19, implemented on `mvp0/pr-12d-towns` in `impl-12d`, paused at `8814aad`) put walls
+and furniture into the two towns and hit **TD-D7** (§19.13 on that branch): the paced controller walks
+straight at its targets and does not go round anything, so 62 % of moves stop short, place entries
+halve, 10 of 12 people miss more than 10 % of their agenda, the café's street door is reachable only
+through a ≈ 1.1 m gap between an A-board and the terrace tables, and the wasted strides blow TD-12's CPU
+budget. §19.4's remedy ladder (c1, c1 + c2) did not help (E-TD6). The operator also asked for realistic
+defaults: people who get stuck at doors are not realistic. The coordinator added **TD-D8** (the two
+radius-dependent bodies invariants) to this PR's scope (§21.6).
+
+**The answer in brief.**
+
+```text
+Who says "go to X"   anybody, as an intent: `walk-to { to: <a Location> | <a Person> }` — a new action
+                     of `movement`. The paced controller, the 2D client's "Walk to <name>" and floor
+                     click, a future 3D click-to-walk and a language-model controller all submit the
+                     same request. No client and no controller computes a route.
+Who walks it         `movement`: a `walking` Process it owns (ENGINEERING_RULES §6's travel Process at
+                     the scale of a town). It holds the destination and the route as the process's
+                     state, wakes once a simulated second, and each wake states one stride through
+                     presence's `arrivals()` (ARC-26, ARC-39), checked by the same rule as `move`.
+Who plans the route  whoever owns the place's geometry, through a catalog `movement` owns —
+                     `Wayfinder`, an ARC-62 extension line, exactly like presence's ArrivalResolver.
+                     `bodies` implements it: an integer visibility graph over its PlaceShape solids and
+                     loose objects, grown by the body's radius, searched with the `pathfinding`
+                     crate's A*. A world without bodies has no wayfinder for any place, and a walk
+                     goes straight — byte-identically to what straight strides would do.
+Who decides          unchanged: movement decides each stride is a legal stride, bodies' resolver
+                     resolves it (people nudged, walls stop), presence records it. A route is a plan,
+                     never a permission.
+Kernel, contracts    unchanged. Presence unchanged.
+```
+
+**Split.** Two PRs (§21.7): **12n-1, the walk** (framework; byte-identical facts for every existing
+world, because nothing yet asks for a walk) and **12n-2, people walk there** (the paced controller asks
+for walks; the towns' digests move, so it is sequenced with 12d's one re-baseline, QN-2 **[OM]**).
+
+## 21.1 Identity, base, approved scope (proposed)
+
+```text
+PRs           12n-1 — the walk; 12n-2 — people walk there (S15; inserted before 12d's resumption)
+base          main @ ec38570 plus this design's docs PR (Markdown only). Re-audit §21.2 if anything under
+              systems/movement, systems/bodies, systems/presence, systems/installed, cognition/
+              rule-controller, kernel/src/{process,view,system}.rs, tools/cli/src/run* or
+              tools/cli/tests/{routines,run,run_restart}.rs moves before the freeze
+branches      mvp0/pr-12n1-walk, mvp0/pr-12n2-walkers (each in its own worktree, one session each)
+depends on    12a … 12d-0 merged (bodies v3, ARC-39 notes 1–3, ARC-62 / IL-a merged). 12n-2's
+              acceptance is measured on a scratch merge with 12d's WIP (mvp0/pr-12d-towns @ 8814aad
+              or its successor), never committed there
+merge         merge commits, never squash; 12n-2 per QN-2
+```
+
+**Goal.** Every person can be sent somewhere by one request and gets there round the world's walls,
+furniture and objects, decided on the server, on integers, reproducibly; the paced controller uses it,
+so the towns with 12d's geometry live again (≥ 90 % of agenda segments), the café door is reachable,
+almost no stride stops short, and the run is cheaper, not dearer.
+
+**Non-goals.**
+- Travel between places that do not adjoin by a passage chain of the same world (between towns): the
+  later travel system (`ARC-26`, "Room for travel").
+- Crowd simulation, steering, velocity obstacles, local avoidance of moving people. People are not
+  planned round, except the one person who just stopped the walker (SD-N9); nudging and the head-on bias
+  (12b) remain how people pass each other.
+- Overhead geometry, stairs, slopes, multiple floors (`body:` has none, FU-12d-1).
+- Any client change (2D, 3D). Cross-lane impacts are listed (§21.9); clients adopt in their own PRs.
+- Changing `move`. A `move` stays a single stride, exactly as today; WASD and reported strides keep it.
+- A speed model for `move` (`ARC-26` L-1) — the walk has a pace; `move` still has none.
+
+## 21.2 Source audit (`main @ ec38570`, 2026-10-09)
+
+Every finding was read in this session from the file named. 12d's WIP was read on
+`mvp0/pr-12d-towns` (`impl-12d`, read-only) at `df6b4e5` and `8814aad`.
+
+| ID | Finding | Evidence | Consequence for 12n |
+| --- | --- | --- | --- |
+| **F-N1** | **`move` is one stride, checked and stated by movement; nothing in the world plans a path.** `Move { to }`; `validate` → `reachable`: same place within `MAX_STRIDE` (2 000 mm), or through a passage within a stride of the doorway on both sides; `resolve` states presence's facts through `arrivals()`. `MAX_STRIDE`'s doc: "Nor does it see walls … (DD-7, L-2)". `Move`'s doc already names "a travel `Process` (not built)" as distinct from it. | `systems/movement/src/action.rs:11–41`, `system.rs:77–118, 236–254` | The walk is the travel Process `Move`'s doc and `ARC-26` "Room for travel" anticipate. `reachable` is private; the walk reuses it inside movement (SD-N2). |
+| **F-N2** | **The paced controller aims straight and holds no state.** `through` strides at the doorway point; `approach` strides toward a person, stopping 1 000 mm short; `wander` draws ±1 400 mm per axis; `head_for` takes the door whose `to` is the agenda's place. Each consult proposes one stride; seats are consulted every 900 s (`ARC-27` note). It is a pure function of the observation. | `cognition/rule-controller/src/paced.rs:63–73, 228–282, 333–362`; `DECISIONS.md` `ARC-27` | A route cannot live in the controller between consults, and recomputing one per consult from disclosed geometry would put a planner in every controller and every client (rejected, §21.4). A walk is world state, held by the world. A 20 m trip today takes ten consults — 2½ simulated hours. |
+| **F-N3** | **The reactive `RuleController` never walks.** It answers whoever spoke. | `cognition/rule-controller/src/lib.rs` (no `Move`) | 12n-2 changes the paced controller only. The reactive one and future LM controllers get walking as an ordinary action. |
+| **F-N4** | **Bodies owns the geometry and already discloses it.** `PlaceShape { floor, solids ≤ 64 }` (axis-aligned rectangles in integer mm) and `LooseObjects` are bodies' components, disclosed to whoever perceives the place. | `systems/bodies/src/component.rs:96–140`; `system.rs:302–326` | Nothing new needs to be disclosed for planning on the server. Disclosure is not the planner's input: the planner reads bodies' state inside bodies (SD-N4). |
+| **F-N5** | **The extension-catalog mechanism exists for exactly this shape of seam.** `ARC-62`: a pack-owned trait, implemented by other packs, one `extension` line in `systems/installed`; write-once, process-wide, pure, inert where the implementing pack's state is absent. Presence's `ArrivalResolver` is the first line. | `DECISIONS.md` `ARC-62` items 1–6, `ARC-39` item 5; `systems/installed/src/lib.rs:36` | Movement owns a second catalog, `Wayfinder` (SD-N3): a third line in `installed!`, nothing in the SDK or the loader. Movement never names bodies. |
+| **F-N6** | **A Process is stored state with owner-encoded data, woken at an expected end.** `start_process`, `wake` (the owner may "set a later end"), `interrupt`; facts from `wake` are `Causation::Process`. `WorldRead` reads processes. Schedule, employment and group-activity already own processes. | `kernel/src/process.rs:1–40`; `kernel/src/system.rs:571–612`; `kernel/src/view.rs:85–92, 332`; `systems/schedule/src/system.rs` | No kernel change: the walk is a movement-owned process re-woken each simulated second. A save carries it; a restart resumes it (`ARC-25`). |
+| **F-N7** | **Bodies' resolver has a fast path for a clear corridor.** `Route::Clear` — "a stride whose corridor was clear: no scene was built". | `systems/bodies/src/resolve.rs:53–64` | A routed stride keeps a margin from every solid (SD-N5), so almost every walking stride takes the fast path; Rapier runs only near people. This is where 12n should *lower* the towns' cost. |
+| **F-N8** | **Bodies' person bounds are partly not expressions of the radius.** `PERSON_RADIUS` 300; `CLEARANCE` 595 (literal); `NUDGE_MAX` 300; `BIAS_BAND` 200; `BIAS_TURN` (4, 1). 12d's WIP takes R to 250 and derives `CLEARANCE`, not `NUDGE_MAX` or `BIAS_BAND`; two invariant tests then lose their meaning (TD-D7, TD-D8). | `systems/bodies/src/geometry.rs:10–53`; 12d `8814aad` §19.13 TD-D8 | SD-N11: derive both from R, byte-identical at R 300. |
+| **F-N9** | **12d's café door gap.** Street doorway to the café at (0, 2 800); between the slice's A-board (−1 643, 1 131)–(−557, 2 169) and terrace table 1's crossed pair (530 … 1 770, 780 … 2 020) a ≈ 1.1 m corridor. With a body of R 250 + GAP 10 that leaves 580 mm of lateral slack — passable by anyone who aims for it. | 12d E-TD1 §2, §3b; TD-D7 | NW-2: the door is reached from every street doorway and from both sides of the terrace. |
+| **F-N10** | **2D clients plan their own routes today, by design.** 13a's walker splits a click into ≤ 1.9 m strides with doorway routing; 13b's "Walk to <name>" is a client-composed straight walk stopping 1.2 m short (D-b-3); 13d plans routes with Godot's `NavigationServer2D` from the disclosed `place-shape` ("route planning is acquisition"). | `step-13-client-2d.md` §5.4 (lines 436–443), D-b-3 (1595), 13d row (591), RK-b2 (1798) | With a server walk the 2D client needs none of it: a click or a menu entry becomes `walk-to`. 13d's navigation plan is withdrawn (cross-lane, QN-8 **[OM]**). |
+| **F-N11** | **Complete affordances change the paced controller's draws.** `offered::attempt` picks uniformly among available *complete* affordances. | `cognition/rule-controller/src/offered.rs`; `ARC-34` | If `walk-to` were offered complete per person, 12n-1 would move every town's digest. It is offered like `move`: once, against nobody, incomplete (SD-N7). |
+| **F-N12** | **Run cost today.** Without bodies: social-cafe 300 d 18.55 s user CPU, market-town 15.91 s (E-TD-base, dev). With 12d's WIP geometry: ≈ 105 s per 300 days by proportion (E-TD6, under load). TD-12a's bounds: 3.96 × and 3.30 ×. | §19.12 on `impl-12d` | NW-4 holds 12d's bounds on the scratch merge, and adds a no-bodies bound so headless stays fast. |
+
+## 21.3 Where the route lives — options
+
+The four things that stay distinct (`CLAUDE.md` §4 rule 14; `ENGINEERING_RULES.md` §6), and where each sits
+in the recommendation:
+
+```text
+MoveIntent          `move` (one stride) and `walk-to` (a destination) — requests, refusable
+Travel Process      `walking`, owned by movement: destination, route, progress — world state
+Spatial state       Presence, owned by presence; written only by reducing `arrived`
+Rendered movement   whatever a client draws between two observed positions
+```
+
+| Option | What it is | For | Against | Verdict |
+| --- | --- | --- | --- | --- |
+| **(a) server-side travel Process** | A `walk-to` action; the owning pack runs a Process that plans and emits strides. | One implementation for every caller (NPC, 2D, 3D, LM). Clients and controllers only say "go to X" (rule 15, `ENGINEERING_RULES.md` §§8–9). The walk is world state: others can perceive that Alice is on her way; a save resumes a walk mid-street; a stateless controller stays stateless. Walking takes simulated seconds rather than hours of consults (realistic). | A new process type and wake per stride; fact count changes when controllers adopt it. | **Recommended, as (a1).** |
+| (a1) owned by **movement**, geometry through a movement-owned catalog | Movement owns the walk; bodies answers route queries through `Wayfinder`. | Single ownership as it already stands: movement owns walking and passages, bodies owns geometry. Movement still never names bodies (`ARC-62`). Without bodies, walks are straight. | One more catalog (the mechanism exists). | **Chosen.** |
+| (a2) owned by **bodies** | Bodies provides `walk-to` and runs the walk. | Geometry is local. | Walking without bodies would not exist; bodies would own movement's passages logic and its stride rule (a second mover duplicating `reachable`), and become a God pack. | Rejected. |
+| (a3) a new **`wayfinding`** pack | A third pack owns the walk, depends on movement and presence, reads bodies. | Smaller packs. | It must duplicate movement's private stride and passage rule or movement must publish it; bodies' geometry would need a seam owned by the new pack; three packs for one capability. Premature (`CLAUDE.md` §4 rule 11). | Rejected now; revisit with long-distance travel. |
+| **(b) planning service in the SDK** | A library controllers call, over disclosed geometry; each controller then strides along the route. | No new world state. | Every client and controller must embed it: Rust controllers could, the Godot 2D/3D clients (GDScript) and a Python LM controller could not without a port — duplicated logic, the failure `ENGINEERING_RULES.md` §9 names. A stateless controller must re-plan every consult. A route computed client-side from a stale observation is still a rule-shaped computation in the client. | Rejected. |
+| **(c) hybrid** | Server walk plus an SDK planner for controllers that want to preview a route. | Previews. | Two planners that can disagree. A preview is better served by disclosing the server's own route (SD-N8). | Rejected; the disclosure gives the preview. |
+
+## 21.4 Reuse comparison (`REUSE_POLICY.md`; `CLAUDE.md` §4 rule 16; both directions)
+
+Facts fetched from crates.io and the projects' pages on 2026-10-09; licences are the crates' declared
+ones. The fit criteria: integer state in and out, byte-identical replay on arm64 and x86_64 (`ARC-25`,
+`AC-8`), no engine bound in, no C++ toolchain (Windows, `all-platforms`), a world small enough to plan
+per request (≤ 64 solids, ≤ 32 objects per place).
+
+| Candidate | Licence | Maturity | Fit | Determinism | Cost | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| **`pathfinding` 4.16.0** (evenfurther) — A*, Dijkstra, BFS, fringe, IDA*, Yen; a `Grid` type. No JPS. | MIT / Apache-2.0 | Since 2016, ≈ 3.0 M downloads, updated 2026-09-07, MSRV 1.88. Deps: indexmap, rustc-hash, num-traits, integer-sqrt, thiserror, deprecate-until. | Generic over node and cost; integer costs (`C: Zero + Ord + Copy`). Searches *our* graph; imposes no geometry and no execution model. | Pure integer code; parents in an `FxIndexMap` (fixed hasher, insertion order); heap order `estimated_cost`, then higher `cost` — so equal inputs give equal paths on every machine. Pinned exactly, like `rapier3d` (`DEP-13`). | One small dependency; no build script; no floats. | **Adopt for the search** (`DEP-P`, QN-4 **[OM]**). |
+| `pathfinding`'s `Grid` + A* at 50 mm (or 100 mm) | as above | as above | The street (68 × 16.2 m) is 440 k cells at 50 mm, 110 k at 100 mm; 8-connected paths zig-zag and need string-pulling against the same inflated boxes anyway; a second discretization of a world that is continuous millimetres. | deterministic | ms per plan on the street; memory per plan | **Rejected** as the graph; kept as the fallback if the visibility graph's cost fails NV-10. |
+| `landmass` 0.9.2 (andriyDev) | MIT / Apache-2.0 | ≈ 31 k downloads, updated 2026-07. Core crate not bound to Bevy (`bevy_landmass` is separate). Deps: glam, geo, dodgy_2d (ORCA), kdtree, slotmap. | A full agent navigation system: path finding, simplification, steering and local avoidance over a caller-supplied navigation mesh, updated by its own loop with agent velocities and a frame delta. That is forcing MineWorld into its execution model (`REUSE_POLICY.md`, the "forcing a wheel" half): our world advances in whole seconds and is resolved by bodies. | `f32` (glam) throughout, SIMD-dependent; no determinism statement. | Heavy; navmesh generation still needed | **Rejected.** |
+| `oxidized_navigation` 0.12.0 | MIT / Apache-2.0 | ≈ 56 k downloads; last release 2024-12. | "A Nav-Mesh generation plugin for Bevy Engine": bound to Bevy's ECS and schedule. | floats | Bevy as a dependency of a System Pack | **Rejected** (engine-bound; `ENGINEERING_RULES.md` §5). |
+| `recastnavigation-rs` 0.1.0 (Recast/Detour binding) | **MPL-2.0** (Recast itself zlib) | ≈ 2.5 k downloads, one release (2024-03). | C++ Recast/Detour through a fork; voxelizes triangle soup into a navmesh — far more than axis-aligned boxes need. | Claims cross-platform determinism through a patched fork, tested on Windows/Linux/macOS x64 and arm64 Docker; floats inside C++. | A C++ toolchain on every platform; an unmaintained-looking binding; a file-level copyleft licence to clear under `ARC-55` | **Rejected.** |
+| `polyanya` 0.17.1 (vleue) | MIT / Apache-2.0 | ≈ 98 k downloads, updated 2026-08. Not bound to Bevy (`vleue_navigator` is the Bevy layer). Deps: glam, geo, spade, rstar, hashbrown, rerecast. | Optimal any-angle paths on a polygon mesh; can triangulate an outer boundary with obstacle holes. Exactly the path quality we want, but via a constrained Delaunay triangulation in floats. Agent radius is the caller's job (inflate obstacles first). | `f32` geometry (glam, spade); no determinism statement; triangulation robustness depends on float predicates. | Several geometry dependencies for a problem of ≤ 96 boxes | **Rejected** for the authoritative path; it is the reference a later, larger-geometry design should prototype first. |
+| **Visibility graph over the grown boxes, built ourselves** | ours | — | For axis-aligned boxes grown by the body's radius the shortest path bends only at grown corners: ≤ 4 × (64 + 32) + 2 = 386 nodes. Exact integer predicates (cross products in `i128`), the style of `geometry.rs`. | exact | ≈ 200 lines in `bodies`; lazy edge evaluation keeps a plan to a few ms (NV-10) | **Build** the graph; search it with `pathfinding`. |
+
+**Why build the graph rather than adopt a navmesh** (the record `DEP-P` carries, because rejecting a
+mature wheel needs a reason, `CLAUDE.md` §4 rule 16): every navmesh candidate is float geometry whose
+cross-machine bit-identity is unproven, and a route's waypoints become positions in the log, so they
+must be exact (`CORE_CONCEPTS.md` §6.2: "Fixed-point, never floating-point"). Rapier is admitted under
+`DEP-13` only behind quantization and a verify-then-degrade check; a planner's output has no such
+check to fall back on — a waypoint off by one millimetre on another machine is a replay divergence.
+The obstacle model is axis-aligned boxes by construction (`PlaceShape`), which is the one case where a
+visibility graph is both optimal and tiny. "Writing it ourselves feels cleaner" is not the reason;
+determinism and the shape of our geometry are.
+
+## 21.5 Design (SD-N1 … SD-N13)
+
+### 21.5.1 Constants (published; real-world references)
+
+```text
+WALK_PACE          1 340 mm per simulated second   Weidmann (1993), mean free walking speed of
+                                                   pedestrians, 1.34 m/s; Bohannon (1997), comfortable
+                                                   gait 1.27–1.46 m/s for adults 20–59. One stride per
+                                                   wake, so a stride is ≤ 1 340 mm < MAX_STRIDE.
+WALK_TICK          1 s                             WorldTime's grain (`contracts/src/time.rs`)
+PERSON_APPROACH    1 200 mm, centre to centre       Hall (1966), the far limit of personal distance
+                                                   (0.46–1.22 m): near enough to talk (conversation's
+                                                   range is 3 m), not on top of them; the 2D client's
+                                                   D-b-3 already uses 1.2 m
+PLAN_MARGIN        50 mm (= LATTICE)               extra clearance a route keeps beyond R + GAP, so a
+                                                   routed stride takes bodies' clear-corridor path
+STALLS_MAX         3                                consecutive wakes with < 50 mm of progress → the walk
+                                                   ends `stalled`
+REPLANS_MAX        8                                re-plans per walk (on a stopped stride, a moved
+                                                   target or a moved object) → then `stalled`
+WAYPOINTS_MAX      64                               a longer route is refused `no-route` (never truncated)
+```
+
+Each is a published constant of its owning pack (movement: the first three, STALLS_MAX, REPLANS_MAX;
+bodies: PLAN_MARGIN, WAYPOINTS_MAX), like `MAX_STRIDE`, and becomes world configuration with IL-c's
+configuration work (`ARC-61`), not here.
+
+### 21.5.2 Decisions
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **SD-N1** | **`walk-to`, movement's second action.** Payload `WalkTo { to: Destination }`, `Destination = Place(Location) \| Person(PersonId)`. A `Place` destination may be in the walker's place or any place reachable through passages (breadth-first over `Passages`, places in `PlaceId` order); a `Location` without a local position means "enter that place" (end at the passage's `there`). A `Person` destination must be in the walker's place (`SpatialRequirement::same_place`, else `TooFarAway`) and ends within `PERSON_APPROACH` of them, following them if they move. Offered once, against nobody, incomplete — exactly like `move` (SD-N7). | One request for "go to X" from every caller (`ENGINEERING_RULES.md` §9). Objects as destinations wait for a need (their positions are bodies' state; a later `Destination` arm through the same catalog). |
+| **SD-N2** | **The walk is movement's `walking` Process.** `resolve` of `walk-to` plans (SD-N3) and starts a process (participant: the walker; place: theirs) whose owner state is `WalkState { destination, legs, waypoints, progress, stalls, replans }`, and emits `walk-started { person, destination }`. Each `wake` (every `WALK_TICK`) takes **one stride**: toward the next waypoint, at most `WALK_PACE`, never past it (a stride ends at a waypoint, so a corner is never cut); at a doorway's `here`, the crossing to `there`. The stride is checked by movement's own `reachable` (the `move` rule) and stated through presence's `arrivals()` — so bodies' resolver resolves it like any stride, and presence records it. Then the process sets its next end, or ends with `walk-ended { person, destination, outcome }`, `outcome ∈ arrived \| stalled \| no-route \| replaced \| stopped`. | `ARC-26` "Room for travel": a travel system states `arrived` through presence's constructor. Keeping the walk in movement reuses `reachable` instead of publishing it; the stride rule stays one rule. Strides are caused by the process (`Causation::Process`), which was caused by the request (`AC-9`). |
+| **SD-N3** | **`Wayfinder`: a catalog movement owns** (`ARC-62`): `trait Wayfinder: Send + Sync { fn wayfinder_of() -> SystemId; fn route(&self, world: &WorldRead, ask: &RouteAsk) -> Option<Waypoints> }`. `RouteAsk { person, place, from, to, avoid: Option<PersonId> }`, built only by movement; `Waypoints` a non-empty list of integer `LocalPosition`s ending at the (possibly snapped) goal, at most `WAYPOINTS_MAX`, or the answer `Unreachable`. Rules, as `ARC-39` item 5 / `ARC-62` item 4: pure (reads only the `WorldRead`), keeps nothing, no clock, no randomness, no process-wide state; inert — `None` — where the implementing pack has no state for the place. Asked in ascending `SystemId`; the first non-`None` answer is the route. No answer: the route is the straight segment `from → to`. One line in `systems/installed`: `extension mineworld_movement::Wayfinder => mineworld_movement::register_wayfinders: [mineworld_bodies::BodiesSystem,];`. | Single ownership: movement owns walking; bodies owns geometry and therefore answers geometric questions. Movement never names bodies; a world without bodies is unchanged. A third catalog is a line (`ARC-62` item 3), proving the abstraction. |
+| **SD-N4** | **Bodies' wayfinder: a visibility graph on integers** (`systems/bodies/src/route.rs`, new). Obstacles: every solid's footprint and every loose object's footprint (box half-extents; a ball as its bounding square), each **grown** by `M = PERSON_RADIUS + GAP + PLAN_MARGIN` on every side; the floor **shrunk** by `M`. Nodes: `from`, the goal, and every grown corner strictly inside the shrunk floor and outside every other grown box, in authored order (solids, then objects by `ItemId`; corners SW, SE, NE, NW). An edge exists iff its segment meets no grown box's open interior (touching a boundary is allowed), decided with `i128` cross products — no float, no root. Cost ⌈√(dx² + dy²)⌉ mm, heuristic ⌊√(…)⌋ to the goal (admissible); search `pathfinding::directed::astar`, successors in node order, edges evaluated lazily on expansion. Fast path first: if `from → goal` is visible, the route is `[goal]`. | Shortest paths among convex polygons bend only at their vertices; with axis-aligned grown boxes the graph is ≤ 386 nodes. Integer predicates make the result exact everywhere (`ARC-25`). The margin is what makes a routed stride bodies' `Route::Clear` (F-N7). |
+| **SD-N5** | **Start and goal edge cases, decided.** A **start** inside a grown box (someone standing at the counter, 260 mm from its face) ignores the boxes containing it for its own outgoing edges only. A **goal** inside a grown box or outside the shrunk floor is snapped to the nearest free point of the 50 mm lattice — distance, then y, then x (bodies' E3 order, `ARC-39` note 3) — searched outward as SD-Z6; none in the place → `Unreachable`. A goal unreachable from the start (an enclosed pocket) → `Unreachable`. | A destination inside a table is a person asking to go to the table: they arrive beside it. A walk into a pocket is refused at once rather than ending `stalled` later. |
+| **SD-N6** | **Validation is the request's answer.** `walk-to`'s `validate` (read-only): payload readable; actor a living person with a `Presence`; destination admitted (`admit`); for a `Person`, same place; the place chain exists (else `TooFarAway`); the first leg's wayfinder answer is not `Unreachable` (else `Rejection::System { code: "no-route" }`). Only the first leg is checked at validation; later legs are planned on entry to their place (a place's geometry may change before then). | The client learns at once that its click cannot be reached (`ENGINEERING_RULES.md` §8's answer list, plus a pack code). |
+| **SD-N7** | **Offered incomplete, once, against nobody**, as `move` is; a client or controller composes the request. | F-N11: complete per-person offers would move every town's digest in 12n-1 and add draws the controller never chose. A "Walk to <name>" entry is the client composing `walk-to { Person }` for a perceived person — intent, not a rule. |
+| **SD-N8** | **What movement discloses.** To whoever perceives a walking person: `walking { destination, next: [≤ 4 waypoints] }` from the process state; nothing when not walking. | Clients draw intent (a 2D route line, a 3D NPC's heading) from the server's own plan — no client planner (SD-N12). The paced controller reads its own record to know it is already on its way (12n-2). |
+| **SD-N9** | **Re-planning.** At a wake, the walk re-plans from where the walker actually is when: the previous stride stopped short (`reached ≠ to`) — with `avoid` = the `stopped_by` person, whose disc grown by `2R + GAP + PLAN_MARGIN` becomes one more box for this plan only; a `Person` target moved more than 500 mm from the planned goal; or the place's `LooseObjects` changed since the plan (bodies answers from current state). At most `REPLANS_MAX` per walk; `STALLS_MAX` consecutive wakes with < 50 mm progress end it `stalled`. | Realistic: someone stopped by a person in a doorway steps round them. Bounded: no walk wakes forever. A stalled walk ends visibly, and the controller may ask again later. |
+| **SD-N10** | **Superseding.** A new `walk-to` by the same person ends the running walk (`replaced`) before starting the next. A `move` by the walker ends it (`stopped`) — WASD always wins. `interrupt` from another system ends it (`stopped`). A shove or a nudge does not end it; the next wake re-plans from the new position. | A walk is the person's intention; their own direct control overrides it. |
+| **SD-N11** | **TD-D8: person-relative bounds are expressions of the radius** (§21.6). `NUDGE_MAX := PERSON_RADIUS`; `BIAS_BAND := ⌊2 · PERSON_RADIUS / 3⌋`; `BIAS_TURN` stays (4, 1). Byte-identical at R 300 (300 and 200 are today's values). | The coordinator's TD-D8 input; the operator's "defaults follow the real world". |
+| **SD-N12** | **Clients.** 2D: a floor click → `walk-to { Place(Location) }`; "Walk to <name>" → `walk-to { Person }`; draw the disclosed `walking` record if wanted. 13d's `NavigationServer2D` plan is withdrawn; 13a's client stride-splitting stays only for WASD. 3D: WASD reports `move` strides as today; a future click-to-walk is `walk-to`; NPCs are drawn from observed positions (one arrival per second, interpolated). Python/LM: `walk-to` is an ordinary typed action. | No route is computed by any client (`CLAUDE.md` §4 rule 15). 2D and 3D share the capability without duplicating logic (the two gating questions, §21.8). |
+| **SD-N13** | **Versions and records.** Movement `VERSION` 2 (new action, process type, facts and catalog); a save written by v1 is refused by name (`ARC-25`). Bodies' `VERSION` unchanged by 12n-1 (it adds an answer, and SD-N11 changes no result at R 300). `ARC-W` (new): "A walk is movement's process; its route is the geometry owner's answer". `DEP-P` (new): `pathfinding`, pinned `=4.16.0`, and the rejected navmesh crates. `ARC-26` note, `ARC-39` note (bodies is now also a wayfinder), `MODULE_SPEC.md` §4.1 (movement, bodies), `systems/README.md`. | `CLAUDE.md` §2.2: documents first. |
+
+### 21.5.3 Why the walk does not break the rules it touches
+
+- **Kernel ignorance.** The kernel runs a process and wakes it; it does not know what a route is.
+- **Single ownership.** Positions: presence alone. The walk: movement alone. Obstacles and the answer
+  about them: bodies alone. A route is never written by bodies; bodies returns a value movement stores.
+- **Stateless controllers (`ARC-27`).** The controller holds nothing; the walk is world state, persisted
+  and replayed like any process.
+- **Clients only report intent.** `walk-to` is an intent; the route, the strides and their resolution
+  are the server's.
+- **Determinism.** Integer geometry, a pinned integer search, whole-second wakes on the kernel's queue,
+  `BTreeMap`-ordered state. Nothing reads a clock or a random source.
+
+## 21.6 TD-D8 — the radius-dependent bounds, decided (the coordinator's input)
+
+**What fails at R 250 (12d `8814aad`, TD-D8).** (1) `a_stride_toward_a_person_within_the_offset_is_still_stopped`:
+the head-on bias (band 200 mm, a fixed 14° turn) turns the stride, which now clears the smaller disc,
+so the walker slides round instead of being stopped. (2) `n3_a_crowd_is_nudged_in_bounded_chains_and_sometimes_blocks`:
+`NUDGE_MAX + GAP` (310 mm) and the 500 mm step are fixed, so relative to a 50 cm body the nudge budget
+always clears the crowd; 0 of 12 strides block (was 3).
+
+**Real-world reasoning.**
+
+```text
+body             adult shoulder breadth 40–46 cm (the operator's figure); Fruin (1971)'s pedestrian
+                 body ellipse 0.61 × 0.46 m. R = 250 mm is a 50 cm disc: the shoulder breadth plus
+                 clothing and sway.
+yielding         a standing person brushed in a crowd yields by a short side-step — of the order of
+                 their own half-width, a quarter metre, not a fixed number independent of how big
+                 they are. NUDGE_MAX := R keeps QB-10's original relation (300 at R 300) and gives
+                 250 mm at R 250.
+head-on          two walkers are "head-on" when the lateral offset of their centres is a small fraction
+                 of a body's width; BIAS_BAND := ⌊2R/3⌋ (a third of the shoulder breadth 2R) keeps the
+                 ratio 12b chose (200 at R 300) and gives 166 mm at R 250.
+the turn         an avoidance heading change is a behaviour, not a dimension: BIAS_TURN keeps atan(1/4)
+                 ≈ 14°, independent of size.
+tolerances       GAP, TOLERANCE, SNAP, LATTICE are numeric tolerances of the solver and the lattice,
+                 not body dimensions: they stay absolute.
+```
+
+**Decision (SD-N11).** `NUDGE_MAX` and `BIAS_BAND` become expressions of `PERSON_RADIUS` in 12n-1. At
+R 300 (main) every value is unchanged, so no result moves and bodies' version does not change; at
+R 250 (12d) they scale with the body. Each test scenario's lengths become multiples of R (the 500 mm
+step = `5R/3`; the crowd spacing `13R/6`, = 650 at R 300), as 12d's TD-D8 began.
+
+**What the two invariants claim after 12n (fixed now, before measuring):**
+
+1. **"A stride toward a person within the offset is never passed through."** Two cases, both asserted:
+   (i) the person dead ahead (inside `BIAS_BAND`): the walker ends either stopped (`stopped-short { by:
+   the person }`) or turned by the head-on bias, and in both cases never within `CLEARANCE` of them and
+   the person is not ignored by the sweep (the result is never the requested point); (ii) the person
+   offset laterally by `BIAS_BAND + 1` mm (outside the band, still overlapping the walker's corridor):
+   the walker is **stopped** by them. Case (ii) is SD-Z5's guard: mutation M-Z5 (the "away" exclusion
+   widened to every person within the offset) makes the walker pass through and the test fail by name.
+2. **"A crowd is nudged in bounded chains and sometimes blocks."** Unchanged in words, with the
+   derived constants and R-multiple geometry: every stride keeps the bounds (≤ `CHAIN_MAX` generations,
+   ≤ `NUDGED_MAX` people, each ≤ `NUDGE_MAX + GAP`), and at least one of the 12 strides blocks.
+
+**Where it is shown.** In 12n-1 on main (R 300): both tests pass unedited in claim, bodies-yard's digest
+unchanged (NV-7). On a scratch build at R 250 (12d's geometry.rs radius applied to 12n-1's head, never
+committed): both pass with the restated claims (NV-7). 12d then closes TD-D8 by rebasing. If either
+fails at R 250 with derived constants, that is a material stop with the numbers — no constant is
+re-tuned to pass.
+
+## 21.7 PR split
+
+| PR | Scope | Integration checkpoint | Adversarial |
+| --- | --- | --- | --- |
+| **12n-1 — the walk** | movement: `walk-to`, `walking` process, `walk-started`/`walk-ended`, `Wayfinder` catalog, disclosure, VERSION 2; bodies: `route.rs` (visibility graph + `pathfinding`), the `Wayfinder` impl, SD-N11's derivations; `systems/installed`'s third line; `DEP-P`, `ARC-W`, notes; tests on a test-time copy of bodies-yard with a 1.1 m slot and a U-shaped pocket. **No controller change.** | A real `mineworld` world: walk-to through the slot, round the pocket, to a person, into the other place; SIGKILL mid-walk and resume byte-identical; every existing world's facts byte-identical. | Mutations M-N1 … M-N5 (§21.8). |
+| **12n-2 — people walk there** | `cognition/rule-controller/src/paced.rs`: `head_for`, `leave`, `approach`, `wander` ask for walks; a person already walking does not ask again for the same place. Towns' digests move (QN-2). | On a scratch merge with 12d's WIP: TD-5 ≥ 90 %, the café door, stopped-short ≤ 10 %, TD-12's bounds; on main: the towns without bodies still live, faster. | M-N6: the wayfinder line removed → TD-5 red. |
+
+12n-2 after 12n-1 merges; 12d resumes after 12n-2 is ready (QN-2 decides whether 12n-2 merges first or
+is carried into 12d's re-baseline).
+
+## 21.8 Acceptance (decided before measuring, `ARC-23`)
+
+Rules as §19.4: each guarded criterion names the mutation shown to break it (applied, observed to fail
+by name, reverted; `git status` recorded); every expected value is a literal from authored files or
+hand computation, never from the code under test; no criterion changes after a measurement — a failure
+is a bounded remedy named here or a material stop with the numbers.
+
+**12n-1:**
+
+```text
+NV-1  Byte identity. On the final executable head, with nobody asking for a walk: social-cafe and
+      market-town 300 d seed 7, bodies-yard 30 d — the fact streams' sha-256 equal the base's (captured
+      on the implementation base first: today ad49c723…c64b, 365b50e0…1d1d, bd6a1002…80e6); long_run and
+      long_run_objects bytes equal their bases. Only the composition records differ (movement v2,
+      its declared emissions and process type), named in the evidence.
+NV-2  The walk, for real (tools/cli/tests/walking.rs, a test-time copy of bodies-yard; the real
+      `mineworld` binary and server path):
+        a  the hall gains two solids leaving a 1 100 mm slot (F-N9's width) across the direct line; a
+           walk-to the far side ends `arrived` at the requested point, through the slot, every stride
+           ≤ 1 340 mm, no `stopped-short`;
+        b  a U-shaped pocket of three solids open away from the walker, goal behind its closed side: ends
+           `arrived`, the path leaves the pocket's mouth (hand-computed waypoints asserted);
+        c  walk-to a person 6 m away behind the table: ends within 1 200 mm of them, `arrived`;
+           the person then moved by a scripted `move` mid-walk → re-planned, still `arrived`;
+        d  walk-to a point in the court (the other place): crosses at the passage, `person-entered-place`,
+           `arrived`;
+        e  refusals: a goal inside an enclosed pocket → `no-route` at validation; a Person in another
+           place → `TooFarAway`; a malformed payload → `malformed-payload`;
+        f  superseding: a second walk-to → `walk-ended { replaced }` then `walk-started`; a `move` →
+           `walk-ended { stopped }`; a shove mid-walk → the walk continues and arrives.
+      M-N1  the wayfinder line removed from systems/installed → (a) and (b) fail (stopped-short at the
+            slot's solids, `stalled`).
+      M-N2  PLAN_MARGIN 0 → (a)'s "no stopped-short" or bodies' Route::Clear count fails by name.
+      M-N3  loose objects omitted from the obstacles → a walk through an object scenario pushes it
+            (an `object-moved { pushed }` the test forbids).
+NV-3  Without bodies: social-cafe's test-time copy, a walk across the café and into the street is a
+      straight route (one waypoint per leg), every stride accepted at the requested point.
+NV-4  Determinism. A walk crossing a SIGKILL (two processes, kill between strides) resumes to the same
+      bytes as the uninterrupted run; `mineworld replay` regenerates every fact; two runs give equal
+      bytes.
+      M-N4  the successor order made to depend on a process-global counter's parity → NV-4 diverges
+            or the resume is refused.
+NV-5  The planner's invariant, by an independent oracle (systems/bodies/tests/route.rs): for 2 000
+      seeded random scenes (≤ 64 boxes, ≤ 32 objects, seed fixed), every returned route's legs keep
+      every point sampled every 10 mm at least R + GAP from every solid and object and inside the floor
+      shrunk by R + GAP (the oracle is brute-force distance, sharing no code with route.rs); every
+      `Unreachable` is confirmed by a flood fill on a 25 mm grid.
+      M-N5  the edge test made "touching counts as blocked → passing" (open/closed interior swapped) →
+            the oracle names the first failing scene.
+NV-6  Isolation (structural tests): movement's crate names no bodies; `pathfinding` is used only in
+      bodies' route.rs; no float in route.rs; kernel/, contracts/, presence/ have no diff.
+NV-7  TD-D8 (§21.6): at R 300 both invariant tests pass with derived constants and bodies-yard NV-1
+      holds; on a scratch build at R 250 both pass with §21.6's claims (evidence, not committed).
+NV-8  Cross-platform: the new tests use Path::join and no Unix-only API; CI's Linux job runs them; an
+      x86_64-apple-darwin build under Rosetta gives NV-2's facts byte-identical (recorded, as PO-12).
+NV-9  Gate: cargo fmt --check; clippy --workspace --all-targets --all-features -D warnings; the full
+      workspace tests once on the final head; both doc checks; Cargo.lock adds only `pathfinding` and
+      its dependencies, each licence admitted by ARC-55.
+NV-10 Cost of a plan: a scratch timing build over NV-5's 2 000 scenes and the street of 12d's WIP
+      (62 solids): plan max ≤ 5 ms, p99 ≤ 1 ms (dev profile). Over the bound → the bounded remedy is
+      the 100 mm grid fallback (§21.4), recorded as a deviation.
+```
+
+**12n-2 (measured on a scratch merge of 12n-2's head with `mvp0/pr-12d-towns` @ `8814aad` or its
+successor, unless "on main"):**
+
+```text
+NW-1  12d's TD-5 activity on 12d's WIP geometry: routines.rs (social-cafe, unedited) — every person
+      reaches ≥ 90 % of their agenda segments; run.rs (every seat moves and talks in every 30-day
+      bucket, all six places entered) on the 300-day run.
+NW-2  The café door is reachable: from each of the five street doorways and from (−3 000, 600) and
+      (3 000, 600) (both sides of the terrace), walk-to the café ends `arrived` with a
+      `person-entered-place { café }`, within 40 strides, no `stalled`.
+NW-3  Stopped short: over social-cafe 30 days, stopped-short ≤ 10 % of the walkers' own accepted
+      arrivals (12d WIP: 62 %); place entries ≥ 90 % of the same run on the SD-D13 copy without bodies
+      (12d WIP: ≈ 50 %). The per-bucket counts are printed.
+NW-4  Cost (12d's TD-12 instrument, §20.6.1; interleaved pairs): with ÷ without bodies ≤ 3.96 ×
+      (social-cafe) and ≤ 3.30 × (market-town); per-resolution max ≤ 50 ms; and **on main** the towns
+      without bodies stay fast: 300 d user CPU ≤ 1.5 × E-TD-base (≤ 27.8 s social-cafe, ≤ 23.9 s
+      market-town). Contamination rule as TD-12a (re-run once, then INCONCLUSIVE).
+NW-5  Determinism: run_restart.rs (SIGKILL early/middle/late) and market_town.rs pass on the merge;
+      two 30-day runs byte-identical; arm64 = x86_64 (Rosetta) 30-day summary sha for both towns.
+NW-6  The mutation: the wayfinder line removed from systems/installed (walks go straight) → NW-1 fails
+      naming the people below 90 % and NW-2 fails naming the doorways. Recorded with counts.
+NW-7  On main (no bodies): every existing activity test (run.rs, run_restart.rs, routines.rs,
+      milestone_b.rs, milestone_c.rs, market_town.rs, market_composition.rs, social_composition.rs)
+      passes unedited in claim; literal edits only as listed in the commit plan, each claim stated.
+NW-8  Scope and gate as NV-9.
+```
+
+**The two gating questions** (`CLAUDE.md` §4): a Minecraft-like 3D client needs no kernel redesign (it
+sends `move` while steering and `walk-to` when told to go somewhere); the 2D and 3D clients use the
+capability without duplicating game logic (neither plans a route). Both: yes.
+
+## 21.9 Cross-lane impacts (stated, not done here)
+
+- **S12 (2D):** 13b's "Walk to <name>" becomes `walk-to { Person }`; 13d's `NavigationServer2D` route
+  planning (§5.4) is withdrawn; RK-b2 (a) disappears. QN-8 **[OM]**.
+- **S14 / 12e (3D):** no required change. Optional: a click-to-walk and drawing NPCs' disclosed
+  `walking` heading.
+- **12d:** rebases on 12n-1 (and 12n-2 per QN-2); TD-5, TD-12, TD-D7 and TD-D8 are re-run there; the
+  remedy ladder is no longer needed. 12d's QD-5 crate dependency `bodies → movement` is introduced by
+  12n-1 (bodies implements movement's trait); 12d reuses it for `Passages`.
+- **S10/S17 (Python SDK, LM controllers):** `walk-to` is an ordinary action in the action catalogue.
+- **IL-c:** `WALK_PACE`, `PERSON_APPROACH` and the radius become world configuration there.
+
+## 21.10 Questions (QN-1 …)
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QN-1** **[OM]** | Where does route planning live? | **(a1):** movement owns the walk (a Process); bodies answers routes through a movement-owned `Wayfinder` catalog (§21.3). |
+| **QN-2** **[OM]** | 12n-2 moves both towns' digests; S15 says they move once, in 12d. | **Merge 12n-2 immediately before 12d, and record the two as one re-baseline event**: 12d's TD-1 "before" stays E-TD-base, its "after" is measured on 12d's final head, and no other PR merges between them. Alternative: 12d carries 12n-2's controller commit in its own branch. |
+| **QN-3** **[OM]** | The walk's pace: 1 340 mm per simulated second, one stride per second. Trips take seconds instead of hours of consults — the world's rhythm changes. | **Yes** (Weidmann 1993). The pace is what makes walking realistic; agenda following improves as a consequence. |
+| **QN-4** **[OM]** | Adopt `pathfinding` (=4.16.0) for A*, or write the 60-line search ourselves? | **Adopt** (`DEP-P`): mature, MIT/Apache-2.0, integer, deterministic, no execution model. The visibility graph is ours (§21.4). |
+| **QN-5** **[OM]** | TD-D8: `NUDGE_MAX := R`, `BIAS_BAND := ⌊2R/3⌋`, `BIAS_TURN` kept; the two invariants restated as §21.6. | **As stated.** Byte-identical at R 300. |
+| QN-6 | `PERSON_APPROACH` 1 200 mm (Hall's personal distance) — the paced controller's `approach` stopped 1 000 short. | **1 200.** One number for every caller. |
+| QN-7 | Offer `walk-to` incomplete (SD-N7) rather than complete per person? | **Incomplete.** It keeps 12n-1 byte-identical and the controller's draws its own. |
+| **QN-8** **[OM]** | Withdraw 13d's client-side `NavigationServer2D` route planning in favour of `walk-to`. | **Withdraw.** A client planner is the duplication §9 forbids, now that the server walks. |
+| QN-9 | Plan round the person who just stopped the walker (SD-N9), or ignore people entirely? | **Round that one person.** Bounded, and it is what makes doorway jams resolve. |
+| QN-10 | Should the 2D client's own ≤ 1.9 m stride splitting for clicks be removed? | **Yes, in S12** — a floor click is `walk-to`; WASD keeps `move`. |
+| QN-11 | `wander` as a walk to a seeded nearby point (snapped to free floor) rather than a blind stride? | **Yes** (12n-2): wandering into a wall was a large share of the 62 %. |
+
+## 21.11 Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| RN-1 | Grown boxes are squares; Rapier sweeps a capsule. A leg at exactly `R + GAP + 50` from a face could still meet Rapier's offset numerically. | PLAN_MARGIN 50; NV-2 (a) asserts no stopped-short; NV-5's oracle. |
+| RN-2 | Two walkers meet head-on in the 1.1 m gap and stall each other. | Head-on bias + nudges (12b); SD-N9 re-plans round the stopper; STALLS_MAX ends the walk visibly; NW-2 / NW-3 measure it. |
+| RN-3 | Fact volume rises (a stride per second, `walk-started/ended`). | Wasted strides vanish; NW-4 bounds the no-bodies towns at 1.5 × and the bodies towns at 12d's bounds. |
+| RN-4 | A `pathfinding` upgrade changes tie-breaking and so results. | Pinned `=4.16.0`; an upgrade bumps bodies' VERSION, as `DEP-13` for Rapier. |
+| RN-5 | Plan cost on the street (62 solids). | Fast path; lazy edges; NV-10 with the grid fallback named. |
+| RN-6 | Merge conflicts with 12d's WIP in `geometry.rs` and bodies' tests. | 12n-1 touches only the two constants and the two tests' geometry; 12d rebases; the resolutions are recorded there. |
+| RN-7 | The hosted server: a walk's strides land once per wall second; the 3D view of an NPC moves in 1.34 m hops. | Clients already interpolate between observations (10 Hz); a finer pace is a configuration question later. |
+| RN-8 | A walk's process wakes at instants consults use. | The kernel's `(WorldTime, sequence)` order is total and replayed; NV-4 / NW-5. |
+| RN-9 | Bodies' `install` calling movement's `require_registered` makes every hand-composed test that installs bodies panic unless it registers wayfinders too (as it already registers resolvers, `ARC-39` "Tests that compose worlds by hand"). | NV-C5 audits every such test file first and adds the registration beside the resolver one; the count is recorded. |
+
+## 21.12 Commit plan — 12n-1 (each commit tracks implementation, validation and review separately)
+
+Rules as §19.5: evidence into a §21 ledger as `E-NV<n>`, deviations as `N-D<n>`; commands from the
+worktree root with `$HOME/.cargo/bin/cargo`; anything over ~2 minutes in the background; files changed
+with Edit/Write only.
+
+### NV-C0 — Design (this section) — docs only
+- [x] Implementation: §21, by the planning session on `plan/s15-12n`.
+- [ ] Validation: both doc checks on the PR head.
+- [ ] Review: operator / primary-session freeze review of §21.
+
+### NV-C1 — Documents first, and the base captures
+Goal: `ARC-W`, `DEP-P`, the `ARC-26` and `ARC-39` notes, `MODULE_SPEC.md` §4.1 (movement's `walk-to`,
+`walking`, `Wayfinder`; bodies as wayfinder), `systems/README.md`. Base captures: NV-1's digests and
+bytes on the implementation base. Non-goal: any code.
+- [ ] Implementation: the records and spec edits; E-NV-base.
+- [ ] Validation: doc checks; the captures equal the values in NV-1 or the difference is recorded.
+- [ ] Review: terminology (`Process`, `ActionIntent`, no new synonym); the records state both reuse directions.
+
+### NV-C2 — movement: the catalog
+Goal: `Wayfinder`, `RouteAsk`, `Waypoints`, `register_wayfinders`, `registered_wayfinders`,
+`require_registered` (movement's own, mirroring presence's, `ARC-62` item 4); the `installed!` line
+listing nobody yet. Files: `systems/movement/src/{wayfinder.rs,lib.rs}`, `systems/installed/src/lib.rs`.
+- [ ] Implementation: the trait and catalog; the empty line.
+- [ ] Validation: the installed set's guard tests; a synthetic wayfinder in a movement test (own process)
+  answers and is asked in `SystemId` order; never-registered means straight lines.
+- [ ] Review: catalog rules match `ARC-62` item 4 word for word; nothing reads it but `walk`.
+
+### NV-C3 — movement: `walk-to`, the `walking` process, facts, disclosure, VERSION 2
+Files: `systems/movement/src/{action.rs,walk.rs,event.rs,system.rs,component.rs}`.
+- [ ] Implementation: SD-N1, SD-N2, SD-N6 … SD-N10; `reachable` reused for each stride.
+- [ ] Validation: movement tests with no wayfinder: straight walk, cross-place walk, person walk, every
+  refusal, superseding, SIGKILL-free resume from a snapshot taken mid-walk (kernel snapshot round trip).
+- [ ] Review: every stride goes through `reachable` then `arrivals()`; no position is written by movement;
+  `wake` always sets a later end or ends; a `move` ends a walk in the same dispatch.
+
+### NV-C4 — bodies: the route (`route.rs`) and `DEP-P`'s dependency
+Files: `systems/bodies/src/route.rs`, `Cargo.toml` (`pathfinding = "=4.16.0"`, `mineworld-movement`
+as a crate dependency), `Cargo.lock`, `systems/bodies/tests/route.rs`.
+- [ ] Implementation: SD-N4, SD-N5, SD-N9's `avoid`.
+- [ ] Validation: NV-5 (oracle, 2 000 scenes) and M-N5; NV-10's timing in a scratch build.
+- [ ] Review: no float, no `HashMap`; every predicate in `i128`; corner order and successor order are as
+  specified; snapping reuses E3's order.
+
+### NV-C5 — bodies answers: the `Wayfinder` impl, the installed line, SD-N11
+Files: `systems/bodies/src/{system.rs,geometry.rs}`, `systems/installed/src/lib.rs`,
+`systems/bodies/tests/{actions,scenarios,isolation}.rs`.
+- [ ] Implementation: `impl Wayfinder for BodiesSystem` (inert without `PlaceShape`); `install` calls
+  movement's `require_registered`; the line lists bodies; `NUDGE_MAX`, `BIAS_BAND` derived; the two
+  tests per §21.6.
+- [ ] Validation: bodies' full suite; NV-7 at R 300 and the scratch R 250 run; NV-6.
+- [ ] Review: no result changes at R 300 (bodies-yard digest, long-run bytes).
+
+### NV-C6 — the real walk
+Files: `tools/cli/tests/walking.rs` (new; test-time world copies).
+- [ ] Implementation: NV-2 (a–f), NV-3, NV-4.
+- [ ] Validation: the tests; M-N1 … M-N4 applied and reverted.
+- [ ] Review: every expected waypoint and distance is hand-computed in the test's comments.
+
+### NV-C7 — close
+- [ ] Implementation: ledger, `MVP_STATUS.md` rows, handoff.
+- [ ] Validation: NV-1 (the four captures), NV-8 (Rosetta), NV-9 (gate) on the final head.
+- [ ] Review: scope (`git diff --name-only`), the no-diff paths, the records match the code.
+
+## 21.13 Commit plan — 12n-2 (medium detail; detailed at its own freeze after 12n-1 merges)
+
+### NW-C1 — the paced controller asks for walks
+Files: `cognition/rule-controller/src/{paced.rs,paced_tests.rs,agenda.rs}`.
+- [ ] Implementation: `through`/`head_for`/`leave` → `walk-to { Place }` (enter the place);
+  `approach` → `walk-to { Person }`; `wander` → `walk-to` a seeded offset in the same place; a person
+  whose own `walking` record already leads to the chosen place asks for nothing; draw indices unchanged;
+  the straight-stride code removed (`CLAUDE.md` §4 rule 12).
+- [ ] Validation: paced_tests rewritten in claim-preserving form (each claim stated); the controller is
+  still a pure function (two decisions on one observation are equal).
+- [ ] Review: no geometry and no distance rule in the controller beyond choosing destinations.
+
+### NW-C2 — the towns on main, and the literal edits
+- [ ] Implementation: only literal edits whose claims are unchanged, each listed.
+- [ ] Validation: NW-7, NW-4's no-bodies half.
+- [ ] Review: no assertion weakened, no threshold lowered.
+
+### NW-C3 — the 12d WIP measurement (scratch merge, never committed)
+- [ ] Implementation: the scratch merge recipe recorded (`git worktree` at 12n-2's head, `git merge
+  --no-commit mvp0/pr-12d-towns`).
+- [ ] Validation: NW-1, NW-2, NW-3, NW-4, NW-5, NW-6 with counts.
+- [ ] Review: the measured tree's fingerprint recorded; no result is copied into a committed test.
+
+### NW-C4 — close: ledger, gate, handoff to 12d.
+- [ ] Implementation / [ ] Validation (NW-8) / [ ] Review.
+
+## 21.14 Proposed execution contract (fields only; filled at freeze)
+
+```text
+worktrees       impl-12n1, impl-12n2 (one session each); never impl-12d
+authority       commit, push, open the PR, repair CI; no merge
+budget          12n-1: no 300-day town run beyond NV-1's captures (4); 12n-2: 12d's ruling's counts
+                (6 + 13), counted on the scratch merge
+material stops  any change to presence, the kernel, contracts or bodies' resolution rules; NV-1 not
+                byte-identical; NV-7 failing at R 250; NW-1 / NW-2 failing after the bounded remedies
+                (none are pre-approved beyond NV-10's grid fallback)
+```
 
 
