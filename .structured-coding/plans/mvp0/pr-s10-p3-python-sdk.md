@@ -349,9 +349,9 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
     - Protobuf and gRPC are declined until an encoding need is measured (`ARC-41`);
   - the §13 table row "Contracts" updated to match.
 - **Non-goals.** No model and no session code. No CI change (C5).
-- [ ] Implementation: the files above. Verify and record the five "not verified in planning" items
-  of §3; each failure is recorded with its fallback.
-- [ ] Validation:
+- [x] Implementation: the files above. Verify and record the five "not verified in planning" items
+  of §3; each failure is recorded with its fallback. (§12.1b)
+- [x] Validation (E-P3-1):
   - `uv lock` then `uv sync --locked` succeed;
   - `uv run --locked ruff check sdk/python`, `ruff format --check sdk/python` and `pyright sdk/python`
     report zero findings (AP-10 baseline);
@@ -362,7 +362,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - D-P3-11 / R-P3-9: `uv.lock` holds wheels for `win_amd64`, `macosx_*_arm64` and Linux for every
     package that ships wheels. This is read from the lock, and `pyright[nodejs]`'s Node wheel is
     checked for each of the three.
-- [ ] Review:
+- [x] Review (§12.1b):
   - each DECISIONS entry states what it adopts, the alternatives from step-17 §4 with their
     verdicts, and a re-evaluation trigger (`REUSE_POLICY.md` §§11–12);
   - the §13.1 edit contradicts neither `ARC-41` nor D-4's direction;
@@ -685,13 +685,75 @@ relation,ids,component,time,entity}.rs`, `server/src/app.rs` `bind` (prints `loc
 `systems/economy/src/offer.rs`, `scripts/ci_layer.py`, `Dockerfile`, `scripts/check_ci_pins.py`,
 `.github/workflows/ci.yml`, `.github/actions/layer/action.yml`, `.structured-coding/standards.md`.
 
+### 12.1b C1 — specs and toolchain
+
+- [x] Implementation: root `pyproject.toml` (virtual workspace, pyright's strict configuration);
+  `uv.lock`; `sdk/python/{pyproject.toml,README.md,src/mineworld_sdk/__init__.py,py.typed}`;
+  `.gitignore` (`.pytest_cache/`, `.ruff_cache/`, and the `{"*` pattern rewritten as `[{]"*`, see
+  DV-P3-3); `.structured-coding/standards.md` (four Python checks, prose); `docs/DECISIONS.md` ARC-56,
+  DEP-24, DEP-25, DEP-26; `docs/ARCHITECTURE.md` §13 row "Contracts" and §13.1 (G-1).
+- [x] Validation (E-P3-1): `uv lock`, `uv sync --locked` succeed; `ruff check`, `ruff format --check`,
+  `pyright` (strict) report zero findings; the planted `def f(x): return x` gives 4 strict errors
+  (`reportMissingParameterType`, `reportUnknownParameterType` ×2, `reportUnknownVariableType`), then
+  removed; doc checks exit 0; `standards.py inspect` lists `ruff-lint`, `ruff-format`,
+  `pyright-strict`, `pytest` enabled; the lock holds `win_amd64`, `macosx_11_0_arm64` and
+  `manylinux2014_x86_64` wheels for `pydantic-core`, `websockets`, `nodejs-wheel-binaries`.
+- [x] Review: each DECISIONS entry states what it adopts, the step-17 §4 alternatives with verdicts,
+  and a revisit trigger; the §13.1 edit keeps D-4's direction (Rust types are the source) and agrees
+  with ARC-41 (JSON stays; Protobuf declined until measured); no provider concept anywhere (I-10:
+  `grep -ri 'openai\|ollama\|anthropic' sdk/python pyproject.toml` empty).
+
+**§3's five "not verified in planning" items, verified:**
+
+```text
+virtual uv root          PASS  pyproject.toml with only [tool.uv.workspace] (+ [tool.pyright]); uv 0.12.5
+                               locks and syncs it
+uv licence               PASS  PyPI license_expression "MIT OR Apache-2.0" (pypi.org/pypi/uv/json,
+                               read 2026-10-08)
+pyright without Node     PASS  pyright[nodejs] → nodejs-wheel-binaries 24.19.0; with
+                               PYRIGHT_PYTHON_GLOBAL_NODE=0 its debug log reads "Using nodejs_wheel
+                               package". FINDING: by default the wrapper prefers a PATH node and queries
+                               PyPI for its newest version on every run (pyright/_utils.py,
+                               node.py) — CI sets both variables off (DEP-26)
+pytest-socket + asyncio  PASS, with a correction (DV-P3-2): with --allow-hosts given, pytest-socket
+                               ignores --disable-socket (pytest_socket/__init__.py,
+                               pytest_runtest_setup: "socket_disabled and not hosts"), so the guard is
+                               connect-only; asyncio.run works and 192.0.2.1 raises
+                               SocketConnectBlockedError, with one flag set on every platform
+Python versions          PASS  requires-python >=3.12; local CPython 3.14; the image's Debian trixie
+                               python3 is 3.13 (checked again by the CI job, C5)
+```
+
 ### 12.2 Evidence
 
 ```text
 E-P3-0  C0  check_doc_headings.py, check_decision_ids.py: exit 0 on the C0 tree
+E-P3-1  C1  uv lock: 18 packages (pydantic 2.14.0, pydantic-core 2.50.0, websockets 17.2, pytest 9.1.1,
+            pytest-socket 0.8.1, ruff 0.16.10, pyright 1.1.414, nodejs-wheel-binaries 24.19.0);
+            ruff check "All checks passed!"; ruff format --check "2 files already formatted"; pyright
+            "0 errors"; mutation: 4 errors; doc checks: 191 sections / 73 decision ids distinct
 ```
 
 ### 12.3 Deviations
 
-None yet.
+```text
+DV-P3-1  Decision ids mapped (bounded; ruling 6 gave S10 ARC-56…60, DEP-24…27, and the primary session
+         had not mapped the placeholders): ARC-S10-a → ARC-56; DEP-S10-b → DEP-24; DEP-S10-c → DEP-25;
+         DEP-S10-e → DEP-26. FINDING for the primary session: step-17 has six DEP placeholders (a…f)
+         and S10's range holds four; after P3 only DEP-27 is left for DEP-S10-a, -d and -f.
+DV-P3-2  D-P3-11 (b) simplified (bounded): `--allow-hosts=127.0.0.1,::1` alone, in pyproject addopts,
+         on every platform, instead of adding `--disable-socket --allow-unix-socket` on POSIX: the
+         plugin ignores --disable-socket once --allow-hosts is set (C1 evidence). The intent (only
+         loopback reachable; asyncio works on all three platforms) is unchanged; AP-8 holds it.
+DV-P3-3  `.gitignore` line `{"*` rewritten `[{]"*` (bounded; .gitignore is in AP-9's list): ruff
+         honours .gitignore and refused the whole file (E902, "unclosed alternate group"). Git matches
+         `[{]` as a literal `{`; checked by creating `{"x` and seeing `git status --ignored` list it.
+DV-P3-4  The checks are named `ruff-lint`, `ruff-format`, `pyright-strict`, `pytest` rather than
+         `ruff`/`pyright` with commands (bounded): the standards helper refuses a declared command for
+         `ruff` and `pyright` and runs its own argv from PATH, outside the locked environment
+         (references/standards.md, "Tools the skill does not ship argv for").
+DV-P3-5  [tool.pyright] lives in the root pyproject.toml, not sdk/python's (bounded): pyright reads
+         configuration from the directory it runs in, and every check runs from the root; it covers
+         every future workspace member.
+```
 

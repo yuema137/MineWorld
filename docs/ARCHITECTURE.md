@@ -452,7 +452,7 @@ Network and filesystem access are never implicit.
 | Async runtime | Tokio |
 | Public server API | HTTP + WebSocket |
 | Internal service RPC | gRPC / Protobuf where useful |
-| Contracts | Rust types in `mineworld-contracts`; Protobuf mirrored from them at the first cross-language boundary (decision D-4) |
+| Contracts | Rust types in `mineworld-contracts`; other languages mirror them as typed models held to the server's golden frames over the JSON client protocol (decision D-4; `ARC-41`; §13.1) |
 | Local persistence | SQLite |
 | Cloud persistence | Postgres, later |
 | Cognition runtime | Python |
@@ -499,6 +499,24 @@ Consequences, which are binding:
   step with the Rust types is part of the change that adds it.
 - Until that boundary exists, there is no cross-language contract to maintain, and adding one
   "for later" is the premature work this decision exists to avoid.
+
+**What the first boundaries turned out to be (2026-10-08, S10 PR P3; step-17 G-1).** The
+direction above stands; the timing in the block above it does not, and `ARC-41` records why:
+
+```text
+first boundary    the JSON client protocol (server/PROTOCOL.md): the Godot client first (S5V),
+                  then Python (mineworld-sdk, sdk/python, S10)
+how it is kept    each language mirrors the Rust types as typed models (GDScript; Pydantic in
+                  Python), and each mirror is tested against the golden frames the Rust tests
+                  keep in server/tests/frames/, so the Rust types stay the one source
+Protobuf / gRPC   declined until an encoding need is measured (ARC-41, ARC-56); a binary
+                  encoding, if one is ever needed, starts from serde (MessagePack), not .proto
+```
+
+- A pull request that changes a golden frame updates every mirror in the same change (step-17
+  R-S11-9), so a mirror cannot drift silently: its own golden test fails first.
+- The Python mirror is hand-written while the vocabulary is small enough to review; generation
+  (JSON Schema from the Rust types) is the upgrade when it is not.
 
 ---
 
