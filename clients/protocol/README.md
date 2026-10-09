@@ -38,6 +38,8 @@ The module's own checks, headless:
 ```sh
 godot --headless --path clients/protocol --script res://checks/reader_check.gd   # no server
 bash clients/protocol/run.sh affordances     # against worlds/market-town, saved to a temporary directory
+bash clients/protocol/run.sh reconnect       # drop and resume a held seat
+bash clients/protocol/run.sh admin           # the clock frame; pause, resume and kick by the host
 ```
 
 `--flavour 2d` reports no position when it acts; `--flavour 3d` reports the one it walked to. That is

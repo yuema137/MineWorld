@@ -186,11 +186,11 @@ async fn join_with(address: std::net::SocketAddr, invite: &str, nickname: &str) 
     client.frame().await
 }
 
-/// The next frame that is not an observation.
+/// The next frame that is not part of the stream (an observation or a clock).
 async fn answer(client: &mut Client) -> ServerFrame {
     loop {
         let frame = client.frame().await;
-        if !matches!(frame, ServerFrame::Observation { .. }) {
+        if !support::streamed(&frame) {
             return frame;
         }
     }
@@ -484,4 +484,60 @@ async fn time_scale_sets_how_fast_the_hosted_world_s_seconds_pass_and_is_reporte
         "two answers {elapsed:.2} wall seconds apart differ by {world_seconds} world seconds, not \
          about 120"
     );
+}
+
+/// step-12 DA-9's command-line half. `--help` names `MINEWORLD_ADMIN_TOKEN` and never its value; an
+/// illegal admin token, or one equal to the invite, stops the server before it listens, non-zero,
+/// echoing neither.
+#[test]
+fn an_unusable_admin_token_stops_the_server_and_help_shows_no_value() {
+    const SET: &str = "help-admin-token-0d9a";
+    let help = std::process::Command::new(env!("CARGO_BIN_EXE_mineworld"))
+        .args(["server", "--help"])
+        .env("MINEWORLD_ADMIN_TOKEN", SET)
+        .output()
+        .expect("the binary runs");
+    let help = String::from_utf8_lossy(&help.stdout).into_owned();
+    assert!(help.contains("MINEWORLD_ADMIN_TOKEN"), "{help}");
+    assert!(
+        !help.contains(SET),
+        "--help showed the variable's value: {help}"
+    );
+
+    const INVITE: &str = "same-secret-for-both";
+    for (case, arguments) in [
+        (
+            "equal to the invite",
+            vec!["--invite", INVITE, "--admin-token", INVITE],
+        ),
+        (
+            "illegal",
+            vec!["--invite", "an-invite-0001", "--admin-token", "short"],
+        ),
+    ] {
+        let refused = std::process::Command::new(env!("CARGO_BIN_EXE_mineworld"))
+            .args(["server", support::PACK, "--listen", "127.0.0.1:0"])
+            .args(&arguments)
+            .env_remove("MINEWORLD_INVITE")
+            .env_remove("MINEWORLD_ADMIN_TOKEN")
+            .output()
+            .expect("the binary runs");
+        assert!(
+            !refused.status.success(),
+            "an admin token {case} stops the server"
+        );
+        let said = String::from_utf8_lossy(&refused.stderr).into_owned()
+            + &String::from_utf8_lossy(&refused.stdout);
+        assert!(said.contains("--admin-token"), "{case}: {said}");
+        assert!(
+            !said.contains("listening"),
+            "{case}: the server listened: {said}"
+        );
+        for secret in [arguments[1], arguments[3]] {
+            assert!(
+                !said.contains(secret),
+                "{case}: the refusal repeated {secret:?}: {said}"
+            );
+        }
+    }
 }

@@ -1,6 +1,7 @@
 [mineworld] Market Town (market-town) — 13 system(s), 11 seat(s)
-[mineworld] created /var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/tmp.eqvCL27UBL/save/world.sqlite: a new world, 129 genesis fact(s) at revision 1
-[mineworld] listening on http://127.0.0.1:51397 (ws://127.0.0.1:51397/ws), protocol 2
+[mineworld] created /var/folders/v6/w270mz6n7bz4zgk94fn07ljc0000gn/T/tmp.UzDRNmHBzY/save/world.sqlite: a new world, 129 genesis fact(s) at revision 1
+[mineworld] listening on http://127.0.0.1:54889 (ws://127.0.0.1:54889/ws), protocol 2
 [mineworld] 40 entities, 13 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
-[mineworld] world instance 0000000018dcad3034aa47e97e0c0000
+[mineworld] world instance 0000000018dcf1f48d9c1af916d10000
+[mineworld] no admin surface (no --admin-token)
 [mineworld] hold 30 s, time scale 1, 1 seat(s) driven in-server

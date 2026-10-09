@@ -14,7 +14,9 @@ authorizes implementation. Each PR is detailed to the commit and frozen in turn 
 **PR 16c:** detailed to the commit in §20, `DESIGN FROZEN (2026-10-08), primary session` (record in §20.0), drafted on
 `plan/s14-16c` from `main @ 9cf8f8e`.
 **PR 16d:** detailed to the commit in §22, `DESIGN FROZEN (2026-10-09), primary session` (record in §22.0), drafted on `plan/s14-16d` from
-`main @ f80bbb7` (§21 is left to S15 12e's design, drafted in parallel on `plan/s15-12e`).
+`main @ f80bbb7`.
+**PR 12e:** detailed to the commit in `step-11-bodies.md` §22 (`DESIGN FROZEN 2026-10-09`, primary
+session; preconditions 12d and 16c merged), which refines and governs this file's 12e statements (§§4.2–4.5, §5, §13, §14).
 **Branch:** `plan/s14-3d`, from `main @ 0fd0be3`, worktree `/Users/yuema137/mineworld-worktrees/plan-s14-3d`,
 held by this planning session only.
 **Written in parallel** with the S11, S12, S13 and Milestone E planning sessions, while 12c is being
@@ -2829,9 +2831,9 @@ notes          E16c-0's log is in the planning worktree's ignored shots/16c-plan
 `/Users/yuema137/mineworld-worktrees/plan-16d`. Implementation is authorized only under §22.11, once its
 precondition holds, in a fresh session (`CLAUDE.md` §3.1).
 
-**Why §22.** §21 is left free for S15 12e's PR design, which another session is drafting in parallel on
-`plan/s15-12e` in this same file. Ruled at the freeze: §22 stays; whichever of 12e and 16d merges second
-renumbers if needed. Nothing inside refers to its own number except headings.
+**Why §22.** §21 was left free for S15 12e's PR design. 12e's design merged into `step-11-bodies.md` §22
+instead (#106), so this file has no §21 and needs no renumbering. Nothing inside refers to its own number
+except headings.
 
 ## 22.0 Freeze record
 
@@ -2874,6 +2876,26 @@ configurable, by the World Interaction List (S17, IL-c onward) — for example `
 reach of a counter part of the shop's place. It is **not** in 16d's scope and never in a client: when the
 server starts offering `buy` only at the counter, 16d's menu shows exactly that with no client change
 (D-16d-3), and O-1's expected list changes with the offers, not with the code.
+
+**A16d-18 — 12e's offer line (recorded after the freeze, on merging `main` with 12e's design, #106;
+bounded, no frozen item changes).** 12e's SD-E10 (`step-11-bodies.md` §22, `DESIGN FROZEN 2026-10-09`)
+extends 16a's `looking at: <name>` line with the server's offers for the target, by verb ("E talk",
+"R shove", greyed with the reason; "F kick · G throw" for an object), and lists 16d as a consumer ("16d's
+buy menu uses SD-E10's offer line", its §22 table of downstream PRs). Read against §22.3:
+
+- **Buying does not go through the offer line.** `buy` is target-less (A16d-6), so it is never an offer
+  *for the target*; it lives in your menu (B), as D-16d-3 and the Q-16d-3 ruling state. 12e's sentence is
+  read as "the offer line and 16d's menus present one list of offers", not as a different acquisition.
+- **One list, two presentations.** A person's `give` offers appear in the offer line by verb (it shows
+  every affordance whose target is the person) and are chosen in the Tab menu. Whichever of 12e and 16d
+  lands second makes the line end with the connected hint "Tab more" when the person's offers include an
+  entry with no key of its own, and checks in its own validation that the line's verbs and the Tab menu's
+  entries are built from the same `affordances("", id)` call (no second filter).
+- **Esc order** becomes: an active throw aim (12e, "Esc cancel"), then an open interaction menu (16d),
+  then SET-a's settings. D-16d-9 is read that way.
+- **12e's preconditions** (12d and 16c merged) do not change 16d's: 12e remains outside §22.11's
+  precondition, and R-16d-5's rebase rule covers the shared files (`intents.gd`, `controls_hud.gd`, the
+  probe dispatch).
 
 **Authority.** §22 refines §4.4's `buy` row, §5's `--world=market-town --buy` row, §13's 16d row and §14's 16d
 lines. Where they differ, §22 governs, and each difference names the finding that caused it (§22.2). The
@@ -2952,7 +2974,7 @@ that is not on `main`; C1 re-reads them on the merged base and records any diffe
 | **A16d-13** | **The player's input is polled.** `Player` reads WASD with `Input.is_action_pressed`; `ui_cancel` toggles the mouse; a click with the mouse visible recaptures it | `clients/3d-spike/scripts/player.gd:101, 147–159` | A menu must hold gameplay input through SET-a's gate, not by editing `player.gd` (V-2 keeps it untouched); a click on a menu entry is consumed by the GUI before `_unhandled_input` |
 | **A16d-14** | **The connected probe is large and shared.** `slice_probe_world.gd` 598 lines (modes `link`, `conversation`, `target`; helpers `_aim_at`, `_report_aim`, `_talk_to`, `_walk_to`, `_answered`); 16c and 12e add modes to it | `wc -l`; `slice_probe_world.gd:18–598`; §20.7, §13 | 16d's mode lives in a sibling, `slice_probe_market.gd`, extending it for its helpers (as 16a split `slice_probe.gd`) |
 | **A16d-15** | **13b's Rust harness is reusable as is (branch).** `godot2d::worlds::{hosted, ids, facts, play, menus, panel, step_done, step_line, steps_file, copy_dir}`, `godot2d::{MARKET_TOWN, World, passed, tagged}`; `ids(pack)` resolves genesis ids by key; `facts(save)` reads the save's fact log | `tools/cli/tests/godot2d/worlds.rs:19–141` on the 13b branch | 16d's Rust test drives the 2D client with 13b's own helpers and the 3D client with a small sibling helper, `tools/cli/tests/godot3d/mod.rs` |
-| **A16d-16** | **Parallel lanes touching the same client.** 12e (being planned, `plan/s15-12e`) adds kick/throw/shove to `intents.gd`, prompts to `controls_hud.gd`, modes to the probe; 16c (frozen, after 12d) adds `slice_layout.gd`, `figures.gd`, `--layout`/`--street` and `--town` to the launcher; SET-a edits `slice_link.gd`'s `_say`, `slice_main.gd`, `controls_hud.gd`, `intents.gd` (`verb`) | `git worktree list`; §20.7; step-20 §12.4 | 16d's code is in new files; its edits to shared files are a few lines each, named in §22.8; whichever of 12e/16c/16d lands later rebases (R-16d-5) |
+| **A16d-16** | **Parallel lanes touching the same client.** 12e (frozen since, `step-11-bodies.md` §22; see A16d-18) adds kick/throw/shove to `intents.gd`, prompts to `controls_hud.gd`, modes to the probe; 16c (frozen, after 12d) adds `slice_layout.gd`, `figures.gd`, `--layout`/`--street` and `--town` to the launcher; SET-a edits `slice_link.gd`'s `_say`, `slice_main.gd`, `controls_hud.gd`, `intents.gd` (`verb`) | `git worktree list`; §20.7; step-20 §12.4 | 16d's code is in new files; its edits to shared files are a few lines each, named in §22.8; whichever of 12e/16c/16d lands later rebases (R-16d-5) |
 
 No live measurement was taken while planning: every number above is read from source. C1 measures the
 base before anything changes (E16d-1).
@@ -3386,6 +3408,9 @@ C0      drafted on plan/s14-16d from main @ f80bbb7. check_doc_headings: "191 nu
 FREEZE  2026-10-09: §22.0 record and rulings; Q-16d-3 restated; A16d-17 recorded; Q-16d-6 → PR 16g;
         §22.11 confirmed. Doc checks again: "191 numbered sections across 26 documents, none
         duplicated"; "73 decision ids, all distinct"
+MERGE   2026-10-09: origin/main merged into plan/s14-16d (12e's design #106 and other docs); the one
+        conflict, this file's header, kept both lines; A16d-18 recorded (12e's offer line); the stale
+        "§21 for 12e" notes corrected
 ```
 
 ## 22.13 Handoff (live)
@@ -3398,5 +3423,6 @@ next action    once 12d, 13b and SET-a have merged and the inset is on main, a f
                milestone play-test through OC-1 … OC-8
 background     none
 notes          12d is paused for 12n (8814aad); 13b is in implementation (98bd42e, C5 done); SET-a waits
-               for 13b; 12e is being planned on plan/s15-12e (may take §21 of this file)
+               for 13b; 12e is frozen in step-11-bodies.md §22 (after 12d and 16c); its offer line and
+               16d's menus are reconciled in A16d-18
 ```
