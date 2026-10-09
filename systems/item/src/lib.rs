@@ -5,10 +5,13 @@
 //! trade, give, sell or produce it share one vocabulary and none of them owns another's:
 //!
 //! ```text
-//! section     item                 an item file's `item: { category: drink }`, validated by [`Category`]
+//! section     item                 an item file's `item: { category: drink, name: Coffee }`, validated
+//!                                  by [`Category`] and [`ItemName`]
 //! emits       item-kind-declared   at genesis, from the section; public
 //! owns        ItemKind             `item-kind`, reduced from `item-kind-declared` by this pack alone
-//! discloses   nothing              items are never perceived (an observation lists places and people)
+//! discloses   ItemCatalogue        on a place, to whoever perceives it: every declared kind, its
+//!                                  category and name, built at disclosure (`ARC-37` note); items are
+//!                                  never perceived as entities
 //! depends on  nothing
 //! ```
 //!
@@ -24,10 +27,12 @@ mod section;
 pub mod category;
 pub mod component;
 pub mod event;
+pub mod name;
 pub mod system;
 
 pub use category::{CATEGORY_MAX_BYTES, Category, InvalidCategory};
-pub use component::ItemKind;
+pub use component::{Catalogued, ItemCatalogue, ItemKind};
 pub use event::ItemKindDeclared;
+pub use name::{ITEM_NAME_MAX_BYTES, InvalidItemName, ItemName};
 pub use section::AuthoredItem;
 pub use system::{ItemSystem, is_declared};

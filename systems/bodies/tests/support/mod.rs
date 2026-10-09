@@ -27,7 +27,7 @@ use mineworld_contracts::{
     Causation, EntityId, EntityKey, EntityType, EventEnvelope, ItemId, LocalPosition, Location,
     Millimetres, Observation, PersonId, PlaceId, SystemId, Visibility, WorldTime,
 };
-use mineworld_item::{Category, ItemKindDeclared, ItemSystem};
+use mineworld_item::{Category, ItemKindDeclared, ItemName, ItemSystem};
 use mineworld_kernel::{
     Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
     WorldView,
@@ -208,7 +208,8 @@ impl Yard {
         for (key, item) in &items {
             if plan.kinds.contains(key) {
                 let category = Category::new("toy").expect("a category");
-                facts.push(ItemKindDeclared::new(*item, category).emission());
+                let name = ItemName::new(*key).expect("a name");
+                facts.push(ItemKindDeclared::new(*item, category, name).emission());
             }
             if let Some((_, shape, place, at)) = plan.objects.iter().find(|(k, ..)| k == key)
                 && !plan.without_bodies

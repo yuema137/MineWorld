@@ -3,10 +3,10 @@
 **`mineworld-item`**: what kinds of things exist.
 
 ```text
-section     item                 an item file's `item: { category: drink }`
+section     item                 an item file's `item: { category: drink, name: Coffee }`
 emits       item-kind-declared   at genesis, from that section; public
-owns        ItemKind             component `item-kind`, payload { "category": "drink" }
-discloses   nothing              items are never perceived
+owns        ItemKind             component `item-kind`, payload { "category": "drink", "name": "Coffee" }
+discloses   item-catalogue       on a place, to whoever perceives it: every kind's item, category, name
 depends on  nothing
 ```
 

@@ -6193,12 +6193,27 @@ the server's encoder first (QD-12); if a disclosed type must be an owned table, 
 component on each place written at genesis — a bounded deviation, recorded. Two kinds with one name:
 allowed (names are display, not identity). A name with surrounding whitespace: refused.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-item`; `-p mineworld-inventory -p mineworld-economy -p
-  mineworld-consumption -p mineworld-employment -p mineworld-item-transfer` green; `validate
-  worlds/market-town`; M-TD6 fails by name, reverted.
-- [ ] Review: the catalogue is built at disclosure from `ItemKind`, never stored; `ItemId` order; item
-  still depends on no pack; no market word added outside `systems/` and `worlds/` (check 2).
+- [x] Implementation: as scoped. `name.rs` (`ItemName`, `InvalidItemName`, 64 bytes); `section.rs`
+  (`name` required); `event.rs` (`ItemKindDeclared { item, category, name }`, schema 2);
+  `component.rs` (`ItemKind` schema 2; `ItemCatalogue { kinds: [Catalogued { item, category, name }] }`,
+  component type `item-catalogue` schema 1, owned and never written — TD-D3); `system.rs` (`VERSION`
+  2, `discloses` the catalogue on a place); `codec.rs` (`to_value`); `lib.rs`, README, Cargo.toml's
+  comment. The twenty names, each the key in plain English (QD-15): Apple, Book, Bread, Cake, Candle,
+  Coffee, Croissant, Flowers, Juice, Milk, Mug, Newspaper, Notebook, Pen, Sandwich, Scarf, Soap, Soup,
+  Tea, Umbrella. Test supports that seed a kind gain a name (the key): `systems/{consumption,economy,
+  employment,inventory,item-transfer,bodies}/tests/support/mod.rs`, `tools/cli/tests/bodies_yard.rs:263`
+  (§19.6's TD-C2 row; claims unchanged). E-TD2.
+- [x] Validation: `cargo test -p mineworld-item` 6/6 (two new: the name's refusals at line 2, the
+  catalogue); `-p mineworld-inventory -p mineworld-economy -p mineworld-consumption -p
+  mineworld-employment -p mineworld-item-transfer -p mineworld-bodies` all ok; `validate
+  worlds/market-town` valid, 129 genesis facts; M-TD6 (`name` skipped in the catalogue) fails
+  `a_place_discloses_the_catalogue_of_kinds_in_item_order` naming "Flat White", reverted (`git grep
+  MUTATION` empty). The town half of TD-13 is TD-C7's.
+- [x] Review: the catalogue is built at disclosure from `ItemKind` (`ItemCatalogue::of`), never stored
+  (its table is declared and never written); `ItemId` order (`components::<ItemKind>()` is entity
+  order, the test declares tea before coffee); item still depends on no pack (Cargo.toml unchanged but
+  a comment); no market word added outside `systems/`, `worlds/` and `tools/cli/tests/bodies_yard.rs`'s
+  existing `item:` line.
 
 ### TD-C3 — bodies refuses a doorway inside a wall
 
@@ -6623,6 +6638,18 @@ IL-a (#80: `worldpack/src/{configure,error,format,load,read}.rs`, `systems/insta
   turn into stopped strides — run once with Godot after TD-C5 and reported (§19.10's QD-11 row), never
   edited (clients/ and its tests are outside §19.1's change set).
 - `ARC-39` note 4 taken (TD-D1). No other listed path moved.
+
+**TD-D3 — QD-12 answered by the audit: the catalogue's type is declared, never written (bounded).**
+Previous assumption: the catalogue is "a disclosed record of a type no table holds"; QD-12's fallback
+was a component on each place written at genesis. Audit evidence: `presence`'s `observe` keeps a
+disclosed record only if its component type is declared by an enabled system
+(`systems/presence/src/observe.rs`, `disclosed` → `owned_by_an_enabled_system`), so an undeclared type
+would be dropped silently. Corrected: `item` declares and installs an `item-catalogue` component type
+(`ItemCatalogue`) and never writes a row of it; `discloses` builds the view from `ItemKind` each time
+— exactly economy's `Shop`/listing pattern, minus the stored row. No genesis fact, no reduction, no
+stored state is added (the TD-C2 review's "never stored" holds); QD-12's per-place component was not
+needed. Validation: the catalogue test reads the record through `PerceptionProvider::discloses`;
+TD-C7 reads it through a real observation.
 
 **Freeze note (planning session, 2026-10-08) — the budget field, for the primary session.** The
 freeze sets the budget at six 300-day town runs. TD-12a as accepted at the same freeze (QD-14) needs

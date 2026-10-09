@@ -260,7 +260,7 @@ fn objects_that_do_not_fit_and_held_objects_are_refused_at_load() {
             );
             let file = copy.join("items/hall-ball.yaml");
             let text = std::fs::read_to_string(&file).expect("reads");
-            std::fs::write(&file, text + "item: { category: toy }\n").expect("writes");
+            std::fs::write(&file, text + "item: { category: toy, name: Ball }\n").expect("writes");
         },
         &["bodies-held-kind", "hall-ball"],
     );
