@@ -379,7 +379,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - `tests/test_golden_frames.py`.
   - If S11-B has merged at the base, its fields too (D-P3-5).
 - **Non-goals.** Event envelopes: empty-only (D-P3-6). `delta`. `perceived`.
-- [ ] Implementation:
+- [x] Implementation (§12.1c):
   - read every contract file in §3 for its serde attributes;
   - id `NewType`s: decimal-string validation for ids; the contract's key rule for `EntityKey`;
     32-character lowercase hexadecimal for `WorldInstanceId`; the length and printable rule for
@@ -389,7 +389,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - frame unions, discriminated on `t`;
   - `codec.encode` and `codec.decode` with per-field omission (R-P3-4);
   - `UnsupportedFrame` for non-empty `events`.
-- [ ] Validation:
+- [x] Validation (E-P3-2; M-1 … M-6; M-3's owner moved to AP-2, §12.4):
   - AP-1 (the eight files and completeness), with the three mutations (a), (b) and (c) run and seen
     red, then reverted;
   - AP-3, with its mutation;
@@ -397,7 +397,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
     agreement. They are cross-field rules, not library behaviour;
   - the `UnsupportedFrame` guard;
   - ruff and pyright clean.
-- [ ] Review:
+- [x] Review (§12.1c):
   - compare every model field with its Rust struct line by line, and list in the ledger any field
     whose optionality differs from serde's;
   - the landing table: no field from an unlanded PR is sent;
@@ -724,6 +724,42 @@ Python versions          PASS  requires-python >=3.12; local CPython 3.14; the i
                                python3 is 3.13 (checked again by the CI job, C5)
 ```
 
+### 12.1c C2 — wire models and codec
+
+- [x] Implementation (commit `73c2f74`): `src/mineworld_sdk/errors.py` (`MineWorldError`,
+  `MalformedFrame`, `UnsupportedFrame` — a small module of its own so every later module shares one
+  error base, bounded); `wire/ids.py` (14 `NewType`s, validated `*Field` aliases: canonical decimal
+  ≤ u64 for opaque ids, `contracts/src/ids.rs`'s identifier rule, 32 lowercase hex for the instance,
+  1–64 UTF-8 bytes and no `Cc` character for a token; `JsonValue` as a PEP 695 recursive alias);
+  `wire/contract.py` (the contract shapes, `strict`/`frozen`/`extra="forbid"`, the affordance and
+  request agreement validators, `Observation.events: tuple[()]` with the `UnsupportedFrame` guard);
+  `wire/frames.py` (`Join`/`Submit`/`Leave`, `Welcome`/`ObservationFrame`/`Result`/`Refused`/`Closing`,
+  `t`-discriminated unions, `Invite` — placed beside `Join`, its only reader, and re-exported by the
+  session in C3); `wire/codec.py` (`encode`, `decode`, `to_json`); `tests/test_golden_frames.py`.
+  S11-B is not at the base, so only S11-A's fields are modelled (C6 conditional).
+- [x] Validation (E-P3-2): 14 passed. Mutations, each run and reverted (M-1 … M-6 in §12.4).
+- [x] Review:
+  - **Field-by-field against the Rust structs.** Every field name and JSON shape matches
+    (`PlaceRequirement` and `Rejection` externally tagged; `ActionResult` `{"accepted":{"events":…}}` /
+    `{"rejected":…}` / `"unavailable"`; `Relation.from` by alias). `TookOver`, `ClosingReason` and
+    `RefusalCode` mirror the Rust enums **as they are on main**, which already hold `hosted`, `held`,
+    `kicked`, `superseded`, `server_stopping` and `seat_occupied`; C6 therefore adds only #83's new
+    values and fields. **Optionality that differs from serde's**, listed as C2 requires: serde reads a
+    missing `Option` field as `None`; the SDK requires these present (the server always writes them, so
+    the stricter decode loses nothing and the round trip is exact): `Orientation.pitch`,
+    `SpatialRequirement.within_range`, `PerceivedEntity.location`, `Observation.self_location`,
+    `Affordance.target`, `Affordance.unavailable_reason`, `SystemRejectionBody.detail`,
+    `Welcome.resume`, `ObservationFrame.revision`, `WorldSummary.revision`. Fields a client also
+    constructs default to `None` and encode `null`, as serde writes them: `Location.local`,
+    `Location.facing`, `ActionRequest.target`, `ActionRequest.actor_location`, `Join.resume`. Fields
+    serde omits when `None` default to `None` and are omitted: `Refused.token`, `Refused.detail`,
+    `Closing.detail`, `Affordance.payload`. Integers carry the Rust width as bounds (`i32`, `u32`,
+    `u64`, `i64`).
+  - **Landing table.** `Join` sends exactly S11-A's fields (`protocol`, `invite`, `nickname`, `seat`,
+    `resume`); no S11-B or S11-C field can be sent.
+  - **`JsonValue` only at payload positions** (D-P3-7): `ActionRecord.payload`,
+    `ComponentRecord.payload`, `Affordance.payload`. Nowhere else; no `Any` anywhere in `src/`.
+
 ### 12.2 Evidence
 
 ```text
@@ -732,6 +768,22 @@ E-P3-1  C1  uv lock: 18 packages (pydantic 2.14.0, pydantic-core 2.50.0, websock
             pytest-socket 0.8.1, ruff 0.16.10, pyright 1.1.414, nodejs-wheel-binaries 24.19.0);
             ruff check "All checks passed!"; ruff format --check "2 files already formatted"; pyright
             "0 errors"; mutation: 4 errors; doc checks: 191 sections / 73 decision ids distinct
+E-P3-2  C2  uv run --locked pytest sdk/python: 14 passed (8 golden frames, completeness, AP-3 ×2, the
+            two cross-field validators, the events guard); ruff check / format --check clean; pyright
+            strict 0 errors
+```
+
+### 12.4 Mutations
+
+```text
+M-1  AP-1 (a)  Welcome.hold_seconds → hold_second          RED   test_golden_frame[welcome]
+M-2  AP-1 (b)  Closing.detail written null, not omitted     RED   test_golden_frame[closing]
+M-3  AP-1 (b)  Refused.token written null, not omitted      SURVIVED AP-1: refused.json carries a token
+               (as designed), so no golden file exercises the omission. Owner moved to AP-2: the real
+               server's `unauthorized` refusal has no token, and C4 round-trips it (re-run there)
+M-4  AP-1 (c)  the `leave` check removed from the table     RED   completeness names ['leave.json']
+M-5  AP-3      ids coerced through float                    RED   submit golden (…996) and AP-3
+M-6  AP-3      numbers coerced to strings (lax mode)        RED   test_an_id_written_as_a_number_is_refused
 ```
 
 ### 12.3 Deviations
