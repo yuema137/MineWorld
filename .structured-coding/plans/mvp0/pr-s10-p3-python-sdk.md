@@ -1080,6 +1080,8 @@ M-12 AP-2      Observation.relations excluded from the encoding      RED   "does
                $.observation.relations" (both real-server tests), and observation.json (AP-1)
 M-13 C6        `taken_over` removed from ClosingReason              RED   closing.json (AP-1) and
                test_an_occupied_seat_is_refused_unless_taken_over
+M-14 fix PR    `Clock` removed from the ServerFrame union            RED   6 tests: clock.json (AP-1), all
+               four real-server tests (the server's clock frame no longer decodes), the paused-clock unit
 ```
 
 ### 12.3 Deviations
