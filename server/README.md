@@ -24,6 +24,16 @@ A hosted world may have a save (`HostedWorld::persisted`, `--save DIR` on the co
 every request is written to it before it is answered, and each frame tells the client which saved
 `revision` of the world it describes.
 
+One controller per seat. `--agent SEAT` and `--town` drive seats with in-server controllers on the
+world thread, so a hosted town lives with nobody connected; a player joining such a seat simply takes
+it over, and gives it back on leaving. A dropped socket's seat is held (`--hold`, 30 s) for the
+`resume` its welcome carried; `take_over: true` takes a seat from another connection.
+`--time-scale N` runs the world's clock N times faster than the wall's; NPCs still walk at wall pace.
+
+```text
+mineworld server worlds/market-town --town --save saves/town
+```
+
 Each connected client gets what **its** observer perceives — not a world dump, and not a filtered
 copy of one. It submits requests; the server allocates their identity and the world decides what
 happens. A client can say three things: which seat it wants, what it would like to happen, and that

@@ -86,6 +86,7 @@ fn the_three_client_frames_decode() {
             nickname: "Yue".to_owned(),
             seat: EntityKey::new("player").expect("a legal key"),
             resume: None,
+            take_over: false,
         }
     );
     assert_eq!(
@@ -147,7 +148,7 @@ fn a_revision_one_join_decodes_as_revision_one_with_empty_credentials() {
 fn an_unknown_field_in_a_known_frame_is_malformed() {
     for frame in [
         r#"{"t":"join","protocol":2,"invite":"x","nickname":"n","seat":"player","observer":"101"}"#,
-        r#"{"t":"join","protocol":2,"invite":"x","nickname":"n","seat":"player","take_over":true}"#,
+        r#"{"t":"join","protocol":2,"invite":"x","nickname":"n","seat":"player","scope":"all"}"#,
         r#"{"t":"leave","seat":"player"}"#,
         r#"{"t":"submit","token":"c1","extra":1,"request":{"actor":"101",
             "action_type":"example-action","target":null,"actor_location":null,
@@ -247,6 +248,7 @@ fn a_welcome_names_the_observer_as_a_decimal_string() {
             protocol: PROTOCOL_VERSION,
             instance: super::WorldInstanceId::from_raw(0x0123_4567_89ab_cdef),
             at: mineworld_contracts::WorldTime::from_seconds(32_400),
+            time_scale: 1,
             entities: 4,
             systems: Vec::new(),
             seats: vec![EntityKey::new("player").expect("a legal key")],
