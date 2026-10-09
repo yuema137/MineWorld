@@ -31,7 +31,9 @@ runs:
       shell: bash
       run: |
         echo "core.autocrlf: $(git config --get core.autocrlf || echo unset)"
-        if grep -q $'\r' worlds/market-town/world.yaml; then echo "worlds/*.yaml: CRLF"; else echo "worlds/*.yaml: LF"; fi
+        # Counted from the bytes (od), not with grep, which may read a file in text mode on Windows.
+        crs=$(od -An -c worlds/market-town/world.yaml | grep -o '\\r' | wc -l | tr -d ' ')
+        echo "worlds/market-town/world.yaml: $crs carriage returns"
 
     - name: Run layer ${{ inputs.layer }}
       shell: bash
