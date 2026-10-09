@@ -30,6 +30,8 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
   "Refresh" note); **DESIGN FROZEN (2026-10-08), primary session**, to be implemented in a fresh
   session in `impl-12d` on `mvp0/pr-12d-towns`. The operator decided QD-1
   (amend check 3) and the primary session ruled QD-2 … QD-13 (§19's header); QD-14 … are new.
+- **PR 12e** — bodies in the 3D client: detailed in §22, **PR design — ready for freeze review**
+  (2026-10-09, `plan/s15-12e`); after 12d (and, recommended, 16c — QE-1). §21 is reserved for 12n.
 
 **Freeze record (primary session, 2026-10-07).** The operator decided:
 
@@ -7600,6 +7602,653 @@ review        the coordinator's, relayed: the scope is clean (only systems/bodie
 nearest free point searched outward; Class I), SD-Z5 (a stride away from a person within the
 controller's offset is not stopped by them; Class R; `bodies` version 3). `ARC-39` note 3 and a `DEP-13`
 note record them.
+
+---
+
+# 22. PR 12e — bodies in the 3D client (PR design — ready for freeze review)
+
+**Lifecycle:** PR design — **ready for freeze review**. Drafted by a planning session on `plan/s15-12e`
+from `main @ f80bbb7` (2026-10-09). **Not frozen.** Nothing in §22 authorizes implementation. The
+questions are §22.10 (QE-1 …), the operator-material ones marked **[OM]**.
+
+**Numbering.** §21 is reserved for 12n (navigation), whose design is on `plan/s15-12n` (PR #100, under
+revision) and not yet on `main`. 12e takes §22 so the two documents merge without renumbering.
+
+**Placeholders.** Every identifier below is a placeholder until the freeze assigns it: findings `F-E<n>`,
+decisions `SD-E<n>`, acceptance lines `GE-`, `B-`, `C-`, `X-`, `K-`, `V-`, `GD-`, mutations `M-E<n>`,
+questions `QE-<n>`, risks `R-E<n>`, evidence `E-E<n>`, commits `EC-<n>`, and the decision record
+**`ARC-E`** (the correction rule; step-15 §4.3 called it `ARC-S14-a`; it would take a number from S14's
+range `ARC-50` … `ARC-52`, `overall.md` ruling 6, which 16f shares — the primary session assigns it).
+
+**Authority.** §22 refines, and where they differ governs, these earlier statements of 12e: §11.1's 12e
+row, §7.1, §15.2 (now `DEP-20`), and `step-15-demo-3d.md` §§4.2–4.5, §5's `--geometry`, `--bodies`,
+`--rules` and `--no-people-colliders` rows, §13's 12e row and §14's 12e lines. Step-15 §4.1 option A said
+12e's commit-level detail would live in step-15; the coordinator's brief for this design places it here,
+in S15's own step document, so that S15 closes in one file. Step-15's header gains a one-line pointer to
+§22 and nothing else (one authority, `CLAUDE.md` §3.2). Every difference from those earlier statements is
+named below with the finding that caused it.
+
+**The answer in brief.**
+
+```text
+Positions   the 3D client draws the server's positions: every person and loose object where the latest
+            observation puts them; the player's own body corrected to the server's position whenever the
+            two differ by more than 150 mm (ARC-E), with suspension while stale strides drain, a 120 ms
+            glide up to 1 m and a snap beyond — all in wall time, never scaled by the time scale.
+Collision   the player collides locally with the scene, with the current place's disclosed walls and
+            solids (invisible), with every perceived person and with every loose object — prediction
+            only; when the input presses into a person or an object, the report is the stride the player
+            asked for (press-through), so the server can nudge, push, jam or stop.
+Bodies      every person's capsule, the player's included, is the server's person: r 0.25 m, h 1.72 m
+            (PERSON_RADIUS 250 mm since 12d, the operator's ruling; PERSON_HEIGHT 1 720 mm).
+Actions     kick (F), throw (G, G or G, aim, G) and shove (R) from the camera ray, built in intents.gd,
+            sent whatever the offers say; complete offers submitted unchanged.
+Objects     drawn from `loose-objects`, the collider equal to the disclosed shape; moved by a wall-time
+            tween between disclosed positions, or along `object-moved`'s `path` once S11-C delivers
+            events and the shared module reads them.
+Probe       `--world --geometry`: every disclosed wall and solid face against the scene's colliders and
+            back, 150 mm, both directions, three named exemptions at most; `--world --bodies`,
+            `--world --rules`, `--no-people-colliders`, run for real.
+Unchanged   kernel, contracts, persistence, server, every System Pack, worlds, the shared GDScript module,
+            the 2D client. 12e is a client PR plus documents.
+```
+
+## 22.1 Identity, base, approved scope (proposed)
+
+```text
+PR            12e — bodies in the 3D client (S15, the fifth and last PR of the step)
+base          main after 12d merges (hard precondition: the towns have bodies, PERSON_RADIUS is 250, the
+              doorways sit 400 mm inside). Recommended: after S14 16c as well (QE-1). Re-audit §22.2
+              against the base in EC-1
+branch        mvp0/pr-12e-3d-bodies, worktree /Users/yuema137/mineworld-worktrees/impl-12e, held by the
+              implementing session only
+depends on    12d merged (with 12n-1/12n-2 merged before it, §21, QN-2); 16a (#79) and 16b merged
+              (already on main); S11-B merged (#83, on main). Uses S11-C (#95) if merged at the base,
+              with a fallback if not (SD-E9, QE-6)
+merge         a merge commit, never a squash
+```
+
+**Goal.** In the 3D client, what the player sees and bumps into is what the server says is there:
+
+- The player's body is where the server put it, within 150 mm, and gets back there without visible
+  jitter when the server stops it short, nudges it aside, shoves it or refuses a stride.
+- Walking into a person nudges them (server-side), walking into a crowd stops you, walking into a box
+  pushes it, F kicks, G throws, R shoves; each is an intent the server resolves, and the result is drawn.
+- Every person and loose object is drawn where the latest observation puts it; objects move along the
+  server's own path when it is delivered.
+- The scene's walls and solids agree with the server's within 150 mm, checked by an executable probe in
+  both directions; disagreements are named, never absorbed.
+- The capsule of every person in the client equals the server's person: 250 mm radius.
+
+**Change set** — every path this PR may touch:
+
+```text
+clients/3d-spike/scripts/player.gd                      CAPSULE_RADIUS 0.25 and its citation; mask; the
+                                                        press-through query (SD-E5); the glide (SD-E8)
+clients/3d-spike/scripts/build.gd                       LAYER_OBJECTS, LAYER_DISCLOSED (SD-E3)
+clients/3d-spike/scripts/slice/client_bodies.gd         new: the current place's disclosed walls and
+                                                        solids (SD-E4)
+clients/3d-spike/scripts/slice/object_view.gd           new: loose objects drawn and moved (SD-E7)
+clients/3d-spike/scripts/slice/correction.gd            new: the correction rule (SD-E8, ARC-E)
+clients/3d-spike/scripts/slice/slice_link.gd            wiring only: builds bodies and objects per
+                                                        observation; hands corrections to correction.gd;
+                                                        the refusal-only `_reconcile` replaced; 0.2 → 0.4 m
+                                                        door inset only if neither 16c nor the primary's
+                                                        hotfix has landed it (SD-E13)
+clients/3d-spike/scripts/slice/targeting.gd             the person collider masked by the player; the
+                                                        ray meets objects (SD-E3, SD-E6)
+clients/3d-spike/scripts/slice/intents.gd               kick, throw, shove (SD-E6)
+clients/3d-spike/scripts/controls_hud.gd                offer prompts, the aim marker (SD-E10)
+clients/3d-spike/scripts/slice/slice_main.gd            the F/G/R handling hook and the HUD line, only
+clients/3d-spike/scripts/slice/streetscape.gd           only if QE-2 is answered "prune" (FU-12d-1)
+clients/3d-spike/scripts/slice/slice_probe_bodies.gd    new: --geometry, --bodies, --rules (SD-E12)
+clients/3d-spike/scripts/slice/slice_probe_world.gd     dispatch to the sibling, only (as 16a did)
+clients/3d-spike/scripts/slice/figures.gd               only if 16c is on the base: the collider rides
+                                                        the walking figure (SD-E5)
+clients/3d-spike/README.md, mineworld-slice             the new modes; --save/--time-scale pass-through
+tests/acceptance/tests/client_rules.rs                  three allow-list admissions in intents.gd (kick,
+                                                        throw, shove), each with its reason (SD-E6)
+docs/DECISIONS.md                                       ARC-E (the correction rule); a DEP-20 note (the
+                                                        layers and masks Jolt now resolves)
+server/PROTOCOL.md §6.2                                 the correction obligation of a predicting client
+clients/protocol/ADOPTION.md §4.1                       the same, for client authors (QE-10)
+docs/MVP_STATUS.md, docs/HUMAN_REVIEW_QUEUE.md          rows; dated lines on VIS-3D-GODOT-2 (SD-E15)
+.structured-coding/plans/mvp0/step-11-bodies.md §22     this ledger; step-15 header pointer
+```
+
+**Paths with no diff** (I-1, I-S14-2): `kernel/`, `contracts/`, `persistence/`, `server/src/`,
+`systems/**`, `cognition/`, `worlds/**`, `tools/cli/src/`, `clients/protocol/mineworld/**` (ruling 4: the
+shared module changes only in 16b and S11-C), `clients/2d/**`, `clients/shared/**`, the character's files
+(`human.gd`, `npc.gd`, `character_slot.gd`, `camera_rig.gd`, `posture.gd`, `clients/3d-spike/assets/**`).
+
+**Non-goals.**
+- Local push prediction with a `RigidBody3D` (QB-7, operator decision): objects are drawn where the
+  server says.
+- Figures walking between observations, decorative townspeople, every doorway bound, the florist as the
+  store (16c). 12e's people colliders follow whatever figure the client draws.
+- Building places, walls or doors from disclosure (16f). 12e's disclosed geometry is invisible and sits
+  beside the accepted scene; it never replaces it.
+- Buying, names on things (16d); the `AC-13` comparison with the 2D client (16e).
+- Click-to-walk (`walk-to` + `walk-step`, §21 SD-N12, optional for 3D): not in 12e.
+- Overhead solids in `bodies` (FU-12d-1's other branch): a bodies change, outside every client PR.
+- Disclosing each person's body shape (R-S15-3): a bodies change; required when IL-c makes the radius
+  world configuration (QE-7), not before.
+
+## 22.2 Source audit (`main @ f80bbb7`, 2026-10-09)
+
+Read in this session from the files named. 12d's WIP was read on `mvp0/pr-12d-towns` (`impl-12d`,
+read-only) at `8814aad`; 12n on `origin/plan/s15-12n` (`f64cf01`); S11-C on `origin/mvp0/pr-s11c-perception`.
+
+| ID | Finding | Evidence | Consequence for 12e |
+| --- | --- | --- | --- |
+| **F-E1** | **The capsule is still 300 mm.** `Player.CAPSULE_RADIUS := 0.30`, `CAPSULE_HEIGHT := 1.72`, cited to "bodies' `PERSON_RADIUS` 300 mm"; the player's own shape and every pick collider use the pair. On 12d's WIP `PERSON_RADIUS` is 250 and `CLEARANCE` is derived (`2R − TOLERANCE` = 495); 12d records the client's 300 as a cross-lane finding owned by 12e/16c. Main's `geometry.rs:13` still says 300 until 12d merges | `player.gd:23–30, 84–89`; `targeting.gd:52–68`; `systems/bodies/src/geometry.rs:13,16`; 12d `8814aad` §19.13 radius amendment item 5 | SD-E2: 0.25. A 0.30 capsule against people the server holds 510 mm apart (2R + GAP) overlaps by 90 mm: Jolt would depenetrate the player out of every nudged contact, and the correction would pull it back — the jitter the brief names. The radius is part of "correction without jitter", not a cosmetic number |
+| **F-E2** | **No person's shape is disclosed.** `body-shape` is an Item's component, joined into a place's `loose-objects` listing; `discloses` returns only `place-shape` and `loose-objects`, and only on a Place | `systems/bodies/src/component.rs:258–281, 362–386`; `system.rs:295–340` | The client holds the person capsule as a constant pair cited to bodies (QS14-3, accepted at step level). IL-c (radius as world configuration) makes that a copy that can drift: R-S15-3 becomes required there (QE-7) |
+| **F-E3** | **One collision layer in use, one declared for picking.** `Build.LAYER_WORLD = 1`, `LAYER_BODIES = 2` (16a: picking only); the player is on no layer and masks `LAYER_WORLD`; the pick body is an `AnimatableBody3D`, mask 0, `sync_to_physics = false` (moved by teleport, E16a-4); the ray masks `LAYER_WORLD \| LAYER_BODIES` | `build.gd:6–9`; `player.gd:79–80`; `targeting.gd:21, 52–68` | SD-E3: two more layers; the player masks four; the pick body becomes the body collider unchanged in type |
+| **F-E4** | **Reconciliation is refusal-only.** `_reconcile` is set on the first view, a `move` answered other than accepted, and a refused frame; the next observation then teleports the body. An accepted stride whose recorded arrival differs (stopped short, nudged) and a shove by somebody else are never corrected | `slice_link.gd:152, 296–303, 496–499, 524–525` | SD-E8 replaces it (F-S14-8 confirmed on this base) |
+| **F-E5** | **Figures are teleported to each observation**, their pick collider with them; 16c (frozen, not merged) moves figure handling to `figures.gd` and walks them | `slice_link.gd:305–330, 367–385`; step-15 §20 D-16c-8 | 12e's person collider is a child of whatever figure is drawn; after 16c, it rides the walking figure. Before 16c, a nudged person's collider jumps up to 260 mm per observation (R-E6) |
+| **F-E6** | **`slice_link.gd` is 541 lines** (past the ~500 review trigger); `slice_probe_world.gd` 598; `slice_probe.gd` 1 314 | `wc -l` | New behaviour goes into new files with one job each (`client_bodies.gd`, `object_view.gd`, `correction.gd`, `slice_probe_bodies.gd`); `slice_link.gd` gains wiring only |
+| **F-E7** | **The shared module reads everything 12e needs except events and `acted_through`.** `component_value` (raw payloads: `place-shape`, `loose-objects`), `complete_affordances`, `affordances_about` (finds `kick {object}` by the object), `submit_affordance` exist (16b). `events()` exists and is empty until S11-C. There is no reader for the frame-level `acted_through`; `MineWorldObservation` holds the `observation` object, not the outer frame | `clients/protocol/mineworld/observation.gd:115, 152, 187, 212`; `world_client.gd:245, 290` | 12e needs no module change (ruling 4 forbids one). The exact correction form and `path` playback wait for S11-C's module readers (SD-E8, SD-E9) |
+| **F-E8** | **S11-C (#95, open) puts `acted_through` on the frame and facts in `observation.events`**; its diff has no change under `clients/protocol/mineworld` yet. `PROTOCOL.md`'s landing table on main lists both as S11-C's, absent before | `origin/mvp0/pr-s11c-perception` `server/PROTOCOL.md` §5.2 diff; `server/PROTOCOL.md:629–631` on main | QE-6: 12e builds the heuristic rule and the tween, and switches to the exact rule and `path` if the module's readers are on its base |
+| **F-E9** | **What bodies states for a client.** `object-moved { object, place, from, to, how, by, path }`, `path` a keyframe every 0.1 s of flight (`PATH_EVERY` 6 sub-steps at 60 Hz), at most 40, first = `from`, empty for a push; `person-shoved { by, person }`; presence's `stopped-short { person, wanted, reached, by }`. `kick { object }`, `throw { object, toward: null \| {x, y} }` target-less; `shove {}` targets a person | `systems/bodies/src/event.rs:164–290`; `action.rs:18–115`; `geometry.rs:134, 137`; `systems/presence/src/event.rs:125, 264` | `path` is flight time in seconds of the resolution, which is embodied time: played back at 0.1 s **wall** per keyframe, never scaled (SD-E11) |
+| **F-E10** | **Scripted connected modes host a still world.** The launcher starts `mineworld server worlds/social-cafe --listen 127.0.0.1:0 --agent alice`, no `--save`, no `--time-scale`, no `--town`; 16c's D-16c-10 keeps scripted modes without `--town`. Every seat but Alice's is free; `bob`, `wanderer`, `ivan`, `carol` … are seats | `mineworld-slice:66–96`; `worlds/social-cafe/world.yaml:74–96`; `tools/cli/src/main.rs:4–5` | The probe can hold extra seats ("puppets") on their own connections to stage a nudge, a crowd and a shove, through the same requests a client sends (SD-E12) |
+| **F-E10a** | **The hosted server already takes `--save DIR` and `--time-scale N`** (S11-B) | `tools/cli/src/main.rs:4–6` | `--bodies` reads the run's facts afterwards with `mineworld inspect`; C-5 runs at two scales. Launcher pass-through only; no `tools/cli/src` change |
+| **F-E11** | **The street's bank tree (FU-12d-1).** One of 22 broadleaf props of the east bank (`streetscape.gd:121–128`, seed 9001) stands at y 1.1 m where `z > −2`; its collider overhangs the pavement, street (27 888, 1 006)–(28 285, 1 403), underside 1 660 mm, top 3 860 mm. 12d omitted it from the street's solids (62) and named it, with the two door leaves, as a probe exemption; "until then a 3D player is stopped by a tree the server does not know" | `clients/3d-spike/scripts/slice/streetscape.gd:121–128`; 12d `8814aad` E-TD1 §3b, §19.13 TD-D4 amendment item 2 | QE-2 **[OM]**. Real pavements keep branches at least 8 ft (2.44 m) above the walking surface — San Mateo (CA) code 27.84.040, Kaukauna (WI), Custer (SD), Bartlesville (OK) — so a canopy at 1.66 m over a pavement is not a real-world default |
+| **F-E12** | **12d's geometry and its floor-edge rows.** Café 9 solids, street 62, store 10, each authored within 150 mm of its slice collider except the two door leaves (diagonal boards, exempt by name, QD-3) and table north's south face (a 37 mm inset at r 250, named exception E-TD1-x1). Floor-edge rows that are not solids: stallrisers 60–70 mm, florist architraves 80 mm, café door jambs 140 mm | 12d `8814aad` E-TD1 §§3a–3c; §19.13 TD-D4 amendment | GE-1 … GE-3's expected exemptions are exactly these three names; every other row ≤ 150 mm; the jambs' 140 mm is inside the bound and is printed, not exempted |
+| **F-E13** | **12n leaves the 3D client unchanged** (SD-N12): WASD keeps reporting `move`; a hosted walker's strides arrive one per wall second (1.34 m), so a person drawn from observations hops 1.34 m per second until 16c's figures walk (RN-7) | §21 on `plan/s15-12n`, SD-N12, §21.9, RN-7 | A teleported person collider can land on the player: SD-E5 orders the figure update before the player's physics step and lets the server's next answer decide (R-E6) |
+| **F-E14** | **Time domains.** Embodied time is wall time and not a world quantity; "the scale must not affect actions, physics or dialogue speed" (`ARC-67`); the client never reads `time_scale` today (its only `time_scale` uses are `Engine.time_scale` inside two standalone capture modes) | `docs/DECISIONS.md:4695`; step-19 §4.1–4.2; `grep time_scale clients/` | SD-E11, C-5: every animation 12e adds runs on frame `delta` in wall seconds; nothing reads `WorldSummary.time_scale` |
+| **F-E15** | **No Godot in CI.** `.github/workflows/ci.yml` runs Rust and Python only; every Godot check is a local real run | `grep -i godot .github/workflows/ci.yml` (no match) | Godot evidence is macOS (this machine); Linux and Windows coverage is by construction and review, and by the operator if they choose (QE-9 **[OM]**) |
+| **F-E16** | **The no-rule scan** admits action literals by (file, literal, reason) and rejects declared names containing `REACH`, `RANGE`, `CLEARANCE`, `NUDGE`, `CAPACITY`, `MAX_STRIDE`; probes are scanned too | `tests/acceptance/tests/client_rules.rs`; step-15 A16c-13 | Three admissions in `intents.gd` (kick, throw, shove). No 12e constant uses those words; the probe's oracle never quotes a server rule number (SD-E12) |
+| **F-E17** | **SET-a (frozen) moves every 3D UI string to a `tr()` key** | `step-20-client-settings.md` A-SET-4, §3.6 | Whichever of 12e and SET-a lands second converts 12e's new HUD strings to keys (R-E4) |
+
+## 22.3 Design (SD-E1 … SD-E15)
+
+### 22.3.1 Constants (client-side, presentation; real-world references)
+
+```text
+CAPSULE_RADIUS   0.25 m   the server's person (bodies PERSON_RADIUS 250 mm, the operator's ruling of
+                          2026-10-08: adult shoulder breadth 40–46 cm, chest depth 25–30 cm; Fruin (1971)
+                          pedestrian body ellipse 0.61 × 0.46 m). Player and every person collider
+CAPSULE_HEIGHT   1.72 m   the server's PERSON_HEIGHT 1 720 mm, unchanged
+CORRECTION_MM    150      ARC-E's one number (step-11 §7.1): above the server's 1 mm quantization and
+                          the controller's 10 mm GAP; below a visible jump; the same tolerance as the
+                          geometry probe and 16c's DOOR_MATCH, so "within tolerance" means one thing
+GLIDE_SECONDS    0.12 s   a correction up to GLIDE_UP_TO is drawn over 120 ms of wall time — the order of
+                          the 100 ms entity interpolation of Valve's Source engine networking (Valve
+                          Developer Community, "Source Multiplayer Networking": cl_interp 0.1), short
+                          enough to read as a step, long enough not to read as a teleport. QS14-11
+GLIDE_UP_TO      1.0 m    a larger correction snaps: a 1 m slide in 120 ms (8 m/s) is already faster
+                          than a sprint; gliding further would draw motion no body makes
+OBJECT_TWEEN     distance / 4 m/s, clamped to 0.15 … 0.8 s (step-15 §4.5): the fallback when no path
+                          is delivered — about a firmly kicked ball's roll after friction (a casual
+                          pass is 5–10 m/s at the foot); a push moves an object at most a stride and
+                          takes the minimum
+PATH_KEYFRAME    0.1 s    wall seconds per `path` keyframe: bodies' keyframe spacing (PATH_EVERY 6 at
+                          60 Hz), played back in real time
+WALL_THICKNESS   0.20 m   disclosed perimeter walls, outside the floor, 3.0 m high (bodies' own Rapier
+WALL_TALL        3.0 m    perimeter, SD-B11)
+DOOR_GAP         2.0 m    gap cut in a disclosed wall at each disclosed doorway whose point lies within
+                          0.5 m of that edge (12d puts every doorway 0.4 m inside, SD-D3; step-15 §4.2
+                          said 0.4 m before that move)
+```
+
+None of these names contains a word the no-rule scan rejects (F-E16), and none is a rule: each is a size
+of something drawn or a duration of something drawn.
+
+### 22.3.2 Decisions
+
+| ID | Decision | Alternatives considered | Why |
+| --- | --- | --- | --- |
+| **SD-E1** | **Order.** Implementation starts on `main` after 12d merges. Recommended: after 16c too, so that 12e builds on `SliceLayout` (every place bound, the florist as the store) and `SliceFigures` (walking figures), and its geometry probe covers the store (QE-1). If the primary session prefers either order (D-16c-1), 12e on a base without 16c probes the café and the street only and records the store as owed to the later of the two, which then re-runs `--geometry` in its own close | before 12d (the server has no geometry and R 300: nothing to agree with); either order unconditionally (the store row has no owner) | The strict probe is only meaningful against 12d's content; with 16c first, nothing in 12e is provisional |
+| **SD-E2** | **The capsule is the server's person, 0.25 × 1.72.** `Player.CAPSULE_RADIUS = 0.25`, its comment citing bodies' `PERSON_RADIUS`/`PERSON_HEIGHT` and the operator's ruling; every person collider uses the same pair (it already does through `Player`). An executable cross-check (B-r) holds it to what the server does, without the client quoting a server number | read the radius from disclosure (needs a bodies change: R-S15-3, QE-7); keep 0.30 (overlap and jitter, F-E1) | One source of truth would be disclosure; until a world can configure the radius (IL-c) the constant equals the only value the server can have, and B-r catches drift by behaviour |
+| **SD-E3** | **Layers and masks.** `Build` gains `LAYER_OBJECTS = 4` and `LAYER_DISCLOSED = 8`. Player mask: `LAYER_WORLD \| LAYER_DISCLOSED \| LAYER_BODIES \| LAYER_OBJECTS`. Camera boom: `LAYER_WORLD` (unchanged: a third-person camera neither stops at a person nor at an invisible wall). Target ray: `LAYER_WORLD \| LAYER_BODIES \| LAYER_OBJECTS` — **not** `LAYER_DISCLOSED` | the ray against all four (step-15 §4.2) | An invisible collider must not hide what the eye sees; walls the eye sees are scene walls (`LAYER_WORLD`). Refines step-15 §4.2 (QE-8) |
+| **SD-E4** | **Disclosed geometry, `client_bodies.gd`** (`SliceClientBodies`, `RefCounted`, owned by the link). When the observer's place, or its `place-shape` value (`component_value`), changes, one invisible node `DisclosedGeometry` is rebuilt for that place in its frame: four perimeter walls (`WALL_THICKNESS`, `WALL_TALL`, outside the floor), each with a `DOOR_GAP` gap centred on the projection of every disclosed `passages.leads_to[].here` within 0.5 m of that edge; each solid a `StaticBody3D` box from its footprint, `height` tall, on the floor. All on `LAYER_DISCLOSED`. A place without `place-shape` (a world without bodies) builds nothing | replace the scene's colliders by the disclosed ones (16f's job; would change the accepted feel); no disclosed geometry (the player could walk where the server stops it, and be corrected at invisible lines) | R-B4's "one source": where scene and server disagree the body still stops where the server would, and the probe (GE-*) makes any disagreement a named defect instead of a felt one |
+| **SD-E5** | **People collide; press-through.** The pick body of each figure (16a) becomes its body collider: unchanged shape and type, now masked by the player. In `Player._physics_process`, after `move_and_slide`, if a slide collision's collider is on `LAYER_BODIES` or `LAYER_OBJECTS` and the input direction points into it (dot of input and the collision normal < −0.5), the link's next `move` reports the **intended** point: a capsule cast (`PhysicsDirectSpaceState3D.cast_motion`) from the body along the input for the distance the input would have moved it since the last report, against `LAYER_WORLD \| LAYER_DISCLOSED` only. Otherwise the report is the body's position, as today. Figures are updated from the observation before the player's physics step of the same frame (R-E6) | (b) no local collision with people (the original interpenetration); (c) collide and never nudge from 3D (QB-10 never happens) — QS14-1 recommended (a), QS14-2 masking objects too | QB-10 and R-1 both hold only with (a); the client reports a wish bounded by the same reporting cadence and adopts the answer |
+| **SD-E6** | **Kick, throw, shove in `intents.gd`.** `kick(client, object, at)`, `throw(client, object, toward, at)` (`toward` `null` or integer `{x, y}` from `MineWorldSpace.from_3d` of the aim point, rounded mm), `shove(client, person, at)`. Each looks for a matching complete offer (`affordances_about(id)` filtered by type) and submits it unchanged with `submit_affordance`; when none matches, it builds the same request by name and submits it anyway (`too_far_away`, `unavailable` come from the server). A check in `--bodies` asserts the built request equals the offered one byte for byte wherever an offer exists. `VERBS` gains "kick", "throw", "shove". Keys: **F** kick, **G** pick + **G** throw (or **G**, aim, **G**), **Esc** cancels an aim, **R** shove (QS14-8). Three admissions in `client_rules.rs` | the 2D-style menu of offers; key per offer | §4.4 of step-15, accepted at step level; one file builds every request; the scan keeps it that way |
+| **SD-E7** | **Objects, `object_view.gd`** (`SliceObjects`, `Node`). One `AnimatableBody3D` per listed object (`loose-objects` via `component_value`) on `LAYER_OBJECTS`, its `CollisionShape3D` exactly the disclosed shape (`BoxShape3D` of 2·half; `SphereShape3D` of the radius), its mesh the same shape in the accepted palette (QE-4), `entity_id` metadata = the object id (a string). When `at` changes: a wall-time tween (`OBJECT_TWEEN`), a ball rolling about the horizontal axis normal to its motion (rotation is drawing; the server locks it, SD-O16). With events (SD-E9), an `object-moved` the observer learned is drawn along its `path` at `PATH_KEYFRAME`, ending exactly at `to`. Objects exist while their place is drawn | a `RigidBody3D` per object (QB-7: no local push prediction); CC0 props scaled non-uniformly (distorts a crate) | What blocks you is what you see is what the server has |
+| **SD-E8** | **The correction rule, `correction.gd` (`ARC-E`).** State: `baseline` (the point sent with the newest `move` whose answer has arrived), `in_flight` (points of unanswered `move`s). On each observation of the place the body is in: `auth = self_location.local` (x, y only). If `|auth − baseline| > 150 mm` and `|auth − p| > 150 mm` for every `p` in flight: correct — move the body to `auth`, zero its velocity, set baseline to `auth`, and **suspend** reporting until every `move` sent before the correction is answered and one further observation has arrived; then apply the rule once more and resume. On an observation of another place: adopt it (today's `_reconcile`, kept for the first view and for a place change). **Exact form**: if the shared module exposes `acted_through` at 12e's base, `auth` is compared only with the point sent in that action and nothing in flight is considered. **Drawing**: a correction up to `GLIDE_UP_TO` glides over `GLIDE_SECONDS` of wall time (the body is moved kinematically, not by `move_and_slide`, toward a point the server already holds free); a larger one snaps. Input stays live during a glide; reports stay suspended. No other code moves the body to a server position (I-S14-4) | refusal-only (today; drifts); snap always (QS14-11's other option); a snapshot buffer for the player (latency on the one body the player drives) | step-15 §4.3 and §8.2 (adopt the pattern, build it: no library fits a non-Godot semantic server). One number covers a stop, a nudge, a shove, a jam and a refusal; suspension is what makes it converge |
+| **SD-E9** | **Without S11-C's readers** (QE-6): the heuristic form of SD-E8 and the object tween; the 12e row's "objects animated along `path`" stays **open**, recorded in §22.14 and `MVP_STATUS.md`, closed by whichever PR first follows S11-C's module readers (it is a few lines in `object_view.gd`). With them: the exact form and `path` playback, both checked in `--bodies` | wait for S11-C (12e stalls on another lane); edit the module (ruling 4) | QS14-18's recommendation: ship with tweens and keep the item open; dropping it would change a frozen row (**[OM] if dropped**) |
+| **SD-E10** | **What the HUD offers.** The `looking at: <name>` line (16a) gains the server's offers for the target, by verb: a person — every affordance whose target is the person (`talk`, `shove`), each "E talk", "R shove", greyed with the server's reason when unavailable; an object — every complete affordance whose payload names it ("F kick · G throw"); none offered for an object in view → its name only ("box") and the keys still send. During a throw aim, a marker where the ray meets the world, never clamped. Connected only; standalone and `--shots` unchanged | a radial menu; prompts computed from distance (a rule) | Presentation of the server's list (step-15 §4.4). A 3D visual default: the primary session chooses, the operator judges in play (QE-5) |
+| **SD-E11** | **Wall time only.** Every motion 12e draws — the glide, the tween, the path, the ball's roll — advances by frame `delta` (wall seconds). Nothing in the client reads `WorldSummary.time_scale`; `Engine.time_scale` is untouched outside the two existing capture modes. C-5 shows it at `--time-scale 1` and `24` | scale an object's flight by the world's scale (step-19 §4.2 option D/C, rejected by the operator) | `ARC-67`: embodied motion is wall-clock and never sped up |
+| **SD-E12** | **The probe, `slice_probe_bodies.gd`** (`SliceProbeBodies extends SliceProbeWorld`, as 16a split the connected modes): modes `geometry`, `bodies`, `rules`; flag `--no-people-colliders`. **Puppets**: extra `MineWorldClient` nodes on free seats (`bob`, `wanderer`, `ivan`), each moved by the same `move` requests (`SliceLink.MOVE_ACTION`, no literal) and shoving through `SliceIntents.shove` — so every staged event is a real request on a real connection. The oracle never quotes a server rule number: it asserts what the client must make true (drawn = observed, corrections converge, colliders match behaviour) and reads the server's facts from the save (`mineworld inspect`) for evidence. Launcher: `--geometry`, `--bodies`, `--rules` (headless), and pass-through `--save=`/`--time-scale=` for the hosted server (scratch save directory under `clients/3d-spike/shots/12e/`, ignored, removed after) | a Rust integration test driving a headless Godot (no harness exists; the slice's own probe is the integration harness, step-15 §8.7) | Real execution, as the operator runs it (`ENGINEERING_RULES.md` §19) |
+| **SD-E13** | **The door inset.** If neither 16c nor the primary's hotfix (Q-16c-2) has moved `door_point`'s 0.2 m to 0.4 m on 12e's base, 12e moves it (SD-D8), first commit after the baseline; otherwise it finds it moved and records that | — | A connected client must not draw 200 mm off on 12d's content |
+| **SD-E14** | **The geometry probe** (`--world --geometry`, GE-*). Run in each drawn place the observer can stand in (café, street; the store if 16c is on the base). **Disclosed → scene:** along every disclosed solid face and floor edge, every 100 mm, at heights 0.3 m and min(h − 0.1, 1.5) m, a horizontal ray from 0.3 m on the walkable side toward the face, mask `LAYER_WORLD` only, must hit within 150 mm of the face's plane — except within a `DOOR_GAP` at a doorway. **Scene → disclosed:** every `CollisionShape3D` of a `StaticBody3D` on `LAYER_WORLD` whose world AABB meets the floor's rectangle and the capsule's height band (0.05 … 1.72 m), its horizontal footprint sampled every 50 mm (exact for boxes and cylinders; the AABB for others, named), must lie within 150 mm of a disclosed solid or of the floor's edge. Every row printed with the place, the face or the collider's node path, and the distance; the mode fails on any row over 150 mm not exempted. **Exemptions by name only:** the café's and the florist's open door leaves (QD-3) and, unless QE-2 is "prune", the bank tree (FU-12d-1) | compare against the disclosed colliders (would pass by construction — M-E7); one-direction only (an extra scene collider is a wall the server lacks) | The executable form of 12d's TD-3 and R-B4, two-directional as step-15 §4.2 requires |
+| **SD-E15** | **Documents first** (EC-2): `ARC-E` in `DECISIONS.md` (the rule, its suspension, the exact form, the one number, nothing else moves the body; options and why); a `DEP-20` note (Jolt now resolves the player against four layers; still never authoritative); `PROTOCOL.md` §6.2: a paragraph after "A client that is refused reconciles", generalising it to every difference over 150 mm with the suspension, citing `ARC-E`; `ADOPTION.md` §4.1 the same for client authors (QE-10); at close, `MVP_STATUS.md` (the 3D column of Movement, the bodies rows) and `HUMAN_REVIEW_QUEUE.md` `VIS-3D-GODOT-2`'s `v2_run_into_townsperson.jpg` row and known limitation 3 — a dated line appended to each, nothing in the accepted entry edited | — | `CLAUDE.md` §2.2 |
+
+## 22.4 Acceptance (decided before measuring, `ARC-23`)
+
+Rules, as §19.4: each guarded criterion names the mutation shown to break it (planted in the working tree,
+observed to fail by name, reverted; `git status` and `git grep MUTATION` recorded). Expected values come
+from 12d's authored files, this plan, or the client's own constants — never from the code under test.
+Every connected run uses the launcher's own server (port 0), records its PID, kills only it; a run that
+joined anything else is `INCONCLUSIVE`. "Base" is EC-1's measurement on the implementation base.
+
+**Geometry — `./mineworld-slice --world --geometry`** (headless, still world):
+
+```text
+GE-1  CAFÉ. Seated; every row of SD-E14 in both directions. PASS iff every row ≤ 150 mm except the
+      café door leaf (named, its distance printed). Expected on 12d: every solid ≤ 0.5 mm, table north's
+      south face 37 mm (E-TD1-x1), the door jambs' floor-edge row 140 mm
+GE-2  STREET. Walked out on foot through the café door; the same. PASS iff every row ≤ 150 mm except
+      the bank tree (only if QE-2 ≠ "prune"). Expected: the 62 solids within their E-TD1 distances
+      (largest 147 mm, the bicycle), floor edges at the façades within the stallrisers' 60–70 mm and
+      the architraves' 80 mm
+GE-3  STORE (only on a base with 16c). Walked into P (16c's L-2 place); the same, the florist door
+      leaf exempt
+GE-4  THE PROBE SEES DRIFT (a counterfactual on content). A scratch copy of social-cafe with the café's
+      counter authored 200 mm further south, served on a free port, joined with --server= --geometry:
+      GE-1 FAILS, naming the counter's north and south faces at 200 ± 5 mm in the disclosed → scene
+      direction and the scene's counter collider at 200 ± 5 mm in the other
+GE-5  BOTH DIRECTIONS BITE. M-E8 (one café table's scene collider not built): GE-1 fails in the
+      disclosed → scene direction naming that solid; the scratch copy with that table's solid deleted:
+      GE-1 fails in the scene → disclosed direction naming the table's collider node
+```
+
+**Bodies — `./mineworld-slice --world --bodies`** (headless; server `--save` to scratch; puppets on
+`bob`, `wanderer`, `ivan`):
+
+```text
+B-a   NUDGE. Wanderer (puppet) stands still on open floor; the player walks into him for 2 s, input
+      held. PASS iff: wanderer's observed position moves by more than 10 mm; at every frame the drawn
+      distance between the player's and his centres is ≥ 2·CAPSULE_RADIUS − 5 mm; drawn = observed
+      for him within 1 mm after each observation; at most one correction of the player
+B-b   CROWD. Bob, wanderer and ivan (walked in by their puppets) stand shoulder to shoulder with their
+      backs to the counter's customer face; the player presses into the middle one for 3 s. PASS iff
+      the save holds at least one `stopped-short` whose person is the player; no `move` is answered
+      other than accepted; the drawn separation from each puppet stays ≥ 2·CAPSULE_RADIUS − 5 mm;
+      the player's final body is within 150 mm of the final observation
+B-c   BOX. The player walks into the café box. PASS iff its disclosed `at` changes; the drawn box ends
+      within 1 mm of the disclosed position after its tween; the player's capsule never overlaps the
+      drawn box by more than 5 mm (Jolt contact query, sampled every physics frame)
+B-d   KICK. Looking at the café ball within reach (offered): F → submitted, accepted, the ball's
+      disclosed position changes and the drawn ball follows. From 2 m (not offered): F → the request
+      is still sent, answered too_far_away, and the toast says so. Where the offer exists, the built
+      request equals it byte for byte
+B-e   THROW. G, G on the ball → accepted (toward null); G, aim at the floor 2 m beyond, G → accepted,
+      `toward` equals the aim point rounded to mm in the player's place frame; G, aim beyond the
+      place's floor, G → sent and answered precondition_failed (or the server's code), shown in words
+B-f   SHOVE. The player stands still; bob's puppet shoves her through SliceIntents.shove. PASS iff the
+      player's body is corrected within two observations of the answer, by exactly one correction,
+      glided (≤ 1 m) in 120 ms ± one frame of wall time, and is then within 150 mm of the observation
+B-g   END STATE. After B-a … B-f: the drawn positions of every person (1 mm) and every object (1 mm)
+      equal the final observation's, and the player's within 150 mm; `mineworld inspect` on the save
+      shows ≥ 1 each of object-moved (push, kick, throw), person-shoved, stopped-short, every one caused
+      by an action (AC-9), with no fault
+B-r   THE RADIUS AGREES. Over B-a and B-b, the smallest server-stated distance between the player and
+      any person in the place (from observations) lies in [2·CAPSULE_RADIUS, 2·CAPSULE_RADIUS + 0.05]
+      metres. A client capsule unlike the server's fails here, by behaviour, without quoting the server
+```
+
+**Correction without jitter** (inside `--bodies` and `--link`; the client logs every correction with its
+size, cause guess and wall time):
+
+```text
+C-1   NO FALSE CORRECTION. --link's route (café → street → café, the 50-class move count) and a 60 s
+      free walk and jog on the pavement with nobody in the way: zero corrections
+C-2   CONVERGENCE. For every server-caused difference over 150 mm in B-a, B-b, B-f and C-2b: exactly one
+      correction; within 2 observations after the answer the body is within 150 mm of the
+      observation; no second correction within 1 s unless a new server-caused change is observed
+C-2b  SHOVED WHILE WALKING. The player walks east at jog speed on open floor; bob's puppet, keeping
+      pace beside her, shoves her. C-2 holds (this case exercises the suspension: strides from before
+      the shove are in flight)
+C-3   SMOOTH. During a glide, no frame moves the body more than (correction size / glide frames) + 5 mm;
+      every snap is a correction over 1 m and is listed
+C-4   NO LOCAL FIGHT. After each correction, 2 s with no input: the body moves less than 10 mm
+C-5   WALL TIME. B-d's kick and B-f's shove at --time-scale=1 and at --time-scale=24: the glide's and the
+      ball's drawn motion durations equal within one frame, in wall seconds
+```
+
+**No rule in the client:**
+
+```text
+X-1   BEHAVIOURAL (I-S14-1.2), --world --rules: the same scripted interactions — talk from the door and
+      at the counter, shove bob, kick and throw the café ball — against social-cafe and against a
+      test-time copy without bodies (the `bodies` line and every body: section removed, as 12d's
+      counterfactual SD-D13). The client's submitted interaction requests are identical in both
+      transcripts (action, target, payload); only the answers differ (accepted / too_far_away /
+      unavailable)
+X-2   NO PEOPLE COLLIDERS (12e's adversarial row): --world --bodies --no-people-colliders, B-a again.
+      Wanderer is still nudged by the server, the player is corrected by the server's answer within
+      C-2's bound, and the submitted request kinds are a subset of {move, talk, kick, throw, shove}
+X-3   THE SCAN. client_rules.rs green with exactly three new admissions (intents.gd: kick, throw,
+      shove), each with its reason; no new rule-name admission
+```
+
+**Mutations** (one per guard):
+
+| # | Guard | Mutation | Expected red |
+| --- | --- | --- | --- |
+| M-E1 | B-a | the player's mask without `LAYER_BODIES` | B-a fails: drawn distance under 2·CAPSULE_RADIUS − 5 mm, naming wanderer and the frame |
+| M-E2 | B-r | `CAPSULE_RADIUS = 0.30` | B-r fails: smallest server distance ≈ 0.51 m outside [0.60, 0.65]; C-4 is reported (depenetration expected) |
+| M-E3 | B-f, C-2 | refusal-only reconciliation restored | B-f fails: no correction; the body stays where it stood |
+| M-E4 | C-2b | the suspension removed | C-2b fails with more than one correction for the shove (if C-2b does not reproduce the oscillation, recorded as the suspension unexercised, and a second in-flight case with the shove timed inside a report is added before the claim is made) |
+| M-E5 | B-a | press-through removed (the report is always the body's position) | B-a fails: wanderer never moves |
+| M-E6 | X-1 | `if distance > 0.8: return` planted in `intents.gd`'s kick | X-1 fails naming the missing kick request; B-d's 2 m case reports NO ANSWER |
+| M-E7 | GE-4 | the probe's rays mask `LAYER_DISCLOSED` too | GE-4 passes on the drifted copy — recorded as the reason the instrument masks the scene only |
+| M-E8 | GE-5 | one café table's scene collider not built | GE-1 fails naming the solid |
+| M-E9 | C-5 | the glide's and tween's duration divided by the world's time scale | C-5 fails at 24× |
+| M-E10 | `--link` (C-1) | no `DOOR_GAP` cut | `--link` fails: the body stops at an invisible wall in the café door |
+| M-E11 | X-3 | a `"kick"` literal in `targeting.gd` | the scan fails naming `targeting.gd:<line>` |
+
+## 22.5 Godot checks (every run of the real client)
+
+```text
+GD-0  PARSE. After each commit that adds a class (SliceClientBodies, SliceObjects, SliceCorrection,
+      SliceProbeBodies): godot --headless --path clients/3d-spike --import, then one launch; no "Parse
+      Error", "SCRIPT ERROR" or "Cannot get class" in the log
+GD-1  STANDALONE (I-S14-7): --drive "all drive checks pass" (engine Jolt), every number before/after —
+      the walls stop the body 50 mm closer with r 0.25, which is reported, not hidden; --measure;
+      --threshold; --character; --perf (median within 15 % of the base, confirmed by a re-run);
+      ./mineworld-3d --drive once (the promenade uses Player too)
+GD-2  CONNECTED, the accepted checks (still world): --link "all link checks pass" (and C-1),
+      --conversation "conversation on screen, no ids", --target T-1 … T-4 (T-2' if 16c is on the base);
+      16c's --layout and --street if 16c is on the base
+GD-3  NEW: --geometry (GE-1 … GE-5), --bodies (B-*, C-*), --rules (X-1), --bodies --no-people-colliders
+      (X-2)
+GD-4  WINDOWED EVIDENCE (one Godot window at a time; a stalled capture INCONCLUSIVE and re-run once):
+      frames of the nudge, the crowd, the box push, the kick (three frames of the flight), the shove,
+      each in third person rear; the contact frames of V-3
+GD-5  INTERACTIVE, by the implementing agent before the PR opens: ./mineworld-slice --world for three
+      minutes — walk into people, the box, kick, throw, shove; nothing in the log but the expected
+      [link] lines; reported in words, never claimed as acceptance
+GD-6  PLATFORMS. macOS runs above. Linux: the headless modes (GD-0, GD-1 --drive, GD-3) on a Linux host
+      with Godot 4.7.2 if one is available to the session, else NOT RUN with the reason. Windows: the
+      launcher is bash (Git Bash on Windows, as today); 12e adds no OS-specific path (scratch saves via
+      the project's shots directory and Godot's path API), reviewed line by line; a run on Windows is
+      the operator's choice (QE-9)
+```
+
+## 22.6 The visual-regression guard (`VIS-3D-GODOT-1`, `VIS-3D-GODOT-2`)
+
+```text
+V-1  STANDALONE FRAMES. --shots at 1600x900, twice on the base (noise floor), once on the head,
+     tools/frame_diff.gd per view: each view's share of pixels differing by more than 8/255 is at most
+     the base's run-to-run share + 0.5 points. Over that: looked at side by side, one image at a time,
+     its cause named; an unexplained visible change is a material stop
+V-2  THE CHARACTER. No diff to human.gd, npc.gd, character_slot.gd, camera_rig.gd, posture.gd,
+     assets/** (a path check). --character passes. player.gd changes only the capsule, the masks, the
+     press-through query and the glide — none of the body's drawing
+V-3  CONTACT FRAMES (the capsule is 50 mm thinner, so the drawn body comes 50 mm closer to what stops
+     it). Third person rear and front, base and head, the player pressed against: the counter, the café
+     back wall, a door jamb, the glazing, a street tree pit, and a standing person. Inspected at ×3 for
+     the hand, the rucksack, the hood or the hair passing into geometry or into the other person. A new
+     penetration not present on the base is a material stop, reported with both frames
+V-4  CONNECTED FRAMES. --conversation's three frames, base and head: differences explained only by
+     objects now drawn and the HUD prompt line; the accepted connected checklist (names on everyone,
+     the door toast, Alice in plain view, both caption lines) holds on the head's frames
+V-5  THE KNOWN GAP CLOSES. v2_run_into_townsperson.jpg re-taken at its framing, connected (the
+     townsperson is a world person after 16c; before 16c, wanderer in the café): the bodies no longer
+     interpenetrate; drawn centres ≥ 2·CAPSULE_RADIUS − 5 mm apart
+```
+
+## 22.7 What the operator must look at (hands-on; only the operator accepts, `ARC-11`)
+
+Run `./mineworld-slice --world` (market-town or social-cafe after 12d; with `--town` if 16c is on main).
+
+1. **Walk into a standing person** (Wes in the café, or anyone on the pavement). You stop at their
+   shoulder, never inside them; keep pushing and they step aside a little. Look for: no shaking, no
+   bouncing back and forth, no snap.
+2. **Walk into two or three people standing together against the counter.** You stop. Look for: you
+   stay put without a tremor; no one is drawn inside anyone.
+3. **Stand still and let somebody shove you** (another seat, or an NPC with `--town`). You slide aside
+   once, smoothly (about a tenth of a second), not a jump. Look for: one movement, then stillness.
+4. **Walk into the box by the café window.** It slides away. Look for: it slides, it does not
+   teleport; you do not walk into it.
+5. **Look at the ball and press F** (the HUD shows "F kick"); **G, G** (throw); **G, aim at the floor,
+   G** (throw there); from across the room press F: the HUD says too far away. Look for: the ball's
+   flight looks like a ball (rolling, not sliding; not instant), and lands where the world says.
+6. **Look at Bob and press R.** He is pushed half a metre. Look for: the same smoothness as item 3.
+7. **Walk the street's east end** (the bank by the retaining wall). Look for: nothing stops you that
+   you cannot see, and nothing you can see lets you through it. If QE-2 is "prune": the bank tree's
+   branches now clear your head; judge whether the tree still looks right.
+8. **Third person (V), back into the counter, a wall, a door jamb.** Look for: the rucksack, hand and
+   hood do not go into the wall now that the body is a little slimmer.
+9. **The look of the new things:** the box and ball, the HUD prompts, the aim marker (visual defaults
+   the primary session chose: QE-4, QE-5). Judge them in play.
+10. **At `--time-scale=24`** (if the launcher is run with it): shoves, kicks and the ball's flight take
+    the same real time as at 1×.
+
+## 22.8 Commit plan
+
+Each commit tracks implementation, validation and review separately; a planned commit may become several
+coherent ones (the mapping recorded). Evidence goes to §22.14 as `E-E<n>`. Every Godot run longer than
+two minutes runs in the background, one Godot window at a time, its log under
+`clients/3d-spike/shots/12e/` (ignored).
+
+### EC-0 — Design (this section) — docs only
+
+- [x] Implementation: §§22.1–22.14 from the audit in §22.2; a one-line pointer in step-15's header and
+  in this file's header.
+- [x] Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`
+  (results in §22.14).
+- [x] Review: every finding cites a file and line, a branch or a measurement; every acceptance line
+  states its pass condition before anything is run; every guard has a mutation; the non-goals match
+  16c's and 16f's scopes and ruling 4. Self-review by the drafting session; the freeze is pending.
+
+### EC-1 — The base, re-audited and measured
+
+**Goal.** "Before", on the base, by the commands "after" will use. **Scope.** The ledger only.
+**Depends on** the freeze and 12d merged (and 16c, per QE-1).
+
+- [ ] Implementation: re-audit F-E1 … F-E17 on the base (PERSON_RADIUS 250 on main; 12d's three
+  exemptions; whether 16c, SET-a, S11-C and the 0.4 m inset have landed); record which branch of
+  SD-E1, SD-E9 and SD-E13 applies.
+- [ ] Validation (E-E1): GD-1 and GD-2 on the base; V-1's two `--shots` runs; V-3's contact frames;
+  `v2_run_into_townsperson` re-taken; `--link`'s correction count (zero today by construction).
+- [ ] Review: every base result matches its accepted figure or its difference is recorded with its cause
+  before anything changes.
+
+**Commit boundary.** The ledger.
+
+### EC-2 — Specs before code
+
+**Goal.** SD-E15's documents. **Scope.** `docs/DECISIONS.md` (`ARC-E`, a `DEP-20` note),
+`server/PROTOCOL.md` §6.2, `clients/protocol/ADOPTION.md` §4.1.
+
+- [ ] Implementation: as scoped, `ARC-E` with SD-E8's rule, the options of step-15 §8.2 and the
+  accepted limitations (heuristic before `acted_through`).
+- [ ] Validation: `check_decision_ids.py`, `check_doc_headings.py`.
+- [ ] Review: `PROTOCOL.md` changes no frame or field (a client obligation only); terminology as
+  `CORE_CONCEPTS.md`.
+
+### EC-3 — The capsule, the layers, disclosed geometry, people as bodies (SD-E2 … SD-E5 without press-through, SD-E13)
+
+**Scope.** `player.gd` (radius, mask), `build.gd`, `client_bodies.gd` (new), `targeting.gd` (ray mask),
+`slice_link.gd` (build disclosed geometry per observation; the inset if needed); `figures.gd` if 16c.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation (E-E3): GD-0; GD-1 (`--drive` numbers before/after); GD-2 (`--link` passes: M-E10 shows
+  the gaps matter); V-3 contact frames; M-E10.
+- [ ] Review: the disclosed node is invisible and never on the camera's or the ray's mask; a world without
+  bodies builds nothing (`--link` against a scratch copy without bodies passes unchanged).
+
+**Failure cases.** `--link` stopped at an invisible wall: a gap or a content disagreement — reported with
+both geometries, not fixed by widening `DOOR_GAP` past the doorway's own disclosure.
+
+### EC-4 — The geometry probe (SD-E14) and FU-12d-1 (QE-2)
+
+**Scope.** `slice_probe_bodies.gd` (new; `geometry` mode), `slice_probe_world.gd` (dispatch),
+`mineworld-slice` (`--geometry`); `streetscape.gd` only if QE-2 is "prune".
+
+- [ ] Implementation: as scoped. If "prune": the one bank tree whose canopy overhangs the walkable floor
+  is placed so its lowest collider and foliage over the floor are at least 2.44 m up (or moved back
+  onto the bank), nothing else in the streetscape changes; its exemption is removed from the probe.
+- [ ] Validation (E-E4): GE-1 … GE-3; GE-4 and GE-5 counterfactuals; M-E7, M-E8; if "prune", V-1's street
+  views and a before/after frame of the bank.
+- [ ] Review: the probe masks `LAYER_WORLD` only; every exemption is a name in one list printed by the
+  mode; no tolerance is widened after a measurement.
+
+**Failure cases.** A row over 150 mm on 12d's content: reported with both values to the primary session
+(12d's content or the accepted slice would have to change: material), never absorbed.
+
+### EC-5 — The correction rule and press-through (SD-E5, SD-E8, SD-E11)
+
+**Scope.** `correction.gd` (new), `player.gd` (press-through query; glide hook), `slice_link.gd`
+(`_reconcile` replaced; reports suspended through `correction.gd`).
+
+- [ ] Implementation: as scoped; the exact form behind a check for the module's `acted_through` reader.
+- [ ] Validation (E-E5): C-1 on `--link` and the free walk; GD-2 again; M-E3 and M-E5 recorded once
+  EC-7's modes exist (cross-referenced there).
+- [ ] Review: no other code assigns the player's `global_position` from an observation (grep); every
+  duration is wall time; reports cannot resume before every pre-correction `move` is answered.
+
+### EC-6 — Objects and the three actions (SD-E6, SD-E7, SD-E10)
+
+**Scope.** `object_view.gd` (new), `intents.gd`, `controls_hud.gd`, `slice_main.gd` (keys F/G/R, the HUD
+line), `targeting.gd` (`LAYER_OBJECTS` in the ray), `client_rules.rs` (three admissions).
+
+- [ ] Implementation: as scoped; `path` playback only if S11-C's readers are on the base (SD-E9).
+- [ ] Validation (E-E6): X-3 and M-E11; `cargo test -p mineworld-acceptance --test client_rules`;
+  GD-0; GD-2.
+- [ ] Review: `intents.gd` sends whatever the offers say; the HUD only reads offers; no constant names a
+  rule word.
+
+### EC-7 — The probe modes, puppets, the launcher (SD-E12)
+
+**Scope.** `slice_probe_bodies.gd` (`bodies`, `rules`, `--no-people-colliders`, puppets),
+`mineworld-slice` (`--bodies`, `--rules`, `--save=`, `--time-scale=` pass-through), `clients/3d-spike/README.md`.
+
+- [ ] Implementation: as scoped; the without-bodies copy for X-1 built at test time in the scratch
+  directory and removed after.
+- [ ] Validation (E-E7): B-a … B-g, B-r, C-1 … C-5, X-1, X-2; M-E1 … M-E6, M-E9; GD-4 frames looked at.
+- [ ] Review: every staged event is a request on a real connection; the oracle quotes no server rule
+  number; the probe file stays under ~800 lines (else split, as 16a did).
+
+### EC-8 — Status, documents, gates, close
+
+**Scope.** `docs/MVP_STATUS.md`, `docs/HUMAN_REVIEW_QUEUE.md` (dated lines, SD-E15), this ledger.
+
+- [ ] Implementation: as scoped; the 12e row's `path` item recorded open or closed (SD-E9).
+- [ ] Validation (E-E8, the final executable head): GD-0 … GD-3 once more; GD-5; GD-6; V-1 … V-5; the
+  Rust gate — `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo test --workspace` (once), `check_decision_ids`, `check_doc_headings`, `check_scratch.py`; the
+  path check of §22.1's "no diff" list.
+- [ ] Review: every acceptance line has its evidence; deviations recorded; the PR body carries §22.7's
+  checklist.
+
+Then push, open the PR **READY FOR OPERATOR REVIEW**, and stop. Do not merge.
+
+### Test ownership
+
+```text
+STATIC      Godot's parser on every launch (GD-0); cargo fmt/clippy on client_rules.rs
+SCAN        client_rules.rs (X-3)
+REAL RUN    (the project's Gate 2) GE-, B-, C-, X-, GD- and V- checks: the real client on Jolt against the
+            real server; the operator's play is the final judge of feel and look (§22.7)
+UNIT        none: every 12e claim is a scene against a server; a unit test of the correction arithmetic
+            would assert what C-2 measures end to end
+GATE 1      NOT REQUIRED — no language model
+CI          the Rust gate as main's workflow runs it (`fast`, `test`); no Godot job exists (F-E15)
+```
+
+## 22.9 Is any of this material?
+
+- **Changes to frozen statements, bounded and recorded:** the ray does not mask `LAYER_DISCLOSED`
+  (SD-E3, refining step-15 §4.2); `DOOR_GAP` within 0.5 m (was 0.4) because 12d moved every doorway
+  0.4 m inside; the step-15 →
+  step-11 move of 12e's detail (the coordinator's brief).
+- **Operator-material:** QE-2 (a visible change to the accepted street, or keeping a known
+  disagreement), QE-6 only if `path` is dropped rather than left open, QE-9 (platform evidence). The
+  visual defaults (QE-4, QE-5, the glide QS14-11) are the primary session's to choose and the operator's
+  to judge in play (`overall.md` 2026-10-08).
+- **Material stops during implementation:** any server, kernel, contract, System Pack, world or
+  shared-module change; a confirmed visual regression (V-1, V-3, V-4); a GE row over 150 mm on 12d's
+  content; Jolt unable to hold a contact without depenetration fights at r 0.25 (C-4 failing on the
+  unmutated head).
+
+## 22.10 Questions (QE-1 …)
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QE-1** | **Order with 16c.** 16c's D-16c-1 lets 12e and 16c land in either order. Should 12e wait for 16c? | **Yes, after 16c.** 12e then builds on `SliceLayout` and `SliceFigures`, its people colliders ride walking figures, and the probe covers the store. If the primary session prefers either order, SD-E1's fallback applies and the store row is owed by the later PR |
+| **QE-2 [OM]** | **FU-12d-1, the bank tree** whose canopy overhangs the pavement at 1.66 m and stops a 3D player where the server does not. (a) **prune**: lift that one tree's overhang to ≥ 2.44 m over the walkable floor (or set it back onto the bank) — a small visible change at the street's east end of the accepted slice; (b) keep it and exempt it by name in the probe, a disagreement the player can feel; (c) a later bodies PR adds overhead solids | **(a).** Real pavements keep branches at least 8 ft (2.44 m) above the walking surface (San Mateo, Kaukauna, Custer and Bartlesville codes); a canopy at head height over a pavement is not a real-world default, and (a) removes the only geometry the two views cannot share. The look is the operator's: checklist item 7 |
+| **QE-3** | **The glide** (QS14-11, delegated to the primary session): ≤ 1 m over 120 ms, snap above | **As SD-E8**, judged in play (items 3, 6) |
+| **QE-4 [OM: visual default, judged in play]** | **How objects look**: primitives in the slice's palette, or CC0 props scaled to the disclosed shape (QS14-13) | **Primitives in the palette** for 12e: the café box is a 0.40 m cube and the ball a 0.22 m sphere (a size-5 football), and no CC0 prop in `ASSETS.md` has those proportions without distortion; a matching prop later is a visual-track change |
+| **QE-5 [OM: visual default, judged in play]** | **Keys and prompts**: F kick, G/aim/G throw, R shove, Esc cancel; the HUD's offer line (SD-E10) | **As SD-E6, SD-E10.** SET-b's key map (read-only) shows them later |
+| **QE-6 [OM if dropped]** | **S11-C's readers not on 12e's base**: ship with tweens and the heuristic correction, keeping "objects animated along `path`" open; or wait; or drop the item | **Ship, keep it open** (QS14-18): a few lines in `object_view.gd` close it when the module reads events |
+| **QE-7** | **The person capsule as a client constant** while no person shape is disclosed | **Constant now, with B-r as its behavioural guard.** Record as a requirement on IL-c: when the radius becomes world configuration, bodies discloses it (R-S15-3) and the client reads it, in the same PR |
+| **QE-8** | **The target ray ignores the invisible disclosed walls** (SD-E3) | **Yes**: the eye sees the scene; disagreements are the probe's to catch |
+| **QE-9 [OM]** | **Platform evidence for a Godot client**: macOS real runs; Linux headless runs only if a Godot 4.7.2 binary is available to the session; Windows by review. Should 12e require a Linux or Windows run before review, or is that the operator's hands-on check? | **macOS runs plus review, the Linux headless modes if Godot is available, and the operator's optional Windows play**; a Godot CI job is S13's to add |
+| **QE-10** | **`ADOPTION.md` §4.1** sits under `clients/protocol/` but outside the module; 16a's and 16c's contracts said "no edit to `clients/protocol/**`" | **Allow this one documentation edit in 12e**: the 12e row names it, and a client author needs the correction obligation where the reporting rule already is. The module's code stays untouched (ruling 4) |
+| **QE-11** | **Launcher pass-through** of `--save=` and `--time-scale=` to the hosted server, for scripted modes | **Accept**, bounded: the server already takes both (S11-B) |
+| **QE-12** | **Puppet seats** in the probe (`bob`, `wanderer`, `ivan` held by extra connections) | **Accept**: real requests on real connections; scripted modes host without `--town`, so the seats are free |
+
+## 22.11 Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| **R-E1** | The 50 mm thinner capsule lets the route D+ character's rucksack or hand reach into walls in third person | V-3's contact frames before/after; a new penetration is a material stop with both frames, never hidden by changing the camera |
+| **R-E2** | Jolt depenetrates the player out of a person's capsule and fights the correction | Radius equal to the server's (B-r); figures updated before the player's step; C-4 measures it |
+| **R-E3** | The heuristic correction fires late or twice under latency | Suspension (C-2b, M-E4); the exact form as soon as the module reads `acted_through` |
+| **R-E4** | Conflicts with 16c (`slice_link.gd`, figures) and SET-a (HUD strings) | QE-1; new files with one job each; whichever lands second converts or rebases, recorded |
+| **R-E5** | 12d's merged content differs from its frozen §19.3.1 / E-TD1 | GE-* read the real disclosure and the real scene; a difference over 150 mm is reported, not absorbed |
+| **R-E6** | Under 12n, a hosted walker's figure hops 1.34 m per wall second (until 16c) and its collider lands on the player | The figure moves first; the server's arrivals never overlap; C-4; noted as a known limitation if 12e lands before 16c |
+| **R-E7** | Puppet staging (B-b) is not stable: the crowd shifts while being pushed | Puppets re-stand at their points between attempts; the claim is about the player's stride (stopped short) and drawn separation, not the puppets' final spot |
+| **R-E8** | Another lane's Godot window covers a capture, or a run joins a foreign server | One window at a time; stalled captures INCONCLUSIVE and re-run once; port 0 and own-PID kill |
+
+## 22.12 Cross-lane impacts
+
+| Lane | Impact |
+| --- | --- |
+| **S14 16c** | Either order (D-16c-1); 12e recommends after (QE-1). The 0.4 m inset is carried once (SD-E13) |
+| **S14 16d, 16e, 16f** | 16d's buy menu uses SD-E10's offer line; 16e's parity report gains loose objects (13f); 16f replaces the scene's colliders by disclosure — `client_bodies.gd` is its seed |
+| **S11-C** | Its module readers turn on SD-E8's exact form and SD-E9's `path` |
+| **IL-c** | Radius as world configuration needs R-S15-3 and the client reading it (QE-7) |
+| **SET-a / SET-b** | 12e's HUD strings become keys in whichever lands second; F/G/R join SET-b's key map |
+| **12n** | No change required (SD-N12); click-to-walk remains optional and later |
+
+## 22.13 Proposed execution contract for PR 12e (fields; confirmed at freeze)
+
+```text
+PROJECT / PR        MVP-0 · S15 / PR 12e — bodies in the 3D client
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §22 (this section)
+RELATED / BINDING   step-11 §§7, 10.1 (I-1, I-8), 11.1, 19 (12d as merged), 21 (12n as merged);
+                    step-15 §§2–10, 19 (16a), 20 (16c); step-19 §4 (ARC-67); overall.md "Parallel
+                    build-out" (rulings 4, 6, 9), "One world, two views", "Framework, not demo";
+                    ENGINEERING_RULES §§3–12, 19; VISUAL_FIDELITY; HUMAN_REVIEW_QUEUE (VIS-3D-GODOT-1/-2);
+                    DECISIONS DEP-13, DEP-20, ARC-39, ARC-67
+PRECONDITION        12d merged on main (and 16c, if QE-1 is answered as recommended)
+IMPLEMENTATION BASE main after the precondition; branch mvp0/pr-12e-3d-bodies; worktree
+                    /Users/yuema137/mineworld-worktrees/impl-12e (this session only; confirm no other
+                    session holds it before editing)
+APPROVED SCOPE      §22.1, as answered by QE-1 … QE-12
+FROZEN INVARIANTS   I-1, I-8; I-S14-1 … I-S14-10; §22.1's "no diff" paths; no regression of
+                    VIS-3D-GODOT-1 or -2 (§22.6); CORRECTION_MM and the 150 mm probe tolerance never
+                    widened after a measurement; no rule number quoted by the client or its probe
+SEQUENCE            EC-0 → (freeze) → EC-1 … EC-8, each committed and pushed when coherent
+COMMANDS            cargo fmt / check / clippy -D warnings / test ($HOME/.cargo/bin/cargo if needed);
+                    python3 scripts/check_doc_headings.py, check_decision_ids.py, check_scratch.py;
+                    godot --headless --path clients/3d-spike … and clients/3d-spike/tools/*.gd;
+                    ./mineworld-slice and ./mineworld-3d modes; target/debug/mineworld server|inspect;
+                    git and gh (no merge); mkdir -p; sed -n. Never python3 -c, sed -i, awk, xargs, curl
+                    or heredoc writes. One Godot window at a time; kill only this run's own server
+VALIDATION BUDGET   real client runs: each ≤ ~10 min, background when > 2 min; total ≤ ~4 h of wall time
+                    including retries; full cargo test once on the final head; real-model NOT REQUIRED
+LIVE DOCUMENTATION  §22.8 checkboxes, §22.14 ledger
+HANDOFF             §22.14's handoff block (one authority, as Q-16a-4)
+ENDPOINT AUTHORITY
+  implementation + local validation   after the freeze, once the precondition holds
+  semantic commits, branch push       authorized by the freeze
+  PR creation / update                authorized, READY FOR OPERATOR REVIEW
+  CI repair                           authorized: `fast` and `test` green on the exact head
+  merge                               explicit operator authorization only, merge commit
+POST-MERGE SYNC     the planning session owns the step header, §§1–15 and overall; the implementing
+                    session owns §22's ledger, deviations and merge identity
+NORMAL STOP         PR 12e READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       §22.9's list; a change to §22.1's scope or a frozen invariant
+```
+
+## 22.14 Ledger (live)
+
+```text
+EC-0    drafted on plan/s15-12e from main @ f80bbb7 (2026-10-09). check_doc_headings: "191 numbered
+        sections across 26 documents, none duplicated"; check_decision_ids: "73 decision ids, all
+        distinct" (this plan is under .structured-coding/, which they do not read: run to show nothing
+        else moved). §22's headings 22.1–22.14 are unique within this file
+handoff checkpoint: PR design ready for freeze review; next action: the primary session's freeze
+        review, then a fresh implementation session in impl-12e once 12d (and 16c, QE-1) has merged
+```
+
+Deviations and discoveries during implementation are recorded in §22.15 when the work starts.
 
 **What was dropped, and why (so it is not tried again unmeasured).** SD-Z1 (a scene of only what a
 stride can reach), SD-Z3 (an exact integer corridor) and SD-Z4 (integer wall strides): Rapier 0.36.0's
