@@ -12,7 +12,9 @@ partial-clone filter), because a green layer is only evidence about the toolchai
 with. Every command is printed before it runs and timed after; the first failure stops the layer with
 that command's exit status. Nothing is retried and nothing is allowed to fail (ARC-48).
 
-    python3 scripts/ci_layer.py fast | core       run a layer
+    python3 scripts/ci_layer.py fast | core | platforms
+                                                   run a layer (`platforms` natively, not in the
+                                                   container: `.github/actions/native`)
     python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
     python3 scripts/ci_layer.py --prune-cache      before CI saves target/: drop the workspace's own
                                                    artifacts and the tests' scratch saves, keep the
@@ -51,6 +53,21 @@ LAYERS: dict[str, list[list[str]]] = {
         ["cargo", "test", "--workspace"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # S16's packages on every platform (step-16 §16.12 PD-p1, §17.12 PD-q4): run natively on macOS and
+    # Windows by the `platforms` job, outside the container. The subset of the suite that S16's crates and
+    # commands own and that is portable today; the whole workspace on Windows is S13's (RE-p1). Each PR
+    # of S16 that lands a portable CLI target adds it here (E-c: `third_party`, and PD-p3's offline check).
+    "platforms": [
+        ["cargo", "build", "--locked", "-p", "mineworld-cli"],
+        [
+            "cargo", "test", "--locked",
+            "-p", "mineworld-packages", "-p", "mineworld-worldpack", "-p", "mineworld-installed-systems",
+        ],
+        [
+            "cargo", "test", "--locked", "-p", "mineworld-cli",
+            "--test", "packs", "--test", "requirements", "--test", "entity_packs",
+        ],
+    ],
 }
 
 # Layers whose disk use is worth recording (step-14 A13-3: free disk and the size of target/).
@@ -80,11 +97,17 @@ def report(command: list[str]) -> None:
 
 
 def disk(moment: str) -> None:
+    """Prints free disk and target/'s size for the record; on a runner without `df`/`du` (Windows
+    outside its bash), says so instead — the record is information, never a verdict."""
     print(f"[ci] disk {moment}:", flush=True)
-    subprocess.run(["df", "-h", str(ROOT)], cwd=ROOT)
     present = [path for path in ("target", "target/tmp") if (ROOT / path).exists()]
-    if present:
-        subprocess.run(["du", "-sh", *present], cwd=ROOT)
+    for command in (["df", "-h", str(ROOT)], ["du", "-sh", *present] if present else None):
+        if command is None:
+            continue
+        try:
+            subprocess.run(command, cwd=ROOT)
+        except FileNotFoundError:
+            print(f"[ci] {command[0]}: not found on PATH", flush=True)
     sys.stdout.flush()
 
 
