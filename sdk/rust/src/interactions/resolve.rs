@@ -1,6 +1,6 @@
 //! Resolution: a section and the world's classes become one sorted value, refused at load when an
 //! entry names an undefined class or two entries are ambiguous (`ARC-63` items 3 … 6). Pure: the same
-//! files always give the same value, whatever order their entries were written in.
+//! files always resolve to the same value, whatever order their entries were written in.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -56,7 +56,7 @@ impl<S: InteractionSection> Resolution<S> {
     }
 
     /// Whether `action` is permitted for these subjects: the most specific matching rules decide, a
-    /// `forbid` among them wins, and no matching rule gives the default.
+    /// `forbid` among them wins, and with no matching rule the default applies.
     pub fn permits(
         &self,
         classes: &EntityClasses,

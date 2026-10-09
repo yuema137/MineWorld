@@ -232,7 +232,7 @@ pub fn consequence<S: InteractionSection>(
     }
 }
 
-/// The visibility an audience gives. The section was refused at load if it widened its owner's
+/// The visibility an audience means. The section was refused at load if it widened its owner's
 /// default, so this only narrows; an audience of a place with no place to name keeps the default.
 fn narrowed(
     audience: Option<Audience>,

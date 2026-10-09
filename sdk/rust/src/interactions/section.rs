@@ -85,8 +85,8 @@ pub trait Parameters:
 /// mineworld_sdk::parameters! {
 ///     /// What a world may choose about this pack.
 ///     pub struct Tuning, partial TuningPartial {
-///         /// Seconds of silence that end a conversation.
-///         gap: u32 = 300, 1 ..= 86_400;
+///         /// Seconds between two steps.
+///         interval: u32 = 300, 1 ..= 86_400;
 ///     }
 /// }
 /// ```

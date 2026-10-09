@@ -12,7 +12,7 @@
 //!
 //! The SDK supplies the shape; the pack supplies the meaning. Nothing here names a pack.
 
-mod biography;
+pub mod biography;
 mod decl;
 mod lookup;
 mod resolve;

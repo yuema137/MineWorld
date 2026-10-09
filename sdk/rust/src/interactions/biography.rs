@@ -1,5 +1,5 @@
 //! The selection the biography projection asks (`ARC-65` item 4, the `ARC-29` note): whether a fact
-//! enters a person's biography, given the compiled set and the save's configured sections.
+//! enters a person's biography, from the compiled set and the save's configured sections.
 //!
 //! Pure, and type-erased: the projection reads a save, not a pack's types, so each pack's configured
 //! fact is read into a [`ConsequenceTable`] by the function its `SectionDecl` names.

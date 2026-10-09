@@ -192,7 +192,7 @@ fn the_most_specific_matching_entry_wins_field_by_field() {
 }
 
 /// Rules: forbid overrides permit at equal specificity (M-IB5a's target); a more specific permit
-/// beats a less specific forbid; no matching rule gives the default, and `default: forbid` denies.
+/// beats a less specific forbid; with no matching rule the default applies, and `default: forbid` denies.
 #[test]
 fn forbid_wins_ties_specificity_wins_otherwise_and_the_default_applies_last() {
     let classes = classes();

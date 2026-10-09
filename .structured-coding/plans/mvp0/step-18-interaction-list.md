@@ -2104,11 +2104,11 @@ IB-9).
 `advanced` with a declared audience and a configurable biography, a `PerceptionProvider` offering
 `advance` through `permits`, and `table: data/…`. Updated: `configuration_seam.rs`. NEW:
 `interaction_schema.rs`.
-- [ ] Implementation: as above.
-- [ ] Validation: IB-5 (a)–(e) with M-IB5a/b/c; IB-10 with M-IB10; IL-a's IA-2, IA-4 a and IA-7 still
-  pass, with any edit to them recorded (§12.8).
-- [ ] Review: test-tuning still names no pack vocabulary; its tests assert behaviour (refusals,
-  envelopes, selections), not getters.
+- [x] Implementation: as above (E-IB-7; the attachment on a second test pack, D-IB-9).
+- [x] Validation: IB-5 (a)–(e) with M-IB5a/b/c; IB-10 with M-IB10; IL-a's IA-2, IA-4 a and IA-7 still
+  pass, with any edit to them recorded (§12.8) (E-IB-7).
+- [x] Review: test-tuning still names no pack vocabulary; its tests assert behaviour (refusals,
+  envelopes, selections), not getters (E-IB-7).
 
 ### IB-C8 — Tools: the biography projection and `mineworld interactions`
 
@@ -2404,6 +2404,44 @@ E-IB-5  2026-10-09, IB-C5 + IB-C6 (one commit, D-IB-8): NEW sdk/rust/src/interac
         authoring, worldpack, presence, cli (all targets). Review: no HashMap, no float, no clock in the
         module; every vector in Resolved is built from BTreeMaps or sorted; resolve() returns a value
         for every input or a ConfigurationRefusal. PASS.
+E-IB-7  2026-10-09, IB-C7: tests/acceptance/tests/configuration/mod.rs — test-tuning is now
+        interactions!() (VERSION 2): parameters! { step 1 … 100 = 1 }; ACTIONS advance (actor,
+        target; regional); FACTS advanced (actor = subjects[0], target = subjects[1], default Place,
+        narrowest Participants, biography configurable; BIOGRAPHICAL [advanced]); reference lists
+        default, gentle, loop-a ⇄ loop-b, deep-1 … deep-5; `tuned:` gains an optional `at` (the place a
+        lookup asks about; Count holds it); validate asks `permits` first; resolve takes `by` from
+        `parameters` and the envelope's Visibility from `consequence`; its PerceptionProvider offers
+        advance, `.refused(reason)` when `permits` refuses. NEW test-only pack test-table: a plain
+        configuration `{ table: data/<file> }`, rows decoded from the attachment (CRLF-tolerant) into
+        `table-configured`. Helpers: Setup + genesis() (classes, section decoded → check → seed, starts
+        with places), world_with(places, people with tags); IL-a's genesis_facts/world kept as wrappers.
+        configuration_seam.rs edits (claims kept): CONFIGURED is `parameters: [ { step: 5 } ]`; the
+        Stride component read became a `parameters` lookup = 5; Count gains its place; the bound's
+        message is the SDK's ("'step' is 1 … 100, not 0") at line 2 instead of test-tuning's own at
+        line 1 column 7; the drift filter is test-tuning's CONFIGURED; the "reformatted" and changed
+        cases restated as sections. NEW interaction_schema.rs (8 tests): IB-5 a–e, IB-7's schema half
+        (ten decode refusals each at its line: undeclared action, undeclared role, undeclared fact,
+        bound, unknown field, widened audience, extends unknown / cycle / too long, unknown section key;
+        ClassUndefined and Ambiguous with list and index; extends gentle → step 2 — the
+        serde_saphyr-with-line case IB-C5 deferred), IB-C6's unconfigured lookups (Ok, step 1, owner's
+        Place visibility, compiled biographical), IB-10 (rows [[1,2,3],[4,5,6]] for LF and CRLF). The
+        world for IB-5 installs presence and states arrivals first so observe has targets.
+        `interactions::biography` made `pub` (the design's path `sdk::interactions::biography::selected`).
+        configuration_vocabulary scans the SDK module, sdk/rust/tests/interactions.rs and
+        interaction_schema.rs too; it caught seven "give/given/gives" and one "conversation" in IL-b's
+        own new lines, reworded.
+        Mutations, each applied, observed failing by name, reverted:
+          M-IB5a (resolve_levels: within-level rule ties take min, permit wins) → FAILS
+            a_forbidden_pair_… "forbid overrides permit at equal specificity" (left: Accepted);
+          M-IB5b (the offer ignores `permits`) → FAILS a_forbidden_pair_… at `!offered.is_available()`;
+          M-IB5c (selected returns the compiled flag before reading Configured) → FAILS
+            biography_off_… at `!selected(&noble, ada, …)`;
+          M-IB10 (test-table's seed handed empty bytes) → FAILS an_attachments_rows_… (rows: []).
+          `git grep MUTATION -- '*.rs'` empty afterwards.
+        `cargo test -p mineworld-acceptance`: ac1_composability 13, arrival_resolvers 7, resume PASS,
+        unregistered 2, client_rules 3, complete_affordances 4 (unedited), configuration_seam 4,
+        configuration_vocabulary 2, interaction_schema 8, precursor_vocabulary and seam_vocabulary
+        (unedited) pass. PASS.
 ```
 
 ## 12.14 Deviations
@@ -2445,6 +2483,10 @@ D-IB-8  (bounded) IB-C5 and IB-C6 are one commit: the SDK-held configuration (mo
         the lookups' types at once. IB-C6's world-level validation (lookups on a configured and an
         unconfigured world; the selection) runs in IB-C7 through test-tuning, because mineworld-sdk has
         no codec dependency (serde_json) for a probe's configured fact and adding one changes Cargo.lock.
+D-IB-9  (bounded) IB-10's attachment is carried by a second test-only pack, test-table, with a plain
+        configuration: a pack whose configuration is its section (interactions!()) has no top-level key
+        for an attachment (the six section keys are fixed, SD-IB-6). A pack needing both is a later,
+        recorded amendment; S19 TW-d's pack takes a plain configuration.
 ```
 
 **Findings recorded at implementation start.**
