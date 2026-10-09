@@ -42,6 +42,7 @@ WORLD: JsonValue = {
     "protocol": 2,
     "instance": "1a2b3c4d5e6f70819293a4b5c6d7e8f9",
     "at": 0,
+    "time_scale": 1,
     "entities": 3,
     "systems": [],
     "seats": ["visitor"],
@@ -220,6 +221,16 @@ def test_a_refused_join_raises_its_code_after_the_closing() -> None:
         run(joined(script))
     assert refused.value.code == "unauthorized"
     assert script.closed and script.inbound.empty()
+
+
+def test_an_occupied_seat_is_refused_and_the_client_closes_its_socket() -> None:
+    # S11-B: the server does not follow seat_occupied with closing; the connection stays, so the
+    # session must close it itself rather than wait for a closing that never comes.
+    script = Script(json.dumps({"t": "refused", "code": "seat_occupied"}))
+    with pytest.raises(JoinRefused) as refused:
+        run(joined(script))
+    assert refused.value.code == "seat_occupied"
+    assert script.closed
 
 
 def ended_by(*frames: str) -> MineWorldError:

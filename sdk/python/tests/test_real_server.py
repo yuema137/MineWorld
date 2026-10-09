@@ -20,7 +20,7 @@ from realserver import INVITE, Recording, Server, first_difference, seated
 from websockets.asyncio.client import connect as websocket_connect
 
 from mineworld_sdk import offers
-from mineworld_sdk.session import Answered, JoinRefused, SeatSession
+from mineworld_sdk.session import Answered, JoinRefused, SeatSession, SessionClosed
 from mineworld_sdk.wire import codec
 from mineworld_sdk.wire.contract import Accepted, Observation
 from mineworld_sdk.wire.frames import Invite, ObservationFrame
@@ -319,6 +319,33 @@ def test_a_complete_affordance_is_attempted_unchanged_and_round_trips(
         for frame in observed
         for affordance in frame.observation.affordances
     ), "an observation with a complete affordance"
+
+
+def test_an_occupied_seat_is_refused_unless_taken_over(mineworld: Callable[[str], Server]) -> None:
+    """C6 (S11-B): a seat held by one connection is `seat_occupied` to a second, and `take_over`
+    takes it — the first connection is told `closing { taken_over }`."""
+    server = mineworld("social-cafe")
+
+    async def scenario() -> None:
+        first, _ = await seated(server, "visitor")
+        with pytest.raises(JoinRefused) as refused:
+            await seated(server, "visitor")
+        assert refused.value.code == "seat_occupied"
+        second = await SeatSession.connect(
+            server.url,
+            seat=EntityKey("visitor"),
+            invite=Invite(INVITE),
+            nickname="taker",
+            take_over=True,
+        )
+        async with second:
+            assert second.welcome.took_over == "connection"
+            assert second.observer == first.observer
+            with pytest.raises(SessionClosed) as closed:
+                await first.changed(since=10**9)
+            assert closed.value.reason == "taken_over"
+
+    run(scenario())
 
 
 def test_a_wrong_invite_is_refused_late_and_never_repeated(

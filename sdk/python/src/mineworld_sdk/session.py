@@ -174,25 +174,41 @@ class SeatSession:
 
     @classmethod
     async def connect(
-        cls, url: str, *, seat: EntityKey, invite: Invite, nickname: str
+        cls,
+        url: str,
+        *,
+        seat: EntityKey,
+        invite: Invite,
+        nickname: str,
+        take_over: bool = False,
     ) -> SeatSession:
         """Opens a WebSocket to `url` (`ws://host:port/ws`) and joins `seat`."""
         connection = await websocket_connect(
             url, compression=None, max_size=MAX_FRAME_BYTES, open_timeout=JOIN_PATIENCE
         )
         try:
-            return await cls.join(connection, seat=seat, invite=invite, nickname=nickname)
+            return await cls.join(
+                connection, seat=seat, invite=invite, nickname=nickname, take_over=take_over
+            )
         except BaseException:
             await connection.close()
             raise
 
     @classmethod
     async def join(
-        cls, connection: Connection, *, seat: EntityKey, invite: Invite, nickname: str
+        cls,
+        connection: Connection,
+        *,
+        seat: EntityKey,
+        invite: Invite,
+        nickname: str,
+        take_over: bool = False,
     ) -> SeatSession:
-        """Joins `seat` over an open connection and starts reading. Raises `JoinRefused`,
+        """Joins `seat` over an open connection and starts reading. Raises `JoinRefused` (for an occupied
+        seat, `seat_occupied`, unless `take_over` asks to take it, `PROTOCOL.md` §4.2),
         `ProtocolMismatch` or `ProtocolViolation`, after closing the connection."""
-        await connection.send(codec.encode(Join(invite=invite, nickname=nickname, seat=seat)))
+        frame = Join(invite=invite, nickname=nickname, seat=seat, take_over=take_over)
+        await connection.send(codec.encode(frame))
         answer = await asyncio.wait_for(_receive(connection), JOIN_PATIENCE)
         if isinstance(answer, Welcome):
             if answer.protocol != PROTOCOL_VERSION:

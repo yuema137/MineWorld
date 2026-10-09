@@ -34,6 +34,8 @@ RejectionCode = NewType("RejectionCode", str)
 Tag = NewType("Tag", str)
 
 WorldInstanceId = NewType("WorldInstanceId", str)
+ResumeSecret = NewType("ResumeSecret", str)
+"""`welcome.resume`: 128 secret bits as 32 lowercase hexadecimal characters (`PROTOCOL.md` §5.1)."""
 CorrelationToken = NewType("CorrelationToken", str)
 
 type JsonValue = bool | int | float | str | list[JsonValue] | dict[str, JsonValue] | None
@@ -76,6 +78,12 @@ def _instance(value: str) -> str:
     return value
 
 
+def _resume(value: str) -> str:
+    if not _INSTANCE.fullmatch(value):
+        raise ValueError("a resume secret is 32 lowercase hexadecimal characters")
+    return value
+
+
 def _token(value: str) -> str:
     length = len(value.encode("utf-8"))
     if not 1 <= length <= MAX_TOKEN_LENGTH:
@@ -102,4 +110,5 @@ RejectionCodeField = Annotated[RejectionCode, AfterValidator(_identifier)]
 TagField = Annotated[Tag, AfterValidator(_identifier)]
 
 WorldInstanceIdField = Annotated[WorldInstanceId, AfterValidator(_instance)]
+ResumeSecretField = Annotated[ResumeSecret, AfterValidator(_resume)]
 CorrelationTokenField = Annotated[CorrelationToken, AfterValidator(_token)]

@@ -2,8 +2,9 @@
 
 Mirrors `server/src/protocol.rs` (`ClientFrame`, `ServerFrame`, `RefusalCode`) and
 `server/src/protocol/{connection,summary}.rs`. Only what `server/PROTOCOL.md` §10 lists as landed is
-modelled: S11-B's `join.take_over` and `welcome.world.time_scale`, and S11-C's `delta` and `perceived`
-frames, are absent until those pull requests land (D-P3-5, D-P3-6).
+modelled: S11-A and S11-B (`join.take_over`, `WorldSummary.time_scale`, seat holds and their `resume`
+secret, absorbed by P3's C6 under D-P3-5). S11-C's `delta` and `perceived` frames are absent until that
+pull request lands (D-P3-6).
 
 `ClientFrame` is a closed union of `Join`, `Submit` and `Leave`. The encoder accepts nothing else, so
 this SDK can say exactly join, submit and leave (`INV-9`).
@@ -31,6 +32,7 @@ from mineworld_sdk.wire.ids import (
     EntityIdField,
     EntityKeyField,
     EventTypeIdField,
+    ResumeSecretField,
     SessionIdField,
     SystemIdField,
     WorldInstanceIdField,
@@ -74,14 +76,20 @@ class Invite:
 
 
 class Join(WireModel, arbitrary_types_allowed=True):
-    """Ask for a seat. A client names a seat, never an observer (`INV-13`)."""
+    """Ask for a seat. A client names a seat, never an observer (`INV-13`).
+
+    `resume` re-takes a seat this player's dropped connection held; `take_over` takes a seat another
+    connection holds (`PROTOCOL.md` §4.2). The SDK sends both as given and decides neither: reconnect
+    policy is P3b's.
+    """
 
     t: Literal["join"] = "join"
     protocol: Literal[2] = PROTOCOL_VERSION
     invite: Invite
     nickname: str
     seat: EntityKeyField
-    resume: str | None = None
+    resume: ResumeSecretField | None = Field(default=None, repr=False)
+    take_over: bool = False
 
     @field_serializer("invite")
     def _reveal(self, invite: Invite) -> str:
@@ -108,7 +116,7 @@ ClientFrame = Annotated[Join | Submit | Leave, Field(discriminator="t")]
 
 # ── What a server says ────────────────────────────────────────────────────────────────────────────
 
-TookOver = Literal["none", "hosted", "held"]
+TookOver = Literal["none", "hosted", "held", "connection"]
 """`TookOver`: whether control of the Person changed hands when this connection joined."""
 
 ClosingReason = Literal[
@@ -119,6 +127,7 @@ ClosingReason = Literal[
     "protocol_mismatch",
     "world_stopped",
     "server_stopping",
+    "taken_over",
 ]
 """`ClosingReason`: why the server is about to close the connection."""
 
@@ -156,6 +165,7 @@ class WorldSummary(WireModel):
     protocol: U32
     instance: WorldInstanceIdField
     at: I64
+    time_scale: U32
     entities: U64
     systems: list[SystemSummary]
     seats: list[EntityKeyField]
@@ -175,7 +185,8 @@ class Welcome(WireModel):
     observer: EntityIdField
     nickname: str
     session: SessionIdField
-    resume: str | None
+    resume: ResumeSecretField | None = Field(repr=False)
+    """The secret that re-takes this seat after a dropped socket; never shown in a `repr`."""
     hold_seconds: U32
     took_over: TookOver
     world: WorldSummary
