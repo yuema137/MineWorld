@@ -1480,6 +1480,27 @@ E-IA-12 2026-10-08, CI (#63, ARC-48) on PR #80. origin/main 2690c1b (#63: CI wor
         On 46e949c, pull_request run 37853902260: `fast` pass (1m28s), `test` pass (15m13s), `image`
         skipped. The push run 37853894080: `fast` pass, `test` skipped. PASS.
         The commit after 46e949c is this ledger only; its own checks are reported with the head.
+        On e926e91 (that ledger commit): pull_request run 37855579173, `fast` pass (1m33s), `test`
+        pass (12m26s); push run 37855574662, `fast` pass. PASS.
+E-IA-13 2026-10-08, after #80's approval (primary session: D-16 accepted, placement in-crate accepted, the
+        removed-direction gap accepted as recorded). origin/main 78ca5ae (#84, S15 12d-0) was merged in
+        as ecbc9e1. #84 changes the bodies pack (bodies is now version 3), DECISIONS.md, MVP_STATUS.md,
+        and the 11/handoff plans. One conflict, in DECISIONS.md ARC-39: #84's "Note 3" (12d-0) and
+        IL-a's "Note 3" (the line's new spelling). #84's keeps the number, being on main. IL-a's
+        follows it as "Note 4", text unchanged except "items 1–8 and the notes above"; the two plan
+        lines citing it now say Note 4. No code file conflicted; no IL-a code changed.
+        IA-1's invariant, as re-stated by the primary session: IL-a changes nothing relative to the
+        new main. On ecbc9e1, by capture.sh's method (target/il-a/bodies.sh, artifacts e13-*):
+          bodies-yard 30 days seed 7: exit 0, faults 0, 62 385 facts, sha
+            bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6 = main's ZI-3;
+          long_run second process: exit 0, 4 019 632 bytes, sha
+            23f7fa76016294ab18ae5b6a6b568b61d1b36fc0741ee51eb7952276a1de5125 = main's ZI-1;
+          long_run_objects second process: exit 0, 612 428 bytes, sha
+            c8358f8bbc06c94fbd7db33375dfe21ad0da80ddd39ee93ce9a72d542798c5b4 = main's ZI-2.
+        (Main's E-Z-base values d7025dbc… and 6e4c4015… equal E-IA-0's, so the two capture methods
+        agree.) The towns were not re-run: #84 leaves their digests unchanged (bodies is not enabled
+        in them), and E-IA-10's town results stand. PASS.
+        CI on the pushed head is reported with the head.
 ```
 
 ## 11.12 Deviations
