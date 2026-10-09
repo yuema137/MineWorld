@@ -32,7 +32,20 @@
 use std::path::{Path, PathBuf};
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 4] = [
+const ACTION_LITERALS: [(&str, &str, &str); 6] = [
+    (
+        "clients/2d/scripts/intents.gd",
+        "move",
+        "intents.gd builds every request of the 2D client and is its only submitter (step-13 ARC-47 R1, \
+         R2); move is the one action it composes in PR 13a",
+    ),
+    (
+        "clients/2d/scripts/app.gd",
+        "invite",
+        "the --invite command-line option, the join credential handed to MineWorldLink (PROTOCOL.md \
+         §4.1; S11-A); it shares its spelling with group-activity's action type, and no request is built \
+         from it",
+    ),
     (
         "clients/3d-spike/scripts/slice/slice_link.gd",
         "move",

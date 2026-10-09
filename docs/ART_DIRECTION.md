@@ -740,7 +740,9 @@ human-scale
 environmentally readable
 ```
 
-A simplified semi-realistic or clean illustrated top-down style is appropriate.
+A simplified semi-realistic or clean illustrated style is appropriate, seen isometrically or from
+above. The default 2D pack is clean illustrated isometric, the `town` style (`DECISIONS.md`
+`ARC-14`; operator, 2026-10-08).
 
 The 2D and 3D presentations do not need identical art.
 

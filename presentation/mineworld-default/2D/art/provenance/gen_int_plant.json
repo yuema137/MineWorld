@@ -1,0 +1,31 @@
+{
+  "source_type": "generated",
+  "status": "candidate",
+  "generation": {
+    "provider": "openai",
+    "endpoint": "/v1/images/edits",
+    "model": "gpt-image-2.5-sunburst",
+    "date": "2026-09-27",
+    "reference_images": [
+      "h_int_upper.png",
+      "i_int_glazing.png",
+      "j_int_cafe01.png",
+      "e_shop_cafe.png"
+    ],
+    "prompt": "Match the attached reference images exactly: the same illustrated storybook look, the same soft dark outline around every shape, the same matte painted shading with no gloss, and the same warm muted palette lit by warm interior lamplight. The attached crops show the inside of a cafe seen through its windows - that is the look wanted here, seen from inside instead. Draw at a high three-quarter isometric angle, looking down on the object from above and slightly to the left, the same angle the reference street is drawn from, so the object will sit correctly on an isometric floor. Draw one piece of furniture only, alone and centred, with generous empty margin on every side. No floor, no wall, no room, no people, no shadow and no background of any kind: the entire background must be fully transparent.\nA large indoor pot plant: a leafy green house plant with broad leaves in a cream ceramic pot, the sort that stands in the corner of a cafe.",
+    "request": {
+      "model": "gpt-image-2.5-sunburst",
+      "size": "1024x1024",
+      "n": 1,
+      "output_format": "png",
+      "background": "transparent",
+      "quality": "high"
+    },
+    "response_id": 1790553658
+  },
+  "postprocess": {
+    "cleaned": false,
+    "normalized": false
+  },
+  "human_curated": false
+}

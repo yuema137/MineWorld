@@ -1,0 +1,29 @@
+{
+  "source_type": "generated",
+  "status": "candidate",
+  "generation": {
+    "provider": "openai",
+    "endpoint": "/v1/images/edits",
+    "model": "gpt-image-2.5-sunburst",
+    "date": "2026-09-27",
+    "reference_images": [
+      "h_int_upper.png",
+      "j_int_cafe01.png"
+    ],
+    "prompt": "Match the attached reference images exactly: the same illustrated storybook look, the same soft dark outline around every shape, the same matte painted shading with no gloss, and the same warm muted palette lit by warm interior lamplight. The attached crops show the inside of a cafe seen through its windows - that is the look wanted here, seen from inside instead. Draw at a high three-quarter isometric angle, looking down on the object from above and slightly to the left, the same angle the reference street is drawn from, so the object will sit correctly on an isometric floor. Draw one piece of furniture only, alone and centred, with generous empty margin on every side. No floor, no wall, no room, no people, no shadow and no background of any kind: the entire background must be fully transparent.\nA seamless repeating texture of warm honey-coloured wooden floorboards seen from directly above, painted in a soft illustrated style with gentle grain and slight variation between boards. Flat top-down view, even lighting, no objects, no shadows, no perspective. The texture must tile seamlessly: the left edge must continue into the right edge and the top edge into the bottom edge.",
+    "request": {
+      "model": "gpt-image-2.5-sunburst",
+      "size": "1024x1024",
+      "n": 1,
+      "output_format": "png",
+      "background": "opaque",
+      "quality": "high"
+    },
+    "response_id": 1790553653
+  },
+  "postprocess": {
+    "cleaned": false,
+    "normalized": false
+  },
+  "human_curated": false
+}

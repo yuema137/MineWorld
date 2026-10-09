@@ -287,14 +287,38 @@ that invented an `ActionId` would collide with the other client on its first act
 ## 6. What this module does not do yet
 
 ```text
-reconnecting          a dropped connection ends; retrying is the client's own policy (an opt-in
-                      reconnect with `resume` arrives with S11-B)
+reconnecting          a dropped connection ends; retrying is the client's own policy (§6.1; an
+                      opt-in reconnect with `resume` arrives with S11-B)
 events                `events` is empty in an observation until S11-C; what an NPC said to you
                       arrives as your own disclosed conversation history instead
 deltas                every observation is whole; S11-C may add `delta` frames, applied here
 prediction, smoothing, interpolation    yours, and deliberately not here
 a scene graph          yours entirely: this module has no opinion about how a world looks
 ```
+
+### 6.1 Reconnecting: the pattern, as guidance
+
+The module stays policy-free: a dropped connection ends with `disconnected`, and `connect_to_world`
+accepts a call from `CLOSED`, so a client reconnects with the API it already has. What a client's own
+policy must get right, as the 2D reference client does it (`clients/2d/scripts/link.gd`):
+
+```text
+1  on disconnected    keep showing the last observation, marked stale; retry with capped back-off
+                      (0.5 s doubling to 8 s), indefinitely while the player waits
+2  re-join            the SAME seat, with the same invite and nickname
+3  on welcomed        compare world.instance with the previous one:
+                        same       the world went on; keep what you learned about its layout; the
+                                   revision may be higher
+                        different  the world was replaced; drop every drawn entity and every cache
+4  refused            final for that attempt, shown by code — except world_stopped, which retries
+5  never replay       a walk in progress is abandoned at disconnect; a request whose result never
+                      arrived is reported "unknown — check the world", not resubmitted: the server
+                      allocates identity, so a retry could do the thing twice (INV-6)
+```
+
+Point 5 is the one that matters most. Reconnecting is safe because a client's whole state is
+replaced by the next observation (§3.4); resubmitting is not, because the world may already have
+done what was asked.
 
 A future protocol revision raises `MineWorldClient.PROTOCOL`. This module refuses to continue when a
 server answers with a number it does not recognize, rather than guessing at a frame it cannot read.

@@ -1,0 +1,29 @@
+{
+  "source_type": "generated",
+  "status": "candidate",
+  "generation": {
+    "provider": "openai",
+    "endpoint": "/v1/images/edits",
+    "model": "gpt-image-2.5-sunburst",
+    "date": "2026-09-27",
+    "reference_images": [
+      "f_shop_bakery.png",
+      "g_shop_left.png"
+    ],
+    "prompt": "Match the attached reference images exactly: the same illustrated storybook look, the same soft dark outline around every shape, the same matte painted shading with no gloss, the same warm muted daylight palette lit from the upper left, and the same viewing angle the reference buildings are drawn at - seen slightly from above and very slightly from the left, with the shopfront almost face-on. Draw one subject only, centred, with generous empty margin on every side. No ground, no paving, no pavement, no street, no sky, no neighbouring buildings, no people, and no background of any kind: the entire background must be fully transparent.\nA single terracotta flower pot, seen from above and slightly to the side, planted with a leafy green shrub and a few small white and pink blooms with visible petals. Warm terracotta with a soft dark outline.",
+    "request": {
+      "model": "gpt-image-2.5-sunburst",
+      "size": "1024x1024",
+      "n": 1,
+      "output_format": "png",
+      "background": "transparent",
+      "quality": "high"
+    },
+    "response_id": 1790551645
+  },
+  "postprocess": {
+    "cleaned": false,
+    "normalized": false
+  },
+  "human_curated": false
+}

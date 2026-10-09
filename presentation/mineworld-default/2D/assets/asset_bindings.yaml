@@ -1,0 +1,1243 @@
+{
+  "default_set": "town",
+  "format": 1,
+  "sets": {
+    "full": {
+      "extends": "people",
+      "roles": {
+        "facade:cafe": "gen_shop_cafe",
+        "prop:planter": "gen_planter_flowers",
+        "prop:planter_b": "gen_planter_flowers",
+        "prop:pot": "gen_pot_plant",
+        "prop:pot_b": "gen_pot_plant"
+      }
+    },
+    "people": {
+      "extends": "procedural",
+      "roles": {
+        "person:0": "gen_a",
+        "person:1": "gen_b",
+        "person:2": "gen_c",
+        "person:3": "gen_d",
+        "person:4": "gen_e",
+        "person:5": "gen_f",
+        "person:6": "gen_g",
+        "person:7": "gen_h",
+        "person:8": "gen_j",
+        "player": "gen_player"
+      }
+    },
+    "procedural": {
+      "roles": {
+        "facade:cafe": "shop_cafe",
+        "person:0": "npc_a",
+        "person:1": "npc_b",
+        "person:2": "npc_c",
+        "person:3": "npc_d",
+        "person:4": "npc_e",
+        "player": "player",
+        "prop:bench": "bench",
+        "prop:bicycle": "bicycle",
+        "prop:bin": "barrel",
+        "prop:bush_a": "bush_a",
+        "prop:bush_b": "bush_b",
+        "prop:bush_c": "bush_c",
+        "prop:bush_d": "bush_d",
+        "prop:cafeset": "cafeset",
+        "prop:chalkboard": "chalkboard",
+        "prop:hedge": "hedge",
+        "prop:int_banquette": "gen_int_banquette",
+        "prop:int_counter": "gen_int_counter",
+        "prop:int_pendant": "gen_int_pendant",
+        "prop:int_plant": "gen_int_plant",
+        "prop:int_shelf": "gen_int_shelf",
+        "prop:int_table": "gen_int_table",
+        "prop:lamppost": "lamppost",
+        "prop:planter": "planter",
+        "prop:planter_b": "planter_b",
+        "prop:pot": "pot",
+        "prop:pot_b": "pot_b",
+        "prop:signpost": "signpost",
+        "prop:tree_a": "tree_a",
+        "prop:tree_b": "tree_b",
+        "prop:tree_c": "tree_c",
+        "prop:tree_d": "tree_d",
+        "prop:tree_e": "tree_e",
+        "prop:tree_f": "tree_f",
+        "prop:tree_g": "tree_g",
+        "prop:tree_h": "tree_h",
+        "prop:tree_i": "tree_i",
+        "texture:floor": "floor_boards",
+        "texture:paper": "paper_grain"
+      }
+    },
+    "town": {
+      "extends": "people",
+      "roles": {
+        "facade:apartments": "sib_building_apartment_block",
+        "facade:cafe": "sib_building_cafe",
+        "facade:residential": "sib_building_apartment_block",
+        "facade:unknown:0": "sib_building_house_townhouse",
+        "facade:unknown:1": "sib_building_house_cottage",
+        "prop:bench": "sib_prop_bench",
+        "prop:bicycle": "sib_prop_bicycle",
+        "prop:bin": "sib_prop_litter_bin",
+        "prop:bush_a": "sib_tree_shrub_cluster",
+        "prop:bush_b": "sib_tree_shrub_cluster",
+        "prop:bush_c": "sib_tree_shrub_cluster",
+        "prop:bush_d": "sib_tree_shrub_cluster",
+        "prop:cafeset": "sib_prop_cafe_parasol_table",
+        "prop:hedge": "sib_tree_shrub_cluster",
+        "prop:lamppost": "sib_prop_streetlamp",
+        "prop:planter": "sib_prop_planter",
+        "prop:planter_b": "sib_prop_planter",
+        "prop:pot": "sib_tree_flower_bed",
+        "prop:pot_b": "sib_tree_flower_bed",
+        "prop:signpost": "sib_prop_signpost",
+        "prop:tree_a": "sib_tree_broadleaf_large",
+        "prop:tree_b": "sib_tree_round_small",
+        "prop:tree_c": "sib_tree_cherry_blossom",
+        "prop:tree_d": "sib_tree_broadleaf_large",
+        "prop:tree_e": "sib_tree_conifer",
+        "prop:tree_f": "sib_tree_round_small",
+        "prop:tree_g": "sib_tree_conifer",
+        "prop:tree_h": "sib_tree_cherry_blossom",
+        "prop:tree_i": "sib_tree_round_small"
+      }
+    }
+  },
+  "sprites": {
+    "barrel": {
+      "anchor": [
+        70.0,
+        164.0
+      ],
+      "file": "art/svg/barrel.svg",
+      "ink": "prop",
+      "scale": 0.24
+    },
+    "bench": {
+      "anchor": [
+        150.0,
+        198.0
+      ],
+      "file": "art/svg/bench.svg",
+      "ink": "prop",
+      "scale": 0.26
+    },
+    "bicycle": {
+      "anchor": [
+        160.0,
+        192.0
+      ],
+      "file": "art/svg/bicycle.svg",
+      "ink": "prop",
+      "scale": 0.24
+    },
+    "bush_a": {
+      "anchor": [
+        108.0,
+        150.0
+      ],
+      "file": "art/svg/bush_a.svg",
+      "ink": "veg",
+      "scale": 0.29
+    },
+    "bush_b": {
+      "anchor": [
+        87.5,
+        120.0
+      ],
+      "file": "art/svg/bush_b.svg",
+      "ink": "veg",
+      "scale": 0.2954
+    },
+    "bush_c": {
+      "anchor": [
+        116.0,
+        140.0
+      ],
+      "file": "art/svg/bush_c.svg",
+      "ink": "veg",
+      "scale": 0.2773
+    },
+    "bush_d": {
+      "anchor": [
+        80.5,
+        160.0
+      ],
+      "file": "art/svg/bush_d.svg",
+      "ink": "veg",
+      "scale": 0.3294
+    },
+    "cafeset": {
+      "anchor": [
+        210.0,
+        460.0
+      ],
+      "file": "art/svg/cafeset.svg",
+      "ink": "prop",
+      "scale": 0.3
+    },
+    "chalkboard": {
+      "anchor": [
+        85.0,
+        212.0
+      ],
+      "file": "art/svg/chalkboard.svg",
+      "ink": "prop",
+      "scale": 0.26
+    },
+    "floor_boards": {
+      "file": "art/interior/floor_boards.png"
+    },
+    "gen_a_back": {
+      "anchor": [
+        24.0,
+        114.0
+      ],
+      "file": "art/generated/gen_a_back.png",
+      "height_m": 1.78,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_a_back_b": {
+      "anchor": [
+        24.0,
+        114.0
+      ],
+      "file": "art/generated/gen_a_back_b.png",
+      "height_m": 1.78,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_a_front": {
+      "anchor": [
+        22.5,
+        114.0
+      ],
+      "file": "art/generated/gen_a_front.png",
+      "height_m": 1.78,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_a_front_b": {
+      "anchor": [
+        22.5,
+        114.0
+      ],
+      "file": "art/generated/gen_a_front_b.png",
+      "height_m": 1.78,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_b_back": {
+      "anchor": [
+        22.0,
+        106.0
+      ],
+      "file": "art/generated/gen_b_back.png",
+      "height_m": 1.66,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_b_back_b": {
+      "anchor": [
+        22.0,
+        106.0
+      ],
+      "file": "art/generated/gen_b_back_b.png",
+      "height_m": 1.66,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_b_front": {
+      "anchor": [
+        23.5,
+        106.0
+      ],
+      "file": "art/generated/gen_b_front.png",
+      "height_m": 1.66,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_b_front_b": {
+      "anchor": [
+        23.5,
+        106.0
+      ],
+      "file": "art/generated/gen_b_front_b.png",
+      "height_m": 1.66,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_c_back": {
+      "anchor": [
+        28.5,
+        109.0
+      ],
+      "file": "art/generated/gen_c_back.png",
+      "height_m": 1.7,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_c_back_b": {
+      "anchor": [
+        28.5,
+        109.0
+      ],
+      "file": "art/generated/gen_c_back_b.png",
+      "height_m": 1.7,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_c_front": {
+      "anchor": [
+        26.5,
+        109.0
+      ],
+      "file": "art/generated/gen_c_front.png",
+      "height_m": 1.7,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_c_front_b": {
+      "anchor": [
+        26.5,
+        109.0
+      ],
+      "file": "art/generated/gen_c_front_b.png",
+      "height_m": 1.7,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_d_back": {
+      "anchor": [
+        22.5,
+        105.0
+      ],
+      "file": "art/generated/gen_d_back.png",
+      "height_m": 1.64,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_d_back_b": {
+      "anchor": [
+        22.5,
+        105.0
+      ],
+      "file": "art/generated/gen_d_back_b.png",
+      "height_m": 1.64,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_d_front": {
+      "anchor": [
+        20.5,
+        105.0
+      ],
+      "file": "art/generated/gen_d_front.png",
+      "height_m": 1.64,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_d_front_b": {
+      "anchor": [
+        20.5,
+        105.0
+      ],
+      "file": "art/generated/gen_d_front_b.png",
+      "height_m": 1.64,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_e_back": {
+      "anchor": [
+        24.0,
+        115.0
+      ],
+      "file": "art/generated/gen_e_back.png",
+      "height_m": 1.8,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_e_back_b": {
+      "anchor": [
+        24.0,
+        115.0
+      ],
+      "file": "art/generated/gen_e_back_b.png",
+      "height_m": 1.8,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_e_front": {
+      "anchor": [
+        24.5,
+        115.0
+      ],
+      "file": "art/generated/gen_e_front.png",
+      "height_m": 1.8,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_e_front_b": {
+      "anchor": [
+        24.5,
+        115.0
+      ],
+      "file": "art/generated/gen_e_front_b.png",
+      "height_m": 1.8,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_f_back": {
+      "anchor": [
+        21.0,
+        102.0
+      ],
+      "file": "art/generated/gen_f_back.png",
+      "height_m": 1.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_f_back_b": {
+      "anchor": [
+        21.0,
+        102.0
+      ],
+      "file": "art/generated/gen_f_back_b.png",
+      "height_m": 1.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_f_front": {
+      "anchor": [
+        23.5,
+        102.0
+      ],
+      "file": "art/generated/gen_f_front.png",
+      "height_m": 1.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_f_front_b": {
+      "anchor": [
+        23.5,
+        102.0
+      ],
+      "file": "art/generated/gen_f_front_b.png",
+      "height_m": 1.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_g_back": {
+      "anchor": [
+        24.0,
+        104.0
+      ],
+      "file": "art/generated/gen_g_back.png",
+      "height_m": 1.63,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_g_back_b": {
+      "anchor": [
+        24.0,
+        104.0
+      ],
+      "file": "art/generated/gen_g_back_b.png",
+      "height_m": 1.63,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_g_front": {
+      "anchor": [
+        23.5,
+        104.0
+      ],
+      "file": "art/generated/gen_g_front.png",
+      "height_m": 1.63,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_g_front_b": {
+      "anchor": [
+        23.5,
+        104.0
+      ],
+      "file": "art/generated/gen_g_front_b.png",
+      "height_m": 1.63,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_h_back": {
+      "anchor": [
+        23.0,
+        113.0
+      ],
+      "file": "art/generated/gen_h_back.png",
+      "height_m": 1.76,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_h_back_b": {
+      "anchor": [
+        23.0,
+        113.0
+      ],
+      "file": "art/generated/gen_h_back_b.png",
+      "height_m": 1.76,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_h_front": {
+      "anchor": [
+        23.5,
+        113.0
+      ],
+      "file": "art/generated/gen_h_front.png",
+      "height_m": 1.76,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_h_front_b": {
+      "anchor": [
+        23.5,
+        113.0
+      ],
+      "file": "art/generated/gen_h_front_b.png",
+      "height_m": 1.76,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_int_banquette": {
+      "anchor": [
+        38.0,
+        67.0
+      ],
+      "file": "art/generated/gen_int_banquette.png",
+      "height_m": 1.05,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_int_counter": {
+      "anchor": [
+        50.5,
+        74.0
+      ],
+      "file": "art/generated/gen_int_counter.png",
+      "height_m": 1.15,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_int_pendant": {
+      "anchor": [
+        21.0,
+        54.0
+      ],
+      "file": "art/generated/gen_int_pendant.png",
+      "height_m": 0.85,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_int_plant": {
+      "anchor": [
+        36.0,
+        86.0
+      ],
+      "file": "art/generated/gen_int_plant.png",
+      "height_m": 1.35,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_int_shelf": {
+      "anchor": [
+        39.5,
+        134.0
+      ],
+      "file": "art/generated/gen_int_shelf.png",
+      "height_m": 2.1,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_int_table": {
+      "anchor": [
+        33.0,
+        64.0
+      ],
+      "file": "art/generated/gen_int_table.png",
+      "height_m": 1.0,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_j_back": {
+      "anchor": [
+        24.0,
+        108.0
+      ],
+      "file": "art/generated/gen_j_back.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_j_back_b": {
+      "anchor": [
+        24.0,
+        108.0
+      ],
+      "file": "art/generated/gen_j_back_b.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_j_front": {
+      "anchor": [
+        23.5,
+        108.0
+      ],
+      "file": "art/generated/gen_j_front.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_j_front_b": {
+      "anchor": [
+        23.5,
+        108.0
+      ],
+      "file": "art/generated/gen_j_front_b.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_planter_flowers": {
+      "anchor": [
+        39.0,
+        74.0
+      ],
+      "file": "art/generated/gen_planter_flowers.png",
+      "height_m": 1.15,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_player_back": {
+      "anchor": [
+        23.5,
+        116.0
+      ],
+      "file": "art/generated/gen_player_back.png",
+      "height_m": 1.82,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_player_back_b": {
+      "anchor": [
+        23.5,
+        116.0
+      ],
+      "file": "art/generated/gen_player_back_b.png",
+      "height_m": 1.82,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_player_front": {
+      "anchor": [
+        24.0,
+        116.0
+      ],
+      "file": "art/generated/gen_player_front.png",
+      "height_m": 1.82,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_player_front_b": {
+      "anchor": [
+        24.0,
+        116.0
+      ],
+      "file": "art/generated/gen_player_front_b.png",
+      "height_m": 1.82,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_pot_plant": {
+      "anchor": [
+        22.5,
+        54.0
+      ],
+      "file": "art/generated/gen_pot_plant.png",
+      "height_m": 0.85,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "gen_shop_cafe": {
+      "anchor": [
+        239.5,
+        486.0
+      ],
+      "file": "art/generated/gen_shop_cafe.png",
+      "height_m": 7.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "hedge": {
+      "anchor": [
+        91.0,
+        108.0
+      ],
+      "file": "art/svg/hedge.svg",
+      "ink": "veg",
+      "scale": 0.2847
+    },
+    "lamppost": {
+      "anchor": [
+        75.0,
+        460.0
+      ],
+      "file": "art/svg/lamppost.svg",
+      "ink": "prop",
+      "scale": 0.27
+    },
+    "npc_a_back": {
+      "anchor": [
+        103.0,
+        208.0
+      ],
+      "file": "art/svg/npc_a_back.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_a_back_b": {
+      "anchor": [
+        103.0,
+        208.0
+      ],
+      "file": "art/svg/npc_a_back_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_a_front": {
+      "anchor": [
+        103.0,
+        208.0
+      ],
+      "file": "art/svg/npc_a_front.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_a_front_b": {
+      "anchor": [
+        103.0,
+        208.0
+      ],
+      "file": "art/svg/npc_a_front_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_b_back": {
+      "anchor": [
+        100.0,
+        202.0
+      ],
+      "file": "art/svg/npc_b_back.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_b_back_b": {
+      "anchor": [
+        100.0,
+        202.0
+      ],
+      "file": "art/svg/npc_b_back_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_b_front": {
+      "anchor": [
+        100.0,
+        202.0
+      ],
+      "file": "art/svg/npc_b_front.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_b_front_b": {
+      "anchor": [
+        100.0,
+        202.0
+      ],
+      "file": "art/svg/npc_b_front_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_c_back": {
+      "anchor": [
+        102.0,
+        206.0
+      ],
+      "file": "art/svg/npc_c_back.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_c_back_b": {
+      "anchor": [
+        102.0,
+        206.0
+      ],
+      "file": "art/svg/npc_c_back_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_c_front": {
+      "anchor": [
+        102.0,
+        206.0
+      ],
+      "file": "art/svg/npc_c_front.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_c_front_b": {
+      "anchor": [
+        102.0,
+        206.0
+      ],
+      "file": "art/svg/npc_c_front_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_d_back": {
+      "anchor": [
+        99.0,
+        200.0
+      ],
+      "file": "art/svg/npc_d_back.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_d_back_b": {
+      "anchor": [
+        99.0,
+        200.0
+      ],
+      "file": "art/svg/npc_d_back_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_d_front": {
+      "anchor": [
+        99.0,
+        200.0
+      ],
+      "file": "art/svg/npc_d_front.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_d_front_b": {
+      "anchor": [
+        99.0,
+        200.0
+      ],
+      "file": "art/svg/npc_d_front_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_e_back": {
+      "anchor": [
+        96.0,
+        194.0
+      ],
+      "file": "art/svg/npc_e_back.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_e_back_b": {
+      "anchor": [
+        96.0,
+        194.0
+      ],
+      "file": "art/svg/npc_e_back_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_e_front": {
+      "anchor": [
+        96.0,
+        194.0
+      ],
+      "file": "art/svg/npc_e_front.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "npc_e_front_b": {
+      "anchor": [
+        96.0,
+        194.0
+      ],
+      "file": "art/svg/npc_e_front_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "paper_grain": {
+      "file": "art/paper_grain.png"
+    },
+    "planter": {
+      "anchor": [
+        105.0,
+        162.0
+      ],
+      "file": "art/svg/planter.svg",
+      "ink": "prop",
+      "scale": 0.28
+    },
+    "planter_b": {
+      "anchor": [
+        105.0,
+        192.0
+      ],
+      "file": "art/svg/planter_b.svg",
+      "ink": "prop",
+      "scale": 0.28
+    },
+    "player_back": {
+      "anchor": [
+        114.0,
+        230.0
+      ],
+      "file": "art/svg/player_back.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "player_back_b": {
+      "anchor": [
+        114.0,
+        230.0
+      ],
+      "file": "art/svg/player_back_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "player_front": {
+      "anchor": [
+        114.0,
+        230.0
+      ],
+      "file": "art/svg/player_front.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "player_front_b": {
+      "anchor": [
+        114.0,
+        230.0
+      ],
+      "file": "art/svg/player_front_b.svg",
+      "ink": "prop",
+      "scale": 0.34
+    },
+    "pot": {
+      "anchor": [
+        65.0,
+        154.0
+      ],
+      "file": "art/svg/pot.svg",
+      "ink": "prop",
+      "scale": 0.26
+    },
+    "pot_b": {
+      "anchor": [
+        65.0,
+        154.0
+      ],
+      "file": "art/svg/pot_b.svg",
+      "ink": "prop",
+      "scale": 0.26
+    },
+    "shop_cafe": {
+      "anchor": [
+        622.0,
+        1068.4
+      ],
+      "file": "art/svg/shop_cafe.svg",
+      "ink": "shop",
+      "scale": 0.5
+    },
+    "sib_building_apartment_block": {
+      "anchor": [
+        251.0,
+        768.0
+      ],
+      "door": [
+        165.0,
+        690.0
+      ],
+      "file": "art/generated/sib_building_apartment_block.png",
+      "height_m": 12.0,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_building_cafe": {
+      "anchor": [
+        212.5,
+        512.0
+      ],
+      "door": [
+        228.0,
+        468.0
+      ],
+      "file": "art/generated/sib_building_cafe.png",
+      "height_m": 8.0,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_building_house_cottage": {
+      "anchor": [
+        189.5,
+        422.0
+      ],
+      "door": [
+        180.0,
+        335.0
+      ],
+      "file": "art/generated/sib_building_house_cottage.png",
+      "height_m": 6.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_building_house_townhouse": {
+      "anchor": [
+        143.0,
+        589.0
+      ],
+      "door": [
+        152.0,
+        540.0
+      ],
+      "file": "art/generated/sib_building_house_townhouse.png",
+      "height_m": 9.2,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_bench": {
+      "anchor": [
+        30.5,
+        59.0
+      ],
+      "file": "art/generated/sib_prop_bench.png",
+      "height_m": 0.92,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_bicycle": {
+      "anchor": [
+        35.5,
+        70.0
+      ],
+      "file": "art/generated/sib_prop_bicycle.png",
+      "height_m": 1.1,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_cafe_parasol_table": {
+      "anchor": [
+        56.5,
+        147.0
+      ],
+      "file": "art/generated/sib_prop_cafe_parasol_table.png",
+      "height_m": 2.3,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_litter_bin": {
+      "anchor": [
+        16.0,
+        63.0
+      ],
+      "file": "art/generated/sib_prop_litter_bin.png",
+      "height_m": 0.98,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_planter": {
+      "anchor": [
+        29.0,
+        51.0
+      ],
+      "file": "art/generated/sib_prop_planter.png",
+      "height_m": 0.8,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_signpost": {
+      "anchor": [
+        49.0,
+        166.0
+      ],
+      "file": "art/generated/sib_prop_signpost.png",
+      "height_m": 2.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_streetlamp": {
+      "anchor": [
+        25.0,
+        269.0
+      ],
+      "file": "art/generated/sib_prop_streetlamp.png",
+      "height_m": 4.2,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_tree_broadleaf_large": {
+      "anchor": [
+        234.0,
+        525.0
+      ],
+      "file": "art/generated/sib_tree_broadleaf_large.png",
+      "height_m": 8.2,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_tree_cherry_blossom": {
+      "anchor": [
+        143.0,
+        371.0
+      ],
+      "file": "art/generated/sib_tree_cherry_blossom.png",
+      "height_m": 5.8,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_tree_conifer": {
+      "anchor": [
+        96.0,
+        576.0
+      ],
+      "file": "art/generated/sib_tree_conifer.png",
+      "height_m": 9.0,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_tree_flower_bed": {
+      "anchor": [
+        20.5,
+        32.0
+      ],
+      "file": "art/generated/sib_tree_flower_bed.png",
+      "height_m": 0.5,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_tree_round_small": {
+      "anchor": [
+        99.0,
+        282.0
+      ],
+      "file": "art/generated/sib_tree_round_small.png",
+      "height_m": 4.4,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_tree_shrub_cluster": {
+      "anchor": [
+        45.0,
+        83.0
+      ],
+      "file": "art/generated/sib_tree_shrub_cluster.png",
+      "height_m": 1.3,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "signpost": {
+      "anchor": [
+        100.0,
+        322.0
+      ],
+      "file": "art/svg/signpost.svg",
+      "ink": "prop",
+      "scale": 0.3
+    },
+    "tree_a": {
+      "anchor": [
+        264.5,
+        506.0
+      ],
+      "file": "art/svg/tree_a.svg",
+      "ink": "veg",
+      "scale": 0.3938
+    },
+    "tree_b": {
+      "anchor": [
+        216.5,
+        456.0
+      ],
+      "file": "art/svg/tree_b.svg",
+      "ink": "veg",
+      "scale": 0.4085
+    },
+    "tree_c": {
+      "anchor": [
+        168.5,
+        386.0
+      ],
+      "file": "art/svg/tree_c.svg",
+      "ink": "veg",
+      "scale": 0.416
+    },
+    "tree_d": {
+      "anchor": [
+        368.0,
+        491.0
+      ],
+      "file": "art/svg/tree_d.svg",
+      "ink": "veg",
+      "scale": 0.3168
+    },
+    "tree_e": {
+      "anchor": [
+        180.0,
+        546.0
+      ],
+      "file": "art/svg/tree_e.svg",
+      "ink": "veg",
+      "scale": 0.4
+    },
+    "tree_f": {
+      "anchor": [
+        203.0,
+        456.0
+      ],
+      "file": "art/svg/tree_f.svg",
+      "ink": "veg",
+      "scale": 0.3813
+    },
+    "tree_g": {
+      "anchor": [
+        162.5,
+        526.0
+      ],
+      "file": "art/svg/tree_g.svg",
+      "ink": "veg",
+      "scale": 0.4385
+    },
+    "tree_h": {
+      "anchor": [
+        280.5,
+        416.0
+      ],
+      "file": "art/svg/tree_h.svg",
+      "ink": "veg",
+      "scale": 0.3423
+    },
+    "tree_i": {
+      "anchor": [
+        221.0,
+        476.0
+      ],
+      "file": "art/svg/tree_i.svg",
+      "ink": "veg",
+      "scale": 0.4049
+    }
+  }
+}

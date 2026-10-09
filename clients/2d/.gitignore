@@ -1,0 +1,9 @@
+# Godot's import cache. A clean checkout must build its own (`docs/ACCEPTANCE.md` §4.1); the
+# launcher does it.
+.godot/
+# The launcher's local world saves (`./mineworld-2d`, `--fresh` deletes one).
+.save/
+# Capture output is scratch, except the preview package, which is the reviewed artefact (ARC-24).
+shots/*
+!shots/preview/
+*.import

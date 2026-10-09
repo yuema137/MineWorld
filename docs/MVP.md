@@ -217,7 +217,9 @@ clients then prove the same semantic world can be inhabited two different ways.
 
 ## 7.1 Demo A — 2D living world
 
-A simple Godot top-down client. Its purpose is speed: it is the cheapest place to validate world
+A simple Godot 2D client — isometric in the default Presentation Pack (`DECISIONS.md` `ARC-14`), a
+north-up plan with no pack; nothing semantic depends on the projection (operator, 2026-10-08). Its
+purpose is speed: it is the cheapest place to validate world
 state, movement, interaction, multiplayer, persistence, agent behavior, and system composition.
 It is a permanent integration testbed, **not** a temporary mock UI to be discarded once 3D
 exists.
