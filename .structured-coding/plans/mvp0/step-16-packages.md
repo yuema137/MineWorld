@@ -3019,13 +3019,55 @@ loader rows) through `mineworld_test_support::scratch!`.
   (b ED-4/M-D4, c ED-3/M-D3, d ED-5/M-B3, e ED-6/M-D5); `packs.rs`' `list`/`show` untouched (E-c's lane,
   §17.8), only `validate` changed.
 
+### Ed-C4b — The `platforms` layer (E-c had not landed it; PD-q4)
+
+**Why here.** At Ed-C4 E-c's branch (`origin/mvp0/pr-ec-third-party` @ `e127e1c`) had no `platforms`
+layer and no PR; main had none. Landed as Ed-C4b in a form E-c shares: one layer in
+`scripts/ci_layer.py`, one native composite action `.github/actions/native/action.yml` (step-14
+§13.0.3 point 2: the one native-runner definition 13b also uses), one `platforms` job.
+
+- [x] Implementation: layer `platforms` = `cargo build --locked -p mineworld-cli`; `cargo test --locked
+  --no-fail-fast -p mineworld-packages -p mineworld-worldpack -p mineworld-installed-systems`; `cargo
+  test --locked --no-fail-fast -p mineworld-cli --test packs --test requirements --test entity_packs`.
+  `disk()` tolerates a runner without `df`/`du` (record only). Action: per-OS/layer `actions/cache`
+  (same pinned SHA as `.github/actions/layer`), a report of `core.autocrlf` and whether
+  `worlds/market-town/world.yaml` was checked out CRLF, `ci_layer.py <layer>` with `python3` (macOS) or
+  `python` (Windows), `--prune-cache`. Job `platforms (${{ matrix.os }})`, matrix `macos-latest`,
+  `windows-latest`, `fail-fast: false`, `test`'s `if:`, 60 min.
+  **Bounded deviations (recorded):** (1) PD-p3's offline vendored check is not in the layer — it is
+  EC-3's evidence and needs E-c's generated config; E-c adds it with `--test third_party`. (2) PD-p2's
+  sparse checkout replaced by the whole checkout: the longest tracked path is 120 characters
+  (`clients/3d-spike/assets/models/outdoor_table_chair_set_01/textures/…_1k.jpg.import`), so MAX_PATH is not reached
+  from `D:\a\MineWorld\MineWorld\`; the 3D client's assets are simply checked out. (3) Runner labels
+  `-latest` as §17.12 states; step-14 §13.0.3 point 3 recommends 13b's pinned `macos-26` /
+  `windows-2025`, a one-line change 13b applies when it lands (noted, not taken: DEP-19's decision).
+  (4) `--no-fail-fast` added after the first run, so one red test binary cannot hide another's result.
+- [x] Validation: `python3 scripts/ci_layer.py --list platforms` prints the three commands;
+  `check_ci_pins.py` exit 0. **First run** (scratch branch `scratch/ed-platforms` @ `b050ac5`, run
+  37908212320): fast ✓, test ✓, platforms macOS ✗, Windows ✗ — FAIL, diagnosed:
+  (a) macOS: `packages/tests/manifest.rs` — my new range test called `read(GOOD)`, whose scratch is
+  named by the text's hash, concurrently with `a_well_formed_pack_file_is_one_identity` reading the same
+  text; one test's drop removed the other's `pack.yaml` ("No such file or directory"). A test defect of
+  this PR (Linux passed by timing); fixed by giving the range test its own text. (b) Windows: four
+  existing `worldpack/tests/refusals.rs` tests asserted a refusal *string* contains `people/alice.yaml` /
+  `places/cafe.yaml`; Windows displays `people\alice.yaml`. Production is right (paths built with
+  `Path::join`); the tests were separator-bound. Made separator-neutral with a `shown()` helper building
+  the expected text with `Path::join(..).display()` — claim unchanged ("the refusal names the file"),
+  under PD-p5's allowance for existing `worldpack` tests. ED-13's own CRLF test passed on Windows in
+  that run. **Second run** on `a7edf3a`: recorded below (E-Ed4b).
+- [x] Review: no container change; the workflow names layers only; the action names no command but the
+  layer runner; the layer's subset is S16's portable targets (RE-q2: the rest of Windows is S13's).
+
 ### Ed-C5 — Close
 
-- [ ] `docs/MVP_STATUS.md` capability and evidence rows; `handoff-ed.md`; this ledger.
-- [ ] Full gate on the final executable head (fmt, clippy `--all-features -D warnings`, `cargo test
-  --workspace --no-fail-fast` with counts, `check_scratch.py left`); ED-11's digests and `validate`;
-  both doc checks.
-- [ ] PR opened, READY FOR OPERATOR REVIEW. Not merged.
+- [x] `docs/MVP_STATUS.md`: capability row "Entity Packs: shared item kinds (S16)" and evidence row "An
+  Entity Pack's kinds are used without being copied or rebuilt"; `handoff-ed.md`; this ledger (§17.8).
+- [x] Full gate (§17.8 "Full local gate"): fmt, workspace clippy `--all-targets --all-features -D
+  warnings`, `cargo test --workspace --no-fail-fast` 780 passed / 0 failed / 9 ignored, `check_scratch.py
+  left` and `scan` clean; ED-11 digests and `validate` equal to base; both doc checks (191/26; 72 ids).
+  The executable head after it differs by one test assertion (`7a50c1a`), covered by CI on the PR head.
+- [x] PR opened READY FOR OPERATOR REVIEW (URL and final-head CI in the PR body and `handoff-ed.md`).
+  Not merged.
 
 ## 17.7 Test ownership
 
@@ -3044,6 +3086,29 @@ GATE 1      NOT REQUIRED (nothing LM-facing)       CI  fast and core on the PR
 
 - **E-Ed0** (design, `9cf8f8e`): spike SC-7 (§16.3) is F-Ed1's evidence; both doc checks re-run with
   this section in place: 191 sections / 26 documents, none duplicated; 67 decision ids, distinct.
+- **E-Ed-start** (2026-10-08, fresh session): base `6ca763d` (#93 merged), worktree
+  `/Users/yuema137/mineworld-worktrees/impl-ed`; §17.3's anchors re-read: `manifest.rs` refused
+  `entity-pack` at `read_pack_file`, `resolve.rs` at `requirement` — as audited; `read.rs` has IL-a's
+  step 4c; `load.rs`' `provenance`/`content_file` as audited. E-c had not landed `platforms`; 12d not
+  open (no ED-1 re-capture needed).
+- **E-Ed-base** (`6ca763d`, built into `target/ed-base` from a detached worktree
+  `/Users/yuema137/mineworld-worktrees/impl-ed-base`): `validate` of the three worlds saved
+  (`target/ed-evidence/base-validate-*`); 300-day seed-7 runs: social-cafe 365 330 facts, sha256 (all
+  but `wall`) `ad49c7235f672153…`, market-town 372 755 facts `365b50e066387959…` (= E-b's EB-6 values).
+- **ED-11 (head `a7edf3a`, before merging main)**: `validate` of social-cafe (27 lines), market-town
+  (51), bodies-yard (40) byte-identical (`cmp`) to base; both towns' 300-day sha and history lines equal
+  to base. `git diff --stat 6ca763d HEAD -- kernel contracts persistence server clients systems
+  cognition tests/acceptance` → empty. Existing tests edited: the two ED-11 rows (Ed-C2), plus —
+  **deviation, bounded, PD-p5** — separator-neutral assertions in `worldpack/tests/refusals.rs` (4
+  assertions via `shown()`) and `worldpack/tests/requirements.rs` (1 needle), claims unchanged, found by
+  the first Windows runs of `platforms`.
+- **Merge of origin/main** (`a7ce497`, S11-B #83 and 13b's plan #88): no conflict; DECISIONS gained
+  ids, `check_decision_ids` 72 distinct, headings 191/26; workspace clippy `-D warnings` clean; CLI
+  `entity_packs`/`packs`/`requirements` green after it.
+- **Full local gate** (on `a7ce497` + Ed-C5's Markdown): `cargo fmt --all --check` ok; `cargo test
+  --workspace --no-fail-fast`: 174 test binaries, 780 passed, 0 failed, 9 ignored; `check_scratch.py
+  left --target-dir target` → nothing left; `check_scratch.py scan` → 162 sources, none outside the helper
+  (2 exempt, pre-existing). `7a50c1a` after it changes one test assertion only (Windows repair).
 
 | Lane | Overlap | Resolution |
 | --- | --- | --- |
