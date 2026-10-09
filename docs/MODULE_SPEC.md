@@ -478,9 +478,14 @@ routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key
                               `from` strictly increasing; neighbouring segments differ, the last
                               against the first included, because the day wraps. An agenda the
                               person may follow, never a move (`ARC-32`)
-item      item       items    { category: <slug> }: 1–32 bytes of a–z, 0–9 and '-', neither first nor
-                              last '-'. Declares the file's Item a kind the market packs trade; an
-                              item file without it is an inert entity. Disclosed to nobody (`ARC-37`)
+item      item       items    { category: <slug>, name: <display name> }: category 1–32 bytes of a–z,
+                              0–9 and '-', neither first nor last '-'; name required, 1–64 bytes, no
+                              control characters, no surrounding whitespace (two kinds may share
+                              one). Declares the file's Item a kind the market packs trade; an item
+                              file without it is an inert entity. Items are never perceived as
+                              entities; to whoever perceives a place, `item` discloses an
+                              `item-catalogue` on it: { item, category, name } for every declared
+                              kind, in ItemId order (`ARC-37` note)
 holdings  inventory  people,  { <item key>: <count ≥ 1> }: what the person or organization holds at
                      organi-  genesis, each key one of `items`. A person's counts together are at most
                      zations  six (inventory's capacity); an organization's are unbounded. Disclosed to
@@ -508,7 +513,11 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               `solids` is optional. A place without it has no geometry, and nobody in
                               it is resolved. At genesis the pack refuses two people closer than
                               595 mm, a centre outside the floor shrunk by 300 mm or within 300 mm of a
-                              solid, and a floor that cannot hold the world's population.
+                              solid, a floor that cannot hold the world's population, and a doorway
+                              point of the place (the `here` of a passage out of it, the `there` of
+                              a passage into it) outside the floor shrunk by 310 mm or within 310 mm
+                              of a solid (`bodies-doorway`, naming both places, the point and the
+                              distance; `ARC-39` note 5).
                               Object form — { shape: { box: { x, y, z } } | { ball: <radius> }, at:
                               { place: <place key>, x, y } }: one loose object lying on that place's
                               floor (`ARC-36` note). A box's half-extents are 50–400 mm in x and y and

@@ -2730,6 +2730,26 @@ to QS-54 below.
 two lines in `systems/installed` and a rebuild (`ARC-33`); without a rebuild is `ARC-8`'s Tier 1,
 outside MVP-0. The evidence is recorded in step-10 §9.6.
 
+**Note, 2026-10-08 (S15, PR 12d; step-11 §19, QD-1 decided by the operator, SD-D9) — Social Café may
+own items.** A loose object is an Item file carrying `body:` (`ARC-36` note), and it is Social Café's
+content exactly as a place's `body:` is, so item 4's last bullet and item 5 of the 11f note are amended.
+The operator's decision, as recorded in step-11 §19: Social Café may own `items/` (loose objects as Item
+files with `body:`); Market Town carries them unchanged; the claim "Market Town = Social Café +
+installed packs + configuration" stays word for word; market-owned item sections stay Market Town's
+only. Check 3 therefore reads:
+
+1. `items` may be present in Social Café. Market Town's `items` contains every key of Social Café's (as
+   a set); `organizations` stays present in Market Town only.
+2. Every item file Social Café has exists in Market Town, and is compared exactly as a place or person
+   file is: each of Social Café's keys has an equal value, and every key Market Town adds is a section
+   owned by one of the six market packs.
+3. Every item file only Market Town has carries only the format's fields and sections a market pack
+   owns, unchanged; so a `body:` in a Market Town-only item file is refused, by file and key.
+4. `organizations/` exists in Market Town only, unchanged.
+
+Every world before 12d has no `items` in Social Café, and the check reads it exactly as before. The
+claim measured is unchanged: **Market Town is Social Café plus configuration.**
+
 ---
 
 ## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack
@@ -2935,6 +2955,25 @@ item ◄── inventory ◄── item-transfer ──► presence
   (step-10 QS-28). Adding a fact before anything states it would design it ahead of its consumer
   (`CLAUDE.md` §4 rule 11).
 - **The capacity is a published constant**, not world configuration, under the `ARC-26` note's rule.
+
+**Note, 2026-10-08 (S15, PR 12d; step-11 SD-D10, QD-4, QD-12, QD-15, QD-16; step-13 R-PK-2, F-41) —
+item kinds have names, disclosed as a catalogue.** The accepted limitation "Item kinds have no names"
+is lifted; "items are never perceived" stands. Nothing else in this decision changes.
+
+1. **A kind has a display name.** The `item:` section is `{ category, name }`. `name` is required: 1–64
+   bytes, no control characters, no surrounding whitespace — the rule `naming` applies to a person's
+   name, restated in `item`, which depends on no pack. Two kinds may share a name; a name is display,
+   never identity. `item-kind-declared` and the `ItemKind` component carry it (schema 2 each); `item`
+   is version 2.
+2. **The catalogue is disclosed on a place.** To whoever perceives a place, `item` discloses one
+   `item-catalogue` record on it: `[{ item, category, name }]` for every declared kind of the world, in
+   `ItemId` order, built from `ItemKind` at disclosure and never stored (economy's listing is the
+   precedent, `ARC-38`). A world without `item` discloses none.
+3. **Items are still never perceived as entities.** An observation's entities are the observer's place
+   and the people in it, as before; a kind appears only inside the catalogue. A client shown `give {
+   item: { entity: 21, type: item } }` now finds entity 21's name there (F-41).
+4. Loose objects (`ARC-36` note) are not declared kinds, so the catalogue never lists them.
+   Organizations still have no names; `ARC-38`'s accepted limitation is lifted for kinds only.
 
 ---
 
@@ -3390,6 +3429,27 @@ extension line, `extension mineworld_presence::ArrivalResolver => mineworld_pres
 `Capability::register_extensions()`. No rule of this decision changes: the catalog, its write-once
 storage, `require_registered`, the order resolvers are asked in and every fact are as items 1–8 and the
 notes above state. Where items above say "the `resolution:` line", read "presence's extension line".
+
+**Note 5, 2026-10-08 (S15, PR 12d; step-11 §19, SD-D1, SD-D5, QD-5, QD-6) — the towns install bodies,
+and a doorway inside a wall is refused.** Items 1–8 and the earlier notes are unchanged except as
+follows. (Note 4 is IL-a's; this was planned as note 4 before IL-a merged.)
+
+1. **Both towns install `bodies`** (SD-D1): Social Café's `systems` ends with it, after `schedule`, and
+   Market Town carries it at the same position, before its six market packs. Every place of both towns
+   carries the same `body:` (a floor and solid boxes), and both carry the same four loose objects. A
+   person in a town can no longer walk out through a wall: a stride is swept against the place's floor
+   edge and its solids, and leaving is through a doorway.
+2. **A doorway point must lie where a person fits** (SD-D5). At genesis, `bodies` checks every doorway
+   point of a shaped place — the `here` of each passage out of it and the `there` of each passage into
+   it, read from `movement`'s `Passages` — to lie inside the floor shrunk by 310 mm (R + GAP) and at
+   least 310 mm from every solid. A point that does not is refused, `bodies-doorway`, naming the place,
+   the passage's other place, the point and the distance. Otherwise every crossing would be silently
+   shifted by entry placement (E3) instead of landing on the doorway.
+3. **bodies reads `movement`'s crate for `Passages` only** (QD-5), as it reads `item`'s for
+   `is_declared` (note 2): a crate dependency, no system dependency — a world without `movement` has no
+   passages to check. `isolation.rs` asserts it names nothing else of `movement`.
+4. **`bodies` is version 4** (QD-6): a save made by version 3 of a world the refusal now rejects is
+   refused by name (`ARC-25`), never re-executed into a genesis error.
 
 ---
 

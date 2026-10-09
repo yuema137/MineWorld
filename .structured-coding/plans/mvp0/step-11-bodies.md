@@ -6585,12 +6585,44 @@ E-TD0c The refresh, 2026-10-08, planning session, on plan/s15-12d-refresh @ 78ca
       2.999 ×, social-cafe 3.60 × (accepted, not passed), per-resolution max 10.5 ms. TD-12 is set from
       those numbers before any 12d measurement.
 
-E-TD-base, E-TD1 … : the implementing session's.
+E-TD-base TD-C1, 2026-10-08, implementing session, on mvp0/pr-12d-towns @ 77a8717 (= main, #85 merged),
+      before any code. Base binary `CARGO_TARGET_DIR=/tmp/s15-12d/target-base cargo build -p
+      mineworld-cli` (dev) → /tmp/s15-12d/target-base/debug/mineworld; outputs /tmp/s15-12d/base-*.
+        validate social-cafe  exit 0, 53 genesis facts; output sha-256 ebcd60a0…f56a8 (= E-Z7's)
+        validate market-town  exit 0, 129 genesis facts; output sha-256 64f41086…3502 (= E-Z7's)
+        social-cafe 300 d     faults 0, 365 330 facts, ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+                              (= E-TD0); CPU 18.55 user + 0.13 sys, wall 23.3 s
+        market-town 300 d     faults 0, 372 755 facts, 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d
+                              (= E-TD0); CPU 15.91 + 0.04, wall 16.0 s
+        bodies-yard 30 d      bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6 (= ZI-3)
+        long_run bytes        4 019 632 bytes, 23f7fa76016294ab18ae5b6a6b568b61d1b36fc0741ee51eb7952276a1de5125 (= ZI-1)
+        long_run_objects      612 428 bytes, c8358f8bbc06c94fbd7db33375dfe21ad0da80ddd39ee93ce9a72d542798c5b4 (= ZI-2)
+      Every capture equals §20.14's base. TD-1's "before" stands on the implementation base.
+
+E-TD-runs The 300-day town-run ledger (§19.13 amendment; cap 6 other + 13 TD-12 = 19):
+        other  1–2  E-TD-base (social-cafe, market-town)
 ```
 
 ## 19.13 Deviations and discoveries during implementation
 
-None yet.
+**TD-D1 — `ARC-39` note numbering (bounded).** Previous assumption: 12d writes `ARC-39` note 4 (SD-D16,
+TD-C1). Audit evidence: IL-a (#80, merged after the refresh's audit) wrote `ARC-39` "Note 4" (the
+installed set's extension line, `DECISIONS.md`). Corrected: 12d's note is **note 5**, saying so in its
+first line. No content change.
+
+**TD-D2 — the re-audit at the implementation base `77a8717` (bounded).** Since `78ca5ae` main gained
+IL-a (#80: `worldpack/src/{configure,error,format,load,read}.rs`, `systems/installed`'s extension line),
+2D 13a (#82: `clients/2d`, `tools/cli/tests/{client_2d.rs,godot2d/}`) and #85 (this design). Findings:
+- F-D10/FU-12a-1: `worldpack/src/read.rs` changed (36 lines); the FU-12a-1 comment is re-located in
+  TD-C6 before editing.
+- F-D12: 13a's client is now on main. Nothing in `clients/2d` or its tests matches a doorway literal
+  ((0, 3 000), (1 610, 200)): the drive chooses doorways from the disclosure
+  (`client_2d.rs:82`, "the doorway the drive chose from the disclosure"), and rooms are drawn from the
+  presentation's `door_from_left_m` (x only, unchanged). `client_2d.rs`'s tests are `#[ignore]`d (they
+  start Godot); their walks assert "every move accepted" from carol's home to the café, which walls may
+  turn into stopped strides — run once with Godot after TD-C5 and reported (§19.10's QD-11 row), never
+  edited (clients/ and its tests are outside §19.1's change set).
+- `ARC-39` note 4 taken (TD-D1). No other listed path moved.
 
 **Freeze note (planning session, 2026-10-08) — the budget field, for the primary session.** The
 freeze sets the budget at six 300-day town runs. TD-12a as accepted at the same freeze (QD-14) needs
@@ -6599,6 +6631,22 @@ re-run, plus TD-1's two "after" runs and TD-12b's one timing run: eleven to fift
 hold. The contract records the ruling as given and asks the primary session which reading applies
 (six beyond TD-12's own runs, or TD-12a reduced); the implementing session stops before TD-C8's runs
 until it is answered, rather than choose.
+
+**Amendment, 2026-10-08 — the run budget, ruled by the primary session (resolves the freeze note;
+binding).** Relayed in the implementing session's kickoff, quoted:
+
+> "TD-12's own runs are counted separately. That is TD-12a's interleaved sets (8, plus 4 if one town
+> is contaminated and re-run once) and TD-12b's one timing run. The six 300-day town runs are for
+> everything else, including TD-1's before/after re-baseline and any debugging. The hard cap is 6 + 13
+> = 19. Hitting it is a material stop."
+
+So: TD-12a ≤ 12 runs and TD-12b 1 run, counted on their own; every other 300-day town run by hand
+(E-TD-base's two "before" runs, TD-1's two "after" runs, any debugging run) counts against six; the
+total never exceeds 19, and reaching it stops the work. The implementing session reads "300-day town
+run" as a `mineworld run worlds/<town> --days 300` launched by hand for evidence; the committed tests
+that run a town for 300 days (`run.rs`, `market_town.rs`, `town_bodies.rs`, …) run inside `cargo test`,
+which the contract leaves unrestricted, and are not counted. The count is kept in §19.12 (E-TD-runs).
+The contract's "stops before TD-C8's runs" line is thereby closed.
 
 ---
 
