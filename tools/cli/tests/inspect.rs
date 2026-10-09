@@ -34,7 +34,7 @@ fn inspect_reports_a_run_s_save_and_every_cause_in_it_resolves() {
     assert!(facts > 10_000, "a month of a busy world: {facts}");
     assert!(report.contains(
         "systems    presence v3, movement v1, conversation v1, group-activity v1, relationships v1, \
-         naming v1, schedule v1\n"
+         naming v1, schedule v1, bodies v4\n"
     ));
     for kind in [
         "causes     action ",

@@ -8,27 +8,30 @@
 
 use mineworld_contracts::Millimetres;
 
-/// A person's radius: the 3D client's capsule (`player.gd`). Every person in a place with a shape is
-/// this capsule in MVP-0 (step-11 QP-6).
-pub const PERSON_RADIUS: Millimetres = Millimetres::new(300);
+/// A person's radius: 250 mm, a 50 cm body — adult shoulders are 40–46 cm across and the chest 25–30
+/// cm deep (the operator's ruling of 2026-10-08, step-11 §19.13; it was 300 mm, the 3D spike's capsule,
+/// until 12d). Every person in a place with a shape is this capsule in MVP-0 (step-11 QP-6), and every
+/// person dimension below is derived from it, never re-typed.
+pub const PERSON_RADIUS: Millimetres = Millimetres::new(250);
 
 /// A person's height, feet to crown: the 3D client's capsule.
 pub const PERSON_HEIGHT: Millimetres = Millimetres::new(1_720);
 
 /// The character controller's offset: a walker stopped by something ends this far from touching it,
-/// so `2 × PERSON_RADIUS + GAP` = 610 mm from a person who stopped them.
+/// so `2 × PERSON_RADIUS + GAP` from a person who stopped them.
 pub const GAP: Millimetres = Millimetres::new(10);
-
-/// The invariant this pack keeps on integers: no two people in one place closer than this
-/// (`2 × PERSON_RADIUS − 5 mm`). Also the bound authored people are refused under at genesis, so a
-/// world that loads is a world the resolver accepts.
-pub const CLEARANCE: Millimetres = Millimetres::new(595);
 
 /// How close a centre may come to the floor's edge shrunk by the radius, or to a solid grown by it.
 pub const TOLERANCE: Millimetres = Millimetres::new(5);
 
+/// The invariant this pack keeps on integers: no two people in one place closer than this
+/// (`2 × PERSON_RADIUS − TOLERANCE`). Also the bound authored people are refused under at genesis, so a
+/// world that loads is a world the resolver accepts.
+pub const CLEARANCE: Millimetres = Millimetres::new(2 * PERSON_RADIUS.value() - TOLERANCE.value());
+
 /// The most one arrival moves anybody else, on top of the overlap it creates: a nudge is at most
-/// `NUDGE_MAX + GAP` = 310 mm (`ARC-39` note; step-11 QB-10, I-11).
+/// `NUDGE_MAX + GAP` = 310 mm (`ARC-39` note; step-11 QB-10, I-11). A policy on how far a stride may
+/// carry somebody, not a person dimension: it does not move with [`PERSON_RADIUS`].
 pub const NUDGE_MAX: Millimetres = Millimetres::new(300);
 
 /// Generations of nudges per arrival: a nudged person may nudge one further generation, no more.
@@ -58,8 +61,9 @@ pub const SNAP: Millimetres = Millimetres::new(1);
 /// The search lattice for placing a person who arrives where nobody fits (step-11 SD-B8).
 pub const LATTICE: Millimetres = Millimetres::new(50);
 
-/// The sub-lattice the capacity check counts: `13 × LATTICE`. A disc of radius 610 mm covers at most
-/// four of its points, so `4 × (people − 1) + 1` points guarantee one is free (step-11 SD-B4).
+/// The sub-lattice the capacity check counts: `13 × LATTICE`. A disc of radius `2 × PERSON_RADIUS +
+/// GAP` covers at most four of its points while that radius is at most 650 mm, so `4 × (people − 1) + 1`
+/// points guarantee one is free (step-11 SD-B4).
 pub const CAPACITY_GRID: Millimetres = Millimetres::new(650);
 
 /// No authored body coordinate lies beyond ±100 m: single precision's step there is under 0.01 mm, so a
@@ -70,7 +74,7 @@ pub const COORDINATE_BOUND: Millimetres = Millimetres::new(100_000);
 pub const OBJECT_HALF_MIN: Millimetres = Millimetres::new(50);
 
 /// A box's largest half-extent in x and y, and a ball's largest radius: an object touching a person is
-/// then within reach (300 + 10 + 400 = 710 mm < 800 mm).
+/// then within reach (`PERSON_RADIUS + GAP + 400` < 800 mm).
 pub const OBJECT_HALF_MAX: Millimetres = Millimetres::new(400);
 
 /// A box's largest half-extent in z.
@@ -117,8 +121,9 @@ pub const THROW_DEFAULT: Millimetres = Millimetres::new(3_000);
 pub const THROW_RANGE_MAX: Millimetres = Millimetres::new(6_000);
 
 /// How far a launched object's footprint comes to rest from every solid, unless its flight was
-/// blocked (step-11 SD-O13's p4 note, the primary session's rule): a person's radius, so a resting
-/// object always leaves a body's width of approach to the furniture.
+/// blocked (step-11 SD-O13's p4 note, the primary session's rule): 300 mm, at least a person's radius,
+/// so a resting object always leaves a body's width of approach to the furniture. Not derived from
+/// [`PERSON_RADIUS`]: kept at 300 when the radius became 250 (the ruling of 2026-10-08, step-11 §19.13).
 pub const REST_CLEARANCE: Millimetres = Millimetres::new(300);
 
 /// The step, in millimetres, by which a flight's end is pulled back along its line (p4).
@@ -136,7 +141,7 @@ pub const PATH_EVERY: u32 = 6;
 /// Keyframes in a path, at most (step-11 §4.7).
 pub const PATH_MAX: usize = 40;
 
-/// The push bisection's upper bound: above `PERSON_RADIUS + GAP + √2 · OBJECT_HALF_MAX` (≈ 876 mm),
+/// The push bisection's upper bound: above `PERSON_RADIUS + GAP + √2 · OBJECT_HALF_MAX` (≈ 826 mm),
 /// and a power of two, so the bisection takes exactly ten halvings.
 pub const PUSH_SEARCH: i32 = 1_024;
 

@@ -1,15 +1,15 @@
 //! A doorway point must lie where a person fits (step-11 §19, SD-D5, F-B7; `ARC-39` note 5): at
 //! genesis, every doorway point of a shaped place — the `here` of each passage out of it and the
-//! `there` of each passage into it — lies inside the floor shrunk by 310 mm (R + GAP) and at least
-//! 310 mm from every solid, or the place is refused, `bodies-doorway`, naming both places, the point
-//! and the distance.
+//! `there` of each passage into it — lies inside the floor shrunk by R + GAP (250 + 10 = 260 mm; 310
+//! while R was 300) and at least 260 mm from every solid, or the place is refused, `bodies-doorway`,
+//! naming both places, the point and the distance.
 //!
 //! ```text
 //! here, 200 mm from the front wall          the café's door where the towns had it  → refused
 //! there, 100 mm from the street's façade    a street side the street does not hold   → refused
 //! here, inside the counter                                                           → refused
 //! here, outside the floor                                                            → refused
-//! the bounds                                309 refused, 310 loads; from a solid too
+//! the bounds                                259 refused, 260 loads; from a solid too
 //! here and there 400 mm inside              the towns' new points                    → loads
 //! an unshaped place                         nothing to check                          → loads
 //! ```
@@ -22,7 +22,7 @@ mod support;
 use mineworld_bodies::{BodiesSystem, PlaceShape, PlaceShaped};
 use mineworld_contracts::{Event, Rejection};
 use mineworld_kernel::{KernelError, SystemIdentity};
-use support::{Plan, Side, Yard, cafe, shape};
+use support::{GAP, Plan, R, Side, Yard, cafe, shape};
 
 /// A street 10 m wide whose north façade is y 3 200, like the towns'.
 fn street() -> PlaceShape {
@@ -118,17 +118,20 @@ fn a_doorway_outside_the_floor_is_refused() {
 
 #[test]
 fn the_bounds_are_a_radius_and_the_gap_inclusive() {
-    // From the floor's edge: 309 mm is refused, 310 loads.
-    let (code, detail) = refused(&plan(None, (1_610, 309), (0, 2_800)));
+    // The bound is R + GAP = 250 + 10 = 260 mm (310 while R was 300).
+    const BOUND: i32 = R + GAP;
+    // From the floor's edge: 259 mm is refused, 260 loads.
+    let (code, detail) = refused(&plan(None, (1_610, BOUND - 1), (0, 2_800)));
     assert_eq!(code, "bodies-doorway");
-    assert_names(&detail, &["309 mm from its floor's edge"]);
-    Yard::try_new(&plan(None, (1_610, 310), (0, 2_800))).expect("310 mm from the wall loads");
+    assert_names(&detail, &["259 mm from its floor's edge"]);
+    Yard::try_new(&plan(None, (1_610, BOUND), (0, 2_800))).expect("260 mm from the wall loads");
 
-    // From a solid: 309 mm below the counter's south face (y 6 570) is refused, 310 loads.
-    let (code, detail) = refused(&plan(None, (5_000, 6_261), (0, 2_800)));
+    // From a solid: 259 mm below the counter's south face (y 6 570) is refused, 260 loads.
+    let (code, detail) = refused(&plan(None, (5_000, 6_570 - (BOUND - 1)), (0, 2_800)));
     assert_eq!(code, "bodies-doorway");
-    assert_names(&detail, &["309 mm from a solid"]);
-    Yard::try_new(&plan(None, (5_000, 6_260), (0, 2_800))).expect("310 mm from the counter loads");
+    assert_names(&detail, &["259 mm from a solid"]);
+    Yard::try_new(&plan(None, (5_000, 6_570 - BOUND), (0, 2_800)))
+        .expect("260 mm from the counter loads");
 }
 
 #[test]

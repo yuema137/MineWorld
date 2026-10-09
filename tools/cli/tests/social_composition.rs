@@ -377,7 +377,7 @@ fn without_schedule_the_world_runs_and_nobody_keeps_a_day() {
         lines(&stdout(&inspected), "systems "),
         [
             "systems    presence v3, movement v1, conversation v1, group-activity v1, \
-             relationships v1, naming v1"
+             relationships v1, naming v1, bodies v4"
         ],
     );
 }
@@ -417,7 +417,7 @@ fn without_group_activity_relationships_stays_and_the_world_runs() {
         systems,
         [
             "systems    presence v3, movement v1, conversation v1, relationships v1, naming v1, \
-             schedule v1"
+             schedule v1, bodies v4"
         ],
         "relationships is installed and enabled, group-activity is not there"
     );

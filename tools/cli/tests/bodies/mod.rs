@@ -32,6 +32,24 @@ pub const YARD: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/bodies
 /// A rectangle as literals: `(min.x, min.y, max.x, max.y)`.
 pub type Rect = (i32, i32, i32, i32);
 
+/// bodies' published person radius, mirrored here (this crate does not link the pack, DO-12): 250 mm
+/// since the operator's ruling of 2026-10-08 (step-11 §19.13; it was 300). Every person bound below is
+/// derived from it.
+pub const R: i32 = 250;
+/// bodies' `GAP`, the character controller's offset.
+pub const GAP: i32 = 10;
+/// bodies' `TOLERANCE`.
+pub const TOLERANCE: i32 = 5;
+/// bodies' `CLEARANCE`: no two people in one place closer than `2R − TOLERANCE` (495 mm).
+pub const CLEARANCE: i32 = 2 * R - TOLERANCE;
+/// How far a person may be from a wall or a solid, and an object's footprint from a person: `R −
+/// TOLERANCE` (245 mm).
+pub const KEEP: i32 = R - TOLERANCE;
+/// The most a nudge moves anybody: bodies' `NUDGE_MAX + GAP` (310 mm), a policy, not a person dimension.
+pub const NUDGE_LIMIT: i32 = 300 + GAP;
+/// How far a shove moves its target, at most: bodies' `SHOVE_DISTANCE`.
+pub const SHOVE: i32 = 500;
+
 /// Where each person stands, as the scan has replayed it: their place and, if they have one, their
 /// ground position.
 type Standing = BTreeMap<EntityId, (PlaceId, Option<(i32, i32)>)>;
@@ -52,6 +70,86 @@ pub const ROOMS: [(&str, Rect, Rect); 2] = [
 
 /// Each room's solid's height, as authored.
 pub const HEIGHTS: [(&str, i32); 2] = [("court", 3_000), ("hall", 750)];
+
+/// One shaped place, as its file authors it: the floor, and each solid with its height.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Room {
+    pub floor: Rect,
+    pub solids: Vec<(Rect, i32)>,
+}
+
+/// Every shaped place of a world, by key.
+pub type Rooms = BTreeMap<String, Room>;
+
+/// The rooms of any world, read from its place files' `body:` sections as text (step-11 SD-D12): the
+/// numbers after `x:`, `y:` and `height:` in the order the section states them — the floor's two
+/// corners, then each solid's two corners and its height. Comments are ignored. Never through bodies'
+/// own types (DO-12): this is an independent reading of the authored geometry.
+pub fn rooms_of(pack: &Path) -> Rooms {
+    let mut rooms = Rooms::new();
+    let mut files: Vec<PathBuf> = std::fs::read_dir(pack.join("places"))
+        .expect("places/ lists")
+        .map(|entry| entry.expect("an entry").path())
+        .collect();
+    files.sort();
+    for file in files {
+        let key = file
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .expect("a place file's key")
+            .to_owned();
+        let text = std::fs::read_to_string(&file).expect("a place file reads");
+        let mut numbers = Vec::new();
+        let mut inside = false;
+        for line in text.lines() {
+            let line = line.split('#').next().unwrap_or_default();
+            if line.starts_with("body:") {
+                inside = true;
+            } else if !line.trim().is_empty() && !line.starts_with(' ') && !line.starts_with('-') {
+                inside = false;
+            }
+            if !inside {
+                continue;
+            }
+            for (at, _) in line.match_indices(':') {
+                let label = line[..at].trim_end();
+                let label = label
+                    .rsplit(|c: char| !c.is_alphanumeric())
+                    .next()
+                    .unwrap_or("");
+                if !matches!(label, "x" | "y" | "height") {
+                    continue;
+                }
+                let rest = line[at + 1..].trim_start();
+                let end = rest
+                    .find(|c: char| !(c.is_ascii_digit() || c == '-'))
+                    .unwrap_or(rest.len());
+                numbers.push(rest[..end].parse::<i32>().unwrap_or_else(|error| {
+                    panic!("{key}: a number after {label}: {rest:?}: {error}")
+                }));
+            }
+        }
+        if numbers.is_empty() {
+            continue;
+        }
+        assert!(
+            numbers.len() >= 4 && (numbers.len() - 4) % 5 == 0,
+            "{key}'s body: is a floor and solids: {numbers:?}"
+        );
+        let solids = numbers[4..]
+            .chunks(5)
+            .map(|s| ((s[0], s[1], s[2], s[3]), s[4]))
+            .collect();
+        rooms.insert(
+            key,
+            Room {
+                floor: (numbers[0], numbers[1], numbers[2], numbers[3]),
+                solids,
+            },
+        );
+    }
+    rooms
+}
 
 /// The two places' files still say exactly the literals above.
 pub fn the_world_file_still_says_the_geometry(pack: &Path) {
@@ -310,6 +408,8 @@ pub struct Report {
     pub objects: Vec<Rested>,
     /// The nearest any person's centre came to each object's centre, squared, after any request.
     pub nearest: BTreeMap<String, i64>,
+    /// The geometry the scan judged against.
+    pub rooms: Rooms,
 }
 
 impl Report {
@@ -355,20 +455,27 @@ struct Replay {
 /// Replays `tables`' facts in `EventId` order and checks, after each request's facts:
 ///
 /// ```text
-/// people   no pair in one place closer than 595 mm; no centre outside the floor shrunk by 295 mm or
-///          within 295 mm of a solid (ROOMS); every displaced arrival — an `arrived` after the first in
-///          one request — stays in its place, moves at most 310 mm, at most four per request, stated
-///          by movement (a move) or by bodies (a shove); a shoved person's own arrival moves at most
-///          500 mm
+/// people   no pair in one place closer than CLEARANCE; no centre outside the floor shrunk by KEEP or
+///          within KEEP of a solid (the rooms); every displaced arrival — an `arrived` after the first
+///          in one request — stays in its place, moves at most NUDGE_LIMIT, at most four per request,
+///          stated by movement (a move) or by bodies (a shove); a shoved person's own arrival moves at
+///          most SHOVE
 /// objects  each within its floor, at rest on the floor or a solid's top (± 5 mm), out of every
-///          other solid, ≥ 295 mm from every person's centre measured to its footprint, overlapping no
+///          other solid, ≥ KEEP from every person's centre measured to its footprint, overlapping no
 ///          other object by more than 5 mm
 /// moves    every `object-moved` starts where the scan last saw the object; a pushed one is caused by
 ///          an `arrived` of the same request, a kicked or thrown one by the request itself
 /// ```
 ///
-/// `keys` names the pack's entities (its loaded ids, which a save's facts carry).
+/// `keys` names the pack's entities (its loaded ids, which a save's facts carry). The geometry is
+/// `worlds/bodies-yard`'s, read from its files.
 pub fn scan(tables: &Tables, keys: &BTreeMap<EntityId, String>) -> Report {
+    scan_in(tables, keys, rooms_of(Path::new(YARD)))
+}
+
+/// [`scan`] against any world's geometry (step-11 SD-D12): `rooms`, read from that world's files by
+/// [`rooms_of`] — for a counterfactual copy without bodies, the real world's.
+pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms) -> Report {
     let place_of = |entity: EntityId| keys.get(&entity).cloned().unwrap_or_default();
     let mut report = Report::default();
     let mut replay = Replay::default();
@@ -387,6 +494,7 @@ pub fn scan(tables: &Tables, keys: &BTreeMap<EntityId, String>) -> Report {
         if current.is_some_and(|previous| previous != request) {
             check(
                 &replay,
+                &rooms,
                 &place_of,
                 current.flatten(),
                 last_instant,
@@ -436,7 +544,7 @@ pub fn scan(tables: &Tables, keys: &BTreeMap<EntityId, String>) -> Report {
                         before,
                         &location,
                         point,
-                        500,
+                        i64::from(SHOVE),
                         &place_of(person),
                         fact,
                     );
@@ -453,7 +561,7 @@ pub fn scan(tables: &Tables, keys: &BTreeMap<EntityId, String>) -> Report {
                         before,
                         &location,
                         point,
-                        310,
+                        i64::from(NUDGE_LIMIT),
                         &place_of(person),
                         fact,
                     );
@@ -498,11 +606,13 @@ pub fn scan(tables: &Tables, keys: &BTreeMap<EntityId, String>) -> Report {
     }
     check(
         &replay,
+        &rooms,
         &place_of,
         current.flatten(),
         last_instant,
         &mut report,
     );
+    report.rooms = rooms;
     report.objects = replay
         .objects
         .iter()
@@ -661,6 +771,7 @@ fn distance2(a: (i32, i32), b: (i32, i32)) -> i64 {
 /// The state after one request, against the rules.
 fn check(
     replay: &Replay,
+    rooms: &Rooms,
     place_of: &dyn Fn(EntityId) -> String,
     request: Option<ActionId>,
     instant: WorldTime,
@@ -683,7 +794,7 @@ fn check(
                     report.closest =
                         Some((d, a.clone(), b.clone(), place.clone(), request, instant));
                 }
-                if d < 595 * 595 {
+                if d < i64::from(CLEARANCE).pow(2) {
                     report.violations.push(format!(
                         "{a} and {b} {} mm apart in {place} after request {request:?}",
                         d.isqrt()
@@ -691,30 +802,37 @@ fn check(
                 }
             }
         }
-        if let Some((_, (x0, y0, x1, y1), (a, b, c, d))) =
-            ROOMS.iter().find(|(name, _, _)| name == place)
-        {
+        if let Some(room) = rooms.get(place) {
+            let (x0, y0, x1, y1) = room.floor;
             for (person, (x, y)) in people {
-                let inside = (x0 + 295..=x1 - 295).contains(x) && (y0 + 295..=y1 - 295).contains(y);
-                let dx = (a - x).max(x - c).max(0);
-                let dy = (b - y).max(y - d).max(0);
-                let clear =
-                    i64::from(dx) * i64::from(dx) + i64::from(dy) * i64::from(dy) >= 295 * 295;
-                if !inside || !clear {
+                let inside =
+                    (x0 + KEEP..=x1 - KEEP).contains(x) && (y0 + KEEP..=y1 - KEEP).contains(y);
+                let solid = room
+                    .solids
+                    .iter()
+                    .find(|(solid, _)| to_rect2((*x, *y), *solid) < i64::from(KEEP).pow(2));
+                if !inside {
                     report.violations.push(format!(
-                        "{person} at ({x}, {y}) in {place} is outside its floor or in its solid, \
+                        "{person} at ({x}, {y}) in {place} is outside its floor, after request \
+                         {request:?}"
+                    ));
+                }
+                if let Some((solid, _)) = solid {
+                    report.violations.push(format!(
+                        "{person} at ({x}, {y}) in {place} is within {KEEP} mm of the solid {solid:?}, \
                          after request {request:?}"
                     ));
                 }
             }
         }
     }
-    check_objects(replay, &by_place, place_of, request, instant, report);
+    check_objects(replay, rooms, &by_place, place_of, request, instant, report);
 }
 
 /// Every object against SD-O2's invariant, and the closest person–object approach.
 fn check_objects(
     replay: &Replay,
+    rooms: &Rooms,
     by_place: &ByPlace,
     place_of: &dyn Fn(EntityId) -> String,
     request: Option<ActionId>,
@@ -730,47 +848,47 @@ fn check_objects(
     for (i, (id, object)) in placed.iter().enumerate() {
         let key = place_of(*id);
         let place = place_of(object.place.expect("placed"));
-        let Some((_, (x0, y0, x1, y1), solid)) = ROOMS.iter().find(|(name, _, _)| *name == place)
-        else {
+        let Some(room) = rooms.get(&place) else {
             report
                 .violations
                 .push(format!("{key} lies in {place}, which has no floor"));
             continue;
         };
-        let height = HEIGHTS
-            .iter()
-            .find(|(name, _)| *name == place)
-            .expect("a height")
-            .1;
+        let (x0, y0, x1, y1) = room.floor;
         let (x, y, z) = object.at;
         let (hx, hy, hz) = object.half;
         let footprint = (x - hx, y - hy, x + hx, y + hy);
-        if x - hx < *x0 || x + hx > *x1 || y - hy < *y0 || y + hy > *y1 {
+        if x - hx < x0 || x + hx > x1 || y - hy < y0 || y + hy > y1 {
             report
                 .violations
                 .push(format!("{key} at ({x}, {y}) leaves {place}'s floor"));
         }
-        let (a, b, c, d) = *solid;
         let on_floor = (z - hz).abs() <= 5;
-        let on_solid = (z - (height + hz)).abs() <= 5
-            && x - hx >= a
-            && x + hx <= c
-            && y - hy >= b
-            && y + hy <= d;
-        if !on_floor && !on_solid {
+        // The solid whose top it rests on, if any: its footprint within that solid's.
+        let resting_on = room.solids.iter().position(|((a, b, c, d), height)| {
+            (z - (height + hz)).abs() <= 5
+                && x - hx >= *a
+                && x + hx <= *c
+                && y - hy >= *b
+                && y + hy <= *d
+        });
+        if !on_floor && resting_on.is_none() {
             report.violations.push(format!(
                 "{key} at ({x}, {y}, {z}) rests on nothing in {place}"
             ));
         }
-        let meets = if object.boxy {
-            footprint.0 < c && footprint.2 > a && footprint.1 < d && footprint.3 > b
-        } else {
-            to_rect2((x, y), *solid) < i64::from(hx).pow(2)
-        };
-        if meets && !on_solid {
-            report
-                .violations
-                .push(format!("{key} at ({x}, {y}) is in {place}'s solid"));
+        for (index, (solid, _)) in room.solids.iter().enumerate() {
+            let (a, b, c, d) = *solid;
+            let meets = if object.boxy {
+                footprint.0 < c && footprint.2 > a && footprint.1 < d && footprint.3 > b
+            } else {
+                to_rect2((x, y), *solid) < i64::from(hx).pow(2)
+            };
+            if meets && resting_on != Some(index) {
+                report.violations.push(format!(
+                    "{key} at ({x}, {y}) is in {place}'s solid {solid:?}"
+                ));
+            }
         }
         for (person, at) in by_place.get(&place).into_iter().flatten() {
             let reach2 = distance2(*at, (x, y));
@@ -791,7 +909,7 @@ fn check_objects(
                     instant,
                 ));
             }
-            if d2 < 295 * 295 {
+            if d2 < i64::from(KEEP).pow(2) {
                 report.violations.push(format!(
                     "{person} at {at:?} is {} mm from {key}'s footprint in {place} after request \
                      {request:?}",
@@ -957,29 +1075,27 @@ pub fn assert_day_one(report: &Report) {
     }
 }
 
-/// Whether a person's 300 mm disc at `p` overlaps the footprint of `object`.
+/// Whether a person's disc (radius R) at `p` overlaps the footprint of `object`.
 fn disc_overlaps(p: (i32, i32), object: &Rested) -> bool {
     let (x, y, _) = object.at;
     let (hx, hy, _) = object.half;
     if object.boxy {
-        to_rect2(p, (x - hx, y - hy, x + hx, y + hy)) < 300 * 300
+        to_rect2(p, (x - hx, y - hy, x + hx, y + hy)) < i64::from(R).pow(2)
     } else {
-        distance2(p, (x, y)) < i64::from(300 + hx).pow(2)
+        distance2(p, (x, y)) < i64::from(R + hx).pow(2)
     }
 }
 
 /// AO-2′ (b′), reachability (the final AO-2 ruling, step-11 §18.11): at day 30, every object has at
 /// least one **free standing point** within kick reach — a point of its room's 50 mm lattice (anchored a
-/// radius in from the floor's south-west corner) where a person's 300 mm disc lies inside the floor and
+/// radius in from the floor's south-west corner) where a person's disc (radius R) lies inside the floor and
 /// overlaps no solid and no other object, within 800 mm of the object's ground point. Prints, for each
 /// object, how many such points it has.
 pub fn assert_reachable(report: &Report) {
     let mut failures = Vec::new();
     for object in &report.objects {
-        let (_, (x0, y0, x1, y1), solid) = ROOMS
-            .iter()
-            .find(|(name, _, _)| *name == object.place)
-            .expect("a room");
+        let room = report.rooms.get(&object.place).expect("a room");
+        let (x0, y0, x1, y1) = room.floor;
         let (ox, oy, _) = object.at;
         let others: Vec<&Rested> = report
             .objects
@@ -987,13 +1103,16 @@ pub fn assert_reachable(report: &Report) {
             .filter(|other| other.place == object.place && other.key != object.key)
             .collect();
         let mut free = 0_u32;
-        let mut y = y0 + 300;
-        while y <= y1 - 300 {
-            let mut x = x0 + 300;
-            while x <= x1 - 300 {
+        let mut y = y0 + R;
+        while y <= y1 - R {
+            let mut x = x0 + R;
+            while x <= x1 - R {
                 let p = (x, y);
                 if distance2(p, (ox, oy)) <= 800 * 800
-                    && to_rect2(p, *solid) >= 300 * 300
+                    && room
+                        .solids
+                        .iter()
+                        .all(|(solid, _)| to_rect2(p, *solid) >= i64::from(R).pow(2))
                     && !others.iter().any(|other| disc_overlaps(p, other))
                 {
                     free += 1;

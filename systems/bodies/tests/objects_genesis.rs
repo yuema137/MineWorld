@@ -23,7 +23,7 @@ mod support;
 use mineworld_bodies::{BodiesSystem, ObjectPlaced};
 use mineworld_contracts::{Event, Rejection};
 use mineworld_kernel::{KernelError, SystemIdentity};
-use support::{Plan, Thing, Yard, ball, cafe, cube, shape};
+use support::{Plan, R, Thing, Yard, ball, cafe, cube, shape};
 
 /// The café, with `people` and `objects` in it.
 fn cafe_with(people: &[(&'static str, (i32, i32))], objects: Vec<Thing>) -> Plan {
@@ -232,7 +232,7 @@ fn two_overlapping_objects_are_refused() {
 
 #[test]
 fn an_object_under_a_person_is_refused() {
-    // 200 mm from alice's centre: inside her 300 mm disc.
+    // 200 mm from alice's centre: inside her R = 250 mm disc.
     let (code, detail) = refused(&cafe_with(
         &[("alice", (2_000, 3_000))],
         vec![("ball", ball(110), "room", (2_200, 3_000))],
@@ -243,11 +243,14 @@ fn an_object_under_a_person_is_refused() {
 
 #[test]
 fn a_room_that_cannot_hold_its_people_with_its_objects_is_refused() {
-    // A 1 300 mm square room: its 650 mm grid, anchored a radius in, has 2 × 2 = 4 points. One
-    // person needs 1; the ball r 50 can cover up to 2 × 2 = 4 more: 5 > 4.
+    // A 1 300 mm square room: its 650 mm grid, anchored a radius in, has ((1 300 − 2R) / 650 + 1)² =
+    // ((1 300 − 500) / 650 + 1)² = 2 × 2 = 4 points. One person needs 1; a ball of radius r covers up
+    // to (⌊(2r + 2R) / 650⌋ + 1)² points, 2 × 2 = 4 once 2r + 2R ≥ 650, i.e. r ≥ (650 − 500) / 2 = 75:
+    // 1 + 4 = 5 > 4. (While R was 300 the ball was r 50: (100 + 600) / 650 = 1. At R = 250 a ball
+    // r 50 covers one point and the room holds both.)
     let plan = Plan::room(shape((0, 0, 1_300, 1_300), &[]), &[("solo", (350, 350))]);
     let plan = Plan {
-        objects: vec![("ball", ball(50), "room", (1_000, 1_000))],
+        objects: vec![("ball", ball((650 - 2 * R) / 2), "room", (1_000, 1_000))],
         ..plan
     };
     let (code, detail) = refused(&plan);

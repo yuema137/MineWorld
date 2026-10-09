@@ -27,15 +27,18 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use mineworld_bodies::{Degraded, Outcome, Route, explain};
 use mineworld_contracts::{ActionRecord, EntityType, Location, PersonId};
 use mineworld_presence::Arrived;
-use support::{Fact, Moved, Plan, Put, Xy, Yard, cafe, distance2, encode, shape, xy};
+use support::{
+    CLEAR, Fact, GAP, Moved, Plan, Put, R, TOL, Xy, Yard, cafe, distance2, encode, shape, xy,
+};
 
-/// The floor shrunk by 295 mm (a radius less the tolerance), and the counter grown by it.
+/// The floor shrunk by R − TOL = 245 mm (a radius less the tolerance), and the counter grown by it.
 fn inside_the_cafe((x, y): Xy) -> bool {
-    let in_floor = (295..=8_320 - 295).contains(&x) && (295..=10_320 - 295).contains(&y);
+    let disc = R - TOL;
+    let in_floor = (disc..=8_320 - disc).contains(&x) && (disc..=10_320 - disc).contains(&y);
     let dx = (3_860 - x).max(x - 8_320).max(0);
     let dy = (6_570 - y).max(y - 7_170).max(0);
     let clear_of_counter =
-        i64::from(dx) * i64::from(dx) + i64::from(dy) * i64::from(dy) >= 295 * 295;
+        i64::from(dx) * i64::from(dx) + i64::from(dy) * i64::from(dy) >= i64::from(disc).pow(2);
     in_floor && clear_of_counter
 }
 
@@ -85,8 +88,11 @@ fn a_walker_stops_at_the_east_wall() {
     let moved = yard.walk("walker", wanted);
     let reached = stopped(&yard, &moved, "walker", wanted, None);
     println!("east wall: reached {reached:?}");
-    // 8 320 − 300 − 10: the wall, a radius, the controller's gap.
-    assert!(within_a_millimetre(reached, (8_010, 3_000)), "{reached:?}");
+    // 8 320 − 250 − 10 = 8 060: the wall, a radius, the controller's gap.
+    assert!(
+        within_a_millimetre(reached, (8_320 - R - GAP, 3_000)),
+        "{reached:?}"
+    );
 }
 
 #[test]
@@ -96,8 +102,11 @@ fn a_walker_stops_at_the_counter() {
     let moved = yard.walk("walker", wanted);
     let reached = stopped(&yard, &moved, "walker", wanted, None);
     println!("counter: reached {reached:?}");
-    // 6 570 − 310.
-    assert!(within_a_millimetre(reached, (5_000, 6_260)), "{reached:?}");
+    // 6 570 − (R + GAP) = 6 570 − 260 = 6 310.
+    assert!(
+        within_a_millimetre(reached, (5_000, 6_570 - R - GAP)),
+        "{reached:?}"
+    );
 }
 
 #[test]
@@ -107,12 +116,15 @@ fn a_walker_slides_along_the_east_wall_and_is_never_carried_farther_than_asked()
     let moved = yard.walk("walker", wanted);
     let reached = stopped(&yard, &moved, "walker", wanted, None);
     println!("slide: reached {reached:?}");
+    // The wall stops x at 8 320 − R − GAP = 8 060; the 45° stride meets it at y = 3 000 + (8 060 −
+    // 7 000) = 4 060, and slides north of that.
+    let wall = 8_320 - R - GAP;
     assert!(
-        (8_009..=8_011).contains(&reached.0),
+        (wall - 1..=wall + 1).contains(&reached.0),
         "against the wall: {reached:?}"
     );
     assert!(
-        reached.1 > 4_010,
+        reached.1 > 3_000 + (wall - 7_000),
         "it slid north along the wall: {reached:?}"
     );
     assert!(
@@ -190,7 +202,7 @@ fn bounded_stride(yard: &mut Yard, walker: &str, (dx, dy): Xy) -> (Outcome, Move
     }
     if let Some((a, b, closest)) = yard.closest("room") {
         assert!(
-            closest >= 595 * 595,
+            closest >= i64::from(CLEAR).pow(2),
             "{a} and {b} {} mm apart after {walker}'s stride (I-12)",
             closest.isqrt()
         );
@@ -215,7 +227,6 @@ fn bounded_stride(yard: &mut Yard, walker: &str, (dx, dy): Xy) -> (Outcome, Move
 /// ```
 /// A person's key with a point: where they stand, or the step they take.
 type Keyed = (&'static str, Xy);
-
 fn scenario(name: &str) -> (Yard, Vec<(Outcome, Moved)>) {
     let (people, strides): (Vec<Keyed>, Vec<Keyed>) = match name {
         "n1" => (
@@ -377,16 +388,21 @@ fn the_head_on_scenarios_are_byte_identical_in_a_second_process() {
 
 #[test]
 fn a_chain_that_needs_a_third_generation_is_blocked_at_contact() {
-    // Each link 610 mm from the next along (0.8, 0.6): the walker's stride ends 500 mm from p1, so
-    // p1 is nudged 110 mm into p2, p2 110 mm into p3, and p3 would need a third generation. p1 is
-    // 300 mm off the walker's line: outside the head-on band.
+    // Each link 2R + GAP = 510 mm from the next along (0.8, 0.6) — (408, 306) — the walker's stride
+    // ends 510 − 110 = 400 mm from p1 along the same direction — (320, 240) — so p1 is nudged 110 mm
+    // into p2, p2 110 mm into p3, and p3 would need a third generation. p1 is 240 mm off the walker's
+    // line: outside the head-on band (200). (While R was 300: links 610 mm, the end 500 mm from p1,
+    // p1 300 mm off the line, at (3 400, 5 300), (3 888, 5 666), (4 376, 6 032).)
+    let p1 = (3_000 + 320, 5_000 + 240);
+    let p2 = (p1.0 + 408, p1.1 + 306);
+    let p3 = (p2.0 + 408, p2.1 + 306);
     let mut yard = Yard::new(&Plan::room(
         cafe(),
         &[
             ("walker", (2_000, 5_000)),
-            ("p1", (3_400, 5_300)),
-            ("p2", (3_888, 5_666)),
-            ("p3", (4_376, 6_032)),
+            ("p1", p1),
+            ("p2", p2),
+            ("p3", p3),
         ],
     ));
     let wanted = yard.at("room", (3_000, 5_000));
@@ -396,32 +412,30 @@ fn a_chain_that_needs_a_third_generation_is_blocked_at_contact() {
     let reached = stopped(&yard, &moved, "walker", wanted, Some("p1"));
     assert!(outcome.nudge_failed, "the pass failed: {outcome:?}");
     assert!(moved.displaced().is_empty(), "nobody else moves");
-    for (key, at) in [
-        ("p1", (3_400, 5_300)),
-        ("p2", (3_888, 5_666)),
-        ("p3", (4_376, 6_032)),
-    ] {
+    for (key, at) in [("p1", p1), ("p2", p2), ("p3", p3)] {
         assert_eq!(yard.point(key), Some(at), "{key} did not move");
     }
-    // Touching (600 mm) at x = 3 400 − √(600² − 300²) = 2 880.4, backed off the controller's 10 mm
-    // along the stride: (2 870.4, 5 000), 608.7 mm from p1.
-    at_contact(reached, (2_870, 5_000), (3_400, 5_300));
+    // Touching (2R = 500 mm) at x = 3 320 − √(500² − 240²) = 3 320 − 438.63 = 2 881.37, backed off
+    // the controller's 10 mm along the stride: (2 871.37, 5 000), 508.8 mm from p1.
+    at_contact(reached, (2_871, 5_000), p1);
 }
 
 /// A blocked walker ends at contact: within a millimetre, on each axis, of the point `contact`
 /// computed by hand from the layout — and touching, never overlapping, what stopped it.
 ///
-/// Not simply 2R + GAP = 610 mm from it. The character controller keeps its 10 mm offset along the
+/// Not simply 2R + GAP = 510 mm from it. The character controller keeps its 10 mm offset along the
 /// direction it was moving, so a walker who meets a person at an angle θ off their line of centres
-/// stops 600 + 10·cos θ from them (step-11 §17.11, DB-4); each caller computes the point that way.
+/// stops 2R + 10·cos θ = 500 + 10·cos θ from them (step-11 §17.11, DB-4); each caller computes the
+/// point that way.
 fn at_contact(reached: Xy, contact: Xy, stopper: Xy) {
     assert!(
         within_a_millimetre(reached, contact),
         "the walker ends at contact, {contact:?} ± 1 mm: {reached:?}"
     );
     let apart = distance2(reached, stopper);
+    let (touching, offset) = (i64::from(2 * R), i64::from(2 * R + GAP + 1));
     assert!(
-        (600 * 600..=611 * 611).contains(&apart),
+        (touching * touching..=offset * offset).contains(&apart),
         "touching, not overlapping: {} mm",
         apart.isqrt()
     );
@@ -431,9 +445,9 @@ fn at_contact(reached: Xy, contact: Xy, stopper: Xy) {
 // PB-7 — nobody through a wall
 // ---------------------------------------------------------------------------------------------
 
-/// `walker` asks for `wanted`, which ends 300 mm short of `pinned`, who stands 320 mm from a wall or
-/// the counter in the direction of the nudge: they can give only 10 mm, so the stride is blocked and
-/// the walker ends at `contact`.
+/// `walker` asks for `wanted`, which ends 300 mm short of `pinned`, who stands R + GAP + 10 = 270 mm
+/// (320 while R was 300) from a wall or the counter in the direction of the nudge: they can give only
+/// 10 mm, so the stride is blocked and the walker ends at `contact`.
 fn pinned_against(walker: Xy, pinned: Xy, wanted: Xy, contact: Xy) {
     let mut yard = Yard::new(&Plan::room(
         cafe(),
@@ -454,29 +468,32 @@ fn pinned_against(walker: Xy, pinned: Xy, wanted: Xy, contact: Xy) {
 }
 
 // For both: the stride d is (700, 750) or, turned a quarter, (−750, 700); |d| = 1 025.91. pinned lies
-// 1 230.61 mm along it and 219.32 mm off it. Touching (600 mm) at 1 230.61 − √(600² − 219.32²) =
-// 672.13 mm along; backed off the 10 mm offset, 662.13 mm along: the start + d × 662.13 / 1 025.91.
+// 1 230.61 mm along it and 219.32 mm off it. Touching (2R = 500 mm) at 1 230.61 − √(500² − 219.32²)
+// = 1 230.61 − 449.33 = 781.28 mm along; backed off the 10 mm offset, 771.28 mm along: the start +
+// d × 771.28 / 1 025.91 = the start + d × 0.751 795, i.e. (526.26, 563.85) or (−563.85, 526.26).
+// The layouts are the ones of R = 300 moved 50 mm toward the wall or the counter, so pinned stands
+// R + GAP + 10 = 270 mm from it (while R was 300: 320 mm, touching at 600 mm, 662.13 mm along).
 
 #[test]
 fn a_person_backed_against_the_east_wall_is_not_nudged_through_it() {
-    // pinned: 8 320 − 320. The stride's line passes 219 mm from pinned: outside the head-on band.
-    // Contact: (7 000 + 451.79, 2 500 + 484.06).
+    // pinned: 8 320 − 270 = 8 050. The stride's line passes 219 mm from pinned: outside the head-on
+    // band. Contact: (7 050 + 526.26, 2 500 + 563.85).
     pinned_against(
-        (7_000, 2_500),
-        (8_000, 3_250),
-        (7_700, 3_250),
-        (7_452, 2_984),
+        (7_050, 2_500),
+        (8_320 - (R + GAP + 10), 3_250),
+        (7_750, 3_250),
+        (7_576, 3_064),
     );
 }
 
 #[test]
 fn a_person_backed_against_the_counter_is_not_nudged_through_it() {
-    // pinned: 6 570 − 320. Contact: (5 750 − 484.06, 5 250 + 451.79).
+    // pinned: 6 570 − 270 = 6 300. Contact: (5 750 − 563.85, 5 300 + 526.26).
     pinned_against(
-        (5_750, 5_250),
-        (5_000, 6_250),
-        (5_000, 5_950),
-        (5_266, 5_702),
+        (5_750, 5_300),
+        (5_000, 6_570 - (R + GAP + 10)),
+        (5_000, 6_000),
+        (5_186, 5_826),
     );
 }
 
@@ -558,7 +575,7 @@ fn cross(yard: &mut Yard, wanted: Xy) -> (Outcome, Moved) {
     println!("entering at {wanted:?}: {outcome:?} {:?}", moved.facts());
     if let Some((a, b, closest)) = yard.closest("hall") {
         assert!(
-            closest >= 595 * 595,
+            closest >= i64::from(CLEAR).pow(2),
             "{a} and {b} stand {} mm apart in the hall",
             closest.isqrt()
         );
@@ -594,9 +611,9 @@ fn a_crossing_onto_an_occupied_point_nudges_the_occupant_aside() {
     let displaced = moved.displaced();
     assert_eq!(displaced.len(), 1, "the occupant: {displaced:?}");
     let occupant = yard.point("occupant").expect("placed");
-    // 610 − 400 = 210 mm east.
+    // 2R + GAP − 400 = 510 − 400 = 110 mm east, to 900 + 510 = 1 410 (210 mm while R was 300).
     assert!(
-        within_a_millimetre(occupant, (1_510, 2_000)),
+        within_a_millimetre(occupant, (900 + 2 * R + GAP, 2_000)),
         "{occupant:?}"
     );
     assert!(distance2((1_300, 2_000), occupant) <= 310 * 310);
@@ -604,41 +621,43 @@ fn a_crossing_onto_an_occupied_point_nudges_the_occupant_aside() {
 
 #[test]
 fn a_crossing_whose_nudge_fails_is_placed_at_the_nearest_free_lattice_point() {
-    // The occupant stands 400 mm west of the point and 500 mm from the west wall: pushed 210 mm west
-    // it can give 190. The nearest free point of the 50 mm lattice anchored at (300, 300) is at
-    // distance² 62 500 from (900, 2 000) three times — (1 100, 1 850), (1 150, 2 000), (1 100, 2 150)
-    // — and the lowest y wins.
-    let mut yard = entering((900, 2_000), &[("occupant", (500, 2_000))]);
-    let wanted = yard.at("hall", (900, 2_000));
-    let (outcome, moved) = cross(&mut yard, (900, 2_000));
+    // The occupant stands 2R + GAP − 210 = 300 mm west of the point and R + GAP + 190 = 450 mm from
+    // the west wall: pushed 210 mm west it can give 190. A free point is 2R + GAP = 510 mm from the
+    // occupant; the nearest free point of the 50 mm lattice anchored at (250, 250) is at distance²
+    // 62 500 from (750, 2 000) three times — (950, 1 850), (1 000, 2 000), (950, 2 150), each (650,
+    // 0) or (500, ±150) from the occupant — every nearer one within 510 mm of the occupant (the
+    // nearest of those, (950, 2 100), is (500, 100) from it: 509.9 mm) — and the lowest y wins.
+    // (While R was 300: the point (900, 2 000), the occupant at (500, 2 000), 400 mm west and 500 mm
+    // from the wall, and the walker placed at (1 100, 1 850).)
+    let (door, occupant) = ((750, 2_000), (R + GAP + 190, 2_000));
+    let mut yard = entering(door, &[("occupant", occupant)]);
+    let wanted = yard.at("hall", door);
+    let (outcome, moved) = cross(&mut yard, door);
     assert_eq!(outcome.route, Route::Placed);
-    assert_eq!(yard.point("walker"), Some((1_100, 1_850)));
-    assert_eq!(
-        yard.point("occupant"),
-        Some((500, 2_000)),
-        "nobody else moves"
-    );
+    assert_eq!(yard.point("walker"), Some((950, 1_850)));
+    assert_eq!(yard.point("occupant"), Some(occupant), "nobody else moves");
     assert!(moved.facts().contains(&Fact::StoppedShort {
         person: yard.people["walker"],
         wanted,
-        reached: yard.at("hall", (1_100, 1_850)),
+        reached: yard.at("hall", (950, 1_850)),
         by: Some(yard.people["occupant"]),
     }));
 }
 
 #[test]
 fn a_crossing_onto_a_point_inside_a_solid_is_placed_at_the_nearest_free_point() {
-    // (5 000, 6 800) is inside the counter; the nearest free lattice point is (5 000, 6 250), 320 mm
-    // south of its face.
+    // (5 000, 6 800) is inside the counter; a free point is at least R = 250 mm from it, y ≤ 6 570 −
+    // 250 = 6 320, so the nearest free lattice point is (5 000, 6 300), 270 mm south of its face (the
+    // counter's north side, y ≥ 7 170 + 250, is farther: 7 450). While R was 300 it was (5 000, 6 250).
     let mut yard = entering((5_000, 6_000), &[]);
     let wanted = yard.at("hall", (5_000, 6_800));
     let (outcome, moved) = cross(&mut yard, (5_000, 6_800));
     assert_eq!(outcome.route, Route::Placed);
-    assert_eq!(yard.point("walker"), Some((5_000, 6_250)));
+    assert_eq!(yard.point("walker"), Some((5_000, 6_300)));
     assert!(moved.facts().contains(&Fact::StoppedShort {
         person: yard.people["walker"],
         wanted,
-        reached: yard.at("hall", (5_000, 6_250)),
+        reached: yard.at("hall", (5_000, 6_300)),
         by: None,
     }));
 }

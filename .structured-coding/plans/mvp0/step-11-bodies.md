@@ -6664,6 +6664,35 @@ E-TD3 TD-C3 (0d5af1f), /tmp/s15-12d/c3: bodies-yard 30 d bd6a10026f608dba1bb4d48
       long_run 23f7fa76016294ab18ae5b6a6b568b61d1b36fc0741ee51eb7952276a1de5125, long_run_objects
       c8358f8bbc06c94fbd7db33375dfe21ad0da80ddd39ee93ce9a72d542798c5b4 — each = E-TD-base (TD-14 holds).
       `validate` social-cafe and bodies-yard valid. M-TD1 and the movement mutation bit.
+
+E-TD4 TD-C5 (uncommitted at the stop), the towns' world files as §19.3.1 + E-TD1 + the two TD-D4
+      rulings and the radius ruling: `validate` social-cafe valid, 22 entities, 67 genesis facts;
+      market-town valid, 143 genesis facts; place and object files byte-identical across the towns
+      (`cmp`). ac1_composability 13/13 on the real towns; M-TD2 (a `body:` in market-town's apple.yaml)
+      → check 3 fails "items/apple.yaml: `body` is not a section a market pack owns"; M-TD3 and M-TD4
+      as TD-D5; all reverted. town_bodies.rs (new): validate + six refusals, the geometry exception,
+      the wall check and the catalogue — 4/4 pass; the wall check (market-town, the real server):
+      carol at (3 000, 2 500) in apartments; stride to (3 000, 700) accepted; stride to (3 000, −1 000)
+      through the south wall → `Accepted { events: [145, 146] }` (her `arrived` and `stopped-short`),
+      carol still in apartments at (3 000, 260) — R + GAP from the wall; then walk to the doorway (2 000,
+      400) and across → on the street at (−19 700, 2 800). The catalogue: twenty kinds in key order with
+      their names in market-town; none in social-cafe.
+
+E-TD5 The radius ruling (r = 250), bodies' tests (a helper agent of this session, reviewed here; log
+      /tmp/s15-12d/r250-bodies-fixed.log): 34 tests failed at r = 250 with r = 300 literals; 32 now
+      pass with every expected value re-derived by formula from R = 250, GAP = 10, TOLERANCE = 5,
+      NUDGE_MAX = 300 (setups moved only by formula, keeping each scenario's overlap or margin; renames:
+      `a_shove_from_600_mm…` → `a_shove_from_within_the_offset_moves_its_target_half_a_metre`,
+      `a_stride_toward_a_person_600_mm_away…` → `…_within_the_offset_is_still_stopped`,
+      `two_people_closer_than_595_mm…` → `…_closer_than_the_clearance_…`; resolve.rs's F-P6
+      reproduction re-found by a grid search near request 551, because F-P6 is a controller artefact
+      with no formula — its intent kept, its provenance changed). No bodies test pins a recorded hash:
+      long_run, long_run_objects and the head-on scenarios compare two processes of one run. **Two
+      invariants do not hold at r = 250 with their meaning (TD-D7):** `a_stride_toward_a_person_within
+      _the_offset_is_still_stopped` (SD-Z5's M-Z5 guard: at 2r apart the walker is turned by the
+      head-on bias and slides round instead of being stopped) and `n3_a_crowd_is_nudged_in_bounded_
+      chains_and_sometimes_blocks` (§9.6's crowd at 650 spacing: 0 of 12 strides block, was 3; blocking
+      returns only at spacing ≤ 530). Both left failing, unfudged.
 ```
 
 **E-TD1 — the geometry table of TD-3 (TD-C1).** Produced by a read-only research agent of the
@@ -6816,6 +6845,109 @@ if the slice really places them overlapping, that is a QD to the primary session
   proposes to **omit** it and name it with the leaves as a probe exemption (62 solids); the door leaves'
   boxes are (751, 0)–(1 153, 746) and (199, 0)–(593, 864) (§19.3.1 dropped the board's 70 mm); the
   put_solid props are E-TD1 §2's (tables half 394–437, not 300).
+
+**Amendment, 2026-10-08 — TD-D4 ruled by the primary session (binding).** Relayed by the coordinator:
+"TD-D4: option (b). Author the table-north's south face at y 4200 … within TD-3's 150 mm tolerance and
+keeps SD-D7 (no person file changes)"; "The bank tree: omit it … a geometry-probe exemption beside the
+two door leaves … an overhang a floor-standing box cannot represent … a finding owned by 12e/16c …
+Use 62 solids."
+
+1. **SD-D2's "bounds × 0.92" rule has exactly one named exception:** the café's table north, its
+   **south face only**, authored at y 4 200 instead of the collider's 4 123 — a **77 mm inset**, inside
+   TD-3's 150 mm, so the wanderer at (7 110, 3 900) keeps exactly 300 mm (bodies' person-to-solid
+   clearance) and no person file changes (SD-D7). **Superseded by the radius amendment below: at
+   r = 250 the face is y 4 160, a 37 mm inset, and the wanderer keeps 260 mm (r + GAP).** The other
+   three faces and the height are the collider's. TD-3 lists it as an allowed deviation by name
+   (E-TD1-x1), and the town test (`town_bodies.rs`) asserts the authored box and the slice collider
+   differ only there, by the inset, so the exception cannot widen silently.
+2. **The elevated bank tree is omitted** (street, collider (27 888, 1 006)–(28 285, 1 403), underside
+   1 660 mm): a probe exemption by name beside the two door leaves, because an overhang is something a
+   floor-standing box cannot represent. The street has **62** solids. **Finding FU-12d-1, owned by
+   12e/16c:** either the 3D slice raises the tree's underside above 1.72 m (the capsule), or a later
+   bodies PR adds overhead solids; until then a 3D player is stopped by a tree the server does not know.
+
+**Amendment, 2026-10-08 — the person radius becomes 250 mm (the operator's ruling, relayed by the
+coordinator; binding; it changes 12d's scope).** Quoted: "The operator asked that bodies follow the
+real world. A 600 mm-diameter person is too wide; adult shoulders are 40–46 cm and chest depth 25–30
+cm. `PERSON_RADIUS` becomes 250 mm (50 cm diameter). It changes inside 12d so that it shares 12d's one
+re-baseline." Applied as the ruling lists:
+
+1. **Derived, not re-typed.** `geometry.rs`: `PERSON_RADIUS` 250; `CLEARANCE` now the expression
+   `2 · PERSON_RADIUS − TOLERANCE` (was the literal 595). Every other person bound in bodies' sources
+   was already an expression of the radius (the `2r + GAP` spacing, `r + GAP` entry, push and doorway
+   margins, the floor minimum `2(r + GAP)`, the capsule half-segment) — audited by grep, each listed
+   in E-TD5. Kept, with reasons: `NUDGE_MAX` 300 (a policy on how far a stride carries somebody, QB-10,
+   not a body dimension), `REST_CLEARANCE` 300 (not derived in code; the ruling keeps it), the reaches,
+   `SHOVE_DISTANCE`, `CAPACITY_GRID` 650 (its four-point guarantee holds for any spacing radius ≤ 650).
+   Doc comments that quoted 300/610/620/710/876 now state the formula. The CLI scan's mirrored bounds
+   (`tools/cli/tests/bodies/mod.rs`) are constants derived from a mirrored `R`.
+2. **TD-14 is replaced.** bodies-yard's 30-day sha and the long-run bytes can no longer equal
+   §20.14's bases: they are re-captured at r = 250 and recorded as the new bases (E-TD5), and every
+   PB/DO/AO invariant test still passes with expected literals re-derived from the formula (E-TD5
+   lists every test whose literal or meaning changed). The frozen "no diff" list of bodies sources
+   (TD-14) is superseded for `geometry.rs`, `component.rs`'s and `rapier.rs`'s doc comments, and the
+   unit tests' literals.
+3. **TD-D4 recomputed:** at r = 250 the wanderer needs ≥ 260 mm (r + GAP, the ruling's figure) from
+   the table's face, so the face is authored at **y 4 160**, an inset of **37 mm** (not 4 200 / 77 mm).
+   The named exception of the amendment above stands with these numbers.
+4. **TD-12's bounds are unchanged**; the radius' effect on cost is reported with them.
+5. **Cross-lane findings (recorded, not done here):** the 3D client's player and NPC capsules (12e/16c;
+   `clients/3d-spike/scripts/player.gd:24` still says 300 mm) must become 250; the 2D client's selection
+   ring is display-only and may need no change; IL-c is to make the radius world configuration.
+6. **Material stop** if any invariant cannot hold at 250 without changing its meaning.
+
+**TD-D5 — TD-C5's test edits beyond §19.6's rows (bounded; each a literal, claim unchanged).**
+- `worldpack/tests/social_cafe.rs` `entity_keys_resolve_to_ids_deterministically` pins every id: the
+  four objects (19–22) join the literal map; the message says "then items". Not in §19.6's list, same
+  kind as its row for `social_cafe.rs:109`.
+- `tools/cli/tests/content_kinds.rs`: Social Café now lists `items:`, so the copy's kinds join that
+  list (§19.6). Their keys `lantern`, `pebble` sorted between `cafe-box` and `street-ball` and would
+  have moved two existing ids — and `inert_items_and_organizations_change_no_fact_of_a_run` compares
+  fact bytes, which name the objects' ids — so they are renamed `torch`, `vase` (sorting after
+  `street-box`); every existing id then stays, exactly the test's claim. The "a pack that declares
+  neither prints neither line" assertion becomes "Social Café prints its four objects and no
+  organizations line".
+- `routines.rs:225`: as §19.6 (otto's later arrivals all `Causation::Action`, one at genesis).
+- M-TD3 as designed (an object file deleted from Market Town) is refused by the loader before check 3
+  ("world.yaml lists the item 'cafe-ball', but … does not exist"); the mutation that reaches check 3
+  removes the file **and** its `items:` entry, and check 3 then fails naming both ("Social Café's item
+  `cafe-ball` is missing from Market Town's `items`", "items/cafe-ball.yaml: present in one pack only").
+  M-TD4 (`bodies` dropped from Market Town's list only) is likewise refused by the loader first ("gives
+  'cafe-ball' a body, which the 'bodies' system owns, but world.yaml does not enable it"): check 3 fails,
+  but at its read step, not with "does not begin with Social Café's list" — that message stays pinned
+  by the unit case (`reordered`). Both reverted.
+
+**TD-D7 — MATERIAL STOP in TD-C5/TD-C7 (2026-10-08): TD-5 activity fails, the remedy ladder does not
+help, and two bodies invariants lose their meaning at r = 250.**
+- **TD-5:** `routines.rs` (social-cafe, 30 days) fails: 10 of 12 people reach < 90 % of their agenda
+  segments (alice 31/91, bob 59/121, carol 31/91, erin 50/91, felix 30/91, grace 41/91, hana 44/91,
+  ivan 80/121, visitor 59/121, wanderer 84/121; the café is the place most missed). A diagnostic
+  30-day run: moves 23 683, stopped-short 14 645 (62 %), person-entered-place 1 070 (≈ half the
+  without-bodies rate, as E-TD0b predicted). Reading: the café's street doorway (0, 2 800) is reachable
+  only through a ≈ 1.1 m corridor between the slice's A-board and terrace tables, and the paced
+  controller aims straight at the doorway and does not path round (F-D14).
+- **Ladder (§19.4), 30 days each, scratch copies under /tmp/s15-12d/ladder:** c1 (both street objects
+  moved into the carriageway): entries 1 058, stopped-short 15 345; c1 + c2 (apartments onto Maple &
+  Co. −8 610, park onto the Lakeside Deli 4 710): entries 997, stopped-short 16 239. No rung restores
+  entries; no rung may move slice-matched solids. Per §19.4: stop and return with the counts.
+- **Cost (information, not a TD-12 run):** at a load average of ≈ 278, 30 days with bodies took 10.3–10.7
+  s user CPU (≈ 105 s per 300 days by proportion) against ≈ 18.6 s for 300 days without (E-TD-base): far
+  above TD-12a's 3.96 ×. TD-12 itself was not run.
+- **The radius (E-TD5):** `a_stride_toward_a_person_within_the_offset_is_still_stopped` (M-Z5's guard)
+  and `n3_…_sometimes_blocks` do not hold at r = 250 with their meaning.
+- Also open: `milestone_c.rs` `walk_into_the_cafe` meets a street prop (TooFarAway) — a §19.6 waypoint
+  edit not yet made; `ac15_one_alice.rs` re-routed round table north (passes 6/6).
+- Not done: TD-C7's 300-day town tests, TD-C8 (TD-12, Rosetta, re-baseline, gate, PR).
+
+**TD-D6 — Windows (the operator's 2026-10-08 requirement: macOS, Linux and Windows).** Nothing 12d
+adds assumes Unix: `town_bodies.rs` builds paths with `Path::join`, uses no signal, no `/tmp`, no
+shell. 12d removed one Unix-only example from a file it owns (`worlds/social-cafe/README.md`'s `--save
+/tmp/cafe` → `--save cafe-save`). **Findings in existing tests, not fixed here (outside the change set
+or not 12d's claim), named with their owner lane:** `tools/cli/tests/{milestone_c,milestone_b,
+market_town,restart,run_restart,bodies_yard_restart}.rs` use `std::os::unix` (SIGKILL through
+`ExitStatusExt`) — S9/S10 (milestones, market) and S15 12b (bodies-yard restart); the tests' pack
+constants (`headless::PACK`, `market::MARKET_TOWN`, `bodies::YARD`) concatenate `/../../worlds/…`
+with `/`, which Windows accepts but is a separator assumption — test hygiene lane.
 
 **Freeze note (planning session, 2026-10-08) — the budget field, for the primary session.** The
 freeze sets the budget at six 300-day town runs. TD-12a as accepted at the same freeze (QD-14) needs

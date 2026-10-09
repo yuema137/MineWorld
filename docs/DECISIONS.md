@@ -3441,8 +3441,8 @@ follows. (Note 4 is IL-a's; this was planned as note 4 before IL-a merged.)
    edge and its solids, and leaving is through a doorway.
 2. **A doorway point must lie where a person fits** (SD-D5). At genesis, `bodies` checks every doorway
    point of a shaped place — the `here` of each passage out of it and the `there` of each passage into
-   it, read from `movement`'s `Passages` — to lie inside the floor shrunk by 310 mm (R + GAP) and at
-   least 310 mm from every solid. A point that does not is refused, `bodies-doorway`, naming the place,
+   it, read from `movement`'s `Passages` — to lie inside the floor shrunk by R + GAP (260 mm with note
+   6's radius) and at least that far from every solid. A point that does not is refused, `bodies-doorway`, naming the place,
    the passage's other place, the point and the distance. Otherwise every crossing would be silently
    shifted by entry placement (E3) instead of landing on the doorway.
 3. **bodies reads `movement`'s crate for `Passages` only** (QD-5), as it reads `item`'s for
@@ -3450,6 +3450,20 @@ follows. (Note 4 is IL-a's; this was planned as note 4 before IL-a merged.)
    passages to check. `isolation.rs` asserts it names nothing else of `movement`.
 4. **`bodies` is version 4** (QD-6): a save made by version 3 of a world the refusal now rejects is
    refused by name (`ARC-25`), never re-executed into a genesis error.
+
+**Note 6, 2026-10-08 (S15, PR 12d; the operator's ruling, relayed by the coordinator; step-11 §19.13)
+— a person is 50 cm across.** The operator asked that bodies follow the real world: a 600 mm person is
+too wide (adult shoulders are 40–46 cm, chest depth 25–30 cm). **`PERSON_RADIUS` is 250 mm**, changed
+inside 12d so that it shares 12d's one re-baseline. Every person dimension keeps its formula and moves
+with it, none re-typed: `CLEARANCE = 2r − TOLERANCE` (495 mm), two people stopped `2r + GAP` (510 mm)
+apart, a doorway point and an entry `r + GAP` (260 mm) from walls and solids, a pushed object's
+footprint `r + GAP` from its pusher, the narrowest floor `2(r + GAP)` (520 mm), the capsule's
+half-segment `(PERSON_HEIGHT − 2r) / 2`. What is not a person dimension does not move: `NUDGE_MAX`
+(300 mm, how far a stride may carry somebody), `REST_CLEARANCE` (300 mm, how far a launched object
+rests from furniture), the reaches, `SHOVE_DISTANCE` and `CAPACITY_GRID`. Results change, so the
+`bodies-yard` and long-run bases are re-captured (step-11 §19.12) and `bodies` stays at version 4 (the
+same PR's bump). The 3D client's capsules (`player.gd`, 300 mm) must follow (12e/16c); IL-c is to make
+the radius world configuration.
 
 ---
 

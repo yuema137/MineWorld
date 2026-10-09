@@ -71,10 +71,28 @@ const NEXT_TO_ALICE: (i32, i32) = (6_000, 6_200);
 const ALSO_NEXT_TO_ALICE: (i32, i32) = (7_300, 6_200);
 
 /// Where the pack seats the two players (`worlds/social-cafe/people/{visitor,wanderer}.yaml`), which is
-/// where each walk starts. The walks are 7 116 mm and 2 308 mm: four `move` strides and two, since the
-/// server takes at most 2 m per request (`server/PROTOCOL.md` §6.2).
+/// where each walk starts. The visitor's walk is 7 116 mm, four `move` strides, since the server takes
+/// at most 2 m per request (`server/PROTOCOL.md` §6.2). The wanderer's goes round the table north of
+/// them, which is a solid since the café has bodies (step-11 §19.6): east under its south-east corner,
+/// north past its east side, then to the counter — three legs, one stride each.
 const VISITOR_AT_THE_DOOR: (i32, i32) = (1_610, 600);
 const WANDERER_BY_THE_TABLE: (i32, i32) = (7_110, 3_900);
+const ROUND_THE_TABLE: [(i32, i32); 2] = [(7_900, 3_800), (7_900, 5_300)];
+
+/// The wanderer's walk to Alice, every stride clear of the table (each leg keeps more than a radius
+/// and the gap, 260 mm, from it).
+fn wanderer_to_alice(
+    actor: mineworld_contracts::EntityId,
+    cafe: mineworld_contracts::EntityId,
+) -> Vec<serde_json::Value> {
+    let mut at = WANDERER_BY_THE_TABLE;
+    let mut strides = Vec::new();
+    for to in ROUND_THE_TABLE.into_iter().chain([ALSO_NEXT_TO_ALICE]) {
+        strides.extend(walk(actor, cafe, at, to));
+        at = to;
+    }
+    strides
+}
 
 #[tokio::test]
 async fn there_is_only_one_alice() {
@@ -189,15 +207,14 @@ async fn there_is_only_one_alice() {
 
     // ── The 3D window walks up to the same Alice. ────────────────────────────────────────────
     let strides = three_d
-        .walk_accepted(walk(
-            wanderer,
-            cafe,
-            WANDERER_BY_THE_TABLE,
-            ALSO_NEXT_TO_ALICE,
-        ))
+        .walk_accepted(wanderer_to_alice(wanderer, cafe))
         .await;
     println!("the 3D window walked to Alice in {} strides", strides.len());
-    assert_eq!(strides.len(), 2, "2 308 mm is two strides of at most 2 m");
+    assert_eq!(
+        strides.len(),
+        3,
+        "round the table: three legs of at most 2 m"
+    );
     three_d
         .observation_where("talk to alice available", |observation| {
             may_talk_to(observation, alice)
@@ -385,25 +402,21 @@ async fn two_servers_are_two_worlds_and_the_evidence_can_tell() {
         .expect("a location")
         .place()
         .entity_id();
-    for (client, actor, start, position, words) in [
+    for (client, actor, strides, words) in [
         (
             &mut two_d,
             visitor,
-            VISITOR_AT_THE_DOOR,
-            NEXT_TO_ALICE,
+            walk(visitor, cafe, VISITOR_AT_THE_DOOR, NEXT_TO_ALICE),
             FROM_THE_2D_WINDOW,
         ),
         (
             &mut three_d,
             wanderer,
-            WANDERER_BY_THE_TABLE,
-            ALSO_NEXT_TO_ALICE,
+            wanderer_to_alice(wanderer, cafe),
             FROM_THE_3D_WINDOW,
         ),
     ] {
-        client
-            .walk_accepted(walk(actor, cafe, start, position))
-            .await;
+        client.walk_accepted(strides).await;
         client
             .observation_where("talk available", |observation| {
                 may_talk_to(observation, alice_here)
@@ -456,12 +469,7 @@ async fn killing_one_window_leaves_the_world_and_the_other_window_running() {
     // The world is still there, and so is the other client — which can still act, and is still
     // answered by the same Alice.
     three_d
-        .walk_accepted(walk(
-            wanderer,
-            cafe,
-            WANDERER_BY_THE_TABLE,
-            ALSO_NEXT_TO_ALICE,
-        ))
+        .walk_accepted(wanderer_to_alice(wanderer, cafe))
         .await;
     three_d
         .observation_where("talk to alice available", |observation| {

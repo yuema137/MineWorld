@@ -2,11 +2,11 @@
 //! `[bodies]` registered (step-11 §18.4 PO-3; SD-O8 … SD-O10).
 //!
 //! ```text
-//! a  push            a stride ending 300 mm past contact with a box pushes it clear, 310 mm
+//! a  push            a stride ending 300 mm past contact with a box pushes it clear, R + GAP = 260 mm
 //! b  jam             a box against the east wall cannot be pushed: the stride is resolved with
 //!                    objects solid, and the walker stops at contact
 //! c  no tunnelling   a long stride at a ball stops 300 mm past contact and pushes it; never across
-//! d  fast path       a stride 311 mm clear of every footprint is exactly as asked
+//! d  fast path       a stride R + GAP + 1 = 261 mm clear of every footprint is exactly as asked
 //! e  nudged pusher   a person nudged by the walker pushes a ball, caused by their own arrival
 //! f  conflict        two nudged people would both push one ball: objects solid, the ball unmoved
 //! g  solids          a box pushed toward the counter jams like (b)
@@ -22,8 +22,11 @@ mod support;
 use mineworld_bodies::{How, Objects, explain};
 use mineworld_contracts::{Causation, EntityType, PersonId};
 use support::{
-    Fact, Moved, Plan, Thing, Xy, Yard, assert_holds, ball, cafe, cube, object_moved, xy,
+    Fact, GAP, Moved, Plan, R, Thing, Xy, Yard, assert_holds, ball, cafe, cube, object_moved, xy,
 };
+
+/// How far a stride may carry on past contact (`NUDGE_MAX`, a policy, not a person dimension).
+const NUDGE_MAX: i32 = 300;
 
 const FLOOR: (i32, i32, i32, i32) = (0, 0, 8_320, 10_320);
 const COUNTER: ((i32, i32, i32, i32), i32) = ((3_860, 6_570, 8_320, 7_170), 1_100);
@@ -110,13 +113,21 @@ fn a_push_moves_a_box_out_of_the_walkers_way() {
         &[("walker", (2_800, 5_000))],
         vec![("box", cube(200), "room", (3_500, 5_000))],
     );
-    let moved = walk(&mut yard, "walker", (3_300, 5_000));
-    // Contact at the box's face (3 300) − 310 = 2 990; the candidate rule allows 300 mm more.
+    // Contact at the box's face (3 300) − (R + GAP) = 3 300 − 260 = 3 040; the candidate rule allows
+    // NUDGE_MAX = 300 mm more, to 3 340. The walker asks for 10 mm beyond that, 3 350 (3 300 while R
+    // was 300: 2 990 + 300 + 10), so the box stops them; the box goes until its face is R + GAP from
+    // the walker: 3 340 + 260 = 3 600, its centre 3 800.
+    let contact = 3_300 - R - GAP;
+    let moved = walk(&mut yard, "walker", (contact + NUDGE_MAX + 10, 5_000));
     let walker = yard.point("walker").expect("placed");
-    assert!(near(walker, (3_290, 5_000)), "walker at {walker:?}");
-    let (x, y, z) = yard.object("box");
     assert!(
-        near((x, y), (3_800, 5_000)) && z == 200,
+        near(walker, (contact + NUDGE_MAX, 5_000)),
+        "walker at {walker:?}"
+    );
+    let (x, y, z) = yard.object("box");
+    let pushed_to = (contact + NUDGE_MAX + R + GAP + 200, 5_000);
+    assert!(
+        near((x, y), pushed_to) && z == 200,
         "box at ({x}, {y}, {z})"
     );
     let (_, by) = stopped(&moved).expect("stopped short");
@@ -142,7 +153,7 @@ fn a_push_moves_a_box_out_of_the_walkers_way() {
         (key, from, how, by, cause),
         ("box", (3_500, 5_000), How::Pushed, "walker", 0)
     );
-    assert!(near(to, (3_800, 5_000)), "pushed to {to:?}");
+    assert!(near(to, pushed_to), "pushed to {to:?}");
 }
 
 #[test]
@@ -157,8 +168,9 @@ fn a_box_against_the_wall_jams_and_the_walker_stops_at_it() {
     assert_eq!(outcome.objects, Objects::Solid, "{outcome:?}");
     let moved = walk(&mut yard, "walker", (7_800, 5_000));
     let walker = yard.point("walker").expect("placed");
+    // Contact: the box's west face (8 120 − 200 = 7 920) − (R + GAP) = 7 920 − 260 = 7 660.
     assert!(
-        near(walker, (7_610, 5_000)),
+        near(walker, (8_120 - 200 - R - GAP, 5_000)),
         "walker at contact: {walker:?}"
     );
     assert_eq!(
@@ -182,22 +194,32 @@ fn a_long_stride_at_a_ball_never_passes_over_it() {
         vec![("ball", ball(110), "room", (4_000, 5_000))],
     );
     let moved = walk(&mut yard, "walker", (5_000, 5_000));
-    // Contact at 4 000 − 110 − 310 = 3 580; 300 mm more is 3 880; the ball goes until its edge is
-    // 310 mm from the walker: 3 880 + 310 + 110 = 4 300.
+    // Contact at 4 000 − 110 − (R + GAP) = 4 000 − 110 − 260 = 3 630; NUDGE_MAX = 300 mm more is
+    // 3 930; the ball goes until its edge is R + GAP from the walker: 3 930 + 260 + 110 = 4 300.
+    let walker_at = 4_000 - 110 - R - GAP + NUDGE_MAX;
     let walker = yard.point("walker").expect("placed");
-    assert!(near(walker, (3_880, 5_000)), "walker at {walker:?}");
+    assert!(near(walker, (walker_at, 5_000)), "walker at {walker:?}");
     let (x, y, _) = yard.object("ball");
-    assert!(near((x, y), (4_300, 5_000)), "ball at ({x}, {y})");
+    assert!(
+        near((x, y), (walker_at + R + GAP + 110, 5_000)),
+        "ball at ({x}, {y})"
+    );
     let (_, by) = stopped(&moved).expect("stopped short");
     assert_eq!(by, Some(yard.items["ball"].entity_id()));
 }
 
 #[test]
 fn a_stride_clear_of_every_footprint_is_exactly_as_asked() {
-    // The ball's edge 311 mm from the walker's line: 5 000 + 311 + 110 = 5 421.
+    // The ball's edge R + GAP + 1 = 261 mm from the walker's line (311 while R was 300): 5 000 + 261 +
+    // 110 = 5 371.
     let mut yard = yard(
         &[("walker", (2_000, 5_000))],
-        vec![("ball", ball(110), "room", (2_250, 5_421))],
+        vec![(
+            "ball",
+            ball(110),
+            "room",
+            (2_250, 5_000 + R + GAP + 1 + 110),
+        )],
     );
     let id = PersonId::new(yard.people["walker"], EntityType::Person).expect("a person");
     let to = yard.at("room", (2_500, 5_000));
@@ -217,13 +239,24 @@ fn a_stride_clear_of_every_footprint_is_exactly_as_asked() {
 fn a_nudged_person_pushes_a_ball_by_their_own_arrival() {
     // b stands 250 mm off the walker's line (beyond the head-on band); the walker's end nudges b
     // north-east; b's new disc overlaps the ball beside b, which b then pushes.
+    //
+    // The walker's end (2 600, 5 000) is (400, 250) from b, ⌊√222 500⌋ = 471 mm: b is nudged by
+    // at_least((400, 250), 2R + GAP − 471 = 510 − 471 = 39) = (⌈33.12⌉, ⌈20.70⌉) = (34, 21), to
+    // (3 034, 5 271). The ball (r 110) lies 340 mm east of there, 30 mm inside b's push reach
+    // R + GAP + 110 = 370; from b's start it is (374, 21) away, 374.6 mm, clear of b's disc
+    // (R − TOL + 110 = 355), so the place loads. (While R was 300 b went 139 mm to (3 119, 5 324) and
+    // the ball lay 369 mm east of there, at (3 488, 5 324); at R = 250 that ball is 457 mm from b's
+    // new position, beyond its reach, and b pushes nothing.)
+    let nudged = (3_000 + 34, 5_250 + 21);
     let mut yard = yard(
         &[("walker", (2_000, 5_000)), ("b", (3_000, 5_250))],
-        vec![("ball", ball(110), "room", (3_488, 5_324))],
+        vec![("ball", ball(110), "room", (nudged.0 + 340, nudged.1))],
     );
     let moved = walk(&mut yard, "walker", (2_600, 5_000));
     let displaced = moved.displaced();
     assert_eq!(displaced.len(), 1, "b was nudged: {:?}", moved.facts());
+    let b = xy(displaced[0].1);
+    assert!(near(b, nudged), "b nudged 39 mm, to {b:?}");
     let pushed = pushes(&yard, &moved);
     assert_eq!(pushed.len(), 1, "one push: {:?}", moved.facts());
     let (key, _, _, how, by, cause) = pushed[0];
@@ -237,18 +270,23 @@ fn a_nudged_person_pushes_a_ball_by_their_own_arrival() {
 #[test]
 fn two_people_who_would_both_push_one_ball_leave_it_and_the_stride_is_resolved_with_objects_solid()
 {
-    // b and c stand 588 mm from the walker's end (2 000, 5 000), either side of its line. Nudged by
-    // at_least((500, ±310), 22) = (19, ±12) to (2 519, 5 322) and (2 519, 4 678), each comes 289 mm
-    // from the edge of the ball (r 375 at (3 100, 5 000); 300 mm before): one ball pushed twice. Each
-    // push alone would be valid — b's moves the ball to (3 119, 4 989), 301 mm from c's disc, and
-    // c's symmetrically — so only the "pushed twice" rule refuses it (M-PO10).
+    // b and c stand 488 mm from the walker's end (2 000, 5 000), either side of its line: (377, ±310),
+    // ⌊√238 229⌋ = 488, 22 mm inside 2R + GAP = 510 (as 588 was inside 610 while R was 300). Nudged by
+    // at_least((377, ±310), 22) = (⌈16.99⌉, ±⌈13.97⌉) = (17, ±14) to (2 394, 5 324) and (2 394, 4 676).
+    // The ball, r 375 at (2 916, 5 000), is then (522, ∓324) from each, ⌊√377 460⌋ = 614 mm: 20 mm
+    // inside the push reach R + GAP + 375 = 635 — one ball pushed twice. At genesis b and c are
+    // (539, ±310) from it, 621.8 mm, clear of their discs (R − TOL + 375 = 620), so the place loads.
+    // Each push alone would be valid — b's moves the ball by at_least((522, −324), 20) = (18, −11)
+    // to (2 934, 4 989), (540, 313) from c', 624.2 mm, clear of c's disc (620), and c's symmetrically
+    // — so only the "pushed twice" rule refuses it (M-PO10). (While R was 300: b, c at (2 500, 5 000 ± 310)
+    // and the ball at (3 100, 5 000).)
     let mut yard = yard(
         &[
             ("walker", (1_400, 5_000)),
-            ("b", (2_500, 5_310)),
-            ("c", (2_500, 4_690)),
+            ("b", (2_000 + 377, 5_000 + 310)),
+            ("c", (2_000 + 377, 5_000 - 310)),
         ],
-        vec![("ball", ball(375), "room", (3_100, 5_000))],
+        vec![("ball", ball(375), "room", (2_916, 5_000))],
     );
     let id = PersonId::new(yard.people["walker"], EntityType::Person).expect("a person");
     let to = yard.at("room", (2_000, 5_000));
@@ -262,7 +300,7 @@ fn two_people_who_would_both_push_one_ball_leave_it_and_the_stride_is_resolved_w
     let moved = walk(&mut yard, "walker", (2_000, 5_000));
     assert_eq!(
         yard.object("ball"),
-        (3_100, 5_000, 375),
+        (2_916, 5_000, 375),
         "the ball is unmoved"
     );
     assert!(pushes(&yard, &moved).is_empty(), "nothing pushed");
@@ -277,8 +315,9 @@ fn a_box_pushed_toward_the_counter_jams_and_the_walker_stops_at_it() {
     );
     let moved = walk(&mut yard, "walker", (5_000, 6_000));
     let walker = yard.point("walker").expect("placed");
+    // Contact: the box's south face (6 370 − 200 = 6 170) − (R + GAP) = 6 170 − 260 = 5 910.
     assert!(
-        near(walker, (5_000, 5_860)),
+        near(walker, (5_000, 6_370 - 200 - R - GAP)),
         "walker at contact: {walker:?}"
     );
     assert_eq!(

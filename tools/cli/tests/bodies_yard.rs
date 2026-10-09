@@ -7,7 +7,8 @@
 //!        itself validates
 //! PB-9   30 days, seed 7, saved: activity first (every seat moves, someone stops short, someone is
 //!        nudged, somebody crosses each way, in every 10-day bucket); then the scan of the save finds
-//!        no pair closer than 595 mm, nobody in a wall, no nudge over 310 mm, ≤ 4 per request
+//!        no pair closer than CLEARANCE (2R − 5 = 495 mm since the radius of 2026-10-08; 595 before),
+//!        nobody in a wall, no nudge over 310 mm, ≤ 4 per request
 //! PB-10  the same world without `bodies`: it runs, everybody moves, and the same scan sees overlaps,
 //!        naming the closest pair — the instrument can see what it measures (ARC-23)
 //! ```
@@ -18,9 +19,9 @@ mod headless;
 use std::path::Path;
 
 use bodies::{
-    YARD, assert_active, assert_aggregate, assert_ao1_ao3, assert_day_one, assert_reachable,
-    copy_of, keys_of, print_objects_activity, run, scan, the_world_file_still_says_the_geometry,
-    without_bodies,
+    CLEARANCE, YARD, assert_active, assert_aggregate, assert_ao1_ao3, assert_day_one,
+    assert_reachable, copy_of, keys_of, print_objects_activity, run, scan,
+    the_world_file_still_says_the_geometry, without_bodies,
 };
 use headless::{Tables, fresh, mineworld, stderr, stdout};
 
@@ -335,7 +336,8 @@ fn people_who_do_not_fit_and_malformed_bodies_are_refused_at_load() {
         "places/hall.yaml",
         "min: { x: 0, y: 0 }",
         "min: { x: 12000, y: 0 }",
-        &["hall.yaml", "line", "at least 620 mm"],
+        // 2 × (R + GAP) = 2 × (250 + 10): the radius of the 2026-10-08 ruling (was 620).
+        &["hall.yaml", "line", "at least 520 mm"],
     );
     refused(
         "unknown-key",
@@ -430,7 +432,11 @@ fn check(seed: u64, report: &bodies::Report) {
         report.violations.len(),
         &report.violations[..report.violations.len().min(5)]
     );
-    assert!(report.closest_mm() >= 595, "{}", report.located());
+    assert!(
+        report.closest_mm() >= i64::from(CLEARANCE),
+        "{}",
+        report.located()
+    );
 }
 
 #[test]
@@ -478,7 +484,7 @@ fn without_bodies_the_same_world_runs_and_the_scan_sees_people_overlap() {
         report.located()
     );
     assert!(
-        report.closest_mm() < 595,
+        report.closest_mm() < i64::from(CLEARANCE),
         "the scan sees an overlap: {}",
         report.located()
     );

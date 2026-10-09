@@ -5,7 +5,9 @@ different world made from the same people and places, without editing the kernel
 renderer ([`docs/MVP.md`](../../docs/MVP.md) §2, [`DECISIONS.md` `ARC-35`](../../docs/DECISIONS.md)).
 
 It adds owning and giving things (`ARC-37`):
-- `item` declares twenty kinds of things (`items/*.yaml`, each with an `item:` section);
+- `item` declares twenty kinds of things (`items/*.yaml`, each with an `item:` section naming its
+  category and its display name, such as `Croissant`), and tells whoever is in a place the whole list
+  of kinds and their names;
 - `inventory` gives each person what they carry at the start (each person file's `holdings:`) and is
   the only system that changes it; a person carries at most six things;
 - `item-transfer` lets people give each other things, one at a time, within reach.
@@ -17,9 +19,10 @@ And work, money, shops and eating (`ARC-38`):
   the shift is the work, paid by the hour and restocking the shop;
 - `consumption` lets people eat the food and drink the drinks they carry.
 
-Every file of `worlds/social-cafe` was copied unchanged; the only differences are this README, the
-world's id and name, six appended systems, the `items` and `organizations` lists with their files,
-and blocks appended at the end of each person file (`holdings:`, `economy:`, and `job:` for two).
+Every file of `worlds/social-cafe` was copied unchanged — its walls, furniture and four loose objects
+(`bodies`) included; the only differences are this README, the world's id and name, six appended
+systems, the twenty kinds and the two organizations with their files, and blocks appended at the end
+of each person file (`holdings:`, `economy:`, and `job:` for two).
 
 Run it headless — everybody walks, talks, gives, buys, eats and drinks, and two of them work:
 

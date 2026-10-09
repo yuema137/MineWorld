@@ -105,7 +105,7 @@ impl Solid {
 /// a fact or from a snapshot.
 ///
 /// ```text
-/// floor    each side at least 620 mm (two radii and two gaps: room for one person to turn)
+/// floor    each side at least `2 × (PERSON_RADIUS + GAP)` (520 mm: room for one person to turn)
 /// solids   at most 64; each footprint non-empty, each height 1 … 10 000 mm
 /// every    coordinate within ±100 000 mm
 /// ```

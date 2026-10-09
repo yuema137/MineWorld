@@ -1,0 +1,10 @@
+# A cardboard box on the café floor by the window, east of the lane to the counter: one loose object,
+# not a kind (`docs/DECISIONS.md` `ARC-36` note). Walking into it pushes it; a person within 800 mm
+# may kick or throw it. 400 mm on a side.
+
+tags: [box, carton]
+
+# Owned by the `bodies` system: the object's shape (half-extents, millimetres) and where it lies.
+body:
+  shape: { box: { x: 200, y: 200, z: 200 } }
+  at: { place: cafe, x: 7300, y: 2200 }

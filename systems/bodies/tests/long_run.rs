@@ -3,10 +3,11 @@
 //! (step-11 §9.1, §9.5, §17.4).
 //!
 //! ```text
-//! N-1  after every request no two people are closer than 595 mm; the closest pair is located
-//! N-2  every nudge is at most 310 mm
+//! N-1  after every request no two people are closer than 2R − TOL = 495 mm (595 while R was 300);
+//!      the closest pair is located
+//! N-2  every nudge is at most NUDGE_MAX + GAP = 310 mm
 //! N-3  at most two generations and four people per request
-//! N-4  nobody outside the floor shrunk by 295 mm or within 295 mm of the counter
+//! N-4  nobody outside the floor shrunk by R − TOL = 245 mm or within 245 mm of the counter
 //! digest  every fact and the final state are byte-identical in a second process
 //! cost    printed, not judged here: the mean time per move that reached Rapier, and the share of
 //!         moves the integer fast path answered (`cargo test --release … -- --nocapture` for the
@@ -22,7 +23,7 @@ use std::time::{Duration, Instant};
 
 use mineworld_bodies::{Route, explain};
 use mineworld_contracts::{EntityType, PersonId};
-use support::{Plan, Xy, Yard, cafe, distance2, xy};
+use support::{CLEAR, Plan, R, TOL, Xy, Yard, cafe, distance2, xy};
 
 const SEED: u64 = 7;
 const REQUESTS: u64 = 3_000;
@@ -74,11 +75,14 @@ fn start(i: usize) -> Xy {
     (800 + column * 1_500, 1_000 + row * 1_600)
 }
 
+/// The floor shrunk by R − TOL = 245 mm, and the counter grown by it.
 fn inside_the_cafe((x, y): Xy) -> bool {
-    let in_floor = (295..=8_320 - 295).contains(&x) && (295..=10_320 - 295).contains(&y);
+    let disc = R - TOL;
+    let in_floor = (disc..=8_320 - disc).contains(&x) && (disc..=10_320 - disc).contains(&y);
     let dx = (3_860 - x).max(x - 8_320).max(0);
     let dy = (6_570 - y).max(y - 7_170).max(0);
-    in_floor && i64::from(dx) * i64::from(dx) + i64::from(dy) * i64::from(dy) >= 295 * 295
+    in_floor
+        && i64::from(dx) * i64::from(dx) + i64::from(dy) * i64::from(dy) >= i64::from(disc).pow(2)
 }
 
 /// The run's bytes (every fact, then the final positions) and what it measured.
@@ -141,7 +145,7 @@ fn run() -> Run {
         }
         if let Some((a, b, d)) = yard.closest("room") {
             assert!(
-                d >= 595 * 595,
+                d >= i64::from(CLEAR).pow(2),
                 "N-1, request {r}: {a} and {b} {} mm apart",
                 d.isqrt()
             );

@@ -1,0 +1,9 @@
+# A ball on the café floor, west of the lane to the counter: one loose object, not a kind
+# (`docs/DECISIONS.md` `ARC-36` note). 220 mm across.
+
+tags: [ball, toy]
+
+# Owned by the `bodies` system: the object's shape (a radius, millimetres) and where it lies.
+body:
+  shape: { ball: 110 }
+  at: { place: cafe, x: 2600, y: 5600 }

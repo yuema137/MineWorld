@@ -59,6 +59,9 @@ systems:
   - relationships
   - naming
   - schedule
+  # `bodies` — walls, furniture and loose objects (`ARC-39`) — at the same position as in Social Café,
+  # whose list this one begins with.
+  - bodies
   # Market Town's systems, appended so that every reduction order above stays as it was (`ARC-37`).
   # `item` declares what kinds of things exist, from each item file's `item:` section; `inventory`
   # (which depends on `item`) owns what each person holds, from each person file's `holdings:`, and
@@ -115,11 +118,15 @@ population:
 
 # Market Town's kinds of things — twenty, `docs/MVP.md` §3's "~20 item types". Each key names a file in
 # `items/`, which declares a kind, not one object: what anybody holds is a count of it (`ARC-36`). Kinds
-# are allocated identities after people, so every identity above stays where Social Café has it.
+# are allocated identities after people, so every identity above stays where Social Café has it. The
+# list also carries Social Café's four loose objects (`cafe-ball`, `cafe-box`, `street-ball`,
+# `street-box`), unchanged: physical things, not kinds (`ARC-36` note, `ARC-35` note).
 items:
   - apple
   - book
   - bread
+  - cafe-ball
+  - cafe-box
   - cake
   - candle
   - coffee
@@ -135,6 +142,8 @@ items:
   - scarf
   - soap
   - soup
+  - street-ball
+  - street-box
   - tea
   - umbrella
 

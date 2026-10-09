@@ -508,16 +508,18 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               Place form — { floor: { min: {x, y}, max: {x, y} }, solids: [ { min:
                               {x, y}, max: {x, y}, height } ] }: the place's walkable rectangle — its
                               edge is the place's walls — and up to 64 solid boxes standing on it,
-                              integer millimetres in the place's frame. Each floor side ≥ 620 mm; each
-                              solid non-empty, height 1–10 000; every coordinate within ±100 000.
-                              `solids` is optional. A place without it has no geometry, and nobody in
-                              it is resolved. At genesis the pack refuses two people closer than
-                              595 mm, a centre outside the floor shrunk by 300 mm or within 300 mm of a
-                              solid, a floor that cannot hold the world's population, and a doorway
-                              point of the place (the `here` of a passage out of it, the `there` of
-                              a passage into it) outside the floor shrunk by 310 mm or within 310 mm
-                              of a solid (`bodies-doorway`, naming both places, the point and the
-                              distance; `ARC-39` note 5).
+                              integer millimetres in the place's frame. A person is a 250 mm radius
+                              r (`ARC-39` note 6), and every bound below is derived from it. Each
+                              floor side ≥ 2(r + 10) = 520 mm; each solid non-empty, height 1–10 000;
+                              every coordinate within ±100 000. `solids` is optional. A place without
+                              it has no geometry, and nobody in it is resolved. At genesis the pack
+                              refuses two people closer than 2r − 5 = 495 mm, a centre outside the
+                              floor shrunk by r or within r of a solid, a floor that cannot hold the
+                              world's population, and a doorway point of the place (the `here` of a
+                              passage out of it, the `there` of a passage into it) outside the floor
+                              shrunk by r + 10 = 260 mm or within 260 mm of a solid
+                              (`bodies-doorway`, naming both places, the point and the distance;
+                              `ARC-39` note 5).
                               Object form — { shape: { box: { x, y, z } } | { ball: <radius> }, at:
                               { place: <place key>, x, y } }: one loose object lying on that place's
                               floor (`ARC-36` note). A box's half-extents are 50–400 mm in x and y and

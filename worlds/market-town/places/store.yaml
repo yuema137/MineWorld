@@ -1,8 +1,8 @@
-# The convenience store: a corner shop at the east end of the street.
+# The convenience store: The Flower Room, the shop four doors east of the café.
 #
 # Millimetres from the shop's own origin, its inner south-west corner; `x` east, `y` north
-# (`docs/CORE_CONCEPTS.md` §6.1). No drawn geometry yet — the 3D slice depicts the café and the street
-# — so these positions are semantic.
+# (`docs/CORE_CONCEPTS.md` §6.1). The room is the 3D slice's Flower Room, 7.9 m wide and 7.35 m deep,
+# and its door is on the street's north side, 8.39 m east of the café's.
 #
 # A place and nothing more in this world. What a shop *does* — stock, prices, the people who run it —
 # is items, an organization and employment, which are System Packs this world does not install
@@ -16,12 +16,39 @@ tags:
 note: >-
   A convenience store on the street's north side, east of the café: shelves, a fridge, a till.
 
-# Its door, onto the street's north side, 12 m east of the café's.
+# Its door: at the centre of the doorway, 0.4 m into the room, and 0.4 m in front of the shopfront on
+# the street.
 passages:
   - to: street
     here:
-      x: 1500
-      y: 200
+      x: 1040
+      y: 400
     there:
-      x: 12000
-      y: 3000
+      x: 8390
+      y: 2800
+
+# Owned by the `bodies` system (`ARC-39`): the floor and every solid the 3D slice collides with on it,
+# as boxes within 150 mm of the slice's colliders (step-11 §19.3.1, E-TD1). The open door leaf is a
+# diagonal board, held by its axis-aligned box; the display shelves stand turned across the room and
+# are clipped at the west wall.
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 7900, y: 7350 } }
+  solids:
+    # the window staging
+    - { min: { x: 2100, y: 110 }, max: { x: 7200, y: 950 }, height: 1200 }
+    # the work counter
+    - { min: { x: 4500, y: 5750 }, max: { x: 7650, y: 6450 }, height: 950 }
+    # the bucket step
+    - { min: { x: 7230, y: 1150 }, max: { x: 7850, y: 4550 }, height: 220 }
+    # the display shelves on the west wall
+    - { min: { x: 0, y: 2379 }, max: { x: 716, y: 2721 }, height: 1494 }
+    - { min: { x: 0, y: 3629 }, max: { x: 716, y: 3971 }, height: 1494 }
+    # the shelves on the back wall
+    - { min: { x: 4888, y: 7072 }, max: { x: 5812, y: 7308 }, height: 1997 }
+    - { min: { x: 6188, y: 7072 }, max: { x: 7112, y: 7308 }, height: 1997 }
+    # the display table
+    - { min: { x: 3592, y: 2892 }, max: { x: 4508, y: 3808 }, height: 716 }
+    # the crate by the window
+    - { min: { x: 7003, y: 375 }, max: { x: 7797, y: 825 }, height: 336 }
+    # the open door's leaf
+    - { min: { x: 199, y: 0 }, max: { x: 593, y: 864 }, height: 2080 }

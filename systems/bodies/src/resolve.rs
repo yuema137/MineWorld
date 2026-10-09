@@ -310,9 +310,28 @@ fn relocated(location: Location, at: Point) -> Location {
 mod tests {
     //! PB-8: verify-then-degrade reproduces the prototype's F-P6 and closes it (step-11 §9.8, DC-8).
     //!
-    //! The setup is mode R's request 551: person 8 at (2 536, 782) asks for (+1 412, −1 412), toward
-    //! the south wall; person 2 stands at (2 970, 314), against that wall. In the prototype the
-    //! character controller slid the walker along the wall onto person 2, leaving them 33 mm apart.
+    //! The setup was mode R's request 551 while a person's radius was 300 mm: person 8 at (2 536, 782)
+    //! asks for (+1 412, −1 412), toward the south wall; person 2 stands at (2 970, 314), R + 14 from
+    //! that wall. In the prototype the character controller slid the walker along the wall onto
+    //! person 2, leaving them 33 mm apart.
+    //!
+    //! At R = 250 (the ruling of 2026-10-08) request 551 no longer reproduces F-P6, shifted or not:
+    //! the person against the wall at R + 14 = 264, the walker anywhere within ±100 mm of its old
+    //! start or of that start moved 50 mm toward the wall, ends 496 … 510 mm from them with
+    //! verification off. F-P6 is a sporadic artefact of the character controller, so there is no
+    //! formula that carries the start over; the instance below was found by a search of starts near
+    //! request 551 (walker 25 mm lattice, then 5 mm) and is the same situation: the person against the
+    //! south wall at R + 14, the walker 632 mm from them (request 551: 638), asking for the same
+    //! (+1 412, −1 412) toward the wall, and the controller sliding them onto the person, 74 mm apart.
+
+    /// The walker's start: request 551's (2 536, 782) moved by (−50, −112), found by search.
+    const WALKER: (i32, i32) = (2_536 - 50, 782 - 112);
+    /// The person against the south wall: R + 14 = 250 + 14 from it, as request 551's was 300 + 14.
+    const AGAINST: (i32, i32) = (2_970, 250 + 14);
+    /// What the walker asks for: request 551's stride, toward the south wall.
+    const STRIDE: (i32, i32) = (1_412, -1_412);
+    /// The invariant: CLEARANCE = 2R − TOLERANCE = 2 · 250 − 5.
+    const CLEAR: i64 = 2 * 250 - 5;
 
     use mineworld_contracts::{
         EntityKey, LocalPosition, Location, Millimetres, PersonId, WorldTime,
@@ -334,7 +353,7 @@ mod tests {
     }
 
     /// The café with the walker and the person against the wall; the walker, the person and the place.
-    fn request_551() -> (World, PersonId, PersonId, PlaceId) {
+    fn an_f_p6_request() -> (World, PersonId, PersonId, PlaceId) {
         register_resolvers(vec![Box::new(BodiesSystem) as Box<dyn ArrivalResolver>]);
         let mut world = World::new();
         world.install(PresenceSystem).expect("presence installs");
@@ -359,8 +378,8 @@ mod tests {
         }))
         .expect("the café");
         let facts = vec![
-            arrival(&world.read(), walker, at(place, 2_536, 782)).expect("placed"),
-            arrival(&world.read(), against, at(place, 2_970, 314)).expect("placed"),
+            arrival(&world.read(), walker, at(place, WALKER.0, WALKER.1)).expect("placed"),
+            arrival(&world.read(), against, at(place, AGAINST.0, AGAINST.1)).expect("placed"),
             place_shaped(place, shape),
         ];
         world.genesis(NOW, facts).expect("the café begins");
@@ -369,7 +388,7 @@ mod tests {
 
     /// The walker's end and the other person's, under `policy`, and how far apart they are.
     fn resolved(policy: Policy) -> (Point, Point, i64, Outcome) {
-        let (world, walker, against, place) = request_551();
+        let (world, walker, against, place) = an_f_p6_request();
         let read = world.read();
         let from = read
             .component::<Presence>(walker.entity_id())
@@ -378,7 +397,7 @@ mod tests {
             &read,
             walker,
             from,
-            at(place, 2_536 + 1_412, 782 - 1_412),
+            at(place, WALKER.0 + STRIDE.0, WALKER.1 + STRIDE.1),
             policy,
         )
         .expect("not inert");
@@ -386,7 +405,7 @@ mod tests {
             .displaced
             .iter()
             .find(|(person, _)| *person == against.entity_id())
-            .map_or(Point::new(2_970, 314), |(_, at)| *at);
+            .map_or(Point::new(AGAINST.0, AGAINST.1), |(_, at)| *at);
         let apart = distance2(answer.reached, other);
         (answer.reached, other, apart, answer.outcome)
     }
@@ -403,7 +422,7 @@ mod tests {
             apart.isqrt()
         );
         assert!(
-            apart < 595 * 595,
+            apart < CLEAR * CLEAR,
             "the instrument sees F-P6: the walker and the person against the wall overlap, {} mm",
             apart.isqrt()
         );
@@ -421,7 +440,7 @@ mod tests {
             apart.isqrt()
         );
         assert!(
-            apart >= 595 * 595,
+            apart >= CLEAR * CLEAR,
             "walker {walker:?} and the person against the wall {other:?} are {} mm apart",
             apart.isqrt()
         );
@@ -436,6 +455,6 @@ mod tests {
             "production: walker {walker:?}, against {other:?}, {} mm apart; {outcome:?}",
             apart.isqrt()
         );
-        assert!(apart >= 595 * 595, "{} mm apart", apart.isqrt());
+        assert!(apart >= CLEAR * CLEAR, "{} mm apart", apart.isqrt());
     }
 }

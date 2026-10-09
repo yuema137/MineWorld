@@ -9,7 +9,6 @@
 # 10.32 m north from it. The layout is the 3D slice's, which follows reference image `03`: the front
 # door near the west end of the shopfront, a clear lane from it to the counter, the counter across the
 # back of the room from 3.86 m to the east wall, and its customer face 6.57 m in from the front wall.
-# A World Pack authors no geometry beyond these positions; the slice draws the rest.
 
 tags:
   - cafe
@@ -20,14 +19,41 @@ note: >-
   a front door onto the street.
 
 # The front door. `here` is where it is in the café — 1.61 m along the front wall from the west wall
-# and 0.2 m into the room, the point a client binds its drawn door to — and `there` where the same
-# door is on the street. Where it is, not how near one must be to use it: that is the movement
-# system's rule (`docs/DECISIONS.md` `ARC-26`).
+# and 0.4 m into the room, where a person fits (the `bodies` system refuses a doorway point closer than
+# a person's radius and a gap, 260 mm, to a wall or a solid) — and `there` where the same door is on the street, 0.4 m in front of the
+# shopfront. Where it is, not how near one must be to use it: that is the movement system's rule
+# (`docs/DECISIONS.md` `ARC-26`).
 passages:
   - to: street
     here:
       x: 1610
-      y: 200
+      y: 400
     there:
       x: 0
-      y: 3000
+      y: 2800
+
+# Owned by the `bodies` system (`ARC-39`): the floor — its edge is the room's walls — and every solid
+# the 3D slice collides with on it, as boxes in this frame (step-11 §19.3.1 and its evidence E-TD1).
+# Each matches the slice's collider within 150 mm, with three named departures: the open door leaf is a
+# diagonal board, held here by its axis-aligned box; and the north table's south face stands 37 mm
+# inside the slice's collider, at y 4 160, so the wanderer at (7 110, 3 900) keeps a radius and the gap
+# (260 mm) from it (step-11 §19.13, TD-D4).
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 8320, y: 10320 } }
+  solids:
+    # the counter, its customer face 6.57 m in
+    - { min: { x: 3860, y: 6570 }, max: { x: 8320, y: 7350 }, height: 1060 }
+    # the back worktop
+    - { min: { x: 3860, y: 9290 }, max: { x: 8320, y: 9910 }, height: 880 }
+    # the window bench's seat slab
+    - { min: { x: 2360, y: 460 }, max: { x: 8020, y: 900 }, height: 470 }
+    # the west dresser
+    - { min: { x: 0, y: 2110 }, max: { x: 340, y: 4510 }, height: 840 }
+    # the three round tables
+    - { min: { x: 4443, y: 2743 }, max: { x: 5277, y: 3577 }, height: 716 }
+    - { min: { x: 6673, y: 4160 }, max: { x: 7547, y: 4997 }, height: 716 }
+    - { min: { x: 1866, y: 8166 }, max: { x: 2654, y: 8954 }, height: 716 }
+    # the open front door's leaf
+    - { min: { x: 751, y: 0 }, max: { x: 1153, y: 746 }, height: 2070 }
+    # the board across the back-room doorway
+    - { min: { x: 195, y: 10230 }, max: { x: 1245, y: 10320 }, height: 2000 }

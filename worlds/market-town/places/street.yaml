@@ -1,10 +1,12 @@
 # The street: the town's one thoroughfare, and the place every other place opens onto.
 #
 # Millimetres from the street's own origin; `x` east along the street, `y` north
-# (`docs/CORE_CONCEPTS.md` §6.1). The north side's doorways are at `y` 3 000 — the café's at `x` 0,
-# the apartments' 12 m west, the store's 12 m east — and the south side's at `y` −13 000: the office
-# 6 m west and the park gate 8 m east. Each of those passages is stated once, in the other place's
-# file, and holds both ways (`docs/MODULE_SPEC.md` §4.1).
+# (`docs/CORE_CONCEPTS.md` §6.1). The north façades stand at `y` 3 200 and the south ones at −13 000;
+# every doorway point lies 0.4 m in front of its façade, on a door the 3D slice draws: on the north side
+# the café's at `x` 0, The Flower Room's (the store) 8.39 m east and the Flats' (the apartments)
+# 19.7 m west; on the south side the office's house door 5.7 m west and the park's 15.3 m east. Each of
+# those passages is stated once, in the other place's file, and holds both ways
+# (`docs/MODULE_SPEC.md` §4.1).
 #
 # Every place joins the street and nothing else, so any place is at most two doors from any other:
 # out onto the street, and in through the next.
@@ -16,3 +18,91 @@ tags:
 note: >-
   The pavement and road that join the café, the apartments, the store, the park and the office.
   Somewhere to step out to, and the way from any place to any other.
+
+# Owned by the `bodies` system (`ARC-39`): the floor between the façades and the street's two ends, and
+# the 62 solids the 3D slice collides with on it, as boxes (step-11 §19.3.1, E-TD1). A slice cylinder
+# is held by its inscribed square (radius ≤ 500 mm) or by two crossed boxes (the terrace tables); each
+# box is within 150 mm of the slice's collider. One slice collider is left out by name: a tree on the
+# east bank whose foliage overhangs the pavement 1.66 m up — an overhang a floor-standing box cannot
+# hold (step-11 §19.13, TD-D4's amendment; FU-12d-1).
+body:
+  floor: { min: { x: -37450, y: -13000 }, max: { x: 30550, y: 3200 } }
+  solids:
+    # the retaining wall
+    - { min: { x: 15050, y: 1000 }, max: { x: 26050, y: 3200 }, height: 1900 }
+    # lamps (r 130)
+    - { min: { x: -27541, y: -691 }, max: { x: -27359, y: -509 }, height: 2400 }
+    - { min: { x: -11541, y: -691 }, max: { x: -11359, y: -509 }, height: 2400 }
+    - { min: { x: 5459, y: -691 }, max: { x: 5641, y: -509 }, height: 2400 }
+    - { min: { x: 21459, y: -691 }, max: { x: 21641, y: -509 }, height: 2400 }
+    - { min: { x: -20541, y: -9291 }, max: { x: -20359, y: -9109 }, height: 2400 }
+    - { min: { x: -2541, y: -9291 }, max: { x: -2359, y: -9109 }, height: 2400 }
+    - { min: { x: 14459, y: -9291 }, max: { x: 14641, y: -9109 }, height: 2400 }
+    # bollards (r 160)
+    - { min: { x: -5563, y: -1093 }, max: { x: -5337, y: -867 }, height: 1000 }
+    - { min: { x: -3213, y: -1093 }, max: { x: -2987, y: -867 }, height: 1000 }
+    - { min: { x: -863, y: -1093 }, max: { x: -637, y: -867 }, height: 1000 }
+    - { min: { x: 1487, y: -1093 }, max: { x: 1713, y: -867 }, height: 1000 }
+    - { min: { x: 3837, y: -1093 }, max: { x: 4063, y: -867 }, height: 1000 }
+    - { min: { x: 6187, y: -1093 }, max: { x: 6413, y: -867 }, height: 1000 }
+    - { min: { x: 8537, y: -1093 }, max: { x: 8763, y: -867 }, height: 1000 }
+    - { min: { x: 10887, y: -1093 }, max: { x: 11113, y: -867 }, height: 1000 }
+    - { min: { x: 13237, y: -1093 }, max: { x: 13463, y: -867 }, height: 1000 }
+    - { min: { x: 15587, y: -1093 }, max: { x: 15813, y: -867 }, height: 1000 }
+    - { min: { x: -22563, y: -8933 }, max: { x: -22337, y: -8707 }, height: 1000 }
+    - { min: { x: -20163, y: -8933 }, max: { x: -19937, y: -8707 }, height: 1000 }
+    - { min: { x: 4037, y: -8933 }, max: { x: 4263, y: -8707 }, height: 1000 }
+    # bins (r 240)
+    - { min: { x: -19, y: -1019 }, max: { x: 319, y: -681 }, height: 900 }
+    - { min: { x: -25019, y: -1019 }, max: { x: -24681, y: -681 }, height: 900 }
+    # trees, north pavement
+    - { min: { x: -31106, y: -106 }, max: { x: -30794, y: 206 }, height: 2200 }
+    - { min: { x: -24117, y: -117 }, max: { x: -23783, y: 217 }, height: 2200 }
+    - { min: { x: -16128, y: -128 }, max: { x: -15772, y: 228 }, height: 2200 }
+    - { min: { x: 16894, y: -106 }, max: { x: 17206, y: 206 }, height: 2200 }
+    - { min: { x: 23383, y: -117 }, max: { x: 23717, y: 217 }, height: 2200 }
+    # trees, south pavement
+    - { min: { x: -32598, y: -9998 }, max: { x: -32302, y: -9702 }, height: 2200 }
+    - { min: { x: -25611, y: -10011 }, max: { x: -25289, y: -9689 }, height: 2200 }
+    - { min: { x: -16623, y: -10023 }, max: { x: -16277, y: -9677 }, height: 2200 }
+    - { min: { x: -8636, y: -10036 }, max: { x: -8264, y: -9664 }, height: 2200 }
+    - { min: { x: -98, y: -9998 }, max: { x: 198, y: -9702 }, height: 2200 }
+    - { min: { x: 8389, y: -10011 }, max: { x: 8711, y: -9689 }, height: 2200 }
+    - { min: { x: 17377, y: -10023 }, max: { x: 17723, y: -9677 }, height: 2200 }
+    # stone planters
+    - { min: { x: -10425, y: -955 }, max: { x: -8875, y: -5 }, height: 600 }
+    - { min: { x: -3825, y: -955 }, max: { x: -2275, y: -5 }, height: 600 }
+    - { min: { x: 10375, y: -955 }, max: { x: 11925, y: -5 }, height: 600 }
+    - { min: { x: 17975, y: -955 }, max: { x: 19525, y: -5 }, height: 600 }
+    - { min: { x: -28625, y: -9770 }, max: { x: -27275, y: -8870 }, height: 600 }
+    - { min: { x: -14125, y: -9770 }, max: { x: -12775, y: -8870 }, height: 600 }
+    - { min: { x: 2375, y: -9770 }, max: { x: 3725, y: -8870 }, height: 600 }
+    # the café's three terrace tables (r 620), each two crossed boxes
+    - { min: { x: 530, y: 997 }, max: { x: 1770, y: 1803 }, height: 850 }
+    - { min: { x: 747, y: 780 }, max: { x: 1553, y: 2020 }, height: 850 }
+    - { min: { x: 2580, y: 997 }, max: { x: 3820, y: 1803 }, height: 850 }
+    - { min: { x: 2797, y: 780 }, max: { x: 3603, y: 2020 }, height: 850 }
+    - { min: { x: 4630, y: 997 }, max: { x: 5870, y: 1803 }, height: 850 }
+    - { min: { x: 4847, y: 780 }, max: { x: 5653, y: 2020 }, height: 850 }
+    # planter boxes
+    - { min: { x: -2849, y: 2180 }, max: { x: -1951, y: 2720 }, height: 408 }
+    - { min: { x: 6851, y: 2180 }, max: { x: 7749, y: 2720 }, height: 408 }
+    # clay pots
+    - { min: { x: -1310, y: 2561 }, max: { x: -990, y: 2879 }, height: 213 }
+    - { min: { x: 1010, y: 2561 }, max: { x: 1330, y: 2879 }, height: 213 }
+    - { min: { x: 5090, y: 2191 }, max: { x: 5410, y: 2509 }, height: 213 }
+    # A-boards
+    - { min: { x: -1643, y: 1131 }, max: { x: -557, y: 2169 }, height: 1449 }
+    - { min: { x: -31179, y: 909 }, max: { x: -30121, y: 1891 }, height: 1449 }
+    # benches
+    - { min: { x: -19400, y: -150 }, max: { x: -17500, y: 550 }, height: 840 }
+    - { min: { x: -7400, y: -10350 }, max: { x: -5500, y: -9650 }, height: 840 }
+    # the fingerpost (r 140)
+    - { min: { x: -4448, y: -548 }, max: { x: -4252, y: -352 }, height: 2200 }
+    # the bicycle (r 500)
+    - { min: { x: 8597, y: 1797 }, max: { x: 9303, y: 2503 }, height: 1100 }
+    # the west parapets
+    - { min: { x: -37450, y: -1200 }, max: { x: -36950, y: 3200 }, height: 740 }
+    - { min: { x: -37450, y: -13000 }, max: { x: -36950, y: -8600 }, height: 740 }
+    # the east bank
+    - { min: { x: 29550, y: -1900 }, max: { x: 30550, y: 3200 }, height: 1800 }

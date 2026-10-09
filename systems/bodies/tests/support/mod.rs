@@ -42,6 +42,16 @@ use serde::{Deserialize, Serialize};
 /// The instant every request in these tests is made at (`AC-12`: supplied, never read from a clock).
 pub const NOW: WorldTime = WorldTime::from_seconds(3_600);
 
+/// A person's radius, as a literal: 250 mm (the operator's ruling of 2026-10-08, step-11 §19.13; it
+/// was 300 mm until 12d). Every person dimension in these tests is an expression of it.
+pub const R: i32 = 250;
+/// The character controller's offset: a walker stopped by somebody ends `2R + GAP` from them.
+pub const GAP: i32 = 10;
+/// How far a centre may come inside the floor shrunk by `R`, or inside a solid grown by it.
+pub const TOL: i32 = 5;
+/// No two people closer than this: `2R − TOL` = 495 mm.
+pub const CLEAR: i32 = 2 * R - TOL;
+
 /// Registers this build's one resolver; a no-op after the first call in a process.
 pub fn register() {
     register_resolvers(vec![Box::new(BodiesSystem) as Box<dyn ArrivalResolver>]);
@@ -595,24 +605,30 @@ fn to_rect2(p: Xy, (x0, y0, x1, y1): Rect) -> i64 {
 
 /// Every invariant the pack keeps in `place`, checked from the test's own literals for the room —
 /// `floor` and `solids` — and from the shapes and positions the world holds (step-11 V1–V4, SD-O2):
-/// people 595 mm apart, inside the floor shrunk by 295 mm, 295 mm from every solid; every object
-/// within the floor, resting on it or on a solid's top (± 5 mm), clear of the other solids, of the
-/// other objects (by more than 5 mm) and of every person's disc (295 mm from its footprint).
+/// people `2R − TOL` = 495 mm apart, inside the floor shrunk by `R − TOL` = 245 mm, 245 mm from every
+/// solid; every object within the floor, resting on it or on a solid's top (± 5 mm), clear of the other
+/// solids, of the other objects (by more than 5 mm) and of every person's disc (245 mm from its
+/// footprint).
 pub fn assert_holds(yard: &Yard, place: &str, floor: Rect, solids: &[(Rect, i32)]) {
+    let disc = R - TOL;
     let people = yard.standing(place);
     for (i, (a, at_a)) in people.iter().enumerate() {
         for (b, at_b) in &people[i + 1..] {
             let d = distance2(*at_a, *at_b);
-            assert!(d >= 595 * 595, "{a} and {b} {} mm apart", d.isqrt());
+            assert!(
+                d >= i64::from(CLEAR).pow(2),
+                "{a} and {b} {} mm apart",
+                d.isqrt()
+            );
         }
         let (x0, y0, x1, y1) = floor;
         assert!(
-            (x0 + 295..=x1 - 295).contains(&at_a.0) && (y0 + 295..=y1 - 295).contains(&at_a.1),
+            (x0 + disc..=x1 - disc).contains(&at_a.0) && (y0 + disc..=y1 - disc).contains(&at_a.1),
             "{a} at {at_a:?} is inside the floor"
         );
         for (rect, _) in solids {
             assert!(
-                to_rect2(*at_a, *rect) >= 295 * 295,
+                to_rect2(*at_a, *rect) >= i64::from(disc).pow(2),
                 "{a} at {at_a:?} clear of {rect:?}"
             );
         }
@@ -658,13 +674,13 @@ pub fn assert_holds(yard: &Yard, place: &str, floor: Rect, solids: &[(Rect, i32)
         }
         for (person, at) in &people {
             let reach = if boxy {
-                to_rect2(*at, (x - hx, y - hy, x + hx, y + hy)) >= 295 * 295
+                to_rect2(*at, (x - hx, y - hy, x + hx, y + hy)) >= i64::from(disc).pow(2)
             } else {
-                distance2(*at, (*x, *y)) >= i64::from(295 + hx).pow(2)
+                distance2(*at, (*x, *y)) >= i64::from(disc + hx).pow(2)
             };
             assert!(
                 reach,
-                "{person} at {at:?} keeps 295 mm from {key} at ({x}, {y})"
+                "{person} at {at:?} keeps {disc} mm from {key} at ({x}, {y})"
             );
         }
         for (other, (ox, oy, _)) in &objects[i + 1..] {

@@ -12,7 +12,9 @@ use mineworld_bodies::{How, Kick, Shove, Throw, Toward};
 use mineworld_contracts::{
     ActionRecord, ActionResult, Causation, LocalPosition, Millimetres, Rejection,
 };
-use support::{Moved, Plan, Thing, Xy, Yard, assert_holds, ball, cafe, cube, encode, object_moved};
+use support::{
+    GAP, Moved, Plan, R, TOL, Thing, Xy, Yard, assert_holds, ball, cafe, cube, encode, object_moved,
+};
 
 const FLOOR: (i32, i32, i32, i32) = (0, 0, 8_320, 10_320);
 const COUNTER: ((i32, i32, i32, i32), i32) = ((3_860, 6_570, 8_320, 7_170), 1_100);
@@ -198,7 +200,12 @@ fn a_kicked_ball_does_not_end_in_a_person() {
     let (_, _, to, _) = flight(&yard, &moved);
     println!("toward c: {to:?}");
     let d2 = i64::from(to.0 - 4_000).pow(2) + i64::from(to.1 - 5_000).pow(2);
-    assert!(d2 >= 405 * 405, "≥ 405 mm from c's centre: {to:?}");
+    // Clear of c's disc: R − TOL + 110 = 250 − 5 + 110 = 355 mm from c's centre.
+    let clear = R - TOL + 110;
+    assert!(
+        d2 >= i64::from(clear).pow(2),
+        "≥ {clear} mm from c's centre: {to:?}"
+    );
     assert_eq!(yard.point("c"), Some((4_000, 5_000)), "c has no new fact");
 }
 
@@ -252,9 +259,11 @@ fn shoved_facts(moved: &Moved) -> Vec<String> {
 }
 
 // Every shover below stands 700 mm from their target, not §18.4's 600 mm: before 12d-0 a person within
-// the character controller's 10 mm offset of somebody (595 ≤ d < 610 mm) was not swept away from them
-// (§18.11 DO-11). SD-Z5 (step-11 §20.3) fixed it: `a_shove_from_600_mm_moves_its_target_half_a_metre`
-// keeps §18.4's layout and pins what it does now.
+// the character controller's 10 mm offset of somebody (2R − TOL ≤ d < 2R + GAP, 595 … 610 mm while R
+// was 300, 495 … 510 mm at R = 250) was not swept away from them (§18.11 DO-11). SD-Z5 (step-11 §20.3)
+// fixed it: `a_shove_from_within_the_offset_moves_its_target_half_a_metre` keeps §18.4's layout — the
+// shover within that offset of the target, 2R = 500 mm since R became 250 (600 mm in §18.4) — and pins
+// what it does now.
 
 #[test]
 fn a_shove_moves_its_target_half_a_metre_through_presence() {
@@ -284,47 +293,53 @@ fn a_shove_never_asks_for_more_than_half_a_metre() {
     assert!(moved2 <= 500 * 500, "b moved {moved2} mm², more than 500²");
 }
 
-/// §18.4 PO-6 a's own layout, 600 mm apart (TZ-6; DO-11's pin, flipped by SD-Z5). Before 12d-0 b moved
-/// 301 mm: the contact sweep advanced 1 mm from inside its offset of a, and the candidate rule allowed
-/// 300 mm more. Now a, behind b and within the offset, is left out of b's contact sweep, and b moves
-/// the half-metre as Rapier's controller sweeps it in open floor: (4 499, 4 999), 1 mm short on each
-/// axis — beyond the 1 mm snap, so a `stopped-short { by: None }` stays (the controller's own drift,
-/// E-Z1's request 518; §20.13 Z-D8). Not stopped by a.
+/// §18.4 PO-6 a's own layout, a 2R apart from b, within the controller's offset of them (TZ-6; DO-11's
+/// pin, flipped by SD-Z5): 600 mm in §18.4, 500 mm since R became 250. Before 12d-0 b moved 301 mm:
+/// the contact sweep advanced 1 mm from inside its offset of a, and the candidate rule allowed 300 mm
+/// more. Now a, behind b and within the offset, is left out of b's contact sweep, and b moves the
+/// half-metre. While R was 300 Rapier's controller swept b to (4 499, 4 999), 1 mm short on each axis,
+/// so a `stopped-short { by: None }` followed (the controller's own drift, E-Z1's request 518; §20.13
+/// Z-D8); at R = 250 the same sweep ends on (4 500, 5 000) exactly, and no stopped-short follows. Not
+/// stopped by a either way.
 #[test]
-fn a_shove_from_600_mm_moves_its_target_half_a_metre() {
-    let mut yard = yard(&[("a", (3_400, 5_000)), ("b", (4_000, 5_000))], vec![]);
-    let moved = shove(&mut yard, "a", "b");
-    assert_eq!(
-        shoved_facts(&moved),
-        ["person-shoved", "arrived", "stopped-short"]
+fn a_shove_from_within_the_offset_moves_its_target_half_a_metre() {
+    // a within the controller's offset of b: 2R = 500 mm apart (2R − TOL = 495 ≤ 500 < 2R + GAP = 510).
+    let mut yard = yard(
+        &[("a", (4_000 - 2 * R, 5_000)), ("b", (4_000, 5_000))],
+        vec![],
     );
+    let moved = shove(&mut yard, "a", "b");
+    assert_eq!(shoved_facts(&moved), ["person-shoved", "arrived"]);
     assert_eq!(
         yard.point("b"),
-        Some((4_499, 4_999)),
+        Some((4_500, 5_000)),
         "half a metre, not 301 mm"
     );
-    let by = moved.facts().iter().find_map(|fact| match fact {
-        support::Fact::StoppedShort { by, .. } => Some(*by),
-        _ => None,
-    });
-    assert_eq!(by, Some(None), "not stopped by a");
     holds(&yard);
 }
 
-/// TZ-6's other half: a stride *toward* a person 600 mm away is still stopped by them — a stays, b is
-/// not moved. M-Z5 (the d · (p − start) ≤ 0 test dropped) fails here.
+/// TZ-6's other half: a stride *toward* a person within the controller's offset — 2R = 500 mm away
+/// since R became 250 (600 mm in §18.4) — is still stopped by them: a stays, b is not moved. M-Z5 (the
+/// d · (p − start) ≤ 0 test dropped) fails here.
 #[test]
-fn a_stride_toward_a_person_600_mm_away_is_still_stopped() {
-    let mut yard = yard(&[("a", (3_400, 5_000)), ("b", (4_000, 5_000))], vec![]);
+fn a_stride_toward_a_person_within_the_offset_is_still_stopped() {
+    let a = (4_000 - 2 * R, 5_000);
+    let mut yard = yard(&[("a", a), ("b", (4_000, 5_000))], vec![]);
     let to = yard.at("room", (4_400, 5_000));
     let moved = yard.walk("a", to);
     assert!(moved.accepted(), "{:?}", moved.result);
+    println!(
+        "stride toward b: {:?}; a {:?}, b {:?}",
+        moved.facts(),
+        yard.point("a"),
+        yard.point("b")
+    );
     let by = moved.facts().iter().find_map(|fact| match fact {
         support::Fact::StoppedShort { by, .. } => Some(*by),
         _ => None,
     });
     assert_eq!(by, Some(Some(yard.people["b"])), "stopped by b");
-    assert_eq!(yard.point("a"), Some((3_400, 5_000)));
+    assert_eq!(yard.point("a"), Some(a));
     assert_eq!(yard.point("b"), Some((4_000, 5_000)));
     holds(&yard);
 }
@@ -339,7 +354,8 @@ fn a_shove_into_the_wall_stops_short() {
     );
     let (x, y) = yard.point("b").expect("placed");
     assert!(
-        (x - 8_010).abs() <= 1 && y == 5_000,
+        // The east wall less R + GAP: 8 320 − 250 − 10 = 8 060.
+        (x - (8_320 - R - GAP)).abs() <= 1 && y == 5_000,
         "b at the wall: ({x}, {y})"
     );
     match &moved.facts()[2] {
@@ -357,13 +373,15 @@ fn a_shove_into_the_wall_stops_short() {
 
 #[test]
 fn a_shove_into_a_person_nudges_them_within_the_bounds() {
-    // c stands 541 mm from b's end (4 500, 5 000), 207 mm off its line: nudged by at_least((500, 207),
-    // 610 − 541 = 69) = (64, 27).
+    // c stands 441 mm from b's end (4 500, 5 000), 207 mm off its line — 69 mm inside 2R + GAP =
+    // 510, as it was 541 = 610 − 69 while R was 300: (390, 207) from b's end, ⌊√194 949⌋ = 441. Nudged
+    // by at_least((390, 207), 510 − 441 = 69) = (⌈390·69/441⌉, ⌈207·69/441⌉) = (⌈61.02⌉, ⌈32.39⌉) =
+    // (62, 33).
     let mut yard = yard(
         &[
             ("a", (3_300, 5_000)),
             ("b", (4_000, 5_000)),
-            ("c", (5_000, 5_207)),
+            ("c", (4_500 + 390, 5_000 + 207)),
         ],
         vec![],
     );
@@ -381,7 +399,10 @@ fn a_shove_into_a_person_nudges_them_within_the_bounds() {
     let c = yard.point("c").expect("placed");
     println!("shove into c: b {b:?}, c {c:?}; {facts:?}");
     assert!(near(b, (4_500, 5_000)), "b at {b:?}");
-    assert!(near(c, (5_064, 5_234)), "c nudged 69 mm, to {c:?}");
+    assert!(
+        near(c, (4_890 + 62, 5_207 + 33)),
+        "c nudged 69 mm, to {c:?}"
+    );
     // `displaced()` reads "every arrived after the first fact"; here the first fact is person-shoved.
     assert_eq!(
         moved.displaced().len(),
@@ -393,10 +414,17 @@ fn a_shove_into_a_person_nudges_them_within_the_bounds() {
 
 #[test]
 fn a_shoved_person_pushes_an_object_behind_them() {
-    // The ball's edge 290 mm from b's end: pushed 20 mm on, by b, caused by b's arrival.
+    // The ball's edge 20 mm inside R + GAP = 260 of b's end (4 500, 5 000), at 240 mm (it was 290 =
+    // 310 − 20 while R was 300): its centre at 4 500 + 240 + 110 = 4 850, pushed 20 mm on to
+    // 4 500 + 260 + 110 = 4 870, by b, caused by b's arrival.
     let mut yard = yard(
         &[("a", (3_300, 5_000)), ("b", (4_000, 5_000))],
-        vec![("ball", ball(110), "room", (4_900, 5_000))],
+        vec![(
+            "ball",
+            ball(110),
+            "room",
+            (4_500 + R + GAP - 20 + 110, 5_000),
+        )],
     );
     let moved = shove(&mut yard, "a", "b");
     let facts = shoved_facts(&moved);
@@ -418,7 +446,7 @@ fn a_shoved_person_pushes_an_object_behind_them() {
     );
     let (x, y, _) = yard.object("ball");
     assert!(
-        (x - 4_920).abs() <= 1 && (y - 5_000).abs() <= 1,
+        (x - (4_500 + R + GAP + 110)).abs() <= 1 && (y - 5_000).abs() <= 1,
         "ball at ({x}, {y})"
     );
     holds(&yard);
@@ -684,7 +712,12 @@ fn a_ball_thrown_among_people_ends_clear_of_them_and_moves_nobody() {
         ("p3", (4_600, 5_000)),
     ] {
         let d2 = i64::from(to.0 - at.0).pow(2) + i64::from(to.1 - at.1).pow(2);
-        assert!(d2 >= 405 * 405, "≥ 405 mm from {person}: {to:?}");
+        // Clear of each disc: R − TOL + 110 = 250 − 5 + 110 = 355 mm from its centre.
+        let clear = R - TOL + 110;
+        assert!(
+            d2 >= i64::from(clear).pow(2),
+            "≥ {clear} mm from {person}: {to:?}"
+        );
         assert_eq!(yard.point(person), Some(at), "{person} unmoved");
     }
 }
