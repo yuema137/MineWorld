@@ -2336,6 +2336,50 @@ systems. The Windows state of the default suite becomes visible.
     `git ls-files --eol` → `i/crlf` only for the `-text` file (`attr/-text`). **PASS** (B13-7, W-3).
   - Both YAML files parse (`ruby -ryaml`): jobs `fast test scenario linux-arm mac windows ac8
     test-windows`, with §13.4.3's runners and timeouts.
+- CI evidence log (2026-10-09). Runs are counted against the 12-run cap (§13.9); a counted run is
+  marked ●. The PR's own `fast` and `test` runs are not counted.
+  - **PR #97** opened after B-C2 (https://github.com/yuema137/MineWorld/pull/97). `pull_request` run
+    37908150200 on `6818376`: `fast` and `test` **PASS**.
+  - **R1 ● dispatch 37908152878** on `6818376`, cold (https://github.com/yuema137/MineWorld/actions/runs/37908152878):
+    - `scenario` **PASS**, 5 min 16 s: `[image] every expectation held` for the three enumerated worlds;
+      record 122.2 s (bodies-yard 51.0, market-town 38.1, social-cafe 33.0). Platform `Linux / x86_64 /
+      container sha256:c15a851c… linux/amd64`, target `x86_64-unknown-linux-gnu`, rustc 1.97.1. **B13-1
+      PASS.**
+    - `mac` **PASS**, 5 min 19 s: release build 164.2 s cold, record 122.7 s. Platform `Darwin / arm64 /
+      translated 0 / container none`, `aarch64-apple-darwin`, rustc 1.97.1. **B13-2 PASS.**
+    - `windows` **PASS**, 9 min 33 s: release build 261.0 s cold, record 263.6 s. Platform `Windows /
+      x86_64 / emulated 0 / container none`, `x86_64-pc-windows-msvc`, rustc 1.97.1. Its world sections
+      are byte-identical to the others', `validate`'s output included, so the checkout's `worlds/` reads
+      the same bytes on Windows (W-3); no step lists line endings separately. **B13-2w PASS.**
+    - `linux-arm` **PASS**, 6 min 20 s: `Linux / arm64 / container sha256:5096b862… linux/arm64`.
+    - `ac8` **PASS**, 13 s: "4 records: Darwin/arm64, Linux/arm64, Linux/x86_64, Windows/x86_64; 3 worlds;
+      1458 keys compared"; every world equal on 4 records; `summary-300` social-cafe `ad49c723…c64b`,
+      market-town `365b50e0…1d1d` (main's, E-RS0), bodies-yard `0bf87efc…7bbb` (E-13b-0); "AC-8 PASS".
+      **B13-3 PASS**, and I-S13-8 shown by the same run.
+    - `fast` PASS (1 min 3 s; it ran the self-test); `test` skipped (dispatch), as designed.
+    - `test-windows` **FAIL, expected** (3 min 13 s): `cargo test --workspace --no-run` exit 101,
+      "could not compile `mineworld-acceptance` (test "configuration_seam")": E0433 `std::os::unix` at
+      `tests/acceptance/tests/configuration_seam.rs:31`, E0599 `status.signal()` at `:331`. Cargo stops
+      at the first failing target, so the log names one file. Free disk 218.6 G of 220 G. **B13-11: see
+      the finding list below.**
+    - Information: the four CI records' world sections are byte-identical to the laptop's record of
+      `25ed3a0` (same Rust sources), before P-L proper.
+  - **B13-11 finding list (test-windows, R1).** The log names one file, because cargo stops at the first
+    failing target. The complete list comes from a source audit (`git grep -l 'os::unix' -- '*.rs'` at
+    `6818376`). Every hit is W-5's `ExitStatusExt` / `signal() == Some(9)` pattern:
+    - §13.10.1's eight W-T1 files, unchanged;
+    - **W-T1b (new): `tests/acceptance/tests/configuration_seam.rs`**, which arrived with IL-a
+      (`a83b103`, 2026-10-08) after §13.10.1's audit. Owner **13w**, with W-T1.
+    - **W-6 is now on `main`.** S11-B merged `tools/cli/tests/support/mod.rs:163–164`
+      (`Command::new("sh")`, `kill -INT`; `8ecee01`). It compiles on Windows and would fail at run time.
+      Owners **S11** and **13w** (W-12's helper), as §13.10.1 says.
+    - No failure outside W-5's class was observed: compilation stopped first. Further run-time findings
+      appear only once 13w makes the suite compile.
+  - **D-13b-8, B13-11's "every one named in the log".** It cannot hold while cargo fails fast, and
+    `core`'s commands may not change (I-13b-1). The complete list rests on the source audit above, which
+    is exact for a compile error of this kind: an import that does not exist on Windows.
+  - **PM-6 (local) PASS.** Records of `25ed3a0` (`laptop-c`) and of its parent `ee1ac11` (`laptop-a`)
+    give exit 1 with "G-2 the records name different commits: … 25ed3a05… , … ee1ac11c…".
 - [ ] Validation (CI; each run's id, head, legs' wall times and verdict in the ledger):
   - `ci_layer.py --list core` diff against main → empty; `--list fast` → main's plus one line (B13-6);
   - `.gitattributes`: after the edit, `git add --renormalize .` stages nothing but `.gitattributes`, and
