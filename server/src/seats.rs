@@ -17,6 +17,7 @@ use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
 use mineworld_contracts::{EntityKey, WorldTime};
+use serde::Serialize;
 
 use crate::admission::{OfferedResume, ResumeSecret};
 use crate::host::SubscriptionId;
@@ -67,10 +68,48 @@ enum Binding {
 
 struct Connected {
     subscription: SubscriptionId,
-    /// Which connection, for the admin surface (S11-D).
-    #[allow(dead_code)]
+    /// Which connection, for the admin surface (`PROTOCOL.md` §11).
     session: SessionId,
     resume: ResumeSecret,
+}
+
+/// One seat as the admin surface reports it (`GET /admin/seats`, `PROTOCOL.md` §11.2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SeatReport {
+    /// The seat.
+    pub seat: EntityKey,
+    /// Who drives it.
+    #[serde(flatten)]
+    pub state: SeatState,
+}
+
+/// Who drives a seat, as the admin surface reports it. Names no player and no secret.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum SeatState {
+    /// Nobody.
+    Free,
+    /// An in-server controller.
+    Hosted,
+    /// One connection.
+    Connected {
+        /// Which.
+        session: SessionId,
+    },
+    /// Nobody, until the hold ends or the resume returns.
+    Held {
+        /// Wall seconds until the hold ends, rounded up.
+        seconds_left: u64,
+    },
+}
+
+/// What a release came to (`POST /admin/seats/{seat}/release`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Released {
+    /// Whether the seat changed: it was connected or held.
+    pub(crate) released: bool,
+    /// The connection that held it, now to be closed `kicked`.
+    pub(crate) displaced: Option<SubscriptionId>,
 }
 
 struct Held {
@@ -198,6 +237,79 @@ impl SeatTable {
             let default = self.default(seat, at);
             self.seats.insert(seat.clone(), default);
         }
+    }
+
+    /// The operator removes a connection (`PROTOCOL.md` §11.2): the seat bound to `session` returns to
+    /// its default at once, **with no hold**, and its secret dies with the binding. Returns the
+    /// subscription to close and the seat, or `None` when that session holds no seat.
+    pub(crate) fn kick(
+        &mut self,
+        session: SessionId,
+        at: WorldTime,
+    ) -> Option<(SubscriptionId, EntityKey)> {
+        let (seat, subscription) = self.seats.iter().find_map(|(seat, binding)| match binding {
+            Binding::Connected(connected) if connected.session == session => {
+                Some((seat.clone(), connected.subscription))
+            }
+            _ => None,
+        })?;
+        let default = self.default(&seat, at);
+        self.seats.insert(seat.clone(), default);
+        Some((subscription, seat))
+    }
+
+    /// The operator returns a seat to its default (`PROTOCOL.md` §11.2). A connected seat's
+    /// connection is to be closed; a held seat's secret dies; a free or hosted seat is left as it is
+    /// — no controller is rebuilt. `None` for a seat the roster does not offer.
+    pub(crate) fn release(&mut self, seat: &EntityKey, at: WorldTime) -> Option<Released> {
+        let displaced = match self.seats.get(seat)? {
+            Binding::Free | Binding::Hosted(_) => {
+                return Some(Released {
+                    released: false,
+                    displaced: None,
+                });
+            }
+            Binding::Connected(connected) => Some(connected.subscription),
+            Binding::Held(_) => None,
+        };
+        let default = self.default(seat, at);
+        self.seats.insert(seat.clone(), default);
+        Some(Released {
+            released: true,
+            displaced,
+        })
+    }
+
+    /// Every seat's binding, in key order, as the admin surface reports it at the wall instant `now`.
+    pub(crate) fn report(&self, now: Instant) -> Vec<SeatReport> {
+        self.seats
+            .keys()
+            .filter_map(|seat| self.state_of(seat, now))
+            .collect()
+    }
+
+    /// One seat's report, or `None` for a seat the roster does not offer.
+    pub(crate) fn state_of(&self, seat: &EntityKey, now: Instant) -> Option<SeatReport> {
+        let state = match self.seats.get(seat)? {
+            Binding::Free => SeatState::Free,
+            Binding::Hosted(_) => SeatState::Hosted,
+            Binding::Connected(connected) => SeatState::Connected {
+                session: connected.session,
+            },
+            Binding::Held(held) => SeatState::Held {
+                seconds_left: held
+                    .until
+                    .saturating_duration_since(now)
+                    .as_millis()
+                    .div_ceil(1_000)
+                    .try_into()
+                    .unwrap_or(u64::MAX),
+            },
+        };
+        Some(SeatReport {
+            seat: seat.clone(),
+            state,
+        })
     }
 
     /// The hosted seats due by `now`, in instant order and then seat order.

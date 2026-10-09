@@ -113,7 +113,7 @@ impl WorldRuntime {
             seats: hosted.seats,
             table,
             instance,
-            clock: HostClock::new(epoch, config.time_scale),
+            clock: HostClock::new(epoch, config.time_scale, Instant::now()),
             actions: ActionIds::starting_at(hosted.first_action),
             subscriptions: SubscriptionIdSource::new(),
             subscribers: Vec::new(),

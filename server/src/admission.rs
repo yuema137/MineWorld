@@ -69,10 +69,10 @@ impl InviteToken {
     /// The refusal never contains the text it refused: an operator's near-miss is still a secret.
     pub fn given(text: impl Into<String>) -> Result<Self, AdmissionError> {
         let text = text.into();
-        if !(MIN_INVITE_LENGTH..=MAX_INVITE_LENGTH).contains(&text.len()) {
+        if !operator_length(&text) {
             return Err(AdmissionError::InviteLength { length: text.len() });
         }
-        if !text.bytes().all(|byte| byte.is_ascii_graphic()) {
+        if !operator_characters(&text) {
             return Err(AdmissionError::InviteCharacters);
         }
         Ok(Self(text))
@@ -88,6 +88,57 @@ impl InviteToken {
 impl fmt::Debug for InviteToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("InviteToken(<redacted>)")
+    }
+}
+
+/// The rules every operator-given token follows: 8 to 128 bytes …
+fn operator_length(text: &str) -> bool {
+    (MIN_INVITE_LENGTH..=MAX_INVITE_LENGTH).contains(&text.len())
+}
+
+/// … of printable ASCII with no whitespace, so that it survives a shell, cmd.exe, PowerShell and an
+/// environment variable unchanged.
+fn operator_characters(text: &str) -> bool {
+    text.bytes().all(|byte| byte.is_ascii_graphic())
+}
+
+/// The token that opens the admin surface (`PROTOCOL.md` §11, `docs/DECISIONS.md` `ARC-44`): whoever
+/// holds it is the host.
+///
+/// Given by the operator (`--admin-token`, `MINEWORLD_ADMIN_TOKEN`) under the invite's rules, never
+/// generated, never printed. Like the invite it has a redacted `Debug` and neither `Serialize` nor
+/// `Display`, so it cannot reach a frame, a save or a log line by accident (step-12 I-5).
+#[derive(Clone)]
+pub struct AdminToken(String);
+
+impl AdminToken {
+    /// The operator's admin token, or why it is unusable — said without repeating it.
+    pub fn given(text: impl Into<String>) -> Result<Self, AdmissionError> {
+        let text = text.into();
+        if !operator_length(&text) {
+            return Err(AdmissionError::AdminTokenLength { length: text.len() });
+        }
+        if !operator_characters(&text) {
+            return Err(AdmissionError::AdminTokenCharacters);
+        }
+        Ok(Self(text))
+    }
+
+    /// Whether a request presented exactly this token, compared in constant time.
+    pub fn admits(&self, offered: &[u8]) -> bool {
+        bool::from(self.0.as_bytes().ct_eq(offered))
+    }
+
+    /// Whether this token is the server's invite too — which a server refuses, because every player
+    /// would then be the host (step-12 QS11D-4).
+    pub fn is_invite(&self, invite: &InviteToken) -> bool {
+        self.admits(invite.0.as_bytes())
+    }
+}
+
+impl fmt::Debug for AdminToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("AdminToken(<redacted>)")
     }
 }
 
@@ -277,6 +328,18 @@ pub enum AdmissionError {
     /// An operator-given invite with whitespace, a control character or a non-ASCII character.
     #[error("an invite is printable ASCII without spaces")]
     InviteCharacters,
+    /// An admin token of an unusable length.
+    #[error(
+        "an admin token is {MIN_INVITE_LENGTH} to {MAX_INVITE_LENGTH} characters, and this one is \
+         {length}"
+    )]
+    AdminTokenLength {
+        /// The offending length.
+        length: usize,
+    },
+    /// An admin token with whitespace, a control character or a non-ASCII character.
+    #[error("an admin token is printable ASCII without spaces")]
+    AdminTokenCharacters,
     /// The operating system's random source failed.
     #[error("no random bytes for an invite: {0}")]
     Randomness(String),
@@ -388,6 +451,23 @@ mod tests {
         assert!(!first.matches(&OfferedResume::new(&first.reveal()[..31])));
         let offered = OfferedResume::new(first.reveal());
         assert!(!format!("{offered:?}").contains(first.reveal()));
+    }
+
+    #[test]
+    fn an_admin_token_follows_the_invite_rules_admits_only_itself_and_never_prints() {
+        for refused in ["short", &"x".repeat(129), "has a space1", "café-token-1"] {
+            let error = AdminToken::given(refused).expect_err("an illegal token");
+            assert!(!error.to_string().contains(refused), "{error}");
+        }
+        let token = AdminToken::given("admin-token-7c1e").expect("a legal token");
+        assert!(token.admits(b"admin-token-7c1e"));
+        for wrong in ["admin-token-7c1f", "admin-token-7c1e ", "admin-token-7c1", ""] {
+            assert!(!token.admits(wrong.as_bytes()), "{wrong:?} was admitted");
+        }
+        assert!(!format!("{token:?}").contains("admin-token-7c1e"));
+        let same = InviteToken::given("admin-token-7c1e").expect("a legal invite");
+        assert!(token.is_invite(&same));
+        assert!(!token.is_invite(&InviteToken::given(INVITE).expect("a legal invite")));
     }
 
     #[test]

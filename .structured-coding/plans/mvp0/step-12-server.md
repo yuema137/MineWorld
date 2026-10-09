@@ -3398,8 +3398,8 @@ rejected: socket frames, `tonic`, `axum-extra`; limitation: one admin token, no 
 with no hold, on any other state is `None`; `release` on each of the four states; `report` per state;
 `AdminToken` rules and redacted `Debug`.
 
-- [ ] Implementation · [ ] Validation · [ ] Review: no world access in `seats.rs`; the clock never reads
-  `Instant::now()` inside its arithmetic.
+- [x] Implementation · [x] Validation (E-SD3; DA-7's mutation in E-SD-M) · [x] Review: no world access
+  in `seats.rs`; the clock never reads `Instant::now()` inside its arithmetic.
 
 ### D-C4 — The world thread and the session: control commands, pause, the clock frame, the registry
 
@@ -3559,6 +3559,17 @@ E-SD2 D-C2 (pure move). `summary` and `first_binding` moved verbatim to server/s
       runtime.rs 492 → 436. clippy -D warnings (server, all targets) clean. `cargo test -p
       mineworld-server`: unit 38, frames 8, handshake 7, headless 4, seats 4, two_clients 9, doc 1 —
       all pass, the base's names and counts.
+E-SD3 D-C3. admission.rs `AdminToken` (the invite's rules through two shared predicates; `admits`
+      in constant time; `is_invite`; redacted Debug; no Serialize/Display; its own two error
+      variants so a refusal names the admin token, never the invite). runtime/world.rs HostClock as a
+      segment (world_anchor, wall_anchor, scale, paused) with `now_at(Instant)`, `pause_at`,
+      `resume_at`; `now()` is the only Instant::now() and is outside the arithmetic. seats.rs `kick`,
+      `release` → `Released`, `report`/`state_of` → `SeatReport { seat, SeatState }` (serde: state
+      tag, session as a decimal string, held seconds rounded up); `Connected.session` no longer dead
+      code. `cargo test -p mineworld-server --lib`: 43 passed (38 + AdminToken 1 + DA-7 1 + seats 3).
+      DA-7 property test: 10 000 seeded LCG steps, scale 60, pause/resume/advance 0–5000 ms: never
+      decreases, constant while paused, a resume reads the frozen value, never ahead of the running
+      wall time.
 ```
 
 ## 18.13 Deviations and discoveries
