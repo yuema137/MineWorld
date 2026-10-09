@@ -2380,7 +2380,61 @@ systems. The Windows state of the default suite becomes visible.
     is exact for a compile error of this kind: an import that does not exist on Windows.
   - **PM-6 (local) PASS.** Records of `25ed3a0` (`laptop-c`) and of its parent `ee1ac11` (`laptop-a`)
     give exit 1 with "G-2 the records name different commits: … 25ed3a05… , … ee1ac11c…".
-- [ ] Validation (CI; each run's id, head, legs' wall times and verdict in the ledger):
+  - **R2 ● dispatch 37975632318** on the same head `6818376`, warm
+    (https://github.com/yuema137/MineWorld/actions/runs/37975632318): `scenario`, `mac`, `linux-arm`,
+    `windows`, `fast` PASS; `ac8` **PASS**; `test-windows` FAIL, expected, this time stopping at
+    `tools/cli/tests/bodies_yard_restart.rs` (a W-T1 file: cargo's fail-fast order varies). All four
+    records are **byte-identical to R1's** (`cmp`). **B13-5, CI half: PASS.** Warm figures: `mac`
+    release build 61.1 s, record 115.7 s, job 3 min 38 s; `windows` build 74.5 s, record 431.5 s, job
+    9 min 36 s; `scenario` record 134.8 s, job 2 min 44 s; `linux-arm` job 2 min 19 s; `test-windows`
+    `--no-run` 244.1 s to its compile error.
+  - **Planted differences** (scratch commits on `relationships`, installed in both towns and not in
+    bodies-yard; or on the scratch branch's `ci.yml`). Each branch was pushed once and deleted after its
+    run. Each run's four records were compared with R1's (main's Rust) as the precondition.
+    - **PM-1 ● run 37975701919** (`scratch/13b-pm1-scenario`, `f0b648d`): `became-acquainted` is not
+      emitted under `cfg!(all(target_os = "linux", target_arch = "x86_64"))`. `ac8` red: "G-5 world
+      market-town differs: Linux/x86_64 ≠ {Darwin/arm64, Linux/arm64, Windows/x86_64}" and the same for
+      social-cafe. The first differing summary line is day 1's ("facts 1383" against "facts 1473";
+      social-cafe 1284 against 1368), and facts are located at chunk 0 (37 872 rows against 38 004).
+      "world bodies-yard: equal on 4 records". Precondition: only the Linux x86_64 record differs from R1's;
+      the other three equal it. **PASS.**
+    - **PM-3 ● run 37975724745** (`a28fb84`, `cfg!(target_os = "macos")`): "Darwin/arm64 ≠ {Linux/arm64,
+      Linux/x86_64, Windows/x86_64}" for both towns; bodies-yard equal; only the Darwin record differs
+      from R1's. **PASS.**
+    - **PM-8 ● run 37975734631** (`7080c55`, `cfg!(target_os = "windows")`): "Windows/x86_64 ≠
+      {Darwin/arm64, Linux/arm64, Linux/x86_64}" for both towns; bodies-yard equal; only the Windows
+      record differs from R1's. Windows and Linux share x86_64, so the grouping separates OS from
+      architecture. **PASS.**
+    - **PM-2 ● run 37975831040** (`923c7e6`): under the Linux x86_64 cfg, `relationships`' facts list
+      their two participants in reverse order. Stored bytes change; no count does. `ac8` red, "Linux/x86_64
+      ≠ {…}" for both towns. Facts are located at chunk 0 with equal row counts (38 004 and 37 085), and
+      journal and snapshots are equal. Every counting summary line is equal. **But one summary line
+      differs:** `history N facts, fingerprint <FNV-1a 64>`, the last line before `faults`, which
+      digests every stored fact. **Finding F-13b-5:** no planted change can alter stored fact bytes
+      without moving that line. The summary therefore always carries a weak (64-bit, "not evidence")
+      cover of the facts. Only the table digests locate the change and carry the byte-level claim
+      (I-S13-6). **PM-2 is N/A as stated** (§13.7 allows this, "recorded as a finding"). The run still
+      shows the table-level location, with journal and snapshots equal. A snapshot-only plant was not
+      attempted. It would spend a run to show the same table-level location on another table.
+    - **PM-4 ● run 37975787323** (`725150f`): the scratch `ci.yml` runs `mac` on `ubuntu-24.04` and
+      uploads its Linux record under `mac`'s artifact name. Every leg is green. `ac8` red: "G-3 no
+      Darwin arm64 record (native, not translated by Rosetta, no container)", with "4 records:
+      Linux/x86_64#1, Linux/arm64, Linux/x86_64#2, Windows/x86_64", every world equal on 4 records.
+      Equality alone never passes. **PASS.**
+    - **PM-5 ● run 37975803573** (`a7870ef`): `mac` fails at an `exit 1` step after checkout. `ac8` ran
+      (not skipped) and is red: "3 records: …; G-3 no Darwin arm64 record …". The run's conclusion is
+      `failure`. The message names the platform, not the job (D-13b-7). **PASS.**
+    - Not 13b's: the remote also holds `scratch/ec-platforms`, `scratch/ed-platforms` and
+      `scratch/s10-p3-mutation`, which belong to other lanes and were left alone. After deletion, no
+      `scratch/13b-*` branch remains, locally or remotely (`git ls-remote --heads origin 'scratch/*'`,
+      2026-10-09).
+  - **Run count: 8 of 12** (R1, R2, PM-1, PM-2, PM-3, PM-4, PM-5, PM-8). No repair run was needed. The
+    final head's dispatch makes 9. No billing sign was seen.
+  - **Main merged** at the final head: `a30755e` (#96, 13w's frozen design, this file only; a clean
+    merge). 13w's §15 counts the same ninth file (its F-13w-1). It attributes the file to E-c (#93);
+    `git log` gives `a83b103`, "IL-a IA-C7". Either way the owner is 13w.
+- [x] Validation (CI; each run's id, head, legs' wall times and verdict in the ledger). Done: R1, R2,
+  PM-1 … PM-5, PM-8, deletions recorded above. The planned items follow:
   - `ci_layer.py --list core` diff against main → empty; `--list fast` → main's plus one line (B13-6);
   - `.gitattributes`: after the edit, `git add --renormalize .` stages nothing but `.gitattributes`, and
     `git ls-files --eol` shows `i/crlf` only for the `-text` file (B13-7);
@@ -2408,7 +2462,10 @@ systems. The Windows state of the default suite becomes visible.
 
 ### B-C4 — Close: laptop evidence, status, ledger, handoff
 
-- [ ] Implementation:
+- [x] Implementation (`7cec7fd` and the closing commit): the AC-8 evidence row and the S13 row of
+  `docs/MVP_STATUS.md` (13a merged; 13b awaiting review; `test-windows` red at W-T1, nine files, 13w;
+  W-6, S11 and 13w); README's CI line ("AC-8 parity on every `main` push", `ARC-49`); this ledger and
+  §13.14's handoff. Planned items:
   - `docs/MVP_STATUS.md`:
     - the AC-8 row, stating what is demonstrated (three worlds, 300 days and 30-day saves; macOS arm64,
       the Linux x86_64 container and Windows x86_64, plus Linux arm64), with the run id;
@@ -2416,17 +2473,40 @@ systems. The Windows state of the default suite becomes visible.
       owner lanes;
   - `README.md`: the CI line gains "AC-8 parity on every `main` push";
   - this section's ledger.
-- [ ] Validation:
-  - B13-4 (P-L) on the final head;
-  - B13-7 (`git diff --stat`);
-  - the final head's PR checks `fast` and `test` green, and its dispatch run green (B13-1 … B13-3 on the
-    exact final head);
-  - the doc checks.
-- [ ] Review:
-  - every B13 criterion has evidence or an explicit N/A;
-  - every PM has its outcome;
-  - deviations are numbered D-13b-n;
-  - nothing is material (§13.11 answered as frozen), or a stop is recorded.
+- [x] Validation, before the closing commit:
+  - **B13-7 PASS**: `git diff --stat origin/main...HEAD` (after merging `a30755e`) lists exactly
+    `.gitattributes`, `.github/actions/native/action.yml`, `.github/workflows/ci.yml`, this file,
+    `.structured-coding/standards.md`, `README.md`, `docs/DECISIONS.md`, `docs/MVP_STATUS.md`,
+    `scripts/ci_image.py`, `scripts/ci_layer.py` and `scripts/ci_parity.py`. There is no `.rs`,
+    `Cargo.*`, test, `worlds/` or `Dockerfile` change. `git ls-files --eol` shows `i/crlf` only for
+    the `-text` file.
+  - The doc checks: `check_doc_headings` and `check_decision_ids` pass.
+  - **Recorded outside this file, because a commit cannot hold its own run.** The final head's PR
+    checks (`fast`, `test`), its dispatch run (B13-1 … B13-3 and B13-11 on the exact final head), and
+    B13-4 (P-L: the laptop's record of the final head compared with that run's Linux x86_64 and Windows
+    records). These go in PR #97's description and the session report.
+- [x] Review:
+  - B13-1, B13-2, B13-2w, B13-3: R1 and R2, then the final head's run. B13-4: P-L on the final head.
+    B13-5: laptop `a` = `b`, CI R1 = R2. B13-6: `--list` diffs and the PR's `fast`/`test`. B13-7:
+    above. B13-8: PM-0, PM-1, PM-3 … PM-8 PASS, and PM-2 N/A with finding F-13b-5. B13-9: the
+    self-test in `fast` (every run's `fast` green), and PM-7. B13-10: the timings in R1, R2 and the
+    final run, every job under its timeout (the longest, `windows` at 9 min 36 s against 40). B13-11:
+    the finding list.
+  - Deviations D-13b-1 … D-13b-8 are recorded where they arose. Finding F-13b-5 is PM-2's.
+  - **Size.** `scripts/ci_parity.py` is about 650 lines, past the ~500-line review trigger
+    (`ENGINEERING_STANDARDS.md`). It is kept as one file: one instrument with three entry points,
+    recorded and reviewed together. The self-test is about 70 lines of it, and splitting would put
+    the comparator's guards and their self-test in different files.
+  - **Nothing material.**
+    - No platform difference was found (R-B1 did not occur).
+    - The binary built and ran on Windows (R-B10 did not occur).
+    - No billing sign was seen, and no settings were changed.
+    - No Rust, test, `Cargo.*`, `worlds/` or `Dockerfile` change is in the PR. The scratch plants
+      were never merged.
+    - `fast` and `test` keep their names and their triggers. `core` is unchanged; `fast` gains only
+      the self-test.
+    - 9 of 12 runs, counting the final head's.
+  - `test-windows` red at W-T1 is NOT A STOP (§13.12), and is recorded with owners.
 
 **Commit boundary.** Docs and ledger. A run on a commit cannot be written into that commit, so the final
 head's run ids go to the PR description and the session report (as in 13a).
@@ -2640,6 +2720,17 @@ STOP               PR READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
 The current checkpoint and the next actions are the first unchecked item of B-C1 … B-C4.
+
+**State at the closing commit (2026-10-09):**
+- B-C1 … B-C4 are done; PR #97 is open.
+- 8 of 12 runs are used; the final head's dispatch makes 9.
+- Every scratch branch is deleted.
+- The remaining steps run on the final head: the dispatch run and P-L, recorded in the PR
+  description.
+- Then READY FOR OPERATOR REVIEW — DO NOT MERGE. The implementation context is then CLOSED /
+  AWAITING OPERATOR ACTION.
+- **Post-merge synchronization:** this session's PR section only. `overall.md` and the step header
+  belong to the planning session.
 
 ---
 
