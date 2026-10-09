@@ -1,9 +1,9 @@
 # Step 19 — S19: World time, two time domains, pause, day and night, weather
 
 **Lifecycle:** step plan reviewed; the questions are ruled (§14.1, 2026-10-08). **TW-a (§16) is `DESIGN
-FROZEN 2026-10-08`** and merged (#94, f80bbb7). **TW-b (§17) and TW-d (§18) are PR designs — ready for
-freeze review** (2026-10-09, planning session `plan-tw-bd`); neither authorizes implementation until the
-primary session or the operator records `DESIGN FROZEN` on it. TW-c, TW-e, TW-f and TW-g are scoped in §11
+FROZEN 2026-10-08`** and merged (#94, f80bbb7). **TW-b (§17) and TW-d (§18) are `DESIGN FROZEN
+2026-10-09`** (primary session; rulings in §17.9.1 and §18.9.1). Each authorizes implementation under its own
+execution contract (§17.10, §18.10). TW-d starts only after TW-b and IL-b have merged. TW-c, TW-e, TW-f and TW-g are scoped in §11
 and are not frozen.
 **Author:** the S19 planning session, 2026-10-08. Worktree `/Users/yuema137/mineworld-worktrees/plan-s19`,
 branch `plan/s19-time-weather`, from `main @ f842c52`.
@@ -1256,10 +1256,17 @@ TWa-R1  RULING (operator, 2026-10-09, relayed by the coordinator): option (i). "
 
 # 17. TW-b — the `weather` System Pack (seeded rules)
 
-**PR design — ready for freeze review** (planning session, 2026-10-09; worktree
+**`DESIGN FROZEN 2026-10-09 (primary session; rulings in §17.9.1)`**
+
+Design revision: §17 as of PR #107 (drafted by the planning session on 2026-10-09 in worktree
 `/Users/yuema137/mineworld-worktrees/plan-tw-bd`, branch `plan/s19-tw-bd`, from `origin/main @ f80bbb7`).
-It is not frozen and does not authorize implementation. Freezing it is the primary session's or the
-operator's act. The rulings it needs are listed in §17.9.
+Approved by: the primary session, 2026-10-09, relayed by the coordinator; QTWb-1 … 7 ruled as recommended.
+Implementation base: `origin/main` at the start of execution, at or after f80bbb7; IL-b need not be merged
+(R-TWb-1). Execution contract: §17.10. Lifecycle: FROZEN.
+
+Frozen means the scope (§17.1), the decisions (§17.3, §17.4), the acceptance and adversarial criteria
+(§17.6) and the execution contract (§17.10) are frozen. Progress, evidence, audit findings and bounded
+corrections stay writable.
 
 This section is TW-b's single PR design authority and, once frozen, its ledger (§17.11). If the execution
 session moves it into a separate `pr-TW-b-weather.md`, it moves it whole and leaves a pointer here; the two
@@ -1670,7 +1677,15 @@ F-TWbd-2  `mineworld check` does not exist on main (tools/cli/src/main.rs subcom
 
 None of TW-b's questions is operator-material: each stays within §14.1's rulings and ARC-61/ARC-35 as noted.
 
-## 17.10 Execution contract (proposed; filled at freeze)
+### 17.9.1 Rulings, 2026-10-09 (primary session; binding)
+
+| Id | Ruling |
+| --- | --- |
+| QTWb-1 … QTWb-7 | Accepted as recommended. |
+| IL-b's `seed` signature | Whichever of TW-b and IL-b merges second adapts the other's implementors (R-TWb-1). IL-b is close to merging, so TW-b should expect to write the three-argument `seed`. |
+| F-TWbd-1 | Routed to the persistence lane as **F-SAVE-1**: snapshot retention, with saves growing about 2.5 GB per 300 days. The primary session opens a design for it. The climate state stays at or below 8 KB, as designed. |
+
+## 17.10 Execution contract (frozen 2026-10-09)
 
 ```text
 PROJECT / PR            S19 TW-b — the `weather` System Pack (seeded rules)
@@ -1710,17 +1725,24 @@ HANDOFF                 .structured-coding/plans/mvp0/handoff-tw-b.md
 
 ## 17.11 Ledger
 
-Empty until freeze. Commit rows, evidence (E-TWb-n), mutations (M-TWb-n) and deviations (TWb-Dn) are
+Empty until execution starts. Commit rows, evidence (E-TWb-n), mutations (M-TWb-n) and deviations (TWb-Dn) are
 recorded here by the execution session.
 
 ---
 
 # 18. TW-d — San Diego record data, `tools/weather-fetch`, and `source: record`
 
-**PR design — ready for freeze review** (planning session, 2026-10-09; same worktree and base as §17). It is
-not frozen and does not authorize implementation. It **depends on TW-b (§17) and IL-b
-(`mvp0/pr-il-b-interactions`, `data:` attachments, QTW-7) both being merged**. Two of its questions
-(QTWd-1, QTWd-2) are operator-material.
+**`DESIGN FROZEN 2026-10-09 (primary session; rulings in §18.9.1)`**
+
+Design revision: §18 as of PR #107 (planning session, 2026-10-09; same worktree and base as §17).
+Approved by: the primary session, 2026-10-09, relayed by the coordinator. QTWd-1 and QTWd-2 are ruled
+yes and accepted. QTWd-3 … 8 are ruled as recommended. Implementation base: `origin/main` **after both
+TW-b (§17) and IL-b (`mvp0/pr-il-b-interactions`, `data:` attachments, QTW-7) have merged**; until then this
+PR does not start. Execution contract: §18.10. Lifecycle: FROZEN.
+
+Frozen means the scope (§18.1), the decisions (§18.3, §18.5), the acceptance and adversarial criteria
+(§18.6) and the execution contract (§18.10) are frozen. Progress, evidence, audit findings and bounded
+corrections stay writable.
 
 This section is TW-d's single PR design authority and, once frozen, its ledger (§18.11).
 
@@ -2083,7 +2105,17 @@ F-TWd-4  The execution contracts forbid `curl`, and the workspace has no HTTP cl
 | QTWd-7 | NOTICE hash: no new dependency for a SHA-256 (§18.5). | **Yes.** Reproducibility is owned by criterion 1 and `eol=lf`. |
 | QTWd-8 | The series encoding: hex (no dependency, about 66 KB) rather than base64 (about 44 KB, needs a dependency or a hand-written codec)? | **Hex** now. Revisit with QTWd-2's persistence item. |
 
-## 18.10 Execution contract (proposed; filled at freeze)
+### 18.9.1 Rulings, 2026-10-09 (primary session; binding)
+
+| Id | Ruling |
+| --- | --- |
+| QTWd-1 | **Yes.** This applies the operator's AC-1 ruling of 2026-10-09 (TWa-R1: generic packs on the allow-list are admitted after the six market packs). Admitting their named `data/` attachments and the NOTICEs beside them is the same allowance. TW-d records it as an **ARC-35 note** in C1 and implements it in C5, with mutations M-TWd-A1 (a stray file under `data/` must fail, named) and M-TWd-A2 (a `data/` in Social Café must fail). |
+| QTWd-2 | **Accepted.** Weather's per-snapshot addition (about 66 KB packed series, SD-TW-d-5) is kept as designed. Snapshot retention goes to the persistence lane as **F-SAVE-1** (saves growing about 2.5 GB per 300 days); the primary session opens its design. |
+| QTWd-3 … QTWd-8 | Accepted as recommended. |
+
+These rulings settle every "after QTWd-1" and "if QTWd-1 is unruled" clause in §18.4 and §18.10. C1 lands the ARC-35 note, and C5 is not parked.
+
+## 18.10 Execution contract (frozen 2026-10-09)
 
 ```text
 PROJECT / PR            S19 TW-d — San Diego record data, tools/weather-fetch, and source: record
@@ -2100,7 +2132,8 @@ APPROVED SCOPE          §18.1. Change set: systems/weather/** ; tools/weather-f
                         docs/DECISIONS.md (DEP-31, DEP-8 row, ARC-35 note after QTWd-1); this section;
                         handoff-tw-d.md
 FROZEN INVARIANTS       INV-TW-1, -2, -3, -5, -7, -10; SD-TW-d-1 … 11; §18.6 criteria and mutations
-SEQUENCE                C1 → C2 → C3 → C4 → C5 → C6 (§18.4); C5 parked if QTWd-1 is unruled
+SEQUENCE                C1 → C2 → C3 → C4 → C5 → C6 (§18.4); QTWd-1 is ruled (§18.9.1): C1 carries the
+                        ARC-35 note and C5 is not parked
 ALLOWED COMMANDS        as §17.10, plus: the weather-fetch binary under target/ (including `fetch`, at most
                         3 network fetches of the one NOAA URL); WebFetch for NOAA metadata only
 NOT ALLOWED             as §17.10
@@ -2117,5 +2150,5 @@ HANDOFF                 .structured-coding/plans/mvp0/handoff-tw-d.md
 
 ## 18.11 Ledger
 
-Empty until freeze. Commit rows, evidence (E-TWd-n), mutations (M-TWd-n) and deviations (TWd-Dn) are
+Empty until execution starts. Commit rows, evidence (E-TWd-n), mutations (M-TWd-n) and deviations (TWd-Dn) are
 recorded here by the execution session.
