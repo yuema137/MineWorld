@@ -96,14 +96,16 @@ pub struct WorldSummary {
     pub instance: WorldInstanceId,
     /// The world's own clock, as of this answer.
     pub at: WorldTime,
+    /// How many world seconds pass per wall second while the world is hosted (an integer ≥ 1). A
+    /// deployment setting, not world state.
+    pub time_scale: u32,
     /// How many entities the world has allocated.
     pub entities: usize,
     /// The systems this world is composed of, in registration order.
     pub systems: Vec<SystemSummary>,
     /// The seats a client may ask for.
     pub seats: Vec<EntityKey>,
-    /// How many connections hold a seat. Until S11-B an in-server `--agent` controller occupies its
-    /// seat through the same path and is counted.
+    /// How many connections hold a seat. In-server controllers are not clients and are not counted.
     pub clients: usize,
     /// How many observations have been dropped because a client was not reading them.
     ///

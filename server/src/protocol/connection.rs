@@ -54,16 +54,20 @@ impl TryFrom<String> for SessionId {
 /// Whether control of the Person changed hands when this connection joined (`PROTOCOL.md` §5.1).
 ///
 /// It never says which controller kind or which player — only that the seat was free, was being
-/// driven by the server, or was held for this connection's own earlier socket.
+/// driven by the server, was held for this connection's own earlier socket, or was taken from
+/// another connection (`PROTOCOL.md` §4.2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TookOver {
-    /// The seat was free. The only value a server sends before S11-B.
+    /// The seat was free.
     None,
-    /// An in-server controller was driving the Person (from S11-B).
+    /// An in-server controller was driving the Person.
     Hosted,
-    /// This join resumed a seat held after its connection dropped (from S11-B).
+    /// This join resumed a seat held after its connection dropped.
     Held,
+    /// This join took the seat from another connection, or from a dropped one's hold, with
+    /// `take_over: true`.
+    Connection,
 }
 
 /// Why the server is about to close a connection (`PROTOCOL.md` §5.6).
@@ -74,8 +78,10 @@ pub enum ClosingReason {
     Left,
     /// The operator removed this connection (from S11-D).
     Kicked,
-    /// A newer connection re-took this seat with its `resume` (from S11-B).
+    /// A newer connection re-took this seat with its `resume`.
     Superseded,
+    /// Another connection took this seat with `take_over: true`.
+    TakenOver,
     /// The invite was wrong or missing.
     Unauthorized,
     /// The client speaks another revision of the protocol.
