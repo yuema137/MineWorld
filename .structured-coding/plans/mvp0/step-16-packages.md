@@ -2460,12 +2460,12 @@ than compiling a stranger's crate. No pack is installed yet.
 a git package exists to locate); `tests/acceptance/Cargo.toml` only if the new file needs a dependency
 already in the workspace.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo metadata` and `git diff --stat Cargo.lock` → 0 lines (SC-1); no Cargo warning;
+- [x] Implementation: as scoped (E-Ec2).
+- [x] Validation: `cargo metadata` and `git diff --stat Cargo.lock` → 0 lines (SC-1); no Cargo warning;
   `cargo test -p mineworld-acceptance` (ac1 13, precursor 4, seam 3, the new file); M-C2 observed failing
-  and reverted.
-- [ ] Review: the table lists exactly PD-22's six; ac1_composability unedited and passing (under FQ-c2
-  (a)); nothing else changes.
+  and reverted (E-Ec2).
+- [x] Review: the table lists exactly PD-22's six; ac1_composability unedited and passing (under FQ-c2
+  (a)); nothing else changes (E-Ec2).
 
 ### Ec-C3 — `packs` says bundled or third-party
 
@@ -2576,6 +2576,23 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
   `PACKAGE_FORMAT.md` §8 row; `ARCHITECTURE.md` §12 sentence; one pointer each in `sdk/rust/README.md`,
   `systems/README.md`. `check_doc_headings` → 192 sections, none duplicated; `check_decision_ids` → 72
   ids, all distinct; `git grep "Superseded in part by \`ARC-66\`"` → `docs/DECISIONS.md:2313`. PASS.
+- **E-Ec2** (Ec-C2): `.cargo/config.toml` (new) holds `[patch.crates-io]` with exactly PD-22's six, paths
+  relative with `/` (PD-p4). `cargo metadata --offline` exit 0, no warning; `git diff --stat Cargo.lock`
+  empty (SC-1 confirmed on `6ca763d`). `tests/acceptance/tests/package_sources.rs` (new): EC-2 (i), (ii)
+  over the real lock — located 213 packages, 27 without a source, 186 from a registry — plus five negative
+  controls on a fixed lock (registry framework crate; `?branch=`, short rev, mismatched `#`, `?tag=`;
+  missing checksum; stray path package; an unreadable line; the same lock read with CRLF). `cargo test -p
+  mineworld-acceptance --test package_sources --test ac1_composability --test precursor_vocabulary --test
+  seam_vocabulary` → 6, 13, 4, 3 passed. `tests/acceptance/Cargo.toml` unchanged (serde_json already a
+  dev-dependency). **M-C2**: the real `Cargo.lock`'s `mineworld-sdk` given `source =
+  "registry+https://github.com/rust-lang/crates.io-index"`, the built test binary run directly → FAILED
+  naming `mineworld-sdk: a framework crate from a registry …` (and the missing checksum); reverted with
+  `git checkout Cargo.lock`, `git status` clean of it. PASS.
+  - *Finding (bounded, test design)*: the first draft's locate step compared the lock's source-less count
+    with the workspace's member count, so M-C2 first failed at locating rather than naming the crate. The
+    locate step now requires only that both kinds are found (non-empty), and naming is the refusal's job.
+    Also: members come from `cargo metadata --no-deps` (resolves nothing, so a mutated lock is read as it
+    is, never rewritten by Cargo first).
 
 ## 16.9 Freeze questions
 
