@@ -24,25 +24,65 @@ use crate::host::Hosted;
 /// `scale` world seconds pass per wall second (`--time-scale`): the elapsed wall time is scaled in
 /// milliseconds before it is cut to whole seconds, so a scaled clock moves smoothly rather than in
 /// jumps of `scale` seconds.
+///
+/// The host may pause it (`PROTOCOL.md` §11.3; step-12 SD-D6, S19 §4.2 option A). The clock is one
+/// segment `(world_anchor, wall_anchor, scale, paused)`: running, it reads `world_anchor + ⌊elapsed
+/// wall ms × scale / 1000⌋`; paused, it reads `world_anchor`. A pause folds the reading into the
+/// anchor; a resume moves only the wall anchor. So it never decreases and never jumps — not by the
+/// paused duration, not backwards (INV-TW-8). Every reading takes the wall instant as an argument, so
+/// the arithmetic never reads a clock of its own; [`HostClock::now`] is the one place that does.
 pub(super) struct HostClock {
-    epoch: WorldTime,
-    started: Instant,
+    world_anchor: WorldTime,
+    wall_anchor: Instant,
     scale: NonZeroU32,
+    paused: bool,
 }
 
 impl HostClock {
-    pub(super) fn new(epoch: WorldTime, scale: NonZeroU32) -> Self {
+    pub(super) fn new(epoch: WorldTime, scale: NonZeroU32, wall: Instant) -> Self {
         Self {
-            epoch,
-            started: Instant::now(),
+            world_anchor: epoch,
+            wall_anchor: wall,
             scale,
+            paused: false,
         }
     }
 
+    /// The instant the world should have reached by now.
     pub(super) fn now(&self) -> WorldTime {
-        let scaled = self.started.elapsed().as_millis() * u128::from(self.scale.get()) / 1_000;
-        let elapsed = i64::try_from(scaled).unwrap_or(i64::MAX);
-        WorldTime::from_seconds(self.epoch.seconds().saturating_add(elapsed))
+        self.now_at(Instant::now())
+    }
+
+    /// The instant the world should have reached at the wall instant `wall`.
+    pub(super) fn now_at(&self, wall: Instant) -> WorldTime {
+        if self.paused {
+            return self.world_anchor;
+        }
+        let elapsed = wall.saturating_duration_since(self.wall_anchor).as_millis();
+        let scaled = elapsed * u128::from(self.scale.get()) / 1_000;
+        let scaled = i64::try_from(scaled).unwrap_or(i64::MAX);
+        WorldTime::from_seconds(self.world_anchor.seconds().saturating_add(scaled))
+    }
+
+    /// Stops the clock where it stands at `wall`. Pausing a paused clock changes nothing.
+    pub(super) fn pause_at(&mut self, wall: Instant) {
+        if !self.paused {
+            self.world_anchor = self.now_at(wall);
+            self.paused = true;
+        }
+    }
+
+    /// Starts the clock again from the instant it stopped at. Resuming a running clock changes
+    /// nothing.
+    pub(super) fn resume_at(&mut self, wall: Instant) {
+        if self.paused {
+            self.wall_anchor = wall;
+            self.paused = false;
+        }
+    }
+
+    pub(super) const fn paused(&self) -> bool {
+        self.paused
     }
 
     pub(super) const fn scale(&self) -> NonZeroU32 {
@@ -195,6 +235,71 @@ impl Hosted {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// DA-7 (INV-TW-8): under 10 000 seeded random steps of pause, resume and wall advances of 0 to
+    /// 5 000 ms, the clock never decreases, is constant while paused, and right after a resume reads
+    /// exactly the instant it was paused at. Independently, it never runs ahead of the wall time it
+    /// was running for.
+    #[test]
+    fn the_host_clock_is_monotonic_and_jump_free_across_pauses() {
+        let start = Instant::now();
+        let scale = NonZeroU32::new(60).expect("non-zero");
+        let mut clock = HostClock::new(WorldTime::from_seconds(1_000), scale, start);
+        let mut wall = start;
+        let mut running_ms: u128 = 0;
+        let mut previous = clock.now_at(wall);
+        // A small linear congruential generator: seeded, reproducible, no dependency.
+        let mut seed: u64 = 7;
+        let mut next = |bound: u64| {
+            seed = seed
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            (seed >> 33) % bound
+        };
+        for _ in 0..10_000 {
+            match next(3) {
+                0 => {
+                    let before = clock.now_at(wall);
+                    clock.pause_at(wall);
+                    assert_eq!(
+                        clock.now_at(wall),
+                        before,
+                        "pausing does not move the clock"
+                    );
+                }
+                1 => {
+                    let frozen = clock.now_at(wall);
+                    clock.resume_at(wall);
+                    assert_eq!(
+                        clock.now_at(wall),
+                        frozen,
+                        "a resume continues where it stopped"
+                    );
+                }
+                _ => {
+                    let step = Duration::from_millis(next(5_001));
+                    let before = clock.now_at(wall);
+                    wall += step;
+                    if clock.paused() {
+                        assert_eq!(clock.now_at(wall), before, "a paused clock stands still");
+                    } else {
+                        running_ms += step.as_millis();
+                    }
+                }
+            }
+            let now = clock.now_at(wall);
+            assert!(
+                now >= previous,
+                "the clock went back: {previous:?} → {now:?}"
+            );
+            let ceiling = 1_000 + i64::try_from(running_ms * 60 / 1_000).expect("small");
+            assert!(
+                now.seconds() <= ceiling,
+                "the clock ran ahead of its running wall time: {now:?} > {ceiling}"
+            );
+            previous = now;
+        }
+    }
 
     /// CP-B4's statistic: one stall in a hundred ticks moves the maximum and not the p99; two do.
     #[test]

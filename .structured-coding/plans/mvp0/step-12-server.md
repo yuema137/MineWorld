@@ -3223,7 +3223,7 @@ not in scope  a live time-scale change (TW-c, QS11D-1); the host journal, world.
 | **SD-D10** | **`POST /admin/clock`** accepts `{ "paused": bool }` (other fields refused, `malformed`); a body with `time_scale` is answered `409 time_scale_fixed` until TW-c lands live scaling (QS11D-1); no field can name an instant, so no route moves the clock to an instant (the I-4 clarification of S19 §15.3). Repeating the current state is `200` and changes nothing. `GET /admin/clock` answers `{ at, time_scale, paused }`. | S19 §7.3, §15.3; "may omit, never redefine" (ARC-41) for `time_scale`. |
 | **SD-D11** | **Size**: `summary` and `first_binding` move from `runtime.rs` to `runtime/status.rs` (pure move, D-C2); admin and clock command handling lives in `runtime/control.rs`. | `runtime.rs` is 492 lines; §19's file ownership (S11-C moves a different part). |
 | **SD-D12** | **CLI**: `--admin-token TOKEN` with `env = "MINEWORLD_ADMIN_TOKEN"`, `hide_env_values`; an illegal token, or one equal to the invite, stops the server with a message that echoes neither; with a token the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without one, `[mineworld] no admin surface (no --admin-token)`. The token is never printed. | §11.4's frozen CLI contract; I-5; an admin token equal to the invite would make every player the host. |
-| **SD-D13** | **Stopping the server on every platform** (operator requirement, §18.14). The shutdown future in `serve.rs` completes on the first of `tokio::signal::ctrl_c()` (Ctrl-C on Unix; Ctrl-C and Ctrl-Break on Windows) and, under `#[cfg(windows)]`, `tokio::signal::windows::ctrl_close()` and `ctrl_shutdown()` (closing the console window, or logging off). Each leads to the same graceful path: stop accepting connections, `WorldHost::shutdown` (checkpoint, statistics), the hosted report. On a Windows close event the OS allows about 5 s; the checkpoint is one snapshot write, measured in E-SD. Under `#[cfg(unix)]` nothing changes. | S19 §7.5: closing the game saves and pauses, including on Windows, where a closed console sends no SIGINT. |
+| **SD-D13** | **Stopping the server on every platform** (operator requirement, §18.14). The shutdown future in `serve.rs` completes on the first of `tokio::signal::ctrl_c()` (Ctrl-C on Unix; Ctrl-C and Ctrl-Break on Windows) and, under `#[cfg(windows)]`, `tokio::signal::windows::ctrl_close()` and `ctrl_shutdown()` (closing the console window, or logging off) — **amended 2026-10-09 by ruling QW-1 (D-SD0): and `ctrl_break()`, because `ctrl_c()` on Windows does not catch Ctrl-Break**. Each leads to the same graceful path: stop accepting connections, `WorldHost::shutdown` (checkpoint, statistics), the hosted report. On a Windows close event the OS allows about 5 s; the checkpoint is one snapshot write, measured in E-SD. Under `#[cfg(unix)]` nothing changes. | S19 §7.5: closing the game saves and pauses, including on Windows, where a closed console sends no SIGINT. |
 
 ## 18.4 The surface, exactly (written into `PROTOCOL.md` §11 and §5.9 by D-C1)
 
@@ -3381,15 +3381,15 @@ configured, and changes no world state; pause is host pacing; the I-4 clarificat
 rejected: socket frames, `tonic`, `axum-extra`; limitation: one admin token, no per-player bans).
 `MODULE_SPEC.md` §8.1: `--admin-token`, `MINEWORLD_ADMIN_TOKEN`.
 
-- [ ] Implementation · [ ] Validation: the two doc checks; §6/§6.2 untouched · [ ] Review: every route
-  and code in §18.4 present; S19's ARC-69 left to TW-c and cited, not pre-empted.
+- [x] Implementation · [x] Validation: the two doc checks; §6/§6.2 untouched · [x] Review: every route
+  and code in §18.4 present; S19's ARC-69 left to TW-c and cited, not pre-empted (E-SD1).
 
 ### D-C2 — Pure move: `runtime/status.rs`
 
 **Scope.** `summary`, `first_binding` move; no behaviour change. **Depends on:** S11-B merged.
 
-- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-server` same names and counts; clippy
-  · [ ] Review: `runtime.rs` < 450 lines.
+- [x] Implementation · [x] Validation: `cargo test -p mineworld-server` same names and counts; clippy
+  · [x] Review: `runtime.rs` < 450 lines (E-SD2).
 
 ### D-C3 — `AdminToken`, the pausable `HostClock`, the seat table's kick, release and report
 
@@ -3398,8 +3398,8 @@ rejected: socket frames, `tonic`, `axum-extra`; limitation: one admin token, no 
 with no hold, on any other state is `None`; `release` on each of the four states; `report` per state;
 `AdminToken` rules and redacted `Debug`.
 
-- [ ] Implementation · [ ] Validation · [ ] Review: no world access in `seats.rs`; the clock never reads
-  `Instant::now()` inside its arithmetic.
+- [x] Implementation · [x] Validation (E-SD3; DA-7's mutation in E-SD-M) · [x] Review: no world access
+  in `seats.rs`; the clock never reads `Instant::now()` inside its arithmetic.
 
 ### D-C4 — The world thread and the session: control commands, pause, the clock frame, the registry
 
@@ -3411,16 +3411,18 @@ registration), `admin/registry.rs`, `protocol.rs` (`ServerFrame::Clock`, `Refusa
 `protocol/summary.rs` (`paused`), golden `clock.json`, `welcome.json`. **Validation:** server suites;
 the socket half of DA-10.
 
-- [ ] Implementation · [ ] Validation · [ ] Review: I-11 (no wait on the world thread; the watch send is
-  non-blocking); a kicked connection is released before the seat is rebound (never two controllers).
+- [x] Implementation · [x] Validation (E-SD4) · [x] Review: I-11 (no wait on the world thread;
+  `send_replace` never waits and never fails); kick/release rebind the seat and release the
+  connection inside one world-thread command, so no consult or join can see two drivers.
 
 ### D-C5 — The HTTP routes
 
 **Scope.** `admin.rs` (SD-D1, SD-D3, SD-D10), `app.rs` (SD-D2), `lib.rs`; `server/tests/admin.rs`: DA-2,
 DA-8 (socket and HTTP halves), DA-5's in-process half. **Validation:** M-DA2a, M-DA2b, M-DA8.
 
-- [ ] Implementation · [ ] Validation · [ ] Review: handlers hold no binding state; every body type
-  denies unknown fields; the delay is in the handler.
+- [x] Implementation · [x] Validation (E-SD4; mutations E-SD-M) · [x] Review: handlers hold no
+  binding state; the one body type denies unknown fields; the delay is in the request's own task
+  (a route_layer middleware in front of every handler).
 
 ### D-C6 — The CLI and the real-binary acceptance
 
@@ -3428,8 +3430,8 @@ DA-8 (socket and HTTP halves), DA-5's in-process half. **Validation:** M-DA2a, M
 server_command.rs}`: DA-1, DA-3, DA-4, DA-5, DA-6, DA-9. **Validation:** M-DA1, M-DA3, M-DA4, M-DA5,
 M-DA6a–c; every suite that starts the binary.
 
-- [ ] Implementation · [ ] Validation · [ ] Review: the token reaches nothing but the router; `main.rs`
-  < 500.
+- [x] Implementation · [x] Validation (E-SD5, E-SD-M) · [x] Review: the token reaches nothing but the
+  router (AdminToken has no Display/Serialize; the startup line prints none); `main.rs` 498 < 500.
 
 ### D-C7 — The Godot module's `clock` reader and the far side
 
@@ -3439,14 +3441,15 @@ bool)`, `var paused`, `var time_scale` — nothing else (ruling 4 is amended for
 appear in transcripts). **Validation:** DA-10, one Godot window at a time; `run.sh evidence`,
 `affordances`, `reconnect`, `./mineworld-slice --world --link` still pass.
 
-- [ ] Implementation · [ ] Validation · [ ] Review: no rule in the module; every existing name and call
-  valid.
+- [x] Implementation · [x] Validation (E-SD6) · [x] Review: no rule in the module (the arm stores and
+  emits); every existing name and call valid.
 
 ### D-C8 — Close
 
-- [ ] Implementation: `server/README.md` (admin, pause); ledger · [ ] Validation: DA-11 digests; DA-12
-  scope and sizes; one full gate on the final head · [ ] Review: DA-1 … DA-12 with evidence; mutations
-  planted, red, reverted; PR READY FOR OPERATOR REVIEW — DO NOT MERGE.
+- [x] Implementation: `server/README.md` (admin, pause); ledger · [x] Validation: DA-11 digests; DA-12
+  scope and sizes; one full gate on the final executable head (E-SD7) · [x] Review: DA-1 … DA-12 with
+  evidence (E-SD1 … E-SD7); mutations planted, red, reverted, one equivalent survivor recorded
+  (E-SD-M, M-DA6b); PR READY FOR OPERATOR REVIEW — DO NOT MERGE.
 
 **E-SD0 (first action after the freeze):** the base's two 300-day digests and test counts.
 
@@ -3535,13 +3538,210 @@ MATERIAL STOP       any world-state change by an admin path; a kernel/contract/p
 ## 18.12 Evidence ledger
 
 ```text
-(empty until the freeze)
+E-SD0 2026-10-09, base origin/main @ ec38570 (S11-B #83 merged at 15b05a9), worktree impl-s11d, machine
+      load ~260 (other worktrees' jobs). Debug build `cargo build -p mineworld-cli`.
+      `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → 339 lines, sha-256 of every
+        line but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b (= E-SB0).
+      `mineworld run worlds/market-town --headless --seed 7 --days 300` → 355 lines, sha-256 =
+        365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d (= E-SB0).
+      Outputs /tmp/s11d/base-{cafe,market}.out; filter `grep -v '^wall' | shasum -a 256`.
+      Audit anchors re-verified on ec38570: runtime.rs 492 lines (submit l. 257, tick l. 342, consult
+      l. 362, summary l. 440, first_binding l. 482); seats.rs `Connected.session` still
+      `#[allow(dead_code)]`; HostClock { epoch, started, scale } in runtime/world.rs; ClosingReason::Kicked
+      defined, never sent; app.rs `router(host, admission)`; WorldSummary without `paused`. One anchor
+      moved: tools/cli/src/main.rs is 501 lines at the base (S11-B left 486; IL-a and later merges
+      added), already over DA-12's 500 — see D-SD1.
+      Windows target: `rustup target list --installed` → aarch64-apple-darwin, x86_64-apple-darwin only.
+E-SD1 D-C1. check_decision_ids → 72 ids, all distinct (ARC-44 placed after ARC-42, inside S11's
+      region). check_doc_headings → 191 numbered sections, none duplicated. PROTOCOL.md hunks: §1
+      (/admin route row), §4.1 (nickname shown on the admin surface), §5 table (`clock`), §5.5
+      (`paused`), §5.6 (`kicked` landed), §5.7 (`paused`), §5.9 (new), §9, §10 (S11-D landed; TW-c row
+      for `time_scale` in POST /admin/clock), §11 (new). §§5.8 and 6/6.2 untouched (S11-C's and 12e's).
+      Every route and code of §18.4 is in §11.2; ARC-69 (S19) cited as TW-c's, not pre-empted.
+E-SD2 D-C2 (pure move). `summary` and `first_binding` moved verbatim to server/src/runtime/status.rs;
+      runtime.rs 492 → 436. clippy -D warnings (server, all targets) clean. `cargo test -p
+      mineworld-server`: unit 38, frames 8, handshake 7, headless 4, seats 4, two_clients 9, doc 1 —
+      all pass, the base's names and counts.
+E-SD3 D-C3. admission.rs `AdminToken` (the invite's rules through two shared predicates; `admits`
+      in constant time; `is_invite`; redacted Debug; no Serialize/Display; its own two error
+      variants so a refusal names the admin token, never the invite). runtime/world.rs HostClock as a
+      segment (world_anchor, wall_anchor, scale, paused) with `now_at(Instant)`, `pause_at`,
+      `resume_at`; `now()` is the only Instant::now() and is outside the arithmetic. seats.rs `kick`,
+      `release` → `Released`, `report`/`state_of` → `SeatReport { seat, SeatState }` (serde: state
+      tag, session as a decimal string, held seconds rounded up); `Connected.session` no longer dead
+      code. `cargo test -p mineworld-server --lib`: 43 passed (38 + AdminToken 1 + DA-7 1 + seats 3).
+      DA-7 property test: 10 000 seeded LCG steps, scale 60, pause/resume/advance 0–5000 ms: never
+      decreases, constant while paused, a resume reads the frozen value, never ahead of the running
+      wall time.
+E-SD4 D-C4 + D-C5 (one commit, D-SD3). runtime/control.rs (ControlCommand: Sessions, Seats, Kick,
+      Release, Clock, Pause → ControlAnswer); runtime.rs: Subscriber gains session and a per-session
+      drop count; Command::Control arm; `submit` refuses `paused` before any ActionId; `tick` while
+      paused expires holds and sweeps but neither consults nor advances; a `watch::Sender<ClockState>`
+      written with send_replace on each pause/resume. host.rs Command::Control + WorldHost::control;
+      handles.rs Seated carries the watch receiver (subscribed at join, so a change after the
+      welcome is never missed) and `clock_at_welcome()`; `streams()` returns a `Streams` struct.
+      session.rs: welcome, then `clock` from the welcome's own summary, then the stream; a select
+      branch on `clock.changed()`; registry registration (admin/registry.rs) after the welcome,
+      dropped as soon as the stream ends (before the closing handshake); `seq` from the registry's
+      counter. protocol: ServerFrame::Clock, RefusalCode::Paused, ClockState, WorldSummary.paused;
+      golden clock.json (new), welcome.json (+paused). admin.rs: six routes, a route_layer bearer
+      middleware (`Bearer ` prefix, exact bytes, constant time, sleep_until(arrived + 500 ms) then
+      401), typed JSON errors, ClockChange { paused, time_scale } with deny_unknown_fields
+      (time_scale → 409), GET /admin/sessions = registry ⋈ world counts. app.rs Access with
+      From<Admission>; router/serve/serve_with_shutdown take impl Into<Access>; every existing call
+      compiles unchanged. clippy -D warnings (server, all targets) clean.
+      `cargo test -p mineworld-server --no-fail-fast`: unit 43, admin 5 (new), frames 9 (+clock),
+      handshake 7, headless 4, seats 4, two_clients 9, doc 1 — all pass (load ~250).
+      admin.rs: DA-2 (7 header cases × {POST /admin/clock, POST …/kick}: 401 {"error":
+      "unauthorized"}, each ≥ 500 ms after sending; afterwards paused false and the client still
+      seated, only observations), DA-8 (pause/clock/kick/release frames → unknown_frame; join with
+      admin_token → malformed_frame; bodies {"at"}, {"paused","at"}, {} , not-json → 400,
+      {"time_scale"} and {"paused","time_scale"} → 409; paused false, time_scale and revision
+      unchanged; `at` still advances), DA-10 socket half (every welcome followed by a clock frame
+      equal to the welcome's world before any observation; pause announced to both clients; submit
+      refused `paused` with its token; `at` frozen over 1.2 s; resume answers the frozen `at` and is
+      announced), DA-5 in-process (sessions listed with nicknames, seats, connected_at; kick → 200
+      state free, closing{kicked}, gone from /admin/sessions at once; unknown 404, non-numeric
+      400; release connected → released true + closing{kicked}; repeat → released false; unknown
+      seat 404), and no token → every /admin path 404.
+E-SD-M Mutations, each planted on the working tree, seen red, reverted (`git checkout`/re-edit,
+      `git diff` clean of it):
+      M-DA2a  bearer check admits any non-empty bearer → "the invite on /admin/clock … left: 200,
+              right: 401"; red.
+      M-DA2b  no sleep before 401 → "no Authorization header on /admin/clock was answered after
+              93.542µs, under 500 ms"; red.
+      M-DA8   ClockChange without deny_unknown_fields → `{"paused": true, "at": 5}` answered 200
+              (the clock paused); red. As predicted, `{"at": 999999}` alone stays 400 under the
+              mutation (no `paused`), so the second body carries the guard.
+      Probe   DA-2's literal trailing space → admitted 200 (D-SD4).
+      M-DA6c (DA-7, unit) resume_at does not re-anchor the wall instant → "a resume continues where
+              it stopped … left: WorldTime(1523)"; red.
+      M-DA1   routes mounted without a token (a never-matching token) → "GET /admin/sessions … left:
+              401"; red.
+      M-DA3   kick also advances the world a day (an admin path changing world state; the frozen
+              text's no-op `move` needs a request the server cannot build without naming an
+              action, so the same failure class is planted through `advance`) → "revision left: 2,
+              right: 1"; red.
+      M-DA4   kick departs as Departure::Dropped → alice "held", seconds_left 30; red.
+      M-DA5   release leaves a held seat held → wanderer "held"; red.
+      M-DA6a  submit not refused while paused → "a submit while paused was answered Result { … }";
+              red.
+      M-DA6b  consults and advance not skipped while paused → test PASSES: SURVIVED, equivalent in
+              what any client can observe. With the host clock frozen, `now` stands still, so no
+              slot becomes due and no deferral fires; the only window is the first paused tick, for
+              slots due between the last running tick and the pause instant, which completes before
+              any client can read a frozen revision. The skip is kept as the stated rule (QTW-2: "no
+              hosted consult") and as defence for a future clock that is not frozen by pausing;
+              recorded rather than over-tested.
+E-SD5 D-C6. main.rs `--admin-token` (env MINEWORLD_ADMIN_TOKEN, hide_env_values) and serve.rs:
+      AdminToken::given + is_invite before anything binds (refusals name `--admin-token`, echo
+      neither secret); Access into serve_with_shutdown; the two startup lines of SD-D12;
+      `stop_requested()` = ctrl_c, and under #[cfg(windows)] ctrl_break (QW-1), ctrl_close,
+      ctrl_shutdown. Sizes main.rs 498 (D-SD1), serve.rs 371. clippy -D warnings (cli, all targets)
+      clean. tools/cli/tests/admin.rs (6 tests) PASS: DA-1, DA-3 (+DA-8 binary half; inspect facts =
+      validate's genesis count), DA-4 + DA-5 (one market-town --town server), DA-6 (clock frames
+      after the welcome and within 1 s of the pause; at and revision equal over two 2 s waits;
+      submit refused `paused` with token p1; a 3 s hold ended during the pause; resume's `at` within
+      [frozen, frozen + (wall s + 1) × scale]; the town acted again within 30 s), DA-9 (token and
+      nickname in no stdout/stderr line and no save byte; nickname only on /admin/sessions and the
+      holder's welcome; MINEWORLD_ADMIN_TOKEN works and is not echoed; the invite is no admin
+      token), SD-D13's #[cfg(unix)] graceful stop (exit 0, "[mineworld] stopping", "[world] ticks").
+      server_command.rs DA-9 half PASS (--help names the variable, never its value; equal-to-invite
+      and "short" stop the server non-zero, echoing neither). One DA-6 test defect fixed before it
+      passed: the first `next_clock` read the welcome's own clock (paused false); the test now
+      asserts that one first.
+      `cargo test -p mineworld-cli --no-fail-fast` (every suite that starts the binary): exit 0, 28
+      targets ok — ac13, ac15 (6), ac3_reconnect, ac5_takeover (2), milestone_b, milestone_c,
+      hosted_town (120 s, p99 bound asserted), restart, server_command (10) among them; client_2d's
+      8 are #[ignore] (Godot-gated) as at the base. Load ~250 throughout.
+E-SD6 D-C7 (DA-10's far side). world_client.gd: one `"clock"` arm, `signal clock_changed(at,
+      time_scale, paused)`, `var paused`, `var time_scale`, and the `closing` doc names `kicked` —
+      nothing else (QS11D-6); every existing name and call unchanged. checks/admin_check.gd (+ .uid
+      Godot generated): the host's HTTP calls are made by the check itself through Godot's
+      HTTPRequest with the bearer token read from MINEWORLD_ADMIN_TOKEN (no curl, no argument);
+      run.sh `admin` generates a token per run, exports it to the server and the check, and fails if
+      the token reaches either evidence file. Godot 4.7.2, one headless window at a time:
+        run 1  FAIL at "POST /admin/clock was sent: 44" (ERR_BUSY): the `refused paused` frame came
+               back before the pause's HTTP answer had finished, and one HTTPRequest carries one
+               request. A check defect, not a module or server one: requests now queue in the
+               check and go one at a time.
+        run 2  PASS — 8 checks, 0 failures: clock after welcome (paused false, scale 1); pause
+               announced and held in `paused`; submit refused `paused` with its token "c1"; resume
+               announced; kicked → closing "kicked" before disconnected.
+      `run.sh evidence` exit 0, Alice answers in every transcript, no SCRIPT ERROR and no "unknown
+      kind" warning in any log (the module now reads the clock frame every server sends);
+      `run.sh affordances` PASS 0 failures; `run.sh reconnect` PASS 0 failures;
+      `./mineworld-slice --world --link` → "all link checks pass". Evidence regenerated (server logs
+      gain "[mineworld] no admin surface (no --admin-token)"; admin-social-cafe.log and
+      server-admin.log new); the generated token is in no evidence file.
+E-SD7 D-C8, full gate on the merged head 7e1188e (origin/main a30755e merged: docs only — the 13w
+      plan; 13w's `interrupt` helper is not on main, so SD-D13's check keeps its #[cfg(unix)] gate,
+      QW-3). Load ~250.
+      fmt --check exit 0; clippy --workspace --all-targets -D warnings exit 0;
+      `cargo test --workspace --no-fail-fast` exit 0: 174 test targets ok, 783 passed, 0 failed,
+        9 ignored (client_2d's Godot-gated and one bodies_yard, as at the base).
+      DA-11 digests (debug build, `grep -v '^wall' | shasum -a 256`):
+        social-cafe seed 7, 300 days: 339 lines, ad49c723…c64b = E-SD0
+        market-town seed 7, 300 days: 355 lines, 365b50e0…1d1d = E-SD0
+        tools/cli/src/run.rs untouched (no diff from ec38570).
+      check_decision_ids 72 distinct; check_doc_headings 191, none duplicated; check_scratch scan
+        162 sources clean (2 exempt, as at the base); check_scratch left: none.
+      `bash clients/protocol/run.sh evidence` exit 0 again on this head, no SCRIPT ERROR or
+        unknown-kind warning; the regenerated logs are committed with this ledger.
+      DA-12: no diff under kernel/, contracts/, persistence/, systems/, worlds/, worldpack/,
+        cognition/, sdk/, authoring/; no Cargo.toml or Cargo.lock change; server/ names no pack and
+        no controller crate. Sizes: runtime.rs 480, session.rs 442, host.rs 451, protocol.rs 372,
+        app.rs 163, main.rs 498, admission.rs 498, admin.rs 263 — each under 500. Paths beyond
+        §18.6: D-SD5 only.
+      Windows: `cargo check --target x86_64-pc-windows-msvc` INCONCLUSIVE — the target is not
+        installed here (E-SD0); SD-D13's #[cfg(windows)] branch (ctrl_c, ctrl_break, ctrl_close,
+        ctrl_shutdown) is written and not compiled on this machine. Owner: S13 (13w's Windows CI
+        lane, R-S13-W1).
 ```
 
 ## 18.13 Deviations and discoveries
 
 ```text
-(empty until the freeze)
+D-SD0 (ruling, SD-D13 amended) QW-1, relayed by the coordinator 2026-10-09 from S13's 13w design
+      (finding F-13w-2): in tokio 1.53.1 on Windows `tokio::signal::ctrl_c()` catches Ctrl-C only,
+      not Ctrl-Break; without a handler Ctrl-Break kills the server with 0xC000013A (no stopping
+      line, no checkpoint, no statistics). SD-D13 assumed ctrl_c() caught both. Amended: under
+      #[cfg(windows)] the shutdown future also completes on `tokio::signal::windows::ctrl_break()`,
+      beside ctrl_close() and ctrl_shutdown(), all on the same graceful path. QW-3: whichever of
+      S11-D and 13w lands second removes the #[cfg(unix)] gate on SD-D13's graceful-stop check; 13w's
+      `interrupt` helper is not on main (origin/main @ ec38570 at this session's resume), so the gate
+      stays.
+D-SD1 (bounded) tools/cli/src/main.rs is 501 lines at the base, already over DA-12's < 500 before
+      S11-D adds `--admin-token`. Resolved inside §18.6's paths: `saved_genesis`, used by
+      `serve::persisted`, `replay` and run.rs, moves from main.rs to serve.rs, re-exported at the crate
+      root by one `pub(crate) use` so run.rs keeps its `crate::saved_genesis` import untouched (I-6);
+      the flag's `#[arg]` takes clap's default value name (`<ADMIN_TOKEN>`) so it fits one line.
+      main.rs 501 → 498. tools/cli/tests/configure.rs's structural check (`fn replay(` →
+      `verify(&backend` in main.rs) is unaffected.
+D-SD2 (bounded) Existing tests edited because every welcome is now followed by a `clock` frame
+      (DA-11's "transcripts that now carry clock frames"): each test file's own "next frame that is not
+      an observation" helper now also skips `clock` — server/tests/{handshake.rs, seats.rs (and one
+      match arm), two_clients.rs}; server/src/protocol/tests.rs gains `paused: false` in one
+      WorldSummary literal (a compile requirement); frames.rs gains `paused` in its world() and the
+      `clock` golden test. No assertion changed.
+D-SD3 (bounded) Commit mapping: D-C4 and D-C5 land as one commit. The session registry is created
+      by the router (app.rs) and handed to both sessions and admin routes, so the world-thread and
+      session half cannot be exercised without the routes that read it.
+D-SD4 (bounded) DA-2's case "Bearer <T> " with a trailing space cannot be told apart by any server:
+      HTTP field values exclude leading and trailing whitespace (RFC 9110 §5.5), and hyper's parser
+      strips it before axum's HeaderMap is built. Probed, not assumed (E-SD-M): with the literal case
+      the request was admitted (200) because the bytes the server receives are exactly `Bearer <T>`.
+      The case is exercised as "Bearer <T> x" — the token followed by whitespace and more — which is
+      refused 401 after 500 ms. Not a weakening: the credential the client sent is the token itself.
+D-SD5 (bounded) Paths beside §18.6's list, each a companion of a listed one or required by the
+      frozen behaviour: server/src/protocol/tests.rs (one `paused: false` in a WorldSummary literal,
+      to compile), server/tests/{handshake.rs, seats.rs, two_clients.rs} (D-SD2's helper edits — the
+      clock frame every welcome is now followed by), clients/protocol/checks/admin_check.gd.uid
+      (Godot's generated id for the listed check), clients/protocol/evidence/README.md (names the two
+      new evidence files). As S11-B's D-SB11.
+D-SD6 (bounded) The design's §18.6 names `server/tests/support/mod.rs`; nothing in it needed to
+      change (the admin socket tests keep their HTTP helper in server/tests/admin.rs, the only file
+      that uses it). Not edited.
 ```
 
 ## 18.14 macOS, Linux and Windows (operator requirement, 2026-10-08)
