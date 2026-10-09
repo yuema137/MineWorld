@@ -1877,7 +1877,24 @@ QS10-7 and QS10-14, as recommended. That means:
 | QP3-3 | Accepted, with a condition: P3 adds the Python CI job. The required `fast` and `test` checks are neither renamed nor slowed. The Python checks go in `fast` only if they add under about one minute; otherwise they run in a separate job, which branch protection does not require until the primary session adds it. This settles R-S13-1 and QS10-16 for S10. | closed |
 | QP3-4 … QP3-7 | Accepted as recommended: one root uv workspace and lock; P3 frozen before #83 merges; `pytest-socket`; Pydantic. | closed |
 | **QS10-21** | Forwarded to the S11-C design, in progress in parallel, as a **cross-lane request**: R-S11-9, R-S11-10, and `mineworld perceived` in an early S11-C commit. It does not block P3. It does gate P4's start, and P3b's (§15.3). | open, with S11-C |
-| **QS10-18**, **QS10-19** | Operator-material. Deferred to the operator's next batch of questions. They do not block P3, which uses no model, budget or key. QS10-18 must be answered before P5 freezes, and QS10-19 before any cassette is recorded (P5, P7). | **open, operator** |
+| **QS10-18**, **QS10-19** | First recorded as operator-material and deferred. Both were answered the same day; see the rows below. | superseded |
+| **QS10-19** | **Operator ruling, 2026-10-08: local models only.** No MVP-0 gate depends on a paid API. Test cassettes are recorded from a local model such as Ollama. A hosted API is an optional backend that users configure for themselves. Agents never use the operator's key. Binding on P5 (recorder, adapters) and P7 (Milestone D's cassette). | closed |
+| **QS10-18** | **Primary-session ruling, 2026-10-08, as recommended.** Cost ceilings (calls and tokens) are keyed on wall time. The context bound (I-13) stays keyed on simulated time. Binding on P5's budget design (§3.10 is read accordingly). | closed |
+| **Platforms** | **Operator requirement, 2026-10-08**, verbatim: "我们要保证支持全平台，mac linux windows都可以" (support every platform: Mac, Linux and Windows). See §15.8. | binding |
+
+## 15.8 Every platform: what it means for each S10 PR
+
+The operator's requirement binds every S10 PR. Python's runtime is cross-platform; what must be shown
+is that our code and tests are too.
+
+| PR | What it must show on Linux, macOS and Windows |
+| --- | --- |
+| P3 | The SDK, the uv workspace (one universal lock), pyright (its Node wheel) and pytest-socket all work. The CI `python` job runs on Ubuntu. It runs on Windows and macOS as a matrix if each leg adds under about 3 minutes; otherwise only a Windows smoke leg is added (static checks and the tests that need no server binary). Recorded in `pr-s10-p3-python-sdk.md` D-P3-11, AP-12 and C5. |
+| P3b | Reconnect and backoff use only asyncio primitives. They need no POSIX signals and no Unix sockets. |
+| P4 | The memory store uses Python's `sqlite3` with FTS5. FTS5 must be present in the CPython builds of all three platforms. Verify in P4's first commit. If it is absent anywhere, the fallback is lexical retrieval without FTS5 behind `Retriever`, recorded. Store paths come from the operator's configuration through `pathlib`; there is no `~/.local/share` default without a per-platform equivalent. |
+| P5 | Ollama runs on all three platforms. The adapter is HTTP only. Budgets are keyed on wall time, by QS10-18. Cassettes are recorded from a local model only, by QS10-19. |
+| P6 | `python -m mineworld_cognition` handles termination on Windows: there is no `SIGTERM`, so it stops on Ctrl-C or on its socket closing. Example configurations use paths that are valid on every platform. |
+| P7 | `milestone_d.rs` starts the cognition process through `uv run`, with the platform's executable suffix. Its kill-and-restart step uses `Child::kill`, which works on every platform. The operator's demo is documented for all three. |
 
 P3 is **DESIGN FROZEN 2026-10-08 (primary session)**. Its execution contract is
 `pr-s10-p3-python-sdk.md` §10:

@@ -12,7 +12,24 @@ Execution contract:     §10
 Lifecycle:              FROZEN
 ```
 
-Scope, invariants, decisions D-P3-1 … D-P3-10, the adversarial criteria AP-1 … AP-11 and the commit
+**Amendment under the freeze, 2026-10-08 (operator requirement, relayed by the coordinator).** The
+operator's requirement, verbatim:
+
+> 我们要保证支持全平台，mac linux windows都可以
+
+That is: MineWorld must support every platform, macOS, Linux and Windows. The amendment adds:
+
+- D-P3-11 (platforms);
+- AP-12;
+- R-P3-9 and R-P3-10;
+- platform items in C1, C3, C4 and C5;
+- the matrix rule in C5;
+- `astral-sh/setup-uv` in `DEP-S10-e`.
+
+It also records two closures: the operator answered QS10-19, and the primary session answered QS10-18
+(§11.1). The freeze stands, and the amendment is part of it.
+
+Scope, invariants, decisions D-P3-1 … D-P3-11, the adversarial criteria AP-1 … AP-12 and the commit
 plan are frozen. Progress, evidence, findings and bounded corrections stay writable (§12).
 **Not frozen with it, and blocking nothing in P3:** QS10-18 and QS10-19 (operator-material, open), and
 QS10-21 (forwarded to S11-C). See §11.
@@ -65,7 +82,9 @@ backends (P5) and the `LMController` (P6).
   - `ARC-S10-a`, the process boundary (step-17 §3.2);
   - `DEP-S10-b` Pydantic;
   - `DEP-S10-c` `websockets`;
-  - `DEP-S10-e` the Python toolchain: `uv`, `ruff`, `pyright`, `pytest` and the network guard.
+  - `DEP-S10-e` the Python toolchain: `uv`, `ruff`, `pyright`, `pytest`, the network guard, and for
+    the non-Linux CI legs, `astral-sh/setup-uv` pinned by commit SHA.
+- Every platform: Linux, macOS and Windows (operator, 2026-10-08; D-P3-11).
 - The G-1 edit to `ARCHITECTURE.md` §13.1 (step-17 §12).
 
 ### 2.2 Not in scope, and where it goes
@@ -190,7 +209,8 @@ it splits into `contract/observation.py` and `contract/action.py` along the Rust
 | **D-P3-7** | `payload` values (component payloads, affordance payloads, request payloads) are typed `JsonValue`, a recursive alias of JSON's types. They are never `Any` or `dict[str, Any]`. | That is the payload-erasure boundary the Rust side chose itself: `WireObservation = Observation<serde_json::Value>`. The owning pack's JSON is interpreted only by code that knows the pack (`CORE_CONCEPTS.md` §15). |
 | **D-P3-8** | `offers` refuses locally, before anything is sent, a request the newest observation does not offer as **available** for that action type and target. For a complete affordance, it resubmits the affordance's `payload` unchanged. It never computes a world rule. | Step-17 §3.6 layer 2, which reads the server's verdict and computes nothing. The world remains the authority: a raw `submit` of anything is still validated by the server, and AP-6 shows both halves. |
 | **D-P3-9** | The invite is an `Invite` object whose `repr` and `str` are `Invite(<redacted>)`. It is built by the caller, from a literal in tests or from an environment variable the caller names. The SDK never reads the environment itself, never logs the invite, and never puts it in an exception message. | R-S11-5 and step-17 I-16: no secret in any artefact. The server does the same with `OfferedInvite`'s redacted `Debug`. |
-| **D-P3-10** | The integration tests **fail**, they do not skip, when the server binary is missing. The binary is found from `MINEWORLD_BIN`, or else `target/debug/mineworld` under the repository root. The failure message names the build command. | A skipped test that reads as green is a test that did not run (`CLAUDE.md` §3.1: "a test not run is not a pass"). |
+| **D-P3-10** | The integration tests **fail**, they do not skip, when the server binary is missing. The binary is found from `MINEWORLD_BIN`, or else `target/debug/mineworld` under the repository root, with the platform's executable suffix (`mineworld.exe` on Windows). The failure message names the build command. A CI job that deliberately does not build the binary, such as a Windows smoke job (C5), deselects these tests by the `real_server` marker on its command line. That deselection is visible in the layer's command and is never a skip inside the test. | A skipped test that reads as green is a test that did not run (`CLAUDE.md` §3.1: "a test not run is not a pass"). |
+| **D-P3-11** | **Every platform** (operator requirement, 2026-10-08): the SDK, the uv workspace, the static checks and the tests work on Linux, macOS and Windows. Concretely:<br>(a) Paths are built with `pathlib`, never with string separators. The executable suffix comes from the platform.<br>(b) The network guard runs `pytest-socket` with `--allow-hosts=127.0.0.1,::1` on every platform. `--disable-socket --allow-unix-socket` is added only where asyncio's self-pipe is a Unix socket. On Windows, asyncio's `socketpair()` is a loopback TCP pair, which `--disable-socket` would block. C3 settles the exact flags on all three platforms, and AP-8 holds on each.<br>(c) The server process is stopped with `Popen.kill()`, which is `SIGKILL` on POSIX and `TerminateProcess` on Windows. No test sends a POSIX signal by name.<br>(d) Files are read as UTF-8 explicitly. Golden frames are compared as parsed JSON, never as text, so CRLF checkouts are harmless.<br>(e) No shell-specific commands: tests start the binary with argument lists, never through a shell. | `CLAUDE.md` §1.1: the reference clients and the cognition process run on players' own machines. A Python SDK that only works on POSIX would make Windows players second-class. |
 
 ### 4.3 The session, precisely
 
@@ -262,6 +282,7 @@ nothing.
 | **AP-9** Scope | `git diff --stat <base>..HEAD` touches only: `pyproject.toml`, `uv.lock`, `sdk/python/**`, `.gitignore`, `.structured-coding/**`, `docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, and, with C5, `scripts/ci_layer.py`, `Dockerfile`, `scripts/check_ci_pins.py`, `.github/workflows/ci.yml` (one new job only). No `*.rs` file appears. | — (a diff gate; review plants nothing) |
 | **AP-10** Static | `ruff check`, `ruff format --check` and `pyright` (strict, over `sdk/python`) report zero findings. | Introduce `def f(x): return x`: pyright strict reports a missing annotation. |
 | **AP-11** Fail, never skip | With `MINEWORLD_BIN=/nonexistent`, the integration tests **error**, and the message names `cargo build -p mineworld-cli`. Their count in the pytest summary is "error", never "skipped". | Make the fixture `pytest.skip`: the summary shows "skipped". |
+| **AP-12** Every platform | The full suite (AP-1 … AP-11) passes on Linux, locally and in CI's `python` job. On Windows and macOS it passes in CI, as the full suite if C5's matrix rule admits that platform, and otherwise as the smoke selection. The smoke selection is `-m "not real_server"` plus the static checks, so AP-1, AP-3, AP-4, AP-8 and AP-10 still hold there. AP-8's guard is shown red on Windows too, by the same mutation. | Hard-code `target/debug/mineworld` without the platform suffix: AP-11's message test fails on Windows. Or hard-code `--disable-socket` for every platform: asyncio cannot create its loop on Windows, and the Windows job is red. |
 
 ---
 
@@ -277,6 +298,8 @@ nothing.
 | R-P3-6 | `websockets` changed its client API (the legacy and new asyncio implementations). | Pin a major version in `pyproject.toml` and use only `websockets.asyncio.client.connect`. DEP-S10-c records the version. |
 | R-P3-7 | A Python package in a Rust repository rots: unpinned tools, unrun checks. | Lock, strict static checks, and CI (C5). Without C5, I-11 is a review promise (QS10-16). This is why QP3-3 recommends C5. |
 | R-P3-8 | `requires-python` excludes a supported environment. | `>=3.12`. CI runs the image's 3.13; the operator's machine runs 3.14.7. Both are exercised before review: the local run and the CI run. |
+| R-P3-9 | Windows-specific failures: asyncio's proactor loop, `pytest-socket`'s flags, process termination, path suffixes, and pyright's Node wheel on Windows. | D-P3-11, AP-12, and a Windows job in CI (C5). C1 verifies that `uv sync --locked` and `pyright[nodejs]` resolve for `win_amd64` and `macosx_arm64` as well as Linux: `uv.lock` is universal, so the lock itself shows it. |
+| R-P3-10 | Windows and macOS runners cannot use the Linux toolchain container (`DEP-17`, `ARC-48`), so those jobs differ from Linux CI's environment. They are also slower, and they cost more minutes. | The non-Linux jobs pin what they install: the Rust toolchain from `rust-toolchain.toml` through `rustup`, `uv` through `astral-sh/setup-uv` pinned by commit SHA (`DEP-S10-e`), and Python from `requires-python` through `uv`. They still call only `ci_layer.py` layers. An `ARC-48` note records the departure from "inside the container" for these jobs only, because the operator's platform requirement needs it. C5's measured rule decides whether each runs the full suite or a smoke selection. |
 
 ---
 
@@ -334,7 +357,10 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - the planted `def f(x): return x` mutation is red under pyright, then removed (AP-10 mutation);
   - both doc checks pass;
   - `python3 .claude/skills/structured-coding/scripts/standards.py inspect --project .` lists the
-    three new checks as enabled.
+    three new checks as enabled;
+  - D-P3-11 / R-P3-9: `uv.lock` holds wheels for `win_amd64`, `macosx_*_arm64` and Linux for every
+    package that ships wheels. This is read from the lock, and `pyright[nodejs]`'s Node wheel is
+    checked for each of the three.
 - [ ] Review:
   - each DECISIONS entry states what it adopts, the alternatives from step-17 §4 with their
     verdicts, and a re-evaluation trigger (`REUSE_POLICY.md` §§11–12);
@@ -389,8 +415,10 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
     and `changed()`, token allocation, `submit`, `leave`, closing;
   - `Invite`, redacted (D-P3-9);
   - `offers.attempt` and `offers.request` with `NotOffered` (D-P3-8);
-  - the guard: `pytest-socket` with `--disable-socket --allow-unix-socket` and allow-hosts
-    `127.0.0.1,::1`, configured in `pyproject.toml` so no test can forget it.
+  - the guard: `pytest-socket` with allow-hosts `127.0.0.1,::1` on every platform, and
+    `--disable-socket --allow-unix-socket` only where asyncio's self-pipe is a Unix socket. It is
+    configured in `conftest.py` by platform, so no test can forget it (D-P3-11 (b));
+  - the `real_server` marker registered in `pyproject.toml` (D-P3-10).
 - [ ] Validation:
   - AP-4 with its FIFO mutation;
   - the local half of AP-6: the sent-frame count is unchanged on `NotOffered`;
@@ -421,7 +449,9 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
     counts recorded;
   - AP-5's mutation (wrong actor), AP-7's mutation (the invite in the message) and AP-11's mutation
     (skip), each run and seen red, then reverted;
-  - AP-2's coverage counts recorded.
+  - AP-2's coverage counts recorded;
+  - the fixture's binary path and process stop follow D-P3-11 (a) and (c). They are proved on
+    Windows and macOS by C5's jobs (AP-12).
 - [ ] Review:
   - every wait is bounded;
   - the fixture removes nothing it did not create (an in-memory world writes no scratch);
@@ -451,18 +481,39 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
       `cargo build -p mineworld-cli`, `uv run --locked pytest sdk/python`, and the scratch check;
     - `fast` gains the static checks **only** under the 60 s condition above;
     - `ENVIRONMENT` gains `uv --version`, so the log records it;
+    - a command that runs a repository script names the interpreter through `sys.executable`, not
+      the literal `python3`, which Windows does not have. Existing layers are unchanged;
   - `.github/workflows/ci.yml`: one new job `python`, which, like the others, only names its layer
     (I-S13-9 holds: no command appears in YAML). The `fast` and `test` jobs are unchanged;
-  - an `ARC-48` note recording the new layer and its job.
-- [ ] Implementation: as above. First measure: one CI run with the static checks in the `python`
-  layer, recording their wall time. Then place them by the 60 s rule, and record the measurement and
-  the placement in the ledger.
+  - **every platform** (operator requirement, D-P3-11). The `python` job runs on `ubuntu-24.04`
+    inside the toolchain container. It becomes a matrix over `ubuntu-24.04`, `windows-latest` (the
+    exact image is pinned in C5) and `macos-latest`. A non-Linux leg runs without the container
+    (R-P3-10) and installs:
+    - the toolchain from `rust-toolchain.toml` through `rustup`;
+    - `uv` through `astral-sh/setup-uv` pinned by commit SHA;
+    - then calls `python scripts/ci_layer.py <layer>`, where `python` is the interpreter uv
+      provides;
+  - **the matrix rule** (coordinator, 2026-10-08):
+    - a leg runs the **full** `python` layer if it adds **under about 3 minutes** of wall time over
+      the Ubuntu leg, measured on a CI run;
+    - otherwise only Windows gets a **smoke** leg: a layer `python-smoke`, which runs
+      `uv sync --locked`, the static checks and `pytest -m "not real_server"`, with no Rust build;
+    - the macOS leg is then dropped, with the measurement recorded;
+  - an `ARC-48` note recording the new layer(s), their jobs, and the non-container legs.
+- [ ] Implementation: as above. First measure, in one CI run:
+  - the static checks' wall time in the `python` layer;
+  - each platform leg's wall time.
+
+  Then place the static checks by the 60 s rule and size the matrix by the 3-minute rule. Record
+  every measurement and placement in the ledger before the decisive run.
 - [ ] Validation:
   - `python3 scripts/check_ci_pins.py` passes, and fails on a planted digest-less `COPY --from`;
   - `python3 scripts/ci_layer.py --list fast`, `--list core` and `--list python` show the intended
     commands, and `core`'s list is unchanged;
   - push a scratch branch `scratch/s10-p3-mutation` with AP-8's guard disabled, see the `python`
-    job red, then green on the PR head (step-14's R-4 practice);
+    job red on every leg (Windows included), then green on the PR head (step-14's R-4 practice);
+  - AP-12: each kept leg green on the PR head, with its selection (full or smoke) named in the
+    ledger;
   - on the PR head, `fast` and `test` are green, and their wall times are compared with the base's.
     `fast` may grow by the static checks only within the 60 s rule; `test` must not grow beyond run
     noise.
@@ -537,7 +588,8 @@ BRANCH:                  mvp0/pr-s10-p3-sdk, created from main                  
 IMPLEMENTATION BASE:     origin/main at the start of implementation; C0 records the exact commit and
                          whether #83 (S11-B) is in it (D-P3-5)
 APPROVED SCOPE:          §2.1, as frozen
-FROZEN INVARIANTS:       §2.3; D-P3-1 … D-P3-10; §11's rulings, including QP3-3's CI condition
+FROZEN INVARIANTS:       §2.3; D-P3-1 … D-P3-11 (D-P3-11: every platform, operator 2026-10-08);
+                         §11.1's rulings, including QP3-3's CI condition and C5's matrix rule
 SEQUENCE:                C0 … C7 (C5 under QP3-3's condition; C6 conditional on D-P3-5)
 ALLOWED COMMANDS:        cargo *; git; gh (never merge); uv * (local tool ~/.local/bin/uv);
                          python3 scripts/*; npx pyright* (only through the project's uv/npm
@@ -546,7 +598,9 @@ NEVER:                   python3 -c; sed -i; awk; xargs; curl; heredoc writes; r
                          ~/.config/mineworld/secrets.env                            (primary session)
 MATERIAL STOPS:          any Rust server or protocol change; any dependency beyond the DEP records
                          this design names (DEP-S10-b Pydantic, DEP-S10-c websockets, DEP-S10-e uv,
-                         ruff, pyright, pytest, pytest-socket); any hosted-API use  (primary session)
+                         ruff, pyright, pytest, pytest-socket, and for CI astral-sh/setup-uv pinned
+                         by SHA); any hosted-API use                                (primary session)
+PLATFORMS:               Linux, macOS, Windows (operator, 2026-10-08; D-P3-11, AP-12)
 VALIDATION BUDGET:       unit, static and local integration: unrestricted. Real LLM calls: none
                          (Gate 1 NOT REQUIRED). No paid API, no key, no model. CI: C5's measuring
                          run and its scratch mutation branch, once each
@@ -594,7 +648,9 @@ gathered in step-17 §15.6 so that the operator sees them in one place.
 | QP3-6 | **Accepted:** `pytest-socket`. |
 | QP3-7 | **Accepted:** Pydantic. |
 | QS10-21 | **Forwarded** to the S11-C design, in progress in parallel, as a cross-lane request: R-S11-9, R-S11-10, and `mineworld perceived` in an early commit. It does not block P3. |
-| QS10-18, QS10-19 | **Open; operator-material.** Deferred to the operator's next batch of questions. They do not block P3: P3 involves no model, no budget and no key. |
+| QS10-19 | **Operator ruling, 2026-10-08: local models only.** No MVP-0 gate depends on a paid API. Test cassettes are recorded from a local model such as Ollama. A hosted API is an optional backend that users configure for themselves. Agents never use the operator's key. (This supersedes the first recording of the question as open.) |
+| QS10-18 | **Primary-session ruling, 2026-10-08, as recommended.** Cost ceilings (calls and tokens) are keyed on wall time. The context bound stays keyed on simulated time. Binding on P5's design; nothing in P3. |
+| Platforms | **Operator requirement, 2026-10-08:** "我们要保证支持全平台，mac linux windows都可以" (support every platform: Mac, Linux and Windows). P3's SDK, uv workspace, pyright and pytest-socket must work on Windows. The Python CI job runs on Ubuntu, and on Windows and macOS as a matrix if each adds under about 3 minutes; otherwise only a Windows smoke test is added. Recorded as D-P3-11, AP-12, R-P3-9, R-P3-10 and C5's matrix rule. |
 
 ## 12. Ledger (live during implementation)
 
