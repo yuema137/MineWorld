@@ -45,20 +45,26 @@
 //! rule: what an observer perceives comes from the
 //! [`Perception`] seam, and whether an action is admissible comes from the kernel.
 
-use std::collections::BTreeSet;
+mod handles;
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::time::Duration;
 
-use mineworld_contracts::{
-    ActionId, ActionRequest, ActionResult, EntityId, EntityKey, EventEnvelope, WorldTime,
-};
+use mineworld_contracts::{ActionRequest, EntityId, EntityKey, EventEnvelope, WorldTime};
 use mineworld_kernel::{KernelError, World};
-use mineworld_persistence::{PersistentWorld, WorldRevision};
+use mineworld_persistence::PersistentWorld;
 use tokio::sync::{mpsc, oneshot};
 
+use crate::hosted::{HostedController, HostedFactory};
 use crate::perception::{PerceivesNothing, Perception};
-use crate::protocol::{Refusal, RefusalCode, WireObservation, WorldSummary};
+use crate::protocol::{Refusal, RefusalCode, SessionId, WorldSummary};
 use crate::runtime::WorldRuntime;
+use crate::seats::{Departure, JoinRequest};
+
+pub(crate) use handles::{Binding, SubscriptionIdSource};
+pub use handles::{Perceived, Seated, Submitted, SubscriptionId};
 
 /// The first request identity a server allocates for a world with no history of requests.
 ///
@@ -85,6 +91,8 @@ pub struct HostedWorld {
     /// The facts perception may look back over at the start — the tail of a save's log, so that a
     /// restarted world does not silently forget what just happened (PD-13).
     pub(crate) recent: Vec<EventEnvelope>,
+    /// The in-server controller each hosted seat returns to (`PROTOCOL.md` §4.2).
+    pub(crate) hosted: BTreeMap<EntityKey, HostedFactory>,
 }
 
 /// The world a host holds: one that lives only as long as its process, or one with a save.
@@ -104,6 +112,7 @@ impl HostedWorld {
             seats: SeatRoster::empty(),
             first_action: FIRST_ACTION_ID,
             recent: Vec::new(),
+            hosted: BTreeMap::new(),
         }
     }
 
@@ -125,7 +134,22 @@ impl HostedWorld {
             seats: SeatRoster::empty(),
             first_action,
             recent,
+            hosted: BTreeMap::new(),
         })
+    }
+
+    /// Drives `seat` with an in-server controller whenever no person does (`docs/DECISIONS.md`
+    /// `ARC-42`). `factory` builds the controller, bound at the instant it is given: when the server
+    /// starts, and every time the seat returns to it. A seat the roster does not offer is never
+    /// driven.
+    #[must_use]
+    pub fn hosting(
+        mut self,
+        seat: EntityKey,
+        factory: impl Fn(WorldTime) -> Box<dyn HostedController> + 'static,
+    ) -> Self {
+        self.hosted.insert(seat, Box::new(factory));
+        self
     }
 
     /// Declares the seats a client may ask for.
@@ -195,6 +219,11 @@ pub struct HostConfig {
     ///
     /// A window, not a log: the durable event log is S5's.
     pub recent_events: usize,
+    /// How long a seat whose connection dropped is held for its resume, in wall time
+    /// (`PROTOCOL.md` §4.2). Zero holds none.
+    pub hold: Duration,
+    /// How many world seconds pass per wall second.
+    pub time_scale: NonZeroU32,
 }
 
 impl Default for HostConfig {
@@ -204,121 +233,9 @@ impl Default for HostConfig {
             observation_interval: Duration::from_millis(100),
             observation_backlog: 8,
             recent_events: 64,
+            hold: Duration::from_secs(30),
+            time_scale: NonZeroU32::MIN,
         }
-    }
-}
-
-/// Which connection a subscription belongs to. Allocated by the world, never reused.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct SubscriptionId(u64);
-
-impl SubscriptionId {
-    pub(crate) const fn from_raw(value: u64) -> Self {
-        Self(value)
-    }
-}
-
-/// Where subscription identities come from: the world's own counter, never reused.
-pub(crate) struct SubscriptionIdSource {
-    next: u64,
-}
-
-impl SubscriptionIdSource {
-    pub(crate) const fn new() -> Self {
-        Self { next: 1 }
-    }
-
-    pub(crate) fn allocate(&mut self) -> SubscriptionId {
-        let id = SubscriptionId::from_raw(self.next);
-        self.next = self.next.saturating_add(1);
-        id
-    }
-}
-
-/// One observation as the world thread hands it to a connection: what the observer perceives, and
-/// the persisted revision of the state it was computed from.
-#[derive(Debug, Clone)]
-pub struct Perceived {
-    /// The world's persisted revision when the observation was computed; `None` for a world that is
-    /// not persisted.
-    pub revision: Option<WorldRevision>,
-    /// What the observer perceives.
-    pub observation: WireObservation,
-}
-
-/// A seated connection: which observer it is, and its own stream of observations.
-#[derive(Debug)]
-pub struct Seated {
-    seat: EntityKey,
-    observer: EntityId,
-    world: WorldSummary,
-    subscription: SubscriptionId,
-    observations: mpsc::Receiver<Perceived>,
-}
-
-impl Seated {
-    pub(crate) const fn new(
-        seat: EntityKey,
-        observer: EntityId,
-        world: WorldSummary,
-        subscription: SubscriptionId,
-        observations: mpsc::Receiver<Perceived>,
-    ) -> Self {
-        Self {
-            seat,
-            observer,
-            world,
-            subscription,
-            observations,
-        }
-    }
-
-    /// The seat that was granted.
-    pub const fn seat(&self) -> &EntityKey {
-        &self.seat
-    }
-
-    /// The observer this connection sees the world as — chosen by the server, never asked for.
-    pub const fn observer(&self) -> EntityId {
-        self.observer
-    }
-
-    /// What the world was when the connection joined.
-    pub const fn world(&self) -> &WorldSummary {
-        &self.world
-    }
-
-    /// This connection's subscription, to be released when it ends.
-    pub const fn subscription(&self) -> SubscriptionId {
-        self.subscription
-    }
-
-    /// This connection's own observation stream.
-    pub const fn observations(&mut self) -> &mut mpsc::Receiver<Perceived> {
-        &mut self.observations
-    }
-}
-
-/// One dispatched request: the identity the server allocated, and the world's answer.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Submitted {
-    action_id: ActionId,
-    result: ActionResult,
-}
-
-impl Submitted {
-    pub(crate) const fn new(action_id: ActionId, result: ActionResult) -> Self {
-        Self { action_id, result }
-    }
-
-    /// The identity the **server** allocated for the request (`INV-6`).
-    pub const fn action_id(&self) -> ActionId {
-        self.action_id
-    }
-
-    /// What the world answered.
-    pub const fn result(&self) -> &ActionResult {
-        &self.result
     }
 }
 
@@ -328,11 +245,12 @@ pub(crate) enum Command {
     Status(oneshot::Sender<WorldSummary>),
     /// Occupy a seat, and begin receiving that observer's observations.
     Join {
-        seat: EntityKey,
+        request: JoinRequest,
         reply: oneshot::Sender<Result<Seated, Refusal>>,
     },
-    /// Release a subscription. Fire and forget: a connection that has already died cannot wait.
-    Leave(SubscriptionId),
+    /// Release a subscription, saying how its connection ended. Fire and forget: a connection that
+    /// has already died cannot wait.
+    Leave(SubscriptionId, Departure),
     /// Dispatch one request as one observer.
     Submit {
         observer: EntityId,
@@ -341,8 +259,8 @@ pub(crate) enum Command {
     },
     /// Send every connected client a fresh observation.
     Sweep,
-    /// Stop the world thread.
-    Shutdown,
+    /// Stop the world thread, answering once it has checkpointed and reported.
+    Shutdown(oneshot::Sender<()>),
 }
 
 /// The handle every part of the transport holds. Cheap to clone; the world is elsewhere.
@@ -414,13 +332,22 @@ impl WorldHost {
         answer.await.map_err(|_| HostError::WorldStopped)
     }
 
-    /// Occupies a seat, or the refusal to send back.
+    /// Occupies a free or hosted seat with a plain join — no takeover, no resume — or the refusal to
+    /// send back. For an in-process caller that is not a connection: it is labelled session `0`,
+    /// which no connection is ever given.
+    pub async fn join(&self, seat: EntityKey) -> Result<Seated, Refusal> {
+        self.join_with(JoinRequest::plain(seat, SessionId::new(0)))
+            .await
+    }
+
+    /// Occupies a seat as `request` asks, or the refusal to send back (`PROTOCOL.md` §4.2's rules
+    /// decide).
     ///
     /// The observer comes back from the world; it is never something a caller supplies.
-    pub async fn join(&self, seat: EntityKey) -> Result<Seated, Refusal> {
+    pub async fn join_with(&self, request: JoinRequest) -> Result<Seated, Refusal> {
         let (reply, answer) = oneshot::channel();
         self.commands
-            .send(Command::Join { seat, reply })
+            .send(Command::Join { request, reply })
             .await
             .map_err(|_| Refusal::new(RefusalCode::WorldStopped))?;
         answer
@@ -449,20 +376,27 @@ impl WorldHost {
             .map_err(|_| Refusal::new(RefusalCode::WorldStopped))?
     }
 
-    /// Releases a subscription whose connection has ended.
+    /// Releases a subscription whose connection has ended: its seat returns to its default, or is
+    /// held when the connection dropped without `leave` (`PROTOCOL.md` §4.2).
     ///
     /// Fire and forget, and deliberately: a client that vanished must not be able to make the
     /// transport wait, and the world drops a subscriber whose channel has closed on its next sweep
-    /// in any case.
-    pub fn leave(&self, subscription: SubscriptionId) {
-        let _ = self.commands.try_send(Command::Leave(subscription));
+    /// in any case — as a drop.
+    pub fn leave(&self, subscription: SubscriptionId, departure: Departure) {
+        let _ = self
+            .commands
+            .try_send(Command::Leave(subscription, departure));
     }
 
-    /// Stops the world thread. A world that is not persisted goes with it; a persisted one is
-    /// checkpointed first, when its clock still stands at its last revision, and is otherwise already
-    /// whole on disk — every revision was committed before it was told to anybody.
+    /// Stops the world thread and returns once it has. A world that is not persisted goes with it;
+    /// a persisted one is checkpointed first, when its clock still stands at its last revision, and
+    /// is otherwise already whole on disk — every revision was committed before it was told to
+    /// anybody. The world thread prints its tick statistics as it stops (`ARC-42`).
     pub async fn shutdown(&self) {
-        let _ = self.commands.send(Command::Shutdown).await;
+        let (reply, done) = oneshot::channel();
+        if self.commands.send(Command::Shutdown(reply)).await.is_ok() {
+            let _ = done.await;
+        }
     }
 }
 
