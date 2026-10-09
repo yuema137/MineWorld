@@ -93,3 +93,156 @@ fn an_unconfigured_world_shows_its_compiled_defaults_and_is_left_unchanged() {
     assert_eq!(document["classes"]["cafe"], "place");
     assert_eq!(listing(&world), before, "the World Pack is read only");
 }
+
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).expect("writable");
+    for entry in std::fs::read_dir(from).expect("readable") {
+        let entry = entry.expect("an entry");
+        let target = to.join(entry.file_name());
+        if entry.file_type().expect("a type").is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).expect("copied");
+        }
+    }
+}
+
+/// A scratch copy of social-cafe, named as the pack, with `configure:` listing `keys` and these files.
+fn configured(
+    name: &str,
+    keys: &[&str],
+    files: &[(&str, &str)],
+) -> mineworld_test_support::Scratch {
+    let copy = mineworld_test_support::scratch!(name).within("social-cafe");
+    copy_dir(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../worlds/social-cafe"),
+        &copy,
+    );
+    let manifest = copy.join("world.yaml");
+    let text = std::fs::read_to_string(&manifest).expect("reads");
+    let listed: String = keys.iter().map(|key| format!("  - {key}\n")).collect();
+    std::fs::write(&manifest, format!("{text}\nconfigure:\n{listed}")).expect("writes");
+    std::fs::create_dir_all(copy.join("configure")).expect("writable");
+    for (file, text) in files {
+        std::fs::write(copy.join(file), text).expect("writes");
+    }
+    copy
+}
+
+/// IB-11: a configured section, a region and a class, shown as resolved — the base, the café's region,
+/// each person's class, and "default (compiled)" for the section left unconfigured; the JSON
+/// byte-stable over two runs; `--place` shows what applies there; the World Pack unchanged.
+#[test]
+fn a_configured_world_shows_its_resolved_sections_regions_and_classes() {
+    let world = configured(
+        "cli-interactions-configured",
+        &["classes", "conversation"],
+        &[
+            (
+                "configure/classes.yaml",
+                "- { class: regular, of: person, tag: regular }\n",
+            ),
+            (
+                "configure/conversation.yaml",
+                "parameters:\n  - { gap: 600 }\n  - { actor: regular, gap: 3600 }\n\
+                 regions:\n  cafe:\n    parameters: [ { gap: 1800 } ]\n",
+            ),
+        ],
+    );
+    let before = listing(&world);
+    let first = interactions(&world, &["--json"]);
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let second = interactions(&world, &["--json"]);
+    assert_eq!(first.stdout, second.stdout, "the JSON is byte-stable");
+    let document: serde_json::Value = serde_json::from_slice(&first.stdout).expect("JSON");
+    let conversation = &document["sections"]["conversation"];
+    assert_eq!(conversation["base"]["parameters"]["gap"], 600);
+    assert_eq!(conversation["regions"][0][0], "cafe");
+    assert_eq!(conversation["regions"][0][1]["parameters"]["gap"], 1800);
+    assert_eq!(conversation["base"]["scoped"][0]["fields"]["gap"], 3600);
+    assert_eq!(document["sections"]["group-activity"], "default (compiled)");
+    assert_eq!(document["classes"]["bob"], "regular");
+    assert_eq!(document["classes"]["alice"], "person");
+
+    let at_cafe = interactions(&world, &["--json", "--place", "cafe"]);
+    let at_cafe: serde_json::Value = serde_json::from_slice(&at_cafe.stdout).expect("JSON");
+    assert_eq!(
+        at_cafe["sections"]["conversation"]["region"]["parameters"]["gap"],
+        1800
+    );
+    let at_park = interactions(&world, &["--json", "--place", "park"]);
+    let at_park: serde_json::Value = serde_json::from_slice(&at_park.stdout).expect("JSON");
+    assert_eq!(
+        at_park["sections"]["conversation"]["base"]["parameters"]["gap"],
+        600
+    );
+
+    let text = interactions(&world, &[]);
+    let text = String::from_utf8_lossy(&text.stdout);
+    assert!(text.contains("section  conversation:"), "{text}");
+    assert!(
+        text.contains("section  group-activity: default (compiled)"),
+        "{text}"
+    );
+    assert!(text.contains("class    bob              regular"), "{text}");
+    assert_eq!(listing(&world), before, "the World Pack is read only");
+}
+
+/// IB-7 through the real `mineworld validate`: a rule in a section whose pack declares no action, a
+/// parameter outside its bound (at its line and column), an undefined class and an ambiguous pair
+/// (both named) are refused by name.
+#[test]
+fn validate_refuses_each_section_mistake_by_name() {
+    for (name, keys, file, text, expected) in [
+        (
+            "cli-ib7-rules",
+            &["conversation"][..],
+            "configure/conversation.yaml",
+            "rules:\n  - { action: whisper, effect: forbid }\n",
+            &[
+                "line 2",
+                "'whisper' is not an action 'conversation' declares (it declares: none)",
+            ][..],
+        ),
+        (
+            "cli-ib7-bound",
+            &["conversation"][..],
+            "configure/conversation.yaml",
+            "parameters:\n  - { gap: 0 }\n",
+            &["line 2 column", "'gap' is 1 … 86400, not 0"][..],
+        ),
+        (
+            "cli-ib7-undefined",
+            &["conversation"][..],
+            "configure/conversation.yaml",
+            "parameters:\n  - { actor: knight, gap: 60 }\n",
+            &["parameters[0]", "'knight'"][..],
+        ),
+        (
+            "cli-ib7-ambiguous",
+            &["conversation"][..],
+            "configure/conversation.yaml",
+            "parameters:\n  - { actor: person, gap: 60 }\n  - { target: person, gap: 90 }\n",
+            &["parameters[0]", "parameters[1]", "'gap'"][..],
+        ),
+    ] {
+        let world = configured(name, keys, &[(file, text)]);
+        let output = Command::new(env!("CARGO_BIN_EXE_mineworld"))
+            .arg("validate")
+            .arg(world.path())
+            .output()
+            .expect("the binary runs");
+        let complaint = String::from_utf8_lossy(&output.stderr);
+        assert!(!output.status.success(), "{name}: refused");
+        for needle in expected {
+            assert!(
+                complaint.contains(needle),
+                "{name}: `{needle}` in {complaint}"
+            );
+        }
+    }
+}

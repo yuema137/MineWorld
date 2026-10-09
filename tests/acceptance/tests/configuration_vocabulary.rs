@@ -64,7 +64,6 @@ const SCANNED: &[&str] = &[
     "tests/acceptance/tests/interaction_schema.rs",
     "tools/cli/src/interactions.rs",
     "tools/cli/src/biography.rs",
-    "tools/cli/tests/interactions.rs",
     "worldpack/src/configure.rs",
     "worldpack/src/configure/tests.rs",
     "sdk/rust/tests/extensions.rs",
