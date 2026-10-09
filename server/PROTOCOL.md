@@ -133,10 +133,11 @@ A `join` is answered by these checks, in this order. The first that fails decide
 3  nickname   not a nickname   refused invalid_nickname; the connection stays, and may join again
 4  seat       the roster's     refused unknown_seat / seat_not_in_world, as in revision 1; the
                                connection stays
-5  control    §4.2's rules     refused invalid_resume / seat_occupied; the connection stays, and
-                               may join again
-6  perceived  a cursor this    from S11-C, only when the join carries perceived (§5.8): refused
+5  perceived  a cursor this    from S11-C, only when the join carries perceived (§5.8): refused
               world can serve  cursor_unavailable; nothing is granted, the connection stays, and
+                               may join again. Before control, so that a refused cursor never
+                               displaces or resumes anybody
+6  control    §4.2's rules     refused invalid_resume / seat_occupied; the connection stays, and
                                may join again
    all pass                    welcome, then (§5.8) the perceived backfill, then the observation
                                stream

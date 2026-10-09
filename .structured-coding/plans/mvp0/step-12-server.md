@@ -2941,8 +2941,9 @@ check still rejects a tampered type (round-trip of a mismatched envelope fails).
 frames, `lagged`), `protocol*` (frames, codes, reason), golden frames, `server/tests/facts.rs` (CA-4
 stub half, CA-5, CA-7, CA-12 ephemeral). **Depends on:** C-C2, C-C4.
 
-- [ ] Implementation · [ ] Validation: server suites; M-CA4, M-CA5, M-CA7; clippy · [ ] Review: I-11
+- [x] Implementation · [x] Validation: server suites; M-CA4, M-CA5, M-CA7; clippy · [x] Review: I-11
   (no history read, no wait on the world thread); the session holds no world state; `consult` untouched.
+  (E-SC6; D-SC3 … D-SC8)
 
 ### C-C6 — The composition root: event perception, history, `mineworld perceived`; real-binary tests
 
@@ -3176,6 +3177,58 @@ E-SC5 C-C4 on 7e0a470. perception.rs: EventPerception { record(&mut, fact), admi
       defaults learn nothing and serve no history — the safe direction, as PerceivesNothing.
       PerceivedHistory takes `through` explicitly so that a backfill can never run past the head
       the world thread fixed at the join (the live stream starts after it).
+E-SC6 C-C5, commits 1439bd5 (implementation, golden frames) and the C-C5b test commit.
+      Implementation: runtime/delivery.rs — Subscriber gains its events queue (bounded by
+      HostConfig.event_backlog, default 256; overflow pops the oldest and counts events_dropped), its
+      Perceiving { pending, through } (bounded by perceived_backlog, default 4 096; overflow →
+      release Lagged and seat departs as Dropped, so it is held for a resume) and acted_through;
+      learn/learn_one (called from remember, fact by fact: audience.record, then admits per
+      subscriber; the wire form rendered once per fact, lazily, only if someone learned it);
+      perceived_start (cursor rules, no seat-table access); sweep flushes pending perceived first,
+      skips the observation (counted) while they cannot be queued, then sends the observation with
+      its events and acted_through, clearing events only on Ok. runtime.rs: audience, history, head
+      (kernel's next event id − 1, read once at start via World::schedule_snapshot — public, no kernel
+      change), events_dropped in the summary; join takes the cursor; submit takes the subscription.
+      host.rs: HostConfig.event_backlog, perceived_backlog; Command::Join.perceived,
+      Command::Submit.subscription; WorldHost::join_perceiving, submit_on (join_with, submit
+      unchanged). handles.rs: Streamed {Facts, Observation}, Perceived.acted_through, WireFact,
+      PerceivedStart, Backfill, Observations. session.rs: perceived on the join; backfill read with
+      spawn_blocking before the welcome (failure → leave(Left) + cursor_unavailable, connection
+      stays); backfill frames after the welcome; Facts → perceived frames; acted_through on
+      observations; submits through submit_on; Released(Lagged) → refused{lagged} then
+      closing{lagged}. protocol: PerceivedJoin (deny_unknown_fields, since required), frames
+      Perceived and Observation.acted_through, codes CursorUnavailable, Lagged, reason Lagged,
+      backfill_frames (fact.rs). Golden: perceived.json, refused-cursor_unavailable.json,
+      refused-lagged.json, closing-lagged.json new; join.json (+perceived) and observation.json
+      (+acted_through, one event) updated by hand after reviewing the server's output against
+      PROTOCOL.md §§2, 5.2, 5.8.
+      Existing tests edited (shape only): server/src/protocol/tests.rs (`perceived: None` in the
+      expected Join), server/tests/frames.rs (join, observation examples; four new cases).
+      Validation: server/tests/facts.rs, 5 tests, PASS —
+        CA-4 (in-process, event_backlog 4): with perceived — 30 facts, 5 in observation frames, 25
+        dropped, 30 on the perceived stream, each fact in events after it arrived on the stream;
+        without perceived — 30 facts, 5 in frames, 25 dropped. CA-5 (perceived_backlog 8, 20 facts):
+        released Lagged; resumed with its resume (held) and cursor 4: backfill interval (4, head],
+        20 missed + 1 live = exactly the log. CA-7 (sockets): null before; own action id on the first
+        frame after the answer and every later one; the other connection's never; a resumed
+        connection starts null. CA-12 ephemeral (sockets): since null, "1", head+1000 →
+        cursor_unavailable each time on the same connection; since head → welcomed, the next fact
+        live, no backfill.
+      Mutations (planted, seen red, reverted, suite green after):
+        M-CA4 clear pending events when the observation's try_send is Full → first SURVIVED the
+          perceived variant (a full channel is already met at the facts flush, which skips the
+          observation), so the variant without perceived was added (D-SC8); it is red (1 in frames,
+          0 counted, 30 facts).
+        M-CA5 overflow drops the oldest instead of releasing → CA-5 red (never released).
+        M-CA7 acted_through carried per observer across connections → CA-7 red on the resume case.
+      cargo test -p mineworld-server: 41 + 5 + 12 + 7 + 4 + 4 + 9 unit/integration + 1 doctest, all
+      green; clippy -D warnings clean; sizes runtime.rs 470, session.rs 478, host.rs 494,
+      protocol.rs 392, delivery.rs ~300.
+      Review: I-11 — the world thread never reads history (PerceivedHistory is only called inside
+      spawn_blocking in the session) and never waits (try_send everywhere; lagged releases instead of
+      blocking). The session holds no world state (the cursor and head come from Seated). consult
+      untouched — hosted seats are not subscribers, so they get no events (SD-C9). Order: one channel,
+      facts flushed before the observation on every sweep and the session forwards in channel order.
 ```
 
 ## 17.13 Deviations and discoveries
@@ -3195,6 +3248,28 @@ D-SC2 wire_fact lands early, with C-C3b. `mineworld perceived --json` prints the
       owns the once-per-type report: the server's runtime prints `[world] …` (C-C5), the CLI prints
       to stderr so `--json` stdout stays one PerceivedEvent per line. Validation: the three C-C4 unit
       checks pass (E-SC3).
+D-SC3 `join.perceived` travels beside JoinRequest, not in it. §17.6 planned "JoinRequest gains
+      perceived", but JoinRequest lives in seats.rs, which §19.1 gives to S11-D alone. So
+      Command::Join carries `perceived: Option<PerceivedJoin>` next to the request, and
+      WorldHost::join_perceiving(request, perceived) is added; join_with is unchanged. Bounded: no
+      meaning changes; no S11-D file touched.
+D-SC4 The cursor check runs before the seat table (PROTOCOL.md §4.1 now: 5 perceived, 6 control). The
+      table has no dry run, and SeatTable::join mutates (displaces, resumes); a refused cursor must
+      grant nothing. Ordering the refusals this way only decides which code a join that fails both
+      checks hears. PROTOCOL.md §4.1 amended to state the order implemented.
+D-SC5 Observation events are appended, not replaced. The server adds learned facts after whatever the
+      Perception seam itself put in `events`; presence's observe puts none, so the real stack is as
+      designed. Replacing them broke four existing two_clients tests whose stub Perception states
+      events of its own — found by the suite, fixed in delivery.rs, no test edited.
+D-SC6 `Seated::observations()` now returns an `Observations` view whose `recv()` yields observations
+      only (skipping perceived facts), so every existing in-process caller (`headless.rs`) is
+      unchanged; the session uses `streams()`, which yields the ordered `Streamed` items.
+D-SC7 Backfill rendering and chunking live in protocol/fact.rs `backfill_frames` rather than in
+      session.rs, which had reached 512 lines (CA-14 bound 500). Doc comments on host.rs's additions
+      were shortened for the same reason (500 → 494).
+D-SC8 CA-4's test gained a variant without the perceived stream, because M-CA4 survived the
+      perceived variant (E-SC6). CA-4 as frozen (perceived opted in, the stream as oracle) is kept and
+      passes; the variant pins the clear-only-on-Ok rule.
 ```
 
 ## 17.14 macOS, Linux and Windows (operator requirement, 2026-10-08)
