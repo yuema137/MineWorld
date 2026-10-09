@@ -2730,6 +2730,26 @@ to QS-54 below.
 two lines in `systems/installed` and a rebuild (`ARC-33`); without a rebuild is `ARC-8`'s Tier 1,
 outside MVP-0. The evidence is recorded in step-10 §9.6.
 
+**Note, 2026-10-09 (S19, PR TW-a; step-19 §16.9 TWa-F1) — generic packs after the market.** The
+operator ruled on TW-a's material stop (2026-10-09, option (i)): Market Town may enable generic packs,
+named on an explicit allow-list, after the six market packs, through configuration. **The claim is
+unchanged: the market delta is measured exactly.** Check 3 (item 4, as note 11f item 5 reads it) now
+reads:
+
+1. `systems` is Social Café's list, in order, then exactly the six market packs (as a set), then only
+   packs on the allow-list, each once. An allow-listed pack anywhere before the end of the six, and any
+   pack after the six that is not on the list, is refused, naming the pack.
+2. `configure` is absent in Social Café. In Market Town it is absent or lists only allow-listed packs
+   that `systems` enables; `configure/` exists in Market Town only and holds only their files.
+3. Every other part of check 3 is unchanged: an allow-listed pack adds no section to a person or place
+   file, because only a market pack's sections are admitted there.
+
+The allow-list is `GENERIC_PACKS` in `tests/acceptance/tests/ac1_composability.rs`. It is
+`["calendar"]` (`ARC-67`, `DEP-30`). Weather and any later generic pack are added by their own PRs, each
+with its own review. A pack is generic when it is neither Social Café's nor the market's: a calendar is
+a world's date and sun, not a market. Checks 1 and 2 are untouched: the two merges, the lock rule and the
+dependency structure still measure the market and nothing else. A test holds both refusals.
+
 ---
 
 ## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack
