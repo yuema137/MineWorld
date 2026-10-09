@@ -33,6 +33,7 @@
 //! controller either: observations go out with `try_send`, and a hosted controller's `decide` is a
 //! bounded synchronous call (step-12 I-11).
 
+mod status;
 mod world;
 
 use std::sync::Arc;
@@ -41,7 +42,6 @@ use std::time::Instant;
 use mineworld_contracts::{
     ActionIntent, ActionRequest, EntityId, EntityKey, EventEnvelope, WorldTime,
 };
-use mineworld_persistence::WorldRevision;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::admission::ResumeSecret;
@@ -51,11 +51,9 @@ use crate::host::{
 };
 use crate::hosted::HostedAnswer;
 use crate::perception::{Perception, PerceptionContext};
-use crate::protocol::{
-    ClosingReason, PROTOCOL_VERSION, Refusal, RefusalCode, SystemSummary, WorldInstanceId,
-    WorldSummary,
-};
+use crate::protocol::{ClosingReason, Refusal, RefusalCode, WorldInstanceId};
 use crate::seats::{Departure, JoinRequest, SeatTable};
+use status::first_binding;
 use world::{ActionIds, Failure, HostClock, TickTimes};
 
 /// One connected client, as the world knows it: which observer, where to put its observations, and
@@ -434,59 +432,5 @@ impl WorldRuntime {
         for subscription in closed {
             self.depart(subscription, Departure::Dropped);
         }
-    }
-
-    /// What the world is, as a status answer or a welcome states it.
-    fn summary(&self) -> WorldSummary {
-        let systems = self.world.world().systems();
-        WorldSummary {
-            protocol: PROTOCOL_VERSION,
-            instance: self.instance,
-            at: self.clock.now(),
-            time_scale: self.clock.scale().get(),
-            entities: self.world.world().entities().len(),
-            systems: systems
-                .order()
-                .iter()
-                .map(|system| {
-                    // The declaration a system made when it was installed: its vocabulary, which is
-                    // composition rather than state, so it is public (`PROTOCOL.md` §5.7).
-                    let declaration = systems.declaration(system);
-                    SystemSummary {
-                        system: system.clone(),
-                        enabled: systems.is_enabled(system),
-                        provides: declaration.map_or_else(Vec::new, |d| d.provides().to_vec()),
-                        states: declaration.map_or_else(Vec::new, |d| d.emits().to_vec()),
-                    }
-                })
-                .collect(),
-            seats: self.seats.iter().cloned().collect(),
-            // Connections only: an in-server controller is not a client (`PROTOCOL.md` §5.7).
-            clients: self.subscribers.len(),
-            observations_dropped: self.dropped,
-            // No fact is delivered to an observer before S11-C, so none is dropped.
-            events_dropped: 0,
-            faults: self.faults,
-            revision: self.world.revision(),
-        }
-    }
-}
-
-/// The instant the server's first controllers are bound at (`F-13`): every line heard at or before
-/// it was said to whoever drove the Person before this process, and is not theirs to answer.
-///
-/// For a world resumed with history, that is the world's own instant — its last input. A world that
-/// holds nothing but its genesis has heard nothing: its controllers are bound a second before it, so
-/// that a line said in the first wall second of hosting, which the host's clock still stamps with the
-/// genesis instant, is answered (step-12 D-SB3).
-fn first_binding(world: &Hosted, epoch: WorldTime) -> WorldTime {
-    let only_genesis = match world {
-        Hosted::Ephemeral(_) => true,
-        Hosted::Persisted(world) => world.revision() == WorldRevision::GENESIS,
-    };
-    if only_genesis {
-        WorldTime::from_seconds(epoch.seconds() - 1)
-    } else {
-        epoch
     }
 }

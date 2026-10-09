@@ -3388,8 +3388,8 @@ rejected: socket frames, `tonic`, `axum-extra`; limitation: one admin token, no 
 
 **Scope.** `summary`, `first_binding` move; no behaviour change. **Depends on:** S11-B merged.
 
-- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-server` same names and counts; clippy
-  · [ ] Review: `runtime.rs` < 450 lines.
+- [x] Implementation · [x] Validation: `cargo test -p mineworld-server` same names and counts; clippy
+  · [x] Review: `runtime.rs` < 450 lines (E-SD2).
 
 ### D-C3 — `AdminToken`, the pausable `HostClock`, the seat table's kick, release and report
 
@@ -3555,6 +3555,10 @@ E-SD1 D-C1. check_decision_ids → 72 ids, all distinct (ARC-44 placed after ARC
       (`paused`), §5.6 (`kicked` landed), §5.7 (`paused`), §5.9 (new), §9, §10 (S11-D landed; TW-c row
       for `time_scale` in POST /admin/clock), §11 (new). §§5.8 and 6/6.2 untouched (S11-C's and 12e's).
       Every route and code of §18.4 is in §11.2; ARC-69 (S19) cited as TW-c's, not pre-empted.
+E-SD2 D-C2 (pure move). `summary` and `first_binding` moved verbatim to server/src/runtime/status.rs;
+      runtime.rs 492 → 436. clippy -D warnings (server, all targets) clean. `cargo test -p
+      mineworld-server`: unit 38, frames 8, handshake 7, headless 4, seats 4, two_clients 9, doc 1 —
+      all pass, the base's names and counts.
 ```
 
 ## 18.13 Deviations and discoveries
