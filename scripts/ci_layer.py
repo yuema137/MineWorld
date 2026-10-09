@@ -12,7 +12,9 @@ partial-clone filter), because a green layer is only evidence about the toolchai
 with. Every command is printed before it runs and timed after; the first failure stops the layer with
 that command's exit status. Nothing is retried and nothing is allowed to fail (ARC-48).
 
-    python3 scripts/ci_layer.py fast | core       run a layer
+    python3 scripts/ci_layer.py fast | core | parity
+                                                   run a layer (on Linux in the toolchain container;
+                                                   natively on macOS and Windows runners)
     python3 scripts/ci_layer.py --list <layer>     print a layer's commands without running them
     python3 scripts/ci_layer.py --prune-cache      before CI saves target/: drop the workspace's own
                                                    artifacts and the tests' scratch saves, keep the
@@ -22,6 +24,7 @@ that command's exit status. Nothing is retried and nothing is allowed to fail (A
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import shutil
 import subprocess
@@ -40,6 +43,7 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_decision_ids.py"],
         ["python3", "scripts/check_ci_pins.py"],
         ["python3", "scripts/check_scratch.py", "scan"],
+        ["python3", "scripts/ci_parity.py", "--self-test"],
         ["cargo", "check", "--workspace", "--all-targets"],
         ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
     ],
@@ -50,6 +54,13 @@ LAYERS: dict[str, list[list[str]]] = {
         ["cargo", "test", "--workspace", "--no-run"],
         ["cargo", "test", "--workspace"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+    # AC-8's record on a native runner (macOS, Windows): the release binary, then every world recorded
+    # (docs/DECISIONS.md ARC-49). The Linux legs record from the runtime image instead. On Windows the
+    # script finds target/release/mineworld.exe.
+    "parity": [
+        ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
+        ["python3", "scripts/ci_parity.py", "record", "--binary", "target/release/mineworld"],
     ],
 }
 
@@ -79,13 +90,34 @@ def report(command: list[str]) -> None:
     print(f"[ci] {shlex.join(command)}: {output}", flush=True)
 
 
+def size(path: Path) -> int:
+    """Bytes under a directory, without following links (`du`, which Windows lacks)."""
+    total = 0
+    for directory, _, files in os.walk(path):
+        for name in files:
+            try:
+                total += os.lstat(os.path.join(directory, name)).st_size
+            except OSError:
+                pass  # a file removed while walking: it no longer takes space
+    return total
+
+
+def gigabytes(count: int) -> str:
+    return f"{count / 1024**3:.1f} G"
+
+
 def disk(moment: str) -> None:
-    print(f"[ci] disk {moment}:", flush=True)
-    subprocess.run(["df", "-h", str(ROOT)], cwd=ROOT)
-    present = [path for path in ("target", "target/tmp") if (ROOT / path).exists()]
-    if present:
-        subprocess.run(["du", "-sh", *present], cwd=ROOT)
-    sys.stdout.flush()
+    usage = shutil.disk_usage(ROOT)
+    print(f"[ci] disk {moment}: {gigabytes(usage.free)} free of {gigabytes(usage.total)}", flush=True)
+    for path in ("target", "target/tmp"):
+        if (ROOT / path).exists():
+            print(f"[ci]   {path}: {gigabytes(size(ROOT / path))}", flush=True)
+
+
+def resolved(command: list[str]) -> list[str]:
+    """`python3` is this interpreter: Windows runners have no `python3` on PATH. The listed command
+    (`--list`) stays as written."""
+    return [sys.executable, *command[1:]] if command[0] == "python3" else command
 
 
 def run(layer: str) -> int:
@@ -100,7 +132,7 @@ def run(layer: str) -> int:
         print(f"[ci] $ {shlex.join(command)}", flush=True)
         began = time.monotonic()
         try:
-            status = subprocess.run(command, cwd=ROOT).returncode
+            status = subprocess.run(resolved(command), cwd=ROOT).returncode
         except FileNotFoundError:
             print(f"[ci] {command[0]}: not found on PATH", flush=True)
             status = 127

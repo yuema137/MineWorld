@@ -2294,7 +2294,48 @@ systems. The Windows state of the default suite becomes visible.
 
 **Depends on:** B-C2.
 
-- [ ] Implementation.
+- [x] Implementation:
+  - `.github/workflows/ci.yml`: `image` → `scenario` (`ci_image.py`, then `ci_parity.py record --image
+    mineworld:ci --platform linux/amd64`, artifact `ac8-linux-x86_64`); `linux-arm` (`ubuntu-24.04-arm`,
+    runtime image `linux/arm64`, GHA cache scope `runtime-arm64`); `mac` (`macos-26`) and `windows`
+    (`windows-2025`), each a depth-1 checkout without `clients/` and `presentation/` (non-cone sparse
+    checkout; nothing in a `src/` or build script reads them, and `validate` already passes in the runtime
+    image, which holds only `worlds/`), then the `native` action with layer `parity`, then the artifact;
+    `ac8` (`needs` the four, `if: always() && <trigger>`, downloads `ac8-*`, `ci_parity.py compare
+    records/*.txt`, uploads the records); `test-windows` (`windows-2025`, `fetch-depth: 0`, `blob:none`,
+    the `native` action with layer `core`). Triggers as §13.4.3; timeouts 30/30/30/40/10/60. `test`'s
+    `if:` gains `!endsWith(github.ref, '-scenario')`. The header comment names ARC-49 and DEP-19.
+    Artifact pins resolved 2026-10-09 (`gh api repos/<r>/releases/latest` → `commits/<tag>`):
+    `actions/upload-artifact` v7.0.2 `cf430e03…`, `actions/download-artifact` v8.0.2 `9000827c…`.
+  - `.github/actions/native/action.yml` (new; 13b lands first, §13.0.3: no `native` action on any
+    `origin/*` branch at `ec38570`): `rustup toolchain install` (no argument: rust-toolchain.toml's
+    channel, profile and components) and `rustc -vV`; `actions/cache` on `~/.cargo/registry`,
+    `~/.cargo/git`, `target`, keyed `native-<os>-<arch>-<layer>-<hash of Cargo.lock,
+    rust-toolchain.toml>`; `python`/`python3` by `RUNNER_OS`, then `ci_layer.py <layer>`;
+    `ci_layer.py --prune-cache`. `CARGO_INCREMENTAL=0` and `CARGO_PROFILE_DEV_DEBUG=line-tables-only`,
+    as in the container layer.
+  - `scripts/ci_layer.py`: layer `parity` (`cargo build --release --locked -p mineworld-cli`;
+    `python3 scripts/ci_parity.py record --binary target/release/mineworld`); `fast` gains
+    `python3 scripts/ci_parity.py --self-test` after `check_scratch.py scan`; `disk()` uses
+    `shutil.disk_usage` and an `os.walk` size; a command whose first word is `python3` runs with
+    `sys.executable` (`--list` unchanged).
+  - `scripts/ci_image.py`: `WORLDS` → `ci_parity.enumerate_worlds(ROOT)` (one enumeration for both
+    scripts); a missing World Pack is a named FAIL.
+  - `.gitattributes`: `* text=auto eol=lf`; `-text` for
+    `clients/3d-spike/assets/characters/LICENSE.quaternius-ual.txt`; the two binary lines kept.
+  - **D-13b-6, the YAML anchor.** A YAML anchor for the shared trigger was drafted and replaced by the
+    expression written out in each job, to depend on no newer workflow-parser feature.
+  - **D-13b-7, `ac8`'s message for a missing leg.** A missing record reads "G-3 no Darwin arm64 record
+    (…)" (or Linux, Windows), naming the platform rather than the job ("no record from mac"). No job
+    name enters the script, which keeps it runnable on the laptop. PM-5 is judged on that line.
+- Local evidence before the first push of B-C3 (working tree on `25ed3a0`):
+  - `ci_layer.py --list core` → identical to main's (`diff` empty); `--list fast` → main's plus one line,
+    `python3 scripts/ci_parity.py --self-test`, after `check_scratch.py scan`; `--list parity` → the two
+    commands; an unknown layer → exit 2, naming `fast, core, parity`. **PASS** (B13-6, local half).
+  - `.gitattributes`: `git add --renormalize .` staged only files already edited by this commit;
+    `git ls-files --eol` → `i/crlf` only for the `-text` file (`attr/-text`). **PASS** (B13-7, W-3).
+  - Both YAML files parse (`ruby -ryaml`): jobs `fast test scenario linux-arm mac windows ac8
+    test-windows`, with §13.4.3's runners and timeouts.
 - [ ] Validation (CI; each run's id, head, legs' wall times and verdict in the ledger):
   - `ci_layer.py --list core` diff against main → empty; `--list fast` → main's plus one line (B13-6);
   - `.gitattributes`: after the edit, `git add --renormalize .` stages nothing but `.gitattributes`, and
@@ -2304,7 +2345,12 @@ systems. The Windows state of the default suite becomes visible.
     warm figures;
   - PM-1 … PM-5 and PM-8 on `scratch/13b-*-scenario` branches, each deleted after its run;
     `git ls-remote --heads origin 'scratch/*'` → empty, recorded.
-- [ ] Review:
+- [x] Review (on the B-C3 diff): every `uses:` is pinned to a full SHA with its version (a `grep`
+  for pins without one is empty); no `continue-on-error`, `|| true`, retry or `pull_request_target`;
+  `ac8` is `if: always()` and its only verdict step is `compare` (the records upload is `if: always()`
+  too, and judges nothing); no new job lists `pull_request`; no `name:` is decorated; `permissions:
+  contents: read` unchanged; the workflow's `run:` lines call `ci_image.py` and `ci_parity.py` (scripts),
+  and the action calls `ci_layer.py` (layers): no check command in YAML (I-S13-9). Planned items:
   - every `uses:` pinned to a full SHA with its version in a comment;
   - no `continue-on-error`, `|| true` or retry;
   - `ac8` is `if: always()` and judges by the script only;

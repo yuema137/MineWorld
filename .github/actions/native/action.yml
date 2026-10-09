@@ -1,0 +1,53 @@
+# Runs one CI layer natively on a hosted macOS or Windows runner (docs/DECISIONS.md DEP-19, ARC-48).
+#
+# The counterpart of .github/actions/layer, which runs a layer in the Linux toolchain container. The
+# caller has checked the repository out already. This action installs the toolchain rust-toolchain.toml
+# names, restores the Cargo caches, runs `scripts/ci_layer.py <layer>` with the runner's Python, and
+# prunes target/ before the cache is saved. It names a layer, never a command: what a layer runs is
+# scripts/ci_layer.py's (step-14 I-S13-9). One action serves every native job: 13b's `mac`, `windows`
+# and `test-windows`, and the `platforms` layer of S16 (step-14 §13.0.3).
+name: Run a CI layer on a native runner
+description: Install the pinned toolchain, restore caches, run scripts/ci_layer.py, prune the cache.
+inputs:
+  layer:
+    description: A layer of scripts/ci_layer.py (parity, core, ...).
+    required: true
+runs:
+  using: composite
+  steps:
+    # With no argument, rustup installs the toolchain of rust-toolchain.toml: its channel, profile and
+    # components. The toolchain version therefore has one source on every runner (DEP-18).
+    - name: Install the pinned toolchain
+      shell: bash
+      run: |
+        rustup toolchain install
+        rustc -vV
+
+    # One cache per OS, architecture and layer. An entry is saved only when the layer passed.
+    - name: Restore the Cargo caches
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: native-${{ runner.os }}-${{ runner.arch }}-${{ inputs.layer }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+        restore-keys: native-${{ runner.os }}-${{ runner.arch }}-${{ inputs.layer }}-
+
+    # Windows runners have `python`, not `python3`, on PATH; within, ci_layer.py starts every Python
+    # command with its own interpreter.
+    - name: Run layer ${{ inputs.layer }}
+      shell: bash
+      env:
+        LAYER: ${{ inputs.layer }}
+        CARGO_INCREMENTAL: "0"
+        CARGO_PROFILE_DEV_DEBUG: line-tables-only
+      run: |
+        if [ "$RUNNER_OS" = Windows ]; then python=python; else python=python3; fi
+        "$python" scripts/ci_layer.py "$LAYER"
+
+    - name: Prune target/ before the cache is saved
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" = Windows ]; then python=python; else python=python3; fi
+        "$python" scripts/ci_layer.py --prune-cache

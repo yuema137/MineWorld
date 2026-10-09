@@ -1,7 +1,8 @@
-# MineWorld CI: layers 1 and 2 of ENGINEERING_STANDARDS.md §16, and the runtime image's evidence.
+# MineWorld CI: layers 1–3 of ENGINEERING_STANDARDS.md §16, AC-8's parity across macOS, Linux and
+# Windows, and the default suite on Windows.
 #
-# Triggers, what blocks, and why are docs/DECISIONS.md ARC-48; the service and images are DEP-17 and
-# DEP-18. Jobs name layers; the commands of a layer live in scripts/ci_layer.py only. The job names
+# Triggers, what blocks, and why are docs/DECISIONS.md ARC-48 (and its 2026-10-09 note); the service
+# and images are DEP-17 and DEP-18; AC-8's measurement and runners are ARC-49 and DEP-19. Jobs name layers; the commands of a layer live in scripts/ci_layer.py only. The job names
 # `fast` and `test` are an interface: a required check matches them by name.
 name: CI
 
@@ -44,7 +45,7 @@ jobs:
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       !endsWith(github.ref, '-image'))
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -56,14 +57,18 @@ jobs:
         with:
           layer: core
 
-  # Not a layer: evidence that the shipped image hosts a world (step-14 A13-5). On demand, or from a
-  # scratch branch named `scratch/*-image` before this workflow is on main (dispatch needs it there).
-  image:
-    name: image
+  # Layer 3 and AC-8 (docs/DECISIONS.md ARC-49, DEP-19). `scenario`, `linux-arm`, `mac` and `windows`
+  # each record what their platform makes of every world on this commit; `ac8` compares the records.
+  # They run on pushes to main, on dispatch, and on `scratch/*-scenario` branches (planted-difference
+  # evidence); never on pull requests, and none is a required check (ARC-48 note, 2026-10-09). They
+  # block main's health: a red `ac8` on main stops the line until fixed or ruled.
+  scenario:
+    name: scenario
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
-       endsWith(github.ref, '-image'))
+       endsWith(github.ref, '-scenario'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -81,5 +86,154 @@ jobs:
           tags: mineworld:ci
           cache-from: type=gha,scope=runtime
           cache-to: type=gha,mode=max,scope=runtime
+      # Evidence that the shipped image hosts a world (step-14 A13-5), for every world.
       - name: Run the image as an operator would
         run: python3 scripts/ci_image.py mineworld:ci
+      - name: Record AC-8 in the container (Linux x86_64)
+        run: python3 scripts/ci_parity.py record --image mineworld:ci --platform linux/amd64
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ac8-linux-x86_64
+          path: ac8-linux-x86_64.txt
+          if-no-files-found: error
+
+  # The localizer: Linux on arm64 places a difference in the OS or in the architecture.
+  linux-arm:
+    name: linux-arm
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       endsWith(github.ref, '-scenario'))
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the runtime image (linux/arm64)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: runtime
+          platforms: linux/arm64
+          load: true
+          tags: mineworld:ci
+          cache-from: type=gha,scope=runtime-arm64
+          cache-to: type=gha,mode=max,scope=runtime-arm64
+      - name: Record AC-8 in the container (Linux arm64)
+        run: python3 scripts/ci_parity.py record --image mineworld:ci --platform linux/arm64
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ac8-linux-arm64
+          path: ac8-linux-arm64.txt
+          if-no-files-found: error
+
+  # The laptop's platform: macOS on Apple Silicon, native. The client trees are not needed to build or
+  # run the binary, so they are not checked out.
+  mac:
+    name: mac
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       endsWith(github.ref, '-scenario'))
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/clients/
+            !/presentation/
+      - uses: ./.github/actions/native
+        with:
+          layer: parity
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ac8-darwin-arm64
+          path: ac8-darwin-arm64.txt
+          if-no-files-found: error
+
+  # The operator's third platform: Windows x86_64, native. Text files check out with LF everywhere
+  # (.gitattributes), so a world reads the same bytes here as on every other platform.
+  windows:
+    name: windows
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       endsWith(github.ref, '-scenario'))
+    runs-on: windows-2025
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/clients/
+            !/presentation/
+      - uses: ./.github/actions/native
+        with:
+          layer: parity
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ac8-windows-x86_64
+          path: ac8-windows-x86_64.txt
+          if-no-files-found: error
+
+  # AC-8's verdict: ci_parity.py's comparison and nothing else. It runs even when a leg failed or was
+  # cancelled, so a missing record is a red `ac8`, never a skipped one.
+  ac8:
+    name: ac8
+    needs: [scenario, linux-arm, mac, windows]
+    if: >-
+      always() && (
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       endsWith(github.ref, '-scenario')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: ac8-*
+          path: records
+          merge-multiple: true
+      - name: Compare the platforms' records
+        run: python3 scripts/ci_parity.py compare records/*.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: ac8-records
+          path: records/
+          if-no-files-found: warn
+
+  # The whole default suite on Windows, natively: the same `core` commands as `test`. It reports and is
+  # not required; it is expected red until the Windows-portability PR (13w) makes the suite compile and
+  # pass there, which also adds its pull_request trigger (step-14 §13.0.1, QB-11).
+  test-windows:
+    name: test-windows
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/native
+        with:
+          layer: core
