@@ -30,8 +30,8 @@ PLATFORMS           macOS, Linux, Windows (operator, 2026-10-08): no new Unix-on
 
 - C1 `6c3cf9f`; C2+C3 `975704f`; C4 `1476472`; C5 `01bc793`, `98bd42e`; C6 `aca9970`; main merged
   `7a17406` (S11-B on main, E-12). Godot suites green on the C5 tree; mutations recorded in §15.6.
-- Final gate on the merged head: running (fmt, clippy, workspace tests, Godot suites, slice drive,
-  protocol evidence, scans, scratch).
+- 13a's relaunch test fixed for S11-B's held seats `98539ea` (E-13). Final code head `98539ea`: every
+  gate green (§15.6 C6). PR opened READY FOR OPERATOR REVIEW; PR head = this ledger commit.
 
 ## Next actions
 

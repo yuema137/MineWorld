@@ -1353,7 +1353,12 @@ Implemented by:       a fresh session, in /Users/yuema137/mineworld-worktrees/im
 ### 15.0 Lifecycle, identity, base, scope
 
 ```text
-Lifecycle:            DESIGN FROZEN (2026-10-08) — see "13b DESIGN FROZEN" above.
+Lifecycle:            READY FOR OPERATOR REVIEW (2026-10-09; a preview, ARC-24) — implementation
+                      context CLOSED / AWAITING OPERATOR ACTION; DO NOT MERGE without the operator.
+                      Frozen design: see "13b DESIGN FROZEN" above. Final code head 98539ea; the PR
+                      head and its CI runs are recorded in handoff-s12-13b.md and the PR. After merge:
+                      this session records §15's merge identity; step/overall sync is the primary
+                      session's.
 PR                    13b — menu interactions (S12, second of six; PR number assigned at freeze)
 Planning base:        main @ 9cf8f8e (13a merged as #82), branch plan/s12-13b, worktree
                       /Users/yuema137/mineworld-worktrees/plan-13b (planning only)
@@ -1844,10 +1849,23 @@ ids from genesis facts and build the scratch world for AC-I6.
   are enabled; Alice's reply is the newest history line, with the toast "You spoke to Alice Moreau";
   one's own menu lists the disabled walk, six buys in the shop's order, then "Eat item 19"; the panels
   show day, carrying, 2000.00, the shop's six kinds; "· coffee ·" over Bob and the visitor.
-- [ ] Validation: AC-I9, AC-I10, AC-I11 on the final head; stills viewed one at a time and their facts
-  recorded (largest miss first).
-- [ ] Review: preview, not acceptance (`ARC-24`); known misses stated (item ids until R-PK-2, NPCs
-  idle until R-S10-1, no conversations between others until R-S11-4).
+- [x] Validation (final code head `98539ea`, main merged at `7a17406`; macOS arm64, Godot 4.7.2):
+  AC-I9 — `check_client_rules.py` rules PASS, `cargo test -p mineworld-acceptance --test client_rules`
+  3 passed (in the workspace run); AC-I10 — `--scope origin/main` PASS; AC-I11 — `cargo fmt --all --
+  --check` exit 0; `cargo clippy --workspace --all-targets -- -D warnings` exit 0; `cargo test
+  --workspace` 174 test binaries, 765 passed, 0 failed, 17 ignored (13b adds 0 non-ignored tests: its
+  8 new tests are all `#[ignore]`, Godot-gated); `client_2d -- --ignored` 8 passed (169.3 s, after
+  E-13), `client_2d_interact` 5 passed (71.8 s), `client_2d_interact_stub` 3 passed (17.1 s);
+  `./mineworld-slice --drive` "all drive checks pass", exit 0; `clients/protocol/run.sh evidence`
+  exit 0 and regenerates identically apart from ports, instances and, in the two-clients-at-once run,
+  which client connected first (client counts and action ids 4/5 swap); `request-2d.json` and
+  `request-3d.json` unchanged; regenerated files restored. `--check-pack` PASS;
+  `check_doc_headings` 191 sections, none duplicated; `check_decision_ids` 72 distinct;
+  `check_scratch scan` 163 sources clean (2 exempt); `check_scratch left` none. Stills viewed one at a
+  time (above).
+- [x] Review: a preview, not acceptance (`ARC-24`); known misses stated in the PR body: item ids until
+  R-PK-2, NPCs other than Alice idle until R-S10-1, no conversations between others until R-S11-4,
+  label overlap (13a), the plain room's extent (13a), and E-14 (no `resume` in `link.gd`).
 
 ### 15.7 Files touched
 
