@@ -8365,6 +8365,9 @@ F-12n-CI1  (finding, owned by the S11 lane — raised there by the coordinator, 
            same head passed (job 113983484403). Reading: a wall-clock tick budget measured on a shared
            CI runner is sensitive to load. Not 12n's to fix; 12n's sessions re-run it once if it recurs
            and record the run ids here.
+           Recurred on #100's head 0c53bbb (Markdown only): "the p99 tick took 62.8 ms, over 50 ms
+           (p50 0.4 ms, max 429 ms)" (CI run 37981135635). Two failures in two consecutive heads of a
+           docs-only PR: the budget is not robust on hosted runners — evidence for the S11 lane.
 ```
 
 
