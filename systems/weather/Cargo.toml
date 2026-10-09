@@ -1,0 +1,8 @@
+[package]
+name = "mineworld-weather"
+description = "MineWorld's WeatherSystem: the world's weather hour by hour, from a seeded integer WGEN-lite generator whose climate is configuration. Day and change facts; one climate Process; disclosed on the observer's place."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true

@@ -1163,6 +1163,10 @@ name = "mineworld-test-support"
 version = "0.1.0"
 
 [[package]]
+name = "mineworld-weather"
+version = "0.1.0"
+
+[[package]]
 name = "mineworld-worldpack"
 version = "0.1.0"
 dependencies = [

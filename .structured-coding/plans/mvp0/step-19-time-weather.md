@@ -1725,8 +1725,49 @@ HANDOFF                 .structured-coding/plans/mvp0/handoff-tw-b.md
 
 ## 17.11 Ledger
 
-Empty until execution starts. Commit rows, evidence (E-TWb-n), mutations (M-TWb-n) and deviations (TWb-Dn) are
-recorded here by the execution session.
+Execution session: worktree `/Users/yuema137/mineworld-worktrees/impl-tw-b`, branch `mvp0/pr-tw-b-weather`,
+base `origin/main @ a454e37` (#107 merged; TW-a on main). IL-b (#102) was open at the start. Handoff:
+[`handoff-tw-b.md`](handoff-tw-b.md).
+
+**Start-of-session audit (2026-10-09).** §17.2's anchors re-verified on a454e37: calendar's
+`system.rs` shape (`PackConfiguration` + `configures!()`, `react` starts the Process from the configured
+fact and folds its own facts, `wake` only reschedules and states facts, `discloses` keyed to `Presence`);
+`DayBegan { day, phase }` with `CalendarDay::{date, weekday, day_start, events, track}` public and
+`DayEvents` fields public `Option<u32>`; `kernel/src/registry.rs` `check_dependencies` l. 212–228
+(`SystemDependencyMissing` / `SystemDependencyDisabled`); `authoring/src/configuration.rs`
+`seed(&Seeding, &C)` (two arguments on main at the branch point); `systems/installed` one line each, with
+`mineworld-calendar` a path dependency (not a workspace dependency); AC-1 `GENERIC_PACKS: [&str; 1] =
+["calendar"]` at l. 1030; `cognition/rule-controller/src/paced.rs` `mix` at l. 312–318;
+`worlds/market-town/world.yaml` `calendar` last, `configure: [calendar]`; `docs/DECISIONS.md` ends at
+DEP-30 with 74 ids. All as recorded.
+
+### Commit ledger
+
+| # | Implementation | Deterministic validation | LLM logic review |
+| --- | --- | --- | --- |
+| C1 | [x] ARC-68 appended after DEP-30 (date, approval, design pointer, choice 1–8, alternatives, reuse table WGEN / LARS-WG / ClimGen / plain tables, defaults with sources, limitations); `systems/weather/README.md`; `src/lib.rs` = the spec header (§17.3 as a module doc); doc-only `Cargo.toml` (TWa-D1's precedent) | [x] `check_doc_headings.py`: 191 sections, none duplicated — PASS; `check_decision_ids.py`: 75 ids (74 + 1), all distinct — PASS; `cargo check -p mineworld-weather` clean; Cargo.lock gains the member only | [x] terms against CORE_CONCEPTS: `System Pack`, `Process`, `Event` (facts), `Component` used as defined; "climate" is a Process type name, "WGEN-lite" a generator name, neither an ontology term. ARC-68 names DEP-31 as TW-d's and does not restate data, CSV or fetch content |
+| C2 | [ ] | [ ] | [ ] |
+| C3 | [ ] | [ ] | [ ] |
+| C4 | [ ] | [ ] | [ ] |
+| C5 | [ ] | [ ] | — |
+
+### Evidence
+
+```text
+(recorded as each commit completes)
+```
+
+### Mutations
+
+```text
+(recorded as observed)
+```
+
+### Deviations and findings
+
+```text
+(recorded as found)
+```
 
 ---
 
