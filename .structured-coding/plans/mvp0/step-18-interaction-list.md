@@ -2076,23 +2076,25 @@ IB-9).
 **Goal.** SD-IB-6, 7, 8, 11, 17: the pure half.
 **Scope.** NEW `sdk/rust/src/interactions/{mod,decl,selector,section,resolve}.rs` and `tests.rs`;
 `parameters!`; `lib.rs` exports; NEW `sdk/rust/tests/interactions.rs` (IB-6).
-- [ ] Implementation: as above.
-- [ ] Validation: unit tests for each precedence rule (level replacement, specificity, forbid
-  overrides, the overlap definition including implicit classes); each refusal; IB-6 with M-IB6; one
-  `serde_saphyr` decode with line and column through worldpack's in-crate probe.
-- [ ] Review: no `HashMap` iteration, no float, no clock; every `Vec` is sorted before it is serialized;
-  `resolve` is total over its input or refuses.
+- [x] Implementation: as above (E-IB-5; committed together with IB-C6, D-IB-8).
+- [x] Validation: unit tests for each precedence rule (level replacement, specificity, forbid
+  overrides, the overlap definition including implicit classes); each refusal; IB-6 with M-IB6 (E-IB-5);
+  one `serde_saphyr` decode with line and column through worldpack's in-crate probe (E-IB-7, with the
+  probe section of IB-C7).
+- [x] Review: no `HashMap` iteration, no float, no clock; every `Vec` is sorted before it is serialized;
+  `resolve` is total over its input or refuses (E-IB-5).
 
 ### IB-C6 — `sdk::interactions`: lookups, `interactions!()`, the capability aggregate
 
 **Goal.** SD-IB-9, 10, 13 (the selection).
 **Scope.** `lookup.rs`, `biography.rs`; `interactions!()` in `pack.rs`; `installed.rs` (`@catalog`:
 `interaction_section()`); `__private`.
-- [ ] Implementation: as above.
-- [ ] Validation: lookups on a probe world (unconfigured → defaults without a component read beyond
-  the place's; configured → base, region, class); the selection with and without `Configured`.
-- [ ] Review: the macro expands to what SD-IB-9 says; a pack without `interactions!()` is unaffected
-  (sdk tests, the installed set's tests unedited).
+- [x] Implementation: as above (E-IB-5).
+- [x] Validation: lookups on a probe world (unconfigured → defaults without a component read beyond
+  the place's; configured → base, region, class); the selection with and without `Configured` —
+  through test-tuning in tests/acceptance (E-IB-7), where a codec exists (D-IB-8).
+- [x] Review: the macro expands to what SD-IB-9 says; a pack without `interactions!()` is unaffected
+  (sdk tests, the installed set's tests unedited) (E-IB-5).
 
 ### IB-C7 — The schema proven with test-tuning
 
@@ -2367,6 +2369,41 @@ E-IB-4  2026-10-09, IB-C4: presence `Offer` gains a private `refused: Option<Rej
         `cargo test -p mineworld-presence`: presence 16 passed (15 unedited + 1), resolver_catalog 1.
         Review: `git diff -- contracts` empty; `git grep "\.refused(" -- systems` → presence's own test
         only. PASS.
+E-IB-5  2026-10-09, IB-C5 + IB-C6 (one commit, D-IB-8): NEW sdk/rust/src/interactions/{mod, decl,
+        selector, section, resolve, lookup, biography, tests}.rs; SystemPack::INTERACTIONS (default None);
+        installed!'s Capability::interaction_section(); __private::DeError; lib.rs `pub mod
+        interactions`. Design as built: Role/Effect/Audience/ActionDecl/Position/FactDecl/SectionDecl;
+        Selector/Selectors (specificity, overlaps incl. implicit classes, matches), RoleSubjects,
+        Roles; Fields/Parameters and `parameters!` (default and inclusive bound per field, partial
+        twin); Section<S> decoded by hand-written visitors, every refusal raised inside the offending
+        value's own seed (the E-IB-2 finding) — undeclared action/fact/role, bound, unknown key,
+        widened or below-narrowest audience, non-configurable biography, a region rule for a
+        non-regional action, extends unknown/cyclic/longer than 4; resolve() (levels default →
+        extends chain → world → region, replacement by key field by field, within-level forbid-wins
+        for rules, within-level and cross-selector ambiguity refused naming both entries, ClassUndefined
+        with list and index, classes restricted to the referenced and shadowing definitions);
+        Resolution::{permits, parameters, consequence} pure over sorted vectors (partition_point on
+        action/fact); lookup: SectionConfigured<S> (the event), Interactions<S> (the component,
+        base + this place's region), declare/install/reduce, permits/parameters/consequence that read
+        nothing but the place's component and return compiled defaults when absent; biography:
+        ConsequenceTable, consequences::<S>, Configured, Known, selected(); interactions!() defines
+        CONFIGURATION, CONFIGURATION_FACTS, INTERACTIONS, decode_configuration through an SDK-held
+        AuthoredConfiguration (check = resolve; seed = resolve + the pack's encode, SystemInternal).
+        InteractionSection requires Clone + Debug + PartialEq of the (stateless) pack: std derives on
+        the generic types need them (D-IB-7).
+        Tests: `cargo test -p mineworld-sdk`: lib 9 passed (7 new: level replacement field by field,
+        specificity, forbid/specificity/default, ambiguity incl. implicit class and disjoint classes,
+        undefined class with "regions.cafe.rules[0]", region only at its place, the copied classes);
+        compile_fail 1, extensions 1 (unedited); NEW tests/interactions.rs (IB-6) 1 passed: 10 000
+        sections from SplitMix64 seed 0x1b_2026_1008 — refused Ambiguous 2 620, ClassUndefined 573;
+        1 102 734 lookups answered over 3 places × 3×3×2 class tuples; 509 606 orders compared (every
+        permutation up to five entries, 100 shuffles above), all identical. M-IB6 (the within-level
+        parameter conflict overlaid in authoring order instead of refused) → FAILS "case 0: the
+        resolution depends on the order entries are written in"; reverted, `git grep MUTATION` empty
+        (confirmed again after the session's rate-limit resume). clippy -D warnings clean for sdk,
+        authoring, worldpack, presence, cli (all targets). Review: no HashMap, no float, no clock in the
+        module; every vector in Resolved is built from BTreeMaps or sorted; resolve() returns a value
+        for every input or a ConfigurationRefusal. PASS.
 ```
 
 ## 12.14 Deviations
@@ -2401,6 +2438,13 @@ D-IB-5  (bounded) `InteractionSection::PARAMETER_ROLES`: the roles a parameter e
 D-IB-6  (bounded; platform) The AttachmentOutside test makes its symlink only under cfg(unix): an
         unprivileged Windows process cannot create one. The check itself is platform-neutral
         (canonicalized paths compared with `starts_with`); the missing and over-size cases run everywhere.
+D-IB-7  (bounded) InteractionSection: SystemPack + Clone + Debug + PartialEq + Send + Sync + 'static. The
+        section's generic types derive Clone/Debug/PartialEq, and std's derives bound the type
+        parameter; a pack is a stateless unit struct (INV-7), so deriving them costs nothing.
+D-IB-8  (bounded) IB-C5 and IB-C6 are one commit: the SDK-held configuration (mod.rs) needs resolve and
+        the lookups' types at once. IB-C6's world-level validation (lookups on a configured and an
+        unconfigured world; the selection) runs in IB-C7 through test-tuning, because mineworld-sdk has
+        no codec dependency (serde_json) for a probe's configured fact and adding one changes Cargo.lock.
 ```
 
 **Findings recorded at implementation start.**
