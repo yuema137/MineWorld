@@ -3430,8 +3430,8 @@ DA-8 (socket and HTTP halves), DA-5's in-process half. **Validation:** M-DA2a, M
 server_command.rs}`: DA-1, DA-3, DA-4, DA-5, DA-6, DA-9. **Validation:** M-DA1, M-DA3, M-DA4, M-DA5,
 M-DA6a–c; every suite that starts the binary.
 
-- [ ] Implementation · [ ] Validation · [ ] Review: the token reaches nothing but the router; `main.rs`
-  < 500.
+- [x] Implementation · [x] Validation (E-SD5, E-SD-M) · [x] Review: the token reaches nothing but the
+  router (AdminToken has no Display/Serialize; the startup line prints none); `main.rs` 498 < 500.
 
 ### D-C7 — The Godot module's `clock` reader and the far side
 
@@ -3615,6 +3615,44 @@ E-SD-M Mutations, each planted on the working tree, seen red, reverted (`git che
       Probe   DA-2's literal trailing space → admitted 200 (D-SD4).
       M-DA6c (DA-7, unit) resume_at does not re-anchor the wall instant → "a resume continues where
               it stopped … left: WorldTime(1523)"; red.
+      M-DA1   routes mounted without a token (a never-matching token) → "GET /admin/sessions … left:
+              401"; red.
+      M-DA3   kick also advances the world a day (an admin path changing world state; the frozen
+              text's no-op `move` needs a request the server cannot build without naming an
+              action, so the same failure class is planted through `advance`) → "revision left: 2,
+              right: 1"; red.
+      M-DA4   kick departs as Departure::Dropped → alice "held", seconds_left 30; red.
+      M-DA5   release leaves a held seat held → wanderer "held"; red.
+      M-DA6a  submit not refused while paused → "a submit while paused was answered Result { … }";
+              red.
+      M-DA6b  consults and advance not skipped while paused → test PASSES: SURVIVED, equivalent in
+              what any client can observe. With the host clock frozen, `now` stands still, so no
+              slot becomes due and no deferral fires; the only window is the first paused tick, for
+              slots due between the last running tick and the pause instant, which completes before
+              any client can read a frozen revision. The skip is kept as the stated rule (QTW-2: "no
+              hosted consult") and as defence for a future clock that is not frozen by pausing;
+              recorded rather than over-tested.
+E-SD5 D-C6. main.rs `--admin-token` (env MINEWORLD_ADMIN_TOKEN, hide_env_values) and serve.rs:
+      AdminToken::given + is_invite before anything binds (refusals name `--admin-token`, echo
+      neither secret); Access into serve_with_shutdown; the two startup lines of SD-D12;
+      `stop_requested()` = ctrl_c, and under #[cfg(windows)] ctrl_break (QW-1), ctrl_close,
+      ctrl_shutdown. Sizes main.rs 498 (D-SD1), serve.rs 371. clippy -D warnings (cli, all targets)
+      clean. tools/cli/tests/admin.rs (6 tests) PASS: DA-1, DA-3 (+DA-8 binary half; inspect facts =
+      validate's genesis count), DA-4 + DA-5 (one market-town --town server), DA-6 (clock frames
+      after the welcome and within 1 s of the pause; at and revision equal over two 2 s waits;
+      submit refused `paused` with token p1; a 3 s hold ended during the pause; resume's `at` within
+      [frozen, frozen + (wall s + 1) × scale]; the town acted again within 30 s), DA-9 (token and
+      nickname in no stdout/stderr line and no save byte; nickname only on /admin/sessions and the
+      holder's welcome; MINEWORLD_ADMIN_TOKEN works and is not echoed; the invite is no admin
+      token), SD-D13's #[cfg(unix)] graceful stop (exit 0, "[mineworld] stopping", "[world] ticks").
+      server_command.rs DA-9 half PASS (--help names the variable, never its value; equal-to-invite
+      and "short" stop the server non-zero, echoing neither). One DA-6 test defect fixed before it
+      passed: the first `next_clock` read the welcome's own clock (paused false); the test now
+      asserts that one first.
+      `cargo test -p mineworld-cli --no-fail-fast` (every suite that starts the binary): exit 0, 28
+      targets ok — ac13, ac15 (6), ac3_reconnect, ac5_takeover (2), milestone_b, milestone_c,
+      hosted_town (120 s, p99 bound asserted), restart, server_command (10) among them; client_2d's
+      8 are #[ignore] (Godot-gated) as at the base. Load ~250 throughout.
 ```
 
 ## 18.13 Deviations and discoveries
@@ -3631,9 +3669,11 @@ D-SD0 (ruling, SD-D13 amended) QW-1, relayed by the coordinator 2026-10-09 from 
       stays.
 D-SD1 (bounded) tools/cli/src/main.rs is 501 lines at the base, already over DA-12's < 500 before
       S11-D adds `--admin-token`. Resolved inside §18.6's paths: `saved_genesis`, used by
-      `serve::persisted` and `replay`, moves from main.rs to serve.rs (its other caller), which
-      brings main.rs back under 500 with the flag; tools/cli/tests/configure.rs's structural check
-      (`fn replay(` → `verify(&backend` in main.rs) is unaffected.
+      `serve::persisted`, `replay` and run.rs, moves from main.rs to serve.rs, re-exported at the crate
+      root by one `pub(crate) use` so run.rs keeps its `crate::saved_genesis` import untouched (I-6);
+      the flag's `#[arg]` takes clap's default value name (`<ADMIN_TOKEN>`) so it fits one line.
+      main.rs 501 → 498. tools/cli/tests/configure.rs's structural check (`fn replay(` →
+      `verify(&backend` in main.rs) is unaffected.
 D-SD2 (bounded) Existing tests edited because every welcome is now followed by a `clock` frame
       (DA-11's "transcripts that now carry clock frames"): each test file's own "next frame that is not
       an observation" helper now also skips `clock` — server/tests/{handshake.rs, seats.rs (and one
