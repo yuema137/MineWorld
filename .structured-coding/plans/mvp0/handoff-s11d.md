@@ -27,7 +27,10 @@ STOPS               normal: READY FOR OPERATOR REVIEW — DO NOT MERGE. Material
 
 ## Current checkpoint
 
-E-SD0 in progress (base build for the digests). Next: D-C1 (PROTOCOL.md, ARC-44, MODULE_SPEC §8.1).
+D-C1 … D-C8 done; full gate green on the merged head (§18.12 E-SD7). PR opened READY FOR OPERATOR
+REVIEW — DO NOT MERGE. PR context CLOSED / AWAITING OPERATOR ACTION. Next actions belong to the
+operator (review, merge) or, if S11-C merges first, to a resumed session: merge origin/main, keep
+S11-C's hunks (§19.2), regenerate golden frames and evidence, re-run the affected half.
 
 ## Notes for a resumed session
 

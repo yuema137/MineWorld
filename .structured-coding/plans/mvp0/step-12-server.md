@@ -3446,9 +3446,10 @@ appear in transcripts). **Validation:** DA-10, one Godot window at a time; `run.
 
 ### D-C8 — Close
 
-- [ ] Implementation: `server/README.md` (admin, pause); ledger · [ ] Validation: DA-11 digests; DA-12
-  scope and sizes; one full gate on the final head · [ ] Review: DA-1 … DA-12 with evidence; mutations
-  planted, red, reverted; PR READY FOR OPERATOR REVIEW — DO NOT MERGE.
+- [x] Implementation: `server/README.md` (admin, pause); ledger · [x] Validation: DA-11 digests; DA-12
+  scope and sizes; one full gate on the final executable head (E-SD7) · [x] Review: DA-1 … DA-12 with
+  evidence (E-SD1 … E-SD7); mutations planted, red, reverted, one equivalent survivor recorded
+  (E-SD-M, M-DA6b); PR READY FOR OPERATOR REVIEW — DO NOT MERGE.
 
 **E-SD0 (first action after the freeze):** the base's two 300-day digests and test counts.
 
@@ -3673,6 +3674,29 @@ E-SD6 D-C7 (DA-10's far side). world_client.gd: one `"clock"` arm, `signal clock
       `./mineworld-slice --world --link` → "all link checks pass". Evidence regenerated (server logs
       gain "[mineworld] no admin surface (no --admin-token)"; admin-social-cafe.log and
       server-admin.log new); the generated token is in no evidence file.
+E-SD7 D-C8, full gate on the merged head 7e1188e (origin/main a30755e merged: docs only — the 13w
+      plan; 13w's `interrupt` helper is not on main, so SD-D13's check keeps its #[cfg(unix)] gate,
+      QW-3). Load ~250.
+      fmt --check exit 0; clippy --workspace --all-targets -D warnings exit 0;
+      `cargo test --workspace --no-fail-fast` exit 0: 174 test targets ok, 783 passed, 0 failed,
+        9 ignored (client_2d's Godot-gated and one bodies_yard, as at the base).
+      DA-11 digests (debug build, `grep -v '^wall' | shasum -a 256`):
+        social-cafe seed 7, 300 days: 339 lines, ad49c723…c64b = E-SD0
+        market-town seed 7, 300 days: 355 lines, 365b50e0…1d1d = E-SD0
+        tools/cli/src/run.rs untouched (no diff from ec38570).
+      check_decision_ids 72 distinct; check_doc_headings 191, none duplicated; check_scratch scan
+        162 sources clean (2 exempt, as at the base); check_scratch left: none.
+      `bash clients/protocol/run.sh evidence` exit 0 again on this head, no SCRIPT ERROR or
+        unknown-kind warning; the regenerated logs are committed with this ledger.
+      DA-12: no diff under kernel/, contracts/, persistence/, systems/, worlds/, worldpack/,
+        cognition/, sdk/, authoring/; no Cargo.toml or Cargo.lock change; server/ names no pack and
+        no controller crate. Sizes: runtime.rs 480, session.rs 442, host.rs 451, protocol.rs 372,
+        app.rs 163, main.rs 498, admission.rs 498, admin.rs 263 — each under 500. Paths beyond
+        §18.6: D-SD5 only.
+      Windows: `cargo check --target x86_64-pc-windows-msvc` INCONCLUSIVE — the target is not
+        installed here (E-SD0); SD-D13's #[cfg(windows)] branch (ctrl_c, ctrl_break, ctrl_close,
+        ctrl_shutdown) is written and not compiled on this machine. Owner: S13 (13w's Windows CI
+        lane, R-S13-W1).
 ```
 
 ## 18.13 Deviations and discoveries
@@ -3709,6 +3733,15 @@ D-SD4 (bounded) DA-2's case "Bearer <T> " with a trailing space cannot be told a
       the request was admitted (200) because the bytes the server receives are exactly `Bearer <T>`.
       The case is exercised as "Bearer <T> x" — the token followed by whitespace and more — which is
       refused 401 after 500 ms. Not a weakening: the credential the client sent is the token itself.
+D-SD5 (bounded) Paths beside §18.6's list, each a companion of a listed one or required by the
+      frozen behaviour: server/src/protocol/tests.rs (one `paused: false` in a WorldSummary literal,
+      to compile), server/tests/{handshake.rs, seats.rs, two_clients.rs} (D-SD2's helper edits — the
+      clock frame every welcome is now followed by), clients/protocol/checks/admin_check.gd.uid
+      (Godot's generated id for the listed check), clients/protocol/evidence/README.md (names the two
+      new evidence files). As S11-B's D-SB11.
+D-SD6 (bounded) The design's §18.6 names `server/tests/support/mod.rs`; nothing in it needed to
+      change (the admin socket tests keep their HTTP helper in server/tests/admin.rs, the only file
+      that uses it). Not edited.
 ```
 
 ## 18.14 macOS, Linux and Windows (operator requirement, 2026-10-08)
