@@ -8,7 +8,8 @@ container silently downloads the toolchain the file asks for on top of the one t
 then measures something the image does not describe. Nobody notices a drifted tag by reading it, so this
 check reads it (`docs/DECISIONS.md` DEP-18, step-14 I-S13-3).
 
-It also requires every `FROM` to carry an `@sha256:` digest, because a tag alone can be re-pointed
+It also requires every `FROM`, and every `COPY --from=` that names an image rather than an earlier stage,
+to carry an `@sha256:` digest, because a tag alone can be re-pointed
 upstream; and it requires the build and runtime stages to name the same Debian release, because the
 binary is linked against the build stage's glibc.
 
@@ -26,6 +27,7 @@ from pathlib import Path
 # no registry image and are recognized by naming an earlier stage.
 FROM = re.compile(r"^FROM\s+(?:--platform=\S+\s+)?(?P<image>\S+)(?:\s+AS\s+(?P<stage>\S+))?\s*$", re.I)
 DIGEST = re.compile(r"@sha256:[0-9a-f]{64}$")
+COPY_FROM = re.compile(r"^COPY\s+(?:--\S+\s+)*?--from=(?P<source>\S+)", re.I)
 RUST_TAG = re.compile(
     r"^(?:docker\.io/)?(?:library/)?rust:(?P<version>\d+\.\d+\.\d+)-slim-(?P<debian>[a-z]+)(?:@|$)"
 )
@@ -55,6 +57,13 @@ def main() -> int:
     rust_tags: list[tuple[int, str, str]] = []
     debian_tags: list[tuple[int, str]] = []
     for number, line in enumerate(dockerfile, start=1):
+        # `COPY --from=<image>` pulls an image as surely as `FROM` does (the toolchain's uv, DEP-26), so
+        # it needs a digest too; `COPY --from=<earlier stage>` names no image.
+        if copied := COPY_FROM.match(line.strip()):
+            source = copied.group("source")
+            if source.lower() not in stages and not DIGEST.search(source):
+                problems.append(f"Dockerfile:{number}: COPY --from={source} is not pinned by an @sha256: digest")
+            continue
         match = FROM.match(line.strip())
         if not match:
             continue
@@ -91,7 +100,7 @@ def main() -> int:
         return 1
     print(
         f"toolchain pins agree: rust {channel} (rust-toolchain.toml, Cargo.toml, Dockerfile), "
-        f"Debian {releases.pop()}, every base image pinned by digest"
+        f"Debian {releases.pop()}, every base and copied image pinned by digest"
     )
     return 0
 
