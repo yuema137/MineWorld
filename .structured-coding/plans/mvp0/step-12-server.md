@@ -3381,8 +3381,8 @@ configured, and changes no world state; pause is host pacing; the I-4 clarificat
 rejected: socket frames, `tonic`, `axum-extra`; limitation: one admin token, no per-player bans).
 `MODULE_SPEC.md` §8.1: `--admin-token`, `MINEWORLD_ADMIN_TOKEN`.
 
-- [ ] Implementation · [ ] Validation: the two doc checks; §6/§6.2 untouched · [ ] Review: every route
-  and code in §18.4 present; S19's ARC-69 left to TW-c and cited, not pre-empted.
+- [x] Implementation · [x] Validation: the two doc checks; §6/§6.2 untouched · [x] Review: every route
+  and code in §18.4 present; S19's ARC-69 left to TW-c and cited, not pre-empted (E-SD1).
 
 ### D-C2 — Pure move: `runtime/status.rs`
 
@@ -3535,7 +3535,26 @@ MATERIAL STOP       any world-state change by an admin path; a kernel/contract/p
 ## 18.12 Evidence ledger
 
 ```text
-(empty until the freeze)
+E-SD0 2026-10-09, base origin/main @ ec38570 (S11-B #83 merged at 15b05a9), worktree impl-s11d, machine
+      load ~260 (other worktrees' jobs). Debug build `cargo build -p mineworld-cli`.
+      `mineworld run worlds/social-cafe --headless --seed 7 --days 300` → 339 lines, sha-256 of every
+        line but `wall` = ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b (= E-SB0).
+      `mineworld run worlds/market-town --headless --seed 7 --days 300` → 355 lines, sha-256 =
+        365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d (= E-SB0).
+      Outputs /tmp/s11d/base-{cafe,market}.out; filter `grep -v '^wall' | shasum -a 256`.
+      Audit anchors re-verified on ec38570: runtime.rs 492 lines (submit l. 257, tick l. 342, consult
+      l. 362, summary l. 440, first_binding l. 482); seats.rs `Connected.session` still
+      `#[allow(dead_code)]`; HostClock { epoch, started, scale } in runtime/world.rs; ClosingReason::Kicked
+      defined, never sent; app.rs `router(host, admission)`; WorldSummary without `paused`. One anchor
+      moved: tools/cli/src/main.rs is 501 lines at the base (S11-B left 486; IL-a and later merges
+      added), already over DA-12's 500 — see D-SD1.
+      Windows target: `rustup target list --installed` → aarch64-apple-darwin, x86_64-apple-darwin only.
+E-SD1 D-C1. check_decision_ids → 72 ids, all distinct (ARC-44 placed after ARC-42, inside S11's
+      region). check_doc_headings → 191 numbered sections, none duplicated. PROTOCOL.md hunks: §1
+      (/admin route row), §4.1 (nickname shown on the admin surface), §5 table (`clock`), §5.5
+      (`paused`), §5.6 (`kicked` landed), §5.7 (`paused`), §5.9 (new), §9, §10 (S11-D landed; TW-c row
+      for `time_scale` in POST /admin/clock), §11 (new). §§5.8 and 6/6.2 untouched (S11-C's and 12e's).
+      Every route and code of §18.4 is in §11.2; ARC-69 (S19) cited as TW-c's, not pre-empted.
 ```
 
 ## 18.13 Deviations and discoveries
