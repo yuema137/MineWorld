@@ -2126,12 +2126,13 @@ IB-9).
 **Goal.** SD-IB-16 (conversation).
 **Scope.** `systems/conversation/src/{interactions.rs NEW, system.rs, lib.rs}`; README; the pinned
 `(VERSION, default)` test; one test with an explicit gap.
-- [ ] Implementation: `interactions!()`; `declaration()` through `declare`; `react` calls `reduce` first;
-  `continues_a_conversation` takes the looked-up gap; VERSION 2.
-- [ ] Validation: conversation's tests pass (`conversation_and_presence.rs:710` unedited: the default is
-  300); IB-4 (worldpack/tests/interaction_sections.rs) with M-IB4a/b; `rules:` in its section refused
-  (IB-7).
-- [ ] Review: no other use of `CONVERSATION_GAP` remains except as the default's value and in docs.
+- [x] Implementation: `interactions!()`; `declaration()` through `declare`; `react` calls `reduce` first;
+  `continues_a_conversation` takes the looked-up gap; VERSION 2 (E-IB-9).
+- [x] Validation: conversation's tests pass (`conversation_and_presence.rs:710` unedited: the default is
+  300; one other assertion of that file edited, D-IB-12); IB-4 (worldpack/tests/interaction_sections.rs)
+  with M-IB4a/b; `rules:` in its section refused (IB-7, through the binary in E-IB-10) (E-IB-9).
+- [x] Review: no other use of `CONVERSATION_GAP` remains except as the default's value and in docs
+  (E-IB-9).
 
 ### IB-C10 — group-activity reads its lifetime; the controller reads `until`
 
@@ -2139,12 +2140,12 @@ IB-9).
 together.
 **Scope.** `systems/group-activity/src/{interactions.rs NEW, component.rs, system.rs, perception.rs,
 lib.rs}`; README; `cognition/rule-controller/src/{social,social_tests}.rs`.
-- [ ] Implementation: as SD-IB-15; schema 2; VERSION 2.
-- [ ] Validation: group-activity's and rule-controller's tests (`social_tests.rs` builds invitations with
+- [x] Implementation: as SD-IB-15; schema 2; VERSION 2 (E-IB-9; `is_open_at` is `now ≤ until`, D-IB-13).
+- [x] Validation: group-activity's and rule-controller's tests (`social_tests.rs` builds invitations with
   `until`); `git grep INVITATION_LIFETIME -- cognition` is empty; a pack test that an invitation from a
-  configured world expires at its own `until`.
-- [ ] Review: `is_open_at` is the old test exactly when `until = at + 1 800` (an `at`/`now` table in a
-  unit test); the controller judges nothing it cannot read.
+  configured world expires at its own `until` (E-IB-9).
+- [x] Review: `is_open_at` is the old test exactly when `until = at + 1 800` (an `at`/`now` table in a
+  unit test); the controller judges nothing it cannot read (E-IB-9).
 
 ### IB-C11 — Close: byte identity, the runs, cost, the scan, the gate, the ledger
 
@@ -2460,6 +2461,38 @@ E-IB-8  2026-10-09, IB-C8: tools/cli/src/biography.rs selects through
         `cargo test -p mineworld-cli --test biography` 2 passed (unedited); `--test interactions` 2;
         configuration_vocabulary 2. Review: neither command opens a save for writing or writes a file;
         `git diff --stat -- Cargo.toml Cargo.lock tools/cli/Cargo.toml` empty. PASS.
+E-IB-9  2026-10-09, IB-C9 + IB-C10 (one commit, D-IB-14): conversation — NEW src/interactions.rs
+        (parameters! { gap 1 … 86 400 = 300 }; PARAMETER_ROLES actor, target, place; codec), VERSION 2,
+        declare/install/reduce, `resolve` looks up `gap` with speaker, listener and the speaker's place
+        and passes it to continues_a_conversation/within_the_gap; README section. group-activity — NEW
+        src/interactions.rs (invitation_lifetime 1 … 86 400 = 1 800), VERSION 2, Invitations schema 2,
+        Invitation { from, kind, at, until } with `until()`, `react` on `invited` sets until = at +
+        the lifetime looked up with inviter, invitee and the fact's place; perception.rs's module doc;
+        README section. rule-controller — social.rs answers an invitation only while
+        `invitation.is_open_at(now)` and no longer imports INVITATION_LIFETIME (`git grep
+        INVITATION_LIFETIME -- cognition` empty); social_tests.rs builds invitations with until = at +
+        1 800. Finding (D-IB-13): `WorldTime::duration_since` is negative, not None, for an earlier
+        instant, so the old test `now − at ≤ 1 800` also admitted now < at; `at ≤ now ≤ until` (SD-IB-15's
+        wording) would differ there, `now ≤ until` is exactly the old test, and is what was built. The
+        component.rs table test (at ∈ {0, 7, 900, 86 399} × now ∈ {at−1, at, at+1, at+1 799, at+1 800,
+        at+1 801, at+5 000}) first FAILED on the wording SD-IB-15 gave ("at 0, now -1"), which is how
+        this was found; it passes on `now ≤ until`, and a 60 s invitation lapses at its own until
+        (160 open, 161 closed). Pinned tests per pack: (VERSION 2, default 300 / 1 800, the two type ids).
+        Tests whose text pins the composition's versions (D-IB-12): conversation_and_presence.rs's
+        declarations list (conversation now owns two component types); tools/cli/tests/inspect.rs and
+        social_composition.rs's "systems … conversation v2, group-activity v2" lines — `inspect` prints
+        the save's composition; `run` prints none (F-IB-12 holds for `run`).
+        IB-4 — NEW worldpack/tests/interaction_sections.rs: a cafe region with gap 3 600: Alice → Bob
+        twice 400 s apart start 1 conversation, Dev → Erin in the park 2; classes { regular: person
+        tagged regular } with { actor: regular, gap: 3 600 }: Bob → Alice 1, Dev → Erin 2; the park
+        tagged `regular` with { place: regular, gap: 3 600 }: Dev → Erin 2. M-IB4a (parameters ignores
+        the region) → FAILS "in the café the gap is 3 600 s" (2 vs 1); M-IB4b (class_of ignores `of`) →
+        FAILS "a place tagged `regular` is not in the person class `regular`" (1 vs 2); reverted, `git
+        grep MUTATION -- '*.rs'` empty.
+        Tests: conversation lib 1 + conversation_and_presence 14; group-activity lib 2 + group_activity
+        10 (line 100's INVITATION_LIFETIME == 1 800 unedited) + persisted 1; rule-controller 34;
+        worldpack interaction_sections 2; cli social_composition 4, inspect 3, packs 5. `cargo clippy
+        --workspace --all-targets -D warnings` clean. PASS.
 ```
 
 ## 12.14 Deviations
@@ -2512,6 +2545,16 @@ D-IB-10 (bounded) The biography projection takes entities' tags from the World P
 D-IB-11 (bounded) configuration_vocabulary admits one word on one line — `body` in biography.rs's
         `format::decode(&manifest_row.body, "manifest")`, persistence's field since S8 — through a
         one-entry list that fails if it admits nothing (IL-a D-14's mechanism).
+D-IB-12 (bounded) Three test files outside §12.8's edited list change one assertion each, because the
+        designed VERSION bumps and the section's component are visible in them: conversation_and_presence.rs
+        (§12.8 "no") lists component declarations by owner (conversation now two); tools/cli/tests/
+        inspect.rs and social_composition.rs pin `inspect`'s "systems … v1" text (now conversation v2,
+        group-activity v2). No digest moves: `inspect` reads the save's manifest, not the fact log.
+D-IB-13 (bounded) `Invitation::is_open_at(now)` is `now ≤ until`, not SD-IB-15's `at ≤ now ≤ until`: the
+        old test `now − at ≤ 1 800` admitted an instant before `at` (duration_since is negative, not
+        None), and only `now ≤ until` equals it everywhere — byte identity (IL-I1) over the wording.
+D-IB-14 (bounded) IB-C9 and IB-C10 are one commit: the composition-pinning tests (D-IB-12) name both
+        packs' versions on one line.
 ```
 
 **Findings recorded at implementation start.**

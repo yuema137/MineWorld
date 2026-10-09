@@ -38,9 +38,17 @@ STOP                 PR IL-b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## Current checkpoint
 
-- E-IB-0 captured on the base (two of four town runs used). Implementation in progress; see §12.7's
-  checkboxes and §12.13.
+- E-IB-0 captured on the base (two of four town runs used). Base binary: target/il-b/base-mineworld.
+- IB-C1 … IB-C8 committed and pushed (head 81dba89): specs; authoring context/classes/attachments;
+  worldpack framework keys/attachments/policy; presence Offer::refused; sdk interactions (IB-6 PASS,
+  M-IB6); test-tuning schema proofs (M-IB5a/b/c, M-IB10); cli biography + `mineworld interactions`.
+- Deviations D-IB-1 … D-IB-11 recorded in §12.14. No material stop so far.
+- The machine is heavily loaded by other sessions (load 100–250): IB-14's walls will need a quiet
+  window, else INCONCLUSIVE per §12.5.
 
 ## Next actions
 
-- Continue the commit plan in order; keep §12.13 and §12.14 current; push after each commit.
+- IB-C9 conversation's `gap` section (VERSION 2); IB-4 in worldpack/tests/interaction_sections.rs with
+  M-IB4a/b; IB-C10 group-activity `invitation_lifetime` + Invitation.until + rule controller; IB-11's
+  configured half in tools/cli/tests/interactions.rs; IB-C11 runs (IB-1 two town runs left; IB-2, IB-3,
+  IB-8, IB-14, M-IB1a/b, M-IB2, M-IB3, M-IB8), the gate, merge origin/main, PR.

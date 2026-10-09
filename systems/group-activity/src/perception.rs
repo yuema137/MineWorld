@@ -12,11 +12,11 @@
 //! ```
 //!
 //! An offer carries the availability only this pack can judge; perception prices space. An offer
-//! cannot see the clock (`PerceptionProvider` is handed no instant), so an invitation older than
-//! [`INVITATION_LIFETIME`](crate::INVITATION_LIFETIME) that has not been written over yet is still
-//! offered and is refused `PreconditionFailed` at dispatch. A controller reads the invitation's own
-//! instant against the published lifetime rather than finding out by asking (`step-09-social.md`
-//! §9 E-B2).
+//! cannot see the clock (`PerceptionProvider` is handed no instant), so an invitation past its
+//! [`Invitation::until`](crate::Invitation::until) that has not been written over yet is still offered
+//! and is refused `PreconditionFailed` at dispatch. A controller reads the invitation's own `until` —
+//! the lifetime the world's section gave it — rather than finding out by asking (`step-09-social.md`
+//! §9 E-B2; S17's PR IL-b).
 
 use mineworld_contracts::{ComponentRecord, EntityId, EntityType, LifecycleState};
 use mineworld_kernel::WorldRead;
