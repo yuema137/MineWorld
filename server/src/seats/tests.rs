@@ -330,3 +330,175 @@ fn a_seat_outside_the_roster_is_unknown() {
         RefusalCode::UnknownSeat
     );
 }
+
+fn state(seats: &SeatTable, seat: &str, now: Instant) -> SeatState {
+    seats
+        .state_of(&key(seat), now)
+        .expect("a roster seat")
+        .state
+}
+
+/// A kick returns a connected seat to its default with no hold, rebuilding the controller; it finds
+/// nothing for a session that holds no seat, or whose seat is held (step-12 SD-D4).
+#[test]
+fn a_kick_returns_the_seat_to_its_default_with_no_hold() {
+    let (mut seats, bound) = table(HOLD);
+    let now = Instant::now();
+    let session = |n| JoinRequest {
+        session: SessionId::new(n),
+        ..join("alice")
+    };
+    let secret = secret();
+    seats
+        .join(&session(7), sub(1), secret.clone(), now, at(10))
+        .expect("hosted yields");
+    assert_eq!(
+        state(&seats, "alice", now),
+        SeatState::Connected {
+            session: SessionId::new(7)
+        }
+    );
+    assert_eq!(
+        seats.kick(SessionId::new(8), at(20)),
+        None,
+        "another session"
+    );
+    assert_eq!(
+        seats.kick(SessionId::new(7), at(20)),
+        Some((sub(1), key("alice")))
+    );
+    assert_eq!(state(&seats, "alice", now), SeatState::Hosted, "no hold");
+    assert_eq!(
+        bound.borrow().last(),
+        Some(&20),
+        "a controller built afresh at the kick"
+    );
+    assert_eq!(
+        code(seats.join(
+            &resuming("alice", &secret),
+            sub(2),
+            self::secret(),
+            now,
+            at(20)
+        )),
+        RefusalCode::InvalidResume,
+        "the kicked binding's secret died with it"
+    );
+    assert_eq!(seats.kick(SessionId::new(7), at(20)), None, "kicked once");
+
+    // A held seat is no connection: there is nothing to kick.
+    seats
+        .join(&session(9), sub(3), self::secret(), now, at(20))
+        .expect("hosted yields");
+    seats.depart(sub(3), Departure::Dropped, now, at(20));
+    assert_eq!(seats.kick(SessionId::new(9), at(20)), None);
+}
+
+/// A release on each of the four states (step-12 SD-D4, QS11D-5).
+#[test]
+fn a_release_returns_connected_and_held_seats_and_leaves_the_others() {
+    let (mut seats, bound) = table(HOLD);
+    let now = Instant::now();
+    let rebuilt = bound.borrow().len();
+    assert_eq!(
+        seats.release(&key("alice"), at(10)),
+        Some(Released {
+            released: false,
+            displaced: None
+        }),
+        "hosted"
+    );
+    assert_eq!(
+        seats.release(&key("visitor"), at(10)),
+        Some(Released {
+            released: false,
+            displaced: None
+        }),
+        "free"
+    );
+    assert_eq!(
+        bound.borrow().len(),
+        rebuilt,
+        "no controller rebuilt for a no-op"
+    );
+
+    seats
+        .join(&join("visitor"), sub(1), secret(), now, at(10))
+        .expect("free");
+    assert_eq!(
+        seats.release(&key("visitor"), at(11)),
+        Some(Released {
+            released: true,
+            displaced: Some(sub(1))
+        }),
+        "connected"
+    );
+    assert_eq!(state(&seats, "visitor", now), SeatState::Free);
+
+    let held = secret();
+    seats
+        .join(&join("bob"), sub(2), held.clone(), now, at(11))
+        .expect("hosted yields");
+    seats.depart(sub(2), Departure::Dropped, now, at(11));
+    assert_eq!(
+        state(&seats, "bob", now),
+        SeatState::Held { seconds_left: 30 }
+    );
+    assert_eq!(
+        seats.release(&key("bob"), at(12)),
+        Some(Released {
+            released: true,
+            displaced: None
+        }),
+        "held"
+    );
+    assert_eq!(state(&seats, "bob", now), SeatState::Hosted);
+    assert_eq!(
+        code(seats.join(&resuming("bob", &held), sub(3), secret(), now, at(12))),
+        RefusalCode::InvalidResume,
+        "a released hold's secret dies"
+    );
+    assert_eq!(seats.release(&key("otto"), at(12)), None, "not a seat");
+}
+
+/// The report: every seat in key order, a hold's seconds rounded up.
+#[test]
+fn the_report_names_every_seat_in_key_order() {
+    let (mut seats, _) = table(HOLD);
+    let now = Instant::now();
+    seats
+        .join(&join("visitor"), sub(1), secret(), now, at(10))
+        .expect("free");
+    seats
+        .join(&join("bob"), sub(2), secret(), now, at(10))
+        .expect("hosted yields");
+    seats.depart(sub(2), Departure::Dropped, now, at(10));
+    let later = now + Duration::from_millis(9_500);
+    let report: Vec<(String, SeatState)> = seats
+        .report(later)
+        .into_iter()
+        .map(|report| (report.seat.to_string(), report.state))
+        .collect();
+    assert_eq!(
+        report,
+        vec![
+            ("alice".to_owned(), SeatState::Hosted),
+            ("bob".to_owned(), SeatState::Held { seconds_left: 21 }),
+            (
+                "visitor".to_owned(),
+                SeatState::Connected {
+                    session: SessionId::new(1)
+                }
+            ),
+        ]
+    );
+    let json = serde_json::to_value(seats.report(later)).expect("serializes");
+    assert_eq!(
+        json[1],
+        serde_json::json!({ "seat": "bob", "state": "held", "seconds_left": 21 })
+    );
+    assert_eq!(
+        json[2],
+        serde_json::json!({ "seat": "visitor", "state": "connected", "session": "1" })
+    );
+}

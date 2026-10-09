@@ -121,11 +121,15 @@ impl Client {
         }
     }
 
-    /// The next frame that is not an observation: an answer or a refusal.
+    /// The next frame that is not part of the stream (an observation or a clock): an answer or a
+    /// refusal.
     async fn answer(&mut self) -> ServerFrame {
         loop {
             let frame = self.frame().await;
-            if !matches!(frame, ServerFrame::Observation { .. }) {
+            if !matches!(
+                frame,
+                ServerFrame::Observation { .. } | ServerFrame::Clock { .. }
+            ) {
                 return frame;
             }
         }

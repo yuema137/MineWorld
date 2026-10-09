@@ -34,6 +34,18 @@ it over, and gives it back on leaving. A dropped socket's seat is held (`--hold`
 mineworld server worlds/market-town --town --save saves/town
 ```
 
+The host's controls are HTTP under `/admin`, and exist only when you give the server an admin token
+(`--admin-token TOKEN` or `MINEWORLD_ADMIN_TOKEN`, different from the invite): list sessions and seats,
+kick a player, release a seat, and pause or resume the world's clock. A pause stops the town — nobody
+acts and nothing is due — while players stay connected; every client is told by a `clock` frame.
+No admin call changes the world itself.
+
+```text
+curl -H "Authorization: Bearer $MINEWORLD_ADMIN_TOKEN" http://127.0.0.1:7878/admin/seats
+curl -X POST -H "Authorization: Bearer $MINEWORLD_ADMIN_TOKEN" -d '{"paused": true}' \
+     http://127.0.0.1:7878/admin/clock
+```
+
 Each connected client gets what **its** observer perceives — not a world dump, and not a filtered
 copy of one. It submits requests; the server allocates their identity and the world decides what
 happens. A client can say three things: which seat it wants, what it would like to happen, and that

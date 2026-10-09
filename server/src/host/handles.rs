@@ -6,10 +6,10 @@
 
 use mineworld_contracts::{ActionId, ActionResult, EntityId, EntityKey};
 use mineworld_persistence::WorldRevision;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::admission::ResumeSecret;
-use crate::protocol::{ClosingReason, TookOver, WireObservation, WorldSummary};
+use crate::protocol::{ClockState, ClosingReason, TookOver, WireObservation, WorldSummary};
 
 /// Which connection a subscription belongs to. Allocated by the world, never reused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -60,6 +60,17 @@ pub struct Seated {
     observations: mpsc::Receiver<Perceived>,
     binding: Binding,
     released: oneshot::Receiver<ClosingReason>,
+    clock: watch::Receiver<ClockState>,
+}
+
+/// One seated connection's three streams, for a task that waits on any of them.
+pub struct Streams<'a> {
+    /// Its observations.
+    pub observations: &'a mut mpsc::Receiver<Perceived>,
+    /// Its release, if the world unbinds it.
+    pub released: &'a mut oneshot::Receiver<ClosingReason>,
+    /// The host clock, newest value wins (`PROTOCOL.md` §5.9).
+    pub clock: &'a mut watch::Receiver<ClockState>,
 }
 
 /// What the seat table answered about a granted seat: the welcome's control fields.
@@ -76,10 +87,14 @@ impl Seated {
         observer: EntityId,
         world: WorldSummary,
         subscription: SubscriptionId,
-        streams: (mpsc::Receiver<Perceived>, oneshot::Receiver<ClosingReason>),
+        streams: (
+            mpsc::Receiver<Perceived>,
+            oneshot::Receiver<ClosingReason>,
+            watch::Receiver<ClockState>,
+        ),
         binding: Binding,
     ) -> Self {
-        let (observations, released) = streams;
+        let (observations, released, clock) = streams;
         Self {
             seat,
             observer,
@@ -88,6 +103,17 @@ impl Seated {
             observations,
             binding,
             released,
+            clock,
+        }
+    }
+
+    /// The host clock as it stood when this connection was seated: the first `clock` frame
+    /// (`PROTOCOL.md` §5.9). Every later change arrives on [`Seated::streams`]'s `clock`.
+    pub const fn clock_at_welcome(&self) -> ClockState {
+        ClockState {
+            at: self.world.at,
+            time_scale: self.world.time_scale,
+            paused: self.world.paused,
         }
     }
 
@@ -112,15 +138,14 @@ impl Seated {
         &mut self.released
     }
 
-    /// Both of this connection's streams at once — its observations and its release — for a task
-    /// that waits on either.
-    pub const fn streams(
-        &mut self,
-    ) -> (
-        &mut mpsc::Receiver<Perceived>,
-        &mut oneshot::Receiver<ClosingReason>,
-    ) {
-        (&mut self.observations, &mut self.released)
+    /// This connection's streams at once — its observations, its release and the host clock — for a
+    /// task that waits on any of them.
+    pub const fn streams(&mut self) -> Streams<'_> {
+        Streams {
+            observations: &mut self.observations,
+            released: &mut self.released,
+            clock: &mut self.clock,
+        }
     }
 
     /// The seat that was granted.
