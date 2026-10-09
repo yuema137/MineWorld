@@ -56,6 +56,52 @@ jobs:
         with:
           layer: core
 
+  # The `platforms` layer on macOS and Windows, natively (step-16 §16.12 PD-p1; step-14 §13.0.3: one
+  # native action and one layer table, shared with S13's 13b). Same triggers as `test`. Runner labels
+  # pinned as 13b pins them, so a label migration never moves a platform silently.
+  platforms:
+    name: platforms (${{ matrix.os }})
+    if: >-
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image'))
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      # PD-p2: a sparse checkout of the Cargo workspace and what its tests read, so the clients' deep
+      # asset paths never meet Windows' MAX_PATH. Git's default line endings are kept: the layer reads
+      # CRLF files as a Windows user's checkout has them.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            .cargo
+            .github
+            authoring
+            cognition
+            contracts
+            kernel
+            packages
+            persistence
+            presentation
+            scripts
+            sdk
+            server
+            systems
+            tests
+            tools
+            worldpack
+            worlds
+      - uses: ./.github/actions/native
+        with:
+          layer: platforms
+
   # Not a layer: evidence that the shipped image hosts a world (step-14 A13-5). On demand, or from a
   # scratch branch named `scratch/*-image` before this workflow is on main (dispatch needs it there).
   image:

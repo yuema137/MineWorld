@@ -2686,8 +2686,9 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
   + `allow-git = ["https://github.com/yuema137/mineworld-pack-fishing"]`, unknown registries and git
   denied; no advisories. `Dockerfile` `toolchain` stage: `cargo install --locked cargo-deny@0.20.2`
   (registry cache removed in the same layer). `scripts/ci_layer.py` `fast` gains `cargo deny check licenses
-  sources bans` (and `cargo deny --version` in the recorded environment). Local (macOS, cargo-deny 0.20.2,
-  install ≈ 6 min on this laptop): `bans ok, licenses ok, sources ok`, exit 0. **M-C8** `allow-git = []` →
+  sources bans` (and `cargo deny --version` in the recorded environment). Local (macOS, cargo-deny 0.20.2;
+  local install time not measured, the laptop was shared with other builds): `bans ok, licenses ok,
+  sources ok`, exit 0. **M-C8** `allow-git = []` →
   `cargo deny check sources` exit 8, "error[source-not-allowed]: detected 'git' source not explicitly
   allowed … acme-fishing 0.1.0 git+https://github.com/yuema137/mineworld-pack-fishing?rev=b40e71ff…",
   "sources FAILED"; restored. `check_ci_pins.py` unchanged and passing (it pins base images; the tool is
@@ -2700,6 +2701,29 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
     workspace path dependency; no registry crate has a `*` requirement. Marking each crate `publish =
     false` edits 23 manifests outside §16's paths (a material stop), so wildcards are reported, not
     denied, until the workspace decides `publish`; recorded in `deny.toml` and here.
+- **E-Ec7b** (Ec-C7b, PD-p1 … PD-p4, with step-14 §13.0.3 on `origin/main`): `scripts/ci_layer.py` gains
+  the `platforms` layer — `cargo build --locked -p mineworld-cli`; `cargo test --locked -p
+  mineworld-packages -p mineworld-worldpack -p mineworld-installed-systems`; `cargo test --locked -p
+  mineworld-cli --test packs --test requirements --test third_party`; `cargo test --locked -p
+  mineworld-acceptance --test package_sources` (EC-13 names it for Windows); `--offline-check` (PD-p3: `cargo
+  vendor --locked --versioned-dirs` to a sibling of the checkout, the printed config written with the
+  directory as a `/` path, `cargo check --offline --frozen --config <file> -p mineworld-cli` with
+  `CARGO_HOME` an empty sibling directory; both removed afterwards). Two portability changes in the script
+  itself: a table command starting `python3` runs with `sys.executable` (Windows runners have `python`), and
+  `disk()` uses `shutil.disk_usage` and runs `du` only where it exists. **`.github/actions/native/
+  action.yml` (new)**, exactly step-14 §13.0.3 item 2's shape (input `layer`; rustup takes
+  `rust-toolchain.toml`; `actions/cache` of `~/.cargo/registry`, `~/.cargo/git`, `target` keyed on OS,
+  layer, `Cargo.lock`, `rust-toolchain.toml`; `ci_layer.py <layer>` with `python3`/`python`;
+  `--prune-cache`), so 13b reuses it rather than lifting a job. `.github/workflows/ci.yml` job `platforms`,
+  matrix **`macos-26`, `windows-2025`** (13b's pinned labels, §13.0.3 item 3, instead of PD-p1's
+  `-latest`), `test`'s triggers, `actions/checkout` with `fetch-depth: 0`, `filter: blob:none` and a
+  sparse checkout of the workspace's directories, `worlds`, `presentation`, `scripts`, `.cargo`, `.github`
+  (PD-p2; `clients/`, `mineworld-3d`, `spike/` left out; autocrlf left as the runner has it). Review: no
+  command in the workflow or the action; no container change; `core` and `fast`'s other entries unchanged.
+  Local `--offline-check` on macOS (`6ca763d`+E-c): **187 crates vendored**, `cargo check --offline
+  --frozen` exit 0 with the empty `CARGO_HOME` — EC-3 (b) on macOS. `--list platforms` prints the five.
+  - *Bounded (coordination)*: the action and the labels follow 13b's frozen §13.0.3 rather than PD-p1's
+    `macos-latest`/`windows-latest`; 13b lands its `parity` layer and jobs on the same action.
 
 ## 16.9 Freeze questions
 

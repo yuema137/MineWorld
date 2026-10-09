@@ -1,0 +1,53 @@
+# Runs one CI layer natively on a macOS or Windows runner: the counterpart of ./.github/actions/layer,
+# which is container-only (docs/DECISIONS.md ARC-48; step-14 §13.0.3, one definition shared by S13's
+# 13b and S16's E-c and E-d; step-16 §16.12 PD-p1).
+#
+# The caller has checked the repository out already. This action lets rustup take rust-toolchain.toml's
+# channel, restores the Cargo caches, runs `scripts/ci_layer.py <layer>` with the runner's own Python,
+# and prunes target/ before the cache is saved. It names a layer, never a command: what a layer runs is
+# scripts/ci_layer.py's (step-14 I-S13-9).
+name: Run a CI layer natively
+description: Install the pinned toolchain, restore caches, run scripts/ci_layer.py, prune the cache.
+inputs:
+  layer:
+    description: A layer of scripts/ci_layer.py meant for native runners (platforms).
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Toolchain (rust-toolchain.toml)
+      shell: bash
+      run: |
+        rustup toolchain install
+        rustc -V
+
+    # One cache per operating system and layer. A PR restores main's entry through the prefix.
+    - name: Restore the Cargo caches
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: cargo-${{ runner.os }}-${{ inputs.layer }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+        restore-keys: cargo-${{ runner.os }}-${{ inputs.layer }}-
+
+    # `python3` on macOS, `python` on Windows: ci_layer.py runs its own Python commands with the
+    # interpreter that runs it.
+    - name: Run layer ${{ inputs.layer }}
+      shell: bash
+      env:
+        LAYER: ${{ inputs.layer }}
+        CARGO_INCREMENTAL: "0"
+        CARGO_PROFILE_DEV_DEBUG: line-tables-only
+        CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then PYTHON=python; else PYTHON=python3; fi
+        "$PYTHON" scripts/ci_layer.py "$LAYER"
+
+    - name: Prune target/ before the cache is saved
+      if: always()
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" = "Windows" ]; then PYTHON=python; else PYTHON=python3; fi
+        "$PYTHON" scripts/ci_layer.py --prune-cache
