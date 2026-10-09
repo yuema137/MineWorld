@@ -3054,7 +3054,14 @@ layer and no PR; main had none. Landed as Ed-C4b in a form E-c shares: one layer
   `Path::join`); the tests were separator-bound. Made separator-neutral with a `shown()` helper building
   the expected text with `Path::join(..).display()` — claim unchanged ("the refusal names the file"),
   under PD-p5's allowance for existing `worldpack` tests. ED-13's own CRLF test passed on Windows in
-  that run. **Second run** on `a7edf3a`: recorded below (E-Ed4b).
+  that run. **Second run** (`a7edf3a`, run 37975627447): macOS ✓; Windows ✗ at
+  `worldpack/tests/requirements.rs` (a refusal needle `the-world/world.yaml`) — same class, fixed in
+  `7a50c1a`. **Third run** (`7a50c1a`, run 37976994358): macOS ✓; Windows: build ✓, packages /
+  worldpack / installed-systems all ✓ (ED-13's CRLF test included), CLI `entity_packs` ✓ (ED-9 with the
+  `.exe`), and two existing CLI tests ✗ by the same class — `tools/cli/tests/packs.rs`
+  (`packs-duplicate/a`) and `tools/cli/tests/requirements.rs` (`root/style-a`) needles; made
+  separator-neutral (`MAIN_SEPARATOR_STR`), claims unchanged. The final run is the PR head's (PR body,
+  `handoff-ed.md`).
 - [x] Review: no container change; the workflow names layers only; the action names no command but the
   layer runner; the layer's subset is S16's portable targets (RE-q2: the rest of Windows is S13's).
 
