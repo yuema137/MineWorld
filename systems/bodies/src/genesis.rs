@@ -2,6 +2,7 @@
 //!
 //! ```text
 //! place-shaped   the people authored into the place fit it                              (12b)
+//!                and so does a person standing on each of its doorway points            (12d)
 //! body-formed    a living Item with no shape yet; then `object-placed` is stated        (gen 1)
 //! object-placed  the object fits its place: shaped, not a held kind, ≤ 32, inside the   (gen 2)
 //!                floor, out of the solids, clear of the other objects and the people,
@@ -23,15 +24,18 @@ use mineworld_kernel::{Emission, WorldRead};
 use crate::component::{BodyShape, LooseObjects, Lying, PlaceShape};
 use crate::event::{BodyFormed, ObjectPlaced, object_placed};
 use crate::footprint::{Flaw, Placed, blocks, flaw};
-use crate::geometry::{CLEARANCE, OBJECTS_MAX, PERSON_RADIUS, Point, closest_pair};
+use crate::geometry::{CLEARANCE, GAP, OBJECTS_MAX, PERSON_RADIUS, Point, Room, closest_pair};
 use crate::objects::lying_in;
 use crate::system::{name, standing_in};
+use mineworld_movement::Passages;
 
 /// Why a place's shape was refused at genesis: the authored people do not fit it.
 const OVERLAP: RejectionCode = RejectionCode::from_static("bodies-overlap");
 const OUTSIDE: RejectionCode = RejectionCode::from_static("bodies-outside");
 const IN_SOLID: RejectionCode = RejectionCode::from_static("bodies-in-solid");
 const CAPACITY: RejectionCode = RejectionCode::from_static("bodies-capacity");
+/// A doorway point of the place where a person does not fit (step-11 SD-D5).
+const DOORWAY: RejectionCode = RejectionCode::from_static("bodies-doorway");
 
 /// Why an object was refused at genesis (step-11 SD-O5), in the order the checks run.
 const UNSHAPED: RejectionCode = RejectionCode::from_static("bodies-unshaped");
@@ -61,7 +65,7 @@ fn population(world: &WorldRead<'_>) -> usize {
 }
 
 /// Whether the world as it stands fits `shape` in `place`: SD-B4's four checks, in order —
-/// capacity, outside, in a solid, overlapping.
+/// capacity, outside, in a solid, overlapping — then SD-D5's doorway points.
 pub(crate) fn fits(
     world: &WorldRead<'_>,
     place: PlaceId,
@@ -133,7 +137,67 @@ pub(crate) fn fits(
             ),
         ));
     }
+    doorways_fit(world, place, &room)
+}
+
+/// SD-D5 (step-11 §19; `ARC-39` note 5): every doorway point of `place` lies where a person fits —
+/// inside the floor shrunk by a radius and the gap, and at least that far from every solid. Otherwise
+/// every crossing would be shifted silently by entry placement (E3) rather than land on the doorway
+/// (F-B7). Read from `movement`'s [`Passages`], the one item of that crate this pack names (QD-5).
+fn doorways_fit(world: &WorldRead<'_>, place: PlaceId, room: &Room) -> Result<(), Rejection> {
+    let keep = PERSON_RADIUS.value() + GAP.value();
+    for (other, at) in doorways(world, place) {
+        let refused = |what: String| {
+            refuse(
+                DOORWAY,
+                format!(
+                    "the doorway between {} and {} lies at ({}, {}) in {}, {what}; a doorway point \
+                     keeps {keep} mm from the floor's edge and from every solid",
+                    name(world, place.entity_id()),
+                    name(world, other),
+                    at.x,
+                    at.y,
+                    name(world, place.entity_id()),
+                ),
+            )
+        };
+        let floor = &room.floor;
+        let edge = i64::from(
+            (at.x - floor.min.x)
+                .min(floor.max.x - at.x)
+                .min(at.y - floor.min.y)
+                .min(floor.max.y - at.y),
+        );
+        if edge < 0 {
+            return Err(refused(format!("outside its floor by {} mm", -edge)));
+        }
+        if edge < i64::from(keep) {
+            return Err(refused(format!("{edge} mm from its floor's edge")));
+        }
+        if let Some(distance) = room.solid_within(at, keep) {
+            return Err(refused(format!("{distance} mm from a solid")));
+        }
+    }
     Ok(())
+}
+
+/// Every doorway point in `place`'s frame, with the place it leads to: the `here` of each passage out
+/// of it, and the `there` of each passage into it. A side the world does not model (a semantic
+/// passage) has no point and nothing to check.
+fn doorways(world: &WorldRead<'_>, place: PlaceId) -> Vec<(EntityId, Point)> {
+    let point = |at: mineworld_contracts::LocalPosition| Point::new(at.x().value(), at.y().value());
+    let mut points: Vec<(EntityId, Point)> = world
+        .component::<Passages>(place.entity_id())
+        .into_iter()
+        .flat_map(Passages::iter)
+        .filter_map(|passage| Some((passage.to().entity_id(), point(passage.here()?))))
+        .collect();
+    for (from, passages) in world.components::<Passages>() {
+        if let Some(there) = passages.to(place).and_then(|passage| passage.there()) {
+            points.push((from, point(there)));
+        }
+    }
+    points
 }
 
 /// `body-formed`: a living Item that has no shape yet takes this one (the caller writes it), and the

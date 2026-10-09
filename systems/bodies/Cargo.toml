@@ -17,6 +17,11 @@ mineworld-contracts = { workspace = true }
 # bodies without item, and there the answer is "not declared".
 mineworld-item = { path = "../item" }
 mineworld-kernel = { workspace = true }
+# A crate dependency, not a system dependency (step-11 §19, SD-D5, QD-5; DECISIONS.md ARC-39 note 5):
+# the one read `mineworld_movement::Passages`, so that a doorway point inside a wall is refused at
+# load. Nothing else is used; `tests/isolation.rs` holds that. A world without movement has no
+# passages, and nothing to check.
+mineworld-movement = { workspace = true }
 # The one System Pack this pack depends on: where people are, the ArrivalResolver seam it answers
 # through (ARC-39), and PerceptionProvider, the seam it discloses a place's shape through.
 mineworld-presence = { workspace = true }
@@ -32,7 +37,5 @@ serde_json = { workspace = true }
 rapier3d = { version = "=0.36.0", features = ["enhanced-determinism"] }
 
 [dev-dependencies]
-# The scenarios walk people through the real `move` action.
-mineworld-movement = { workspace = true }
 # The tests decode a section from YAML text exactly as the World Pack loader does (DEP-10).
 serde-saphyr = { workspace = true }

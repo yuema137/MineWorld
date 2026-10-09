@@ -8,10 +8,14 @@
 //! floats           no source file but rapier.rs names f32 or f64: positions, shapes and facts are
 //!                  integers, and only the sweep is float
 //! dependencies     the pack's system dependency is presence alone; the [dependencies] of its crate
-//!                  name no System Pack crate but presence and item (step-11 QO-4, QO-16)
+//!                  name no System Pack crate but presence, item and movement (step-11 QO-4, QO-16,
+//!                  QD-5)
 //! item             the item crate is used for one read only: every `mineworld_item` in this pack's
 //!                  sources is `mineworld_item::is_declared(` (step-11 §18.0's bound on the crate
 //!                  dependency; DECISIONS.md ARC-39 note 2, point 4)
+//! movement         the movement crate is used for one type only: every `mineworld_movement` in this
+//!                  pack's sources is `mineworld_movement::Passages` (step-11 §19, SD-D5, QD-5;
+//!                  DECISIONS.md ARC-39 note 5)
 //! ```
 //!
 //! The module that wraps the crate is itself called `rapier`, so `mod rapier;` and `crate::rapier`
@@ -172,8 +176,48 @@ fn this_packs_system_dependency_is_presence_and_its_pack_crates_are_presence_and
     println!("dependencies {dependencies:?}; packs named {named:?}");
     assert_eq!(
         named,
-        ["mineworld-item", "mineworld-presence"],
-        "presence and item, and no other pack crate"
+        ["mineworld-item", "mineworld-movement", "mineworld-presence"],
+        "presence, item and movement, and no other pack crate"
+    );
+}
+
+/// The other read (step-11 §19, SD-D5, QD-5): every use of the movement crate in this pack's sources
+/// names its `Passages` type — the doorway points the genesis check reads — and nothing else of it.
+#[test]
+fn this_pack_uses_nothing_of_the_movement_crate_but_passages() {
+    const READ: &str = "mineworld_movement::Passages";
+    let mut reads = Vec::new();
+    let mut other = Vec::new();
+    for file in sources() {
+        let text = std::fs::read_to_string(&file).expect("a source reads");
+        for (number, line) in text.lines().enumerate() {
+            let place = format!("{}:{}", file.display(), number + 1);
+            let mut rest = line;
+            while let Some(at) = rest.find("mineworld_movement") {
+                let tail = &rest[at..];
+                let word_ends = tail[READ.len().min(tail.len())..]
+                    .chars()
+                    .next()
+                    .is_none_or(|next| !next.is_alphanumeric() && next != '_');
+                if tail.starts_with(READ) && word_ends {
+                    reads.push(place.clone());
+                } else {
+                    other.push(format!("{place}: {}", line.trim()));
+                }
+                rest = &rest[at + "mineworld_movement".len()..];
+            }
+        }
+    }
+    println!("reads of Passages: {reads:?}");
+    assert!(
+        other.is_empty(),
+        "bodies names nothing of mineworld_movement but Passages (step-11 QD-5):\n{}",
+        other.join("\n")
+    );
+    assert_eq!(
+        reads.len(),
+        1,
+        "exactly one, in the genesis check: {reads:?}"
     );
 }
 

@@ -59,10 +59,12 @@ impl System for BodiesSystem {
     /// Version 2: loose objects, pushes, `kick`, `throw` and `shove` change results and vocabulary, so
     /// a save written by version 1 is refused by name (`ARC-25`; step-11 SD-O20). Version 3: a stride
     /// away from a person within the controller's offset is no longer stopped by them (step-11 SD-Z5,
-    /// FU-12c-1), which changes results, so a version-2 save is refused too. A Rapier upgrade also
+    /// FU-12c-1), which changes results, so a version-2 save is refused too. Version 4: a doorway
+    /// point where a person does not fit is refused at genesis (step-11 SD-D5, QD-6), so a version-3
+    /// save of a world that refusal rejects is refused by name, not re-executed. A Rapier upgrade also
     /// changes results, so it bumps this version with it (`DEP-13`; `tests/rapier_pin.rs` holds the
     /// two together).
-    const VERSION: SystemVersion = SystemVersion::new(3);
+    const VERSION: SystemVersion = SystemVersion::new(4);
 
     /// Depends on presence (where people are, and the seam this pack resolves through); owns the
     /// shapes of places and objects and where the objects lie; provides `kick`, `throw` and `shove`;

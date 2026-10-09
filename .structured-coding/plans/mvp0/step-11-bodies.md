@@ -6229,11 +6229,27 @@ people (objects keep ≥ 700 mm by content, TD-2; people are entry-placed, SD-B8
 check. A place without `body:`: nothing to check. bodies-yard: its four doorway points pass (12b
 authored them free) — its 30-day sha unchanged (TD-14).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-bodies`; bodies-yard's 30-day sha, the `long_run` and
-  `long_run_objects` bytes equal E-TD-base (= §20.14); M-TD1 fails by name, reverted; the movement-names-nothing-else mutation bites.
-- [ ] Review: the check reads `Passages` only; integer arithmetic; the message names both places, the
-  point and the distance; the doorway check runs after the people checks, in `fits`' order.
+- [x] Implementation: `genesis.rs` — `fits` ends with `doorways_fit` (after capacity, outside,
+  in-solid, overlap); `doorways` collects the `here` of each passage out of the place and the `there`
+  of each passage into it from `Passages`; refusal `bodies-doorway`: "the doorway between <place> and
+  <other> lies at (x, y) in <place>, <N mm from its floor's edge | N mm from a solid | outside its
+  floor by N mm>; a doorway point keeps 310 mm …". `system.rs` VERSION 4 (doc). `Cargo.toml`:
+  `mineworld-movement` moved from dev- to normal dependency with its reason (Cargo.lock unchanged — it
+  was already locked as a dev edge). New `tests/doorways_genesis.rs` (6 tests: here 200 mm, there 100
+  mm, inside the counter, outside the floor, the 309/310 bounds from the edge and from a solid, the
+  400 mm points and an unshaped place); `tests/rapier_pin.rs` (4, "0.36.0"); `tests/isolation.rs`
+  (the crate claim gains movement; new `this_pack_uses_nothing_of_the_movement_crate_but_passages`).
+- [x] Validation: `cargo test -p mineworld-bodies` all ok (doorways_genesis 6/6, isolation 6/6,
+  rapier_pin 1/1, genesis 6/6 unedited). After the change (E-TD3, /tmp/s15-12d/c3): bodies-yard 30 d
+  bd6a1002…80e6, long_run 23f7fa76…5125, long_run_objects c8358f8b…c5b4 — each = E-TD-base. M-TD1
+  (`fits` returns before `doorways_fit`) → 5 of doorways_genesis' 6 fail (the positive one passes),
+  reverted; the movement mutation (`mineworld_movement::MAX_STRIDE` named in genesis.rs) →
+  `this_pack_uses_nothing_of_the_movement_crate_but_passages` fails naming the line, reverted; `git
+  grep MUTATION` empty.
+- [x] Review: the check reads `Passages` only (the isolation test holds it); integer arithmetic (`i32`
+  differences, `solid_within`'s `i64`); the message names both places by key, the point and the
+  distance; it runs after the people checks. A passage side with no point (`here()?`/`there()`) and an
+  unshaped place (no `place-shaped`) check nothing.
 
 ### TD-C4 — AC-1's check 3 admits Social Café's own items (only if QD-1 is "amend")
 
