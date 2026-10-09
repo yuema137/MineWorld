@@ -2532,13 +2532,15 @@ size).
 
 ### Ec-C8 — Close
 
-- [ ] `docs/MVP_STATUS.md`: a capability row and an evidence row; `handoff-ec.md`; this ledger.
-- [ ] Full gate on the final executable head: `cargo fmt --all --check`; `cargo clippy --workspace
+- [x] `docs/MVP_STATUS.md`: a capability row and an evidence row; `handoff-ec.md`; this ledger (E-Ec8).
+- [x] Full gate on the final executable head: `cargo fmt --all --check`; `cargo clippy --workspace
   --all-targets --all-features -- -D warnings`; `cargo test --workspace --no-fail-fast` (counts:
   passed, failed, ignored, filtered); `check_scratch.py left`; EC-3 (a), (b), (c); EC-6's M-C6 and EC-9 (both on a scratch copy of the
   workspace, rebuilt, deleted afterwards); EC-10's digests
-  and `validate` comparison; both doc checks.
-- [ ] PR opened, READY FOR OPERATOR REVIEW. Not merged.
+  and `validate` comparison; both doc checks (E-Ec8; the gate re-run on the final head is recorded there).
+- [ ] PR opened, READY FOR OPERATOR REVIEW. Not merged. — **Blocked by F-Ec3** (E-Ec8): Linux `test` cannot
+  be green on this branch without an edit outside §16's paths; the PR stays a draft until the operator
+  rules.
 
 ## 16.7 Test ownership
 
@@ -2724,6 +2726,78 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
   --frozen` exit 0 with the empty `CARGO_HOME` — EC-3 (b) on macOS. `--list platforms` prints the five.
   - *Bounded (coordination)*: the action and the labels follow 13b's frozen §13.0.3 rather than PD-p1's
     `macos-latest`/`windows-latest`; 13b lands its `parity` layer and jobs on the same action.
+  - *Later alignment* (`2dff3ac`): 13b's branch `mvp0/pr-13b-parity` (`6818376`) already holds
+    `.github/actions/native/action.yml`; E-c's copy was replaced by 13b's **byte for byte**, and
+    `ci_layer.py`'s `disk()`/`size()`/`gigabytes()`/`resolved()` taken verbatim from 13b's, so whichever PR
+    lands second merges with one definition and identical hunks.
+- **E-Ec8** (Ec-C8, close).
+  - **Merge of `origin/main`** (`f5e39f0`, 13b plan #88 and S11b #83): clean, no conflict.
+  - **Local full gate on `f5e39f0`** (macOS): `cargo fmt --all --check` 0; `cargo clippy --workspace
+    --all-targets --all-features -D warnings` clean; `cargo test --workspace --no-fail-fast` exit 0 —
+    **780 passed, 0 failed, 9 ignored, 0 filtered** (175 test binaries); `check_doc_headings` 192 sections,
+    none duplicated; `check_decision_ids` 74 ids, distinct; `check_scratch.py scan` 162 sources clean;
+    `check_scratch.py left` nothing left. The commits after it change tests and CI only (`b464a17`,
+    `d8fae87`, `f237bfa`, `2dff3ac`): each changed target re-run locally (worldpack refusals 38, requirements
+    4; package_sources 11; cli packs 6, requirements 6, third_party 3), clippy clean; CI's `fast`/`test`
+    on the final head are the canonical full run.
+  - **EC-3**: (a) `cargo fetch --locked` 0, then `cargo build --offline --frozen -p mineworld-cli` 0; (b)
+    `ci_layer.py --offline-check` on macOS: 187 crates vendored outside the tree, `cargo check --offline
+    --frozen --config <generated> -p mineworld-cli` with an empty `CARGO_HOME` exit 0, vendor and home
+    removed — and the same command green in CI's `platforms` on macOS and Windows (below); (c) an empty
+    `CARGO_HOME`, no vendor, `cargo check --offline -p mineworld-cli` → "failed to get `acme-fishing` as a
+    dependency of package `mineworld-installed-systems` … failed to load source for dependency
+    `acme-fishing`", exit ≠ 0. The `image` job was not dispatched: **INCONCLUSIVE** for the image's
+    `--locked` build (the Linux container's `fast` builds the same graph).
+  - **M-C6** (scratch worktree `/tmp/ec-ws` of `f5e39f0`, its pack line pointed at a scratch clone of the
+    pack whose `license = "GPL-3.0-only"`, commit `15091ae`; rebuilt): `packs list` → `acme-fishing 0.1.0
+    GPL-3.0-only … third-party system fishing`; `packs resolve` of the checkpoint world → exit 1, "acme-fishing's
+    licence "GPL-3.0-only" is not allowed: GPL-3.0-only cannot be satisfied by the licence policy (Apache-2.0,
+    BSD-2-Clause, BSD-3-Clause, CC0-1.0, ISC, MIT, Unlicense, Zlib)". PASS.
+  - **EC-9** (same worktree, a scratch clone requiring `mineworld-sdk = "0.2"`, commit `03a1a14`):
+    `cargo metadata` exit 101, "failed to select a version for the requirement `mineworld-sdk = "^0.2"` …
+    candidate versions found which didn't match: 0.1.0 … required by package `acme-fishing`". PASS
+    (evidence only). Scratch worktrees, clones and the shared target removed.
+  - **EC-10** (base: a detached worktree of `origin/main @ ec38570`, built separately; head: `b464a17`):
+    300-day seed-7 runs, sha-256 of every line but `wall` and the header — social-cafe
+    `8a542ad7…fad1b56` base = head (339 lines), market-town `d13276f4…c30b5e7` base = head (355 lines);
+    `validate` of social-cafe, market-town, bodies-yard identical after replacing the checkout path
+    (`cmp`); `git diff origin/main HEAD -- kernel contracts persistence server clients cognition worldpack/src
+    tests/acceptance/tests/ac1_composability.rs` → 0 lines; ac1 13, precursor 4, seam 3, installed 3,
+    resolution 4 passed unedited. PASS. (The digests differ from E-b's because main moved — S11b changed the
+    rule controller — and base and head were measured on the same main.)
+  - **DEP-22's cost**: `cargo install --locked cargo-deny@0.20.2` in the toolchain image took 84 s and 120 s
+    in the two uncached CI builds (runs 37976709874, 37976704132), cached afterwards; `cargo deny check
+    licenses sources bans` 1.0 s in `fast`. Image size not measured.
+  - **Windows and macOS found by `platforms`, fixed (PD-p5, bounded)**: (1) `cargo metadata --offline` needs
+    other platforms' crates a runner never downloaded (macOS) → EC-4's metadata is `--filter-platform
+    <host>` (verified: a fresh `CARGO_HOME` that fetched only the host's packages: filtered exit 0,
+    unfiltered 101) and the layer starts with `cargo fetch --locked`; (2) refusal needles written with `/`
+    against Windows paths: `worldpack/tests/refusals.rs` (4 assertions), `worldpack/tests/requirements.rs`
+    (1), `tools/cli/tests/packs.rs` (1 loop), `tools/cli/tests/requirements.rs` (1 loop) now use the
+    platform's separator, claims unchanged — the last two are outside PD-p5's literal list (`packages`,
+    `worldpack`, `installed-systems`) but in the targets PD-p1 puts in the layer; (3) `third_party.rs`'s
+    edits of a CRLF `world.yaml` normalise line endings first.
+  - **M-C9** (scratch branch `scratch/ec-mc9`, the lock reader `split('\n')` keeping `\r`; run
+    37980866511): **Windows FAILED at EC-2 over the real lock** — every real-lock test ("Cargo.lock line 4:
+    cannot read "\r"") — and at the CRLF unit control; Linux (`test`) and macOS (`platforms`) FAILED only at
+    the CRLF unit control (`the_fixed_lock_passes_and_reads_as_written`), their real locks being LF. The
+    layer sees the platform defect on Windows; the unit control, stronger than designed, sees it everywhere.
+    Never merged.
+  - **Finding F-Ec3 — MATERIAL STOP (raised; not worked around).** CI's container layers set
+    `CARGO_HOME=$GITHUB_WORKSPACE/.ci/cargo` (`.github/actions/layer/action.yml`, S13's). Cargo checks the
+    pack out under `<checkout>/.ci/cargo/git/checkouts/…`, *inside* the framework workspace, so `package!()`
+    records it **bundled** (`ARC-54` point 2: a byte-prefix of the workspace root) and `package_sources.rs`
+    EC-4 fails on Linux `test`: "the lock's git packages are the build's third-party packs — left
+    {"acme-fishing"}, right {}" (runs 37976720346, 37979513124). macOS and Windows (`~/.cargo`) are
+    correct. The guard is right: the premise of `ARC-66` point 4 ("a git checkout lies under `CARGO_HOME`,
+    outside the framework workspace") is false in CI. Two fixes, both outside §16's planned paths:
+    (A, recommended) the layer action moves `CARGO_HOME` outside the checkout (`$HOME/.mineworld-ci-cargo`,
+    mounted at the same path, cached under `~/`), about ten lines in `.github/actions/layer/action.yml`, no
+    product change — proven on `scratch/ec-cargo-home` (`6792d4b` = this branch's `f237bfa` + that change,
+    run 37980838221: `fast`, `platforms (macos-26)`, `platforms (windows-2025)` green, `test` recorded in the
+    handoff); (B) change `ARC-54`'s classification so a Cargo-fetched checkout is never bundled — a semantic
+    change to an accepted decision. Recorded also as `ARC-66`'s limitation in the PR text. Owner of the
+    file: S13; decision: the operator.
 
 ## 16.9 Freeze questions
 
