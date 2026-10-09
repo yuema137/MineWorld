@@ -2542,3 +2542,349 @@ designed. It is detailed to the commit by its own planning session, after 13b's 
   - A macOS leg for `clients` too, so that the 2D client is checked on the three OSes the operator named.
 - Whether the 1 000-day social-cafe replay replaces or joins the default suite's 300-day runs (QS13-5
   stands: no re-tiering without a fail-closed selector).
+
+---
+
+# 15. PR 13w — the default suite on Windows and macOS (full design)
+
+**Lifecycle:** `PR design — ready for freeze review` (2026-10-09). Not frozen. Nothing here authorizes
+implementation.
+- Written by the 13w planning session: worktree `/Users/yuema137/mineworld-worktrees/plan-13w`, branch
+  `plan/s13-13w`, from `main @ ec38570`, after #88, #83 (S11-B) and #93 (E-c/E-d plan) merged.
+- Placeholder ids: `#<13w>`, `<run-…>`, `<sha>`, decision note `DEP-29 note (13w)`.
+- 13w was proposed in §13.10.1 and assigned by QB-12 and QB-13. It implements the operator's
+  all-platforms requirement (§13.0.1) for the default suite.
+
+## 15.1 Scope and material boundary
+
+**Goal.** `cargo test --workspace` compiles and passes on Windows x86_64 and macOS arm64 in CI, so that
+`test-windows` (13b) and a new `test-macos` are green on `main` and can become required (QB-11 `[OM]`).
+No test may be skipped, `#[ignore]`d, `cfg`-gated away or excluded to get there (I-13b-6).
+
+**Material boundary (coordinator, 2026-10-09).**
+- 13w edits only test code and `mineworld-test-support`.
+- One exception may be needed: the server's Ctrl-Break handling (§15.4). It is S11's code, and §15.4
+  routes it to S11-D first.
+- A failure on Windows or macOS whose cause is in production code (kernel, systems, persistence, server,
+  CLI `src/`) is a **material stop**, reported with an owner lane. 13w never fixes it.
+
+**Depends on:** 13b merged. 13b provides `test-windows`, the `native` composite action and
+`ci_layer.py`'s portability (§13.0.3, §13.10.1 W-7). It must also land after S11-D's SD-D13 (§15.4), or
+take the §15.4 fallback.
+
+## 15.2 Audit (main @ ec38570)
+
+| Anchor | Finding | Evidence |
+| --- | --- | --- |
+| Unix-only imports | **Nine** test files import `std::os::unix::process::ExitStatusExt`. 13b's audit counted eight; `tests/acceptance/tests/configuration_seam.rs:31`, added by E-c (#93), is the ninth (**F-13w-1**). The files: `persistence/tests/kill_and_resume.rs:39,533`, `tests/acceptance/tests/arrival_resolvers_resume.rs:38,235`, `tests/acceptance/tests/configuration_seam.rs:31,331`, and in `tools/cli/tests/`: `bodies_yard_restart.rs:23,64`, `market_town.rs:32,75`, `milestone_b.rs:38,86,333`, `milestone_c.rs:31,397`, `restart.rs:32,113`, `run_restart.rs:27,73` | `git grep -n "ExitStatusExt\|\.signal()"` |
+| Kill patterns | Two shapes. (a) `child.kill()`, then `status.signal() == Some(9)` (`kill_and_resume`, `arrival_resolvers_resume`, `configuration_seam`). (b) `assert_eq!(status.signal(), Some(9), "killed by SIGKILL, not finished")` after the CLI test support's `Server::kill()` or a direct `child.kill()` (the rest). Every killing test also checks, separately, that the child had not finished (no final summary line, or a revision below the end) | the cited lines |
+| Graceful stop | `tools/cli/tests/support/mod.rs:158–168`, `Server::interrupt`: `Command::new("sh").args(["-c", "kill -INT <pid>"])`, from S11-B's D-SB13. Its only caller on main is `tools/cli/tests/hosted_town.rs:79`, which asserts a clean exit and then reads the `[world] ticks` statistics line. S11-C's CA-13 and S11-D's SD-D13 check will be further callers (`step-12-server.md` §17.14, §18.14) | as cited |
+| `mineworld-test-support` | `tests/support/src/lib.rs`: `#![forbid(unsafe_code)]`, standard library only (DEP-29); scratch directories only; its own tests in `tests/support/tests/scratch.rs` | `tests/support/Cargo.toml`, `lib.rs:17` |
+| The server's stop | `tools/cli/src/serve.rs:214`: `serve_with_shutdown(…, async { let _ = tokio::signal::ctrl_c().await; println!("\n[mineworld] stopping"); })` | as cited |
+| tokio on Windows | tokio 1.53.1 (`Cargo.lock`): `signal::ctrl_c()` on Windows registers **only `CTRL_C_EVENT`** (`tokio/src/signal/windows/sys.rs:47`, `ctrl_c()` → `SignalKind::CtrlC`). `CTRL_BREAK_EVENT` is a separate `signal::windows::ctrl_break()` | the registry source |
+| SD-D13 (S11-D, frozen, in implementation) | "The shutdown future … completes on the first of `tokio::signal::ctrl_c()` (Ctrl-C on Unix; Ctrl-C **and Ctrl-Break** on Windows) and, under `#[cfg(windows)]`, `ctrl_close()` and `ctrl_shutdown()`" | `step-12-server.md` SD-D13 row |
+| Windows console groups | A process started with `CREATE_NEW_PROCESS_GROUP` has Ctrl-C **disabled**, and only Ctrl-Break can be sent to its group with `GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid)`. Sending Ctrl-C to one child alone is not possible, and without a new group the event reaches the caller too (Win32 documentation) | Win32 `GenerateConsoleCtrlEvent`, `CREATE_NEW_PROCESS_GROUP` |
+| `Child::kill` on Windows | `TerminateProcess(handle, 1)`: the killed child's exit code is 1, with no signal to read | Rust std `sys/pal/windows/process.rs` |
+| Self-re-executing programs | `kill_and_resume` and `arrival_resolvers_resume` (`harness = false`) re-execute themselves through `std::env::current_exe`, which is portable | `persistence/Cargo.toml:23`, `tests/acceptance/Cargo.toml:17` |
+
+**F-13w-2 (material for S11-D, raised now).** SD-D13's "Ctrl-C and Ctrl-Break on Windows" through
+`tokio::signal::ctrl_c()` does not hold for tokio 1.53.1: Ctrl-Break needs `signal::windows::ctrl_break()`.
+Unhandled, Windows' default handler ends the process with `STATUS_CONTROL_C_EXIT` (`0xC000013A`). Then
+there is no `[mineworld] stopping`, no checkpoint and no statistics: an operator's Ctrl-Break and every
+graceful-stop test on Windows would lose the graceful path. Routed to the primary session for S11-D
+(§15.4, QW-1).
+
+## 15.3 The portable "was killed" check
+
+**In `mineworld-test-support`, a new module `process`, standard library only, no `unsafe` on any
+platform:**
+
+```text
+pub struct Killed { status: ExitStatus, was_running: bool }
+
+pub fn kill(child: &mut Child) -> Killed
+    1. was_running = child.try_wait()? is None   (the child had not exited on its own)
+    2. child.kill(); status = child.wait()
+pub fn killed(&self) -> bool
+    was_running && the status is a kill on this platform:
+      unix     status.signal() == Some(9)               (std::os::unix::process::ExitStatusExt,
+                                                         now inside the support crate, cfg(unix))
+      windows  status.code() == Some(1)                  (TerminateProcess's code, as std uses it)
+pub fn status(&self) -> ExitStatus
+impl Debug for Killed (prints both, for assertion messages)
+```
+
+- **Strong typing.** Only `process::kill` makes a `Killed`. A test asserts `killed.killed()`, never a raw
+  exit code.
+- **Windows ambiguity.** An exit code of 1 alone could also be a child failing by itself. Two things keep
+  that from passing:
+  - `was_running` is checked immediately before the kill;
+  - every killing test already proves separately that the child had not finished (§15.2, "Kill
+    patterns").
+
+  The residual race is a child exiting with code 1 by itself in the microseconds between `try_wait` and
+  `TerminateProcess`. It is recorded as an accepted limitation in the DEP-29 note.
+- **The nine files.** Each is changed only to:
+  - drop the `ExitStatusExt` import;
+  - route its kill through `process::kill` (or keep its own `child.kill()` site, but take the verdict
+    from `Killed`);
+  - assert `killed.killed()`, with the existing message.
+
+  No other line changes, and every assertion keeps its meaning. The CLI test support's `Server::kill()`
+  returns `Killed` instead of `ExitStatus`.
+
+## 15.4 The `interrupt` helper, and the server's Ctrl-Break
+
+**Helper, in `mineworld-test-support::process`:**
+
+```text
+pub struct Interruptible(Command)        constructed by interruptible(command): on windows it sets
+                                         creation_flags(CREATE_NEW_PROCESS_GROUP) (std's
+                                         os::windows::process::CommandExt, safe); on unix nothing
+impl Interruptible { pub fn spawn(self) -> io::Result<InterruptibleChild> }
+pub struct InterruptibleChild { child: Child }   (Deref to Child for stdout/stderr/id)
+pub fn interrupt(child: &mut InterruptibleChild) -> io::Result<ExitStatus>
+    unix     sh -c "kill -INT <pid>" (moved unchanged from tools/cli/tests/support/mod.rs:163),
+             then wait
+    windows  GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pid) — pid is the new group's id — then wait;
+             a zero return is io::Error::last_os_error(), never ignored
+```
+
+- **Types make the dangerous call impossible.** `interrupt` accepts only a child spawned through
+  `interruptible`, so it never sends Ctrl-Break to a process that is not a group leader. On Windows such
+  a call would reach every process on the console, the test runner included.
+- **Why `sh -c kill` stays on Unix.** It is portable across Linux and macOS, needs no `libc` and no
+  `unsafe`, and CI already proves it (13a's container, `hosted_town`). Moving it into the support crate
+  makes it one definition.
+- **Windows FFI: own declaration, not `windows-sys`.** Calling `GenerateConsoleCtrlEvent` is `unsafe`
+  either way, because `windows-sys`' functions are `unsafe`. So the choice is between a new direct
+  dependency and one `extern "system"` declaration from `kernel32`, which std already links:
+  - **(a) Own declaration** (recommended, QW-2). The crate stays standard-library-only (DEP-29).
+    `#![forbid(unsafe_code)]` becomes `#![deny(unsafe_code)]`, with one
+    `#[allow(unsafe_code)]` function under `cfg(windows)`. Its safety comment says the call takes two
+    integers and touches no memory.
+  - **(b) `windows-sys` 0.61.2,** already in `Cargo.lock` transitively, as a `cfg(windows)` dependency.
+    It is a real dependency (`REUSE_POLICY.md` §11) for one function, and still `unsafe`.
+  - Either way, a DEP-29 note records it: why not the other, and the accepted limitations.
+- **Callers.** The CLI test support's `Server::start` spawns through `interruptible`. `Server::interrupt`
+  calls `process::interrupt` and keeps its signature. `hosted_town` is unchanged. CA-13 and SD-D13's
+  check, when they land, call `Server::interrupt` and so become portable without edits. Their
+  `#[cfg(unix)]` gates are removed by whichever of S11 and 13w lands second (QW-3).
+- **The console requirement.** `GenerateConsoleCtrlEvent` needs the caller to be attached to a console.
+  GitHub's Windows runners run steps under a console†. The helper turns a missing console into a named
+  error ("no console attached; Ctrl-Break cannot be delivered"), so it can never pass silently. If the
+  runner has no console, the bounded fallback is `AllocConsole` in the helper, applied once and recorded.
+  Beyond that it is a material stop (R-W1).
+
+**The server must stop on Ctrl-Break (F-13w-2).**
+- **Recommended home: S11-D's SD-D13.** S11-D edits that very shutdown future and owns `serve.rs`. Adding
+  `tokio::signal::windows::ctrl_break()` to its `cfg(windows)` select, beside `ctrl_close()` and
+  `ctrl_shutdown()`, is one line inside its frozen intent ("Ctrl-C, Ctrl-Break and closing the console
+  window"). It corrects the design's mistaken premise rather than widening it.
+- The primary session relays F-13w-2 to the S11-D implementing session. **QW-1** records the answer.
+- **Fallback,** only if S11-D merges without it: 13w makes that one-line edit in `tools/cli/src/serve.rs`,
+  an authorized exception to the material boundary that the contract names (§15.9). It also adds a
+  `#[cfg(windows)]` comment citing F-13w-2. Nothing else in `src/` is touched.
+- **Evidence:** `hosted_town` on `test-windows` passes. That means `ended.success()`,
+  `[mineworld] stopping`, and the `[world] ticks` line with its p99 bound.
+
+## 15.5 `test-macos`
+
+- A job `test-macos` on `macos-26`, through 13b's `.github/actions/native` with layer `core`: the same
+  commands as Linux `test` (I-13b-1's list), natively. It has `fetch-depth: 0`, `filter: blob:none`, and
+  `timeout-minutes` 60.
+- **Triggers, set by 13w for both `test-macos` and `test-windows`:** non-draft `pull_request`, push to
+  `main`, `workflow_dispatch`. 13b's "not on PRs until green" holds, because 13w turns them on in the
+  same PR that makes them green, and shows them green on its own head first.
+- **Not required.** Whether they become required is QB-11 `[OM]`: after five consecutive green `main`
+  pushes, by the operator's settings change. ARC-48 gains a dated note with the two rows.
+- **Cost and time:** both are standard runners, free on a public repository†. Measured in 13w's runs
+  (B-W5). The estimates are about 15–20 min warm for macOS (the operator's Mac runs the suite in about
+  5.5 min on more cores; E-S13-0) and about 20–30 min warm for Windows. Both run in parallel with Linux
+  `test`.
+- **E-c's `platforms` job (QB-15).** Once both jobs are green, `platforms` is a strict subset of them.
+  13w removes the `platforms` job from `ci.yml` and keeps the layer only if another consumer names it.
+  The removal is recorded in ARC-48's note. If the primary session prefers to keep `platforms`, it stays
+  and nothing else changes (QW-4).
+
+## 15.6 Acceptance (decided before measuring)
+
+```text
+A-W1  test-windows green on 13w's final head (a dispatch, then the PR run once its PR trigger is in):
+      the same `test result:` count as Linux test on the same head (passed + ignored equal, 0 failed),
+      kill_and_resume prints [cafe] PASS and [clock] PASS, arrival_resolvers_resume [resolver-yard] PASS,
+      ac1_composability 13/13; check_scratch.py left clean
+A-W2  test-macos green on the same head, with the same counts
+A-W3  Linux `test` and `fast` green on the same head, counts unchanged from main's (no test lost)
+A-W4  hosted_town passes on all three OSes: a clean exit after interrupt, `[mineworld] stopping`, the
+      ticks line with p99 ≤ 50 ms reported (CP-B4's form)
+A-W5  scope: git diff --stat lists only test files (the nine, tools/cli/tests/support/mod.rs),
+      tests/support/ (src, tests, Cargo.toml), .github/workflows/ci.yml, docs/DECISIONS.md (DEP-29 and
+      ARC-48 notes), docs/MVP_STATUS.md, this file — plus tools/cli/src/serve.rs ONLY under §15.4's
+      fallback (one line); no `#[ignore]`, `cfg`-skip or excluded target added anywhere (grep diff)
+A-W6  every assertion in the nine files keeps its message and its claim (review of the diff, line by line)
+A-W7  test-windows and test-macos run on pull_request in this PR's own checks, are not required, and
+      their wall times (cold and warm) are recorded
+```
+
+## 15.7 Mutations (decided before measuring)
+
+Each runs on a scratch branch `scratch/13w-<name>`, which is deleted after its run. Exceptions: MW-1 and
+MW-2 are local unit checks in `tests/support/tests/process.rs`, kept as tests.
+
+```text
+MW-1  unit, every OS: a child that exits 0 by itself, and one that exits 1 by itself, then "killed" via
+      process::kill after they have exited → killed() is false (was_running false); a sleeping child
+      killed → killed() is true. Committed as tests of the helper (they own the fail-closed verdict)
+MW-2  unit, every OS: interrupt of a sleeping helper child that handles nothing → the child ends and
+      interrupt returns its status (Unix: signal 2; Windows: 0xC000013A); a child spawned without
+      interruptible cannot be passed to interrupt (a compile-fail doctest)
+MW-3  CI, Windows: the scratch removes the server's Ctrl-Break handling (or, before S11-D lands, uses
+      main's server) → hosted_town red on test-windows, naming the missing `[mineworld] stopping` and
+      the exit status 0xC000013A; Linux and macOS green. Shows the Windows path really exercises the
+      server's stop
+MW-4  CI, Unix: the scratch makes process::interrupt send SIGKILL instead → hosted_town red on Linux
+      and macOS (no ticks line); shows the helper's Unix path is what the test relies on
+MW-5  CI, Windows: in one of the nine files, the kill is moved after the child's completion line (it
+      finishes first) → that test red on test-windows AND Linux test, with the original message
+      ("killed by SIGKILL, not finished"); shows the portable check keeps the claim on both
+MW-6  CI, macOS: a planted #[cfg(target_os = "macos")] assert!(false) in one test → test-macos red,
+      Linux test and test-windows green; shows test-macos bites
+```
+
+## 15.8 Commit plan
+
+Each commit tracks implementation, validation and review separately.
+
+### W-C0 — Design (this section), docs only
+
+- [x] Implementation: §15.
+- [x] Validation: `check_doc_headings`, `check_decision_ids` (the planning commit and the PR description).
+- [x] Self-review:
+  - every §15.2 anchor cites a file and line, or the tokio source;
+  - F-13w-1 and F-13w-2 are new and stated;
+  - the material boundary is explicit.
+- [ ] Review: the primary session, then the freeze.
+
+### W-C1 — `mineworld-test-support::process` (`kill`, `Killed`, `interruptible`, `interrupt`) and the DEP-29 note
+
+- [ ] Implementation:
+  - the module, as §15.3 and §15.4 describe;
+  - the `deny(unsafe_code)` change with one allowed function, per QW-2;
+  - its tests (MW-1, MW-2);
+  - `docs/DECISIONS.md`, a DEP-29 note.
+- [ ] Validation:
+  - local, on the Mac: `cargo test -p mineworld-test-support`, then `cargo clippy` with `-D warnings`;
+  - Windows: compiled and run by this PR's `test-windows` dispatch.
+- [ ] Review:
+  - no `unsafe` outside the one function;
+  - every error is surfaced, none ignored;
+  - the doc comments name the platforms' semantics and the residual race.
+
+### W-C2 — The nine files and the CLI test support
+
+- [ ] Implementation: the nine files and `tools/cli/tests/support/mod.rs` (§15.3, §15.4).
+- [ ] Validation:
+  - local full suite on the Mac (`cargo test --workspace`): the same counts as before;
+  - `git grep ExitStatusExt` → only inside `tests/support/src/process.rs`.
+- [ ] Review: A-W6, line by line.
+
+### W-C3 — The server's Ctrl-Break (**only under §15.4's fallback**; otherwise N/A, with S11-D's merge commit cited)
+
+- [ ] Implementation: one `cfg(windows)` `ctrl_break()` in `serve.rs`'s shutdown select.
+- [ ] Validation: A-W4 on Windows (MW-3).
+- [ ] Review: no other `src/` change.
+
+### W-C4 — The workflow: `test-macos`, both jobs' PR triggers, and `platforms` per QW-4
+
+- [ ] Implementation:
+  - `.github/workflows/ci.yml`;
+  - ARC-48's dated note.
+- [ ] Validation:
+  - dispatch runs, then the PR's own runs (A-W1, A-W2, A-W3, A-W7);
+  - MW-3 … MW-6 on scratch branches, each deleted after its run, then `ls-remote` → empty.
+- [ ] Review:
+  - neither job is required;
+  - no `continue-on-error`;
+  - labels pinned (`macos-26`, `windows-2025`);
+  - the native action is reused, with no parallel definition (§13.0.3).
+
+### W-C5 — Close
+
+- [ ] Implementation:
+  - `docs/MVP_STATUS.md`: the suite runs on all three OSes, with the run ids;
+  - §13.10.1's W-T1, W-4 and W-12 marked resolved, or carried with owners;
+  - this ledger.
+- [ ] Validation: A-W5 and the doc checks.
+- [ ] Review: every A-W and MW item has evidence or N/A; deviations are numbered D-13w-n.
+
+## 15.9 Run budget
+
+- **Local:** unrestricted (the Mac).
+- **CI:**
+  - at most **14** dispatch or scratch runs that include `test-windows` or `test-macos`;
+  - those are the cold and warm dispatch (2), MW-3 … MW-6 (4), repairs of findings from the first
+    Windows run (≤ 6) and the final head (≤ 2);
+  - each job runs under its `timeout-minutes`;
+  - about 14 × (Windows 30 + macOS 20 + Linux 14) ≈ 900 job-minutes, all on standard runners, free on a
+    public repository†.
+- **Monetary:** none.
+- **Exceeding the budget,** or a Windows finding in production code, is a stop with a projection.
+
+## 15.10 Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| R-W1 | No console on the Windows runner, so `GenerateConsoleCtrlEvent` fails | A named error, never a pass; `AllocConsole` as the one bounded fallback; then a stop |
+| R-W2 | `test-windows` reveals failures beyond W-T1 (file locks, W-4; CRLF, W-3; paths) | Test-code causes are fixed in 13w within the repair budget. Production-code causes are material stops with owner lanes. Each is recorded as a W-finding |
+| R-W3 | S11-D merges with SD-D13 as written (no Ctrl-Break) | §15.4's fallback, pre-authorized in the contract and bounded to one line |
+| R-W4 | Windows' exit code 1 is ambiguous | `was_running` plus each test's own "not finished" check; the residual race is recorded (§15.3) |
+| R-W5 | Windows CI is slow (MSVC links about 150 test binaries; Defender scans `target/`) | Measured (A-W7). If it exceeds 60 min, stop and report; no test is sharded or dropped |
+| R-W6 | Parallel lanes add new Unix-only tests (as E-c added the ninth file) | After 13w, `test-windows` on PRs catches it. Until then, W-C2 re-greps on its final head |
+
+## 15.11 Questions
+
+`[OM]` marks an operator-material question.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QW-1** | Ctrl-Break in the server (F-13w-2): S11-D's SD-D13, or 13w? | **S11-D's SD-D13**: it owns that select and its intent already names Ctrl-Break. The primary session relays F-13w-2 now; 13w's fallback covers the case where S11-D merges first without it. |
+| **QW-2** | Windows FFI: own `extern "system"` declaration (crate stays std-only; `forbid` → `deny(unsafe_code)` with one allowed function), or `windows-sys`? | **Own declaration.** Both need `unsafe`; the declaration adds no dependency for one function. Recorded in a DEP-29 note. |
+| **QW-3** | Who removes CA-13's and SD-D13's `#[cfg(unix)]` gates? | **Whichever of S11 (C/D) and 13w lands second.** It is a deletion of one attribute per test, verified on `test-windows`. |
+| **QW-4** | Retire E-c's `platforms` job once `test-windows` and `test-macos` are green (QB-15)? | **Yes, in 13w's W-C4**, if both are green on 13w's head; otherwise keep it. |
+| **QW-5** | 13w adds the `pull_request` trigger to `test-windows` and `test-macos`, non-required. Accept? | **Accept.** The operator's QB-11 decides on requiring them after five consecutive green `main` pushes. |
+| **QB-11 [OM]** (carried) | Make `test-windows` and `test-macos` required once green on `main`? | Unchanged from §13.11: yes, after five consecutive green pushes. Settings are the operator's. |
+
+## 15.12 Proposed execution contract
+
+```text
+PROJECT / PR        MineWorld mvp0 — S13 PR 13w, the default suite on Windows and macOS
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-14-ci.md §15 (the live ledger)
+RELATED / BINDING   §13 (13b as frozen, esp. §13.0.1–13.0.3, §13.10.1); step-12-server.md §17.14,
+                    §18.14 (SD-D13); docs/DECISIONS.md DEP-29, ARC-48; ENGINEERING_STANDARDS.md §22;
+                    CLAUDE.md §§2–4
+IMPLEMENTATION BASE main after 13b merged (and, for QW-1, after S11-D if possible); branch
+                    mvp0/pr-13w-windows; worktree /Users/yuema137/mineworld-worktrees/impl-13w (sole writer)
+PRECONDITION        13b merged; QW-1 answered by the primary session
+COMMANDS            as 13a/13b's contracts: cargo, git, gh (PR create/update, run list/view/download/
+                    cancel, workflow run on mvp0/pr-13w-windows and scratch/13w-*; no merge, no settings),
+                    python3 scripts/*; ordinary local checks unrestricted
+APPROVED SCOPE      §15.3–15.5; W-C1 … W-C5
+MATERIAL BOUNDARY   test code and mineworld-test-support only; the one exception is §15.4's fallback
+                    line in tools/cli/src/serve.rs, authorized only if S11-D has merged without
+                    Ctrl-Break
+FROZEN INVARIANTS   I-S13-1 … I-S13-9 as amended for 13w (test edits allowed by this contract, and only
+                    to the files of A-W5); I-13b-1 … I-13b-6
+VALIDATION BUDGET   §15.9; monetary none
+ENDPOINT AUTHORITY  commits, push, PR create/update, CI repair: authorized (D-12)
+                    scratch/13w-* push + delete, workflow_dispatch: authorized if the freeze grants it
+                      with QS13-14's bounds
+                    repository settings (required checks included): NOT authorized — operator only
+                    merge: explicit operator authorization only
+MATERIAL STOPS      a production-code cause of any Windows/macOS failure; any skip/ignore/cfg-gate/
+                    exclusion; an assertion whose claim would have to change; R-W1 beyond AllocConsole;
+                    R-W5; exceeding the budget; any settings change
+NORMAL STOP         PR 13w READY FOR OPERATOR REVIEW — DO NOT MERGE
+STOP CONDITION      A-W1 … A-W7 with evidence on the exact final head; MW-1 … MW-6 recorded
+MERGE AUTHORITY     never without explicit operator approval
+```
