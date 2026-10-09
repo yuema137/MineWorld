@@ -2547,8 +2547,20 @@ designed. It is detailed to the commit by its own planning session, after 13b's 
 
 # 15. PR 13w — the default suite on Windows and macOS (full design)
 
-**Lifecycle:** `PR design — ready for freeze review` (2026-10-09). Not frozen. Nothing here authorizes
-implementation.
+**Lifecycle:** `DESIGN FROZEN (2026-10-09), primary session`. Superseded: `PR design — ready for freeze
+review`.
+- Evidence: the coordinator's message relaying the primary session's rulings: "13w (§15) is DESIGN FROZEN
+  2026-10-09 (primary session)".
+- A fresh session implements it under §15.12, after 13b merges.
+
+**Rulings (primary session, 2026-10-09). QW-1 … QW-5 accepted as recommended:**
+- **QW-1:** relayed to S11-D, which adds `signal::windows::ctrl_break()` to SD-D13. 13w's one-line
+  fallback (§15.4, W-C3) stays in the contract, for the case where S11-D merges without it.
+- **QW-2:** our own `extern "system"` declaration, not `windows-sys`.
+- **QW-3:** whichever of S11 and 13w lands second removes the `#[cfg(unix)]` gates.
+- **QW-4:** E-c's `platforms` job is retired once `test-windows` and `test-macos` are green.
+- **QW-5:** non-required `pull_request` triggers on both jobs.
+- **Still open:** QB-11 `[OM]`, making the jobs required, stays with the operator.
 - Written by the 13w planning session: worktree `/Users/yuema137/mineworld-worktrees/plan-13w`, branch
   `plan/s13-13w`, from `main @ ec38570`, after #88, #83 (S11-B) and #93 (E-c/E-d plan) merged.
 - Placeholder ids: `#<13w>`, `<run-…>`, `<sha>`, decision note `DEP-29 note (13w)`.
@@ -2865,7 +2877,8 @@ RELATED / BINDING   §13 (13b as frozen, esp. §13.0.1–13.0.3, §13.10.1); ste
                     CLAUDE.md §§2–4
 IMPLEMENTATION BASE main after 13b merged (and, for QW-1, after S11-D if possible); branch
                     mvp0/pr-13w-windows; worktree /Users/yuema137/mineworld-worktrees/impl-13w (sole writer)
-PRECONDITION        13b merged; QW-1 answered by the primary session
+PRECONDITION        13b merged; QW-1 … QW-5 answered (primary session, 2026-10-09, as recommended);
+                    DESIGN FROZEN 2026-10-09, primary session
 COMMANDS            as 13a/13b's contracts: cargo, git, gh (PR create/update, run list/view/download/
                     cancel, workflow run on mvp0/pr-13w-windows and scratch/13w-*; no merge, no settings),
                     python3 scripts/*; ordinary local checks unrestricted
@@ -2877,8 +2890,8 @@ FROZEN INVARIANTS   I-S13-1 … I-S13-9 as amended for 13w (test edits allowed b
                     to the files of A-W5); I-13b-1 … I-13b-6
 VALIDATION BUDGET   §15.9; monetary none
 ENDPOINT AUTHORITY  commits, push, PR create/update, CI repair: authorized (D-12)
-                    scratch/13w-* push + delete, workflow_dispatch: authorized if the freeze grants it
-                      with QS13-14's bounds
+                    scratch/13w-* push + delete, workflow_dispatch: authorized with QS13-14's bounds
+                      (freeze, 2026-10-09)
                     repository settings (required checks included): NOT authorized — operator only
                     merge: explicit operator authorization only
 MATERIAL STOPS      a production-code cause of any Windows/macOS failure; any skip/ignore/cfg-gate/
