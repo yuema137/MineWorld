@@ -108,10 +108,10 @@ fn validate_refuses_each_configuration_mistake_by_name() {
             "'weather', which is not a system this build provides",
         ),
         (
-            "cli-configure-reserved",
-            "configure:\n  - classes\n",
-            None,
-            "reserved for",
+            "cli-configure-packages",
+            "configure:\n  - packages\n",
+            Some("configure/packages.yaml"),
+            "the world's licence policy is not valid",
         ),
         (
             "cli-configure-not-enabled",
@@ -151,5 +151,50 @@ fn validate_refuses_each_configuration_mistake_by_name() {
             "{id}: names the mistake: {stderr}"
         );
         assert!(stderr.contains(id), "{id}: names the file: {stderr}");
+    }
+}
+
+/// IB-9 through the real binary: a world that narrows its licence policy to Apache-2.0 is refused by
+/// both `validate` and `packs validate <world>`, naming a bundled MIT pack and the allowed list; the
+/// same world allowing MIT passes both. `packs validate` judges a World Pack by its own policy.
+#[test]
+fn a_world_licence_policy_governs_validate_and_packs_validate() {
+    let run = |args: &[&std::ffi::OsStr]| {
+        Command::new(env!("CARGO_BIN_EXE_mineworld"))
+            .args(args)
+            .output()
+            .expect("the binary runs")
+    };
+    for (allowed, passes) in [("Apache-2.0", false), ("MIT", true)] {
+        let id = format!("cli-packages-{}", allowed.to_lowercase().replace('.', "-"));
+        let scratch = Scratch::new(&id, "configure:\n  - packages\n");
+        scratch.write(
+            "world.yaml",
+            &format!(
+                "world:\n  id: {id}\n  name: A Scratch World\n  version: 0.1.0\n  license: MIT OR \
+                 Apache-2.0\nmineworld: \"^0.1\"\nsystems:\n  - presence\n  - movement\nplaces:\n  - square\n\
+                 population:\n  - ada\nconfigure:\n  - packages\n"
+            ),
+        );
+        scratch.write(
+            "configure/packages.yaml",
+            &format!("allowed: [{allowed}]\n"),
+        );
+        let path = scratch.0.path().as_os_str();
+        for output in [
+            run(&["validate".as_ref(), path]),
+            run(&["packs".as_ref(), "validate".as_ref(), path]),
+        ] {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert_eq!(output.status.success(), passes, "{allowed}: {stderr}");
+            if !passes {
+                assert!(
+                    stderr.contains("MIT")
+                        && stderr.contains("Apache-2.0")
+                        && (stderr.contains("presence") || stderr.contains("movement")),
+                    "names a bundled MIT pack, its licence and the allowed list: {stderr}"
+                );
+            }
+        }
     }
 }

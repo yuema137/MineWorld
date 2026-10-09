@@ -74,7 +74,7 @@ pub enum ConfigurationRefusal {
         /// The entry naming it.
         entry: EntryAt,
     },
-    /// Two entries of equal specificity overlap and give one field different values.
+    /// Two entries of equal specificity overlap and set one field to different values.
     Ambiguous {
         /// One entry.
         first: EntryAt,

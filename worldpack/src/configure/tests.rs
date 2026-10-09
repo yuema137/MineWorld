@@ -20,7 +20,7 @@ use mineworld_kernel::{Emission, SystemIdentity};
 use serde::Deserialize;
 use serde::de::DeserializeSeed;
 
-use super::{Drift, check_references, check_requires, compare, read_files};
+use super::{Drift, check_references, check_requires, compare, read_attachments, read_files};
 use crate::catalog::Capability;
 use crate::error::PackError;
 use crate::format::{
@@ -41,6 +41,9 @@ pub(super) struct Settings {
     /// What the probe states besides its one configuration fact, to be refused.
     #[serde(default)]
     stray: Option<Stray>,
+    /// A `data/` file whose text the probe states in its fact (SD-IB-5).
+    #[serde(default)]
+    table: Option<mineworld_authoring::Attachment>,
 }
 
 /// A fact a configuration must not seed.
@@ -57,6 +60,8 @@ enum Stray {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct Configured {
     step: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    table: Option<String>,
 }
 
 impl mineworld_contracts::Event for Configured {
@@ -135,12 +140,16 @@ impl PackConfiguration for Probe {
         settings.needs.iter().cloned().collect()
     }
 
+    fn attachments(settings: &Settings) -> Vec<&mineworld_authoring::Attachment> {
+        settings.table.iter().collect()
+    }
+
     /// States `probe-configured { step }`, `SystemInternal`; refuses a step of 100 — a refusal only the
     /// owner can state, at genesis.
     fn seed(
         _: &Seeding<'_, '_>,
         settings: &Settings,
-        _: &ConfigurationContext<'_>,
+        context: &ConfigurationContext<'_>,
     ) -> Result<Vec<Emission>, Rejection> {
         if settings.step.0 == 100 {
             return Err(Rejection::System {
@@ -148,8 +157,12 @@ impl PackConfiguration for Probe {
                 detail: None,
             });
         }
+        let table = settings.table.as_ref().map(|table| {
+            String::from_utf8_lossy(context.attached().get(table).unwrap_or_default()).into_owned()
+        });
         let mut facts = vec![emission(&Configured {
             step: settings.step.0,
+            table,
         })];
         match settings.stray {
             Some(Stray::Foreign) => facts.push(emission(&Elsewhere {})),
@@ -190,6 +203,7 @@ fn found(owner: Capability, value: serde_json::Value) -> FoundConfiguration {
         configuration: DecodeConfiguration::<Probe>::new()
             .deserialize(value)
             .expect("a probe configuration decodes"),
+        attached: mineworld_authoring::Attached::none(),
     }
 }
 
@@ -290,9 +304,9 @@ fn attachments_and_classes_are_refused_at_their_line_and_column_with_either_line
         let named = serde_saphyr::from_str::<Named>(&text("data/rows.csv")).expect("a plain path");
         assert_eq!(named.table.to_string(), "data/rows.csv");
 
-        let classes = |body: &str| {
+        let classes = |text: &str| {
             serde_saphyr::from_str::<mineworld_authoring::EntityClasses>(
-                &body.replace('\n', ending),
+                &text.replace('\n', ending),
             )
         };
         let twice = classes(
@@ -429,8 +443,9 @@ fn configuration_is_seeded_after_locations_and_before_sections_in_configure_orde
             "probe-sectioned"
         ]
     );
-    assert_eq!(configured.facts[1], emission(&Configured { step: 9 }));
-    assert_eq!(configured.facts[2], emission(&Configured { step: 4 }));
+    let configured_fact = |step| emission(&Configured { step, table: None });
+    assert_eq!(configured.facts[1], configured_fact(9));
+    assert_eq!(configured.facts[2], configured_fact(4));
     assert_eq!(configured.facts[0], unconfigured.facts[0]);
     assert_eq!(configured.facts[3], unconfigured.facts[1]);
 }
@@ -585,4 +600,100 @@ fn check_configuration_refuses_a_changed_and_an_added_configuration_naming_the_o
     let (system, saved_side, _) =
         drift(seeded_pack(step(5)).check_configuration(&save(Vec::new())));
     assert_eq!((system, saved_side.as_str()), (Probe::ID, "nothing"));
+}
+
+// ---- data: attachments (SD-IB-5; IB-8's attachment half, IB-10's refusals) ---------------------
+
+/// A probe configuration naming `data/<table>`, labelled as presence, at `root`.
+fn tabled(root: &std::path::Path, table: &str) -> FoundConfiguration {
+    FoundConfiguration {
+        path: root.join("configure/presence.yaml"),
+        ..found(
+            Capability::Presence,
+            serde_json::json!({ "step": 5, "table": format!("data/{table}") }),
+        )
+    }
+}
+
+/// A named file that is missing, one that is over 4 MiB and (where the platform lets a test make one)
+/// one whose link leads outside the pack are each refused by name; a present one is read, its bytes
+/// unchanged — CRLF included — and a file nothing names is left alone.
+#[test]
+fn attachments_are_read_whole_and_refused_when_missing_outside_or_over_size() {
+    let scratch = ScratchRoot::new("attachments");
+    let data = scratch.0.join("data");
+    std::fs::create_dir_all(&data).expect("writable");
+    std::fs::write(data.join("unnamed.txt"), "left alone").expect("writable");
+
+    match read_attachments(&scratch.0, &tabled(&scratch.0, "rows.csv")) {
+        Err(PackError::AttachmentMissing {
+            system, attachment, ..
+        }) => {
+            assert_eq!(system, Probe::ID);
+            assert_eq!(attachment, "data/rows.csv");
+        }
+        other => panic!("expected AttachmentMissing, got {other:?}"),
+    }
+
+    std::fs::write(data.join("rows.csv"), "1,2,3\r\n4,5,6\r\n").expect("writable");
+    let attached = read_attachments(&scratch.0, &tabled(&scratch.0, "rows.csv")).expect("read");
+    let table = mineworld_authoring::Attachment::try_from("data/rows.csv".to_owned()).expect("ok");
+    assert_eq!(attached.get(&table), Some(&b"1,2,3\r\n4,5,6\r\n"[..]));
+
+    let big = std::fs::File::create(data.join("big.bin")).expect("writable");
+    big.set_len(mineworld_authoring::ATTACHMENT_MAX_BYTES + 1)
+        .expect("a sparse file");
+    match read_attachments(&scratch.0, &tabled(&scratch.0, "big.bin")) {
+        Err(PackError::AttachmentTooLarge { bytes, max, .. }) => {
+            assert_eq!((bytes, max), (4 * 1024 * 1024 + 1, 4 * 1024 * 1024));
+        }
+        other => panic!("expected AttachmentTooLarge, got {other:?}"),
+    }
+
+    // A link out of the pack. Windows lets an unprivileged process make no symlink, so this case is
+    // made only where the platform allows it; the check itself is platform-neutral (canonical paths).
+    #[cfg(unix)]
+    {
+        let outside = ScratchRoot::new("attachments-outside");
+        std::fs::write(outside.0.join("secret.txt"), "not the pack's").expect("writable");
+        std::os::unix::fs::symlink(outside.0.join("secret.txt"), data.join("link.txt"))
+            .expect("a symlink");
+        match read_attachments(&scratch.0, &tabled(&scratch.0, "link.txt")) {
+            Err(PackError::AttachmentOutside { attachment, .. }) => {
+                assert_eq!(attachment, "data/link.txt");
+            }
+            other => panic!("expected AttachmentOutside, got {other:?}"),
+        }
+    }
+}
+
+/// The bytes reach the owner's seed and its fact, so a changed file is drift at resume (IB-8's
+/// attachment half, through `check_configuration`); the same bytes are not.
+#[test]
+fn a_changed_attachment_is_drift_and_an_unchanged_one_is_not() {
+    let scratch = ScratchRoot::new("attachment-drift");
+    std::fs::create_dir_all(scratch.0.join("data")).expect("writable");
+    let pack = |rows: &str| {
+        std::fs::write(scratch.0.join("data/rows.csv"), rows).expect("writable");
+        let mut configured = tabled(&scratch.0, "rows.csv");
+        configured.attached = read_attachments(&scratch.0, &configured).expect("read");
+        seeded_pack(vec![configured])
+    };
+    let facts = pack("1,2,3\n").assemble().expect("assembles").facts;
+    assert_eq!(
+        facts[1],
+        emission(&Configured {
+            step: 5,
+            table: Some("1,2,3\n".to_owned())
+        }),
+        "the owner states what it read"
+    );
+    let save = saved(&facts);
+    pack("1,2,3\n")
+        .check_configuration(&save)
+        .expect("the same bytes");
+    match pack("1,2,4\n").check_configuration(&save) {
+        Err(PackError::ConfigurationDrift { system, .. }) => assert_eq!(system, Probe::ID),
+        other => panic!("expected ConfigurationDrift, got {other:?}"),
+    }
 }

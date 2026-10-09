@@ -2051,13 +2051,13 @@ as an argument); `error.rs`; `format.rs` (`FoundConfiguration.attached`); `lib.r
 `worldpack/tests/configuration.rs` (the reserved tests become framework-key tests, §12.8),
 `configure/tests.rs`, and `tools/cli/tests/configure.rs` (its reserved case → the packages case of
 IB-9).
-- [ ] Implementation: as above.
-- [ ] Validation: IB-9 and M-IB9; IB-10's refusals (outside, missing, over-size) with a probe; the
+- [x] Implementation: as above (E-IB-3).
+- [x] Validation: IB-9 and M-IB9; IB-10's refusals (outside, missing, over-size) with a probe; the
   undeclared-file refusal still covers `configure/classes.yaml` when it is not listed. The three worlds'
-  `validate` output is `cmp`-identical to E-IB-0.
-- [ ] Review: the order in `read_with` (resolve_systems → packages → requirements → configuration);
+  `validate` output is `cmp`-identical to E-IB-0 (E-IB-3).
+- [x] Review: the order in `read_with` (resolve_systems → packages → requirements → configuration);
   the policy is neither seeded nor compared; `check_configuration` re-reads attachments from the same
-  root.
+  root (E-IB-3).
 
 ### IB-C4 — presence: a pack-stated refusal on an offer
 
@@ -2329,6 +2329,33 @@ E-IB-2  2026-10-08, IB-C2: authoring/src/classes.rs (ClassName, ClassDefinition,
         configuration_seam` 4 passed. Review: the context is two shared references, read-only; Seeding
         unchanged; the old two-argument seed exists nowhere (`git grep "fn seed(_: &Seeding<'_, '_>,
         settings"` empty). PASS.
+E-IB-3  2026-10-09, IB-C3: worldpack configure.rs — FRAMEWORK (classes, packages) replaces RESERVED;
+        licence_policy() reads configure/packages.yaml identifier by identifier (LicencePolicy's own
+        whole-list decoding lost the position, the E-IB-2 finding again; LicencePolicy::new still judges
+        each identifier); read() now: keys once → framework keys set aside → classes.yaml →
+        owners' files → undeclared files → requires → attachments (read_attachments: missing, link
+        outside the canonical pack root, over 4 MiB) → check() against the classes (ClassUndefined,
+        AmbiguousEntries named with file, list and index); seed() hands each configuration its own
+        context. read.rs: 4a policy → 4b requirements(policy) → 4c configuration; WorldPack::classes(),
+        licence_policy(). requirements.rs takes the policy. error.rs: ConfigurationReserved removed;
+        ClassesInvalid, ClassUndefined, AmbiguousEntries, AttachmentMissing, AttachmentOutside,
+        AttachmentTooLarge, LicencePolicyInvalid added. format.rs: FoundConfiguration.attached. cli
+        packs.rs: a World Pack judged by its own policy. configuration_vocabulary.rs rewritten to IB-12
+        (permit/forbid/class/biograph allowed, invit added, D-14's admissions removed, IL-b's files
+        added) — it caught three uses of "give"/"given" and a "body" variable in IL-b's own new lines,
+        reworded. Tests: worldpack/tests/configuration.rs 9 passed (the reserved test became
+        the_framework_keys_are_read_by_their_owners_not_resolved_as_systems and
+        a_world_licence_policy_replaces_the_default_and_is_not_seeded); cli --test configure 3 passed
+        (the reserved case became the packages case; new
+        a_world_licence_policy_governs_validate_and_packs_validate); worldpack --lib 14 passed (new:
+        attachments_are_read_whole_and_refused_when_missing_outside_or_over_size — the link case under
+        cfg(unix) only, see D-IB-6 — and a_changed_attachment_is_drift_and_an_unchanged_one_is_not);
+        configuration_vocabulary 2, configuration_seam 4 passed.
+        M-IB9 (read.rs passes `&LicencePolicy::default()` to requirements::resolve): FAILS
+        a_world_licence_policy_replaces_the_default_and_is_not_seeded ("expected the policy's refusal,
+        got Ok(WorldPack …)") and a_world_licence_policy_governs_validate_and_packs_validate; reverted,
+        `git grep MUTATION -- '*.rs'` empty.
+        validate ×3 on the IB-C3 tree (dev binary): `cmp`-identical to E-IB-0's three files. PASS.
 ```
 
 ## 12.14 Deviations
@@ -2360,6 +2387,9 @@ D-IB-4  (bounded) The context-dependent refusals need a typed answer before seed
         (default Ok) and the matching `AuthoredConfiguration::check`, in authoring/src/configuration.rs.
 D-IB-5  (bounded) `InteractionSection::PARAMETER_ROLES`: the roles a parameter entry may scope by
         (SD-IB-16 names conversation's: actor, target and place), which SD-IB-7's list omits.
+D-IB-6  (bounded; platform) The AttachmentOutside test makes its symlink only under cfg(unix): an
+        unprivileged Windows process cannot create one. The check itself is platform-neutral
+        (canonicalized paths compared with `starts_with`); the missing and over-size cases run everywhere.
 ```
 
 **Findings recorded at implementation start.**

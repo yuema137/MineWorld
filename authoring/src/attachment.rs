@@ -21,7 +21,7 @@ pub const ATTACHMENT_MAX_BYTES: u64 = 4 * 1024 * 1024;
 /// A file under the World Pack's `data/`, as a configuration names it: `data/table.csv`.
 ///
 /// The same text means the same file on macOS, Linux and Windows: components are separated by `/`
-/// only, and a `\`, a drive (`:`), an empty component, `.` and `..` are refused rather than given a
+/// only, and a `\`, a drive (`:`), an empty component, `.` and `..` are refused rather than read with a
 /// platform's meaning.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]

@@ -95,7 +95,7 @@ pub struct Classed<'a> {
 #[serde(into = "Vec<ClassDefinition>")]
 pub struct EntityClasses(Vec<ClassDefinition>);
 
-/// The refusal for `definition` given the classes defined before it, if any.
+/// The refusal for `definition`, after the classes defined before it, if any.
 fn refusal(seen: &BTreeSet<ClassName>, definition: &ClassDefinition) -> Option<String> {
     if let Some(entity_type) = definition.class.implicit_type() {
         return Some(format!(
