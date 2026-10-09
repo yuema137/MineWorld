@@ -38,6 +38,9 @@ target-version = "py312"
 [tool.ruff.lint]
 # pycodestyle, pyflakes, import order, pyupgrade, bugbear, annotations, ruff's own.
 select = ["E", "F", "I", "UP", "B", "ANN", "RUF"]
+# Line length is the formatter's (`ruff format`, line-length above); prose in docstrings and comments
+# is wrapped by hand near it, as the repository's Rust doc comments are.
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
