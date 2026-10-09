@@ -13,8 +13,8 @@ authorizes implementation. Each PR is detailed to the commit and frozen in turn 
 **PR 16a:** detailed to the commit in §19, `DESIGN FROZEN (2026-10-08), primary session`.
 **PR 16c:** detailed to the commit in §20, `DESIGN FROZEN (2026-10-08), primary session` (record in §20.0), drafted on
 `plan/s14-16c` from `main @ 9cf8f8e`.
-**PR 12e:** detailed to the commit in `step-11-bodies.md` §22 (PR design — ready for freeze review,
-2026-10-09), which refines and governs this file's 12e statements (§§4.2–4.5, §5, §13, §14).
+**PR 12e:** detailed to the commit in `step-11-bodies.md` §22 (`DESIGN FROZEN 2026-10-09`, primary
+session; preconditions 12d and 16c merged), which refines and governs this file's 12e statements (§§4.2–4.5, §5, §13, §14).
 **Branch:** `plan/s14-3d`, from `main @ 0fd0be3`, worktree `/Users/yuema137/mineworld-worktrees/plan-s14-3d`,
 held by this planning session only.
 **Written in parallel** with the S11, S12, S13 and Milestone E planning sessions, while 12c is being

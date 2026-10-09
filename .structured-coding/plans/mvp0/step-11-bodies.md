@@ -30,8 +30,9 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
   "Refresh" note); **DESIGN FROZEN (2026-10-08), primary session**, to be implemented in a fresh
   session in `impl-12d` on `mvp0/pr-12d-towns`. The operator decided QD-1
   (amend check 3) and the primary session ruled QD-2 … QD-13 (§19's header); QD-14 … are new.
-- **PR 12e** — bodies in the 3D client: detailed in §22, **PR design — ready for freeze review**
-  (2026-10-09, `plan/s15-12e`); after 12d (and, recommended, 16c — QE-1). §21 is reserved for 12n.
+- **PR 12e** — bodies in the 3D client: detailed in §22, **DESIGN FROZEN (2026-10-09), primary
+  session** (record §22.0); preconditions 12d and 16c merged; to be implemented in a fresh session in
+  `impl-12e` on `mvp0/pr-12e-3d-bodies`. §21 is reserved for 12n.
 
 **Freeze record (primary session, 2026-10-07).** The operator decided:
 
@@ -7605,11 +7606,47 @@ note record them.
 
 ---
 
-# 22. PR 12e — bodies in the 3D client (PR design — ready for freeze review)
+# 22. PR 12e — bodies in the 3D client (full design; DESIGN FROZEN 2026-10-09)
 
-**Lifecycle:** PR design — **ready for freeze review**. Drafted by a planning session on `plan/s15-12e`
-from `main @ f80bbb7` (2026-10-09). **Not frozen.** Nothing in §22 authorizes implementation. The
-questions are §22.10 (QE-1 …), the operator-material ones marked **[OM]**.
+**Lifecycle:** `DESIGN FROZEN (2026-10-09), primary session` — record and rulings in §22.0.
+Drafted by a planning session on `plan/s15-12e` from `main @ f80bbb7` (2026-10-09, commit `e7b201b`).
+Implementation is authorized by the freeze, under the execution contract in §22.13 and its
+preconditions (12d and 16c merged), in a fresh session.
+
+## 22.0 Freeze record
+
+## DESIGN FROZEN
+
+```text
+Design revision     §§22.1–22.13 as committed in e7b201b, amended by the rulings below (this
+                    commit); §22.8 checkboxes, §22.14 ledger and handoff stay live
+Approved by         the primary session, 2026-10-09 ("12e (§22) is DESIGN FROZEN 2026-10-09 (primary
+                    session)"), relayed by the coordinator to the planning session
+Implementation base main after 12d and 16c merge (preconditions); branch mvp0/pr-12e-3d-bodies;
+                    worktree /Users/yuema137/mineworld-worktrees/impl-12e
+Execution contract  §22.13
+Lifecycle           FROZEN
+```
+
+**Rulings (primary session, 2026-10-09).**
+
+- **Accepted as recommended:** QE-1 (after 16c), QE-3, QE-6, QE-7, QE-8, QE-10, QE-11, QE-12.
+- **QE-2 — prune.** The bank tree's overhang is lifted to at least 2.44 m over the pavement, following the
+  operator's standing rule that defaults follow the real world (the US clearance codes cited in F-E11).
+  The bank tree is **removed from the probe's exemption list**: GE-2 holds it like any collider. The
+  operator judges the look at checklist item 7; if they dislike it, keeping the exemption is the bounded
+  fallback (recorded in §22.15 if taken, never silently).
+- **QE-4, QE-5:** the recommended defaults stand (primitives in the palette; F/G/R, G-aim-G, the HUD
+  offer line). The operator judges them hands-on at the milestone play-test (items 5 and 9).
+- **QE-9 — accepted for 12e:** macOS real runs; Linux headless if Godot is available to the session;
+  Windows by code review, plus an optional operator play. **Cross-lane requirement on S13 13c:** its
+  `clients` job runs the slice's headless probes (`--drive`, `--link`, `--geometry`, `--bodies`,
+  `--rules`) on Windows and Linux, so the review-only gap closes there (§22.12).
+- **Section numbers:** §22 stays; §21 is 12n's.
+
+**Consequences applied in this commit:** SD-E1's either-order fallback is withdrawn (16c is a
+precondition; GE-3, the store, is always run); SD-E14 and GE-2 have two exemptions only (the door leaves);
+EC-4's prune is unconditional; the contract's preconditions are 12d and 16c merged.
 
 **Numbering.** §21 is reserved for 12n (navigation), whose design is on `plan/s15-12n` (PR #100, under
 revision) and not yet on `main`. 12e takes §22 so the two documents merge without renumbering.
@@ -7647,7 +7684,7 @@ Objects     drawn from `loose-objects`, the collider equal to the disclosed shap
             tween between disclosed positions, or along `object-moved`'s `path` once S11-C delivers
             events and the shared module reads them.
 Probe       `--world --geometry`: every disclosed wall and solid face against the scene's colliders and
-            back, 150 mm, both directions, three named exemptions at most; `--world --bodies`,
+            back, 150 mm, both directions, two named exemptions (the door leaves); `--world --bodies`,
             `--world --rules`, `--no-people-colliders`, run for real.
 Unchanged   kernel, contracts, persistence, server, every System Pack, worlds, the shared GDScript module,
             the 2D client. 12e is a client PR plus documents.
@@ -7658,7 +7695,7 @@ Unchanged   kernel, contracts, persistence, server, every System Pack, worlds, t
 ```text
 PR            12e — bodies in the 3D client (S15, the fifth and last PR of the step)
 base          main after 12d merges (hard precondition: the towns have bodies, PERSON_RADIUS is 250, the
-              doorways sit 400 mm inside). Recommended: after S14 16c as well (QE-1). Re-audit §22.2
+              doorways sit 400 mm inside) and S14 16c merged (ruled, QE-1). Re-audit §22.2
               against the base in EC-1
 branch        mvp0/pr-12e-3d-bodies, worktree /Users/yuema137/mineworld-worktrees/impl-12e, held by the
               implementing session only
@@ -7700,10 +7737,10 @@ clients/3d-spike/scripts/slice/targeting.gd             the person collider mask
 clients/3d-spike/scripts/slice/intents.gd               kick, throw, shove (SD-E6)
 clients/3d-spike/scripts/controls_hud.gd                offer prompts, the aim marker (SD-E10)
 clients/3d-spike/scripts/slice/slice_main.gd            the F/G/R handling hook and the HUD line, only
-clients/3d-spike/scripts/slice/streetscape.gd           only if QE-2 is answered "prune" (FU-12d-1)
+clients/3d-spike/scripts/slice/streetscape.gd           the bank tree's prune only (QE-2, FU-12d-1)
 clients/3d-spike/scripts/slice/slice_probe_bodies.gd    new: --geometry, --bodies, --rules (SD-E12)
 clients/3d-spike/scripts/slice/slice_probe_world.gd     dispatch to the sibling, only (as 16a did)
-clients/3d-spike/scripts/slice/figures.gd               only if 16c is on the base: the collider rides
+clients/3d-spike/scripts/slice/figures.gd               (16c's): the collider rides
                                                         the walking figure (SD-E5)
 clients/3d-spike/README.md, mineworld-slice             the new modes; --save/--time-scale pass-through
 tests/acceptance/tests/client_rules.rs                  three allow-list admissions in intents.gd (kick,
@@ -7798,7 +7835,7 @@ of something drawn or a duration of something drawn.
 
 | ID | Decision | Alternatives considered | Why |
 | --- | --- | --- | --- |
-| **SD-E1** | **Order.** Implementation starts on `main` after 12d merges. Recommended: after 16c too, so that 12e builds on `SliceLayout` (every place bound, the florist as the store) and `SliceFigures` (walking figures), and its geometry probe covers the store (QE-1). If the primary session prefers either order (D-16c-1), 12e on a base without 16c probes the café and the street only and records the store as owed to the later of the two, which then re-runs `--geometry` in its own close | before 12d (the server has no geometry and R 300: nothing to agree with); either order unconditionally (the store row has no owner) | The strict probe is only meaningful against 12d's content; with 16c first, nothing in 12e is provisional |
+| **SD-E1** | **Order.** Implementation starts on `main` after 12d merges. Recommended: after 16c too, so that 12e builds on `SliceLayout` (every place bound, the florist as the store) and `SliceFigures` (walking figures), and its geometry probe covers the store (QE-1). **Ruled 2026-10-09: 12d and 16c are both preconditions**; the either-order fallback is withdrawn | before 12d (the server has no geometry and R 300: nothing to agree with); either order unconditionally (the store row has no owner) | The strict probe is only meaningful against 12d's content; with 16c first, nothing in 12e is provisional |
 | **SD-E2** | **The capsule is the server's person, 0.25 × 1.72.** `Player.CAPSULE_RADIUS = 0.25`, its comment citing bodies' `PERSON_RADIUS`/`PERSON_HEIGHT` and the operator's ruling; every person collider uses the same pair (it already does through `Player`). An executable cross-check (B-r) holds it to what the server does, without the client quoting a server number | read the radius from disclosure (needs a bodies change: R-S15-3, QE-7); keep 0.30 (overlap and jitter, F-E1) | One source of truth would be disclosure; until a world can configure the radius (IL-c) the constant equals the only value the server can have, and B-r catches drift by behaviour |
 | **SD-E3** | **Layers and masks.** `Build` gains `LAYER_OBJECTS = 4` and `LAYER_DISCLOSED = 8`. Player mask: `LAYER_WORLD \| LAYER_DISCLOSED \| LAYER_BODIES \| LAYER_OBJECTS`. Camera boom: `LAYER_WORLD` (unchanged: a third-person camera neither stops at a person nor at an invisible wall). Target ray: `LAYER_WORLD \| LAYER_BODIES \| LAYER_OBJECTS` — **not** `LAYER_DISCLOSED` | the ray against all four (step-15 §4.2) | An invisible collider must not hide what the eye sees; walls the eye sees are scene walls (`LAYER_WORLD`). Refines step-15 §4.2 (QE-8) |
 | **SD-E4** | **Disclosed geometry, `client_bodies.gd`** (`SliceClientBodies`, `RefCounted`, owned by the link). When the observer's place, or its `place-shape` value (`component_value`), changes, one invisible node `DisclosedGeometry` is rebuilt for that place in its frame: four perimeter walls (`WALL_THICKNESS`, `WALL_TALL`, outside the floor), each with a `DOOR_GAP` gap centred on the projection of every disclosed `passages.leads_to[].here` within 0.5 m of that edge; each solid a `StaticBody3D` box from its footprint, `height` tall, on the floor. All on `LAYER_DISCLOSED`. A place without `place-shape` (a world without bodies) builds nothing | replace the scene's colliders by the disclosed ones (16f's job; would change the accepted feel); no disclosed geometry (the player could walk where the server stops it, and be corrected at invisible lines) | R-B4's "one source": where scene and server disagree the body still stops where the server would, and the probe (GE-*) makes any disagreement a named defect instead of a felt one |
@@ -7811,7 +7848,7 @@ of something drawn or a duration of something drawn.
 | **SD-E11** | **Wall time only.** Every motion 12e draws — the glide, the tween, the path, the ball's roll — advances by frame `delta` (wall seconds). Nothing in the client reads `WorldSummary.time_scale`; `Engine.time_scale` is untouched outside the two existing capture modes. C-5 shows it at `--time-scale 1` and `24` | scale an object's flight by the world's scale (step-19 §4.2 option D/C, rejected by the operator) | `ARC-67`: embodied motion is wall-clock and never sped up |
 | **SD-E12** | **The probe, `slice_probe_bodies.gd`** (`SliceProbeBodies extends SliceProbeWorld`, as 16a split the connected modes): modes `geometry`, `bodies`, `rules`; flag `--no-people-colliders`. **Puppets**: extra `MineWorldClient` nodes on free seats (`bob`, `wanderer`, `ivan`), each moved by the same `move` requests (`SliceLink.MOVE_ACTION`, no literal) and shoving through `SliceIntents.shove` — so every staged event is a real request on a real connection. The oracle never quotes a server rule number: it asserts what the client must make true (drawn = observed, corrections converge, colliders match behaviour) and reads the server's facts from the save (`mineworld inspect`) for evidence. Launcher: `--geometry`, `--bodies`, `--rules` (headless), and pass-through `--save=`/`--time-scale=` for the hosted server (scratch save directory under `clients/3d-spike/shots/12e/`, ignored, removed after) | a Rust integration test driving a headless Godot (no harness exists; the slice's own probe is the integration harness, step-15 §8.7) | Real execution, as the operator runs it (`ENGINEERING_RULES.md` §19) |
 | **SD-E13** | **The door inset.** If neither 16c nor the primary's hotfix (Q-16c-2) has moved `door_point`'s 0.2 m to 0.4 m on 12e's base, 12e moves it (SD-D8), first commit after the baseline; otherwise it finds it moved and records that | — | A connected client must not draw 200 mm off on 12d's content |
-| **SD-E14** | **The geometry probe** (`--world --geometry`, GE-*). Run in each drawn place the observer can stand in (café, street; the store if 16c is on the base). **Disclosed → scene:** along every disclosed solid face and floor edge, every 100 mm, at heights 0.3 m and min(h − 0.1, 1.5) m, a horizontal ray from 0.3 m on the walkable side toward the face, mask `LAYER_WORLD` only, must hit within 150 mm of the face's plane — except within a `DOOR_GAP` at a doorway. **Scene → disclosed:** every `CollisionShape3D` of a `StaticBody3D` on `LAYER_WORLD` whose world AABB meets the floor's rectangle and the capsule's height band (0.05 … 1.72 m), its horizontal footprint sampled every 50 mm (exact for boxes and cylinders; the AABB for others, named), must lie within 150 mm of a disclosed solid or of the floor's edge. Every row printed with the place, the face or the collider's node path, and the distance; the mode fails on any row over 150 mm not exempted. **Exemptions by name only:** the café's and the florist's open door leaves (QD-3) and, unless QE-2 is "prune", the bank tree (FU-12d-1) | compare against the disclosed colliders (would pass by construction — M-E7); one-direction only (an extra scene collider is a wall the server lacks) | The executable form of 12d's TD-3 and R-B4, two-directional as step-15 §4.2 requires |
+| **SD-E14** | **The geometry probe** (`--world --geometry`, GE-*). Run in each drawn place the observer can stand in (café, street, the store). **Disclosed → scene:** along every disclosed solid face and floor edge, every 100 mm, at heights 0.3 m and min(h − 0.1, 1.5) m, a horizontal ray from 0.3 m on the walkable side toward the face, mask `LAYER_WORLD` only, must hit within 150 mm of the face's plane — except within a `DOOR_GAP` at a doorway. **Scene → disclosed:** every `CollisionShape3D` of a `StaticBody3D` on `LAYER_WORLD` whose world AABB meets the floor's rectangle and the capsule's height band (0.05 … 1.72 m), its horizontal footprint sampled every 50 mm (exact for boxes and cylinders; the AABB for others, named), must lie within 150 mm of a disclosed solid or of the floor's edge. Every row printed with the place, the face or the collider's node path, and the distance; the mode fails on any row over 150 mm not exempted. **Exemptions by name only:** the café's and the florist's open door leaves (QD-3). The bank tree (FU-12d-1) is pruned (QE-2, ruled) and is not exempt | compare against the disclosed colliders (would pass by construction — M-E7); one-direction only (an extra scene collider is a wall the server lacks) | The executable form of 12d's TD-3 and R-B4, two-directional as step-15 §4.2 requires |
 | **SD-E15** | **Documents first** (EC-2): `ARC-E` in `DECISIONS.md` (the rule, its suspension, the exact form, the one number, nothing else moves the body; options and why); a `DEP-20` note (Jolt now resolves the player against four layers; still never authoritative); `PROTOCOL.md` §6.2: a paragraph after "A client that is refused reconciles", generalising it to every difference over 150 mm with the suspension, citing `ARC-E`; `ADOPTION.md` §4.1 the same for client authors (QE-10); at close, `MVP_STATUS.md` (the 3D column of Movement, the bodies rows) and `HUMAN_REVIEW_QUEUE.md` `VIS-3D-GODOT-2`'s `v2_run_into_townsperson.jpg` row and known limitation 3 — a dated line appended to each, nothing in the accepted entry edited | — | `CLAUDE.md` §2.2 |
 
 ## 22.4 Acceptance (decided before measuring, `ARC-23`)
@@ -7828,11 +7865,12 @@ joined anything else is `INCONCLUSIVE`. "Base" is EC-1's measurement on the impl
 GE-1  CAFÉ. Seated; every row of SD-E14 in both directions. PASS iff every row ≤ 150 mm except the
       café door leaf (named, its distance printed). Expected on 12d: every solid ≤ 0.5 mm, table north's
       south face 37 mm (E-TD1-x1), the door jambs' floor-edge row 140 mm
-GE-2  STREET. Walked out on foot through the café door; the same. PASS iff every row ≤ 150 mm except
-      the bank tree (only if QE-2 ≠ "prune"). Expected: the 62 solids within their E-TD1 distances
+GE-2  STREET. Walked out on foot through the café door; the same. PASS iff every row ≤ 150 mm, with no
+      exemption (QE-2 ruled "prune": the bank tree's collider then lies above the capsule's band and
+      is not a row). Expected: the 62 solids within their E-TD1 distances
       (largest 147 mm, the bicycle), floor edges at the façades within the stallrisers' 60–70 mm and
       the architraves' 80 mm
-GE-3  STORE (only on a base with 16c). Walked into P (16c's L-2 place); the same, the florist door
+GE-3  STORE (16c is a precondition, QE-1). Walked into P (16c's L-2 place); the same, the florist door
       leaf exempt
 GE-4  THE PROBE SEES DRIFT (a counterfactual on content). A scratch copy of social-cafe with the café's
       counter authored 200 mm further south, served on a free port, joined with --server= --geometry:
@@ -7928,6 +7966,7 @@ X-3   THE SCAN. client_rules.rs green with exactly three new admissions (intents
 | M-E9 | C-5 | the glide's and tween's duration divided by the world's time scale | C-5 fails at 24× |
 | M-E10 | `--link` (C-1) | no `DOOR_GAP` cut | `--link` fails: the body stops at an invisible wall in the café door |
 | M-E11 | X-3 | a `"kick"` literal in `targeting.gd` | the scan fails naming `targeting.gd:<line>` |
+| M-E12 | GE-2 (QE-2) | the bank tree's prune reverted (its canopy back at 1.66 m) | GE-2 fails in the scene → disclosed direction naming the tree's collider node, ≥ 150 mm from any disclosed face |
 
 ## 22.5 Godot checks (every run of the real client)
 
@@ -7940,8 +7979,8 @@ GD-1  STANDALONE (I-S14-7): --drive "all drive checks pass" (engine Jolt), every
       --threshold; --character; --perf (median within 15 % of the base, confirmed by a re-run);
       ./mineworld-3d --drive once (the promenade uses Player too)
 GD-2  CONNECTED, the accepted checks (still world): --link "all link checks pass" (and C-1),
-      --conversation "conversation on screen, no ids", --target T-1 … T-4 (T-2' if 16c is on the base);
-      16c's --layout and --street if 16c is on the base
+      --conversation "conversation on screen, no ids", --target T-1, T-2', T-3, T-4;
+      16c's --layout and --street
 GD-3  NEW: --geometry (GE-1 … GE-5), --bodies (B-*, C-*), --rules (X-1), --bodies --no-people-colliders
       (X-2)
 GD-4  WINDOWED EVIDENCE (one Godot window at a time; a stalled capture INCONCLUSIVE and re-run once):
@@ -7998,8 +8037,9 @@ Run `./mineworld-slice --world` (market-town or social-cafe after 12d; with `--t
    flight looks like a ball (rolling, not sliding; not instant), and lands where the world says.
 6. **Look at Bob and press R.** He is pushed half a metre. Look for: the same smoothness as item 3.
 7. **Walk the street's east end** (the bank by the retaining wall). Look for: nothing stops you that
-   you cannot see, and nothing you can see lets you through it. If QE-2 is "prune": the bank tree's
-   branches now clear your head; judge whether the tree still looks right.
+   you cannot see, and nothing you can see lets you through it. The bank tree is pruned (QE-2): its
+   branches now clear your head by at least 2.44 m over the pavement; judge whether the tree still
+   looks right (if not, the bounded fallback is to restore it and exempt it in the probe).
 8. **Third person (V), back into the counter, a wall, a door jamb.** Look for: the rucksack, hand and
    hood do not go into the wall now that the body is a little slimmer.
 9. **The look of the new things:** the box and ball, the HUD prompts, the aim marker (visual defaults
@@ -8027,7 +8067,7 @@ two minutes runs in the background, one Godot window at a time, its log under
 ### EC-1 — The base, re-audited and measured
 
 **Goal.** "Before", on the base, by the commands "after" will use. **Scope.** The ledger only.
-**Depends on** the freeze and 12d merged (and 16c, per QE-1).
+**Depends on** the freeze, 12d merged and 16c merged.
 
 - [ ] Implementation: re-audit F-E1 … F-E17 on the base (PERSON_RADIUS 250 on main; 12d's three
   exemptions; whether 16c, SET-a, S11-C and the 0.4 m inset have landed); record which branch of
@@ -8067,13 +8107,15 @@ both geometries, not fixed by widening `DOOR_GAP` past the doorway's own disclos
 ### EC-4 — The geometry probe (SD-E14) and FU-12d-1 (QE-2)
 
 **Scope.** `slice_probe_bodies.gd` (new; `geometry` mode), `slice_probe_world.gd` (dispatch),
-`mineworld-slice` (`--geometry`); `streetscape.gd` only if QE-2 is "prune".
+`mineworld-slice` (`--geometry`); `streetscape.gd` (the prune, QE-2 ruled).
 
-- [ ] Implementation: as scoped. If "prune": the one bank tree whose canopy overhangs the walkable floor
-  is placed so its lowest collider and foliage over the floor are at least 2.44 m up (or moved back
-  onto the bank), nothing else in the streetscape changes; its exemption is removed from the probe.
-- [ ] Validation (E-E4): GE-1 … GE-3; GE-4 and GE-5 counterfactuals; M-E7, M-E8; if "prune", V-1's street
-  views and a before/after frame of the bank.
+- [ ] Implementation: as scoped. The prune (QE-2): the one bank tree whose canopy overhangs the walkable
+  floor is placed so its lowest collider and foliage over the floor are at least 2.44 m up (or set back
+  onto the bank), nothing else in the streetscape changes; the probe's exemption list holds only the two
+  door leaves. If the operator later dislikes the look (item 7), the bounded fallback is to restore the
+  tree and its named exemption, recorded in §22.15.
+- [ ] Validation (E-E4): GE-1 … GE-3; GE-4 and GE-5 counterfactuals; M-E7, M-E8; V-1's street views and a
+  before/after frame of the bank; M-E12 (the prune reverted → GE-2 fails naming the tree's collider).
 - [ ] Review: the probe masks `LAYER_WORLD` only; every exemption is a name in one list printed by the
   mode; no tolerance is widened after a measurement.
 
@@ -8157,6 +8199,11 @@ CI          the Rust gate as main's workflow runs it (`fast`, `test`); no Godot 
 
 ## 22.10 Questions (QE-1 …)
 
+**All answered at the freeze (§22.0, 2026-10-09):** QE-1, QE-3, QE-6, QE-7, QE-8, QE-10, QE-11, QE-12 as
+recommended; QE-2 prune (exemption removed); QE-4, QE-5 the recommended defaults, judged at the
+milestone play-test; QE-9 accepted, with the S13 13c cross-lane requirement (§22.12). The table keeps the
+questions as asked.
+
 | ID | Question | Recommendation |
 | --- | --- | --- |
 | **QE-1** | **Order with 16c.** 16c's D-16c-1 lets 12e and 16c land in either order. Should 12e wait for 16c? | **Yes, after 16c.** 12e then builds on `SliceLayout` and `SliceFigures`, its people colliders ride walking figures, and the probe covers the store. If the primary session prefers either order, SD-E1's fallback applies and the store row is owed by the later PR |
@@ -8195,6 +8242,7 @@ CI          the Rust gate as main's workflow runs it (`fast`, `test`); no Godot 
 | **IL-c** | Radius as world configuration needs R-S15-3 and the client reading it (QE-7) |
 | **SET-a / SET-b** | 12e's HUD strings become keys in whichever lands second; F/G/R join SET-b's key map |
 | **12n** | No change required (SD-N12); click-to-walk remains optional and later |
+| **S13 13c** (QE-9 ruling) | **Requirement:** 13c's `clients` job runs the slice's headless probes (`./mineworld-slice --drive`, `--world --link`, `--world --geometry`, `--world --bodies`, `--world --rules`) on Windows and Linux, so 12e's review-only coverage of those platforms becomes executed coverage there |
 
 ## 22.13 Proposed execution contract for PR 12e (fields; confirmed at freeze)
 
@@ -8206,7 +8254,7 @@ RELATED / BINDING   step-11 §§7, 10.1 (I-1, I-8), 11.1, 19 (12d as merged), 21
                     build-out" (rulings 4, 6, 9), "One world, two views", "Framework, not demo";
                     ENGINEERING_RULES §§3–12, 19; VISUAL_FIDELITY; HUMAN_REVIEW_QUEUE (VIS-3D-GODOT-1/-2);
                     DECISIONS DEP-13, DEP-20, ARC-39, ARC-67
-PRECONDITION        12d merged on main (and 16c, if QE-1 is answered as recommended)
+PRECONDITION        12d merged on main AND S14 16c merged on main (ruled 2026-10-09, QE-1)
 IMPLEMENTATION BASE main after the precondition; branch mvp0/pr-12e-3d-bodies; worktree
                     /Users/yuema137/mineworld-worktrees/impl-12e (this session only; confirm no other
                     session holds it before editing)
@@ -8244,8 +8292,10 @@ EC-0    drafted on plan/s15-12e from main @ f80bbb7 (2026-10-09). check_doc_head
         sections across 26 documents, none duplicated"; check_decision_ids: "73 decision ids, all
         distinct" (this plan is under .structured-coding/, which they do not read: run to show nothing
         else moved). §22's headings 22.1–22.14 are unique within this file
-handoff checkpoint: PR design ready for freeze review; next action: the primary session's freeze
-        review, then a fresh implementation session in impl-12e once 12d (and 16c, QE-1) has merged
+FREEZE  2026-10-09: §22.0 record and rulings (QE-1 … QE-12); consequences applied (16c a precondition,
+        the bank tree pruned and not exempt, M-E12, the S13 13c requirement)
+handoff checkpoint: DESIGN FROZEN; next action: a fresh implementation session in impl-12e on
+        mvp0/pr-12e-3d-bodies once 12d and 16c have merged on main: EC-1. background: none
 ```
 
 Deviations and discoveries during implementation are recorded in §22.15 when the work starts.
