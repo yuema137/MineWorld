@@ -228,6 +228,19 @@ pub enum ServerFrame {
         /// The observation itself.
         observation: WireObservation,
     },
+    /// What changed since the previous frame on this connection (`PROTOCOL.md` §5.3, `DEP-15`).
+    Delta {
+        /// As on an observation.
+        seq: u64,
+        /// The `seq` of the frame this delta applies to: always the previous one.
+        base: u64,
+        /// As on an observation.
+        revision: Option<WorldRevision>,
+        /// As on an observation, stated whole.
+        acted_through: Option<ActionId>,
+        /// The change.
+        delta: delta::ObservationDelta,
+    },
     /// Facts this connection's observer learned, on the reliable stream it asked for
     /// (`PROTOCOL.md` §5.8).
     Perceived {

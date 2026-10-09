@@ -147,6 +147,8 @@ pub(crate) struct Binding {
     pub(crate) took_over: TookOver,
     pub(crate) resume: ResumeSecret,
     pub(crate) hold_seconds: u32,
+    /// Not a welcome field: how the connection encodes its stream (`HostConfig::keyframe_every`).
+    pub(crate) keyframe_every: std::num::NonZeroU32,
 }
 
 impl Seated {
@@ -190,6 +192,11 @@ impl Seated {
     /// How long the seat is held after a dropped socket, in wall seconds.
     pub const fn hold_seconds(&self) -> u32 {
         self.binding.hold_seconds
+    }
+
+    /// Every how many frames this connection is sent a whole observation (`PROTOCOL.md` §5.3).
+    pub const fn keyframe_every(&self) -> std::num::NonZeroU32 {
+        self.binding.keyframe_every
     }
 
     /// Completes, with the reason, when the world unbinds this connection from its seat — another

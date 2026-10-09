@@ -319,6 +319,9 @@ pub struct Client {
     /// What this connection's observer is, once it has a seat.
     pub observer: Option<EntityId>,
     submitted: u32,
+    /// The whole observation this connection holds and its `seq`, which a `delta` applies to
+    /// (`PROTOCOL.md` §5.3).
+    held: Option<(u64, WireObservation)>,
 }
 
 impl Client {
@@ -331,6 +334,7 @@ impl Client {
             socket,
             observer: None,
             submitted: 0,
+            held: None,
         }
     }
 
@@ -459,11 +463,49 @@ impl Client {
             .expect("the frame is sent");
     }
 
-    /// The next frame the server sends, decoded.
+    /// The next frame the server sends, decoded — with a `delta` applied to the observation this
+    /// client holds and handed on as the whole observation it describes, as every client does
+    /// (`PROTOCOL.md` §5.3). A delta whose base is not the frame held fails the test.
     pub async fn frame(&mut self) -> ServerFrame {
         let text = self.text().await;
-        serde_json::from_str(&text)
-            .unwrap_or_else(|error| panic!("a server frame: {error} in {text}"))
+        let frame: ServerFrame = serde_json::from_str(&text)
+            .unwrap_or_else(|error| panic!("a server frame: {error} in {text}"));
+        match frame {
+            ServerFrame::Observation {
+                seq,
+                revision,
+                acted_through,
+                observation,
+            } => {
+                self.held = Some((seq, observation.clone()));
+                ServerFrame::Observation {
+                    seq,
+                    revision,
+                    acted_through,
+                    observation,
+                }
+            }
+            ServerFrame::Delta {
+                seq,
+                base,
+                revision,
+                acted_through,
+                delta,
+            } => {
+                let (held_seq, held) = self.held.as_ref().expect("a delta follows an observation");
+                assert_eq!(base, *held_seq, "a delta applies to the frame held");
+                let observation =
+                    mineworld_server::protocol::delta::apply(held, &delta).expect("it applies");
+                self.held = Some((seq, observation.clone()));
+                ServerFrame::Observation {
+                    seq,
+                    revision,
+                    acted_through,
+                    observation,
+                }
+            }
+            other => other,
+        }
     }
 
     /// The next frame the server sends, as the text it sent — for a test that counts bytes.

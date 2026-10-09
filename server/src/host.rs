@@ -258,6 +258,8 @@ pub struct HostConfig {
     pub event_backlog: usize,
     /// Facts that may wait for a connection's `perceived` stream; past it, `lagged` (§5.8).
     pub perceived_backlog: usize,
+    /// Every Nth frame to a connection is a whole observation, the others deltas (§5.3, DEP-15).
+    pub keyframe_every: NonZeroU32,
 }
 
 impl Default for HostConfig {
@@ -271,6 +273,7 @@ impl Default for HostConfig {
             time_scale: NonZeroU32::MIN,
             event_backlog: 256,
             perceived_backlog: 4_096,
+            keyframe_every: NonZeroU32::new(50).unwrap_or(NonZeroU32::MIN),
         }
     }
 }

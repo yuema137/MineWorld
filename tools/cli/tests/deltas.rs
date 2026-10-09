@@ -40,7 +40,8 @@ struct Recorded {
 #[tokio::test]
 #[ignore = "CP-C1: a 60 s measurement whose numbers decide DEP-15; run explicitly"]
 async fn cp_c1_whole_typed_and_json_patch_bytes_on_a_hosted_town() {
-    let server = Server::start(&["server", MARKET_PACK, "--town"]).await;
+    // Every frame whole, so that all three encodings are computed from the same frames (CA-8).
+    let server = Server::start(&["server", MARKET_PACK, "--town", "--keyframe-every", "1"]).await;
     let mut clients = Vec::new();
     for seat in ["visitor", "wanderer", "alice", "bob"] {
         let mut client = Client::connect(server.address).await;
@@ -159,4 +160,123 @@ async fn cp_c1_whole_typed_and_json_patch_bytes_on_a_hosted_town() {
         mismatches.is_empty(),
         "CA-9: reconstruction differs at {mismatches:?}"
     );
+}
+
+/// The frames one connection is sent for `window`, as sent, decoded without applying anything:
+/// (seq, base — `None` for a whole observation, whether it applied cleanly to the frame held).
+async fn raw_stream(client: &mut Client, window: Duration) -> Vec<(u64, Option<u64>, bool)> {
+    let deadline = Instant::now() + window;
+    let mut held: Option<(u64, WireObservation)> = None;
+    let mut seen = Vec::new();
+    while Instant::now() < deadline {
+        match serde_json::from_str::<ServerFrame>(&client.text().await).expect("a frame") {
+            ServerFrame::Observation {
+                seq, observation, ..
+            } => {
+                held = Some((seq, observation));
+                seen.push((seq, None, true));
+            }
+            ServerFrame::Delta {
+                seq, base, delta, ..
+            } => {
+                let applied = held
+                    .as_ref()
+                    .filter(|(held_seq, _)| *held_seq == base)
+                    .and_then(|(_, observation)| apply(observation, &delta).ok());
+                let clean = applied.is_some();
+                if let Some(next) = applied {
+                    held = Some((seq, next));
+                }
+                seen.push((seq, Some(base), clean));
+            }
+            _ => {}
+        }
+    }
+    seen
+}
+
+/// CA-10: deltas on the wire, through the binary with the default `--keyframe-every 50`. Frame 1 is
+/// whole; every delta's base is the frame before it and applies cleanly; frames 50, 100, … are whole;
+/// the first frame after a perceived backfill and after a resume is whole. 60 wall seconds.
+#[tokio::test]
+async fn deltas_on_the_wire_keyframes_and_clean_application() {
+    let save = mineworld_test_support::scratch!("deltas-on-the-wire");
+    let path = save.to_str().expect("a printable path").to_owned();
+    let server = Server::start(&[
+        "server",
+        MARKET_PACK,
+        "--town",
+        "--save",
+        &path,
+        "--hold",
+        "10",
+    ])
+    .await;
+    let mut first = Client::connect(server.address).await;
+    let welcome = first
+        .join_as(
+            json!({ "t": "join", "protocol": 2, "invite": support::INVITE,
+                         "nickname": "deltas", "seat": "wanderer",
+                         "perceived": { "since": null } }),
+        )
+        .await;
+    let ServerFrame::Welcome { resume, .. } = welcome else {
+        panic!("welcomed: {welcome:?}");
+    };
+    let resume = resume.expect("a resume").reveal().to_owned();
+    let mut seen = raw_stream(&mut first, Duration::from_secs(50)).await;
+    first.disconnect().await;
+
+    let mut second = Client::connect(server.address).await;
+    let welcome = second
+        .join_as(
+            json!({ "t": "join", "protocol": 2, "invite": support::INVITE,
+                         "nickname": "deltas", "seat": "wanderer", "resume": resume }),
+        )
+        .await;
+    assert!(
+        matches!(welcome, ServerFrame::Welcome { .. }),
+        "{welcome:?}"
+    );
+    let after_resume = raw_stream(&mut second, Duration::from_secs(10)).await;
+
+    let deltas = seen.iter().filter(|(_, base, _)| base.is_some()).count();
+    eprintln!(
+        "CA-10: {} frames before the drop ({deltas} deltas), {} after the resume",
+        seen.len(),
+        after_resume.len()
+    );
+    assert_eq!(
+        seen[0],
+        (1, None, true),
+        "the first frame, after the backfill, is whole"
+    );
+    assert_eq!(
+        after_resume[0].1, None,
+        "the first frame after a resume is whole"
+    );
+    seen.extend(
+        after_resume
+            .iter()
+            .map(|(seq, base, clean)| (*seq + 1_000_000, base.map(|b| b + 1_000_000), *clean)),
+    );
+    for window in seen.windows(2) {
+        let ((previous, _, _), (seq, base, clean)) = (window[0], window[1]);
+        if let Some(base) = base {
+            assert_eq!(
+                base, previous,
+                "frame {seq}: a delta's base is the frame before it"
+            );
+            assert!(
+                clean,
+                "frame {seq}: applies with no base mismatch and no unknown remove"
+            );
+        }
+    }
+    for (seq, base, _) in &seen {
+        if *seq < 1_000_000 && seq % 50 == 0 {
+            assert_eq!(*base, None, "frame {seq} is a keyframe");
+        }
+    }
+    assert!(deltas > 300, "deltas were sent: {deltas}");
 }

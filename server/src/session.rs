@@ -316,8 +316,8 @@ async fn stream(
 ) -> Ending {
     let observer = seated.observer();
     let subscription = seated.subscription();
+    let mut encoder = delta::Encoder::new(seated.keyframe_every());
     let (observations, released) = seated.streams();
-    let mut seq: u64 = 0;
 
     loop {
         let frame = tokio::select! {
@@ -338,16 +338,12 @@ async fn stream(
                         through,
                         events: events.iter().map(|event| (**event).clone()).collect(),
                     },
-                    Streamed::Observation(perceived) => {
-                        seq += 1;
-                        ServerFrame::Observation {
-                            seq,
-                            revision: perceived.revision,
-                            acted_through: perceived.acted_through,
-                            // Entities in ascending id order (`PROTOCOL.md` §5.2).
-                            observation: delta::canonical(perceived.observation),
-                        }
-                    }
+                    // Whole at keyframes, a delta otherwise; entities in id order (§§5.2, 5.3).
+                    Streamed::Observation(perceived) => encoder.frame(
+                        perceived.revision,
+                        perceived.acted_through,
+                        perceived.observation,
+                    ),
                 }
             }
             received = receive(incoming) => match received {

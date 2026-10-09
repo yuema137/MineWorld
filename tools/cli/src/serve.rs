@@ -47,6 +47,8 @@ pub struct ServeRequest {
     pub hold: u32,
     /// World seconds per wall second.
     pub time_scale: NonZeroU32,
+    /// Every how many frames a client is sent a whole observation (`DEP-15`).
+    pub keyframe_every: NonZeroU32,
     /// Where the world is kept, when it is persisted.
     pub save: Option<PathBuf>,
     /// Where the world's `requires:` is resolved (`--packs`, then `MINEWORLD_PACKS`; `ARC-54`).
@@ -95,6 +97,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         pace,
         hold,
         time_scale,
+        keyframe_every,
         save,
         roots,
     } = request;
@@ -105,6 +108,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
         time_scale,
+        keyframe_every,
         ..HostConfig::default()
     };
     let epoch = config.epoch;

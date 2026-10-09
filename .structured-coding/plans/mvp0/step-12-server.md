@@ -2976,8 +2976,9 @@ binary measurement; evidence — the three byte rates; counterfactual — none (
 `HostConfig`), golden `delta.json`, CA-10. **Keyframes only:** `delta.rs` and its tests deleted,
 `PROTOCOL.md` §5.3 marked "not shipped in revision 2", no flag added; this commit is then documentation.
 
-- [ ] Implementation · [ ] Validation: CA-10 (or N/A with the outcome cited) · [ ] Review: a client
+- [x] Implementation · [x] Validation: CA-10 (or N/A with the outcome cited) · [x] Review: a client
   holding any whole observation can always continue; `observation` remains acceptable at any time.
+  (E-SC10; D-SC13)
 
 ### C-C9 — The Godot module and the far side
 
@@ -3314,6 +3315,23 @@ E-SC9 C-C7 on b16ce8a. server/src/protocol/delta.rs: ObservationDelta (deny_unkn
       it. Both reverted. json-patch =4.2.0 (MIT/Apache-2.0, `cargo info`, default features off, `diff`
       on) as a dev-dependency of mineworld-cli only; Cargo.lock gains it. cargo test -p
       mineworld-server all green; clippy clean; session.rs 479, protocol.rs 394.
+E-SC10 C-C8 (typed, per DEP-15), on 86c9d66. ServerFrame::Delta { seq, base, revision, acted_through,
+      delta }; protocol/delta.rs Encoder (whole at seq 1 and every multiple of keyframe_every, else a
+      delta against the frame last sent; a new connection — resume, backfill — is a new encoder);
+      HostConfig.keyframe_every (default 50), carried to the session on Seated; `mineworld server
+      --keyframe-every N` (main.rs 499 lines: three two-line flag docs in the Server variant shortened
+      to one line each, wording kept); MODULE_SPEC §8.1 and PROTOCOL.md §§5.3, 10 state the shipped
+      outcome. Golden server/tests/frames/delta.json (reviewed). frames.rs 13/13.
+      Harnesses (helper edits, D-SC13): tools/cli/tests/support Client::frame() applies a delta to the
+      observation it holds (asserting base = the held seq) and hands callers a whole observation;
+      server/tests/support brisk() sends every frame whole (keyframe_every 1).
+      CA-10 (tools/cli/tests/deltas.rs deltas_on_the_wire_keyframes_and_clean_application, real binary,
+      market-town --town --save, default --keyframe-every): frame 1 whole after the perceived
+      backfill; every delta's base the frame before it and applying cleanly; frames 50, 100, … whole;
+      first frame after a resume whole; > 300 deltas. PASS (~62 s).
+      Regression: cargo test -p mineworld-cli --no-fail-fast with deltas on by default — 30 targets,
+      0 failed (every acceptance test reads observations through the delta-applying client);
+      cargo test -p mineworld-server all green.
 ```
 
 ## 17.13 Deviations and discoveries
@@ -3379,6 +3397,11 @@ D-SC12 CP-C1's outcome and §4.8. json-patch measured 12.9 % smaller than typed 
       branches did not foresee json-patch being more than 10 % *smaller*. Decision: the frozen §17 text
       binds; typed ships; DEP-15 records the tension and the operator is told in the handoff. Not
       treated as a stop: the rule is explicit and was written to make this decision mechanical.
+D-SC13 Test harness helpers with deltas on. Shipping deltas changes what every socket client is sent,
+      so the CLI harness's Client::frame() now applies `delta` frames (as the Godot module and any
+      real client must) and the server's socket-test config sends whole frames (those tests are about
+      seats and handshakes). No assertion in an existing test was changed. Both are the "helper"
+      edits CA-14 allows.
 ```
 
 ## 17.14 macOS, Linux and Windows (operator requirement, 2026-10-08)

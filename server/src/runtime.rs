@@ -236,6 +236,7 @@ impl WorldRuntime {
             took_over: grant.took_over,
             resume,
             hold_seconds: u32::try_from(self.config.hold.as_secs()).unwrap_or(u32::MAX),
+            keyframe_every: self.config.keyframe_every,
         };
         let summary = self.summary();
         Ok(Seated::new(

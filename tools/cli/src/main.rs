@@ -103,8 +103,7 @@ enum Subcommand {
         /// Where to listen; 0.0.0.0:7878 lets friends on a LAN reach it.
         #[arg(long, default_value = DEFAULT_LISTEN)]
         listen: SocketAddr,
-        /// The invite every client must present to join. Without it (and without
-        /// MINEWORLD_INVITE) one is generated and printed once.
+        /// The invite every client must present to join; else one is generated and printed once.
         #[arg(
             long,
             value_name = "TOKEN",
@@ -122,17 +121,18 @@ enum Subcommand {
         /// The paced controllers' seed.
         #[arg(long, default_value_t = 0)]
         seed: u64,
-        /// How often each paced seat is consulted, in wall seconds: the time scale never makes a
-        /// hosted Person walk or talk faster.
+        /// How often each paced seat is consulted, in wall seconds (time scale never speeds it up).
         #[arg(long, value_name = "SECONDS", default_value = "5")]
         pace: NonZeroU32,
-        /// How long a dropped connection's seat is held for its resume, in wall seconds; 0 holds
-        /// none.
+        /// How long a dropped connection's seat is held for its resume, in wall seconds; 0: none.
         #[arg(long, value_name = "SECONDS", default_value_t = 30)]
         hold: u32,
         /// How many world seconds pass per wall second.
         #[arg(long, value_name = "N", default_value = "1")]
         time_scale: NonZeroU32,
+        /// Every Nth frame to a client is a whole observation; the others are deltas (DEP-15).
+        #[arg(long, value_name = "N", default_value = "50")]
+        keyframe_every: NonZeroU32,
         /// Keep the world in DIR/world.sqlite: created from the pack the first time, resumed — the
         /// same world, where it stopped — every time after.
         #[arg(long, value_name = "DIR")]
@@ -306,6 +306,7 @@ async fn main() -> ExitCode {
             pace,
             hold,
             time_scale,
+            keyframe_every,
             save,
             packs,
         } => match packs.roots() {
@@ -320,6 +321,7 @@ async fn main() -> ExitCode {
                     pace,
                     hold,
                     time_scale,
+                    keyframe_every,
                     save,
                     roots,
                 })

@@ -172,6 +172,58 @@ pub fn apply(
         .with_events(delta.events.clone()))
 }
 
+/// One connection's stream encoder (`PROTOCOL.md` §5.3): a whole observation for the first frame and
+/// every `every`-th frame, a delta against the frame this connection was last sent otherwise.
+///
+/// A connection that resumes, or that has just been sent its backfill, is a new encoder, so its first
+/// frame is whole.
+pub struct Encoder {
+    every: std::num::NonZeroU32,
+    seq: u64,
+    held: Option<WireObservation>,
+}
+
+impl Encoder {
+    /// A connection's encoder, before its first frame.
+    pub const fn new(every: std::num::NonZeroU32) -> Self {
+        Self {
+            every,
+            seq: 0,
+            held: None,
+        }
+    }
+
+    /// The next frame for this observation.
+    pub fn frame(
+        &mut self,
+        revision: Option<mineworld_persistence::WorldRevision>,
+        acted_through: Option<mineworld_contracts::ActionId>,
+        observation: WireObservation,
+    ) -> super::ServerFrame {
+        self.seq += 1;
+        let seq = self.seq;
+        let observation = canonical(observation);
+        let keyframe = seq.is_multiple_of(u64::from(self.every.get()));
+        let frame = match self.held.as_ref() {
+            Some(previous) if !keyframe => super::ServerFrame::Delta {
+                seq,
+                base: seq - 1,
+                revision,
+                acted_through,
+                delta: diff(previous, &observation),
+            },
+            _ => super::ServerFrame::Observation {
+                seq,
+                revision,
+                acted_through,
+                observation: observation.clone(),
+            },
+        };
+        self.held = Some(observation);
+        frame
+    }
+}
+
 /// `observation` with these entities, everything else unchanged.
 fn rebuild(
     observation: &WireObservation,

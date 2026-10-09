@@ -396,6 +396,10 @@ keyframes    no delta frame is sent; every frame is a whole observation
 ```
 
 `DEP-15` records which outcome this revision ships; "whole observations only" is a conforming outcome.
+**Revision 2 ships the typed `ObservationDelta`** (CP-C1 measured it at 1.3 % of the whole frames'
+bytes on a hosted market town). One example of the frame is `server/tests/frames/delta.json`, and
+`server/tests/frames/deltas/*.json` hold reviewed `{ base, delta, next }` cases a client checks its
+applier against.
 
 ### 5.4 `result`
 
@@ -730,7 +734,7 @@ server whose `PROTOCOL.md` lists it as landed.
 | `join.take_over` (an explicit takeover flag, §2, §4.2) | S11-B, coordination ruling 1 — **landed** | a `join` carrying it is `malformed_frame` |
 | `WorldSummary.time_scale` (world seconds per wall second, in `welcome.world` and `/status`, §5.7) | S11-B, coordination ruling 1 — **landed** | absent; the hosted clock runs one simulated second per wall second |
 | `observation.events` (facts this observer learned, §5.2); `observation.entities` in id order; `events_dropped` non-zero | S11-C | `events` empty; entity order unspecified; `events_dropped: 0` |
-| `delta` frames and periodic keyframes, `--keyframe-every` (§5.3) | S11-C, in the encoding `DEP-15` records, or not at all | whole `observation` frames only |
+| `delta` frames (the typed `ObservationDelta`, `DEP-15`) and periodic keyframes, `--keyframe-every` (§5.3) | S11-C | whole `observation` frames only |
 | `acted_through` on the `observation` (and `delta`) frame (§5.2) | S11-C, coordination ruling 1 | absent |
 | the `perceived` stream (§5.8): `join.perceived`, the `perceived` frame, refusals `cursor_unavailable` and `lagged`, `closing.lagged` | S11-C, coordination ruling 2 | no `perceived` frame; a `join` carrying `perceived` is `malformed_frame` |
 | `/admin` routes; `closing.kicked` | S11-D | no admin route |

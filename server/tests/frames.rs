@@ -19,6 +19,7 @@ use mineworld_contracts::{
     EventEnvelope, EventId, EventRecord, EventSchemaVersion, EventTypeId, Observation,
     PerceivedEvent, PlaceId, Provenance, SystemId, Visibility, WorldTime,
 };
+use mineworld_server::protocol::delta::{EntityChanges, ObservationDelta};
 use mineworld_server::{
     ClientFrame, ClosingReason, CorrelationToken, Nickname, OfferedInvite, PayloadForm,
     PerceivedJoin, RefusalCode, ResumeSecret, ServerFrame, SessionId, SystemSummary, TookOver,
@@ -148,6 +149,31 @@ fn spoke() -> PerceivedEvent<Value> {
     let (event, form) = wire_fact(&fact).expect("renders");
     assert_eq!(form, PayloadForm::Json);
     event
+}
+
+#[test]
+fn delta() {
+    let delta = ObservationDelta {
+        at: WorldTime::from_seconds(4113),
+        self_location: None,
+        entities: EntityChanges {
+            upsert: Vec::new(),
+            remove: vec![EntityId::from_raw(9_007_199_254_740_995)],
+        },
+        relations: None,
+        affordances: None,
+        events: vec![spoke()],
+    };
+    server_frame_matches(
+        "delta",
+        &ServerFrame::Delta {
+            seq: 13,
+            base: 12,
+            revision: Some(WorldRevision::from_raw(7)),
+            acted_through: Some(ActionId::from_raw(41)),
+            delta,
+        },
+    );
 }
 
 #[test]
