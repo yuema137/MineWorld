@@ -3410,7 +3410,9 @@ FREEZE  2026-10-09: §22.0 record and rulings; Q-16d-3 restated; A16d-17 recorde
         duplicated"; "73 decision ids, all distinct"
 MERGE   2026-10-09: origin/main merged into plan/s14-16d (12e's design #106 and other docs); the one
         conflict, this file's header, kept both lines; A16d-18 recorded (12e's offer line); the stale
-        "§21 for 12e" notes corrected
+        "§21 for 12e" notes corrected. Then origin/main @ bc4f8e7 (#108, overall and decisions)
+        merged cleanly; doc checks: "191 numbered sections across 26 documents, none duplicated";
+        "78 decision ids, all distinct"
 ```
 
 ## 22.13 Handoff (live)
