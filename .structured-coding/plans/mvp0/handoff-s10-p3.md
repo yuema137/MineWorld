@@ -35,6 +35,13 @@ CURRENT CHECKPOINT  READY FOR OPERATOR REVIEW — DO NOT MERGE. C0–C7 complete
                     recorded in the PR body, which is updated after the run.
                     Scratch branch scratch/s10-p3-mutation (5c8f195) is evidence only; delete after
                     review if wanted.
+REVIEW, 2026-10-09  primary session approved #98 (its own mutation of offers.attempt's "not among
+                    this observation's affordances" check was caught). #98 then conflicted with main
+                    (TW-a, S19 plan): origin/main merged at 7e87ceb; the one conflict was
+                    docs/DECISIONS.md (ARC-56/DEP-24..26 beside TW-a's ARC-67…), both kept; no golden
+                    frame, PROTOCOL.md, CI or Python file changed on main's side. Re-checked on the
+                    merge: cargo fmt, clippy -D warnings, binary rebuilt; ruff, format, pyright strict,
+                    pytest 32 passed (real server on main's new binary); doc, pin and scratch checks
 NEXT ACTIONS        operator review and the merge decision. If main moves before merge: merge
                     origin/main; if a golden frame changed, update sdk/python (R-S11-9); re-run the
                     python layer. After merge: record the merge identity in §12; the S10 planning
