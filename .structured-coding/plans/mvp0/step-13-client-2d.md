@@ -2054,3 +2054,17 @@ Implementation session started 2026-10-08 in `/Users/yuema137/mineworld-worktree
   the mechanical move is: give the 2D client a 2D key (e.g. `ui.walk-by-click`) for kind `point` in
   `menu.gd` `_entry`'s label, or the 2D override 16d plans. Every other `action.*` / `.done` text in
   `en.po` is client-neutral. Not changed in 13b.
+- **E-16 — Non-preclusion items from S21 (MVP-1 regions/travel, PR #109), checked against 13b.**
+  **N-3** (a place with no passage to the rest is drawn at `town._far_root()`, 200 m off): 13b does not
+  touch `town.gd` (its one `scene/places.gd` edit is the door label's wording). What 13b adds that
+  reads the layout: `walker.approach` (`town.to_plan` of a perceived person's place; it returns null
+  for an unplaced place and the walk is skipped), `readers.place` (a place's tags from `town.tags`,
+  presentation memory), `people.pick`/`figure_at` (drawn positions). None assumes one stitched town:
+  a per-region resettable layout keeps all of them working, provided `town.reset` stays the one reset
+  (`readers.reset` follows the instance, like `town`). **N-10** (ignore unknown record kinds): 13b
+  ignores or shows raw, never errors — an own component with no reader is shown raw in "other"
+  (AC-I12, `weather-sense`), `display-name`/`participation`/`passages` are skipped by name, a
+  non-object payload is shown raw, an incomplete affordance of an unknown type is listed unsupported
+  and never sent (AC-I4 `wave`), a complete one of an unknown type is offered and sent unchanged
+  (AC-I4 `ring`), an unknown rejection code is shown as the code; unknown frame kinds stay the shared
+  module's (it warns and ignores them). Nothing in 13b deepens either assumption.
