@@ -13,6 +13,9 @@
 //!                   only list of System Packs, expanded into the catalog the loader reads
 //! extension         installed!'s optional lines, one per catalog: a pack-owned trait, its register
 //!                   function, and the types other packs implement it with (ARC-62)
+//! interactions      a pack's section of the World's Interaction List: InteractionSection,
+//!                   parameters!, interactions!, and the lookups permits / parameters / consequence
+//!                   (ARC-63 … ARC-65)
 //! ```
 //!
 //! Installing a pack in MVP-0 is a new directory under `systems/`, two lines in `systems/installed/`
@@ -31,6 +34,7 @@
 #![warn(missing_docs)]
 
 mod installed;
+pub mod interactions;
 mod pack;
 mod section;
 
@@ -49,5 +53,5 @@ pub mod __private {
     };
     pub use mineworld_contracts::{EventTypeId, SystemId};
     pub use mineworld_kernel::{KernelError, System, SystemIdentity, SystemVersion, World};
-    pub use serde::de::{DeserializeSeed, Deserializer, MapAccess};
+    pub use serde::de::{DeserializeSeed, Deserializer, Error as DeError, MapAccess};
 }

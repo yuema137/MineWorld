@@ -47,7 +47,9 @@
 //! future pack being honest is a convention rather than a construction. See
 //! [`PerceptionProvider::discloses`] and [`observe`](crate::observe).
 
-use mineworld_contracts::{Action, ActionTypeId, ComponentRecord, EntityId, SpatialRequirement};
+use mineworld_contracts::{
+    Action, ActionTypeId, ComponentRecord, EntityId, Rejection, SpatialRequirement,
+};
 use mineworld_kernel::WorldRead;
 use serde_json::Value;
 
@@ -146,6 +148,7 @@ pub struct Offer {
     requirement: SpatialRequirement,
     target_available: bool,
     payload: Option<Value>,
+    refused: Option<Rejection>,
 }
 
 impl Offer {
@@ -161,6 +164,7 @@ impl Offer {
             requirement,
             target_available: true,
             payload: None,
+            refused: None,
         }
     }
 
@@ -197,6 +201,23 @@ impl Offer {
     pub const fn with_target_available(mut self, available: bool) -> Self {
         self.target_available = available;
         self
+    }
+
+    /// States that the owning pack refuses this action, for a reason only it can judge — a world's
+    /// Interaction List forbidding it is `PermissionDenied` (`DECISIONS.md` `ARC-34` note, `ARC-63`).
+    ///
+    /// Perception reports the refusal **before** it evaluates the requirement, so the offer and the
+    /// dispatch answer the same, in the same order. The action is still offered: the requirement is
+    /// still shown, and a complete offer's payload still travels.
+    #[must_use]
+    pub fn refused(mut self, reason: Rejection) -> Self {
+        self.refused = Some(reason);
+        self
+    }
+
+    /// The owning pack's refusal, if it states one.
+    pub const fn refusal(&self) -> Option<&Rejection> {
+        self.refused.as_ref()
     }
 
     /// Which action is offered.

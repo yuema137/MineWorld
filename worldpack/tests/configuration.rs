@@ -79,34 +79,113 @@ fn a_key_that_is_no_system_of_this_build_is_refused_listing_the_systems() {
     }
 }
 
-/// Both reserved keys are refused, saying what each is reserved for.
+/// The framework keys (SD-IB-1, the claim changed on purpose from IL-a's reservation): each is let
+/// through to its framework owner — never resolved against the installed set — and its file is
+/// required when listed and refused when present but unlisted.
 #[test]
-fn the_reserved_keys_are_refused_naming_what_they_are_reserved_for() {
-    for (key, reserved) in [
-        ("classes", "entity classes"),
-        ("packages", "licence policy"),
-    ] {
+fn the_framework_keys_are_read_by_their_owners_not_resolved_as_systems() {
+    for key in ["classes", "packages"] {
         let scratch = Scratch::new(
-            &format!("configure-reserved-{key}"),
+            &format!("configure-framework-{key}"),
             &format!("configure:\n  - {key}\n"),
         );
-        let refusal = scratch.read().expect_err("a reserved key is refused");
-        let message = refusal.to_string();
-        match refusal {
-            PackError::ConfigurationReserved {
-                key: refused,
-                reserved_for,
-                ..
-            } => {
-                assert_eq!(refused, key);
-                assert!(reserved_for.contains(reserved), "{reserved_for}");
-                assert!(
-                    message.contains("not configurable in this build"),
-                    "{message}"
-                );
+        match scratch.read() {
+            Err(PackError::ConfigurationFileMissing { system, path }) => {
+                assert_eq!(system.as_str(), key);
+                assert_eq!(path, scratch.root.join(format!("configure/{key}.yaml")));
             }
-            other => panic!("expected ConfigurationReserved, got {other:?}"),
+            other => panic!("{key}: expected ConfigurationFileMissing, got {other:?}"),
         }
+        let unlisted = Scratch::new(&format!("configure-framework-{key}-unlisted"), "");
+        unlisted.write(&format!("configure/{key}.yaml"), "[]\n");
+        match unlisted.read() {
+            Err(PackError::ConfigurationFileNotDeclared { key: stem, .. }) => {
+                assert_eq!(stem, key);
+            }
+            other => panic!("{key}: expected ConfigurationFileNotDeclared, got {other:?}"),
+        }
+    }
+
+    let classes = Scratch::new("configure-classes", "configure:\n  - classes\n");
+    classes.write(
+        "configure/classes.yaml",
+        "- { class: noble, of: person, tag: noble }\n- { class: shop, of: place, tag: square }\n",
+    );
+    let pack = classes.read().expect("classes are read");
+    assert_eq!(pack.classes().definitions().len(), 2);
+    assert!(
+        pack.configuration().is_empty(),
+        "a framework key configures no system"
+    );
+    classes.write(
+        "configure/classes.yaml",
+        "- { class: noble, of: person, tag: noble }\n- { class: noble, of: place, tag: x }\n",
+    );
+    match classes.read() {
+        Err(PackError::ClassesInvalid { path, detail }) => {
+            assert_eq!(path, classes.root.join("configure/classes.yaml"));
+            assert!(
+                detail.contains("line 2") && detail.contains("'noble' is defined twice"),
+                "{detail}"
+            );
+        }
+        other => panic!("expected ClassesInvalid, got {other:?}"),
+    }
+}
+
+/// IB-9: `configure/packages.yaml` replaces the default licence policy for this world — narrowing it
+/// refuses the bundled MIT packs, naming one, its expression and the allowed list; allowing MIT reads;
+/// an identifier that is no SPDX licence is refused at its line and column — and it is not world
+/// state: the genesis facts equal the same world's without the key.
+/// M-IB9: `requirements::resolve` handed the default again → the Apache-only case reads and this fails.
+#[test]
+fn a_world_licence_policy_replaces_the_default_and_is_not_seeded() {
+    let narrowed = Scratch::new("configure-packages-narrowed", "configure:\n  - packages\n");
+    narrowed.write("configure/packages.yaml", "allowed: [Apache-2.0]\n");
+    match narrowed.read() {
+        Err(PackError::Requirements { refusal, .. }) => {
+            let message = refusal.to_string();
+            assert!(
+                message.contains("MIT") && message.contains("Apache-2.0"),
+                "names the expression and the allowed list: {message}"
+            );
+            assert!(
+                message.contains("presence") || message.contains("movement"),
+                "names a bundled pack: {message}"
+            );
+        }
+        other => panic!("expected the policy's refusal, got {other:?}"),
+    }
+
+    let allowed = Scratch::new("configure-packages-allowed", "configure:\n  - packages\n");
+    allowed.write("configure/packages.yaml", "allowed: [MIT]\n");
+    let pack = allowed.read().expect("MIT is allowed");
+    let plain = Scratch::new("configure-packages-allowed-plain", "");
+    let without = plain.read().expect("the same world without the key");
+    let facts = |pack: &WorldPack| {
+        pack.assemble()
+            .expect("assembles")
+            .facts
+            .iter()
+            .map(|fact| (fact.event_type().clone(), fact.record().clone()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(facts(&pack), facts(&without), "the policy is not seeded");
+
+    let invalid = Scratch::new("configure-packages-invalid", "configure:\n  - packages\n");
+    invalid.write(
+        "configure/packages.yaml",
+        "# policy\nallowed: [Not-A-Licence]\n",
+    );
+    match invalid.read() {
+        Err(PackError::LicencePolicyInvalid { path, detail }) => {
+            assert_eq!(path, invalid.root.join("configure/packages.yaml"));
+            assert!(
+                detail.contains("line 2") && detail.contains("Not-A-Licence"),
+                "{detail}"
+            );
+        }
+        other => panic!("expected LicencePolicyInvalid, got {other:?}"),
     }
 }
 
@@ -184,15 +263,15 @@ fn a_key_that_is_not_a_system_id_is_refused_at_its_line() {
     }
 }
 
-/// No installed pack has a reserved key as its id, so a reserved key can never shadow a pack.
+/// No installed pack has a framework key as its id, so a framework key can never shadow a pack.
 #[test]
-fn no_installed_pack_has_a_reserved_key_as_its_id() {
+fn no_installed_pack_has_a_framework_key_as_its_id() {
     for capability in mineworld_worldpack::catalog::AVAILABLE {
         assert!(
-            !mineworld_worldpack::configure::RESERVED
+            !mineworld_worldpack::configure::FRAMEWORK
                 .iter()
                 .any(|(key, _)| *key == capability.id().as_str()),
-            "'{capability}' has a reserved key as its id"
+            "'{capability}' has a framework key as its id"
         );
     }
 }

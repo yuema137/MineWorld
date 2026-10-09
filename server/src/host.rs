@@ -60,11 +60,11 @@ use tokio::sync::{mpsc, oneshot};
 use crate::hosted::{HostedController, HostedFactory};
 use crate::perception::{PerceivesNothing, Perception};
 use crate::protocol::{Refusal, RefusalCode, SessionId, WorldSummary};
-use crate::runtime::WorldRuntime;
+use crate::runtime::{ControlAnswer, ControlCommand, WorldRuntime};
 use crate::seats::{Departure, JoinRequest};
 
 pub(crate) use handles::{Binding, SubscriptionIdSource};
-pub use handles::{Perceived, Seated, Submitted, SubscriptionId};
+pub use handles::{Perceived, Seated, Streams, Submitted, SubscriptionId};
 
 /// The first request identity a server allocates for a world with no history of requests.
 ///
@@ -259,6 +259,11 @@ pub(crate) enum Command {
     },
     /// Send every connected client a fresh observation.
     Sweep,
+    /// One admin command (`PROTOCOL.md` §11): host state only.
+    Control {
+        command: ControlCommand,
+        reply: oneshot::Sender<ControlAnswer>,
+    },
     /// Stop the world thread, answering once it has checkpointed and reported.
     Shutdown(oneshot::Sender<()>),
 }
@@ -386,6 +391,20 @@ impl WorldHost {
         let _ = self
             .commands
             .try_send(Command::Leave(subscription, departure));
+    }
+
+    /// Asks the world thread one admin command and waits for its answer. Called only by the admin
+    /// surface, after its permission check (`PROTOCOL.md` §11).
+    pub(crate) async fn control(
+        &self,
+        command: ControlCommand,
+    ) -> Result<ControlAnswer, HostError> {
+        let (reply, answer) = oneshot::channel();
+        self.commands
+            .send(Command::Control { command, reply })
+            .await
+            .map_err(|_| HostError::WorldStopped)?;
+        answer.await.map_err(|_| HostError::WorldStopped)
     }
 
     /// Stops the world thread and returns once it has. A world that is not persisted goes with it;

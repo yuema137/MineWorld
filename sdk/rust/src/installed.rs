@@ -45,7 +45,8 @@
 /// pub const AVAILABLE: [Capability; N]      every capability, in the listed order
 /// impl Capability {
 ///     resolve, id, section, owning_section, decode_section, configuration, decode_configuration,
-///     configuration_facts, biographical, package, version, install, provider, type_name
+///     configuration_facts, interaction_section, biographical, package, version, install, provider,
+///     type_name
 ///     register_extensions                   calls each extension line's register function once,
 ///                                           with one value of each listed type, lines and types
 ///                                           in the listed order — what a host does before it
@@ -227,6 +228,16 @@ macro_rules! installed {
             pub fn configuration_facts(self) -> &'static [$crate::__private::EventTypeId] {
                 match self {
                     $( Self::$Variant => <$System as $crate::SystemPack>::CONFIGURATION_FACTS, )+
+                }
+            }
+
+            /// What this capability's section of the World's Interaction List declares, if it has
+            /// one (`ARC-63`): its configured fact, actions and facts — for the tools.
+            pub const fn interaction_section(
+                self,
+            ) -> ::core::option::Option<$crate::interactions::SectionDecl> {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::INTERACTIONS, )+
                 }
             }
 

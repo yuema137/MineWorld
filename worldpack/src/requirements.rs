@@ -18,12 +18,13 @@ use crate::format::WorldManifest;
 use crate::read::parse;
 
 /// Resolves the world `manifest` (read from `manifest_path`) against this build and `roots`, under the
-/// default licence policy — which a world will override through the configuration seam (`ARC-55`).
+/// world's licence policy — the default, or the world's `configure/packages.yaml` (`ARC-55` note).
 pub(crate) fn resolve(
     manifest_path: &Path,
     manifest: &WorldManifest,
     systems: &[Capability],
     roots: &PackRoots,
+    policy: &LicencePolicy,
 ) -> Result<Composition, PackError> {
     let refused = |refusal| PackError::Requirements {
         path: manifest_path.to_path_buf(),
@@ -50,7 +51,7 @@ pub(crate) fn resolve(
             found: &found,
             searched: &searched,
         },
-        &LicencePolicy::default(),
+        policy,
     )
     .map_err(refused)
 }

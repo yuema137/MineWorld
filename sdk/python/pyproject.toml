@@ -1,0 +1,56 @@
+# mineworld-sdk: a Python client of the MineWorld protocol (server/PROTOCOL.md, revision 2).
+#
+# Design: .structured-coding/plans/mvp0/pr-s10-p3-python-sdk.md. Dependencies are recorded in
+# docs/DECISIONS.md (DEP-S10-b Pydantic, DEP-S10-c websockets, DEP-S10-e the toolchain); adding one is
+# a decision, not an edit.
+
+[project]
+name = "mineworld-sdk"
+version = "0.1.0"
+description = "Join a seat of a MineWorld server as a client of its public protocol."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.13,<3",
+    # One major version: only websockets.asyncio.client is used (R-P3-6, DEP-25).
+    "websockets>=17,<18",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "pytest-socket>=0.8,<0.9",
+    "ruff>=0.16",
+    # The `nodejs` extra brings Node.js as a locked wheel, so pyright needs no separately installed Node
+    # (R-P3-1).
+    "pyright[nodejs]>=1.1.414",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.13"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, import order, pyupgrade, bugbear, annotations, ruff's own.
+select = ["E", "F", "I", "UP", "B", "ANN", "RUF"]
+# Line length is the formatter's (`ruff format`, line-length above); prose in docstrings and comments
+# is wrapped by hand near it, as the repository's Rust doc comments are.
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `real_server` marks a test that starts the real `mineworld` binary (D-P3-10). A job that does not build
+# the binary deselects these on its command line (`-m "not real_server"`); a test never skips itself.
+markers = [
+    "real_server: starts the real mineworld binary; never skipped, only deselected by name",
+]
+# The network guard (I-11; pr-s10-p3 D-P3-11 (b), as settled in C1): pytest-socket blocks every
+# `connect` to anything but the loopback addresses, on every platform. With `--allow-hosts` given,
+# pytest-socket ignores `--disable-socket`, so asyncio's self-pipe (a Unix socketpair on POSIX, a
+# loopback TCP pair on Windows) needs no platform-specific flag.
+addopts = ["--strict-markers", "--allow-hosts=127.0.0.1,::1"]
