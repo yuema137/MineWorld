@@ -1023,7 +1023,14 @@ fn market_section(key: &str) -> bool {
         .is_some_and(|(capability, _)| MARKET_PACKS.contains(&capability.id().as_str()))
 }
 
-/// `systems`: Social Café's list, in order, then exactly the six market packs, as a set.
+/// Generic packs a world may enable through configuration, after the six market packs (`ARC-35`'s
+/// 2026-10-09 note, the operator's ruling on S19 TW-a). Each is added by the PR that brings its pack; a
+/// pack listed here is neither the market nor Social Café, so the market delta is still measured
+/// exactly.
+const GENERIC_PACKS: [&str; 1] = ["calendar"];
+
+/// `systems`: Social Café's list, in order, then exactly the six market packs, as a set, then only
+/// allow-listed generic packs (each once). A generic pack anywhere before the end of the six is named.
 fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String> {
     let names = |value: Option<&Value>| -> Option<Vec<String>> {
         value?
@@ -1035,21 +1042,85 @@ fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String
     let (Some(social), Some(market)) = (names(social), names(market)) else {
         return vec!["world.yaml: `systems` is not a list of names in both packs".to_owned()];
     };
+    let end_of_market = social.len() + MARKET_PACKS.len();
+    let misplaced: Vec<String> = market
+        .iter()
+        .enumerate()
+        .filter(|(index, name)| GENERIC_PACKS.contains(&name.as_str()) && *index < end_of_market)
+        .map(|(index, name)| {
+            format!(
+                "world.yaml: `{name}` is an allow-listed generic pack at position {index}; it may \
+                 only follow the six market packs"
+            )
+        })
+        .collect();
+    if !misplaced.is_empty() {
+        return misplaced;
+    }
     if !market.starts_with(&social) {
         return vec![format!(
             "world.yaml: `systems` does not begin with Social Café's list, in order: {market:?}"
         )];
     }
-    let appended = &market[social.len()..];
+    let appended = &market[social.len()..market.len().min(end_of_market)];
     let set: BTreeSet<&str> = appended.iter().map(String::as_str).collect();
-    if appended.len() == MARKET_PACKS.len() && set == MARKET_PACKS.into_iter().collect() {
-        Vec::new()
-    } else {
-        vec![format!(
+    if appended.len() != MARKET_PACKS.len() || set != MARKET_PACKS.into_iter().collect() {
+        return vec![format!(
             "world.yaml: the systems appended to Social Café's are {appended:?}, not the six market \
              packs {MARKET_PACKS:?}"
-        )]
+        )];
     }
+    let mut seen = BTreeSet::new();
+    market[end_of_market..]
+        .iter()
+        .filter_map(|name| {
+            if !GENERIC_PACKS.contains(&name.as_str()) {
+                Some(format!(
+                    "world.yaml: `{name}` follows the six market packs and is not an allow-listed \
+                     generic pack {GENERIC_PACKS:?}"
+                ))
+            } else if !seen.insert(name.as_str()) {
+                Some(format!("world.yaml: `{name}` is listed twice"))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// `configure`: absent in Social Café; in Market Town, absent or a list of allow-listed generic packs
+/// the world enables.
+fn compare_configure(
+    social: Option<&Value>,
+    market: Option<&Value>,
+    systems: &[&str],
+) -> Vec<String> {
+    if social.is_some() {
+        return vec!["world.yaml: `configure` must be absent in Social Café".to_owned()];
+    }
+    let Some(market) = market else {
+        return Vec::new();
+    };
+    let Some(keys) = market.as_array() else {
+        return vec!["world.yaml: `configure` is not a list".to_owned()];
+    };
+    keys.iter()
+        .filter_map(|key| {
+            let key = key.as_str().unwrap_or("<not a name>");
+            if !GENERIC_PACKS.contains(&key) {
+                Some(format!(
+                    "world.yaml: `configure` names `{key}`, not an allow-listed generic pack \
+                     {GENERIC_PACKS:?}"
+                ))
+            } else if !systems.contains(&key) {
+                Some(format!(
+                    "world.yaml: `configure` names `{key}`, which `systems` does not enable"
+                ))
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 /// The two manifests: `world.id` and `world.name` may differ, `systems` as above, `items` and
@@ -1077,6 +1148,14 @@ fn compare_manifests(social: &Value, market: &Value) -> Vec<String> {
                 }
             }
             "systems" => found.extend(compare_systems(ours, theirs)),
+            "configure" => {
+                let systems: Vec<&str> = market
+                    .get("systems")
+                    .and_then(Value::as_array)
+                    .map(|list| list.iter().filter_map(Value::as_str).collect())
+                    .unwrap_or_default();
+                found.extend(compare_configure(ours, theirs, &systems));
+            }
             "items" | "organizations" if ours.is_some() || theirs.is_none() => found.push(format!(
                 "world.yaml: `{key}` must be absent in Social Café and present in Market Town"
             )),
@@ -1176,8 +1255,23 @@ fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
         .collect();
     let market_only: BTreeSet<String> = ["items", "organizations"].map(str::to_owned).into();
     for name in ours.symmetric_difference(&theirs) {
-        if !(market_only.contains(name) && theirs.contains(name)) {
+        let configuration = name == "configure" && theirs.contains(name);
+        if !(market_only.contains(name) && theirs.contains(name)) && !configuration {
             found.push(format!("{name}: present in one pack only"));
+        }
+    }
+    if ours.contains("configure") {
+        found.push("configure/: must be absent in Social Café".to_owned());
+    }
+    // configure/: Market Town's only, one `<key>.yaml` per allow-listed generic pack it configures
+    // (the loader already refuses a file `configure:` does not list).
+    for file in entries(&market.join("configure"))? {
+        let key = file.strip_suffix(".yaml").unwrap_or(&file);
+        if !GENERIC_PACKS.contains(&key) {
+            found.push(format!(
+                "configure/{file}: not the configuration of an allow-listed generic pack \
+                 {GENERIC_PACKS:?}"
+            ));
         }
     }
     for name in &market_only {
@@ -1339,4 +1433,81 @@ fn the_world_delta_names_every_difference_by_file_and_key() {
     );
     let short = systems(json!(["presence", "naming", "item"]));
     assert!(compare_manifests(&base, &short)[0].contains("not the six market packs"));
+}
+
+/// `ARC-35`'s 2026-10-09 note: after the six market packs, only allow-listed generic packs, each
+/// configured only if enabled. The two mutations the operator's ruling names each turn the check red,
+/// naming the pack: a pack that is not on the list, and a listed pack before or among the six.
+#[test]
+fn only_allow_listed_generic_packs_may_follow_the_six_and_only_after_them() {
+    use serde_json::json;
+    let manifest = |list: Value, configure: Option<Value>| {
+        let mut world = json!({ "world": { "id": "y", "name": "Y" }, "systems": list,
+                                "items": ["k"], "organizations": ["o"] });
+        if let Some(configure) = configure {
+            world["configure"] = configure;
+        }
+        world
+    };
+    let base = json!({ "world": { "id": "x", "name": "X" }, "systems": ["presence", "naming"] });
+    let six = [
+        "item",
+        "inventory",
+        "item-transfer",
+        "economy",
+        "employment",
+        "consumption",
+    ];
+    let with = |extra: &[&str], at_end: bool| -> Value {
+        let mut list: Vec<&str> = vec!["presence", "naming"];
+        if !at_end {
+            list.extend_from_slice(extra);
+        }
+        list.extend_from_slice(&six);
+        if at_end {
+            list.extend_from_slice(extra);
+        }
+        json!(list)
+    };
+
+    let calendar = manifest(with(&["calendar"], true), Some(json!(["calendar"])));
+    assert!(
+        compare_manifests(&base, &calendar).is_empty(),
+        "the allowed shape"
+    );
+
+    // Mutation 1: a pack that is not allow-listed, after the six.
+    let foreign = manifest(
+        with(&["calendar", "weather"], true),
+        Some(json!(["calendar"])),
+    );
+    let refusal = compare_manifests(&base, &foreign);
+    assert_eq!(refusal.len(), 1, "{refusal:?}");
+    assert!(refusal[0].contains("`weather`") && refusal[0].contains("not an allow-listed"));
+
+    // Mutation 2: a listed pack before the six, and among them.
+    let before = manifest(with(&["calendar"], false), Some(json!(["calendar"])));
+    let refusal = compare_manifests(&base, &before);
+    assert!(
+        refusal[0].contains("`calendar`") && refusal[0].contains("only follow the six"),
+        "{refusal:?}"
+    );
+    let mut among: Vec<&str> = vec!["presence", "naming"];
+    among.extend_from_slice(&six[..3]);
+    among.push("calendar");
+    among.extend_from_slice(&six[3..]);
+    let refusal = compare_manifests(&base, &manifest(json!(among), Some(json!(["calendar"]))));
+    assert!(
+        refusal[0].contains("`calendar`") && refusal[0].contains("only follow the six"),
+        "{refusal:?}"
+    );
+
+    // configure: only an enabled, allow-listed pack; never in Social Café.
+    let unlisted = manifest(with(&["calendar"], true), Some(json!(["economy"])));
+    assert!(compare_manifests(&base, &unlisted)[0].contains("`economy`"));
+    let disabled = manifest(with(&[], true), Some(json!(["calendar"])));
+    assert!(compare_manifests(&base, &disabled)[0].contains("does not enable"));
+    let mut configured_cafe = base.clone();
+    configured_cafe["configure"] = json!(["calendar"]);
+    assert!(compare_manifests(&configured_cafe, &calendar)[0].contains("absent in Social Café"));
 }
