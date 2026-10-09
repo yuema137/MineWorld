@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use mineworld_authoring::{
-    AuthoredConfiguration, AuthoredSection, ContentKind, Decode, DecodeConfiguration,
-    PackConfiguration, Reference, SectionName, Seeding,
+    AuthoredConfiguration, AuthoredSection, ConfigurationContext, ContentKind, Decode,
+    DecodeConfiguration, PackConfiguration, Reference, SectionName, Seeding,
 };
 use mineworld_contracts::{
     Causation, EntityId, EntityKey, EntityType, EventEnvelope, EventId, EventSchemaVersion,
@@ -137,7 +137,11 @@ impl PackConfiguration for Probe {
 
     /// States `probe-configured { step }`, `SystemInternal`; refuses a step of 100 — a refusal only the
     /// owner can state, at genesis.
-    fn seed(_: &Seeding<'_, '_>, settings: &Settings) -> Result<Vec<Emission>, Rejection> {
+    fn seed(
+        _: &Seeding<'_, '_>,
+        settings: &Settings,
+        _: &ConfigurationContext<'_>,
+    ) -> Result<Vec<Emission>, Rejection> {
         if settings.step.0 == 100 {
             return Err(Rejection::System {
                 code: mineworld_contracts::RejectionCode::from_static("probe-step-max"),
@@ -252,6 +256,63 @@ fn files_are_required_and_decoded_by_the_owner_with_line_and_column() {
         found[0].configuration.owner(),
         SystemId::from_static("probe")
     );
+}
+
+/// The framework types a configuration names decode through the loader's YAML stream with line and
+/// column, whatever the file's line endings: an attachment that leaves `data/`, and a classes list whose
+/// class is defined twice or whose `of` is no entity type (SD-IB-4, SD-IB-5; the operator's platform
+/// requirement: CRLF and Windows-style paths).
+#[test]
+fn attachments_and_classes_are_refused_at_their_line_and_column_with_either_line_ending() {
+    #[derive(Debug, Deserialize)]
+    #[allow(dead_code)]
+    struct Named {
+        note: String,
+        table: mineworld_authoring::Attachment,
+    }
+    for ending in ["\n", "\r\n"] {
+        let text = |table: &str| format!("note: rows{ending}table: {table}{ending}");
+        for (table, why) in [
+            ("data/../world.yaml", "'..'"),
+            ("/etc/passwd", "is absolute"),
+            ("tables/x.csv", "is not under data/"),
+            ("'data\\x.csv'", "uses '\\'"),
+            ("'C:\\data\\x.csv'", "uses '\\'"),
+        ] {
+            let refusal =
+                serde_saphyr::from_str::<Named>(&text(table)).expect_err("refused at decode");
+            let detail = refusal.to_string();
+            assert!(
+                detail.contains("line 2") && detail.contains(why),
+                "{table:?} with {ending:?}: {detail}"
+            );
+        }
+        let named = serde_saphyr::from_str::<Named>(&text("data/rows.csv")).expect("a plain path");
+        assert_eq!(named.table.to_string(), "data/rows.csv");
+
+        let classes = |body: &str| {
+            serde_saphyr::from_str::<mineworld_authoring::EntityClasses>(
+                &body.replace('\n', ending),
+            )
+        };
+        let twice = classes(
+            "- { class: noble, of: person, tag: noble }\n- { class: noble, of: item, tag: gold }\n",
+        )
+        .expect_err("defined twice")
+        .to_string();
+        assert!(
+            twice.contains("'noble' is defined twice") && twice.contains("line 2"),
+            "{twice}"
+        );
+        let of = classes(
+            "- { class: noble, of: person, tag: noble }\n- { class: heir, of: castle, tag: x }\n",
+        )
+        .expect_err("no such type")
+        .to_string();
+        assert!(of.contains("line 2") && of.contains("castle"), "{of}");
+        let fine = classes("- { class: noble, of: person, tag: noble }\n").expect("valid");
+        assert_eq!(fine.definitions().len(), 1);
+    }
 }
 
 /// A system a configuration needs must be enabled.

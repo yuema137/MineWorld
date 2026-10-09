@@ -21,7 +21,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use mineworld_authoring::{AuthoredConfiguration, Seeding};
+use mineworld_authoring::{
+    Attached, AuthoredConfiguration, ConfigurationContext, EntityClasses, Seeding,
+};
 use mineworld_contracts::{
     EntityId, EntityKey, EventEnvelope, EventRecord, EventTypeId, SystemId, Visibility,
 };
@@ -229,11 +231,15 @@ pub(crate) fn seed(
     configured: &[FoundConfiguration],
 ) -> Result<Vec<Emission>, PackError> {
     let mut facts = Vec::new();
+    let (classes, attached) = (EntityClasses::default(), Attached::none());
     for found in configured {
         let configuration = &found.configuration;
         let system = configuration.owner();
         let emissions = configuration
-            .seed(&Seeding::new(world, ids))
+            .seed(
+                &Seeding::new(world, ids),
+                &ConfigurationContext::new(&classes, &attached),
+            )
             .map_err(|reason| PackError::ConfigurationRefusedByOwner {
                 system: system.clone(),
                 reason: Box::new(reason),

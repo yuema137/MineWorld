@@ -2032,13 +2032,14 @@ evidence in §12.13.
 test-tuning (`tests/acceptance/tests/configuration/mod.rs`), the probes in `authoring` and
 `worldpack/src/configure/tests.rs`. `worldpack/src/configure.rs::seed` passes an empty context.
 **Non-goals.** Reading `classes.yaml` or any attachment (IB-C3).
-- [ ] Implementation: as above.
-- [ ] Validation: `cargo test -p mineworld-authoring -p mineworld-worldpack -p mineworld-acceptance`.
+- [x] Implementation: as above (E-IB-2).
+- [x] Validation: `cargo test -p mineworld-authoring -p mineworld-worldpack -p mineworld-acceptance`.
   Unit tests: `ClassName`/`of` refusals; implicit names refused; an attachment path refused when
   absolute, when it contains `..`, or when it is not under `data/`, each at its line and column through
   `serde_saphyr` in worldpack (authoring has no YAML dependency, IL-a D-1). IB-1 is not yet run (no
-  behaviour reachable).
-- [ ] Review: the context is read-only; `Seeding` is unchanged; no shim kept for the old signature.
+  behaviour reachable) (E-IB-2).
+- [x] Review: the context is read-only; `Seeding` is unchanged; no shim kept for the old signature
+  (E-IB-2).
 
 ### IB-C3 — `worldpack`: framework keys, attachments, the policy
 
@@ -2310,6 +2311,24 @@ E-IB-1  2026-10-08, IB-C1: DECISIONS.md ARC-63, ARC-64, ARC-65, DEP-28 appended 
         and its new note. Review: §4.2's terms are §4.1's words, each defined once; ARC-63 item 9 is "A
         list cannot grant"; ARC-65 item 3 lists the four layers. The records state the implementation's
         bounded refinements D-IB-1 … D-IB-5 (§12.14) where they touch the specification. PASS.
+E-IB-2  2026-10-08, IB-C2: authoring/src/classes.rs (ClassName, ClassDefinition, Classed, EntityClasses:
+        class_of, matches, type_of, restricted_to), attachment.rs (Attachment, Attached,
+        ATTACHMENT_MAX_BYTES = 4 MiB), configuration.rs (ConfigurationContext, EntryAt,
+        ConfigurationRefusal; PackConfiguration::attachments/check, seed(&Seeding, &C, &Context); the
+        erased AuthoredConfiguration likewise). Implementors updated, no shim: authoring's probe,
+        worldpack's in-crate probe, acceptance's test-tuning; worldpack's configure::seed passes an empty
+        context until IB-C3. Finding during validation: an EntityClasses refusal raised in a
+        `TryFrom<Vec<_>>` (and then in `visit_seq` after the element returned) carried **no** position
+        through serde_saphyr; raised inside the offending element's own `DeserializeSeed` it carries
+        "line 2 column 3" — so every list refusal in IL-b is raised inside the element's decode (the same
+        rule section.rs follows). `cargo test -p mineworld-authoring` 6 passed (classes 3, attachment 1,
+        configuration 2); `-p mineworld-worldpack --lib` 12 passed, including the new
+        attachments_and_classes_are_refused_at_their_line_and_column_with_either_line_ending (LF and CRLF;
+        `..`, absolute, not under data/, `data\x.csv`, `C:\data\x.csv` refused at line 2; a class
+        defined twice at line 2 column 3; `of: castle` at line 2); `-p mineworld-acceptance --test
+        configuration_seam` 4 passed. Review: the context is two shared references, read-only; Seeding
+        unchanged; the old two-argument seed exists nowhere (`git grep "fn seed(_: &Seeding<'_, '_>,
+        settings"` empty). PASS.
 ```
 
 ## 12.14 Deviations

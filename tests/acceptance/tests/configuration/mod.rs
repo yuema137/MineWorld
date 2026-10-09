@@ -20,7 +20,8 @@
 use std::collections::BTreeMap;
 
 use mineworld_authoring::{
-    AuthoredSection, ContentKind, Decode, PackConfiguration, SectionName, Seeding,
+    Attached, AuthoredSection, ConfigurationContext, ContentKind, Decode, EntityClasses,
+    PackConfiguration, SectionName, Seeding,
 };
 use mineworld_contracts::{
     Action, ActionIntent, ActionTypeId, EntityId, EntityKey, EntityType, Event, EventEnvelope,
@@ -186,7 +187,11 @@ impl PackConfiguration for Tuning {
     type Configuration = Configured;
     const FACTS: &'static [EventTypeId] = &[TuningConfigured::EVENT_TYPE];
 
-    fn seed(_: &Seeding<'_, '_>, configured: &Configured) -> Result<Vec<Emission>, Rejection> {
+    fn seed(
+        _: &Seeding<'_, '_>,
+        configured: &Configured,
+        _: &ConfigurationContext<'_>,
+    ) -> Result<Vec<Emission>, Rejection> {
         Ok(vec![encode(&TuningConfigured {
             step: configured.step.0,
         })])
@@ -326,8 +331,9 @@ pub fn genesis_facts(
             Tuning::decode_configuration(file)
         })
         .map_err(|error| error.to_string())?;
+        let (classes, attached) = (EntityClasses::default(), Attached::none());
         configured = decoded
-            .seed(&seeding)
+            .seed(&seeding, &ConfigurationContext::new(&classes, &attached))
             .map_err(|error| format!("{error:?}"))?;
     }
     let mut sections = Vec::new();
