@@ -83,6 +83,7 @@ fn world() -> WorldSummary {
         instance: WorldInstanceId::from_raw(0x1a2b_3c4d_5e6f_7081_9293_a4b5_c6d7_e8f9),
         at: WorldTime::from_seconds(4112),
         time_scale: 1,
+        paused: false,
         entities: 41,
         systems: vec![SystemSummary {
             system: SystemId::from_static("conversation"),
@@ -200,6 +201,18 @@ fn refused() {
             token: Some(token("c1")),
             code: RefusalCode::ActorNotObserver,
             detail: Some("a connection acts only as its own observer".to_owned()),
+        },
+    );
+}
+
+#[test]
+fn clock() {
+    server_frame_matches(
+        "clock",
+        &ServerFrame::Clock {
+            at: WorldTime::from_seconds(4112),
+            time_scale: 1,
+            paused: true,
         },
     );
 }

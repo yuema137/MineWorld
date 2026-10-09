@@ -55,6 +55,7 @@ use std::fmt;
 
 use mineworld_contracts::{
     ActionId, ActionRequest, ActionResult, ContractError, EntityId, EntityKey, Observation,
+    WorldTime,
 };
 use mineworld_persistence::WorldRevision;
 use serde::{Deserialize, Serialize};
@@ -64,7 +65,7 @@ use crate::admission::{Nickname, OfferedInvite, OfferedResume, ResumeSecret};
 
 pub use connection::{ClosingReason, SessionId, TookOver};
 pub use request::{CorrelationToken, MAX_TOKEN_LENGTH, WirePayload, into_kernel_request};
-pub use summary::{SystemSummary, WorldInstanceId, WorldSummary};
+pub use summary::{ClockState, SystemSummary, WorldInstanceId, WorldSummary};
 
 /// Which revision of this protocol a server speaks. A client that does not recognize the number
 /// should refuse to connect rather than guess.
@@ -193,6 +194,16 @@ pub enum ServerFrame {
         /// What the world is, at the moment of joining.
         world: WorldSummary,
     },
+    /// How the host is pacing the world's clock: right after `welcome`, then on every pause and
+    /// resume (`PROTOCOL.md` §5.9).
+    Clock {
+        /// The world's instant when the clock last changed state (or at the welcome).
+        at: WorldTime,
+        /// World seconds per wall second.
+        time_scale: u32,
+        /// Whether the host has stopped the clock.
+        paused: bool,
+    },
     /// What this connection's observer perceives, and nothing else.
     Observation {
         /// A per-connection counter, so a client can order two frames stamped with the same
@@ -277,6 +288,9 @@ pub enum RefusalCode {
     SeatOccupied,
     /// The `join`'s `resume` matches neither the seat's hold nor its live connection.
     InvalidResume,
+    /// The host has paused the world's clock: the request was refused before it was given an
+    /// identity, so nothing was half-done (`PROTOCOL.md` §5.9).
+    Paused,
 }
 
 /// One refusal, before it becomes a frame.
