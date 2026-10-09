@@ -178,23 +178,6 @@ impl HostedWorld {
         self.perception = Box::new(perception);
         self
     }
-
-    /// Declares which recorded facts this world's observers learn of (`ARC-43`). Without it they
-    /// learn of none: `observation.events` stays empty and the `perceived` stream carries nothing.
-    #[must_use]
-    pub fn perceiving_events(mut self, events: impl EventPerception) -> Self {
-        self.events = Box::new(events);
-        self
-    }
-
-    /// Declares where a `perceived` backfill is read from (`PROTOCOL.md` §5.8). Without it the world
-    /// serves the stream only from a connection's join on, and answers an older cursor
-    /// `cursor_unavailable`.
-    #[must_use]
-    pub fn with_history(mut self, history: impl PerceivedHistory) -> Self {
-        self.history = Some(Arc::new(history));
-        self
-    }
 }
 
 /// The seats of a world: which entities a client may connect *as*.

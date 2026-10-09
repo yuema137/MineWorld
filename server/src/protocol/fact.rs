@@ -23,10 +23,39 @@ use super::ServerFrame;
 /// The most facts one backfill `perceived` frame carries (`PROTOCOL.md` §5.8).
 const BACKFILL_FRAME: usize = 256;
 
+/// The `perceived` frames a joining connection is owed before its live stream (`PROTOCOL.md` §5.8),
+/// read off the world's thread on a blocking task; none when its join asked for no backfill. A
+/// history that cannot be read now is `cursor_unavailable`, and the connection may join again.
+pub(crate) async fn read_backfill(
+    start: Option<&crate::host::PerceivedStart>,
+    observer: mineworld_contracts::EntityId,
+) -> Result<Vec<ServerFrame>, super::Refusal> {
+    let Some(crate::host::Backfill {
+        history,
+        since,
+        through,
+    }) = start.and_then(|start| start.backfill.clone())
+    else {
+        return Ok(Vec::new());
+    };
+    let read = tokio::task::spawn_blocking(move || {
+        history
+            .perceived(observer, since, through)
+            .map(|facts| backfill_frames(&facts, through))
+    })
+    .await;
+    let unavailable = || super::Refusal::new(super::RefusalCode::CursorUnavailable);
+    match read {
+        Ok(Ok(frames)) => Ok(frames),
+        Ok(Err(cause)) => Err(unavailable().detailed(cause)),
+        Err(cause) => Err(unavailable().detailed(cause)),
+    }
+}
+
 /// A backfill as `perceived` frames: the facts, in their wire form, in frames of at most
 /// [`BACKFILL_FRAME`]; the last frame's `through` is the head, and there is one even when no fact
 /// is owed, so that the client learns its cursor.
-pub(crate) fn backfill_frames(facts: &[EventEnvelope], head: EventId) -> Vec<ServerFrame> {
+fn backfill_frames(facts: &[EventEnvelope], head: EventId) -> Vec<ServerFrame> {
     let rendered: Vec<(EventId, PerceivedEvent<Value>)> = facts
         .iter()
         .filter_map(|fact| match wire_fact(fact) {

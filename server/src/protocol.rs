@@ -69,7 +69,7 @@ use crate::admission::{Nickname, OfferedInvite, OfferedResume, ResumeSecret};
 
 pub use connection::{ClosingReason, SessionId, TookOver};
 pub use fact::{PayloadForm, wire_fact};
-pub(crate) use fact::{backfill_frames, report_not_json};
+pub(crate) use fact::{read_backfill, report_not_json};
 pub use request::{CorrelationToken, MAX_TOKEN_LENGTH, WirePayload, into_kernel_request};
 pub use summary::{ClockState, SystemSummary, WorldInstanceId, WorldSummary};
 

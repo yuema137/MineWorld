@@ -1,13 +1,9 @@
 //! `mineworld` — the command that runs a world.
 //!
 //! ```text
-//! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--town]
-//!                  [--seed N] [--pace SECONDS] [--hold SECONDS] [--time-scale N] [--save DIR]
-//!                  [--admin-token TOKEN]
-//!                                       load the pack and host it; with --save, persisted;
-//!                                       clients join with the invite (generated and printed
-//!                                       when neither --invite nor MINEWORLD_INVITE gives one);
-//!                                       in-server controllers drive seats nobody plays (ARC-42)
+//! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [OPTIONS]   (every flag: §8.1)
+//!                                       host the pack (persisted with --save) for clients with the
+//!                                       invite; in-server controllers drive seats nobody plays
 //! mineworld validate <world>            load it, say what it is, and stop
 //! mineworld replay <world> --save DIR   re-execute a save's whole history and check it
 //! mineworld run <world> --headless --seed N --days N [--save DIR]
@@ -113,12 +109,10 @@ enum Subcommand {
             hide_env_values = true
         )]
         invite: Option<String>,
-        /// The bearer token that opens the admin surface under /admin; without it (and without
-        /// MINEWORLD_ADMIN_TOKEN) there is none. Never printed; must differ from the invite.
+        /// The bearer token that opens /admin (else none); never printed; not the invite.
         #[arg(long, env = "MINEWORLD_ADMIN_TOKEN", hide_env_values = true)]
         admin_token: Option<String>,
-        /// Drive that seat with the reactive rule controller, on the world thread, whenever no
-        /// player holds it. Repeat it for more than one.
+        /// Drive that seat with the reactive rule controller whenever no player holds it; repeatable.
         #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
         agents: Vec<EntityKey>,
         /// Drive every other seat with the paced rule controller whenever no player holds it.
@@ -139,8 +133,7 @@ enum Subcommand {
         /// Every Nth frame to a client is a whole observation; the others are deltas (DEP-15).
         #[arg(long, value_name = "N", default_value = "50")]
         keyframe_every: NonZeroU32,
-        /// Keep the world in DIR/world.sqlite: created from the pack the first time, resumed — the
-        /// same world, where it stopped — every time after.
+        /// Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
         #[command(flatten)]
@@ -404,8 +397,7 @@ fn not_yet(command: &str) -> Result<(), String> {
         "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
          and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
          mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld perceived, \
-         mineworld create, \
-         mineworld packs (see mineworld --help)."
+         mineworld create, mineworld packs (see mineworld --help)."
     ))
 }
 

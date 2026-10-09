@@ -3332,6 +3332,27 @@ E-SC10 C-C8 (typed, per DEP-15), on 86c9d66. ServerFrame::Delta { seq, base, rev
       Regression: cargo test -p mineworld-cli --no-fail-fast with deltas on by default — 30 targets,
       0 failed (every acceptance test reads observations through the delta-applying client);
       cargo test -p mineworld-server all green.
+E-SC11 Merge of origin/main @ 0744fee (S11-D #104) — 6b02147, resolved per §19.2: runtime.rs keeps
+      control/status (S11-D) and delivery (S11-C); delivery.rs's Subscriber gains S11-D's session and
+      per-connection dropped (sweep counts both paths); status.rs `events_dropped` reads S11-C's
+      counter (§19.2's one line); release/depart one copy, called by control.rs; handles.rs Streams
+      (S11-D) carries Streamed + clock; session: welcome → clock → backfill → stream, the delta
+      encoder numbered by the admin registry's seq (one counter); saved_genesis is S11-D's
+      (serve.rs), S11-C's copy dropped; PROTOCOL.md, MODULE_SPEC.md, DECISIONS.md (ARC-43, DEP-15,
+      ARC-44) carry both lanes. One S11-C test adjusted for the clock frame (its own client skips it,
+      as S11-D's helpers do). check_decision_ids 76 distinct; check_doc_headings clean; cargo test
+      -p mineworld-server --no-fail-fast all green (frames 14/14 with S11-D's welcome.json).
+      Sizes after the merge exceeded 500 (main.rs 507, host.rs 516, session.rs 520) and were brought
+      under without a new file: the backfill read moved to protocol/fact.rs `read_backfill`; the two
+      seam builders to an `impl HostedWorld` in perception.rs beside the seams; main.rs doc lines
+      shortened (the server synopsis now points at MODULE_SPEC §8.1). Now main.rs 499, host.rs 499,
+      session.rs 492, runtime.rs 449.
+      S21 non-preclusion (coordinator, PR #109 §10): N-2 — the Encoder now also sends a whole
+      observation whenever the observer's place changes, so no delta is ever computed across places
+      (a place without passages included); N-7 — perception and disclosure stay presence's, keyed to
+      the observer's place (`observe`, `audience`), unchanged; N-10 — ObservationDelta and
+      EntityChanges no longer deny unknown fields (server-sent, client-read), the Godot module ignores
+      unknown frame kinds and the applier ignores unknown delta fields. All three satisfied.
 ```
 
 ## 17.13 Deviations and discoveries

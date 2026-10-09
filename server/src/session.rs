@@ -35,10 +35,10 @@ use tokio::time::Instant;
 
 use crate::admin::registry::{Joined, Registered, Registry};
 use crate::admission::{Admission, Nickname, OfferedInvite, OfferedResume, UNAUTHORIZED_DELAY};
-use crate::host::{Backfill, Seated, Streamed, Streams, SubscriptionId, WorldHost};
+use crate::host::{Seated, Streamed, Streams, SubscriptionId, WorldHost};
 use crate::protocol::{
     ClientFrame, ClosingReason, PROTOCOL_VERSION, PerceivedJoin, Refusal, RefusalCode, ServerFrame,
-    SessionId, backfill_frames, delta, into_kernel_request,
+    SessionId, delta, into_kernel_request, read_backfill,
 };
 use crate::seats::{Departure, JoinRequest};
 
@@ -287,7 +287,7 @@ async fn join(
     };
     // The backfill is read before the welcome, off the world's thread: a history that cannot be read
     // now is answered `cursor_unavailable` with nothing granted, and the connection may join again.
-    match backfill(&seated).await {
+    match read_backfill(seated.perceived(), seated.observer()).await {
         Ok(frames) => Joining::Seated(Box::new(seated), nickname, frames),
         Err(refusal) => {
             connection
@@ -295,34 +295,6 @@ async fn join(
                 .leave(seated.subscription(), Departure::Left);
             Joining::Refused(refusal)
         }
-    }
-}
-
-/// The `perceived` frames a joining connection is owed before its live stream (`PROTOCOL.md`
-/// §5.8): the facts in `(since, head]` its observer learned, in frames of at most
-/// [`BACKFILL_FRAME`] events, the last one's `through` the head — sent even when empty.
-async fn backfill(seated: &Seated) -> Result<Vec<ServerFrame>, Refusal> {
-    let Some(Backfill {
-        history,
-        since,
-        through,
-    }) = seated.perceived().and_then(|start| start.backfill.clone())
-    else {
-        return Ok(Vec::new());
-    };
-    let observer = seated.observer();
-    let read = tokio::task::spawn_blocking(move || {
-        history
-            .perceived(observer, since, through)
-            .map(|facts| backfill_frames(&facts, through))
-    })
-    .await;
-    match read {
-        Ok(Ok(frames)) => Ok(frames),
-        Ok(Err(unavailable)) => {
-            Err(Refusal::new(RefusalCode::CursorUnavailable).detailed(unavailable))
-        }
-        Err(error) => Err(Refusal::new(RefusalCode::CursorUnavailable).detailed(error)),
     }
 }
 
