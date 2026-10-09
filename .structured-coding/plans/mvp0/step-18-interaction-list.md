@@ -1015,8 +1015,8 @@ two-line follow-up if the primary session prefers.
   - §9 (configuration schema → ARC-61).
 - `systems/README.md` (`:80`); `docs/MVP_STATUS.md` (row `:31`'s wording, one row).
 
-- [x] Implementation: ARC-61, ARC-62 appended to `DECISIONS.md`; ARC-39 "Note 3" (the line's new
-  spelling, no rule changed); `MODULE_SPEC.md` §3.1 (trait table row, presence's line respelled, new
+- [x] Implementation: ARC-61, ARC-62 appended to `DECISIONS.md`; ARC-39 "Note 4" (numbered 3 until
+  #84's 12d-0 note took that number on main; E-IA-13) (the line's new spelling, no rule changed); `MODULE_SPEC.md` §3.1 (trait table row, presence's line respelled, new
   "Extension catalogs" and "A configurable pack" paragraphs), §4 model (`configure/`), §4.1
   (`configure:` in the manifest, a "Configuration" paragraph with every refusal and drift, the genesis
   order), §9 (configuration schema → ARC-61); `systems/README.md`; `MVP_STATUS.md` (row wording, one
@@ -1024,7 +1024,7 @@ two-line follow-up if the primary session prefers.
 - [x] Validation: `check_doc_headings` → 177 sections / 25 documents, none duplicated;
   `check_decision_ids` → 55 ids distinct (53 + ARC-61, ARC-62). ARC-61/62 free on every `origin/*`
   branch (`git show <b>:docs/DECISIONS.md` over `git branch -r`, after `git fetch`, 2026-10-08: none).
-  `git grep "resolution:"` in docs: only ARC-39's historical items (covered by Note 3) and ARC-62's own
+  `git grep "resolution:"` in docs: only ARC-39's historical items (covered by Note 4) and ARC-62's own
   account of what it replaces.
 - [x] Review: no defined term redefined — "configuration", "extension catalog", "reserved key" are new
   words in `MODULE_SPEC.md` §3.1/§4.1, not ontology terms; ARC-61's limitations state that content

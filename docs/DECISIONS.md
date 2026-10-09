@@ -3297,13 +3297,34 @@ where this note refines item 7 for objects.
    presence alone, a world may install `bodies` without `item`, and in such a world the answer is "not
    declared".
 
-**Note 3, 2026-10-08 (S17, PR IL-a; `ARC-62`, QPL-10) — the installed set's line has a new spelling.**
+**Note 3, 2026-10-08 (S15, PR 12d-0; step-11 §20, SD-Z2, SD-Z5, SD-Z6) — bodies' cost, and one result
+changed by design.** Items 1–8 and the earlier notes are unchanged except as follows.
+
+1. **A stride away from a person within the controller's offset is not stopped by them (SD-Z5,
+   FU-12c-1).** A person whose centre lies within two radii and the gap (610 mm) of the mover's start
+   and on the far side of it from the stride (d · (p − start) ≤ 0) is left out of the mover's contact
+   sweep. Rapier's character controller otherwise sticks on them: a shove from 600 mm moved its target
+   301 mm instead of half a metre (§18.11 DO-11). Verification still counts every person, so the result
+   never overlaps anybody; a stride *toward* such a person is still stopped by them. This changes
+   results, so `bodies` is version 3 and refuses a version-2 save by name (`ARC-25`).
+2. **The nearest free entry point is searched outward (SD-Z6).** An entry placed at the nearest free
+   point of the 50 mm lattice (item E3) finds it by visiting the lattice in rings about the asked
+   point, stopping once no unvisited point can be nearer, instead of filtering the whole floor: the
+   same point, under the same order (distance, then y, then x), at a fraction of the cost. It was half
+   of a town's with-bodies CPU (step-11 E-Z3).
+3. **What was tried and not adopted, recorded so it is not tried again unmeasured.** A scene holding
+   only what a stride can reach (SD-Z1), an exact integer corridor (SD-Z3) and integer wall strides
+   (SD-Z4) each change results, because Rapier's controller is neither local — its answer moves when
+   colliders far from the stride are removed — nor exact at its own offset from a face (step-11 E-Z1,
+   E-Z2, E-Z5); none bought measurable CPU. They were dropped.
+
+**Note 4, 2026-10-08 (S17, PR IL-a; `ARC-62`, QPL-10) — the installed set's line has a new spelling.**
 The `resolution:` line of `installed!` and `Capability::resolvers()` are replaced by `ARC-62`'s generic
 extension line, `extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers:
 [mineworld_bodies::BodiesSystem,];`, and `worldpack::compose` registers it through
 `Capability::register_extensions()`. No rule of this decision changes: the catalog, its write-once
-storage, `require_registered`, the order resolvers are asked in and every fact are as items 1–8 state.
-Where items above say "the `resolution:` line", read "presence's extension line".
+storage, `require_registered`, the order resolvers are asked in and every fact are as items 1–8 and the
+notes above state. Where items above say "the `resolution:` line", read "presence's extension line".
 
 ---
 
@@ -3410,6 +3431,17 @@ kept, every float converted by the same two functions — and what the flight ad
   lattice is taken, and if none verifies, the object stays where it was.
 - **Launch velocities are integers** (millimetres per second, computed with + − × ÷ only), converted
   into Rapier's metres by the adapter's one conversion.
+
+**Note, 2026-10-08 (S15, PR 12d-0; step-11 §20, SD-Z2, SD-Z5) — what of Rapier a people scene now
+uses.** A scene of people builds Rapier's broad phase and nothing else (`BroadPhaseBvh::update`, the
+update `CollisionPipeline::step` makes, without the narrow phase): no query of a sweep reads contacts.
+A `Pile` and a flight keep the full collision detection and F-P1's re-mark. A contact sweep may leave
+named people out by a query predicate (SD-Z5); a sweep that leaves nobody out builds exactly the filter
+it built before. Two properties of the character controller were measured and are now part of this
+decision's record: it is not local (its end moves by up to 14 mm when colliders far from anything the
+stride touches are removed from the scene), and it is not exact at its own offset from a face (a stride
+starting at or gliding along it may stop up to 1.6 m short, or drift 1–2 mm in open floor) — step-11
+E-Z1, E-Z2, E-Z5. A pruned scene or an integer replacement of the sweep therefore changes results.
 
 ---
 
