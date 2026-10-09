@@ -790,6 +790,11 @@ dependencies = [
 [[package]]
 name = "mineworld-calendar"
 version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "serde",
+ "solar-positioning",
+]
 
 [[package]]
 name = "mineworld-cli"
@@ -1683,6 +1688,15 @@ checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
  "windows-sys",
+]
+
+[[package]]
+name = "solar-positioning"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33e67ad3108959c32cd9ab2515f7ced367e640c0454c6277f67c3dacc7d1d0a2"
+dependencies = [
+ "libm",
 ]
 
 [[package]]

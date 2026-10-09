@@ -8,3 +8,9 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
+mineworld-contracts = { workspace = true }
+serde = { workspace = true }
+# The sun (DEP-30): exactly 0.7.0, pre-1.0 (R-TW-3). Without `std` and with `libm` its transcendental
+# functions are pure Rust, so the same inputs give the same bits on every host (§16.8 (a)). Named only
+# in src/sun.rs.
+solar-positioning = { version = "=0.7.0", default-features = false, features = ["libm"] }

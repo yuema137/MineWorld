@@ -1033,7 +1033,7 @@ first risk did not occur). No pack on main uses `configures!()` yet: `calendar` 
 | # | Implementation | Deterministic validation | LLM logic review |
 | --- | --- | --- | --- |
 | C1 | [x] ARC-67, DEP-30 appended to `docs/DECISIONS.md`; `CORE_CONCEPTS.md` §17 *Time* (calendar time, embodied time, time scale, paused; four rules); `systems/calendar/README.md`; the spec header as `src/lib.rs`'s module doc, with a doc-only `Cargo.toml` (TWa-D1) | [x] `check_doc_headings.py`: 191 numbered sections across 26 documents, none duplicated — PASS; `check_decision_ids.py`: 71 ids, all distinct — PASS; `cargo check -p mineworld-calendar` clean | [x] terms checked against CORE_CONCEPTS §§1, 10, 11: "calendar time", "embodied time", "time scale", "paused" are new terms, none a synonym of `Process`/`Event`/`WorldTime` (calendar time is *defined as* `WorldTime`, stated, not renamed); §17 is the "time section" §15.4 asked for (none existed) |
-| C2 | [ ] | [ ] | [ ] |
+| C2 | [x] `civil.rs` (`CalendarDate` valid by construction; Hinnant `days`/`from_days`; `weekday` 0 = Monday); `day.rs` (`MicroDegrees`, `SunSample`, `DayEvents` + `light_changes`, `Phase`, `CalendarDay::compute`, `DAY`, `SAMPLE_INTERVAL` 900, `SAMPLES` 97); `sun.rs` (`sun_at`, `day_events`, `phase_at`; the only file naming the crate; ΔT = the library's estimate at mid-month of the instant's UTC month); dependency `solar-positioning =0.7.0`, no default features, `libm` | [x] `cargo test -p mineworld-calendar`: 8 passed (E-TWa-2): every day 1901–2099 round-trips (72 684 days); 2026-10-08 = day 20 734, Thursday; NOAA table ±150 s (rise −16 s, set −1 s, noon −8 s); elevation vs NOAA's model ≤ 0.002° at 09/12/15 h; three pinned samples (§16.8 a); 78° N polar night; equator equinox; azimuth convention. Clippy `-p mineworld-calendar --all-targets -D warnings` clean. Lock: + `solar-positioning 0.7.0` only (`libm 0.2.16` already locked). Mutations M-TWa-3a/3b below | [x] quantization: `f64::round` is half away from zero and exact on every IEEE host; azimuth 360 000 wraps to 0; event offsets kept only in 1 … 86 399 so an event never coincides with a midnight wake. Julian date `2 440 587.5 + utc/86 400` (|utc| < 2^53, exact division error ≈ 40 µs). Azimuth north = 0 clockwise is the library's convention and is tested. Phase uses unrefracted elevation against the same three horizons the event search uses, so a day's opening phase and its events agree; the track is refracted (apparent), as NOAA's displayed elevation is |
 | C3 | [ ] | [ ] | [ ] |
 | C4 | [ ] | [ ] | [ ] |
 | C5 | [ ] | [ ] | — |
@@ -1050,6 +1050,37 @@ E-TWa-0  2026-10-08, base capture on 543c80a (clean tree), dev profile, by targe
          long_run_objects second process: 612 428 bytes, sha c8358f8b…c5b4
          validate ×3: shas ebcd60a0…, 64f41086…, 7356b8f8… (= E-IA-0)
          Every value equals main's recorded reference (E-IA-8 / E-IA-13). Town runs used: 2 of 6.
+E-TWa-1  NOAA references, read once on 2026-10-08 with the WebFetch tool (never at run time):
+         (a) https://gml.noaa.gov/grad/solcalc/table.php?lat=32.7157&lon=-117.1611&year=2026 —
+             "Time Zone Offset: America/Los_Angeles -7.0", local time with DST. 2026-10-08: sunrise
+             06:48, sunset 18:24, solar noon 12:36:14 (PDT) → at the world's fixed −08:00: 05:48, 17:24,
+             11:36:14. Cross-check: its 2026-12-21 row (standard time) 06:47 / 16:47 / 11:46:38. The
+             same URL with `&tz=-8` prints the same (the parameter is ignored).
+         (b) Elevation at an instant is computed in the browser (azel.html, the current calculator) and
+             published as no table, so the elevation reference is NOAA's own spreadsheet model
+             (NOAA_Solar_Calculations_day.xls, linked from
+             https://gml.noaa.gov/grad/solcalc/calcdetails.html, read 2026-10-08; refraction formulas
+             as that page prints them), transcribed in `src/sun/tests.rs` `noaa_elevation` — an
+             independent model, not SPA. (TWa-D2.)
+E-TWa-2  C2, 2026-10-08, `cargo test -p mineworld-calendar -- --nocapture` (macOS arm64, dev):
+         8 passed. San Diego 2026-10-08 (−08:00): sunrise 20 864 s = 05:47:44 (NOAA 05:48, −16 s),
+         sunset 62 639 s = 17:23:59 (NOAA 17:24, −1 s), solar noon 41 766 s = 11:36:06 (NOAA 11:36:14,
+         −8 s) — all within CP-TW-a's ±2 min. Other events: astronomical dawn 15 956, civil dawn
+         19 384, civil dusk 64 118, astronomical dusk 67 540. Elevation vs NOAA's model: 09:00 36.369°
+         / 36.371°, 12:00 50.759° / 50.761°, 15:00 27.965° / 27.966° — max |Δ| 0.002° (bound 0.5°).
+         Pinned SunSample (§16.8 a), millidegrees (elevation, azimuth):
+           San Diego 2026-10-08 12:00 −08:00    ( 50 759, 189 418)
+           San Diego 2026-10-08 18:00 −08:00    ( −8 391, 267 971)
+           78° N 15° E 2026-12-21 12:00 +01:00  (−11 440, 180 458)
+         78° N 2026-12-21: astronomical dawn 27 433, solar noon 43 083, astronomical dusk 58 731;
+         sunrise, sunset, civil dawn and dusk None; phase at midnight Night. PASS.
+M-TWa-3a Mutation (TW-a adversarial 3): `features = []` (neither libm nor std) → the crate does not
+         compile ("cannot find module or crate `libm`", ×8 in solar-positioning). Fails loudly. Reverted.
+M-TWa-3b Variant: `features = ["std"]` (the platform's math) → 8 passed on macOS: at millidegree
+         quantization the platform's and libm's results agree on this host. Expected, and it is why the
+         guard is the exact feature pin plus the pinned samples on two OSes (macOS here, Linux in CI),
+         not a test that could tell the backends apart on one host. Reverted; `git diff` of
+         Cargo.toml empty against the intended text.
 ```
 
 ### Deviations and findings
@@ -1068,6 +1099,17 @@ TWa-F1  (MATERIAL, found at start, blocks C4 only) AC-1 check 3
         stop list does not name the acceptance tests, but the honest fixes each change a frozen
         acceptance measure (ARC-35) or a frozen scope item (SD-TW-a-10). C1–C3 are unaffected and
         proceed; C4 is reported to the primary session (see the C4 row).
+TWa-D2  (bounded) The ±0.5° elevation check (§16.5) is against NOAA's published spreadsheet equations,
+        not a published elevation value: NOAA publishes none for an instant (E-TWa-1 b). The rise,
+        set and noon checks are against NOAA's published table. Impact: none on the acceptance bound.
+TWa-D3  (bounded) Component types are `calendar-day` and `calendar-light`, not `calendar.day` /
+        `calendar.light` (§5.5): an identifier may contain only a–z, 0–9, '-', '_'
+        (contracts/src/ids.rs `is_legal_identifier_byte`).
+TWa-D4  (bounded) `day-began` also carries `phase`, the light phase at day_start, and the Process state
+        holds `{ configuration, day, phase }` rather than SD-TW-a-3's `next`: the next due event is a
+        pure function of the day record and the instant, recomputed at each wake, and the phase is what
+        `calendar-light` discloses. Without the opening phase a day that begins in twilight or polar day
+        would have no fact saying so, and the fold could not be the state.
 ```
 
 | Item | Status | Evidence |
