@@ -323,9 +323,11 @@ fn a_shove_from_within_the_offset_moves_its_target_half_a_metre() {
 /// d · (p − start) ≤ 0 test dropped) fails here.
 #[test]
 fn a_stride_toward_a_person_within_the_offset_is_still_stopped() {
+    // Scaled with the radius from §18.4's layout (R 300: a 2R behind b, a 1 000 mm stride): the stride
+    // is 1 000 · R / 300 mm, so the scenario is the same shape at any radius (TD-D8).
     let a = (4_000 - 2 * R, 5_000);
     let mut yard = yard(&[("a", a), ("b", (4_000, 5_000))], vec![]);
-    let to = yard.at("room", (4_400, 5_000));
+    let to = yard.at("room", (a.0 + 1_000 * R / 300, 5_000));
     let moved = yard.walk("a", to);
     assert!(moved.accepted(), "{:?}", moved.result);
     println!(

@@ -39,19 +39,38 @@ POST-MERGE SYNC     planning session: step header, §§1–15, overall, MVP_STAT
                     this session: §19 and the evidence rows
 ```
 
-## Current checkpoint — MATERIAL STOP TD-D4 (awaiting the primary session)
+## Current checkpoint — PAUSED: 12d waits for 12n (navigation), by the operator's ruling on TD-D7
 
-- Done and pushed: TD-C1 (bf97ab0 + the E-TD1 ledger commit), TD-C2 (f218e4f), TD-C3 (0d5af1f), TD-C4
-  (801548a; its post-TD-C5 half and M-TD2 … M-TD4 pending), TD-C6 (fc680a8).
-- E-TD-base and E-TD3: every reference = §20.14. Runs used: 2 of 6 other, 0 of 13 TD-12.
-- STOP: the café's table north (slice put_solid, half 437) stands 223 mm from the wanderer (7110, 3900);
-  §19.13 TD-D4 has the evidence and options (a) move the wanderer, (b) author the table's south face at
-  y 4200 (77 mm inside, within TD-3's 150), (c) the slice moves it. Recommendation (b).
-- Also for the ruling: the street's 63rd solid, an elevated bank tree — proposed omitted as a probe
-  exemption.
-- No PR opened. No background job running.
+The ruling (2026-10-08, §19.13): "Add pathfinding first. 12d waits for it." 12n, designed by a separate
+planning session, adds server-side route planning. **12d resumes on top of 12n.** No PR is open.
 
-## Next actions (after the ruling)
+**Where 12d stands (branch `mvp0/pr-12d-towns`, WIP head pushed, tests NOT green):**
+- Done: TD-C1 (notes, MODULE_SPEC, E-TD-base, E-TD1), TD-C2 (item names, the catalogue), TD-C3 (the
+  doorway refusal, bodies v4), TD-C4 (AC-1 check 3; M-TD2 … M-TD4 run on the real towns, TD-D5), TD-C6
+  (FU-12a-1).
+- **TD-C5 is complete:** both towns' bodies (62 street solids; table north's south face at y 4 160,
+  37 mm inset, guarded by `town_bodies.rs`; the bank tree omitted, FU-12d-1), the four objects, the
+  doorways, §19.6's literal edits, `ac15_one_alice.rs` re-routed round table north (6/6).
+- The radius ruling: `PERSON_RADIUS` 250, `CLEARANCE` derived; bodies' tests re-derived (E-TD5);
+  TD-D8: two claims do not hold at 250 with derived geometry and are left failing for the operator —
+  `actions::a_stride_toward_a_person_within_the_offset_is_still_stopped` and
+  `scenarios::n3_a_crowd_is_nudged_in_bounded_chains_and_sometimes_blocks`.
+- `town_bodies.rs`: validate + refusals, the geometry exception, the wall check from carol's home
+  (PASS, E-TD4) and the catalogue pass; the 300-day town tests and the counterfactual are written, not
+  yet run.
+- Evidence: §19.12 E-TD-base … E-TD6 (TD-5 diagnostics, the ladder table, the cost observation);
+  deviations §19.13 TD-D1 … TD-D8. Runs used: 300-day 2 of 6 other, 0 of 13 TD-12.
 
-1. TD-C5 with E-TD1's boxes (§19.12) and the ruled remedy; then M-TD2 … M-TD4 on the real towns.
-2. TD-C7, TD-C8 as §19.5; run the ignored `client_2d` tests once with Godot after TD-C5 (TD-D2).
+## Next actions (when 12n has merged)
+
+1. Merge (or rebase onto) main with 12n; re-run `cargo test -p mineworld-bodies` and the CLI tests TD-C5
+   touched; re-check the TD-D8 tests (and the operator's answer on them).
+2. **Next edit: `tools/cli/tests/milestone_c.rs` `walk_into_the_cafe`** — its straight walk meets a street
+   prop (`TooFarAway`); §19.6's waypoint (or 12n's route, if it gives the test one).
+3. **Re-run TD-5** on 12n: `routines.rs`, `run.rs`, `run_restart.rs`, `market_town.rs`, `milestone_b.rs`,
+   `milestone_c.rs`, `market_composition.rs`; then TD-C7's `town_bodies.rs` 300-day tests (TD-6, TD-7)
+   and the counterfactual (TD-8).
+4. **Re-run TD-12** on 12n under §20.6.1 (counterfactual copies: rebuild from the final towns; the
+   scratch ones in /tmp/s15-12d/nobodies match this WIP head).
+5. TD-C8: TD-10, TD-11, TD-14 (re-capture bodies-yard and the long-run bytes at r = 250 as new bases),
+   TD-1's re-baseline, the gate, the 2D `client_2d` Godot check (TD-D2), PR.

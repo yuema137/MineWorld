@@ -6693,6 +6693,32 @@ E-TD5 The radius ruling (r = 250), bodies' tests (a helper agent of this session
       head-on bias and slides round instead of being stopped) and `n3_a_crowd_is_nudged_in_bounded_
       chains_and_sometimes_blocks` (§9.6's crowd at 650 spacing: 0 of 12 strides block, was 3; blocking
       returns only at spacing ≤ 530). Both left failing, unfudged.
+
+E-TD6 TD-5 diagnostics and the remedy ladder (2026-10-08, on the WIP tree at r = 250; dev binary; the
+      machine at a load average of ≈ 278 — CPU figures are information, not TD-12):
+        routines.rs (social-cafe, 30 d)  FAIL: 10 of 12 below 90 % of segments reached — alice 31/91,
+                                         bob 59/121, carol 31/91, erin 50/91, felix 30/91, grace 41/91,
+                                         hana 44/91, ivan 80/121, visitor 59/121, wanderer 84/121; dev
+                                         84/91 and otto 31/61 (no seat) pass; the café most missed
+        run social-cafe 30 d (diagnostic, /tmp/s15-12d/diag-sc30.txt): moves accepted 23 683,
+                                         stopped-short 14 645 (62 %), person-entered-place 1 070,
+                                         shoves 553, kicks 1, object-moved 29, faults 0
+        ladder, 30 d each (/tmp/s15-12d/ladder):
+          rung   change                                               entries  stopped-short  user CPU
+          —      the towns as authored                                1 070    14 645         —
+          c1     street-ball → (−12 000, −6 000), street-box →       1 058    15 345         10.68 s
+                 (−16 000, −6 000), out of every approach
+          c1+c2  and apartments' there → (−8 610, 2 800) (Maple &     997      16 239         10.25 s
+                 Co.), park's there → (4 710, −12 600) (Lakeside Deli)
+        cost observation (not a TD-12 run): 5 days 2.09 s user; 30 days 10.3–10.7 s user — ≈ 105 s per
+        300 days by proportion, against 18.55 s for 300 days without bodies (E-TD-base): far above
+        TD-12a's 3.96 ×, under a load that makes it unreliable
+        the wall check from carol's home: PASS (E-TD4)
+      Also: milestone_c.rs `walk_into_the_cafe` meets a street prop (`TooFarAway` at a later stride):
+      §19.6's waypoint edit, not yet made.
+
+E-TD-runs (update) 300-day town runs: other 2 of 6 (E-TD-base); TD-12 0 of 13. The 30-day
+      diagnostic and ladder runs are not 300-day runs.
 ```
 
 **E-TD1 — the geometry table of TD-3 (TD-C1).** Produced by a read-only research agent of the
@@ -6938,6 +6964,30 @@ help, and two bodies invariants lose their meaning at r = 250.**
 - Also open: `milestone_c.rs` `walk_into_the_cafe` meets a street prop (TooFarAway) — a §19.6 waypoint
   edit not yet made; `ac15_one_alice.rs` re-routed round table north (passes 6/6).
 - Not done: TD-C7's 300-day town tests, TD-C8 (TD-12, Rosetta, re-baseline, gate, PR).
+
+**Operator ruling on TD-D7 (2026-10-08, relayed by the coordinator; binding).** "Add pathfinding first.
+12d waits for it." A new PR, **12n (navigation)**, designed by a separate planning session, adds
+server-side route planning ("walk to X" goes around walls and furniture), shared by NPCs, 2D
+click-to-walk and future AI controllers, on a mature library chosen after comparison. **12d resumes on
+top of 12n**: TD-C5 stands as done; `milestone_c`'s waypoint edit is next; TD-5 and TD-12 are re-run on
+12n. The walls, the item names, the radius and the doorway refusal stand.
+
+**TD-D8 — the two r = 250 invariant tests, geometry derived from the radius (the ruling's item 1).**
+Their claims are kept; each scenario's geometry is now an expression of R:
+- `actions::a_stride_toward_a_person_within_the_offset_is_still_stopped`: a at b − 2R (500 mm), and the
+  stride `1 000 · R / 300` (833 mm; §18.4's 1 000 at R 300), to (4 333, 5 000). **The claim does not
+  hold:** a is not stopped by b — the head-on bias turns the stride (b lies on the line, within
+  `BIAS_BAND`), and a slides 201 mm sideways to (3 500, 4 799), `stopped-short { by: None }`; b does not
+  move. Why: the bias band (200 mm) and the turn are not person dimensions, so at a smaller radius the
+  turned stride clears b's disc that it met at R 300. The test is left failing.
+- `scenarios::n3_a_crowd_is_nudged_in_bounded_chains_and_sometimes_blocks`: the crowd's spacing is
+  `2R + 50` (550 mm; 650 at R 300). **The claim "sometimes blocks" does not hold:** 0 of 12 strides
+  blocked (it was 3), at most 3 people nudged over 2 generations, every bound kept. Why: `NUDGE_MAX +
+  GAP` (310 mm) and the walker's 500 mm step are not person dimensions, so relative to a 50 cm body the
+  same nudge budget now always clears the gap; blocking returns only at a spacing ≤ 530 (E-TD5). The
+  test is left failing.
+Neither claim is weakened; whether `BIAS_BAND`, `NUDGE_MAX` or the steps should scale with the radius is
+the operator's question (12n or IL-c may own it).
 
 **TD-D6 — Windows (the operator's 2026-10-08 requirement: macOS, Linux and Windows).** Nothing 12d
 adds assumes Unix: `town_bodies.rs` builds paths with `Path::join`, uses no signal, no `/tmp`, no
