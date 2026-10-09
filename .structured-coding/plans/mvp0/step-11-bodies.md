@@ -32,8 +32,9 @@ the material questions in §13 (`CLAUDE.md` §3, "detail one step ahead").
   (amend check 3) and the primary session ruled QD-2 … QD-13 (§19's header); QD-14 … are new.
   **Paused** at `8814aad` on material stop TD-D7 (the walkers do not route round the new geometry), by
   the operator's ruling of 2026-10-08: "add pathfinding; 12d waits for it".
-- **PR 12n — navigation** (12n-1 the walk, 12n-2 people walk there): §21, **PR design — ready for
-  freeze review** (2026-10-09, planning session, `plan/s15-12n`), **revision 1** after the primary
+- **PR 12n — navigation** (12n-1 the walk, 12n-2 people walk there): §21, **DESIGN FROZEN
+  (2026-10-09, primary session)**; to be implemented in a fresh session in `impl-12n` on
+  `mvp0/pr-12n-navigation` (§21.14). Drafted on `plan/s15-12n`, **revision 1** after the primary
   session's review (R-12n-1: strides are embodied `walk-step` requests at wall cadence, not a world-time
   Process). Also decides 12d's TD-D8 (§21.6).
 
@@ -7638,12 +7639,33 @@ counters (Z-D3) were replaced by sampling profiles (E-Z3, E-Z7's addendum); no c
 
 ---
 
-# 21. PR 12n — navigation: "go to X", routed round walls and furniture (PR design — ready for freeze review)
+# 21. PR 12n — navigation: "go to X", routed round walls and furniture (full design; DESIGN FROZEN 2026-10-09)
 
-**Lifecycle:** PR design — ready for freeze review (**revision 1**, 2026-10-09). Drafted by the planning
-session on `plan/s15-12n` from `main @ ec38570` (2026-10-09). **Not frozen.** Nothing in §21 authorizes
-implementation. The questions are §21.10 (QN-1 …). Every decision, criterion and record id below is a
-placeholder until the freeze assigns it (`ARC-W`, `DEP-P`, `NV-n`, `NW-n`).
+## 21.0 DESIGN FROZEN
+
+```text
+Design revision        §21 revision 1 (plan/s15-12n @ f64cf01) plus this freeze record; frozen sections
+                       §21 header … §21.13; live sections §21.12/§21.13 checkboxes, §21.15
+Approved by / evidence primary session, 2026-10-09, relayed by the coordinator: "Revision 1 is accepted,
+                       and R-12n-1 is resolved … 12n (§21) is DESIGN FROZEN 2026-10-09 (primary session)."
+Implementation base    main at the session's start (≥ ec38570), with PR #100 merged; re-audit §21.2 if a
+                       listed path moved
+Execution contract     §21.14
+Lifecycle              FROZEN — implementation in a fresh session in impl-12n
+```
+
+**Rulings at the freeze (primary session, 2026-10-09):**
+- **QN-12 — client-paced `walk-step`s, routing on the server.** A primary-session ruling, not a new
+  operator decision: it follows from rulings the operator already made — step-19 §4.1 defines embodied
+  time as the cadence at which embodied inputs arrive (QTW-13), and clients only report intent (`CLAUDE.md`
+  §4 rule 15; `ENGINEERING_RULES.md` §8).
+- **QN-13 — accepted:** `run` refuses packs with 30 or more seats (SD-N15).
+- Earlier rulings (QN-2, QN-4 … QN-11) stand as recorded in §21.10.
+
+**Lifecycle:** DESIGN FROZEN (2026-10-09, primary session), revision 1. Drafted by the planning session on
+`plan/s15-12n` from `main @ ec38570`. Record ids (`ARC-W`, `DEP-P`) are placeholders that the implementing
+session replaces with the next free `ARC-` / `DEP-` numbers in NV-C1, recording the mapping in §21.15.
+Criterion and decision ids (`NV-n`, `NW-n`, `SD-Nn`, `QN-n`) are final.
 
 **Revision 1 (2026-10-09), after the primary session's review of #100.**
 - **R-12n-1 (blocking), applied.** Revision 0 stepped the walk with a movement-owned Process woken once
@@ -8118,8 +8140,8 @@ bodies' `Wayfinder`; strides as embodied `walk-step` requests at 1.34 m/s per wa
 | QN-9 | Plan round the person who stopped the walker. | **Ruled:** as recommended. |
 | QN-10 | Remove the 2D client's click stride-splitting. | **Ruled:** yes, in S12. |
 | QN-11 | `wander` as a walk. | **Ruled:** yes. |
-| **QN-12** **[OM]** | Revision 1 adds a second embodied request type the clients must send (`walk-step`, one per wall second while walking). Is "the client paces its own walk, the server routes it" acceptable as the operator's model of click-to-walk? The alternative that keeps clients silent — the server stepping walks on its own wall clock — would make a host-side pacer write world facts outside any request, which no host does today (`ARC-25`'s journal records only requests and `advance_to`). | **Accept the client-paced model.** It is step-19 §4.1's definition of embodied time ("the cadence at which embodied inputs arrive"), identical in kind to the `move` reporting rule clients already follow, and it needs no journal or host change. |
-| QN-13 | `run` refuses packs with 30 or more seats (was 900) so step instants never collide (SD-N15). | **Accept**; the largest pack has 11 seats. A larger pack moves to a smaller `RUN_STEP` divisor or a sequence tie-break then — bounded, not material. |
+| **QN-12** — **ruled at the freeze (primary session): client-paced, routing on the server** (§21.0) | Revision 1 adds a second embodied request type the clients must send (`walk-step`, one per wall second while walking). Is "the client paces its own walk, the server routes it" acceptable as the operator's model of click-to-walk? The alternative that keeps clients silent — the server stepping walks on its own wall clock — would make a host-side pacer write world facts outside any request, which no host does today (`ARC-25`'s journal records only requests and `advance_to`). | **Accept the client-paced model.** It is step-19 §4.1's definition of embodied time ("the cadence at which embodied inputs arrive"), identical in kind to the `move` reporting rule clients already follow, and it needs no journal or host change. |
+| QN-13 — **accepted at the freeze** | `run` refuses packs with 30 or more seats (was 900) so step instants never collide (SD-N15). | **Accept**; the largest pack has 11 seats. A larger pack moves to a smaller `RUN_STEP` divisor or a sequence tie-break then — bounded, not material. |
 
 ## 21.11 Risks
 
@@ -8240,17 +8262,94 @@ Files: `tools/cli/src/{hosted.rs,run.rs}`, `tools/cli/tests/walking_pace.rs` (ne
 ### NW-C4 — close: ledger, gate, handoff to 12d.
 - [ ] Implementation / [ ] Validation (NW-8) / [ ] Review.
 
-## 21.14 Proposed execution contract (fields only; filled at freeze)
+## 21.14 Execution contract for PR 12n (filled at the freeze, 2026-10-09)
 
 ```text
-worktrees       impl-12n1, impl-12n2 (one session each); never impl-12d
-authority       commit, push, open the PR, repair CI; no merge
-budget          12n-1: no 300-day town run beyond NV-1's captures (4); 12n-2: 12d's ruling's counts
-                (6 + 13), counted on the scratch merge
-material stops  any change to presence, the kernel, contracts or bodies' resolution rules; any pack or
-                controller reading the time scale or a wall clock; NV-1 not byte-identical; NV-7
-                failing at R 250; NW-9 failing; NW-1 / NW-2 failing after the bounded remedies (none
-                are pre-approved beyond NV-10's grid fallback)
+PROJECT / PR        MVP-0 · Step 11 / PR 12n — navigation (S15): 12n-1 the walk, then 12n-2 people walk
+                    there — two PRs, in that order
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-11-bodies.md §21; evidence and deviations §21.15
+                    (E-NV<n>, E-NW<n>; N-D<n>)
+RELATED / BINDING   §§16–20 (12a … 12d-0 as merged; ARC-39 and its notes; DEP-13); §19 and 12d's WIP
+                    (mvp0/pr-12d-towns @ 8814aad or successor, read-only: TD-D7, TD-D8, E-TD1, E-TD6);
+                    step-19-time-weather.md §4 (two time domains, QTW-13); step-12-server.md §16 (D-SB6);
+                    DECISIONS ARC-23, ARC-25, ARC-26, ARC-27, ARC-34, ARC-42, ARC-55, ARC-62;
+                    REUSE_POLICY.md; ENGINEERING_RULES.md §§4–9; CLAUDE.md §§2–4
+PRECONDITION        §21 frozen (done, §21.0); PR #100 merged
+IMPLEMENTATION BASE main at the session's start, with #100 merged; re-audit §21.2's paths first
+BRANCH / WORKTREE   12n-1: branch mvp0/pr-12n-navigation from main, worktree
+                    /Users/yuema137/mineworld-worktrees/impl-12n, held by the implementing session only.
+                    12n-2: after 12n-1 merges, a fresh session in the same worktree (once 12n-1's session
+                    has closed), branch mvp0/pr-12n-navigation-2 from main. Never impl-12d.
+APPROVED SCOPE      12n-1: NV-C1 … NV-C7 (§21.12), SD-N1 … SD-N13, SD-N11 (TD-D8); paths: systems/movement,
+                    systems/bodies (route.rs, the Wayfinder impl, the two constants, the two tests' geometry,
+                    Cargo.toml), systems/installed, Cargo.lock (pathfinding and its dependencies only),
+                    tools/cli/tests/walking.rs (+ fixtures under tools/cli/tests/), clients/protocol/
+                    ADOPTION.md, docs/{DECISIONS,MODULE_SPEC,MVP_STATUS}.md, systems/README.md, this ledger
+                    and handoff.md.
+                    12n-2: NW-C1 … NW-C4 (§21.13), SD-N14 … SD-N16; paths: cognition/rule-controller/src,
+                    tools/cli/src/{hosted,run}.rs, tools/cli/tests/ (walking_pace.rs; literal edits listed
+                    per NW-C2), docs (ARC-27, ARC-42 notes; MODULE_SPEC §8.1), this ledger, handoff.md
+FROZEN INVARIANTS   no edit under kernel/, contracts/, persistence/src/, server/, systems/presence/,
+                    clients/ (except ADOPTION.md's stepping rule), worlds/; no pack or controller reads the
+                    time scale or a wall clock; bodies' resolution rules unchanged (only NUDGE_MAX and
+                    BIAS_BAND become expressions of R, value-identical at R 300); 12n-1 changes no fact of
+                    any existing world (NV-1); every criterion of §21.8 as written, never changed after a
+                    measurement
+SEQUENCE            12n-1: NV-C1 (documents, E-NV-base before any code) → C2 → C3 → C4 → C5 → C6 → C7, each
+                    committed and pushed when coherent; 12n-2 starts only after 12n-1 merges; its NW-C3
+                    measurements on the scratch merge with 12d's WIP, never committed there; 12n-2 merges
+                    immediately before 12d (QN-2)
+COMMANDS            as 12d's contract (§19.9): from the worktree root, `$HOME/.cargo/bin/cargo`;
+                    CARGO_TARGET_DIR for scratch builds under /tmp/s15-12n; long jobs in the background
+TOOL DISCIPLINE     as 12d's contract: Read, Edit and Write for files; allowed `cargo`, `git`, `gh`,
+                    `python3 scripts/*`, `mkdir -p`, `sed -n`, `/usr/bin/time`, `arch -x86_64`,
+                    `rustup target list --installed`; never `python3 -c`, `sed -i`, `awk`, `xargs`,
+                    `curl`, or `cat >>` / heredoc writes; no edit of `.claude/settings*.json` or other
+                    worktrees (12d's is read-only; the scratch merge is its own /tmp worktree)
+VALIDATION BUDGET   12n-1: four 300-day town runs by hand (NV-1: social-cafe and market-town, base and
+                    final head); bodies-yard 30-day runs and committed tests unrestricted; NV-5's 2 000
+                    scenes; NV-10's timing build once; the x86_64 build once and its Rosetta runs; one full
+                    gate on the final head.
+                    12n-2: on the scratch merge, NW-4's TD-12a set (8 interleaved 300-day runs, +4 if one
+                    town is contaminated and re-run once) and one per-resolution timing run, counted
+                    separately; on main, NW-4's no-bodies pair (2 runs) — plus at most 4 other 300-day
+                    runs (debugging, re-baseline evidence): hard cap 8 + 4 + 1 + 2 + 4 = 19; NW-9's hosted
+                    runs at 1×, 6×, 12×, 24×, at most two attempts per scale (each ≤ 3 wall minutes);
+                    30-day diagnostic runs unrestricted. Reaching a cap is a material stop. Real-model
+                    NOT REQUIRED.
+LIVE DOCUMENTATION  §21.12 / §21.13 checkboxes; §21.15
+HANDOFF             .structured-coding/plans/mvp0/handoff.md, reinitialized for 12n at NV-C1 (and again for
+                    12n-2)
+ENDPOINT AUTHORITY
+  implementation + local validation   authorized by the freeze, for a fresh session
+  semantic commits, branch push       authorized
+  PR creation / update                authorized
+  scratch builds and the scratch merge authorized, under /tmp/s15-12n; no branch pushed from them
+  CI repair                           authorized; `fast` and `test` green on the PR's exact head,
+                                      reported with the local evidence; a known flake (F-12n-CI1) is
+                                      re-run once and recorded, never "fixed" here
+  merge                               operator only, with a merge commit; never inherited
+POST-MERGE SYNC     the planning session owns the step header, overall and MVP_STATUS's S15 lines; the
+                    implementing session owns §21's ledger and evidence rows
+NORMAL STOP         PR 12n-1 (then 12n-2) READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       any change to presence, the kernel, contracts or bodies' resolution rules; any pack or
+                    controller reading the time scale or a wall clock; an edit outside the approved
+                    paths; NV-1 not byte-identical; NV-7 failing at R 250 with derived constants (QN-5);
+                    NW-9 failing; NW-1 / NW-2 failing (no remedy is pre-approved — only NV-10's grid
+                    fallback, for cost); any digest change in 12n-1; cross-architecture digests
+                    differing; reaching a budget cap
+```
+
+## 21.15 Evidence ledger, deviations and findings (live)
+
+```text
+F-12n-CI1  (finding, owned by the S11 lane — raised there by the coordinator, 2026-10-09)
+           tools/cli/tests/hosted_town.rs `the_hosted_town_lives_within_its_tick_budget` failed on PR
+           #100's head f64cf01, a Markdown-only change: "the p99 tick took 57.3 ms, over 50 ms (p50 0.3
+           ms, max 198 ms)" (CI run 37977525973, job 113979682214). The failed job re-run once on the
+           same head passed (job 113983484403). Reading: a wall-clock tick budget measured on a shared
+           CI runner is sensitive to load. Not 12n's to fix; 12n's sessions re-run it once if it recurs
+           and record the run ids here.
 ```
 
 
