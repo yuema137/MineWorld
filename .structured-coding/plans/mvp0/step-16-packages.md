@@ -2800,6 +2800,14 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
     at EC-4 only; (B) change `ARC-54`'s classification so a Cargo-fetched checkout is never bundled — a semantic
     change to an accepted decision. Recorded also as `ARC-66`'s limitation in the PR text. Owner of the
     file: S13; decision: the operator.
+  - **Amendment, 2026-10-09 (primary session's ruling on F-Ec3): option (A) approved inside E-c** — "a
+    bounded CI-configuration change, no product change, required for ARC-54 to classify correctly".
+    Applied as `b45f570` (cherry-pick of `scratch/ec-cargo-home`'s `f1482c6`):
+    `.github/actions/layer/action.yml` keeps `CARGO_HOME` at `$HOME/.mineworld-ci-cargo`, mounted into the
+    container at the same path and cached as `~/.mineworld-ci-cargo/{registry,git}`. Scope addition to
+    §16.6 Ec-C8: that file. Coordination: E-d (#101) lands `.github/actions/native` and the `platforms`
+    layer first; after it merges, this branch takes E-d's versions and adds only `--test third_party` and
+    the PD-p3 offline check; 13b-CI also edits the layer action, and whichever lands second reconciles.
 
 ## 16.9 Freeze questions
 
