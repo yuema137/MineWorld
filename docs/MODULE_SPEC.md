@@ -140,6 +140,9 @@ PACKAGE          the pack's package identity (ARC-53): its Cargo name, version, 
 BIOGRAPHICAL     the pack's event types that belong in a person's biography (ARC-29); default none
 SECTION          the authored section the pack owns (ARC-31), if any; default none
 decode_section   how that section is decoded from a content file; default: refused, naming the pack
+CONFIGURATION, CONFIGURATION_FACTS, decode_configuration
+                 whether the pack takes a world-level configuration (ARC-61), defined together by
+                 configures!(); default: not configurable (below)
 ```
 
 `PACKAGE` has no default: a pack that does not state it does not compile, so no pack in a build is
@@ -186,30 +189,64 @@ and then a rebuild. No other file is edited. In particular:
 
 **A pack that resolves arrivals** ([`DECISIONS.md`](DECISIONS.md) `ARC-39`). Presence asks every
 registered `mineworld_presence::ArrivalResolver` what an arrival actually achieves before it records
-it. The installed set lists the build's resolvers on an optional line after `perception:`, each type
+it. The installed set lists the build's resolvers on presence's **extension line** (below), each type
 followed by a comma:
 
 ```text
 mineworld_sdk::installed! {
     perception: mineworld_presence::PerceptionProvider;
-    resolution: mineworld_presence::ArrivalResolver => [ mineworld_<name>::<System>, ];
+    extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers: [ mineworld_<name>::<System>, ];
     <Variant> => mineworld_<name>::<System>,
     …
 }
 ```
 
-The line expands to `Capability::resolvers()`, and `worldpack::compose` registers that list before it
-installs anything. A listed type that does not implement the trait does not compile, and the installed
-set's resolution test refuses a listed resolver that is not also an installed pack. Installing a
-resolver pack is therefore three lines in `systems/installed/`, not two: its Cargo dependency, its
-`installed!` line, and its entry on the `resolution:` line. With the list empty — `[]` — no world
-records anything differently. A resolver pack has two duties beyond `System`:
+`worldpack::compose` registers every extension line before it installs anything. A listed type that
+does not implement the trait does not compile, and the installed set's resolution test refuses a listed
+type that is not also an installed pack. Installing a resolver pack is therefore three lines in
+`systems/installed/`, not two: its Cargo dependency, its `installed!` line, and its entry on presence's
+extension line. With the list empty — `[]` — no world records anything differently. A resolver pack has
+two duties beyond `System`:
 - **inert where its state is absent:** its resolver returns the resolution it was handed unchanged
   when the world holds none of the pack's own state about the people and the place involved, so a world
   that does not enable the pack is not affected by it;
 - **refuse to join an unregistered world:** its `System::install` calls
   `mineworld_presence::require_registered(&Self::ID)` first, which panics, naming the pack, when the
   host never registered the build's resolvers or registered a list without it.
+
+**Extension catalogs** ([`DECISIONS.md`](DECISIONS.md) `ARC-62`). Arrival resolution is the first
+instance of a general shape: a pack owns a trait, other packs implement it, and the build lists the
+implementations. Each such catalog is one line of `installed!`, after `perception:` and before the pack
+lines:
+
+```text
+extension <trait path> => <register fn path>: [ <type>, … ];
+```
+
+The trait and the register function are the owning pack's; each listed type implements the trait and
+`Default`. The line expands into `Capability::register_extensions()`, which calls each line's register
+function once with one value of each listed type, in the listed order, and `worldpack::compose` calls
+it before it installs anything; and into `Capability::extension_types()`, which the installed set's
+guard reads to refuse a listed type that is not an installed pack, or one listed twice on a line. The
+SDK and the loader name no trait and no pack: a new catalog is one line in `systems/installed/`. The
+owning pack's register function keeps `ARC-39` item 5's rules: write-once and process-wide, a different
+list refused naming both. An implementation is pure and inert where its pack's state is absent.
+
+**A configurable pack** ([`DECISIONS.md`](DECISIONS.md) `ARC-61`). A pack that accepts a world-level
+configuration (§4.1, `configure:`) implements `mineworld_authoring::PackConfiguration` — its
+`Configuration` type, the event types its configuration may seed (`FACTS`), the entity keys and systems
+it requires, and `seed` — and writes `mineworld_sdk::configures!();` inside its `impl SystemPack`, which
+defines three more items of the trait together:
+
+```text
+CONFIGURATION          Some(the pack's own id) when it is configurable; default None
+CONFIGURATION_FACTS    the event types its configuration may seed (the drift check's filter); default none
+decode_configuration   decodes configure/<id>.yaml into its own type; default: refused, "the '<id>'
+                       system takes no configuration"
+```
+
+A pack states its configuration facts `Visibility::SystemInternal` with no subjects: a world's
+configuration is nobody's perception and nobody's biography.
 
 **Dependencies between packs.** A pack that depends on another pack — to state its facts under
 `ARC-26`, or to decode them as a subscriber under `ARC-28` — names it by path:
@@ -252,6 +289,7 @@ lakewood/
 │   └── park.yaml
 ├── items/
 ├── organizations/
+├── configure/            each enabled System Pack's world-level configuration, typed by it (ARC-61)
 ├── scenarios/
 └── dependencies.yaml
 ```
@@ -347,6 +385,9 @@ organizations:             # optional. Each key names organizations/<key>.yaml
 
 seats:                     # the Persons a client may connect as, each one of `population`
   - visitor
+
+configure:                 # optional. Each key is a system id and names configure/<key>.yaml (ARC-61)
+  - <system id>
 ```
 
 ```yaml
@@ -557,10 +598,32 @@ satisfied it, each enabled system's pack — is printed by `mineworld packs reso
 world state: no fact and no save records a version or a pack root, and a world resumed from a save is
 resolved again against the roots given then.
 
+**Configuration: a world-level file a System Pack owns** (`DECISIONS.md` `ARC-61`). `configure:` lists
+the enabled packs this world configures. Each key is a system id and names `configure/<key>.yaml`, which
+the owning pack decodes straight into its own type — so a refusal carries its line and column and the
+pack's own message — and seeds as its own genesis facts. It is read after requirements resolve. The
+loader never learns what a configuration means. It refuses, by name and naming the file:
+
+- a key that is no system of this build, or a system the world does not enable;
+- a system that takes no configuration;
+- a **reserved** key: `classes` (the Interaction List's entity classes) and `packages` (the licence-policy
+  override), both reserved for a later build;
+- a key listed twice; a listed file that is missing; a `.yaml` file in `configure/` that is not listed;
+- a system the configuration requires that the world does not enable;
+- an entity the configuration names that is not declared, or not of the type its owner needs;
+- a configuration its owner refuses at genesis, or one that seeds another pack's fact or an event type
+  its owner did not declare.
+
+A world without `configure:` loads exactly as before the key existed. A save remembers its
+configuration: resuming or replaying it against a World Pack whose configuration differs — changed,
+added or removed — is refused, naming the system (`ConfigurationDrift`). Other content is not compared
+at resume.
+
 Initial state is **not** written into the world by the loader. Each authored `passage`, each
-authored `location` and each section becomes a recorded event caused by `Causation::WorldGenesis`
-— passages first, because they are facts about places that exist before anybody is in them, then
-locations, then sections: items', organizations', places', people's, each in key order, and within one
+authored `location`, each configuration and each section becomes a recorded event caused by
+`Causation::WorldGenesis` — passages first, because they are facts about places that exist before
+anybody is in them, then locations, then configuration in `configure:` order (so a section's reduction
+may check a value against it), then sections: items', organizations', places', people's, each in key order, and within one
 file in the order the world's `systems` lists their owners — which the owning system reduces. What a
 person's or a place's section may refer to is seeded before it, and a world that declares no items or
 organizations seeds exactly what it seeded before they existed (`ARC-36`). So a loaded world's state has a causal origin in its own log, and a replay rebuilds it
@@ -938,8 +1001,10 @@ Rules:
 **What MVP-0 implements of this list** (`ARC-53`): `id`, `version`, a type, a `mineworld` range for
 data packs, an SPDX `license` and provenance (authors, repository), stated by each pack's own carrier
 (`PACKAGE_FORMAT.md` §5.0), and printed by `mineworld packs` (§8.1). `dependencies` between code packs
-are Cargo's; a world's requirements, `requires` capabilities, `provides`, and configuration and
-migration schemas are not implemented.
+are Cargo's; a world's requirements, `requires` capabilities, `provides` and migration schemas are not
+implemented. The **configuration schema** is implemented by `ARC-61`: a pack's `PackConfiguration`
+type is its schema, `configure/<id>.yaml` is a world's value for it, and a save is refused at resume
+when that value has changed.
 
 ---
 
