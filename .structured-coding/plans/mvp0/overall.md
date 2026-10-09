@@ -823,10 +823,108 @@ level.
   `worldpack/src/{format,read}.rs` adjacently, so whichever PR merges second performs the mechanical
   merge.
 
+## Operator requirements and rulings, 2026-10-08 to 2026-10-09
+
+These are binding on every step from the date recorded. Each lane's design records how it meets them;
+this section is the index.
+
+### Every platform
+
+> "我们要保证支持全平台，mac linux windows都可以" (2026-10-08)
+
+- MineWorld supports macOS, Linux and Windows. Every design names its behaviour on each: paths,
+  signals and process control, line endings, file locking, display modes, fonts and settings folders.
+- A test that cannot run on one platform is a recorded finding with an owner lane, never a silent skip.
+- CI: S13 13b adds AC-8 parity legs (macOS runner, Linux x86_64 container, Linux arm64, Windows) and a
+  non-required `test-windows`; 13w makes the default suite portable and adds `test-macos`. Making the
+  Windows and macOS suites required checks is an open operator question (QB-11).
+
+### Realistic defaults
+
+> "我们应该跟真实世界靠拢" (2026-10-08)
+
+- Physical and behavioural defaults follow real-world values, and a design states the reference next to
+  each default. First application: `PERSON_RADIUS` 300 → 250 mm (shoulder breadth plus clothing), in 12d.
+- Defaults remain content: the World Interaction List (S17, IL-c onward) makes them configurable per world.
+
+### Classical-mechanics realism (2026-10-09)
+
+> "我们最终希望我们的这个小世界，在经典力学范围内是可以1:1复刻真实世界的，当然精度不需要那么高，但是要满足基本的
+> 真实，比如说水流，比如说，风吹的树叶动之类的，这些都需要比较真实。"
+
+- The long-term target is approximate 1:1 reproduction of the real world within classical mechanics.
+- The boundary, binding on every design:
+  - **Authoritative simulation** changes world state and is server-side and deterministic (bodies,
+    objects, and later anything a body can interact with, such as wading or floating). Its physical
+    parameters have real-world defaults and become World Interaction List content.
+  - **Presentation-only physics** changes no world state (foliage in the wind, water-surface flow, cloth,
+    hair). It may run in the client, but it is driven by disclosed server state — wind from the `weather`
+    pack (S19 TW-b), the sun from `calendar` (TW-a) — so every view and every player sees the same wind.
+    It never decides anything.
+- Visual realism is also required: the operator judged the shop goods crude and the distant mountains and
+  river "very fake" (2026-10-09). Design: S22 (`.structured-coding/plans/mvp1/step-22-realism.md`,
+  in planning), including quick wins inside current MVP-0 lanes.
+
+### Navigation before walls (2026-10-09)
+
+- With walls (12d), NPCs that walk in straight lines stop short on 62 % of moves and miss their agendas.
+  The operator ruled: add pathfinding first; 12d waits. **12n** adds server-side route planning
+  (`walk-to`, a `Wayfinder` catalog implemented by `bodies`, the `pathfinding` crate's A* over an integer
+  visibility graph). Routes are server-authoritative; strides are client- and host-paced in wall time
+  (`walk-step`), so the time scale never speeds up walking (S19 §4). Order: 12n-1 → 12n-2 → 12d.
+
+### AC-1 check 3: generic packs (2026-10-09)
+
+- Market Town is Social Café plus exactly the six market packs — the claim is unchanged — followed only
+  by packs on an explicit allow-list of generic packs (`calendar`, then `weather`, …), each enabled and
+  configured through the `configure:` seam, with their named `data/` attachments. Recorded as ARC-35 notes
+  by TW-a and TW-d.
+
+### One world of many regions, linked by transport (2026-10-09; MVP-1 main line)
+
+> "下一个我们需要解决的问题，就是怎么样才能让不同的小世界连起来，产生了一个有大世界的感觉……我们应该把不同的小世界用
+> 交通工具给联系起来，然后交通工具一律用火车或者汽车。乘坐交通工具的时候，就按照当前地点和要去的地点的风景特征之类的
+> 安插一小段……到了一个新的小世界，就可以再加载那一边的素材……我们肯定是需要有一个地图的功能"
+
+Rulings:
+
+1. **Design now, implement after MVP-0** as MVP-1's main line. MVP-0 designs must not preclude it.
+2. **One world, many regions.** One server, one timeline; every region is simulated all the time (the
+   simulation is cheap); NPCs may live across regions. A world author composes region packs into a world.
+   Clients load presentation assets per region and release them on leaving.
+3. **Transport is trains and cars**, an optional System Pack: lines, stops, timetables, fares through the
+   economy, NPCs commuting. A trip takes calendar time; the ride's window scenery, chosen from the origin
+   and destination's landscape tags, lasts the trip in wall time and doubles as the destination's loading.
+4. **The carriage is a place.** Riders can walk about and talk to NPCs and players on board.
+5. **Maps:** a local region map and a world map (regions, lines, roads), served by the server and drawn by
+   both clients.
+
+Design: S21 (`.structured-coding/plans/mvp1/step-21-regions-travel.md`, in planning), including an
+MVP-0 non-preclusion audit.
+
+### Decision numbers assigned since the parallel build-out table
+
+| Step / PR | ARC | DEP |
+| --- | --- | --- |
+| S16 E-c | ARC-66 | DEP-22 (cargo-deny), DEP-23 (the external pack) |
+| S19 | ARC-67 (time terms, TW-a), ARC-68 (weather, TW-b), ARC-69 (host clock, TW-c) | DEP-30 (solar position, TW-a), DEP-31 (weather data, TW-d) |
+| S12 13b | ARC-70 (wording and translation in packs) | — |
+| S16 E-d | ARC-71 | — |
+| S11-D | ARC-44 (from S11's reserve) | — |
+| S10 P3 | ARC-56 | DEP-24, DEP-25, DEP-26 (DEP-27 remains; S10 asks the primary session for more when needed) |
+
+### Saves grow without bound (finding F-SAVE-1, 2026-10-09)
+
+- A 30-day Market Town save measures 266 MB: a full snapshot every 64 revisions, none ever pruned
+  (≈ 2.5 GB per 300 days). Owner: the persistence lane (S6 follow-up), to design snapshot retention and
+  compaction without weakening byte-exact replay (ARC-25).
+
 ## Still open
 
 | ID | Decision | Blocks | Recommendation |
 | --- | --- | --- | --- |
+| QB-11 | Make `test-windows` and `test-macos` required checks after five consecutive green `main` pushes | nothing now | yes, once 13w is green |
+| QB-14 | Publish packaged clients (Godot exports) for Windows and other players | player distribution | decide at the launch-readiness PR |
 
 
 # 6. Risks
@@ -846,6 +944,12 @@ level.
 ---
 
 # 7. Current position
+
+**Update 2026-10-09.** Merged since the entry below: S11-A (#76), test hygiene (#77), E-b (#78),
+16a (#79), IL-a (#80), 13a CI (#63, main protected by `fast` and `test`), 12d-0 (#84), 2D 13a (#82),
+S11-B (#83), TW-a (#94), and the frozen designs for 12d, 13b, 16c, S11-C/D, SET-a, S10 P3, E-c/E-d,
+13b CI, 13w, IL-b, 16d, 12e, TW-b/TW-d and 12n. 12d is paused for 12n (navigation). The operator
+requirements of 2026-10-08/09 are indexed in §5 "Operator requirements and rulings".
 
 **Last updated 2026-10-08** (S15: 12c merged as `889d217`; next is 12d. Before that: 12b merged as
 `9c617ed`, 12a as `03f1d7c`; the S9 closeout, 11f merged as `fea2516`, S9 complete, S15 placed).

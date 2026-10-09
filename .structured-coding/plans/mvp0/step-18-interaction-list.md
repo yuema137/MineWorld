@@ -2017,12 +2017,12 @@ evidence in §12.13.
   (SD-IB-1, 3, 5). Each id re-checked on every `origin/*` branch before writing.
 - `MODULE_SPEC.md` §4, §4.1, new §4.2; `systems/README.md`; `MVP_STATUS.md`.
 **Non-goals.** Code. **Depends on.** IB-C0 frozen.
-- [ ] Implementation: the records and sections above.
-- [ ] Validation: both doc scripts; `git grep` shows no "reserved for" wording left in the specs for
-  `classes`/`packages`, except in ARC-61's history.
-- [ ] Review: no defined term redefined or given a synonym (entity class, section, selector, role,
+- [x] Implementation: the records and sections above (E-IB-1).
+- [x] Validation: both doc scripts; `git grep` shows no "reserved for" wording left in the specs for
+  `classes`/`packages`, except in ARC-61's history (E-IB-1).
+- [x] Review: no defined term redefined or given a synonym (entity class, section, selector, role,
   rule, parameter block, consequence, reference list, region are §4.1's words); ARC-63 states "a list
-  cannot grant"; ARC-65 states the four layers of "enters history".
+  cannot grant"; ARC-65 states the four layers of "enters history" (E-IB-1).
 
 ### IB-C2 — `authoring`: the seeding context, classes, attachments
 
@@ -2032,13 +2032,14 @@ evidence in §12.13.
 test-tuning (`tests/acceptance/tests/configuration/mod.rs`), the probes in `authoring` and
 `worldpack/src/configure/tests.rs`. `worldpack/src/configure.rs::seed` passes an empty context.
 **Non-goals.** Reading `classes.yaml` or any attachment (IB-C3).
-- [ ] Implementation: as above.
-- [ ] Validation: `cargo test -p mineworld-authoring -p mineworld-worldpack -p mineworld-acceptance`.
+- [x] Implementation: as above (E-IB-2).
+- [x] Validation: `cargo test -p mineworld-authoring -p mineworld-worldpack -p mineworld-acceptance`.
   Unit tests: `ClassName`/`of` refusals; implicit names refused; an attachment path refused when
   absolute, when it contains `..`, or when it is not under `data/`, each at its line and column through
   `serde_saphyr` in worldpack (authoring has no YAML dependency, IL-a D-1). IB-1 is not yet run (no
-  behaviour reachable).
-- [ ] Review: the context is read-only; `Seeding` is unchanged; no shim kept for the old signature.
+  behaviour reachable) (E-IB-2).
+- [x] Review: the context is read-only; `Seeding` is unchanged; no shim kept for the old signature
+  (E-IB-2).
 
 ### IB-C3 — `worldpack`: framework keys, attachments, the policy
 
@@ -2050,47 +2051,50 @@ as an argument); `error.rs`; `format.rs` (`FoundConfiguration.attached`); `lib.r
 `worldpack/tests/configuration.rs` (the reserved tests become framework-key tests, §12.8),
 `configure/tests.rs`, and `tools/cli/tests/configure.rs` (its reserved case → the packages case of
 IB-9).
-- [ ] Implementation: as above.
-- [ ] Validation: IB-9 and M-IB9; IB-10's refusals (outside, missing, over-size) with a probe; the
+- [x] Implementation: as above (E-IB-3).
+- [x] Validation: IB-9 and M-IB9; IB-10's refusals (outside, missing, over-size) with a probe; the
   undeclared-file refusal still covers `configure/classes.yaml` when it is not listed. The three worlds'
-  `validate` output is `cmp`-identical to E-IB-0.
-- [ ] Review: the order in `read_with` (resolve_systems → packages → requirements → configuration);
+  `validate` output is `cmp`-identical to E-IB-0 (E-IB-3).
+- [x] Review: the order in `read_with` (resolve_systems → packages → requirements → configuration);
   the policy is neither seeded nor compared; `check_configuration` re-reads attachments from the same
-  root.
+  root (E-IB-3).
 
 ### IB-C4 — presence: a pack-stated refusal on an offer
 
 **Goal.** SD-IB-12.
 **Scope.** `systems/presence/src/interaction.rs` (`Offer::refused`, the field, its accessor);
 `observe.rs` (`verdict`: refusal first); one presence test. No VERSION change: an offer is not state.
-- [ ] Implementation: as above.
-- [ ] Validation: a presence test where a refused offer is unavailable with its reason, its
+- [x] Implementation: as above (E-IB-4).
+- [x] Validation: a presence test where a refused offer is unavailable with its reason, its
   requirement shown, its payload carried, even when the target is out of range (the refusal wins);
-  `complete_affordances` and every presence test pass unedited.
-- [ ] Review: no pack but test-tuning calls it; `Affordance` and `contracts/` untouched.
+  `complete_affordances` and every presence test pass unedited (E-IB-4; complete_affordances in the
+  final gate, E-IB-11).
+- [x] Review: no pack but test-tuning calls it; `Affordance` and `contracts/` untouched (E-IB-4).
 
 ### IB-C5 — `sdk::interactions`: declarations, sections, resolution
 
 **Goal.** SD-IB-6, 7, 8, 11, 17: the pure half.
 **Scope.** NEW `sdk/rust/src/interactions/{mod,decl,selector,section,resolve}.rs` and `tests.rs`;
 `parameters!`; `lib.rs` exports; NEW `sdk/rust/tests/interactions.rs` (IB-6).
-- [ ] Implementation: as above.
-- [ ] Validation: unit tests for each precedence rule (level replacement, specificity, forbid
-  overrides, the overlap definition including implicit classes); each refusal; IB-6 with M-IB6; one
-  `serde_saphyr` decode with line and column through worldpack's in-crate probe.
-- [ ] Review: no `HashMap` iteration, no float, no clock; every `Vec` is sorted before it is serialized;
-  `resolve` is total over its input or refuses.
+- [x] Implementation: as above (E-IB-5; committed together with IB-C6, D-IB-8).
+- [x] Validation: unit tests for each precedence rule (level replacement, specificity, forbid
+  overrides, the overlap definition including implicit classes); each refusal; IB-6 with M-IB6 (E-IB-5);
+  one `serde_saphyr` decode with line and column through worldpack's in-crate probe (E-IB-7, with the
+  probe section of IB-C7).
+- [x] Review: no `HashMap` iteration, no float, no clock; every `Vec` is sorted before it is serialized;
+  `resolve` is total over its input or refuses (E-IB-5).
 
 ### IB-C6 — `sdk::interactions`: lookups, `interactions!()`, the capability aggregate
 
 **Goal.** SD-IB-9, 10, 13 (the selection).
 **Scope.** `lookup.rs`, `biography.rs`; `interactions!()` in `pack.rs`; `installed.rs` (`@catalog`:
 `interaction_section()`); `__private`.
-- [ ] Implementation: as above.
-- [ ] Validation: lookups on a probe world (unconfigured → defaults without a component read beyond
-  the place's; configured → base, region, class); the selection with and without `Configured`.
-- [ ] Review: the macro expands to what SD-IB-9 says; a pack without `interactions!()` is unaffected
-  (sdk tests, the installed set's tests unedited).
+- [x] Implementation: as above (E-IB-5).
+- [x] Validation: lookups on a probe world (unconfigured → defaults without a component read beyond
+  the place's; configured → base, region, class); the selection with and without `Configured` —
+  through test-tuning in tests/acceptance (E-IB-7), where a codec exists (D-IB-8).
+- [x] Review: the macro expands to what SD-IB-9 says; a pack without `interactions!()` is unaffected
+  (sdk tests, the installed set's tests unedited) (E-IB-5).
 
 ### IB-C7 — The schema proven with test-tuning
 
@@ -2100,33 +2104,35 @@ IB-9).
 `advanced` with a declared audience and a configurable biography, a `PerceptionProvider` offering
 `advance` through `permits`, and `table: data/…`. Updated: `configuration_seam.rs`. NEW:
 `interaction_schema.rs`.
-- [ ] Implementation: as above.
-- [ ] Validation: IB-5 (a)–(e) with M-IB5a/b/c; IB-10 with M-IB10; IL-a's IA-2, IA-4 a and IA-7 still
-  pass, with any edit to them recorded (§12.8).
-- [ ] Review: test-tuning still names no pack vocabulary; its tests assert behaviour (refusals,
-  envelopes, selections), not getters.
+- [x] Implementation: as above (E-IB-7; the attachment on a second test pack, D-IB-9).
+- [x] Validation: IB-5 (a)–(e) with M-IB5a/b/c; IB-10 with M-IB10; IL-a's IA-2, IA-4 a and IA-7 still
+  pass, with any edit to them recorded (§12.8) (E-IB-7).
+- [x] Review: test-tuning still names no pack vocabulary; its tests assert behaviour (refusals,
+  envelopes, selections), not getters (E-IB-7).
 
 ### IB-C8 — Tools: the biography projection and `mineworld interactions`
 
 **Goal.** SD-IB-13 (the CLI half), SD-IB-14.
 **Scope.** `tools/cli/src/{biography,main}.rs`; NEW `interactions.rs`; NEW
 `tools/cli/tests/interactions.rs`; `worldpack/src/lib.rs` re-exports.
-- [ ] Implementation: as above.
-- [ ] Validation: `tools/cli/tests/biography.rs` passes unedited (unconfigured = ARC-29); IB-11; a
-  structural test that `biography` builds `Configured` from the genesis facts (QIB-11).
-- [ ] Review: both commands are read-only; no new Cargo dependency.
+- [x] Implementation: as above (E-IB-8).
+- [x] Validation: `tools/cli/tests/biography.rs` passes unedited (unconfigured = ARC-29); IB-11 (its
+  unconfigured half here, E-IB-8; its configured half needs the real sections, IB-C10/E-IB-10); a
+  structural test that `biography` builds `Configured` from the genesis facts (QIB-11) (E-IB-8).
+- [x] Review: both commands are read-only; no new Cargo dependency (E-IB-8).
 
 ### IB-C9 — conversation reads its gap from its section
 
 **Goal.** SD-IB-16 (conversation).
 **Scope.** `systems/conversation/src/{interactions.rs NEW, system.rs, lib.rs}`; README; the pinned
 `(VERSION, default)` test; one test with an explicit gap.
-- [ ] Implementation: `interactions!()`; `declaration()` through `declare`; `react` calls `reduce` first;
-  `continues_a_conversation` takes the looked-up gap; VERSION 2.
-- [ ] Validation: conversation's tests pass (`conversation_and_presence.rs:710` unedited: the default is
-  300); IB-4 (worldpack/tests/interaction_sections.rs) with M-IB4a/b; `rules:` in its section refused
-  (IB-7).
-- [ ] Review: no other use of `CONVERSATION_GAP` remains except as the default's value and in docs.
+- [x] Implementation: `interactions!()`; `declaration()` through `declare`; `react` calls `reduce` first;
+  `continues_a_conversation` takes the looked-up gap; VERSION 2 (E-IB-9).
+- [x] Validation: conversation's tests pass (`conversation_and_presence.rs:710` unedited: the default is
+  300; one other assertion of that file edited, D-IB-12); IB-4 (worldpack/tests/interaction_sections.rs)
+  with M-IB4a/b; `rules:` in its section refused (IB-7, through the binary in E-IB-10) (E-IB-9).
+- [x] Review: no other use of `CONVERSATION_GAP` remains except as the default's value and in docs
+  (E-IB-9).
 
 ### IB-C10 — group-activity reads its lifetime; the controller reads `until`
 
@@ -2134,21 +2140,23 @@ IB-9).
 together.
 **Scope.** `systems/group-activity/src/{interactions.rs NEW, component.rs, system.rs, perception.rs,
 lib.rs}`; README; `cognition/rule-controller/src/{social,social_tests}.rs`.
-- [ ] Implementation: as SD-IB-15; schema 2; VERSION 2.
-- [ ] Validation: group-activity's and rule-controller's tests (`social_tests.rs` builds invitations with
+- [x] Implementation: as SD-IB-15; schema 2; VERSION 2 (E-IB-9; `is_open_at` is `now ≤ until`, D-IB-13).
+- [x] Validation: group-activity's and rule-controller's tests (`social_tests.rs` builds invitations with
   `until`); `git grep INVITATION_LIFETIME -- cognition` is empty; a pack test that an invitation from a
-  configured world expires at its own `until`.
-- [ ] Review: `is_open_at` is the old test exactly when `until = at + 1 800` (an `at`/`now` table in a
-  unit test); the controller judges nothing it cannot read.
+  configured world expires at its own `until` (E-IB-9).
+- [x] Review: `is_open_at` is the old test exactly when `until = at + 1 800` (an `at`/`now` table in a
+  unit test); the controller judges nothing it cannot read (E-IB-9).
 
 ### IB-C11 — Close: byte identity, the runs, cost, the scan, the gate, the ledger
 
 **Scope.** IB-1 (with M-IB1a/b), IB-2 (M-IB2), IB-3 (M-IB3), IB-8's binary half (M-IB8), IB-12
 (M-IB12), IB-13, IB-14, IB-15; NEW `tools/cli/tests/interaction_runs.rs`;
 `configuration_vocabulary.rs`; `MVP_STATUS.md`; the ledger and handoff.
-- [ ] Implementation: as above.
-- [ ] Validation: each criterion with evidence in §12.13.
-- [ ] Review: every changed path is in §12.1's change set; deviations recorded in §12.14.
+- [x] Implementation: as above (E-IB-10 … E-IB-12).
+- [x] Validation: each criterion with evidence in §12.13 (IB-1 E-IB-11; IB-2, 3, 7, 8, 11 E-IB-10;
+  IB-12 … 14 E-IB-12; IB-15, the gate and CI, E-IB-13 and the PR).
+- [x] Review: every changed path is in §12.1's change set, or recorded as D-IB-12 / D-IB-15;
+  deviations recorded in §12.14.
 
 ## 12.8 Test ownership
 
@@ -2276,11 +2284,418 @@ E-IB-f  2026-10-08, freeze commit on plan/s17-il-b: origin/main @ 77a8717 (IL-a 
         plus the §6.2 pointer; the freeze header, rulings and confirmed contract were added.
         check_doc_headings → 191 numbered sections across 26 documents, none duplicated;
         check_decision_ids → 69 ids, all distinct. PASS.
+E-IB-0  2026-10-08, implementation session, on main @ aa74b32 (code identical to the freeze base 77a8717:
+        `git diff --stat 77a8717 aa74b32` lists three plan documents only; 12d not merged), dev profile,
+        binary kept as target/il-b/base-mineworld, artifacts target/il-b/base-*; "sha" = sha-256 of every
+        output line but `wall`; machine shared with other sessions (load average 60 … 139):
+        social-cafe `run --headless --seed 7 --days 300`: exit 0, faults 0, 365 330 facts, fingerprint
+          59339a9c281829c9, sha ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+        market-town, same: exit 0, faults 0, sha
+          365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d
+        (both = the recorded references; town runs used: 2 of 4)
+        bodies-yard `--days 30`: exit 0, faults 0, sha
+          bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6 (= main's ZI-3)
+        long_run second process: LONG-RUN line 4 019 632 bytes, sha 23f7fa76…e5125 (= ZI-1)
+        long_run_objects second process: LONG-RUN-OBJECTS line 612 428 bytes, sha c8358f8b…c5b4 (= ZI-2).
+          Its first invocation set BODIES_LONG_RUN_SECOND_PROCESS instead of the test's own
+          BODIES_LONG_RUN_OBJECTS_SECOND_PROCESS and printed no line: INCONCLUSIVE (invocation mistake),
+          re-run once with the right variable. long_run and long_run_objects: one base run each counted.
+        validate: social-cafe ebcd60a0…f56a8, market-town 64f41086…73502, bodies-yard 7356b8f8…2063f
+          (= E-IA-0's)
+        social-cafe 30 days seed 7 (M-IB1a/b and IB-14's base), three runs: sha
+          06e2d63c6e7ee369fe3d13d59624ee0c691a0050dd8fe93fa1a4eed5d5016fbe each; walls 13.0, 12.0, 6.3 s at
+          load 139, 133, 127 — the spread is far above 5 %, so these walls cannot serve IB-14; IB-14's base
+          walls are re-taken beside the head's (§12.5's INCONCLUSIVE rule). PASS (references captured).
+E-IB-1  2026-10-08, IB-C1: DECISIONS.md ARC-63, ARC-64, ARC-65, DEP-28 appended (ids re-checked on every
+        origin/* branch first: none has a heading for any of them); dated notes on ARC-29, ARC-34, ARC-55,
+        ARC-61. MODULE_SPEC.md §3.1 (a pack with a section), §4 tree (classes.yaml, packages.yaml, data/),
+        §4.1 (framework keys, attachments; the reserved-key refusal removed), new §4.2 "The World's
+        Interaction List" (§4.1's vocabulary of this file, classes, the section, precedence, refusals, what a
+        list cannot do, run time). systems/README.md "Adding a pack": a section. MVP_STATUS.md: the
+        configuration row extended, one Interaction List row. check_doc_headings → 192 numbered sections
+        across 26 documents, none duplicated; check_decision_ids → 73 ids, all distinct. `git grep
+        "reserved for\|reserved key"` in docs/ and systems/README.md: only ARC-61's own history (items 3–5)
+        and its new note. Review: §4.2's terms are §4.1's words, each defined once; ARC-63 item 9 is "A
+        list cannot grant"; ARC-65 item 3 lists the four layers. The records state the implementation's
+        bounded refinements D-IB-1 … D-IB-5 (§12.14) where they touch the specification. PASS.
+E-IB-2  2026-10-08, IB-C2: authoring/src/classes.rs (ClassName, ClassDefinition, Classed, EntityClasses:
+        class_of, matches, type_of, restricted_to), attachment.rs (Attachment, Attached,
+        ATTACHMENT_MAX_BYTES = 4 MiB), configuration.rs (ConfigurationContext, EntryAt,
+        ConfigurationRefusal; PackConfiguration::attachments/check, seed(&Seeding, &C, &Context); the
+        erased AuthoredConfiguration likewise). Implementors updated, no shim: authoring's probe,
+        worldpack's in-crate probe, acceptance's test-tuning; worldpack's configure::seed passes an empty
+        context until IB-C3. Finding during validation: an EntityClasses refusal raised in a
+        `TryFrom<Vec<_>>` (and then in `visit_seq` after the element returned) carried **no** position
+        through serde_saphyr; raised inside the offending element's own `DeserializeSeed` it carries
+        "line 2 column 3" — so every list refusal in IL-b is raised inside the element's decode (the same
+        rule section.rs follows). `cargo test -p mineworld-authoring` 6 passed (classes 3, attachment 1,
+        configuration 2); `-p mineworld-worldpack --lib` 12 passed, including the new
+        attachments_and_classes_are_refused_at_their_line_and_column_with_either_line_ending (LF and CRLF;
+        `..`, absolute, not under data/, `data\x.csv`, `C:\data\x.csv` refused at line 2; a class
+        defined twice at line 2 column 3; `of: castle` at line 2); `-p mineworld-acceptance --test
+        configuration_seam` 4 passed. Review: the context is two shared references, read-only; Seeding
+        unchanged; the old two-argument seed exists nowhere (`git grep "fn seed(_: &Seeding<'_, '_>,
+        settings"` empty). PASS.
+E-IB-3  2026-10-09, IB-C3: worldpack configure.rs — FRAMEWORK (classes, packages) replaces RESERVED;
+        licence_policy() reads configure/packages.yaml identifier by identifier (LicencePolicy's own
+        whole-list decoding lost the position, the E-IB-2 finding again; LicencePolicy::new still judges
+        each identifier); read() now: keys once → framework keys set aside → classes.yaml →
+        owners' files → undeclared files → requires → attachments (read_attachments: missing, link
+        outside the canonical pack root, over 4 MiB) → check() against the classes (ClassUndefined,
+        AmbiguousEntries named with file, list and index); seed() hands each configuration its own
+        context. read.rs: 4a policy → 4b requirements(policy) → 4c configuration; WorldPack::classes(),
+        licence_policy(). requirements.rs takes the policy. error.rs: ConfigurationReserved removed;
+        ClassesInvalid, ClassUndefined, AmbiguousEntries, AttachmentMissing, AttachmentOutside,
+        AttachmentTooLarge, LicencePolicyInvalid added. format.rs: FoundConfiguration.attached. cli
+        packs.rs: a World Pack judged by its own policy. configuration_vocabulary.rs rewritten to IB-12
+        (permit/forbid/class/biograph allowed, invit added, D-14's admissions removed, IL-b's files
+        added) — it caught three uses of "give"/"given" and a "body" variable in IL-b's own new lines,
+        reworded. Tests: worldpack/tests/configuration.rs 9 passed (the reserved test became
+        the_framework_keys_are_read_by_their_owners_not_resolved_as_systems and
+        a_world_licence_policy_replaces_the_default_and_is_not_seeded); cli --test configure 3 passed
+        (the reserved case became the packages case; new
+        a_world_licence_policy_governs_validate_and_packs_validate); worldpack --lib 14 passed (new:
+        attachments_are_read_whole_and_refused_when_missing_outside_or_over_size — the link case under
+        cfg(unix) only, see D-IB-6 — and a_changed_attachment_is_drift_and_an_unchanged_one_is_not);
+        configuration_vocabulary 2, configuration_seam 4 passed.
+        M-IB9 (read.rs passes `&LicencePolicy::default()` to requirements::resolve): FAILS
+        a_world_licence_policy_replaces_the_default_and_is_not_seeded ("expected the policy's refusal,
+        got Ok(WorldPack …)") and a_world_licence_policy_governs_validate_and_packs_validate; reverted,
+        `git grep MUTATION -- '*.rs'` empty.
+        validate ×3 on the IB-C3 tree (dev binary): `cmp`-identical to E-IB-0's three files. PASS.
+E-IB-4  2026-10-09, IB-C4: presence `Offer` gains a private `refused: Option<Rejection>` (None from both
+        constructors), the builder `refused(Rejection)` and the accessor `refusal()`; nothing existing
+        changed (additive, QIB-3). observe.rs `verdict`: a refusal is the verdict before the spatial
+        evaluation; the requirement and the payload are attached as before. No VERSION change (an offer
+        is not state). New test a_refused_offer_is_unavailable_for_its_own_reason_before_any_spatial_check
+        (Bellringer's three offers, refused PermissionDenied: inside the belfry and outside it the
+        reason is PermissionDenied, the requirement and payload equal the unrefused offer's).
+        `cargo test -p mineworld-presence`: presence 16 passed (15 unedited + 1), resolver_catalog 1.
+        Review: `git diff -- contracts` empty; `git grep "\.refused(" -- systems` → presence's own test
+        only. PASS.
+E-IB-5  2026-10-09, IB-C5 + IB-C6 (one commit, D-IB-8): NEW sdk/rust/src/interactions/{mod, decl,
+        selector, section, resolve, lookup, biography, tests}.rs; SystemPack::INTERACTIONS (default None);
+        installed!'s Capability::interaction_section(); __private::DeError; lib.rs `pub mod
+        interactions`. Design as built: Role/Effect/Audience/ActionDecl/Position/FactDecl/SectionDecl;
+        Selector/Selectors (specificity, overlaps incl. implicit classes, matches), RoleSubjects,
+        Roles; Fields/Parameters and `parameters!` (default and inclusive bound per field, partial
+        twin); Section<S> decoded by hand-written visitors, every refusal raised inside the offending
+        value's own seed (the E-IB-2 finding) — undeclared action/fact/role, bound, unknown key,
+        widened or below-narrowest audience, non-configurable biography, a region rule for a
+        non-regional action, extends unknown/cyclic/longer than 4; resolve() (levels default →
+        extends chain → world → region, replacement by key field by field, within-level forbid-wins
+        for rules, within-level and cross-selector ambiguity refused naming both entries, ClassUndefined
+        with list and index, classes restricted to the referenced and shadowing definitions);
+        Resolution::{permits, parameters, consequence} pure over sorted vectors (partition_point on
+        action/fact); lookup: SectionConfigured<S> (the event), Interactions<S> (the component,
+        base + this place's region), declare/install/reduce, permits/parameters/consequence that read
+        nothing but the place's component and return compiled defaults when absent; biography:
+        ConsequenceTable, consequences::<S>, Configured, Known, selected(); interactions!() defines
+        CONFIGURATION, CONFIGURATION_FACTS, INTERACTIONS, decode_configuration through an SDK-held
+        AuthoredConfiguration (check = resolve; seed = resolve + the pack's encode, SystemInternal).
+        InteractionSection requires Clone + Debug + PartialEq of the (stateless) pack: std derives on
+        the generic types need them (D-IB-7).
+        Tests: `cargo test -p mineworld-sdk`: lib 9 passed (7 new: level replacement field by field,
+        specificity, forbid/specificity/default, ambiguity incl. implicit class and disjoint classes,
+        undefined class with "regions.cafe.rules[0]", region only at its place, the copied classes);
+        compile_fail 1, extensions 1 (unedited); NEW tests/interactions.rs (IB-6) 1 passed: 10 000
+        sections from SplitMix64 seed 0x1b_2026_1008 — refused Ambiguous 2 620, ClassUndefined 573;
+        1 102 734 lookups answered over 3 places × 3×3×2 class tuples; 509 606 orders compared (every
+        permutation up to five entries, 100 shuffles above), all identical. M-IB6 (the within-level
+        parameter conflict overlaid in authoring order instead of refused) → FAILS "case 0: the
+        resolution depends on the order entries are written in"; reverted, `git grep MUTATION` empty
+        (confirmed again after the session's rate-limit resume). clippy -D warnings clean for sdk,
+        authoring, worldpack, presence, cli (all targets). Review: no HashMap, no float, no clock in the
+        module; every vector in Resolved is built from BTreeMaps or sorted; resolve() returns a value
+        for every input or a ConfigurationRefusal. PASS.
+E-IB-7  2026-10-09, IB-C7: tests/acceptance/tests/configuration/mod.rs — test-tuning is now
+        interactions!() (VERSION 2): parameters! { step 1 … 100 = 1 }; ACTIONS advance (actor,
+        target; regional); FACTS advanced (actor = subjects[0], target = subjects[1], default Place,
+        narrowest Participants, biography configurable; BIOGRAPHICAL [advanced]); reference lists
+        default, gentle, loop-a ⇄ loop-b, deep-1 … deep-5; `tuned:` gains an optional `at` (the place a
+        lookup asks about; Count holds it); validate asks `permits` first; resolve takes `by` from
+        `parameters` and the envelope's Visibility from `consequence`; its PerceptionProvider offers
+        advance, `.refused(reason)` when `permits` refuses. NEW test-only pack test-table: a plain
+        configuration `{ table: data/<file> }`, rows decoded from the attachment (CRLF-tolerant) into
+        `table-configured`. Helpers: Setup + genesis() (classes, section decoded → check → seed, starts
+        with places), world_with(places, people with tags); IL-a's genesis_facts/world kept as wrappers.
+        configuration_seam.rs edits (claims kept): CONFIGURED is `parameters: [ { step: 5 } ]`; the
+        Stride component read became a `parameters` lookup = 5; Count gains its place; the bound's
+        message is the SDK's ("'step' is 1 … 100, not 0") at line 2 instead of test-tuning's own at
+        line 1 column 7; the drift filter is test-tuning's CONFIGURED; the "reformatted" and changed
+        cases restated as sections. NEW interaction_schema.rs (8 tests): IB-5 a–e, IB-7's schema half
+        (ten decode refusals each at its line: undeclared action, undeclared role, undeclared fact,
+        bound, unknown field, widened audience, extends unknown / cycle / too long, unknown section key;
+        ClassUndefined and Ambiguous with list and index; extends gentle → step 2 — the
+        serde_saphyr-with-line case IB-C5 deferred), IB-C6's unconfigured lookups (Ok, step 1, owner's
+        Place visibility, compiled biographical), IB-10 (rows [[1,2,3],[4,5,6]] for LF and CRLF). The
+        world for IB-5 installs presence and states arrivals first so observe has targets.
+        `interactions::biography` made `pub` (the design's path `sdk::interactions::biography::selected`).
+        configuration_vocabulary scans the SDK module, sdk/rust/tests/interactions.rs and
+        interaction_schema.rs too; it caught seven "give/given/gives" and one "conversation" in IL-b's
+        own new lines, reworded.
+        Mutations, each applied, observed failing by name, reverted:
+          M-IB5a (resolve_levels: within-level rule ties take min, permit wins) → FAILS
+            a_forbidden_pair_… "forbid overrides permit at equal specificity" (left: Accepted);
+          M-IB5b (the offer ignores `permits`) → FAILS a_forbidden_pair_… at `!offered.is_available()`;
+          M-IB5c (selected returns the compiled flag before reading Configured) → FAILS
+            biography_off_… at `!selected(&noble, ada, …)`;
+          M-IB10 (test-table's seed handed empty bytes) → FAILS an_attachments_rows_… (rows: []).
+          `git grep MUTATION -- '*.rs'` empty afterwards.
+        `cargo test -p mineworld-acceptance`: ac1_composability 13, arrival_resolvers 7, resume PASS,
+        unregistered 2, client_rules 3, complete_affordances 4 (unedited), configuration_seam 4,
+        configuration_vocabulary 2, interaction_schema 8, precursor_vocabulary and seam_vocabulary
+        (unedited) pass. PASS.
+E-IB-8  2026-10-09, IB-C8: tools/cli/src/biography.rs selects through
+        `interactions::biography::selected`, its `Configured` built by `configured()` from the save's
+        genesis facts (each composed capability's `interaction_section()`, its configured fact read by
+        the section's `consequences` fn) and each entity's key, type and tags from the World Pack the
+        command already loads (D-IB-10). NEW tools/cli/src/interactions.rs and the `interactions`
+        subcommand (`--place KEY`, `--json`): reads and assembles the pack in memory, prints each
+        enabled section's resolved JSON (or "default (compiled)") and each entity's class; serde_json's
+        default map is a BTreeMap, so keys are sorted. worldpack/src/lib.rs re-exports
+        `mineworld_sdk::interactions` and authoring's ClassName, Classed, EntityClasses (SD-IB-14: no
+        Cargo.toml change). NEW tools/cli/tests/interactions.rs: the QIB-11 structural test and the
+        unconfigured half of IB-11 (social-cafe: every section default, classes person/place, the
+        directory listing with sizes and mtimes identical before and after). configuration_vocabulary
+        scans the two CLI files and the new test; biography.rs's existing `manifest_row.body` (a
+        persistence field) is admitted by a one-entry list that fails if it admits nothing (D-IB-11).
+        `cargo test -p mineworld-cli --test biography` 2 passed (unedited); `--test interactions` 2;
+        configuration_vocabulary 2. Review: neither command opens a save for writing or writes a file;
+        `git diff --stat -- Cargo.toml Cargo.lock tools/cli/Cargo.toml` empty. PASS.
+E-IB-9  2026-10-09, IB-C9 + IB-C10 (one commit, D-IB-14): conversation — NEW src/interactions.rs
+        (parameters! { gap 1 … 86 400 = 300 }; PARAMETER_ROLES actor, target, place; codec), VERSION 2,
+        declare/install/reduce, `resolve` looks up `gap` with speaker, listener and the speaker's place
+        and passes it to continues_a_conversation/within_the_gap; README section. group-activity — NEW
+        src/interactions.rs (invitation_lifetime 1 … 86 400 = 1 800), VERSION 2, Invitations schema 2,
+        Invitation { from, kind, at, until } with `until()`, `react` on `invited` sets until = at +
+        the lifetime looked up with inviter, invitee and the fact's place; perception.rs's module doc;
+        README section. rule-controller — social.rs answers an invitation only while
+        `invitation.is_open_at(now)` and no longer imports INVITATION_LIFETIME (`git grep
+        INVITATION_LIFETIME -- cognition` empty); social_tests.rs builds invitations with until = at +
+        1 800. Finding (D-IB-13): `WorldTime::duration_since` is negative, not None, for an earlier
+        instant, so the old test `now − at ≤ 1 800` also admitted now < at; `at ≤ now ≤ until` (SD-IB-15's
+        wording) would differ there, `now ≤ until` is exactly the old test, and is what was built. The
+        component.rs table test (at ∈ {0, 7, 900, 86 399} × now ∈ {at−1, at, at+1, at+1 799, at+1 800,
+        at+1 801, at+5 000}) first FAILED on the wording SD-IB-15 gave ("at 0, now -1"), which is how
+        this was found; it passes on `now ≤ until`, and a 60 s invitation lapses at its own until
+        (160 open, 161 closed). Pinned tests per pack: (VERSION 2, default 300 / 1 800, the two type ids).
+        Tests whose text pins the composition's versions (D-IB-12): conversation_and_presence.rs's
+        declarations list (conversation now owns two component types); tools/cli/tests/inspect.rs and
+        social_composition.rs's "systems … conversation v2, group-activity v2" lines — `inspect` prints
+        the save's composition; `run` prints none (F-IB-12 holds for `run`).
+        IB-4 — NEW worldpack/tests/interaction_sections.rs: a cafe region with gap 3 600: Alice → Bob
+        twice 400 s apart start 1 conversation, Dev → Erin in the park 2; classes { regular: person
+        tagged regular } with { actor: regular, gap: 3 600 }: Bob → Alice 1, Dev → Erin 2; the park
+        tagged `regular` with { place: regular, gap: 3 600 }: Dev → Erin 2. M-IB4a (parameters ignores
+        the region) → FAILS "in the café the gap is 3 600 s" (2 vs 1); M-IB4b (class_of ignores `of`) →
+        FAILS "a place tagged `regular` is not in the person class `regular`" (1 vs 2); reverted, `git
+        grep MUTATION -- '*.rs'` empty.
+        Tests: conversation lib 1 + conversation_and_presence 14; group-activity lib 2 + group_activity
+        10 (line 100's INVITATION_LIFETIME == 1 800 unedited) + persisted 1; rule-controller 34;
+        worldpack interaction_sections 2; cli social_composition 4, inspect 3, packs 5. `cargo clippy
+        --workspace --all-targets -D warnings` clean. PASS.
+E-IB-10 2026-10-09, IB-C11's binary tests (commit 7e0917a), dev binary, scratch copies of social-cafe,
+        30 days seed 7 (`cargo test -p mineworld-cli --test interaction_runs --test interactions --
+        --nocapture`, log target/il-b/c11-cli.log):
+        IB-2  37 085 facts unconfigured; 37 087 with both sections `extends: default`, the 2 extra
+              being the two `*-interactions-configured` genesis facts; the other facts pairwise equal
+              in type, instant, payload, subjects and visibility, the first 17 (passages, arrivals)
+              with their ids and the remaining 37 068 with ids and referenced event ids + 2; the
+              `requests` lines identical. PASS.
+        IB-3  (a) gap 3 600: conversation-started 1 829 against 4 391 unconfigured; every speaker of
+              the unconfigured run speaks in each of the three 10-day buckets; faults 0. (b)
+              invitation_lifetime 60: `requests accept-invitation` shows only "accepted 389" — no
+              rejected line; invitation-accepted 389 against 665; faults 0. PASS.
+        IB-7  (binary half) `mineworld validate` refuses: `rules: [{ action: whisper }]` in
+              conversation.yaml at line 2 ("'whisper' is not an action 'conversation' declares (it
+              declares: none)"); `gap: 0` at "line 2 column …" ("'gap' is 1 … 86400, not 0"); an undefined
+              class naming "parameters[0]"; an ambiguous pair naming parameters[0] and parameters[1] and
+              'gap'. `data: ../x` cannot reach the binary — no installed pack takes an attachment (IL-a
+              D-8's rule); its refusal is E-IB-2's and E-IB-3's in-crate proof. PASS.
+        IB-8  (binary half) a 1-day save with classes, packages and a conversation section using the
+              class: editing an unreferenced class and the licence policy → `run` resumes and `replay`
+              verifies; editing the referenced class → both refused "the world's configuration differs
+              from the save's: system 'conversation'"; editing the section → both refused the same way.
+              The attachment half is E-IB-3. PASS.
+        IB-11 `mineworld interactions --json` on a copy with classes and a conversation section (base
+              600, `actor: regular` 3 600, region cafe 1 800): base.parameters.gap 600, regions[0] =
+              ["cafe", {… gap 1 800}], base.scoped[0].fields.gap 3 600, group-activity "default
+              (compiled)", bob "regular", alice "person"; two runs byte-identical; `--place cafe` shows
+              the region, `--place park` the base; the text lists both sections and "class    bob
+              regular"; the directory listing (paths, sizes, mtimes) identical before and after. PASS.
+        Mutations, applied together (each breaks a different test), observed, reverted:
+          M-IB2 (conversation's default list given the lowest gap, 1, so an explicit section's base is
+            not the compiled default) → FAILS an_explicit_default_… "every other fact, once" (38 904
+            vs 37 085);
+          M-IB3 (the controller judges an invitation's age by 1 800 s again) → FAILS
+            a_longer_gap_… "the controller never answers an expired invitation" (accepted 324,
+            rejected PreconditionFailed 804);
+          M-IB8 (the resolved fact copies no classes) → FAILS an_edited_section_… "the referenced class
+            edited: run is refused".
+          `git grep MUTATION -- '*.rs'` empty; `git diff` empty for the three files afterwards.
+        origin/main a30755e merged (35885f2): S11-B seats (#83: server/, tools/cli/src/{main,serve,
+        hosted}.rs, tests) and plan documents; no path under kernel/ contracts/ persistence/ systems/
+        worldpack/src/ sdk/ authoring/ cognition/ worlds/; main.rs auto-merged around the interactions
+        subcommand. After the merge: doc checks 192 / 75 distinct; cli configure 3, interactions 4
+        pass. 12d not merged: E-IB-0 stands as IB-1's reference.
+E-IB-11 2026-10-09, IB-1 on the merged head 35885f2 (dev binary kept as target/il-b/head-mineworld;
+        artifacts target/il-b/head-*), by E-IB-0's method:
+        social-cafe 300 days seed 7: exit 0, faults 0, 365 330 facts, fingerprint 59339a9c281829c9, sha
+          ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-IB-0;
+        market-town: exit 0, faults 0, 372 755 facts, fingerprint 085ed9c55cae7947, sha
+          365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d = E-IB-0;
+        bodies-yard 30 days: faults 0, 62 385 facts, sha bd6a1002…80e6 = E-IB-0;
+        long_run second process: 4 019 632 bytes, `cmp`-identical to E-IB-0's line;
+        long_run_objects second process: 612 428 bytes, `cmp`-identical;
+        validate ×3: `cmp`-identical to E-IB-0.
+        Town 300-day runs used: 4 of 4 (E-IB-0 ×2, IB-1 ×2). PASS.
+        M-IB1a (conversation's compiled gap 300 → 1), 30 days seed 7: sha 7b09dd47… ≠ the base's
+          06e2d63c… (conversation-started 6 210 vs 4 391) — the gap is read and the instrument sees it.
+        M-IB1b (group-activity's compiled lifetime 1 800 → 900): sha 9bb6b91a… ≠ 06e2d63c…
+          (invitation-accepted 656 vs 665: invitations to lower seats lapse, QB-1).
+        Both reverted; `git grep MUTATION -- '*.rs'` empty; `git status` shows only this ledger.
+E-IB-12 2026-10-09, IB-12, IB-13, IB-14 on 35885f2's code:
+        IB-12 configuration_vocabulary scans authoring/src/{configuration,classes,attachment}.rs,
+              sdk/rust/src/interactions/**, sdk/rust/tests/interactions.rs, worldpack/src/configure.rs
+              and its in-crate tests, tools/cli/src/{interactions,biography}.rs, and IL-a's and IL-b's
+              framework test files (worldpack/tests/configuration.rs, tools/cli/tests/configure.rs,
+              tests/acceptance/tests/{configuration/mod,configuration_seam,interaction_schema}.rs,
+              sdk/rust/tests/extensions.rs): no physics word and no word beginning talk, spoke, convers,
+              give, buy, sell, trade, eat, drink, kick, throw, shove or invit; one admission (D-IB-11).
+              The real-section tests (worldpack/tests/interaction_sections.rs, tools/cli/tests/
+              {interactions,interaction_runs}.rs) are not framework files and are not scanned (QIB-2).
+              M-IB12 (`// invit` appended to lookup.rs) → FAILS naming
+              "sdk/rust/src/interactions/lookup.rs:253: invit"; reverted. PASS.
+        IB-13 `git diff --stat origin/main...HEAD -- kernel contracts persistence server clients worlds
+              Cargo.toml Cargo.lock systems/bodies systems/item systems/movement` and the three guard
+              files: empty. Changed paths (61) are §12.1's change set plus D-IB-12's three test files
+              and D-IB-15's one line in load.rs. The guards pass (E-IB-7, and in the gate). PASS.
+        IB-14 30 days seed 7, dev profile, sequential, interleaved base/head/configured (both sections,
+              a region on every place, two classes; target/il-b/cost/social-cafe):
+              first pass (the run's own `wall`, 0.1 s resolution): base 1.3, 1.2, 1.3 — a spread of 8 %,
+              which is the print's resolution, not the machine: INCONCLUSIVE by §12.5's rule;
+              re-run once with `/usr/bin/time -p`: base 1.23, 1.23, 1.24 (median 1.23, spread 0.8 %);
+              head unconfigured 1.21, 1.23, 1.21 (median 1.21 ≤ 1.23 × 1.05 = 1.29); configured 1.24,
+              1.28, 1.21 (median 1.24 ≤ 1.21 × 1.05 = 1.27). Load average 18–25 throughout (other
+              sessions). The head's three runs print the base's 30-day sha 06e2d63c…. PASS.
+E-IB-13 2026-10-09, after the PR opened (#102), main moved: TW-a (#94, f80bbb7) merged — a new System Pack
+        `calendar` with a plain configuration, installed, and enabled and configured in market-town
+        (`configure: [calendar]`), so main's market-town digest is now TW-a's baseline (300 days seed 7:
+        24a95d2a…d270, 374 857 facts; step-19 E-TWa-9). Merged as aeafbc5: DECISIONS.md conflict (ARC-63 …
+        DEP-28 against TW-a's ARC-67 / DEP-30) resolved by keeping both; the coordination rule (§12.12:
+        whichever of TW-a and IL-b merges second updates the other's seed) applied to
+        systems/calendar/src/system.rs (`seed` takes `&ConfigurationContext`) and its tests/support/mod.rs
+        — the only edits to that pack. `cargo test -p mineworld-calendar` 8 + 5 + 2 pass;
+        ac1_composability 14 pass (unedited by IL-b).
+        Byte identity against the new main, uncounted 30-day runs (the 300-day budget, 4 of 4, is spent):
+        origin/main f80bbb7 built in a temporary detached worktree under target/il-b (removed after) and
+        the merged head, both dev, seed 7, 30 days: market-town sha 158a1fc1…04d7 on both (38 216 facts,
+        faults 0) — the calendar configuration seeded through IL-b's context path; social-cafe 06e2d63c…
+        on both (= E-IB-0's 30-day); validate ×3 `cmp`-identical main against head.
+        NOT RUN: market-town 300 days on the merged head against 24a95d2a…d270. It would be a fifth town
+        run, which the contract makes a request to the primary session, not a reason to exceed the budget
+        (§12.12 VALIDATION BUDGET). Requested in the PR and the report. social-cafe's 300-day IB-1 (E-IB-11)
+        stands: TW-a changes no file social-cafe composes (calendar is not enabled there; the 30-day sha is
+        unchanged).
+E-IB-14 2026-10-09, IB-15, the full gate on 196cbc3 (the final code head; the commit after it is this
+        ledger and the handoff only), one background run (target/il-b/gate/): `cargo fmt --all --check` 0;
+        `cargo clippy --workspace --all-targets --all-features -- -D warnings` 0; `cargo test --workspace
+        --no-fail-fast` 0 — 181 result lines, 819 passed, 0 failed; check_doc_headings 192 numbered
+        sections / 26 documents, none duplicated; check_decision_ids 77 distinct; `check_scratch.py scan` 0
+        (168 sources, 2 pre-existing exemptions); `check_scratch.py left` exit 1 with 7 entries (18.1 MiB),
+        identical by `diff` to the listing taken before the gate — all under one pid's container from the
+        M-IB2/M-IB3/M-IB8 run, whose panicking tests keep their scratch by DEP-29's design; removed, then
+        `left` 0. The gate left nothing. CI on the exact PR head: reported with the PR. PASS.
+E-IB-15 2026-10-09, the fifth town run, authorized by the primary session's ruling of 2026-10-09: market-town
+        `run --headless --seed 7 --days 300` on the merged head (code = 196cbc3 = aeafbc5's, dev binary
+        kept as target/il-b/head3-mineworld): exit 0, faults 0, 374 857 facts, sha (every line but
+        `wall`) 24a95d2ae4e9d99b0e183de8df5f5d1d08eb5edb19127bccbd20f7532a66d270 = main's TW-a baseline
+        (step-19 E-TWa-9), real 20.7 s. IB-1 now holds against main at merge for both towns (social-cafe
+        E-IB-11, unchanged by TW-a; market-town here). Town runs: 5 (4 + this authorized one). PASS.
 ```
 
 ## 12.14 Deviations
 
-None yet.
+```text
+D-IB-1  (bounded) A reference list is a Rust value (`InteractionSection::reference_lists()`, default
+        `[("default", the empty section)]`), not YAML text (`REFERENCE: &[(&str, &str)]`, SD-IB-7). Neither
+        mineworld-sdk nor a pack depends on a YAML parser, and adding one is a Cargo.lock change the
+        contract forbids; the loader's parser cannot be handed to the SDK's resolver at every lookup site
+        (genesis, the biography projection, `mineworld interactions`). The levels, `extends`, its chain
+        bound and its cycle refusal are unchanged.
+D-IB-2  (bounded) Of SD-IB-17's refusals, those decidable from the pack's own declarations alone —
+        ActionNotDeclared, FactNotDeclared, RoleNotDeclared, AudienceWidened (and below-narrowest),
+        BiographyNotConfigurable, a region rule for a non-regional action, ExtendsUnknown, ExtendsCycle,
+        ExtendsTooDeep — are raised by the section's own decoding, so they reach the author as `Malformed`
+        with serde's line and column and a message naming the refusal, rather than as distinct PackError
+        variants without a position. ClassUndefined and AmbiguousEntries, which need the world's classes,
+        are PackError variants naming the file, list and index. RegionUnknownPlace is IL-a's
+        ConfigurationNamesUnknownEntity (through `references`, as SD-IB-17 says).
+D-IB-3  (bounded) `interactions!()` does not write a `PackConfiguration` impl: an item macro inside
+        `impl SystemPack` cannot emit another impl or new types. It defines CONFIGURATION,
+        CONFIGURATION_FACTS, decode_configuration and INTERACTIONS from the SDK's generic types —
+        `Configured<S>` (the event `<pack>-interactions-configured`), `Interactions<S>` (the component
+        `<pack>-interactions`) and an SDK-held `AuthoredConfiguration` — so the loader sees exactly what
+        IL-a's seam carries. The pack names the two type ids (`CONFIGURED`, `COMPONENT`) and supplies its
+        codec (`encode`, `decode`); a pinned test per pack holds the names.
+D-IB-4  (bounded) The context-dependent refusals need a typed answer before seeding:
+        `PackConfiguration::check(&Configuration, &ConfigurationContext) -> Result<(), ConfigurationRefusal>`
+        (default Ok) and the matching `AuthoredConfiguration::check`, in authoring/src/configuration.rs.
+D-IB-5  (bounded) `InteractionSection::PARAMETER_ROLES`: the roles a parameter entry may scope by
+        (SD-IB-16 names conversation's: actor, target and place), which SD-IB-7's list omits.
+D-IB-6  (bounded; platform) The AttachmentOutside test makes its symlink only under cfg(unix): an
+        unprivileged Windows process cannot create one. The check itself is platform-neutral
+        (canonicalized paths compared with `starts_with`); the missing and over-size cases run everywhere.
+D-IB-7  (bounded) InteractionSection: SystemPack + Clone + Debug + PartialEq + Send + Sync + 'static. The
+        section's generic types derive Clone/Debug/PartialEq, and std's derives bound the type
+        parameter; a pack is a stateless unit struct (INV-7), so deriving them costs nothing.
+D-IB-8  (bounded) IB-C5 and IB-C6 are one commit: the SDK-held configuration (mod.rs) needs resolve and
+        the lookups' types at once. IB-C6's world-level validation (lookups on a configured and an
+        unconfigured world; the selection) runs in IB-C7 through test-tuning, because mineworld-sdk has
+        no codec dependency (serde_json) for a probe's configured fact and adding one changes Cargo.lock.
+D-IB-9  (bounded) IB-10's attachment is carried by a second test-only pack, test-table, with a plain
+        configuration: a pack whose configuration is its section (interactions!()) has no top-level key
+        for an attachment (the six section keys are fixed, SD-IB-6). A pack needing both is a later,
+        recorded amendment; S19 TW-d's pack takes a plain configuration.
+D-IB-10 (bounded) The biography projection takes entities' tags from the World Pack it already loads for
+        keys and names, not from the save's genesis journal row (SD-IB-13): tags are authored content
+        fixed at genesis (A-1), the row is persistence's input encoding that the CLI does not decode
+        today, and content drift outside configuration is unchecked either way (QPL-12's scope).
+D-IB-11 (bounded) configuration_vocabulary admits one word on one line — `body` in biography.rs's
+        `format::decode(&manifest_row.body, "manifest")`, persistence's field since S8 — through a
+        one-entry list that fails if it admits nothing (IL-a D-14's mechanism).
+D-IB-12 (bounded) Three test files outside §12.8's edited list change one assertion each, because the
+        designed VERSION bumps and the section's component are visible in them: conversation_and_presence.rs
+        (§12.8 "no") lists component declarations by owner (conversation now two); tools/cli/tests/
+        inspect.rs and social_composition.rs pin `inspect`'s "systems … v1" text (now conversation v2,
+        group-activity v2). No digest moves: `inspect` reads the save's manifest, not the fact log.
+D-IB-13 (bounded) `Invitation::is_open_at(now)` is `now ≤ until`, not SD-IB-15's `at ≤ now ≤ until`: the
+        old test `now − at ≤ 1 800` admitted an instant before `at` (duration_since is negative, not
+        None), and only `now ≤ until` equals it everywhere — byte identity (IL-I1) over the wording.
+D-IB-14 (bounded) IB-C9 and IB-C10 are one commit: the composition-pinning tests (D-IB-12) name both
+        packs' versions on one line.
+D-IB-15 (bounded) worldpack/src/load.rs, outside §12.1's list, changes one call: `initial_facts` passes
+        the pack's classes to `configure::seed`, which SD-IB-3's context requires. Nothing else in the
+        file changes; the seeding order is IL-a's.
+```
+
+**Findings recorded at implementation start.**
+
+```text
+F-IB-16  Unix-only assumption (operator requirement, 2026-10-08: macOS, Linux and Windows). Nine test files
+         import `std::os::unix::process::ExitStatusExt` unconditionally for their SIGKILL proofs, so their
+         test crates do not compile on Windows: persistence/tests/kill_and_resume.rs (owner: persistence,
+         S6); tests/acceptance/tests/arrival_resolvers_resume.rs (acceptance, 12a);
+         tests/acceptance/tests/configuration_seam.rs (acceptance, IL-a); tools/cli/tests/{restart,
+         run_restart,milestone_b,milestone_c,market_town,bodies_yard_restart}.rs (cli, S8 … 12c). Found by
+         `git grep "std::os::unix\|cfg(unix)\|\"/tmp\|libc::"` over *.rs: no other hit. IL-b adds none and
+         does not fix these (its own edit to configuration_seam.rs leaves that import as IL-a wrote it);
+         the remedy (a cfg(unix) gate, or a portable kill) belongs to whoever adds Windows CI (S13/S14's
+         CI lane), recorded here for the primary session to assign.
+         Ruling (primary session, 2026-10-09): owned by S13's PR 13w (frozen), which fixes all nine
+         `ExitStatusExt` files. IL-b does not touch them.
+```
 
 ## 12.15 After IL-b: IL-c … IL-i, outlined with their dependencies
 

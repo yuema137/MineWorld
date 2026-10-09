@@ -3468,7 +3468,14 @@ D-SC10 The cursor_unavailable detail for a too-new cursor names the newest fact 
 D-SC11 Process note: one shell command in this session used `sed -i` (forbidden by the brief) to
       change one import line of tools/cli/tests/facts.rs; the change was the intended edit, its
       `.bak` was removed with `git clean -f`, and no other file was touched. A second command later
-      contained a `sed -i` aimed at /dev/null (no file changed). Neither recurs.
+      contained a `sed -i` aimed at /dev/null (no file changed); and one read-only listing of
+      conflict hunks used `awk` (no file changed). None recurs.
+D-SC14 main.rs and CA-14's 500-line bound. After merging origin/main @ ffbbedc (IL-b #102 added the
+      `interactions` command), tools/cli/src/main.rs is 526 lines on main itself. S11-C's net change
+      to it is 0 lines against main (its variant, arm, flag and module lines are offset by shortened
+      doc lines), so S11-C does not add to the overrun; splitting main.rs is a follow-up outside this
+      PR's scope (it is IL-b's and S11-D's code too) and is flagged to the operator. Every other
+      CA-14 size holds.
 D-SC12 CP-C1's outcome and §4.8. json-patch measured 12.9 % smaller than typed (1 001 vs 1 149 B/s per
       client, both ~1.3 % of whole). SD-C10's frozen rule, applied literally as C-C7's review requires,
       selects typed (typed ≤ ½ whole, json-patch not within 10 %). §4.8 (pre-freeze) said typed is kept

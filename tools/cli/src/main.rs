@@ -9,10 +9,9 @@
 //! mineworld run <world> --headless --seed N --days N [--save DIR]
 //!                                       run it headless, every seat a seeded rule (ARC-27)
 //! mineworld inspect <save> [--last N]   what a save holds; every fact's cause checked (AC-9)
-//! mineworld biography <world> --save DIR --person KEY [--json]
-//!                                       a Person's objective biography, from the fact log (ARC-29)
-//! mineworld perceived <world> --save DIR --person KEY …   what a Person perceived (ARC-43)
-//! mineworld create <directory>         a new, minimal World Pack
+//! mineworld biography|perceived <world> --save DIR --person KEY [--json]
+//!                                       a Person's biography (ARC-29), or what they perceived (ARC-43)
+//! mineworld create <directory>          a new, minimal World Pack
 //! mineworld packs list|show|validate|resolve
 //!                                       package identities, and a world's composition (ARC-53, 54)
 //! ```
@@ -59,6 +58,7 @@ mod create;
 mod history;
 mod hosted;
 mod inspect;
+mod interactions;
 mod invite;
 mod packs;
 mod perceive;
@@ -224,6 +224,20 @@ enum Subcommand {
     },
     /// Print the facts a Person perceived, from a save's fact log, by the server's audience rule.
     Perceived(perceived::PerceivedArgs),
+    /// What a World Pack's Interaction List resolves to: each configured section, base then regions,
+    /// and each entity's class (ARC-63, ARC-64). Reads the pack only.
+    Interactions {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// Only the resolution that applies at this place.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        place: Option<EntityKey>,
+        /// One JSON document, keys sorted.
+        #[arg(long)]
+        json: bool,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
     /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
     Packs {
         #[command(subcommand)]
@@ -366,6 +380,19 @@ async fn main() -> ExitCode {
             })
         }),
         Subcommand::Perceived(args) => perceived::perceived(args),
+        Subcommand::Interactions {
+            world,
+            place,
+            json,
+            packs,
+        } => packs.roots().and_then(|roots| {
+            interactions::interactions(&interactions::InteractionsRequest {
+                world: &world,
+                place: place.as_ref(),
+                json,
+                roots: &roots,
+            })
+        }),
         Subcommand::Packs { command } => match command {
             PacksCommand::List { packs } => packs.roots().and_then(|roots| packs::list(&roots)),
             PacksCommand::Show { id, packs } => {
