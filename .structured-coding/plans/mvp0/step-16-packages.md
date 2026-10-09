@@ -2485,15 +2485,15 @@ this repository the commit is the ledger entry only.
 **Precondition.** The operator has created the repository (FQ-c1) and the freeze authorizes pushing to
 it (FQ-c5). Otherwise this commit, and everything after it, stops.
 
-- [ ] Implementation: §16.2's tree; the law of PD-27; its own `[patch.crates-io]` to MineWorld `main` at a
-  recorded sha; `Cargo.lock` committed; tag `v0.1.0`.
-- [ ] Validation (in that repository): `cargo fmt --check`, `cargo clippy --all-targets -D warnings`,
+- [x] Implementation: §16.2's tree; the law of PD-27; its own `[patch.crates-io]` to MineWorld `main` at a
+  recorded sha; `Cargo.lock` committed; tag `v0.1.0` (E-Ec4).
+- [x] Validation (in that repository): `cargo fmt --check`, `cargo clippy --all-targets -D warnings`,
   `cargo test` — counts recorded; its own mutations, each observed failing and reverted: the offer made
   away from a spot (`fish.rs` FAILS), `produce` skipped at the catch (FAILS), `fishing` not enabled still
   offering (`removable.rs` FAILS); `cargo metadata` there shows only the published surface + serde /
-  serde_json as normal dependencies.
-- [ ] Review: no `path` and no `workspace = true` in its manifest; `PACKAGE` line present; refusals use the
-  kernel's `Rejection` kinds; nothing in it names a MineWorld private module (`__private`).
+  serde_json as normal dependencies (E-Ec4).
+- [x] Review: no `path` and no `workspace = true` in its manifest; `PACKAGE` line present; refusals use the
+  kernel's `Rejection` kinds; nothing in it names a MineWorld private module (`__private`) (E-Ec4).
 
 ### Ec-C5 — Install: two lines
 
@@ -2601,6 +2601,30 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
   assertion edited. `cargo test -p mineworld-cli --test packs --test commands` → 4, 6 passed; `cargo clippy
   -p mineworld-cli --all-targets -D warnings` clean; `main.rs` untouched. *Bounded extension*: the
   controller line gets the word too — `ARC-66` point 4 says "every code pack", and the controller is one.
+- **E-Ec4** (Ec-C4, external): `yuema137/mineworld-pack-fishing` commit **`b40e71ff1c4e7f6921b692809810d6835fae3921`**
+  on `main` (after GitHub's initial `LICENSE` commit `ac32b96`), annotated tag `v0.1.0` (`c5506ad`) on it.
+  Tree: `Cargo.toml` (acme-fishing 0.1.0, MIT, edition 2024, rust-version 1.97.1; the six surface crates
+  by `"0.1"`, `serde 1.0.229`, `serde_json 1.0.151`; dev: `mineworld-item`, `-movement`,
+  `-rule-controller`, `serde-saphyr`; `[patch.crates-io]` → MineWorld `rev = 6ca763dc…`), `Cargo.lock`,
+  `rust-toolchain.toml` (1.97.1), `clippy.toml` (MineWorld's), `README.md`, `.github/workflows/ci.yml`,
+  `src/{lib,system,section,action,offer,process,event,component,codec}.rs`,
+  `tests/{fish,removable,paced}.rs` + `tests/support/mod.rs`. Event slugs `fishing-spot` (SystemInternal),
+  `fishing-started`, `fishing-ended` (biographical); components `fishing-spot`, `angler`; process `catch`.
+  Validation, standalone against MineWorld fetched by git at `6ca763d` (`CARGO_NET_GIT_FETCH_WITH_CLI`):
+  `cargo fmt --check` clean; `cargo clippy --locked --all-targets -D warnings` clean; `cargo test --locked`
+  → fish 5, paced 2, removable 2 passed. Mutations (run against the local framework through a `--config`
+  patch file outside both trees, then reverted): offer made to any living person regardless of spot →
+  `fish.rs` 2 FAILED (bob at the café offered fish); `produce` skipped at the catch → `fish.rs` FAILED
+  (no items-produced at the due instant); `removable.rs` `WITHOUT = true` → FAILED (fish offered). `cargo
+  metadata --no-deps` there: normal dependencies = the six surface crates + `serde`, `serde_json`; dev =
+  the four above. Review: `grep "__private\|path =\|workspace"` over `src tests Cargo.toml` empty;
+  `PACKAGE` first line of `impl SystemPack`. **Pack CI** (FQ-c10, PD-p6) run
+  <https://github.com/yuema137/mineworld-pack-fishing/actions/runs/37907882591>: `check (ubuntu-latest)`,
+  `check (macos-latest)`, `check (windows-latest)` all **success** on `b40e71f` — the Windows job with
+  `core.longpaths` and the git CLI; the sparse-sibling fallback of PD-p6 was not needed. PASS.
+  - *Deviation (bounded)*: the paced test runs 5 days (consumption's runs 10); the criterion — at least
+    one fish accepted and one catch into holdings, byte-identical twice — was stated before running and
+    met.
 
 ## 16.9 Freeze questions
 
