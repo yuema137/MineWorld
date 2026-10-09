@@ -251,10 +251,10 @@ fn shoved_facts(moved: &Moved) -> Vec<String> {
         .collect()
 }
 
-// Every shover below stands 700 mm from their target, not §18.4's 600 mm: a person within the
-// character controller's 10 mm offset of somebody (595 ≤ d < 610 mm) is not swept away from them
-// (§18.11 DO-11). `a_shove_from_600_mm_is_cut_short_by_the_shover` keeps §18.4's layout and records
-// what it does.
+// Every shover below stands 700 mm from their target, not §18.4's 600 mm: before 12d-0 a person within
+// the character controller's 10 mm offset of somebody (595 ≤ d < 610 mm) was not swept away from them
+// (§18.11 DO-11). SD-Z5 (step-11 §20.3) fixed it: `a_shove_from_600_mm_moves_its_target_half_a_metre`
+// keeps §18.4's layout and pins what it does now.
 
 #[test]
 fn a_shove_moves_its_target_half_a_metre_through_presence() {
@@ -271,10 +271,6 @@ fn a_shove_moves_its_target_half_a_metre_through_presence() {
     holds(&yard);
 }
 
-/// §18.4 PO-6 a's own layout, 600 mm apart: the shove is resolved, bounded and true, but cut short —
-/// b moves 301 mm (the contact sweep advances 1 mm from inside its offset of a, and the candidate rule
-/// allows 300 mm more), with `stopped-short { by: None }`. Recorded, not changed: it is 12b's people
-/// path, which PO-13 b holds byte-identical (DO-11).
 /// A shove asks for at most 500 mm, whatever its direction: (600, 3) is 600.0075 mm long, and scaling
 /// it by 500 over its length rounded down would ask for (500, 2) — 500.004 mm. Found by the 30-day
 /// scan ("moved 500 mm (at most 500)", §18.11 DO-14); this failed before the fix.
@@ -288,15 +284,48 @@ fn a_shove_never_asks_for_more_than_half_a_metre() {
     assert!(moved2 <= 500 * 500, "b moved {moved2} mm², more than 500²");
 }
 
+/// §18.4 PO-6 a's own layout, 600 mm apart (TZ-6; DO-11's pin, flipped by SD-Z5). Before 12d-0 b moved
+/// 301 mm: the contact sweep advanced 1 mm from inside its offset of a, and the candidate rule allowed
+/// 300 mm more. Now a, behind b and within the offset, is left out of b's contact sweep, and b moves
+/// the half-metre as Rapier's controller sweeps it in open floor: (4 499, 4 999), 1 mm short on each
+/// axis — beyond the 1 mm snap, so a `stopped-short { by: None }` stays (the controller's own drift,
+/// E-Z1's request 518; §20.13 Z-D8). Not stopped by a.
 #[test]
-fn a_shove_from_600_mm_is_cut_short_by_the_shover() {
+fn a_shove_from_600_mm_moves_its_target_half_a_metre() {
     let mut yard = yard(&[("a", (3_400, 5_000)), ("b", (4_000, 5_000))], vec![]);
     let moved = shove(&mut yard, "a", "b");
     assert_eq!(
         shoved_facts(&moved),
         ["person-shoved", "arrived", "stopped-short"]
     );
-    assert_eq!(yard.point("b"), Some((4_301, 5_000)));
+    assert_eq!(
+        yard.point("b"),
+        Some((4_499, 4_999)),
+        "half a metre, not 301 mm"
+    );
+    let by = moved.facts().iter().find_map(|fact| match fact {
+        support::Fact::StoppedShort { by, .. } => Some(*by),
+        _ => None,
+    });
+    assert_eq!(by, Some(None), "not stopped by a");
+    holds(&yard);
+}
+
+/// TZ-6's other half: a stride *toward* a person 600 mm away is still stopped by them — a stays, b is
+/// not moved. M-Z5 (the d · (p − start) ≤ 0 test dropped) fails here.
+#[test]
+fn a_stride_toward_a_person_600_mm_away_is_still_stopped() {
+    let mut yard = yard(&[("a", (3_400, 5_000)), ("b", (4_000, 5_000))], vec![]);
+    let to = yard.at("room", (4_400, 5_000));
+    let moved = yard.walk("a", to);
+    assert!(moved.accepted(), "{:?}", moved.result);
+    let by = moved.facts().iter().find_map(|fact| match fact {
+        support::Fact::StoppedShort { by, .. } => Some(*by),
+        _ => None,
+    });
+    assert_eq!(by, Some(Some(yard.people["b"])), "stopped by b");
+    assert_eq!(yard.point("a"), Some((3_400, 5_000)));
+    assert_eq!(yard.point("b"), Some((4_000, 5_000)));
     holds(&yard);
 }
 
