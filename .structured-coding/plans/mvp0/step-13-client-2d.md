@@ -1828,10 +1828,22 @@ ids from genesis facts and build the scratch world for AC-I6.
   `request-3d.json`. 12d is still not on `main` (RK-b2 not triggered); S11-B neither (RK-b3).
 
 #### C6 — Stills, operator checklist, final gates
-- [ ] Implementation: capture stills `09_menu_alice_far` (greyed, reason), `10_menu_alice_near`,
-  `11_talk_history`, `12_self_menu_shop`, `13_invited_marker` (two clients), `14_plain_menu`
-  (`--presentation=none`), under `clients/2d/shots/preview/`; README lines (keys, menus); the
-  operator's checklist of §15.3 in the PR body; ledger and handoff.
+- [x] Implementation: stills `09_menu_alice_far`, `10_menu_alice_near`, `11_talk_history`,
+  `12_self_menu_shop`, `13_invited_marker` (visitor windowed, Bob headless, ordered by sync files),
+  `14_plain_menu` (`--presentation=none`, seated `wanderer`) under `clients/2d/shots/preview/`, taken by
+  the harness's new `shoot`/`panels` steps on a fresh `market-town --agent alice`, one window at a time;
+  README lines (menus, keys I/H/E/Q, two-window invite); the operator's checklist in the PR body;
+  ledger and handoff.
+- Stills, viewed one at a time, largest miss first: (1) first capture — the menu ran off the right edge
+  and its entries were the theme's light text on a light panel, nearly unreadable; fixed (clamped to the
+  viewport, dark text, unavailable greyed by `modulate`), re-captured. (2) Name labels overlap where
+  people stand close (13a's label layout; 13c/13d). (3) Items are shown by id ("Buy item 24") until
+  R-PK-2 (QS13b-3). (4) With no pack the plain room does not contain the people (13a's plain floor
+  extent) and the fallbacks read "hint", "who: …" (D-b-9's fallback, by design). Facts seen: from the
+  door every entry against Alice except "Walk to" is greyed "— too far away · needs 3 m"; near her all
+  are enabled; Alice's reply is the newest history line, with the toast "You spoke to Alice Moreau";
+  one's own menu lists the disabled walk, six buys in the shop's order, then "Eat item 19"; the panels
+  show day, carrying, 2000.00, the shop's six kinds; "· coffee ·" over Bob and the visitor.
 - [ ] Validation: AC-I9, AC-I10, AC-I11 on the final head; stills viewed one at a time and their facts
   recorded (largest miss first).
 - [ ] Review: preview, not acceptance (`ARC-24`); known misses stated (item ids until R-PK-2, NPCs
@@ -1994,3 +2006,25 @@ Implementation session started 2026-10-08 in `/Users/yuema137/mineworld-worktree
 - **E-11 — The three-client run uses files to order itself (bounded).** AC-I3's order (visitor leaves,
   then the busy invite, then Bob leaves) crosses clients; each client marks a step done with a file in
   `--sync=<dir>` (a scratch directory, `FileAccess`, portable) and the next waits on it, bounded by 90 s.
+- **E-12 — `main` merged at the finish (`7a17406`): S11-B (#83) is now on `main` (RK-b3).** Hosting is
+  opt-in (`--town`); `--agent alice` drives Alice "whenever no player holds it"; seats are exclusive
+  and a dropped seat is held 30 s (`--hold`). 13b's tests start no `--town`, seat three distinct people
+  and use a fresh world per run, so no consumer change was needed; the full Godot suite was re-run on
+  the merged head. The "13b DESIGN FROZEN … all platforms" commits on `main` are S14's 13b
+  (`step-14-ci.md`), not this PR; `step-13-client-2d.md` was not changed on `main`. 12d is still not on
+  `main` (RK-b2). `world_client.gd` gained S11-B's resume handling; 13b does not use it (no edit).
+- **E-13 — S11-B broke one of 13a's Godot-gated tests; consumer change in the lane's own file
+  (bounded).** On the merged head, `client_2d -- --ignored` gave 7 passed, 1 failed:
+  `killed_mid_walk_and_relaunched` panicked in `support/mod.rs:348`, `Refused { code: SeatOccupied,
+  detail: "another player holds this seat; join with take_over to take it" }`. Cause: S11-B holds a
+  dropped connection's seat for its resume (`--hold`, default 30 s), so the test's second connection to
+  carol, made right after SIGKILLing the client, is refused. The failing join is the Rust test's, not
+  the 2D client's (CI runs no Godot, so S11-B's PR could not see it). Fix: that test starts its server
+  with `--hold 0`, which is the behaviour AC-W3 was written against; re-run → PASS (9.0 s). Not a
+  material stop: a test fixture in the 2D lane's allowed paths, no client or server change.
+- **E-14 — Finding for the 2D client lane (S12, with S11-B's adoption): the client presents no
+  `resume`.** `link.gd` re-joins with `resume: null`, so after a real dropped socket the seat is held
+  against the client itself and its re-join is refused `seat_occupied` until the hold expires (it
+  retries with the capped back-off, so it recovers after ~30 s). Adopting `MineWorldClient.resume` in
+  `link.gd` is a 13-series follow-up; 13b's acceptance is unaffected (its stub does not hold seats and
+  its real runs never drop a socket).

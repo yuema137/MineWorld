@@ -28,13 +28,16 @@ PLATFORMS           macOS, Linux, Windows (operator, 2026-10-08): no new Unix-on
 
 ## Checkpoint
 
-- Session started 2026-10-08; worktree created from origin/main aa74b32; §15 re-audited (§15.12 E-0).
-- Next: C1 (specs and wording).
+- C1 `6c3cf9f`; C2+C3 `975704f`; C4 `1476472`; C5 `01bc793`, `98bd42e`; C6 `aca9970`; main merged
+  `7a17406` (S11-B on main, E-12). Godot suites green on the C5 tree; mutations recorded in §15.6.
+- Final gate on the merged head: running (fmt, clippy, workspace tests, Godot suites, slice drive,
+  protocol evidence, scans, scratch).
 
 ## Next actions
 
-1. C1: ARC-70 + ARC-47 note; PRESENTATION.md "Wording"; `i18n/en.po`; `--check-pack` parses `.po`.
-2. C2 … C6 per §15.6.
+1. Finish the gate; commit the ledger; push; open the PR READY FOR OPERATOR REVIEW (preview, ARC-24),
+   stills and operator checklist in the body; `fast` and `test` green on the exact head.
+2. Do not merge. After merge: §15 lifecycle and evidence (this session); step/overall: primary session.
 
 ## Background processes
 
