@@ -728,7 +728,7 @@ Specs are written before code in each PR's first commit (`CLAUDE.md` §2.2).
 
 ## 9.4 E-c — a System Pack from outside the repository
 
-**Expanded into a PR design in §16** (ready for freeze review). It corrects two points of this summary
+**Expanded into a PR design in §16** (DESIGN FROZEN 2026-10-08; every platform, §16.12). It corrects two points of this summary
 and of §4.4: the dependency key cannot be a rename (PD-21), and a root `[patch.crates-io]` publishing
 `mineworld-inventory` fails `AC-1` check 2 (F-Ec1, PD-23, FQ-c2).
 
@@ -746,7 +746,7 @@ and of §4.4: the dependency key cannot be a rename (PD-21), and a root `[patch.
 
 ## 9.5 E-d — Entity Packs
 
-**Expanded into a PR design in §17** (ready for freeze review), including F-Ed1: a data pack's own
+**Expanded into a PR design in §17** (DESIGN FROZEN 2026-10-08, ARC-71; every platform, §17.12), including F-Ed1: a data pack's own
 `mineworld:` range is not checked on main (PD-37).
 
 - **Scope.** An Entity Pack's `items/` read with the World Pack item-file format; kinds composed into a
@@ -2715,24 +2715,38 @@ gate adds EC-13.
 
 # 17. PR E-d — Entity Packs: shared item kinds, loaded without a rebuild (PR design)
 
-**Lifecycle:** `PR design — ready for freeze review`. Not frozen. Nothing here authorizes
-implementation.
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — with the rulings below and the
+cross-platform requirement of §17.12, which binds this design and overrides it where they differ.
+Implementation runs in a fresh session under §17.11.
 
-**Identifiers are placeholders**, numbered by the primary session at freeze: `ARC-Ed-a` (S16's range
-ARC-53 … ARC-55 is spent and ARC-66 is E-c's, so E-d needs a new number), PD-30 … PD-39, ED-1 …
-ED-12, M-D1 … M-D6, FQ-d1 … FQ-d6. No dependency is added (no DEP).
+**Identifiers.** `ARC-Ed-a` is **ARC-71** (FQ-d6, primary session); every mention of `ARC-Ed-a` below
+means ARC-71. PD-30 … PD-39, PD-q1 … PD-q4, ED-1 … ED-13, M-D1 … M-D7, FQ-d1 … FQ-d6 are this
+section's own labels. No dependency is added (no DEP).
 
 ## 17.0 Freeze record
 
 ```text
-DESIGN FROZEN      — not yet. To be filled from the primary session's freeze message.
-Design revision:     §17 as committed on plan/s16-ecd
-Approved by:         —
-Rulings:             FQ-d1 … FQ-d6 (§17.9), each answered
-Implementation base: main at freeze (audited here on 9cf8f8e)
+DESIGN FROZEN (2026-10-08), primary session
+Design revision:     §17 as committed on plan/s16-ecd (8abfc24) with this freeze commit
+Approved by:         the coordinator's message relaying the primary session, 2026-10-08: "E-c (§16) and
+                     E-d (§17) are DESIGN FROZEN 2026-10-08 (primary session)"
+Rulings:             FQ-d1 … FQ-d5 as recommended (kinds are items/ file names; key-order allocation;
+                     self-contained packs; F-Ed1 fixed here; packs validate decodes against the whole
+                     installed set). FQ-d6: the record is ARC-71
+Requirement:         operator, 2026-10-08, binding: every platform, macOS, Linux and Windows — §17.12
+Implementation base: main @ 77a8717 (IL-a merged as 543c80a) or later at kickoff
+Worktree / branch:   /Users/yuema137/mineworld-worktrees/impl-ed, mvp0/pr-ed-entity-packs
 Execution contract:  §17.11
-Lifecycle:           PR design — ready for freeze review
+Lifecycle:           FROZEN
 ```
+
+**IL-a has merged (543c80a), mechanical consequences.** `worldpack/src/read.rs` now has step 4c
+(`configure:` decoded by its owners) and rule 10 also checks entities a configuration names;
+`load.rs` seeds configuration after passages and locations; `format.rs` and `error.rs` gained
+configuration types. E-d's step 6b stays where §17.2 puts it (after the world's own content), so a
+configuration may name an Entity Pack's kind through the merged namespace like any world kind; the
+`provenance` / `content_file` edits of PD-36 sit beside IL-a's code without overlapping it. §17.3's audit
+rows on these files are re-read at Ed-C3 on the implementation base.
 
 ## 17.1 Identity, base, approved scope
 
@@ -2982,23 +2996,66 @@ FQ-d6  The decision number for ARC-Ed-a. Recommended: the primary session assign
 
 ```text
 PROJECT / PR:              MVP-0 · S16 / PR E-d — Entity Packs
-PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/step-16-packages.md §17
-RELATED / BINDING DOCS:    this file §§4–9, §14, §15; overall.md "Parallel build-out, 2026-10-08";
-                           CLAUDE.md; docs/ENGINEERING_STANDARDS.md, PACKAGE_FORMAT.md, MODULE_SPEC.md,
-                           DECISIONS.md ARC-31, ARC-36, ARC-53, ARC-54, ARC-55, DEP-29
-IMPLEMENTATION BASE:       main at freeze; branch mvp0/pr-ed-entity-packs
-APPROVED SCOPE:            §17.1–17.6 as frozen, with FQ-d1 … FQ-d6 as answered
-FROZEN INVARIANTS:         I-E1; I-E2; I-E4; I-E5; I-E6; I-E9; QSE-14; creation order and load.rs beyond
-                           PD-36's two functions untouched
-APPROVED SEQUENCE:         Ed-C1 → C2 → C3 → C4 → C5; merges of origin/main per §17.8
+PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/step-16-packages.md §17 (incl. §17.12)
+RELATED / BINDING DOCS:    this file §§4–9, §14, §15, §16.12 (the platforms layer); overall.md
+                           "Parallel build-out, 2026-10-08"; CLAUDE.md; docs/ENGINEERING_STANDARDS.md,
+                           PACKAGE_FORMAT.md, MODULE_SPEC.md, DECISIONS.md ARC-31, ARC-36, ARC-48,
+                           ARC-53, ARC-54, ARC-55, ARC-61, DEP-29
+IMPLEMENTATION BASE:       main @ 77a8717 or later at kickoff; branch mvp0/pr-ed-entity-packs
+WORKTREE:                  /Users/yuema137/mineworld-worktrees/impl-ed, held by the E-d session only
+APPROVED SCOPE:            §17.1–17.6 and §17.12 as frozen, with FQ-d1 … FQ-d6 as ruled in §17.0
+FROZEN INVARIANTS:         I-E1; I-E2; I-E4; I-E5; I-E6; I-E9; QSE-14; creation order, and load.rs beyond
+                           PD-36's two functions, untouched; PD-q1 … PD-q4 (all three platforms)
+APPROVED SEQUENCE:         Ed-C1 → C2 → C3 → C4 → (C4b, the platforms layer, only if E-c has not landed
+                           it) → C5; merges of origin/main per §17.8, never rebases
+COMMANDS:                  as E-b's session: cargo (with $HOME/.cargo/bin on PATH), git, gh (PR create
+                           and update; read-only elsewhere; never merge), python3 scripts/*, mkdir -p,
+                           sed -n; Read/Edit/Write for files; scratch under /tmp, removed afterwards
 VALIDATION BUDGET:         targeted per commit; ED-1's 30-day runs; the towns' 300-day runs (≈4 per main
-                           merge); one full gate; ≈1 h
+                           merge); CI's platforms layer on the PR; one full local gate; ≈1.5 h
 REQUIRED LIVE DOCS:        §17.8; handoff-ed.md
-ENDPOINT AUTHORITY:        from the freeze message; proposed: implement, commit, push, open the PR READY
-                           FOR OPERATOR REVIEW; merge NOT authorized
+ENDPOINT AUTHORITY:        implementation, semantic commits, pushing this branch, opening the PR marked
+                           READY FOR OPERATOR REVIEW and updating it, CI repair on this PR — authorized by
+                           the freeze message. Merge NOT authorized
+POST-MERGE SYNC OWNER:     this session: §17's ledger and merge identity; the primary session: §9.5,
+                           the step header, overall.md
 MATERIAL STOPS:            any kernel, contract, persistence, server, client, systems or cognition change;
-                           a digest change; a need for namespaced keys or a new entity type
-NORMAL STOP CONDITION:     PR E-d READY FOR OPERATOR REVIEW — DO NOT MERGE
+                           a digest change; a need for namespaced keys or a new entity type; a platform
+                           failure (§17.12) whose fix leaves S16's files, recorded as a risk with an owner
+                           and raised
+NORMAL STOP CONDITION:     PR E-d READY FOR OPERATOR REVIEW, fast / test / platforms green — DO NOT MERGE
 MERGE AUTHORITY:           never without the operator's explicit approval
 ```
+
+## 17.12 Every platform: macOS, Linux and Windows (operator, 2026-10-08, binding)
+
+The Entity Pack reader, `packs validate`, resolution and every E-d test pass on all three platforms.
+The audit of §16.12 applies (Linux-only CI today; identifiers lowercase ASCII, so no case collision on
+case-insensitive file systems; Windows checkouts give CRLF with Git's default `autocrlf`).
+
+| ID | Decision |
+| --- | --- |
+| **PD-q1** | **CRLF is content, not an error.** `pack.yaml`, `items/*.yaml` and `world.yaml` written with CRLF read exactly as with LF: same identity, same kinds, same sections, same composition and the same history. A refusal in a CRLF file still names its file, field, line and column. `serde-saphyr` (DEP-10) is relied on for this and ED-13 checks it on every OS; if it does not hold, the defect is a finding raised against DEP-10, not normalized silently in `worldpack`. |
+| **PD-q2** | **Paths.** A kind's key is `Path::file_stem` of an `items/` entry with extension `yaml` (`Path::extension`, never a string split on `/` or `.`); `item_sources` holds `PathBuf`s; `source_path` in `Metadata` is written `items/<key>.yaml` with `/` on every OS (it is provenance text, the same on every machine, so a save is not platform-dependent); messages show paths with `Path::display`. Tests build expected paths with `Path::join`. |
+| **PD-q3** | **Directory listing order is never an order.** `items/` is read into a `BTreeMap` by key (allocation is key order already, PD-35), so NTFS, APFS and ext4 listing orders cannot change an id. |
+| **PD-q4** | **E-d runs in the `platforms` layer** of §16.12 PD-p1: `-p mineworld-packages -p mineworld-worldpack` (already listed) and `--test entity_packs` added to the CLI line. If E-d reaches Ed-C5 before E-c has landed the layer, E-d lands it as **Ed-C4b**, identical to §16.12's Ec-C7b (one definition; E-c then only adds `--test third_party`). |
+
+```text
+ED-13 Every platform (PD-q1 … PD-q4). On the PR's final head the `platforms` job is green on macos-latest
+      and windows-latest, and fast / test on Linux — run URLs recorded; on Windows the checkout carries
+      CRLF. Committed, on every OS: worldpack/tests/entity_packs.rs writes the ED-1 pack and world once
+      with LF and once with CRLF and asserts equal identity, kinds, composition and `load` result, and that
+      a malformed CRLF item file is refused naming the file and line; ED-9's no-rebuild check uses the
+      `.exe` path Cargo gives on Windows. A job not run is INCONCLUSIVE.
+      Mutation M-D7: the kind key taken by splitting the path text on '/' → on Windows the key holds a
+      backslash prefix and ED-1 FAILS there while Linux passes.
+```
+
+**Risks, each with an owner.**
+
+| ID | Risk | Owner | Mitigation |
+| --- | --- | --- | --- |
+| RE-q1 | `serde-saphyr` mis-reads CRLF, or reports wrong columns | **E-d** (finds it), DEP-10's owner decides the fix | ED-13's CRLF cases on all three OSes |
+| RE-q2 | Tests outside E-d's files fail on Windows | **S13** (RE-p1) | E-d's targets only in `platforms`; the gap is S13's |
+| RE-q3 | `source_path` spelled with `\` on Windows would make saves differ by OS | **E-d** | PD-q2: written with `/` always |
 
