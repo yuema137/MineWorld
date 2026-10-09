@@ -2159,7 +2159,8 @@ CA-15 The far side (R-9). Headless Godot 4.7: `clients/protocol/run.sh perceived
 
 ```text
 systems/presence/src/{audience.rs (new), lib.rs}; systems/presence/tests/audience.rs (new, if not inline)
-server/src/{perception.rs, runtime.rs, runtime/delivery.rs (new, moved + fan-out), host.rs,
+server/src/{perception.rs, runtime.rs, runtime/delivery.rs (new, moved + fan-out),
+            runtime/status.rs (one line, only if S11-D's move has landed; else runtime.rs), host.rs,
             host/handles.rs, session.rs, protocol.rs, protocol/connection.rs, protocol/fact.rs (new),
             protocol/delta.rs (new; deleted again under the keyframes-only outcome), lib.rs}
 server/{PROTOCOL.md, README.md}
@@ -2385,4 +2386,446 @@ MATERIAL STOP       a needed kernel/contract/persistence edit; R-SC1 (fold ≠ c
 ```text
 (empty until the freeze)
 ```
+
+---
+
+# 18. PR S11-D — the admin surface and the host clock routes (full design)
+
+**Lifecycle:** `PR DESIGN — READY FOR FREEZE REVIEW`. Nothing here authorizes implementation.
+**Author:** the S11-C/D planning agent, 2026-10-08, worktree `plan-s11cd`, branch `plan/s11-cd`.
+**Binding parents:** this file §§4.1, 4.9, 5, 6 (I-4, I-5), 7.2, 7.6, 7.7, 8, 9.4, 11.4; §15 (S11-A);
+§16 (S11-B, PR #83, **not merged**); `step-19-time-weather.md` §§4.1–4.3, 7.1–7.4, 10 (INV-TW-2, -8, -9),
+14.1 (QTW-2: full pause; QTW-3: the routes inside S11-D; QTW-13: wall cadence), 15.3 (the I-4
+clarification); `overall.md` rulings 1, 6, 9, 10. Evidence `E-SD<n>` in §18.12, deviations `D-SD<n>` in
+§18.13. Placeholders: commits `D-C0 …`, decisions `SD-D1 …`, acceptance `DA-1 …`, questions `QS11D-1 …`,
+and one decision record `ARC-S11D-a` (proposed number: ARC-44, S11's unassigned reserve; the primary
+session assigns it).
+
+## 18.1 Identity, base, scope, preconditions
+
+```text
+PR            S11-D — the admin surface and the host clock routes (S11, fourth of five; parallel with
+              S11-C, §19)
+base          main after S11-B (#83) merges; designed against main @ 77a8717 + mvp0/pr-s11b-seats @ 7811e06
+branch        mvp0/pr-s11d-admin (proposed), its own worktree, one session
+scope         HTTP under /admin, bearer admin token, mounted only when a token is configured:
+                GET  /admin/sessions                   every seated connection
+                GET  /admin/seats                      every seat's binding
+                POST /admin/sessions/{session}/kick    closing {kicked}; the seat returns to its default
+                POST /admin/seats/{seat}/release       whoever holds it is closed; the seat returns
+                GET  /admin/clock                      { at, time_scale, paused }
+                POST /admin/clock                      { "paused": bool } — pause and resume
+              the host clock's pause (HostClock segments); the `clock` server frame; WorldSummary.paused;
+              the refusal `paused`; the rule that only the admin-token holder changes time;
+              --admin-token / MINEWORLD_ADMIN_TOKEN; the module's `clock` reader
+not in scope  a live time-scale change (TW-c, QS11D-1); the host journal, world.yaml hosting.time_scale,
+              --cadence and FX-24 (TW-c); bans or per-player identity (QS11D-3); enabling or disabling
+              a system (QS11-10); a WebSocket admin frame (§4.9); any world-state change (I-4)
+```
+
+**Preconditions (unmerged code this design depends on).**
+
+| Precondition | What S11-D uses | Where on the S11-B branch |
+| --- | --- | --- |
+| P-D1 `SeatTable` with `Connected { subscription, session, resume }` and `Held` | kick finds a session's seat; release rebinds a seat's default; the seats report | `server/src/seats.rs` l. 61–79 (`session` is `#[allow(dead_code)]` "for the admin surface (S11-D)") |
+| P-D2 `release(subscription, reason)` and the session's `released` branch | a kicked connection is told `closing {kicked}` exactly as a taken-over one is told `taken_over` | `runtime.rs` l. 237; `session.rs` l. 128, 260 |
+| P-D3 `HostClock { epoch, started, scale }` in `runtime/world.rs` | pause re-anchors it (S11-B's D-SB5 says how) | `runtime/world.rs` l. 27–51 |
+| P-D4 `tick` and `consult` order | pause skips consults and advances | `runtime.rs` l. 342–391 |
+| P-D5 `ClosingReason::Kicked` defined, never sent | sent from here | `protocol/connection.rs` l. 80 |
+| P-D6 `serve.rs` and `ServeRequest` | `--admin-token` is one field | `tools/cli/src/serve.rs` l. 30–53 |
+| P-D7 CP-B4's ruling (D-SB12) | `hosted_town` is a regression test here | §16.11, operator |
+
+## 18.2 Audit anchors
+
+| File / symbol | Finding | Consequence |
+| --- | --- | --- |
+| **B** `server/src/app.rs` (124) `router(host, admission)`, `serve`, `serve_with_shutdown`; `Hosting { host, admission, sessions }` | Three routes; `SessionId`s allocated by an `AtomicU64`; no admin. | Routes are merged in only with a token; the three public signatures accept `impl Into<Access>` so every existing `router(host, admission)` call compiles unchanged (SD-D2). |
+| **B** `server/src/session.rs` `run` l. 90 | The nickname exists only in the session task (S11-A SD-A8: the world thread never holds it). | `GET /admin/sessions` reads a transport-side registry the session writes, never the world thread (SD-D5). |
+| **B** `server/src/runtime.rs` `submit` l. 257, `tick` l. 342, `consult` l. 362, `summary` l. 440, 492 lines | One authority path; the tick expires holds, consults, advances, sweeps; `summary` builds `WorldSummary`. At the trigger. | Pause is checked in `submit` and `tick` (SD-D7); admin commands go to a new `runtime/control.rs`; `summary` and `first_binding` move to `runtime/status.rs` first (SD-D11). |
+| **B** `runtime/world.rs` `HostClock::now` | `epoch + elapsed_ms × scale / 1000`; no pause, no re-anchor. | Becomes a segment: `(world_anchor, wall_anchor, scale, paused)`, `now_at(Instant)` injectable (SD-D6). |
+| **B** `server/src/seats.rs` `SeatTable::{join, depart, expire, due}` | Pure transitions over injected time; no kick or release. | Gains `kick(session)`, `release(seat)`, `report(now)` (SD-D4). |
+| **B** `server/src/admission.rs` `InviteToken::given` l. 70, `ct_eq` (subtle), `UNAUTHORIZED_DELAY` l. 41 | The operator-token rules (8–128 printable ASCII, no whitespace), constant-time comparison and the 500 ms delay exist. | `AdminToken` reuses them; no new dependency (DEP-14 covers it) (SD-D3). |
+| **B** `server/src/protocol/summary.rs` `WorldSummary` l. 92 | `time_scale` present; no `paused`. | Gains `paused: bool` (SD-D8). |
+| **B** `server/PROTOCOL.md` §5.6 (`kicked` "S11-D"), §9 ("admin frames on the socket … admin is HTTP (S11-D)"), §10 last row | The landing table names S11-D's rows. | §11 (new) specifies the surface; §5.9 the `clock` frame. |
+| `step-19-time-weather.md` §7.2–§7.4, §14.1 QTW-2, QTW-3 | Full pause: the clock stops, no Process wakes, hosted controllers are not consulted, client requests refused `paused`, observers stay connected. Routes inside S11-D. `clock { at, time_scale, paused }` after `welcome` and on every change. Host-only via the admin token. | All in scope except a live scale change, whose hosted rescheduling and host journal are TW-c's (QS11D-1). |
+| **B** `tools/cli/src/hosted.rs` `ReactiveSeat::bound(at, scale, …)`, `PacedSeat::new(pacing, …)` | Adapters capture `time_scale` at construction (QTW-13). | A live scale change would leave every hosted cadence wrong until TW-c's seam change — the reason QS11D-1 recommends leaving it to TW-c. A pause needs no adapter change: with the clock frozen nothing is due, and on resume each pending instant is the same wall distance away. |
+| `docs/NETWORKING.md` §3, §5 | Admin is on the HTTP control plane; §5 lists "admin command (authorized clients only)" among client→server messages. | HTTP, not a frame (§4.9); §13's proposed `NETWORKING.md` §5 note stays S11-E's. |
+
+## 18.3 Design decisions (SD-D1 … SD-D12)
+
+| ID | Decision | Why |
+| --- | --- | --- |
+| **SD-D1** | **`server/src/admin.rs`**: the routes, the bearer check, JSON bodies typed per route (`deny_unknown_fields` on every request body), errors as `{ "error": <code>, "detail": … }` with codes `unauthorized` (401), `unknown_session` / `unknown_seat` (404), `malformed` (400), `time_scale_fixed` (409, QS11D-1). Handlers only send commands to the world thread or read the session registry; none touches a `World`. | §4.9, §7.6. One module; removable by not mounting it (§8.1). |
+| **SD-D2** | **Mounted only with a token**: `app::Access { admission, admin: Option<AdminToken> }` with `From<Admission> for Access` (no admin); `router`/`serve`/`serve_with_shutdown` take `impl Into<Access>`. Without a token no `/admin` path exists and every one answers 404 (axum's fallback). | §11.4 ("no admin routes if absent"); existing call sites unchanged. |
+| **SD-D3** | **The bearer check**: `Authorization: Bearer <token>` read from `axum`'s `HeaderMap` (about 15 lines), compared with `subtle` through admission's `ct_eq`; any failure — header absent, another scheme, wrong token, a token in the query string (never read) — sleeps until 500 ms after the request arrived, then answers 401. `AdminToken` lives in `admission.rs` with `InviteToken::given`'s rules, a redacted `Debug`, no `Serialize`, no `Display`. `axum-extra`'s `TypedHeader` is not adopted: it adds `axum-extra` and `headers` to read one header (§7.2's comparison, closed here). | §7.2, §7.7, I-5. The delay is per request, in the handler's task, never on the world thread. |
+| **SD-D4** | **`SeatTable` gains** `kick(session) -> Option<(SubscriptionId, EntityKey)>` (a `Connected` seat bound to that session returns to its default **with no hold**), `release(seat) -> Released` (`Connected` → default, the connection to close; `Held` → default, its secret dies; `Free`/`Hosted` → unchanged, `released: false`), and `report(now: Instant) -> Vec<SeatReport>` (`free`, `hosted`, `connected { session }`, `held { seconds_left }`). The runtime closes a displaced connection with `release(subscription, ClosingReason::Kicked)`. A kicked or released connection's resume is dead: the binding it named no longer exists. | §4.2's transitions plus the two §4.9 adds; the one writer of bindings stays the world thread (I-3). |
+| **SD-D5** | **The session registry** (`server/src/admin/registry.rs`): a transport-side map `SessionId → { nickname, seat, observer, connected_at (wall, Unix seconds), seq (AtomicU64) }`, written by the session task at `welcome` and removed when the session ends; `observations_dropped` per session comes from the world thread (a counter on each subscriber, keyed by session). `GET /admin/sessions` merges the two. | The nickname never reaches the world thread (SD-A8, I-5); the drop count is only known there. |
+| **SD-D6** | **The host clock pauses.** `HostClock` holds a segment `(world_anchor, wall_anchor, scale, paused)`: running, `now = world_anchor + ⌊elapsed_ms × scale / 1000⌋`; paused, `now = world_anchor`. `pause()` sets `world_anchor := now, paused := true`; `resume()` sets `wall_anchor := Instant::now(), paused := false`. Every method takes the wall instant as an argument (`now_at(Instant)`) so the property test injects it. Monotonic and jump-free by construction (INV-TW-8). | S19 §4.2 option A, the form S11-B's D-SB5 anticipated. Kernel untouched: the kernel's clock still moves only by advance and dispatch. |
+| **SD-D7** | **What pause means** (QTW-2, full pause): while paused the tick still expires holds (wall time) and sweeps (observers stay connected, frames keep flowing), but does not consult hosted controllers and does not advance; `submit` refuses every session request with `refused { code: "paused" }` before allocating an `ActionId` (nothing journaled); joins, leaves, resumes, takeovers, kicks and releases still work (host state). | S19 §7.2. A consult skipped while paused is not owed afterwards: its instant is not passed while paused, so it falls due after resume at the same wall distance. |
+| **SD-D8** | **Telling clients.** `WorldSummary.paused: bool` (in `/status` and `welcome.world`; public: pacing, not state). A server frame `clock { at, time_scale, paused }`, sent right after `welcome` and on every pause and resume, through a `tokio::sync::watch` channel the world thread writes and every session reads — newest wins, never dropped, never waited on. | S19 §7.4. A `watch` has exactly the clock's semantics; the observation channel's `try_send` could drop a clock change. |
+| **SD-D9** | **Only the host changes time**: there is no client frame for it (a socket frame `pause`, `clock`, `kick`, `release` is `unknown_frame`); the only way is `POST /admin/clock` with the admin token. "The host" is whoever holds that token: the operator, or a single-player launcher that generated one for its own client (S19 §7.3; TW-e). An invite holder is not the host. | INV-9 (the client vocabulary is closed); S19 §7.3. |
+| **SD-D10** | **`POST /admin/clock`** accepts `{ "paused": bool }` (other fields refused, `malformed`); a body with `time_scale` is answered `409 time_scale_fixed` until TW-c lands live scaling (QS11D-1); no field can name an instant, so no route moves the clock to an instant (the I-4 clarification of S19 §15.3). Repeating the current state is `200` and changes nothing. `GET /admin/clock` answers `{ at, time_scale, paused }`. | S19 §7.3, §15.3; "may omit, never redefine" (ARC-41) for `time_scale`. |
+| **SD-D11** | **Size**: `summary` and `first_binding` move from `runtime.rs` to `runtime/status.rs` (pure move, D-C2); admin and clock command handling lives in `runtime/control.rs`. | `runtime.rs` is 492 lines; §19's file ownership (S11-C moves a different part). |
+| **SD-D12** | **CLI**: `--admin-token TOKEN` with `env = "MINEWORLD_ADMIN_TOKEN"`, `hide_env_values`; an illegal token, or one equal to the invite, stops the server with a message that echoes neither; with a token the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without one, `[mineworld] no admin surface (no --admin-token)`. The token is never printed. | §11.4's frozen CLI contract; I-5; an admin token equal to the invite would make every player the host. |
+
+## 18.4 The surface, exactly (written into `PROTOCOL.md` §11 and §5.9 by D-C1)
+
+```json
+GET  /admin/sessions   → 200 { "sessions": [ { "session": "7", "nickname": "Yue", "seat": "visitor",
+                                  "observer": "101", "connected_at": 1791441600, "seq": 312,
+                                  "observations_dropped": 0 } ] }
+GET  /admin/seats      → 200 { "seats": [ { "seat": "alice", "state": "hosted" },
+                                  { "seat": "visitor", "state": "connected", "session": "7" },
+                                  { "seat": "wanderer", "state": "held", "seconds_left": 21 },
+                                  { "seat": "bob", "state": "free" } ] }
+POST /admin/sessions/7/kick     → 200 { "session": "7", "seat": "visitor", "state": "hosted" }
+POST /admin/seats/wanderer/release → 200 { "seat": "wanderer", "released": true, "state": "hosted" }
+GET  /admin/clock      → 200 { "at": 4112, "time_scale": 1, "paused": false }
+POST /admin/clock { "paused": true } → 200 { "at": 4112, "time_scale": 1, "paused": true }
+
+server frame: { "t": "clock", "at": 4112, "time_scale": 1, "paused": true }
+refusal:      { "t": "refused", "token": "c4", "code": "paused", "detail": "…" }
+```
+
+Every `/admin` request without the right bearer token: `401 { "error": "unauthorized" }`, no sooner than
+500 ms after it arrived. No token configured: every `/admin` path is `404`. A request body field the
+route does not define: `400 malformed`. `connected_at` is wall-clock Unix seconds (host state, never a
+`WorldTime`). Identities are decimal strings (§7).
+
+## 18.5 Acceptance (decided before measuring, `ARC-23`)
+
+```text
+DA-1  Absent without a token. `mineworld server worlds/social-cafe` with no --admin-token and no
+      MINEWORLD_ADMIN_TOKEN: GET /admin/sessions, GET /admin/seats, POST …/kick, POST …/release,
+      GET /admin/clock, POST /admin/clock each answer 404; stdout says "no admin surface".
+      [tools/cli/tests/admin.rs]
+      M-DA1  mount the routes unconditionally → 401 instead of 404; fails.
+
+DA-2  Permission refusals. With --admin-token T (a fixed test token): each of — no Authorization
+      header; "Bearer <the invite>"; "Bearer <T with its last character changed>"; "Bearer <T> "
+      with a trailing space; "Basic <base64 of T>"; T only in the query string (?token=T); "bearer"
+      lower-case scheme with a wrong token — on POST /admin/clock {"paused": true} and on
+      POST /admin/sessions/<a live session>/kick, answers 401 {"error":"unauthorized"} no sooner than
+      500 ms after the request was sent (the test's clock); afterwards GET /admin/clock (with T) says
+      paused false and the targeted client is still seated and received no closing.
+      [server/tests/admin.rs]
+      M-DA2a the check accepts any bearer → fails. M-DA2b no delay → the 500 ms assertion fails.
+
+DA-3  No admin route changes world state (I-4, S19 INV-TW-9). `mineworld server worlds/social-cafe
+      --save DIR --admin-token T` (no --town), inside the routine-free first minutes, one idle seated
+      client: every route called twice, in order sessions, seats, clock GET, pause, resume, release of a
+      free seat, kick of the client. /status's revision is the same before and after; after SIGKILL
+      `mineworld inspect DIR` reports exactly `mineworld validate`'s genesis fact count.
+      [tools/cli/tests/admin.rs]
+      M-DA3  kick also submits a no-op `move` as the kicked seat → revision moves; fails.
+
+DA-4  Kick (CP-D). `mineworld server worlds/market-town --town --save DIR --admin-token T`: client A
+      as visitor (nickname "Avery"), client B joins alice (took_over "hosted", nickname "Bea").
+      GET /admin/sessions lists exactly A and B with those nicknames, seats and observers; GET
+      /admin/seats shows visitor and alice connected with their sessions and every other seat hosted.
+      Kicking B's session: B receives closing {kicked} and is closed; GET /admin/seats immediately
+      after shows alice "hosted" (no hold); B's resume is then refused invalid_resume; B is absent
+      from /admin/sessions. A kick of an unknown session → 404 unknown_session.
+      [tools/cli/tests/admin.rs]
+      M-DA4  kick departs as Departure::Dropped (a hold) → alice shows "held"; fails.
+
+DA-5  Release. On DA-4's server: releasing visitor while A is connected → A receives closing {kicked},
+      visitor returns to "hosted"; a client C seated as wanderer drops its socket (hold) → release
+      wanderer → "hosted", and C's resume is refused invalid_resume; releasing a hosted seat → 200
+      {"released": false} and GET /admin/seats still shows it "hosted"; release of an unknown seat →
+      404 unknown_seat. [tools/cli/tests/admin.rs]
+      M-DA5  release leaves a held seat held → C's resume is welcomed; fails.
+
+DA-6  Pause (S19 §7.2, CP-TW-c's pause half). `market-town --town --save DIR --admin-token T`, two
+      clients: POST /admin/clock {"paused": true} → 200 paused true; both clients receive
+      clock {paused: true} within 1 wall s; /status paused true; three /status readings 2 wall s
+      apart have equal `at` and equal revision (the town does not act: no hosted consult, no Process);
+      a client submit → refused paused with its token, and the revision is unchanged; a dropped
+      connection's hold still expires during the pause (wall time). POST {"paused": false} → clients
+      receive clock {paused: false}; the first /status after resume has at ≥ the frozen at and
+      ≤ frozen at + (wall seconds since resume + 1) × time_scale; the town acts again (revision moves
+      within 30 wall s). [tools/cli/tests/admin.rs]
+      M-DA6a submit not refused while paused → fails. M-DA6b consults not skipped → revision moves
+      during the pause; fails. M-DA6c resume without re-anchoring the wall instant → `at` jumps by
+      the paused duration; fails.
+
+DA-7  The clock is monotonic and jump-free (unit, INV-TW-8). HostClock under 10 000 random steps of
+      pause, resume and wall advances of 0–5000 ms (seeded): now never decreases; while paused it is
+      constant; immediately after resume it equals the frozen value. [runtime/world.rs tests]
+      Mutation: as M-DA6c → fails.
+
+DA-8  Only the host changes time; INV-9. A seated client (invite holder) sends {"t":"pause"},
+      {"t":"clock","paused":true}, {"t":"kick","session":"1"}, {"t":"release","seat":"alice"} → each
+      unknown_frame; a join carrying "admin_token" → malformed_frame, no welcome. With T:
+      POST /admin/clock {"at": 999999} → 400 malformed; {"paused": true, "at": 5} → 400 and not
+      paused; {"time_scale": 12} → 409 time_scale_fixed and /status time_scale unchanged; {} → 400.
+      Afterwards /status's at advances normally and the revision is unchanged by the table.
+      [server/tests/admin.rs; the binary half in tools/cli/tests/admin.rs]
+      M-DA8  ClockChange without deny_unknown_fields → the "at" body answers 200; fails.
+
+DA-9  Secrets and names (I-5). With --admin-token T: T is in no stdout/stderr byte and no save byte;
+      MINEWORLD_ADMIN_TOKEN=T behaves as the flag and is not echoed; `--help` names the variable and
+      no value; --admin-token equal to --invite stops the server, non-zero, echoing neither; an
+      illegal token ("short") likewise. A nickname appears in /admin/sessions and the holder's own
+      welcome only — not in /status, another client's frames, or any log line (SA-5 extended).
+      [tools/cli/tests/admin.rs, server_command.rs]
+
+DA-10 The clock frame on the wire and from the far side. Golden server/tests/frames/clock.json; every
+      welcome is followed by a clock frame before the first observation (server socket test).
+      Headless Godot: `clients/protocol/run.sh admin` — a check joins, sees clock_changed(paused
+      false), is paused by the script's POST and sees clock_changed(paused true), submits and is
+      refused paused, is resumed, then is kicked and reports closing "kicked" before disconnected.
+
+DA-11 Nothing else moved. Both 300-day seed-7 digests equal the base's (run.rs untouched; HostClock
+      is not used by run); every existing test passes, edits to existing tests limited to welcome.json
+      (world.paused) and transcripts that now carry clock frames, listed in §18.13; ac13, ac15,
+      milestone_b, milestone_c, ac3_reconnect, ac5_takeover, hosted_town green.
+
+DA-12 Scope and size. No diff under kernel/, contracts/, persistence/, systems/, worlds/, worldpack/,
+      cognition/, sdk/, authoring/; no new dependency; runtime.rs, session.rs, host.rs, protocol.rs,
+      app.rs, main.rs under 500 lines; the server names no pack and no controller crate.
+```
+
+## 18.6 Change set
+
+```text
+server/src/{admin.rs (new), admin/registry.rs (new), app.rs, admission.rs, seats.rs, seats/tests.rs,
+            runtime.rs, runtime/world.rs, runtime/status.rs (new, moved), runtime/control.rs (new),
+            host.rs, host/handles.rs, session.rs, protocol.rs, protocol/summary.rs, lib.rs}
+server/{PROTOCOL.md, README.md}
+server/tests/{admin.rs (new), frames.rs, frames/{clock.json (new), welcome.json}, support/mod.rs}
+tools/cli/src/{main.rs, serve.rs}
+tools/cli/tests/{admin.rs (new), server_command.rs, support/mod.rs}
+clients/protocol/{mineworld/world_client.gd (the clock arm and signal only),
+                  checks/admin_check.gd (new, with .uid), run.sh, ADOPTION.md, README.md,
+                  evidence/* (regenerated)}
+docs/{DECISIONS.md (ARC-S11D-a), MODULE_SPEC.md §8.1}
+.structured-coding/plans/mvp0/{step-12-server.md §18, handoff-s11d.md}
+```
+
+## 18.7 Commit plan
+
+### D-C0 — Design (this section) — docs only
+
+- [x] Implementation: §18 and the pointer in §9.4, from the audit in §18.2.
+- [x] Validation: Markdown only; `check_doc_headings`, `check_decision_ids`.
+- [x] Review: S19's five asks (routes, frame, `paused` field, refusal, host-only rule) each map to a
+  decision and a criterion (SD-D6 … SD-D10; DA-6, DA-8, DA-10); every guard names a mutation. Self-review;
+  the freeze is pending.
+
+### D-C1 — Specs before code: `PROTOCOL.md` §§5.9, 11; ARC-S11D-a; MODULE_SPEC §8.1
+
+**Scope.** `PROTOCOL.md`: §1 (the `/admin` routes exist only with a token), §5 table (`clock`), new
+§5.9 (`clock`), §5.5 (`paused`), §5.6 (`kicked` landed), §5.7 (`paused`), §9 (admin is HTTP, confirmed),
+new §11 (the admin surface, §18.4), §10's rows (S11-D landed; `time_scale` in `POST /admin/clock` "from
+TW-c"). `DECISIONS.md` **ARC-S11D-a** (the admin surface is HTTP behind a bearer token, mounted only when
+configured, and changes no world state; pause is host pacing; the I-4 clarification of S19 §15.3;
+rejected: socket frames, `tonic`, `axum-extra`; limitation: one admin token, no per-player bans).
+`MODULE_SPEC.md` §8.1: `--admin-token`, `MINEWORLD_ADMIN_TOKEN`.
+
+- [ ] Implementation · [ ] Validation: the two doc checks; §6/§6.2 untouched · [ ] Review: every route
+  and code in §18.4 present; S19's ARC-69 left to TW-c and cited, not pre-empted.
+
+### D-C2 — Pure move: `runtime/status.rs`
+
+**Scope.** `summary`, `first_binding` move; no behaviour change. **Depends on:** S11-B merged.
+
+- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-server` same names and counts; clippy
+  · [ ] Review: `runtime.rs` < 450 lines.
+
+### D-C3 — `AdminToken`, the pausable `HostClock`, the seat table's kick, release and report
+
+**Scope.** `admission.rs` (`AdminToken`), `runtime/world.rs` (SD-D6), `seats.rs` + `seats/tests.rs`
+(SD-D4). **Validation (unit):** DA-7 with its mutation; `kick` on a connected seat returns to default
+with no hold, on any other state is `None`; `release` on each of the four states; `report` per state;
+`AdminToken` rules and redacted `Debug`.
+
+- [ ] Implementation · [ ] Validation · [ ] Review: no world access in `seats.rs`; the clock never reads
+  `Instant::now()` inside its arithmetic.
+
+### D-C4 — The world thread and the session: control commands, pause, the clock frame, the registry
+
+**Scope.** `runtime/control.rs` (handlers for seats report, kick, release, clock get/set), `runtime.rs`
+(match arms; `paused` in `submit`; skip consult and advance in `tick` while paused), `host.rs`
+(`Command::Control(ControlCommand, reply)`, `WorldHost` admin methods), `host/handles.rs` (`Seated` gains
+the clock `watch::Receiver`), `session.rs` (clock frame after welcome and on change; registry
+registration), `admin/registry.rs`, `protocol.rs` (`ServerFrame::Clock`, `RefusalCode::Paused`),
+`protocol/summary.rs` (`paused`), golden `clock.json`, `welcome.json`. **Validation:** server suites;
+the socket half of DA-10.
+
+- [ ] Implementation · [ ] Validation · [ ] Review: I-11 (no wait on the world thread; the watch send is
+  non-blocking); a kicked connection is released before the seat is rebound (never two controllers).
+
+### D-C5 — The HTTP routes
+
+**Scope.** `admin.rs` (SD-D1, SD-D3, SD-D10), `app.rs` (SD-D2), `lib.rs`; `server/tests/admin.rs`: DA-2,
+DA-8 (socket and HTTP halves), DA-5's in-process half. **Validation:** M-DA2a, M-DA2b, M-DA8.
+
+- [ ] Implementation · [ ] Validation · [ ] Review: handlers hold no binding state; every body type
+  denies unknown fields; the delay is in the handler.
+
+### D-C6 — The CLI and the real-binary acceptance
+
+**Scope.** `main.rs` (`--admin-token`), `serve.rs` (SD-D12), `tools/cli/tests/{admin.rs, support/mod.rs,
+server_command.rs}`: DA-1, DA-3, DA-4, DA-5, DA-6, DA-9. **Validation:** M-DA1, M-DA3, M-DA4, M-DA5,
+M-DA6a–c; every suite that starts the binary.
+
+- [ ] Implementation · [ ] Validation · [ ] Review: the token reaches nothing but the router; `main.rs`
+  < 500.
+
+### D-C7 — The Godot module's `clock` reader and the far side
+
+**Scope.** `world_client.gd`: a `"clock"` arm, `signal clock_changed(at: int, time_scale: int, paused:
+bool)`, `var paused`, `var time_scale` — nothing else (ruling 4 is amended for this one arm, QS11D-6);
+`checks/admin_check.gd`; `run.sh admin`; `ADOPTION.md` §§2, 6; regenerated evidence (clock frames now
+appear in transcripts). **Validation:** DA-10, one Godot window at a time; `run.sh evidence`,
+`affordances`, `reconnect`, `./mineworld-slice --world --link` still pass.
+
+- [ ] Implementation · [ ] Validation · [ ] Review: no rule in the module; every existing name and call
+  valid.
+
+### D-C8 — Close
+
+- [ ] Implementation: `server/README.md` (admin, pause); ledger · [ ] Validation: DA-11 digests; DA-12
+  scope and sizes; one full gate on the final head · [ ] Review: DA-1 … DA-12 with evidence; mutations
+  planted, red, reverted; PR READY FOR OPERATOR REVIEW — DO NOT MERGE.
+
+**E-SD0 (first action after the freeze):** the base's two 300-day digests and test counts.
+
+## 18.8 Test ownership
+
+```text
+STATIC      fmt; clippy -D warnings (exhaustive matches over SeatReport, ControlCommand, the new code)
+UNIT        HostClock property (DA-7); SeatTable kick/release/report; AdminToken
+INTEGRATION server sockets + HTTP: permission refusals, INV-9 and body refusals, clock frame order
+            (DA-2, DA-8, DA-10)
+REAL BINARY absent routes, no world-state change, kick, release, pause, secrets (DA-1, -3, -4, -5, -6,
+            -9); every existing CLI acceptance test
+FAR SIDE    Godot admin check (DA-10)
+REAL RUN    both 300-day digests (DA-11)
+GATE 1      NOT REQUIRED
+CI          the PR's CI on the exact final head is canonical
+```
+
+## 18.9 Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| R-SD1 | A live scale change is wanted before TW-c, and S11-D's 409 reads as a missing feature. | QS11D-1 makes the split explicit; the field is specified and its landing row names TW-c. |
+| R-SD2 | Pause interacts with holds: a player whose socket drops during a long pause loses the seat (holds are wall time). | Intended (a hold is about a network, QS11B-4); stated in `PROTOCOL.md` §4.2 and §11. |
+| R-SD3 | Pause is not persisted until TW-c's host journal: a server restarted while paused starts running. | Stated; S19 §7.5 "closing saves and pauses" already holds because time does not pass while no host runs. |
+| R-SD4 | Unlimited parallel wrong-token requests: each waits 500 ms but nothing caps their number. | `governor` recorded as the adopt route for public hosting (QS11-13); MVP-0 is LAN plus a gateway (QS11-14). |
+| R-SD5 | The admin token in a launcher's process arguments is visible to other local users (`ps`). | The environment variable is the documented path for launchers (S19 §7.3, TW-e); `--admin-token` stays for operators. |
+| R-SD6 | S11-C lands first and edits the same hunks. | §19. |
+
+## 18.10 Questions
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| QS11D-1 | A live `time_scale` change through `POST /admin/clock`: in S11-D, or in TW-c? A live change needs every hosted adapter's cadence rescheduled (S19 §4.4) — a seam change — and the host journal. | **TW-c.** S11-D specifies the field and answers `409 time_scale_fixed` until TW-c lands it; pause needs neither the seam change nor the journal. Cross-lane, primary session. |
+| QS11D-2 | Pause is checked in `submit` (sessions) and `tick` (hosted, Processes); kicks, joins and releases still work while paused. | **Yes** (S19 §7.2's full pause concerns the world, not host state). |
+| **QS11D-3 [OPERATOR]** | A kicked player may rejoin at once with the invite: there is no ban without per-player identity. Accept for MVP-0? | **Accept**, recorded in ARC-S11D-a's limitations beside ARC-40's one trust level; a ban list waits for durable player identity. Security posture, so the operator's. |
+| QS11D-4 | An admin token equal to the invite is refused at start. | **Yes.** |
+| QS11D-5 | Releasing a free or hosted seat is a `200` no-op (`released: false`), not an error and not a controller rebuild. | **Yes.** |
+| QS11D-6 | Ruling 4 says no PR but 16b, S11-A and S11-C edits the module; S11-D needs one `clock` arm so clients stop warning on a frame every server now sends. Amend ruling 4? | **Yes**, for that arm only; the alternative (S11-C carries D's arm) couples the two lanes. |
+| QS11D-7 | Decision record: S11-D records ARC-S11D-a (proposed ARC-44, S11's reserve); S19's ARC-69 ("pause and scale are host commands") is left to TW-c and cited. | **Yes**; the primary session assigns the number. |
+| QS11D-8 | `paused` is public in `/status` (pacing, like `time_scale`). | **Yes.** |
+
+## 18.11 Execution contract (proposed; confirmed only by the primary session's freeze)
+
+```text
+PROJECT / PR        MVP-0 · Step 12 (S11) / PR S11-D — the admin surface and the host clock routes
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-12-server.md §18; evidence §18.12; deviations §18.13
+RELATED / BINDING   this file §§4.9, 5, 6, 7.2, 7.6, 7.7, 9.4, 11.4, 15, 16, 19; server/PROTOCOL.md rev 2;
+                    step-19-time-weather.md §§4.2, 7, 10, 14.1, 15.3; overall.md rulings 1, 6, 9, 10;
+                    docs/DECISIONS.md ARC-23, ARC-40, ARC-41, DEP-14; CLAUDE.md §§2–4
+IMPLEMENTATION BASE main after #83 (S11-B) merges; branch mvp0/pr-s11d-admin; its own worktree, one session
+APPROVED SCOPE      §18.6; D-C1 … D-C8; SD-D1 … SD-D12 as the questions are ruled
+FROZEN INVARIANTS   I-1; I-2/ARC-40 (no admin action moves the revision); I-3 (one controller per seat);
+                    I-4 (no route changes world state or names an instant); I-5 (admin token in no
+                    save, frame, /status or log; nicknames only in /admin/sessions and the holder's
+                    welcome); I-6 (digests = E-SD0); I-9; I-11 (handlers and the delay never on the
+                    world thread); INV-TW-8 (the clock never decreases and never jumps)
+SEQUENCE            E-SD0 → D-C1 → D-C2 → D-C3 → D-C4 → D-C5 → D-C6 → D-C7 → D-C8
+VALIDATION BUDGET   unit/integration/static unrestricted; real-binary tests as listed (each < 2 min);
+                    300-day digests at most four; Godot one window at a time, at most three runs per
+                    mode; one full gate; about 1.5 hours; real-model NOT REQUIRED
+LIVE DOCUMENTATION  §18 checkboxes; §18.12; §18.13
+HANDOFF             .structured-coding/plans/mvp0/handoff-s11d.md
+ENDPOINT AUTHORITY
+  implementation + local validation   unresolved until the primary session's freeze message
+  semantic commits, branch push       authorized after the freeze
+  PR creation / update                authorized after the freeze
+  merge                               operator only; never inherited
+NORMAL STOP         PR S11-D READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       any world-state change by an admin path; a kernel/contract/persistence edit; a new
+                    dependency; a digest change; a path outside §18.6
+```
+
+## 18.12 Evidence ledger
+
+```text
+(empty until the freeze)
+```
+
+## 18.13 Deviations and discoveries
+
+```text
+(empty until the freeze)
+```
+
+---
+
+# 19. Running S11-C and S11-D in parallel: file ownership and merge order
+
+Both start only after S11-B merges (their preconditions, §17.1 and §18.1), each in its own worktree on its
+own branch, held by one session (`CLAUDE.md` §3.1). S11-C's C-C1 and C-C3, and S11-D's D-C1, are documents
+or presence-only code and may start before S11-B merges.
+
+## 19.1 Files each lane owns alone
+
+```text
+S11-C   systems/presence/src/audience.rs (+ lib.rs line); server/src/perception.rs;
+        server/src/runtime/delivery.rs; server/src/protocol/{fact.rs, delta.rs};
+        server/tests/{facts.rs, deltas.rs, frames/{perceived,delta,join,observation}.json, frames/deltas/};
+        tools/cli/src/{perceive.rs, perceived.rs, history.rs}; tools/cli/tests/{facts.rs, perceived.rs,
+        deltas.rs}; tools/cli/Cargo.toml (dev json-patch); clients/protocol/mineworld/{observation.gd,
+        delta.gd}; clients/protocol/checks/{perceived_check.gd, delta_check.gd}; DECISIONS ARC-43, DEP-15
+S11-D   server/src/{admin.rs, admin/registry.rs, app.rs, admission.rs, seats.rs, seats/tests.rs};
+        server/src/runtime/{world.rs, status.rs, control.rs}; server/src/protocol/summary.rs;
+        server/tests/{admin.rs, frames/{clock,welcome}.json}; tools/cli/tests/admin.rs;
+        clients/protocol/checks/admin_check.gd; DECISIONS ARC-S11D-a
+```
+
+## 19.2 Files both edit, and the hunks each owns
+
+| File | S11-C's hunks | S11-D's hunks |
+| --- | --- | --- |
+| `server/src/runtime.rs` | moves `Subscriber`/`sweep`/`release`/`depart` out (C-C2); `remember` fans out; `submit` sets `acted_through` | moves `summary`/`first_binding` out (D-C2); `run`'s match arms for control; the paused checks in `submit` and `tick` |
+| `server/src/runtime/status.rs` (D's move) | `events_dropped` from the counter instead of `0` (one line, wherever `summary` lives at C's head) | created by the move; `paused` |
+| `server/src/runtime/delivery.rs` (C's move) | created by the move; queues, order, `lagged` | `release(…, Kicked)` and per-session drop counts call into it (wherever `release` lives at D's head) |
+| `server/src/host.rs`, `host/handles.rs` | `Command::Submit` gains the subscription; `JoinRequest.perceived`; `HostConfig` backlogs; `Streamed`, `Perceived.acted_through`, `Seated.head` | `Command::Control`; `WorldHost` admin methods; `Seated`'s clock receiver |
+| `server/src/session.rs` | backfill, `perceived` frames, `lagged`, delta encoding, the submit's subscription | the clock frame and its select branch; registry registration |
+| `server/src/protocol.rs`, `protocol/connection.rs` | `Perceived`, `Delta` frames; `acted_through`; `join.perceived`; `CursorUnavailable`, `Lagged`; reason `Lagged` | `Clock` frame; `Paused` |
+| `server/src/lib.rs`, `server/README.md`, `server/tests/frames.rs`, `server/tests/support/mod.rs` | its re-exports, sections, frame files | its re-exports, sections, frame files |
+| `server/PROTOCOL.md` | §§2, 5.2, 5.3, 5.5, 5.6, 5.8, 10 | §§1, 5 (table), 5.5, 5.6, 5.7, 5.9, 9, 10, 11 |
+| `tools/cli/src/main.rs`, `serve.rs` | one `Perceived` variant and arm; `--keyframe-every`; event perception and history wiring | `--admin-token`; the token into `Access` |
+| `tools/cli/tests/support/mod.rs`, `server_command.rs` | a perceived join helper; CA-11 | an admin request helper; DA-9's half |
+| `clients/protocol/mineworld/world_client.gd` | `perceived`/`delta` arms, cursor, reconnect with cursor | the `clock` arm and signal only |
+| `clients/protocol/{run.sh, ADOPTION.md, README.md, evidence/*}` | `run.sh perceived|deltas`; §§2, 3.4, 6 | `run.sh admin`; §§2, 6 |
+| `docs/MODULE_SPEC.md` §8.1, `docs/DECISIONS.md` | `perceived` command; ARC-43, DEP-15 | `--admin-token`; ARC-S11D-a |
+
+## 19.3 Rules
+
+- **No merge order is required.** Recommended: S11-D first if both are ready together, because S19's TW-c
+  builds on its clock routes and it is the smaller diff.
+- **The second to merge rebases** (merges `origin/main`), keeps the first's hunks, and re-runs its own
+  validation's affected half; the shared table above is the review checklist for that merge.
+- **Evidence is regenerated, never hand-merged**: `clients/protocol/evidence/*` and golden frames touched by
+  both (`welcome.json` is D's, `observation.json` C's) are rebuilt by the second lane's own run.
+- **Sizes are per lane and per head**: each lane's pure move keeps `runtime.rs` under 500 alone; together
+  they leave room for both. `world_client.gd` (569 lines at S11-B) grows only by frame arms; new logic goes
+  to new files (`delta.gd`).
+- **Decision ids**: ARC-43 and DEP-15 are S11-C's (ruling 6); ARC-S11D-a takes the number the primary
+  session assigns; neither lane writes the other's record.
 
