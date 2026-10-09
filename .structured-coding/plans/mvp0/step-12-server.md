@@ -2884,8 +2884,8 @@ history); `MODULE_SPEC.md` §8.1 (`mineworld perceived`). **Depends on:** freeze
 behaviour change. **Depends on:** S11-B merged (P-C2). **Failure case:** any test edit means the move was
 not pure.
 
-- [ ] Implementation · [ ] Validation: `cargo test -p mineworld-server` — same names and counts as the
-  base; clippy `-D warnings` · [ ] Review: `runtime.rs` < 450 lines; public paths unchanged.
+- [x] Implementation · [x] Validation: `cargo test -p mineworld-server` — same names and counts as the
+  base; clippy `-D warnings` · [x] Review: `runtime.rs` < 450 lines; public paths unchanged. (E-SC4)
 
 ### C-C3 — Presence's audience
 
@@ -3148,6 +3148,23 @@ E-SC3 C-C3b (+ wire_fact, D-SC2), working tree on e9f4f2c. tools/cli/src/perceiv
       table only; never resumes, never writes; the SqliteBackend is dropped inside read_facts before
       any output, so no handle outlives the read (§17.14); paths via std::path only; the non-JSON note
       goes to stderr so --json stdout stays one PerceivedEvent per line.
+E-SC4 Merge of origin/main @ ec38570 (S11-B #83 merged as 15b05a9) — b314dc4; conflicts only in
+      PROTOCOL.md (§2 join, §4.1, §5.5, §5.6, §10: both lanes' lines kept) and DECISIONS.md (ARC-43
+      re-inserted after ARC-42 on main's file). check_decision_ids 72 distinct; check_doc_headings
+      clean; cargo build -p mineworld-cli clean.
+      §17.2 re-audit at the merge: runtime.rs 492 lines, remember l. 394, advance l. 333, submit_at
+      l. 274, sweep l. 413, consult l. 362; host.rs Command::Submit { observer, request, reply } l. 255;
+      handles.rs Perceived { revision, observation }, Seated; perception.rs 118 lines; session.rs 399;
+      main.rs 516 (S11-B's serve.rs move landed). Every anchor as designed — no amendment, no stop.
+      C-C2 pure move: Subscriber, release, depart, sweep → server/src/runtime/delivery.rs (84 lines,
+      `impl WorldRuntime` in a child module; fields pub(super)); runtime.rs 492 → 427. No test edited.
+      cargo test -p mineworld-server: before (b314dc4) 73 tests in 6 targets, after the move the same
+      73 names (sorted lists diff-equal) with the same per-target counts (41, 8, 7, 4, 4, 9), all
+      green; the after run also shows the 1 doctest (lib.rs l. 44) passing — the baseline's doctest
+      phase printed nothing because it overlapped the edit (not a difference of the move). clippy
+      -D warnings (server, all targets) clean. Review: no public path changed (all four items were
+      private to runtime); behaviour byte-identical (verbatim bodies; `Instant` imported in the new
+      file).
 ```
 
 ## 17.13 Deviations and discoveries
