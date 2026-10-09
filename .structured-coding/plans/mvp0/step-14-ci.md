@@ -2729,6 +2729,14 @@ The current checkpoint and the next actions are the first unchecked item of B-C1
   description.
 - Then READY FOR OPERATOR REVIEW — DO NOT MERGE. The implementation context is then CLOSED /
   AWAITING OPERATOR ACTION.
+- **Main moved after the closing commit.** `f80bbb7` (#94, S19 TW-a) adds the `calendar` System Pack,
+  installed in market-town, with solar positions in floats (`solar-positioning` with `libm`, DEP-30),
+  and re-baselines market-town (TW-a's ledger: "market-town baseline 24a95d2a"). It is merged into
+  this branch. The only conflict was `docs/DECISIONS.md`, where both sides appended; both were kept,
+  13b's records first, and `check_decision_ids` gives 75 ids, all distinct. A re-run of the
+  `os::unix` audit finds the same nine files and W-6, nothing new. The final head's dispatch therefore
+  also checks the calendar's float path across the four platforms. The `365b50e0…1d1d` market-town
+  digest cited above is main's before TW-a.
 - **Post-merge synchronization:** this session's PR section only. `overall.md` and the step header
   belong to the planning session.
 
