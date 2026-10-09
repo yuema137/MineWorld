@@ -592,6 +592,8 @@ against `main` and protocol revision 1 today; "waits" names the merge it needs.
 | **13e — Many players, a living town** | Join screen (address, seat picker, token, nickname), occupancy and takeover messages, speech bubbles and activity notices from events, the clock at the server's time scale, M-5, M-6. | **Waits** on S11 (R-S11-1–4, R-S11-6) and R-S10-1. | Two 2D clients as two seats plus hosted agents on one persisted server: each sees the other walk; one speaks to Alice and the other sees the bubble; Alice, agent-driven, crosses the street on her own; one client takes over Bob and Bob's biography, relationships and holdings are as before (`AC-5` as seen). | A wrong token is refused by code and nothing is drawn; a second client asking for an occupied seat is refused; a reconnect with the same credentials replaces its own dead connection. |
 | **13f — Demo A proof and VIS-2D-1 package** | The Demo A acceptance run (every item of `MVP.md` §7.1, scripted, two clients and agents, SIGKILL of a client and of the server, resume); the operator's runnable checklist; the VIS-2D-1 review package (`ACCEPTANCE.md` §6) for the primary session to queue. | **Waits** on 13a–13e. | The checklist of §4.9 run end to end by the harness and by hand; persisted revision identical before and after a server restart; `AC-15`'s evidence lines read from the 2D side. | The I-4 path scan over the whole step's client merges; §8.2 re-run on the final head. |
 
+13b's full PR design is §15 (PR design — ready for freeze review).
+
 **Ordering.** 13a → 13b are the critical path and need nothing from S11; they make Demo A playable
 against today's server for one or more players (non-exclusive seats). 13c is independent of the
 client PRs. 13d follows S15. 13e follows S11. 13f closes the step.
@@ -1318,3 +1320,497 @@ NORMAL STOP:             PR 13a READY FOR OPERATOR REVIEW — DO NOT MERGE
   `check_scratch.py scan` PASS, `left` nothing under `target/` (the four 2026-10-05 `mineworld-kill-*`
   as before); `--scope origin/main` and `--check-pack` PASS; capture and headless drives for town,
   none, full, people, procedural and home all PASS, 0 error lines, roles 48/0/44/44/40.
+
+---
+
+## 15. PR 13b — Menu interactions through affordances (full design)
+
+### 15.0 Lifecycle, identity, base, scope
+
+```text
+Lifecycle:            PR design — ready for freeze review. NOT frozen; nothing here authorizes code.
+PR                    13b — menu interactions (S12, second of six; PR number assigned at freeze)
+Planning base:        main @ 9cf8f8e (13a merged as #82), branch plan/s12-13b, worktree
+                      /Users/yuema137/mineworld-worktrees/plan-13b (planning only)
+Implementation base:  main at freeze; re-audit §15.1 if main moved past 9cf8f8e in a file it names
+Parents:              this step §§1–13 (§4.4 especially), §14 (13a, its rulings and D-1 … D-14,
+                      F-1 … F-11); overall.md "Parallel build-out", "Framework, not demo", "One world,
+                      two views", "The World Interaction List"
+Scope:                §9's 13b row as amended by §15.2
+Decision ids:         placeholders ARC-13b-a, ARC-13b-b; the primary session assigns numbers
+```
+
+The player can talk, invite and answer an invitation, join and leave an activity, buy, hand over an
+item, and eat or drink — every menu entry is an affordance the server sent for the thing clicked, in the
+server's order, shown with the server's verdict and reason, and submitted whatever that verdict says.
+
+### 15.1 Audit anchors (`main` @ `9cf8f8e`, read in this session)
+
+| ID | Finding | Evidence |
+| --- | --- | --- |
+| **B-1** | **The 2D client composes one action.** `intents.gd` (23 lines) has `const COMPOSED := ["move"]` and one function, `move(place, local, yaw)`, calling `link.client.submit("move", null, {"to": …})` with `actor_location` omitted (`null`). Nothing in `clients/2d/` opens a menu, reads an affordance or shows a component other than `display-name`. | `clients/2d/scripts/intents.gd`; `grep -rn affordance clients/2d/scripts` → none |
+| **B-2** | **Clicks only walk.** `app.gd._unhandled_input`: left button → `walker.walk_to_plan(projection.to_plan(...))`; Esc quits. No person picking exists; `walker.walk_to_plan` turns a click within `DOOR_PICK_M` 0.8 m of a disclosed doorway into a crossing (F-10). | `app.gd:114–121`; `walker.gd:106–122` |
+| **B-3** | **Results are a one-line note.** `app._on_resolved` hands every result to `walker.resolved` and writes `"The world said no: <json>"` / `"Nothing in this world can do that."` into `hud/status.gd`'s note label; `_on_refused` writes `"Refused: <code>"`. Text is English literals in GDScript. | `app.gd:155–165`; `hud/status.gd:60` |
+| **B-4** | **The shared module already has everything 13b needs (16b, merged).** `affordances(type, target)` (all matches, server order; `null` = any target, `""` = target-less), `complete_affordances`, `is_complete` (key presence), `affordances_about(id)` (target or top-level payload reference, typed refs included), `component_value`, `own_component`, `display_name`; `submit_affordance(aff, actor_location)` re-sends whole doubles as integers (`_as_sent`) and returns `""` for an incomplete one. `ADOPTION.md` §2 already documents the complete/composed split and "never rebuild a complete affordance with `submit`" (16b's D-2). So the step's **M-1, M-2 and M-7 are done**; 13b edits neither the module nor `ADOPTION.md` §2. | `clients/protocol/mineworld/observation.gd:160–245`; `world_client.gd:215–297`; `ADOPTION.md` §2 |
+| **B-5** | **What market-town offers, with payload shapes.** Incomplete: `move` (target-less), `talk {utterance}` (target a present person, same place, ≤ 3 000 mm, target available), `invite {kind}` (same place, ≤ 3 000 mm, target not already in an activity), `accept-invitation {}` / `decline-invitation {}` (against an inviter who invited me; same place), `join-group-activity {}` (against a participant whose activity runs), `leave-group-activity {}` (target-less, only while I participate). Complete: `give {item, count: 1}` per kind held, against each other present person (≤ 3 000 mm); `buy {item}` target-less, per priced kind, only in a shop's place, offered unavailable when it cannot happen now (QS-44); `eat {item}` / `drink {item}` target-less, per food/drink kind held, no spatial requirement. | `systems/{conversation,group-activity,item-transfer,economy,consumption,movement}/src/{action,offer,perception,system}.rs`; `clients/protocol/evidence/affordances-market-town.log` (a real frame: 6 buys, 1 eat, 2 gives per person, `"count":1.0`) |
+| **B-6** | **`ActivityKind` is validated by the server** (1 to `KIND_MAX_BYTES` of `a-z 0-9 -`, else `InvalidKind`). A client that pre-checked the slug would be copying a rule. | `systems/group-activity/src/kind.rs:17–32` |
+| **B-7** | **Who stands where at genesis (market-town).** In the café: Alice (6 000, 8 000; `--agent` answers talk), Bob (4 500, 6 100), Vera = seat `visitor` (1 610, 600, at the door), and `wanderer`. Vera holds `{apple: 1, scarf: 1}`, wallet 200 000; Bob `{apple: 1, newspaper: 1}`. From the door Alice is ≈ 8.7 m away and Bob ≈ 6.0 m — beyond every 3 m range, so "unavailable, too far away" is the first thing the player meets. | `worlds/market-town/people/{alice,bob,visitor,wanderer}.yaml` |
+| **B-8** | **Disclosed components 13b reads** (A-21, re-checked): about everybody present `display-name`, `participation`; on the place `passages`, `shop` (economy's listing: prices, stock); to the observer only `conversation-history` (`heard`, oldest first), `acquaintances`, `invitations`, `holdings`, `wallet` (`balance`, minor units), `employment`, `agenda`. Exact JSON field names are read from a live frame in C2 before the readers are written (§15.6), not from Rust field names. | `systems/*/src/component.rs` `owned_component!` blocks; `group-activity/src/perception.rs` |
+| **B-9** | **Two structural scans hold "no rule in the client", and both bite on 13b's new literals.** (1) `scripts/check_client_rules.py` R1–R5 (13a): R2 refuses any `.gd` other than `intents.gd` holding a literal equal to a type in `COMPOSED`. **`app.gd` holds `"invite"`** (the `--invite` join-credential option, B-10): the moment `intents.gd` composes `invite`, R2 fails on `app.gd`. (2) `tests/acceptance/tests/client_rules.rs` (S14 16a, CI's `test` job) refuses a literal equal to **any** declared action type outside an admitted `(file, literal)` entry, and fails an entry that admits nothing. It already admits `clients/2d/scripts/intents.gd` `"move"` and `app.gd` `"invite"` (D-14). It also refuses a `const`/`var` whose name contains `reach`, `range`, `clearance`, `nudge`, `capacity` or `max stride`. | `scripts/check_client_rules.py:120–165`; `tests/acceptance/tests/client_rules.rs:33–80, 175–200` |
+| **B-10** | **R2's file walk and symlinks.** `check_client_rules.py` walks `CLIENT.rglob("*.gd")`; `clients/2d/mineworld` is a symlink to the shared module, whose `world_client.gd:345` holds `"invite"` (the join frame's key). On this machine's Python 3.14 `rglob` does not descend a symlinked directory, so it is not scanned; on Python < 3.13 it may. The scan must skip symlinks explicitly so its verdict does not depend on the interpreter. | `ls -la clients/2d/mineworld`; `python3 --version` → 3.14.7 |
+| **B-11** | **The 3D client's interaction, for parity.** `clients/3d-spike/scripts/slice/intents.gd` (`SliceIntents`, the only file naming `talk`): `talk(client, target, utterance, actor_location)` → `client.submit("talk", target, {"utterance": utterance}, actor_location)`, with `actor_location` = the body's location; `DEFAULT_UTTERANCE := "Hello! A coffee, please."`. Targeting (`targeting.gd`) is one camera ray, "not a reach". `slice_link.talk_to_facing` reports an unavailable `talk` from `may()`/`unavailable_reason()` and **sends anyway**; results become HUD lines via `_readable(code)` (`too_far_away` → "too far away"). 12e adds kick/throw/shove to the same file. Nothing else is composed in 3D today. | `slice/intents.gd`; `slice/slice_link.gd:455–541`; `slice/targeting.gd` |
+| **B-12** | **`AC-13`'s comparison is the server's.** `mineworld_server::semantic_core` / `differing_fields` compare `actor`, `action_type`, `target`, `payload` and permit only `actor_location` to differ; `PROTOCOL.md` §6.1: "a 2D client that models no position sends `null`". `tools/cli/tests/ac13_semantic_parity.rs` reads `clients/protocol/evidence/request-{2d,3d}.json`, produced against `worlds/social-cafe --agent alice` seated as `visitor`; the 3D flavour's `talk` there is actor `"17"`, target `"7"` (Alice), payload `{"utterance": "hello Alice, this is the demonstration scene"}`, with an `actor_location`. | `server/src/parity.rs:88–125`; `server/PROTOCOL.md` §§6, 6.1; `clients/protocol/evidence/README.md` |
+| **B-13** | **The 13a test harness is reusable as is.** `tools/cli/tests/godot2d/mod.rs`: `Drive::start(server, seat, args)` (headless Godot, parse guard F-4), `lines`/`tagged`/`evidence`, `World` (port 0, invite, restartable, D-12), scratch saves (D-13), and a revision-2 `stub(StubScript)` that offers only `move` and answers by script. `drive.gd` (481 lines) prints `SHOWN`/`EVIDENCE` lines; scenarios `walk strides street idle click home seated`. | `tools/cli/tests/godot2d/mod.rs:31–425`; `clients/2d/scripts/harness/drive.gd:104–135` |
+| **B-14** | **Godot 4.7.2 loads a gettext `.po` from an absolute path at runtime, unimported.** A probe outside the tree: `ResourceLoader.load("/tmp/…/en.po")` → a `Translation`; after `TranslationServer.add_translation`, `translate("action.talk")` → `"Talk to {target}"`; an unknown key returns the key. (Probe in `/tmp`, not committed.) | session probe, Godot 4.7.2 macOS arm64 |
+| **B-15** | **Operator requirements that touch 13b's UI text.** "Framework, not demo" item 4: in-game settings with language `en` (default) and `zh-Hans` "covering all client UI text"; "translations live in the Presentation layer as standard translation files, so a user can add a language without code"; one settings module shared by 2D and 3D, planned *after* 13a/16a by its own lane. Item 3: "the playable clients expose every one of those interactions through affordances". "The World Interaction List": "a forbidden offer is shown as unavailable with `PermissionDenied`". | `overall.md` lines 627–667, 806–808 |
+| **B-16** | **In flight, not on `main`:** S15 12d (towns get `place-shape`, walls, bodies, and loose objects; re-baselines digests with R-PK-2's item names; moves the café doorway to (0, 2 800), D-10), S11-B (`mvp0/pr-s11b-seats`: seat occupancy, `took_over`, hosted seats), IL-a (the `configure:` seam). 13b depends on none of them (§15.10). | `git branch -r`; overall "Parallel build-out" ruling 8 |
+
+### 15.2 What has changed since §9's 13b row
+
+| §9 / §4.4 says | Now | 13b does |
+| --- | --- | --- |
+| M-1, M-2, M-7 (module edits) | 16b merged them under its own names (B-4); ruling 4: no other PR edits the module. | **No edit** to `clients/protocol/mineworld/**` or `ADOPTION.md` §2. Uses `affordances`, `complete_affordances`, `is_complete`, `affordances_about`, `submit_affordance`. |
+| "press E / Space → the first available affordance against the person under the cursor" (§4.4) | Choosing an entry *because* the server marked it available is the client selecting by verdict. | **Dropped.** E opens the same menu as a click, for the person under the cursor (§15.4 D-b-4). |
+| "labelled from the pack's wording table" (§4.4) | Operator, item 4 (B-15): all UI text translatable, standard files, in the Presentation layer. | Every UI string is a message key through Godot's `TranslationServer`; the default English is a gettext file in the Presentation Pack (ARC-13b-a, QS13b-1). |
+| "AC-13 transcript in demo.gd's format" | B-12: the server's comparison exists; the evidence world is social-cafe. | The drive writes demo.gd's format (`--requests=<file>`), and a Godot-gated test compares the 2D `talk` against `request-3d.json` with `differing_fields` (AC-I7). |
+| "the hosted `RuleController` answers talk only, so an agent cannot accept" (§9 13b row) | Still true on `main` (S11-B's hosted seats are in flight, B-16). | The invitation is answered by a **second 2D client** seated as Bob, and joined by a **third** seated as `wanderer` (AC-I3). |
+| `§8.2` parts 1–5 | 13a delivered parts 1 and 3 and part 2 for `move`. | 13b delivers part 2 for menu actions, part 4 (an unknown pack's complete affordance, via the stub — the synthetic `ring` pack is a Rust test system no server hosts), part 5 (a pack removed, real). |
+
+### 15.3 Acceptance — decided before measuring (`ARC-23`)
+
+Every bound is a literal fixed here, never derived from the quantity under test. Godot-gated tests are
+`#[ignore = "needs Godot 4.7 …"]` in a new `tools/cli/tests/client_2d_interact.rs` (sharing
+`tools/cli/tests/godot2d/`), run with `cargo test -p mineworld-cli --test client_2d_interact -- --ignored
+--test-threads=1`, and reported `NOT RUN` where Godot is absent, never green (RK-3, QS12-8).
+
+**How a scripted player chooses.** The drive never names an action type (both scans forbid it in
+`.gd`, B-9). The Rust test hands it a steps file (`--steps=<path>`, JSON): each step opens a menu on a
+subject (`{"open": "<entity id>"}`, `{"open": "self"}`) and chooses an entry by a selector the **test**
+writes (`{"action_type": "talk"}`, `{"action_type": "buy", "about": "<item id>"}`), optionally with
+typed input (`{"input": "Hello! A coffee, please."}`). The drive resolves the selector against the
+**rendered menu's entries** and presses that entry through the same `menu.choose(i)` a mouse uses. The
+drive prints, per opened menu, `MENU {subject, entries: [{index, action_type, target, complete,
+available, reason, label, enabled}]}` and, per panel, `PANEL {...}` — the "one world, two views" report
+for 13f/16e. Item and person ids in selectors are resolved by the test from the world (genesis facts or
+the client's own `SHOWN` lines), never hard-coded in the drive.
+
+**Independent oracles.** On a real server the oracle is the save's fact log, read by the Rust test after
+the server stops (`spoke`, `money-transferred`, `items-transferred`, `items-consumed`, group-activity's
+`Invited` / `InvitationAccepted` / `InvitationDeclined` / `GroupActivityStarted` /
+`JoinedGroupActivity` / `LeftGroupActivity`, `became-acquainted`), never the client's own report. On the
+stub the oracle is what the stub offered and what it received.
+
+```text
+AC-I1  TALK (real; integration checkpoint, part 1). `mineworld server worlds/market-town --agent alice
+       --save DIR` (fresh), one 2D client seated `visitor`, at the café door (B-7).
+       Steps: open Alice's menu from the door → the `talk` entry is listed with available=false and
+       reason exactly "too_far_away" (as the frame carries it) → choose it anyway with an utterance →
+       the client shows a rejection toast naming the server's code; choose "Walk to Alice" (§15.4 D-b-3)
+       → the walk ends with every stride accepted; open Alice's menu → `talk` available → choose it,
+       type "Hello! A coffee, please." → accepted.
+       PASS iff: (a) the transcript has exactly two `talk` requests to Alice's id, the first answered
+       `rejected too_far_away` and the second `accepted`; (b) the save holds exactly one `spoke` by
+       visitor to Alice whose utterance equals the typed text byte for byte, and ≥ 1 `spoke` by Alice to
+       visitor after it; (c) within 10 s of the accepted talk the history panel's newest line is that
+       reply's utterance, attributed to `display_name(alice)`; (d) the acquaintances panel lists Alice by
+       name iff the save holds a `became-acquainted` between them (the panel shows what is disclosed; it
+       does not predict).
+       MUTATIONS: menu hides unavailable entries → (a) FAIL (no first talk); intents refuses to submit
+       when may() is false → (a) FAIL and AC-I9 names it; history panel shows the player's own line as
+       the reply → (c) FAIL.
+AC-I2  ITEMS (real; integration checkpoint, part 2). A fresh market-town world, visitor at the café door.
+       Steps: open self → choose `buy` about the café's coffee item (id resolved by the test) → choose
+       `drink` about it → walk to Bob → open Bob's menu → choose `give` about the scarf → open self →
+       choose `eat` about the apple held at genesis.
+       PASS iff, in the save: one `money-transferred` from visitor equal to the coffee's listed price;
+       the visitor gains one coffee then `items-consumed` removes it; `items-consumed` for the apple;
+       `items-transferred` of one scarf from visitor to Bob. In the client: the wallet panel's balance
+       after the buy equals the balance before minus that price (both read from `wallet` disclosures, the
+       difference checked by the test against the fact); the holdings panel's counts follow each step
+       within 2 s; Bob's menu, before the give, listed one `give` per kind visitor then held (2), in the
+       frame's order, both complete.
+       MUTATIONS: a complete entry rebuilt with `submit(type, target, payload)` instead of
+       `submit_affordance` → the give is refused (`1.0` is not an integer, B-4) → FAIL; the menu shows
+       only the first complete affordance per (type, target) (the `affordance()` trap) → Bob's menu has 1
+       give → FAIL.
+AC-I3  GROUP ACTIVITY (real, three 2D clients). A fresh market-town world; clients seated `visitor`, `bob`,
+       `wanderer`, all in the café. visitor walks to Bob, opens his menu, chooses `invite`, types
+       "coffee". Bob's client: the invitations panel lists visitor with kind "coffee"; visitor's menu
+       offers `accept-invitation` and `decline-invitation`; Bob chooses accept. Both observations then
+       disclose `participation` for both, and each client draws the participation marker on both
+       (`SHOWN` people carry `activity`). wanderer walks to Bob, opens his menu, chooses
+       `join-group-activity`. visitor opens self and chooses `leave-group-activity`. visitor, now out,
+       opens Bob's menu again: `invite` is listed unavailable (Bob is in an activity; the reason is
+       whatever code the frame carries) — chosen anyway with "chat", and rejected. Bob opens self and
+       chooses `leave-group-activity`. visitor invites Bob "chat" again; Bob chooses
+       `decline-invitation`.
+       PASS iff the save holds, in order: Invited(visitor→Bob, coffee), InvitationAccepted,
+       GroupActivityStarted, JoinedGroupActivity(wanderer), LeftGroupActivity(visitor), one rejected
+       invite (no Invited fact for it), LeftGroupActivity(Bob), Invited(visitor→Bob, chat),
+       InvitationDeclined; and every menu that offered an entry the steps chose listed it from the frame
+       (MENU lines ⊆ the observation's affordances for that subject, checked by the drive against the
+       raw frame it printed with them).
+       MUTATIONS: the client validates the kind slug and refuses "Coffee!" (planted step) → no request,
+       whereas the unmutated client sends it and shows the server's InvalidKind rejection → FAIL;
+       participation marker drawn from the client's own record of "I accepted" instead of the disclosure
+       → wanderer's client (which never accepted) shows no marker on Bob → FAIL.
+AC-I4  MENUS ARE THE OFFERS (stub). The stub (extended, §15.6 C3) seats the client in a bare room with
+       two people P and Q and offers, in this order: against P — `give {item:"31",count:1}`,
+       `talk` (available false, reason "busy"), `give {item:"30",count:1}` (available false, reason
+       {"inventory-full": …}), `wave` (incomplete, unknown to the client); against Q — nothing; target-
+       less — `ring {bell:"low", count:2}` (complete, a pack the client never heard of), `buy
+       {item:{entity:"30",entity_type:"item"}}`.
+       PASS iff: P's MENU lists exactly 4 entries in exactly that order (not sorted by type, not grouped
+       out of order), the two gives separately; `talk` greyed with a label containing the wording of
+       "busy" and `reason` == "busy"; the second give greyed with `reason` the dictionary as sent; `wave`
+       listed disabled as "not supported by this client"; Q's menu lists no action entry at all (not
+       even talk); self's MENU lists `ring` and `buy`; choosing `ring` makes the stub receive
+       `payload.payload == {"bell":"low","count":2}` with `count` an integer, `target` null; choosing
+       `wave` sends nothing.
+       MUTATIONS: menu sorts entries → order FAIL; client adds a default "Talk" entry to every person
+       → Q FAIL; reason text replaced by a generic "unavailable" → label FAIL; `wave` composed with `{}`
+       → a submit arrives → FAIL; a hard-coded label table in GDScript (`"ring"` unknown → dropped) →
+       `ring` missing → FAIL.
+AC-I5  SUBMITTED REGARDLESS, NEVER REPLAYED (stub). The stub offers `talk` to P unavailable
+       (`too_far_away`) and a complete `give` unavailable. Choosing each sends it (2 submits). Then the
+       stub receives a third request (talk, available) and closes the socket **without answering**; the
+       client reconnects (13a's policy) and the stub seats it again.
+       PASS iff the stub received exactly 3 submits in total, none after the reconnect; the client
+       showed "unknown — check the world" for the unanswered talk (`ADOPTION.md` §6.1 point 5).
+       MUTATIONS: `if not obs.may(...)` guard in the menu's choose path → 0 of the first 2 FAIL (and AC-I9
+       R3' names it); replaying pending requests after `welcomed` → a 4th submit FAIL.
+AC-I6  A PACK REMOVED (real, §8.2 part 5, AC-2 seen through the client). A scratch copy of
+       worlds/market-town with `item-transfer` removed from `systems:` (no section to drop; B-5). visitor
+       walks to Bob. PASS iff Bob's MENU holds no `give`, and every other entry (talk, invite) is present
+       exactly as in AC-I2's run at the same step; self's MENU is identical to AC-I2's (buy, eat). No
+       client file differs between the two runs.
+       MUTATION: a client-side fallback that lists `give` for held items when no offer is present →
+       FAIL.
+AC-I7  AC-13 GROUNDWORK (real; the 2D half). `mineworld server worlds/social-cafe --agent alice` (the
+       world `request-3d.json` was recorded against, B-12), a 2D client seated `visitor` walks to Alice
+       and chooses `talk` with the utterance "hello Alice, this is the demonstration scene", recording
+       requests with `--requests=<scratch file>` in demo.gd's format (`[{token, flavour: "2d",
+       request}]`). PASS iff the recorded `talk` request, read through the contract's deserialization,
+       and the `talk` entry of `clients/protocol/evidence/request-3d.json` give
+       `differing_fields == [ActorLocation]` (2D sends `actor_location: null`, B-11, PROTOCOL.md §6.1),
+       with actor and target ids equal (both genesis-allocated); and the server accepts it.
+       MUTATIONS: the talk composer sends `{"text": …}` or puts the target in the payload → `Payload`
+       differs → FAIL; it trims the utterance → `Payload` differs → FAIL.
+AC-I8  PRESENTATION INDEPENDENCE (I-5) for interactions. AC-I2's steps driven twice on fresh worlds:
+       pack `town`, and `--presentation=none`. PASS iff the two request transcripts have identical
+       semantic cores in order (`differing_fields` empty for each pair). Language independence: the same
+       run with the pack's wording removed (labels fall back to keys) — identical cores.
+       MUTATION: an entry selected by its label text instead of its index/selector → the no-wording run
+       chooses differently → FAIL.
+AC-I9  STATIC SCANS. (1) `python3 scripts/check_client_rules.py` with 13b's extension: R1–R5 as 13a;
+       **R2** reads `COMPOSED` (now move, talk, invite, accept-invitation, decline-invitation,
+       join-group-activity, leave-group-activity) and admits by explicit entry only `app.gd`'s
+       `"invite"` (the join option, reason recorded), failing an entry that admits nothing; **R3'**
+       extends R3 to `scripts/menu.gd` and `scripts/hud/**`: no function that calls `intents.` reads
+       `may(`, `"available"`, `unavailable_reason` or `requirement(`; **R6** no `.gd` file holds a
+       user-visible English sentence for an action or reason (heuristic: a literal of ≥ 2 words passed
+       to `text =`, `add_item(`, `note(` or a toast outside `hud/words.gd`) — UI text goes through keys;
+       symlinked directories are not walked (B-10). (2) `cargo test -p mineworld-acceptance --test
+       client_rules` with `ACTION_LITERALS` gaining the six new `intents.gd` entries.
+       PASS iff both clean on the head AND each of these plants is reported by file and line: a
+       `"talk"` literal in `menu.gd` (R2 and client_rules.rs both); `may(` in `menu.gd`'s choose
+       function (R3'); `submit_affordance(` in `menu.gd` (R1); a `const TALK_RANGE` anywhere
+       (client_rules.rs); `add_item("Talk to " + name)` in `menu.gd` (R6); an unused admission entry
+       (both scans).
+AC-I10 PATH SCOPE (I-4), `python3 scripts/check_client_rules.py --scope <base>`: 13a's allowed set plus
+       `tools/cli/tests/client_2d_interact.rs`; nothing under `clients/protocol/mineworld/`, `systems/`,
+       `server/`, `worlds/`, `clients/3d-spike/`. Planted touches of `systems/item-transfer/src/offer.rs`
+       and `clients/protocol/mineworld/observation.gd` each FAIL by name.
+AC-I11 EXISTING BEHAVIOUR UNCHANGED (I-8), once on the final head: `cargo fmt --check`; `cargo clippy
+       --workspace --all-targets -- -D warnings`; `cargo test --workspace` (non-ignored count = main's
+       + 0 new non-ignored tests, `client_rules` included); 13a's `client_2d -- --ignored` 8 PASS;
+       `./mineworld-slice --drive` PASS; `clients/protocol/run.sh evidence` regenerates identically
+       apart from ports and instances; `--check-pack` PASS.
+AC-I12 PANELS SHOW WHAT IS DISCLOSED (stub). The stub discloses to the observer `wallet`, `holdings`,
+       `acquaintances`, `invitations`, `agenda`, `employment` and an own component `weather-sense`
+       (unknown to the client), and on the place a `shop` listing. PASS iff each known one is shown by
+       its reader with every value present in the frame (PANEL lines), `weather-sense` appears in the
+       "other" panel as its raw JSON (not dropped, no error), and removing a component from the next
+       frame removes its panel within one observation (I-7).
+       MUTATION: the reader set drops unknown components → FAIL; a panel that keeps the last value
+       after the component disappears → FAIL.
+```
+
+**What "done" means for the operator** (the milestone-handoff practice): `./mineworld-2d --seat
+visitor`, then: click Alice — see "Talk to Alice Moreau — too far away"; choose it anyway and read the
+refusal; choose "Walk to Alice Moreau"; talk; read her reply in the history panel (H); press I for your
+things; buy a coffee from yourself (click yourself) and watch the wallet; drink it; give Bob the scarf;
+with a second `./mineworld-2d --seat bob`, invite Bob to coffee from the first window and accept in the
+second; see the marker over both.
+
+### 15.4 Design decisions
+
+- **D-b-1 — Subjects.** A menu is about one subject: a perceived person (click on their drawn figure, or E
+  with the cursor over them), or **self** (click on one's own figure, or Q). A person's menu lists
+  `affordances("", id)`; self lists `affordances("", "")` (target-less: buy, eat, drink, leave, and
+  after 12d kick/throw). Nothing else is a subject in 13b: objects arrive with 13d; places have no
+  entity on screen to click, and the shop's `buy` offers are target-less, so they appear under self.
+  Picking order on a click: a person's figure first, then a doorway (F-10), then the floor — so a click
+  on Alice standing near a door opens her menu rather than crossing.
+- **D-b-2 — Entries, in the server's order, nothing removed, nothing invented.** One entry per
+  affordance, in list order; a separator where the action type changes between neighbours (presentation;
+  no reordering). Each entry is one of:
+  *complete* → enabled, label = wording of its type + the names of the entities its payload refers to
+  (`display_name` when perceived, else the name cache, else the item id; R-PK-2's names when they land),
+  chosen → `intents.submit_offered(affordance)` → `submit_affordance` unchanged;
+  *composable* (its type is in `intents.COMPOSED`) → enabled, chosen → the input it needs (none, a text
+  line, a kind with suggestions), then `intents.compose(affordance, input)`;
+  *not composable* → listed **disabled**, "not supported by this client", never sent.
+  `available: false` → drawn greyed **but enabled**, with the wording of `unavailable_reason` (a string
+  code, or the first key of a system's dictionary code) and, where declared, "needs N m" from
+  `requirement.within_range`, unevaluated. A code the wording does not know is shown as the code itself.
+  The menu is rebuilt from every new observation while open; each item carries the affordance
+  dictionary it was built from, so choosing submits exactly what was displayed; if the subject is no
+  longer perceived, the menu closes.
+- **D-b-3 — "Walk to <name>" is the offered `move`, not an extra rule.** It is listed (first, above a
+  separator) only when the frame offers a target-less `move` (`intents.offered_walk(observation)` — the
+  literal stays in `intents.gd`), greyed if that offer is unavailable, and chosen → `walker.approach(id)`:
+  a straight walk toward the person that stops `APPROACH_M` = 1.2 m short of their observed position.
+  1.2 m is a presentation choice ("a pace away"), named without a rule word (B-9), and is not derived
+  from any pack's range; the server still decides every stride and the next action. Offered after a
+  `too_far_away` rejection as a toast button, which is the same entry.
+- **D-b-4 — No quick action.** No key submits "the first available" entry: selecting by the server's
+  verdict is the client deciding (§15.2). E and Q open menus; Enter in an open menu chooses the
+  highlighted entry.
+- **D-b-5 — Inputs.** Talk opens a single-line `LineEdit`; Enter sends exactly what was typed (an
+  empty line too — the server decides whether an empty utterance is acceptable), Esc cancels. Invite opens
+  the same line with suggestions from the pack's wording (`suggest.invite-kind`: coffee, chat, walk —
+  the rule controller's kinds, QS12-6); the typed text is sent unchanged, never lower-cased, trimmed or
+  slug-checked (B-6). Accept, decline, join, leave need no input (`{}`).
+- **D-b-6 — Results.** `intents.gd` keeps `token → {action_type, target, about}` for what it sent;
+  `resolved` routes a `move` to the walker (13a, unchanged) and everything else to `hud/toasts.gd`:
+  `accepted` (worded per type), `rejected <code>` (the server's code, worded, else raw), `unavailable`
+  ("nothing here can do that" — `NoSupportedInteraction`), `refused <code>`. A reconnect drops the
+  pending table and shows "unknown — check the world" for each entry (never resent, 13a's rule).
+- **D-b-7 — Panels are readers of disclosures.** `hud/readers.gd` knows the shape of each own component
+  the default packs disclose (the way a client knows wording, step §4.4) and nothing about rules:
+  wallet (balance in minor units, shown with the pack's currency format), holdings (kind → count),
+  shop listing on the current place (kind, price, stock), conversation history (newest last, speaker by
+  name), acquaintances, invitations (inviter, kind), agenda, employment. An own component with no reader
+  is shown raw in "other". Each panel is drawn only while its component is in the newest frame (I-7).
+  Participation (disclosed about everybody present) is drawn as a marker over each participant, worded
+  by activity kind.
+- **D-b-8 — Names the observer once perceived (name cache).** `display_name` answers only for perceived
+  entities; history and acquaintances name people who may have left. A per-instance cache `id → last
+  disclosed display-name` (presentation memory, like 13a's layout cache, dropped on an instance change)
+  supplies them; otherwise the id. Never a name of the client's making.
+- **D-b-9 — UI text by key (ARC-13b-a).** Every user-visible string is `tr(key)` with arguments
+  formatted after: `action.<type>`, `action.<type>.done`, `reason.<code>`, `ui.*`, `panel.*`,
+  `suggest.invite-kind`. Keys are built from data (`"action." + type`), so no GDScript file holds an
+  action-type literal for wording. The default English is a gettext file in the Presentation Pack,
+  `presentation/mineworld-default/2D/i18n/en.po`, loaded at runtime from the pack directory (B-14) and
+  added to `TranslationServer`; a missing key falls back to a readable form of the key's last part
+  (`too_far_away` → "too far away", as 3D's `_readable` does). `--presentation=none` loads no wording
+  and shows the fallbacks. The settings lane later adds `zh-Hans` and the language switch; 13b adds no
+  setting.
+- **D-b-10 — Composers stay 2D-local in 13b (ARC-13b-b).** `intents.gd` gains `talk`, `invite` and the four
+  empty-payload composers. 3D composes only `talk` today (B-11), with the identical payload; a shared
+  composer module would be an abstraction with one second user (rule 11). Parity is held meanwhile by
+  AC-I7 (the server's comparison), and the extraction to a shared client module is proposed for the
+  first PR in which 3D composes a second of these (QS13b-2).
+- **D-b-11 — `actor_location` is `null` for every 13b request**, as for 13a's `move`: the 2D client
+  models no authoritative position, and `PROTOCOL.md` §6.1 permits exactly this difference.
+
+**Decision records proposed** (placeholders; applied in C1):
+
+- `ARC-13b-a` — *Client UI text is addressed by message keys through the engine's translation server; a
+  Presentation Pack carries the wording as standard gettext files; a client holds no display sentence
+  for an action or a reason.* Reuse comparison (operator directive, `REUSE_POLICY.md`): Godot
+  `TranslationServer` + gettext `.po` loaded at runtime — **adopt** (standard, editable by translators'
+  tools, loads unimported, B-14); Godot CSV translations — reject for packs (needs the editor's import
+  step, so a pack outside the project cannot be loaded at runtime); our own JSON wording table — reject
+  (non-standard, the operator asked for standard files); third-party i18n addons — none needed over the
+  engine's own. Pending QS13b-1.
+- `ARC-13b-b` — *A 2D client's interaction menu is the observation's affordances for the clicked subject,
+  in the server's order; complete ones are submitted unchanged, composable ones through the client's
+  composer table, the rest shown unsupported; the only client-added entry is "walk to", which is the
+  offered `move`.* Recorded as a note under `ARC-47` if the primary session prefers no new number (13a
+  said 13b "adds no new principle").
+
+### 15.5 What the client shows, by interaction (coverage of the default demo)
+
+| Interaction (market-town) | Subject / entry | Kind | Input | Oracle (AC) |
+| --- | --- | --- | --- | --- |
+| talk | person → `talk` | composed | utterance line | `spoke` (I1, I7) |
+| group invite | person → `invite` | composed | kind line + suggestions | `Invited` (I3) |
+| accept / decline | inviter → `accept-invitation` / `decline-invitation` | composed | none | `InvitationAccepted` / `InvitationDeclined` (I3) |
+| join / leave | participant → `join-group-activity`; self → `leave-group-activity` | composed | none | `JoinedGroupActivity` / `LeftGroupActivity` (I3) |
+| buy | self → `buy` per priced kind | complete | none | `money-transferred` (I2) |
+| hand over | person → `give` per kind held | complete | none | `items-transferred` (I2) |
+| eat / drink | self → `eat` / `drink` per kind held | complete | none | `items-consumed` (I2) |
+| walk closer | person → "Walk to …" (the offered `move`) | composed (13a) | none | accepted strides (I1) |
+| anything a pack adds later (`ring`, after 12d `shove`, `kick`, default `throw`) | wherever its target says | complete | none | stub (I4) |
+| an incomplete action this client cannot compose (aimed `throw` until 13d, `wave`) | listed disabled | — | — | nothing sent (I4) |
+
+### 15.6 Commit plan
+
+Each commit tracks implementation, deterministic validation and LLM logic review separately; `[x]`
+requires the work and its evidence.
+
+#### C0 — Design (this section) — Markdown only
+- [x] Implementation: §15, from the audit in §15.1 at `9cf8f8e`.
+- [x] Validation: `python3 scripts/check_doc_headings.py`, `python3 scripts/check_decision_ids.py`.
+- [x] Review: no module edit planned; every AC names an oracle independent of the client; every
+  mutation names the check that turns red.
+
+#### C1 — Specs and wording before code
+**Goal.** The decisions and the pack's wording format exist before code relies on them (`CLAUDE.md` §2.2).
+**Scope.** `docs/DECISIONS.md`: ARC-13b-a, ARC-13b-b (numbers from the primary session).
+`clients/2d/PRESENTATION.md`: a new section "Wording" (the `i18n/<locale>.po` files, the key families of
+D-b-9, the fallback, `suggest.invite-kind`, currency format) and §5 "may not" gains "no rule in
+wording: a suggestion list is a suggestion, never a filter". `presentation/mineworld-default/2D/i18n/en.po`
+(every key 13b uses; English). `scripts/check_client_rules.py --check-pack`: the `.po` parses (msgid /
+msgstr pairs, UTF-8, a `Language:` header) and every `action.*` / `reason.*` key it holds is well formed.
+**Non-goals.** No client code; no `zh-Hans` (the settings lane); `ADOPTION.md` untouched.
+- [ ] Implementation: as scoped.
+- [ ] Validation: `check_decision_ids`, `check_doc_headings`; `--check-pack` PASS; plant a `.po` with an
+  unterminated `msgstr` → FAIL by line; restore → PASS.
+- [ ] Review: no defined term redefined; wording holds no rule (no number, no condition); the key list
+  matches §15.4 D-b-9.
+
+#### C2 — Readers and panels (observe, show; nothing sent)
+**Goal.** The observer's own state is visible; the exact JSON of each component is pinned from a real
+frame before a reader is written (B-8).
+**Scope.** New `clients/2d/scripts/hud/{words.gd, readers.gd, panels.gd}`; `scene/people.gd` (the
+participation marker, `pick(screen_point) -> id`); `app.gd` (load wording, panels wiring, keys I / H);
+`harness/drive.gd` → a `--drive=panels` scenario printing `PANEL` lines (the harness may be split into
+`harness/interact.gd` to keep files under ~500 lines).
+- [ ] Implementation: dump one market-town frame for `visitor` (`--drive=seated` with a `FRAME` line),
+  record the observed shapes of the nine components in this ledger, then write the readers; the name
+  cache (D-b-8); "other" raw panel.
+- [ ] Validation: `--drive=panels` against market-town: wallet 200 000, holdings apple 1 / scarf 1,
+  agenda present, shop listing with 6 kinds — each equal to the frame's raw value; AC-I12 (needs C3's
+  stub extension: run in C3, recorded there).
+- [ ] Review: readers hold no rule (no arithmetic beyond formatting); no action literal; panels vanish
+  when the component does.
+
+#### C3 — Menus, composers, results
+**Goal.** The interaction itself: subjects, entries, inputs, submission, toasts (D-b-1 … D-b-7, D-b-11).
+**Scope.** `intents.gd` (`COMPOSED` + six composers, `submit_offered`, `compose`, `offered_walk`,
+`input_for(type)`, pending table); new `scripts/menu.gd` (entries from the frame, PopupMenu, live
+rebuild, choose); new `hud/{talk_line.gd, toasts.gd}`; `walker.gd` (`approach(id)`, `APPROACH_M`);
+`app.gd` (click picking order, E/Q, result routing; the status note of B-3 becomes toasts);
+`tools/cli/tests/godot2d/mod.rs` (stub: scripted offers, people, own components, a "close without
+answering" step, per-request results); `tools/cli/tests/client_2d_interact.rs` (AC-I4, AC-I5, AC-I12).
+- [ ] Implementation: as scoped.
+- [ ] Validation: AC-I4, AC-I5, AC-I12 on the stub, each with its mutations run and reverted (red, then
+  green), evidence lines recorded here.
+- [ ] Review: every submit is in `intents.gd`; the choose path reads no verdict; complete entries go only
+  through `submit_affordance`; no entry is created that the frame did not offer except "walk to" under
+  D-b-3's condition.
+
+#### C4 — Scans
+**Goal.** The structural half of ARC-47 covers 13b's new files (AC-I9).
+**Scope.** `scripts/check_client_rules.py` (R2 admissions, R3', R6, symlinks skipped, `--scope` adds
+`client_2d_interact.rs`); `tests/acceptance/tests/client_rules.rs` (six `ACTION_LITERALS` entries for
+`clients/2d/scripts/intents.gd`; no other line — D-14's precedent).
+- [ ] Implementation: as scoped.
+- [ ] Validation: both scans clean; the six plants of AC-I9 each reported by file and line; reverted →
+  clean. `cargo test -p mineworld-acceptance --test client_rules` PASS.
+- [ ] Review: R6's heuristic catches the plants without flagging `hud/words.gd`'s fallback or the
+  harness's diagnostics (the harness prints evidence, not UI).
+
+#### C5 — Real-world runs: talk, items, group activity, a pack removed, AC-13
+**Goal.** The integration checkpoint against the real server (AC-I1, I2, I3, I6, I7, I8).
+**Scope.** `harness/` steps runner (`--steps`, selector resolution against rendered entries, `MENU`
+lines, `--requests`); `client_2d_interact.rs` real tests; test-side helpers that resolve item and person
+ids from genesis facts and build the scratch world for AC-I6.
+- [ ] Implementation: as scoped.
+- [ ] Validation: AC-I1 … I3, I6 … I8 with their mutations (each red, then reverted green), counts and
+  wall time recorded.
+- [ ] Review: no world key or coordinate in a `.gd` file (D-10's rule); every waypoint from disclosure;
+  the AC-13 comparison uses `differing_fields`, never a hand-written one.
+
+#### C6 — Stills, operator checklist, final gates
+- [ ] Implementation: capture stills `09_menu_alice_far` (greyed, reason), `10_menu_alice_near`,
+  `11_talk_history`, `12_self_menu_shop`, `13_invited_marker` (two clients), `14_plain_menu`
+  (`--presentation=none`), under `clients/2d/shots/preview/`; README lines (keys, menus); the
+  operator's checklist of §15.3 in the PR body; ledger and handoff.
+- [ ] Validation: AC-I9, AC-I10, AC-I11 on the final head; stills viewed one at a time and their facts
+  recorded (largest miss first).
+- [ ] Review: preview, not acceptance (`ARC-24`); known misses stated (item ids until R-PK-2, NPCs
+  idle until R-S10-1, no conversations between others until R-S11-4).
+
+### 15.7 Files touched
+
+```text
+new      clients/2d/scripts/menu.gd, clients/2d/scripts/hud/{words,readers,panels,talk_line,toasts}.gd,
+         possibly clients/2d/scripts/harness/interact.gd
+edit     clients/2d/scripts/{intents,app,walker}.gd, clients/2d/scripts/scene/people.gd,
+         clients/2d/scripts/harness/drive.gd, clients/2d/README.md, clients/2d/PRESENTATION.md
+new      presentation/mineworld-default/2D/i18n/en.po
+new      tools/cli/tests/client_2d_interact.rs; edit tools/cli/tests/godot2d/mod.rs (stub)
+edit     scripts/check_client_rules.py; tests/acceptance/tests/client_rules.rs (entries only)
+docs     docs/DECISIONS.md (ARC-13b-a, ARC-13b-b), this file
+NOT      clients/protocol/mineworld/**, clients/protocol/ADOPTION.md, clients/3d-spike/**, server/,
+         kernel/, contracts/, systems/, worlds/, worldpack/, persistence/, cognition/, Cargo files
+```
+
+### 15.8 Test ownership and budget
+
+```text
+STATIC      check_client_rules.py (R1–R6, scope, pack incl. .po); client_rules.rs; fmt/clippy
+UNIT        none new: behaviour is checked against a real server or the stub
+INTEGRATION Godot-gated: AC-I1 … I8, I12 (≈ 11 Godot runs incl. the three-client run; ≈ 6 min)
+REAL RUN    capture run (stills inspected); 13a's 8 Godot tests; slice drive; protocol evidence
+GATE 1/2    NOT REQUIRED — no model; AC-I1 … I3 are the real-lifecycle evidence
+CI          `client_rules` runs in CI's test job; Godot-gated tests are NOT RUN in CI (no Godot layer)
+BUDGET      each Godot run ≤ 10 min, > 2 min in the background; full cargo gate once on the final head;
+            ≈ 1 h validation wall time; no paid API, no model
+```
+
+### 15.9 Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| **RK-b1** | Item kinds have no names (F-41) until 12d's re-baseline carries R-PK-2: the operator sees "Buy item 22". | The label resolver reads names through one function that R-PK-2's catalogue plugs into; the stills and PR body say so (QS13b-3). |
+| **RK-b2** | **12d interaction.** After 12d the café has walls, counters and bodies: (a) "walk to" a person behind the counter may be stopped by a solid (13a's walker routes no solids until 13d) and the next `talk` is rejected `too_far_away`; (b) bodies refuse a stride ending within 595 mm of a person — 1.2 m short is clear of that; (c) the doorway moves (D-10 already derives it); (d) towns gain complete `shove` (against persons) and `kick`/`throw` (self), which appear in 13b's menus automatically, labelled from wording or by type; aimed `throw` is listed unsupported until 13d. | 13b's ACs run on `main` without 12d. If 12d merges first, the drive approaches from the side of the person facing the observer's doorway and the C5 runs are repeated; a failure from a solid is a 13d gap, recorded, not patched with a client rule. |
+| **RK-b3** | S11-B lands mid-PR: seats become exclusive and unoccupied seats are hosted. AC-I3's three seats are distinct, so exclusivity is harmless; a hosted Bob would act on his own and make orders nondeterministic. | Start test servers with S11-B's option that disables hosting (or seat only unhosted seats); rebase is a consumer change. If no such option exists, a material stop. |
+| **RK-b4** | The `.po` choice pre-empts the settings lane (B-15). | QS13b-1 (operator-material); if declined, C1 ships a JSON-subset wording table in the pack and the settings PR converts it — keys unchanged. |
+| **RK-b5** | `drive.gd` (481 lines) grows past the ~500-line review threshold. | Interaction scenarios live in `harness/interact.gd`. |
+| **RK-b6** | The three-client run is slow or flaky (three Godot processes, real timing). | Steps wait on observations (not sleeps), bounded by 90 s per step; the test runs alone (`--test-threads=1`). |
+| **RK-b7** | `affordances_about` searches only top-level payload values; a pack nesting its references deeper is labelled without names. | Labels fall back to the type; the entry still works (submitted unchanged). Not a 13b fix (the module is 16b/S11's). |
+
+### 15.10 Questions
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QS13b-1** | **[OPERATOR-MATERIAL — pre-empts a choice assigned to the settings planning lane]** UI text through `tr()` keys now, with English in a gettext `.po` inside the Presentation Pack (loaded at runtime, B-14), rather than English literals that the settings PR later rewrites? | **Yes.** It costs nothing now, avoids rewriting every string later, and satisfies "standard files, a language without code". The settings lane still owns the language switch, `zh-Hans`, persistence, and may change the file format behind the same keys. |
+| **QS13b-2** | **[OPERATOR-MATERIAL — an ownership boundary between the two clients]** Should the composers (how to ask for talk, invite, accept, …) move into a module shared by 2D and 3D, so AC-13 parity holds by construction? | **Not in 13b.** 3D composes only `talk` (B-11), identically; extract when 3D composes a second shared action (12e's kick/throw/shove are 3D's own composers first), in that PR, coordinated with S14 — a new `clients/shared/` module, not the protocol module (ruling 4). Until then AC-I7 holds parity through the server's comparison. |
+| **QS13b-3** | **[OPERATOR-MATERIAL — what the operator will see]** Accept item ids in labels ("Buy item 22") until R-PK-2 lands with 12d? | **Yes.** Naming items in the client would be a client fact; the resolver switches to names the day the catalogue is disclosed, with no client change beyond reading it. |
+| **QS13b-4** | Should `group-activity` offer `accept-invitation`, `decline-invitation`, `join-group-activity` and `leave-group-activity` as **complete** affordances (payload `{}`), so no client needs a composer for them? | **Yes, later, as a framework PR outside S12** (it edits `systems/`, which I-4 forbids a client PR). It changes observations, not facts, so digests should not move; the rule controller's decoder must tolerate the added `payload`. 13b composes them meanwhile; when they become complete the menu uses them unchanged and the composers are deleted. |
+| **QS13b-5** | ARC-13b-b as a new record, or a note under ARC-47? | **A note under ARC-47** (13a said 13b adds no principle); ARC-13b-a needs a number (it is new: wording and i18n in packs). |
+| **QS13b-6** | "Walk to <name>" stops 1.2 m short (D-b-3). Is a presentation constant acceptable there? | **Yes.** It is a destination the player chose through a menu, not a range check; the server answers every stride and the next action. The alternative — walking onto the person's point — is refused by bodies after 12d. |
+| **QS13b-7** | `client_rules.rs` is S14's file. 13b adds six admission entries (D-14's precedent). | **Accept**, entries only; S14 is told in the PR body. |
+| **QS13b-8** | `tools/cli/tests/client_2d_interact.rs` as a second test binary, or more tests in `client_2d.rs` (524 lines)? | **A second binary**, sharing `godot2d/`; each file stays under ~800 lines and the walk and interaction suites can be run separately. |
+
+### 15.11 Execution contract (to be filled and approved at freeze)
+
+```text
+PROJECT / PR:            S12 PR 13b — menu interactions through affordances
+PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/step-13-client-2d.md §15 (live ledger)
+RELATED / BINDING DOCS:  this step §§1–14; overall.md "Parallel build-out", "Framework, not demo",
+                         "One world, two views", "The World Interaction List"; CLAUDE.md;
+                         ENGINEERING_RULES §§4, 7–9, 19, 22; ENGINEERING_STANDARDS; server/PROTOCOL.md;
+                         clients/protocol/ADOPTION.md; clients/2d/PRESENTATION.md
+IMPLEMENTATION BASE:     main at freeze (≥ 9cf8f8e)
+APPROVED SCOPE:          §15.0–§15.8, as amended by the operator's answers to QS13b-1 … QS13b-3
+FROZEN INVARIANTS:       I-1 … I-9 (§8.1); no edit to clients/protocol/**, clients/3d-spike/**, or any
+                         server, kernel, contract, System Pack or World Pack file; AC-I1 … AC-I12 as written
+APPROVED SEQUENCE:       C0 → C6 (§15.6)
+VALIDATION BUDGET:       §15.8
+ENDPOINT AUTHORITY:      implementation, semantic commits, push, PR creation/update and CI repair after
+                         freeze; merge only with explicit operator authorization
+MATERIAL STOPS:          a module edit; a server/pack change; an AC falsified; S11-B or 12d forcing more
+                         than a consumer change (RK-b2, RK-b3)
+NORMAL STOP:             PR 13b READY FOR OPERATOR REVIEW — DO NOT MERGE
+```
+
+### 15.12 Deviations and discoveries during implementation (13b session)
+
+None yet.
