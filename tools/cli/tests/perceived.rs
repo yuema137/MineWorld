@@ -11,6 +11,10 @@
 //! and each `arrived` fact's typed payload decoded with presence's published type.
 
 mod headless;
+mod support;
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::time::{Duration, Instant};
 
 use headless::{PACK, Tables, fresh, mineworld, run, stderr, stdout};
 use mineworld_contracts::{
@@ -18,10 +22,14 @@ use mineworld_contracts::{
     WorldTime,
 };
 use mineworld_persistence::{Durability, PersistentWorld, SqliteBackend, format};
+use mineworld_persistence::{PersistenceBackend, WorldRevision};
 use mineworld_presence::audience::Whereabouts;
 use mineworld_presence::{Arrived, Presence};
+use mineworld_server::ServerFrame;
 use mineworld_worldpack::WorldPack;
 use serde_json::Value;
+use serde_json::json;
+use support::{Client, Server};
 
 fn facts_of(save: &std::path::Path) -> Vec<EventEnvelope> {
     Tables::read(save)
@@ -227,4 +235,186 @@ fn the_export_is_the_log_judged_for_one_person() {
     let (ok, lines, err) = perceived(path, "nobody", &[]);
     assert!(!ok && lines.is_empty(), "an unknown person is refused");
     assert!(err.contains("'nobody' is not a person"), "{err}");
+}
+
+/// What one connection was sent, in order: perceived frames (their fact ids and cursor) and
+/// observation frames (their revision).
+#[derive(Debug)]
+enum Seen {
+    Facts(Vec<u64>, u64),
+    Observation(Option<u64>),
+}
+
+/// Reads every frame for `window`, keeping the ones the claims are about.
+async fn record(client: &mut Client, window: Duration, into: &mut Vec<Seen>) {
+    let deadline = Instant::now() + window;
+    while Instant::now() < deadline {
+        match client.frame().await {
+            ServerFrame::Perceived { through, events } => into.push(Seen::Facts(
+                events.iter().map(|e| e.envelope().id().raw()).collect(),
+                through.raw(),
+            )),
+            ServerFrame::Observation { revision, .. } => {
+                into.push(Seen::Observation(revision.map(WorldRevision::raw)));
+            }
+            _ => {}
+        }
+    }
+}
+
+fn joining(seat: &str, resume: Option<&str>, since: Value) -> Value {
+    json!({ "t": "join", "protocol": 2, "invite": support::INVITE, "nickname": "memory",
+            "seat": seat, "resume": resume, "perceived": { "since": since } })
+}
+
+/// CA-2, CA-6 and CA-12's persisted half on one recorded run of the real binary.
+///
+/// ```text
+/// CA-2   live + resumed = offline: the ids a client is sent, across a dropped socket and a resume
+///        with its cursor, are exactly `mineworld perceived --json` of the same save, up to the last
+///        cursor it was sent — no gap, no duplicate, ascending — and beyond genesis
+/// CA-6   every perceived fact recorded at revision ≤ R reached the client before any observation
+///        of revision R
+/// CA-12  on a persisted world, since: null serves from genesis
+/// ```
+#[tokio::test]
+async fn a_resumed_stream_equals_the_offline_export() {
+    let save = fresh("perceived-live-cafe");
+    let path = save.to_str().expect("a printable path").to_owned();
+    let mut server =
+        Server::start(&["server", PACK, "--town", "--save", &path, "--hold", "10"]).await;
+
+    let mut seen = Vec::new();
+    let mut first = Client::connect(server.address).await;
+    let ServerFrame::Welcome { resume, .. } =
+        first.join_as(joining("wanderer", None, Value::Null)).await
+    else {
+        panic!("welcomed");
+    };
+    let resume = resume.expect("a resume secret").reveal().to_owned();
+    record(&mut first, Duration::from_secs(20), &mut seen).await;
+    first.disconnect().await;
+    let cursor = seen
+        .iter()
+        .rev()
+        .find_map(|item| match item {
+            Seen::Facts(_, through) => Some(*through),
+            Seen::Observation(_) => None,
+        })
+        .expect("a cursor");
+
+    let mut second = Client::connect(server.address).await;
+    let welcome = second
+        .join_as(joining(
+            "wanderer",
+            Some(&resume),
+            json!(cursor.to_string()),
+        ))
+        .await;
+    assert!(
+        matches!(welcome, ServerFrame::Welcome { .. }),
+        "resumed inside the hold: {welcome:?}"
+    );
+    record(&mut second, Duration::from_secs(20), &mut seen).await;
+    second.send(json!({ "t": "leave" })).await;
+    server.kill();
+
+    let received: Vec<u64> = seen
+        .iter()
+        .filter_map(|item| match item {
+            Seen::Facts(ids, _) => Some(ids.clone()),
+            Seen::Observation(_) => None,
+        })
+        .flatten()
+        .collect();
+    let last = seen
+        .iter()
+        .rev()
+        .find_map(|item| match item {
+            Seen::Facts(_, through) => Some(*through),
+            Seen::Observation(_) => None,
+        })
+        .expect("a cursor");
+
+    let (ok, lines, err) = perceived(&path, "wanderer", &["--json"]);
+    assert!(ok, "{err}");
+    let exported: Vec<u64> = lines
+        .iter()
+        .map(|line| {
+            serde_json::from_str::<PerceivedEvent<Value>>(line)
+                .expect("a PerceivedEvent")
+                .envelope()
+                .id()
+                .raw()
+        })
+        .filter(|id| *id <= last)
+        .collect();
+    let log = facts_of(&save);
+    let genesis = |id: u64| {
+        log.iter()
+            .any(|fact| fact.id().raw() == id && *fact.caused_by() == Causation::WorldGenesis)
+    };
+    eprintln!(
+        "received {} facts, export {} up to cursor {last}, {} after genesis",
+        received.len(),
+        exported.len(),
+        exported.iter().filter(|id| !genesis(**id)).count()
+    );
+
+    // CA-2.
+    assert!(
+        received.windows(2).all(|pair| pair[0] < pair[1]),
+        "ascending, no duplicate"
+    );
+    assert_eq!(received, exported, "live + resumed = offline");
+    let later: Vec<&EventEnvelope> = log
+        .iter()
+        .filter(|fact| exported.contains(&fact.id().raw()) && !genesis(fact.id().raw()))
+        .filter(|fact| ["spoke", "arrived"].contains(&fact.event_type().as_str()))
+        .collect();
+    assert!(!later.is_empty(), "beyond genesis: a line or an arrival");
+
+    // CA-12, persisted: since null serves from genesis.
+    assert_eq!(
+        received.first(),
+        exported.first(),
+        "the first perceived fact is the first one the wanderer learned of"
+    );
+    assert!(genesis(received[0]), "and it is a genesis fact");
+
+    // CA-6.
+    let backend = SqliteBackend::open(&save, Durability::ProcessCrash).expect("opens");
+    let head = backend.head().expect("a head").raw();
+    let mut revision_of: BTreeMap<u64, u64> = BTreeMap::new();
+    for revision in 0..=head {
+        for row in backend
+            .facts_of(WorldRevision::from_raw(revision))
+            .expect("readable")
+        {
+            revision_of.insert(row.id, revision);
+        }
+    }
+    drop(backend);
+    let mut arrived: BTreeSet<u64> = BTreeSet::new();
+    let mut late = Vec::new();
+    for item in &seen {
+        match item {
+            Seen::Facts(ids, _) => arrived.extend(ids),
+            Seen::Observation(Some(revision)) => {
+                late.extend(
+                    exported
+                        .iter()
+                        .filter(|id| revision_of.get(id).is_some_and(|at| at <= revision))
+                        .filter(|id| !arrived.contains(id))
+                        .map(|id| (*id, *revision)),
+                );
+            }
+            Seen::Observation(None) => panic!("a persisted world names its revision"),
+        }
+    }
+    late.dedup();
+    assert!(
+        late.is_empty(),
+        "facts after an observation of their revision: {late:?}"
+    );
 }

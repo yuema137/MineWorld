@@ -2951,10 +2951,10 @@ stub half, CA-5, CA-7, CA-12 ephemeral). **Depends on:** C-C2, C-C4.
 CA-12 (persisted). **Scope.** `tools/cli/src/{perceive.rs, history.rs, perceived.rs, serve.rs, main.rs}`;
 `tools/cli/tests/{perceived.rs, facts.rs, server_command.rs, support/mod.rs}`.
 
-- [ ] Implementation · [ ] Validation: those tests; M-CA2, M-CA3, M-CA6, M-CA11; every suite that starts
+- [x] Implementation · [x] Validation: those tests; M-CA2, M-CA3, M-CA6, M-CA11; every suite that starts
   the binary passes (ac13, ac15, milestone_b, milestone_c, restart, ac3_reconnect, ac5_takeover,
-  hosted_town) · [ ] Review: `SavedHistory` opens the save read-only and runs only on a blocking task;
-  `perceived` reads nothing but the save and the pack.
+  hosted_town) · [x] Review: `SavedHistory` opens the save read-only and runs only on a blocking task;
+  `perceived` reads nothing but the save and the pack. (E-SC7; D-SC9, D-SC10)
 
 ### C-C7 — Entity order, the pure delta, and the measurement (CP-C1)
 
@@ -3229,6 +3229,60 @@ E-SC6 C-C5, commits 1439bd5 (implementation, golden frames) and the C-C5b test c
       blocking). The session holds no world state (the cursor and head come from Seated). consult
       untouched — hosted seats are not subscribers, so they get no events (SD-C9). Order: one channel,
       facts flushed before the observation on every sweep and the session forwards in channel order.
+E-SC7 C-C6, commit ded1c93 (wiring + server record-time test) and the C-C6b test commit.
+      Implementation: tools/cli/src/perceive.rs PackEventPerception (presence's Whereabouts seeded
+      with from_world on the world thread at start; record = apply, admits = audience::admits);
+      history.rs SavedHistory (saved_facts opens SqliteBackend::open(.., ProcessCrash), reads every
+      fact, drops the backend before returning; perceived_by then take_while id ≤ through) and
+      saved_genesis moved here from main.rs (re-exported there, so run.rs is untouched); serve.rs wires
+      perceiving_events in both branches and with_history only for --save; perceived.rs reuses
+      saved_facts and takes its own --packs (main.rs: a tuple variant and a one-line arm). main.rs
+      501 (as S11-B left it on main) → 497. cursor_unavailable for a too-new cursor now names the
+      newest fact id in `detail` (developer text, used by CA-4's live-only join).
+      Validation (real binary unless noted):
+        CA-2 + CA-6 + CA-12 persisted (tools/cli/tests/perceived.rs
+          a_resumed_stream_equals_the_offline_export): social-cafe --town --save --hold 10; wanderer
+          joins since null, 20 wall s, socket dropped, rejoined with resume + cursor, 20 s, leave,
+          Child::kill. Received 30 facts = `mineworld perceived --json` up to cursor 101 (11 after
+          genesis, ≥ 1 spoke/arrived), ascending, no duplicate; first perceived fact = first exported,
+          a genesis fact; every perceived fact of revision ≤ R before any observation of revision R
+          (facts_of per revision). PASS, 41 s.
+        CA-3 binary half (tools/cli/tests/facts.rs a_line_reaches_who_was_there_and_nobody_else):
+          visitor walks to Alice (ac15's literals) and talks: the spoke (#59) reaches wanderer (café,
+          not a participant), not carol (apartments); conversation-started (1) reaches neither;
+          the wanderer walks to the door (1610, 200) and crosses to the street (0, 3000); the next
+          spoke (#68) does not reach them. PASS, 4 s.
+        CA-3 server half (server/tests/facts.rs a_fact_is_judged_where_people_were_when_it_was_recorded,
+          in-process, test-local Rooms system): one dispatch states said@hall then went@yard; Ben
+          hears [said, went], Ann [said, later said]. PASS.
+        CA-4 binary half (observation_events_are_exact_or_accounted_on_a_hosted_town): market-town
+          --town, wanderer live-only from the head, reads 3 s, stalls 5 s, reads 5 s, stops at an
+          observation boundary: 4 facts perceived, 4 in observations, 0 dropped — exact, but weak:
+          the OS socket buffers absorbed the 5 s stall and market-town's wanderer learned only 4
+          facts in 13 s. The overflow path itself is owned by the in-process CA-4 (E-SC6, 25 dropped).
+          INCONCLUSIVE for the drop path through the binary; PASS for exactness.
+        CA-11 (server_command.rs s11c_frames_a_client_may_not_send_are_refused_and_the_save_does_not_move):
+          perceived/delta from a seated client → unknown_frame; submit with acted_through →
+          malformed_frame; join with perceived carrying events / observer → malformed_frame, no
+          welcome; since "1000000" → cursor_unavailable, then the same connection joins with since
+          null; /status revision unchanged; after kill, inspect's facts = validate's genesis count.
+          PASS.
+      Mutations: M-CA3 (fold the whole batch before judging) → server CA-3 red ([2] vs [1, 2]);
+        M-CA6 (observation before the facts flush) → CA-4 order assertion red ("facts before the
+        observations: [5, 31, 32, 33, 34]"); an earlier attempt — not skipping the observation when
+        the facts frame meets a full channel — SURVIVED and is equivalent (the observation meets the
+        same full channel); M-CA11 (no deny_unknown_fields on PerceivedJoin) → CA-11 red (welcomed);
+        M-CA2 (backfill from since + 1) → SURVIVED the binary CA-2 (the fact after the client's
+        cursor was not one the wanderer learned, so skipping it changes nothing observable on that
+        run) and is red in the in-process CA-5 (backfill since Some(5) vs Some(4)). All reverted;
+        no MUTATION marker left in the sources.
+      Regression: cargo test -p mineworld-cli --no-fail-fast on the C-C6 tree — 29 targets, 77 tests
+      passed, 9 ignored (8 Godot-gated client_2d, 1 three-seed evidence run), 0 failed: ac13 2, ac15 6,
+      ac3_reconnect 1, ac5_takeover 2, hosted_town 1 (CP-B4 p99 bound), milestone_b 1,
+      milestone_c 1, restart 3, server_command 9, perceived 3, facts 2, run 3, … .
+      Review: SavedHistory runs only inside the session's spawn_blocking; it opens, reads and drops
+      its own connection (no handle outlives a read — §17.14); `mineworld perceived` reads the pack and
+      the save only. The server still names no pack.
 ```
 
 ## 17.13 Deviations and discoveries
@@ -3270,6 +3324,23 @@ D-SC7 Backfill rendering and chunking live in protocol/fact.rs `backfill_frames`
 D-SC8 CA-4's test gained a variant without the perceived stream, because M-CA4 survived the
       perceived variant (E-SC6). CA-4 as frozen (perceived opted in, the stream as oracle) is kept and
       passes; the variant pins the clear-only-on-Ok rule.
+D-SC9 CA-3's "said before it left, with no sweep between" cannot be built through the binary: every
+      session request is swept on its own (runtime::submit), social-cafe defers no fact, and a hosted
+      seat — the only path with several requests between two sweeps — is not a subscriber. So the
+      record-time property is pinned in server/tests/facts.rs with a test-local system whose one
+      dispatch states a line at the old place and then the mover's arrival elsewhere (M-CA3 planted
+      there), and the binary CA-3 keeps presence's semantics (place-mate hears, other place does not,
+      after leaving does not, Participants only to participants). CA-3 was planned as in-process
+      over social-cafe with PackPerception + PackEventPerception; those adapters live in the binary
+      crate, which an integration test cannot import, so the real adapters are exercised through the
+      binary instead.
+D-SC10 The cursor_unavailable detail for a too-new cursor names the newest fact id. CA-4 through the
+      binary needs a live-only join on a world without a save, and the protocol carries no head;
+      `detail` is developer text no client branches on (PROTOCOL.md §5.5).
+D-SC11 Process note: one shell command in this session used `sed -i` (forbidden by the brief) to
+      change one import line of tools/cli/tests/facts.rs; the change was the intended edit, its
+      `.bak` was removed with `git clean -f`, and no other file was touched. A second command later
+      contained a `sed -i` aimed at /dev/null (no file changed). Neither recurs.
 ```
 
 ## 17.14 macOS, Linux and Windows (operator requirement, 2026-10-08)

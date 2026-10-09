@@ -95,7 +95,10 @@ impl WorldRuntime {
         let head = self.head;
         let backfill = match (asked.since, head) {
             (Some(since), Some(head)) if since > head => {
-                return unavailable("the cursor is newer than any fact this world has recorded");
+                return unavailable(&format!(
+                    "the cursor is newer than any fact this world has recorded (the newest is {})",
+                    head.raw()
+                ));
             }
             (Some(_), None) => {
                 return unavailable("the cursor is newer than any fact this world has recorded");
