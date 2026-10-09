@@ -2730,6 +2730,26 @@ to QS-54 below.
 two lines in `systems/installed` and a rebuild (`ARC-33`); without a rebuild is `ARC-8`'s Tier 1,
 outside MVP-0. The evidence is recorded in step-10 §9.6.
 
+**Note, 2026-10-09 (S19, PR TW-a; step-19 §16.9 TWa-F1) — generic packs after the market.** The
+operator ruled on TW-a's material stop (2026-10-09, option (i)): Market Town may enable generic packs,
+named on an explicit allow-list, after the six market packs, through configuration. **The claim is
+unchanged: the market delta is measured exactly.** Check 3 (item 4, as note 11f item 5 reads it) now
+reads:
+
+1. `systems` is Social Café's list, in order, then exactly the six market packs (as a set), then only
+   packs on the allow-list, each once. An allow-listed pack anywhere before the end of the six, and any
+   pack after the six that is not on the list, is refused, naming the pack.
+2. `configure` is absent in Social Café. In Market Town it is absent or lists only allow-listed packs
+   that `systems` enables; `configure/` exists in Market Town only and holds only their files.
+3. Every other part of check 3 is unchanged: an allow-listed pack adds no section to a person or place
+   file, because only a market pack's sections are admitted there.
+
+The allow-list is `GENERIC_PACKS` in `tests/acceptance/tests/ac1_composability.rs`. It is
+`["calendar"]` (`ARC-67`, `DEP-30`). Weather and any later generic pack are added by their own PRs, each
+with its own review. A pack is generic when it is neither Social Café's nor the market's: a calendar is
+a world's date and sun, not a market. Checks 1 and 2 are untouched: the two merges, the lock rule and the
+dependency structure still measure the market and nothing else. A test holds both refusals.
+
 ---
 
 ## ARC-36 — An authored Item is a kind; items and organizations are content kinds of a World Pack
@@ -4044,6 +4064,66 @@ one resumes, which yields a whole observation.
 
 ---
 
+## ARC-44 — The admin surface is HTTP behind a bearer token, mounted only when configured, and changes no world state
+
+**Date** 2026-10-08 · **Status** accepted; implemented in S11 PR S11-D · **Approved by** the primary
+session at S11-D's design freeze (step-12 §18, QS11D-1 … QS11D-8; QS11D-3 by the operator) · **Relates
+to** `ARC-40`, `ARC-41`, `DEP-14`, `INV-9`, [`NETWORKING.md`](NETWORKING.md) §§3, 5, 9 · **Design**
+`.structured-coding/plans/mvp0/step-12-server.md` §§4.9, 7.6, 18;
+[`step-19-time-weather.md`](../.structured-coding/plans/mvp0/step-19-time-weather.md) §§7.2–7.4, 15.3 ·
+**Specification** [`server/PROTOCOL.md`](../server/PROTOCOL.md) §§5.9, 11
+
+**Problem.** An operator could see a hosted world only through `/status`: not who is connected, not who
+drives which seat, and not how to remove a misbehaving player or pause the town. S19 needs a host-only
+pause, and a `clock` announcement so clients re-anchor their time display. None of this may give a
+client a new way to change the world, and none of it may make the invite a host credential.
+
+**Choice.**
+- **HTTP on the control plane, never a socket frame.** `server/src/admin.rs` serves `GET
+  /admin/sessions`, `GET /admin/seats`, `POST /admin/sessions/{session}/kick`, `POST
+  /admin/seats/{seat}/release`, `GET /admin/clock` and `POST /admin/clock` (`{ "paused": bool }`), each
+  body typed and denying unknown fields. The client vocabulary stays `join`, `submit`, `leave` (`INV-9`):
+  a socket frame `pause`, `clock`, `kick` or `release` is `unknown_frame`.
+- **Mounted only when configured.** With `--admin-token` / `MINEWORLD_ADMIN_TOKEN` the routes exist;
+  without it every `/admin` path is `404`. One bearer token, compared in constant time with `DEP-14`'s
+  `subtle`; every failure answers `401` no sooner than 500 ms after the request, in that request's task.
+  The token follows the invite's rules, is never printed, is in no save, frame or `/status`, and must
+  differ from the invite.
+- **No world state.** Kick, release, pause and resume are host state (`ARC-40`): never journaled, no fact,
+  no revision. A kick or release returns the seat to its default with no hold, and the displaced
+  connection is told `closing { kicked }`. **Pause is host pacing**: the host clock is a segment that
+  stops where it stands and continues from there on resume (monotonic and jump-free); while paused the
+  world is not advanced, hosted controllers are not consulted and every `submit` is refused `paused`
+  before an `ActionId` is allocated; observers stay connected. This is S19's clarification of I-4: a
+  route may change the pacing of the clock, never its value — **no route and no field names an
+  instant**.
+- **Telling clients.** `WorldSummary.paused`, and a `clock { at, time_scale, paused }` frame after
+  `welcome` and on every change, carried by a `tokio::sync::watch` channel the world thread writes —
+  newest wins, never dropped, never waited on.
+- **The live scale change is TW-c's.** `POST /admin/clock` carrying `time_scale` answers `409
+  time_scale_fixed` until TW-c lands it with the hosted-cadence rescheduling and the host journal it
+  needs. S19's record of pause and scale as host commands (its placeholder ARC-69) remains TW-c's.
+
+**Options considered.** (a) HTTP routes on the existing axum router — chosen: the control plane
+`NETWORKING.md` §3 names, testable with any HTTP client, no new dependency. (b) Admin frames on the
+WebSocket — rejected: it widens the client vocabulary and puts host commands one field away from player
+commands. (c) A separate gRPC admin service (`tonic`) — rejected: a second protocol stack and listener for
+six routes. (d) `axum-extra`'s `TypedHeader` for the bearer header — rejected: two crates to read one
+header, which is about fifteen lines with `HeaderMap`.
+
+**Limitations accepted (MVP-0).**
+- **One admin token, one level of host trust.** Whoever holds it is the host (the operator, or a
+  single-player launcher that generated one for its own client).
+- **No ban list** (QS11D-3, operator): a kicked player may rejoin at once with the invite, because there
+  is no per-player identity. To remove someone for good, rotate the invite (restart with a new
+  `--invite`).
+- **A pause is not persisted** until TW-c's host journal: a server restarted while paused runs. Holds are
+  wall time and still end during a pause.
+- **Unbounded parallel wrong-token requests** each wait 500 ms but are not counted; rate limiting is the
+  adopt route for public hosting (`DEP-14`).
+
+---
+
 ## ARC-53 — A pack's identity is stated once, where the pack already states who it is
 
 **Date** 2026-10-08 · **Approved by** the primary session at PR E-a's design freeze (step-16 §14.0;
@@ -4812,3 +4892,117 @@ only those; if the helper is ever replaced (by `tempfile` or otherwise), only th
   `check_scratch.py left` reports it.
 - Revisit if test scratch must live outside `target/` in a shared, world-writable directory, where
   `tempfile`'s secure creation matters.
+
+---
+
+## ARC-67 — Two time domains: `WorldTime` is calendar time; embodied time is not a world quantity
+
+**Date** 2026-10-08 · **Approved by** the operator (requirements of 2026-10-08, rulings QTW-1, QTW-2,
+QTW-5, QTW-9, QTW-13) and the primary session at PR TW-a's design freeze · **Implements**
+[`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §17 · **Relates to** `ARC-26`, `ARC-27`, `ARC-28`, `ARC-61`,
+`ARC-68` (calendar and weather packs, TW-b), `ARC-69` (pause and scale, TW-c), `DEP-6`, `DEP-30` ·
+**Design** `.structured-coding/plans/mvp0/step-19-time-weather.md` §4, §15.1 (S19)
+
+**Problem.** The operator asked for a town whose day passes faster than a real day — a real 24 hours
+mapped onto 4, 2 or 1 real hours (6×, 12×, 24×; 12× by default), changeable live, and pausable — and
+fixed what the speed may and may not touch: it changes the rate of weather and of world events (the
+calendar, day and night, the sun, schedules, shifts, wages), and it must **not** change how fast a
+character walks, animates, falls or talks. The kernel already has one clock, `WorldTime`, and states
+that "how fast a hosted world's seconds pass in real time is the host's decision" (`kernel/src/clock.rs`).
+The question is how the two kinds of time relate without the kernel learning what a day is.
+
+**Choice.**
+
+1. **Calendar time is `WorldTime`**, unchanged: the world's one clock, whole simulated seconds from the
+   epoch. Every fact, Process wake-up and `Observation.at` is stamped in it, and the calendar, the sun,
+   weather, routines, shifts, wages and every calendar-driven Process are functions of it.
+2. **Embodied time is not a world quantity.** It is real (wall-clock) time as a body experiences it:
+   how fast a player walks, how long a line takes to type, how long an animation or a physics impulse
+   plays. No fact, component, Process or rule carries it. It exists only as the cadence at which
+   embodied inputs arrive at the server: a human's client sends requests at human speed, the host
+   consults a hosted controller every *cadence* wall seconds, and a client animates at frame rate. A
+   per-request rule (a stride, an impulse, a spoken line) is resolved at the instant its request
+   arrives, so the scale cannot reach it.
+3. **Time scale and paused are host pacing.** The time scale is world seconds per wall second while a
+   hosted world runs (an integer ≥ 1); paused is the host state in which world seconds do not pass. The
+   host turns wall time into the instant it advances the world to; the event queue fires what is due on
+   the way. Neither is world state: no System Pack, controller decision or fact reads either
+   (`INV-TW-2`). Their changes are host records in a host journal, never facts (`ARC-69`, TW-c).
+4. **Consequence: hosted consult cadence is in wall seconds** (QTW-13, ruled by the operator; it reverses
+   QS11B-4 for consult cadence). Headless `run` has no scale and no wall clock: it is unchanged, and its
+   output for a world without the time packs is byte-identical.
+
+**Alternatives rejected** (step-19 §4.2).
+- *Two kernel clocks with a ratio:* the kernel would learn a day, every Process would have to say which
+  clock it uses, and persistence would reconcile two timelines — kernel ignorance and change
+  amplification both fail.
+- *Each pack multiplies its durations by the scale:* packs would read host state; a rule that depends on
+  the host is a determinism and ownership defect, and headless and hosted runs would diverge.
+- *Embodied actions take world durations divided by the scale:* movement is per request and not
+  modelled in world time (`ARC-26`); inventing durations only to cancel the scale is the coupling the
+  operator asked to avoid.
+
+**Accepted limitations.** World-time constants that a human answers in practice — conversation's
+300 s gap, group-activity's 1 800 s invitation lifetime — become short in wall time at 12–24×. They stay
+calendar time by this decision's rule; making them configurable content is QTW-15 (IL-b). FX-24
+(step-19 §9.2) measures whether agendas remain feasible at 24×; its remedies are content, never a
+controller that reads the scale.
+
+---
+
+## DEP-30 — Solar position: `solar-positioning` with `libm`, behind a private seam; civil dates built
+
+**Date** 2026-10-08 · **Status** selected; one dependency added to `systems/calendar` only · **Approved
+by** the primary session at PR TW-a's design freeze (SD-TW-a-1, SD-TW-a-6, SD-TW-a-7; §16.8 (a)) ·
+**Relates to** `ARC-67`, `REUSE_POLICY.md` §§11–12 · **Design**
+`.structured-coding/plans/mvp0/step-19-time-weather.md` §3.1, §5.4, §16 (S19, PR TW-a)
+
+**Problem.** The `calendar` System Pack must say, for a configured latitude and longitude, where the
+sun is at any instant and when the day's light events fall (astronomical and civil dawn, sunrise, solar
+noon, sunset, civil and astronomical dusk), including polar days and nights. It must also turn an
+instant into a civil date and weekday. Every result enters facts, so it must be the same integers on
+every platform.
+
+**Options considered** (read 2026-10-08; the full table is step-19 §3.1).
+
+```text
+solar position
+  (a) solar-positioning 0.7.0 — MIT; NREL SPA and Grena3; azimuth, zenith, rise, set, transit, every
+      twilight; numeric Julian-date API with no chrono and no heap; `libm` feature; pre-1.0
+  (b) NOAA Solar Calculator equations (Meeus), ~100 lines of our own
+  (c) NREL SPA C reference code — not freely redistributable
+  (d) sunrise 3.0 — rise and set only, no elevation or azimuth; chrono
+  (e) spa 0.5 — not NREL's SPA despite its name; stale
+  (f) sun 0.3, astro 2.0 — low accuracy or abandoned
+civil dates
+  (g) chrono or time — mature, but heavier than the two functions the pack needs
+  (h) H. Hinnant's public-domain integer algorithms days_from_civil / civil_from_days, ~25 lines
+```
+
+**Choice: (a) and (h).**
+- `solar-positioning = { version = "=0.7.0", default-features = false, features = ["libm"] }`, an exact
+  pin, in `systems/calendar/Cargo.toml` only. With `libm` and without `std` the crate's transcendental
+  functions are the pure-Rust `libm`'s, not the platform's, so the same inputs give the same bits on
+  every host. The lock gains `solar-positioning` alone (`libm` 0.2.16 is already locked).
+- Civil dates are (h), in `systems/calendar/src/civil.rs`, citing their source.
+
+**Why not the others.** (b) is the fallback, kept ready: it would be ours to maintain and test for no gain
+in fit. (c) fails the licence rule. (d) cannot light a scene. (e) and (f) are less accurate, stale or
+dead. (g) would add a dependency for two integer functions and a weekday; formatting a date is a
+client's job.
+
+**Isolating interface.** `systems/calendar/src/sun.rs` is the only file that names the crate:
+`sun_at(…) -> SunSample` and `day_events(…) -> DayEvents`, both returning integers (millidegrees,
+whole seconds; round half away from zero). If the pre-1.0 API churns or the crate is withdrawn, the same
+two functions are re-implemented from (b) without touching anything else.
+
+**Determinism and its guard.** Every output is quantized to integers before it reaches a fact, a
+Process state or a disclosure. A test pins three exact `SunSample` integers (San Diego at 12:00 and
+18:00 local on 2026-10-08, 78° N at winter-solstice noon). A change to any of them — a dependency bump,
+a platform difference at a rounding boundary — fails the test and is a material stop, never a re-golden.
+
+**Accepted limitations.** The library is pre-1.0 and its README warns the API may change: the exact pin
+holds it. Delta T comes from the library's own estimate at the middle of the day's month, so it is fixed
+per month, not observed. A day is searched for its first rise and first set of each horizon; at polar
+latitudes on the few days with two crossings of one horizon, the second is not an event that day and
+the next day's opening phase corrects the light.

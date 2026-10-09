@@ -73,9 +73,30 @@ impl Server {
             command
                 .args(arguments)
                 .args(invite)
-                .env_remove("MINEWORLD_INVITE");
+                .env_remove("MINEWORLD_INVITE")
+                .env_remove("MINEWORLD_ADMIN_TOKEN");
         };
         Self::launch(configure, false).await.0
+    }
+
+    /// Like [`Server::start`] (the test invite unless the arguments name one), with these extra
+    /// environment variables, keeping everything the server prints in memory (step-12 DA-9).
+    pub async fn start_with_env(arguments: &[&str], env: &[(&str, &str)]) -> (Self, Captured) {
+        let invite: &[&str] = if arguments.contains(&"--invite") {
+            &[]
+        } else {
+            &["--invite", INVITE]
+        };
+        let configure = |command: &mut Command| {
+            command
+                .args(arguments)
+                .args(invite)
+                .env_remove("MINEWORLD_INVITE")
+                .env_remove("MINEWORLD_ADMIN_TOKEN")
+                .envs(env.iter().copied());
+        };
+        let (server, captured) = Self::launch(configure, true).await;
+        (server, captured.expect("captured output"))
     }
 
     /// Starts the binary on a free port and waits until it answers.
@@ -139,7 +160,10 @@ impl Server {
     /// that read what the server prints (step-12 §15.4 SA-3, SA-5). Nothing is written to disk.
     pub async fn start_captured(arguments: &[&str], invite_env: Option<&str>) -> (Self, Captured) {
         let configure = |command: &mut Command| {
-            command.args(arguments).env_remove("MINEWORLD_INVITE");
+            command
+                .args(arguments)
+                .env_remove("MINEWORLD_INVITE")
+                .env_remove("MINEWORLD_ADMIN_TOKEN");
             if let Some(invite) = invite_env {
                 command.env("MINEWORLD_INVITE", invite);
             }
@@ -297,6 +321,67 @@ pub async fn get(address: SocketAddr, path: &str) -> Option<String> {
     response.contains(" 200 ").then_some(response)
 }
 
+/// One HTTP answer from the admin surface: its status and its JSON body (`Null` if none).
+pub struct HttpAnswer {
+    pub status: u16,
+    pub body: Value,
+}
+
+/// One HTTP request to `path`, with `Authorization: Bearer <token>` when a token is given and a JSON
+/// body for a `POST` — the admin surface's request helper (step-12 §19.2).
+pub async fn admin(
+    address: SocketAddr,
+    method: &str,
+    path: &str,
+    token: Option<&str>,
+    body: &str,
+) -> HttpAnswer {
+    let mut socket = TcpStream::connect(address).await.expect("connects");
+    let mut request =
+        format!("{method} {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n");
+    if let Some(token) = token {
+        request.push_str(&format!("Authorization: Bearer {token}\r\n"));
+    }
+    if method == "POST" {
+        request.push_str(&format!(
+            "Content-Type: application/json\r\nContent-Length: {}\r\n",
+            body.len()
+        ));
+    }
+    request.push_str("\r\n");
+    if method == "POST" {
+        request.push_str(body);
+    }
+    socket
+        .write_all(request.as_bytes())
+        .await
+        .expect("the request is sent");
+    let mut response = String::new();
+    socket
+        .read_to_string(&mut response)
+        .await
+        .expect("the response is read");
+    let status = response
+        .split_whitespace()
+        .nth(1)
+        .and_then(|code| code.parse().ok())
+        .unwrap_or_else(|| panic!("an HTTP status line: {response}"));
+    let text = response.split_once("\r\n\r\n").map_or("", |(_, body)| body);
+    HttpAnswer {
+        status,
+        body: serde_json::from_str(text.trim()).unwrap_or(Value::Null),
+    }
+}
+
+/// Whether a frame belongs to the stream a seated connection is sent unasked — an observation, or a
+/// `clock` (`PROTOCOL.md` §5.9) — rather than answering something it said.
+pub fn streamed(frame: &ServerFrame) -> bool {
+    matches!(
+        frame,
+        ServerFrame::Observation { .. } | ServerFrame::Clock { .. }
+    )
+}
+
 /// The body of an HTTP response, as JSON.
 pub fn body(response: &str) -> Value {
     let body = response
@@ -391,7 +476,7 @@ impl Client {
                     assert_eq!(echoed.as_str(), token, "an answer carries its own token");
                     return (action_id, result);
                 }
-                ServerFrame::Observation { .. } => continue,
+                frame if streamed(&frame) => continue,
                 other => panic!("a submission is answered or refused: {other:?}"),
             }
         }
@@ -409,7 +494,7 @@ impl Client {
         loop {
             match self.frame().await {
                 ServerFrame::Refused { code, .. } => return code,
-                ServerFrame::Observation { .. } => continue,
+                frame if streamed(&frame) => continue,
                 other => panic!("expected this frame to be refused: {other:?}"),
             }
         }
@@ -521,11 +606,11 @@ impl Client {
         }
     }
 
-    /// The next frame that is not an observation.
+    /// The next frame that is not part of the stream (an observation or a clock).
     pub async fn answer(&mut self) -> ServerFrame {
         loop {
             let frame = self.frame().await;
-            if !matches!(frame, ServerFrame::Observation { .. }) {
+            if !streamed(&frame) {
                 return frame;
             }
         }

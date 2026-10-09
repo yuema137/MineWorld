@@ -2,7 +2,7 @@
   "session": "7", "resume": "5f0c2a9e8d7b6c5a4f3e2d1c0b9a8f7e", "hold_seconds": 30,
   "took_over": "hosted",
   "world": { "protocol": 2, "instance": "1a2b3c4d5e6f70819293a4b5c6d7e8f9", "at": 4112,
-             "time_scale": 1, "entities": 41,
+             "time_scale": 1, "paused": false, "entities": 41,
              "systems": [ { "system": "conversation", "enabled": true, "provides": [ "talk" ],
                             "states": [ "spoke", "conversation-started" ] } ],
              "seats": [ "visitor", "wanderer", "alice" ], "clients": 2,

@@ -2,6 +2,7 @@
 //!
 //! ```text
 //! HTTP        /health, /status            control and status
+//! HTTP        /admin/…                    the host's surface, behind a bearer token (ARC-44)
 //! WebSocket   /ws                         per-observer observations out, ActionRequests in
 //! ```
 //!
@@ -23,8 +24,9 @@
 //! # The shape of it
 //!
 //! ```text
-//! admission   who may join: the invite, the offered invite, the nickname
-//! app         the router: /health, /status, /ws
+//! admission   who may join: the invite, the offered invite, the nickname, the admin token
+//! app         the router: /health, /status, /ws, and /admin when an admin token is given
+//! admin       the admin surface: sessions, seats, kick, release, pause and resume (ARC-44)
 //! parity      AC-13's comparison: what it means for two clients to ask the same thing
 //! session     one client's conversation: join, then observations out and requests in
 //! host        WorldHost — the handle, the seats, and the thread a World must live on
@@ -67,6 +69,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod admin;
 pub mod admission;
 pub mod app;
 pub mod host;
@@ -79,12 +82,13 @@ pub mod seats;
 mod session;
 
 pub use admission::{
-    Admission, AdmissionError, InviteToken, Nickname, OfferedInvite, OfferedResume, ResumeSecret,
-    UNAUTHORIZED_DELAY, Unauthorized,
+    AdminToken, Admission, AdmissionError, InviteToken, Nickname, OfferedInvite, OfferedResume,
+    ResumeSecret, UNAUTHORIZED_DELAY, Unauthorized,
 };
+pub use app::Access;
 pub use host::{
     Backfill, HostConfig, HostError, HostedWorld, Observations, Perceived, PerceivedStart,
-    SeatRoster, Seated, Streamed, Submitted, SubscriptionId, WireFact, WorldHost,
+    SeatRoster, Seated, Streamed, Streams, Submitted, SubscriptionId, WireFact, WorldHost,
 };
 pub use hosted::{HostedAnswer, HostedController, HostedFactory};
 pub use mineworld_persistence::WorldRevision;
@@ -94,8 +98,8 @@ pub use perception::{
     Perception, PerceptionContext,
 };
 pub use protocol::{
-    ClientFrame, ClosingReason, CorrelationToken, PROTOCOL_VERSION, PayloadForm, PerceivedJoin,
-    ProtocolError, Refusal, RefusalCode, ServerFrame, SessionId, SystemSummary, TookOver,
-    WireObservation, WirePayload, WorldInstanceId, WorldSummary, wire_fact,
+    ClientFrame, ClockState, ClosingReason, CorrelationToken, PROTOCOL_VERSION, PayloadForm,
+    PerceivedJoin, ProtocolError, Refusal, RefusalCode, ServerFrame, SessionId, SystemSummary,
+    TookOver, WireObservation, WirePayload, WorldInstanceId, WorldSummary, wire_fact,
 };
-pub use seats::{Departure, JoinRequest};
+pub use seats::{Departure, JoinRequest, SeatReport, SeatState};

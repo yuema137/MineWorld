@@ -99,6 +99,9 @@ pub struct WorldSummary {
     /// How many world seconds pass per wall second while the world is hosted (an integer ≥ 1). A
     /// deployment setting, not world state.
     pub time_scale: u32,
+    /// Whether the host has paused the world's clock (`PROTOCOL.md` §5.9). Pacing, like
+    /// `time_scale`, and public for the same reason.
+    pub paused: bool,
     /// How many entities the world has allocated.
     pub entities: usize,
     /// The systems this world is composed of, in registration order.
@@ -127,6 +130,29 @@ pub struct WorldSummary {
     /// The world's persisted head — the last revision committed to its save — or `None` for a world
     /// that is not persisted (`PROTOCOL.md` §5, `docs/DECISIONS.md` `ARC-25`).
     pub revision: Option<WorldRevision>,
+}
+
+/// How the host is pacing the world's clock: what a `clock` frame and `GET /admin/clock` say
+/// (`PROTOCOL.md` §§5.9, 11.2). Host state, never world state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClockState {
+    /// The world's instant as of this state.
+    pub at: WorldTime,
+    /// World seconds per wall second.
+    pub time_scale: u32,
+    /// Whether the clock is stopped.
+    pub paused: bool,
+}
+
+impl ClockState {
+    /// The `clock` frame that announces this state.
+    pub const fn into_frame(self) -> super::ServerFrame {
+        super::ServerFrame::Clock {
+            at: self.at,
+            time_scale: self.time_scale,
+            paused: self.paused,
+        }
+    }
 }
 
 /// One installed system, as a status answer names it.

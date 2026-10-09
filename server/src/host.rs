@@ -62,12 +62,12 @@ use crate::perception::{
     EventPerception, PerceivedHistory, PerceivesNoEvents, PerceivesNothing, Perception,
 };
 use crate::protocol::{PerceivedJoin, Refusal, RefusalCode, SessionId, WorldSummary};
-use crate::runtime::WorldRuntime;
+use crate::runtime::{ControlAnswer, ControlCommand, WorldRuntime};
 use crate::seats::{Departure, JoinRequest};
 
 pub use handles::{
-    Backfill, Observations, Perceived, PerceivedStart, Seated, Streamed, Submitted, SubscriptionId,
-    WireFact,
+    Backfill, Observations, Perceived, PerceivedStart, Seated, Streamed, Streams, Submitted,
+    SubscriptionId, WireFact,
 };
 pub(crate) use handles::{Binding, SubscriptionIdSource};
 
@@ -300,6 +300,11 @@ pub(crate) enum Command {
     },
     /// Send every connected client a fresh observation.
     Sweep,
+    /// One admin command (`PROTOCOL.md` §11): host state only.
+    Control {
+        command: ControlCommand,
+        reply: oneshot::Sender<ControlAnswer>,
+    },
     /// Stop the world thread, answering once it has checkpointed and reported.
     Shutdown(oneshot::Sender<()>),
 }
@@ -451,6 +456,20 @@ impl WorldHost {
         let _ = self
             .commands
             .try_send(Command::Leave(subscription, departure));
+    }
+
+    /// Asks the world thread one admin command and waits for its answer. Called only by the admin
+    /// surface, after its permission check (`PROTOCOL.md` §11).
+    pub(crate) async fn control(
+        &self,
+        command: ControlCommand,
+    ) -> Result<ControlAnswer, HostError> {
+        let (reply, answer) = oneshot::channel();
+        self.commands
+            .send(Command::Control { command, reply })
+            .await
+            .map_err(|_| HostError::WorldStopped)?;
+        answer.await.map_err(|_| HostError::WorldStopped)
     }
 
     /// Stops the world thread and returns once it has. A world that is not persisted goes with it;

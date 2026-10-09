@@ -25,6 +25,7 @@
 //! journal, a fact or a save. The fixed delay before an `unauthorized` answer is slept here too: it
 //! holds up this connection and nothing else.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::extract::ws::{CloseFrame, Message, WebSocket, close_code};
@@ -32,8 +33,9 @@ use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use tokio::time::Instant;
 
+use crate::admin::registry::{Joined, Registered, Registry};
 use crate::admission::{Admission, Nickname, OfferedInvite, OfferedResume, UNAUTHORIZED_DELAY};
-use crate::host::{Backfill, Seated, Streamed, SubscriptionId, WorldHost};
+use crate::host::{Backfill, Seated, Streamed, Streams, SubscriptionId, WorldHost};
 use crate::protocol::{
     ClientFrame, ClosingReason, PROTOCOL_VERSION, PerceivedJoin, Refusal, RefusalCode, ServerFrame,
     SessionId, backfill_frames, delta, into_kernel_request,
@@ -84,6 +86,8 @@ pub(crate) struct Connection {
     pub(crate) admission: std::sync::Arc<Admission>,
     /// Which connection this is.
     pub(crate) session: SessionId,
+    /// Where a seated connection is listed for the admin surface.
+    pub(crate) registry: Arc<Registry>,
 }
 
 /// Runs one connection to completion, then releases its subscription.
@@ -95,6 +99,12 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
         return;
     };
 
+    let joined = Joined {
+        nickname: nickname.clone(),
+        seat: seated.seat().clone(),
+        observer: seated.observer(),
+        connected_at: unix_seconds(),
+    };
     let welcome = ServerFrame::Welcome {
         protocol: PROTOCOL_VERSION,
         seat: seated.seat().clone(),
@@ -106,8 +116,11 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
         took_over: seated.took_over(),
         world: seated.world().clone(),
     };
+    // The welcome, then the clock as it stood at the welcome (`PROTOCOL.md` §5.9), then the perceived
+    // backfill (§5.8), then the stream.
+    let clock = seated.clock_at_welcome().into_frame();
     let mut said = send(&mut outgoing, &welcome).await;
-    for frame in &backfill {
+    for frame in std::iter::once(&clock).chain(&backfill) {
         if said.is_err() {
             break;
         }
@@ -115,7 +128,18 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
     }
     drop(backfill);
     let ending = if said.is_ok() {
-        stream(&mut outgoing, &mut incoming, &connection.host, &mut seated).await
+        let listed = connection.registry.register(connection.session, joined);
+        let ending = stream(
+            &mut outgoing,
+            &mut incoming,
+            &connection.host,
+            &mut seated,
+            &listed,
+        )
+        .await;
+        // Off the admin surface as soon as the stream ends — before the closing handshake.
+        drop(listed);
+        ending
     } else {
         Ending::Gone
     };
@@ -313,11 +337,16 @@ async fn stream(
     incoming: &mut Incoming,
     host: &WorldHost,
     seated: &mut Seated,
+    listed: &Registered,
 ) -> Ending {
     let observer = seated.observer();
     let subscription = seated.subscription();
     let mut encoder = delta::Encoder::new(seated.keyframe_every());
-    let (observations, released) = seated.streams();
+    let Streams {
+        observations,
+        released,
+        clock,
+    } = seated.streams();
 
     loop {
         let frame = tokio::select! {
@@ -340,11 +369,19 @@ async fn stream(
                     },
                     // Whole at keyframes, a delta otherwise; entities in id order (§§5.2, 5.3).
                     Streamed::Observation(perceived) => encoder.frame(
+                        listed.next_seq(),
                         perceived.revision,
                         perceived.acted_through,
                         perceived.observation,
                     ),
                 }
+            }
+            changed = clock.changed() => {
+                // The world thread holds the sender for as long as it runs.
+                if changed.is_err() {
+                    return released.try_recv().map_or(Ending::WorldStopped, Ending::Released);
+                }
+                clock.borrow_and_update().into_frame()
             }
             received = receive(incoming) => match received {
                 Received::Gone => return Ending::Gone,
@@ -469,6 +506,14 @@ async fn send(outgoing: &mut Outgoing, frame: &ServerFrame) -> Result<(), Connec
         .send(Message::Text(text.into()))
         .await
         .map_err(|_| ConnectionGone)
+}
+
+/// Wall-clock Unix seconds, for `connected_at` on the admin surface — host state, never a
+/// `WorldTime`.
+fn unix_seconds() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs())
 }
 
 /// The connection ended while the server was writing to it.

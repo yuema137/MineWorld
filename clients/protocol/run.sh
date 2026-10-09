@@ -14,6 +14,8 @@
 #                         `mineworld perceived` after it stops              (checks/perceived_check.gd)
 #   ./run.sh deltas       headless: every golden delta case, then 60 s of live deltas against
 #                         worlds/market-town --town                         (checks/delta_check.gd)
+#   ./run.sh admin       headless: the clock frame, pause, resume and kick through the admin surface,
+#                         with a generated MINEWORLD_ADMIN_TOKEN           (checks/admin_check.gd)
 #
 # It starts `mineworld server worlds/social-cafe --agent alice` itself, on a port of 127.0.0.1 the
 # operating system chooses, and stops it afterwards — only the server it started, by its own PID, so
@@ -198,6 +200,25 @@ deltas)
 	stop_server
 	grep '^\[check\]' "$here/evidence/deltas-market-town.log"
 	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/deltas-market-town.log" && outcome=1
+	exit "$outcome"
+	;;
+admin)
+	# The admin surface and the clock frame from the far side (step-12 DA-10). A fresh admin token,
+	# made here and handed to the server and the check through the environment — the launcher path —
+	# so it is in no argument list, no log and no evidence file.
+	MINEWORLD_ADMIN_TOKEN="run-sh-admin-$$-$RANDOM$RANDOM"
+	export MINEWORLD_ADMIN_TOKEN
+	: > "$here/evidence/server-admin.log"
+	start_server "$here/evidence/server-admin.log"
+	godot --headless --path "$here" --script res://checks/admin_check.gd -- \
+		--address "$address" --seat visitor --invite "$invite" \
+		> "$here/evidence/admin-social-cafe.log" 2>&1
+	outcome=$?
+	stop_server
+	grep '^\[check\]' "$here/evidence/admin-social-cafe.log"
+	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/admin-social-cafe.log" && outcome=1
+	grep -l -- "$MINEWORLD_ADMIN_TOKEN" "$here/evidence/server-admin.log" "$here/evidence/admin-social-cafe.log" \
+		&& { echo "the admin token reached an evidence file" >&2; outcome=1; }
 	exit "$outcome"
 	;;
 play)

@@ -29,7 +29,8 @@ use super::WorldRuntime;
 use crate::host::{Backfill, Perceived, PerceivedStart, Streamed, SubscriptionId, WireFact};
 use crate::perception::PerceptionContext;
 use crate::protocol::{
-    ClosingReason, PayloadForm, PerceivedJoin, Refusal, RefusalCode, report_not_json, wire_fact,
+    ClosingReason, PayloadForm, PerceivedJoin, Refusal, RefusalCode, SessionId, report_not_json,
+    wire_fact,
 };
 use crate::seats::Departure;
 
@@ -37,7 +38,11 @@ use crate::seats::Departure;
 /// to tell it that it no longer holds its seat, and what is waiting for it.
 pub(super) struct Subscriber {
     pub(super) subscription: SubscriptionId,
+    /// Which connection, for the admin surface's per-session counts.
+    pub(super) session: SessionId,
     pub(super) observer: EntityId,
+    /// Observations dropped because this connection was not reading.
+    pub(super) dropped: u64,
     pub(super) observations: mpsc::Sender<Streamed>,
     pub(super) released: oneshot::Sender<ClosingReason>,
     /// Facts learned since the last observation this connection was sent, oldest first.
@@ -58,7 +63,7 @@ struct Perceiving {
 impl Subscriber {
     /// A newly seated connection; `perceiving` from `head` when its join asked for the stream.
     pub(super) fn new(
-        subscription: SubscriptionId,
+        (subscription, session): (SubscriptionId, SessionId),
         observer: EntityId,
         streams: (mpsc::Sender<Streamed>, oneshot::Sender<ClosingReason>),
         perceiving: Option<Option<EventId>>,
@@ -66,7 +71,9 @@ impl Subscriber {
         let (observations, released) = streams;
         Self {
             subscription,
+            session,
             observer,
+            dropped: 0,
             observations,
             released,
             events: VecDeque::new(),
@@ -244,6 +251,7 @@ impl WorldRuntime {
                     Ok(()) => perceiving.pending.clear(),
                     Err(mpsc::error::TrySendError::Full(_)) => {
                         dropped += 1;
+                        subscriber.dropped += 1;
                         continue;
                     }
                     Err(mpsc::error::TrySendError::Closed(_)) => {
@@ -272,7 +280,10 @@ impl WorldRuntime {
                     observation,
                 })) {
                 Ok(()) => subscriber.events.clear(),
-                Err(mpsc::error::TrySendError::Full(_)) => dropped += 1,
+                Err(mpsc::error::TrySendError::Full(_)) => {
+                    dropped += 1;
+                    subscriber.dropped += 1;
+                }
                 Err(mpsc::error::TrySendError::Closed(_)) => closed.push(subscriber.subscription),
             }
         }

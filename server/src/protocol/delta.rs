@@ -21,8 +21,10 @@ use serde_json::Value;
 use super::WireObservation;
 
 /// What changed between two observations of one observer (`PROTOCOL.md` §5.3).
+///
+/// Read by clients, so a field a later revision adds is ignored rather than refused, as an unknown
+/// frame kind is (`PROTOCOL.md` §10).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct ObservationDelta {
     /// The instant of the new observation; always present.
     pub at: WorldTime,
@@ -48,7 +50,6 @@ pub struct ObservationDelta {
 
 /// The entity half of a delta.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct EntityChanges {
     /// Each replaces the entity with its id, or is added.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -172,38 +173,40 @@ pub fn apply(
         .with_events(delta.events.clone()))
 }
 
-/// One connection's stream encoder (`PROTOCOL.md` §5.3): a whole observation for the first frame and
-/// every `every`-th frame, a delta against the frame this connection was last sent otherwise.
+/// One connection's stream encoder (`PROTOCOL.md` §5.3): a whole observation for the first frame,
+/// every `every`-th frame, and the first frame after the observer's place changed; a delta against
+/// the frame this connection was last sent otherwise. Never a delta across places, so a place the
+/// observer reaches without a passage (a carriage, later) starts from a whole view.
 ///
 /// A connection that resumes, or that has just been sent its backfill, is a new encoder, so its first
 /// frame is whole.
 pub struct Encoder {
     every: std::num::NonZeroU32,
-    seq: u64,
     held: Option<WireObservation>,
 }
 
 impl Encoder {
     /// A connection's encoder, before its first frame.
     pub const fn new(every: std::num::NonZeroU32) -> Self {
-        Self {
-            every,
-            seq: 0,
-            held: None,
-        }
+        Self { every, held: None }
     }
 
-    /// The next frame for this observation.
+    /// The frame numbered `seq` for this observation; `seq` counts this connection's stream frames
+    /// from 1, so a delta's base is `seq - 1`.
     pub fn frame(
         &mut self,
+        seq: u64,
         revision: Option<mineworld_persistence::WorldRevision>,
         acted_through: Option<mineworld_contracts::ActionId>,
         observation: WireObservation,
     ) -> super::ServerFrame {
-        self.seq += 1;
-        let seq = self.seq;
         let observation = canonical(observation);
-        let keyframe = seq.is_multiple_of(u64::from(self.every.get()));
+        let place = |held: &WireObservation| held.self_location().map(Location::place);
+        let keyframe = seq.is_multiple_of(u64::from(self.every.get()))
+            || self
+                .held
+                .as_ref()
+                .is_some_and(|held| place(held) != place(&observation));
         let frame = match self.held.as_ref() {
             Some(previous) if !keyframe => super::ServerFrame::Delta {
                 seq,

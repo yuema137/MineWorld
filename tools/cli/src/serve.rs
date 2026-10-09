@@ -15,17 +15,21 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use mineworld_contracts::{EntityKey, WorldTime};
-use mineworld_persistence::{Creation, Durability, PersistentWorld, SqliteBackend};
+use mineworld_contracts::{EntityKey, EventEnvelope, WorldTime};
+use mineworld_persistence::{
+    Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
+    WorldRevision, format,
+};
 use mineworld_presence::PerceptionProvider;
 use mineworld_server::{
-    Admission, HostConfig, HostError, HostedWorld, SeatRoster, WorldHost, WorldInstanceId, app,
+    Access, AdminToken, Admission, HostConfig, HostError, HostedWorld, InviteToken, SeatRoster,
+    WorldHost, WorldInstanceId, app,
 };
 use mineworld_worldpack::{PackRoots, WorldPack};
 
 use crate::history::SavedHistory;
 use crate::perceive::{PackEventPerception, PackPerception};
-use crate::{described, hosted, invite, listed, saved_genesis};
+use crate::{described, hosted, invite, listed};
 
 /// What `mineworld server` was asked.
 pub struct ServeRequest {
@@ -35,6 +39,9 @@ pub struct ServeRequest {
     pub listen: SocketAddr,
     /// The operator's invite, from `--invite` or `MINEWORLD_INVITE`.
     pub invite: Option<String>,
+    /// The admin surface's bearer token, from `--admin-token` or `MINEWORLD_ADMIN_TOKEN`; `None`
+    /// mounts no admin surface.
+    pub admin_token: Option<String>,
     /// The seats the reactive rule controller drives.
     pub agents: Vec<EntityKey>,
     /// Whether the paced rule controller drives every other seat.
@@ -91,6 +98,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         world,
         listen,
         invite,
+        admin_token,
         agents,
         town,
         seed,
@@ -105,6 +113,9 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
     let pack = WorldPack::read_with(&world, &roots).map_err(described)?;
     let invite = invite::Invite::resolve(invite)?;
+    let admin = admin_token
+        .map(|token| admin_access(token, invite.token()))
+        .transpose()?;
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
         time_scale,
@@ -208,7 +219,16 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     if let Some(seat) = invite::suggested_seat(&status.seats, &agents) {
         println!("{}", invite.join_line(address, seat));
     }
-    let admission = Admission::new(invite.token().clone());
+    let access = Access {
+        admission: Admission::new(invite.token().clone()),
+        admin,
+    };
+    // The token is never printed: an operator gave it, and already has it (step-12 SD-D12, I-5).
+    if access.admin.is_some() {
+        println!("[mineworld] admin surface: http://{address}/admin (bearer token as given)");
+    } else {
+        println!("[mineworld] no admin surface (no --admin-token)");
+    }
 
     println!(
         "[mineworld] hold {hold} s, time scale {}, {} seat(s) driven in-server{}",
@@ -221,8 +241,8 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         },
     );
 
-    app::serve_with_shutdown(listener, host.clone(), admission, async {
-        let _ = tokio::signal::ctrl_c().await;
+    app::serve_with_shutdown(listener, host.clone(), access, async {
+        stop_requested().await;
         println!("\n[mineworld] stopping");
     })
     .await
@@ -233,6 +253,79 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     host.shutdown().await;
     hosted::report(&tallies);
     Ok(())
+}
+
+/// The operator's admin token, checked: legal under the invite's rules and not the invite itself —
+/// an admin token equal to the invite would make every player the host. Neither is echoed.
+fn admin_access(token: String, invite: &InviteToken) -> Result<AdminToken, String> {
+    let token = AdminToken::given(token)
+        .map_err(|refusal| format!("[mineworld] --admin-token: {refusal}"))?;
+    if token.is_invite(invite) {
+        return Err(
+            "[mineworld] --admin-token: the admin token must differ from the invite; a player who \
+             holds the invite would otherwise be the host"
+                .to_owned(),
+        );
+    }
+    Ok(token)
+}
+
+/// Completes when the operator asks the server to stop, on every platform (step-12 SD-D13, as
+/// amended by QW-1): Ctrl-C anywhere; on Windows also Ctrl-Break — which `ctrl_c()` does not catch
+/// there — closing the console window, and logging off or shutting down. Each takes the same
+/// graceful path: stop accepting, checkpoint, statistics.
+async fn stop_requested() {
+    #[cfg(windows)]
+    {
+        use tokio::signal::windows::{ctrl_break, ctrl_close, ctrl_shutdown};
+        // A handler that cannot be installed waits forever rather than stopping the server.
+        let on_break = async {
+            match ctrl_break() {
+                Ok(mut signal) => {
+                    let _ = signal.recv().await;
+                }
+                Err(_) => std::future::pending::<()>().await,
+            }
+        };
+        let on_close = async {
+            match ctrl_close() {
+                Ok(mut signal) => {
+                    let _ = signal.recv().await;
+                }
+                Err(_) => std::future::pending::<()>().await,
+            }
+        };
+        let on_shutdown = async {
+            match ctrl_shutdown() {
+                Ok(mut signal) => {
+                    let _ = signal.recv().await;
+                }
+                Err(_) => std::future::pending::<()>().await,
+            }
+        };
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            () = on_break => {}
+            () = on_close => {}
+            () = on_shutdown => {}
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
+}
+
+/// A save's genesis facts, as recorded: what a host hands [`WorldPack::check_configuration`] before it
+/// resumes or verifies, so that a save never runs on against a configuration other than the one it was
+/// created with (`DECISIONS.md` `ARC-61` item 7). Shared by `persisted` here and `replay` in main.rs
+/// (moved here from main.rs by S11-D, D-SD1).
+pub(crate) fn saved_genesis(backend: &SqliteBackend) -> Result<Vec<EventEnvelope>, PersistError> {
+    backend
+        .facts_of(WorldRevision::GENESIS)?
+        .iter()
+        .map(|row| format::decode(&row.bytes, "fact"))
+        .collect()
 }
 
 /// The pack's world with a save in `save`: created from the pack, beginning at `epoch`, if `save` holds

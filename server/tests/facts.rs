@@ -200,7 +200,7 @@ async fn exact_or_accounted(perceiving: bool) {
     let dropped = host.status().await.expect("status").events_dropped - before;
 
     // Now Bob reads until the stream is quiet.
-    let (stream, _) = bob.streams();
+    let stream = bob.streams().observations;
     let mut reliable: Vec<u64> = Vec::new();
     let mut in_frames: Vec<u64> = Vec::new();
     let mut order_broken = Vec::new();
@@ -333,7 +333,7 @@ async fn an_overflowing_perceived_stream_is_released_lagged_and_resumes_without_
     )
     .await
     .expect("dispatched");
-    let (stream, _) = again.streams();
+    let stream = again.streams().observations;
     let mut live = Vec::new();
     for item in drain(stream, Duration::from_millis(400)).await {
         if let Streamed::Facts { events, .. } = item {
@@ -397,7 +397,11 @@ impl Client {
                 .expect("open")
                 .expect("well formed");
             if let Message::Text(text) = message {
-                return serde_json::from_str(&text).expect("a server frame");
+                // The host clock's frames (`PROTOCOL.md` §5.9) are not what these tests are about.
+                match serde_json::from_str(&text).expect("a server frame") {
+                    ServerFrame::Clock { .. } => continue,
+                    frame => return frame,
+                }
             }
         }
     }
@@ -787,8 +791,8 @@ async fn a_fact_is_judged_where_people_were_when_it_was_recorded() {
             .flatten()
             .collect()
     };
-    let by_ben = heard(drain(ben.streams().0, Duration::from_millis(300)).await);
-    let by_ann = heard(drain(ann.streams().0, Duration::from_millis(300)).await);
+    let by_ben = heard(drain(ben.streams().observations, Duration::from_millis(300)).await);
+    let by_ann = heard(drain(ann.streams().observations, Duration::from_millis(300)).await);
     assert_eq!(
         by_ben,
         vec![*line, *went],

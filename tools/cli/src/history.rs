@@ -1,4 +1,4 @@
-//! Reading a save's history: its genesis, its whole fact log, and what one Person perceived of it.
+//! Reading a save's history: its whole fact log, and what one Person perceived of it.
 //!
 //! [`SavedHistory`] is the server's `perceived` backfill for a persisted world (`server/PROTOCOL.md`
 //! §5.8, `docs/DECISIONS.md` `ARC-43`): the same function `mineworld perceived` runs, over the same
@@ -11,23 +11,9 @@
 use std::path::{Path, PathBuf};
 
 use mineworld_contracts::{EntityId, EventEnvelope, EventId};
-use mineworld_persistence::{
-    Durability, PersistError, PersistenceBackend, SqliteBackend, WorldRevision, format,
-};
+use mineworld_persistence::{Durability, PersistError, PersistenceBackend, SqliteBackend, format};
 use mineworld_presence::audience::perceived_by;
 use mineworld_server::{HistoryUnavailable, PerceivedHistory};
-
-/// A save's genesis facts, as recorded: what a host hands
-/// [`WorldPack::check_configuration`](mineworld_worldpack::WorldPack::check_configuration) before it
-/// resumes or verifies, so that a save never runs on against a configuration other than the one it
-/// was created with (`DECISIONS.md` `ARC-61` item 7). Shared by `replay`, `run` and `serve`.
-pub(crate) fn saved_genesis(backend: &SqliteBackend) -> Result<Vec<EventEnvelope>, PersistError> {
-    backend
-        .facts_of(WorldRevision::GENESIS)?
-        .iter()
-        .map(|row| format::decode(&row.bytes, "fact"))
-        .collect()
-}
 
 /// Every fact a save holds, oldest first, from a connection opened for this read and closed before
 /// it returns.

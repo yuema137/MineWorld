@@ -250,6 +250,7 @@ fn a_welcome_names_the_observer_as_a_decimal_string() {
             instance: super::WorldInstanceId::from_raw(0x0123_4567_89ab_cdef),
             at: mineworld_contracts::WorldTime::from_seconds(32_400),
             time_scale: 1,
+            paused: false,
             entities: 4,
             systems: Vec::new(),
             seats: vec![EntityKey::new("player").expect("a legal key")],

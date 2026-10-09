@@ -27,6 +27,9 @@ something else (§10, the landing table).
 GET /health   HTTP    liveness of the process. Answered by the transport, never by the world.
 GET /status   HTTP    what the world is (§5.7). Answered by the world itself. Public.
 GET /ws       HTTP    upgrade to the live connection.
+/admin/…      HTTP    the admin surface (§11): sessions, seats, kick, release, the host clock. Exists
+                      only when the server was started with an admin token; otherwise every /admin
+                      path answers 404. Bearer token, never the invite.
 ```
 
 Frames on the WebSocket are **JSON text** (`ARC-41`). A binary frame is refused. Ping and pong are the
@@ -165,8 +168,8 @@ operator gives is 8 to 128 printable ASCII characters without whitespace.
 **The nickname** labels the *player*, never the Person: the Person's name is world data
 (`naming`'s `display-name`). It is 1 to 32 Unicode scalar values after trimming leading and trailing
 whitespace, with no control character, and is kept trimmed. It is shown to the player's own connection
-(`welcome.nickname`) and, from S11-D, to the admin surface — and to nobody else: it is in no
-observation, no `/status` answer, no fact and no save. Two players may share a nickname.
+(`welcome.nickname`) and to the admin surface (`GET /admin/sessions`, §11) — and to nobody else: it is in
+no observation, no `/status` answer, no fact, no log line and no save. Two players may share a nickname.
 
 ### 4.2 Seats: who drives a Person, holding a dropped seat, and taking one over
 
@@ -230,6 +233,7 @@ check, a server-allocated `ActionId` and instant, the journal before the answer.
 | Frame | When |
 | --- | --- |
 | `welcome` | once, after a granted `join` |
+| `clock` | once right after `welcome`, before the first observation; then on every pause and resume (§5.9) |
 | `observation` | the first frame of the stream; every `keyframe_every`-th frame and the first after a resume (from S11-C); any frame the server chooses |
 | `delta` | from S11-C, if `DEP-15` ships deltas: any other frame of the stream (§5.3) |
 | `perceived` | from S11-C, only to a connection whose `join` carried `perceived`: the reliable stream of the facts its observer learned (§5.8) |
@@ -445,6 +449,7 @@ a client branches on `code` and never on `detail`.
 | `invalid_resume` | A `resume` that matches neither the seat's hold nor its live connection (expired, superseded, or for another seat); the client may retry without it (§4.2). |
 | `cursor_unavailable` | From S11-C: a `join`'s `perceived.since` is a cursor this world cannot serve — older than what it can replay (a world with no save serves only from the join on), newer than the newest fact it has recorded, or one whose history could not be read just now (`detail` says which). Nothing is granted; the connection stays and may join again, for example with `since` set to `null` on a persisted world. |
 | `lagged` | From S11-C: this connection's `perceived` stream fell further behind than the server holds for it. Followed by `closing { reason: "lagged" }`; the client rejoins with its `resume` and its last `perceived` cursor, and loses nothing. |
+| `paused` | The host has paused the world's clock (§5.9, §11.3): a `submit` is refused before the server allocates an `ActionId` for it, so nothing is half-done and nothing is journaled. The client may submit again after a `clock` frame says `paused: false`. From S11-D. |
 
 A refusal is **not** a `Rejection`. A rejection means the world considered a well-formed request and
 said no, and it arrives inside a `result`. A refusal means the frame was not a request at all. Being
@@ -469,7 +474,7 @@ arrives with them, which would lose this frame and the refusal before it.
 | `unauthorized` | the invite was wrong or missing | S11-A |
 | `protocol_mismatch` | the client speaks another revision | S11-A |
 | `world_stopped` | the world stopped; there is nothing left to observe | S11-A |
-| `kicked` | the operator removed this connection | S11-D |
+| `kicked` | the operator removed this connection, or released the seat it held (`POST /admin/sessions/{session}/kick`, `POST /admin/seats/{seat}/release`, §11). The seat returns to its default at once, with no hold, and this connection's `resume` is dead | S11-D — **landed** |
 | `superseded` | the seat was re-taken with this connection's `resume` by a newer connection | S11-B |
 | `taken_over` | another connection took the seat with `take_over: true` (§4.2) | S11-B |
 | `lagged` | the connection's `perceived` stream overflowed (§5.8); preceded by `refused { code: "lagged" }` | S11-C |
@@ -479,7 +484,7 @@ arrives with them, which would lose this frame and the refusal before it.
 
 ```json
 { "protocol": 2, "instance": "1a2b3c4d5e6f70819293a4b5c6d7e8f9", "at": 4112, "time_scale": 1,
-  "entities": 41,
+  "paused": false, "entities": 41,
   "systems": [ { "system": "conversation", "enabled": true,
                  "provides": [ "talk" ], "states": [ "spoke", "conversation-started" ] } ],
   "seats": [ "visitor", "wanderer", "alice" ], "clients": 2,
@@ -504,6 +509,9 @@ component and no position appears in it, because a client's knowledge of state a
 - `at` is the world's clock as of the answer, and `time_scale` how many world seconds pass per wall
   second while the world is hosted (an integer ≥ 1; `mineworld server --time-scale`, default 1). It is a
   deployment setting, not world state: the same save hosted at another scale is the same world.
+- `paused` (from S11-D): whether the host has paused the world's clock (§5.9, §11.3). Pacing, like
+  `time_scale`, and public for the same reason: it says how the host is running the world, nothing about
+  what is in it. While it is `true`, `at` does not move.
 - `seats`: the seats a client may ask for.
 - `clients`: connections that hold a seat. In-server controllers are not clients and are not counted
   (§4.2).
@@ -559,6 +567,29 @@ same facts, judged by the same rule, as `observation.events` (§5.2), but none i
 - **Resuming.** A client whose socket dropped rejoins with `resume` (§5.1) and `perceived: { since:
   <its cursor> }`, and receives exactly the facts after the cursor: those recorded while it was gone come
   in the backfill.
+
+### 5.9 `clock` (from S11-D)
+
+```json
+{ "t": "clock", "at": 4112, "time_scale": 1, "paused": true }
+```
+
+How the host is pacing the world's clock: `at` is the world's instant when the frame was made (whole
+seconds, as `WorldSummary.at`), `time_scale` world seconds per wall second, `paused` whether the host
+has stopped the clock (§11.3). Sent once right after `welcome`, before the first observation, and again
+on every pause and every resume — so a client re-anchors its estimate of the world's time at once rather
+than at the next observation. Only the newest value is ever delivered: a client that was not reading
+receives the latest state, never a backlog, and the server never waits for it.
+
+While `paused` is `true`: `at` does not move, no Process wakes, in-server controllers are not consulted,
+and every `submit` is refused `paused` (§5.5). Observations keep flowing and a connection stays
+connected; joins, leaves, resumes, takeovers, kicks and releases still work, because they are host state
+(§4.2). A seat's hold is wall time and still ends during a pause. On resume the clock continues from the
+instant it stopped at: it never jumps by the paused duration and never goes backwards.
+
+A `clock` frame carries no player, no nickname and no secret. A client may not send one: a client frame
+of kind `clock` (or `pause`, `kick`, `release`) is `unknown_frame` (§2). Only the holder of the admin
+token changes time (§11).
 
 ## 6. Submitting a request
 
@@ -699,7 +730,10 @@ a client must render the newest observation it has rather than accumulating them
 
 ```text
 a subscribe / scope frame      a connection perceives its observer (INV-13); nothing to widen
-admin frames on the socket     admin is HTTP (S11-D); a frame would widen the client vocabulary
+admin frames on the socket     admin is HTTP behind a bearer token (§11); a frame would widen the
+                               client vocabulary, and an invite holder is not the host
+a client frame that sets time  pause and resume are POST /admin/clock (§11.3); no frame and no
+                               route moves the clock to an instant
 binary or compressed frames    JSON only (ARC-41); Godot's WebSocketPeer cannot negotiate
                                permessage-deflate
 an observer-naming field       there is none, and a join that tries to carry one is malformed
@@ -733,8 +767,82 @@ server whose `PROTOCOL.md` lists it as landed.
 | `welcome.resume` (a secret), `welcome.hold_seconds` (non-zero), `welcome.took_over` (`hosted`, `held`, `connection`); seat exclusivity, holds, `seat_occupied`; `closing.superseded`, `closing.taken_over`; in-server controllers not counted in `clients` (§4.2) | S11-B — **landed** | `resume: null`, `hold_seconds: 0`, `took_over: "none"`; seats are not exclusive |
 | `join.take_over` (an explicit takeover flag, §2, §4.2) | S11-B, coordination ruling 1 — **landed** | a `join` carrying it is `malformed_frame` |
 | `WorldSummary.time_scale` (world seconds per wall second, in `welcome.world` and `/status`, §5.7) | S11-B, coordination ruling 1 — **landed** | absent; the hosted clock runs one simulated second per wall second |
-| `observation.events` (facts this observer learned, §5.2); `observation.entities` in id order; `events_dropped` non-zero | S11-C | `events` empty; entity order unspecified; `events_dropped: 0` |
-| `delta` frames (the typed `ObservationDelta`, `DEP-15`) and periodic keyframes, `--keyframe-every` (§5.3) | S11-C | whole `observation` frames only |
-| `acted_through` on the `observation` (and `delta`) frame (§5.2) | S11-C, coordination ruling 1 | absent |
-| the `perceived` stream (§5.8): `join.perceived`, the `perceived` frame, refusals `cursor_unavailable` and `lagged`, `closing.lagged` | S11-C, coordination ruling 2 | no `perceived` frame; a `join` carrying `perceived` is `malformed_frame` |
-| `/admin` routes; `closing.kicked` | S11-D | no admin route |
+| `observation.events` (facts this observer learned, §5.2); `observation.entities` in id order; `events_dropped` non-zero | S11-C — **landed** | `events` empty; entity order unspecified; `events_dropped: 0` |
+| `delta` frames (the typed `ObservationDelta`, `DEP-15`) and periodic keyframes, `--keyframe-every` (§5.3) | S11-C — **landed** | whole `observation` frames only |
+| `acted_through` on the `observation` (and `delta`) frame (§5.2) | S11-C, coordination ruling 1 — **landed** | absent |
+| the `perceived` stream (§5.8): `join.perceived`, the `perceived` frame, refusals `cursor_unavailable` and `lagged`, `closing.lagged` | S11-C, coordination ruling 2 — **landed** | no `perceived` frame; a `join` carrying `perceived` is `malformed_frame` |
+| `/admin` routes (§11) with `--admin-token`; `closing.kicked`; the `clock` frame (§5.9); `WorldSummary.paused`; refusal `paused`; pause and resume through `POST /admin/clock` | S11-D — **landed** | no admin route; no `clock` frame; `paused` absent (the clock never pauses) |
+| `time_scale` in `POST /admin/clock` (a live scale change) | TW-c (`step-19-time-weather.md` §§4.3, 7.3) | answered `409 time_scale_fixed`; the scale is `--time-scale`, fixed for the process |
+
+## 11. The admin surface (from S11-D)
+
+**Implemented by** `server/src/admin.rs` (routes, bearer check, bodies), `server/src/admin/registry.rs`
+(the sessions the transport knows), `server/src/runtime/control.rs` (the world thread's half),
+`server/src/seats.rs` (kick, release, report). **Decision** `docs/DECISIONS.md` `ARC-44`.
+
+### 11.1 Mounting and permission
+
+The admin surface is HTTP on the same listener as `/status`, under `/admin`. It exists only when the
+server was started with an admin token (`mineworld server --admin-token TOKEN`, or the environment
+variable `MINEWORLD_ADMIN_TOKEN`); without one, every `/admin` path answers `404` exactly as an unknown
+path does. The token follows the invite's rules (8 to 128 printable ASCII characters, no whitespace), is
+never printed, and must differ from the invite: a server given an admin token equal to its invite
+refuses to start, because every player would then be the host.
+
+Every request carries `Authorization: Bearer <token>`. The token is compared in constant time. Any
+failure — no header, another scheme, a wrong token, a token with trailing whitespace, a token in the
+query string (never read) — is answered, no sooner than 500 ms after the request arrived:
+
+```json
+401 { "error": "unauthorized" }
+```
+
+The delay holds up that request and nothing else; it is never spent on the world's thread. There is one
+admin token per process and one level of host trust; an invite holder is not the host.
+
+### 11.2 Routes
+
+```json
+GET  /admin/sessions   → 200 { "sessions": [ { "session": "7", "nickname": "Yue", "seat": "visitor",
+                                  "observer": "101", "connected_at": 1791441600, "seq": 312,
+                                  "observations_dropped": 0 } ] }
+GET  /admin/seats      → 200 { "seats": [ { "seat": "alice", "state": "hosted" },
+                                  { "seat": "visitor", "state": "connected", "session": "7" },
+                                  { "seat": "wanderer", "state": "held", "seconds_left": 21 },
+                                  { "seat": "bob", "state": "free" } ] }
+POST /admin/sessions/7/kick        → 200 { "session": "7", "seat": "visitor", "state": "hosted" }
+POST /admin/seats/wanderer/release → 200 { "seat": "wanderer", "released": true, "state": "hosted" }
+GET  /admin/clock      → 200 { "at": 4112, "time_scale": 1, "paused": false }
+POST /admin/clock { "paused": true } → 200 { "at": 4112, "time_scale": 1, "paused": true }
+```
+
+| Route | Answer |
+| --- | --- |
+| `GET /admin/sessions` | Every seated connection: its `session`, the `nickname` it joined with, its `seat`, its `observer`, `connected_at` (wall-clock Unix seconds at its welcome — host state, never a `WorldTime`), `seq` (the last stream frame it was sent) and `observations_dropped` (frames the world dropped because it was not reading). A connection still in its handshake, or an in-server controller, is not listed. |
+| `GET /admin/seats` | Every seat, in key order, with its state (§4.2): `free`, `hosted`, `connected` with its `session`, or `held` with `seconds_left` (wall seconds, rounded up). |
+| `POST /admin/sessions/{session}/kick` | The connection is sent `closing { reason: "kicked" }` and closed; its seat returns to its default at once, **with no hold**, and its `resume` is dead. Answers the seat and its new state. A session that holds no seat: `404 unknown_session`. |
+| `POST /admin/seats/{seat}/release` | Returns the seat to its default. A connected seat's connection is sent `closing { reason: "kicked" }` and closed; a held seat's `resume` dies. A seat already `free` or `hosted` is unchanged: `200` with `"released": false` (no controller is rebuilt). A seat the roster does not offer: `404 unknown_seat`. |
+| `GET /admin/clock` | `{ at, time_scale, paused }`, as the `clock` frame (§5.9). |
+| `POST /admin/clock` | Body `{ "paused": bool }`; answers the clock after the change. Repeating the current state is `200` and changes nothing. |
+
+Identities are decimal strings (§7). Errors are `{ "error": <code>, "detail": <text, optional> }`:
+
+| Status | `error` | When |
+| --- | --- | --- |
+| 400 | `malformed` | A body that is not JSON, lacks a required field, or carries a field the route does not define — `{}`, `{ "at": 999999 }`, `{ "paused": true, "at": 5 }` — or a session or seat that is not one syntactically. Nothing changes. |
+| 401 | `unauthorized` | §11.1. |
+| 404 | `unknown_session`, `unknown_seat` | As above. |
+| 409 | `time_scale_fixed` | A `POST /admin/clock` body carrying `time_scale`. A live scale change lands with TW-c (§10); until then the scale is `--time-scale`, fixed for the process. Nothing changes, including `paused` if the body also named it. |
+| 503 | `world_stopped` | The world is no longer running. |
+
+### 11.3 What the admin surface may and may not change
+
+No admin route changes world state (`docs/DECISIONS.md` `ARC-44`, `ARC-40`): a kick, a release, a pause
+and a resume are host state. None is journaled, states a fact or moves the world's revision, and none
+appears in a save. In particular **no route and no field names an instant**: pause and resume change the
+host's *pacing* of the clock, never the clock's value. Pausing stops the host clock where it stands;
+resuming continues it from that instant (§5.9).
+
+A pause is not persisted: a server restarted while paused starts running (the world did not age while
+no process hosted it). A kicked player may rejoin at once with the invite: there is no ban without
+per-player identity; to remove someone for good, restart the server with a new `--invite`.

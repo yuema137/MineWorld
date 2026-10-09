@@ -1,0 +1,12 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[check] connecting to 127.0.0.1:54775 as seat 'visitor'
+[check] PASS a clock frame follows the welcome, running: false
+[check] PASS the time scale: 1
+[check] PASS the host's pause is announced: true
+[check] PASS the module holds the paused state: true
+[check] PASS a submit while paused is refused paused: "paused"
+[check] PASS with its own token: "c1"
+[check] PASS the host's resume is announced: false
+[check] PASS kicked: closing said why before the connection ended: "kicked"
+[check] PASS — 0 failure(s)

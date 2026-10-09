@@ -3,6 +3,7 @@
 //! ```text
 //! mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--town]
 //!                  [--seed N] [--pace SECONDS] [--hold SECONDS] [--time-scale N] [--save DIR]
+//!                  [--admin-token TOKEN]
 //!                                       load the pack and host it; with --save, persisted;
 //!                                       clients join with the invite (generated and printed
 //!                                       when neither --invite nor MINEWORLD_INVITE gives one);
@@ -69,6 +70,9 @@ mod perceived;
 mod run;
 mod serve;
 
+// Where `run` and `replay` find it since it moved beside `persisted` (step-12 D-SD1).
+pub(crate) use serve::saved_genesis;
+
 use std::net::SocketAddr;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
@@ -79,8 +83,6 @@ use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_packages::PACKS_VARIABLE;
 use mineworld_persistence::{Durability, SqliteBackend, verify};
 use mineworld_worldpack::{PackError, PackRoots, WorldPack};
-
-pub(crate) use history::saved_genesis;
 
 /// Where the server listens when nothing says otherwise: the local player's own machine.
 const DEFAULT_LISTEN: &str = "127.0.0.1:7878";
@@ -111,6 +113,10 @@ enum Subcommand {
             hide_env_values = true
         )]
         invite: Option<String>,
+        /// The bearer token that opens the admin surface under /admin; without it (and without
+        /// MINEWORLD_ADMIN_TOKEN) there is none. Never printed; must differ from the invite.
+        #[arg(long, env = "MINEWORLD_ADMIN_TOKEN", hide_env_values = true)]
+        admin_token: Option<String>,
         /// Drive that seat with the reactive rule controller, on the world thread, whenever no
         /// player holds it. Repeat it for more than one.
         #[arg(long = "agent", value_name = "SEAT", value_parser = seat)]
@@ -300,6 +306,7 @@ async fn main() -> ExitCode {
             world,
             listen,
             invite,
+            admin_token,
             agents,
             town,
             seed,
@@ -315,6 +322,7 @@ async fn main() -> ExitCode {
                     world,
                     listen,
                     invite,
+                    admin_token,
                     agents,
                     town,
                     seed,
@@ -456,7 +464,7 @@ fn replay(world: &Path, save: &Path, roots: &PackRoots) -> Result<(), String> {
     let pack = WorldPack::read_with(world, roots).map_err(described)?;
     let backend = SqliteBackend::open(save, Durability::PowerLoss)
         .map_err(|error| format!("[mineworld] {error}"))?;
-    let genesis = saved_genesis(&backend).map_err(|error| format!("[mineworld] {error}"))?;
+    let genesis = serve::saved_genesis(&backend).map_err(|error| format!("[mineworld] {error}"))?;
     pack.check_configuration(&genesis).map_err(described)?;
     let composed = pack.compose().map_err(described)?;
     let verified = verify(&backend, composed.world)

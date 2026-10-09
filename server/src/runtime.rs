@@ -33,8 +33,12 @@
 //! controller either: observations go out with `try_send`, and a hosted controller's `decide` is a
 //! bounded synchronous call (step-12 I-11).
 
+mod control;
 mod delivery;
+mod status;
 mod world;
+
+pub(crate) use control::{ControlAnswer, ControlCommand};
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -42,8 +46,7 @@ use std::time::Instant;
 use mineworld_contracts::{
     ActionIntent, ActionRequest, EntityId, EntityKey, EventEnvelope, EventId, WorldTime,
 };
-use mineworld_persistence::WorldRevision;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::admission::ResumeSecret;
 use crate::host::{
@@ -52,12 +55,10 @@ use crate::host::{
 };
 use crate::hosted::HostedAnswer;
 use crate::perception::{EventPerception, PerceivedHistory, Perception, PerceptionContext};
-use crate::protocol::{
-    PROTOCOL_VERSION, PerceivedJoin, Refusal, RefusalCode, SystemSummary, WorldInstanceId,
-    WorldSummary,
-};
+use crate::protocol::{ClockState, PerceivedJoin, Refusal, RefusalCode, WorldInstanceId};
 use crate::seats::{JoinRequest, SeatTable};
 use delivery::Subscriber;
+use status::first_binding;
 use world::{ActionIds, Failure, HostClock, TickTimes};
 
 /// The world, and everything the server holds around it.
@@ -92,6 +93,9 @@ pub(crate) struct WorldRuntime {
     /// Set when the save could not be written. The loop ends after the command that found it.
     stopped: Option<String>,
     ticks: TickTimes,
+    /// The host clock's state as every session reads it: written on each pause and resume, newest
+    /// wins (`PROTOCOL.md` §5.9).
+    announced: watch::Sender<ClockState>,
 }
 
 impl WorldRuntime {
@@ -117,6 +121,13 @@ impl WorldRuntime {
             .checked_sub(1)
             .filter(|last| *last > 0)
             .map(EventId::from_raw);
+        let wall = Instant::now();
+        let clock = HostClock::new(epoch, config.time_scale, wall);
+        let (announced, _) = watch::channel(ClockState {
+            at: clock.now_at(wall),
+            time_scale: clock.scale().get(),
+            paused: clock.paused(),
+        });
         Self {
             world: hosted.world,
             perception: hosted.perception,
@@ -126,7 +137,8 @@ impl WorldRuntime {
             seats: hosted.seats,
             table,
             instance,
-            clock: HostClock::new(epoch, config.time_scale),
+            clock,
+            announced,
             actions: ActionIds::starting_at(hosted.first_action),
             subscriptions: SubscriptionIdSource::new(),
             subscribers: Vec::new(),
@@ -166,6 +178,9 @@ impl WorldRuntime {
                     let _ = reply.send(answer);
                 }
                 Command::Sweep => self.tick(),
+                Command::Control { command, reply } => {
+                    let _ = reply.send(self.control(command));
+                }
                 Command::Shutdown(done) => {
                     self.checkpoint();
                     println!("{}", self.ticks.report());
@@ -227,7 +242,7 @@ impl WorldRuntime {
         let (sender, receiver) = mpsc::channel(self.config.observation_backlog);
         let (released, on_release) = oneshot::channel();
         self.subscribers.push(Subscriber::new(
-            subscription,
+            (subscription, request.session),
             observer,
             (sender, released),
             start.as_ref().map(|start| start.head),
@@ -244,7 +259,7 @@ impl WorldRuntime {
             observer,
             summary,
             subscription,
-            (receiver, on_release),
+            (receiver, on_release, self.announced.subscribe()),
             binding,
             start,
         ))
@@ -261,12 +276,21 @@ impl WorldRuntime {
     /// A session's request, at the host's instant; its facts are swept to every client at once.
     /// On a connection's behalf, the dispatched request becomes its `acted_through` before any
     /// observation reflecting it is computed.
+    ///
+    /// While the host has paused the clock it is refused before anything is allocated: no
+    /// `ActionId`, no journal entry, nothing half-done (`PROTOCOL.md` §5.9).
     fn submit(
         &mut self,
         subscription: Option<SubscriptionId>,
         observer: EntityId,
         request: ActionRequest,
     ) -> Result<Submitted, Refusal> {
+        if self.clock.paused() {
+            return Err(Refusal::new(RefusalCode::Paused).detail(
+                "the host has paused the world's clock; submit again after a clock frame says \
+                 paused: false",
+            ));
+        }
         let at = self.clock.now();
         let (submitted, recorded) = self.submit_at(observer, request, at)?;
         if let Some(subscription) = subscription {
@@ -354,13 +378,20 @@ impl WorldRuntime {
     /// One tick of the host's cadence: holds that ended are released, due in-server controllers
     /// are consulted, the world's time catches up with the host's, and every client is shown what it
     /// may now perceive. Timed, for the operator's statistics.
+    ///
+    /// While the host has paused the clock, holds still end (they are wall time) and every client
+    /// is still swept, but nobody is consulted and the world is not advanced: the town does not act
+    /// and no Process wakes (`PROTOCOL.md` §5.9).
     fn tick(&mut self) {
         let started = Instant::now();
-        let now = self.clock.now();
+        let now = self.clock.now_at(started);
+        let running = !self.clock.paused();
         self.table.expire(started, now);
-        self.consult(now);
+        if running {
+            self.consult(now);
+        }
         if self.stopped.is_none() {
-            if let Err(failure) = self.advance(now) {
+            if running && let Err(failure) = self.advance(now) {
                 // Counted and reported, or the world stopped; nobody is waiting for an answer.
                 let _ = self.refusal(failure);
             }
@@ -414,58 +445,5 @@ impl WorldRuntime {
         if self.recent.len() > limit {
             self.recent.drain(..self.recent.len() - limit);
         }
-    }
-
-    /// What the world is, as a status answer or a welcome states it.
-    fn summary(&self) -> WorldSummary {
-        let systems = self.world.world().systems();
-        WorldSummary {
-            protocol: PROTOCOL_VERSION,
-            instance: self.instance,
-            at: self.clock.now(),
-            time_scale: self.clock.scale().get(),
-            entities: self.world.world().entities().len(),
-            systems: systems
-                .order()
-                .iter()
-                .map(|system| {
-                    // The declaration a system made when it was installed: its vocabulary, which is
-                    // composition rather than state, so it is public (`PROTOCOL.md` §5.7).
-                    let declaration = systems.declaration(system);
-                    SystemSummary {
-                        system: system.clone(),
-                        enabled: systems.is_enabled(system),
-                        provides: declaration.map_or_else(Vec::new, |d| d.provides().to_vec()),
-                        states: declaration.map_or_else(Vec::new, |d| d.emits().to_vec()),
-                    }
-                })
-                .collect(),
-            seats: self.seats.iter().cloned().collect(),
-            // Connections only: an in-server controller is not a client (`PROTOCOL.md` §5.7).
-            clients: self.subscribers.len(),
-            observations_dropped: self.dropped,
-            events_dropped: self.events_dropped,
-            faults: self.faults,
-            revision: self.world.revision(),
-        }
-    }
-}
-
-/// The instant the server's first controllers are bound at (`F-13`): every line heard at or before
-/// it was said to whoever drove the Person before this process, and is not theirs to answer.
-///
-/// For a world resumed with history, that is the world's own instant — its last input. A world that
-/// holds nothing but its genesis has heard nothing: its controllers are bound a second before it, so
-/// that a line said in the first wall second of hosting, which the host's clock still stamps with the
-/// genesis instant, is answered (step-12 D-SB3).
-fn first_binding(world: &Hosted, epoch: WorldTime) -> WorldTime {
-    let only_genesis = match world {
-        Hosted::Ephemeral(_) => true,
-        Hosted::Persisted(world) => world.revision() == WorldRevision::GENESIS,
-    };
-    if only_genesis {
-        WorldTime::from_seconds(epoch.seconds() - 1)
-    } else {
-        epoch
     }
 }
