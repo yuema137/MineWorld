@@ -2598,6 +2598,15 @@ E-IB-13 2026-10-09, after the PR opened (#102), main moved: TW-a (#94, f80bbb7) 
         (§12.12 VALIDATION BUDGET). Requested in the PR and the report. social-cafe's 300-day IB-1 (E-IB-11)
         stands: TW-a changes no file social-cafe composes (calendar is not enabled there; the 30-day sha is
         unchanged).
+E-IB-14 2026-10-09, IB-15, the full gate on 196cbc3 (the final code head; the commit after it is this
+        ledger and the handoff only), one background run (target/il-b/gate/): `cargo fmt --all --check` 0;
+        `cargo clippy --workspace --all-targets --all-features -- -D warnings` 0; `cargo test --workspace
+        --no-fail-fast` 0 — 181 result lines, 819 passed, 0 failed; check_doc_headings 192 numbered
+        sections / 26 documents, none duplicated; check_decision_ids 77 distinct; `check_scratch.py scan` 0
+        (168 sources, 2 pre-existing exemptions); `check_scratch.py left` exit 1 with 7 entries (18.1 MiB),
+        identical by `diff` to the listing taken before the gate — all under one pid's container from the
+        M-IB2/M-IB3/M-IB8 run, whose panicking tests keep their scratch by DEP-29's design; removed, then
+        `left` 0. The gate left nothing. CI on the exact PR head: reported with the PR. PASS.
 ```
 
 ## 12.14 Deviations

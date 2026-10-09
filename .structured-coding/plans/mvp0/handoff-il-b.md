@@ -36,6 +36,13 @@ PLATFORMS            operator requirement 2026-10-08: macOS, Linux and Windows; 
 STOP                 PR IL-b READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
+## Lifecycle: READY FOR OPERATOR REVIEW — CLOSED / AWAITING OPERATOR ACTION
+
+- PR #102. Final code head 196cbc3 (gate E-IB-14 PASS); the PR head is the ledger commit after it —
+  CI evidence is read off the PR on that exact head. Do not merge without the operator.
+- Open request: one market-town 300-day run on the merged head against TW-a's baseline 24a95d2a…d270
+  (a fifth town run; E-IB-13). F-IB-16 needs an owner.
+
 ## Current checkpoint (2026-10-09)
 
 - IB-C1 … IB-C11 implemented and validated; IB-1 … IB-14 PASS (§12.13 E-IB-0 … E-IB-12); town runs
