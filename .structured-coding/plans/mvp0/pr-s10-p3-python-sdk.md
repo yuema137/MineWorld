@@ -539,7 +539,7 @@ the primary session decides.
 | **QP3-7 [primary]** | Pydantic for the wire models, or `msgspec` or dataclasses? | **Pydantic** (`DEP-S10-b`, step-17 §4.2). The same library generates P6's structured-output schema, and pyright understands it. `msgspec` is faster, but speed is not a constraint at 10 Hz per seat, and it would be a second schema library later. |
 
 No P3 question is operator-material. The operator-material S10 questions belong to later PRs. They are
-gathered in step-17 §15.5 so that the operator sees them in one place.
+gathered in step-17 §15.6 so that the operator sees them in one place.
 
 ## 12. Ledger (live during implementation)
 

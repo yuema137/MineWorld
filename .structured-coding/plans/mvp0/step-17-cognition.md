@@ -9,6 +9,10 @@ design and authorizes no implementation (`CLAUDE.md` §3.1).
 for MVP-1" list), §4 (`AC-4`, `AC-10`), §7.
 **Lifecycle:** `STEP DESIGN FROZEN (2026-10-08)` — frozen at step level by the primary session under the operator decisions and coordination rulings in `overall.md` "Parallel build-out, 2026-10-08", which bind and override this document where they differ (decision numbers, protocol ownership, event perception, the shared module, digests). Superseded wording below: `DRAFT — awaiting the primary session's review`.
 **Base:** `main @ 0fd0be3`, branch `plan/s10-cognition`.
+**Audit, 2026-10-08 (§15):** re-audited on `main @ 9cf8f8e`. No S10 PR has merged. P1 is folded into
+S11-C and P2 into S11-B. **P3 is the next PR and can start now.** Its full design is
+[`pr-s10-p3-python-sdk.md`](pr-s10-p3-python-sdk.md), ready for freeze review. §15 holds every PR's
+state, its dependencies, and the order.
 **Schedule (operator, 2026-10-08):** designed now, in parallel with S11 (server and protocol), S12
 (2D), S13 (CI), S14 (3D) and Milestone E; **implemented after the clients**. §9 marks which PRs could
 start earlier if the operator chooses, and which must wait.
@@ -1715,3 +1719,151 @@ each carries a recommendation.
 | R-S10-10 | The model's words claim memories it was not given, even when `recalls` is valid. | A known limit of free text. The context carries ids and the prompt asks for no invention. Evaluation is by the operator's run; the test checks citation, not truth of every clause. |
 | R-S10-11 | S15's 12d re-baselines the 300-day digests while S10 PRs are open. | I-7 compares against `main` at merge time, never against a digest frozen in this document. |
 | R-S10-12 | Python enters a Rust repository and its tooling rots. | `uv` lock; `ruff` and `pyright` strict and enabled the day the first module lands; a CI job (R-S13-1); two small packages with one-way dependencies. |
+
+---
+
+# 15. Audit, 2026-10-08 — the state of each P-PR, its dependencies, and the order
+
+Written by an S10 planning session on branch `plan/s10-next`. It records the repository and PR state,
+not intent. It changes no frozen step-level decision. Where the coordination rulings of
+`overall.md` "Parallel build-out, 2026-10-08" already moved a PR, this section records the move and
+its consequences for the PRs that remain. Decision identifiers stay placeholders, inside the range
+ruling 6 assigned to S10 (`ARC-56 … ARC-60`, `DEP-24 … DEP-27`).
+
+## 15.1 Base and method
+
+- **Base:** `origin/main @ 9cf8f8e` (S12 13a, #82). `git log origin/main` shows no S10 implementation
+  commit. The only S10 commits on `main` are this step's planning commits and the freeze in #62.
+- **Sources read in this session:**
+  - `overall.md` S10, the rulings, and the operator decisions of 2026-10-08;
+  - this document, in full;
+  - `step-12-server.md` §§4–5, §9 and §15 (S11);
+  - `server/PROTOCOL.md` revision 2, §§7–10;
+  - `server/tests/frames/*` and `server/tests/frames.rs`;
+  - `server/src/protocol.rs`;
+  - `contracts/src/{observation,action}.rs`;
+  - `tools/cli/src/{agent,invite,main}.rs`;
+  - `.structured-coding/standards.md`, `scripts/ci_layer.py`, `Dockerfile`, `.gitignore`;
+  - `docs/ARCHITECTURE.md` §9 and §13, `docs/MODULE_SPEC.md` §5;
+  - PR #83 (S11-B): its body, its file list, and its golden frames at `7811e06`;
+  - `step-19-time-weather.md`, for QTW-13.
+- **What exists under `cognition/` and the controller seam on `main`:**
+  - `cognition/` holds `.gitkeep` and the Rust crate `cognition/rule-controller`: `RuleController`,
+    `PacedRuleController`, and the `agenda`, `social` and `offered` bands. There is no Python
+    anywhere under `cognition/` or `sdk/`, and no `pyproject.toml` in the repository. The only other
+    Python is `scripts/` and the asset tooling.
+  - The controller seam on `main` is still `tools/cli/src/agent.rs`. `--agent SEAT` spawns a tokio
+    task that calls `RuleController::new().decide` over `host.join` and `host.submit`. The server
+    crate names no controller.
+  - #83 replaces that seam with `server/src/hosted.rs` (`HostedController`, on the world thread) and
+    `tools/cli/src/hosted.rs`. Its trait comment states the boundary S10 relies on: *"an asynchronous
+    controller (an LM) connects as a session instead"*.
+- **The protocol on `main`:**
+  - revision 2, as landed by S11-A (#76, merged): `join` with `invite` and `nickname`, `leave`,
+    `closing`, and `WorldSummary` revision 2;
+  - eight golden frames under `server/tests/frames/` (SD-A12), the oracle R-S11-7 asked for;
+  - `observation.events` always empty; no `perceived` stream; seats not exclusive.
+
+## 15.2 The state of each P-PR
+
+| PR | State on 2026-10-08 | Owner now | Depends on | Can start now? | Next action |
+| --- | --- | --- | --- | --- | --- |
+| **P1** Event perception (presence's audience, the seam, `mineworld perceived`) | **Moved to S11-C** by ruling 2. Not implemented. S11-C is being designed in parallel. | S11-C | — | n/a for S10 | S10 consumes it. §15.4 states what S10 needs S11-C to deliver. |
+| **P2** F-13 for `--agent` | **Dropped** by ruling 3. The fix is `RuleController::since(bind instant)` in S11-B: #83, open and `READY FOR OPERATOR REVIEW`, with SB-5 (CP-B3) PASS and its mutation red. It is reopened only if #83's fix proves insufficient. | S11-B | — | n/a | None, unless #83 is rejected. |
+| **P3** Python SDK | **Not started. Fully designed:** [`pr-s10-p3-python-sdk.md`](pr-s10-p3-python-sdk.md), ready for freeze review. Scope narrowed against §8 (below). | S10 | S11-A (**merged**) | **Yes** | Primary-session freeze, then a fresh implementation session. |
+| **P3b** (new) SDK: the `perceived` stream | Not started. Split out of P3: the cursor, resume, `cursor_unavailable` and `lagged` handling; IC-1's live and resumed halves; reconnect with `resume`. | S10 | P3; **S11-C** (the stream); S11-B (`resume`) | No | Detailed after S11-C freezes, from its frames. |
+| **P4** Memory and compression, `AC-10` | Not started. | S10 | P3 (package skeleton); **S11-C's `mineworld perceived`** (IC-4 step 2) | No (see §15.3) | Wait for S11-C's offline export. Detail P4 then. |
+| **P5** Backends, recorder, budgets | Not started. The live spike (QS10-2) runs on the operator's machine. | S10 | P3 (workspace and toolchain) | After P3 merges | Detail after P3. It can run in parallel with P4. |
+| **P6** `LMController` and `persona` | Not started. | S10 | P3, P4, P5, P3b; **S11-B** (exclusivity, takeover, `time_scale`); **S11-C** (perceived stream, `acted_through`) | No | — |
+| **P7** Milestone D | Not started. | S10 | P6; S12 and S14 for the operator's run; CI's Python job (P3 C5, or S13) | No | — |
+
+**P3's scope against §8's file table, recorded as bounded refinements** (the primary session rules on
+each at P3's freeze: QP3-1, QP3-2, QP3-3):
+
+1. **The `Controller` protocol and the `Decision` builders (`Say`, `Step`) move from `mineworld_sdk`
+   (P3) to P6.** At P3 they would have one implementation. `Say` and `Step` name the `talk` and
+   `move` vocabulary, which a generic SDK must not assume. The SDK keeps `offers.attempt` (complete
+   affordances, `ARC-34`) and a generic `offers.request` that reads the observation's verdict.
+2. **The perceived stream and IC-1's live and resumed halves move from P3 to P3b**, because the frames
+   do not exist on `main` (ruling 2 puts them in S11-C).
+3. **CI's Python job (R-S13-1)** is proposed as P3's conditional commit C5. No S13 PR plans it, and
+   `standards.md` ties enabling `ruff` and `pyright` to the first Python module.
+
+## 15.3 Dependencies on S11-B and S11-C, PR by PR
+
+| S10 PR | Needs from **S11-B** (#83: seats, takeover, hosted controllers, `time_scale`; QTW-13 makes hosted consult cadence wall seconds) | Needs from **S11-C** (being designed: the resumable `perceived` stream, `mineworld perceived`, events in observations, `acted_through`) |
+| --- | --- | --- |
+| P3 | **Nothing functional.** Only its frame changes (`join.take_over`, `welcome.world.time_scale`, `took_over` values, `closing.taken_over`/`superseded`), absorbed by whichever of P3 and #83 merges second (P3 D-P3-5, R-S11-9) | Nothing. Non-empty `events` are refused loudly until then (P3 D-P3-6) |
+| P3b | `resume`, and the hold, for reconnect | **Everything:** the stream, the cursor, the refusals, and the golden frames for each |
+| P4 | Nothing | **`mineworld perceived`**, the offline export over a save, from the same audience function as the live stream (I-4). P4's memory and compression modules could be written against synthetic L0 records after P3. But IC-4, the `AC-10` test, cannot run without the export, and a test-only audience rule would be the second implementation I-4 forbids. **Recommendation:** S11-C lands `mineworld perceived` in an early commit (its §9.3 order already starts with pure commits), and P4 starts when that commit is on `main`. |
+| P5 | Indirectly: `time_scale` changes what a per-simulated-hour budget costs in wall time and money (QS10-18) | Nothing |
+| P6 | **Seat exclusivity, `take_over`, and the `Hosted ─join─► Connected` takeover.** An LM seat joining a seat that `--town` or `--agent` drives takes it over (`took_over: "hosted"`). When the LM process dies, the seat is held, then returns to its hosted rule controller. So "unplug the model" degrades to the rule controller with no S10 code. **QTW-13:** hosted cadence is in wall seconds, and P6's heartbeat trigger T5 (§3.4.5, "every H simulated minutes") is re-decided against it. | The stream (memory's only input besides observations). `acted_through`, for the pre-submit check (§3.6, layer 2). |
+| P7 | All of P6's needs | All of P6's needs |
+
+**A distinction S11-C must keep, and S10 relies on.** S11's §4.7 delivers `observation.events`. That
+channel is lossy by design: a bounded pending queue, with overflow counted in `events_dropped`. Ruling 2
+adds the reliable, cursor-resumable `perceived` stream. **S10's memory ingests only the reliable stream**
+(§3.4.3). It never ingests `observation.events`, which would make memory depend on a reader's speed.
+Ingestion stays idempotent by `EventId` in any case.
+
+## 15.4 What S10 needs S11-C to deliver (restated for S11-C's parallel design)
+
+R-S11-1 … R-S11-3 and R-S11-7 still stand, with ruling 2's names:
+
+- the `perceived` frame and `join.perceived { since }`;
+- `through` as the considered-up-to cursor;
+- ascending, never-dropped, never-duplicated delivery;
+- perceived frames for revision R before any observation frame of revision R;
+- `cursor_unavailable` and `lagged`;
+- the audience decided by presence through the perception seam, never by the server;
+- `mineworld perceived` over a save.
+
+R-S11-1's "host API half" is **withdrawn**. It existed for P2's in-process `--agent` driver, and P2 is
+dropped. Two requirements are added by P3's design (`pr-s10-p3-python-sdk.md` §9):
+
+- **R-S11-9.** Once P3 has merged, a PR that adds or changes a golden frame updates `sdk/python`'s
+  models in the same PR. This is the far-side rule (`overall.md` R-9) already applied to the GDScript
+  module.
+- **R-S11-10.** S11-C commits golden frames for:
+  - `perceived`;
+  - `delta`, if kept;
+  - a non-empty `events` observation;
+  - the `join` carrying `perceived`;
+  - the two new refusals.
+
+## 15.5 Order
+
+```text
+now        P3  (needs S11-A, merged)                      ── freeze → implement
+             │
+after P3   P5  (backends · recorder · budgets; spike on the operator's machine)
+             │
+after S11-C's mineworld perceived:   P4  (memory · compression · AC-10)      ∥ P5
+after S11-C's stream (+ S11-B):      P3b (perceived stream in the SDK)
+             │
+after P3b, P4, P5, S11-B:            P6  (LMController · persona)
+             │
+after P6, S12, S14 (+ CI's Python job):  P7  (Milestone D; AC-4; removability)
+```
+
+S10 can start **P3, now**, and nothing else. **P5** follows P3 directly, with no S11 dependency.
+**P4** waits for S11-C's offline export. **P3b and P6** wait for S11-C's stream and for S11-B. **P7**
+waits for the clients.
+
+## 15.6 Questions this audit adds, and the operator-material ones gathered
+
+Already accepted by the operator on 2026-10-08 (`overall.md`): QS10-1 (a), QS10-2, QS10-4, QS10-5,
+QS10-7 and QS10-14, as recommended. That means:
+
+- a local Ollama model, chosen by a spike against fixed criteria;
+- hosted paid endpoints optional, operator-run only, never in CI;
+- a `persona` pack;
+- headless `run` never uses a model;
+- recorded outputs, and tests that pass with no network.
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **QS10-18 [operator — cost]** | QTW-13 and S11-B's `time_scale` let one wall second be N world seconds. §3.10's budgets (`calls_per_sim_hour 20`, `tokens_per_sim_day 30 000`) are keyed on **simulated** time, so at scale N they cost N times as much per wall hour. Should the per-seat ceilings that bound **cost** be keyed on wall time instead? | **Two ledgers.** Cost ceilings (calls and tokens) are keyed on **wall** time, because money and GPU time are wall quantities. The context bound (I-13) stays on simulated time, because memory is about a life. Decided in P5's design. Until then, no model runs anywhere. |
+| **QS10-19 [operator — paid API]** | May any S10 PR use the operator's hosted OpenAI-compatible key, for example to record a cassette or for QS10-4's optional live `AC-4` variant? | **Not for any MVP-0 gate.** Every cassette a gate depends on is recorded against the local model (QS10-2), and the `AC-4` swap test is the replay test (IC-6). A hosted recording is an operator-run extra, done by the operator, and never by an agent. Agents never read the key file, and the runtime reads a key only from the environment variable the operator names (§3.7.4). |
+| **QS10-20 [primary]** | Accept §15.2's refinements of P3's scope: the `Controller` protocol and `Say`/`Step` to P6; the perceived stream to P3b; CI's Python job in P3 C5? | **Yes**, as argued in `pr-s10-p3-python-sdk.md` QP3-1 … QP3-3. |
+| **QS10-21 [primary, with S11-C]** | Adopt R-S11-9 and R-S11-10, and land `mineworld perceived` in an early S11-C commit, so P4 can start before S11-C's runtime integration? | **Yes.** It is the cheapest unblocking of `AC-10`. The export is a pure fold over a save, and S11-C's §9.3 order already puts pure commits first. |
