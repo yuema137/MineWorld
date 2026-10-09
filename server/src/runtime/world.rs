@@ -52,22 +52,65 @@ impl HostClock {
 
 /// How long the world thread's ticks took: counted, and the longest kept, for the operator's
 /// statistics line on shutdown (`ARC-42`, step-12 CP-B4).
-#[derive(Default)]
+///
+/// Kept as a histogram of 0.1 ms buckets up to one second (and one bucket beyond), so a server that
+/// runs for months holds a fixed 80 KB rather than a sample per tick. A percentile is reported as its
+/// bucket's upper edge: never under the true value, by at most 0.1 ms. CP-B4 bounds the p99 and
+/// reports the maximum beside it (step-12 §16.4, operator ruling on D-SB12).
 pub(super) struct TickTimes {
     ticks: u64,
     longest: Duration,
+    buckets: Vec<u64>,
+}
+
+/// The histogram's resolution, in microseconds, and how many buckets it has before the overflow one.
+const BUCKET_MICROS: u128 = 100;
+const BUCKETS: usize = 10_000;
+
+impl Default for TickTimes {
+    fn default() -> Self {
+        Self {
+            ticks: 0,
+            longest: Duration::ZERO,
+            buckets: vec![0; BUCKETS + 1],
+        }
+    }
 }
 
 impl TickTimes {
     pub(super) fn record(&mut self, took: Duration) {
         self.ticks += 1;
         self.longest = self.longest.max(took);
+        let bucket = usize::try_from(took.as_micros() / BUCKET_MICROS).unwrap_or(BUCKETS);
+        self.buckets[bucket.min(BUCKETS)] += 1;
+    }
+
+    /// The `per_mille`th tick duration in milliseconds, as its bucket's upper edge; the overflow
+    /// bucket answers with the longest tick.
+    fn percentile(&self, per_mille: u64) -> f64 {
+        if self.ticks == 0 {
+            return 0.0;
+        }
+        let rank = (self.ticks * per_mille).div_ceil(1_000).max(1);
+        let mut seen = 0;
+        for (bucket, count) in self.buckets.iter().enumerate() {
+            seen += count;
+            if seen >= rank {
+                if bucket == BUCKETS {
+                    break;
+                }
+                return f64::from(u32::try_from(bucket + 1).unwrap_or(u32::MAX)) / 10.0;
+            }
+        }
+        self.longest.as_secs_f64() * 1_000.0
     }
 
     pub(super) fn report(&self) -> String {
         format!(
-            "[world] ticks {}, longest tick {} ms",
+            "[world] ticks {}, p50 {:.1} ms, p99 {:.1} ms, longest tick {} ms",
             self.ticks,
+            self.percentile(500),
+            self.percentile(990),
             self.longest.as_millis()
         )
     }
@@ -146,5 +189,37 @@ impl Hosted {
             Self::Ephemeral(world) => world.advance_to(at).map_err(Failure::Fault),
             Self::Persisted(world) => world.advance_to(at).map_err(Failure::from_persistence),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// CP-B4's statistic: one stall in a hundred ticks moves the maximum and not the p99; two do.
+    #[test]
+    fn the_p99_ignores_one_stall_in_a_hundred_and_not_two() {
+        let mut times = TickTimes::default();
+        for _ in 0..99 {
+            times.record(Duration::from_micros(1_050));
+        }
+        times.record(Duration::from_millis(160));
+        assert_eq!(
+            times.report(),
+            "[world] ticks 100, p50 1.1 ms, p99 1.1 ms, longest tick 160 ms"
+        );
+        times.record(Duration::from_millis(170));
+        assert!(
+            times.report().contains("p99 160.1 ms"),
+            "{}",
+            times.report()
+        );
+        let mut beyond = TickTimes::default();
+        beyond.record(Duration::from_secs(3));
+        assert!(
+            beyond.report().contains("p99 3000.0 ms"),
+            "past the histogram, the longest: {}",
+            beyond.report()
+        );
     }
 }

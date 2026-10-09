@@ -2056,9 +2056,15 @@ SB-5  F-13 (CP-B3). `mineworld server worlds/social-cafe --agent alice --save DI
 
 SB-6  The town lives (CP-B4). `mineworld server worlds/market-town --town --pace 5 --save DIR`, two
       sessions connected, 120 wall seconds, then SIGINT: the shutdown lines show every hosted seat with
-      ≥ 3 accepted `move` requests, zero faults (/status), and `longest tick ≤ 50 ms` — half the 100 ms
-      cadence. [tools/cli/tests/hosted_town.rs]
+      ≥ 3 accepted `move` requests, zero faults (/status), and ~~`longest tick ≤ 50 ms`~~ — half the
+      100 ms cadence. [tools/cli/tests/hosted_town.rs]
+      SUPERSEDED 2026-10-08 (operator ruling on D-SB12, option (b), on E-SB9's evidence): the bound
+      is now **the p99 tick over the run ≤ 50 ms, with the maximum reported beside it**; the maximum
+      no longer gates. The shutdown line is `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms`
+      (a fixed 0.1 ms histogram in runtime/world.rs `TickTimes`); the test prints p50, p99 and max on
+      every run. The other checks (accepted moves per seat, faults, clients) are unchanged.
       Mutation M-SB6: consults never fire (next_consult always in the future) → accepted 0; fails.
+      Mutation M-SB12: a 60 ms delay injected into every tick → p99 68 ms > 50 ms; fails.
 
 SB-7  A hosted controller has no privilege (I-8). Server test: a test HostedController that returns a
       request whose actor is another Person is answered Refused(actor_not_observer) through
@@ -2424,6 +2430,18 @@ E-SB9 D-SB12 located before counted (primary-session ruling: no bound change, no
       after use) recorded `[world] ticks 1202, longest tick 8 ms`, with accepted moves alice 17,
       bob 16, carol 10, dev 20, erin 20, felix 16, grace 16, hana 14, ivan 8. On #83 itself, CI at
       8ecee01 (run 37856771059): fast success, test success — hosted_town passed on the runner.
+E-SB10 CP-B4 as ruled (operator, 2026-10-08: option (b)). Merged origin/main 77a8717 first (IL-a #80,
+      13a #82, #85): IL-a's configuration-drift check moved with `persisted` into serve.rs (same
+      place: after `SqliteBackend::open`, before `compose`), `saved_genesis` shared from main.rs;
+      ADOPTION §6's "reconnect arrives with S11-B" row dropped and §6.1 told of the opt-in; ARC-40
+      and 13a's ARC-45 both kept. `TickTimes` keeps a 0.1 ms histogram (fixed 80 KB) and prints
+      p50/p99/max; unit test `the_p99_ignores_one_stall_in_a_hundred_and_not_two` (99 × 1.05 ms + one
+      160 ms → p99 1.1, max 160; a second stall → p99 160.1; past 1 s → the longest). hosted_town
+      asserts p99 ≤ 50 ms and prints `CP-B4 tick p50 0.3 ms, p99 2.3 ms, max 5 ms` (local, PASS).
+      M-SB12: `std::thread::sleep(60 ms)` injected at the end of every tick (the harness cannot slow
+      the server's world thread, so the delay was planted in runtime.rs `tick`) → "the p99 tick took
+      68 ms, over 50 ms (p50 64.9 ms, max 78 ms)"; reverted, `git diff` clean of it.
+      ARC-42's measured paragraph and MODULE_SPEC §8.1's shutdown line updated to match.
 ```
 
 ## 16.11 Deviations and discoveries

@@ -3887,10 +3887,12 @@ session**, over the protocol, so the world never waits for it (`ARCHITECTURE.md`
 thread owns; the lattice is the formula `mineworld run` already uses, a few lines here.
 
 **Measured, not assumed.** `decide` runs on the world thread, so its cost is the world's. The server
-counts its ticks and the longest one, and prints them on a graceful stop
-(`[world] ticks N, longest tick M ms`); the composition root prints each hosted seat's consults and
-outcomes beside it. S11-B's CP-B4 bounds the longest tick of a hosted `market-town --town --save` at
-50 ms, half the observation cadence.
+counts its ticks in a fixed histogram and keeps the longest, and prints them on a graceful stop
+(`[world] ticks N, p50 A ms, p99 B ms, longest tick M ms`); the composition root prints each hosted
+seat's consults and outcomes beside it. S11-B's CP-B4 bounds the **p99** tick of a hosted
+`market-town --town --save` at 50 ms, half the observation cadence, and reports the maximum beside it
+(operator ruling on D-SB12, 2026-10-08: one off-CPU stall the server cannot control — descheduling,
+or the commit's I/O wait — must not decide the bound; step-12 E-SB9 located every outlier there).
 
 **Limitations accepted.** A hosted world is not reproducible from a seed — its instants follow the wall
 clock (`ARC-27` excludes it from `AC-12`); its save still replays byte for byte, because the journal holds
