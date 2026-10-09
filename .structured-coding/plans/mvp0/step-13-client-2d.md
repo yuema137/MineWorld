@@ -1693,11 +1693,22 @@ wording: a suggestion list is a suggestion, never a filter". `presentation/minew
 (every key 13b uses; English). `scripts/check_client_rules.py --check-pack`: the `.po` parses (msgid /
 msgstr pairs, UTF-8, a `Language:` header) and every `action.*` / `reason.*` key it holds is well formed.
 **Non-goals.** No client code; no `zh-Hans` (the settings lane); `ADOPTION.md` untouched.
-- [ ] Implementation: as scoped.
-- [ ] Validation: `check_decision_ids`, `check_doc_headings`; `--check-pack` PASS; plant a `.po` with an
-  unterminated `msgstr` → FAIL by line; restore → PASS.
-- [ ] Review: no defined term redefined; wording holds no rule (no number, no condition); the key list
-  matches §15.4 D-b-9.
+- [x] Implementation: `docs/DECISIONS.md` ARC-47 "Note 1" (the menu model) and `ARC-70` (wording by
+  key, gettext in the pack, reuse comparison); `clients/2d/PRESENTATION.md` §5 (no rule in wording) and
+  new §7 "Wording" (file format, key families, fallback); `presentation/mineworld-default/2D/i18n/en.po`
+  (every key 13b's client asks for); `scripts/check_client_rules.py` `check_po` (called by
+  `--check-pack` for each `i18n/*.po`).
+- [x] Validation: `check_decision_ids` → "70 decision ids, all distinct"; `check_doc_headings` → "191
+  numbered sections across 26 documents, none duplicated"; `--check-pack presentation/mineworld-default/2D`
+  PASS; planted `msgstr "Talk to {target}` (unterminated) → FAIL `i18n/en.po:20: unterminated string`
+  and `:19: msgid "action.talk" has no msgstr`; restored → PASS. `mineworld packs validate
+  presentation/mineworld-default/2D` still "is a valid presentation-pack" with `i18n/` added.
+- [x] Review: no defined term redefined (ARC-70 uses "Presentation Pack", "action type", "component" as
+  CORE_CONCEPTS defines them); the wording holds no number and no condition (`format.money` holds a
+  placeholder only; the divisor is the client's formatting, recorded in PRESENTATION.md §7); the key
+  families are D-b-9's (`action.<type>`, `.done`, `reason.<code>`, `ui.*`, `panel.*`,
+  `suggest.invite-kind`) plus `format.*` (currency and clock, which D-b-7 and the status line need —
+  §15.12 E-2).
 
 #### C2 — Readers and panels (observe, show; nothing sent)
 **Goal.** The observer's own state is visible; the exact JSON of each component is pinned from a real
@@ -1849,4 +1860,48 @@ NORMAL STOP:             PR 13b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### 15.12 Deviations and discoveries during implementation (13b session)
 
-None yet.
+Implementation session started 2026-10-08 in `/Users/yuema137/mineworld-worktrees/impl-13b`, branch
+`mvp0/pr-13b-interactions` from `origin/main` @ `aa74b32`. Handoff: `handoff-s12-13b.md`.
+
+- **E-0 — Re-audit of §15.1 at `aa74b32`.** `git diff --stat 9cf8f8e aa74b32` touches none of
+  `clients/2d/**`, `clients/protocol/**`, `scripts/check_client_rules.py`,
+  `tests/acceptance/tests/client_rules.rs`, `tools/cli/tests/godot2d/**`, `worlds/market-town/**`; it
+  touches `systems/installed` and `systems/presence/src/resolve.rs` (IL-a's `configure:` seam), which
+  change no affordance or component 13b reads. B-1 … B-16 hold. 12d (`origin/mvp0/pr-12d-towns`) and
+  S11-B (`origin/mvp0/pr-s11b-seats`) are not on `main` (RK-b2, RK-b3 not triggered yet). The action
+  types the build declares: accept-invitation, buy, decline-invitation, drink, eat, give, invite,
+  join-group-activity, kick, leave-group-activity, move, shove, talk, throw.
+- **E-1 — A system's rejection code has the contract's shape, not a bare dictionary key (bounded).**
+  Previous assumption (D-b-2): "the first key of a system's dictionary code". Audit:
+  `contracts/src/action.rs` `Rejection::System { code, detail }`, `#[serde(rename_all =
+  "snake_case")]`, so a system's reason arrives as `{"system": {"code": "<code>", "detail": …}}`; its
+  first key is always `system`. Corrected: the wording reads `system.code` when present, else the first
+  key (which is what AC-I4's stub sends, `{"inventory-full": …}`), else the string code. A reading of
+  the contract's shape, not a rule. Validation: AC-I4.
+- **E-2 — `format.*` keys (bounded).** D-b-7 asks for "the pack's currency format" and the status line
+  shows a clock; both are wording, so they are keys (`format.money`, `format.clock`) in the family
+  table of PRESENTATION.md §7. The money amount is the `wallet`'s minor units shown with two decimals.
+- **E-3 — The observed shapes (C2's first step, a real frame).** `target/debug/mineworld server
+  worlds/market-town --agent alice`, one 2D client seated `visitor`, `--drive=seated --frame` (a new
+  harness option that prints the raw observation as a `FRAME` line). Disclosed about the observer at
+  genesis: `agenda {label, place: {entity, entity_type}, routine, since, until}` (seconds),
+  `holdings {held: [{count, item: {entity, entity_type: "item"}}]}`, `wallet {balance}` (minor units);
+  about the place: `shop {listed: [{in_stock, item: {entity, …}, price}], operator: {entity, …}}`,
+  `passages`; about each person present: `display-name`. Not disclosed at genesis (empty, so absent):
+  `conversation-history`, `acquaintances`, `invitations`, `employment`, `participation`; their shapes
+  are read from the owning packs' serde types — `conversation-history {heard: [{speaker, at,
+  utterance}]}`, `invitations {pending: [{from, kind, at}]}`, `participation {activity, kind, since}`,
+  `acquaintances {known: [{counterpart, values: {…}}]}`, `employment {job: {employer, workplace, from,
+  until, wage, produces}, shift}` — and pinned against a live frame in C5 where a run discloses them.
+  Café shop listing at genesis: items 22, 24, 25, 33, 36, 37 (6 kinds; prices 400, 300, 250, 600, 500,
+  250).
+- **E-4 — Platform findings (operator requirement 2026-10-08: macOS, Linux, Windows).** Existing
+  Unix-only assumptions met in 13a's files, recorded, not changed by 13b: (1) `mineworld-2d` is a bash
+  script (no Windows launcher) — owner: S12 (the 2D client lane; a `mineworld-2d.ps1` or a
+  cargo-run launcher is a 13-series follow-up); (2) `clients/2d/mineworld` is a git symlink to the
+  shared module, which a Windows checkout without `core.symlinks` materializes as a text file, so the
+  project's `MineWorldClient` class would not load — owner: S12 with S14 (the shared-module adoption,
+  `ADOPTION.md` §1); (3) `tools/cli/tests/godot2d/mod.rs` comments say "SIGKILL" — `Child::kill` is
+  `TerminateProcess` on Windows, so behaviour is portable and only the wording is Unix's (S12). 13b adds
+  no path, signal, `/tmp` or shell assumption: wording paths are built with `path_join`, tests use the
+  scratch helper.

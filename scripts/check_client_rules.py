@@ -254,6 +254,81 @@ def check_pack(directory: str) -> list[str]:
             r = str(path.relative_to(pack))
             if path.is_file() and r not in named and not r.startswith("art/provenance/") and path.suffix != ".md":
                 findings.append(f"{r}: carried but bound by no sprite")
+    wording = pack / "i18n"
+    if wording.is_dir():
+        for path in sorted(wording.glob("*.po")):
+            findings.extend(check_po(path, path.relative_to(pack).as_posix()))
+    return findings
+
+
+PO_STRING = re.compile(r'"((?:[^"\\]|\\.)*)"\s*$')
+ACTION_KEY = re.compile(r"action\.[a-z0-9]+(?:-[a-z0-9]+)*(?:\.done)?")
+REASON_KEY = re.compile(r"reason\.[a-z0-9]+(?:[_-][a-z0-9]+)*")
+
+
+def check_po(path: Path, name: str) -> list[str]:
+    """A gettext file the client loads as wording (PRESENTATION.md §7): msgid/msgstr pairs of quoted
+    strings, UTF-8, a header naming the `Language:`, no key twice, well-formed action/reason keys."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as failure:
+        return [f"{name}: not readable as UTF-8: {failure}"]
+    findings: list[str] = []
+    entries: list[tuple[int, str, str]] = []  # (line of msgid, msgid, msgstr)
+    keyword = ""
+    msgid: tuple[int, str] | None = None
+    msgstr: str | None = None
+
+    def close(at: int) -> None:
+        nonlocal msgid, msgstr
+        if msgid is not None:
+            if msgstr is None:
+                findings.append(f"{name}:{msgid[0]}: msgid \"{msgid[1]}\" has no msgstr")
+            else:
+                entries.append((msgid[0], msgid[1], msgstr))
+        msgid, msgstr = None, None
+
+    for n, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r"(msgid|msgstr)\s+(.*)$", line)
+        quoted = m.group(2) if m else line
+        if not quoted.startswith('"'):
+            findings.append(f"{name}:{n}: not a gettext line: {line}")
+            continue
+        s = PO_STRING.fullmatch(quoted)
+        if s is None:
+            findings.append(f"{name}:{n}: unterminated string: {line}")
+            continue
+        value = s.group(1)
+        if m and m.group(1) == "msgid":
+            close(n)
+            msgid, keyword = (n, value), "msgid"
+        elif m:
+            if msgid is None or msgstr is not None:
+                findings.append(f"{name}:{n}: msgstr without its msgid")
+                continue
+            msgstr, keyword = value, "msgstr"
+        elif keyword == "msgid" and msgid is not None and msgstr is None:
+            msgid = (msgid[0], msgid[1] + value)
+        elif keyword == "msgstr" and msgstr is not None:
+            msgstr += value
+        else:
+            findings.append(f"{name}:{n}: a continuation string with nothing to continue")
+    close(0)
+    header = [e for e in entries if e[1] == ""]
+    if not header or not re.search(r"(^|\\n)Language: *[A-Za-z]", header[0][2]):
+        findings.append(f"{name}: no header entry (msgid \"\") naming its Language:")
+    seen: dict[str, int] = {}
+    for n, key, _ in entries:
+        if key in seen:
+            findings.append(f"{name}:{n}: \"{key}\" again (first at line {seen[key]})")
+        seen.setdefault(key, n)
+        if key.startswith("action.") and not ACTION_KEY.fullmatch(key):
+            findings.append(f"{name}:{n}: \"{key}\" is not action.<type> or action.<type>.done")
+        if key.startswith("reason.") and not REASON_KEY.fullmatch(key):
+            findings.append(f"{name}:{n}: \"{key}\" is not reason.<code>")
     return findings
 
 
