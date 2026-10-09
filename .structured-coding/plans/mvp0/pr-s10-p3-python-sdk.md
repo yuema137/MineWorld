@@ -1,8 +1,21 @@
 # PR S10-P3 — The Python protocol SDK: typed revision-2 frames, the seat session, offers
 
-**Lifecycle:** `PR design — ready for freeze review`. Not frozen. It authorizes no implementation
-(`CLAUDE.md` §3.1). The primary session freezes it, or sends it back. The operator is asked only the
-questions marked **[operator]** in §11, and P3 itself has none.
+## DESIGN FROZEN 2026-10-08 (primary session)
+
+```text
+Design revision:        §§1–9 and §11's rulings, as committed on plan/s10-next (PR #86) with this
+                        header
+Approved by / evidence: the primary session's freeze message of 2026-10-08, relayed by the
+                        coordinator to the S10 planning session; its rulings are recorded in §11
+Implementation base:    main at the start of implementation (exact commit recorded in C0)
+Execution contract:     §10
+Lifecycle:              FROZEN
+```
+
+Scope, invariants, decisions D-P3-1 … D-P3-10, the adversarial criteria AP-1 … AP-11 and the commit
+plan are frozen. Progress, evidence, findings and bounded corrections stay writable (§12).
+**Not frozen with it, and blocking nothing in P3:** QS10-18 and QS10-19 (operator-material, open), and
+QS10-21 (forwarded to S11-C). See §11.
 **Effort:** `mvp0` · **Step:** S10, [`step-17-cognition.md`](step-17-cognition.md) (P3 in §8 and §9;
 the state of every S10 PR is in §15, "Audit, 2026-10-08") · **Parent:** [`overall.md`](overall.md) §3
 (S10), coordination rulings 1, 2, 3, 6, 7 and 8 under "Parallel build-out, 2026-10-08".
@@ -46,8 +59,8 @@ backends (P5) and the `LMController` (P6).
 - A network guard: the Python suite cannot reach anything but localhost (I-11, IC-5's Python half).
 - `.structured-coding/standards.md`: `ruff` and `pyright` enabled with commands, and `pytest` added.
   That file says this happens "in the same change that introduces the first Python module".
-- CI: Python checks in `scripts/ci_layer.py`'s layers, and `uv` in the toolchain image. This is
-  conditional on QP3-3; if the answer is no, C5 is N/A and R-S13-1 stays with S13.
+- CI: Python checks in `scripts/ci_layer.py`, `uv` in the toolchain image, and a separate `python`
+  job (QP3-3, accepted with the condition that `fast` and `test` are neither renamed nor slowed; C5).
 - Decision records:
   - `ARC-S10-a`, the process boundary (step-17 §3.2);
   - `DEP-S10-b` Pydantic;
@@ -246,7 +259,7 @@ nothing.
 | **AP-6** Offers read the verdict; the world still decides | `offers.request(obs, "shoot", target=bob, payload={})` raises `NotOffered` and **no frame is sent**: the session's sent-frame count is unchanged. The same request sent raw with `session.submit` is answered `ActionResult.unavailable` by the world (`INV-10`, seen from the far side). | Remove the local check: the sent count rises, so the first half fails while the second still passes. That shows the world's check is the one that holds. |
 | **AP-7** Secrets | A join with a wrong invite raises `JoinRefused("unauthorized")` no sooner than **500 ms** after the join was sent (the server's fixed delay, `PROTOCOL.md` §4.1). The invite string appears in no captured log record, in no exception's `str` or `repr`, and in no session's `repr`. Checked with a 32-character marker invite. | Put the offered invite in `JoinRefused`'s message: the scan finds it. |
 | **AP-8** No network but localhost | The whole suite runs with the guard on. A test connecting to `192.0.2.1:80` (TEST-NET-1, RFC 5737) fails within **1 s** with the guard's own error type, not a timeout and not `OSError`. | Disable the guard: the test fails because the error type or the elapsed time is wrong. |
-| **AP-9** Scope | `git diff --stat <base>..HEAD` touches only: `pyproject.toml`, `uv.lock`, `sdk/python/**`, `.gitignore`, `.structured-coding/**`, `docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, and, with C5, `scripts/ci_layer.py`, `Dockerfile`, `scripts/check_ci_pins.py`. No `*.rs` file appears. | — (a diff gate; review plants nothing) |
+| **AP-9** Scope | `git diff --stat <base>..HEAD` touches only: `pyproject.toml`, `uv.lock`, `sdk/python/**`, `.gitignore`, `.structured-coding/**`, `docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, and, with C5, `scripts/ci_layer.py`, `Dockerfile`, `scripts/check_ci_pins.py`, `.github/workflows/ci.yml` (one new job only). No `*.rs` file appears. | — (a diff gate; review plants nothing) |
 | **AP-10** Static | `ruff check`, `ruff format --check` and `pyright` (strict, over `sdk/python`) report zero findings. | Introduce `def f(x): return x`: pyright strict reports a missing annotation. |
 | **AP-11** Fail, never skip | With `MINEWORLD_BIN=/nonexistent`, the integration tests **error**, and the message names `cargo build -p mineworld-cli`. Their count in the pytest summary is "error", never "skipped". | Make the fixture `pytest.skip`: the summary shows "skipped". |
 
@@ -257,7 +270,7 @@ nothing.
 | ID | Risk | Mitigation |
 | --- | --- | --- |
 | R-P3-1 | `pyright` needs Node.js. The toolchain image has none, and `pip install pyright` downloads Node at first run, which is network at check time. | Verified in C1: the `pyright[nodejs]` extra, which installs Node from a wheel and is locked by `uv.lock`. If it fails, record a deviation: either `basedpyright` (bundles Node through `nodejs-wheel`) with the same strict configuration, or Node pinned in the image. Either way, an entry in `DEP-S10-e`. |
-| R-P3-2 | `uv` in the CI image: a new binary in the toolchain, and PyPI access during CI. | Copy `uv` from its official image pinned by **digest** (`COPY --from=ghcr.io/astral-sh/uv:<version>@sha256:…`). Extend `check_ci_pins.py` so a `COPY --from=<image>` also needs a digest. Run `uv sync --locked`, so the lock is the whole resolution. Set `UV_PYTHON_DOWNLOADS=never`, so the image's Python 3.13 is used and nothing else is downloaded. Conditional on QP3-3. |
+| R-P3-2 | `uv` in the CI image: a new binary in the toolchain, and PyPI access during CI. | Copy `uv` from its official image pinned by **digest** (`COPY --from=ghcr.io/astral-sh/uv:<version>@sha256:…`). Extend `check_ci_pins.py` so a `COPY --from=<image>` also needs a digest. Run `uv sync --locked`, so the lock is the whole resolution. Set `UV_PYTHON_DOWNLOADS=never`, so the image's Python 3.13 is used and nothing else is downloaded. Python runs in a separate `python` job, so the required `fast` and `test` checks are not slowed (QP3-3's ruling). |
 | R-P3-3 | S11-B (#83) and S11-C change golden frames while P3 is open. | D-P3-5 and R-S11-9. The completeness check (AP-1) makes the drift visible in whichever PR merges second. |
 | R-P3-4 | The re-encoding of optional fields drifts from serde's. `Refused.token` is omitted when `None`; `Welcome.resume` is written as `null`; `Affordance.payload` is omitted when absent. | Per-field omission rules in `codec.py`, held by AP-1 and AP-2. A blanket `exclude_none` is wrong and AP-1 (b) catches it. |
 | R-P3-5 | A two-seat test that depends on timing flakes. | Waits are bounded and event-driven, through `changed()`. The 10 s bound is a ceiling, not a sleep. The fixture's server is in memory, so there is no save I/O. |
@@ -417,31 +430,44 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - The server does not start within 30 s: the fixture fails with the server's stderr.
   - A port collision: retried a bounded number of times, as the Rust harness does.
 
-### C5 — CI runs the Python checks (conditional on QP3-3)
+### C5 — CI runs the Python checks (QP3-3 accepted, with the primary session's condition)
 
-- **Goal.** I-11 and AP-10 become blocking gates, not review promises (QS10-16, R-S13-1).
+- **Goal.** I-11 and AP-10 become CI gates, not review promises (QS10-16, R-S13-1).
+- **The primary session's condition (binding).** The required checks `fast` and `test` keep their
+  names and do not get slower.
+  - The Python **static** checks (`uv sync --locked`, `ruff check`, `ruff format --check`, `pyright`)
+    go in `fast` only if they add **under about 60 s** to `fast`'s wall time, measured on a CI run.
+    Otherwise they go in the separate job below.
+  - The Python **tests** (`pytest`, which needs a built `mineworld` binary) never go in `core`.
+    `core` is the `test` job, and adding them would slow it.
+  - A separate job is not required by branch protection until the primary session adds it. C5 does
+    not touch branch protection.
 - **Scope.**
   - `Dockerfile` toolchain stage: `COPY --from=ghcr.io/astral-sh/uv:<version>@sha256:<digest>
     /uv /uvx /bin/`, and `ENV UV_PYTHON_DOWNLOADS=never`;
   - `scripts/check_ci_pins.py`: a `COPY --from=` image must carry a digest;
   - `scripts/ci_layer.py`:
-    - `fast` gains `uv sync --locked`, `ruff check`, `ruff format --check` and `pyright`;
-    - `core` gains `uv run --locked pytest sdk/python` after `cargo test --workspace`, which has
-      built `target/debug/mineworld`;
-  - the `ARC-48` note, if the layer contents are recorded there.
-- **Non-goals.** No change to `.github/workflows/ci.yml`: jobs name layers, never commands
-  (I-S13-9).
-- [ ] Implementation: as above. `ENVIRONMENT` gains `uv --version`, so the log records it.
+    - a new layer `python`: `uv sync --locked`, the static checks (unless they moved to `fast`),
+      `cargo build -p mineworld-cli`, `uv run --locked pytest sdk/python`, and the scratch check;
+    - `fast` gains the static checks **only** under the 60 s condition above;
+    - `ENVIRONMENT` gains `uv --version`, so the log records it;
+  - `.github/workflows/ci.yml`: one new job `python`, which, like the others, only names its layer
+    (I-S13-9 holds: no command appears in YAML). The `fast` and `test` jobs are unchanged;
+  - an `ARC-48` note recording the new layer and its job.
+- [ ] Implementation: as above. First measure: one CI run with the static checks in the `python`
+  layer, recording their wall time. Then place them by the 60 s rule, and record the measurement and
+  the placement in the ledger.
 - [ ] Validation:
   - `python3 scripts/check_ci_pins.py` passes, and fails on a planted digest-less `COPY --from`;
-  - `python3 scripts/ci_layer.py --list fast` and `--list core` show the new commands;
-  - push a scratch branch `scratch/s10-p3-mutation` with AP-8's guard disabled, and see `core`
-    red; then green on the PR head (step-14's R-4 practice);
-  - the CI run's time for the Python commands, recorded against `ARC-48`'s budget.
+  - `python3 scripts/ci_layer.py --list fast`, `--list core` and `--list python` show the intended
+    commands, and `core`'s list is unchanged;
+  - push a scratch branch `scratch/s10-p3-mutation` with AP-8's guard disabled, see the `python`
+    job red, then green on the PR head (step-14's R-4 practice);
+  - on the PR head, `fast` and `test` are green, and their wall times are compared with the base's.
+    `fast` may grow by the static checks only within the 60 s rule; `test` must not grow beyond run
+    noise.
 - [ ] Review: the S13 owner's rules hold: the layers are the only command list, every image is
-  pinned by digest, and nothing in CI can reach a model.
-- **If QP3-3 is answered no:** `N/A — R-S13-1 left with S13 by the primary session's ruling
-  <reference>`. AP-8 and AP-10 are then evidenced locally only, and the PR says so.
+  pinned by digest, required checks keep their names, and nothing in CI can reach a model.
 
 ### C6 — Absorb S11-B (conditional on D-P3-5)
 
@@ -495,7 +521,10 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
 
   Without them the Python event model would have no oracle (D-P3-6).
 
-## 10. Execution contract (to be filled at freeze; unresolved lines stay unresolved)
+## 10. Execution contract (filled at freeze, 2026-10-08)
+
+Source of every line marked "primary session": its freeze message of 2026-10-08, relayed by the
+coordinator to the S10 planning session.
 
 ```text
 PROJECT / PR:            MineWorld mvp0, S10 PR P3 — the Python protocol SDK
@@ -503,22 +532,35 @@ PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-s10-p3-python-sdk.md
 RELATED / BINDING DOCS:  step-17-cognition.md (§3.2, §3.4, §4, §5, §15); overall.md (S10; rulings
                          1–8); server/PROTOCOL.md rev 2; docs/ARCHITECTURE.md; docs/MODULE_SPEC.md §5;
                          docs/ENGINEERING_STANDARDS.md; docs/REUSE_POLICY.md; CLAUDE.md
-IMPLEMENTATION BASE:     main at freeze (unresolved: exact commit; whether #83 is merged)
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s10-p3          (primary session)
+BRANCH:                  mvp0/pr-s10-p3-sdk, created from main                     (primary session)
+IMPLEMENTATION BASE:     origin/main at the start of implementation; C0 records the exact commit and
+                         whether #83 (S11-B) is in it (D-P3-5)
 APPROVED SCOPE:          §2.1, as frozen
-FROZEN INVARIANTS:       §2.3; D-P3-1 … D-P3-10 as frozen
-SEQUENCE:                C0 … C7 (C5 and C6 conditional, §8)
+FROZEN INVARIANTS:       §2.3; D-P3-1 … D-P3-10; §11's rulings, including QP3-3's CI condition
+SEQUENCE:                C0 … C7 (C5 under QP3-3's condition; C6 conditional on D-P3-5)
+ALLOWED COMMANDS:        cargo *; git; gh (never merge); uv * (local tool ~/.local/bin/uv);
+                         python3 scripts/*; npx pyright* (only through the project's uv/npm
+                         environment); mkdir -p; sed -n; target/*/mineworld *   (primary session)
+NEVER:                   python3 -c; sed -i; awk; xargs; curl; heredoc writes; reading
+                         ~/.config/mineworld/secrets.env                            (primary session)
+MATERIAL STOPS:          any Rust server or protocol change; any dependency beyond the DEP records
+                         this design names (DEP-S10-b Pydantic, DEP-S10-c websockets, DEP-S10-e uv,
+                         ruff, pyright, pytest, pytest-socket); any hosted-API use  (primary session)
 VALIDATION BUDGET:       unit, static and local integration: unrestricted. Real LLM calls: none
-                         (Gate 1 NOT REQUIRED). No paid API, no key, no model. CI: the scratch
-                         mutation branch of C5, once
+                         (Gate 1 NOT REQUIRED). No paid API, no key, no model. CI: C5's measuring
+                         run and its scratch mutation branch, once each
 LIVE DOCUMENTATION:      this document (§12 ledger)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s10-p3.md
-ENDPOINT AUTHORITY:      implementation + local validation: unresolved (primary session at freeze)
-                         semantic commits: unresolved
-                         branch push: unresolved
-                         PR creation / update: unresolved
-                         CI repair to review readiness: unresolved
+ENDPOINT AUTHORITY:      implementation + local validation: authorized   (primary session freeze)
+                         semantic commits: authorized                    (primary session freeze)
+                         branch push: authorized                         (primary session freeze)
+                         PR creation / update: authorized                (primary session freeze)
+                         CI repair to review readiness: authorized       (primary session freeze)
                          merge: explicit operator authorization only
-POST-MERGE SYNC OWNER:   unresolved (default: the planning session owns step-17 and overall.md)
+POST-MERGE SYNC OWNER:   the S10 planning session owns step-17 §15 and overall.md; the
+                         implementation session owns this document, the merge identity, the
+                         evidence and the deviations (the workflow's default)
 STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
@@ -541,10 +583,24 @@ the primary session decides.
 No P3 question is operator-material. The operator-material S10 questions belong to later PRs. They are
 gathered in step-17 §15.6 so that the operator sees them in one place.
 
+### 11.1 Rulings, 2026-10-08 (primary session, at freeze)
+
+| ID | Ruling |
+| --- | --- |
+| QP3-1, QP3-2, QS10-20 | **Accepted as recommended.** The `Controller` protocol, its runner, and the `Say`/`Step` builders move to P6. The perceived stream moves to P3b. |
+| QP3-3 | **Accepted, with a condition**: P3 adds the Python CI job (C5). The job must not rename or slow the required `fast` and `test` checks. The Python checks go in `fast` only if they add under about one minute; otherwise they run in a separate job. A separate job is not required by branch protection until the primary session adds it. C5 carries this condition. |
+| QP3-4 | **Accepted:** a root uv workspace with one lock. |
+| QP3-5 | **Accepted:** frozen before #83 merges. D-P3-5 governs the order. |
+| QP3-6 | **Accepted:** `pytest-socket`. |
+| QP3-7 | **Accepted:** Pydantic. |
+| QS10-21 | **Forwarded** to the S11-C design, in progress in parallel, as a cross-lane request: R-S11-9, R-S11-10, and `mineworld perceived` in an early commit. It does not block P3. |
+| QS10-18, QS10-19 | **Open; operator-material.** Deferred to the operator's next batch of questions. They do not block P3: P3 involves no model, no budget and no key. |
+
 ## 12. Ledger (live during implementation)
 
 ```text
-Status:            PR design — ready for freeze review
+Status:            DESIGN FROZEN 2026-10-08 (primary session); awaiting a fresh implementation
+                   session in /Users/yuema137/mineworld-worktrees/impl-s10-p3
 Implementation:    not started
 Evidence:          none yet
 Deviations:        none yet

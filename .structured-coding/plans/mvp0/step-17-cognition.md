@@ -11,7 +11,8 @@ for MVP-1" list), §4 (`AC-4`, `AC-10`), §7.
 **Base:** `main @ 0fd0be3`, branch `plan/s10-cognition`.
 **Audit, 2026-10-08 (§15):** re-audited on `main @ 9cf8f8e`. No S10 PR has merged. P1 is folded into
 S11-C and P2 into S11-B. **P3 is the next PR and can start now.** Its full design is
-[`pr-s10-p3-python-sdk.md`](pr-s10-p3-python-sdk.md), ready for freeze review. §15 holds every PR's
+[`pr-s10-p3-python-sdk.md`](pr-s10-p3-python-sdk.md), **DESIGN FROZEN 2026-10-08 (primary session)**.
+The rulings are in §15.7. §15 holds every PR's
 state, its dependencies, and the order.
 **Schedule (operator, 2026-10-08):** designed now, in parallel with S11 (server and protocol), S12
 (2D), S13 (CI), S14 (3D) and Milestone E; **implemented after the clients**. §9 marks which PRs could
@@ -1770,7 +1771,7 @@ ruling 6 assigned to S10 (`ARC-56 … ARC-60`, `DEP-24 … DEP-27`).
 | --- | --- | --- | --- | --- | --- |
 | **P1** Event perception (presence's audience, the seam, `mineworld perceived`) | **Moved to S11-C** by ruling 2. Not implemented. S11-C is being designed in parallel. | S11-C | — | n/a for S10 | S10 consumes it. §15.4 states what S10 needs S11-C to deliver. |
 | **P2** F-13 for `--agent` | **Dropped** by ruling 3. The fix is `RuleController::since(bind instant)` in S11-B: #83, open and `READY FOR OPERATOR REVIEW`, with SB-5 (CP-B3) PASS and its mutation red. It is reopened only if #83's fix proves insufficient. | S11-B | — | n/a | None, unless #83 is rejected. |
-| **P3** Python SDK | **Not started. Fully designed:** [`pr-s10-p3-python-sdk.md`](pr-s10-p3-python-sdk.md), ready for freeze review. Scope narrowed against §8 (below). | S10 | S11-A (**merged**) | **Yes** | Primary-session freeze, then a fresh implementation session. |
+| **P3** Python SDK | **Not started. DESIGN FROZEN 2026-10-08** by the primary session: [`pr-s10-p3-python-sdk.md`](pr-s10-p3-python-sdk.md). Scope narrowed against §8 (below), as ruled in §15.7. | S10 | S11-A (**merged**) | **Yes** | A fresh implementation session in `impl-s10-p3`, on branch `mvp0/pr-s10-p3-sdk`. |
 | **P3b** (new) SDK: the `perceived` stream | Not started. Split out of P3: the cursor, resume, `cursor_unavailable` and `lagged` handling; IC-1's live and resumed halves; reconnect with `resume`. | S10 | P3; **S11-C** (the stream); S11-B (`resume`) | No | Detailed after S11-C freezes, from its frames. |
 | **P4** Memory and compression, `AC-10` | Not started. | S10 | P3 (package skeleton); **S11-C's `mineworld perceived`** (IC-4 step 2) | No (see §15.3) | Wait for S11-C's offline export. Detail P4 then. |
 | **P5** Backends, recorder, budgets | Not started. The live spike (QS10-2) runs on the operator's machine. | S10 | P3 (workspace and toolchain) | After P3 merges | Detail after P3. It can run in parallel with P4. |
@@ -1867,3 +1868,21 @@ QS10-7 and QS10-14, as recommended. That means:
 | **QS10-19 [operator — paid API]** | May any S10 PR use the operator's hosted OpenAI-compatible key, for example to record a cassette or for QS10-4's optional live `AC-4` variant? | **Not for any MVP-0 gate.** Every cassette a gate depends on is recorded against the local model (QS10-2), and the `AC-4` swap test is the replay test (IC-6). A hosted recording is an operator-run extra, done by the operator, and never by an agent. Agents never read the key file, and the runtime reads a key only from the environment variable the operator names (§3.7.4). |
 | **QS10-20 [primary]** | Accept §15.2's refinements of P3's scope: the `Controller` protocol and `Say`/`Step` to P6; the perceived stream to P3b; CI's Python job in P3 C5? | **Yes**, as argued in `pr-s10-p3-python-sdk.md` QP3-1 … QP3-3. |
 | **QS10-21 [primary, with S11-C]** | Adopt R-S11-9 and R-S11-10, and land `mineworld perceived` in an early S11-C commit, so P4 can start before S11-C's runtime integration? | **Yes.** It is the cheapest unblocking of `AC-10`. The export is a pure fold over a save, and S11-C's §9.3 order already puts pure commits first. |
+
+## 15.7 Rulings, 2026-10-08 (primary session, freezing P3)
+
+| ID | Ruling | Status |
+| --- | --- | --- |
+| QP3-1, QP3-2, **QS10-20** | Accepted as recommended. The `Controller` protocol, its runner and the `Say`/`Step` builders move to P6. The perceived stream moves to P3b. §8's file table is read with these moves. | closed |
+| QP3-3 | Accepted, with a condition: P3 adds the Python CI job. The required `fast` and `test` checks are neither renamed nor slowed. The Python checks go in `fast` only if they add under about one minute; otherwise they run in a separate job, which branch protection does not require until the primary session adds it. This settles R-S13-1 and QS10-16 for S10. | closed |
+| QP3-4 … QP3-7 | Accepted as recommended: one root uv workspace and lock; P3 frozen before #83 merges; `pytest-socket`; Pydantic. | closed |
+| **QS10-21** | Forwarded to the S11-C design, in progress in parallel, as a **cross-lane request**: R-S11-9, R-S11-10, and `mineworld perceived` in an early S11-C commit. It does not block P3. It does gate P4's start, and P3b's (§15.3). | open, with S11-C |
+| **QS10-18**, **QS10-19** | Operator-material. Deferred to the operator's next batch of questions. They do not block P3, which uses no model, budget or key. QS10-18 must be answered before P5 freezes, and QS10-19 before any cassette is recorded (P5, P7). | **open, operator** |
+
+P3 is **DESIGN FROZEN 2026-10-08 (primary session)**. Its execution contract is
+`pr-s10-p3-python-sdk.md` §10:
+
+- worktree `/Users/yuema137/mineworld-worktrees/impl-s10-p3`;
+- branch `mvp0/pr-s10-p3-sdk`, created from `main`;
+- material stops: any Rust server or protocol change; any dependency beyond the design's DEP records;
+  any hosted-API use.
