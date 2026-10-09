@@ -141,7 +141,7 @@ func _open(who: String) -> String:
 		return "%s is never drawn" % id
 	await drive._seconds(0.3)
 	app.menu.close()
-	var at: Vector2 = app.people.figure_at(id)
+	var at: Vector2 = _visible_point(id)
 	var screen: Vector2 = app.get_viewport().get_canvas_transform() * at
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
@@ -154,6 +154,18 @@ func _open(who: String) -> String:
 	if app.menu.subject != id:
 		return "a click on %s opened the menu of %s" % [id, app.menu.subject]
 	return ""
+
+
+## A point of `id`'s drawn figure that no figure in front of it covers — where a player would click
+## when people stand close — else the figure's middle.
+func _visible_point(id: String) -> Vector2:
+	var middle: Vector2 = app.people.figure_at(id)
+	for dy in [0.0, -10.0, -18.0, 8.0, 14.0]:
+		for dx in [0.0, -11.0, 11.0, -14.0, 14.0]:
+			var at: Vector2 = middle + Vector2(dx, dy)
+			if app.people.pick(at) == id:
+				return at
+	return middle
 
 
 ## Resolves a selector against the rendered entries, presses that entry, supplies its input, and

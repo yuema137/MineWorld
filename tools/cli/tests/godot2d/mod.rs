@@ -21,6 +21,8 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::support::{INVITE, body, get};
 
+pub mod worlds;
+
 /// The client's Godot project.
 pub const PROJECT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../clients/2d");
 /// The world the client is demonstrated in.

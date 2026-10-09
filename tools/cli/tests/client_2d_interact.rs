@@ -20,8 +20,14 @@ mod support;
 
 use std::path::Path;
 
-use godot2d::{Drive, STUB_OBSERVER, StubWorld, offering, passed, record, tagged};
+use godot2d::worlds::{copy_dir, facts, hosted, id, ids, panel, play, start, step_done, step_line};
+use godot2d::{
+    Drive, MARKET_TOWN, STUB_OBSERVER, StubWorld, World, offering, passed, record, tagged,
+};
+use mineworld_contracts::ActionRequest;
+use mineworld_server::{RequestField, WirePayload, differing_fields};
 use serde_json::{Value, json};
+use support::SaveDir;
 
 /// Writes `steps` into `dir` and returns the file's path.
 fn steps_file(dir: &Path, steps: &Value) -> String {
@@ -443,4 +449,153 @@ async fn the_panels_show_what_is_disclosed() {
         Some(GONE_AFTER + 1),
         "within one observation: {gone}"
     );
+}
+
+// ── Real worlds (AC-I1 … AC-I3, AC-I6 … AC-I8) ─────────────────────────────────────────────────────
+
+const COFFEE_PLEASE: &str = "Hello! A coffee, please.";
+
+fn owned(arguments: &[String]) -> Vec<&str> {
+    arguments.iter().map(String::as_str).collect()
+}
+
+/// The answer to the request sent with `token`.
+fn result_of(lines: &[String], token: &Value) -> Value {
+    tagged(lines, "RESULT ")
+        .into_iter()
+        .find(|r| r["token"] == *token)
+        .unwrap_or_else(|| panic!("request {token} was never answered"))
+}
+
+/// The label the client drew for a person, from its own `SHOWN` report.
+fn label(lines: &[String], person: &str) -> String {
+    tagged(lines, "SHOWN ")
+        .iter()
+        .flat_map(|s| s["people"].as_array().cloned().unwrap_or_default())
+        .find(|p| p["id"] == person)
+        .and_then(|p| p["label"].as_str().map(str::to_owned))
+        .unwrap_or_else(|| panic!("{person} was never shown"))
+}
+
+/// AC-I1 — talk, from the door of the café: Alice's `talk` is listed unavailable `too_far_away`;
+/// chosen anyway it is sent and rejected, and the toast offers "walk to"; walked up to, it is
+/// accepted; her reply reaches the history panel; the acquaintances panel follows the save.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d_interact -- --ignored"]
+async fn talks_to_alice_from_the_door() {
+    let town = ids(MARKET_TOWN);
+    let (alice, visitor) = (town["alice"].clone(), town["visitor"].clone());
+    let save = SaveDir::new("2d-i1");
+    let mut world = World::start(&owned(&hosted(MARKET_TOWN, &save)), None).await;
+    let steps = json!([
+        { "open": alice }, { "choose": { "action_type": "talk" }, "input": COFFEE_PLEASE },
+        { "open": alice }, { "choose": { "walk": true } },
+        { "open": alice }, { "choose": { "action_type": "talk" }, "input": COFFEE_PLEASE },
+        { "sleep": 10 }, { "report": true }
+    ]);
+    let (status, lines) = play(world.address, "visitor", "2d-i1-steps", &steps, &[]).await;
+    assert!(status.success() && passed(&lines), "the drive passes");
+    world.kill();
+
+    let first = &menus(&lines, &alice)[0];
+    let offered_talk = first["entries"]
+        .as_array()
+        .expect("entries")
+        .iter()
+        .find(|e| e["action_type"] == "talk")
+        .cloned()
+        .expect("talk is offered against Alice");
+    assert_eq!(
+        offered_talk["available"], false,
+        "from the door: {offered_talk}"
+    );
+    assert_eq!(offered_talk["reason"], "too_far_away");
+
+    // (a) two talks to Alice: rejected too_far_away, then accepted; every stride between accepted.
+    let requests = tagged(&lines, "REQUEST ");
+    let talks: Vec<&Value> = requests
+        .iter()
+        .filter(|r| r["request"]["action_type"] == "talk" && r["request"]["target"] == alice)
+        .collect();
+    assert_eq!(talks.len(), 2, "two talks: {talks:?}");
+    assert_eq!(
+        result_of(&lines, &talks[0]["token"])["result"]["rejected"],
+        "too_far_away"
+    );
+    let accepted = result_of(&lines, &talks[1]["token"]);
+    assert!(accepted["result"].get("accepted").is_some(), "{accepted}");
+    for stride in requests
+        .iter()
+        .filter(|r| r["request"]["action_type"] == "move")
+    {
+        let answer = result_of(&lines, &stride["token"]);
+        assert!(
+            answer["result"].get("accepted").is_some(),
+            "a stride refused: {answer}"
+        );
+    }
+    let toast = tagged(&lines, "TOAST ")
+        .into_iter()
+        .find(|t| t["kind"] == "rejected" && t["action_type"] == "talk")
+        .expect("the rejection is shown");
+    assert!(
+        toast["button"].as_str().is_some_and(|b| !b.is_empty()),
+        "the toast offers walk-to: {toast}"
+    );
+
+    // (b) the save: one spoke by visitor to Alice, the typed text byte for byte; Alice answers.
+    let facts = facts(&save);
+    let spoke: Vec<&Value> = facts
+        .iter()
+        .filter(|(t, _)| t == "spoke")
+        .map(|(_, p)| p)
+        .collect();
+    let mine: Vec<usize> = (0..spoke.len())
+        .filter(|&i| id(&spoke[i]["speaker"]) == visitor && id(&spoke[i]["listener"]) == alice)
+        .collect();
+    assert_eq!(mine.len(), 1, "one spoke by visitor to Alice: {spoke:?}");
+    assert_eq!(spoke[mine[0]]["utterance"], COFFEE_PLEASE);
+    let reply = spoke[mine[0] + 1..]
+        .iter()
+        .find(|p| id(&p["speaker"]) == alice && id(&p["listener"]) == visitor)
+        .expect("Alice answers")["utterance"]
+        .as_str()
+        .expect("an utterance")
+        .to_owned();
+
+    // (c) within 10 s of the accepted talk, the history's newest line is that reply, by name.
+    let accepted_at = accepted["t_ms"].as_u64().expect("t_ms");
+    let alice_name = label(&lines, &alice);
+    let shown = tagged(&lines, "PANELS ")
+        .into_iter()
+        .find(|p| {
+            panel(p, "conversation-history").is_some_and(|h| {
+                h["rows"]
+                    .as_array()
+                    .and_then(|rows| rows.last())
+                    .and_then(Value::as_str)
+                    .is_some_and(|row| row.contains(&reply) && row.contains(&alice_name))
+            })
+        })
+        .expect("the reply reaches the history panel");
+    assert!(
+        shown["t_ms"].as_u64().expect("t_ms") - accepted_at <= 10_000,
+        "within 10 s: {shown}"
+    );
+
+    // (d) the acquaintances panel lists Alice iff the save says they became acquainted.
+    let acquainted = facts.iter().any(|(t, p)| {
+        t == "became-acquainted"
+            && [id(&p["person"]), id(&p["counterpart"])].contains(&visitor)
+            && [id(&p["person"]), id(&p["counterpart"])].contains(&alice)
+    });
+    let listed = tagged(&lines, "PANELS ")
+        .last()
+        .and_then(|p| panel(p, "acquaintances"))
+        .is_some_and(|a| {
+            a["rows"]
+                .as_array()
+                .is_some_and(|rows| rows.iter().any(|r| r == alice_name.as_str()))
+        });
+    assert_eq!(listed, acquainted, "the panel shows what is disclosed");
 }
