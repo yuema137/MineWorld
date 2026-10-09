@@ -2133,26 +2133,48 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 
 # 16. PR E-c — a System Pack from outside the repository (PR design)
 
-**Lifecycle:** `PR design — ready for freeze review`. Not frozen. Nothing in this section authorizes
-implementation, a commit to another repository, or the creation of one.
+**Lifecycle:** `DESIGN FROZEN (2026-10-08), primary session` — with the operator's rulings and the
+cross-platform requirement of §16.12, which binds this design and overrides it where they differ.
+Implementation runs in a fresh session under §16.11.
 
 **Identifiers.** `ARC-66` is assigned (§15.0 FQ-b5): the revision of `ARC-33`'s sentence, step
-placeholder `ARC-SE-a`. Everything else here is a placeholder the primary session numbers at freeze:
-`DEP-Ec-a` (`cargo-deny`; §15.0 keeps `DEP-22` reserved for it), `DEP-Ec-b` (the third-party pack as a
-dependency of the reference build; `DEP-23` is reserved), PD-20 … PD-29, EC-1 … EC-12, M-C1 … M-C8,
-FQ-c1 … FQ-c10.
+placeholder `ARC-SE-a`. `DEP-Ec-a` (`cargo-deny`) takes **DEP-22** and `DEP-Ec-b` (the third-party pack
+as a dependency of the reference build) takes **DEP-23**, both reserved for E-c by §15.0 FQ-b5 and
+absent from `docs/DECISIONS.md` at freeze (re-checked free at Ec-C1). PD-20 … PD-29, PD-p1 … PD-p6,
+EC-1 … EC-13, M-C1 … M-C9, FQ-c1 … FQ-c10 are this section's own labels.
 
 ## 16.0 Freeze record
 
 ```text
-DESIGN FROZEN      — not yet. To be filled from the primary session's freeze message.
-Design revision:     §16 as committed on plan/s16-ecd
-Approved by:         —
-Rulings:             FQ-c1 … FQ-c10 (§16.9), each answered
-Implementation base: main at freeze (audited here on 9cf8f8e)
+DESIGN FROZEN (2026-10-08), primary session
+Design revision:     §16 as committed on plan/s16-ecd (e38278a, 8abfc24) with this freeze commit
+Approved by:         the coordinator's message relaying the operator and the primary session,
+                     2026-10-08: "E-c (§16) and E-d (§17) are DESIGN FROZEN 2026-10-08 (primary session)"
+Rulings:
+  FQ-c1  operator: YES — https://github.com/yuema137/mineworld-pack-fishing created (public, MIT,
+         branch main)
+  FQ-c2  primary: (a) — the published-surface table lives in .cargo/config.toml; ac1_composability.rs
+         and ARC-35 stay unedited; recorded in ARC-66 and guarded by EC-4
+  FQ-c3  primary: as recommended — packs list shows bundled/third-party, not the revision; E-e's M-1
+         reads "the rev in systems/installed/Cargo.toml equals the one in Cargo.lock"
+  FQ-c4  primary: as recommended — package acme-fishing
+  FQ-c5  operator: YES — the E-c session may push commits and tags to the pack repository's main, never
+         force-push
+  FQ-c6  primary: as recommended — cargo-deny (DEP-22) in E-c, as the separable Ec-C7
+  FQ-c7 … FQ-c10  primary: as recommended
+Requirement:         operator, 2026-10-08, binding: "我们要保证支持全平台，mac linux windows都可以" — §16.12
+Implementation base: main @ 77a8717 (IL-a merged as 543c80a; merged into plan/s16-ecd at freeze)
+Worktree / branch:   /Users/yuema137/mineworld-worktrees/impl-ec, mvp0/pr-ec-third-party
 Execution contract:  §16.11
-Lifecycle:           PR design — ready for freeze review
+Lifecycle:           FROZEN
 ```
+
+**IL-a has merged (543c80a), mechanical consequences.** `systems/installed/src/lib.rs`'s
+`resolution:` line is now `extension mineworld_presence::ArrivalResolver => …`; the pack line Ec-C5 adds
+is unaffected (a plain `Variant => crate::Type,` below it). `SystemPack` gained defaulted
+`CONFIGURATION`, `CONFIGURATION_FACTS`, `decode_configuration` (ARC-61): the pack compiles without them
+(FQ-c9: it takes no configuration). `worldpack` gained read step 4c (`configure:`); E-c edits no
+`worldpack` source. §16.3's audit rows on these files are re-read at Ec-C2 on the implementation base.
 
 ## 16.1 Identity, base, approved scope
 
@@ -2591,29 +2613,103 @@ FQ-c10 A CI workflow in the pack's repository (fmt, clippy, test). Recommended: 
 
 ```text
 PROJECT / PR:              MVP-0 · S16 / PR E-c — a System Pack from outside the repository
-PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/step-16-packages.md §16
+PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/step-16-packages.md §16 (incl. §16.12)
 RELATED / BINDING DOCS:    this file §§3–9, §14, §15; overall.md "Parallel build-out, 2026-10-08";
                            CLAUDE.md; docs/ENGINEERING_STANDARDS.md, REUSE_POLICY.md, PACKAGE_FORMAT.md,
-                           MODULE_SPEC.md, DECISIONS.md ARC-26, ARC-33, ARC-34, ARC-35, ARC-38, ARC-53,
-                           ARC-54, ARC-55, DEP-12, DEP-29
-IMPLEMENTATION BASE:       main at freeze; branch mvp0/pr-ec-third-party
-APPROVED SCOPE:            §16.1–16.6 as frozen, with FQ-c1 … FQ-c10 as answered
+                           MODULE_SPEC.md, DECISIONS.md ARC-26, ARC-33, ARC-34, ARC-35, ARC-38, ARC-48,
+                           ARC-53, ARC-54, ARC-55, ARC-61, ARC-62, DEP-12, DEP-17, DEP-29
+IMPLEMENTATION BASE:       main @ 77a8717 or later at kickoff; branch mvp0/pr-ec-third-party
+WORKTREE:                  /Users/yuema137/mineworld-worktrees/impl-ec, held by the E-c session only
+EXTERNAL REPOSITORY:       github.com/yuema137/mineworld-pack-fishing (exists, public, MIT, main)
+APPROVED SCOPE:            §16.1–16.6 and §16.12 as frozen, with FQ-c1 … FQ-c10 as ruled in §16.0
 FROZEN INVARIANTS:         I-E1; I-E2 (towns' digests, validate output); I-E3 (the install commit is two
-                           lines + lock); I-E4 (ac1_composability.rs unedited and passing); I-E5; I-E6;
-                           I-E7; I-E8; QSE-14
-APPROVED SEQUENCE:         Ec-C1 → C2 → C3 → C4 (external) → C5 → C6 → C7 (if FQ-c6) → C8
+                           lines + lock); I-E4 (ac1_composability.rs and ARC-35 unedited, AC-1 passing);
+                           I-E5; I-E6; I-E7; I-E8; QSE-14; the published surface in .cargo/config.toml
+                           (FQ-c2 (a)); PD-p1 … PD-p6 (all three platforms)
+APPROVED SEQUENCE:         Ec-C1 → C2 → C3 → C4 (external, incl. its 3-OS CI) → C5 → C6 → C7 →
+                           C7b (platforms layer) → C8; merges of origin/main, never rebases
+COMMANDS:                  as E-b's session: cargo (with $HOME/.cargo/bin on PATH), git, gh (PR create
+                           and update on MineWorld; read-only elsewhere; never merge), python3 scripts/*,
+                           mkdir -p, sed -n; Read/Edit/Write for files. Plus, for E-c only: git clone /
+                           commit / push and git tag / push of tags to yuema137/mineworld-pack-fishing
+                           main, and gh run/pr view on it — never force-push, never another branch's
+                           history rewritten. Scratch outside the trees under /tmp, removed afterwards
 VALIDATION BUDGET:         targeted per commit; the towns' 300-day runs (≈4 per main merge); EC-3's
-                           vendor (≈200 MB, outside the tree, deleted after); one full gate; ≈1.5 h
+                           vendor (≈200 MB, outside the tree, deleted after); CI's platforms layer on the
+                           PR (macOS, Windows); one full local gate; ≈2 h
 REQUIRED LIVE DOCS:        §16.8; handoff-ec.md
-ENDPOINT AUTHORITY:        from the freeze message; proposed: implement, commit, push this branch, push
-                           to the pack repository's main (FQ-c5), open the PR READY FOR OPERATOR
-                           REVIEW; merge NOT authorized
-MATERIAL STOPS:            the pack repository absent or not writable; any edit to ac1_composability.rs
-                           or ARC-35; any kernel, contract, persistence, server, client, cognition or
-                           worldpack/src change; a digest change; the install needing a third line
-NORMAL STOP CONDITION:     PR E-c READY FOR OPERATOR REVIEW — DO NOT MERGE
+ENDPOINT AUTHORITY:        implementation, semantic commits, pushing this branch, pushing commits and tags
+                           to the pack repository's main (FQ-c5, operator), opening the PR marked READY
+                           FOR OPERATOR REVIEW and updating it; CI repair on this PR — authorized by the
+                           freeze message. Merge NOT authorized
+POST-MERGE SYNC OWNER:     this session: §16's ledger and merge identity; the primary session: §9.4,
+                           the step header, overall.md
+MATERIAL STOPS:            the pack repository not writable; any edit to ac1_composability.rs or ARC-35;
+                           any kernel, contract, persistence, server, client, cognition or worldpack/src
+                           change; a digest change; the install needing a third line; a platform failure
+                           (§16.12) whose fix leaves S16's files, which is recorded as a risk with an
+                           owner and raised, never worked around
+NORMAL STOP CONDITION:     PR E-c READY FOR OPERATOR REVIEW, fast / test / platforms green — DO NOT MERGE
 MERGE AUTHORITY:           never without the operator's explicit approval
 ```
+
+## 16.12 Every platform: macOS, Linux and Windows (operator, 2026-10-08, binding)
+
+> "我们要保证支持全平台，mac linux windows都可以" — we must support every platform: Mac, Linux and Windows.
+
+For E-c this means: the git-pinned install, the `--offline --frozen` vendored build, the published
+surface in `.cargo/config.toml`, and the pack itself build and pass on all three; the pack's own CI
+covers all three; and any gap is a recorded risk with an owner. Audit for it (on `77a8717`):
+
+| What | Where | Finding |
+| --- | --- | --- |
+| MineWorld's CI | `.github/workflows/ci.yml`, `.github/actions/layer` | Linux only (`ubuntu-24.04`, the toolchain container). Nothing runs on macOS or Windows today. |
+| Unix-only tests | `git grep "std::os::unix\|cfg(unix)"` | Nine test files (restart and kill tests in `persistence`, `tests/acceptance`, `tools/cli`): `cargo test --workspace` does not compile on Windows. Outside S16. |
+| Classification | `packages/src/declared.rs:90–110` | `compiled_under` already treats `\` as a separator when it trims the workspace root; both sides come from Cargo's `CARGO_MANIFEST_DIR`, so they share a drive letter and spelling. |
+| Keys | `contracts/src/ids.rs:22, 176` | Identifiers are lowercase ASCII only, so a case-insensitive file system (Windows, default macOS) cannot hold two keys that differ by case. |
+| Line endings | `.gitattributes` | Marks only `*.bin`, `*.glb` binary; a Windows checkout with Git's default `core.autocrlf` gives CRLF in `Cargo.lock`, `*.toml`, `*.yaml`. The line readers in this design use `str::lines`, which strips `\r\n`. |
+
+**Decisions.**
+
+| ID | Decision |
+| --- | --- |
+| **PD-p1** | **A `platforms` CI layer** in `scripts/ci_layer.py`, run natively (no container) by a new `platforms` job on `macos-latest` and `windows-latest` with the same triggers as `test` (ARC-48: the workflow names the layer, the script names the commands). It runs `cargo build --locked -p mineworld-cli`; `cargo test --locked -p mineworld-packages -p mineworld-worldpack -p mineworld-installed-systems`; `cargo test --locked -p mineworld-cli --test packs --test requirements --test third_party` (and `--test entity_packs` once E-d has landed — whichever of E-c and E-d lands second adds its target); and the offline check of PD-p3. Linux keeps its container layers. Landed as **Ec-C7b**, separable; if E-d reaches its close first, E-d lands the identical layer (§17.12) and E-c only adds its target. Whether `platforms` blocks a merge is ARC-48's question, raised to S13 with the first green run. |
+| **PD-p2** | **The checkout on Windows** uses `actions/checkout` with `fetch-depth: 0`, `filter: blob:none` and a sparse checkout of the Cargo workspace, `worlds/`, `presentation/` (the `packs` tests read it) and `scripts/`, so the 3D client's deep asset paths never meet `MAX_PATH`; Git's default `core.autocrlf` is left on, so the layer reads CRLF files as a Windows user would. |
+| **PD-p3** | **Offline on every OS**: the layer runs `cargo vendor --locked <relative path outside the tree>` (relative, so the generated `directory = …` holds no backslash to escape in TOML), then `cargo check --offline --frozen --config <generated> -p mineworld-cli` with `CARGO_HOME` set to an empty directory — EC-3 (b) on all three platforms. |
+| **PD-p4** | **`.cargo/config.toml`** states its `[patch.crates-io]` paths relative with `/` (Cargo resolves them against the directory holding `.cargo/` on every OS); `cargo build` in the `platforms` layer is its Windows evidence. |
+| **PD-p5** | **Path-neutral code and tests.** EC-2's lock reader and `installed.rs`'s manifest reader use `str::lines` (CRLF-safe); EC-4 compares `manifest_path` and `workspace_root` with `Path::starts_with`, never string prefixes; EC-5 reads `git ls-files` output, which is always `/`-separated. A test that asserts a message containing a path builds the expected text with `Path::join(..).display()`. An existing test of `packages`, `worldpack` or `installed-systems` found asserting a hard-coded `/` is made separator-neutral, recorded with its unchanged claim (bounded); a production defect in those crates or `tools/cli/src/packs.rs` is fixed in E-c. |
+| **PD-p6** | **The pack repository's CI** (FQ-c10) is a matrix of `ubuntu-latest`, `macos-latest`, `windows-latest`: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --locked`, actions pinned by SHA. Its standalone builds fetch MineWorld by git rev (FQ-c8); on Windows the job sets `git config --global core.longpaths true` and `CARGO_NET_GIT_FETCH_WITH_CLI=true`, because Cargo checks out MineWorld's whole tree, assets included. If that route still fails on Windows, the job switches to a sparse sibling checkout of MineWorld at the same SHA with `--config 'patch.crates-io.<crate>.path=…'` (bounded, recorded). |
+
+**Acceptance.**
+
+```text
+EC-13 Every platform (PD-p1 … PD-p6). On the PR's final head: the `platforms` job is green on
+      macos-latest and windows-latest and `fast` / `test` on Linux — each a recorded run URL with its
+      commands' results; the pack repository's CI is green on all three at the pinned rev. On Windows in
+      particular: the git-pinned build (`cargo build --locked`, Cargo.lock checked out with CRLF), the
+      offline vendored check with an empty CARGO_HOME, third_party.rs (`packs resolve` prints
+      third-party for acme-fishing and bundled for presence), and package_sources.rs (EC-2, EC-4, EC-5)
+      pass. A job not run, or cancelled, is INCONCLUSIVE, never PASS.
+      Mutation M-C9 (on a scratch branch): the lock reader splits on "\n" and compares the trailing
+      field exactly → the Windows job FAILS at EC-2 while Linux passes — the layer sees a platform defect.
+```
+
+**Commit plan additions.** Ec-C4's validation gains "the pack's CI green on ubuntu, macos, windows (run
+URLs)". **Ec-C7b — the `platforms` layer:** `scripts/ci_layer.py` (layer `platforms`, PD-p1, PD-p3),
+`.github/workflows/ci.yml` (job `platforms`, matrix, PD-p2), and only the test-portability edits PD-p5
+allows. `[ ] Implementation · [ ] Validation (python3 scripts/ci_layer.py --list platforms; a green run
+on both OSes; M-C9) · [ ] Review (no container change; no command named in the workflow)`. Ec-C8's full
+gate adds EC-13.
+
+**Risks, each with an owner.**
+
+| ID | Risk | Owner | Mitigation |
+| --- | --- | --- | --- |
+| RE-p1 | The whole workspace is not Windows-tested: nine Unix-only test files; the server, `run` with signals, the clients untested on Windows | **S13** (CI), raised by E-c with the first `platforms` run | `platforms` covers S16's crates and commands; extending it to the workspace is S13's, after the Unix-only tests gain portable equivalents or `cfg` gates |
+| RE-p2 | Cargo's git checkout of MineWorld (pack standalone builds) hits Windows path limits | **E-c** | PD-p6's settings, then the sibling-checkout fallback |
+| RE-p3 | A Windows Git with `autocrlf` turns YAML and lock files CRLF | **E-c** (lock, manifests), **E-d** (YAML) | `str::lines`; ED-13's CRLF cases; Windows CI runs with autocrlf on |
+| RE-p4 | `platforms` lengthens CI (cold Windows builds of the graph, about 10–20 min) | **S13** | Cargo caches per OS keyed by `Cargo.lock`; the layer runs on PRs and main only, like `test` |
+| RE-p5 | macOS is the developers' host but not yet a CI target | **E-c** | the `platforms` matrix includes macos-latest |
 
 ---
 
