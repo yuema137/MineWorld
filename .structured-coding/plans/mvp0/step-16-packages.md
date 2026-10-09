@@ -2440,10 +2440,12 @@ surface, a `Cargo.toml` template, the pack's own `[patch]` for standalone builds
 may come from a pinned outside source). `sdk/rust/README.md`, `systems/README.md`: one pointer each
 (READMEs stay short, `CLAUDE.md` §2.1).
 
-- [ ] Implementation: as scoped; ARC-66 and the placeholder DEPs re-checked free on every `origin/*`.
-- [ ] Validation: both doc checks; `git grep` that `ARC-33`'s superseded sentence is marked, not deleted.
-- [ ] Review: no defined term redefined ("published surface" and "third-party" are descriptive, defined
-  in ARC-66/ARC-54); the AC-1 finding is stated in ARC-66, not hidden.
+- [x] Implementation: as scoped; ARC-66 and the placeholder DEPs re-checked free on every `origin/*`
+  (E-Ec1).
+- [x] Validation: both doc checks; `git grep` that `ARC-33`'s superseded sentence is marked, not deleted
+  (E-Ec1).
+- [x] Review: no defined term redefined ("published surface" and "third-party" are descriptive, defined
+  in ARC-66/ARC-54); the AC-1 finding is stated in ARC-66 point 3, not hidden (E-Ec1).
 
 **Commit boundary.** Documentation only.
 
@@ -2560,6 +2562,20 @@ CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if no
   this repository edited. `check_doc_headings` → 191 numbered sections across 26 documents, none
   duplicated (step documents under `.structured-coding/` are not in its scope); `check_decision_ids` → 67
   ids, distinct; ARC-66 not yet in `docs/DECISIONS.md`.
+- **Session start** (2026-10-08): implementation session, worktree `impl-ec` from `origin/main @ 6ca763d`
+  (IL-a, E-b, CI and the freeze #93 merged). §16.3's anchors re-read on `6ca763d`: the installed set is the
+  14 packs with IL-a's `extension …` line (pack lines unchanged); `declared.rs` `compiled_under` as audited;
+  no `.cargo/` directory; `tools/cli/src/packs.rs` unchanged since E-b. The pack repository is not empty as
+  §16.1 assumed: GitHub created it with an initial `LICENSE` commit (`ac32b96`, MIT); the pack's commits
+  follow it (bounded; nothing rewritten).
+- **E-Ec1** (Ec-C1, docs): `docs/DECISIONS.md` gains **ARC-66**, **DEP-23**, **DEP-22** (ids checked absent
+  from `docs/DECISIONS.md` on every `origin/*` branch: `git grep "^#.*<id>\b" <branch> -- docs/DECISIONS.md`
+  empty for all three) and the marker *(Superseded in part by `ARC-66` …)* after `ARC-33`'s sentence, which
+  stays. DEP-23 states no sha: the revision is stated once, on the pack's line (I-E5). `MODULE_SPEC.md`
+  §3.1 (third-party install block; "What installing does not mean" amended) and new **§3.2**;
+  `PACKAGE_FORMAT.md` §8 row; `ARCHITECTURE.md` §12 sentence; one pointer each in `sdk/rust/README.md`,
+  `systems/README.md`. `check_doc_headings` → 192 sections, none duplicated; `check_decision_ids` → 72
+  ids, all distinct; `git grep "Superseded in part by \`ARC-66\`"` → `docs/DECISIONS.md:2313`. PASS.
 
 ## 16.9 Freeze questions
 

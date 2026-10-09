@@ -23,6 +23,10 @@ Cargo.toml    mineworld-<name> = { path = "../<name>" }
 src/lib.rs    <Variant> => mineworld_<name>::<System>,
 ```
 
+A pack can also live in its own repository, depend on the framework by version (`mineworld-sdk =
+"0.1"`) and be installed by the same two lines pinned to a commit — see
+[`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §3.2.
+
 The rules — what a pack declares, what is refused, and why installing always means a rebuild in
 MVP-0 — are [`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §3.1 and
 [`docs/DECISIONS.md`](../../docs/DECISIONS.md) `ARC-33`.

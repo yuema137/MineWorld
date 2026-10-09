@@ -432,6 +432,9 @@ v0     trusted Rust systems, trusted Python extensions
 later  WASM component plugins
 ```
 
+Trusted in-process Rust may come from outside this repository: a System Pack compiled into the build
+from a commit pinned in the installed set, reviewed like any dependency (`DECISIONS.md` `ARC-66`).
+
 A plugin declares the capabilities it needs:
 
 ```text
