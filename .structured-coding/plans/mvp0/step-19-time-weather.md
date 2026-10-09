@@ -1036,7 +1036,7 @@ first risk did not occur). No pack on main uses `configures!()` yet: `calendar` 
 | C2 | [x] `civil.rs` (`CalendarDate` valid by construction; Hinnant `days`/`from_days`; `weekday` 0 = Monday); `day.rs` (`MicroDegrees`, `SunSample`, `DayEvents` + `light_changes`, `Phase`, `CalendarDay::compute`, `DAY`, `SAMPLE_INTERVAL` 900, `SAMPLES` 97); `sun.rs` (`sun_at`, `day_events`, `phase_at`; the only file naming the crate; ΔT = the library's estimate at mid-month of the instant's UTC month); dependency `solar-positioning =0.7.0`, no default features, `libm` | [x] `cargo test -p mineworld-calendar`: 8 passed (E-TWa-2): every day 1901–2099 round-trips (72 684 days); 2026-10-08 = day 20 734, Thursday; NOAA table ±150 s (rise −16 s, set −1 s, noon −8 s); elevation vs NOAA's model ≤ 0.002° at 09/12/15 h; three pinned samples (§16.8 a); 78° N polar night; equator equinox; azimuth convention. Clippy `-p mineworld-calendar --all-targets -D warnings` clean. Lock: + `solar-positioning 0.7.0` only (`libm 0.2.16` already locked). Mutations M-TWa-3a/3b below | [x] quantization: `f64::round` is half away from zero and exact on every IEEE host; azimuth 360 000 wraps to 0; event offsets kept only in 1 … 86 399 so an event never coincides with a midnight wake. Julian date `2 440 587.5 + utc/86 400` (|utc| < 2^53, exact division error ≈ 40 µs). Azimuth north = 0 clockwise is the library's convention and is tested. Phase uses unrefracted elevation against the same three horizons the event search uses, so a day's opening phase and its events agree; the track is refracted (apparent), as NOAA's displayed elevation is |
 | C3 | [x] `configuration.rs` (`CalendarConfiguration`, decode-only, `deny_unknown_fields`; `Epoch` 1901–2099 `YYYY-MM-DD`, `UtcOffset` `±HH:MM` ≤ 14 h, `Latitude` ±90, `Longitude` ±180 → micro-degrees); `event.rs` (`CalendarConfigured`, `DayBegan { day, phase }`, `DaylightChanged { phase }`); `process.rs` (`CalendarProcess` "calendar", `CalendarState { configured, day, phase }`); `component.rs` (`calendar-day`, `calendar-light`, declared, carried by no entity); `system.rs` (`PackConfiguration` + `configures!()`; `react` starts the process from `calendar-configured` and folds the other two; `wake` states midnight or the light changes due; `discloses` on the observer's place only); registry line `Calendar => mineworld_calendar::CalendarSystem` + its Cargo line | [x] E-TWa-3: `cargo test -p mineworld-calendar` 8 + 5 + 2; `-p mineworld-installed-systems -p mineworld-worldpack` all ok; `-p mineworld-acceptance` all ok (ac1_composability 13, precursor_vocabulary, seam guards unedited); `-p mineworld-cli --test configure --test commands` ok; clippy `--all-targets --all-features -D warnings` on calendar and installed clean; fmt clean. M-TWa-4 killed | [x] single ownership: only this pack writes its Process; it reads presence's `Presence` (declared dependency) and nothing of host pacing — no time scale, no pause exists in its inputs (INV-TW-2); the Process state is written only in `react` from fact payloads, `wake` only reschedules and states facts, so a snapshot equals the fold (resume test byte-identical); the configured fact is SystemInternal with no subjects; Public facts have no subjects; disclosure is keyed to `Presence` of the observer, so §16.8 (c) holds by construction and is tested; an enabled-but-unconfigured calendar states and discloses nothing (QTW-8's warning is `mineworld check`'s, not in TW-a's scope) |
 | C4 | **BLOCKED — material (TWa-F1).** The opt-in (`configure/calendar.yaml` as §5.2; `calendar` appended to `systems`; `configure: [calendar]`) is written and parked, uncommitted on this PR, on branch `mvp0/pr-tw-a-c4-proposed` | [x] evidence gathered with the opt-in applied (E-TWa-4, E-TWa-5); [ ] AC-1 check 3 FAILS with it (E-TWa-4), so it cannot land green | [x] content only, no code; the failure is a frozen acceptance guard, not a defect in the opt-in |
-| C5 | [ ] | [ ] | — |
+| C5 | [x] ledger, handoff, PR #94 (C4 parked; not READY — TWa-F1) | [x] full gate E-TWa-6; CI E-TWa-7 | — |
 
 ### Evidence
 
@@ -1129,6 +1129,35 @@ E-TWa-5  INV-TW-1 / §16.8 (b), by capture.sh c4 on fa78d36 + the C4 opt-in (art
            374 857 facts = main's 372 755 + 2 102 = 1 calendar-configured + 301 day-began + 1 800
            daylight-changed; every other fact count equal to main's; wall 20 s.
          Town runs used: 4 of 6 (E-TWa-0 ×2, E-TWa-5 ×2).
+E-TWa-6  Full gate on e7fdee7 (C1–C3 + ledger, origin/main aa74b32 merged in — planning documents only,
+         no code), clean tree, macOS arm64, by target/tw-a/gate.sh, 2026-10-08/09; host load average
+         ≈ 270 (other sessions):
+         cargo fmt --all --check                         exit 0                  PASS
+         check_doc_headings.py                           191 sections, distinct  PASS
+         check_decision_ids.py                           71 ids, distinct        PASS
+         check_ci_pins.py                                exit 0                  PASS
+         check_scratch.py scan                           159 sources, 2 exempt   PASS
+         cargo clippy --workspace --all-targets --all-features -D warnings   exit 0   PASS
+         cargo test --workspace --no-fail-fast           exit 101, 59 min: 173 test binaries,
+           755 passed, 0 failed, 9 ignored, and one harness-less target panicked:
+           persistence/tests/kill_and_resume.rs:682 "middle: the victim died of SIGKILL" — the
+           victim reached revision 236 before a kill sent at 126 landed (scenario `clock`), i.e. it
+           finished before the signal arrived. A timing race under a saturated host; TW-a changes
+           nothing persistence runs (the test composes its own scenarios, not the installed set).
+           Classified INCONCLUSIVE for TW-a, not FAIL: the same target passed in CI's `test` on the
+           same head (E-TWa-7). Re-run alone: see E-TWa-6b.
+         check_scratch.py left --target-dir target       exit 1: 4 entries, 0 B, all
+           mineworld-kill-* in the system temp dir — the panicked kill test's own scratch. Follows
+           from the line above; INCONCLUSIVE for the same reason.
+E-TWa-6b `cargo test -p mineworld-persistence --test kill_and_resume` alone on e7fdee7, load ≈ 277:
+         "[cafe] PASS", "[clock] PASS", exit 0 (899 s wall, 11 s user). The full-gate panic was the
+         load race. `check_scratch.py left` still lists the 4 empty `mineworld-kill-*` directories the
+         panicked run left in the system temp dir (0 B; removing them needs `rm`, outside this
+         session's allowed commands — left for the operator; the re-run added none).
+E-TWa-7  CI on e7fdee7 (PR #94, pull_request run 37891509810): fast PASS (1 m 13 s), test PASS
+         (13 m 38 s; its log shows `sun::tests::three_sun_samples_are_pinned_exactly ... ok` on
+         Linux x86_64 — the three pinned integers equal macOS's, §16.8 (a) held on two OSes).
+         https://github.com/yuema137/MineWorld/actions/runs/37891509810
 ```
 
 ### Deviations and findings
@@ -1169,6 +1198,10 @@ TWa-F2  (cross-platform, operator requirement 2026-10-08: macOS, Linux, Windows)
         pinned integers are OS-independent. The one Unix-only artefact is this PR's evidence script
         target/tw-a/capture.sh (bash, shasum; untracked, under target/, never run by a test or CI) —
         recorded, not a product defect. No existing test was edited by TW-a.
+        Encountered (not edited): persistence/tests/kill_and_resume.rs kills its victim with SIGKILL
+        and keeps scratch in the system temp dir (`mineworld-kill-*`), both Unix-only assumptions,
+        and is timing-sensitive under load (E-TWa-6). Owner lane: persistence (S6) with the
+        test-hygiene / DEP-29 lane for the scratch location.
 C4 decision requested (material stop, §16.7 spirit: a frozen acceptance measure). The smallest options:
   (i)  amend ARC-35 by a note and AC-1 check 3 to admit packs appended after the six market packs
        when each is a configured world-level pack with its `configure:` entry and `configure/` file
