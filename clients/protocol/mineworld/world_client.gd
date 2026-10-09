@@ -61,12 +61,18 @@ signal refused(code: String, token: String, detail: String)
 ## The server said it is closing this connection, and why — emitted before [signal disconnected].
 ##
 ## `reason` is one of `PROTOCOL.md` §5.6's: `left`, `unauthorized`, `protocol_mismatch`,
-## `world_stopped`, and from later S11 pull requests `kicked`, `superseded`, `server_stopping`. A client
+## `world_stopped`, `taken_over` (another connection took the seat), `superseded` (this player's own
+## newer connection resumed it), and from later S11 pull requests `kicked`, `server_stopping`. A client
 ## branches on `reason` (a wrong invite is `unauthorized`) and never on `detail`.
 signal closing(reason: String, detail: String)
 
 ## The connection ended, or could not be made. `reason` is for a developer and a status line.
 signal disconnected(reason: String)
+
+## The socket dropped without a `closing`, [member reconnect] is on, and this module is about to try
+## again: `attempt` counts from 1. A successful attempt ends in the usual [signal welcomed], with
+## [member took_over] `"held"` when the seat was still held for this player (`PROTOCOL.md` §4.2).
+signal reconnecting(attempt: int)
 
 ## What this client just sent, after it was sent: the token and the whole request frame.
 ##
@@ -81,7 +87,15 @@ enum State {
 	JOINING,   ## connected; a seat has been asked for and not yet granted
 	SEATED,    ## observations are arriving and requests may be submitted
 	CLOSED,    ## finished, for any reason
+	RECONNECTING,  ## the socket dropped; waiting to open it again ([member reconnect])
 }
+
+## Opt-in: when the socket drops without the server saying `closing`, rejoin the same seat with the
+## stored [member resume] — after 1 s, 2 s, 4 s … while within [member hold_seconds] of the drop, then
+## once without it — emitting [signal reconnecting] before each attempt. Off by default, so a client
+## that never sets it behaves exactly as before. A `closing` from the server (left, taken over,
+## superseded, kicked …) never triggers it, and neither does [method disconnect_from_world].
+var reconnect := false
 
 ## Where this connection is.
 var state: State = State.IDLE
@@ -128,16 +142,16 @@ var nickname: String = ""
 ## Not a credential.
 var session: String = ""
 
-## Whether control of the Person changed hands when this connection joined: `"none"`, `"hosted"` (it
-## was living on its own) or `"held"` (this connection resumed its own seat). Always `"none"` until
-## S11-B.
+## Whether control of the Person changed hands when this connection joined: `"none"` (the seat was
+## free), `"hosted"` (an in-server controller was driving it), `"held"` (this player's own dropped
+## connection's seat, resumed) or `"connection"` (taken from another connection with `take_over`).
 var took_over: String = ""
 
-## How long the server holds this seat after the socket drops, in seconds; `0` until S11-B.
+## How long the server holds this seat after the socket drops, in wall seconds; `0` holds none.
 var hold_seconds: int = 0
 
-## The secret that re-takes this seat after a dropped socket, or `null`; always `null` until S11-B.
-## Kept for the reconnect policy S11-B adds; never logged.
+## The secret that re-takes this seat after a dropped socket — a fresh one on every welcome — or
+## `null` from a server older than S11-B. Used by [member reconnect]; never printed, logged or emitted.
 var resume: Variant = null
 
 ## Why the server last closed this connection (`closing.reason`), or `""`.
@@ -148,6 +162,13 @@ var _invite := ""
 var _nickname_asked := ""
 var _url := ""
 var _tokens := 0
+var _take_over := false
+## The resume the next join presents, or `null`: set only while reconnecting.
+var _rejoin_with: Variant = null
+var _attempt := 0
+var _dropped_msec := 0
+var _retry_msec := 0
+var _last_try := false
 
 
 ## Opens a connection and asks for a seat.
@@ -161,8 +182,13 @@ var _tokens := 0
 ## answered `refused unauthorized`, then [signal closing] with `"unauthorized"`. This module never
 ## prints, logs or emits it. `nickname` names the *player* (1 to 32 characters, trimmed by the
 ## server); nobody else is shown it.
+##
+## `take_over` (optional, default `false`) takes the seat from another connection that holds it, or
+## from a dropped player's hold; that connection is told `closing` `"taken_over"`. A seat an in-server
+## controller drives needs no flag (`PROTOCOL.md` §4.2). Every four-argument call is unchanged.
 func connect_to_world(
-	address: String, seat_name: String, invite: String, nickname_asked: String
+	address: String, seat_name: String, invite: String, nickname_asked: String,
+	take_over := false
 ) -> void:
 	if state != State.IDLE and state != State.CLOSED:
 		push_warning("[mineworld] already connected; ignoring connect_to_world")
@@ -170,6 +196,10 @@ func connect_to_world(
 	seat = seat_name
 	_invite = invite
 	_nickname_asked = nickname_asked
+	_take_over = take_over
+	_rejoin_with = null
+	_attempt = 0
+	_last_try = false
 	nickname = ""
 	session = ""
 	took_over = ""
@@ -335,16 +365,16 @@ func world_instance() -> String:
 func _process(_delta: float) -> void:
 	if state == State.IDLE or state == State.CLOSED:
 		return
+	if state == State.RECONNECTING:
+		if Time.get_ticks_msec() >= _retry_msec:
+			_reopen()
+		return
 	_socket.poll()
 	match _socket.get_ready_state():
 		WebSocketPeer.STATE_OPEN:
 			if state == State.OPENING:
 				state = State.JOINING
-				# `protocol` is the int constant, so JSON writes it as an integer (`PROTOCOL.md` §7).
-				_send({
-					"t": "join", "protocol": PROTOCOL, "invite": _invite,
-					"nickname": _nickname_asked, "seat": seat, "resume": null,
-				})
+				_send_join(_rejoin_with)
 			_drain()
 		WebSocketPeer.STATE_CLOSING:
 			_drain()
@@ -358,10 +388,54 @@ func _process(_delta: float) -> void:
 			var note := _socket.get_close_reason()
 			if close_reason != "":
 				_close("the server closed the connection: %s" % close_reason)
+			elif reconnect and resume != null and (state == State.SEATED or _attempt > 0):
+				# Dropped without a word from the server: a blink, not a goodbye (`PROTOCOL.md` §4.2).
+				_schedule_reconnect()
 			else:
 				_close("the connection closed (%d %s)" % [code, note])
 		_:
 			pass
+
+
+## `PROTOCOL.md` §2's join. `protocol` is the int constant, so JSON writes it as an integer (§7).
+func _send_join(resuming: Variant) -> void:
+	_send({
+		"t": "join", "protocol": PROTOCOL, "invite": _invite,
+		"nickname": _nickname_asked, "seat": seat, "resume": resuming, "take_over": _take_over,
+	})
+
+
+## The next reconnect attempt: 1 s after the drop, then 2 s, 4 s … while within the hold, with the
+## resume; then once without it; then the connection is over.
+func _schedule_reconnect() -> void:
+	var now := Time.get_ticks_msec()
+	if _attempt == 0:
+		_dropped_msec = now
+	if _last_try:
+		_close("the connection dropped and could not be resumed")
+		return
+	_attempt += 1
+	var wait_msec := 1000 * (1 << mini(_attempt - 1, 10))
+	if now + wait_msec - _dropped_msec <= hold_seconds * 1000:
+		_rejoin_with = resume
+	else:
+		_rejoin_with = null
+		_last_try = true
+	_retry_msec = now + wait_msec
+	state = State.RECONNECTING
+	reconnecting.emit(_attempt)
+
+
+func _reopen() -> void:
+	_socket = WebSocketPeer.new()
+	close_reason = ""
+	# A new connection numbers its frames from 1 again (`PROTOCOL.md` §5).
+	sequence = 0
+	var opened := _socket.connect_to_url(_url)
+	if opened != OK:
+		_schedule_reconnect()
+		return
+	state = State.OPENING
 
 
 ## Every frame waiting on the socket, in order, until there are none or the connection was closed.
@@ -391,11 +465,10 @@ func _receive(text: String) -> void:
 				frame.get("result", {}),
 			)
 		"refused":
-			refused.emit(
-				String(frame.get("code", "")),
-				String(frame.get("token", "")),
-				String(frame.get("detail", "")),
-			)
+			var code := String(frame.get("code", ""))
+			refused.emit(code, String(frame.get("token", "")), String(frame.get("detail", "")))
+			if state == State.JOINING and _attempt > 0:
+				_refused_while_reconnecting(code)
 		"closing":
 			# The connection is over; the reason is the only thing a client branches on. The client
 			# closes the socket itself, which is what the server waits for (`PROTOCOL.md` §5.6).
@@ -406,6 +479,18 @@ func _receive(text: String) -> void:
 			# A frame from a future revision. Reported and ignored rather than guessed at: a client
 			# that invented a meaning for it would be a client acting on something it cannot read.
 			push_warning("[mineworld] ignoring a frame of an unknown kind: %s" % unknown)
+
+
+## A reconnecting join was refused. The hold had ended (`invalid_resume`): the one plain join is made
+## at once, on the same connection, which stays in the handshake. Anything else — somebody else has
+## the seat — ends the attempt.
+func _refused_while_reconnecting(code: String) -> void:
+	if code == "invalid_resume" and _rejoin_with != null:
+		_rejoin_with = null
+		_last_try = true
+		_send_join(null)
+	else:
+		disconnect_from_world("the seat could not be taken back: %s" % code)
 
 
 func _welcome(frame: Dictionary) -> void:
@@ -429,6 +514,9 @@ func _welcome(frame: Dictionary) -> void:
 	resume = frame.get("resume")
 	world = frame.get("world", {})
 	revision = _revision_of(world)
+	_rejoin_with = null
+	_attempt = 0
+	_last_try = false
 	state = State.SEATED
 	welcomed.emit(seat, observer, world)
 

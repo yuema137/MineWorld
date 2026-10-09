@@ -32,12 +32,13 @@ use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use tokio::time::Instant;
 
-use crate::admission::{Admission, Nickname, OfferedInvite, UNAUTHORIZED_DELAY};
+use crate::admission::{Admission, Nickname, OfferedInvite, OfferedResume, UNAUTHORIZED_DELAY};
 use crate::host::{Seated, WorldHost};
 use crate::protocol::{
     ClientFrame, ClosingReason, PROTOCOL_VERSION, Refusal, RefusalCode, ServerFrame, SessionId,
-    TookOver, into_kernel_request,
+    into_kernel_request,
 };
+use crate::seats::{Departure, JoinRequest};
 
 type Outgoing = SplitSink<WebSocket, Message>;
 type Incoming = SplitStream<WebSocket>;
@@ -60,12 +61,15 @@ enum Ending {
     Left,
     /// The world stopped streaming.
     WorldStopped,
+    /// The world unbound this connection from its seat: another connection took it over or
+    /// superseded it.
+    Released(ClosingReason),
 }
 
 /// What one `join` came to.
 enum Joining {
     /// The connection has its seat.
-    Seated(Seated, Nickname),
+    Seated(Box<Seated>, Nickname),
     /// Refused; the connection stays in the handshake and may join again.
     Refused(Refusal),
     /// Refused, and the connection ends: a mismatched protocol, or a wrong invite.
@@ -96,10 +100,9 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
         observer: seated.observer(),
         nickname,
         session: connection.session,
-        // No hold and no takeover exist before S11-B (`PROTOCOL.md` §10).
-        resume: None,
-        hold_seconds: 0,
-        took_over: TookOver::None,
+        resume: Some(seated.resume().clone()),
+        hold_seconds: seated.hold_seconds(),
+        took_over: seated.took_over(),
         world: seated.world().clone(),
     };
     let ending = if send(&mut outgoing, &welcome).await.is_ok() {
@@ -108,14 +111,21 @@ pub(crate) async fn run(socket: WebSocket, connection: Connection) {
         Ending::Gone
     };
     // Explicit rather than left to the sweep that would reap a closed channel anyway: a client that
-    // leaves or disconnects should stop counting as a connected client immediately.
-    connection.host.leave(seated.subscription());
+    // leaves or disconnects should stop counting as a connected client immediately — and the world
+    // must learn how it ended, because a dropped socket's seat is held and a left one is not
+    // (`PROTOCOL.md` §4.2). A released connection no longer holds a seat; there is nothing to say.
+    let host = &connection.host;
     match ending {
-        Ending::Gone => {}
-        Ending::Left => close(&mut outgoing, &mut incoming, ClosingReason::Left).await,
+        Ending::Gone => host.leave(seated.subscription(), Departure::Dropped),
+        Ending::Left => {
+            host.leave(seated.subscription(), Departure::Left);
+            close(&mut outgoing, &mut incoming, ClosingReason::Left).await;
+        }
         Ending::WorldStopped => {
+            host.leave(seated.subscription(), Departure::Left);
             close(&mut outgoing, &mut incoming, ClosingReason::WorldStopped).await;
         }
+        Ending::Released(reason) => close(&mut outgoing, &mut incoming, reason).await,
     }
 }
 
@@ -139,15 +149,17 @@ async fn handshake(
                     nickname,
                     seat,
                     resume,
+                    take_over,
                 }) => {
                     let offered = Offered {
                         protocol,
                         invite,
                         nickname,
                         resume,
+                        take_over,
                     };
                     match join(connection, offered, seat, arrived).await {
-                        Joining::Seated(seated, nickname) => return Some((seated, nickname)),
+                        Joining::Seated(seated, nickname) => return Some((*seated, nickname)),
                         Joining::Refused(refusal) => refusal,
                         Joining::Closed(refusal, reason) => {
                             if send(outgoing, &refusal.into_frame()).await.is_ok() {
@@ -176,7 +188,8 @@ struct Offered {
     protocol: u32,
     invite: OfferedInvite,
     nickname: String,
-    resume: Option<String>,
+    resume: Option<OfferedResume>,
+    take_over: bool,
 }
 
 /// `PROTOCOL.md` §4.1's checks, in its order. The first that fails decides the answer.
@@ -209,14 +222,16 @@ async fn join(
             return Joining::Refused(Refusal::new(RefusalCode::InvalidNickname).detailed(error));
         }
     };
-    if offered.resume.is_some() {
-        return Joining::Refused(
-            Refusal::new(RefusalCode::InvalidResume)
-                .detail("no seat is held for this resume; join again without one"),
-        );
-    }
-    match connection.host.join(seat).await {
-        Ok(seated) => Joining::Seated(seated, nickname),
+    // The seat and who may have it are the world thread's to decide (`PROTOCOL.md` §4.2): the
+    // resume and the takeover flag travel with the seat, and nothing here holds a binding.
+    let request = JoinRequest {
+        seat,
+        take_over: offered.take_over,
+        resume: offered.resume,
+        session: connection.session,
+    };
+    match connection.host.join_with(request).await {
+        Ok(seated) => Joining::Seated(Box::new(seated), nickname),
         Err(refusal) => Joining::Refused(refusal),
     }
 }
@@ -234,14 +249,23 @@ async fn stream(
     seated: &mut Seated,
 ) -> Ending {
     let observer = seated.observer();
+    let (observations, released) = seated.streams();
     let mut seq: u64 = 0;
 
     loop {
         let frame = tokio::select! {
-            observation = seated.observations().recv() => {
-                // `None` means the world has stopped. The connection ends with it: there is nothing
-                // left to observe.
-                let Some(perceived) = observation else { return Ending::WorldStopped };
+            // First, so that a connection unbound from its seat is told why rather than being
+            // told the world stopped when its observation stream ends with the binding.
+            biased;
+            reason = &mut *released => {
+                return reason.map_or(Ending::WorldStopped, Ending::Released);
+            }
+            observation = observations.recv() => {
+                // `None` means the world has stopped, or unbound this connection — which the
+                // `released` branch, polled first, has said if so. The connection ends with it.
+                let Some(perceived) = observation else {
+                    return released.try_recv().map_or(Ending::WorldStopped, Ending::Released);
+                };
                 seq += 1;
                 ServerFrame::Observation {
                     seq,

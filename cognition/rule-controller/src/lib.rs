@@ -56,6 +56,7 @@ use std::collections::BTreeMap;
 
 use mineworld_contracts::{
     Action, ActionRecord, ActionRequest, Component, EntityId, Observation, PerceivedEntity,
+    WorldTime,
 };
 use mineworld_conversation::{ConversationHistory, Heard, Talk, UTTERANCE_MAX_BYTES, Utterance};
 use mineworld_naming::DisplayName;
@@ -82,12 +83,36 @@ const ELLIPSIS: &str = "…";
 #[derive(Debug, Default)]
 pub struct RuleController {
     answered: BTreeMap<EntityId, Heard>,
+    /// Lines heard at or before this instant are not this controller's to answer.
+    bound_at: Option<WorldTime>,
 }
 
 impl RuleController {
-    /// A controller that has answered nobody.
+    /// A controller that has answered nobody, and answers every line it is shown.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// A controller bound to its Person at `at`: every line heard at or before `at` counts as already
+    /// answered, because it was said before this controller drove the Person (`F-13`).
+    ///
+    /// A controller is rebuilt at every binding — a server's start on a saved world, a Person handed
+    /// back after somebody else drove it — and keeps no memory across one, so without this it would
+    /// answer the newest line again: the line it answered before a crash, or a line said to the
+    /// person who drove the Person in between. Nothing is persisted to make this work; the instant is
+    /// enough, because every heard line carries the world instant it was said at. The cost is a line
+    /// said in the same world second the controller is bound, which it does not answer — the
+    /// "missed the moment" limitation `ARC-27` already accepts.
+    pub fn since(at: WorldTime) -> Self {
+        Self {
+            answered: BTreeMap::new(),
+            bound_at: Some(at),
+        }
+    }
+
+    /// Whether a line was heard after this controller was bound.
+    fn is_after_binding(&self, heard: &Heard) -> bool {
+        self.bound_at.is_none_or(|bound| heard.at() > bound)
     }
 
     /// What this Person attempts, given what it perceives — or nothing, which is the usual answer.
@@ -116,7 +141,9 @@ impl RuleController {
             .iter()
             .map(|(speaker, heard)| (*speaker, *heard))
             .find(|(speaker, heard)| {
-                self.answered.get(speaker) != Some(*heard) && may_talk_to(observation, *speaker)
+                self.is_after_binding(heard)
+                    && self.answered.get(speaker) != Some(*heard)
+                    && may_talk_to(observation, *speaker)
             })?;
 
         let said = reply_to(heard, &newest, speaker, observation)?;

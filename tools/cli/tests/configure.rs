@@ -54,7 +54,8 @@ fn every_resuming_host_checks_the_configuration_before_it_resumes_or_verifies() 
         "fn new(pack: &WorldPack, save: Option<&Path>)",
         "PersistentWorld::resume(",
     );
-    checks_before("main.rs", "fn persisted(", "PersistentWorld::resume(");
+    // `persisted` moved to serve.rs with `serve` (step-12 S11-B, D-SA10).
+    checks_before("serve.rs", "fn persisted(", "PersistentWorld::resume(");
     checks_before("main.rs", "fn replay(", "verify(&backend");
 }
 

@@ -20,7 +20,8 @@ use mineworld_contracts::{
 };
 use mineworld_server::{
     ClientFrame, ClosingReason, CorrelationToken, Nickname, OfferedInvite, RefusalCode,
-    ServerFrame, SessionId, SystemSummary, TookOver, WorldInstanceId, WorldRevision, WorldSummary,
+    ResumeSecret, ServerFrame, SessionId, SystemSummary, TookOver, WorldInstanceId, WorldRevision,
+    WorldSummary,
 };
 use serde_json::Value;
 
@@ -81,6 +82,7 @@ fn world() -> WorldSummary {
         protocol: 2,
         instance: WorldInstanceId::from_raw(0x1a2b_3c4d_5e6f_7081_9293_a4b5_c6d7_e8f9),
         at: WorldTime::from_seconds(4112),
+        time_scale: 1,
         entities: 41,
         systems: vec![SystemSummary {
             system: SystemId::from_static("conversation"),
@@ -110,6 +112,7 @@ fn join() {
             nickname: "Yue".to_owned(),
             seat: key("visitor"),
             resume: None,
+            take_over: false,
         },
     );
 }
@@ -153,9 +156,11 @@ fn welcome() {
             observer: EntityId::from_raw(101),
             nickname: Nickname::new("Yue").expect("a legal nickname"),
             session: SessionId::new(7),
-            resume: None,
-            hold_seconds: 0,
-            took_over: TookOver::None,
+            resume: Some(ResumeSecret::from(
+                "5f0c2a9e8d7b6c5a4f3e2d1c0b9a8f7e".to_owned(),
+            )),
+            hold_seconds: 30,
+            took_over: TookOver::Hosted,
             world: world(),
         },
     );
@@ -204,7 +209,7 @@ fn closing() {
     server_frame_matches(
         "closing",
         &ServerFrame::Closing {
-            reason: ClosingReason::Left,
+            reason: ClosingReason::TakenOver,
             detail: None,
         },
     );
