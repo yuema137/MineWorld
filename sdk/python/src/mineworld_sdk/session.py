@@ -30,6 +30,7 @@ from mineworld_sdk.wire import codec
 from mineworld_sdk.wire.contract import ActionRequest, ActionResult
 from mineworld_sdk.wire.frames import (
     PROTOCOL_VERSION,
+    Clock,
     Closing,
     ClosingReason,
     Invite,
@@ -162,6 +163,7 @@ class SeatSession:
         self._connection = connection
         self._welcome = welcome
         self._newest: ObservationFrame | None = None
+        self._clock: Clock | None = None
         self._arrived = asyncio.Event()
         self._pending: dict[CorrelationToken, asyncio.Future[Outcome]] = {}
         self._issued = 0
@@ -248,6 +250,12 @@ class SeatSession:
     def newest(self) -> ObservationFrame | None:
         """The newest observation received, or `None` before the first."""
         return self._newest
+
+    @property
+    def clock(self) -> Clock | None:
+        """The newest `clock` frame: whether the host has paused the world, and at what scale it runs.
+        `None` before the first, which the server sends right after `welcome` (`PROTOCOL.md` §5.9)."""
+        return self._clock
 
     @property
     def sent_frames(self) -> int:
@@ -349,6 +357,9 @@ class SeatSession:
                 if self._left is not None and not self._left.done():
                     self._left.set_result(frame.reason)
                 self._end(SessionClosed(frame.reason))
+            case Clock():
+                # The host's pacing (PROTOCOL.md §5.9): kept, newest wins, like an observation.
+                self._clock = frame
             case Welcome():
                 self._end(ProtocolViolation("a second welcome on one connection"))
 

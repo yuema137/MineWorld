@@ -977,6 +977,44 @@ AP-12  PASS  the full python layer (32 tests, real server included) green on ubu
 - The pytest-socket warning ("A test tried to use socket.socket.connect() …") printed once per run is
   the AP-8 test itself.
 
+### 12.1i After merge — #98 merged; S11-D's frames absorbed by a fix PR
+
+- **Merge identity.** #98 merged at `285c152` (2026-10-09T19:54:47Z), operator-authorized; its last green
+  CI was run 37981318916 on head `bf31a73`.
+- **Finding: the far side was verified against the wrong base.** S11-D (#104, `0744fee`) merged at
+  19:40:27Z, fourteen minutes before #98. That made P3 the PR that merged second, so the obligation of
+  D-P3-5 and R-S11-9 was P3's. But #98's last CI ran on a merge base without #104. On `main` from
+  `bc4f8e7`, every `python` leg failed (run 37983789236), with the two errors AP-1 and AP-2 exist to
+  produce:
+  - "golden frames with no Python model: ['clock.json']";
+  - "welcome.world.paused — Extra inputs are not permitted".
+
+  The required checks (`fast`, `test`) stayed green, because `python` is not yet a required check (C5,
+  QP3-3). A required `python` check, with "require branches to be up to date", would have blocked the
+  merge. That is a decision for the primary session.
+- **Fix PR** (branch `mvp0/fix-sdk-s11d-frames`, worktree `fix-sdk`, scope `sdk/python` plus this
+  note), modelling S11-D's additions from `server/PROTOCOL.md` §§5.5, 5.7, 5.9 and
+  `server/src/protocol.rs` on `main`:
+  - `Clock { at: i64, time_scale: u32, paused: bool }`, now in the `ServerFrame` union;
+  - `WorldSummary.paused: bool`;
+  - `RefusalCode` gains `paused`;
+  - `SeatSession.clock` keeps the newest `clock` frame. Before this fix the session's `route` matched
+    no case for it, so the frame would have been decoded only to be dropped.
+
+  `ClosingReason` is unchanged on `main`; `kicked` was already modelled.
+  The tests:
+  - `clock.json` gets its golden check;
+  - a unit test keeps the clock across a pause, and resolves a submit refused `paused` as
+    `RefusedRequest`, without ending the session;
+  - the AP-5 test asserts both sessions hold a running clock;
+  - the unit fixture's `WORLD` gains `paused`.
+- **Validation on the fix branch**, macOS, binary rebuilt from `main` `ffbbedc`:
+  - ruff check, ruff format --check and pyright strict: clean;
+  - pytest: 34 passed, the real server included;
+  - each real session now round-trips one more frame, the server's `clock` (visitor 60, alice 55,
+    bob 55);
+  - mutation M-14 (`Clock` removed from the `ServerFrame` union): RED, see §12.4.
+
 ### 12.2 Evidence
 
 ```text
