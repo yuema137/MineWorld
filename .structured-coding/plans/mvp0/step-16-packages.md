@@ -2122,3 +2122,485 @@ NORMAL STOP CONDITION:     PR E-b READY FOR OPERATOR REVIEW — DO NOT MERGE
 MERGE AUTHORITY:           never without the operator's explicit approval
 ```
 
+---
+
+# 16. PR E-c — a System Pack from outside the repository (PR design)
+
+**Lifecycle:** `PR design — ready for freeze review`. Not frozen. Nothing in this section authorizes
+implementation, a commit to another repository, or the creation of one.
+
+**Identifiers.** `ARC-66` is assigned (§15.0 FQ-b5): the revision of `ARC-33`'s sentence, step
+placeholder `ARC-SE-a`. Everything else here is a placeholder the primary session numbers at freeze:
+`DEP-Ec-a` (`cargo-deny`; §15.0 keeps `DEP-22` reserved for it), `DEP-Ec-b` (the third-party pack as a
+dependency of the reference build; `DEP-23` is reserved), PD-20 … PD-29, EC-1 … EC-12, M-C1 … M-C10,
+FQ-c1 … FQ-c10.
+
+## 16.0 Freeze record
+
+```text
+DESIGN FROZEN      — not yet. To be filled from the primary session's freeze message.
+Design revision:     §16 as committed on plan/s16-ecd
+Approved by:         —
+Rulings:             FQ-c1 … FQ-c10 (§16.9), each answered
+Implementation base: main at freeze (audited here on 9cf8f8e)
+Execution contract:  §16.11
+Lifecycle:           PR design — ready for freeze review
+```
+
+## 16.1 Identity, base, approved scope
+
+```text
+PR            E-c — a System Pack from outside the repository (S16, third of five)
+base          main @ 9cf8f8e (E-a #70 and E-b #78 merged). Re-audit §16.3 if anything under
+              systems/installed/, sdk/rust/src/, packages/src/, tools/cli/src/packs.rs, the root
+              Cargo.toml, .github/, Dockerfile or scripts/ci_layer.py moved before Ec-C2
+branch        mvp0/pr-ec-third-party (proposed), its own worktree
+external      github.com/yuema137/mineworld-pack-fishing — does not exist on 9cf8f8e (`gh repo view`:
+              "Could not resolve to a Repository"). Created by the operator (FQ-c1); written by the
+              E-c session only if the freeze authorizes pushing to it
+scope         §9.4, bounded by PD-20 … PD-29; QSE-2 (accepted 2026-10-08 with E-B2), QSE-3 (a),
+              QSE-12 (fishing), QSE-16 (operator's choice)
+decisions     ARC-66 (the ARC-33 revision and the mechanism for out-of-repository code packs);
+              DEP-Ec-a (cargo-deny, if FQ-c6 keeps it here); DEP-Ec-b (the pinned third-party pack)
+depends on    E-a (identity, package!()), E-b (requires:, bundled/third-party, the licence policy)
+```
+
+**Goal.** A System Pack that lives in its own public repository, written only against the framework's
+published crates, enters the reference build through `ARC-33`'s two lines pinned to a git revision; the
+build is reproducible offline once fetched; its licence is judged by `ARC-55`; and a world that enables
+it must require it, in range, or is refused by name.
+
+**Non-goals.** Lakeside, `entities/modern-goods`, `milestone_e.rs`, a 300-day test, the server
+reaching the pack (all E-e); Entity Packs (E-d); a registry, `.mwpack`, `mineworld install`, installing
+without a rebuild (`ARC-8`); recording the pack's version or revision in a fact or a save (QSE-14);
+any change to `kernel/`, `contracts/`, `persistence/`, `server/`, `clients/`, `cognition/`,
+`worldpack/src/` (I-E1, I-E8); the pack taking a world configuration through IL-a's `configure:` seam
+(FQ-c9).
+
+## 16.2 Design decisions (PD-20 … PD-29)
+
+| ID | Decision | Rationale |
+| --- | --- | --- |
+| **PD-20** | **The mechanism is a Cargo git dependency pinned by `rev`, locked by `Cargo.lock`** (§16.4's comparison, M1). The pin is a full 40-hex commit id, stated once, on the pack's line in `systems/installed/Cargo.toml`; `Cargo.lock` records it again as `git+<url>?rev=<sha>#<sha>` (generated, and checked equal by EC-2). No `branch`, no `tag`: a tag can be moved, a commit cannot. | The only option that keeps `ARC-33`'s two-line shape, keeps the source outside this tree (so `ARC-54`'s compile-time classification calls it third-party, PD-15), and is already the build tool. Spike SC-1. |
+| **PD-21** | **The pack's dependency key is its own package name, never a rename.** `acme-fishing = { git = "…", rev = "…" }` and `Fishing => acme_fishing::FishingSystem,`. **Corrects §4.4's sketch** (`mineworld-fishing = { package = "acme-fishing", … }` with `acme_fishing::FishingSystem`), which cannot pass the installed set's consistency guard: the guard compares the manifest's keys with the crates `core::any::type_name` reports, and `type_name` reports the real crate (`acme_fishing`), not the alias. Spike SC-2 observed the failure. | Keeps `systems/installed/tests/installed.rs` unedited and its claim intact. |
+| **PD-22** | **A third-party pack names the framework by version requirement** (`mineworld-sdk = "0.1"`), **and the reference build maps those names to its own paths once, with `[patch.crates-io]`** (spike S-4, re-run as SC-1). The table *is* the **published surface**, stated once: `mineworld-sdk`, `mineworld-kernel`, `mineworld-contracts`, `mineworld-authoring`, `mineworld-presence`, `mineworld-inventory`. A pack's dev-dependencies are not part of it (Cargo never resolves a dependency's dev-dependencies). **Where the table lives is FQ-c2** (PD-23). | A pack built anywhere, against whichever MineWorld its consumer has; no git URL of the framework in the consumer's graph (the framework repository is 512 MB, `gh api`: `size 512364` KB). |
+| **PD-23** | **Finding F-Ec1: a root `[patch.crates-io]` that publishes `mineworld-inventory` fails `AC-1` check 2, bullet 3.** `ac1_composability.rs` `code_naming_the_market` scans every tracked `*.rs` and every `Cargo.toml` — the root one explicitly (`path == "Cargo.toml"`) — outside `systems/`, `worlds/`, `tests/acceptance/` for either spelling of the six market crates, and `inventory` is one (`MARKET_PACKS`). §4.4 and §6.2 ("one line in the root `[patch.crates-io]`") did not see this. Fishing needs `inventory`: `items-produced` is inventory's fact, stated only through `mineworld_inventory::produce` (`ARC-26`, `ARC-38`). **Recommended (FQ-c2 (a)): the table lives in `.cargo/config.toml` at the repository root**, a supported Cargo location for `[patch]` (spike SC-6: resolves, checks and builds identically). It is build configuration, not code, so bullet 3 does not read it — and this design does not lean on that silently: ARC-66 records that the published-surface table names one market crate outside `systems/`, why that is consistent with `ARC-35`'s claim (installing the market edited only `systems/`; publishing a crate for third parties is a separate, reviewed act), and EC-4 reads the table so it is guarded rather than invisible. Cost recorded: Cargo reads `.cargo/config.toml` from the **working directory** upward, so `cargo … --manifest-path <repo>/Cargo.toml` from outside the repository does not see it and fails closed — "no matching package named `mineworld-contracts`" (SC-6). Alternatives: (b) the root `Cargo.toml` plus an amendment of `ARC-35` item 2 and of `ac1_composability.rs` (breaks I-E4, operator only); (c) fishing without `inventory` (its catch could not become holdings, and E-e's food loop could not close) — rejected. | **Operator-material**: it decides how the accepted `AC-1` proof's boundary reads for a build file it does not scan. |
+| **PD-24** | **What the reference build states about the pack, and where.** `packs list` gains one word after the authors, `bundled` or `third-party`, before `system <id>` (so `tests/packs.rs`'s `[.., "system", id]` pattern is unchanged); `packs show` prints `source  this build (bundled)` / `this build (third-party)`, `packs resolve`'s wording. **The git revision is not printed by the binary**: Cargo exposes no environment variable for a dependency's source, the checkout directory's name is a Cargo implementation detail, and reading `Cargo.lock` at run time is `cargo_metadata`-at-run-time, rejected in §5 row 15. The revision is stated in `systems/installed/Cargo.toml` and proven equal in `Cargo.lock` by EC-2. **Deviation from §8.2 M-1's wording** ("git rev = the rev in systems/installed/Cargo.toml" read from `packs list`) — FQ-c3. | One statement per fact (I-E5); no new machinery for a cosmetic column. |
+| **PD-25** | **The lock guard and the outside check are one acceptance test file, `tests/acceptance/tests/package_sources.rs`**, reading `Cargo.lock` as text (line-based, failing on a line it cannot read, as `systems/installed/tests/installed.rs` reads its manifest) and `cargo metadata --format-version 1 --locked --offline` run in the repository. It names no pack: a third-party pack is *located* as a package whose `Cargo.lock` source begins `git+`, and cross-checked against `AVAILABLE` packages whose `bundled()` is false. `ac1_composability.rs` is not edited (I-E4). | `ARC-23`: located before counted; generic, so a second third-party pack needs no test edit. |
+| **PD-26** | **Offline reproducibility is evidence, not a committed test.** The committed guard (EC-2) proves its precondition — every non-workspace package is content-addressed (registry with `checksum`, or git with `?rev=<40 hex>#<same>`) — and the two offline routes are run and recorded at Ec-C8: (a) `cargo fetch --locked`, then `--offline --frozen`; (b) `cargo vendor --locked <dir outside the tree>` and an **empty** `CARGO_HOME` with `--offline --frozen --config <generated>` (spike SC-4: PASS in 19 s for `cargo check -p mineworld-cli`, 187 crates, 206 MB). The vendor directory is never committed (§16.4 M2). | A committed test that vendors 206 MB on every `cargo test` is disproportionate; the precondition is cheap and mechanical. |
+| **PD-27** | **The pack's own law, v0.1.0 (QSE-12).** Below this table. Authored in its repository against the published surface only; `SystemVersion` 1; MIT; package `acme-fishing` (FQ-c4). Its standalone builds name MineWorld through its **own** root `[patch.crates-io]` → `git = "https://github.com/yuema137/MineWorld", rev = <main sha>`, which Cargo ignores when MineWorld consumes the pack (spike SC-1: the pack's `[patch]` pointed at `https://example.invalid/…` and nothing tried to fetch it). | §3 conclusion 4, now confirmed. |
+| **PD-28** | **The checkpoint world is a scratch world written by the test**, never committed content: `worlds/market-town` copied into the test's scratch (`mineworld_test_support::scratch!`, DEP-29), `fishing` appended to `systems:`, a `requires:` entry for the located third-party pack (its id read from `packs list`, not spelled in the test), a `fishing:` section on `places/park.yaml` (`catch: fish`, `minutes: 60`), and `items/fish.yaml` (`item: { category: food }`) declared in `items:`. No world in `worlds/` changes (I-E2). | Lakeside is E-e's; E-c proves the pack reaches a real composition. |
+| **PD-29** | **`cargo-deny` (DEP-Ec-a)** — `deny.toml` with `[sources]` (crates.io; `allow-git = ["https://github.com/yuema137/mineworld-pack-fishing"]`, nothing else), `[licenses]` (the allow-list the *code graph* actually needs, starting from `ARC-55`'s eight and adding only what `cargo deny list` shows, each addition with its crates), `[bans]` (no wildcard requirements); advisories **not** run (network-dependent, ARC-48 "nothing allowed to fail" non-deterministically). Installed in the `toolchain` stage pinned by version with `--locked`, and run by the `fast` layer (`scripts/ci_layer.py`). Separable commit; **FQ-c6** (S13 owns the CI surfaces). | §5 row 11; §9.7: S13 landed CI without it, so the frozen step puts it here. |
+
+**The pack's law, v0.1.0 (PD-27).**
+
+```text
+id            fishing (SystemId); package acme-fishing 0.1.0, MIT, edition 2024, rust-version 1.97.1
+section       fishing     on a place     { catch: <item key>, minutes: 30..=240 }
+                                          references: catch → Item (refused at load otherwise, rule 10)
+              seeds       fishing-spot   the place, its catch kind and minutes   (SystemInternal)
+owns          FishingSpot  on the place   from fishing-spot
+              Angler       on a person    the spot and when the catch is due
+action        fish         no target; a COMPLETE affordance (ARC-34), SpatialRequirement::NONE, so the
+                           unchanged paced controller attempts it. Offered to a living Person whose
+                           presence (mineworld_presence::Presence) is a place with a FishingSpot, who is
+                           not an Angler, and who can carry one more (mineworld_inventory::can_take)
+              validate     not a living Person → NoSupportedInteraction · not at a spot → TooFarAway ·
+                           already fishing → Busy · cannot carry one more → PreconditionFailed
+              resolve      fishing-started (angler, place, due) to the angler; starts one `catch` process
+process       catch        ProcessKind owned by FishingSystem; woken once at `due`. If the angler is still
+                           present at that place and can carry one more: inventory's items-produced
+                           (mineworld_inventory::produce: the angler, the catch kind, 1) and
+                           fishing-ended { caught: true }; otherwise fishing-ended { caught: false }.
+                           Either way the Angler is cleared and the process ends
+biographical  fishing-ended
+discloses     nothing (no PerceptionProvider::disclose); the offer is its only appearance
+depends on    presence, inventory (inventory's own dependency brings item)
+disabled      fish is Unavailable and offered nowhere; no other fact changes (INV-10, AC-2)
+```
+
+The analogues it is modelled on, read on `9cf8f8e`: a place section with an item reference and a
+seeding fact — `systems/employment/src/section.rs` (`AuthoredSection`, `references`, `seed`,
+`Seeding::resolve`); a complete no-target offer — `systems/consumption/src/offer.rs` (`Offer::complete`,
+`SpatialRequirement::NONE`); a process owned as a type — `systems/employment/src/process.rs`
+(`ProcessKind`, `type Owner`); producing into holdings — `systems/inventory/src/admit.rs`
+(`can_take`, `admit_production`, `produce`).
+
+**The external repository** (created by the operator, FQ-c1; written by the E-c session if FQ-c5
+authorizes it):
+
+```text
+mineworld-pack-fishing/
+  Cargo.toml          [package] acme-fishing 0.1.0, license MIT, authors, repository, edition 2024,
+                      rust-version 1.97.1; [dependencies] the published surface by "0.1" + serde,
+                      serde_json (both already in MineWorld's lock: no new crate enters the graph);
+                      [dev-dependencies] mineworld-item, -movement, -rule-controller, serde-saphyr
+                      (the pack's own tests only); [patch.crates-io] every mineworld-* above →
+                      git https://github.com/yuema137/MineWorld, rev <main sha> (PD-27)
+  Cargo.lock          committed: the pack's own standalone builds are reproducible
+  rust-toolchain.toml 1.97.1, as MineWorld's
+  LICENSE             MIT
+  README.md           human orientation: what it is, how to install it into a build (the two lines)
+  src/                lib.rs, system.rs, section.rs, action.rs, offer.rs, process.rs, event.rs,
+                      component.rs, codec.rs (names indicative; the analogues' layout)
+  tests/              fish.rs (offered, accepted, refused by each Rejection, produced), removable.rs
+                      (not enabled → Unavailable, offered nowhere), paced.rs (the unchanged paced
+                      controller fishes at least once in a bounded run)
+  tag v0.1.0          on the commit MineWorld pins (informative; the pin is the rev)
+```
+
+## 16.3 Audit (main @ 9cf8f8e) and spike
+
+| What | Where | Finding |
+| --- | --- | --- |
+| Installed set | `systems/installed/Cargo.toml`, `src/lib.rs` | 14 packs, path dependencies; `installed!` lines `Variant => crate::Type,`. IL-a (#80, open) changes the `resolution:` line to `extension …` and leaves pack lines unchanged. |
+| Consistency guard | `systems/installed/tests/installed.rs:17–90` | Manifest keys (with `-`→`_`) must equal the crates of `type_name::<$System>()`; a rename fails (PD-21). |
+| `type_name` | `sdk/rust/src/installed.rs:229–233` | `::core::any::type_name::<$System>()` — the real crate name. |
+| Classification | `packages/src/declared.rs:43, 90–110` | `bundled = compiled_under(CARGO_MANIFEST_DIR, PACKAGES_DIR)`: a byte-prefix test against the workspace root. A git checkout under `CARGO_HOME` is third-party; anything vendored or submoduled **inside** the tree would be bundled (ARC-54's recorded limitation) — decisive in §16.4. |
+| Resolution rule 3 | `packages/src/resolve.rs`; E-b EB-2 | Proven by unit table only until a third-party code pack exists; SC-3 is its first real-binary run. |
+| Licence policy | `packages/src/policy.rs`; ARC-55 | Applied at resolution to every enabled system's pack, bundled or not. |
+| `packs` output | `tools/cli/src/packs.rs:145–215`; `tools/cli/tests/packs.rs:66–95` | `list` has no origin column; the test parses four leading words and matches `[.., "system", id]` (PD-24). |
+| AC-1 check 2 | `tests/acceptance/tests/ac1_composability.rs:59–66, 653, 829–860` | Bullet 3 scans `*.rs` and every `Cargo.toml` incl. the root outside `systems/`, `worlds/`, `tests/acceptance/` for the six market crates, `inventory` among them (F-Ec1, PD-23). Its `cargo metadata` call is `--no-deps --offline`: unaffected by a git dependency. |
+| Market pack surface | `systems/inventory/src/lib.rs`, `admit.rs:18, 35, 125, 149` | `PERSON_CAPACITY`, `can_take`, `admit_production`, `produce` are public. |
+| Presence surface | `systems/presence/src/lib.rs:82–90` | `Presence`, `Offer`, `PerceptionProvider`, `present_in` public. |
+| CI | `.github/workflows/ci.yml`, `.github/actions/layer/action.yml`, `scripts/ci_layer.py` | Layers `fast`, `core` in the toolchain container; `CARGO_HOME=.ci/cargo`, and `.ci/cargo/git` is already cached — a git dependency is anticipated. No `cargo-deny`, no `deny.toml`. |
+| Image | `Dockerfile` `build` stage | `cargo build --release --locked -p mineworld-cli` with network: fetches the git source; `.dockerignore` does not exclude `.cargo/` (PD-23's file reaches the build). |
+| Framework repository | `gh repo view`, `gh api` | **PUBLIC** now (the §3 spike recorded PRIVATE), MIT, 512 MB — S-3's "credentials everywhere" reason is gone; the size reason against a framework git URL remains (PD-22). |
+| crates.io | `cargo search mineworld` | No crate of that name (RE-2 unchanged). |
+| Decision ids | `scripts/check_decision_ids.py` | 67 ids, distinct; ARC-66 absent from the file and assigned to E-c. |
+
+**Spike (2026-10-08, `/tmp/mw-ec-spike`, a clone of `9cf8f8e`; nothing in this repository edited).**
+A local git repository held a minimal pack `acme-fishing` (one `System`, no claims, `PACKAGE`,
+`PerceptionProvider`, and a call to `mineworld_inventory::PERSON_CAPACITY`), its framework crates named
+by `"0.1"`, and its own `[patch.crates-io]` pointing at `https://example.invalid/never-fetched`.
+
+| # | Question | Result |
+| --- | --- | --- |
+| SC-1 | Two `ARC-33` lines (`acme-fishing = { git = "file:///…", rev = "<40 hex>" }`, `Fishing => acme_fishing::FishingSystem,`) + root `[patch.crates-io]` (5 crates) | **PASS.** Diff: root `Cargo.toml` +7 (the patch), installed `Cargo.toml` +1, `lib.rs` +1, `Cargo.lock` +13 (one package with `source = "git+file:///…?rev=<sha>#<sha>"`, one dependency line). The precursor alone changes `Cargo.lock` by 0 lines and prints no warning. The pack's own `[patch]` was ignored: nothing tried `example.invalid`. `installed.rs` 3 passed. |
+| SC-2 | The renamed key of §4.4 | **FAIL, as predicted:** "linked into the build but missing from the installed! list, so never installable: [\"mineworld_fishing\"]" (PD-21). |
+| SC-3 | `packs` and resolution through the real binary | `packs list`: `system-pack acme-fishing 0.1.0 MIT Spike system fishing`, 16 packs. A copy of social-cafe enabling `fishing` with no `requires:` → exit 1, "systems: enables fishing, whose pack acme-fishing is third-party; add `acme-fishing: "<range>"` to requires" (refusal (f), E-b rule 3 now end to end). With `requires: { acme-fishing: "^0.1" }` → resolves, "acme-fishing "^0.1" → system-pack 0.1.0 (this build, third-party)", "fishing → acme-fishing 0.1.0 (third-party)"; `run --days 1` 0 faults. |
+| SC-4 | Offline after fetch | (a) `cargo check --offline --frozen` with the normal cache: PASS. (b) `cargo vendor --locked /tmp/…/vendor` (187 crates, 206 MB, the git source as `acme-fishing`), then an empty `CARGO_HOME`, `cargo check --offline --frozen --config <generated> -p mineworld-cli`: **PASS**, 19.4 s; the new `CARGO_HOME` held only an empty `registry/`. |
+| SC-5 | The patch removed | `cargo metadata` → "no matching package named `mineworld-contracts` found, location searched: crates.io index, required by package acme-fishing …" — fails closed today; a squatter would change that, hence EC-2 (ii). |
+| SC-6 | The patch in `.cargo/config.toml` instead of the root | Inside the repository: `metadata` and `check` PASS, identical. From another directory with `--manifest-path`: exit 101, "no matching package named `mineworld-contracts`" — fails closed (PD-23's cost). |
+| SC-7 | `packs` on a data pack whose own `mineworld:` excludes the framework | **Accepted** by `packs validate` and by `packs resolve` (a presentation pack with `mineworld: "^9"`). An E-b gap, recorded as F-Ed1 and fixed in E-d (§17), where data packs are read. |
+
+## 16.4 Reuse comparison — mechanisms for a git-pinned code pack (`REUSE_POLICY.md` §§2, 11–12, 17)
+
+The question: how does a System Pack whose source is in another repository, at a fixed revision,
+become part of this build, reproducibly and offline after one fetch, under `ARC-33`'s static boundary?
+
+| # | Mechanism | How it pins | Where the source lives; ARC-54 says | ARC-33 shape | Offline after fetch | Licence · maturity | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| M1 | **Cargo git dependency with `rev`**, `Cargo.lock` | commit id in the manifest; `#<sha>` in the lock; `--locked` refuses drift | `CARGO_HOME/git/checkouts`, outside the tree → **third-party** (correct) | exactly two lines + lock (SC-1) | yes: `cargo fetch` then `--offline --frozen`; or out-of-tree vendor (SC-4) | Cargo: MIT OR Apache-2.0 · the Rust toolchain, stable since 1.0, the build tool already in use | **ADOPT** (PD-20) |
+| M2 | **Vendoring into this repository** — a copied directory, `cargo vendor` into the tree, or `git subtree` | the copied bytes | inside the tree → **bundled** (wrong: ARC-54 limitation), and under `systems/` a workspace member through `systems/*` (breaks I-E7) | a directory of someone else's code + lines; upgrades are whole-tree diffs | best (no fetch at all) | n/a · universal | **REJECT**: defeats "outside" (I-E7), misclassifies, a copy-paste dependency (`REUSE_POLICY.md` §10) |
+| M3 | **Git submodule** + a `path` dependency | the gitlink | inside the tree → **bundled** (wrong); `systems/*` membership hazard; `Cargo.lock` records a path package with no source, so the lock loses the pin | `.gitmodules` + gitlink + two lines (four places); every clone and CI checkout needs `--recurse-submodules`; the image context excludes `.git` | yes, once checked out | git: GPL-2.0-only (a tool; nothing linked or redistributed) · mature, notorious UX | **REJECT**: misclassifies, splits the pin from the lock, more places than ARC-33's two |
+| M4 | **`cargo vendor` outside the tree** (a complement to M1, not an alternative) | `Cargo.lock` | a directory named at build time, outside the tree → third-party | none: generated `--config` | **yes, with an empty `CARGO_HOME`** (SC-4) | part of Cargo · stable | **ADOPT as the documented offline route** (PD-26), never committed |
+| M5 | **A registry** — crates.io, a private one (e.g. kellnr), or a static index (e.g. margo) | semver + checksum | registry cache → third-party | one line, but the framework crates must be published too | yes, cached | various (not re-verified: rejected on fit) · mature | **REJECT for MVP-0**: Phase 3 non-goal; publishes names and APIs before a stable contract (§5 row 3). M1 + PD-22 make the move a deletion of the patch table |
+| M6 | **A hermetic build system** — Nix (crane / naersk) or Bazel `rules_rust` crate_universe | content hashes | the build system's store | a second build description beside Cargo's | yes, by design | Nix LGPL-2.1, crane MIT, Bazel and rules_rust Apache-2.0 (as published; re-verify only if adopted) · mature | **REJECT**: a second build system is framework lock-in (`REUSE_POLICY.md` §3) for a property Cargo's lock already gives |
+| M7 | **Our own fetcher** — a script downloading a release tarball, checking a sha256, unpacking into `vendor/` | sha256 | wherever it unpacks; inside the tree → bundled | a script + a lock file of our own | yes | ours | **REJECT**: rebuilds M1 + M4 badly (`REUSE_POLICY.md` §12: "dependency larger than the problem" inverted — a wheel that exists) |
+
+**Both review questions** (`REUSE_POLICY.md` §17). Not reinventing: Cargo fetches, pins, locks, vendors
+and enforces the framework requirement (a pack requiring `mineworld-sdk = "0.2"` is refused by Cargo,
+EC-9); MineWorld adds only the published-surface table and a guard over the lock. Not forcing: no
+registry, second build system or fetch script where a git `rev` already does the job.
+
+## 16.5 Acceptance (decided before measuring, `ARC-23`)
+
+Each guard names the mutation shown to break it: applied in the working tree (or a scratch copy where
+stated), observed failing by name, reverted, `git status` recorded. A test not run is not a pass.
+
+```text
+EC-1  The install is ARC-33's shape (I-E3, AE-3). The install commit's diff is exactly
+      systems/installed/Cargo.toml (+1), systems/installed/src/lib.rs (+1), Cargo.lock (one package
+      block + one dependency line); `git diff --stat` recorded. Before it, the checkpoint world is refused
+      `UnknownSystem` naming fishing and listing the 14; after it, it resolves. The installed set's guard
+      passes unedited. Mutation M-C1: the §4.4 rename (`mineworld-fishing = { package = "acme-fishing",
+      … }`, `mineworld_fishing::FishingSystem`) → installed.rs FAILS naming mineworld_fishing (SC-2).
+EC-2  Pinned, content-addressed, one statement (PD-20, PD-25). tests/acceptance/tests/package_sources.rs
+      over Cargo.lock: (i) every package with no source is a workspace member, every registry package
+      has a checksum, every git package's source is git+<url>?rev=<40 hex>#<the same 40 hex>; (ii) no
+      package named mineworld-* has a registry source; (iii) each git package's rev equals the rev its
+      line in systems/installed/Cargo.toml states; (iv) only mineworld-installed-systems depends on a git
+      package. Negative controls in the file on fixed lock text, as ac1_composability's LOCK_BEFORE.
+      Mutations on the real Cargo.lock text: M-C2 mineworld-sdk given `source = "registry+https://
+      github.com/rust-lang/crates.io-index"` → (ii) FAILS naming mineworld-sdk; M-C3 the git source
+      rewritten `?branch=main#<sha>` → (i) FAILS naming acme-fishing.
+EC-3  Reproducible offline after fetch (PD-26), recorded evidence on the final head: (a) `cargo fetch
+      --locked`; `cargo build --offline --frozen -p mineworld-cli` exit 0; (b) `cargo vendor --locked
+      <dir outside the tree>`; an empty CARGO_HOME; `cargo build --offline --frozen --config <generated>
+      -p mineworld-cli` exit 0; (c) the control: an empty CARGO_HOME, no vendor, `--offline` → exit ≠ 0
+      naming the git source. The image job (`workflow_dispatch`) builds `--locked`: PASS or INCONCLUSIVE
+      if not dispatched, never assumed.
+EC-4  Genuinely outside (I-E7), package_sources.rs over `cargo metadata --format-version 1 --locked
+      --offline` in the repository: located — the packages whose lock source begins git+, and the
+      AVAILABLE capabilities whose package().bundled() is false; the two sets name the same crates and
+      are not empty. Then each: not a workspace member; manifest_path not under workspace_root; every
+      normal dependency is in the published-surface table (read from the file PD-23 chooses) or a
+      registry crate; no dependency has a `path`; its Cargo.toml has no `workspace = true` /
+      `.workspace = true`. Negative controls on fixed metadata JSON (a path dependency; a dependency
+      outside the surface). Mutation M-C4: package!() computes bundled = true → "no third-party pack
+      located" FAILS.
+EC-5  Nothing in the framework names it. Over `git ls-files --cached --others --exclude-standard`: no
+      `*.rs` and no `Cargo.toml` other than systems/installed/Cargo.toml spells a git package's crate
+      name in either spelling (names read from Cargo.lock, none written in the test); systems/installed/
+      src/lib.rs may name it once. Mutation M-C5: `// acme_fishing` planted in tools/cli/src/packs.rs →
+      FAILS naming the file and line.
+EC-6  Its licence is judged (ARC-55). `packs resolve` of the checkpoint world prints the pack with MIT,
+      `packs list` shows it `third-party` and every bundled pack `bundled` (tools/cli/tests/packs.rs,
+      located from AVAILABLE). Mutation M-C6 (a scratch copy of this workspace, its line pointed at a
+      scratch clone of the pack whose license is GPL-3.0-only; rebuilt) → `packs resolve` exit 1 naming
+      acme-fishing, GPL-3.0-only and the allow-list.
+EC-7  It lives in a composed world (PD-28). tools/cli/tests/third_party.rs: the checkpoint world,
+      `run --headless --seed 7 --days 30 --save S`: 0 faults; located: one accepted `fish` request of a
+      seat, then the `items-produced` whose cause chain reaches it; counted: each ≥ 1. `replay --save S`
+      passes; `inspect S` causation passes; a second run, same seed, same fingerprint. Mutation M-C7:
+      `fishing` removed from the scratch world's systems (and its section and requirement) → the locate
+      step FAILS ("no accepted fish") — the count is measured, not assumed.
+EC-8  Refused by name, with a real third-party pack — E-c's share of §8.2 M-3's six refusals, through
+      the real binary on scratch copies of the checkpoint world, each exit 1:
+        (a) requires "^0.2"                → names acme-fishing, ^0.2 and 0.1.0
+        (f) enables fishing, no requires   → names fishing, acme-fishing and requires
+        (d) world license GPL-3.0-only     → names GPL-3.0-only and the allow-list
+        (e) world mineworld "^9"           → names ^9 and 0.1.0
+        (b), (c) are Entity Pack refusals: E-d (§17, ED-3, ED-4)
+      Mutations: M-B1 (the range check off) → (a) accepted, FAILS; M-B2 (rule 3 off) → (f) accepted,
+      FAILS — rule 3's first end-to-end guard (E-b EB-2 left it unit-only).
+EC-9  A framework mismatch is Cargo's refusal, recorded: a scratch clone of the pack requiring
+      mineworld-sdk = "0.2", swapped in on a scratch copy → cargo exits ≠ 0 naming mineworld-sdk and the
+      requirement. Evidence only.
+EC-10 Nothing existing moves (I-E2, I-E4, I-E8). Both towns' 300-day seed-7 sha (all but `wall`) equal
+      to main's; `validate` of the three worlds byte-identical; ac1_composability, precursor_vocabulary,
+      seam_vocabulary, installed.rs, resolution.rs pass unedited; `git diff main -- kernel contracts
+      persistence server clients cognition worldpack/src tests/acceptance/tests/ac1_composability.rs`
+      empty.
+EC-11 The documents say it first: ARC-66, DEP-Ec-a/-b, MODULE_SPEC §3.1/§3.2, PACKAGE_FORMAT §8 in
+      Ec-C1, before code; both doc checks pass.
+EC-12 (if FQ-c6 keeps cargo-deny here) `cargo deny check licenses sources bans` exits 0 in the fast
+      layer. Mutation M-C8: allow-git emptied → `sources` FAILS naming the pack's URL.
+```
+
+## 16.6 Commit plan
+
+Evidence goes into §16.8 as `E-Ec<n>`. A planned commit may become several; the mapping is recorded.
+
+### Ec-C0 — Design (this section) — docs only
+
+- [x] Implementation: §16, from §16.3's audit and spike on `9cf8f8e`.
+- [x] Validation: `check_doc_headings`, `check_decision_ids` (results in §16.8, E-Ec0).
+- [x] Review: self-review; the two places this design departs from §4.4/§8.2 (PD-21 rename, PD-24
+  revision column) and the AC-1 finding (PD-23) raised as FQ-c2, FQ-c3. The primary session's review
+  pending.
+
+### Ec-C1 — Specs before code
+
+**Goal.** The revision of `ARC-33`, the mechanism and the published surface exist as specification
+before code (`CLAUDE.md` §2.2). Markdown only.
+
+**Scope.** `docs/DECISIONS.md`: **ARC-66** *A System Pack from outside this repository is installed by
+the same two lines, pinned to a commit* — supersedes `ARC-33`'s sentence placing out-of-repository
+packs outside MVP-0 (QSE-2); PD-20 … PD-24, PD-26; §16.4's comparison in both directions; the
+published surface and where its table lives (FQ-c2 as ruled) with F-Ec1 and its reasoning; trusted and
+reviewed code, still `ARC-8` for unreviewed or rebuild-free installs; fail-closed behaviours (SC-5,
+SC-6); limitations. **DEP-Ec-b** *acme-fishing at <sha>* (`REUSE_POLICY.md` §11: what, why, licence,
+who maintains it, how it is upgraded and removed). **DEP-Ec-a** if FQ-c6 keeps `cargo-deny` here.
+`docs/MODULE_SPEC.md` §3.1: the third-party row of "Installing is exactly", the "What installing does not
+mean" paragraph amended; **new §3.2** *Writing a System Pack outside this repository* — the published
+surface, a `Cargo.toml` template, the pack's own `[patch]` for standalone builds, tests, versioning
+(semver; `SystemVersion` rule), installing and upgrading (the `rev`), the offline routes, removal.
+`docs/PACKAGE_FORMAT.md` §8: a row. `docs/ARCHITECTURE.md` §12: one sentence (trusted in-process Rust
+may come from a pinned outside source). `sdk/rust/README.md`, `systems/README.md`: one pointer each
+(READMEs stay short, `CLAUDE.md` §2.1).
+
+- [ ] Implementation: as scoped; ARC-66 and the placeholder DEPs re-checked free on every `origin/*`.
+- [ ] Validation: both doc checks; `git grep` that `ARC-33`'s superseded sentence is marked, not deleted.
+- [ ] Review: no defined term redefined ("published surface" and "third-party" are descriptive, defined
+  in ARC-66/ARC-54); the AC-1 finding is stated in ARC-66, not hidden.
+
+**Commit boundary.** Documentation only.
+
+### Ec-C2 — The published surface and the lock guard (precursor)
+
+**Goal.** The framework can consume an outside pack, and a broken or missing table fails a test rather
+than compiling a stranger's crate. No pack is installed yet.
+
+**Scope.** `.cargo/config.toml` (new; FQ-c2 (a)) — or the root `Cargo.toml` under FQ-c2 (b) — with the
+`[patch.crates-io]` table of PD-22 and a comment citing ARC-66; `tests/acceptance/tests/package_sources.rs`
+(new): EC-2 (i), (ii) with their negative controls (parts (iii), (iv) and EC-4/EC-5 arrive in Ec-C6, when
+a git package exists to locate); `tests/acceptance/Cargo.toml` only if the new file needs a dependency
+already in the workspace.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation: `cargo metadata` and `git diff --stat Cargo.lock` → 0 lines (SC-1); no Cargo warning;
+  `cargo test -p mineworld-acceptance` (ac1 13, precursor 4, seam 3, the new file); M-C2 observed failing
+  and reverted.
+- [ ] Review: the table lists exactly PD-22's six; ac1_composability unedited and passing (under FQ-c2
+  (a)); nothing else changes.
+
+### Ec-C3 — `packs` says bundled or third-party
+
+**Scope.** `tools/cli/src/packs.rs` (PD-24: one word in `list`, the `source` line of `show`);
+`tools/cli/tests/packs.rs`: one new assertion — every listed system pack carries `bundled` or
+`third-party`, and with this build's 14 all are `bundled` (an addition; no existing assertion edited).
+
+- [ ] Implementation · [ ] Validation (`tests/packs.rs`, `commands.rs`; clippy) · [ ] Review (`main.rs`
+  untouched; the `[.., "system", id]` pattern still matches).
+
+### Ec-C4 — The pack, in its own repository
+
+**Goal.** `acme-fishing` 0.1.0 exists outside this repository, written against the published surface,
+tested there, at a commit MineWorld can pin. **Commits land in `yuema137/mineworld-pack-fishing`**; in
+this repository the commit is the ledger entry only.
+
+**Precondition.** The operator has created the repository (FQ-c1) and the freeze authorizes pushing to
+it (FQ-c5). Otherwise this commit, and everything after it, stops.
+
+- [ ] Implementation: §16.2's tree; the law of PD-27; its own `[patch.crates-io]` to MineWorld `main` at a
+  recorded sha; `Cargo.lock` committed; tag `v0.1.0`.
+- [ ] Validation (in that repository): `cargo fmt --check`, `cargo clippy --all-targets -D warnings`,
+  `cargo test` — counts recorded; its own mutations, each observed failing and reverted: the offer made
+  away from a spot (`fish.rs` FAILS), `produce` skipped at the catch (FAILS), `fishing` not enabled still
+  offering (`removable.rs` FAILS); `cargo metadata` there shows only the published surface + serde /
+  serde_json as normal dependencies.
+- [ ] Review: no `path` and no `workspace = true` in its manifest; `PACKAGE` line present; refusals use the
+  kernel's `Rejection` kinds; nothing in it names a MineWorld private module (`__private`).
+
+### Ec-C5 — Install: two lines
+
+**Scope.** `systems/installed/Cargo.toml` (+1: `acme-fishing = { git = "https://github.com/yuema137/
+mineworld-pack-fishing", rev = "<sha>" }`), `systems/installed/src/lib.rs` (+1: `Fishing =>
+acme_fishing::FishingSystem,`), `Cargo.lock` (regenerated by Cargo).
+
+- [ ] Implementation: exactly those; nothing else.
+- [ ] Validation: EC-1 (`git diff --stat`, the before/after `UnknownSystem` evidence, installed.rs 3
+  passed); `cargo test -p mineworld-installed-systems -p mineworld-acceptance`; M-C1 observed failing and
+  reverted.
+- [ ] Review: the commit alone shows `ARC-33`'s shape (I-E3).
+
+### Ec-C6 — Proof through the real binary and over the graph
+
+**Scope.** `tests/acceptance/tests/package_sources.rs`: EC-2 (iii), (iv), EC-4, EC-5;
+`tools/cli/tests/third_party.rs` (new): EC-6's resolve assertion, EC-7, EC-8 — scratch through
+`mineworld_test_support::scratch!`, `MINEWORLD_PACKS` removed from every child's environment.
+
+- [ ] Implementation: as scoped; no test spells the pack's crate name (EC-5).
+- [ ] Validation: the two files' counts; M-C3, M-C4, M-C5, M-C7, M-B1, M-B2 observed failing, each
+  reverted; `check_scratch.py scan`.
+- [ ] Review: every count is preceded by locating (ARC-23); no assertion of a library's own behaviour.
+
+### Ec-C7 — `cargo-deny` (separable; FQ-c6)
+
+**Scope.** `deny.toml` (PD-29); `Dockerfile` `toolchain` stage installs `cargo-deny` at a pinned version
+with `--locked`; `scripts/ci_layer.py` `fast` gains `cargo deny check licenses sources bans`;
+`scripts/check_ci_pins.py` if the pin must be checked; DEP-Ec-a's measured cost (install time, image
+size).
+
+- [ ] Implementation · [ ] Validation (`python3 scripts/ci_layer.py --list fast`; a local
+  `cargo deny check …` exit 0; M-C8; one CI run of `fast` on the branch) · [ ] Review (no advisories
+  check; every licence beyond ARC-55's eight named with its crates).
+
+### Ec-C8 — Close
+
+- [ ] `docs/MVP_STATUS.md`: a capability row and an evidence row; `handoff-ec.md`; this ledger.
+- [ ] Full gate on the final executable head: `cargo fmt --all --check`; `cargo clippy --workspace
+  --all-targets --all-features -- -D warnings`; `cargo test --workspace --no-fail-fast` (counts:
+  passed, failed, ignored, filtered); `check_scratch.py left`; EC-3 (a), (b), (c); EC-9; EC-10's digests
+  and `validate` comparison; both doc checks.
+- [ ] PR opened, READY FOR OPERATOR REVIEW. Not merged.
+
+## 16.7 Test ownership
+
+```text
+STATIC      fmt, clippy; Cargo refuses a framework mismatch (EC-9) and a listed type that is not a pack
+UNIT        package_sources.rs negative controls on fixed lock text and metadata JSON
+INTEGRATION package_sources.rs over the real Cargo.lock and `cargo metadata`; tests/packs.rs;
+            third_party.rs through the real binary
+REAL RUN    EC-7's 30-day run, save, replay, inspect; EC-10's towns' 300-day runs
+EXTERNAL    the pack's own fmt/clippy/test in its repository (Ec-C4)
+OFFLINE     EC-3, recorded evidence
+REGRESSION  AC-1, precursor and seam scans, installed.rs, resolution.rs — unedited
+GATE 1      NOT REQUIRED (nothing LM-facing)
+CI          fast and core on the PR; image on dispatch (EC-3, INCONCLUSIVE if not run)
+```
+
+## 16.8 Live ledger and evidence
+
+*(Filled during execution: E-Ec0 … E-Ec8, deviations, findings.)*
+
+- **E-Ec0** (design, `9cf8f8e`): spike SC-1 … SC-7 (§16.3); doc checks in §18.
+
+## 16.9 Freeze questions
+
+```text
+FQ-c1  [OPERATOR-MATERIAL] Create github.com/yuema137/mineworld-pack-fishing: public, MIT, empty (no
+       README, so the first commit is the pack's). It does not exist today. Recommended: create it.
+FQ-c2  [OPERATOR-MATERIAL] Where the published-surface table lives (F-Ec1, PD-23). (a) .cargo/config.toml
+       — AC-1 unedited; recorded in ARC-66 and guarded by EC-4; cwd-dependent, fails closed from outside
+       the repository. (b) the root Cargo.toml, amending ARC-35 item 2 and ac1_composability.rs to admit
+       its [patch.crates-io] table — breaks I-E4. (c) fishing without inventory — rejected (no catch in
+       holdings, no food loop for E-e). Recommended: (a).
+FQ-c3  [OPERATOR] PD-24: `packs list` shows bundled/third-party, not the git revision; E-e's M-1 is
+       reworded "the revision in systems/installed/Cargo.toml equals the one in Cargo.lock" (EC-2 (iii)).
+       Alternative: a build script in systems/installed embedding each git source from Cargo.lock at
+       compile time (new machinery for one column). Recommended: as stated.
+FQ-c4  [OPERATOR] The package name: `acme-fishing` (§4.4: a third-party-looking prefix that keeps
+       mineworld-* for the framework) or `fishing-pack` / another. Recommended: acme-fishing.
+FQ-c5  [OPERATOR-MATERIAL] Authorize the E-c session to push commits and a tag to the new repository
+       (Ec-C4), and to pin MineWorld main's sha in that repository's own [patch]. Recommended: yes,
+       the repository's main branch only, no force-push.
+FQ-c6  [OPERATOR] cargo-deny (DEP-Ec-a) in E-c as Ec-C7, touching S13's Dockerfile and ci_layer.py, or
+       handed to S13 with deny.toml only. Recommended: in E-c, separable — the frozen step put it here if
+       S13 had not, and S13 has not.
+FQ-c7  Who keeps the pack compiling when a framework PR changes the published surface (RE-c1). The PR
+       that breaks it updates the pack in its repository and the rev here, in the same review; a breaking
+       change to a published crate is a MINOR release before 1.0 (ARC-53's rule, extended to the surface
+       in MODULE_SPEC §3.2). Recommended: accept.
+FQ-c8  The pack's own standalone builds name MineWorld by git rev in its [patch] (a 512 MB fetch on a
+       fresh machine) rather than a sibling checkout via --config. Recommended: accept, with the
+       --config path override documented for local development.
+FQ-c9  The pack takes no world configuration in 0.1.0, even if IL-a (#80, ARC-61) has merged: the seam's
+       third-party reach is S17's to demonstrate. Recommended: accept; a 0.2.0 that does is a later,
+       separate upgrade.
+FQ-c10 A CI workflow in the pack's repository (fmt, clippy, test). Recommended: yes, minimal, actions
+       pinned by sha as MineWorld's are — evidence that the pack builds outside MineWorld's tree.
+```
+
+## 16.10 Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| RE-c1 | Framework churn breaks the pinned pack: a change to `presence`, `inventory` or the SDK no longer compiles it, and MineWorld's own build fails | Fails closed (a compile error naming the pack's source); FQ-c7's rule; the published surface kept to six crates |
+| RE-c2 | The pack's repository or commit disappears | Fails closed (SC-5-like); EC-3's out-of-tree vendor route rebuilds without it; the operator owns the repository |
+| RE-c3 | `.cargo/config.toml` not read (a tool run from outside the repository) | Fails closed (SC-6), never a silent crates.io resolution today; EC-2 (ii) and `cargo-deny` `sources` catch a squatter |
+| RE-c4 | Name squatting on crates.io (RE-2) | EC-2 (ii); `cargo-deny` sources; QSE-16 |
+| RE-c5 | Seats never stay at the spot long enough to catch, so EC-7 counts 0 | Fixed before measuring: a FAIL is remedied in the pack or the scratch world's content (shorter `minutes`, another place), never in the controller (I-E8) |
+| RE-c6 | IL-a (#80) and E-c both edit `systems/installed/src/lib.rs` (its `extension` line; the pack line) | Adjacent lines; whichever merges second resolves mechanically, re-running installed.rs and resolution.rs |
+| RE-c7 | The CI cache key (`Cargo.lock`, toolchain, Dockerfile) does not include `.cargo/config.toml` | A config change changes `Cargo.lock` whenever it changes resolution; recorded, not changed here |
+
+## 16.11 Execution contract (proposed; filled at freeze)
+
+```text
+PROJECT / PR:              MVP-0 · S16 / PR E-c — a System Pack from outside the repository
+PRIMARY DESIGN DOC:        .structured-coding/plans/mvp0/step-16-packages.md §16
+RELATED / BINDING DOCS:    this file §§3–9, §14, §15; overall.md "Parallel build-out, 2026-10-08";
+                           CLAUDE.md; docs/ENGINEERING_STANDARDS.md, REUSE_POLICY.md, PACKAGE_FORMAT.md,
+                           MODULE_SPEC.md, DECISIONS.md ARC-26, ARC-33, ARC-34, ARC-35, ARC-38, ARC-53,
+                           ARC-54, ARC-55, DEP-12, DEP-29
+IMPLEMENTATION BASE:       main at freeze; branch mvp0/pr-ec-third-party
+APPROVED SCOPE:            §16.1–16.6 as frozen, with FQ-c1 … FQ-c10 as answered
+FROZEN INVARIANTS:         I-E1; I-E2 (towns' digests, validate output); I-E3 (the install commit is two
+                           lines + lock); I-E4 (ac1_composability.rs unedited and passing); I-E5; I-E6;
+                           I-E7; I-E8; QSE-14
+APPROVED SEQUENCE:         Ec-C1 → C2 → C3 → C4 (external) → C5 → C6 → C7 (if FQ-c6) → C8
+VALIDATION BUDGET:         targeted per commit; the towns' 300-day runs (≈4 per main merge); EC-3's
+                           vendor (≈200 MB, outside the tree, deleted after); one full gate; ≈1.5 h
+REQUIRED LIVE DOCS:        §16.8; handoff-ec.md
+ENDPOINT AUTHORITY:        from the freeze message; proposed: implement, commit, push this branch, push
+                           to the pack repository's main (FQ-c5), open the PR READY FOR OPERATOR
+                           REVIEW; merge NOT authorized
+MATERIAL STOPS:            the pack repository absent or not writable; any edit to ac1_composability.rs
+                           or ARC-35; any kernel, contract, persistence, server, client, cognition or
+                           worldpack/src change; a digest change; the install needing a third line
+NORMAL STOP CONDITION:     PR E-c READY FOR OPERATOR REVIEW — DO NOT MERGE
+MERGE AUTHORITY:           never without the operator's explicit approval
+```
+
