@@ -2152,9 +2152,11 @@ lib.rs}`; README; `cognition/rule-controller/src/{social,social_tests}.rs`.
 **Scope.** IB-1 (with M-IB1a/b), IB-2 (M-IB2), IB-3 (M-IB3), IB-8's binary half (M-IB8), IB-12
 (M-IB12), IB-13, IB-14, IB-15; NEW `tools/cli/tests/interaction_runs.rs`;
 `configuration_vocabulary.rs`; `MVP_STATUS.md`; the ledger and handoff.
-- [ ] Implementation: as above.
-- [ ] Validation: each criterion with evidence in §12.13.
-- [ ] Review: every changed path is in §12.1's change set; deviations recorded in §12.14.
+- [x] Implementation: as above (E-IB-10 … E-IB-12).
+- [x] Validation: each criterion with evidence in §12.13 (IB-1 E-IB-11; IB-2, 3, 7, 8, 11 E-IB-10;
+  IB-12 … 14 E-IB-12; IB-15, the gate and CI, E-IB-13 and the PR).
+- [x] Review: every changed path is in §12.1's change set, or recorded as D-IB-12 / D-IB-15;
+  deviations recorded in §12.14.
 
 ## 12.8 Test ownership
 
@@ -2493,6 +2495,90 @@ E-IB-9  2026-10-09, IB-C9 + IB-C10 (one commit, D-IB-14): conversation — NEW s
         10 (line 100's INVITATION_LIFETIME == 1 800 unedited) + persisted 1; rule-controller 34;
         worldpack interaction_sections 2; cli social_composition 4, inspect 3, packs 5. `cargo clippy
         --workspace --all-targets -D warnings` clean. PASS.
+E-IB-10 2026-10-09, IB-C11's binary tests (commit 7e0917a), dev binary, scratch copies of social-cafe,
+        30 days seed 7 (`cargo test -p mineworld-cli --test interaction_runs --test interactions --
+        --nocapture`, log target/il-b/c11-cli.log):
+        IB-2  37 085 facts unconfigured; 37 087 with both sections `extends: default`, the 2 extra
+              being the two `*-interactions-configured` genesis facts; the other facts pairwise equal
+              in type, instant, payload, subjects and visibility, the first 17 (passages, arrivals)
+              with their ids and the remaining 37 068 with ids and referenced event ids + 2; the
+              `requests` lines identical. PASS.
+        IB-3  (a) gap 3 600: conversation-started 1 829 against 4 391 unconfigured; every speaker of
+              the unconfigured run speaks in each of the three 10-day buckets; faults 0. (b)
+              invitation_lifetime 60: `requests accept-invitation` shows only "accepted 389" — no
+              rejected line; invitation-accepted 389 against 665; faults 0. PASS.
+        IB-7  (binary half) `mineworld validate` refuses: `rules: [{ action: whisper }]` in
+              conversation.yaml at line 2 ("'whisper' is not an action 'conversation' declares (it
+              declares: none)"); `gap: 0` at "line 2 column …" ("'gap' is 1 … 86400, not 0"); an undefined
+              class naming "parameters[0]"; an ambiguous pair naming parameters[0] and parameters[1] and
+              'gap'. `data: ../x` cannot reach the binary — no installed pack takes an attachment (IL-a
+              D-8's rule); its refusal is E-IB-2's and E-IB-3's in-crate proof. PASS.
+        IB-8  (binary half) a 1-day save with classes, packages and a conversation section using the
+              class: editing an unreferenced class and the licence policy → `run` resumes and `replay`
+              verifies; editing the referenced class → both refused "the world's configuration differs
+              from the save's: system 'conversation'"; editing the section → both refused the same way.
+              The attachment half is E-IB-3. PASS.
+        IB-11 `mineworld interactions --json` on a copy with classes and a conversation section (base
+              600, `actor: regular` 3 600, region cafe 1 800): base.parameters.gap 600, regions[0] =
+              ["cafe", {… gap 1 800}], base.scoped[0].fields.gap 3 600, group-activity "default
+              (compiled)", bob "regular", alice "person"; two runs byte-identical; `--place cafe` shows
+              the region, `--place park` the base; the text lists both sections and "class    bob
+              regular"; the directory listing (paths, sizes, mtimes) identical before and after. PASS.
+        Mutations, applied together (each breaks a different test), observed, reverted:
+          M-IB2 (conversation's default list given the lowest gap, 1, so an explicit section's base is
+            not the compiled default) → FAILS an_explicit_default_… "every other fact, once" (38 904
+            vs 37 085);
+          M-IB3 (the controller judges an invitation's age by 1 800 s again) → FAILS
+            a_longer_gap_… "the controller never answers an expired invitation" (accepted 324,
+            rejected PreconditionFailed 804);
+          M-IB8 (the resolved fact copies no classes) → FAILS an_edited_section_… "the referenced class
+            edited: run is refused".
+          `git grep MUTATION -- '*.rs'` empty; `git diff` empty for the three files afterwards.
+        origin/main a30755e merged (35885f2): S11-B seats (#83: server/, tools/cli/src/{main,serve,
+        hosted}.rs, tests) and plan documents; no path under kernel/ contracts/ persistence/ systems/
+        worldpack/src/ sdk/ authoring/ cognition/ worlds/; main.rs auto-merged around the interactions
+        subcommand. After the merge: doc checks 192 / 75 distinct; cli configure 3, interactions 4
+        pass. 12d not merged: E-IB-0 stands as IB-1's reference.
+E-IB-11 2026-10-09, IB-1 on the merged head 35885f2 (dev binary kept as target/il-b/head-mineworld;
+        artifacts target/il-b/head-*), by E-IB-0's method:
+        social-cafe 300 days seed 7: exit 0, faults 0, 365 330 facts, fingerprint 59339a9c281829c9, sha
+          ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b = E-IB-0;
+        market-town: exit 0, faults 0, 372 755 facts, fingerprint 085ed9c55cae7947, sha
+          365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d = E-IB-0;
+        bodies-yard 30 days: faults 0, 62 385 facts, sha bd6a1002…80e6 = E-IB-0;
+        long_run second process: 4 019 632 bytes, `cmp`-identical to E-IB-0's line;
+        long_run_objects second process: 612 428 bytes, `cmp`-identical;
+        validate ×3: `cmp`-identical to E-IB-0.
+        Town 300-day runs used: 4 of 4 (E-IB-0 ×2, IB-1 ×2). PASS.
+        M-IB1a (conversation's compiled gap 300 → 1), 30 days seed 7: sha 7b09dd47… ≠ the base's
+          06e2d63c… (conversation-started 6 210 vs 4 391) — the gap is read and the instrument sees it.
+        M-IB1b (group-activity's compiled lifetime 1 800 → 900): sha 9bb6b91a… ≠ 06e2d63c…
+          (invitation-accepted 656 vs 665: invitations to lower seats lapse, QB-1).
+        Both reverted; `git grep MUTATION -- '*.rs'` empty; `git status` shows only this ledger.
+E-IB-12 2026-10-09, IB-12, IB-13, IB-14 on 35885f2's code:
+        IB-12 configuration_vocabulary scans authoring/src/{configuration,classes,attachment}.rs,
+              sdk/rust/src/interactions/**, sdk/rust/tests/interactions.rs, worldpack/src/configure.rs
+              and its in-crate tests, tools/cli/src/{interactions,biography}.rs, and IL-a's and IL-b's
+              framework test files (worldpack/tests/configuration.rs, tools/cli/tests/configure.rs,
+              tests/acceptance/tests/{configuration/mod,configuration_seam,interaction_schema}.rs,
+              sdk/rust/tests/extensions.rs): no physics word and no word beginning talk, spoke, convers,
+              give, buy, sell, trade, eat, drink, kick, throw, shove or invit; one admission (D-IB-11).
+              The real-section tests (worldpack/tests/interaction_sections.rs, tools/cli/tests/
+              {interactions,interaction_runs}.rs) are not framework files and are not scanned (QIB-2).
+              M-IB12 (`// invit` appended to lookup.rs) → FAILS naming
+              "sdk/rust/src/interactions/lookup.rs:253: invit"; reverted. PASS.
+        IB-13 `git diff --stat origin/main...HEAD -- kernel contracts persistence server clients worlds
+              Cargo.toml Cargo.lock systems/bodies systems/item systems/movement` and the three guard
+              files: empty. Changed paths (61) are §12.1's change set plus D-IB-12's three test files
+              and D-IB-15's one line in load.rs. The guards pass (E-IB-7, and in the gate). PASS.
+        IB-14 30 days seed 7, dev profile, sequential, interleaved base/head/configured (both sections,
+              a region on every place, two classes; target/il-b/cost/social-cafe):
+              first pass (the run's own `wall`, 0.1 s resolution): base 1.3, 1.2, 1.3 — a spread of 8 %,
+              which is the print's resolution, not the machine: INCONCLUSIVE by §12.5's rule;
+              re-run once with `/usr/bin/time -p`: base 1.23, 1.23, 1.24 (median 1.23, spread 0.8 %);
+              head unconfigured 1.21, 1.23, 1.21 (median 1.21 ≤ 1.23 × 1.05 = 1.29); configured 1.24,
+              1.28, 1.21 (median 1.24 ≤ 1.21 × 1.05 = 1.27). Load average 18–25 throughout (other
+              sessions). The head's three runs print the base's 30-day sha 06e2d63c…. PASS.
 ```
 
 ## 12.14 Deviations
@@ -2555,6 +2641,9 @@ D-IB-13 (bounded) `Invitation::is_open_at(now)` is `now ≤ until`, not SD-IB-15
         None), and only `now ≤ until` equals it everywhere — byte identity (IL-I1) over the wording.
 D-IB-14 (bounded) IB-C9 and IB-C10 are one commit: the composition-pinning tests (D-IB-12) name both
         packs' versions on one line.
+D-IB-15 (bounded) worldpack/src/load.rs, outside §12.1's list, changes one call: `initial_facts` passes
+        the pack's classes to `configure::seed`, which SD-IB-3's context requires. Nothing else in the
+        file changes; the seeding order is IL-a's.
 ```
 
 **Findings recorded at implementation start.**

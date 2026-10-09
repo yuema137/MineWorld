@@ -36,7 +36,13 @@ PLATFORMS            operator requirement 2026-10-08: macOS, Linux and Windows; 
 STOP                 PR IL-b READY FOR OPERATOR REVIEW — DO NOT MERGE
 ```
 
-## Current checkpoint
+## Current checkpoint (2026-10-09)
+
+- IB-C1 … IB-C11 implemented and validated; IB-1 … IB-14 PASS (§12.13 E-IB-0 … E-IB-12); town runs
+  4 of 4 used; origin/main a30755e merged (35885f2). Next: the full gate (E-IB-13), push, PR marked
+  READY FOR OPERATOR REVIEW, CI on the exact head. Do not merge.
+
+## Earlier checkpoint
 
 - E-IB-0 captured on the base (two of four town runs used). Base binary: target/il-b/base-mineworld.
 - IB-C1 … IB-C8 committed and pushed (head 81dba89): specs; authoring context/classes/attachments;
