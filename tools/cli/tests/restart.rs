@@ -234,3 +234,75 @@ async fn a_refused_request_is_persisted_so_its_identity_is_never_reissued() {
         "the allocator resumed past the refused request's identity"
     );
 }
+
+/// step-12 SB-5 (`F-13`, CP-B3). The reactive controller `--agent alice` is bound at the restart's
+/// instant, so a line it answered before the kill is not answered again: after the restart a silent
+/// client hears nothing from Alice, and nothing is journaled. Before S11-B the controller started
+/// with no memory of whom it had answered and replied to the old line once more.
+#[tokio::test]
+async fn a_restarted_agent_does_not_answer_again_what_it_answered_before_the_kill() {
+    fixture::assert_quiet(HOSTED_FROM_GENESIS.0, HOSTED_FROM_GENESIS.1, "restart.rs");
+    let save = SaveDir::new("f13");
+    let command = [
+        "server",
+        support::PACK,
+        "--agent",
+        "alice",
+        "--save",
+        save.path(),
+    ];
+
+    let mut first = Server::start(&command).await;
+    let mut window = Client::connect(first.address).await;
+    let (visitor, _) = window.join("visitor").await;
+    let seen = window.observation().await;
+    let alice = tagged(&seen, "barista").expect("the barista is there");
+    let cafe = seen
+        .self_location()
+        .expect("the visitor knows where it is")
+        .place()
+        .entity_id();
+    window
+        .walk_accepted(walk(visitor, cafe, AT_THE_DOOR, NEXT_TO_ALICE))
+        .await;
+    window
+        .observation_where("talk to alice available", |observation| {
+            support::may_talk_to(observation, alice)
+        })
+        .await;
+    window
+        .submit_accepted(talk(visitor, alice, "one line, answered once"))
+        .await;
+    let answered = window
+        .observation_where("a reply from alice", |observation| {
+            support::own_history(observation).is_some_and(|history| !history.is_empty())
+        })
+        .await;
+    let heard_before = support::own_history(&answered)
+        .expect("a history")
+        .heard()
+        .len();
+    first.kill();
+    drop(window);
+
+    let second = Server::start(&command).await;
+    let mut window = Client::connect(second.address).await;
+    window.join("visitor").await;
+    let at_restart = second.status().await["revision"].clone();
+    // Silent for fifteen wall seconds: fifteen consults of a controller that is due every second.
+    let silence = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let mut last = window.observation().await;
+    while std::time::Instant::now() < silence {
+        last = window.observation().await;
+    }
+    assert_eq!(
+        second.status().await["revision"],
+        at_restart,
+        "nothing was journaled while the client was silent: Alice did not answer the old line again"
+    );
+    assert_eq!(
+        support::own_history(&last).map_or(0, |history| history.heard().len()),
+        heard_before,
+        "and the visitor heard nothing new from her"
+    );
+}

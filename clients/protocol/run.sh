@@ -7,6 +7,8 @@
 #   ./run.sh play         windowed, driven by the keyboard        (what a player does)
 #   ./run.sh affordances  headless: the module's live check against worlds/market-town, saved to a
 #                         temporary directory that is removed afterwards   (checks/affordances_check.gd)
+#   ./run.sh reconnect    headless: the module's opt-in reconnect against worlds/market-town with
+#                         --town --hold 10: drop, resume, held             (checks/reconnect_check.gd)
 #
 # It starts `mineworld server worlds/social-cafe --agent alice` itself, on a port of 127.0.0.1 the
 # operating system chooses, and stops it afterwards — only the server it started, by its own PID, so
@@ -30,6 +32,8 @@ invite=""
 server=""
 server_log=""
 scratch=""
+# Further server flags for one mode (reconnect's --town --hold 10); none otherwise.
+server_extra=()
 
 cd "$root" || exit 1
 cargo build --quiet -p mineworld-cli || exit 1
@@ -45,7 +49,7 @@ start_server() {
 	server_log="$1"
 	scratch="$(mktemp)"
 	"$root/target/debug/mineworld" server "worlds/$world" --listen 127.0.0.1:0 --agent alice \
-		${save[@]+"${save[@]}"} > "$scratch" 2>&1 &
+		${save[@]+"${save[@]}"} ${server_extra[@]+"${server_extra[@]}"} > "$scratch" 2>&1 &
 	server=$!
 	local line=""
 	for _ in $(seq 1 150); do
@@ -127,6 +131,20 @@ affordances)
 	rm -rf "$save_dir"
 	grep '^\[check\]' "$here/evidence/affordances-market-town.log"
 	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/affordances-market-town.log" && outcome=1
+	exit "$outcome"
+	;;
+reconnect)
+	# Market Town hosted as a town (every seat nobody plays is driven in-server), with a 10 s hold.
+	server_extra=(--town --hold 10)
+	: > "$here/evidence/server-reconnect.log"
+	start_server "$here/evidence/server-reconnect.log" market-town
+	godot --headless --path "$here" --script res://checks/reconnect_check.gd -- \
+		--address "$address" --seat visitor --invite "$invite" \
+		> "$here/evidence/reconnect-market-town.log" 2>&1
+	outcome=$?
+	stop_server
+	grep '^\[check\]' "$here/evidence/reconnect-market-town.log"
+	grep -E 'SCRIPT ERROR|Parse Error' "$here/evidence/reconnect-market-town.log" && outcome=1
 	exit "$outcome"
 	;;
 play)

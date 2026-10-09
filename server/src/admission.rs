@@ -60,12 +60,7 @@ impl InviteToken {
     /// A fresh invite: 16 bytes from the operating system's random source, as 32 lowercase
     /// hexadecimal characters.
     pub fn generate() -> Result<Self, AdmissionError> {
-        let mut bytes = [0_u8; GENERATED_INVITE_BYTES];
-        getrandom::fill(&mut bytes)
-            .map_err(|error| AdmissionError::Randomness(error.to_string()))?;
-        Ok(Self(
-            bytes.iter().map(|byte| format!("{byte:02x}")).collect(),
-        ))
+        random_hex().map(Self)
     }
 
     /// An invite the operator chose: 8 to 128 bytes of printable ASCII, no whitespace — so that it
@@ -118,6 +113,82 @@ impl fmt::Debug for OfferedInvite {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("OfferedInvite(<redacted>)")
     }
+}
+
+/// The secret that re-takes a seat after its connection's socket dropped (`PROTOCOL.md` §4.2).
+///
+/// 128 bits from the operating system's random source, as 32 lowercase hexadecimal characters. Made
+/// on the world thread for every welcome — a fresh one each time, so an old one dies with its
+/// binding — and sent only in its holder's own `welcome`. `Debug` is redacted and there is no
+/// `Display`; it serializes (it is a welcome field) and nothing else of the server serializes it.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(into = "String", from = "String")]
+pub struct ResumeSecret(String);
+
+impl ResumeSecret {
+    /// A fresh secret.
+    pub fn generate() -> Result<Self, AdmissionError> {
+        random_hex().map(Self)
+    }
+
+    /// Whether a client offered exactly this secret, compared in constant time.
+    pub fn matches(&self, offered: &OfferedResume) -> bool {
+        bool::from(self.0.as_bytes().ct_eq(offered.0.as_bytes()))
+    }
+
+    /// The secret's text, for a client holding its own welcome (and a test).
+    pub fn reveal(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<ResumeSecret> for String {
+    fn from(secret: ResumeSecret) -> Self {
+        secret.0
+    }
+}
+
+impl From<String> for ResumeSecret {
+    fn from(text: String) -> Self {
+        Self(text)
+    }
+}
+
+impl fmt::Debug for ResumeSecret {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ResumeSecret(<redacted>)")
+    }
+}
+
+/// The resume secret a client offered in its `join`: untrusted, possibly a near miss of a real one.
+#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[serde(from = "String")]
+pub struct OfferedResume(String);
+
+impl OfferedResume {
+    /// The text a client sent.
+    pub fn new(text: impl Into<String>) -> Self {
+        Self(text.into())
+    }
+}
+
+impl From<String> for OfferedResume {
+    fn from(text: String) -> Self {
+        Self(text)
+    }
+}
+
+impl fmt::Debug for OfferedResume {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("OfferedResume(<redacted>)")
+    }
+}
+
+/// 16 bytes from the operating system's random source, as 32 lowercase hexadecimal characters.
+fn random_hex() -> Result<String, AdmissionError> {
+    let mut bytes = [0_u8; GENERATED_INVITE_BYTES];
+    getrandom::fill(&mut bytes).map_err(|error| AdmissionError::Randomness(error.to_string()))?;
+    Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
 /// A player's nickname: 1 to 32 Unicode scalar values after trimming, no control character.
@@ -295,6 +366,28 @@ mod tests {
         assert!(!format!("{invite:?}").contains(INVITE));
         assert!(!format!("{:?}", OfferedInvite::new(INVITE)).contains(INVITE));
         assert!(!format!("{:?}", admission()).contains(INVITE));
+    }
+
+    #[test]
+    fn a_resume_secret_is_fresh_hexadecimal_matched_exactly_and_never_printed() {
+        let first = ResumeSecret::generate().expect("random bytes");
+        let second = ResumeSecret::generate().expect("random bytes");
+        assert_ne!(first, second, "every welcome gets its own secret");
+        for secret in [&first, &second] {
+            assert_eq!(secret.reveal().len(), 32);
+            assert!(
+                secret
+                    .reveal()
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            );
+            assert!(!format!("{secret:?}").contains(secret.reveal()));
+        }
+        assert!(first.matches(&OfferedResume::new(first.reveal())));
+        assert!(!first.matches(&OfferedResume::new(second.reveal())));
+        assert!(!first.matches(&OfferedResume::new(&first.reveal()[..31])));
+        let offered = OfferedResume::new(first.reveal());
+        assert!(!format!("{offered:?}").contains(first.reveal()));
     }
 
     #[test]

@@ -13,7 +13,8 @@ use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
 use mineworld_server::{
-    ClosingReason, RefusalCode, ServerFrame, SessionId, TookOver, WorldHost, WorldSummary, app,
+    ClosingReason, RefusalCode, ResumeSecret, ServerFrame, SessionId, TookOver, WorldHost,
+    WorldSummary, app,
 };
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -139,7 +140,7 @@ struct Welcomed {
     protocol: u32,
     nickname: String,
     session: SessionId,
-    resume: Option<String>,
+    resume: Option<ResumeSecret>,
     hold_seconds: u32,
     took_over: TookOver,
     world: WorldSummary,
@@ -282,7 +283,7 @@ async fn a_nickname_reaches_its_own_connection_trimmed_and_nobody_else() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// SA-6 — the welcome of revision 2, resume before S11-B, and leave.
+// SA-6 — the welcome of revision 2, a resume that matches no hold, and leave (as S11-B made them).
 // ---------------------------------------------------------------------------------------------
 
 #[tokio::test]
@@ -297,16 +298,19 @@ async fn a_welcome_says_who_this_connection_is_and_that_nothing_was_taken_over()
 
     for welcomed in [&one, &two] {
         assert_eq!(welcomed.protocol, 2);
-        assert_eq!(welcomed.resume, None, "no hold to resume before S11-B");
-        assert_eq!(welcomed.hold_seconds, 0);
-        assert_eq!(welcomed.took_over, TookOver::None);
+        let resume = welcomed.resume.as_ref().expect("a resume secret (S11-B)");
+        assert_eq!(resume.reveal().len(), 32, "128 bits in hexadecimal");
+        assert_eq!(welcomed.hold_seconds, 30, "the server's default hold");
+        assert_eq!(welcomed.took_over, TookOver::None, "both seats were free");
         assert_eq!(welcomed.world.protocol, 2);
+        assert_eq!(welcomed.world.time_scale, 1);
     }
     assert_ne!(one.session, two.session, "two connections are two sessions");
+    assert_ne!(one.resume, two.resume, "and two secrets");
 }
 
 #[tokio::test]
-async fn a_resume_before_s11_b_is_refused_and_the_connection_joins_without_it() {
+async fn a_resume_that_matches_no_hold_is_refused_and_the_connection_joins_without_it() {
     let address = start().await;
     let mut client = Client::connect(address).await;
     let mut join = join_frame(ALICE, "Yue");
