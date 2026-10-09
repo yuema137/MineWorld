@@ -13,7 +13,7 @@ authorizes implementation. Each PR is detailed to the commit and frozen in turn 
 **PR 16a:** detailed to the commit in §19, `DESIGN FROZEN (2026-10-08), primary session`.
 **PR 16c:** detailed to the commit in §20, `DESIGN FROZEN (2026-10-08), primary session` (record in §20.0), drafted on
 `plan/s14-16c` from `main @ 9cf8f8e`.
-**PR 16d:** detailed to the commit in §22, `PR design — ready for freeze review`, drafted on `plan/s14-16d` from
+**PR 16d:** detailed to the commit in §22, `DESIGN FROZEN (2026-10-09), primary session` (record in §22.0), drafted on `plan/s14-16d` from
 `main @ f80bbb7` (§21 is left to S15 12e's design, drafted in parallel on `plan/s15-12e`).
 **Branch:** `plan/s14-3d`, from `main @ 0fd0be3`, worktree `/Users/yuema137/mineworld-worktrees/plan-s14-3d`,
 held by this planning session only.
@@ -2824,14 +2824,56 @@ notes          E16c-0's log is in the planning worktree's ignored shots/16c-plan
 
 # 22. PR 16d — things you can buy, hand over, eat and drink, in Market Town, in 3D (full design)
 
-**Lifecycle: `PR design — ready for freeze review`.** Drafted by the 16d planning session on `plan/s14-16d`
-from `main @ f80bbb7` (2026-10-09), worktree `/Users/yuema137/mineworld-worktrees/plan-16d`. Nothing here
-authorizes implementation; the primary session (and the operator for the questions marked **[OM]**)
-freezes it (`CLAUDE.md` §3.1).
+**Lifecycle: `DESIGN FROZEN (2026-10-09), primary session`** (record and rulings in §22.0). Drafted by the
+16d planning session on `plan/s14-16d` from `main @ f80bbb7` (2026-10-09), worktree
+`/Users/yuema137/mineworld-worktrees/plan-16d`. Implementation is authorized only under §22.11, once its
+precondition holds, in a fresh session (`CLAUDE.md` §3.1).
 
 **Why §22.** §21 is left free for S15 12e's PR design, which another session is drafting in parallel on
-`plan/s15-12e` in this same file. If 12e takes a different number, the primary session renumbers this
-section at the merge; nothing inside refers to its own number except headings.
+`plan/s15-12e` in this same file. Ruled at the freeze: §22 stays; whichever of 12e and 16d merges second
+renumbers if needed. Nothing inside refers to its own number except headings.
+
+## 22.0 Freeze record
+
+## DESIGN FROZEN
+
+```text
+Design revision     §§22.1–22.11 as committed in ca5d92e, amended by the rulings below (this commit);
+                    §22.8 checkboxes, §22.12 ledger and §22.13 handoff stay live
+Approved by         the primary session, 2026-10-09 ("16d (§22) is DESIGN FROZEN 2026-10-09 (primary
+                    session)"), relayed by the coordinator to the planning session
+Implementation base main with S15 12d, S12 13b and S20 SET-a merged and the 0.4 m doorway inset on main
+                    (precondition); branch mvp0/pr-16d-market-3d; worktree
+                    /Users/yuema137/mineworld-worktrees/impl-16d
+Execution contract  §22.11
+Lifecycle           FROZEN
+```
+
+**Rulings (primary session, 2026-10-09):**
+
+- **Accepted as recommended:** Q-16d-1, Q-16d-4, Q-16d-5, Q-16d-7, Q-16d-8, Q-16d-10, Q-16d-11, Q-16d-12.
+- **Q-16d-2 (keys E / Tab / B), Q-16d-9 (look and placement), Q-16d-13 (zh_Hans wording):** the
+  recommendations are the defaults. The operator judges them hands-on at the milestone play-test through
+  OC-1 … OC-8; a change afterwards is a bounded follow-up, not a reopening of this design.
+- **Q-16d-3, restated.** The client never decides where buying is allowed: it shows exactly what the
+  server offers. That a visitor can buy anywhere in the shop's place is **today's economy rule**
+  (`buy_requirement` = at the shop's place, A16d-6), not a client choice, so there is nothing for 16d to
+  choose. Recorded as **A16d-17** (below).
+- **Q-16d-6: yes.** Group activity in 3D (`invite`, `accept-invitation`, `decline-invitation`,
+  `join-group-activity`, `leave-group-activity`, with a typed line) becomes the follow-up **PR 16g**,
+  designed after 16d. Until then 16d lists those entries disabled, and its PR and `MVP_STATUS.md` state
+  the gap.
+- **A16d-11 (`action.move`'s 2D-only English in the shared layer):** noted; the primary session tells the
+  SET-a lane. D-16d-6's fix stands.
+- **Section number:** §22 stays (above).
+
+**A16d-17 — realistic defaults: in the real world you buy at the counter** (the coordinator called this
+"A16d-12"; that id was already taken in §22.2, so it is recorded under the next free one). The operator
+wants realistic defaults. Where buying is offered is a rule of the world, owned by `economy` and, once
+configurable, by the World Interaction List (S17, IL-c onward) — for example `buy` offered only within
+reach of a counter part of the shop's place. It is **not** in 16d's scope and never in a client: when the
+server starts offering `buy` only at the counter, 16d's menu shows exactly that with no client change
+(D-16d-3), and O-1's expected list changes with the offers, not with the code.
 
 **Authority.** §22 refines §4.4's `buy` row, §5's `--world=market-town --buy` row, §13's 16d row and §14's 16d
 lines. Where they differ, §22 governs, and each difference names the finding that caused it (§22.2). The
@@ -3265,16 +3307,16 @@ CI          client_rules and client_text run in CI's test job; the Godot-gated f
 | **R-16d-9** | The menus overlap the captions or the reticle at some window sizes, or clip in `zh_Hans` | Fixed anchors (D-16d-8); G-5's zh_Hans frame; OC-6 and OC-7 judged by the operator |
 | **R-16d-10** | Another lane's Godot window covers a capture, or a run joins a foreign server | One window at a time; stalled captures `INCONCLUSIVE` and re-run once; port 0 and own-PID kill |
 
-## 22.10 Questions for the freeze (primary session; **[OM]** = the operator's)
+## 22.10 Questions for the freeze (primary session; **[OM]** = the operator's) — ruled 2026-10-09, §22.0
 
 | ID | Question | Recommendation |
 | --- | --- | --- |
 | **Q-16d-1** | **Order** (D-16d-1): after 12d, 13b and SET-a, with the inset on `main`; 12e and 16c in either order. This drops §13's "after 12e" | **As D-16d-1.** No 16d claim needs bodies; waiting for 12e would serialise two independent PRs behind 12n |
 | **Q-16d-2 [OM: interaction feel]** | **Keys.** (a) E talks (unchanged), Tab opens the person's menu, B opens yours; (b) E opens the person's menu (2D's E), talk inside it; (c) Q opens yours (2D's Q) instead of B | **(a).** It keeps the accepted E-talks behaviour and `--link`, and B is the key the step already promised for buying |
-| **Q-16d-3 [OM]** | **Where buying is reached** (QS14-7 restated): your menu anywhere, listing what the place you stand in offers; or only when looking at the counter or the staff | **Anywhere, from your menu.** The server offers `buy` "at that place" with no target; a counter rule would be the client deciding where buying happens. A counter as a place part is a pack question for later |
+| **Q-16d-3** | **Where buying is reached** (QS14-7) | **Ruled (§22.0), restated:** the client never decides where buying is allowed; your menu shows exactly the `buy` offers the server sends. "Anywhere in the shop" is today's economy rule, not a client choice. Buying at the counter is a later economy / World Interaction List rule (A16d-17), outside 16d |
 | **Q-16d-4** | **Shared wording** (D-16d-6): move 16 concept keys from the 2D pack to the shared layer verbatim, and make the shared `action.move` neutral with a 2D `#. override` | **Yes.** One translation per concept is SET-a's own rule; 2D's screen does not change |
 | **Q-16d-5** | **Duplication between clients**: 3D-local `offer_menu.gd` and `things.gd` now, or a shared client module (`clients/shared/offers/`) used by both, editing 13b's merged 2D files in 16d? | **Local now, P-2 guards parity; propose the extraction as its own PR after 16e**, coordinated with S12 and with S11 for the catalogue reader (which belongs in the protocol module, ruling 4) |
-| **Q-16d-6** | **Group activity in 3D.** `invite`, accept, decline, join, leave are listed disabled in 16d. "Framework, not demo" item 3 wants every interaction playable in both clients | **A follow-up PR, 16g** (3D composers for the five group actions, with a typed line), designed after 16d; the gap is stated in 16d's PR and in `MVP_STATUS.md` |
+| **Q-16d-6** | **Group activity in 3D.** `invite`, accept, decline, join, leave are listed disabled in 16d. "Framework, not demo" item 3 wants every interaction playable in both clients | **A follow-up PR, 16g** (3D composers for the five group actions, with a typed line), designed after 16d; the gap is stated in 16d's PR and in `MVP_STATUS.md`. **Ruled yes (§22.0): PR 16g** |
 | **Q-16d-7** | **Talk from the menu** sends the default utterance, as E does; no text box in 3D yet | **Yes in 16d**; a typed line belongs with 16g's text input |
 | **Q-16d-8** | **Panels**: 16d shows money, carrying and for sale only; 13b also shows conversation history, acquaintances, invitations, agenda, employment, other | **Only those three in 16d** (the brief's "inventory"); the others with 16g, where invitations matter |
 | **Q-16d-9 [OM: visual default]** | **Menu look and placement** (D-16d-8): the captions' dark translucent panel; your menu left of centre with what you have beside it; a person's menu just right of the reticle | **As D-16d-8**, judged in play (OC-7) |
@@ -3283,7 +3325,7 @@ CI          client_rules and client_text run in CI's test job; the Godot-gated f
 | **Q-16d-12** | **The poor visitor** (D-16d-10): a test-time copy of Market Town with `wallet: 250`, never a committed world | **Accept** |
 | **Q-16d-13 [OM: wording]** | **The `zh_Hans` wording** of 16d's five new keys and of `action.move`'s neutral form, proposed in C2 | **Proposed in C2, judged in OC-6** |
 
-## 22.11 Execution contract (proposed; confirmed at freeze)
+## 22.11 Execution contract (confirmed at the freeze, 2026-10-09)
 
 ```text
 PROJECT / PR        MVP-0 · S14 / PR 16d — Market Town in 3D: buy, hand over, eat or drink, what you have
@@ -3298,7 +3340,8 @@ PRECONDITION        on main: S15 12d merged; S12 13b merged; S20 SET-a merged; `
 IMPLEMENTATION BASE main at the start of implementation, meeting the precondition; branch
                     mvp0/pr-16d-market-3d from it; worktree /Users/yuema137/mineworld-worktrees/impl-16d
                     (this session only; a fresh implementation session)
-APPROVED SCOPE      §22.1 (SD-1 … SD-7), as answered by Q-16d-1 … 13 at the freeze
+APPROVED SCOPE      §22.1 (SD-1 … SD-7), as answered by Q-16d-1 … 13 and the rulings in §22.0 (group
+                    activity in 3D is PR 16g; buying where the server offers it, A16d-17)
 FROZEN INVARIANTS   I-S14-1 (client_rules green, no new admission), I-S14-2, I-S14-3, I-S14-6, I-S14-7,
                     I-S14-9, I-S14-10; no edit to clients/protocol/**, clients/2d/scripts/**, worlds/**,
                     tools/cli/src/**, server/, systems/, kernel/, contracts/, persistence/; no regression of
@@ -3319,7 +3362,7 @@ VALIDATION BUDGET   real client runs each ≤ ~10 min, background when > 2 min; 
 LIVE DOCUMENTATION  this section (§22.8 checkboxes, §22.12 ledger)
 HANDOFF             §22.13 (one authority)
 ENDPOINT AUTHORITY
-  implementation + local validation   authorized by the freeze, once the precondition holds
+  implementation + local validation   authorized by the freeze (§22.0), once the precondition holds
   semantic commits, branch push       authorized
   PR creation / update                authorized, READY FOR OPERATOR REVIEW
   CI repair                           authorized for this PR's own failures
@@ -3340,15 +3383,19 @@ C0      drafted on plan/s14-16d from main @ f80bbb7. check_doc_headings: "191 nu
         26 documents, none duplicated"; check_decision_ids: "73 decision ids, all distinct" (neither
         reads .structured-coding/; run to show nothing else moved). §22's headings 22.1–22.13 are
         unique within this file. Item names in OC-1 … OC-4 are 12d's (QD-15) and are re-read in C1
+FREEZE  2026-10-09: §22.0 record and rulings; Q-16d-3 restated; A16d-17 recorded; Q-16d-6 → PR 16g;
+        §22.11 confirmed. Doc checks again: "191 numbered sections across 26 documents, none
+        duplicated"; "73 decision ids, all distinct"
 ```
 
 ## 22.13 Handoff (live)
 
 ```text
-checkpoint     C0 drafted (PR design — ready for freeze review), docs-only PR from plan/s14-16d
-next action    the primary session reviews §22 and rules Q-16d-1 … 13 (the [OM] ones with the operator);
-               after the freeze and the precondition, a fresh session in
-               /Users/yuema137/mineworld-worktrees/impl-16d on mvp0/pr-16d-market-3d starts at C1
+checkpoint     C0 drafted on plan/s14-16d (docs only, PR #105); DESIGN FROZEN 2026-10-09 (§22.0)
+next action    once 12d, 13b and SET-a have merged and the inset is on main, a fresh implementation
+               session in /Users/yuema137/mineworld-worktrees/impl-16d on mvp0/pr-16d-market-3d
+               starts at C1. The [OM] defaults (keys, look, zh_Hans wording) are judged at the
+               milestone play-test through OC-1 … OC-8
 background     none
 notes          12d is paused for 12n (8814aad); 13b is in implementation (98bd42e, C5 done); SET-a waits
                for 13b; 12e is being planned on plan/s15-12e (may take §21 of this file)
