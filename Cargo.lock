@@ -788,6 +788,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-calendar"
+version = "0.1.0"
+
+[[package]]
 name = "mineworld-cli"
 version = "0.1.0"
 dependencies = [

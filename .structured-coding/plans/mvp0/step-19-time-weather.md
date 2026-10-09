@@ -1014,7 +1014,62 @@ whose 12:00 sample has elevation within ±0.5° of NOAA's value for that instant
 
 ## 16.9 Ledger
 
+Execution session: worktree `/Users/yuema137/mineworld-worktrees/impl-tw-a`, branch
+`mvp0/pr-tw-a-calendar`, base `origin/main @ 543c80a` (IL-a #80 merged). Handoff:
+[`handoff-tw-a.md`](handoff-tw-a.md).
+
+**Start-of-session audit (2026-10-08).** §16.2's anchors re-verified on 543c80a: `systems/employment`
+(`lib.rs` table, `process.rs` `ShiftProcess`, `system.rs` `react`/`wake`); `kernel/src/view.rs`
+`start_process` l. 332, `reschedule_process` l. 368, `set_process_state` l. 392;
+`systems/presence/src/interaction.rs` `discloses` l. 118; `systems/installed/src/lib.rs` (one line per
+pack); `authoring/src/configuration.rs` `PackConfiguration { Configuration, FACTS, references,
+requires, seed }`; `sdk/rust/src/pack.rs` `configures!()`; `worldpack/src/configure.rs` `read` / `seed` /
+`compare`; `systems/schedule/src/time.rs` `DAY = 86_400`, `TimeOfDay::of = rem_euclid(DAY)`. IL-a's
+final `seed(&Seeding, &Configuration) -> Result<Vec<Emission>, Rejection>` equals the branch's (§16.6's
+first risk did not occur). No pack on main uses `configures!()` yet: `calendar` is its first.
+
+### Commit ledger
+
+| # | Implementation | Deterministic validation | LLM logic review |
+| --- | --- | --- | --- |
+| C1 | [x] ARC-67, DEP-30 appended to `docs/DECISIONS.md`; `CORE_CONCEPTS.md` §17 *Time* (calendar time, embodied time, time scale, paused; four rules); `systems/calendar/README.md`; the spec header as `src/lib.rs`'s module doc, with a doc-only `Cargo.toml` (TWa-D1) | [x] `check_doc_headings.py`: 191 numbered sections across 26 documents, none duplicated — PASS; `check_decision_ids.py`: 71 ids, all distinct — PASS; `cargo check -p mineworld-calendar` clean | [x] terms checked against CORE_CONCEPTS §§1, 10, 11: "calendar time", "embodied time", "time scale", "paused" are new terms, none a synonym of `Process`/`Event`/`WorldTime` (calendar time is *defined as* `WorldTime`, stated, not renamed); §17 is the "time section" §15.4 asked for (none existed) |
+| C2 | [ ] | [ ] | [ ] |
+| C3 | [ ] | [ ] | [ ] |
+| C4 | [ ] | [ ] | [ ] |
+| C5 | [ ] | [ ] | — |
+
+### Evidence
+
+```text
+E-TWa-0  2026-10-08, base capture on 543c80a (clean tree), dev profile, by target/tw-a/capture.sh base
+         (IL-a's capture.sh method; "sha" = sha-256 of every output line but `wall`):
+         social-cafe run 300 d seed 7: exit 0, faults 0, 365 330 facts, sha ad49c723…c64b, wall 13 s
+         market-town run 300 d seed 7: exit 0, faults 0, 372 755 facts, sha 365b50e0…1d1d, wall 23 s
+         bodies-yard 30 d seed 7: exit 0, faults 0, 62 385 facts, sha bd6a1002…80e6
+         long_run second process: 4 019 632 bytes, sha 23f7fa76…5125
+         long_run_objects second process: 612 428 bytes, sha c8358f8b…c5b4
+         validate ×3: shas ebcd60a0…, 64f41086…, 7356b8f8… (= E-IA-0)
+         Every value equals main's recorded reference (E-IA-8 / E-IA-13). Town runs used: 2 of 6.
+```
+
+### Deviations and findings
+
+```text
+TWa-D1  (bounded) C1 carries a doc-only crate skeleton (Cargo.toml with no dependencies, lib.rs = the
+        spec header). Reason: the workspace's `systems/*` glob refuses a member directory without a
+        manifest (`cargo metadata`: "failed to read systems/calendar/Cargo.toml"), so a README alone
+        would break every build. Impact: none; the solar dependency still lands in C2.
+TWa-F1  (MATERIAL, found at start, blocks C4 only) AC-1 check 3
+        (tests/acceptance/tests/ac1_composability.rs `compare_systems`, `compare_manifests`,
+        `world_delta_failures`; ARC-35 item 4) requires Market Town's systems to be Social Café's list
+        plus exactly the six market packs, every other world.yaml key equal, and no top-level entry
+        but items/ and organizations/ in one pack only. SD-TW-a-10 (market-town adds `calendar`,
+        `configure: [calendar]` and configure/) fails all three. Not anticipated by §16; the frozen
+        stop list does not name the acceptance tests, but the honest fixes each change a frozen
+        acceptance measure (ARC-35) or a frozen scope item (SD-TW-a-10). C1–C3 are unaffected and
+        proceed; C4 is reported to the primary session (see the C4 row).
+```
+
 | Item | Status | Evidence |
 | --- | --- | --- |
-| C1–C5 | not started | — |
 | `market-town` digest baseline (§16.8 b) | not recorded | — |

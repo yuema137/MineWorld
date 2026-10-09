@@ -1,0 +1,10 @@
+[package]
+name = "mineworld-calendar"
+description = "MineWorld's CalendarSystem: the world's civil date, weekday and sun, from a configured epoch, UTC offset and position. Day and light facts; one calendar Process; disclosed on the observer's place."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
