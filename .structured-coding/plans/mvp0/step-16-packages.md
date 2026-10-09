@@ -3116,6 +3116,21 @@ GATE 1      NOT REQUIRED (nothing LM-facing)       CI  fast and core on the PR
   --workspace --no-fail-fast`: 174 test binaries, 780 passed, 0 failed, 9 ignored; `check_scratch.py
   left --target-dir target` → nothing left; `check_scratch.py scan` → 162 sources, none outside the helper
   (2 exempt, pre-existing). `7a50c1a` after it changes one test assertion only (Windows repair).
+- **PR #101 opened** at `db807ad`. Run on `9ed9c1c` (pull_request 37978280918): fast ✓, test ✓,
+  platforms macOS ✓, Windows ✓ — the first all-green head. Its Windows log reported `core.autocrlf:
+  true` yet "LF" for `worlds/market-town/world.yaml` by `grep $'\r'`; that probe is not trustworthy under
+  Git Bash, so `cfa5120` counts carriage returns from `od` bytes instead (ED-13's "the checkout carries
+  CRLF" is read from that line on the final run). ED-13's CRLF claim itself is held by the committed
+  LF/CRLF test, green on Windows and macOS.
+- **Second merge of origin/main** (`7bea1bb`; TW-a calendar #94 — Market Town gains `calendar` and
+  `configure/calendar.yaml`; 13w plan #96): the PR had become CONFLICTING (no pull_request run fired on
+  `cfa5120`). One conflict, `docs/DECISIONS.md` — both sides appended (ARC-71 + ARC-54 note; ARC-67, DEP-30):
+  union, `---` between; 74 ids distinct, headings 191/26. After it: workspace clippy clean;
+  `packages`, `worldpack`, `acceptance` and CLI `entity_packs`/`packs`/`requirements`: 33 binaries, 0
+  failed. **ED-11 re-captured against the new main** (`f80bbb7`, base rebuilt): `validate` of the three
+  worlds byte-identical; 300-day seed-7 sha (all but `wall`) social-cafe `ad49c7235f672153` = base,
+  market-town `24a95d2ae4e9d99b` = base (TW-a's recorded re-baseline), 374 857 facts. ED-1's fixture
+  copies the current Market Town, calendar included, so it needs no re-capture.
 
 | Lane | Overlap | Resolution |
 | --- | --- | --- |

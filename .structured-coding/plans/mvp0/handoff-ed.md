@@ -11,7 +11,8 @@ BINDING             step-16 §§4–9, §14, §15, §16.12; step-14 §13.0.3; ov
                     DECISIONS.md ARC-31, ARC-36, ARC-48, ARC-53, ARC-54, ARC-55, ARC-61, DEP-29
 BRANCH / WORKTREE   mvp0/pr-ed-entity-packs · /Users/yuema137/mineworld-worktrees/impl-ed (this session only);
                     impl-ed-base = a detached worktree at 6ca763d used only to build the base binary
-BASE                main @ 6ca763d; origin/main merged at a7ce497 (S11-B, 13b plan)
+BASE                main @ 6ca763d; origin/main merged at a7ce497 (S11-B, 13b plan) and 7bea1bb
+                    (f80bbb7: TW-a calendar, 13w plan); ED-11 re-captured against f80bbb7
 SCOPE               §17.1–17.6 and §17.12, FQ-d1 … FQ-d6 as ruled in §17.0
 INVARIANTS          I-E1, I-E2, I-E4, I-E5, I-E6, I-E9; QSE-14; creation order and load.rs beyond PD-36's
                     two functions untouched; PD-q1 … PD-q4
