@@ -68,9 +68,12 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::Parser;
-use mineworld_contracts::{EntityKey, WorldTime};
+use mineworld_contracts::{EntityKey, EventEnvelope, WorldTime};
 use mineworld_packages::PACKS_VARIABLE;
-use mineworld_persistence::{Creation, Durability, PersistentWorld, SqliteBackend, verify};
+use mineworld_persistence::{
+    Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
+    WorldRevision, format, verify,
+};
 use mineworld_presence::PerceptionProvider;
 use mineworld_server::{
     Admission, HostConfig, HostError, HostedWorld, SeatRoster, WorldHost, WorldInstanceId, app,
@@ -515,6 +518,8 @@ fn persisted(
 ) -> Result<(PersistentWorld, Vec<Box<dyn PerceptionProvider>>), HostError> {
     if SqliteBackend::exists(save) {
         let backend = SqliteBackend::open(save, Durability::PowerLoss).map_err(HostError::build)?;
+        pack.check_configuration(&saved_genesis(&backend).map_err(HostError::build)?)
+            .map_err(HostError::build)?;
         let composed = pack.compose().map_err(HostError::build)?;
         let (world, how) =
             PersistentWorld::resume(Box::new(backend), composed.world).map_err(HostError::build)?;
@@ -554,9 +559,11 @@ fn persisted(
 /// Re-executes a save's whole history from genesis and reports what it compared.
 fn replay(world: &Path, save: &Path, roots: &PackRoots) -> Result<(), String> {
     let pack = WorldPack::read_with(world, roots).map_err(described)?;
-    let composed = pack.compose().map_err(described)?;
     let backend = SqliteBackend::open(save, Durability::PowerLoss)
         .map_err(|error| format!("[mineworld] {error}"))?;
+    let genesis = saved_genesis(&backend).map_err(|error| format!("[mineworld] {error}"))?;
+    pack.check_configuration(&genesis).map_err(described)?;
+    let composed = pack.compose().map_err(described)?;
     let verified = verify(&backend, composed.world)
         .map_err(|error| format!("[mineworld] the save does not reproduce: {error}"))?;
     println!(
@@ -569,6 +576,17 @@ fn replay(world: &Path, save: &Path, roots: &PackRoots) -> Result<(), String> {
         verified.head.raw(),
     );
     Ok(())
+}
+
+/// A save's genesis facts, as recorded: what a host hands [`WorldPack::check_configuration`] before it
+/// resumes or verifies, so that a save never runs on against a configuration other than the one it was
+/// created with (`DECISIONS.md` `ARC-61` item 7).
+fn saved_genesis(backend: &SqliteBackend) -> Result<Vec<EventEnvelope>, PersistError> {
+    backend
+        .facts_of(WorldRevision::GENESIS)?
+        .iter()
+        .map(|row| format::decode(&row.bytes, "fact"))
+        .collect()
 }
 
 /// A pack's own refusal, as a person reads it.

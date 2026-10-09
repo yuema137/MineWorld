@@ -17,7 +17,7 @@ use mineworld_worldpack::WorldPack;
 
 const PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../worlds/social-cafe");
 
-/// The installed set's `resolution:` line in this build: one resolver (step-11 §17, QP-2).
+/// Presence's extension line in this build's installed set: one resolver (step-11 §17, QP-2; `ARC-62`).
 const LISTED: &str = "bodies";
 
 /// A resolver this build does not list.
