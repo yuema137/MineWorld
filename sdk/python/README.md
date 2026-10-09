@@ -8,16 +8,18 @@ import asyncio, os
 from mineworld_sdk import Invite, SeatSession, offers
 from mineworld_sdk.wire.ids import EntityKey
 
+
 async def main() -> None:
-    invite = Invite(os.environ["MY_INVITE"])            # you choose where it comes from
+    invite = Invite(os.environ["MY_INVITE"])  # you choose where it comes from
     async with await SeatSession.connect(
         "ws://127.0.0.1:7878/ws", seat=EntityKey("visitor"), invite=invite, nickname="me"
     ) as session:
-        seen = (await session.changed()).observation      # the newest observation
-        for affordance in seen.affordances:               # what the world offers right now
+        seen = (await session.changed()).observation  # the newest observation
+        for affordance in seen.affordances:  # what the world offers right now
             print(affordance.action_type, affordance.target, affordance.available)
         complete = next(a for a in seen.affordances if a.available and a.payload is not None)
         print(await session.submit(offers.attempt(seen, complete)))
+
 
 asyncio.run(main())
 ```

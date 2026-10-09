@@ -26,12 +26,18 @@ STOP CONDITIONS     normal: READY FOR OPERATOR REVIEW — DO NOT MERGE; material
                     protocol change, any dependency beyond DEP-S10-b/c/e, any hosted-API use
 NOTE                2026-10-08: the coordinator reports the gh token is invalid while the operator
                     re-authenticates; a failed push or gh call is INCONCLUSIVE and retried later
-CURRENT CHECKPOINT  C0–C4 done and pushed (ledger §12.1–§12.1e, mutations M-1…M-12). C5 in progress:
-                    CI changes committed (6b3434a); PR #98 opened early (body says in progress) so its
-                    first run (37908207198) is the measuring run. Baseline on main run 37896089917:
-                    fast 71 s, test 14 min 19 s
-NEXT ACTIONS        read the python legs' and the static commands' times from run 37908207198; apply
-                    the 60 s rule (static in fast or not) and the 3-minute matrix rule; ARC-48 note;
-                    scratch branch scratch/s10-p3-mutation with the guard off (all legs red); C6 check
-                    (#83 merged?); C7 close-out; merge origin/main; full gate; PR body → READY
+                    (resolved the same day: pushes and gh calls worked throughout)
+CURRENT CHECKPOINT  READY FOR OPERATOR REVIEW — DO NOT MERGE. C0–C7 complete (C6 live: #83 merged during
+                    P3). Ledger §12.1–§12.1h, evidence E-P3-0…8, mutations M-1…M-13, deviations
+                    DV-P3-1…5. Context CLOSED / AWAITING OPERATOR ACTION.
+                    Final executable head = final PR head = the commit carrying this line; its CI run
+                    and the like-for-like `test` comparison with main's run 37977732034 (a30755e) are
+                    recorded in the PR body, which is updated after the run.
+                    Scratch branch scratch/s10-p3-mutation (5c8f195) is evidence only; delete after
+                    review if wanted.
+NEXT ACTIONS        operator review and the merge decision. If main moves before merge: merge
+                    origin/main; if a golden frame changed, update sdk/python (R-S11-9); re-run the
+                    python layer. After merge: record the merge identity in §12; the S10 planning
+                    session updates step-17 §15 and overall.md (DEP id shortage and the 13w overlap
+                    are in §12.1h).
 ```

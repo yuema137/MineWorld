@@ -501,13 +501,13 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
       `uv sync --locked`, the static checks and `pytest -m "not real_server"`, with no Rust build;
     - the macOS leg is then dropped, with the measurement recorded;
   - an `ARC-48` note recording the new layer(s), their jobs, and the non-container legs.
-- [ ] Implementation: as above. First measure, in one CI run:
+- [x] Implementation (§12.1f; measurements recorded before placement): as above. First measure, in one CI run:
   - the static checks' wall time in the `python` layer;
   - each platform leg's wall time.
 
   Then place the static checks by the 60 s rule and size the matrix by the 3-minute rule. Record
   every measurement and placement in the ledger before the decisive run.
-- [ ] Validation:
+- [x] Validation (E-P3-5 … E-P3-7; the final-head comparison in the handoff and PR body):
   - `python3 scripts/check_ci_pins.py` passes, and fails on a planted digest-less `COPY --from`;
   - `python3 scripts/ci_layer.py --list fast`, `--list core` and `--list python` show the intended
     commands, and `core`'s list is unchanged;
@@ -518,7 +518,7 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
   - on the PR head, `fast` and `test` are green, and their wall times are compared with the base's.
     `fast` may grow by the static checks only within the 60 s rule; `test` must not grow beyond run
     noise.
-- [ ] Review: the S13 owner's rules hold: the layers are the only command list, every image is
+- [x] Review (§12.1f): the S13 owner's rules hold: the layers are the only command list, every image is
   pinned by digest, required checks keep their names, and nothing in CI can reach a model.
 
 ### C6 — Absorb S11-B (conditional on D-P3-5)
@@ -540,17 +540,18 @@ assume the worktree root; `uv` and `cargo` are on `PATH` (`$HOME/.cargo/bin/carg
 
 ### C7 — Close out
 
-- [ ] Implementation:
+- [x] Implementation (§12.1h):
   - `sdk/python/README.md`: what the SDK is, the one-screen example, and a link to `PROTOCOL.md`;
   - the ledger (§12) with all evidence;
   - the handoff closed.
-- [ ] Validation:
+- [x] Validation (E-P3-8):
   - the full Python suite and the static checks on the final head;
   - `cargo test --workspace` **NOT RUN for evidence**, because no Rust changed: AP-9 holds it, and CI
-    runs it anyway;
+    runs it anyway; (it was nevertheless run locally, because the coordinator's finish list asks for
+    the full Rust gate: E-P3-8)
   - both doc checks.
-- [ ] Review: the whole diff against §2.3's invariants; every `[x]` has its evidence; deviations
-  recorded.
+- [x] Review (§12.1h): the whole diff against §2.3's invariants; every `[x]` has its evidence;
+  deviations recorded.
 - **Stop:** `READY FOR OPERATOR REVIEW — DO NOT MERGE`.
 
 ---
@@ -656,11 +657,16 @@ gathered in step-17 §15.6 so that the operator sees them in one place.
 ## 12. Ledger (live during implementation)
 
 ```text
-Status:            IN IMPLEMENTATION (fresh session, 2026-10-08), worktree
-                   /Users/yuema137/mineworld-worktrees/impl-s10-p3, branch mvp0/pr-s10-p3-sdk
+Status:            READY FOR OPERATOR REVIEW — DO NOT MERGE (PR #98). Implementation context CLOSED /
+                   AWAITING OPERATOR ACTION. Worktree /Users/yuema137/mineworld-worktrees/impl-s10-p3,
+                   branch mvp0/pr-s10-p3-sdk
 Implementation
-base:              origin/main @ 827daf9 (#86, the freeze). #83 (S11-B) is open (head 39d02ea) and not
-                   in the base: C2 models S11-A's frames only; C6 is live only if #83 merges during P3
+base:              origin/main @ 827daf9 (#86, the freeze); #83 (S11-B) was not in it and merged during
+                   P3, so C6 was live. origin/main merged at cd85d8d (with #83) and b3895f7 (a30755e)
+Final heads:       the PR head and its CI run are recorded in the handoff and the PR body (a commit
+                   cannot carry its own run)
+Post-merge sync:   the S10 planning session owns step-17 §15 and overall.md; this session's evidence,
+                   deviations and findings are here (§12.1h)
 Handoff:           handoff-s10-p3.md
 ```
 
@@ -872,9 +878,23 @@ watched in C4 and C5 (R-P3-5).
   changes, which the base run did not compile. The layer commands themselves are comparable (`fast`'s
   cargo check+clippy 23.9 s vs 19.0 s; `cargo test` 704 s vs 642 s on a larger tree). The comparison is
   repeated on the final head, with warm caches (§12.2 E-P3-6).
-- [ ] Validation: see §12.2 E-P3-5 … E-P3-7 (pin-check mutation; `--list`; the scratch mutation branch;
-  final-head legs; fast/test comparison).
-- [ ] Review: pending the final head.
+- [x] Validation (E-P3-5 … E-P3-7):
+  - `check_ci_pins.py` passes, and fails on a planted digest-less `COPY --from` (E-P3-5);
+  - `--list fast` = the base's seven commands + the four static ones; `--list core` byte-identical;
+    `--list python` / `python-smoke` as intended;
+  - the scratch branch `scratch/s10-p3-mutation` (guard off) is **red on every leg**, Windows included,
+    and only on AP-8 (E-P3-7); the PR run with the guard on is green on every leg (E-P3-6);
+  - AP-12: all three legs ran the **full** `python` layer, 32 tests including the real-server ones,
+    green on Linux (CPython 3.13, container), Windows (3.12) and macOS (3.12) (E-P3-6);
+  - `fast` and `test`: names and `core` unchanged; `fast`'s layer grew by the Python static checks
+    only (5.8 s, inside the 60 s allowance). `cargo test` time follows main's own growth (main's runs:
+    530 → 581 → 642 s as tests landed); the like-for-like comparison of `test` against main's own run
+    on the same Rust tree is recorded with the final-head CI (handoff, PR body), because a commit
+    cannot carry its own run.
+- [x] Review: the layers remain the only command list (the YAML names layers, plus runner setup on the
+  non-Linux legs, which ARC-48's note records); every image is pinned by digest and every action by
+  commit SHA; required checks keep their names; nothing in CI can reach a model (no key, no model, no
+  provider; the test network guard allows loopback only).
 
 **The measuring run also proved D-P3-5 in practice.** #83 (S11-B) merged at 06:54, before the run. All
 three legs built the binary and reached pytest; AP-1 and AP-2 failed exactly on #83's changes and named
@@ -899,6 +919,64 @@ them: `welcome.world.time_scale` (extra field), `closing` reason `taken_over` (n
 - [x] Review: no reconnect policy was added — `resume` is stored and never sent by the session;
   `take_over` is the caller's explicit choice and defaults to `false`.
 
+### 12.1h C7 — close-out
+
+- [x] Implementation: `sdk/python/README.md` (one screen: what it is, an example through `offers`, the
+  link to `PROTOCOL.md`); this ledger; the handoff closed.
+- [x] Validation: E-P3-8.
+- [x] Review, the whole diff (`git diff origin/main...HEAD`, 31 files) against §2.3:
+
+  ```text
+  I-1    PASS  no file under kernel/, contracts/, persistence/, server/src/, systems/, worlds/; no *.rs
+               anywhere in the diff
+  I-2    PASS  no Cargo file changed; mineworld_sdk imports only itself, pydantic, websockets and the
+               standard library (grep of src/ imports)
+  I-7    PASS  no Rust change, so every frame, transcript and digest is unchanged; CI `test` green
+  I-10   PASS  no provider or model name, endpoint or key in sdk/python or pyproject.toml (grep)
+  I-11   PASS  the guard is in addopts for every invocation; AP-8 green on three platforms and red on
+               three when switched off (E-P3-6, E-P3-7)
+  INV-9  PASS  codec.encode / SeatSession._send accept Join | Submit | Leave only
+  INV-13 PASS  a foreign observer ends the session (unit), and every real frame's observer is the
+               session's own (AP-5, AP-2)
+  AP-9   PASS  every changed path is in AP-9's list (pyproject.toml, uv.lock, sdk/python/**, .gitignore,
+               .structured-coding/**, docs/DECISIONS.md, docs/ARCHITECTURE.md, scripts/ci_layer.py,
+               Dockerfile, scripts/check_ci_pins.py, .github/workflows/ci.yml with one new job)
+  ```
+
+**The adversarial criteria, final status:**
+
+```text
+AP-1   PASS  8 golden files (S11-A's, then #83's) + completeness; M-1, M-2, M-4, M-13 RED
+AP-2   PASS  visitor 59, alice 54, bob 54 real frames + the refused/closing pair round-trip; coverage
+             ≥ 1/50/2 each, component, affordance+requirement, relations, complete affordance; M-12 RED;
+             M-3 RED here
+AP-3   PASS  …995/…997 distinct; a number refused; M-5, M-6 RED
+AP-4   PASS  reverse-order results, refusal of the second only, closing fails the rest; M-7 RED
+AP-5   PASS  two exchanges, each disclosed in ≤ 1 ms of wall time (10 s bound); M-9 RED
+AP-6   PASS  NotOffered sends nothing (unit and real); the world answers the raw request `unavailable`
+AP-7   PASS  refused ≥ 0.5 s; no invite in logs, exceptions or reprs; M-10 RED
+AP-8   PASS  SocketConnectBlockedError < 1 s; M-8 RED locally, and RED on all three CI legs (E-P3-7)
+AP-9   PASS  above
+AP-10  PASS  ruff, format, pyright strict: zero findings locally and on all three CI legs; the planted
+             `def f(x)` gives 4 strict errors
+AP-11  PASS  child pytest with no binary: "4 errors in 0.02s" (the four real_server tests), names
+             `cargo build -p mineworld-cli`; M-11 ("3 skipped") RED
+AP-12  PASS  the full python layer (32 tests, real server included) green on ubuntu-24.04 (CPython 3.13),
+             windows-2025 (3.12), macos-15 (3.12); the AP-8 mutation red on each
+```
+
+**Findings for the primary session and other lanes (not P3 work):**
+- DEP ids: S10's range `DEP-24 … DEP-27` has one number left (DEP-27) for three placeholders
+  (`DEP-S10-a`, `-d`, `-f`) (DV-P3-1).
+- S13's 13w (frozen on main, `step-14-ci.md`) also edits `scripts/ci_layer.py` (portable `disk()`,
+  `sys.executable` for `python3` commands) and `.github/workflows/ci.yml`. P3 already runs its new
+  layers' script commands through `sys.executable`; whichever of P3 and 13w merges second reconciles
+  the two edits.
+- `session.py` is about 390 lines, past the design's expectation of 300 and under the 500-line review
+  threshold; it is one responsibility (one seat's sequence) and was not split.
+- The pytest-socket warning ("A test tried to use socket.socket.connect() …") printed once per run is
+  the AP-8 test itself.
+
 ### 12.2 Evidence
 
 ```text
@@ -919,6 +997,22 @@ E-P3-5  C6  merged base cd85d8d (origin/main with #83), binary rebuilt: 32 passe
             format, pyright strict clean. check_ci_pins.py passes, and fails on a planted digest-less
             COPY --from ("Dockerfile:24: COPY --from=ghcr.io/astral-sh/uv:0.12.5 is not pinned");
             ci_layer --list core identical to the base's
+E-P3-6  C5  PR #98 run 37975968675 (merge of 7a0ec69 into main): fast success (1:32; layer 31.7 s, of
+            which uv sync 3.1 + ruff 0.1 + format 0.0 + pyright 2.6 s), test success (19:22; cargo test
+            835 s), python ubuntu-24.04 success (2:54 wall; layer 130.4 s: build 113.7 s, pytest 10.9 s),
+            windows-2025 success (5:27; layer 277.4 s: build 261.1 s, pytest 12.4 s), macos-15 success
+            (4:13; layer 214.5 s: build 198.9 s, pytest 12.0 s). 32 passed on each leg
+E-P3-7  C5  scratch/s10-p3-mutation (5c8f195, addopts without --allow-hosts) run 37975983158: python
+            ubuntu, windows, macos all FAILURE, each "FAILED test_network_guard.py::
+            test_a_connection_beyond_localhost_is_blocked_by_the_guard - TimeoutError: timed out",
+            31 passed; fast success (the mutation is in a test configuration only)
+E-P3-8  C7  local full gate on b3895f7 (origin/main a30755e merged; its Rust tree is identical to
+            cd85d8d's, `git diff --stat cd85d8d HEAD -- '*.rs' Cargo.* worlds` empty):
+            cargo fmt --check OK; cargo clippy --workspace --all-targets --all-features -D warnings OK;
+            cargo test --workspace OK (all suites passed, exit 0); ruff check, ruff format --check
+            (after formatting the README's code block, which ruff 0.16 also formats), pyright strict 0
+            errors; pytest 32 passed in 9.95 s; check_doc_headings, check_decision_ids, check_scratch
+            scan and left: pass
 ```
 
 ### 12.4 Mutations
