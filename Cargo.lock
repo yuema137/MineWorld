@@ -746,12 +746,14 @@ checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 name = "mineworld-acceptance"
 version = "0.1.0"
 dependencies = [
+ "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-rule-controller",
+ "mineworld-sdk",
  "mineworld-test-support",
  "mineworld-worldpack",
  "serde",

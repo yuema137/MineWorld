@@ -19,19 +19,21 @@
 //! A test (`tests/installed.rs`) holds this list and the manifest's dependencies equal, and refuses
 //! two packs with one id.
 //!
-//! The `resolution:` line lists the packs that answer what an arrival actually achieves
-//! (`docs/DECISIONS.md` `ARC-39`); every host registers them by composing a world. A resolver's pack
-//! is listed there as well as below, and a test (`tests/resolution.rs`) refuses one that is not. A
-//! world that does not enable a listed resolver's pack is untouched by it, because a resolver answers
-//! "unchanged" where its own state is absent; the first one listed (`DEP-13`) resolves only arrivals
-//! into places that carry its section.
+//! Each `extension` line is an extension catalog (`docs/DECISIONS.md` `ARC-62`): a trait one pack
+//! owns, that pack's register function, and the packs that implement the trait; every host registers
+//! them by composing a world. The one line today is presence's: the packs that answer what an arrival
+//! actually achieves (`ARC-39`). A type on an extension line is listed below as well, and a test
+//! (`tests/resolution.rs`) refuses one that is not, or one listed twice on a line. A world that does not
+//! enable a listed resolver's pack is untouched by it, because a resolver answers "unchanged" where its
+//! own state is absent; the first one listed (`DEP-13`) resolves only arrivals into places that carry
+//! its section.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
 mineworld_sdk::installed! {
     perception: mineworld_presence::PerceptionProvider;
-    resolution: mineworld_presence::ArrivalResolver => [mineworld_bodies::BodiesSystem,];
+    extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers: [mineworld_bodies::BodiesSystem,];
     Presence => mineworld_presence::PresenceSystem,
     Movement => mineworld_movement::MovementSystem,
     Conversation => mineworld_conversation::ConversationSystem,

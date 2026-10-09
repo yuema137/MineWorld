@@ -1129,6 +1129,71 @@ culled from above, reading as pale angular shards floating over the lake. That w
 it is fixed regardless of what happens to the lighting.
 ---
 
+## ARC-14 — The default 2D style is `town`
+
+**Date** 2026-09-27
+
+[`ARC-11`](#arc-11--default-style-is-taste-style-infrastructure-is-architecture) separates the
+default style, which is taste and the operator's to decide, from the style infrastructure, which
+is architecture and proceeds autonomously. This record is that decision taken: **the operator
+compared four complete scenes and chose `town`.** It is no longer a candidate.
+
+**What was compared.** Four art variants of the same walkable square, identical in layout,
+projection, camera, crowd density and scene logic, differing only in which art each role
+resolves to:
+
+| Variant | Art |
+| --- | --- |
+| `town` | generated cast, plus the shared generated set — buildings, props, vegetation, ground |
+| `full` | generated cast, plus shopfronts and planted props generated for the spike |
+| `people` | generated cast over the procedural world |
+| `procedural` | the earlier all-procedural build, as the baseline |
+
+All four were rendered at one commit and at matched framing, including a still framed to
+`presentation/mineworld-default/2D/references/02_cafe_street.png` so the comparison against the
+plates is like for like. The sets are in `clients/2d-spike/screenshots/`, and
+`clients/2d-spike/README.md` gives the launch commands.
+
+**What distinguishes the choice.** `town` carries a warm overall key measurably close to the
+reference plates — whole-frame mean luminance 0.513 against the plates' 0.517, with 4.0% of the
+frame below 0.20 luminance against 4.4%. Beyond the numbers: cherry blossom against the greens,
+a varied roofline of terracotta, slate and tile, and building silhouettes that differ from one
+another rather than repeating one mass. It reads as a place with a history of being built in
+rather than a row of one shop.
+
+**Its known weakness, accepted.** The shared set has four distinct tree sprites, so repetition
+shows at wide zoom where `full`'s nine procedural species do not. The operator chose `town` with
+that visible.
+
+**The other three are kept.** They are not dead alternatives — they are the demonstration that
+the presentation layer is swappable, which is the substance of `ARC-11`'s split. `--variant=`
+remains the interface, and a change that can only be made to `town` is a change made in the
+wrong place.
+
+**This fixes the default, not the style system.** MineWorld must host anime, pixel, voxel,
+low-poly, photorealistic, retro, hand-painted and minimal styles
+([`ARC-11`](#arc-11--default-style-is-taste-style-infrastructure-is-architecture)). A World Pack
+ships its own Presentation Pack and selects its own style without touching this choice and
+without modifying the default pack; nothing here privileges `town` in the loader, the contracts
+or the renderer bindings. If a later change makes `town` hard to replace, that change is the
+defect, not this record.
+
+**Recorded because** "good enough" silently becoming "accepted" is the failure `ARC-11` exists to
+prevent, and the converse also needs a record: once the operator has chosen, an agent should not
+reopen the question as though it were still open.
+
+**Note, 2026-10-08 — how this record reached `main`.** The text above is carried verbatim from
+`vis/2d-generated-assets` @ `af5e236`, the branch it was written on, which is not merged (S12 PR 13a,
+`.structured-coding/plans/mvp0/step-13-client-2d.md` §14). It fills the identifier gap `ARC-16`
+recorded. Two things changed since, both operator decisions of 2026-10-08 (QS12-1, QS12-2): the
+style is now drawn by the connected reference client `clients/2d/`, laid out from a world's disclosed
+passages (market-town's street) rather than the spike's invented square; and the art moved into
+the Presentation Pack `presentation/mineworld-default/2D/`, where the four variants are binding sets
+(`ARC-46`). `clients/2d-spike/` and its screenshots stay on that branch as the visual reference.
+Neither change reopens the choice of `town`.
+
+---
+
 ## ARC-16 — A decision identifier names one decision, and a check enforces it
 
 **Date** 2026-09-27 · **Source** two collisions found in one session · **Relates to**
@@ -3318,6 +3383,14 @@ changed by design.** Items 1–8 and the earlier notes are unchanged except as f
    colliders far from the stride are removed — nor exact at its own offset from a face (step-11 E-Z1,
    E-Z2, E-Z5); none bought measurable CPU. They were dropped.
 
+**Note 4, 2026-10-08 (S17, PR IL-a; `ARC-62`, QPL-10) — the installed set's line has a new spelling.**
+The `resolution:` line of `installed!` and `Capability::resolvers()` are replaced by `ARC-62`'s generic
+extension line, `extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers:
+[mineworld_bodies::BodiesSystem,];`, and `worldpack::compose` registers it through
+`Capability::register_extensions()`. No rule of this decision changes: the catalog, its write-once
+storage, `require_registered`, the order resolvers are asked in and every fact are as items 1–8 and the
+notes above state. Where items above say "the `resolution:` line", read "presence's extension line".
+
 ---
 
 ## DEP-13 — Server physics: Rapier (`rapier3d`, `enhanced-determinism`) inside the `bodies` pack
@@ -3496,6 +3569,154 @@ not a dependency (step-12 §7.4).
 - **"Missed the moment."** A controller bound at an instant treats every line heard at or before that
   instant as not its to answer (`RuleController::since`, `F-13`), so a line said in the same world second
   a controller is bound is not answered — the limitation `ARC-27` already accepts for consults.
+
+---
+
+## ARC-45 — A 2D client draws one town from disclosed passages, and remembers it only as presentation
+
+**Date** 2026-10-08 · **Approved by** the primary session at S12 PR 13a's design freeze · **Relates
+to** `ARC-26`, `INV-5`, `INV-13`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §6.1 · **Design**
+`.structured-coding/plans/mvp0/step-13-client-2d.md` §§4.3, 14
+
+**Problem.** Every `Place` has its own frame, and a World Pack authors no geometry beyond positions
+and passages. A 2D client must still draw one continuous town — a street with doors you walk through —
+without inventing a fact the world did not state and without binding its drawing to one world's keys
+or coordinates.
+
+**Decided.**
+
+1. **Frames are glued at disclosed passages, by translation only.** The place the client first
+   stands in is the root of the drawing. A place `P` reached through a passage with `here = h` (in
+   the place it was disclosed from, `Q`) and `there = t` (in `P`) is drawn with its origin at
+   `origin(Q) + h − t`. Never rotated, never scaled: `+x` east and `+y` north everywhere.
+2. **The layout is learned, per world instance, in memory.** A passage is learned when an
+   observation discloses it; a place's tags when the observer stands in it. The cache holds no world
+   truth and nothing is submitted from it except positions the player chose. It is dropped when the
+   `instance` changes. A cache on disk across launches was considered and not chosen: it is state
+   kept for a convenience that the world disclosing a doorway's destination (step-13 R-PK-1) provides
+   properly.
+3. **Appearance comes from world data.** A known place's look is chosen by its tags; a place not yet
+   visited is drawn with a generic façade chosen by a stable hash of its id **string**. A person's
+   look is chosen from tags and the same hash; a label is `display_name`, else the id.
+4. **Dressing anchors only to disclosed doorways or to the extent they span.** Terraces, planters,
+   lamps and trees are placed relative to a doorway, or to the rectangle the disclosed doorways of
+   the root place span. Nothing is positioned by a world key or an absolute coordinate, so the same
+   pack dresses any world.
+5. **Decoration is not enforced.** Where no `place-shape` is disclosed, a place's footprint is drawn
+   from the pack and never used to refuse or shorten a stride. Where one is disclosed (S15), the
+   server's numbers are the only blocking geometry a client draws.
+6. **Only the perceived is drawn.** Nobody outside the observer's place is drawn; other buildings
+   are façades, honestly empty (`INV-13`).
+
+**Limitation accepted.** Until a doorway names where it leads, a neighbouring building looks
+generic until it has been entered once in the running instance.
+
+---
+
+## ARC-46 — A Presentation Pack binds roles to art; a client core names no asset
+
+**Date** 2026-10-08 · **Approved by** the primary session at S12 PR 13a's design freeze · **Relates
+to** `ARC-1`, `ARC-3`, `ARC-11`, `ARC-14`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1 · **Specified in**
+[`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md)
+
+**Problem.** `MODULE_SPEC.md` §6.1 names `assets/asset_bindings.yaml` and `renderer/godot.yaml` and
+specifies neither. The 2D spike resolved art through role maps compiled into its scene script, so its
+four variants (`ARC-14`) were code, and the pack it drew from was its own project directory.
+
+**Decided.**
+
+1. **The core asks for roles, never for files.** `person:<n>`, `player`, `facade:<tag>`,
+   `facade:unknown:<n>`, `ground:<tag>`, `interior:<tag>:<fitting>`, `prop:<name>`. The pack's
+   `assets/asset_bindings.yaml` resolves a role to a file under the pack, per binding set; a role a
+   set does not bind is drawn plainly (shapes and text), so the client runs and is testable with no
+   pack at all (`--presentation=none`).
+2. **`ARC-14`'s variants are binding sets** in one pack: `town` (default), `full`, `people`,
+   `procedural`, selected by `--variant=`.
+3. **`renderer/godot.yaml`** states the renderer's parameters: projection, pixels per metre, the
+   sprite scale rule, the post-process and contour shaders, façade dressing and interior footprints
+   per tag, all anchored as `ARC-45` point 4 requires.
+4. **The pack is data, loaded at runtime from any directory**: images through `Image.load_from_file`
+   and `Image.load_svg_from_buffer`, shaders from their source text. It is never imported into the
+   client's Godot project and it contains no GDScript, so `--presentation=<dir>` takes any pack.
+5. **Both files are written in YAML's JSON-compatible subset** (`DEP-16`): valid YAML for any YAML
+   tool, read by Godot's built-in JSON parser. Their comments live in `PRESENTATION.md`.
+
+**What it does not decide.** Whether an interaction is valid (`ART_DIRECTION.md` §19), or anything
+about a world: a pack may depict any world, and a world may be depicted by any pack.
+
+---
+
+## ARC-47 — No rule in the client, made executable
+
+**Date** 2026-10-08 · **Approved by** the primary session at S12 PR 13a's design freeze · **Relates
+to** [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) §§4, 7–9; `INV-5`; `INV-9`; `ARC-23` · **Design**
+step-13 §§4.4, 8, 14.2 (AC-W5 … AC-W8)
+
+**Problem.** "The client implements no world rule" has so far been a review convention. A convention
+is checked when someone remembers to; the 2D client is the place it is easiest to break, because a
+renderer that already knows positions is one comparison away from deciding a distance.
+
+**Decided.** The rule is a property tests hold, in two halves.
+
+1. **Structure, scanned** (`scripts/check_client_rules.py`, on `clients/2d/**/*.gd`, comments
+   excluded): only `scripts/intents.gd` submits; no other file names an action type that file
+   composes; a function that submits reads no verdict (`may(`, `"available"`, `unavailable_reason`,
+   `requirement(`); distances are computed only where they are request sizes, routes or drawing
+   (`walker.gd`, `projection.gd`, `town.gd`, `scene/`); only `link.gd` opens a connection. Each rule is
+   shown to report a planted violation by file and line before it is trusted.
+2. **Behaviour, against a server that lies** (a test-only revision-1 stub): an offer marked
+   unavailable is still submitted when the player chooses it; a refused stride ends the walk and the
+   body is drawn where the next observation puts it; an observation that moves the player is followed,
+   never argued with by a correcting `move`. Each is shown to fail under the planted mutation.
+
+The client composes only the requests it knows how to ask for, decides nothing, never refuses to
+submit what the player chose, and never retries a request whose answer it did not see (a retry
+could do a thing twice; the server allocates identity, `INV-6`).
+
+---
+
+## DEP-16 — The 2D reference client: Godot built-ins and the shared protocol module, no addon
+
+**Date** 2026-10-08 · **Status** selected · **Approved by** the primary session at S12 PR 13a's design
+freeze · **Relates to** `DEP-4`, `DEP-9`, `ARC-46`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design**
+step-13 §5 (the comparison), §14.4
+
+**Problem.** The 2D client needs drawing, UI widgets, a connection, routing and pack-file reading.
+Each has mature candidates; some would put MineWorld inside another framework's execution model.
+
+**Choice, per piece** (step-13 §5 holds the full comparison and sources):
+
+```text
+drawing          Node2D + Sprite2D, y-sorted, Camera2D, canvas shaders     adopt (built-in)
+                 TileMapLayer                                              only if ground drawing is too slow
+                 Tiled + YATI, LDtk + importer                             reject: a second source of layout
+widgets          Control nodes + Theme                                     adopt (built-in)
+                 Dialogue Manager, Dialogic 2                              reject: a second source of conversation
+connection       clients/protocol/mineworld over WebSocketPeer             adopt (ours, already shared with 3D)
+                 Godot MultiplayerAPI, Nakama                              reject: another authority model
+                 godot-rust (gdext)                                        reject for now: native per platform
+routing          straight strides through disclosed doorways               adopt
+                 NavigationServer2D from a disclosed place-shape           adopt when a place discloses solids
+pack files       Godot's JSON parser over YAML's JSON-compatible subset    adopt
+                 fimbul-works/godot-yaml, KoBeWi/Godot-YAML (GDExtension,  reject: native per platform
+                 RapidYAML)
+                 YAML.gd (pure GDScript)                                   reject: an unvetted parser for two
+                                                                           small files we author
+test harness     a scripted scene printing PASS/FAIL, driven by Rust tests adopt; GUT/gdUnit4 not needed yet
+```
+
+**Why not ourselves.** Nothing here is built that a built-in provides; the client's own code is
+acquisition, drawing and the protocol module that already exists.
+
+**Isolating interface.** Pack files are read in one script (`clients/2d/scripts/presentation.gd`); a
+YAML reader, if a pack author ever needs full YAML, replaces that one call.
+
+**Limitation accepted.** Pack files cannot carry comments; their documentation is a specification
+file beside the client. Revisit when a pack author needs full YAML.
+
+Sources checked 2026-10-08: [fimbul-works/godot-yaml](https://github.com/fimbul-works/godot-yaml) ·
+[KoBeWi/Godot-YAML](https://github.com/KoBeWi/Godot-YAML) ·
+[YAML.gd](https://godotengine.org/asset-library/asset/4120), plus step-13 §5's list.
 
 ---
 
@@ -3813,6 +4034,152 @@ the build. `Cargo.lock` gains three packages: the two and `mineworld-packages`. 
 
 **Accepted limitations and the revisit trigger.** A registry (the publishing sense of Milestone E,
 non-goal) brings version selection, which is a solver's problem and is not solved here; revisit then.
+
+---
+
+## ARC-61 — A System Pack may be configured per world, by a file its owner types
+
+**Date** 2026-10-08 · **Approved by** the operator (`overall.md` "The World Interaction List": the
+carrier stays `configure:`; QPL-2, QPL-12) and the primary session at PR IL-a's design freeze
+(step-18-interaction-list §11; QIA-1 … QIA-6 accepted as recommended) · **Implements**
+[`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1, §9 (configuration schema) · **Relates to** `ARC-15`,
+`ARC-25`, `ARC-26`, `ARC-31`, `ARC-33`, `ARC-62`, `DEP-10`, `INV-13` · **Design**
+`.structured-coding/plans/mvp0/step-18-interaction-list.md` §4.3, §4.10, §11 (S17, PR IL-a)
+
+**Problem.** A System Pack's numbers and policies (a range, a capacity, a step) are compiled
+constants. A world that wants another value has nowhere to say so: `world.yaml` names packs but carries
+nothing for them, and a section (`ARC-31`) belongs to one person, place, item or organization, not to
+the world. The S17 Interaction List (`ARC-63` onward) needs each pack to accept a world-level document
+it types and enforces itself. Three constraints bound the answer: the loader must not learn what a
+configuration means (`ARC-31`'s rule, one level up); a world that configures nothing must load exactly
+as before, fact for fact; and a save must never resume against a configuration other than the one it
+was created with, because resume does not re-read content (`ARC-25`).
+
+**Choice.**
+
+1. **The contract is `mineworld_authoring::PackConfiguration`**, beside `AuthoredSection`:
+
+   ```text
+   trait PackConfiguration: SystemIdentity
+     type Configuration: DeserializeOwned + Debug + Send + Sync + 'static   deserializing is validating
+     const FACTS: &'static [EventTypeId]       the event types its configuration may seed
+     fn references(&Configuration) -> Vec<Reference>    entity keys it names (default none)
+     fn requires(&Configuration) -> Vec<SystemId>        systems that must also be enabled (default none)
+     fn seed(&Seeding, &Configuration) -> Result<Vec<Emission>, Rejection>
+   ```
+
+   A configuration has no subject, so `seed` takes none. The loader holds a decoded configuration type
+   erased, as `AuthoredConfiguration` (owner, references, requires, seed), produced by the
+   `DecodeConfiguration<T>` `DeserializeSeed` — exactly as `AuthoredContent` and `Decode` hold a
+   section.
+2. **A pack says it is configurable in its `impl SystemPack`**, with `mineworld_sdk::configures!();`,
+   which defines `CONFIGURATION` (`Some(<its own id>)`), `CONFIGURATION_FACTS` (its `FACTS`) and
+   `decode_configuration` together from the `PackConfiguration` impl. The defaults are the safe
+   direction: `None`, no facts, and a decode that refuses "the '<id>' system takes no configuration".
+   The installed set's `Capability` aggregates them: `configuration`, `decode_configuration`,
+   `configuration_facts`.
+3. **The carrier is `world.yaml` `configure:`**, an optional list of keys. Each key is an enabled
+   System Pack's id or a reserved key (item 4), and names `configure/<key>.yaml`, decoded straight from the YAML stream into the owner's type, so a
+   refusal keeps its line and column (`DEP-10`). The list's order is the author's and is the seeding
+   order. Absent means empty.
+4. **Reserved keys.** `classes` (the Interaction List's entity classes, `ARC-64`, IL-b) and `packages`
+   (the licence-policy override hook of S16 E-b, FQ-b2 — owned by the framework crate
+   `mineworld-packages`, not by a System Pack) are reserved: listing either is refused, "reserved for
+   <what>; not configurable in this build". Both are wired in IL-b, which lets `packages` through to its
+   framework owner rather than resolving it against the installed set. A test holds that no installed
+   pack's id is a reserved key.
+5. **Refused by name**, each naming the key and the file, with line and column where a YAML value is
+   involved: a key that is no system of this build; a system the world does not enable; a system that
+   takes no configuration; a reserved key; a key listed twice; a listed file missing; a `.yaml` file in
+   `configure/` that is not listed; a `requires` system not enabled; a reference to an undeclared
+   entity or one of another type; a configuration the owner's `seed` refuses; a seeded fact in another
+   pack's vocabulary or of an event type outside the owner's `FACTS`; and configuration drift (item 7).
+   Malformed YAML is the loader's existing `Malformed`.
+6. **Seeding order.** Genesis states passages, then locations, then **configuration, in `configure:`
+   order**, then sections. A section's reduction may therefore check its value against the configured
+   state (the step a value must be a multiple of, the range it must lie within); it is reduced after it.
+   A world without `configure:` takes no new branch and seeds exactly what it seeded before this
+   decision: its ids, facts and digests do not move.
+7. **Drift is refused at resume** (QPL-12). Every host that resumes or verifies a save from a World Pack
+   — `mineworld run` resuming, `mineworld server --save`, `mineworld replay` — first calls
+   `WorldPack::check_configuration(saved genesis facts)`. It assembles the world, seeds the configuration
+   as genesis would, and compares, in order, the event type, the record and the visibility of every
+   genesis fact whose type is in the union of the enabled packs' `configuration_facts`, on both sides.
+   The first difference is `PackError::ConfigurationDrift { system, saved, here }`. Configuration added
+   and configuration removed are both drift. Nothing in `persistence/` or the kernel changes: the
+   comparator reads the save's genesis facts through the existing backend.
+8. **The configuration facts' audience is guidance, not a loader rule** (QIA-4). An owner states its
+   configuration facts `Visibility::SystemInternal` with no subjects: a world's configuration is
+   nobody's perception and nobody's biography (`INV-13`). The loader does not enforce it, because a
+   loader rule over visibility would be the loader judging a pack's vocabulary.
+
+**Not in this decision.** What any pack's configuration says: the Interaction List's schema, classes
+and sections (`ARC-63` … `ARC-65`, IL-b onward). Wiring `configure/packages.yaml` into the licence
+policy (IL-b). Drift in content other than configuration — a renamed person, a moved table — which is
+not checked (QPL-12's scope).
+
+**Accepted limitations.**
+- Configuration is not a rule. `MODULE_SPEC.md` §4 constraint 3 holds: a configuration parameterizes and
+  restricts what its owning pack implements; it never adds behaviour no installed pack has.
+- Resume still does not re-read content, so content drift outside configuration is still accepted
+  silently, as before this decision.
+- A configured pack's declaration does not change, so configuring a pack does not change its
+  `SystemVersion`; a pack whose configuration *schema* changes raises it, as for any owned type.
+
+---
+
+## ARC-62 — Extension catalogs: a pack-owned trait, implemented by other packs, listed in the installed set
+
+**Date** 2026-10-08 · **Approved by** the operator (QPL-10: presence's `resolution:` line migrates to the
+generic form, with no shim) and the primary session at PR IL-a's design freeze (step-18-interaction-list
+§11) · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1 · **Relates to** `ARC-33`, `ARC-39`,
+`DEP-12`, `ARC-61` · **Design** `.structured-coding/plans/mvp0/step-18-interaction-list.md` §11;
+`step-18-physics-list.md` §4.7 (S17, PR IL-a)
+
+**Problem.** `ARC-39` let other packs plug code into presence through `ArrivalResolver`, and spelled the
+build's list as a hard-wired `resolution:` line of `installed!`, expanded into `Capability::resolvers()`
+and registered by a call to `mineworld_presence::register_resolvers` that `worldpack::compose` makes by
+name. The S17 Interaction List needs a second such catalog (`bodies`' interaction kinds, IL-i), and any
+pack may need one later. A second hard-wired line would edit the SDK and the loader again for every
+catalog — the change amplification `CLAUDE.md` §4 rule 5 forbids. Two real catalogs earn the
+abstraction (rule 11).
+
+**Choice.**
+
+1. **One generic line per catalog.** `installed!`'s grammar is `perception: <path>;`, then zero or
+   more lines
+
+   ```text
+   extension <trait path> => <register fn path>: [ <type>, … ];
+   ```
+
+   then the pack lines. Each listed type must implement the trait and `Default`; one that does not is
+   refused by the compiler, at the list.
+2. **What it expands to.** `Capability::register_extensions()` calls each line's register function once,
+   with one value of each listed type, `Box<dyn Trait>`, lines in listed order and types in listed
+   order. `Capability::extension_types()` returns each line's trait path and its types' Rust paths, for
+   the installed set's own guard. The `resolution:` arm and `Capability::resolvers()` are deleted, with
+   no shim (`CLAUDE.md` §4 rule 12).
+3. **The loader calls one function.** `worldpack::compose` calls `Capability::register_extensions()`;
+   neither the SDK nor the loader names a trait or a pack again. A third catalog is a line in
+   `systems/installed` and nothing else.
+4. **The catalog stays its owner's.** The register function, its storage and its rules belong to the
+   pack that owns the trait. `ARC-39` item 5's rules carry over to every catalog: write-once and
+   process-wide, registered before any world is assembled, a different list for one trait refused
+   naming both; an implementation is pure (reads only what it is handed), keeps nothing, and is inert
+   where its pack's state is absent, so a world that does not enable the implementing pack is
+   unaffected.
+5. **The installed set guards its lines.** A test refuses a type on an extension line that is not an
+   installed pack, and a type listed twice on one line, naming each.
+6. **Presence's catalog is the first line**, byte-identical in behaviour:
+   `extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers:
+   [mineworld_bodies::BodiesSystem,];`. Installing a pack that implements a catalog's trait is `ARC-33`'s
+   two lines plus one entry on that catalog's line.
+
+**Accepted limitations.** A catalog is per process, not per world (`ARC-39`'s limitation, unchanged):
+per-world applicability comes from the world enabling the implementing pack, or from its configuration
+(`ARC-61`). Disabling a pack at run time while its implementation is registered is not supported
+(QB-17).
 
 ---
 

@@ -24,7 +24,7 @@ use mineworld_server::{
 use mineworld_worldpack::{PackRoots, WorldPack};
 
 use crate::perceive::PackPerception;
-use crate::{described, hosted, invite, listed};
+use crate::{described, hosted, invite, listed, saved_genesis};
 
 /// What `mineworld server` was asked.
 pub struct ServeRequest {
@@ -237,6 +237,10 @@ fn persisted(
 ) -> Result<(PersistentWorld, Vec<Box<dyn PerceptionProvider>>), HostError> {
     if SqliteBackend::exists(save) {
         let backend = SqliteBackend::open(save, Durability::PowerLoss).map_err(HostError::build)?;
+        // The configuration-drift check before resume (IL-a, `ARC-61` item 7), carried here when
+        // `persisted` moved out of main.rs (step-12 QS11B-6).
+        pack.check_configuration(&saved_genesis(&backend).map_err(HostError::build)?)
+            .map_err(HostError::build)?;
         let composed = pack.compose().map_err(HostError::build)?;
         let (world, how) =
             PersistentWorld::resume(Box::new(backend), composed.world).map_err(HostError::build)?;

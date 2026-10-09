@@ -1,51 +1,54 @@
-//! Every arrival resolver the installed set lists belongs to an installed pack, once (`DECISIONS.md`
-//! `ARC-39` item 6; step-11 SD-R8).
+//! Every type an extension line of the installed set lists is an installed pack, once per line
+//! (`DECISIONS.md` `ARC-62` item 5, `ARC-39` item 6; step-11 SD-R8).
 //!
-//! The compiler already refuses a listed type that is not an `ArrivalResolver`. What it cannot see is
-//! whether that type is also a pack this build installs: a resolver whose pack is not installed would
-//! be registered by every host and asked in every world, while no world could ever enable the pack
-//! whose state it reads. And one id listed twice would be refused only when a host first registers.
-//! This guard holds both on the real set, and a stub set that lists a resolver it does not install is
-//! its negative control.
+//! The compiler already refuses a listed type that does not implement its line's trait. What it cannot
+//! see is whether that type is also a pack this build installs: an implementation whose pack is not
+//! installed would be registered by every host and asked in every world, while no world could ever
+//! enable the pack whose state it reads. And one type listed twice would be refused only when a host
+//! first registers. This guard holds both on the real set — whose one line today is presence's arrival
+//! resolvers — and a stub set that lists, twice, a type it does not install is its negative control.
+//!
+//! The file keeps its name from when the line was spelled `resolution:` (the seam scan lists it).
 
 use std::collections::BTreeSet;
 
-use mineworld_contracts::SystemId;
-
-/// What is wrong with an installed set's resolvers: ids that are not installed packs, and ids listed
-/// more than once.
-fn faults(resolvers: Vec<SystemId>, installed: Vec<SystemId>) -> Vec<String> {
-    let installed: BTreeSet<SystemId> = installed.into_iter().collect();
-    let mut seen = BTreeSet::new();
+/// What is wrong with an installed set's extension lines: types that are not installed packs, and
+/// types listed more than once on one line.
+fn faults(
+    lines: Vec<(&'static str, Vec<&'static str>)>,
+    installed: Vec<&'static str>,
+) -> Vec<String> {
+    let installed: BTreeSet<&str> = installed.into_iter().collect();
     let mut faults = Vec::new();
-    for id in resolvers {
-        if !installed.contains(&id) {
-            faults.push(format!(
-                "'{id}' is listed on resolution: but is not an installed pack"
-            ));
-        }
-        if !seen.insert(id.clone()) {
-            faults.push(format!("'{id}' is listed on resolution: twice"));
+    for (_, types) in lines {
+        let mut seen = BTreeSet::new();
+        for listed in types {
+            if !installed.contains(listed) {
+                faults.push(format!(
+                    "'{listed}' is listed on an extension line but is not an installed pack"
+                ));
+            }
+            if !seen.insert(listed) {
+                faults.push(format!("'{listed}' is listed twice on one extension line"));
+            }
         }
     }
     faults
 }
 
 #[test]
-fn every_listed_resolver_is_an_installed_pack_listed_once() {
+fn every_type_on_an_extension_line_is_an_installed_pack_listed_once() {
     use mineworld_installed_systems::{AVAILABLE, Capability};
 
-    let resolvers = Capability::resolvers()
-        .iter()
-        .map(|resolver| resolver.resolver_of())
-        .collect();
-    let installed = AVAILABLE.into_iter().map(Capability::id).collect();
-    let faults = faults(resolvers, installed);
+    let lines = Capability::extension_types();
+    assert!(!lines.is_empty(), "the real set has presence's line");
+    let installed = AVAILABLE.into_iter().map(Capability::type_name).collect();
+    let faults = faults(lines, installed);
     assert!(faults.is_empty(), "{faults:#?}");
 }
 
-/// The negative control: a set that installs one stub pack and lists, as a resolver, a type that is
-/// not among its packs.
+/// The negative control: a set that installs one stub pack and lists, on an extension line, a type that
+/// is not among its packs — twice.
 mod stray {
     use mineworld_contracts::SystemId;
     use mineworld_kernel::{System, SystemDeclaration, SystemIdentity, SystemVersion, WorldRead};
@@ -73,7 +76,7 @@ mod stray {
         const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     }
 
-    /// A resolver whose pack this set does not install.
+    /// An implementation whose pack this set does not install.
     #[derive(Default)]
     pub struct Stray;
 
@@ -89,27 +92,25 @@ mod stray {
 
     mineworld_sdk::installed! {
         perception: mineworld_presence::PerceptionProvider;
-        resolution: mineworld_presence::ArrivalResolver => [Stray, Stray,];
+        extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers: [Stray, Stray,];
         Lone => Lone,
     }
 }
 
 #[test]
-fn the_guard_sees_a_resolver_that_is_not_installed_and_one_listed_twice() {
-    let resolvers = stray::Capability::resolvers()
-        .iter()
-        .map(|resolver| resolver.resolver_of())
-        .collect();
+fn the_guard_sees_a_type_that_is_not_installed_and_one_listed_twice() {
+    let lines = stray::Capability::extension_types();
     let installed = stray::AVAILABLE
         .into_iter()
-        .map(stray::Capability::id)
+        .map(stray::Capability::type_name)
         .collect();
+    let stray = std::any::type_name::<stray::Stray>();
     assert_eq!(
-        faults(resolvers, installed),
+        faults(lines, installed),
         [
-            "'stray' is listed on resolution: but is not an installed pack",
-            "'stray' is listed on resolution: but is not an installed pack",
-            "'stray' is listed on resolution: twice",
+            format!("'{stray}' is listed on an extension line but is not an installed pack"),
+            format!("'{stray}' is listed on an extension line but is not an installed pack"),
+            format!("'{stray}' is listed twice on one extension line"),
         ]
     );
 }

@@ -28,9 +28,10 @@
 //! it.
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use mineworld_authoring::{AuthoredContent, SectionName};
+use mineworld_authoring::{AuthoredConfiguration, AuthoredContent, SectionName};
 use mineworld_contracts::{EntityKey, Millimetres, SystemId, Tags};
 use mineworld_packages::{Compatibility, License, PackId, Version};
 use serde::Deserialize;
@@ -79,6 +80,39 @@ pub struct WorldManifest {
     /// world state.
     #[serde(default)]
     pub requires: BTreeMap<PackId, Compatibility>,
+    /// The enabled System Packs this world configures, in seeding order (`DECISIONS.md` `ARC-61`).
+    /// Each key names a file in `configure/`, which its owner decodes and seeds. Absent means none.
+    #[serde(default)]
+    pub configure: Vec<ConfigurationKey>,
+}
+
+/// A key of `world.yaml`'s `configure:` list, naming `configure/<key>.yaml` (`DECISIONS.md`
+/// `ARC-61`): an enabled System Pack's id, or a reserved key.
+///
+/// Its own type rather than a [`SystemId`], because not every key names a system: `classes` is the
+/// Interaction List's and `packages` belongs to the framework's package crate (the licence policy's
+/// override), both reserved in this build and wired by a later one. It is spelled as a system id is
+/// and validates at its line in `world.yaml`; whether it names a system is decided after.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(transparent)]
+pub struct ConfigurationKey(SystemId);
+
+impl ConfigurationKey {
+    /// The key, as the system id it names.
+    pub fn system(&self) -> &SystemId {
+        &self.0
+    }
+
+    /// The key as written.
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl core::fmt::Display for ConfigurationKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// A world's identity: the name a person reads, and the id everything else uses.
@@ -130,6 +164,19 @@ pub enum SectionState {
     OwnerNotEnabled,
     /// Its owner does not let this kind of file carry it.
     NotCarriedHere,
+}
+
+/// One System Pack's world-level configuration, read from `configure/<id>.yaml` and decoded — and so
+/// validated — by its owner's own type (`DECISIONS.md` `ARC-61`). The loader holds it without knowing
+/// what it means.
+#[derive(Debug, Clone)]
+pub struct FoundConfiguration {
+    /// The capability that owns it.
+    pub owner: Capability,
+    /// The file it was read from.
+    pub path: PathBuf,
+    /// The decoded value.
+    pub configuration: Arc<dyn AuthoredConfiguration>,
 }
 
 /// A file in `people/`: one Person, as authored.
