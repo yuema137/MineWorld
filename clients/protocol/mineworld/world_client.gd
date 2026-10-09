@@ -2,8 +2,8 @@ class_name MineWorldClient
 extends Node
 
 ## A connection to a MineWorld server: the three frames a client may send (join, submit, leave), and
-## the five things it can be told (welcome, observation, result, refused, closing) — protocol
-## revision 2.
+## the things it can be told (welcome, observation or delta, perceived, result, refused, closing) —
+## protocol revision 2.
 ##
 ## Drop this node into a scene, connect the signals, call [method connect_to_world], and render what
 ## arrives. `server/PROTOCOL.md` is the specification this implements and governs where the two
@@ -46,8 +46,14 @@ const PROTOCOL := 2
 ## `instance` — which running world this is.
 signal welcomed(seat: String, observer: String, world: Dictionary)
 
-## A fresh view of the world, for this observer only.
+## A fresh view of the world, for this observer only — always whole: a `delta` frame is applied here
+## to the observation held, so a client never sees one (`PROTOCOL.md` §5.3).
 signal observed(observation: MineWorldObservation)
+
+## Facts this observer learned, on the reliable stream asked for with [method perceive_from]:
+## `events` are `PerceivedEvent` dictionaries, oldest first, never dropped or repeated; `through` is
+## the cursor to resume from, also kept in [member perceived_cursor] (`PROTOCOL.md` §5.8).
+signal perceived(events: Array, through: String)
 
 ## The world's answer to one submitted request: the token this client chose, the identity the
 ## **server** allocated, and an `ActionResult`.
@@ -157,6 +163,19 @@ var resume: Variant = null
 ## Why the server last closed this connection (`closing.reason`), or `""`.
 var close_reason: String = ""
 
+## The `through` of the last [signal perceived] frame — the cursor a rejoin continues from — or what
+## [method perceive_from] was given. Only meaningful once [method perceive_from] was called.
+var perceived_cursor: Variant = null
+
+## How many `delta` frames this module applied, and how many it could not (each a resynchronisation):
+## for a status line or a test; a client acts on neither.
+var deltas_applied := 0
+var deltas_refused := 0
+
+## The observation [member latest] was read from, as a dictionary: what a `delta` applies to.
+var _held: Dictionary = {}
+var _perceiving := false
+
 var _socket := WebSocketPeer.new()
 var _invite := ""
 var _nickname_asked := ""
@@ -210,6 +229,7 @@ func connect_to_world(
 	world = {}
 	latest = null
 	sequence = 0
+	_held = {}
 	revision = null
 	_url = _websocket_url(address)
 	var opened := _socket.connect_to_url(_url)
@@ -217,6 +237,15 @@ func connect_to_world(
 		_close("cannot open %s (error %d)" % [_url, opened])
 		return
 	state = State.OPENING
+
+
+## Opt-in, before [method connect_to_world]: also receive the reliable `perceived` stream of the facts
+## this observer learns (`PROTOCOL.md` §5.8), from `cursor` — `null` for "from this world's first
+## fact" (a world with a save), or a `through` a previous connection was given. Every rejoin, including
+## [member reconnect]'s, continues from [member perceived_cursor], so nothing is missed or repeated.
+func perceive_from(cursor: Variant) -> void:
+	_perceiving = true
+	perceived_cursor = cursor
 
 
 ## Submits one request, and returns the correlation token the answer will carry.
@@ -399,10 +428,13 @@ func _process(_delta: float) -> void:
 
 ## `PROTOCOL.md` §2's join. `protocol` is the int constant, so JSON writes it as an integer (§7).
 func _send_join(resuming: Variant) -> void:
-	_send({
+	var join := {
 		"t": "join", "protocol": PROTOCOL, "invite": _invite,
 		"nickname": _nickname_asked, "seat": seat, "resume": resuming, "take_over": _take_over,
-	})
+	}
+	if _perceiving:
+		join["perceived"] = { "since": perceived_cursor }
+	_send(join)
 
 
 ## The next reconnect attempt: 1 s after the drop, then 2 s, 4 s … while within the hold, with the
@@ -429,8 +461,9 @@ func _schedule_reconnect() -> void:
 func _reopen() -> void:
 	_socket = WebSocketPeer.new()
 	close_reason = ""
-	# A new connection numbers its frames from 1 again (`PROTOCOL.md` §5).
+	# A new connection numbers its frames from 1 again (`PROTOCOL.md` §5), and its first is whole.
 	sequence = 0
+	_held = {}
 	var opened := _socket.connect_to_url(_url)
 	if opened != OK:
 		_schedule_reconnect()
@@ -457,7 +490,12 @@ func _receive(text: String) -> void:
 		"welcome":
 			_welcome(frame)
 		"observation":
-			_observation(frame)
+			_observation(frame, frame.get("observation", {}))
+		"delta":
+			_delta(frame)
+		"perceived":
+			perceived_cursor = String(frame.get("through", ""))
+			perceived.emit(frame.get("events", []), perceived_cursor)
 		"result":
 			resolved.emit(
 				String(frame.get("token", "")),
@@ -521,7 +559,7 @@ func _welcome(frame: Dictionary) -> void:
 	welcomed.emit(seat, observer, world)
 
 
-func _observation(frame: Dictionary) -> void:
+func _observation(frame: Dictionary, observation: Variant) -> void:
 	var seq := int(frame.get("seq", 0))
 	if seq < sequence:
 		# A lower sequence number is a stale frame (`PROTOCOL.md` §5). A gap is not an error: frames
@@ -529,13 +567,30 @@ func _observation(frame: Dictionary) -> void:
 		stale_observations += 1
 		return
 	sequence = seq
-	var observation: Variant = frame.get("observation", {})
 	if typeof(observation) != TYPE_DICTIONARY:
 		push_error("[mineworld] an observation frame carried no observation")
 		return
-	latest = MineWorldObservation.new(observation)
+	_held = observation
+	latest = MineWorldObservation.new(observation, frame.get("acted_through"))
 	revision = _revision_of(frame)
 	observed.emit(latest)
+
+
+## A `delta` frame, applied to the observation held and emitted whole (`PROTOCOL.md` §5.3). One whose
+## base is not the frame held, or that removes an entity not held, cannot happen on one connection; if
+## it does, the connection is dropped, and with [member reconnect] on it resumes — which yields a
+## whole observation.
+func _delta(frame: Dictionary) -> void:
+	var next: Variant = null
+	if int(frame.get("base", -1)) == sequence and not _held.is_empty():
+		next = MineWorldDelta.apply(_held, frame.get("delta", {}))
+	if next == null:
+		deltas_refused += 1
+		push_warning("[mineworld] a delta that does not apply to the frame held; resynchronising")
+		_socket.close()
+		return
+	deltas_applied += 1
+	_observation(frame, next)
 
 
 func _send(frame: Dictionary) -> void:
