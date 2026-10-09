@@ -26,6 +26,7 @@ mineworld-economy = { path = "../economy" }
 mineworld-employment = { path = "../employment" }
 mineworld-consumption = { path = "../consumption" }
 mineworld-bodies = { path = "../bodies" }
+mineworld-calendar = { path = "../calendar" }
 
 [dev-dependencies]
 # The consistency guard's negative control installs two stub packs, which are systems.

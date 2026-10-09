@@ -77,6 +77,15 @@ systems:
   - economy
   - employment
   - consumption
+  # Where and when the town is (`ARC-67`): its date, weekday and sun, configured in
+  # configure/calendar.yaml. Appended, so every reduction order above stays as it was; it depends on
+  # presence only, and nothing depends on it. Leave it out, with `configure:` below, and the town has
+  # no date and today's fixed light.
+  - calendar
+
+# The packs this world configures (`ARC-61`): each names configure/<key>.yaml.
+configure:
+  - calendar
 
 # The two organizations that run the shops (`ARC-36`): each key names a file in `organizations/`, and
 # is not the key of the place it runs, because keys are one namespace. Allocated identities after the
