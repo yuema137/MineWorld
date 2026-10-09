@@ -16,14 +16,14 @@
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-use mineworld_contracts::{SystemId, WorldTime};
+use mineworld_contracts::{EntityKey, SystemId, WorldTime};
 use mineworld_kernel::SystemVersion;
 use mineworld_packages::{
     DataPack, Identity, LicencePolicy, PackType, Package, PackageError, Source,
     check_style_manifest, distinct, read_pack_file,
 };
 use mineworld_worldpack::catalog::AVAILABLE;
-use mineworld_worldpack::{MANIFEST, PackRoots, WorldPack};
+use mineworld_worldpack::{MANIFEST, PackRoots, WorldPack, validate_entity_pack};
 
 use crate::described;
 
@@ -226,17 +226,29 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
             dir: dir.to_path_buf(),
         })
     })?;
-    let identity = match &pack {
+    let (identity, kinds) = match &pack {
         DataPack::World(dir) => {
             let world = WorldPack::read_with(dir, roots).map_err(described)?;
             let identity = world_identity(&world)?;
             world.load(WorldTime::EPOCH).map_err(described)?;
-            identity
+            (identity, None)
         }
         DataPack::PackFile(dir) => {
             let identity = read_pack_file(dir).map_err(refused)?;
-            check_style_manifest(dir).map_err(refused)?;
-            identity
+            // Its licence, then its own framework range (ARC-54 note, F-Ed1), then its content.
+            LicencePolicy::default()
+                .judge(identity.id.as_str(), &identity.license)
+                .map_err(refused)?;
+            identity.require_framework().map_err(refused)?;
+            let kinds = match identity.kind {
+                // An Entity Pack's kinds, read against this build's whole installed set (ARC-71).
+                PackType::EntityPack => Some(validate_entity_pack(dir).map_err(described)?),
+                _ => {
+                    check_style_manifest(dir).map_err(refused)?;
+                    None
+                }
+            };
+            (identity, kinds)
         }
     };
     LicencePolicy::default()
@@ -246,6 +258,10 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
         "{}",
         described_identity(&identity, &Origin::Directory(dir.to_path_buf()))
     );
+    if let Some(kinds) = kinds {
+        let kinds: Vec<&str> = kinds.iter().map(EntityKey::as_str).collect();
+        println!("  items       {}", kinds.join(", "));
+    }
     println!("{} is a valid {}.", dir.display(), identity.kind);
     Ok(())
 }

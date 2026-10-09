@@ -2994,9 +2994,30 @@ loader rows) through `mineworld_test_support::scratch!`.
 `tools/cli/tests/entity_packs.rs` (ED-1, ED-4, ED-5, ED-6, ED-9 through the real binary,
 `MINEWORLD_PACKS` removed from every child unless the case sets it).
 
-- [ ] Implementation · [ ] Validation (the new file; `packs.rs`, `requirements.rs`, `commands.rs`
-  unchanged and passing; M-D1, M-D4, M-B3) · [ ] Review (no rebuild anywhere in ED-9; the six refusals
-  table above holds).
+- [x] Implementation: `tools/cli/src/packs.rs` `validate`: a `pack.yaml` pack is judged by the licence
+  policy, then `Identity::require_framework()` (PD-37), then its content by type — Entity Pack →
+  `mineworld_worldpack::validate_entity_pack` and an `items` line (`  items       bread, coffee`);
+  otherwise the style manifest as before. A World Pack's path is unchanged. `main.rs` untouched: its
+  `items` line already prints `pack.items()`, now composed. `tools/cli/tests/entity_packs.rs` (5 tests):
+  ED-1 (resolve names `goods "^0.1" → entity-pack 0.1.0` and the directory; validate's `items` line
+  composed; 30-day seed-7 run: `history` and `faults` lines EQUAL to the unmodified Market Town's,
+  `faults 0`), ED-4 (no root → "no pack directory was given"; empty root named; pack beside the world not
+  found), ED-5 + ED-6 (GPL-3.0-only and `^9` refused by `packs resolve` and `packs validate`; a
+  presentation pack's `^9` refused by `packs validate`), `packs validate` lists kinds, ED-9 (fresh root,
+  `packs list` shows `entity-pack … goods`, resolve, 1-day run; binary length and mtime unchanged;
+  no `cargo` spawned; `CARGO_BIN_EXE_mineworld` is the `.exe` on Windows).
+- [x] Validation: `cargo test --no-fail-fast -p mineworld-cli --test packs --test requirements --test
+  commands --test entity_packs` → 4 + 5 + 5 + 6 passed, 0 failed (entity_packs 3.5 s). clippy `-p
+  mineworld-cli --all-targets --all-features -D warnings` clean. Mutations, each observed and reverted
+  (`git status` after: only the C4 files): **M-D1** (pack kinds created after organizations, in `load.rs`)
+  → `a_world_uses_an_entity_pack_without_copying_it` FAILED: history 37 888 facts `4e8c9554e841ee3b` vs
+  Market Town's 38 004 facts `f4055c0cff59c9fe` (so the 30-day equality is discriminative: one moved id
+  changes 116 facts); **M-D4** (the world's parent added as an implicit root when none is given) →
+  `an_absent_entity_pack_is_refused_naming_where_it_was_searched` FAILED; **M-B3** (policy allows every
+  requirement) → `a_data_pack_outside_the_policy_or_the_framework_is_refused_by_name` FAILED.
+- [x] Review: ED-9 builds nothing and spawns only the binary; the six refusals table holds for E-d's rows
+  (b ED-4/M-D4, c ED-3/M-D3, d ED-5/M-B3, e ED-6/M-D5); `packs.rs`' `list`/`show` untouched (E-c's lane,
+  §17.8), only `validate` changed.
 
 ### Ed-C5 — Close
 
