@@ -39,17 +39,19 @@ POST-MERGE SYNC     planning session: step header, §§1–15, overall, MVP_STAT
                     this session: §19 and the evidence rows
 ```
 
-## Current checkpoint — TD-C1 in progress
+## Current checkpoint — MATERIAL STOP TD-D4 (awaiting the primary session)
 
-- E-TD-base captured on 77a8717 (`/tmp/s15-12d/base-*`, binary `/tmp/s15-12d/target-base/debug/mineworld`):
-  towns' digests = E-TD0; validate outputs = E-Z7's; bodies-yard 30-day = bd6a1002…; long_run bytes
-  pending.
-- E-TD1 (the slice geometry table) delegated to a read-only research agent; its output goes to
-  `/tmp/s15-12d/etd1/table.txt`.
-- Discovery: `ARC-39` already has a note 4 (IL-a, #80), so 12d's note is **note 5** (§19.13 TD-D1).
+- Done and pushed: TD-C1 (bf97ab0 + the E-TD1 ledger commit), TD-C2 (f218e4f), TD-C3 (0d5af1f), TD-C4
+  (801548a; its post-TD-C5 half and M-TD2 … M-TD4 pending), TD-C6 (fc680a8).
+- E-TD-base and E-TD3: every reference = §20.14. Runs used: 2 of 6 other, 0 of 13 TD-12.
+- STOP: the café's table north (slice put_solid, half 437) stands 223 mm from the wanderer (7110, 3900);
+  §19.13 TD-D4 has the evidence and options (a) move the wanderer, (b) author the table's south face at
+  y 4200 (77 mm inside, within TD-3's 150), (c) the slice moves it. Recommendation (b).
+- Also for the ruling: the street's 63rd solid, an elevated bank tree — proposed omitted as a probe
+  exemption.
+- No PR opened. No background job running.
 
-## Next actions
+## Next actions (after the ruling)
 
-1. Finish TD-C1: DECISIONS notes (ARC-35, ARC-37, ARC-39 note 5), MODULE_SPEC §4.1, E-TD-base and E-TD1
-   into §19.12; doc checks; commit, push.
-2. TD-C2 … TD-C8 as §19.5.
+1. TD-C5 with E-TD1's boxes (§19.12) and the ruled remedy; then M-TD2 … M-TD4 on the real towns.
+2. TD-C7, TD-C8 as §19.5; run the ignored `client_2d` tests once with Godot after TD-C5 (TD-D2).

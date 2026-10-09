@@ -6175,10 +6175,14 @@ café, the street and The Flower Room, its source line, its authored box and its
 headless Godot print of the built collider's AABB in the slice, recorded; never guessed. A street with
 more than 64 colliders: stop (SOLIDS_MAX is bodies' rule) — QD-3's answer decides which are merged.
 
-- [ ] Implementation: the three notes, MODULE_SPEC §4.1, the handoff; E-TD-base; E-TD1.
-- [ ] Validation: both doc checks; the decision-id count unchanged; every capture's sha-256 recorded.
-- [ ] Review: the notes say what SD-D5, SD-D9 and SD-D10 decide and nothing more; no defined term
-  redefined (`Item`, `World Pack`); E-TD1's every row ≤ 150 mm or named under QD-3.
+- [x] Implementation: the three notes (`ARC-39`'s as note 5, TD-D1), MODULE_SPEC §4.1, the handoff
+  (bf97ab0); E-TD-base (bf97ab0); E-TD1 (§19.12, by a read-only research agent, reviewed here).
+- [x] Validation: both doc checks (191 sections; 69 decision ids, unchanged by the notes); every
+  capture's sha-256 recorded (E-TD-base, all = §20.14).
+- [x] Review: the notes say what SD-D5, SD-D9 and SD-D10 decide and nothing more; no defined term
+  redefined; E-TD1's every authored row ≤ 150 mm or named under QD-3 (the two leaves; the elevated bank
+  tree proposed as a third, TD-D4). **E-TD1 found one person within 300 mm of a slice-matched solid:
+  MATERIAL STOP TD-D4.**
 
 ### TD-C2 — R-PK-2: item kinds have names, disclosed as a catalogue
 
@@ -6651,6 +6655,93 @@ E-TD-base TD-C1, 2026-10-08, implementing session, on mvp0/pr-12d-towns @ 77a871
 
 E-TD-runs The 300-day town-run ledger (§19.13 amendment; cap 6 other + 13 TD-12 = 19):
         other  1–2  E-TD-base (social-cafe, market-town)
+        (no other 300-day town run so far; TD-12: 0 of 13)
+
+E-TD2 TD-C2 (f218e4f): `cargo test -p mineworld-item` 6/6; the five market packs and bodies green;
+      `validate worlds/market-town` valid, 129 genesis facts; M-TD6 bit (§19.5 TD-C2).
+
+E-TD3 TD-C3 (0d5af1f), /tmp/s15-12d/c3: bodies-yard 30 d bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6,
+      long_run 23f7fa76016294ab18ae5b6a6b568b61d1b36fc0741ee51eb7952276a1de5125, long_run_objects
+      c8358f8bbc06c94fbd7db33375dfe21ad0da80ddd39ee93ce9a72d542798c5b4 — each = E-TD-base (TD-14 holds).
+      `validate` social-cafe and bodies-yard valid. M-TD1 and the movement mutation bit.
+```
+
+**E-TD1 — the geometry table of TD-3 (TD-C1).** Produced by a read-only research agent of the
+implementing session on `77a8717`, by hand from the slice sources and the glTF JSON, cross-checked in
+Godot 4.7.2 headless on a scratch copy of `clients/3d-spike` (`/tmp/s15-12d/etd1/proj`; logs
+`dump.log`, `dump2.log`); hand and Godot agree within 0.5 mm. `--slice-measure` was not run inside the
+repository (an import could rewrite tracked `*.import` files); `git status` unchanged. Reproduced
+verbatim from `/tmp/s15-12d/etd1/table.txt` and reviewed by the implementing session (the wanderer's
+row re-computed by hand: 0.796 × (cos 0.22 + sin 0.22) × 0.46 = 437 mm half; 4 560 − 437 − 3 900 = 223
+mm):
+
+```text
+1. FRAMES (place mm → Godot m; to_3d (x,y,z) mm → (x, z, −y) m: clients/protocol/mineworld/space.gd:54-61;
+   SliceLink.origin = door_point(key) − to_3d(doorway).xz: slice/slice_link.gd:83-95)
+   café   x = (gx − 1.84)·1000, y = −(gz + 8.44)·1000; door_point (3.45, ·, −8.64) (slice_link.gd:84-87;
+          slice_world.gd:41; cafe.gd:28,36; street.gd:35) minus here (1610, 200). Inner faces → 0/8320/0/10320.
+   street x = (gx − 3.45)·1000, y = −(gz + 4.90)·1000; door_point (3.45, ·, −7.90) minus there (0, 3000).
+          Façades y 3200 / −13000 (street.gd:35-36); X ±34 → −37450 / 30550 (street.gd:31-32).
+   store  x = (gx − 10.80)·1000, y = −(gz + 8.45)·1000; florist unit slice_world.gd:117,136, terrace.gd:83-85,
+          shop_interior.gd:39-44; room_box P(10.8,−0.24,−15.8) S(7.9,3.78,7.35) → floor (0,0)-(7900,7350).
+   Doors drawn (street frame): N Books −36110, Bakery −27610, house −19700, Maple −8610, Flower Room 8390,
+   Daily Bean 0; S house −25700, Everyday Mart −15790, house −5700, Lakeside Deli 4710, house 15300, house
+   26300 (terrace.gd:146-147, 231-233; cafe.gd:253).
+
+2. put_solid (dressing.gd:72-93, 129-140: the yaw-rotated local AABB × 0.92, centred at pos.xz; top 0.96·size_y).
+   No node transform in these glTF files; local AABB = union of POSITION accessors. Size (m):
+   round_wooden_table_02 0.796178 × 0.746027 × 0.796178   planter_box_01 0.912612 × 0.424968 × 0.413668
+   planter_pot_clay 0.265997 × 0.221870 × 0.263463        standing_chalkboard_01 0.919527 × 1.509032 × 0.758705
+   wooden_display_shelves_01 0.371510 × 1.556184 × 1.077761  Shelf_01 1.003444 × 2.080310 × 0.256979
+   wooden_crate_01 0.825273 × 0.349618 × 0.408954
+   café table east  (cafe_interior.gd:467,482; yaw 0.15)  half 416.86 → (4443,2743)-(5277,3577) top 716
+   café table north (yaw −0.22)                           half 437.34 → (6673,4123)-(7547,4997) top 716
+   café table back  (yaw 0.08)                            half 394.34 → (1866,8166)-(2654,8954) top 716
+   planter boxes (streetscape.gd:164-165)  (−2849,2180)-(−1951,2720), (6851,2180)-(7749,2720) top 408
+   clay pots (:179-181)  (−1310,2561)-(−990,2879), (1010,2561)-(1330,2879), (5090,2191)-(5410,2509) top 213
+   A-boards (:221, :223) (−1643,1131)-(−557,2169), (−31179,909)-(−30121,1891) top 1449
+   display shelves (shop_interior.gd:177-181, yaw π/2: run 276 mm into the west wall; clipped at x 0)
+                         (0,2379)-(716,2721), (0,3629)-(716,3971) top 1494
+   Shelf_01 (:226-228)   (4888,7072)-(5812,7308), (6188,7072)-(7112,7308) top 1997
+   florist table (:94,281) (3592,2892)-(4508,3808) top 716      crate (:304) (7003,375)-(7797,825) top 336
+
+3a. CAFÉ floor (0,0)-(8320,10320) — 9 solids, every row ≤ 0.5 mm but the exempt leaf
+   counter (3860,6570)-(8320,7350) h1060 :292-293 | worktop (3860,9290)-(8320,9910) h880 :335-336 |
+   bench slab (2360,460)-(8020,900) h470 :439-440 | dresser (0,2110)-(340,4510) h840 :152 |
+   the three tables above | door leaf (751,0)-(1153,746) h2070 cafe.gd:262-266,281 EXEMPT (315 mm from the
+   70 mm board; §19.3.1 dropped the board's thickness) | back-room blocker (195,10230)-(1245,10320) h2000 :533
+
+3b. STREET floor (−37450,−13000)-(30550,3200) — 63 solids (the prototype's 59, re-sized, + 4):
+   retaining wall (15050,1000)-(26050,3200) h1900 | lamps r130 → half 91 (d 39) at N (−27450|−11450|5550|21550,
+   −600), S (−20450|−2450|14550, −9200), h2400 | bollards r160 → half 113 (d 47) at y −980 x −5450 −3100 −750
+   1600 3950 6300 8650 11000 13350 15700 and y −8820 x −22450 −20050 4150, h1000 | bins r240 → half 169 (d 71)
+   at (150,−850), (−24850,−850) h900 | trees N (−30950,50) half 156, (−23950,50) 167, (−15950,50) 178,
+   (17050,50) 156, (23550,50) 167; S (−32450,−9850) 148, (−25450,−9850) 161, (−16450,−9850) 173, (−8450,−9850)
+   186, (50,−9850) 148, (8550,−9850) 161, (17550,−9850) 173; h2200, d 62–78 | stone planters as the
+   prototype, h600 | terrace tables r620 at (1150|3200|5250, 1400) crossed pairs (620, 403): 530 997 1770 1803 |
+   747 780 1553 2020 ; 2580 997 3820 1803 | 2797 780 3603 2020 ; 4630 997 5870 1803 | 4847 780 5653 2020, h850,
+   d 119.5 | planter boxes, pots, A-boards as §2 | benches as the prototype h840 | fingerpost r140 at
+   (−4350,−450) half 98 h2200 | bicycle r500 at (8950,2150) half 353 (d 147) h1100 |
+   missed by the prototype: west parapet N (−37450,−1200)-(−36950,3200) h740; west parapet S
+   (−37450,−13000)-(−36950,−8600) h740 (street.gd:129-131); east bank (29550,−1900)-(30550,3200) h1800
+   (street.gd:136-137); an elevated bank tree (27888,1006)-(28285,1403), underside 1 660 mm, top 3 860
+   (streetscape.gd:124-129) — no floor-standing form; author or omit is a decision.
+   Floor-edge rows (no solid): stallrisers 60–70, florist architraves 80, café door jambs 140 (cafe.gd:216-218).
+   Rows > 150: none authored; the prototype's two A-boards were 229–319 mm off.
+
+3c. THE FLOWER ROOM floor (0,0)-(7900,7350) — 10 solids
+   staging (2100,110)-(7200,950) h1200 | work counter (4500,5750)-(7650,6450) h950 | bucket step
+   (7230,1150)-(7850,4550) h220 | the four shelves, the table and the crate of §2 | door leaf (199,0)-(593,864)
+   h2080 profile.gd:410-412,419 EXEMPT (309) | back-room doorway lets a body 80 mm past y 7350.
+
+6. DOORWAYS (≥ 310): café here (1610,400) 400; store here (1040,400) 400; street (0,2800) 400, (8390,2800) 362
+   (the bicycle), (−19700,2800) 400, (−5700,−12600) 400, (15300,−12600) 400 — all pass.
+7. PEOPLE (≥ 300 from every solid and the floor's edge): alice 650, bob 470, visitor 457, felix 592, ivan 1020,
+   carol 1803, otto 2000, grace 2059, hana 1300, dev 3002, erin 2915 — pass.
+   **wanderer (7110, 3900), café: 223 mm from table north (6673,4123)-(7547,4997) — FAILS** (the prototype's
+   ±300 placeholder gave 360 and hid it).
+8. OBJECTS: cafe-box, cafe-ball, street-box, street-ball — each clear of every solid, inside its floor, ≥ 3 m
+   from every doorway; tightest street-ball 440 mm from terrace table 2.
 ```
 
 ## 19.13 Deviations and discoveries during implementation
@@ -6685,6 +6776,46 @@ would be dropped silently. Corrected: `item` declares and installs an `item-cata
 stored state is added (the TD-C2 review's "never stored" holds); QD-12's per-place component was not
 needed. Validation: the catalogue test reads the record through `PerceptionProvider::discloses`;
 TD-C7 reads it through a real observation.
+
+**TD-D4 — MATERIAL STOP before TD-C5: the slice's café table north stands 223 mm from the wanderer
+(E-TD1 §7).** Stop condition met: §19.9 "a slice-matched solid refused at genesis by an authored
+person", and TD-C5's failure case ("the person does not move (SD-D7); the solid is re-read (E-TD1) and,
+if the slice really places them overlapping, that is a QD to the primary session, not an edit").
+
+- **Evidence.** The wanderer's authored position is café (7 110, 3 900) (`worlds/{social-cafe,
+  market-town}/people/wanderer.yaml:28-32`). The slice's table north is `put_solid(n,
+  "round_wooden_table_02", (x0 + 7.11, fy, −4.90), yaw −0.22)` (`cafe_interior.gd:467-482`); the asset is
+  0.796 × 0.746 × 0.796 m (glTF POSITION accessors); the collider is the yaw-rotated AABB × 0.92
+  (`dressing.gd:135-140`): half 0.796 × (cos 0.22 + sin 0.22) × 0.46 = 437 mm, centre (7 110, 4 560)
+  → (6 673, 4 123)–(7 547, 4 997). Its south face is 4 123 − 3 900 = **223 mm** from the wanderer's
+  centre; bodies refuses a centre within 300 mm of a solid (`bodies-in-solid`). Re-read twice: by hand
+  (this session) and in Godot headless (the E-TD1 agent's dump, within 0.5 mm). §19.3.1's ±300
+  placeholder (and E-TD0b's prototype) gave 360 mm and hid it. Every other person, doorway and object
+  passes.
+- **What is not affected and is done:** TD-C1 (but E-TD1's table now recorded), TD-C2, TD-C3, TD-C4
+  (its post-TD-C5 half and M-TD2 … M-TD4 pending), TD-C6. **Not started:** TD-C5 (the towns' world
+  files), TD-C7, TD-C8. No town 300-day run beyond E-TD-base; no TD-12 run.
+- **Options (smallest first), for the primary session:**
+  - **(a) move the wanderer** to (7 110, 3 800) — 323 mm from the table; 4.34 m from Alice (the file's
+    comment says "4.2 m … against a three-metre range", still true in kind). Changes a person file in
+    both towns identically (check 3 holds), against SD-D7 and the frozen "no person file changes";
+    plus the two literals that hold (7 110, 3 900): `tools/cli/tests/ac15_one_alice.rs:77`
+    (`WANDERER_BY_THE_TABLE`) and `persistence/tests/kill_and_resume.rs:310` (`CAFE_SEATS`) — the
+    second is outside §19.1's change set. Any digest it moves is inside the one planned re-baseline.
+  - **(b) author table north's south face at y 4 200** (box (6 673, 4 200)–(7 547, 4 997)): 77 mm inside
+    the collider's face, within TD-3's 150 mm, the wanderer then exactly 300 mm clear. No person file
+    changes; departs SD-D2's "bounds × 0.92" for one face of one prop, named in E-TD1.
+  - **(c) the slice moves the table** (a client change, 12e/16c; not 12d's) and 12d authors the moved box.
+- **Recommendation:** (b), the content-only change bounded by TD-3's own tolerance, if the primary
+  session accepts one solid authored up to 150 mm inside its slice collider; otherwise (a).
+- **Other E-TD1 discoveries, bounded unless the primary session says otherwise** (to be applied in
+  TD-C5 as recorded): the street needs **63** solids (≤ 64), the prototype's 59 plus two west parapets
+  and the east bank, plus one elevated bank tree (underside 1 660 mm, blocks the 1.72 m capsule) that a
+  floor-standing box cannot represent — authored as a full-height box is the faithful reading of SD-D2
+  ("every slice collider standing on a walkable floor"; this one does not stand on it), so the session
+  proposes to **omit** it and name it with the leaves as a probe exemption (62 solids); the door leaves'
+  boxes are (751, 0)–(1 153, 746) and (199, 0)–(593, 864) (§19.3.1 dropped the board's 70 mm); the
+  put_solid props are E-TD1 §2's (tables half 394–437, not 300).
 
 **Freeze note (planning session, 2026-10-08) — the budget field, for the primary session.** The
 freeze sets the budget at six 300-day town runs. TD-12a as accepted at the same freeze (QD-14) needs
