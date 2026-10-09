@@ -13,6 +13,8 @@ authorizes implementation. Each PR is detailed to the commit and frozen in turn 
 **PR 16a:** detailed to the commit in §19, `DESIGN FROZEN (2026-10-08), primary session`.
 **PR 16c:** detailed to the commit in §20, `DESIGN FROZEN (2026-10-08), primary session` (record in §20.0), drafted on
 `plan/s14-16c` from `main @ 9cf8f8e`.
+**PR 16d:** detailed to the commit in §22, `PR design — ready for freeze review`, drafted on `plan/s14-16d` from
+`main @ f80bbb7` (§21 is left to S15 12e's design, drafted in parallel on `plan/s15-12e`).
 **Branch:** `plan/s14-3d`, from `main @ 0fd0be3`, worktree `/Users/yuema137/mineworld-worktrees/plan-s14-3d`,
 held by this planning session only.
 **Written in parallel** with the S11, S12, S13 and Milestone E planning sessions, while 12c is being
@@ -2816,4 +2818,538 @@ next action    a fresh implementation session in /Users/yuema137/mineworld-workt
 background     none
 notes          E16c-0's log is in the planning worktree's ignored shots/16c-plan/; the implementing
                session re-measures on its own base (C1)
+```
+
+---
+
+# 22. PR 16d — things you can buy, hand over, eat and drink, in Market Town, in 3D (full design)
+
+**Lifecycle: `PR design — ready for freeze review`.** Drafted by the 16d planning session on `plan/s14-16d`
+from `main @ f80bbb7` (2026-10-09), worktree `/Users/yuema137/mineworld-worktrees/plan-16d`. Nothing here
+authorizes implementation; the primary session (and the operator for the questions marked **[OM]**)
+freezes it (`CLAUDE.md` §3.1).
+
+**Why §22.** §21 is left free for S15 12e's PR design, which another session is drafting in parallel on
+`plan/s15-12e` in this same file. If 12e takes a different number, the primary session renumbers this
+section at the merge; nothing inside refers to its own number except headings.
+
+**Authority.** §22 refines §4.4's `buy` row, §5's `--world=market-town --buy` row, §13's 16d row and §14's 16d
+lines. Where they differ, §22 governs, and each difference names the finding that caused it (§22.2). The
+operator's "One world, two views" rule and the "no rule in the client" rule (D-2, `ADOPTION.md` §3.3,
+`ARC-47`) override this section if they ever disagree.
+
+**Identifiers are placeholders**: findings `A16d-<n>`, decisions `D-16d-<n>`, acceptance lines `O-` (offers
+and menus), `N-` (names), `K-` (what you have), `P-` (parity with 2D, `AC-13`), `G-` (Godot), `V-` (visual),
+mutations `M16d-<n>`, operator checks `OC-<n>`, questions `Q-16d-<n>`, evidence `E16d-<n>`, risks
+`R-16d-<n>`. No new decision number is proposed (Q-16d-10).
+
+## 22.1 Identity, base, proposed scope
+
+```text
+PR            16d — Market Town in 3D: buy, hand over, eat or drink, and what you have (S14; GitHub
+              number assigned at freeze, ruling 7)
+base          main after S15 12d, S12 13b and S20 SET-a have merged, with the 0.4 m doorway inset on
+              main (D-16d-1; §22.11 PRECONDITION)
+branch        mvp0/pr-16d-market-3d from main, worktree /Users/yuema137/mineworld-worktrees/impl-16d,
+              held by the implementing session only
+audit         §22.2 (main @ f80bbb7 plus the named branches), re-checked on the base in C1
+```
+
+**Scope:**
+
+| ID | Item | Source |
+| --- | --- | --- |
+| **SD-1** | **Market Town from the 3D launcher.** `./mineworld-slice --world=market-town` hosts `worlds/market-town` exactly as `--world` hosts `social-cafe` today; `--world` alone is unchanged | §13's 16d row; QS14-5 |
+| **SD-2** | **Your menu (B).** Every target-less affordance the latest observation offers — `buy` per priced kind, `eat`/`drink` per kind held, and whatever else a pack offers target-less — one entry each, in the server's order, with the server's verdict and reason; beside it, what you have: money, what you carry, and the shop's listing where you stand | §13's 16d row; the coordinator's brief (buy, eat or drink, inventory); QS14-7 |
+| **SD-3** | **The menu of the person you look at (Tab).** Every affordance whose target is the person the camera's ray meets (16a's `SliceTargeting`), in the server's order — `give` per kind held, `talk`, and anything else offered — with verdicts and reasons | the coordinator's brief (hand over); 13b's person menu (D-b-1) |
+| **SD-4** | **Complete affordances are submitted unchanged** (`submit_affordance`, D-2); the client composes nothing new. An entry it cannot ask for is listed, disabled, never sent | `ADOPTION.md` §§2, 3.3; 16b SB-5; 13b D-b-2 |
+| **SD-5** | **Things are named.** Every item a menu, a panel or a result mentions is shown by the name the world discloses in `item-catalogue` (12d SD-D10); no entity id is ever on screen | F-S14-24, R-F41 (delivered as R-PK-2 by 12d); `SliceLink.display_label`'s rule |
+| **SD-6** | **All UI text through translation keys**, in the shared catalog layer SET-a creates, in `en` and `zh_Hans` | ARC-70; step-20 §3.6, SD-SET-a-17 |
+| **SD-7** | **The same requests as 2D** (`AC-13`) for buy, drink, give and eat, compared with 13b's real 2D client by the server's own definition | §4.8; QS14-17; the coordinator's brief |
+
+**Non-goals (each belongs elsewhere, and 16d must not start it):**
+
+- kick, throw, shove, colliders, the correction rule, objects drawn — 12e's. If 12e has landed, its
+  complete target-less `kick`/`throw` appear in your menu automatically (D-16d-3), and nothing in 16d
+  names them;
+- walking figures, doorways, the florist as the store — 16c's;
+- composing any new incomplete action: `invite`, `accept-invitation`, `decline-invitation`,
+  `join-group-activity`, `leave-group-activity` are listed and disabled ("not supported by this
+  client") in 3D (Q-16d-6); a typed utterance for `talk` (Q-16d-7);
+- the other own panels 13b shows (conversation history, acquaintances, invitations, agenda,
+  employment, "other") (Q-16d-8);
+- the parity test of what each client *shows* (16e with 13f); 16d emits its `MENU`/`PANEL` reports in
+  13b's format so that test has a 3D side;
+- any change under `kernel/`, `contracts/`, `persistence/`, `server/`, `systems/`, `cognition/`,
+  `worlds/`, `tools/cli/src/`, `clients/protocol/**` (ruling 4), `clients/2d/scripts/**` (13b's);
+  a Presentation Pack for 3D (16f).
+
+**Binding constraints carried in.** `VIS-3D-GODOT-1` and `VIS-3D-GODOT-2` must not regress (I-S14-7, §22.7).
+Standalone mode gains nothing from 16d. Every platform (macOS, Linux, Windows): no platform branch, and
+the hand checks name the OS they run on (§22.9).
+
+## 22.2 Audit anchors (`main @ f80bbb7`, 2026-10-09, and the branches named)
+
+Every row was read in this session from the file named. Rows marked **(branch)** are read from a branch
+that is not on `main`; C1 re-reads them on the merged base and records any difference before code.
+
+| ID | Finding | Evidence | Consequence for 16d |
+| --- | --- | --- | --- |
+| **A16d-1** | **3D composes one interaction.** `SliceIntents` holds `TALK := "talk"`, `DEFAULT_UTTERANCE`, a `VERBS` table, a `_pending` token table and `talk_offered`/`talk_reason`, which read the verdict only to *say* it. No complete affordance is ever submitted by the 3D client | `clients/3d-spike/scripts/slice/intents.gd:1–57` | `intents.gd` gains `submit_offered(affordance, actor_location)` over 16b's `submit_affordance`. No new action literal: a complete affordance carries its own type (A16d-11) |
+| **A16d-2** | **Results of anything but talk read as raw codes.** `_on_resolved` shows `"%s: %s" % [what, kind]` — a `buy` would read "buy: accepted", by its action type; `_readable` turns `too_far_away` into "too far away"; E calls `talk_to_facing(DEFAULT_UTTERANCE)` directly, no menu. `slice_link.gd` is 541 lines | `slice_link.gd:472–541`; `wc -l` | Results go through keys (`action.<type>.done`, `ui.result.*`) with names (D-16d-7). New UI goes in new files; `slice_link.gd` gains only the result wording and the hand-over to the menu |
+| **A16d-3** | **The 3D HUD's visual standard.** `ControlsHud._style`: white at 0.88 alpha, black shadow 0.75 offset (2, 2); status lines 15 px from (18, 14) stacking by 24 px; toast 30 px centre-bottom; captions 24 px on a `StyleBoxFlat` black 0.45, radius 6, margin 10. `CONTROLS` is one line shared with the promenade | `clients/3d-spike/scripts/controls_hud.gd:16–191` | Menus and panels use exactly this look (D-16d-8); the standalone controls line is not edited, so no accepted standalone frame changes (V-1) |
+| **A16d-4** | **The launcher hosts one world.** `--world` hard-codes `worlds/social-cafe --agent alice`, port 0, reads the invite from the join line; `--link`, `--drive`, `--target` force headless | `mineworld-slice:54–103` | `--world=<pack>` (D-16d-2); a new headless mode `--market` |
+| **A16d-5** | **The shared module already has everything (16b).** `affordances(type, target)` (all matches, server order; `""` = target-less), `complete_affordances`, `is_complete` (key presence), `affordances_about(id)`, `component_value`, `display_name`, `submit_affordance(affordance, actor_location)` (re-sends whole doubles as integers) | step-15 §18.3 SB-1 … SB-7; `clients/protocol/mineworld/observation.gd`, `world_client.gd` | **No module edit** (ruling 4). The one reader 16d needs that the module lacks — item names — stays client-local (D-16d-5) |
+| **A16d-6** | **What Market Town offers the visitor at genesis.** Vera Lindgren (seat `visitor`) at the café door (1 610, 600), holding apple 1, scarf 1, wallet 200 000 minor units. The café is `cafe-company`'s shop: coffee 300, tea 250, croissant 250, cake 400, sandwich 600, soup 500, all in stock. `buy` is complete, target-less, one per priced kind, only in a shop's place, and **offered unavailable when it cannot happen now** ("so a client can still show what is for sale", QS-44). `give {item, count: 1}` is complete per kind held against each present person, ≤ 3 000 mm. `eat`/`drink {item}` complete, target-less, per food/drink kind held, no spatial requirement. Bob (4 500, 6 100) is ≈ 6.0 m from the door, Alice ≈ 8.7 m | `worlds/market-town/people/{visitor,bob,alice}.yaml`; `organizations/cafe-company.yaml`; `systems/economy/src/offer.rs:27–49`, `action.rs:45–57`; `systems/item-transfer/src/offer.rs:42–48`; `systems/consumption/src/offer.rs:44–52`; 13b B-5, B-7 | From the door Bob's two `give` entries are listed **unavailable, too far away** — the natural "chosen regardless" case (O-3). Every buy is affordable at genesis, so an affordability mutation would bite on nothing: O-5 uses a test-time copy with a poor visitor (D-16d-10) |
+| **A16d-7** | **Item names arrive with 12d (branch).** `item: { category, name }`; `item` discloses, to whoever perceives a place, `item-catalogue` on the place: every declared kind `{ item, category, name }` in `ItemId` order, built at disclosure, never stored. `coffee.yaml`: `item: { category: drink, name: Coffee }`. 12d is paused for S15 12n | `origin/mvp0/pr-12d-towns` `f218e4f` (TD-C2), `systems/item/src/component.rs:70–110`, `worlds/market-town/items/coffee.yaml`; head `8814aad` "paused for 12n"; step-11 SD-D10 | 16d depends on 12d's merge (D-16d-1). The JSON shape of an entry (`item` as a typed reference or a string) is pinned from a live frame in C1, never from the Rust struct |
+| **A16d-8** | **13b's 2D design, as implemented (branch).** `menu.gd`: entries `{action_type, kind, target, about, complete, available, reason, label, enabled, affordance}`; kinds `complete`, `composed`, `point`, `unsupported`, `walk`; verdicts read where entries are built, never where one is chosen; choose closes the menu; a separator where the type changes. `intents.gd`: `COMPOSED`, `submit_offered`, `compose`, pending `{action_type, target, about}` where `about` is the payload's first typed reference `{entity, entity_type}`. `readers.gd`: `thing(id)` → `display_name` else `"item {id}"` (QS13b-3, until R-PK-2); wallet as minor units through `Words.money` (`"%d.%02d"`), holdings `held[{item, count}]`, shop `listed[{item, price, in_stock}]`. The harness prints `MENU`, `PANELS`, `REQUEST` lines; steps are JSON written by the Rust test (`{"open": id \| "self"}`, `{"choose": {"action_type", "about"}}`, `{"choose": {"walk": true}}`) | `origin/mvp0/pr-13b-interactions` `98bd42e`: `clients/2d/scripts/{menu,intents}.gd`, `hud/{readers,words}.gd`, `harness/interact.gd`; `tools/cli/tests/client_2d_interact.rs:181–360` (`item_steps`, `transcript`, `differing_fields`) | 3D builds the **same entry model** and prints the **same report lines** (D-16d-4), and its `AC-13` test re-uses 13b's `item_steps` and harness unchanged (D-16d-11) |
+| **A16d-9** | **13b's wording (branch).** `presentation/mineworld-default/2D/i18n/en.po`: `action.<type>` / `.done` for every default action, with `{target}` and `{item}`; `reason.*` for the kernel's closed reasons and `malformed-payload`; `ui.*` (`ui.unsupported`, `ui.unavailable`, `ui.needs-range`, `ui.self`, `ui.menu.empty`, `ui.result.*`, `ui.item`), `panel.*`, `ui.row.*`, `format.money` | that file, 261 lines | The menu and panel keys are the same concepts in 3D; D-16d-6 shares them rather than copying them |
+| **A16d-10** | **SET-a (frozen, waits for 13b).** `clients/shared/settings/` with `MineWorldText` (`load_layers`, `code(family, code, args)`, readable fallback); layer 1 (shared) holds `action.*`, `reason.*` moved verbatim from 13b's file (SD-SET-a-17) **and the 3D client's own keys until 16f**; layer 2 is a pack's; a key in two layers needs `#. override` in the later one (AC-SET-4); `client_text.rs` scans 3D text sinks (AC-SET-3) and asserts every key used exists in `en` and `zh_Hans`; 3D's `_say(log_line, shown_key, args, notice)` (SD-SET-a-10); Esc toggles the settings menu in 3D (SD-SET-a-8); an open menu takes gameplay input (AC-SET-12); harness modes run `--settings=none`; `--wording=none` | step-20 §3.6, §12.3, §7 | 16d starts after SET-a (D-16d-1) and puts its keys in layer 1 (D-16d-6); it re-uses SET-a's input gate and Esc order (D-16d-9) |
+| **A16d-11** | **`action.move`'s English is 2D-specific.** 13b words `action.move` "Walk (click where to go)"; SET-a moves every `action.*` verbatim into the shared layer, so the 3D client would read "click where to go" | A16d-9; SD-SET-a-17 | D-16d-6: the shared entry becomes neutral ("Walk"); the 2D pack keeps its wording with `#. override`. 2D's screen does not change |
+| **A16d-12** | **The no-rule scan admits 3D's `move` (slice_link) and `talk` (intents) only**, and fails an admission that admits nothing. Rule-named declarations (`REACH`, `RANGE`, …) are refused | `tests/acceptance/tests/client_rules.rs:35–80` | 16d needs **no new admission**: complete affordances carry their type; `move`'s entry is recognised by `SliceLink.MOVE_ACTION`, not by a literal (D-16d-3). A 16d constant names none of the scan's rule words |
+| **A16d-13** | **The player's input is polled.** `Player` reads WASD with `Input.is_action_pressed`; `ui_cancel` toggles the mouse; a click with the mouse visible recaptures it | `clients/3d-spike/scripts/player.gd:101, 147–159` | A menu must hold gameplay input through SET-a's gate, not by editing `player.gd` (V-2 keeps it untouched); a click on a menu entry is consumed by the GUI before `_unhandled_input` |
+| **A16d-14** | **The connected probe is large and shared.** `slice_probe_world.gd` 598 lines (modes `link`, `conversation`, `target`; helpers `_aim_at`, `_report_aim`, `_talk_to`, `_walk_to`, `_answered`); 16c and 12e add modes to it | `wc -l`; `slice_probe_world.gd:18–598`; §20.7, §13 | 16d's mode lives in a sibling, `slice_probe_market.gd`, extending it for its helpers (as 16a split `slice_probe.gd`) |
+| **A16d-15** | **13b's Rust harness is reusable as is (branch).** `godot2d::worlds::{hosted, ids, facts, play, menus, panel, step_done, step_line, steps_file, copy_dir}`, `godot2d::{MARKET_TOWN, World, passed, tagged}`; `ids(pack)` resolves genesis ids by key; `facts(save)` reads the save's fact log | `tools/cli/tests/godot2d/worlds.rs:19–141` on the 13b branch | 16d's Rust test drives the 2D client with 13b's own helpers and the 3D client with a small sibling helper, `tools/cli/tests/godot3d/mod.rs` |
+| **A16d-16** | **Parallel lanes touching the same client.** 12e (being planned, `plan/s15-12e`) adds kick/throw/shove to `intents.gd`, prompts to `controls_hud.gd`, modes to the probe; 16c (frozen, after 12d) adds `slice_layout.gd`, `figures.gd`, `--layout`/`--street` and `--town` to the launcher; SET-a edits `slice_link.gd`'s `_say`, `slice_main.gd`, `controls_hud.gd`, `intents.gd` (`verb`) | `git worktree list`; §20.7; step-20 §12.4 | 16d's code is in new files; its edits to shared files are a few lines each, named in §22.8; whichever of 12e/16c/16d lands later rebases (R-16d-5) |
+
+No live measurement was taken while planning: every number above is read from source. C1 measures the
+base before anything changes (E16d-1).
+
+## 22.3 Design decisions (D-16d-*)
+
+| ID | Decision | Alternatives considered | Why |
+| --- | --- | --- | --- |
+| **D-16d-1** | **Order.** 16d starts on `main` after **12d** (item names, Market Town's geometry), **13b** (the 2D side of `AC-13`, its wording and harness) and **SET-a** (the shared catalog, Esc, the input gate) have merged, and with `./mineworld-slice --world --link` passing on that `main` (the 0.4 m inset, SD-D8, landed by 16c, 12e or the primary session's hotfix, Q-16c-2). **12e and 16c are not preconditions**: either may land before or after 16d, and the later one rebases | wait for 12e as §13 drew it; start before SET-a with a 3D-local wording file | No 16d claim needs bodies, colliders or walking figures: giving needs the person under the ray (16a), buying needs nothing spatial in the client. A 3D-local wording file would be a second catalog SET-a must migrate. §13's "after 12e" was an ordering convenience, not a dependency (Q-16d-1) |
+| **D-16d-2** | **`--world=<pack>`.** The launcher takes an optional pack name; `--world` alone stays `social-cafe`. The name must be a directory `worlds/<pack>` containing `world.yaml`, else the launcher stops with an error naming it; the server is started exactly as today otherwise (`--listen 127.0.0.1:0 --agent alice`, the join line read for address and invite). The "world:" line names the pack | a separate `--market` world flag; a path argument | One flag, one meaning; the pack decides what is offered, so the client needs no market mode. Restricting to `worlds/` keeps the launcher from hosting arbitrary paths |
+| **D-16d-3** | **One entry model, 13b's** (A16d-8), built in a new `scripts/slice/offer_menu.gd` (`SliceOfferMenu`). Subjects: **you** (`affordances("", "")`) and **the person the ray meets** (`affordances("", id)`). One entry per affordance, in list order, nothing removed, nothing invented. Kinds: `complete` → enabled, chosen → `intents.submit_offered` → `submit_affordance` unchanged; `composed` (only `talk`, the one type 3D composes) → enabled, chosen → `intents.talk` with the default utterance (Q-16d-7); `body` (the type the client sends from the body: `SliceLink.MOVE_ACTION`) → listed, not choosable, labelled with the key `ui.by-body`; anything else → listed **disabled**, `ui.unsupported`, never sent. `available: false` → greyed **but choosable**, labelled with the reason and, when declared, `ui.needs-range` from `requirement.within_range`, unevaluated. Verdicts are read only while building entries, never in the choose path. The menu is rebuilt from every newer observation while open; each entry carries the affordance it was built from; it closes when its person is no longer perceived, and on a choice | a 3D quick action ("the first available"); separate buy-only and inventory-only lists filtered by action type | Choosing by verdict, or filtering by a named type outside `intents.gd`, would be the client deciding (13b D-b-4; the scan). The same model in both clients makes the two `MENU` reports comparable field for field (P-2) |
+| **D-16d-4** | **The reports are 13b's.** The probe prints `MENU {subject, entries: [{index, action_type, target, about, complete, available, reason, label, enabled}], offered}` on every (re)build, `PANELS {...}` with each panel's `component`, `rows` and raw `payload`, and `REQUEST {token, flavour: "3d", request}` from `MineWorldClient.submitted_request`, exactly in 13b's keys | a 3D format | The parity test (16e/13f) and this PR's P-2 compare the two clients with one reader |
+| **D-16d-4a** | **Keys (Q-16d-2 [OM]).** **E** still talks to the person under the ray (16a, accepted). **Tab** opens the menu of the person under the ray ("nobody to offer anything to" toast if none). **B** opens your menu with what you have beside it. Esc closes an open interaction menu; with none open, Esc is SET-a's settings menu. With a menu open the mouse is visible, entries are chosen by click or by Up/Down and Enter, and gameplay input is held by SET-a's gate. A connected-only second controls line (`hint.connected`: "E talk  ·  Tab their menu  ·  B you") is added with `ControlsHud.add_line`; the shared `CONTROLS` line is not edited | E opens the person's menu (13b's E; changes the accepted E-talks behaviour and `--link`/`--conversation`); Q for your menu (13b's Q); one contextual key | Keeps every accepted behaviour; `B` is the key §4.4 and §4.9 already gave buying. Interaction feel is the operator's |
+| **D-16d-5** | **Names of things: a client-local reader**, new `scripts/slice/things.gd` (`SliceThings`, `RefCounted`): `name_of(id)` = the person's or place's `display_name` (as `display_label` already does), else the item's `name` in the current place's `item-catalogue`, else the last name seen for that id in this instance (a name cache dropped on an instance change, 13b D-b-8), else the key `ui.thing.unnamed` ("something"). **Never the id.** It also reads the three panels' shapes (wallet `balance`, holdings `held[{item, count}]`, shop `listed[{item, price, in_stock}]`), pinned from a live frame in C1, and formats money as 13b does (minor units → `"%d.%02d"`, through `format.money`) | add a catalogue reader to the shared module (ruling 4: only S11-A and S11-C edit it); show `item {id}` as 13b does before R-PK-2 | The 3D rule since 16a is that no id is ever on screen (`display_label`). A second reader in 2D and 3D is a known duplication, guarded by P-2 and raised for a later coordinated module PR (Q-16d-5, R-16d-7) |
+| **D-16d-6** | **Wording in the shared layer, one translation for both clients** (Q-16d-4). C2 moves, verbatim and with their `zh_Hans` entries, the concept keys both clients now use from the 2D pack layer to `clients/shared/settings/locale/`: `ui.unsupported`, `ui.unavailable`, `ui.needs-range`, `ui.self`, `ui.menu.empty`, `ui.result.accepted`, `ui.result.rejected`, `ui.result.unavailable`, `ui.result.refused`, `ui.result.unknown`, `panel.wallet`, `panel.holdings`, `panel.shop`, `ui.row.holding`, `ui.row.shop`, `format.money`. The shared `action.move` becomes "Walk" (A16d-11) and the 2D pack keeps "Walk (click where to go)" under `#. override`, so 2D's screen is unchanged. New 3D keys, `en` and `zh_Hans`: `ui.by-body`, `ui.thing.unnamed`, `ui.you`, `ui.menu.nobody`, `hint.connected`. No key is renamed; the union of the two layers after the move equals the union before, entry for entry, except `action.move`'s shared text | copy the keys into the shared layer and leave 2D's (two translations of one concept, AC-SET-4 refuses duplicates without `#. override`); 3D-only key names for the same concepts | SET-a's rule: entries both clients use live once, in the shared layer (step-20 §1.4). A move is SD-SET-a-17's own mechanism; 2D's tests stay green because the keys do not change |
+| **D-16d-7** | **Results in words, with names.** `slice_link._on_resolved` routes every non-`move`, non-`talk` result through `intents.take(token)` → `{action_type, target, about}` and shows `ui.result.accepted` with `action.<type>.done` (`{target}`, `{item}` filled by `SliceThings`), or `ui.result.rejected` / `unavailable` / `refused` with `reason.<code>` via `MineWorldText.code` — 13b's D-b-6 and SET-a's `_say`. A reconnect drops pending entries as `ui.result.unknown`, never resent. The English log line keeps ids (INV-SET-6) | keep `"%s: %s"` | A16d-2: "buy: accepted" is an action type on screen; the reason families are SET-a's |
+| **D-16d-8** | **Look: the slice's HUD, nothing new.** Panels are `PanelContainer`s with the captions' `StyleBoxFlat` (black 0.45, radius 6, margin 10) and `ControlsHud._style` text (15 px entries, 18 px titles), light on dark, the default theme font plus SET-a's Noto Sans SC fallback. Your menu stands left of centre with "what you have" to its right; a person's menu stands just right of the reticle. Unavailable entries at 0.55 alpha (13b); disabled ones at 0.35. No sound, no animation beyond showing and hiding | 13b's warm 2D panel; a new 3D style | `VIS-3D-GODOT-2` accepted this HUD; reusing it adds no new look for the operator to judge beyond placement (Q-16d-9 [OM: visual default]) |
+| **D-16d-9** | **Input while a menu is open** is held by SET-a's gate (whatever C1 finds it to be on the base; SET-a's AC-SET-12 requires one in 3D): no walk, no look, no `move` report. Esc order: an open interaction menu first, then SET-a's settings menu. Both menus close on Esc, on a choice, and when the subject leaves view | edit `player.gd` (V-2 protects it); poll a flag in `slice_link.gd` | One gate for every client menu. If SET-a's gate cannot hold a second menu, that is a bounded change to SET-a's gate recorded in §22.12, not a `player.gd` edit (§22.11 MATERIAL STOP otherwise) |
+| **D-16d-10** | **A poor visitor, at test time only.** O-5 copies `worlds/market-town` into a scratch directory and sets the visitor's `economy: { wallet: 250 }` there (13b AC-I6's `copy_dir` precedent). Tea and croissant (250) are affordable; coffee, cake, soup, sandwich are not, and the server offers them unavailable (A16d-6) | buy six cakes to empty the stock (slower, and Alice's shift restocks) | The one honest way to make "the client thinks it unaffordable" a real case: the frozen adversarial criterion of §13's 16d row needs an offer the client could wrongly hide. `worlds/**` is not edited |
+| **D-16d-11** | **`AC-13` for the market actions, against 13b's real client.** A new `#[ignore]` test file, `tools/cli/tests/client_3d_market.rs`, plays 13b's own `item_steps` (buy coffee, drink it, walk to Bob, give the scarf, eat the apple) with 13b's 2D client on one fresh Market Town, and the same steps with the 3D client on another, and compares the non-`move` requests pairwise with `mineworld_server::differing_fields` (I-S14-9). 3D's steps file uses 13b's selector format; a `{"choose": {"walk": true}}` step is performed by the 3D probe walking the body straight toward the person until 1.2 m short (13b's `APPROACH_M`, a destination, not a range), on the real controller | a recorded 2D transcript as frozen evidence; wait for 16e | The comparison is only meaningful between the two real clients' own acquisitions (R-S14-9). 16e's `ac13_clients.rs` may absorb this file (Q-16d-11) |
+| **D-16d-12** | **Every platform.** No `OS.get_name()` or feature branch in 16d's code; the Rust test spawns `godot` (or `$GODOT`) directly, not the bash launcher, so it runs wherever Godot and cargo run; keys are physical keycodes; the hand checks of §22.9 name macOS (gate), Windows and Linux (checklist), as SET-a does | — | The operator's 全平台 requirement; SET-a's AC-SET-16 scans the shared module only, so 16d states its own no-branch rule and C7 greps for it |
+
+## 22.4 Acceptance (decided before measuring, `ARC-23`)
+
+Every check runs the real 3D client, headless unless stated, against a real `mineworld server` on a fresh
+world, through `cargo test -p mineworld-cli --test client_3d_market -- --ignored --test-threads=1`. The
+oracle is the save's fact log (`godot2d::worlds::facts`) or the raw frame the probe prints beside its
+report, never the client's report alone. Ids are resolved by the Rust test from genesis
+(`godot2d::worlds::ids`), never written in a `.gd` file. Bounds are literals fixed here.
+
+**Offers and menus** (Market Town, seat `visitor`, at the café door):
+
+```text
+O-1  YOUR MENU IS THE TARGET-LESS OFFERS. Step {"open": "self"} at genesis. PASS iff the MENU's entries,
+     ignoring label, equal OFFERED = affordances("", "") of the frame printed with it, one for one, in
+     order: same count; for each, action_type, target (null), complete, available and reason as the
+     frame carries them, and `about` = the payload's first typed reference. Expected on 12d's Market
+     Town: six buy (available), one eat (apple), and move as a `body` entry (not enabled)
+O-2  THE PERSON'S MENU IS THEIR OFFERS. From the door, aimed at Bob's head (the ray's entity asserted
+     to be Bob, as A16c-14's guard), Tab. PASS iff MENU == affordances("", bob) as O-1, and it holds
+     exactly two complete `give` entries (apple, scarf) in the frame's order, both available=false with
+     reason "too_far_away" and the label carrying "needs 3 m"; talk listed (composed, unavailable);
+     every type 3D does not compose listed disabled
+O-3  CHOSEN REGARDLESS. Choose O-2's first give. PASS iff a REQUEST is emitted whose action_type, target
+     and payload equal that affordance's after JSON normalisation (whole numbers as integers), the
+     server answers it rejected too_far_away, the toast reads ui.result.rejected with the reason's
+     words, and the save holds no items-transferred for it
+O-4  A MENU HOLDS THE GAME. With your menu open: W held 2 s and 200 px of mouse motion. PASS iff no
+     REQUEST is emitted, the body moves < 0.01 m and the camera yaw changes < 0.1°. Esc once closes the
+     menu and leaves SET-a's settings menu closed; Esc again opens it
+O-5  UNAFFORDABLE IS STILL LISTED (D-16d-10, the poor visitor). Open self. PASS iff all six buys are
+     listed in the frame's order; coffee, cake, sandwich and soup with available=false and the frame's
+     reason; tea and croissant available. Choose coffee: it is sent, answered rejected, and the save
+     holds no money-transferred from the visitor
+O-6  UNSUPPORTED IS NEVER SENT. In Bob's menu (near, after walking), press each disabled entry
+     (invite, …). PASS iff the REQUEST count does not change
+```
+
+**Names** (every step of O-1 … O-3 and the P-1 run):
+
+```text
+N-1  NAMED BY THE WORLD. For every MENU entry with an `about`, every holdings and shop row, and every
+     result toast about an item: the text contains that item's `name` from the item-catalogue printed in
+     the same frame (raw). For every entry with a target, the text contains display_name(target)
+N-2  NO ID ON SCREEN. At each step, a tree walk of every visible Label, Button and Label3D under the HUD,
+     the menus and the figures. Remove from each text the numbers the entry's own data supplied
+     (counts, prices, the formatted balance). PASS iff no whole-word decimal token remains that equals
+     an id the session has seen (perceived people and places, catalogued items, payload references)
+```
+
+**What you have:**
+
+```text
+K-1  THE PANELS ARE THE DISCLOSURE. With your menu open: the "Money" row equals format.money of the
+     frame's wallet.balance; each "Carrying" row's count equals holdings.held's count for that item, in
+     the frame's order; each "For sale here" row equals shop.listed's price and in_stock
+K-2  THEY FOLLOW. After each accepted step of the P-1 run (buy, drink, give, eat), the next PANELS within
+     2 s shows: wallet lower by exactly the coffee's listed price, equal to the save's
+     money-transferred amount; coffee 1 then 0; scarf 0; apple 0 — each matching the save's
+     items-transferred / items-consumed facts
+```
+
+**Parity with the 2D client (`AC-13`)** (two fresh Market Towns, one per client, as the evidence
+README requires):
+
+```text
+P-1  THE SAME FOUR REQUESTS. 13b's item_steps played by 13b's 2D client (its harness, unchanged) and by
+     the 3D client. PASS iff each run's non-move requests are, in order, buy, drink, give, eat; for each
+     pair differing_fields(2d, 3d) ⊆ {ActorLocation}; 2D's actor_location is null and 3D's is a Location
+     in the observer's place at the time; each pair is answered with the same result kind (accepted);
+     and the fact types each request caused (by caused_by in each save) are equal as multisets
+P-2  THE SAME MENUS. The 2D and 3D MENU reports for: self at genesis, self after the buy, Bob near before
+     the give. PASS iff, after dropping 2D's `walk` entry and both clients' move entry, the entries'
+     (action_type, target, about, complete, available, reason) sequences are equal. Labels are
+     presentation-only
+P-3  WORDS DECIDE NOTHING. The 3D steps again with --settings=<scratch file: zh_Hans> and with
+     --wording=none. PASS iff both transcripts have the same semantic cores as the `en` run, pair for
+     pair (differing_fields empty apart from ActorLocation's values)
+```
+
+**Mutations, one per guard — each planted in the working tree, run, recorded, reverted** (`git status`
+clean of it afterwards; `git grep MUTATION` empty):
+
+| # | Guard | Mutation | Expected red |
+| --- | --- | --- | --- |
+| M16d-1 | O-2, O-5 | the menu drops entries with `available: false` | O-2 lists no give; O-5 lists two buys |
+| M16d-2 | O-5 (§13's frozen criterion) | a client affordability rule: hide a buy whose listed price exceeds the wallet's balance | O-5 fails naming coffee, cake, sandwich, soup as offered and not listed |
+| M16d-3 | O-3, O-5 | the choose path returns when the entry is unavailable | O-3 fails: no REQUEST; O-5's coffee not sent. `client_rules`/R3'-style review also names it |
+| M16d-4 | O-2 | entries from `affordance(type, target)` (the first match) | O-2 fails: one give |
+| M16d-5 | O-1 | entries sorted by label | O-1 fails on order |
+| M16d-6 | P-1 | the buy rebuilt with `client.submit(type, null, {"item": <id string>})` instead of `submit_affordance` | P-1 fails naming Payload on the buy pair (the scan also fails on the planted literal; both recorded) |
+| M16d-7 | P-1 | the 3D give chooses the second give entry (another item) | P-1 fails naming Payload on the give pair; K-2's scarf line fails |
+| M16d-8 | P-1's 3D clause | 3D sends `actor_location: null` | P-1 fails on "3D's is a Location"; `differing_fields` alone would pass — recorded as the reason the clause exists |
+| M16d-9 | N-1 | `SliceThings` does not read the catalogue | N-1 fails naming each item row ("something") |
+| M16d-10 | N-2 | the unnamed fallback shows the id | N-2 fails naming the label and the id |
+| M16d-11 | K-2 | the holdings panel caches the first frame's holdings | K-2 fails at the buy's step |
+| M16d-12 | O-4 | the menu does not take the gate | O-4 fails: REQUESTs (moves) during the menu |
+| M16d-13 | P-3 | the steps runner resolves a selector by label text | the zh_Hans run chooses nothing; P-3 fails |
+
+## 22.5 Godot checks (every run of the real client)
+
+```text
+G-0  PARSE. After each commit that adds or renames a class (SliceOfferMenu, SliceThings, the market
+     probe): `godot --headless --path clients/3d-spike --import` and one launch, with no "Parse Error",
+     "SCRIPT ERROR" or "Cannot get class" line. A script error fails every mode
+G-1  STANDALONE, unchanged (I-S14-7): --drive "all drive checks pass" (Jolt); --measure (the base's
+     lines); --threshold; --character "all character checks pass"; --perf within 15 % of the base per
+     viewpoint, confirmed by one re-run; ./mineworld-3d --drive once
+G-2  CONNECTED, the accepted checks, on social-cafe as on the base: --link "all link checks pass" (every
+     talk's ray target asserted, A16c-14); --conversation "conversation on screen, no ids"; --target T-1
+     … T-4 (T-2' if 16c has landed). Then --link once with --world=market-town: the same verdict
+     (Market Town carries the same places, R-12d-4)
+G-3  NEW: client_3d_market — O-1 … O-6, N-1, N-2, K-1, K-2, P-1 … P-3, each PASS on the final head;
+     13b's client_2d_interact still passes unchanged (its keys moved, not renamed)
+G-4  SCANS: cargo test -p mineworld-acceptance --test client_rules (green, no new admission) and
+     --test client_text (SET-a: every 16d key in en and zh_Hans; no literal text in a 3D sink);
+     python3 scripts/check_client_rules.py and --check-pack presentation/mineworld-default/2D (green
+     after D-16d-6's move); a grep of 16d's new files for OS.get_name / OS.has_feature (none)
+G-5  WINDOWED FRAMES (one Godot window at a time; a stalled capture is INCONCLUSIVE and re-run once):
+     --market --frames, five frames at 1600x900: your menu at the door; Bob's menu from the door
+     (greyed gives, "too far away · needs 3 m"); Bob's menu beside him; your menu after the buy (Coffee
+     × 1, money lower); your menu in zh_Hans. Each looked at, one image at a time, facts recorded
+G-6  INTERACTIVE, by the implementing agent before the PR is opened: ./mineworld-slice
+     --world=market-town for three minutes doing OC-1 … OC-5; nothing in the log but the expected
+     [link] lines; reported in words, not claimed as acceptance
+```
+
+Every connected run uses its own server on port 0 and kills only its own PID; a run that joined anything
+else is `INCONCLUSIVE`.
+
+## 22.6 What the operator checks by hand (exact list; goes into the PR body)
+
+Each item states what to do and what must be seen. The operator's verdict, not the agent's, accepts the
+interaction and its look. macOS is the gate; Windows (Git Bash, Godot's console build on `PATH`) and
+Linux are checklist columns, as SET-a's §8.
+
+```text
+OC-1 ./mineworld-slice --world=market-town. At the café door press B.
+     See: a panel titled "You" with Buy Coffee, Buy Tea, Buy Croissant, Buy Cake, Buy Sandwich, Buy
+     Soup, Eat Apple, and a greyed "Walk" line; beside it Money 2000.00, Carrying Apple × 1 and
+     Scarf × 1, For sale here with each price and stock. No number on screen is an id. WASD and the
+     mouse do nothing while it is open; Esc closes it
+OC-2 Choose Buy Coffee. See the toast "You bought Coffee". Press B again: Money 1997.00, Carrying
+     Coffee × 1, and a new entry Drink Coffee
+OC-3 From the door, look at Bob (his name over his head) and press Tab. See his menu: two greyed
+     entries "Give Bob Achterberg Apple — too far away · needs 3 m" and the same for Scarf, Talk,
+     and the activity entries marked "not supported by this client". Choose a greyed give anyway: a
+     toast says the world said no, too far away; nothing changes in your things
+OC-4 Walk up to Bob (about a pace away), Tab, choose Give … Scarf: a toast; B shows no scarf.
+     Then B → Drink Coffee, then B → Eat Apple: a toast each; Carrying is empty
+OC-5 E still talks: look at Alice at the counter and press E; her reply appears as a caption, as
+     before. Esc with no menu open opens the settings menu (SET-a)
+OC-6 Settings → Language → 简体中文. Open B and Tab on Bob: every menu and panel line is Chinese; the
+     names (Coffee, Bob Achterberg) stay as the world wrote them; no tofu boxes; nothing clipped
+OC-7 The look: menus and panels read as the slice's own HUD — light text on a dark translucent panel,
+     the same font as the controls line — and nothing else on screen changed. Standalone
+     ./mineworld-slice is exactly the accepted slice (no new line, no menu)
+OC-8 Windows and Linux (checklist): OC-1, OC-2, OC-4 and OC-6 on each; on Linux OC-6 on a machine with
+     no CJK system font (`fc-list :lang=zh` empty); record the platform line SET-a prints at start
+```
+
+## 22.7 The visual-regression guard (`VIS-3D-GODOT-1`, `VIS-3D-GODOT-2`)
+
+```text
+V-1  STANDALONE FRAMES, unchanged. --shots at 1600x900, twice on the base (the noise floor) and once on
+     the head, compared by 16a's tools/frame_diff.gd. PASS iff each view's share of pixels differing by
+     more than 8/255 is at most the base's own run-to-run share + 0.5 points. Expected: identical within
+     noise (16d builds nothing standalone). Any view over that is looked at side by side and its cause
+     named; an unexplained visible change is a material stop. --hud's frame likewise (CONTROLS untouched)
+V-2  THE CHARACTER AND THE SCENE. 16d's diff touches none of human.gd, player.gd, npc.gd,
+     character_slot.gd, camera_rig.gd, posture.gd, build.gd, the slice's scene builders (cafe*.gd,
+     street.gd, streetscape.gd, terrace.gd, shop_interior.gd, slice_world.gd) or clients/3d-spike/assets/**
+     (a path check on the PR diff); --character passes
+V-3  CONNECTED FRAMES, changed only as intended. --conversation's frames, base and head: frame_diff's
+     differing regions are only the connected-only controls line (D-16d-4a); everything else within
+     noise
+V-4  THE NEW FRAMES (G-5) are judged by the operator (OC-7), not by the agent
+```
+
+## 22.8 Commit plan
+
+Each commit tracks implementation, validation and review separately; `[x]` needs the work and its
+evidence. A planned commit may become several coherent ones (mapping recorded). Evidence goes into
+§22.12 as `E16d-<n>`. Godot runs over two minutes run in the background, one Godot window at a time,
+logs under `clients/3d-spike/shots/16d/` (ignored).
+
+### 16d-C0 — Design (this section) — docs only
+
+- [x] Implementation: §§22.1–22.13, from the audit in §22.2.
+- [x] Validation: `python3 scripts/check_doc_headings.py` and `python3 scripts/check_decision_ids.py`
+  (they do not read `.structured-coding/`; run to show nothing else moved); results in §22.12.
+- [x] Review: every finding cites a file and line or a branch commit; every acceptance line states its
+  pass condition before anything runs; every guard has a mutation; non-goals match 12e's, 16c's,
+  SET-a's and 13b's scopes and ruling 4. Self-review by the drafting session; the freeze is pending.
+
+### 16d-C1 — Re-audit and the baseline on the merged base
+
+**Goal.** "Before" measured by the commands "after" will use; every (branch) anchor confirmed on `main`.
+**Scope.** Ledger only. **Depends on** freeze and §22.11's precondition.
+
+- [ ] Implementation: none in code. Re-read A16d-1 … 16 on the base and record differences. Dump one
+  Market Town frame for `visitor` (the probe's raw frame line) and record the exact JSON of
+  `item-catalogue`, `wallet`, `holdings`, `shop` and of one `buy`, `give`, `eat` affordance, and the
+  reason code an unpurchasable buy carries (poor-visitor copy). Find SET-a's input gate and Esc order in
+  3D. Walk the café from the door to 1.2 m from Bob on the real controller and record whether a straight
+  line is clear on 12d's furniture (R-16d-2).
+- [ ] Validation (E16d-1): G-1 and G-2 on the base; V-1's two base `--shots` runs and `--hud`; 13b's
+  `client_2d_interact -- --ignored` on the base (green, the 2D side P-1 will use).
+- [ ] Review: each base result matches its accepted figure, or the difference is recorded with its cause
+  before anything changes.
+
+**Commit boundary.** The ledger.
+
+### 16d-C2 — Wording first (SD-6, D-16d-6)
+
+**Goal.** Every key 16d's code will use exists in `en` and `zh_Hans` before the code. **Scope.**
+`clients/shared/settings/locale/{en,zh_Hans}.po` (the moved keys, `action.move` neutral, the five new
+keys), `messages.pot` (regenerated by SET-a's check); `presentation/mineworld-default/2D/i18n/{en,zh_Hans}.po`
+(the moved keys removed; `action.move` kept under `#. override`); `docs/DECISIONS.md` (the dated note
+under ARC-47, Q-16d-10). **Non-goals:** any `.gd`.
+
+- [ ] Implementation: as scoped; the move verbatim (msgid, msgstr, comments).
+- [ ] Validation (E16d-2): `cargo test -p mineworld-acceptance --test client_text --test client_rules`;
+  `python3 scripts/check_client_rules.py` and `--check-pack presentation/mineworld-default/2D`; a union
+  check recorded (both layers' entries before = after, apart from `action.move`'s shared msgstr); 13b's
+  `client_2d_interact` and SET-a's `client_settings` 2D tests green, with 2D's visible strings identical
+  (the 2D `MENU` labels of AC-I2's run equal the base's).
+- [ ] Review: no key renamed; no rule in wording (no number, no condition); `zh_Hans` wording reviewed
+  against the `en` meaning.
+
+**Commit boundary.** Catalogs and the decision note.
+
+### 16d-C3 — Names and what you have, read (SD-5)
+
+**Goal.** `SliceThings` (D-16d-5): names and panel rows from disclosure; nothing drawn yet.
+**Scope.** New `scripts/slice/things.gd`; `slice_link.gd` (`display_label` keeps its rule and delegates
+the item half; nothing else).
+
+- [ ] Implementation: as scoped; shapes exactly as C1 recorded them.
+- [ ] Validation (E16d-3): G-0; a probe line on Market Town listing every catalogued kind's name and the
+  three panels' rows against the raw frame (the K-1 comparison, made early); G-2's `--link`.
+- [ ] Review: no arithmetic beyond formatting; no id reachable as display text; no action literal.
+
+**Commit boundary.** The reader.
+
+### 16d-C4 — The menus, the requests, the results (SD-2 … SD-4)
+
+**Goal.** O-1 … O-6 become true (shown in C5). **Scope.** New `scripts/slice/offer_menu.gd`; `intents.gd`
+(`submit_offered`, `composes`, pending `about`); `slice_link.gd` (`_on_resolved` through keys, D-16d-7);
+`slice_main.gd` (attach the menu and the connected-only line when connected); SET-a's gate as found in C1.
+
+- [ ] Implementation: as scoped; the choose path reads no verdict; complete entries only through
+  `submit_affordance`.
+- [ ] Validation (E16d-4): G-0; G-1 `--drive`; G-2; an interactive two-minute run on Market Town
+  (B, Tab, buy, give from the door) with the log clean.
+- [ ] Review: no entry is created that the frame did not offer; `slice_link.gd`'s line count did not grow
+  by more than the result routing; `client_rules` green with no new admission.
+
+**Commit boundary.** The interaction.
+
+### 16d-C5 — The probe, the launcher, and the market acceptance
+
+**Goal.** O-, N-, K- lines with M16d-1 … 5, 9 … 12. **Scope.** New `scripts/slice/slice_probe_market.gd`
+(steps runner in 13b's selector format, `MENU`/`PANELS`/`REQUEST` lines, the N-2 tree walk, `--frames`);
+the probe dispatch (`slice_probe_world.gd` or `slice_probe.gd`, one line); `mineworld-slice`
+(`--world=<pack>`, `--market` headless, help text); new `tools/cli/tests/godot3d/mod.rs` and
+`tools/cli/tests/client_3d_market.rs` (O-1 … O-6, N-1, N-2, K-1, K-2; the poor-visitor copy).
+
+- [ ] Implementation: as scoped.
+- [ ] Validation (E16d-5): the tests PASS; each mutation red as stated, then reverted green; counts and
+  wall time recorded.
+- [ ] Review: every expected value is a literal of this plan, a genesis fact or the raw frame, never
+  computed by the code under test; no `.gd` names an item, a person or an action type for the scenario.
+
+**Commit boundary.** The probe, the launcher flag, the test.
+
+### 16d-C6 — Parity with the 2D client (SD-7)
+
+**Goal.** P-1 … P-3 with M16d-6, 7, 8, 13. **Scope.** `client_3d_market.rs` (the 2D run through 13b's
+helpers; the comparison through `differing_fields`; the zh_Hans and no-wording runs).
+
+- [ ] Implementation: as scoped.
+- [ ] Validation (E16d-6): P-1 … P-3 PASS; mutations red, reverted; the two transcripts and the two saves'
+  fact types recorded in the ledger.
+- [ ] Review: no hand-written comparison (I-S14-9); the 2D client and its harness are run unchanged.
+
+**Commit boundary.** The parity tests.
+
+### 16d-C7 — Frames, documents, gates, close
+
+**Scope.** G-5 frames; `clients/3d-spike/README.md` (keys, `--world=<pack>`, `--market`);
+`docs/MVP_STATUS.md` (the 3D column of Market and Items; the S14 row); this section's ledger and handoff.
+
+- [ ] Implementation: as scoped.
+- [ ] Validation (E16d-7, the final executable head): G-0 … G-4 once more; V-1 … V-3; the Rust gate —
+  `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test
+  --workspace` once; `check_decision_ids`, `check_doc_headings`, `check_scratch.py scan`; the path check
+  (nothing under `kernel/`, `contracts/`, `persistence/`, `server/`, `systems/`, `cognition/`, `worlds/`,
+  `tools/cli/src/`, `clients/protocol/`, `clients/2d/scripts/`).
+- [ ] Review: every acceptance line has its evidence; deviations recorded; the PR body carries OC-1 …
+  OC-8 verbatim and the known limitations (no group activity in 3D; talk's words fixed; panels limited
+  to money, carrying, for sale).
+
+Then push, open the PR **READY FOR OPERATOR REVIEW**, and stop. Do not merge.
+
+### 16d test ownership
+
+```text
+STATIC      Godot's parser (G-0); client_rules.rs (no new admission); client_text.rs (SET-a's, 16d's keys);
+            check_client_rules.py --check-pack (2D pack after the move)
+REAL RUN    client_3d_market.rs (#[ignore], needs Godot): O-, N-, K-, P- against real servers, the save as
+            oracle; G-1, G-2 accepted checks; G-5 frames; G-6 interactive
+UNIT        none: every claim is a client against a server; a unit test of the entry builder would assert
+            what O-1 measures end to end
+GATE 1      NOT REQUIRED — no language model
+CI          client_rules and client_text run in CI's test job; the Godot-gated file does not run in CI
+            until 13c's `clients` job exists — proposed to join it then (Q-16d-11); reported NOT RUN in CI
+```
+
+## 22.9 Risks
+
+| ID | Risk | Mitigation |
+| --- | --- | --- |
+| **R-16d-1** | SET-a or 12d slips (12d is paused for 12n), so 16d cannot start | Accepted by D-16d-1: a second catalog or an id-showing menu would be debt the operator asked not to have. 16d's design does not change when they land |
+| **R-16d-2** | 12d's café furniture blocks a straight walk from the door to Bob, so the 3D `walk` step stops short or `give` stays out of range | C1 checks the line; if blocked, the probe walks via one waypoint chosen from the scene's floor in C1 and recorded (presentation, like 16a's counter point). The server still decides every stride |
+| **R-16d-3** | Without 12e, a stride the server stops short (bodies) is not corrected (F-S14-8), so the drawn body drifts near Bob | The probe stops 1.2 m short, outside the 595 mm body clearance (13b RK-b2(b)); reports carry the server's position; drift is a stated known limitation until 12e |
+| **R-16d-4** | 13b's 2D "walk to Bob" is blocked on 12d's café (13b RK-b2(a)), so P-1's give pair cannot be made | Reported `INCONCLUSIVE` for that pair with the 2D log, never patched in either client; buy, drink and eat still compared |
+| **R-16d-5** | 12e, 16c and SET-a edit `slice_link.gd`, `slice_main.gd`, `intents.gd`, the probe dispatch and the launcher at the same time | 16d's code is in four new files; its edits elsewhere are listed per commit; the later PR rebases; the launcher's flags are additive |
+| **R-16d-6** | `item-catalogue`'s JSON differs from SD-D10's text (a string id instead of a typed reference) | Pinned from a live frame in C1 (A16d-7); `SliceThings` reads identities with one helper that accepts both, as 13b's `_ref` |
+| **R-16d-7** | Two entry builders and two name readers (2D and 3D) drift apart | P-2 compares the two `MENU` reports field for field; extraction into a shared client module is raised for a coordinated PR (Q-16d-5) |
+| **R-16d-8** | Moving 2D's panel keys breaks a 2D string or a 13b test | The move is verbatim and checked by a union check; 13b's tests and 2D's `MENU` labels are compared before/after in C2; a changed 2D string is a material stop |
+| **R-16d-9** | The menus overlap the captions or the reticle at some window sizes, or clip in `zh_Hans` | Fixed anchors (D-16d-8); G-5's zh_Hans frame; OC-6 and OC-7 judged by the operator |
+| **R-16d-10** | Another lane's Godot window covers a capture, or a run joins a foreign server | One window at a time; stalled captures `INCONCLUSIVE` and re-run once; port 0 and own-PID kill |
+
+## 22.10 Questions for the freeze (primary session; **[OM]** = the operator's)
+
+| ID | Question | Recommendation |
+| --- | --- | --- |
+| **Q-16d-1** | **Order** (D-16d-1): after 12d, 13b and SET-a, with the inset on `main`; 12e and 16c in either order. This drops §13's "after 12e" | **As D-16d-1.** No 16d claim needs bodies; waiting for 12e would serialise two independent PRs behind 12n |
+| **Q-16d-2 [OM: interaction feel]** | **Keys.** (a) E talks (unchanged), Tab opens the person's menu, B opens yours; (b) E opens the person's menu (2D's E), talk inside it; (c) Q opens yours (2D's Q) instead of B | **(a).** It keeps the accepted E-talks behaviour and `--link`, and B is the key the step already promised for buying |
+| **Q-16d-3 [OM]** | **Where buying is reached** (QS14-7 restated): your menu anywhere, listing what the place you stand in offers; or only when looking at the counter or the staff | **Anywhere, from your menu.** The server offers `buy` "at that place" with no target; a counter rule would be the client deciding where buying happens. A counter as a place part is a pack question for later |
+| **Q-16d-4** | **Shared wording** (D-16d-6): move 16 concept keys from the 2D pack to the shared layer verbatim, and make the shared `action.move` neutral with a 2D `#. override` | **Yes.** One translation per concept is SET-a's own rule; 2D's screen does not change |
+| **Q-16d-5** | **Duplication between clients**: 3D-local `offer_menu.gd` and `things.gd` now, or a shared client module (`clients/shared/offers/`) used by both, editing 13b's merged 2D files in 16d? | **Local now, P-2 guards parity; propose the extraction as its own PR after 16e**, coordinated with S12 and with S11 for the catalogue reader (which belongs in the protocol module, ruling 4) |
+| **Q-16d-6** | **Group activity in 3D.** `invite`, accept, decline, join, leave are listed disabled in 16d. "Framework, not demo" item 3 wants every interaction playable in both clients | **A follow-up PR, 16g** (3D composers for the five group actions, with a typed line), designed after 16d; the gap is stated in 16d's PR and in `MVP_STATUS.md` |
+| **Q-16d-7** | **Talk from the menu** sends the default utterance, as E does; no text box in 3D yet | **Yes in 16d**; a typed line belongs with 16g's text input |
+| **Q-16d-8** | **Panels**: 16d shows money, carrying and for sale only; 13b also shows conversation history, acquaintances, invitations, agenda, employment, other | **Only those three in 16d** (the brief's "inventory"); the others with 16g, where invitations matter |
+| **Q-16d-9 [OM: visual default]** | **Menu look and placement** (D-16d-8): the captions' dark translucent panel; your menu left of centre with what you have beside it; a person's menu just right of the reticle | **As D-16d-8**, judged in play (OC-7) |
+| **Q-16d-10** | **Records**: no new ARC; a dated note under ARC-47 that the 3D client follows the same menu model (complete unchanged, composed by `intents.gd`, the rest disabled, verdicts never chosen by) | **Accept** |
+| **Q-16d-11** | **Test placement**: `client_3d_market.rs` (with `godot3d/mod.rs`) owned by 16d, absorbed or re-used by 16e's `ac13_clients.rs`; joins 13c's `clients` CI job when that exists | **Accept** |
+| **Q-16d-12** | **The poor visitor** (D-16d-10): a test-time copy of Market Town with `wallet: 250`, never a committed world | **Accept** |
+| **Q-16d-13 [OM: wording]** | **The `zh_Hans` wording** of 16d's five new keys and of `action.move`'s neutral form, proposed in C2 | **Proposed in C2, judged in OC-6** |
+
+## 22.11 Execution contract (proposed; confirmed at freeze)
+
+```text
+PROJECT / PR        MVP-0 · S14 / PR 16d — Market Town in 3D: buy, hand over, eat or drink, what you have
+PRIMARY DESIGN DOC  .structured-coding/plans/mvp0/step-15-demo-3d.md §22 (this section)
+RELATED / BINDING   overall.md §3 (S14), "Parallel build-out" (rulings 4, 6, 7, 9), "Framework, not demo"
+                    items 3–4, "One world, two views", "The World Interaction List"; this file §§1–17,
+                    §18 (16b), §19 (16a), §20 (16c); step-13 §15 (13b, as merged); step-20 §§3.6, 12
+                    (SET-a, as merged); step-11 SD-D10 (12d, as merged); ADOPTION.md §§2–4;
+                    ENGINEERING_RULES §§3–12, 19; HUMAN_REVIEW_QUEUE (VIS-3D-GODOT-1/-2)
+PRECONDITION        on main: S15 12d merged; S12 13b merged; S20 SET-a merged; `./mineworld-slice --world
+                    --link` passes on that main (the 0.4 m inset). 12e and 16c not required
+IMPLEMENTATION BASE main at the start of implementation, meeting the precondition; branch
+                    mvp0/pr-16d-market-3d from it; worktree /Users/yuema137/mineworld-worktrees/impl-16d
+                    (this session only; a fresh implementation session)
+APPROVED SCOPE      §22.1 (SD-1 … SD-7), as answered by Q-16d-1 … 13 at the freeze
+FROZEN INVARIANTS   I-S14-1 (client_rules green, no new admission), I-S14-2, I-S14-3, I-S14-6, I-S14-7,
+                    I-S14-9, I-S14-10; no edit to clients/protocol/**, clients/2d/scripts/**, worlds/**,
+                    tools/cli/src/**, server/, systems/, kernel/, contracts/, persistence/; no regression of
+                    VIS-3D-GODOT-1 or -2 (§22.7); no id on screen; no key renamed; the acceptance of §22.4
+                    as written
+SEQUENCE            C0 → (freeze) → C1 → C2 → C3 → C4 → C5 → C6 → C7, each committed and pushed when
+                    coherent
+COMMANDS            cargo fmt / check / clippy -D warnings / test ($HOME/.cargo/bin/cargo if needed);
+                    python3 scripts/check_doc_headings.py, check_decision_ids.py, check_scratch.py,
+                    check_client_rules.py; godot --headless --path clients/3d-spike … and the tools under
+                    clients/3d-spike/tools/; ./mineworld-slice and ./mineworld-3d modes; git and gh (no
+                    merge); mkdir -p; sed -n. Never python3 -c, sed -i, awk, xargs, curl, heredoc writes;
+                    files through Read, Edit, Write. One Godot window at a time; only this run's own
+                    server process is killed
+VALIDATION BUDGET   real client runs each ≤ ~10 min, background when > 2 min; client_3d_market ≈ 10 Godot
+                    runs (2D and 3D) ≈ 10 min per full pass; total ≤ ~3 h wall time including mutations and
+                    retries; full cargo test once on the final head; real-model: NOT REQUIRED
+LIVE DOCUMENTATION  this section (§22.8 checkboxes, §22.12 ledger)
+HANDOFF             §22.13 (one authority)
+ENDPOINT AUTHORITY
+  implementation + local validation   authorized by the freeze, once the precondition holds
+  semantic commits, branch push       authorized
+  PR creation / update                authorized, READY FOR OPERATOR REVIEW
+  CI repair                           authorized for this PR's own failures
+  merge                               explicit operator authorization only
+POST-MERGE SYNC     the primary session owns §13, §14 and overall.md; the implementing session owns §22
+NORMAL STOP         PR 16d READY FOR OPERATOR REVIEW — DO NOT MERGE
+MATERIAL STOP       any regression of the accepted visuals (V-1 … V-3); any edit to the shared protocol
+                    module, the server, a System or World Pack, a contract, or 2D scripts; a 2D visible
+                    string that changes; a renamed key; a new scan admission or a weakened scan; SET-a's
+                    gate unable to hold a second menu without more than a bounded change to it; a
+                    precondition found false after starting; a change to any frozen invariant
+```
+
+## 22.12 Ledger (live)
+
+```text
+C0      drafted on plan/s14-16d from main @ f80bbb7. check_doc_headings: "191 numbered sections across
+        26 documents, none duplicated"; check_decision_ids: "73 decision ids, all distinct" (neither
+        reads .structured-coding/; run to show nothing else moved). §22's headings 22.1–22.13 are
+        unique within this file. Item names in OC-1 … OC-4 are 12d's (QD-15) and are re-read in C1
+```
+
+## 22.13 Handoff (live)
+
+```text
+checkpoint     C0 drafted (PR design — ready for freeze review), docs-only PR from plan/s14-16d
+next action    the primary session reviews §22 and rules Q-16d-1 … 13 (the [OM] ones with the operator);
+               after the freeze and the precondition, a fresh session in
+               /Users/yuema137/mineworld-worktrees/impl-16d on mvp0/pr-16d-market-3d starts at C1
+background     none
+notes          12d is paused for 12n (8814aad); 13b is in implementation (98bd42e, C5 done); SET-a waits
+               for 13b; 12e is being planned on plan/s15-12e (may take §21 of this file)
 ```
