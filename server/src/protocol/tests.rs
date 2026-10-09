@@ -87,6 +87,7 @@ fn the_three_client_frames_decode() {
             seat: EntityKey::new("player").expect("a legal key"),
             resume: None,
             take_over: false,
+            perceived: None,
         }
     );
     assert_eq!(

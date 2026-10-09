@@ -56,7 +56,8 @@ mod tests;
 use std::fmt;
 
 use mineworld_contracts::{
-    ActionId, ActionRequest, ActionResult, ContractError, EntityId, EntityKey, Observation,
+    ActionId, ActionRequest, ActionResult, ContractError, EntityId, EntityKey, EventId,
+    Observation, PerceivedEvent,
 };
 use mineworld_persistence::WorldRevision;
 use serde::{Deserialize, Serialize};
@@ -66,6 +67,7 @@ use crate::admission::{Nickname, OfferedInvite, OfferedResume, ResumeSecret};
 
 pub use connection::{ClosingReason, SessionId, TookOver};
 pub use fact::{PayloadForm, wire_fact};
+pub(crate) use fact::{backfill_frames, report_not_json};
 pub use request::{CorrelationToken, MAX_TOKEN_LENGTH, WirePayload, into_kernel_request};
 pub use summary::{SystemSummary, WorldInstanceId, WorldSummary};
 
@@ -118,6 +120,9 @@ pub enum ClientFrame {
         /// Take the seat from the connection that holds it, or from a dropped one's hold.
         #[serde(default)]
         take_over: bool,
+        /// Ask for the reliable `perceived` stream, from a cursor (`PROTOCOL.md` §5.8).
+        #[serde(default)]
+        perceived: Option<PerceivedJoin>,
     },
     /// Submit a request. No identity and no instant: the server allocates both (`INV-6`).
     Submit {
@@ -128,6 +133,16 @@ pub enum ClientFrame {
     },
     /// Give the seat up at once and end the connection.
     Leave {},
+}
+
+/// A `join`'s request for the `perceived` stream (`PROTOCOL.md` §5.8): the cursor to continue from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PerceivedJoin {
+    /// The `through` of the last `perceived` frame the client processed, or `null` for "from this
+    /// world's first fact". Required: an absent `since` is malformed, not "from the beginning".
+    #[serde(deserialize_with = "Option::deserialize")]
+    pub since: Option<EventId>,
 }
 
 /// The tags a client frame may carry, which is also the whole of what a client may say.
@@ -205,8 +220,19 @@ pub enum ServerFrame {
         /// The persisted revision of the state this observation was computed from, or `None` for a
         /// world that is not persisted (`PROTOCOL.md` §5). Committed before this frame was sent.
         revision: Option<WorldRevision>,
+        /// The newest request submitted on this connection that had been dispatched when this
+        /// observation was computed; `null` before the first (`PROTOCOL.md` §5.2).
+        acted_through: Option<ActionId>,
         /// The observation itself.
         observation: WireObservation,
+    },
+    /// Facts this connection's observer learned, on the reliable stream it asked for
+    /// (`PROTOCOL.md` §5.8).
+    Perceived {
+        /// The newest fact the server has considered for this connection: the client's cursor.
+        through: EventId,
+        /// The facts, oldest first.
+        events: Vec<PerceivedEvent<Value>>,
     },
     /// The world's answer to one submitted request.
     Result {
@@ -280,6 +306,11 @@ pub enum RefusalCode {
     SeatOccupied,
     /// The `join`'s `resume` matches neither the seat's hold nor its live connection.
     InvalidResume,
+    /// The `join`'s `perceived.since` is a cursor this world cannot serve (`PROTOCOL.md` §5.8).
+    CursorUnavailable,
+    /// The connection's `perceived` stream fell further behind than the server holds. Followed by
+    /// `closing`.
+    Lagged,
 }
 
 /// One refusal, before it becomes a frame.

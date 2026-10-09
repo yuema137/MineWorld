@@ -40,7 +40,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use mineworld_contracts::{
-    ActionIntent, ActionRequest, EntityId, EntityKey, EventEnvelope, WorldTime,
+    ActionIntent, ActionRequest, EntityId, EntityKey, EventEnvelope, EventId, WorldTime,
 };
 use mineworld_persistence::WorldRevision;
 use tokio::sync::{mpsc, oneshot};
@@ -48,12 +48,13 @@ use tokio::sync::{mpsc, oneshot};
 use crate::admission::ResumeSecret;
 use crate::host::{
     Binding, Command, HostConfig, Hosted, HostedWorld, SeatRoster, Seated, Submitted,
-    SubscriptionIdSource,
+    SubscriptionId, SubscriptionIdSource,
 };
 use crate::hosted::HostedAnswer;
-use crate::perception::{Perception, PerceptionContext};
+use crate::perception::{EventPerception, PerceivedHistory, Perception, PerceptionContext};
 use crate::protocol::{
-    PROTOCOL_VERSION, Refusal, RefusalCode, SystemSummary, WorldInstanceId, WorldSummary,
+    PROTOCOL_VERSION, PerceivedJoin, Refusal, RefusalCode, SystemSummary, WorldInstanceId,
+    WorldSummary,
 };
 use crate::seats::{JoinRequest, SeatTable};
 use delivery::Subscriber;
@@ -63,6 +64,12 @@ use world::{ActionIds, Failure, HostClock, TickTimes};
 pub(crate) struct WorldRuntime {
     world: Hosted,
     perception: Box<dyn Perception>,
+    /// Who learns of each recorded fact (`ARC-43`), asked at record time.
+    audience: Box<dyn EventPerception>,
+    /// Where a `perceived` backfill is read, off this thread; `None` keeps no history.
+    history: Option<Arc<dyn PerceivedHistory>>,
+    /// The newest fact the world has recorded, which a joining connection's live stream follows.
+    head: Option<EventId>,
     seats: SeatRoster,
     /// Who drives each seat. Its only writer is this thread (step-12 I-3).
     table: SeatTable,
@@ -78,6 +85,8 @@ pub(crate) struct WorldRuntime {
     recent: Vec<EventEnvelope>,
     /// Observations dropped because a client was not reading. Counted rather than waited on.
     dropped: u64,
+    /// Learned facts dropped from a full per-connection queue before a frame carried them.
+    events_dropped: u64,
     /// Dispatches and advances that ended in a `KernelError` — a system breaking its own contract.
     faults: u64,
     /// Set when the save could not be written. The loop ends after the command that found it.
@@ -101,9 +110,19 @@ impl WorldRuntime {
             config.hold,
             bound,
         );
+        // The kernel's next event identity, read once: the facts before it — genesis included —
+        // were recorded before this host, and a perceived stream's live part starts after them.
+        let next_event = hosted.world.world().schedule_snapshot().next_event;
+        let head = next_event
+            .checked_sub(1)
+            .filter(|last| *last > 0)
+            .map(EventId::from_raw);
         Self {
             world: hosted.world,
             perception: hosted.perception,
+            audience: hosted.events,
+            history: hosted.history,
+            head,
             seats: hosted.seats,
             table,
             instance,
@@ -113,6 +132,7 @@ impl WorldRuntime {
             subscribers: Vec::new(),
             recent: hosted.recent,
             dropped: 0,
+            events_dropped: 0,
             faults: 0,
             stopped: None,
             ticks: TickTimes::default(),
@@ -128,16 +148,21 @@ impl WorldRuntime {
                 Command::Status(reply) => {
                     let _ = reply.send(self.summary());
                 }
-                Command::Join { request, reply } => {
-                    let _ = reply.send(self.join(&request));
+                Command::Join {
+                    request,
+                    perceived,
+                    reply,
+                } => {
+                    let _ = reply.send(self.join(&request, perceived));
                 }
                 Command::Leave(subscription, departure) => self.depart(subscription, departure),
                 Command::Submit {
+                    subscription,
                     observer,
                     request,
                     reply,
                 } => {
-                    let answer = self.submit(observer, *request);
+                    let answer = self.submit(subscription, observer, *request);
                     let _ = reply.send(answer);
                 }
                 Command::Sweep => self.tick(),
@@ -171,13 +196,19 @@ impl WorldRuntime {
     /// something the roster does not offer; a seat whose key this world cannot resolve is a fault in
     /// the world's own composition; and a seat somebody else holds is the seat table's answer
     /// (`PROTOCOL.md` §4.2). A granted seat changes no world state: binding is host state (`ARC-40`).
-    fn join(&mut self, request: &JoinRequest) -> Result<Seated, Refusal> {
+    fn join(
+        &mut self,
+        request: &JoinRequest,
+        perceived: Option<PerceivedJoin>,
+    ) -> Result<Seated, Refusal> {
         let seat = &request.seat;
         if !self.seats.contains(seat) {
             return Err(Refusal::new(RefusalCode::UnknownSeat)
                 .detail("this world offers no such seat; GET /status lists the seats it has"));
         }
         let observer = self.observer_of(seat)?;
+        // Before the seat table is asked, so that a cursor this world cannot serve grants nothing.
+        let start = self.perceived_start(perceived)?;
         let resume = ResumeSecret::generate()
             .map_err(|error| Refusal::new(RefusalCode::DispatchFailed).detailed(error))?;
         let subscription = self.subscriptions.allocate();
@@ -195,12 +226,12 @@ impl WorldRuntime {
 
         let (sender, receiver) = mpsc::channel(self.config.observation_backlog);
         let (released, on_release) = oneshot::channel();
-        self.subscribers.push(Subscriber {
+        self.subscribers.push(Subscriber::new(
             subscription,
             observer,
-            observations: sender,
-            released,
-        });
+            (sender, released),
+            start.as_ref().map(|start| start.head),
+        ));
         let binding = Binding {
             took_over: grant.took_over,
             resume,
@@ -214,6 +245,7 @@ impl WorldRuntime {
             subscription,
             (receiver, on_release),
             binding,
+            start,
         ))
     }
 
@@ -226,9 +258,19 @@ impl WorldRuntime {
     }
 
     /// A session's request, at the host's instant; its facts are swept to every client at once.
-    fn submit(&mut self, observer: EntityId, request: ActionRequest) -> Result<Submitted, Refusal> {
+    /// On a connection's behalf, the dispatched request becomes its `acted_through` before any
+    /// observation reflecting it is computed.
+    fn submit(
+        &mut self,
+        subscription: Option<SubscriptionId>,
+        observer: EntityId,
+        request: ActionRequest,
+    ) -> Result<Submitted, Refusal> {
         let at = self.clock.now();
         let (submitted, recorded) = self.submit_at(observer, request, at)?;
+        if let Some(subscription) = subscription {
+            self.acted(subscription, submitted.action_id());
+        }
         // Straight away rather than at the next tick, so that the facts a request caused reach
         // every client entitled to them without waiting out the cadence.
         if recorded {
@@ -362,8 +404,10 @@ impl WorldRuntime {
         }
     }
 
-    /// Keeps the newest facts and forgets the rest.
+    /// Judges each new fact for every connection as it is recorded (`ARC-43`), then keeps the
+    /// newest facts for perception and forgets the rest.
     fn remember(&mut self, events: Vec<EventEnvelope>) {
+        self.learn(&events);
         self.recent.extend(events);
         let limit = self.config.recent_events;
         if self.recent.len() > limit {
@@ -399,8 +443,7 @@ impl WorldRuntime {
             // Connections only: an in-server controller is not a client (`PROTOCOL.md` §5.7).
             clients: self.subscribers.len(),
             observations_dropped: self.dropped,
-            // No fact is delivered to an observer before S11-C, so none is dropped.
-            events_dropped: 0,
+            events_dropped: self.events_dropped,
             faults: self.faults,
             revision: self.world.revision(),
         }

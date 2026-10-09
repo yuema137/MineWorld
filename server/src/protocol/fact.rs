@@ -12,8 +12,65 @@
 //! make; going through serde means the result is checked by the same agreement rule as a fact read
 //! from disk, rather than assembled by hand here.
 
-use mineworld_contracts::{EventEnvelope, PerceivedEvent};
+use std::collections::BTreeSet;
+use std::sync::Mutex;
+
+use mineworld_contracts::{EventEnvelope, EventId, EventTypeId, PerceivedEvent};
 use serde_json::Value;
+
+use super::ServerFrame;
+
+/// The most facts one backfill `perceived` frame carries (`PROTOCOL.md` §5.8).
+const BACKFILL_FRAME: usize = 256;
+
+/// A backfill as `perceived` frames: the facts, in their wire form, in frames of at most
+/// [`BACKFILL_FRAME`]; the last frame's `through` is the head, and there is one even when no fact
+/// is owed, so that the client learns its cursor.
+pub(crate) fn backfill_frames(facts: &[EventEnvelope], head: EventId) -> Vec<ServerFrame> {
+    let rendered: Vec<(EventId, PerceivedEvent<Value>)> = facts
+        .iter()
+        .filter_map(|fact| match wire_fact(fact) {
+            Ok((event, form)) => {
+                if form == PayloadForm::NotJson {
+                    report_not_json(fact.event_type());
+                }
+                Some((fact.id(), event))
+            }
+            Err(error) => {
+                eprintln!("[session] fact {} could not be written: {error}", fact.id());
+                None
+            }
+        })
+        .collect();
+    let mut frames: Vec<ServerFrame> = rendered
+        .chunks(BACKFILL_FRAME)
+        .map(|chunk| ServerFrame::Perceived {
+            through: chunk.last().map_or(head, |(id, _)| *id),
+            events: chunk.iter().map(|(_, event)| event.clone()).collect(),
+        })
+        .collect();
+    match frames.last_mut() {
+        Some(ServerFrame::Perceived { through, .. }) => *through = head,
+        _ => frames.push(ServerFrame::Perceived {
+            through: head,
+            events: Vec::new(),
+        }),
+    }
+    frames
+}
+
+/// Says once per event type per process that a payload reached the wire as `null`, so that the
+/// defined form is visible rather than silent (`PROTOCOL.md` §5.2).
+pub(crate) fn report_not_json(event_type: &EventTypeId) {
+    static REPORTED: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
+    let first = REPORTED
+        .lock()
+        .map(|mut reported| reported.insert(event_type.as_str().to_owned()))
+        .unwrap_or(false);
+    if first {
+        println!("[world] event type {event_type} has a payload that is not JSON");
+    }
+}
 
 /// Whether a fact's payload reached the wire as the pack wrote it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

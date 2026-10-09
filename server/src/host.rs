@@ -61,12 +61,15 @@ use crate::hosted::{HostedController, HostedFactory};
 use crate::perception::{
     EventPerception, PerceivedHistory, PerceivesNoEvents, PerceivesNothing, Perception,
 };
-use crate::protocol::{Refusal, RefusalCode, SessionId, WorldSummary};
+use crate::protocol::{PerceivedJoin, Refusal, RefusalCode, SessionId, WorldSummary};
 use crate::runtime::WorldRuntime;
 use crate::seats::{Departure, JoinRequest};
 
+pub use handles::{
+    Backfill, Observations, Perceived, PerceivedStart, Seated, Streamed, Submitted, SubscriptionId,
+    WireFact,
+};
 pub(crate) use handles::{Binding, SubscriptionIdSource};
-pub use handles::{Perceived, Seated, Submitted, SubscriptionId};
 
 /// The first request identity a server allocates for a world with no history of requests.
 ///
@@ -251,6 +254,10 @@ pub struct HostConfig {
     pub hold: Duration,
     /// How many world seconds pass per wall second.
     pub time_scale: NonZeroU32,
+    /// Learned facts that may wait for a connection's next frame; past it they drop (§5.2).
+    pub event_backlog: usize,
+    /// Facts that may wait for a connection's `perceived` stream; past it, `lagged` (§5.8).
+    pub perceived_backlog: usize,
 }
 
 impl Default for HostConfig {
@@ -262,6 +269,8 @@ impl Default for HostConfig {
             recent_events: 64,
             hold: Duration::from_secs(30),
             time_scale: NonZeroU32::MIN,
+            event_backlog: 256,
+            perceived_backlog: 4_096,
         }
     }
 }
@@ -273,13 +282,15 @@ pub(crate) enum Command {
     /// Occupy a seat, and begin receiving that observer's observations.
     Join {
         request: JoinRequest,
+        perceived: Option<PerceivedJoin>,
         reply: oneshot::Sender<Result<Seated, Refusal>>,
     },
     /// Release a subscription, saying how its connection ended. Fire and forget: a connection that
     /// has already died cannot wait.
     Leave(SubscriptionId, Departure),
-    /// Dispatch one request as one observer.
+    /// Dispatch one request as one observer, for the connection named (its `acted_through`).
     Submit {
+        subscription: Option<SubscriptionId>,
         observer: EntityId,
         request: Box<ActionRequest>,
         reply: oneshot::Sender<Result<Submitted, Refusal>>,
@@ -372,9 +383,22 @@ impl WorldHost {
     ///
     /// The observer comes back from the world; it is never something a caller supplies.
     pub async fn join_with(&self, request: JoinRequest) -> Result<Seated, Refusal> {
+        self.join_perceiving(request, None).await
+    }
+
+    /// As [`WorldHost::join_with`], opening the `perceived` stream from a cursor (`PROTOCOL.md` §5.8).
+    pub async fn join_perceiving(
+        &self,
+        request: JoinRequest,
+        perceived: Option<PerceivedJoin>,
+    ) -> Result<Seated, Refusal> {
         let (reply, answer) = oneshot::channel();
         self.commands
-            .send(Command::Join { request, reply })
+            .send(Command::Join {
+                request,
+                perceived,
+                reply,
+            })
             .await
             .map_err(|_| Refusal::new(RefusalCode::WorldStopped))?;
         answer
@@ -389,9 +413,20 @@ impl WorldHost {
         observer: EntityId,
         request: ActionRequest,
     ) -> Result<Submitted, Refusal> {
+        self.submit_on(None, observer, request).await
+    }
+
+    /// As [`WorldHost::submit`], on a connection's behalf: its `acted_through` follows (§5.2).
+    pub async fn submit_on(
+        &self,
+        subscription: Option<SubscriptionId>,
+        observer: EntityId,
+        request: ActionRequest,
+    ) -> Result<Submitted, Refusal> {
         let (reply, answer) = oneshot::channel();
         self.commands
             .send(Command::Submit {
+                subscription,
                 observer,
                 request: Box::new(request),
                 reply,

@@ -83,8 +83,8 @@ pub use admission::{
     UNAUTHORIZED_DELAY, Unauthorized,
 };
 pub use host::{
-    HostConfig, HostError, HostedWorld, Perceived, SeatRoster, Seated, Submitted, SubscriptionId,
-    WorldHost,
+    Backfill, HostConfig, HostError, HostedWorld, Observations, Perceived, PerceivedStart,
+    SeatRoster, Seated, Streamed, Submitted, SubscriptionId, WireFact, WorldHost,
 };
 pub use hosted::{HostedAnswer, HostedController, HostedFactory};
 pub use mineworld_persistence::WorldRevision;
@@ -94,8 +94,8 @@ pub use perception::{
     Perception, PerceptionContext,
 };
 pub use protocol::{
-    ClientFrame, ClosingReason, CorrelationToken, PROTOCOL_VERSION, PayloadForm, ProtocolError,
-    Refusal, RefusalCode, ServerFrame, SessionId, SystemSummary, TookOver, WireObservation,
-    WirePayload, WorldInstanceId, WorldSummary, wire_fact,
+    ClientFrame, ClosingReason, CorrelationToken, PROTOCOL_VERSION, PayloadForm, PerceivedJoin,
+    ProtocolError, Refusal, RefusalCode, ServerFrame, SessionId, SystemSummary, TookOver,
+    WireObservation, WirePayload, WorldInstanceId, WorldSummary, wire_fact,
 };
 pub use seats::{Departure, JoinRequest};

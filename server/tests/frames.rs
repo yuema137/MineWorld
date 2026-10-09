@@ -15,13 +15,14 @@
 use std::path::PathBuf;
 
 use mineworld_contracts::{
-    ActionId, ActionResult, ActionTypeId, EntityId, EntityKey, EventId, EventTypeId, Observation,
-    SystemId, WorldTime,
+    ActionId, ActionResult, ActionTypeId, Causation, EntityId, EntityKey, EntityType, Event,
+    EventEnvelope, EventId, EventRecord, EventSchemaVersion, EventTypeId, Observation,
+    PerceivedEvent, PlaceId, Provenance, SystemId, Visibility, WorldTime,
 };
 use mineworld_server::{
-    ClientFrame, ClosingReason, CorrelationToken, Nickname, OfferedInvite, RefusalCode,
-    ResumeSecret, ServerFrame, SessionId, SystemSummary, TookOver, WorldInstanceId, WorldRevision,
-    WorldSummary,
+    ClientFrame, ClosingReason, CorrelationToken, Nickname, OfferedInvite, PayloadForm,
+    PerceivedJoin, RefusalCode, ResumeSecret, ServerFrame, SessionId, SystemSummary, TookOver,
+    WorldInstanceId, WorldRevision, WorldSummary, wire_fact,
 };
 use serde_json::Value;
 
@@ -113,6 +114,87 @@ fn join() {
             seat: key("visitor"),
             resume: None,
             take_over: false,
+            perceived: Some(PerceivedJoin {
+                since: Some(EventId::from_raw(1873)),
+            }),
+        },
+    );
+}
+
+/// A line said in a place, as a client receives it: the contract's envelope with the owning pack's
+/// JSON payload (`PROTOCOL.md` §5.2). Built through the server's own `wire_fact`, so the golden file
+/// pins the shape the server writes.
+fn spoke() -> PerceivedEvent<Value> {
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Spoke;
+    impl Event for Spoke {
+        const EVENT_TYPE: EventTypeId = EventTypeId::from_static("spoke");
+        const OWNER: SystemId = SystemId::from_static("conversation");
+        const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+    }
+    let cafe = PlaceId::new(EntityId::from_raw(3), EntityType::Place).expect("a place");
+    let fact = EventEnvelope::new(
+        EventId::from_raw(1890),
+        WorldTime::from_seconds(4100),
+        EventRecord::new::<Spoke>(br#"{"utterance":"hello"}"#.to_vec()),
+        Causation::Action(ActionId::from_raw(41)),
+        Visibility::Place(cafe),
+        Provenance::new(SystemId::from_static("conversation"))
+            .from_controller_decision(ActionId::from_raw(41)),
+    )
+    .about(vec![EntityId::from_raw(5)])
+    .with_participants(vec![EntityId::from_raw(5), EntityId::from_raw(7)])
+    .at_place(cafe);
+    let (event, form) = wire_fact(&fact).expect("renders");
+    assert_eq!(form, PayloadForm::Json);
+    event
+}
+
+#[test]
+fn perceived() {
+    server_frame_matches(
+        "perceived",
+        &ServerFrame::Perceived {
+            through: EventId::from_raw(1907),
+            events: vec![spoke()],
+        },
+    );
+}
+
+#[test]
+fn refused_cursor_unavailable() {
+    server_frame_matches(
+        "refused-cursor_unavailable",
+        &ServerFrame::Refused {
+            token: None,
+            code: RefusalCode::CursorUnavailable,
+            detail: Some("the cursor is newer than any fact this world has recorded".to_owned()),
+        },
+    );
+}
+
+#[test]
+fn refused_lagged() {
+    server_frame_matches(
+        "refused-lagged",
+        &ServerFrame::Refused {
+            token: None,
+            code: RefusalCode::Lagged,
+            detail: Some(
+                "the perceived stream fell too far behind; rejoin with resume and your cursor"
+                    .to_owned(),
+            ),
+        },
+    );
+}
+
+#[test]
+fn closing_lagged() {
+    server_frame_matches(
+        "closing-lagged",
+        &ServerFrame::Closing {
+            reason: ClosingReason::Lagged,
+            detail: None,
         },
     );
 }
@@ -173,7 +255,9 @@ fn observation() {
         &ServerFrame::Observation {
             seq: 1,
             revision: Some(WorldRevision::from_raw(7)),
-            observation: Observation::new(EntityId::from_raw(101), WorldTime::from_seconds(4112)),
+            acted_through: Some(ActionId::from_raw(41)),
+            observation: Observation::new(EntityId::from_raw(101), WorldTime::from_seconds(4112))
+                .with_events(vec![spoke()]),
         },
     );
 }
